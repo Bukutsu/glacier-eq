@@ -1,0 +1,15 @@
+[package]
+name = "glacier-core"
+version = "0.1.0"
+edition = "2021"
+description = "Core business logic for Glacier EQ — filter math, device protocols, and packet building. UI-agnostic, reusable from Tauri, CLI, or headless services."
+license = "MIT"
+authors = ["Bukutsu"]
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+thiserror = "2"
+log = "0.4"
+
+[lib]
+name = "glacier_core"
