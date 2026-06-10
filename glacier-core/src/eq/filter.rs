@@ -6,15 +6,20 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum FilterType {
-    #[serde(rename = "LSQ")]
+    #[serde(rename = "LSQ", alias = "LSC", alias = "LowShelf", alias = "Low Shelf")]
     LowShelf = 1,
-    #[serde(rename = "PK")]
+    #[serde(rename = "PK", alias = "Peak")]
     Peak = 2,
-    #[serde(rename = "HSQ")]
+    #[serde(
+        rename = "HSQ",
+        alias = "HSC",
+        alias = "HighShelf",
+        alias = "High Shelf"
+    )]
     HighShelf = 3,
-    #[serde(rename = "HP")]
+    #[serde(rename = "HP", alias = "HighPass", alias = "High Pass")]
     HighPass = 4,
-    #[serde(rename = "LP")]
+    #[serde(rename = "LP", alias = "LowPass", alias = "Low Pass")]
     LowPass = 5,
 }
 
@@ -74,7 +79,7 @@ pub struct Filter {
     pub freq: u16,
     pub gain: f64,
     pub q: f64,
-    #[serde(rename = "type")]
+    #[serde(rename = "type", alias = "filter_type")]
     pub filter_type: FilterType,
 }
 
@@ -106,7 +111,7 @@ impl Filter {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub struct PEQData {
     pub filters: Vec<Filter>,
-    #[serde(rename = "globalGain")]
+    #[serde(rename = "globalGain", alias = "global_gain")]
     pub global_gain: i8,
 }
 

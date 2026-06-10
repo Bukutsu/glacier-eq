@@ -1299,6 +1299,7 @@ dependencies = [
 name = "glacier-eq"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "glacier-core",
  "log",
  "serde",

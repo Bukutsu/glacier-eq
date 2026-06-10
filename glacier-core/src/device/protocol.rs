@@ -121,8 +121,6 @@ pub trait DeviceProtocol: Send + Sync {
 
     /// Instantiate a packet framer for this protocol's transport.
     fn framer(&self) -> Box<dyn crate::device::io::PacketFramer> {
-        Box::new(crate::device::io::HidPacketFramer::new(
-            self.report_id(),
-        ))
+        Box::new(crate::device::io::HidPacketFramer::new(self.report_id()))
     }
 }

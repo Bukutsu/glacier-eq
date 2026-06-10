@@ -7,6 +7,7 @@
 
 pub mod constants;
 pub mod filter;
+pub mod iir_math;
 
 pub use constants::*;
 pub use filter::{snap_freq_to_iso, snap_gain_step, snap_q_to_iso, Filter, FilterType, PEQData};
