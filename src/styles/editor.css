@@ -1,0 +1,89 @@
+.graph-card {
+  flex: 1 1 auto;
+  min-height: 280px;
+  padding: 16px 12px 12px;
+  display: flex;
+  min-width: 0;
+}
+
+.eq-canvas {
+  width: 100%;
+  height: 100%;
+  min-height: 260px;
+  display: block;
+  flex: 1;
+}
+
+.preamp-card {
+  height: 46px;
+  padding: 0 14px;
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  align-items: center;
+  gap: 12px;
+}
+
+.preamp-card strong, .bands-header, .diag-head strong {
+  font-size: var(--type-caption);
+  color: var(--text);
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+input[type="range"] { appearance: none; width: 100%; height: 4px; background: var(--bg-dark); outline: 0; }
+input[type="range"]::-webkit-slider-thumb { appearance: none; width: 8px; height: 20px; background: var(--blue); border: 0; }
+input[type="range"]::-moz-range-thumb { width: 8px; height: 20px; border: 0; border-radius: 0; background: var(--blue); }
+
+.gain-cell input[type="range"] { flex: 1; }
+.band-row:nth-child(n+7) .gain-cell input[type="range"]::-webkit-slider-thumb { background: var(--orange); }
+.band-row:nth-child(n+7) .gain-cell input[type="range"]::-moz-range-thumb { background: var(--orange); }
+
+.bands-grid {
+  flex: 0 0 306px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  min-height: 0;
+}
+
+.bands-card { padding: 10px 14px 12px; overflow: hidden; }
+
+.bands-header, .band-row {
+  display: grid;
+  grid-template-columns: 44px 184px 96px minmax(210px, 1fr) 70px;
+  gap: 10px;
+  align-items: center;
+}
+
+.bands-header {
+  height: 28px;
+  border-bottom: 1px solid var(--line);
+  color: var(--text);
+  font-size: 12px;
+}
+
+.bands-header span:nth-child(4) { padding-left: 4px; }
+.band-row { height: 52px; color: var(--text); }
+.band-row.muted { opacity: .45; }
+.band-index { color: var(--cyan); background: transparent; padding: 0; text-align: left; font-weight: 900; }
+
+.type-buttons { display: grid; grid-template-columns: repeat(5, 34px); gap: 0; }
+.type-buttons button { height: 31px; background: var(--surface-soft); color: var(--muted); padding: 0; }
+.type-buttons button.selected { background: var(--cyan); color: var(--bg-dark); }
+
+.num-input {
+  width: 100%;
+  height: 32px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  outline: 0;
+  padding: 0 2px;
+  font-family: var(--font-mono);
+  font-size: var(--type-label);
+}
+
+.num-input:focus { background: var(--surface); outline: 1px solid var(--cyan); }
+.num-input.gain, .num-input.q { text-align: right; }
+.gain-cell { display: flex; align-items: center; gap: 10px; }
+.gain-cell .gain { width: 56px; }

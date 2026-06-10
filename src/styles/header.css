@@ -1,0 +1,54 @@
+.app-header {
+  min-height: 96px;
+  padding: 24px 18px 20px;
+  background: var(--bg);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.selection-header {
+  min-height: 104px;
+  padding: 28px 32px 18px;
+  border-bottom: 1px solid rgba(65, 72, 104, 0.35);
+  justify-content: flex-start;
+}
+
+.selection-header .title-line { gap: 14px; }
+.selection-header h1 { font-size: var(--type-title); }
+
+.selection-header .device-name {
+  color: var(--muted);
+  font-size: var(--type-body);
+  font-weight: 400;
+}
+
+.title-stack { display: flex; flex-direction: column; gap: 6px; }
+.title-line { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+h1 {
+  margin: 0;
+  color: var(--cyan);
+  font-size: var(--type-title);
+  line-height: 1.15;
+  letter-spacing: 0;
+  font-weight: 700;
+}
+
+.title-line strong { color: var(--muted); font-size: var(--type-body); font-weight: 700; }
+.dash { color: var(--muted); font-size: var(--type-body); }
+.device-name { color: var(--cyan); font-size: var(--type-body); font-weight: 700; letter-spacing: 0; }
+.sync-dot { font-size: var(--type-caption); }
+.sync-dot.ok { color: var(--green); }
+.sync-dot.offline { color: var(--muted); }
+
+.unsaved {
+  color: var(--yellow);
+  border: 1px solid var(--yellow);
+  padding: 2px 8px;
+  font-size: 11px;
+  background: rgba(224,175,104,.10);
+}
+
+.toolbar { display: flex; gap: 10px; }

@@ -1,0 +1,16 @@
+@media (max-width: 1279px) {
+  .workspace { grid-template-columns: 1fr; overflow: auto; }
+  .right-rail { grid-template-rows: auto auto; }
+  .graph-card { height: 320px; flex: none; }
+  .bands-grid { flex-basis: auto; }
+}
+
+@media (max-width: 960px) {
+  body { overflow: auto; }
+  #app { min-height: 100vh; height: auto; overflow: visible; }
+  .app-header { flex-direction: column; }
+  .workspace { display: flex; flex-direction: column; overflow: visible; }
+  .bands-grid { grid-template-columns: 1fr; }
+  .bands-header, .band-row { grid-template-columns: 36px 174px 80px minmax(160px,1fr) 54px; font-size: 12px; }
+  .right-rail { display: flex; flex-direction: column; }
+}
