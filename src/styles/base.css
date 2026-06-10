@@ -1,0 +1,89 @@
+@font-face {
+  font-family: "Material Icons";
+  src: url("/MaterialIcons-Regular.ttf") format("truetype");
+}
+
+* { box-sizing: border-box; }
+
+:root {
+  --bg: #1a1b26;
+  --bg-dark: #16161e;
+  --panel: #1f2335;
+  --surface: #292e42;
+  --surface-soft: #24283b;
+  --text: #c0caf5;
+  --muted: #a9b1d6;
+  --comment: #565f89;
+  --cyan: #7dcfff;
+  --blue: #7aa2f7;
+  --green: #9ece6a;
+  --orange: #ff9e64;
+  --yellow: #e0af68;
+  --red: #f7768e;
+  --line: rgba(65, 72, 104, 0.55);
+  --font-ui: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", Consolas, monospace;
+  --type-title: 22px;
+  --type-subtitle: 18px;
+  --type-body: 16px;
+  --type-label: 13px;
+  --type-caption: 11px;
+  font-family: var(--font-ui);
+  color: var(--text);
+  background: var(--bg);
+}
+
+html, body, #root { height: 100%; margin: 0; }
+body { overflow: hidden; }
+button, input { font: inherit; }
+button { border: 0; cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: .5; }
+
+#app {
+  width: 100vw;
+  height: 100vh;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.material-icon {
+  font-family: "Material Icons";
+  font-weight: normal;
+  font-style: normal;
+  font-size: 20px;
+  line-height: 1;
+  display: inline-block;
+  text-transform: none;
+  letter-spacing: normal;
+  white-space: nowrap;
+  direction: ltr;
+  -webkit-font-feature-settings: "liga";
+  -webkit-font-smoothing: antialiased;
+}
+
+.btn, .tools-card button, .diag-card button, .device-actions button {
+  background: var(--surface-soft);
+  color: var(--muted);
+  min-height: 42px;
+  padding: 0 18px;
+  border-radius: 0;
+  transition: filter .12s, background .12s, color .12s;
+}
+
+.btn:hover:not(:disabled), .tools-card button:hover, .diag-card button:hover { filter: brightness(1.14); }
+.btn.filled, button.save { background: var(--cyan); color: var(--bg-dark); }
+
+.status-banner {
+  height: 32px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 16px;
+  background: var(--blue);
+  color: var(--bg-dark);
+  font-size: 14px;
+}
+
+.status-banner button { margin-left: auto; background: transparent; color: var(--bg-dark); }
