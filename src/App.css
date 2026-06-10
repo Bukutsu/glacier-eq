@@ -58,6 +58,7 @@ header h1 {
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  margin: 0;
 }
 
 #device-bar {
@@ -80,7 +81,7 @@ button {
 }
 
 select:hover,
-button:hover {
+button:hover:not(:disabled) {
   background: var(--surface-2);
   border-color: var(--accent-dim);
 }
@@ -91,34 +92,15 @@ button:disabled {
   cursor: not-allowed;
 }
 
-button:active {
+button:active:not(:disabled) {
   transform: scale(0.97);
 }
 
-#connect-btn {
-  background: var(--accent);
-  color: #fff;
-  border: none;
-  font-weight: 600;
-}
-
-#connect-btn:hover {
-  background: var(--accent-dim);
-}
-
-/* ── EQ Graph ────────────────────────────────────────────────── */
+/* ── Graph ───────────────────────────────────────────────────── */
 #graph-section {
   flex-shrink: 0;
   padding: 20px 0;
   border-bottom: 1px solid var(--border);
-}
-
-#eq-graph {
-  width: 100%;
-  height: 280px;
-  background: var(--surface);
-  border-radius: 8px;
-  display: block;
 }
 
 /* ── Bands ───────────────────────────────────────────────────── */
@@ -126,20 +108,11 @@ button:active {
   flex: 1;
   overflow-y: auto;
   padding: 12px 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-#bands-container {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
 }
 
 .band-row {
   display: grid;
-  grid-template-columns: 28px 48px 1fr 80px 70px 70px 36px;
+  grid-template-columns: 28px 90px 1fr 80px 80px 80px 36px;
   align-items: center;
   gap: 8px;
   padding: 4px 8px;
@@ -262,7 +235,8 @@ footer {
     grid-template-columns: 24px 1fr 60px 60px;
   }
   .band-row select,
-  .band-row .value:nth-child(4) {
+  .band-row .value:nth-child(5),
+  .band-row .value:nth-child(6) {
     display: none;
   }
 }

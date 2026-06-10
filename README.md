@@ -3,19 +3,20 @@
 **Cross-platform parametric EQ editor for USB DACs.**  
 Desktop (Linux, Windows, macOS) and Android, one codebase.
 
-Built with [Tauri v2](https://v2.tauri.app/) + [Rust](https://www.rust-lang.org/) + [TypeScript](https://www.typescriptlang.org/).
+Built with [Tauri v2](https://v2.tauri.app/) + [React](https://react.dev/) + [Rust](https://www.rust-lang.org/).
 
 ## Status
 
-🚧 **Early development** — the Tauri reimplementation of [Frost-Tune](https://github.com/bukutsu/frost-tune).
+🚧 **Early development** — the Tauri + React reimplementation of [Frost-Tune](https://github.com/bukutsu/frost-tune).
 
 - [x] Project scaffold + workspace structure
 - [x] Core crate extracted (filter math, device protocols, error types)
-- [x] Tauri backend with HID plugin wired up
+- [x] Tauri backend with HID plugin
+- [x] React frontend — EQ graph, band controls, device connect workflow
 - [ ] Device protocol implementations ported
-- [ ] EQ editor UI (bands, graph, presets)
-- [ ] USB HID communication via `tauri-plugin-hid`
+- [ ] USB HID read/write pipeline
 - [ ] Android build pipeline
+- [ ] Profile persistence
 - [ ] AutoEQ integration
 
 ## Architecture
@@ -26,39 +27,30 @@ glacier-eq/
 ├── glacier-core/           # shared Rust library (UI-agnostic)
 │   ├── src/eq/             # filter types, IIR math, constants
 │   ├── src/device/         # DeviceProtocol trait, profiles, packet framing
-│   ├── src/error.rs        # AppError, ErrorKind
-│   └── src/autoeq.rs       # AutoEQ import/apply logic
+│   └── src/error.rs        # AppError, ErrorKind
 ├── src-tauri/              # Tauri Rust backend
-│   ├── src/lib.rs          # Tauri commands (HID, EQ operations)
-│   ├── src/main.rs         # Entry point
-│   └── tauri.conf.json     # Window, bundle config
-├── src/                    # Web frontend (vanilla TypeScript)
-│   ├── main.ts             # UI logic, graph rendering, Tauri IPC
-│   └── styles.css          # App styling
-└── package.json            # Node dependencies
+│   ├── src/lib.rs          # Tauri commands (HID enumerate, EQ get/set)
+│   └── tauri.conf.json     # window, bundle config
+├── src/                    # React + TypeScript frontend
+│   ├── App.tsx             # EQ editor — graph, bands, device controls
+│   └── App.css             # dark theme, responsive layout
+└── package.json
 ```
 
 ## Getting Started
 
 ```bash
-# Install dependencies
 npm install
-
-# Desktop development
-npm run tauri dev
-
-# Android setup (first time)
-npm run tauri android init
-
-# Android development
-npm run tauri android dev
+npm run tauri dev            # Desktop development
+npm run tauri android init   # Android setup (first time)
+npm run tauri android dev    # Android development
 ```
 
 ## Supported Devices
 
-*To be documented as protocols are ported.*  
+*To be documented as protocols are ported from Frost-Tune.*
 Currently expected: WalkPlay, TP35Pro, and similar USB DACs with HID-based PEQ control.
 
 ## License
 
-MIT — see [LICENSE](./LICENSE).
+MIT

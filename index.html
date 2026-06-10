@@ -2,58 +2,13 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="stylesheet" href="/src/styles.css" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Glacier EQ</title>
-    <script type="module" src="/src/main.ts" defer></script>
   </head>
 
   <body>
-    <div id="app">
-      <!-- Header -->
-      <header>
-        <h1>Glacier EQ</h1>
-        <div id="device-bar">
-          <button id="scan-btn">🔍 Scan</button>
-          <select id="device-select" disabled>
-            <option value="">No device connected</option>
-          </select>
-          <button id="connect-btn" disabled>Connect</button>
-        </div>
-      </header>
-
-      <!-- Main layout -->
-      <main>
-        <!-- EQ Graph -->
-        <section id="graph-section">
-          <canvas id="eq-graph" width="800" height="300"></canvas>
-        </section>
-
-        <!-- Band controls -->
-        <section id="bands-section">
-          <div id="bands-container"></div>
-        </section>
-
-        <!-- Global controls -->
-        <section id="controls-section">
-          <div class="control-row">
-            <label>Global Gain</label>
-            <div class="slider-group">
-              <input type="range" id="global-gain" min="-16" max="6" value="0" step="1" />
-              <span id="global-gain-value">0 dB</span>
-            </div>
-          </div>
-          <div class="control-row">
-            <button id="flat-btn">Reset to Flat</button>
-            <button id="apply-btn" disabled>Apply to Device</button>
-          </div>
-        </section>
-      </main>
-
-      <!-- Status -->
-      <footer>
-        <span id="status">Disconnected — click Scan to find your DAC</span>
-      </footer>
-    </div>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
