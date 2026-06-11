@@ -20,6 +20,7 @@ depends=(
   'gdk-pixbuf2'
   'pango'
   'libsoup3'
+  'hidapi'
 )
 makedepends=(
   'git'
