@@ -30,3 +30,7 @@ target/
 src-tauri/gen/
 *.apk
 *.aab
+test-results/
+playwright-report/
+playwright.config.ts
+e2e/

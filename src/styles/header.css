@@ -1,6 +1,6 @@
 .app-header {
-  min-height: 96px;
-  padding: 24px 18px 20px;
+  min-height: 94px;
+  padding: 24px 20px 18px;
   background: var(--bg);
   display: flex;
   align-items: flex-start;
@@ -24,7 +24,7 @@
   font-weight: 400;
 }
 
-.title-stack { display: flex; flex-direction: column; gap: 6px; }
+.title-stack { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
 .title-line { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 
 h1 {
@@ -51,4 +51,4 @@ h1 {
   background: rgba(224,175,104,.10);
 }
 
-.toolbar { display: flex; gap: 10px; }
+.toolbar { display: flex; gap: 10px; align-items: center; }
