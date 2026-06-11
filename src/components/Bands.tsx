@@ -1,4 +1,4 @@
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { FILTER_TYPES, TYPE_LABELS } from "../constants";
 import type { Filter, PEQData } from "../types";
 import { Icon } from "./Icon";
@@ -12,7 +12,11 @@ interface BandsProps {
 }
 
 export function Bands({ peq, onFilterChange, onStartChange }: BandsProps) {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(() => localStorage.getItem("glacier-bands-collapsed") === "true");
+
+  useEffect(() => {
+    localStorage.setItem("glacier-bands-collapsed", isCollapsed.toString());
+  }, [isCollapsed]);
   const columns = [peq.filters.slice(0, 5), peq.filters.slice(5)];
 
   return (
