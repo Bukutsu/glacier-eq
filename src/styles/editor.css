@@ -241,7 +241,7 @@
 
 .control-slider-input::-webkit-slider-runnable-track {
   height: 2px;
-  background: rgba(var(--cyan-rgb), 0.28);
+  background: rgb(var(--cyan-rgb) / 0.28);
   border: 0;
 }
 
@@ -256,7 +256,7 @@
 
 .control-slider-input::-moz-range-track {
   height: 2px;
-  background: rgba(var(--cyan-rgb), 0.28);
+  background: rgb(var(--cyan-rgb) / 0.28);
   border: 0;
 }
 
