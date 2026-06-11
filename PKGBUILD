@@ -2,7 +2,7 @@
 # Source: https://github.com/Bukutsu/glacier-eq
 
 pkgname=glacier-eq-git
-pkgver=r81.e6a9b39
+pkgver=r85.d000016
 pkgrel=1
 pkgdesc="Cross-platform parametric EQ editor for USB DACs. Offline, direct, and built for dense tuning work on desktop and Android."
 arch=('x86_64' 'aarch64')
@@ -56,7 +56,7 @@ prepare() {
 
 build() {
   cd glacier-eq
-  npm run tauri build --no-bundle
+  npm run tauri -- build --no-bundle
 }
 
 package() {
