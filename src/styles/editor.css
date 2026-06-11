@@ -86,7 +86,7 @@
   gap: 6px;
 }
 
-.target-add .material-icon {
+.target-add .material-symbols-outlined {
   font-size: 18px;
 }
 
@@ -189,7 +189,7 @@
   justify-content: center;
 }
 
-.target-chip-delete .material-icon {
+.target-chip-delete .material-symbols-outlined {
   font-size: 16px;
 }
 
