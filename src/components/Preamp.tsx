@@ -15,20 +15,23 @@ export function Preamp({
     <section className="preamp-card">
       <div className="preamp-meta">
         <strong>Preamp</strong>
-        <input
-          className="num-input preamp-value"
-          type="text"
-          inputMode="decimal"
-          aria-label="Preamp gain value"
-          value={`${clamped}`}
-          onFocus={onStartChange}
-          onChange={(event) => {
-            const parsed = parseFloat(event.target.value);
-            if (!Number.isNaN(parsed)) {
-              onChange(Math.max(-16, Math.min(6, parsed)));
-            }
-          }}
-        />
+        <div className="preamp-value-row">
+          <input
+            className="num-input preamp-value"
+            type="text"
+            inputMode="decimal"
+            aria-label="Preamp gain value"
+            value={`${clamped}`}
+            onFocus={onStartChange}
+            onChange={(event) => {
+              const parsed = parseFloat(event.target.value);
+              if (!Number.isNaN(parsed)) {
+                onChange(Math.max(-16, Math.min(6, parsed)));
+              }
+            }}
+          />
+          <span className="preamp-unit">dB</span>
+        </div>
       </div>
       <Slider
         aria-label="Preamp gain"
