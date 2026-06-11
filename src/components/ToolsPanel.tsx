@@ -1,13 +1,15 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { DEFAULT_PROFILE_NAME } from "../constants";
-import type { Profile } from "../types";
+import type { Profile, PEQData } from "../types";
 import { Icon } from "./Icon";
 
 type ToolsTab = "Preset" | "Import" | "Settings";
 
 interface ToolsPanelProps {
+  peq: PEQData;
+  onImportPEQ: (data: PEQData, name: string, isSaved: boolean) => void;
   profiles: Profile[];
   selectedPreset: string;
   profileSearch: string;
@@ -20,6 +22,7 @@ interface ToolsPanelProps {
   onReset: () => void;
   onSave: () => void;
   onDelete: () => void;
+  setStatus: (value: string) => void;
 }
 
 export function ToolsPanel(props: ToolsPanelProps) {
@@ -30,7 +33,13 @@ export function ToolsPanel(props: ToolsPanelProps) {
       <section className="tools-card">
         <TabStrip active={tab} onSelect={setTab} />
         {tab === "Preset" && <PresetTab {...props} />}
-        {tab === "Import" && <ImportTab />}
+        {tab === "Import" && <ImportTab
+          peq={props.peq}
+          profiles={props.profiles}
+          onImportPEQ={props.onImportPEQ}
+          onReloadProfiles={props.onReloadProfiles}
+          setStatus={props.setStatus}
+        />}
         {tab === "Settings" && <SettingsTab />}
         <ToolActions {...props} />
       </section>
@@ -104,10 +113,250 @@ function PresetTab({
   );
 }
 
-function ImportTab() {
+interface ImportTabProps {
+  peq: PEQData;
+  profiles: Profile[];
+  onImportPEQ: (data: PEQData, name: string, isSaved: boolean) => void;
+  onReloadProfiles: () => void;
+  setStatus: (msg: string) => void;
+}
+
+interface ParsedResult {
+  peq: PEQData;
+  headphone_name: string | null;
+  warnings: string[];
+}
+
+function ImportTab({ peq, profiles, onImportPEQ, onReloadProfiles, setStatus }: ImportTabProps) {
+  const [parsed, setParsed] = useState<ParsedResult | null>(null);
+  const [importName, setImportName] = useState("");
+  const [isTemporary, setIsTemporary] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImportFileClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.endsWith(".txt")) {
+      setStatus("Error: Only .txt AutoEQ files are supported.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const text = event.target?.result as string;
+      await parseAndLoadText(text, file.name.replace(/\.[^/.]+$/, ""));
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  };
+
+  const parseAndLoadText = async (text: string, defaultNameFallback: string) => {
+    try {
+      const result = await invoke<ParsedResult>("parse_autoeq", { text });
+      setParsed(result);
+      const initialName = result.headphone_name || defaultNameFallback || "Imported Profile";
+      setImportName(initialName);
+      setIsTemporary(false);
+      setStatus("AutoEQ profile parsed successfully");
+    } catch (error) {
+      setStatus(`Import failed: ${error}`);
+    }
+  };
+
+  const handlePaste = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text || !text.trim()) {
+        setStatus("Clipboard is empty or not text.");
+        return;
+      }
+      await parseAndLoadText(text, `Pasted ${new Date().toLocaleDateString()}`);
+    } catch (err) {
+      setStatus("Unable to read clipboard. Check permissions.");
+      console.error(err);
+    }
+  };
+
+  const handleCopy = async () => {
+    try {
+      const text = await invoke<string>("peq_to_autoeq", { peq });
+      await navigator.clipboard.writeText(text);
+      setStatus("EQ settings copied to clipboard");
+    } catch (err) {
+      setStatus(`Copy failed: ${err}`);
+    }
+  };
+
+  const handleExportFile = async () => {
+    try {
+      const text = await invoke<string>("peq_to_autoeq", { peq });
+      const blob = new Blob([text], { type: "text/plain" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${(importName || "eq_profile").replace(/[^a-zA-Z0-9_\- ]/g, "")}.txt`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setStatus("EQ settings exported to file");
+    } catch (err) {
+      setStatus(`Export failed: ${err}`);
+    }
+  };
+
+  const handleConfirm = async () => {
+    if (!parsed) return;
+
+    if (isTemporary) {
+      onImportPEQ(parsed.peq, importName || "Imported EQ", false);
+      setParsed(null);
+      setStatus("Imported preset applied directly to active EQ (temporary)");
+    } else {
+      const name = importName.trim();
+      if (!name) {
+        setStatus("Please enter a name for the preset.");
+        return;
+      }
+      try {
+        await invoke("save_profile", { name, peq: parsed.peq });
+        await onReloadProfiles();
+        onImportPEQ(parsed.peq, name, true);
+        setParsed(null);
+        setStatus(`Preset '${name}' saved successfully`);
+      } catch (err) {
+        setStatus(`Save failed: ${err}`);
+      }
+    }
+  };
+
+  const handleCancel = () => {
+    setParsed(null);
+  };
+
+  if (!parsed) {
+    return (
+      <div className="import-grid">
+        <input
+          type="file"
+          ref={fileInputRef}
+          style={{ display: "none" }}
+          accept=".txt"
+          onChange={handleFileChange}
+        />
+        <button onClick={handleImportFileClick}>Import File</button>
+        <button onClick={handlePaste}>Paste</button>
+        <button onClick={handleExportFile}>Export File</button>
+        <button onClick={handleCopy}>Copy</button>
+      </div>
+    );
+  }
+
+  const nameExists = !isTemporary && profiles.some((p) => p.name.toLowerCase() === importName.trim().toLowerCase());
+  const activeFilters = parsed.peq.filters.filter((f) => f.enabled);
+
   return (
-    <div className="import-grid">
-      <button>Import File</button><button>Paste</button><button>Export File</button><button>Copy</button>
+    <div className="import-flow">
+      <div className="import-flow-header">
+        <strong>Import Profile</strong>
+      </div>
+
+      <div className="import-mode-tabs">
+        <button
+          className={!isTemporary ? "active" : ""}
+          onClick={() => setIsTemporary(false)}
+        >
+          Save to Preset
+        </button>
+        <button
+          className={isTemporary ? "active" : ""}
+          onClick={() => setIsTemporary(true)}
+        >
+          Try (Temporary)
+        </button>
+      </div>
+
+      <div className="import-flow-content">
+        {!isTemporary ? (
+          <div className="import-field-group">
+            <label htmlFor="import-name">Preset Name</label>
+            <input
+              id="import-name"
+              type="text"
+              value={importName}
+              onChange={(e) => setImportName(e.target.value)}
+              placeholder="Preset Name…"
+            />
+            {profiles.length > 0 && (
+              <div className="import-field-group" style={{ marginTop: "8px" }}>
+                <label htmlFor="overwrite-select">Or Overwrite Existing:</label>
+                <select
+                  id="overwrite-select"
+                  value={profiles.some((p) => p.name === importName) ? importName : ""}
+                  onChange={(e) => {
+                    if (e.target.value) setImportName(e.target.value);
+                  }}
+                  className="import-select"
+                >
+                  <option value="">-- Select profile --</option>
+                  {profiles.map((p) => (
+                    <option key={p.name} value={p.name}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {nameExists && (
+              <span className="import-overwrite-warning">
+                ⚠️ Preset already exists. Saving will overwrite it.
+              </span>
+            )}
+          </div>
+        ) : (
+          <div className="import-temp-info">
+            Apply the parsed EQ filters directly to the editor. Unsaved changes will be replaced.
+          </div>
+        )}
+
+        <div className="import-preview-section">
+          <span>Filters Preview:</span>
+          <div className="import-preview-box">
+            {activeFilters.length === 0 ? (
+              <div className="empty-preview">No active filters (preamp only)</div>
+            ) : (
+              activeFilters.map((f, idx) => (
+                <div key={idx} className="preview-line">
+                  Band {f.index + 1}: {f.filter_type} fc {f.freq}Hz, gain {f.gain.toFixed(1)}dB, Q {f.q.toFixed(2)}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {parsed.warnings.length > 0 && (
+          <div className="import-warnings-section">
+            <span>Compatibility Adjustments:</span>
+            <div className="import-warnings-box">
+              {parsed.warnings.map((w, idx) => (
+                <div key={idx} className="warning-line">
+                  • {w}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="import-flow-actions">
+        <button className="btn" onClick={handleCancel}>Cancel</button>
+        <button className="btn filled" onClick={handleConfirm}>
+          {isTemporary ? "Apply to EQ" : "Save Preset"}
+        </button>
+      </div>
     </div>
   );
 }

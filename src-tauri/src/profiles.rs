@@ -1,9 +1,11 @@
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: MIT
 
+use crate::state::DeviceState;
 use glacier_core::eq::PEQData;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ProfileDto {
@@ -218,4 +220,42 @@ fn open_dir(_dir: &Path) -> std::io::Result<std::process::Child> {
         std::io::ErrorKind::Unsupported,
         "opening profile folders is not supported on this platform",
     ))
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct AutoEqParseResult {
+    pub peq: PEQData,
+    pub headphone_name: Option<String>,
+    pub warnings: Vec<String>,
+}
+
+#[tauri::command]
+pub fn parse_autoeq(
+    text: String,
+    state: tauri::State<'_, Mutex<DeviceState>>,
+) -> Result<AutoEqParseResult, String> {
+    let (mut peq, headphone_name, mut warnings) = glacier_core::autoeq::parse_autoeq_text(&text)
+        .map_err(|err| err.to_string())?;
+
+    let caps = if let Some(connected) = &state.lock().unwrap().connected {
+        glacier_core::device::get_device_profile(connected.vendor_id, connected.product_id)
+            .map(|profile| profile.capabilities())
+            .unwrap_or(glacier_core::device::capabilities::DESKTOP_DAC_CAPS)
+    } else {
+        glacier_core::device::capabilities::DESKTOP_DAC_CAPS
+    };
+
+    let mut clamp_warnings = peq.clamp_to_capabilities(&caps);
+    warnings.append(&mut clamp_warnings);
+
+    Ok(AutoEqParseResult {
+        peq,
+        headphone_name,
+        warnings,
+    })
+}
+
+#[tauri::command]
+pub fn peq_to_autoeq(peq: PEQData) -> Result<String, String> {
+    Ok(glacier_core::autoeq::peq_to_autoeq(&peq))
 }
