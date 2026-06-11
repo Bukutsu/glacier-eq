@@ -11,10 +11,6 @@
 *** Reference style links are used below for readability.
 *** See the bottom of this document for the declaration of reference variables.
 -->
-[![Contributors][contributors-shield]][contributors-url]
-[![Forks][forks-shield]][forks-url]
-[![Stargazers][stars-shield]][stars-url]
-[![Issues][issues-shield]][issues-url]
 [![MIT License][license-shield]][license-url]
 
 
@@ -327,24 +323,14 @@ Project Link: [https://github.com/Bukutsu/glacier-eq](https://github.com/Bukutsu
 * [hidapi](https://github.com/libusb/hidapi)
 * [Playwright](https://playwright.dev/)
 * [devicePEQ](https://github.com/jeromeof/devicePEQ) for reverse-engineered DAC protocols
-* [Shields.io](https://shields.io/)
-
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 
 
 <!-- MARKDOWN LINKS & IMAGES -->
 <!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
-[contributors-shield]: https://img.shields.io/github/contributors/Bukutsu/glacier-eq.svg?style=for-the-badge
-[contributors-url]: https://github.com/Bukutsu/glacier-eq/graphs/contributors
-[forks-shield]: https://img.shields.io/github/forks/Bukutsu/glacier-eq.svg?style=for-the-badge
-[forks-url]: https://github.com/Bukutsu/glacier-eq/network/members
-[stars-shield]: https://img.shields.io/github/stars/Bukutsu/glacier-eq.svg?style=for-the-badge
-[stars-url]: https://github.com/Bukutsu/glacier-eq/stargazers
-[issues-shield]: https://img.shields.io/github/issues/Bukutsu/glacier-eq.svg?style=for-the-badge
-[issues-url]: https://github.com/Bukutsu/glacier-eq/issues
 [license-shield]: https://img.shields.io/github/license/Bukutsu/glacier-eq.svg?style=for-the-badge
-[license-url]: https://github.com/Bukutsu/glacier-eq/blob/master/LICENSE
+[license-url]: https://github.com/Bukutsu/glacier-eq/blob/main/LICENSE
 [Tauri]: https://img.shields.io/badge/Tauri-24C8D8?style=for-the-badge&logo=tauri&logoColor=white
 [Tauri-url]: https://v2.tauri.app/
 [React.js]: https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB
