@@ -247,7 +247,7 @@ function PresetTab({
         ))}
       </div>
       <small className="modified">
-        {selectedProfile?.modified ? `Modified: ${selectedProfile.modified}` : "Profiles: Frost-Tune data folder"}
+        {selectedProfile?.modified ? `Modified: ${selectedProfile.modified}` : "Profiles: Glacier data folder"}
       </small>
       <label className="check-line"><input type="checkbox" defaultChecked /> Snap to ISO frequencies</label>
       <input

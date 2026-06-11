@@ -7,7 +7,7 @@ Built with [Tauri v2](https://v2.tauri.app/) + [React](https://react.dev/) + [Ru
 
 ## Status
 
-🚧 **Early development** — the Tauri + React reimplementation of [Frost-Tune](https://github.com/bukutsu/frost-tune).
+🚧 **Early development** — the Tauri + React implementation of Glacier EQ.
 
 - [x] Project scaffold + workspace structure
 - [x] Core crate extracted (filter math, device protocols, error types)
@@ -97,7 +97,7 @@ Use `npm run android:apk:release` only after release signing is configured.
 
 ## Supported Devices
 
-*To be documented as protocols are ported from Frost-Tune.*
+*To be documented as protocols are ported from the legacy implementation.*
 Currently expected: WalkPlay, TP35Pro, and similar USB DACs with HID-based PEQ control.
 
 ## License

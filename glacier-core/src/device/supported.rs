@@ -3,7 +3,7 @@
 
 //! Static registry of supported USB DACs.
 //!
-//! Mirrors Frost-Tune's compiled-in device registry, but keeps this layer limited to
+//! Mirrors the compiled-in device registry, but keeps this layer limited to
 //! identity/capability metadata so the Tauri frontend can filter HID enumeration before
 //! anything is shown to the user.
 
