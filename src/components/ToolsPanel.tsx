@@ -87,7 +87,7 @@ interface MeasureTabProps {
   setStatus: (msg: string) => void;
 }
 
-function MeasureTab({
+export function MeasureTab({
   measurements,
   onAddMeasurement,
   onRemoveMeasurement,
