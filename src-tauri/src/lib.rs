@@ -4,6 +4,7 @@
 //! Tauri backend for Glacier EQ.
 
 mod device_commands;
+mod diagnostics;
 mod profiles;
 mod settings;
 mod state;
@@ -11,12 +12,14 @@ mod walkplay;
 
 use std::sync::Mutex;
 
+use diagnostics::DiagnosticsStore;
 use state::DeviceState;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .manage(Mutex::new(DeviceState::default()))
+        .manage(Mutex::new(DiagnosticsStore::default()))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_hid::init())
         .invoke_handler(tauri::generate_handler![
@@ -31,6 +34,9 @@ pub fn run() {
             device_commands::disconnect_device,
             settings::get_settings,
             settings::save_settings,
+            diagnostics::get_diagnostics,
+            diagnostics::clear_diagnostics,
+            diagnostics::add_diagnostic_event,
         ])
         .run(tauri::generate_context!())
         .expect("error while running glacier-eq");

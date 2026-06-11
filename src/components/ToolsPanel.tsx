@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { DEFAULT_PROFILE_NAME } from "../constants";
 import type { Profile } from "../types";
 import { Icon } from "./Icon";
@@ -181,24 +182,99 @@ function ToolActions({ selectedPreset, profiles, onReset, onSave, onDelete }: To
   );
 }
 
+interface DiagnosticEvent {
+  timestamp: string;
+  level: "Info" | "Warn" | "Error";
+  source: "UI" | "Worker" | "HID" | "AutoEQ";
+  message: string;
+}
+
 function DiagnosticsPanel() {
-  const lines = [
-    "Status set: Device matches profile: TE Nova Diamond B",
-    "Pull successful",
-    "Reading from device...",
-    "Connected to EPZ TP35 Pro",
-  ];
+  const [events, setEvents] = useState<DiagnosticEvent[]>([]);
+
+  useEffect(() => {
+    invoke<DiagnosticEvent[]>("get_diagnostics")
+      .then((data) => setEvents(data))
+      .catch((err) => console.error("Failed to load diagnostics:", err));
+
+    let unlisten: () => void = () => {};
+    
+    listen<DiagnosticEvent>("diagnostic-event", (event) => {
+      setEvents((prev) => [...prev, event.payload].slice(-500));
+    }).then((fn) => {
+      unlisten = fn;
+    });
+
+    return () => {
+      unlisten();
+    };
+  }, []);
+
+  const clearLogs = async () => {
+    try {
+      await invoke("clear_diagnostics");
+      setEvents([]);
+    } catch (err) {
+      console.error("Failed to clear diagnostics:", err);
+    }
+  };
+
+  const getFormattedLogs = () => {
+    return events
+      .map((e) => `${e.timestamp} [${e.level.toUpperCase()}] [${e.source}] ${e.message}`)
+      .join("\n");
+  };
+
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(getFormattedLogs());
+    } catch (err) {
+      console.error("Failed to copy logs:", err);
+    }
+  };
+
+  const exportLogs = async () => {
+    try {
+      const blob = new Blob([getFormattedLogs()], { type: "text/plain" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `frost_tune_diagnostics_${new Date().toISOString().slice(0, 10)}.log`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Failed to export logs:", err);
+    }
+  };
+
+  const errorCount = events.filter((e) => e.level === "Error").length;
+  const warnCount = events.filter((e) => e.level === "Warn").length;
+  const infoCount = events.filter((e) => e.level === "Info").length;
 
   return (
     <section className="diag-card">
       <div className="diag-head">
-        <strong>DIAGNOSTICS</strong><Icon>warning</Icon><button>Copy</button><button>Clear</button><button>Export</button>
+        <strong>DIAGNOSTICS</strong>
+        <Icon>warning</Icon>
+        <button onClick={copyToClipboard}>Copy</button>
+        <button onClick={clearLogs}>Clear</button>
+        <button onClick={exportLogs}>Export</button>
       </div>
-      <div className="diag-summary">E:0&nbsp;&nbsp;W:0&nbsp;&nbsp;I:140</div>
+      <div className="diag-summary">
+        E:{errorCount}&nbsp;&nbsp;W:{warnCount}&nbsp;&nbsp;I:{infoCount}
+      </div>
       <div className="log-box">
-        {lines.map((line, index) => (
-          <p key={line}><span>18:03:{16 - index}.038</span> <span>[UI]</span> {line}</p>
-        ))}
+        {events.length === 0 ? (
+          <div className="empty-profiles" style={{ padding: "12px" }}>No logs yet</div>
+        ) : (
+          events.map((event, index) => (
+            <p key={index} className={`log-line-${event.level.toLowerCase()}`}>
+              <span>{event.timestamp}</span>
+              <span>[{event.source}]</span>
+              <span>{event.message}</span>
+            </p>
+          ))
+        )}
       </div>
     </section>
   );

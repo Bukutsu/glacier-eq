@@ -84,3 +84,5 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   font-family: var(--font-mono);
 }
 .log-box p:nth-child(odd) { background: var(--panel); }
+.log-box p.log-line-error { color: var(--red); }
+.log-box p.log-line-warn { color: var(--orange); }
