@@ -231,6 +231,20 @@
   background: var(--bg-dark);
 }
 
+.preamp-value-row {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.preamp-unit {
+  color: var(--comment);
+  font-family: var(--font-mono);
+  font-size: var(--type-label);
+  padding-left: 2px;
+  user-select: none;
+}
+
 .control-slider {
   width: 100%;
   min-width: 0;
