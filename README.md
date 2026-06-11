@@ -204,12 +204,16 @@ npm run test
 <!-- ROADMAP -->
 ## Roadmap
 
-- [ ] Add additional DAC family support
-- [ ] GUI frequency response graph
-- [ ] Cross-platform package builds (AppImage, DMG, APK)
+- [x] Real-time frequency response EQ graph
+- [x] AutoEQ optimization engine (AdaBelief-based matching)
+- [x] Cross-platform builds: deb, rpm, AppImage, DMG, exe, msi, APK
+- [x] Android APK release pipeline
+- [ ] Additional DAC family support (beyond Walkplay)
 - [ ] Command-line interface for headless scripting
 - [ ] Multi-device simultaneous support
 - [ ] i18n / localization
+- [ ] Play Store / AAB release packaging
+- [ ] Built-in measurement microphone integration
 
 See the [open issues](https://github.com/Bukutsu/glacier-eq/issues) for a full list of proposed features and known issues.
 
