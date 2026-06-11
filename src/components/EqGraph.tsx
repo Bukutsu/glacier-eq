@@ -83,7 +83,8 @@ export function EqGraph({
 
 function drawBackground(ctx: CanvasRenderingContext2D, width: number, height: number) {
   ctx.clearRect(0, 0, width, height);
-  ctx.fillStyle = "#1f2335";
+  const panel = getComputedStyle(document.documentElement).getPropertyValue("--panel") || "#24283b";
+  ctx.fillStyle = panel;
   ctx.fillRect(0, 0, width, height);
 }
 
