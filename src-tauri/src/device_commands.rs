@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: MIT
 
 use crate::state::{ConnectedDevice, DeviceState};
-use crate::walkplay;
 use crate::diagnostics::{self, DiagnosticsStore, LogSource};
-use glacier_core::device::{get_supported_device, DeviceInfo};
+use glacier_core::device::{get_device_profile, get_supported_device, DeviceCapabilities, DeviceInfo, DeviceProtocol};
 use glacier_core::eq::PEQData;
 use std::collections::HashSet;
 use std::sync::Mutex;
@@ -23,24 +22,26 @@ pub fn get_eq_state(
     diagnostics_store: tauri::State<'_, Mutex<DiagnosticsStore>>,
 ) -> Result<PEQData, String> {
     let connected = connected_device(&state)?;
-    let caps = caps_for(&connected, "read")?;
+    let profile = get_device_profile(connected.vendor_id, connected.product_id)
+        .ok_or_else(|| format!("No profile registered for {:04X}:{:04X}", connected.vendor_id, connected.product_id))?;
+    let caps = profile.capabilities();
+    let protocol = profile.protocol();
+
     diagnostics::log_info(&app, &diagnostics_store, LogSource::HID, "Reading from device...");
-    // Match Frost-Tune's pull_with_retry: wake the DAC, then perform a fresh
-    // init/version session that drains stale frames before band reads.
-    if let Err(error) = send_packet(&app, &connected.path, &walkplay::global_gain_request()) {
+    if let Err(error) = send_packet(&app, &connected.path, &protocol.build_global_gain_request(0), &*protocol) {
         log::warn!("Pull wake request failed: {error}");
     }
     sleep_ms(50);
 
-    let first = pull_once(&app, &connected, caps.num_bands);
+    let first = pull_once(&app, &connected, &*protocol, &caps);
     let should_retry = match &first {
-        Ok(peq) => walkplay::is_default_state(peq),
+        Ok(peq) => protocol.is_default_state(peq),
         Err(_) => true,
     };
 
     let peq = if should_retry {
         sleep_ms(100);
-        match pull_once(&app, &connected, caps.num_bands) {
+        match pull_once(&app, &connected, &*protocol, &caps) {
             Ok(peq) => peq,
             Err(retry_error) => match first {
                 Ok(defaultish) => defaultish,
@@ -73,7 +74,7 @@ pub fn get_eq_state(
     Ok(peq)
 }
 
-fn compare_peq(actual: &PEQData, expected: &PEQData) -> Result<(), String> {
+fn compare_peq(actual: &PEQData, expected: &PEQData, caps: &DeviceCapabilities) -> Result<(), String> {
     if actual.global_gain != expected.global_gain {
         return Err(format!(
             "Global gain mismatch: expected {}, got {}",
@@ -89,25 +90,20 @@ fn compare_peq(actual: &PEQData, expected: &PEQData) -> Result<(), String> {
         ));
     }
 
-    // Tolerances matching DeviceCapabilities (gain=0.15, freq=1, q=0.05)
-    let gain_tolerance = 0.15;
-    let freq_tolerance = 1;
-    let q_tolerance = 0.05;
-
     for (a, e) in actual.filters.iter().zip(expected.filters.iter()) {
-        if (a.gain - e.gain).abs() > gain_tolerance {
+        if (a.gain - e.gain).abs() > caps.gain_tolerance {
             return Err(format!(
                 "Band {} gain mismatch: expected {:.2}, got {:.2}",
                 e.index + 1, e.gain, a.gain
             ));
         }
-        if (a.freq as i32 - e.freq as i32).abs() > freq_tolerance {
+        if (a.freq as i32 - e.freq as i32).abs() > caps.freq_tolerance {
             return Err(format!(
                 "Band {} frequency mismatch: expected {}, got {}",
                 e.index + 1, e.freq, a.freq
             ));
         }
-        if (a.q - e.q).abs() > q_tolerance {
+        if (a.q - e.q).abs() > caps.q_tolerance {
             return Err(format!(
                 "Band {} Q mismatch: expected {:.2}, got {:.2}",
                 e.index + 1, e.q, a.q
@@ -128,12 +124,13 @@ fn rollback_state(
     app: &tauri::AppHandle,
     connected: &ConnectedDevice,
     peq: &PEQData,
-    caps: walkplay::RuntimeCaps,
+    protocol: &dyn DeviceProtocol,
+    caps: &DeviceCapabilities,
 ) -> Result<(), String> {
-    run_init_sequence(app, &connected.path)?;
-    write_filters(app, &connected.path, peq, caps.dsp_sample_rate)?;
-    write_global_gain(app, &connected.path, peq.global_gain)?;
-    commit_changes(app, &connected.path)?;
+    run_init_sequence(app, &connected.path, protocol)?;
+    write_filters(app, &connected.path, protocol, peq, caps.dsp_sample_rate)?;
+    write_global_gain(app, &connected.path, protocol, peq.global_gain)?;
+    commit_changes(app, &connected.path, protocol)?;
     Ok(())
 }
 
@@ -145,15 +142,18 @@ pub fn set_eq_state(
     peq: PEQData,
 ) -> Result<(), String> {
     let connected = connected_device(&state)?;
-    let caps = caps_for(&connected, "write")?;
-    let peq = walkplay::normalize_for_push(peq, caps);
+    let profile = get_device_profile(connected.vendor_id, connected.product_id)
+        .ok_or_else(|| format!("No profile registered for {:04X}:{:04X}", connected.vendor_id, connected.product_id))?;
+    let caps = profile.capabilities();
+    let protocol = profile.protocol();
 
+    let peq = normalize_for_push(peq, &caps);
     let settings = crate::settings::get_settings().unwrap_or_default();
 
     // 1. Snapshot current state before writing
     let backup_state = if !settings.skip_push_verification {
         diagnostics::log_info(&app, &diagnostics_store, LogSource::HID, "Snapshotting current device state...");
-        match pull_once(&app, &connected, caps.num_bands) {
+        match pull_once(&app, &connected, &*protocol, &caps) {
             Ok(backup) => Some(backup),
             Err(error) => {
                 diagnostics::log_warn(
@@ -177,19 +177,19 @@ pub fn set_eq_state(
         format!("Pushing EQ to {}...", connected.profile_name),
     );
 
-    if let Err(error) = run_init_sequence(&app, &connected.path) {
+    if let Err(error) = run_init_sequence(&app, &connected.path, &*protocol) {
         diagnostics::log_error(&app, &diagnostics_store, LogSource::HID, format!("Init write failed: {error}"));
         return Err(error);
     }
-    if let Err(error) = write_filters(&app, &connected.path, &peq, caps.dsp_sample_rate) {
+    if let Err(error) = write_filters(&app, &connected.path, &*protocol, &peq, caps.dsp_sample_rate) {
         diagnostics::log_error(&app, &diagnostics_store, LogSource::HID, format!("Filters write failed: {error}"));
         return Err(error);
     }
-    if let Err(error) = write_global_gain(&app, &connected.path, peq.global_gain) {
+    if let Err(error) = write_global_gain(&app, &connected.path, &*protocol, peq.global_gain) {
         diagnostics::log_error(&app, &diagnostics_store, LogSource::HID, format!("Global gain write failed: {error}"));
         return Err(error);
     }
-    if let Err(error) = commit_changes(&app, &connected.path) {
+    if let Err(error) = commit_changes(&app, &connected.path, &*protocol) {
         diagnostics::log_error(&app, &diagnostics_store, LogSource::HID, format!("Commit changes failed: {error}"));
         return Err(error);
     }
@@ -197,20 +197,18 @@ pub fn set_eq_state(
     // 3. Verify write
     if !settings.skip_push_verification {
         diagnostics::log_info(&app, &diagnostics_store, LogSource::HID, "Verifying pushed settings...");
-        
-        // Wait a brief moment for hardware flash to settle before reading back
         sleep_ms(100);
 
-        match pull_once(&app, &connected, caps.num_bands) {
+        match pull_once(&app, &connected, &*protocol, &caps) {
             Ok(actual) => {
-                if let Err(mismatch) = compare_peq(&actual, &peq) {
+                if let Err(mismatch) = compare_peq(&actual, &peq, &caps) {
                     let err_msg = format!("Push verification failed: {mismatch}");
                     diagnostics::log_error(&app, &diagnostics_store, LogSource::HID, &err_msg);
 
                     // Execute rollback if backup is available
                     if let Some(backup) = backup_state {
                         diagnostics::log_warn(&app, &diagnostics_store, LogSource::HID, "Initiating rollback to previous state...");
-                        if let Err(rollback_error) = rollback_state(&app, &connected, &backup, caps) {
+                        if let Err(rollback_error) = rollback_state(&app, &connected, &backup, &*protocol, &caps) {
                             diagnostics::log_error(
                                 &app,
                                 &diagnostics_store,
@@ -220,9 +218,9 @@ pub fn set_eq_state(
                         } else {
                             diagnostics::log_info(&app, &diagnostics_store, LogSource::HID, "Rollback successfully written. Verifying rollback...");
                             sleep_ms(100);
-                            match pull_once(&app, &connected, caps.num_bands) {
+                            match pull_once(&app, &connected, &*protocol, &caps) {
                                 Ok(rolled_back_state) => {
-                                    if let Err(rollback_mismatch) = compare_peq(&rolled_back_state, &backup) {
+                                    if let Err(rollback_mismatch) = compare_peq(&rolled_back_state, &backup, &caps) {
                                         diagnostics::log_error(
                                             &app,
                                             &diagnostics_store,
@@ -375,15 +373,6 @@ fn connected_device(
         .ok_or_else(|| "No supported DAC connected. Connect a device first.".to_string())
 }
 
-fn caps_for(device: &ConnectedDevice, operation: &str) -> Result<walkplay::RuntimeCaps, String> {
-    walkplay::runtime_caps(device.vendor_id, device.product_id).ok_or_else(|| {
-        format!(
-            "No {operation} protocol registered for {:04X}:{:04X}",
-            device.vendor_id, device.product_id
-        )
-    })
-}
-
 fn close_previous_device(
     app: &tauri::AppHandle,
     state: &tauri::State<'_, Mutex<DeviceState>>,
@@ -402,18 +391,19 @@ fn close_previous_device(
 fn pull_once(
     app: &tauri::AppHandle,
     connected: &ConnectedDevice,
-    num_bands: usize,
+    protocol: &dyn DeviceProtocol,
+    caps: &DeviceCapabilities,
 ) -> Result<PEQData, String> {
-    run_init_sequence(app, &connected.path)?;
+    run_init_sequence(app, &connected.path, protocol)?;
 
-    let mut filters = Vec::with_capacity(num_bands);
-    for index in 0..num_bands {
-        filters.push(read_filter(app, connected, index as u8)?);
+    let mut filters = Vec::with_capacity(caps.num_bands);
+    for index in 0..caps.num_bands {
+        filters.push(read_filter(app, connected, protocol, index as u8)?);
         sleep_ms(10);
     }
 
     sleep_ms(40);
-    let global_gain = read_global_gain(app, &connected.path)?;
+    let global_gain = read_global_gain(app, &connected.path, protocol)?;
 
     Ok(PEQData {
         filters,
@@ -424,13 +414,15 @@ fn pull_once(
 fn read_filter(
     app: &tauri::AppHandle,
     connected: &ConnectedDevice,
+    protocol: &dyn DeviceProtocol,
     index: u8,
 ) -> Result<glacier_core::eq::Filter, String> {
     let nonce = index.wrapping_add(1).max(1);
     send_packet(
         app,
         &connected.path,
-        &walkplay::filter_read_request(index, nonce),
+        &protocol.build_filter_read_request(index, nonce),
+        protocol,
     )?;
 
     let mut mismatches = 0usize;
@@ -443,9 +435,10 @@ fn read_filter(
             continue;
         }
 
-        let data = walkplay::unframe_packet(&bytes);
-        if walkplay::matches_filter_response(data, index, nonce) {
-            return walkplay::parse_filter_response(data)
+        let data_vec = protocol.framer().unframe_packet(&bytes).map_err(|error| error.to_string())?;
+        let data = &data_vec;
+        if protocol.matches_filter_response(data, index, nonce) {
+            return protocol.parse_filter_response(data)
                 .ok_or_else(|| format!("Filter {} response could not be parsed", index + 1));
         }
 
@@ -464,8 +457,8 @@ fn read_filter(
     ))
 }
 
-fn read_global_gain(app: &tauri::AppHandle, path: &str) -> Result<i8, String> {
-    send_packet(app, path, &walkplay::global_gain_request())?;
+fn read_global_gain(app: &tauri::AppHandle, path: &str, protocol: &dyn DeviceProtocol) -> Result<i8, String> {
+    send_packet(app, path, &protocol.build_global_gain_request(0), protocol)?;
     sleep_ms(25);
 
     for _ in 0..GLOBAL_GAIN_READ_ATTEMPTS {
@@ -477,9 +470,10 @@ fn read_global_gain(app: &tauri::AppHandle, path: &str) -> Result<i8, String> {
             continue;
         }
 
-        let data = walkplay::unframe_packet(&bytes);
-        if walkplay::matches_global_gain_response(data) {
-            if let Some(gain) = walkplay::parse_global_gain_response(data) {
+        let data_vec = protocol.framer().unframe_packet(&bytes).map_err(|error| error.to_string())?;
+        let data = &data_vec;
+        if protocol.matches_global_gain_response(data, 0) {
+            if let Some(gain) = protocol.parse_global_gain_response(data) {
                 return Ok(gain);
             }
         }
@@ -488,9 +482,9 @@ fn read_global_gain(app: &tauri::AppHandle, path: &str) -> Result<i8, String> {
     Err("Global gain read timeout".to_string())
 }
 
-fn run_init_sequence(app: &tauri::AppHandle, path: &str) -> Result<(), String> {
-    for packet in walkplay::init_packets() {
-        send_packet(app, path, &packet).map_err(|error| format!("Init write failed: {error}"))?;
+fn run_init_sequence(app: &tauri::AppHandle, path: &str, protocol: &dyn DeviceProtocol) -> Result<(), String> {
+    for packet in protocol.build_init_packets() {
+        send_packet(app, path, &packet, protocol).map_err(|error| format!("Init write failed: {error}"))?;
     }
     sleep_ms(50);
     drain_stale_frames(app, path);
@@ -500,37 +494,38 @@ fn run_init_sequence(app: &tauri::AppHandle, path: &str) -> Result<(), String> {
 fn write_filters(
     app: &tauri::AppHandle,
     path: &str,
+    protocol: &dyn DeviceProtocol,
     peq: &PEQData,
     dsp_sample_rate: f64,
 ) -> Result<(), String> {
     for (index, filter) in peq.filters.iter().enumerate() {
-        let packet = walkplay::filter_write_packet(index as u8, filter, dsp_sample_rate);
-        send_packet(app, path, &packet)
+        let packet = protocol.build_filter_write_packet(index as u8, filter, dsp_sample_rate);
+        send_packet(app, path, &packet, protocol)
             .map_err(|error| format!("Band {} write failed: {error}", index + 1))?;
         sleep_ms(80);
     }
     Ok(())
 }
 
-fn write_global_gain(app: &tauri::AppHandle, path: &str, global_gain: i8) -> Result<(), String> {
+fn write_global_gain(app: &tauri::AppHandle, path: &str, protocol: &dyn DeviceProtocol, global_gain: i8) -> Result<(), String> {
     sleep_ms(100);
-    send_packet(app, path, &walkplay::global_gain_write_packet(global_gain))
+    send_packet(app, path, &protocol.build_global_gain_write_packet(global_gain), protocol)
         .map_err(|error| format!("Global gain write failed: {error}"))?;
     sleep_ms(50);
     Ok(())
 }
 
-fn commit_changes(app: &tauri::AppHandle, path: &str) -> Result<(), String> {
-    for packet in walkplay::commit_packets() {
-        send_packet(app, path, &packet).map_err(|error| format!("Commit write failed: {error}"))?;
-        sleep_ms(500);
+fn commit_changes(app: &tauri::AppHandle, path: &str, protocol: &dyn DeviceProtocol) -> Result<(), String> {
+    for packet in protocol.build_commit_packets() {
+        send_packet(app, path, &packet, protocol).map_err(|error| format!("Commit write failed: {error}"))?;
+        sleep_ms(protocol.write_timing().commit_step_ms as u64);
     }
     Ok(())
 }
 
-fn send_packet(app: &tauri::AppHandle, path: &str, packet: &[u8]) -> Result<(), String> {
+fn send_packet(app: &tauri::AppHandle, path: &str, packet: &[u8], protocol: &dyn DeviceProtocol) -> Result<(), String> {
     app.hid()
-        .write(path, &walkplay::frame_packet(packet))
+        .write(path, &protocol.framer().frame_packet(packet))
         .map_err(|error| error.to_string())
 }
 
@@ -546,4 +541,47 @@ fn drain_stale_frames(app: &tauri::AppHandle, path: &str) {
 
 fn sleep_ms(ms: u64) {
     std::thread::sleep(Duration::from_millis(ms));
+}
+
+fn normalize_for_push(mut peq: PEQData, caps: &DeviceCapabilities) -> PEQData {
+    let default_freqs = [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
+
+    if peq.filters.len() > caps.num_bands {
+        peq.filters.truncate(caps.num_bands);
+    }
+
+    while peq.filters.len() < caps.num_bands {
+        let index = peq.filters.len();
+        peq.filters.push(glacier_core::eq::Filter {
+            index: index as u8,
+            enabled: false,
+            filter_type: glacier_core::eq::FilterType::Peak,
+            freq: default_freqs.get(index).copied().unwrap_or(1000),
+            gain: 0.0,
+            q: 1.0,
+        });
+    }
+
+    peq.global_gain = peq
+        .global_gain
+        .clamp(caps.global_gain_range.0, caps.global_gain_range.1);
+
+    for (index, filter) in peq.filters.iter_mut().enumerate() {
+        filter.index = index as u8;
+        filter.freq = filter.freq.clamp(caps.freq_range.0, caps.freq_range.1);
+        filter.gain = filter
+            .gain
+            .clamp(caps.band_gain_range.0, caps.band_gain_range.1);
+        filter.q = filter.q.clamp(caps.q_range.0, caps.q_range.1);
+
+        if !caps.supported_filter_types.supports(filter.filter_type) {
+            filter.filter_type = glacier_core::eq::FilterType::Peak;
+        }
+
+        if !caps.supports_per_band_enable && !filter.enabled {
+            filter.gain = 0.0;
+        }
+    }
+
+    peq
 }
