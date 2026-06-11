@@ -57,6 +57,8 @@ jobs:
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
 
       - name: Cache Rust build outputs
         uses: swatinem/rust-cache@v2
@@ -66,8 +68,8 @@ jobs:
       - name: Check Rust formatting
         run: cargo fmt --all -- --check
 
-      - name: Check Rust workspace
-        run: cargo check --workspace --locked
+      - name: Check glacier-core crate (no system deps needed)
+        run: cargo check -p glacier-core --locked
 
   tauri-linux:
     name: Tauri Linux compile

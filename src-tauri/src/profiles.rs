@@ -4,9 +4,9 @@
 use crate::state::DeviceState;
 use glacier_core::eq::PEQData;
 use serde::Serialize;
-use tauri::Manager;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
+use tauri::Manager;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ProfileDto {
@@ -20,8 +20,7 @@ pub(crate) fn app_data_base_dir(app: &tauri::AppHandle) -> Result<PathBuf, Strin
         if !dir.trim().is_empty() {
             PathBuf::from(dir)
         } else {
-            app
-                .path()
+            app.path()
                 .app_data_dir()
                 .map_err(|error| format!("Failed to resolve Glacier EQ data directory: {error}"))?
         }
@@ -29,20 +28,22 @@ pub(crate) fn app_data_base_dir(app: &tauri::AppHandle) -> Result<PathBuf, Strin
         if !dir.trim().is_empty() {
             PathBuf::from(dir)
         } else {
-            app
-                .path()
+            app.path()
                 .app_data_dir()
                 .map_err(|error| format!("Failed to resolve Glacier EQ data directory: {error}"))?
         }
     } else {
-        app
-            .path()
+        app.path()
             .app_data_dir()
             .map_err(|error| format!("Failed to resolve Glacier EQ data directory: {error}"))?
     };
 
-    std::fs::create_dir_all(&dir)
-        .map_err(|error| format!("Failed to create Glacier EQ data directory {}: {error}", dir.display()))?;
+    std::fs::create_dir_all(&dir).map_err(|error| {
+        format!(
+            "Failed to create Glacier EQ data directory {}: {error}",
+            dir.display()
+        )
+    })?;
     Ok(dir)
 }
 
@@ -219,8 +220,8 @@ pub fn parse_autoeq(
     text: String,
     state: tauri::State<'_, Mutex<DeviceState>>,
 ) -> Result<AutoEqParseResult, String> {
-    let (mut peq, headphone_name, mut warnings) = glacier_core::autoeq::parse_autoeq_text(&text)
-        .map_err(|err| err.to_string())?;
+    let (mut peq, headphone_name, mut warnings) =
+        glacier_core::autoeq::parse_autoeq_text(&text).map_err(|err| err.to_string())?;
 
     let caps = if let Some(connected) = &state.lock().unwrap().connected {
         glacier_core::device::get_device_profile(connected.vendor_id, connected.product_id)
