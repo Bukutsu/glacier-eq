@@ -10,11 +10,25 @@ export function Preamp({
   onStartChange: () => void;
 }) {
   const safeValue = Number.isFinite(value) ? value : 0;
+  const clamped = Math.max(-16, Math.min(6, safeValue));
   return (
     <section className="preamp-card">
       <div className="preamp-meta">
         <strong>Preamp</strong>
-        <span>{safeValue} dB</span>
+        <input
+          className="num-input preamp-value"
+          type="text"
+          inputMode="decimal"
+          aria-label="Preamp gain value"
+          value={`${clamped}`}
+          onFocus={onStartChange}
+          onChange={(event) => {
+            const parsed = parseFloat(event.target.value);
+            if (!Number.isNaN(parsed)) {
+              onChange(Math.max(-16, Math.min(6, parsed)));
+            }
+          }}
+        />
       </div>
       <Slider
         aria-label="Preamp gain"
