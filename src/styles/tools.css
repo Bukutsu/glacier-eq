@@ -484,3 +484,19 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 .import-flow-actions button {
   min-height: 36px !important;
 }
+
+.setting-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 34px;
+  gap: 12px;
+  border-top: 1px solid var(--line-subtle);
+  padding-top: 14px;
+  margin-top: 4px;
+}
+
+.setting-label {
+  color: var(--muted);
+  font-size: var(--type-label);
+}
