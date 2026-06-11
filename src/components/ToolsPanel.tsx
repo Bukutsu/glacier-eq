@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { type CSSProperties, useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { DEFAULT_PROFILE_NAME } from "../constants";
@@ -7,6 +7,13 @@ import type { MeasurementTrace, Profile, PEQData } from "../types";
 import { Icon } from "./Icon";
 
 type ToolsTab = "Preset" | "Import" | "Measure" | "Settings";
+
+const TOOL_TAB_META: Record<ToolsTab, { icon: string; label: string }> = {
+  Preset: { icon: "library_music", label: "Preset" },
+  Import: { icon: "file_upload", label: "Import" },
+  Measure: { icon: "analytics", label: "Measure" },
+  Settings: { icon: "settings", label: "Settings" },
+};
 
 interface ToolsPanelProps {
   peq: PEQData;
@@ -33,15 +40,28 @@ interface ToolsPanelProps {
   canRedo: boolean;
   onUndo: () => void;
   onRedo: () => void;
+  availableTabs?: ToolsTab[];
+  defaultTab?: ToolsTab;
+  showActions?: boolean;
+  showDiagnostics?: boolean;
 }
 
 export function ToolsPanel(props: ToolsPanelProps) {
-  const [tab, setTab] = useState<ToolsTab>("Preset");
+  const availableTabs = props.availableTabs ?? ["Preset", "Import", "Measure", "Settings"];
+  const [tab, setTab] = useState<ToolsTab>(() => (
+    props.defaultTab && availableTabs.includes(props.defaultTab) ? props.defaultTab : availableTabs[0]
+  ));
+
+  useEffect(() => {
+    if (!availableTabs.includes(tab)) {
+      setTab(availableTabs[0]);
+    }
+  }, [availableTabs, tab]);
 
   return (
     <aside className="right-rail">
       <section className="tools-card">
-        <TabStrip active={tab} onSelect={setTab} />
+        <TabStrip active={tab} onSelect={setTab} tabs={availableTabs} />
         {tab === "Preset" && <PresetTab {...props} />}
         {tab === "Import" && <ImportTab
           peq={props.peq}
@@ -59,19 +79,35 @@ export function ToolsPanel(props: ToolsPanelProps) {
           setStatus={props.setStatus}
         />}
         {tab === "Settings" && <SettingsTab />}
-        <ToolActions {...props} />
+        {props.showActions !== false && <ToolActions {...props} />}
       </section>
-      <DiagnosticsPanel />
+      {props.showDiagnostics !== false && <DiagnosticsPanel />}
     </aside>
   );
 }
 
-function TabStrip({ active, onSelect }: { active: ToolsTab; onSelect: (tab: ToolsTab) => void }) {
+function TabStrip({
+  active,
+  onSelect,
+  tabs,
+}: {
+  active: ToolsTab;
+  onSelect: (tab: ToolsTab) => void;
+  tabs: ToolsTab[];
+}) {
+  if (tabs.length <= 1) {
+    return null;
+  }
+
   return (
-    <nav className="tabs">
-      {(["Preset", "Import", "Measure", "Settings"] as const).map((name) => (
+    <nav
+      className={`tabs ${tabs.length <= 2 ? "compact" : ""}`}
+      style={{ "--tab-count": tabs.length } as CSSProperties}
+    >
+      {tabs.map((name) => (
         <button key={name} className={active === name ? "active" : ""} onClick={() => onSelect(name)}>
-          {name}
+          <Icon>{TOOL_TAB_META[name].icon}</Icon>
+          <span>{TOOL_TAB_META[name].label}</span>
         </button>
       ))}
     </nav>
@@ -575,21 +611,21 @@ function SettingsTab() {
   );
 }
 
-function ToolActions({ selectedPreset, profiles, onReset, onSave, onDelete, canUndo, canRedo, onUndo, onRedo }: ToolsPanelProps) {
+function ToolActions({ selectedPreset, profiles, onReset, onSave, onDelete }: ToolsPanelProps) {
   const canDelete = selectedPreset !== DEFAULT_PROFILE_NAME && profiles.some((profile) => profile.name === selectedPreset);
 
   return (
-    <>
-      <div className="action-row">
-        <button disabled={!canUndo} onClick={onUndo}>Undo</button>
-        <button disabled={!canRedo} onClick={onRedo}>Redo</button>
+    <section className="action-section">
+      <div className="action-section-head">
+        <strong>Preset Actions</strong>
+        <span>Reset the current EQ or save it back to the selected preset.</span>
       </div>
-      <div className="action-row">
+      <div className="action-row action-row-primary">
         <button onClick={onReset}>Reset</button>
         <button className="save" onClick={onSave}>Save</button>
         <button className="danger" disabled={!canDelete} onClick={onDelete}>Delete</button>
       </div>
-    </>
+    </section>
   );
 }
 

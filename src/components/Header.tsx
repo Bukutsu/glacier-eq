@@ -6,6 +6,10 @@ interface HeaderProps {
   profile: string;
   deviceName: string;
   dirty: boolean;
+  canUndo: boolean;
+  canRedo: boolean;
+  onUndo: () => void;
+  onRedo: () => void;
   onPull: () => void;
   onPush: () => void;
   onDisconnect: () => void;
@@ -17,6 +21,10 @@ export function Header({
   profile,
   deviceName,
   dirty,
+  canUndo,
+  canRedo,
+  onUndo,
+  onRedo,
   onPull,
   onPush,
   onDisconnect,
@@ -45,7 +53,34 @@ export function Header({
           {dirty && <span className="unsaved">UNSAVED</span>}
           <span className="sync-dot ok">● {isBusy ? "Working…" : "Synced"}</span>
         </div>
-        <div className="device-name">{deviceName}</div>
+        <div className="header-meta-row">
+          <div className="device-name">{deviceName}</div>
+          <div className="history-controls" aria-label="Edit history">
+            <span className="history-label">History</span>
+            <div className="history-buttons">
+              <button
+                type="button"
+                className="history-btn"
+                title="Undo"
+                aria-label="Undo"
+                disabled={isBusy || !canUndo}
+                onClick={onUndo}
+              >
+                <ToolbarButtonIcon icon="undo" label="Undo" />
+              </button>
+              <button
+                type="button"
+                className="history-btn"
+                title="Redo"
+                aria-label="Redo"
+                disabled={isBusy || !canRedo}
+                onClick={onRedo}
+              >
+                <ToolbarButtonIcon icon="redo" label="Redo" />
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
       <div className="toolbar">
         <ToolbarButton onClick={onPull} disabled={isBusy}>Pull</ToolbarButton>
@@ -53,5 +88,14 @@ export function Header({
         <ToolbarButton onClick={onDisconnect} disabled={isBusy}>Disconnect</ToolbarButton>
       </div>
     </header>
+  );
+}
+
+function ToolbarButtonIcon({ icon, label }: { icon: string; label: string }) {
+  return (
+    <>
+      <span className="material-icon">{icon}</span>
+      <span>{label}</span>
+    </>
   );
 }

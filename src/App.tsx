@@ -18,7 +18,7 @@ import "./App.css";
 
 function App() {
   const [isMobile, setIsMobile] = useState(() => window.matchMedia("(max-width: 768px)").matches);
-  const [activeTab, setActiveTab] = useState<"eq" | "tuning" | "profiles">("eq");
+  const [activeTab, setActiveTab] = useState<"eq" | "tuning" | "profiles" | "settings">("eq");
 
   useEffect(() => {
     const media = window.matchMedia("(max-width: 768px)");
@@ -502,6 +502,10 @@ function App() {
         profile={selectedPreset}
         deviceName={deviceName}
         dirty={dirty}
+        canUndo={undoStack.length > 0}
+        canRedo={redoStack.length > 0}
+        onUndo={undo}
+        onRedo={redo}
         onPull={pullEq}
         onPush={pushEq}
         onDisconnect={disconnectDevice}
@@ -623,6 +627,40 @@ function App() {
                 canRedo={redoStack.length > 0}
                 onUndo={undo}
                 onRedo={redo}
+                availableTabs={["Preset", "Import"]}
+                defaultTab="Preset"
+                showDiagnostics={false}
+              />
+            )}
+            {activeTab === "settings" && (
+              <ToolsPanel
+                peq={peq}
+                onImportPEQ={importPeq}
+                profiles={profiles}
+                selectedPreset={selectedPreset}
+                profileSearch={profileSearch}
+                setProfileSearch={setProfileSearch}
+                newProfileName={newProfileName}
+                setNewProfileName={setNewProfileName}
+                onSelectProfile={applyProfile}
+                onReloadProfiles={loadProfiles}
+                onOpenProfilesDir={openProfilesDir}
+                onReset={reset}
+                onSave={saveProfile}
+                onDelete={deleteSelectedProfile}
+                setStatus={setStatus}
+                measurements={measurements}
+                onAddMeasurement={addMeasurement}
+                onRemoveMeasurement={removeMeasurement}
+                onToggleMeasurement={toggleMeasurement}
+                onClearMeasurements={clearMeasurements}
+                canUndo={undoStack.length > 0}
+                canRedo={redoStack.length > 0}
+                onUndo={undo}
+                onRedo={redo}
+                availableTabs={["Settings"]}
+                defaultTab="Settings"
+                showActions={false}
               />
             )}
           </div>
@@ -647,6 +685,13 @@ function App() {
             >
               <Icon>folder</Icon>
               <span>Profiles</span>
+            </button>
+            <button
+              className={`mobile-tab-item ${activeTab === "settings" ? "active" : ""}`}
+              onClick={() => setActiveTab("settings")}
+            >
+              <Icon>settings</Icon>
+              <span>Settings</span>
             </button>
           </nav>
         </main>
