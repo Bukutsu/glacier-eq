@@ -7,10 +7,10 @@
 
 :root {
   --bg: #1a1b26;
-  --bg-dark: #16161e;
-  --panel: #1f2335;
-  --surface: #292e42;
-  --surface-soft: #24283b;
+  --bg-dark: #1b1e2e;
+  --panel: #24283b;
+  --surface: #363b54;
+  --surface-soft: #292e42;
   --text: #c0caf5;
   --muted: #a9b1d6;
   --comment: #565f89;
