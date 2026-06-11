@@ -258,7 +258,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid r
   gap: 12px;
   background: var(--bg-dark);
   padding: 12px;
-  border-radius: 4px;
+  border-radius: var(--radius-surface);
   border: 1px solid var(--line);
 }
 
@@ -282,7 +282,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid r
   min-height: 32px !important;
   font-size: 12px;
   padding: 0 8px;
-  border-radius: 2px;
+  border-radius: var(--radius-control);
   transition: background 0.12s, color 0.12s;
 }
 
@@ -315,7 +315,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid r
   background: var(--surface-soft);
   color: var(--text);
   padding: 0 8px;
-  border-radius: 2px;
+  border-radius: var(--radius-control);
 }
 
 .import-select {
@@ -324,7 +324,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid r
   background: var(--surface-soft);
   color: var(--text);
   padding: 0 8px;
-  border-radius: 2px;
+  border-radius: var(--radius-control);
   outline: none;
 }
 
@@ -365,7 +365,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid r
   padding: 8px;
   max-height: 90px;
   overflow-y: auto;
-  border-radius: 2px;
+  border-radius: var(--radius-control);
   font-family: var(--font-mono);
   font-size: 11px;
 }

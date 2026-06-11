@@ -26,6 +26,7 @@ Avoid decorative audio-player chrome, marketing-page gloss, rounded consumer-app
 - Keep EQ data, profile state, and device actions immediately visible.
 - Make every control feel deliberate, aligned, and keyboard-accessible.
 - Favor dense clarity over decorative hierarchy.
+- Use sharp corners by default. New components should use the shared `--radius-control` and `--radius-surface` tokens, which stay at `0` unless a component has a strong functional reason to differ.
 
 ## Accessibility & Inclusion
 

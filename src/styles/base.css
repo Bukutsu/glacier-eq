@@ -29,6 +29,10 @@
   --type-body: 16px;
   --type-label: 13px;
   --type-caption: 11px;
+  --radius-none: 0;
+  --radius-control: 0;
+  --radius-surface: 0;
+  /* Glacier uses sharp corners as the default visual language. */
   font-family: var(--font-ui);
   color: var(--text);
   background: var(--bg);
@@ -81,7 +85,7 @@ select:focus-visible {
   color: var(--muted);
   min-height: 42px;
   padding: 0 18px;
-  border-radius: 0;
+  border-radius: var(--radius-control);
   transition: filter .14s ease, background .14s ease, color .14s ease, outline-color .14s ease;
 }
 

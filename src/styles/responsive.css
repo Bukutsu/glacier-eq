@@ -185,6 +185,14 @@
     padding: 12px 14px;
     gap: 12px;
   }
+  .preamp-meta {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  .preamp-meta span {
+    font-size: 12px;
+  }
   .preamp-card input[type="range"] {
     min-height: 32px;
   }
@@ -197,11 +205,124 @@
     min-width: 44px;
     min-height: 44px;
   }
-  .bands-card {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
+  .bands-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
   }
-  .bands-header, .band-row { min-width: 640px; }
+  .bands-card {
+    padding: 0;
+    overflow: visible;
+    background: transparent;
+  }
+  .bands-header {
+    display: none;
+  }
+  .band-row {
+    min-width: 0;
+    height: auto;
+    padding: 12px;
+    grid-template-columns: 52px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas:
+      "index type type type"
+      "freq gain gain q";
+    gap: 10px 8px;
+    background: var(--bg-dark);
+    outline: 1px solid rgba(65, 72, 104, 0.42);
+    outline-offset: -1px;
+  }
+  .band-row.muted {
+    opacity: .6;
+  }
+  .band-index {
+    grid-area: index;
+    width: 100%;
+    min-height: 40px;
+    padding: 0 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    background: var(--surface-soft);
+    outline: 1px solid rgba(125, 207, 255, 0.28);
+    outline-offset: -1px;
+  }
+  .band-index-label {
+    color: var(--muted);
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .band-index strong {
+    font-size: 18px;
+    line-height: 1;
+  }
+  .band-type-field {
+    grid-area: type;
+  }
+  .band-freq-field {
+    grid-area: freq;
+  }
+  .band-gain-field {
+    grid-area: gain;
+  }
+  .band-q-field {
+    grid-area: q;
+  }
+  .band-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .band-field::before {
+    display: block;
+    color: var(--comment);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .type-buttons {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .type-buttons::-webkit-scrollbar {
+    display: none;
+  }
+  .type-buttons button {
+    min-height: 36px;
+    height: 36px;
+    padding: 0 10px;
+    border-radius: var(--radius-control);
+    flex: 0 0 auto;
+    min-width: 50px;
+  }
+  .num-input {
+    height: 42px;
+    padding: 0 10px;
+    background: var(--surface-soft);
+    border-radius: var(--radius-control);
+    font-size: 14px;
+  }
+  .num-input:focus {
+    background: var(--surface);
+  }
+  .gain-cell {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 72px;
+    align-items: center;
+    gap: 8px;
+  }
+  .gain-cell input[type="range"] {
+    min-height: 40px;
+  }
+  .gain-cell .gain {
+    width: 100%;
+    text-align: right;
+  }
   .tools-card, .diag-card {
     padding-left: 12px;
     padding-right: 12px;
@@ -283,58 +404,7 @@
     min-width: 0;
   }
   .band-row {
-    height: auto;
-    min-height: 0;
-    padding: 12px;
-    background: var(--panel);
-    outline: 1px solid rgba(65, 72, 104, 0.45);
-    outline-offset: -1px;
-    grid-template-columns: 48px minmax(0, 1fr);
-    grid-template-areas:
-      "index types"
-      "freq gain"
-      "q gain";
-    gap: 10px 12px;
-  }
-  .band-index {
-    grid-area: index;
-    width: 44px;
-    min-height: 44px;
-    background: var(--bg-dark);
-    text-align: center;
-  }
-  .type-buttons {
-    grid-area: types;
-    grid-template-columns: repeat(5, minmax(38px, 1fr));
-  }
-  .type-buttons button {
-    min-height: 44px;
-    height: 44px;
-  }
-  .num-input {
-    height: 44px;
-    padding: 0 10px;
-    background: var(--bg-dark);
-  }
-  .num-input.freq {
-    grid-area: freq;
-  }
-  .gain-cell {
-    grid-area: gain;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 8px;
-  }
-  .gain-cell input[type="range"] {
-    min-height: 44px;
-  }
-  .gain-cell .gain {
-    width: 100%;
-    text-align: center;
-  }
-  .num-input.q {
-    grid-area: q;
-    text-align: center;
+    min-width: 0;
   }
   .target-strip-head,
   .graph-view-controls {
