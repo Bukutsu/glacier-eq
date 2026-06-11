@@ -2,6 +2,7 @@ import { type ReactNode, useState } from "react";
 import { FILTER_TYPES, TYPE_LABELS } from "../constants";
 import type { Filter, PEQData } from "../types";
 import { Icon } from "./Icon";
+import { Slider } from "./Slider";
 
 interface BandsProps {
   peq: PEQData;
@@ -95,13 +96,13 @@ function BandRow({
       </BandField>
       <BandField label="Gain" className="band-gain-field">
         <div className="gain-cell">
-          <input
-            type="range"
+          <Slider
             aria-label={`Band ${filter.index + 1} gain`}
             min={-10}
             max={10}
             step={0.01}
             value={filter.gain}
+            tone={filter.index >= 5 ? "orange" : "blue"}
             onMouseDown={onStartChange}
             onTouchStart={onStartChange}
             onChange={(event) => onChange({ ...filter, gain: +event.target.value })}
