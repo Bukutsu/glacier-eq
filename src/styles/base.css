@@ -80,7 +80,9 @@
   --type-subtitle: 18px;
   --type-body: 16px;
   --type-label: 13px;
+  --type-small: 12px;
   --type-caption: 11px;
+  --type-micro: 10px;
   --radius-none: 0;
   --radius-control: 0;
   --radius-surface: 0;
@@ -162,7 +164,7 @@ select:focus-visible {
   padding: 5px 18px;
   background: var(--blue);
   color: var(--bg-dark);
-  font-size: 14px;
+  font-size: var(--type-label);
 }
 
 .status-banner button { margin-left: auto; background: transparent; color: var(--bg-dark); }

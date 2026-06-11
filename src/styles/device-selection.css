@@ -61,11 +61,11 @@
   color: var(--bg-dark);
   background: var(--orange);
   padding: 2px 5px;
-  font-size: 10px;
+  font-size: var(--type-micro);
   font-weight: 700;
   letter-spacing: 0.08em;
 }
-.device-row-meta, .device-row small { color: var(--muted); font-size: 12px; font-family: var(--font-mono); }
+.device-row-meta, .device-row small { color: var(--muted); font-size: var(--type-small); font-family: var(--font-mono); }
 
 .supported-list {
   background: var(--panel-dark);
@@ -74,7 +74,7 @@
   gap: 8px;
 }
 
-.supported-list > span { color: var(--comment); font-size: 11px; font-weight: 700; }
-.supported-list div { display: flex; justify-content: space-between; gap: 12px; color: var(--text); font-size: 12px; }
+.supported-list > span { color: var(--comment); font-size: var(--type-caption); font-weight: 700; }
+.supported-list div { display: flex; justify-content: space-between; gap: 12px; color: var(--text); font-size: var(--type-small); }
 .supported-list small { color: var(--muted); }
 .device-actions { display: flex; gap: 10px; justify-content: flex-end; }

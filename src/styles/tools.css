@@ -109,7 +109,7 @@
 .modified { color: var(--muted); line-height: 1.35; }
 .check-line, .settings-list label {
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--type-label);
   display: flex;
   align-items: center;
   gap: 9px;
@@ -167,7 +167,7 @@
 
 .action-section-head span {
   color: var(--comment);
-  font-size: 12px;
+  font-size: var(--type-small);
   line-height: 1.4;
 }
 
@@ -223,7 +223,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 .measurement-format-note {
   margin: 0;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--type-small);
   line-height: 1.45;
 }
 
@@ -250,7 +250,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 .measurement-empty {
   padding: 12px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--type-small);
 }
 
 .measurement-item {
@@ -291,12 +291,12 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 
 .measurement-name {
   color: var(--text);
-  font-size: 13px;
+  font-size: var(--type-label);
 }
 
 .measurement-points {
   color: var(--comment);
-  font-size: 11px;
+  font-size: var(--type-caption);
 }
 
 .measurement-delete {
@@ -312,13 +312,13 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 .diag-head { display: flex; align-items: center; gap: 10px; color: var(--cyan); }
 .diag-head strong { margin-right: auto; }
 .diag-head button { background: transparent; color: var(--cyan); min-height: 28px; padding: 0 6px; }
-.diag-summary { color: var(--muted); font-size: 12px; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+.diag-summary { color: var(--muted); font-size: var(--type-small); border-bottom: 1px solid var(--line); padding-bottom: 8px; }
 .log-box { background: var(--bg-dark); overflow: auto; min-height: 0; flex: 1; padding: 0; outline: 1px solid var(--line-soft); outline-offset: -1px; }
 .log-box p {
   margin: 0;
   padding: 9px 8px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--type-small);
   display: grid;
   grid-template-columns: 98px 42px 1fr;
   gap: 8px;
@@ -357,7 +357,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   background: var(--surface-soft);
   color: var(--muted);
   min-height: 32px !important;
-  font-size: 12px;
+  font-size: var(--type-small);
   padding: 0 8px;
   border-radius: var(--radius-control);
   transition: background 0.12s, color 0.12s;
@@ -372,7 +372,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   display: flex;
   flex-direction: column;
   gap: 12px;
-  font-size: 13px;
+  font-size: var(--type-label);
 }
 
 .import-field-group {
@@ -383,7 +383,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 
 .import-field-group label {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--type-small);
 }
 
 .import-field-group input {
@@ -412,14 +412,14 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 
 .import-overwrite-warning {
   color: var(--yellow);
-  font-size: 11px;
+  font-size: var(--type-caption);
   margin-top: 2px;
 }
 
 .import-temp-info {
   color: var(--muted);
   font-style: italic;
-  font-size: 12px;
+  font-size: var(--type-small);
   background: var(--accent-bg-subtle);
   border-left: 3px solid var(--cyan);
   padding: 6px 10px;
@@ -432,7 +432,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 }
 
 .import-preview-section span, .import-warnings-section span {
-  font-weight: bold;
+  font-weight: 700;
   color: var(--muted);
 }
 
@@ -444,7 +444,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   overflow-y: auto;
   border-radius: var(--radius-control);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--type-caption);
 }
 
 .import-preview-box::-webkit-scrollbar, .import-warnings-box::-webkit-scrollbar {
@@ -464,14 +464,14 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   color: var(--comment);
 }
 
-.import-warnings-box {
-  border-color: var(--warning-border);
-  background: var(--warning-bg);
-}
-
 .warning-line {
   color: var(--yellow);
   padding: 2px 0;
+}
+
+.import-warnings-box {
+  border-color: var(--warning-border);
+  background: var(--warning-bg);
 }
 
 .import-flow-actions {
