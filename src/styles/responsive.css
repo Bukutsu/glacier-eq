@@ -253,8 +253,9 @@
     justify-content: center;
     gap: 2px;
     background: var(--surface-soft);
-    outline: 1px solid var(--accent-line);
-    outline-offset: -1px;
+    border: none;
+    outline: none;
+    border-radius: var(--radius-control);
   }
   .band-index strong {
     font-size: var(--type-subtitle);
@@ -286,11 +287,14 @@
   }
   .type-buttons {
     display: flex;
-    gap: 0;
+    gap: 4px;
     overflow-x: auto;
     padding-bottom: 0;
     scrollbar-width: none;
     -ms-overflow-style: none;
+    background: transparent;
+    outline: none;
+    padding: 2px;
   }
   .type-buttons::-webkit-scrollbar {
     display: none;
@@ -298,10 +302,11 @@
   .type-buttons button {
     min-height: 36px;
     height: 36px;
-    padding: 0 10px;
+    padding: 0 12px;
     border-radius: var(--radius-control);
     flex: 0 0 auto;
-    min-width: 50px;
+    min-width: auto;
+    border: none;
   }
   .num-input {
     height: 42px;
