@@ -1,4 +1,5 @@
 import { SUPPORTED_DACS } from "../constants";
+import { isDevDummyDevice } from "../lib/devDevice";
 import type { DeviceInfo } from "../types";
 import { ToolbarButton } from "./ToolbarButton";
 
@@ -46,6 +47,7 @@ export function DeviceChooser({
             {devices.map((device) => {
               const name = device.profile_name || device.product_string || device.manufacturer || "Supported DAC";
               const selected = selectedDevice === device.path;
+              const isDummy = isDevDummyDevice(device.path);
               return (
                 <button
                   key={device.path}
@@ -53,11 +55,18 @@ export function DeviceChooser({
                   onClick={() => setSelectedDevice(device.path)}
                   onDoubleClick={onConnect}
                 >
-                  <span className="device-row-title">{name}</span>
+                  <span className="device-row-title">
+                    {name}
+                    {isDummy && <span className="dev-device-badge">DEV</span>}
+                  </span>
                   <span className="device-row-meta">
                     VID: {formatUsbId(device.vendor_id)} &nbsp; PID: {formatUsbId(device.product_id)}
                   </span>
-                  <small>{device.product_string || device.manufacturer || "Walkplay Family DAC"}</small>
+                  <small>
+                    {isDummy
+                      ? "No hardware required for UI review"
+                      : device.product_string || device.manufacturer || "Walkplay Family DAC"}
+                  </small>
                 </button>
               );
             })}

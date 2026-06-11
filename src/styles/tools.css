@@ -17,8 +17,7 @@
 
 .tabs {
   display: grid;
-  grid-template-columns: repeat(var(--tab-count, 4), minmax(0, 1fr));
-  min-height: 42px;
+  grid-template-columns: repeat(var(--tab-columns, 2), minmax(0, 1fr));
   gap: 0;
   padding: 3px;
   background: var(--bg-dark);
@@ -26,6 +25,7 @@
   outline-offset: -1px;
 }
 .tabs button {
+  position: relative;
   background: transparent;
   color: var(--muted);
   min-height: 42px;
@@ -33,18 +33,34 @@
   font-size: var(--type-label);
   display: inline-flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 7px;
-  padding: 0 10px;
+  padding: 0 12px;
+  text-align: left;
 }
 .tabs button .material-icon {
   font-size: 16px;
+  flex: 0 0 auto;
 }
 .tabs button span:last-child {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  flex: 1 1 auto;
+}
+.tabs button::after {
+  content: "";
+  position: absolute;
+  top: 9px;
+  right: 0;
+  width: 1px;
+  height: calc(100% - 18px);
+  background: rgba(65, 72, 104, 0.48);
+}
+.tabs button:nth-child(2n)::after,
+.tabs button:last-child::after {
+  display: none;
+}
+.tabs button:nth-child(n + 3) {
+  border-top: 1px solid rgba(65, 72, 104, 0.42);
 }
 .tabs button.active {
   background: var(--surface-soft);

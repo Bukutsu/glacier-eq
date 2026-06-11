@@ -72,7 +72,6 @@ function BandRow({
           onChange({ ...filter, enabled: !filter.enabled });
         }}
       >
-        <span className="band-index-label">Band</span>
         <strong>{filter.index + 1}</strong>
       </button>
       <BandField label="Type" className="band-type-field">
