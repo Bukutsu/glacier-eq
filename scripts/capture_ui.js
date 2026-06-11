@@ -1,14 +1,39 @@
 import { chromium, devices } from '@playwright/test';
+import { execSync } from 'child_process';
+
+// Simple argument parser
+const args = process.argv.slice(2);
+const mode = args.includes('--desktop') ? 'desktop' : 'mobile';
+const fullPage = args.includes('--full');
+const skipConnect = args.includes('--skip-connect');
+
+// Parse --scroll <value>
+let scrollY = 0;
+const scrollIdx = args.indexOf('--scroll');
+if (scrollIdx !== -1 && args[scrollIdx + 1]) {
+  scrollY = parseInt(args[scrollIdx + 1], 10);
+}
+
+// Parse --filename <value>
+let filename = args.includes('--editor') ? `${mode}_editor_ui.png` : `${mode}_ui.png`;
+const fileIdx = args.indexOf('--filename');
+if (fileIdx !== -1 && args[fileIdx + 1]) {
+  filename = args[fileIdx + 1];
+}
 
 async function run() {
-  console.log("Launching headless browser with mobile emulation...");
-  
-  const pixel5 = devices['Pixel 5'];
+  console.log(`Launching headless browser in ${mode} mode...`);
   
   const browser = await chromium.launch();
-  const context = await browser.newContext({
-    ...pixel5,
-  });
+  let contextOptions = {};
+  
+  if (mode === 'mobile') {
+    contextOptions = { ...devices['Pixel 5'] };
+  } else {
+    contextOptions = { viewport: { width: 1280, height: 800 } };
+  }
+  
+  const context = await browser.newContext(contextOptions);
   const page = await context.newPage();
 
   // Inject mock window.__TAURI_INTERNALS__ before the page loads
@@ -34,7 +59,7 @@ async function run() {
         modified: "2026-06-11T12:00:00Z",
       },
     ];
-    let devices = [
+    let devicesList = [
       {
         vendor_id: 0x3302,
         product_id: 0x43e6,
@@ -71,7 +96,7 @@ async function run() {
         case "list_profiles":
           return profiles;
         case "list_devices":
-          return devices;
+          return devicesList;
         case "connect_device":
           connected = true;
           return null;
@@ -113,15 +138,33 @@ async function run() {
   console.log("Navigating to http://localhost:1420...");
   await page.goto("http://localhost:1420", { waitUntil: 'networkidle', timeout: 15000 });
   
-  console.log("Page loaded. Clicking Connect button...");
-  await page.click("button:has-text('Connect')");
+  if (!skipConnect) {
+    console.log("Page loaded. Clicking Connect button...");
+    await page.click("button:has-text('Connect')");
+    await page.waitForTimeout(1000);
+  }
 
-  console.log("Waiting 2 seconds for rendering...");
-  await page.waitForTimeout(2000);
+  // Handle custom scroll position if provided
+  if (scrollY > 0) {
+    console.log(`Scrolling page by ${scrollY}px...`);
+    await page.evaluate((y) => {
+      window.scrollTo(0, y);
+      // Emulate scrolling on potential scroll containers
+      const selectors = ['.main-layout', '.app-container', 'main', '.scroll-container', '.editor-container'];
+      for (const selector of selectors) {
+        const el = document.querySelector(selector);
+        if (el) el.scrollTop = y;
+      }
+    }, scrollY);
+    await page.waitForTimeout(500);
+  }
 
-  const screenshotPath = '/home/bukutsu/.gemini/antigravity-cli/brain/570d4eb8-be00-46bd-b107-7679ebf8cbab/mobile_editor_ui.png';
-  console.log(`Taking screenshot and saving to: ${screenshotPath}`);
-  await page.screenshot({ path: screenshotPath });
+  console.log("Waiting for rendering...");
+  await page.waitForTimeout(1500);
+
+  const screenshotPath = `/home/bukutsu/.gemini/antigravity-cli/brain/570d4eb8-be00-46bd-b107-7679ebf8cbab/${filename}`;
+  console.log(`Taking screenshot (fullPage=${fullPage}) and saving to: ${screenshotPath}`);
+  await page.screenshot({ path: screenshotPath, fullPage });
   console.log("Screenshot taken successfully!");
 
   await browser.close();
