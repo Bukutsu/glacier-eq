@@ -333,15 +333,15 @@ Project Link: [https://github.com/Bukutsu/glacier-eq](https://github.com/Bukutsu
 
 <!-- MARKDOWN LINKS & IMAGES -->
 <!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
-[contributors-shield]: https://img.shields.io/github/contributors/Bukutsu/glacier-eq.svg?style=for-the-badge
+[contributors-shield]: https://badgen.net/github/contributors/Bukutsu/glacier-eq
 [contributors-url]: https://github.com/Bukutsu/glacier-eq/graphs/contributors
-[forks-shield]: https://img.shields.io/github/forks/Bukutsu/glacier-eq.svg?style=for-the-badge
+[forks-shield]: https://badgen.net/github/forks/Bukutsu/glacier-eq
 [forks-url]: https://github.com/Bukutsu/glacier-eq/network/members
-[stars-shield]: https://img.shields.io/github/stars/Bukutsu/glacier-eq.svg?style=for-the-badge
+[stars-shield]: https://badgen.net/github/stars/Bukutsu/glacier-eq
 [stars-url]: https://github.com/Bukutsu/glacier-eq/stargazers
-[issues-shield]: https://img.shields.io/github/issues/Bukutsu/glacier-eq.svg?style=for-the-badge
+[issues-shield]: https://badgen.net/github/issues/Bukutsu/glacier-eq
 [issues-url]: https://github.com/Bukutsu/glacier-eq/issues
-[license-shield]: https://img.shields.io/github/license/Bukutsu/glacier-eq.svg?style=for-the-badge
+[license-shield]: https://badgen.net/github/license/Bukutsu/glacier-eq
 [license-url]: https://github.com/Bukutsu/glacier-eq/blob/main/LICENSE
 [Tauri]: https://img.shields.io/badge/Tauri-24C8D8?style=for-the-badge&logo=tauri&logoColor=white
 [Tauri-url]: https://v2.tauri.app/
