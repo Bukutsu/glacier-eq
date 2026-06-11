@@ -677,7 +677,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
+  width: 28px;
   height: 100%;
   background: transparent;
   border: none;
