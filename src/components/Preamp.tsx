@@ -13,6 +13,7 @@ export function Preamp({
       <strong>PREAMP: {safeValue} dB</strong>
       <input
         type="range"
+        aria-label="Preamp gain"
         min={-16}
         max={6}
         step={1}

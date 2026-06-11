@@ -46,6 +46,55 @@ npm run tauri android init   # Android setup (first time)
 npm run tauri android dev    # Android development
 ```
 
+## Android Device Testing
+
+Install the Android toolchain first:
+
+- JDK 17, or Android Studio's bundled JDK.
+- Android SDK command-line tools, platform-tools, build-tools, and NDK.
+- `ANDROID_HOME` pointing at the SDK directory, for example `$HOME/Android/Sdk`.
+- Rust Android targets.
+
+Recommended local shell setup:
+
+```bash
+export ANDROID_HOME="$HOME/Android/Sdk"
+export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
+rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
+```
+
+Check the local machine:
+
+```bash
+npm run android:doctor
+```
+
+First-time Android project generation:
+
+```bash
+npm run android:init
+```
+
+Run on a real device:
+
+1. Enable Developer options and USB debugging on the Android device.
+2. Connect it with USB and accept the RSA prompt.
+3. Confirm it is visible:
+
+```bash
+adb devices
+npm run android:dev
+```
+
+Build an installable debug APK for a typical physical phone:
+
+```bash
+npm run android:apk
+```
+
+The generated APK is written under `src-tauri/gen/android/app/build/outputs/apk/`.
+Use `npm run android:apk:release` only after release signing is configured.
+
 ## Supported Devices
 
 *To be documented as protocols are ported from Frost-Tune.*

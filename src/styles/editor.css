@@ -314,3 +314,18 @@ input[type="range"]:focus-visible::-moz-range-thumb { outline: 1px solid var(--c
   align-items: center;
   justify-content: center;
 }
+
+@media (pointer: coarse) {
+  input[type="range"] {
+    height: 28px;
+    background: linear-gradient(transparent 12px, var(--bg-dark) 12px, var(--bg-dark) 16px, transparent 16px);
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    width: 12px;
+    height: 28px;
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 12px;
+    height: 28px;
+  }
+}
