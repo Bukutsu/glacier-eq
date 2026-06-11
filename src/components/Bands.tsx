@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { FILTER_TYPES, TYPE_LABELS } from "../constants";
 import type { Filter, PEQData } from "../types";
+import { Icon } from "./Icon";
 
 interface BandsProps {
   peq: PEQData;
@@ -7,24 +9,45 @@ interface BandsProps {
 }
 
 export function Bands({ peq, onFilterChange }: BandsProps) {
+  const [isCollapsed, setIsCollapsed] = useState(() => window.innerWidth < 960);
   const columns = [peq.filters.slice(0, 5), peq.filters.slice(5)];
+
   return (
-    <section className="bands-grid">
-      {columns.map((bands, columnIndex) => (
-        <div className="bands-card" key={columnIndex}>
-          <div className="bands-header">
-            <span>BAND</span><span>TYPE</span><span>FREQ (Hz)</span><span>GAIN (dB)</span><span>Q</span>
-          </div>
-          {bands.map((filter) => (
-            <BandRow
-              key={filter.index}
-              filter={filter}
-              onChange={(updated) => onFilterChange(filter.index, updated)}
-            />
+    <div className="bands-container">
+      <div
+        className="bands-section-header"
+        onClick={() => setIsCollapsed(!isCollapsed)}
+      >
+        <span className="title-text">
+          <Icon>tune</Icon>
+          <strong>FILTER BANDS</strong>
+        </span>
+        <button
+          className="collapse-toggle-btn"
+          aria-label={isCollapsed ? "Expand filters" : "Collapse filters"}
+        >
+          <Icon>{isCollapsed ? "expand_more" : "expand_less"}</Icon>
+        </button>
+      </div>
+      {!isCollapsed && (
+        <section className="bands-grid">
+          {columns.map((bands, columnIndex) => (
+            <div className="bands-card" key={columnIndex}>
+              <div className="bands-header">
+                <span>BAND</span><span>TYPE</span><span>FREQ (Hz)</span><span>GAIN (dB)</span><span>Q</span>
+              </div>
+              {bands.map((filter) => (
+                <BandRow
+                  key={filter.index}
+                  filter={filter}
+                  onChange={(updated) => onFilterChange(filter.index, updated)}
+                />
+              ))}
+            </div>
           ))}
-        </div>
-      ))}
-    </section>
+        </section>
+      )}
+    </div>
   );
 }
 

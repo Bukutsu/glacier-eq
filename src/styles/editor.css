@@ -87,3 +87,49 @@ input[type="range"]::-moz-range-thumb { width: 8px; height: 20px; border: 0; bor
 .num-input.gain, .num-input.q { text-align: right; }
 .gain-cell { display: flex; align-items: center; gap: 10px; }
 .gain-cell .gain { width: 56px; }
+
+.bands-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bands-section-header {
+  height: 46px;
+  padding: 0 14px;
+  background: var(--panel);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.12s ease;
+}
+
+.bands-section-header:hover {
+  background: var(--surface-soft);
+}
+
+.bands-section-header .title-text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--cyan);
+}
+
+.bands-section-header strong {
+  font-size: var(--type-caption);
+  color: var(--text);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.bands-section-header .collapse-toggle-btn {
+  background: transparent;
+  color: var(--cyan);
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
