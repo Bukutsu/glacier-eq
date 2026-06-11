@@ -28,6 +28,13 @@ if (tabIdx !== -1 && args[tabIdx + 1]) {
   selectedTab = args[tabIdx + 1];
 }
 
+// Parse --tools-tab <value>
+let toolsTab = '';
+const toolsTabIdx = args.indexOf('--tools-tab');
+if (toolsTabIdx !== -1 && args[toolsTabIdx + 1]) {
+  toolsTab = args[toolsTabIdx + 1];
+}
+
 const expandFilters = args.includes('--expand-filters');
 
 async function run() {
@@ -157,11 +164,25 @@ async function run() {
     console.log(`Clicking mobile tab: ${selectedTab}...`);
     const tabNameMap = {
       eq: 'EQ',
-      targets: 'Targets',
+      tuning: 'Tuning',
+      targets: 'Tuning',
       profiles: 'Profiles'
     };
     const tabText = tabNameMap[selectedTab.toLowerCase()] || selectedTab;
     await page.click(`.mobile-tab-item:has-text('${tabText}')`);
+    await page.waitForTimeout(1000);
+  }
+
+  if (toolsTab) {
+    console.log(`Clicking tools panel tab: ${toolsTab}...`);
+    const toolsTabMap = {
+      preset: 'Preset',
+      import: 'Import',
+      measure: 'Measure',
+      settings: 'Settings'
+    };
+    const tabText = toolsTabMap[toolsTab.toLowerCase()] || toolsTab;
+    await page.click(`.tabs button:has-text('${tabText}')`);
     await page.waitForTimeout(1000);
   }
 

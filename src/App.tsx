@@ -7,7 +7,7 @@ import { Header } from "./components/Header";
 import { Icon } from "./components/Icon";
 import { Preamp } from "./components/Preamp";
 import { TargetSelector } from "./components/TargetSelector";
-import { ToolsPanel } from "./components/ToolsPanel";
+import { ToolsPanel, MeasureTab } from "./components/ToolsPanel";
 import { DEFAULT_PROFILE_NAME } from "./constants";
 import { bandResponse, xToFreq } from "./lib/graph";
 import { makeMeasurementName, nextMeasurementColor, normalizeMeasurementPoints } from "./lib/measurements";
@@ -18,7 +18,7 @@ import "./App.css";
 
 function App() {
   const [isMobile, setIsMobile] = useState(() => window.matchMedia("(max-width: 768px)").matches);
-  const [activeTab, setActiveTab] = useState<"eq" | "targets" | "profiles">("eq");
+  const [activeTab, setActiveTab] = useState<"eq" | "tuning" | "profiles">("eq");
 
   useEffect(() => {
     const media = window.matchMedia("(max-width: 768px)");
@@ -541,7 +541,7 @@ function App() {
                 <Bands peq={peq} onFilterChange={updateFilter} onStartChange={handleStartChange} />
               </section>
             )}
-            {activeTab === "targets" && (
+            {activeTab === "tuning" && (
               <section className="left-pane">
                 <section className="graph-card">
                   <EqGraph
@@ -551,6 +551,21 @@ function App() {
                     viewMode={graphViewMode}
                   />
                 </section>
+                
+                <section className="tuning-card card">
+                  <div className="tuning-card-header">
+                    <Icon>auto_awesome</Icon>
+                    <strong>AutoEQ (Tuning Assistant)</strong>
+                  </div>
+                  <div className="tuning-card-body">
+                    <p>AutoEQ matching controls will be placed here to match loaded measurements to target references.</p>
+                    <button className="btn filled" disabled style={{ opacity: 0.6, cursor: "not-allowed", width: "100%", minHeight: "44px" }}>
+                      <Icon>bolt</Icon>
+                      <span>Run Match (Soon)</span>
+                    </button>
+                  </div>
+                </section>
+
                 <TargetSelector
                   targets={allTargets}
                   activeTargetIds={activeTargetIds}
@@ -563,6 +578,23 @@ function App() {
                   peakDb={levelPeakDb}
                   setStatus={setStatus}
                 />
+
+                <section className="tuning-card card">
+                  <div className="tuning-card-header">
+                    <Icon>analytics</Icon>
+                    <strong>Measurement Traces</strong>
+                  </div>
+                  <div className="tuning-card-body" style={{ padding: 0 }}>
+                    <MeasureTab
+                      measurements={measurements}
+                      onAddMeasurement={addMeasurement}
+                      onRemoveMeasurement={removeMeasurement}
+                      onToggleMeasurement={toggleMeasurement}
+                      onClearMeasurements={clearMeasurements}
+                      setStatus={setStatus}
+                    />
+                  </div>
+                </section>
               </section>
             )}
             {activeTab === "profiles" && (
@@ -603,11 +635,11 @@ function App() {
               <span>EQ</span>
             </button>
             <button
-              className={`mobile-tab-item ${activeTab === "targets" ? "active" : ""}`}
-              onClick={() => setActiveTab("targets")}
+              className={`mobile-tab-item ${activeTab === "tuning" ? "active" : ""}`}
+              onClick={() => setActiveTab("tuning")}
             >
-              <Icon>show_chart</Icon>
-              <span>Targets</span>
+              <Icon>auto_awesome</Icon>
+              <span>Tuning</span>
             </button>
             <button
               className={`mobile-tab-item ${activeTab === "profiles" ? "active" : ""}`}
