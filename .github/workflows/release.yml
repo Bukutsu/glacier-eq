@@ -142,13 +142,20 @@ jobs:
         run: npm ci
 
       - name: Build Android APK
-        run: npm run tauri android build --apk
+        run: npm run android:apk:release
 
       - name: Rename APK to release convention
         run: |
           shopt -s globstar nullglob
-          apk_paths=( src-tauri/gen/android/app/build/outputs/apk/release/*.apk )
+          apk_paths=( src-tauri/gen/android/app/build/outputs/apk/universal/release/*.apk )
           if [[ ${#apk_paths[@]} -eq 0 ]]; then
+            apk_paths=( src-tauri/gen/android/app/build/outputs/apk/arm64/release/*.apk )
+          fi
+          if [[ ${#apk_paths[@]} -eq 0 ]]; then
+            apk_paths=( src-tauri/gen/android/app/build/outputs/apk/**/release/*.apk )
+          fi
+          if [[ ${#apk_paths[@]} -eq 0 ]]; then
+            find src-tauri/gen/android/app/build/outputs/apk -type f -name '*.apk' -print >&2 || true
             echo "No APK found" >&2
             exit 1
           fi
