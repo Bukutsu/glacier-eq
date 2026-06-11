@@ -1,28 +1,82 @@
+<!-- Improved compatibility of back to top link: See: https://github.com/othneildrew/Best-README-Template/pull/73 -->
 <a id="readme-top"></a>
+<!--
+*** Glacier EQ — Cross-platform parametric EQ editor for USB DACs.
+-->
 
+
+
+<!-- PROJECT SHIELDS -->
+<!--
+*** Reference style links are used below for readability.
+*** See the bottom of this document for the declaration of reference variables.
+-->
+[![Contributors][contributors-shield]][contributors-url]
+[![Forks][forks-shield]][forks-url]
+[![Stargazers][stars-shield]][stars-url]
+[![Issues][issues-shield]][issues-url]
+[![MIT License][license-shield]][license-url]
+
+
+
+<!-- PROJECT LOGO -->
+<br />
 <div align="center">
-  <img src="assets/glacier-eq.svg" alt="Glacier EQ" width="80" height="80">
+  <a href="https://github.com/Bukutsu/glacier-eq">
+    <img src="assets/glacier-eq.svg" alt="Glacier EQ" width="80" height="80">
+  </a>
 
-## Glacier EQ
+  <h3 align="center">Glacier EQ</h3>
 
-Cross-platform parametric EQ editor for USB DACs. Offline, direct, and built for dense tuning work on desktop and Android.
-
-[Usage](#usage) · [Android](#android-device-testing) · [Development](#development)
-
+  <p align="center">
+    Cross-platform parametric EQ editor for USB DACs. Offline, direct, and built for dense tuning work on desktop and Android.
+    <br />
+    <a href="https://github.com/Bukutsu/glacier-eq"><strong>Explore the docs »</strong></a>
+    <br />
+    <br />
+    <a href="#usage">View Usage</a>
+    &middot;
+    <a href="https://github.com/Bukutsu/glacier-eq/issues/new?labels=bug&template=bug-report---.md">Report Bug</a>
+    &middot;
+    <a href="https://github.com/Bukutsu/glacier-eq/issues/new?labels=enhancement&template=feature-request---.md">Request Feature</a>
+  </p>
 </div>
 
-## Table of Contents
 
-- [About](#about)
-- [Supported Devices](#supported-devices)
-- [Getting Started](#getting-started)
-- [Usage](#usage)
-- [Android Device Testing](#android-device-testing)
-- [Development](#development)
-- [License](#license)
-- [Acknowledgments](#acknowledgments)
 
-## About
+<!-- TABLE OF CONTENTS -->
+<details>
+  <summary>Table of Contents</summary>
+  <ol>
+    <li>
+      <a href="#about-the-project">About The Project</a>
+      <ul>
+        <li><a href="#built-with">Built With</a></li>
+      </ul>
+    </li>
+    <li>
+      <a href="#getting-started">Getting Started</a>
+      <ul>
+        <li><a href="#prerequisites">Prerequisites</a></li>
+        <li><a href="#installation">Installation</a></li>
+      </ul>
+    </li>
+    <li><a href="#usage">Usage</a></li>
+    <li><a href="#supported-devices">Supported Devices</a></li>
+    <li><a href="#roadmap">Roadmap</a></li>
+    <li><a href="#contributing">Contributing</a></li>
+    <li><a href="#android-device-testing">Android Device Testing</a></li>
+    <li><a href="#development">Development</a></li>
+    <li><a href="#license">License</a></li>
+    <li><a href="#contact">Contact</a></li>
+    <li><a href="#acknowledgments">Acknowledgments</a></li>
+  </ol>
+</details>
+
+
+
+<!-- ABOUT THE PROJECT -->
+## About The Project
 
 Glacier EQ talks to compatible USB DACs over HID, edits 10-band parametric EQ, and verifies writes before they stick. It is the Tauri + React successor to Frost Tune, with the same low-level device focus and a newer cross-platform UI.
 
@@ -40,49 +94,54 @@ Glacier EQ talks to compatible USB DACs over HID, edits 10-band parametric EQ, a
 - Dev-only dummy DAC for UI review without plugging in hardware
 - Offline by design, with no account or cloud dependency
 
-**Built with:** Tauri v2, React, TypeScript, Rust, Playwright
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-## Supported Devices
 
-| Manufacturer | Model | Status | Family / Protocol |
-| :--- | :--- | :--- | :--- |
-| **EPZ** | TP35 Pro | Tested | Walkplay Family |
-| **Moondrop** | Dawn Pro | Untested | Walkplay Family |
-| **Truthear** | KEYX | Untested | Walkplay Family |
 
+### Built With
+
+* [![Tauri][Tauri]][Tauri-url]
+* [![React][React.js]][React-url]
+* [![TypeScript][TypeScript]][TypeScript-url]
+* [![Rust][Rust]][Rust-url]
+* [![Playwright][Playwright]][Playwright-url]
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+
+
+<!-- GETTING STARTED -->
 ## Getting Started
 
-**Prerequisites**
+To get a local copy up and running follow these steps.
+
+### Prerequisites
 
 - Node.js and npm
 - Rust toolchain
 - Platform dependencies required by Tauri v2
 - USB/HID access for real-device testing
 
-Install dependencies:
+### Installation
 
-```sh
-npm install
-```
+1. Clone the repo
+   ```sh
+   git clone https://github.com/Bukutsu/glacier-eq.git
+   ```
+2. Install NPM packages
+   ```sh
+   npm install
+   ```
+3. Run the desktop development server
+   ```sh
+   npm run tauri dev
+   ```
 
-Run the desktop development server:
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-```sh
-npm run tauri dev
-```
 
-Build the web frontend:
 
-```sh
-npm run build
-```
-
-Run Playwright smoke tests:
-
-```sh
-npm run test
-```
-
+<!-- USAGE -->
 ## Usage
 
 1. Plug in a supported DAC.
@@ -96,6 +155,71 @@ npm run test
 
 In development builds, `Glacier Dummy DAC` appears in the device chooser. It connects without hardware and loads a realistic test EQ state for UI review.
 
+Build the web frontend:
+
+```sh
+npm run build
+```
+
+Run Playwright smoke tests:
+
+```sh
+npm run test
+```
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+
+
+<!-- SUPPORTED DEVICES -->
+## Supported Devices
+
+| Manufacturer | Model | Status | Family / Protocol |
+| :--- | :--- | :--- | :--- |
+| **EPZ** | TP35 Pro | Tested | Walkplay Family |
+| **Moondrop** | Dawn Pro | Untested | Walkplay Family |
+| **Truthear** | KEYX | Untested | Walkplay Family |
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+
+
+<!-- ROADMAP -->
+## Roadmap
+
+- [ ] Add additional DAC family support
+- [ ] GUI frequency response graph
+- [ ] Cross-platform package builds (AppImage, DMG, APK)
+- [ ] Command-line interface for headless scripting
+- [ ] Multi-device simultaneous support
+- [ ] i18n / localization
+
+See the [open issues](https://github.com/Bukutsu/glacier-eq/issues) for a full list of proposed features and known issues.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+
+
+<!-- CONTRIBUTING -->
+## Contributing
+
+Contributions are what make the open source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
+
+If you have a suggestion that would make this better, please fork the repo and create a pull request. You can also simply open an issue with the tag "enhancement".
+
+Don't forget to give the project a star! Thanks again!
+
+1. Fork the Project
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the Branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+
+
+<!-- ANDROID DEVICE TESTING -->
 ## Android Device Testing
 
 Install the Android toolchain first:
@@ -141,6 +265,11 @@ npm run android:apk
 The generated APK is written under `src-tauri/gen/android/app/build/outputs/apk/`.
 Use `npm run android:apk:release` only after release signing is configured.
 
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+
+
+<!-- DEVELOPMENT -->
 ## Development
 
 Useful commands:
@@ -167,14 +296,62 @@ glacier-eq/
 └── scripts/            # Local helper scripts
 ```
 
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+
+
+<!-- LICENSE -->
 ## License
 
-MIT. See `LICENSE`.
+Distributed under the MIT License. See `LICENSE` for more information.
 
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+
+
+<!-- CONTACT -->
+## Contact
+
+Project Link: [https://github.com/Bukutsu/glacier-eq](https://github.com/Bukutsu/glacier-eq)
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+
+
+<!-- ACKNOWLEDGMENTS -->
 ## Acknowledgments
 
-- [Tauri](https://v2.tauri.app/)
-- [React](https://react.dev/)
-- [hidapi](https://github.com/libusb/hidapi)
-- [Playwright](https://playwright.dev/)
-- [devicePEQ](https://github.com/jeromeof/devicePEQ) for reverse-engineered DAC protocols
+* [Best-README-Template](https://github.com/othneildrew/Best-README-Template)
+* [Tauri](https://v2.tauri.app/)
+* [React](https://react.dev/)
+* [hidapi](https://github.com/libusb/hidapi)
+* [Playwright](https://playwright.dev/)
+* [devicePEQ](https://github.com/jeromeof/devicePEQ) for reverse-engineered DAC protocols
+* [Shields.io](https://shields.io/)
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+
+
+<!-- MARKDOWN LINKS & IMAGES -->
+<!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
+[contributors-shield]: https://img.shields.io/github/contributors/Bukutsu/glacier-eq.svg?style=for-the-badge
+[contributors-url]: https://github.com/Bukutsu/glacier-eq/graphs/contributors
+[forks-shield]: https://img.shields.io/github/forks/Bukutsu/glacier-eq.svg?style=for-the-badge
+[forks-url]: https://github.com/Bukutsu/glacier-eq/network/members
+[stars-shield]: https://img.shields.io/github/stars/Bukutsu/glacier-eq.svg?style=for-the-badge
+[stars-url]: https://github.com/Bukutsu/glacier-eq/stargazers
+[issues-shield]: https://img.shields.io/github/issues/Bukutsu/glacier-eq.svg?style=for-the-badge
+[issues-url]: https://github.com/Bukutsu/glacier-eq/issues
+[license-shield]: https://img.shields.io/github/license/Bukutsu/glacier-eq.svg?style=for-the-badge
+[license-url]: https://github.com/Bukutsu/glacier-eq/blob/master/LICENSE
+[Tauri]: https://img.shields.io/badge/Tauri-24C8D8?style=for-the-badge&logo=tauri&logoColor=white
+[Tauri-url]: https://v2.tauri.app/
+[React.js]: https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB
+[React-url]: https://reactjs.org/
+[TypeScript]: https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white
+[TypeScript-url]: https://www.typescriptlang.org/
+[Rust]: https://img.shields.io/badge/Rust-000000?style=for-the-badge&logo=rust&logoColor=white
+[Rust-url]: https://www.rust-lang.org/
+[Playwright]: https://img.shields.io/badge/Playwright-45ba4b?style=for-the-badge&logo=playwright&logoColor=white
+[Playwright-url]: https://playwright.dev/
