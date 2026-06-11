@@ -41,7 +41,7 @@
   padding: 0 8px;
   background: var(--legend-bg);
   color: var(--text);
-  font-size: 12px;
+  font-size: var(--type-small);
   outline: 1px solid var(--line-outline);
   backdrop-filter: blur(4px);
 }
@@ -128,7 +128,7 @@
 .graph-level-readout {
   color: var(--muted);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--type-caption);
   white-space: nowrap;
 }
 
@@ -216,19 +216,13 @@
   letter-spacing: 0;
 }
 
-.preamp-meta span {
-  color: var(--cyan);
-  font-family: var(--font-mono);
-  font-size: 13px;
-}
-
 .preamp-meta input.preamp-value {
   height: 28px;
   color: var(--cyan);
   background: transparent;
   box-shadow: none;
   padding: 0 4px;
-  font-size: 13px;
+  font-size: var(--type-label);
   font-family: var(--font-mono);
 }
 
@@ -320,7 +314,7 @@
   height: 30px;
   border-bottom: 1px solid var(--line);
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--type-small);
 }
 
 .bands-header span:nth-child(4) { padding-left: 4px; }

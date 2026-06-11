@@ -53,7 +53,7 @@ h1 {
   color: var(--yellow);
   border: 1px solid var(--yellow);
   padding: 2px 8px;
-  font-size: 11px;
+  font-size: var(--type-caption);
   background: rgb(var(--yellow-rgb) / 0.10);
 }
 

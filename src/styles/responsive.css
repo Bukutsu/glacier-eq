@@ -61,7 +61,7 @@
     gap: 10px;
   }
   .bands-grid { grid-template-columns: 1fr; }
-  .bands-header, .band-row { grid-template-columns: 36px 174px 80px minmax(160px,1fr) 54px; font-size: 12px; }
+  .bands-header, .band-row { grid-template-columns: 36px 174px 80px minmax(160px,1fr) 54px; font-size: var(--type-small); }
   .right-rail {
     display: flex;
     flex-direction: column;
@@ -92,13 +92,13 @@
     min-height: auto;
   }
   h1 {
-    font-size: 21px;
+    font-size: var(--type-title);
   }
   .dash {
     display: none;
   }
   .device-name {
-    font-size: 14px;
+    font-size: var(--type-label);
   }
   .sync-dot,
   .unsaved {
@@ -135,7 +135,7 @@
     min-height: 22px;
     max-width: 100%;
     padding: 0 6px;
-    font-size: 11px;
+    font-size: var(--type-caption);
   }
   .target-strip {
     grid-template-columns: 1fr;
@@ -191,7 +191,7 @@
     align-items: baseline;
   }
   .preamp-meta span {
-    font-size: 12px;
+    font-size: var(--type-small);
   }
   .preamp-card input[type="range"] {
     min-height: 32px;
@@ -249,7 +249,7 @@
     outline-offset: -1px;
   }
   .band-index strong {
-    font-size: 18px;
+    font-size: var(--type-subtitle);
     line-height: 1;
   }
   .band-type-field {
@@ -272,7 +272,7 @@
   .band-field::before {
     display: block;
     color: var(--comment);
-    font-size: 10px;
+    font-size: var(--type-micro);
     letter-spacing: 0.12em;
     text-transform: uppercase;
   }
@@ -299,7 +299,7 @@
     height: 42px;
     padding: 0 10px;
     border-radius: var(--radius-control);
-    font-size: 14px;
+    font-size: var(--type-label);
   }
   .num-input:focus {
     background: var(--surface);
@@ -329,7 +329,7 @@
   .tabs button {
     min-height: 40px;
     padding: 0 8px;
-    font-size: 12px;
+    font-size: var(--type-small);
     justify-content: center;
     text-align: center;
   }
@@ -341,7 +341,7 @@
     border-top: 0;
   }
   .tabs.compact button {
-    font-size: 14px;
+    font-size: var(--type-label);
     font-weight: 600;
   }
   .tabs button .material-icon {
@@ -417,7 +417,7 @@
   }
   .toolbar .btn {
     padding: 0 6px;
-    font-size: 13px;
+    font-size: var(--type-label);
   }
   .tabs button {
     gap: 6px;
@@ -426,7 +426,7 @@
     font-size: 16px;
   }
   .tabs.compact button span:last-child {
-    font-size: 13px;
+    font-size: var(--type-label);
   }
   .bands-grid {
     display: flex;
@@ -464,13 +464,13 @@
   .toolbar .btn,
   .target-add,
   .target-chip {
-    font-size: 12px;
+    font-size: var(--type-small);
   }
   .type-buttons {
     grid-template-columns: repeat(5, minmax(34px, 1fr));
   }
   .type-buttons button {
-    font-size: 13px;
+    font-size: var(--type-label);
   }
 }
 
@@ -505,7 +505,7 @@
     height: 100%;
     background: transparent;
     color: var(--muted);
-    font-size: 11px;
+    font-size: var(--type-caption);
     font-weight: 500;
     gap: 4px;
     padding: 0;
@@ -555,7 +555,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 14px;
+    font-size: var(--type-label);
     font-weight: 600;
     color: var(--cyan);
   }
@@ -573,7 +573,7 @@
 
   .tuning-card-body p {
     margin: 0;
-    font-size: 12px;
+    font-size: var(--type-small);
     color: var(--muted);
     line-height: 1.4;
   }
