@@ -344,6 +344,7 @@ Project Link: [https://github.com/Bukutsu/glacier-eq](https://github.com/Bukutsu
 * [hidapi](https://github.com/libusb/hidapi)
 * [Playwright](https://playwright.dev/)
 * [devicePEQ](https://github.com/jeromeof/devicePEQ) for reverse-engineered DAC protocols
+* [AutoEQ-C](https://github.com/peqdb/autoeq-c) — AutoEQ optimizer implementation we replicated for the built-in matching engine
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 
