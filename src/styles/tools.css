@@ -86,6 +86,7 @@
 
 .preset-list button {
   text-align: left;
+  justify-content: flex-start;
   background: transparent;
   color: var(--text);
   font-size: var(--type-body);

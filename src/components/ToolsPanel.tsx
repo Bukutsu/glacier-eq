@@ -100,7 +100,7 @@ export function ToolsPanel(props: ToolsPanelProps) {
             onGraphViewModeChange={props.onGraphViewModeChange}
           />
         )}
-        {props.showActions !== false && <ToolActions {...props} />}
+        {tab === "Preset" && props.showActions !== false && <ToolActions {...props} />}
       </section>
       {showDiagnostics && <DiagnosticsPanel />}
     </aside>
