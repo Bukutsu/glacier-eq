@@ -94,7 +94,7 @@ export function Header({
 function ToolbarButtonIcon({ icon, label }: { icon: string; label: string }) {
   return (
     <>
-      <span className="material-icon">{icon}</span>
+      <span className="material-symbols-outlined">{icon}</span>
       <span>{label}</span>
     </>
   );

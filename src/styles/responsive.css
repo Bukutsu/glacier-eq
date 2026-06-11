@@ -344,7 +344,7 @@
     font-size: var(--type-label);
     font-weight: 600;
   }
-  .tabs button .material-icon {
+  .tabs button .material-symbols-outlined {
     font-size: 17px;
   }
   .import-grid,
@@ -422,7 +422,7 @@
   .tabs button {
     gap: 6px;
   }
-  .tabs button .material-icon {
+  .tabs button .material-symbols-outlined {
     font-size: 16px;
   }
   .tabs.compact button span:last-child {
@@ -518,7 +518,7 @@
     color: var(--cyan);
   }
 
-  .mobile-tab-item .material-icon {
+  .mobile-tab-item .material-symbols-outlined {
     font-size: 22px;
   }
 
@@ -560,7 +560,7 @@
     color: var(--cyan);
   }
 
-  .tuning-card-header .material-icon {
+  .tuning-card-header .material-symbols-outlined {
     font-size: 18px;
   }
 

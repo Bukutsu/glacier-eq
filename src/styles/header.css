@@ -101,6 +101,6 @@ h1 {
   color: var(--cyan);
 }
 
-.history-btn .material-icon {
+.history-btn .material-symbols-outlined {
   font-size: 16px;
 }

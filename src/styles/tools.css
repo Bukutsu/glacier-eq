@@ -38,7 +38,7 @@
   padding: 0 12px;
   text-align: left;
 }
-.tabs button .material-icon {
+.tabs button .material-symbols-outlined {
   font-size: 16px;
   flex: 0 0 auto;
 }
@@ -190,7 +190,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   min-height: 44px;
   padding: 0 12px;
 }
-.import-grid .icon-action .material-icon {
+.import-grid .icon-action .material-symbols-outlined {
   flex: 0 0 auto;
   font-size: 18px;
 }
