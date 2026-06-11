@@ -21,13 +21,16 @@ impl Default for Settings {
     }
 }
 
-fn settings_path() -> Result<PathBuf, String> {
-    Ok(app_data_base_dir()?.join("settings.json"))
+fn settings_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    let dir = app_data_base_dir(app)?;
+    std::fs::create_dir_all(&dir)
+        .map_err(|error| format!("Failed to create data directory: {error}"))?;
+    Ok(dir.join("settings.json"))
 }
 
 #[tauri::command]
-pub fn get_settings() -> Result<Settings, String> {
-    let path = settings_path()?;
+pub fn get_settings(app: tauri::AppHandle) -> Result<Settings, String> {
+    let path = settings_path(&app)?;
     if !path.exists() {
         return Ok(Settings::default());
     }
@@ -42,8 +45,8 @@ pub fn get_settings() -> Result<Settings, String> {
 }
 
 #[tauri::command]
-pub fn save_settings(settings: Settings) -> Result<(), String> {
-    let path = settings_path()?;
+pub fn save_settings(app: tauri::AppHandle, settings: Settings) -> Result<(), String> {
+    let path = settings_path(&app)?;
     let tmp_path = path.with_extension("tmp");
     let content = serde_json::to_string_pretty(&settings)
         .map_err(|error| format!("Failed to serialize settings: {error}"))?;

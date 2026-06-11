@@ -4,6 +4,7 @@
 use crate::state::DeviceState;
 use glacier_core::eq::PEQData;
 use serde::Serialize;
+use tauri::Manager;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
@@ -14,55 +15,39 @@ pub struct ProfileDto {
     modified: Option<String>,
 }
 
-pub(crate) fn app_data_base_dir() -> Result<PathBuf, String> {
-    if let Ok(dir) = std::env::var("FROST_TUNE_HOME") {
+pub(crate) fn app_data_base_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    let dir = if let Ok(dir) = std::env::var("GLACIER_EQ_HOME") {
         if !dir.trim().is_empty() {
-            return Ok(PathBuf::from(dir));
+            PathBuf::from(dir)
+        } else {
+            app
+                .path()
+                .app_data_dir()
+                .map_err(|error| format!("Failed to resolve Glacier EQ data directory: {error}"))?
         }
-    }
-
-    platform_data_dir()
-}
-
-#[cfg(target_os = "linux")]
-fn platform_data_dir() -> Result<PathBuf, String> {
-    if let Ok(xdg) = std::env::var("XDG_DATA_HOME") {
-        if !xdg.trim().is_empty() {
-            return Ok(PathBuf::from(xdg).join("frost-tune"));
+    } else if let Ok(dir) = std::env::var("FROST_TUNE_HOME") {
+        if !dir.trim().is_empty() {
+            PathBuf::from(dir)
+        } else {
+            app
+                .path()
+                .app_data_dir()
+                .map_err(|error| format!("Failed to resolve Glacier EQ data directory: {error}"))?
         }
-    }
+    } else {
+        app
+            .path()
+            .app_data_dir()
+            .map_err(|error| format!("Failed to resolve Glacier EQ data directory: {error}"))?
+    };
 
-    let home = std::env::var("HOME").map_err(|_| {
-        "Cannot resolve HOME. Set FROST_TUNE_HOME to your Frost-Tune data directory.".to_string()
-    })?;
-    Ok(PathBuf::from(home).join(".local/share/frost-tune"))
+    std::fs::create_dir_all(&dir)
+        .map_err(|error| format!("Failed to create Glacier EQ data directory {}: {error}", dir.display()))?;
+    Ok(dir)
 }
 
-#[cfg(target_os = "macos")]
-fn platform_data_dir() -> Result<PathBuf, String> {
-    let home = std::env::var("HOME").map_err(|_| {
-        "Cannot resolve HOME. Set FROST_TUNE_HOME to your Frost-Tune data directory.".to_string()
-    })?;
-    Ok(PathBuf::from(home)
-        .join("Library/Application Support")
-        .join("frost-tune"))
-}
-
-#[cfg(target_os = "windows")]
-fn platform_data_dir() -> Result<PathBuf, String> {
-    let appdata = std::env::var("APPDATA").map_err(|_| {
-        "Cannot resolve APPDATA. Set FROST_TUNE_HOME to your Frost-Tune data directory.".to_string()
-    })?;
-    Ok(PathBuf::from(appdata).join("frost-tune"))
-}
-
-#[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
-fn platform_data_dir() -> Result<PathBuf, String> {
-    Err("Unsupported platform. Set FROST_TUNE_HOME to your Frost-Tune data directory.".to_string())
-}
-
-fn profiles_dir() -> Result<PathBuf, String> {
-    let dir = app_data_base_dir()?.join("profiles");
+fn profiles_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    let dir = app_data_base_dir(app)?.join("profiles");
     std::fs::create_dir_all(&dir)
         .map_err(|error| format!("Failed to create profiles directory: {error}"))?;
     Ok(dir)
@@ -81,8 +66,8 @@ fn modified_time_string(path: &Path) -> Option<String> {
 }
 
 #[tauri::command]
-pub fn list_profiles() -> Result<Vec<ProfileDto>, String> {
-    let dir = profiles_dir()?;
+pub fn list_profiles(app: tauri::AppHandle) -> Result<Vec<ProfileDto>, String> {
+    let dir = profiles_dir(&app)?;
     let mut profiles = Vec::new();
 
     for entry in std::fs::read_dir(&dir).map_err(|error| {
@@ -148,13 +133,13 @@ fn read_profile(path: PathBuf) -> Result<Option<ProfileDto>, String> {
 }
 
 #[tauri::command]
-pub fn save_profile(name: String, peq: PEQData) -> Result<(), String> {
+pub fn save_profile(app: tauri::AppHandle, name: String, peq: PEQData) -> Result<(), String> {
     let sanitized = sanitize_profile_name(&name);
     if sanitized.trim().is_empty() {
         return Err("Enter a profile name first.".to_string());
     }
 
-    let dir = profiles_dir()?;
+    let dir = profiles_dir(&app)?;
     let path = dir.join(format!("{sanitized}.txt"));
     let tmp_path = dir.join(format!(".{sanitized}.tmp"));
     let content = glacier_core::autoeq::peq_to_autoeq(&peq);
@@ -171,13 +156,13 @@ pub fn save_profile(name: String, peq: PEQData) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn delete_profile(name: String) -> Result<(), String> {
+pub fn delete_profile(app: tauri::AppHandle, name: String) -> Result<(), String> {
     let sanitized = sanitize_profile_name(&name);
     if sanitized.trim().is_empty() {
         return Err("No profile selected.".to_string());
     }
 
-    let path = profiles_dir()?.join(format!("{sanitized}.txt"));
+    let path = profiles_dir(&app)?.join(format!("{sanitized}.txt"));
     match std::fs::remove_file(&path) {
         Ok(()) => Ok(()),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
@@ -189,8 +174,8 @@ pub fn delete_profile(name: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn open_profiles_dir() -> Result<(), String> {
-    let dir = profiles_dir()?;
+pub fn open_profiles_dir(app: tauri::AppHandle) -> Result<(), String> {
+    let dir = profiles_dir(&app)?;
     open_dir(&dir).map(|_| ()).map_err(|error| {
         format!(
             "Failed to open profiles directory {}: {error}",
