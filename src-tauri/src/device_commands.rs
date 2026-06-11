@@ -9,6 +9,7 @@ use std::collections::HashSet;
 use std::sync::Mutex;
 use std::time::Duration;
 use tauri_plugin_hid::HidExt;
+use tauri::Manager;
 
 const INIT_DRAIN_ATTEMPTS: usize = 100;
 const FILTER_READ_ATTEMPTS: usize = 60;
@@ -418,6 +419,15 @@ fn read_filter(
     index: u8,
 ) -> Result<glacier_core::eq::Filter, String> {
     let nonce = index.wrapping_add(1).max(1);
+    let diagnostics_store = app.state::<Mutex<DiagnosticsStore>>();
+    
+    diagnostics::log_info(
+        app,
+        &diagnostics_store,
+        LogSource::HID,
+        format!("--- Read Filter {} (nonce {}) ---", index + 1, nonce)
+    );
+
     send_packet(
         app,
         &connected.path,
@@ -426,24 +436,64 @@ fn read_filter(
     )?;
 
     let mut mismatches = 0usize;
-    for _ in 0..FILTER_READ_ATTEMPTS {
+    for attempt in 1..=FILTER_READ_ATTEMPTS {
         let bytes = app
             .hid()
             .read(&connected.path, 60)
-            .map_err(|error| format!("Filter {} read failed: {error}", index + 1))?;
+            .map_err(|error| format!("Filter {} read failed on attempt {}: {error}", index + 1, attempt))?;
         if bytes.is_empty() {
+            if attempt == 1 || attempt % 20 == 0 || attempt == FILTER_READ_ATTEMPTS {
+                diagnostics::log_info(
+                    app,
+                    &diagnostics_store,
+                    LogSource::HID,
+                    format!("Filter {} read attempt {}/{}: timed out (empty)", index + 1, attempt, FILTER_READ_ATTEMPTS)
+                );
+            }
             continue;
         }
 
-        let data_vec = protocol.framer().unframe_packet(&bytes).map_err(|error| error.to_string())?;
+        diagnostics::log_info(
+            app,
+            &diagnostics_store,
+            LogSource::HID,
+            format!("Filter {} read attempt {}/{}: got raw packet (len {}): {:02X?}", index + 1, attempt, FILTER_READ_ATTEMPTS, bytes.len(), bytes)
+        );
+
+        let data_vec = match protocol.framer().unframe_packet(&bytes) {
+            Ok(vec) => vec,
+            Err(error) => {
+                diagnostics::log_warn(
+                    app,
+                    &diagnostics_store,
+                    LogSource::HID,
+                    format!("Filter {} unframe failed: {}", index + 1, error)
+                );
+                continue;
+            }
+        };
         let data = &data_vec;
-        if protocol.matches_filter_response(data, index, nonce) {
+        let matches = protocol.matches_filter_response(data, index, nonce);
+        diagnostics::log_info(
+            app,
+            &diagnostics_store,
+            LogSource::HID,
+            format!("Filter {} response matching: matches={}", index + 1, matches)
+        );
+
+        if matches {
             return protocol.parse_filter_response(data)
                 .ok_or_else(|| format!("Filter {} response could not be parsed", index + 1));
         }
 
         if !data.is_empty() {
             mismatches += 1;
+            diagnostics::log_warn(
+                app,
+                &diagnostics_store,
+                LogSource::HID,
+                format!("Filter {} response mismatch count: {} (max {})", index + 1, mismatches, MAX_FILTER_MISMATCHES)
+            );
             if mismatches > MAX_FILTER_MISMATCHES {
                 break;
             }
@@ -458,21 +508,55 @@ fn read_filter(
 }
 
 fn read_global_gain(app: &tauri::AppHandle, path: &str, protocol: &dyn DeviceProtocol) -> Result<i8, String> {
+    let diagnostics_store = app.state::<Mutex<DiagnosticsStore>>();
+    diagnostics::log_info(
+        app,
+        &diagnostics_store,
+        LogSource::HID,
+        "--- Read Global Gain ---"
+    );
+
     send_packet(app, path, &protocol.build_global_gain_request(0), protocol)?;
     sleep_ms(25);
 
-    for _ in 0..GLOBAL_GAIN_READ_ATTEMPTS {
+    for attempt in 1..=GLOBAL_GAIN_READ_ATTEMPTS {
         let bytes = app
             .hid()
             .read(path, 60)
-            .map_err(|error| format!("Global gain read failed: {error}"))?;
+            .map_err(|error| format!("Global gain read failed on attempt {}: {error}", attempt))?;
         if bytes.is_empty() {
             continue;
         }
 
-        let data_vec = protocol.framer().unframe_packet(&bytes).map_err(|error| error.to_string())?;
+        diagnostics::log_info(
+            app,
+            &diagnostics_store,
+            LogSource::HID,
+            format!("Global gain read attempt {}/{}: got raw packet (len {}): {:02X?}", attempt, GLOBAL_GAIN_READ_ATTEMPTS, bytes.len(), bytes)
+        );
+
+        let data_vec = match protocol.framer().unframe_packet(&bytes) {
+            Ok(vec) => vec,
+            Err(error) => {
+                diagnostics::log_warn(
+                    app,
+                    &diagnostics_store,
+                    LogSource::HID,
+                    format!("Global gain unframe failed: {}", error)
+                );
+                continue;
+            }
+        };
         let data = &data_vec;
-        if protocol.matches_global_gain_response(data, 0) {
+        let matches = protocol.matches_global_gain_response(data, 0);
+        diagnostics::log_info(
+            app,
+            &diagnostics_store,
+            LogSource::HID,
+            format!("Global gain response matching: matches={}", matches)
+        );
+
+        if matches {
             if let Some(gain) = protocol.parse_global_gain_response(data) {
                 return Ok(gain);
             }
@@ -524,9 +608,26 @@ fn commit_changes(app: &tauri::AppHandle, path: &str, protocol: &dyn DeviceProto
 }
 
 fn send_packet(app: &tauri::AppHandle, path: &str, packet: &[u8], protocol: &dyn DeviceProtocol) -> Result<(), String> {
+    let framed = protocol.framer().frame_packet(packet);
+    let diagnostics_store = app.state::<Mutex<DiagnosticsStore>>();
+    diagnostics::log_info(
+        app,
+        &diagnostics_store,
+        LogSource::HID,
+        format!("Writing packet (len {}): {:02X?}", framed.len(), framed)
+    );
     app.hid()
-        .write(path, &protocol.framer().frame_packet(packet))
-        .map_err(|error| error.to_string())
+        .write(path, &framed)
+        .map_err(|error| {
+            let err_msg = error.to_string();
+            diagnostics::log_error(
+                app,
+                &diagnostics_store,
+                LogSource::HID,
+                format!("Write failed: {}", err_msg)
+            );
+            err_msg
+        })
 }
 
 fn drain_stale_frames(app: &tauri::AppHandle, path: &str) {
