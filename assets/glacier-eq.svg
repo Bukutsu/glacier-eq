@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+    <rect width="512" height="512" rx="115" fill="#1a1b26" />
+
+    <rect x="12" y="12" width="488" height="488" rx="105" fill="none" stroke="#292e42" stroke-width="2" opacity="0.4" />
+
+    <!-- Parametric EQ Soundwave -->
+    <path d="M 80 220 
+             C 120 220, 132 140, 160 140 
+             C 188 140, 204 260, 232 260 
+             C 252 260, 260 60, 276 60 
+             C 292 60, 300 260, 320 260 
+             C 348 260, 364 140, 392 140 
+             C 420 140, 432 220, 432 220" 
+          fill="none" stroke="#bb9af7" stroke-width="18" stroke-linecap="round" stroke-linejoin="round" />
+
+    <!-- Front-Facing DAC Unit -->
+    <g transform="translate(0, 16)">
+        <rect x="76" y="310" width="360" height="82" rx="10" fill="#7dcfff" />
+
+        <circle cx="92" cy="326" r="4.5" fill="#1a1b26" />
+        <circle cx="92" cy="376" r="4.5" fill="#1a1b26" />
+        <circle cx="420" cy="326" r="4.5" fill="#1a1b26" />
+        <circle cx="420" cy="376" r="4.5" fill="#1a1b26" />
+
+        <!-- Headphone Jack -->
+        <circle cx="136" cy="352" r="18" fill="none" stroke="#1a1b26" stroke-width="5" />
+        <circle cx="136" cy="352" r="7" fill="#1a1b26" />
+
+        <!-- Status LED -->
+        <circle cx="188" cy="352" r="7" fill="none" stroke="#1a1b26" stroke-width="3" />
+        <circle cx="188" cy="352" r="3" fill="#bb9af7" />
+
+        <!-- Heatsink Grille -->
+        <line x1="212" y1="328" x2="288" y2="328" stroke="#1a1b26" stroke-width="5" stroke-linecap="round" />
+        <line x1="212" y1="344" x2="288" y2="344" stroke="#1a1b26" stroke-width="5" stroke-linecap="round" />
+        <line x1="212" y1="360" x2="288" y2="360" stroke="#1a1b26" stroke-width="5" stroke-linecap="round" />
+        <line x1="212" y1="376" x2="288" y2="376" stroke="#1a1b26" stroke-width="5" stroke-linecap="round" />
+
+        <!-- Volume Knob -->
+        <circle cx="340" cy="352" r="36" fill="#7dcfff" stroke="#1a1b26" stroke-width="5" />
+        <line x1="340" y1="352" x2="322" y2="378" stroke="#1a1b26" stroke-width="5" stroke-linecap="round" />
+
+        <!-- USB-C Port -->
+        <rect x="402" y="348" width="20" height="10" rx="4" fill="#1a1b26" />
+    </g>
+</svg>
