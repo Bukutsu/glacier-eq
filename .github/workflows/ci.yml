@@ -89,7 +89,6 @@ jobs:
             librsvg2-dev \
             patchelf \
             libudev-dev \
-            libhidapi-dev \
             pkg-config
 
       - name: Set up Node.js
