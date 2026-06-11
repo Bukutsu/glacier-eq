@@ -217,31 +217,22 @@
 }
 
 .preamp-meta input.preamp-value {
-  height: 28px;
-  color: var(--cyan);
-  background: transparent;
-  box-shadow: none;
-  padding: 0 4px;
-  font-size: var(--type-label);
-  font-family: var(--font-mono);
-}
-
-.preamp-meta input.preamp-value:focus {
-  box-shadow: inset 0 0 0 1px var(--accent-line-soft);
-  background: var(--bg-dark);
+  width: 48px;
+  height: 24px;
+  text-align: right;
 }
 
 .preamp-value-row {
   display: flex;
   align-items: center;
-  gap: 0;
+  gap: 8px;
+  margin-top: 2px;
 }
 
 .preamp-unit {
   color: var(--comment);
   font-family: var(--font-mono);
   font-size: var(--type-label);
-  padding-left: 2px;
   user-select: none;
 }
 
