@@ -512,4 +512,3 @@ mod tests {
         assert!(parse_filter_packet(&[0u8; 10]).is_none());
     }
 }
-

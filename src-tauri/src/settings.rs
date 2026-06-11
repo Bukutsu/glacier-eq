@@ -1,10 +1,10 @@
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: MIT
 
+use crate::profiles::app_data_base_dir;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
-use crate::profiles::app_data_base_dir;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Settings {
@@ -37,7 +37,7 @@ pub fn get_settings(app: tauri::AppHandle) -> Result<Settings, String> {
 
     let content = fs::read_to_string(&path)
         .map_err(|error| format!("Failed to read settings file: {error}"))?;
-    
+
     let settings = serde_json::from_str(&content)
         .map_err(|error| format!("Failed to parse settings JSON: {error}"))?;
 

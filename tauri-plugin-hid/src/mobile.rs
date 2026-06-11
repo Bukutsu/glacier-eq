@@ -65,11 +65,11 @@ impl<R: Runtime> Hid<R> {
     }
 
     pub fn read(&self, path: &str, mut timeout: i32) -> crate::Result<Vec<u8>> {
-        // For compatibility with HIDAPI (where -1 means blocking read and 0 means return immediately) 
+        // For compatibility with HIDAPI (where -1 means blocking read and 0 means return immediately)
         if timeout == 0 {
-            timeout = 1;    // 1ms is closest to HIDAPI's non-blocking read
+            timeout = 1; // 1ms is closest to HIDAPI's non-blocking read
         } else if timeout < 0 {
-            timeout = 0;    // Wait indefinitely
+            timeout = 0; // Wait indefinitely
         }
 
         let result = self
@@ -83,11 +83,7 @@ impl<R: Runtime> Hid<R> {
             )
             .map_err(Error::PluginInvoke)?;
         // Convert signed bytes to unsigned bytes for Android
-        let data: Vec<u8> = result
-            .data
-            .iter()
-            .map(|&byte| byte as u8)
-            .collect();
+        let data: Vec<u8> = result.data.iter().map(|&byte| byte as u8).collect();
         Ok(data)
     }
 

@@ -52,7 +52,10 @@ pub fn is_supported_device(info: &DeviceInfo) -> bool {
     get_supported_device(info.vendor_id, info.product_id).is_some()
 }
 
-pub fn get_device_profile(vendor_id: u16, product_id: u16) -> Option<Box<dyn crate::device::profile::DeviceProfile>> {
+pub fn get_device_profile(
+    vendor_id: u16,
+    product_id: u16,
+) -> Option<Box<dyn crate::device::profile::DeviceProfile>> {
     match (vendor_id, product_id) {
         (0x3302, 0x43E6) => Some(Box::new(crate::device::walkplay::TP35ProProfile)),
         (0x2FC6, 0xDF30) => Some(Box::new(crate::device::walkplay::DawnProProfile)),

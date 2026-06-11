@@ -1,13 +1,13 @@
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: MIT
 
+use crate::profiles::app_data_base_dir;
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
 use std::sync::Mutex;
-use crate::profiles::app_data_base_dir;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum LogLevel {
@@ -55,9 +55,7 @@ pub struct DiagnosticEvent {
 
 impl DiagnosticEvent {
     pub fn new(level: LogLevel, source: LogSource, message: String) -> Self {
-        let timestamp = chrono::Local::now()
-            .format("%H:%M:%S%.3f")
-            .to_string();
+        let timestamp = chrono::Local::now().format("%H:%M:%S%.3f").to_string();
         Self {
             timestamp,
             level,
@@ -84,7 +82,7 @@ impl DiagnosticsStore {
         if self.events.len() >= 500 {
             self.events.pop_front();
         }
-        
+
         // Append to file
         if let Ok(log_path) = get_log_path(app) {
             // Rotate log file if it exceeds 5MB
@@ -106,7 +104,7 @@ impl DiagnosticsStore {
                 let _ = file.write_all(line.as_bytes());
             }
         }
-        
+
         self.events.push_back(event);
     }
 
@@ -123,7 +121,12 @@ fn get_log_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     Ok(app_data_base_dir(app)?.join("diagnostics.log"))
 }
 
-pub fn log_info(app: &tauri::AppHandle, store: &Mutex<DiagnosticsStore>, source: LogSource, message: impl Into<String>) {
+pub fn log_info(
+    app: &tauri::AppHandle,
+    store: &Mutex<DiagnosticsStore>,
+    source: LogSource,
+    message: impl Into<String>,
+) {
     let event = DiagnosticEvent::new(LogLevel::Info, source, message.into());
     if let Ok(mut store) = store.lock() {
         store.push(app, event.clone());
@@ -132,7 +135,12 @@ pub fn log_info(app: &tauri::AppHandle, store: &Mutex<DiagnosticsStore>, source:
     let _ = app.emit("diagnostic-event", event);
 }
 
-pub fn log_warn(app: &tauri::AppHandle, store: &Mutex<DiagnosticsStore>, source: LogSource, message: impl Into<String>) {
+pub fn log_warn(
+    app: &tauri::AppHandle,
+    store: &Mutex<DiagnosticsStore>,
+    source: LogSource,
+    message: impl Into<String>,
+) {
     let event = DiagnosticEvent::new(LogLevel::Warn, source, message.into());
     if let Ok(mut store) = store.lock() {
         store.push(app, event.clone());
@@ -141,7 +149,12 @@ pub fn log_warn(app: &tauri::AppHandle, store: &Mutex<DiagnosticsStore>, source:
     let _ = app.emit("diagnostic-event", event);
 }
 
-pub fn log_error(app: &tauri::AppHandle, store: &Mutex<DiagnosticsStore>, source: LogSource, message: impl Into<String>) {
+pub fn log_error(
+    app: &tauri::AppHandle,
+    store: &Mutex<DiagnosticsStore>,
+    source: LogSource,
+    message: impl Into<String>,
+) {
     let event = DiagnosticEvent::new(LogLevel::Error, source, message.into());
     if let Ok(mut store) = store.lock() {
         store.push(app, event.clone());
@@ -153,13 +166,21 @@ pub fn log_error(app: &tauri::AppHandle, store: &Mutex<DiagnosticsStore>, source
 // --- Commands ---
 
 #[tauri::command]
-pub fn get_diagnostics(state: tauri::State<'_, Mutex<DiagnosticsStore>>) -> Result<Vec<DiagnosticEvent>, String> {
-    Ok(state.lock().map_err(|_| "Diagnostics store poisoned".to_string())?.events())
+pub fn get_diagnostics(
+    state: tauri::State<'_, Mutex<DiagnosticsStore>>,
+) -> Result<Vec<DiagnosticEvent>, String> {
+    Ok(state
+        .lock()
+        .map_err(|_| "Diagnostics store poisoned".to_string())?
+        .events())
 }
 
 #[tauri::command]
 pub fn clear_diagnostics(state: tauri::State<'_, Mutex<DiagnosticsStore>>) -> Result<(), String> {
-    state.lock().map_err(|_| "Diagnostics store poisoned".to_string())?.clear();
+    state
+        .lock()
+        .map_err(|_| "Diagnostics store poisoned".to_string())?
+        .clear();
     Ok(())
 }
 
@@ -172,7 +193,10 @@ pub fn add_diagnostic_event(
     message: String,
 ) -> Result<(), String> {
     let event = DiagnosticEvent::new(level, source, message);
-    state.lock().map_err(|_| "Diagnostics store poisoned".to_string())?.push(&app, event.clone());
+    state
+        .lock()
+        .map_err(|_| "Diagnostics store poisoned".to_string())?
+        .push(&app, event.clone());
     use tauri::Emitter;
     let _ = app.emit("diagnostic-event", event);
     Ok(())
