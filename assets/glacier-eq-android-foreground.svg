@@ -1,9 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-    <rect width="512" height="512" rx="96" fill="#0f1320" />
-
-    <rect x="16" y="16" width="480" height="480" rx="84" fill="none" stroke="#2d3752" stroke-width="6" opacity="0.8" />
-
-    <g transform="translate(51.2 51.2) scale(0.8)">
+    <g transform="translate(81.92 81.92) scale(0.68)">
         <!-- Parametric EQ Soundwave -->
         <path d="M 80 220
                  C 120 220, 132 140, 160 140
