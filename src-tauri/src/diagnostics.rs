@@ -80,13 +80,13 @@ impl Default for DiagnosticsStore {
 }
 
 impl DiagnosticsStore {
-    pub fn push(&mut self, event: DiagnosticEvent) {
+    pub fn push(&mut self, app: &tauri::AppHandle, event: DiagnosticEvent) {
         if self.events.len() >= 500 {
             self.events.pop_front();
         }
         
         // Append to file
-        if let Ok(log_path) = get_log_path() {
+        if let Ok(log_path) = get_log_path(app) {
             // Rotate log file if it exceeds 5MB
             if let Ok(meta) = fs::metadata(&log_path) {
                 if meta.len() > 5 * 1024 * 1024 {
@@ -119,14 +119,14 @@ impl DiagnosticsStore {
     }
 }
 
-fn get_log_path() -> Result<PathBuf, String> {
-    Ok(app_data_base_dir()?.join("diagnostics.log"))
+fn get_log_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    Ok(app_data_base_dir(app)?.join("diagnostics.log"))
 }
 
 pub fn log_info(app: &tauri::AppHandle, store: &Mutex<DiagnosticsStore>, source: LogSource, message: impl Into<String>) {
     let event = DiagnosticEvent::new(LogLevel::Info, source, message.into());
     if let Ok(mut store) = store.lock() {
-        store.push(event.clone());
+        store.push(app, event.clone());
     }
     use tauri::Emitter;
     let _ = app.emit("diagnostic-event", event);
@@ -135,7 +135,7 @@ pub fn log_info(app: &tauri::AppHandle, store: &Mutex<DiagnosticsStore>, source:
 pub fn log_warn(app: &tauri::AppHandle, store: &Mutex<DiagnosticsStore>, source: LogSource, message: impl Into<String>) {
     let event = DiagnosticEvent::new(LogLevel::Warn, source, message.into());
     if let Ok(mut store) = store.lock() {
-        store.push(event.clone());
+        store.push(app, event.clone());
     }
     use tauri::Emitter;
     let _ = app.emit("diagnostic-event", event);
@@ -144,7 +144,7 @@ pub fn log_warn(app: &tauri::AppHandle, store: &Mutex<DiagnosticsStore>, source:
 pub fn log_error(app: &tauri::AppHandle, store: &Mutex<DiagnosticsStore>, source: LogSource, message: impl Into<String>) {
     let event = DiagnosticEvent::new(LogLevel::Error, source, message.into());
     if let Ok(mut store) = store.lock() {
-        store.push(event.clone());
+        store.push(app, event.clone());
     }
     use tauri::Emitter;
     let _ = app.emit("diagnostic-event", event);
@@ -172,7 +172,7 @@ pub fn add_diagnostic_event(
     message: String,
 ) -> Result<(), String> {
     let event = DiagnosticEvent::new(level, source, message);
-    state.lock().map_err(|_| "Diagnostics store poisoned".to_string())?.push(event.clone());
+    state.lock().map_err(|_| "Diagnostics store poisoned".to_string())?.push(&app, event.clone());
     use tauri::Emitter;
     let _ = app.emit("diagnostic-event", event);
     Ok(())

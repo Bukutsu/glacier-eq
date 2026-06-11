@@ -148,7 +148,7 @@ pub fn set_eq_state(
     let protocol = profile.protocol();
 
     let peq = normalize_for_push(peq, &caps);
-    let settings = crate::settings::get_settings().unwrap_or_default();
+    let settings = crate::settings::get_settings(app.clone()).unwrap_or_default();
 
     // 1. Snapshot current state before writing
     let backup_state = if !settings.skip_push_verification {
