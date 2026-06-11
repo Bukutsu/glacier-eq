@@ -1,4 +1,12 @@
-export function Preamp({ value, onChange }: { value: number; onChange: (value: number) => void }) {
+export function Preamp({
+  value,
+  onChange,
+  onStartChange,
+}: {
+  value: number;
+  onChange: (value: number) => void;
+  onStartChange: () => void;
+}) {
   const safeValue = Number.isFinite(value) ? value : 0;
   return (
     <section className="preamp-card">
@@ -9,6 +17,8 @@ export function Preamp({ value, onChange }: { value: number; onChange: (value: n
         max={6}
         step={1}
         value={safeValue}
+        onMouseDown={onStartChange}
+        onTouchStart={onStartChange}
         onChange={(event) => onChange(+event.target.value)}
       />
     </section>

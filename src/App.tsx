@@ -26,6 +26,45 @@ function App() {
   const [dirty, setDirty] = useState(false);
   const selectedPresetRef = useRef(selectedPreset);
 
+  const [undoStack, setUndoStack] = useState<PEQData[]>([]);
+  const [redoStack, setRedoStack] = useState<PEQData[]>([]);
+
+  const pushToUndoStack = useCallback((currentPeq: PEQData) => {
+    setUndoStack((prev) => {
+      if (prev.length > 0 && JSON.stringify(prev[prev.length - 1]) === JSON.stringify(currentPeq)) {
+        return prev;
+      }
+      const next = [...prev, currentPeq];
+      if (next.length > 50) {
+        next.shift();
+      }
+      return next;
+    });
+    setRedoStack([]);
+  }, []);
+
+  const undo = useCallback(() => {
+    if (undoStack.length === 0) return;
+    const prev = undoStack[undoStack.length - 1];
+    setUndoStack((stack) => stack.slice(0, -1));
+    setRedoStack((stack) => [...stack, peq]);
+    setPeq(prev);
+    setDirty(true);
+  }, [undoStack, peq]);
+
+  const redo = useCallback(() => {
+    if (redoStack.length === 0) return;
+    const next = redoStack[redoStack.length - 1];
+    setRedoStack((stack) => stack.slice(0, -1));
+    setUndoStack((stack) => [...stack, peq]);
+    setPeq(next);
+    setDirty(true);
+  }, [redoStack, peq]);
+
+  const handleStartChange = useCallback(() => {
+    pushToUndoStack(peq);
+  }, [peq, pushToUndoStack]);
+
   useEffect(() => {
     selectedPresetRef.current = selectedPreset;
   }, [selectedPreset]);
@@ -36,21 +75,23 @@ function App() {
   }, [devices, selectedDevice]);
 
   const applyProfile = useCallback((profile: Profile) => {
+    pushToUndoStack(peq);
     const data = normalizePeq(profile.data, { enableLoadedFilters: true });
     selectedPresetRef.current = profile.name;
     setPeq(data);
     setSelectedPreset(profile.name);
     setNewProfileName(profile.name);
     setDirty(false);
-  }, []);
+  }, [peq, pushToUndoStack]);
 
   const importPeq = useCallback((data: PEQData, name: string, isSaved: boolean) => {
+    pushToUndoStack(peq);
     const normalized = normalizePeq(data, { enableLoadedFilters: true });
     setPeq(normalized);
     setSelectedPreset(name);
     setNewProfileName(name);
     setDirty(!isSaved);
-  }, []);
+  }, [peq, pushToUndoStack]);
 
   const loadProfiles = useCallback(async () => {
     try {
@@ -93,6 +134,7 @@ function App() {
   }, [scanDevices]);
 
   const pullEq = useCallback(async () => {
+    pushToUndoStack(peq);
     setIsBusy(true);
     try {
       const data = await invoke<PEQData>("get_eq_state");
@@ -106,7 +148,7 @@ function App() {
     } finally {
       setIsBusy(false);
     }
-  }, []);
+  }, [peq, pushToUndoStack]);
 
   const connectDevice = useCallback(async () => {
     if (!selectedDevice) return;
@@ -208,11 +250,85 @@ function App() {
   };
 
   const reset = () => {
+    pushToUndoStack(peq);
     selectedPresetRef.current = DEFAULT_PROFILE_NAME;
     setPeq(buildDefaultState());
     setSelectedPreset(DEFAULT_PROFILE_NAME);
     setDirty(true);
   };
+
+  const undoRedoRef = useRef({
+    undo,
+    redo,
+    save: saveProfile,
+    reset,
+    pull: pullEq,
+    push: pushEq,
+  });
+
+  useEffect(() => {
+    undoRedoRef.current = {
+      undo,
+      redo,
+      save: saveProfile,
+      reset,
+      pull: pullEq,
+      push: pushEq,
+    };
+  }, [undo, redo, saveProfile, reset, pullEq, pushEq]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const active = document.activeElement;
+      const isEditingText = active && (
+        active.tagName === "INPUT" || 
+        active.tagName === "TEXTAREA" || 
+        (active as HTMLElement).isContentEditable
+      );
+
+      const isCtrl = e.ctrlKey || e.metaKey;
+      if (isCtrl) {
+        if (isEditingText) {
+          if (e.key.toLowerCase() === "s") {
+            e.preventDefault();
+            undoRedoRef.current.save();
+          } else if (e.shiftKey && e.key.toLowerCase() === "r") {
+            e.preventDefault();
+            undoRedoRef.current.reset();
+          } else if (e.key.toLowerCase() === "r") {
+            e.preventDefault();
+            undoRedoRef.current.pull();
+          }
+          return;
+        }
+
+        if (e.shiftKey && e.key.toLowerCase() === "z") {
+          e.preventDefault();
+          undoRedoRef.current.redo();
+        } else if (e.key.toLowerCase() === "z") {
+          e.preventDefault();
+          undoRedoRef.current.undo();
+        } else if (e.key.toLowerCase() === "y") {
+          e.preventDefault();
+          undoRedoRef.current.redo();
+        } else if (e.key.toLowerCase() === "s") {
+          e.preventDefault();
+          undoRedoRef.current.save();
+        } else if (e.shiftKey && e.key.toLowerCase() === "r") {
+          e.preventDefault();
+          undoRedoRef.current.reset();
+        } else if (e.key.toLowerCase() === "r") {
+          e.preventDefault();
+          undoRedoRef.current.pull();
+        } else if (e.key === "Enter") {
+          e.preventDefault();
+          undoRedoRef.current.push();
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   return (
     <div id="app">
@@ -241,11 +357,15 @@ function App() {
         <main className="workspace">
           <section className="left-pane">
             <section className="graph-card"><EqGraph peq={peq} /></section>
-            <Preamp value={peq.global_gain} onChange={(global_gain) => {
-              setDirty(true);
-              setPeq((previous) => ({ ...previous, global_gain }));
-            }} />
-            <Bands peq={peq} onFilterChange={updateFilter} />
+            <Preamp
+              value={peq.global_gain}
+              onStartChange={handleStartChange}
+              onChange={(global_gain) => {
+                setDirty(true);
+                setPeq((previous) => ({ ...previous, global_gain }));
+              }}
+            />
+            <Bands peq={peq} onFilterChange={updateFilter} onStartChange={handleStartChange} />
           </section>
           <ToolsPanel
             peq={peq}
@@ -263,6 +383,10 @@ function App() {
             onSave={saveProfile}
             onDelete={deleteSelectedProfile}
             setStatus={setStatus}
+            canUndo={undoStack.length > 0}
+            canRedo={redoStack.length > 0}
+            onUndo={undo}
+            onRedo={redo}
           />
         </main>
       )}

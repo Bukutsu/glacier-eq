@@ -6,9 +6,10 @@ import { Icon } from "./Icon";
 interface BandsProps {
   peq: PEQData;
   onFilterChange: (index: number, filter: Filter) => void;
+  onStartChange: () => void;
 }
 
-export function Bands({ peq, onFilterChange }: BandsProps) {
+export function Bands({ peq, onFilterChange, onStartChange }: BandsProps) {
   const [isCollapsed, setIsCollapsed] = useState(() => window.innerWidth < 960);
   const columns = [peq.filters.slice(0, 5), peq.filters.slice(5)];
 
@@ -41,6 +42,7 @@ export function Bands({ peq, onFilterChange }: BandsProps) {
                   key={filter.index}
                   filter={filter}
                   onChange={(updated) => onFilterChange(filter.index, updated)}
+                  onStartChange={onStartChange}
                 />
               ))}
             </div>
@@ -51,16 +53,37 @@ export function Bands({ peq, onFilterChange }: BandsProps) {
   );
 }
 
-function BandRow({ filter, onChange }: { filter: Filter; onChange: (filter: Filter) => void }) {
+function BandRow({
+  filter,
+  onChange,
+  onStartChange,
+}: {
+  filter: Filter;
+  onChange: (filter: Filter) => void;
+  onStartChange: () => void;
+}) {
   return (
     <div className={`band-row ${filter.enabled ? "" : "muted"}`}>
-      <button className="band-index" onClick={() => onChange({ ...filter, enabled: !filter.enabled })}>
+      <button
+        className="band-index"
+        onClick={() => {
+          onStartChange();
+          onChange({ ...filter, enabled: !filter.enabled });
+        }}
+      >
         {filter.index + 1}
       </button>
-      <FilterTypeButtons filter={filter} onChange={onChange} />
+      <FilterTypeButtons
+        filter={filter}
+        onChange={(updated) => {
+          onStartChange();
+          onChange(updated);
+        }}
+      />
       <input
         className="num-input freq"
         value={filter.freq}
+        onFocus={onStartChange}
         onChange={(event) => onChange({ ...filter, freq: +event.target.value || 20 })}
       />
       <div className="gain-cell">
@@ -70,17 +93,21 @@ function BandRow({ filter, onChange }: { filter: Filter; onChange: (filter: Filt
           max={10}
           step={0.01}
           value={filter.gain}
+          onMouseDown={onStartChange}
+          onTouchStart={onStartChange}
           onChange={(event) => onChange({ ...filter, gain: +event.target.value })}
         />
         <input
           className="num-input gain"
           value={filter.gain.toFixed(2)}
+          onFocus={onStartChange}
           onChange={(event) => onChange({ ...filter, gain: +event.target.value || 0 })}
         />
       </div>
       <input
         className="num-input q"
         value={filter.q.toFixed(2)}
+        onFocus={onStartChange}
         onChange={(event) => onChange({ ...filter, q: +event.target.value || 0.1 })}
       />
     </div>
