@@ -23,6 +23,10 @@ interface ToolsPanelProps {
   onSave: () => void;
   onDelete: () => void;
   setStatus: (value: string) => void;
+  canUndo: boolean;
+  canRedo: boolean;
+  onUndo: () => void;
+  onRedo: () => void;
 }
 
 export function ToolsPanel(props: ToolsPanelProps) {
@@ -416,12 +420,15 @@ function SettingsTab() {
   );
 }
 
-function ToolActions({ selectedPreset, profiles, onReset, onSave, onDelete }: ToolsPanelProps) {
+function ToolActions({ selectedPreset, profiles, onReset, onSave, onDelete, canUndo, canRedo, onUndo, onRedo }: ToolsPanelProps) {
   const canDelete = selectedPreset !== DEFAULT_PROFILE_NAME && profiles.some((profile) => profile.name === selectedPreset);
 
   return (
     <>
-      <div className="action-row"><button disabled>Undo</button><button disabled>Redo</button></div>
+      <div className="action-row">
+        <button disabled={!canUndo} onClick={onUndo}>Undo</button>
+        <button disabled={!canRedo} onClick={onRedo}>Redo</button>
+      </div>
       <div className="action-row">
         <button onClick={onReset}>Reset</button>
         <button className="save" onClick={onSave}>Save</button>
