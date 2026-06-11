@@ -10,7 +10,6 @@ import { TargetSelector } from "./components/TargetSelector";
 import { ToolsPanel, MeasureTab } from "./components/ToolsPanel";
 import { DEFAULT_PROFILE_NAME } from "./constants";
 import { DEV_DUMMY_DEVICE, buildDevDummyPeq, isDevDummyDevice } from "./lib/devDevice";
-import { bandResponse, xToFreq } from "./lib/graph";
 import { makeMeasurementName, nextMeasurementColor, normalizeMeasurementPoints } from "./lib/measurements";
 import { getBuiltInTargets, makeTargetName, nextTargetColor } from "./lib/targetReferences";
 import { buildDefaultState, normalizePeq } from "./lib/peq";
@@ -52,7 +51,6 @@ function App() {
   const [graphViewMode, setGraphViewMode] = useState<GraphViewMode>(() => (
     window.localStorage.getItem("glacier-graph-view-mode") === "level" ? "level" : "shape"
   ));
-  const levelPeakDb = useMemo(() => calculateLevelPeakDb(peq), [peq]);
   const [dirty, setDirty] = useState(false);
   const selectedPresetRef = useRef(selectedPreset);
   const peqRef = useRef(peq);
@@ -583,8 +581,6 @@ function App() {
                   onToggleTarget={toggleTarget}
                   onAddTarget={addTarget}
                   onRemoveTarget={removeTarget}
-                  preampDb={peq.global_gain}
-                  peakDb={levelPeakDb}
                   setStatus={setStatus}
                 />
 
@@ -733,8 +729,6 @@ function App() {
               onToggleTarget={toggleTarget}
               onAddTarget={addTarget}
               onRemoveTarget={removeTarget}
-              preampDb={peq.global_gain}
-              peakDb={levelPeakDb}
               setStatus={setStatus}
             />
             <Preamp
@@ -781,20 +775,6 @@ function App() {
   );
 }
 
-function calculateLevelPeakDb(peq: PEQData): number {
-  const sampleCount = 720;
-  let peak = -Infinity;
-
-  for (let x = 0; x < sampleCount; x += 1) {
-    const freq = xToFreq(x, sampleCount - 1);
-    const db = peq.global_gain + peq.filters.reduce((sum, band) => sum + bandResponse(freq, band), 0);
-    if (Number.isFinite(db)) {
-      peak = Math.max(peak, db);
-    }
-  }
-
-  return peak === -Infinity ? 0 : peak;
-}
 
 function StatusBanner({ status, onClose }: { status: string; onClose: () => void }) {
   return (
