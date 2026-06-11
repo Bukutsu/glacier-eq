@@ -3,6 +3,7 @@
 
 use crate::state::{ConnectedDevice, DeviceState};
 use crate::walkplay;
+use crate::diagnostics::{self, DiagnosticsStore, LogSource};
 use glacier_core::device::{get_supported_device, DeviceInfo};
 use glacier_core::eq::PEQData;
 use std::collections::HashSet;
@@ -19,9 +20,11 @@ const GLOBAL_GAIN_READ_ATTEMPTS: usize = 20;
 pub fn get_eq_state(
     app: tauri::AppHandle,
     state: tauri::State<'_, Mutex<DeviceState>>,
+    diagnostics_store: tauri::State<'_, Mutex<DiagnosticsStore>>,
 ) -> Result<PEQData, String> {
     let connected = connected_device(&state)?;
     let caps = caps_for(&connected, "read")?;
+    diagnostics::log_info(&app, &diagnostics_store, LogSource::HID, "Reading from device...");
     // Match Frost-Tune's pull_with_retry: wake the DAC, then perform a fresh
     // init/version session that drains stale frames before band reads.
     if let Err(error) = send_packet(&app, &connected.path, &walkplay::global_gain_request()) {
@@ -41,18 +44,31 @@ pub fn get_eq_state(
             Ok(peq) => peq,
             Err(retry_error) => match first {
                 Ok(defaultish) => defaultish,
-                Err(_) => return Err(retry_error),
+                Err(_) => {
+                    diagnostics::log_error(&app, &diagnostics_store, LogSource::HID, format!("Pull failed: {retry_error}"));
+                    return Err(retry_error);
+                }
             },
         }
     } else {
-        first?
+        match first {
+            Ok(peq) => peq,
+            Err(error) => {
+                diagnostics::log_error(&app, &diagnostics_store, LogSource::HID, format!("Pull failed: {error}"));
+                return Err(error);
+            }
+        }
     };
 
-    log::info!(
-        "Pulled EQ from {}: {} bands, global_gain={}",
-        connected.profile_name,
-        peq.filters.len(),
-        peq.global_gain
+    diagnostics::log_info(
+        &app,
+        &diagnostics_store,
+        LogSource::HID,
+        format!(
+            "Pull successful: {} bands, global_gain={}",
+            peq.filters.len(),
+            peq.global_gain
+        ),
     );
     Ok(peq)
 }
@@ -61,22 +77,38 @@ pub fn get_eq_state(
 pub fn set_eq_state(
     app: tauri::AppHandle,
     state: tauri::State<'_, Mutex<DeviceState>>,
+    diagnostics_store: tauri::State<'_, Mutex<DiagnosticsStore>>,
     peq: PEQData,
 ) -> Result<(), String> {
     let connected = connected_device(&state)?;
     let caps = caps_for(&connected, "write")?;
     let peq = walkplay::normalize_for_push(peq, caps);
-    run_init_sequence(&app, &connected.path)?;
-    write_filters(&app, &connected.path, &peq, caps.dsp_sample_rate)?;
-    write_global_gain(&app, &connected.path, peq.global_gain)?;
-    commit_changes(&app, &connected.path)?;
-
-    log::info!(
-        "Pushed EQ to {}: {} bands, global_gain={}",
-        connected.profile_name,
-        peq.filters.len(),
-        peq.global_gain
+    
+    diagnostics::log_info(
+        &app,
+        &diagnostics_store,
+        LogSource::HID,
+        format!("Pushing EQ to {}...", connected.profile_name),
     );
+
+    if let Err(error) = run_init_sequence(&app, &connected.path) {
+        diagnostics::log_error(&app, &diagnostics_store, LogSource::HID, format!("Init write failed: {error}"));
+        return Err(error);
+    }
+    if let Err(error) = write_filters(&app, &connected.path, &peq, caps.dsp_sample_rate) {
+        diagnostics::log_error(&app, &diagnostics_store, LogSource::HID, format!("Filters write failed: {error}"));
+        return Err(error);
+    }
+    if let Err(error) = write_global_gain(&app, &connected.path, peq.global_gain) {
+        diagnostics::log_error(&app, &diagnostics_store, LogSource::HID, format!("Global gain write failed: {error}"));
+        return Err(error);
+    }
+    if let Err(error) = commit_changes(&app, &connected.path) {
+        diagnostics::log_error(&app, &diagnostics_store, LogSource::HID, format!("Commit changes failed: {error}"));
+        return Err(error);
+    }
+
+    diagnostics::log_info(&app, &diagnostics_store, LogSource::HID, "Push successful");
     Ok(())
 }
 
@@ -112,6 +144,7 @@ pub async fn list_devices(app: tauri::AppHandle) -> Result<Vec<DeviceInfo>, Stri
 pub async fn connect_device(
     app: tauri::AppHandle,
     state: tauri::State<'_, Mutex<DeviceState>>,
+    diagnostics_store: tauri::State<'_, Mutex<DiagnosticsStore>>,
     path: String,
 ) -> Result<(), String> {
     let hid = app.hid();
@@ -129,8 +162,11 @@ pub async fn connect_device(
     })?;
 
     close_previous_device(&app, &state)?;
-    hid.open(&path)
-        .map_err(|error| format!("Failed to open {}: {error}", profile.name))?;
+    if let Err(error) = hid.open(&path) {
+        let msg = format!("Failed to open {}: {error}", profile.name);
+        diagnostics::log_error(&app, &diagnostics_store, LogSource::UI, &msg);
+        return Err(msg);
+    }
 
     state
         .lock()
@@ -142,7 +178,12 @@ pub async fn connect_device(
         profile_name: profile.name.to_string(),
     });
 
-    log::info!("Connected to supported DAC: {} ({})", profile.name, path);
+    diagnostics::log_info(
+        &app,
+        &diagnostics_store,
+        LogSource::UI,
+        format!("Connected to supported DAC: {} ({})", profile.name, path),
+    );
     Ok(())
 }
 
@@ -150,6 +191,7 @@ pub async fn connect_device(
 pub fn disconnect_device(
     app: tauri::AppHandle,
     state: tauri::State<'_, Mutex<DeviceState>>,
+    diagnostics_store: tauri::State<'_, Mutex<DiagnosticsStore>>,
 ) -> Result<(), String> {
     if let Some(device) = state
         .lock()
@@ -157,9 +199,17 @@ pub fn disconnect_device(
         .connected
         .take()
     {
-        app.hid()
-            .close(&device.path)
-            .map_err(|error| format!("Failed to close {}: {error}", device.profile_name))?;
+        if let Err(error) = app.hid().close(&device.path) {
+            let msg = format!("Failed to close {}: {error}", device.profile_name);
+            diagnostics::log_error(&app, &diagnostics_store, LogSource::UI, &msg);
+            return Err(msg);
+        }
+        diagnostics::log_info(
+            &app,
+            &diagnostics_store,
+            LogSource::UI,
+            format!("Disconnected from device: {}", device.profile_name),
+        );
     }
     Ok(())
 }
