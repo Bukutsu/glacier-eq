@@ -73,6 +73,70 @@ pub fn get_eq_state(
     Ok(peq)
 }
 
+fn compare_peq(actual: &PEQData, expected: &PEQData) -> Result<(), String> {
+    if actual.global_gain != expected.global_gain {
+        return Err(format!(
+            "Global gain mismatch: expected {}, got {}",
+            expected.global_gain, actual.global_gain
+        ));
+    }
+
+    if actual.filters.len() != expected.filters.len() {
+        return Err(format!(
+            "Filter count mismatch: expected {}, got {}",
+            expected.filters.len(),
+            actual.filters.len()
+        ));
+    }
+
+    // Tolerances matching DeviceCapabilities (gain=0.15, freq=1, q=0.05)
+    let gain_tolerance = 0.15;
+    let freq_tolerance = 1;
+    let q_tolerance = 0.05;
+
+    for (a, e) in actual.filters.iter().zip(expected.filters.iter()) {
+        if (a.gain - e.gain).abs() > gain_tolerance {
+            return Err(format!(
+                "Band {} gain mismatch: expected {:.2}, got {:.2}",
+                e.index + 1, e.gain, a.gain
+            ));
+        }
+        if (a.freq as i32 - e.freq as i32).abs() > freq_tolerance {
+            return Err(format!(
+                "Band {} frequency mismatch: expected {}, got {}",
+                e.index + 1, e.freq, a.freq
+            ));
+        }
+        if (a.q - e.q).abs() > q_tolerance {
+            return Err(format!(
+                "Band {} Q mismatch: expected {:.2}, got {:.2}",
+                e.index + 1, e.q, a.q
+            ));
+        }
+        if a.filter_type != e.filter_type {
+            return Err(format!(
+                "Band {} filter type mismatch: expected {:?}, got {:?}",
+                e.index + 1, e.filter_type, a.filter_type
+            ));
+        }
+    }
+
+    Ok(())
+}
+
+fn rollback_state(
+    app: &tauri::AppHandle,
+    connected: &ConnectedDevice,
+    peq: &PEQData,
+    caps: walkplay::RuntimeCaps,
+) -> Result<(), String> {
+    run_init_sequence(app, &connected.path)?;
+    write_filters(app, &connected.path, peq, caps.dsp_sample_rate)?;
+    write_global_gain(app, &connected.path, peq.global_gain)?;
+    commit_changes(app, &connected.path)?;
+    Ok(())
+}
+
 #[tauri::command]
 pub fn set_eq_state(
     app: tauri::AppHandle,
@@ -83,7 +147,29 @@ pub fn set_eq_state(
     let connected = connected_device(&state)?;
     let caps = caps_for(&connected, "write")?;
     let peq = walkplay::normalize_for_push(peq, caps);
-    
+
+    let settings = crate::settings::get_settings().unwrap_or_default();
+
+    // 1. Snapshot current state before writing
+    let backup_state = if !settings.skip_push_verification {
+        diagnostics::log_info(&app, &diagnostics_store, LogSource::HID, "Snapshotting current device state...");
+        match pull_once(&app, &connected, caps.num_bands) {
+            Ok(backup) => Some(backup),
+            Err(error) => {
+                diagnostics::log_warn(
+                    &app,
+                    &diagnostics_store,
+                    LogSource::HID,
+                    format!("Failed to snapshot current state before push: {error}. Proceeding without rollback recovery."),
+                );
+                None
+            }
+        }
+    } else {
+        None
+    };
+
+    // 2. Write the new settings
     diagnostics::log_info(
         &app,
         &diagnostics_store,
@@ -106,6 +192,70 @@ pub fn set_eq_state(
     if let Err(error) = commit_changes(&app, &connected.path) {
         diagnostics::log_error(&app, &diagnostics_store, LogSource::HID, format!("Commit changes failed: {error}"));
         return Err(error);
+    }
+
+    // 3. Verify write
+    if !settings.skip_push_verification {
+        diagnostics::log_info(&app, &diagnostics_store, LogSource::HID, "Verifying pushed settings...");
+        
+        // Wait a brief moment for hardware flash to settle before reading back
+        sleep_ms(100);
+
+        match pull_once(&app, &connected, caps.num_bands) {
+            Ok(actual) => {
+                if let Err(mismatch) = compare_peq(&actual, &peq) {
+                    let err_msg = format!("Push verification failed: {mismatch}");
+                    diagnostics::log_error(&app, &diagnostics_store, LogSource::HID, &err_msg);
+
+                    // Execute rollback if backup is available
+                    if let Some(backup) = backup_state {
+                        diagnostics::log_warn(&app, &diagnostics_store, LogSource::HID, "Initiating rollback to previous state...");
+                        if let Err(rollback_error) = rollback_state(&app, &connected, &backup, caps) {
+                            diagnostics::log_error(
+                                &app,
+                                &diagnostics_store,
+                                LogSource::HID,
+                                format!("Rollback failed: {rollback_error}"),
+                            );
+                        } else {
+                            diagnostics::log_info(&app, &diagnostics_store, LogSource::HID, "Rollback successfully written. Verifying rollback...");
+                            sleep_ms(100);
+                            match pull_once(&app, &connected, caps.num_bands) {
+                                Ok(rolled_back_state) => {
+                                    if let Err(rollback_mismatch) = compare_peq(&rolled_back_state, &backup) {
+                                        diagnostics::log_error(
+                                            &app,
+                                            &diagnostics_store,
+                                            LogSource::HID,
+                                            format!("Rollback verification failed: {rollback_mismatch}"),
+                                        );
+                                    } else {
+                                        diagnostics::log_info(&app, &diagnostics_store, LogSource::HID, "Rollback verified successfully.");
+                                    }
+                                }
+                                Err(rollback_read_error) => {
+                                    diagnostics::log_error(
+                                        &app,
+                                        &diagnostics_store,
+                                        LogSource::HID,
+                                        format!("Failed to read state after rollback: {rollback_read_error}"),
+                                    );
+                                }
+                            }
+                        }
+                    }
+
+                    return Err(err_msg);
+                } else {
+                    diagnostics::log_info(&app, &diagnostics_store, LogSource::HID, "Verification successful: Pushed settings match device state.");
+                }
+            }
+            Err(read_error) => {
+                let err_msg = format!("Failed to read back settings for verification: {read_error}");
+                diagnostics::log_error(&app, &diagnostics_store, LogSource::HID, &err_msg);
+                return Err(err_msg);
+            }
+        }
     }
 
     diagnostics::log_info(&app, &diagnostics_store, LogSource::HID, "Push successful");
