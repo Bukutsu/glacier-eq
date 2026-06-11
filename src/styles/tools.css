@@ -2,15 +2,15 @@
   min-height: 0;
   display: grid;
   grid-template-rows: auto minmax(220px, 1fr);
-  gap: 18px;
+  gap: 16px;
   overflow: hidden;
 }
 
 .tools-card {
-  padding: 18px;
+  padding: 18px 18px 20px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
   min-height: 0;
   overflow: hidden;
 }
@@ -22,24 +22,26 @@
 .search-row { display: grid; grid-template-columns: 1fr 36px 36px; gap: 8px; align-items: center; }
 .search-row input, .new-name {
   width: 100%;
-  height: 36px;
+  height: 38px;
   border: 0;
   background: var(--surface-soft);
   color: var(--text);
-  padding: 0 8px;
+  padding: 0 10px;
   outline: 0;
 }
-.search-row input::placeholder, .new-name::placeholder { color: var(--muted); opacity: .8; }
-.search-row button { min-height: 36px; padding: 0; background: transparent; color: var(--cyan); }
+.search-row input::placeholder, .new-name::placeholder { color: var(--muted); opacity: 1; }
+.search-row button { min-height: 38px; padding: 0; background: transparent; color: var(--cyan); }
 
 .preset-list {
   background: var(--bg-dark);
   padding: 4px;
-  height: 136px;
+  height: 142px;
   overflow: auto;
   display: flex;
   flex-direction: column;
   gap: 2px;
+  outline: 1px solid rgba(65, 72, 104, 0.35);
+  outline-offset: -1px;
 }
 
 .preset-list button {
@@ -47,39 +49,61 @@
   background: transparent;
   color: var(--text);
   font-size: var(--type-body);
-  min-height: 42px;
+  min-height: 43px;
   font-weight: 400;
+  padding: 0 14px;
 }
 
 .preset-list button.selected { background: var(--surface-soft); color: var(--blue); }
 .empty-profiles { color: var(--muted); padding: 12px; font-size: var(--type-label); }
-.modified { color: var(--muted); }
+.modified { color: var(--muted); line-height: 1.35; }
 .check-line, .settings-list label { color: var(--muted); font-size: 13px; display: flex; align-items: center; gap: 8px; }
 input[type="checkbox"] { accent-color: var(--cyan); width: 16px; height: 16px; border-radius: 0; }
 
 .action-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
 .action-row:last-child { grid-template-columns: repeat(3, 1fr); }
 .action-row button { min-height: 44px; }
-button.danger { color: var(--red); background: transparent; outline: 1px solid var(--red); outline-offset: -1px; }
+button.danger { color: var(--red); background: transparent; outline: 1px solid rgba(247, 118, 142, .9); outline-offset: -1px; }
 
 .import-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.import-grid button { outline: 1px solid rgba(125,207,255,.55); color: var(--cyan); }
+.import-grid button {
+  outline: 1px solid rgba(125,207,255,.55);
+  color: var(--cyan);
+}
+.import-grid .icon-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 12px;
+}
+.import-grid .icon-action .material-icon {
+  flex: 0 0 auto;
+  font-size: 18px;
+}
+.import-grid .icon-action span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .settings-list { display: flex; flex-direction: column; gap: 14px; padding: 12px 0; }
 
 .diag-card, .supported-list { font-family: var(--font-mono); }
-.diag-card { padding: 12px; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
+.diag-card { padding: 12px 14px 14px; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
 .diag-head { display: flex; align-items: center; gap: 10px; color: var(--cyan); }
 .diag-head strong { margin-right: auto; }
 .diag-head button { background: transparent; color: var(--cyan); min-height: 28px; padding: 0 6px; }
 .diag-summary { color: var(--muted); font-size: 12px; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
-.log-box { background: var(--bg-dark); overflow: auto; min-height: 0; flex: 1; padding: 0; }
+.log-box { background: var(--bg-dark); overflow: auto; min-height: 0; flex: 1; padding: 0; outline: 1px solid rgba(65, 72, 104, 0.35); outline-offset: -1px; }
 .log-box p {
   margin: 0;
-  padding: 8px 6px;
+  padding: 9px 8px;
   color: var(--muted);
   font-size: 12px;
   display: grid;
-  grid-template-columns: 94px 42px 1fr;
+  grid-template-columns: 98px 42px 1fr;
   gap: 8px;
   font-family: var(--font-mono);
 }

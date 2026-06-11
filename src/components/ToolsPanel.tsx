@@ -251,10 +251,22 @@ function ImportTab({ peq, profiles, onImportPEQ, onReloadProfiles, setStatus }: 
           accept=".txt"
           onChange={handleFileChange}
         />
-        <button onClick={handleImportFileClick}>Import File</button>
-        <button onClick={handlePaste}>Paste</button>
-        <button onClick={handleExportFile}>Export File</button>
-        <button onClick={handleCopy}>Copy</button>
+        <button className="icon-action" onClick={handleImportFileClick}>
+          <Icon>file_upload</Icon>
+          <span>Import File</span>
+        </button>
+        <button className="icon-action" onClick={handlePaste}>
+          <Icon>content_paste</Icon>
+          <span>Paste</span>
+        </button>
+        <button className="icon-action" onClick={handleExportFile}>
+          <Icon>file_download</Icon>
+          <span>Export File</span>
+        </button>
+        <button className="icon-action" onClick={handleCopy}>
+          <Icon>content_copy</Icon>
+          <span>Copy</span>
+        </button>
       </div>
     );
   }
