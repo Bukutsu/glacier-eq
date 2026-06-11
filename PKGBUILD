@@ -20,7 +20,6 @@ depends=(
   'gdk-pixbuf2'
   'pango'
   'libsoup3'
-  'hidapi'
 )
 makedepends=(
   'git'
@@ -32,7 +31,6 @@ makedepends=(
   'openssl'
   'appmenu-gtk-module'
   'libappindicator-gtk3'
-  'hidapi'
   'systemd'
 )
 provides=('glacier-eq')
