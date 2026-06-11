@@ -97,3 +97,57 @@ jobs:
           releaseAssetNamePattern: "glacier-eq_[version]_[platform]_[arch].[ext]"
           uploadWorkflowArtifacts: ${{ !startsWith(github.ref, 'refs/tags/') }}
           workflowArtifactNamePattern: "glacier-eq_[platform]_[arch]_[bundle]"
+
+  android:
+    name: Android APK
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: "zulu"
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android NDK and platform
+        run: |
+          yes | sdkmanager --install "ndk;27.0.12077973" "platforms;android-36" --sdk_root="$ANDROID_HOME"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+
+      - name: Cache Rust build outputs
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: ". -> target"
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build Android APK
+        run: npm run tauri android build --apk --split-per-abi
+
+      - name: Upload APK artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: glacier-eq-android-apks
+          path: |
+            src-tauri/gen/android/app/build/outputs/apk/**/*.apk
+          retention-days: 90
