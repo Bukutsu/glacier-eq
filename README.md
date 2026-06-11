@@ -125,6 +125,8 @@ To get a local copy up and running follow these steps.
 
 ### Installation
 
+#### From source (any platform)
+
 1. Clone the repo
    ```sh
    git clone https://github.com/Bukutsu/glacier-eq.git
@@ -137,6 +139,20 @@ To get a local copy up and running follow these steps.
    ```sh
    npm run tauri dev
    ```
+
+#### Arch Linux (via makepkg)
+
+Build and install directly from the repository with a single command:
+
+```sh
+git clone https://github.com/Bukutsu/glacier-eq.git
+cd glacier-eq
+makepkg -si
+```
+
+This compiles a release binary and installs it to `/usr/bin/glacier-eq` along with icons and a desktop entry.
+
+All dependencies are resolved automatically — `makepkg` pulls in Rust, Node.js, WebKitGTK, and the other Tauri v2 dependencies as build-time and runtime deps. (The `base-devel` group must be installed for `makepkg` to work.)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
