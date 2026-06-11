@@ -78,12 +78,34 @@ export function normalizeMeasurementPoints(points: MeasurementPoint[]): Measurem
     return sorted;
   }
 
-  const reference = sorted.reduce((closest, point) => (
-    Math.abs(point.freq - 1000) < Math.abs(closest.freq - 1000) ? point : closest
-  ), sorted[0]);
+  const referenceDb = interpolateMeasurementDb(sorted, 1000);
 
   return sorted.map((point) => ({
     freq: point.freq,
-    db: point.db - reference.db,
+    db: point.db - referenceDb,
   }));
+}
+
+function interpolateMeasurementDb(points: MeasurementPoint[], freq: number): number {
+  if (freq <= points[0].freq) return points[0].db;
+  if (freq >= points[points.length - 1].freq) return points[points.length - 1].db;
+
+  let low = 0;
+  let high = points.length - 1;
+  while (high - low > 1) {
+    const mid = Math.floor((low + high) / 2);
+    if (points[mid].freq < freq) {
+      low = mid;
+    } else {
+      high = mid;
+    }
+  }
+
+  const lowPoint = points[low];
+  const highPoint = points[high];
+  const span = Math.log10(highPoint.freq) - Math.log10(lowPoint.freq);
+  if (span <= 0) return lowPoint.db;
+
+  const ratio = (Math.log10(freq) - Math.log10(lowPoint.freq)) / span;
+  return lowPoint.db + (highPoint.db - lowPoint.db) * ratio;
 }

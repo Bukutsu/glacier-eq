@@ -6,11 +6,14 @@ import { EqGraph } from "./components/EqGraph";
 import { Header } from "./components/Header";
 import { Icon } from "./components/Icon";
 import { Preamp } from "./components/Preamp";
+import { TargetSelector } from "./components/TargetSelector";
 import { ToolsPanel } from "./components/ToolsPanel";
 import { DEFAULT_PROFILE_NAME } from "./constants";
+import { bandResponse, xToFreq } from "./lib/graph";
 import { makeMeasurementName, nextMeasurementColor, normalizeMeasurementPoints } from "./lib/measurements";
+import { getBuiltInTargets, makeTargetName, nextTargetColor } from "./lib/targetReferences";
 import { buildDefaultState, normalizePeq } from "./lib/peq";
-import type { DeviceInfo, Filter, MeasurementTrace, PEQData, Profile } from "./types";
+import type { DeviceInfo, Filter, GraphViewMode, MeasurementTrace, PEQData, Profile, TargetTrace } from "./types";
 import "./App.css";
 
 function App() {
@@ -25,6 +28,18 @@ function App() {
   const [profileSearch, setProfileSearch] = useState("");
   const [newProfileName, setNewProfileName] = useState("");
   const [measurements, setMeasurements] = useState<MeasurementTrace[]>([]);
+  const builtInTargets = useMemo(getBuiltInTargets, []);
+  const [userTargets, setUserTargets] = useState<TargetTrace[]>([]);
+  const allTargets = useMemo(() => [...builtInTargets, ...userTargets], [builtInTargets, userTargets]);
+  const [activeTargetIds, setActiveTargetIds] = useState<string[]>(() => builtInTargets[0] ? [builtInTargets[0].id] : []);
+  const activeTargets = useMemo(
+    () => allTargets.filter((target) => activeTargetIds.includes(target.id)),
+    [activeTargetIds, allTargets],
+  );
+  const [graphViewMode, setGraphViewMode] = useState<GraphViewMode>(() => (
+    window.localStorage.getItem("glacier-graph-view-mode") === "level" ? "level" : "shape"
+  ));
+  const levelPeakDb = useMemo(() => calculateLevelPeakDb(peq), [peq]);
   const [dirty, setDirty] = useState(false);
   const selectedPresetRef = useRef(selectedPreset);
   const peqRef = useRef(peq);
@@ -64,6 +79,52 @@ function App() {
   useEffect(() => {
     window.localStorage.setItem("glacier-measurements", JSON.stringify(measurements));
   }, [measurements]);
+
+  useEffect(() => {
+    try {
+      const savedTargets = window.localStorage.getItem("glacier-user-targets");
+      if (savedTargets) {
+        const parsedTargets = JSON.parse(savedTargets);
+        if (Array.isArray(parsedTargets)) {
+          setUserTargets(parsedTargets
+            .filter((target): target is TargetTrace => (
+              target &&
+              typeof target.id === "string" &&
+              typeof target.name === "string" &&
+              typeof target.color === "string" &&
+              Array.isArray(target.points)
+            ))
+            .map((target) => ({
+              ...target,
+              builtIn: false,
+              points: normalizeMeasurementPoints(target.points),
+            })));
+        }
+      }
+
+      const savedActiveIds = window.localStorage.getItem("glacier-active-targets");
+      if (savedActiveIds) {
+        const parsedActiveIds = JSON.parse(savedActiveIds);
+        if (Array.isArray(parsedActiveIds) && parsedActiveIds.every((id) => typeof id === "string")) {
+          setActiveTargetIds(parsedActiveIds);
+        }
+      }
+    } catch {
+      // Ignore malformed local target cache.
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem("glacier-user-targets", JSON.stringify(userTargets));
+  }, [userTargets]);
+
+  useEffect(() => {
+    window.localStorage.setItem("glacier-active-targets", JSON.stringify(activeTargetIds));
+  }, [activeTargetIds]);
+
+  useEffect(() => {
+    window.localStorage.setItem("glacier-graph-view-mode", graphViewMode);
+  }, [graphViewMode]);
 
   const [undoStack, setUndoStack] = useState<PEQData[]>([]);
   const [redoStack, setRedoStack] = useState<PEQData[]>([]);
@@ -323,6 +384,31 @@ function App() {
     setMeasurements([]);
   }, []);
 
+  const toggleTarget = useCallback((id: string) => {
+    setActiveTargetIds((current) => (
+      current.includes(id) ? current.filter((targetId) => targetId !== id) : [...current, id]
+    ));
+  }, []);
+
+  const addTarget = useCallback((name: string, points: TargetTrace["points"]) => {
+    setUserTargets((current) => {
+      const nextTarget = {
+        id: `user-target:${Date.now()}-${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)}`,
+        name: makeTargetName(name, [...builtInTargets, ...current]),
+        color: nextTargetColor(builtInTargets.length + current.length),
+        builtIn: false,
+        points: normalizeMeasurementPoints(points),
+      };
+      setActiveTargetIds((activeIds) => [...activeIds, nextTarget.id]);
+      return [...current, nextTarget];
+    });
+  }, [builtInTargets]);
+
+  const removeTarget = useCallback((id: string) => {
+    setUserTargets((current) => current.filter((target) => target.id !== id));
+    setActiveTargetIds((current) => current.filter((targetId) => targetId !== id));
+  }, []);
+
   const undoRedoRef = useRef({
     undo,
     redo,
@@ -422,7 +508,26 @@ function App() {
       ) : (
         <main className="workspace">
           <section className="left-pane">
-            <section className="graph-card"><EqGraph peq={peq} measurements={measurements} /></section>
+            <section className="graph-card">
+              <EqGraph
+                peq={peq}
+                measurements={measurements}
+                targets={activeTargets}
+                viewMode={graphViewMode}
+              />
+            </section>
+            <TargetSelector
+              targets={allTargets}
+              activeTargetIds={activeTargetIds}
+              onToggleTarget={toggleTarget}
+              onAddTarget={addTarget}
+              onRemoveTarget={removeTarget}
+              graphViewMode={graphViewMode}
+              onGraphViewModeChange={setGraphViewMode}
+              preampDb={peq.global_gain}
+              peakDb={levelPeakDb}
+              setStatus={setStatus}
+            />
             <Preamp
               value={peq.global_gain}
               onStartChange={handleStartChange}
@@ -463,6 +568,21 @@ function App() {
       )}
     </div>
   );
+}
+
+function calculateLevelPeakDb(peq: PEQData): number {
+  const sampleCount = 720;
+  let peak = -Infinity;
+
+  for (let x = 0; x < sampleCount; x += 1) {
+    const freq = xToFreq(x, sampleCount - 1);
+    const db = peq.global_gain + peq.filters.reduce((sum, band) => sum + bandResponse(freq, band), 0);
+    if (Number.isFinite(db)) {
+      peak = Math.max(peak, db);
+    }
+  }
+
+  return peak === -Infinity ? 0 : peak;
 }
 
 function StatusBanner({ status, onClose }: { status: string; onClose: () => void }) {

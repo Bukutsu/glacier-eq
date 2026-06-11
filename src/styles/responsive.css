@@ -19,6 +19,14 @@
 
 @media (max-width: 720px) {
   .graph-card { height: 300px; min-height: 300px; }
+  .target-strip {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+  .target-strip-head { justify-content: space-between; }
+  .graph-view-controls { flex-wrap: wrap; }
+  .graph-view-toggle { flex: 1 1 130px; }
+  .graph-view-toggle button { min-width: 0; }
   .preamp-card { grid-template-columns: 1fr; height: auto; padding: 12px 14px; gap: 10px; }
   .bands-card { overflow-x: auto; }
   .bands-header, .band-row { min-width: 640px; }

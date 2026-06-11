@@ -27,6 +27,16 @@ export interface MeasurementTrace {
   points: MeasurementPoint[];
 }
 
+export interface TargetTrace {
+  id: string;
+  name: string;
+  color: string;
+  builtIn: boolean;
+  points: MeasurementPoint[];
+}
+
+export type GraphViewMode = "shape" | "level";
+
 export interface DeviceInfo {
   vendor_id: number;
   product_id: number;
