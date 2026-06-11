@@ -32,5 +32,3 @@ src-tauri/gen/
 *.aab
 test-results/
 playwright-report/
-playwright.config.ts
-e2e/

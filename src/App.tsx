@@ -25,6 +25,11 @@ function App() {
   const [newProfileName, setNewProfileName] = useState("");
   const [dirty, setDirty] = useState(false);
   const selectedPresetRef = useRef(selectedPreset);
+  const peqRef = useRef(peq);
+
+  useEffect(() => {
+    peqRef.current = peq;
+  }, [peq]);
 
   const [undoStack, setUndoStack] = useState<PEQData[]>([]);
   const [redoStack, setRedoStack] = useState<PEQData[]>([]);
@@ -47,23 +52,23 @@ function App() {
     if (undoStack.length === 0) return;
     const prev = undoStack[undoStack.length - 1];
     setUndoStack((stack) => stack.slice(0, -1));
-    setRedoStack((stack) => [...stack, peq]);
+    setRedoStack((stack) => [...stack, peqRef.current]);
     setPeq(prev);
     setDirty(true);
-  }, [undoStack, peq]);
+  }, [undoStack]);
 
   const redo = useCallback(() => {
     if (redoStack.length === 0) return;
     const next = redoStack[redoStack.length - 1];
     setRedoStack((stack) => stack.slice(0, -1));
-    setUndoStack((stack) => [...stack, peq]);
+    setUndoStack((stack) => [...stack, peqRef.current]);
     setPeq(next);
     setDirty(true);
-  }, [redoStack, peq]);
+  }, [redoStack]);
 
   const handleStartChange = useCallback(() => {
-    pushToUndoStack(peq);
-  }, [peq, pushToUndoStack]);
+    pushToUndoStack(peqRef.current);
+  }, [pushToUndoStack]);
 
   useEffect(() => {
     selectedPresetRef.current = selectedPreset;
@@ -75,23 +80,23 @@ function App() {
   }, [devices, selectedDevice]);
 
   const applyProfile = useCallback((profile: Profile) => {
-    pushToUndoStack(peq);
+    pushToUndoStack(peqRef.current);
     const data = normalizePeq(profile.data, { enableLoadedFilters: true });
     selectedPresetRef.current = profile.name;
     setPeq(data);
     setSelectedPreset(profile.name);
     setNewProfileName(profile.name);
     setDirty(false);
-  }, [peq, pushToUndoStack]);
+  }, [pushToUndoStack]);
 
   const importPeq = useCallback((data: PEQData, name: string, isSaved: boolean) => {
-    pushToUndoStack(peq);
+    pushToUndoStack(peqRef.current);
     const normalized = normalizePeq(data, { enableLoadedFilters: true });
     setPeq(normalized);
     setSelectedPreset(name);
     setNewProfileName(name);
     setDirty(!isSaved);
-  }, [peq, pushToUndoStack]);
+  }, [pushToUndoStack]);
 
   const loadProfiles = useCallback(async () => {
     try {
@@ -134,7 +139,7 @@ function App() {
   }, [scanDevices]);
 
   const pullEq = useCallback(async () => {
-    pushToUndoStack(peq);
+    pushToUndoStack(peqRef.current);
     setIsBusy(true);
     try {
       const data = await invoke<PEQData>("get_eq_state");
@@ -148,7 +153,7 @@ function App() {
     } finally {
       setIsBusy(false);
     }
-  }, [peq, pushToUndoStack]);
+  }, [pushToUndoStack]);
 
   const connectDevice = useCallback(async () => {
     if (!selectedDevice) return;
@@ -250,7 +255,7 @@ function App() {
   };
 
   const reset = () => {
-    pushToUndoStack(peq);
+    pushToUndoStack(peqRef.current);
     selectedPresetRef.current = DEFAULT_PROFILE_NAME;
     setPeq(buildDefaultState());
     setSelectedPreset(DEFAULT_PROFILE_NAME);
