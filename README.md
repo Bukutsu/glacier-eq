@@ -16,6 +16,7 @@
 [![Stargazers][stars-shield]][stars-url]
 [![Issues][issues-shield]][issues-url]
 [![MIT License][license-shield]][license-url]
+[![Download][download-shield]][download-url]
 
 
 
@@ -31,7 +32,7 @@
   <p align="center">
     Cross-platform parametric EQ editor for USB DACs. Offline, direct, and built for dense tuning work on desktop and Android.
     <br />
-    <a href="https://github.com/Bukutsu/glacier-eq"><strong>Explore the docs »</strong></a>
+    <a href="https://github.com/Bukutsu/glacier-eq/releases"><strong>Download »</strong></a>
     <br />
     <br />
     <a href="#usage">View Usage</a>
@@ -343,6 +344,8 @@ Project Link: [https://github.com/Bukutsu/glacier-eq](https://github.com/Bukutsu
 [issues-url]: https://github.com/Bukutsu/glacier-eq/issues
 [license-shield]: https://img.shields.io/badge/license-MIT-c0caf5?style=for-the-badge&labelColor=16161e
 [license-url]: https://github.com/Bukutsu/glacier-eq/blob/main/LICENSE
+[download-shield]: https://img.shields.io/badge/Download-v0.1.0--beta-7dcfff?style=for-the-badge&labelColor=16161e&logo=github
+[download-url]: https://github.com/Bukutsu/glacier-eq/releases
 [Tauri]: https://img.shields.io/badge/Tauri-24C8D8?style=for-the-badge&logo=tauri&logoColor=white
 [Tauri-url]: https://v2.tauri.app/
 [React.js]: https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB
