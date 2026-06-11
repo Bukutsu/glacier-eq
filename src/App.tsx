@@ -9,6 +9,7 @@ import { Preamp } from "./components/Preamp";
 import { TargetSelector } from "./components/TargetSelector";
 import { ToolsPanel, MeasureTab } from "./components/ToolsPanel";
 import { DEFAULT_PROFILE_NAME } from "./constants";
+import { DEV_DUMMY_DEVICE, buildDevDummyPeq, isDevDummyDevice } from "./lib/devDevice";
 import { bandResponse, xToFreq } from "./lib/graph";
 import { makeMeasurementName, nextMeasurementColor, normalizeMeasurementPoints } from "./lib/measurements";
 import { getBuiltInTargets, makeTargetName, nextTargetColor } from "./lib/targetReferences";
@@ -226,11 +227,18 @@ function App() {
     setIsBusy(true);
     setStatus("Scanning for devices...");
     try {
-      const list = await invoke<DeviceInfo[]>("list_devices");
+      const realDevices = await invoke<DeviceInfo[]>("list_devices");
+      const list = import.meta.env.DEV ? [...realDevices, DEV_DUMMY_DEVICE] : realDevices;
       setDevices(list);
       if (list[0]) setSelectedDevice(list[0].path);
       setStatus(list.length ? `Found ${list.length} device(s)` : "No compatible DACs found");
     } catch (error) {
+      if (import.meta.env.DEV) {
+        setDevices([DEV_DUMMY_DEVICE]);
+        setSelectedDevice(DEV_DUMMY_DEVICE.path);
+        setStatus("Hardware scan failed; using dummy DAC for dev review");
+        return;
+      }
       setStatus(`Scan failed: ${error}`);
     } finally {
       setIsBusy(false);
@@ -249,23 +257,32 @@ function App() {
     pushToUndoStack(peqRef.current);
     setIsBusy(true);
     try {
-      const data = await invoke<PEQData>("get_eq_state");
+      const data = isDevDummyDevice(selectedDevice)
+        ? buildDevDummyPeq()
+        : await invoke<PEQData>("get_eq_state");
       setPeq(normalizePeq(data));
       selectedPresetRef.current = "Pulled from device";
       setSelectedPreset("Pulled from device");
       setDirty(false);
-      setStatus("Pull successful");
+      setStatus(isDevDummyDevice(selectedDevice) ? "Loaded dummy DAC EQ" : "Pull successful");
     } catch (error) {
       setStatus(`Pull failed: ${error}`);
     } finally {
       setIsBusy(false);
     }
-  }, [pushToUndoStack]);
+  }, [pushToUndoStack, selectedDevice]);
 
   const connectDevice = useCallback(async () => {
     if (!selectedDevice) return;
     setIsBusy(true);
     try {
+      if (isDevDummyDevice(selectedDevice)) {
+        setConnected(true);
+        setStatus("Connected to dummy DAC");
+        await pullEq();
+        return;
+      }
+
       await invoke("connect_device", { path: selectedDevice });
       setConnected(true);
       setStatus("Ready");
@@ -286,20 +303,24 @@ function App() {
   const pushEq = useCallback(async () => {
     setIsBusy(true);
     try {
-      await invoke("set_eq_state", { peq });
+      if (!isDevDummyDevice(selectedDevice)) {
+        await invoke("set_eq_state", { peq });
+      }
       setDirty(false);
-      setStatus("Push successful");
+      setStatus(isDevDummyDevice(selectedDevice) ? "Dummy DAC push simulated" : "Push successful");
     } catch (error) {
       setStatus(`Push failed: ${error}`);
     } finally {
       setIsBusy(false);
     }
-  }, [peq]);
+  }, [peq, selectedDevice]);
 
   const disconnectDevice = useCallback(async () => {
     setIsBusy(true);
     try {
-      await invoke("disconnect_device");
+      if (!isDevDummyDevice(selectedDevice)) {
+        await invoke("disconnect_device");
+      }
       setConnected(false);
       setStatus("Disconnected");
     } catch (error) {
@@ -307,7 +328,7 @@ function App() {
     } finally {
       setIsBusy(false);
     }
-  }, []);
+  }, [selectedDevice]);
 
   const saveProfile = useCallback(async () => {
     const name = newProfileName.trim() || selectedPreset;

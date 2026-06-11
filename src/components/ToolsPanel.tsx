@@ -48,6 +48,7 @@ interface ToolsPanelProps {
 
 export function ToolsPanel(props: ToolsPanelProps) {
   const availableTabs = props.availableTabs ?? ["Preset", "Import", "Measure", "Settings"];
+  const showDiagnostics = props.showDiagnostics ?? import.meta.env.DEV;
   const [tab, setTab] = useState<ToolsTab>(() => (
     props.defaultTab && availableTabs.includes(props.defaultTab) ? props.defaultTab : availableTabs[0]
   ));
@@ -81,7 +82,7 @@ export function ToolsPanel(props: ToolsPanelProps) {
         {tab === "Settings" && <SettingsTab />}
         {props.showActions !== false && <ToolActions {...props} />}
       </section>
-      {props.showDiagnostics !== false && <DiagnosticsPanel />}
+      {showDiagnostics && <DiagnosticsPanel />}
     </aside>
   );
 }
@@ -102,7 +103,10 @@ function TabStrip({
   return (
     <nav
       className={`tabs ${tabs.length <= 2 ? "compact" : ""}`}
-      style={{ "--tab-count": tabs.length } as CSSProperties}
+      style={{
+        "--tab-count": tabs.length,
+        "--tab-columns": tabs.length >= 3 ? 2 : tabs.length,
+      } as CSSProperties}
     >
       {tabs.map((name) => (
         <button key={name} className={active === name ? "active" : ""} onClick={() => onSelect(name)}>
@@ -686,7 +690,7 @@ function DiagnosticsPanel() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `frost_tune_diagnostics_${new Date().toISOString().slice(0, 10)}.log`;
+      a.download = `glacier_diagnostics_${new Date().toISOString().slice(0, 10)}.log`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {

@@ -148,7 +148,8 @@ test("Device chooser and connection flow", async ({ page }) => {
 
   // Verify elements on DeviceChooser screen
   await expect(page.locator("h2")).toContainText("Available Devices");
-  await expect(page.locator(".device-row-title")).toContainText("EPZ TP35 Pro");
+  await expect(page.getByRole("button", { name: /EPZ TP35 Pro/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Glacier Dummy DAC/ })).toBeVisible();
 
   // Connect to the device
   await page.click("button:has-text('Connect')");
@@ -162,6 +163,15 @@ test("Device chooser and connection flow", async ({ page }) => {
 
   // Verify we are back to DeviceChooser screen
   await expect(page.locator("h2")).toContainText("Available Devices");
+});
+
+test("Dev dummy DAC connects without hardware", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: /Glacier Dummy DAC/ }).click();
+  await page.click("button:has-text('Connect')");
+
+  await expect(page.locator(".device-name")).toContainText("Glacier Dummy DAC");
+  await expect(page.locator(".preamp-meta span")).toContainText("-4 dB");
 });
 
 test("Modifying EQ bands and preamp", async ({ page }) => {

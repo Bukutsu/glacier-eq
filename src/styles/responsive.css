@@ -229,6 +229,7 @@
     background: var(--bg-dark);
     outline: 1px solid rgba(65, 72, 104, 0.42);
     outline-offset: -1px;
+    border-bottom: 0;
   }
   .band-row.muted {
     opacity: .6;
@@ -246,12 +247,6 @@
     background: var(--surface-soft);
     outline: 1px solid rgba(125, 207, 255, 0.28);
     outline-offset: -1px;
-  }
-  .band-index-label {
-    color: var(--muted);
-    font-size: 9px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
   }
   .band-index strong {
     font-size: 18px;
@@ -283,9 +278,9 @@
   }
   .type-buttons {
     display: flex;
-    gap: 6px;
+    gap: 0;
     overflow-x: auto;
-    padding-bottom: 2px;
+    padding-bottom: 0;
     scrollbar-width: none;
     -ms-overflow-style: none;
   }
@@ -303,7 +298,6 @@
   .num-input {
     height: 42px;
     padding: 0 10px;
-    background: var(--surface-soft);
     border-radius: var(--radius-control);
     font-size: 14px;
   }
@@ -328,6 +322,7 @@
     padding-right: 12px;
   }
   .tabs {
+    grid-template-columns: repeat(var(--tab-count, 4), minmax(0, 1fr));
     min-height: 48px;
     padding: 4px;
   }
@@ -335,6 +330,15 @@
     min-height: 40px;
     padding: 0 8px;
     font-size: 12px;
+    justify-content: center;
+    text-align: center;
+  }
+  .tabs button::after {
+    top: 8px;
+    height: calc(100% - 16px);
+  }
+  .tabs button:nth-child(n + 3) {
+    border-top: 0;
   }
   .tabs.compact button {
     font-size: 14px;
