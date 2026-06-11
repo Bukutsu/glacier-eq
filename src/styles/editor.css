@@ -4,6 +4,14 @@
   padding: 16px 14px 14px;
   display: flex;
   min-width: 0;
+  position: relative;
+}
+
+.eq-graph-shell {
+  position: relative;
+  width: 100%;
+  min-height: 260px;
+  flex: 1;
 }
 
 .eq-canvas {
@@ -12,6 +20,36 @@
   min-height: 260px;
   display: block;
   flex: 1;
+}
+
+.graph-legend {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 210px;
+  pointer-events: none;
+}
+
+.graph-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
+  padding: 0 8px;
+  background: rgba(22, 22, 30, 0.82);
+  color: var(--text);
+  font-size: 12px;
+  outline: 1px solid rgba(65, 72, 104, 0.45);
+  backdrop-filter: blur(4px);
+}
+
+.graph-legend-swatch {
+  width: 12px;
+  height: 3px;
+  flex: 0 0 12px;
 }
 
 .preamp-card {

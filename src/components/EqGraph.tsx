@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useRef } from "react";
 import { bandResponse, dbToY, formatFreq, freqToX, xToFreq } from "../lib/graph";
-import type { PEQData } from "../types";
+import type { MeasurementTrace, PEQData } from "../types";
 
 const GRAPH_FREQS = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
 const GRAPH_DBS = [-15, -10, -5, 0, 5, 10, 15];
 
-export function EqGraph({ peq }: { peq: PEQData }) {
+export function EqGraph({ peq, measurements }: { peq: PEQData; measurements: MeasurementTrace[] }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const visibleMeasurements = measurements.filter((trace) => trace.visible);
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -27,8 +28,8 @@ export function EqGraph({ peq }: { peq: PEQData }) {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     drawBackground(ctx, width, height);
     drawGrid(ctx, width, height);
-    drawCurves(ctx, width, height, peq);
-  }, [peq]);
+    drawCurves(ctx, width, height, peq, visibleMeasurements);
+  }, [peq, visibleMeasurements]);
 
   useEffect(() => {
     let raf = requestAnimationFrame(draw);
@@ -47,7 +48,21 @@ export function EqGraph({ peq }: { peq: PEQData }) {
     };
   }, [draw]);
 
-  return <canvas className="eq-canvas" ref={canvasRef} />;
+  return (
+    <div className="eq-graph-shell">
+      <canvas className="eq-canvas" ref={canvasRef} />
+      {visibleMeasurements.length > 0 && (
+        <div className="graph-legend">
+          {visibleMeasurements.map((trace) => (
+            <div className="graph-legend-item" key={trace.id}>
+              <span className="graph-legend-swatch" style={{ backgroundColor: trace.color }} />
+              <span>{trace.name}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function drawBackground(ctx: CanvasRenderingContext2D, width: number, height: number) {
@@ -82,7 +97,13 @@ function drawGrid(ctx: CanvasRenderingContext2D, width: number, height: number) 
   }
 }
 
-function drawCurves(ctx: CanvasRenderingContext2D, width: number, height: number, peq: PEQData) {
+function drawCurves(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  peq: PEQData,
+  measurements: MeasurementTrace[],
+) {
   const combined = Array.from({ length: width }, (_, x) => {
     const freq = xToFreq(x, width);
     const total = peq.global_gain + peq.filters.reduce((sum, band) => sum + bandResponse(freq, band), 0);
@@ -92,6 +113,10 @@ function drawCurves(ctx: CanvasRenderingContext2D, width: number, height: number
   for (const band of peq.filters.filter((filter) => filter.enabled)) {
     const response = Array.from({ length: width }, (_, x) => bandResponse(xToFreq(x, width), band));
     drawResponse(ctx, height, response, "rgba(125, 207, 255, 0.22)", 1);
+  }
+
+  for (const trace of measurements) {
+    drawMeasurementTrace(ctx, width, height, trace);
   }
 
   const zero = dbToY(0, height);
@@ -104,6 +129,25 @@ function drawCurves(ctx: CanvasRenderingContext2D, width: number, height: number
   ctx.fill();
 
   drawResponse(ctx, height, combined, "#7dcfff", 3);
+}
+
+function drawMeasurementTrace(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  trace: MeasurementTrace,
+) {
+  ctx.beginPath();
+  trace.points.forEach((point, index) => {
+    const x = freqToX(point.freq, width);
+    const y = dbToY(point.db, height);
+    index === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.strokeStyle = trace.color;
+  ctx.lineWidth = 2;
+  ctx.setLineDash([8, 6]);
+  ctx.stroke();
+  ctx.setLineDash([]);
 }
 
 function drawResponse(

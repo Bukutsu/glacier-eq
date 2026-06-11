@@ -15,7 +15,7 @@
   overflow: hidden;
 }
 
-.tabs { display: grid; grid-template-columns: repeat(3, 1fr); height: 42px; }
+.tabs { display: grid; grid-template-columns: repeat(4, 1fr); height: 42px; }
 .tabs button { background: transparent; color: var(--muted); min-height: 42px; font-size: var(--type-label); }
 .tabs button.active { background: var(--bg-dark); color: var(--cyan); }
 
@@ -121,6 +121,111 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid r
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.measurements-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+
+.measurements-intro {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.measurements-intro strong {
+  color: var(--text);
+  font-size: var(--type-label);
+}
+
+.measurements-intro p,
+.measurement-format-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.measurement-import-grid {
+  margin-top: 2px;
+}
+
+.measurement-list {
+  min-height: 0;
+  max-height: 220px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.measurement-empty,
+.measurement-item {
+  background: var(--bg-dark);
+  outline: 1px solid rgba(65, 72, 104, 0.35);
+  outline-offset: -1px;
+}
+
+.measurement-empty {
+  padding: 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.measurement-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 36px;
+  align-items: center;
+}
+
+.measurement-toggle {
+  min-width: 0;
+  min-height: 52px;
+  padding: 0 12px;
+  display: grid;
+  grid-template-columns: 17px 12px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+}
+
+.measurement-swatch {
+  width: 12px;
+  height: 12px;
+}
+
+.measurement-meta {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.measurement-name,
+.measurement-points {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.measurement-name {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.measurement-points {
+  color: var(--comment);
+  font-size: 11px;
+}
+
+.measurement-delete {
+  min-height: 52px !important;
+  padding: 0 !important;
+  color: var(--red) !important;
+  background: transparent !important;
 }
 .settings-list { display: flex; flex-direction: column; gap: 14px; padding: 12px 0; }
 

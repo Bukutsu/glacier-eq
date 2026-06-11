@@ -14,6 +14,19 @@ export interface PEQData {
   global_gain: number;
 }
 
+export interface MeasurementPoint {
+  freq: number;
+  db: number;
+}
+
+export interface MeasurementTrace {
+  id: string;
+  name: string;
+  color: string;
+  visible: boolean;
+  points: MeasurementPoint[];
+}
+
 export interface DeviceInfo {
   vendor_id: number;
   product_id: number;
