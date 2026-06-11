@@ -54,7 +54,6 @@ export function Header({
           <span className="sync-dot ok">● {isBusy ? "Working…" : "Synced"}</span>
         </div>
         <div className="header-meta-row">
-          <div className="device-name">{deviceName}</div>
           <div className="history-controls" aria-label="Edit history">
             <span className="history-label">History</span>
             <div className="history-buttons">
@@ -80,6 +79,7 @@ export function Header({
               </button>
             </div>
           </div>
+          <div className="device-name">{deviceName}</div>
         </div>
       </div>
       <div className="toolbar">
