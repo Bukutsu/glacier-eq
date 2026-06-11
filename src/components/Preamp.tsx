@@ -10,7 +10,10 @@ export function Preamp({
   const safeValue = Number.isFinite(value) ? value : 0;
   return (
     <section className="preamp-card">
-      <strong>PREAMP: {safeValue} dB</strong>
+      <div className="preamp-meta">
+        <strong>Preamp</strong>
+        <span>{safeValue} dB</span>
+      </div>
       <input
         type="range"
         aria-label="Preamp gain"

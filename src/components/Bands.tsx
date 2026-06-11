@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { FILTER_TYPES, TYPE_LABELS } from "../constants";
 import type { Filter, PEQData } from "../types";
 import { Icon } from "./Icon";
@@ -10,26 +10,25 @@ interface BandsProps {
 }
 
 export function Bands({ peq, onFilterChange, onStartChange }: BandsProps) {
-  const [isCollapsed, setIsCollapsed] = useState(() => window.innerWidth < 960);
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const columns = [peq.filters.slice(0, 5), peq.filters.slice(5)];
 
   return (
     <div className="bands-container">
-      <div
+      <button
         className="bands-section-header"
+        type="button"
+        aria-expanded={!isCollapsed}
         onClick={() => setIsCollapsed(!isCollapsed)}
       >
         <span className="title-text">
           <Icon>tune</Icon>
           <strong>FILTER BANDS</strong>
         </span>
-        <button
-          className="collapse-toggle-btn"
-          aria-label={isCollapsed ? "Expand filters" : "Collapse filters"}
-        >
+        <span className="collapse-toggle-btn" aria-hidden="true">
           <Icon>{isCollapsed ? "expand_more" : "expand_less"}</Icon>
-        </button>
-      </div>
+        </span>
+      </button>
       {!isCollapsed && (
         <section className="bands-grid">
           {columns.map((bands, columnIndex) => (
@@ -72,52 +71,77 @@ function BandRow({
           onChange({ ...filter, enabled: !filter.enabled });
         }}
       >
-        {filter.index + 1}
+        <span className="band-index-label">Band</span>
+        <strong>{filter.index + 1}</strong>
       </button>
-      <FilterTypeButtons
-        filter={filter}
-        onChange={(updated) => {
-          onStartChange();
-          onChange(updated);
-        }}
-      />
-      <input
-        className="num-input freq"
-        aria-label={`Band ${filter.index + 1} frequency`}
-        inputMode="numeric"
-        value={filter.freq}
-        onFocus={onStartChange}
-        onChange={(event) => onChange({ ...filter, freq: +event.target.value || 20 })}
-      />
-      <div className="gain-cell">
-        <input
-          type="range"
-          aria-label={`Band ${filter.index + 1} gain`}
-          min={-10}
-          max={10}
-          step={0.01}
-          value={filter.gain}
-          onMouseDown={onStartChange}
-          onTouchStart={onStartChange}
-          onChange={(event) => onChange({ ...filter, gain: +event.target.value })}
+      <BandField label="Type" className="band-type-field">
+        <FilterTypeButtons
+          filter={filter}
+          onChange={(updated) => {
+            onStartChange();
+            onChange(updated);
+          }}
         />
+      </BandField>
+      <BandField label="Freq" className="band-freq-field">
         <input
-          className="num-input gain"
-          aria-label={`Band ${filter.index + 1} gain value`}
-          inputMode="decimal"
-          value={filter.gain.toFixed(2)}
+          className="num-input freq"
+          aria-label={`Band ${filter.index + 1} frequency`}
+          inputMode="numeric"
+          value={filter.freq}
           onFocus={onStartChange}
-          onChange={(event) => onChange({ ...filter, gain: +event.target.value || 0 })}
+          onChange={(event) => onChange({ ...filter, freq: +event.target.value || 20 })}
         />
-      </div>
-      <input
-        className="num-input q"
-        aria-label={`Band ${filter.index + 1} Q`}
-        inputMode="decimal"
-        value={filter.q.toFixed(2)}
-        onFocus={onStartChange}
-        onChange={(event) => onChange({ ...filter, q: +event.target.value || 0.1 })}
-      />
+      </BandField>
+      <BandField label="Gain" className="band-gain-field">
+        <div className="gain-cell">
+          <input
+            type="range"
+            aria-label={`Band ${filter.index + 1} gain`}
+            min={-10}
+            max={10}
+            step={0.01}
+            value={filter.gain}
+            onMouseDown={onStartChange}
+            onTouchStart={onStartChange}
+            onChange={(event) => onChange({ ...filter, gain: +event.target.value })}
+          />
+          <input
+            className="num-input gain"
+            aria-label={`Band ${filter.index + 1} gain value`}
+            inputMode="decimal"
+            value={filter.gain.toFixed(2)}
+            onFocus={onStartChange}
+            onChange={(event) => onChange({ ...filter, gain: +event.target.value || 0 })}
+          />
+        </div>
+      </BandField>
+      <BandField label="Q" className="band-q-field">
+        <input
+          className="num-input q"
+          aria-label={`Band ${filter.index + 1} Q`}
+          inputMode="decimal"
+          value={filter.q.toFixed(2)}
+          onFocus={onStartChange}
+          onChange={(event) => onChange({ ...filter, q: +event.target.value || 0.1 })}
+        />
+      </BandField>
+    </div>
+  );
+}
+
+function BandField({
+  label,
+  className,
+  children,
+}: {
+  label: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className={`band-field ${className ?? ""}`.trim()} data-label={label}>
+      {children}
     </div>
   );
 }
