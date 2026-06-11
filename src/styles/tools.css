@@ -86,3 +86,160 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 .log-box p:nth-child(odd) { background: var(--panel); }
 .log-box p.log-line-error { color: var(--red); }
 .log-box p.log-line-warn { color: var(--orange); }
+
+/* Import Flow Inline UI */
+.import-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: var(--bg-dark);
+  padding: 12px;
+  border-radius: 4px;
+  border: 1px solid var(--line);
+}
+
+.import-flow-header {
+  font-size: var(--type-subtitle);
+  color: var(--cyan);
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 6px;
+  margin-bottom: 4px;
+}
+
+.import-mode-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+
+.import-mode-tabs button {
+  background: var(--surface-soft);
+  color: var(--muted);
+  min-height: 32px !important;
+  font-size: 12px;
+  padding: 0 8px;
+  border-radius: 2px;
+  transition: background 0.12s, color 0.12s;
+}
+
+.import-mode-tabs button.active {
+  background: var(--cyan);
+  color: var(--bg-dark);
+}
+
+.import-flow-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.import-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.import-field-group label {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.import-field-group input {
+  height: 36px;
+  border: 1px solid var(--line);
+  background: var(--surface-soft);
+  color: var(--text);
+  padding: 0 8px;
+  border-radius: 2px;
+}
+
+.import-select {
+  height: 36px;
+  border: 1px solid var(--line);
+  background: var(--surface-soft);
+  color: var(--text);
+  padding: 0 8px;
+  border-radius: 2px;
+  outline: none;
+}
+
+.import-select option {
+  background: var(--bg-dark);
+  color: var(--text);
+}
+
+.import-overwrite-warning {
+  color: var(--yellow);
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+.import-temp-info {
+  color: var(--muted);
+  font-style: italic;
+  font-size: 12px;
+  background: rgba(125, 207, 255, 0.05);
+  border-left: 3px solid var(--cyan);
+  padding: 6px 10px;
+}
+
+.import-preview-section, .import-warnings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.import-preview-section span, .import-warnings-section span {
+  font-weight: bold;
+  color: var(--muted);
+}
+
+.import-preview-box, .import-warnings-box {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  padding: 8px;
+  max-height: 90px;
+  overflow-y: auto;
+  border-radius: 2px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.import-preview-box::-webkit-scrollbar, .import-warnings-box::-webkit-scrollbar {
+  width: 4px;
+}
+
+.import-preview-box::-webkit-scrollbar-thumb, .import-warnings-box::-webkit-scrollbar-thumb {
+  background: var(--comment);
+}
+
+.preview-line {
+  color: var(--text);
+  padding: 2px 0;
+}
+
+.empty-preview {
+  color: var(--comment);
+}
+
+.import-warnings-box {
+  border-color: rgba(224, 175, 104, 0.4);
+  background: rgba(224, 175, 104, 0.05);
+}
+
+.warning-line {
+  color: var(--yellow);
+  padding: 2px 0;
+}
+
+.import-flow-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.import-flow-actions button {
+  min-height: 36px !important;
+}

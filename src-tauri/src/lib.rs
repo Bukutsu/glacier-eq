@@ -28,6 +28,8 @@ pub fn run() {
             profiles::save_profile,
             profiles::delete_profile,
             profiles::open_profiles_dir,
+            profiles::parse_autoeq,
+            profiles::peq_to_autoeq,
             device_commands::list_devices,
             device_commands::connect_device,
             device_commands::disconnect_device,

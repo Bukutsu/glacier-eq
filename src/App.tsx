@@ -44,6 +44,14 @@ function App() {
     setDirty(false);
   }, []);
 
+  const importPeq = useCallback((data: PEQData, name: string, isSaved: boolean) => {
+    const normalized = normalizePeq(data, { enableLoadedFilters: true });
+    setPeq(normalized);
+    setSelectedPreset(name);
+    setNewProfileName(name);
+    setDirty(!isSaved);
+  }, []);
+
   const loadProfiles = useCallback(async () => {
     try {
       const loaded = await invoke<Profile[]>("list_profiles");
@@ -240,6 +248,8 @@ function App() {
             <Bands peq={peq} onFilterChange={updateFilter} />
           </section>
           <ToolsPanel
+            peq={peq}
+            onImportPEQ={importPeq}
             profiles={profiles}
             selectedPreset={selectedPreset}
             profileSearch={profileSearch}
@@ -252,6 +262,7 @@ function App() {
             onReset={reset}
             onSave={saveProfile}
             onDelete={deleteSelectedProfile}
+            setStatus={setStatus}
           />
         </main>
       )}
