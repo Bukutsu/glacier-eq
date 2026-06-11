@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import { parseMeasurementText } from "../lib/measurements";
-import type { GraphViewMode, TargetTrace } from "../types";
+import type { TargetTrace } from "../types";
 import { Icon } from "./Icon";
 
 interface TargetSelectorProps {
@@ -9,8 +9,6 @@ interface TargetSelectorProps {
   onToggleTarget: (id: string) => void;
   onAddTarget: (name: string, points: TargetTrace["points"]) => void;
   onRemoveTarget: (id: string) => void;
-  graphViewMode: GraphViewMode;
-  onGraphViewModeChange: (mode: GraphViewMode) => void;
   preampDb: number;
   peakDb: number;
   setStatus: (value: string) => void;
@@ -22,8 +20,6 @@ export function TargetSelector({
   onToggleTarget,
   onAddTarget,
   onRemoveTarget,
-  graphViewMode,
-  onGraphViewModeChange,
   preampDb,
   peakDb,
   setStatus,
@@ -73,21 +69,6 @@ export function TargetSelector({
         </button>
       </div>
       <div className="graph-view-controls">
-        <span className="graph-view-label">View</span>
-        <div className="graph-view-toggle">
-          <button
-            className={graphViewMode === "shape" ? "active" : ""}
-            onClick={() => onGraphViewModeChange("shape")}
-          >
-            Shape
-          </button>
-          <button
-            className={graphViewMode === "level" ? "active" : ""}
-            onClick={() => onGraphViewModeChange("level")}
-          >
-            Level
-          </button>
-        </div>
         <span className={peakDb > 0 ? "graph-level-readout warn" : "graph-level-readout"}>
           Preamp {formatDb(preampDb)} | Peak {formatDb(peakDb)}
         </span>

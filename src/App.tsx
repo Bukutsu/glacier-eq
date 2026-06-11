@@ -583,8 +583,6 @@ function App() {
                   onToggleTarget={toggleTarget}
                   onAddTarget={addTarget}
                   onRemoveTarget={removeTarget}
-                  graphViewMode={graphViewMode}
-                  onGraphViewModeChange={setGraphViewMode}
                   preampDb={peq.global_gain}
                   peakDb={levelPeakDb}
                   setStatus={setStatus}
@@ -682,6 +680,8 @@ function App() {
                 availableTabs={["Settings"]}
                 defaultTab="Settings"
                 showActions={false}
+                graphViewMode={graphViewMode}
+                onGraphViewModeChange={setGraphViewMode}
               />
             )}
           </div>
@@ -733,8 +733,6 @@ function App() {
               onToggleTarget={toggleTarget}
               onAddTarget={addTarget}
               onRemoveTarget={removeTarget}
-              graphViewMode={graphViewMode}
-              onGraphViewModeChange={setGraphViewMode}
               preampDb={peq.global_gain}
               peakDb={levelPeakDb}
               setStatus={setStatus}
@@ -774,6 +772,8 @@ function App() {
             canRedo={redoStack.length > 0}
             onUndo={undo}
             onRedo={redo}
+            graphViewMode={graphViewMode}
+            onGraphViewModeChange={setGraphViewMode}
           />
         </main>
       )}
