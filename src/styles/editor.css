@@ -340,7 +340,7 @@
 .band-row.muted { opacity: .45; }
 .band-index {
   color: var(--cyan);
-  background: var(--bg-dark);
+  background: transparent;
   padding: 0;
   text-align: center;
   font-weight: 700;
@@ -349,8 +349,14 @@
   align-items: center;
   justify-content: center;
   white-space: nowrap;
-  outline: 1px solid var(--accent-line-light);
-  outline-offset: -1px;
+  border: none;
+  cursor: pointer;
+  transition: color 0.12s ease, transform 0.12s ease;
+}
+
+.band-index:hover {
+  color: var(--text);
+  transform: scale(1.1);
 }
 
 .band-index strong {
@@ -360,31 +366,34 @@
 .type-buttons {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 0;
+  gap: 4px;
   width: 100%;
-  background: var(--bg-dark);
-  outline: 1px solid var(--line-strong);
-  outline-offset: -1px;
+  background: transparent;
+  outline: none;
+  padding: 2px;
 }
 .type-buttons button {
-  height: 31px;
-  min-height: 31px;
+  height: 28px;
+  min-height: 28px;
   background: transparent;
   color: var(--muted);
   padding: 0;
-  border-right: 1px solid var(--line-separator);
-}
-.type-buttons button:last-child {
-  border-right: 0;
+  border: none;
+  font-size: var(--type-small);
+  font-family: var(--font-mono);
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: var(--radius-control);
+  transition: color 0.12s ease, background-color 0.12s ease;
 }
 .type-buttons button:hover:not(:disabled) {
   color: var(--text);
-  background: var(--hover-bg-strong);
+  background: var(--surface-soft);
 }
 .type-buttons button.selected {
-  background: var(--cyan);
-  color: var(--bg-dark);
-  border-right-color: transparent;
+  background: var(--accent-bg-subtle) !important;
+  color: var(--cyan) !important;
+  font-weight: 700;
 }
 
 .num-input {
