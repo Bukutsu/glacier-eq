@@ -551,20 +551,6 @@ function App() {
                     viewMode={graphViewMode}
                   />
                 </section>
-                
-                <section className="tuning-card card">
-                  <div className="tuning-card-header">
-                    <Icon>auto_awesome</Icon>
-                    <strong>AutoEQ (Tuning Assistant)</strong>
-                  </div>
-                  <div className="tuning-card-body">
-                    <p>AutoEQ matching controls will be placed here to match loaded measurements to target references.</p>
-                    <button className="btn filled" disabled style={{ opacity: 0.6, cursor: "not-allowed", width: "100%", minHeight: "44px" }}>
-                      <Icon>bolt</Icon>
-                      <span>Run Match (Soon)</span>
-                    </button>
-                  </div>
-                </section>
 
                 <TargetSelector
                   targets={allTargets}
@@ -578,6 +564,20 @@ function App() {
                   peakDb={levelPeakDb}
                   setStatus={setStatus}
                 />
+
+                <section className="tuning-card card">
+                  <div className="tuning-card-header">
+                    <Icon>auto_awesome</Icon>
+                    <strong>AutoEQ (Tuning Assistant)</strong>
+                  </div>
+                  <div className="tuning-card-body">
+                    <p>AutoEQ matching controls will be placed here to match loaded measurements to target references.</p>
+                    <button className="btn filled" disabled style={{ opacity: 0.6, cursor: "not-allowed", width: "100%", minHeight: "44px" }}>
+                      <Icon>bolt</Icon>
+                      <span>Run Match (Soon)</span>
+                    </button>
+                  </div>
+                </section>
 
                 <section className="tuning-card card">
                   <div className="tuning-card-header">
