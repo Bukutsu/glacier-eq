@@ -8,7 +8,6 @@ mod diagnostics;
 mod profiles;
 mod settings;
 mod state;
-mod walkplay;
 
 use std::sync::Mutex;
 
