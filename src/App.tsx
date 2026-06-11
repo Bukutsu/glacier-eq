@@ -8,8 +8,9 @@ import { Icon } from "./components/Icon";
 import { Preamp } from "./components/Preamp";
 import { ToolsPanel } from "./components/ToolsPanel";
 import { DEFAULT_PROFILE_NAME } from "./constants";
+import { makeMeasurementName, nextMeasurementColor, normalizeMeasurementPoints } from "./lib/measurements";
 import { buildDefaultState, normalizePeq } from "./lib/peq";
-import type { DeviceInfo, Filter, PEQData, Profile } from "./types";
+import type { DeviceInfo, Filter, MeasurementTrace, PEQData, Profile } from "./types";
 import "./App.css";
 
 function App() {
@@ -23,6 +24,7 @@ function App() {
   const [selectedPreset, setSelectedPreset] = useState(DEFAULT_PROFILE_NAME);
   const [profileSearch, setProfileSearch] = useState("");
   const [newProfileName, setNewProfileName] = useState("");
+  const [measurements, setMeasurements] = useState<MeasurementTrace[]>([]);
   const [dirty, setDirty] = useState(false);
   const selectedPresetRef = useRef(selectedPreset);
   const peqRef = useRef(peq);
@@ -30,6 +32,38 @@ function App() {
   useEffect(() => {
     peqRef.current = peq;
   }, [peq]);
+
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem("glacier-measurements");
+      if (!saved) return;
+
+      const parsed = JSON.parse(saved);
+      if (!Array.isArray(parsed)) return;
+
+      const normalized = parsed
+        .filter((trace): trace is MeasurementTrace => (
+          trace &&
+          typeof trace.id === "string" &&
+          typeof trace.name === "string" &&
+          typeof trace.color === "string" &&
+          typeof trace.visible === "boolean" &&
+          Array.isArray(trace.points)
+        ))
+        .map((trace) => ({
+          ...trace,
+          points: normalizeMeasurementPoints(trace.points),
+        }));
+
+      setMeasurements(normalized);
+    } catch {
+      // Ignore malformed local measurement cache.
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem("glacier-measurements", JSON.stringify(measurements));
+  }, [measurements]);
 
   const [undoStack, setUndoStack] = useState<PEQData[]>([]);
   const [redoStack, setRedoStack] = useState<PEQData[]>([]);
@@ -262,6 +296,33 @@ function App() {
     setDirty(true);
   };
 
+  const addMeasurement = useCallback((name: string, points: MeasurementTrace["points"]) => {
+    setMeasurements((current) => [
+      ...current,
+      {
+        id: `${Date.now()}-${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)}`,
+        name: makeMeasurementName(name, current),
+        color: nextMeasurementColor(current),
+        visible: true,
+        points: normalizeMeasurementPoints(points),
+      },
+    ]);
+  }, []);
+
+  const removeMeasurement = useCallback((id: string) => {
+    setMeasurements((current) => current.filter((trace) => trace.id !== id));
+  }, []);
+
+  const toggleMeasurement = useCallback((id: string) => {
+    setMeasurements((current) =>
+      current.map((trace) => trace.id === id ? { ...trace, visible: !trace.visible } : trace),
+    );
+  }, []);
+
+  const clearMeasurements = useCallback(() => {
+    setMeasurements([]);
+  }, []);
+
   const undoRedoRef = useRef({
     undo,
     redo,
@@ -361,7 +422,7 @@ function App() {
       ) : (
         <main className="workspace">
           <section className="left-pane">
-            <section className="graph-card"><EqGraph peq={peq} /></section>
+            <section className="graph-card"><EqGraph peq={peq} measurements={measurements} /></section>
             <Preamp
               value={peq.global_gain}
               onStartChange={handleStartChange}
@@ -388,6 +449,11 @@ function App() {
             onSave={saveProfile}
             onDelete={deleteSelectedProfile}
             setStatus={setStatus}
+            measurements={measurements}
+            onAddMeasurement={addMeasurement}
+            onRemoveMeasurement={removeMeasurement}
+            onToggleMeasurement={toggleMeasurement}
+            onClearMeasurements={clearMeasurements}
             canUndo={undoStack.length > 0}
             canRedo={redoStack.length > 0}
             onUndo={undo}

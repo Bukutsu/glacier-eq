@@ -2,10 +2,11 @@ import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { DEFAULT_PROFILE_NAME } from "../constants";
-import type { Profile, PEQData } from "../types";
+import { parseMeasurementText } from "../lib/measurements";
+import type { MeasurementTrace, Profile, PEQData } from "../types";
 import { Icon } from "./Icon";
 
-type ToolsTab = "Preset" | "Import" | "Settings";
+type ToolsTab = "Preset" | "Import" | "Measure" | "Settings";
 
 interface ToolsPanelProps {
   peq: PEQData;
@@ -23,6 +24,11 @@ interface ToolsPanelProps {
   onSave: () => void;
   onDelete: () => void;
   setStatus: (value: string) => void;
+  measurements: MeasurementTrace[];
+  onAddMeasurement: (name: string, points: MeasurementTrace["points"]) => void;
+  onRemoveMeasurement: (id: string) => void;
+  onToggleMeasurement: (id: string) => void;
+  onClearMeasurements: () => void;
   canUndo: boolean;
   canRedo: boolean;
   onUndo: () => void;
@@ -44,6 +50,14 @@ export function ToolsPanel(props: ToolsPanelProps) {
           onReloadProfiles={props.onReloadProfiles}
           setStatus={props.setStatus}
         />}
+        {tab === "Measure" && <MeasureTab
+          measurements={props.measurements}
+          onAddMeasurement={props.onAddMeasurement}
+          onRemoveMeasurement={props.onRemoveMeasurement}
+          onToggleMeasurement={props.onToggleMeasurement}
+          onClearMeasurements={props.onClearMeasurements}
+          setStatus={props.setStatus}
+        />}
         {tab === "Settings" && <SettingsTab />}
         <ToolActions {...props} />
       </section>
@@ -55,12 +69,141 @@ export function ToolsPanel(props: ToolsPanelProps) {
 function TabStrip({ active, onSelect }: { active: ToolsTab; onSelect: (tab: ToolsTab) => void }) {
   return (
     <nav className="tabs">
-      {(["Preset", "Import", "Settings"] as const).map((name) => (
+      {(["Preset", "Import", "Measure", "Settings"] as const).map((name) => (
         <button key={name} className={active === name ? "active" : ""} onClick={() => onSelect(name)}>
           {name}
         </button>
       ))}
     </nav>
+  );
+}
+
+interface MeasureTabProps {
+  measurements: MeasurementTrace[];
+  onAddMeasurement: (name: string, points: MeasurementTrace["points"]) => void;
+  onRemoveMeasurement: (id: string) => void;
+  onToggleMeasurement: (id: string) => void;
+  onClearMeasurements: () => void;
+  setStatus: (msg: string) => void;
+}
+
+function MeasureTab({
+  measurements,
+  onAddMeasurement,
+  onRemoveMeasurement,
+  onToggleMeasurement,
+  onClearMeasurements,
+  setStatus,
+}: MeasureTabProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const addMeasurementFromText = (text: string, fallbackName: string) => {
+    try {
+      const points = parseMeasurementText(text);
+      onAddMeasurement(fallbackName, points);
+      setStatus(`Loaded measurement: ${fallbackName} (${points.length} points)`);
+    } catch (error) {
+      setStatus(`Measurement import failed: ${error}`);
+    }
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!/\.(csv|txt)$/i.test(file.name)) {
+      setStatus("Measurement import failed: choose a .csv or .txt file.");
+      event.target.value = "";
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (loadEvent) => {
+      const text = String(loadEvent.target?.result || "");
+      addMeasurementFromText(text, file.name.replace(/\.[^/.]+$/, ""));
+    };
+    reader.readAsText(file);
+    event.target.value = "";
+  };
+
+  const handlePaste = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text.trim()) {
+        setStatus("Clipboard is empty or not text.");
+        return;
+      }
+      addMeasurementFromText(text, `Clipboard ${new Date().toLocaleDateString()}`);
+    } catch {
+      setStatus("Unable to read clipboard. Check permissions.");
+    }
+  };
+
+  return (
+    <div className="measurements-pane">
+      <div className="measurements-intro">
+        <strong>Graph Overlays</strong>
+        <p>Load frequency,dB traces from `.csv` or `.txt` to compare multiple measurements against your EQ curve.</p>
+      </div>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        style={{ display: "none" }}
+        accept=".txt,.csv,text/plain,text/csv"
+        onChange={handleFileChange}
+      />
+
+      <div className="import-grid measurement-import-grid">
+        <button className="icon-action" onClick={() => fileInputRef.current?.click()}>
+          <Icon>playlist_add</Icon>
+          <span>Add File</span>
+        </button>
+        <button className="icon-action" onClick={handlePaste}>
+          <Icon>content_paste</Icon>
+          <span>Paste Trace</span>
+        </button>
+      </div>
+
+      <div className="measurement-format-note">
+        Example: `20,82.6` or `20 82.6`; traces are centered near 1 kHz.
+      </div>
+
+      <div className="measurement-list">
+        {measurements.length === 0 ? (
+          <div className="measurement-empty">
+            No measurements loaded yet.
+          </div>
+        ) : (
+          measurements.map((trace) => (
+            <div className="measurement-item" key={trace.id}>
+              <label className="measurement-toggle">
+                <input
+                  type="checkbox"
+                  checked={trace.visible}
+                  onChange={() => onToggleMeasurement(trace.id)}
+                />
+                <span className="measurement-swatch" style={{ backgroundColor: trace.color }} />
+                <span className="measurement-meta">
+                  <span className="measurement-name">{trace.name}</span>
+                  <span className="measurement-points">{trace.points.length} points</span>
+                </span>
+              </label>
+              <button
+                className="measurement-delete"
+                title={`Delete ${trace.name}`}
+                onClick={() => onRemoveMeasurement(trace.id)}
+              >
+                <Icon>delete</Icon>
+              </button>
+            </div>
+          ))
+        )}
+      </div>
+
+      {measurements.length > 0 && (
+        <button className="btn" onClick={onClearMeasurements}>Clear All</button>
+      )}
+    </div>
   );
 }
 
