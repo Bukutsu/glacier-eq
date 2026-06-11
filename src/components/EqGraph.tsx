@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 import { bandResponse, dbToY, formatFreq, freqToX, xToFreq } from "../lib/graph";
+import { cssVar, rgbWithAlpha } from "../lib/theme";
 import type { GraphViewMode, MeasurementTrace, PEQData, TargetTrace } from "../types";
 
 const GRAPH_FREQS = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
@@ -83,17 +84,16 @@ export function EqGraph({
 
 function drawBackground(ctx: CanvasRenderingContext2D, width: number, height: number) {
   ctx.clearRect(0, 0, width, height);
-  const panel = getComputedStyle(document.documentElement).getPropertyValue("--panel") || "#24283b";
-  ctx.fillStyle = panel;
+  ctx.fillStyle = cssVar("--panel", "#24283b");
   ctx.fillRect(0, 0, width, height);
 }
 
 function drawGrid(ctx: CanvasRenderingContext2D, width: number, height: number) {
-  const mono = getComputedStyle(document.documentElement).getPropertyValue("--font-mono") || "ui-monospace";
-  ctx.strokeStyle = "rgba(128, 128, 128, 0.20)";
+  const mono = cssVar("--font-mono", "ui-monospace");
+  ctx.strokeStyle = cssVar("--canvas-grid", "rgba(128, 128, 128, 0.20)");
   ctx.lineWidth = 1;
   ctx.font = `12px ${mono}`;
-  ctx.fillStyle = "#a9b1d6";
+  ctx.fillStyle = cssVar("--muted", "#a9b1d6");
 
   for (const freq of GRAPH_FREQS) {
     const x = freqToX(freq, width);
@@ -132,7 +132,7 @@ function drawCurves(
 
   for (const band of peq.filters.filter((filter) => filter.enabled)) {
     const response = Array.from({ length: width }, (_, x) => bandResponse(xToFreq(x, width), band));
-    drawResponse(ctx, height, response, "rgba(125, 207, 255, 0.22)", 1);
+    drawResponse(ctx, height, response, rgbWithAlpha("--cyan-rgb", 0.22, "rgba(125, 207, 255, 0.22)"), 1);
   }
 
   for (const target of targets) {
@@ -150,10 +150,10 @@ function drawCurves(
     eqResponse.forEach((db, x) => ctx.lineTo(x, dbToY(db, height)));
     ctx.lineTo(width, zero);
     ctx.closePath();
-    ctx.fillStyle = "rgba(125, 207, 255, 0.15)";
+    ctx.fillStyle = rgbWithAlpha("--cyan-rgb", 0.15, "rgba(125, 207, 255, 0.15)");
     ctx.fill();
 
-    drawResponse(ctx, height, eqResponse, "#7dcfff", 3);
+    drawResponse(ctx, height, eqResponse, cssVar("--cyan", "#7dcfff"), 3);
     return;
   }
 

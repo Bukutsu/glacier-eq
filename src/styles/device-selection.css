@@ -68,7 +68,7 @@
 .device-row-meta, .device-row small { color: var(--muted); font-size: 12px; font-family: var(--font-mono); }
 
 .supported-list {
-  background: rgba(22, 22, 30, .65);
+  background: var(--panel-dark);
   padding: 12px;
   display: grid;
   gap: 8px;
