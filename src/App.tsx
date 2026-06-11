@@ -16,6 +16,8 @@ import { buildDefaultState, normalizePeq } from "./lib/peq";
 import type { DeviceInfo, Filter, GraphViewMode, MeasurementTrace, PEQData, Profile, TargetTrace } from "./types";
 import "./App.css";
 
+const ANDROID_TOAST_DEDUPE_MS = 2000;
+
 declare global {
   interface Window {
     AndroidNotifier?: {
@@ -28,7 +30,8 @@ function App() {
   const [isMobile, setIsMobile] = useState(() => window.matchMedia("(max-width: 768px)").matches);
   const isAndroid = typeof navigator !== "undefined" && (
     document.body.classList.contains("is-android") ||
-    /android/i.test(navigator.userAgent)
+    /android/i.test(navigator.userAgent) ||
+    typeof window.AndroidNotifier !== "undefined"
   );
   const [activeTab, setActiveTab] = useState<"eq" | "tuning" | "profiles" | "settings">("eq");
 
@@ -47,10 +50,17 @@ function App() {
   const [connected, setConnected] = useState(false);
   const [isBusy, setIsBusy] = useState(false);
   const [status, setStatus] = useState("Ready");
+  const lastAndroidToastRef = useRef<{ message: string; shownAt: number } | null>(null);
 
   // Show native Android Toast when status changes, instead of the web StatusBanner
   useEffect(() => {
     if (!isAndroid || status === "Ready") return;
+    const now = Date.now();
+    const lastToast = lastAndroidToastRef.current;
+    if (lastToast?.message === status && now - lastToast.shownAt < ANDROID_TOAST_DEDUPE_MS) {
+      return;
+    }
+    lastAndroidToastRef.current = { message: status, shownAt: now };
     try {
       window.AndroidNotifier?.showToast(status);
     } catch {
