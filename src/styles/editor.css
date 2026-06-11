@@ -229,6 +229,7 @@
   box-shadow: none;
   padding: 0 4px;
   font-size: 13px;
+  font-family: var(--font-mono);
 }
 
 .preamp-meta input.preamp-value:focus {
