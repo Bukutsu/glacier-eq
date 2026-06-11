@@ -1,6 +1,9 @@
 import { type CSSProperties, useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { readText, writeText } from "@tauri-apps/plugin-clipboard-manager";
+import { save } from "@tauri-apps/plugin-dialog";
+
 import { DEFAULT_PROFILE_NAME } from "../constants";
 import { parseMeasurementText } from "../lib/measurements";
 import type { MeasurementTrace, Profile, PEQData, GraphViewMode, TargetTrace } from "../types";
@@ -187,8 +190,8 @@ export function MeasureTab({
 
   const handlePaste = async () => {
     try {
-      const text = await navigator.clipboard.readText();
-      if (!text.trim()) {
+      const text = await readText();
+      if (!text || !text.trim()) {
         setStatus("Clipboard is empty or not text.");
         return;
       }
@@ -377,7 +380,7 @@ function ImportTab({ peq, profiles, onImportPEQ, onReloadProfiles, setStatus }: 
 
   const handlePaste = async () => {
     try {
-      const text = await navigator.clipboard.readText();
+      const text = await readText();
       if (!text || !text.trim()) {
         setStatus("Clipboard is empty or not text.");
         return;
@@ -392,7 +395,7 @@ function ImportTab({ peq, profiles, onImportPEQ, onReloadProfiles, setStatus }: 
   const handleCopy = async () => {
     try {
       const text = await invoke<string>("peq_to_autoeq", { peq });
-      await navigator.clipboard.writeText(text);
+      await writeText(text);
       setStatus("EQ settings copied to clipboard");
     } catch (err) {
       setStatus(`Copy failed: ${err}`);
@@ -402,14 +405,17 @@ function ImportTab({ peq, profiles, onImportPEQ, onReloadProfiles, setStatus }: 
   const handleExportFile = async () => {
     try {
       const text = await invoke<string>("peq_to_autoeq", { peq });
-      const blob = new Blob([text], { type: "text/plain" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${(importName || "eq_profile").replace(/[^a-zA-Z0-9_\- ]/g, "")}.txt`;
-      a.click();
-      URL.revokeObjectURL(url);
-      setStatus("EQ settings exported to file");
+      const defaultName = `${(importName || "eq_profile").replace(/[^a-zA-Z0-9_\- ]/g, "")}.txt`;
+      const path = await save({
+        defaultPath: defaultName,
+        filters: [{ name: "Text Files", extensions: ["txt"] }],
+      });
+      if (!path) {
+        setStatus("Export cancelled.");
+        return;
+      }
+      await invoke("save_text_file", { path, content: text });
+      setStatus("EQ settings exported successfully");
     } catch (err) {
       setStatus(`Export failed: ${err}`);
     }
@@ -948,7 +954,7 @@ function DiagnosticsPanel() {
 
   const copyToClipboard = async () => {
     try {
-      await navigator.clipboard.writeText(getFormattedLogs());
+      await writeText(getFormattedLogs());
     } catch (err) {
       console.error("Failed to copy logs:", err);
     }
