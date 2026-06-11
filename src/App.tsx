@@ -16,8 +16,20 @@ import { buildDefaultState, normalizePeq } from "./lib/peq";
 import type { DeviceInfo, Filter, GraphViewMode, MeasurementTrace, PEQData, Profile, TargetTrace } from "./types";
 import "./App.css";
 
+declare global {
+  interface Window {
+    AndroidNotifier?: {
+      showToast: (message: string) => void;
+    };
+  }
+}
+
 function App() {
   const [isMobile, setIsMobile] = useState(() => window.matchMedia("(max-width: 768px)").matches);
+  const isAndroid = typeof navigator !== "undefined" && (
+    document.body.classList.contains("is-android") ||
+    /android/i.test(navigator.userAgent)
+  );
   const [activeTab, setActiveTab] = useState<"eq" | "tuning" | "profiles" | "settings">("eq");
 
   useEffect(() => {
@@ -35,6 +47,16 @@ function App() {
   const [connected, setConnected] = useState(false);
   const [isBusy, setIsBusy] = useState(false);
   const [status, setStatus] = useState("Ready");
+
+  // Show native Android Toast when status changes, instead of the web StatusBanner
+  useEffect(() => {
+    if (!isAndroid || status === "Ready") return;
+    try {
+      window.AndroidNotifier?.showToast(status);
+    } catch {
+      // Native bridge not available, fall through silently
+    }
+  }, [status, isAndroid]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [selectedPreset, setSelectedPreset] = useState(DEFAULT_PROFILE_NAME);
   const [profileSearch, setProfileSearch] = useState("");
@@ -529,7 +551,7 @@ function App() {
         onPush={pushEq}
         onDisconnect={disconnectDevice}
       />
-      {connected && status !== "Ready" && <StatusBanner status={status} onClose={() => setStatus("Ready")} />}
+      {!isAndroid && connected && status !== "Ready" && <StatusBanner status={status} onClose={() => setStatus("Ready")} />}
       {!connected ? (
         <DeviceChooser
           devices={devices}
