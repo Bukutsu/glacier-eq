@@ -2,7 +2,7 @@
 # Source: https://github.com/Bukutsu/glacier-eq
 
 pkgname=glacier-eq-git
-pkgver=r85.d000016
+pkgver=r86.8e162f5
 pkgrel=1
 pkgdesc="Cross-platform parametric EQ editor for USB DACs. Offline, direct, and built for dense tuning work on desktop and Android."
 arch=('x86_64' 'aarch64')
@@ -63,7 +63,7 @@ package() {
   cd glacier-eq
 
   # Binary
-  install -Dm755 "src-tauri/target/release/glacier-eq" "${pkgdir}/usr/bin/glacier-eq"
+  install -Dm755 "target/release/glacier-eq" "${pkgdir}/usr/bin/glacier-eq"
 
   # Desktop file
   install -Dm644 "desktop/glacier-eq.desktop" "${pkgdir}/usr/share/applications/glacier-eq.desktop"
