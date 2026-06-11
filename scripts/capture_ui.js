@@ -21,6 +21,15 @@ if (fileIdx !== -1 && args[fileIdx + 1]) {
   filename = args[fileIdx + 1];
 }
 
+// Parse --tab <value>
+let selectedTab = '';
+const tabIdx = args.indexOf('--tab');
+if (tabIdx !== -1 && args[tabIdx + 1]) {
+  selectedTab = args[tabIdx + 1];
+}
+
+const expandFilters = args.includes('--expand-filters');
+
 async function run() {
   console.log(`Launching headless browser in ${mode} mode...`);
   
@@ -144,19 +153,40 @@ async function run() {
     await page.waitForTimeout(1000);
   }
 
+  if (selectedTab && mode === 'mobile') {
+    console.log(`Clicking mobile tab: ${selectedTab}...`);
+    const tabNameMap = {
+      eq: 'EQ',
+      targets: 'Targets',
+      profiles: 'Profiles'
+    };
+    const tabText = tabNameMap[selectedTab.toLowerCase()] || selectedTab;
+    await page.click(`.mobile-tab-item:has-text('${tabText}')`);
+    await page.waitForTimeout(1000);
+  }
+
+  if (expandFilters) {
+    console.log("Expanding filters...");
+    const header = page.locator('.bands-section-header');
+    if (await header.count() > 0) {
+      await header.click();
+      await page.waitForTimeout(1000);
+    }
+  }
+
   // Handle custom scroll position if provided
   if (scrollY > 0) {
     console.log(`Scrolling page by ${scrollY}px...`);
     await page.evaluate((y) => {
       window.scrollTo(0, y);
       // Emulate scrolling on potential scroll containers
-      const selectors = ['.main-layout', '.app-container', 'main', '.scroll-container', '.editor-container'];
+      const selectors = ['.main-layout', '.app-container', 'main', '.scroll-container', '.editor-container', '.workspace', 'body', 'html'];
       for (const selector of selectors) {
         const el = document.querySelector(selector);
         if (el) el.scrollTop = y;
       }
     }, scrollY);
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(1000);
   }
 
   console.log("Waiting for rendering...");

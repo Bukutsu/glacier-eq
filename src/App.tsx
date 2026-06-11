@@ -17,6 +17,18 @@ import type { DeviceInfo, Filter, GraphViewMode, MeasurementTrace, PEQData, Prof
 import "./App.css";
 
 function App() {
+  const [isMobile, setIsMobile] = useState(() => window.matchMedia("(max-width: 768px)").matches);
+  const [activeTab, setActiveTab] = useState<"eq" | "targets" | "profiles">("eq");
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 768px)");
+    const listener = (e: MediaQueryListEvent) => {
+      setIsMobile(e.matches);
+    };
+    media.addEventListener("change", listener);
+    return () => media.removeEventListener("change", listener);
+  }, []);
+
   const [peq, setPeq] = useState<PEQData>(buildDefaultState);
   const [devices, setDevices] = useState<DeviceInfo[]>([]);
   const [selectedDevice, setSelectedDevice] = useState("");
@@ -505,6 +517,107 @@ function App() {
           status={status}
           isBusy={isBusy}
         />
+      ) : isMobile ? (
+        <main className="workspace mobile-workspace">
+          <div className="mobile-content-area">
+            {activeTab === "eq" && (
+              <section className="left-pane">
+                <section className="graph-card">
+                  <EqGraph
+                    peq={peq}
+                    measurements={measurements}
+                    targets={activeTargets}
+                    viewMode={graphViewMode}
+                  />
+                </section>
+                <Preamp
+                  value={peq.global_gain}
+                  onStartChange={handleStartChange}
+                  onChange={(global_gain) => {
+                    setDirty(true);
+                    setPeq((previous) => ({ ...previous, global_gain }));
+                  }}
+                />
+                <Bands peq={peq} onFilterChange={updateFilter} onStartChange={handleStartChange} />
+              </section>
+            )}
+            {activeTab === "targets" && (
+              <section className="left-pane">
+                <section className="graph-card">
+                  <EqGraph
+                    peq={peq}
+                    measurements={measurements}
+                    targets={activeTargets}
+                    viewMode={graphViewMode}
+                  />
+                </section>
+                <TargetSelector
+                  targets={allTargets}
+                  activeTargetIds={activeTargetIds}
+                  onToggleTarget={toggleTarget}
+                  onAddTarget={addTarget}
+                  onRemoveTarget={removeTarget}
+                  graphViewMode={graphViewMode}
+                  onGraphViewModeChange={setGraphViewMode}
+                  preampDb={peq.global_gain}
+                  peakDb={levelPeakDb}
+                  setStatus={setStatus}
+                />
+              </section>
+            )}
+            {activeTab === "profiles" && (
+              <ToolsPanel
+                peq={peq}
+                onImportPEQ={importPeq}
+                profiles={profiles}
+                selectedPreset={selectedPreset}
+                profileSearch={profileSearch}
+                setProfileSearch={setProfileSearch}
+                newProfileName={newProfileName}
+                setNewProfileName={setNewProfileName}
+                onSelectProfile={applyProfile}
+                onReloadProfiles={loadProfiles}
+                onOpenProfilesDir={openProfilesDir}
+                onReset={reset}
+                onSave={saveProfile}
+                onDelete={deleteSelectedProfile}
+                setStatus={setStatus}
+                measurements={measurements}
+                onAddMeasurement={addMeasurement}
+                onRemoveMeasurement={removeMeasurement}
+                onToggleMeasurement={toggleMeasurement}
+                onClearMeasurements={clearMeasurements}
+                canUndo={undoStack.length > 0}
+                canRedo={redoStack.length > 0}
+                onUndo={undo}
+                onRedo={redo}
+              />
+            )}
+          </div>
+          <nav className="mobile-tab-bar">
+            <button
+              className={`mobile-tab-item ${activeTab === "eq" ? "active" : ""}`}
+              onClick={() => setActiveTab("eq")}
+            >
+              <Icon>tune</Icon>
+              <span>EQ</span>
+            </button>
+            <button
+              className={`mobile-tab-item ${activeTab === "targets" ? "active" : ""}`}
+              onClick={() => setActiveTab("targets")}
+            >
+              <Icon>show_chart</Icon>
+              <span>Targets</span>
+            </button>
+            <button
+              className={`mobile-tab-item ${activeTab === "profiles" ? "active" : ""}`}
+              onClick={() => setActiveTab("profiles")}
+            >
+              <Icon>folder</Icon>
+              <span>Profiles</span>
+            </button>
+          </nav>
+        </main>
       ) : (
         <main className="workspace">
           <section className="left-pane">
