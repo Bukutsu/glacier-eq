@@ -9,8 +9,6 @@ interface TargetSelectorProps {
   onToggleTarget: (id: string) => void;
   onAddTarget: (name: string, points: TargetTrace["points"]) => void;
   onRemoveTarget: (id: string) => void;
-  preampDb: number;
-  peakDb: number;
   setStatus: (value: string) => void;
 }
 
@@ -20,8 +18,6 @@ export function TargetSelector({
   onToggleTarget,
   onAddTarget,
   onRemoveTarget,
-  preampDb,
-  peakDb,
   setStatus,
 }: TargetSelectorProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -68,11 +64,6 @@ export function TargetSelector({
           <span>Add Target</span>
         </button>
       </div>
-      <div className="graph-view-controls">
-        <span className={peakDb > 0 ? "graph-level-readout warn" : "graph-level-readout"}>
-          Preamp {formatDb(preampDb)} | Peak {formatDb(peakDb)}
-        </span>
-      </div>
       <div className="target-scroll">
         {targets.map((target) => {
           const active = activeTargetIds.includes(target.id);
@@ -112,8 +103,4 @@ export function TargetSelector({
       </div>
     </section>
   );
-}
-
-function formatDb(value: number): string {
-  return `${value > 0 ? "+" : ""}${value.toFixed(1)}dB`;
 }
