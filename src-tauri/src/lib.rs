@@ -30,6 +30,7 @@ pub fn run() {
             profiles::open_profiles_dir,
             profiles::parse_autoeq,
             profiles::peq_to_autoeq,
+            profiles::run_autoeq,
             device_commands::list_devices,
             device_commands::connect_device,
             device_commands::disconnect_device,

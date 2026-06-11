@@ -7,7 +7,7 @@ import { Header } from "./components/Header";
 import { Icon } from "./components/Icon";
 import { Preamp } from "./components/Preamp";
 import { TargetSelector } from "./components/TargetSelector";
-import { ToolsPanel, MeasureTab } from "./components/ToolsPanel";
+import { ToolsPanel, MeasureTab, AutoEqTab } from "./components/ToolsPanel";
 import { DEFAULT_PROFILE_NAME } from "./constants";
 import { DEV_DUMMY_DEVICE, buildDevDummyPeq, isDevDummyDevice } from "./lib/devDevice";
 import { makeMeasurementName, nextMeasurementColor, normalizeMeasurementPoints } from "./lib/measurements";
@@ -590,11 +590,12 @@ function App() {
                     <strong>AutoEQ (Tuning Assistant)</strong>
                   </div>
                   <div className="tuning-card-body">
-                    <p>AutoEQ matching controls will be placed here to match loaded measurements to target references.</p>
-                    <button className="btn filled" disabled style={{ opacity: 0.6, cursor: "not-allowed", width: "100%", minHeight: "44px" }}>
-                      <Icon>bolt</Icon>
-                      <span>Run Match (Soon)</span>
-                    </button>
+                    <AutoEqTab
+                      measurements={measurements}
+                      allTargets={allTargets}
+                      onImportPEQ={importPeq}
+                      setStatus={setStatus}
+                    />
                   </div>
                 </section>
 
@@ -758,6 +759,7 @@ function App() {
             onDelete={deleteSelectedProfile}
             setStatus={setStatus}
             measurements={measurements}
+            allTargets={allTargets}
             onAddMeasurement={addMeasurement}
             onRemoveMeasurement={removeMeasurement}
             onToggleMeasurement={toggleMeasurement}
