@@ -20,6 +20,12 @@
   --orange: #ff9e64;
   --yellow: #e0af68;
   --red: #f7768e;
+  --purple: #bb9af7;
+  --teal: #73daca;
+  --dark-cyan: #2ac3de;
+  --bright-cyan: #b4f9f8;
+  --terminal-black: #414868;
+  --text-alt: #9aa5ce;
   --line: rgba(65, 72, 104, 0.55);
   --focus-ring: rgba(125, 207, 255, 0.72);
   --font-ui: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
