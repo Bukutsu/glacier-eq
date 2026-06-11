@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Glacier EQ
+Comment=Parametric EQ editor for USB DACs
+Exec=glacier-eq
+Icon=glacier-eq
+Type=Application
+Categories=AudioVideo;Audio;Mixer;
+Terminal=false
+StartupNotify=true
+DBusActivatable=false
