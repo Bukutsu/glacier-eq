@@ -1,3 +1,11 @@
+@media (max-width: 1440px) {
+  .custom-number-input.band-freq-stepper .stepper-btn,
+  .custom-number-input.band-gain-stepper .stepper-btn,
+  .custom-number-input.band-q-stepper .stepper-btn {
+    display: none !important;
+  }
+}
+
 @media (max-width: 1279px) {
   .workspace {
     grid-template-columns: 1fr;
