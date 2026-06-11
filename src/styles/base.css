@@ -141,6 +141,10 @@ select:focus-visible {
 }
 
 .btn, .tools-card button, .diag-card button, .device-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   background: var(--surface-soft);
   color: var(--muted);
   min-height: 42px;
