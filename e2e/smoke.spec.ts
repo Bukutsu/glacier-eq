@@ -171,7 +171,7 @@ test("Dev dummy DAC connects without hardware", async ({ page }) => {
   await page.click("button:has-text('Connect')");
 
   await expect(page.locator(".device-name")).toContainText("Glacier Dummy DAC");
-  await expect(page.locator(".preamp-meta span")).toContainText("-4 dB");
+  await expect(page.locator(".preamp-value-stepper input")).toHaveValue("-4.0");
 });
 
 test("Modifying EQ bands and preamp", async ({ page }) => {
@@ -181,7 +181,7 @@ test("Modifying EQ bands and preamp", async ({ page }) => {
   // Verify initial preamp value is 0 dB
   const preampCard = page.locator(".preamp-card");
   await expect(preampCard.locator("strong")).toContainText("Preamp");
-  await expect(preampCard.locator(".preamp-meta span")).toContainText("0 dB");
+  await expect(preampCard.locator(".preamp-value-stepper input")).toHaveValue("0.0");
 
   // Locate the preamp slider and adjust it
   const preampSlider = page.locator(".preamp-card input[type='range']");
@@ -190,7 +190,7 @@ test("Modifying EQ bands and preamp", async ({ page }) => {
   await preampSlider.dispatchEvent("change");
 
   // Preamp text should update to -5 dB and header show UNSAVED
-  await expect(preampCard.locator(".preamp-meta span")).toContainText("-5 dB");
+  await expect(preampCard.locator(".preamp-value-stepper input")).toHaveValue("-5.0");
   await expect(page.locator(".unsaved")).toBeVisible();
 
   // Modify Band 1 freq, Q, and gain
@@ -202,14 +202,14 @@ test("Modifying EQ bands and preamp", async ({ page }) => {
   await expect(firstBand.locator("button:has-text('LS')")).toHaveClass(/selected/);
 
   // Edit frequency input
-  const freqInput = firstBand.locator("input.num-input.freq");
+  const freqInput = firstBand.locator(".band-freq-stepper input");
   await freqInput.focus();
   await freqInput.fill("45");
   await freqInput.dispatchEvent("change");
   await expect(freqInput).toHaveValue("45");
 
   // Edit Q input
-  const qInput = firstBand.locator("input.num-input.q");
+  const qInput = firstBand.locator(".band-q-stepper input");
   await qInput.focus();
   await qInput.fill("0.71");
   await qInput.dispatchEvent("change");

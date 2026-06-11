@@ -3,15 +3,18 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { DEFAULT_PROFILE_NAME } from "../constants";
 import { parseMeasurementText } from "../lib/measurements";
-import type { MeasurementTrace, Profile, PEQData, GraphViewMode } from "../types";
+import type { MeasurementTrace, Profile, PEQData, GraphViewMode, TargetTrace } from "../types";
 import { Icon } from "./Icon";
+import { Select } from "./Select";
+import { NumberInput } from "./NumberInput";
 
-type ToolsTab = "Preset" | "Import" | "Measure" | "Settings";
+type ToolsTab = "Preset" | "Import" | "Measure" | "AutoEQ" | "Settings";
 
 const TOOL_TAB_META: Record<ToolsTab, { icon: string; label: string }> = {
   Preset: { icon: "library_music", label: "Preset" },
   Import: { icon: "file_upload", label: "Import" },
   Measure: { icon: "analytics", label: "Measure" },
+  AutoEQ: { icon: "auto_awesome", label: "AutoEQ" },
   Settings: { icon: "settings", label: "Settings" },
 };
 
@@ -46,10 +49,11 @@ interface ToolsPanelProps {
   showDiagnostics?: boolean;
   graphViewMode?: GraphViewMode;
   onGraphViewModeChange?: (mode: GraphViewMode) => void;
+  allTargets?: TargetTrace[];
 }
 
 export function ToolsPanel(props: ToolsPanelProps) {
-  const availableTabs = props.availableTabs ?? ["Preset", "Import", "Measure", "Settings"];
+  const availableTabs = props.availableTabs ?? ["Preset", "Import", "Measure", "AutoEQ", "Settings"];
   const showDiagnostics = props.showDiagnostics ?? import.meta.env.DEV;
   const [tab, setTab] = useState<ToolsTab>(() => (
     props.defaultTab && availableTabs.includes(props.defaultTab) ? props.defaultTab : availableTabs[0]
@@ -73,6 +77,15 @@ export function ToolsPanel(props: ToolsPanelProps) {
           onReloadProfiles={props.onReloadProfiles}
           setStatus={props.setStatus}
         />}
+        {tab === "AutoEQ" && (
+          <AutoEqTab
+            measurements={props.measurements}
+            allTargets={props.allTargets ?? []}
+            onImportPEQ={props.onImportPEQ}
+            setStatus={props.setStatus}
+            onSelectTab={setTab}
+          />
+        )}
         {tab === "Measure" && <MeasureTab
           measurements={props.measurements}
           onAddMeasurement={props.onAddMeasurement}
@@ -499,21 +512,17 @@ function ImportTab({ peq, profiles, onImportPEQ, onReloadProfiles, setStatus }: 
             {profiles.length > 0 && (
               <div className="import-field-group" style={{ marginTop: "8px" }}>
                 <label htmlFor="overwrite-select">Or Overwrite Existing:</label>
-                <select
+                <Select
                   id="overwrite-select"
                   value={profiles.some((p) => p.name === importName) ? importName : ""}
-                  onChange={(e) => {
-                    if (e.target.value) setImportName(e.target.value);
+                  onChange={(val) => {
+                    if (val) setImportName(val);
                   }}
-                  className="import-select"
-                >
-                  <option value="">-- Select profile --</option>
-                  {profiles.map((p) => (
-                    <option key={p.name} value={p.name}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
+                  options={[
+                    { value: "", label: "-- Select profile --" },
+                    ...profiles.map((p) => ({ value: p.name, label: p.name })),
+                  ]}
+                />
               </div>
             )}
             {nameExists && (
@@ -563,6 +572,235 @@ function ImportTab({ peq, profiles, onImportPEQ, onReloadProfiles, setStatus }: 
           {isTemporary ? "Apply to EQ" : "Save Preset"}
         </button>
       </div>
+    </div>
+  );
+}
+
+interface AutoEqTabProps {
+  measurements: MeasurementTrace[];
+  allTargets: TargetTrace[];
+  onImportPEQ: (data: PEQData, name: string, isSaved: boolean) => void;
+  setStatus: (msg: string) => void;
+  onSelectTab?: (tab: ToolsTab) => void;
+}
+
+export function AutoEqTab({
+  measurements,
+  allTargets = [],
+  onImportPEQ,
+  setStatus,
+  onSelectTab,
+}: AutoEqTabProps) {
+  const [selectedMeasId, setSelectedMeasId] = useState<string>("");
+  const [selectedTargetId, setSelectedTargetId] = useState<string>("");
+  const [nBands, setNBands] = useState<number>(10);
+  const [steps, setSteps] = useState<number>(2000);
+  const [smoothType, setSmoothType] = useState<string>("IE");
+  const [fs, setFs] = useState<number>(96000);
+  const [isOptimizing, setIsOptimizing] = useState<boolean>(false);
+  const [warnings, setWarnings] = useState<string[]>([]);
+
+  // Automatically select the first visible/active measurement/target on mount or update
+  useEffect(() => {
+    if (measurements.length > 0 && !selectedMeasId) {
+      const firstVisible = measurements.find(m => m.visible) ?? measurements[0];
+      setSelectedMeasId(firstVisible.id);
+    }
+  }, [measurements, selectedMeasId]);
+
+  useEffect(() => {
+    if (allTargets.length > 0 && !selectedTargetId) {
+      setSelectedTargetId(allTargets[0].id);
+    }
+  }, [allTargets, selectedTargetId]);
+
+  const handleRunAutoEq = async () => {
+    const meas = measurements.find(m => m.id === selectedMeasId);
+    const target = allTargets.find(t => t.id === selectedTargetId);
+
+    if (!meas) {
+      setStatus("Error: Select a measurement trace first.");
+      return;
+    }
+    if (!target) {
+      setStatus("Error: Select a target curve first.");
+      return;
+    }
+
+    setIsOptimizing(true);
+    setStatus("Running AutoEQ optimization engine...");
+    setWarnings([]);
+
+    try {
+      const measurementPoints = meas.points.map(p => [p.freq, p.db]);
+      const targetPoints = target.points.map(p => [p.freq, p.db]);
+
+      const result = await invoke<{ peq: PEQData; warnings: string[] }>("run_autoeq", {
+        measurementPoints,
+        targetPoints,
+        nBands,
+        steps,
+        smoothType,
+        fs,
+      });
+
+      onImportPEQ(result.peq, `${meas.name} Match`, false);
+      setWarnings(result.warnings);
+      
+      if (result.warnings.length > 0) {
+        setStatus(`AutoEQ optimized successfully with ${result.warnings.length} device warnings.`);
+      } else {
+        setStatus("AutoEQ optimization completed successfully!");
+      }
+    } catch (err) {
+      setStatus(`AutoEQ optimization failed: ${err}`);
+      console.error(err);
+    } finally {
+      setIsOptimizing(false);
+    }
+  };
+
+  if (measurements.length === 0) {
+    return (
+      <div className="autoeq-tab">
+        <div className="measurements-intro">
+          <strong>AutoEQ Match</strong>
+          <p>Optimize parametric EQ filters using glacier-core's optimization engine to match target curves.</p>
+        </div>
+        <div className="empty-profiles" style={{ padding: "16px 0", textAlign: "center" }}>
+          <p style={{ color: "var(--muted)", marginBottom: "12px", fontSize: "var(--type-label)" }}>
+            No measurement traces loaded.
+          </p>
+          {onSelectTab && (
+            <button className="btn" onClick={() => onSelectTab("Measure")}>
+              Go to Measure Tab
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="autoeq-tab">
+      <div className="measurements-intro">
+        <strong>AutoEQ Match</strong>
+        <p>Run the native AdaBelief optimizer to fit biquad filters to a target curve.</p>
+      </div>
+
+      <div className="import-field-group">
+        <label htmlFor="autoeq-meas">Source Measurement</label>
+        <Select
+          id="autoeq-meas"
+          value={selectedMeasId}
+          onChange={setSelectedMeasId}
+          options={measurements.map((m) => ({
+            value: m.id,
+            label: `${m.name} (${m.points.length} pts)`,
+          }))}
+        />
+      </div>
+
+      <div className="import-field-group">
+        <label htmlFor="autoeq-target">Target Reference</label>
+        <Select
+          id="autoeq-target"
+          value={selectedTargetId}
+          onChange={setSelectedTargetId}
+          options={allTargets.map((t) => ({
+            value: t.id,
+            label: t.name,
+          }))}
+        />
+      </div>
+
+      <div className="import-field-group">
+        <label htmlFor="autoeq-bands">Bands Count</label>
+        <NumberInput
+          id="autoeq-bands"
+          value={nBands}
+          min={1}
+          max={32}
+          onChange={setNBands}
+          className="autoeq-bands-stepper"
+        />
+      </div>
+
+      <div className="import-field-group">
+        <label>Treble Smoothing</label>
+        <div className="smooth-buttons">
+          <button
+            className={smoothType === "None" ? "active" : ""}
+            onClick={() => setSmoothType("None")}
+          >
+            None
+          </button>
+          <button
+            className={smoothType === "IE" ? "active" : ""}
+            onClick={() => setSmoothType("IE")}
+          >
+            IE (In-Ear)
+          </button>
+          <button
+            className={smoothType === "OE" ? "active" : ""}
+            onClick={() => setSmoothType("OE")}
+          >
+            OE (Over-Ear)
+          </button>
+        </div>
+      </div>
+
+      <div className="import-field-group">
+        <label htmlFor="autoeq-steps">Optimizer Steps</label>
+        <Select
+          id="autoeq-steps"
+          value={steps}
+          onChange={setSteps}
+          options={[
+            { value: 500, label: "500 (Fast)" },
+            { value: 1000, label: "1000" },
+            { value: 2000, label: "2000 (Standard)" },
+            { value: 3000, label: "3000" },
+            { value: 5000, label: "5000 (Precise)" },
+          ]}
+        />
+      </div>
+
+      <div className="import-field-group">
+        <label htmlFor="autoeq-fs">Sample Rate</label>
+        <Select
+          id="autoeq-fs"
+          value={fs}
+          onChange={setFs}
+          options={[
+            { value: 44100, label: "44.1 kHz" },
+            { value: 48000, label: "48.0 kHz" },
+            { value: 96000, label: "96.0 kHz" },
+          ]}
+        />
+      </div>
+
+      <button
+        className="btn filled autoeq-run-btn"
+        disabled={isOptimizing}
+        onClick={handleRunAutoEq}
+      >
+        <Icon>{isOptimizing ? "hourglass_empty" : "bolt"}</Icon>
+        <span>{isOptimizing ? "Optimizing..." : "Run Match"}</span>
+      </button>
+
+      {warnings.length > 0 && (
+        <div className="import-warnings-section" style={{ marginTop: "8px" }}>
+          <span>Device Range Adjustments:</span>
+          <div className="import-warnings-box">
+            {warnings.map((w, idx) => (
+              <div key={idx} className="warning-line">
+                • {w}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
