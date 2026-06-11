@@ -46,30 +46,30 @@
   --terminal-black-rgb: 65 72 104;
   --text-alt: #9aa5ce;
   --text-alt-rgb: 154 165 206;
-  --line: rgba(var(--terminal-black-rgb), 0.55);
-  --line-subtle: rgba(var(--terminal-black-rgb), 0.28);
-  --line-soft: rgba(var(--terminal-black-rgb), 0.35);
-  --line-medium: rgba(var(--terminal-black-rgb), 0.42);
-  --line-strong: rgba(var(--terminal-black-rgb), 0.52);
-  --line-separator: rgba(var(--terminal-black-rgb), 0.38);
-  --line-heavy: rgba(var(--terminal-black-rgb), 0.62);
-  --line-separator-heavy: rgba(var(--terminal-black-rgb), 0.48);
-  --line-outline: rgba(var(--terminal-black-rgb), 0.45);
-  --focus-ring: rgba(var(--cyan-rgb), 0.72);
-  --accent-line: rgba(var(--cyan-rgb), 0.28);
-  --accent-line-soft: rgba(var(--cyan-rgb), 0.42);
-  --accent-line-medium: rgba(var(--cyan-rgb), 0.48);
-  --accent-line-strong: rgba(var(--cyan-rgb), 0.62);
-  --accent-line-hover: rgba(var(--cyan-rgb), 0.32);
-  --accent-line-outline: rgba(var(--cyan-rgb), 0.55);
-  --accent-line-checkbox: rgba(var(--cyan-rgb), 0.62);
-  --accent-line-light: rgba(var(--cyan-rgb), 0.24);
-  --hover-bg: rgba(var(--panel-rgb), 0.44);
-  --hover-bg-strong: rgba(var(--panel-rgb), 0.9);
-  --danger-outline: rgba(var(--red-rgb), 0.9);
-  --warning-border: rgba(var(--yellow-rgb), 0.4);
-  --warning-bg: rgba(var(--yellow-rgb), 0.05);
-  --accent-bg-subtle: rgba(var(--cyan-rgb), 0.05);
+  --line: rgb(var(--terminal-black-rgb) / 0.55);
+  --line-subtle: rgb(var(--terminal-black-rgb) / 0.28);
+  --line-soft: rgb(var(--terminal-black-rgb) / 0.35);
+  --line-medium: rgb(var(--terminal-black-rgb) / 0.42);
+  --line-strong: rgb(var(--terminal-black-rgb) / 0.52);
+  --line-separator: rgb(var(--terminal-black-rgb) / 0.38);
+  --line-heavy: rgb(var(--terminal-black-rgb) / 0.62);
+  --line-separator-heavy: rgb(var(--terminal-black-rgb) / 0.48);
+  --line-outline: rgb(var(--terminal-black-rgb) / 0.45);
+  --focus-ring: rgb(var(--cyan-rgb) / 0.72);
+  --accent-line: rgb(var(--cyan-rgb) / 0.28);
+  --accent-line-soft: rgb(var(--cyan-rgb) / 0.42);
+  --accent-line-medium: rgb(var(--cyan-rgb) / 0.48);
+  --accent-line-strong: rgb(var(--cyan-rgb) / 0.62);
+  --accent-line-hover: rgb(var(--cyan-rgb) / 0.32);
+  --accent-line-outline: rgb(var(--cyan-rgb) / 0.55);
+  --accent-line-checkbox: rgb(var(--cyan-rgb) / 0.62);
+  --accent-line-light: rgb(var(--cyan-rgb) / 0.24);
+  --hover-bg: rgb(var(--panel-rgb) / 0.44);
+  --hover-bg-strong: rgb(var(--panel-rgb) / 0.9);
+  --danger-outline: rgb(var(--red-rgb) / 0.9);
+  --warning-border: rgb(var(--yellow-rgb) / 0.4);
+  --warning-bg: rgb(var(--yellow-rgb) / 0.05);
+  --accent-bg-subtle: rgb(var(--cyan-rgb) / 0.05);
   --panel-dark: rgba(22, 22, 30, 0.65);
   --legend-bg: rgba(22, 22, 30, 0.82);
   --shadow-bar: rgba(0, 0, 0, 0.3);
@@ -94,7 +94,7 @@ html, body, #root { height: 100%; margin: 0; }
 body {
   overflow: hidden;
   background: var(--bg);
-  -webkit-tap-highlight-color: rgba(var(--cyan-rgb), 0.18);
+  -webkit-tap-highlight-color: rgb(var(--cyan-rgb) / 0.18);
 }
 button, input { font: inherit; }
 button { border: 0; cursor: pointer; }
