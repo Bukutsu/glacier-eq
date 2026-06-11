@@ -664,13 +664,26 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   align-items: center;
   width: 100%;
   height: 36px;
-  background: var(--bg-dark);
+  background: var(--surface-soft);
   border: 1px solid var(--line);
   border-radius: var(--radius-control);
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.custom-number-input:hover:not(.disabled) {
+  border-color: var(--accent-line-hover);
+}
+
+.custom-number-input:focus-within:not(.disabled) {
+  border-color: var(--cyan);
+  background: var(--hover-bg);
 }
 
 .custom-number-input.disabled {
-  opacity: 0.5;
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .stepper-btn {
@@ -684,32 +697,32 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   color: var(--muted);
   cursor: pointer;
   outline: none;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition: color 0.12s ease, background-color 0.12s ease;
 }
 
 .stepper-btn:hover:not(:disabled) {
-  background: var(--hover-bg);
+  background: rgba(255, 255, 255, 0.04);
   color: var(--text);
 }
 
 .stepper-btn:disabled {
-  color: var(--comment);
+  color: var(--line-separator);
   cursor: not-allowed;
 }
 
 .stepper-btn.decrement {
-  border-right: 1px solid var(--line-separator);
+  border: none;
 }
 
 .stepper-btn.increment {
-  border-left: 1px solid var(--line-separator);
+  border: none;
 }
 
 .custom-number-input .stepper-field {
   flex: 1;
   width: 100%;
   height: 100%;
-  background: var(--surface-soft);
+  background: transparent !important;
   border: none !important;
   border-radius: 0 !important;
   padding: 0 !important;
@@ -721,7 +734,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 }
 
 .custom-number-input .stepper-field:focus {
-  background: var(--hover-bg-strong);
+  background: transparent !important;
 }
 
 .stepper-icon {
@@ -737,6 +750,13 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 
 .autoeq-bands-stepper.custom-number-input {
   max-width: 120px;
+}
+
+/* Hide stepper buttons on mobile/smaller screens to make it clean and minimal */
+@media (max-width: 768px) {
+  .stepper-btn {
+    display: none !important;
+  }
 }
 
 
