@@ -1,6 +1,7 @@
 @font-face {
   font-family: "Material Icons";
   src: url("/MaterialIcons-Regular.ttf") format("truetype");
+  font-display: swap;
 }
 
 * { box-sizing: border-box; }
@@ -122,8 +123,8 @@ select:focus-visible {
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
-.material-icon {
-  font-family: "Material Icons";
+.material-symbols-outlined {
+  font-family: "Material Symbols Outlined", "Material Icons", sans-serif;
   font-weight: normal;
   font-style: normal;
   font-size: 20px;
@@ -131,10 +132,12 @@ select:focus-visible {
   display: inline-block;
   text-transform: none;
   letter-spacing: normal;
+  word-wrap: normal;
   white-space: nowrap;
   direction: ltr;
-  -webkit-font-feature-settings: "liga";
+  font-feature-settings: "liga";
   -webkit-font-smoothing: antialiased;
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
 }
 
 .btn, .tools-card button, .diag-card button, .device-actions button {
