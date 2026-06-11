@@ -3,6 +3,7 @@ import { FILTER_TYPES, TYPE_LABELS } from "../constants";
 import type { Filter, PEQData } from "../types";
 import { Icon } from "./Icon";
 import { Slider } from "./Slider";
+import { NumberInput } from "./NumberInput";
 
 interface BandsProps {
   peq: PEQData;
@@ -84,13 +85,15 @@ function BandRow({
         />
       </BandField>
       <BandField label="Freq" className="band-freq-field">
-        <input
-          className="num-input freq"
-          aria-label={`Band ${filter.index + 1} frequency`}
-          inputMode="numeric"
+        <NumberInput
           value={filter.freq}
+          min={20}
+          max={20000}
+          step={50}
+          precision={0}
           onFocus={onStartChange}
-          onChange={(event) => onChange({ ...filter, freq: +event.target.value || 20 })}
+          onChange={(val) => onChange({ ...filter, freq: val })}
+          className="band-freq-stepper"
         />
       </BandField>
       <BandField label="Gain" className="band-gain-field">
@@ -106,24 +109,28 @@ function BandRow({
             onTouchStart={onStartChange}
             onChange={(event) => onChange({ ...filter, gain: +event.target.value })}
           />
-          <input
-            className="num-input gain"
-            aria-label={`Band ${filter.index + 1} gain value`}
-            inputMode="decimal"
-            value={filter.gain.toFixed(2)}
+          <NumberInput
+            value={filter.gain}
+            min={-10}
+            max={10}
+            step={0.1}
+            precision={2}
             onFocus={onStartChange}
-            onChange={(event) => onChange({ ...filter, gain: +event.target.value || 0 })}
+            onChange={(val) => onChange({ ...filter, gain: val })}
+            className="band-gain-stepper"
           />
         </div>
       </BandField>
       <BandField label="Q" className="band-q-field">
-        <input
-          className="num-input q"
-          aria-label={`Band ${filter.index + 1} Q`}
-          inputMode="decimal"
-          value={filter.q.toFixed(2)}
+        <NumberInput
+          value={filter.q}
+          min={0.1}
+          max={20}
+          step={0.05}
+          precision={2}
           onFocus={onStartChange}
-          onChange={(event) => onChange({ ...filter, q: +event.target.value || 0.1 })}
+          onChange={(val) => onChange({ ...filter, q: val })}
+          className="band-q-stepper"
         />
       </BandField>
     </div>

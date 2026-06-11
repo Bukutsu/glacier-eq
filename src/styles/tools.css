@@ -18,15 +18,13 @@
 .tabs {
   display: grid;
   grid-template-columns: repeat(var(--tab-columns, 2), minmax(0, 1fr));
-  gap: 0;
-  padding: 3px;
-  background: var(--bg-dark);
-  outline: 1px solid var(--line-soft);
-  outline-offset: -1px;
+  gap: 1px;
+  padding: 1px;
+  background: var(--line-strong);
 }
 .tabs button {
   position: relative;
-  background: transparent;
+  background: var(--bg-dark);
   color: var(--muted);
   min-height: 42px;
   min-width: 0;
@@ -37,6 +35,13 @@
   gap: 7px;
   padding: 0 12px;
   text-align: left;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.tabs button:hover:not(.active) {
+  background: var(--hover-bg);
+  color: var(--text);
 }
 .tabs button .material-symbols-outlined {
   font-size: 16px;
@@ -46,27 +51,12 @@
   min-width: 0;
   flex: 1 1 auto;
 }
-.tabs button::after {
-  content: "";
-  position: absolute;
-  top: 9px;
-  right: 0;
-  width: 1px;
-  height: calc(100% - 18px);
-  background: var(--line-separator-heavy);
-}
-.tabs button:nth-child(2n)::after,
-.tabs button:last-child::after {
-  display: none;
-}
-.tabs button:nth-child(n + 3) {
-  border-top: 1px solid var(--line-medium);
+.tabs button:last-child:nth-child(odd) {
+  grid-column: span 2;
 }
 .tabs button.active {
   background: var(--surface-soft);
   color: var(--cyan);
-  outline: 1px solid var(--accent-line-soft);
-  outline-offset: -1px;
 }
 
 .search-row { display: grid; grid-template-columns: 1fr 36px 36px; gap: 8px; align-items: center; }
@@ -500,3 +490,253 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   color: var(--muted);
   font-size: var(--type-label);
 }
+
+.smooth-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0;
+  width: 100%;
+  background: var(--bg-dark);
+  outline: 1px solid var(--line-strong);
+  outline-offset: -1px;
+}
+.smooth-buttons button {
+  height: 31px;
+  min-height: 31px;
+  background: transparent;
+  color: var(--muted);
+  padding: 0;
+  border-right: 1px solid var(--line-separator);
+  font-size: var(--type-label);
+  cursor: pointer;
+  border-radius: 0;
+  border-top: 0;
+  border-bottom: 0;
+  border-left: 0;
+}
+.smooth-buttons button:last-child {
+  border-right: 0;
+}
+.smooth-buttons button:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--hover-bg-strong);
+}
+.smooth-buttons button.active {
+  background: var(--cyan);
+  color: var(--bg-dark);
+}
+
+.mono-value {
+  font-family: var(--font-mono);
+  font-size: var(--type-label);
+  color: var(--cyan);
+}
+
+.autoeq-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 12px 0;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+.autoeq-tab::-webkit-scrollbar {
+  width: 4px;
+}
+.autoeq-tab::-webkit-scrollbar-thumb {
+  background: var(--comment);
+}
+
+.autoeq-run-btn {
+  margin-top: 8px;
+}
+
+/* Custom Select Dropdown Styling */
+.custom-select-container {
+  position: relative;
+  width: 100%;
+}
+
+.custom-select-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 36px;
+  background: var(--surface-soft);
+  color: var(--text);
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  font-family: inherit;
+  font-size: var(--type-label);
+  cursor: pointer;
+  text-align: left;
+  outline: none;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.custom-select-trigger:hover:not(:disabled) {
+  border-color: var(--accent-line-hover);
+  background: var(--hover-bg);
+}
+
+.custom-select-trigger:focus-visible {
+  outline: 1px solid var(--cyan);
+  outline-offset: -1px;
+}
+
+.custom-select-trigger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.custom-select-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  font-size: 18px;
+  color: var(--muted);
+  transition: transform 0.15s ease;
+}
+
+.custom-select-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-right: 8px;
+  flex-grow: 1;
+}
+
+.custom-select-container.open .custom-select-arrow {
+  transform: rotate(180deg);
+}
+
+.custom-select-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  max-height: 200px;
+  margin: 2px 0 0 0;
+  padding: 0;
+  background: var(--bg-dark);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  list-style: none;
+  overflow-y: auto;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.custom-select-option {
+  padding: 8px 10px;
+  color: var(--muted);
+  font-size: var(--type-label);
+  cursor: pointer;
+  transition: background-color 0.1s ease, color 0.1s ease;
+  outline: none;
+}
+
+.custom-select-option:hover {
+  background: var(--hover-bg-strong);
+  color: var(--text);
+}
+
+.custom-select-option:focus-visible {
+  background: var(--hover-bg-strong);
+  color: var(--text);
+}
+
+.custom-select-option.selected {
+  background: var(--accent-bg-subtle);
+  color: var(--cyan);
+  font-weight: 500;
+}
+
+/* Custom Number Stepper Styling */
+.custom-number-input {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 36px;
+  background: var(--bg-dark);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+}
+
+.custom-number-input.disabled {
+  opacity: 0.5;
+}
+
+.stepper-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 100%;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  outline: none;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.stepper-btn:hover:not(:disabled) {
+  background: var(--hover-bg);
+  color: var(--text);
+}
+
+.stepper-btn:disabled {
+  color: var(--comment);
+  cursor: not-allowed;
+}
+
+.stepper-btn.decrement {
+  border-right: 1px solid var(--line-separator);
+}
+
+.stepper-btn.increment {
+  border-left: 1px solid var(--line-separator);
+}
+
+.stepper-field {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  background: var(--surface-soft);
+  border: none;
+  color: var(--text);
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: var(--type-label);
+  outline: none;
+}
+
+.stepper-field:focus {
+  background: var(--hover-bg-strong);
+}
+
+.stepper-icon {
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  user-select: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.autoeq-bands-stepper.custom-number-input {
+  max-width: 120px;
+}
+
+
+
+

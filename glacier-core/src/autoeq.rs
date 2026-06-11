@@ -294,6 +294,1009 @@ pub fn peq_to_autoeq(peq: &PEQData) -> String {
     lines.join("\n")
 }
 
+pub const K: usize = 384;
+pub const MAX_N: usize = 32;
+
+#[derive(Clone, Copy, Debug)]
+pub struct Biquad {
+    pub b0: f32,
+    pub b1: f32,
+    pub b2: f32,
+    pub a0: f32,
+    pub a1: f32,
+    pub a2: f32,
+
+    pub db0_da: f32,
+    pub db0_dalpha: f32,
+    pub db0_dcos: f32,
+    pub db1_da: f32,
+    pub db1_dcos: f32,
+    pub db2_da: f32,
+    pub db2_dalpha: f32,
+    pub db2_dcos: f32,
+    pub da0_da: f32,
+    pub da0_dalpha: f32,
+    pub da0_dcos: f32,
+    pub da1_da: f32,
+    pub da1_dcos: f32,
+    pub da2_da: f32,
+    pub da2_dalpha: f32,
+    pub da2_dcos: f32,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct InitFilter {
+    pub f0: f32,
+    pub gain: f32,
+    pub q: f32,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct Lim {
+    pub lo: f32,
+    pub hi: f32,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct Smooth {
+    pub smooth_f0: f32,
+    pub smooth_f1: f32,
+    pub smooth_lo: f32,
+    pub smooth_hi: f32,
+    pub bias_f0: f32,
+    pub bias_f1: f32,
+    pub bias_f2: f32,
+    pub bias_f3: f32,
+    pub bias_lo: f32,
+    pub bias_md: f32,
+    pub bias_hi: f32,
+    pub clip_f: f32,
+}
+
+pub const IE_SMOOTH: Smooth = Smooth {
+    smooth_lo: 0.3,
+    smooth_hi: 0.03,
+    smooth_f0: 3000.0,
+    smooth_f1: 12000.0,
+    bias_lo: 0.0,
+    bias_md: 0.15,
+    bias_hi: 0.03,
+    bias_f0: 10000.0,
+    bias_f1: 13000.0,
+    bias_f2: 14000.0,
+    bias_f3: 20000.0,
+    clip_f: 18500.0,
+};
+
+pub const OE_SMOOTH: Smooth = Smooth {
+    smooth_lo: 0.3,
+    smooth_hi: 0.03,
+    smooth_f0: 5000.0,
+    smooth_f1: 15000.0,
+    bias_lo: 0.0,
+    bias_md: 0.3,
+    bias_hi: 0.2,
+    bias_f0: 6000.0,
+    bias_f1: 9000.0,
+    bias_f2: 9000.0,
+    bias_f3: 20000.0,
+    clip_f: 17000.0,
+};
+
+fn pk(a_val: f32, cos_w: f32, alpha: f32) -> Biquad {
+    let r_a = 1.0 / a_val;
+    Biquad {
+        b0: a_val * alpha + 1.0,
+        db0_da: alpha,
+        db0_dalpha: a_val,
+        db0_dcos: 0.0,
+
+        b1: -2.0 * cos_w,
+        db1_da: 0.0,
+        db1_dcos: -2.0,
+
+        b2: -a_val * alpha + 1.0,
+        db2_da: -alpha,
+        db2_dalpha: -a_val,
+        db2_dcos: 0.0,
+
+        a0: (a_val + alpha) * r_a,
+        da0_da: -alpha * r_a * r_a,
+        da0_dalpha: r_a,
+        da0_dcos: 0.0,
+
+        a1: -2.0 * cos_w,
+        da1_da: 0.0,
+        da1_dcos: -2.0,
+
+        a2: (a_val - alpha) * r_a,
+        da2_da: alpha * r_a * r_a,
+        da2_dalpha: -r_a,
+        da2_dcos: 0.0,
+    }
+}
+
+fn lsc(a_val: f32, cos_w: f32, alpha: f32) -> Biquad {
+    let p1 = a_val + 1.0;
+    let m1 = a_val - 1.0;
+    let sqrt_a = a_val.sqrt();
+    let k_val = 2.0 * sqrt_a * alpha;
+    let dk_da = alpha / sqrt_a;
+    let dk_dalpha = 2.0 * sqrt_a;
+
+    Biquad {
+        b0: a_val * (-cos_w * m1 + k_val + p1),
+        db0_da: a_val * dk_da - a_val * cos_w + a_val - cos_w * m1 + k_val + p1,
+        db0_dalpha: a_val * dk_dalpha,
+        db0_dcos: -a_val * m1,
+
+        b1: 2.0 * a_val * (-cos_w * p1 + m1),
+        db1_da: -2.0 * a_val * cos_w + 2.0 * a_val - 2.0 * cos_w * p1 + 2.0 * m1,
+        db1_dcos: -2.0 * a_val * p1,
+
+        b2: a_val * (-cos_w * m1 - k_val + p1),
+        db2_da: -a_val * dk_da - a_val * cos_w + a_val - cos_w * m1 - k_val + p1,
+        db2_dalpha: -a_val * dk_dalpha,
+        db2_dcos: -a_val * m1,
+
+        a0: cos_w * m1 + k_val + p1,
+        da0_da: dk_da + cos_w + 1.0,
+        da0_dalpha: dk_dalpha,
+        da0_dcos: m1,
+
+        a1: -2.0 * cos_w * p1 - 2.0 * m1,
+        da1_da: -2.0 * cos_w - 2.0,
+        da1_dcos: -2.0 * p1,
+
+        a2: cos_w * m1 - k_val + p1,
+        da2_da: -dk_da + cos_w + 1.0,
+        da2_dalpha: -dk_dalpha,
+        da2_dcos: m1,
+    }
+}
+
+fn hsc(a_val: f32, cos_w: f32, alpha: f32) -> Biquad {
+    let p1 = a_val + 1.0;
+    let m1 = a_val - 1.0;
+    let sqrt_a = a_val.sqrt();
+    let k_val = 2.0 * sqrt_a * alpha;
+    let dk_da = alpha / sqrt_a;
+    let dk_dalpha = 2.0 * sqrt_a;
+
+    Biquad {
+        b0: a_val * (cos_w * m1 + k_val + p1),
+        db0_da: a_val * dk_da + a_val * cos_w + a_val + cos_w * m1 + k_val + p1,
+        db0_dalpha: a_val * dk_dalpha,
+        db0_dcos: a_val * m1,
+
+        b1: -2.0 * a_val * (cos_w * p1 + m1),
+        db1_da: -2.0 * a_val * cos_w - 2.0 * a_val - 2.0 * cos_w * p1 - 2.0 * m1,
+        db1_dcos: -2.0 * a_val * p1,
+
+        b2: a_val * (cos_w * m1 - k_val + p1),
+        db2_da: -a_val * dk_da + a_val * cos_w + a_val + cos_w * m1 - k_val + p1,
+        db2_dalpha: -a_val * dk_dalpha,
+        db2_dcos: a_val * m1,
+
+        a0: -cos_w * m1 + k_val + p1,
+        da0_da: dk_da - cos_w + 1.0,
+        da0_dalpha: dk_dalpha,
+        da0_dcos: -m1,
+
+        a1: -2.0 * cos_w * p1 + 2.0 * m1,
+        da1_da: 2.0 - 2.0 * cos_w,
+        da1_dcos: -2.0 * p1,
+
+        a2: -cos_w * m1 - k_val + p1,
+        da2_da: -dk_da - cos_w + 1.0,
+        da2_dalpha: -dk_dalpha,
+        da2_dcos: -m1,
+    }
+}
+
+fn biquad_fn(filter_type: FilterType, a_val: f32, cos_w: f32, alpha: f32) -> Biquad {
+    match filter_type {
+        FilterType::Peak => pk(a_val, cos_w, alpha),
+        FilterType::LowShelf => lsc(a_val, cos_w, alpha),
+        FilterType::HighShelf => hsc(a_val, cos_w, alpha),
+        _ => pk(a_val, cos_w, alpha),
+    }
+}
+
+fn spectrum(filter_type: FilterType, f0: f32, gain: f32, q: f32, fs: f32, f: &[f32; K], y: &mut [f32; K]) {
+    let a_val = 10.0_f32.powf(gain / 40.0);
+    let w0 = 2.0 * std::f32::consts::PI / fs * f0;
+    let cos_w = w0.cos();
+    let sin_w = w0.sin();
+    let alpha = sin_w * 0.5 / q;
+
+    let s = biquad_fn(filter_type, a_val, cos_w, alpha);
+
+    let b_x0 = (s.b0 + s.b1 + s.b2).powi(2);
+    let b_x1 = -4.0 * (s.b0 * s.b1 + 4.0 * s.b0 * s.b2 + s.b1 * s.b2);
+    let b_x2 = 16.0 * s.b0 * s.b2;
+    let a_x0 = (s.a0 + s.a1 + s.a2).powi(2);
+    let a_x1 = -4.0 * (s.a0 * s.a1 + 4.0 * s.a0 * s.a2 + s.a1 * s.a2);
+    let a_x2 = 16.0 * s.a0 * s.a2;
+
+    for k in 0..K {
+        let phi = (std::f32::consts::PI / fs * f[k]).sin().powi(2);
+        let b_poly = b_x0 + phi * (b_x1 + phi * b_x2);
+        let a_poly = a_x0 + phi * (a_x1 + phi * a_x2);
+        if b_poly > 0.0 && a_poly > 0.0 {
+            y[k] += 10.0 * (b_poly / a_poly).log10();
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+struct Peak {
+    width: f32,
+    height: f32,
+    idx: i32,
+}
+
+fn largest_peak(x: &[f32; K], f: &[f32; K], lim: Lim) -> Peak {
+    let mut peaks = [0; K / 2];
+    let mut n = 0;
+    let i_max = K - 1;
+
+    let mut i = 1;
+    while i < i_max {
+        if f[i] < lim.lo || f[i] > lim.hi {
+            i += 1;
+            continue;
+        }
+
+        if x[i - 1] >= x[i] {
+            i += 1;
+            continue;
+        }
+
+        let mut i_ahead = i + 1;
+        while i_ahead < i_max && x[i_ahead] == x[i] {
+            i_ahead += 1;
+        }
+
+        if x[i_ahead] < x[i] {
+            let left_edge = i;
+            let right_edge = i_ahead - 1;
+            peaks[n] = (left_edge + right_edge) / 2;
+            n += 1;
+            i = i_ahead;
+        } else {
+            i += 1;
+        }
+    }
+
+    let mut prominences = [0.0; K / 2];
+    let mut left_bases = [0; K / 2];
+    let mut right_bases = [0; K / 2];
+
+    for p in 0..n {
+        let peak = peaks[p];
+        let x_peak = x[peak];
+
+        left_bases[p] = peak;
+        let mut left_min = x_peak;
+        let mut idx = peak;
+        while idx > 0 && x[idx] <= x_peak {
+            if x[idx] < left_min {
+                left_min = x[idx];
+                left_bases[p] = idx;
+            }
+            idx -= 1;
+        }
+
+        right_bases[p] = peak;
+        let mut right_min = x_peak;
+        let mut idx = peak;
+        while idx <= i_max && x[idx] <= x_peak {
+            if x[idx] < right_min {
+                right_min = x[idx];
+                right_bases[p] = idx;
+            }
+            idx += 1;
+        }
+
+        prominences[p] = x_peak - left_min.max(right_min);
+    }
+
+    let mut largest = Peak { idx: -1, width: 0.0, height: 0.0 };
+    let mut largest_size = 0.0;
+
+    for p in 0..n {
+        let i_min = left_bases[p];
+        let i_max = right_bases[p];
+        let peak = peaks[p];
+        let x_peak = x[peak];
+        let height = x_peak - 0.5 * prominences[p];
+
+        let mut idx = peak;
+        while idx > i_min && height < x[idx] {
+            idx -= 1;
+        }
+
+        let mut left_ip = idx as f32;
+        if x[idx] < height && idx + 1 < K {
+            left_ip += (height - x[idx]) / (x[idx + 1] - x[idx]);
+        }
+
+        idx = peak;
+        while idx < i_max && height < x[idx] {
+            idx += 1;
+        }
+
+        let mut right_ip = idx as f32;
+        if x[idx] < height && idx > 0 {
+            right_ip -= (height - x[idx]) / (x[idx - 1] - x[idx]);
+        }
+
+        let width = right_ip - left_ip;
+        let size = width * x_peak;
+
+        if size > largest_size {
+            largest = Peak { idx: peak as i32, width, height: x_peak };
+            largest_size = size;
+        }
+    }
+
+    largest
+}
+
+fn limit(x: &mut f32, lim: Lim) -> bool {
+    let orig = *x;
+    *x = x.clamp(lim.lo, lim.hi);
+    *x != orig
+}
+
+fn init_pk(y: &[f32; K], f: &[f32; K], _fs: f32, lim_f0: Lim, lim_gain: Lim, lim_q: Lim) -> InitFilter {
+    let mut rect = [0.0; K];
+
+    for k in 0..K {
+        rect[k] = y[k].max(0.0);
+    }
+    let peak = largest_peak(&rect, f, lim_f0);
+
+    for k in 0..K {
+        rect[k] = (-y[k]).max(0.0);
+    }
+    let dip = largest_peak(&rect, f, lim_f0);
+
+    let p = if peak.width * peak.height > dip.width * dip.height {
+        peak
+    } else {
+        dip
+    };
+
+    if p.idx == -1 {
+        return InitFilter { f0: 1000.0, gain: 0.0, q: 1.0 };
+    }
+
+    let f0 = f[p.idx as usize];
+    let mut gain = if p.idx == peak.idx {
+        peak.height
+    } else {
+        -dip.height
+    };
+    let bw = p.width * (f[1] / f[0]).log2();
+    let bw_exp2 = 2.0_f32.powf(bw);
+    let mut q = bw_exp2.sqrt() / (bw_exp2 - 1.0);
+
+    limit(&mut gain, lim_gain);
+    limit(&mut q, lim_q);
+
+    InitFilter { f0, gain, q }
+}
+
+fn init_lsc(y: &[f32; K], f: &[f32; K], fs: f32, mut lim_f0: Lim, lim_gain: Lim, lim_q: Lim) -> InitFilter {
+    lim_f0.lo = lim_f0.lo.max(40.0);
+    lim_f0.hi = lim_f0.hi.min(10000.0);
+
+    let mut best = 0.0;
+    let mut best_idx = 0;
+
+    let mut a = 0.0;
+    for k in 0..K {
+        a += y[k];
+        let avg = (a / (k + 1) as f32).abs();
+        if avg > best {
+            best = avg;
+            best_idx = k;
+        }
+    }
+
+    let mut f0 = f[best_idx];
+    let mut q = std::f32::consts::FRAC_1_SQRT_2;
+
+    limit(&mut f0, lim_f0);
+    limit(&mut q, lim_q);
+
+    let mut w = [0.0; K];
+    spectrum(FilterType::LowShelf, f0, 1.0, q, fs, f, &mut w);
+
+    let mut p = 0.0;
+    let mut c = 0.0;
+    for k in 0..K {
+        p += w[k] * y[k];
+        c += w[k];
+    }
+
+    let mut gain = if c > 0.0 { p / c } else { 0.0 };
+    limit(&mut gain, lim_gain);
+
+    InitFilter { f0, gain, q }
+}
+
+fn init_hsc(y: &[f32; K], f: &[f32; K], fs: f32, mut lim_f0: Lim, lim_gain: Lim, lim_q: Lim) -> InitFilter {
+    lim_f0.lo = lim_f0.lo.max(40.0);
+    lim_f0.hi = lim_f0.hi.min(10000.0);
+
+    let mut best = 0.0;
+    let mut best_idx = 0;
+
+    let mut a = 0.0;
+    for k in 0..K {
+        a += y[K - 1 - k];
+        let avg = (a / (k + 1) as f32).abs();
+        if avg > best {
+            best = avg;
+            best_idx = K - 1 - k;
+        }
+    }
+
+    let mut f0 = f[best_idx];
+    let mut q = std::f32::consts::FRAC_1_SQRT_2;
+
+    limit(&mut f0, lim_f0);
+    limit(&mut q, lim_q);
+
+    let mut w = [0.0; K];
+    spectrum(FilterType::HighShelf, f0, 1.0, q, fs, f, &mut w);
+
+    let mut p = 0.0;
+    let mut c = 0.0;
+    for k in 0..K {
+        p += w[k] * y[k];
+        c += w[k];
+    }
+
+    let mut gain = if c > 0.0 { p / c } else { 0.0 };
+    limit(&mut gain, lim_gain);
+
+    InitFilter { f0, gain, q }
+}
+
+struct Consts<'a> {
+    types: &'a [FilterType],
+    phi: &'a [f32; K],
+    r: &'a [f32; K],
+    fs: f32,
+    n_bands: usize,
+    opt_amp: bool,
+}
+
+fn w_from_n(n: usize) -> usize {
+    3 * n + 1
+}
+
+fn lf_at(v: &[f32], n: usize, i: usize) -> f32 { v[0 * n + i] }
+fn gain_at(v: &[f32], n: usize, i: usize) -> f32 { v[1 * n + i] }
+fn bw_at(v: &[f32], n: usize, i: usize) -> f32 { v[2 * n + i] }
+fn amp_at(v: &[f32], n: usize) -> f32 { v[3 * n] }
+
+fn set_lf_at(v: &mut [f32], n: usize, i: usize, val: f32) { v[0 * n + i] = val; }
+fn set_gain_at(v: &mut [f32], n: usize, i: usize, val: f32) { v[1 * n + i] = val; }
+fn set_bw_at(v: &mut [f32], n: usize, i: usize, val: f32) { v[2 * n + i] = val; }
+fn set_amp_at(v: &mut [f32], n: usize, val: f32) { v[3 * n] = val; }
+
+fn q_to_bw(q: f32) -> f32 {
+    let ln2 = std::f32::consts::LN_2;
+    2.0 / ln2 * ((0.5 / q).asinh())
+}
+
+fn bw_to_q(bw: f32) -> f32 {
+    let ln2 = std::f32::consts::LN_2;
+    0.5 / ((0.5 * ln2 * bw).sinh())
+}
+
+fn grad(c: &Consts, x: &[f32], g: &mut [f32]) -> f32 {
+    let n_bands = c.n_bands;
+    let r_k = 1.0 / K as f32;
+
+    let mut dy_dw0 = vec![vec![0.0; K]; n_bands];
+    let mut dy_dgain = vec![vec![0.0; K]; n_bands];
+    let mut dy_dbw = vec![vec![0.0; K]; n_bands];
+
+    let mut w0_v = vec![0.0; n_bands];
+    let mut pred = [0.0; K];
+    let pred_init = if c.opt_amp {
+        10.0_f32.powf(amp_at(x, n_bands) / 10.0)
+    } else {
+        1.0
+    };
+
+    for k in 0..K {
+        pred[k] = pred_init;
+    }
+
+    for n in 0..n_bands {
+        let f0 = lf_at(x, n_bands, n).exp();
+        let gain = gain_at(x, n_bands, n);
+        let bw = bw_at(x, n_bands, n);
+
+        let a_val = 10.0_f32.powf(gain / 40.0);
+        let w0 = 2.0 * std::f32::consts::PI / c.fs * f0;
+        let cos_w = w0.cos();
+        let sin_w = w0.sin();
+        let kq = (0.5 * std::f32::consts::LN_2 * bw).sinh();
+        let alpha = sin_w * kq;
+
+        w0_v[n] = w0;
+
+        let s = biquad_fn(c.types[n], a_val, cos_w, alpha);
+
+        let da_dgain = a_val * std::f32::consts::LN_10 / 40.0;
+        let dalpha_dw0 = cos_w * kq;
+        let dalpha_dbw = sin_w * (0.5 * std::f32::consts::LN_2 * bw).cosh() * 0.5 * std::f32::consts::LN_2;
+        let dcos_dw0 = -sin_w;
+
+        let b_x0 = (s.b0 + s.b1 + s.b2).powi(2);
+        let b_x1 = -4.0 * (s.b0 * s.b1 + 4.0 * s.b0 * s.b2 + s.b1 * s.b2);
+        let b_x2 = 16.0 * s.b0 * s.b2;
+        let a_x0 = (s.a0 + s.a1 + s.a2).powi(2);
+        let a_x1 = -4.0 * (s.a0 * s.a1 + 4.0 * s.a0 * s.a2 + s.a1 * s.a2);
+        let a_x2 = 16.0 * s.a0 * s.a2;
+
+        let ba = s.b0 + s.b1 + s.b2;
+        let aa = s.a0 + s.a1 + s.a2;
+
+        for k in 0..K {
+            let phi_k = c.phi[k];
+
+            let b_poly = b_x0 + phi_k * (b_x1 + phi_k * b_x2);
+            let a_poly = a_x0 + phi_k * (a_x1 + phi_k * a_x2);
+
+            pred[k] *= b_poly / a_poly;
+
+            let _8phi2 = 8.0 * phi_k.powi(2);
+            let _2phi = 2.0 * phi_k;
+
+            let bm = 20.0 / std::f32::consts::LN_10 / b_poly;
+            let am = -20.0 / std::f32::consts::LN_10 / a_poly;
+
+            let dy_db0 = bm * (ba - _2phi * (s.b1 + 4.0 * s.b2) + _8phi2 * s.b2);
+            let dy_db1 = bm * (ba - _2phi * (s.b0 + s.b2));
+            let dy_db2 = bm * (ba - _2phi * (4.0 * s.b0 + s.b1) + _8phi2 * s.b0);
+
+            let dy_da0 = am * (aa - _2phi * (s.a1 + 4.0 * s.a2) + _8phi2 * s.a2);
+            let dy_da1 = am * (aa - _2phi * (s.a0 + s.a2));
+            let dy_da2 = am * (aa - _2phi * (4.0 * s.a0 + s.a1) + _8phi2 * s.a0);
+
+            let dy_da_local = dy_db0 * s.db0_da
+                + dy_db1 * s.db1_da
+                + dy_db2 * s.db2_da
+                + dy_da0 * s.da0_da
+                + dy_da1 * s.da1_da
+                + dy_da2 * s.da2_da;
+
+            let dy_dalpha_local = dy_db0 * s.db0_dalpha
+                + dy_db2 * s.db2_dalpha
+                + dy_da0 * s.da0_dalpha
+                + dy_da2 * s.da2_dalpha;
+
+            let dy_dcos_local = dy_db0 * s.db0_dcos
+                + dy_db1 * s.db1_dcos
+                + dy_db2 * s.db2_dcos
+                + dy_da0 * s.da0_dcos
+                + dy_da1 * s.da1_dcos
+                + dy_da2 * s.da2_dcos;
+
+            dy_dw0[n][k] = dy_dalpha_local * dalpha_dw0 + dy_dcos_local * dcos_dw0;
+            dy_dgain[n][k] = dy_da_local * da_dgain;
+            dy_dbw[n][k] = dy_dalpha_local * dalpha_dbw;
+        }
+    }
+
+    let mut loss = 0.0;
+    let mut dl_dy = [0.0; K];
+    let mut dl_dy_sum = 0.0;
+
+    for k in 0..K {
+        let d = 10.0 * pred[k].log10() - c.r[k];
+        loss += d.powi(2);
+        dl_dy[k] = 2.0 * d;
+        dl_dy_sum += dl_dy[k];
+    }
+
+    loss *= r_k;
+    set_amp_at(g, n_bands, if c.opt_amp { dl_dy_sum * r_k } else { 0.0 });
+
+    for n in 0..n_bands {
+        let mut glf = 0.0;
+        let mut ggain = 0.0;
+        let mut gbw = 0.0;
+
+        for k in 0..K {
+            glf += dl_dy[k] * dy_dw0[n][k];
+            ggain += dl_dy[k] * dy_dgain[n][k];
+            gbw += dl_dy[k] * dy_dbw[n][k];
+        }
+
+        set_lf_at(g, n_bands, n, glf * r_k * w0_v[n]);
+        set_gain_at(g, n_bands, n, ggain * r_k);
+        set_bw_at(g, n_bands, n, gbw * r_k);
+    }
+
+    loss
+}
+
+struct AdaBelief {
+    m: Vec<f32>,
+    s: Vec<f32>,
+    b1: f32,
+    b2: f32,
+    b1t: f32,
+    b2t: f32,
+    eps: f32,
+    eps_root: f32,
+    lr: f32,
+    n_bands: usize,
+}
+
+impl AdaBelief {
+    fn new(n_bands: usize) -> Self {
+        let size = w_from_n(n_bands);
+        Self {
+            m: vec![0.0; size],
+            s: vec![0.0; size],
+            b1: 0.9,
+            b2: 0.99,
+            b1t: 0.9,
+            b2t: 0.99,
+            eps: 1e-12,
+            eps_root: 1e-12,
+            lr: 3e-2,
+            n_bands,
+        }
+    }
+
+    fn step(&mut self, x: &mut [f32], g: &[f32]) {
+        let size = w_from_n(self.n_bands);
+        for w in 0..size {
+            self.m[w] = self.b1 * self.m[w] + (1.0 - self.b1) * g[w];
+            self.s[w] = self.b2 * self.s[w] + (1.0 - self.b2) * (g[w] - self.m[w]).powi(2);
+
+            let m_hat = self.m[w] / (1.0 - self.b1t);
+            let s_hat = self.s[w] / (1.0 - self.b2t);
+
+            let den_exact = (s_hat + self.eps_root).sqrt() + self.eps;
+
+            x[w] -= self.lr * m_hat / den_exact;
+        }
+
+        self.b1t *= self.b1;
+        self.b2t *= self.b2;
+    }
+}
+
+fn fit(
+    steps: usize,
+    types: &[FilterType],
+    f0: &mut [f32],
+    gain: &mut [f32],
+    q_vals: &mut [f32],
+    amp: &mut Option<f32>,
+    f0_lim: &[Lim],
+    gain_lim: &[Lim],
+    q_lim: &[Lim],
+    n_bands: usize,
+    f: &[f32; K],
+    r: &[f32; K],
+    fs: f32,
+) -> f32 {
+    let mut lf_lim = vec![Lim { lo: 0.0, hi: 0.0 }; n_bands];
+    let mut bw_lim = vec![Lim { lo: 0.0, hi: 0.0 }; n_bands];
+
+    for n in 0..n_bands {
+        lf_lim[n] = Lim {
+            lo: f0_lim[n].lo.ln(),
+            hi: f0_lim[n].hi.ln(),
+        };
+        bw_lim[n] = Lim {
+            lo: q_to_bw(q_lim[n].hi),
+            hi: q_to_bw(q_lim[n].lo),
+        };
+    }
+
+    let mut phi = [0.0; K];
+    for k in 0..K {
+        phi[k] = (std::f32::consts::PI / fs * f[k]).sin().powi(2);
+    }
+
+    let size = w_from_n(n_bands);
+    let mut x = vec![0.0; size];
+
+    for n in 0..n_bands {
+        set_lf_at(&mut x, n_bands, n, f0[n].ln());
+        set_gain_at(&mut x, n_bands, n, gain[n]);
+        set_bw_at(&mut x, n_bands, n, q_to_bw(q_vals[n]));
+    }
+    if let Some(a) = amp {
+        set_amp_at(&mut x, n_bands, *a);
+    }
+
+    let mut g = vec![0.0; size];
+    let mut best = vec![0.0; size];
+    let mut best_loss = 1e9_f32;
+
+    let c = Consts {
+        types,
+        phi: &phi,
+        r,
+        fs,
+        n_bands,
+        opt_amp: amp.is_some(),
+    };
+
+    let mut opt = AdaBelief::new(n_bands);
+
+    for _step in 0..steps {
+        let loss = grad(&c, &x, &mut g);
+
+        opt.step(&mut x, &g);
+
+        for n in 0..n_bands {
+            let mut val_lf = lf_at(&x, n_bands, n);
+            if limit(&mut val_lf, lf_lim[n]) {
+                set_lf_at(&mut x, n_bands, n, val_lf);
+                opt.m[0 * n_bands + n] = 0.0;
+            }
+
+            let mut val_gain = gain_at(&x, n_bands, n);
+            if limit(&mut val_gain, gain_lim[n]) {
+                set_gain_at(&mut x, n_bands, n, val_gain);
+                opt.m[1 * n_bands + n] = 0.0;
+            }
+
+            let mut val_bw = bw_at(&x, n_bands, n);
+            if limit(&mut val_bw, bw_lim[n]) {
+                set_bw_at(&mut x, n_bands, n, val_bw);
+                opt.m[2 * n_bands + n] = 0.0;
+            }
+        }
+
+        if loss < best_loss {
+            best_loss = loss;
+            best.copy_from_slice(&x);
+        }
+    }
+
+    for n in 0..n_bands {
+        f0[n] = lf_at(&best, n_bands, n).exp();
+        gain[n] = gain_at(&best, n_bands, n);
+        q_vals[n] = bw_to_q(bw_at(&best, n_bands, n));
+    }
+
+    if let Some(a) = amp {
+        *a = amp_at(&best, n_bands);
+    }
+
+    best_loss
+}
+
+fn search_freq(f: &[f32; K], val: f32) -> usize {
+    let mut idx = 0;
+    let mut best = 1e9_f32;
+    for (i, &v) in f.iter().enumerate() {
+        let d = (v - val).abs();
+        if d < best {
+            best = d;
+            idx = i;
+        }
+    }
+    idx
+}
+
+fn sgm(x: f32, x0: f32, x1: f32) -> f32 {
+    let smooth_val = 4.0_f32;
+    let k = smooth_val / (x1 - x0);
+    let m = 0.5 * (x0 + x1);
+    let y = k * (x - m);
+    0.5 * (0.5 * y).tanh() + 0.5
+}
+
+fn adaptive_smooth(s: &Smooth, f: &[f32; K], r: &mut [f32; K]) {
+    let smooth_l0 = s.smooth_f0.ln();
+    let smooth_l1 = s.smooth_f1.ln();
+    let bias_l0 = s.bias_f0.ln();
+    let bias_l1 = s.bias_f1.ln();
+    let bias_l2 = s.bias_f2.ln();
+    let bias_l3 = s.bias_f3.ln();
+
+    let x = *r;
+    let clip_idx = search_freq(f, s.clip_f);
+
+    const H: isize = 48;
+
+    for k in 0..K {
+        let f_k = f[k];
+        let l = f_k.ln();
+        let x_k = x[k];
+
+        let sigma = s.smooth_lo + (s.smooth_hi - s.smooth_lo) * sgm(l, smooth_l0, smooth_l1);
+        let bias = s.bias_lo
+            + (s.bias_md - s.bias_lo) * sgm(l, bias_l0, bias_l1)
+            + (s.bias_hi - s.bias_md) * sgm(l, bias_l2, bias_l3);
+
+        let mut a = 0.0;
+        let mut c = 0.0;
+
+        for j in -H..=H {
+            let mut s_idx = k as isize + j;
+            if s_idx < 0 {
+                s_idx = 0;
+            } else if s_idx > clip_idx as isize {
+                s_idx = clip_idx as isize;
+            }
+
+            let x_s = x[s_idx as usize];
+            let d_spatial = ((j as f32) * sigma).powi(2);
+            let d_range = bias * (x_s - x_k);
+
+            let w = (-0.5 * d_spatial + d_range).exp();
+            a += w * x_s;
+            c += w;
+        }
+
+        r[k] = if c > 0.0 { a / c } else { x_k };
+    }
+}
+
+fn treble_rolloff(f: &[f32; K], r: &mut [f32; K], f_treble: f32) {
+    let treble_idx = search_freq(f, f_treble);
+    let n_treble = K - treble_idx;
+    if n_treble <= 1 {
+        return;
+    }
+    let inv = 1.0 / (n_treble - 1) as f32;
+    for i in 0..n_treble {
+        let t = i as f32 * inv;
+        let w = (0.5 * std::f32::consts::PI * t).cos();
+        r[treble_idx + i] *= w;
+    }
+}
+
+fn center_mean(x: &mut [f32; K]) -> f32 {
+    let sum: f32 = x.iter().sum();
+    let mean = sum / K as f32;
+    for val in x.iter_mut() {
+        *val -= mean;
+    }
+    mean
+}
+
+pub fn preprocess(
+    f: &[f32; K],
+    dst: &[f32; K],
+    src: &[f32; K],
+    r: &mut [f32; K],
+    smooth: Option<&Smooth>,
+    demean: bool,
+) -> f32 {
+    let f_treble_smooth = 16000.0;
+    let f_treble_unsmooth = 18500.0;
+
+    let mut b = *src;
+    if let Some(s) = smooth {
+        adaptive_smooth(s, f, &mut b);
+    }
+
+    for k in 0..K {
+        r[k] = dst[k] - b[k];
+    }
+
+    let mut mean = 0.0;
+    if demean {
+        mean = center_mean(r);
+    }
+
+    treble_rolloff(f, r, if smooth.is_some() { f_treble_smooth } else { f_treble_unsmooth });
+    mean
+}
+
+pub fn run_autoeq_optimization(
+    steps: usize,
+    types: &[FilterType],
+    f0: &mut [f32],
+    gain: &mut [f32],
+    q_vals: &mut [f32],
+    amp: &mut Option<f32>,
+    f0_lim: &[Lim],
+    gain_lim: &[Lim],
+    q_lim: &[Lim],
+    n_bands: usize,
+    f: &[f32; K],
+    r: &[f32; K],
+    fs: f32,
+) -> f32 {
+    let mut r_init = *r;
+
+    for n in 0..n_bands {
+        let type_val = types[n];
+        let init_fn = match type_val {
+            FilterType::Peak => init_pk,
+            FilterType::LowShelf => init_lsc,
+            FilterType::HighShelf => init_hsc,
+            _ => init_pk,
+        };
+
+        let p = init_fn(&r_init, f, fs, f0_lim[n], gain_lim[n], q_lim[n]);
+        let mut w = [0.0; K];
+        spectrum(type_val, p.f0, -p.gain, p.q, fs, f, &mut w);
+        for k in 0..K {
+            r_init[k] += w[k];
+        }
+
+        f0[n] = p.f0;
+        gain[n] = p.gain;
+        q_vals[n] = p.q;
+    }
+
+    if let Some(a) = amp {
+        *a = 0.0;
+    }
+
+    fit(steps, types, f0, gain, q_vals, amp, f0_lim, gain_lim, q_lim, n_bands, f, r, fs)
+}
+
+pub fn generate_log_spaced_freqs() -> [f32; K] {
+    let f0 = 20.0_f32;
+    let f1 = 20000.0_f32;
+    let l0 = f0.ln();
+    let l1 = f1.ln();
+    let lr = l1 - l0;
+
+    let mut freqs = [0.0; K];
+    for k in 0..K {
+        freqs[k] = (l0 + lr / (K - 1) as f32 * k as f32).exp();
+    }
+    freqs
+}
+
+pub fn interpolate_curve(points: &[(f64, f64)], freqs: &[f32; K]) -> [f32; K] {
+    let mut curve = [0.0; K];
+    if points.is_empty() {
+        return curve;
+    }
+
+    let mut sorted = points.to_vec();
+    sorted.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+
+    for k in 0..K {
+        let f_val = freqs[k] as f64;
+        if f_val <= sorted[0].0 {
+            curve[k] = sorted[0].1 as f32;
+        } else if f_val >= sorted[sorted.len() - 1].0 {
+            curve[k] = sorted[sorted.len() - 1].1 as f32;
+        } else {
+            let mut found = false;
+            for i in 0..sorted.len() - 1 {
+                if f_val >= sorted[i].0 && f_val <= sorted[i + 1].0 {
+                    let t = (f_val - sorted[i].0) / (sorted[i + 1].0 - sorted[i].0);
+                    curve[k] = (sorted[i].1 + t * (sorted[i + 1].1 - sorted[i].1)) as f32;
+                    found = true;
+                    break;
+                }
+            }
+            if !found {
+                curve[k] = 0.0;
+            }
+        }
+    }
+    curve
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

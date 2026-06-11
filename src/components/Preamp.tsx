@@ -1,4 +1,5 @@
 import { Slider } from "./Slider";
+import { NumberInput } from "./NumberInput";
 
 export function Preamp({
   value,
@@ -10,25 +11,20 @@ export function Preamp({
   onStartChange: () => void;
 }) {
   const safeValue = Number.isFinite(value) ? value : 0;
-  const clamped = Math.max(-16, Math.min(6, safeValue));
   return (
     <section className="preamp-card">
       <div className="preamp-meta">
         <strong>Preamp</strong>
         <div className="preamp-value-row">
-          <input
-            className="num-input preamp-value"
-            type="text"
-            inputMode="decimal"
-            aria-label="Preamp gain value"
-            value={`${clamped}`}
+          <NumberInput
+            value={safeValue}
+            min={-16}
+            max={6}
+            step={0.5}
+            precision={1}
             onFocus={onStartChange}
-            onChange={(event) => {
-              const parsed = parseFloat(event.target.value);
-              if (!Number.isNaN(parsed)) {
-                onChange(Math.max(-16, Math.min(6, parsed)));
-              }
-            }}
+            onChange={onChange}
+            className="preamp-value-stepper"
           />
           <span className="preamp-unit">dB</span>
         </div>

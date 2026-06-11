@@ -216,10 +216,12 @@
   letter-spacing: 0;
 }
 
-.preamp-meta input.preamp-value {
-  width: 48px;
-  height: 24px;
-  text-align: right;
+.custom-number-input.preamp-value-stepper {
+  width: 76px;
+  height: 22px;
+}
+.custom-number-input.preamp-value-stepper .stepper-btn {
+  width: 18px;
 }
 
 .preamp-value-row {
@@ -310,7 +312,7 @@
 
 .bands-header, .band-row {
   display: grid;
-  grid-template-columns: 58px minmax(170px, 184px) 92px minmax(190px, 1fr) 64px;
+  grid-template-columns: 58px minmax(136px, 144px) 90px minmax(170px, 1fr) 72px;
   gap: 12px;
   align-items: center;
 }
@@ -407,9 +409,37 @@
   outline-offset: -1px;
   box-shadow: none;
 }
-.num-input.gain, .num-input.q { text-align: right; }
 .gain-cell { display: flex; align-items: center; gap: 10px; }
-.gain-cell .gain { width: 58px; }
+.gain-cell .custom-number-input.band-gain-stepper { width: 76px; }
+
+/* Custom Stepper overrides inside Band rows */
+.custom-number-input.band-freq-stepper,
+.custom-number-input.band-gain-stepper,
+.custom-number-input.band-q-stepper {
+  height: 28px;
+  background: var(--bg-dark);
+}
+
+.custom-number-input.band-freq-stepper .stepper-btn,
+.custom-number-input.band-gain-stepper .stepper-btn,
+.custom-number-input.band-q-stepper .stepper-btn {
+  width: 18px;
+}
+
+.custom-number-input.band-freq-stepper .stepper-field,
+.custom-number-input.band-gain-stepper .stepper-field,
+.custom-number-input.band-q-stepper .stepper-field {
+  font-size: var(--type-small);
+  padding: 0;
+}
+
+.custom-number-input.band-freq-stepper {
+  width: 100%;
+}
+
+.custom-number-input.band-q-stepper {
+  width: 100%;
+}
 
 .bands-container {
   display: flex;
