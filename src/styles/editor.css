@@ -104,7 +104,8 @@
 
 .graph-view-toggle {
   display: grid;
-  grid-template-columns: repeat(2, 58px);
+  grid-template-columns: repeat(2, 1fr);
+  width: 116px;
   min-height: 34px;
   background: var(--bg-dark);
 }
