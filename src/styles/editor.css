@@ -46,10 +46,150 @@
   backdrop-filter: blur(4px);
 }
 
+.graph-legend-item.target {
+  color: var(--yellow);
+}
+
 .graph-legend-swatch {
   width: 12px;
   height: 3px;
   flex: 0 0 12px;
+}
+
+.target-strip {
+  min-width: 0;
+  min-height: 54px;
+  padding: 8px 12px;
+  background: var(--panel);
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+}
+
+.target-strip-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text);
+  font-size: var(--type-caption);
+  font-weight: 700;
+}
+
+.target-add {
+  min-height: 34px;
+  padding: 0 10px;
+  background: var(--surface-soft);
+  color: var(--cyan);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.target-add .material-icon {
+  font-size: 18px;
+}
+
+.graph-view-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.graph-view-label {
+  color: var(--muted);
+  font-size: var(--type-caption);
+}
+
+.graph-view-toggle {
+  display: grid;
+  grid-template-columns: repeat(2, 58px);
+  min-height: 34px;
+  background: var(--bg-dark);
+}
+
+.graph-view-toggle button {
+  min-height: 34px;
+  padding: 0 8px;
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--type-label);
+}
+
+.graph-view-toggle button.active {
+  background: var(--surface-soft);
+  color: var(--cyan);
+  outline: 1px solid rgba(125, 207, 255, 0.48);
+  outline-offset: -1px;
+}
+
+.graph-level-readout {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.graph-level-readout.warn {
+  color: var(--yellow);
+}
+
+.target-scroll {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  padding: 2px 0 4px;
+}
+
+.target-chip {
+  min-height: 34px;
+  max-width: 220px;
+  padding: 0 10px;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-dark);
+  color: var(--muted);
+  outline: 1px solid rgba(65, 72, 104, 0.62);
+  outline-offset: -1px;
+}
+
+.target-chip.active {
+  color: var(--text);
+  outline-color: rgba(125, 207, 255, 0.62);
+  background: var(--surface-soft);
+}
+
+.target-chip-swatch {
+  width: 12px;
+  height: 3px;
+  flex: 0 0 12px;
+}
+
+.target-chip-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.target-chip-delete {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  color: var(--red);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.target-chip-delete .material-icon {
+  font-size: 16px;
 }
 
 .preamp-card {

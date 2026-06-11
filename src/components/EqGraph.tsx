@@ -1,11 +1,21 @@
 import { useCallback, useEffect, useRef } from "react";
 import { bandResponse, dbToY, formatFreq, freqToX, xToFreq } from "../lib/graph";
-import type { MeasurementTrace, PEQData } from "../types";
+import type { GraphViewMode, MeasurementTrace, PEQData, TargetTrace } from "../types";
 
 const GRAPH_FREQS = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
 const GRAPH_DBS = [-15, -10, -5, 0, 5, 10, 15];
 
-export function EqGraph({ peq, measurements }: { peq: PEQData; measurements: MeasurementTrace[] }) {
+export function EqGraph({
+  peq,
+  measurements,
+  targets,
+  viewMode,
+}: {
+  peq: PEQData;
+  measurements: MeasurementTrace[];
+  targets: TargetTrace[];
+  viewMode: GraphViewMode;
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const visibleMeasurements = measurements.filter((trace) => trace.visible);
 
@@ -28,8 +38,8 @@ export function EqGraph({ peq, measurements }: { peq: PEQData; measurements: Mea
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     drawBackground(ctx, width, height);
     drawGrid(ctx, width, height);
-    drawCurves(ctx, width, height, peq, visibleMeasurements);
-  }, [peq, visibleMeasurements]);
+    drawCurves(ctx, width, height, peq, visibleMeasurements, targets, viewMode);
+  }, [peq, visibleMeasurements, targets, viewMode]);
 
   useEffect(() => {
     let raf = requestAnimationFrame(draw);
@@ -51,8 +61,14 @@ export function EqGraph({ peq, measurements }: { peq: PEQData; measurements: Mea
   return (
     <div className="eq-graph-shell">
       <canvas className="eq-canvas" ref={canvasRef} />
-      {visibleMeasurements.length > 0 && (
+      {(targets.length > 0 || visibleMeasurements.length > 0) && (
         <div className="graph-legend">
+          {targets.map((target) => (
+            <div className="graph-legend-item target" key={target.id}>
+              <span className="graph-legend-swatch" style={{ backgroundColor: target.color }} />
+              <span>{target.name}</span>
+            </div>
+          ))}
           {visibleMeasurements.map((trace) => (
             <div className="graph-legend-item" key={trace.id}>
               <span className="graph-legend-swatch" style={{ backgroundColor: trace.color }} />
@@ -103,10 +119,13 @@ function drawCurves(
   height: number,
   peq: PEQData,
   measurements: MeasurementTrace[],
+  targets: TargetTrace[],
+  viewMode: GraphViewMode,
 ) {
-  const combined = Array.from({ length: width }, (_, x) => {
+  const eqResponse = Array.from({ length: width }, (_, x) => {
     const freq = xToFreq(x, width);
-    const total = peq.global_gain + peq.filters.reduce((sum, band) => sum + bandResponse(freq, band), 0);
+    const preamp = viewMode === "level" ? peq.global_gain : 0;
+    const total = preamp + peq.filters.reduce((sum, band) => sum + bandResponse(freq, band), 0);
     return Number.isFinite(total) ? total : 0;
   });
 
@@ -115,27 +134,51 @@ function drawCurves(
     drawResponse(ctx, height, response, "rgba(125, 207, 255, 0.22)", 1);
   }
 
-  for (const trace of measurements) {
-    drawMeasurementTrace(ctx, width, height, trace);
+  for (const target of targets) {
+    drawTrace(ctx, width, height, target, 1.6, [2, 6]);
   }
 
-  const zero = dbToY(0, height);
-  ctx.beginPath();
-  ctx.moveTo(0, zero);
-  combined.forEach((db, x) => ctx.lineTo(x, dbToY(db, height)));
-  ctx.lineTo(width, zero);
-  ctx.closePath();
-  ctx.fillStyle = "rgba(125, 207, 255, 0.15)";
-  ctx.fill();
+  for (const trace of measurements) {
+    drawTrace(ctx, width, height, trace, 1.2, [8, 6], withAlpha(trace.color, 0.44));
+  }
 
-  drawResponse(ctx, height, combined, "#7dcfff", 3);
+  if (measurements.length === 0) {
+    const zero = dbToY(0, height);
+    ctx.beginPath();
+    ctx.moveTo(0, zero);
+    eqResponse.forEach((db, x) => ctx.lineTo(x, dbToY(db, height)));
+    ctx.lineTo(width, zero);
+    ctx.closePath();
+    ctx.fillStyle = "rgba(125, 207, 255, 0.15)";
+    ctx.fill();
+
+    drawResponse(ctx, height, eqResponse, "#7dcfff", 3);
+    return;
+  }
+
+  const eqAnchorOffset = viewMode === "shape" ? -combinedResponseAt(peq, 1000, "shape") : 0;
+  measurements.forEach((trace) => {
+    const adjusted = Array.from({ length: width }, (_, x) => {
+      const freq = xToFreq(x, width);
+      return interpolateTraceDb(trace, freq) + eqResponse[x] + eqAnchorOffset;
+    });
+    drawResponse(ctx, height, adjusted, trace.color, 3);
+  });
 }
 
-function drawMeasurementTrace(
+function combinedResponseAt(peq: PEQData, freq: number, viewMode: GraphViewMode): number {
+  const preamp = viewMode === "level" ? peq.global_gain : 0;
+  return preamp + peq.filters.reduce((sum, band) => sum + bandResponse(freq, band), 0);
+}
+
+function drawTrace(
   ctx: CanvasRenderingContext2D,
   width: number,
   height: number,
-  trace: MeasurementTrace,
+  trace: MeasurementTrace | TargetTrace,
+  lineWidth: number,
+  dash: number[],
+  color = trace.color,
 ) {
   ctx.beginPath();
   trace.points.forEach((point, index) => {
@@ -143,11 +186,47 @@ function drawMeasurementTrace(
     const y = dbToY(point.db, height);
     index === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
   });
-  ctx.strokeStyle = trace.color;
-  ctx.lineWidth = 2;
-  ctx.setLineDash([8, 6]);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = lineWidth;
+  ctx.setLineDash(dash);
   ctx.stroke();
   ctx.setLineDash([]);
+}
+
+function interpolateTraceDb(trace: MeasurementTrace | TargetTrace, freq: number): number {
+  const points = trace.points;
+  if (points.length === 0) return 0;
+  if (freq <= points[0].freq) return points[0].db;
+  if (freq >= points[points.length - 1].freq) return points[points.length - 1].db;
+
+  let low = 0;
+  let high = points.length - 1;
+  while (high - low > 1) {
+    const mid = Math.floor((low + high) / 2);
+    if (points[mid].freq < freq) {
+      low = mid;
+    } else {
+      high = mid;
+    }
+  }
+
+  const lowPoint = points[low];
+  const highPoint = points[high];
+  const span = Math.log10(highPoint.freq) - Math.log10(lowPoint.freq);
+  if (span <= 0) return lowPoint.db;
+
+  const ratio = (Math.log10(freq) - Math.log10(lowPoint.freq)) / span;
+  return lowPoint.db + (highPoint.db - lowPoint.db) * ratio;
+}
+
+function withAlpha(hex: string, alpha: number): string {
+  const normalized = hex.replace("#", "");
+  if (normalized.length !== 6) return hex;
+
+  const red = Number.parseInt(normalized.slice(0, 2), 16);
+  const green = Number.parseInt(normalized.slice(2, 4), 16);
+  const blue = Number.parseInt(normalized.slice(4, 6), 16);
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
 }
 
 function drawResponse(

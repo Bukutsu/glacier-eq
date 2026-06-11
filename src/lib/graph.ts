@@ -24,20 +24,103 @@ export function formatFreq(freq: number): string {
 export function bandResponse(freq: number, filter: Filter): number {
   if (!filter.enabled || filter.freq <= 0) return 0;
 
-  const octaves = Math.log2(freq / filter.freq);
-  const width = Math.max(0.18, 1 / Math.max(0.2, filter.q));
-  const bell = Math.exp(-0.5 * (octaves / width) ** 2);
+  const [b0, b1, b2, a0, a1, a2] = computeBiquadCoeffs(filter);
+  const omega = (2 * Math.PI * clamp(freq, 20, 20000)) / DSP_SAMPLE_RATE;
+  const cos1 = Math.cos(omega);
+  const sin1 = Math.sin(omega);
+  const cos2 = Math.cos(2 * omega);
+  const sin2 = Math.sin(2 * omega);
+
+  const realNumerator = b0 + b1 * cos1 + b2 * cos2;
+  const imagNumerator = -(b1 * sin1 + b2 * sin2);
+  const realDenominator = a0 + a1 * cos1 + a2 * cos2;
+  const imagDenominator = -(a1 * sin1 + a2 * sin2);
+  const numeratorMagnitude = Math.hypot(realNumerator, imagNumerator);
+  const denominatorMagnitude = Math.hypot(realDenominator, imagDenominator);
+
+  if (!Number.isFinite(numeratorMagnitude) || !Number.isFinite(denominatorMagnitude) || denominatorMagnitude === 0) {
+    return 0;
+  }
+
+  return 20 * Math.log10(Math.max(1e-12, numeratorMagnitude / denominatorMagnitude));
+}
+
+const DSP_SAMPLE_RATE = 96000;
+
+function computeBiquadCoeffs(filter: Filter): [number, number, number, number, number, number] {
+  const maxSafeFreq = 0.49 * DSP_SAMPLE_RATE;
+  const freq = clamp(filter.freq, 20, maxSafeFreq);
+  const gain = filter.gain;
+  const q = Math.max(0.001, filter.q);
+  const aValue = 10 ** (gain / 40);
+  const omega = (freq * 2 * Math.PI) / DSP_SAMPLE_RATE;
+  const sinW = Math.sin(omega);
+  const cosW = Math.cos(omega);
 
   switch (filter.filter_type) {
-    case "LowShelf":
-      return filter.gain / (1 + (freq / filter.freq) ** (Math.max(0.4, filter.q) * 2));
-    case "HighShelf":
-      return filter.gain / (1 + (filter.freq / freq) ** (Math.max(0.4, filter.q) * 2));
-    case "HighPass":
-      return -18 / (1 + (freq / filter.freq) ** (Math.max(0.5, filter.q) * 3));
-    case "LowPass":
-      return -18 / (1 + (filter.freq / freq) ** (Math.max(0.5, filter.q) * 3));
-    default:
-      return filter.gain * bell;
+    case "LowShelf": {
+      const sqrtTerm = Math.max((aValue + 1 / aValue) * (1 / q - 1) + 2, 0);
+      const alpha = (sinW / 2) * Math.sqrt(sqrtTerm);
+      const aMinus1 = aValue - 1;
+      const aPlus1 = aValue + 1;
+      const sqrtAAlpha = 2 * Math.sqrt(aValue) * alpha;
+      return [
+        aValue * (aPlus1 - aMinus1 * cosW + sqrtAAlpha),
+        2 * aValue * (aMinus1 - aPlus1 * cosW),
+        aValue * (aPlus1 - aMinus1 * cosW - sqrtAAlpha),
+        aPlus1 + aMinus1 * cosW + sqrtAAlpha,
+        -2 * (aMinus1 + aPlus1 * cosW),
+        aPlus1 + aMinus1 * cosW - sqrtAAlpha,
+      ];
+    }
+    case "HighShelf": {
+      const sqrtTerm = Math.max((aValue + 1 / aValue) * (1 / q - 1) + 2, 0);
+      const alpha = (sinW / 2) * Math.sqrt(sqrtTerm);
+      const aMinus1 = aValue - 1;
+      const aPlus1 = aValue + 1;
+      const sqrtAAlpha = 2 * Math.sqrt(aValue) * alpha;
+      return [
+        aValue * (aPlus1 + aMinus1 * cosW + sqrtAAlpha),
+        -2 * aValue * (aMinus1 + aPlus1 * cosW),
+        aValue * (aPlus1 + aMinus1 * cosW - sqrtAAlpha),
+        aPlus1 - aMinus1 * cosW + sqrtAAlpha,
+        2 * (aMinus1 - aPlus1 * cosW),
+        aPlus1 - aMinus1 * cosW - sqrtAAlpha,
+      ];
+    }
+    case "HighPass": {
+      const alpha = sinW / (2 * q);
+      return [
+        (1 + cosW) / 2,
+        -(1 + cosW),
+        (1 + cosW) / 2,
+        1 + alpha,
+        -2 * cosW,
+        1 - alpha,
+      ];
+    }
+    case "LowPass": {
+      const alpha = sinW / (2 * q);
+      return [
+        (1 - cosW) / 2,
+        1 - cosW,
+        (1 - cosW) / 2,
+        1 + alpha,
+        -2 * cosW,
+        1 - alpha,
+      ];
+    }
+    case "Peak":
+    default: {
+      const alpha = sinW / (2 * q);
+      return [
+        1 + alpha * aValue,
+        -2 * cosW,
+        1 - alpha * aValue,
+        1 + alpha / aValue,
+        -2 * cosW,
+        1 - alpha / aValue,
+      ];
+    }
   }
 }
