@@ -11,7 +11,7 @@
 .selection-header {
   min-height: 104px;
   padding: 28px 32px 18px;
-  border-bottom: 1px solid rgba(65, 72, 104, 0.35);
+  border-bottom: 1px solid var(--line-soft);
   justify-content: flex-start;
 }
 
@@ -54,7 +54,7 @@ h1 {
   border: 1px solid var(--yellow);
   padding: 2px 8px;
   font-size: 11px;
-  background: rgba(224,175,104,.10);
+  background: rgba(var(--yellow-rgb), 0.10);
 }
 
 .toolbar { display: flex; gap: 10px; align-items: center; }
@@ -80,7 +80,7 @@ h1 {
   gap: 0;
   padding: 3px;
   background: var(--bg-dark);
-  outline: 1px solid rgba(65, 72, 104, 0.35);
+  outline: 1px solid var(--line-soft);
   outline-offset: -1px;
 }
 

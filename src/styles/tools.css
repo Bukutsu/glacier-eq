@@ -21,7 +21,7 @@
   gap: 0;
   padding: 3px;
   background: var(--bg-dark);
-  outline: 1px solid rgba(65, 72, 104, 0.35);
+  outline: 1px solid var(--line-soft);
   outline-offset: -1px;
 }
 .tabs button {
@@ -53,19 +53,19 @@
   right: 0;
   width: 1px;
   height: calc(100% - 18px);
-  background: rgba(65, 72, 104, 0.48);
+  background: var(--line-separator-heavy);
 }
 .tabs button:nth-child(2n)::after,
 .tabs button:last-child::after {
   display: none;
 }
 .tabs button:nth-child(n + 3) {
-  border-top: 1px solid rgba(65, 72, 104, 0.42);
+  border-top: 1px solid var(--line-medium);
 }
 .tabs button.active {
   background: var(--surface-soft);
   color: var(--cyan);
-  outline: 1px solid rgba(125, 207, 255, 0.42);
+  outline: 1px solid var(--accent-line-soft);
   outline-offset: -1px;
 }
 
@@ -90,7 +90,7 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  outline: 1px solid rgba(65, 72, 104, 0.35);
+  outline: 1px solid var(--line-soft);
   outline-offset: -1px;
 }
 
@@ -120,7 +120,7 @@
   height: 17px;
   margin: 0;
   flex: 0 0 17px;
-  border: 1px solid rgba(125, 207, 255, .62);
+  border: 1px solid var(--accent-line-checkbox);
   background: var(--bg-dark);
   box-shadow: inset 0 0 0 2px var(--panel);
   cursor: pointer;
@@ -131,9 +131,10 @@
   filter: brightness(1.12);
 }
 .tools-card input[type="checkbox"]:checked {
+  color: var(--theme-checkmark);
   border-color: var(--cyan);
   background-color: var(--cyan);
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 16 16' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M3.2 8.1 6.5 11.4 12.8 4.6' fill='none' stroke='%2316161e' stroke-width='2.2' stroke-linecap='square' stroke-linejoin='miter'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 16 16' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M3.2 8.1 6.5 11.4 12.8 4.6' fill='none' stroke='currentColor' stroke-width='2.2' stroke-linecap='square' stroke-linejoin='miter'/%3E%3C/svg%3E");
   background-position: center;
   background-repeat: no-repeat;
   background-size: 15px 15px;
@@ -173,13 +174,13 @@
 .action-row { display: grid; gap: 10px; }
 .action-row-primary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .action-row button { min-height: 44px; }
-button.danger { color: var(--red); background: transparent; outline: 1px solid rgba(247, 118, 142, .9); outline-offset: -1px; }
+button.danger { color: var(--red); background: transparent; outline: 1px solid var(--danger-outline); outline-offset: -1px; }
 
 .import-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .import-grid button {
   background: var(--surface-soft);
   color: var(--cyan);
-  outline: 1px solid rgba(125,207,255,.55);
+  outline: 1px solid var(--accent-line-outline);
 }
 .import-grid .icon-action {
   display: inline-flex;
@@ -242,7 +243,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid r
 .measurement-empty,
 .measurement-item {
   background: var(--bg-dark);
-  outline: 1px solid rgba(65, 72, 104, 0.35);
+  outline: 1px solid var(--line-soft);
   outline-offset: -1px;
 }
 
@@ -312,7 +313,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid r
 .diag-head strong { margin-right: auto; }
 .diag-head button { background: transparent; color: var(--cyan); min-height: 28px; padding: 0 6px; }
 .diag-summary { color: var(--muted); font-size: 12px; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
-.log-box { background: var(--bg-dark); overflow: auto; min-height: 0; flex: 1; padding: 0; outline: 1px solid rgba(65, 72, 104, 0.35); outline-offset: -1px; }
+.log-box { background: var(--bg-dark); overflow: auto; min-height: 0; flex: 1; padding: 0; outline: 1px solid var(--line-soft); outline-offset: -1px; }
 .log-box p {
   margin: 0;
   padding: 9px 8px;
@@ -419,7 +420,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid r
   color: var(--muted);
   font-style: italic;
   font-size: 12px;
-  background: rgba(125, 207, 255, 0.05);
+  background: var(--accent-bg-subtle);
   border-left: 3px solid var(--cyan);
   padding: 6px 10px;
 }
@@ -464,8 +465,8 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid r
 }
 
 .import-warnings-box {
-  border-color: rgba(224, 175, 104, 0.4);
-  background: rgba(224, 175, 104, 0.05);
+  border-color: var(--warning-border);
+  background: var(--warning-bg);
 }
 
 .warning-line {
