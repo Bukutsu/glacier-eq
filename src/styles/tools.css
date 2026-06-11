@@ -101,8 +101,9 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid r
 
 .import-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .import-grid button {
-  outline: 1px solid rgba(125,207,255,.55);
+  background: var(--surface-soft);
   color: var(--cyan);
+  outline: 1px solid rgba(125,207,255,.55);
 }
 .import-grid .icon-action {
   display: inline-flex;
