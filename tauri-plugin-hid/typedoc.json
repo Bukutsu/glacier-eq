@@ -1,0 +1,4 @@
+{
+  "entryPoints": ["guest-js/index.ts"],
+  "highlightLanguages": ["toml", "typescript", "rust", "shellscript", "json"]
+}

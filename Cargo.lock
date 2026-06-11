@@ -3473,8 +3473,6 @@ dependencies = [
 [[package]]
 name = "tauri-plugin-hid"
 version = "0.2.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "62b9633c230fe91fec39764d2549b5461d7ce6256ab854f3c20fbffe69b64807"
 dependencies = [
  "hidapi",
  "serde",

@@ -3,4 +3,5 @@ resolver = "2"
 members = [
     "glacier-core",
     "src-tauri",
+    "tauri-plugin-hid",
 ]
