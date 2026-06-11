@@ -39,10 +39,10 @@
   gap: 8px;
   min-height: 24px;
   padding: 0 8px;
-  background: rgba(22, 22, 30, 0.82);
+  background: var(--legend-bg);
   color: var(--text);
   font-size: 12px;
-  outline: 1px solid rgba(65, 72, 104, 0.45);
+  outline: 1px solid var(--line-outline);
   backdrop-filter: blur(4px);
 }
 
@@ -121,7 +121,7 @@
 .graph-view-toggle button.active {
   background: var(--surface-soft);
   color: var(--cyan);
-  outline: 1px solid rgba(125, 207, 255, 0.48);
+  outline: 1px solid var(--accent-line-medium);
   outline-offset: -1px;
 }
 
@@ -156,13 +156,13 @@
   gap: 8px;
   background: var(--bg-dark);
   color: var(--muted);
-  outline: 1px solid rgba(65, 72, 104, 0.62);
+  outline: 1px solid var(--line-heavy);
   outline-offset: -1px;
 }
 
 .target-chip.active {
   color: var(--text);
-  outline-color: rgba(125, 207, 255, 0.62);
+  outline-color: var(--accent-line-strong);
   background: var(--surface-soft);
 }
 
@@ -241,7 +241,7 @@
 
 .control-slider-input::-webkit-slider-runnable-track {
   height: 2px;
-  background: rgba(125, 207, 255, 0.28);
+  background: rgba(var(--cyan-rgb), 0.28);
   border: 0;
 }
 
@@ -256,7 +256,7 @@
 
 .control-slider-input::-moz-range-track {
   height: 2px;
-  background: rgba(125, 207, 255, 0.28);
+  background: rgba(var(--cyan-rgb), 0.28);
   border: 0;
 }
 
@@ -313,13 +313,13 @@
 .band-row {
   height: 54px;
   color: var(--text);
-  border-bottom: 1px solid rgba(65, 72, 104, 0.28);
+  border-bottom: 1px solid var(--line-subtle);
 }
 .band-row:last-child {
   border-bottom: 0;
 }
 .band-row:hover {
-  background: rgba(36, 40, 59, 0.44);
+  background: var(--hover-bg);
 }
 .band-row.muted { opacity: .45; }
 .band-index {
@@ -333,7 +333,7 @@
   align-items: center;
   justify-content: center;
   white-space: nowrap;
-  outline: 1px solid rgba(125, 207, 255, 0.24);
+  outline: 1px solid var(--accent-line-light);
   outline-offset: -1px;
 }
 
@@ -347,7 +347,7 @@
   gap: 0;
   width: 100%;
   background: var(--bg-dark);
-  outline: 1px solid rgba(65, 72, 104, 0.52);
+  outline: 1px solid var(--line-strong);
   outline-offset: -1px;
 }
 .type-buttons button {
@@ -356,14 +356,14 @@
   background: transparent;
   color: var(--muted);
   padding: 0;
-  border-right: 1px solid rgba(65, 72, 104, 0.38);
+  border-right: 1px solid var(--line-separator);
 }
 .type-buttons button:last-child {
   border-right: 0;
 }
 .type-buttons button:hover:not(:disabled) {
   color: var(--text);
-  background: rgba(36, 40, 59, 0.9);
+  background: var(--hover-bg-strong);
 }
 .type-buttons button.selected {
   background: var(--cyan);
@@ -381,11 +381,11 @@
   padding: 0 8px;
   font-family: var(--font-mono);
   font-size: var(--type-label);
-  box-shadow: inset 0 0 0 1px rgba(65, 72, 104, 0.52);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
 }
 
 .num-input:hover {
-  box-shadow: inset 0 0 0 1px rgba(125, 207, 255, 0.32);
+  box-shadow: inset 0 0 0 1px var(--accent-line-hover);
 }
 .num-input:focus {
   background: var(--surface-soft);
