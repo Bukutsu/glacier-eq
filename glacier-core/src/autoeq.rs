@@ -503,7 +503,15 @@ fn biquad_fn(filter_type: FilterType, a_val: f32, cos_w: f32, alpha: f32) -> Biq
     }
 }
 
-fn spectrum(filter_type: FilterType, f0: f32, gain: f32, q: f32, fs: f32, f: &[f32; K], y: &mut [f32; K]) {
+fn spectrum(
+    filter_type: FilterType,
+    f0: f32,
+    gain: f32,
+    q: f32,
+    fs: f32,
+    f: &[f32; K],
+    y: &mut [f32; K],
+) {
     let a_val = 10.0_f32.powf(gain / 40.0);
     let w0 = 2.0 * std::f32::consts::PI / fs * f0;
     let cos_w = w0.cos();
@@ -602,7 +610,11 @@ fn largest_peak(x: &[f32; K], f: &[f32; K], lim: Lim) -> Peak {
         prominences[p] = x_peak - left_min.max(right_min);
     }
 
-    let mut largest = Peak { idx: -1, width: 0.0, height: 0.0 };
+    let mut largest = Peak {
+        idx: -1,
+        width: 0.0,
+        height: 0.0,
+    };
     let mut largest_size = 0.0;
 
     for p in 0..n {
@@ -636,7 +648,11 @@ fn largest_peak(x: &[f32; K], f: &[f32; K], lim: Lim) -> Peak {
         let size = width * x_peak;
 
         if size > largest_size {
-            largest = Peak { idx: peak as i32, width, height: x_peak };
+            largest = Peak {
+                idx: peak as i32,
+                width,
+                height: x_peak,
+            };
             largest_size = size;
         }
     }
@@ -650,7 +666,14 @@ fn limit(x: &mut f32, lim: Lim) -> bool {
     *x != orig
 }
 
-fn init_pk(y: &[f32; K], f: &[f32; K], _fs: f32, lim_f0: Lim, lim_gain: Lim, lim_q: Lim) -> InitFilter {
+fn init_pk(
+    y: &[f32; K],
+    f: &[f32; K],
+    _fs: f32,
+    lim_f0: Lim,
+    lim_gain: Lim,
+    lim_q: Lim,
+) -> InitFilter {
     let mut rect = [0.0; K];
 
     for k in 0..K {
@@ -670,7 +693,11 @@ fn init_pk(y: &[f32; K], f: &[f32; K], _fs: f32, lim_f0: Lim, lim_gain: Lim, lim
     };
 
     if p.idx == -1 {
-        return InitFilter { f0: 1000.0, gain: 0.0, q: 1.0 };
+        return InitFilter {
+            f0: 1000.0,
+            gain: 0.0,
+            q: 1.0,
+        };
     }
 
     let f0 = f[p.idx as usize];
@@ -689,7 +716,14 @@ fn init_pk(y: &[f32; K], f: &[f32; K], _fs: f32, lim_f0: Lim, lim_gain: Lim, lim
     InitFilter { f0, gain, q }
 }
 
-fn init_lsc(y: &[f32; K], f: &[f32; K], fs: f32, mut lim_f0: Lim, lim_gain: Lim, lim_q: Lim) -> InitFilter {
+fn init_lsc(
+    y: &[f32; K],
+    f: &[f32; K],
+    fs: f32,
+    mut lim_f0: Lim,
+    lim_gain: Lim,
+    lim_q: Lim,
+) -> InitFilter {
     lim_f0.lo = lim_f0.lo.max(40.0);
     lim_f0.hi = lim_f0.hi.min(10000.0);
 
@@ -728,7 +762,14 @@ fn init_lsc(y: &[f32; K], f: &[f32; K], fs: f32, mut lim_f0: Lim, lim_gain: Lim,
     InitFilter { f0, gain, q }
 }
 
-fn init_hsc(y: &[f32; K], f: &[f32; K], fs: f32, mut lim_f0: Lim, lim_gain: Lim, lim_q: Lim) -> InitFilter {
+fn init_hsc(
+    y: &[f32; K],
+    f: &[f32; K],
+    fs: f32,
+    mut lim_f0: Lim,
+    lim_gain: Lim,
+    lim_q: Lim,
+) -> InitFilter {
     lim_f0.lo = lim_f0.lo.max(40.0);
     lim_f0.hi = lim_f0.hi.min(10000.0);
 
@@ -780,15 +821,31 @@ fn w_from_n(n: usize) -> usize {
     3 * n + 1
 }
 
-fn lf_at(v: &[f32], n: usize, i: usize) -> f32 { v[0 * n + i] }
-fn gain_at(v: &[f32], n: usize, i: usize) -> f32 { v[1 * n + i] }
-fn bw_at(v: &[f32], n: usize, i: usize) -> f32 { v[2 * n + i] }
-fn amp_at(v: &[f32], n: usize) -> f32 { v[3 * n] }
+fn lf_at(v: &[f32], n: usize, i: usize) -> f32 {
+    v[0 * n + i]
+}
+fn gain_at(v: &[f32], n: usize, i: usize) -> f32 {
+    v[1 * n + i]
+}
+fn bw_at(v: &[f32], n: usize, i: usize) -> f32 {
+    v[2 * n + i]
+}
+fn amp_at(v: &[f32], n: usize) -> f32 {
+    v[3 * n]
+}
 
-fn set_lf_at(v: &mut [f32], n: usize, i: usize, val: f32) { v[0 * n + i] = val; }
-fn set_gain_at(v: &mut [f32], n: usize, i: usize, val: f32) { v[1 * n + i] = val; }
-fn set_bw_at(v: &mut [f32], n: usize, i: usize, val: f32) { v[2 * n + i] = val; }
-fn set_amp_at(v: &mut [f32], n: usize, val: f32) { v[3 * n] = val; }
+fn set_lf_at(v: &mut [f32], n: usize, i: usize, val: f32) {
+    v[0 * n + i] = val;
+}
+fn set_gain_at(v: &mut [f32], n: usize, i: usize, val: f32) {
+    v[1 * n + i] = val;
+}
+fn set_bw_at(v: &mut [f32], n: usize, i: usize, val: f32) {
+    v[2 * n + i] = val;
+}
+fn set_amp_at(v: &mut [f32], n: usize, val: f32) {
+    v[3 * n] = val;
+}
 
 fn q_to_bw(q: f32) -> f32 {
     let ln2 = std::f32::consts::LN_2;
@@ -838,7 +895,8 @@ fn grad(c: &Consts, x: &[f32], g: &mut [f32]) -> f32 {
 
         let da_dgain = a_val * std::f32::consts::LN_10 / 40.0;
         let dalpha_dw0 = cos_w * kq;
-        let dalpha_dbw = sin_w * (0.5 * std::f32::consts::LN_2 * bw).cosh() * 0.5 * std::f32::consts::LN_2;
+        let dalpha_dbw =
+            sin_w * (0.5 * std::f32::consts::LN_2 * bw).cosh() * 0.5 * std::f32::consts::LN_2;
         let dcos_dw0 = -sin_w;
 
         let b_x0 = (s.b0 + s.b1 + s.b2).powi(2);
@@ -1201,7 +1259,15 @@ pub fn preprocess(
         mean = center_mean(r);
     }
 
-    treble_rolloff(f, r, if smooth.is_some() { f_treble_smooth } else { f_treble_unsmooth });
+    treble_rolloff(
+        f,
+        r,
+        if smooth.is_some() {
+            f_treble_smooth
+        } else {
+            f_treble_unsmooth
+        },
+    );
     mean
 }
 
@@ -1247,7 +1313,9 @@ pub fn run_autoeq_optimization(
         *a = 0.0;
     }
 
-    fit(steps, types, f0, gain, q_vals, amp, f0_lim, gain_lim, q_lim, n_bands, f, r, fs)
+    fit(
+        steps, types, f0, gain, q_vals, amp, f0_lim, gain_lim, q_lim, n_bands, f, r, fs,
+    )
 }
 
 pub fn generate_log_spaced_freqs() -> [f32; K] {

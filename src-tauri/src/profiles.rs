@@ -293,12 +293,26 @@ pub fn run_autoeq(
     let mut gain = vec![0.0; n_bands];
     let mut q_vals = vec![1.0; n_bands];
 
-    let f0_lim = vec![glacier_core::autoeq::Lim { lo: 20.0, hi: 16000.0 }; n_bands];
-    let gain_lim = vec![glacier_core::autoeq::Lim { lo: -16.0, hi: 16.0 }; n_bands];
+    let f0_lim = vec![
+        glacier_core::autoeq::Lim {
+            lo: 20.0,
+            hi: 16000.0
+        };
+        n_bands
+    ];
+    let gain_lim = vec![
+        glacier_core::autoeq::Lim {
+            lo: -16.0,
+            hi: 16.0
+        };
+        n_bands
+    ];
     let mut q_lim = vec![glacier_core::autoeq::Lim { lo: 0.4, hi: 4.0 }; n_bands];
 
     for n in 0..n_bands {
-        if types[n] == glacier_core::eq::FilterType::LowShelf || types[n] == glacier_core::eq::FilterType::HighShelf {
+        if types[n] == glacier_core::eq::FilterType::LowShelf
+            || types[n] == glacier_core::eq::FilterType::HighShelf
+        {
             q_lim[n] = glacier_core::autoeq::Lim { lo: 0.4, hi: 3.0 };
         }
     }
@@ -351,8 +365,5 @@ pub fn run_autoeq(
 
     let warnings = peq.clamp_to_capabilities(&caps);
 
-    Ok(AutoEqRunResult {
-        peq,
-        warnings,
-    })
+    Ok(AutoEqRunResult { peq, warnings })
 }
