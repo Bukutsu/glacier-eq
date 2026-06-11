@@ -15,9 +15,43 @@
   overflow: hidden;
 }
 
-.tabs { display: grid; grid-template-columns: repeat(4, 1fr); height: 42px; }
-.tabs button { background: transparent; color: var(--muted); min-height: 42px; font-size: var(--type-label); }
-.tabs button.active { background: var(--bg-dark); color: var(--cyan); }
+.tabs {
+  display: grid;
+  grid-template-columns: repeat(var(--tab-count, 4), minmax(0, 1fr));
+  min-height: 42px;
+  gap: 0;
+  padding: 3px;
+  background: var(--bg-dark);
+  outline: 1px solid rgba(65, 72, 104, 0.35);
+  outline-offset: -1px;
+}
+.tabs button {
+  background: transparent;
+  color: var(--muted);
+  min-height: 42px;
+  min-width: 0;
+  font-size: var(--type-label);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 10px;
+}
+.tabs button .material-icon {
+  font-size: 16px;
+}
+.tabs button span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tabs button.active {
+  background: var(--surface-soft);
+  color: var(--cyan);
+  outline: 1px solid rgba(125, 207, 255, 0.42);
+  outline-offset: -1px;
+}
 
 .search-row { display: grid; grid-template-columns: 1fr 36px 36px; gap: 8px; align-items: center; }
 .search-row input, .new-name {
@@ -94,8 +128,34 @@
   outline-offset: 3px;
 }
 
-.action-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-.action-row:last-child { grid-template-columns: repeat(3, 1fr); }
+.action-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 2px;
+}
+
+.action-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.action-section-head strong {
+  color: var(--text);
+  font-size: var(--type-label);
+}
+
+.action-section-head span {
+  color: var(--comment);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.action-row { display: grid; gap: 10px; }
+.action-row-primary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .action-row button { min-height: 44px; }
 button.danger { color: var(--red); background: transparent; outline: 1px solid rgba(247, 118, 142, .9); outline-offset: -1px; }
 

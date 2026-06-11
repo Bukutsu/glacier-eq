@@ -169,8 +169,9 @@ test("Modifying EQ bands and preamp", async ({ page }) => {
   await page.click("button:has-text('Connect')");
 
   // Verify initial preamp value is 0 dB
-  const preampHeading = page.locator(".preamp-card strong");
-  await expect(preampHeading).toContainText("PREAMP: 0 dB");
+  const preampCard = page.locator(".preamp-card");
+  await expect(preampCard.locator("strong")).toContainText("Preamp");
+  await expect(preampCard.locator(".preamp-meta span")).toContainText("0 dB");
 
   // Locate the preamp slider and adjust it
   const preampSlider = page.locator(".preamp-card input[type='range']");
@@ -179,7 +180,7 @@ test("Modifying EQ bands and preamp", async ({ page }) => {
   await preampSlider.dispatchEvent("change");
 
   // Preamp text should update to -5 dB and header show UNSAVED
-  await expect(preampHeading).toContainText("PREAMP: -5 dB");
+  await expect(preampCard.locator(".preamp-meta span")).toContainText("-5 dB");
   await expect(page.locator(".unsaved")).toBeVisible();
 
   // Modify Band 1 freq, Q, and gain
@@ -215,6 +216,9 @@ test("Preset profile management", async ({ page }) => {
   await page.goto("/");
   await page.click("button:has-text('Connect')");
 
+  await expect(page.locator(".history-controls")).toBeVisible();
+  await expect(page.locator(".history-btn")).toHaveCount(2);
+
   // Tab navigation check
   const activeTab = page.locator(".tabs button.active");
   await expect(activeTab).toContainText("Preset");
@@ -248,6 +252,19 @@ test("Preset profile management", async ({ page }) => {
   // Delete the custom preset
   await page.click("button:has-text('Delete')");
   await expect(page.locator(".preset-list button:has-text('My Custom Preset')")).not.toBeVisible();
+});
+
+test("Mobile profiles keep history in header and simplify preset actions", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await page.click("button:has-text('Connect')");
+  await page.click(".mobile-tab-item:has-text('Profiles')");
+
+  await expect(page.locator(".history-controls")).toBeVisible();
+  await expect(page.locator(".action-row-primary button")).toHaveCount(3);
+  await expect(page.locator(".action-row-primary")).toContainText("Reset");
+  await expect(page.locator(".action-row-primary")).toContainText("Save");
+  await expect(page.locator(".action-row-primary")).toContainText("Delete");
 });
 
 test("Diagnostics panel operations", async ({ page }) => {

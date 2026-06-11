@@ -26,6 +26,12 @@
 
 .title-stack { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
 .title-line { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.header-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
 
 h1 {
   margin: 0;
@@ -52,3 +58,49 @@ h1 {
 }
 
 .toolbar { display: flex; gap: 10px; align-items: center; }
+
+.history-controls {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.history-label {
+  color: var(--comment);
+  font-size: var(--type-caption);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.history-buttons {
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+  padding: 3px;
+  background: var(--bg-dark);
+  outline: 1px solid rgba(65, 72, 104, 0.35);
+  outline-offset: -1px;
+}
+
+.history-btn {
+  min-height: 36px;
+  min-width: 0;
+  padding: 0 12px;
+  background: transparent;
+  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.history-btn:not(:disabled):hover {
+  background: var(--surface-soft);
+  color: var(--cyan);
+}
+
+.history-btn .material-icon {
+  font-size: 16px;
+}

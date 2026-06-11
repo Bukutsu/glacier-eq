@@ -327,17 +327,46 @@
     padding-left: 12px;
     padding-right: 12px;
   }
-  .tabs,
+  .tabs {
+    min-height: 48px;
+    padding: 4px;
+  }
   .tabs button {
-    min-height: 46px;
+    min-height: 40px;
+    padding: 0 8px;
+    font-size: 12px;
+  }
+  .tabs.compact button {
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .tabs button .material-icon {
+    font-size: 17px;
   }
   .import-grid,
   .measurement-import-grid {
     grid-template-columns: 1fr;
   }
+  .header-meta-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .history-controls {
+    justify-content: space-between;
+  }
+  .history-buttons {
+    flex: 1 1 auto;
+  }
+  .history-btn {
+    min-height: 40px;
+  }
   .action-row,
-  .action-row:last-child {
+  .action-row-primary {
     grid-template-columns: 1fr;
+  }
+  .action-section-head {
+    align-items: flex-start;
   }
   .preset-list {
     height: auto;
@@ -384,6 +413,15 @@
   }
   .toolbar .btn {
     padding: 0 6px;
+    font-size: 13px;
+  }
+  .tabs button {
+    gap: 6px;
+  }
+  .tabs button .material-icon {
+    font-size: 16px;
+  }
+  .tabs.compact button span:last-child {
     font-size: 13px;
   }
   .bands-grid {
