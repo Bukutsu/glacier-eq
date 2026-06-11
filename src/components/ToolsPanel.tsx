@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { DEFAULT_PROFILE_NAME } from "../constants";
 import { parseMeasurementText } from "../lib/measurements";
-import type { MeasurementTrace, Profile, PEQData } from "../types";
+import type { MeasurementTrace, Profile, PEQData, GraphViewMode } from "../types";
 import { Icon } from "./Icon";
 
 type ToolsTab = "Preset" | "Import" | "Measure" | "Settings";
@@ -44,6 +44,8 @@ interface ToolsPanelProps {
   defaultTab?: ToolsTab;
   showActions?: boolean;
   showDiagnostics?: boolean;
+  graphViewMode?: GraphViewMode;
+  onGraphViewModeChange?: (mode: GraphViewMode) => void;
 }
 
 export function ToolsPanel(props: ToolsPanelProps) {
@@ -79,7 +81,12 @@ export function ToolsPanel(props: ToolsPanelProps) {
           onClearMeasurements={props.onClearMeasurements}
           setStatus={props.setStatus}
         />}
-        {tab === "Settings" && <SettingsTab />}
+        {tab === "Settings" && (
+          <SettingsTab
+            graphViewMode={props.graphViewMode}
+            onGraphViewModeChange={props.onGraphViewModeChange}
+          />
+        )}
         {props.showActions !== false && <ToolActions {...props} />}
       </section>
       {showDiagnostics && <DiagnosticsPanel />}
@@ -560,7 +567,13 @@ function ImportTab({ peq, profiles, onImportPEQ, onReloadProfiles, setStatus }: 
   );
 }
 
-function SettingsTab() {
+function SettingsTab({
+  graphViewMode,
+  onGraphViewModeChange,
+}: {
+  graphViewMode?: GraphViewMode;
+  onGraphViewModeChange?: (mode: GraphViewMode) => void;
+}) {
   const [settings, setSettings] = useState({
     auto_pull_on_connect: true,
     skip_push_verification: false,
@@ -611,6 +624,25 @@ function SettingsTab() {
         />
         Skip push verification
       </label>
+      {graphViewMode && onGraphViewModeChange && (
+        <div className="setting-row">
+          <span className="setting-label">Graph View</span>
+          <div className="graph-view-toggle">
+            <button
+              className={graphViewMode === "shape" ? "active" : ""}
+              onClick={() => onGraphViewModeChange("shape")}
+            >
+              Shape
+            </button>
+            <button
+              className={graphViewMode === "level" ? "active" : ""}
+              onClick={() => onGraphViewModeChange("level")}
+            >
+              Level
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
