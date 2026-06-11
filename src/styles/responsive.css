@@ -86,7 +86,7 @@
     top: 0;
     z-index: 20;
     padding: 12px 12px 10px;
-    border-bottom: 1px solid rgba(65, 72, 104, 0.42);
+    border-bottom: 1px solid var(--line-medium);
   }
   .selection-header {
     min-height: auto;
@@ -227,7 +227,7 @@
       "freq gain gain q";
     gap: 10px 8px;
     background: var(--bg-dark);
-    outline: 1px solid rgba(65, 72, 104, 0.42);
+    outline: 1px solid var(--line-medium);
     outline-offset: -1px;
     border-bottom: 0;
   }
@@ -245,7 +245,7 @@
     justify-content: center;
     gap: 2px;
     background: var(--surface-soft);
-    outline: 1px solid rgba(125, 207, 255, 0.28);
+    outline: 1px solid var(--accent-line);
     outline-offset: -1px;
   }
   .band-index strong {
@@ -493,7 +493,7 @@
     justify-content: space-around;
     align-items: center;
     padding-bottom: env(safe-area-inset-bottom);
-    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 -2px 10px var(--shadow-bar);
   }
 
   .mobile-tab-item {
