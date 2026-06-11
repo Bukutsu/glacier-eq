@@ -12,7 +12,7 @@ pub struct ProfileDto {
     modified: Option<String>,
 }
 
-fn app_data_base_dir() -> Result<PathBuf, String> {
+pub(crate) fn app_data_base_dir() -> Result<PathBuf, String> {
     if let Ok(dir) = std::env::var("FROST_TUNE_HOME") {
         if !dir.trim().is_empty() {
             return Ok(PathBuf::from(dir));
