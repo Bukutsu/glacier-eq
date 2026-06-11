@@ -59,7 +59,7 @@ export function normalizePeq(
     const input = (inputFilters[index] ?? {}) as Record<string, unknown>;
     return {
       index,
-      // Frost-Tune enables every filter loaded from AutoEQ/profile text, then
+      // Glacier enables every filter loaded from AutoEQ/profile text, then
       // pads missing device bands as inactive flat filters.
       enabled: hasInput
         ? options.enableLoadedFilters || (typeof input.enabled === "boolean" ? input.enabled : fallback.enabled)

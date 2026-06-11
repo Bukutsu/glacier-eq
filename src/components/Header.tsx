@@ -26,7 +26,7 @@ export function Header({
       <header className="app-header selection-header">
         <div className="title-stack">
           <div className="title-line">
-            <h1>Frost-Tune</h1>
+            <h1>Glacier EQ</h1>
             <span className="sync-dot offline">● Offline</span>
           </div>
           <div className="device-name">Select a supported DAC to begin</div>
@@ -39,7 +39,7 @@ export function Header({
     <header className="app-header">
       <div className="title-stack">
         <div className="title-line">
-          <h1>Frost-Tune</h1>
+          <h1>Glacier EQ</h1>
           <span className="dash">—</span>
           <strong>{profile}</strong>
           {dirty && <span className="unsaved">UNSAVED</span>}

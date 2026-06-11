@@ -31,7 +31,7 @@ export function DeviceChooser({
         <div className="device-card-head">
           <div>
             <h2>Available Devices</h2>
-            <p>Only supported DACs from Frost-Tune's registry are shown.</p>
+            <p>Only supported DACs from the Glacier registry are shown.</p>
           </div>
           <ToolbarButton onClick={onScan} disabled={isBusy}>{isBusy ? "Scanning…" : "Scan"}</ToolbarButton>
         </div>
