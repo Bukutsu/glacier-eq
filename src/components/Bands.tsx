@@ -66,6 +66,7 @@ function BandRow({
     <div className={`band-row ${filter.enabled ? "" : "muted"}`}>
       <button
         className="band-index"
+        aria-label={`${filter.enabled ? "Disable" : "Enable"} band ${filter.index + 1}`}
         onClick={() => {
           onStartChange();
           onChange({ ...filter, enabled: !filter.enabled });
@@ -82,6 +83,8 @@ function BandRow({
       />
       <input
         className="num-input freq"
+        aria-label={`Band ${filter.index + 1} frequency`}
+        inputMode="numeric"
         value={filter.freq}
         onFocus={onStartChange}
         onChange={(event) => onChange({ ...filter, freq: +event.target.value || 20 })}
@@ -89,6 +92,7 @@ function BandRow({
       <div className="gain-cell">
         <input
           type="range"
+          aria-label={`Band ${filter.index + 1} gain`}
           min={-10}
           max={10}
           step={0.01}
@@ -99,6 +103,8 @@ function BandRow({
         />
         <input
           className="num-input gain"
+          aria-label={`Band ${filter.index + 1} gain value`}
+          inputMode="decimal"
           value={filter.gain.toFixed(2)}
           onFocus={onStartChange}
           onChange={(event) => onChange({ ...filter, gain: +event.target.value || 0 })}
@@ -106,6 +112,8 @@ function BandRow({
       </div>
       <input
         className="num-input q"
+        aria-label={`Band ${filter.index + 1} Q`}
+        inputMode="decimal"
         value={filter.q.toFixed(2)}
         onFocus={onStartChange}
         onChange={(event) => onChange({ ...filter, q: +event.target.value || 0.1 })}
@@ -121,6 +129,7 @@ function FilterTypeButtons({ filter, onChange }: { filter: Filter; onChange: (fi
         <button
           key={type}
           className={filter.filter_type === type ? "selected" : ""}
+          aria-label={`Set band ${filter.index + 1} to ${TYPE_LABELS[type]}`}
           onClick={() => onChange({ ...filter, filter_type: type })}
         >
           {TYPE_LABELS[type]}

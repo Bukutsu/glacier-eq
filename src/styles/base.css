@@ -35,7 +35,11 @@
 }
 
 html, body, #root { height: 100%; margin: 0; }
-body { overflow: hidden; }
+body {
+  overflow: hidden;
+  background: var(--bg);
+  -webkit-tap-highlight-color: rgba(125, 207, 255, 0.18);
+}
 button, input { font: inherit; }
 button { border: 0; cursor: pointer; }
 button:disabled { cursor: not-allowed; opacity: .5; }
@@ -49,10 +53,12 @@ select:focus-visible {
 #app {
   width: 100vw;
   height: 100vh;
+  height: 100dvh;
   background: var(--bg);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
 .material-icon {
@@ -82,6 +88,12 @@ select:focus-visible {
 .btn:hover:not(:disabled), .tools-card button:hover:not(:disabled), .diag-card button:hover:not(:disabled) { filter: brightness(1.14); }
 .btn:active:not(:disabled), .tools-card button:active:not(:disabled), .diag-card button:active:not(:disabled) { filter: brightness(1.24); }
 .btn.filled, button.save { background: var(--cyan); color: var(--bg-dark); }
+
+@media (pointer: coarse) {
+  .btn, .tools-card button, .diag-card button, .device-actions button {
+    min-height: 44px;
+  }
+}
 
 .status-banner {
   min-height: 34px;
