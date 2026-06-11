@@ -1,3 +1,5 @@
+import { Slider } from "./Slider";
+
 export function Preamp({
   value,
   onChange,
@@ -14,8 +16,7 @@ export function Preamp({
         <strong>Preamp</strong>
         <span>{safeValue} dB</span>
       </div>
-      <input
-        type="range"
+      <Slider
         aria-label="Preamp gain"
         min={-16}
         max={6}
