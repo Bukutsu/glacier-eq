@@ -91,6 +91,12 @@
   font-family: var(--font-ui);
   color: var(--text);
   background: var(--bg);
+
+  /* Safe area variables */
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-left: env(safe-area-inset-left, 0px);
+  --safe-area-right: env(safe-area-inset-right, 0px);
 }
 
 html, body, #root { height: 100%; margin: 0; }
@@ -101,6 +107,10 @@ body {
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+body.is-android {
+  --safe-area-top: var(--safe-area-inset-top-android, 28px);
+  --safe-area-bottom: var(--safe-area-inset-bottom-android, 16px);
 }
 button, input { font: inherit; }
 button { border: 0; cursor: pointer; }
@@ -120,7 +130,7 @@ select:focus-visible {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  padding: var(--safe-area-top) var(--safe-area-right) var(--safe-area-bottom) var(--safe-area-left);
 }
 
 .material-symbols-outlined {
