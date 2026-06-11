@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { DEFAULT_PROFILE_NAME } from "../constants";
 import type { Profile } from "../types";
 import { Icon } from "./Icon";
@@ -111,10 +112,56 @@ function ImportTab() {
 }
 
 function SettingsTab() {
+  const [settings, setSettings] = useState({
+    auto_pull_on_connect: true,
+    skip_push_verification: false,
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    invoke<typeof settings>("get_settings")
+      .then((data) => {
+        setSettings(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("Failed to load settings:", err);
+        setLoading(false);
+      });
+  }, []);
+
+  const updateSetting = async (key: keyof typeof settings, value: boolean) => {
+    const updated = { ...settings, [key]: value };
+    setSettings(updated);
+    try {
+      await invoke("save_settings", { settings: updated });
+    } catch (err) {
+      console.error("Failed to save settings:", err);
+    }
+  };
+
+  if (loading) {
+    return <div className="settings-list">Loading settings...</div>;
+  }
+
   return (
     <div className="settings-list">
-      <label><input type="checkbox" defaultChecked /> Auto-pull EQ from device on connect</label>
-      <label><input type="checkbox" /> Skip push verification</label>
+      <label>
+        <input
+          type="checkbox"
+          checked={settings.auto_pull_on_connect}
+          onChange={(e) => updateSetting("auto_pull_on_connect", e.target.checked)}
+        />
+        Auto-pull EQ from device on connect
+      </label>
+      <label>
+        <input
+          type="checkbox"
+          checked={settings.skip_push_verification}
+          onChange={(e) => updateSetting("skip_push_verification", e.target.checked)}
+        />
+        Skip push verification
+      </label>
     </div>
   );
 }

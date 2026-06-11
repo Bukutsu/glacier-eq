@@ -5,6 +5,7 @@
 
 mod device_commands;
 mod profiles;
+mod settings;
 mod state;
 mod walkplay;
 
@@ -28,6 +29,8 @@ pub fn run() {
             device_commands::list_devices,
             device_commands::connect_device,
             device_commands::disconnect_device,
+            settings::get_settings,
+            settings::save_settings,
         ])
         .run(tauri::generate_context!())
         .expect("error while running glacier-eq");

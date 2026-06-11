@@ -84,20 +84,6 @@ function App() {
     scanDevices();
   }, [scanDevices]);
 
-  const connectDevice = useCallback(async () => {
-    if (!selectedDevice) return;
-    setIsBusy(true);
-    try {
-      await invoke("connect_device", { path: selectedDevice });
-      setConnected(true);
-      setStatus("Ready");
-    } catch (error) {
-      setStatus(`Connection failed: ${error}`);
-    } finally {
-      setIsBusy(false);
-    }
-  }, [selectedDevice]);
-
   const pullEq = useCallback(async () => {
     setIsBusy(true);
     try {
@@ -113,6 +99,27 @@ function App() {
       setIsBusy(false);
     }
   }, []);
+
+  const connectDevice = useCallback(async () => {
+    if (!selectedDevice) return;
+    setIsBusy(true);
+    try {
+      await invoke("connect_device", { path: selectedDevice });
+      setConnected(true);
+      setStatus("Ready");
+
+      const settings = await invoke<{ auto_pull_on_connect: boolean }>("get_settings");
+      if (settings.auto_pull_on_connect) {
+        // We call the inner fetch code of pullEq directly or call pullEq itself.
+        // Since pullEq sets state asynchronously, calling it is safe.
+        await pullEq();
+      }
+    } catch (error) {
+      setStatus(`Connection failed: ${error}`);
+    } finally {
+      setIsBusy(false);
+    }
+  }, [selectedDevice, pullEq]);
 
   const pushEq = useCallback(async () => {
     setIsBusy(true);
