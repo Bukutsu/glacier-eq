@@ -5,6 +5,7 @@ import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -56,6 +57,13 @@ class MainActivity : TauriActivity() {
       @JavascriptInterface
       fun getNavigationBarHeight(): Float = navigationBarHeightDp
     }, "AndroidInsets")
+
+    webView.addJavascriptInterface(object {
+      @JavascriptInterface
+      fun showToast(message: String) {
+        Toast.makeText(this@MainActivity, message, Toast.LENGTH_SHORT).show()
+      }
+    }, "AndroidNotifier")
   }
 
   private fun findWebView(view: View): WebView? {
