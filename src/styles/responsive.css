@@ -153,11 +153,23 @@
     min-height: 44px;
   }
   .graph-view-controls {
-    flex-wrap: wrap;
-    gap: 8px;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 8px 12px;
+    align-items: center;
+    width: 100%;
   }
-  .graph-view-toggle { flex: 1 1 130px; }
+  .graph-view-toggle {
+    grid-column: 2;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    width: auto;
+  }
   .graph-view-toggle button { min-width: 0; }
+  .graph-level-readout {
+    grid-column: 1 / span 2;
+    justify-content: flex-end;
+  }
   .target-scroll {
     margin: 0 -10px;
     padding: 2px 10px 6px;
