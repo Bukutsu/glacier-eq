@@ -54,7 +54,7 @@ h1 {
   border: 1px solid var(--yellow);
   padding: 2px 8px;
   font-size: 11px;
-  background: rgba(var(--yellow-rgb), 0.10);
+  background: rgb(var(--yellow-rgb) / 0.10);
 }
 
 .toolbar { display: flex; gap: 10px; align-items: center; }
