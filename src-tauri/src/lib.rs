@@ -16,8 +16,7 @@ use state::DeviceState;
 
 #[tauri::command]
 fn save_text_file(path: String, content: String) -> Result<(), String> {
-    std::fs::write(&path, &content)
-        .map_err(|e| format!("Failed to write file: {e}"))
+    std::fs::write(&path, &content).map_err(|e| format!("Failed to write file: {e}"))
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
