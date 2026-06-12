@@ -1,0 +1,119 @@
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.toast-item {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 300px;
+  max-width: 420px;
+  padding: 12px 16px;
+  background: var(--panel);
+  color: var(--text);
+  border-radius: var(--radius-control);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  outline: 1px solid var(--line-medium);
+  outline-offset: -1px;
+  animation: toast-in-right 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.toast-item.success {
+  outline: 1px solid var(--green);
+}
+
+.toast-item.success .toast-icon {
+  color: var(--green);
+}
+
+.toast-item.error {
+  outline: 1px solid var(--red);
+}
+
+.toast-item.error .toast-icon {
+  color: var(--red);
+}
+
+.toast-item.info .toast-icon {
+  color: var(--cyan);
+}
+
+.toast-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.toast-message {
+  flex: 1;
+  font-size: var(--type-label);
+  line-height: 1.4;
+  font-weight: 500;
+  word-break: break-word;
+}
+
+.toast-close {
+  background: transparent;
+  border: none;
+  color: var(--comment);
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: var(--radius-control);
+  transition: color 0.12s ease, background-color 0.12s ease;
+}
+
+.toast-close:hover {
+  color: var(--text);
+  background: var(--surface-soft);
+}
+
+@keyframes toast-in-right {
+  from {
+    transform: translateX(120%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes toast-in-bottom {
+  from {
+    transform: translateY(120%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Mobile responsive layout */
+@media (max-width: 768px) {
+  .toast-container {
+    left: 16px;
+    right: 16px;
+    bottom: calc(16px + var(--safe-area-bottom));
+    align-items: stretch;
+  }
+
+  .toast-item {
+    min-width: 0;
+    max-width: none;
+    animation: toast-in-bottom 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+}
