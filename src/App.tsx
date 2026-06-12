@@ -200,6 +200,8 @@ const applyAndroidDynamicColors = (prefersDark: boolean) => {
     const outlineVariant = tokens.outlineVariant || (prefersDark ? "#44444f" : "#c4c6d0");
     const onSurface = tokens.onSurface || (prefersDark ? "#e3e3e9" : "#1a1c1e");
     const onSurfaceVariant = tokens.onSurfaceVariant || (prefersDark ? "#c4c4cf" : "#43474e");
+    const primary = tokens.primary || (prefersDark ? "#8ca4f2" : "#1e66f5");
+    const onPrimary = tokens.onPrimary || (prefersDark ? "#12131a" : "#ffffff");
     const primaryContainer = tokens.primaryContainer || (prefersDark ? "#2c303f" : "#dbe2f9");
     const onPrimaryContainer = tokens.onPrimaryContainer || (prefersDark ? "#a8c7fa" : "#001b3d");
     const secondaryContainer = tokens.secondaryContainer || primaryContainer;
@@ -216,9 +218,9 @@ const applyAndroidDynamicColors = (prefersDark: boolean) => {
     setVar("--muted", onSurfaceVariant);
     setVar("--comment", onSurfaceVariant);
 
-    setVar("--cyan", primaryContainer);
+    setVar("--cyan", primary);
     setVar("--bright-cyan", onPrimaryContainer);
-    setVar("--btn-filled-text", onPrimaryContainer);
+    setVar("--btn-filled-text", onPrimary);
     setVar("--surface-disabled", container);
     setVar("--text-disabled", "#747783");
 

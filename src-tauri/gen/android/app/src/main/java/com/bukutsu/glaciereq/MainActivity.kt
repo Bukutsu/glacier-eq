@@ -116,6 +116,8 @@ class MainActivity : TauriActivity() {
               "outlineVariant" to com.google.android.material.R.attr.colorOutlineVariant,
               "onSurface" to com.google.android.material.R.attr.colorOnSurface,
               "onSurfaceVariant" to com.google.android.material.R.attr.colorOnSurfaceVariant,
+              "primary" to com.google.android.material.R.attr.colorPrimary,
+              "onPrimary" to com.google.android.material.R.attr.colorOnPrimary,
               "primaryContainer" to com.google.android.material.R.attr.colorPrimaryContainer,
               "onPrimaryContainer" to com.google.android.material.R.attr.colorOnPrimaryContainer,
               "secondaryContainer" to com.google.android.material.R.attr.colorSecondaryContainer,
