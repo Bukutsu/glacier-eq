@@ -1,6 +1,7 @@
 package com.bukutsu.glaciereq
 
 import android.os.Bundle
+import android.util.TypedValue
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import android.widget.Toast
@@ -104,6 +105,29 @@ class MainActivity : TauriActivity() {
             json.put("neutral2_500", colorToHex(resources.getColor(android.R.color.system_neutral2_500, null)))
             json.put("neutral2_700", colorToHex(resources.getColor(android.R.color.system_neutral2_700, null)))
             json.put("neutral2_800", colorToHex(resources.getColor(android.R.color.system_neutral2_800, null)))
+
+            // Resolve Material 3 theme attributes dynamically
+            val m3Attrs = mapOf(
+              "surface" to com.google.android.material.R.attr.colorSurface,
+              "surfaceContainerLowest" to com.google.android.material.R.attr.colorSurfaceContainerLowest,
+              "surfaceContainerLow" to com.google.android.material.R.attr.colorSurfaceContainerLow,
+              "surfaceContainer" to com.google.android.material.R.attr.colorSurfaceContainer,
+              "surfaceContainerHigh" to com.google.android.material.R.attr.colorSurfaceContainerHigh,
+              "outlineVariant" to com.google.android.material.R.attr.colorOutlineVariant,
+              "onSurface" to com.google.android.material.R.attr.colorOnSurface,
+              "onSurfaceVariant" to com.google.android.material.R.attr.colorOnSurfaceVariant,
+              "primaryContainer" to com.google.android.material.R.attr.colorPrimaryContainer,
+              "onPrimaryContainer" to com.google.android.material.R.attr.colorOnPrimaryContainer,
+              "secondaryContainer" to com.google.android.material.R.attr.colorSecondaryContainer,
+              "onSecondaryContainer" to com.google.android.material.R.attr.colorOnSecondaryContainer
+            )
+
+            for ((key, attr) in m3Attrs) {
+              val typedValue = TypedValue()
+              if (theme.resolveAttribute(attr, typedValue, true)) {
+                json.put(key, colorToHex(typedValue.data))
+              }
+            }
           } catch (e: Exception) {
             e.printStackTrace()
           }

@@ -355,7 +355,12 @@ img {
 }
 button, input { font: inherit; }
 button { border: 0; cursor: pointer; }
-button:disabled { cursor: not-allowed; opacity: .5; }
+button:disabled, .btn:disabled, .tools-card button:disabled, .diag-card button:disabled, .device-actions button:disabled {
+  cursor: not-allowed;
+  background: var(--surface-disabled, var(--surface-soft)) !important;
+  color: var(--text-disabled, var(--muted)) !important;
+  opacity: 0.65 !important;
+}
 button:focus-visible,
 input:focus-visible,
 select:focus-visible {
@@ -412,7 +417,7 @@ select:focus-visible {
 
 .btn:hover:not(:disabled), .tools-card button:hover:not(:disabled), .diag-card button:hover:not(:disabled) { filter: brightness(1.14); }
 .btn:active:not(:disabled), .tools-card button:active:not(:disabled), .diag-card button:active:not(:disabled) { filter: brightness(1.24); }
-.btn.filled, button.save { background: var(--cyan); color: var(--bg-dark); }
+.btn.filled, button.save { background: var(--cyan); color: var(--btn-filled-text, var(--bg-dark)); }
 
 @media (pointer: coarse) {
   .btn, .tools-card button, .diag-card button, .device-actions button {
