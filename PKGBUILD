@@ -2,14 +2,13 @@
 # Source: https://github.com/Bukutsu/glacier-eq
 
 pkgname=glacier-eq-git
-pkgver=r86.8e162f5
+pkgver=r100.44c7024
 pkgrel=1
 pkgdesc="Cross-platform parametric EQ editor for USB DACs. Offline, direct, and built for dense tuning work on desktop and Android."
 arch=('x86_64' 'aarch64')
 url="https://github.com/Bukutsu/glacier-eq"
 license=('MIT')
 depends=(
-  'hidapi'
   'webkit2gtk-4.1'
   'libayatana-appindicator'
   'librsvg'
