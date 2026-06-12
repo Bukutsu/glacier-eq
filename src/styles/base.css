@@ -218,37 +218,34 @@ select:focus-visible {
 }
 
 ::-webkit-scrollbar {
-  width: 6px !important;
-  height: 6px !important;
+  width: 6px; /* Vertical scrollbar width */
+  height: 6px; /* Horizontal scrollbar height */
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--bg-dark) !important;
-  border-left: 1px solid var(--line-subtle) !important;
-  border-radius: 0px !important;
+  background: var(--bg-dark);
+  border-left: 1px solid var(--line-subtle);
 }
 
 ::-webkit-scrollbar-track:horizontal {
-  border-left: none !important;
-  border-top: 1px solid var(--line-subtle) !important;
-  border-radius: 0px !important;
+  border-left: none;
+  border-top: 1px solid var(--line-subtle);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--comment) !important;
-  border-radius: 0px !important;
-  border: none !important;
+  background: var(--comment);
+  border-radius: var(--radius-none); /* Sharp corners theme */
+  transition: background 0.14s ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--cyan) !important;
+  background: var(--cyan); /* Cyan hover highlight for premium feel */
 }
 
 ::-webkit-scrollbar-thumb:active {
-  background: var(--cyan) !important;
+  background: var(--cyan);
 }
 
 ::-webkit-scrollbar-corner {
-  background: var(--bg-dark) !important;
-  border-radius: 0px !important;
+  background: var(--bg-dark);
 }
