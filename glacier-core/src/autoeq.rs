@@ -503,7 +503,7 @@ fn biquad_fn(filter_type: FilterType, a_val: f32, cos_w: f32, alpha: f32) -> Biq
     }
 }
 
-fn spectrum(
+pub fn spectrum(
     filter_type: FilterType,
     f0: f32,
     gain: f32,

@@ -253,15 +253,14 @@ pub struct AutoEqRunResult {
 }
 
 #[tauri::command]
-pub fn run_autoeq(
+pub fn run_autoeq_internal(
     measurement_points: Vec<(f64, f64)>,
     target_points: Vec<(f64, f64)>,
     n_bands: usize,
     steps: usize,
     smooth_type: String,
     fs: f32,
-    state: tauri::State<'_, Mutex<DeviceState>>,
-) -> Result<AutoEqRunResult, String> {
+) -> Result<PEQData, String> {
     if n_bands == 0 || n_bands > glacier_core::autoeq::MAX_N {
         return Err("Number of bands must be between 1 and 32".to_string());
     }
@@ -347,13 +346,59 @@ pub fn run_autoeq(
         });
     }
 
-    let total_preamp = preamp_mean + amp.unwrap_or(0.0);
-    let preamp = total_preamp.round() as i8;
+    // Calculate the combined frequency response of the optimized filters to prevent digital clipping
+    let mut response = [0.0f32; glacier_core::autoeq::K];
+    for filter in &filters {
+        glacier_core::autoeq::spectrum(
+            filter.filter_type,
+            filter.freq as f32,
+            filter.gain as f32,
+            filter.q as f32,
+            fs,
+            &f,
+            &mut response,
+        );
+    }
 
-    let mut peq = PEQData {
+    let mut max_gain = 0.0f32;
+    for &val in response.iter() {
+        if val > max_gain {
+            max_gain = val;
+        }
+    }
+
+    let total_preamp = preamp_mean + amp.unwrap_or(0.0);
+    let preamp_val = if total_preamp + max_gain > 0.0 {
+        -max_gain
+    } else {
+        total_preamp
+    };
+    let preamp = preamp_val.round() as i8;
+
+    Ok(PEQData {
         filters,
         global_gain: preamp,
-    };
+    })
+}
+
+#[tauri::command]
+pub fn run_autoeq(
+    measurement_points: Vec<(f64, f64)>,
+    target_points: Vec<(f64, f64)>,
+    n_bands: usize,
+    steps: usize,
+    smooth_type: String,
+    fs: f32,
+    state: tauri::State<'_, Mutex<DeviceState>>,
+) -> Result<AutoEqRunResult, String> {
+    let mut peq = run_autoeq_internal(
+        measurement_points,
+        target_points,
+        n_bands,
+        steps,
+        smooth_type,
+        fs,
+    )?;
 
     let caps = if let Some(connected) = &state.lock().unwrap().connected {
         glacier_core::device::get_device_profile(connected.vendor_id, connected.product_id)
@@ -366,4 +411,39 @@ pub fn run_autoeq(
     let warnings = peq.clamp_to_capabilities(&caps);
 
     Ok(AutoEqRunResult { peq, warnings })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_run_autoeq_preamp_clipping_prevention() {
+        let mut measurement_points = Vec::new();
+        let mut target_points = Vec::new();
+
+        // Create a flat measurement and a target with a sharp +12dB boost at 1kHz
+        for freq_val in [20.0, 100.0, 500.0, 1000.0, 2000.0, 5000.0, 10000.0, 20000.0] {
+            let freq = freq_val as f64;
+            measurement_points.push((freq, 0.0));
+            if (freq - 1000.0).abs() < 1.0 {
+                target_points.push((freq, 12.0));
+            } else {
+                target_points.push((freq, 0.0));
+            }
+        }
+
+        let peq = run_autoeq_internal(
+            measurement_points,
+            target_points,
+            5,
+            100,
+            "None".to_string(),
+            48000.0,
+        )
+        .unwrap();
+
+        // The optimized EQ must have a negative preamp to prevent digital clipping
+        assert!(peq.global_gain < 0);
+    }
 }
