@@ -223,7 +223,11 @@ pub fn parse_autoeq(
     let (mut peq, headphone_name, mut warnings) =
         glacier_core::autoeq::parse_autoeq_text(&text).map_err(|err| err.to_string())?;
 
-    let caps = if let Some(connected) = &state.lock().unwrap().connected {
+    let caps = if let Some(connected) = &state
+        .lock()
+        .map_err(|_| "Device state lock poisoned".to_string())?
+        .connected
+    {
         glacier_core::device::get_device_profile(connected.vendor_id, connected.product_id)
             .map(|profile| profile.capabilities())
             .unwrap_or(glacier_core::device::capabilities::DESKTOP_DAC_CAPS)
@@ -400,7 +404,11 @@ pub fn run_autoeq(
         fs,
     )?;
 
-    let caps = if let Some(connected) = &state.lock().unwrap().connected {
+    let caps = if let Some(connected) = &state
+        .lock()
+        .map_err(|_| "Device state lock poisoned".to_string())?
+        .connected
+    {
         glacier_core::device::get_device_profile(connected.vendor_id, connected.product_id)
             .map(|profile| profile.capabilities())
             .unwrap_or(glacier_core::device::capabilities::DESKTOP_DAC_CAPS)
