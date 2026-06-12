@@ -143,7 +143,9 @@ const clearAndroidDynamicColors = () => {
     "--red", "--red-rgb",
     "--purple", "--purple-rgb",
     "--teal", "--teal-rgb",
-    "--dark-cyan", "--dark-cyan-rgb"
+    "--dark-cyan", "--dark-cyan-rgb",
+    "--tab-active-pill",
+    "--tab-active-icon"
   ];
   vars.forEach((v) => root.style.removeProperty(v));
 };
@@ -211,6 +213,10 @@ const applyAndroidDynamicColors = (prefersDark: boolean) => {
       setVar("--cyan", baseAccentHex);
       setVar("--bright-cyan", tokens.accent1_100 || hslToHex(baseAccentHsl.h, baseAccentHsl.s, 85));
 
+      // Native Material 3 active indicator pill (low contrast container, high contrast icon)
+      setVar("--tab-active-pill", tokens.accent1_800 || hslToHex(baseAccentHsl.h, Math.max(20, baseAccentHsl.s - 15), 24));
+      setVar("--tab-active-icon", baseAccentHex);
+
       // Generate wallpaper-harmonized semantic/target colors (using hue rotation)
       // We enforce a minimum saturation of 50% and lightness of 65% for high readability in dark mode
       const sat = Math.max(baseAccentHsl.s, 50);
@@ -246,6 +252,10 @@ const applyAndroidDynamicColors = (prefersDark: boolean) => {
       // Set primary accent colors
       setVar("--cyan", baseAccentHex);
       setVar("--bright-cyan", tokens.accent1_200 || hslToHex(baseAccentHsl.h, baseAccentHsl.s, 40));
+
+      // Native Material 3 active indicator pill (light container, dark icon)
+      setVar("--tab-active-pill", tokens.accent1_100 || hslToHex(baseAccentHsl.h, baseAccentHsl.s, 90));
+      setVar("--tab-active-icon", tokens.accent1_900 || hslToHex(baseAccentHsl.h, baseAccentHsl.s, 20));
 
       // Generate wallpaper-harmonized semantic/target colors (using hue rotation)
       // We enforce a minimum saturation of 60% and lightness capped at 45% for high readability on light panels

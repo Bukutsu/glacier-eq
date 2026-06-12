@@ -539,12 +539,12 @@
   }
 
   .mobile-tab-item.active {
-    color: var(--cyan);
+    color: var(--tab-active-icon, var(--cyan));
   }
 
   .mobile-tab-item.active .mobile-tab-icon-wrapper {
-    background-color: var(--cyan);
-    color: var(--bg);
+    background-color: var(--tab-active-pill, rgb(var(--cyan-rgb) / 0.16));
+    color: var(--tab-active-icon, var(--cyan));
   }
 
   .mobile-tab-item .material-symbols-outlined {
