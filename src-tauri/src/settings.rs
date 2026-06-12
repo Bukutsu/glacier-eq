@@ -6,10 +6,16 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+fn default_theme() -> String {
+    "tokyo-night".to_string()
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Settings {
     pub auto_pull_on_connect: bool,
     pub skip_push_verification: bool,
+    #[serde(default = "default_theme")]
+    pub theme: String,
 }
 
 impl Default for Settings {
@@ -17,6 +23,7 @@ impl Default for Settings {
         Self {
             auto_pull_on_connect: true,
             skip_push_verification: false,
+            theme: default_theme(),
         }
     }
 }

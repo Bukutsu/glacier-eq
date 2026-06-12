@@ -51,6 +51,18 @@ function App() {
     return () => media.removeEventListener("change", listener);
   }, []);
 
+  useEffect(() => {
+    invoke<{ theme?: string }>("get_settings")
+      .then((settings) => {
+        if (settings && settings.theme) {
+          document.documentElement.setAttribute("data-theme", settings.theme);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load initial settings for theme:", err);
+      });
+  }, []);
+
   const [peq, setPeq] = useState<PEQData>(buildDefaultState);
   const [devices, setDevices] = useState<DeviceInfo[]>([]);
   const [selectedDevice, setSelectedDevice] = useState("");

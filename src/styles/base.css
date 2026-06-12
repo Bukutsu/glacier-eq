@@ -6,11 +6,13 @@
 
 * { box-sizing: border-box; }
 
-:root {
+:root, [data-theme="tokyo-night"] {
   --bg: #1a1b26;
   --bg-rgb: 26 27 38;
   --bg-dark: #1b1e2e;
   --bg-dark-rgb: 27 30 46;
+  --bg-darker: #16161e;
+  --bg-darker-rgb: 22 22 30;
   --panel: #24283b;
   --panel-rgb: 36 40 59;
   --surface: #363b54;
@@ -47,6 +49,189 @@
   --terminal-black-rgb: 65 72 104;
   --text-alt: #9aa5ce;
   --text-alt-rgb: 154 165 206;
+}
+
+[data-theme="nordic-frost"] {
+  --bg: #2e3440;
+  --bg-rgb: 46 52 64;
+  --bg-dark: #242933;
+  --bg-dark-rgb: 36 41 51;
+  --bg-darker: #1d212a;
+  --bg-darker-rgb: 29 33 42;
+  --panel: #3b4252;
+  --panel-rgb: 59 66 82;
+  --surface: #4c566a;
+  --surface-rgb: 76 86 106;
+  --surface-soft: #434c5e;
+  --surface-soft-rgb: 67 76 94;
+  --text: #eceff4;
+  --text-rgb: 236 239 244;
+  --muted: #d8dee9;
+  --muted-rgb: 216 222 233;
+  --comment: #60728a;
+  --comment-rgb: 96 114 138;
+  --cyan: #88c0d0;
+  --cyan-rgb: 136 192 208;
+  --blue: #81a1c1;
+  --blue-rgb: 129 161 193;
+  --green: #a3be8c;
+  --green-rgb: 163 190 140;
+  --orange: #d08770;
+  --orange-rgb: 208 135 112;
+  --yellow: #ebcb8b;
+  --yellow-rgb: 235 203 139;
+  --red: #bf616a;
+  --red-rgb: 191 97 106;
+  --purple: #b48ead;
+  --purple-rgb: 180 142 173;
+  --teal: #8fbcbb;
+  --teal-rgb: 143 188 187;
+  --dark-cyan: #5e81ac;
+  --dark-cyan-rgb: 94 129 172;
+  --bright-cyan: #b4f9f8;
+  --bright-cyan-rgb: 180 249 248;
+  --terminal-black: #4c566a;
+  --terminal-black-rgb: 76 86 106;
+  --text-alt: #e5e9f0;
+  --text-alt-rgb: 229 233 240;
+}
+
+[data-theme="matrix"] {
+  --bg: #050705;
+  --bg-rgb: 5 7 5;
+  --bg-dark: #090e09;
+  --bg-dark-rgb: 9 14 9;
+  --bg-darker: #020302;
+  --bg-darker-rgb: 2 3 2;
+  --panel: #0d140d;
+  --panel-rgb: 13 20 13;
+  --surface: #182518;
+  --surface-rgb: 24 37 24;
+  --surface-soft: #131d13;
+  --surface-soft-rgb: 19 29 19;
+  --text: #d2ffd2;
+  --text-rgb: 210 255 210;
+  --muted: #78aa78;
+  --muted-rgb: 120 170 120;
+  --comment: #3b5e3b;
+  --comment-rgb: 59 94 59;
+  --cyan: #39ff14;
+  --cyan-rgb: 57 255 20;
+  --blue: #00ff41;
+  --blue-rgb: 0 255 65;
+  --green: #39ff14;
+  --green-rgb: 57 255 20;
+  --orange: #ff7b00;
+  --orange-rgb: 255 123 0;
+  --yellow: #ccff00;
+  --yellow-rgb: 204 255 0;
+  --red: #ff3333;
+  --red-rgb: 255 51 51;
+  --purple: #b026ff;
+  --purple-rgb: 176 38 255;
+  --teal: #00ffcc;
+  --teal-rgb: 0 255 204;
+  --dark-cyan: #008000;
+  --dark-cyan-rgb: 0 128 0;
+  --bright-cyan: #e0ffe0;
+  --bright-cyan-rgb: 224 255 224;
+  --terminal-black: #182818;
+  --terminal-black-rgb: 24 40 24;
+  --text-alt: #8ebd8e;
+  --text-alt-rgb: 142 189 142;
+}
+
+[data-theme="amber"] {
+  --bg: #120f1d;
+  --bg-rgb: 18 15 29;
+  --bg-dark: #0d0a15;
+  --bg-dark-rgb: 13 10 21;
+  --bg-darker: #07050b;
+  --bg-darker-rgb: 7 5 11;
+  --panel: #1c182d;
+  --panel-rgb: 28 24 45;
+  --surface: #2a2443;
+  --surface-rgb: 42 36 67;
+  --surface-soft: #211c35;
+  --surface-soft-rgb: 33 28 53;
+  --text: #ffeeb2;
+  --text-rgb: 255 238 178;
+  --muted: #dfcf97;
+  --muted-rgb: 223 207 151;
+  --comment: #70654c;
+  --comment-rgb: 112 101 76;
+  --cyan: #ffb000;
+  --cyan-rgb: 255 176 0;
+  --blue: #ff9200;
+  --blue-rgb: 255 146 0;
+  --green: #05c46b;
+  --green-rgb: 5 196 107;
+  --orange: #ffb000;
+  --orange-rgb: 255 176 0;
+  --yellow: #ffd200;
+  --yellow-rgb: 255 210 0;
+  --red: #ff3f34;
+  --red-rgb: 255 63 52;
+  --purple: #ef5777;
+  --purple-rgb: 239 87 119;
+  --teal: #0be881;
+  --teal-rgb: 11 232 129;
+  --dark-cyan: #c48b00;
+  --dark-cyan-rgb: 196 139 0;
+  --bright-cyan: #fff5d6;
+  --bright-cyan-rgb: 255 245 214;
+  --terminal-black: #3c355c;
+  --terminal-black-rgb: 60 53 92;
+  --text-alt: #eedaa0;
+  --text-alt-rgb: 238 218 160;
+}
+
+[data-theme="glacier-crimson"] {
+  --bg: #1e1e1e;
+  --bg-rgb: 30 30 30;
+  --bg-dark: #171717;
+  --bg-dark-rgb: 23 23 23;
+  --bg-darker: #121212;
+  --bg-darker-rgb: 18 18 18;
+  --panel: #252526;
+  --panel-rgb: 37 37 38;
+  --surface: #3e3e3f;
+  --surface-rgb: 62 62 63;
+  --surface-soft: #2d2d2d;
+  --surface-soft-rgb: 45 45 45;
+  --text: #e3e3e3;
+  --text-rgb: 227 227 227;
+  --muted: #a6a6a6;
+  --muted-rgb: 166 166 166;
+  --comment: #6c6c6c;
+  --comment-rgb: 108 108 108;
+  --cyan: #ff4a68;
+  --cyan-rgb: 255 74 104;
+  --blue: #e83e8c;
+  --blue-rgb: 232 62 140;
+  --green: #39c5bb;
+  --green-rgb: 57 197 187;
+  --orange: #ff7b54;
+  --orange-rgb: 255 123 84;
+  --yellow: #ffd200;
+  --yellow-rgb: 255 210 0;
+  --red: #ff4a68;
+  --red-rgb: 255 74 104;
+  --purple: #c77dff;
+  --purple-rgb: 199 125 255;
+  --teal: #06d6a0;
+  --teal-rgb: 6 214 160;
+  --dark-cyan: #b8001f;
+  --dark-cyan-rgb: 184 0 31;
+  --bright-cyan: #ffccd5;
+  --bright-cyan-rgb: 255 204 213;
+  --terminal-black: #4f4f4f;
+  --terminal-black-rgb: 79 79 79;
+  --text-alt: #c4c4c4;
+  --text-alt-rgb: 196 196 196;
+}
+
+:root {
   --line: rgb(var(--terminal-black-rgb) / 0.55);
   --line-subtle: rgb(var(--terminal-black-rgb) / 0.28);
   --line-soft: rgb(var(--terminal-black-rgb) / 0.35);
@@ -71,8 +256,8 @@
   --warning-border: rgb(var(--yellow-rgb) / 0.4);
   --warning-bg: rgb(var(--yellow-rgb) / 0.05);
   --accent-bg-subtle: rgb(var(--cyan-rgb) / 0.05);
-  --panel-dark: rgba(22, 22, 30, 0.65);
-  --legend-bg: rgba(22, 22, 30, 0.82);
+  --panel-dark: rgb(var(--bg-darker-rgb) / 0.65);
+  --legend-bg: rgb(var(--bg-darker-rgb) / 0.82);
   --shadow-bar: rgba(0, 0, 0, 0.3);
   --theme-checkmark: var(--bg-dark);
   --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, sans-serif;
