@@ -386,7 +386,7 @@ pub fn run_autoeq_internal(
 }
 
 #[tauri::command]
-pub fn run_autoeq(
+pub async fn run_autoeq(
     measurement_points: Vec<(f64, f64)>,
     target_points: Vec<(f64, f64)>,
     n_bands: usize,
