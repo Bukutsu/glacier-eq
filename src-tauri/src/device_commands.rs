@@ -19,7 +19,7 @@ const MAX_FILTER_MISMATCHES: usize = 8;
 const GLOBAL_GAIN_READ_ATTEMPTS: usize = 20;
 
 #[tauri::command]
-pub fn get_eq_state(
+pub async fn get_eq_state(
     app: tauri::AppHandle,
     state: tauri::State<'_, Mutex<DeviceState>>,
     diagnostics_store: tauri::State<'_, Mutex<DiagnosticsStore>>,
@@ -180,7 +180,7 @@ fn rollback_state(
 }
 
 #[tauri::command]
-pub fn set_eq_state(
+pub async fn set_eq_state(
     app: tauri::AppHandle,
     state: tauri::State<'_, Mutex<DeviceState>>,
     diagnostics_store: tauri::State<'_, Mutex<DiagnosticsStore>>,
