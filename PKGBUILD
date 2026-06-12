@@ -9,6 +9,7 @@ arch=('x86_64' 'aarch64')
 url="https://github.com/Bukutsu/glacier-eq"
 license=('MIT')
 depends=(
+  'hidapi'
   'webkit2gtk-4.1'
   'libayatana-appindicator'
   'librsvg'
