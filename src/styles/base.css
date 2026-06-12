@@ -107,10 +107,20 @@ body {
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  user-select: none;
+  -webkit-user-select: none;
 }
 body.is-android {
   --safe-area-top: var(--safe-area-inset-top-android, 28px);
   --safe-area-bottom: var(--safe-area-inset-bottom-android, 16px);
+}
+input, textarea, [contenteditable="true"] {
+  user-select: text;
+  -webkit-user-select: text;
+}
+img {
+  -webkit-user-drag: none;
+  user-drag: none;
 }
 button, input { font: inherit; }
 button { border: 0; cursor: pointer; }
