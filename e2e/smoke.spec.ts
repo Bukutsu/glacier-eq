@@ -171,7 +171,7 @@ test("Dev dummy DAC connects without hardware", async ({ page }) => {
   await page.click("button:has-text('Connect')");
 
   await expect(page.locator(".device-name")).toContainText("Glacier Dummy DAC");
-  await expect(page.locator(".preamp-value-stepper input")).toHaveValue("-4.0");
+  await expect(page.locator(".preamp-value-stepper input")).toHaveValue("-4.00");
 });
 
 test("Modifying EQ bands and preamp", async ({ page }) => {
@@ -181,7 +181,7 @@ test("Modifying EQ bands and preamp", async ({ page }) => {
   // Verify initial preamp value is 0 dB
   const preampCard = page.locator(".preamp-card");
   await expect(preampCard.locator("strong")).toContainText("Preamp");
-  await expect(preampCard.locator(".preamp-value-stepper input")).toHaveValue("0.0");
+  await expect(preampCard.locator(".preamp-value-stepper input")).toHaveValue("0.00");
 
   // Locate the preamp slider and adjust it
   const preampSlider = page.locator(".preamp-card input[type='range']");
@@ -190,7 +190,7 @@ test("Modifying EQ bands and preamp", async ({ page }) => {
   await preampSlider.dispatchEvent("change");
 
   // Preamp text should update to -5 dB and header show UNSAVED
-  await expect(preampCard.locator(".preamp-value-stepper input")).toHaveValue("-5.0");
+  await expect(preampCard.locator(".preamp-value-stepper input")).toHaveValue("-5.00");
   await expect(page.locator(".unsaved")).toBeVisible();
 
   // Modify Band 1 freq, Q, and gain
