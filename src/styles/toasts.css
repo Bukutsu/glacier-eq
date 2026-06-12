@@ -117,8 +117,3 @@
     animation: toast-in-bottom 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
 }
-
-.toast-icon span,
-.toast-close span {
-  font-family: "Material Icons" !important;
-}
