@@ -51,3 +51,8 @@ export interface Profile {
   data: PEQData;
   modified: string | null;
 }
+
+export interface OperationProgress {
+  message: string;
+  percentage: number;
+}
