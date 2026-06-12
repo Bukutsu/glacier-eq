@@ -19,6 +19,11 @@ import "./App.css";
 
 const ANDROID_TOAST_DEDUPE_MS = 2000;
 
+const sleep = (ms: number) => {
+  const isAutomated = typeof navigator !== "undefined" && navigator.webdriver;
+  return new Promise((resolve) => setTimeout(resolve, isAutomated ? 0 : ms));
+};
+
 declare global {
   interface Window {
     AndroidNotifier?: {
@@ -328,23 +333,23 @@ function App() {
       let data: PEQData;
       if (isDevDummyDevice(selectedDevice)) {
         setProgress({ message: "Initializing read connection...", percentage: 5 });
-        await new Promise((resolve) => setTimeout(resolve, 200));
+        await sleep(200);
         setProgress({ message: "Reading band 1/10...", percentage: 15 });
-        await new Promise((resolve) => setTimeout(resolve, 150));
+        await sleep(150);
         setProgress({ message: "Reading band 4/10...", percentage: 40 });
-        await new Promise((resolve) => setTimeout(resolve, 150));
+        await sleep(150);
         setProgress({ message: "Reading band 7/10...", percentage: 65 });
-        await new Promise((resolve) => setTimeout(resolve, 150));
+        await sleep(150);
         setProgress({ message: "Reading band 10/10...", percentage: 85 });
-        await new Promise((resolve) => setTimeout(resolve, 150));
+        await sleep(150);
         setProgress({ message: "Reading device preamp...", percentage: 90 });
-        await new Promise((resolve) => setTimeout(resolve, 150));
+        await sleep(150);
         setProgress({ message: "Read successful", percentage: 100 });
-        await new Promise((resolve) => setTimeout(resolve, 400));
+        await sleep(400);
         data = buildDevDummyPeq();
       } else {
         data = await invoke<PEQData>("get_eq_state");
-        await new Promise((resolve) => setTimeout(resolve, 400));
+        await sleep(400);
       }
       setPeq(normalizePeq(data));
       selectedPresetRef.current = "Pulled from device";
@@ -393,24 +398,24 @@ function App() {
     try {
       if (isDevDummyDevice(selectedDevice)) {
         setProgress({ message: "Initializing push connection...", percentage: 10 });
-        await new Promise((resolve) => setTimeout(resolve, 200));
+        await sleep(200);
         setProgress({ message: "Writing band 1/10...", percentage: 20 });
-        await new Promise((resolve) => setTimeout(resolve, 150));
+        await sleep(150);
         setProgress({ message: "Writing band 5/10...", percentage: 45 });
-        await new Promise((resolve) => setTimeout(resolve, 150));
+        await sleep(150);
         setProgress({ message: "Writing band 10/10...", percentage: 70 });
-        await new Promise((resolve) => setTimeout(resolve, 150));
+        await sleep(150);
         setProgress({ message: "Writing preamp...", percentage: 75 });
-        await new Promise((resolve) => setTimeout(resolve, 150));
+        await sleep(150);
         setProgress({ message: "Committing changes to device...", percentage: 80 });
-        await new Promise((resolve) => setTimeout(resolve, 200));
+        await sleep(200);
         setProgress({ message: "Verifying changes...", percentage: 90 });
-        await new Promise((resolve) => setTimeout(resolve, 200));
+        await sleep(200);
         setProgress({ message: "Push successful", percentage: 100 });
-        await new Promise((resolve) => setTimeout(resolve, 400));
+        await sleep(400);
       } else {
         await invoke("set_eq_state", { peq });
-        await new Promise((resolve) => setTimeout(resolve, 400));
+        await sleep(400);
       }
       setDirty(false);
       setStatus(isDevDummyDevice(selectedDevice) ? "Dummy DAC push simulated" : "Push successful");
