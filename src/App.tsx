@@ -1219,28 +1219,36 @@ function App() {
               className={`mobile-tab-item ${activeTab === "eq" ? "active" : ""}`}
               onClick={() => setActiveTab("eq")}
             >
-              <Icon>tune</Icon>
+              <div className="mobile-tab-icon-wrapper">
+                <Icon>tune</Icon>
+              </div>
               <span>EQ</span>
             </button>
             <button
               className={`mobile-tab-item ${activeTab === "tuning" ? "active" : ""}`}
               onClick={() => setActiveTab("tuning")}
             >
-              <Icon>auto_awesome</Icon>
+              <div className="mobile-tab-icon-wrapper">
+                <Icon>auto_awesome</Icon>
+              </div>
               <span>Tuning</span>
             </button>
             <button
               className={`mobile-tab-item ${activeTab === "profiles" ? "active" : ""}`}
               onClick={() => setActiveTab("profiles")}
             >
-              <Icon>folder</Icon>
+              <div className="mobile-tab-icon-wrapper">
+                <Icon>folder</Icon>
+              </div>
               <span>Profiles</span>
             </button>
             <button
               className={`mobile-tab-item ${activeTab === "settings" ? "active" : ""}`}
               onClick={() => setActiveTab("settings")}
             >
-              <Icon>settings</Icon>
+              <div className="mobile-tab-icon-wrapper">
+                <Icon>settings</Icon>
+              </div>
               <span>Settings</span>
             </button>
           </nav>
