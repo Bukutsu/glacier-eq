@@ -20,7 +20,6 @@
         "minWidth": 720,
         "minHeight": 500,
         "resizable": true,
-        "zoomDisabled": true,
         "theme": "Dark"
       }
     ],
