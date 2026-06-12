@@ -133,6 +133,12 @@ select:focus-visible {
   padding: var(--safe-area-top) var(--safe-area-right) var(--safe-area-bottom) var(--safe-area-left);
 }
 
+/* 
+  CRITICAL FOR WEBVIEW COMPATIBILITY: 
+  Always prioritize "Material Icons" first because it resolves directly to our local MaterialIcons-Regular.ttf font.
+  WebView engines (Tauri, WebKit, WebView2) frequently fail to fall back to "Material Icons" if "Material Symbols Outlined" 
+  is placed first, causing icons to incorrectly render as literal text (e.g. "close", "check_circle"). DO NOT change this order.
+*/
 .material-symbols-outlined {
   font-family: "Material Icons", "Material Symbols Outlined", sans-serif;
   font-weight: normal;
