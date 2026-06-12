@@ -145,7 +145,14 @@ const clearAndroidDynamicColors = () => {
     "--teal", "--teal-rgb",
     "--dark-cyan", "--dark-cyan-rgb",
     "--tab-active-pill",
-    "--tab-active-icon"
+    "--tab-active-icon",
+    "--btn-filled-text",
+    "--surface-disabled",
+    "--text-disabled",
+    "--line", "--line-rgb",
+    "--line-subtle", "--line-subtle-rgb",
+    "--line-heavy", "--line-heavy-rgb",
+    "--line-outline", "--line-outline-rgb"
   ];
   vars.forEach((v) => root.style.removeProperty(v));
 };
@@ -178,99 +185,69 @@ const applyAndroidDynamicColors = (prefersDark: boolean) => {
       }
     };
 
-    // Calculate base HSL from wallpaper primary accent
+    // Calculate base HSL from wallpaper primary accent for target/semantic color rotation
     const baseAccentHex = prefersDark
       ? (tokens.accent1_300 || "#8be9fd")
       : (tokens.accent1_600 || "#1e66f5");
     const baseAccentHsl = hexToHsl(baseAccentHex);
 
-    // Calculate base HSL from wallpaper panel background
-    const basePanelHex = prefersDark
-      ? (tokens.neutral1_800 || "#1e1f25")
-      : (tokens.neutral1_10 || "#eff1f5");
-    const basePanelHsl = hexToHsl(basePanelHex);
+    // Resolve Material 3 color roles with robust fallbacks
+    const surface = tokens.surface || (prefersDark ? "#12131a" : "#eff1f5");
+    const lowest = tokens.surfaceContainerLowest || (prefersDark ? "#0a0a0d" : "#ffffff");
+    const low = tokens.surfaceContainerLow || (prefersDark ? "#16161f" : "#f7f7f9");
+    const container = tokens.surfaceContainer || (prefersDark ? "#1d1d26" : "#eff1f5");
+    const high = tokens.surfaceContainerHigh || (prefersDark ? "#282833" : "#e1e2ec");
+    const outlineVariant = tokens.outlineVariant || (prefersDark ? "#44444f" : "#c4c6d0");
+    const onSurface = tokens.onSurface || (prefersDark ? "#e3e3e9" : "#1a1c1e");
+    const onSurfaceVariant = tokens.onSurfaceVariant || (prefersDark ? "#c4c4cf" : "#43474e");
+    const primaryContainer = tokens.primaryContainer || (prefersDark ? "#2c303f" : "#dbe2f9");
+    const onPrimaryContainer = tokens.onPrimaryContainer || (prefersDark ? "#a8c7fa" : "#001b3d");
+    const secondaryContainer = tokens.secondaryContainer || primaryContainer;
+    const onSecondaryContainer = tokens.onSecondaryContainer || onPrimaryContainer;
 
-    if (prefersDark) {
-      // Native Material 3 dark mode mapping matching Google apps
-      setVar("--bg", tokens.neutral1_900 || "#12131a"); // Deep charcoal/navy background
-      setVar("--bg-dark", tokens.neutral1_900 || "#12131a");
-      setVar("--bg-darker", tokens.neutral1_1000 || "#000000");
-      setVar("--panel", tokens.neutral1_800 || "#1e1f25"); // Elevated card/panel grey
+    // Apply M3 token mappings to Glacier EQ CSS variables
+    setVar("--bg", surface);
+    setVar("--bg-dark", lowest);
+    setVar("--bg-darker", lowest);
+    setVar("--panel", low);
+    setVar("--surface-soft", high);
+    setVar("--surface", high);
+    setVar("--text", onSurface);
+    setVar("--muted", onSurfaceVariant);
+    setVar("--comment", onSurfaceVariant);
 
-      // Calculate surface and surface-soft relative to panel lightness for perfect depth contrast
-      const panelL = basePanelHsl.l;
-      const surfaceSoftL = Math.min(panelL + 8, 30);
-      const surfaceL = Math.min(panelL + 16, 40);
+    setVar("--cyan", primaryContainer);
+    setVar("--bright-cyan", onPrimaryContainer);
+    setVar("--btn-filled-text", onPrimaryContainer);
+    setVar("--surface-disabled", container);
+    setVar("--text-disabled", "#747783");
 
-      setVar("--surface-soft", hslToHex(basePanelHsl.h, basePanelHsl.s, surfaceSoftL));
-      setVar("--surface", hslToHex(basePanelHsl.h, basePanelHsl.s, surfaceL));
+    setVar("--tab-active-pill", secondaryContainer);
+    setVar("--tab-active-icon", onSecondaryContainer);
 
-      setVar("--text", tokens.neutral1_50 || "#ffffff"); // High-contrast crisp text
-      setVar("--muted", tokens.neutral2_300 || "#b0bec5");
-      setVar("--comment", tokens.neutral2_500 || "#6272a4");
+    // Dividers/borders
+    setVar("--line", outlineVariant);
+    setVar("--line-subtle", outlineVariant);
+    setVar("--line-soft", outlineVariant);
+    setVar("--line-medium", outlineVariant);
+    setVar("--line-strong", outlineVariant);
+    setVar("--line-separator", outlineVariant);
+    setVar("--line-heavy", outlineVariant);
+    setVar("--line-separator-heavy", outlineVariant);
+    setVar("--line-outline", outlineVariant);
 
-      // Set primary accent colors
-      setVar("--cyan", baseAccentHex);
-      setVar("--bright-cyan", tokens.accent1_100 || hslToHex(baseAccentHsl.h, baseAccentHsl.s, 85));
+    // Generate wallpaper-harmonized semantic/target colors (using hue rotation)
+    const sat = Math.max(baseAccentHsl.s, prefersDark ? 50 : 60);
+    const lit = prefersDark ? Math.max(baseAccentHsl.l, 65) : Math.min(baseAccentHsl.l, 45);
 
-      // Native Material 3 active indicator pill (low contrast container, high contrast icon)
-      setVar("--tab-active-pill", tokens.accent1_800 || hslToHex(baseAccentHsl.h, Math.max(20, baseAccentHsl.s - 15), 24));
-      setVar("--tab-active-icon", baseAccentHex);
-
-      // Generate wallpaper-harmonized semantic/target colors (using hue rotation)
-      // We enforce a minimum saturation of 50% and lightness of 65% for high readability in dark mode
-      const sat = Math.max(baseAccentHsl.s, 50);
-      const lit = Math.max(baseAccentHsl.l, 65);
-
-      setVar("--blue", hslToHex(215, sat, lit));
-      setVar("--green", hslToHex(115, sat, lit));
-      setVar("--orange", hslToHex(28, sat, lit));
-      setVar("--yellow", hslToHex(48, sat, lit));
-      setVar("--red", hslToHex(0, sat, lit));
-      setVar("--purple", hslToHex(265, sat, lit));
-      setVar("--teal", hslToHex(165, sat, lit));
-      setVar("--dark-cyan", hslToHex(185, sat, lit));
-    } else {
-      // Light mode dynamic color mapping with clean card contrast
-      setVar("--bg", tokens.neutral1_50 || "#e6e9ef"); // Soft light grey page background
-      setVar("--bg-dark", tokens.neutral1_100 || "#dce0e8");
-      setVar("--bg-darker", tokens.neutral1_200 || "#ccd0da");
-      setVar("--panel", tokens.neutral1_10 || "#eff1f5"); // Card panels are lighter than page background
-
-      // Calculate surface and surface-soft relative to panel lightness in light mode
-      const panelL = basePanelHsl.l;
-      const surfaceSoftL = Math.max(panelL - 8, 85);
-      const surfaceL = Math.max(panelL - 15, 75);
-
-      setVar("--surface-soft", tokens.neutral1_100 || hslToHex(basePanelHsl.h, basePanelHsl.s, surfaceSoftL));
-      setVar("--surface", tokens.neutral1_200 || hslToHex(basePanelHsl.h, basePanelHsl.s, surfaceL));
-
-      setVar("--text", tokens.neutral1_900 || "#4c4f69"); // Clean dark text
-      setVar("--muted", tokens.neutral2_700 || "#5c5f77");
-      setVar("--comment", tokens.neutral2_500 || "#8c8fa1");
-
-      // Set primary accent colors
-      setVar("--cyan", baseAccentHex);
-      setVar("--bright-cyan", tokens.accent1_200 || hslToHex(baseAccentHsl.h, baseAccentHsl.s, 40));
-
-      // Native Material 3 active indicator pill (light container, dark icon)
-      setVar("--tab-active-pill", tokens.accent1_100 || hslToHex(baseAccentHsl.h, baseAccentHsl.s, 90));
-      setVar("--tab-active-icon", tokens.accent1_900 || hslToHex(baseAccentHsl.h, baseAccentHsl.s, 20));
-
-      // Generate wallpaper-harmonized semantic/target colors (using hue rotation)
-      // We enforce a minimum saturation of 60% and lightness capped at 45% for high readability on light panels
-      const sat = Math.max(baseAccentHsl.s, 60);
-      const lit = Math.min(baseAccentHsl.l, 45);
-
-      setVar("--blue", hslToHex(215, sat, lit));
-      setVar("--green", hslToHex(115, sat, lit));
-      setVar("--orange", hslToHex(28, sat, lit));
-      setVar("--yellow", hslToHex(48, sat, lit));
-      setVar("--red", hslToHex(0, sat, lit));
-      setVar("--purple", hslToHex(265, sat, lit));
-      setVar("--teal", hslToHex(165, sat, lit));
-      setVar("--dark-cyan", hslToHex(185, sat, lit));
-    }
+    setVar("--blue", hslToHex(215, sat, lit));
+    setVar("--green", hslToHex(115, sat, lit));
+    setVar("--orange", hslToHex(28, sat, lit));
+    setVar("--yellow", hslToHex(48, sat, lit));
+    setVar("--red", hslToHex(0, sat, lit));
+    setVar("--purple", hslToHex(265, sat, lit));
+    setVar("--teal", hslToHex(165, sat, lit));
+    setVar("--dark-cyan", hslToHex(185, sat, lit));
   } catch (e) {
     console.error("Failed to apply Android dynamic colors:", e);
   }
