@@ -31,8 +31,88 @@ declare global {
     AndroidNotifier?: {
       showToast: (message: string) => void;
     };
+    AndroidTheme?: {
+      getMaterialColorTokens: () => string;
+    };
   }
 }
+
+const clearAndroidDynamicColors = () => {
+  if (typeof document === "undefined") return;
+  const root = document.documentElement;
+  const vars = [
+    "--bg", "--bg-rgb",
+    "--bg-dark", "--bg-dark-rgb",
+    "--bg-darker", "--bg-darker-rgb",
+    "--panel", "--panel-rgb",
+    "--surface", "--surface-rgb",
+    "--surface-soft", "--surface-soft-rgb",
+    "--text", "--text-rgb",
+    "--muted", "--muted-rgb",
+    "--comment", "--comment-rgb",
+    "--cyan", "--cyan-rgb",
+    "--bright-cyan", "--bright-cyan-rgb"
+  ];
+  vars.forEach((v) => root.style.removeProperty(v));
+};
+
+const applyAndroidDynamicColors = (prefersDark: boolean) => {
+  if (typeof window === "undefined" || typeof document === "undefined") return;
+  try {
+    const androidTheme = (window as any).AndroidTheme;
+    if (!androidTheme) return;
+
+    const tokensStr = androidTheme.getMaterialColorTokens();
+    if (!tokensStr) return;
+
+    const tokens = JSON.parse(tokensStr);
+    if (!tokens || Object.keys(tokens).length === 0) return;
+
+    const root = document.documentElement;
+
+    const hexToRgb = (hex: string) => {
+      const match = hex.replace("#", "").match(/.{1,2}/g);
+      if (!match) return "0 0 0";
+      return match.map((x) => Number.parseInt(x, 16)).join(" ");
+    };
+
+    const setVar = (name: string, value: string) => {
+      if (!value) return;
+      root.style.setProperty(name, value);
+      if (value.startsWith("#")) {
+        root.style.setProperty(`${name}-rgb`, hexToRgb(value));
+      }
+    };
+
+    if (prefersDark) {
+      setVar("--bg", tokens.neutral1_900);
+      setVar("--bg-dark", tokens.neutral1_1000 || "#000000");
+      setVar("--bg-darker", tokens.neutral1_1000 || "#000000");
+      setVar("--panel", tokens.neutral1_800);
+      setVar("--surface", tokens.neutral1_800);
+      setVar("--surface-soft", tokens.neutral2_800 || tokens.neutral1_800);
+      setVar("--text", tokens.neutral1_100);
+      setVar("--muted", tokens.neutral2_300);
+      setVar("--comment", tokens.neutral2_500 || "#565f89");
+      setVar("--cyan", tokens.accent1_200);
+      setVar("--bright-cyan", tokens.accent1_100);
+    } else {
+      setVar("--bg", tokens.neutral1_50 || "#e6e9ef");
+      setVar("--bg-dark", tokens.neutral1_100 || "#dce0e8");
+      setVar("--bg-darker", tokens.neutral1_200 || "#ccd0da");
+      setVar("--panel", tokens.neutral1_10 || "#eff1f5");
+      setVar("--surface", tokens.neutral1_200 || "#ccd0da");
+      setVar("--surface-soft", tokens.neutral1_100 || "#bcc0cc");
+      setVar("--text", tokens.neutral1_900 || "#4c4f69");
+      setVar("--muted", tokens.neutral2_700 || "#5c5f77");
+      setVar("--comment", tokens.neutral2_500 || "#8c8fa1");
+      setVar("--cyan", tokens.accent1_600);
+      setVar("--bright-cyan", tokens.accent1_400);
+    }
+  } catch (e) {
+    console.error("Failed to apply Android dynamic colors:", e);
+  }
+};
 
 function App() {
   const [isMobile, setIsMobile] = useState(() => window.matchMedia("(max-width: 768px)").matches);
@@ -58,12 +138,21 @@ function App() {
   useEffect(() => {
     const applyTheme = async () => {
       let resolved = theme;
+      
+      // Clear any previous Android dynamic color overrides first
+      clearAndroidDynamicColors();
+
       if (theme === "auto") {
         let prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
         
-        // On environments like GNOME/Linux, prefers-color-scheme might not propagate instantly,
-        // so query the Tauri window theme directly as a primary source of truth if available
-        if (!!(window as any).__TAURI_INTERNALS__) {
+        // If Android interface is present, apply dynamic Material You color tokens
+        const androidTheme = (window as any).AndroidTheme;
+        if (androidTheme) {
+          applyAndroidDynamicColors(prefersDark);
+          resolved = prefersDark ? "tokyo-night" : "catppuccin-latte"; // set data-theme so non-overridden base styles match
+        } else if (!!(window as any).__TAURI_INTERNALS__) {
+          // On environments like GNOME/Linux, prefers-color-scheme might not propagate instantly,
+          // so query the Tauri window theme directly as a primary source of truth if available
           try {
             // First try GNOME settings check via backend
             const linuxScheme = await invoke<string>("get_linux_color_scheme");
