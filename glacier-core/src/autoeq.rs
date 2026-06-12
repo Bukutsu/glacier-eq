@@ -6,7 +6,7 @@ use crate::{Filter, FilterType, PEQData};
 pub fn parse_autoeq_text(text: &str) -> Result<(PEQData, Option<String>, Vec<String>), String> {
     let lines: Vec<&str> = text.lines().collect();
     let mut filters: std::collections::BTreeMap<usize, Filter> = std::collections::BTreeMap::new();
-    let mut preamp: i8 = 0;
+    let mut preamp: f64 = 0.0;
     let mut parsed_count: usize = 0;
     let mut warnings: Vec<String> = Vec::new();
 
@@ -29,7 +29,7 @@ pub fn parse_autoeq_text(text: &str) -> Result<(PEQData, Option<String>, Vec<Str
         if line.to_lowercase().starts_with("preamp") {
             if let Some(m) = extract_number(line) {
                 // Preamp is unbounded here, will be clamped later
-                preamp = m.round() as i8;
+                preamp = m;
             } else {
                 warnings.push(format!("Line {}: Failed to parse preamp value", line_num));
             }
@@ -74,7 +74,7 @@ pub fn parse_autoeq_text(text: &str) -> Result<(PEQData, Option<String>, Vec<Str
         }
     }
 
-    if parsed_count == 0 && preamp == 0 {
+    if parsed_count == 0 && preamp.abs() < 1e-5 {
         return Err("No valid filters or preamp found in AutoEQ text".into());
     }
 
@@ -275,7 +275,15 @@ pub fn autoeq_token(filter_type: FilterType) -> &'static str {
 }
 
 pub fn peq_to_autoeq(peq: &PEQData) -> String {
-    let mut lines = vec![format!("Preamp: {} dB", peq.global_gain)];
+    let preamp_str = {
+        let s = format!("{:.1}", peq.global_gain);
+        if s.ends_with(".0") {
+            s[..s.len() - 2].to_string()
+        } else {
+            s
+        }
+    };
+    let mut lines = vec![format!("Preamp: {} dB", preamp_str)];
 
     for (i, f) in peq.filters.iter().enumerate() {
         let on_off = if f.enabled { "ON" } else { "OFF" };
@@ -1374,7 +1382,7 @@ mod tests {
     fn test_parse_autoeq_with_preamp() {
         let text = "Preamp: -3 dB\nFilter 1: ON PK Fc 100 Hz Gain 5.0 dB Q 1.0";
         let (result, name, warnings) = parse_autoeq_text(text).unwrap();
-        assert_eq!(result.global_gain, -3);
+        assert_eq!(result.global_gain, -3.0);
         assert!(result.filters[0].enabled);
         assert!(warnings.is_empty());
         assert_eq!(name, None);
@@ -1393,7 +1401,7 @@ mod tests {
     fn test_peq_to_autoeq_format() {
         let peq = PEQData {
             filters: vec![Filter::enabled(0, true)],
-            global_gain: -3,
+            global_gain: -3.0,
         };
         let output = peq_to_autoeq(&peq);
         assert!(output.contains("Preamp: -3 dB"));
@@ -1415,7 +1423,7 @@ mod tests {
     fn test_parse_real_file_format() {
         let text = "Preamp: -6.3 dB\nFilter 1: ON LSC Fc 36 Hz Gain -2.22 dB Q 0.857\nFilter 2: ON PK Fc 166 Hz Gain -0.79 dB Q 1.669";
         let (result, _, warnings) = parse_autoeq_text(text).unwrap();
-        assert_eq!(result.global_gain, -6);
+        assert_eq!(result.global_gain, -6.3);
         assert_eq!(result.filters[0].freq, 36);
         assert!((result.filters[0].gain - (-2.22)).abs() < 0.1);
         assert_eq!(result.filters[0].filter_type, FilterType::LowShelf);
@@ -1456,7 +1464,7 @@ Filter 8: ON HSC Fc 7624 Hz Gain 0.59 dB Q 3.000";
                     filter_type: FilterType::HighShelf,
                 },
             ],
-            global_gain: 0,
+            global_gain: 0.0,
         };
         let text = peq_to_autoeq(&original);
         let (parsed, _, _) = parse_autoeq_text(&text).unwrap();
@@ -1495,7 +1503,7 @@ Filter 8: ON HSC Fc 7624 Hz Gain 0.59 dB Q 3.000";
     fn test_parse_inline_comments() {
         let text = "Preamp: -3 dB # Set preamplifier gain\nFilter 1: ON PK Fc 1000 Hz Gain 1.5 dB Q 1.4 # peak filter";
         let (result, _, _) = parse_autoeq_text(text).unwrap();
-        assert_eq!(result.global_gain, -3);
+        assert_eq!(result.global_gain, -3.0);
         assert_eq!(result.filters[0].freq, 1000);
         assert!((result.filters[0].gain - 1.5).abs() < 0.01);
         assert!((result.filters[0].q - 1.4).abs() < 0.01);
@@ -1524,7 +1532,7 @@ Filter 8: ON HSC Fc 7624 Hz Gain 0.59 dB Q 3.000";
     fn test_parse_index_less_filters() {
         let text = "Preamp: -6.0 dB\nFilter: ON PK Fc 30 Hz Gain 6.0 dB Q 1.5\nFilter: ON PK Fc 100 Hz Gain -3.0 dB Q 2.0";
         let (result, name, warnings) = parse_autoeq_text(text).unwrap();
-        assert_eq!(result.global_gain, -6);
+        assert_eq!(result.global_gain, -6.0);
         assert_eq!(result.filters.len(), 2);
         assert!(result.filters[0].enabled);
         assert_eq!(result.filters[0].freq, 30);
