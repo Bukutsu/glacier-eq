@@ -37,6 +37,90 @@ declare global {
   }
 }
 
+interface HSL {
+  h: number;
+  s: number;
+  l: number;
+}
+
+const hexToHsl = (hex: string): HSL => {
+  hex = hex.replace(/^#/, "");
+  if (hex.length === 3) {
+    hex = hex.split("").map((c) => c + c).join("");
+  }
+  const r = parseInt(hex.substring(0, 2), 16) / 255;
+  const g = parseInt(hex.substring(2, 4), 16) / 255;
+  const b = parseInt(hex.substring(4, 6), 16) / 255;
+
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  let h = 0;
+  let s = 0;
+  const l = (max + min) / 2;
+
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case r:
+        h = (g - b) / d + (g < b ? 6 : 0);
+        break;
+      case g:
+        h = (b - r) / d + 2;
+        break;
+      case b:
+        h = (r - g) / d + 4;
+        break;
+    }
+    h /= 6;
+  }
+
+  return {
+    h: Math.round(h * 360),
+    s: Math.round(s * 100),
+    l: Math.round(l * 100),
+  };
+};
+
+const hslToHex = (h: number, s: number, l: number): string => {
+  h = (h % 360 + 360) % 360;
+  s = Math.max(0, Math.min(100, s));
+  l = Math.max(0, Math.min(100, l));
+
+  s /= 100;
+  l /= 100;
+  h /= 360;
+
+  let r = l;
+  let g = l;
+  let b = l;
+
+  if (s !== 0) {
+    const hue2rgb = (p: number, q: number, t: number) => {
+      if (t < 0) t += 1;
+      if (t > 1) t -= 1;
+      if (t < 1/6) return p + (q - p) * 6 * t;
+      if (t < 1/2) return q;
+      if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+      return p;
+    };
+
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    const p = 2 * l - q;
+
+    r = hue2rgb(p, q, h + 1/3);
+    g = hue2rgb(p, q, h);
+    b = hue2rgb(p, q, h - 1/3);
+  }
+
+  const toHex = (x: number) => {
+    const hex = Math.round(x * 255).toString(16);
+    return hex.length === 1 ? "0" + hex : hex;
+  };
+
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+};
+
 const clearAndroidDynamicColors = () => {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
@@ -51,7 +135,15 @@ const clearAndroidDynamicColors = () => {
     "--muted", "--muted-rgb",
     "--comment", "--comment-rgb",
     "--cyan", "--cyan-rgb",
-    "--bright-cyan", "--bright-cyan-rgb"
+    "--bright-cyan", "--bright-cyan-rgb",
+    "--blue", "--blue-rgb",
+    "--green", "--green-rgb",
+    "--orange", "--orange-rgb",
+    "--yellow", "--yellow-rgb",
+    "--red", "--red-rgb",
+    "--purple", "--purple-rgb",
+    "--teal", "--teal-rgb",
+    "--dark-cyan", "--dark-cyan-rgb"
   ];
   vars.forEach((v) => root.style.removeProperty(v));
 };
@@ -84,30 +176,90 @@ const applyAndroidDynamicColors = (prefersDark: boolean) => {
       }
     };
 
+    // Calculate base HSL from wallpaper primary accent
+    const baseAccentHex = prefersDark
+      ? (tokens.accent1_300 || "#8be9fd")
+      : (tokens.accent1_600 || "#1e66f5");
+    const baseAccentHsl = hexToHsl(baseAccentHex);
+
+    // Calculate base HSL from wallpaper panel background
+    const basePanelHex = prefersDark
+      ? (tokens.neutral1_900 || "#12131a")
+      : (tokens.neutral1_10 || "#eff1f5");
+    const basePanelHsl = hexToHsl(basePanelHex);
+
     if (prefersDark) {
-      setVar("--bg", tokens.neutral1_900);
+      // High-contrast, premium OLED dark mode mapping
+      setVar("--bg", tokens.neutral1_1000 || "#000000"); // True black background
       setVar("--bg-dark", tokens.neutral1_1000 || "#000000");
       setVar("--bg-darker", tokens.neutral1_1000 || "#000000");
-      setVar("--panel", tokens.neutral1_800);
-      setVar("--surface", tokens.neutral1_800);
-      setVar("--surface-soft", tokens.neutral2_800 || tokens.neutral1_800);
-      setVar("--text", tokens.neutral1_100);
-      setVar("--muted", tokens.neutral2_300);
-      setVar("--comment", tokens.neutral2_500 || "#565f89");
-      setVar("--cyan", tokens.accent1_200);
-      setVar("--bright-cyan", tokens.accent1_100);
+      setVar("--panel", tokens.neutral1_900 || "#12131a"); // Deep panel grey
+
+      // Calculate surface and surface-soft relative to panel lightness for perfect depth contrast
+      const panelL = basePanelHsl.l;
+      const surfaceSoftL = Math.min(panelL + 6, 25);
+      const surfaceL = Math.min(panelL + 12, 35);
+
+      setVar("--surface-soft", hslToHex(basePanelHsl.h, basePanelHsl.s, surfaceSoftL));
+      setVar("--surface", hslToHex(basePanelHsl.h, basePanelHsl.s, surfaceL));
+
+      setVar("--text", tokens.neutral1_50 || "#ffffff"); // High-contrast crisp text
+      setVar("--muted", tokens.neutral2_300 || "#b0bec5");
+      setVar("--comment", tokens.neutral2_500 || "#6272a4");
+
+      // Set primary accent colors
+      setVar("--cyan", baseAccentHex);
+      setVar("--bright-cyan", tokens.accent1_100 || hslToHex(baseAccentHsl.h, baseAccentHsl.s, 85));
+
+      // Generate wallpaper-harmonized semantic/target colors (using hue rotation)
+      // We enforce a minimum saturation of 50% and lightness of 65% for high readability in dark mode
+      const sat = Math.max(baseAccentHsl.s, 50);
+      const lit = Math.max(baseAccentHsl.l, 65);
+
+      setVar("--blue", hslToHex(215, sat, lit));
+      setVar("--green", hslToHex(115, sat, lit));
+      setVar("--orange", hslToHex(28, sat, lit));
+      setVar("--yellow", hslToHex(48, sat, lit));
+      setVar("--red", hslToHex(0, sat, lit));
+      setVar("--purple", hslToHex(265, sat, lit));
+      setVar("--teal", hslToHex(165, sat, lit));
+      setVar("--dark-cyan", hslToHex(185, sat, lit));
     } else {
-      setVar("--bg", tokens.neutral1_50 || "#e6e9ef");
+      // Light mode dynamic color mapping with clean card contrast
+      setVar("--bg", tokens.neutral1_50 || "#e6e9ef"); // Soft light grey page background
       setVar("--bg-dark", tokens.neutral1_100 || "#dce0e8");
       setVar("--bg-darker", tokens.neutral1_200 || "#ccd0da");
-      setVar("--panel", tokens.neutral1_10 || "#eff1f5");
-      setVar("--surface", tokens.neutral1_200 || "#ccd0da");
-      setVar("--surface-soft", tokens.neutral1_100 || "#bcc0cc");
-      setVar("--text", tokens.neutral1_900 || "#4c4f69");
+      setVar("--panel", tokens.neutral1_10 || "#eff1f5"); // Card panels are lighter than page background
+
+      // Calculate surface and surface-soft relative to panel lightness in light mode
+      const panelL = basePanelHsl.l;
+      const surfaceSoftL = Math.max(panelL - 8, 85);
+      const surfaceL = Math.max(panelL - 15, 75);
+
+      setVar("--surface-soft", tokens.neutral1_100 || hslToHex(basePanelHsl.h, basePanelHsl.s, surfaceSoftL));
+      setVar("--surface", tokens.neutral1_200 || hslToHex(basePanelHsl.h, basePanelHsl.s, surfaceL));
+
+      setVar("--text", tokens.neutral1_900 || "#4c4f69"); // Clean dark text
       setVar("--muted", tokens.neutral2_700 || "#5c5f77");
       setVar("--comment", tokens.neutral2_500 || "#8c8fa1");
-      setVar("--cyan", tokens.accent1_600);
-      setVar("--bright-cyan", tokens.accent1_400);
+
+      // Set primary accent colors
+      setVar("--cyan", baseAccentHex);
+      setVar("--bright-cyan", tokens.accent1_200 || hslToHex(baseAccentHsl.h, baseAccentHsl.s, 40));
+
+      // Generate wallpaper-harmonized semantic/target colors (using hue rotation)
+      // We enforce a minimum saturation of 60% and lightness capped at 45% for high readability on light panels
+      const sat = Math.max(baseAccentHsl.s, 60);
+      const lit = Math.min(baseAccentHsl.l, 45);
+
+      setVar("--blue", hslToHex(215, sat, lit));
+      setVar("--green", hslToHex(115, sat, lit));
+      setVar("--orange", hslToHex(28, sat, lit));
+      setVar("--yellow", hslToHex(48, sat, lit));
+      setVar("--red", hslToHex(0, sat, lit));
+      setVar("--purple", hslToHex(265, sat, lit));
+      setVar("--teal", hslToHex(165, sat, lit));
+      setVar("--dark-cyan", hslToHex(185, sat, lit));
     }
   } catch (e) {
     console.error("Failed to apply Android dynamic colors:", e);
