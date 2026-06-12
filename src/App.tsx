@@ -15,6 +15,7 @@ import { makeMeasurementName, nextMeasurementColor, normalizeMeasurementPoints }
 import { getBuiltInTargets, makeTargetName, nextTargetColor } from "./lib/targetReferences";
 import { buildDefaultState, normalizePeq } from "./lib/peq";
 import type { DeviceInfo, Filter, GraphViewMode, MeasurementTrace, PEQData, Profile, TargetTrace, OperationProgress } from "./types";
+import { ToastContainer, type Toast } from "./components/Toast";
 import "./App.css";
 
 const ANDROID_TOAST_DEDUPE_MS = 2000;
@@ -56,8 +57,42 @@ function App() {
   const [connected, setConnected] = useState(false);
   const [isBusy, setIsBusy] = useState(false);
   const [progress, setProgress] = useState<OperationProgress | null>(null);
-  const [status, setStatus] = useState("Ready");
+  const [status, setStatusState] = useState("Ready");
+  const [toasts, setToasts] = useState<Toast[]>([]);
   const lastAndroidToastRef = useRef<{ message: string; shownAt: number } | null>(null);
+
+  const showToast = useCallback((message: string, type: "info" | "error" | "success" = "info") => {
+    if (isAndroid) return;
+    if (message === "Ready" || !message.trim()) return;
+
+    let toastType = type;
+    if (message.toLowerCase().includes("failed") || message.toLowerCase().includes("error")) {
+      toastType = "error";
+    } else if (
+      message.toLowerCase().includes("successful") ||
+      message.toLowerCase().includes("synced") ||
+      message.toLowerCase().includes("loaded") ||
+      message.toLowerCase().includes("parsed") ||
+      message.toLowerCase().includes("deleted") ||
+      message.toLowerCase().includes("saved")
+    ) {
+      toastType = "success";
+    }
+
+    const id = Math.random().toString(36).substring(2, 9);
+    setToasts((prev) => [...prev, { id, message, type: toastType }]);
+
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 4000);
+  }, [isAndroid]);
+
+  const setStatus = useCallback((message: string) => {
+    setStatusState(message);
+    if (connected && !isAndroid) {
+      showToast(message);
+    }
+  }, [connected, isAndroid, showToast]);
 
   // Show native Android Toast when status changes, instead of the web StatusBanner
   useEffect(() => {
@@ -644,7 +679,6 @@ function App() {
         onPush={pushEq}
         onDisconnect={disconnectDevice}
       />
-      {!isAndroid && connected && status !== "Ready" && <StatusBanner status={status} onClose={() => setStatus("Ready")} />}
       {!connected ? (
         <DeviceChooser
           devices={devices}
@@ -888,15 +922,7 @@ function App() {
           />
         </main>
       )}
-    </div>
-  );
-}
-
-
-function StatusBanner({ status, onClose }: { status: string; onClose: () => void }) {
-  return (
-    <div className="status-banner">
-      <Icon>info</Icon>{status}<button onClick={onClose}><Icon>close</Icon></button>
+      <ToastContainer toasts={toasts} onClose={(id) => setToasts((prev) => prev.filter((t) => t.id !== id))} />
     </div>
   );
 }
