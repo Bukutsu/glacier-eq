@@ -49,7 +49,7 @@ pub fn get_eq_state(
     ) {
         log::warn!("Pull wake request failed: {error}");
     }
-    sleep_ms(50);
+    sleep_ms(protocol.read_timing().wake_delay_ms);
 
     let first = pull_once(&app, &connected, &*protocol, &caps);
     let should_retry = match &first {
@@ -58,7 +58,7 @@ pub fn get_eq_state(
     };
 
     let peq = if should_retry {
-        sleep_ms(100);
+        sleep_ms(protocol.read_timing().pull_retry_delay_ms);
         match pull_once(&app, &connected, &*protocol, &caps) {
             Ok(peq) => peq,
             Err(retry_error) => match first {
@@ -284,7 +284,7 @@ pub fn set_eq_state(
             LogSource::HID,
             "Verifying pushed settings...",
         );
-        sleep_ms(100);
+        sleep_ms(protocol.read_timing().pull_retry_delay_ms);
 
         match pull_once(&app, &connected, &*protocol, &caps) {
             Ok(actual) => {
@@ -316,7 +316,7 @@ pub fn set_eq_state(
                                 LogSource::HID,
                                 "Rollback successfully written. Verifying rollback...",
                             );
-                            sleep_ms(100);
+                            sleep_ms(protocol.read_timing().pull_retry_delay_ms);
                             match pull_once(&app, &connected, &*protocol, &caps) {
                                 Ok(rolled_back_state) => {
                                     if let Err(rollback_mismatch) =
@@ -513,10 +513,10 @@ fn pull_once(
     let mut filters = Vec::with_capacity(caps.num_bands);
     for index in 0..caps.num_bands {
         filters.push(read_filter(app, connected, protocol, index as u8)?);
-        sleep_ms(10);
+        sleep_ms(protocol.read_timing().inter_filter_ms);
     }
 
-    sleep_ms(40);
+    sleep_ms(protocol.read_timing().post_filter_read_ms);
     let global_gain = read_global_gain(app, &connected.path, protocol)?;
 
     Ok(PEQData {
@@ -659,7 +659,7 @@ fn read_global_gain(
     );
 
     send_packet(app, path, &protocol.build_global_gain_request(0), protocol)?;
-    sleep_ms(25);
+    sleep_ms(protocol.read_timing().post_global_gain_ms);
 
     for attempt in 1..=GLOBAL_GAIN_READ_ATTEMPTS {
         let bytes = app
@@ -723,7 +723,7 @@ fn run_init_sequence(
         send_packet(app, path, &packet, protocol)
             .map_err(|error| format!("Init write failed: {error}"))?;
     }
-    sleep_ms(50);
+    sleep_ms(protocol.read_timing().post_version_ms);
     drain_stale_frames(app, path);
     Ok(())
 }
@@ -739,7 +739,7 @@ fn write_filters(
         let packet = protocol.build_filter_write_packet(index as u8, filter, dsp_sample_rate);
         send_packet(app, path, &packet, protocol)
             .map_err(|error| format!("Band {} write failed: {error}", index + 1))?;
-        sleep_ms(80);
+        sleep_ms(protocol.write_timing().per_filter_ms);
     }
     Ok(())
 }
@@ -750,7 +750,7 @@ fn write_global_gain(
     protocol: &dyn DeviceProtocol,
     global_gain: i8,
 ) -> Result<(), String> {
-    sleep_ms(100);
+    sleep_ms(protocol.write_timing().batch_ms);
     send_packet(
         app,
         path,
@@ -758,7 +758,7 @@ fn write_global_gain(
         protocol,
     )
     .map_err(|error| format!("Global gain write failed: {error}"))?;
-    sleep_ms(50);
+    sleep_ms(protocol.write_timing().global_gain_ms);
     Ok(())
 }
 
@@ -816,48 +816,7 @@ fn sleep_ms(ms: u64) {
 }
 
 fn normalize_for_push(mut peq: PEQData, caps: &DeviceCapabilities) -> PEQData {
-    let default_freqs = [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
-
-    if peq.filters.len() > caps.num_bands {
-        peq.filters.truncate(caps.num_bands);
-    }
-
-    while peq.filters.len() < caps.num_bands {
-        let index = peq.filters.len();
-        peq.filters.push(glacier_core::eq::Filter {
-            index: index as u8,
-            enabled: false,
-            filter_type: glacier_core::eq::FilterType::Peak,
-            freq: default_freqs.get(index).copied().unwrap_or(1000),
-            gain: 0.0,
-            q: 1.0,
-        });
-    }
-
-    peq.global_gain = peq
-        .global_gain
-        .clamp(
-            caps.global_gain_range.0 as f64,
-            caps.global_gain_range.1 as f64,
-        )
-        .round();
-
-    for (index, filter) in peq.filters.iter_mut().enumerate() {
-        filter.index = index as u8;
-        filter.freq = filter.freq.clamp(caps.freq_range.0, caps.freq_range.1);
-        filter.gain = filter
-            .gain
-            .clamp(caps.band_gain_range.0, caps.band_gain_range.1);
-        filter.q = filter.q.clamp(caps.q_range.0, caps.q_range.1);
-
-        if !caps.supported_filter_types.supports(filter.filter_type) {
-            filter.filter_type = glacier_core::eq::FilterType::Peak;
-        }
-
-        if !caps.supports_per_band_enable && !filter.enabled {
-            filter.gain = 0.0;
-        }
-    }
-
+    let _ = peq.clamp_to_capabilities(caps);
+    peq.global_gain = peq.global_gain.round();
     peq
 }
