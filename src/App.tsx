@@ -1028,21 +1028,23 @@ function App() {
 
   return (
     <div id="app">
-      <Header
-        connected={connected}
-        isBusy={isBusy}
-        progress={progress}
-        profile={selectedPreset}
-        deviceName={deviceName}
-        dirty={dirty}
-        canUndo={undoStack.length > 0}
-        canRedo={redoStack.length > 0}
-        onUndo={undo}
-        onRedo={redo}
-        onPull={pullEq}
-        onPush={pushEq}
-        onDisconnect={disconnectDevice}
-      />
+      {!(isAndroid && activeTab === "settings") && (
+        <Header
+          connected={connected}
+          isBusy={isBusy}
+          progress={progress}
+          profile={selectedPreset}
+          deviceName={deviceName}
+          dirty={dirty}
+          canUndo={undoStack.length > 0}
+          canRedo={redoStack.length > 0}
+          onUndo={undo}
+          onRedo={redo}
+          onPull={pullEq}
+          onPush={pushEq}
+          onDisconnect={disconnectDevice}
+        />
+      )}
       {!connected ? (
         <DeviceChooser
           devices={devices}
