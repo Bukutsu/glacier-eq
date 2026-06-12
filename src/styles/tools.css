@@ -438,13 +438,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   font-size: var(--type-caption);
 }
 
-.import-preview-box::-webkit-scrollbar, .import-warnings-box::-webkit-scrollbar {
-  width: 4px;
-}
 
-.import-preview-box::-webkit-scrollbar-thumb, .import-warnings-box::-webkit-scrollbar-thumb {
-  background: var(--comment);
-}
 
 .preview-line {
   color: var(--text);
@@ -541,12 +535,6 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-}
-.autoeq-tab::-webkit-scrollbar {
-  width: 4px;
-}
-.autoeq-tab::-webkit-scrollbar-thumb {
-  background: var(--comment);
 }
 
 .autoeq-run-btn {

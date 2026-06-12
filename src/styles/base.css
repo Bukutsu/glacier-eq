@@ -210,3 +210,42 @@ select:focus-visible {
     animation-iteration-count: 1 !important;
   }
 }
+
+/* Unify all scrollbars under a single reusable custom design matching the sharp, technical language of Glacier EQ */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--comment) var(--bg-dark);
+}
+
+::-webkit-scrollbar {
+  width: 6px; /* Vertical scrollbar width */
+  height: 6px; /* Horizontal scrollbar height */
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-dark);
+  border-left: 1px solid var(--line-subtle);
+}
+
+::-webkit-scrollbar-track:horizontal {
+  border-left: none;
+  border-top: 1px solid var(--line-subtle);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--comment);
+  border-radius: var(--radius-none); /* Sharp corners theme */
+  transition: background 0.14s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--cyan); /* Cyan hover highlight for premium feel */
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: var(--cyan);
+}
+
+::-webkit-scrollbar-corner {
+  background: var(--bg-dark);
+}
