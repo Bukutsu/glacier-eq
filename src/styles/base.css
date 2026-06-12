@@ -217,52 +217,38 @@ select:focus-visible {
   scrollbar-color: var(--comment) var(--bg-dark);
 }
 
-/* Force custom scrollbars on WebKit-based engines (including WebKitGTK/Tauri on Linux) */
-::-webkit-scrollbar,
-*::-webkit-scrollbar {
-  -webkit-appearance: none !important;
+::-webkit-scrollbar {
   width: 6px !important;
   height: 6px !important;
 }
 
-::-webkit-scrollbar-track,
-*::-webkit-scrollbar-track {
-  -webkit-appearance: none !important;
+::-webkit-scrollbar-track {
   background: var(--bg-dark) !important;
-  border: none !important;
   border-left: 1px solid var(--line-subtle) !important;
-  border-radius: 0 !important;
+  border-radius: 0px !important;
 }
 
-::-webkit-scrollbar-track:horizontal,
-*::-webkit-scrollbar-track:horizontal {
+::-webkit-scrollbar-track:horizontal {
   border-left: none !important;
   border-top: 1px solid var(--line-subtle) !important;
+  border-radius: 0px !important;
 }
 
-::-webkit-scrollbar-thumb,
-*::-webkit-scrollbar-thumb {
-  -webkit-appearance: none !important;
+::-webkit-scrollbar-thumb {
   background: var(--comment) !important;
+  border-radius: 0px !important;
   border: none !important;
-  border-radius: 0 !important;
-  transition: background 0.14s ease;
 }
 
-::-webkit-scrollbar-thumb:hover,
-*::-webkit-scrollbar-thumb:hover {
+::-webkit-scrollbar-thumb:hover {
   background: var(--cyan) !important;
 }
 
-::-webkit-scrollbar-thumb:active,
-*::-webkit-scrollbar-thumb:active {
+::-webkit-scrollbar-thumb:active {
   background: var(--cyan) !important;
 }
 
-::-webkit-scrollbar-corner,
-*::-webkit-scrollbar-corner {
-  -webkit-appearance: none !important;
+::-webkit-scrollbar-corner {
   background: var(--bg-dark) !important;
-  border: none !important;
-  border-radius: 0 !important;
+  border-radius: 0px !important;
 }
