@@ -33,7 +33,7 @@ export function Preamp({
         aria-label="Preamp gain"
         min={-16}
         max={6}
-        step={1}
+        step={0.5}
         value={safeValue}
         onMouseDown={onStartChange}
         onTouchStart={onStartChange}

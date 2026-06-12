@@ -107,7 +107,7 @@ fn compare_peq(
     expected: &PEQData,
     caps: &DeviceCapabilities,
 ) -> Result<(), String> {
-    if actual.global_gain != expected.global_gain {
+    if (actual.global_gain - expected.global_gain).abs() > 0.001 {
         return Err(format!(
             "Global gain mismatch: expected {}, got {}",
             expected.global_gain, actual.global_gain
@@ -169,7 +169,7 @@ fn rollback_state(
 ) -> Result<(), String> {
     run_init_sequence(app, &connected.path, protocol)?;
     write_filters(app, &connected.path, protocol, peq, caps.dsp_sample_rate)?;
-    write_global_gain(app, &connected.path, protocol, peq.global_gain)?;
+    write_global_gain(app, &connected.path, protocol, peq.global_gain.round() as i8)?;
     commit_changes(app, &connected.path, protocol)?;
     Ok(())
 }
@@ -251,7 +251,7 @@ pub fn set_eq_state(
         );
         return Err(error);
     }
-    if let Err(error) = write_global_gain(&app, &connected.path, &*protocol, peq.global_gain) {
+    if let Err(error) = write_global_gain(&app, &connected.path, &*protocol, peq.global_gain as i8) {
         diagnostics::log_error(
             &app,
             &diagnostics_store,
@@ -515,7 +515,7 @@ fn pull_once(
 
     Ok(PEQData {
         filters,
-        global_gain,
+        global_gain: global_gain as f64,
     })
 }
 
@@ -830,7 +830,8 @@ fn normalize_for_push(mut peq: PEQData, caps: &DeviceCapabilities) -> PEQData {
 
     peq.global_gain = peq
         .global_gain
-        .clamp(caps.global_gain_range.0, caps.global_gain_range.1);
+        .clamp(caps.global_gain_range.0 as f64, caps.global_gain_range.1 as f64)
+        .round();
 
     for (index, filter) in peq.filters.iter_mut().enumerate() {
         filter.index = index as u8;
