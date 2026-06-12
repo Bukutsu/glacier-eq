@@ -169,7 +169,12 @@ fn rollback_state(
 ) -> Result<(), String> {
     run_init_sequence(app, &connected.path, protocol)?;
     write_filters(app, &connected.path, protocol, peq, caps.dsp_sample_rate)?;
-    write_global_gain(app, &connected.path, protocol, peq.global_gain.round() as i8)?;
+    write_global_gain(
+        app,
+        &connected.path,
+        protocol,
+        peq.global_gain.round() as i8,
+    )?;
     commit_changes(app, &connected.path, protocol)?;
     Ok(())
 }
@@ -251,7 +256,8 @@ pub fn set_eq_state(
         );
         return Err(error);
     }
-    if let Err(error) = write_global_gain(&app, &connected.path, &*protocol, peq.global_gain as i8) {
+    if let Err(error) = write_global_gain(&app, &connected.path, &*protocol, peq.global_gain as i8)
+    {
         diagnostics::log_error(
             &app,
             &diagnostics_store,
@@ -830,7 +836,10 @@ fn normalize_for_push(mut peq: PEQData, caps: &DeviceCapabilities) -> PEQData {
 
     peq.global_gain = peq
         .global_gain
-        .clamp(caps.global_gain_range.0 as f64, caps.global_gain_range.1 as f64)
+        .clamp(
+            caps.global_gain_range.0 as f64,
+            caps.global_gain_range.1 as f64,
+        )
         .round();
 
     for (index, filter) in peq.filters.iter_mut().enumerate() {
