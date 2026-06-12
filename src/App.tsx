@@ -184,21 +184,21 @@ const applyAndroidDynamicColors = (prefersDark: boolean) => {
 
     // Calculate base HSL from wallpaper panel background
     const basePanelHex = prefersDark
-      ? (tokens.neutral1_900 || "#12131a")
+      ? (tokens.neutral1_800 || "#1e1f25")
       : (tokens.neutral1_10 || "#eff1f5");
     const basePanelHsl = hexToHsl(basePanelHex);
 
     if (prefersDark) {
-      // High-contrast, premium OLED dark mode mapping
-      setVar("--bg", tokens.neutral1_1000 || "#000000"); // True black background
-      setVar("--bg-dark", tokens.neutral1_1000 || "#000000");
+      // Native Material 3 dark mode mapping matching Google apps
+      setVar("--bg", tokens.neutral1_900 || "#12131a"); // Deep charcoal/navy background
+      setVar("--bg-dark", tokens.neutral1_900 || "#12131a");
       setVar("--bg-darker", tokens.neutral1_1000 || "#000000");
-      setVar("--panel", tokens.neutral1_900 || "#12131a"); // Deep panel grey
+      setVar("--panel", tokens.neutral1_800 || "#1e1f25"); // Elevated card/panel grey
 
       // Calculate surface and surface-soft relative to panel lightness for perfect depth contrast
       const panelL = basePanelHsl.l;
-      const surfaceSoftL = Math.min(panelL + 6, 25);
-      const surfaceL = Math.min(panelL + 12, 35);
+      const surfaceSoftL = Math.min(panelL + 8, 30);
+      const surfaceL = Math.min(panelL + 16, 40);
 
       setVar("--surface-soft", hslToHex(basePanelHsl.h, basePanelHsl.s, surfaceSoftL));
       setVar("--surface", hslToHex(basePanelHsl.h, basePanelHsl.s, surfaceL));
