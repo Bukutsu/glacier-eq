@@ -17,6 +17,7 @@ class MainActivity : TauriActivity() {
   private var currentToast: Toast? = null
 
   override fun onCreate(savedInstanceState: Bundle?) {
+    com.google.android.material.color.DynamicColors.applyToActivityIfAvailable(this)
     enableEdgeToEdge()
     super.onCreate(savedInstanceState)
 

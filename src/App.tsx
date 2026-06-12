@@ -146,9 +146,10 @@ const clearAndroidDynamicColors = () => {
     "--dark-cyan", "--dark-cyan-rgb",
     "--tab-active-pill",
     "--tab-active-icon",
-    "--btn-filled-text",
-    "--surface-disabled",
-    "--text-disabled",
+    "--btn-filled-bg", "--btn-filled-bg-rgb",
+    "--btn-filled-text", "--btn-filled-text-rgb",
+    "--surface-disabled", "--surface-disabled-rgb",
+    "--text-disabled", "--text-disabled-rgb",
     "--line", "--line-rgb",
     "--line-subtle", "--line-subtle-rgb",
     "--line-heavy", "--line-heavy-rgb",
@@ -192,8 +193,6 @@ const applyAndroidDynamicColors = (prefersDark: boolean) => {
     const baseAccentHsl = hexToHsl(baseAccentHex);
 
     // Resolve Material 3 color roles with robust fallbacks
-    const surface = tokens.surface || (prefersDark ? "#12131a" : "#eff1f5");
-    const lowest = tokens.surfaceContainerLowest || (prefersDark ? "#0a0a0d" : "#ffffff");
     const low = tokens.surfaceContainerLow || (prefersDark ? "#16161f" : "#f7f7f9");
     const container = tokens.surfaceContainer || (prefersDark ? "#1d1d26" : "#eff1f5");
     const high = tokens.surfaceContainerHigh || (prefersDark ? "#282833" : "#e1e2ec");
@@ -208,10 +207,10 @@ const applyAndroidDynamicColors = (prefersDark: boolean) => {
     const onSecondaryContainer = tokens.onSecondaryContainer || onPrimaryContainer;
 
     // Apply M3 token mappings to Glacier EQ CSS variables
-    setVar("--bg", surface);
-    setVar("--bg-dark", lowest);
-    setVar("--bg-darker", lowest);
-    setVar("--panel", low);
+    setVar("--bg", container);
+    setVar("--bg-dark", low);
+    setVar("--bg-darker", low);
+    setVar("--panel", high);
     setVar("--surface-soft", high);
     setVar("--surface", high);
     setVar("--text", onSurface);
@@ -220,9 +219,8 @@ const applyAndroidDynamicColors = (prefersDark: boolean) => {
 
     setVar("--cyan", primary);
     setVar("--bright-cyan", onPrimaryContainer);
+    setVar("--btn-filled-bg", primary);
     setVar("--btn-filled-text", onPrimary);
-    setVar("--surface-disabled", container);
-    setVar("--text-disabled", "#747783");
 
     setVar("--tab-active-pill", secondaryContainer);
     setVar("--tab-active-icon", onSecondaryContainer);
