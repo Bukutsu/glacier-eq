@@ -7,6 +7,7 @@ import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import org.json.JSONObject
 
 class MainActivity : TauriActivity() {
   private var statusBarHeightDp = 0f
@@ -62,6 +63,58 @@ class MainActivity : TauriActivity() {
         }
       }
     }, "AndroidNotifier")
+
+    webView.addJavascriptInterface(object {
+      @JavascriptInterface
+      fun getMaterialColorTokens(): String {
+        val json = JSONObject()
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+          try {
+            // Accent 1 (System accent / Cyan accent in Glacier)
+            json.put("accent1_50", colorToHex(resources.getColor(android.R.color.system_accent1_50, null)))
+            json.put("accent1_100", colorToHex(resources.getColor(android.R.color.system_accent1_100, null)))
+            json.put("accent1_200", colorToHex(resources.getColor(android.R.color.system_accent1_200, null)))
+            json.put("accent1_300", colorToHex(resources.getColor(android.R.color.system_accent1_300, null)))
+            json.put("accent1_400", colorToHex(resources.getColor(android.R.color.system_accent1_400, null)))
+            json.put("accent1_500", colorToHex(resources.getColor(android.R.color.system_accent1_500, null)))
+            json.put("accent1_600", colorToHex(resources.getColor(android.R.color.system_accent1_600, null)))
+            json.put("accent1_700", colorToHex(resources.getColor(android.R.color.system_accent1_700, null)))
+            json.put("accent1_800", colorToHex(resources.getColor(android.R.color.system_accent1_800, null)))
+            json.put("accent1_900", colorToHex(resources.getColor(android.R.color.system_accent1_900, null)))
+
+            // Accent 2
+            json.put("accent2_200", colorToHex(resources.getColor(android.R.color.system_accent2_200, null)))
+            json.put("accent2_600", colorToHex(resources.getColor(android.R.color.system_accent2_600, null)))
+
+            // Accent 3
+            json.put("accent3_200", colorToHex(resources.getColor(android.R.color.system_accent3_200, null)))
+            json.put("accent3_600", colorToHex(resources.getColor(android.R.color.system_accent3_600, null)))
+
+            // Neutral 1 (Backgrounds / Surfaces / Text)
+            json.put("neutral1_10", colorToHex(resources.getColor(android.R.color.system_neutral1_10, null)))
+            json.put("neutral1_50", colorToHex(resources.getColor(android.R.color.system_neutral1_50, null)))
+            json.put("neutral1_100", colorToHex(resources.getColor(android.R.color.system_neutral1_100, null)))
+            json.put("neutral1_200", colorToHex(resources.getColor(android.R.color.system_neutral1_200, null)))
+            json.put("neutral1_800", colorToHex(resources.getColor(android.R.color.system_neutral1_800, null)))
+            json.put("neutral1_900", colorToHex(resources.getColor(android.R.color.system_neutral1_900, null)))
+            json.put("neutral1_1000", colorToHex(resources.getColor(android.R.color.system_neutral1_1000, null)))
+
+            // Neutral 2 (Outlines / Borders / Muted)
+            json.put("neutral2_300", colorToHex(resources.getColor(android.R.color.system_neutral2_300, null)))
+            json.put("neutral2_500", colorToHex(resources.getColor(android.R.color.system_neutral2_500, null)))
+            json.put("neutral2_700", colorToHex(resources.getColor(android.R.color.system_neutral2_700, null)))
+            json.put("neutral2_800", colorToHex(resources.getColor(android.R.color.system_neutral2_800, null)))
+          } catch (e: Exception) {
+            e.printStackTrace()
+          }
+        }
+        return json.toString()
+      }
+
+      private fun colorToHex(color: Int): String {
+        return String.format("#%06X", 0xFFFFFF and color)
+      }
+    }, "AndroidTheme")
   }
 
   override fun onDestroy() {
