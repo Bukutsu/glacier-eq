@@ -126,9 +126,10 @@ impl PEQData {
             || self.global_gain > caps.global_gain_range.1 as f64
         {
             let old_gain = self.global_gain;
-            self.global_gain = self
-                .global_gain
-                .clamp(caps.global_gain_range.0 as f64, caps.global_gain_range.1 as f64);
+            self.global_gain = self.global_gain.clamp(
+                caps.global_gain_range.0 as f64,
+                caps.global_gain_range.1 as f64,
+            );
             warnings.push(format!(
                 "Clamped preamp gain from {:.1} dB to {:.1} dB",
                 old_gain, self.global_gain
