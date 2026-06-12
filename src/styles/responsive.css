@@ -499,7 +499,7 @@
     bottom: 0;
     left: 0;
     right: 0;
-    height: max(60px, calc(52px + var(--safe-area-bottom, 0px)));
+    height: max(78px, calc(70px + var(--safe-area-bottom, 0px)));
     background: var(--bg-dark);
     border-top: 1px solid var(--line);
     z-index: 100;
@@ -524,10 +524,26 @@
     padding: 0;
     border: none;
     outline: none;
-    transition: color 0.12s ease;
+    transition: color 0.15s ease;
+  }
+
+  .mobile-tab-icon-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 60px;
+    height: 32px;
+    border-radius: 16px;
+    transition: background-color 0.15s ease, color 0.15s ease;
+    color: var(--muted);
   }
 
   .mobile-tab-item.active {
+    color: var(--text);
+  }
+
+  .mobile-tab-item.active .mobile-tab-icon-wrapper {
+    background-color: rgb(var(--cyan-rgb) / 0.16);
     color: var(--cyan);
   }
 
@@ -537,7 +553,7 @@
 
   /* Spacing to prevent overlay collision with fixed tab bar */
   .workspace.mobile-workspace {
-    padding-bottom: max(80px, calc(72px + var(--safe-area-bottom, 0px))) !important;
+    padding-bottom: max(94px, calc(86px + var(--safe-area-bottom, 0px))) !important;
     display: flex;
     flex-direction: column;
   }
