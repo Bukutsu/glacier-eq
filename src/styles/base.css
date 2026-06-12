@@ -217,6 +217,13 @@ select:focus-visible {
   scrollbar-color: var(--comment) var(--bg-dark);
 }
 
+::-webkit-scrollbar,
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-thumb,
+::-webkit-scrollbar-corner {
+  border-radius: 0 !important;
+}
+
 ::-webkit-scrollbar {
   width: 6px; /* Vertical scrollbar width */
   height: 6px; /* Horizontal scrollbar height */
@@ -234,7 +241,6 @@ select:focus-visible {
 
 ::-webkit-scrollbar-thumb {
   background: var(--comment);
-  border-radius: var(--radius-none); /* Sharp corners theme */
   transition: background 0.14s ease;
 }
 
