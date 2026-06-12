@@ -125,7 +125,12 @@ class MainActivity : TauriActivity() {
             for ((key, attr) in m3Attrs) {
               val typedValue = TypedValue()
               if (theme.resolveAttribute(attr, typedValue, true)) {
-                json.put(key, colorToHex(typedValue.data))
+                val colorInt = if (typedValue.resourceId != 0) {
+                  resources.getColor(typedValue.resourceId, null)
+                } else {
+                  typedValue.data
+                }
+                json.put(key, colorToHex(colorInt))
               }
             }
           } catch (e: Exception) {
