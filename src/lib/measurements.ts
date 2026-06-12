@@ -1,16 +1,10 @@
-import { cssVar } from "./theme";
 import type { MeasurementPoint, MeasurementTrace } from "../types";
 
 const MEASUREMENT_COLOR_VARS = ["--cyan", "--red", "--green", "--yellow", "--purple", "--blue"];
-/**
- * Fallback hex values matching the current Tokyo Night palette.
- * Used only when the CSS variable cannot be resolved (SSR / edge case).
- */
-const MEASUREMENT_FALLBACKS = ["#7dcfff", "#f7768e", "#9ece6a", "#e0af68", "#bb9af7", "#7aa2f7"];
 
 export function nextMeasurementColor(existing: MeasurementTrace[]): string {
   const idx = existing.length % MEASUREMENT_COLOR_VARS.length;
-  return cssVar(MEASUREMENT_COLOR_VARS[idx], MEASUREMENT_FALLBACKS[idx]);
+  return `var(${MEASUREMENT_COLOR_VARS[idx]})`;
 }
 
 export function makeMeasurementName(baseName: string, existing: MeasurementTrace[]): string {

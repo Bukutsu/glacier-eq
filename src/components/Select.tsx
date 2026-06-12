@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, KeyboardEvent } from "react";
+import { createPortal } from "react-dom";
 import { Icon } from "./Icon";
 
 export interface SelectOption<T extends string | number> {
@@ -25,21 +26,60 @@ export function Select<T extends string | number>({
 }: SelectProps<T>) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLUListElement>(null);
+  const [dropdownRect, setDropdownRect] = useState<DOMRect | null>(null);
 
   const selectedOption = options.find((opt) => opt.value === value) ?? options[0];
 
+  // Measure trigger position when opening
+  useEffect(() => {
+    if (isOpen && triggerRef.current) {
+      setDropdownRect(triggerRef.current.getBoundingClientRect());
+    }
+  }, [isOpen]);
+
+  // Close on click outside
   useEffect(() => {
     if (!isOpen) return;
 
     function handleClickOutside(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
+      if (
+        containerRef.current?.contains(event.target as Node) ||
+        triggerRef.current?.contains(event.target as Node) ||
+        dropdownRef.current?.contains(event.target as Node)
+      ) {
+        return;
       }
+      setIsOpen(false);
     }
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isOpen]);
+
+  // Close on scroll or resize
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleScrollOrResize = (event: Event) => {
+      if (
+        event.type === "scroll" &&
+        dropdownRef.current &&
+        dropdownRef.current.contains(event.target as Node)
+      ) {
+        return;
+      }
+      setIsOpen(false);
+    };
+
+    window.addEventListener("scroll", handleScrollOrResize, true);
+    window.addEventListener("resize", handleScrollOrResize);
+    return () => {
+      window.removeEventListener("scroll", handleScrollOrResize, true);
+      window.removeEventListener("resize", handleScrollOrResize);
     };
   }, [isOpen]);
 
@@ -80,6 +120,7 @@ export function Select<T extends string | number>({
     >
       <button
         id={id}
+        ref={triggerRef}
         type="button"
         className="custom-select-trigger"
         onClick={handleToggle}
@@ -92,8 +133,19 @@ export function Select<T extends string | number>({
         <span className="custom-select-arrow"><Icon>expand_more</Icon></span>
       </button>
 
-      {isOpen && (
-        <ul className="custom-select-dropdown" role="listbox" tabIndex={-1}>
+      {isOpen && dropdownRect && createPortal(
+        <ul
+          ref={dropdownRef}
+          className="custom-select-dropdown"
+          role="listbox"
+          tabIndex={-1}
+          style={{
+            position: "absolute",
+            top: `${dropdownRect.bottom + window.scrollY}px`,
+            left: `${dropdownRect.left + window.scrollX}px`,
+            width: `${dropdownRect.width}px`,
+          }}
+        >
           {options.map((opt) => (
             <li
               key={opt.value}
@@ -107,7 +159,8 @@ export function Select<T extends string | number>({
               {opt.label}
             </li>
           ))}
-        </ul>
+        </ul>,
+        document.body
       )}
     </div>
   );

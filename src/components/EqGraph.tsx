@@ -11,11 +11,13 @@ export function EqGraph({
   measurements,
   targets,
   viewMode,
+  theme,
 }: {
   peq: PEQData;
   measurements: MeasurementTrace[];
   targets: TargetTrace[];
   viewMode: GraphViewMode;
+  theme?: string;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const visibleMeasurements = measurements.filter((trace) => trace.visible);
@@ -40,7 +42,7 @@ export function EqGraph({
     drawBackground(ctx, width, height);
     drawGrid(ctx, width, height);
     drawCurves(ctx, width, height, peq, visibleMeasurements, targets, viewMode);
-  }, [peq, visibleMeasurements, targets, viewMode]);
+  }, [peq, visibleMeasurements, targets, viewMode, theme]);
 
   useEffect(() => {
     let raf = requestAnimationFrame(draw);
@@ -172,6 +174,14 @@ function combinedResponseAt(peq: PEQData, freq: number, viewMode: GraphViewMode)
   return preamp + peq.filters.reduce((sum, band) => sum + bandResponse(freq, band), 0);
 }
 
+function resolveColor(color: string): string {
+  if (color.startsWith("var(")) {
+    const varName = color.slice(4, -1);
+    return cssVar(varName);
+  }
+  return color;
+}
+
 function drawTrace(
   ctx: CanvasRenderingContext2D,
   width: number,
@@ -187,7 +197,7 @@ function drawTrace(
     const y = dbToY(point.db, height);
     index === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
   });
-  ctx.strokeStyle = color;
+  ctx.strokeStyle = resolveColor(color);
   ctx.lineWidth = lineWidth;
   ctx.setLineDash(dash);
   ctx.stroke();
@@ -220,9 +230,10 @@ function interpolateTraceDb(trace: MeasurementTrace | TargetTrace, freq: number)
   return lowPoint.db + (highPoint.db - lowPoint.db) * ratio;
 }
 
-function withAlpha(hex: string, alpha: number): string {
+function withAlpha(color: string, alpha: number): string {
+  const hex = resolveColor(color);
   const normalized = hex.replace("#", "");
-  if (normalized.length !== 6) return hex;
+  if (normalized.length !== 6) return color;
 
   const red = Number.parseInt(normalized.slice(0, 2), 16);
   const green = Number.parseInt(normalized.slice(2, 4), 16);
@@ -242,7 +253,7 @@ function drawResponse(
     const y = dbToY(db, height);
     x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
   });
-  ctx.strokeStyle = color;
+  ctx.strokeStyle = resolveColor(color);
   ctx.lineWidth = width;
   ctx.stroke();
 }

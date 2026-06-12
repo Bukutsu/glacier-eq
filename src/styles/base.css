@@ -6,7 +6,7 @@
 
 * { box-sizing: border-box; }
 
-:root, [data-theme="tokyo-night"] {
+:root, :root[data-theme="tokyo-night"] {
   --bg: #1a1b26;
   --bg-rgb: 26 27 38;
   --bg-dark: #1b1e2e;
@@ -51,7 +51,7 @@
   --text-alt-rgb: 154 165 206;
 }
 
-[data-theme="nordic-frost"] {
+:root[data-theme="nord"] {
   --bg: #2e3440;
   --bg-rgb: 46 52 64;
   --bg-dark: #242933;
@@ -96,144 +96,190 @@
   --text-alt-rgb: 229 233 240;
 }
 
-[data-theme="matrix"] {
-  --bg: #050705;
-  --bg-rgb: 5 7 5;
-  --bg-dark: #090e09;
-  --bg-dark-rgb: 9 14 9;
-  --bg-darker: #020302;
-  --bg-darker-rgb: 2 3 2;
-  --panel: #0d140d;
-  --panel-rgb: 13 20 13;
-  --surface: #182518;
-  --surface-rgb: 24 37 24;
-  --surface-soft: #131d13;
-  --surface-soft-rgb: 19 29 19;
-  --text: #d2ffd2;
-  --text-rgb: 210 255 210;
-  --muted: #78aa78;
-  --muted-rgb: 120 170 120;
-  --comment: #3b5e3b;
-  --comment-rgb: 59 94 59;
-  --cyan: #39ff14;
-  --cyan-rgb: 57 255 20;
-  --blue: #00ff41;
-  --blue-rgb: 0 255 65;
-  --green: #39ff14;
-  --green-rgb: 57 255 20;
-  --orange: #ff7b00;
-  --orange-rgb: 255 123 0;
-  --yellow: #ccff00;
-  --yellow-rgb: 204 255 0;
-  --red: #ff3333;
-  --red-rgb: 255 51 51;
-  --purple: #b026ff;
-  --purple-rgb: 176 38 255;
-  --teal: #00ffcc;
-  --teal-rgb: 0 255 204;
-  --dark-cyan: #008000;
-  --dark-cyan-rgb: 0 128 0;
-  --bright-cyan: #e0ffe0;
-  --bright-cyan-rgb: 224 255 224;
-  --terminal-black: #182818;
-  --terminal-black-rgb: 24 40 24;
-  --text-alt: #8ebd8e;
-  --text-alt-rgb: 142 189 142;
+:root[data-theme="dracula"] {
+  --bg: #191a21;
+  --bg-rgb: 25 26 33;
+  --bg-dark: #21222c;
+  --bg-dark-rgb: 33 34 44;
+  --bg-darker: #14151a;
+  --bg-darker-rgb: 20 21 26;
+  --panel: #282a36;
+  --panel-rgb: 40 42 54;
+  --surface: #44475a;
+  --surface-rgb: 68 71 90;
+  --surface-soft: #343746;
+  --surface-soft-rgb: 52 55 70;
+  --text: #f8f8f2;
+  --text-rgb: 248 248 242;
+  --muted: #b0bec5;
+  --muted-rgb: 176 190 197;
+  --comment: #6272a4;
+  --comment-rgb: 98 114 164;
+  --cyan: #8be9fd;
+  --cyan-rgb: 139 233 253;
+  --blue: #bd93f9;
+  --blue-rgb: 189 147 249;
+  --green: #50fa7b;
+  --green-rgb: 80 250 123;
+  --orange: #ffb86c;
+  --orange-rgb: 255 184 108;
+  --yellow: #f1fa8c;
+  --yellow-rgb: 241 250 140;
+  --red: #ff5555;
+  --red-rgb: 255 85 85;
+  --purple: #bd93f9;
+  --purple-rgb: 189 147 249;
+  --teal: #8be9fd;
+  --teal-rgb: 139 233 253;
+  --dark-cyan: #6272a4;
+  --dark-cyan-rgb: 98 114 164;
+  --bright-cyan: #a4ffff;
+  --bright-cyan-rgb: 164 255 255;
+  --terminal-black: #44475a;
+  --terminal-black-rgb: 68 71 90;
+  --text-alt: #f8f8f2;
+  --text-alt-rgb: 248 248 242;
 }
 
-[data-theme="amber"] {
-  --bg: #120f1d;
-  --bg-rgb: 18 15 29;
-  --bg-dark: #0d0a15;
-  --bg-dark-rgb: 13 10 21;
-  --bg-darker: #07050b;
-  --bg-darker-rgb: 7 5 11;
-  --panel: #1c182d;
-  --panel-rgb: 28 24 45;
-  --surface: #2a2443;
-  --surface-rgb: 42 36 67;
-  --surface-soft: #211c35;
-  --surface-soft-rgb: 33 28 53;
-  --text: #ffeeb2;
-  --text-rgb: 255 238 178;
-  --muted: #dfcf97;
-  --muted-rgb: 223 207 151;
-  --comment: #70654c;
-  --comment-rgb: 112 101 76;
-  --cyan: #ffb000;
-  --cyan-rgb: 255 176 0;
-  --blue: #ff9200;
-  --blue-rgb: 255 146 0;
-  --green: #05c46b;
-  --green-rgb: 5 196 107;
-  --orange: #ffb000;
-  --orange-rgb: 255 176 0;
-  --yellow: #ffd200;
-  --yellow-rgb: 255 210 0;
-  --red: #ff3f34;
-  --red-rgb: 255 63 52;
-  --purple: #ef5777;
-  --purple-rgb: 239 87 119;
-  --teal: #0be881;
-  --teal-rgb: 11 232 129;
-  --dark-cyan: #c48b00;
-  --dark-cyan-rgb: 196 139 0;
-  --bright-cyan: #fff5d6;
-  --bright-cyan-rgb: 255 245 214;
-  --terminal-black: #3c355c;
-  --terminal-black-rgb: 60 53 92;
-  --text-alt: #eedaa0;
-  --text-alt-rgb: 238 218 160;
+:root[data-theme="gruvbox"] {
+  --bg: #282828;
+  --bg-rgb: 40 40 40;
+  --bg-dark: #1d2021;
+  --bg-dark-rgb: 29 32 33;
+  --bg-darker: #151718;
+  --bg-darker-rgb: 21 23 24;
+  --panel: #3c3836;
+  --panel-rgb: 60 56 54;
+  --surface: #504945;
+  --surface-rgb: 80 73 69;
+  --surface-soft: #32302f;
+  --surface-soft-rgb: 50 48 47;
+  --text: #ebdbb2;
+  --text-rgb: 235 219 178;
+  --muted: #a89984;
+  --muted-rgb: 168 153 132;
+  --comment: #928374;
+  --comment-rgb: 146 131 116;
+  --cyan: #8ec07c;
+  --cyan-rgb: 142 192 124;
+  --blue: #83a598;
+  --blue-rgb: 131 165 152;
+  --green: #b8bb26;
+  --green-rgb: 184 187 38;
+  --orange: #fe8019;
+  --orange-rgb: 254 128 25;
+  --yellow: #fabd2f;
+  --yellow-rgb: 250 189 47;
+  --red: #fb4934;
+  --red-rgb: 251 73 52;
+  --purple: #d3869b;
+  --purple-rgb: 211 134 155;
+  --teal: #8ec07c;
+  --teal-rgb: 142 192 124;
+  --dark-cyan: #689d6a;
+  --dark-cyan-rgb: 104 157 106;
+  --bright-cyan: #a8e6cf;
+  --bright-cyan-rgb: 168 230 207;
+  --terminal-black: #665c54;
+  --terminal-black-rgb: 102 92 84;
+  --text-alt: #d5c4a1;
+  --text-alt-rgb: 213 196 161;
 }
 
-[data-theme="glacier-crimson"] {
-  --bg: #1e1e1e;
-  --bg-rgb: 30 30 30;
-  --bg-dark: #171717;
-  --bg-dark-rgb: 23 23 23;
-  --bg-darker: #121212;
-  --bg-darker-rgb: 18 18 18;
-  --panel: #252526;
-  --panel-rgb: 37 37 38;
-  --surface: #3e3e3f;
-  --surface-rgb: 62 62 63;
-  --surface-soft: #2d2d2d;
-  --surface-soft-rgb: 45 45 45;
-  --text: #e3e3e3;
-  --text-rgb: 227 227 227;
-  --muted: #a6a6a6;
-  --muted-rgb: 166 166 166;
-  --comment: #6c6c6c;
-  --comment-rgb: 108 108 108;
-  --cyan: #ff4a68;
-  --cyan-rgb: 255 74 104;
-  --blue: #e83e8c;
-  --blue-rgb: 232 62 140;
-  --green: #39c5bb;
-  --green-rgb: 57 197 187;
-  --orange: #ff7b54;
-  --orange-rgb: 255 123 84;
-  --yellow: #ffd200;
-  --yellow-rgb: 255 210 0;
-  --red: #ff4a68;
-  --red-rgb: 255 74 104;
-  --purple: #c77dff;
-  --purple-rgb: 199 125 255;
-  --teal: #06d6a0;
-  --teal-rgb: 6 214 160;
-  --dark-cyan: #b8001f;
-  --dark-cyan-rgb: 184 0 31;
-  --bright-cyan: #ffccd5;
-  --bright-cyan-rgb: 255 204 213;
-  --terminal-black: #4f4f4f;
-  --terminal-black-rgb: 79 79 79;
-  --text-alt: #c4c4c4;
-  --text-alt-rgb: 196 196 196;
+:root[data-theme="catppuccin-mocha"] {
+  --bg: #1e1e2e;
+  --bg-rgb: 30 30 46;
+  --bg-dark: #181825;
+  --bg-dark-rgb: 24 24 37;
+  --bg-darker: #11111b;
+  --bg-darker-rgb: 17 17 27;
+  --panel: #313244;
+  --panel-rgb: 49 50 68;
+  --surface: #585b70;
+  --surface-rgb: 88 91 112;
+  --surface-soft: #45475a;
+  --surface-soft-rgb: 69 71 90;
+  --text: #cdd6f4;
+  --text-rgb: 205 214 244;
+  --muted: #a6adc8;
+  --muted-rgb: 166 173 200;
+  --comment: #6c7086;
+  --comment-rgb: 108 112 134;
+  --cyan: #89dceb;
+  --cyan-rgb: 137 220 235;
+  --blue: #89b4fa;
+  --blue-rgb: 137 180 250;
+  --green: #a6e3a1;
+  --green-rgb: 166 227 161;
+  --orange: #fab387;
+  --orange-rgb: 250 179 135;
+  --yellow: #f9e2af;
+  --yellow-rgb: 249 226 175;
+  --red: #f38ba8;
+  --red-rgb: 243 139 168;
+  --purple: #cba6f7;
+  --purple-rgb: 203 166 247;
+  --teal: #94e2d5;
+  --teal-rgb: 148 226 213;
+  --dark-cyan: #74c7ec;
+  --dark-cyan-rgb: 116 199 236;
+  --bright-cyan: #b4f9f8;
+  --bright-cyan-rgb: 180 249 248;
+  --terminal-black: #45475a;
+  --terminal-black-rgb: 69 71 90;
+  --text-alt: #bac2de;
+  --text-alt-rgb: 186 194 222;
+}
+
+:root[data-theme="catppuccin-latte"] {
+  --bg: #e6e9ef;
+  --bg-rgb: 230 233 239;
+  --bg-dark: #dce0e8;
+  --bg-dark-rgb: 220 224 232;
+  --bg-darker: #ccd0da;
+  --bg-darker-rgb: 204 208 218;
+  --panel: #eff1f5;
+  --panel-rgb: 239 241 245;
+  --surface: #ccd0da;
+  --surface-rgb: 204 208 218;
+  --surface-soft: #bcc0cc;
+  --surface-soft-rgb: 188 192 204;
+  --text: #4c4f69;
+  --text-rgb: 76 79 105;
+  --muted: #5c5f77;
+  --muted-rgb: 92 95 119;
+  --comment: #8c8fa1;
+  --comment-rgb: 140 143 161;
+  --cyan: #04a5e5;
+  --cyan-rgb: 4 165 229;
+  --blue: #1e66f5;
+  --blue-rgb: 30 102 245;
+  --green: #40a02b;
+  --green-rgb: 64 160 43;
+  --orange: #fe641b;
+  --orange-rgb: 254 100 27;
+  --yellow: #df8e1d;
+  --yellow-rgb: 223 142 29;
+  --red: #d20f39;
+  --red-rgb: 210 15 57;
+  --purple: #8839ef;
+  --purple-rgb: 136 57 239;
+  --teal: #179299;
+  --teal-rgb: 23 146 153;
+  --dark-cyan: #209fb5;
+  --dark-cyan-rgb: 32 159 181;
+  --bright-cyan: #74d3ae;
+  --bright-cyan-rgb: 116 211 174;
+  --terminal-black: #6c6f85;
+  --terminal-black-rgb: 108 111 133;
+  --text-alt: #5c5f77;
+  --text-alt-rgb: 92 95 119;
 }
 
 :root {
   --line: rgb(var(--terminal-black-rgb) / 0.55);
   --line-subtle: rgb(var(--terminal-black-rgb) / 0.28);
+  --canvas-grid: rgb(var(--terminal-black-rgb) / 0.22);
   --line-soft: rgb(var(--terminal-black-rgb) / 0.35);
   --line-medium: rgb(var(--terminal-black-rgb) / 0.42);
   --line-strong: rgb(var(--terminal-black-rgb) / 0.52);
@@ -440,6 +486,7 @@ body::-webkit-scrollbar,
 .import-preview-box::-webkit-scrollbar,
 .import-warnings-box::-webkit-scrollbar,
 .autoeq-tab::-webkit-scrollbar,
+.settings-list::-webkit-scrollbar,
 .custom-select-dropdown::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -454,6 +501,7 @@ body::-webkit-scrollbar-track,
 .import-preview-box::-webkit-scrollbar-track,
 .import-warnings-box::-webkit-scrollbar-track,
 .autoeq-tab::-webkit-scrollbar-track,
+.settings-list::-webkit-scrollbar-track,
 .custom-select-dropdown::-webkit-scrollbar-track {
   background: var(--bg-dark);
   border-left: 1px solid var(--line-subtle);
@@ -468,6 +516,7 @@ body::-webkit-scrollbar-track:horizontal,
 .import-preview-box::-webkit-scrollbar-track:horizontal,
 .import-warnings-box::-webkit-scrollbar-track:horizontal,
 .autoeq-tab::-webkit-scrollbar-track:horizontal,
+.settings-list::-webkit-scrollbar-track:horizontal,
 .custom-select-dropdown::-webkit-scrollbar-track:horizontal {
   border-left: none;
   border-top: 1px solid var(--line-subtle);
@@ -482,6 +531,7 @@ body::-webkit-scrollbar-thumb,
 .import-preview-box::-webkit-scrollbar-thumb,
 .import-warnings-box::-webkit-scrollbar-thumb,
 .autoeq-tab::-webkit-scrollbar-thumb,
+.settings-list::-webkit-scrollbar-thumb,
 .custom-select-dropdown::-webkit-scrollbar-thumb {
   background: var(--comment);
   border-radius: 0px !important; /* Force completely sharp corners to match design language */
@@ -505,6 +555,8 @@ body::-webkit-scrollbar-thumb:active,
 .import-warnings-box::-webkit-scrollbar-thumb:active,
 .autoeq-tab::-webkit-scrollbar-thumb:hover,
 .autoeq-tab::-webkit-scrollbar-thumb:active,
+.settings-list::-webkit-scrollbar-thumb:hover,
+.settings-list::-webkit-scrollbar-thumb:active,
 .custom-select-dropdown::-webkit-scrollbar-thumb:hover,
 .custom-select-dropdown::-webkit-scrollbar-thumb:active {
   background: var(--cyan);
@@ -519,6 +571,7 @@ body::-webkit-scrollbar-corner,
 .import-preview-box::-webkit-scrollbar-corner,
 .import-warnings-box::-webkit-scrollbar-corner,
 .autoeq-tab::-webkit-scrollbar-corner,
+.settings-list::-webkit-scrollbar-corner,
 .custom-select-dropdown::-webkit-scrollbar-corner {
   background: var(--bg-dark);
 }

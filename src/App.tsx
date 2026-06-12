@@ -14,6 +14,7 @@ import { DEV_DUMMY_DEVICE, buildDevDummyPeq, isDevDummyDevice } from "./lib/devD
 import { makeMeasurementName, nextMeasurementColor, normalizeMeasurementPoints } from "./lib/measurements";
 import { getBuiltInTargets, makeTargetName, nextTargetColor } from "./lib/targetReferences";
 import { buildDefaultState, normalizePeq } from "./lib/peq";
+import { clearThemeCache } from "./lib/theme";
 import type { DeviceInfo, Filter, GraphViewMode, MeasurementTrace, PEQData, Profile, TargetTrace, OperationProgress } from "./types";
 import { ToastContainer, type Toast } from "./components/Toast";
 import "./App.css";
@@ -51,11 +52,134 @@ function App() {
     return () => media.removeEventListener("change", listener);
   }, []);
 
+  const [theme, setTheme] = useState("tokyo-night");
+  const [resolvedTheme, setResolvedTheme] = useState("tokyo-night");
+
+  useEffect(() => {
+    const applyTheme = async () => {
+      let resolved = theme;
+      if (theme === "auto") {
+        let prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        
+        // On environments like GNOME/Linux, prefers-color-scheme might not propagate instantly,
+        // so query the Tauri window theme directly as a primary source of truth if available
+        if (!!(window as any).__TAURI_INTERNALS__) {
+          try {
+            // First try GNOME settings check via backend
+            const linuxScheme = await invoke<string>("get_linux_color_scheme");
+            if (linuxScheme === "dark") {
+              prefersDark = true;
+            } else if (linuxScheme === "light") {
+              prefersDark = false;
+            } else {
+              // Fall back to window.theme()
+              const { getCurrentWindow } = await import("@tauri-apps/api/window");
+              const appWindow = getCurrentWindow();
+              const tauriTheme = await appWindow.theme();
+              if (tauriTheme === "dark") {
+                prefersDark = true;
+              } else if (tauriTheme === "light") {
+                prefersDark = false;
+              }
+            }
+          } catch (e) {
+            console.error("Failed to query Linux/Tauri window theme:", e);
+          }
+        }
+        resolved = prefersDark ? "tokyo-night" : "catppuccin-latte";
+      }
+      setResolvedTheme(resolved);
+      document.documentElement.setAttribute("data-theme", resolved);
+      clearThemeCache();
+    };
+
+    applyTheme();
+
+    const cleanups: (() => void)[] = [];
+
+    // 1. Web media query listener
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    const handleMediaChange = () => {
+      applyTheme();
+    };
+    mediaQuery.addEventListener("change", handleMediaChange);
+    cleanups.push(() => mediaQuery.removeEventListener("change", handleMediaChange));
+
+    // 2. Tauri window theme change listener (for instant system theme events)
+    if (theme === "auto" && !!(window as any).__TAURI_INTERNALS__) {
+      let active = true;
+      let tauriUnlisten: (() => void) | null = null;
+
+      (async () => {
+        try {
+          const { getCurrentWindow } = await import("@tauri-apps/api/window");
+          const appWindow = getCurrentWindow();
+          if (!active) return;
+          const unlisten = await appWindow.onThemeChanged(() => {
+            applyTheme();
+          });
+          if (!active) {
+            unlisten();
+          } else {
+            tauriUnlisten = unlisten;
+          }
+        } catch (e) {
+          console.error("Failed to listen to Tauri theme change:", e);
+        }
+      })();
+
+      cleanups.push(() => {
+        active = false;
+        if (tauriUnlisten) {
+          tauriUnlisten();
+        }
+      });
+    }
+
+    // 3. Linux theme change backend event listener (for GNOME/dconf settings portal)
+    if (theme === "auto" && !!(window as any).__TAURI_INTERNALS__) {
+      let active = true;
+      let tauriEventUnlisten: (() => void) | null = null;
+
+      (async () => {
+        try {
+          const { listen } = await import("@tauri-apps/api/event");
+          if (!active) return;
+          const unlisten = await listen<string>("linux-theme-changed", (event) => {
+            const linuxTheme = event.payload; // "dark" or "light"
+            const resolved = linuxTheme === "dark" ? "tokyo-night" : "catppuccin-latte";
+            setResolvedTheme(resolved);
+            document.documentElement.setAttribute("data-theme", resolved);
+            clearThemeCache();
+          });
+          if (!active) {
+            unlisten();
+          } else {
+            tauriEventUnlisten = unlisten;
+          }
+        } catch (e) {
+          console.error("Failed to listen to linux-theme-changed event:", e);
+        }
+      })();
+
+      cleanups.push(() => {
+        active = false;
+        if (tauriEventUnlisten) {
+          tauriEventUnlisten();
+        }
+      });
+    }
+
+    return () => {
+      cleanups.forEach((cleanup) => cleanup());
+    };
+  }, [theme]);
+
   useEffect(() => {
     invoke<{ theme?: string }>("get_settings")
       .then((settings) => {
         if (settings && settings.theme) {
-          document.documentElement.setAttribute("data-theme", settings.theme);
+          setTheme(settings.theme);
         }
       })
       .catch((err) => {
@@ -712,6 +836,7 @@ function App() {
                     measurements={measurements}
                     targets={activeTargets}
                     viewMode={graphViewMode}
+                    theme={resolvedTheme}
                   />
                 </section>
                 <Preamp
@@ -733,6 +858,7 @@ function App() {
                     measurements={measurements}
                     targets={activeTargets}
                     viewMode={graphViewMode}
+                    theme={resolvedTheme}
                   />
                 </section>
 
@@ -807,6 +933,8 @@ function App() {
                 availableTabs={["Preset", "Import"]}
                 defaultTab="Preset"
                 showDiagnostics={false}
+                theme={theme}
+                onThemeChange={setTheme}
               />
             )}
             {activeTab === "settings" && (
@@ -840,6 +968,8 @@ function App() {
                 showActions={false}
                 graphViewMode={graphViewMode}
                 onGraphViewModeChange={setGraphViewMode}
+                theme={theme}
+                onThemeChange={setTheme}
               />
             )}
           </div>
@@ -883,6 +1013,7 @@ function App() {
                 measurements={measurements}
                 targets={activeTargets}
                 viewMode={graphViewMode}
+                theme={resolvedTheme}
               />
             </section>
             <TargetSelector
@@ -931,6 +1062,8 @@ function App() {
             onRedo={redo}
             graphViewMode={graphViewMode}
             onGraphViewModeChange={setGraphViewMode}
+            theme={theme}
+            onThemeChange={setTheme}
           />
         </main>
       )}
