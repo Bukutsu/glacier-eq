@@ -53,5 +53,5 @@ features = ["build"]
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies.hidapi]
 version = "2.6.3"
-features = ["linux-shared-hidraw"]
+features = ["linux-native"]
 default-features = false
