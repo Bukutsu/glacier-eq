@@ -486,6 +486,10 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   font-size: var(--type-label);
 }
 
+.setting-select-wrapper {
+  width: 140px;
+}
+
 .smooth-buttons {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
