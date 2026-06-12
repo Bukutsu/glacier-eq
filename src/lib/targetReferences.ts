@@ -1,13 +1,7 @@
-import { cssVar } from "./theme";
 import { parseMeasurementText } from "./measurements";
 import type { TargetTrace } from "../types";
 
 const TARGET_COLOR_VARS = ["--yellow", "--green", "--purple", "--red", "--blue", "--cyan"];
-/**
- * Fallback hex values matching the current Tokyo Night palette.
- * Used only when the CSS variable cannot be resolved (SSR / edge case).
- */
-const TARGET_FALLBACKS = ["#e0af68", "#9ece6a", "#bb9af7", "#f7768e", "#7aa2f7", "#7dcfff"];
 
 const targetFiles = import.meta.glob("../../src-tauri/target-reference/*.txt", {
   eager: true,
@@ -33,7 +27,7 @@ export function nextTargetColor(existingCount: number): string {
 
 function resolveTargetColor(index: number): string {
   const idx = index % TARGET_COLOR_VARS.length;
-  return cssVar(TARGET_COLOR_VARS[idx], TARGET_FALLBACKS[idx]);
+  return `var(${TARGET_COLOR_VARS[idx]})`;
 }
 
 export function makeTargetName(baseName: string, existing: TargetTrace[]): string {

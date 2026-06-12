@@ -11,6 +11,7 @@ import { Icon } from "./Icon";
 import { Select } from "./Select";
 import { NumberInput } from "./NumberInput";
 
+
 type ToolsTab = "Preset" | "Import" | "Measure" | "AutoEQ" | "Settings";
 
 const TOOL_TAB_META: Record<ToolsTab, { icon: string; label: string }> = {
@@ -53,6 +54,8 @@ interface ToolsPanelProps {
   graphViewMode?: GraphViewMode;
   onGraphViewModeChange?: (mode: GraphViewMode) => void;
   allTargets?: TargetTrace[];
+  theme?: string;
+  onThemeChange?: (theme: string) => void;
 }
 
 export function ToolsPanel(props: ToolsPanelProps) {
@@ -101,6 +104,8 @@ export function ToolsPanel(props: ToolsPanelProps) {
           <SettingsTab
             graphViewMode={props.graphViewMode}
             onGraphViewModeChange={props.onGraphViewModeChange}
+            theme={props.theme}
+            onThemeChange={props.onThemeChange}
           />
         )}
         {tab === "Preset" && props.showActions !== false && <ToolActions {...props} />}
@@ -814,9 +819,12 @@ export function AutoEqTab({
 function SettingsTab({
   graphViewMode,
   onGraphViewModeChange,
+  onThemeChange,
 }: {
   graphViewMode?: GraphViewMode;
   onGraphViewModeChange?: (mode: GraphViewMode) => void;
+  theme?: string;
+  onThemeChange?: (theme: string) => void;
 }) {
   const [settings, setSettings] = useState({
     auto_pull_on_connect: true,
@@ -843,7 +851,9 @@ function SettingsTab({
     try {
       await invoke("save_settings", { settings: updated });
       if (key === "theme") {
-        document.documentElement.setAttribute("data-theme", value);
+        if (onThemeChange) {
+          onThemeChange(value);
+        }
       }
     } catch (err) {
       console.error("Failed to save settings:", err);
@@ -881,11 +891,13 @@ function SettingsTab({
             value={settings.theme}
             onChange={(val) => updateSetting("theme", val)}
             options={[
+              { value: "auto", label: "Auto (System Theme)" },
               { value: "tokyo-night", label: "Tokyo Night" },
-              { value: "nordic-frost", label: "Nordic Frost" },
-              { value: "matrix", label: "OLED Matrix" },
-              { value: "amber", label: "Cyberpunk Amber" },
-              { value: "glacier-crimson", label: "Glacier Crimson" },
+              { value: "nord", label: "Nord" },
+              { value: "dracula", label: "Dracula" },
+              { value: "gruvbox", label: "Gruvbox Dark" },
+              { value: "catppuccin-mocha", label: "Catppuccin Mocha" },
+              { value: "catppuccin-latte", label: "Catppuccin Latte (Light)" },
             ]}
           />
         </div>
