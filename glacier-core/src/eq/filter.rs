@@ -112,7 +112,7 @@ impl Filter {
 pub struct PEQData {
     pub filters: Vec<Filter>,
     #[serde(rename = "globalGain", alias = "global_gain")]
-    pub global_gain: i8,
+    pub global_gain: f64,
 }
 
 use crate::device::capabilities::DeviceCapabilities;
@@ -122,15 +122,15 @@ impl PEQData {
     pub fn clamp_to_capabilities(&mut self, caps: &DeviceCapabilities) -> Vec<String> {
         let mut warnings = Vec::new();
 
-        if self.global_gain < caps.global_gain_range.0
-            || self.global_gain > caps.global_gain_range.1
+        if self.global_gain < caps.global_gain_range.0 as f64
+            || self.global_gain > caps.global_gain_range.1 as f64
         {
             let old_gain = self.global_gain;
             self.global_gain = self
                 .global_gain
-                .clamp(caps.global_gain_range.0, caps.global_gain_range.1);
+                .clamp(caps.global_gain_range.0 as f64, caps.global_gain_range.1 as f64);
             warnings.push(format!(
-                "Clamped preamp gain from {} dB to {} dB",
+                "Clamped preamp gain from {:.1} dB to {:.1} dB",
                 old_gain, self.global_gain
             ));
         }
@@ -215,7 +215,7 @@ impl PEQData {
     /// Audibly-equivalent comparison with tolerance for float fields.
     /// Disabled bands match regardless of params (no audible effect).
     pub fn matches_within(&self, other: &Self, gain_tol: f64, q_tol: f64) -> bool {
-        if self.global_gain != other.global_gain {
+        if (self.global_gain - other.global_gain).abs() > 0.001 {
             return false;
         }
         if self.filters.len() != other.filters.len() {

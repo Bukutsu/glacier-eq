@@ -164,7 +164,7 @@ impl DeviceProtocol for WalkplayProtocol {
 
     fn is_default_state(&self, peq: &PEQData) -> bool {
         let all_disabled = peq.filters.iter().all(|f| !f.enabled);
-        let has_default_gain = peq.global_gain == 0;
+        let has_default_gain = peq.global_gain == 0.0;
         let all_default_freq = peq.filters.iter().all(|f| f.freq == 100);
         all_disabled && has_default_gain && all_default_freq
     }

@@ -373,7 +373,7 @@ pub fn run_autoeq_internal(
     } else {
         total_preamp
     };
-    let preamp = preamp_val.round() as i8;
+    let preamp = preamp_val as f64;
 
     Ok(PEQData {
         filters,
@@ -444,6 +444,6 @@ mod tests {
         .unwrap();
 
         // The optimized EQ must have a negative preamp to prevent digital clipping
-        assert!(peq.global_gain < 0);
+        assert!(peq.global_gain < 0.0);
     }
 }
