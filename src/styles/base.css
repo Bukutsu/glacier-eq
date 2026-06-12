@@ -306,6 +306,8 @@
   --legend-bg: rgb(var(--bg-darker-rgb) / 0.82);
   --shadow-bar: rgba(0, 0, 0, 0.3);
   --theme-checkmark: var(--bg-dark);
+  --surface-disabled: rgb(var(--text-rgb) / 0.12);
+  --text-disabled: rgb(var(--text-rgb) / 0.38);
   --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, sans-serif;
   --font-mono: ui-monospace, "SF Mono", "SFMono-Regular", "Cascadia Mono", "Cascadia Code", "Fira Code", "Fira Mono", "Roboto Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace;
   --type-title: 22px;
@@ -357,9 +359,17 @@ button, input { font: inherit; }
 button { border: 0; cursor: pointer; }
 button:disabled, .btn:disabled, .tools-card button:disabled, .diag-card button:disabled, .device-actions button:disabled {
   cursor: not-allowed;
-  background: var(--surface-disabled, var(--surface-soft)) !important;
-  color: var(--text-disabled, var(--muted)) !important;
-  opacity: 0.65 !important;
+  background: var(--surface-disabled) !important;
+  color: var(--text-disabled) !important;
+  opacity: 1 !important;
+}
+
+button.transparent:disabled,
+button.text:disabled,
+.history-btn:disabled,
+.diag-head button:disabled,
+.search-row button:disabled {
+  background: transparent !important;
 }
 button:focus-visible,
 input:focus-visible,
@@ -417,7 +427,7 @@ select:focus-visible {
 
 .btn:hover:not(:disabled), .tools-card button:hover:not(:disabled), .diag-card button:hover:not(:disabled) { filter: brightness(1.14); }
 .btn:active:not(:disabled), .tools-card button:active:not(:disabled), .diag-card button:active:not(:disabled) { filter: brightness(1.24); }
-.btn.filled, button.save { background: var(--cyan); color: var(--btn-filled-text, var(--bg-dark)); }
+.btn.filled, button.save { background: var(--btn-filled-bg, var(--cyan)); color: var(--btn-filled-text, var(--bg-dark)); }
 
 @media (pointer: coarse) {
   .btn, .tools-card button, .diag-card button, .device-actions button {
