@@ -821,6 +821,7 @@ function SettingsTab({
   const [settings, setSettings] = useState({
     auto_pull_on_connect: true,
     skip_push_verification: false,
+    theme: "tokyo-night",
   });
   const [loading, setLoading] = useState(true);
 
@@ -836,11 +837,14 @@ function SettingsTab({
       });
   }, []);
 
-  const updateSetting = async (key: keyof typeof settings, value: boolean) => {
+  const updateSetting = async (key: string, value: any) => {
     const updated = { ...settings, [key]: value };
     setSettings(updated);
     try {
       await invoke("save_settings", { settings: updated });
+      if (key === "theme") {
+        document.documentElement.setAttribute("data-theme", value);
+      }
     } catch (err) {
       console.error("Failed to save settings:", err);
     }
@@ -868,6 +872,25 @@ function SettingsTab({
         />
         Skip push verification
       </label>
+
+      <div className="setting-row">
+        <span className="setting-label">Color Theme</span>
+        <div className="setting-select-wrapper">
+          <Select
+            id="theme-select"
+            value={settings.theme}
+            onChange={(val) => updateSetting("theme", val)}
+            options={[
+              { value: "tokyo-night", label: "Tokyo Night" },
+              { value: "nordic-frost", label: "Nordic Frost" },
+              { value: "matrix", label: "OLED Matrix" },
+              { value: "amber", label: "Cyberpunk Amber" },
+              { value: "glacier-crimson", label: "Glacier Crimson" },
+            ]}
+          />
+        </div>
+      </div>
+
       {graphViewMode && onGraphViewModeChange && (
         <div className="setting-row">
           <span className="setting-label">Graph View</span>
