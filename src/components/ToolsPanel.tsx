@@ -924,16 +924,37 @@ function DiagnosticsPanel() {
       .then((data) => setEvents(data))
       .catch((err) => console.error("Failed to load diagnostics:", err));
 
-    let unlisten: () => void = () => {};
+    let active = true;
+    let unlistenFn: (() => void) | null = null;
+
+    const safeUnlisten = (fn: () => void) => {
+      try {
+        const p = fn() as any;
+        if (p && typeof p.catch === "function") {
+          p.catch((err: any) => {
+            console.warn("Failed to unlisten from diagnostic-event (async):", err);
+          });
+        }
+      } catch (err) {
+        console.warn("Failed to unlisten from diagnostic-event (sync):", err);
+      }
+    };
     
     listen<DiagnosticEvent>("diagnostic-event", (event) => {
       setEvents((prev) => [...prev, event.payload].slice(-500));
     }).then((fn) => {
-      unlisten = fn;
+      if (active) {
+        unlistenFn = fn;
+      } else {
+        safeUnlisten(fn);
+      }
     });
 
     return () => {
-      unlisten();
+      active = false;
+      if (unlistenFn) {
+        safeUnlisten(unlistenFn);
+      }
     };
   }, []);
 
