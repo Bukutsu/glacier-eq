@@ -18,6 +18,23 @@ const FILTER_READ_ATTEMPTS: usize = 60;
 const MAX_FILTER_MISMATCHES: usize = 8;
 const GLOBAL_GAIN_READ_ATTEMPTS: usize = 20;
 
+#[derive(Clone, serde::Serialize)]
+struct OperationProgress {
+    message: String,
+    percentage: f32,
+}
+
+fn emit_progress(app: &tauri::AppHandle, message: &str, percentage: f32) {
+    use tauri::Emitter;
+    let _ = app.emit(
+        "operation-progress",
+        OperationProgress {
+            message: message.to_string(),
+            percentage,
+        },
+    );
+}
+
 #[tauri::command]
 pub async fn get_eq_state(
     app: tauri::AppHandle,
@@ -232,6 +249,7 @@ pub async fn set_eq_state(
         format!("Pushing EQ to {}...", connected.profile_name),
     );
 
+    emit_progress(&app, "Initializing push connection...", 10.0);
     if let Err(error) = run_init_sequence(&app, &connected.path, &*protocol) {
         diagnostics::log_error(
             &app,
@@ -256,6 +274,7 @@ pub async fn set_eq_state(
         );
         return Err(error);
     }
+    emit_progress(&app, "Writing preamp...", 75.0);
     if let Err(error) = write_global_gain(&app, &connected.path, &*protocol, peq.global_gain as i8)
     {
         diagnostics::log_error(
@@ -266,6 +285,7 @@ pub async fn set_eq_state(
         );
         return Err(error);
     }
+    emit_progress(&app, "Committing changes to device...", 80.0);
     if let Err(error) = commit_changes(&app, &connected.path, &*protocol) {
         diagnostics::log_error(
             &app,
@@ -284,6 +304,7 @@ pub async fn set_eq_state(
             LogSource::HID,
             "Verifying pushed settings...",
         );
+        emit_progress(&app, "Verifying changes...", 90.0);
         sleep_ms(protocol.read_timing().pull_retry_delay_ms);
 
         match pull_once(&app, &connected, &*protocol, &caps) {
@@ -371,6 +392,7 @@ pub async fn set_eq_state(
     }
 
     diagnostics::log_info(&app, &diagnostics_store, LogSource::HID, "Push successful");
+    emit_progress(&app, "Push successful", 100.0);
     Ok(())
 }
 
@@ -508,17 +530,26 @@ fn pull_once(
     protocol: &dyn DeviceProtocol,
     caps: &DeviceCapabilities,
 ) -> Result<PEQData, String> {
+    emit_progress(app, "Initializing read connection...", 5.0);
     run_init_sequence(app, &connected.path, protocol)?;
 
     let mut filters = Vec::with_capacity(caps.num_bands);
     for index in 0..caps.num_bands {
+        let pct = 10.0 + (index as f32 / caps.num_bands as f32) * 75.0;
+        emit_progress(
+            app,
+            &format!("Reading band {}/{}...", index + 1, caps.num_bands),
+            pct,
+        );
         filters.push(read_filter(app, connected, protocol, index as u8)?);
         sleep_ms(protocol.read_timing().inter_filter_ms);
     }
 
     sleep_ms(protocol.read_timing().post_filter_read_ms);
+    emit_progress(app, "Reading device preamp...", 90.0);
     let global_gain = read_global_gain(app, &connected.path, protocol)?;
 
+    emit_progress(app, "Read successful", 100.0);
     Ok(PEQData {
         filters,
         global_gain: global_gain as f64,
@@ -735,7 +766,14 @@ fn write_filters(
     peq: &PEQData,
     dsp_sample_rate: f64,
 ) -> Result<(), String> {
+    let total = peq.filters.len();
     for (index, filter) in peq.filters.iter().enumerate() {
+        let pct = 15.0 + (index as f32 / total as f32) * 60.0;
+        emit_progress(
+            app,
+            &format!("Writing band {}/{}...", index + 1, total),
+            pct,
+        );
         let packet = protocol.build_filter_write_packet(index as u8, filter, dsp_sample_rate);
         send_packet(app, path, &packet, protocol)
             .map_err(|error| format!("Band {} write failed: {error}", index + 1))?;

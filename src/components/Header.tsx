@@ -1,8 +1,10 @@
 import { ToolbarButton } from "./ToolbarButton";
+import { OperationProgress } from "../types";
 
 interface HeaderProps {
   connected: boolean;
   isBusy: boolean;
+  progress: OperationProgress | null;
   profile: string;
   deviceName: string;
   dirty: boolean;
@@ -18,6 +20,7 @@ interface HeaderProps {
 export function Header({
   connected,
   isBusy,
+  progress,
   profile,
   deviceName,
   dirty,
@@ -51,7 +54,13 @@ export function Header({
           <span className="dash">—</span>
           <strong>{profile}</strong>
           {dirty && <span className="unsaved">UNSAVED</span>}
-          <span className="sync-dot ok">● {isBusy ? "Working…" : "Synced"}</span>
+          <span className={`sync-dot ${isBusy ? "working" : "ok"}`}>
+            ● {isBusy
+              ? progress
+                ? `${progress.message} (${Math.round(progress.percentage)}%)`
+                : "Working…"
+              : "Synced"}
+          </span>
         </div>
         <div className="header-meta-row">
           <div className="history-controls" aria-label="Edit history">
@@ -87,6 +96,14 @@ export function Header({
         <ToolbarButton primary onClick={onPush} disabled={isBusy}>Push</ToolbarButton>
         <ToolbarButton onClick={onDisconnect} disabled={isBusy}>Disconnect</ToolbarButton>
       </div>
+      {isBusy && (
+        <div className="header-progress-bar">
+          <div
+            className={`header-progress-fill ${progress ? "" : "indeterminate"}`}
+            style={{ width: progress ? `${progress.percentage}%` : "100%" }}
+          />
+        </div>
+      )}
     </header>
   );
 }
