@@ -73,6 +73,6 @@ export function normalizePeq(
 
   return {
     filters,
-    global_gain: Math.round(numberOr(source?.global_gain ?? source?.globalGain, defaults.global_gain)),
+    global_gain: numberOr(source?.global_gain ?? source?.globalGain, defaults.global_gain),
   };
 }

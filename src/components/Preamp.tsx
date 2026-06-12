@@ -20,8 +20,8 @@ export function Preamp({
             value={safeValue}
             min={-16}
             max={6}
-            step={0.5}
-            precision={1}
+            step={0.05}
+            precision={2}
             onFocus={onStartChange}
             onChange={onChange}
             className="preamp-value-stepper"
@@ -33,7 +33,7 @@ export function Preamp({
         aria-label="Preamp gain"
         min={-16}
         max={6}
-        step={0.5}
+        step={0.05}
         value={safeValue}
         onMouseDown={onStartChange}
         onTouchStart={onStartChange}

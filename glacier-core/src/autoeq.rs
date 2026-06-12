@@ -276,9 +276,11 @@ pub fn autoeq_token(filter_type: FilterType) -> &'static str {
 
 pub fn peq_to_autoeq(peq: &PEQData) -> String {
     let preamp_str = {
-        let s = format!("{:.1}", peq.global_gain);
-        if s.ends_with(".0") {
-            s[..s.len() - 2].to_string()
+        let s = format!("{:.2}", peq.global_gain);
+        if s.ends_with(".00") {
+            s[..s.len() - 3].to_string()
+        } else if s.ends_with('0') {
+            s[..s.len() - 1].to_string()
         } else {
             s
         }
@@ -1406,6 +1408,18 @@ mod tests {
         let output = peq_to_autoeq(&peq);
         assert!(output.contains("Preamp: -3 dB"));
         assert!(output.contains("Filter 1: ON"));
+
+        let peq_one_dec = PEQData {
+            filters: vec![],
+            global_gain: -3.5,
+        };
+        assert!(peq_to_autoeq(&peq_one_dec).contains("Preamp: -3.5 dB"));
+
+        let peq_two_dec = PEQData {
+            filters: vec![],
+            global_gain: -3.55,
+        };
+        assert!(peq_to_autoeq(&peq_two_dec).contains("Preamp: -3.55 dB"));
     }
 
     #[test]
