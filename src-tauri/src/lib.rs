@@ -9,9 +9,9 @@ mod profiles;
 mod settings;
 mod state;
 
-use std::sync::Mutex;
-use std::process::{Command, Stdio};
 use std::io::{BufRead, BufReader};
+use std::process::{Command, Stdio};
+use std::sync::Mutex;
 use tauri::Emitter;
 
 use diagnostics::DiagnosticsStore;
