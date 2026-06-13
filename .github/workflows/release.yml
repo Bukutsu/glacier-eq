@@ -19,7 +19,7 @@ env:
 
 jobs:
   desktop:
-    name: Desktop release (${{ matrix.name }})
+    name: Desktop build (${{ matrix.name }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     strategy:
@@ -80,23 +80,32 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Build app and upload artifacts
+      - name: Build app
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           args: ${{ matrix.args }}
-          tagName: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
-          releaseName: ${{ startsWith(github.ref, 'refs/tags/') && format('Glacier EQ {0}', github.ref_name) || '' }}
-          releaseBody: "Automated Glacier EQ build. See assets below for installers."
-          releaseDraft: false
-          prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}
-          generateReleaseNotes: true
-          retryAttempts: 2
-          uploadUpdaterJson: false
-          releaseAssetNamePattern: "glacier-eq_[version]_[platform]_[arch].[ext]"
-          uploadWorkflowArtifacts: ${{ !startsWith(github.ref, 'refs/tags/') }}
-          workflowArtifactNamePattern: "glacier-eq_[platform]_[arch]_[bundle]"
+          assetNamePattern: "glacier-eq_[version]_[platform]_[arch].[ext]"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: glacier-eq-${{ matrix.name }}
+          path: |
+            src-tauri/target/release/bundle/**/*.dmg
+            src-tauri/target/release/bundle/**/*.app.tar.gz
+            src-tauri/target/release/bundle/**/*.AppImage
+            src-tauri/target/release/bundle/**/*.appimage.tar.gz
+            src-tauri/target/release/bundle/**/*.deb
+            src-tauri/target/release/bundle/**/*.rpm
+            src-tauri/target/release/bundle/**/*.exe
+            src-tauri/target/release/bundle/**/*.msi
+            src-tauri/target/release/bundle/**/*.nsis.zip
+            src-tauri/target/release/bundle/**/*.nsis.zip.sig
+            src-tauri/target/release/bundle/**/*.app.tar.gz.sig
+            src-tauri/target/release/bundle/**/*.AppImage.tar.gz.sig
+          retention-days: 90
 
   android:
     name: Android APK
@@ -173,12 +182,31 @@ jobs:
             src-tauri/gen/android/app/build/outputs/apk/**/glacier-eq_*_android-arm64.apk
           retention-days: 90
 
-      - name: Upload APK to release
-        if: startsWith(github.ref, 'refs/tags/')
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  release:
+    name: Create release and upload assets
+    needs: [desktop, android]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: glacier-eq-*
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: "Glacier EQ ${{ github.ref_name }}"
+          body: "Automated Glacier EQ build. See assets below for installers."
+          draft: false
+          prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}
+          generate_release_notes: true
+
+      - name: Upload all assets to release
         run: |
           shopt -s globstar nullglob
-          gh release upload "${{ github.ref_name }}" \
-            src-tauri/gen/android/app/build/outputs/apk/**/glacier-eq_*_android-arm64.apk \
-            --clobber
+          for file in artifacts/**/*; do
+            [ -f "$file" ] && gh release upload "${{ github.ref_name }}" "$file" --clobber
+          done
