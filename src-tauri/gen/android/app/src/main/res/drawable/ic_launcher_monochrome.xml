@@ -1,0 +1,29 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+    <group
+        android:translateX="81.92"
+        android:translateY="81.92"
+        android:scaleX="0.68"
+        android:scaleY="0.68">
+        <!-- Soundwave (Foreground Accent Color) -->
+        <path
+            android:fillColor="#00000000"
+            android:strokeColor="#ffffff"
+            android:strokeWidth="22"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:pathData="M 80 220 C 120 220, 132 140, 160 140 C 188 140, 204 260, 232 260 C 252 260, 260 60, 276 60 C 292 60, 300 260, 320 260 C 348 260, 364 140, 392 140 C 420 140, 432 220, 432 220" />
+        
+        <!-- DAC Unit Body with evenOdd holes -->
+        <group
+            android:translateY="16.0">
+            <path
+                android:fillType="evenOdd"
+                android:fillColor="#ffffff"
+                android:pathData="M 86 310 h 340 a 10 10 0 0 1 10 10 v 62 a 10 10 0 0 1 -10 10 h -340 a 10 10 0 0 1 -10 -10 v -62 a 10 10 0 0 1 10 -10 Z M 92 321.5 a 4.5 4.5 0 1 0 0 9.0 a 4.5 4.5 0 1 0 0 -9.0 Z M 92 371.5 a 4.5 4.5 0 1 0 0 9.0 a 4.5 4.5 0 1 0 0 -9.0 Z M 420 321.5 a 4.5 4.5 0 1 0 0 9.0 a 4.5 4.5 0 1 0 0 -9.0 Z M 420 371.5 a 4.5 4.5 0 1 0 0 9.0 a 4.5 4.5 0 1 0 0 -9.0 Z M 136 331.5 a 20.5 20.5 0 1 0 0 41.0 a 20.5 20.5 0 1 0 0 -41.0 Z M 136 336.5 a 15.5 15.5 0 1 0 0 31.0 a 15.5 15.5 0 1 0 0 -31.0 Z M 136 345 a 7 7 0 1 0 0 14 a 7 7 0 1 0 0 -14 Z M 188 343.5 a 8.5 8.5 0 1 0 0 17.0 a 8.5 8.5 0 1 0 0 -17.0 Z M 188 346.5 a 5.5 5.5 0 1 0 0 11.0 a 5.5 5.5 0 1 0 0 -11.0 Z M 212.00 330.50 L 288.00 330.50 A 2.50 2.50 0 0 1 288.00 325.50 L 212.00 325.50 A 2.50 2.50 0 0 1 212.00 330.50 Z M 212.00 346.50 L 288.00 346.50 A 2.50 2.50 0 0 1 288.00 341.50 L 212.00 341.50 A 2.50 2.50 0 0 1 212.00 346.50 Z M 212.00 362.50 L 288.00 362.50 A 2.50 2.50 0 0 1 288.00 357.50 L 212.00 357.50 A 2.50 2.50 0 0 1 212.00 362.50 Z M 212.00 378.50 L 288.00 378.50 A 2.50 2.50 0 0 1 288.00 373.50 L 212.00 373.50 A 2.50 2.50 0 0 1 212.00 378.50 Z M 340 313.5 a 38.5 38.5 0 1 0 0 77.0 a 38.5 38.5 0 1 0 0 -77.0 Z M 340 318.5 a 33.5 33.5 0 1 0 0 67.0 a 33.5 33.5 0 1 0 0 -67.0 Z M 337.94 350.58 L 319.94 376.58 A 2.50 2.50 0 0 1 324.06 379.42 L 342.06 353.42 A 2.50 2.50 0 0 1 337.94 350.58 Z M 406 348 h 12 a 4 4 0 0 1 4 4 v 2 a 4 4 0 0 1 -4 4 h -12 a 4 4 0 0 1 -4 -4 v -2 a 4 4 0 0 1 4 -4 Z" />
+        </group>
+    </group>
+</vector>
