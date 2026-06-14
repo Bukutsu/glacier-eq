@@ -281,6 +281,10 @@ test("Diagnostics panel operations", async ({ page }) => {
   await page.goto("/");
   await page.click("button:has-text('Connect')");
 
+  // Open settings and enable diagnostics log panel
+  await page.click("button:has-text('Settings')");
+  await page.check("label:has-text('Show diagnostic log panel') input");
+
   // Check logs presence
   const logBox = page.locator(".log-box");
   await expect(logBox).toContainText("Application started");

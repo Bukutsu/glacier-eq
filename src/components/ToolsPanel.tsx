@@ -51,6 +51,7 @@ interface ToolsPanelProps {
   defaultTab?: ToolsTab;
   showActions?: boolean;
   showDiagnostics?: boolean;
+  onShowDiagnosticsChange?: (show: boolean) => void;
   graphViewMode?: GraphViewMode;
   onGraphViewModeChange?: (mode: GraphViewMode) => void;
   allTargets?: TargetTrace[];
@@ -60,7 +61,7 @@ interface ToolsPanelProps {
 
 export function ToolsPanel(props: ToolsPanelProps) {
   const availableTabs = props.availableTabs ?? ["Preset", "Import", "Measure", "AutoEQ", "Settings"];
-  const showDiagnostics = props.showDiagnostics ?? import.meta.env.DEV;
+  const showDiagnostics = props.showDiagnostics ?? false;
   const [tab, setTab] = useState<ToolsTab>(() => (
     props.defaultTab && availableTabs.includes(props.defaultTab) ? props.defaultTab : availableTabs[0]
   ));
@@ -106,6 +107,7 @@ export function ToolsPanel(props: ToolsPanelProps) {
             onGraphViewModeChange={props.onGraphViewModeChange}
             theme={props.theme}
             onThemeChange={props.onThemeChange}
+            onShowDiagnosticsChange={props.onShowDiagnosticsChange}
           />
         )}
         {tab === "Preset" && props.showActions !== false && <ToolActions {...props} />}
@@ -820,23 +822,26 @@ function SettingsTab({
   graphViewMode,
   onGraphViewModeChange,
   onThemeChange,
+  onShowDiagnosticsChange,
 }: {
   graphViewMode?: GraphViewMode;
   onGraphViewModeChange?: (mode: GraphViewMode) => void;
   theme?: string;
   onThemeChange?: (theme: string) => void;
+  onShowDiagnosticsChange?: (show: boolean) => void;
 }) {
   const [settings, setSettings] = useState({
     auto_pull_on_connect: true,
     skip_push_verification: false,
     theme: "tokyo-night",
+    show_diagnostics: false,
   });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     invoke<typeof settings>("get_settings")
       .then((data) => {
-        setSettings(data);
+        setSettings((prev) => ({ ...prev, ...data }));
         setLoading(false);
       })
       .catch((err) => {
@@ -853,6 +858,11 @@ function SettingsTab({
       if (key === "theme") {
         if (onThemeChange) {
           onThemeChange(value);
+        }
+      }
+      if (key === "show_diagnostics") {
+        if (onShowDiagnosticsChange) {
+          onShowDiagnosticsChange(value);
         }
       }
     } catch (err) {
@@ -881,6 +891,14 @@ function SettingsTab({
           onChange={(e) => updateSetting("skip_push_verification", e.target.checked)}
         />
         Skip push verification
+      </label>
+      <label>
+        <input
+          type="checkbox"
+          checked={settings.show_diagnostics}
+          onChange={(e) => updateSetting("show_diagnostics", e.target.checked)}
+        />
+        Show diagnostic log panel
       </label>
 
       <div className="setting-row">
