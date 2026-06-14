@@ -27,6 +27,13 @@ pub const SUPPORTED_DEVICES: &[SupportedDevice] = &[
         family: "Walkplay Family",
     },
     SupportedDevice {
+        name: "TRN Black Pearl",
+        vendor_id: 0x3302,
+        product_id: 0x43E8,
+        status: "Untested",
+        family: "Walkplay Family",
+    },
+    SupportedDevice {
         name: "Moondrop Dawn Pro",
         vendor_id: 0x2FC6,
         product_id: 0xDF30,
@@ -58,6 +65,7 @@ pub fn get_device_profile(
 ) -> Option<Box<dyn crate::device::profile::DeviceProfile>> {
     match (vendor_id, product_id) {
         (0x3302, 0x43E6) => Some(Box::new(crate::device::walkplay::TP35ProProfile)),
+        (0x3302, 0x43E8) => Some(Box::new(crate::device::walkplay::TrnBlackPearlProfile)),
         (0x2FC6, 0xDF30) => Some(Box::new(crate::device::walkplay::DawnProProfile)),
         (0x0D8C, 0x0210) => Some(Box::new(crate::device::walkplay::TruthearKeyxProfile)),
         _ => None,

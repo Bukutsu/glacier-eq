@@ -311,6 +311,46 @@ impl DeviceProfile for TP35ProProfile {
     }
 }
 
+pub struct TrnBlackPearlProfile;
+
+impl DeviceProfile for TrnBlackPearlProfile {
+    fn name(&self) -> &'static str {
+        "TRN Black Pearl"
+    }
+
+    fn vendor_id(&self) -> u16 {
+        0x3302
+    }
+
+    fn product_id(&self) -> u16 {
+        0x43E8
+    }
+
+    fn capabilities(&self) -> DeviceCapabilities {
+        DeviceCapabilities {
+            num_bands: 10,
+            global_gain_range: (-16, 6),
+            band_gain_range: (-10.0, 10.0),
+            freq_range: (20, 20000),
+            q_range: (0.1, 10.0),
+            supported_filter_types: FilterTypeFlags::PEAK
+                | FilterTypeFlags::LOW_SHELF
+                | FilterTypeFlags::HIGH_SHELF
+                | FilterTypeFlags::LOW_PASS
+                | FilterTypeFlags::HIGH_PASS,
+            supports_per_band_enable: false,
+            dsp_sample_rate: 96000.0,
+            gain_tolerance: 0.15,
+            freq_tolerance: 1,
+            q_tolerance: 0.05,
+        }
+    }
+
+    fn protocol(&self) -> Box<dyn DeviceProtocol> {
+        Box::new(WalkplayProtocol)
+    }
+}
+
 pub struct DawnProProfile;
 
 impl DeviceProfile for DawnProProfile {
