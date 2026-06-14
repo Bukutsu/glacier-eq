@@ -10,12 +10,18 @@ fn default_theme() -> String {
     "tokyo-night".to_string()
 }
 
+fn default_show_diagnostics() -> bool {
+    false
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Settings {
     pub auto_pull_on_connect: bool,
     pub skip_push_verification: bool,
     #[serde(default = "default_theme")]
     pub theme: String,
+    #[serde(default = "default_show_diagnostics")]
+    pub show_diagnostics: bool,
 }
 
 impl Default for Settings {
@@ -24,6 +30,7 @@ impl Default for Settings {
             auto_pull_on_connect: true,
             skip_push_verification: false,
             theme: default_theme(),
+            show_diagnostics: default_show_diagnostics(),
         }
     }
 }

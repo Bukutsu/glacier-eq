@@ -273,6 +273,7 @@ function App() {
 
   const [theme, setTheme] = useState("tokyo-night");
   const [resolvedTheme, setResolvedTheme] = useState("tokyo-night");
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
 
   useEffect(() => {
     const applyTheme = async () => {
@@ -404,14 +405,19 @@ function App() {
   }, [theme]);
 
   useEffect(() => {
-    invoke<{ theme?: string }>("get_settings")
+    invoke<{ theme?: string; show_diagnostics?: boolean }>("get_settings")
       .then((settings) => {
-        if (settings && settings.theme) {
-          setTheme(settings.theme);
+        if (settings) {
+          if (settings.theme) {
+            setTheme(settings.theme);
+          }
+          if (settings.show_diagnostics !== undefined) {
+            setShowDiagnostics(settings.show_diagnostics);
+          }
         }
       })
       .catch((err) => {
-        console.error("Failed to load initial settings for theme:", err);
+        console.error("Failed to load initial settings:", err);
       });
   }, []);
 
@@ -1162,7 +1168,8 @@ function App() {
                 onRedo={redo}
                 availableTabs={["Preset", "Import"]}
                 defaultTab="Preset"
-                showDiagnostics={false}
+                showDiagnostics={showDiagnostics}
+                onShowDiagnosticsChange={setShowDiagnostics}
                 theme={theme}
                 onThemeChange={setTheme}
               />
@@ -1196,6 +1203,8 @@ function App() {
                 availableTabs={["Settings"]}
                 defaultTab="Settings"
                 showActions={false}
+                showDiagnostics={showDiagnostics}
+                onShowDiagnosticsChange={setShowDiagnostics}
                 graphViewMode={graphViewMode}
                 onGraphViewModeChange={setGraphViewMode}
                 theme={theme}
@@ -1302,6 +1311,8 @@ function App() {
             onGraphViewModeChange={setGraphViewMode}
             theme={theme}
             onThemeChange={setTheme}
+            showDiagnostics={showDiagnostics}
+            onShowDiagnosticsChange={setShowDiagnostics}
           />
         </main>
       )}
