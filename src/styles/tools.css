@@ -1,9 +1,28 @@
 .right-rail {
   min-height: 0;
   display: grid;
-  grid-template-rows: auto minmax(220px, 1fr);
+  grid-template-rows: 1fr;
   gap: 16px;
   overflow: hidden;
+}
+
+.right-rail.has-diagnostics {
+  grid-template-rows: auto minmax(220px, 1fr);
+}
+
+.right-rail:not(.has-diagnostics) .preset-list {
+  flex: 1;
+  min-height: 142px;
+  height: auto;
+}
+
+.right-rail:not(.has-diagnostics) .measurements-pane {
+  flex: 1;
+}
+
+.right-rail:not(.has-diagnostics) .measurement-list {
+  flex: 1;
+  max-height: none;
 }
 
 .tools-card {
