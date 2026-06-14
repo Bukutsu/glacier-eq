@@ -72,7 +72,7 @@ export function ToolsPanel(props: ToolsPanelProps) {
   }, [availableTabs, tab]);
 
   return (
-    <aside className="right-rail">
+    <aside className={`right-rail ${showDiagnostics ? "has-diagnostics" : ""}`}>
       <section className="tools-card">
         <TabStrip active={tab} onSelect={setTab} tabs={availableTabs} />
         {tab === "Preset" && <PresetTab {...props} />}

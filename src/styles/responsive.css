@@ -13,8 +13,11 @@
     overscroll-behavior: contain;
   }
   .right-rail {
-    grid-template-rows: auto auto;
+    grid-template-rows: 1fr;
     overflow: visible;
+  }
+  .right-rail.has-diagnostics {
+    grid-template-rows: auto auto;
   }
   .graph-card {
     height: 320px;
