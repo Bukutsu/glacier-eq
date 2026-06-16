@@ -13,6 +13,9 @@ use std::time::Duration;
 use tauri::Manager;
 use tauri_plugin_hid::HidExt;
 
+#[cfg(target_os = "linux")]
+use crate::hid_helper::ElevatedTransport;
+
 const INIT_DRAIN_ATTEMPTS: usize = 100;
 const FILTER_READ_ATTEMPTS: usize = 60;
 const MAX_FILTER_MISMATCHES: usize = 8;
@@ -33,6 +36,63 @@ fn emit_progress(app: &tauri::AppHandle, message: &str, percentage: f32) {
             percentage,
         },
     );
+}
+
+// ── HID backend wrappers ──────────────────────────────────────────────
+// Try direct access first; transparently fall back to pkexec-elevated
+// helper on PermissionDenied (Linux only).
+
+fn hid_read(app: &tauri::AppHandle, path: &str, timeout: i32) -> Result<Vec<u8>, String> {
+    #[cfg(target_os = "linux")]
+    if let Some(t) = app.state::<Mutex<Option<ElevatedTransport>>>().lock().unwrap().as_mut() {
+        return t.read(path, timeout);
+    }
+    app.hid().read(path, timeout).map_err(|e| e.to_string())
+}
+
+fn hid_write(app: &tauri::AppHandle, path: &str, data: &[u8]) -> Result<(), String> {
+    #[cfg(target_os = "linux")]
+    if let Some(t) = app.state::<Mutex<Option<ElevatedTransport>>>().lock().unwrap().as_mut() {
+        return t.write(path, data);
+    }
+    app.hid().write(path, data).map_err(|e| e.to_string())
+}
+
+fn hid_close(app: &tauri::AppHandle, path: &str) -> Result<(), String> {
+    #[cfg(target_os = "linux")]
+    if let Some(t) = app.state::<Mutex<Option<ElevatedTransport>>>().lock().unwrap().as_mut() {
+        return t.close(path);
+    }
+    app.hid().close(path).map_err(|e| e.to_string())
+}
+
+fn try_open_device(app: &tauri::AppHandle, path: &str) -> Result<(), String> {
+    match app.hid().open(path) {
+        Ok(()) => return Ok(()),
+        Err(e) => {
+            let msg = e.to_string();
+            // hidapi returns "Permission denied" on EACCES
+            if !msg.to_lowercase().contains("permission denied") {
+                return Err(msg);
+            }
+        }
+    }
+    // PermissionDenied – try elevated fallback
+    #[cfg(target_os = "linux")]
+    {
+        let state = app.state::<Mutex<Option<ElevatedTransport>>>();
+        let mut guard = state.lock().map_err(|_| "state poisoned")?;
+        if let Some(ref mut t) = *guard {
+            // Reuse existing elevated transport (reconnect flow)
+            return t.open(path);
+        }
+        let mut transport = ElevatedTransport::spawn()?;
+        transport.open(path)?;
+        guard.replace(transport);
+        Ok(())
+    }
+    #[cfg(not(target_os = "linux"))]
+    Err("USB permission denied and elevation is not supported on this platform".into())
 }
 
 #[tauri::command]
@@ -446,7 +506,7 @@ pub async fn connect_device(
     })?;
 
     close_previous_device(&app, &state)?;
-    if let Err(error) = hid.open(&path) {
+    if let Err(error) = try_open_device(&app, &path) {
         let msg = format!("Failed to open {}: {error}", profile.name);
         diagnostics::log_error(&app, &diagnostics_store, LogSource::UI, &msg);
         return Err(msg);
@@ -483,7 +543,7 @@ pub fn disconnect_device(
         .connected
         .take()
     {
-        if let Err(error) = app.hid().close(&device.path) {
+        if let Err(error) = hid_close(&app, &device.path) {
             let msg = format!("Failed to close {}: {error}", device.profile_name);
             diagnostics::log_error(&app, &diagnostics_store, LogSource::UI, &msg);
             return Err(msg);
@@ -519,7 +579,7 @@ fn close_previous_device(
         .connected
         .take()
     {
-        let _ = app.hid().close(&previous.path);
+        let _ = hid_close(app, &previous.path);
     }
     Ok(())
 }
@@ -581,7 +641,7 @@ fn read_filter(
 
     let mut mismatches = 0usize;
     for attempt in 1..=FILTER_READ_ATTEMPTS {
-        let bytes = app.hid().read(&connected.path, 60).map_err(|error| {
+        let bytes = hid_read(app, &connected.path, 60).map_err(|error| {
             format!(
                 "Filter {} read failed on attempt {}: {error}",
                 index + 1,
@@ -693,9 +753,7 @@ fn read_global_gain(
     sleep_ms(protocol.read_timing().post_global_gain_ms);
 
     for attempt in 1..=GLOBAL_GAIN_READ_ATTEMPTS {
-        let bytes = app
-            .hid()
-            .read(path, 60)
+        let bytes = hid_read(app, path, 60)
             .map_err(|error| format!("Global gain read failed on attempt {}: {error}", attempt))?;
         if bytes.is_empty() {
             continue;
@@ -827,7 +885,7 @@ fn send_packet(
         LogSource::HID,
         format!("Writing packet (len {}): {:02X?}", framed.len(), framed),
     );
-    app.hid().write(path, &framed).map_err(|error| {
+    hid_write(app, path, &framed).map_err(|error| {
         let err_msg = error.to_string();
         diagnostics::log_error(
             app,
@@ -841,7 +899,7 @@ fn send_packet(
 
 fn drain_stale_frames(app: &tauri::AppHandle, path: &str) {
     for _ in 0..INIT_DRAIN_ATTEMPTS {
-        match app.hid().read(path, 20) {
+        match hid_read(app, path, 20) {
             Ok(bytes) if bytes.is_empty() => break,
             Ok(_) => continue,
             Err(_) => break,
