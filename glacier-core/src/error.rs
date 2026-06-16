@@ -81,9 +81,8 @@ pub enum ErrorKind {
     Timeout,
     #[error("Operation cancelled or interrupted.")]
     OperationCancelled,
+    #[error("Authentication required. Approve the polkit prompt to access the USB DAC.")]
+    PolkitAuthRequired,
     #[error("Unknown error.")]
     Unknown,
 }
-
-// Leave out PolkitAuthRequired, IpcError, WorkerDied — those are
-// Linux-daemon-specific and don't apply to the Tauri/Android version.

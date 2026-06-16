@@ -1169,6 +1169,8 @@ version = "0.1.2"
 dependencies = [
  "chrono",
  "glacier-core",
+ "hidapi",
+ "libc",
  "log",
  "serde",
  "serde_json",
