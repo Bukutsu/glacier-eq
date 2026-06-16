@@ -831,11 +831,11 @@ fn w_from_n(n: usize) -> usize {
     3 * n + 1
 }
 
-fn lf_at(v: &[f32], n: usize, i: usize) -> f32 {
-    v[0 * n + i]
+fn lf_at(v: &[f32], _n: usize, i: usize) -> f32 {
+    v[i]
 }
 fn gain_at(v: &[f32], n: usize, i: usize) -> f32 {
-    v[1 * n + i]
+    v[n + i]
 }
 fn bw_at(v: &[f32], n: usize, i: usize) -> f32 {
     v[2 * n + i]
@@ -844,11 +844,11 @@ fn amp_at(v: &[f32], n: usize) -> f32 {
     v[3 * n]
 }
 
-fn set_lf_at(v: &mut [f32], n: usize, i: usize, val: f32) {
-    v[0 * n + i] = val;
+fn set_lf_at(v: &mut [f32], _n: usize, i: usize, val: f32) {
+    v[i] = val;
 }
 fn set_gain_at(v: &mut [f32], n: usize, i: usize, val: f32) {
-    v[1 * n + i] = val;
+    v[n + i] = val;
 }
 fn set_bw_at(v: &mut [f32], n: usize, i: usize, val: f32) {
     v[2 * n + i] = val;
@@ -1118,13 +1118,13 @@ fn fit(
             let mut val_lf = lf_at(&x, n_bands, n);
             if limit(&mut val_lf, lf_lim[n]) {
                 set_lf_at(&mut x, n_bands, n, val_lf);
-                opt.m[0 * n_bands + n] = 0.0;
+                opt.m[n] = 0.0;
             }
 
             let mut val_gain = gain_at(&x, n_bands, n);
             if limit(&mut val_gain, gain_lim[n]) {
                 set_gain_at(&mut x, n_bands, n, val_gain);
-                opt.m[1 * n_bands + n] = 0.0;
+                opt.m[n_bands + n] = 0.0;
             }
 
             let mut val_bw = bw_at(&x, n_bands, n);
