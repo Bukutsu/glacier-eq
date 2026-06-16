@@ -1,7 +1,7 @@
 import { SUPPORTED_DACS } from "../constants";
 import { isDevDummyDevice } from "../lib/devDevice";
 import type { DeviceInfo } from "../types";
-import { ToolbarButton } from "./ToolbarButton";
+
 
 interface DeviceChooserProps {
   devices: DeviceInfo[];
@@ -34,7 +34,7 @@ export function DeviceChooser({
             <h2>Available Devices</h2>
             <p>Only supported DACs from the Glacier registry are shown.</p>
           </div>
-          <ToolbarButton onClick={onScan} disabled={isBusy}>{isBusy ? "Scanning…" : "Scan"}</ToolbarButton>
+          <button className="btn tonal" onClick={onScan} disabled={isBusy}>{isBusy ? "Scanning…" : "Scan"}</button>
         </div>
 
         {devices.length === 0 ? (
@@ -84,7 +84,7 @@ export function DeviceChooser({
         </div>
 
         <div className="device-actions">
-          <ToolbarButton primary onClick={onConnect} disabled={!selectedDevice || isBusy}>Connect</ToolbarButton>
+          <button className="btn filled" onClick={onConnect} disabled={!selectedDevice || isBusy}>Connect</button>
         </div>
         <span className="status-text">{status}</span>
       </section>

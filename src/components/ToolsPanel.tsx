@@ -8,8 +8,58 @@ import { DEFAULT_PROFILE_NAME } from "../constants";
 import { parseMeasurementText } from "../lib/measurements";
 import type { MeasurementTrace, Profile, PEQData, GraphViewMode, TargetTrace } from "../types";
 import { Icon } from "./Icon";
-import { Select } from "./Select";
 import { NumberInput } from "./NumberInput";
+
+interface SelectOption<T extends string | number> {
+  value: T;
+  label: string;
+}
+
+interface SelectProps<T extends string | number> {
+  id?: string;
+  value: T;
+  options: SelectOption<T>[];
+  onChange: (value: T) => void;
+  className?: string;
+  disabled?: boolean;
+}
+
+function Select<T extends string | number>({
+  id,
+  value,
+  options,
+  onChange,
+  className = "",
+  disabled = false,
+}: SelectProps<T>) {
+  return (
+    <div className={`custom-select-container ${disabled ? "disabled" : ""} ${className}`.trim()}>
+      <select
+        id={id}
+        value={value}
+        onChange={(e) => onChange(e.target.value as T)}
+        disabled={disabled}
+        className="custom-select-trigger"
+        style={{
+          appearance: "none",
+          WebkitAppearance: "none",
+          MozAppearance: "none",
+          paddingRight: "30px",
+          width: "100%",
+        }}
+      >
+        {options.map((opt) => (
+          <option key={opt.value} value={opt.value} style={{ background: "var(--panel)", color: "var(--text)" }}>
+            {opt.label}
+          </option>
+        ))}
+      </select>
+      <span className="custom-select-arrow" style={{ pointerEvents: "none" }}>
+        <Icon>expand_more</Icon>
+      </span>
+    </div>
+  );
+}
 
 
 type ToolsTab = "Preset" | "Import" | "Measure" | "AutoEQ" | "Settings";
