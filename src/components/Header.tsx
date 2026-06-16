@@ -1,4 +1,3 @@
-import { ToolbarButton } from "./ToolbarButton";
 import { OperationProgress } from "../types";
 
 interface HeaderProps {
@@ -92,9 +91,9 @@ export function Header({
         </div>
       </div>
       <div className="toolbar">
-        <ToolbarButton onClick={onPull} disabled={isBusy}>Pull</ToolbarButton>
-        <ToolbarButton primary onClick={onPush} disabled={isBusy}>Push</ToolbarButton>
-        <ToolbarButton onClick={onDisconnect} disabled={isBusy}>Disconnect</ToolbarButton>
+        <button className="btn tonal" onClick={onPull} disabled={isBusy}>Pull</button>
+        <button className="btn filled" onClick={onPush} disabled={isBusy}>Push</button>
+        <button className="btn tonal" onClick={onDisconnect} disabled={isBusy}>Disconnect</button>
       </div>
       {isBusy && (
         <div className="header-progress-bar">
