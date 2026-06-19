@@ -218,7 +218,7 @@ pub fn parse_autoeq(
         .connected
     {
         glacier_core::device::get_device_profile(connected.vendor_id, connected.product_id)
-            .map(|profile| profile.capabilities())
+            .map(|profile| profile.caps.clone())
             .unwrap_or(glacier_core::device::capabilities::DESKTOP_DAC_CAPS)
     } else {
         glacier_core::device::capabilities::DESKTOP_DAC_CAPS
@@ -399,7 +399,7 @@ pub async fn run_autoeq(
         .connected
     {
         glacier_core::device::get_device_profile(connected.vendor_id, connected.product_id)
-            .map(|profile| profile.capabilities())
+            .map(|profile| profile.caps.clone())
             .unwrap_or(glacier_core::device::capabilities::DESKTOP_DAC_CAPS)
     } else {
         glacier_core::device::capabilities::DESKTOP_DAC_CAPS
