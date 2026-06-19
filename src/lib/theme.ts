@@ -29,20 +29,6 @@ export function cssVar(name: string, fallback = ""): string {
   return resolvedVar(name, fallback);
 }
 
-/** Resolve a hex colour token and convert to `rgba(r, g, b, alpha)`. */
-export function cssVarWithAlpha(
-  name: string,
-  alpha: number,
-  fallback = "",
-): string {
-  const hex = resolvedVar(name, fallback).replace("#", "");
-  if (hex.length !== 6) return hex;
-  const r = Number.parseInt(hex.slice(0, 2), 16);
-  const g = Number.parseInt(hex.slice(2, 4), 16);
-  const b = Number.parseInt(hex.slice(4, 6), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
-
 /**
  * Resolve a `--name-rgb` variable to `rgba(r, g, b, alpha)`.
  * Falls back to parsing the hex fallback if the -rgb token is missing.
@@ -72,16 +58,6 @@ export function rgbWithAlpha(
   return resolved;
 }
 
-/** Resolve a hex colour to an inline SVG data-URI (useful for checkbox icons etc.). */
-export function cssVarInlineSvg(
-  name: string,
-  svgContent: string,
-  fallback = "",
-): string {
-  const color = resolvedVar(name, fallback);
-  const encoded = svgContent.replace(/currentColor/g, color);
-  return `url("data:image/svg+xml,${encodeURIComponent(encoded)}")`;
-}
 
 /** Invalidate the theme cache (call after theme/class changes). */
 export function clearThemeCache() {

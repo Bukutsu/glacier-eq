@@ -8,7 +8,6 @@
 pub mod capabilities;
 #[allow(clippy::module_inception)]
 pub mod device;
-pub mod io;
 pub mod profile;
 pub mod protocol;
 pub mod supported;
@@ -17,12 +16,11 @@ pub mod walkplay;
 
 pub use capabilities::{DeviceCapabilities, FilterTypeFlags};
 pub use device::DeviceInfo;
-pub use io::{DiscoveryProvider, HidPacketFramer, PacketFramer, PhysicalInterface};
 pub use profile::DeviceProfile;
-pub use protocol::DeviceProtocol;
+pub use protocol::WalkplayProtocol;
 pub use supported::{
     get_device_profile, get_supported_device, is_supported_device, SupportedDevice,
     SUPPORTED_DEVICES,
 };
 pub use timing::{ReadTiming, WriteTiming};
-pub use walkplay::{DawnProProfile, TP35ProProfile, TruthearKeyxProfile, WalkplayProtocol};
+pub use walkplay::PROFILES;
