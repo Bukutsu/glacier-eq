@@ -15,6 +15,7 @@ import { makeMeasurementName, nextMeasurementColor, normalizeMeasurementPoints }
 import { getBuiltInTargets, makeTargetName, nextTargetColor } from "./lib/targetReferences";
 import { buildDefaultState, normalizePeq } from "./lib/peq";
 import { clearThemeCache } from "./lib/theme";
+import { safeUnlisten } from "./lib/unlisten";
 import type { DeviceInfo, Filter, GraphViewMode, MeasurementTrace, PEQData, Profile, TargetTrace, OperationProgress } from "./types";
 import { ToastContainer, type Toast } from "./components/Toast";
 import "./App.css";
@@ -694,19 +695,6 @@ function App() {
   useEffect(() => {
     let active = true;
     let unlistenFn: (() => void) | null = null;
-
-    const safeUnlisten = (fn: () => void) => {
-      try {
-        const p = fn() as any;
-        if (p && typeof p.catch === "function") {
-          p.catch((err: any) => {
-            console.warn("Failed to unlisten from operation-progress (async):", err);
-          });
-        }
-      } catch (err) {
-        console.warn("Failed to unlisten from operation-progress (sync):", err);
-      }
-    };
 
     listen<OperationProgress>("operation-progress", (event) => {
       setProgress(event.payload);

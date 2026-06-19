@@ -6,6 +6,7 @@ import { save } from "@tauri-apps/plugin-dialog";
 
 import { DEFAULT_PROFILE_NAME } from "../constants";
 import { parseMeasurementText } from "../lib/measurements";
+import { safeUnlisten } from "../lib/unlisten";
 import type { MeasurementTrace, Profile, PEQData, GraphViewMode, TargetTrace } from "../types";
 import { Icon } from "./Icon";
 import { NumberInput } from "./NumberInput";
@@ -1030,19 +1031,6 @@ function DiagnosticsPanel() {
     let active = true;
     let unlistenFn: (() => void) | null = null;
 
-    const safeUnlisten = (fn: () => void) => {
-      try {
-        const p = fn() as any;
-        if (p && typeof p.catch === "function") {
-          p.catch((err: any) => {
-            console.warn("Failed to unlisten from diagnostic-event (async):", err);
-          });
-        }
-      } catch (err) {
-        console.warn("Failed to unlisten from diagnostic-event (sync):", err);
-      }
-    };
-    
     listen<DiagnosticEvent>("diagnostic-event", (event) => {
       setEvents((prev) => [...prev, event.payload].slice(-500));
     }).then((fn) => {

@@ -73,7 +73,7 @@ export function Header({
                 disabled={isBusy || !canUndo}
                 onClick={onUndo}
               >
-                <ToolbarButtonIcon icon="undo" label="Undo" />
+                <><span className="material-symbols-outlined">undo</span><span>Undo</span></>
               </button>
               <button
                 type="button"
@@ -83,7 +83,7 @@ export function Header({
                 disabled={isBusy || !canRedo}
                 onClick={onRedo}
               >
-                <ToolbarButtonIcon icon="redo" label="Redo" />
+                <><span className="material-symbols-outlined">redo</span><span>Redo</span></>
               </button>
             </div>
           </div>
@@ -107,11 +107,3 @@ export function Header({
   );
 }
 
-function ToolbarButtonIcon({ icon, label }: { icon: string; label: string }) {
-  return (
-    <>
-      <span className="material-symbols-outlined">{icon}</span>
-      <span>{label}</span>
-    </>
-  );
-}

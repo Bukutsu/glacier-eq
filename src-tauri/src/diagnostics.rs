@@ -121,41 +121,14 @@ fn get_log_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     Ok(app_data_base_dir(app)?.join("diagnostics.log"))
 }
 
-pub fn log_info(
+pub fn log(
+    level: LogLevel,
     app: &tauri::AppHandle,
     store: &Mutex<DiagnosticsStore>,
     source: LogSource,
     message: impl Into<String>,
 ) {
-    let event = DiagnosticEvent::new(LogLevel::Info, source, message.into());
-    if let Ok(mut store) = store.lock() {
-        store.push(app, event.clone());
-    }
-    use tauri::Emitter;
-    let _ = app.emit("diagnostic-event", event);
-}
-
-pub fn log_warn(
-    app: &tauri::AppHandle,
-    store: &Mutex<DiagnosticsStore>,
-    source: LogSource,
-    message: impl Into<String>,
-) {
-    let event = DiagnosticEvent::new(LogLevel::Warn, source, message.into());
-    if let Ok(mut store) = store.lock() {
-        store.push(app, event.clone());
-    }
-    use tauri::Emitter;
-    let _ = app.emit("diagnostic-event", event);
-}
-
-pub fn log_error(
-    app: &tauri::AppHandle,
-    store: &Mutex<DiagnosticsStore>,
-    source: LogSource,
-    message: impl Into<String>,
-) {
-    let event = DiagnosticEvent::new(LogLevel::Error, source, message.into());
+    let event = DiagnosticEvent::new(level, source, message.into());
     if let Ok(mut store) = store.lock() {
         store.push(app, event.clone());
     }
