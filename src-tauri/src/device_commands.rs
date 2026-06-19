@@ -143,7 +143,7 @@ pub async fn get_eq_state(
     }
     sleep_ms(ReadTiming::default().wake_delay_ms);
 
-    let first = pull_once(&app, &connected, &*protocol, &caps);
+    let first = pull_once(&app, &connected, &caps);
     let should_retry = match &first {
         Ok(peq) => WalkplayProtocol::is_default_state(peq),
         Err(_) => true,
@@ -151,7 +151,7 @@ pub async fn get_eq_state(
 
     let peq = if should_retry {
         sleep_ms(ReadTiming::default().pull_retry_delay_ms);
-        match pull_once(&app, &connected, &*protocol, &caps) {
+        match pull_once(&app, &connected, &caps) {
             Ok(peq) => peq,
             Err(retry_error) => match first {
                 Ok(defaultish) => defaultish,
@@ -297,7 +297,7 @@ pub async fn set_eq_state(
             LogSource::HID,
             "Snapshotting current device state...",
         );
-        match pull_once(&app, &connected, &*protocol, &caps) {
+        match pull_once(&app, &connected, &caps) {
             Ok(backup) => Some(backup),
             Err(error) => {
                 diagnostics::log(
@@ -324,7 +324,7 @@ pub async fn set_eq_state(
     );
 
     emit_progress(&app, "Initializing push connection...", 10.0);
-    if let Err(error) = run_init_sequence(&app, &connected.path, &*protocol) {
+    if let Err(error) = run_init_sequence(&app, &connected.path) {
         diagnostics::log(
             LogLevel::Error,
             &app,
@@ -334,13 +334,7 @@ pub async fn set_eq_state(
         );
         return Err(error);
     }
-    if let Err(error) = write_filters(
-        &app,
-        &connected.path,
-        &*protocol,
-        &peq,
-        caps.dsp_sample_rate,
-    ) {
+    if let Err(error) = write_filters(&app, &connected.path, &peq, caps.dsp_sample_rate) {
         diagnostics::log(
             LogLevel::Error,
             &app,
@@ -351,8 +345,7 @@ pub async fn set_eq_state(
         return Err(error);
     }
     emit_progress(&app, "Writing preamp...", 75.0);
-    if let Err(error) = write_global_gain(&app, &connected.path, &*protocol, peq.global_gain as i8)
-    {
+    if let Err(error) = write_global_gain(&app, &connected.path, peq.global_gain as i8) {
         diagnostics::log(
             LogLevel::Error,
             &app,
@@ -363,7 +356,7 @@ pub async fn set_eq_state(
         return Err(error);
     }
     emit_progress(&app, "Committing changes to device...", 80.0);
-    if let Err(error) = commit_changes(&app, &connected.path, &*protocol) {
+    if let Err(error) = commit_changes(&app, &connected.path) {
         diagnostics::log(
             LogLevel::Error,
             &app,
@@ -386,7 +379,7 @@ pub async fn set_eq_state(
         emit_progress(&app, "Verifying changes...", 90.0);
         sleep_ms(ReadTiming::default().pull_retry_delay_ms);
 
-        match pull_once(&app, &connected, &*protocol, &caps) {
+        match pull_once(&app, &connected, &caps) {
             Ok(actual) => {
                 if let Err(mismatch) = compare_peq(&actual, &peq, &caps) {
                     let err_msg = format!("Push verification failed: {mismatch}");
@@ -408,7 +401,7 @@ pub async fn set_eq_state(
                             "Initiating rollback to previous state...",
                         );
                         if let Err(rollback_error) =
-                            rollback_state(&app, &connected, &backup, &*protocol, &caps)
+                            rollback_state(&app, &connected, &backup, &caps)
                         {
                             diagnostics::log(
                                 LogLevel::Error,
@@ -426,7 +419,7 @@ pub async fn set_eq_state(
                                 "Rollback successfully written. Verifying rollback...",
                             );
                             sleep_ms(ReadTiming::default().pull_retry_delay_ms);
-                            match pull_once(&app, &connected, &*protocol, &caps) {
+                            match pull_once(&app, &connected, &caps) {
                                 Ok(rolled_back_state) => {
                                     if let Err(rollback_mismatch) =
                                         compare_peq(&rolled_back_state, &backup, &caps)
@@ -765,8 +758,7 @@ fn read_filter(
         );
 
         if matches {
-            return protocol
-                .parse_filter_response(data)
+            return WalkplayProtocol::parse_filter_response(data)
                 .ok_or_else(|| format!("Filter {} response could not be parsed", index + 1));
         }
 
@@ -797,11 +789,7 @@ fn read_filter(
     ))
 }
 
-fn read_global_gain(
-    app: &tauri::AppHandle,
-    path: &str,
-    protocol: &dyn DeviceProtocol,
-) -> Result<i8, String> {
+fn read_global_gain(app: &tauri::AppHandle, path: &str) -> Result<i8, String> {
     let diagnostics_store = app.state::<Mutex<DiagnosticsStore>>();
     diagnostics::log(
         LogLevel::Info,
@@ -880,7 +868,6 @@ fn run_init_sequence(app: &tauri::AppHandle, path: &str) -> Result<(), String> {
 fn write_filters(
     app: &tauri::AppHandle,
     path: &str,
-    protocol: &dyn DeviceProtocol,
     peq: &PEQData,
     dsp_sample_rate: f64,
 ) -> Result<(), String> {
@@ -894,39 +881,28 @@ fn write_filters(
         );
         let packet =
             WalkplayProtocol::build_filter_write_packet(index as u8, filter, dsp_sample_rate);
-        send_packet(app, path, &packet, protocol)
+        send_packet(app, path, &packet)
             .map_err(|error| format!("Band {} write failed: {error}", index + 1))?;
         sleep_ms(WalkplayProtocol::write_timing().per_filter_ms);
     }
     Ok(())
 }
 
-fn write_global_gain(
-    app: &tauri::AppHandle,
-    path: &str,
-    protocol: &dyn DeviceProtocol,
-    global_gain: i8,
-) -> Result<(), String> {
+fn write_global_gain(app: &tauri::AppHandle, path: &str, global_gain: i8) -> Result<(), String> {
     sleep_ms(WalkplayProtocol::write_timing().batch_ms);
     send_packet(
         app,
         path,
         &WalkplayProtocol::build_global_gain_write_packet(global_gain),
-        protocol,
     )
     .map_err(|error| format!("Global gain write failed: {error}"))?;
     sleep_ms(WalkplayProtocol::write_timing().global_gain_ms);
     Ok(())
 }
 
-fn commit_changes(
-    app: &tauri::AppHandle,
-    path: &str,
-    protocol: &dyn DeviceProtocol,
-) -> Result<(), String> {
+fn commit_changes(app: &tauri::AppHandle, path: &str) -> Result<(), String> {
     for packet in WalkplayProtocol::build_commit_packets() {
-        send_packet(app, path, &packet, protocol)
-            .map_err(|error| format!("Commit write failed: {error}"))?;
+        send_packet(app, path, &packet).map_err(|error| format!("Commit write failed: {error}"))?;
         sleep_ms(WalkplayProtocol::write_timing().commit_step_ms as u64);
     }
     Ok(())
