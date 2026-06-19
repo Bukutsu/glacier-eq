@@ -1,30 +1,28 @@
-use std::collections::HashMap;
-use std::sync::Mutex;
-use std::vec;
-
 use hidapi::HidApi;
 use serde::de::DeserializeOwned;
+use std::collections::HashMap;
+use std::marker::PhantomData;
+use std::sync::Mutex;
 use tauri::{plugin::PluginApi, AppHandle, Runtime};
 
 pub fn init<R: Runtime, C: DeserializeOwned>(
-    app: &AppHandle<R>,
+    _app: &AppHandle<R>,
     _api: PluginApi<R, C>,
 ) -> crate::Result<Hid<R>> {
     Ok(Hid {
-        app: app.clone(),
         hid_api: Mutex::new(HidApi::new().expect("Could not create HidApi instance")),
         device_list: Mutex::new(HashMap::new()),
         open_devices: Mutex::new(HashMap::new()),
+        _phantom: PhantomData,
     })
 }
 
 /// Access to the hid APIs.
 pub struct Hid<R: Runtime> {
-    #[allow(dead_code)]
-    app: AppHandle<R>,
     hid_api: Mutex<HidApi>,
     device_list: Mutex<HashMap<String, hidapi::DeviceInfo>>, // Hashmap of devices using path as key. Updated on enumerate.
     open_devices: Mutex<HashMap<String, hidapi::HidDevice>>, // Currently open devices.
+    _phantom: PhantomData<fn() -> R>,
 }
 
 impl<R: Runtime> Hid<R> {

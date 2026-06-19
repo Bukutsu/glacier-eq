@@ -59,8 +59,7 @@ pub struct ElevatedTransport {
 
 impl ElevatedTransport {
     pub fn spawn() -> Result<Self, String> {
-        let exe = std::env::current_exe()
-            .map_err(|e| format!("Cannot resolve own path: {e}"))?;
+        let exe = std::env::current_exe().map_err(|e| format!("Cannot resolve own path: {e}"))?;
 
         let mut child = Command::new("pkexec")
             .arg(exe.as_os_str())
@@ -79,7 +78,12 @@ impl ElevatedTransport {
 
         let stdin = BufWriter::new(child.stdin.take().expect("child stdin"));
         let stdout = BufReader::new(child.stdout.take().expect("child stdout"));
-        Ok(ElevatedTransport { child, stdin, stdout, next_id: 1 })
+        Ok(ElevatedTransport {
+            child,
+            stdin,
+            stdout,
+            next_id: 1,
+        })
     }
 
     fn round_trip(&mut self, payload: IpcPayload) -> Result<IpcResult, String> {
@@ -87,16 +91,17 @@ impl ElevatedTransport {
         self.next_id += 1;
 
         let msg = IpcMessage { id, payload };
-        let mut line = serde_json::to_string(&msg)
-            .map_err(|e| format!("IPC serialize: {e}"))?;
+        let mut line = serde_json::to_string(&msg).map_err(|e| format!("IPC serialize: {e}"))?;
         line.push('\n');
 
-        self.stdin.write_all(line.as_bytes())
+        self.stdin
+            .write_all(line.as_bytes())
             .and_then(|_| self.stdin.flush())
             .map_err(|e| format!("IPC write: {e}"))?;
 
         let mut resp_line = String::new();
-        self.stdout.read_line(&mut resp_line)
+        self.stdout
+            .read_line(&mut resp_line)
             .map_err(|e| format!("IPC read: {e}"))?;
 
         let resp: IpcResponse = serde_json::from_str(&resp_line)
@@ -118,17 +123,26 @@ impl ElevatedTransport {
     }
 
     pub fn write(&mut self, path: &str, data: &[u8]) -> Result<(), String> {
-        match self.round_trip(IpcPayload::Write { path: path.into(), data: data.to_vec() })? {
+        match self.round_trip(IpcPayload::Write {
+            path: path.into(),
+            data: data.to_vec(),
+        })? {
             IpcResult::Ok(_) => Ok(()),
             IpcResult::Err(e) => Err(e),
         }
     }
 
     pub fn read(&mut self, path: &str, timeout: i32) -> Result<Vec<u8>, String> {
-        match self.round_trip(IpcPayload::Read { path: path.into(), timeout })? {
-            IpcResult::Ok(Some(v)) => serde_json::from_value(v)
-                .map_err(|e| format!("IPC deser read: {e}")),
-            IpcResult::Ok(None) => Ok(vec![]),
+        match self.round_trip(IpcPayload::Read {
+            path: path.into(),
+            timeout,
+        })? {
+            IpcResult::Ok(v) => match v {
+                Some(data) => {
+                    serde_json::from_value(data).map_err(|e| format!("IPC deser read: {e}"))
+                }
+                None => Ok(vec![]),
+            },
             IpcResult::Err(e) => Err(e),
         }
     }
@@ -145,7 +159,9 @@ impl Drop for ElevatedTransport {
 
 pub fn run_helper() -> ! {
     #[cfg(target_os = "linux")]
-    unsafe { libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGTERM); }
+    unsafe {
+        libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGTERM);
+    }
 
     let mut api = match hidapi::HidApi::new() {
         Ok(a) => a,
@@ -163,22 +179,32 @@ pub fn run_helper() -> ! {
             Ok(l) => l,
             Err(_) => break,
         };
-        if line.trim().is_empty() { continue; }
+        if line.trim().is_empty() {
+            continue;
+        }
 
         let msg: IpcMessage = match serde_json::from_str(&line) {
             Ok(m) => m,
-            Err(e) => { eprintln!("--hid-helper: bad request: {e}"); continue; }
+            Err(e) => {
+                eprintln!("--hid-helper: bad request: {e}");
+                continue;
+            }
         };
 
         let shutdown = matches!(msg.payload, IpcPayload::Shutdown);
         let result = dispatch(&mut api, &mut open, msg.payload);
 
-        if let Ok(json) = serde_json::to_string(&IpcResponse { id: msg.id, payload: result }) {
+        if let Ok(json) = serde_json::to_string(&IpcResponse {
+            id: msg.id,
+            payload: result,
+        }) {
             println!("{json}");
             let _ = std::io::stdout().flush();
         }
 
-        if shutdown { break; }
+        if shutdown {
+            break;
+        }
     }
 
     std::process::exit(0);
@@ -199,33 +225,38 @@ fn dispatch(
                 Err(_) => return IpcResult::Err("invalid path".into()),
             };
             match api.open_path(&cpath) {
-                Ok(dev) => { open.insert(path, dev); IpcResult::Ok(None) }
+                Ok(dev) => {
+                    open.insert(path, dev);
+                    IpcResult::Ok(None)
+                }
                 Err(e) => IpcResult::Err(format!("open: {e}")),
             }
         }
-        IpcPayload::Close { path } => { open.remove(&path); IpcResult::Ok(None) }
-        IpcPayload::Write { path, data } => {
-            match open.get(&path) {
-                Some(dev) => match dev.write(&data) {
-                    Ok(_) => IpcResult::Ok(None),
-                    Err(e) => IpcResult::Err(format!("write: {e}")),
-                },
-                None => IpcResult::Err("device not open".into()),
-            }
+        IpcPayload::Close { path } => {
+            open.remove(&path);
+            IpcResult::Ok(None)
         }
-        IpcPayload::Read { path, timeout } => {
-            match open.get(&path) {
-                Some(dev) => {
-                    let mut buf = vec![0u8; 64];
-                    match dev.read_timeout(&mut buf, timeout) {
-                        Ok(0) => IpcResult::Ok(Some(serde_json::Value::Array(vec![]))),
-                        Ok(n) => { buf.truncate(n); IpcResult::Ok(serde_json::to_value(&buf).ok()) }
-                        Err(e) => IpcResult::Err(format!("read: {e}")),
+        IpcPayload::Write { path, data } => match open.get(&path) {
+            Some(dev) => match dev.write(&data) {
+                Ok(_) => IpcResult::Ok(None),
+                Err(e) => IpcResult::Err(format!("write: {e}")),
+            },
+            None => IpcResult::Err("device not open".into()),
+        },
+        IpcPayload::Read { path, timeout } => match open.get(&path) {
+            Some(dev) => {
+                let mut buf = vec![0u8; 64];
+                match dev.read_timeout(&mut buf, timeout) {
+                    Ok(0) => IpcResult::Ok(Some(serde_json::Value::Array(vec![]))),
+                    Ok(n) => {
+                        buf.truncate(n);
+                        IpcResult::Ok(serde_json::to_value(&buf).ok())
                     }
+                    Err(e) => IpcResult::Err(format!("read: {e}")),
                 }
-                None => IpcResult::Err("device not open".into()),
             }
-        }
+            None => IpcResult::Err("device not open".into()),
+        },
         IpcPayload::Shutdown => IpcResult::Ok(None),
     }
 }
