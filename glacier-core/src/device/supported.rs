@@ -2,10 +2,6 @@
 // SPDX-License-Identifier: MIT
 
 //! Static registry of supported USB DACs.
-//!
-//! Mirrors the compiled-in device registry, but keeps this layer limited to
-//! identity/capability metadata so the Tauri frontend can filter HID enumeration before
-//! anything is shown to the user.
 
 use crate::device::DeviceInfo;
 
@@ -42,6 +38,15 @@ pub const SUPPORTED_DEVICES: &[SupportedDevice] = &[
     },
 ];
 
+pub fn get_device_profile(
+    vendor_id: u16,
+    product_id: u16,
+) -> Option<&'static crate::device::profile::DeviceProfile> {
+    crate::device::walkplay::PROFILES
+        .iter()
+        .find(|p| p.vendor_id == vendor_id && p.product_id == product_id)
+}
+
 pub fn get_supported_device(vendor_id: u16, product_id: u16) -> Option<&'static SupportedDevice> {
     SUPPORTED_DEVICES
         .iter()
@@ -50,16 +55,4 @@ pub fn get_supported_device(vendor_id: u16, product_id: u16) -> Option<&'static 
 
 pub fn is_supported_device(info: &DeviceInfo) -> bool {
     get_supported_device(info.vendor_id, info.product_id).is_some()
-}
-
-pub fn get_device_profile(
-    vendor_id: u16,
-    product_id: u16,
-) -> Option<Box<dyn crate::device::profile::DeviceProfile>> {
-    match (vendor_id, product_id) {
-        (0x3302, 0x43E6) => Some(Box::new(crate::device::walkplay::TP35ProProfile)),
-        (0x2FC6, 0xDF30) => Some(Box::new(crate::device::walkplay::DawnProProfile)),
-        (0x0D8C, 0x0210) => Some(Box::new(crate::device::walkplay::TruthearKeyxProfile)),
-        _ => None,
-    }
 }
