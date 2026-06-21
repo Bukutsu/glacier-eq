@@ -14,9 +14,7 @@
     "android:run": "tauri android run",
     "android:apk": "tauri android build --debug --apk --target aarch64",
     "android:apk:release": "tauri android build --apk --target aarch64",
-    "android:apk:split": "tauri android build --apk --split-per-abi",
-    "test": "playwright test",
-    "test:ui": "playwright test --ui"
+    "android:apk:split": "tauri android build --apk --split-per-abi"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",
@@ -26,7 +24,6 @@
     "react-dom": "^19.1.0"
   },
   "devDependencies": {
-    "@playwright/test": "^1.60.0",
     "@tauri-apps/cli": "^2",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
