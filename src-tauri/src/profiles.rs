@@ -339,6 +339,12 @@ pub fn run_autoeq_internal(
         });
     }
 
+    // Sort filters by frequency and re-index sequentially
+    filters.sort_by_key(|f| f.freq);
+    for (i, filter) in filters.iter_mut().enumerate() {
+        filter.index = i as u8;
+    }
+
     // Calculate the combined frequency response of the optimized filters to prevent digital clipping
     let mut response = [0.0f32; glacier_core::autoeq::K];
     for filter in &filters {
