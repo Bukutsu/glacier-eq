@@ -75,7 +75,7 @@ jobs:
       - name: Cache Rust build outputs
         uses: swatinem/rust-cache@v2
         with:
-          workspaces: "src-tauri -> src-tauri/target"
+          workspaces: ". -> target"
 
       - name: Install frontend dependencies
         run: npm ci
@@ -93,18 +93,18 @@ jobs:
         with:
           name: glacier-eq-${{ matrix.name }}
           path: |
-            src-tauri/target/release/bundle/**/*.dmg
-            src-tauri/target/release/bundle/**/*.app.tar.gz
-            src-tauri/target/release/bundle/**/*.AppImage
-            src-tauri/target/release/bundle/**/*.appimage.tar.gz
-            src-tauri/target/release/bundle/**/*.deb
-            src-tauri/target/release/bundle/**/*.rpm
-            src-tauri/target/release/bundle/**/*.exe
-            src-tauri/target/release/bundle/**/*.msi
-            src-tauri/target/release/bundle/**/*.nsis.zip
-            src-tauri/target/release/bundle/**/*.nsis.zip.sig
-            src-tauri/target/release/bundle/**/*.app.tar.gz.sig
-            src-tauri/target/release/bundle/**/*.AppImage.tar.gz.sig
+            target/**/release/bundle/**/*.dmg
+            target/**/release/bundle/**/*.app.tar.gz
+            target/**/release/bundle/**/*.AppImage
+            target/**/release/bundle/**/*.appimage.tar.gz
+            target/**/release/bundle/**/*.deb
+            target/**/release/bundle/**/*.rpm
+            target/**/release/bundle/**/*.exe
+            target/**/release/bundle/**/*.msi
+            target/**/release/bundle/**/*.nsis.zip
+            target/**/release/bundle/**/*.nsis.zip.sig
+            target/**/release/bundle/**/*.app.tar.gz.sig
+            target/**/release/bundle/**/*.AppImage.tar.gz.sig
           retention-days: 90
 
   android:
@@ -145,7 +145,7 @@ jobs:
       - name: Cache Rust build outputs
         uses: swatinem/rust-cache@v2
         with:
-          workspaces: "src-tauri -> src-tauri/target"
+          workspaces: ". -> target"
 
       - name: Install frontend dependencies
         run: npm ci
