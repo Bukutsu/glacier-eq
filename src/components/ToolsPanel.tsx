@@ -10,6 +10,14 @@ import { safeUnlisten } from "../lib/unlisten";
 import type { MeasurementTrace, Profile, PEQData, GraphViewMode, TargetTrace } from "../types";
 import { Icon } from "./Icon";
 import { NumberInput } from "./NumberInput";
+import {
+  isDatabaseDownloaded,
+  clearCachedDatabase,
+  downloadDatabase,
+  fetchManifest,
+  loadDeviceCurvePoints,
+  type OnlineDevice,
+} from "../lib/onlineDb";
 
 interface SelectOption<T extends string | number> {
   value: T;
@@ -108,6 +116,8 @@ interface ToolsPanelProps {
   allTargets?: TargetTrace[];
   theme?: string;
   onThemeChange?: (theme: string) => void;
+  enableOnlineMeasurements?: boolean;
+  onEnableOnlineMeasurementsChange?: (enable: boolean) => void;
 }
 
 export function ToolsPanel(props: ToolsPanelProps) {
@@ -151,6 +161,8 @@ export function ToolsPanel(props: ToolsPanelProps) {
           onToggleMeasurement={props.onToggleMeasurement}
           onClearMeasurements={props.onClearMeasurements}
           setStatus={props.setStatus}
+          enableOnlineMeasurements={props.enableOnlineMeasurements}
+          onEnableOnlineMeasurementsChange={props.onEnableOnlineMeasurementsChange}
         />}
         {tab === "Settings" && (
           <SettingsTab
@@ -159,6 +171,7 @@ export function ToolsPanel(props: ToolsPanelProps) {
             theme={props.theme}
             onThemeChange={props.onThemeChange}
             onShowDiagnosticsChange={props.onShowDiagnosticsChange}
+            onEnableOnlineMeasurementsChange={props.onEnableOnlineMeasurementsChange}
           />
         )}
         {tab === "Preset" && props.showActions !== false && <ToolActions {...props} />}
@@ -206,6 +219,8 @@ interface MeasureTabProps {
   onToggleMeasurement: (id: string) => void;
   onClearMeasurements: () => void;
   setStatus: (msg: string) => void;
+  enableOnlineMeasurements?: boolean;
+  onEnableOnlineMeasurementsChange?: (enable: boolean) => void;
 }
 
 export function MeasureTab({
@@ -215,8 +230,101 @@ export function MeasureTab({
   onToggleMeasurement,
   onClearMeasurements,
   setStatus,
+  enableOnlineMeasurements,
+  onEnableOnlineMeasurementsChange,
 }: MeasureTabProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [downloaded, setDownloaded] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [manifest, setManifest] = useState<OnlineDevice[]>([]);
+  const [loadingManifest, setLoadingManifest] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [totalCount, setTotalCount] = useState<number | null>(null);
+  const [loadingDevice, setLoadingDevice] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (enableOnlineMeasurements) {
+      isDatabaseDownloaded().then(setDownloaded);
+    }
+  }, [enableOnlineMeasurements]);
+
+  useEffect(() => {
+    if (enableOnlineMeasurements && downloaded) {
+      setLoadingManifest(true);
+      fetchManifest()
+        .then((devices) => {
+          setManifest(devices);
+          setTotalCount(devices.length);
+        })
+        .catch((err) => {
+          console.error("Failed to load online manifest:", err);
+          setStatus(`Failed to load online search manifest: ${err}`);
+        })
+        .finally(() => {
+          setLoadingManifest(false);
+        });
+    }
+  }, [enableOnlineMeasurements, downloaded]);
+
+  const handleDownload = async () => {
+    setIsDownloading(true);
+    setDownloadProgress(0);
+    try {
+      const count = await downloadDatabase((percent) => {
+        setDownloadProgress(percent);
+      });
+      setDownloaded(true);
+      setTotalCount(count);
+      setStatus(`Successfully downloaded online database (${count} curves cached)`);
+    } catch (error) {
+      console.error(error);
+      setStatus(`Database download failed: ${error}`);
+    } finally {
+      setIsDownloading(false);
+      setDownloadProgress(null);
+    }
+  };
+
+  const handleResetCache = async () => {
+    if (window.confirm("Are you sure you want to delete the cached online measurement database? This will clear about 16MB of local storage.")) {
+      try {
+        await clearCachedDatabase();
+        setDownloaded(false);
+        setManifest([]);
+        setSearchQuery("");
+        setTotalCount(null);
+        setStatus("Online measurement database cache cleared.");
+      } catch (error) {
+        console.error(error);
+        setStatus(`Failed to clear cache: ${error}`);
+      }
+    }
+  };
+
+  const handleLoadDevice = async (dev: OnlineDevice) => {
+    setLoadingDevice(dev.id);
+    try {
+      const points = await loadDeviceCurvePoints(dev.id);
+      onAddMeasurement(`${dev.brand} ${dev.name} (${dev.source})`, points);
+      setStatus(`Loaded online measurement: ${dev.brand} ${dev.name} (${points.length} points)`);
+    } catch (error) {
+      console.error(error);
+      setStatus(`Failed to load curve: ${error}`);
+    } finally {
+      setLoadingDevice(null);
+    }
+  };
+
+  const filteredManifest = searchQuery.trim() === ""
+    ? []
+    : manifest.filter((dev) => {
+        const full = `${dev.brand} ${dev.name}`.toLowerCase();
+        return searchQuery.toLowerCase().split(/\s+/).every((token) => full.includes(token));
+      });
+
+  const displayResults = filteredManifest.slice(0, 50);
 
   const addMeasurementFromText = (text: string, fallbackName: string) => {
     try {
@@ -288,6 +396,89 @@ export function MeasureTab({
       <div className="measurement-format-note">
         Example: `20,82.6` or `20 82.6`; traces are centered near 1 kHz.
       </div>
+
+      {/* Online Measurement Database */}
+      {!enableOnlineMeasurements ? (
+        <div className="online-db-banner" style={{ borderStyle: "dashed" }}>
+          <strong>Online Database</strong>
+          <p>Search and compare frequency response measurements from the Squiglink/Squig-Rank database.</p>
+          <button className="btn" onClick={() => onEnableOnlineMeasurementsChange?.(true)}>
+            Enable Online Database
+          </button>
+        </div>
+      ) : !downloaded ? (
+        <div className="online-db-banner">
+          <strong>Online Database</strong>
+          <p>Compare with thousands of headphone/IEM database measurements. Download the offline cache to start search (~16MB).</p>
+          {downloadProgress !== null ? (
+            <div className="progress-container">
+              <div className="progress-track">
+                <div className="progress-bar" style={{ width: `${downloadProgress * 100}%` }} />
+              </div>
+              <span>{Math.round(downloadProgress * 100)}%</span>
+            </div>
+          ) : (
+            <button className="btn" onClick={handleDownload} disabled={isDownloading}>
+              {isDownloading ? "Downloading..." : "Download Cache"}
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="online-search-section">
+          <div className="online-db-status-bar">
+            <span>Online Database ({totalCount !== null ? `${totalCount} curves` : "Ready"})</span>
+            <button onClick={handleResetCache}>Clear Cache</button>
+          </div>
+          <input
+            type="text"
+            placeholder="Search online database..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            disabled={loadingManifest}
+          />
+          {searchQuery && (
+            <div className="online-search-results scrollbar">
+              {loadingManifest ? (
+                <div className="online-result-item" style={{ justifyContent: "center", color: "var(--muted)" }}>
+                  Loading devices index...
+                </div>
+              ) : displayResults.length === 0 ? (
+                <div className="online-result-item" style={{ justifyContent: "center", color: "var(--muted)" }}>
+                  No online devices found matching "{searchQuery}"
+                </div>
+              ) : (
+                displayResults.map((dev) => (
+                  <div key={dev.id} className="online-result-item">
+                    <div className="online-result-info">
+                      <div className="online-result-name">
+                        {dev.brand} {dev.name}
+                        {dev.price !== null && (
+                          <span className="online-result-price">${dev.price}</span>
+                        )}
+                      </div>
+                      <div className="online-result-source">Source: {dev.source}</div>
+                    </div>
+                    <button
+                      className="online-result-action"
+                      disabled={loadingDevice !== null}
+                      onClick={() => handleLoadDevice(dev)}
+                    >
+                      {loadingDevice === dev.id ? (
+                        <span>Loading...</span>
+                      ) : (
+                        <>
+                          <Icon>download</Icon>
+                          <span>Load</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="measurement-list">
         {measurements.length === 0 ? (
@@ -872,20 +1063,24 @@ export function AutoEqTab({
 function SettingsTab({
   graphViewMode,
   onGraphViewModeChange,
+  theme: _theme,
   onThemeChange,
   onShowDiagnosticsChange,
+  onEnableOnlineMeasurementsChange,
 }: {
   graphViewMode?: GraphViewMode;
   onGraphViewModeChange?: (mode: GraphViewMode) => void;
   theme?: string;
   onThemeChange?: (theme: string) => void;
   onShowDiagnosticsChange?: (show: boolean) => void;
+  onEnableOnlineMeasurementsChange?: (enable: boolean) => void;
 }) {
   const [settings, setSettings] = useState({
     auto_pull_on_connect: true,
     skip_push_verification: false,
     theme: "tokyo-night",
     show_diagnostics: false,
+    enable_online_measurements: false,
   });
   const [loading, setLoading] = useState(true);
 
@@ -914,6 +1109,11 @@ function SettingsTab({
       if (key === "show_diagnostics") {
         if (onShowDiagnosticsChange) {
           onShowDiagnosticsChange(value);
+        }
+      }
+      if (key === "enable_online_measurements") {
+        if (onEnableOnlineMeasurementsChange) {
+          onEnableOnlineMeasurementsChange(value);
         }
       }
     } catch (err) {
@@ -950,6 +1150,14 @@ function SettingsTab({
           onChange={(e) => updateSetting("show_diagnostics", e.target.checked)}
         />
         Show diagnostic log panel
+      </label>
+      <label>
+        <input
+          type="checkbox"
+          checked={settings.enable_online_measurements}
+          onChange={(e) => updateSetting("enable_online_measurements", e.target.checked)}
+        />
+        Enable online measurement database (Squiglink)
       </label>
 
       <div className="setting-row">
