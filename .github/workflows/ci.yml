@@ -65,16 +65,37 @@ jobs:
       - name: Check glacier-core crate (no system deps needed)
         run: cargo check -p glacier-core --locked
 
-  tauri-linux:
-    name: Tauri Linux compile
-    runs-on: ubuntu-22.04
-    timeout-minutes: 30
+  tauri-desktop:
+    name: Tauri Desktop compile (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-x64
+            os: ubuntu-22.04
+            args: ""
+            rust-targets: ""
+          - name: windows-x64
+            os: windows-latest
+            args: ""
+            rust-targets: ""
+          - name: macos-apple-silicon
+            os: macos-latest
+            args: "--target aarch64-apple-darwin"
+            rust-targets: "aarch64-apple-darwin"
+          - name: macos-intel
+            os: macos-latest
+            args: "--target x86_64-apple-darwin"
+            rust-targets: "x86_64-apple-darwin"
 
     steps:
       - name: Checkout
         uses: actions/checkout@v7
 
       - name: Install Linux Tauri dependencies
+        if: matrix.os == 'ubuntu-22.04'
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
@@ -93,14 +114,17 @@ jobs:
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust-targets }}
 
       - name: Cache Rust build outputs
         uses: swatinem/rust-cache@v2
         with:
           workspaces: ". -> target"
+          shared-key: "tauri-desktop-${{ matrix.name }}"
 
       - name: Install frontend dependencies
         run: npm ci
 
       - name: Compile Tauri app
-        run: npm run tauri -- build --no-bundle
+        run: npm run tauri -- build --no-bundle ${{ matrix.args }}

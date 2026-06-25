@@ -76,6 +76,7 @@ jobs:
         uses: swatinem/rust-cache@v2
         with:
           workspaces: ". -> target"
+          shared-key: "tauri-desktop-${{ matrix.name }}"
 
       - name: Install frontend dependencies
         run: npm ci
@@ -146,6 +147,7 @@ jobs:
         uses: swatinem/rust-cache@v2
         with:
           workspaces: ". -> target"
+          shared-key: "tauri-android"
 
       - name: Install frontend dependencies
         run: npm ci
