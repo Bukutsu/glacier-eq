@@ -1,4 +1,3 @@
-import { ToolbarButton } from "./ToolbarButton";
 import { OperationProgress } from "../types";
 
 interface HeaderProps {
@@ -74,7 +73,7 @@ export function Header({
                 disabled={isBusy || !canUndo}
                 onClick={onUndo}
               >
-                <ToolbarButtonIcon icon="undo" label="Undo" />
+                <><span className="material-symbols-outlined">undo</span><span>Undo</span></>
               </button>
               <button
                 type="button"
@@ -84,7 +83,7 @@ export function Header({
                 disabled={isBusy || !canRedo}
                 onClick={onRedo}
               >
-                <ToolbarButtonIcon icon="redo" label="Redo" />
+                <><span className="material-symbols-outlined">redo</span><span>Redo</span></>
               </button>
             </div>
           </div>
@@ -92,9 +91,9 @@ export function Header({
         </div>
       </div>
       <div className="toolbar">
-        <ToolbarButton onClick={onPull} disabled={isBusy}>Pull</ToolbarButton>
-        <ToolbarButton primary onClick={onPush} disabled={isBusy}>Push</ToolbarButton>
-        <ToolbarButton onClick={onDisconnect} disabled={isBusy}>Disconnect</ToolbarButton>
+        <button className="btn tonal" onClick={onPull} disabled={isBusy}>Pull</button>
+        <button className="btn filled" onClick={onPush} disabled={isBusy}>Push</button>
+        <button className="btn tonal" onClick={onDisconnect} disabled={isBusy}>Disconnect</button>
       </div>
       {isBusy && (
         <div className="header-progress-bar">
@@ -108,11 +107,3 @@ export function Header({
   );
 }
 
-function ToolbarButtonIcon({ icon, label }: { icon: string; label: string }) {
-  return (
-    <>
-      <span className="material-symbols-outlined">{icon}</span>
-      <span>{label}</span>
-    </>
-  );
-}

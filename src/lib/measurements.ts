@@ -80,7 +80,7 @@ export function normalizeMeasurementPoints(points: MeasurementPoint[]): Measurem
   }));
 }
 
-function interpolateMeasurementDb(points: MeasurementPoint[], freq: number): number {
+export function interpolateMeasurementDb(points: MeasurementPoint[], freq: number): number {
   if (freq <= points[0].freq) return points[0].db;
   if (freq >= points[points.length - 1].freq) return points[points.length - 1].db;
 

@@ -5,13 +5,11 @@
   "windows": ["main"],
   "permissions": [
     "core:default",
-    "opener:default",
     "clipboard-manager:default",
     "clipboard-manager:allow-read-text",
     "clipboard-manager:allow-write-text",
     "dialog:default",
     "dialog:allow-save",
-    "fs:default",
     "hid:default",
     "core:window:default"
   ]

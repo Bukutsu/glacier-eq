@@ -5,6 +5,8 @@
 
 mod device_commands;
 mod diagnostics;
+#[cfg(target_os = "linux")]
+pub mod hid_helper;
 mod profiles;
 mod settings;
 mod state;
@@ -43,13 +45,16 @@ fn get_linux_color_scheme() -> String {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let mut builder = tauri::Builder::default()
         .manage(Mutex::new(DeviceState::default()))
-        .manage(Mutex::new(DiagnosticsStore::default()))
-        .plugin(tauri_plugin_opener::init())
+        .manage(Mutex::new(DiagnosticsStore::default()));
+    #[cfg(target_os = "linux")]
+    {
+        builder = builder.manage(Mutex::new(None::<hid_helper::ElevatedTransport>));
+    }
+    builder
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_hid::init())
         .setup(|app| {
             #[cfg(target_os = "linux")]

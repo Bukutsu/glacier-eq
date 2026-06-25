@@ -15,6 +15,7 @@ import { makeMeasurementName, nextMeasurementColor, normalizeMeasurementPoints }
 import { getBuiltInTargets, makeTargetName, nextTargetColor } from "./lib/targetReferences";
 import { buildDefaultState, normalizePeq } from "./lib/peq";
 import { clearThemeCache } from "./lib/theme";
+import { safeUnlisten } from "./lib/unlisten";
 import type { DeviceInfo, Filter, GraphViewMode, MeasurementTrace, PEQData, Profile, TargetTrace, OperationProgress } from "./types";
 import { ToastContainer, type Toast } from "./components/Toast";
 import "./App.css";
@@ -274,6 +275,7 @@ function App() {
   const [theme, setTheme] = useState("tokyo-night");
   const [resolvedTheme, setResolvedTheme] = useState("tokyo-night");
   const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const [enableOnlineMeasurements, setEnableOnlineMeasurements] = useState(false);
 
   useEffect(() => {
     const applyTheme = async () => {
@@ -405,7 +407,7 @@ function App() {
   }, [theme]);
 
   useEffect(() => {
-    invoke<{ theme?: string; show_diagnostics?: boolean }>("get_settings")
+    invoke<{ theme?: string; show_diagnostics?: boolean; enable_online_measurements?: boolean }>("get_settings")
       .then((settings) => {
         if (settings) {
           if (settings.theme) {
@@ -414,11 +416,25 @@ function App() {
           if (settings.show_diagnostics !== undefined) {
             setShowDiagnostics(settings.show_diagnostics);
           }
+          if (settings.enable_online_measurements !== undefined) {
+            setEnableOnlineMeasurements(settings.enable_online_measurements);
+          }
         }
       })
       .catch((err) => {
         console.error("Failed to load initial settings:", err);
       });
+  }, []);
+
+  const handleEnableOnlineMeasurementsChange = useCallback(async (enable: boolean) => {
+    setEnableOnlineMeasurements(enable);
+    try {
+      const current = await invoke<any>("get_settings");
+      const updated = { ...current, enable_online_measurements: enable };
+      await invoke("save_settings", { settings: updated });
+    } catch (err) {
+      console.error("Failed to persist online measurements setting:", err);
+    }
   }, []);
 
   const [peq, setPeq] = useState<PEQData>(buildDefaultState);
@@ -694,19 +710,6 @@ function App() {
   useEffect(() => {
     let active = true;
     let unlistenFn: (() => void) | null = null;
-
-    const safeUnlisten = (fn: () => void) => {
-      try {
-        const p = fn() as any;
-        if (p && typeof p.catch === "function") {
-          p.catch((err: any) => {
-            console.warn("Failed to unlisten from operation-progress (async):", err);
-          });
-        }
-      } catch (err) {
-        console.warn("Failed to unlisten from operation-progress (sync):", err);
-      }
-    };
 
     listen<OperationProgress>("operation-progress", (event) => {
       setProgress(event.payload);
@@ -1313,6 +1316,8 @@ function App() {
             onThemeChange={setTheme}
             showDiagnostics={showDiagnostics}
             onShowDiagnosticsChange={setShowDiagnostics}
+            enableOnlineMeasurements={enableOnlineMeasurements}
+            onEnableOnlineMeasurementsChange={handleEnableOnlineMeasurementsChange}
           />
         </main>
       )}

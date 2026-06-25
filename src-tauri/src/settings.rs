@@ -14,6 +14,10 @@ fn default_show_diagnostics() -> bool {
     false
 }
 
+fn default_enable_online_measurements() -> bool {
+    false
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Settings {
     pub auto_pull_on_connect: bool,
@@ -22,6 +26,8 @@ pub struct Settings {
     pub theme: String,
     #[serde(default = "default_show_diagnostics")]
     pub show_diagnostics: bool,
+    #[serde(default = "default_enable_online_measurements")]
+    pub enable_online_measurements: bool,
 }
 
 impl Default for Settings {
@@ -31,6 +37,7 @@ impl Default for Settings {
             skip_push_verification: false,
             theme: default_theme(),
             show_diagnostics: default_show_diagnostics(),
+            enable_online_measurements: default_enable_online_measurements(),
         }
     }
 }

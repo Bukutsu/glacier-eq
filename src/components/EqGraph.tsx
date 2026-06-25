@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { bandResponse, dbToY, formatFreq, freqToX, xToFreq } from "../lib/graph";
 import { cssVar, rgbWithAlpha } from "../lib/theme";
+import { interpolateMeasurementDb } from "../lib/measurements";
 import type { GraphViewMode, MeasurementTrace, PEQData, TargetTrace } from "../types";
 
 const GRAPH_FREQS = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
@@ -163,7 +164,7 @@ function drawCurves(
   measurements.forEach((trace) => {
     const adjusted = Array.from({ length: width }, (_, x) => {
       const freq = xToFreq(x, width);
-      return interpolateTraceDb(trace, freq) + eqResponse[x] + eqAnchorOffset;
+      return interpolateMeasurementDb(trace.points, freq) + eqResponse[x] + eqAnchorOffset;
     });
     drawResponse(ctx, height, adjusted, trace.color, 3);
   });
@@ -202,32 +203,6 @@ function drawTrace(
   ctx.setLineDash(dash);
   ctx.stroke();
   ctx.setLineDash([]);
-}
-
-function interpolateTraceDb(trace: MeasurementTrace | TargetTrace, freq: number): number {
-  const points = trace.points;
-  if (points.length === 0) return 0;
-  if (freq <= points[0].freq) return points[0].db;
-  if (freq >= points[points.length - 1].freq) return points[points.length - 1].db;
-
-  let low = 0;
-  let high = points.length - 1;
-  while (high - low > 1) {
-    const mid = Math.floor((low + high) / 2);
-    if (points[mid].freq < freq) {
-      low = mid;
-    } else {
-      high = mid;
-    }
-  }
-
-  const lowPoint = points[low];
-  const highPoint = points[high];
-  const span = Math.log10(highPoint.freq) - Math.log10(lowPoint.freq);
-  if (span <= 0) return lowPoint.db;
-
-  const ratio = (Math.log10(freq) - Math.log10(lowPoint.freq)) / span;
-  return lowPoint.db + (highPoint.db - lowPoint.db) * ratio;
 }
 
 function withAlpha(color: string, alpha: number): string {
