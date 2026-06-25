@@ -1,6 +1,6 @@
 {
   "default": "../assets/glacier-eq.svg",
-  "bg_color": "#0f1320",
+  "bg_color": "#1a1b26",
   "android_fg": "../assets/glacier-eq-android-foreground.svg",
   "android_fg_scale": 80
 }
