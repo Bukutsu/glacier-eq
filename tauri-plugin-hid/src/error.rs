@@ -11,10 +11,6 @@ pub enum Error {
     HidDeviceAlreadyOpen,
     #[error("Device no longer exists in open devices")]
     HidDeviceNotFoundInOpenDevices,
-    #[error("Invalid uuid format")]
-    HidDeviceUuidInvalidFormat,
-    #[error("HID read timed out")]
-    HidReadTimeout,
     #[cfg(desktop)]
     #[error("HidApi Error: {0}")]
     HidApiError(#[from] hidapi::HidError),

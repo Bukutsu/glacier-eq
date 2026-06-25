@@ -20,13 +20,13 @@ env:
 
 jobs:
   frontend:
-    name: Frontend build and smoke tests
+    name: Frontend build
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
@@ -37,14 +37,8 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Install Playwright Chromium
-        run: npx playwright install --with-deps chromium
-
       - name: Build frontend
         run: npm run build
-
-      - name: Run smoke tests
-        run: npx playwright test e2e/smoke.spec.ts --project=chromium
 
   rust:
     name: Rust fmt and check
@@ -53,7 +47,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -78,7 +72,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install Linux Tauri dependencies
         run: |

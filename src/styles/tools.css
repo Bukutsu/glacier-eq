@@ -774,6 +774,167 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   }
 }
 
+/* Online Measurements Search Database */
+.online-db-banner {
+  background: var(--bg-dark);
+  border: 1px solid var(--line-soft);
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.online-db-banner strong {
+  font-size: var(--type-label);
+  color: var(--text);
+}
+.online-db-banner p {
+  font-size: var(--type-small);
+  color: var(--muted);
+  line-height: 1.4;
+  margin: 0;
+}
+.online-db-banner .progress-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-mono);
+  font-size: var(--type-small);
+  color: var(--cyan);
+}
+.online-db-banner .progress-track {
+  flex: 1;
+  height: 6px;
+  background: var(--line-soft);
+  position: relative;
+  overflow: hidden;
+}
+.online-db-banner .progress-bar {
+  height: 100%;
+  background: var(--cyan);
+  transition: width 0.1s ease;
+}
+.online-db-banner .btn {
+  margin-top: 4px;
+}
 
+.online-search-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.online-search-section input {
+  width: 100%;
+  height: 38px;
+  border: 0;
+  background: var(--surface-soft);
+  color: var(--text);
+  padding: 0 10px;
+  outline: 0;
+  font-family: inherit;
+  font-size: var(--type-label);
+}
+.online-search-section input::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+.online-search-section input:focus {
+  outline: 1px solid var(--cyan);
+}
 
+.online-search-results {
+  background: var(--bg-dark);
+  border: 1px solid var(--line-soft);
+  max-height: 180px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
 
+.online-result-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  min-height: 38px;
+  font-size: var(--type-label);
+  background: var(--panel);
+  gap: 10px;
+  border: none;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+
+.online-result-item:hover {
+  background: var(--surface-soft);
+}
+
+.online-result-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.online-result-name {
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+}
+
+.online-result-source {
+  font-size: var(--type-small);
+  color: var(--muted);
+}
+
+.online-result-price {
+  font-size: var(--type-small);
+  color: var(--green);
+  margin-left: 4px;
+}
+
+.online-result-action {
+  background: transparent;
+  color: var(--cyan);
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  font-size: var(--type-small);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.online-result-action:hover {
+  color: var(--blue);
+}
+
+.online-db-status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--type-small);
+  color: var(--muted);
+  padding: 2px 4px 6px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.online-db-status-bar button {
+  background: transparent;
+  border: none;
+  color: var(--cyan);
+  cursor: pointer;
+  font-size: var(--type-small);
+  padding: 0;
+}
+.online-db-status-bar button:hover {
+  text-decoration: underline;
+}

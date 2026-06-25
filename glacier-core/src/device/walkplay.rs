@@ -3,10 +3,8 @@
 
 use crate::device::capabilities::{DeviceCapabilities, FilterTypeFlags};
 use crate::device::profile::DeviceProfile;
-use crate::device::protocol::DeviceProtocol;
-use crate::device::timing::WriteTiming;
 use crate::eq::iir_math::compute_biquad_coeffs;
-use crate::eq::{Filter, FilterType, PEQData};
+use crate::eq::{Filter, FilterType};
 
 // ─── Wire constants ───────────────────────────────────────────────────────────
 
@@ -44,8 +42,8 @@ pub const OFFSET_GAIN_H: usize = 32;
 pub const OFFSET_FILTER_TYPE: usize = 33;
 pub const OFFSET_GAIN_VALUE: usize = 4;
 
-const FILTER_RESPONSE_MIN_LEN: usize = 34;
-const GLOBAL_GAIN_RESPONSE_MIN_LEN: usize = 6;
+pub(crate) const FILTER_RESPONSE_MIN_LEN: usize = 34;
+pub(crate) const GLOBAL_GAIN_RESPONSE_MIN_LEN: usize = 6;
 
 pub const QUANTIZER_SCALE: f64 = 1_073_741_824.0;
 pub const BYTE_BIT_SHIFT: i32 = 8;
@@ -146,290 +144,87 @@ pub fn parse_filter_packet(packet: &[u8]) -> Option<Filter> {
     })
 }
 
-// ─── Protocol implementation ─────────────────────────────────────────────────
+// ─── Profiles ─────────────────────────────────────────────────────────────────
 
-pub struct WalkplayProtocol;
-
-impl DeviceProtocol for WalkplayProtocol {
-    fn report_id(&self) -> u8 {
-        REPORT_ID
-    }
-
-    fn write_timing(&self) -> WriteTiming {
-        WriteTiming {
-            commit_step_ms: 500,
-            ..WriteTiming::default()
-        }
-    }
-
-    fn is_default_state(&self, peq: &PEQData) -> bool {
-        let all_disabled = peq.filters.iter().all(|f| !f.enabled);
-        let has_default_gain = peq.global_gain == 0.0;
-        let all_default_freq = peq.filters.iter().all(|f| f.freq == 100);
-        all_disabled && has_default_gain && all_default_freq
-    }
-
-    fn build_init_packets(&self) -> Vec<Vec<u8>> {
-        vec![vec![READ, CMD_VERSION, END]]
-    }
-
-    fn build_filter_read_request(&self, index: u8, nonce: u8) -> Vec<u8> {
-        vec![READ, CMD_PEQ_VALUES, nonce, 0x00, index, END]
-    }
-
-    fn matches_filter_response(&self, data: &[u8], index: u8, nonce: u8) -> bool {
-        data.len() >= FILTER_RESPONSE_MIN_LEN
-            && data[OFFSET_CMD_TYPE] == READ
-            && data[OFFSET_CMD] == CMD_PEQ_VALUES
-            && data[OFFSET_NONCE] == nonce
-            && data[OFFSET_INDEX] == index
-    }
-
-    fn parse_filter_response(&self, data: &[u8]) -> Option<Filter> {
-        parse_filter_packet(data)
-    }
-
-    fn build_filter_write_packet(
-        &self,
-        index: u8,
-        filter: &Filter,
-        dsp_sample_rate: f64,
-    ) -> Vec<u8> {
-        let b_arr = compute_iir_filter(
-            filter.filter_type,
-            filter.freq as f64,
-            filter.gain,
-            filter.q,
-            dsp_sample_rate,
-        );
-        let filter_type_byte: u8 = filter.filter_type.into();
-
-        let mut packet = Vec::with_capacity(37);
-        packet.extend_from_slice(&[
-            WRITE,
-            CMD_PEQ_VALUES,
-            CONST_PEQ_PAYLOAD_LEN,
-            0x00,
-            index,
-            0x00,
-            0x00,
-        ]);
-        packet.extend_from_slice(&b_arr);
-        packet.extend_from_slice(&convert_to_2byte_array(filter.freq as i32));
-        packet.extend_from_slice(&convert_to_2byte_array((filter.q * 256.0).round() as i32));
-        packet.extend_from_slice(&convert_to_2byte_array((filter.gain * 256.0).round() as i32));
-        packet.extend_from_slice(&[filter_type_byte, 0x00, FILTER_SLOT, END]);
-
-        packet
-    }
-
-    fn build_global_gain_request(&self, _nonce: u8) -> Vec<u8> {
-        vec![READ, CMD_GLOBAL_GAIN, 0x00, END]
-    }
-
-    fn matches_global_gain_response(&self, data: &[u8], _nonce: u8) -> bool {
-        data.len() >= GLOBAL_GAIN_RESPONSE_MIN_LEN
-            && data[OFFSET_CMD_TYPE] == READ
-            && data[OFFSET_CMD] == CMD_GLOBAL_GAIN
-    }
-
-    fn parse_global_gain_response(&self, data: &[u8]) -> Option<i8> {
-        if data.len() > OFFSET_GAIN_VALUE {
-            Some(data[OFFSET_GAIN_VALUE] as i8)
-        } else {
-            None
-        }
-    }
-
-    fn build_global_gain_write_packet(&self, gain: i8) -> Vec<u8> {
-        vec![
-            WRITE,
-            CMD_GLOBAL_GAIN,
-            CONST_GLOBAL_GAIN_LEN,
-            0x00,
-            gain as u8,
-            END,
-        ]
-    }
-
-    fn build_commit_packets(&self) -> Vec<Vec<u8>> {
-        vec![
-            vec![
-                WRITE,
-                CMD_TEMP_WRITE,
-                CONST_TEMP_WRITE_LEN,
-                0x00,
-                0x00,
-                CONST_TEMP_WRITE_MAGIC_A,
-                CONST_TEMP_WRITE_MAGIC_B,
-                END,
-            ],
-            vec![WRITE, CMD_FLASH_EQ, CONST_FLASH_EQ_LEN, FILTER_SLOT, END],
-        ]
-    }
-}
-
-// ─── Profiles implementation ──────────────────────────────────────────────────
-
-pub struct TP35ProProfile;
-
-impl DeviceProfile for TP35ProProfile {
-    fn name(&self) -> &'static str {
-        "EPZ TP35 Pro"
-    }
-
-    fn vendor_id(&self) -> u16 {
-        0x3302
-    }
-
-    fn product_id(&self) -> u16 {
-        0x43E6
-    }
-
-    fn capabilities(&self) -> DeviceCapabilities {
-        DeviceCapabilities {
+pub const PROFILES: &[DeviceProfile] = &[
+    DeviceProfile {
+        name: "EPZ TP35 Pro",
+        vendor_id: 0x3302,
+        product_id: 0x43E6,
+        caps: DeviceCapabilities {
             num_bands: 10,
             global_gain_range: (-16, 6),
             band_gain_range: (-10.0, 10.0),
             freq_range: (20, 20000),
             q_range: (0.1, 10.0),
-            supported_filter_types: FilterTypeFlags::PEAK
-                | FilterTypeFlags::LOW_SHELF
-                | FilterTypeFlags::HIGH_SHELF
-                | FilterTypeFlags::LOW_PASS
-                | FilterTypeFlags::HIGH_PASS,
+            supported_filter_types: FilterTypeFlags(0b0001_1111),
             supports_per_band_enable: false,
             dsp_sample_rate: 96000.0,
             gain_tolerance: 0.15,
             freq_tolerance: 1,
             q_tolerance: 0.05,
-        }
-    }
-
-    fn protocol(&self) -> Box<dyn DeviceProtocol> {
-        Box::new(WalkplayProtocol)
-    }
-}
-
-pub struct TrnBlackPearlProfile;
-
-impl DeviceProfile for TrnBlackPearlProfile {
-    fn name(&self) -> &'static str {
-        "TRN Black Pearl"
-    }
-
-    fn vendor_id(&self) -> u16 {
-        0x3302
-    }
-
-    fn product_id(&self) -> u16 {
-        0x43E8
-    }
-
-    fn capabilities(&self) -> DeviceCapabilities {
-        DeviceCapabilities {
+        },
+    },
+    DeviceProfile {
+        name: "TRN Black Pearl",
+        vendor_id: 0x3302,
+        product_id: 0x43E8,
+        caps: DeviceCapabilities {
             num_bands: 10,
             global_gain_range: (-16, 6),
             band_gain_range: (-10.0, 10.0),
             freq_range: (20, 20000),
             q_range: (0.1, 10.0),
-            supported_filter_types: FilterTypeFlags::PEAK
-                | FilterTypeFlags::LOW_SHELF
-                | FilterTypeFlags::HIGH_SHELF
-                | FilterTypeFlags::LOW_PASS
-                | FilterTypeFlags::HIGH_PASS,
+            supported_filter_types: FilterTypeFlags(0b0001_1111),
             supports_per_band_enable: false,
             dsp_sample_rate: 96000.0,
             gain_tolerance: 0.15,
             freq_tolerance: 1,
             q_tolerance: 0.05,
-        }
-    }
-
-    fn protocol(&self) -> Box<dyn DeviceProtocol> {
-        Box::new(WalkplayProtocol)
-    }
-}
-
-pub struct DawnProProfile;
-
-impl DeviceProfile for DawnProProfile {
-    fn name(&self) -> &'static str {
-        "Moondrop Dawn Pro"
-    }
-
-    fn vendor_id(&self) -> u16 {
-        0x2FC6
-    }
-
-    fn product_id(&self) -> u16 {
-        0xDF30
-    }
-
-    fn capabilities(&self) -> DeviceCapabilities {
-        DeviceCapabilities {
+        },
+    },
+    DeviceProfile {
+        name: "Moondrop Dawn Pro",
+        vendor_id: 0x2FC6,
+        product_id: 0xDF30,
+        caps: DeviceCapabilities {
             num_bands: 8,
             global_gain_range: (-20, 0),
             band_gain_range: (-12.0, 12.0),
             freq_range: (20, 20000),
             q_range: (0.1, 10.0),
-            supported_filter_types: FilterTypeFlags::PEAK
-                | FilterTypeFlags::LOW_SHELF
-                | FilterTypeFlags::HIGH_SHELF,
+            supported_filter_types: FilterTypeFlags(0b0000_0111),
             supports_per_band_enable: false,
             dsp_sample_rate: 96000.0,
             gain_tolerance: 0.1,
             freq_tolerance: 1,
             q_tolerance: 0.05,
-        }
-    }
-
-    fn protocol(&self) -> Box<dyn DeviceProtocol> {
-        Box::new(WalkplayProtocol)
-    }
-}
-
-pub struct TruthearKeyxProfile;
-
-impl DeviceProfile for TruthearKeyxProfile {
-    fn name(&self) -> &'static str {
-        "Truthear KEYX"
-    }
-
-    fn vendor_id(&self) -> u16 {
-        0x0D8C
-    }
-
-    fn product_id(&self) -> u16 {
-        0x0210
-    }
-
-    fn capabilities(&self) -> DeviceCapabilities {
-        DeviceCapabilities {
+        },
+    },
+    DeviceProfile {
+        name: "Truthear KEYX",
+        vendor_id: 0x0D8C,
+        product_id: 0x0210,
+        caps: DeviceCapabilities {
             num_bands: 8,
             global_gain_range: (-20, 0),
             band_gain_range: (-12.0, 12.0),
             freq_range: (20, 20000),
             q_range: (0.1, 10.0),
-            supported_filter_types: FilterTypeFlags::PEAK
-                | FilterTypeFlags::LOW_SHELF
-                | FilterTypeFlags::HIGH_SHELF,
+            supported_filter_types: FilterTypeFlags(0b0000_0111),
             supports_per_band_enable: false,
             dsp_sample_rate: 96000.0,
             gain_tolerance: 0.1,
             freq_tolerance: 1,
             q_tolerance: 0.05,
-        }
-    }
-
-    fn protocol(&self) -> Box<dyn DeviceProtocol> {
-        Box::new(WalkplayProtocol)
-    }
-}
+        },
+    },
+];
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::device::protocol::WalkplayProtocol;
     use crate::eq::FilterType;
 
     fn make_filter(index: u8, freq: u16, gain: f64, q: f64) -> Filter {
@@ -445,9 +240,8 @@ mod tests {
 
     #[test]
     fn build_filter_write_packet_structure() {
-        let proto = WalkplayProtocol;
         let filter = make_filter(0, 1000, 5.0, 1.0);
-        let packet = proto.build_filter_write_packet(0, &filter, 96000.0);
+        let packet = WalkplayProtocol::build_filter_write_packet(0, &filter, 96000.0);
         assert_eq!(packet[OFFSET_CMD_TYPE], WRITE);
         assert_eq!(packet[OFFSET_CMD], CMD_PEQ_VALUES);
         assert_eq!(packet[OFFSET_INDEX], 0);
@@ -456,8 +250,7 @@ mod tests {
 
     #[test]
     fn build_global_gain_write_packet_structure() {
-        let proto = WalkplayProtocol;
-        let packet = proto.build_global_gain_write_packet(5);
+        let packet = WalkplayProtocol::build_global_gain_write_packet(5);
         assert_eq!(packet[OFFSET_CMD_TYPE], WRITE);
         assert_eq!(packet[OFFSET_CMD], CMD_GLOBAL_GAIN);
         assert_eq!(packet[OFFSET_GAIN_VALUE], 5);
@@ -465,15 +258,13 @@ mod tests {
 
     #[test]
     fn build_global_gain_write_packet_negative() {
-        let proto = WalkplayProtocol;
-        let packet = proto.build_global_gain_write_packet(-3);
+        let packet = WalkplayProtocol::build_global_gain_write_packet(-3);
         assert_eq!(packet[OFFSET_GAIN_VALUE] as i8, -3);
     }
 
     #[test]
     fn build_commit_packets_has_two_steps() {
-        let proto = WalkplayProtocol;
-        let packets = proto.build_commit_packets();
+        let packets = WalkplayProtocol::build_commit_packets();
         assert_eq!(packets.len(), 2);
         assert_eq!(packets[0][1], CMD_TEMP_WRITE);
         assert_eq!(packets[1][1], CMD_FLASH_EQ);
@@ -481,54 +272,55 @@ mod tests {
 
     #[test]
     fn write_timing_uses_500ms_commit_step() {
-        let proto = WalkplayProtocol;
-        let timing = proto.write_timing();
+        let timing = WalkplayProtocol::write_timing();
         assert_eq!(timing.commit_step_ms, 500);
     }
 
     #[test]
     fn matches_filter_response_accepts_valid_packet() {
-        let proto = WalkplayProtocol;
         let mut data = vec![0u8; 34];
         data[OFFSET_CMD_TYPE] = READ;
         data[OFFSET_CMD] = CMD_PEQ_VALUES;
         data[OFFSET_NONCE] = 0x42;
         data[OFFSET_INDEX] = 3;
-        assert!(proto.matches_filter_response(&data, 3, 0x42));
+        assert!(WalkplayProtocol::matches_filter_response(&data, 3, 0x42));
     }
 
     #[test]
     fn matches_filter_response_rejects_wrong_nonce() {
-        let proto = WalkplayProtocol;
         let mut data = vec![0u8; 34];
         data[OFFSET_CMD_TYPE] = READ;
         data[OFFSET_CMD] = CMD_PEQ_VALUES;
         data[OFFSET_NONCE] = 0x42;
         data[OFFSET_INDEX] = 3;
-        assert!(!proto.matches_filter_response(&data, 3, 0xFF));
+        assert!(!WalkplayProtocol::matches_filter_response(&data, 3, 0xFF));
     }
 
     #[test]
     fn matches_filter_response_rejects_short_packet() {
-        let proto = WalkplayProtocol;
-        assert!(!proto.matches_filter_response(&[READ, CMD_PEQ_VALUES], 0, 1));
+        assert!(!WalkplayProtocol::matches_filter_response(
+            &[READ, CMD_PEQ_VALUES],
+            0,
+            1
+        ));
     }
 
     #[test]
     fn matches_global_gain_response_accepts_valid_packet() {
-        let proto = WalkplayProtocol;
         let mut data = vec![0u8; 6];
         data[OFFSET_CMD_TYPE] = READ;
         data[OFFSET_CMD] = CMD_GLOBAL_GAIN;
         data[OFFSET_GAIN_VALUE] = 3u8;
-        assert!(proto.matches_global_gain_response(&data, 0));
-        assert_eq!(proto.parse_global_gain_response(&data), Some(3i8));
+        assert!(WalkplayProtocol::matches_global_gain_response(&data, 0));
+        assert_eq!(
+            WalkplayProtocol::parse_global_gain_response(&data),
+            Some(3i8)
+        );
     }
 
     #[test]
     fn parse_filter_response_too_short() {
-        let proto = WalkplayProtocol;
-        assert!(proto.parse_filter_response(&[0u8; 10]).is_none());
+        assert!(WalkplayProtocol::parse_filter_response(&[0u8; 10]).is_none());
     }
 
     #[test]

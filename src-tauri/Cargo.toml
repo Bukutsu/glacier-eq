@@ -1,6 +1,6 @@
 [package]
 name = "glacier-eq"
-version = "0.1.2"
+version = "0.1.3"
 description = "Cross-platform parametric EQ editor for USB DACs. Built with Tauri + React + Rust."
 license = "MIT"
 authors = ["Bukutsu"]
@@ -15,13 +15,15 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 tauri = { version = "2", features = [] }
-tauri-plugin-opener = "2"
 tauri-plugin-clipboard-manager = "2"
 tauri-plugin-dialog = "2"
-tauri-plugin-fs = "2"
 tauri-plugin-hid = { path = "../tauri-plugin-hid" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 glacier-core = { path = "../glacier-core" }
 log = "0.4"
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+hidapi = { version = "2.6.3", features = ["linux-native"], default-features = false }
+libc = "0.2"
