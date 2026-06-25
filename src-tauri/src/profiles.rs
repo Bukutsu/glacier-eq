@@ -16,27 +16,16 @@ pub struct ProfileDto {
 }
 
 pub(crate) fn app_data_base_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
-    let dir = if let Ok(dir) = std::env::var("GLACIER_EQ_HOME") {
-        if !dir.trim().is_empty() {
-            PathBuf::from(dir)
-        } else {
+    let dir = std::env::var("GLACIER_EQ_HOME")
+        .ok()
+        .filter(|d| !d.trim().is_empty())
+        .map(PathBuf::from)
+        .map(Ok)
+        .unwrap_or_else(|| {
             app.path()
                 .app_data_dir()
-                .map_err(|error| format!("Failed to resolve Glacier EQ data directory: {error}"))?
-        }
-    } else if let Ok(dir) = std::env::var("FROST_TUNE_HOME") {
-        if !dir.trim().is_empty() {
-            PathBuf::from(dir)
-        } else {
-            app.path()
-                .app_data_dir()
-                .map_err(|error| format!("Failed to resolve Glacier EQ data directory: {error}"))?
-        }
-    } else {
-        app.path()
-            .app_data_dir()
-            .map_err(|error| format!("Failed to resolve Glacier EQ data directory: {error}"))?
-    };
+                .map_err(|e| format!("Failed to resolve Glacier EQ data directory: {e}"))
+        })?;
 
     std::fs::create_dir_all(&dir).map_err(|error| {
         format!(
@@ -229,7 +218,7 @@ pub fn parse_autoeq(
         .connected
     {
         glacier_core::device::get_device_profile(connected.vendor_id, connected.product_id)
-            .map(|profile| profile.capabilities())
+            .map(|profile| profile.caps.clone())
             .unwrap_or(glacier_core::device::capabilities::DESKTOP_DAC_CAPS)
     } else {
         glacier_core::device::capabilities::DESKTOP_DAC_CAPS
@@ -350,6 +339,12 @@ pub fn run_autoeq_internal(
         });
     }
 
+    // Sort filters by frequency and re-index sequentially
+    filters.sort_by_key(|f| f.freq);
+    for (i, filter) in filters.iter_mut().enumerate() {
+        filter.index = i as u8;
+    }
+
     // Calculate the combined frequency response of the optimized filters to prevent digital clipping
     let mut response = [0.0f32; glacier_core::autoeq::K];
     for filter in &filters {
@@ -410,7 +405,7 @@ pub async fn run_autoeq(
         .connected
     {
         glacier_core::device::get_device_profile(connected.vendor_id, connected.product_id)
-            .map(|profile| profile.capabilities())
+            .map(|profile| profile.caps.clone())
             .unwrap_or(glacier_core::device::capabilities::DESKTOP_DAC_CAPS)
     } else {
         glacier_core::device::capabilities::DESKTOP_DAC_CAPS

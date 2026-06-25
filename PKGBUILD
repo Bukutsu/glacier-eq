@@ -9,6 +9,7 @@ arch=('x86_64' 'aarch64')
 url="https://github.com/Bukutsu/glacier-eq"
 license=('MIT')
 depends=(
+  'polkit'
   'webkit2gtk-4.1'
   'libayatana-appindicator'
   'librsvg'
@@ -72,4 +73,7 @@ package() {
   install -Dm644 "src-tauri/icons/128x128.png"  "${pkgdir}/usr/share/icons/hicolor/128x128/apps/glacier-eq.png"
   install -Dm644 "src-tauri/icons/128x128@2x.png" "${pkgdir}/usr/share/icons/hicolor/256x256/apps/glacier-eq.png"
   install -Dm644 "src-tauri/icons/icon.png"    "${pkgdir}/usr/share/icons/hicolor/scalable/apps/glacier-eq.png"
+
+  # Udev rules
+  install -Dm644 "udev/99-glacier-eq.rules" "${pkgdir}/usr/lib/udev/rules.d/99-glacier-eq.rules"
 }

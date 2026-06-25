@@ -1,0 +1,11 @@
+# Glacier EQ USB DAC udev rules
+# Grants access to supported HID DACs for local users (uaccess)
+
+# EPZ TP35 Pro
+KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="3302", ATTRS{idProduct}=="43e6", TAG+="uaccess"
+
+# Moondrop Dawn Pro
+KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2fc6", ATTRS{idProduct}=="df30", TAG+="uaccess"
+
+# Truthear KEYX
+KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0d8c", ATTRS{idProduct}=="0210", TAG+="uaccess"

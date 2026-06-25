@@ -16,9 +16,8 @@ pub mod error;
 
 // Re-exports
 pub use device::{
-    get_device_profile, get_supported_device, is_supported_device, DawnProProfile,
-    DeviceCapabilities, DeviceInfo, DeviceProfile, FilterTypeFlags, SupportedDevice,
-    TP35ProProfile, TruthearKeyxProfile, WalkplayProtocol, SUPPORTED_DEVICES,
+    get_device_profile, get_supported_device, is_supported_device, DeviceCapabilities, DeviceInfo,
+    DeviceProfile, FilterTypeFlags, SupportedDevice, WalkplayProtocol, PROFILES, SUPPORTED_DEVICES,
 };
 pub use eq::constants::*;
 pub use eq::{snap_freq_to_iso, snap_gain_step, snap_q_to_iso, Filter, FilterType, PEQData};

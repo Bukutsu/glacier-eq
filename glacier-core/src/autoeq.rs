@@ -78,15 +78,11 @@ pub fn parse_autoeq_text(text: &str) -> Result<(PEQData, Option<String>, Vec<Str
         return Err("No valid filters or preamp found in AutoEQ text".into());
     }
 
-    // Convert BTreeMap to a contiguous Vec<Filter>, padding missing indices with disabled filters
-    let max_idx = filters.keys().max().copied().unwrap_or(0);
-    let mut contiguous_filters = Vec::with_capacity(max_idx + 1);
-    for i in 0..=max_idx {
-        if let Some(f) = filters.remove(&i) {
-            contiguous_filters.push(f);
-        } else {
-            contiguous_filters.push(Filter::enabled(i as u8, false));
-        }
+    // Extract parsed filters, sort by frequency, and reindex sequentially
+    let mut contiguous_filters: Vec<Filter> = filters.into_values().collect();
+    contiguous_filters.sort_by_key(|f| f.freq);
+    for (i, f) in contiguous_filters.iter_mut().enumerate() {
+        f.index = i as u8;
     }
 
     Ok((
@@ -287,7 +283,10 @@ pub fn peq_to_autoeq(peq: &PEQData) -> String {
     };
     let mut lines = vec![format!("Preamp: {} dB", preamp_str)];
 
-    for (i, f) in peq.filters.iter().enumerate() {
+    let mut sorted_filters = peq.filters.clone();
+    sorted_filters.sort_by_key(|f| f.freq);
+
+    for (i, f) in sorted_filters.iter().enumerate() {
         let on_off = if f.enabled { "ON" } else { "OFF" };
         let type_str = autoeq_token(f.filter_type);
         lines.push(format!(
@@ -831,11 +830,11 @@ fn w_from_n(n: usize) -> usize {
     3 * n + 1
 }
 
-fn lf_at(v: &[f32], n: usize, i: usize) -> f32 {
-    v[0 * n + i]
+fn lf_at(v: &[f32], _n: usize, i: usize) -> f32 {
+    v[i]
 }
 fn gain_at(v: &[f32], n: usize, i: usize) -> f32 {
-    v[1 * n + i]
+    v[n + i]
 }
 fn bw_at(v: &[f32], n: usize, i: usize) -> f32 {
     v[2 * n + i]
@@ -844,11 +843,11 @@ fn amp_at(v: &[f32], n: usize) -> f32 {
     v[3 * n]
 }
 
-fn set_lf_at(v: &mut [f32], n: usize, i: usize, val: f32) {
-    v[0 * n + i] = val;
+fn set_lf_at(v: &mut [f32], _n: usize, i: usize, val: f32) {
+    v[i] = val;
 }
 fn set_gain_at(v: &mut [f32], n: usize, i: usize, val: f32) {
-    v[1 * n + i] = val;
+    v[n + i] = val;
 }
 fn set_bw_at(v: &mut [f32], n: usize, i: usize, val: f32) {
     v[2 * n + i] = val;
@@ -1118,13 +1117,13 @@ fn fit(
             let mut val_lf = lf_at(&x, n_bands, n);
             if limit(&mut val_lf, lf_lim[n]) {
                 set_lf_at(&mut x, n_bands, n, val_lf);
-                opt.m[0 * n_bands + n] = 0.0;
+                opt.m[n] = 0.0;
             }
 
             let mut val_gain = gain_at(&x, n_bands, n);
             if limit(&mut val_gain, gain_lim[n]) {
                 set_gain_at(&mut x, n_bands, n, val_gain);
-                opt.m[1 * n_bands + n] = 0.0;
+                opt.m[n_bands + n] = 0.0;
             }
 
             let mut val_bw = bw_at(&x, n_bands, n);
@@ -1454,7 +1453,7 @@ Filter 8: ON HSC Fc 7624 Hz Gain 0.59 dB Q 3.000";
         let (result, _, _) = parse_autoeq_text(text).unwrap();
         assert_eq!(result.filters[0].filter_type, FilterType::Peak);
         assert_eq!(result.filters[1].filter_type, FilterType::LowShelf);
-        assert_eq!(result.filters[7].filter_type, FilterType::HighShelf);
+        assert_eq!(result.filters[2].filter_type, FilterType::HighShelf);
     }
 
     #[test]
@@ -1500,7 +1499,7 @@ Filter 8: ON HSC Fc 7624 Hz Gain 0.59 dB Q 3.000";
         let text = "Preamp: -3 dB\nFilter 1: ON PK Fc 100 Hz Gain 5.0 dB Q 1.0\nFilter 2: BAD FORMAT\nFilter 3: OFF PK Fc 1000 Hz Gain 0 dB Q 2.0";
         let (result, _, warnings) = parse_autoeq_text(text).unwrap();
         assert_eq!(result.filters[0].freq, 100);
-        assert_eq!(result.filters[2].freq, 1000);
+        assert_eq!(result.filters[1].freq, 1000);
         assert_eq!(warnings.len(), 1);
         assert!(warnings[0].contains("Failed to parse"));
     }

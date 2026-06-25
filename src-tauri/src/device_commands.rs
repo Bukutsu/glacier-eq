@@ -1,10 +1,11 @@
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: MIT
 
-use crate::diagnostics::{self, DiagnosticsStore, LogSource};
+use crate::diagnostics::{self, DiagnosticsStore, LogLevel, LogSource};
 use crate::state::{ConnectedDevice, DeviceState};
+use glacier_core::device::timing::ReadTiming;
 use glacier_core::device::{
-    get_device_profile, get_supported_device, DeviceCapabilities, DeviceInfo, DeviceProtocol,
+    get_device_profile, get_supported_device, DeviceCapabilities, DeviceInfo, WalkplayProtocol,
 };
 use glacier_core::eq::PEQData;
 use std::collections::HashSet;
@@ -12,6 +13,9 @@ use std::sync::Mutex;
 use std::time::Duration;
 use tauri::Manager;
 use tauri_plugin_hid::HidExt;
+
+#[cfg(target_os = "linux")]
+use crate::hid_helper::ElevatedTransport;
 
 const INIT_DRAIN_ATTEMPTS: usize = 100;
 const FILTER_READ_ATTEMPTS: usize = 60;
@@ -35,6 +39,78 @@ fn emit_progress(app: &tauri::AppHandle, message: &str, percentage: f32) {
     );
 }
 
+// ── HID backend wrappers ──────────────────────────────────────────────
+// Try direct access first; transparently fall back to pkexec-elevated
+// helper on PermissionDenied (Linux only).
+
+fn hid_read(app: &tauri::AppHandle, path: &str, timeout: i32) -> Result<Vec<u8>, String> {
+    #[cfg(target_os = "linux")]
+    if let Some(t) = app
+        .state::<Mutex<Option<ElevatedTransport>>>()
+        .lock()
+        .unwrap()
+        .as_mut()
+    {
+        return t.read(path, timeout);
+    }
+    app.hid().read(path, timeout).map_err(|e| e.to_string())
+}
+
+fn hid_write(app: &tauri::AppHandle, path: &str, data: &[u8]) -> Result<(), String> {
+    #[cfg(target_os = "linux")]
+    if let Some(t) = app
+        .state::<Mutex<Option<ElevatedTransport>>>()
+        .lock()
+        .unwrap()
+        .as_mut()
+    {
+        return t.write(path, data);
+    }
+    app.hid().write(path, data).map_err(|e| e.to_string())
+}
+
+fn hid_close(app: &tauri::AppHandle, path: &str) -> Result<(), String> {
+    #[cfg(target_os = "linux")]
+    if let Some(t) = app
+        .state::<Mutex<Option<ElevatedTransport>>>()
+        .lock()
+        .unwrap()
+        .as_mut()
+    {
+        return t.close(path);
+    }
+    app.hid().close(path).map_err(|e| e.to_string())
+}
+
+fn try_open_device(app: &tauri::AppHandle, path: &str) -> Result<(), String> {
+    match app.hid().open(path) {
+        Ok(()) => return Ok(()),
+        Err(e) => {
+            let msg = e.to_string();
+            // hidapi returns "Permission denied" on EACCES
+            if !msg.to_lowercase().contains("permission denied") {
+                return Err(msg);
+            }
+        }
+    }
+    // PermissionDenied – try elevated fallback
+    #[cfg(target_os = "linux")]
+    {
+        let state = app.state::<Mutex<Option<ElevatedTransport>>>();
+        let mut guard = state.lock().map_err(|_| "state poisoned")?;
+        if let Some(ref mut t) = *guard {
+            // Reuse existing elevated transport (reconnect flow)
+            return t.open(path);
+        }
+        let mut transport = ElevatedTransport::spawn()?;
+        transport.open(path)?;
+        guard.replace(transport);
+        Ok(())
+    }
+    #[cfg(not(target_os = "linux"))]
+    Err("USB permission denied and elevation is not supported on this platform".into())
+}
+
 #[tauri::command]
 pub async fn get_eq_state(
     app: tauri::AppHandle,
@@ -49,10 +125,10 @@ pub async fn get_eq_state(
                 connected.vendor_id, connected.product_id
             )
         })?;
-    let caps = profile.capabilities();
-    let protocol = profile.protocol();
+    let caps = &profile.caps;
 
-    diagnostics::log_info(
+    diagnostics::log(
+        LogLevel::Info,
         &app,
         &diagnostics_store,
         LogSource::HID,
@@ -61,27 +137,27 @@ pub async fn get_eq_state(
     if let Err(error) = send_packet(
         &app,
         &connected.path,
-        &protocol.build_global_gain_request(0),
-        &*protocol,
+        &WalkplayProtocol::build_global_gain_request(0),
     ) {
         log::warn!("Pull wake request failed: {error}");
     }
-    sleep_ms(protocol.read_timing().wake_delay_ms);
+    sleep_ms(ReadTiming::default().wake_delay_ms);
 
-    let first = pull_once(&app, &connected, &*protocol, &caps);
+    let first = pull_once(&app, &connected, &caps);
     let should_retry = match &first {
-        Ok(peq) => protocol.is_default_state(peq),
+        Ok(peq) => WalkplayProtocol::is_default_state(peq),
         Err(_) => true,
     };
 
     let peq = if should_retry {
-        sleep_ms(protocol.read_timing().pull_retry_delay_ms);
-        match pull_once(&app, &connected, &*protocol, &caps) {
+        sleep_ms(ReadTiming::default().pull_retry_delay_ms);
+        match pull_once(&app, &connected, &caps) {
             Ok(peq) => peq,
             Err(retry_error) => match first {
                 Ok(defaultish) => defaultish,
                 Err(_) => {
-                    diagnostics::log_error(
+                    diagnostics::log(
+                        LogLevel::Error,
                         &app,
                         &diagnostics_store,
                         LogSource::HID,
@@ -95,7 +171,8 @@ pub async fn get_eq_state(
         match first {
             Ok(peq) => peq,
             Err(error) => {
-                diagnostics::log_error(
+                diagnostics::log(
+                    LogLevel::Error,
                     &app,
                     &diagnostics_store,
                     LogSource::HID,
@@ -106,7 +183,8 @@ pub async fn get_eq_state(
         }
     };
 
-    diagnostics::log_info(
+    diagnostics::log(
+        LogLevel::Info,
         &app,
         &diagnostics_store,
         LogSource::HID,
@@ -181,18 +259,12 @@ fn rollback_state(
     app: &tauri::AppHandle,
     connected: &ConnectedDevice,
     peq: &PEQData,
-    protocol: &dyn DeviceProtocol,
     caps: &DeviceCapabilities,
 ) -> Result<(), String> {
-    run_init_sequence(app, &connected.path, protocol)?;
-    write_filters(app, &connected.path, protocol, peq, caps.dsp_sample_rate)?;
-    write_global_gain(
-        app,
-        &connected.path,
-        protocol,
-        peq.global_gain.round() as i8,
-    )?;
-    commit_changes(app, &connected.path, protocol)?;
+    run_init_sequence(app, &connected.path)?;
+    write_filters(app, &connected.path, peq, caps.dsp_sample_rate)?;
+    write_global_gain(app, &connected.path, peq.global_gain.round() as i8)?;
+    commit_changes(app, &connected.path)?;
     Ok(())
 }
 
@@ -211,24 +283,25 @@ pub async fn set_eq_state(
                 connected.vendor_id, connected.product_id
             )
         })?;
-    let caps = profile.capabilities();
-    let protocol = profile.protocol();
+    let caps = &profile.caps;
 
     let peq = normalize_for_push(peq, &caps);
     let settings = crate::settings::get_settings(app.clone()).unwrap_or_default();
 
     // 1. Snapshot current state before writing
     let backup_state = if !settings.skip_push_verification {
-        diagnostics::log_info(
+        diagnostics::log(
+            LogLevel::Info,
             &app,
             &diagnostics_store,
             LogSource::HID,
             "Snapshotting current device state...",
         );
-        match pull_once(&app, &connected, &*protocol, &caps) {
+        match pull_once(&app, &connected, &caps) {
             Ok(backup) => Some(backup),
             Err(error) => {
-                diagnostics::log_warn(
+                diagnostics::log(
+                    LogLevel::Warn,
                     &app,
                     &diagnostics_store,
                     LogSource::HID,
@@ -242,7 +315,8 @@ pub async fn set_eq_state(
     };
 
     // 2. Write the new settings
-    diagnostics::log_info(
+    diagnostics::log(
+        LogLevel::Info,
         &app,
         &diagnostics_store,
         LogSource::HID,
@@ -250,8 +324,9 @@ pub async fn set_eq_state(
     );
 
     emit_progress(&app, "Initializing push connection...", 10.0);
-    if let Err(error) = run_init_sequence(&app, &connected.path, &*protocol) {
-        diagnostics::log_error(
+    if let Err(error) = run_init_sequence(&app, &connected.path) {
+        diagnostics::log(
+            LogLevel::Error,
             &app,
             &diagnostics_store,
             LogSource::HID,
@@ -259,14 +334,9 @@ pub async fn set_eq_state(
         );
         return Err(error);
     }
-    if let Err(error) = write_filters(
-        &app,
-        &connected.path,
-        &*protocol,
-        &peq,
-        caps.dsp_sample_rate,
-    ) {
-        diagnostics::log_error(
+    if let Err(error) = write_filters(&app, &connected.path, &peq, caps.dsp_sample_rate) {
+        diagnostics::log(
+            LogLevel::Error,
             &app,
             &diagnostics_store,
             LogSource::HID,
@@ -275,9 +345,9 @@ pub async fn set_eq_state(
         return Err(error);
     }
     emit_progress(&app, "Writing preamp...", 75.0);
-    if let Err(error) = write_global_gain(&app, &connected.path, &*protocol, peq.global_gain as i8)
-    {
-        diagnostics::log_error(
+    if let Err(error) = write_global_gain(&app, &connected.path, peq.global_gain as i8) {
+        diagnostics::log(
+            LogLevel::Error,
             &app,
             &diagnostics_store,
             LogSource::HID,
@@ -286,8 +356,9 @@ pub async fn set_eq_state(
         return Err(error);
     }
     emit_progress(&app, "Committing changes to device...", 80.0);
-    if let Err(error) = commit_changes(&app, &connected.path, &*protocol) {
-        diagnostics::log_error(
+    if let Err(error) = commit_changes(&app, &connected.path) {
+        diagnostics::log(
+            LogLevel::Error,
             &app,
             &diagnostics_store,
             LogSource::HID,
@@ -298,52 +369,63 @@ pub async fn set_eq_state(
 
     // 3. Verify write
     if !settings.skip_push_verification {
-        diagnostics::log_info(
+        diagnostics::log(
+            LogLevel::Info,
             &app,
             &diagnostics_store,
             LogSource::HID,
             "Verifying pushed settings...",
         );
         emit_progress(&app, "Verifying changes...", 90.0);
-        sleep_ms(protocol.read_timing().pull_retry_delay_ms);
+        sleep_ms(ReadTiming::default().pull_retry_delay_ms);
 
-        match pull_once(&app, &connected, &*protocol, &caps) {
+        match pull_once(&app, &connected, &caps) {
             Ok(actual) => {
                 if let Err(mismatch) = compare_peq(&actual, &peq, &caps) {
                     let err_msg = format!("Push verification failed: {mismatch}");
-                    diagnostics::log_error(&app, &diagnostics_store, LogSource::HID, &err_msg);
+                    diagnostics::log(
+                        LogLevel::Error,
+                        &app,
+                        &diagnostics_store,
+                        LogSource::HID,
+                        &err_msg,
+                    );
 
                     // Execute rollback if backup is available
                     if let Some(backup) = backup_state {
-                        diagnostics::log_warn(
+                        diagnostics::log(
+                            LogLevel::Warn,
                             &app,
                             &diagnostics_store,
                             LogSource::HID,
                             "Initiating rollback to previous state...",
                         );
                         if let Err(rollback_error) =
-                            rollback_state(&app, &connected, &backup, &*protocol, &caps)
+                            rollback_state(&app, &connected, &backup, &caps)
                         {
-                            diagnostics::log_error(
+                            diagnostics::log(
+                                LogLevel::Error,
                                 &app,
                                 &diagnostics_store,
                                 LogSource::HID,
                                 format!("Rollback failed: {rollback_error}"),
                             );
                         } else {
-                            diagnostics::log_info(
+                            diagnostics::log(
+                                LogLevel::Info,
                                 &app,
                                 &diagnostics_store,
                                 LogSource::HID,
                                 "Rollback successfully written. Verifying rollback...",
                             );
-                            sleep_ms(protocol.read_timing().pull_retry_delay_ms);
-                            match pull_once(&app, &connected, &*protocol, &caps) {
+                            sleep_ms(ReadTiming::default().pull_retry_delay_ms);
+                            match pull_once(&app, &connected, &caps) {
                                 Ok(rolled_back_state) => {
                                     if let Err(rollback_mismatch) =
                                         compare_peq(&rolled_back_state, &backup, &caps)
                                     {
-                                        diagnostics::log_error(
+                                        diagnostics::log(
+                                            LogLevel::Error,
                                             &app,
                                             &diagnostics_store,
                                             LogSource::HID,
@@ -352,7 +434,8 @@ pub async fn set_eq_state(
                                             ),
                                         );
                                     } else {
-                                        diagnostics::log_info(
+                                        diagnostics::log(
+                                            LogLevel::Info,
                                             &app,
                                             &diagnostics_store,
                                             LogSource::HID,
@@ -361,7 +444,8 @@ pub async fn set_eq_state(
                                     }
                                 }
                                 Err(rollback_read_error) => {
-                                    diagnostics::log_error(
+                                    diagnostics::log(
+                                        LogLevel::Error,
                                         &app,
                                         &diagnostics_store,
                                         LogSource::HID,
@@ -374,7 +458,8 @@ pub async fn set_eq_state(
 
                     return Err(err_msg);
                 } else {
-                    diagnostics::log_info(
+                    diagnostics::log(
+                        LogLevel::Info,
                         &app,
                         &diagnostics_store,
                         LogSource::HID,
@@ -385,13 +470,25 @@ pub async fn set_eq_state(
             Err(read_error) => {
                 let err_msg =
                     format!("Failed to read back settings for verification: {read_error}");
-                diagnostics::log_error(&app, &diagnostics_store, LogSource::HID, &err_msg);
+                diagnostics::log(
+                    LogLevel::Error,
+                    &app,
+                    &diagnostics_store,
+                    LogSource::HID,
+                    &err_msg,
+                );
                 return Err(err_msg);
             }
         }
     }
 
-    diagnostics::log_info(&app, &diagnostics_store, LogSource::HID, "Push successful");
+    diagnostics::log(
+        LogLevel::Info,
+        &app,
+        &diagnostics_store,
+        LogSource::HID,
+        "Push successful",
+    );
     emit_progress(&app, "Push successful", 100.0);
     Ok(())
 }
@@ -446,9 +543,15 @@ pub async fn connect_device(
     })?;
 
     close_previous_device(&app, &state)?;
-    if let Err(error) = hid.open(&path) {
+    if let Err(error) = try_open_device(&app, &path) {
         let msg = format!("Failed to open {}: {error}", profile.name);
-        diagnostics::log_error(&app, &diagnostics_store, LogSource::UI, &msg);
+        diagnostics::log(
+            LogLevel::Error,
+            &app,
+            &diagnostics_store,
+            LogSource::UI,
+            &msg,
+        );
         return Err(msg);
     }
 
@@ -462,7 +565,8 @@ pub async fn connect_device(
         profile_name: profile.name.to_string(),
     });
 
-    diagnostics::log_info(
+    diagnostics::log(
+        LogLevel::Info,
         &app,
         &diagnostics_store,
         LogSource::UI,
@@ -483,12 +587,19 @@ pub fn disconnect_device(
         .connected
         .take()
     {
-        if let Err(error) = app.hid().close(&device.path) {
+        if let Err(error) = hid_close(&app, &device.path) {
             let msg = format!("Failed to close {}: {error}", device.profile_name);
-            diagnostics::log_error(&app, &diagnostics_store, LogSource::UI, &msg);
+            diagnostics::log(
+                LogLevel::Error,
+                &app,
+                &diagnostics_store,
+                LogSource::UI,
+                &msg,
+            );
             return Err(msg);
         }
-        diagnostics::log_info(
+        diagnostics::log(
+            LogLevel::Info,
             &app,
             &diagnostics_store,
             LogSource::UI,
@@ -519,7 +630,7 @@ fn close_previous_device(
         .connected
         .take()
     {
-        let _ = app.hid().close(&previous.path);
+        let _ = hid_close(app, &previous.path);
     }
     Ok(())
 }
@@ -527,11 +638,10 @@ fn close_previous_device(
 fn pull_once(
     app: &tauri::AppHandle,
     connected: &ConnectedDevice,
-    protocol: &dyn DeviceProtocol,
     caps: &DeviceCapabilities,
 ) -> Result<PEQData, String> {
     emit_progress(app, "Initializing read connection...", 5.0);
-    run_init_sequence(app, &connected.path, protocol)?;
+    run_init_sequence(app, &connected.path)?;
 
     let mut filters = Vec::with_capacity(caps.num_bands);
     for index in 0..caps.num_bands {
@@ -541,13 +651,13 @@ fn pull_once(
             &format!("Reading band {}/{}...", index + 1, caps.num_bands),
             pct,
         );
-        filters.push(read_filter(app, connected, protocol, index as u8)?);
-        sleep_ms(protocol.read_timing().inter_filter_ms);
+        filters.push(read_filter(app, connected, index as u8)?);
+        sleep_ms(ReadTiming::default().inter_filter_ms);
     }
 
-    sleep_ms(protocol.read_timing().post_filter_read_ms);
+    sleep_ms(ReadTiming::default().post_filter_read_ms);
     emit_progress(app, "Reading device preamp...", 90.0);
-    let global_gain = read_global_gain(app, &connected.path, protocol)?;
+    let global_gain = read_global_gain(app, &connected.path)?;
 
     emit_progress(app, "Read successful", 100.0);
     Ok(PEQData {
@@ -559,13 +669,13 @@ fn pull_once(
 fn read_filter(
     app: &tauri::AppHandle,
     connected: &ConnectedDevice,
-    protocol: &dyn DeviceProtocol,
     index: u8,
 ) -> Result<glacier_core::eq::Filter, String> {
     let nonce = index.wrapping_add(1).max(1);
     let diagnostics_store = app.state::<Mutex<DiagnosticsStore>>();
 
-    diagnostics::log_info(
+    diagnostics::log(
+        LogLevel::Info,
         app,
         &diagnostics_store,
         LogSource::HID,
@@ -575,13 +685,12 @@ fn read_filter(
     send_packet(
         app,
         &connected.path,
-        &protocol.build_filter_read_request(index, nonce),
-        protocol,
+        &WalkplayProtocol::build_filter_read_request(index, nonce),
     )?;
 
     let mut mismatches = 0usize;
     for attempt in 1..=FILTER_READ_ATTEMPTS {
-        let bytes = app.hid().read(&connected.path, 60).map_err(|error| {
+        let bytes = hid_read(app, &connected.path, 60).map_err(|error| {
             format!(
                 "Filter {} read failed on attempt {}: {error}",
                 index + 1,
@@ -590,7 +699,8 @@ fn read_filter(
         })?;
         if bytes.is_empty() {
             if attempt == 1 || attempt % 20 == 0 || attempt == FILTER_READ_ATTEMPTS {
-                diagnostics::log_info(
+                diagnostics::log(
+                    LogLevel::Info,
                     app,
                     &diagnostics_store,
                     LogSource::HID,
@@ -605,7 +715,8 @@ fn read_filter(
             continue;
         }
 
-        diagnostics::log_info(
+        diagnostics::log(
+            LogLevel::Info,
             app,
             &diagnostics_store,
             LogSource::HID,
@@ -619,10 +730,11 @@ fn read_filter(
             ),
         );
 
-        let data_vec = match protocol.framer().unframe_packet(&bytes) {
+        let data_vec = match WalkplayProtocol::unframe_packet(&bytes) {
             Ok(vec) => vec,
             Err(error) => {
-                diagnostics::log_warn(
+                diagnostics::log(
+                    LogLevel::Warn,
                     app,
                     &diagnostics_store,
                     LogSource::HID,
@@ -632,8 +744,9 @@ fn read_filter(
             }
         };
         let data = &data_vec;
-        let matches = protocol.matches_filter_response(data, index, nonce);
-        diagnostics::log_info(
+        let matches = WalkplayProtocol::matches_filter_response(data, index, nonce);
+        diagnostics::log(
+            LogLevel::Info,
             app,
             &diagnostics_store,
             LogSource::HID,
@@ -645,14 +758,14 @@ fn read_filter(
         );
 
         if matches {
-            return protocol
-                .parse_filter_response(data)
+            return WalkplayProtocol::parse_filter_response(data)
                 .ok_or_else(|| format!("Filter {} response could not be parsed", index + 1));
         }
 
         if !data.is_empty() {
             mismatches += 1;
-            diagnostics::log_warn(
+            diagnostics::log(
+                LogLevel::Warn,
                 app,
                 &diagnostics_store,
                 LogSource::HID,
@@ -676,32 +789,28 @@ fn read_filter(
     ))
 }
 
-fn read_global_gain(
-    app: &tauri::AppHandle,
-    path: &str,
-    protocol: &dyn DeviceProtocol,
-) -> Result<i8, String> {
+fn read_global_gain(app: &tauri::AppHandle, path: &str) -> Result<i8, String> {
     let diagnostics_store = app.state::<Mutex<DiagnosticsStore>>();
-    diagnostics::log_info(
+    diagnostics::log(
+        LogLevel::Info,
         app,
         &diagnostics_store,
         LogSource::HID,
         "--- Read Global Gain ---",
     );
 
-    send_packet(app, path, &protocol.build_global_gain_request(0), protocol)?;
-    sleep_ms(protocol.read_timing().post_global_gain_ms);
+    send_packet(app, path, &WalkplayProtocol::build_global_gain_request(0))?;
+    sleep_ms(ReadTiming::default().post_global_gain_ms);
 
     for attempt in 1..=GLOBAL_GAIN_READ_ATTEMPTS {
-        let bytes = app
-            .hid()
-            .read(path, 60)
+        let bytes = hid_read(app, path, 60)
             .map_err(|error| format!("Global gain read failed on attempt {}: {error}", attempt))?;
         if bytes.is_empty() {
             continue;
         }
 
-        diagnostics::log_info(
+        diagnostics::log(
+            LogLevel::Info,
             app,
             &diagnostics_store,
             LogSource::HID,
@@ -714,10 +823,11 @@ fn read_global_gain(
             ),
         );
 
-        let data_vec = match protocol.framer().unframe_packet(&bytes) {
+        let data_vec = match WalkplayProtocol::unframe_packet(&bytes) {
             Ok(vec) => vec,
             Err(error) => {
-                diagnostics::log_warn(
+                diagnostics::log(
+                    LogLevel::Warn,
                     app,
                     &diagnostics_store,
                     LogSource::HID,
@@ -727,8 +837,9 @@ fn read_global_gain(
             }
         };
         let data = &data_vec;
-        let matches = protocol.matches_global_gain_response(data, 0);
-        diagnostics::log_info(
+        let matches = WalkplayProtocol::matches_global_gain_response(data, 0);
+        diagnostics::log(
+            LogLevel::Info,
             app,
             &diagnostics_store,
             LogSource::HID,
@@ -736,7 +847,7 @@ fn read_global_gain(
         );
 
         if matches {
-            if let Some(gain) = protocol.parse_global_gain_response(data) {
+            if let Some(gain) = WalkplayProtocol::parse_global_gain_response(data) {
                 return Ok(gain);
             }
         }
@@ -745,16 +856,11 @@ fn read_global_gain(
     Err("Global gain read timeout".to_string())
 }
 
-fn run_init_sequence(
-    app: &tauri::AppHandle,
-    path: &str,
-    protocol: &dyn DeviceProtocol,
-) -> Result<(), String> {
-    for packet in protocol.build_init_packets() {
-        send_packet(app, path, &packet, protocol)
-            .map_err(|error| format!("Init write failed: {error}"))?;
+fn run_init_sequence(app: &tauri::AppHandle, path: &str) -> Result<(), String> {
+    for packet in WalkplayProtocol::build_init_packets() {
+        send_packet(app, path, &packet).map_err(|error| format!("Init write failed: {error}"))?;
     }
-    sleep_ms(protocol.read_timing().post_version_ms);
+    sleep_ms(ReadTiming::default().post_version_ms);
     drain_stale_frames(app, path);
     Ok(())
 }
@@ -762,7 +868,6 @@ fn run_init_sequence(
 fn write_filters(
     app: &tauri::AppHandle,
     path: &str,
-    protocol: &dyn DeviceProtocol,
     peq: &PEQData,
     dsp_sample_rate: f64,
 ) -> Result<(), String> {
@@ -774,62 +879,49 @@ fn write_filters(
             &format!("Writing band {}/{}...", index + 1, total),
             pct,
         );
-        let packet = protocol.build_filter_write_packet(index as u8, filter, dsp_sample_rate);
-        send_packet(app, path, &packet, protocol)
+        let packet =
+            WalkplayProtocol::build_filter_write_packet(index as u8, filter, dsp_sample_rate);
+        send_packet(app, path, &packet)
             .map_err(|error| format!("Band {} write failed: {error}", index + 1))?;
-        sleep_ms(protocol.write_timing().per_filter_ms);
+        sleep_ms(WalkplayProtocol::write_timing().per_filter_ms);
     }
     Ok(())
 }
 
-fn write_global_gain(
-    app: &tauri::AppHandle,
-    path: &str,
-    protocol: &dyn DeviceProtocol,
-    global_gain: i8,
-) -> Result<(), String> {
-    sleep_ms(protocol.write_timing().batch_ms);
+fn write_global_gain(app: &tauri::AppHandle, path: &str, global_gain: i8) -> Result<(), String> {
+    sleep_ms(WalkplayProtocol::write_timing().batch_ms);
     send_packet(
         app,
         path,
-        &protocol.build_global_gain_write_packet(global_gain),
-        protocol,
+        &WalkplayProtocol::build_global_gain_write_packet(global_gain),
     )
     .map_err(|error| format!("Global gain write failed: {error}"))?;
-    sleep_ms(protocol.write_timing().global_gain_ms);
+    sleep_ms(WalkplayProtocol::write_timing().global_gain_ms);
     Ok(())
 }
 
-fn commit_changes(
-    app: &tauri::AppHandle,
-    path: &str,
-    protocol: &dyn DeviceProtocol,
-) -> Result<(), String> {
-    for packet in protocol.build_commit_packets() {
-        send_packet(app, path, &packet, protocol)
-            .map_err(|error| format!("Commit write failed: {error}"))?;
-        sleep_ms(protocol.write_timing().commit_step_ms as u64);
+fn commit_changes(app: &tauri::AppHandle, path: &str) -> Result<(), String> {
+    for packet in WalkplayProtocol::build_commit_packets() {
+        send_packet(app, path, &packet).map_err(|error| format!("Commit write failed: {error}"))?;
+        sleep_ms(WalkplayProtocol::write_timing().commit_step_ms as u64);
     }
     Ok(())
 }
 
-fn send_packet(
-    app: &tauri::AppHandle,
-    path: &str,
-    packet: &[u8],
-    protocol: &dyn DeviceProtocol,
-) -> Result<(), String> {
-    let framed = protocol.framer().frame_packet(packet);
+fn send_packet(app: &tauri::AppHandle, path: &str, packet: &[u8]) -> Result<(), String> {
+    let framed = WalkplayProtocol::frame_packet(packet);
     let diagnostics_store = app.state::<Mutex<DiagnosticsStore>>();
-    diagnostics::log_info(
+    diagnostics::log(
+        LogLevel::Info,
         app,
         &diagnostics_store,
         LogSource::HID,
         format!("Writing packet (len {}): {:02X?}", framed.len(), framed),
     );
-    app.hid().write(path, &framed).map_err(|error| {
+    hid_write(app, path, &framed).map_err(|error| {
         let err_msg = error.to_string();
-        diagnostics::log_error(
+        diagnostics::log(
+            LogLevel::Error,
             app,
             &diagnostics_store,
             LogSource::HID,
@@ -841,7 +933,7 @@ fn send_packet(
 
 fn drain_stale_frames(app: &tauri::AppHandle, path: &str) {
     for _ in 0..INIT_DRAIN_ATTEMPTS {
-        match app.hid().read(path, 20) {
+        match hid_read(app, path, 20) {
             Ok(bytes) if bytes.is_empty() => break,
             Ok(_) => continue,
             Err(_) => break,
