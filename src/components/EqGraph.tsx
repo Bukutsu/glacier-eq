@@ -6,6 +6,18 @@ import type { GraphViewMode, MeasurementTrace, PEQData, TargetTrace } from "../t
 
 const GRAPH_FREQS = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
 const GRAPH_DBS = [-15, -10, -5, 0, 5, 10, 15];
+const FILTER_DOT_COLORS = [
+  ["--blue", "#7aa2f7"],
+  ["--green", "#9ece6a"],
+  ["--orange", "#ff9e64"],
+  ["--yellow", "#e0af68"],
+  ["--red", "#f7768e"],
+  ["--purple", "#bb9af7"],
+  ["--teal", "#73daca"],
+  ["--dark-cyan", "#2ac3de"],
+  ["--bright-cyan", "#b4f9f8"],
+  ["--cyan", "#7dcfff"],
+] as const;
 
 export function EqGraph({
   peq,
@@ -157,6 +169,7 @@ function drawCurves(
     ctx.fill();
 
     drawResponse(ctx, height, eqResponse, cssVar("--cyan", "#7dcfff"), 3);
+    drawFilterDots(ctx, width, height, peq);
     return;
   }
 
@@ -168,6 +181,7 @@ function drawCurves(
     });
     drawResponse(ctx, height, adjusted, trace.color, 3);
   });
+  drawFilterDots(ctx, width, height, peq);
 }
 
 function combinedResponseAt(peq: PEQData, freq: number, viewMode: GraphViewMode): number {
@@ -231,4 +245,34 @@ function drawResponse(
   ctx.strokeStyle = resolveColor(color);
   ctx.lineWidth = width;
   ctx.stroke();
+}
+
+function drawFilterDots(ctx: CanvasRenderingContext2D, width: number, height: number, peq: PEQData) {
+  const text = cssVar("--bg-dark", "#1a1b26");
+  const stroke = cssVar("--panel", "#24283b");
+  const activeBands = peq.filters.filter((filter) => filter.enabled);
+
+  activeBands.forEach((filter) => {
+    const x = freqToX(filter.freq, width);
+    const y = dbToY(filter.gain, height);
+    const [token, fallback] = FILTER_DOT_COLORS[filter.index % FILTER_DOT_COLORS.length];
+    const color = cssVar(token, fallback);
+
+    ctx.beginPath();
+    ctx.arc(x, y, 6, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = stroke;
+    ctx.stroke();
+
+    ctx.fillStyle = text;
+    ctx.font = `10px ${cssVar("--font-mono", "ui-monospace")}`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(String(filter.index + 1), x, y + 0.5);
+  });
+
+  ctx.textAlign = "start";
+  ctx.textBaseline = "alphabetic";
 }
