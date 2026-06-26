@@ -258,6 +258,24 @@ export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/cmdline-tools/latest/bin
 rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
 ```
 
+If your daily shell uses a newer JDK, pin Java 17 only for this repo with
+`direnv`:
+
+```sh
+export JAVA_HOME="$HOME/.jdks/temurin-17"
+PATH_add "$JAVA_HOME/bin"
+export ANDROID_HOME="$HOME/Android/Sdk"
+export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/<installed-version>"
+export NDK_HOME="$ANDROID_NDK_HOME"
+PATH_add "$ANDROID_HOME/platform-tools"
+PATH_add "$ANDROID_HOME/cmdline-tools/latest/bin"
+PATH_add "$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin"
+```
+
+Save that as `.envrc`, run `direnv allow`, and keep `.envrc` local if the JDK or
+NDK path is machine-specific. Gradle errors like `Unsupported class file major
+version 69` mean the Android build is still using a too-new Java runtime.
+
 Check the local machine:
 
 ```sh
@@ -281,6 +299,12 @@ Build an installable debug APK for a typical physical phone:
 
 ```sh
 npm run android:apk
+```
+
+For an x86_64 emulator, build the emulator ABI explicitly:
+
+```sh
+npx tauri android build --debug --apk --target x86_64
 ```
 
 The generated APK is written under `src-tauri/gen/android/app/build/outputs/apk/`.
