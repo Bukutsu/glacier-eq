@@ -31,6 +31,7 @@ target/
 **/Cargo.toml.orig
 
 # Android build artifacts
+*.keystore
 src-tauri/gen/android/build/
 src-tauri/gen/android/.gradle/
 src-tauri/gen/android/app/build/
