@@ -569,6 +569,27 @@
     gap: 12px;
   }
 
+  .mobile-graph-preview {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    top: calc(74px + var(--safe-area-top, 0px));
+    height: min(26vh, 210px);
+    min-height: 150px;
+    z-index: 90;
+    padding: 8px;
+    background: rgb(var(--bg-dark-rgb) / 0.78);
+    border: 1px solid var(--accent-line-medium);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.42);
+    pointer-events: none;
+    backdrop-filter: blur(6px);
+  }
+
+  .mobile-graph-preview .eq-graph-shell,
+  .mobile-graph-preview .eq-canvas {
+    min-height: 100%;
+  }
+
   .mobile-workspace .left-pane,
   .mobile-workspace .right-rail {
     width: 100% !important;
