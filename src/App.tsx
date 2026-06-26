@@ -276,6 +276,8 @@ function App() {
   const [resolvedTheme, setResolvedTheme] = useState("tokyo-night");
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [enableOnlineMeasurements, setEnableOnlineMeasurements] = useState(false);
+  const [showGraphPreview, setShowGraphPreview] = useState(false);
+  const graphPreviewTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     const applyTheme = async () => {
@@ -632,9 +634,28 @@ function App() {
     setDirty(true);
   }, [redoStack]);
 
+  const flashGraphPreview = useCallback(() => {
+    if (!isMobile || activeTab !== "eq") return;
+    if (graphPreviewTimerRef.current !== null) {
+      window.clearTimeout(graphPreviewTimerRef.current);
+    }
+    setShowGraphPreview(true);
+    graphPreviewTimerRef.current = window.setTimeout(() => {
+      setShowGraphPreview(false);
+      graphPreviewTimerRef.current = null;
+    }, 900);
+  }, [activeTab, isMobile]);
+
+  useEffect(() => () => {
+    if (graphPreviewTimerRef.current !== null) {
+      window.clearTimeout(graphPreviewTimerRef.current);
+    }
+  }, []);
+
   const handleStartChange = useCallback(() => {
+    flashGraphPreview();
     pushToUndoStack(peqRef.current);
-  }, [pushToUndoStack]);
+  }, [flashGraphPreview, pushToUndoStack]);
 
   useEffect(() => {
     selectedPresetRef.current = selectedPreset;
@@ -894,6 +915,7 @@ function App() {
   }, []);
 
   const updateFilter = (index: number, updated: Filter) => {
+    flashGraphPreview();
     setDirty(true);
     setPeq((previous) => {
       const filters = [...previous.filters];
@@ -1069,6 +1091,17 @@ function App() {
           <div className="mobile-content-area">
             {activeTab === "eq" && (
               <section className="left-pane">
+                {showGraphPreview && (
+                  <section className="mobile-graph-preview" aria-hidden="true">
+                    <EqGraph
+                      peq={peq}
+                      measurements={measurements}
+                      targets={activeTargets}
+                      viewMode={graphViewMode}
+                      theme={resolvedTheme}
+                    />
+                  </section>
+                )}
                 <section className="graph-card">
                   <EqGraph
                     peq={peq}
@@ -1082,6 +1115,7 @@ function App() {
                   value={peq.global_gain}
                   onStartChange={handleStartChange}
                   onChange={(global_gain) => {
+                    flashGraphPreview();
                     setDirty(true);
                     setPeq((previous) => ({ ...previous, global_gain }));
                   }}
