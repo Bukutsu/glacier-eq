@@ -26,7 +26,7 @@ pub const SUPPORTED_DEVICES: &[SupportedDevice] = &[
         name: "TRN Black Pearl",
         vendor_id: 0x3302,
         product_id: 0x43E8,
-        status: "Untested",
+        status: "Tested",
         family: "Walkplay Family",
     },
     SupportedDevice {
