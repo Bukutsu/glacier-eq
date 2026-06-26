@@ -21,6 +21,7 @@ const INIT_DRAIN_ATTEMPTS: usize = 100;
 const FILTER_READ_ATTEMPTS: usize = 60;
 const MAX_FILTER_MISMATCHES: usize = 8;
 const GLOBAL_GAIN_READ_ATTEMPTS: usize = 20;
+const WRITE_ATTEMPTS: usize = 3;
 
 #[derive(Clone, serde::Serialize)]
 struct OperationProgress {
@@ -918,17 +919,33 @@ fn send_packet(app: &tauri::AppHandle, path: &str, packet: &[u8]) -> Result<(), 
         LogSource::HID,
         format!("Writing packet (len {}): {:02X?}", framed.len(), framed),
     );
-    hid_write(app, path, &framed).map_err(|error| {
-        let err_msg = error.to_string();
-        diagnostics::log(
-            LogLevel::Error,
-            app,
-            &diagnostics_store,
-            LogSource::HID,
-            format!("Write failed: {}", err_msg),
-        );
-        err_msg
-    })
+    let mut last_error = None;
+    for attempt in 1..=WRITE_ATTEMPTS {
+        match hid_write(app, path, &framed) {
+            Ok(()) => return Ok(()),
+            Err(error) => {
+                diagnostics::log(
+                    LogLevel::Warn,
+                    app,
+                    &diagnostics_store,
+                    LogSource::HID,
+                    format!("Write attempt {attempt}/{WRITE_ATTEMPTS} failed: {error}"),
+                );
+                last_error = Some(error);
+                sleep_ms(50);
+            }
+        }
+    }
+
+    let err_msg = last_error.unwrap_or_else(|| "Write failed".to_string());
+    diagnostics::log(
+        LogLevel::Error,
+        app,
+        &diagnostics_store,
+        LogSource::HID,
+        format!("Write failed: {}", err_msg),
+    );
+    Err(err_msg)
 }
 
 fn drain_stale_frames(app: &tauri::AppHandle, path: &str) {
