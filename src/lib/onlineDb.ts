@@ -64,8 +64,11 @@ export async function clearCachedDatabase(): Promise<void> {
   });
 }
 
-export async function downloadDatabase(onProgress: (percent: number) => void): Promise<number> {
-  const url = "https://raw.githubusercontent.com/PEQHUB/Squig-Rank/main/public/data/curves.json";
+export async function downloadDatabase(
+  onProgress: (percent: number) => void,
+): Promise<number> {
+  const url =
+    "https://raw.githubusercontent.com/PEQHUB/Squig-Rank/main/public/data/curves.json";
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error(`Failed to fetch database: ${response.statusText}`);
@@ -75,28 +78,32 @@ export async function downloadDatabase(onProgress: (percent: number) => void): P
   const totalBytes = contentLength ? parseInt(contentLength, 10) : 0;
   let loadedBytes = 0;
 
-  const reader = response.body?.getReader();
-  if (!reader) {
-    throw new Error("Response body is not readable");
-  }
-
-  const chunks: Uint8Array[] = [];
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    if (value) {
-      chunks.push(value);
-      loadedBytes += value.length;
-      if (totalBytes > 0) {
-        onProgress(Math.min(0.99, loadedBytes / totalBytes));
+  let text: string;
+  const reader = response.body?.getReader?.();
+  if (reader) {
+    const chunks: Uint8Array[] = [];
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value) {
+        chunks.push(value);
+        loadedBytes += value.length;
+        if (totalBytes > 0) {
+          onProgress(Math.min(0.99, loadedBytes / totalBytes));
+        }
       }
     }
+
+    const blob = new Blob(chunks as BlobPart[]);
+    text = await blob.text();
+  } else {
+    // Android WebView/Tauri builds may not expose ReadableStream on fetch responses.
+    // Fall back to reading the whole response so the online database still works.
+    text = await response.text();
   }
 
   onProgress(0.99); // Parsing JSON next
 
-  const blob = new Blob(chunks as BlobPart[]);
-  const text = await blob.text();
   const rawData = JSON.parse(text);
 
   if (!rawData.meta || !rawData.curves) {
@@ -131,7 +138,8 @@ export async function downloadDatabase(onProgress: (percent: number) => void): P
 }
 
 export async function fetchManifest(): Promise<OnlineDevice[]> {
-  const url = "https://raw.githubusercontent.com/PEQHUB/Squig-Rank/main/public/data/manifest.json";
+  const url =
+    "https://raw.githubusercontent.com/PEQHUB/Squig-Rank/main/public/data/manifest.json";
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error(`Failed to fetch manifest: ${response.statusText}`);
@@ -166,12 +174,16 @@ export async function fetchManifest(): Promise<OnlineDevice[]> {
     });
   }
 
-  return devices.sort((a, b) => `${a.brand} ${a.name}`.localeCompare(`${b.brand} ${b.name}`));
+  return devices.sort((a, b) =>
+    `${a.brand} ${a.name}`.localeCompare(`${b.brand} ${b.name}`),
+  );
 }
 
-export async function loadDeviceCurvePoints(deviceId: string): Promise<MeasurementPoint[]> {
+export async function loadDeviceCurvePoints(
+  deviceId: string,
+): Promise<MeasurementPoint[]> {
   const db = await openDb();
-  
+
   // Get frequencies and raw decibels
   const [frequencies, dbValues] = await Promise.all([
     new Promise<number[]>((resolve, reject) => {
@@ -187,11 +199,13 @@ export async function loadDeviceCurvePoints(deviceId: string): Promise<Measureme
       const req = store.get(deviceId);
       req.onsuccess = () => resolve(req.result || []);
       req.onerror = () => reject(req.error);
-    })
+    }),
   ]);
 
   if (frequencies.length === 0 || dbValues.length === 0) {
-    throw new Error("Curve not found in local cache. Please download the database.");
+    throw new Error(
+      "Curve not found in local cache. Please download the database.",
+    );
   }
 
   const points: MeasurementPoint[] = [];
