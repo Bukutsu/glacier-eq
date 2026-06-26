@@ -297,7 +297,7 @@
 .gain-cell .control-slider { flex: 1; }
 
 .bands-grid {
-  flex: 0 0 318px;
+  flex: 0 0 auto;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
@@ -312,7 +312,7 @@
 
 .bands-header, .band-row {
   display: grid;
-  grid-template-columns: 58px minmax(136px, 144px) 90px minmax(170px, 1fr) 72px;
+  grid-template-columns: 42px minmax(136px, 144px) minmax(92px, .75fr) minmax(160px, 1fr) minmax(76px, .55fr);
   gap: 12px;
   align-items: center;
 }
@@ -327,7 +327,7 @@
 .bands-header span:nth-child(4) { padding-left: 4px; }
 .bands-header span:nth-child(5) { text-align: right; }
 .band-row {
-  height: 54px;
+  height: 64px;
   color: var(--text);
   border-bottom: 1px solid var(--line-subtle);
 }
@@ -418,7 +418,25 @@
   outline-offset: -1px;
   box-shadow: none;
 }
-.gain-cell { display: flex; align-items: center; gap: 10px; }
+.param-cell {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.gain-cell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.param-cell .control-slider,
+.gain-cell .control-slider {
+  min-width: 0;
+}
+
 .gain-cell .custom-number-input.band-gain-stepper { width: 76px; }
 
 /* Custom Stepper overrides inside Band rows */

@@ -235,7 +235,8 @@
     grid-template-columns: 52px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
     grid-template-areas:
       "index type type type"
-      "freq gain gain q";
+      "freq freq q q"
+      "gain gain gain gain";
     gap: 10px 8px;
     background: var(--bg-dark);
     outline: 1px solid var(--line-medium);
