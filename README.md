@@ -194,6 +194,7 @@ npm run test
 | Manufacturer | Model | Status | Family / Protocol |
 | :--- | :--- | :--- | :--- |
 | **EPZ** | TP35 Pro | Tested | Walkplay Family |
+| **TRN** | Black Pearl | Tested | Walkplay Family |
 | **Moondrop** | Dawn Pro | Untested | Walkplay Family |
 | **Truthear** | KEYX | Untested | Walkplay Family |
 
