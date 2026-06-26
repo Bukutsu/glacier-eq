@@ -5,10 +5,26 @@ import { Icon } from "./Icon";
 import { Slider } from "./Slider";
 import { NumberInput } from "./NumberInput";
 
+const FREQ_MIN = 20;
+const FREQ_MAX = 20000;
+const FREQ_SLIDER_STEPS = 1000;
+
 interface BandsProps {
   peq: PEQData;
   onFilterChange: (index: number, filter: Filter) => void;
   onStartChange: () => void;
+}
+
+function freqToSlider(freq: number) {
+  const min = Math.log10(FREQ_MIN);
+  const max = Math.log10(FREQ_MAX);
+  return Math.round(((Math.log10(Math.max(FREQ_MIN, Math.min(FREQ_MAX, freq))) - min) / (max - min)) * FREQ_SLIDER_STEPS);
+}
+
+function sliderToFreq(value: number) {
+  const min = Math.log10(FREQ_MIN);
+  const max = Math.log10(FREQ_MAX);
+  return Math.round(10 ** (min + (value / FREQ_SLIDER_STEPS) * (max - min)));
 }
 
 export function Bands({ peq, onFilterChange, onStartChange }: BandsProps) {
@@ -89,16 +105,29 @@ function BandRow({
         />
       </BandField>
       <BandField label="Freq" className="band-freq-field">
-        <NumberInput
-          value={filter.freq}
-          min={20}
-          max={20000}
-          step={50}
-          precision={0}
-          onFocus={onStartChange}
-          onChange={(val) => onChange({ ...filter, freq: val })}
-          className="band-freq-stepper"
-        />
+        <div className="param-cell freq-cell">
+          <Slider
+            aria-label={`Band ${filter.index + 1} frequency`}
+            min={0}
+            max={FREQ_SLIDER_STEPS}
+            step={1}
+            value={freqToSlider(filter.freq)}
+            tone={filter.index >= 5 ? "orange" : "blue"}
+            onMouseDown={onStartChange}
+            onTouchStart={onStartChange}
+            onChange={(event) => onChange({ ...filter, freq: sliderToFreq(+event.target.value) })}
+          />
+          <NumberInput
+            value={filter.freq}
+            min={FREQ_MIN}
+            max={FREQ_MAX}
+            step={50}
+            precision={0}
+            onFocus={onStartChange}
+            onChange={(val) => onChange({ ...filter, freq: val })}
+            className="band-freq-stepper"
+          />
+        </div>
       </BandField>
       <BandField label="Gain" className="band-gain-field">
         <div className="gain-cell">
@@ -126,16 +155,29 @@ function BandRow({
         </div>
       </BandField>
       <BandField label="Q" className="band-q-field">
-        <NumberInput
-          value={filter.q}
-          min={0.1}
-          max={20}
-          step={0.05}
-          precision={2}
-          onFocus={onStartChange}
-          onChange={(val) => onChange({ ...filter, q: val })}
-          className="band-q-stepper"
-        />
+        <div className="param-cell q-cell">
+          <Slider
+            aria-label={`Band ${filter.index + 1} Q`}
+            min={0.1}
+            max={20}
+            step={0.05}
+            value={filter.q}
+            tone={filter.index >= 5 ? "orange" : "blue"}
+            onMouseDown={onStartChange}
+            onTouchStart={onStartChange}
+            onChange={(event) => onChange({ ...filter, q: +event.target.value })}
+          />
+          <NumberInput
+            value={filter.q}
+            min={0.1}
+            max={20}
+            step={0.05}
+            precision={2}
+            onFocus={onStartChange}
+            onChange={(val) => onChange({ ...filter, q: val })}
+            className="band-q-stepper"
+          />
+        </div>
       </BandField>
     </div>
   );

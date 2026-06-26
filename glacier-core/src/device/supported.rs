@@ -23,6 +23,13 @@ pub const SUPPORTED_DEVICES: &[SupportedDevice] = &[
         family: "Walkplay Family",
     },
     SupportedDevice {
+        name: "TRN Black Pearl",
+        vendor_id: 0x3302,
+        product_id: 0x43E8,
+        status: "Untested",
+        family: "Walkplay Family",
+    },
+    SupportedDevice {
         name: "Moondrop Dawn Pro",
         vendor_id: 0x2FC6,
         product_id: 0xDF30,
