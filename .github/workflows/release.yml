@@ -28,22 +28,22 @@ jobs:
         include:
           - name: linux-x64
             os: ubuntu-22.04
-            args: ""
+            args: "--bundles deb,rpm,appimage"
             rust-targets: ""
             required-assets: "linux-x64"
           - name: windows-x64
             os: windows-latest
-            args: ""
+            args: "--bundles nsis,msi"
             rust-targets: ""
             required-assets: "windows-x64"
           - name: macos-apple-silicon
             os: macos-latest
-            args: "--target aarch64-apple-darwin"
+            args: "--target aarch64-apple-darwin --bundles dmg"
             rust-targets: "aarch64-apple-darwin"
             required-assets: "macos-apple-silicon"
           - name: macos-intel
             os: macos-latest
-            args: "--target x86_64-apple-darwin"
+            args: "--target x86_64-apple-darwin --bundles dmg"
             rust-targets: "x86_64-apple-darwin"
             required-assets: "macos-intel"
 
@@ -97,31 +97,26 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          shopt -s globstar nullglob
           mkdir -p release-assets
 
-          files=(
-            target/**/release/bundle/**/*.dmg
-            target/**/release/bundle/**/*.app.tar.gz
-            target/**/release/bundle/**/*.AppImage
-            target/**/release/bundle/**/*.AppImage.tar.gz
-            target/**/release/bundle/**/*.deb
-            target/**/release/bundle/**/*.rpm
-            target/**/release/bundle/**/*.exe
-            target/**/release/bundle/**/*.msi
-            target/**/release/bundle/**/*.nsis.zip
-            target/**/release/bundle/**/*.sig
-          )
+          find target -path '*/release/bundle/*' -type f \
+            \( -name '*.dmg' \
+            -o -name '*.app.tar.gz' \
+            -o -name '*.AppImage' \
+            -o -name '*.AppImage.tar.gz' \
+            -o -name '*.deb' \
+            -o -name '*.rpm' \
+            -o -name '*.exe' \
+            -o -name '*.msi' \
+            -o -name '*.nsis.zip' \
+            -o -name '*.sig' \) \
+            -exec cp '{}' release-assets/ \;
 
-          if [[ ${#files[@]} -eq 0 ]]; then
+          if ! find release-assets -maxdepth 1 -type f | grep -q .; then
             echo "❌ No Tauri bundle assets were produced for ${{ matrix.name }}."
             find target -path '*/bundle/*' -type f -print || true
             exit 1
           fi
-
-          for file in "${files[@]}"; do
-            cp "$file" release-assets/
-          done
 
           case "${{ matrix.required-assets }}" in
             linux-x64)
@@ -135,7 +130,6 @@ jobs:
               ;;
             macos-apple-silicon|macos-intel)
               compgen -G 'release-assets/*.dmg' >/dev/null || { echo '❌ Missing macOS .dmg asset'; exit 1; }
-              compgen -G 'release-assets/*.app.tar.gz' >/dev/null || { echo '❌ Missing macOS .app.tar.gz asset'; exit 1; }
               ;;
             *)
               echo "❌ Unknown required asset group: ${{ matrix.required-assets }}"
@@ -309,13 +303,8 @@ jobs:
           require_glob "Windows MSI" 'artifacts/*.msi'
           require_glob "Windows EXE" 'artifacts/*.exe'
           require_glob "macOS Apple Silicon DMG" 'artifacts/*aarch64*.dmg'
-          require_glob "macOS Apple Silicon app archive" 'artifacts/*aarch64*.app.tar.gz'
           if ! compgen -G 'artifacts/*x64*.dmg' >/dev/null && ! compgen -G 'artifacts/*x86_64*.dmg' >/dev/null; then
             echo "❌ Missing required release asset: macOS Intel DMG"
-            exit 1
-          fi
-          if ! compgen -G 'artifacts/*x64*.app.tar.gz' >/dev/null && ! compgen -G 'artifacts/*x86_64*.app.tar.gz' >/dev/null; then
-            echo "❌ Missing required release asset: macOS Intel app archive"
             exit 1
           fi
           require_glob "Android ARM64 APK" 'artifacts/*android-arm64.apk'
