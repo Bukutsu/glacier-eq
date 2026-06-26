@@ -2,9 +2,9 @@
     <rect width="512" height="512" rx="108" fill="#1a1b26" />
     <rect x="28" y="28" width="456" height="456" rx="88" fill="none" stroke="#414868" stroke-width="8" />
 
-    <path d="M84 388 H428"
+    <path d="M84 373 H428"
           fill="none" stroke="#414868" stroke-width="12" stroke-linecap="round" />
 
-    <path d="M100 348 H162 L224 164 L284 348 H320 L368 238 L412 348"
+    <path d="M100 333 H162 L224 149 L284 333 H320 L368 223 L412 333"
           fill="none" stroke="#7dcfff" stroke-width="34" stroke-linecap="round" stroke-linejoin="round" />
 </svg>
