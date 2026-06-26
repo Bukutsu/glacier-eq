@@ -270,7 +270,7 @@ class HidDevice(
         try {
             val bytesWritten = deviceConnection.bulkTransfer(endpoint, data, data.size, 1000)
             Log.i(TAG, "write (bulkTransfer): bytesWritten=$bytesWritten")
-            if (bytesWritten >= 0) {
+            if (bytesWritten == data.size) {
                 return HidResult.Success(Unit)
             }
         } catch (e: Exception) {
@@ -301,7 +301,7 @@ class HidDevice(
         )
         
         Log.i(TAG, "write (controlTransfer): result=$result")
-        return if (result >= 0) {
+        return if (result == data.size) {
             HidResult.Success(Unit)
         } else {
             HidResult.Error("Failed to write data via all methods (UsbRequest, bulkTransfer, controlTransfer). Last result=$result")
