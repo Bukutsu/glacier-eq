@@ -152,6 +152,24 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      - name: Setup Android keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ] && [ -n "$KEYSTORE_PASSWORD" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > src-tauri/gen/android/app/glacier-eq.keystore
+            cat > src-tauri/gen/android/app/keystore.properties << PROPEOF
+          storePassword=$KEYSTORE_PASSWORD
+          keyPassword=$KEYSTORE_PASSWORD
+          keyAlias=glacier-eq
+          storeFile=glacier-eq.keystore
+          PROPEOF
+            echo "Keystore set up from secrets"
+          else
+            echo "No keystore secrets found, falling back to debug signing"
+          fi
+
       - name: Build Android APK
         run: npm run android:apk:release
 
