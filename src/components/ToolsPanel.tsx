@@ -1440,13 +1440,35 @@ function ToolActions({ selectedPreset, profiles, onReset, onSave, onDelete }: To
 interface DiagnosticEvent {
   timestamp: string;
   level: "Info" | "Warn" | "Error";
-  source: "UI" | "Worker" | "HID" | "AutoEQ";
+  source: "UI" | "Worker" | "HID" | "AutoEQ" | "Device";
   message: string;
 }
 
+type DiagLevel = "All" | "Error" | "Warn" | "Info";
+
+const LEVEL_ICON: Record<DiagnosticEvent["level"], string> = {
+  Error: "error",
+  Warn:  "warning",
+  Info:  "info",
+};
+
+const SOURCE_COLOR: Record<string, string> = {
+  HID:    "var(--cyan)",
+  Worker: "var(--purple)",
+  AutoEQ: "var(--green)",
+  Device: "var(--orange)",
+  UI:     "var(--muted)",
+};
+
 function DiagnosticsPanel() {
   const [events, setEvents] = useState<DiagnosticEvent[]>([]);
+  const [levelFilter, setLevelFilter] = useState<DiagLevel>("All");
+  const [search, setSearch] = useState("");
+  const [autoScroll, setAutoScroll] = useState(true);
+  const [exportStatus, setExportStatus] = useState<string | null>(null);
+  const logBoxRef = useRef<HTMLDivElement>(null);
 
+  // Load history + subscribe to live events
   useEffect(() => {
     invoke<DiagnosticEvent[]>("get_diagnostics")
       .then((data) => setEvents(data))
@@ -1456,7 +1478,7 @@ function DiagnosticsPanel() {
     let unlistenFn: (() => void) | null = null;
 
     listen<DiagnosticEvent>("diagnostic-event", (event) => {
-      setEvents((prev) => [...prev, event.payload].slice(-500));
+      setEvents((prev) => [...prev, event.payload].slice(-1000));
     }).then((fn) => {
       if (active) {
         unlistenFn = fn;
@@ -1467,11 +1489,33 @@ function DiagnosticsPanel() {
 
     return () => {
       active = false;
-      if (unlistenFn) {
-        safeUnlisten(unlistenFn);
-      }
+      if (unlistenFn) safeUnlisten(unlistenFn);
     };
   }, []);
+
+  // Auto-scroll to bottom when new events arrive
+  useEffect(() => {
+    if (autoScroll && logBoxRef.current) {
+      logBoxRef.current.scrollTop = logBoxRef.current.scrollHeight;
+    }
+  }, [events, autoScroll]);
+
+  const errorCount = events.filter((e) => e.level === "Error").length;
+  const warnCount  = events.filter((e) => e.level === "Warn").length;
+  const infoCount  = events.filter((e) => e.level === "Info").length;
+
+  const filtered = events.filter((e) => {
+    if (levelFilter !== "All" && e.level !== levelFilter) return false;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      return (
+        e.message.toLowerCase().includes(q) ||
+        e.source.toLowerCase().includes(q) ||
+        e.timestamp.includes(q)
+      );
+    }
+    return true;
+  });
 
   const clearLogs = async () => {
     try {
@@ -1482,62 +1526,116 @@ function DiagnosticsPanel() {
     }
   };
 
-  const getFormattedLogs = () => {
-    return events
+  const copyToClipboard = async () => {
+    const text = events
       .map((e) => `${e.timestamp} [${e.level.toUpperCase()}] [${e.source}] ${e.message}`)
       .join("\n");
-  };
-
-  const copyToClipboard = async () => {
     try {
-      await writeText(getFormattedLogs());
+      await writeText(text);
     } catch (err) {
       console.error("Failed to copy logs:", err);
     }
   };
 
   const exportLogs = async () => {
+    setExportStatus("Exporting…");
     try {
-      const blob = new Blob([getFormattedLogs()], { type: "text/plain" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `glacier_diagnostics_${new Date().toISOString().slice(0, 10)}.log`;
-      a.click();
-      URL.revokeObjectURL(url);
+      const path = await invoke<string>("export_diagnostics_log");
+      setExportStatus(`Saved: ${path.split("/").pop()}`);
+      setTimeout(() => setExportStatus(null), 3000);
     } catch (err) {
-      console.error("Failed to export logs:", err);
+      setExportStatus(`Error: ${err}`);
+      setTimeout(() => setExportStatus(null), 4000);
+      console.error("Failed to export diagnostics:", err);
     }
   };
 
-  const errorCount = events.filter((e) => e.level === "Error").length;
-  const warnCount = events.filter((e) => e.level === "Warn").length;
-  const infoCount = events.filter((e) => e.level === "Info").length;
+  const LEVELS: DiagLevel[] = ["All", "Error", "Warn", "Info"];
 
   return (
     <section className="diag-card">
+      {/* ── Header row ── */}
       <div className="diag-head">
         <strong>DIAGNOSTICS</strong>
-        <Icon>warning</Icon>
-        <button onClick={copyToClipboard}>Copy</button>
-        <button onClick={clearLogs}>Clear</button>
-        <button onClick={exportLogs}>Export</button>
+
+        {/* level counters */}
+        <span className="diag-badge diag-badge-error" title="Errors">{errorCount} E</span>
+        <span className="diag-badge diag-badge-warn"  title="Warnings">{warnCount} W</span>
+        <span className="diag-badge diag-badge-info"  title="Info">{infoCount} I</span>
+
+        <span style={{ flex: 1 }} />
+
+        <button title="Copy all logs to clipboard" onClick={copyToClipboard}>
+          <Icon>content_copy</Icon>
+        </button>
+        <button title="Export log file and open in OS" onClick={exportLogs}>
+          <Icon>open_in_new</Icon>
+        </button>
+        <button title="Clear all logs" onClick={clearLogs} style={{ color: "var(--red)" }}>
+          <Icon>delete</Icon>
+        </button>
       </div>
-      <div className="diag-summary">
-        E:{errorCount}&nbsp;&nbsp;W:{warnCount}&nbsp;&nbsp;I:{infoCount}
+
+      {/* ── Filter toolbar ── */}
+      <div className="diag-filters">
+        {LEVELS.map((lvl) => (
+          <button
+            key={lvl}
+            className={`diag-filter-btn ${levelFilter === lvl ? "active" : ""} ${lvl !== "All" ? `diag-filter-${lvl.toLowerCase()}` : ""}`}
+            onClick={() => setLevelFilter(lvl)}
+          >
+            {lvl}
+          </button>
+        ))}
+        <input
+          className="diag-search"
+          type="search"
+          placeholder="Search…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <button
+          className={`diag-autoscroll-btn ${autoScroll ? "active" : ""}`}
+          title={autoScroll ? "Auto-scroll on (click to lock)" : "Auto-scroll off (click to resume)"}
+          onClick={() => setAutoScroll((v) => !v)}
+        >
+          <Icon>{autoScroll ? "vertical_align_bottom" : "lock"}</Icon>
+        </button>
       </div>
-      <div className="log-box">
-        {events.length === 0 ? (
-          <div className="empty-profiles" style={{ padding: "12px" }}>No logs yet</div>
+
+      {exportStatus && (
+        <div className="diag-export-status">{exportStatus}</div>
+      )}
+
+      {/* ── Log box ── */}
+      <div className="log-box" ref={logBoxRef}>
+        {filtered.length === 0 ? (
+          <div className="diag-empty">
+            {events.length === 0 ? "No logs yet" : "No matches for current filter"}
+          </div>
         ) : (
-          events.map((event, index) => (
-            <p key={index} className={`log-line-${event.level.toLowerCase()}`}>
-              <span>{event.timestamp}</span>
-              <span>[{event.source}]</span>
-              <span>{event.message}</span>
+          filtered.map((event, index) => (
+            <p key={index} className={`log-line log-line-${event.level.toLowerCase()}`}>
+              <span className="log-ts">{event.timestamp}</span>
+              <span className="log-level-icon" title={event.level}>
+                <Icon>{LEVEL_ICON[event.level]}</Icon>
+              </span>
+              <span
+                className="log-source"
+                style={{ color: SOURCE_COLOR[event.source] ?? "var(--muted)" }}
+              >
+                {event.source}
+              </span>
+              <span className="log-msg">{event.message}</span>
             </p>
           ))
         )}
+      </div>
+
+      <div className="diag-footer">
+        {filtered.length} of {events.length} events
+        {search && ` · filter: "${search}"`}
+        {levelFilter !== "All" && ` · level: ${levelFilter}`}
       </div>
     </section>
   );

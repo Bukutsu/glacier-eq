@@ -157,6 +157,65 @@ pub fn clear_diagnostics(state: tauri::State<'_, Mutex<DiagnosticsStore>>) -> Re
     Ok(())
 }
 
+/// Returns the absolute path of the persistent diagnostics log file.
+#[tauri::command]
+pub fn get_diagnostics_log_path(app: tauri::AppHandle) -> Result<String, String> {
+    get_log_path(&app).map(|p| p.to_string_lossy().to_string())
+}
+
+/// Writes the current in-memory event buffer to the log file and opens
+/// it with the default OS application (text editor / file manager).
+#[tauri::command]
+pub fn export_diagnostics_log(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Mutex<DiagnosticsStore>>,
+) -> Result<String, String> {
+    let events = state
+        .lock()
+        .map_err(|_| "Diagnostics store poisoned".to_string())?
+        .events();
+
+    let log_path = get_log_path(&app)?;
+
+    // Write a fresh snapshot (in addition to the live-appended file)
+    let mut file = fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&log_path)
+        .map_err(|e| format!("Cannot open log file: {e}"))?;
+
+    for event in &events {
+        let line = format!(
+            "{} [{}] [{}] {}\n",
+            event.timestamp, event.level, event.source, event.message
+        );
+        file.write_all(line.as_bytes())
+            .map_err(|e| format!("Write error: {e}"))?;
+    }
+    drop(file);
+
+    // Open the log file with the OS default handler
+    #[cfg(target_os = "linux")]
+    std::process::Command::new("xdg-open")
+        .arg(&log_path)
+        .spawn()
+        .map_err(|e| format!("Failed to open log file: {e}"))?;
+
+    #[cfg(target_os = "macos")]
+    std::process::Command::new("open")
+        .arg(&log_path)
+        .spawn()
+        .map_err(|e| format!("Failed to open log file: {e}"))?;
+
+    #[cfg(target_os = "windows")]
+    std::process::Command::new("notepad")
+        .arg(&log_path)
+        .spawn()
+        .map_err(|e| format!("Failed to open log file: {e}"))?;
+
+    Ok(log_path.to_string_lossy().to_string())
+}
+
 #[tauri::command]
 pub fn add_diagnostic_event(
     app: tauri::AppHandle,
