@@ -1153,18 +1153,24 @@ fn flash_eq(app: &tauri::AppHandle, path: &str) -> Result<(), String> {
     )
 }
 
+fn utility_connected_path(state: &tauri::State<'_, Mutex<DeviceState>>) -> Result<String, String> {
+    Ok(state
+        .lock()
+        .unwrap()
+        .connected
+        .as_ref()
+        .ok_or("No device connected")?
+        .path
+        .clone())
+}
+
 #[tauri::command]
 pub async fn set_dac_filter_mode(
     app: tauri::AppHandle,
     state: tauri::State<'_, Mutex<DeviceState>>,
     mode: String,
 ) -> Result<(), String> {
-    let connected = state
-        .lock()
-        .unwrap()
-        .connected
-        .clone()
-        .ok_or("No device connected")?;
+    let path = utility_connected_path(&state)?;
     let r = match mode.as_str() {
         "FAST-LL" => 1,
         "FAST-PC" => 2,
@@ -1174,7 +1180,7 @@ pub async fn set_dac_filter_mode(
         _ => return Err("Invalid filter mode".to_string()),
     };
     let packet = WalkplayProtocol::build_filter_mode_write_packet(r);
-    write_utility_packet(&app, &connected.path, &packet)
+    write_utility_packet(&app, &path, &packet)
 }
 
 #[tauri::command]
@@ -1183,14 +1189,9 @@ pub async fn set_dac_work_mode(
     state: tauri::State<'_, Mutex<DeviceState>>,
     is_class_ab: bool,
 ) -> Result<(), String> {
-    let connected = state
-        .lock()
-        .unwrap()
-        .connected
-        .clone()
-        .ok_or("No device connected")?;
+    let path = utility_connected_path(&state)?;
     let packet = WalkplayProtocol::build_amp_mode_write_packet(is_class_ab);
-    write_utility_packet(&app, &connected.path, &packet)
+    write_utility_packet(&app, &path, &packet)
 }
 
 #[tauri::command]
@@ -1199,14 +1200,9 @@ pub async fn set_dac_output_gain(
     state: tauri::State<'_, Mutex<DeviceState>>,
     is_high_gain: bool,
 ) -> Result<(), String> {
-    let connected = state
-        .lock()
-        .unwrap()
-        .connected
-        .clone()
-        .ok_or("No device connected")?;
+    let path = utility_connected_path(&state)?;
     let packet = WalkplayProtocol::build_gain_mode_write_packet(is_high_gain);
-    write_utility_packet(&app, &connected.path, &packet)
+    write_utility_packet(&app, &path, &packet)
 }
 
 #[tauri::command]
@@ -1215,18 +1211,13 @@ pub async fn set_dac_balance(
     state: tauri::State<'_, Mutex<DeviceState>>,
     balance: i8,
 ) -> Result<(), String> {
-    let connected = state
-        .lock()
-        .unwrap()
-        .connected
-        .clone()
-        .ok_or("No device connected")?;
+    let path = utility_connected_path(&state)?;
     let packets = WalkplayProtocol::build_balance_write_packets(balance);
     for packet in packets {
-        send_packet(&app, &connected.path, &packet)?;
+        send_packet(&app, &path, &packet)?;
         sleep_ms(20);
     }
-    flash_eq(&app, &connected.path)
+    flash_eq(&app, &path)
 }
 
 #[tauri::command]
@@ -1235,14 +1226,9 @@ pub async fn set_mic_volume(
     state: tauri::State<'_, Mutex<DeviceState>>,
     volume_db: i8,
 ) -> Result<(), String> {
-    let connected = state
-        .lock()
-        .unwrap()
-        .connected
-        .clone()
-        .ok_or("No device connected")?;
+    let path = utility_connected_path(&state)?;
     let packet = WalkplayProtocol::build_mic_volume_write_packet(volume_db);
-    write_utility_packet(&app, &connected.path, &packet)
+    write_utility_packet(&app, &path, &packet)
 }
 
 #[tauri::command]
@@ -1277,12 +1263,7 @@ pub async fn reset_device_controls(
     app: tauri::AppHandle,
     state: tauri::State<'_, Mutex<DeviceState>>,
 ) -> Result<DacUtilityState, String> {
-    let connected = state
-        .lock()
-        .unwrap()
-        .connected
-        .clone()
-        .ok_or("No device connected")?;
+    let path = utility_connected_path(&state)?;
 
     for packet in [
         WalkplayProtocol::build_filter_mode_write_packet(1),
@@ -1290,13 +1271,13 @@ pub async fn reset_device_controls(
         WalkplayProtocol::build_gain_mode_write_packet(false),
         WalkplayProtocol::build_mic_volume_write_packet(0),
     ] {
-        write_utility_packet(&app, &connected.path, &packet)?;
+        write_utility_packet(&app, &path, &packet)?;
     }
     for packet in WalkplayProtocol::build_balance_write_packets(0) {
-        send_packet(&app, &connected.path, &packet)?;
+        send_packet(&app, &path, &packet)?;
         sleep_ms(20);
     }
-    flash_eq(&app, &connected.path)?;
+    flash_eq(&app, &path)?;
 
     get_dac_utility_state(app, state).await
 }
@@ -1306,12 +1287,7 @@ pub async fn execute_factory_reset(
     app: tauri::AppHandle,
     state: tauri::State<'_, Mutex<DeviceState>>,
 ) -> Result<(), String> {
-    let connected = state
-        .lock()
-        .unwrap()
-        .connected
-        .clone()
-        .ok_or("No device connected")?;
+    let path = utility_connected_path(&state)?;
     let packet = WalkplayProtocol::build_factory_reset_packet();
-    write_utility_packet(&app, &connected.path, &packet)
+    write_utility_packet(&app, &path, &packet)
 }

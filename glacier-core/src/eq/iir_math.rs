@@ -26,16 +26,14 @@ pub fn compute_biquad_coeffs(
     let alpha = sin_w / (2.0 * q);
 
     match filter.filter_type {
-        FilterType::Peak => {
-            (
-                1.0 + alpha * a_val,
-                -2.0 * cos_w,
-                1.0 - alpha * a_val,
-                1.0 + alpha / a_val,
-                -2.0 * cos_w,
-                1.0 - alpha / a_val,
-            )
-        }
+        FilterType::Peak => (
+            1.0 + alpha * a_val,
+            -2.0 * cos_w,
+            1.0 - alpha * a_val,
+            1.0 + alpha / a_val,
+            -2.0 * cos_w,
+            1.0 - alpha / a_val,
+        ),
         FilterType::LowShelf => {
             let a_minus_1 = a_val - 1.0;
             let a_plus_1 = a_val + 1.0;
@@ -62,26 +60,22 @@ pub fn compute_biquad_coeffs(
                 a_plus_1 - a_minus_1 * cos_w - sqrt_a_alpha,
             )
         }
-        FilterType::HighPass => {
-            (
-                (1.0 + cos_w) / 2.0,
-                -(1.0 + cos_w),
-                (1.0 + cos_w) / 2.0,
-                1.0 + alpha,
-                -2.0 * cos_w,
-                1.0 - alpha,
-            )
-        }
-        FilterType::LowPass => {
-            (
-                (1.0 - cos_w) / 2.0,
-                1.0 - cos_w,
-                (1.0 - cos_w) / 2.0,
-                1.0 + alpha,
-                -2.0 * cos_w,
-                1.0 - alpha,
-            )
-        }
+        FilterType::HighPass => (
+            (1.0 + cos_w) / 2.0,
+            -(1.0 + cos_w),
+            (1.0 + cos_w) / 2.0,
+            1.0 + alpha,
+            -2.0 * cos_w,
+            1.0 - alpha,
+        ),
+        FilterType::LowPass => (
+            (1.0 - cos_w) / 2.0,
+            1.0 - cos_w,
+            (1.0 - cos_w) / 2.0,
+            1.0 + alpha,
+            -2.0 * cos_w,
+            1.0 - alpha,
+        ),
     }
 }
 

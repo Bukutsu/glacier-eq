@@ -43,8 +43,6 @@ export function EqGraph({
     : visibleMeasurements.length === 1
       ? visibleMeasurements[0]
       : null;
-  const hasCommittedChanges = committedPeq ? JSON.stringify(committedPeq) !== JSON.stringify(peq) : false;
-
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -99,7 +97,7 @@ export function EqGraph({
       <canvas className="eq-canvas" ref={canvasRef} />
       {(committedPeq || targets.length > 0 || visibleMeasurements.length > 0) && (
         <div className="graph-legend">
-          {hasCommittedChanges && (
+          {committedPeq && JSON.stringify(committedPeq) !== JSON.stringify(peq) && (
             <div className="graph-legend-item committed">
               <span className="graph-legend-swatch graph-legend-swatch-dashed" />
               <span>{selectedMeasurement ? `Last pushed + ${selectedMeasurement.name}` : "Last pushed"}</span>
