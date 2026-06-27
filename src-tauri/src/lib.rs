@@ -93,6 +93,8 @@ pub fn run() {
             device_commands::set_dac_output_gain,
             device_commands::set_dac_balance,
             device_commands::set_mic_volume,
+            device_commands::reset_device_eq,
+            device_commands::reset_device_controls,
             device_commands::execute_factory_reset,
             profiles::list_profiles,
             profiles::save_profile,
