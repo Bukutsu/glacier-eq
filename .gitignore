@@ -49,3 +49,10 @@ src/glacier-eq/
 *.pkg.tar.zst
 *.pkg.tar.zst.sig
 *.src.tar.gz
+
+# AutoEQ reference code
+.autoeq-c/
+.ref/
+
+# Playwright MCP test artifacts
+.playwright-mcp/

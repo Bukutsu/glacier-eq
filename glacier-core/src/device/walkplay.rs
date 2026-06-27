@@ -16,6 +16,13 @@ pub const CMD_PEQ_VALUES: u8 = 0x09;
 pub const CMD_TEMP_WRITE: u8 = 0x0A;
 pub const CMD_VERSION: u8 = 0x0C;
 
+pub const CMD_FILTER_MODE: u8 = 17;
+pub const CMD_AMP_MODE: u8 = 29;
+pub const CMD_GAIN_MODE: u8 = 25;
+pub const CMD_MIC_VOLUME: u8 = 2;
+pub const CMD_BALANCE: u8 = 22;
+pub const CMD_FACTORY_RESET: u8 = 23;
+
 pub const READ: u8 = 0x80;
 pub const WRITE: u8 = 0x01;
 pub const END: u8 = 0x00;
@@ -195,7 +202,7 @@ pub const PROFILES: &[DeviceProfile] = &[
             q_range: (0.1, 10.0),
             supported_filter_types: FilterTypeFlags(0b0000_0111),
             supports_per_band_enable: false,
-            dsp_sample_rate: 96000.0,
+            dsp_sample_rate: 48000.0,
             gain_tolerance: 0.1,
             freq_tolerance: 1,
             q_tolerance: 0.05,
@@ -213,7 +220,7 @@ pub const PROFILES: &[DeviceProfile] = &[
             q_range: (0.1, 10.0),
             supported_filter_types: FilterTypeFlags(0b0000_0111),
             supports_per_band_enable: false,
-            dsp_sample_rate: 96000.0,
+            dsp_sample_rate: 48000.0,
             gain_tolerance: 0.1,
             freq_tolerance: 1,
             q_tolerance: 0.05,
