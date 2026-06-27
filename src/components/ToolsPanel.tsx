@@ -4,7 +4,6 @@ import { listen } from "@tauri-apps/api/event";
 import { readText, writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { save } from "@tauri-apps/plugin-dialog";
 
-import { DEFAULT_PROFILE_NAME } from "../constants";
 import { parseMeasurementText } from "../lib/measurements";
 import type { MeasurementTrace, Profile, PEQData, GraphViewMode, TargetTrace } from "../types";
 import { Icon } from "./Icon";
@@ -18,6 +17,8 @@ import {
   loadDeviceCurvePoints,
   type OnlineDevice,
 } from "../lib/onlineDb";
+
+const DEFAULT_PROFILE_NAME = "Default EQ";
 
 interface SelectOption<T extends string | number> {
   value: T;

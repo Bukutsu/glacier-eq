@@ -1,6 +1,5 @@
 import { type ReactNode, useEffect, useState } from "react";
-import { FILTER_TYPES, TYPE_LABELS } from "../constants";
-import type { Filter, PEQData } from "../types";
+import type { Filter, FilterType, PEQData } from "../types";
 import { Icon } from "./Icon";
 import { Slider } from "./Slider";
 import { NumberInput } from "./NumberInput";
@@ -8,6 +7,14 @@ import { NumberInput } from "./NumberInput";
 const FREQ_MIN = 20;
 const FREQ_MAX = 20000;
 const FREQ_SLIDER_STEPS = 1000;
+const FILTER_TYPES: FilterType[] = ["Peak", "HighShelf", "LowShelf", "HighPass", "LowPass"];
+const TYPE_LABELS: Record<FilterType, string> = {
+  Peak: "PK",
+  HighShelf: "HS",
+  LowShelf: "LS",
+  HighPass: "HP",
+  LowPass: "LP",
+};
 
 interface BandsProps {
   peq: PEQData;
