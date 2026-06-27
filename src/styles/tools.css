@@ -78,6 +78,31 @@
   color: var(--cyan);
 }
 
+.profile-pane,
+.import-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tool-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 2px;
+}
+
+.tool-section-head strong {
+  color: var(--text);
+  font-size: var(--type-label);
+}
+
+.tool-section-head span {
+  color: var(--comment);
+  font-size: var(--type-small);
+}
+
 .search-row { display: grid; grid-template-columns: 1fr 36px 36px; gap: 8px; align-items: center; }
 .search-row input, .new-name {
   width: 100%;
@@ -188,7 +213,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 
 .import-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .import-grid button {
-  background: var(--surface-soft);
+  background: var(--bg-dark);
   color: var(--cyan);
   outline: 1px solid var(--accent-line-outline);
 }
@@ -325,45 +350,50 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   flex: 1;
 }
 
-/* ── Diagnostics Panel ── */
-.diag-card { padding: 14px 18px 16px; min-height: 0; display: flex; flex-direction: column; gap: 12px; font-family: var(--font-mono); }
+/* Diagnostics Panel */
+.diag-card {
+  padding: 14px 18px 16px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: hidden;
+}
 
-/* Header — mirrors .action-section-head */
-.diag-head { display: flex; align-items: center; gap: 10px; }
-.diag-head strong { color: var(--text); font-size: var(--type-label); margin-right: auto; font-family: var(--font-ui); }
-/* icon-only header buttons: transparent, cyan, standard height — same as .search-row button */
-.diag-head button { min-height: 36px; padding: 0 8px; background: transparent; color: var(--cyan); }
+.diag-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto auto;
+  align-items: center;
+  gap: 8px;
+}
+.diag-head strong { min-width: 0; color: var(--text); font-size: var(--type-label); }
+.diag-head button { width: 36px; min-height: 36px; padding: 0; background: transparent; color: var(--cyan); }
 .diag-head button.danger { color: var(--red); }
 
-/* Level counters — plain text beside the title, no pills */
 .diag-counts { display: flex; align-items: center; gap: 12px; font-size: var(--type-caption); font-family: var(--font-mono); }
 .diag-count-e { color: var(--red); }
 .diag-count-w { color: var(--orange); }
 .diag-count-i { color: var(--comment); }
 
-/* Filter + search row — reuses .search-row pattern */
 .diag-toolbar {
   display: grid;
   grid-template-columns: auto auto auto auto 1fr auto;
   gap: 1px;
-  height: 38px;
   background: var(--line-strong);
 }
-/* filter buttons sit inside the toolbar grid with shared border treatment */
-.diag-filter-btn {
-  height: 38px; padding: 0 12px;
+.diag-card .diag-filter-btn {
+  height: 38px; min-height: 38px; padding: 0 12px;
   background: var(--surface-soft); color: var(--muted);
   font-size: var(--type-caption); font-family: var(--font-mono);
   border: none; cursor: pointer;
   transition: background 0.14s ease, color 0.14s ease;
   white-space: nowrap;
 }
-.diag-filter-btn:hover:not(.active) { background: var(--hover-bg); color: var(--text); }
-.diag-filter-btn.active             { background: var(--bg-dark); color: var(--cyan); }
-.diag-filter-btn.active.f-error     { color: var(--red); }
-.diag-filter-btn.active.f-warn      { color: var(--orange); }
+.diag-card .diag-filter-btn:hover:not(.active) { background: var(--hover-bg); color: var(--text); }
+.diag-card .diag-filter-btn.active             { background: var(--bg-dark); color: var(--cyan); }
+.diag-card .diag-filter-btn.active.f-error     { color: var(--red); }
+.diag-card .diag-filter-btn.active.f-warn      { color: var(--orange); }
 
-/* search — identical to .search-row input */
 .diag-search {
   width: 100%; height: 38px; border: 0;
   background: var(--surface-soft); color: var(--text);
@@ -373,17 +403,15 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 .diag-search::placeholder { color: var(--muted); opacity: 1; }
 .diag-search:focus { background: var(--bg-dark); }
 
-/* auto-scroll toggle — same as .search-row button */
-.diag-scroll-btn {
-  height: 38px; width: 38px; padding: 0;
+.diag-card .diag-scroll-btn {
+  height: 38px; min-height: 38px; width: 38px; padding: 0;
   background: var(--surface-soft); color: var(--muted); border: none; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   transition: color 0.14s ease, background 0.14s ease;
 }
-.diag-scroll-btn.active { color: var(--cyan); }
-.diag-scroll-btn:hover  { color: var(--text); filter: brightness(1.14); }
+.diag-card .diag-scroll-btn.active { color: var(--cyan); }
+.diag-card .diag-scroll-btn:hover  { color: var(--text); filter: brightness(1.14); }
 
-/* Export status — reuses .status-banner structure but subtle */
 .diag-export-status {
   font-size: var(--type-small); color: var(--cyan); font-family: var(--font-ui);
   background: var(--surface-soft);
@@ -392,7 +420,6 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   padding: 6px 10px;
 }
 
-/* Log box — same as .preset-list container */
 .log-box {
   background: var(--bg-dark); overflow-y: auto; min-height: 0; flex: 1;
   outline: 1px solid var(--line-soft); outline-offset: -1px;
@@ -401,7 +428,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 .log-line {
   margin: 0; padding: 6px 10px;
   display: grid;
-  grid-template-columns: 88px 46px 1fr;
+  grid-template-columns: 88px 46px minmax(0, 1fr);
   gap: 8px; align-items: baseline;
   color: var(--comment);
   font-size: var(--type-caption);
@@ -417,12 +444,10 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 .log-line.log-line-error .log-level { color: var(--red); }
 .log-line.log-line-warn  .log-level { color: var(--orange); }
 .log-line:not(.log-line-error):not(.log-line-warn) .log-level { color: var(--comment); }
-.log-source-tag { font-size: var(--type-caption); color: var(--comment); }
 .log-msg    { word-break: break-word; white-space: pre-wrap; color: inherit; }
 
 .diag-empty { padding: 12px; color: var(--muted); font-size: var(--type-label); font-family: var(--font-ui); }
 
-/* Footer — same style as .measurement-points */
 .diag-footer { font-size: var(--type-caption); color: var(--comment); padding-top: 2px; text-align: right; font-family: var(--font-ui); }
 
 
@@ -586,6 +611,61 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   border-top: 1px solid var(--line-subtle);
   padding-top: 14px;
   margin-top: 4px;
+}
+
+.device-utility {
+  min-height: 0;
+}
+
+.device-empty {
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-align: center;
+  color: var(--muted);
+}
+
+.device-empty .material-symbols-outlined {
+  color: var(--comment);
+  font-size: 42px;
+}
+
+.device-empty strong {
+  color: var(--text);
+  font-size: var(--type-label);
+}
+
+.device-empty span,
+.device-hint {
+  color: var(--comment);
+  font-size: var(--type-small);
+  line-height: 1.4;
+}
+
+.device-hint {
+  margin-top: -8px;
+}
+
+.device-range-row {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.device-range-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.device-value {
+  color: var(--text);
+  font-size: var(--type-label);
+  font-family: var(--font-mono);
+  white-space: nowrap;
 }
 
 .setting-label {

@@ -10,6 +10,7 @@ import { safeUnlisten } from "../lib/unlisten";
 import type { MeasurementTrace, Profile, PEQData, GraphViewMode, TargetTrace } from "../types";
 import { Icon } from "./Icon";
 import { NumberInput } from "./NumberInput";
+import { Slider } from "./Slider";
 import {
   isDatabaseDownloaded,
   clearCachedDatabase,
@@ -121,6 +122,7 @@ interface ToolsPanelProps {
   graphViewMode?: GraphViewMode;
   onGraphViewModeChange?: (mode: GraphViewMode) => void;
   allTargets?: TargetTrace[];
+  onSelectedMeasurementChange?: (measurementId: string | null) => void;
   theme?: string;
   onThemeChange?: (theme: string) => void;
   enableOnlineMeasurements?: boolean;
@@ -128,10 +130,13 @@ interface ToolsPanelProps {
 }
 
 export function ToolsPanel(props: ToolsPanelProps) {
-  const availableTabs = props.availableTabs ?? ["Preset", "Import", "Measure", "AutoEQ", "Device", "Settings"];
+  const requestedTabs = props.availableTabs ?? ["Preset", "Import", "Measure", "AutoEQ", "Device", "Settings"];
+  const availableTabs = requestedTabs.filter((name) => name !== "Import" || !requestedTabs.includes("Preset"));
   const showDiagnostics = props.showDiagnostics ?? false;
   const [tab, setTab] = useState<ToolsTab>(() => (
-    props.defaultTab && availableTabs.includes(props.defaultTab) ? props.defaultTab : availableTabs[0]
+    props.defaultTab === "Import" && availableTabs.includes("Preset")
+      ? "Preset"
+      : props.defaultTab && availableTabs.includes(props.defaultTab) ? props.defaultTab : availableTabs[0]
   ));
 
   useEffect(() => {
@@ -144,7 +149,19 @@ export function ToolsPanel(props: ToolsPanelProps) {
     <aside className={`right-rail ${showDiagnostics ? "has-diagnostics" : ""}`}>
       <section className="tools-card">
         <TabStrip active={tab} onSelect={setTab} tabs={availableTabs} />
-        {tab === "Preset" && <PresetTab {...props} />}
+        {tab === "Preset" && (
+          <>
+            <PresetTab {...props} />
+            {props.showActions !== false && <ToolActions {...props} />}
+            <ImportTab
+              peq={props.peq}
+              profiles={props.profiles}
+              onImportPEQ={props.onImportPEQ}
+              onReloadProfiles={props.onReloadProfiles}
+              setStatus={props.setStatus}
+            />
+          </>
+        )}
         {tab === "Import" && <ImportTab
           peq={props.peq}
           profiles={props.profiles}
@@ -159,6 +176,7 @@ export function ToolsPanel(props: ToolsPanelProps) {
             onImportPEQ={props.onImportPEQ}
             setStatus={props.setStatus}
             onSelectTab={setTab}
+            onSelectedMeasurementChange={props.onSelectedMeasurementChange}
           />
         )}
         {tab === "Measure" && <MeasureTab
@@ -184,7 +202,6 @@ export function ToolsPanel(props: ToolsPanelProps) {
             onEnableOnlineMeasurementsChange={props.onEnableOnlineMeasurementsChange}
           />
         )}
-        {tab === "Preset" && props.showActions !== false && <ToolActions {...props} />}
       </section>
       {showDiagnostics && <DiagnosticsPanel />}
     </aside>
@@ -545,7 +562,11 @@ function PresetTab({
   const selectedProfile = profiles.find((profile) => profile.name === selectedPreset);
 
   return (
-    <>
+    <div className="profile-pane">
+      <div className="tool-section-head">
+        <strong>Profile Library</strong>
+        <span>{profiles.length} saved</span>
+      </div>
       <div className="search-row">
         <input
           placeholder="Search profiles…"
@@ -578,7 +599,7 @@ function PresetTab({
         value={newProfileName}
         onChange={(event) => setNewProfileName(event.target.value)}
       />
-    </>
+    </div>
   );
 }
 
@@ -711,30 +732,35 @@ function ImportTab({ peq, profiles, onImportPEQ, onReloadProfiles, setStatus }: 
 
   if (!parsed) {
     return (
-      <div className="import-grid">
-        <input
-          type="file"
-          ref={fileInputRef}
-          style={{ display: "none" }}
-          accept=".txt"
-          onChange={handleFileChange}
-        />
-        <button className="icon-action" onClick={handleImportFileClick}>
-          <Icon>file_upload</Icon>
-          <span>Import File</span>
-        </button>
-        <button className="icon-action" onClick={handlePaste}>
-          <Icon>content_paste</Icon>
-          <span>Paste</span>
-        </button>
-        <button className="icon-action" onClick={handleExportFile}>
-          <Icon>file_download</Icon>
-          <span>Export File</span>
-        </button>
-        <button className="icon-action" onClick={handleCopy}>
-          <Icon>content_copy</Icon>
-          <span>Copy</span>
-        </button>
+      <div className="import-section">
+        <div className="tool-section-head">
+          <strong>Import / Export</strong>
+        </div>
+        <div className="import-grid">
+          <input
+            type="file"
+            ref={fileInputRef}
+            style={{ display: "none" }}
+            accept=".txt"
+            onChange={handleFileChange}
+          />
+          <button className="icon-action" onClick={handleImportFileClick}>
+            <Icon>file_upload</Icon>
+            <span>Import File</span>
+          </button>
+          <button className="icon-action" onClick={handlePaste}>
+            <Icon>content_paste</Icon>
+            <span>Paste</span>
+          </button>
+          <button className="icon-action" onClick={handleExportFile}>
+            <Icon>file_download</Icon>
+            <span>Export File</span>
+          </button>
+          <button className="icon-action" onClick={handleCopy}>
+            <Icon>content_copy</Icon>
+            <span>Copy</span>
+          </button>
+        </div>
       </div>
     );
   }
@@ -847,6 +873,7 @@ interface AutoEqTabProps {
   onImportPEQ: (data: PEQData, name: string, isSaved: boolean) => void;
   setStatus: (msg: string) => void;
   onSelectTab?: (tab: ToolsTab) => void;
+  onSelectedMeasurementChange?: (measurementId: string | null) => void;
 }
 
 export function AutoEqTab({
@@ -855,6 +882,7 @@ export function AutoEqTab({
   onImportPEQ,
   setStatus,
   onSelectTab,
+  onSelectedMeasurementChange,
 }: AutoEqTabProps) {
   const [selectedMeasId, setSelectedMeasId] = useState<string>("");
   const [selectedTargetId, setSelectedTargetId] = useState<string>("");
@@ -865,13 +893,23 @@ export function AutoEqTab({
   const [isOptimizing, setIsOptimizing] = useState<boolean>(false);
   const [warnings, setWarnings] = useState<string[]>([]);
 
-  // Automatically select the first visible/active measurement/target on mount or update
+  // Measurement selection stays empty until the user picks one.
   useEffect(() => {
-    if (measurements.length > 0 && !selectedMeasId) {
-      const firstVisible = measurements.find(m => m.visible) ?? measurements[0];
-      setSelectedMeasId(firstVisible.id);
+    if (measurements.length === 0) {
+      if (selectedMeasId) {
+        setSelectedMeasId("");
+      }
+      return;
+    }
+
+    if (selectedMeasId && !measurements.some((m) => m.id === selectedMeasId)) {
+      setSelectedMeasId("");
     }
   }, [measurements, selectedMeasId]);
+
+  useEffect(() => {
+    onSelectedMeasurementChange?.(selectedMeasId || null);
+  }, [onSelectedMeasurementChange, selectedMeasId]);
 
   useEffect(() => {
     if (allTargets.length > 0 && !selectedTargetId) {
@@ -959,10 +997,13 @@ export function AutoEqTab({
           id="autoeq-meas"
           value={selectedMeasId}
           onChange={setSelectedMeasId}
-          options={measurements.map((m) => ({
-            value: m.id,
-            label: `${m.name} (${m.points.length} pts)`,
-          }))}
+          options={[
+            { value: "", label: "-- Select measurement --" },
+            ...measurements.map((m) => ({
+              value: m.id,
+              label: `${m.name} (${m.points.length} pts)`,
+            })),
+          ]}
         />
       </div>
 
@@ -1298,36 +1339,26 @@ function DeviceTab() {
   };
 
   if (loading) {
-    return <div className="settings-list">Loading device status...</div>;
+    return <div className="settings-list device-utility">Loading device status...</div>;
   }
 
   if (!utility?.supported) {
     return (
-      <div className="settings-list" style={{ padding: '12px', color: 'var(--muted)', textAlign: 'center' }}>
-        <div style={{ fontSize: '48px', display: 'flex', justifyContent: 'center', margin: '20px auto 10px', color: 'var(--comment)' }}>
+      <div className="settings-list device-utility">
+        <div className="device-empty">
           <Icon>tune</Icon>
+          <strong>No supported hardware PEQ DAC connected.</strong>
+          <span>Connect an EPZ TP35 Pro, TRN Black Pearl, or other supported Savitech DSP DAC.</span>
         </div>
-        <strong>No supported hardware PEQ DAC connected.</strong>
-        <p style={{ fontSize: 'var(--type-small)', marginTop: '8px', lineHeight: '1.4' }}>
-          Connect an EPZ TP35 Pro, TRN Black Pearl, or other supported Savitech DSP DAC to use these advanced controls.
-        </p>
       </div>
     );
   }
 
   return (
-    <div className="settings-list">
-      <div className="settings-section-header" style={{
-        fontSize: 'var(--type-label)',
-        fontWeight: 'bold',
-        color: 'var(--purple)',
-        paddingTop: '4px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px'
-      }}>
-        <Icon>tune</Icon>
-        <span>Hardware DSP Controls</span>
+    <div className="settings-list device-utility">
+      <div className="tool-section-head">
+        <strong>Hardware DSP</strong>
+        <span>Device controls</span>
       </div>
 
       <div className="setting-row">
@@ -1347,7 +1378,7 @@ function DeviceTab() {
           />
         </div>
       </div>
-      <div style={{ fontSize: 'var(--type-caption)', color: 'var(--comment)', marginTop: '-8px', paddingLeft: '4px', lineHeight: '1.4' }}>
+      <div className="device-hint">
         {utility.filter_mode === "FAST-LL" && "FAST-LL: Minimizes pre-ringing, warm and punchy sound."}
         {utility.filter_mode === "FAST-PC" && "FAST-PC: Preserves phase linearity, clean and balanced sound."}
         {utility.filter_mode === "Slow-LL" && "Slow-LL: Gentle high-frequency roll-off, warm and relaxed sound."}
@@ -1373,45 +1404,41 @@ function DeviceTab() {
         />
       </div>
 
-      <div className="setting-row" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+      <div className="setting-row device-range-row">
+        <div className="device-range-head">
           <span className="setting-label">Channel Balance</span>
-          <span style={{ fontSize: 'var(--type-label)', color: 'var(--text)' }}>
+          <span className="device-value">
             {utility.channel_balance === 0 ? "Center (0)" : utility.channel_balance > 0 ? `L +${utility.channel_balance}` : `R +${Math.abs(utility.channel_balance)}`}
           </span>
         </div>
-        <input
-          type="range"
+        <Slider
           min="-15"
           max="15"
           step="1"
           value={utility.channel_balance}
           onChange={(e) => handleSetBalance(Number(e.target.value))}
-          style={{ width: '100%', accentColor: 'var(--purple)', margin: '4px 0' }}
         />
       </div>
 
-      <div className="setting-row" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+      <div className="setting-row device-range-row">
+        <div className="device-range-head">
           <span className="setting-label">Microphone Monitor Loopback</span>
-          <span style={{ fontSize: 'var(--type-label)', color: 'var(--text)' }}>
+          <span className="device-value">
             {utility.mic_volume_db} dB
           </span>
         </div>
-        <input
-          type="range"
+        <Slider
           min="-15"
           max="15"
           step="1"
           value={utility.mic_volume_db}
           onChange={(e) => handleSetMicVolume(Number(e.target.value))}
-          style={{ width: '100%', accentColor: 'var(--purple)', margin: '4px 0' }}
         />
       </div>
 
-      <div className="setting-row" style={{ borderTop: '1px solid var(--line-subtle)', paddingTop: '14px', marginTop: '10px' }}>
+      <div className="setting-row">
         <span className="setting-label">Hardware Factory Reset</span>
-        <button className="btn tonal" style={{ color: 'var(--red)', borderColor: 'var(--red)', minHeight: '34px', cursor: 'pointer' }} onClick={handleFactoryReset}>
+        <button className="btn danger" onClick={handleFactoryReset}>
           Reset Device
         </button>
       </div>
@@ -1540,7 +1567,6 @@ function DiagnosticsPanel() {
 
   return (
     <section className="diag-card">
-      {/* ── Header — matches .action-section-head ── */}
       <div className="diag-head">
         <strong>Diagnostics</strong>
         <div className="diag-counts">
@@ -1559,7 +1585,6 @@ function DiagnosticsPanel() {
         </button>
       </div>
 
-      {/* ── Toolbar — matches .search-row grid ── */}
       <div className="diag-toolbar">
         {LEVELS.map((lvl) => (
           <button
@@ -1590,7 +1615,6 @@ function DiagnosticsPanel() {
         <div className="diag-export-status">{exportStatus}</div>
       )}
 
-      {/* ── Log box ── */}
       <div className="log-box" ref={logBoxRef}>
         {filtered.length === 0 ? (
           <div className="diag-empty">

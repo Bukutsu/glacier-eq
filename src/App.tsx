@@ -620,6 +620,8 @@ function App() {
   const [dirty, setDirty] = useState(false);
   const selectedPresetRef = useRef(selectedPreset);
   const peqRef = useRef(peq);
+  const [lastPushedPeq, setLastPushedPeq] = useState<PEQData | null>(null);
+  const [selectedMeasurementId, setSelectedMeasurementId] = useState<string | null>(null);
 
   useEffect(() => {
     peqRef.current = peq;
@@ -924,7 +926,9 @@ function App() {
         data = await invoke<PEQData>("get_eq_state");
         await sleep(400);
       }
-      setPeq(normalizePeq(data));
+      const normalized = normalizePeq(data);
+      setPeq(normalized);
+      setLastPushedPeq(normalized);
       selectedPresetRef.current = "Pulled from device";
       setSelectedPreset("Pulled from device");
       setDirty(false);
@@ -1002,6 +1006,7 @@ function App() {
         await invoke("set_eq_state", { peq });
         await sleep(400);
       }
+      setLastPushedPeq(peqRef.current);
       setDirty(false);
       setStatus(
         isDevDummyDevice(selectedDevice)
@@ -1271,6 +1276,8 @@ function App() {
                   <section className="mobile-graph-preview" aria-hidden="true">
                     <EqGraph
                       peq={peq}
+                      committedPeq={lastPushedPeq}
+                      selectedMeasurementId={selectedMeasurementId}
                       measurements={measurements}
                       targets={activeTargets}
                       viewMode={graphViewMode}
@@ -1281,6 +1288,8 @@ function App() {
                 <section className="graph-card">
                   <EqGraph
                     peq={peq}
+                    committedPeq={lastPushedPeq}
+                    selectedMeasurementId={selectedMeasurementId}
                     measurements={measurements}
                     targets={activeTargets}
                     viewMode={graphViewMode}
@@ -1308,6 +1317,8 @@ function App() {
                 <section className="graph-card">
                   <EqGraph
                     peq={peq}
+                    committedPeq={lastPushedPeq}
+                    selectedMeasurementId={selectedMeasurementId}
                     measurements={measurements}
                     targets={activeTargets}
                     viewMode={graphViewMode}
@@ -1383,6 +1394,7 @@ function App() {
                 onRemoveMeasurement={removeMeasurement}
                 onToggleMeasurement={toggleMeasurement}
                 onClearMeasurements={clearMeasurements}
+                onSelectedMeasurementChange={setSelectedMeasurementId}
                 canUndo={undoStack.length > 0}
                 canRedo={redoStack.length > 0}
                 onUndo={undo}
@@ -1417,6 +1429,7 @@ function App() {
                 onRemoveMeasurement={removeMeasurement}
                 onToggleMeasurement={toggleMeasurement}
                 onClearMeasurements={clearMeasurements}
+                onSelectedMeasurementChange={setSelectedMeasurementId}
                 canUndo={undoStack.length > 0}
                 canRedo={redoStack.length > 0}
                 onUndo={undo}
@@ -1478,6 +1491,8 @@ function App() {
             <section className="graph-card">
               <EqGraph
                 peq={peq}
+                committedPeq={lastPushedPeq}
+                selectedMeasurementId={selectedMeasurementId}
                 measurements={measurements}
                 targets={activeTargets}
                 viewMode={graphViewMode}
@@ -1528,6 +1543,7 @@ function App() {
             onRemoveMeasurement={removeMeasurement}
             onToggleMeasurement={toggleMeasurement}
             onClearMeasurements={clearMeasurements}
+            onSelectedMeasurementChange={setSelectedMeasurementId}
             canUndo={undoStack.length > 0}
             canRedo={redoStack.length > 0}
             onUndo={undo}
