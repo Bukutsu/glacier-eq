@@ -191,12 +191,28 @@ npm run test
 <!-- SUPPORTED DEVICES -->
 ## Supported Devices
 
-The app renders its supported-device list from the Rust registry at
-[`glacier-core/src/device/walkplay.rs`](glacier-core/src/device/walkplay.rs).
-Edit that registry to add or rename a Walkplay-compatible DAC; discovery, connect
-validation, device capabilities, and the chooser list all use the same source.
+If your DAC appears below, plug it in and select it in Glacier EQ. Devices marked
+as family match use the same Walkplay/Savitech-style HID protocol, but may still
+need hardware confirmation.
 
-Current registry coverage is shown in the app chooser.
+| Status | Device name shown in Glacier EQ | What it means |
+| --- | --- | --- |
+| Confirmed | EPZ TP35 Pro | Tested hardware profile |
+| Confirmed | TRN Black Pearl | Tested hardware profile |
+| Family match | Audiocular Aura | Matches the same 0x3302 Walkplay/Savitech USB family |
+| Family match | Fosi Audio DS2 / iBasso DC04 Pro | Matches a known compatible USB family |
+| Family match | JCally JM20 / Savitech Generic | Matches a known compatible USB family |
+| Family match | JCally JM20 Pro / Alt Savitech | Matches a known compatible USB family |
+| Testing | Moondrop Dawn Pro | Profile exists, but needs user confirmation |
+| Testing | Truthear KEYX | Profile exists, but needs user confirmation |
+
+Not sure what chip your DAC uses? Open Glacier EQ with the DAC plugged in. If it
+appears in the device picker, the app recognized its USB ID.
+
+Maintainers: the supported-device registry lives in
+[`glacier-core/src/device/walkplay.rs`](glacier-core/src/device/walkplay.rs).
+Edit that file to add or rename a DAC; discovery, connect validation,
+capabilities, and this README should stay aligned with that registry.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
