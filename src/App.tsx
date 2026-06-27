@@ -792,7 +792,7 @@ function App() {
 
   const deviceName = useMemo(() => {
     const selected = devices.find((device) => device.path === selectedDevice);
-    return selected?.profile_name || selected?.product_string || "EPZ TP35 Pro";
+    return selected?.profile_name || selected?.product_string || "Supported DAC";
   }, [devices, selectedDevice]);
 
   const applyProfile = useCallback(
@@ -1017,6 +1017,44 @@ function App() {
       setProgress(null);
     }
   }, [peq, selectedDevice]);
+
+  const applyProfileToRam = useCallback(
+    async (profile: Profile) => {
+      const data = normalizePeq(profile.data, { enableLoadedFilters: true });
+      pushToUndoStack(peqRef.current);
+      selectedPresetRef.current = profile.name;
+      setPeq(data);
+      setSelectedPreset(profile.name);
+      setNewProfileName(profile.name);
+      setDirty(false);
+
+      setProgress(null);
+      setIsBusy(true);
+      try {
+        if (isDevDummyDevice(selectedDevice)) {
+          setProgress({ message: "Writing to RAM...", percentage: 60 });
+          await sleep(250);
+          setProgress({ message: "Apply successful", percentage: 100 });
+          await sleep(300);
+        } else {
+          await invoke("apply_eq_state", { peq: data });
+          await sleep(300);
+        }
+        setLastPushedPeq(data);
+        setStatus(
+          isDevDummyDevice(selectedDevice)
+            ? "Dummy DAC apply simulated"
+            : `Applied ${profile.name} to device RAM`,
+        );
+      } catch (error) {
+        setStatus(`Apply failed: ${error}`);
+      } finally {
+        setIsBusy(false);
+        setProgress(null);
+      }
+    },
+    [pushToUndoStack, selectedDevice],
+  );
 
   const disconnectDevice = useCallback(async () => {
     setIsBusy(true);
@@ -1380,6 +1418,7 @@ function App() {
                 newProfileName={newProfileName}
                 setNewProfileName={setNewProfileName}
                 onSelectProfile={applyProfile}
+                onApplyProfile={applyProfileToRam}
                 onReloadProfiles={loadProfiles}
                 onOpenProfilesDir={openProfilesDir}
                 onReset={reset}
@@ -1415,6 +1454,7 @@ function App() {
                 newProfileName={newProfileName}
                 setNewProfileName={setNewProfileName}
                 onSelectProfile={applyProfile}
+                onApplyProfile={applyProfileToRam}
                 onReloadProfiles={loadProfiles}
                 onOpenProfilesDir={openProfilesDir}
                 onReset={reset}
@@ -1528,6 +1568,7 @@ function App() {
             newProfileName={newProfileName}
             setNewProfileName={setNewProfileName}
             onSelectProfile={applyProfile}
+            onApplyProfile={applyProfileToRam}
             onReloadProfiles={loadProfiles}
             onOpenProfilesDir={openProfilesDir}
             onReset={reset}

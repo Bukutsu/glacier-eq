@@ -57,7 +57,7 @@ function computeBiquadCoeffs(filter: Filter): [number, number, number, number, n
   const sinW = Math.sin(omega);
   const cosW = Math.cos(omega);
 
-  // ponytail: use standard Q-factor for all filter types, matching PEQdB
+  // Use standard Q-factor for all filter types, matching PEQdB.
   const alpha = sinW / (2 * q);
 
   switch (filter.filter_type) {
