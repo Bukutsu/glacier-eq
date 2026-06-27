@@ -9,7 +9,6 @@ import { Icon } from "./components/Icon";
 import { Preamp } from "./components/Preamp";
 import { TargetSelector } from "./components/TargetSelector";
 import { ToolsPanel, MeasureTab, AutoEqTab } from "./components/ToolsPanel";
-import { DEFAULT_PROFILE_NAME } from "./constants";
 import {
   DEV_DUMMY_DEVICE,
   buildDevDummyPeq,
@@ -41,6 +40,7 @@ import { ToastContainer, type Toast } from "./components/Toast";
 import "./App.css";
 
 const ANDROID_TOAST_DEDUPE_MS = 2000;
+const DEFAULT_PROFILE_NAME = "Default EQ";
 
 const sleep = (ms: number) => {
   const isAutomated = typeof navigator !== "undefined" && navigator.webdriver;
