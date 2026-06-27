@@ -211,6 +211,8 @@ npm run test
 - [x] Android APK release pipeline
 - [ ] Additional DAC family support (beyond Walkplay)
 - [ ] Command-line interface for headless scripting
+- [ ] Interactive filter adjustment directly from the response graph
+- [ ] Full-screen Android filter adjustment mode
 - [ ] Multi-device simultaneous support
 - [ ] i18n / localization
 - [ ] Play Store / AAB release packaging
@@ -328,7 +330,7 @@ npm run test             # Playwright test suite
 npm run android:doctor   # Android toolchain checks
 ```
 
-Diagnostics are shown only in dev builds by default. The diagnostics log can be copied, cleared, or exported from the dev UI.
+Diagnostics are shown only in dev builds by default. The diagnostics log can be copied or cleared from the dev UI.
 
 Project layout:
 
