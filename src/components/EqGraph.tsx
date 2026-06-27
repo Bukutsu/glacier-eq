@@ -21,12 +21,16 @@ const FILTER_DOT_COLORS = [
 
 export function EqGraph({
   peq,
+  committedPeq,
+  selectedMeasurementId,
   measurements,
   targets,
   viewMode,
   theme,
 }: {
   peq: PEQData;
+  committedPeq?: PEQData | null;
+  selectedMeasurementId?: string | null;
   measurements: MeasurementTrace[];
   targets: TargetTrace[];
   viewMode: GraphViewMode;
@@ -34,6 +38,11 @@ export function EqGraph({
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const visibleMeasurements = measurements.filter((trace) => trace.visible);
+  const selectedMeasurement = selectedMeasurementId
+    ? measurements.find((trace) => trace.id === selectedMeasurementId && trace.visible) ?? null
+    : visibleMeasurements.length === 1
+      ? visibleMeasurements[0]
+      : null;
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -54,8 +63,18 @@ export function EqGraph({
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     drawBackground(ctx, width, height);
     drawGrid(ctx, width, height);
-    drawCurves(ctx, width, height, peq, visibleMeasurements, targets, viewMode);
-  }, [peq, visibleMeasurements, targets, viewMode, theme]);
+      drawCurves(
+        ctx,
+        width,
+        height,
+        peq,
+        committedPeq,
+        selectedMeasurement,
+        visibleMeasurements,
+        targets,
+        viewMode,
+      );
+  }, [peq, committedPeq, selectedMeasurement, visibleMeasurements, targets, viewMode, theme]);
 
   useEffect(() => {
     let raf = requestAnimationFrame(draw);
@@ -77,8 +96,14 @@ export function EqGraph({
   return (
     <div className="eq-graph-shell">
       <canvas className="eq-canvas" ref={canvasRef} />
-      {(targets.length > 0 || visibleMeasurements.length > 0) && (
+      {(committedPeq || targets.length > 0 || visibleMeasurements.length > 0) && (
         <div className="graph-legend">
+          {committedPeq && JSON.stringify(committedPeq) !== JSON.stringify(peq) && (
+            <div className="graph-legend-item committed">
+              <span className="graph-legend-swatch graph-legend-swatch-dashed" />
+              <span>{selectedMeasurement ? `Last pushed on ${selectedMeasurement.name}` : "Last pushed preview"}</span>
+            </div>
+          )}
           {targets.map((target) => (
             <div className="graph-legend-item target" key={target.id}>
               <span className="graph-legend-swatch" style={{ backgroundColor: target.color }} />
@@ -134,6 +159,8 @@ function drawCurves(
   width: number,
   height: number,
   peq: PEQData,
+  committedPeq: PEQData | null | undefined,
+  selectedMeasurement: MeasurementTrace | null,
   measurements: MeasurementTrace[],
   targets: TargetTrace[],
   viewMode: GraphViewMode,
@@ -169,6 +196,7 @@ function drawCurves(
     ctx.fill();
 
     drawResponse(ctx, height, eqResponse, cssVar("--cyan", "#7dcfff"), 3);
+    drawCommittedPreview(ctx, width, height, peq, committedPeq, selectedMeasurement, viewMode);
     drawFilterDots(ctx, width, height, peq);
     return;
   }
@@ -181,7 +209,53 @@ function drawCurves(
     });
     drawResponse(ctx, height, adjusted, trace.color, 3);
   });
+  drawCommittedPreview(ctx, width, height, peq, committedPeq, selectedMeasurement, viewMode);
   drawFilterDots(ctx, width, height, peq);
+}
+
+function drawCommittedPreview(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  peq: PEQData,
+  committedPeq: PEQData | null | undefined,
+  selectedMeasurement: MeasurementTrace | null,
+  viewMode: GraphViewMode,
+) {
+  if (!committedPeq || JSON.stringify(committedPeq) === JSON.stringify(peq)) {
+    return;
+  }
+
+  const committedResponse = Array.from({ length: width }, (_, x) => {
+    const freq = xToFreq(x, width);
+    const preamp = viewMode === "level" ? committedPeq.global_gain : 0;
+    return preamp + committedPeq.filters.reduce((sum, band) => sum + bandResponse(freq, band), 0);
+  });
+
+  const values = selectedMeasurement
+    ? Array.from({ length: width }, (_, x) => {
+        const freq = xToFreq(x, width);
+        const offset = viewMode === "shape" ? -combinedResponseAt(committedPeq, 1000, "shape") : 0;
+        return interpolateMeasurementDb(selectedMeasurement.points, freq) + committedResponse[x] + offset;
+      })
+    : committedResponse;
+
+  drawResponse(
+    ctx,
+    height,
+    values,
+    cssVar("--bg-dark", "#1b1e2e"),
+    7,
+    [12, 6],
+  );
+  drawResponse(
+    ctx,
+    height,
+    values,
+    cssVar("--orange", "#ff9e64"),
+    4,
+    [12, 6],
+  );
 }
 
 function combinedResponseAt(peq: PEQData, freq: number, viewMode: GraphViewMode): number {
@@ -236,6 +310,7 @@ function drawResponse(
   values: number[],
   color: string,
   width = 1,
+  dash: number[] = [],
 ) {
   ctx.beginPath();
   values.forEach((db, x) => {
@@ -244,7 +319,9 @@ function drawResponse(
   });
   ctx.strokeStyle = resolveColor(color);
   ctx.lineWidth = width;
+  ctx.setLineDash(dash);
   ctx.stroke();
+  ctx.setLineDash([]);
 }
 
 function drawFilterDots(ctx: CanvasRenderingContext2D, width: number, height: number, peq: PEQData) {
