@@ -43,6 +43,7 @@ export function EqGraph({
     : visibleMeasurements.length === 1
       ? visibleMeasurements[0]
       : null;
+  const hasCommittedChanges = committedPeq ? JSON.stringify(committedPeq) !== JSON.stringify(peq) : false;
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -98,10 +99,10 @@ export function EqGraph({
       <canvas className="eq-canvas" ref={canvasRef} />
       {(committedPeq || targets.length > 0 || visibleMeasurements.length > 0) && (
         <div className="graph-legend">
-          {committedPeq && JSON.stringify(committedPeq) !== JSON.stringify(peq) && (
+          {hasCommittedChanges && (
             <div className="graph-legend-item committed">
               <span className="graph-legend-swatch graph-legend-swatch-dashed" />
-              <span>{selectedMeasurement ? `Last pushed on ${selectedMeasurement.name}` : "Last pushed preview"}</span>
+              <span>{selectedMeasurement ? `Last pushed + ${selectedMeasurement.name}` : "Last pushed"}</span>
             </div>
           )}
           {targets.map((target) => (
@@ -239,13 +240,14 @@ function drawCommittedPreview(
         return interpolateMeasurementDb(selectedMeasurement.points, freq) + committedResponse[x] + offset;
       })
     : committedResponse;
+  const isCompact = width < 520;
 
   drawResponse(
     ctx,
     height,
     values,
     cssVar("--bg-dark", "#1b1e2e"),
-    7,
+    isCompact ? 3 : 4,
     [12, 6],
   );
   drawResponse(
@@ -253,7 +255,7 @@ function drawCommittedPreview(
     height,
     values,
     cssVar("--orange", "#ff9e64"),
-    4,
+    isCompact ? 1.5 : 2.5,
     [12, 6],
   );
 }

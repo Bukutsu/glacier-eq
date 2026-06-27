@@ -190,7 +190,7 @@ export function ToolsPanel(props: ToolsPanelProps) {
           onEnableOnlineMeasurementsChange={props.onEnableOnlineMeasurementsChange}
         />}
         {tab === "Device" && (
-          <DeviceTab />
+          <DeviceTab setStatus={props.setStatus} />
         )}
         {tab === "Settings" && (
           <SettingsTab
@@ -1254,7 +1254,7 @@ function SettingsTab({
   );
 }
 
-function DeviceTab() {
+function DeviceTab({ setStatus }: { setStatus: (msg: string) => void }) {
   const [utility, setUtility] = useState<{
     supported: boolean;
     filter_mode: string;
@@ -1324,6 +1324,26 @@ function DeviceTab() {
       await invoke("set_mic_volume", { volumeDb });
     } catch (err) {
       console.error("Failed to set mic volume:", err);
+    }
+  };
+
+  const handleResetDeviceEq = async () => {
+    if (!confirm("Reset device EQ? This clears all hardware bands and sets device preamp to 0 dB.")) return;
+    try {
+      await invoke("reset_device_eq");
+      setStatus("Device EQ reset");
+    } catch (err) {
+      setStatus(`Device EQ reset failed: ${err}`);
+    }
+  };
+
+  const handleResetDeviceControls = async () => {
+    if (!confirm("Reset device controls? This restores filter, amp mode, output gain, mic volume, and balance defaults.")) return;
+    try {
+      setUtility(await invoke<typeof utility>("reset_device_controls"));
+      setStatus("Device controls reset");
+    } catch (err) {
+      setStatus(`Device controls reset failed: ${err}`);
     }
   };
 
@@ -1437,10 +1457,12 @@ function DeviceTab() {
       </div>
 
       <div className="setting-row">
-        <span className="setting-label">Hardware Factory Reset</span>
-        <button className="btn danger" onClick={handleFactoryReset}>
-          Reset Device
-        </button>
+        <span className="setting-label">Reset</span>
+        <div className="action-row action-row-primary">
+          <button className="btn" onClick={handleResetDeviceEq}>EQ</button>
+          <button className="btn" onClick={handleResetDeviceControls}>Controls</button>
+          <button className="btn danger" onClick={handleFactoryReset}>Factory</button>
+        </div>
       </div>
     </div>
   );
