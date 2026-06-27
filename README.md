@@ -10,14 +10,14 @@ hardware over HID, edits EQ locally, and works offline.
 
 ## Features
 
-- 10-band parametric EQ with preamp
-- Pull current EQ from hardware
-- Preview and push EQ to the DAC
-- Local profiles, import, export, copy, and paste
-- Measurement and target overlays
-- AutoEQ matching
-- Desktop and Android layouts
-- Dev dummy DAC for UI testing without hardware
+- 10-band PEQ editor with preamp, undo/redo, graph preview, and target curves
+- Pull, RAM-apply, push, verify, and rollback EQ on supported DACs
+- Local profiles with search, import/export, copy/paste, and one-tap apply
+- Measurement overlays from files or optional Squiglink offline cache
+- Native AutoEQ matching against measurement and target curves
+- Hardware controls for supported Walkplay/Savitech DACs: DAC filter, amp mode,
+  output gain, balance, mic monitor, and reset modes
+- Desktop and Android layouts, themes, diagnostics, and dev dummy DAC
 
 ## Install
 
