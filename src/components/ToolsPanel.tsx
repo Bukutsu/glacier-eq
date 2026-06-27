@@ -98,6 +98,7 @@ interface ToolsPanelProps {
   newProfileName: string;
   setNewProfileName: (value: string) => void;
   onSelectProfile: (profile: Profile) => void;
+  onApplyProfile?: (profile: Profile) => void;
   onReloadProfiles: () => void;
   onOpenProfilesDir: () => void;
   onReset: () => void;
@@ -553,6 +554,7 @@ function PresetTab({
   newProfileName,
   setNewProfileName,
   onSelectProfile,
+  onApplyProfile,
   onReloadProfiles,
   onOpenProfilesDir,
 }: ToolsPanelProps) {
@@ -579,13 +581,24 @@ function PresetTab({
         {filteredProfiles.length === 0 ? (
           <div className="empty-profiles">No profiles found</div>
         ) : filteredProfiles.map((profile) => (
-          <button
+          <div
             key={profile.name}
-            className={selectedPreset === profile.name ? "selected" : ""}
-            onClick={() => onSelectProfile(profile)}
+            className={selectedPreset === profile.name ? "profile-row selected" : "profile-row"}
           >
-            {profile.name}
-          </button>
+            <button className="profile-name-btn" onClick={() => onSelectProfile(profile)}>
+              {profile.name}
+            </button>
+            {onApplyProfile && (
+              <button
+                className="profile-apply-btn"
+                title="Apply to device RAM"
+                aria-label={`Apply ${profile.name} to device RAM`}
+                onClick={() => onApplyProfile(profile)}
+              >
+                <Icon>send</Icon>
+              </button>
+            )}
+          </div>
         ))}
       </div>
       <small className="modified">
@@ -1367,7 +1380,7 @@ function DeviceTab({ setStatus }: { setStatus: (msg: string) => void }) {
         <div className="device-empty">
           <Icon>tune</Icon>
           <strong>No supported hardware PEQ DAC connected.</strong>
-          <span>Connect an EPZ TP35 Pro, TRN Black Pearl, or other supported Savitech DSP DAC.</span>
+          <span>Connect a supported Savitech DSP DAC.</span>
         </div>
       </div>
     );

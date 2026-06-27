@@ -1,6 +1,7 @@
-import { SUPPORTED_DACS } from "../constants";
+import { invoke } from "@tauri-apps/api/core";
+import { useEffect, useState } from "react";
 import { isDevDummyDevice } from "../lib/devDevice";
-import type { DeviceInfo } from "../types";
+import type { DeviceInfo, SupportedDeviceInfo } from "../types";
 
 
 interface DeviceChooserProps {
@@ -17,6 +18,10 @@ function formatUsbId(value: number): string {
   return value.toString(16).padStart(4, "0").toUpperCase();
 }
 
+function formatOptionalUsbId(value: number | null): string {
+  return value === null ? "*" : formatUsbId(value);
+}
+
 export function DeviceChooser({
   devices,
   onScan,
@@ -26,6 +31,14 @@ export function DeviceChooser({
   status,
   isBusy,
 }: DeviceChooserProps) {
+  const [supportedDacs, setSupportedDacs] = useState<SupportedDeviceInfo[]>([]);
+
+  useEffect(() => {
+    invoke<SupportedDeviceInfo[]>("list_supported_devices")
+      .then(setSupportedDacs)
+      .catch(() => setSupportedDacs([]));
+  }, []);
+
   return (
     <main className="disconnected-screen">
       <section className="device-card">
@@ -75,10 +88,12 @@ export function DeviceChooser({
 
         <div className="supported-list">
           <span>SUPPORTED</span>
-          {SUPPORTED_DACS.map((dac) => (
+          {supportedDacs.map((dac) => (
             <div key={dac.name}>
               <strong>{dac.name}</strong>
-              <small>{dac.vid}:{dac.pid} · {dac.status}</small>
+              <small>
+                {formatUsbId(dac.vendor_id)}:{formatOptionalUsbId(dac.product_id)} · {dac.status}
+              </small>
             </div>
           ))}
         </div>

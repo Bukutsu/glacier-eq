@@ -22,7 +22,7 @@ pub fn compute_biquad_coeffs(
     let sin_w = omega.sin();
     let cos_w = omega.cos();
 
-    // ponytail: use standard Q-factor for all filter types, matching PEQdB
+    // Use standard Q-factor for all filter types, matching PEQdB.
     let alpha = sin_w / (2.0 * q);
 
     match filter.filter_type {

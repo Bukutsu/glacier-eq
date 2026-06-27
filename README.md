@@ -191,12 +191,12 @@ npm run test
 <!-- SUPPORTED DEVICES -->
 ## Supported Devices
 
-| Manufacturer | Model | Status | Family / Protocol |
-| :--- | :--- | :--- | :--- |
-| **EPZ** | TP35 Pro | Tested | Walkplay Family |
-| **TRN** | Black Pearl | Tested | Walkplay Family |
-| **Moondrop** | Dawn Pro | Untested | Walkplay Family |
-| **Truthear** | KEYX | Untested | Walkplay Family |
+The app renders its supported-device list from the Rust registry at
+[`glacier-core/src/device/walkplay.rs`](glacier-core/src/device/walkplay.rs).
+Edit that registry to add or rename a Walkplay-compatible DAC; discovery, connect
+validation, device capabilities, and the chooser list all use the same source.
+
+Current registry coverage is shown in the app chooser.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 

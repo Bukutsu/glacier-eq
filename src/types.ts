@@ -46,6 +46,15 @@ export interface DeviceInfo {
   profile_name: string | null;
 }
 
+export interface SupportedDeviceInfo {
+  name: string;
+  protocol: string;
+  vendor_id: number;
+  product_id: number | null;
+  status: string;
+  family: string;
+}
+
 export interface Profile {
   name: string;
   data: PEQData;
