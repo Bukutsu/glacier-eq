@@ -1,9 +1,12 @@
-# Glacier EQ
+<h1>
+  <img src="assets/glacier-eq.svg" alt="" width="32" height="32" style="vertical-align: middle;">
+  Glacier EQ
+</h1>
 
 Cross-platform parametric EQ editor for compatible USB DACs. Glacier EQ talks to
 hardware over HID, edits EQ locally, and works offline.
 
-![Glacier EQ](assets/glacier-eq.svg)
+<img src="assets/screenshot-main.png" alt="Glacier EQ desktop interface showing EQ graph, filter bands, and profile controls" width="900">
 
 ## Features
 
