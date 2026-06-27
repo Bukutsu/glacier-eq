@@ -6,7 +6,6 @@ import { save } from "@tauri-apps/plugin-dialog";
 
 import { DEFAULT_PROFILE_NAME } from "../constants";
 import { parseMeasurementText } from "../lib/measurements";
-import { safeUnlisten } from "../lib/unlisten";
 import type { MeasurementTrace, Profile, PEQData, GraphViewMode, TargetTrace } from "../types";
 import { Icon } from "./Icon";
 import { NumberInput } from "./NumberInput";
@@ -1500,7 +1499,6 @@ function DiagnosticsPanel() {
   const [levelFilter, setLevelFilter] = useState<DiagLevel>("All");
   const [search, setSearch] = useState("");
   const [autoScroll, setAutoScroll] = useState(true);
-  const [exportStatus, setExportStatus] = useState<string | null>(null);
   const logBoxRef = useRef<HTMLDivElement>(null);
 
   // Load history + subscribe to live events
@@ -1518,13 +1516,13 @@ function DiagnosticsPanel() {
       if (active) {
         unlistenFn = fn;
       } else {
-        safeUnlisten(fn);
+        try { fn(); } catch {}
       }
     });
 
     return () => {
       active = false;
-      if (unlistenFn) safeUnlisten(unlistenFn);
+      try { unlistenFn?.(); } catch {}
     };
   }, []);
 
@@ -1572,19 +1570,6 @@ function DiagnosticsPanel() {
     }
   };
 
-  const exportLogs = async () => {
-    setExportStatus("Exporting…");
-    try {
-      const path = await invoke<string>("export_diagnostics_log");
-      setExportStatus(`Saved: ${path.split("/").pop()}`);
-      setTimeout(() => setExportStatus(null), 3000);
-    } catch (err) {
-      setExportStatus(`Error: ${err}`);
-      setTimeout(() => setExportStatus(null), 4000);
-      console.error("Failed to export diagnostics:", err);
-    }
-  };
-
   const LEVELS: DiagLevel[] = ["All", "Error", "Warn", "Info"];
 
   return (
@@ -1598,9 +1583,6 @@ function DiagnosticsPanel() {
         </div>
         <button title="Copy all to clipboard" onClick={copyToClipboard}>
           <Icon>content_copy</Icon>
-        </button>
-        <button title="Export log and open in OS" onClick={exportLogs}>
-          <Icon>open_in_new</Icon>
         </button>
         <button className="danger" title="Clear all logs" onClick={clearLogs}>
           <Icon>delete</Icon>
@@ -1632,10 +1614,6 @@ function DiagnosticsPanel() {
           <Icon>{autoScroll ? "vertical_align_bottom" : "lock"}</Icon>
         </button>
       </div>
-
-      {exportStatus && (
-        <div className="diag-export-status">{exportStatus}</div>
-      )}
 
       <div className="log-box" ref={logBoxRef}>
         {filtered.length === 0 ? (
