@@ -128,18 +128,49 @@
   outline-offset: -1px;
 }
 
-.preset-list button {
+.profile-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  min-height: 43px;
+}
+
+.profile-row.selected { background: var(--surface-soft); }
+
+.profile-name-btn {
   text-align: left;
   justify-content: flex-start;
   background: transparent;
-  color: var(--text);
+  color: inherit;
   font-size: var(--type-body);
   min-height: 43px;
   font-weight: 400;
   padding: 0 14px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.preset-list button.selected { background: var(--surface-soft); color: var(--blue); }
+.profile-row.selected .profile-name-btn { color: var(--blue); }
+
+.profile-apply-btn {
+  width: 32px;
+  min-height: 32px;
+  margin-right: 8px;
+  padding: 0;
+  color: var(--cyan);
+  background: transparent;
+  border: 0;
+}
+
+.profile-apply-btn .material-symbols-outlined {
+  font-size: 18px;
+}
+
+.profile-apply-btn:hover {
+  background: var(--surface);
+}
 .empty-profiles { color: var(--muted); padding: 12px; font-size: var(--type-label); }
 .modified { color: var(--muted); line-height: 1.35; }
 .check-line, .settings-list label {

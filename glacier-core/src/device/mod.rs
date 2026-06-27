@@ -16,7 +16,7 @@ pub mod walkplay;
 
 pub use capabilities::{DeviceCapabilities, FilterTypeFlags};
 pub use device::DeviceInfo;
-pub use profile::DeviceProfile;
+pub use profile::{DeviceProfile, DeviceProtocol};
 pub use protocol::WalkplayProtocol;
 pub use supported::{
     get_device_profile, get_supported_device, is_supported_device, SupportedDevice,

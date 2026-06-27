@@ -87,6 +87,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             device_commands::get_eq_state,
             device_commands::set_eq_state,
+            device_commands::apply_eq_state,
             device_commands::get_dac_utility_state,
             device_commands::set_dac_filter_mode,
             device_commands::set_dac_work_mode,
@@ -104,6 +105,7 @@ pub fn run() {
             profiles::peq_to_autoeq,
             profiles::run_autoeq,
             device_commands::list_devices,
+            device_commands::list_supported_devices,
             device_commands::connect_device,
             device_commands::disconnect_device,
             settings::get_settings,
