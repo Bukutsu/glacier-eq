@@ -1350,26 +1350,34 @@ pub fn interpolate_curve(points: &[(f64, f64)], freqs: &[f32; K]) -> [f32; K] {
     let mut sorted = points.to_vec();
     sorted.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
 
-    for k in 0..K {
-        let f_val = freqs[k] as f64;
-        if f_val <= sorted[0].0 {
-            curve[k] = sorted[0].1 as f32;
-        } else if f_val >= sorted[sorted.len() - 1].0 {
-            curve[k] = sorted[sorted.len() - 1].1 as f32;
-        } else {
-            let mut found = false;
-            for i in 0..sorted.len() - 1 {
-                if f_val >= sorted[i].0 && f_val <= sorted[i + 1].0 {
-                    let t = (f_val - sorted[i].0) / (sorted[i + 1].0 - sorted[i].0);
-                    curve[k] = (sorted[i].1 + t * (sorted[i + 1].1 - sorted[i].1)) as f32;
-                    found = true;
-                    break;
-                }
-            }
-            if !found {
-                curve[k] = 0.0;
-            }
+    let n = sorted.len();
+    let lx: Vec<f64> = sorted.iter().map(|p| p.0.ln()).collect();
+
+    let mut i = 0;
+    for j in 0..K {
+        let t = (freqs[j] as f64).ln();
+
+        if t <= lx[0] {
+            curve[j] = sorted[0].1 as f32;
+            continue;
         }
+
+        if t >= lx[n - 1] {
+            curve[j] = sorted[n - 1].1 as f32;
+            continue;
+        }
+
+        while i + 1 < n - 1 && lx[i + 1] < t {
+            i += 1;
+        }
+
+        let x0 = lx[i];
+        let x1 = lx[i + 1];
+
+        let den = x1 - x0;
+        let u = if den == 0.0 { 0.0 } else { (t - x0) / den };
+
+        curve[j] = (sorted[i].1 + u * (sorted[i + 1].1 - sorted[i].1)) as f32;
     }
     curve
 }
