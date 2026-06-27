@@ -46,7 +46,13 @@ function Select<T extends string | number>({
       <select
         id={id}
         value={value}
-        onChange={(e) => onChange(e.target.value as T)}
+        onChange={(e) => {
+          const raw = e.target.value;
+          const coerced = options.length > 0 && typeof options[0].value === "number"
+            ? (Number(raw) as T)
+            : (raw as T);
+          onChange(coerced);
+        }}
         disabled={disabled}
         className="custom-select-trigger"
         style={{
