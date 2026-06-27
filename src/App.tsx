@@ -27,7 +27,6 @@ import {
 } from "./lib/targetReferences";
 import { buildDefaultState, normalizePeq } from "./lib/peq";
 import { clearThemeCache } from "./lib/theme";
-import { safeUnlisten } from "./lib/unlisten";
 import type {
   DeviceInfo,
   Filter,
@@ -881,15 +880,13 @@ function App() {
       if (active) {
         unlistenFn = fn;
       } else {
-        safeUnlisten(fn);
+        try { fn(); } catch {}
       }
     });
 
     return () => {
       active = false;
-      if (unlistenFn) {
-        safeUnlisten(unlistenFn);
-      }
+      try { unlistenFn?.(); } catch {}
     };
   }, []);
 

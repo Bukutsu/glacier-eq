@@ -412,14 +412,6 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 .diag-card .diag-scroll-btn.active { color: var(--cyan); }
 .diag-card .diag-scroll-btn:hover  { color: var(--text); filter: brightness(1.14); }
 
-.diag-export-status {
-  font-size: var(--type-small); color: var(--cyan); font-family: var(--font-ui);
-  background: var(--surface-soft);
-  outline: 1px solid var(--accent-line);
-  outline-offset: -1px;
-  padding: 6px 10px;
-}
-
 .log-box {
   background: var(--bg-dark); overflow-y: auto; min-height: 0; flex: 1;
   outline: 1px solid var(--line-soft); outline-offset: -1px;
