@@ -1160,7 +1160,6 @@ version = "0.1.1"
 dependencies = [
  "log",
  "serde",
- "thiserror 2.0.18",
 ]
 
 [[package]]
