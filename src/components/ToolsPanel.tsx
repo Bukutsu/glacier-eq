@@ -1446,20 +1446,6 @@ interface DiagnosticEvent {
 
 type DiagLevel = "All" | "Error" | "Warn" | "Info";
 
-const LEVEL_ICON: Record<DiagnosticEvent["level"], string> = {
-  Error: "error",
-  Warn:  "warning",
-  Info:  "info",
-};
-
-const SOURCE_COLOR: Record<string, string> = {
-  HID:    "var(--cyan)",
-  Worker: "var(--purple)",
-  AutoEQ: "var(--green)",
-  Device: "var(--orange)",
-  UI:     "var(--muted)",
-};
-
 function DiagnosticsPanel() {
   const [events, setEvents] = useState<DiagnosticEvent[]>([]);
   const [levelFilter, setLevelFilter] = useState<DiagLevel>("All");
@@ -1554,34 +1540,31 @@ function DiagnosticsPanel() {
 
   return (
     <section className="diag-card">
-      {/* ── Header row ── */}
+      {/* ── Header — matches .action-section-head ── */}
       <div className="diag-head">
-        <strong>DIAGNOSTICS</strong>
-
-        {/* level counters */}
-        <span className="diag-badge diag-badge-error" title="Errors">{errorCount} E</span>
-        <span className="diag-badge diag-badge-warn"  title="Warnings">{warnCount} W</span>
-        <span className="diag-badge diag-badge-info"  title="Info">{infoCount} I</span>
-
-        <span style={{ flex: 1 }} />
-
-        <button title="Copy all logs to clipboard" onClick={copyToClipboard}>
+        <strong>Diagnostics</strong>
+        <div className="diag-counts">
+          <span className="diag-count-e" title="Errors">{errorCount}E</span>
+          <span className="diag-count-w" title="Warnings">{warnCount}W</span>
+          <span className="diag-count-i" title="Info">{infoCount}I</span>
+        </div>
+        <button title="Copy all to clipboard" onClick={copyToClipboard}>
           <Icon>content_copy</Icon>
         </button>
-        <button title="Export log file and open in OS" onClick={exportLogs}>
+        <button title="Export log and open in OS" onClick={exportLogs}>
           <Icon>open_in_new</Icon>
         </button>
-        <button title="Clear all logs" onClick={clearLogs} style={{ color: "var(--red)" }}>
+        <button className="danger" title="Clear all logs" onClick={clearLogs}>
           <Icon>delete</Icon>
         </button>
       </div>
 
-      {/* ── Filter toolbar ── */}
-      <div className="diag-filters">
+      {/* ── Toolbar — matches .search-row grid ── */}
+      <div className="diag-toolbar">
         {LEVELS.map((lvl) => (
           <button
             key={lvl}
-            className={`diag-filter-btn ${levelFilter === lvl ? "active" : ""} ${lvl !== "All" ? `diag-filter-${lvl.toLowerCase()}` : ""}`}
+            className={`diag-filter-btn${levelFilter === lvl ? " active" : ""}${lvl === "Error" ? " f-error" : ""}${lvl === "Warn" ? " f-warn" : ""}`}
             onClick={() => setLevelFilter(lvl)}
           >
             {lvl}
@@ -1595,8 +1578,8 @@ function DiagnosticsPanel() {
           onChange={(e) => setSearch(e.target.value)}
         />
         <button
-          className={`diag-autoscroll-btn ${autoScroll ? "active" : ""}`}
-          title={autoScroll ? "Auto-scroll on (click to lock)" : "Auto-scroll off (click to resume)"}
+          className={`diag-scroll-btn${autoScroll ? " active" : ""}`}
+          title={autoScroll ? "Auto-scroll on" : "Auto-scroll paused"}
           onClick={() => setAutoScroll((v) => !v)}
         >
           <Icon>{autoScroll ? "vertical_align_bottom" : "lock"}</Icon>
@@ -1611,31 +1594,23 @@ function DiagnosticsPanel() {
       <div className="log-box" ref={logBoxRef}>
         {filtered.length === 0 ? (
           <div className="diag-empty">
-            {events.length === 0 ? "No logs yet" : "No matches for current filter"}
+            {events.length === 0 ? "No logs yet." : "No matches for current filter."}
           </div>
         ) : (
           filtered.map((event, index) => (
             <p key={index} className={`log-line log-line-${event.level.toLowerCase()}`}>
               <span className="log-ts">{event.timestamp}</span>
-              <span className="log-level-icon" title={event.level}>
-                <Icon>{LEVEL_ICON[event.level]}</Icon>
-              </span>
-              <span
-                className="log-source"
-                style={{ color: SOURCE_COLOR[event.source] ?? "var(--muted)" }}
-              >
-                {event.source}
-              </span>
-              <span className="log-msg">{event.message}</span>
+              <span className="log-level">{event.level}</span>
+              <span className="log-msg">[{event.source}] {event.message}</span>
             </p>
           ))
         )}
       </div>
 
       <div className="diag-footer">
-        {filtered.length} of {events.length} events
-        {search && ` · filter: "${search}"`}
-        {levelFilter !== "All" && ` · level: ${levelFilter}`}
+        {filtered.length}/{events.length} events
+        {levelFilter !== "All" && ` · ${levelFilter}`}
+        {search && ` · "${search}"`}
       </div>
     </section>
   );
