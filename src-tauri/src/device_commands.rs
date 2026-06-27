@@ -967,3 +967,236 @@ fn normalize_for_push(mut peq: PEQData, caps: &DeviceCapabilities) -> PEQData {
     peq.global_gain = peq.global_gain.round();
     peq
 }
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DacUtilityState {
+    pub supported: bool,
+    pub filter_mode: String,
+    pub amp_mode_class_ab: bool,
+    pub high_gain_mode: bool,
+    pub mic_volume_db: i8,
+    pub channel_balance: i8,
+}
+
+fn read_utility_register(app: &tauri::AppHandle, path: &str, cmd: u8) -> Result<Vec<u8>, String> {
+    send_packet(app, path, &WalkplayProtocol::build_utility_read_request(cmd))?;
+    sleep_ms(30);
+
+    for attempt in 1..=10 {
+        let bytes = hid_read(app, path, 60)
+            .map_err(|error| format!("Utility read failed for cmd {cmd} on attempt {attempt}: {error}"))?;
+        if bytes.is_empty() {
+            continue;
+        }
+
+        let data = match WalkplayProtocol::unframe_packet(&bytes) {
+            Ok(vec) => vec,
+            Err(_) => continue,
+        };
+
+        if data.len() >= 4 && data[0] == 0x80 && data[1] == cmd {
+            return Ok(data);
+        }
+    }
+    Err(format!("Utility read timeout for cmd {cmd}"))
+}
+
+fn read_balance_register(app: &tauri::AppHandle, path: &str, channel: u8) -> Result<u8, String> {
+    send_packet(app, path, &WalkplayProtocol::build_balance_read_request(channel))?;
+    sleep_ms(30);
+
+    for attempt in 1..=10 {
+        let bytes = hid_read(app, path, 60)
+            .map_err(|error| format!("Balance read failed for channel {channel} on attempt {attempt}: {error}"))?;
+        if bytes.is_empty() {
+            continue;
+        }
+
+        let data = match WalkplayProtocol::unframe_packet(&bytes) {
+            Ok(vec) => vec,
+            Err(_) => continue,
+        };
+
+        if data.len() >= 6 && data[0] == 0x80 && data[1] == 22 && data[3] == channel {
+            return Ok(data[5]);
+        }
+    }
+    Err(format!("Balance read timeout for channel {channel}"))
+}
+
+#[tauri::command]
+pub async fn get_dac_utility_state(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Mutex<DeviceState>>,
+) -> Result<DacUtilityState, String> {
+    let connected = state
+        .lock()
+        .map_err(|_| "Device state lock poisoned")?
+        .connected
+        .clone();
+
+    let connected = match connected {
+        Some(c) => c,
+        None => {
+            return Ok(DacUtilityState {
+                supported: false,
+                filter_mode: "FAST-LL".to_string(),
+                amp_mode_class_ab: false,
+                high_gain_mode: false,
+                mic_volume_db: 0,
+                channel_balance: 0,
+            })
+        }
+    };
+
+    if connected.vendor_id != 0x3302 {
+        return Ok(DacUtilityState {
+            supported: false,
+            filter_mode: "FAST-LL".to_string(),
+            amp_mode_class_ab: false,
+            high_gain_mode: false,
+            mic_volume_db: 0,
+            channel_balance: 0,
+        });
+    }
+
+    drain_stale_frames(&app, &connected.path);
+
+    let filter_val = match read_utility_register(&app, &connected.path, 17) {
+        Ok(data) => data[3],
+        Err(_) => 1,
+    };
+    let filter_mode = match filter_val {
+        1 => "FAST-LL",
+        2 => "FAST-PC",
+        3 => "Slow-LL",
+        4 => "Slow-PC",
+        5 => "NON-OS",
+        _ => "FAST-LL",
+    }.to_string();
+
+    let amp_val = match read_utility_register(&app, &connected.path, 29) {
+        Ok(data) => data[3],
+        Err(_) => 0,
+    };
+    let amp_mode_class_ab = amp_val == 1;
+
+    let gain_val = match read_utility_register(&app, &connected.path, 25) {
+        Ok(data) => data[3],
+        Err(_) => 0,
+    };
+    let high_gain_mode = gain_val == 1;
+
+    let mic_val = match read_utility_register(&app, &connected.path, 2) {
+        Ok(data) => data[4] as i8,
+        Err(_) => 0,
+    };
+
+    let left_att_raw = read_balance_register(&app, &connected.path, 0).unwrap_or(0);
+    let right_att_raw = read_balance_register(&app, &connected.path, 1).unwrap_or(0);
+
+    let left_att = if left_att_raw > 0 { 256 - left_att_raw as u16 } else { 0 };
+    let right_att = if right_att_raw > 0 { 256 - right_att_raw as u16 } else { 0 };
+
+    let channel_balance = if left_att > 0 {
+        left_att as i8
+    } else if right_att > 0 {
+        -(right_att as i8)
+    } else {
+        0
+    };
+
+    Ok(DacUtilityState {
+        supported: true,
+        filter_mode,
+        amp_mode_class_ab,
+        high_gain_mode,
+        mic_volume_db: mic_val,
+        channel_balance,
+    })
+}
+
+fn write_utility_packet(app: &tauri::AppHandle, path: &str, packet: &[u8]) -> Result<(), String> {
+    send_packet(app, path, packet)?;
+    sleep_ms(50);
+    send_packet(app, path, &[glacier_core::device::walkplay::WRITE, glacier_core::device::walkplay::CMD_FLASH_EQ, 0])?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn set_dac_filter_mode(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Mutex<DeviceState>>,
+    mode: String,
+) -> Result<(), String> {
+    let connected = state.lock().unwrap().connected.clone().ok_or("No device connected")?;
+    let r = match mode.as_str() {
+        "FAST-LL" => 1,
+        "FAST-PC" => 2,
+        "Slow-LL" => 3,
+        "Slow-PC" => 4,
+        "NON-OS" => 5,
+        _ => return Err("Invalid filter mode".to_string()),
+    };
+    let packet = WalkplayProtocol::build_filter_mode_write_packet(r);
+    write_utility_packet(&app, &connected.path, &packet)
+}
+
+#[tauri::command]
+pub async fn set_dac_work_mode(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Mutex<DeviceState>>,
+    is_class_ab: bool,
+) -> Result<(), String> {
+    let connected = state.lock().unwrap().connected.clone().ok_or("No device connected")?;
+    let packet = WalkplayProtocol::build_amp_mode_write_packet(is_class_ab);
+    write_utility_packet(&app, &connected.path, &packet)
+}
+
+#[tauri::command]
+pub async fn set_dac_output_gain(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Mutex<DeviceState>>,
+    is_high_gain: bool,
+) -> Result<(), String> {
+    let connected = state.lock().unwrap().connected.clone().ok_or("No device connected")?;
+    let packet = WalkplayProtocol::build_gain_mode_write_packet(is_high_gain);
+    write_utility_packet(&app, &connected.path, &packet)
+}
+
+#[tauri::command]
+pub async fn set_dac_balance(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Mutex<DeviceState>>,
+    balance: i8,
+) -> Result<(), String> {
+    let connected = state.lock().unwrap().connected.clone().ok_or("No device connected")?;
+    let packets = WalkplayProtocol::build_balance_write_packets(balance);
+    for packet in packets {
+        send_packet(&app, &connected.path, &packet)?;
+        sleep_ms(20);
+    }
+    send_packet(&app, &connected.path, &[glacier_core::device::walkplay::WRITE, glacier_core::device::walkplay::CMD_FLASH_EQ, 0])?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn set_mic_volume(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Mutex<DeviceState>>,
+    volume_db: i8,
+) -> Result<(), String> {
+    let connected = state.lock().unwrap().connected.clone().ok_or("No device connected")?;
+    let packet = WalkplayProtocol::build_mic_volume_write_packet(volume_db);
+    write_utility_packet(&app, &connected.path, &packet)
+}
+
+#[tauri::command]
+pub async fn execute_factory_reset(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Mutex<DeviceState>>,
+) -> Result<(), String> {
+    let connected = state.lock().unwrap().connected.clone().ok_or("No device connected")?;
+    let packet = WalkplayProtocol::build_factory_reset_packet();
+    write_utility_packet(&app, &connected.path, &packet)
+}

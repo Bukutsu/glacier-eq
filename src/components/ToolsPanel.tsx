@@ -71,13 +71,14 @@ function Select<T extends string | number>({
 }
 
 
-type ToolsTab = "Preset" | "Import" | "Measure" | "AutoEQ" | "Settings";
+type ToolsTab = "Preset" | "Import" | "Measure" | "AutoEQ" | "Device" | "Settings";
 
 const TOOL_TAB_META: Record<ToolsTab, { icon: string; label: string }> = {
   Preset: { icon: "library_music", label: "Preset" },
   Import: { icon: "file_upload", label: "Import" },
   Measure: { icon: "analytics", label: "Measure" },
   AutoEQ: { icon: "auto_awesome", label: "AutoEQ" },
+  Device: { icon: "tune", label: "Device" },
   Settings: { icon: "settings", label: "Settings" },
 };
 
@@ -121,7 +122,7 @@ interface ToolsPanelProps {
 }
 
 export function ToolsPanel(props: ToolsPanelProps) {
-  const availableTabs = props.availableTabs ?? ["Preset", "Import", "Measure", "AutoEQ", "Settings"];
+  const availableTabs = props.availableTabs ?? ["Preset", "Import", "Measure", "AutoEQ", "Device", "Settings"];
   const showDiagnostics = props.showDiagnostics ?? false;
   const [tab, setTab] = useState<ToolsTab>(() => (
     props.defaultTab && availableTabs.includes(props.defaultTab) ? props.defaultTab : availableTabs[0]
@@ -164,6 +165,9 @@ export function ToolsPanel(props: ToolsPanelProps) {
           enableOnlineMeasurements={props.enableOnlineMeasurements}
           onEnableOnlineMeasurementsChange={props.onEnableOnlineMeasurementsChange}
         />}
+        {tab === "Device" && (
+          <DeviceTab />
+        )}
         {tab === "Settings" && (
           <SettingsTab
             graphViewMode={props.graphViewMode}
@@ -1199,6 +1203,212 @@ function SettingsTab({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function DeviceTab() {
+  const [utility, setUtility] = useState<{
+    supported: boolean;
+    filter_mode: string;
+    amp_mode_class_ab: boolean;
+    high_gain_mode: boolean;
+    mic_volume_db: number;
+    channel_balance: number;
+  } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    invoke<any>("get_dac_utility_state")
+      .then((data) => {
+        setUtility(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("Failed to load DAC utility state:", err);
+        setLoading(false);
+      });
+  }, []);
+
+  const handleSetFilter = async (mode: string) => {
+    if (!utility) return;
+    setUtility({ ...utility, filter_mode: mode });
+    try {
+      await invoke("set_dac_filter_mode", { mode });
+    } catch (err) {
+      console.error("Failed to set filter mode:", err);
+    }
+  };
+
+  const handleSetAmpMode = async (isClassAb: boolean) => {
+    if (!utility) return;
+    setUtility({ ...utility, amp_mode_class_ab: isClassAb });
+    try {
+      await invoke("set_dac_work_mode", { isClassAb });
+    } catch (err) {
+      console.error("Failed to set amp mode:", err);
+    }
+  };
+
+  const handleSetOutputGain = async (isHighGain: boolean) => {
+    if (!utility) return;
+    setUtility({ ...utility, high_gain_mode: isHighGain });
+    try {
+      await invoke("set_dac_output_gain", { isHighGain });
+    } catch (err) {
+      console.error("Failed to set output gain:", err);
+    }
+  };
+
+  const handleSetBalance = async (balance: number) => {
+    if (!utility) return;
+    setUtility({ ...utility, channel_balance: balance });
+    try {
+      await invoke("set_dac_balance", { balance });
+    } catch (err) {
+      console.error("Failed to set balance:", err);
+    }
+  };
+
+  const handleSetMicVolume = async (volumeDb: number) => {
+    if (!utility) return;
+    setUtility({ ...utility, mic_volume_db: volumeDb });
+    try {
+      await invoke("set_mic_volume", { volumeDb });
+    } catch (err) {
+      console.error("Failed to set mic volume:", err);
+    }
+  };
+
+  const handleFactoryReset = async () => {
+    if (!confirm("Are you sure you want to perform a factory reset? This will restore default settings.")) return;
+    try {
+      await invoke("execute_factory_reset");
+      const data = await invoke<any>("get_dac_utility_state");
+      setUtility(data);
+    } catch (err) {
+      console.error("Failed to execute factory reset:", err);
+    }
+  };
+
+  if (loading) {
+    return <div className="settings-list">Loading device status...</div>;
+  }
+
+  if (!utility?.supported) {
+    return (
+      <div className="settings-list" style={{ padding: '12px', color: 'var(--muted)', textAlign: 'center' }}>
+        <div style={{ fontSize: '48px', display: 'flex', justifyContent: 'center', margin: '20px auto 10px', color: 'var(--comment)' }}>
+          <Icon>tune</Icon>
+        </div>
+        <strong>No supported hardware PEQ DAC connected.</strong>
+        <p style={{ fontSize: 'var(--type-small)', marginTop: '8px', lineHeight: '1.4' }}>
+          Connect an EPZ TP35 Pro, TRN Black Pearl, or other supported Savitech DSP DAC to use these advanced controls.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="settings-list">
+      <div className="settings-section-header" style={{
+        fontSize: 'var(--type-label)',
+        fontWeight: 'bold',
+        color: 'var(--purple)',
+        paddingTop: '4px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px'
+      }}>
+        <Icon>tune</Icon>
+        <span>Hardware DSP Controls</span>
+      </div>
+
+      <div className="setting-row">
+        <span className="setting-label">Filter Mode</span>
+        <div className="setting-select-wrapper">
+          <Select
+            id="utility-filter-select"
+            value={utility.filter_mode}
+            onChange={handleSetFilter}
+            options={[
+              { value: "FAST-LL", label: "FAST-LL" },
+              { value: "FAST-PC", label: "FAST-PC" },
+              { value: "Slow-LL", label: "Slow-LL" },
+              { value: "Slow-PC", label: "Slow-PC" },
+              { value: "NON-OS", label: "NON-OS" },
+            ]}
+          />
+        </div>
+      </div>
+      <div style={{ fontSize: 'var(--type-caption)', color: 'var(--comment)', marginTop: '-8px', paddingLeft: '4px', lineHeight: '1.4' }}>
+        {utility.filter_mode === "FAST-LL" && "FAST-LL: Minimizes pre-ringing, warm and punchy sound."}
+        {utility.filter_mode === "FAST-PC" && "FAST-PC: Preserves phase linearity, clean and balanced sound."}
+        {utility.filter_mode === "Slow-LL" && "Slow-LL: Gentle high-frequency roll-off, warm and relaxed sound."}
+        {utility.filter_mode === "Slow-PC" && "Slow-PC: Phase linearity with a gentler high-frequency roll-off."}
+        {utility.filter_mode === "NON-OS" && "NON-OS: Bypasses digital interpolation. Pure, raw analog signature."}
+      </div>
+
+      <div className="setting-row">
+        <span className="setting-label">Amplifier Class AB</span>
+        <input
+          type="checkbox"
+          checked={utility.amp_mode_class_ab}
+          onChange={(e) => handleSetAmpMode(e.target.checked)}
+        />
+      </div>
+
+      <div className="setting-row">
+        <span className="setting-label">Hardware High Gain</span>
+        <input
+          type="checkbox"
+          checked={utility.high_gain_mode}
+          onChange={(e) => handleSetOutputGain(e.target.checked)}
+        />
+      </div>
+
+      <div className="setting-row" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+          <span className="setting-label">Channel Balance</span>
+          <span style={{ fontSize: 'var(--type-label)', color: 'var(--text)' }}>
+            {utility.channel_balance === 0 ? "Center (0)" : utility.channel_balance > 0 ? `L +${utility.channel_balance}` : `R +${Math.abs(utility.channel_balance)}`}
+          </span>
+        </div>
+        <input
+          type="range"
+          min="-15"
+          max="15"
+          step="1"
+          value={utility.channel_balance}
+          onChange={(e) => handleSetBalance(Number(e.target.value))}
+          style={{ width: '100%', accentColor: 'var(--purple)', margin: '4px 0' }}
+        />
+      </div>
+
+      <div className="setting-row" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+          <span className="setting-label">Microphone Monitor Loopback</span>
+          <span style={{ fontSize: 'var(--type-label)', color: 'var(--text)' }}>
+            {utility.mic_volume_db} dB
+          </span>
+        </div>
+        <input
+          type="range"
+          min="-15"
+          max="15"
+          step="1"
+          value={utility.mic_volume_db}
+          onChange={(e) => handleSetMicVolume(Number(e.target.value))}
+          style={{ width: '100%', accentColor: 'var(--purple)', margin: '4px 0' }}
+        />
+      </div>
+
+      <div className="setting-row" style={{ borderTop: '1px solid var(--line-subtle)', paddingTop: '14px', marginTop: '10px' }}>
+        <span className="setting-label">Hardware Factory Reset</span>
+        <button className="btn tonal" style={{ color: 'var(--red)', borderColor: 'var(--red)', minHeight: '34px', cursor: 'pointer' }} onClick={handleFactoryReset}>
+          Reset Device
+        </button>
+      </div>
     </div>
   );
 }
