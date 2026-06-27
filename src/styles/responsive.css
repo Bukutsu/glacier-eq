@@ -400,7 +400,25 @@
   .measurement-delete {
     min-height: 56px !important;
   }
-  .log-box p {
+  .diag-head {
+    grid-template-columns: minmax(0, 1fr) repeat(3, 36px);
+  }
+  .diag-counts {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+  .diag-toolbar {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) 38px;
+  }
+  .diag-search {
+    grid-column: 1 / -2;
+    grid-row: 2;
+  }
+  .diag-scroll-btn {
+    grid-column: -2 / -1;
+    grid-row: 2;
+  }
+  .log-line {
     grid-template-columns: 1fr;
     gap: 3px;
   }

@@ -50,10 +50,24 @@
   color: var(--yellow);
 }
 
+.graph-legend-item.committed {
+  color: var(--orange);
+  outline-color: rgb(var(--orange-rgb) / 0.52);
+  background: rgb(var(--bg-dark-rgb) / 0.92);
+}
+
 .graph-legend-swatch {
-  width: 12px;
+  width: 14px;
   height: 3px;
-  flex: 0 0 12px;
+  flex: 0 0 14px;
+}
+
+.graph-legend-swatch-dashed {
+  background: transparent;
+  height: 4px;
+  background-image: linear-gradient(to right, currentColor 0 70%, transparent 70% 100%);
+  background-size: 14px 4px;
+  background-repeat: repeat-x;
 }
 
 .target-strip {
