@@ -6,7 +6,6 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview",
     "tauri": "tauri",
     "android:doctor": "bash scripts/android-doctor.sh",
     "android:init": "tauri android init --ci",
