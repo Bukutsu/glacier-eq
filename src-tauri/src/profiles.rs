@@ -258,7 +258,7 @@ pub fn run_autoeq_internal(
         return Err("Number of bands must be between 1 and 32".to_string());
     }
 
-    let steps = if steps == 0 { 2000 } else { steps.min(5000) };
+    let steps = if steps == 0 { 3000 } else { steps.min(5000) };
 
     let f = glacier_core::autoeq::generate_log_spaced_freqs();
     let src = glacier_core::autoeq::interpolate_curve(&measurement_points, &f);

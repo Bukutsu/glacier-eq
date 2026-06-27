@@ -22,9 +22,11 @@ pub fn compute_biquad_coeffs(
     let sin_w = omega.sin();
     let cos_w = omega.cos();
 
+    // ponytail: use standard Q-factor for all filter types, matching PEQdB
+    let alpha = sin_w / (2.0 * q);
+
     match filter.filter_type {
         FilterType::Peak => {
-            let alpha = sin_w / (2.0 * q);
             (
                 1.0 + alpha * a_val,
                 -2.0 * cos_w,
@@ -35,9 +37,6 @@ pub fn compute_biquad_coeffs(
             )
         }
         FilterType::LowShelf => {
-            // Clamp the term inside the square root to >= 0.0 to prevent NaN for high Q/gain shelf filters
-            let sqrt_term = ((a_val + 1.0 / a_val) * (1.0 / q - 1.0) + 2.0).max(0.0);
-            let alpha = (sin_w / 2.0) * sqrt_term.sqrt();
             let a_minus_1 = a_val - 1.0;
             let a_plus_1 = a_val + 1.0;
             let sqrt_a_alpha = 2.0 * a_val.sqrt() * alpha;
@@ -51,9 +50,6 @@ pub fn compute_biquad_coeffs(
             )
         }
         FilterType::HighShelf => {
-            // Clamp the term inside the square root to >= 0.0 to prevent NaN for high Q/gain shelf filters
-            let sqrt_term = ((a_val + 1.0 / a_val) * (1.0 / q - 1.0) + 2.0).max(0.0);
-            let alpha = (sin_w / 2.0) * sqrt_term.sqrt();
             let a_minus_1 = a_val - 1.0;
             let a_plus_1 = a_val + 1.0;
             let sqrt_a_alpha = 2.0 * a_val.sqrt() * alpha;
@@ -67,7 +63,6 @@ pub fn compute_biquad_coeffs(
             )
         }
         FilterType::HighPass => {
-            let alpha = sin_w / (2.0 * q);
             (
                 (1.0 + cos_w) / 2.0,
                 -(1.0 + cos_w),
@@ -78,7 +73,6 @@ pub fn compute_biquad_coeffs(
             )
         }
         FilterType::LowPass => {
-            let alpha = sin_w / (2.0 * q);
             (
                 (1.0 - cos_w) / 2.0,
                 1.0 - cos_w,

@@ -6,7 +6,8 @@
 use crate::device::timing::WriteTiming;
 use crate::device::walkplay::{
     compute_iir_filter, convert_to_2byte_array, parse_filter_packet, CMD_FLASH_EQ, CMD_GLOBAL_GAIN,
-    CMD_PEQ_VALUES, CMD_TEMP_WRITE, CMD_VERSION, CONST_FLASH_EQ_LEN, CONST_GLOBAL_GAIN_LEN,
+    CMD_PEQ_VALUES, CMD_TEMP_WRITE, CMD_VERSION, CMD_FILTER_MODE, CMD_AMP_MODE, CMD_GAIN_MODE,
+    CMD_MIC_VOLUME, CMD_BALANCE, CMD_FACTORY_RESET, CONST_FLASH_EQ_LEN, CONST_GLOBAL_GAIN_LEN,
     CONST_PEQ_PAYLOAD_LEN, CONST_TEMP_WRITE_LEN, CONST_TEMP_WRITE_MAGIC_A,
     CONST_TEMP_WRITE_MAGIC_B, END, FILTER_RESPONSE_MIN_LEN, FILTER_SLOT,
     GLOBAL_GAIN_RESPONSE_MIN_LEN, OFFSET_CMD, OFFSET_CMD_TYPE, OFFSET_GAIN_VALUE, OFFSET_INDEX,
@@ -159,6 +160,48 @@ impl WalkplayProtocol {
             ],
             vec![WRITE, CMD_FLASH_EQ, CONST_FLASH_EQ_LEN, FILTER_SLOT, END],
         ]
+    }
+
+    pub fn build_utility_read_request(cmd: u8) -> Vec<u8> {
+        vec![READ, cmd, END]
+    }
+
+    pub fn build_balance_read_request(channel: u8) -> Vec<u8> {
+        vec![READ, CMD_BALANCE, 1, channel]
+    }
+
+    pub fn build_filter_mode_write_packet(mode: u8) -> Vec<u8> {
+        vec![WRITE, CMD_FILTER_MODE, 1, mode]
+    }
+
+    pub fn build_amp_mode_write_packet(is_class_ab: bool) -> Vec<u8> {
+        vec![WRITE, CMD_AMP_MODE, 1, if is_class_ab { 1 } else { 0 }]
+    }
+
+    pub fn build_gain_mode_write_packet(is_high: bool) -> Vec<u8> {
+        vec![WRITE, CMD_GAIN_MODE, 1, if is_high { 1 } else { 0 }]
+    }
+
+    pub fn build_mic_volume_write_packet(db: i8) -> Vec<u8> {
+        vec![WRITE, CMD_MIC_VOLUME, 2, 128, db as u8]
+    }
+
+    pub fn build_factory_reset_packet() -> Vec<u8> {
+        vec![WRITE, CMD_FACTORY_RESET, 0]
+    }
+
+    pub fn build_balance_write_packets(balance: i8) -> Vec<Vec<u8>> {
+        if balance <= 0 {
+            vec![
+                vec![WRITE, CMD_BALANCE, 4, 1, 0, (-balance.abs()) as u8, 0],
+                vec![WRITE, CMD_BALANCE, 4, 0, 0, 0, 0],
+            ]
+        } else {
+            vec![
+                vec![WRITE, CMD_BALANCE, 4, 1, 0, 0, 0],
+                vec![WRITE, CMD_BALANCE, 4, 0, 0, (-balance) as u8, 0],
+            ]
+        }
     }
 
     pub fn framer() -> HidPacketFramer {

@@ -57,10 +57,11 @@ function computeBiquadCoeffs(filter: Filter): [number, number, number, number, n
   const sinW = Math.sin(omega);
   const cosW = Math.cos(omega);
 
+  // ponytail: use standard Q-factor for all filter types, matching PEQdB
+  const alpha = sinW / (2 * q);
+
   switch (filter.filter_type) {
     case "LowShelf": {
-      const sqrtTerm = Math.max((aValue + 1 / aValue) * (1 / q - 1) + 2, 0);
-      const alpha = (sinW / 2) * Math.sqrt(sqrtTerm);
       const aMinus1 = aValue - 1;
       const aPlus1 = aValue + 1;
       const sqrtAAlpha = 2 * Math.sqrt(aValue) * alpha;
@@ -74,8 +75,6 @@ function computeBiquadCoeffs(filter: Filter): [number, number, number, number, n
       ];
     }
     case "HighShelf": {
-      const sqrtTerm = Math.max((aValue + 1 / aValue) * (1 / q - 1) + 2, 0);
-      const alpha = (sinW / 2) * Math.sqrt(sqrtTerm);
       const aMinus1 = aValue - 1;
       const aPlus1 = aValue + 1;
       const sqrtAAlpha = 2 * Math.sqrt(aValue) * alpha;
@@ -89,7 +88,6 @@ function computeBiquadCoeffs(filter: Filter): [number, number, number, number, n
       ];
     }
     case "HighPass": {
-      const alpha = sinW / (2 * q);
       return [
         (1 + cosW) / 2,
         -(1 + cosW),
@@ -100,7 +98,6 @@ function computeBiquadCoeffs(filter: Filter): [number, number, number, number, n
       ];
     }
     case "LowPass": {
-      const alpha = sinW / (2 * q);
       return [
         (1 - cosW) / 2,
         1 - cosW,
@@ -112,7 +109,6 @@ function computeBiquadCoeffs(filter: Filter): [number, number, number, number, n
     }
     case "Peak":
     default: {
-      const alpha = sinW / (2 * q);
       return [
         1 + alpha * aValue,
         -2 * cosW,

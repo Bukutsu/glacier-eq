@@ -87,6 +87,13 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             device_commands::get_eq_state,
             device_commands::set_eq_state,
+            device_commands::get_dac_utility_state,
+            device_commands::set_dac_filter_mode,
+            device_commands::set_dac_work_mode,
+            device_commands::set_dac_output_gain,
+            device_commands::set_dac_balance,
+            device_commands::set_mic_volume,
+            device_commands::execute_factory_reset,
             profiles::list_profiles,
             profiles::save_profile,
             profiles::delete_profile,
