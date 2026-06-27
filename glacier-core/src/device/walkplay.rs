@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 use crate::device::capabilities::{DeviceCapabilities, FilterTypeFlags};
-use crate::device::profile::DeviceProfile;
+use crate::device::profile::{DeviceProfile, DeviceProtocol};
 use crate::eq::iir_math::compute_biquad_coeffs;
 use crate::eq::{Filter, FilterType};
 
@@ -54,6 +54,20 @@ pub(crate) const GLOBAL_GAIN_RESPONSE_MIN_LEN: usize = 6;
 
 pub const QUANTIZER_SCALE: f64 = 1_073_741_824.0;
 pub const BYTE_BIT_SHIFT: i32 = 8;
+
+const SAVITECH_10_BAND_CAPS: DeviceCapabilities = DeviceCapabilities {
+    num_bands: 10,
+    global_gain_range: (-16, 6),
+    band_gain_range: (-10.0, 10.0),
+    freq_range: (20, 20000),
+    q_range: (0.1, 10.0),
+    supported_filter_types: FilterTypeFlags(0b0001_1111),
+    supports_per_band_enable: false,
+    dsp_sample_rate: 96000.0,
+    gain_tolerance: 0.15,
+    freq_tolerance: 1,
+    q_tolerance: 0.05,
+};
 
 fn clamp_i32(v: f64) -> i32 {
     if !v.is_finite() {
@@ -156,44 +170,65 @@ pub fn parse_filter_packet(packet: &[u8]) -> Option<Filter> {
 pub const PROFILES: &[DeviceProfile] = &[
     DeviceProfile {
         name: "EPZ TP35 Pro",
+        protocol: DeviceProtocol::Walkplay,
         vendor_id: 0x3302,
-        product_id: 0x43E6,
-        caps: DeviceCapabilities {
-            num_bands: 10,
-            global_gain_range: (-16, 6),
-            band_gain_range: (-10.0, 10.0),
-            freq_range: (20, 20000),
-            q_range: (0.1, 10.0),
-            supported_filter_types: FilterTypeFlags(0b0001_1111),
-            supports_per_band_enable: false,
-            dsp_sample_rate: 96000.0,
-            gain_tolerance: 0.15,
-            freq_tolerance: 1,
-            q_tolerance: 0.05,
-        },
+        product_id: Some(0x43E6),
+        status: "Tested",
+        family: "Walkplay Family",
+        caps: SAVITECH_10_BAND_CAPS,
     },
     DeviceProfile {
         name: "TRN Black Pearl",
+        protocol: DeviceProtocol::Walkplay,
         vendor_id: 0x3302,
-        product_id: 0x43E8,
-        caps: DeviceCapabilities {
-            num_bands: 10,
-            global_gain_range: (-16, 6),
-            band_gain_range: (-10.0, 10.0),
-            freq_range: (20, 20000),
-            q_range: (0.1, 10.0),
-            supported_filter_types: FilterTypeFlags(0b0001_1111),
-            supports_per_band_enable: false,
-            dsp_sample_rate: 96000.0,
-            gain_tolerance: 0.15,
-            freq_tolerance: 1,
-            q_tolerance: 0.05,
-        },
+        product_id: Some(0x43E8),
+        status: "Tested",
+        family: "Walkplay Family",
+        caps: SAVITECH_10_BAND_CAPS,
+    },
+    DeviceProfile {
+        name: "Audiocular Aura",
+        protocol: DeviceProtocol::Walkplay,
+        vendor_id: 0x3302,
+        product_id: None,
+        status: "Untested",
+        family: "Walkplay Family",
+        caps: SAVITECH_10_BAND_CAPS,
+    },
+    DeviceProfile {
+        name: "Fosi Audio DS2 / iBasso DC04 Pro",
+        protocol: DeviceProtocol::Walkplay,
+        vendor_id: 0x262A,
+        product_id: None,
+        status: "Untested",
+        family: "Walkplay Family",
+        caps: SAVITECH_10_BAND_CAPS,
+    },
+    DeviceProfile {
+        name: "JCally JM20 / Savitech Generic",
+        protocol: DeviceProtocol::Walkplay,
+        vendor_id: 0x0661,
+        product_id: None,
+        status: "Untested",
+        family: "Walkplay Family",
+        caps: SAVITECH_10_BAND_CAPS,
+    },
+    DeviceProfile {
+        name: "JCally JM20 Pro / Alt Savitech",
+        protocol: DeviceProtocol::Walkplay,
+        vendor_id: 0x0666,
+        product_id: None,
+        status: "Untested",
+        family: "Walkplay Family",
+        caps: SAVITECH_10_BAND_CAPS,
     },
     DeviceProfile {
         name: "Moondrop Dawn Pro",
+        protocol: DeviceProtocol::Walkplay,
         vendor_id: 0x2FC6,
-        product_id: 0xDF30,
+        product_id: Some(0xDF30),
+        status: "Untested",
+        family: "Walkplay Family",
         caps: DeviceCapabilities {
             num_bands: 8,
             global_gain_range: (-20, 0),
@@ -210,8 +245,11 @@ pub const PROFILES: &[DeviceProfile] = &[
     },
     DeviceProfile {
         name: "Truthear KEYX",
+        protocol: DeviceProtocol::Walkplay,
         vendor_id: 0x0D8C,
-        product_id: 0x0210,
+        product_id: Some(0x0210),
+        status: "Untested",
+        family: "Walkplay Family",
         caps: DeviceCapabilities {
             num_bands: 8,
             global_gain_range: (-20, 0),

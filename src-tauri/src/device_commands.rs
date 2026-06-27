@@ -5,7 +5,8 @@ use crate::diagnostics::{self, DiagnosticsStore, LogLevel, LogSource};
 use crate::state::{ConnectedDevice, DeviceState};
 use glacier_core::device::timing::ReadTiming;
 use glacier_core::device::{
-    get_device_profile, get_supported_device, DeviceCapabilities, DeviceInfo, WalkplayProtocol,
+    get_device_profile, get_supported_device, DeviceCapabilities, DeviceInfo, DeviceProtocol,
+    WalkplayProtocol,
 };
 use glacier_core::eq::{Filter, PEQData};
 use std::collections::HashSet;
@@ -27,6 +28,38 @@ const WRITE_ATTEMPTS: usize = 3;
 struct OperationProgress {
     message: String,
     percentage: f32,
+}
+
+#[derive(Clone, serde::Serialize)]
+pub struct SupportedDeviceInfo {
+    name: &'static str,
+    protocol: &'static str,
+    vendor_id: u16,
+    product_id: Option<u16>,
+    status: &'static str,
+    family: &'static str,
+}
+
+fn protocol_name(protocol: DeviceProtocol) -> &'static str {
+    match protocol {
+        DeviceProtocol::Walkplay => "Walkplay",
+    }
+}
+
+fn supports_walkplay_utilities(connected: &ConnectedDevice) -> bool {
+    // These utility registers are only proven on 0x3302 Walkplay devices.
+    // Other Walkplay DACs still get EQ support, but not these hardware controls.
+    get_device_profile(connected.vendor_id, connected.product_id)
+        .is_some_and(|profile| profile.protocol == DeviceProtocol::Walkplay)
+        && connected.vendor_id == 0x3302
+}
+
+fn ensure_eq_protocol(profile: &glacier_core::device::DeviceProfile) -> Result<(), String> {
+    // This match is the dispatch tripwire for future protocols: adding one
+    // should fail compilation here until its EQ read/write path exists.
+    match profile.protocol {
+        DeviceProtocol::Walkplay => Ok(()),
+    }
 }
 
 fn emit_progress(app: &tauri::AppHandle, message: &str, percentage: f32) {
@@ -126,6 +159,7 @@ pub async fn get_eq_state(
                 connected.vendor_id, connected.product_id
             )
         })?;
+    ensure_eq_protocol(profile)?;
     let caps = &profile.caps;
 
     diagnostics::log(
@@ -269,6 +303,19 @@ fn rollback_state(
     Ok(())
 }
 
+fn write_eq_to_ram(
+    app: &tauri::AppHandle,
+    connected: &ConnectedDevice,
+    peq: &PEQData,
+    caps: &DeviceCapabilities,
+) -> Result<(), String> {
+    emit_progress(app, "Initializing push connection...", 10.0);
+    run_init_sequence(app, &connected.path)?;
+    write_filters(app, &connected.path, peq, caps.dsp_sample_rate)?;
+    emit_progress(app, "Writing preamp...", 75.0);
+    write_global_gain(app, &connected.path, peq.global_gain as i8)
+}
+
 #[tauri::command]
 pub async fn set_eq_state(
     app: tauri::AppHandle,
@@ -284,6 +331,7 @@ pub async fn set_eq_state(
                 connected.vendor_id, connected.product_id
             )
         })?;
+    ensure_eq_protocol(profile)?;
     let caps = &profile.caps;
 
     let peq = normalize_for_push(peq, &caps);
@@ -324,35 +372,13 @@ pub async fn set_eq_state(
         format!("Pushing EQ to {}...", connected.profile_name),
     );
 
-    emit_progress(&app, "Initializing push connection...", 10.0);
-    if let Err(error) = run_init_sequence(&app, &connected.path) {
+    if let Err(error) = write_eq_to_ram(&app, &connected, &peq, caps) {
         diagnostics::log(
             LogLevel::Error,
             &app,
             &diagnostics_store,
             LogSource::HID,
-            format!("Init write failed: {error}"),
-        );
-        return Err(error);
-    }
-    if let Err(error) = write_filters(&app, &connected.path, &peq, caps.dsp_sample_rate) {
-        diagnostics::log(
-            LogLevel::Error,
-            &app,
-            &diagnostics_store,
-            LogSource::HID,
-            format!("Filters write failed: {error}"),
-        );
-        return Err(error);
-    }
-    emit_progress(&app, "Writing preamp...", 75.0);
-    if let Err(error) = write_global_gain(&app, &connected.path, peq.global_gain as i8) {
-        diagnostics::log(
-            LogLevel::Error,
-            &app,
-            &diagnostics_store,
-            LogSource::HID,
-            format!("Global gain write failed: {error}"),
+            format!("RAM write failed: {error}"),
         );
         return Err(error);
     }
@@ -495,6 +521,44 @@ pub async fn set_eq_state(
 }
 
 #[tauri::command]
+pub async fn apply_eq_state(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Mutex<DeviceState>>,
+    diagnostics_store: tauri::State<'_, Mutex<DiagnosticsStore>>,
+    peq: PEQData,
+) -> Result<(), String> {
+    let connected = connected_device(&state)?;
+    let profile =
+        get_device_profile(connected.vendor_id, connected.product_id).ok_or_else(|| {
+            format!(
+                "No profile registered for {:04X}:{:04X}",
+                connected.vendor_id, connected.product_id
+            )
+        })?;
+    ensure_eq_protocol(profile)?;
+    let caps = &profile.caps;
+    let peq = normalize_for_push(peq, caps);
+
+    diagnostics::log(
+        LogLevel::Info,
+        &app,
+        &diagnostics_store,
+        LogSource::HID,
+        format!("Applying EQ to {} RAM...", connected.profile_name),
+    );
+    write_eq_to_ram(&app, &connected, &peq, caps)?;
+    diagnostics::log(
+        LogLevel::Info,
+        &app,
+        &diagnostics_store,
+        LogSource::HID,
+        "RAM apply successful",
+    );
+    emit_progress(&app, "Apply successful", 100.0);
+    Ok(())
+}
+
+#[tauri::command]
 pub async fn list_devices(app: tauri::AppHandle) -> Result<Vec<DeviceInfo>, String> {
     let hid = app.hid();
     let devices = hid.enumerate().map_err(|error| error.to_string())?;
@@ -520,6 +584,21 @@ pub async fn list_devices(app: tauri::AppHandle) -> Result<Vec<DeviceInfo>, Stri
         .collect();
 
     Ok(compatible)
+}
+
+#[tauri::command]
+pub fn list_supported_devices() -> Vec<SupportedDeviceInfo> {
+    glacier_core::device::SUPPORTED_DEVICES
+        .iter()
+        .map(|device| SupportedDeviceInfo {
+            name: device.name,
+            protocol: protocol_name(device.protocol),
+            vendor_id: device.vendor_id,
+            product_id: device.product_id,
+            status: device.status,
+            family: device.family,
+        })
+        .collect()
 }
 
 #[tauri::command]
@@ -1059,7 +1138,7 @@ pub async fn get_dac_utility_state(
         }
     };
 
-    if connected.vendor_id != 0x3302 {
+    if !supports_walkplay_utilities(&connected) {
         return Ok(DacUtilityState {
             supported: false,
             filter_mode: "FAST-LL".to_string(),
@@ -1244,6 +1323,7 @@ pub async fn reset_device_eq(
                 connected.vendor_id, connected.product_id
             )
         })?;
+    ensure_eq_protocol(profile)?;
     let caps = &profile.caps;
     let peq = PEQData {
         filters: (0..caps.num_bands)
