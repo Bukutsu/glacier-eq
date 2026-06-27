@@ -325,26 +325,113 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   flex: 1;
 }
 
+/* ── Diagnostics Panel ── */
 .diag-card, .supported-list { font-family: var(--font-mono); }
-.diag-card { padding: 12px 14px 14px; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
-.diag-head { display: flex; align-items: center; gap: 10px; color: var(--cyan); }
-.diag-head strong { margin-right: auto; }
-.diag-head button { background: transparent; color: var(--cyan); min-height: 28px; padding: 0 6px; }
-.diag-summary { color: var(--muted); font-size: var(--type-small); border-bottom: 1px solid var(--line); padding-bottom: 8px; }
-.log-box { background: var(--bg-dark); overflow: auto; min-height: 0; flex: 1; padding: 0; outline: 1px solid var(--line-soft); outline-offset: -1px; }
-.log-box p {
-  margin: 0;
-  padding: 9px 8px;
+.diag-card { padding: 12px 14px 10px; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+
+/* Header row */
+.diag-head { display: flex; align-items: center; gap: 6px; color: var(--cyan); min-height: 28px; }
+.diag-head strong { margin-right: 4px; letter-spacing: 0.06em; font-size: var(--type-small); }
+.diag-head button {
+  background: transparent; border: none; color: var(--muted);
+  cursor: pointer; padding: 2px 4px; display: flex; align-items: center;
+  border-radius: 4px; transition: color 0.15s, background 0.15s;
+}
+.diag-head button:hover { color: var(--text); background: var(--line-soft); }
+
+/* Level count badges */
+.diag-badge {
+  font-size: 10px; font-weight: 700; padding: 1px 6px;
+  border-radius: 20px; letter-spacing: 0.04em; line-height: 18px;
+  background: var(--line-soft);
+}
+.diag-badge-error { color: var(--red);    background: color-mix(in srgb, var(--red)   10%, transparent); }
+.diag-badge-warn  { color: var(--orange); background: color-mix(in srgb, var(--orange) 10%, transparent); }
+.diag-badge-info  { color: var(--cyan);   background: color-mix(in srgb, var(--cyan)   10%, transparent); }
+
+/* Filter toolbar */
+.diag-filters {
+  display: flex; align-items: center; gap: 4px;
+  flex-wrap: wrap;
+}
+.diag-filter-btn {
+  font-family: var(--font-mono); font-size: 11px;
+  padding: 2px 8px; border-radius: 20px;
+  background: transparent; border: 1px solid var(--line-soft);
+  color: var(--muted); cursor: pointer; transition: all 0.15s;
+}
+.diag-filter-btn:hover          { border-color: var(--cyan); color: var(--text); }
+.diag-filter-btn.active         { background: var(--cyan); border-color: var(--cyan); color: var(--bg-dark); }
+.diag-filter-btn.diag-filter-error.active { background: var(--red);    border-color: var(--red);    color: #fff; }
+.diag-filter-btn.diag-filter-warn.active  { background: var(--orange); border-color: var(--orange); color: #fff; }
+.diag-filter-btn.diag-filter-info.active  { background: var(--cyan);   border-color: var(--cyan);   color: var(--bg-dark); }
+
+.diag-search {
+  flex: 1; min-width: 80px;
+  background: var(--bg-dark); border: 1px solid var(--line-soft);
+  color: var(--text); font-family: var(--font-mono); font-size: 11px;
+  padding: 2px 8px; border-radius: 20px; outline: none;
+  transition: border-color 0.15s;
+}
+.diag-search:focus { border-color: var(--cyan); }
+.diag-search::-webkit-search-cancel-button { cursor: pointer; }
+
+.diag-autoscroll-btn {
+  background: transparent; border: 1px solid var(--line-soft);
+  border-radius: 4px; color: var(--muted); cursor: pointer;
+  padding: 2px 4px; display: flex; align-items: center;
+  transition: all 0.15s;
+}
+.diag-autoscroll-btn.active { border-color: var(--cyan); color: var(--cyan); }
+.diag-autoscroll-btn:hover  { border-color: var(--text); color: var(--text); }
+
+/* Export status banner */
+.diag-export-status {
+  font-size: var(--type-small); color: var(--cyan);
+  background: color-mix(in srgb, var(--cyan) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--cyan) 30%, transparent);
+  border-radius: 4px; padding: 4px 10px;
+  animation: fadeIn 0.2s ease;
+}
+
+/* Log box */
+.log-box {
+  background: var(--bg-dark); overflow-y: auto; min-height: 0; flex: 1;
+  padding: 0; outline: 1px solid var(--line-soft); outline-offset: -1px;
+  scroll-behavior: smooth;
+}
+.log-box p.log-line {
+  margin: 0; padding: 5px 8px;
+  display: grid;
+  grid-template-columns: 88px 18px 54px 1fr;
+  gap: 6px; align-items: start;
   color: var(--muted);
   font-size: var(--type-small);
-  display: grid;
-  grid-template-columns: 98px 42px 1fr;
-  gap: 8px;
   font-family: var(--font-mono);
+  border-bottom: 1px solid transparent;
+  transition: background 0.1s;
 }
-.log-box p:nth-child(odd) { background: var(--panel); }
+.log-box p.log-line:hover { background: var(--line-soft); }
+.log-box p.log-line:nth-child(even) { background: var(--panel); }
+.log-box p.log-line:nth-child(even):hover { background: var(--line-soft); }
 .log-box p.log-line-error { color: var(--red); }
-.log-box p.log-line-warn { color: var(--orange); }
+.log-box p.log-line-error .log-source { color: inherit !important; filter: brightness(0.8); }
+.log-box p.log-line-warn  { color: var(--orange); }
+
+.log-ts   { color: var(--muted); flex-shrink: 0; }
+.log-level-icon { display: flex; align-items: center; }
+.log-level-icon .material-icons { font-size: 14px; }
+.log-source { font-weight: 600; font-size: 10px; letter-spacing: 0.04em; white-space: nowrap; padding-top: 1px; }
+.log-msg    { word-break: break-word; white-space: pre-wrap; }
+
+.diag-empty { padding: 14px; color: var(--muted); font-size: var(--type-small); text-align: center; }
+
+/* Footer count line */
+.diag-footer {
+  font-size: 10px; color: var(--muted); text-align: right;
+  padding-top: 2px; letter-spacing: 0.03em;
+}
+
 
 /* Import Flow Inline UI */
 .import-flow {
