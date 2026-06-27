@@ -111,8 +111,6 @@ pub fn run() {
             diagnostics::get_diagnostics,
             diagnostics::clear_diagnostics,
             diagnostics::add_diagnostic_event,
-            diagnostics::export_diagnostics_log,
-            diagnostics::get_diagnostics_log_path,
             save_text_file,
             get_linux_color_scheme,
         ])
