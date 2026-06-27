@@ -5,46 +5,15 @@
 
 use crate::device::timing::WriteTiming;
 use crate::device::walkplay::{
-    compute_iir_filter, convert_to_2byte_array, parse_filter_packet, CMD_FLASH_EQ, CMD_GLOBAL_GAIN,
-    CMD_PEQ_VALUES, CMD_TEMP_WRITE, CMD_VERSION, CMD_FILTER_MODE, CMD_AMP_MODE, CMD_GAIN_MODE,
-    CMD_MIC_VOLUME, CMD_BALANCE, CMD_FACTORY_RESET, CONST_FLASH_EQ_LEN, CONST_GLOBAL_GAIN_LEN,
-    CONST_PEQ_PAYLOAD_LEN, CONST_TEMP_WRITE_LEN, CONST_TEMP_WRITE_MAGIC_A,
+    compute_iir_filter, convert_to_2byte_array, parse_filter_packet, CMD_AMP_MODE, CMD_BALANCE,
+    CMD_FACTORY_RESET, CMD_FILTER_MODE, CMD_FLASH_EQ, CMD_GAIN_MODE, CMD_GLOBAL_GAIN,
+    CMD_MIC_VOLUME, CMD_PEQ_VALUES, CMD_TEMP_WRITE, CMD_VERSION, CONST_FLASH_EQ_LEN,
+    CONST_GLOBAL_GAIN_LEN, CONST_PEQ_PAYLOAD_LEN, CONST_TEMP_WRITE_LEN, CONST_TEMP_WRITE_MAGIC_A,
     CONST_TEMP_WRITE_MAGIC_B, END, FILTER_RESPONSE_MIN_LEN, FILTER_SLOT,
     GLOBAL_GAIN_RESPONSE_MIN_LEN, OFFSET_CMD, OFFSET_CMD_TYPE, OFFSET_GAIN_VALUE, OFFSET_INDEX,
     OFFSET_NONCE, READ, REPORT_ID, WRITE,
 };
 use crate::eq::{Filter, PEQData};
-use crate::error::{AppError, ErrorKind, Result};
-
-/// A standard HID report framer that prepends a Report ID byte and pads outgoing frames to 65 bytes.
-pub struct HidPacketFramer {
-    report_id: u8,
-}
-
-impl HidPacketFramer {
-    pub fn new(report_id: u8) -> Self {
-        Self { report_id }
-    }
-
-    pub fn frame_packet(&self, payload: &[u8]) -> Vec<u8> {
-        let mut buf = vec![0u8; 65];
-        buf[0] = self.report_id;
-        let len = payload.len().min(64);
-        buf[1..1 + len].copy_from_slice(&payload[..len]);
-        buf
-    }
-
-    pub fn unframe_packet(&self, framed: &[u8]) -> Result<Vec<u8>> {
-        if framed.is_empty() {
-            return Err(AppError::new(
-                ErrorKind::Unknown,
-                "Received empty framed packet",
-            ));
-        }
-        let offset = if framed[0] == self.report_id { 1 } else { 0 };
-        Ok(framed[offset..].to_vec())
-    }
-}
 
 /// Walkplay protocol — all methods are associated functions, no instance state.
 pub struct WalkplayProtocol;
@@ -204,15 +173,19 @@ impl WalkplayProtocol {
         }
     }
 
-    pub fn framer() -> HidPacketFramer {
-        HidPacketFramer::new(Self::report_id())
-    }
-
     pub fn frame_packet(payload: &[u8]) -> Vec<u8> {
-        Self::framer().frame_packet(payload)
+        let mut buf = vec![0u8; 65];
+        buf[0] = Self::report_id();
+        let len = payload.len().min(64);
+        buf[1..1 + len].copy_from_slice(&payload[..len]);
+        buf
     }
 
-    pub fn unframe_packet(framed: &[u8]) -> Result<Vec<u8>> {
-        Self::framer().unframe_packet(framed)
+    pub fn unframe_packet(framed: &[u8]) -> Result<Vec<u8>, String> {
+        if framed.is_empty() {
+            return Err("Received empty framed packet".to_string());
+        }
+        let offset = if framed[0] == Self::report_id() { 1 } else { 0 };
+        Ok(framed[offset..].to_vec())
     }
 }

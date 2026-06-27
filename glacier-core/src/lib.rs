@@ -10,7 +10,6 @@
 pub mod autoeq;
 pub mod device;
 pub mod eq;
-pub mod error;
 
 // Logging is configured by the application binary, not this crate.
 
@@ -21,4 +20,3 @@ pub use device::{
 };
 pub use eq::constants::*;
 pub use eq::{snap_freq_to_iso, snap_gain_step, snap_q_to_iso, Filter, FilterType, PEQData};
-pub use error::{AppError, ErrorKind, Result};
