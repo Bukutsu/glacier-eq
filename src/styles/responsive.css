@@ -1,3 +1,9 @@
+@media (max-width: 1591px) {
+  .bands-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 1440px) {
   .custom-number-input.band-freq-stepper .stepper-btn,
   .custom-number-input.band-gain-stepper .stepper-btn,
