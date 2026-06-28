@@ -1163,7 +1163,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "glacier-eq"\nversion = "0.1.6"
+name = "glacier-eq"
+version = "0.1.6"
 dependencies = [
  "chrono",
  "glacier-core",
