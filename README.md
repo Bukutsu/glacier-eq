@@ -133,4 +133,4 @@ scripts/            Helper scripts
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+GPL-3.0-only. See [LICENSE](LICENSE).
