@@ -17,6 +17,19 @@ const TYPE_LABELS: Record<FilterType, string> = {
   LowPass: "LP",
 };
 
+// ISO 1/3 octave standard frequencies (20 Hz – 20 kHz)
+const ISO_FREQUENCIES = [
+  20, 25, 31, 40, 50, 63, 80, 100, 125, 160, 200, 250, 315, 400, 500,
+  630, 800, 1000, 1250, 1600, 2000, 2500, 3150, 4000, 5000, 6300, 8000,
+  10000, 12500, 16000, 20000,
+];
+
+function snapToIsoFreq(freq: number): number {
+  return ISO_FREQUENCIES.reduce((prev, curr) =>
+    Math.abs(curr - freq) < Math.abs(prev - freq) ? curr : prev
+  );
+}
+
 function filterColorStyle(index: number) {
   const [color, rgb] = filterColorVars(index);
   return {
@@ -32,6 +45,7 @@ interface BandsProps {
   onStartChange: () => void;
   activeBandIndex?: number | null;
   onActiveBandChange?: (index: number) => void;
+  snapToIso?: boolean;
 }
 
 function freqToSlider(freq: number) {
@@ -46,7 +60,7 @@ function sliderToFreq(value: number) {
   return Math.round(10 ** (min + (value / FREQ_SLIDER_STEPS) * (max - min)));
 }
 
-export function Bands({ peq, maxBands, onFilterChange, onStartChange, activeBandIndex, onActiveBandChange }: BandsProps) {
+export function Bands({ peq, maxBands, onFilterChange, onStartChange, activeBandIndex, onActiveBandChange, snapToIso }: BandsProps) {
   const availableFilters = peq.filters.slice(0, maxBands);
   const visibleFilters = availableFilters.filter((filter) => filter.enabled);
   const canAddFilter = visibleFilters.length < availableFilters.length;
@@ -89,6 +103,7 @@ export function Bands({ peq, maxBands, onFilterChange, onStartChange, activeBand
                 onActivate={() => onActiveBandChange?.(filter.index)}
                 canRemove={visibleFilters.length > 1}
                 onRemove={() => onFilterChange(filter.index, { ...filter, enabled: false })}
+                snapToIso={snapToIso}
               />
             ))}
             {columnIndex === columns.length - 1 && (
@@ -154,6 +169,7 @@ export function Bands({ peq, maxBands, onFilterChange, onStartChange, activeBand
               onChange={(updated) => onFilterChange(selectedFilter.index, updated)}
               onStartChange={onStartChange}
               onActivate={() => onActiveBandChange?.(selectedFilter.index)}
+              snapToIso={snapToIso}
             />
           </div>
         </section>
@@ -170,6 +186,7 @@ function BandRow({
   onActivate,
   canRemove,
   onRemove,
+  snapToIso,
 }: {
   filter: Filter;
   active: boolean;
@@ -178,6 +195,7 @@ function BandRow({
   onActivate: () => void;
   canRemove: boolean;
   onRemove: () => void;
+  snapToIso?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -215,7 +233,7 @@ function BandRow({
       >
         <Icon>remove</Icon>
       </button>
-      <BandControls filter={filter} onChange={onChange} onStartChange={onStartChange} onActivate={onActivate} />
+      <BandControls filter={filter} onChange={onChange} onStartChange={onStartChange} onActivate={onActivate} snapToIso={snapToIso} />
     </div>
   );
 }
@@ -225,11 +243,13 @@ function BandControls({
   onChange,
   onStartChange,
   onActivate,
+  snapToIso,
 }: {
   filter: Filter;
   onChange: (filter: Filter) => void;
   onStartChange: () => void;
   onActivate: () => void;
+  snapToIso?: boolean;
 }) {
   return (
     <>
@@ -254,7 +274,10 @@ function BandControls({
             tone={filter.index >= 5 ? "orange" : "blue"}
             onStartChange={onStartChange}
             onFocus={onActivate}
-            onChange={(event) => onChange({ ...filter, freq: sliderToFreq(+event.target.value) })}
+            onChange={(event) => {
+              const raw = sliderToFreq(+event.target.value);
+              onChange({ ...filter, freq: snapToIso ? snapToIsoFreq(raw) : raw });
+            }}
           />
           <NumberInput
             value={filter.freq}
@@ -266,7 +289,7 @@ function BandControls({
               onActivate();
               onStartChange();
             }}
-            onChange={(val) => onChange({ ...filter, freq: val })}
+            onChange={(val) => onChange({ ...filter, freq: snapToIso ? snapToIsoFreq(val) : val })}
             className="band-freq-stepper"
           />
         </div>

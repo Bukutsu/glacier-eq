@@ -18,6 +18,10 @@ fn default_enable_online_measurements() -> bool {
     false
 }
 
+fn default_snap_to_iso_frequencies() -> bool {
+    true
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Settings {
     pub auto_pull_on_connect: bool,
@@ -28,6 +32,8 @@ pub struct Settings {
     pub show_diagnostics: bool,
     #[serde(default = "default_enable_online_measurements")]
     pub enable_online_measurements: bool,
+    #[serde(default = "default_snap_to_iso_frequencies")]
+    pub snap_to_iso_frequencies: bool,
 }
 
 impl Default for Settings {
@@ -38,6 +44,7 @@ impl Default for Settings {
             theme: default_theme(),
             show_diagnostics: default_show_diagnostics(),
             enable_online_measurements: default_enable_online_measurements(),
+            snap_to_iso_frequencies: default_snap_to_iso_frequencies(),
         }
     }
 }
