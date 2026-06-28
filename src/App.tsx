@@ -315,9 +315,11 @@ const applyAndroidDynamicColors = (prefersDark: boolean) => {
   }
 };
 
+const MOBILE_QUERY = "(max-width: 768px) and (pointer: coarse)";
+
 function App() {
   const [isMobile, setIsMobile] = useState(
-    () => window.matchMedia("(max-width: 768px)").matches,
+    () => window.matchMedia(MOBILE_QUERY).matches,
   );
   const isAndroid =
     typeof navigator !== "undefined" &&
@@ -329,7 +331,7 @@ function App() {
   >("eq");
 
   useEffect(() => {
-    const media = window.matchMedia("(max-width: 768px)");
+    const media = window.matchMedia(MOBILE_QUERY);
     const listener = (e: MediaQueryListEvent) => {
       setIsMobile(e.matches);
     };
@@ -805,6 +807,11 @@ function App() {
     const selected = devices.find((device) => device.path === selectedDevice);
     return selected?.profile_name || selected?.product_string || "Supported DAC";
   }, [devices, selectedDevice]);
+
+  const maxFilterBands = useMemo(() => {
+    const selected = devices.find((device) => device.path === selectedDevice);
+    return selected?.num_bands ?? peq.filters.length;
+  }, [devices, peq.filters.length, selectedDevice]);
 
   const applyProfile = useCallback(
     (profile: Profile) => {
@@ -1356,6 +1363,7 @@ function App() {
                 />
                 <Bands
                   peq={peq}
+                  maxBands={maxFilterBands}
                   onFilterChange={updateFilter}
                   onStartChange={handleStartChange}
                   activeBandIndex={activeBandIndex}
@@ -1578,6 +1586,7 @@ function App() {
             />
             <Bands
               peq={peq}
+              maxBands={maxFilterBands}
               onFilterChange={updateFilter}
               onStartChange={handleStartChange}
               activeBandIndex={activeBandIndex}

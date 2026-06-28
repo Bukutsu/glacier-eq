@@ -38,6 +38,7 @@ pub struct SupportedDeviceInfo {
     product_id: Option<u16>,
     status: &'static str,
     family: &'static str,
+    num_bands: usize,
 }
 
 fn protocol_name(protocol: DeviceProtocol) -> &'static str {
@@ -579,6 +580,7 @@ pub async fn list_devices(app: tauri::AppHandle) -> Result<Vec<DeviceInfo>, Stri
                 manufacturer: device.manufacturer_string.clone(),
                 product_string: device.product_string.clone(),
                 profile_name: Some(profile.name.to_string()),
+                num_bands: profile.caps.num_bands,
             })
         })
         .collect();
@@ -597,6 +599,7 @@ pub fn list_supported_devices() -> Vec<SupportedDeviceInfo> {
             product_id: device.product_id,
             status: device.status,
             family: device.family,
+            num_bands: device.caps.num_bands,
         })
         .collect()
 }
