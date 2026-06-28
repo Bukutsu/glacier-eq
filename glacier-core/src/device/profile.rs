@@ -1,5 +1,5 @@
 // Copyright (c) 2026 Bukutsu
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-only
 
 //! `DeviceProfile` — static identity and capability metadata for a USB DAC model.
 

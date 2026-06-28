@@ -625,6 +625,7 @@ function App() {
   const peqRef = useRef(peq);
   const [lastPushedPeq, setLastPushedPeq] = useState<PEQData | null>(null);
   const [selectedMeasurementId, setSelectedMeasurementId] = useState<string | null>(null);
+  const [activeBandIndex, setActiveBandIndex] = useState<number | null>(null);
 
   useEffect(() => {
     peqRef.current = peq;
@@ -1131,6 +1132,7 @@ function App() {
   }, []);
 
   const updateFilter = useCallback((index: number, updated: Filter) => {
+    setActiveBandIndex(index);
     flashGraphPreview();
     setDirty(true);
     setPeq((previous) => {
@@ -1356,6 +1358,8 @@ function App() {
                   peq={peq}
                   onFilterChange={updateFilter}
                   onStartChange={handleStartChange}
+                  activeBandIndex={activeBandIndex}
+                  onActiveBandChange={setActiveBandIndex}
                 />
               </section>
             )}
@@ -1373,20 +1377,28 @@ function App() {
                   />
                 </section>
 
-                <TargetSelector
-                  targets={allTargets}
-                  activeTargetIds={activeTargetIds}
-                  onToggleTarget={toggleTarget}
-                  onAddTarget={addTarget}
-                  onRemoveTarget={removeTarget}
-                  setStatus={setStatus}
-                />
+                <details className="tuning-card disclosure-card" open>
+                  <summary className="tuning-card-header">
+                    <Icon>track_changes</Icon>
+                    <strong>Targets</strong>
+                  </summary>
+                  <div className="tuning-card-body tuning-card-body-flush">
+                    <TargetSelector
+                      targets={allTargets}
+                      activeTargetIds={activeTargetIds}
+                      onToggleTarget={toggleTarget}
+                      onAddTarget={addTarget}
+                      onRemoveTarget={removeTarget}
+                      setStatus={setStatus}
+                    />
+                  </div>
+                </details>
 
-                <section className="tuning-card card">
-                  <div className="tuning-card-header">
+                <details className="tuning-card disclosure-card" open>
+                  <summary className="tuning-card-header">
                     <Icon>auto_awesome</Icon>
                     <strong>AutoEQ (Tuning Assistant)</strong>
-                  </div>
+                  </summary>
                   <div className="tuning-card-body">
                     <AutoEqTab
                       measurements={measurements}
@@ -1395,14 +1407,14 @@ function App() {
                       setStatus={setStatus}
                     />
                   </div>
-                </section>
+                </details>
 
-                <section className="tuning-card card">
-                  <div className="tuning-card-header">
+                <details className="tuning-card disclosure-card">
+                  <summary className="tuning-card-header">
                     <Icon>analytics</Icon>
                     <strong>Measurement Traces</strong>
-                  </div>
-                  <div className="tuning-card-body" style={{ padding: 0 }}>
+                  </summary>
+                  <div className="tuning-card-body tuning-card-body-flush">
                     <MeasureTab
                       measurements={measurements}
                       onAddMeasurement={addMeasurement}
@@ -1416,7 +1428,7 @@ function App() {
                       }
                     />
                   </div>
-                </section>
+                </details>
               </section>
             )}
             {activeTab === "profiles" && (
@@ -1568,6 +1580,8 @@ function App() {
               peq={peq}
               onFilterChange={updateFilter}
               onStartChange={handleStartChange}
+              activeBandIndex={activeBandIndex}
+              onActiveBandChange={setActiveBandIndex}
             />
           </section>
           <ToolsPanel

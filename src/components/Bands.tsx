@@ -20,6 +20,8 @@ interface BandsProps {
   peq: PEQData;
   onFilterChange: (index: number, filter: Filter) => void;
   onStartChange: () => void;
+  activeBandIndex?: number | null;
+  onActiveBandChange?: (index: number) => void;
 }
 
 function freqToSlider(freq: number) {
@@ -34,7 +36,7 @@ function sliderToFreq(value: number) {
   return Math.round(10 ** (min + (value / FREQ_SLIDER_STEPS) * (max - min)));
 }
 
-export function Bands({ peq, onFilterChange, onStartChange }: BandsProps) {
+export function Bands({ peq, onFilterChange, onStartChange, activeBandIndex, onActiveBandChange }: BandsProps) {
   const [isCollapsed, setIsCollapsed] = useState(() => localStorage.getItem("glacier-bands-collapsed") === "true");
 
   useEffect(() => {
@@ -69,8 +71,10 @@ export function Bands({ peq, onFilterChange, onStartChange }: BandsProps) {
                 <BandRow
                   key={filter.index}
                   filter={filter}
+                  active={activeBandIndex === filter.index}
                   onChange={(updated) => onFilterChange(filter.index, updated)}
                   onStartChange={onStartChange}
+                  onActivate={() => onActiveBandChange?.(filter.index)}
                 />
               ))}
             </div>
@@ -83,22 +87,29 @@ export function Bands({ peq, onFilterChange, onStartChange }: BandsProps) {
 
 function BandRow({
   filter,
+  active,
   onChange,
   onStartChange,
+  onActivate,
 }: {
   filter: Filter;
+  active: boolean;
   onChange: (filter: Filter) => void;
   onStartChange: () => void;
+  onActivate: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className={`band-row ${filter.enabled ? "" : "muted"} ${expanded ? "expanded" : ""}`}>
+    <div className={`band-row ${filter.enabled ? "" : "muted"} ${expanded ? "expanded" : ""} ${active ? "active" : ""}`}>
       <button
         type="button"
         className="band-summary"
         aria-expanded={expanded}
-        onClick={() => setExpanded((value) => !value)}
+        onClick={() => {
+          onActivate();
+          setExpanded((value) => !value);
+        }}
       >
         <strong>{filter.index + 1}</strong>
         <span>{TYPE_LABELS[filter.filter_type]}</span>
@@ -111,6 +122,7 @@ function BandRow({
         className="band-index"
         aria-label={`${filter.enabled ? "Disable" : "Enable"} band ${filter.index + 1}`}
         onClick={() => {
+          onActivate();
           onStartChange();
           onChange({ ...filter, enabled: !filter.enabled });
         }}
@@ -121,6 +133,7 @@ function BandRow({
         <FilterTypeButtons
           filter={filter}
           onChange={(updated) => {
+            onActivate();
             onStartChange();
             onChange(updated);
           }}
@@ -135,8 +148,14 @@ function BandRow({
             step={1}
             value={freqToSlider(filter.freq)}
             tone={filter.index >= 5 ? "orange" : "blue"}
-            onMouseDown={onStartChange}
-            onTouchStart={onStartChange}
+            onMouseDown={() => {
+              onActivate();
+              onStartChange();
+            }}
+            onTouchStart={() => {
+              onActivate();
+              onStartChange();
+            }}
             onChange={(event) => onChange({ ...filter, freq: sliderToFreq(+event.target.value) })}
           />
           <NumberInput
@@ -145,7 +164,10 @@ function BandRow({
             max={FREQ_MAX}
             step={50}
             precision={0}
-            onFocus={onStartChange}
+            onFocus={() => {
+              onActivate();
+              onStartChange();
+            }}
             onChange={(val) => onChange({ ...filter, freq: val })}
             className="band-freq-stepper"
           />
@@ -160,8 +182,14 @@ function BandRow({
             step={0.01}
             value={filter.gain}
             tone={filter.index >= 5 ? "orange" : "blue"}
-            onMouseDown={onStartChange}
-            onTouchStart={onStartChange}
+            onMouseDown={() => {
+              onActivate();
+              onStartChange();
+            }}
+            onTouchStart={() => {
+              onActivate();
+              onStartChange();
+            }}
             onChange={(event) => onChange({ ...filter, gain: +event.target.value })}
           />
           <NumberInput
@@ -170,7 +198,10 @@ function BandRow({
             max={10}
             step={0.1}
             precision={2}
-            onFocus={onStartChange}
+            onFocus={() => {
+              onActivate();
+              onStartChange();
+            }}
             onChange={(val) => onChange({ ...filter, gain: val })}
             className="band-gain-stepper"
           />
@@ -185,8 +216,14 @@ function BandRow({
             step={0.05}
             value={filter.q}
             tone={filter.index >= 5 ? "orange" : "blue"}
-            onMouseDown={onStartChange}
-            onTouchStart={onStartChange}
+            onMouseDown={() => {
+              onActivate();
+              onStartChange();
+            }}
+            onTouchStart={() => {
+              onActivate();
+              onStartChange();
+            }}
             onChange={(event) => onChange({ ...filter, q: +event.target.value })}
           />
           <NumberInput
@@ -195,7 +232,10 @@ function BandRow({
             max={20}
             step={0.05}
             precision={2}
-            onFocus={onStartChange}
+            onFocus={() => {
+              onActivate();
+              onStartChange();
+            }}
             onChange={(val) => onChange({ ...filter, q: val })}
             className="band-q-stepper"
           />

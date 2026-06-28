@@ -1,5 +1,5 @@
 // Copyright (c) 2026 Bukutsu
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-only
 
 //! EQ domain constants: frequency ranges, gain limits, Q-factor bounds, and ISO standard values.
 

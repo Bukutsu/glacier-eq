@@ -35,9 +35,12 @@
     overflow: visible;
   }
   .app-header {
-    flex-direction: column;
-    padding: 18px 16px 14px;
-    gap: 14px;
+    padding: 14px 16px 12px;
+  }
+  .header-main {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+    gap: 10px;
   }
   .title-stack {
     width: 100%;
@@ -55,7 +58,7 @@
   .toolbar {
     width: 100%;
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: auto repeat(3, minmax(0, 1fr)) auto;
     gap: 8px;
   }
   .toolbar .btn {
@@ -105,11 +108,34 @@
   h1 {
     font-size: var(--type-title);
   }
-  .dash {
+  .title-separator {
     display: none;
   }
   .device-name {
     font-size: var(--type-label);
+  }
+  .title-stack {
+    gap: 4px;
+  }
+  .title-line {
+    flex-wrap: nowrap;
+  }
+  .title-line strong {
+    font-size: var(--type-label);
+  }
+  .toolbar {
+    grid-template-columns: 76px repeat(3, minmax(0, 1fr));
+  }
+  .history-buttons {
+    padding: 2px;
+  }
+  .history-btn {
+    min-width: 34px;
+    min-height: 38px;
+    padding: 0 8px;
+  }
+  .history-btn-label {
+    display: none;
   }
   .sync-dot,
   .unsaved {
@@ -395,12 +421,9 @@
     grid-template-columns: 1fr;
   }
   .header-meta-row {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 10px;
-  }
-  .history-controls {
-    justify-content: space-between;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
   }
   .history-buttons {
     flex: none;
@@ -474,7 +497,7 @@
 
 @media (max-width: 560px) {
   .toolbar {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: 76px repeat(3, minmax(0, 1fr));
   }
   .toolbar .btn {
     padding: 0 6px;
@@ -652,6 +675,10 @@
     gap: 12px;
   }
 
+  .tuning-card.disclosure-card {
+    padding: 0;
+  }
+
   .tuning-card-header {
     display: flex;
     align-items: center;
@@ -659,6 +686,7 @@
     font-size: var(--type-label);
     font-weight: 600;
     color: var(--cyan);
+    padding: 14px 18px;
   }
 
   .tuning-card-header .material-symbols-outlined {
@@ -670,6 +698,16 @@
     flex-direction: column;
     gap: 10px;
     width: 100%;
+    padding: 0 18px 14px;
+  }
+
+  .tuning-card-body-flush {
+    padding: 0 0 14px;
+  }
+
+  .tuning-card-body-flush .target-strip {
+    background: transparent;
+    padding-top: 0;
   }
 
   .tuning-card-body p {
