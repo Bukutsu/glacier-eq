@@ -244,9 +244,13 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 
 .import-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .import-grid button {
-  background: var(--bg-dark);
+  background: transparent;
+  color: var(--muted);
+  outline: 1px solid var(--line-medium);
+}
+.import-grid button:hover {
   color: var(--cyan);
-  outline: 1px solid var(--accent-line-outline);
+  outline-color: var(--accent-line-outline);
 }
 .import-grid .icon-action {
   display: inline-flex;

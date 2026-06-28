@@ -19,6 +19,7 @@ import {
 } from "../lib/onlineDb";
 
 const DEFAULT_PROFILE_NAME = "Default EQ";
+const isTauri = () => typeof window !== "undefined" && !!(window as any).__TAURI_INTERNALS__;
 
 interface SelectOption<T extends string | number> {
   value: T;
@@ -1149,6 +1150,11 @@ function SettingsTab({
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!isTauri()) {
+      setLoading(false);
+      return;
+    }
+
     invoke<typeof settings>("get_settings")
       .then((data) => {
         setSettings((prev) => ({ ...prev, ...data }));
@@ -1163,6 +1169,12 @@ function SettingsTab({
   const updateSetting = async (key: string, value: any) => {
     const updated = { ...settings, [key]: value };
     setSettings(updated);
+    if (!isTauri()) {
+      if (key === "theme") onThemeChange?.(value);
+      if (key === "show_diagnostics") onShowDiagnosticsChange?.(value);
+      if (key === "enable_online_measurements") onEnableOnlineMeasurementsChange?.(value);
+      return;
+    }
     try {
       await invoke("save_settings", { settings: updated });
       if (key === "theme") {
@@ -1279,6 +1291,11 @@ function DeviceTab({ setStatus }: { setStatus: (msg: string) => void }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!isTauri()) {
+      setLoading(false);
+      return;
+    }
+
     invoke<any>("get_dac_utility_state")
       .then((data) => {
         setUtility(data);
@@ -1517,6 +1534,8 @@ function DiagnosticsPanel() {
 
   // Load history + subscribe to live events
   useEffect(() => {
+    if (!isTauri()) return;
+
     invoke<DiagnosticEvent[]>("get_diagnostics")
       .then((data) => setEvents(data))
       .catch((err) => console.error("Failed to load diagnostics:", err));

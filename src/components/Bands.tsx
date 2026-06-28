@@ -90,8 +90,23 @@ function BandRow({
   onChange: (filter: Filter) => void;
   onStartChange: () => void;
 }) {
+  const [expanded, setExpanded] = useState(false);
+
   return (
-    <div className={`band-row ${filter.enabled ? "" : "muted"}`}>
+    <div className={`band-row ${filter.enabled ? "" : "muted"} ${expanded ? "expanded" : ""}`}>
+      <button
+        type="button"
+        className="band-summary"
+        aria-expanded={expanded}
+        onClick={() => setExpanded((value) => !value)}
+      >
+        <strong>{filter.index + 1}</strong>
+        <span>{TYPE_LABELS[filter.filter_type]}</span>
+        <span>{filter.freq} Hz</span>
+        <span>{filter.gain.toFixed(2)} dB</span>
+        <span>Q {filter.q.toFixed(2)}</span>
+        <Icon>{expanded ? "expand_less" : "expand_more"}</Icon>
+      </button>
       <button
         className="band-index"
         aria-label={`${filter.enabled ? "Disable" : "Enable"} band ${filter.index + 1}`}

@@ -41,6 +41,7 @@ import "./App.css";
 
 const ANDROID_TOAST_DEDUPE_MS = 2000;
 const DEFAULT_PROFILE_NAME = "Default EQ";
+const isTauri = () => typeof window !== "undefined" && !!(window as any).__TAURI_INTERNALS__;
 
 const sleep = (ms: number) => {
   const isAutomated = typeof navigator !== "undefined" && navigator.webdriver;
@@ -361,7 +362,7 @@ function App() {
         if (androidTheme) {
           applyAndroidDynamicColors(prefersDark);
           resolved = prefersDark ? "tokyo-night" : "catppuccin-latte"; // set data-theme so non-overridden base styles match
-        } else if (!!(window as any).__TAURI_INTERNALS__) {
+        } else if (isTauri()) {
           // On environments like GNOME/Linux, prefers-color-scheme might not propagate instantly,
           // so query the Tauri window theme directly as a primary source of truth if available
           try {
@@ -409,7 +410,7 @@ function App() {
     );
 
     // 2. Tauri window theme change listener (for instant system theme events)
-    if (theme === "auto" && !!(window as any).__TAURI_INTERNALS__) {
+    if (theme === "auto" && isTauri()) {
       let active = true;
       let tauriUnlisten: (() => void) | null = null;
 
@@ -440,7 +441,7 @@ function App() {
     }
 
     // 3. Linux theme change backend event listener (for GNOME/dconf settings portal)
-    if (theme === "auto" && !!(window as any).__TAURI_INTERNALS__) {
+    if (theme === "auto" && isTauri()) {
       let active = true;
       let tauriEventUnlisten: (() => void) | null = null;
 
@@ -483,6 +484,8 @@ function App() {
   }, [theme]);
 
   useEffect(() => {
+    if (!isTauri()) return;
+
     invoke<{
       theme?: string;
       show_diagnostics?: boolean;
@@ -509,6 +512,7 @@ function App() {
   const handleEnableOnlineMeasurementsChange = useCallback(
     async (enable: boolean) => {
       setEnableOnlineMeasurements(enable);
+      if (!isTauri()) return;
       try {
         const current = await invoke<any>("get_settings");
         const updated = { ...current, enable_online_measurements: enable };
@@ -871,6 +875,8 @@ function App() {
   }, [loadProfiles]);
 
   useEffect(() => {
+    if (!isTauri()) return;
+
     let active = true;
     let unlistenFn: (() => void) | null = null;
 
