@@ -1422,7 +1422,7 @@ function App() {
                     <Icon>analytics</Icon>
                     <strong>Measurement Traces</strong>
                   </summary>
-                  <div className="tuning-card-body tuning-card-body-flush">
+                  <div className="tuning-card-body">
                     <MeasureTab
                       measurements={measurements}
                       onAddMeasurement={addMeasurement}

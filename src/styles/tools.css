@@ -334,11 +334,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   overflow: auto;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-}
-
-.measurement-empty,
-.measurement-item {
+  gap: 0;
   background: var(--bg-dark);
   outline: 1px solid var(--line-soft);
   outline-offset: -1px;
@@ -354,14 +350,20 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   display: grid;
   grid-template-columns: minmax(0, 1fr) 36px;
   align-items: center;
+  min-height: 48px;
+  border-bottom: 1px solid var(--line-subtle);
+}
+
+.measurement-item:last-child {
+  border-bottom: 0;
 }
 
 .measurement-toggle {
   min-width: 0;
-  min-height: 52px;
+  min-height: 48px;
   padding: 0 12px;
   display: grid;
-  grid-template-columns: 17px 12px minmax(0, 1fr);
+  grid-template-columns: 17px 12px minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
 }
@@ -373,9 +375,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 
 .measurement-meta {
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+  display: contents;
 }
 
 .measurement-name,
@@ -394,10 +394,11 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 .measurement-points {
   color: var(--comment);
   font-size: var(--type-caption);
+  padding-left: 10px;
 }
 
 .measurement-delete {
-  min-height: 52px !important;
+  min-height: 48px !important;
   padding: 0 !important;
   color: var(--red) !important;
   background: transparent !important;
