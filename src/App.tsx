@@ -315,7 +315,7 @@ const applyAndroidDynamicColors = (prefersDark: boolean) => {
   }
 };
 
-const MOBILE_QUERY = "(max-width: 768px) and (pointer: coarse)";
+const MOBILE_QUERY = "(max-width: 768px) and (min-height: 600px)";
 
 function App() {
   const [isMobile, setIsMobile] = useState(
