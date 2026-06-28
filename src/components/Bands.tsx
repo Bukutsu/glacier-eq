@@ -68,6 +68,7 @@ export function Bands({ peq, maxBands, onFilterChange, onStartChange, activeBand
   const columns = visibleFilters.length > 5
     ? [visibleFilters.slice(0, Math.ceil(visibleFilters.length / 2)), visibleFilters.slice(Math.ceil(visibleFilters.length / 2))]
     : [visibleFilters];
+  const [collapsed, setCollapsed] = useState(false);
   const addFilter = () => {
     const next = availableFilters.find((filter) => !filter.enabled);
     if (!next) return;
@@ -77,16 +78,23 @@ export function Bands({ peq, maxBands, onFilterChange, onStartChange, activeBand
   };
 
   return (
-    <div className="bands-container">
-      <div className="bands-section-header">
+    <div className={`bands-container${collapsed ? " collapsed" : ""}`}>
+      <button
+        type="button"
+        className="bands-section-header"
+        onClick={() => setCollapsed((v) => !v)}
+        aria-expanded={!collapsed}
+        aria-label={collapsed ? "Expand filter bands" : "Collapse filter bands"}
+      >
         <span className="title-text">
           <Icon>tune</Icon>
           <strong>FILTER BANDS</strong>
         </span>
-        <span className="collapse-toggle-btn" aria-hidden="true">
+        <span className="collapse-toggle-btn">
           {visibleFilters.length}/{availableFilters.length}
+          <Icon>{collapsed ? "expand_more" : "expand_less"}</Icon>
         </span>
-      </div>
+      </button>
       <section className="bands-grid">
         {columns.map((bands, columnIndex) => bands.length > 0 && (
           <div className="bands-card" key={columnIndex}>
