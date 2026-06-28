@@ -44,6 +44,7 @@ export interface DeviceInfo {
   manufacturer: string | null;
   product_string: string | null;
   profile_name: string | null;
+  num_bands?: number;
 }
 
 export interface SupportedDeviceInfo {
@@ -53,6 +54,7 @@ export interface SupportedDeviceInfo {
   product_id: number | null;
   status: string;
   family: string;
+  num_bands: number;
 }
 
 export interface Profile {

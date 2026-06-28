@@ -6,7 +6,7 @@ export function buildDefaultState(): PEQData {
     global_gain: 0,
     filters: freqs.map((freq, index) => ({
       index,
-      enabled: true,
+      enabled: index === 0,
       filter_type: "Peak",
       freq,
       gain: 0,

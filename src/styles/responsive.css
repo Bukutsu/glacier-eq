@@ -246,6 +246,17 @@
     overflow: visible;
     background: transparent;
   }
+  .bands-actions {
+    padding-top: 0;
+  }
+  .bands-actions .btn {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
+    background: var(--bg-dark);
+    outline: 1px solid var(--line-medium);
+    outline-offset: -1px;
+  }
   .bands-header {
     display: none;
   }
@@ -604,7 +615,7 @@
     justify-content: center;
     width: 60px;
     height: 32px;
-    border-radius: 16px;
+    border-radius: var(--radius-control);
     transition: background-color 0.15s ease, color 0.15s ease;
     color: var(--muted);
   }

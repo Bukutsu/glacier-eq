@@ -11,4 +11,5 @@ pub struct DeviceInfo {
     pub manufacturer: Option<String>,
     pub product_string: Option<String>,
     pub profile_name: Option<String>,
+    pub num_bands: usize,
 }
