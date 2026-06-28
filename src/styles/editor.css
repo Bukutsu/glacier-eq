@@ -346,13 +346,23 @@
 }
 
 .control-slider-input:focus-visible::-webkit-slider-thumb {
-  outline: 1px solid var(--cyan);
-  outline-offset: 3px;
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+  background: var(--cyan) !important;
 }
 
 .control-slider-input:focus-visible::-moz-range-thumb {
-  outline: 1px solid var(--cyan);
-  outline-offset: 3px;
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+  background: var(--cyan) !important;
+}
+
+.control-slider-input:focus-visible::-webkit-slider-runnable-track {
+  background: rgb(var(--cyan-rgb) / 0.6);
+}
+
+.control-slider-input:focus-visible::-moz-range-track {
+  background: rgb(var(--cyan-rgb) / 0.6);
 }
 
 .gain-cell .control-slider { flex: 1; }

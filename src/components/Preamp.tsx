@@ -35,8 +35,7 @@ export function Preamp({
         max={6}
         step={0.05}
         value={safeValue}
-        onMouseDown={onStartChange}
-        onTouchStart={onStartChange}
+        onStartChange={onStartChange}
         onChange={(event) => onChange(+event.target.value)}
       />
     </section>

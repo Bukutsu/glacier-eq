@@ -252,14 +252,8 @@ function BandControls({
             step={1}
             value={freqToSlider(filter.freq)}
             tone={filter.index >= 5 ? "orange" : "blue"}
-            onMouseDown={() => {
-              onActivate();
-              onStartChange();
-            }}
-            onTouchStart={() => {
-              onActivate();
-              onStartChange();
-            }}
+            onStartChange={onStartChange}
+            onFocus={onActivate}
             onChange={(event) => onChange({ ...filter, freq: sliderToFreq(+event.target.value) })}
           />
           <NumberInput
@@ -286,14 +280,8 @@ function BandControls({
             step={0.01}
             value={filter.gain}
             tone={filter.index >= 5 ? "orange" : "blue"}
-            onMouseDown={() => {
-              onActivate();
-              onStartChange();
-            }}
-            onTouchStart={() => {
-              onActivate();
-              onStartChange();
-            }}
+            onStartChange={onStartChange}
+            onFocus={onActivate}
             onChange={(event) => onChange({ ...filter, gain: +event.target.value })}
           />
           <NumberInput
@@ -320,14 +308,8 @@ function BandControls({
             step={0.05}
             value={filter.q}
             tone={filter.index >= 5 ? "orange" : "blue"}
-            onMouseDown={() => {
-              onActivate();
-              onStartChange();
-            }}
-            onTouchStart={() => {
-              onActivate();
-              onStartChange();
-            }}
+            onStartChange={onStartChange}
+            onFocus={onActivate}
             onChange={(event) => onChange({ ...filter, q: +event.target.value })}
           />
           <NumberInput
