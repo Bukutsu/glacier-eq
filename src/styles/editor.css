@@ -535,14 +535,8 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  cursor: pointer;
   user-select: none;
-  transition: background 0.12s ease;
   color: inherit;
-}
-
-.bands-section-header:hover {
-  background: var(--surface-soft);
 }
 
 .bands-section-header .title-text {
@@ -563,10 +557,22 @@
   color: var(--cyan);
   padding: 0;
   min-height: 32px;
-  width: 32px;
+  min-width: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 6px;
+  font-size: var(--type-small);
+}
+
+.bands-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 12px;
+}
+
+.bands-actions .btn {
+  min-height: 36px;
 }
 
 .band-field {
