@@ -158,6 +158,7 @@
   overflow-x: auto;
   overscroll-behavior-x: contain;
   padding: 2px 0 4px;
+  mask-image: linear-gradient(to right, transparent 0, black 14px, black calc(100% - 14px), transparent 100%);
 }
 
 .target-chip {
@@ -205,6 +206,10 @@
 
 .target-chip-delete .material-symbols-outlined {
   font-size: 16px;
+}
+
+.band-summary {
+  display: none;
 }
 
 .preamp-card {

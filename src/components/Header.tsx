@@ -73,7 +73,8 @@ export function Header({
                 disabled={isBusy || !canUndo}
                 onClick={onUndo}
               >
-                <><span className="material-symbols-outlined">undo</span><span>Undo</span></>
+                <span className="material-symbols-outlined">undo</span>
+                <span className="history-btn-label">Undo</span>
               </button>
               <button
                 type="button"
@@ -83,7 +84,8 @@ export function Header({
                 disabled={isBusy || !canRedo}
                 onClick={onRedo}
               >
-                <><span className="material-symbols-outlined">redo</span><span>Redo</span></>
+                <span className="material-symbols-outlined">redo</span>
+                <span className="history-btn-label">Redo</span>
               </button>
             </div>
           </div>
