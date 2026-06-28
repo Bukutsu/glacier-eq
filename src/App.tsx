@@ -605,7 +605,7 @@ function App() {
   const reportStatus = useCallback((
     level: "Info" | "Warn" | "Error",
     message: string,
-    toastType: "success" | "info" | "warning" | "error" | null = null,
+    toastType: "success" | "info" | "error" | null = null,
     source: "UI" | "Worker" | "HID" | "AutoEQ" | "Device" = "UI",
     statusText: string = message
   ) => {
@@ -613,7 +613,7 @@ function App() {
     invoke("add_diagnostic_event", { level, source, message })
       .catch((err) => console.error("Failed to log diagnostic:", err));
     if (toastType) {
-      showToast(message, toastType === "warning" ? "error" : toastType);
+      showToast(message, toastType);
     }
   }, [showToast]);
 
@@ -853,16 +853,6 @@ function App() {
   }, [devices, selectedDevice]);
 
   const [snapToIso, setSnapToIso] = useState(true);
-
-  // Load snap_to_iso_frequencies from persisted settings on mount
-  useEffect(() => {
-    if (!isTauri()) return;
-    invoke<{ snap_to_iso_frequencies?: boolean }>("get_settings")
-      .then((s) => {
-        if (s.snap_to_iso_frequencies !== undefined) setSnapToIso(s.snap_to_iso_frequencies);
-      })
-      .catch(() => {});
-  }, []);
 
   const applyProfile = useCallback(
     (profile: Profile) => {
