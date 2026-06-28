@@ -63,6 +63,7 @@ const SAVITECH_10_BAND_CAPS: DeviceCapabilities = DeviceCapabilities {
     q_range: (0.1, 10.0),
     supported_filter_types: FilterTypeFlags(0b0001_1111),
     supports_per_band_enable: false,
+    supports_ram_apply: false,
     dsp_sample_rate: 96000.0,
     gain_tolerance: 0.15,
     freq_tolerance: 1,
@@ -237,6 +238,7 @@ pub const PROFILES: &[DeviceProfile] = &[
             q_range: (0.1, 10.0),
             supported_filter_types: FilterTypeFlags(0b0000_0111),
             supports_per_band_enable: false,
+            supports_ram_apply: false,
             dsp_sample_rate: 48000.0,
             gain_tolerance: 0.1,
             freq_tolerance: 1,
@@ -258,6 +260,7 @@ pub const PROFILES: &[DeviceProfile] = &[
             q_range: (0.1, 10.0),
             supported_filter_types: FilterTypeFlags(0b0000_0111),
             supports_per_band_enable: false,
+            supports_ram_apply: false,
             dsp_sample_rate: 48000.0,
             gain_tolerance: 0.1,
             freq_tolerance: 1,
@@ -313,6 +316,13 @@ mod tests {
         assert_eq!(packets.len(), 2);
         assert_eq!(packets[0][1], CMD_TEMP_WRITE);
         assert_eq!(packets[1][1], CMD_FLASH_EQ);
+    }
+
+    #[test]
+    fn build_ram_apply_packets_matches_temp_apply_sequence() {
+        let packets = WalkplayProtocol::build_ram_apply_packets();
+        assert_eq!(packets[0], vec![WRITE, CMD_TEMP_WRITE, CONST_TEMP_WRITE_LEN, 0, 0, 255, 255, END]);
+        assert_eq!(packets[1], vec![WRITE, CMD_FLASH_EQ, END]);
     }
 
     #[test]

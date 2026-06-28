@@ -45,6 +45,7 @@ export interface DeviceInfo {
   product_string: string | null;
   profile_name: string | null;
   num_bands?: number;
+  supports_ram_apply?: boolean;
 }
 
 export interface SupportedDeviceInfo {
@@ -55,6 +56,7 @@ export interface SupportedDeviceInfo {
   status: string;
   family: string;
   num_bands: number;
+  supports_ram_apply: boolean;
 }
 
 export interface Profile {

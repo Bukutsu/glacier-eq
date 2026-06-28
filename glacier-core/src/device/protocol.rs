@@ -131,6 +131,22 @@ impl WalkplayProtocol {
         ]
     }
 
+    pub fn build_ram_apply_packets() -> Vec<Vec<u8>> {
+        vec![
+            vec![
+                WRITE,
+                CMD_TEMP_WRITE,
+                CONST_TEMP_WRITE_LEN,
+                0x00,
+                0x00,
+                CONST_TEMP_WRITE_MAGIC_A,
+                CONST_TEMP_WRITE_MAGIC_B,
+                END,
+            ],
+            vec![WRITE, CMD_FLASH_EQ, END],
+        ]
+    }
+
     pub fn build_utility_read_request(cmd: u8) -> Vec<u8> {
         vec![READ, cmd, END]
     }
