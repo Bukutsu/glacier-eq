@@ -126,21 +126,16 @@
     padding-right: 10px;
   }
   .graph-card {
-    height: clamp(268px, 42dvh, 340px);
-    min-height: 268px;
+    height: clamp(230px, 34dvh, 300px);
+    min-height: 230px;
     padding: 10px 8px 8px;
   }
   .eq-graph-shell,
   .eq-canvas {
-    min-height: 248px;
+    min-height: 210px;
   }
   .graph-legend {
-    top: 8px;
-    left: 8px;
-    right: 8px;
-    max-width: none;
-    flex-flow: row wrap;
-    gap: 5px;
+    display: none;
   }
   .graph-legend-item {
     min-height: 22px;
@@ -234,6 +229,7 @@
     padding: 12px;
     grid-template-columns: 52px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
     grid-template-areas:
+      "summary summary summary summary"
       "index type type type"
       "freq freq q q"
       "gain gain gain gain";
@@ -242,6 +238,36 @@
     outline: 1px solid var(--line-medium);
     outline-offset: -1px;
     border-bottom: 0;
+  }
+  .band-summary {
+    grid-area: summary;
+    min-height: 44px;
+    padding: 0 10px;
+    display: grid;
+    grid-template-columns: 34px auto 1fr auto auto 24px;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface-soft);
+    color: var(--text);
+    font-size: var(--type-label);
+    text-align: left;
+  }
+  .band-summary strong {
+    color: var(--cyan);
+    font-size: var(--type-subtitle);
+  }
+  .band-summary span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .band-row:not(.expanded) {
+    padding: 8px;
+  }
+  .band-row:not(.expanded) .band-index,
+  .band-row:not(.expanded) .band-field {
+    display: none;
   }
   .band-row.muted {
     opacity: .6;
@@ -575,7 +601,7 @@
 
   /* Spacing to prevent overlay collision with fixed tab bar */
   .workspace.mobile-workspace {
-    padding-bottom: max(94px, calc(86px + var(--safe-area-bottom, 0px))) !important;
+    padding-bottom: max(112px, calc(104px + var(--safe-area-bottom, 0px))) !important;
     display: flex;
     flex-direction: column;
   }
@@ -592,8 +618,8 @@
     left: 12px;
     right: 12px;
     top: calc(74px + var(--safe-area-top, 0px));
-    height: min(26vh, 210px);
-    min-height: 150px;
+    height: min(22vh, 180px);
+    min-height: 132px;
     z-index: 90;
     padding: 8px;
     background: rgb(var(--bg-dark-rgb) / 0.78);
@@ -606,6 +632,9 @@
   .mobile-graph-preview .eq-graph-shell,
   .mobile-graph-preview .eq-canvas {
     min-height: 100%;
+  }
+  .mobile-graph-preview .graph-legend {
+    display: none;
   }
 
   .mobile-workspace .left-pane,
