@@ -39,6 +39,7 @@ pub struct SupportedDeviceInfo {
     status: &'static str,
     family: &'static str,
     num_bands: usize,
+    supports_ram_apply: bool,
 }
 
 fn protocol_name(protocol: DeviceProtocol) -> &'static str {
@@ -333,6 +334,12 @@ pub async fn set_eq_state(
             )
         })?;
     ensure_eq_protocol(profile)?;
+    if !profile.caps.supports_ram_apply {
+        return Err(format!(
+            "{} does not advertise volatile RAM apply support.",
+            profile.name
+        ));
+    }
     let caps = &profile.caps;
 
     let peq = normalize_for_push(peq, &caps);
@@ -548,6 +555,7 @@ pub async fn apply_eq_state(
         format!("Applying EQ to {} RAM...", connected.profile_name),
     );
     write_eq_to_ram(&app, &connected, &peq, caps)?;
+    apply_ram_changes(&app, &connected.path)?;
     diagnostics::log(
         LogLevel::Info,
         &app,
@@ -581,6 +589,7 @@ pub async fn list_devices(app: tauri::AppHandle) -> Result<Vec<DeviceInfo>, Stri
                 product_string: device.product_string.clone(),
                 profile_name: Some(profile.name.to_string()),
                 num_bands: profile.caps.num_bands,
+                supports_ram_apply: profile.caps.supports_ram_apply,
             })
         })
         .collect();
@@ -600,6 +609,7 @@ pub fn list_supported_devices() -> Vec<SupportedDeviceInfo> {
             status: device.status,
             family: device.family,
             num_bands: device.caps.num_bands,
+            supports_ram_apply: device.caps.supports_ram_apply,
         })
         .collect()
 }
@@ -986,6 +996,14 @@ fn write_global_gain(app: &tauri::AppHandle, path: &str, global_gain: i8) -> Res
 fn commit_changes(app: &tauri::AppHandle, path: &str) -> Result<(), String> {
     for packet in WalkplayProtocol::build_commit_packets() {
         send_packet(app, path, &packet).map_err(|error| format!("Commit write failed: {error}"))?;
+        sleep_ms(WalkplayProtocol::write_timing().commit_step_ms as u64);
+    }
+    Ok(())
+}
+
+fn apply_ram_changes(app: &tauri::AppHandle, path: &str) -> Result<(), String> {
+    for packet in WalkplayProtocol::build_ram_apply_packets() {
+        send_packet(app, path, &packet).map_err(|error| format!("RAM apply write failed: {error}"))?;
         sleep_ms(WalkplayProtocol::write_timing().commit_step_ms as u64);
     }
     Ok(())
