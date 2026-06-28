@@ -2,23 +2,11 @@ import { useCallback, useEffect, useRef } from "react";
 import { bandResponse, dbToY, formatFreq, freqToX, xToFreq } from "../lib/graph";
 import { cssVar, rgbWithAlpha } from "../lib/theme";
 import { interpolateMeasurementDb } from "../lib/measurements";
+import { filterColorVars } from "../lib/filterColors";
 import type { GraphViewMode, MeasurementTrace, PEQData, TargetTrace } from "../types";
 
 const GRAPH_FREQS = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
 const GRAPH_DBS = [-15, -10, -5, 0, 5, 10, 15];
-const FILTER_DOT_COLORS = [
-  ["--blue", "#7aa2f7"],
-  ["--green", "#9ece6a"],
-  ["--orange", "#ff9e64"],
-  ["--yellow", "#e0af68"],
-  ["--red", "#f7768e"],
-  ["--purple", "#bb9af7"],
-  ["--teal", "#73daca"],
-  ["--dark-cyan", "#2ac3de"],
-  ["--bright-cyan", "#b4f9f8"],
-  ["--cyan", "#7dcfff"],
-] as const;
-
 export function EqGraph({
   peq,
   committedPeq,
@@ -361,7 +349,7 @@ function drawFilterDots(
       ? responseAt(peq, filter.freq, viewMode, selectedMeasurement, measurementOffset)
       : filter.gain;
     const y = dbToY(dotDb, height);
-    const [token, fallback] = FILTER_DOT_COLORS[filter.index % FILTER_DOT_COLORS.length];
+    const [token, , fallback] = filterColorVars(filter.index);
     const color = cssVar(token, fallback);
 
     ctx.beginPath();

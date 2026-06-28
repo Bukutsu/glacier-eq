@@ -218,9 +218,9 @@
   .preamp-card {
     grid-template-columns: 1fr;
     height: auto;
-    min-height: 76px;
-    padding: 12px 14px;
-    gap: 12px;
+    min-height: 58px;
+    padding: 8px 12px;
+    gap: 6px;
   }
   .preamp-meta {
     flex-direction: row;
@@ -231,20 +231,119 @@
     font-size: var(--type-small);
   }
   .preamp-card input[type="range"] {
-    min-height: 32px;
+    min-height: 24px;
+  }
+  .custom-number-input.preamp-value-stepper {
+    height: 24px;
   }
   .bands-section-header {
-    min-height: 52px;
-    height: auto;
-    padding: 0 14px;
-  }
-  .bands-section-header .collapse-toggle-btn {
-    min-width: 44px;
-    min-height: 44px;
+    display: none;
   }
   .bands-grid {
     grid-template-columns: 1fr;
     gap: 12px;
+  }
+  .bands-container > .bands-grid {
+    display: none;
+  }
+  .bands-mobile-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .band-picker {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+  }
+  .band-picker::-webkit-scrollbar {
+    display: none;
+  }
+  .band-picker button {
+    flex: 0 0 auto;
+    min-width: 56px;
+    min-height: 44px;
+    display: grid;
+    place-items: center;
+    gap: 1px;
+    padding: 4px 10px;
+    color: var(--muted);
+    background: var(--bg-dark);
+    outline: 1px solid var(--line-medium);
+    outline-offset: -1px;
+    border: 0;
+  }
+  .band-picker button strong {
+    color: var(--filter-color, var(--cyan));
+    font-size: var(--type-subtitle);
+    line-height: 1;
+  }
+  .band-picker button span {
+    font-size: var(--type-micro);
+  }
+  .band-picker button.active {
+    color: var(--text);
+    background: rgb(var(--filter-color-rgb, var(--cyan-rgb)) / 0.12);
+    outline-color: rgb(var(--filter-color-rgb, var(--cyan-rgb)) / 0.64);
+  }
+  .band-picker button.add-filter-chip {
+    color: var(--cyan);
+    outline-style: dashed;
+  }
+  .band-picker button.add-filter-chip:disabled {
+    color: var(--muted);
+    opacity: .55;
+  }
+  .band-picker button.add-filter-chip .material-symbols-outlined {
+    font-size: 18px;
+  }
+  .mobile-filter-card {
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "head"
+      "type"
+      "freq"
+      "gain"
+      "q";
+    gap: 12px;
+    padding: 12px;
+    background: linear-gradient(
+      90deg,
+      rgb(var(--filter-color-rgb, var(--cyan-rgb)) / 0.12),
+      var(--bg-dark) 46px
+    );
+    outline: 1px solid rgb(var(--filter-color-rgb, var(--cyan-rgb)) / 0.42);
+    outline-offset: -1px;
+  }
+  .mobile-filter-head {
+    grid-area: head;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 44px;
+    gap: 8px;
+    align-items: center;
+  }
+  .mobile-filter-head div {
+    min-width: 0;
+    display: grid;
+    gap: 2px;
+  }
+  .mobile-filter-head strong {
+    color: var(--filter-color, var(--cyan));
+    font-size: var(--type-subtitle);
+  }
+  .mobile-filter-head span {
+    color: var(--muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .mobile-filter-head .band-index {
+    grid-area: auto;
+    width: 44px;
+    min-height: 44px;
   }
   .bands-card {
     padding: 0;
@@ -269,13 +368,14 @@
     min-width: 0;
     height: auto;
     padding: 12px;
-    grid-template-columns: 52px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: 44px minmax(0, 1fr) minmax(0, 1fr);
     grid-template-areas:
-      "summary summary summary summary"
-      "index type type type"
-      "freq freq q q"
-      "gain gain gain gain";
-    gap: 10px 8px;
+      "summary summary summary"
+      "type type index"
+      "freq freq freq"
+      "gain gain gain"
+      "q q q";
+    gap: 12px 8px;
     background: var(--bg-dark);
     outline: 1px solid var(--line-medium);
     outline-offset: -1px;
@@ -286,7 +386,7 @@
     min-height: 44px;
     padding: 0 10px;
     display: grid;
-    grid-template-columns: 34px auto 1fr auto auto 24px;
+    grid-template-columns: 32px auto minmax(0, 1fr) auto;
     align-items: center;
     gap: 8px;
     background: var(--surface-soft);
@@ -298,18 +398,15 @@
     color: var(--cyan);
     font-size: var(--type-subtitle);
   }
+  .band-summary span:nth-of-type(3),
+  .band-summary .material-symbols-outlined {
+    display: none;
+  }
   .band-summary span {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-  }
-  .band-row:not(.expanded) {
-    padding: 8px;
-  }
-  .band-row:not(.expanded) .band-index,
-  .band-row:not(.expanded) .band-field {
-    display: none;
   }
   .band-row.muted {
     opacity: .6;
@@ -317,13 +414,11 @@
   .band-index {
     grid-area: index;
     width: 100%;
-    min-height: 40px;
-    padding: 0 12px;
+    min-height: 36px;
+    padding: 0 10px;
     display: flex;
-    flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 2px;
     background: var(--surface-soft);
     border: none;
     outline: none;
@@ -391,7 +486,14 @@
   }
   .gain-cell {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 72px;
+    grid-template-columns: minmax(0, 1fr) 76px;
+    align-items: center;
+    gap: 8px;
+  }
+  .freq-cell,
+  .q-cell {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 76px;
     align-items: center;
     gap: 8px;
   }
