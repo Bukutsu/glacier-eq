@@ -594,6 +594,21 @@ function App() {
     [connected, isAndroid, showToast],
   );
 
+  const reportStatus = useCallback((
+    level: "Info" | "Warn" | "Error",
+    message: string,
+    toastType: "success" | "info" | "warning" | "error" | null = null,
+    source: "UI" | "Worker" | "HID" | "AutoEQ" | "Device" = "UI",
+    statusText: string = message
+  ) => {
+    setStatusState(statusText);
+    invoke("add_diagnostic_event", { level, source, message })
+      .catch((err) => console.error("Failed to log diagnostic:", err));
+    if (toastType) {
+      showToast(message, toastType === "warning" ? "error" : toastType);
+    }
+  }, [showToast]);
+
   // Show native Android Toast when status changes, instead of the web StatusBanner
   useEffect(() => {
     if (!isAndroid || status === "Ready") return;
@@ -922,8 +937,7 @@ function App() {
 
     listen<string>("device-disconnected", (event) => {
       setIsReconnecting(true);
-      setStatus("Reconnecting...");
-      showToast(`Connection lost to ${event.payload}. Attempting to reconnect...`, "error");
+      reportStatus("Error", `Connection lost to device (unplugged): ${event.payload}`, "error", "Device", "Reconnecting...");
     }).then((fn) => {
       if (active) {
         unlistenFns.push(fn);
@@ -938,7 +952,7 @@ function App() {
         try { fn(); } catch {}
       });
     };
-  }, [showToast]);
+  }, [reportStatus]);
 
   useEffect(() => {
     scanDevices();
@@ -961,17 +975,24 @@ function App() {
             d.product_string === connectedDeviceName
         );
         if (found && active) {
-          setStatus("Device found. Reconnecting...");
-          await invoke("connect_device", { path: found.path });
-          setSelectedDevice(found.path);
-          setConnected(true);
-          setIsReconnecting(false);
-          showToast(`Reconnected to ${connectedDeviceName}`, "success");
-          
-          // Re-push the current EQ state to the device so it is fully recovered
-          await invoke("set_eq_state", { peq: peqRef.current });
-          setStatus("Ready");
-          return;
+          reportStatus("Info", `Device found: ${connectedDeviceName}. Attempting to reconnect...`, null, "Device", "Device found. Reconnecting...");
+          try {
+            await invoke("connect_device", { path: found.path });
+            await invoke("set_eq_state", { peq: peqRef.current });
+            
+            if (active) {
+              setSelectedDevice(found.path);
+              setConnected(true);
+              setIsReconnecting(false);
+              reportStatus("Info", `Successfully reconnected to ${connectedDeviceName} and restored EQ state`, "success", "Device", "Ready");
+              return;
+            }
+          } catch (err) {
+            reportStatus("Warn", `Auto-reconnect connection failed: ${err}. Retrying...`, null, "Device", "Reconnecting...");
+            try {
+              await invoke("disconnect_device");
+            } catch {}
+          }
         }
       } catch (error) {
         console.error("Auto-reconnect poll error:", error);
@@ -988,7 +1009,7 @@ function App() {
       active = false;
       if (timerId) clearTimeout(timerId);
     };
-  }, [isReconnecting, connectedDeviceName, showToast, setStatus]);
+  }, [isReconnecting, connectedDeviceName, reportStatus]);
 
   const pullEq = useCallback(async () => {
     pushToUndoStack(peqRef.current);
@@ -1025,24 +1046,26 @@ function App() {
       selectedPresetRef.current = "Pulled from device";
       setSelectedPreset("Pulled from device");
       setDirty(false);
-      setStatus(
+      reportStatus(
+        "Info",
         isDevDummyDevice(selectedDevice)
           ? "Loaded dummy DAC EQ"
           : "Pull successful",
+        "success",
+        "UI"
       );
     } catch (error) {
       if (isDisconnectionError(error)) {
         setIsReconnecting(true);
-        setStatus("Reconnecting...");
-        showToast("Connection lost. Attempting to reconnect...", "error");
+        reportStatus("Error", `Pull failed (disconnected): ${error}`, "error", "HID", "Reconnecting...");
       } else {
-        setStatus(`Pull failed: ${error}`);
+        reportStatus("Error", `Pull failed: ${error}`, "error", "UI");
       }
     } finally {
       setIsBusy(false);
       setProgress(null);
     }
-  }, [pushToUndoStack, selectedDevice, showToast]);
+  }, [pushToUndoStack, selectedDevice, reportStatus]);
 
   const connectDevice = useCallback(async () => {
     if (!selectedDevice) return;
@@ -1051,7 +1074,7 @@ function App() {
       if (isDevDummyDevice(selectedDevice)) {
         setConnected(true);
         setConnectedDeviceName("Glacier Dummy DAC");
-        setStatus("Connected to dummy DAC");
+        reportStatus("Info", "Connected to dummy DAC", "success", "UI", "Connected to dummy DAC");
         await pullEq();
         return;
       }
@@ -1059,12 +1082,14 @@ function App() {
       await invoke("connect_device", { path: selectedDevice });
       setConnected(true);
       
+      let devName = "";
       const found = devices.find((d) => d.path === selectedDevice);
       if (found) {
-        setConnectedDeviceName(found.profile_name ?? found.product_string ?? "");
+        devName = found.profile_name ?? found.product_string ?? "";
+        setConnectedDeviceName(devName);
       }
       
-      setStatus("Ready");
+      reportStatus("Info", `Connected to device: ${devName}`, "success", "UI", "Ready");
 
       const settings = await invoke<{ auto_pull_on_connect: boolean }>(
         "get_settings",
@@ -1077,14 +1102,14 @@ function App() {
     } catch (error) {
       if (isDisconnectionError(error)) {
         setConnected(false);
-        setStatus("Device disconnected");
+        reportStatus("Error", `Connection failed (disconnected): ${error}`, "error", "UI", "Device disconnected");
       } else {
-        setStatus(`Connection failed: ${error}`);
+        reportStatus("Error", `Connection failed: ${error}`, "error", "UI");
       }
     } finally {
       setIsBusy(false);
     }
-  }, [selectedDevice, pullEq, devices]);
+  }, [selectedDevice, pullEq, devices, reportStatus]);
 
   const pushEq = useCallback(async () => {
     setProgress(null);
@@ -1119,24 +1144,26 @@ function App() {
       }
       setLastPushedPeq(peqRef.current);
       setDirty(false);
-      setStatus(
+      reportStatus(
+        "Info",
         isDevDummyDevice(selectedDevice)
           ? "Dummy DAC push simulated"
           : "Push successful",
+        "success",
+        "UI"
       );
     } catch (error) {
       if (isDisconnectionError(error)) {
         setIsReconnecting(true);
-        setStatus("Reconnecting...");
-        showToast("Connection lost. Attempting to reconnect...", "error");
+        reportStatus("Error", `Push failed (disconnected): ${error}`, "error", "HID", "Reconnecting...");
       } else {
-        setStatus(`Push failed: ${error}`);
+        reportStatus("Error", `Push failed: ${error}`, "error", "UI");
       }
     } finally {
       setIsBusy(false);
       setProgress(null);
     }
-  }, [peq, selectedDevice, showToast]);
+  }, [peq, selectedDevice, reportStatus]);
 
   const applyProfileToRam = useCallback(
     async (profile: Profile) => {
@@ -1161,25 +1188,27 @@ function App() {
           await sleep(300);
         }
         setLastPushedPeq(data);
-        setStatus(
+        reportStatus(
+          "Info",
           isDevDummyDevice(selectedDevice)
             ? "Dummy DAC apply simulated"
             : `Applied ${profile.name} to device RAM`,
+          "success",
+          "UI"
         );
       } catch (error) {
         if (isDisconnectionError(error)) {
           setIsReconnecting(true);
-          setStatus("Reconnecting...");
-          showToast("Connection lost. Attempting to reconnect...", "error");
+          reportStatus("Error", `Apply failed (disconnected): ${error}`, "error", "HID", "Reconnecting...");
         } else {
-          setStatus(`Apply failed: ${error}`);
+          reportStatus("Error", `Apply failed: ${error}`, "error", "UI");
         }
       } finally {
         setIsBusy(false);
         setProgress(null);
       }
     },
-    [pushToUndoStack, selectedDevice, showToast],
+    [pushToUndoStack, selectedDevice, reportStatus],
   );
 
   const disconnectDevice = useCallback(async () => {
@@ -1191,13 +1220,13 @@ function App() {
       setConnected(false);
       setIsReconnecting(false);
       setConnectedDeviceName("");
-      setStatus("Disconnected");
+      reportStatus("Info", "Device disconnected manually", null, "UI", "Disconnected");
     } catch (error) {
-      setStatus(`Disconnect failed: ${error}`);
+      reportStatus("Error", `Disconnect failed: ${error}`, "error", "UI");
     } finally {
       setIsBusy(false);
     }
-  }, [selectedDevice]);
+  }, [selectedDevice, reportStatus]);
 
   const saveProfile = useCallback(async () => {
     const name = newProfileName.trim() || selectedPreset;
