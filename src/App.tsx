@@ -660,10 +660,13 @@ function App() {
   }, []);
 
   useEffect(() => {
-    window.localStorage.setItem(
-      "glacier-measurements",
-      JSON.stringify(measurements),
-    );
+    const timer = window.setTimeout(() => {
+      window.localStorage.setItem(
+        "glacier-measurements",
+        JSON.stringify(measurements),
+      );
+    }, 300);
+    return () => window.clearTimeout(timer);
   }, [measurements]);
 
   useEffect(() => {
@@ -709,10 +712,13 @@ function App() {
   }, []);
 
   useEffect(() => {
-    window.localStorage.setItem(
-      "glacier-user-targets",
-      JSON.stringify(userTargets),
-    );
+    const timer = window.setTimeout(() => {
+      window.localStorage.setItem(
+        "glacier-user-targets",
+        JSON.stringify(userTargets),
+      );
+    }, 300);
+    return () => window.clearTimeout(timer);
   }, [userTargets]);
 
   useEffect(() => {
@@ -1094,7 +1100,7 @@ function App() {
       setSelectedPreset(name);
       setNewProfileName("");
       setDirty(false);
-      await loadProfiles();
+      setProfiles(await invoke<Profile[]>("list_profiles"));
       setStatus("Profile saved");
     } catch (error) {
       setStatus(`Save failed: ${error}`);
@@ -1109,7 +1115,7 @@ function App() {
       selectedPresetRef.current = DEFAULT_PROFILE_NAME;
       setSelectedPreset(DEFAULT_PROFILE_NAME);
       setPeq(buildDefaultState());
-      await loadProfiles();
+      setProfiles(await invoke<Profile[]>("list_profiles"));
       setStatus("Profile deleted");
     } catch (error) {
       setStatus(`Delete failed: ${error}`);
@@ -1124,7 +1130,7 @@ function App() {
     }
   }, []);
 
-  const updateFilter = (index: number, updated: Filter) => {
+  const updateFilter = useCallback((index: number, updated: Filter) => {
     flashGraphPreview();
     setDirty(true);
     setPeq((previous) => {
@@ -1132,7 +1138,7 @@ function App() {
       filters[index] = updated;
       return { ...previous, filters };
     });
-  };
+  }, [flashGraphPreview]);
 
   const reset = () => {
     pushToUndoStack(peqRef.current);

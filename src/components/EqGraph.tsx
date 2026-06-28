@@ -53,8 +53,12 @@ export function EqGraph({
     if (width < 2 || height < 2) return;
 
     const dpr = window.devicePixelRatio || 1;
-    canvas.width = Math.floor(width * dpr);
-    canvas.height = Math.floor(height * dpr);
+    const canvasWidth = Math.floor(width * dpr);
+    const canvasHeight = Math.floor(height * dpr);
+    if (canvas.width !== canvasWidth || canvas.height !== canvasHeight) {
+      canvas.width = canvasWidth;
+      canvas.height = canvasHeight;
+    }
 
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
@@ -164,10 +168,11 @@ function drawCurves(
   targets: TargetTrace[],
   viewMode: GraphViewMode,
 ) {
-  const eqResponse = responseValues(peq, width, viewMode);
+  const freqs = Array.from({ length: width }, (_, x) => xToFreq(x, width));
+  const eqResponse = responseValues(peq, freqs, viewMode);
 
   for (const band of peq.filters.filter((filter) => filter.enabled)) {
-    const response = Array.from({ length: width }, (_, x) => bandResponse(xToFreq(x, width), band));
+    const response = freqs.map((freq) => bandResponse(freq, band));
     drawResponse(ctx, height, response, rgbWithAlpha("--cyan-rgb", 0.22, "rgba(125, 207, 255, 0.22)"), 1);
   }
 
@@ -195,8 +200,9 @@ function drawCurves(
     return;
   }
 
+  const measurementOffset = viewMode === "shape" ? -combinedResponseAt(peq, 1000, "shape") : 0;
   measurements.forEach((trace) => {
-    drawResponse(ctx, height, responseValues(peq, width, viewMode, trace), trace.color, 3);
+    drawResponse(ctx, height, measurementResponseValues(eqResponse, freqs, trace, measurementOffset), trace.color, 3);
   });
   drawCommittedPreview(ctx, width, height, peq, committedPeq, selectedMeasurement, viewMode);
   drawFilterDots(ctx, width, height, peq, selectedMeasurement, viewMode);
@@ -215,7 +221,8 @@ function drawCommittedPreview(
     return;
   }
 
-  const values = responseValues(committedPeq, width, viewMode, selectedMeasurement);
+  const freqs = Array.from({ length: width }, (_, x) => xToFreq(x, width));
+  const values = responseValues(committedPeq, freqs, viewMode, selectedMeasurement);
   const isCompact = width < 520;
 
   drawResponse(
@@ -255,12 +262,21 @@ function responseAt(
 
 function responseValues(
   peq: PEQData,
-  width: number,
+  freqs: number[],
   viewMode: GraphViewMode,
   measurement?: MeasurementTrace | null,
 ): number[] {
   const offset = measurement && viewMode === "shape" ? -combinedResponseAt(peq, 1000, "shape") : 0;
-  return Array.from({ length: width }, (_, x) => responseAt(peq, xToFreq(x, width), viewMode, measurement, offset));
+  return freqs.map((freq) => responseAt(peq, freq, viewMode, measurement, offset));
+}
+
+function measurementResponseValues(
+  eqResponse: number[],
+  freqs: number[],
+  measurement: MeasurementTrace,
+  offset: number,
+): number[] {
+  return eqResponse.map((db, x) => db + interpolateMeasurementDb(measurement.points, freqs[x]) + offset);
 }
 
 function resolveColor(color: string): string {
