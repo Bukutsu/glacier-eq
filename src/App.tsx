@@ -317,6 +317,17 @@ const applyAndroidDynamicColors = (prefersDark: boolean) => {
 
 const MOBILE_QUERY = "(max-width: 768px) and (min-height: 600px)";
 
+const isDisconnectionError = (error: any): boolean => {
+  const errStr = String(error).toLowerCase();
+  return (
+    errStr.includes("device disconnected") ||
+    errStr.includes("disconnected") ||
+    errStr.includes("no such device") ||
+    errStr.includes("device not open") ||
+    errStr.includes("no longer exists")
+  );
+};
+
 function App() {
   const [isMobile, setIsMobile] = useState(
     () => window.matchMedia(MOBILE_QUERY).matches,
@@ -971,7 +982,12 @@ function App() {
           : "Pull successful",
       );
     } catch (error) {
-      setStatus(`Pull failed: ${error}`);
+      if (isDisconnectionError(error)) {
+        setConnected(false);
+        setStatus("Device disconnected");
+      } else {
+        setStatus(`Pull failed: ${error}`);
+      }
     } finally {
       setIsBusy(false);
       setProgress(null);
@@ -1002,7 +1018,12 @@ function App() {
         await pullEq();
       }
     } catch (error) {
-      setStatus(`Connection failed: ${error}`);
+      if (isDisconnectionError(error)) {
+        setConnected(false);
+        setStatus("Device disconnected");
+      } else {
+        setStatus(`Connection failed: ${error}`);
+      }
     } finally {
       setIsBusy(false);
     }
@@ -1047,7 +1068,12 @@ function App() {
           : "Push successful",
       );
     } catch (error) {
-      setStatus(`Push failed: ${error}`);
+      if (isDisconnectionError(error)) {
+        setConnected(false);
+        setStatus("Device disconnected");
+      } else {
+        setStatus(`Push failed: ${error}`);
+      }
     } finally {
       setIsBusy(false);
       setProgress(null);
@@ -1083,7 +1109,12 @@ function App() {
             : `Applied ${profile.name} to device RAM`,
         );
       } catch (error) {
-        setStatus(`Apply failed: ${error}`);
+        if (isDisconnectionError(error)) {
+          setConnected(false);
+          setStatus("Device disconnected");
+        } else {
+          setStatus(`Apply failed: ${error}`);
+        }
       } finally {
         setIsBusy(false);
         setProgress(null);
