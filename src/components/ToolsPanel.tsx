@@ -204,7 +204,6 @@ export function ToolsPanel(props: ToolsPanelProps) {
             onThemeChange={props.onThemeChange}
             onShowDiagnosticsChange={props.onShowDiagnosticsChange}
             onEnableOnlineMeasurementsChange={props.onEnableOnlineMeasurementsChange}
-            snapToIso={props.snapToIso}
             onSnapToIsoChange={props.onSnapToIsoChange}
           />
         )}
@@ -1133,7 +1132,6 @@ function SettingsTab({
   onThemeChange,
   onShowDiagnosticsChange,
   onEnableOnlineMeasurementsChange,
-  snapToIso,
   onSnapToIsoChange,
 }: {
   graphViewMode?: GraphViewMode;
@@ -1142,7 +1140,6 @@ function SettingsTab({
   onThemeChange?: (theme: string) => void;
   onShowDiagnosticsChange?: (show: boolean) => void;
   onEnableOnlineMeasurementsChange?: (enable: boolean) => void;
-  snapToIso?: boolean;
   onSnapToIsoChange?: (v: boolean) => void;
 }) {
   const [settings, setSettings] = useState({
@@ -1157,8 +1154,6 @@ function SettingsTab({
 
   useEffect(() => {
     if (!isTauri()) {
-      // Sync the local state with the incoming snapToIso prop from App.tsx
-      if (snapToIso !== undefined) setSettings((prev) => ({ ...prev, snap_to_iso_frequencies: snapToIso }));
       setLoading(false);
       return;
     }
