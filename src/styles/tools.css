@@ -273,20 +273,14 @@
   transition: transform 0.15s ease, border-color 0.12s ease;
 }
 
-.secondary-actions[open] summary {
-  color: var(--text);
-}
-
-.secondary-actions[open] summary::before {
-  transform: rotate(90deg);
-  border-color: transparent transparent transparent var(--text);
-}
-
+.secondary-actions[open] summary,
 .secondary-actions summary:hover {
   color: var(--text);
 }
 
+.secondary-actions[open] summary::before,
 .secondary-actions summary:hover::before {
+  transform: rotate(90deg);
   border-color: transparent transparent transparent var(--text);
 }
 
