@@ -1,8 +1,9 @@
-import { type ReactNode, useState } from "react";
+import { type CSSProperties, type ReactNode, useState } from "react";
 import type { Filter, FilterType, PEQData } from "../types";
 import { Icon } from "./Icon";
 import { Slider } from "./Slider";
 import { NumberInput } from "./NumberInput";
+import { filterColorVars } from "../lib/filterColors";
 
 const FREQ_MIN = 20;
 const FREQ_MAX = 20000;
@@ -15,6 +16,14 @@ const TYPE_LABELS: Record<FilterType, string> = {
   HighPass: "HP",
   LowPass: "LP",
 };
+
+function filterColorStyle(index: number) {
+  const [color, rgb] = filterColorVars(index);
+  return {
+    "--filter-color": `var(${color})`,
+    "--filter-color-rgb": `var(${rgb})`,
+  } as CSSProperties;
+}
 
 interface BandsProps {
   peq: PEQData;
@@ -41,6 +50,7 @@ export function Bands({ peq, maxBands, onFilterChange, onStartChange, activeBand
   const availableFilters = peq.filters.slice(0, maxBands);
   const visibleFilters = availableFilters.filter((filter) => filter.enabled);
   const canAddFilter = visibleFilters.length < availableFilters.length;
+  const selectedFilter = visibleFilters.find((filter) => filter.index === activeBandIndex) ?? visibleFilters[0];
   const columns = visibleFilters.length > 5
     ? [visibleFilters.slice(0, Math.ceil(visibleFilters.length / 2)), visibleFilters.slice(Math.ceil(visibleFilters.length / 2))]
     : [visibleFilters];
@@ -92,6 +102,62 @@ export function Bands({ peq, maxBands, onFilterChange, onStartChange, activeBand
           </div>
         ))}
       </section>
+      {selectedFilter && (
+        <section className="bands-mobile-editor">
+          <div className="band-picker" aria-label="Filter bands">
+            {visibleFilters.map((filter) => (
+              <button
+                key={filter.index}
+                type="button"
+                style={filterColorStyle(filter.index)}
+                className={filter.index === selectedFilter.index ? "active" : ""}
+                onClick={() => onActiveBandChange?.(filter.index)}
+              >
+                <strong>{filter.index + 1}</strong>
+                <span>{TYPE_LABELS[filter.filter_type]}</span>
+              </button>
+            ))}
+            <button
+              type="button"
+              className="add-filter-chip"
+              onClick={addFilter}
+              disabled={!canAddFilter}
+              aria-label="Add filter"
+            >
+              <Icon>add</Icon>
+              <span>Add</span>
+            </button>
+          </div>
+          <div className="mobile-filter-card" style={filterColorStyle(selectedFilter.index)}>
+            <div className="mobile-filter-head">
+              <div>
+                <strong>Band {selectedFilter.index + 1}</strong>
+                <span>{selectedFilter.freq} Hz · {selectedFilter.gain.toFixed(2)} dB · Q {selectedFilter.q.toFixed(2)}</span>
+              </div>
+              <button
+                className="band-index"
+                aria-label={`Remove band ${selectedFilter.index + 1}`}
+                disabled={visibleFilters.length <= 1}
+                onClick={() => {
+                  if (visibleFilters.length <= 1) return;
+                  onStartChange();
+                  onFilterChange(selectedFilter.index, { ...selectedFilter, enabled: false });
+                  const next = visibleFilters.find((filter) => filter.index !== selectedFilter.index);
+                  if (next) onActiveBandChange?.(next.index);
+                }}
+              >
+                <Icon>remove</Icon>
+              </button>
+            </div>
+            <BandControls
+              filter={selectedFilter}
+              onChange={(updated) => onFilterChange(selectedFilter.index, updated)}
+              onStartChange={onStartChange}
+              onActivate={() => onActiveBandChange?.(selectedFilter.index)}
+            />
+          </div>
+        </section>
+      )}
     </div>
   );
 }
@@ -116,7 +182,10 @@ function BandRow({
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className={`band-row ${filter.enabled ? "" : "muted"} ${expanded ? "expanded" : ""} ${active ? "active" : ""}`}>
+    <div
+      className={`band-row ${filter.enabled ? "" : "muted"} ${expanded ? "expanded" : ""} ${active ? "active" : ""}`}
+      style={filterColorStyle(filter.index)}
+    >
       <button
         type="button"
         className="band-summary"
@@ -146,6 +215,24 @@ function BandRow({
       >
         <Icon>remove</Icon>
       </button>
+      <BandControls filter={filter} onChange={onChange} onStartChange={onStartChange} onActivate={onActivate} />
+    </div>
+  );
+}
+
+function BandControls({
+  filter,
+  onChange,
+  onStartChange,
+  onActivate,
+}: {
+  filter: Filter;
+  onChange: (filter: Filter) => void;
+  onStartChange: () => void;
+  onActivate: () => void;
+}) {
+  return (
+    <>
       <BandField label="Type" className="band-type-field">
         <FilterTypeButtons
           filter={filter}
@@ -258,7 +345,7 @@ function BandRow({
           />
         </div>
       </BandField>
-    </div>
+    </>
   );
 }
 
