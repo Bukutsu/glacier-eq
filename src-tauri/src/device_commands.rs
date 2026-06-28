@@ -100,7 +100,7 @@ fn handle_disconnection(app: &tauri::AppHandle, error_msg: &str) {
         }
         if let Some(device) = device_to_close {
             let _ = hid_close(app, &device.path);
-            
+
             #[cfg(target_os = "linux")]
             {
                 if let Some(elevated_state) = app.try_state::<Mutex<Option<ElevatedTransport>>>() {
@@ -116,7 +116,10 @@ fn handle_disconnection(app: &tauri::AppHandle, error_msg: &str) {
                     app,
                     &diagnostics_store,
                     LogSource::HID,
-                    format!("Connection lost to device (unplugged): {}", device.profile_name),
+                    format!(
+                        "Connection lost to device (unplugged): {}",
+                        device.profile_name
+                    ),
                 );
             }
             use tauri::Emitter;
@@ -271,10 +274,11 @@ pub async fn get_eq_state(
         .lock()
         .map(|guard| guard.connected.is_some())
         .unwrap_or(false);
-    let should_retry = is_connected && match &first {
-        Ok(peq) => WalkplayProtocol::is_default_state(peq),
-        Err(_) => true,
-    };
+    let should_retry = is_connected
+        && match &first {
+            Ok(peq) => WalkplayProtocol::is_default_state(peq),
+            Err(_) => true,
+        };
 
     let peq = if should_retry {
         sleep_ms(ReadTiming::default().pull_retry_delay_ms);
@@ -1093,7 +1097,8 @@ fn commit_changes(app: &tauri::AppHandle, path: &str) -> Result<(), String> {
 
 fn apply_ram_changes(app: &tauri::AppHandle, path: &str) -> Result<(), String> {
     for packet in WalkplayProtocol::build_ram_apply_packets() {
-        send_packet(app, path, &packet).map_err(|error| format!("RAM apply write failed: {error}"))?;
+        send_packet(app, path, &packet)
+            .map_err(|error| format!("RAM apply write failed: {error}"))?;
         sleep_ms(WalkplayProtocol::write_timing().commit_step_ms as u64);
     }
     Ok(())
