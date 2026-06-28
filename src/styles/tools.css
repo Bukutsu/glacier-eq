@@ -256,10 +256,38 @@
   color: var(--muted);
   font-size: var(--type-label);
   cursor: pointer;
+  user-select: none;
+  font-weight: 600;
+  gap: 8px;
+  transition: color 0.12s ease;
+}
+
+.secondary-actions summary::before {
+  content: "";
+  display: inline-block;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 4px 0 4px 6px;
+  border-color: transparent transparent transparent var(--muted);
+  transition: transform 0.15s ease, border-color 0.12s ease;
 }
 
 .secondary-actions[open] summary {
   color: var(--text);
+}
+
+.secondary-actions[open] summary::before {
+  transform: rotate(90deg);
+  border-color: transparent transparent transparent var(--text);
+}
+
+.secondary-actions summary:hover {
+  color: var(--text);
+}
+
+.secondary-actions summary:hover::before {
+  border-color: transparent transparent transparent var(--text);
 }
 
 .secondary-actions .action-row,
