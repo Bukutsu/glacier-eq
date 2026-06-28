@@ -610,9 +610,7 @@ function App() {
     () => [...builtInTargets, ...userTargets],
     [builtInTargets, userTargets],
   );
-  const [activeTargetIds, setActiveTargetIds] = useState<string[]>(() =>
-    builtInTargets[0] ? [builtInTargets[0].id] : [],
-  );
+  const [activeTargetIds, setActiveTargetIds] = useState<string[]>([]);
   const activeTargets = useMemo(
     () => allTargets.filter((target) => activeTargetIds.includes(target.id)),
     [activeTargetIds, allTargets],
@@ -812,6 +810,11 @@ function App() {
     const selected = devices.find((device) => device.path === selectedDevice);
     return selected?.num_bands ?? peq.filters.length;
   }, [devices, peq.filters.length, selectedDevice]);
+
+  const supportsRamApply = useMemo(() => {
+    const selected = devices.find((device) => device.path === selectedDevice);
+    return selected?.supports_ram_apply === true;
+  }, [devices, selectedDevice]);
 
   const applyProfile = useCallback(
     (profile: Profile) => {
@@ -1450,7 +1453,7 @@ function App() {
                 newProfileName={newProfileName}
                 setNewProfileName={setNewProfileName}
                 onSelectProfile={applyProfile}
-                onApplyProfile={applyProfileToRam}
+                onApplyProfile={supportsRamApply ? applyProfileToRam : undefined}
                 onReloadProfiles={loadProfiles}
                 onOpenProfilesDir={openProfilesDir}
                 onReset={reset}
@@ -1486,7 +1489,7 @@ function App() {
                 newProfileName={newProfileName}
                 setNewProfileName={setNewProfileName}
                 onSelectProfile={applyProfile}
-                onApplyProfile={applyProfileToRam}
+                onApplyProfile={supportsRamApply ? applyProfileToRam : undefined}
                 onReloadProfiles={loadProfiles}
                 onOpenProfilesDir={openProfilesDir}
                 onReset={reset}
@@ -1603,7 +1606,7 @@ function App() {
             newProfileName={newProfileName}
             setNewProfileName={setNewProfileName}
             onSelectProfile={applyProfile}
-            onApplyProfile={applyProfileToRam}
+            onApplyProfile={supportsRamApply ? applyProfileToRam : undefined}
             onReloadProfiles={loadProfiles}
             onOpenProfilesDir={openProfilesDir}
             onReset={reset}
