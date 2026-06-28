@@ -129,6 +129,8 @@ interface ToolsPanelProps {
   onThemeChange?: (theme: string) => void;
   enableOnlineMeasurements?: boolean;
   onEnableOnlineMeasurementsChange?: (enable: boolean) => void;
+  snapToIso?: boolean;
+  onSnapToIsoChange?: (v: boolean) => void;
 }
 
 export function ToolsPanel(props: ToolsPanelProps) {
@@ -202,6 +204,8 @@ export function ToolsPanel(props: ToolsPanelProps) {
             onThemeChange={props.onThemeChange}
             onShowDiagnosticsChange={props.onShowDiagnosticsChange}
             onEnableOnlineMeasurementsChange={props.onEnableOnlineMeasurementsChange}
+            snapToIso={props.snapToIso}
+            onSnapToIsoChange={props.onSnapToIsoChange}
           />
         )}
       </section>
@@ -606,7 +610,6 @@ function PresetTab({
       <small className="modified">
         {selectedProfile?.modified ? `Modified: ${selectedProfile.modified}` : "Profiles: Glacier data folder"}
       </small>
-      <label className="check-line"><input type="checkbox" defaultChecked /> Snap to ISO frequencies</label>
       <input
         className="new-name"
         placeholder="New Name…"
@@ -1130,6 +1133,8 @@ function SettingsTab({
   onThemeChange,
   onShowDiagnosticsChange,
   onEnableOnlineMeasurementsChange,
+  snapToIso,
+  onSnapToIsoChange,
 }: {
   graphViewMode?: GraphViewMode;
   onGraphViewModeChange?: (mode: GraphViewMode) => void;
@@ -1137,6 +1142,8 @@ function SettingsTab({
   onThemeChange?: (theme: string) => void;
   onShowDiagnosticsChange?: (show: boolean) => void;
   onEnableOnlineMeasurementsChange?: (enable: boolean) => void;
+  snapToIso?: boolean;
+  onSnapToIsoChange?: (v: boolean) => void;
 }) {
   const [settings, setSettings] = useState({
     auto_pull_on_connect: true,
@@ -1144,11 +1151,14 @@ function SettingsTab({
     theme: "tokyo-night",
     show_diagnostics: false,
     enable_online_measurements: false,
+    snap_to_iso_frequencies: true,
   });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!isTauri()) {
+      // Sync the local state with the incoming snapToIso prop from App.tsx
+      if (snapToIso !== undefined) setSettings((prev) => ({ ...prev, snap_to_iso_frequencies: snapToIso }));
       setLoading(false);
       return;
     }
@@ -1171,6 +1181,7 @@ function SettingsTab({
       if (key === "theme") onThemeChange?.(value);
       if (key === "show_diagnostics") onShowDiagnosticsChange?.(value);
       if (key === "enable_online_measurements") onEnableOnlineMeasurementsChange?.(value);
+      if (key === "snap_to_iso_frequencies") onSnapToIsoChange?.(value);
       return;
     }
     try {
@@ -1189,6 +1200,9 @@ function SettingsTab({
         if (onEnableOnlineMeasurementsChange) {
           onEnableOnlineMeasurementsChange(value);
         }
+      }
+      if (key === "snap_to_iso_frequencies") {
+        onSnapToIsoChange?.(value);
       }
     } catch (err) {
       console.error("Failed to save settings:", err);
@@ -1224,6 +1238,14 @@ function SettingsTab({
           onChange={(e) => updateSetting("show_diagnostics", e.target.checked)}
         />
         Show diagnostic log panel
+      </label>
+      <label>
+        <input
+          type="checkbox"
+          checked={settings.snap_to_iso_frequencies}
+          onChange={(e) => updateSetting("snap_to_iso_frequencies", e.target.checked)}
+        />
+        Snap frequency to ISO standard values
       </label>
       <label>
         <input

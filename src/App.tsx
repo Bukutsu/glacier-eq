@@ -852,6 +852,18 @@ function App() {
     return selected?.supports_ram_apply === true;
   }, [devices, selectedDevice]);
 
+  const [snapToIso, setSnapToIso] = useState(true);
+
+  // Load snap_to_iso_frequencies from persisted settings on mount
+  useEffect(() => {
+    if (!isTauri()) return;
+    invoke<{ snap_to_iso_frequencies?: boolean }>("get_settings")
+      .then((s) => {
+        if (s.snap_to_iso_frequencies !== undefined) setSnapToIso(s.snap_to_iso_frequencies);
+      })
+      .catch(() => {});
+  }, []);
+
   const applyProfile = useCallback(
     (profile: Profile) => {
       pushToUndoStack(peqRef.current);
@@ -1537,6 +1549,7 @@ function App() {
                   onStartChange={handleStartChange}
                   activeBandIndex={activeBandIndex}
                   onActiveBandChange={setActiveBandIndex}
+                  snapToIso={snapToIso}
                 />
               </section>
             )}
@@ -1642,6 +1655,8 @@ function App() {
                 onShowDiagnosticsChange={setShowDiagnostics}
                 theme={theme}
                 onThemeChange={setTheme}
+                snapToIso={snapToIso}
+                onSnapToIsoChange={setSnapToIso}
               />
             )}
             {activeTab === "settings" && (
@@ -1681,6 +1696,8 @@ function App() {
                 onGraphViewModeChange={setGraphViewMode}
                 theme={theme}
                 onThemeChange={setTheme}
+                snapToIso={snapToIso}
+                onSnapToIsoChange={setSnapToIso}
               />
             )}
           </div>
@@ -1760,6 +1777,7 @@ function App() {
               onStartChange={handleStartChange}
               activeBandIndex={activeBandIndex}
               onActiveBandChange={setActiveBandIndex}
+              snapToIso={snapToIso}
             />
           </section>
           <ToolsPanel
@@ -1800,6 +1818,8 @@ function App() {
             onEnableOnlineMeasurementsChange={
               handleEnableOnlineMeasurementsChange
             }
+            snapToIso={snapToIso}
+            onSnapToIsoChange={setSnapToIso}
           />
         </main>
       )}
