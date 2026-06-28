@@ -894,7 +894,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   align-items: center;
   width: 100%;
   height: 36px;
-  background: var(--surface-soft);
+  background: var(--bg-dark);
   border: 1px solid var(--line);
   border-radius: var(--radius-control);
   position: relative;
@@ -908,7 +908,6 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 
 .custom-number-input:focus-within:not(.disabled) {
   border-color: var(--cyan);
-  background: var(--hover-bg);
 }
 
 .custom-number-input.disabled {
@@ -922,7 +921,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   justify-content: center;
   width: 28px;
   height: 100%;
-  background: transparent;
+  background: var(--surface-soft);
   border: none;
   color: var(--muted);
   cursor: pointer;
@@ -931,21 +930,22 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 }
 
 .stepper-btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--hover-bg);
   color: var(--text);
 }
 
 .stepper-btn:disabled {
   color: var(--line-separator);
   cursor: not-allowed;
+  background: var(--surface-soft);
 }
 
 .stepper-btn.decrement {
-  border: none;
+  border-right: 1px solid var(--line);
 }
 
 .stepper-btn.increment {
-  border: none;
+  border-left: 1px solid var(--line);
 }
 
 .custom-number-input .stepper-field {
