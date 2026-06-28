@@ -1,12 +1,9 @@
 .app-header {
   position: relative;
-  min-height: 94px;
-  padding: 24px 20px 18px;
+  min-height: 72px;
+  padding: 18px 20px 14px;
   background: var(--bg);
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 24px;
+  display: block;
 }
 
 .selection-header {
@@ -25,13 +22,23 @@
   font-weight: 400;
 }
 
-.title-stack { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+.header-main {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+}
+
+.title-stack { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
 .title-line { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .header-meta-row {
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 20px;
+  gap: 10px;
+  min-width: 0;
+  flex-wrap: wrap;
 }
 
 h1 {
@@ -44,31 +51,41 @@ h1 {
 }
 
 .title-line strong { color: var(--muted); font-size: var(--type-body); font-weight: 700; }
-.dash { color: var(--muted); font-size: var(--type-body); }
-.device-name { color: var(--cyan); font-size: var(--type-body); font-weight: 700; letter-spacing: 0; }
+.title-separator {
+  width: 1px;
+  height: 16px;
+  background: var(--line-medium);
+  flex: 0 0 1px;
+}
+.device-name {
+  min-width: 0;
+  color: var(--cyan);
+  font-size: var(--type-body);
+  font-weight: 700;
+  letter-spacing: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .sync-dot { font-size: var(--type-caption); }
 .sync-dot.ok { color: var(--green); }
 .sync-dot.offline { color: var(--muted); }
 
 .unsaved {
   color: var(--yellow);
-  border: 1px solid var(--yellow);
-  padding: 2px 8px;
+  border: 1px solid rgb(var(--yellow-rgb) / 0.55);
+  padding: 1px 7px;
   font-size: var(--type-caption);
   background: rgb(var(--yellow-rgb) / 0.10);
+  white-space: nowrap;
+  line-height: 1.4;
 }
 
-.toolbar { display: flex; gap: 10px; align-items: center; }
-
-.history-controls {
-  min-width: 0;
+.toolbar {
   display: flex;
   align-items: center;
-  gap: 10px;
-}
-
-.history-label {
-  display: none;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .history-buttons {

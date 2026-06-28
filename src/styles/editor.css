@@ -104,6 +104,36 @@
   font-size: 18px;
 }
 
+.disclosure-card {
+  padding: 0;
+}
+
+.disclosure-card summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.disclosure-card summary::-webkit-details-marker {
+  display: none;
+}
+
+.disclosure-card summary::after {
+  content: "expand_more";
+  margin-left: auto;
+  font-family: "Material Symbols Outlined";
+  font-size: 18px;
+  font-weight: 400;
+  color: var(--cyan);
+}
+
+.disclosure-card[open] summary::after {
+  content: "expand_less";
+}
+
+.tuning-card-body-flush {
+  padding: 0;
+}
+
 .graph-view-controls {
   display: flex;
   align-items: center;
@@ -355,6 +385,10 @@
 }
 .band-row:hover {
   background: var(--hover-bg);
+}
+.band-row.active {
+  background: rgb(var(--cyan-rgb) / 0.06);
+  box-shadow: inset 3px 0 0 var(--cyan);
 }
 .band-row.muted { opacity: .45; }
 .band-index {
