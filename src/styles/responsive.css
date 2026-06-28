@@ -8,9 +8,14 @@
 
 @media (max-width: 1279px) {
   .workspace {
-    grid-template-columns: 1fr;
+    display: flex;
+    flex-direction: column;
     overflow: auto;
     overscroll-behavior: contain;
+  }
+  .left-pane,
+  .right-rail {
+    flex: 0 0 auto;
   }
   .right-rail {
     grid-template-rows: 1fr;
