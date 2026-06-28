@@ -268,17 +268,9 @@
 .custom-number-input.preamp-value-stepper {
   width: 90px;
   height: 28px;
-  background: var(--bg-dark);
 }
 .custom-number-input.preamp-value-stepper .stepper-btn {
   width: 24px;
-  background: var(--surface-soft);
-}
-.custom-number-input.preamp-value-stepper .stepper-btn.decrement {
-  border-right: 1px solid var(--line);
-}
-.custom-number-input.preamp-value-stepper .stepper-btn.increment {
-  border-left: 1px solid var(--line);
 }
 .custom-number-input.preamp-value-stepper .stepper-field {
   font-size: var(--type-small);
@@ -518,12 +510,10 @@
 
 .gain-cell .custom-number-input.band-gain-stepper { width: 76px; }
 
-/* Custom Stepper overrides inside Band rows */
 .custom-number-input.band-freq-stepper,
 .custom-number-input.band-gain-stepper,
 .custom-number-input.band-q-stepper {
   height: 28px;
-  background: var(--bg-dark);
 }
 
 .custom-number-input.band-freq-stepper .stepper-btn,
