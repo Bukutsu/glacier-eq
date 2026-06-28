@@ -387,12 +387,12 @@
   background: var(--hover-bg);
 }
 .band-row.active {
-  background: rgb(var(--cyan-rgb) / 0.06);
-  box-shadow: inset 3px 0 0 var(--cyan);
+  background: rgb(var(--filter-color-rgb, var(--cyan-rgb)) / 0.07);
+  box-shadow: inset 3px 0 0 var(--filter-color, var(--cyan));
 }
 .band-row.muted { opacity: .45; }
 .band-index {
-  color: var(--cyan);
+  color: var(--filter-color, var(--cyan));
   background: transparent;
   padding: 0;
   text-align: center;
@@ -410,6 +410,10 @@
 .band-index:hover {
   color: var(--text);
   transform: scale(1.1);
+}
+
+.bands-mobile-editor {
+  display: none;
 }
 
 .band-index strong {
