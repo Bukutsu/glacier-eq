@@ -565,7 +565,7 @@
   }
   .measurement-toggle,
   .measurement-delete {
-    min-height: 56px !important;
+    min-height: 48px !important;
   }
   .diag-head {
     grid-template-columns: minmax(0, 1fr) repeat(3, 36px);
