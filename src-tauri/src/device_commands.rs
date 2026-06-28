@@ -424,12 +424,6 @@ pub async fn set_eq_state(
             )
         })?;
     ensure_eq_protocol(profile)?;
-    if !profile.caps.supports_ram_apply {
-        return Err(format!(
-            "{} does not advertise volatile RAM apply support.",
-            profile.name
-        ));
-    }
     let caps = &profile.caps;
 
     let peq = normalize_for_push(peq, &caps);
@@ -634,6 +628,12 @@ pub async fn apply_eq_state(
             )
         })?;
     ensure_eq_protocol(profile)?;
+    if !profile.caps.supports_ram_apply {
+        return Err(format!(
+            "{} does not advertise volatile RAM apply support.",
+            profile.name
+        ));
+    }
     let caps = &profile.caps;
     let peq = normalize_for_push(peq, caps);
 
