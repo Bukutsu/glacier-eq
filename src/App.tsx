@@ -574,6 +574,14 @@ function App() {
         toastType = "success";
       }
 
+      // Automatically log all toast notifications to the diagnostics board
+      const diagLevel = toastType === "error" ? "Error" : "Info";
+      invoke("add_diagnostic_event", {
+        level: diagLevel,
+        source: "UI",
+        message: `Notification: ${message}`,
+      }).catch((err) => console.error("Failed to log diagnostic from toast:", err));
+
       const id = Math.random().toString(36).substring(2, 9);
       setToasts((prev) => [...prev, { id, message, type: toastType }]);
 
@@ -957,6 +965,30 @@ function App() {
   useEffect(() => {
     scanDevices();
   }, [scanDevices]);
+
+  // Global uncaught error and promise rejection logger
+  useEffect(() => {
+    const handleError = (event: ErrorEvent) => {
+      const msg = `Uncaught error: ${event.message} at ${event.filename}:${event.lineno}:${event.colno}`;
+      invoke("add_diagnostic_event", { level: "Error", source: "UI", message: msg })
+        .catch((err) => console.error("Failed to log uncaught error:", err));
+    };
+
+    const handleRejection = (event: PromiseRejectionEvent) => {
+      const reasonStr = event.reason instanceof Error ? event.reason.message : String(event.reason);
+      const msg = `Unhandled rejection: ${reasonStr}`;
+      invoke("add_diagnostic_event", { level: "Error", source: "UI", message: msg })
+        .catch((err) => console.error("Failed to log unhandled rejection:", err));
+    };
+
+    window.addEventListener("error", handleError);
+    window.addEventListener("unhandledrejection", handleRejection);
+
+    return () => {
+      window.removeEventListener("error", handleError);
+      window.removeEventListener("unhandledrejection", handleRejection);
+    };
+  }, []);
 
   // Automatic reconnection loop
   useEffect(() => {
