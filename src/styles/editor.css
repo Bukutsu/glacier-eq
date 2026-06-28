@@ -553,6 +553,14 @@
   align-items: center;
   user-select: none;
   color: inherit;
+  cursor: pointer;
+  border: none;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+
+.bands-section-header:hover {
+  background: var(--surface-soft);
 }
 
 .bands-section-header .title-text {
@@ -579,6 +587,16 @@
   justify-content: center;
   gap: 6px;
   font-size: var(--type-small);
+}
+
+.bands-section-header .collapse-toggle-btn .icon {
+  font-size: 18px;
+  transition: transform 0.2s ease;
+}
+
+.bands-container.collapsed .bands-grid,
+.bands-container.collapsed .bands-mobile-editor {
+  display: none;
 }
 
 .bands-actions {
