@@ -79,30 +79,116 @@ fn emit_progress(app: &tauri::AppHandle, message: &str, percentage: f32) {
 // Try direct access first; transparently fall back to pkexec-elevated
 // helper on PermissionDenied (Linux only).
 
-fn hid_read(app: &tauri::AppHandle, path: &str, timeout: i32) -> Result<Vec<u8>, String> {
-    #[cfg(target_os = "linux")]
-    if let Some(t) = app
-        .state::<Mutex<Option<ElevatedTransport>>>()
-        .lock()
-        .unwrap()
-        .as_mut()
+fn handle_disconnection(app: &tauri::AppHandle, error_msg: &str) {
+    let lower = error_msg.to_lowercase();
+    if lower.contains("no such device")
+        || lower.contains("device not found")
+        || lower.contains("disconnected")
+        || lower.contains("not open")
+        || lower.contains("io error")
+        || lower.contains("os error 19")
+        || lower.contains("os error 5")
+        || lower.contains("transfer failed")
+        || lower.contains("no longer exists")
     {
-        return t.read(path, timeout);
+        let state = app.state::<Mutex<DeviceState>>();
+        let mut device_to_close = None;
+        if let Ok(mut guard) = state.lock() {
+            if let Some(device) = guard.connected.take() {
+                device_to_close = Some(device);
+            }
+        }
+        if let Some(device) = device_to_close {
+            let _ = hid_close(app, &device.path);
+            
+            #[cfg(target_os = "linux")]
+            {
+                if let Some(elevated_state) = app.try_state::<Mutex<Option<ElevatedTransport>>>() {
+                    if let Ok(mut guard) = elevated_state.lock() {
+                        *guard = None; // Reset the elevated transport helper
+                    }
+                }
+            }
+
+            if let Some(diagnostics_store) = app.try_state::<Mutex<DiagnosticsStore>>() {
+                diagnostics::log(
+                    LogLevel::Error,
+                    app,
+                    &diagnostics_store,
+                    LogSource::HID,
+                    format!("Connection lost to device (unplugged): {}", device.profile_name),
+                );
+            }
+            use tauri::Emitter;
+            let _ = app.emit("device-disconnected", device.profile_name);
+        }
     }
-    app.hid().read(path, timeout).map_err(|e| e.to_string())
+}
+
+fn hid_read(app: &tauri::AppHandle, path: &str, timeout: i32) -> Result<Vec<u8>, String> {
+    if let Some(state) = app.try_state::<Mutex<DeviceState>>() {
+        if let Ok(guard) = state.lock() {
+            if guard.connected.is_none() {
+                return Err("Device disconnected".to_string());
+            }
+        }
+    }
+    let res = {
+        #[cfg(target_os = "linux")]
+        {
+            if let Some(t) = app
+                .state::<Mutex<Option<ElevatedTransport>>>()
+                .lock()
+                .unwrap()
+                .as_mut()
+            {
+                t.read(path, timeout)
+            } else {
+                app.hid().read(path, timeout).map_err(|e| e.to_string())
+            }
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            app.hid().read(path, timeout).map_err(|e| e.to_string())
+        }
+    };
+    if let Err(ref error_msg) = res {
+        handle_disconnection(app, error_msg);
+    }
+    res
 }
 
 fn hid_write(app: &tauri::AppHandle, path: &str, data: &[u8]) -> Result<(), String> {
-    #[cfg(target_os = "linux")]
-    if let Some(t) = app
-        .state::<Mutex<Option<ElevatedTransport>>>()
-        .lock()
-        .unwrap()
-        .as_mut()
-    {
-        return t.write(path, data);
+    if let Some(state) = app.try_state::<Mutex<DeviceState>>() {
+        if let Ok(guard) = state.lock() {
+            if guard.connected.is_none() {
+                return Err("Device disconnected".to_string());
+            }
+        }
     }
-    app.hid().write(path, data).map_err(|e| e.to_string())
+    let res = {
+        #[cfg(target_os = "linux")]
+        {
+            if let Some(t) = app
+                .state::<Mutex<Option<ElevatedTransport>>>()
+                .lock()
+                .unwrap()
+                .as_mut()
+            {
+                t.write(path, data)
+            } else {
+                app.hid().write(path, data).map_err(|e| e.to_string())
+            }
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            app.hid().write(path, data).map_err(|e| e.to_string())
+        }
+    };
+    if let Err(ref error_msg) = res {
+        handle_disconnection(app, error_msg);
+    }
+    res
 }
 
 fn hid_close(app: &tauri::AppHandle, path: &str) -> Result<(), String> {
@@ -181,7 +267,11 @@ pub async fn get_eq_state(
     sleep_ms(ReadTiming::default().wake_delay_ms);
 
     let first = pull_once(&app, &connected, &caps);
-    let should_retry = match &first {
+    let is_connected = state
+        .lock()
+        .map(|guard| guard.connected.is_some())
+        .unwrap_or(false);
+    let should_retry = is_connected && match &first {
         Ok(peq) => WalkplayProtocol::is_default_state(peq),
         Err(_) => true,
     };
@@ -1021,6 +1111,13 @@ fn send_packet(app: &tauri::AppHandle, path: &str, packet: &[u8]) -> Result<(), 
     );
     let mut last_error = None;
     for attempt in 1..=WRITE_ATTEMPTS {
+        if let Some(state) = app.try_state::<Mutex<DeviceState>>() {
+            if let Ok(guard) = state.lock() {
+                if guard.connected.is_none() && attempt > 1 {
+                    break;
+                }
+            }
+        }
         match hid_write(app, path, &framed) {
             Ok(()) => return Ok(()),
             Err(error) => {
