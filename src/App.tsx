@@ -895,13 +895,24 @@ function App() {
     if (!isTauri()) return;
 
     let active = true;
-    let unlistenFn: (() => void) | null = null;
+    const unlistenFns: (() => void)[] = [];
 
     listen<OperationProgress>("operation-progress", (event) => {
       setProgress(event.payload);
     }).then((fn) => {
       if (active) {
-        unlistenFn = fn;
+        unlistenFns.push(fn);
+      } else {
+        try { fn(); } catch {}
+      }
+    });
+
+    listen<string>("device-disconnected", (event) => {
+      setConnected(false);
+      setStatus(`Device disconnected: ${event.payload}`);
+    }).then((fn) => {
+      if (active) {
+        unlistenFns.push(fn);
       } else {
         try { fn(); } catch {}
       }
@@ -909,7 +920,9 @@ function App() {
 
     return () => {
       active = false;
-      try { unlistenFn?.(); } catch {}
+      unlistenFns.forEach((fn) => {
+        try { fn(); } catch {}
+      });
     };
   }, []);
 
