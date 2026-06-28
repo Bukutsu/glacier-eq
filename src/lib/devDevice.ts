@@ -10,6 +10,7 @@ export const DEV_DUMMY_DEVICE: DeviceInfo = {
   product_string: "Dev Dummy DAC",
   profile_name: "Glacier Dummy DAC",
   num_bands: 10,
+  supports_ram_apply: true,
 };
 
 export function isDevDummyDevice(path: string): boolean {

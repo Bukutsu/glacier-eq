@@ -12,4 +12,5 @@ pub struct DeviceInfo {
     pub product_string: Option<String>,
     pub profile_name: Option<String>,
     pub num_bands: usize,
+    pub supports_ram_apply: bool,
 }
