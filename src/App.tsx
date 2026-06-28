@@ -541,6 +541,8 @@ function App() {
   const [devices, setDevices] = useState<DeviceInfo[]>([]);
   const [selectedDevice, setSelectedDevice] = useState("");
   const [connected, setConnected] = useState(false);
+  const [isReconnecting, setIsReconnecting] = useState(false);
+  const [connectedDeviceName, setConnectedDeviceName] = useState("");
   const [isBusy, setIsBusy] = useState(false);
   const [progress, setProgress] = useState<OperationProgress | null>(null);
   const [status, setStatusState] = useState("Ready");
@@ -919,8 +921,9 @@ function App() {
     });
 
     listen<string>("device-disconnected", (event) => {
-      setConnected(false);
-      setStatus(`Device disconnected: ${event.payload}`);
+      setIsReconnecting(true);
+      setStatus("Reconnecting...");
+      showToast(`Connection lost to ${event.payload}. Attempting to reconnect...`, "error");
     }).then((fn) => {
       if (active) {
         unlistenFns.push(fn);
@@ -935,11 +938,57 @@ function App() {
         try { fn(); } catch {}
       });
     };
-  }, []);
+  }, [showToast]);
 
   useEffect(() => {
     scanDevices();
   }, [scanDevices]);
+
+  // Automatic reconnection loop
+  useEffect(() => {
+    if (!isReconnecting || !connectedDeviceName) return;
+
+    let active = true;
+    let timerId: any = null;
+
+    const runPoll = async () => {
+      if (!active) return;
+      try {
+        const realDevices = await invoke<DeviceInfo[]>("list_devices");
+        const found = realDevices.find(
+          (d) =>
+            d.profile_name === connectedDeviceName ||
+            d.product_string === connectedDeviceName
+        );
+        if (found && active) {
+          setStatus("Device found. Reconnecting...");
+          await invoke("connect_device", { path: found.path });
+          setSelectedDevice(found.path);
+          setConnected(true);
+          setIsReconnecting(false);
+          showToast(`Reconnected to ${connectedDeviceName}`, "success");
+          
+          // Re-push the current EQ state to the device so it is fully recovered
+          await invoke("set_eq_state", { peq: peqRef.current });
+          setStatus("Ready");
+          return;
+        }
+      } catch (error) {
+        console.error("Auto-reconnect poll error:", error);
+      }
+
+      if (active) {
+        timerId = setTimeout(runPoll, 1500);
+      }
+    };
+
+    timerId = setTimeout(runPoll, 1000);
+
+    return () => {
+      active = false;
+      if (timerId) clearTimeout(timerId);
+    };
+  }, [isReconnecting, connectedDeviceName, showToast, setStatus]);
 
   const pullEq = useCallback(async () => {
     pushToUndoStack(peqRef.current);
@@ -983,8 +1032,9 @@ function App() {
       );
     } catch (error) {
       if (isDisconnectionError(error)) {
-        setConnected(false);
-        setStatus("Device disconnected");
+        setIsReconnecting(true);
+        setStatus("Reconnecting...");
+        showToast("Connection lost. Attempting to reconnect...", "error");
       } else {
         setStatus(`Pull failed: ${error}`);
       }
@@ -992,7 +1042,7 @@ function App() {
       setIsBusy(false);
       setProgress(null);
     }
-  }, [pushToUndoStack, selectedDevice]);
+  }, [pushToUndoStack, selectedDevice, showToast]);
 
   const connectDevice = useCallback(async () => {
     if (!selectedDevice) return;
@@ -1000,6 +1050,7 @@ function App() {
     try {
       if (isDevDummyDevice(selectedDevice)) {
         setConnected(true);
+        setConnectedDeviceName("Glacier Dummy DAC");
         setStatus("Connected to dummy DAC");
         await pullEq();
         return;
@@ -1007,6 +1058,12 @@ function App() {
 
       await invoke("connect_device", { path: selectedDevice });
       setConnected(true);
+      
+      const found = devices.find((d) => d.path === selectedDevice);
+      if (found) {
+        setConnectedDeviceName(found.profile_name ?? found.product_string ?? "");
+      }
+      
       setStatus("Ready");
 
       const settings = await invoke<{ auto_pull_on_connect: boolean }>(
@@ -1027,7 +1084,7 @@ function App() {
     } finally {
       setIsBusy(false);
     }
-  }, [selectedDevice, pullEq]);
+  }, [selectedDevice, pullEq, devices]);
 
   const pushEq = useCallback(async () => {
     setProgress(null);
@@ -1069,8 +1126,9 @@ function App() {
       );
     } catch (error) {
       if (isDisconnectionError(error)) {
-        setConnected(false);
-        setStatus("Device disconnected");
+        setIsReconnecting(true);
+        setStatus("Reconnecting...");
+        showToast("Connection lost. Attempting to reconnect...", "error");
       } else {
         setStatus(`Push failed: ${error}`);
       }
@@ -1078,7 +1136,7 @@ function App() {
       setIsBusy(false);
       setProgress(null);
     }
-  }, [peq, selectedDevice]);
+  }, [peq, selectedDevice, showToast]);
 
   const applyProfileToRam = useCallback(
     async (profile: Profile) => {
@@ -1110,8 +1168,9 @@ function App() {
         );
       } catch (error) {
         if (isDisconnectionError(error)) {
-          setConnected(false);
-          setStatus("Device disconnected");
+          setIsReconnecting(true);
+          setStatus("Reconnecting...");
+          showToast("Connection lost. Attempting to reconnect...", "error");
         } else {
           setStatus(`Apply failed: ${error}`);
         }
@@ -1120,7 +1179,7 @@ function App() {
         setProgress(null);
       }
     },
-    [pushToUndoStack, selectedDevice],
+    [pushToUndoStack, selectedDevice, showToast],
   );
 
   const disconnectDevice = useCallback(async () => {
@@ -1130,6 +1189,8 @@ function App() {
         await invoke("disconnect_device");
       }
       setConnected(false);
+      setIsReconnecting(false);
+      setConnectedDeviceName("");
       setStatus("Disconnected");
     } catch (error) {
       setStatus(`Disconnect failed: ${error}`);
@@ -1680,6 +1741,37 @@ function App() {
             }
           />
         </main>
+      )}
+      {isReconnecting && (
+        <div className="reconnecting-overlay">
+          <div className="reconnecting-card">
+            <div className="reconnecting-spinner"></div>
+            <h3>Connection Lost</h3>
+            <p>
+              Attempting to automatically reconnect to{" "}
+              <strong>{connectedDeviceName}</strong>...
+            </p>
+            <button
+              className="btn"
+              onClick={() => {
+                setConnected(false);
+                setIsReconnecting(false);
+                setStatus("Disconnected");
+              }}
+              style={{
+                marginTop: "8px",
+                padding: "8px 16px",
+                cursor: "pointer",
+                background: "var(--surface-soft)",
+                border: "1px solid var(--border)",
+                color: "var(--text)",
+                fontWeight: 600,
+              }}
+            >
+              Cancel & Return to Device Selection
+            </button>
+          </div>
+        </div>
       )}
       <ToastContainer
         toasts={toasts}
