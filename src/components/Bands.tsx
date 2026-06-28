@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useState } from "react";
 import type { Filter, FilterType, PEQData } from "../types";
 import { Icon } from "./Icon";
 import { Slider } from "./Slider";
@@ -18,6 +18,7 @@ const TYPE_LABELS: Record<FilterType, string> = {
 
 interface BandsProps {
   peq: PEQData;
+  maxBands: number;
   onFilterChange: (index: number, filter: Filter) => void;
   onStartChange: () => void;
   activeBandIndex?: number | null;
@@ -36,51 +37,61 @@ function sliderToFreq(value: number) {
   return Math.round(10 ** (min + (value / FREQ_SLIDER_STEPS) * (max - min)));
 }
 
-export function Bands({ peq, onFilterChange, onStartChange, activeBandIndex, onActiveBandChange }: BandsProps) {
-  const [isCollapsed, setIsCollapsed] = useState(() => localStorage.getItem("glacier-bands-collapsed") === "true");
-
-  useEffect(() => {
-    localStorage.setItem("glacier-bands-collapsed", isCollapsed.toString());
-  }, [isCollapsed]);
-  const columns = [peq.filters.slice(0, 5), peq.filters.slice(5)];
+export function Bands({ peq, maxBands, onFilterChange, onStartChange, activeBandIndex, onActiveBandChange }: BandsProps) {
+  const availableFilters = peq.filters.slice(0, maxBands);
+  const visibleFilters = availableFilters.filter((filter) => filter.enabled);
+  const canAddFilter = visibleFilters.length < availableFilters.length;
+  const columns = visibleFilters.length > 5
+    ? [visibleFilters.slice(0, Math.ceil(visibleFilters.length / 2)), visibleFilters.slice(Math.ceil(visibleFilters.length / 2))]
+    : [visibleFilters];
+  const addFilter = () => {
+    const next = availableFilters.find((filter) => !filter.enabled);
+    if (!next) return;
+    onActiveBandChange?.(next.index);
+    onStartChange();
+    onFilterChange(next.index, { ...next, enabled: true });
+  };
 
   return (
     <div className="bands-container">
-      <button
-        className="bands-section-header"
-        type="button"
-        aria-expanded={!isCollapsed}
-        onClick={() => setIsCollapsed(!isCollapsed)}
-      >
+      <div className="bands-section-header">
         <span className="title-text">
           <Icon>tune</Icon>
           <strong>FILTER BANDS</strong>
         </span>
         <span className="collapse-toggle-btn" aria-hidden="true">
-          <Icon>{isCollapsed ? "expand_more" : "expand_less"}</Icon>
+          {visibleFilters.length}/{availableFilters.length}
         </span>
-      </button>
-      {!isCollapsed && (
-        <section className="bands-grid">
-          {columns.map((bands, columnIndex) => (
-            <div className="bands-card" key={columnIndex}>
-              <div className="bands-header">
-                <span>BAND</span><span>TYPE</span><span>FREQ (Hz)</span><span>GAIN (dB)</span><span>Q</span>
-              </div>
-              {bands.map((filter) => (
-                <BandRow
-                  key={filter.index}
-                  filter={filter}
-                  active={activeBandIndex === filter.index}
-                  onChange={(updated) => onFilterChange(filter.index, updated)}
-                  onStartChange={onStartChange}
-                  onActivate={() => onActiveBandChange?.(filter.index)}
-                />
-              ))}
+      </div>
+      <section className="bands-grid">
+        {columns.map((bands, columnIndex) => bands.length > 0 && (
+          <div className="bands-card" key={columnIndex}>
+            <div className="bands-header">
+              <span>BAND</span><span>TYPE</span><span>FREQ (Hz)</span><span>GAIN (dB)</span><span>Q</span>
             </div>
-          ))}
-        </section>
-      )}
+            {bands.map((filter) => (
+              <BandRow
+                key={filter.index}
+                filter={filter}
+                active={activeBandIndex === filter.index}
+                onChange={(updated) => onFilterChange(filter.index, updated)}
+                onStartChange={onStartChange}
+                onActivate={() => onActiveBandChange?.(filter.index)}
+                canRemove={visibleFilters.length > 1}
+                onRemove={() => onFilterChange(filter.index, { ...filter, enabled: false })}
+              />
+            ))}
+            {columnIndex === columns.length - 1 && (
+              <div className="bands-actions">
+                <button type="button" className="btn" onClick={addFilter} disabled={!canAddFilter}>
+                  <Icon>add</Icon>
+                  Add Filter
+                </button>
+              </div>
+            )}
+          </div>
+        ))}
+      </section>
     </div>
   );
 }
@@ -91,12 +102,16 @@ function BandRow({
   onChange,
   onStartChange,
   onActivate,
+  canRemove,
+  onRemove,
 }: {
   filter: Filter;
   active: boolean;
   onChange: (filter: Filter) => void;
   onStartChange: () => void;
   onActivate: () => void;
+  canRemove: boolean;
+  onRemove: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -120,14 +135,16 @@ function BandRow({
       </button>
       <button
         className="band-index"
-        aria-label={`${filter.enabled ? "Disable" : "Enable"} band ${filter.index + 1}`}
+        aria-label={`Remove band ${filter.index + 1}`}
+        disabled={!canRemove}
         onClick={() => {
+          if (!canRemove) return;
           onActivate();
           onStartChange();
-          onChange({ ...filter, enabled: !filter.enabled });
+          onRemove();
         }}
       >
-        <strong>{filter.index + 1}</strong>
+        <Icon>remove</Icon>
       </button>
       <BandField label="Type" className="band-type-field">
         <FilterTypeButtons
