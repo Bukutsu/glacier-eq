@@ -249,7 +249,7 @@ function BandControls({
             aria-label={`Band ${filter.index + 1} frequency`}
             min={0}
             max={FREQ_SLIDER_STEPS}
-            step={1}
+            step={5}
             value={freqToSlider(filter.freq)}
             tone={filter.index >= 5 ? "orange" : "blue"}
             onStartChange={onStartChange}
