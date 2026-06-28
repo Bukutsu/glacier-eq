@@ -1,5 +1,5 @@
 // Copyright (c) 2026 Bukutsu
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-only
 
 //! Canonical biquad coefficient computation shared by USB packet building and graph rendering.
 

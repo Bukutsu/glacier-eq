@@ -240,6 +240,33 @@
 .action-row { display: grid; gap: 10px; }
 .action-row-primary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .action-row button { min-height: 44px; }
+.primary-save {
+  min-height: 44px;
+  width: 100%;
+}
+
+.secondary-actions {
+  color: var(--muted);
+}
+
+.secondary-actions summary {
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  color: var(--muted);
+  font-size: var(--type-label);
+  cursor: pointer;
+}
+
+.secondary-actions[open] summary {
+  color: var(--text);
+}
+
+.secondary-actions .action-row,
+.secondary-actions .import-grid {
+  margin-top: 8px;
+}
+
 button.danger { color: var(--red); background: transparent; outline: 1px solid var(--danger-outline); outline-offset: -1px; }
 
 .import-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }

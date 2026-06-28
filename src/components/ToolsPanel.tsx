@@ -746,10 +746,8 @@ function ImportTab({ peq, profiles, onImportPEQ, onReloadProfiles, setStatus }: 
 
   if (!parsed) {
     return (
-      <div className="import-section">
-        <div className="tool-section-head">
-          <strong>Import / Export</strong>
-        </div>
+      <details className="import-section secondary-actions">
+        <summary>Import / Export</summary>
         <div className="import-grid">
           <input
             type="file"
@@ -775,7 +773,7 @@ function ImportTab({ peq, profiles, onImportPEQ, onReloadProfiles, setStatus }: 
             <span>Copy</span>
           </button>
         </div>
-      </div>
+      </details>
     );
   }
 
@@ -1505,13 +1503,16 @@ function ToolActions({ selectedPreset, profiles, onReset, onSave, onDelete }: To
     <section className="action-section">
       <div className="action-section-head">
         <strong>Preset Actions</strong>
-        <span>Reset the current EQ or save it back to the selected preset.</span>
+        <span>Save changes to the selected preset.</span>
       </div>
-      <div className="action-row action-row-primary">
-        <button onClick={onReset}>Reset</button>
-        <button className="save" onClick={onSave}>Save</button>
-        <button className="danger" disabled={!canDelete} onClick={onDelete}>Delete</button>
-      </div>
+      <button className="save primary-save" onClick={onSave}>Save</button>
+      <details className="secondary-actions">
+        <summary>Reset / Delete</summary>
+        <div className="action-row action-row-primary">
+          <button onClick={onReset}>Reset</button>
+          <button className="danger" disabled={!canDelete} onClick={onDelete}>Delete</button>
+        </div>
+      </details>
     </section>
   );
 }
