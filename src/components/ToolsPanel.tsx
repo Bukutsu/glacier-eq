@@ -1531,6 +1531,7 @@ function DiagnosticsPanel() {
   const [levelFilter, setLevelFilter] = useState<DiagLevel>("All");
   const [search, setSearch] = useState("");
   const [autoScroll, setAutoScroll] = useState(true);
+  const [copied, setCopied] = useState(false);
   const logBoxRef = useRef<HTMLDivElement>(null);
 
   // Load history + subscribe to live events
@@ -1594,11 +1595,13 @@ function DiagnosticsPanel() {
   };
 
   const copyToClipboard = async () => {
-    const text = events
+    const text = filtered
       .map((e) => `${e.timestamp} [${e.level.toUpperCase()}] [${e.source}] ${e.message}`)
       .join("\n");
     try {
       await writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
     } catch (err) {
       console.error("Failed to copy logs:", err);
     }
@@ -1615,8 +1618,8 @@ function DiagnosticsPanel() {
           <span className="diag-count-w" title="Warnings">{warnCount}W</span>
           <span className="diag-count-i" title="Info">{infoCount}I</span>
         </div>
-        <button title="Copy all to clipboard" onClick={copyToClipboard}>
-          <Icon>content_copy</Icon>
+        <button title={copied ? "Copied!" : "Copy filtered logs to clipboard"} onClick={copyToClipboard}>
+          <Icon>{copied ? "check" : "content_copy"}</Icon>
         </button>
         <button className="danger" title="Clear all logs" onClick={clearLogs}>
           <Icon>delete</Icon>
