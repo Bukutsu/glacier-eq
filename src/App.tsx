@@ -24,7 +24,7 @@ import {
   makeTargetName,
   nextTargetColor,
 } from "./lib/targetReferences";
-import { buildDefaultState, normalizePeq } from "./lib/peq";
+import { buildDefaultState, normalizePeq, peqEquals } from "./lib/peq";
 import { clearThemeCache } from "./lib/theme";
 import type {
   DeviceInfo,
@@ -724,10 +724,7 @@ function App() {
 
   const pushToUndoStack = useCallback((currentPeq: PEQData) => {
     setUndoStack((prev) => {
-      if (
-        prev.length > 0 &&
-        JSON.stringify(prev[prev.length - 1]) === JSON.stringify(currentPeq)
-      ) {
+      if (prev.length > 0 && peqEquals(prev[prev.length - 1], currentPeq)) {
         return prev;
       }
       const next = [...prev, currentPeq];

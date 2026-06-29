@@ -885,105 +885,25 @@ fn read_filter(
         &protocol.read_filter_request(index, nonce),
     )?;
 
-    let mut mismatches = 0usize;
-    for attempt in 1..=FILTER_READ_ATTEMPTS {
-        let bytes = hid_read(app, &connected.path, 60).map_err(|error| {
-            format!(
-                "Filter {} read failed on attempt {}: {error}",
-                index + 1,
-                attempt
-            )
-        })?;
-        if bytes.is_empty() {
-            if attempt == 1 || attempt % 20 == 0 || attempt == FILTER_READ_ATTEMPTS {
-                diagnostics::log(
-                    LogLevel::Info,
-                    app,
-                    &diagnostics_store,
-                    LogSource::HID,
-                    format!(
-                        "Filter {} read attempt {}/{}: timed out (empty)",
-                        index + 1,
-                        attempt,
-                        FILTER_READ_ATTEMPTS
-                    ),
-                );
-            }
-            continue;
-        }
+    let data = read_matching_packet(
+        app,
+        &connected.path,
+        protocol,
+        "Filter",
+        FILTER_READ_ATTEMPTS,
+        |data| protocol.matches_filter_response(data, index, nonce),
+    )
+    .map_err(|_| {
+        format!(
+            "Failed to read filter {} from {}",
+            index + 1,
+            connected.profile_name
+        )
+    })?;
 
-        diagnostics::log(
-            LogLevel::Info,
-            app,
-            &diagnostics_store,
-            LogSource::HID,
-            format!(
-                "Filter {} read attempt {}/{}: got raw packet (len {}): {:02X?}",
-                index + 1,
-                attempt,
-                FILTER_READ_ATTEMPTS,
-                bytes.len(),
-                bytes
-            ),
-        );
-
-        let data = match protocol.unframe_packet(&bytes) {
-            Ok(data) => data,
-            Err(error) => {
-                diagnostics::log(
-                    LogLevel::Warn,
-                    app,
-                    &diagnostics_store,
-                    LogSource::HID,
-                    format!("Filter {} unframe failed: {}", index + 1, error),
-                );
-                continue;
-            }
-        };
-        let matches = protocol.matches_filter_response(data, index, nonce);
-        diagnostics::log(
-            LogLevel::Info,
-            app,
-            &diagnostics_store,
-            LogSource::HID,
-            format!(
-                "Filter {} response matching: matches={}",
-                index + 1,
-                matches
-            ),
-        );
-
-        if matches {
-            return protocol
-                .parse_filter_response(data)
-                .ok_or_else(|| format!("Filter {} response could not be parsed", index + 1));
-        }
-
-        if !data.is_empty() {
-            mismatches += 1;
-            diagnostics::log(
-                LogLevel::Warn,
-                app,
-                &diagnostics_store,
-                LogSource::HID,
-                format!(
-                    "Filter {} response mismatch count: {} (max {})",
-                    index + 1,
-                    mismatches,
-                    MAX_FILTER_MISMATCHES
-                ),
-            );
-            if mismatches > MAX_FILTER_MISMATCHES {
-                break;
-            }
-        }
-    }
-
-    Err(format!(
-        "Failed to read filter {} from {}",
-        index + 1,
-        connected.profile_name
-    ))
+    protocol
+        .parse_filter_response(&data)
+        .ok_or_else(|| format!("Filter {} response could not be parsed", index + 1))
 }
 
 fn read_global_gain(
@@ -1003,10 +923,42 @@ fn read_global_gain(
     send_packet(app, path, &protocol.read_global_gain_request())?;
     sleep_ms(ReadTiming::default().post_global_gain_ms);
 
-    for attempt in 1..=GLOBAL_GAIN_READ_ATTEMPTS {
+    let data = read_matching_packet(
+        app,
+        path,
+        protocol,
+        "Global gain",
+        GLOBAL_GAIN_READ_ATTEMPTS,
+        |data| protocol.matches_global_gain_response(data),
+    )?;
+    protocol
+        .parse_global_gain_response(&data)
+        .ok_or_else(|| "Global gain response could not be parsed".to_string())
+}
+
+fn read_matching_packet(
+    app: &tauri::AppHandle,
+    path: &str,
+    protocol: DeviceProtocol,
+    label: &str,
+    attempts: usize,
+    matches: impl Fn(&[u8]) -> bool,
+) -> Result<Vec<u8>, String> {
+    let diagnostics_store = app.state::<Mutex<DiagnosticsStore>>();
+    let mut mismatches = 0usize;
+    for attempt in 1..=attempts {
         let bytes = hid_read(app, path, 60)
-            .map_err(|error| format!("Global gain read failed on attempt {}: {error}", attempt))?;
+            .map_err(|error| format!("{label} read failed on attempt {attempt}: {error}"))?;
         if bytes.is_empty() {
+            if attempt == 1 || attempt % 20 == 0 || attempt == attempts {
+                diagnostics::log(
+                    LogLevel::Info,
+                    app,
+                    &diagnostics_store,
+                    LogSource::HID,
+                    format!("{label} read attempt {attempt}/{attempts}: timed out (empty)"),
+                );
+            }
             continue;
         }
 
@@ -1016,9 +968,7 @@ fn read_global_gain(
             &diagnostics_store,
             LogSource::HID,
             format!(
-                "Global gain read attempt {}/{}: got raw packet (len {}): {:02X?}",
-                attempt,
-                GLOBAL_GAIN_READ_ATTEMPTS,
+                "{label} read attempt {attempt}/{attempts}: got raw packet (len {}): {:02X?}",
                 bytes.len(),
                 bytes
             ),
@@ -1032,28 +982,36 @@ fn read_global_gain(
                     app,
                     &diagnostics_store,
                     LogSource::HID,
-                    format!("Global gain unframe failed: {}", error),
+                    format!("{label} unframe failed: {error}"),
                 );
                 continue;
             }
         };
-        let matches = protocol.matches_global_gain_response(data);
+        let matched = matches(data);
         diagnostics::log(
             LogLevel::Info,
             app,
             &diagnostics_store,
             LogSource::HID,
-            format!("Global gain response matching: matches={}", matches),
+            format!("{label} response matching: matches={matched}"),
         );
+        if matched {
+            return Ok(data.to_vec());
+        }
 
-        if matches {
-            if let Some(gain) = protocol.parse_global_gain_response(data) {
-                return Ok(gain);
-            }
+        mismatches += 1;
+        diagnostics::log(
+            LogLevel::Warn,
+            app,
+            &diagnostics_store,
+            LogSource::HID,
+            format!("{label} response mismatch count: {mismatches} (max {MAX_FILTER_MISMATCHES})"),
+        );
+        if mismatches > MAX_FILTER_MISMATCHES {
+            break;
         }
     }
-
-    Err("Global gain read timeout".to_string())
+    Err(format!("{label} read timeout"))
 }
 
 fn run_init_sequence(
