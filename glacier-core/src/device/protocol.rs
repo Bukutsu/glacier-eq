@@ -303,8 +303,8 @@ impl WalkplayProtocol {
         all_disabled && has_default_gain && all_default_freq
     }
 
-    pub fn build_init_packets() -> Vec<Vec<u8>> {
-        vec![vec![READ, CMD_VERSION, END]]
+    pub fn build_init_packets() -> Vec<Packet> {
+        vec![Packet::new(REPORT_ID, vec![READ, CMD_VERSION, END])]
     }
 
     pub fn build_filter_read_request(index: u8, nonce: u8) -> Vec<u8> {
@@ -381,35 +381,44 @@ impl WalkplayProtocol {
         ]
     }
 
-    pub fn build_commit_packets() -> Vec<Vec<u8>> {
+    pub fn build_commit_packets() -> Vec<Packet> {
         vec![
-            vec![
-                WRITE,
-                CMD_TEMP_WRITE,
-                CONST_TEMP_WRITE_LEN,
-                0x00,
-                0x00,
-                CONST_TEMP_WRITE_MAGIC_A,
-                CONST_TEMP_WRITE_MAGIC_B,
-                END,
-            ],
-            vec![WRITE, CMD_FLASH_EQ, CONST_FLASH_EQ_LEN, FILTER_SLOT, END],
+            Packet::new(
+                REPORT_ID,
+                vec![
+                    WRITE,
+                    CMD_TEMP_WRITE,
+                    CONST_TEMP_WRITE_LEN,
+                    0x00,
+                    0x00,
+                    CONST_TEMP_WRITE_MAGIC_A,
+                    CONST_TEMP_WRITE_MAGIC_B,
+                    END,
+                ],
+            ),
+            Packet::new(
+                REPORT_ID,
+                vec![WRITE, CMD_FLASH_EQ, CONST_FLASH_EQ_LEN, FILTER_SLOT, END],
+            ),
         ]
     }
 
-    pub fn build_ram_apply_packets() -> Vec<Vec<u8>> {
+    pub fn build_ram_apply_packets() -> Vec<Packet> {
         vec![
-            vec![
-                WRITE,
-                CMD_TEMP_WRITE,
-                CONST_TEMP_WRITE_LEN,
-                0x00,
-                0x00,
-                CONST_TEMP_WRITE_MAGIC_A,
-                CONST_TEMP_WRITE_MAGIC_B,
-                END,
-            ],
-            vec![WRITE, CMD_FLASH_EQ, END],
+            Packet::new(
+                REPORT_ID,
+                vec![
+                    WRITE,
+                    CMD_TEMP_WRITE,
+                    CONST_TEMP_WRITE_LEN,
+                    0x00,
+                    0x00,
+                    CONST_TEMP_WRITE_MAGIC_A,
+                    CONST_TEMP_WRITE_MAGIC_B,
+                    END,
+                ],
+            ),
+            Packet::new(REPORT_ID, vec![WRITE, CMD_FLASH_EQ, END]),
         ]
     }
 
@@ -454,22 +463,6 @@ impl WalkplayProtocol {
             ]
         }
     }
-
-    pub fn frame_packet(payload: &[u8]) -> Vec<u8> {
-        let mut buf = vec![0u8; 65];
-        buf[0] = Self::report_id();
-        let len = payload.len().min(64);
-        buf[1..1 + len].copy_from_slice(&payload[..len]);
-        buf
-    }
-
-    pub fn unframe_packet(framed: &[u8]) -> Result<Vec<u8>, String> {
-        if framed.is_empty() {
-            return Err("Received empty framed packet".to_string());
-        }
-        let offset = if framed[0] == Self::report_id() { 1 } else { 0 };
-        Ok(framed[offset..].to_vec())
-    }
 }
 
 impl EqProtocol for WalkplayProtocol {
@@ -487,9 +480,6 @@ impl EqProtocol for WalkplayProtocol {
 
     fn init_packets(&self) -> Vec<Packet> {
         Self::build_init_packets()
-            .into_iter()
-            .map(|payload| Packet::new(REPORT_ID, payload))
-            .collect()
     }
 
     fn read_filter_request(&self, index: u8, nonce: u8) -> Packet {
@@ -537,16 +527,10 @@ impl EqProtocol for WalkplayProtocol {
 
     fn commit_packets(&self) -> Vec<Packet> {
         Self::build_commit_packets()
-            .into_iter()
-            .map(|payload| Packet::new(REPORT_ID, payload))
-            .collect()
     }
 
     fn ram_apply_packets(&self) -> Vec<Packet> {
         Self::build_ram_apply_packets()
-            .into_iter()
-            .map(|payload| Packet::new(REPORT_ID, payload))
-            .collect()
     }
 
     fn report_id(&self) -> u8 {

@@ -10,14 +10,6 @@ fn default_theme() -> String {
     "tokyo-night".to_string()
 }
 
-fn default_show_diagnostics() -> bool {
-    false
-}
-
-fn default_enable_online_measurements() -> bool {
-    false
-}
-
 fn default_snap_to_iso_frequencies() -> bool {
     true
 }
@@ -28,9 +20,9 @@ pub struct Settings {
     pub skip_push_verification: bool,
     #[serde(default = "default_theme")]
     pub theme: String,
-    #[serde(default = "default_show_diagnostics")]
+    #[serde(default)]
     pub show_diagnostics: bool,
-    #[serde(default = "default_enable_online_measurements")]
+    #[serde(default)]
     pub enable_online_measurements: bool,
     #[serde(default = "default_snap_to_iso_frequencies")]
     pub snap_to_iso_frequencies: bool,
@@ -42,8 +34,8 @@ impl Default for Settings {
             auto_pull_on_connect: true,
             skip_push_verification: false,
             theme: default_theme(),
-            show_diagnostics: default_show_diagnostics(),
-            enable_online_measurements: default_enable_online_measurements(),
+            show_diagnostics: false,
+            enable_online_measurements: false,
             snap_to_iso_frequencies: default_snap_to_iso_frequencies(),
         }
     }
