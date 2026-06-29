@@ -17,9 +17,9 @@ import {
   loadDeviceCurvePoints,
   type OnlineDevice,
 } from "../lib/onlineDb";
+import { isTauri } from "../lib/platform";
 
 const DEFAULT_PROFILE_NAME = "Default EQ";
-const isTauri = () => typeof window !== "undefined" && !!(window as any).__TAURI_INTERNALS__;
 
 interface SelectOption<T extends string | number> {
   value: T;

@@ -42,10 +42,7 @@ impl Default for Settings {
 }
 
 fn settings_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
-    let dir = app_data_base_dir(app)?;
-    std::fs::create_dir_all(&dir)
-        .map_err(|error| format!("Failed to create data directory: {error}"))?;
-    Ok(dir.join("settings.json"))
+    Ok(app_data_base_dir(app)?.join("settings.json"))
 }
 
 #[tauri::command]
