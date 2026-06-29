@@ -15,12 +15,13 @@ interface DeviceChooserProps {
   isBusy: boolean;
 }
 
-function formatUsbId(value: number): string {
+function formatUsbId(value: number | null | undefined): string {
+  if (value === null || value === undefined) return "****";
   return value.toString(16).padStart(4, "0").toUpperCase();
 }
 
-function formatOptionalUsbId(value: number | null): string {
-  return value === null ? "*" : formatUsbId(value);
+function formatOptionalUsbId(value: number | null | undefined): string {
+  return (value === null || value === undefined) ? "*" : formatUsbId(value);
 }
 
 export function DeviceChooser({
