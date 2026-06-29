@@ -937,39 +937,6 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   cursor: not-allowed;
 }
 
-.stepper-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 100%;
-  background: transparent;
-  border: none;
-  color: var(--muted);
-  cursor: pointer;
-  outline: none;
-  transition: color 0.12s ease, background-color 0.12s ease;
-}
-
-.stepper-btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--text);
-}
-
-.stepper-btn:disabled {
-  color: var(--line-separator);
-  cursor: not-allowed;
-  background: transparent;
-}
-
-.stepper-btn.decrement {
-  border-right: 1px solid var(--line-subtle);
-}
-
-.stepper-btn.increment {
-  border-left: 1px solid var(--line-subtle);
-}
-
 .custom-number-input .stepper-field {
   appearance: textfield;
   flex: 1;
@@ -996,26 +963,8 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   background: transparent !important;
 }
 
-.stepper-icon {
-  font-family: var(--font-ui);
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 1;
-  user-select: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
 .autoeq-bands-stepper.custom-number-input {
   max-width: 120px;
-}
-
-/* Hide stepper buttons on mobile/smaller screens to make it clean and minimal */
-@media (max-width: 768px) {
-  .stepper-btn {
-    display: none !important;
-  }
 }
 
 /* Online Measurements Search Database */
