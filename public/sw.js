@@ -6,13 +6,20 @@ self.addEventListener("install", (event) => {
       .open(CACHE)
       .then(async (cache) => {
         const manifestUrl = new URL("offline-assets.json", self.registration.scope);
-        const manifest = await fetch(manifestUrl).then((response) => response.json());
-        await cache.addAll([
+        let manifest = [];
+        try {
+          manifest = await fetch(manifestUrl).then((response) => response.json());
+        } catch {}
+
+        await Promise.allSettled([
           self.registration.scope,
           manifestUrl.href,
           new URL("MaterialIcons-Regular.ttf", self.registration.scope).href,
           ...manifest.map((file) => new URL(file, self.registration.scope).href),
-        ]);
+        ].map(async (url) => {
+          const response = await fetch(url, { cache: "reload" });
+          if (response.ok) await cache.put(url, response);
+        }));
       })
       .then(() => self.skipWaiting()),
   );
@@ -44,7 +51,10 @@ self.addEventListener("fetch", (event) => {
       .catch(async () => {
         const cached = await caches.match(request);
         if (cached) return cached;
-        if (request.mode === "navigate") return caches.match(self.registration.scope);
+        if (request.mode === "navigate") {
+          const root = await caches.match(self.registration.scope);
+          if (root) return root;
+        }
         throw new Error("Offline and not cached");
       }),
   );
