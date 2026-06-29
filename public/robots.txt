@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://bukutsu.github.io/glacier-eq/sitemap.xml
