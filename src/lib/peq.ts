@@ -1,10 +1,11 @@
 import type { FilterType, PEQData } from "../types";
 
+export const DEFAULT_FREQS_10_BAND = [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
+
 export function buildDefaultState(): PEQData {
-  const freqs = [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
   return {
     global_gain: 0,
-    filters: freqs.map((freq, index) => ({
+    filters: DEFAULT_FREQS_10_BAND.map((freq, index) => ({
       index,
       enabled: index === 0,
       filter_type: "Peak",

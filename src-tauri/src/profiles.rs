@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::state::DeviceState;
+use glacier_core::device::{
+    capabilities::DESKTOP_DAC_CAPS, get_supported_device, DeviceCapabilities,
+};
 use glacier_core::eq::PEQData;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
@@ -53,6 +56,21 @@ fn modified_time_string(path: &Path) -> Option<String> {
     let modified = std::fs::metadata(path).ok()?.modified().ok()?;
     let datetime = chrono::DateTime::<chrono::Local>::from(modified);
     Some(datetime.format("%Y-%m-%d %H:%M").to_string())
+}
+
+fn connected_caps_or_desktop(
+    state: &tauri::State<'_, Mutex<DeviceState>>,
+) -> Result<DeviceCapabilities, String> {
+    let connected = state
+        .lock()
+        .map_err(|_| "Device state lock poisoned".to_string())?
+        .connected
+        .clone();
+
+    Ok(connected
+        .and_then(|device| get_supported_device(device.vendor_id, device.product_id))
+        .map(|profile| profile.caps.clone())
+        .unwrap_or(DESKTOP_DAC_CAPS))
 }
 
 #[tauri::command]
@@ -212,19 +230,7 @@ pub fn parse_autoeq(
     let (mut peq, headphone_name, mut warnings) =
         glacier_core::autoeq::parse_autoeq_text(&text).map_err(|err| err.to_string())?;
 
-    let caps = if let Some(connected) = &state
-        .lock()
-        .map_err(|_| "Device state lock poisoned".to_string())?
-        .connected
-    {
-        glacier_core::device::get_supported_device(connected.vendor_id, connected.product_id)
-            .map(|profile| profile.caps.clone())
-            .unwrap_or(glacier_core::device::capabilities::DESKTOP_DAC_CAPS)
-    } else {
-        glacier_core::device::capabilities::DESKTOP_DAC_CAPS
-    };
-
-    let mut clamp_warnings = peq.clamp_to_capabilities(&caps);
+    let mut clamp_warnings = peq.clamp_to_capabilities(&connected_caps_or_desktop(&state)?);
     warnings.append(&mut clamp_warnings);
 
     Ok(AutoEqParseResult {
@@ -399,19 +405,7 @@ pub async fn run_autoeq(
         fs,
     )?;
 
-    let caps = if let Some(connected) = &state
-        .lock()
-        .map_err(|_| "Device state lock poisoned".to_string())?
-        .connected
-    {
-        glacier_core::device::get_supported_device(connected.vendor_id, connected.product_id)
-            .map(|profile| profile.caps.clone())
-            .unwrap_or(glacier_core::device::capabilities::DESKTOP_DAC_CAPS)
-    } else {
-        glacier_core::device::capabilities::DESKTOP_DAC_CAPS
-    };
-
-    let warnings = peq.clamp_to_capabilities(&caps);
+    let warnings = peq.clamp_to_capabilities(&connected_caps_or_desktop(&state)?);
 
     Ok(AutoEqRunResult { peq, warnings })
 }
