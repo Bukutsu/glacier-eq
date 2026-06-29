@@ -1269,6 +1269,10 @@ function App() {
           profile={selectedPreset}
           deviceName={deviceName}
           dirty={dirty}
+          activeBands={peq.filters.filter((filter) => filter.enabled).length}
+          maxBands={maxFilterBands}
+          preampDb={peq.global_gain}
+          supportsRamApply={supportsRamApply}
           canUndo={undoStack.length > 0}
           canRedo={redoStack.length > 0}
           onUndo={undo}

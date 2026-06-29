@@ -64,14 +64,29 @@ h1 {
 .sync-dot.ok { color: var(--green); }
 .sync-dot.offline { color: var(--muted); }
 
-.unsaved {
-  color: var(--yellow);
-  border: 1px solid rgb(var(--yellow-rgb) / 0.55);
-  padding: 1px 7px;
+.header-session-strip {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  min-width: 0;
+  color: var(--muted);
   font-size: var(--type-caption);
-  background: rgb(var(--yellow-rgb) / 0.10);
-  white-space: nowrap;
   line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.header-session-strip span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.header-session-strip span + span::before {
+  content: "·";
+  margin: 0 8px;
+  color: var(--line-strong);
 }
 
 .toolbar {
