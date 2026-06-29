@@ -11,6 +11,12 @@ const END: u8 = 0xEE;
 const FILTER_PARAMS: u8 = 0x15;
 const GLOBAL_GAIN: u8 = 0x17;
 
+#[derive(Clone, Copy)]
+enum GainEndian {
+    Little,
+    Big,
+}
+
 pub struct FiioJa11Protocol;
 pub struct FiioProtocol;
 
@@ -58,6 +64,54 @@ fn parse_filter_response(data: &[u8]) -> Option<Filter> {
         q: ((q_raw as f64 / 100.0) * 100.0).round() / 100.0,
         filter_type: filter_type_from_fiio(data[13]),
     })
+}
+
+fn write_filter_packet(report_id: u8, index: u8, filter: &Filter) -> Packet {
+    let gain = (filter.gain * 10.0).round() as i16;
+    let freq = filter.freq;
+    let q = (filter.q * 100.0).round() as u16;
+    Packet::new(
+        report_id,
+        vec![
+            SET_1,
+            SET_2,
+            0,
+            0,
+            FILTER_PARAMS,
+            8,
+            index,
+            (gain >> 8) as u8,
+            gain as u8,
+            (freq >> 8) as u8,
+            freq as u8,
+            (q >> 8) as u8,
+            q as u8,
+            filter_type_to_fiio(filter.filter_type),
+            0,
+            END,
+        ],
+    )
+}
+
+fn write_global_gain_packet(
+    report_id: u8,
+    global_gain: f64,
+    scale: f64,
+    endian: GainEndian,
+) -> Packet {
+    let value = (global_gain * scale).round() as i16;
+    let [first, second] = match endian {
+        GainEndian::Little => value.to_le_bytes(),
+        GainEndian::Big => value.to_be_bytes(),
+    };
+    Packet::new(
+        report_id,
+        vec![SET_1, SET_2, 0, 0, GLOBAL_GAIN, 2, first, second, 0, END],
+    )
+}
+
+fn save_packet(report_id: u8, command: u8) -> Packet {
+    Packet::new(report_id, vec![SET_1, SET_2, 0, 0, command, 1, 1, 0, END])
 }
 
 impl EqProtocol for FiioJa11Protocol {
@@ -108,54 +162,20 @@ impl EqProtocol for FiioJa11Protocol {
         filter: &Filter,
         _dsp_sample_rate: f64,
     ) -> Result<Vec<Packet>, String> {
-        let gain = (filter.gain * 10.0).round() as i16;
-        let freq = filter.freq;
-        let q = (filter.q * 100.0).round() as u16;
-        let type_code = filter_type_to_fiio(filter.filter_type);
-        Ok(vec![Packet::new(
-            2,
-            vec![
-                SET_1,
-                SET_2,
-                0,
-                0,
-                FILTER_PARAMS,
-                8,
-                index,
-                (gain >> 8) as u8,
-                gain as u8,
-                (freq >> 8) as u8,
-                freq as u8,
-                (q >> 8) as u8,
-                q as u8,
-                type_code,
-                0,
-                END,
-            ],
-        )])
+        Ok(vec![write_filter_packet(2, index, filter)])
     }
 
     fn write_global_gain_packets(&self, global_gain: f64) -> Vec<Packet> {
-        let value = (global_gain.clamp(-12.0, 12.0) * 2560.0).round() as i16;
-        vec![Packet::new(
+        vec![write_global_gain_packet(
             2,
-            vec![
-                SET_1,
-                SET_2,
-                0,
-                0,
-                GLOBAL_GAIN,
-                2,
-                value as u8,
-                (value >> 8) as u8,
-                0,
-                END,
-            ],
+            global_gain.clamp(-12.0, 12.0),
+            2560.0,
+            GainEndian::Little,
         )]
     }
 
     fn commit_packets(&self) -> Vec<Packet> {
-        vec![Packet::new(2, vec![SET_1, SET_2, 0, 0, 0x18, 1, 1, 0, END])]
+        vec![save_packet(2, 0x18)]
     }
 
     fn ram_apply_packets(&self) -> Vec<Packet> {
@@ -215,54 +235,20 @@ impl EqProtocol for FiioProtocol {
         filter: &Filter,
         _dsp_sample_rate: f64,
     ) -> Result<Vec<Packet>, String> {
-        let gain = (filter.gain * 10.0).round() as i16;
-        let freq = filter.freq;
-        let q = (filter.q * 100.0).round() as u16;
-        let type_code = filter_type_to_fiio(filter.filter_type);
-        Ok(vec![Packet::new(
-            7,
-            vec![
-                SET_1,
-                SET_2,
-                0,
-                0,
-                FILTER_PARAMS,
-                8,
-                index,
-                (gain >> 8) as u8,
-                gain as u8,
-                (freq >> 8) as u8,
-                freq as u8,
-                (q >> 8) as u8,
-                q as u8,
-                type_code,
-                0,
-                END,
-            ],
-        )])
+        Ok(vec![write_filter_packet(7, index, filter)])
     }
 
     fn write_global_gain_packets(&self, global_gain: f64) -> Vec<Packet> {
-        let value = (global_gain * 10.0).round() as i16;
-        vec![Packet::new(
+        vec![write_global_gain_packet(
             7,
-            vec![
-                SET_1,
-                SET_2,
-                0,
-                0,
-                GLOBAL_GAIN,
-                2,
-                (value >> 8) as u8,
-                value as u8,
-                0,
-                END,
-            ],
+            global_gain,
+            10.0,
+            GainEndian::Big,
         )]
     }
 
     fn commit_packets(&self) -> Vec<Packet> {
-        vec![Packet::new(7, vec![SET_1, SET_2, 0, 0, 0x19, 1, 1, 0, END])]
+        vec![save_packet(7, 0x19)]
     }
 
     fn ram_apply_packets(&self) -> Vec<Packet> {

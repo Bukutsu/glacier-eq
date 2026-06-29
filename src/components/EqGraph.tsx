@@ -3,6 +3,7 @@ import { bandResponse, dbToY, formatFreq, freqToX, xToFreq } from "../lib/graph"
 import { cssVar, rgbWithAlpha } from "../lib/theme";
 import { interpolateMeasurementDb } from "../lib/measurements";
 import { filterColorVars } from "../lib/filterColors";
+import { peqEquals } from "../lib/peq";
 import type { GraphViewMode, MeasurementTrace, PEQData, TargetTrace } from "../types";
 
 const GRAPH_FREQS = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
@@ -89,7 +90,7 @@ export function EqGraph({
       <canvas className="eq-canvas" ref={canvasRef} />
       {(committedPeq || targets.length > 0 || visibleMeasurements.length > 0) && (
         <div className="graph-legend">
-          {committedPeq && JSON.stringify(committedPeq) !== JSON.stringify(peq) && (
+          {committedPeq && !peqEquals(committedPeq, peq) && (
             <div className="graph-legend-item committed">
               <span className="graph-legend-swatch graph-legend-swatch-dashed" />
               <span>{selectedMeasurement ? `Last pushed + ${selectedMeasurement.name}` : "Last pushed"}</span>
@@ -205,7 +206,7 @@ function drawCommittedPreview(
   selectedMeasurement: MeasurementTrace | null,
   viewMode: GraphViewMode,
 ) {
-  if (!committedPeq || JSON.stringify(committedPeq) === JSON.stringify(peq)) {
+  if (!committedPeq || peqEquals(committedPeq, peq)) {
     return;
   }
 
