@@ -50,13 +50,6 @@ h1 {
   font-weight: 700;
 }
 
-.title-line strong { color: var(--muted); font-size: var(--type-body); font-weight: 700; }
-.title-separator {
-  width: 1px;
-  height: 16px;
-  background: var(--line-medium);
-  flex: 0 0 1px;
-}
 .device-name {
   min-width: 0;
   color: var(--cyan);
