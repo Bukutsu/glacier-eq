@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
+import { invoke, listen } from "./lib/rpc";
 import { Bands } from "./components/Bands";
 import { DeviceChooser } from "./components/DeviceChooser";
 import { EqGraph } from "./components/EqGraph";

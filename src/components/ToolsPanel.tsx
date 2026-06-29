@@ -1,8 +1,5 @@
 import { type CSSProperties, useState, useEffect, useRef } from "react";
-import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
-import { readText, writeText } from "@tauri-apps/plugin-clipboard-manager";
-import { save } from "@tauri-apps/plugin-dialog";
+import { invoke, listen, readText, writeText, save } from "../lib/rpc";
 
 import { parseMeasurementText } from "../lib/measurements";
 import type { AppSettings, MeasurementTrace, Profile, PEQData, GraphViewMode, TargetTrace } from "../types";

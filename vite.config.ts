@@ -7,6 +7,7 @@ const host = process.env.TAURI_DEV_HOST;
 // https://vite.dev/config/
 export default defineConfig(async () => ({
   plugins: [react()],
+  base: process.env.GITHUB_ACTIONS === "true" ? "/glacier-eq/" : "/",
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
