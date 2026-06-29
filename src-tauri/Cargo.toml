@@ -1,6 +1,6 @@
 [package]
 name = "glacier-eq"
-version = "0.1.6"
+version = "0.1.7"
 description = "Cross-platform parametric EQ editor for USB DACs. Built with Tauri + React + Rust."
 license = "GPL-3.0-only"
 authors = ["Bukutsu"]
