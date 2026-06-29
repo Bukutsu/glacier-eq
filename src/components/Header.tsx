@@ -1,4 +1,26 @@
 import { OperationProgress } from "../types";
+import { isTauri } from "../lib/platform";
+
+const REPO_URL = "https://github.com/Bukutsu/glacier-eq";
+
+function GithubLink() {
+  if (isTauri()) return null;
+
+  return (
+    <a
+      className="github-link"
+      href={REPO_URL}
+      target="_blank"
+      rel="noreferrer"
+      title="GitHub repository"
+      aria-label="GitHub repository"
+    >
+      <svg viewBox="0 0 16 16" aria-hidden="true">
+        <path d="M8 0.2A7.9 7.9 0 0 0 5.5 15.6c0.4 0.1 0.5-0.2 0.5-0.4v-1.4c-2.1 0.5-2.6-0.9-2.6-0.9-0.4-0.9-0.9-1.1-0.9-1.1-0.7-0.5 0.1-0.5 0.1-0.5 0.8 0.1 1.2 0.8 1.2 0.8 0.7 1.2 1.9 0.9 2.3 0.7 0.1-0.5 0.3-0.9 0.5-1.1-1.7-0.2-3.5-0.9-3.5-3.9 0-0.9 0.3-1.6 0.8-2.1-0.1-0.2-0.4-1 0.1-2.1 0 0 0.7-0.2 2.2 0.8A7.6 7.6 0 0 1 8 4.1c0.7 0 1.3 0.1 1.9 0.3 1.5-1 2.2-0.8 2.2-0.8 0.4 1.1 0.2 1.9 0.1 2.1 0.5 0.6 0.8 1.3 0.8 2.1 0 3-1.8 3.6-3.5 3.8 0.3 0.2 0.5 0.7 0.5 1.4v2.1c0 0.2 0.1 0.5 0.5 0.4A7.9 7.9 0 0 0 8 0.2z" />
+      </svg>
+    </a>
+  );
+}
 
 interface HeaderProps {
   connected: boolean;
@@ -56,6 +78,7 @@ export function Header({
           <div className="title-line">
             <h1>Connect DAC</h1>
             <span className="sync-dot offline">● Offline</span>
+            <GithubLink />
           </div>
           <div className="header-session-strip">
             <span>No device selected</span>
@@ -72,6 +95,7 @@ export function Header({
         <div className="title-stack">
           <div className="title-line">
             <h1>{profile}</h1>
+            <GithubLink />
           </div>
           <div className="header-meta-row">
             <div className="device-name">{deviceName}</div>

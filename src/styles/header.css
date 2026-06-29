@@ -32,6 +32,25 @@
 
 .title-stack { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
 .title-line { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.github-link {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+}
+
+.github-link:hover {
+  color: var(--cyan);
+}
+
+.github-link svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+
 .header-meta-row {
   display: flex;
   align-items: center;
