@@ -740,8 +740,6 @@ function App() {
   }, [loadProfiles]);
 
   useEffect(() => {
-    if (!isTauri()) return;
-
     let active = true;
     const unlistenFns: (() => void)[] = [];
 
