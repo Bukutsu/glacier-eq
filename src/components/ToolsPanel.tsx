@@ -1471,8 +1471,6 @@ function DiagnosticsPanel() {
 
   // Load history + subscribe to live events
   useEffect(() => {
-    if (!isTauri()) return;
-
     invoke<DiagnosticEvent[]>("get_diagnostics")
       .then((data) => setEvents(data))
       .catch((err) => console.error("Failed to load diagnostics:", err));
