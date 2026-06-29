@@ -15,6 +15,7 @@ hardware over HID, edits EQ locally, and works offline.
 - Local profiles with search, import/export, copy/paste, and one-tap apply
 - Measurement overlays from files or optional Squiglink offline cache
 - Native AutoEQ matching against measurement and target curves
+- Walkplay/Savitech, Moondrop, and FiiO EQ protocol support
 - Hardware controls for supported Walkplay/Savitech DACs: DAC filter, amp mode,
   output gain, balance, mic monitor, and reset modes
 - Desktop and Android layouts, themes, diagnostics, and dev dummy DAC
@@ -65,6 +66,10 @@ hardware reports.
 | Family match | JCally JM20 / Savitech Generic |
 | Family match | JCally JM20 Pro / Alt Savitech |
 | Testing | Moondrop Dawn Pro |
+| Testing | Moondrop Dawn Pro 2 |
+| Testing | FiiO JA11 |
+| Testing | JCally JM12 |
+| Testing | FiiO KA Series |
 | Testing | Truthear KEYX |
 
 The app uses one registry for discovery, validation, capabilities, and the
@@ -106,7 +111,7 @@ Release APK signing is not configured by default.
 - [x] Real-time frequency response graph
 - [x] AutoEQ matching
 - [x] Desktop and Android builds
-- [ ] More DAC families beyond Walkplay/Savitech
+- [x] More DAC families beyond Walkplay/Savitech
 - [ ] Interactive filter adjustment from the graph
 - [ ] Full-screen Android filter adjustment
 - [ ] Command-line interface

@@ -5,7 +5,7 @@ import { readText, writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { save } from "@tauri-apps/plugin-dialog";
 
 import { parseMeasurementText } from "../lib/measurements";
-import type { MeasurementTrace, Profile, PEQData, GraphViewMode, TargetTrace } from "../types";
+import type { AppSettings, MeasurementTrace, Profile, PEQData, GraphViewMode, TargetTrace } from "../types";
 import { Icon } from "./Icon";
 import { NumberInput } from "./NumberInput";
 import { Slider } from "./Slider";
@@ -119,24 +119,20 @@ interface ToolsPanelProps {
   availableTabs?: ToolsTab[];
   defaultTab?: ToolsTab;
   showActions?: boolean;
-  showDiagnostics?: boolean;
-  onShowDiagnosticsChange?: (show: boolean) => void;
   graphViewMode?: GraphViewMode;
   onGraphViewModeChange?: (mode: GraphViewMode) => void;
   allTargets?: TargetTrace[];
   onSelectedMeasurementChange?: (measurementId: string | null) => void;
-  theme?: string;
-  onThemeChange?: (theme: string) => void;
   enableOnlineMeasurements?: boolean;
   onEnableOnlineMeasurementsChange?: (enable: boolean) => void;
-  snapToIso?: boolean;
-  onSnapToIsoChange?: (v: boolean) => void;
+  settings: AppSettings;
+  onSettingChange: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
 }
 
 export function ToolsPanel(props: ToolsPanelProps) {
   const requestedTabs = props.availableTabs ?? ["Preset", "Import", "Measure", "AutoEQ", "Device", "Settings"];
   const availableTabs = requestedTabs.filter((name) => name !== "Import" || !requestedTabs.includes("Preset"));
-  const showDiagnostics = props.showDiagnostics ?? false;
+  const showDiagnostics = props.settings.show_diagnostics;
   const [tab, setTab] = useState<ToolsTab>(() => (
     props.defaultTab === "Import" && availableTabs.includes("Preset")
       ? "Preset"
@@ -200,11 +196,8 @@ export function ToolsPanel(props: ToolsPanelProps) {
           <SettingsTab
             graphViewMode={props.graphViewMode}
             onGraphViewModeChange={props.onGraphViewModeChange}
-            theme={props.theme}
-            onThemeChange={props.onThemeChange}
-            onShowDiagnosticsChange={props.onShowDiagnosticsChange}
-            onEnableOnlineMeasurementsChange={props.onEnableOnlineMeasurementsChange}
-            onSnapToIsoChange={props.onSnapToIsoChange}
+            settings={props.settings}
+            onSettingChange={props.onSettingChange}
           />
         )}
       </section>
@@ -1128,93 +1121,21 @@ export function AutoEqTab({
 function SettingsTab({
   graphViewMode,
   onGraphViewModeChange,
-  theme: _theme,
-  onThemeChange,
-  onShowDiagnosticsChange,
-  onEnableOnlineMeasurementsChange,
-  onSnapToIsoChange,
+  settings,
+  onSettingChange,
 }: {
   graphViewMode?: GraphViewMode;
   onGraphViewModeChange?: (mode: GraphViewMode) => void;
-  theme?: string;
-  onThemeChange?: (theme: string) => void;
-  onShowDiagnosticsChange?: (show: boolean) => void;
-  onEnableOnlineMeasurementsChange?: (enable: boolean) => void;
-  onSnapToIsoChange?: (v: boolean) => void;
+  settings: AppSettings;
+  onSettingChange: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
 }) {
-  const [settings, setSettings] = useState({
-    auto_pull_on_connect: true,
-    skip_push_verification: false,
-    theme: "tokyo-night",
-    show_diagnostics: false,
-    enable_online_measurements: false,
-    snap_to_iso_frequencies: true,
-  });
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!isTauri()) {
-      setLoading(false);
-      return;
-    }
-
-    invoke<typeof settings>("get_settings")
-      .then((data) => {
-        setSettings((prev) => ({ ...prev, ...data }));
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error("Failed to load settings:", err);
-        setLoading(false);
-      });
-  }, []);
-
-  const updateSetting = async (key: string, value: any) => {
-    const updated = { ...settings, [key]: value };
-    setSettings(updated);
-    if (!isTauri()) {
-      if (key === "theme") onThemeChange?.(value);
-      if (key === "show_diagnostics") onShowDiagnosticsChange?.(value);
-      if (key === "enable_online_measurements") onEnableOnlineMeasurementsChange?.(value);
-      if (key === "snap_to_iso_frequencies") onSnapToIsoChange?.(value);
-      return;
-    }
-    try {
-      await invoke("save_settings", { settings: updated });
-      if (key === "theme") {
-        if (onThemeChange) {
-          onThemeChange(value);
-        }
-      }
-      if (key === "show_diagnostics") {
-        if (onShowDiagnosticsChange) {
-          onShowDiagnosticsChange(value);
-        }
-      }
-      if (key === "enable_online_measurements") {
-        if (onEnableOnlineMeasurementsChange) {
-          onEnableOnlineMeasurementsChange(value);
-        }
-      }
-      if (key === "snap_to_iso_frequencies") {
-        onSnapToIsoChange?.(value);
-      }
-    } catch (err) {
-      console.error("Failed to save settings:", err);
-    }
-  };
-
-  if (loading) {
-    return <div className="settings-list">Loading settings...</div>;
-  }
-
   return (
     <div className="settings-list">
       <label>
         <input
           type="checkbox"
           checked={settings.auto_pull_on_connect}
-          onChange={(e) => updateSetting("auto_pull_on_connect", e.target.checked)}
+          onChange={(e) => onSettingChange("auto_pull_on_connect", e.target.checked)}
         />
         Auto-pull EQ from device on connect
       </label>
@@ -1222,7 +1143,7 @@ function SettingsTab({
         <input
           type="checkbox"
           checked={settings.skip_push_verification}
-          onChange={(e) => updateSetting("skip_push_verification", e.target.checked)}
+          onChange={(e) => onSettingChange("skip_push_verification", e.target.checked)}
         />
         Skip push verification
       </label>
@@ -1230,7 +1151,7 @@ function SettingsTab({
         <input
           type="checkbox"
           checked={settings.show_diagnostics}
-          onChange={(e) => updateSetting("show_diagnostics", e.target.checked)}
+          onChange={(e) => onSettingChange("show_diagnostics", e.target.checked)}
         />
         Show diagnostic log panel
       </label>
@@ -1238,7 +1159,7 @@ function SettingsTab({
         <input
           type="checkbox"
           checked={settings.snap_to_iso_frequencies}
-          onChange={(e) => updateSetting("snap_to_iso_frequencies", e.target.checked)}
+          onChange={(e) => onSettingChange("snap_to_iso_frequencies", e.target.checked)}
         />
         Snap frequency to ISO standard values
       </label>
@@ -1246,7 +1167,7 @@ function SettingsTab({
         <input
           type="checkbox"
           checked={settings.enable_online_measurements}
-          onChange={(e) => updateSetting("enable_online_measurements", e.target.checked)}
+          onChange={(e) => onSettingChange("enable_online_measurements", e.target.checked)}
         />
         Enable online measurement database (Squiglink)
       </label>
@@ -1257,7 +1178,7 @@ function SettingsTab({
           <Select
             id="theme-select"
             value={settings.theme}
-            onChange={(val) => updateSetting("theme", val)}
+            onChange={(val) => onSettingChange("theme", val)}
             options={[
               { value: "auto", label: "Auto (System Theme)" },
               { value: "tokyo-night", label: "Tokyo Night" },

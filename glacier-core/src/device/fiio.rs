@@ -1,0 +1,326 @@
+// Copyright (c) 2026 Bukutsu
+// SPDX-License-Identifier: GPL-3.0-only
+
+use crate::device::protocol::{EqProtocol, Packet};
+use crate::device::timing::WriteTiming;
+use crate::eq::{Filter, FilterType, PEQData};
+
+const SET_1: u8 = 0xAA;
+const SET_2: u8 = 0x0A;
+const END: u8 = 0xEE;
+const FILTER_PARAMS: u8 = 0x15;
+const GLOBAL_GAIN: u8 = 0x17;
+
+pub struct FiioJa11Protocol;
+pub struct FiioProtocol;
+
+fn default_state(peq: &PEQData) -> bool {
+    peq.global_gain == 0.0 && peq.filters.iter().all(|f| !f.enabled || f.gain == 0.0)
+}
+
+fn unsupported_read_filter(index: u8, report_id: u8) -> Packet {
+    Packet::new(
+        report_id,
+        vec![0xBB, 0x0B, 0, 0, FILTER_PARAMS, 1, index, END],
+    )
+}
+
+fn filter_type_from_fiio(code: u8) -> FilterType {
+    match code {
+        1 => FilterType::LowShelf,
+        2 => FilterType::HighShelf,
+        _ => FilterType::Peak,
+    }
+}
+
+fn filter_type_to_fiio(filter_type: FilterType) -> u8 {
+    match filter_type {
+        FilterType::LowShelf => 1,
+        FilterType::HighShelf => 2,
+        _ => 0,
+    }
+}
+
+fn parse_filter_response(data: &[u8]) -> Option<Filter> {
+    if data.len() < 14 {
+        return None;
+    }
+
+    let gain_raw = i16::from_be_bytes([data[7], data[8]]);
+    let freq = u16::from_be_bytes([data[9], data[10]]);
+    let q_raw = u16::from_be_bytes([data[11], data[12]]);
+
+    Some(Filter {
+        index: data[6],
+        enabled: true,
+        freq,
+        gain: ((gain_raw as f64 / 10.0) * 10.0).round() / 10.0,
+        q: ((q_raw as f64 / 100.0) * 100.0).round() / 100.0,
+        filter_type: filter_type_from_fiio(data[13]),
+    })
+}
+
+impl EqProtocol for FiioJa11Protocol {
+    fn name(&self) -> &'static str {
+        "FiiO JA11"
+    }
+
+    fn write_timing(&self) -> WriteTiming {
+        WriteTiming::default()
+    }
+
+    fn is_default_state(&self, peq: &PEQData) -> bool {
+        default_state(peq)
+    }
+
+    fn init_packets(&self) -> Vec<Packet> {
+        vec![]
+    }
+
+    fn read_filter_request(&self, index: u8, _nonce: u8) -> Packet {
+        unsupported_read_filter(index, 2)
+    }
+
+    fn matches_filter_response(&self, data: &[u8], index: u8, _nonce: u8) -> bool {
+        data.len() >= 14 && data[4] == FILTER_PARAMS && data[6] == index
+    }
+
+    fn parse_filter_response(&self, data: &[u8]) -> Option<Filter> {
+        parse_filter_response(data)
+    }
+
+    fn read_global_gain_request(&self) -> Packet {
+        Packet::new(2, vec![0xBB, 0x0B, 0, 0, GLOBAL_GAIN, 0, 0, END])
+    }
+
+    fn matches_global_gain_response(&self, data: &[u8]) -> bool {
+        data.len() >= 8 && data[4] == GLOBAL_GAIN
+    }
+
+    fn parse_global_gain_response(&self, data: &[u8]) -> Option<f64> {
+        let raw = i16::from_le_bytes([*data.get(6)?, *data.get(7)?]);
+        Some((raw as f64 / 2560.0 * 10.0).round() / 10.0)
+    }
+
+    fn write_filter_packets(
+        &self,
+        index: u8,
+        filter: &Filter,
+        _dsp_sample_rate: f64,
+    ) -> Result<Vec<Packet>, String> {
+        let gain = (filter.gain * 10.0).round() as i16;
+        let freq = filter.freq;
+        let q = (filter.q * 100.0).round() as u16;
+        let type_code = filter_type_to_fiio(filter.filter_type);
+        Ok(vec![Packet::new(
+            2,
+            vec![
+                SET_1,
+                SET_2,
+                0,
+                0,
+                FILTER_PARAMS,
+                8,
+                index,
+                (gain >> 8) as u8,
+                gain as u8,
+                (freq >> 8) as u8,
+                freq as u8,
+                (q >> 8) as u8,
+                q as u8,
+                type_code,
+                0,
+                END,
+            ],
+        )])
+    }
+
+    fn write_global_gain_packets(&self, global_gain: f64) -> Vec<Packet> {
+        let value = (global_gain.clamp(-12.0, 12.0) * 2560.0).round() as i16;
+        vec![Packet::new(
+            2,
+            vec![
+                SET_1,
+                SET_2,
+                0,
+                0,
+                GLOBAL_GAIN,
+                2,
+                value as u8,
+                (value >> 8) as u8,
+                0,
+                END,
+            ],
+        )]
+    }
+
+    fn commit_packets(&self) -> Vec<Packet> {
+        vec![Packet::new(2, vec![SET_1, SET_2, 0, 0, 0x18, 1, 1, 0, END])]
+    }
+
+    fn ram_apply_packets(&self) -> Vec<Packet> {
+        self.commit_packets()
+    }
+
+    fn report_id(&self) -> u8 {
+        2
+    }
+}
+
+impl EqProtocol for FiioProtocol {
+    fn name(&self) -> &'static str {
+        "FiiO"
+    }
+
+    fn write_timing(&self) -> WriteTiming {
+        WriteTiming::default()
+    }
+
+    fn is_default_state(&self, peq: &PEQData) -> bool {
+        default_state(peq)
+    }
+
+    fn init_packets(&self) -> Vec<Packet> {
+        vec![]
+    }
+
+    fn read_filter_request(&self, index: u8, _nonce: u8) -> Packet {
+        unsupported_read_filter(index, 7)
+    }
+
+    fn matches_filter_response(&self, data: &[u8], index: u8, _nonce: u8) -> bool {
+        data.len() >= 14 && data[4] == FILTER_PARAMS && data[6] == index
+    }
+
+    fn parse_filter_response(&self, data: &[u8]) -> Option<Filter> {
+        parse_filter_response(data)
+    }
+
+    fn read_global_gain_request(&self) -> Packet {
+        Packet::new(7, vec![0xBB, 0x0B, 0, 0, GLOBAL_GAIN, 0, 0, END])
+    }
+
+    fn matches_global_gain_response(&self, data: &[u8]) -> bool {
+        data.len() >= 8 && data[4] == GLOBAL_GAIN
+    }
+
+    fn parse_global_gain_response(&self, data: &[u8]) -> Option<f64> {
+        let raw = i16::from_be_bytes([*data.get(6)?, *data.get(7)?]);
+        Some((raw as f64 / 10.0 * 10.0).round() / 10.0)
+    }
+
+    fn write_filter_packets(
+        &self,
+        index: u8,
+        filter: &Filter,
+        _dsp_sample_rate: f64,
+    ) -> Result<Vec<Packet>, String> {
+        let gain = (filter.gain * 10.0).round() as i16;
+        let freq = filter.freq;
+        let q = (filter.q * 100.0).round() as u16;
+        let type_code = filter_type_to_fiio(filter.filter_type);
+        Ok(vec![Packet::new(
+            7,
+            vec![
+                SET_1,
+                SET_2,
+                0,
+                0,
+                FILTER_PARAMS,
+                8,
+                index,
+                (gain >> 8) as u8,
+                gain as u8,
+                (freq >> 8) as u8,
+                freq as u8,
+                (q >> 8) as u8,
+                q as u8,
+                type_code,
+                0,
+                END,
+            ],
+        )])
+    }
+
+    fn write_global_gain_packets(&self, global_gain: f64) -> Vec<Packet> {
+        let value = (global_gain * 10.0).round() as i16;
+        vec![Packet::new(
+            7,
+            vec![
+                SET_1,
+                SET_2,
+                0,
+                0,
+                GLOBAL_GAIN,
+                2,
+                (value >> 8) as u8,
+                value as u8,
+                0,
+                END,
+            ],
+        )]
+    }
+
+    fn commit_packets(&self) -> Vec<Packet> {
+        vec![Packet::new(7, vec![SET_1, SET_2, 0, 0, 0x19, 1, 1, 0, END])]
+    }
+
+    fn ram_apply_packets(&self) -> Vec<Packet> {
+        self.commit_packets()
+    }
+
+    fn report_id(&self) -> u8 {
+        7
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ja11_parses_filter_response() {
+        let data = [
+            0xCC,
+            0x0C,
+            0,
+            0,
+            FILTER_PARAMS,
+            8,
+            3,
+            0xFF,
+            0xF1,
+            0x03,
+            0xE8,
+            0x00,
+            0x64,
+            1,
+        ];
+
+        let filter = FiioJa11Protocol.parse_filter_response(&data).unwrap();
+
+        assert_eq!(filter.index, 3);
+        assert_eq!(filter.gain, -1.5);
+        assert_eq!(filter.freq, 1000);
+        assert_eq!(filter.q, 1.0);
+        assert_eq!(filter.filter_type, FilterType::LowShelf);
+    }
+
+    #[test]
+    fn ja11_writes_global_gain_little_endian() {
+        let packet = FiioJa11Protocol.write_global_gain_packets(1.0).remove(0);
+
+        assert_eq!(packet.report_id, 2);
+        assert_eq!(packet.payload[4], GLOBAL_GAIN);
+        assert_eq!(&packet.payload[6..8], &2560i16.to_le_bytes());
+    }
+
+    #[test]
+    fn fiio_writes_global_gain_big_endian() {
+        let packet = FiioProtocol.write_global_gain_packets(1.0).remove(0);
+
+        assert_eq!(packet.report_id, 7);
+        assert_eq!(packet.payload[4], GLOBAL_GAIN);
+        assert_eq!(&packet.payload[6..8], &10i16.to_be_bytes());
+    }
+}
