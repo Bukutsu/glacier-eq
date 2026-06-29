@@ -57,11 +57,8 @@ fn protocol_name(protocol: DeviceProtocol) -> &'static str {
 }
 
 fn supports_walkplay_utilities(connected: &ConnectedDevice) -> bool {
-    // These utility registers are only proven on 0x3302 Walkplay devices.
-    // Other Walkplay DACs still get EQ support, but not these hardware controls.
     get_supported_device(connected.vendor_id, connected.product_id)
         .is_some_and(|profile| profile.protocol == DeviceProtocol::Walkplay)
-        && connected.vendor_id == 0x3302
 }
 
 fn ensure_eq_protocol(profile: &glacier_core::device::DeviceProfile) -> Result<(), String> {
