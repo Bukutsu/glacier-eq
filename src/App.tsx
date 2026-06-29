@@ -1323,6 +1323,7 @@ function App() {
                 </section>
                 <Preamp
                   value={peq.global_gain}
+                  resetValue={lastPushedPeq?.global_gain}
                   onStartChange={handleStartChange}
                   onChange={(global_gain) => {
                     flashGraphPreview();
@@ -1332,6 +1333,7 @@ function App() {
                 />
                 <Bands
                   peq={peq}
+                  committedPeq={lastPushedPeq}
                   maxBands={maxFilterBands}
                   onFilterChange={updateFilter}
                   onStartChange={handleStartChange}
@@ -1544,6 +1546,7 @@ function App() {
             />
             <Preamp
               value={peq.global_gain}
+              resetValue={lastPushedPeq?.global_gain}
               onStartChange={handleStartChange}
               onChange={(global_gain) => {
                 setDirty(true);
@@ -1552,6 +1555,7 @@ function App() {
             />
             <Bands
               peq={peq}
+              committedPeq={lastPushedPeq}
               maxBands={maxFilterBands}
               onFilterChange={updateFilter}
               onStartChange={handleStartChange}

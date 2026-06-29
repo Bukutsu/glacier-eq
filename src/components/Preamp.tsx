@@ -3,10 +3,12 @@ import { NumberInput } from "./NumberInput";
 
 export function Preamp({
   value,
+  resetValue,
   onChange,
   onStartChange,
 }: {
   value: number;
+  resetValue?: number;
   onChange: (value: number) => void;
   onStartChange: () => void;
 }) {
@@ -36,6 +38,7 @@ export function Preamp({
         step={0.05}
         value={safeValue}
         onStartChange={onStartChange}
+        onReset={resetValue === undefined ? undefined : () => onChange(resetValue)}
         onChange={(event) => onChange(+event.target.value)}
       />
     </section>

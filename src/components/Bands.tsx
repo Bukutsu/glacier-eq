@@ -40,6 +40,7 @@ function filterColorStyle(index: number) {
 
 interface BandsProps {
   peq: PEQData;
+  committedPeq?: PEQData | null;
   maxBands: number;
   onFilterChange: (index: number, filter: Filter) => void;
   onStartChange: () => void;
@@ -60,7 +61,7 @@ function sliderToFreq(value: number) {
   return Math.round(10 ** (min + (value / FREQ_SLIDER_STEPS) * (max - min)));
 }
 
-export function Bands({ peq, maxBands, onFilterChange, onStartChange, activeBandIndex, onActiveBandChange, snapToIso }: BandsProps) {
+export function Bands({ peq, committedPeq, maxBands, onFilterChange, onStartChange, activeBandIndex, onActiveBandChange, snapToIso }: BandsProps) {
   const availableFilters = peq.filters.slice(0, maxBands);
   const visibleFilters = availableFilters.filter((filter) => filter.enabled);
   const canAddFilter = visibleFilters.length < availableFilters.length;
@@ -105,6 +106,7 @@ export function Bands({ peq, maxBands, onFilterChange, onStartChange, activeBand
               <BandRow
                 key={filter.index}
                 filter={filter}
+                committedFilter={committedPeq?.filters[filter.index]}
                 active={activeBandIndex === filter.index}
                 onChange={(updated) => onFilterChange(filter.index, updated)}
                 onStartChange={onStartChange}
@@ -174,6 +176,7 @@ export function Bands({ peq, maxBands, onFilterChange, onStartChange, activeBand
             </div>
             <BandControls
               filter={selectedFilter}
+              committedFilter={committedPeq?.filters[selectedFilter.index]}
               onChange={(updated) => onFilterChange(selectedFilter.index, updated)}
               onStartChange={onStartChange}
               onActivate={() => onActiveBandChange?.(selectedFilter.index)}
@@ -188,6 +191,7 @@ export function Bands({ peq, maxBands, onFilterChange, onStartChange, activeBand
 
 function BandRow({
   filter,
+  committedFilter,
   active,
   onChange,
   onStartChange,
@@ -197,6 +201,7 @@ function BandRow({
   snapToIso,
 }: {
   filter: Filter;
+  committedFilter?: Filter;
   active: boolean;
   onChange: (filter: Filter) => void;
   onStartChange: () => void;
@@ -241,19 +246,21 @@ function BandRow({
       >
         <Icon>remove</Icon>
       </button>
-      <BandControls filter={filter} onChange={onChange} onStartChange={onStartChange} onActivate={onActivate} snapToIso={snapToIso} />
+      <BandControls filter={filter} committedFilter={committedFilter} onChange={onChange} onStartChange={onStartChange} onActivate={onActivate} snapToIso={snapToIso} />
     </div>
   );
 }
 
 function BandControls({
   filter,
+  committedFilter,
   onChange,
   onStartChange,
   onActivate,
   snapToIso,
 }: {
   filter: Filter;
+  committedFilter?: Filter;
   onChange: (filter: Filter) => void;
   onStartChange: () => void;
   onActivate: () => void;
@@ -281,6 +288,7 @@ function BandControls({
             value={freqToSlider(filter.freq)}
             tone={filter.index >= 5 ? "orange" : "blue"}
             onStartChange={onStartChange}
+            onReset={committedFilter ? () => onChange({ ...filter, freq: committedFilter.freq }) : undefined}
             onFocus={onActivate}
             onChange={(event) => {
               const raw = sliderToFreq(+event.target.value);
@@ -312,6 +320,7 @@ function BandControls({
             value={filter.gain}
             tone={filter.index >= 5 ? "orange" : "blue"}
             onStartChange={onStartChange}
+            onReset={committedFilter ? () => onChange({ ...filter, gain: committedFilter.gain }) : undefined}
             onFocus={onActivate}
             onChange={(event) => onChange({ ...filter, gain: +event.target.value })}
           />
@@ -340,6 +349,7 @@ function BandControls({
             value={filter.q}
             tone={filter.index >= 5 ? "orange" : "blue"}
             onStartChange={onStartChange}
+            onReset={committedFilter ? () => onChange({ ...filter, q: committedFilter.q }) : undefined}
             onFocus={onActivate}
             onChange={(event) => onChange({ ...filter, q: +event.target.value })}
           />
