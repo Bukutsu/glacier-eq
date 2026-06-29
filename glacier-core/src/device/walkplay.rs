@@ -382,15 +382,15 @@ mod tests {
     fn build_commit_packets_has_two_steps() {
         let packets = WalkplayProtocol::build_commit_packets();
         assert_eq!(packets.len(), 2);
-        assert_eq!(packets[0][1], CMD_TEMP_WRITE);
-        assert_eq!(packets[1][1], CMD_FLASH_EQ);
+        assert_eq!(packets[0].payload[1], CMD_TEMP_WRITE);
+        assert_eq!(packets[1].payload[1], CMD_FLASH_EQ);
     }
 
     #[test]
     fn build_ram_apply_packets_matches_temp_apply_sequence() {
         let packets = WalkplayProtocol::build_ram_apply_packets();
         assert_eq!(
-            packets[0],
+            packets[0].payload,
             vec![
                 WRITE,
                 CMD_TEMP_WRITE,
@@ -402,7 +402,7 @@ mod tests {
                 END
             ]
         );
-        assert_eq!(packets[1], vec![WRITE, CMD_FLASH_EQ, END]);
+        assert_eq!(packets[1].payload, vec![WRITE, CMD_FLASH_EQ, END]);
     }
 
     #[test]
