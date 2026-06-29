@@ -1,6 +1,7 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke, requestWebHidDevice } from "../lib/rpc";
 import { useEffect, useState } from "react";
 import { isDevDummyDevice } from "../lib/devDevice";
+import { isTauri } from "../lib/platform";
 import type { DeviceInfo, SupportedDeviceInfo } from "../types";
 
 
@@ -39,6 +40,13 @@ export function DeviceChooser({
       .catch(() => setSupportedDacs([]));
   }, []);
 
+  const handleScanClick = async () => {
+    if (!isTauri()) {
+      await requestWebHidDevice();
+    }
+    onScan();
+  };
+
   return (
     <main className="disconnected-screen">
       <section className="device-card">
@@ -47,7 +55,7 @@ export function DeviceChooser({
             <h2>Available Devices</h2>
             <p>Only supported DACs from the Glacier registry are shown.</p>
           </div>
-          <button className="btn tonal" onClick={onScan} disabled={isBusy}>{isBusy ? "Scanning…" : "Scan"}</button>
+          <button className="btn tonal" onClick={handleScanClick} disabled={isBusy}>{isBusy ? "Scanning…" : "Scan"}</button>
         </div>
 
         {devices.length === 0 ? (

@@ -6,6 +6,8 @@
 Cross-platform parametric EQ editor for compatible USB DACs. Glacier EQ talks to
 hardware over HID, edits EQ locally, and works offline.
 
+⚡ **Try the web version directly in your browser:** [bukutsu.github.io/glacier-eq](https://bukutsu.github.io/glacier-eq/)
+
 <img src="assets/screenshot-main.png" alt="Glacier EQ desktop interface showing EQ graph, filter bands, and profile controls" width="900">
 
 ## Features
