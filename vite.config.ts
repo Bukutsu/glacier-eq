@@ -6,7 +6,19 @@ const host = process.env.TAURI_DEV_HOST;
 
 // https://vite.dev/config/
 export default defineConfig(async () => ({
-  plugins: [react()],
+  plugins: [
+    react(),
+    {
+      name: "offline-assets",
+      generateBundle(_, bundle) {
+        this.emitFile({
+          type: "asset",
+          fileName: "offline-assets.json",
+          source: JSON.stringify(Object.keys(bundle).map((file) => `./${file}`)),
+        });
+      },
+    },
+  ],
   base: process.env.GITHUB_ACTIONS === "true" ? "/glacier-eq/" : "/",
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`

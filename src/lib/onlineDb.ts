@@ -67,44 +67,10 @@ export async function clearCachedDatabase(): Promise<void> {
 export async function downloadDatabase(
   onProgress: (percent: number) => void,
 ): Promise<number> {
-  const url =
-    "https://raw.githubusercontent.com/PEQHUB/Squig-Rank/main/public/data/curves.json";
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch database: ${response.statusText}`);
-  }
-
-  const contentLength = response.headers.get("content-length");
-  const totalBytes = contentLength ? parseInt(contentLength, 10) : 0;
-  let loadedBytes = 0;
-
-  let text: string;
-  const reader = response.body?.getReader?.();
-  if (reader) {
-    const chunks: Uint8Array[] = [];
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      if (value) {
-        chunks.push(value);
-        loadedBytes += value.length;
-        if (totalBytes > 0) {
-          onProgress(Math.min(0.99, loadedBytes / totalBytes));
-        }
-      }
-    }
-
-    const blob = new Blob(chunks as BlobPart[]);
-    text = await blob.text();
-  } else {
-    // Android WebView/Tauri builds may not expose ReadableStream on fetch responses.
-    // Fall back to reading the whole response so the online database still works.
-    text = await response.text();
-  }
-
-  onProgress(0.99); // Parsing JSON next
-
-  const rawData = JSON.parse(text);
+  const [rawData, manifest] = await Promise.all([
+    fetchJson("https://raw.githubusercontent.com/PEQHUB/Squig-Rank/main/public/data/curves.json", onProgress),
+    fetchJson("https://raw.githubusercontent.com/PEQHUB/Squig-Rank/main/public/data/manifest.json"),
+  ]);
 
   if (!rawData.meta || !rawData.curves) {
     throw new Error("Invalid database format: missing meta or curves");
@@ -117,6 +83,7 @@ export async function downloadDatabase(
 
     // Save frequencies
     store.put(rawData.meta.frequencies, "meta:frequencies");
+    store.put(manifest, "meta:manifest");
 
     // Save each curve
     let count = 0;
@@ -137,16 +104,56 @@ export async function downloadDatabase(
   });
 }
 
-export async function fetchManifest(): Promise<OnlineDevice[]> {
-  const url =
-    "https://raw.githubusercontent.com/PEQHUB/Squig-Rank/main/public/data/manifest.json";
+async function fetchJson(url: string, onProgress?: (percent: number) => void): Promise<any> {
   const response = await fetch(url);
   if (!response.ok) {
-    throw new Error(`Failed to fetch manifest: ${response.statusText}`);
+    throw new Error(`Failed to fetch database: ${response.statusText}`);
   }
-  const data = await response.json();
+
+  const contentLength = response.headers.get("content-length");
+  const totalBytes = contentLength ? parseInt(contentLength, 10) : 0;
+  let loadedBytes = 0;
+
+  let text: string;
+  const reader = response.body?.getReader?.();
+  if (reader) {
+    const chunks: Uint8Array[] = [];
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value) {
+        chunks.push(value);
+        loadedBytes += value.length;
+        if (onProgress && totalBytes > 0) {
+          onProgress(Math.min(0.99, loadedBytes / totalBytes));
+        }
+      }
+    }
+
+    const blob = new Blob(chunks as BlobPart[]);
+    text = await blob.text();
+  } else {
+    // Android WebView/Tauri builds may not expose ReadableStream on fetch responses.
+    // Fall back to reading the whole response so the online database still works.
+    text = await response.text();
+  }
+
+  onProgress?.(0.99); // Parsing JSON next
+  return JSON.parse(text);
+}
+
+export async function fetchManifest(): Promise<OnlineDevice[]> {
+  const db = await openDb();
+  const data = await new Promise<any>((resolve, reject) => {
+    const transaction = db.transaction(STORE_NAME, "readonly");
+    const store = transaction.objectStore(STORE_NAME);
+    const req = store.get("meta:manifest");
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+
   if (!data.iems) {
-    throw new Error("Invalid manifest format");
+    throw new Error("Search manifest not cached. Please download the database.");
   }
 
   const devices: OnlineDevice[] = [];
