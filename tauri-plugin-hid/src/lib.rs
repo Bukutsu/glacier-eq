@@ -21,15 +21,8 @@ use desktop::Hid;
 #[cfg(mobile)]
 use mobile::Hid;
 
-/// Extensions to [`tauri::App`], [`tauri::AppHandle`] and [`tauri::Window`] to access the hid APIs.
-pub trait HidExt<R: Runtime> {
-    fn hid(&self) -> &Hid<R>;
-}
-
-impl<R: Runtime, T: Manager<R>> crate::HidExt<R> for T {
-    fn hid(&self) -> &Hid<R> {
-        self.state::<Hid<R>>().inner()
-    }
+pub fn hid<R: Runtime, T: Manager<R>>(manager: &T) -> &Hid<R> {
+    manager.state::<Hid<R>>().inner()
 }
 
 /// Initializes the plugin.

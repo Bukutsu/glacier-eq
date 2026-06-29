@@ -13,7 +13,6 @@ use std::collections::HashSet;
 use std::sync::Mutex;
 use std::time::Duration;
 use tauri::Manager;
-use tauri_plugin_hid::HidExt;
 
 #[cfg(target_os = "linux")]
 use crate::hid_helper::ElevatedTransport;
@@ -153,12 +152,16 @@ fn hid_read(app: &tauri::AppHandle, path: &str, timeout: i32) -> Result<Vec<u8>,
             {
                 t.read(path, timeout)
             } else {
-                app.hid().read(path, timeout).map_err(|e| e.to_string())
+                tauri_plugin_hid::hid(app)
+                    .read(path, timeout)
+                    .map_err(|e| e.to_string())
             }
         }
         #[cfg(not(target_os = "linux"))]
         {
-            app.hid().read(path, timeout).map_err(|e| e.to_string())
+            tauri_plugin_hid::hid(app)
+                .read(path, timeout)
+                .map_err(|e| e.to_string())
         }
     };
     if let Err(ref error_msg) = res {
@@ -186,12 +189,16 @@ fn hid_write(app: &tauri::AppHandle, path: &str, data: &[u8]) -> Result<(), Stri
             {
                 t.write(path, data)
             } else {
-                app.hid().write(path, data).map_err(|e| e.to_string())
+                tauri_plugin_hid::hid(app)
+                    .write(path, data)
+                    .map_err(|e| e.to_string())
             }
         }
         #[cfg(not(target_os = "linux"))]
         {
-            app.hid().write(path, data).map_err(|e| e.to_string())
+            tauri_plugin_hid::hid(app)
+                .write(path, data)
+                .map_err(|e| e.to_string())
         }
     };
     if let Err(ref error_msg) = res {
@@ -210,11 +217,13 @@ fn hid_close(app: &tauri::AppHandle, path: &str) -> Result<(), String> {
     {
         return t.close(path);
     }
-    app.hid().close(path).map_err(|e| e.to_string())
+    tauri_plugin_hid::hid(app)
+        .close(path)
+        .map_err(|e| e.to_string())
 }
 
 fn try_open_device(app: &tauri::AppHandle, path: &str) -> Result<(), String> {
-    match app.hid().open(path) {
+    match tauri_plugin_hid::hid(app).open(path) {
         Ok(()) => return Ok(()),
         Err(e) => {
             let msg = e.to_string();
@@ -671,7 +680,7 @@ pub async fn apply_eq_state(
 
 #[tauri::command]
 pub async fn list_devices(app: tauri::AppHandle) -> Result<Vec<DeviceInfo>, String> {
-    let hid = app.hid();
+    let hid = tauri_plugin_hid::hid(&app);
     let devices = hid.enumerate().map_err(|error| error.to_string())?;
     let mut seen_paths = HashSet::new();
 
@@ -723,7 +732,7 @@ pub async fn connect_device(
     diagnostics_store: tauri::State<'_, Mutex<DiagnosticsStore>>,
     path: String,
 ) -> Result<(), String> {
-    let hid = app.hid();
+    let hid = tauri_plugin_hid::hid(&app);
     let devices = hid.enumerate().map_err(|error| error.to_string())?;
     let device = devices
         .iter()

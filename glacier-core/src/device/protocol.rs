@@ -85,130 +85,61 @@ pub trait EqProtocol {
     fn report_id(&self) -> u8;
 }
 
+static WALKPLAY_PROTOCOL: WalkplayProtocol = WalkplayProtocol;
+static MOONDROP_PROTOCOL: crate::device::moondrop::MoondropProtocol =
+    crate::device::moondrop::MoondropProtocol;
+
+impl DeviceProtocol {
+    fn implementation(&self) -> &'static dyn EqProtocol {
+        match self {
+            DeviceProtocol::Walkplay => &WALKPLAY_PROTOCOL,
+            DeviceProtocol::Moondrop => &MOONDROP_PROTOCOL,
+            DeviceProtocol::FiioJa11 => &crate::device::fiio::JA11_PROTOCOL,
+            DeviceProtocol::Fiio => &crate::device::fiio::FIIO_PROTOCOL,
+        }
+    }
+}
+
 impl EqProtocol for DeviceProtocol {
     fn name(&self) -> &'static str {
-        match self {
-            DeviceProtocol::Walkplay => WalkplayProtocol.name(),
-            DeviceProtocol::Moondrop => crate::device::moondrop::MoondropProtocol.name(),
-            DeviceProtocol::FiioJa11 => crate::device::fiio::FiioJa11Protocol.name(),
-            DeviceProtocol::Fiio => crate::device::fiio::FiioProtocol.name(),
-        }
+        self.implementation().name()
     }
 
     fn write_timing(&self) -> WriteTiming {
-        match self {
-            DeviceProtocol::Walkplay => WalkplayProtocol.write_timing(),
-            DeviceProtocol::Moondrop => crate::device::moondrop::MoondropProtocol.write_timing(),
-            DeviceProtocol::FiioJa11 => crate::device::fiio::FiioJa11Protocol.write_timing(),
-            DeviceProtocol::Fiio => crate::device::fiio::FiioProtocol.write_timing(),
-        }
+        self.implementation().write_timing()
     }
 
     fn is_default_state(&self, peq: &PEQData) -> bool {
-        match self {
-            DeviceProtocol::Walkplay => WalkplayProtocol.is_default_state(peq),
-            DeviceProtocol::Moondrop => {
-                crate::device::moondrop::MoondropProtocol.is_default_state(peq)
-            }
-            DeviceProtocol::FiioJa11 => crate::device::fiio::FiioJa11Protocol.is_default_state(peq),
-            DeviceProtocol::Fiio => crate::device::fiio::FiioProtocol.is_default_state(peq),
-        }
+        self.implementation().is_default_state(peq)
     }
 
     fn init_packets(&self) -> Vec<Packet> {
-        match self {
-            DeviceProtocol::Walkplay => WalkplayProtocol.init_packets(),
-            DeviceProtocol::Moondrop => crate::device::moondrop::MoondropProtocol.init_packets(),
-            DeviceProtocol::FiioJa11 => crate::device::fiio::FiioJa11Protocol.init_packets(),
-            DeviceProtocol::Fiio => crate::device::fiio::FiioProtocol.init_packets(),
-        }
+        self.implementation().init_packets()
     }
 
     fn read_filter_request(&self, index: u8, nonce: u8) -> Packet {
-        match self {
-            DeviceProtocol::Walkplay => WalkplayProtocol.read_filter_request(index, nonce),
-            DeviceProtocol::Moondrop => {
-                crate::device::moondrop::MoondropProtocol.read_filter_request(index, nonce)
-            }
-            DeviceProtocol::FiioJa11 => {
-                crate::device::fiio::FiioJa11Protocol.read_filter_request(index, nonce)
-            }
-            DeviceProtocol::Fiio => {
-                crate::device::fiio::FiioProtocol.read_filter_request(index, nonce)
-            }
-        }
+        self.implementation().read_filter_request(index, nonce)
     }
 
     fn matches_filter_response(&self, data: &[u8], index: u8, nonce: u8) -> bool {
-        match self {
-            DeviceProtocol::Walkplay => {
-                WalkplayProtocol.matches_filter_response(data, index, nonce)
-            }
-            DeviceProtocol::Moondrop => crate::device::moondrop::MoondropProtocol
-                .matches_filter_response(data, index, nonce),
-            DeviceProtocol::FiioJa11 => {
-                crate::device::fiio::FiioJa11Protocol.matches_filter_response(data, index, nonce)
-            }
-            DeviceProtocol::Fiio => {
-                crate::device::fiio::FiioProtocol.matches_filter_response(data, index, nonce)
-            }
-        }
+        self.implementation()
+            .matches_filter_response(data, index, nonce)
     }
 
     fn parse_filter_response(&self, data: &[u8]) -> Option<Filter> {
-        match self {
-            DeviceProtocol::Walkplay => WalkplayProtocol.parse_filter_response(data),
-            DeviceProtocol::Moondrop => {
-                crate::device::moondrop::MoondropProtocol.parse_filter_response(data)
-            }
-            DeviceProtocol::FiioJa11 => {
-                crate::device::fiio::FiioJa11Protocol.parse_filter_response(data)
-            }
-            DeviceProtocol::Fiio => crate::device::fiio::FiioProtocol.parse_filter_response(data),
-        }
+        self.implementation().parse_filter_response(data)
     }
 
     fn read_global_gain_request(&self) -> Packet {
-        match self {
-            DeviceProtocol::Walkplay => WalkplayProtocol.read_global_gain_request(),
-            DeviceProtocol::Moondrop => {
-                crate::device::moondrop::MoondropProtocol.read_global_gain_request()
-            }
-            DeviceProtocol::FiioJa11 => {
-                crate::device::fiio::FiioJa11Protocol.read_global_gain_request()
-            }
-            DeviceProtocol::Fiio => crate::device::fiio::FiioProtocol.read_global_gain_request(),
-        }
+        self.implementation().read_global_gain_request()
     }
 
     fn matches_global_gain_response(&self, data: &[u8]) -> bool {
-        match self {
-            DeviceProtocol::Walkplay => WalkplayProtocol.matches_global_gain_response(data),
-            DeviceProtocol::Moondrop => {
-                crate::device::moondrop::MoondropProtocol.matches_global_gain_response(data)
-            }
-            DeviceProtocol::FiioJa11 => {
-                crate::device::fiio::FiioJa11Protocol.matches_global_gain_response(data)
-            }
-            DeviceProtocol::Fiio => {
-                crate::device::fiio::FiioProtocol.matches_global_gain_response(data)
-            }
-        }
+        self.implementation().matches_global_gain_response(data)
     }
 
     fn parse_global_gain_response(&self, data: &[u8]) -> Option<f64> {
-        match self {
-            DeviceProtocol::Walkplay => WalkplayProtocol.parse_global_gain_response(data),
-            DeviceProtocol::Moondrop => {
-                crate::device::moondrop::MoondropProtocol.parse_global_gain_response(data)
-            }
-            DeviceProtocol::FiioJa11 => {
-                crate::device::fiio::FiioJa11Protocol.parse_global_gain_response(data)
-            }
-            DeviceProtocol::Fiio => {
-                crate::device::fiio::FiioProtocol.parse_global_gain_response(data)
-            }
-        }
+        self.implementation().parse_global_gain_response(data)
     }
 
     fn write_filter_packets(
@@ -217,67 +148,24 @@ impl EqProtocol for DeviceProtocol {
         filter: &Filter,
         dsp_sample_rate: f64,
     ) -> Result<Vec<Packet>, String> {
-        match self {
-            DeviceProtocol::Walkplay => {
-                WalkplayProtocol.write_filter_packets(index, filter, dsp_sample_rate)
-            }
-            DeviceProtocol::Moondrop => crate::device::moondrop::MoondropProtocol
-                .write_filter_packets(index, filter, dsp_sample_rate),
-            DeviceProtocol::FiioJa11 => crate::device::fiio::FiioJa11Protocol.write_filter_packets(
-                index,
-                filter,
-                dsp_sample_rate,
-            ),
-            DeviceProtocol::Fiio => crate::device::fiio::FiioProtocol.write_filter_packets(
-                index,
-                filter,
-                dsp_sample_rate,
-            ),
-        }
+        self.implementation()
+            .write_filter_packets(index, filter, dsp_sample_rate)
     }
 
     fn write_global_gain_packets(&self, global_gain: f64) -> Vec<Packet> {
-        match self {
-            DeviceProtocol::Walkplay => WalkplayProtocol.write_global_gain_packets(global_gain),
-            DeviceProtocol::Moondrop => {
-                crate::device::moondrop::MoondropProtocol.write_global_gain_packets(global_gain)
-            }
-            DeviceProtocol::FiioJa11 => {
-                crate::device::fiio::FiioJa11Protocol.write_global_gain_packets(global_gain)
-            }
-            DeviceProtocol::Fiio => {
-                crate::device::fiio::FiioProtocol.write_global_gain_packets(global_gain)
-            }
-        }
+        self.implementation().write_global_gain_packets(global_gain)
     }
 
     fn commit_packets(&self) -> Vec<Packet> {
-        match self {
-            DeviceProtocol::Walkplay => WalkplayProtocol.commit_packets(),
-            DeviceProtocol::Moondrop => crate::device::moondrop::MoondropProtocol.commit_packets(),
-            DeviceProtocol::FiioJa11 => crate::device::fiio::FiioJa11Protocol.commit_packets(),
-            DeviceProtocol::Fiio => crate::device::fiio::FiioProtocol.commit_packets(),
-        }
+        self.implementation().commit_packets()
     }
 
     fn ram_apply_packets(&self) -> Vec<Packet> {
-        match self {
-            DeviceProtocol::Walkplay => WalkplayProtocol.ram_apply_packets(),
-            DeviceProtocol::Moondrop => {
-                crate::device::moondrop::MoondropProtocol.ram_apply_packets()
-            }
-            DeviceProtocol::FiioJa11 => crate::device::fiio::FiioJa11Protocol.ram_apply_packets(),
-            DeviceProtocol::Fiio => crate::device::fiio::FiioProtocol.ram_apply_packets(),
-        }
+        self.implementation().ram_apply_packets()
     }
 
     fn report_id(&self) -> u8 {
-        match self {
-            DeviceProtocol::Walkplay => WalkplayProtocol.report_id(),
-            DeviceProtocol::Moondrop => crate::device::moondrop::MoondropProtocol.report_id(),
-            DeviceProtocol::FiioJa11 => crate::device::fiio::FiioJa11Protocol.report_id(),
-            DeviceProtocol::Fiio => crate::device::fiio::FiioProtocol.report_id(),
-        }
+        self.implementation().report_id()
     }
 }
 
