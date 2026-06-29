@@ -8,15 +8,15 @@ export function nextMeasurementColor(existing: MeasurementTrace[]): string {
 }
 
 export function makeMeasurementName(baseName: string, existing: MeasurementTrace[]): string {
-  const normalized = baseName.trim() || "Measurement";
-  if (!existing.some((trace) => trace.name === normalized)) {
-    return normalized;
-  }
+  return makeUniqueName(baseName, existing.map((trace) => trace.name), "Measurement");
+}
+
+export function makeUniqueName(baseName: string, existingNames: string[], fallback: string): string {
+  const normalized = baseName.trim() || fallback;
+  if (!existingNames.includes(normalized)) return normalized;
 
   let copyIndex = 2;
-  while (existing.some((trace) => trace.name === `${normalized} ${copyIndex}`)) {
-    copyIndex += 1;
-  }
+  while (existingNames.includes(`${normalized} ${copyIndex}`)) copyIndex += 1;
   return `${normalized} ${copyIndex}`;
 }
 

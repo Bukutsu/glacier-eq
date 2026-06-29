@@ -217,7 +217,7 @@ pub fn parse_autoeq(
         .map_err(|_| "Device state lock poisoned".to_string())?
         .connected
     {
-        glacier_core::device::get_device_profile(connected.vendor_id, connected.product_id)
+        glacier_core::device::get_supported_device(connected.vendor_id, connected.product_id)
             .map(|profile| profile.caps.clone())
             .unwrap_or(glacier_core::device::capabilities::DESKTOP_DAC_CAPS)
     } else {
@@ -404,7 +404,7 @@ pub async fn run_autoeq(
         .map_err(|_| "Device state lock poisoned".to_string())?
         .connected
     {
-        glacier_core::device::get_device_profile(connected.vendor_id, connected.product_id)
+        glacier_core::device::get_supported_device(connected.vendor_id, connected.product_id)
             .map(|profile| profile.caps.clone())
             .unwrap_or(glacier_core::device::capabilities::DESKTOP_DAC_CAPS)
     } else {

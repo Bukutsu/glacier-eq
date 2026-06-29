@@ -367,6 +367,7 @@ function App() {
   const [connected, setConnected] = useState(false);
   const [isReconnecting, setIsReconnecting] = useState(false);
   const [connectedDeviceName, setConnectedDeviceName] = useState("");
+  const [firmwareVersion, setFirmwareVersion] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
   const [progress, setProgress] = useState<OperationProgress | null>(null);
   const [status, setStatusState] = useState("Ready");
@@ -651,6 +652,19 @@ function App() {
     return selected?.supports_ram_apply === true;
   }, [devices, selectedDevice]);
 
+  const loadFirmwareVersion = useCallback(async () => {
+    if (isDevDummyDevice(selectedDevice)) {
+      setFirmwareVersion("DEV");
+      return;
+    }
+    try {
+      setFirmwareVersion(await invoke<string | null>("get_firmware_version"));
+    } catch (error) {
+      setFirmwareVersion(null);
+      console.error("Failed to read firmware version:", error);
+    }
+  }, [selectedDevice]);
+
   const applyProfile = useCallback(
     (profile: Profile) => {
       pushToUndoStack(peqRef.current);
@@ -744,6 +758,7 @@ function App() {
 
     listen<string>("device-disconnected", (event) => {
       setIsReconnecting(true);
+      setFirmwareVersion(null);
       reportStatus("Error", `Connection lost to device (unplugged): ${event.payload}`, "error", "Device", "Reconnecting...");
     }).then((fn) => {
       if (active) {
@@ -815,6 +830,7 @@ function App() {
               setSelectedDevice(found.path);
               setConnected(true);
               setIsReconnecting(false);
+              await loadFirmwareVersion();
               reportStatus("Info", `Successfully reconnected to ${connectedDeviceName} and restored EQ state`, "success", "Device", "Ready");
               return;
             }
@@ -840,7 +856,7 @@ function App() {
       active = false;
       if (timerId) clearTimeout(timerId);
     };
-  }, [isReconnecting, connectedDeviceName, reportStatus]);
+  }, [isReconnecting, connectedDeviceName, loadFirmwareVersion, reportStatus]);
 
   const pullEq = useCallback(async () => {
     pushToUndoStack(peqRef.current);
@@ -907,6 +923,7 @@ function App() {
         setConnectedDeviceName("Glacier Dummy DAC");
         reportStatus("Info", "Connected to dummy DAC", "success", "UI", "Connected to dummy DAC");
         await pullEq();
+        await loadFirmwareVersion();
         return;
       }
 
@@ -927,6 +944,7 @@ function App() {
         // Since pullEq sets state asynchronously, calling it is safe.
         await pullEq();
       }
+      await loadFirmwareVersion();
     } catch (error) {
       if (isDisconnectionError(error)) {
         setConnected(false);
@@ -937,7 +955,7 @@ function App() {
     } finally {
       setIsBusy(false);
     }
-  }, [selectedDevice, pullEq, devices, reportStatus, settings.auto_pull_on_connect]);
+  }, [selectedDevice, pullEq, devices, loadFirmwareVersion, reportStatus, settings.auto_pull_on_connect]);
 
   const pushEq = useCallback(async () => {
     setProgress(null);
@@ -1048,6 +1066,7 @@ function App() {
       setConnected(false);
       setIsReconnecting(false);
       setConnectedDeviceName("");
+      setFirmwareVersion(null);
       reportStatus("Info", "Device disconnected manually", null, "UI", "Disconnected");
     } catch (error) {
       reportStatus("Error", `Disconnect failed: ${error}`, "error", "UI");
@@ -1273,6 +1292,7 @@ function App() {
           maxBands={maxFilterBands}
           preampDb={peq.global_gain}
           supportsRamApply={supportsRamApply}
+          firmwareVersion={firmwareVersion}
           canUndo={undoStack.length > 0}
           canRedo={redoStack.length > 0}
           onUndo={undo}
