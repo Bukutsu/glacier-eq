@@ -76,3 +76,15 @@ export function normalizePeq(
     global_gain: numberOr(source?.global_gain ?? source?.globalGain, defaults.global_gain),
   };
 }
+
+export function peqEquals(a: PEQData, b: PEQData): boolean {
+  if (a.global_gain !== b.global_gain || a.filters.length !== b.filters.length) return false;
+  return a.filters.every((filter, index) => {
+    const other = b.filters[index];
+    return filter.enabled === other.enabled &&
+      filter.filter_type === other.filter_type &&
+      filter.freq === other.freq &&
+      filter.gain === other.gain &&
+      filter.q === other.q;
+  });
+}
