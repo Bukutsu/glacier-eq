@@ -1,0 +1,11 @@
+#!/bin/sh
+set -eu
+
+echo "pre-push: cargo fmt"
+cargo fmt --all -- --check
+
+echo "pre-push: cargo check -p glacier-core --locked"
+cargo check -p glacier-core --locked
+
+echo "pre-push: npm run build"
+npm run build
