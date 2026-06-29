@@ -7,6 +7,10 @@ interface HeaderProps {
   profile: string;
   deviceName: string;
   dirty: boolean;
+  activeBands: number;
+  maxBands: number;
+  preampDb: number;
+  supportsRamApply: boolean;
   canUndo: boolean;
   canRedo: boolean;
   onUndo: () => void;
@@ -23,6 +27,10 @@ export function Header({
   profile,
   deviceName,
   dirty,
+  activeBands,
+  maxBands,
+  preampDb,
+  supportsRamApply,
   canUndo,
   canRedo,
   onUndo,
@@ -31,6 +39,14 @@ export function Header({
   onPush,
   onDisconnect,
 }: HeaderProps) {
+  const syncText = isBusy
+    ? progress
+      ? `${progress.message} · ${Math.round(progress.percentage)}%`
+      : "Working"
+    : dirty
+      ? "Unsaved"
+      : "Synced";
+
   if (!connected) {
     return (
       <header className="app-header selection-header">
@@ -39,7 +55,10 @@ export function Header({
             <h1>Connect DAC</h1>
             <span className="sync-dot offline">● Offline</span>
           </div>
-          <div className="device-name">Select a supported DAC to begin</div>
+          <div className="header-session-strip">
+            <span>No device selected</span>
+            <span>Scan or choose a supported DAC</span>
+          </div>
         </div>
       </header>
     );
@@ -55,13 +74,13 @@ export function Header({
           <div className="header-meta-row">
             <div className="device-name">{deviceName}</div>
             <span className={`sync-dot ${isBusy ? "working" : "ok"}`}>
-              ● {isBusy
-                ? progress
-                  ? `${progress.message} (${Math.round(progress.percentage)}%)`
-                  : "Working…"
-                : "Synced"}
+              ● {syncText}
             </span>
-            {dirty && <span className="unsaved">Unsaved</span>}
+          </div>
+          <div className="header-session-strip" aria-label="EQ session status">
+            <span>{activeBands}/{maxBands} bands</span>
+            <span>{preampDb.toFixed(1)} dB preamp</span>
+            <span>{supportsRamApply ? "RAM apply" : "Flash write"}</span>
           </div>
         </div>
         <div className="toolbar">
