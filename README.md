@@ -135,6 +135,7 @@ scripts/            Helper scripts
 - [hidapi](https://github.com/libusb/hidapi)
 - [devicePEQ](https://github.com/jeromeof/devicePEQ)
 - [AutoEQ-C](https://github.com/peqdb/autoeq-c)
+- [Audiocular-Aura](https://github.com/mandy321/Audiocular-Aura), used as a reference for Moondrop and FiiO HID protocol behavior
 
 ## License
 
