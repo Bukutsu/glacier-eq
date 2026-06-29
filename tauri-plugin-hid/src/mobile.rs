@@ -27,13 +27,6 @@ pub fn init<R: Runtime, C: DeserializeOwned>(
 pub struct Hid<R: Runtime>(PluginHandle<R>);
 
 impl<R: Runtime> Hid<R> {
-    // pub fn ping(&self, payload: PingRequest) -> crate::Result<PingResponse> {
-    //   self
-    //     .0
-    //     .run_mobile_plugin("ping", payload)
-    //     .map_err(Into::into)
-    // }
-
     pub fn enumerate(&self) -> crate::Result<Vec<HidDeviceInfo>> {
         let result = self
             .0
@@ -116,7 +109,4 @@ impl<R: Runtime> Hid<R> {
             )
             .map_err(Error::PluginInvoke)
     }
-
-    // TODO: Implement functions like sendReport and inputReport event to mirror webHID
-    // TODO: Add support for feature reports
 }
