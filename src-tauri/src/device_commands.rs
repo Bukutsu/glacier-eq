@@ -3,10 +3,9 @@
 
 use crate::diagnostics::{self, DiagnosticsStore, LogLevel, LogSource};
 use crate::state::{ConnectedDevice, DeviceState};
-use glacier_core::device::timing::ReadTiming;
 use glacier_core::device::{
-    get_device_profile, get_supported_device, DeviceCapabilities, DeviceInfo, DeviceProtocol,
-    EqProtocol, Packet, WalkplayProtocol,
+    get_supported_device, DeviceCapabilities, DeviceInfo, DeviceProtocol, EqProtocol, Packet,
+    WalkplayProtocol,
 };
 use glacier_core::eq::{Filter, PEQData};
 use std::collections::HashSet;
@@ -16,6 +15,13 @@ use tauri::Manager;
 
 #[cfg(target_os = "linux")]
 use crate::hid_helper::ElevatedTransport;
+
+const READ_POST_VERSION_MS: u64 = 50;
+const READ_INTER_FILTER_MS: u64 = 10;
+const READ_POST_FILTER_MS: u64 = 40;
+const READ_POST_GLOBAL_GAIN_MS: u64 = 25;
+const READ_WAKE_DELAY_MS: u64 = 50;
+const READ_PULL_RETRY_DELAY_MS: u64 = 100;
 
 const INIT_DRAIN_ATTEMPTS: usize = 100;
 const FILTER_READ_ATTEMPTS: usize = 60;
@@ -53,7 +59,7 @@ fn protocol_name(protocol: DeviceProtocol) -> &'static str {
 fn supports_walkplay_utilities(connected: &ConnectedDevice) -> bool {
     // These utility registers are only proven on 0x3302 Walkplay devices.
     // Other Walkplay DACs still get EQ support, but not these hardware controls.
-    get_device_profile(connected.vendor_id, connected.product_id)
+    get_supported_device(connected.vendor_id, connected.product_id)
         .is_some_and(|profile| profile.protocol == DeviceProtocol::Walkplay)
         && connected.vendor_id == 0x3302
 }
@@ -259,7 +265,7 @@ pub async fn get_eq_state(
 ) -> Result<PEQData, String> {
     let connected = connected_device(&state)?;
     let profile =
-        get_device_profile(connected.vendor_id, connected.product_id).ok_or_else(|| {
+        get_supported_device(connected.vendor_id, connected.product_id).ok_or_else(|| {
             format!(
                 "No profile registered for {:04X}:{:04X}",
                 connected.vendor_id, connected.product_id
@@ -282,7 +288,7 @@ pub async fn get_eq_state(
     ) {
         log::warn!("Pull wake request failed: {error}");
     }
-    sleep_ms(ReadTiming::default().wake_delay_ms);
+    sleep_ms(READ_WAKE_DELAY_MS);
 
     let first = pull_once(&app, &connected, profile.protocol, &caps);
     let is_connected = state
@@ -296,7 +302,7 @@ pub async fn get_eq_state(
         };
 
     let peq = if should_retry {
-        sleep_ms(ReadTiming::default().pull_retry_delay_ms);
+        sleep_ms(READ_PULL_RETRY_DELAY_MS);
         match pull_once(&app, &connected, profile.protocol, &caps) {
             Ok(peq) => peq,
             Err(retry_error) => match first {
@@ -438,7 +444,7 @@ pub async fn set_eq_state(
 ) -> Result<(), String> {
     let connected = connected_device(&state)?;
     let profile =
-        get_device_profile(connected.vendor_id, connected.product_id).ok_or_else(|| {
+        get_supported_device(connected.vendor_id, connected.product_id).ok_or_else(|| {
             format!(
                 "No profile registered for {:04X}:{:04X}",
                 connected.vendor_id, connected.product_id
@@ -517,7 +523,7 @@ pub async fn set_eq_state(
             "Verifying pushed settings...",
         );
         emit_progress(&app, "Verifying changes...", 90.0);
-        sleep_ms(ReadTiming::default().pull_retry_delay_ms);
+        sleep_ms(READ_PULL_RETRY_DELAY_MS);
 
         match pull_once(&app, &connected, profile.protocol, &caps) {
             Ok(actual) => {
@@ -558,7 +564,7 @@ pub async fn set_eq_state(
                                 LogSource::HID,
                                 "Rollback successfully written. Verifying rollback...",
                             );
-                            sleep_ms(ReadTiming::default().pull_retry_delay_ms);
+                            sleep_ms(READ_PULL_RETRY_DELAY_MS);
                             match pull_once(&app, &connected, profile.protocol, &caps) {
                                 Ok(rolled_back_state) => {
                                     if let Err(rollback_mismatch) =
@@ -642,7 +648,7 @@ pub async fn apply_eq_state(
 ) -> Result<(), String> {
     let connected = connected_device(&state)?;
     let profile =
-        get_device_profile(connected.vendor_id, connected.product_id).ok_or_else(|| {
+        get_supported_device(connected.vendor_id, connected.product_id).ok_or_else(|| {
             format!(
                 "No profile registered for {:04X}:{:04X}",
                 connected.vendor_id, connected.product_id
@@ -813,6 +819,62 @@ pub fn disconnect_device(
     Ok(())
 }
 
+#[tauri::command]
+pub async fn get_firmware_version(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Mutex<DeviceState>>,
+) -> Result<Option<String>, String> {
+    let connected = connected_device(&state)?;
+    let profile =
+        get_supported_device(connected.vendor_id, connected.product_id).ok_or_else(|| {
+            format!(
+                "No profile registered for {:04X}:{:04X}",
+                connected.vendor_id, connected.product_id
+            )
+        })?;
+
+    if profile.protocol != DeviceProtocol::Walkplay {
+        return Ok(None);
+    }
+
+    send_packet(
+        &app,
+        &connected.path,
+        &walkplay_packet(vec![
+            glacier_core::device::walkplay::READ,
+            glacier_core::device::walkplay::CMD_VERSION,
+            glacier_core::device::walkplay::END,
+        ]),
+    )?;
+    sleep_ms(READ_POST_VERSION_MS);
+
+    let data = read_matching_packet(
+        &app,
+        &connected.path,
+        profile.protocol,
+        "Firmware version",
+        20,
+        |data| {
+            data.len() >= 10
+                && data[0] == glacier_core::device::walkplay::READ
+                && data[1] == glacier_core::device::walkplay::CMD_VERSION
+        },
+    )?;
+
+    let version = parse_walkplay_firmware_version(&data);
+
+    Ok((!version.is_empty()).then_some(version))
+}
+
+fn parse_walkplay_firmware_version(data: &[u8]) -> String {
+    data.iter()
+        .skip(3)
+        .take(7)
+        .take_while(|byte| byte.is_ascii_graphic())
+        .map(|byte| *byte as char)
+        .collect()
+}
+
 fn connected_device(
     state: &tauri::State<'_, Mutex<DeviceState>>,
 ) -> Result<ConnectedDevice, String> {
@@ -857,10 +919,10 @@ fn pull_once(
             pct,
         );
         filters.push(read_filter(app, connected, protocol, index as u8)?);
-        sleep_ms(ReadTiming::default().inter_filter_ms);
+        sleep_ms(READ_INTER_FILTER_MS);
     }
 
-    sleep_ms(ReadTiming::default().post_filter_read_ms);
+    sleep_ms(READ_POST_FILTER_MS);
     emit_progress(app, "Reading device preamp...", 90.0);
     let global_gain = read_global_gain(app, &connected.path, protocol)?;
 
@@ -930,7 +992,7 @@ fn read_global_gain(
     );
 
     send_packet(app, path, &protocol.read_global_gain_request())?;
-    sleep_ms(ReadTiming::default().post_global_gain_ms);
+    sleep_ms(READ_POST_GLOBAL_GAIN_MS);
 
     let data = read_matching_packet(
         app,
@@ -1031,7 +1093,7 @@ fn run_init_sequence(
     for packet in protocol.init_packets() {
         send_packet(app, path, &packet).map_err(|error| format!("Init write failed: {error}"))?;
     }
-    sleep_ms(ReadTiming::default().post_version_ms);
+    sleep_ms(READ_POST_VERSION_MS);
     drain_stale_frames(app, path);
     Ok(())
 }
@@ -1449,7 +1511,7 @@ pub async fn reset_device_eq(
 ) -> Result<(), String> {
     let connected = connected_device(&state)?;
     let profile =
-        get_device_profile(connected.vendor_id, connected.product_id).ok_or_else(|| {
+        get_supported_device(connected.vendor_id, connected.product_id).ok_or_else(|| {
             format!(
                 "No profile registered for {:04X}:{:04X}",
                 connected.vendor_id, connected.product_id
@@ -1508,4 +1570,22 @@ pub async fn execute_factory_reset(
     let path = utility_connected_path(&state)?;
     let packet = WalkplayProtocol::build_factory_reset_packet();
     write_utility_packet(&app, &path, packet)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_walkplay_firmware_version;
+
+    #[test]
+    fn parses_walkplay_firmware_until_padding() {
+        assert_eq!(
+            parse_walkplay_firmware_version(&[0x80, 0x0C, 0x00, b'1', b'.', b'7', 0xFF, 0xDC]),
+            "1.7"
+        );
+    }
+
+    #[test]
+    fn parses_empty_walkplay_firmware_as_empty() {
+        assert_eq!(parse_walkplay_firmware_version(&[0x80, 0x0C, 0x00, 0x00]), "");
+    }
 }

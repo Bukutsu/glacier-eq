@@ -1,36 +1,6 @@
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
-/// Timing configuration for reading data from the device.
-#[derive(Debug, Clone)]
-pub struct ReadTiming {
-    pub post_version_ms: u64,
-    pub filter_request_ms: u64,
-    pub inter_filter_ms: u64,
-    pub post_filter_read_ms: u64,
-    pub post_global_gain_ms: u64,
-    pub read_timeout_ms: u32,
-    pub wake_delay_ms: u64,
-    pub pull_retry_delay_ms: u64,
-    pub verify_backoff_base_ms: u64,
-}
-
-impl Default for ReadTiming {
-    fn default() -> Self {
-        Self {
-            post_version_ms: 50,
-            filter_request_ms: 10,
-            inter_filter_ms: 10,
-            post_filter_read_ms: 40,
-            post_global_gain_ms: 25,
-            read_timeout_ms: 60,
-            wake_delay_ms: 50,
-            pull_retry_delay_ms: 100,
-            verify_backoff_base_ms: 200,
-        }
-    }
-}
-
 /// Timing configuration for writing data to the device.
 #[derive(Debug, Clone)]
 pub struct WriteTiming {

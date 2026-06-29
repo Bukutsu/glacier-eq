@@ -57,6 +57,7 @@ pub fn run() {
             device_commands::list_devices,
             device_commands::list_supported_devices,
             device_commands::connect_device,
+            device_commands::get_firmware_version,
             device_commands::disconnect_device,
             settings::get_settings,
             settings::save_settings,
