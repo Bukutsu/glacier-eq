@@ -7,7 +7,7 @@ use std::collections::VecDeque;
 use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
-use std::sync::Mutex;
+use std::sync::{Mutex, MutexGuard};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum LogLevel {
@@ -121,6 +121,14 @@ fn get_log_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     Ok(app_data_base_dir(app)?.join("diagnostics.log"))
 }
 
+fn lock_store<'a, 'r>(
+    state: &'a tauri::State<'r, Mutex<DiagnosticsStore>>,
+) -> Result<MutexGuard<'a, DiagnosticsStore>, String> {
+    state
+        .lock()
+        .map_err(|_| "Diagnostics store poisoned".to_string())
+}
+
 pub fn log(
     level: LogLevel,
     app: &tauri::AppHandle,
@@ -142,18 +150,12 @@ pub fn log(
 pub fn get_diagnostics(
     state: tauri::State<'_, Mutex<DiagnosticsStore>>,
 ) -> Result<Vec<DiagnosticEvent>, String> {
-    Ok(state
-        .lock()
-        .map_err(|_| "Diagnostics store poisoned".to_string())?
-        .events())
+    Ok(lock_store(&state)?.events())
 }
 
 #[tauri::command]
 pub fn clear_diagnostics(state: tauri::State<'_, Mutex<DiagnosticsStore>>) -> Result<(), String> {
-    state
-        .lock()
-        .map_err(|_| "Diagnostics store poisoned".to_string())?
-        .clear();
+    lock_store(&state)?.clear();
     Ok(())
 }
 
@@ -166,10 +168,7 @@ pub fn add_diagnostic_event(
     message: String,
 ) -> Result<(), String> {
     let event = DiagnosticEvent::new(level, source, message);
-    state
-        .lock()
-        .map_err(|_| "Diagnostics store poisoned".to_string())?
-        .push(&app, event.clone());
+    lock_store(&state)?.push(&app, event.clone());
     use tauri::Emitter;
     let _ = app.emit("diagnostic-event", event);
     Ok(())

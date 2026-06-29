@@ -20,10 +20,6 @@ function formatUsbId(value: number | null | undefined): string {
   return value.toString(16).padStart(4, "0").toUpperCase();
 }
 
-function formatOptionalUsbId(value: number | null | undefined): string {
-  return (value === null || value === undefined) ? "*" : formatUsbId(value);
-}
-
 export function DeviceChooser({
   devices,
   onScan,
@@ -101,7 +97,7 @@ export function DeviceChooser({
             <div key={dac.name}>
               <strong>{dac.name}</strong>
               <small>
-                {formatUsbId(dac.vendor_id)}:{formatOptionalUsbId(dac.product_id)} · {dac.status}
+                {formatUsbId(dac.vendor_id)}:{dac.product_id == null ? "*" : formatUsbId(dac.product_id)} · {dac.status}
               </small>
             </div>
           ))}

@@ -1,5 +1,13 @@
 import ReactDOM from "react-dom/client";
 import App from "./App";
+import "./styles/base.css";
+import "./styles/header.css";
+import "./styles/layout.css";
+import "./styles/editor.css";
+import "./styles/tools.css";
+import "./styles/device-selection.css";
+import "./styles/responsive.css";
+import "./styles/toasts.css";
 
 // Detect Android platform
 const isAndroid = /android/i.test(navigator.userAgent);
@@ -28,10 +36,10 @@ if (isAndroid) {
 if (import.meta.env.PROD) {
   document.addEventListener("contextmenu", (e) => e.preventDefault());
   document.addEventListener("keydown", (e) => {
+    const key = e.key.toLowerCase();
     if (
-      e.key === "F5" ||
-      ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "r") ||
-      ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "p")
+      key === "f5" ||
+      ((e.ctrlKey || e.metaKey) && (key === "r" || key === "p"))
     ) {
       e.preventDefault();
     }

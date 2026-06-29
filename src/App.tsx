@@ -38,7 +38,6 @@ import type {
   AppSettings,
 } from "./types";
 import { ToastContainer, type Toast } from "./components/Toast";
-import "./App.css";
 
 const ANDROID_TOAST_DEDUPE_MS = 2000;
 const DEFAULT_PROFILE_NAME = "Default EQ";
@@ -61,6 +60,15 @@ function usePersistedJson(key: string, value: unknown, delayMs = 0) {
     const timer = window.setTimeout(save, delayMs);
     return () => window.clearTimeout(timer);
   }, [key, value, delayMs]);
+}
+
+function loadPersistedJson<T>(key: string): T | null {
+  try {
+    const saved = window.localStorage.getItem(key);
+    return saved ? JSON.parse(saved) as T : null;
+  } catch {
+    return null;
+  }
 }
 
 const sleep = (ms: number) => {
@@ -382,18 +390,19 @@ function App() {
       if (message === "Ready" || !message.trim()) return;
 
       let toastType = type;
+      const lowerMessage = message.toLowerCase();
       if (
-        message.toLowerCase().includes("failed") ||
-        message.toLowerCase().includes("error")
+        lowerMessage.includes("failed") ||
+        lowerMessage.includes("error")
       ) {
         toastType = "error";
       } else if (
-        message.toLowerCase().includes("successful") ||
-        message.toLowerCase().includes("synced") ||
-        message.toLowerCase().includes("loaded") ||
-        message.toLowerCase().includes("parsed") ||
-        message.toLowerCase().includes("deleted") ||
-        message.toLowerCase().includes("saved")
+        lowerMessage.includes("successful") ||
+        lowerMessage.includes("synced") ||
+        lowerMessage.includes("loaded") ||
+        lowerMessage.includes("parsed") ||
+        lowerMessage.includes("deleted") ||
+        lowerMessage.includes("saved")
       ) {
         toastType = "success";
       }
@@ -492,14 +501,11 @@ function App() {
   }, [peq]);
 
   useEffect(() => {
-    try {
-      const saved = window.localStorage.getItem("glacier-measurements");
-      if (!saved) return;
+    const saved = loadPersistedJson<any[]>("glacier-measurements");
+    if (!Array.isArray(saved)) return;
 
-      const parsed = JSON.parse(saved);
-      if (!Array.isArray(parsed)) return;
-
-      const normalized = parsed
+    setMeasurements(
+      saved
         .filter(
           (trace): trace is MeasurementTrace =>
             trace &&
@@ -512,55 +518,39 @@ function App() {
         .map((trace) => ({
           ...trace,
           points: normalizeMeasurementPoints(trace.points),
-        }));
-
-      setMeasurements(normalized);
-    } catch {
-      // Ignore malformed local measurement cache.
-    }
+        })),
+    );
   }, []);
 
   usePersistedJson("glacier-measurements", measurements, 300);
 
   useEffect(() => {
-    try {
-      const savedTargets = window.localStorage.getItem("glacier-user-targets");
-      if (savedTargets) {
-        const parsedTargets = JSON.parse(savedTargets);
-        if (Array.isArray(parsedTargets)) {
-          setUserTargets(
-            parsedTargets
-              .filter(
-                (target): target is TargetTrace =>
-                  target &&
-                  typeof target.id === "string" &&
-                  typeof target.name === "string" &&
-                  typeof target.color === "string" &&
-                  Array.isArray(target.points),
-              )
-              .map((target) => ({
-                ...target,
-                builtIn: false,
-                points: normalizeMeasurementPoints(target.points),
-              })),
-          );
-        }
-      }
-
-      const savedActiveIds = window.localStorage.getItem(
-        "glacier-active-targets",
+    const savedTargets = loadPersistedJson<any[]>("glacier-user-targets");
+    if (Array.isArray(savedTargets)) {
+      setUserTargets(
+        savedTargets
+          .filter(
+            (target): target is TargetTrace =>
+              target &&
+              typeof target.id === "string" &&
+              typeof target.name === "string" &&
+              typeof target.color === "string" &&
+              Array.isArray(target.points),
+          )
+          .map((target) => ({
+            ...target,
+            builtIn: false,
+            points: normalizeMeasurementPoints(target.points),
+          })),
       );
-      if (savedActiveIds) {
-        const parsedActiveIds = JSON.parse(savedActiveIds);
-        if (
-          Array.isArray(parsedActiveIds) &&
-          parsedActiveIds.every((id) => typeof id === "string")
-        ) {
-          setActiveTargetIds(parsedActiveIds);
-        }
-      }
-    } catch {
-      // Ignore malformed local target cache.
+    }
+
+    const savedActiveIds = loadPersistedJson<any[]>("glacier-active-targets");
+    if (
+      Array.isArray(savedActiveIds) &&
+      savedActiveIds.every((id) => typeof id === "string")
+    ) {
+      setActiveTargetIds(savedActiveIds);
     }
   }, []);
 
@@ -636,20 +626,13 @@ function App() {
     selectedPresetRef.current = selectedPreset;
   }, [selectedPreset]);
 
-  const deviceName = useMemo(() => {
-    const selected = devices.find((device) => device.path === selectedDevice);
-    return selected?.profile_name || selected?.product_string || "Supported DAC";
-  }, [devices, selectedDevice]);
-
-  const maxFilterBands = useMemo(() => {
-    const selected = devices.find((device) => device.path === selectedDevice);
-    return selected?.num_bands ?? peq.filters.length;
-  }, [devices, peq.filters.length, selectedDevice]);
-
-  const supportsRamApply = useMemo(() => {
-    const selected = devices.find((device) => device.path === selectedDevice);
-    return selected?.supports_ram_apply === true;
-  }, [devices, selectedDevice]);
+  const selectedDeviceInfo = useMemo(
+    () => devices.find((device) => device.path === selectedDevice),
+    [devices, selectedDevice],
+  );
+  const deviceName = selectedDeviceInfo?.profile_name || selectedDeviceInfo?.product_string || "Supported DAC";
+  const maxFilterBands = selectedDeviceInfo?.num_bands ?? peq.filters.length;
+  const supportsRamApply = selectedDeviceInfo?.supports_ram_apply === true;
 
   const loadFirmwareVersion = useCallback(async () => {
     if (isDevDummyDevice(selectedDevice)) {
@@ -743,26 +726,21 @@ function App() {
     let active = true;
     const unlistenFns: (() => void)[] = [];
 
-    listen<OperationProgress>("operation-progress", (event) => {
+    const addListener = <T,>(event: string, callback: (event: { payload: T }) => void) => {
+      listen<T>(event, callback).then((fn) => {
+        if (active) unlistenFns.push(fn);
+        else try { fn(); } catch {}
+      });
+    };
+
+    addListener<OperationProgress>("operation-progress", (event) => {
       setProgress(event.payload);
-    }).then((fn) => {
-      if (active) {
-        unlistenFns.push(fn);
-      } else {
-        try { fn(); } catch {}
-      }
     });
 
-    listen<string>("device-disconnected", (event) => {
+    addListener<string>("device-disconnected", (event) => {
       setIsReconnecting(true);
       setFirmwareVersion(null);
       reportStatus("Error", `Connection lost to device (unplugged): ${event.payload}`, "error", "Device", "Reconnecting...");
-    }).then((fn) => {
-      if (active) {
-        unlistenFns.push(fn);
-      } else {
-        try { fn(); } catch {}
-      }
     });
 
     return () => {
@@ -928,9 +906,8 @@ function App() {
       setConnected(true);
       
       let devName = "";
-      const found = devices.find((d) => d.path === selectedDevice);
-      if (found) {
-        devName = found.profile_name ?? found.product_string ?? "";
+      if (selectedDeviceInfo) {
+        devName = selectedDeviceInfo.profile_name ?? selectedDeviceInfo.product_string ?? "";
         setConnectedDeviceName(devName);
       }
       
@@ -962,7 +939,7 @@ function App() {
     } finally {
       setIsBusy(false);
     }
-  }, [selectedDevice, pullEq, devices, loadFirmwareVersion, reportStatus, settings.auto_pull_on_connect]);
+  }, [selectedDevice, pullEq, selectedDeviceInfo, loadFirmwareVersion, reportStatus, settings.auto_pull_on_connect]);
 
   const pushEq = useCallback(async () => {
     setProgress(null);
@@ -1243,39 +1220,40 @@ function App() {
 
       const isCtrl = e.ctrlKey || e.metaKey;
       if (isCtrl) {
+        const key = e.key.toLowerCase();
         if (isEditingText) {
-          if (e.key.toLowerCase() === "s") {
+          if (key === "s") {
             e.preventDefault();
             undoRedoRef.current.save();
-          } else if (e.shiftKey && e.key.toLowerCase() === "r") {
+          } else if (e.shiftKey && key === "r") {
             e.preventDefault();
             undoRedoRef.current.reset();
-          } else if (e.key.toLowerCase() === "r") {
+          } else if (key === "r") {
             e.preventDefault();
             undoRedoRef.current.pull();
           }
           return;
         }
 
-        if (e.shiftKey && e.key.toLowerCase() === "z") {
+        if (e.shiftKey && key === "z") {
           e.preventDefault();
           undoRedoRef.current.redo();
-        } else if (e.key.toLowerCase() === "z") {
+        } else if (key === "z") {
           e.preventDefault();
           undoRedoRef.current.undo();
-        } else if (e.key.toLowerCase() === "y") {
+        } else if (key === "y") {
           e.preventDefault();
           undoRedoRef.current.redo();
-        } else if (e.key.toLowerCase() === "s") {
+        } else if (key === "s") {
           e.preventDefault();
           undoRedoRef.current.save();
-        } else if (e.shiftKey && e.key.toLowerCase() === "r") {
+        } else if (e.shiftKey && key === "r") {
           e.preventDefault();
           undoRedoRef.current.reset();
-        } else if (e.key.toLowerCase() === "r") {
+        } else if (key === "r") {
           e.preventDefault();
           undoRedoRef.current.pull();
-        } else if (e.key === "Enter") {
+        } else if (key === "enter") {
           e.preventDefault();
           undoRedoRef.current.push();
         }

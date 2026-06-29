@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import { readFileText } from "../lib/files";
 import { parseMeasurementText } from "../lib/measurements";
 import type { TargetTrace } from "../types";
 import { Icon } from "./Icon";
@@ -22,7 +23,7 @@ export function TargetSelector({
 }: TargetSelectorProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -32,19 +33,14 @@ export function TargetSelector({
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (loadEvent) => {
-      try {
-        const text = String(loadEvent.target?.result || "");
-        const points = parseMeasurementText(text);
-        const name = file.name.replace(/\.[^/.]+$/, "");
-        onAddTarget(name, points);
-        setStatus(`Loaded target: ${name} (${points.length} points)`);
-      } catch (error) {
-        setStatus(`Target import failed: ${error}`);
-      }
-    };
-    reader.readAsText(file);
+    try {
+      const points = parseMeasurementText(await readFileText(file));
+      const name = file.name.replace(/\.[^/.]+$/, "");
+      onAddTarget(name, points);
+      setStatus(`Loaded target: ${name} (${points.length} points)`);
+    } catch (error) {
+      setStatus(`Target import failed: ${error}`);
+    }
     event.target.value = "";
   };
 

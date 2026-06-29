@@ -1,4 +1,4 @@
-import React from "react";
+import type { ChangeEvent } from "react";
 
 interface NumberInputProps {
   id?: string;
@@ -25,7 +25,7 @@ export function NumberInput({
   className = "",
   onFocus,
 }: NumberInputProps) {
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     const parsed = Number.parseFloat(e.target.value);
     if (!isNaN(parsed)) {
       const clamped = Math.max(min, Math.min(max, parsed));
