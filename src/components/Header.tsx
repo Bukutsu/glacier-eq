@@ -11,6 +11,7 @@ interface HeaderProps {
   maxBands: number;
   preampDb: number;
   supportsRamApply: boolean;
+  firmwareVersion?: string | null;
   canUndo: boolean;
   canRedo: boolean;
   onUndo: () => void;
@@ -31,6 +32,7 @@ export function Header({
   maxBands,
   preampDb,
   supportsRamApply,
+  firmwareVersion,
   canUndo,
   canRedo,
   onUndo,
@@ -81,6 +83,7 @@ export function Header({
             <span>{activeBands}/{maxBands} bands</span>
             <span>{preampDb.toFixed(1)} dB preamp</span>
             <span>{supportsRamApply ? "RAM apply" : "Flash write"}</span>
+            {firmwareVersion && <span>FW {firmwareVersion}</span>}
           </div>
         </div>
         <div className="toolbar">

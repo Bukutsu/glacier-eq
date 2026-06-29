@@ -15,9 +15,8 @@ pub mod eq;
 
 // Re-exports
 pub use device::{
-    get_device_profile, get_supported_device, is_supported_device, DeviceCapabilities, DeviceInfo,
-    DeviceProfile, DeviceProtocol, EqProtocol, Packet, WalkplayProtocol, PROFILES,
-    SUPPORTED_DEVICES,
+    get_supported_device, is_supported_device, DeviceCapabilities, DeviceInfo, DeviceProfile,
+    DeviceProtocol, EqProtocol, Packet, WalkplayProtocol, PROFILES, SUPPORTED_DEVICES,
 };
 pub use eq::constants::*;
 pub use eq::{snap_freq_to_iso, snap_gain_step, snap_q_to_iso, Filter, FilterType, PEQData};
