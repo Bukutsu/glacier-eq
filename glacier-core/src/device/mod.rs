@@ -8,16 +8,18 @@
 pub mod capabilities;
 #[allow(clippy::module_inception)]
 pub mod device;
+pub mod fiio;
+pub mod moondrop;
 pub mod profile;
 pub mod protocol;
 pub mod supported;
 pub mod timing;
 pub mod walkplay;
 
-pub use capabilities::{DeviceCapabilities, FilterTypeFlags};
+pub use capabilities::DeviceCapabilities;
 pub use device::DeviceInfo;
 pub use profile::{DeviceProfile, DeviceProtocol};
-pub use protocol::WalkplayProtocol;
+pub use protocol::{EqProtocol, Packet, WalkplayProtocol};
 pub use supported::{
     get_device_profile, get_supported_device, is_supported_device, SupportedDevice,
     SUPPORTED_DEVICES,

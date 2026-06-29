@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 
 interface NumberInputProps {
   id?: string;
@@ -25,70 +25,29 @@ export function NumberInput({
   className = "",
   onFocus,
 }: NumberInputProps) {
-  const [inputValue, setInputValue] = useState(value.toFixed(precision));
-
-  useEffect(() => {
-    setInputValue(value.toFixed(precision));
-  }, [value, precision]);
-
-  const handleDecrement = () => {
-    if (disabled) return;
-    const newVal = Math.max(min, value - step);
-    onChange(Number(newVal.toFixed(precision)));
-  };
-
-  const handleIncrement = () => {
-    if (disabled) return;
-    const newVal = Math.min(max, value + step);
-    onChange(Number(newVal.toFixed(precision)));
-  };
-
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const text = e.target.value;
-    setInputValue(text);
-
-    const parsed = parseFloat(text);
+    const parsed = Number.parseFloat(e.target.value);
     if (!isNaN(parsed)) {
       const clamped = Math.max(min, Math.min(max, parsed));
       onChange(Number(clamped.toFixed(precision)));
     }
   };
 
-  const handleBlur = () => {
-    setInputValue(value.toFixed(precision));
-  };
-
   return (
     <div className={`custom-number-input ${disabled ? "disabled" : ""} ${className}`}>
-      <button
-        type="button"
-        className="stepper-btn decrement"
-        onClick={handleDecrement}
-        disabled={disabled || value <= min}
-        aria-label="Decrement"
-      >
-        <span className="stepper-icon">−</span>
-      </button>
       <input
         id={id}
-        type="text"
+        type="number"
         inputMode={precision > 0 ? "decimal" : "numeric"}
-        value={inputValue}
+        min={min}
+        max={max}
+        step={step}
+        value={value.toFixed(precision)}
         onChange={handleInputChange}
-        onBlur={handleBlur}
         onFocus={onFocus}
         disabled={disabled}
         className="stepper-field"
       />
-      <button
-        type="button"
-        className="stepper-btn increment"
-        onClick={handleIncrement}
-        disabled={disabled || value >= max}
-        aria-label="Increment"
-      >
-        <span className="stepper-icon">+</span>
-      </button>
     </div>
   );
 }

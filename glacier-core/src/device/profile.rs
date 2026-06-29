@@ -10,6 +10,9 @@ pub enum DeviceProtocol {
     // Keep protocol identity in profiles so the next hardware family gets an
     // explicit command path instead of being routed through Walkplay by accident.
     Walkplay,
+    Moondrop,
+    FiioJa11,
+    Fiio,
 }
 
 /// Static identity and capability metadata for a supported USB DAC model.

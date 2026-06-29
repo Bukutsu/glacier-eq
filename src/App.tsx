@@ -35,12 +35,21 @@ import type {
   Profile,
   TargetTrace,
   OperationProgress,
+  AppSettings,
 } from "./types";
 import { ToastContainer, type Toast } from "./components/Toast";
 import "./App.css";
 
 const ANDROID_TOAST_DEDUPE_MS = 2000;
 const DEFAULT_PROFILE_NAME = "Default EQ";
+const DEFAULT_SETTINGS: AppSettings = {
+  auto_pull_on_connect: true,
+  skip_push_verification: false,
+  theme: "tokyo-night",
+  show_diagnostics: false,
+  enable_online_measurements: false,
+  snap_to_iso_frequencies: true,
+};
 const isTauri = () => typeof window !== "undefined" && !!(window as any).__TAURI_INTERNALS__;
 
 const sleep = (ms: number) => {
@@ -350,13 +359,32 @@ function App() {
     return () => media.removeEventListener("change", listener);
   }, []);
 
-  const [theme, setTheme] = useState("tokyo-night");
+  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
+  const theme = settings.theme;
+  const enableOnlineMeasurements = settings.enable_online_measurements;
+  const snapToIso = settings.snap_to_iso_frequencies;
   const [resolvedTheme, setResolvedTheme] = useState("tokyo-night");
-  const [showDiagnostics, setShowDiagnostics] = useState(false);
-  const [enableOnlineMeasurements, setEnableOnlineMeasurements] =
-    useState(false);
   const [showGraphPreview, setShowGraphPreview] = useState(false);
   const graphPreviewTimerRef = useRef<number | null>(null);
+
+  const updateSetting = useCallback(<K extends keyof AppSettings>(
+    key: K,
+    value: AppSettings[K],
+  ) => {
+    setSettings((previous) => {
+      const updated = { ...previous, [key]: value };
+      if (isTauri()) {
+        invoke("save_settings", { settings: updated }).catch((err) => {
+          console.error("Failed to save settings:", err);
+        });
+      }
+      return updated;
+    });
+  }, []);
+
+  const handleEnableOnlineMeasurementsChange = useCallback((value: boolean) => {
+    updateSetting("enable_online_measurements", value);
+  }, [updateSetting]);
 
   useEffect(() => {
     const applyTheme = async () => {
@@ -376,29 +404,18 @@ function App() {
           applyAndroidDynamicColors(prefersDark);
           resolved = prefersDark ? "tokyo-night" : "catppuccin-latte"; // set data-theme so non-overridden base styles match
         } else if (isTauri()) {
-          // On environments like GNOME/Linux, prefers-color-scheme might not propagate instantly,
-          // so query the Tauri window theme directly as a primary source of truth if available
           try {
-            // First try GNOME settings check via backend
-            const linuxScheme = await invoke<string>("get_linux_color_scheme");
-            if (linuxScheme === "dark") {
+            const { getCurrentWindow } =
+              await import("@tauri-apps/api/window");
+            const appWindow = getCurrentWindow();
+            const tauriTheme = await appWindow.theme();
+            if (tauriTheme === "dark") {
               prefersDark = true;
-            } else if (linuxScheme === "light") {
+            } else if (tauriTheme === "light") {
               prefersDark = false;
-            } else {
-              // Fall back to window.theme()
-              const { getCurrentWindow } =
-                await import("@tauri-apps/api/window");
-              const appWindow = getCurrentWindow();
-              const tauriTheme = await appWindow.theme();
-              if (tauriTheme === "dark") {
-                prefersDark = true;
-              } else if (tauriTheme === "light") {
-                prefersDark = false;
-              }
             }
           } catch (e) {
-            console.error("Failed to query Linux/Tauri window theme:", e);
+            console.error("Failed to query Tauri window theme:", e);
           }
         }
         resolved = prefersDark ? "tokyo-night" : "catppuccin-latte";
@@ -453,44 +470,6 @@ function App() {
       });
     }
 
-    // 3. Linux theme change backend event listener (for GNOME/dconf settings portal)
-    if (theme === "auto" && isTauri()) {
-      let active = true;
-      let tauriEventUnlisten: (() => void) | null = null;
-
-      (async () => {
-        try {
-          const { listen } = await import("@tauri-apps/api/event");
-          if (!active) return;
-          const unlisten = await listen<string>(
-            "linux-theme-changed",
-            (event) => {
-              const linuxTheme = event.payload; // "dark" or "light"
-              const resolved =
-                linuxTheme === "dark" ? "tokyo-night" : "catppuccin-latte";
-              setResolvedTheme(resolved);
-              document.documentElement.setAttribute("data-theme", resolved);
-              clearThemeCache();
-            },
-          );
-          if (!active) {
-            unlisten();
-          } else {
-            tauriEventUnlisten = unlisten;
-          }
-        } catch (e) {
-          console.error("Failed to listen to linux-theme-changed event:", e);
-        }
-      })();
-
-      cleanups.push(() => {
-        active = false;
-        if (tauriEventUnlisten) {
-          tauriEventUnlisten();
-        }
-      });
-    }
-
     return () => {
       cleanups.forEach((cleanup) => cleanup());
     };
@@ -499,43 +478,14 @@ function App() {
   useEffect(() => {
     if (!isTauri()) return;
 
-    invoke<{
-      theme?: string;
-      show_diagnostics?: boolean;
-      enable_online_measurements?: boolean;
-    }>("get_settings")
+    invoke<AppSettings>("get_settings")
       .then((settings) => {
-        if (settings) {
-          if (settings.theme) {
-            setTheme(settings.theme);
-          }
-          if (settings.show_diagnostics !== undefined) {
-            setShowDiagnostics(settings.show_diagnostics);
-          }
-          if (settings.enable_online_measurements !== undefined) {
-            setEnableOnlineMeasurements(settings.enable_online_measurements);
-          }
-        }
+        setSettings({ ...DEFAULT_SETTINGS, ...settings });
       })
       .catch((err) => {
         console.error("Failed to load initial settings:", err);
       });
   }, []);
-
-  const handleEnableOnlineMeasurementsChange = useCallback(
-    async (enable: boolean) => {
-      setEnableOnlineMeasurements(enable);
-      if (!isTauri()) return;
-      try {
-        const current = await invoke<any>("get_settings");
-        const updated = { ...current, enable_online_measurements: enable };
-        await invoke("save_settings", { settings: updated });
-      } catch (err) {
-        console.error("Failed to persist online measurements setting:", err);
-      }
-    },
-    [],
-  );
 
   const [peq, setPeq] = useState<PEQData>(buildDefaultState);
   const [devices, setDevices] = useState<DeviceInfo[]>([]);
@@ -852,8 +802,6 @@ function App() {
     return selected?.supports_ram_apply === true;
   }, [devices, selectedDevice]);
 
-  const [snapToIso, setSnapToIso] = useState(true);
-
   const applyProfile = useCallback(
     (profile: Profile) => {
       pushToUndoStack(peqRef.current);
@@ -1125,9 +1073,6 @@ function App() {
       
       reportStatus("Info", `Connected to device: ${devName}`, "success", "UI", "Ready");
 
-      const settings = await invoke<{ auto_pull_on_connect: boolean }>(
-        "get_settings",
-      );
       if (settings.auto_pull_on_connect) {
         // We call the inner fetch code of pullEq directly or call pullEq itself.
         // Since pullEq sets state asynchronously, calling it is safe.
@@ -1143,7 +1088,7 @@ function App() {
     } finally {
       setIsBusy(false);
     }
-  }, [selectedDevice, pullEq, devices, reportStatus]);
+  }, [selectedDevice, pullEq, devices, reportStatus, settings.auto_pull_on_connect]);
 
   const pushEq = useCallback(async () => {
     setProgress(null);
@@ -1641,12 +1586,8 @@ function App() {
                 onRedo={redo}
                 availableTabs={["Preset", "Import"]}
                 defaultTab="Preset"
-                showDiagnostics={showDiagnostics}
-                onShowDiagnosticsChange={setShowDiagnostics}
-                theme={theme}
-                onThemeChange={setTheme}
-                snapToIso={snapToIso}
-                onSnapToIsoChange={setSnapToIso}
+                settings={settings}
+                onSettingChange={updateSetting}
               />
             )}
             {activeTab === "settings" && (
@@ -1680,14 +1621,10 @@ function App() {
                 availableTabs={["Settings"]}
                 defaultTab="Settings"
                 showActions={false}
-                showDiagnostics={showDiagnostics}
-                onShowDiagnosticsChange={setShowDiagnostics}
                 graphViewMode={graphViewMode}
                 onGraphViewModeChange={setGraphViewMode}
-                theme={theme}
-                onThemeChange={setTheme}
-                snapToIso={snapToIso}
-                onSnapToIsoChange={setSnapToIso}
+                settings={settings}
+                onSettingChange={updateSetting}
               />
             )}
           </div>
@@ -1800,16 +1737,12 @@ function App() {
             onRedo={redo}
             graphViewMode={graphViewMode}
             onGraphViewModeChange={setGraphViewMode}
-            theme={theme}
-            onThemeChange={setTheme}
-            showDiagnostics={showDiagnostics}
-            onShowDiagnosticsChange={setShowDiagnostics}
             enableOnlineMeasurements={enableOnlineMeasurements}
             onEnableOnlineMeasurementsChange={
               handleEnableOnlineMeasurementsChange
             }
-            snapToIso={snapToIso}
-            onSnapToIsoChange={setSnapToIso}
+            settings={settings}
+            onSettingChange={updateSetting}
           />
         </main>
       )}

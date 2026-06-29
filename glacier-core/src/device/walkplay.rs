@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::device::capabilities::{DeviceCapabilities, FilterTypeFlags};
+use crate::device::capabilities::{DeviceCapabilities, ALL_FILTER_TYPES, PEAK_SHELF_FILTER_TYPES};
 use crate::device::profile::{DeviceProfile, DeviceProtocol};
 use crate::eq::iir_math::compute_biquad_coeffs;
 use crate::eq::{Filter, FilterType};
@@ -61,10 +61,55 @@ const SAVITECH_10_BAND_CAPS: DeviceCapabilities = DeviceCapabilities {
     band_gain_range: (-10.0, 10.0),
     freq_range: (20, 20000),
     q_range: (0.1, 10.0),
-    supported_filter_types: FilterTypeFlags(0b0001_1111),
+    supported_filter_types: ALL_FILTER_TYPES,
     supports_per_band_enable: false,
     supports_ram_apply: false,
     dsp_sample_rate: 96000.0,
+    gain_tolerance: 0.15,
+    freq_tolerance: 1,
+    q_tolerance: 0.05,
+};
+
+const MOONDROP_10_BAND_CAPS: DeviceCapabilities = DeviceCapabilities {
+    num_bands: 10,
+    global_gain_range: (-20, 10),
+    band_gain_range: (-12.0, 12.0),
+    freq_range: (20, 20000),
+    q_range: (0.1, 10.0),
+    supported_filter_types: PEAK_SHELF_FILTER_TYPES,
+    supports_per_band_enable: false,
+    supports_ram_apply: false,
+    dsp_sample_rate: 48000.0,
+    gain_tolerance: 0.15,
+    freq_tolerance: 1,
+    q_tolerance: 0.05,
+};
+
+const FIIO_5_BAND_CAPS: DeviceCapabilities = DeviceCapabilities {
+    num_bands: 5,
+    global_gain_range: (-12, 12),
+    band_gain_range: (-12.0, 12.0),
+    freq_range: (20, 20000),
+    q_range: (0.1, 10.0),
+    supported_filter_types: PEAK_SHELF_FILTER_TYPES,
+    supports_per_band_enable: false,
+    supports_ram_apply: false,
+    dsp_sample_rate: 48000.0,
+    gain_tolerance: 0.15,
+    freq_tolerance: 1,
+    q_tolerance: 0.05,
+};
+
+const FIIO_10_BAND_CAPS: DeviceCapabilities = DeviceCapabilities {
+    num_bands: 10,
+    global_gain_range: (-12, 12),
+    band_gain_range: (-12.0, 12.0),
+    freq_range: (20, 20000),
+    q_range: (0.1, 10.0),
+    supported_filter_types: PEAK_SHELF_FILTER_TYPES,
+    supports_per_band_enable: false,
+    supports_ram_apply: false,
+    dsp_sample_rate: 48000.0,
     gain_tolerance: 0.15,
     freq_tolerance: 1,
     q_tolerance: 0.05,
@@ -225,25 +270,48 @@ pub const PROFILES: &[DeviceProfile] = &[
     },
     DeviceProfile {
         name: "Moondrop Dawn Pro",
-        protocol: DeviceProtocol::Walkplay,
+        protocol: DeviceProtocol::Moondrop,
         vendor_id: 0x2FC6,
-        product_id: Some(0xDF30),
+        product_id: None,
         status: "Untested",
-        family: "Walkplay Family",
-        caps: DeviceCapabilities {
-            num_bands: 8,
-            global_gain_range: (-20, 0),
-            band_gain_range: (-12.0, 12.0),
-            freq_range: (20, 20000),
-            q_range: (0.1, 10.0),
-            supported_filter_types: FilterTypeFlags(0b0000_0111),
-            supports_per_band_enable: false,
-            supports_ram_apply: false,
-            dsp_sample_rate: 48000.0,
-            gain_tolerance: 0.1,
-            freq_tolerance: 1,
-            q_tolerance: 0.05,
-        },
+        family: "Moondrop / Comtrue",
+        caps: MOONDROP_10_BAND_CAPS,
+    },
+    DeviceProfile {
+        name: "Moondrop Dawn Pro 2",
+        protocol: DeviceProtocol::Moondrop,
+        vendor_id: 0x35D8,
+        product_id: Some(0x011D),
+        status: "Untested",
+        family: "Moondrop / Comtrue",
+        caps: MOONDROP_10_BAND_CAPS,
+    },
+    DeviceProfile {
+        name: "FiiO JA11",
+        protocol: DeviceProtocol::FiioJa11,
+        vendor_id: 0x2972,
+        product_id: Some(0x0102),
+        status: "Untested",
+        family: "FiiO",
+        caps: FIIO_5_BAND_CAPS,
+    },
+    DeviceProfile {
+        name: "JCally JM12",
+        protocol: DeviceProtocol::FiioJa11,
+        vendor_id: 0x31B2,
+        product_id: Some(0x0111),
+        status: "Untested",
+        family: "FiiO",
+        caps: FIIO_5_BAND_CAPS,
+    },
+    DeviceProfile {
+        name: "FiiO KA Series",
+        protocol: DeviceProtocol::Fiio,
+        vendor_id: 0x2972,
+        product_id: None,
+        status: "Untested",
+        family: "FiiO",
+        caps: FIIO_10_BAND_CAPS,
     },
     DeviceProfile {
         name: "Truthear KEYX",
@@ -258,7 +326,7 @@ pub const PROFILES: &[DeviceProfile] = &[
             band_gain_range: (-12.0, 12.0),
             freq_range: (20, 20000),
             q_range: (0.1, 10.0),
-            supported_filter_types: FilterTypeFlags(0b0000_0111),
+            supported_filter_types: PEAK_SHELF_FILTER_TYPES,
             supports_per_band_enable: false,
             supports_ram_apply: false,
             dsp_sample_rate: 48000.0,
