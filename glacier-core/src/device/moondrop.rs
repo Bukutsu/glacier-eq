@@ -127,6 +127,7 @@ impl EqProtocol for MoondropProtocol {
     }
 
     fn ram_apply_packets(&self) -> Vec<Packet> {
+        // Aura applies Moondrop RAM per band via UPDATE_EQ_COEFF; SAVE_FLASH is commit-only.
         vec![]
     }
 
