@@ -64,10 +64,18 @@ function emitEvent(event: string, payload: any) {
   }
 }
 
+let webHidDisconnectListenerInstalled = false;
+
 function ensureWebHid(): HID {
   const hid = navigator.hid;
   if (!hid) {
     throw new Error("WebHID is not available. Use a Chromium-based browser over HTTPS or localhost.");
+  }
+  if (!webHidDisconnectListenerInstalled) {
+    hid.addEventListener("disconnect", (event: any) => {
+      markWebHidDisconnected(event.device);
+    });
+    webHidDisconnectListenerInstalled = true;
   }
   return hid;
 }
@@ -105,6 +113,16 @@ function addDiagnostic(level: string, source: string, message: string) {
 let reportQueue: Uint8Array[] = [];
 let reportResolvers: ((report: Uint8Array) => void)[] = [];
 
+function markWebHidDisconnected(device?: HIDDevice) {
+  if (!activeDevice || (device && activeDevice !== device)) return;
+  const name = activeProfile?.name || activeDevice.productName || "WebHID device";
+  activeDevice = null;
+  activeProfile = null;
+  reportQueue = [];
+  reportResolvers = [];
+  emitEvent("device-disconnected", name);
+}
+
 function setupHidEventListeners(device: HIDDevice) {
   device.addEventListener("inputreport", (event: any) => {
     const bytes = new Uint8Array(event.data.buffer, event.data.byteOffset, event.data.byteLength);
@@ -122,8 +140,14 @@ function setupHidEventListeners(device: HIDDevice) {
 }
 
 async function sendReport(packet: number[] | Uint8Array): Promise<void> {
-  if (!activeDevice) throw new Error("No device connected");
-  await activeDevice.sendReport(packet[0], new Uint8Array(packet.slice(1)));
+  const device = activeDevice;
+  if (!device) throw new Error("No device connected");
+  try {
+    await device.sendReport(packet[0], new Uint8Array(packet.slice(1)));
+  } catch (error) {
+    markWebHidDisconnected(device);
+    throw error;
+  }
 }
 
 async function readReport(timeoutMs: number): Promise<Uint8Array> {
