@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 import { isTauri } from "./platform";
-import type { Filter, PEQData } from "../types";
+import type { Filter, PEQData, SupportedDeviceInfo } from "../types";
 import initWasm, {
   list_supported_devices,
   parse_autoeq,
@@ -72,6 +72,16 @@ function ensureWebHid(): HID {
   return hid;
 }
 
+function matchSupportedWebHidDevice(
+  device: Pick<HIDDevice, "vendorId" | "productId">,
+  supportedDevices: SupportedDeviceInfo[],
+): SupportedDeviceInfo | undefined {
+  return supportedDevices.find((supported) =>
+    supported.vendor_id === device.vendorId &&
+    (supported.product_id == null || supported.product_id === device.productId),
+  );
+}
+
 // ─── WebHID Active State ──────────────────────────────────────────────────────
 
 let activeDevice: HIDDevice | null = null;
@@ -112,7 +122,8 @@ function setupHidEventListeners(device: HIDDevice) {
 }
 
 async function sendReport(packet: number[] | Uint8Array): Promise<void> {
-  await activeDevice!.sendReport(packet[0], new Uint8Array(packet.slice(1)));
+  if (!activeDevice) throw new Error("No device connected");
+  await activeDevice.sendReport(packet[0], new Uint8Array(packet.slice(1)));
 }
 
 async function readReport(timeoutMs: number): Promise<Uint8Array> {
@@ -151,8 +162,19 @@ async function readMatchingReport(
 async function sendPackets(packets: (number[] | Uint8Array)[], delayMs = 0): Promise<void> {
   for (const packet of packets) {
     await sendReport(packet);
-    if (delayMs > 0) await new Promise((resolve) => setTimeout(resolve, delayMs));
+    if (delayMs > 0) await sleep(delayMs);
   }
+}
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function loadJson<T>(key: string, fallback: T): T {
+  const value = localStorage.getItem(key);
+  return value ? JSON.parse(value) as T : fallback;
+}
+
+function saveJson(key: string, value: unknown): void {
+  localStorage.setItem(key, JSON.stringify(value));
 }
 
 function walkplayPacket(payload: number[]): number[] {
@@ -161,6 +183,11 @@ function walkplayPacket(payload: number[]): number[] {
 
 function supportsWalkplayUtilities(): boolean {
   return activeProfile?.protocol === "Walkplay";
+}
+
+function connectedProfile(): any {
+  if (!activeProfile) throw new Error("No device connected");
+  return activeProfile;
 }
 
 function unsupportedUtilityState() {
@@ -172,6 +199,12 @@ function unsupportedUtilityState() {
     mic_volume_db: 0,
     channel_balance: 0,
   };
+}
+
+async function writeAndFlash(packet: number[] | Uint8Array) {
+  await sendReport(packet);
+  await sleep(50);
+  await sendReport(build_flash_eq_packet());
 }
 
 async function readWalkplayUtility(cmd: number): Promise<Uint8Array | null> {
@@ -203,6 +236,35 @@ function resetPeq(numBands: number): PEQData {
   };
 }
 
+async function writeEqPayload(protocol: string, peq: PEQData, initMessage: string) {
+  const timing = get_write_timing(protocol);
+
+  emitEvent("operation-progress", { message: initMessage, percentage: 10 });
+  await sendPackets(build_init_packets(protocol));
+  await sleep(50);
+
+  const total = peq.filters.length;
+  for (let i = 0; i < total; i++) {
+    emitEvent("operation-progress", {
+      message: `Writing band ${i + 1}/${total}...`,
+      percentage: 15.0 + (i / total) * 60.0,
+    });
+
+    await sendPackets(build_write_filter_packets(
+      protocol,
+      i,
+      peq.filters[i],
+      activeProfile.dsp_sample_rate || 96000.0,
+    ));
+    await sleep(timing.per_filter_ms || 80);
+  }
+
+  emitEvent("operation-progress", { message: "Writing preamp...", percentage: 75 });
+  await sleep(timing.batch_ms || 100);
+  await sendPackets(build_write_global_gain_packets(protocol, peq.global_gain));
+  await sleep(timing.global_gain_ms || 50);
+}
+
 function parseWalkplayFirmwareVersion(data: Uint8Array): string | null {
   const bytes = Array.from(data.slice(3, 10));
   let version = "";
@@ -232,22 +294,19 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
   switch (cmd) {
     // ─── Settings ───────────────────────────────────────────────────────────
     case "get_settings": {
-      const settingsStr = localStorage.getItem("glacier-eq-settings");
-      return (settingsStr ? JSON.parse(settingsStr) : {}) as T;
+      return loadJson("glacier-eq-settings", {}) as T;
     }
     case "save_settings": {
-      localStorage.setItem("glacier-eq-settings", JSON.stringify(args.settings));
+      saveJson("glacier-eq-settings", args.settings);
       return null as T;
     }
 
     // ─── Profiles / Presets ─────────────────────────────────────────────────
     case "list_profiles": {
-      const profilesStr = localStorage.getItem("glacier-eq-profiles");
-      return (profilesStr ? JSON.parse(profilesStr) : []) as T;
+      return loadJson("glacier-eq-profiles", []) as T;
     }
     case "save_profile": {
-      const profilesStr = localStorage.getItem("glacier-eq-profiles");
-      const profiles = profilesStr ? JSON.parse(profilesStr) : [];
+      const profiles = loadJson<any[]>("glacier-eq-profiles", []);
       const idx = profiles.findIndex((p: any) => p.name === args.name);
       const newProfile = {
         name: args.name,
@@ -259,16 +318,12 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
       } else {
         profiles.push(newProfile);
       }
-      localStorage.setItem("glacier-eq-profiles", JSON.stringify(profiles));
+      saveJson("glacier-eq-profiles", profiles);
       return null as T;
     }
     case "delete_profile": {
-      const profilesStr = localStorage.getItem("glacier-eq-profiles");
-      if (profilesStr) {
-        const profiles = JSON.parse(profilesStr);
-        const filtered = profiles.filter((p: any) => p.name !== args.name);
-        localStorage.setItem("glacier-eq-profiles", JSON.stringify(filtered));
-      }
+      const profiles = loadJson<any[]>("glacier-eq-profiles", []);
+      saveJson("glacier-eq-profiles", profiles.filter((p: any) => p.name !== args.name));
       return null as T;
     }
     case "open_profiles_dir": {
@@ -332,9 +387,9 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
     // ─── Device Connection / HID ──────────────────────────────────────────────
     case "list_devices": {
       const devices = await ensureWebHid().getDevices();
-      const supported = list_supported_devices();
+      const supported = list_supported_devices() as SupportedDeviceInfo[];
       return devices.map((dev: any) => {
-        const found = supported.find((s: any) => s.vendor_id === dev.vendorId && (s.product_id === null || s.product_id === undefined || s.product_id === dev.productId));
+        const found = matchSupportedWebHidDevice(dev, supported);
         return {
           vendor_id: dev.vendorId,
           product_id: dev.productId,
@@ -358,8 +413,8 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
       reportResolvers = [];
       setupHidEventListeners(target);
 
-      const supported = list_supported_devices();
-      const found = supported.find((s: any) => s.vendor_id === target.vendorId && (s.product_id === null || s.product_id === target.productId));
+      const supported = list_supported_devices() as SupportedDeviceInfo[];
+      const found = matchSupportedWebHidDevice(target, supported);
       activeProfile = found || {
         name: "Supported DAC",
         protocol: "Walkplay",
@@ -390,14 +445,13 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
       return parseWalkplayFirmwareVersion(report.slice(1)) as T;
     }
     case "get_eq_state": {
-      if (!activeDevice || !activeProfile) throw new Error("No device connected");
-      
-      const protocol = activeProfile.protocol;
-      const numBands = activeProfile.num_bands;
+      const profile = connectedProfile();
+      const protocol = profile.protocol;
+      const numBands = profile.num_bands;
 
       // 1. read global gain
       const req = build_read_global_gain_request(protocol);
-      await activeDevice.sendReport(req[0], new Uint8Array(req.slice(1)));
+      await sendReport(req);
       
       let global_gain = 0.0;
       try {
@@ -426,7 +480,7 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
 
         for (let retry = 0; retry < 3; retry++) {
           try {
-            await activeDevice.sendReport(filterReq[0], new Uint8Array(filterReq.slice(1)));
+            await sendReport(filterReq);
             const res = await readMatchingReport(250, (data) => matches_filter_response(protocol, data, i, nonce));
             if (res) {
               filter = parse_filter_response(protocol, res);
@@ -450,7 +504,7 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
           });
         }
 
-        await new Promise((resolve) => setTimeout(resolve, timing.flood_delay_ms || 5));
+        await sleep(timing.flood_delay_ms || 5);
       }
 
       return {
@@ -459,102 +513,30 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
       } as T;
     }
     case "set_eq_state": {
-      if (!activeDevice || !activeProfile) throw new Error("No device connected");
-      
-      const protocol = activeProfile.protocol;
-      const peq = args.peq;
+      const protocol = connectedProfile().protocol;
       const timing = get_write_timing(protocol);
-
-      // 1. run init sequence
-      emitEvent("operation-progress", { message: "Initializing push connection...", percentage: 10 });
-      const initPkts = build_init_packets(protocol);
-      for (const pkt of initPkts) {
-        await activeDevice.sendReport(pkt[0], new Uint8Array(pkt.slice(1)));
-      }
-      await new Promise((resolve) => setTimeout(resolve, 50));
-
-      // 2. write filters
-      const total = peq.filters.length;
-      for (let i = 0; i < total; i++) {
-        const pct = 15.0 + (i / total) * 60.0;
-        emitEvent("operation-progress", {
-          message: `Writing band ${i + 1}/${total}...`,
-          percentage: pct,
-        });
-
-        const filterPkts = build_write_filter_packets(protocol, i, peq.filters[i], activeProfile.dsp_sample_rate || 96000.0);
-        for (const pkt of filterPkts) {
-          await activeDevice.sendReport(pkt[0], new Uint8Array(pkt.slice(1)));
-        }
-        await new Promise((resolve) => setTimeout(resolve, timing.per_filter_ms || 80));
-      }
-
-      // 3. write global gain
-      emitEvent("operation-progress", { message: "Writing preamp...", percentage: 75 });
-      await new Promise((resolve) => setTimeout(resolve, timing.batch_ms || 100));
-      const gainPkts = build_write_global_gain_packets(protocol, peq.global_gain);
-      for (const pkt of gainPkts) {
-        await activeDevice.sendReport(pkt[0], new Uint8Array(pkt.slice(1)));
-      }
-      await new Promise((resolve) => setTimeout(resolve, timing.global_gain_ms || 50));
+      await writeEqPayload(protocol, args.peq, "Initializing push connection...");
 
       // 4. commit changes
       emitEvent("operation-progress", { message: "Committing changes to device...", percentage: 80 });
-      const commitPkts = build_commit_packets(protocol);
-      for (const pkt of commitPkts) {
-        await activeDevice.sendReport(pkt[0], new Uint8Array(pkt.slice(1)));
-        await new Promise((resolve) => setTimeout(resolve, timing.commit_step_ms || 100));
+      for (const pkt of build_commit_packets(protocol)) {
+        await sendReport(pkt);
+        await sleep(timing.commit_step_ms || 100);
       }
 
       emitEvent("operation-progress", { message: "Push successful", percentage: 100 });
       return null as T;
     }
     case "apply_eq_state": {
-      if (!activeDevice || !activeProfile) throw new Error("No device connected");
-      
-      const protocol = activeProfile.protocol;
-      const peq = args.peq;
+      const protocol = connectedProfile().protocol;
       const timing = get_write_timing(protocol);
-
-      // 1. run init sequence
-      emitEvent("operation-progress", { message: "Initializing apply connection...", percentage: 10 });
-      const initPkts = build_init_packets(protocol);
-      for (const pkt of initPkts) {
-        await activeDevice.sendReport(pkt[0], new Uint8Array(pkt.slice(1)));
-      }
-      await new Promise((resolve) => setTimeout(resolve, 50));
-
-      // 2. write filters
-      const total = peq.filters.length;
-      for (let i = 0; i < total; i++) {
-        const pct = 15.0 + (i / total) * 60.0;
-        emitEvent("operation-progress", {
-          message: `Writing band ${i + 1}/${total}...`,
-          percentage: pct,
-        });
-
-        const filterPkts = build_write_filter_packets(protocol, i, peq.filters[i], activeProfile.dsp_sample_rate || 96000.0);
-        for (const pkt of filterPkts) {
-          await activeDevice.sendReport(pkt[0], new Uint8Array(pkt.slice(1)));
-        }
-        await new Promise((resolve) => setTimeout(resolve, timing.per_filter_ms || 80));
-      }
-
-      // 3. write global gain
-      emitEvent("operation-progress", { message: "Writing preamp...", percentage: 75 });
-      await new Promise((resolve) => setTimeout(resolve, timing.batch_ms || 100));
-      const gainPkts = build_write_global_gain_packets(protocol, peq.global_gain);
-      for (const pkt of gainPkts) {
-        await activeDevice.sendReport(pkt[0], new Uint8Array(pkt.slice(1)));
-      }
-      await new Promise((resolve) => setTimeout(resolve, timing.global_gain_ms || 50));
+      await writeEqPayload(protocol, args.peq, "Initializing apply connection...");
 
       // 4. apply to RAM
       emitEvent("operation-progress", { message: "Applying to RAM...", percentage: 85 });
-      const applyPkts = build_ram_apply_packets(protocol);
-      for (const pkt of applyPkts) {
-        await activeDevice.sendReport(pkt[0], new Uint8Array(pkt.slice(1)));
-        await new Promise((resolve) => setTimeout(resolve, timing.commit_step_ms || 100));
+      for (const pkt of build_ram_apply_packets(protocol)) {
+        await sendReport(pkt);
+        await sleep(timing.commit_step_ms || 100);
       }
 
       emitEvent("operation-progress", { message: "Apply successful", percentage: 100 });
@@ -591,34 +573,18 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
       } as T;
     }
     case "set_dac_filter_mode": {
-      if (!activeDevice) throw new Error("No device connected");
-      const pkt = build_filter_mode_write_packet(args.mode);
-      await sendReport(pkt);
-      await new Promise((resolve) => setTimeout(resolve, 50));
-      const flash = build_flash_eq_packet();
-      await sendReport(flash);
+      await writeAndFlash(build_filter_mode_write_packet(args.mode));
       return null as T;
     }
     case "set_dac_work_mode": {
-      if (!activeDevice) throw new Error("No device connected");
-      const pkt = build_amp_mode_write_packet(args.isClassAb);
-      await sendReport(pkt);
-      await new Promise((resolve) => setTimeout(resolve, 50));
-      const flash = build_flash_eq_packet();
-      await sendReport(flash);
+      await writeAndFlash(build_amp_mode_write_packet(args.isClassAb));
       return null as T;
     }
     case "set_dac_output_gain": {
-      if (!activeDevice) throw new Error("No device connected");
-      const pkt = build_gain_mode_write_packet(args.isHighGain);
-      await sendReport(pkt);
-      await new Promise((resolve) => setTimeout(resolve, 50));
-      const flash = build_flash_eq_packet();
-      await sendReport(flash);
+      await writeAndFlash(build_gain_mode_write_packet(args.isHighGain));
       return null as T;
     }
     case "set_dac_balance": {
-      if (!activeDevice) throw new Error("No device connected");
       const packets = build_balance_write_packets(args.balance);
       await sendPackets(packets, 20);
       const flash = build_flash_eq_packet();
@@ -626,12 +592,7 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
       return null as T;
     }
     case "set_mic_volume": {
-      if (!activeDevice) throw new Error("No device connected");
-      const pkt = build_mic_volume_write_packet(args.volumeDb);
-      await sendReport(pkt);
-      await new Promise((resolve) => setTimeout(resolve, 50));
-      const flash = build_flash_eq_packet();
-      await sendReport(flash);
+      await writeAndFlash(build_mic_volume_write_packet(args.volumeDb));
       return null as T;
     }
     case "reset_device_eq": {
@@ -640,7 +601,6 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
       return null as T;
     }
     case "reset_device_controls": {
-      if (!activeDevice) throw new Error("No device connected");
       await invoke("set_dac_filter_mode", { mode: "FAST-LL" });
       await invoke("set_dac_work_mode", { isClassAb: false });
       await invoke("set_dac_output_gain", { isHighGain: false });
@@ -649,9 +609,7 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
       return invoke<T>("get_dac_utility_state");
     }
     case "execute_factory_reset": {
-      if (!activeDevice) throw new Error("No device connected");
-      const pkt = build_factory_reset_packet();
-      await activeDevice.sendReport(pkt[0], new Uint8Array(pkt.slice(1)));
+      await writeAndFlash(build_factory_reset_packet());
       return null as T;
     }
 

@@ -1,6 +1,7 @@
 import { type CSSProperties, useState, useEffect, useRef } from "react";
 import { invoke, listen, readText, writeText, save } from "../lib/rpc";
 
+import { readFileText } from "../lib/files";
 import { parseMeasurementText } from "../lib/measurements";
 import type { AppSettings, MeasurementTrace, Profile, PEQData, GraphViewMode, TargetTrace } from "../types";
 import { Icon } from "./Icon";
@@ -16,6 +17,12 @@ import {
 } from "../lib/onlineDb";
 
 const DEFAULT_PROFILE_NAME = "Default EQ";
+
+async function readClipboardTextOrThrow(): Promise<string> {
+  const text = await readText();
+  if (!text.trim()) throw new Error("Clipboard is empty or not text.");
+  return text;
+}
 
 interface SelectOption<T extends string | number> {
   value: T;
@@ -338,11 +345,12 @@ export function MeasureTab({
     }
   };
 
-  const filteredManifest = searchQuery.trim() === ""
+  const searchTokens = searchQuery.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const filteredManifest = searchTokens.length === 0
     ? []
     : manifest.filter((dev) => {
         const full = `${dev.brand} ${dev.name}`.toLowerCase();
-        return searchQuery.toLowerCase().split(/\s+/).every((token) => full.includes(token));
+        return searchTokens.every((token) => full.includes(token));
       });
 
   const displayResults = filteredManifest.slice(0, 50);
@@ -357,7 +365,7 @@ export function MeasureTab({
     }
   };
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
     if (!/\.(csv|txt)$/i.test(file.name)) {
@@ -366,22 +374,18 @@ export function MeasureTab({
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (loadEvent) => {
-      const text = String(loadEvent.target?.result || "");
+    try {
+      const text = await readFileText(file);
       addMeasurementFromText(text, file.name.replace(/\.[^/.]+$/, ""));
-    };
-    reader.readAsText(file);
+    } catch (error) {
+      setStatus(`Measurement import failed: ${error}`);
+    }
     event.target.value = "";
   };
 
   const handlePaste = async () => {
     try {
-      const text = await readText();
-      if (!text || !text.trim()) {
-        setStatus("Clipboard is empty or not text.");
-        return;
-      }
+      const text = await readClipboardTextOrThrow();
       addMeasurementFromText(text, `Clipboard ${new Date().toLocaleDateString()}`);
     } catch {
       setStatus("Unable to read clipboard. Check permissions.");
@@ -632,7 +636,7 @@ function ImportTab({ peq, profiles, onImportPEQ, onReloadProfiles, setStatus }: 
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -641,12 +645,12 @@ function ImportTab({ peq, profiles, onImportPEQ, onReloadProfiles, setStatus }: 
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      const text = event.target?.result as string;
+    try {
+      const text = await readFileText(file);
       await parseAndLoadText(text, file.name.replace(/\.[^/.]+$/, ""));
-    };
-    reader.readAsText(file);
+    } catch (error) {
+      setStatus(`Import failed: ${error}`);
+    }
     e.target.value = "";
   };
 
@@ -665,11 +669,7 @@ function ImportTab({ peq, profiles, onImportPEQ, onReloadProfiles, setStatus }: 
 
   const handlePaste = async () => {
     try {
-      const text = await readText();
-      if (!text || !text.trim()) {
-        setStatus("Clipboard is empty or not text.");
-        return;
-      }
+      const text = await readClipboardTextOrThrow();
       await parseAndLoadText(text, `Pasted ${new Date().toLocaleDateString()}`);
     } catch (err) {
       setStatus("Unable to read clipboard. Check permissions.");
@@ -768,7 +768,8 @@ function ImportTab({ peq, profiles, onImportPEQ, onReloadProfiles, setStatus }: 
     );
   }
 
-  const nameExists = !isTemporary && profiles.some((p) => p.name.toLowerCase() === importName.trim().toLowerCase());
+  const importNameLower = importName.trim().toLowerCase();
+  const nameExists = !isTemporary && profiles.some((p) => p.name.toLowerCase() === importNameLower);
   const activeFilters = parsed.peq.filters.filter((f) => f.enabled);
 
   return (
@@ -1211,15 +1212,17 @@ function SettingsTab({
   );
 }
 
+type DeviceUtilityState = {
+  supported: boolean;
+  filter_mode: string;
+  amp_mode_class_ab: boolean;
+  high_gain_mode: boolean;
+  mic_volume_db: number;
+  channel_balance: number;
+};
+
 function DeviceTab({ setStatus }: { setStatus: (msg: string) => void }) {
-  const [utility, setUtility] = useState<{
-    supported: boolean;
-    filter_mode: string;
-    amp_mode_class_ab: boolean;
-    high_gain_mode: boolean;
-    mic_volume_db: number;
-    channel_balance: number;
-  } | null>(null);
+  const [utility, setUtility] = useState<DeviceUtilityState | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -1234,55 +1237,35 @@ function DeviceTab({ setStatus }: { setStatus: (msg: string) => void }) {
       });
   }, []);
 
-  const handleSetFilter = async (mode: string) => {
+  const setUtilityField = async <K extends keyof DeviceUtilityState>(
+    field: K,
+    value: DeviceUtilityState[K],
+    command: string,
+    args: Record<string, unknown>,
+  ) => {
     if (!utility) return;
-    setUtility({ ...utility, filter_mode: mode });
+    setUtility({ ...utility, [field]: value });
     try {
-      await invoke("set_dac_filter_mode", { mode });
+      await invoke(command, args);
     } catch (err) {
-      console.error("Failed to set filter mode:", err);
+      console.error(`Failed to ${command}:`, err);
     }
   };
 
-  const handleSetAmpMode = async (isClassAb: boolean) => {
-    if (!utility) return;
-    setUtility({ ...utility, amp_mode_class_ab: isClassAb });
-    try {
-      await invoke("set_dac_work_mode", { isClassAb });
-    } catch (err) {
-      console.error("Failed to set amp mode:", err);
-    }
-  };
+  const handleSetFilter = (mode: string) =>
+    setUtilityField("filter_mode", mode, "set_dac_filter_mode", { mode });
 
-  const handleSetOutputGain = async (isHighGain: boolean) => {
-    if (!utility) return;
-    setUtility({ ...utility, high_gain_mode: isHighGain });
-    try {
-      await invoke("set_dac_output_gain", { isHighGain });
-    } catch (err) {
-      console.error("Failed to set output gain:", err);
-    }
-  };
+  const handleSetAmpMode = (isClassAb: boolean) =>
+    setUtilityField("amp_mode_class_ab", isClassAb, "set_dac_work_mode", { isClassAb });
 
-  const handleSetBalance = async (balance: number) => {
-    if (!utility) return;
-    setUtility({ ...utility, channel_balance: balance });
-    try {
-      await invoke("set_dac_balance", { balance });
-    } catch (err) {
-      console.error("Failed to set balance:", err);
-    }
-  };
+  const handleSetOutputGain = (isHighGain: boolean) =>
+    setUtilityField("high_gain_mode", isHighGain, "set_dac_output_gain", { isHighGain });
 
-  const handleSetMicVolume = async (volumeDb: number) => {
-    if (!utility) return;
-    setUtility({ ...utility, mic_volume_db: volumeDb });
-    try {
-      await invoke("set_mic_volume", { volumeDb });
-    } catch (err) {
-      console.error("Failed to set mic volume:", err);
-    }
-  };
+  const handleSetBalance = (balance: number) =>
+    setUtilityField("channel_balance", balance, "set_dac_balance", { balance });
+
+  const handleSetMicVolume = (volumeDb: number) =>
+    setUtilityField("mic_volume_db", volumeDb, "set_mic_volume", { volumeDb });
 
   const handleResetDeviceEq = async () => {
     if (!confirm("Reset device EQ? This clears all hardware bands and sets device preamp to 0 dB.")) return;
@@ -1455,6 +1438,8 @@ interface DiagnosticEvent {
 
 type DiagLevel = "All" | "Error" | "Warn" | "Info";
 
+const DIAG_LEVELS: DiagLevel[] = ["All", "Error", "Warn", "Info"];
+
 function DiagnosticsPanel() {
   const [events, setEvents] = useState<DiagnosticEvent[]>([]);
   const [levelFilter, setLevelFilter] = useState<DiagLevel>("All");
@@ -1495,18 +1480,22 @@ function DiagnosticsPanel() {
     }
   }, [events, autoScroll]);
 
-  const errorCount = events.filter((e) => e.level === "Error").length;
-  const warnCount  = events.filter((e) => e.level === "Warn").length;
-  const infoCount  = events.filter((e) => e.level === "Info").length;
+  const counts = events.reduce(
+    (acc, event) => ({ ...acc, [event.level]: acc[event.level] + 1 }),
+    { Error: 0, Warn: 0, Info: 0 },
+  );
+  const errorCount = counts.Error;
+  const warnCount = counts.Warn;
+  const infoCount = counts.Info;
 
+  const searchQuery = search.trim().toLowerCase();
   const filtered = events.filter((e) => {
     if (levelFilter !== "All" && e.level !== levelFilter) return false;
-    if (search.trim()) {
-      const q = search.toLowerCase();
+    if (searchQuery) {
       return (
-        e.message.toLowerCase().includes(q) ||
-        e.source.toLowerCase().includes(q) ||
-        e.timestamp.includes(q)
+        e.message.toLowerCase().includes(searchQuery) ||
+        e.source.toLowerCase().includes(searchQuery) ||
+        e.timestamp.includes(searchQuery)
       );
     }
     return true;
@@ -1534,8 +1523,6 @@ function DiagnosticsPanel() {
     }
   };
 
-  const LEVELS: DiagLevel[] = ["All", "Error", "Warn", "Info"];
-
   return (
     <section className="diag-card">
       <div className="diag-head">
@@ -1554,7 +1541,7 @@ function DiagnosticsPanel() {
       </div>
 
       <div className="diag-toolbar">
-        {LEVELS.map((lvl) => (
+        {DIAG_LEVELS.map((lvl) => (
           <button
             key={lvl}
             className={`diag-filter-btn${levelFilter === lvl ? " active" : ""}${lvl === "Error" ? " f-error" : ""}${lvl === "Warn" ? " f-warn" : ""}`}

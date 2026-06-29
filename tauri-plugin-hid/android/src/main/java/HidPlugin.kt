@@ -393,8 +393,6 @@ class HidPlugin(private val activity: Activity): Plugin(activity) {
 
         val filter = IntentFilter()
         filter.addAction(UsbManager.ACTION_USB_DEVICE_DETACHED)
-        // TODO: Handle attach in future - emit events to frontend
-        // filter.addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED)
         activity.registerReceiver(usbDetachReceiver, filter)
     }
 
@@ -508,9 +506,6 @@ class HidPlugin(private val activity: Activity): Plugin(activity) {
         }
     }
 
-    // TODO: Call this when the plugin is destroyed
-    // or when the app is closed
-    // @Command ? 
     fun cleanup() {
         if (permissionReceiver != null) {
             activity.unregisterReceiver(permissionReceiver)
@@ -542,8 +537,6 @@ class HidPlugin(private val activity: Activity): Plugin(activity) {
                 device.put("path", dev.deviceName)
                 device.put("vendorId", dev.vendorId)
                 device.put("productId", dev.productId)
-                // TODO: Can't read serial on Android unless we have permission (i.e. connected) - updated when connected and figure out how to pass to frontend
-                // device.put("serialNumber", dev.serialNumber)
                 device.put("manufacturerString", dev.manufacturerName)
                 device.put("productString", dev.productName)
                 devices.put(device)

@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::device::capabilities::DESKTOP_DAC_CAPS;
+use crate::device::capabilities::{DeviceCapabilities, DESKTOP_DAC_CAPS};
 use crate::device::{
     get_supported_device, DeviceProtocol, EqProtocol, Packet, WalkplayProtocol, SUPPORTED_DEVICES,
 };
@@ -44,6 +44,14 @@ fn get_protocol_impl(protocol_str: &str) -> Option<&'static dyn EqProtocol> {
     }
 }
 
+fn eq_protocol(protocol: &str) -> Result<&'static dyn EqProtocol, JsValue> {
+    get_protocol_impl(protocol).ok_or_else(|| JsValue::from_str("Invalid protocol"))
+}
+
+fn unframe<'a>(protocol: &dyn EqProtocol, data: &'a [u8]) -> Result<&'a [u8], JsValue> {
+    protocol.unframe_packet(data).map_err(js_err)
+}
+
 fn protocol_name(protocol: DeviceProtocol) -> &'static str {
     match protocol {
         DeviceProtocol::Walkplay => "Walkplay",
@@ -51,6 +59,29 @@ fn protocol_name(protocol: DeviceProtocol) -> &'static str {
         DeviceProtocol::FiioJa11 => "FiiO JA11",
         DeviceProtocol::Fiio => "FiiO",
     }
+}
+
+fn device_caps_or_desktop(vendor_id: Option<u16>, product_id: Option<u16>) -> DeviceCapabilities {
+    if let (Some(vid), Some(pid)) = (vendor_id, product_id) {
+        get_supported_device(vid, pid)
+            .map(|profile| profile.caps.clone())
+            .unwrap_or(DESKTOP_DAC_CAPS)
+    } else {
+        DESKTOP_DAC_CAPS
+    }
+}
+
+fn framed_packets(packets: Vec<Packet>) -> Result<JsValue, JsValue> {
+    let framed: Vec<Vec<u8>> = packets.iter().map(|pkt| pkt.framed()).collect();
+    to_js_value(&framed)
+}
+
+fn js_err(error: impl ToString) -> JsValue {
+    JsValue::from_str(&error.to_string())
+}
+
+fn to_js_value<T: Serialize>(value: &T) -> Result<JsValue, JsValue> {
+    serde_wasm_bindgen::to_value(value).map_err(js_err)
 }
 
 #[wasm_bindgen]
@@ -69,7 +100,7 @@ pub fn list_supported_devices() -> Result<JsValue, JsValue> {
         })
         .collect();
 
-    serde_wasm_bindgen::to_value(&list).map_err(|err| JsValue::from_str(&err.to_string()))
+    to_js_value(&list)
 }
 
 #[wasm_bindgen]
@@ -78,18 +109,11 @@ pub fn parse_autoeq(
     vendor_id: Option<u16>,
     product_id: Option<u16>,
 ) -> Result<JsValue, JsValue> {
-    let (mut peq, headphone_name, mut warnings) = crate::autoeq::parse_autoeq_text(&text)
-        .map_err(|err| JsValue::from_str(&err.to_string()))?;
+    let (mut peq, headphone_name, mut warnings) =
+        crate::autoeq::parse_autoeq_text(&text).map_err(js_err)?;
 
-    let caps = if let (Some(vid), Some(pid)) = (vendor_id, product_id) {
-        get_supported_device(vid, pid)
-            .map(|profile| profile.caps.clone())
-            .unwrap_or(DESKTOP_DAC_CAPS)
-    } else {
-        DESKTOP_DAC_CAPS
-    };
-
-    let mut clamp_warnings = peq.clamp_to_capabilities(&caps);
+    let mut clamp_warnings =
+        peq.clamp_to_capabilities(&device_caps_or_desktop(vendor_id, product_id));
     warnings.append(&mut clamp_warnings);
 
     let result = AutoEqParseResultWasm {
@@ -98,13 +122,12 @@ pub fn parse_autoeq(
         warnings,
     };
 
-    serde_wasm_bindgen::to_value(&result).map_err(|err| JsValue::from_str(&err.to_string()))
+    to_js_value(&result)
 }
 
 #[wasm_bindgen]
 pub fn peq_to_autoeq(peq_js: JsValue) -> Result<String, JsValue> {
-    let peq: PEQData = serde_wasm_bindgen::from_value(peq_js)
-        .map_err(|err| JsValue::from_str(&err.to_string()))?;
+    let peq: PEQData = serde_wasm_bindgen::from_value(peq_js).map_err(js_err)?;
     Ok(crate::autoeq::peq_to_autoeq(&peq))
 }
 
@@ -119,10 +142,10 @@ pub fn run_autoeq(
     vendor_id: Option<u16>,
     product_id: Option<u16>,
 ) -> Result<JsValue, JsValue> {
-    let measurement_points: Vec<(f64, f64)> = serde_wasm_bindgen::from_value(measurement_points_js)
-        .map_err(|err| JsValue::from_str(&err.to_string()))?;
-    let target_points: Vec<(f64, f64)> = serde_wasm_bindgen::from_value(target_points_js)
-        .map_err(|err| JsValue::from_str(&err.to_string()))?;
+    let measurement_points: Vec<(f64, f64)> =
+        serde_wasm_bindgen::from_value(measurement_points_js).map_err(js_err)?;
+    let target_points: Vec<(f64, f64)> =
+        serde_wasm_bindgen::from_value(target_points_js).map_err(js_err)?;
 
     if n_bands == 0 || n_bands > crate::autoeq::MAX_N {
         return Err(JsValue::from_str(
@@ -249,26 +272,16 @@ pub fn run_autoeq(
         global_gain: preamp,
     };
 
-    let caps = if let (Some(vid), Some(pid)) = (vendor_id, product_id) {
-        get_supported_device(vid, pid)
-            .map(|profile| profile.caps.clone())
-            .unwrap_or(DESKTOP_DAC_CAPS)
-    } else {
-        DESKTOP_DAC_CAPS
-    };
-
-    let warnings = peq.clamp_to_capabilities(&caps);
+    let warnings = peq.clamp_to_capabilities(&device_caps_or_desktop(vendor_id, product_id));
 
     let result = AutoEqRunResultWasm { peq, warnings };
-    serde_wasm_bindgen::to_value(&result).map_err(|err| JsValue::from_str(&err.to_string()))
+    to_js_value(&result)
 }
 
 #[wasm_bindgen]
 pub fn build_init_packets(protocol: String) -> Result<JsValue, JsValue> {
-    let p = get_protocol_impl(&protocol).ok_or_else(|| JsValue::from_str("Invalid protocol"))?;
-    let packets = p.init_packets();
-    let framed: Vec<Vec<u8>> = packets.iter().map(|pkt| pkt.framed()).collect();
-    serde_wasm_bindgen::to_value(&framed).map_err(|err| JsValue::from_str(&err.to_string()))
+    let p = eq_protocol(&protocol)?;
+    framed_packets(p.init_packets())
 }
 
 #[wasm_bindgen]
@@ -277,7 +290,7 @@ pub fn build_read_filter_request(
     index: u8,
     nonce: u8,
 ) -> Result<Vec<u8>, JsValue> {
-    let p = get_protocol_impl(&protocol).ok_or_else(|| JsValue::from_str("Invalid protocol"))?;
+    let p = eq_protocol(&protocol)?;
     Ok(p.read_filter_request(index, nonce).framed())
 }
 
@@ -288,46 +301,38 @@ pub fn matches_filter_response(
     index: u8,
     nonce: u8,
 ) -> Result<bool, JsValue> {
-    let p = get_protocol_impl(&protocol).ok_or_else(|| JsValue::from_str("Invalid protocol"))?;
-    let unframed = p
-        .unframe_packet(&data)
-        .map_err(|err| JsValue::from_str(&err))?;
+    let p = eq_protocol(&protocol)?;
+    let unframed = unframe(p, &data)?;
     Ok(p.matches_filter_response(unframed, index, nonce))
 }
 
 #[wasm_bindgen]
 pub fn parse_filter_response(protocol: String, data: Vec<u8>) -> Result<JsValue, JsValue> {
-    let p = get_protocol_impl(&protocol).ok_or_else(|| JsValue::from_str("Invalid protocol"))?;
-    let unframed = p
-        .unframe_packet(&data)
-        .map_err(|err| JsValue::from_str(&err))?;
+    let p = eq_protocol(&protocol)?;
+    let unframed = unframe(p, &data)?;
     let filter = p
         .parse_filter_response(unframed)
         .ok_or_else(|| JsValue::from_str("Parse failed"))?;
-    serde_wasm_bindgen::to_value(&filter).map_err(|err| JsValue::from_str(&err.to_string()))
+    to_js_value(&filter)
 }
 
 #[wasm_bindgen]
 pub fn build_read_global_gain_request(protocol: String) -> Result<Vec<u8>, JsValue> {
-    let p = get_protocol_impl(&protocol).ok_or_else(|| JsValue::from_str("Invalid protocol"))?;
+    let p = eq_protocol(&protocol)?;
     Ok(p.read_global_gain_request().framed())
 }
 
 #[wasm_bindgen]
 pub fn matches_global_gain_response(protocol: String, data: Vec<u8>) -> Result<bool, JsValue> {
-    let p = get_protocol_impl(&protocol).ok_or_else(|| JsValue::from_str("Invalid protocol"))?;
-    let unframed = p
-        .unframe_packet(&data)
-        .map_err(|err| JsValue::from_str(&err))?;
+    let p = eq_protocol(&protocol)?;
+    let unframed = unframe(p, &data)?;
     Ok(p.matches_global_gain_response(unframed))
 }
 
 #[wasm_bindgen]
 pub fn parse_global_gain_response(protocol: String, data: Vec<u8>) -> Result<f64, JsValue> {
-    let p = get_protocol_impl(&protocol).ok_or_else(|| JsValue::from_str("Invalid protocol"))?;
-    let unframed = p
-        .unframe_packet(&data)
-        .map_err(|err| JsValue::from_str(&err))?;
+    let p = eq_protocol(&protocol)?;
+    let unframed = unframe(p, &data)?;
     p.parse_global_gain_response(unframed)
         .ok_or_else(|| JsValue::from_str("Parse failed"))
 }
@@ -339,14 +344,12 @@ pub fn build_write_filter_packets(
     filter_js: JsValue,
     dsp_sample_rate: f64,
 ) -> Result<JsValue, JsValue> {
-    let p = get_protocol_impl(&protocol).ok_or_else(|| JsValue::from_str("Invalid protocol"))?;
-    let filter: Filter = serde_wasm_bindgen::from_value(filter_js)
-        .map_err(|err| JsValue::from_str(&err.to_string()))?;
+    let p = eq_protocol(&protocol)?;
+    let filter: Filter = serde_wasm_bindgen::from_value(filter_js).map_err(js_err)?;
     let packets = p
         .write_filter_packets(index, &filter, dsp_sample_rate)
         .map_err(|err| JsValue::from_str(&err))?;
-    let framed: Vec<Vec<u8>> = packets.iter().map(|pkt| pkt.framed()).collect();
-    serde_wasm_bindgen::to_value(&framed).map_err(|err| JsValue::from_str(&err.to_string()))
+    framed_packets(packets)
 }
 
 #[wasm_bindgen]
@@ -354,26 +357,20 @@ pub fn build_write_global_gain_packets(
     protocol: String,
     global_gain: f64,
 ) -> Result<JsValue, JsValue> {
-    let p = get_protocol_impl(&protocol).ok_or_else(|| JsValue::from_str("Invalid protocol"))?;
-    let packets = p.write_global_gain_packets(global_gain);
-    let framed: Vec<Vec<u8>> = packets.iter().map(|pkt| pkt.framed()).collect();
-    serde_wasm_bindgen::to_value(&framed).map_err(|err| JsValue::from_str(&err.to_string()))
+    let p = eq_protocol(&protocol)?;
+    framed_packets(p.write_global_gain_packets(global_gain))
 }
 
 #[wasm_bindgen]
 pub fn build_commit_packets(protocol: String) -> Result<JsValue, JsValue> {
-    let p = get_protocol_impl(&protocol).ok_or_else(|| JsValue::from_str("Invalid protocol"))?;
-    let packets = p.commit_packets();
-    let framed: Vec<Vec<u8>> = packets.iter().map(|pkt| pkt.framed()).collect();
-    serde_wasm_bindgen::to_value(&framed).map_err(|err| JsValue::from_str(&err.to_string()))
+    let p = eq_protocol(&protocol)?;
+    framed_packets(p.commit_packets())
 }
 
 #[wasm_bindgen]
 pub fn build_ram_apply_packets(protocol: String) -> Result<JsValue, JsValue> {
-    let p = get_protocol_impl(&protocol).ok_or_else(|| JsValue::from_str("Invalid protocol"))?;
-    let packets = p.ram_apply_packets();
-    let framed: Vec<Vec<u8>> = packets.iter().map(|pkt| pkt.framed()).collect();
-    serde_wasm_bindgen::to_value(&framed).map_err(|err| JsValue::from_str(&err.to_string()))
+    let p = eq_protocol(&protocol)?;
+    framed_packets(p.ram_apply_packets())
 }
 
 // ─── Walkplay specific utility command packet builders ───────────────────────────
@@ -405,13 +402,13 @@ pub fn build_gain_mode_write_packet(is_high: bool) -> Vec<u8> {
 }
 
 #[wasm_bindgen]
-pub fn build_balance_write_packets(balance: i8) -> JsValue {
+pub fn build_balance_write_packets(balance: i8) -> Result<JsValue, JsValue> {
     let payloads = WalkplayProtocol::build_balance_write_packets(balance);
     let packets: Vec<Vec<u8>> = payloads
         .into_iter()
         .map(|payload| Packet::new(WalkplayProtocol::report_id(), payload).framed())
         .collect();
-    serde_wasm_bindgen::to_value(&packets).unwrap()
+    to_js_value(&packets)
 }
 
 #[wasm_bindgen]
@@ -438,7 +435,7 @@ pub fn build_flash_eq_packet() -> Vec<u8> {
 
 #[wasm_bindgen]
 pub fn get_write_timing(protocol: String) -> Result<JsValue, JsValue> {
-    let p = get_protocol_impl(&protocol).ok_or_else(|| JsValue::from_str("Invalid protocol"))?;
+    let p = eq_protocol(&protocol)?;
     let timing = p.write_timing();
 
     #[derive(Serialize)]
@@ -457,5 +454,5 @@ pub fn get_write_timing(protocol: String) -> Result<JsValue, JsValue> {
         global_gain_ms: timing.global_gain_ms,
         commit_step_ms: timing.commit_step_ms,
     };
-    serde_wasm_bindgen::to_value(&result).map_err(|err| JsValue::from_str(&err.to_string()))
+    to_js_value(&result)
 }

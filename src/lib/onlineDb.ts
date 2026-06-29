@@ -35,19 +35,18 @@ function openDb(): Promise<IDBDatabase> {
   });
 }
 
+function idbRequest<T>(request: IDBRequest<T>): Promise<T> {
+  return new Promise((resolve, reject) => {
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
 export async function isDatabaseDownloaded(): Promise<boolean> {
   try {
     const db = await openDb();
-    return new Promise((resolve) => {
-      const transaction = db.transaction(STORE_NAME, "readonly");
-      const store = transaction.objectStore(STORE_NAME);
-      const countRequest = store.count();
-      countRequest.onsuccess = () => {
-        // We expect at least some curves + the meta key
-        resolve(countRequest.result > 10);
-      };
-      countRequest.onerror = () => resolve(false);
-    });
+    const store = db.transaction(STORE_NAME, "readonly").objectStore(STORE_NAME);
+    return (await idbRequest(store.count())) > 10;
   } catch {
     return false;
   }
@@ -55,13 +54,8 @@ export async function isDatabaseDownloaded(): Promise<boolean> {
 
 export async function clearCachedDatabase(): Promise<void> {
   const db = await openDb();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(STORE_NAME, "readwrite");
-    const store = transaction.objectStore(STORE_NAME);
-    const request = store.clear();
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error);
-  });
+  const store = db.transaction(STORE_NAME, "readwrite").objectStore(STORE_NAME);
+  await idbRequest(store.clear());
 }
 
 export async function downloadDatabase(
@@ -144,13 +138,8 @@ async function fetchJson(url: string, onProgress?: (percent: number) => void): P
 
 export async function fetchManifest(): Promise<OnlineDevice[]> {
   const db = await openDb();
-  const data = await new Promise<any>((resolve, reject) => {
-    const transaction = db.transaction(STORE_NAME, "readonly");
-    const store = transaction.objectStore(STORE_NAME);
-    const req = store.get("meta:manifest");
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
+  const store = db.transaction(STORE_NAME, "readonly").objectStore(STORE_NAME);
+  const data = await idbRequest<any>(store.get("meta:manifest"));
 
   if (!data.iems) {
     throw new Error("Search manifest not cached. Please download the database.");
@@ -192,21 +181,10 @@ export async function loadDeviceCurvePoints(
   const db = await openDb();
 
   // Get frequencies and raw decibels
+  const store = db.transaction(STORE_NAME, "readonly").objectStore(STORE_NAME);
   const [frequencies, dbValues] = await Promise.all([
-    new Promise<number[]>((resolve, reject) => {
-      const transaction = db.transaction(STORE_NAME, "readonly");
-      const store = transaction.objectStore(STORE_NAME);
-      const req = store.get("meta:frequencies");
-      req.onsuccess = () => resolve(req.result || []);
-      req.onerror = () => reject(req.error);
-    }),
-    new Promise<number[]>((resolve, reject) => {
-      const transaction = db.transaction(STORE_NAME, "readonly");
-      const store = transaction.objectStore(STORE_NAME);
-      const req = store.get(deviceId);
-      req.onsuccess = () => resolve(req.result || []);
-      req.onerror = () => reject(req.error);
-    }),
+    idbRequest<number[]>(store.get("meta:frequencies")).then((value) => value || []),
+    idbRequest<number[]>(store.get(deviceId)).then((value) => value || []),
   ]);
 
   if (frequencies.length === 0 || dbValues.length === 0) {

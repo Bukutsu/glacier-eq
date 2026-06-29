@@ -4,12 +4,12 @@
 use crate::diagnostics::{self, DiagnosticsStore, LogLevel, LogSource};
 use crate::state::{ConnectedDevice, DeviceState};
 use glacier_core::device::{
-    get_supported_device, DeviceCapabilities, DeviceInfo, DeviceProtocol, EqProtocol, Packet,
-    WalkplayProtocol,
+    get_supported_device, DeviceCapabilities, DeviceInfo, DeviceProfile, DeviceProtocol,
+    EqProtocol, Packet, WalkplayProtocol,
 };
 use glacier_core::eq::{Filter, PEQData};
 use std::collections::HashSet;
-use std::sync::Mutex;
+use std::sync::{Mutex, MutexGuard};
 use std::time::Duration;
 use tauri::Manager;
 
@@ -59,6 +59,23 @@ fn protocol_name(protocol: DeviceProtocol) -> &'static str {
 fn supports_walkplay_utilities(connected: &ConnectedDevice) -> bool {
     get_supported_device(connected.vendor_id, connected.product_id)
         .is_some_and(|profile| profile.protocol == DeviceProtocol::Walkplay)
+}
+
+fn registered_profile(connected: &ConnectedDevice) -> Result<&'static DeviceProfile, String> {
+    get_supported_device(connected.vendor_id, connected.product_id).ok_or_else(|| {
+        format!(
+            "No profile registered for {:04X}:{:04X}",
+            connected.vendor_id, connected.product_id
+        )
+    })
+}
+
+fn lock_device_state<'a, 'r>(
+    state: &'a tauri::State<'r, Mutex<DeviceState>>,
+) -> Result<MutexGuard<'a, DeviceState>, String> {
+    state
+        .lock()
+        .map_err(|_| "Device state lock poisoned".to_string())
 }
 
 fn ensure_eq_protocol(profile: &glacier_core::device::DeviceProfile) -> Result<(), String> {
@@ -136,14 +153,21 @@ fn handle_disconnection(app: &tauri::AppHandle, error_msg: &str) {
     }
 }
 
-fn hid_read(app: &tauri::AppHandle, path: &str, timeout: i32) -> Result<Vec<u8>, String> {
+fn ensure_device_not_disconnected(app: &tauri::AppHandle) -> Result<(), String> {
     if let Some(state) = app.try_state::<Mutex<DeviceState>>() {
-        if let Ok(guard) = state.lock() {
-            if guard.connected.is_none() {
-                return Err("Device disconnected".to_string());
-            }
+        if state
+            .lock()
+            .map(|guard| guard.connected.is_none())
+            .unwrap_or(false)
+        {
+            return Err("Device disconnected".to_string());
         }
     }
+    Ok(())
+}
+
+fn hid_read(app: &tauri::AppHandle, path: &str, timeout: i32) -> Result<Vec<u8>, String> {
+    ensure_device_not_disconnected(app)?;
     let res = {
         #[cfg(target_os = "linux")]
         {
@@ -174,13 +198,7 @@ fn hid_read(app: &tauri::AppHandle, path: &str, timeout: i32) -> Result<Vec<u8>,
 }
 
 fn hid_write(app: &tauri::AppHandle, path: &str, data: &[u8]) -> Result<(), String> {
-    if let Some(state) = app.try_state::<Mutex<DeviceState>>() {
-        if let Ok(guard) = state.lock() {
-            if guard.connected.is_none() {
-                return Err("Device disconnected".to_string());
-            }
-        }
-    }
+    ensure_device_not_disconnected(app)?;
     let res = {
         #[cfg(target_os = "linux")]
         {
@@ -261,13 +279,7 @@ pub async fn get_eq_state(
     diagnostics_store: tauri::State<'_, Mutex<DiagnosticsStore>>,
 ) -> Result<PEQData, String> {
     let connected = connected_device(&state)?;
-    let profile =
-        get_supported_device(connected.vendor_id, connected.product_id).ok_or_else(|| {
-            format!(
-                "No profile registered for {:04X}:{:04X}",
-                connected.vendor_id, connected.product_id
-            )
-        })?;
+    let profile = registered_profile(&connected)?;
     ensure_eq_protocol(profile)?;
     let caps = &profile.caps;
 
@@ -439,18 +451,8 @@ pub async fn set_eq_state(
     diagnostics_store: tauri::State<'_, Mutex<DiagnosticsStore>>,
     peq: PEQData,
 ) -> Result<(), String> {
-    let connected = connected_device(&state)?;
-    let profile =
-        get_supported_device(connected.vendor_id, connected.product_id).ok_or_else(|| {
-            format!(
-                "No profile registered for {:04X}:{:04X}",
-                connected.vendor_id, connected.product_id
-            )
-        })?;
-    ensure_eq_protocol(profile)?;
+    let (connected, profile, peq) = connected_profile_and_peq(&state, peq)?;
     let caps = &profile.caps;
-
-    let peq = normalize_for_push(peq, &caps, profile.protocol);
     let settings = crate::settings::get_settings(app.clone()).unwrap_or_default();
 
     // 1. Snapshot current state before writing
@@ -643,15 +645,7 @@ pub async fn apply_eq_state(
     diagnostics_store: tauri::State<'_, Mutex<DiagnosticsStore>>,
     peq: PEQData,
 ) -> Result<(), String> {
-    let connected = connected_device(&state)?;
-    let profile =
-        get_supported_device(connected.vendor_id, connected.product_id).ok_or_else(|| {
-            format!(
-                "No profile registered for {:04X}:{:04X}",
-                connected.vendor_id, connected.product_id
-            )
-        })?;
-    ensure_eq_protocol(profile)?;
+    let (connected, profile, peq) = connected_profile_and_peq(&state, peq)?;
     if !profile.caps.supports_ram_apply {
         return Err(format!(
             "{} does not advertise volatile RAM apply support.",
@@ -659,7 +653,6 @@ pub async fn apply_eq_state(
         ));
     }
     let caps = &profile.caps;
-    let peq = normalize_for_push(peq, caps, profile.protocol);
 
     diagnostics::log(
         LogLevel::Info,
@@ -762,10 +755,7 @@ pub async fn connect_device(
         return Err(msg);
     }
 
-    state
-        .lock()
-        .map_err(|_| "Device state lock poisoned".to_string())?
-        .connected = Some(ConnectedDevice {
+    lock_device_state(&state)?.connected = Some(ConnectedDevice {
         path: path.clone(),
         vendor_id: device.vendor_id,
         product_id: device.product_id,
@@ -788,12 +778,7 @@ pub fn disconnect_device(
     state: tauri::State<'_, Mutex<DeviceState>>,
     diagnostics_store: tauri::State<'_, Mutex<DiagnosticsStore>>,
 ) -> Result<(), String> {
-    if let Some(device) = state
-        .lock()
-        .map_err(|_| "Device state lock poisoned".to_string())?
-        .connected
-        .take()
-    {
+    if let Some(device) = lock_device_state(&state)?.connected.take() {
         if let Err(error) = hid_close(&app, &device.path) {
             let msg = format!("Failed to close {}: {error}", device.profile_name);
             diagnostics::log(
@@ -822,13 +807,7 @@ pub async fn get_firmware_version(
     state: tauri::State<'_, Mutex<DeviceState>>,
 ) -> Result<Option<String>, String> {
     let connected = connected_device(&state)?;
-    let profile =
-        get_supported_device(connected.vendor_id, connected.product_id).ok_or_else(|| {
-            format!(
-                "No profile registered for {:04X}:{:04X}",
-                connected.vendor_id, connected.product_id
-            )
-        })?;
+    let profile = registered_profile(&connected)?;
 
     if profile.protocol != DeviceProtocol::Walkplay {
         return Ok(None);
@@ -875,9 +854,7 @@ fn parse_walkplay_firmware_version(data: &[u8]) -> String {
 fn connected_device(
     state: &tauri::State<'_, Mutex<DeviceState>>,
 ) -> Result<ConnectedDevice, String> {
-    state
-        .lock()
-        .map_err(|_| "Device state lock poisoned".to_string())?
+    lock_device_state(state)?
         .connected
         .clone()
         .ok_or_else(|| "No supported DAC connected. Connect a device first.".to_string())
@@ -887,12 +864,7 @@ fn close_previous_device(
     app: &tauri::AppHandle,
     state: &tauri::State<'_, Mutex<DeviceState>>,
 ) -> Result<(), String> {
-    if let Some(previous) = state
-        .lock()
-        .map_err(|_| "Device state lock poisoned".to_string())?
-        .connected
-        .take()
-    {
+    if let Some(previous) = lock_device_state(state)?.connected.take() {
         let _ = hid_close(app, &previous.path);
     }
     Ok(())
@@ -1238,6 +1210,17 @@ fn normalize_for_push(
     peq
 }
 
+fn connected_profile_and_peq(
+    state: &tauri::State<'_, Mutex<DeviceState>>,
+    peq: PEQData,
+) -> Result<(ConnectedDevice, &'static DeviceProfile, PEQData), String> {
+    let connected = connected_device(state)?;
+    let profile = registered_profile(&connected)?;
+    ensure_eq_protocol(profile)?;
+    let peq = normalize_for_push(peq, &profile.caps, profile.protocol);
+    Ok((connected, profile, peq))
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DacUtilityState {
     pub supported: bool,
@@ -1246,6 +1229,17 @@ pub struct DacUtilityState {
     pub high_gain_mode: bool,
     pub mic_volume_db: i8,
     pub channel_balance: i8,
+}
+
+fn unsupported_utility_state() -> DacUtilityState {
+    DacUtilityState {
+        supported: false,
+        filter_mode: "FAST-LL".to_string(),
+        amp_mode_class_ab: false,
+        high_gain_mode: false,
+        mic_volume_db: 0,
+        channel_balance: 0,
+    }
 }
 
 fn read_utility_register(app: &tauri::AppHandle, path: &str, cmd: u8) -> Result<Vec<u8>, String> {
@@ -1309,35 +1303,15 @@ pub async fn get_dac_utility_state(
     app: tauri::AppHandle,
     state: tauri::State<'_, Mutex<DeviceState>>,
 ) -> Result<DacUtilityState, String> {
-    let connected = state
-        .lock()
-        .map_err(|_| "Device state lock poisoned")?
-        .connected
-        .clone();
+    let connected = lock_device_state(&state)?.connected.clone();
 
     let connected = match connected {
         Some(c) => c,
-        None => {
-            return Ok(DacUtilityState {
-                supported: false,
-                filter_mode: "FAST-LL".to_string(),
-                amp_mode_class_ab: false,
-                high_gain_mode: false,
-                mic_volume_db: 0,
-                channel_balance: 0,
-            })
-        }
+        None => return Ok(unsupported_utility_state()),
     };
 
     if !supports_walkplay_utilities(&connected) {
-        return Ok(DacUtilityState {
-            supported: false,
-            filter_mode: "FAST-LL".to_string(),
-            amp_mode_class_ab: false,
-            high_gain_mode: false,
-            mic_volume_db: 0,
-            channel_balance: 0,
-        });
+        return Ok(unsupported_utility_state());
     }
 
     drain_stale_frames(&app, &connected.path);
@@ -1411,6 +1385,15 @@ fn write_utility_packet(app: &tauri::AppHandle, path: &str, packet: Vec<u8>) -> 
     flash_eq(app, path)
 }
 
+fn write_connected_utility_packet(
+    app: &tauri::AppHandle,
+    state: &tauri::State<'_, Mutex<DeviceState>>,
+    packet: Vec<u8>,
+) -> Result<(), String> {
+    let path = utility_connected_path(state)?;
+    write_utility_packet(app, &path, packet)
+}
+
 fn flash_eq(app: &tauri::AppHandle, path: &str) -> Result<(), String> {
     send_packet(
         app,
@@ -1424,14 +1407,7 @@ fn flash_eq(app: &tauri::AppHandle, path: &str) -> Result<(), String> {
 }
 
 fn utility_connected_path(state: &tauri::State<'_, Mutex<DeviceState>>) -> Result<String, String> {
-    Ok(state
-        .lock()
-        .unwrap()
-        .connected
-        .as_ref()
-        .ok_or("No device connected")?
-        .path
-        .clone())
+    Ok(connected_device(state)?.path)
 }
 
 #[tauri::command]
@@ -1440,7 +1416,6 @@ pub async fn set_dac_filter_mode(
     state: tauri::State<'_, Mutex<DeviceState>>,
     mode: String,
 ) -> Result<(), String> {
-    let path = utility_connected_path(&state)?;
     let r = match mode.as_str() {
         "FAST-LL" => 1,
         "FAST-PC" => 2,
@@ -1449,8 +1424,11 @@ pub async fn set_dac_filter_mode(
         "NON-OS" => 5,
         _ => return Err("Invalid filter mode".to_string()),
     };
-    let packet = WalkplayProtocol::build_filter_mode_write_packet(r);
-    write_utility_packet(&app, &path, packet)
+    write_connected_utility_packet(
+        &app,
+        &state,
+        WalkplayProtocol::build_filter_mode_write_packet(r),
+    )
 }
 
 #[tauri::command]
@@ -1459,9 +1437,11 @@ pub async fn set_dac_work_mode(
     state: tauri::State<'_, Mutex<DeviceState>>,
     is_class_ab: bool,
 ) -> Result<(), String> {
-    let path = utility_connected_path(&state)?;
-    let packet = WalkplayProtocol::build_amp_mode_write_packet(is_class_ab);
-    write_utility_packet(&app, &path, packet)
+    write_connected_utility_packet(
+        &app,
+        &state,
+        WalkplayProtocol::build_amp_mode_write_packet(is_class_ab),
+    )
 }
 
 #[tauri::command]
@@ -1470,9 +1450,11 @@ pub async fn set_dac_output_gain(
     state: tauri::State<'_, Mutex<DeviceState>>,
     is_high_gain: bool,
 ) -> Result<(), String> {
-    let path = utility_connected_path(&state)?;
-    let packet = WalkplayProtocol::build_gain_mode_write_packet(is_high_gain);
-    write_utility_packet(&app, &path, packet)
+    write_connected_utility_packet(
+        &app,
+        &state,
+        WalkplayProtocol::build_gain_mode_write_packet(is_high_gain),
+    )
 }
 
 #[tauri::command]
@@ -1496,9 +1478,11 @@ pub async fn set_mic_volume(
     state: tauri::State<'_, Mutex<DeviceState>>,
     volume_db: i8,
 ) -> Result<(), String> {
-    let path = utility_connected_path(&state)?;
-    let packet = WalkplayProtocol::build_mic_volume_write_packet(volume_db);
-    write_utility_packet(&app, &path, packet)
+    write_connected_utility_packet(
+        &app,
+        &state,
+        WalkplayProtocol::build_mic_volume_write_packet(volume_db),
+    )
 }
 
 #[tauri::command]
@@ -1507,13 +1491,7 @@ pub async fn reset_device_eq(
     state: tauri::State<'_, Mutex<DeviceState>>,
 ) -> Result<(), String> {
     let connected = connected_device(&state)?;
-    let profile =
-        get_supported_device(connected.vendor_id, connected.product_id).ok_or_else(|| {
-            format!(
-                "No profile registered for {:04X}:{:04X}",
-                connected.vendor_id, connected.product_id
-            )
-        })?;
+    let profile = registered_profile(&connected)?;
     ensure_eq_protocol(profile)?;
     let caps = &profile.caps;
     let peq = PEQData {
@@ -1523,15 +1501,7 @@ pub async fn reset_device_eq(
         global_gain: 0.0,
     };
 
-    run_init_sequence(&app, &connected.path, profile.protocol)?;
-    write_filters(
-        &app,
-        &connected.path,
-        profile.protocol,
-        &peq,
-        caps.dsp_sample_rate,
-    )?;
-    write_global_gain(&app, &connected.path, profile.protocol, 0.0)?;
+    write_eq_to_ram(&app, &connected, profile.protocol, &peq, caps)?;
     commit_changes(&app, &connected.path, profile.protocol)
 }
 
@@ -1564,9 +1534,7 @@ pub async fn execute_factory_reset(
     app: tauri::AppHandle,
     state: tauri::State<'_, Mutex<DeviceState>>,
 ) -> Result<(), String> {
-    let path = utility_connected_path(&state)?;
-    let packet = WalkplayProtocol::build_factory_reset_packet();
-    write_utility_packet(&app, &path, packet)
+    write_connected_utility_packet(&app, &state, WalkplayProtocol::build_factory_reset_packet())
 }
 
 #[cfg(test)]
