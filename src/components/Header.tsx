@@ -36,7 +36,7 @@ export function Header({
       <header className="app-header selection-header">
         <div className="title-stack">
           <div className="title-line">
-            <h1>Glacier EQ</h1>
+            <h1>Connect DAC</h1>
             <span className="sync-dot offline">● Offline</span>
           </div>
           <div className="device-name">Select a supported DAC to begin</div>
@@ -50,9 +50,7 @@ export function Header({
       <div className="header-main">
         <div className="title-stack">
           <div className="title-line">
-            <h1>Glacier EQ</h1>
-            <span className="title-separator" aria-hidden="true" />
-            <strong>{profile}</strong>
+            <h1>{profile}</h1>
           </div>
           <div className="header-meta-row">
             <div className="device-name">{deviceName}</div>
