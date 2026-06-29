@@ -160,7 +160,7 @@ function walkplayPacket(payload: number[]): number[] {
 }
 
 function supportsWalkplayUtilities(): boolean {
-  return activeProfile?.protocol === "Walkplay" && activeProfile?.vendor_id === 0x3302;
+  return activeProfile?.protocol === "Walkplay";
 }
 
 function unsupportedUtilityState() {
