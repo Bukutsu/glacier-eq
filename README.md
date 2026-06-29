@@ -35,6 +35,10 @@ cd glacier-eq
 makepkg -si
 ```
 
+The Arch package installs `udev/99-glacier-eq.rules`; after replugging a
+supported DAC, the Linux desktop build can open it directly without the polkit
+elevation popup.
+
 From source:
 
 ```sh
@@ -125,9 +129,12 @@ Release APK signing is not configured by default.
 - [ ] Command-line interface
 - [ ] Multi-device support
 - [ ] Localization
-## Linux WebHID Permissions (Web version)
+## Linux HID Permissions
 
-On Linux, Chromium-based browsers restrict access to raw USB HID devices by default. If you see a `NotAllowedError: Failed to open the device` error when connecting in the browser:
+On Linux, Chromium-based browsers and the desktop build can need udev access to
+raw USB HID devices. Installing the packaged `udev/99-glacier-eq.rules` lets the
+desktop build skip the polkit elevation popup. If you see a `NotAllowedError:
+Failed to open the device` error when connecting in the browser:
 
 1. Create a udev rule file:
    ```sh
