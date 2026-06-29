@@ -11,12 +11,6 @@ fn pid_matches(configured: Option<u16>, actual: u16) -> bool {
     configured.is_none_or(|pid| pid == actual)
 }
 
-pub fn get_device_profile(vendor_id: u16, product_id: u16) -> Option<&'static DeviceProfile> {
-    crate::device::walkplay::PROFILES
-        .iter()
-        .find(|p| p.vendor_id == vendor_id && pid_matches(p.product_id, product_id))
-}
-
 pub fn get_supported_device(vendor_id: u16, product_id: u16) -> Option<&'static DeviceProfile> {
     SUPPORTED_DEVICES
         .iter()
@@ -35,9 +29,6 @@ mod tests {
     fn exact_pid_wins_before_vendor_fallback() {
         let device = get_supported_device(0x3302, 0x43E8).unwrap();
         assert_eq!(device.name, "TRN Black Pearl");
-
-        let profile = get_device_profile(0x3302, 0x43E8).unwrap();
-        assert_eq!(profile.name, "TRN Black Pearl");
     }
 
     #[test]
@@ -45,10 +36,6 @@ mod tests {
         assert_eq!(
             get_supported_device(0x262A, 0x1234).unwrap().name,
             "Fosi Audio DS2 / iBasso DC04 Pro"
-        );
-        assert_eq!(
-            get_device_profile(0x0661, 0x9999).unwrap().name,
-            "JCally JM20 / Savitech Generic"
         );
     }
 }

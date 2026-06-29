@@ -20,8 +20,6 @@ pub use capabilities::DeviceCapabilities;
 pub use device::DeviceInfo;
 pub use profile::{DeviceProfile, DeviceProtocol};
 pub use protocol::{EqProtocol, Packet, WalkplayProtocol};
-pub use supported::{
-    get_device_profile, get_supported_device, is_supported_device, SUPPORTED_DEVICES,
-};
-pub use timing::{ReadTiming, WriteTiming};
+pub use supported::{get_supported_device, is_supported_device, SUPPORTED_DEVICES};
+pub use timing::WriteTiming;
 pub use walkplay::PROFILES;
