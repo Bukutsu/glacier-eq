@@ -949,7 +949,17 @@ function App() {
         setConnected(false);
         reportStatus("Error", `Connection failed (disconnected): ${error}`, "error", "UI", "Device disconnected");
       } else {
-        reportStatus("Error", `Connection failed: ${error}`, "error", "UI");
+        const errorMsg = String(error);
+        if (errorMsg.includes("NotAllowedError") && !isTauri()) {
+          reportStatus(
+            "Error",
+            "Connection failed: Linux permissions error. You need to configure a udev rule to allow WebHID access to this DAC. See the project README for instructions.",
+            "error",
+            "UI"
+          );
+        } else {
+          reportStatus("Error", `Connection failed: ${error}`, "error", "UI");
+        }
       }
     } finally {
       setIsBusy(false);
