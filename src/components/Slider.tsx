@@ -30,56 +30,12 @@ export function Slider({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    const adjustKeys = [
-      "ArrowLeft",
-      "ArrowRight",
-      "ArrowUp",
-      "ArrowDown",
-      "PageUp",
-      "PageDown",
-      "Home",
-      "End",
-    ];
-
-    if (adjustKeys.includes(e.key)) {
-      if (!e.repeat && onStartChange) {
-        onStartChange();
-      }
-
-      const isLargeStep = e.shiftKey || e.key === "PageUp" || e.key === "PageDown";
-      if (isLargeStep && (
-        e.key === "ArrowLeft" || e.key === "ArrowRight" ||
-        e.key === "ArrowUp" || e.key === "ArrowDown" ||
-        e.key === "PageUp" || e.key === "PageDown"
-      )) {
-        e.preventDefault();
-        const input = e.currentTarget;
-        const currentVal = parseFloat(input.value);
-        const minVal = parseFloat(input.min) || 0;
-        const maxVal = parseFloat(input.max) || 100;
-        const stepVal = parseFloat(input.step) || 1;
-        const multiplier = 10;
-        
-        const direction = (
-          e.key === "ArrowRight" || e.key === "ArrowUp" || e.key === "PageUp"
-        ) ? 1 : -1;
-        
-        const nextVal = Math.min(
-          maxVal,
-          Math.max(minVal, currentVal + direction * stepVal * multiplier)
-        );
-        
-        const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
-          HTMLInputElement.prototype,
-          "value"
-        )?.set;
-        
-        if (nativeInputValueSetter) {
-          nativeInputValueSetter.call(input, nextVal.toString());
-          const event = new Event("input", { bubbles: true });
-          input.dispatchEvent(event);
-        }
-      }
+    if (
+      !e.repeat &&
+      onStartChange &&
+      ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End"].includes(e.key)
+    ) {
+      onStartChange();
     }
 
     if (props.onKeyDown) {

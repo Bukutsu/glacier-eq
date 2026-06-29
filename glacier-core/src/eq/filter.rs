@@ -188,7 +188,7 @@ impl PEQData {
                 filter.clamp(caps.freq_range, caps.band_gain_range, caps.q_range);
             }
 
-            if !caps.supported_filter_types.supports(filter.filter_type) {
+            if !caps.supported_filter_types.contains(&filter.filter_type) {
                 let old_type = filter.filter_type;
                 filter.filter_type = FilterType::Peak; // Fallback
                 if filter.enabled {
