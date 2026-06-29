@@ -91,6 +91,10 @@ function setupHidEventListeners(device: HIDDevice) {
   });
 }
 
+async function sendReport(packet: number[] | Uint8Array): Promise<void> {
+  await activeDevice!.sendReport(packet[0], new Uint8Array(packet.slice(1)));
+}
+
 async function readReport(timeoutMs: number): Promise<Uint8Array> {
   if (reportQueue.length > 0) {
     return reportQueue.shift()!;
@@ -107,6 +111,27 @@ async function readReport(timeoutMs: number): Promise<Uint8Array> {
     };
     reportResolvers.push(resolver);
   });
+}
+
+async function readMatchingReport(
+  timeoutMs: number,
+  matches: (report: Uint8Array) => boolean,
+): Promise<Uint8Array | null> {
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const report = await readReport(timeoutMs);
+    if (matches(report)) return report;
+  }
+  return null;
+}
+
+function parseWalkplayFirmwareVersion(data: Uint8Array): string | null {
+  const bytes = Array.from(data.slice(3, 10));
+  let version = "";
+  for (const byte of bytes) {
+    if (byte < 0x21 || byte > 0x7e) break;
+    version += String.fromCharCode(byte);
+  }
+  return version || null;
 }
 
 // ─── Tauri Command Mock Routing ──────────────────────────────────────────────
@@ -284,7 +309,14 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
       return null as T;
     }
     case "get_firmware_version": {
-      return "WebHID Active" as T;
+      if (!activeDevice || activeProfile?.protocol !== "Walkplay") return null as T;
+
+      await sendReport([0x4b, 0x80, 0x0c, 0x00]);
+      const report = await readMatchingReport(500, (data) =>
+        data.length >= 10 && data[0] === 0x4b && data[1] === 0x80 && data[2] === 0x0c
+      );
+      if (!report) return null as T;
+      return parseWalkplayFirmwareVersion(report.slice(1)) as T;
     }
     case "get_eq_state": {
       if (!activeDevice || !activeProfile) throw new Error("No device connected");
