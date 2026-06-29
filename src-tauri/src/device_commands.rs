@@ -1196,13 +1196,13 @@ fn read_utility_register(app: &tauri::AppHandle, path: &str, cmd: u8) -> Result<
             continue;
         }
 
-        let data = match WalkplayProtocol::unframe_packet(&bytes) {
+        let data = match DeviceProtocol::Walkplay.unframe_packet(&bytes) {
             Ok(vec) => vec,
             Err(_) => continue,
         };
 
         if data.len() >= 4 && data[0] == 0x80 && data[1] == cmd {
-            return Ok(data);
+            return Ok(data.to_vec());
         }
     }
     Err(format!("Utility read timeout for cmd {cmd}"))
@@ -1224,7 +1224,7 @@ fn read_balance_register(app: &tauri::AppHandle, path: &str, channel: u8) -> Res
             continue;
         }
 
-        let data = match WalkplayProtocol::unframe_packet(&bytes) {
+        let data = match DeviceProtocol::Walkplay.unframe_packet(&bytes) {
             Ok(vec) => vec,
             Err(_) => continue,
         };

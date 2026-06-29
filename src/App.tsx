@@ -50,6 +50,19 @@ const DEFAULT_SETTINGS: AppSettings = {
   enable_online_measurements: false,
   snap_to_iso_frequencies: true,
 };
+
+function usePersistedJson(key: string, value: unknown, delayMs = 0) {
+  useEffect(() => {
+    const save = () => window.localStorage.setItem(key, JSON.stringify(value));
+    if (delayMs <= 0) {
+      save();
+      return;
+    }
+    const timer = window.setTimeout(save, delayMs);
+    return () => window.clearTimeout(timer);
+  }, [key, value, delayMs]);
+}
+
 const isTauri = () => typeof window !== "undefined" && !!(window as any).__TAURI_INTERNALS__;
 
 const sleep = (ms: number) => {
@@ -646,15 +659,7 @@ function App() {
     }
   }, []);
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      window.localStorage.setItem(
-        "glacier-measurements",
-        JSON.stringify(measurements),
-      );
-    }, 300);
-    return () => window.clearTimeout(timer);
-  }, [measurements]);
+  usePersistedJson("glacier-measurements", measurements, 300);
 
   useEffect(() => {
     try {
@@ -698,22 +703,8 @@ function App() {
     }
   }, []);
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      window.localStorage.setItem(
-        "glacier-user-targets",
-        JSON.stringify(userTargets),
-      );
-    }, 300);
-    return () => window.clearTimeout(timer);
-  }, [userTargets]);
-
-  useEffect(() => {
-    window.localStorage.setItem(
-      "glacier-active-targets",
-      JSON.stringify(activeTargetIds),
-    );
-  }, [activeTargetIds]);
+  usePersistedJson("glacier-user-targets", userTargets, 300);
+  usePersistedJson("glacier-active-targets", activeTargetIds);
 
   useEffect(() => {
     window.localStorage.setItem("glacier-graph-view-mode", graphViewMode);
