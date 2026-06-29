@@ -27,46 +27,27 @@ pub struct Hid<R: Runtime> {
 
 impl<R: Runtime> Hid<R> {
     pub fn enumerate(&self) -> crate::Result<Vec<crate::HidDeviceInfo>> {
-        // Get a lock on the device_list mutex to ensure thread safety.
-        // This will panic if the mutex is poisoned, which should not happen in normal operation.
         let mut device_list = self.device_list.lock().unwrap();
-        // Get a lock on the HidApi mutex to ensure thread safety.
-        // This will panic if the mutex is poisoned, which should not happen in normal operation.
         let mut hid_api = self.hid_api.lock().unwrap();
-        // Clear the open_devices HashMap to remove any stale devices.
+
         device_list.clear();
-        // Refresh HidApi devices to get the latest list of devices.
         hid_api.refresh_devices()?;
-        // Add the devices to the device_list HashMap using the path as the key.
         for device in hid_api.device_list() {
             device_list.insert(device.path().to_string_lossy().to_string(), device.clone());
         }
-        // Create a vector to hold the device information that gets passed to the frontend.
-        let mut devices: Vec<crate::HidDeviceInfo> = Vec::new();
-        // Loop through the devices and create a HidDeviceInfo for each one to pass to the frontend.
-        for device in device_list.values() {
-            let device_info = crate::HidDeviceInfo {
+
+        Ok(device_list
+            .values()
+            .map(|device| crate::HidDeviceInfo {
                 path: device.path().to_string_lossy().to_string(),
                 product_id: device.product_id(),
                 vendor_id: device.vendor_id(),
-                manufacturer_string: match device.manufacturer_string() {
-                    Some(manufacturer_string) => Some(manufacturer_string.to_owned()),
-                    None => Some("".to_string()),
-                },
-                product_string: match device.product_string() {
-                    Some(product_string) => Some(product_string.to_owned()),
-                    None => Some("".to_string()),
-                },
-                serial_number: match device.serial_number() {
-                    Some(serial_number) => Some(serial_number.to_owned()),
-                    None => Some("".to_string()),
-                },
+                manufacturer_string: device.manufacturer_string().map(str::to_owned),
+                product_string: device.product_string().map(str::to_owned),
+                serial_number: device.serial_number().map(str::to_owned),
                 release_number: device.release_number(),
-            };
-            devices.push(device_info);
-        }
-
-        Ok(devices)
+            })
+            .collect())
     }
 
     pub fn open(&self, path: &str) -> crate::Result<()> {

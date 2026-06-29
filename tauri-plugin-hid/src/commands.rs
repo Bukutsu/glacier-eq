@@ -1,27 +1,25 @@
 use tauri::{command, AppHandle, Runtime};
 
-use crate::HidExt;
 use crate::Result;
 
 #[command]
 pub(crate) async fn enumerate<R: Runtime>(app: AppHandle<R>) -> Result<Vec<crate::HidDeviceInfo>> {
-    app.hid().enumerate()
+    crate::hid(&app).enumerate()
 }
 
 #[command]
 pub(crate) async fn open<R: Runtime>(app: AppHandle<R>, path: &str) -> Result<()> {
-    app.hid().open(path)
+    crate::hid(&app).open(path)
 }
 
 #[command]
 pub(crate) async fn close<R: Runtime>(app: AppHandle<R>, path: &str) -> Result<()> {
-    // Call the close method
-    app.hid().close(path)
+    crate::hid(&app).close(path)
 }
 
 #[command]
 pub(crate) async fn write<R: Runtime>(app: AppHandle<R>, path: &str, data: Vec<u8>) -> Result<()> {
-    app.hid().write(path, data.as_slice())
+    crate::hid(&app).write(path, data.as_slice())
 }
 
 #[command]
@@ -30,5 +28,5 @@ pub(crate) async fn read<R: Runtime>(
     path: &str,
     timeout: i32,
 ) -> Result<Vec<u8>> {
-    app.hid().read(path, timeout)
+    crate::hid(&app).read(path, timeout)
 }

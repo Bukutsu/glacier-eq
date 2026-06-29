@@ -25,6 +25,7 @@ import {
   nextTargetColor,
 } from "./lib/targetReferences";
 import { buildDefaultState, normalizePeq, peqEquals } from "./lib/peq";
+import { isTauri } from "./lib/platform";
 import { clearThemeCache } from "./lib/theme";
 import type {
   DeviceInfo,
@@ -63,8 +64,6 @@ function usePersistedJson(key: string, value: unknown, delayMs = 0) {
   }, [key, value, delayMs]);
 }
 
-const isTauri = () => typeof window !== "undefined" && !!(window as any).__TAURI_INTERNALS__;
-
 const sleep = (ms: number) => {
   const isAutomated = typeof navigator !== "undefined" && navigator.webdriver;
   return new Promise((resolve) => setTimeout(resolve, isAutomated ? 0 : ms));
@@ -81,155 +80,40 @@ declare global {
   }
 }
 
-interface HSL {
-  h: number;
-  s: number;
-  l: number;
-}
-
-const hexToHsl = (hex: string): HSL => {
-  hex = hex.replace(/^#/, "");
-  if (hex.length === 3) {
-    hex = hex
-      .split("")
-      .map((c) => c + c)
-      .join("");
-  }
-  const r = parseInt(hex.substring(0, 2), 16) / 255;
-  const g = parseInt(hex.substring(2, 4), 16) / 255;
-  const b = parseInt(hex.substring(4, 6), 16) / 255;
-
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  let h = 0;
-  let s = 0;
-  const l = (max + min) / 2;
-
-  if (max !== min) {
-    const d = max - min;
-    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-    switch (max) {
-      case r:
-        h = (g - b) / d + (g < b ? 6 : 0);
-        break;
-      case g:
-        h = (b - r) / d + 2;
-        break;
-      case b:
-        h = (r - g) / d + 4;
-        break;
-    }
-    h /= 6;
-  }
-
-  return {
-    h: Math.round(h * 360),
-    s: Math.round(s * 100),
-    l: Math.round(l * 100),
-  };
-};
-
-const hslToHex = (h: number, s: number, l: number): string => {
-  h = ((h % 360) + 360) % 360;
-  s = Math.max(0, Math.min(100, s));
-  l = Math.max(0, Math.min(100, l));
-
-  s /= 100;
-  l /= 100;
-  h /= 360;
-
-  let r = l;
-  let g = l;
-  let b = l;
-
-  if (s !== 0) {
-    const hue2rgb = (p: number, q: number, t: number) => {
-      if (t < 0) t += 1;
-      if (t > 1) t -= 1;
-      if (t < 1 / 6) return p + (q - p) * 6 * t;
-      if (t < 1 / 2) return q;
-      if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
-      return p;
-    };
-
-    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-    const p = 2 * l - q;
-
-    r = hue2rgb(p, q, h + 1 / 3);
-    g = hue2rgb(p, q, h);
-    b = hue2rgb(p, q, h - 1 / 3);
-  }
-
-  const toHex = (x: number) => {
-    const hex = Math.round(x * 255).toString(16);
-    return hex.length === 1 ? "0" + hex : hex;
-  };
-
-  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
-};
+const ANDROID_DYNAMIC_COLOR_VARS = [
+  "--bg",
+  "--bg-dark",
+  "--bg-darker",
+  "--panel",
+  "--surface",
+  "--surface-soft",
+  "--text",
+  "--muted",
+  "--comment",
+  "--cyan",
+  "--bright-cyan",
+  "--btn-filled-bg",
+  "--btn-filled-text",
+  "--tab-active-pill",
+  "--tab-active-icon",
+  "--line",
+  "--line-subtle",
+  "--line-soft",
+  "--line-medium",
+  "--line-strong",
+  "--line-separator",
+  "--line-heavy",
+  "--line-separator-heavy",
+  "--line-outline",
+] as const;
 
 const clearAndroidDynamicColors = () => {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
-  const vars = [
-    "--bg",
-    "--bg-rgb",
-    "--bg-dark",
-    "--bg-dark-rgb",
-    "--bg-darker",
-    "--bg-darker-rgb",
-    "--panel",
-    "--panel-rgb",
-    "--surface",
-    "--surface-rgb",
-    "--surface-soft",
-    "--surface-soft-rgb",
-    "--text",
-    "--text-rgb",
-    "--muted",
-    "--muted-rgb",
-    "--comment",
-    "--comment-rgb",
-    "--cyan",
-    "--cyan-rgb",
-    "--bright-cyan",
-    "--bright-cyan-rgb",
-    "--blue",
-    "--blue-rgb",
-    "--green",
-    "--green-rgb",
-    "--orange",
-    "--orange-rgb",
-    "--yellow",
-    "--yellow-rgb",
-    "--red",
-    "--red-rgb",
-    "--purple",
-    "--purple-rgb",
-    "--teal",
-    "--teal-rgb",
-    "--dark-cyan",
-    "--dark-cyan-rgb",
-    "--tab-active-pill",
-    "--tab-active-icon",
-    "--btn-filled-bg",
-    "--btn-filled-bg-rgb",
-    "--btn-filled-text",
-    "--btn-filled-text-rgb",
-    "--surface-disabled",
-    "--surface-disabled-rgb",
-    "--text-disabled",
-    "--text-disabled-rgb",
-    "--line",
-    "--line-rgb",
-    "--line-subtle",
-    "--line-subtle-rgb",
-    "--line-heavy",
-    "--line-heavy-rgb",
-    "--line-outline",
-    "--line-outline-rgb",
-  ];
-  vars.forEach((v) => root.style.removeProperty(v));
+  ANDROID_DYNAMIC_COLOR_VARS.forEach((name) => {
+    root.style.removeProperty(name);
+    root.style.removeProperty(`${name}-rgb`);
+  });
 };
 
 const applyAndroidDynamicColors = (prefersDark: boolean) => {
@@ -260,13 +144,6 @@ const applyAndroidDynamicColors = (prefersDark: boolean) => {
       }
     };
 
-    // Calculate base HSL from wallpaper primary accent for target/semantic color rotation
-    const baseAccentHex = prefersDark
-      ? tokens.accent1_300 || "#8be9fd"
-      : tokens.accent1_600 || "#1e66f5";
-    const baseAccentHsl = hexToHsl(baseAccentHex);
-
-    // Resolve Material 3 color roles with robust fallbacks
     const low =
       tokens.surfaceContainerLow || (prefersDark ? "#16161f" : "#f7f7f9");
     const container =
@@ -288,7 +165,6 @@ const applyAndroidDynamicColors = (prefersDark: boolean) => {
     const onSecondaryContainer =
       tokens.onSecondaryContainer || onPrimaryContainer;
 
-    // Apply M3 token mappings to Glacier EQ CSS variables
     setVar("--bg", container);
     setVar("--bg-dark", low);
     setVar("--bg-darker", low);
@@ -307,7 +183,6 @@ const applyAndroidDynamicColors = (prefersDark: boolean) => {
     setVar("--tab-active-pill", secondaryContainer);
     setVar("--tab-active-icon", onSecondaryContainer);
 
-    // Dividers/borders
     setVar("--line", outlineVariant);
     setVar("--line-subtle", outlineVariant);
     setVar("--line-soft", outlineVariant);
@@ -318,20 +193,6 @@ const applyAndroidDynamicColors = (prefersDark: boolean) => {
     setVar("--line-separator-heavy", outlineVariant);
     setVar("--line-outline", outlineVariant);
 
-    // Generate wallpaper-harmonized semantic/target colors (using hue rotation)
-    const sat = Math.max(baseAccentHsl.s, prefersDark ? 50 : 60);
-    const lit = prefersDark
-      ? Math.max(baseAccentHsl.l, 65)
-      : Math.min(baseAccentHsl.l, 45);
-
-    setVar("--blue", hslToHex(215, sat, lit));
-    setVar("--green", hslToHex(115, sat, lit));
-    setVar("--orange", hslToHex(28, sat, lit));
-    setVar("--yellow", hslToHex(48, sat, lit));
-    setVar("--red", hslToHex(0, sat, lit));
-    setVar("--purple", hslToHex(265, sat, lit));
-    setVar("--teal", hslToHex(165, sat, lit));
-    setVar("--dark-cyan", hslToHex(185, sat, lit));
   } catch (e) {
     console.error("Failed to apply Android dynamic colors:", e);
   }

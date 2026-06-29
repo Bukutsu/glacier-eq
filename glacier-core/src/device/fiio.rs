@@ -12,13 +12,38 @@ const FILTER_PARAMS: u8 = 0x15;
 const GLOBAL_GAIN: u8 = 0x17;
 
 #[derive(Clone, Copy)]
-enum GainEndian {
+enum Endian {
     Little,
     Big,
 }
 
-pub struct FiioJa11Protocol;
-pub struct FiioProtocol;
+#[derive(Clone, Copy)]
+pub struct FiioProtocol {
+    name: &'static str,
+    report_id: u8,
+    gain_scale: f64,
+    endian: Endian,
+    save_command: u8,
+    clamp_gain: bool,
+}
+
+pub const JA11_PROTOCOL: FiioProtocol = FiioProtocol {
+    name: "FiiO JA11",
+    report_id: 2,
+    gain_scale: 2560.0,
+    endian: Endian::Little,
+    save_command: 0x18,
+    clamp_gain: true,
+};
+
+pub const FIIO_PROTOCOL: FiioProtocol = FiioProtocol {
+    name: "FiiO",
+    report_id: 7,
+    gain_scale: 10.0,
+    endian: Endian::Big,
+    save_command: 0x19,
+    clamp_gain: false,
+};
 
 fn default_state(peq: &PEQData) -> bool {
     peq.global_gain == 0.0 && peq.filters.iter().all(|f| !f.enabled || f.gain == 0.0)
@@ -93,16 +118,11 @@ fn write_filter_packet(report_id: u8, index: u8, filter: &Filter) -> Packet {
     )
 }
 
-fn write_global_gain_packet(
-    report_id: u8,
-    global_gain: f64,
-    scale: f64,
-    endian: GainEndian,
-) -> Packet {
+fn write_global_gain_packet(report_id: u8, global_gain: f64, scale: f64, endian: Endian) -> Packet {
     let value = (global_gain * scale).round() as i16;
     let [first, second] = match endian {
-        GainEndian::Little => value.to_le_bytes(),
-        GainEndian::Big => value.to_be_bytes(),
+        Endian::Little => value.to_le_bytes(),
+        Endian::Big => value.to_be_bytes(),
     };
     Packet::new(
         report_id,
@@ -114,82 +134,9 @@ fn save_packet(report_id: u8, command: u8) -> Packet {
     Packet::new(report_id, vec![SET_1, SET_2, 0, 0, command, 1, 1, 0, END])
 }
 
-impl EqProtocol for FiioJa11Protocol {
-    fn name(&self) -> &'static str {
-        "FiiO JA11"
-    }
-
-    fn write_timing(&self) -> WriteTiming {
-        WriteTiming::default()
-    }
-
-    fn is_default_state(&self, peq: &PEQData) -> bool {
-        default_state(peq)
-    }
-
-    fn init_packets(&self) -> Vec<Packet> {
-        vec![]
-    }
-
-    fn read_filter_request(&self, index: u8, _nonce: u8) -> Packet {
-        unsupported_read_filter(index, 2)
-    }
-
-    fn matches_filter_response(&self, data: &[u8], index: u8, _nonce: u8) -> bool {
-        data.len() >= 14 && data[4] == FILTER_PARAMS && data[6] == index
-    }
-
-    fn parse_filter_response(&self, data: &[u8]) -> Option<Filter> {
-        parse_filter_response(data)
-    }
-
-    fn read_global_gain_request(&self) -> Packet {
-        Packet::new(2, vec![0xBB, 0x0B, 0, 0, GLOBAL_GAIN, 0, 0, END])
-    }
-
-    fn matches_global_gain_response(&self, data: &[u8]) -> bool {
-        data.len() >= 8 && data[4] == GLOBAL_GAIN
-    }
-
-    fn parse_global_gain_response(&self, data: &[u8]) -> Option<f64> {
-        let raw = i16::from_le_bytes([*data.get(6)?, *data.get(7)?]);
-        Some((raw as f64 / 2560.0 * 10.0).round() / 10.0)
-    }
-
-    fn write_filter_packets(
-        &self,
-        index: u8,
-        filter: &Filter,
-        _dsp_sample_rate: f64,
-    ) -> Result<Vec<Packet>, String> {
-        Ok(vec![write_filter_packet(2, index, filter)])
-    }
-
-    fn write_global_gain_packets(&self, global_gain: f64) -> Vec<Packet> {
-        vec![write_global_gain_packet(
-            2,
-            global_gain.clamp(-12.0, 12.0),
-            2560.0,
-            GainEndian::Little,
-        )]
-    }
-
-    fn commit_packets(&self) -> Vec<Packet> {
-        vec![save_packet(2, 0x18)]
-    }
-
-    fn ram_apply_packets(&self) -> Vec<Packet> {
-        self.commit_packets()
-    }
-
-    fn report_id(&self) -> u8 {
-        2
-    }
-}
-
 impl EqProtocol for FiioProtocol {
     fn name(&self) -> &'static str {
-        "FiiO"
+        self.name
     }
 
     fn write_timing(&self) -> WriteTiming {
@@ -205,7 +152,7 @@ impl EqProtocol for FiioProtocol {
     }
 
     fn read_filter_request(&self, index: u8, _nonce: u8) -> Packet {
-        unsupported_read_filter(index, 7)
+        unsupported_read_filter(index, self.report_id)
     }
 
     fn matches_filter_response(&self, data: &[u8], index: u8, _nonce: u8) -> bool {
@@ -217,7 +164,10 @@ impl EqProtocol for FiioProtocol {
     }
 
     fn read_global_gain_request(&self) -> Packet {
-        Packet::new(7, vec![0xBB, 0x0B, 0, 0, GLOBAL_GAIN, 0, 0, END])
+        Packet::new(
+            self.report_id,
+            vec![0xBB, 0x0B, 0, 0, GLOBAL_GAIN, 0, 0, END],
+        )
     }
 
     fn matches_global_gain_response(&self, data: &[u8]) -> bool {
@@ -225,8 +175,12 @@ impl EqProtocol for FiioProtocol {
     }
 
     fn parse_global_gain_response(&self, data: &[u8]) -> Option<f64> {
-        let raw = i16::from_be_bytes([*data.get(6)?, *data.get(7)?]);
-        Some((raw as f64 / 10.0 * 10.0).round() / 10.0)
+        let bytes = [*data.get(6)?, *data.get(7)?];
+        let raw = match self.endian {
+            Endian::Little => i16::from_le_bytes(bytes),
+            Endian::Big => i16::from_be_bytes(bytes),
+        };
+        Some((raw as f64 / self.gain_scale * 10.0).round() / 10.0)
     }
 
     fn write_filter_packets(
@@ -235,20 +189,25 @@ impl EqProtocol for FiioProtocol {
         filter: &Filter,
         _dsp_sample_rate: f64,
     ) -> Result<Vec<Packet>, String> {
-        Ok(vec![write_filter_packet(7, index, filter)])
+        Ok(vec![write_filter_packet(self.report_id, index, filter)])
     }
 
     fn write_global_gain_packets(&self, global_gain: f64) -> Vec<Packet> {
+        let gain = if self.clamp_gain {
+            global_gain.clamp(-12.0, 12.0)
+        } else {
+            global_gain
+        };
         vec![write_global_gain_packet(
-            7,
-            global_gain,
-            10.0,
-            GainEndian::Big,
+            self.report_id,
+            gain,
+            self.gain_scale,
+            self.endian,
         )]
     }
 
     fn commit_packets(&self) -> Vec<Packet> {
-        vec![save_packet(7, 0x19)]
+        vec![save_packet(self.report_id, self.save_command)]
     }
 
     fn ram_apply_packets(&self) -> Vec<Packet> {
@@ -256,7 +215,7 @@ impl EqProtocol for FiioProtocol {
     }
 
     fn report_id(&self) -> u8 {
-        7
+        self.report_id
     }
 }
 
@@ -283,7 +242,7 @@ mod tests {
             1,
         ];
 
-        let filter = FiioJa11Protocol.parse_filter_response(&data).unwrap();
+        let filter = JA11_PROTOCOL.parse_filter_response(&data).unwrap();
 
         assert_eq!(filter.index, 3);
         assert_eq!(filter.gain, -1.5);
@@ -294,7 +253,7 @@ mod tests {
 
     #[test]
     fn ja11_writes_global_gain_little_endian() {
-        let packet = FiioJa11Protocol.write_global_gain_packets(1.0).remove(0);
+        let packet = JA11_PROTOCOL.write_global_gain_packets(1.0).remove(0);
 
         assert_eq!(packet.report_id, 2);
         assert_eq!(packet.payload[4], GLOBAL_GAIN);
@@ -303,7 +262,7 @@ mod tests {
 
     #[test]
     fn fiio_writes_global_gain_big_endian() {
-        let packet = FiioProtocol.write_global_gain_packets(1.0).remove(0);
+        let packet = FIIO_PROTOCOL.write_global_gain_packets(1.0).remove(0);
 
         assert_eq!(packet.report_id, 7);
         assert_eq!(packet.payload[4], GLOBAL_GAIN);
