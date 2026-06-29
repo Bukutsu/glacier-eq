@@ -1586,6 +1586,9 @@ mod tests {
 
     #[test]
     fn parses_empty_walkplay_firmware_as_empty() {
-        assert_eq!(parse_walkplay_firmware_version(&[0x80, 0x0C, 0x00, 0x00]), "");
+        assert_eq!(
+            parse_walkplay_firmware_version(&[0x80, 0x0C, 0x00, 0x00]),
+            ""
+        );
     }
 }
