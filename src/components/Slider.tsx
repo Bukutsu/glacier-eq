@@ -5,6 +5,7 @@ type SliderTone = "blue" | "orange";
 interface SliderProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "type"> {
   tone?: SliderTone;
   onStartChange?: () => void;
+  onReset?: () => void;
 }
 
 export function Slider({
@@ -12,6 +13,7 @@ export function Slider({
   tone = "blue",
   style,
   onStartChange,
+  onReset,
   ...props
 }: SliderProps) {
   const sliderStyle = {
@@ -38,6 +40,13 @@ export function Slider({
     }
   };
 
+  const handleDoubleClick = (e: React.MouseEvent<HTMLInputElement>) => {
+    if (onReset) {
+      onReset();
+    }
+    if (props.onDoubleClick) props.onDoubleClick(e);
+  };
+
   return (
     <div className={`control-slider ${className}`.trim()}>
       <input
@@ -47,6 +56,7 @@ export function Slider({
         type="range"
         onPointerDown={handlePointerDown}
         onKeyDown={handleKeyDown}
+        onDoubleClick={handleDoubleClick}
       />
     </div>
   );
