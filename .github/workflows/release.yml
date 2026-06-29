@@ -193,26 +193,75 @@ jobs:
         run: npm ci
 
       - name: Initialize Android project
-        run: npm run android:init
+        run: |
+          npm run android:init
+          cp -R src-tauri/icons/android/. src-tauri/gen/android/app/src/main/res/
 
       - name: Setup Android keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
         run: |
+          mkdir -p src-tauri/gen/android
           if [ -n "$KEYSTORE_BASE64" ] && [ -n "$KEYSTORE_PASSWORD" ]; then
-            mkdir -p src-tauri/gen/android/app
-            echo "$KEYSTORE_BASE64" | base64 -d > src-tauri/gen/android/app/glacier-eq.keystore
-            cat > src-tauri/gen/android/app/keystore.properties << PROPEOF
-          storePassword=$KEYSTORE_PASSWORD
-          keyPassword=$KEYSTORE_PASSWORD
+            echo "$KEYSTORE_BASE64" | base64 -d > src-tauri/gen/android/glacier-eq.keystore
+            cat > src-tauri/gen/android/keystore.properties << PROPEOF
+          password=$KEYSTORE_PASSWORD
           keyAlias=glacier-eq
           storeFile=glacier-eq.keystore
           PROPEOF
             echo "Keystore set up from secrets"
           else
-            echo "No keystore secrets found, falling back to debug signing"
+            keytool -genkeypair -v \
+              -keystore src-tauri/gen/android/glacier-eq.keystore \
+              -storepass android \
+              -keypass android \
+              -alias androiddebugkey \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+            cat > src-tauri/gen/android/keystore.properties << PROPEOF
+          password=android
+          keyAlias=androiddebugkey
+          storeFile=glacier-eq.keystore
+          PROPEOF
+            echo "No keystore secrets found, using generated debug signing key"
           fi
+
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("src-tauri/gen/android/app/build.gradle.kts")
+          text = path.read_text()
+          marker = 'val tauriProperties = Properties().apply {'
+          signing = '''val keystoreProperties = Properties().apply {
+              val propFile = rootProject.file("keystore.properties")
+              if (propFile.exists()) {
+                  propFile.inputStream().use { load(it) }
+              }
+          }
+
+          '''
+          if signing not in text:
+              text = text.replace(marker, signing + marker)
+          marker = '    buildTypes {'
+          config = '''    signingConfigs {
+                  create("release") {
+                      keyAlias = keystoreProperties["keyAlias"] as String
+                      keyPassword = keystoreProperties["password"] as String
+                      storeFile = rootProject.file(keystoreProperties["storeFile"] as String)
+                      storePassword = keystoreProperties["password"] as String
+                  }
+              }
+          '''
+          if config not in text:
+              text = text.replace(marker, config + marker)
+          marker = '        getByName("release") {'
+          line = '            signingConfig = signingConfigs.getByName("release")\n'
+          if line not in text:
+              text = text.replace(marker, marker + '\n' + line)
+          path.write_text(text)
+          PY
 
       - name: Build Android APK
         run: npm run android:apk:release
