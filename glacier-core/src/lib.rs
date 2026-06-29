@@ -16,7 +16,7 @@ pub mod eq;
 // Re-exports
 pub use device::{
     get_device_profile, get_supported_device, is_supported_device, DeviceCapabilities, DeviceInfo,
-    DeviceProfile, DeviceProtocol, FilterTypeFlags, SupportedDevice, WalkplayProtocol, PROFILES,
+    DeviceProfile, DeviceProtocol, EqProtocol, Packet, SupportedDevice, WalkplayProtocol, PROFILES,
     SUPPORTED_DEVICES,
 };
 pub use eq::constants::*;

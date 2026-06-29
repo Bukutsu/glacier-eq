@@ -3,39 +3,19 @@
 
 use crate::eq::FilterType;
 
-/// Bitmask of filter types a device supports. Used by the UI to hide unsupported
-/// filter type buttons and by the push path to reject invalid payloads early.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct FilterTypeFlags(pub u16);
+pub const ALL_FILTER_TYPES: &[FilterType] = &[
+    FilterType::Peak,
+    FilterType::LowShelf,
+    FilterType::HighShelf,
+    FilterType::LowPass,
+    FilterType::HighPass,
+];
 
-impl FilterTypeFlags {
-    pub const PEAK: Self = Self(0b0000_0001);
-    pub const LOW_SHELF: Self = Self(0b0000_0010);
-    pub const HIGH_SHELF: Self = Self(0b0000_0100);
-    pub const LOW_PASS: Self = Self(0b0000_1000);
-    pub const HIGH_PASS: Self = Self(0b0001_0000);
-
-    pub fn contains(self, other: Self) -> bool {
-        (self.0 & other.0) == other.0
-    }
-
-    pub fn supports(self, ft: FilterType) -> bool {
-        match ft {
-            FilterType::Peak => self.contains(Self::PEAK),
-            FilterType::LowShelf => self.contains(Self::LOW_SHELF),
-            FilterType::HighShelf => self.contains(Self::HIGH_SHELF),
-            FilterType::LowPass => self.contains(Self::LOW_PASS),
-            FilterType::HighPass => self.contains(Self::HIGH_PASS),
-        }
-    }
-}
-
-impl std::ops::BitOr for FilterTypeFlags {
-    type Output = Self;
-    fn bitor(self, rhs: Self) -> Self {
-        Self(self.0 | rhs.0)
-    }
-}
+pub const PEAK_SHELF_FILTER_TYPES: &[FilterType] = &[
+    FilterType::Peak,
+    FilterType::LowShelf,
+    FilterType::HighShelf,
+];
 
 /// Static capability profile for a device — pure data, no protocol behavior.
 ///
@@ -48,7 +28,7 @@ pub struct DeviceCapabilities {
     pub band_gain_range: (f64, f64),
     pub freq_range: (u16, u16),
     pub q_range: (f64, f64),
-    pub supported_filter_types: FilterTypeFlags,
+    pub supported_filter_types: &'static [FilterType],
     pub supports_per_band_enable: bool,
     pub supports_ram_apply: bool,
     pub dsp_sample_rate: f64,
@@ -73,7 +53,7 @@ pub const DESKTOP_DAC_CAPS: DeviceCapabilities = DeviceCapabilities {
     band_gain_range: (-10.0, 10.0),
     freq_range: (20, 20000),
     q_range: (0.1, 20.0),
-    supported_filter_types: FilterTypeFlags(0b0001_1111),
+    supported_filter_types: ALL_FILTER_TYPES,
     supports_per_band_enable: true,
     supports_ram_apply: false,
     dsp_sample_rate: 96000.0,
@@ -81,25 +61,3 @@ pub const DESKTOP_DAC_CAPS: DeviceCapabilities = DeviceCapabilities {
     freq_tolerance: 1,
     q_tolerance: 0.05,
 };
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn filter_type_flags_contains() {
-        let flags = FilterTypeFlags::PEAK | FilterTypeFlags::LOW_SHELF;
-        assert!(flags.contains(FilterTypeFlags::PEAK));
-        assert!(flags.contains(FilterTypeFlags::LOW_SHELF));
-        assert!(!flags.contains(FilterTypeFlags::HIGH_SHELF));
-    }
-
-    #[test]
-    fn filter_type_flags_supports_filter_type() {
-        let flags = FilterTypeFlags::PEAK | FilterTypeFlags::HIGH_SHELF;
-        assert!(flags.supports(FilterType::Peak));
-        assert!(flags.supports(FilterType::HighShelf));
-        assert!(!flags.supports(FilterType::LowShelf));
-        assert!(!flags.supports(FilterType::LowPass));
-    }
-}

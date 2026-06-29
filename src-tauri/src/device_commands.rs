@@ -6,7 +6,7 @@ use crate::state::{ConnectedDevice, DeviceState};
 use glacier_core::device::timing::ReadTiming;
 use glacier_core::device::{
     get_device_profile, get_supported_device, DeviceCapabilities, DeviceInfo, DeviceProtocol,
-    WalkplayProtocol,
+    EqProtocol, Packet, WalkplayProtocol,
 };
 use glacier_core::eq::{Filter, PEQData};
 use std::collections::HashSet;
@@ -45,6 +45,9 @@ pub struct SupportedDeviceInfo {
 fn protocol_name(protocol: DeviceProtocol) -> &'static str {
     match protocol {
         DeviceProtocol::Walkplay => "Walkplay",
+        DeviceProtocol::Moondrop => "Moondrop",
+        DeviceProtocol::FiioJa11 => "FiiO JA11",
+        DeviceProtocol::Fiio => "FiiO",
     }
 }
 
@@ -61,6 +64,9 @@ fn ensure_eq_protocol(profile: &glacier_core::device::DeviceProfile) -> Result<(
     // should fail compilation here until its EQ read/write path exists.
     match profile.protocol {
         DeviceProtocol::Walkplay => Ok(()),
+        DeviceProtocol::Moondrop => Ok(()),
+        DeviceProtocol::FiioJa11 => Ok(()),
+        DeviceProtocol::Fiio => Ok(()),
     }
 }
 
@@ -263,26 +269,26 @@ pub async fn get_eq_state(
     if let Err(error) = send_packet(
         &app,
         &connected.path,
-        &WalkplayProtocol::build_global_gain_request(0),
+        &profile.protocol.read_global_gain_request(),
     ) {
         log::warn!("Pull wake request failed: {error}");
     }
     sleep_ms(ReadTiming::default().wake_delay_ms);
 
-    let first = pull_once(&app, &connected, &caps);
+    let first = pull_once(&app, &connected, profile.protocol, &caps);
     let is_connected = state
         .lock()
         .map(|guard| guard.connected.is_some())
         .unwrap_or(false);
     let should_retry = is_connected
         && match &first {
-            Ok(peq) => WalkplayProtocol::is_default_state(peq),
+            Ok(peq) => profile.protocol.is_default_state(peq),
             Err(_) => true,
         };
 
     let peq = if should_retry {
         sleep_ms(ReadTiming::default().pull_retry_delay_ms);
-        match pull_once(&app, &connected, &caps) {
+        match pull_once(&app, &connected, profile.protocol, &caps) {
             Ok(peq) => peq,
             Err(retry_error) => match first {
                 Ok(defaultish) => defaultish,
@@ -389,27 +395,29 @@ fn compare_peq(
 fn rollback_state(
     app: &tauri::AppHandle,
     connected: &ConnectedDevice,
+    protocol: DeviceProtocol,
     peq: &PEQData,
     caps: &DeviceCapabilities,
 ) -> Result<(), String> {
-    run_init_sequence(app, &connected.path)?;
-    write_filters(app, &connected.path, peq, caps.dsp_sample_rate)?;
-    write_global_gain(app, &connected.path, peq.global_gain.round() as i8)?;
-    commit_changes(app, &connected.path)?;
+    run_init_sequence(app, &connected.path, protocol)?;
+    write_filters(app, &connected.path, protocol, peq, caps.dsp_sample_rate)?;
+    write_global_gain(app, &connected.path, protocol, peq.global_gain)?;
+    commit_changes(app, &connected.path, protocol)?;
     Ok(())
 }
 
 fn write_eq_to_ram(
     app: &tauri::AppHandle,
     connected: &ConnectedDevice,
+    protocol: DeviceProtocol,
     peq: &PEQData,
     caps: &DeviceCapabilities,
 ) -> Result<(), String> {
     emit_progress(app, "Initializing push connection...", 10.0);
-    run_init_sequence(app, &connected.path)?;
-    write_filters(app, &connected.path, peq, caps.dsp_sample_rate)?;
+    run_init_sequence(app, &connected.path, protocol)?;
+    write_filters(app, &connected.path, protocol, peq, caps.dsp_sample_rate)?;
     emit_progress(app, "Writing preamp...", 75.0);
-    write_global_gain(app, &connected.path, peq.global_gain as i8)
+    write_global_gain(app, &connected.path, protocol, peq.global_gain)
 }
 
 #[tauri::command]
@@ -430,7 +438,7 @@ pub async fn set_eq_state(
     ensure_eq_protocol(profile)?;
     let caps = &profile.caps;
 
-    let peq = normalize_for_push(peq, &caps);
+    let peq = normalize_for_push(peq, &caps, profile.protocol);
     let settings = crate::settings::get_settings(app.clone()).unwrap_or_default();
 
     // 1. Snapshot current state before writing
@@ -442,7 +450,7 @@ pub async fn set_eq_state(
             LogSource::HID,
             "Snapshotting current device state...",
         );
-        match pull_once(&app, &connected, &caps) {
+        match pull_once(&app, &connected, profile.protocol, &caps) {
             Ok(backup) => Some(backup),
             Err(error) => {
                 diagnostics::log(
@@ -468,7 +476,7 @@ pub async fn set_eq_state(
         format!("Pushing EQ to {}...", connected.profile_name),
     );
 
-    if let Err(error) = write_eq_to_ram(&app, &connected, &peq, caps) {
+    if let Err(error) = write_eq_to_ram(&app, &connected, profile.protocol, &peq, caps) {
         diagnostics::log(
             LogLevel::Error,
             &app,
@@ -479,7 +487,7 @@ pub async fn set_eq_state(
         return Err(error);
     }
     emit_progress(&app, "Committing changes to device...", 80.0);
-    if let Err(error) = commit_changes(&app, &connected.path) {
+    if let Err(error) = commit_changes(&app, &connected.path, profile.protocol) {
         diagnostics::log(
             LogLevel::Error,
             &app,
@@ -502,7 +510,7 @@ pub async fn set_eq_state(
         emit_progress(&app, "Verifying changes...", 90.0);
         sleep_ms(ReadTiming::default().pull_retry_delay_ms);
 
-        match pull_once(&app, &connected, &caps) {
+        match pull_once(&app, &connected, profile.protocol, &caps) {
             Ok(actual) => {
                 if let Err(mismatch) = compare_peq(&actual, &peq, &caps) {
                     let err_msg = format!("Push verification failed: {mismatch}");
@@ -524,7 +532,7 @@ pub async fn set_eq_state(
                             "Initiating rollback to previous state...",
                         );
                         if let Err(rollback_error) =
-                            rollback_state(&app, &connected, &backup, &caps)
+                            rollback_state(&app, &connected, profile.protocol, &backup, &caps)
                         {
                             diagnostics::log(
                                 LogLevel::Error,
@@ -542,7 +550,7 @@ pub async fn set_eq_state(
                                 "Rollback successfully written. Verifying rollback...",
                             );
                             sleep_ms(ReadTiming::default().pull_retry_delay_ms);
-                            match pull_once(&app, &connected, &caps) {
+                            match pull_once(&app, &connected, profile.protocol, &caps) {
                                 Ok(rolled_back_state) => {
                                     if let Err(rollback_mismatch) =
                                         compare_peq(&rolled_back_state, &backup, &caps)
@@ -639,7 +647,7 @@ pub async fn apply_eq_state(
         ));
     }
     let caps = &profile.caps;
-    let peq = normalize_for_push(peq, caps);
+    let peq = normalize_for_push(peq, caps, profile.protocol);
 
     diagnostics::log(
         LogLevel::Info,
@@ -648,8 +656,8 @@ pub async fn apply_eq_state(
         LogSource::HID,
         format!("Applying EQ to {} RAM...", connected.profile_name),
     );
-    write_eq_to_ram(&app, &connected, &peq, caps)?;
-    apply_ram_changes(&app, &connected.path)?;
+    write_eq_to_ram(&app, &connected, profile.protocol, &peq, caps)?;
+    apply_ram_changes(&app, &connected.path, profile.protocol)?;
     diagnostics::log(
         LogLevel::Info,
         &app,
@@ -825,10 +833,11 @@ fn close_previous_device(
 fn pull_once(
     app: &tauri::AppHandle,
     connected: &ConnectedDevice,
+    protocol: DeviceProtocol,
     caps: &DeviceCapabilities,
 ) -> Result<PEQData, String> {
     emit_progress(app, "Initializing read connection...", 5.0);
-    run_init_sequence(app, &connected.path)?;
+    run_init_sequence(app, &connected.path, protocol)?;
 
     let mut filters = Vec::with_capacity(caps.num_bands);
     for index in 0..caps.num_bands {
@@ -838,24 +847,25 @@ fn pull_once(
             &format!("Reading band {}/{}...", index + 1, caps.num_bands),
             pct,
         );
-        filters.push(read_filter(app, connected, index as u8)?);
+        filters.push(read_filter(app, connected, protocol, index as u8)?);
         sleep_ms(ReadTiming::default().inter_filter_ms);
     }
 
     sleep_ms(ReadTiming::default().post_filter_read_ms);
     emit_progress(app, "Reading device preamp...", 90.0);
-    let global_gain = read_global_gain(app, &connected.path)?;
+    let global_gain = read_global_gain(app, &connected.path, protocol)?;
 
     emit_progress(app, "Read successful", 100.0);
     Ok(PEQData {
         filters,
-        global_gain: global_gain as f64,
+        global_gain,
     })
 }
 
 fn read_filter(
     app: &tauri::AppHandle,
     connected: &ConnectedDevice,
+    protocol: DeviceProtocol,
     index: u8,
 ) -> Result<glacier_core::eq::Filter, String> {
     let nonce = index.wrapping_add(1).max(1);
@@ -872,7 +882,7 @@ fn read_filter(
     send_packet(
         app,
         &connected.path,
-        &WalkplayProtocol::build_filter_read_request(index, nonce),
+        &protocol.read_filter_request(index, nonce),
     )?;
 
     let mut mismatches = 0usize;
@@ -917,8 +927,8 @@ fn read_filter(
             ),
         );
 
-        let data_vec = match WalkplayProtocol::unframe_packet(&bytes) {
-            Ok(vec) => vec,
+        let data = match protocol.unframe_packet(&bytes) {
+            Ok(data) => data,
             Err(error) => {
                 diagnostics::log(
                     LogLevel::Warn,
@@ -930,8 +940,7 @@ fn read_filter(
                 continue;
             }
         };
-        let data = &data_vec;
-        let matches = WalkplayProtocol::matches_filter_response(data, index, nonce);
+        let matches = protocol.matches_filter_response(data, index, nonce);
         diagnostics::log(
             LogLevel::Info,
             app,
@@ -945,7 +954,8 @@ fn read_filter(
         );
 
         if matches {
-            return WalkplayProtocol::parse_filter_response(data)
+            return protocol
+                .parse_filter_response(data)
                 .ok_or_else(|| format!("Filter {} response could not be parsed", index + 1));
         }
 
@@ -976,7 +986,11 @@ fn read_filter(
     ))
 }
 
-fn read_global_gain(app: &tauri::AppHandle, path: &str) -> Result<i8, String> {
+fn read_global_gain(
+    app: &tauri::AppHandle,
+    path: &str,
+    protocol: DeviceProtocol,
+) -> Result<f64, String> {
     let diagnostics_store = app.state::<Mutex<DiagnosticsStore>>();
     diagnostics::log(
         LogLevel::Info,
@@ -986,7 +1000,7 @@ fn read_global_gain(app: &tauri::AppHandle, path: &str) -> Result<i8, String> {
         "--- Read Global Gain ---",
     );
 
-    send_packet(app, path, &WalkplayProtocol::build_global_gain_request(0))?;
+    send_packet(app, path, &protocol.read_global_gain_request())?;
     sleep_ms(ReadTiming::default().post_global_gain_ms);
 
     for attempt in 1..=GLOBAL_GAIN_READ_ATTEMPTS {
@@ -1010,8 +1024,8 @@ fn read_global_gain(app: &tauri::AppHandle, path: &str) -> Result<i8, String> {
             ),
         );
 
-        let data_vec = match WalkplayProtocol::unframe_packet(&bytes) {
-            Ok(vec) => vec,
+        let data = match protocol.unframe_packet(&bytes) {
+            Ok(data) => data,
             Err(error) => {
                 diagnostics::log(
                     LogLevel::Warn,
@@ -1023,8 +1037,7 @@ fn read_global_gain(app: &tauri::AppHandle, path: &str) -> Result<i8, String> {
                 continue;
             }
         };
-        let data = &data_vec;
-        let matches = WalkplayProtocol::matches_global_gain_response(data, 0);
+        let matches = protocol.matches_global_gain_response(data);
         diagnostics::log(
             LogLevel::Info,
             app,
@@ -1034,7 +1047,7 @@ fn read_global_gain(app: &tauri::AppHandle, path: &str) -> Result<i8, String> {
         );
 
         if matches {
-            if let Some(gain) = WalkplayProtocol::parse_global_gain_response(data) {
+            if let Some(gain) = protocol.parse_global_gain_response(data) {
                 return Ok(gain);
             }
         }
@@ -1043,8 +1056,12 @@ fn read_global_gain(app: &tauri::AppHandle, path: &str) -> Result<i8, String> {
     Err("Global gain read timeout".to_string())
 }
 
-fn run_init_sequence(app: &tauri::AppHandle, path: &str) -> Result<(), String> {
-    for packet in WalkplayProtocol::build_init_packets() {
+fn run_init_sequence(
+    app: &tauri::AppHandle,
+    path: &str,
+    protocol: DeviceProtocol,
+) -> Result<(), String> {
+    for packet in protocol.init_packets() {
         send_packet(app, path, &packet).map_err(|error| format!("Init write failed: {error}"))?;
     }
     sleep_ms(ReadTiming::default().post_version_ms);
@@ -1055,6 +1072,7 @@ fn run_init_sequence(app: &tauri::AppHandle, path: &str) -> Result<(), String> {
 fn write_filters(
     app: &tauri::AppHandle,
     path: &str,
+    protocol: DeviceProtocol,
     peq: &PEQData,
     dsp_sample_rate: f64,
 ) -> Result<(), String> {
@@ -1066,46 +1084,60 @@ fn write_filters(
             &format!("Writing band {}/{}...", index + 1, total),
             pct,
         );
-        let packet =
-            WalkplayProtocol::build_filter_write_packet(index as u8, filter, dsp_sample_rate);
+        for packet in protocol
+            .write_filter_packets(index as u8, filter, dsp_sample_rate)
+            .map_err(|error| format!("Band {} write failed: {error}", index + 1))?
+        {
+            send_packet(app, path, &packet)
+                .map_err(|error| format!("Band {} write failed: {error}", index + 1))?;
+        }
+        sleep_ms(protocol.write_timing().per_filter_ms);
+    }
+    Ok(())
+}
+
+fn write_global_gain(
+    app: &tauri::AppHandle,
+    path: &str,
+    protocol: DeviceProtocol,
+    global_gain: f64,
+) -> Result<(), String> {
+    sleep_ms(protocol.write_timing().batch_ms);
+    for packet in protocol.write_global_gain_packets(global_gain) {
         send_packet(app, path, &packet)
-            .map_err(|error| format!("Band {} write failed: {error}", index + 1))?;
-        sleep_ms(WalkplayProtocol::write_timing().per_filter_ms);
+            .map_err(|error| format!("Global gain write failed: {error}"))?;
     }
+    sleep_ms(protocol.write_timing().global_gain_ms);
     Ok(())
 }
 
-fn write_global_gain(app: &tauri::AppHandle, path: &str, global_gain: i8) -> Result<(), String> {
-    sleep_ms(WalkplayProtocol::write_timing().batch_ms);
-    send_packet(
-        app,
-        path,
-        &WalkplayProtocol::build_global_gain_write_packet(global_gain),
-    )
-    .map_err(|error| format!("Global gain write failed: {error}"))?;
-    sleep_ms(WalkplayProtocol::write_timing().global_gain_ms);
-    Ok(())
-}
-
-fn commit_changes(app: &tauri::AppHandle, path: &str) -> Result<(), String> {
-    for packet in WalkplayProtocol::build_commit_packets() {
+fn commit_changes(
+    app: &tauri::AppHandle,
+    path: &str,
+    protocol: DeviceProtocol,
+) -> Result<(), String> {
+    for packet in protocol.commit_packets() {
         send_packet(app, path, &packet).map_err(|error| format!("Commit write failed: {error}"))?;
-        sleep_ms(WalkplayProtocol::write_timing().commit_step_ms as u64);
+        sleep_ms(protocol.write_timing().commit_step_ms as u64);
     }
     Ok(())
 }
 
-fn apply_ram_changes(app: &tauri::AppHandle, path: &str) -> Result<(), String> {
-    for packet in WalkplayProtocol::build_ram_apply_packets() {
+fn apply_ram_changes(
+    app: &tauri::AppHandle,
+    path: &str,
+    protocol: DeviceProtocol,
+) -> Result<(), String> {
+    for packet in protocol.ram_apply_packets() {
         send_packet(app, path, &packet)
             .map_err(|error| format!("RAM apply write failed: {error}"))?;
-        sleep_ms(WalkplayProtocol::write_timing().commit_step_ms as u64);
+        sleep_ms(protocol.write_timing().commit_step_ms as u64);
     }
     Ok(())
 }
 
-fn send_packet(app: &tauri::AppHandle, path: &str, packet: &[u8]) -> Result<(), String> {
-    let framed = WalkplayProtocol::frame_packet(packet);
+fn send_packet(app: &tauri::AppHandle, path: &str, packet: &Packet) -> Result<(), String> {
+    let framed = packet.framed();
     let diagnostics_store = app.state::<Mutex<DiagnosticsStore>>();
     diagnostics::log(
         LogLevel::Info,
@@ -1150,6 +1182,10 @@ fn send_packet(app: &tauri::AppHandle, path: &str, packet: &[u8]) -> Result<(), 
     Err(err_msg)
 }
 
+fn walkplay_packet(payload: Vec<u8>) -> Packet {
+    Packet::new(WalkplayProtocol::report_id(), payload)
+}
+
 fn drain_stale_frames(app: &tauri::AppHandle, path: &str) {
     for _ in 0..INIT_DRAIN_ATTEMPTS {
         match hid_read(app, path, 20) {
@@ -1164,9 +1200,15 @@ fn sleep_ms(ms: u64) {
     std::thread::sleep(Duration::from_millis(ms));
 }
 
-fn normalize_for_push(mut peq: PEQData, caps: &DeviceCapabilities) -> PEQData {
+fn normalize_for_push(
+    mut peq: PEQData,
+    caps: &DeviceCapabilities,
+    protocol: DeviceProtocol,
+) -> PEQData {
     let _ = peq.clamp_to_capabilities(caps);
-    peq.global_gain = peq.global_gain.round();
+    if matches!(protocol, DeviceProtocol::Walkplay) {
+        peq.global_gain = peq.global_gain.round();
+    }
     peq
 }
 
@@ -1184,7 +1226,7 @@ fn read_utility_register(app: &tauri::AppHandle, path: &str, cmd: u8) -> Result<
     send_packet(
         app,
         path,
-        &WalkplayProtocol::build_utility_read_request(cmd),
+        &walkplay_packet(WalkplayProtocol::build_utility_read_request(cmd)),
     )?;
     sleep_ms(30);
 
@@ -1212,7 +1254,7 @@ fn read_balance_register(app: &tauri::AppHandle, path: &str, channel: u8) -> Res
     send_packet(
         app,
         path,
-        &WalkplayProtocol::build_balance_read_request(channel),
+        &walkplay_packet(WalkplayProtocol::build_balance_read_request(channel)),
     )?;
     sleep_ms(30);
 
@@ -1338,7 +1380,7 @@ pub async fn get_dac_utility_state(
 }
 
 fn write_utility_packet(app: &tauri::AppHandle, path: &str, packet: &[u8]) -> Result<(), String> {
-    send_packet(app, path, packet)?;
+    send_packet(app, path, &walkplay_packet(packet.to_vec()))?;
     sleep_ms(50);
     flash_eq(app, path)
 }
@@ -1347,11 +1389,11 @@ fn flash_eq(app: &tauri::AppHandle, path: &str) -> Result<(), String> {
     send_packet(
         app,
         path,
-        &[
+        &walkplay_packet(vec![
             glacier_core::device::walkplay::WRITE,
             glacier_core::device::walkplay::CMD_FLASH_EQ,
             0,
-        ],
+        ]),
     )
 }
 
@@ -1416,7 +1458,7 @@ pub async fn set_dac_balance(
     let path = utility_connected_path(&state)?;
     let packets = WalkplayProtocol::build_balance_write_packets(balance);
     for packet in packets {
-        send_packet(&app, &path, &packet)?;
+        send_packet(&app, &path, &walkplay_packet(packet))?;
         sleep_ms(20);
     }
     flash_eq(&app, &path)
@@ -1455,10 +1497,16 @@ pub async fn reset_device_eq(
         global_gain: 0.0,
     };
 
-    run_init_sequence(&app, &connected.path)?;
-    write_filters(&app, &connected.path, &peq, caps.dsp_sample_rate)?;
-    write_global_gain(&app, &connected.path, 0)?;
-    commit_changes(&app, &connected.path)
+    run_init_sequence(&app, &connected.path, profile.protocol)?;
+    write_filters(
+        &app,
+        &connected.path,
+        profile.protocol,
+        &peq,
+        caps.dsp_sample_rate,
+    )?;
+    write_global_gain(&app, &connected.path, profile.protocol, 0.0)?;
+    commit_changes(&app, &connected.path, profile.protocol)
 }
 
 #[tauri::command]
@@ -1477,7 +1525,7 @@ pub async fn reset_device_controls(
         write_utility_packet(&app, &path, &packet)?;
     }
     for packet in WalkplayProtocol::build_balance_write_packets(0) {
-        send_packet(&app, &path, &packet)?;
+        send_packet(&app, &path, &walkplay_packet(packet))?;
         sleep_ms(20);
     }
     flash_eq(&app, &path)?;
