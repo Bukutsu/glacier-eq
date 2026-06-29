@@ -45,8 +45,18 @@
     align-items: stretch;
     gap: 10px;
   }
+  .header-main .toolbar {
+    grid-column: 1 / -1;
+  }
   .title-stack {
     width: 100%;
+  }
+  .title-line h1 {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .title-line {
     gap: 8px;
@@ -107,6 +117,7 @@
   }
   .selection-header {
     min-height: auto;
+    padding: 12px;
   }
   h1 {
     font-size: var(--type-title);
