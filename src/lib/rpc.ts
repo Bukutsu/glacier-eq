@@ -71,6 +71,17 @@ let activeProfile: any = null; // Contains metadata & caps
 // Memory Diagnostic Store for Web mode
 let diagnosticsStore: { level: string; source: string; message: string; timestamp: string }[] = [];
 
+function addDiagnostic(level: string, source: string, message: string) {
+  const event = {
+    level,
+    source,
+    message,
+    timestamp: new Date().toISOString(),
+  };
+  diagnosticsStore.push(event);
+  emitEvent("diagnostic-event", event);
+}
+
 // HID Read Queue
 let reportQueue: Uint8Array[] = [];
 let reportResolvers: ((report: Uint8Array) => void)[] = [];
@@ -147,12 +158,7 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
 
   // Log WebRPC calls to local diagnostics
   if (cmd !== "get_diagnostics" && cmd !== "add_diagnostic_event") {
-    diagnosticsStore.push({
-      level: "Info",
-      source: "WebRPC",
-      message: `invoke("${cmd}", ${JSON.stringify(args || {})})`,
-      timestamp: new Date().toISOString(),
-    });
+    addDiagnostic("Info", "UI", `WebRPC invoke("${cmd}", ${JSON.stringify(args || {})})`);
   }
 
   switch (cmd) {
@@ -217,12 +223,14 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
     case "run_autoeq": {
       const vid = activeProfile?.vendor_id ?? null;
       const pid = activeProfile?.product_id ?? null;
+      const measurementPoints = args.measurement_points ?? args.measurementPoints;
+      const targetPoints = args.target_points ?? args.targetPoints;
       return run_autoeq(
-        args.measurement_points,
-        args.target_points,
-        args.n_bands,
+        measurementPoints,
+        targetPoints,
+        args.n_bands ?? args.nBands,
         args.steps,
-        args.smooth_type,
+        args.smooth_type ?? args.smoothType,
         args.fs,
         vid,
         pid
@@ -242,12 +250,7 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
 
     // ─── Diagnostics ────────────────────────────────────────────────────────
     case "add_diagnostic_event": {
-      diagnosticsStore.push({
-        level: args.level,
-        source: args.source,
-        message: args.message,
-        timestamp: new Date().toISOString(),
-      });
+      addDiagnostic(args.level, args.source, args.message);
       return null as T;
     }
     case "get_diagnostics": {
