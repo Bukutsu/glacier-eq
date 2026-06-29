@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 import { isTauri } from "./platform";
+import type { Filter, PEQData } from "../types";
 import initWasm, {
   list_supported_devices,
   parse_autoeq,
@@ -61,6 +62,14 @@ function emitEvent(event: string, payload: any) {
   if (listeners) {
     listeners.forEach((cb) => cb({ payload }));
   }
+}
+
+function ensureWebHid(): HID {
+  const hid = navigator.hid;
+  if (!hid) {
+    throw new Error("WebHID is not available. Use a Chromium-based browser over HTTPS or localhost.");
+  }
+  return hid;
 }
 
 // ─── WebHID Active State ──────────────────────────────────────────────────────
@@ -130,9 +139,68 @@ async function readMatchingReport(
 ): Promise<Uint8Array | null> {
   for (let attempt = 0; attempt < 20; attempt++) {
     const report = await readReport(timeoutMs);
-    if (matches(report)) return report;
+    try {
+      if (matches(report)) return report;
+    } catch {
+      // Ignore stale packets from earlier commands.
+    }
   }
   return null;
+}
+
+async function sendPackets(packets: (number[] | Uint8Array)[], delayMs = 0): Promise<void> {
+  for (const packet of packets) {
+    await sendReport(packet);
+    if (delayMs > 0) await new Promise((resolve) => setTimeout(resolve, delayMs));
+  }
+}
+
+function walkplayPacket(payload: number[]): number[] {
+  return [0x4b, ...payload];
+}
+
+function supportsWalkplayUtilities(): boolean {
+  return activeProfile?.protocol === "Walkplay" && activeProfile?.vendor_id === 0x3302;
+}
+
+function unsupportedUtilityState() {
+  return {
+    supported: false,
+    filter_mode: "FAST-LL",
+    amp_mode_class_ab: false,
+    high_gain_mode: false,
+    mic_volume_db: 0,
+    channel_balance: 0,
+  };
+}
+
+async function readWalkplayUtility(cmd: number): Promise<Uint8Array | null> {
+  await sendReport(walkplayPacket([0x80, cmd, 0x00]));
+  return readMatchingReport(60, (data) =>
+    data.length >= 5 && data[0] === 0x4b && data[1] === 0x80 && data[2] === cmd
+  );
+}
+
+async function readWalkplayBalance(channel: number): Promise<number> {
+  await sendReport(walkplayPacket([0x80, 0x16, 0x01, channel]));
+  const report = await readMatchingReport(60, (data) =>
+    data.length >= 7 && data[0] === 0x4b && data[1] === 0x80 && data[2] === 0x16 && data[4] === channel
+  );
+  return report?.[6] ?? 0;
+}
+
+function resetPeq(numBands: number): PEQData {
+  return {
+    global_gain: 0,
+    filters: Array.from({ length: numBands }, (_, index): Filter => ({
+      index,
+      enabled: false,
+      filter_type: "Peak",
+      freq: 1000,
+      gain: 0,
+      q: 1,
+    })),
+  };
 }
 
 function parseWalkplayFirmwareVersion(data: Uint8Array): string | null {
@@ -263,7 +331,7 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
 
     // ─── Device Connection / HID ──────────────────────────────────────────────
     case "list_devices": {
-      const devices = await navigator.hid.getDevices();
+      const devices = await ensureWebHid().getDevices();
       const supported = list_supported_devices();
       return devices.map((dev: any) => {
         const found = supported.find((s: any) => s.vendor_id === dev.vendorId && (s.product_id === null || s.product_id === undefined || s.product_id === dev.productId));
@@ -278,7 +346,7 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
       }) as T;
     }
     case "connect_device": {
-      const devices = await navigator.hid.getDevices();
+      const devices = await ensureWebHid().getDevices();
       const target = devices.find((dev: any) => `webhid:${dev.vendorId}:${dev.productId}` === args.path);
       if (!target) {
         throw new Error("Device not found. Please click 'Scan' to authorize.");
@@ -333,7 +401,8 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
       
       let global_gain = 0.0;
       try {
-        const res = await readReport(200);
+        const res = await readMatchingReport(200, (data) => matches_global_gain_response(protocol, data));
+        if (!res) throw new Error("Global gain read timeout");
         if (matches_global_gain_response(protocol, res)) {
           global_gain = parse_global_gain_response(protocol, res);
         }
@@ -358,8 +427,8 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
         for (let retry = 0; retry < 3; retry++) {
           try {
             await activeDevice.sendReport(filterReq[0], new Uint8Array(filterReq.slice(1)));
-            const res = await readReport(250);
-            if (matches_filter_response(protocol, res, i, nonce)) {
+            const res = await readMatchingReport(250, (data) => matches_filter_response(protocol, data, i, nonce));
+            if (res) {
               filter = parse_filter_response(protocol, res);
               break;
             }
@@ -494,73 +563,90 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
 
     // ─── Walkplay Hardware controls ──────────────────────────────────────────
     case "get_dac_utility_state": {
+      if (!activeDevice || !supportsWalkplayUtilities()) return unsupportedUtilityState() as T;
+
+      const filter = await readWalkplayUtility(17);
+      const amp = await readWalkplayUtility(29);
+      const gain = await readWalkplayUtility(25);
+      const mic = await readWalkplayUtility(2);
+      const leftRaw = await readWalkplayBalance(0);
+      const rightRaw = await readWalkplayBalance(1);
+      const left = leftRaw > 0 ? 256 - leftRaw : 0;
+      const right = rightRaw > 0 ? 256 - rightRaw : 0;
+      const filterMode = {
+        1: "FAST-LL",
+        2: "FAST-PC",
+        3: "Slow-LL",
+        4: "Slow-PC",
+        5: "NON-OS",
+      }[filter?.[4] ?? 1] ?? "FAST-LL";
+
       return {
-        filter_mode: "FAST-LL",
-        amp_mode: "Class-AB",
-        gain_mode: "Low",
-        balance: 0,
-        mic_volume: 0,
+        supported: true,
+        filter_mode: filterMode,
+        amp_mode_class_ab: amp?.[4] === 1,
+        high_gain_mode: gain?.[4] === 1,
+        mic_volume_db: (mic?.[5] ?? 0) << 24 >> 24,
+        channel_balance: left > 0 ? left : right > 0 ? -right : 0,
       } as T;
     }
     case "set_dac_filter_mode": {
       if (!activeDevice) throw new Error("No device connected");
       const pkt = build_filter_mode_write_packet(args.mode);
-      await activeDevice.sendReport(pkt[0], new Uint8Array(pkt.slice(1)));
+      await sendReport(pkt);
       await new Promise((resolve) => setTimeout(resolve, 50));
       const flash = build_flash_eq_packet();
-      await activeDevice.sendReport(flash[0], new Uint8Array(flash.slice(1)));
+      await sendReport(flash);
       return null as T;
     }
     case "set_dac_work_mode": {
       if (!activeDevice) throw new Error("No device connected");
       const pkt = build_amp_mode_write_packet(args.isClassAb);
-      await activeDevice.sendReport(pkt[0], new Uint8Array(pkt.slice(1)));
+      await sendReport(pkt);
       await new Promise((resolve) => setTimeout(resolve, 50));
       const flash = build_flash_eq_packet();
-      await activeDevice.sendReport(flash[0], new Uint8Array(flash.slice(1)));
+      await sendReport(flash);
       return null as T;
     }
     case "set_dac_output_gain": {
       if (!activeDevice) throw new Error("No device connected");
       const pkt = build_gain_mode_write_packet(args.isHighGain);
-      await activeDevice.sendReport(pkt[0], new Uint8Array(pkt.slice(1)));
+      await sendReport(pkt);
       await new Promise((resolve) => setTimeout(resolve, 50));
       const flash = build_flash_eq_packet();
-      await activeDevice.sendReport(flash[0], new Uint8Array(flash.slice(1)));
+      await sendReport(flash);
       return null as T;
     }
     case "set_dac_balance": {
       if (!activeDevice) throw new Error("No device connected");
       const packets = build_balance_write_packets(args.balance);
-      for (const pkt of packets) {
-        await activeDevice.sendReport(pkt[0], new Uint8Array(pkt.slice(1)));
-        await new Promise((resolve) => setTimeout(resolve, 20));
-      }
+      await sendPackets(packets, 20);
       const flash = build_flash_eq_packet();
-      await activeDevice.sendReport(flash[0], new Uint8Array(flash.slice(1)));
+      await sendReport(flash);
       return null as T;
     }
     case "set_mic_volume": {
       if (!activeDevice) throw new Error("No device connected");
       const pkt = build_mic_volume_write_packet(args.volumeDb);
-      await activeDevice.sendReport(pkt[0], new Uint8Array(pkt.slice(1)));
+      await sendReport(pkt);
       await new Promise((resolve) => setTimeout(resolve, 50));
       const flash = build_flash_eq_packet();
-      await activeDevice.sendReport(flash[0], new Uint8Array(flash.slice(1)));
+      await sendReport(flash);
       return null as T;
     }
     case "reset_device_eq": {
+      const peq = resetPeq(activeProfile?.num_bands ?? 10);
+      await invoke("set_eq_state", { peq });
       return null as T;
     }
     case "reset_device_controls": {
       if (!activeDevice) throw new Error("No device connected");
-      return {
-        filter_mode: "FAST-LL",
-        amp_mode: "Class-AB",
-        gain_mode: "Low",
-        balance: 0,
-        mic_volume: 0,
-      } as T;
+      await invoke("set_dac_filter_mode", { mode: "FAST-LL" });
+      await invoke("set_dac_work_mode", { isClassAb: false });
+      await invoke("set_dac_output_gain", { isHighGain: false });
+      await invoke("set_mic_volume", { volumeDb: 0 });
+      await invoke("set_dac_balance", { balance: 0 });
+      return invoke<T>("get_dac_utility_state");
     }
     case "execute_factory_reset": {
       if (!activeDevice) throw new Error("No device connected");
@@ -585,7 +671,7 @@ export async function requestWebHidDevice(): Promise<void> {
   }));
   
   try {
-    const selected = await navigator.hid.requestDevice({ filters });
+    const selected = await ensureWebHid().requestDevice({ filters });
     if (selected.length > 0) {
       console.log("WebHID device permitted by user:", selected[0]);
     }
