@@ -6,6 +6,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "wasm:build": "wasm-pack build --target web --out-dir ../src/wasm_pkg glacier-core",
+    "prebuild": "npm run wasm:build",
     "build": "tsc && vite build",
     "tauri": "tauri",
     "android:doctor": "bash scripts/android-doctor.sh",
@@ -27,8 +29,10 @@
     "@tauri-apps/cli": "^2",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
+    "@types/w3c-web-hid": "^1.0.7",
     "@vitejs/plugin-react": "^6.0.3",
     "typescript": "~6.0.3",
-    "vite": "^8.1.0"
+    "vite": "^8.1.0",
+    "wasm-pack": "^0.15.0"
   }
 }

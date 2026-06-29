@@ -56,3 +56,6 @@ src/glacier-eq/
 
 # Playwright MCP test artifacts
 .playwright-mcp/
+
+# Compiled WebAssembly packages
+src/wasm_pkg/
