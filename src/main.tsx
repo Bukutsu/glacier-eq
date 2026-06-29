@@ -36,7 +36,12 @@ if (import.meta.env.PROD) {
       e.preventDefault();
     }
   });
+
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).catch(console.error);
+    });
+  }
 }
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(<App />);
-
