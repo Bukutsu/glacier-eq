@@ -1337,8 +1337,8 @@ pub async fn get_dac_utility_state(
     })
 }
 
-fn write_utility_packet(app: &tauri::AppHandle, path: &str, packet: &[u8]) -> Result<(), String> {
-    send_packet(app, path, &walkplay_packet(packet.to_vec()))?;
+fn write_utility_packet(app: &tauri::AppHandle, path: &str, packet: Vec<u8>) -> Result<(), String> {
+    send_packet(app, path, &walkplay_packet(packet))?;
     sleep_ms(50);
     flash_eq(app, path)
 }
@@ -1382,7 +1382,7 @@ pub async fn set_dac_filter_mode(
         _ => return Err("Invalid filter mode".to_string()),
     };
     let packet = WalkplayProtocol::build_filter_mode_write_packet(r);
-    write_utility_packet(&app, &path, &packet)
+    write_utility_packet(&app, &path, packet)
 }
 
 #[tauri::command]
@@ -1393,7 +1393,7 @@ pub async fn set_dac_work_mode(
 ) -> Result<(), String> {
     let path = utility_connected_path(&state)?;
     let packet = WalkplayProtocol::build_amp_mode_write_packet(is_class_ab);
-    write_utility_packet(&app, &path, &packet)
+    write_utility_packet(&app, &path, packet)
 }
 
 #[tauri::command]
@@ -1404,7 +1404,7 @@ pub async fn set_dac_output_gain(
 ) -> Result<(), String> {
     let path = utility_connected_path(&state)?;
     let packet = WalkplayProtocol::build_gain_mode_write_packet(is_high_gain);
-    write_utility_packet(&app, &path, &packet)
+    write_utility_packet(&app, &path, packet)
 }
 
 #[tauri::command]
@@ -1430,7 +1430,7 @@ pub async fn set_mic_volume(
 ) -> Result<(), String> {
     let path = utility_connected_path(&state)?;
     let packet = WalkplayProtocol::build_mic_volume_write_packet(volume_db);
-    write_utility_packet(&app, &path, &packet)
+    write_utility_packet(&app, &path, packet)
 }
 
 #[tauri::command]
@@ -1480,7 +1480,7 @@ pub async fn reset_device_controls(
         WalkplayProtocol::build_gain_mode_write_packet(false),
         WalkplayProtocol::build_mic_volume_write_packet(0),
     ] {
-        write_utility_packet(&app, &path, &packet)?;
+        write_utility_packet(&app, &path, packet)?;
     }
     for packet in WalkplayProtocol::build_balance_write_packets(0) {
         send_packet(&app, &path, &walkplay_packet(packet))?;
@@ -1498,5 +1498,5 @@ pub async fn execute_factory_reset(
 ) -> Result<(), String> {
     let path = utility_connected_path(&state)?;
     let packet = WalkplayProtocol::build_factory_reset_packet();
-    write_utility_packet(&app, &path, &packet)
+    write_utility_packet(&app, &path, packet)
 }
