@@ -14,7 +14,6 @@ import {
   loadDeviceCurvePoints,
   type OnlineDevice,
 } from "../lib/onlineDb";
-import { isTauri } from "../lib/platform";
 
 const DEFAULT_PROFILE_NAME = "Default EQ";
 
@@ -1224,11 +1223,6 @@ function DeviceTab({ setStatus }: { setStatus: (msg: string) => void }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!isTauri()) {
-      setLoading(false);
-      return;
-    }
-
     invoke<any>("get_dac_utility_state")
       .then((data) => {
         setUtility(data);
