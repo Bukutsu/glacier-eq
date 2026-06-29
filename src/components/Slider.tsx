@@ -19,14 +19,9 @@ export function Slider({
     "--slider-thumb": tone === "orange" ? "var(--orange)" : "var(--blue)",
   } as CSSProperties;
 
-  const handleMouseDown = (e: React.MouseEvent<HTMLInputElement>) => {
+  const handlePointerDown = (e: React.PointerEvent<HTMLInputElement>) => {
     if (onStartChange) onStartChange();
-    if (props.onMouseDown) props.onMouseDown(e);
-  };
-
-  const handleTouchStart = (e: React.TouchEvent<HTMLInputElement>) => {
-    if (onStartChange) onStartChange();
-    if (props.onTouchStart) props.onTouchStart(e);
+    if (props.onPointerDown) props.onPointerDown(e);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -50,8 +45,7 @@ export function Slider({
         className="control-slider-input"
         style={sliderStyle}
         type="range"
-        onMouseDown={handleMouseDown}
-        onTouchStart={props.onTouchStart ? handleTouchStart : onStartChange ? () => onStartChange() : undefined}
+        onPointerDown={handlePointerDown}
         onKeyDown={handleKeyDown}
       />
     </div>
