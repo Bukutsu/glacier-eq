@@ -125,8 +125,36 @@ Release APK signing is not configured by default.
 - [ ] Command-line interface
 - [ ] Multi-device support
 - [ ] Localization
+## Linux WebHID Permissions (Web version)
+
+On Linux, Chromium-based browsers restrict access to raw USB HID devices by default. If you see a `NotAllowedError: Failed to open the device` error when connecting in the browser:
+
+1. Create a udev rule file:
+   ```sh
+   sudo nano /etc/udev/rules.d/50-glacier-dac.rules
+   ```
+2. Paste the following rule to allow access to compatible DACs:
+   ```text
+   # Walkplay / FiiO / Moondrop / EPZ DACs
+   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="3302", MODE="0666", TAG+="uaccess", TAG+="udev-acl"
+   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="262a", MODE="0666", TAG+="uaccess", TAG+="udev-acl"
+   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2fc6", MODE="0666", TAG+="uaccess", TAG+="udev-acl"
+   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2972", MODE="0666", TAG+="uaccess", TAG+="udev-acl"
+   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0661", MODE="0666", TAG+="uaccess", TAG+="udev-acl"
+   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0666", MODE="0666", TAG+="uaccess", TAG+="udev-acl"
+   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="35d8", MODE="0666", TAG+="uaccess", TAG+="udev-acl"
+   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="31b2", MODE="0666", TAG+="uaccess", TAG+="udev-acl"
+   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0d8c", MODE="0666", TAG+="uaccess", TAG+="udev-acl"
+   ```
+3. Reload udev rules and replug the device:
+   ```sh
+   sudo udevadm control --reload-rules
+   sudo udevadm trigger
+   ```
+   *Note: If you use the Chromium Flatpak or Snap version, you might also need to allow USB access in your sandbox permissions manager (e.g. Flatseal).*
 
 ## Project Layout
+
 
 ```text
 glacier-core/       Rust EQ and device logic
