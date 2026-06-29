@@ -95,6 +95,12 @@ cargo check              # Rust workspace
 cargo test -p glacier-core
 ```
 
+Optional local guard before pushing:
+
+```sh
+git config core.hooksPath .githooks
+```
+
 Android:
 
 ```sh
