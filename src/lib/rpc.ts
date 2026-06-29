@@ -238,7 +238,7 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
       const devices = await navigator.hid.getDevices();
       const supported = list_supported_devices();
       return devices.map((dev: any) => {
-        const found = supported.find((s: any) => s.vendor_id === dev.vendorId && (s.product_id === null || s.product_id === dev.productId));
+        const found = supported.find((s: any) => s.vendor_id === dev.vendorId && (s.product_id === null || s.product_id === undefined || s.product_id === dev.productId));
         return {
           vendor_id: dev.vendorId,
           product_id: dev.productId,
