@@ -19,7 +19,7 @@ export default defineConfig(async () => ({
       },
     },
   ],
-  base: process.env.GITHUB_ACTIONS === "true" ? "/glacier-eq/" : "/",
+  base: process.env.VITE_BASE_PATH || "./",
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //

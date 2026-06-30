@@ -208,18 +208,19 @@ jobs:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
         run: |
-          mkdir -p src-tauri/gen/android
+          mkdir -p src-tauri/gen/android/app
           if [ -n "$KEYSTORE_BASE64" ] && [ -n "$KEYSTORE_PASSWORD" ]; then
-            echo "$KEYSTORE_BASE64" | base64 -d > src-tauri/gen/android/glacier-eq.keystore
-            cat > src-tauri/gen/android/keystore.properties << PROPEOF
-          password=$KEYSTORE_PASSWORD
+            echo "$KEYSTORE_BASE64" | base64 -d > src-tauri/gen/android/app/glacier-eq.keystore
+            cat > src-tauri/gen/android/app/keystore.properties << PROPEOF
+          storePassword=$KEYSTORE_PASSWORD
+          keyPassword=$KEYSTORE_PASSWORD
           keyAlias=glacier-eq
           storeFile=glacier-eq.keystore
           PROPEOF
             echo "Keystore set up from secrets"
           else
             keytool -genkeypair -v \
-              -keystore src-tauri/gen/android/glacier-eq.keystore \
+              -keystore src-tauri/gen/android/app/glacier-eq.keystore \
               -storepass android \
               -keypass android \
               -alias androiddebugkey \
@@ -227,8 +228,9 @@ jobs:
               -keysize 2048 \
               -validity 10000 \
               -dname "CN=Android Debug,O=Android,C=US"
-            cat > src-tauri/gen/android/keystore.properties << PROPEOF
-          password=android
+            cat > src-tauri/gen/android/app/keystore.properties << PROPEOF
+          storePassword=android
+          keyPassword=android
           keyAlias=androiddebugkey
           storeFile=glacier-eq.keystore
           PROPEOF
@@ -241,7 +243,7 @@ jobs:
           text = path.read_text()
           marker = 'val tauriProperties = Properties().apply {'
           signing = '''val keystoreProperties = Properties().apply {
-              val propFile = rootProject.file("keystore.properties")
+              val propFile = file("keystore.properties")
               if (propFile.exists()) {
                   propFile.inputStream().use { load(it) }
               }
@@ -254,9 +256,9 @@ jobs:
           config = '''    signingConfigs {
                   create("release") {
                       keyAlias = keystoreProperties["keyAlias"] as String
-                      keyPassword = keystoreProperties["password"] as String
-                      storeFile = rootProject.file(keystoreProperties["storeFile"] as String)
-                      storePassword = keystoreProperties["password"] as String
+                      keyPassword = keystoreProperties["keyPassword"] as String
+                      storeFile = file(keystoreProperties["storeFile"] as String)
+                      storePassword = keystoreProperties["storePassword"] as String
                   }
               }
           '''
