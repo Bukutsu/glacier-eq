@@ -521,6 +521,18 @@ pub fn spectrum(
     f: &[f32; K],
     y: &mut [f32; K],
 ) {
+    spectrum_values(filter_type, f0, gain, q, fs, f, y);
+}
+
+pub fn spectrum_values(
+    filter_type: FilterType,
+    f0: f32,
+    gain: f32,
+    q: f32,
+    fs: f32,
+    f: &[f32],
+    y: &mut [f32],
+) {
     let a_val = 10.0_f32.powf(gain / 40.0);
     let w0 = 2.0 * std::f32::consts::PI / fs * f0;
     let cos_w = w0.cos();
@@ -536,12 +548,12 @@ pub fn spectrum(
     let a_x1 = -4.0 * (s.a0 * s.a1 + 4.0 * s.a0 * s.a2 + s.a1 * s.a2);
     let a_x2 = 16.0 * s.a0 * s.a2;
 
-    for k in 0..K {
-        let phi = (std::f32::consts::PI / fs * f[k]).sin().powi(2);
+    for (freq, value) in f.iter().zip(y.iter_mut()) {
+        let phi = (std::f32::consts::PI / fs * freq).sin().powi(2);
         let b_poly = b_x0 + phi * (b_x1 + phi * b_x2);
         let a_poly = a_x0 + phi * (a_x1 + phi * a_x2);
         if b_poly > 0.0 && a_poly > 0.0 {
-            y[k] += 10.0 * (b_poly / a_poly).log10();
+            *value += 10.0 * (b_poly / a_poly).log10();
         }
     }
 }

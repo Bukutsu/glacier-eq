@@ -4,6 +4,7 @@ import { Icon } from "./Icon";
 import { Slider } from "./Slider";
 import { NumberInput } from "./NumberInput";
 import { filterColorVars } from "../lib/filterColors";
+import initWasm, { snap_freq_to_iso } from "../wasm_pkg/glacier_core";
 
 const FREQ_MIN = 20;
 const FREQ_MAX = 20000;
@@ -17,17 +18,12 @@ const TYPE_LABELS: Record<FilterType, string> = {
   LowPass: "LP",
 };
 
-// ISO 1/3 octave standard frequencies (20 Hz – 20 kHz)
-const ISO_FREQUENCIES = [
-  20, 25, 31, 40, 50, 63, 80, 100, 125, 160, 200, 250, 315, 400, 500,
-  630, 800, 1000, 1250, 1600, 2000, 2500, 3150, 4000, 5000, 6300, 8000,
-  10000, 12500, 16000, 20000,
-];
+let wasmReady: Promise<unknown> | null = null;
 
-function snapToIsoFreq(freq: number): number {
-  return ISO_FREQUENCIES.reduce((prev, curr) =>
-    Math.abs(curr - freq) < Math.abs(prev - freq) ? curr : prev
-  );
+async function snapToIsoFreq(freq: number): Promise<number> {
+  wasmReady ??= initWasm();
+  await wasmReady;
+  return snap_freq_to_iso(freq);
 }
 
 function filterColorStyle(index: number) {
@@ -290,9 +286,9 @@ function BandControls({
             onStartChange={onStartChange}
             onReset={committedFilter ? () => onChange({ ...filter, freq: committedFilter.freq }) : undefined}
             onFocus={onActivate}
-            onChange={(event) => {
+            onChange={async (event) => {
               const raw = sliderToFreq(+event.target.value);
-              onChange({ ...filter, freq: snapToIso ? snapToIsoFreq(raw) : raw });
+              onChange({ ...filter, freq: snapToIso ? await snapToIsoFreq(raw) : raw });
             }}
           />
           <NumberInput
@@ -305,7 +301,7 @@ function BandControls({
               onActivate();
               onStartChange();
             }}
-            onChange={(val) => onChange({ ...filter, freq: snapToIso ? snapToIsoFreq(val) : val })}
+            onChange={async (val) => onChange({ ...filter, freq: snapToIso ? await snapToIsoFreq(val) : val })}
             className="band-freq-stepper"
           />
         </div>

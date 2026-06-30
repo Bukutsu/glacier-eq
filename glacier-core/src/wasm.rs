@@ -41,6 +41,29 @@ pub struct ProfileCandidateWasm {
     pub data: PEQData,
 }
 
+fn response_values(peq: &PEQData, freqs: Vec<f32>, include_preamp: bool) -> Vec<f32> {
+    let mut response = vec![
+        if include_preamp {
+            peq.global_gain as f32
+        } else {
+            0.0
+        };
+        freqs.len()
+    ];
+    for filter in peq.filters.iter().filter(|filter| filter.enabled) {
+        crate::autoeq::spectrum_values(
+            filter.filter_type,
+            filter.freq as f32,
+            filter.gain as f32,
+            filter.q as f32,
+            96000.0,
+            &freqs,
+            &mut response,
+        );
+    }
+    response
+}
+
 fn get_protocol_impl(protocol_str: &str) -> Option<&'static dyn EqProtocol> {
     match protocol_str.to_lowercase().as_str() {
         "walkplay" => Some(&WalkplayProtocol),
@@ -163,6 +186,33 @@ pub fn match_profile_name(
         &caps,
         protocol,
     ))
+}
+
+#[wasm_bindgen]
+pub fn peq_response_values(
+    peq_js: JsValue,
+    freqs_js: JsValue,
+    include_preamp: bool,
+) -> Result<JsValue, JsValue> {
+    let peq: PEQData = serde_wasm_bindgen::from_value(peq_js).map_err(js_err)?;
+    let freqs: Vec<f32> = serde_wasm_bindgen::from_value(freqs_js).map_err(js_err)?;
+    to_js_value(&response_values(&peq, freqs, include_preamp))
+}
+
+#[wasm_bindgen]
+pub fn filter_response_values(filter_js: JsValue, freqs_js: JsValue) -> Result<JsValue, JsValue> {
+    let filter: Filter = serde_wasm_bindgen::from_value(filter_js).map_err(js_err)?;
+    let peq = PEQData {
+        filters: vec![filter],
+        global_gain: 0.0,
+    };
+    let freqs: Vec<f32> = serde_wasm_bindgen::from_value(freqs_js).map_err(js_err)?;
+    to_js_value(&response_values(&peq, freqs, false))
+}
+
+#[wasm_bindgen]
+pub fn snap_freq_to_iso(freq: u16) -> u16 {
+    crate::eq::snap_freq_to_iso(freq)
 }
 
 #[wasm_bindgen]
