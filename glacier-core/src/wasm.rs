@@ -6,6 +6,7 @@ use crate::device::{
     get_supported_device, DeviceProtocol, EqProtocol, Packet, WalkplayProtocol, SUPPORTED_DEVICES,
 };
 use crate::eq::{Filter, PEQData};
+use crate::profile_match::{matching_profile_name, ProfileCandidate};
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
@@ -32,6 +33,12 @@ pub struct AutoEqParseResultWasm {
 pub struct AutoEqRunResultWasm {
     pub peq: PEQData,
     pub warnings: Vec<String>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct ProfileCandidateWasm {
+    pub name: String,
+    pub data: PEQData,
 }
 
 fn get_protocol_impl(protocol_str: &str) -> Option<&'static dyn EqProtocol> {
@@ -129,6 +136,33 @@ pub fn parse_autoeq(
 pub fn peq_to_autoeq(peq_js: JsValue) -> Result<String, JsValue> {
     let peq: PEQData = serde_wasm_bindgen::from_value(peq_js).map_err(js_err)?;
     Ok(crate::autoeq::peq_to_autoeq(&peq))
+}
+
+#[wasm_bindgen]
+pub fn match_profile_name(
+    peq_js: JsValue,
+    profiles_js: JsValue,
+    vendor_id: Option<u16>,
+    product_id: Option<u16>,
+) -> Result<Option<String>, JsValue> {
+    let peq: PEQData = serde_wasm_bindgen::from_value(peq_js).map_err(js_err)?;
+    let profiles: Vec<ProfileCandidateWasm> =
+        serde_wasm_bindgen::from_value(profiles_js).map_err(js_err)?;
+    let caps = device_caps_or_desktop(vendor_id, product_id);
+    let protocol = vendor_id
+        .zip(product_id)
+        .and_then(|(vid, pid)| get_supported_device(vid, pid).map(|profile| profile.protocol))
+        .unwrap_or(DeviceProtocol::Walkplay);
+
+    Ok(matching_profile_name(
+        &peq,
+        profiles.iter().map(|profile| ProfileCandidate {
+            name: &profile.name,
+            data: &profile.data,
+        }),
+        &caps,
+        protocol,
+    ))
 }
 
 #[wasm_bindgen]

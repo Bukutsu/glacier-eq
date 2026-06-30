@@ -54,6 +54,7 @@ pub fn run() {
             profiles::parse_autoeq,
             profiles::peq_to_autoeq,
             profiles::run_autoeq,
+            profiles::match_profile_name,
             device_commands::list_devices,
             device_commands::list_supported_devices,
             device_commands::connect_device,
