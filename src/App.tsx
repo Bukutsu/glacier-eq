@@ -634,6 +634,17 @@ function App() {
   const maxFilterBands = selectedDeviceInfo?.num_bands ?? peq.filters.length;
   const supportsRamApply = selectedDeviceInfo?.supports_ram_apply === true;
 
+  const selectMatchingProfile = useCallback(
+    async (data: PEQData, fallback: string) => {
+      const match = await invoke<string | null>("match_profile_name", { peq: data });
+      const name = match ?? fallback;
+      selectedPresetRef.current = name;
+      setSelectedPreset(name);
+      return name;
+    },
+    [],
+  );
+
   const loadFirmwareVersion = useCallback(async () => {
     if (isDevDummyDevice(selectedDevice)) {
       setFirmwareVersion("DEV");
@@ -865,8 +876,7 @@ function App() {
       const normalized = normalizePeq(data);
       setPeq(normalized);
       setLastPushedPeq(normalized);
-      selectedPresetRef.current = "Pulled from device";
-      setSelectedPreset("Pulled from device");
+      await selectMatchingProfile(normalized, "Pulled from device");
       setDirty(false);
       reportStatus(
         "Info",
@@ -972,7 +982,9 @@ function App() {
         await invoke("set_eq_state", { peq });
         await sleep(400);
       }
-      setLastPushedPeq(peqRef.current);
+      const pushed = peqRef.current;
+      setLastPushedPeq(pushed);
+      await selectMatchingProfile(pushed, selectedPresetRef.current);
       setDirty(false);
       reportStatus(
         "Info",
@@ -993,7 +1005,7 @@ function App() {
       setIsBusy(false);
       setProgress(null);
     }
-  }, [peq, selectedDevice, reportStatus]);
+  }, [peq, selectedDevice, reportStatus, selectMatchingProfile]);
 
   const applyProfileToRam = useCallback(
     async (profile: Profile) => {
@@ -1057,7 +1069,7 @@ function App() {
     } finally {
       setIsBusy(false);
     }
-  }, [selectedDevice, reportStatus]);
+  }, [selectedDevice, reportStatus, selectMatchingProfile]);
 
   const saveProfile = useCallback(async () => {
     const name = newProfileName.trim() || selectedPreset;
