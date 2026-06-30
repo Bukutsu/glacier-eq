@@ -61,3 +61,6 @@ src/glacier-eq/
 
 # Compiled WebAssembly packages
 src/wasm_pkg/
+
+# Git worktrees
+.worktrees/
