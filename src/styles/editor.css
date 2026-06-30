@@ -120,10 +120,13 @@
 .disclosure-card summary::after {
   content: "expand_more";
   margin-left: auto;
-  font-family: "Material Symbols Outlined";
+  font-family: "Material Icons", "Material Symbols Outlined", sans-serif;
   font-size: 18px;
   font-weight: 400;
+  line-height: 1;
   color: var(--cyan);
+  font-feature-settings: "liga";
+  -webkit-font-smoothing: antialiased;
 }
 
 .disclosure-card[open] summary::after {
