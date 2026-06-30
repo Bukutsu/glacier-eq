@@ -81,9 +81,6 @@ declare global {
     AndroidNotifier?: {
       showToast: (message: string) => void;
     };
-    AndroidTheme?: {
-      getMaterialColorTokens: () => string;
-    };
   }
 }
 
@@ -113,15 +110,6 @@ const ANDROID_DYNAMIC_COLOR_VARS = [
   "--btn-filled-text",
   "--tab-active-pill",
   "--tab-active-icon",
-  "--line",
-  "--line-subtle",
-  "--line-soft",
-  "--line-medium",
-  "--line-strong",
-  "--line-separator",
-  "--line-heavy",
-  "--line-separator-heavy",
-  "--line-outline",
 ] as const;
 
 const clearAndroidDynamicColors = () => {
@@ -133,22 +121,18 @@ const clearAndroidDynamicColors = () => {
   });
 };
 
-const applyAndroidDynamicColors = (prefersDark: boolean) => {
+const applyAndroidDynamicColors = async (prefersDark: boolean) => {
   if (typeof window === "undefined" || typeof document === "undefined") return;
   try {
-    const androidTheme = (window as any).AndroidTheme;
-    if (!androidTheme) return;
-
-    const tokensStr = androidTheme.getMaterialColorTokens();
-    if (!tokensStr) return;
-
-    const tokens = JSON.parse(tokensStr);
+    const { M3 } = await import("tauri-plugin-m3");
+    const tokens = await M3.getColors(prefersDark ? "dark" : "light");
     if (!tokens || Object.keys(tokens).length === 0) return;
+    const colors = tokens as Record<string, string | undefined>;
 
     const root = document.documentElement;
 
     const hexToRgb = (hex: string) => {
-      const match = hex.replace("#", "").match(/.{1,2}/g);
+      const match = hex.replace("#", "").slice(0, 6).match(/.{1,2}/g);
       if (!match) return "0 0 0";
       return match.map((x) => Number.parseInt(x, 16)).join(" ");
     };
@@ -162,27 +146,26 @@ const applyAndroidDynamicColors = (prefersDark: boolean) => {
     };
 
     const role = (...names: string[]) =>
-      names.map((name) => tokens[name]).find(Boolean);
+      names.map((name) => colors[name]).find(Boolean);
     const fallback = (dark: string, light: string) => prefersDark ? dark : light;
-    const primary = role("primary") || fallback("#8ca4f2", "#1e66f5");
+    const primary = role("primary") || fallback("#a0d1bc", "#006c4f");
     const secondary = role("secondary") || primary;
     const tertiary = role("tertiary") || secondary;
-    const outline = role("outline", "outlineVariant") || fallback("#8e9099", "#74777f");
-    const outlineVariant = role("outlineVariant", "outline") || fallback("#44444f", "#c4c6d0");
-    const primaryContainer = role("primaryContainer") || fallback("#2c303f", "#dbe2f9");
+    const outline = role("outline", "outlineVariant") || fallback("#8a938b", "#73796f");
+    const primaryContainer = role("primaryContainer") || fallback("#00513f", "#8df8ca");
     const secondaryContainer = role("secondaryContainer") || primaryContainer;
     const tertiaryContainer = role("tertiaryContainer") || secondaryContainer;
-    const onPrimaryContainer = role("onPrimaryContainer") || fallback("#a8c7fa", "#001b3d");
+    const onPrimaryContainer = role("onPrimaryContainer") || fallback("#bff2d6", "#002116");
 
     [
-      ["--bg", role("surfaceContainerLowest", "surfaceDim", "surface") || fallback("#0f1115", "#fffbff")],
-      ["--bg-dark", role("surfaceContainerLow", "surfaceContainerLowest") || fallback("#16161f", "#f7f7f9")],
-      ["--bg-darker", role("surface") || fallback("#111318", "#fffbff")],
-      ["--panel", role("surfaceContainer") || fallback("#1d1d26", "#eff1f5")],
-      ["--surface-soft", role("surfaceContainerHigh", "surfaceContainerHighest") || fallback("#282833", "#e1e2ec")],
-      ["--surface", role("surfaceContainerHighest", "surfaceContainerHigh") || fallback("#30303b", "#d8dae5")],
-      ["--text", role("onSurface") || fallback("#e3e3e9", "#1a1c1e")],
-      ["--muted", role("onSurfaceVariant") || fallback("#c4c4cf", "#43474e")],
+      ["--bg", role("surfaceDim", "surface") || fallback("#101510", "#f8fbf4")],
+      ["--bg-dark", role("surfaceContainer", "surfaceContainerLow") || fallback("#1c211c", "#edf2ea")],
+      ["--bg-darker", role("surface", "surfaceDim") || fallback("#101510", "#e9eee6")],
+      ["--panel", role("surfaceContainerLow", "surfaceContainer") || fallback("#191e19", "#f1f5ee")],
+      ["--surface-soft", role("surfaceContainerHigh", "surfaceContainer") || fallback("#262b26", "#e2e7df")],
+      ["--surface", role("surfaceContainerHighest", "surfaceContainerHigh") || fallback("#303630", "#dce2d9")],
+      ["--text", role("onSurface") || fallback("#e0e4dc", "#191d19")],
+      ["--muted", role("onSurfaceVariant") || fallback("#c0c9be", "#424940")],
       ["--comment", outline],
       ["--cyan", primary],
       ["--blue", primary],
@@ -195,20 +178,11 @@ const applyAndroidDynamicColors = (prefersDark: boolean) => {
       ["--dark-cyan", secondary],
       ["--bright-cyan", onPrimaryContainer],
       ["--terminal-black", outline],
-      ["--text-alt", role("onSurfaceVariant") || fallback("#c4c4cf", "#43474e")],
+      ["--text-alt", role("onSurfaceVariant") || fallback("#c0c9be", "#424940")],
       ["--btn-filled-bg", primary],
-      ["--btn-filled-text", role("onPrimary") || fallback("#12131a", "#ffffff")],
+      ["--btn-filled-text", role("onPrimary") || fallback("#073822", "#ffffff")],
       ["--tab-active-pill", secondaryContainer],
       ["--tab-active-icon", role("onSecondaryContainer") || onPrimaryContainer],
-      ["--line", outlineVariant],
-      ["--line-subtle", outlineVariant],
-      ["--line-soft", outlineVariant],
-      ["--line-medium", outlineVariant],
-      ["--line-strong", outlineVariant],
-      ["--line-separator", outlineVariant],
-      ["--line-heavy", outlineVariant],
-      ["--line-separator-heavy", outlineVariant],
-      ["--line-outline", outlineVariant],
     ].forEach(([name, value]) => setVar(name, value));
 
   } catch (e) {
@@ -252,7 +226,7 @@ function App() {
   }, []);
 
   const [settings, setSettings] = useState<AppSettings>(() =>
-    isAndroid && typeof window.AndroidTheme !== "undefined"
+    isAndroid
       ? { ...DEFAULT_SETTINGS, theme: "auto" }
       : DEFAULT_SETTINGS,
   );
@@ -295,10 +269,9 @@ function App() {
         ).matches;
 
         // If Android interface is present, apply dynamic Material You color tokens
-        const androidTheme = (window as any).AndroidTheme;
-        if (androidTheme) {
-          applyAndroidDynamicColors(prefersDark);
-          resolved = prefersDark ? "tokyo-night" : "catppuccin-latte"; // set data-theme so non-overridden base styles match
+        if (isAndroid) {
+          await applyAndroidDynamicColors(prefersDark);
+          resolved = prefersDark ? "material-dark" : "material-light";
         } else if (isTauri()) {
           try {
             const { getCurrentWindow } =
@@ -314,7 +287,9 @@ function App() {
             console.error("Failed to query Tauri window theme:", e);
           }
         }
-        resolved = prefersDark ? "tokyo-night" : "catppuccin-latte";
+        if (!isAndroid) {
+          resolved = prefersDark ? "tokyo-night" : "catppuccin-latte";
+        }
       }
       setResolvedTheme(resolved);
       document.documentElement.setAttribute("data-theme", resolved);
