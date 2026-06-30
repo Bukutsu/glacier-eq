@@ -197,6 +197,12 @@ jobs:
           npm run android:init
           cp -R src-tauri/icons/android/. src-tauri/gen/android/app/src/main/res/
 
+      - name: Verify Android themed icon resources
+        run: |
+          test -f src-tauri/gen/android/app/src/main/res/drawable/ic_launcher_monochrome.xml
+          grep -q '<monochrome android:drawable="@drawable/ic_launcher_monochrome"/>' \
+            src-tauri/gen/android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+
       - name: Setup Android keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
