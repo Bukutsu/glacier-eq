@@ -8,6 +8,7 @@ import initWasm, {
   list_supported_devices,
   parse_autoeq,
   peq_to_autoeq,
+  match_profile_name,
   run_autoeq,
   build_init_packets,
   build_read_filter_request,
@@ -366,6 +367,12 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
     }
     case "peq_to_autoeq": {
       return peq_to_autoeq(args.peq) as T;
+    }
+    case "match_profile_name": {
+      const profiles = loadJson<any[]>("glacier-eq-profiles", []);
+      const vid = activeProfile?.vendor_id ?? null;
+      const pid = activeProfile?.product_id ?? null;
+      return match_profile_name(args.peq, profiles, vid, pid) as T;
     }
     case "run_autoeq": {
       const vid = activeProfile?.vendor_id ?? null;

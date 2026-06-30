@@ -3,9 +3,10 @@
 
 use crate::state::DeviceState;
 use glacier_core::device::{
-    capabilities::DESKTOP_DAC_CAPS, get_supported_device, DeviceCapabilities,
+    capabilities::DESKTOP_DAC_CAPS, get_supported_device, DeviceCapabilities, DeviceProtocol,
 };
 use glacier_core::eq::PEQData;
+use glacier_core::profile_match::{matching_profile_name, ProfileCandidate};
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -71,6 +72,41 @@ fn connected_caps_or_desktop(
         .and_then(|device| get_supported_device(device.vendor_id, device.product_id))
         .map(|profile| profile.caps.clone())
         .unwrap_or(DESKTOP_DAC_CAPS))
+}
+
+fn connected_match_target(
+    state: &tauri::State<'_, Mutex<DeviceState>>,
+) -> Result<(DeviceCapabilities, DeviceProtocol), String> {
+    let guard = state
+        .lock()
+        .map_err(|_| "Device state lock poisoned".to_string())?;
+    let Some(connected) = &guard.connected else {
+        return Ok((DESKTOP_DAC_CAPS, DeviceProtocol::Walkplay));
+    };
+    Ok(
+        get_supported_device(connected.vendor_id, connected.product_id)
+            .map(|profile| (profile.caps.clone(), profile.protocol))
+            .unwrap_or((DESKTOP_DAC_CAPS, DeviceProtocol::Walkplay)),
+    )
+}
+
+#[tauri::command]
+pub fn match_profile_name(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Mutex<DeviceState>>,
+    peq: PEQData,
+) -> Result<Option<String>, String> {
+    let profiles = list_profiles(app)?;
+    let (caps, protocol) = connected_match_target(&state)?;
+    Ok(matching_profile_name(
+        &peq,
+        profiles.iter().map(|profile| ProfileCandidate {
+            name: &profile.name,
+            data: &profile.data,
+        }),
+        &caps,
+        protocol,
+    ))
 }
 
 #[tauri::command]
