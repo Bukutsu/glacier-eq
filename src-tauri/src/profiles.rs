@@ -420,8 +420,10 @@ mod tests {
         let mut target_points = Vec::new();
 
         // Create a flat measurement and a target with a sharp +12dB boost at 1kHz
-        for freq_val in [20.0, 100.0, 500.0, 1000.0, 2000.0, 5000.0, 10000.0, 20000.0] {
-            let freq = freq_val as f64;
+        for freq_val in [
+            20.0_f64, 100.0, 500.0, 1000.0, 2000.0, 5000.0, 10000.0, 20000.0,
+        ] {
+            let freq = freq_val;
             measurement_points.push((freq, 0.0));
             if (freq - 1000.0).abs() < 1.0 {
                 target_points.push((freq, 12.0));
