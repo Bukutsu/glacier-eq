@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
-import { bandResponse, dbToY, formatFreq, freqToX, xToFreq } from "../lib/graph";
+import { dbToY, filterResponseValues, formatFreq, freqToX, peqResponseValues, xToFreq } from "../lib/graph";
 import { cssVar, rgbWithAlpha } from "../lib/theme";
 import { interpolateMeasurementDb } from "../lib/measurements";
 import { filterColorVars } from "../lib/filterColors";
@@ -26,13 +26,14 @@ export function EqGraph({
   theme?: string;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const drawSerialRef = useRef(0);
   const visibleMeasurements = measurements.filter((trace) => trace.visible);
   const selectedMeasurement = selectedMeasurementId
     ? measurements.find((trace) => trace.id === selectedMeasurementId && trace.visible) ?? null
     : visibleMeasurements.length === 1
       ? visibleMeasurements[0]
       : null;
-  const draw = useCallback(() => {
+  const draw = useCallback(async () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -55,7 +56,8 @@ export function EqGraph({
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     drawBackground(ctx, width, height);
     drawGrid(ctx, width, height);
-    drawCurves(
+    const drawSerial = ++drawSerialRef.current;
+    await drawCurves(
       ctx,
       width,
       height,
@@ -65,17 +67,18 @@ export function EqGraph({
       visibleMeasurements,
       targets,
       viewMode,
+      () => drawSerial === drawSerialRef.current,
     );
   }, [peq, committedPeq, selectedMeasurement, visibleMeasurements, targets, viewMode, theme]);
 
   useEffect(() => {
-    let raf = requestAnimationFrame(draw);
+    let raf = requestAnimationFrame(() => { void draw(); });
     const canvas = canvasRef.current;
     if (!canvas) return () => cancelAnimationFrame(raf);
 
     const observer = new ResizeObserver(() => {
       cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(draw);
+      raf = requestAnimationFrame(() => { void draw(); });
     });
     observer.observe(canvas);
 
@@ -146,7 +149,7 @@ function drawGrid(ctx: CanvasRenderingContext2D, width: number, height: number) 
   }
 }
 
-function drawCurves(
+async function drawCurves(
   ctx: CanvasRenderingContext2D,
   width: number,
   height: number,
@@ -156,12 +159,18 @@ function drawCurves(
   measurements: MeasurementTrace[],
   targets: TargetTrace[],
   viewMode: GraphViewMode,
+  isCurrent: () => boolean,
 ) {
   const freqs = Array.from({ length: width }, (_, x) => xToFreq(x, width));
-  const eqResponse = responseValues(peq, freqs, viewMode);
+  const eqResponse = await responseValues(peq, freqs, viewMode);
+  const bandResponses = await Promise.all(
+    peq.filters
+      .filter((filter) => filter.enabled)
+      .map((band) => filterResponseValues(band, freqs)),
+  );
+  if (!isCurrent()) return;
 
-  for (const band of peq.filters.filter((filter) => filter.enabled)) {
-    const response = freqs.map((freq) => bandResponse(freq, band));
+  for (const response of bandResponses) {
     drawResponse(ctx, height, response, rgbWithAlpha("--cyan-rgb", 0.22, "rgba(125, 207, 255, 0.22)"), 1);
   }
 
@@ -184,20 +193,22 @@ function drawCurves(
     ctx.fill();
 
     drawResponse(ctx, height, eqResponse, cssVar("--cyan", "#7dcfff"), 3);
-    drawCommittedPreview(ctx, width, height, peq, committedPeq, selectedMeasurement, viewMode);
-    drawFilterDots(ctx, width, height, peq, null, viewMode);
+    await drawCommittedPreview(ctx, width, height, peq, committedPeq, selectedMeasurement, viewMode, isCurrent);
+    if (!isCurrent()) return;
+    drawFilterDots(ctx, width, height, peq);
     return;
   }
 
-  const measurementOffset = viewMode === "shape" ? -combinedResponseAt(peq, 1000, "shape") : 0;
+  const measurementOffset = viewMode === "shape" ? -(await combinedResponseAt(peq, 1000, "shape")) : 0;
+  if (!isCurrent()) return;
   measurements.forEach((trace) => {
     drawResponse(ctx, height, measurementResponseValues(eqResponse, freqs, trace, measurementOffset), trace.color, 3);
   });
-  drawCommittedPreview(ctx, width, height, peq, committedPeq, selectedMeasurement, viewMode);
-  drawFilterDots(ctx, width, height, peq, selectedMeasurement, viewMode);
+  await drawCommittedPreview(ctx, width, height, peq, committedPeq, selectedMeasurement, viewMode, isCurrent);
+  await drawFilterDotsWithMeasurement(ctx, width, height, peq, selectedMeasurement, viewMode, isCurrent);
 }
 
-function drawCommittedPreview(
+async function drawCommittedPreview(
   ctx: CanvasRenderingContext2D,
   width: number,
   height: number,
@@ -205,13 +216,15 @@ function drawCommittedPreview(
   committedPeq: PEQData | null | undefined,
   selectedMeasurement: MeasurementTrace | null,
   viewMode: GraphViewMode,
+  isCurrent: () => boolean,
 ) {
   if (!committedPeq || peqEquals(committedPeq, peq)) {
     return;
   }
 
   const freqs = Array.from({ length: width }, (_, x) => xToFreq(x, width));
-  const values = responseValues(committedPeq, freqs, viewMode, selectedMeasurement);
+  const values = await responseValues(committedPeq, freqs, viewMode, selectedMeasurement);
+  if (!isCurrent()) return;
   const isCompact = width < 520;
 
   drawResponse(
@@ -232,31 +245,23 @@ function drawCommittedPreview(
   );
 }
 
-function combinedResponseAt(peq: PEQData, freq: number, viewMode: GraphViewMode): number {
-  const preamp = viewMode === "level" ? peq.global_gain : 0;
-  return preamp + peq.filters.reduce((sum, band) => sum + bandResponse(freq, band), 0);
+async function combinedResponseAt(peq: PEQData, freq: number, viewMode: GraphViewMode): Promise<number> {
+  return (await peqResponseValues(peq, [freq], viewMode === "level"))[0] ?? 0;
 }
 
-function responseAt(
-  peq: PEQData,
-  freq: number,
-  viewMode: GraphViewMode,
-  measurement?: MeasurementTrace | null,
-  offset = 0,
-): number {
-  const db = combinedResponseAt(peq, freq, viewMode) + offset;
-  const measured = measurement ? interpolateMeasurementDb(measurement.points, freq) : 0;
-  return Number.isFinite(db + measured) ? db + measured : 0;
-}
-
-function responseValues(
+async function responseValues(
   peq: PEQData,
   freqs: number[],
   viewMode: GraphViewMode,
   measurement?: MeasurementTrace | null,
-): number[] {
-  const offset = measurement && viewMode === "shape" ? -combinedResponseAt(peq, 1000, "shape") : 0;
-  return freqs.map((freq) => responseAt(peq, freq, viewMode, measurement, offset));
+): Promise<number[]> {
+  const offset = measurement && viewMode === "shape" ? -(await combinedResponseAt(peq, 1000, "shape")) : 0;
+  const eqValues = await peqResponseValues(peq, freqs, viewMode === "level");
+  return freqs.map((freq, index) => {
+    const db = (eqValues[index] ?? 0) + offset;
+    const measured = measurement ? interpolateMeasurementDb(measurement.points, freq) : 0;
+    return Number.isFinite(db + measured) ? db + measured : 0;
+  });
 }
 
 function measurementResponseValues(
@@ -334,21 +339,15 @@ function drawFilterDots(
   width: number,
   height: number,
   peq: PEQData,
-  selectedMeasurement: MeasurementTrace | null,
-  viewMode: GraphViewMode,
+  dotValues?: number[],
 ) {
   const text = cssVar("--bg-dark", "#1a1b26");
   const stroke = cssVar("--panel", "#24283b");
   const activeBands = peq.filters.filter((filter) => filter.enabled);
-  const measurementOffset = selectedMeasurement && viewMode === "shape"
-    ? -combinedResponseAt(peq, 1000, "shape")
-    : 0;
 
-  activeBands.forEach((filter) => {
+  activeBands.forEach((filter, index) => {
     const x = freqToX(filter.freq, width);
-    const dotDb = selectedMeasurement
-      ? responseAt(peq, filter.freq, viewMode, selectedMeasurement, measurementOffset)
-      : filter.gain;
+    const dotDb = dotValues?.[index] ?? filter.gain;
     const y = dbToY(dotDb, height);
     const [token, , fallback] = filterColorVars(filter.index);
     const color = cssVar(token, fallback);
@@ -370,4 +369,29 @@ function drawFilterDots(
 
   ctx.textAlign = "start";
   ctx.textBaseline = "alphabetic";
+}
+
+async function drawFilterDotsWithMeasurement(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  peq: PEQData,
+  selectedMeasurement: MeasurementTrace | null,
+  viewMode: GraphViewMode,
+  isCurrent: () => boolean,
+) {
+  if (!selectedMeasurement) {
+    drawFilterDots(ctx, width, height, peq);
+    return;
+  }
+
+  const activeBands = peq.filters.filter((filter) => filter.enabled);
+  const freqs = activeBands.map((filter) => filter.freq);
+  const measurementOffset = viewMode === "shape" ? -(await combinedResponseAt(peq, 1000, "shape")) : 0;
+  const eqValues = await peqResponseValues(peq, freqs, viewMode === "level");
+  if (!isCurrent()) return;
+  const dotValues = freqs.map((freq, index) =>
+    (eqValues[index] ?? 0) + interpolateMeasurementDb(selectedMeasurement.points, freq) + measurementOffset
+  );
+  drawFilterDots(ctx, width, height, peq, dotValues);
 }
