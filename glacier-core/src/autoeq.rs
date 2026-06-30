@@ -740,8 +740,8 @@ fn init_lsc(
     let mut best_idx = 0;
 
     let mut a = 0.0;
-    for k in 0..K {
-        a += y[k];
+    for (k, value) in y.iter().enumerate() {
+        a += value;
         let avg = (a / (k + 1) as f32).abs();
         if avg > best {
             best = avg;
@@ -882,9 +882,7 @@ fn grad(c: &Consts, x: &[f32], g: &mut [f32]) -> f32 {
         1.0
     };
 
-    for k in 0..K {
-        pred[k] = pred_init;
-    }
+    pred.fill(pred_init);
 
     for n in 0..n_bands {
         let f0 = lf_at(x, n_bands, n).exp();
@@ -1047,6 +1045,7 @@ impl AdaBelief {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn fit(
     steps: usize,
     types: &[FilterType],
@@ -1280,6 +1279,7 @@ pub fn preprocess(
     mean
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn run_autoeq_optimization(
     steps: usize,
     types: &[FilterType],
@@ -1335,8 +1335,8 @@ pub fn generate_log_spaced_freqs() -> [f32; K] {
     let lr = l1 - l0;
 
     let mut freqs = [0.0; K];
-    for k in 0..K {
-        freqs[k] = (l0 + lr / (K - 1) as f32 * k as f32).exp();
+    for (k, freq) in freqs.iter_mut().enumerate() {
+        *freq = (l0 + lr / (K - 1) as f32 * k as f32).exp();
     }
     freqs
 }

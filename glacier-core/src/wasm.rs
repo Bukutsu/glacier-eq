@@ -132,6 +132,7 @@ pub fn peq_to_autoeq(peq_js: JsValue) -> Result<String, JsValue> {
 }
 
 #[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
 pub fn run_autoeq(
     measurement_points_js: JsValue,
     target_points_js: JsValue,
