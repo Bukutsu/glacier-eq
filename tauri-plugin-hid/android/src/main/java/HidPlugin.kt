@@ -6,6 +6,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.graphics.Color
 import android.hardware.usb.UsbConstants
 import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbDeviceConnection
@@ -14,6 +15,8 @@ import android.hardware.usb.UsbInterface
 import android.hardware.usb.UsbManager
 import android.hardware.usb.UsbRequest
 import android.util.Log
+import android.webkit.JavascriptInterface
+import android.webkit.WebView
 import app.tauri.annotation.Command
 import app.tauri.annotation.InvokeArg
 import app.tauri.annotation.TauriPlugin
@@ -21,6 +24,9 @@ import app.tauri.plugin.Invoke
 import app.tauri.plugin.JSArray
 import app.tauri.plugin.JSObject
 import app.tauri.plugin.Plugin
+import com.google.android.material.color.DynamicColors
+import com.google.android.material.color.MaterialColors
+import org.json.JSONObject
 import java.nio.ByteBuffer
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
@@ -354,6 +360,43 @@ class WriteArgs {
     var data: ByteArray? = null
 }
 
+class AndroidThemeBridge(private val activity: Activity) {
+    @JavascriptInterface
+    fun getMaterialColorTokens(): String {
+        val out = JSONObject()
+        materialAttrs.forEach { (key, attr) ->
+            out.put(key, hex(MaterialColors.getColor(activity, attr, Color.TRANSPARENT)))
+        }
+        return out.toString()
+    }
+
+    private fun hex(color: Int): String = "#%06X".format(0xFFFFFF and color)
+
+    private val materialAttrs = mapOf(
+        "surfaceDim" to com.google.android.material.R.attr.colorSurfaceDim,
+        "surface" to com.google.android.material.R.attr.colorSurface,
+        "surfaceContainerLowest" to com.google.android.material.R.attr.colorSurfaceContainerLowest,
+        "surfaceContainerLow" to com.google.android.material.R.attr.colorSurfaceContainerLow,
+        "surfaceContainer" to com.google.android.material.R.attr.colorSurfaceContainer,
+        "surfaceContainerHigh" to com.google.android.material.R.attr.colorSurfaceContainerHigh,
+        "surfaceContainerHighest" to com.google.android.material.R.attr.colorSurfaceContainerHighest,
+        "onSurface" to com.google.android.material.R.attr.colorOnSurface,
+        "onSurfaceVariant" to com.google.android.material.R.attr.colorOnSurfaceVariant,
+        "outline" to com.google.android.material.R.attr.colorOutline,
+        "outlineVariant" to com.google.android.material.R.attr.colorOutlineVariant,
+        "primary" to com.google.android.material.R.attr.colorPrimary,
+        "onPrimary" to com.google.android.material.R.attr.colorOnPrimary,
+        "primaryContainer" to com.google.android.material.R.attr.colorPrimaryContainer,
+        "onPrimaryContainer" to com.google.android.material.R.attr.colorOnPrimaryContainer,
+        "secondary" to com.google.android.material.R.attr.colorSecondary,
+        "secondaryContainer" to com.google.android.material.R.attr.colorSecondaryContainer,
+        "onSecondaryContainer" to com.google.android.material.R.attr.colorOnSecondaryContainer,
+        "tertiary" to com.google.android.material.R.attr.colorTertiary,
+        "tertiaryContainer" to com.google.android.material.R.attr.colorTertiaryContainer,
+        "error" to com.google.android.material.R.attr.colorError,
+    )
+}
+
 @TauriPlugin
 class HidPlugin(private val activity: Activity): Plugin(activity) {
     companion object {
@@ -373,6 +416,11 @@ class HidPlugin(private val activity: Activity): Plugin(activity) {
     init {
         registerUsbPermissionReceiver()
         registerUsbDetachReceiver()
+    }
+
+    override fun load(webView: WebView) {
+        DynamicColors.applyToActivityIfAvailable(activity)
+        webView.addJavascriptInterface(AndroidThemeBridge(activity), "AndroidTheme")
     }
 
     private fun registerUsbDetachReceiver() {

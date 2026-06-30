@@ -98,7 +98,17 @@ const ANDROID_DYNAMIC_COLOR_VARS = [
   "--muted",
   "--comment",
   "--cyan",
+  "--blue",
+  "--green",
+  "--orange",
+  "--yellow",
+  "--red",
+  "--purple",
+  "--teal",
+  "--dark-cyan",
   "--bright-cyan",
+  "--terminal-black",
+  "--text-alt",
   "--btn-filled-bg",
   "--btn-filled-text",
   "--tab-active-pill",
@@ -151,54 +161,55 @@ const applyAndroidDynamicColors = (prefersDark: boolean) => {
       }
     };
 
-    const low =
-      tokens.surfaceContainerLow || (prefersDark ? "#16161f" : "#f7f7f9");
-    const container =
-      tokens.surfaceContainer || (prefersDark ? "#1d1d26" : "#eff1f5");
-    const high =
-      tokens.surfaceContainerHigh || (prefersDark ? "#282833" : "#e1e2ec");
-    const outlineVariant =
-      tokens.outlineVariant || (prefersDark ? "#44444f" : "#c4c6d0");
-    const onSurface = tokens.onSurface || (prefersDark ? "#e3e3e9" : "#1a1c1e");
-    const onSurfaceVariant =
-      tokens.onSurfaceVariant || (prefersDark ? "#c4c4cf" : "#43474e");
-    const primary = tokens.primary || (prefersDark ? "#8ca4f2" : "#1e66f5");
-    const onPrimary = tokens.onPrimary || (prefersDark ? "#12131a" : "#ffffff");
-    const primaryContainer =
-      tokens.primaryContainer || (prefersDark ? "#2c303f" : "#dbe2f9");
-    const onPrimaryContainer =
-      tokens.onPrimaryContainer || (prefersDark ? "#a8c7fa" : "#001b3d");
-    const secondaryContainer = tokens.secondaryContainer || primaryContainer;
-    const onSecondaryContainer =
-      tokens.onSecondaryContainer || onPrimaryContainer;
+    const role = (...names: string[]) =>
+      names.map((name) => tokens[name]).find(Boolean);
+    const fallback = (dark: string, light: string) => prefersDark ? dark : light;
+    const primary = role("primary") || fallback("#8ca4f2", "#1e66f5");
+    const secondary = role("secondary") || primary;
+    const tertiary = role("tertiary") || secondary;
+    const outline = role("outline", "outlineVariant") || fallback("#8e9099", "#74777f");
+    const outlineVariant = role("outlineVariant", "outline") || fallback("#44444f", "#c4c6d0");
+    const primaryContainer = role("primaryContainer") || fallback("#2c303f", "#dbe2f9");
+    const secondaryContainer = role("secondaryContainer") || primaryContainer;
+    const tertiaryContainer = role("tertiaryContainer") || secondaryContainer;
+    const onPrimaryContainer = role("onPrimaryContainer") || fallback("#a8c7fa", "#001b3d");
 
-    setVar("--bg", container);
-    setVar("--bg-dark", low);
-    setVar("--bg-darker", low);
-    setVar("--panel", high);
-    setVar("--surface-soft", high);
-    setVar("--surface", high);
-    setVar("--text", onSurface);
-    setVar("--muted", onSurfaceVariant);
-    setVar("--comment", onSurfaceVariant);
-
-    setVar("--cyan", primary);
-    setVar("--bright-cyan", onPrimaryContainer);
-    setVar("--btn-filled-bg", primary);
-    setVar("--btn-filled-text", onPrimary);
-
-    setVar("--tab-active-pill", secondaryContainer);
-    setVar("--tab-active-icon", onSecondaryContainer);
-
-    setVar("--line", outlineVariant);
-    setVar("--line-subtle", outlineVariant);
-    setVar("--line-soft", outlineVariant);
-    setVar("--line-medium", outlineVariant);
-    setVar("--line-strong", outlineVariant);
-    setVar("--line-separator", outlineVariant);
-    setVar("--line-heavy", outlineVariant);
-    setVar("--line-separator-heavy", outlineVariant);
-    setVar("--line-outline", outlineVariant);
+    [
+      ["--bg", role("surfaceContainerLowest", "surfaceDim", "surface") || fallback("#0f1115", "#fffbff")],
+      ["--bg-dark", role("surfaceContainerLow", "surfaceContainerLowest") || fallback("#16161f", "#f7f7f9")],
+      ["--bg-darker", role("surface") || fallback("#111318", "#fffbff")],
+      ["--panel", role("surfaceContainer") || fallback("#1d1d26", "#eff1f5")],
+      ["--surface-soft", role("surfaceContainerHigh", "surfaceContainerHighest") || fallback("#282833", "#e1e2ec")],
+      ["--surface", role("surfaceContainerHighest", "surfaceContainerHigh") || fallback("#30303b", "#d8dae5")],
+      ["--text", role("onSurface") || fallback("#e3e3e9", "#1a1c1e")],
+      ["--muted", role("onSurfaceVariant") || fallback("#c4c4cf", "#43474e")],
+      ["--comment", outline],
+      ["--cyan", primary],
+      ["--blue", primary],
+      ["--green", tertiary],
+      ["--orange", secondary],
+      ["--yellow", tertiaryContainer],
+      ["--red", role("error") || fallback("#ffb4ab", "#ba1a1a")],
+      ["--purple", secondary],
+      ["--teal", tertiary],
+      ["--dark-cyan", secondary],
+      ["--bright-cyan", onPrimaryContainer],
+      ["--terminal-black", outline],
+      ["--text-alt", role("onSurfaceVariant") || fallback("#c4c4cf", "#43474e")],
+      ["--btn-filled-bg", primary],
+      ["--btn-filled-text", role("onPrimary") || fallback("#12131a", "#ffffff")],
+      ["--tab-active-pill", secondaryContainer],
+      ["--tab-active-icon", role("onSecondaryContainer") || onPrimaryContainer],
+      ["--line", outlineVariant],
+      ["--line-subtle", outlineVariant],
+      ["--line-soft", outlineVariant],
+      ["--line-medium", outlineVariant],
+      ["--line-strong", outlineVariant],
+      ["--line-separator", outlineVariant],
+      ["--line-heavy", outlineVariant],
+      ["--line-separator-heavy", outlineVariant],
+      ["--line-outline", outlineVariant],
+    ].forEach(([name, value]) => setVar(name, value));
 
   } catch (e) {
     console.error("Failed to apply Android dynamic colors:", e);
@@ -240,7 +251,11 @@ function App() {
     return () => media.removeEventListener("change", listener);
   }, []);
 
-  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
+  const [settings, setSettings] = useState<AppSettings>(() =>
+    isAndroid && typeof window.AndroidTheme !== "undefined"
+      ? { ...DEFAULT_SETTINGS, theme: "auto" }
+      : DEFAULT_SETTINGS,
+  );
   const theme = settings.theme;
   const enableOnlineMeasurements = settings.enable_online_measurements;
   const snapToIso = settings.snap_to_iso_frequencies;
