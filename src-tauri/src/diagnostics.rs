@@ -27,6 +27,7 @@ impl std::fmt::Display for LogLevel {
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[allow(clippy::upper_case_acronyms)]
 pub enum LogSource {
     UI,
     Worker,

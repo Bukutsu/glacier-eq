@@ -299,7 +299,7 @@ pub async fn get_eq_state(
     }
     sleep_ms(READ_WAKE_DELAY_MS);
 
-    let first = pull_once(&app, &connected, profile.protocol, &caps);
+    let first = pull_once(&app, &connected, profile.protocol, caps);
     let is_connected = state
         .lock()
         .map(|guard| guard.connected.is_some())
@@ -312,7 +312,7 @@ pub async fn get_eq_state(
 
     let peq = if should_retry {
         sleep_ms(READ_PULL_RETRY_DELAY_MS);
-        match pull_once(&app, &connected, profile.protocol, &caps) {
+        match pull_once(&app, &connected, profile.protocol, caps) {
             Ok(peq) => peq,
             Err(retry_error) => match first {
                 Ok(defaultish) => defaultish,
@@ -464,7 +464,7 @@ pub async fn set_eq_state(
             LogSource::HID,
             "Snapshotting current device state...",
         );
-        match pull_once(&app, &connected, profile.protocol, &caps) {
+        match pull_once(&app, &connected, profile.protocol, caps) {
             Ok(backup) => Some(backup),
             Err(error) => {
                 diagnostics::log(
@@ -524,9 +524,9 @@ pub async fn set_eq_state(
         emit_progress(&app, "Verifying changes...", 90.0);
         sleep_ms(READ_PULL_RETRY_DELAY_MS);
 
-        match pull_once(&app, &connected, profile.protocol, &caps) {
+        match pull_once(&app, &connected, profile.protocol, caps) {
             Ok(actual) => {
-                if let Err(mismatch) = compare_peq(&actual, &peq, &caps) {
+                if let Err(mismatch) = compare_peq(&actual, &peq, caps) {
                     let err_msg = format!("Push verification failed: {mismatch}");
                     diagnostics::log(
                         LogLevel::Error,
@@ -546,7 +546,7 @@ pub async fn set_eq_state(
                             "Initiating rollback to previous state...",
                         );
                         if let Err(rollback_error) =
-                            rollback_state(&app, &connected, profile.protocol, &backup, &caps)
+                            rollback_state(&app, &connected, profile.protocol, &backup, caps)
                         {
                             diagnostics::log(
                                 LogLevel::Error,
@@ -564,10 +564,10 @@ pub async fn set_eq_state(
                                 "Rollback successfully written. Verifying rollback...",
                             );
                             sleep_ms(READ_PULL_RETRY_DELAY_MS);
-                            match pull_once(&app, &connected, profile.protocol, &caps) {
+                            match pull_once(&app, &connected, profile.protocol, caps) {
                                 Ok(rolled_back_state) => {
                                     if let Err(rollback_mismatch) =
-                                        compare_peq(&rolled_back_state, &backup, &caps)
+                                        compare_peq(&rolled_back_state, &backup, caps)
                                     {
                                         diagnostics::log(
                                             LogLevel::Error,
@@ -1116,7 +1116,7 @@ fn commit_changes(
 ) -> Result<(), String> {
     for packet in protocol.commit_packets() {
         send_packet(app, path, &packet).map_err(|error| format!("Commit write failed: {error}"))?;
-        sleep_ms(protocol.write_timing().commit_step_ms as u64);
+        sleep_ms(protocol.write_timing().commit_step_ms);
     }
     Ok(())
 }
@@ -1129,7 +1129,7 @@ fn apply_ram_changes(
     for packet in protocol.ram_apply_packets() {
         send_packet(app, path, &packet)
             .map_err(|error| format!("RAM apply write failed: {error}"))?;
-        sleep_ms(protocol.write_timing().commit_step_ms as u64);
+        sleep_ms(protocol.write_timing().commit_step_ms);
     }
     Ok(())
 }
