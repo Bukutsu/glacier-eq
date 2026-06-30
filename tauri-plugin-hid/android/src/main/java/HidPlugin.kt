@@ -6,7 +6,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.graphics.Color
 import android.hardware.usb.UsbConstants
 import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbDeviceConnection
@@ -15,9 +14,6 @@ import android.hardware.usb.UsbInterface
 import android.hardware.usb.UsbManager
 import android.hardware.usb.UsbRequest
 import android.util.Log
-import android.webkit.JavascriptInterface
-import android.webkit.WebView
-import androidx.core.content.ContextCompat
 import app.tauri.annotation.Command
 import app.tauri.annotation.InvokeArg
 import app.tauri.annotation.TauriPlugin
@@ -25,9 +21,6 @@ import app.tauri.plugin.Invoke
 import app.tauri.plugin.JSArray
 import app.tauri.plugin.JSObject
 import app.tauri.plugin.Plugin
-import com.google.android.material.color.DynamicColors
-import com.google.android.material.color.MaterialColors
-import org.json.JSONObject
 import java.nio.ByteBuffer
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
@@ -361,53 +354,6 @@ class WriteArgs {
     var data: ByteArray? = null
 }
 
-class AndroidThemeBridge(private val activity: Activity) {
-    @JavascriptInterface
-    fun getMaterialColorTokens(): String {
-        val out = JSONObject()
-        roles.forEach { (key, role) ->
-            val system = systemColor(role.system)
-            val material = MaterialColors.getColor(activity, role.attr, Color.TRANSPARENT)
-            val color = if (system != Color.TRANSPARENT) system else material
-            if (color != Color.TRANSPARENT) out.put(key, hex(color))
-        }
-        return out.toString()
-    }
-
-    private fun systemColor(name: String): Int {
-        val id = activity.resources.getIdentifier(name, "color", "android")
-        return if (id == 0) Color.TRANSPARENT else ContextCompat.getColor(activity, id)
-    }
-
-    private fun hex(color: Int): String = "#%06X".format(0xFFFFFF and color)
-
-    private data class Role(val attr: Int, val system: String)
-
-    private val roles = mapOf(
-        "surfaceDim" to Role(com.google.android.material.R.attr.colorSurfaceDim, "system_neutral1_900"),
-        "surface" to Role(com.google.android.material.R.attr.colorSurface, "system_neutral1_900"),
-        "surfaceContainerLowest" to Role(com.google.android.material.R.attr.colorSurfaceContainerLowest, "system_neutral1_1000"),
-        "surfaceContainerLow" to Role(com.google.android.material.R.attr.colorSurfaceContainerLow, "system_neutral1_800"),
-        "surfaceContainer" to Role(com.google.android.material.R.attr.colorSurfaceContainer, "system_neutral1_800"),
-        "surfaceContainerHigh" to Role(com.google.android.material.R.attr.colorSurfaceContainerHigh, "system_neutral1_700"),
-        "surfaceContainerHighest" to Role(com.google.android.material.R.attr.colorSurfaceContainerHighest, "system_neutral1_600"),
-        "onSurface" to Role(com.google.android.material.R.attr.colorOnSurface, "system_neutral1_100"),
-        "onSurfaceVariant" to Role(com.google.android.material.R.attr.colorOnSurfaceVariant, "system_neutral2_200"),
-        "outline" to Role(com.google.android.material.R.attr.colorOutline, "system_neutral2_400"),
-        "outlineVariant" to Role(com.google.android.material.R.attr.colorOutlineVariant, "system_neutral2_700"),
-        "primary" to Role(com.google.android.material.R.attr.colorPrimary, "system_accent1_200"),
-        "onPrimary" to Role(com.google.android.material.R.attr.colorOnPrimary, "system_accent1_800"),
-        "primaryContainer" to Role(com.google.android.material.R.attr.colorPrimaryContainer, "system_accent1_700"),
-        "onPrimaryContainer" to Role(com.google.android.material.R.attr.colorOnPrimaryContainer, "system_accent1_100"),
-        "secondary" to Role(com.google.android.material.R.attr.colorSecondary, "system_accent2_200"),
-        "secondaryContainer" to Role(com.google.android.material.R.attr.colorSecondaryContainer, "system_accent2_700"),
-        "onSecondaryContainer" to Role(com.google.android.material.R.attr.colorOnSecondaryContainer, "system_accent2_100"),
-        "tertiary" to Role(com.google.android.material.R.attr.colorTertiary, "system_accent3_200"),
-        "tertiaryContainer" to Role(com.google.android.material.R.attr.colorTertiaryContainer, "system_accent3_700"),
-        "error" to Role(com.google.android.material.R.attr.colorError, "system_error_200"),
-    )
-}
-
 @TauriPlugin
 class HidPlugin(private val activity: Activity): Plugin(activity) {
     companion object {
@@ -427,11 +373,6 @@ class HidPlugin(private val activity: Activity): Plugin(activity) {
     init {
         registerUsbPermissionReceiver()
         registerUsbDetachReceiver()
-    }
-
-    override fun load(webView: WebView) {
-        DynamicColors.applyToActivityIfAvailable(activity)
-        webView.addJavascriptInterface(AndroidThemeBridge(activity), "AndroidTheme")
     }
 
     private fun registerUsbDetachReceiver() {

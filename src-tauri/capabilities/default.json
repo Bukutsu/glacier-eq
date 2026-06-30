@@ -11,6 +11,7 @@
     "dialog:default",
     "dialog:allow-save",
     "hid:default",
+    "m3:default",
     "core:window:default"
   ]
 }

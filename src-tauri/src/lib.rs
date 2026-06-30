@@ -33,6 +33,7 @@ pub fn run() {
     builder
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_m3::init())
         .plugin(tauri_plugin_hid::init())
         .invoke_handler(tauri::generate_handler![
             device_commands::get_eq_state,

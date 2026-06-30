@@ -31,7 +31,7 @@
     "active": true,
     "targets": ["deb", "rpm"],
     "android": {
-      "minSdkVersion": 24
+      "minSdkVersion": 26
     },
     "macOS": {
       "signingIdentity": "-"
