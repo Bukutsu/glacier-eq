@@ -562,9 +562,6 @@
   .action-row-primary {
     grid-template-columns: 1fr;
   }
-  .action-section-head {
-    align-items: flex-start;
-  }
   .preset-list {
     height: auto;
     max-height: 230px;
