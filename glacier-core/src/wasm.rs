@@ -232,130 +232,15 @@ pub fn run_autoeq(
     let target_points: Vec<(f64, f64)> =
         serde_wasm_bindgen::from_value(target_points_js).map_err(js_err)?;
 
-    if n_bands == 0 || n_bands > crate::autoeq::MAX_N {
-        return Err(JsValue::from_str(
-            "Number of bands must be between 1 and 32",
-        ));
-    }
-
-    let steps = if steps == 0 { 3000 } else { steps.min(5000) };
-
-    let f = crate::autoeq::generate_log_spaced_freqs();
-    let src = crate::autoeq::interpolate_curve(&measurement_points, &f);
-    let dst = crate::autoeq::interpolate_curve(&target_points, &f);
-
-    let smooth = match smooth_type.to_lowercase().as_str() {
-        "ie" => Some(&crate::autoeq::IE_SMOOTH),
-        "oe" => Some(&crate::autoeq::OE_SMOOTH),
-        _ => None,
-    };
-
-    let mut r = [0.0; crate::autoeq::K];
-    let preamp_mean = crate::autoeq::preprocess(&f, &dst, &src, &mut r, smooth, true);
-
-    let mut types = vec![crate::eq::FilterType::Peak; n_bands];
-    if n_bands >= 1 {
-        types[0] = crate::eq::FilterType::LowShelf;
-    }
-    if n_bands >= 2 {
-        types[1] = crate::eq::FilterType::HighShelf;
-    }
-
-    let mut f0 = vec![1000.0; n_bands];
-    let mut gain = vec![0.0; n_bands];
-    let mut q_vals = vec![1.0; n_bands];
-
-    let f0_lim = vec![
-        crate::autoeq::Lim {
-            lo: 20.0,
-            hi: 16000.0
-        };
-        n_bands
-    ];
-    let gain_lim = vec![
-        crate::autoeq::Lim {
-            lo: -16.0,
-            hi: 16.0
-        };
-        n_bands
-    ];
-    let mut q_lim = vec![crate::autoeq::Lim { lo: 0.4, hi: 4.0 }; n_bands];
-
-    for n in 0..n_bands {
-        if types[n] == crate::eq::FilterType::LowShelf
-            || types[n] == crate::eq::FilterType::HighShelf
-        {
-            q_lim[n] = crate::autoeq::Lim { lo: 0.4, hi: 3.0 };
-        }
-    }
-
-    let mut amp = Some(0.0);
-
-    crate::autoeq::run_autoeq_optimization(
-        steps,
-        &types,
-        &mut f0,
-        &mut gain,
-        &mut q_vals,
-        &mut amp,
-        &f0_lim,
-        &gain_lim,
-        &q_lim,
+    let mut peq = crate::autoeq::run_autoeq(
+        &measurement_points,
+        &target_points,
         n_bands,
-        &f,
-        &r,
+        steps,
+        &smooth_type,
         fs,
-    );
-
-    let mut filters = Vec::with_capacity(n_bands);
-    for i in 0..n_bands {
-        filters.push(crate::eq::Filter {
-            index: i as u8,
-            enabled: true,
-            freq: f0[i].round() as u16,
-            gain: gain[i] as f64,
-            q: q_vals[i] as f64,
-            filter_type: types[i],
-        });
-    }
-
-    filters.sort_by_key(|f| f.freq);
-    for (i, filter) in filters.iter_mut().enumerate() {
-        filter.index = i as u8;
-    }
-
-    let mut response = [0.0f32; crate::autoeq::K];
-    for filter in &filters {
-        crate::autoeq::spectrum(
-            filter.filter_type,
-            filter.freq as f32,
-            filter.gain as f32,
-            filter.q as f32,
-            fs,
-            &f,
-            &mut response,
-        );
-    }
-
-    let mut max_gain = 0.0f32;
-    for &val in response.iter() {
-        if val > max_gain {
-            max_gain = val;
-        }
-    }
-
-    let total_preamp = preamp_mean + amp.unwrap_or(0.0);
-    let preamp_val = if total_preamp + max_gain > 0.0 {
-        -max_gain
-    } else {
-        total_preamp
-    };
-    let preamp = preamp_val as f64;
-
-    let mut peq = PEQData {
-        filters,
-        global_gain: preamp,
-    };
+    )
+    .map_err(js_err)?;
 
     let warnings = peq.clamp_to_capabilities(&device_caps_or_desktop(vendor_id, product_id));
 
