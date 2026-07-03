@@ -1,7 +1,6 @@
 import { type CSSProperties, useState, useEffect, useRef } from "react";
 import { invoke, listen, readText, writeText, save } from "../lib/rpc";
 
-import { readFileText } from "../lib/files";
 import { parseMeasurementText } from "../lib/measurements";
 import type { AppSettings, MeasurementTrace, Profile, PEQData, GraphViewMode, TargetTrace } from "../types";
 import { Icon } from "./Icon";
@@ -377,7 +376,7 @@ export function MeasureTab({
     }
 
     try {
-      const text = await readFileText(file);
+      const text = await file.text();
       addMeasurementFromText(text, file.name.replace(/\.[^/.]+$/, ""));
     } catch (error) {
       setStatus(`Measurement import failed: ${error}`);
@@ -688,7 +687,7 @@ function ImportTab({ peq, profiles, onImportPEQ, onReloadProfiles, setStatus }: 
     }
 
     try {
-      const text = await readFileText(file);
+      const text = await file.text();
       await parseAndLoadText(text, file.name.replace(/\.[^/.]+$/, ""));
     } catch (error) {
       setStatus(`Import failed: ${error}`);

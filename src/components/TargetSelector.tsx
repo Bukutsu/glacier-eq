@@ -1,5 +1,4 @@
 import { useRef } from "react";
-import { readFileText } from "../lib/files";
 import { parseMeasurementText } from "../lib/measurements";
 import type { TargetTrace } from "../types";
 import { Icon } from "./Icon";
@@ -34,7 +33,7 @@ export function TargetSelector({
     }
 
     try {
-      const points = parseMeasurementText(await readFileText(file));
+      const points = parseMeasurementText(await file.text());
       const name = file.name.replace(/\.[^/.]+$/, "");
       onAddTarget(name, points);
       setStatus(`Loaded target: ${name} (${points.length} points)`);
