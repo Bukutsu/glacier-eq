@@ -24,19 +24,12 @@ export function rgbWithAlpha(
   const resolved = resolvedVar(name, fallback);
   if (!resolved) return "transparent";
 
-  if (/^-?\d+\s+-?\d+\s+-?\d+$/.test(resolved)) {
-    return `rgba(${resolved}, ${alpha})`;
+  if (resolved.startsWith("#")) {
+    const hex = Number.parseInt(resolved.slice(1), 16);
+    return `rgba(${(hex >> 16) & 255}, ${(hex >> 8) & 255}, ${hex & 255}, ${alpha})`;
   }
 
-  const hex = resolved.replace("#", "");
-  if (hex.length === 6) {
-    const r = Number.parseInt(hex.slice(0, 2), 16);
-    const g = Number.parseInt(hex.slice(2, 4), 16);
-    const b = Number.parseInt(hex.slice(4, 6), 16);
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-  }
-
-  return resolved;
+  return `rgba(${resolved}, ${alpha})`;
 }
 export function clearThemeCache() {
   cache = {};
