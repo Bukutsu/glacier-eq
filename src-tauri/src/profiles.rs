@@ -296,130 +296,14 @@ pub fn run_autoeq_internal(
     smooth_type: String,
     fs: f32,
 ) -> Result<PEQData, String> {
-    if n_bands == 0 || n_bands > glacier_core::autoeq::MAX_N {
-        return Err("Number of bands must be between 1 and 32".to_string());
-    }
-
-    let steps = if steps == 0 { 3000 } else { steps.min(5000) };
-
-    let f = glacier_core::autoeq::generate_log_spaced_freqs();
-    let src = glacier_core::autoeq::interpolate_curve(&measurement_points, &f);
-    let dst = glacier_core::autoeq::interpolate_curve(&target_points, &f);
-
-    let smooth = match smooth_type.to_lowercase().as_str() {
-        "ie" => Some(&glacier_core::autoeq::IE_SMOOTH),
-        "oe" => Some(&glacier_core::autoeq::OE_SMOOTH),
-        _ => None,
-    };
-
-    let mut r = [0.0; glacier_core::autoeq::K];
-    let preamp_mean = glacier_core::autoeq::preprocess(&f, &dst, &src, &mut r, smooth, true);
-
-    let mut types = vec![glacier_core::eq::FilterType::Peak; n_bands];
-    if n_bands >= 1 {
-        types[0] = glacier_core::eq::FilterType::LowShelf;
-    }
-    if n_bands >= 2 {
-        types[1] = glacier_core::eq::FilterType::HighShelf;
-    }
-
-    let mut f0 = vec![1000.0; n_bands];
-    let mut gain = vec![0.0; n_bands];
-    let mut q_vals = vec![1.0; n_bands];
-
-    let f0_lim = vec![
-        glacier_core::autoeq::Lim {
-            lo: 20.0,
-            hi: 16000.0
-        };
-        n_bands
-    ];
-    let gain_lim = vec![
-        glacier_core::autoeq::Lim {
-            lo: -16.0,
-            hi: 16.0
-        };
-        n_bands
-    ];
-    let mut q_lim = vec![glacier_core::autoeq::Lim { lo: 0.4, hi: 4.0 }; n_bands];
-
-    for n in 0..n_bands {
-        if types[n] == glacier_core::eq::FilterType::LowShelf
-            || types[n] == glacier_core::eq::FilterType::HighShelf
-        {
-            q_lim[n] = glacier_core::autoeq::Lim { lo: 0.4, hi: 3.0 };
-        }
-    }
-
-    let mut amp = Some(0.0);
-
-    glacier_core::autoeq::run_autoeq_optimization(
-        steps,
-        &types,
-        &mut f0,
-        &mut gain,
-        &mut q_vals,
-        &mut amp,
-        &f0_lim,
-        &gain_lim,
-        &q_lim,
+    glacier_core::autoeq::run_autoeq(
+        &measurement_points,
+        &target_points,
         n_bands,
-        &f,
-        &r,
+        steps,
+        &smooth_type,
         fs,
-    );
-
-    let mut filters = Vec::with_capacity(n_bands);
-    for i in 0..n_bands {
-        filters.push(glacier_core::eq::Filter {
-            index: i as u8,
-            enabled: true,
-            freq: f0[i].round() as u16,
-            gain: gain[i] as f64,
-            q: q_vals[i] as f64,
-            filter_type: types[i],
-        });
-    }
-
-    // Sort filters by frequency and re-index sequentially
-    filters.sort_by_key(|f| f.freq);
-    for (i, filter) in filters.iter_mut().enumerate() {
-        filter.index = i as u8;
-    }
-
-    // Calculate the combined frequency response of the optimized filters to prevent digital clipping
-    let mut response = [0.0f32; glacier_core::autoeq::K];
-    for filter in &filters {
-        glacier_core::autoeq::spectrum(
-            filter.filter_type,
-            filter.freq as f32,
-            filter.gain as f32,
-            filter.q as f32,
-            fs,
-            &f,
-            &mut response,
-        );
-    }
-
-    let mut max_gain = 0.0f32;
-    for &val in response.iter() {
-        if val > max_gain {
-            max_gain = val;
-        }
-    }
-
-    let total_preamp = preamp_mean + amp.unwrap_or(0.0);
-    let preamp_val = if total_preamp + max_gain > 0.0 {
-        -max_gain
-    } else {
-        total_preamp
-    };
-    let preamp = preamp_val as f64;
-
-    Ok(PEQData {
-        filters,
-        global_gain: preamp,
-    })
+    )
 }
 
 #[tauri::command]

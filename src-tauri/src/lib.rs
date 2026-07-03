@@ -31,7 +31,6 @@ pub fn run() {
         builder = builder.manage(Mutex::new(None::<hid_helper::ElevatedTransport>));
     }
     builder
-        .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_m3::init())
         .plugin(tauri_plugin_hid::init())
