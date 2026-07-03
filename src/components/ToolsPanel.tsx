@@ -152,57 +152,58 @@ export function ToolsPanel(props: ToolsPanelProps) {
     <aside className={`right-rail ${showDiagnostics ? "has-diagnostics" : ""}`}>
       <section className="tools-card">
         <TabStrip active={tab} onSelect={setTab} tabs={availableTabs} />
-        {tab === "Preset" && (
-          <>
-            <PresetTab {...props} />
-            {props.showActions !== false && <ToolActions {...props} />}
-            <ImportTab
-              peq={props.peq}
-              profiles={props.profiles}
-              onImportPEQ={props.onImportPEQ}
-              onReloadProfiles={props.onReloadProfiles}
-              setStatus={props.setStatus}
-            />
-          </>
-        )}
-        {tab === "Import" && <ImportTab
-          peq={props.peq}
-          profiles={props.profiles}
-          onImportPEQ={props.onImportPEQ}
-          onReloadProfiles={props.onReloadProfiles}
-          setStatus={props.setStatus}
-        />}
-        {tab === "AutoEQ" && (
-          <AutoEqTab
-            measurements={props.measurements}
-            allTargets={props.allTargets ?? []}
+        <div className="tab-panel">
+          {tab === "Preset" && (
+            <>
+              <PresetTab {...props} />
+              <ImportTab
+                peq={props.peq}
+                profiles={props.profiles}
+                onImportPEQ={props.onImportPEQ}
+                onReloadProfiles={props.onReloadProfiles}
+                setStatus={props.setStatus}
+              />
+            </>
+          )}
+          {tab === "Import" && <ImportTab
+            peq={props.peq}
+            profiles={props.profiles}
             onImportPEQ={props.onImportPEQ}
+            onReloadProfiles={props.onReloadProfiles}
             setStatus={props.setStatus}
-            onSelectTab={setTab}
-            onSelectedMeasurementChange={props.onSelectedMeasurementChange}
-          />
-        )}
-        {tab === "Measure" && <MeasureTab
-          measurements={props.measurements}
-          onAddMeasurement={props.onAddMeasurement}
-          onRemoveMeasurement={props.onRemoveMeasurement}
-          onToggleMeasurement={props.onToggleMeasurement}
-          onClearMeasurements={props.onClearMeasurements}
-          setStatus={props.setStatus}
-          enableOnlineMeasurements={props.enableOnlineMeasurements}
-          onEnableOnlineMeasurementsChange={props.onEnableOnlineMeasurementsChange}
-        />}
-        {tab === "Device" && (
-          <DeviceTab setStatus={props.setStatus} />
-        )}
-        {tab === "Settings" && (
-          <SettingsTab
-            graphViewMode={props.graphViewMode}
-            onGraphViewModeChange={props.onGraphViewModeChange}
-            settings={props.settings}
-            onSettingChange={props.onSettingChange}
-          />
-        )}
+          />}
+          {tab === "AutoEQ" && (
+            <AutoEqTab
+              measurements={props.measurements}
+              allTargets={props.allTargets ?? []}
+              onImportPEQ={props.onImportPEQ}
+              setStatus={props.setStatus}
+              onSelectTab={setTab}
+              onSelectedMeasurementChange={props.onSelectedMeasurementChange}
+            />
+          )}
+          {tab === "Measure" && <MeasureTab
+            measurements={props.measurements}
+            onAddMeasurement={props.onAddMeasurement}
+            onRemoveMeasurement={props.onRemoveMeasurement}
+            onToggleMeasurement={props.onToggleMeasurement}
+            onClearMeasurements={props.onClearMeasurements}
+            setStatus={props.setStatus}
+            enableOnlineMeasurements={props.enableOnlineMeasurements}
+            onEnableOnlineMeasurementsChange={props.onEnableOnlineMeasurementsChange}
+          />}
+          {tab === "Device" && (
+            <DeviceTab setStatus={props.setStatus} />
+          )}
+          {tab === "Settings" && (
+            <SettingsTab
+              graphViewMode={props.graphViewMode}
+              onGraphViewModeChange={props.onGraphViewModeChange}
+              settings={props.settings}
+              onSettingChange={props.onSettingChange}
+            />
+          )}
+        </div>
       </section>
       {showDiagnostics && <DiagnosticsPanel />}
     </aside>
@@ -555,26 +556,36 @@ function PresetTab({
   onApplyProfile,
   onReloadProfiles,
   onOpenProfilesDir,
+  onReset,
+  onSave,
+  onDelete,
+  showActions,
 }: ToolsPanelProps) {
   const query = profileSearch.trim().toLowerCase();
   const filteredProfiles = profiles.filter((profile) => !query || profile.name.toLowerCase().includes(query));
   const selectedProfile = profiles.find((profile) => profile.name === selectedPreset);
+  const canDelete = selectedPreset !== DEFAULT_PROFILE_NAME && profiles.some((profile) => profile.name === selectedPreset);
 
   return (
-    <div className="profile-pane">
-      <div className="tool-section-head">
-        <strong>Profile Library</strong>
-        <span>{profiles.length} saved</span>
+    <section className="profile-card">
+      <div className="profile-card-head">
+        <div className="profile-title">
+          <strong>Profile Library</strong>
+          <span>{profiles.length} saved</span>
+        </div>
+        <div className="profile-card-tools">
+          <button title="Reload profiles" aria-label="Reload profiles" onClick={onReloadProfiles}><Icon>refresh</Icon></button>
+          <button title="Open profiles folder" aria-label="Open profiles folder" onClick={onOpenProfilesDir}><Icon>folder</Icon></button>
+        </div>
       </div>
-      <div className="search-row">
-        <input
-          placeholder="Search profiles…"
-          value={profileSearch}
-          onChange={(event) => setProfileSearch(event.target.value)}
-        />
-        <button title="Reload profiles" onClick={onReloadProfiles}><Icon>refresh</Icon></button>
-        <button title="Open profiles folder" onClick={onOpenProfilesDir}><Icon>folder</Icon></button>
-      </div>
+
+      <input
+        className="profile-search"
+        placeholder="Search profiles…"
+        value={profileSearch}
+        onChange={(event) => setProfileSearch(event.target.value)}
+      />
+
       <div className="preset-list">
         {filteredProfiles.length === 0 ? (
           <div className="empty-profiles">No profiles found</div>
@@ -599,16 +610,40 @@ function PresetTab({
           </div>
         ))}
       </div>
-      <small className="modified">
-        {selectedProfile?.modified ? `Modified: ${selectedProfile.modified}` : "Profiles: Glacier data folder"}
-      </small>
+
       <input
         className="new-name"
         placeholder="New Name…"
         value={newProfileName}
         onChange={(event) => setNewProfileName(event.target.value)}
       />
-    </div>
+
+      <div className="profile-card-foot">
+        <small className="modified">
+          {selectedProfile?.modified ? `Modified: ${selectedProfile.modified}` : "Glacier data folder"}
+        </small>
+        {showActions !== false && (
+          <div className="profile-management-actions">
+            <button className="save primary-save" onClick={onSave}>
+              <Icon>save</Icon>
+              <span>Save</span>
+            </button>
+            <button className="icon-action profile-icon-action" title="Reset profile" aria-label="Reset profile" onClick={onReset}>
+              <Icon>restart_alt</Icon>
+            </button>
+            <button
+              className="icon-action profile-icon-action danger"
+              title="Delete profile"
+              aria-label="Delete profile"
+              disabled={!canDelete}
+              onClick={onDelete}
+            >
+              <Icon>delete</Icon>
+            </button>
+          </div>
+        )}
+      </div>
+    </section>
   );
 }
 
@@ -737,16 +772,18 @@ function ImportTab({ peq, profiles, onImportPEQ, onReloadProfiles, setStatus }: 
 
   if (!parsed) {
     return (
-      <details className="import-section secondary-actions">
-        <summary>Import / Export</summary>
-        <div className="import-grid">
-          <input
-            type="file"
-            ref={fileInputRef}
-            style={{ display: "none" }}
-            accept=".txt"
-            onChange={handleFileChange}
-          />
+      <section className="profile-action-group import-section">
+        <div className="profile-action-head">
+          <strong>Import / Export</strong>
+        </div>
+        <input
+          className="hidden-file-input"
+          type="file"
+          ref={fileInputRef}
+          accept=".txt"
+          onChange={handleFileChange}
+        />
+        <div className="transfer-actions">
           <button className="icon-action" onClick={handleImportFileClick}>
             <Icon>file_upload</Icon>
             <span>Import File</span>
@@ -764,7 +801,7 @@ function ImportTab({ peq, profiles, onImportPEQ, onReloadProfiles, setStatus }: 
             <span>Copy</span>
           </button>
         </div>
-      </details>
+      </section>
     );
   }
 
@@ -1405,27 +1442,6 @@ function DeviceTab({ setStatus }: { setStatus: (msg: string) => void }) {
         </div>
       </div>
     </div>
-  );
-}
-
-function ToolActions({ selectedPreset, profiles, onReset, onSave, onDelete }: ToolsPanelProps) {
-  const canDelete = selectedPreset !== DEFAULT_PROFILE_NAME && profiles.some((profile) => profile.name === selectedPreset);
-
-  return (
-    <section className="action-section">
-      <div className="action-section-head">
-        <strong>Preset Actions</strong>
-        <span>Save changes to the selected preset.</span>
-      </div>
-      <button className="save primary-save" onClick={onSave}>Save</button>
-      <details className="secondary-actions">
-        <summary>Reset / Delete</summary>
-        <div className="action-row action-row-primary">
-          <button onClick={onReset}>Reset</button>
-          <button className="danger" disabled={!canDelete} onClick={onDelete}>Delete</button>
-        </div>
-      </details>
-    </section>
   );
 }
 
