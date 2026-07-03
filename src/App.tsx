@@ -1432,6 +1432,7 @@ function App() {
                 onApplyProfile={supportsRamApply ? applyProfileToRam : undefined}
                 onReloadProfiles={loadProfiles}
                 onOpenProfilesDir={openProfilesDir}
+                hideProfileFolderButton={isAndroid}
                 onReset={reset}
                 onSave={saveProfile}
                 onDelete={deleteSelectedProfile}
@@ -1466,6 +1467,7 @@ function App() {
                 onApplyProfile={supportsRamApply ? applyProfileToRam : undefined}
                 onReloadProfiles={loadProfiles}
                 onOpenProfilesDir={openProfilesDir}
+                hideProfileFolderButton={isAndroid}
                 onReset={reset}
                 onSave={saveProfile}
                 onDelete={deleteSelectedProfile}
@@ -1584,6 +1586,7 @@ function App() {
             onApplyProfile={supportsRamApply ? applyProfileToRam : undefined}
             onReloadProfiles={loadProfiles}
             onOpenProfilesDir={openProfilesDir}
+            hideProfileFolderButton={isAndroid}
             onReset={reset}
             onSave={saveProfile}
             onDelete={deleteSelectedProfile}
