@@ -395,152 +395,155 @@ export function MeasureTab({
 
   return (
     <div className="measurements-pane">
-      <div className="measurements-intro">
-        <strong>Graph Overlays</strong>
-        <p>Load frequency,dB traces from `.csv` or `.txt` to compare multiple measurements against your EQ curve.</p>
-      </div>
+      <section className="tool-card">
+        <div className="tool-card-head">
+          <strong>Graph Overlays</strong>
+          <span>{measurements.length} loaded</span>
+        </div>
 
-      <input
-        ref={fileInputRef}
-        type="file"
-        style={{ display: "none" }}
-        accept=".txt,.csv,text/plain,text/csv"
-        onChange={handleFileChange}
-      />
+        <input
+          className="hidden-file-input"
+          ref={fileInputRef}
+          type="file"
+          accept=".txt,.csv,text/plain,text/csv"
+          onChange={handleFileChange}
+        />
 
-      <div className="import-grid measurement-import-grid">
-        <button className="icon-action" onClick={() => fileInputRef.current?.click()}>
-          <Icon>playlist_add</Icon>
-          <span>Add File</span>
-        </button>
-        <button className="icon-action" onClick={handlePaste}>
-          <Icon>content_paste</Icon>
-          <span>Paste Trace</span>
-        </button>
-      </div>
-
-      <div className="measurement-format-note">
-        Example: `20,82.6` or `20 82.6`; traces are centered near 1 kHz.
-      </div>
-
-      {/* Online Measurement Database */}
-      {!enableOnlineMeasurements ? (
-        <div className="online-db-banner" style={{ borderStyle: "dashed" }}>
-          <strong>Online Database</strong>
-          <p>Search and compare frequency response measurements from the Squiglink/Squig-Rank database.</p>
-          <button className="btn" onClick={() => onEnableOnlineMeasurementsChange?.(true)}>
-            Enable Online Database
+        <div className="transfer-actions measurement-import-grid">
+          <button className="icon-action" onClick={() => fileInputRef.current?.click()}>
+            <Icon>playlist_add</Icon>
+            <span>Add File</span>
+          </button>
+          <button className="icon-action" onClick={handlePaste}>
+            <Icon>content_paste</Icon>
+            <span>Paste Trace</span>
           </button>
         </div>
-      ) : !downloaded ? (
-        <div className="online-db-banner">
+
+        <small className="card-note">
+          CSV/TXT traces are centered near 1 kHz.
+        </small>
+      </section>
+
+      <section className={`tool-card online-db-card${!enableOnlineMeasurements ? " dormant" : ""}`}>
+        <div className="tool-card-head">
           <strong>Online Database</strong>
-          <p>Compare with thousands of headphone/IEM database measurements. Download the offline cache to start search (~16MB).</p>
-          {downloadProgress !== null ? (
-            <div className="progress-container">
-              <div className="progress-track">
-                <div className="progress-bar" style={{ width: `${downloadProgress * 100}%` }} />
+          {enableOnlineMeasurements && downloaded && (
+            <button className="tool-link-button" onClick={handleResetCache}>Clear Cache</button>
+          )}
+        </div>
+        {!enableOnlineMeasurements ? (
+          <>
+            <p className="card-note">Search and compare frequency response measurements from Squiglink/Squig-Rank.</p>
+            <button className="btn" onClick={() => onEnableOnlineMeasurementsChange?.(true)}>
+              Enable Database
+            </button>
+          </>
+        ) : !downloaded ? (
+          <>
+            <p className="card-note">Download the offline cache to start search.</p>
+            {downloadProgress !== null ? (
+              <div className="progress-container">
+                <div className="progress-track">
+                  <div className="progress-bar" style={{ width: `${downloadProgress * 100}%` }} />
+                </div>
+                <span>{Math.round(downloadProgress * 100)}%</span>
               </div>
-              <span>{Math.round(downloadProgress * 100)}%</span>
+            ) : (
+              <button className="btn" onClick={handleDownload} disabled={isDownloading}>
+                {isDownloading ? "Downloading..." : "Download Cache"}
+              </button>
+            )}
+          </>
+        ) : (
+          <div className="online-search-section">
+            <input
+              type="text"
+              placeholder={`Search ${totalCount !== null ? `${totalCount} curves` : "online database"}...`}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              disabled={loadingManifest}
+            />
+            {searchQuery && (
+              <div className="online-search-results scrollbar">
+                {loadingManifest ? (
+                  <div className="online-result-item online-result-empty">Loading devices index...</div>
+                ) : displayResults.length === 0 ? (
+                  <div className="online-result-item online-result-empty">No devices found matching "{searchQuery}"</div>
+                ) : (
+                  displayResults.map((dev) => (
+                    <div key={dev.id} className="online-result-item">
+                      <div className="online-result-info">
+                        <div className="online-result-name">
+                          {dev.brand} {dev.name}
+                          {dev.price !== null && (
+                            <span className="online-result-price">${dev.price}</span>
+                          )}
+                        </div>
+                        <div className="online-result-source">Source: {dev.source}</div>
+                      </div>
+                      <button
+                        className="online-result-action"
+                        disabled={loadingDevice !== null}
+                        onClick={() => handleLoadDevice(dev)}
+                      >
+                        {loadingDevice === dev.id ? (
+                          <span>Loading...</span>
+                        ) : (
+                          <>
+                            <Icon>download</Icon>
+                            <span>Load</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </section>
+
+      <section className="tool-card measurement-library-card">
+        <div className="tool-card-head">
+          <strong>Loaded Measurements</strong>
+          {measurements.length > 0 && (
+            <button className="tool-link-button danger" onClick={onClearMeasurements}>Clear All</button>
+          )}
+        </div>
+        <div className="measurement-list">
+          {measurements.length === 0 ? (
+            <div className="measurement-empty">
+              No measurements loaded yet.
             </div>
           ) : (
-            <button className="btn" onClick={handleDownload} disabled={isDownloading}>
-              {isDownloading ? "Downloading..." : "Download Cache"}
-            </button>
+            measurements.map((trace) => (
+              <div className="measurement-item" key={trace.id}>
+                <label className="measurement-toggle">
+                  <input
+                    type="checkbox"
+                    checked={trace.visible}
+                    onChange={() => onToggleMeasurement(trace.id)}
+                  />
+                  <span className="measurement-swatch" style={{ backgroundColor: trace.color }} />
+                  <span className="measurement-meta">
+                    <span className="measurement-name">{trace.name}</span>
+                    <span className="measurement-points">{trace.points.length} points</span>
+                  </span>
+                </label>
+                <button
+                  className="measurement-delete"
+                  title={`Delete ${trace.name}`}
+                  onClick={() => onRemoveMeasurement(trace.id)}
+                >
+                  <Icon>delete</Icon>
+                </button>
+              </div>
+            ))
           )}
         </div>
-      ) : (
-        <div className="online-search-section">
-          <div className="online-db-status-bar">
-            <span>Online Database ({totalCount !== null ? `${totalCount} curves` : "Ready"})</span>
-            <button onClick={handleResetCache}>Clear Cache</button>
-          </div>
-          <input
-            type="text"
-            placeholder="Search online database..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            disabled={loadingManifest}
-          />
-          {searchQuery && (
-            <div className="online-search-results scrollbar">
-              {loadingManifest ? (
-                <div className="online-result-item" style={{ justifyContent: "center", color: "var(--muted)" }}>
-                  Loading devices index...
-                </div>
-              ) : displayResults.length === 0 ? (
-                <div className="online-result-item" style={{ justifyContent: "center", color: "var(--muted)" }}>
-                  No online devices found matching "{searchQuery}"
-                </div>
-              ) : (
-                displayResults.map((dev) => (
-                  <div key={dev.id} className="online-result-item">
-                    <div className="online-result-info">
-                      <div className="online-result-name">
-                        {dev.brand} {dev.name}
-                        {dev.price !== null && (
-                          <span className="online-result-price">${dev.price}</span>
-                        )}
-                      </div>
-                      <div className="online-result-source">Source: {dev.source}</div>
-                    </div>
-                    <button
-                      className="online-result-action"
-                      disabled={loadingDevice !== null}
-                      onClick={() => handleLoadDevice(dev)}
-                    >
-                      {loadingDevice === dev.id ? (
-                        <span>Loading...</span>
-                      ) : (
-                        <>
-                          <Icon>download</Icon>
-                          <span>Load</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      <div className="measurement-list">
-        {measurements.length === 0 ? (
-          <div className="measurement-empty">
-            No measurements loaded yet.
-          </div>
-        ) : (
-          measurements.map((trace) => (
-            <div className="measurement-item" key={trace.id}>
-              <label className="measurement-toggle">
-                <input
-                  type="checkbox"
-                  checked={trace.visible}
-                  onChange={() => onToggleMeasurement(trace.id)}
-                />
-                <span className="measurement-swatch" style={{ backgroundColor: trace.color }} />
-                <span className="measurement-meta">
-                  <span className="measurement-name">{trace.name}</span>
-                  <span className="measurement-points">{trace.points.length} points</span>
-                </span>
-              </label>
-              <button
-                className="measurement-delete"
-                title={`Delete ${trace.name}`}
-                onClick={() => onRemoveMeasurement(trace.id)}
-              >
-                <Icon>delete</Icon>
-              </button>
-            </div>
-          ))
-        )}
-      </div>
-
-      {measurements.length > 0 && (
-        <button className="btn" onClick={onClearMeasurements}>Clear All</button>
-      )}
+      </section>
     </div>
   );
 }
@@ -810,8 +813,8 @@ function ImportTab({ peq, profiles, onImportPEQ, onReloadProfiles, setStatus }: 
   const activeFilters = parsed.peq.filters.filter((f) => f.enabled);
 
   return (
-    <div className="import-flow">
-      <div className="import-flow-header">
+    <div className="import-flow tool-card">
+      <div className="tool-card-head">
         <strong>Import Profile</strong>
       </div>
 
@@ -1007,138 +1010,148 @@ export function AutoEqTab({
   if (measurements.length === 0) {
     return (
       <div className="autoeq-tab">
-        <div className="measurements-intro">
-          <strong>AutoEQ Match</strong>
-          <p>Optimize parametric EQ filters using glacier-core's optimization engine to match target curves.</p>
-        </div>
-        <div className="empty-profiles" style={{ padding: "16px 0", textAlign: "center" }}>
-          <p style={{ color: "var(--muted)", marginBottom: "12px", fontSize: "var(--type-label)" }}>
-            No measurement traces loaded.
-          </p>
+        <section className="tool-card empty-tool-card">
+          <div className="tool-card-head">
+            <strong>AutoEQ Match</strong>
+          </div>
+          <p className="card-note">Optimize parametric EQ filters against a target curve.</p>
+          <div className="empty-profiles">No measurement traces loaded.</div>
           {onSelectTab && (
             <button className="btn" onClick={() => onSelectTab("Measure")}>
               Go to Measure Tab
             </button>
           )}
-        </div>
+        </section>
       </div>
     );
   }
 
   return (
     <div className="autoeq-tab">
-      <div className="measurements-intro">
-        <strong>AutoEQ Match</strong>
-        <p>Run the native AdaBelief optimizer to fit biquad filters to a target curve.</p>
-      </div>
-
-      <div className="import-field-group">
-        <label htmlFor="autoeq-meas">Source Measurement</label>
-        <Select
-          id="autoeq-meas"
-          value={selectedMeasId}
-          onChange={setSelectedMeasId}
-          options={[
-            { value: "", label: "-- Select measurement --" },
-            ...measurements.map((m) => ({
-              value: m.id,
-              label: `${m.name} (${m.points.length} pts)`,
-            })),
-          ]}
-        />
-      </div>
-
-      <div className="import-field-group">
-        <label htmlFor="autoeq-target">Target Reference</label>
-        <Select
-          id="autoeq-target"
-          value={selectedTargetId}
-          onChange={setSelectedTargetId}
-          options={allTargets.map((t) => ({
-            value: t.id,
-            label: t.name,
-          }))}
-        />
-      </div>
-
-      <div className="import-field-group">
-        <label htmlFor="autoeq-bands">Bands Count</label>
-        <NumberInput
-          id="autoeq-bands"
-          value={nBands}
-          min={1}
-          max={32}
-          onChange={setNBands}
-          className="autoeq-bands-stepper"
-        />
-      </div>
-
-      <div className="import-field-group">
-        <label>Treble Smoothing</label>
-        <div className="smooth-buttons">
-          <button
-            className={smoothType === "None" ? "active" : ""}
-            onClick={() => setSmoothType("None")}
-          >
-            None
-          </button>
-          <button
-            className={smoothType === "IE" ? "active" : ""}
-            onClick={() => setSmoothType("IE")}
-          >
-            IE (In-Ear)
-          </button>
-          <button
-            className={smoothType === "OE" ? "active" : ""}
-            onClick={() => setSmoothType("OE")}
-          >
-            OE (Over-Ear)
-          </button>
+      <section className="tool-card">
+        <div className="tool-card-head">
+          <strong>AutoEQ Match</strong>
+          <span>{measurements.length} source{measurements.length === 1 ? "" : "s"}</span>
         </div>
-      </div>
+        <p className="card-note">Run the native AdaBelief optimizer to fit biquad filters to a target curve.</p>
+      </section>
 
-      <div className="import-field-group">
-        <label htmlFor="autoeq-steps">Optimizer Steps</label>
-        <Select
-          id="autoeq-steps"
-          value={steps}
-          onChange={setSteps}
-          options={[
-            { value: 500, label: "500 (Fast)" },
-            { value: 1000, label: "1000" },
-            { value: 2000, label: "2000 (Standard)" },
-            { value: 3000, label: "3000" },
-            { value: 5000, label: "5000 (Precise)" },
-          ]}
-        />
-      </div>
+      <section className="tool-card">
+        <div className="tool-card-head">
+          <strong>Match Setup</strong>
+        </div>
+        <div className="autoeq-form-grid">
+          <div className="import-field-group">
+            <label htmlFor="autoeq-meas">Source Measurement</label>
+            <Select
+              id="autoeq-meas"
+              value={selectedMeasId}
+              onChange={setSelectedMeasId}
+              options={[
+                { value: "", label: "-- Select measurement --" },
+                ...measurements.map((m) => ({
+                  value: m.id,
+                  label: `${m.name} (${m.points.length} pts)`,
+                })),
+              ]}
+            />
+          </div>
 
-      <div className="import-field-group">
-        <label htmlFor="autoeq-fs">Sample Rate</label>
-        <Select
-          id="autoeq-fs"
-          value={fs}
-          onChange={setFs}
-          options={[
-            { value: 44100, label: "44.1 kHz" },
-            { value: 48000, label: "48.0 kHz" },
-            { value: 96000, label: "96.0 kHz" },
-          ]}
-        />
-      </div>
+          <div className="import-field-group">
+            <label htmlFor="autoeq-target">Target Reference</label>
+            <Select
+              id="autoeq-target"
+              value={selectedTargetId}
+              onChange={setSelectedTargetId}
+              options={allTargets.map((t) => ({
+                value: t.id,
+                label: t.name,
+              }))}
+            />
+          </div>
 
-      <button
-        className="btn filled autoeq-run-btn"
-        disabled={isOptimizing}
-        onClick={handleRunAutoEq}
-      >
-        <Icon>{isOptimizing ? "hourglass_empty" : "bolt"}</Icon>
-        <span>{isOptimizing ? "Optimizing..." : "Run Match"}</span>
-      </button>
+          <div className="import-field-group">
+            <label htmlFor="autoeq-bands">Bands Count</label>
+            <NumberInput
+              id="autoeq-bands"
+              value={nBands}
+              min={1}
+              max={32}
+              onChange={setNBands}
+              className="autoeq-bands-stepper"
+            />
+          </div>
+
+          <div className="import-field-group">
+            <label>Treble Smoothing</label>
+            <div className="smooth-buttons">
+              <button
+                className={smoothType === "None" ? "active" : ""}
+                onClick={() => setSmoothType("None")}
+              >
+                None
+              </button>
+              <button
+                className={smoothType === "IE" ? "active" : ""}
+                onClick={() => setSmoothType("IE")}
+              >
+                IE
+              </button>
+              <button
+                className={smoothType === "OE" ? "active" : ""}
+                onClick={() => setSmoothType("OE")}
+              >
+                OE
+              </button>
+            </div>
+          </div>
+
+          <div className="import-field-group">
+            <label htmlFor="autoeq-steps">Optimizer Steps</label>
+            <Select
+              id="autoeq-steps"
+              value={steps}
+              onChange={setSteps}
+              options={[
+                { value: 500, label: "500 (Fast)" },
+                { value: 1000, label: "1000" },
+                { value: 2000, label: "2000 (Standard)" },
+                { value: 3000, label: "3000" },
+                { value: 5000, label: "5000 (Precise)" },
+              ]}
+            />
+          </div>
+
+          <div className="import-field-group">
+            <label htmlFor="autoeq-fs">Sample Rate</label>
+            <Select
+              id="autoeq-fs"
+              value={fs}
+              onChange={setFs}
+              options={[
+                { value: 44100, label: "44.1 kHz" },
+                { value: 48000, label: "48.0 kHz" },
+                { value: 96000, label: "96.0 kHz" },
+              ]}
+            />
+          </div>
+        </div>
+
+        <button
+          className="btn filled autoeq-run-btn"
+          disabled={isOptimizing}
+          onClick={handleRunAutoEq}
+        >
+          <Icon>{isOptimizing ? "hourglass_empty" : "bolt"}</Icon>
+          <span>{isOptimizing ? "Optimizing..." : "Run Match"}</span>
+        </button>
+      </section>
 
       {warnings.length > 0 && (
-        <div className="import-warnings-section" style={{ marginTop: "8px" }}>
-          <span>Device Range Adjustments:</span>
+        <section className="tool-card import-warnings-section">
+          <div className="tool-card-head">
+            <strong>Device Range Adjustments</strong>
+          </div>
           <div className="import-warnings-box">
             {warnings.map((w, idx) => (
               <div key={idx} className="warning-line">
@@ -1146,7 +1159,7 @@ export function AutoEqTab({
               </div>
             ))}
           </div>
-        </div>
+        </section>
       )}
     </div>
   );
@@ -1165,86 +1178,96 @@ function SettingsTab({
 }) {
   return (
     <div className="settings-list">
-      <label>
-        <input
-          type="checkbox"
-          checked={settings.auto_pull_on_connect}
-          onChange={(e) => onSettingChange("auto_pull_on_connect", e.target.checked)}
-        />
-        Auto-pull EQ from device on connect
-      </label>
-      <label>
-        <input
-          type="checkbox"
-          checked={settings.skip_push_verification}
-          onChange={(e) => onSettingChange("skip_push_verification", e.target.checked)}
-        />
-        Skip push verification
-      </label>
-      <label>
-        <input
-          type="checkbox"
-          checked={settings.show_diagnostics}
-          onChange={(e) => onSettingChange("show_diagnostics", e.target.checked)}
-        />
-        Show diagnostic log panel
-      </label>
-      <label>
-        <input
-          type="checkbox"
-          checked={settings.snap_to_iso_frequencies}
-          onChange={(e) => onSettingChange("snap_to_iso_frequencies", e.target.checked)}
-        />
-        Snap frequency to ISO standard values
-      </label>
-      <label>
-        <input
-          type="checkbox"
-          checked={settings.enable_online_measurements}
-          onChange={(e) => onSettingChange("enable_online_measurements", e.target.checked)}
-        />
-        Enable online measurement database (Squiglink)
-      </label>
-
-      <div className="setting-row">
-        <span className="setting-label">Color Theme</span>
-        <div className="setting-select-wrapper">
-          <Select
-            id="theme-select"
-            value={settings.theme}
-            onChange={(val) => onSettingChange("theme", val)}
-            options={[
-              { value: "auto", label: "Auto (System Theme)" },
-              { value: "tokyo-night", label: "Tokyo Night" },
-              { value: "nord", label: "Nord" },
-              { value: "dracula", label: "Dracula" },
-              { value: "gruvbox", label: "Gruvbox Dark" },
-              { value: "catppuccin-mocha", label: "Catppuccin Mocha" },
-              { value: "catppuccin-latte", label: "Catppuccin Latte (Light)" },
-            ]}
-          />
+      <section className="tool-card">
+        <div className="tool-card-head">
+          <strong>Behavior</strong>
         </div>
-      </div>
+        <label>
+          <input
+            type="checkbox"
+            checked={settings.auto_pull_on_connect}
+            onChange={(e) => onSettingChange("auto_pull_on_connect", e.target.checked)}
+          />
+          Auto-pull EQ from device on connect
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={settings.skip_push_verification}
+            onChange={(e) => onSettingChange("skip_push_verification", e.target.checked)}
+          />
+          Skip push verification
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={settings.snap_to_iso_frequencies}
+            onChange={(e) => onSettingChange("snap_to_iso_frequencies", e.target.checked)}
+          />
+          Snap frequency to ISO standard values
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={settings.enable_online_measurements}
+            onChange={(e) => onSettingChange("enable_online_measurements", e.target.checked)}
+          />
+          Enable online measurement database
+        </label>
+      </section>
 
-      {graphViewMode && onGraphViewModeChange && (
+      <section className="tool-card">
+        <div className="tool-card-head">
+          <strong>Interface</strong>
+        </div>
+        <label>
+          <input
+            type="checkbox"
+            checked={settings.show_diagnostics}
+            onChange={(e) => onSettingChange("show_diagnostics", e.target.checked)}
+          />
+          Show diagnostic log panel
+        </label>
         <div className="setting-row">
-          <span className="setting-label">Graph View</span>
-          <div className="graph-view-toggle">
-            <button
-              className={graphViewMode === "shape" ? "active" : ""}
-              onClick={() => onGraphViewModeChange("shape")}
-            >
-              Shape
-            </button>
-            <button
-              className={graphViewMode === "level" ? "active" : ""}
-              onClick={() => onGraphViewModeChange("level")}
-            >
-              Level
-            </button>
+          <span className="setting-label">Color Theme</span>
+          <div className="setting-select-wrapper">
+            <Select
+              id="theme-select"
+              value={settings.theme}
+              onChange={(val) => onSettingChange("theme", val)}
+              options={[
+                { value: "auto", label: "Auto (System Theme)" },
+                { value: "tokyo-night", label: "Tokyo Night" },
+                { value: "nord", label: "Nord" },
+                { value: "dracula", label: "Dracula" },
+                { value: "gruvbox", label: "Gruvbox Dark" },
+                { value: "catppuccin-mocha", label: "Catppuccin Mocha" },
+                { value: "catppuccin-latte", label: "Catppuccin Latte (Light)" },
+              ]}
+            />
           </div>
         </div>
-      )}
+
+        {graphViewMode && onGraphViewModeChange && (
+          <div className="setting-row">
+            <span className="setting-label">Graph View</span>
+            <div className="graph-view-toggle">
+              <button
+                className={graphViewMode === "shape" ? "active" : ""}
+                onClick={() => onGraphViewModeChange("shape")}
+              >
+                Shape
+              </button>
+              <button
+                className={graphViewMode === "level" ? "active" : ""}
+                onClick={() => onGraphViewModeChange("level")}
+              >
+                Level
+              </button>
+            </div>
+          </div>
+        )}
+      </section>
     </div>
   );
 }
@@ -1336,111 +1359,129 @@ function DeviceTab({ setStatus }: { setStatus: (msg: string) => void }) {
   };
 
   if (loading) {
-    return <div className="settings-list device-utility">Loading device status...</div>;
+    return (
+      <div className="settings-list device-utility">
+        <section className="tool-card">
+          <div className="device-empty">Loading device status...</div>
+        </section>
+      </div>
+    );
   }
 
   if (!utility?.supported) {
     return (
       <div className="settings-list device-utility">
-        <div className="device-empty">
-          <Icon>tune</Icon>
-          <strong>No supported hardware PEQ DAC connected.</strong>
-          <span>Connect a supported Savitech DSP DAC.</span>
-        </div>
+        <section className="tool-card">
+          <div className="device-empty">
+            <Icon>tune</Icon>
+            <strong>No supported hardware PEQ DAC connected.</strong>
+            <span>Connect a supported Savitech DSP DAC.</span>
+          </div>
+        </section>
       </div>
     );
   }
 
   return (
     <div className="settings-list device-utility">
-      <div className="tool-section-head">
-        <strong>Hardware DSP</strong>
-        <span>Device controls</span>
-      </div>
+      <section className="tool-card">
+        <div className="tool-card-head">
+          <strong>Hardware DSP</strong>
+          <span>Device controls</span>
+        </div>
 
-      <div className="setting-row">
-        <span className="setting-label">Filter Mode</span>
-        <div className="setting-select-wrapper">
-          <Select
-            id="utility-filter-select"
-            value={utility.filter_mode}
-            onChange={handleSetFilter}
-            options={[
-              { value: "FAST-LL", label: "FAST-LL" },
-              { value: "FAST-PC", label: "FAST-PC" },
-              { value: "Slow-LL", label: "Slow-LL" },
-              { value: "Slow-PC", label: "Slow-PC" },
-              { value: "NON-OS", label: "NON-OS" },
-            ]}
+        <div className="setting-row">
+          <span className="setting-label">Filter Mode</span>
+          <div className="setting-select-wrapper">
+            <Select
+              id="utility-filter-select"
+              value={utility.filter_mode}
+              onChange={handleSetFilter}
+              options={[
+                { value: "FAST-LL", label: "FAST-LL" },
+                { value: "FAST-PC", label: "FAST-PC" },
+                { value: "Slow-LL", label: "Slow-LL" },
+                { value: "Slow-PC", label: "Slow-PC" },
+                { value: "NON-OS", label: "NON-OS" },
+              ]}
+            />
+          </div>
+        </div>
+        <div className="device-hint">
+          {utility.filter_mode === "FAST-LL" && "FAST-LL: Minimizes pre-ringing, warm and punchy sound."}
+          {utility.filter_mode === "FAST-PC" && "FAST-PC: Preserves phase linearity, clean and balanced sound."}
+          {utility.filter_mode === "Slow-LL" && "Slow-LL: Gentle high-frequency roll-off, warm and relaxed sound."}
+          {utility.filter_mode === "Slow-PC" && "Slow-PC: Phase linearity with a gentler high-frequency roll-off."}
+          {utility.filter_mode === "NON-OS" && "NON-OS: Bypasses digital interpolation. Pure, raw analog signature."}
+        </div>
+
+        <label>
+          <input
+            type="checkbox"
+            checked={utility.amp_mode_class_ab}
+            onChange={(e) => handleSetAmpMode(e.target.checked)}
+          />
+          Amplifier Class AB
+        </label>
+
+        <label>
+          <input
+            type="checkbox"
+            checked={utility.high_gain_mode}
+            onChange={(e) => handleSetOutputGain(e.target.checked)}
+          />
+          Hardware High Gain
+        </label>
+      </section>
+
+      <section className="tool-card">
+        <div className="tool-card-head">
+          <strong>Output Controls</strong>
+        </div>
+
+        <div className="setting-row device-range-row">
+          <div className="device-range-head">
+            <span className="setting-label">Channel Balance</span>
+            <span className="device-value">
+              {utility.channel_balance === 0 ? "Center (0)" : utility.channel_balance > 0 ? `L +${utility.channel_balance}` : `R +${Math.abs(utility.channel_balance)}`}
+            </span>
+          </div>
+          <Slider
+            min="-15"
+            max="15"
+            step="1"
+            value={utility.channel_balance}
+            onChange={(e) => handleSetBalance(Number(e.target.value))}
           />
         </div>
-      </div>
-      <div className="device-hint">
-        {utility.filter_mode === "FAST-LL" && "FAST-LL: Minimizes pre-ringing, warm and punchy sound."}
-        {utility.filter_mode === "FAST-PC" && "FAST-PC: Preserves phase linearity, clean and balanced sound."}
-        {utility.filter_mode === "Slow-LL" && "Slow-LL: Gentle high-frequency roll-off, warm and relaxed sound."}
-        {utility.filter_mode === "Slow-PC" && "Slow-PC: Phase linearity with a gentler high-frequency roll-off."}
-        {utility.filter_mode === "NON-OS" && "NON-OS: Bypasses digital interpolation. Pure, raw analog signature."}
-      </div>
 
-      <div className="setting-row">
-        <span className="setting-label">Amplifier Class AB</span>
-        <input
-          type="checkbox"
-          checked={utility.amp_mode_class_ab}
-          onChange={(e) => handleSetAmpMode(e.target.checked)}
-        />
-      </div>
-
-      <div className="setting-row">
-        <span className="setting-label">Hardware High Gain</span>
-        <input
-          type="checkbox"
-          checked={utility.high_gain_mode}
-          onChange={(e) => handleSetOutputGain(e.target.checked)}
-        />
-      </div>
-
-      <div className="setting-row device-range-row">
-        <div className="device-range-head">
-          <span className="setting-label">Channel Balance</span>
-          <span className="device-value">
-            {utility.channel_balance === 0 ? "Center (0)" : utility.channel_balance > 0 ? `L +${utility.channel_balance}` : `R +${Math.abs(utility.channel_balance)}`}
-          </span>
+        <div className="setting-row device-range-row">
+          <div className="device-range-head">
+            <span className="setting-label">Microphone Monitor Loopback</span>
+            <span className="device-value">
+              {utility.mic_volume_db} dB
+            </span>
+          </div>
+          <Slider
+            min="-15"
+            max="15"
+            step="1"
+            value={utility.mic_volume_db}
+            onChange={(e) => handleSetMicVolume(Number(e.target.value))}
+          />
         </div>
-        <Slider
-          min="-15"
-          max="15"
-          step="1"
-          value={utility.channel_balance}
-          onChange={(e) => handleSetBalance(Number(e.target.value))}
-        />
-      </div>
+      </section>
 
-      <div className="setting-row device-range-row">
-        <div className="device-range-head">
-          <span className="setting-label">Microphone Monitor Loopback</span>
-          <span className="device-value">
-            {utility.mic_volume_db} dB
-          </span>
+      <section className="tool-card">
+        <div className="tool-card-head">
+          <strong>Reset Device</strong>
         </div>
-        <Slider
-          min="-15"
-          max="15"
-          step="1"
-          value={utility.mic_volume_db}
-          onChange={(e) => handleSetMicVolume(Number(e.target.value))}
-        />
-      </div>
-
-      <div className="setting-row">
-        <span className="setting-label">Reset</span>
         <div className="action-row action-row-primary">
           <button className="btn" onClick={handleResetDeviceEq}>EQ</button>
           <button className="btn" onClick={handleResetDeviceControls}>Controls</button>
           <button className="btn danger" onClick={handleFactoryReset}>Factory</button>
         </div>
-      </div>
+      </section>
     </div>
   );
 }
