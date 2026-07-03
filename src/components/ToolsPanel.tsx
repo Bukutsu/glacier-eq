@@ -106,6 +106,7 @@ interface ToolsPanelProps {
   onApplyProfile?: (profile: Profile) => void;
   onReloadProfiles: () => void;
   onOpenProfilesDir: () => void;
+  hideProfileFolderButton?: boolean;
   onReset: () => void;
   onSave: () => void;
   onDelete: () => void;
@@ -559,6 +560,7 @@ function PresetTab({
   onApplyProfile,
   onReloadProfiles,
   onOpenProfilesDir,
+  hideProfileFolderButton,
   onReset,
   onSave,
   onDelete,
@@ -578,7 +580,9 @@ function PresetTab({
         </div>
         <div className="profile-card-tools">
           <button title="Reload profiles" aria-label="Reload profiles" onClick={onReloadProfiles}><Icon>refresh</Icon></button>
-          <button title="Open profiles folder" aria-label="Open profiles folder" onClick={onOpenProfilesDir}><Icon>folder</Icon></button>
+          {!hideProfileFolderButton && (
+            <button title="Open profiles folder" aria-label="Open profiles folder" onClick={onOpenProfilesDir}><Icon>folder</Icon></button>
+          )}
         </div>
       </div>
 
