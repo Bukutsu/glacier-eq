@@ -232,3 +232,7 @@ h1 {
     opacity: 0.6;
   }
 }
+
+.mobile-toolbar {
+  display: none;
+}
