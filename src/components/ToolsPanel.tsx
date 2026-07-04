@@ -17,11 +17,7 @@ import {
 
 const DEFAULT_PROFILE_NAME = "Default EQ";
 
-async function readClipboardTextOrThrow(): Promise<string> {
-  const text = await readText();
-  if (!text.trim()) throw new Error("Clipboard is empty or not text.");
-  return text;
-}
+
 
 interface SelectOption<T extends string | number> {
   value: T;
@@ -463,7 +459,8 @@ function ImportTab({ peq, profiles, onImportPEQ, onReloadProfiles, setStatus }: 
 
   const handlePaste = async () => {
     try {
-      const text = await readClipboardTextOrThrow();
+      const text = await readText();
+      if (!text.trim()) throw new Error("Clipboard is empty.");
       await parseAndLoadText(text, `Pasted ${new Date().toLocaleDateString()}`);
     } catch (err) {
       setStatus("Unable to read clipboard. Check permissions.");

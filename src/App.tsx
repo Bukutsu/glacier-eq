@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { invoke, listen, readText } from "./lib/rpc";
+import { invoke, listen } from "./lib/rpc";
 import { Bands } from "./components/Bands";
 import { DeviceChooser } from "./components/DeviceChooser";
 import { EqGraph } from "./components/EqGraph";
@@ -510,21 +510,7 @@ function App() {
     event.target.value = "";
   };
 
-  const handlePasteMeasurement = async () => {
-    try {
-      const text = await readText();
-      if (!text.trim()) {
-        setStatus("Unable to read clipboard: empty or not text.");
-        return;
-      }
-      const points = parseMeasurementText(text);
-      const name = `Clipboard ${new Date().toLocaleDateString()}`;
-      addMeasurement(name, points);
-      setStatus(`Loaded measurement from clipboard (${points.length} points)`);
-    } catch {
-      setStatus("Unable to read clipboard. Check permissions.");
-    }
-  };
+
 
   const handleImportTargetFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -1449,10 +1435,6 @@ function App() {
                         <Icon>playlist_add</Icon>
                         <span>Add Measurement</span>
                       </button>
-                      <button className="icon-action" onClick={handlePasteMeasurement}>
-                        <Icon>content_paste</Icon>
-                        <span>Paste Trace</span>
-                      </button>
                       <button className="icon-action" onClick={() => targetFileInputRef.current?.click()}>
                         <Icon>add_box</Icon>
                         <span>Add Target</span>
@@ -1689,10 +1671,6 @@ function App() {
                 <button className="icon-action" onClick={() => measurementFileInputRef.current?.click()}>
                   <Icon>playlist_add</Icon>
                   <span>Add Measurement</span>
-                </button>
-                <button className="icon-action" onClick={handlePasteMeasurement}>
-                  <Icon>content_paste</Icon>
-                  <span>Paste Trace</span>
                 </button>
                 <button className="icon-action" onClick={() => targetFileInputRef.current?.click()}>
                   <Icon>add_box</Icon>
