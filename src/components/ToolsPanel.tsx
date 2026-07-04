@@ -4,6 +4,7 @@ import { invoke, listen, readText, writeText, save } from "../lib/rpc";
 
 import type { AppSettings, MeasurementTrace, Profile, PEQData, GraphViewMode, TargetTrace } from "../types";
 import { Icon } from "./Icon";
+import { TargetSelector } from "./TargetSelector";
 import { NumberInput } from "./NumberInput";
 import { Slider } from "./Slider";
 import {
@@ -77,11 +78,12 @@ function Select<T extends string | number>({
 }
 
 
-type ToolsTab = "Preset" | "Import" | "Measure" | "AutoEQ" | "Device" | "Settings";
+type ToolsTab = "Preset" | "Import" | "Measure" | "AutoEQ" | "Device" | "Settings" | "Curves";
 
 const TOOL_TAB_META: Record<ToolsTab, { icon: string; label: string }> = {
   Preset: { icon: "library_music", label: "Preset" },
   Import: { icon: "file_upload", label: "Import" },
+  Curves: { icon: "analytics", label: "Curves" },
   Measure: { icon: "analytics", label: "Measure" },
   AutoEQ: { icon: "auto_awesome", label: "AutoEQ" },
   Device: { icon: "tune", label: "Device" },
@@ -127,6 +129,10 @@ interface ToolsPanelProps {
   onEnableOnlineMeasurementsChange?: (enable: boolean) => void;
   settings: AppSettings;
   onSettingChange: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
+  onToggleTarget?: (id: string) => void;
+  onRemoveTarget?: (id: string) => void;
+  onAddMeasurementFile?: () => void;
+  onAddTargetFile?: () => void;
 }
 
 export function ToolsPanel(props: ToolsPanelProps) {
@@ -178,6 +184,20 @@ export function ToolsPanel(props: ToolsPanelProps) {
               setStatus={props.setStatus}
               onSelectTab={setTab}
               onSelectedMeasurementChange={props.onSelectedMeasurementChange}
+            />
+          )}
+          {tab === "Curves" && (
+            <CurvesTab
+              measurements={props.measurements}
+              onRemoveMeasurement={props.onRemoveMeasurement}
+              onToggleMeasurement={props.onToggleMeasurement}
+              onClearMeasurements={props.onClearMeasurements}
+              allTargets={props.allTargets ?? []}
+              activeTargetIds={props.activeTargetIds ?? []}
+              onToggleTarget={props.onToggleTarget ?? (() => {})}
+              onRemoveTarget={props.onRemoveTarget ?? (() => {})}
+              onAddMeasurementFile={props.onAddMeasurementFile ?? (() => {})}
+              onAddTargetFile={props.onAddTargetFile ?? (() => {})}
             />
           )}
           {tab === "Measure" && <MeasureTab
@@ -291,6 +311,102 @@ export function MeasureTab({
           )}
         </div>
       </section>
+    </div>
+  );
+}
+
+interface CurvesTabProps {
+  measurements: MeasurementTrace[];
+  onRemoveMeasurement: (id: string) => void;
+  onToggleMeasurement: (id: string) => void;
+  onClearMeasurements: () => void;
+  allTargets: TargetTrace[];
+  activeTargetIds: string[];
+  onToggleTarget: (id: string) => void;
+  onRemoveTarget: (id: string) => void;
+  onAddMeasurementFile: () => void;
+  onAddTargetFile: () => void;
+}
+
+function CurvesTab({
+  measurements,
+  onRemoveMeasurement,
+  onToggleMeasurement,
+  onClearMeasurements,
+  allTargets,
+  activeTargetIds,
+  onToggleTarget,
+  onRemoveTarget,
+  onAddMeasurementFile,
+  onAddTargetFile,
+}: CurvesTabProps) {
+  return (
+    <div className="curves-tab">
+      <div className="unified-curves-import-grid">
+        <button className="icon-action" onClick={onAddMeasurementFile}>
+          <Icon>playlist_add</Icon>
+          <span>Add Measurement</span>
+        </button>
+        <button className="icon-action" onClick={onAddTargetFile}>
+          <Icon>add_box</Icon>
+          <span>Add Target</span>
+        </button>
+      </div>
+      <div className="traces-targets-merged">
+        <div className="traces-section">
+          <div className="traces-section-title">
+            <Icon>query_stats</Icon>
+            <span>Measurements</span>
+          </div>
+          <div className="curve-list">
+            {measurements.length === 0 ? (
+              <div className="curve-empty">No measurements loaded.</div>
+            ) : (
+              measurements.map((trace) => (
+                <div className="curve-item" key={trace.id}>
+                  <label className="curve-toggle">
+                    <input
+                      type="checkbox"
+                      checked={trace.visible}
+                      onChange={() => onToggleMeasurement(trace.id)}
+                    />
+                    <span className="curve-swatch" style={{ backgroundColor: trace.color }} />
+                    <span className="curve-name">
+                      {trace.name}
+                      <span className="curve-points">({trace.points.length} pts)</span>
+                    </span>
+                  </label>
+                  <button
+                    className="curve-delete"
+                    title={`Delete ${trace.name}`}
+                    onClick={() => onRemoveMeasurement(trace.id)}
+                  >
+                    <Icon>delete</Icon>
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+          {measurements.length > 0 && (
+            <button className="tool-link-button danger" style={{ marginTop: 6 }} onClick={onClearMeasurements}>
+              Clear All
+            </button>
+          )}
+        </div>
+        <div className="traces-divider" />
+        <div className="traces-section">
+          <div className="traces-section-title">
+            <Icon>track_changes</Icon>
+            <span>Targets</span>
+          </div>
+          <TargetSelector
+            targets={allTargets}
+            activeTargetIds={activeTargetIds}
+            onToggleTarget={onToggleTarget}
+            onRemoveTarget={onRemoveTarget}
+          />
+        </div>
+      </div>
     </div>
   );
 }
