@@ -19,6 +19,12 @@
     grid-template-rows: 1fr;
     overflow: visible;
   }
+  .tools-card {
+    overflow: visible;
+  }
+  .tabs {
+    position: static;
+  }
   .right-rail.has-diagnostics {
     grid-template-rows: auto auto;
   }
