@@ -819,27 +819,6 @@
     width: 180px !important;
   }
 
-  @media (min-width: 560px) {
-    .tab-panel:has(.profile-card):has(.import-section) {
-      display: grid !important;
-      grid-template-columns: 1fr 1fr !important;
-      gap: 16px !important;
-      align-items: start !important;
-    }
-  }
-
-  /* Make save action button icon-only on mobile to give rename input more space */
-  .profile-rename-row .profile-management-actions {
-    grid-template-columns: repeat(3, 38px) !important;
-    flex: 0 0 130px !important;
-  }
-  .profile-management-actions button.save span {
-    display: none !important;
-  }
-  .profile-management-actions button.save {
-    padding: 0 !important;
-    justify-content: center !important;
-  }
 }
 
 @media (max-width: 560px) {
