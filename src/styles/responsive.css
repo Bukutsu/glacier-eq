@@ -814,6 +814,10 @@
   .settings-list label + .setting-row {
     border-top: 1px solid var(--line-subtle) !important;
   }
+
+  .settings-list .setting-select-wrapper {
+    width: 180px !important;
+  }
 }
 
 @media (max-width: 560px) {
