@@ -494,11 +494,14 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 .transfer-actions .icon-action {
   min-width: 0;
   min-height: 40px;
-  padding: 0 10px;
+  padding: 0 8px;
   background: var(--surface-soft);
   color: var(--muted);
   outline: 1px solid var(--line-medium);
   justify-content: center;
+  white-space: nowrap;
+  overflow: hidden;
+  font-size: var(--type-small);
 }
 
 .transfer-actions .icon-action:hover {
