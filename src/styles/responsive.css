@@ -199,7 +199,7 @@
     right: 0;
     background: var(--legend-bg);
     border: 1px solid var(--line-outline);
-    border-radius: 8px;
+    border-radius: var(--radius-surface);
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
     backdrop-filter: blur(12px);
     z-index: 110;
@@ -273,7 +273,7 @@
     padding: 8px 12px;
     background: var(--legend-bg);
     border: 1px solid var(--line-outline);
-    border-radius: 4px;
+    border-radius: var(--radius-surface);
     backdrop-filter: blur(12px);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
     margin-top: 0;
@@ -289,7 +289,7 @@
     right: 8px;
     width: 32px;
     height: 32px;
-    border-radius: 4px;
+    border-radius: var(--radius-control);
     background: var(--surface-soft);
     border: 1px solid var(--line-outline);
     color: var(--text);
@@ -753,7 +753,7 @@
   .tuning-card,
   .diag-card,
   .mobile-filter-card {
-    border-radius: 12px !important;
+    border-radius: var(--radius-surface) !important;
     border: 1px solid var(--line-soft) !important;
     background: var(--panel) !important;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
