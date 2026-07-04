@@ -416,7 +416,6 @@ function PresetTab({
   selectedPreset,
   profileSearch,
   setProfileSearch,
-  newProfileName,
   setNewProfileName,
   onSelectProfile,
   onApplyProfile,
@@ -429,9 +428,28 @@ function PresetTab({
   showActions,
 }: ToolsPanelProps) {
   const query = profileSearch.trim().toLowerCase();
-  const filteredProfiles = profiles.filter((profile) => !query || profile.name.toLowerCase().includes(query));
-  const selectedProfile = profiles.find((profile) => profile.name === selectedPreset);
-  const canDelete = selectedPreset !== DEFAULT_PROFILE_NAME && profiles.some((profile) => profile.name === selectedPreset);
+  const filteredProfiles = profiles.filter(
+    (p) => !query || p.name.toLowerCase().includes(query)
+  );
+  const selectedProfile = profiles.find((p) => p.name === selectedPreset);
+  const canDelete =
+    selectedPreset !== DEFAULT_PROFILE_NAME &&
+    profiles.some((p) => p.name === selectedPreset);
+  const isOverwrite = profiles.some(
+    (p) => p.name.toLowerCase() === profileSearch.trim().toLowerCase()
+  );
+
+  // Keep newProfileName in sync with the shared input
+  const handleInputChange = (value: string) => {
+    setProfileSearch(value);
+    setNewProfileName(value);
+  };
+
+  const handleSelectProfile = (profile: typeof profiles[0]) => {
+    onSelectProfile(profile);
+    setProfileSearch(profile.name);
+    setNewProfileName(profile.name);
+  };
 
   return (
     <section className="profile-card">
@@ -441,73 +459,79 @@ function PresetTab({
           <span>{profiles.length} saved</span>
         </div>
         <div className="profile-card-tools">
-          <button title="Reload profiles" aria-label="Reload profiles" onClick={onReloadProfiles}><Icon>refresh</Icon></button>
+          <button title="Reload profiles" aria-label="Reload profiles" onClick={onReloadProfiles}>
+            <Icon>refresh</Icon>
+          </button>
           {!hideProfileFolderButton && (
-            <button title="Open profiles folder" aria-label="Open profiles folder" onClick={onOpenProfilesDir}><Icon>folder</Icon></button>
+            <button title="Open profiles folder" aria-label="Open profiles folder" onClick={onOpenProfilesDir}>
+              <Icon>folder</Icon>
+            </button>
           )}
         </div>
       </div>
 
-      <input
-        className="profile-search"
-        placeholder="Search profiles…"
-        value={profileSearch}
-        onChange={(event) => setProfileSearch(event.target.value)}
-      />
+      {/* Merged search + name input */}
+      <div className="profile-smart-input-wrap">
+        <input
+          className="profile-search"
+          placeholder="Search or name a profile…"
+          value={profileSearch}
+          onChange={(e) => handleInputChange(e.target.value)}
+        />
+        {profileSearch.trim() && (
+          <span className={`profile-name-badge ${isOverwrite ? "overwrite" : "new"}`}>
+            {isOverwrite ? "Overwrite" : "New"}
+          </span>
+        )}
+      </div>
 
       <div className="preset-list">
         {filteredProfiles.length === 0 ? (
           <div className="empty-profiles">No profiles found</div>
-        ) : filteredProfiles.map((profile) => (
-          <div
-            key={profile.name}
-            className={selectedPreset === profile.name ? "profile-row selected" : "profile-row"}
-          >
-            <button className="profile-name-btn" onClick={() => onSelectProfile(profile)}>
-              {profile.name}
-            </button>
-            {onApplyProfile && (
-              <button
-                className="profile-apply-btn"
-                title="Apply to device RAM"
-                aria-label={`Apply ${profile.name} to device RAM`}
-                onClick={() => onApplyProfile(profile)}
-              >
-                <Icon>send</Icon>
-              </button>
-            )}
-          </div>
-        ))}
-      </div>
-
-      <div className="profile-rename-row">
-        <input
-          className="new-name"
-          placeholder="New Name…"
-          value={newProfileName}
-          onChange={(event) => setNewProfileName(event.target.value)}
-        />
-        {showActions !== false && (
-          <div className="profile-management-actions">
-            <button className="save primary-save" onClick={onSave} title="Save profile">
-              <Icon>save</Icon>
-              <span>Save</span>
-            </button>
-            <button className="icon-action profile-icon-action" title="Reset profile" aria-label="Reset profile" onClick={onReset}>
-              <Icon>restart_alt</Icon>
-            </button>
-            <button
-              className="icon-action profile-icon-action danger"
-              title="Delete profile"
-              aria-label="Delete profile"
-              disabled={!canDelete}
-              onClick={onDelete}
+        ) : (
+          filteredProfiles.map((profile) => (
+            <div
+              key={profile.name}
+              className={selectedPreset === profile.name ? "profile-row selected" : "profile-row"}
             >
-              <Icon>delete</Icon>
-            </button>
-          </div>
+              <button className="profile-name-btn" onClick={() => handleSelectProfile(profile)}>
+                {profile.name}
+              </button>
+              {onApplyProfile && (
+                <button
+                  className="profile-apply-btn"
+                  title="Apply to device RAM"
+                  aria-label={`Apply ${profile.name} to device RAM`}
+                  onClick={() => onApplyProfile(profile)}
+                >
+                  <Icon>send</Icon>
+                </button>
+              )}
+            </div>
+          ))
         )}
       </div>
+
+      {showActions !== false && (
+        <div className="profile-management-actions">
+          <button className="save primary-save" onClick={onSave} title="Save profile">
+            <Icon>save</Icon>
+            <span>Save</span>
+          </button>
+          <button className="icon-action profile-icon-action" title="Reset profile" aria-label="Reset profile" onClick={onReset}>
+            <Icon>restart_alt</Icon>
+          </button>
+          <button
+            className="icon-action profile-icon-action danger"
+            title="Delete profile"
+            aria-label="Delete profile"
+            disabled={!canDelete}
+            onClick={onDelete}
+          >
+            <Icon>delete</Icon>
+          </button>
+        </div>
+      )}
 
       <div className="profile-card-foot">
         <small className="modified">
