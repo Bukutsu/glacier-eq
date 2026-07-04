@@ -12,6 +12,8 @@
   width: 100%;
   min-height: 260px;
   flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
 .eq-canvas {
@@ -23,27 +25,28 @@
 }
 
 .graph-legend {
-  position: absolute;
-  top: 12px;
-  right: 12px;
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  max-width: 210px;
-  pointer-events: none;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  padding: 6px 12px;
+  background: var(--legend-bg);
+  border: 1px solid var(--line-outline);
+  border-radius: 4px;
+  margin-top: 8px;
+  z-index: 10;
 }
 
 .graph-legend-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  min-height: 24px;
-  padding: 0 8px;
-  background: var(--legend-bg);
+  gap: 10px;
+  min-height: 20px;
   color: var(--text);
   font-size: var(--type-small);
-  outline: 1px solid var(--line-outline);
-  backdrop-filter: blur(4px);
+  line-height: 1.4;
 }
 
 .graph-legend-item.target {
@@ -52,22 +55,27 @@
 
 .graph-legend-item.committed {
   color: var(--orange);
-  outline-color: rgb(var(--orange-rgb) / 0.52);
-  background: rgb(var(--bg-dark-rgb) / 0.92);
+}
+
+.graph-legend-item .raw-label {
+  opacity: 0.65;
 }
 
 .graph-legend-swatch {
-  width: 14px;
-  height: 3px;
-  flex: 0 0 14px;
+  width: 24px;
+  height: 8px;
+  flex: 0 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.graph-legend-swatch-dashed {
-  background: transparent;
-  height: 4px;
-  background-image: linear-gradient(to right, currentColor 0 70%, transparent 70% 100%);
-  background-size: 14px 4px;
-  background-repeat: repeat-x;
+.graph-legend-svg {
+  display: block;
+}
+
+.mobile-legend-toggle {
+  display: none;
 }
 
 .target-strip {

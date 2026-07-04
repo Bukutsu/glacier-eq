@@ -177,6 +177,50 @@
   .graph-legend {
     display: none;
   }
+  .graph-legend.mobile-open {
+    display: flex !important;
+    flex-direction: column;
+    position: absolute;
+    top: 48px;
+    right: 8px;
+    left: auto;
+    width: calc(100% - 16px);
+    max-width: 240px;
+    padding: 8px 12px;
+    background: var(--legend-bg);
+    border: 1px solid var(--line-outline);
+    border-radius: 4px;
+    backdrop-filter: blur(12px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+    margin-top: 0;
+    pointer-events: auto;
+    gap: 8px;
+  }
+  .mobile-legend-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 32px;
+    height: 32px;
+    border-radius: 4px;
+    background: var(--surface-soft);
+    border: 1px solid var(--line-outline);
+    color: var(--text);
+    cursor: pointer;
+    z-index: 15;
+    transition: all 0.2s ease;
+  }
+  .mobile-legend-toggle:active {
+    background: var(--surface);
+  }
+  .mobile-legend-toggle.active {
+    background: var(--cyan);
+    color: var(--bg-dark);
+    border-color: var(--cyan);
+  }
   .graph-legend-item {
     min-height: 22px;
     max-width: 100%;
@@ -780,8 +824,9 @@
   .mobile-graph-preview .eq-canvas {
     min-height: 100%;
   }
-  .mobile-graph-preview .graph-legend {
-    display: none;
+  .mobile-graph-preview .graph-legend,
+  .mobile-graph-preview .mobile-legend-toggle {
+    display: none !important;
   }
 
   .mobile-workspace .left-pane,
