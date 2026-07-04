@@ -492,8 +492,11 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 }
 
 .transfer-actions .icon-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   min-width: 0;
-  min-height: 40px;
+  min-height: 36px;
   padding: 0 8px;
   background: var(--surface-soft);
   color: var(--muted);
