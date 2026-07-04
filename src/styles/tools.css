@@ -1352,8 +1352,8 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 
 .traces-targets-merged {
   display: flex;
-  flex-direction: row;
-  gap: 24px;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .traces-section {
@@ -1381,9 +1381,8 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 }
 
 .traces-divider {
-  width: 1px;
-  height: auto;
-  align-self: stretch;
+  width: 100%;
+  height: 1px;
   background: var(--line-soft);
 }
 
