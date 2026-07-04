@@ -979,7 +979,12 @@ export function AutoEqTab({
         fs,
       });
 
-      onImportPEQ(result.peq, `${meas.name} Match`, false);
+      const cleanMeasName = meas.name
+        .replace(/\s*\(raw\)\s*/gi, "")
+        .replace(/\s*\(EQ applied\)\s*/gi, "")
+        .trim();
+      const autoName = `${cleanMeasName} + ${target.name}`;
+      onImportPEQ(result.peq, autoName, false);
       setWarnings(result.warnings);
       
       if (result.warnings.length > 0) {
