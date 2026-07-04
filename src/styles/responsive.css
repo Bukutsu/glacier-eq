@@ -672,7 +672,8 @@
     font-size: 17px;
   }
   .import-grid,
-  .measurement-import-grid {
+  .measurement-import-grid,
+  .target-import-grid {
     grid-template-columns: 1fr;
   }
   .header-meta-row {
@@ -708,11 +709,12 @@
     justify-content: center !important;
     margin-right: 4px !important;
   }
-  .measurement-list {
+  .curve-list {
     max-height: 260px;
+    height: auto !important;
   }
-  .measurement-toggle,
-  .measurement-delete {
+  .curve-toggle,
+  .curve-delete {
     min-height: 48px !important;
   }
   .diag-head {

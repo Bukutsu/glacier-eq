@@ -514,28 +514,28 @@ export function MeasureTab({
             <button className="tool-link-button danger" onClick={onClearMeasurements}>Clear All</button>
           )}
         </div>
-        <div className="measurement-list">
+        <div className="curve-list">
           {measurements.length === 0 ? (
-            <div className="measurement-empty">
+            <div className="curve-empty">
               No measurements loaded yet.
             </div>
           ) : (
             measurements.map((trace) => (
-              <div className="measurement-item" key={trace.id}>
-                <label className="measurement-toggle">
+              <div className="curve-item" key={trace.id}>
+                <label className="curve-toggle">
                   <input
                     type="checkbox"
                     checked={trace.visible}
                     onChange={() => onToggleMeasurement(trace.id)}
                   />
-                  <span className="measurement-swatch" style={{ backgroundColor: trace.color }} />
-                  <span className="measurement-meta">
-                    <span className="measurement-name">{trace.name}</span>
-                    <span className="measurement-points">{trace.points.length} points</span>
+                  <span className="curve-swatch" style={{ backgroundColor: trace.color }} />
+                  <span className="curve-name">
+                    {trace.name}
+                    <span className="curve-points">({trace.points.length} pts)</span>
                   </span>
                 </label>
                 <button
-                  className="measurement-delete"
+                  className="curve-delete"
                   title={`Delete ${trace.name}`}
                   onClick={() => onRemoveMeasurement(trace.id)}
                 >
