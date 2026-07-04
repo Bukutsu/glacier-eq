@@ -1,7 +1,7 @@
 import { type CSSProperties, useState, useEffect, useRef } from "react";
 import { invoke, listen, readText, writeText, save } from "../lib/rpc";
 
-import { parseMeasurementText } from "../lib/measurements";
+
 import type { AppSettings, MeasurementTrace, Profile, PEQData, GraphViewMode, TargetTrace } from "../types";
 import { Icon } from "./Icon";
 import { NumberInput } from "./NumberInput";
@@ -186,13 +186,9 @@ export function ToolsPanel(props: ToolsPanelProps) {
           )}
           {tab === "Measure" && <MeasureTab
             measurements={props.measurements}
-            onAddMeasurement={props.onAddMeasurement}
             onRemoveMeasurement={props.onRemoveMeasurement}
             onToggleMeasurement={props.onToggleMeasurement}
             onClearMeasurements={props.onClearMeasurements}
-            setStatus={props.setStatus}
-            enableOnlineMeasurements={props.enableOnlineMeasurements}
-            onEnableOnlineMeasurementsChange={props.onEnableOnlineMeasurementsChange}
           />}
           {tab === "Device" && (
             <DeviceTab setStatus={props.setStatus} />
@@ -203,6 +199,8 @@ export function ToolsPanel(props: ToolsPanelProps) {
               onGraphViewModeChange={props.onGraphViewModeChange}
               settings={props.settings}
               onSettingChange={props.onSettingChange}
+              onAddMeasurement={props.onAddMeasurement}
+              setStatus={props.setStatus}
             />
           )}
         </div>
@@ -245,268 +243,19 @@ function TabStrip({
 
 interface MeasureTabProps {
   measurements: MeasurementTrace[];
-  onAddMeasurement: (name: string, points: MeasurementTrace["points"]) => void;
   onRemoveMeasurement: (id: string) => void;
   onToggleMeasurement: (id: string) => void;
   onClearMeasurements: () => void;
-  setStatus: (msg: string) => void;
-  enableOnlineMeasurements?: boolean;
-  onEnableOnlineMeasurementsChange?: (enable: boolean) => void;
 }
 
 export function MeasureTab({
   measurements,
-  onAddMeasurement,
   onRemoveMeasurement,
   onToggleMeasurement,
   onClearMeasurements,
-  setStatus,
-  enableOnlineMeasurements,
-  onEnableOnlineMeasurementsChange,
 }: MeasureTabProps) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const [downloaded, setDownloaded] = useState(false);
-  const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
-  const [isDownloading, setIsDownloading] = useState(false);
-  const [manifest, setManifest] = useState<OnlineDevice[]>([]);
-  const [loadingManifest, setLoadingManifest] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [totalCount, setTotalCount] = useState<number | null>(null);
-  const [loadingDevice, setLoadingDevice] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (enableOnlineMeasurements) {
-      isDatabaseDownloaded().then(setDownloaded);
-    }
-  }, [enableOnlineMeasurements]);
-
-  useEffect(() => {
-    if (enableOnlineMeasurements && downloaded) {
-      setLoadingManifest(true);
-      fetchManifest()
-        .then((devices) => {
-          setManifest(devices);
-          setTotalCount(devices.length);
-        })
-        .catch((err) => {
-          console.error("Failed to load online manifest:", err);
-          setStatus(`Failed to load online search manifest: ${err}`);
-        })
-        .finally(() => {
-          setLoadingManifest(false);
-        });
-    }
-  }, [enableOnlineMeasurements, downloaded]);
-
-  const handleDownload = async () => {
-    setIsDownloading(true);
-    setDownloadProgress(0);
-    try {
-      const count = await downloadDatabase((percent) => {
-        setDownloadProgress(percent);
-      });
-      setDownloaded(true);
-      setTotalCount(count);
-      setStatus(`Successfully downloaded online database (${count} curves cached)`);
-    } catch (error) {
-      console.error(error);
-      setStatus(`Database download failed: ${error}`);
-    } finally {
-      setIsDownloading(false);
-      setDownloadProgress(null);
-    }
-  };
-
-  const handleResetCache = async () => {
-    if (window.confirm("Are you sure you want to delete the cached online measurement database? This will clear about 16MB of local storage.")) {
-      try {
-        await clearCachedDatabase();
-        setDownloaded(false);
-        setManifest([]);
-        setSearchQuery("");
-        setTotalCount(null);
-        setStatus("Online measurement database cache cleared.");
-      } catch (error) {
-        console.error(error);
-        setStatus(`Failed to clear cache: ${error}`);
-      }
-    }
-  };
-
-  const handleLoadDevice = async (dev: OnlineDevice) => {
-    setLoadingDevice(dev.id);
-    try {
-      const points = await loadDeviceCurvePoints(dev.id);
-      onAddMeasurement(`${dev.brand} ${dev.name} (${dev.source})`, points);
-      setStatus(`Loaded online measurement: ${dev.brand} ${dev.name} (${points.length} points)`);
-    } catch (error) {
-      console.error(error);
-      setStatus(`Failed to load curve: ${error}`);
-    } finally {
-      setLoadingDevice(null);
-    }
-  };
-
-  const searchTokens = searchQuery.trim().toLowerCase().split(/\s+/).filter(Boolean);
-  const filteredManifest = searchTokens.length === 0
-    ? []
-    : manifest.filter((dev) => {
-        const full = `${dev.brand} ${dev.name}`.toLowerCase();
-        return searchTokens.every((token) => full.includes(token));
-      });
-
-  const displayResults = filteredManifest.slice(0, 50);
-
-  const addMeasurementFromText = (text: string, fallbackName: string) => {
-    try {
-      const points = parseMeasurementText(text);
-      onAddMeasurement(fallbackName, points);
-      setStatus(`Loaded measurement: ${fallbackName} (${points.length} points)`);
-    } catch (error) {
-      setStatus(`Measurement import failed: ${error}`);
-    }
-  };
-
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    if (!/\.(csv|txt)$/i.test(file.name)) {
-      setStatus("Measurement import failed: choose a .csv or .txt file.");
-      event.target.value = "";
-      return;
-    }
-
-    try {
-      const text = await file.text();
-      addMeasurementFromText(text, file.name.replace(/\.[^/.]+$/, ""));
-    } catch (error) {
-      setStatus(`Measurement import failed: ${error}`);
-    }
-    event.target.value = "";
-  };
-
-  const handlePaste = async () => {
-    try {
-      const text = await readClipboardTextOrThrow();
-      addMeasurementFromText(text, `Clipboard ${new Date().toLocaleDateString()}`);
-    } catch {
-      setStatus("Unable to read clipboard. Check permissions.");
-    }
-  };
-
   return (
     <div className="measurements-pane">
-      <section className="tool-card">
-        <div className="tool-card-head">
-          <strong>Graph Overlays</strong>
-          <span>{measurements.length} loaded</span>
-        </div>
-
-        <input
-          className="hidden-file-input"
-          ref={fileInputRef}
-          type="file"
-          accept=".txt,.csv,text/plain,text/csv"
-          onChange={handleFileChange}
-        />
-
-        <div className="transfer-actions measurement-import-grid">
-          <button className="icon-action" onClick={() => fileInputRef.current?.click()}>
-            <Icon>playlist_add</Icon>
-            <span>Add File</span>
-          </button>
-          <button className="icon-action" onClick={handlePaste}>
-            <Icon>content_paste</Icon>
-            <span>Paste Trace</span>
-          </button>
-        </div>
-
-        <small className="card-note">
-          CSV/TXT traces are centered near 1 kHz.
-        </small>
-      </section>
-
-      <section className={`tool-card online-db-card${!enableOnlineMeasurements ? " dormant" : ""}`}>
-        <div className="tool-card-head">
-          <strong>Online Database</strong>
-          {enableOnlineMeasurements && downloaded && (
-            <button className="tool-link-button" onClick={handleResetCache}>Clear Cache</button>
-          )}
-        </div>
-        {!enableOnlineMeasurements ? (
-          <>
-            <p className="card-note">Search and compare frequency response measurements from Squiglink/Squig-Rank.</p>
-            <button className="btn" onClick={() => onEnableOnlineMeasurementsChange?.(true)}>
-              Enable Database
-            </button>
-          </>
-        ) : !downloaded ? (
-          <>
-            <p className="card-note">Download the offline cache to start search.</p>
-            {downloadProgress !== null ? (
-              <div className="progress-container">
-                <div className="progress-track">
-                  <div className="progress-bar" style={{ width: `${downloadProgress * 100}%` }} />
-                </div>
-                <span>{Math.round(downloadProgress * 100)}%</span>
-              </div>
-            ) : (
-              <button className="btn" onClick={handleDownload} disabled={isDownloading}>
-                {isDownloading ? "Downloading..." : "Download Cache"}
-              </button>
-            )}
-          </>
-        ) : (
-          <div className="online-search-section">
-            <input
-              type="text"
-              placeholder={`Search ${totalCount !== null ? `${totalCount} curves` : "online database"}...`}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              disabled={loadingManifest}
-            />
-            {searchQuery && (
-              <div className="online-search-results scrollbar">
-                {loadingManifest ? (
-                  <div className="online-result-item online-result-empty">Loading devices index...</div>
-                ) : displayResults.length === 0 ? (
-                  <div className="online-result-item online-result-empty">No devices found matching "{searchQuery}"</div>
-                ) : (
-                  displayResults.map((dev) => (
-                    <div key={dev.id} className="online-result-item">
-                      <div className="online-result-info">
-                        <div className="online-result-name">
-                          {dev.brand} {dev.name}
-                          {dev.price !== null && (
-                            <span className="online-result-price">${dev.price}</span>
-                          )}
-                        </div>
-                        <div className="online-result-source">Source: {dev.source}</div>
-                      </div>
-                      <button
-                        className="online-result-action"
-                        disabled={loadingDevice !== null}
-                        onClick={() => handleLoadDevice(dev)}
-                      >
-                        {loadingDevice === dev.id ? (
-                          <span>Loading...</span>
-                        ) : (
-                          <>
-                            <Icon>download</Icon>
-                            <span>Load</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
-          </div>
-        )}
-      </section>
-
       <section className="tool-card measurement-library-card">
         <div className="tool-card-head">
           <strong>Loaded Measurements</strong>
@@ -1166,12 +915,110 @@ function SettingsTab({
   onGraphViewModeChange,
   settings,
   onSettingChange,
+  onAddMeasurement,
+  setStatus,
 }: {
   graphViewMode?: GraphViewMode;
   onGraphViewModeChange?: (mode: GraphViewMode) => void;
   settings: AppSettings;
   onSettingChange: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
+  onAddMeasurement?: (name: string, points: MeasurementTrace["points"]) => void;
+  setStatus?: (value: string) => void;
 }) {
+  const [downloaded, setDownloaded] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [manifest, setManifest] = useState<OnlineDevice[]>([]);
+  const [loadingManifest, setLoadingManifest] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [totalCount, setTotalCount] = useState<number | null>(null);
+  const [loadingDevice, setLoadingDevice] = useState<string | null>(null);
+
+  const enableOnlineMeasurements = settings.enable_online_measurements;
+
+  useEffect(() => {
+    if (enableOnlineMeasurements) {
+      isDatabaseDownloaded().then(setDownloaded);
+    }
+  }, [enableOnlineMeasurements]);
+
+  useEffect(() => {
+    if (enableOnlineMeasurements && downloaded) {
+      setLoadingManifest(true);
+      fetchManifest()
+        .then((devices) => {
+          setManifest(devices);
+          setTotalCount(devices.length);
+        })
+        .catch((err) => {
+          console.error("Failed to load online manifest:", err);
+          setStatus?.(`Failed to load online search manifest: ${err}`);
+        })
+        .finally(() => {
+          setLoadingManifest(false);
+        });
+    }
+  }, [enableOnlineMeasurements, downloaded]);
+
+  const handleDownload = async () => {
+    setIsDownloading(true);
+    setDownloadProgress(0);
+    try {
+      const count = await downloadDatabase((percent) => {
+        setDownloadProgress(percent);
+      });
+      setDownloaded(true);
+      setTotalCount(count);
+      setStatus?.(`Successfully downloaded online database (${count} curves cached)`);
+    } catch (error) {
+      console.error(error);
+      setStatus?.(`Database download failed: ${error}`);
+    } finally {
+      setIsDownloading(false);
+      setDownloadProgress(null);
+    }
+  };
+
+  const handleResetCache = async () => {
+    if (window.confirm("Are you sure you want to delete the cached online measurement database? This will clear about 16MB of local storage.")) {
+      try {
+        await clearCachedDatabase();
+        setDownloaded(false);
+        setManifest([]);
+        setSearchQuery("");
+        setTotalCount(null);
+        setStatus?.("Online measurement database cache cleared.");
+      } catch (error) {
+        console.error(error);
+        setStatus?.(`Failed to clear cache: ${error}`);
+      }
+    }
+  };
+
+  const handleLoadDevice = async (dev: OnlineDevice) => {
+    setLoadingDevice(dev.id);
+    try {
+      const points = await loadDeviceCurvePoints(dev.id);
+      onAddMeasurement?.(`${dev.brand} ${dev.name} (${dev.source})`, points);
+      setStatus?.(`Loaded online measurement: ${dev.brand} ${dev.name} (${points.length} points)`);
+    } catch (error) {
+      console.error(error);
+      setStatus?.(`Failed to load online curve: ${error}`);
+    } finally {
+      setLoadingDevice(null);
+    }
+  };
+
+  const searchTokens = searchQuery.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const filteredManifest = searchTokens.length === 0
+    ? []
+    : manifest.filter((dev) => {
+        const full = `${dev.brand} ${dev.name}`.toLowerCase();
+        return searchTokens.every((token) => full.includes(token));
+      });
+
+  const displayResults = filteredManifest.slice(0, 50);
+
   return (
     <div className="settings-list">
       <section className="tool-card">
@@ -1211,6 +1058,81 @@ function SettingsTab({
           Enable online measurement database
         </label>
       </section>
+
+      {enableOnlineMeasurements && (
+        <section className="tool-card online-db-card">
+          <div className="tool-card-head">
+            <strong>Online Database</strong>
+            {downloaded && (
+              <button className="tool-link-button" onClick={handleResetCache}>Clear Cache</button>
+            )}
+          </div>
+          {!downloaded ? (
+            <>
+              <p className="card-note">Download the offline cache to start searching.</p>
+              {downloadProgress !== null ? (
+                <div className="progress-container">
+                  <div className="progress-track">
+                    <div className="progress-bar" style={{ width: `${downloadProgress * 100}%` }} />
+                  </div>
+                  <span>{Math.round(downloadProgress * 100)}%</span>
+                </div>
+              ) : (
+                <button className="btn" onClick={handleDownload} disabled={isDownloading}>
+                  {isDownloading ? "Downloading..." : "Download Cache"}
+                </button>
+              )}
+            </>
+          ) : (
+            <div className="online-search-section">
+              <input
+                type="text"
+                placeholder={`Search ${totalCount !== null ? `${totalCount} curves` : "online database"}...`}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                disabled={loadingManifest}
+              />
+              {searchQuery && (
+                <div className="online-search-results scrollbar">
+                  {loadingManifest ? (
+                    <div className="online-result-item online-result-empty">Loading devices index...</div>
+                  ) : displayResults.length === 0 ? (
+                    <div className="online-result-item online-result-empty">No devices found matching "{searchQuery}"</div>
+                  ) : (
+                    displayResults.map((dev) => (
+                      <div key={dev.id} className="online-result-item">
+                        <div className="online-result-info">
+                          <div className="online-result-name">
+                            {dev.brand} {dev.name}
+                            {dev.price !== null && (
+                              <span className="online-result-price">${dev.price}</span>
+                            )}
+                          </div>
+                          <div className="online-result-source">Source: {dev.source}</div>
+                        </div>
+                        <button
+                          className="online-result-action"
+                          disabled={loadingDevice !== null}
+                          onClick={() => handleLoadDevice(dev)}
+                        >
+                          {loadingDevice === dev.id ? (
+                            <span>Loading...</span>
+                          ) : (
+                            <>
+                              <Icon>download</Icon>
+                              <span>Load</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+      )}
 
       <section className="tool-card">
         <div className="tool-card-head">

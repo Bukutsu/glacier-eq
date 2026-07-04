@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { invoke, listen } from "./lib/rpc";
+import { invoke, listen, readText } from "./lib/rpc";
 import { Bands } from "./components/Bands";
 import { DeviceChooser } from "./components/DeviceChooser";
 import { EqGraph } from "./components/EqGraph";
@@ -17,6 +17,7 @@ import {
   makeMeasurementName,
   nextMeasurementColor,
   normalizeMeasurementPoints,
+  parseMeasurementText,
 } from "./lib/measurements";
 import {
   getBuiltInTargets,
@@ -485,6 +486,65 @@ function App() {
   const [lastPushedPeq, setLastPushedPeq] = useState<PEQData | null>(null);
   const [selectedMeasurementId, setSelectedMeasurementId] = useState<string | null>(null);
   const [activeBandIndex, setActiveBandIndex] = useState<number | null>(null);
+
+  const measurementFileInputRef = useRef<HTMLInputElement>(null);
+  const targetFileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImportMeasurementFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!/\.(csv|txt)$/i.test(file.name)) {
+      setStatus("Measurement import failed: choose a .csv or .txt file.");
+      event.target.value = "";
+      return;
+    }
+    try {
+      const text = await file.text();
+      const points = parseMeasurementText(text);
+      const name = file.name.replace(/\.[^/.]+$/, "");
+      addMeasurement(name, points);
+      setStatus(`Loaded measurement: ${name} (${points.length} points)`);
+    } catch (error) {
+      setStatus(`Measurement import failed: ${error}`);
+    }
+    event.target.value = "";
+  };
+
+  const handlePasteMeasurement = async () => {
+    try {
+      const text = await readText();
+      if (!text.trim()) {
+        setStatus("Unable to read clipboard: empty or not text.");
+        return;
+      }
+      const points = parseMeasurementText(text);
+      const name = `Clipboard ${new Date().toLocaleDateString()}`;
+      addMeasurement(name, points);
+      setStatus(`Loaded measurement from clipboard (${points.length} points)`);
+    } catch {
+      setStatus("Unable to read clipboard. Check permissions.");
+    }
+  };
+
+  const handleImportTargetFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!/\.(csv|txt)$/i.test(file.name)) {
+      setStatus("Target import failed: choose a .csv or .txt file.");
+      event.target.value = "";
+      return;
+    }
+    try {
+      const text = await file.text();
+      const points = parseMeasurementText(text);
+      const name = file.name.replace(/\.[^/.]+$/, "");
+      addTarget(name, points);
+      setStatus(`Loaded target: ${name} (${points.length} points)`);
+    } catch (error) {
+      setStatus(`Target import failed: ${error}`);
+    }
+    event.target.value = "";
+  };
 
   useEffect(() => {
     peqRef.current = peq;
@@ -1370,6 +1430,34 @@ function App() {
                     <strong>Traces & Targets</strong>
                   </summary>
                   <div className="tuning-card-body">
+                    <input
+                      ref={measurementFileInputRef}
+                      type="file"
+                      style={{ display: "none" }}
+                      accept=".txt,.csv,text/plain,text/csv"
+                      onChange={handleImportMeasurementFile}
+                    />
+                    <input
+                      ref={targetFileInputRef}
+                      type="file"
+                      style={{ display: "none" }}
+                      accept=".txt,.csv,text/plain,text/csv"
+                      onChange={handleImportTargetFile}
+                    />
+                    <div className="transfer-actions unified-curves-import-grid">
+                      <button className="icon-action" onClick={() => measurementFileInputRef.current?.click()}>
+                        <Icon>playlist_add</Icon>
+                        <span>Add Measurement</span>
+                      </button>
+                      <button className="icon-action" onClick={handlePasteMeasurement}>
+                        <Icon>content_paste</Icon>
+                        <span>Paste Trace</span>
+                      </button>
+                      <button className="icon-action" onClick={() => targetFileInputRef.current?.click()}>
+                        <Icon>add_box</Icon>
+                        <span>Add Target</span>
+                      </button>
+                    </div>
                     <div className="traces-targets-merged">
                       <div className="traces-section">
                         <div className="traces-section-title">
@@ -1378,15 +1466,9 @@ function App() {
                         </div>
                         <MeasureTab
                           measurements={measurements}
-                          onAddMeasurement={addMeasurement}
                           onRemoveMeasurement={removeMeasurement}
                           onToggleMeasurement={toggleMeasurement}
                           onClearMeasurements={clearMeasurements}
-                          setStatus={setStatus}
-                          enableOnlineMeasurements={enableOnlineMeasurements}
-                          onEnableOnlineMeasurementsChange={
-                            handleEnableOnlineMeasurementsChange
-                          }
                         />
                       </div>
                       
@@ -1589,6 +1671,34 @@ function App() {
                 <Icon>analytics</Icon>
                 <strong>Traces & Targets</strong>
               </div>
+              <input
+                ref={measurementFileInputRef}
+                type="file"
+                style={{ display: "none" }}
+                accept=".txt,.csv,text/plain,text/csv"
+                onChange={handleImportMeasurementFile}
+              />
+              <input
+                ref={targetFileInputRef}
+                type="file"
+                style={{ display: "none" }}
+                accept=".txt,.csv,text/plain,text/csv"
+                onChange={handleImportTargetFile}
+              />
+              <div className="transfer-actions unified-curves-import-grid">
+                <button className="icon-action" onClick={() => measurementFileInputRef.current?.click()}>
+                  <Icon>playlist_add</Icon>
+                  <span>Add Measurement</span>
+                </button>
+                <button className="icon-action" onClick={handlePasteMeasurement}>
+                  <Icon>content_paste</Icon>
+                  <span>Paste Trace</span>
+                </button>
+                <button className="icon-action" onClick={() => targetFileInputRef.current?.click()}>
+                  <Icon>add_box</Icon>
+                  <span>Add Target</span>
+                </button>
+              </div>
               <div className="traces-targets-merged">
                 <div className="traces-section">
                   <div className="traces-section-title">
@@ -1597,15 +1707,9 @@ function App() {
                   </div>
                   <MeasureTab
                     measurements={measurements}
-                    onAddMeasurement={addMeasurement}
                     onRemoveMeasurement={removeMeasurement}
                     onToggleMeasurement={toggleMeasurement}
                     onClearMeasurements={clearMeasurements}
-                    setStatus={setStatus}
-                    enableOnlineMeasurements={enableOnlineMeasurements}
-                    onEnableOnlineMeasurementsChange={
-                      handleEnableOnlineMeasurementsChange
-                    }
                   />
                 </div>
                 
