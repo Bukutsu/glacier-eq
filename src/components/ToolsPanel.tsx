@@ -416,6 +416,7 @@ function PresetTab({
   selectedPreset,
   profileSearch,
   setProfileSearch,
+  newProfileName,
   setNewProfileName,
   onSelectProfile,
   onApplyProfile,
@@ -435,20 +436,26 @@ function PresetTab({
   const canDelete =
     selectedPreset !== DEFAULT_PROFILE_NAME &&
     profiles.some((p) => p.name === selectedPreset);
-  const isOverwrite = profiles.some(
-    (p) => p.name.toLowerCase() === profileSearch.trim().toLowerCase()
-  );
 
-  // Keep newProfileName in sync with the shared input
+  // The effective name that Save will use (mirrors App.tsx logic)
+  const effectiveSaveName = newProfileName.trim() || selectedPreset;
+  const isOverwrite = profiles.some(
+    (p) => p.name.toLowerCase() === effectiveSaveName.toLowerCase()
+  );
+  const showBadge = !!newProfileName.trim(); // only show when user typed a custom name
+
+  // Typing: filters the list AND sets a custom save name
   const handleInputChange = (value: string) => {
     setProfileSearch(value);
     setNewProfileName(value);
   };
 
+  // Clicking a profile: select it, clear search so full list stays visible,
+  // clear custom name so Save defaults to the selected profile name
   const handleSelectProfile = (profile: typeof profiles[0]) => {
     onSelectProfile(profile);
-    setProfileSearch(profile.name);
-    setNewProfileName(profile.name);
+    setProfileSearch("");
+    setNewProfileName("");
   };
 
   return (
@@ -478,7 +485,7 @@ function PresetTab({
           value={profileSearch}
           onChange={(e) => handleInputChange(e.target.value)}
         />
-        {profileSearch.trim() && (
+        {showBadge && (
           <span className={`profile-name-badge ${isOverwrite ? "overwrite" : "new"}`}>
             {isOverwrite ? "Overwrite" : "New"}
           </span>
