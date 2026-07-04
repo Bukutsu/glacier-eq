@@ -14,6 +14,11 @@
   flex: 1;
   min-height: 142px;
   height: auto;
+  overflow: visible;
+}
+
+.right-rail:not(.has-diagnostics) .curves-tab .curve-list {
+  overflow: visible;
 }
 
 .right-rail:not(.has-diagnostics) .measurements-pane {
@@ -31,7 +36,9 @@
   flex-direction: column;
   gap: 14px;
   min-height: 0;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
 }
 
 .tab-panel {
@@ -40,13 +47,14 @@
   gap: 14px;
   min-height: 0;
   flex: 1 1 auto;
-  overflow-y: auto;
-  overflow-x: hidden;
-  overscroll-behavior: contain;
+  overflow: visible;
   padding-right: 2px;
 }
 
 .tabs {
+  position: sticky;
+  top: 0;
+  z-index: 2;
   display: grid;
   grid-template-columns: repeat(var(--tab-columns, 2), minmax(0, 1fr));
   gap: 1px;
@@ -270,22 +278,22 @@
   pointer-events: none;
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   padding: 2px 6px;
-  border-radius: 4px;
+  background: var(--bg-dark);
+  outline: 1px solid var(--line-medium);
+  outline-offset: -1px;
 }
 
 .profile-name-badge.new {
-  background: color-mix(in srgb, var(--cyan) 15%, transparent);
   color: var(--cyan);
-  outline: 1px solid color-mix(in srgb, var(--cyan) 35%, transparent);
+  outline-color: var(--accent-line-outline);
 }
 
 .profile-name-badge.overwrite {
-  background: color-mix(in srgb, var(--yellow) 15%, transparent);
   color: var(--yellow);
-  outline: 1px solid color-mix(in srgb, var(--yellow) 35%, transparent);
+  outline-color: var(--warning-border);
 }
 
 /* Standalone management actions (outside profile-rename-row) */
