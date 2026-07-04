@@ -1584,14 +1584,49 @@ function App() {
                 theme={resolvedTheme}
               />
             </section>
-            <TargetSelector
-              targets={allTargets}
-              activeTargetIds={activeTargetIds}
-              onToggleTarget={toggleTarget}
-              onAddTarget={addTarget}
-              onRemoveTarget={removeTarget}
-              setStatus={setStatus}
-            />
+            <section className="traces-targets-card">
+              <div className="traces-targets-header">
+                <Icon>analytics</Icon>
+                <strong>Traces & Targets</strong>
+              </div>
+              <div className="traces-targets-merged">
+                <div className="traces-section">
+                  <div className="traces-section-title">
+                    <Icon>query_stats</Icon>
+                    <span>Measurement Traces</span>
+                  </div>
+                  <MeasureTab
+                    measurements={measurements}
+                    onAddMeasurement={addMeasurement}
+                    onRemoveMeasurement={removeMeasurement}
+                    onToggleMeasurement={toggleMeasurement}
+                    onClearMeasurements={clearMeasurements}
+                    setStatus={setStatus}
+                    enableOnlineMeasurements={enableOnlineMeasurements}
+                    onEnableOnlineMeasurementsChange={
+                      handleEnableOnlineMeasurementsChange
+                    }
+                  />
+                </div>
+                
+                <div className="traces-divider" />
+
+                <div className="traces-section">
+                  <div className="traces-section-title">
+                    <Icon>track_changes</Icon>
+                    <span>Target Curves</span>
+                  </div>
+                  <TargetSelector
+                    targets={allTargets}
+                    activeTargetIds={activeTargetIds}
+                    onToggleTarget={toggleTarget}
+                    onAddTarget={addTarget}
+                    onRemoveTarget={removeTarget}
+                    setStatus={setStatus}
+                  />
+                </div>
+              </div>
+            </section>
             <Preamp
               value={peq.global_gain}
               resetValue={lastPushedPeq?.global_gain}
@@ -1650,6 +1685,7 @@ function App() {
             }
             settings={settings}
             onSettingChange={updateSetting}
+            availableTabs={["Preset", "Import", "AutoEQ", "Device", "Settings"]}
           />
         </main>
       )}

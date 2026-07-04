@@ -1305,3 +1305,67 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 .status-indicator-row .material-symbols-outlined {
   font-size: 18px;
 }
+
+/* Merged Traces & Targets Layout (Default/Desktop) */
+.traces-targets-card {
+  background: var(--panel);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-surface);
+  padding: 14px 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.traces-targets-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  font-size: var(--type-label);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.traces-targets-header .material-symbols-outlined {
+  font-size: 20px;
+  color: var(--cyan);
+}
+
+.traces-targets-merged {
+  display: flex;
+  flex-direction: row;
+  gap: 24px;
+}
+
+.traces-section {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.traces-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--type-label);
+  font-weight: 600;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line-soft);
+  padding-bottom: 6px;
+  margin-bottom: 4px;
+}
+
+.traces-section-title .material-symbols-outlined {
+  font-size: 18px;
+}
+
+.traces-divider {
+  width: 1px;
+  height: auto;
+  align-self: stretch;
+  background: var(--line-soft);
+}
