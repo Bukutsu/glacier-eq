@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, Fragment, useState } from "react";
 import { dbToY, filterResponseValues, formatFreq, freqToX, peqResponseValues, xToFreq } from "../lib/graph";
 import { cssVar, rgbWithAlpha } from "../lib/theme";
 import { interpolateMeasurementDb } from "../lib/measurements";
 import { filterColorVars } from "../lib/filterColors";
 import { peqEquals } from "../lib/peq";
 import type { GraphViewMode, MeasurementTrace, PEQData, TargetTrace } from "../types";
+import { Icon } from "./Icon";
 
 const GRAPH_FREQS = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
 const GRAPH_DBS = [-15, -10, -5, 0, 5, 10, 15];
@@ -25,6 +26,7 @@ export function EqGraph({
   viewMode: GraphViewMode;
   theme?: string;
 }) {
+  const [showMobileLegend, setShowMobileLegend] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawSerialRef = useRef(0);
   const visibleMeasurements = measurements.filter((trace) => trace.visible);
@@ -92,25 +94,68 @@ export function EqGraph({
     <div className="eq-graph-shell">
       <canvas className="eq-canvas" ref={canvasRef} />
       {(committedPeq || targets.length > 0 || visibleMeasurements.length > 0) && (
-        <div className="graph-legend">
+        <button
+          className={`mobile-legend-toggle ${showMobileLegend ? "active" : ""}`}
+          onClick={() => setShowMobileLegend(!showMobileLegend)}
+          title="Toggle legend"
+          aria-label="Toggle legend"
+        >
+          <Icon>{showMobileLegend ? "close" : "legend_toggle"}</Icon>
+        </button>
+      )}
+      {(committedPeq || targets.length > 0 || visibleMeasurements.length > 0) && (
+        <div className={`graph-legend ${showMobileLegend ? "mobile-open" : ""}`}>
           {committedPeq && !peqEquals(committedPeq, peq) && (
             <div className="graph-legend-item committed">
-              <span className="graph-legend-swatch graph-legend-swatch-dashed" />
+              <span className="graph-legend-swatch">
+                <svg width="24" height="8" viewBox="0 0 24 8" className="graph-legend-svg">
+                  <line x1="0" y1="4" x2="24" y2="4" stroke="var(--bg-dark)" strokeWidth="4" strokeDasharray="6,4" />
+                  <line x1="0" y1="4" x2="24" y2="4" stroke="var(--orange)" strokeWidth="2" strokeDasharray="6,4" />
+                </svg>
+              </span>
               <span>{selectedMeasurement ? `Last pushed + ${selectedMeasurement.name}` : "Last pushed"}</span>
             </div>
           )}
           {targets.map((target) => (
             <div className="graph-legend-item target" key={target.id}>
-              <span className="graph-legend-swatch" style={{ backgroundColor: target.color }} />
+              <span className="graph-legend-swatch">
+                <svg width="24" height="8" viewBox="0 0 24 8" className="graph-legend-svg">
+                  <line x1="0" y1="4" x2="24" y2="4" stroke={resolveColor(target.color)} strokeWidth="2" strokeDasharray="2,4" strokeLinecap="round" />
+                </svg>
+              </span>
               <span>{target.name}</span>
             </div>
           ))}
           {visibleMeasurements.map((trace) => (
-            <div className="graph-legend-item" key={trace.id}>
-              <span className="graph-legend-swatch" style={{ backgroundColor: trace.color }} />
-              <span>{trace.name}</span>
-            </div>
+            <Fragment key={trace.id}>
+              <div className="graph-legend-item">
+                <span className="graph-legend-swatch">
+                  <svg width="24" height="8" viewBox="0 0 24 8" className="graph-legend-svg">
+                    <line x1="0" y1="4" x2="24" y2="4" stroke={resolveColor(trace.color)} strokeWidth="3" />
+                  </svg>
+                </span>
+                <span>{trace.name} (EQ applied)</span>
+              </div>
+              <div className="graph-legend-item raw">
+                <span className="graph-legend-swatch">
+                  <svg width="24" height="8" viewBox="0 0 24 8" className="graph-legend-svg">
+                    <line x1="0" y1="4" x2="24" y2="4" stroke={resolveColor(trace.color)} strokeWidth="1.2" strokeOpacity="0.44" />
+                  </svg>
+                </span>
+                <span className="raw-label">{trace.name} (raw)</span>
+              </div>
+            </Fragment>
           ))}
+          {visibleMeasurements.length === 0 && (
+            <div className="graph-legend-item eq-curve">
+              <span className="graph-legend-swatch">
+                <svg width="24" height="8" viewBox="0 0 24 8" className="graph-legend-svg">
+                  <line x1="0" y1="4" x2="24" y2="4" stroke="var(--cyan)" strokeWidth="3" />
+                </svg>
+              </span>
+              <span>EQ Curve</span>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -179,7 +224,7 @@ async function drawCurves(
   }
 
   for (const trace of measurements) {
-    drawTrace(ctx, width, height, trace, 1.2, [8, 6], withAlpha(trace.color, 0.44));
+    drawTrace(ctx, width, height, trace, 1.2, [], withAlpha(trace.color, 0.44));
   }
 
   if (measurements.length === 0) {
