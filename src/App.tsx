@@ -1646,65 +1646,6 @@ function App() {
                 theme={resolvedTheme}
               />
             </section>
-            <section className="traces-targets-card">
-              <div className="traces-targets-header">
-                <Icon>analytics</Icon>
-                <strong>Traces & Targets</strong>
-              </div>
-              <input
-                ref={measurementFileInputRef}
-                type="file"
-                style={{ display: "none" }}
-                accept=".txt,.csv,text/plain,text/csv"
-                onChange={handleImportMeasurementFile}
-              />
-              <input
-                ref={targetFileInputRef}
-                type="file"
-                style={{ display: "none" }}
-                accept=".txt,.csv,text/plain,text/csv"
-                onChange={handleImportTargetFile}
-              />
-              <div className="transfer-actions unified-curves-import-grid">
-                <button className="icon-action" onClick={() => measurementFileInputRef.current?.click()}>
-                  <Icon>playlist_add</Icon>
-                  <span>Add Measurement</span>
-                </button>
-                <button className="icon-action" onClick={() => targetFileInputRef.current?.click()}>
-                  <Icon>add_box</Icon>
-                  <span>Add Target</span>
-                </button>
-              </div>
-              <div className="traces-targets-merged">
-                <div className="traces-section">
-                  <div className="traces-section-title">
-                    <Icon>query_stats</Icon>
-                    <span>Measurement Traces</span>
-                  </div>
-                  <MeasureTab
-                    measurements={measurements}
-                    onRemoveMeasurement={removeMeasurement}
-                    onToggleMeasurement={toggleMeasurement}
-                    onClearMeasurements={clearMeasurements}
-                  />
-                </div>
-                
-                <div className="traces-divider" />
-
-                <div className="traces-section">
-                  <div className="traces-section-title">
-                    <Icon>track_changes</Icon>
-                    <span>Target Curves</span>
-                  </div>
-                  <TargetSelector
-                    targets={allTargets}
-                    activeTargetIds={activeTargetIds}
-                    onToggleTarget={toggleTarget}
-                    onRemoveTarget={removeTarget}
-                  />
-                </div>
-              </div>
-            </section>
             <Preamp
               value={peq.global_gain}
               resetValue={lastPushedPeq?.global_gain}
@@ -1725,6 +1666,20 @@ function App() {
               snapToIso={snapToIso}
             />
           </section>
+          <input
+            ref={measurementFileInputRef}
+            type="file"
+            style={{ display: "none" }}
+            accept=".txt,.csv,text/plain,text/csv"
+            onChange={handleImportMeasurementFile}
+          />
+          <input
+            ref={targetFileInputRef}
+            type="file"
+            style={{ display: "none" }}
+            accept=".txt,.csv,text/plain,text/csv"
+            onChange={handleImportTargetFile}
+          />
           <ToolsPanel
             peq={peq}
             onImportPEQ={importPeq}
@@ -1763,7 +1718,11 @@ function App() {
             }
             settings={settings}
             onSettingChange={updateSetting}
-            availableTabs={["Preset", "Import", "AutoEQ", "Device", "Settings"]}
+            availableTabs={["Preset", "Import", "AutoEQ", "Curves", "Device", "Settings"]}
+            onToggleTarget={toggleTarget}
+            onRemoveTarget={removeTarget}
+            onAddMeasurementFile={() => measurementFileInputRef.current?.click()}
+            onAddTargetFile={() => targetFileInputRef.current?.click()}
           />
         </main>
       )}
