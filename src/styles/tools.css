@@ -251,6 +251,49 @@
   margin: 0;
 }
 
+/* Smart merged input */
+.profile-smart-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.profile-smart-input-wrap .profile-search {
+  flex: 1;
+  padding-right: 76px; /* make room for badge */
+}
+
+.profile-name-badge {
+  position: absolute;
+  right: 8px;
+  pointer-events: none;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.profile-name-badge.new {
+  background: color-mix(in srgb, var(--cyan) 15%, transparent);
+  color: var(--cyan);
+  outline: 1px solid color-mix(in srgb, var(--cyan) 35%, transparent);
+}
+
+.profile-name-badge.overwrite {
+  background: color-mix(in srgb, var(--yellow) 15%, transparent);
+  color: var(--yellow);
+  outline: 1px solid color-mix(in srgb, var(--yellow) 35%, transparent);
+}
+
+/* Standalone management actions (outside profile-rename-row) */
+.profile-management-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .profile-card-foot {
   display: flex;
   flex-direction: column;
