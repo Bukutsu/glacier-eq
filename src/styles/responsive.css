@@ -774,6 +774,46 @@
   .custom-number-input {
     height: 44px !important;
   }
+
+  /* Mobile Settings Menu Touch Friendliness */
+  .settings-list label {
+    min-height: 48px !important;
+    padding: 10px 4px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    flex-direction: row-reverse !important;
+    gap: 16px !important;
+    cursor: pointer !important;
+    width: 100% !important;
+    border-top: 1px solid var(--line-subtle) !important;
+    margin: 0 !important;
+  }
+
+  .settings-list label + label {
+    border-top: 1px solid var(--line-subtle) !important;
+  }
+
+  .settings-list input[type="checkbox"] {
+    width: 22px !important;
+    height: 22px !important;
+    flex: 0 0 22px !important;
+  }
+
+  .settings-list .setting-row {
+    min-height: 48px !important;
+    padding: 10px 4px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    border-top: 1px solid var(--line-subtle) !important;
+    width: 100% !important;
+    margin: 0 !important;
+  }
+
+  .settings-list label + .setting-row {
+    border-top: 1px solid var(--line-subtle) !important;
+  }
 }
 
 @media (max-width: 560px) {
