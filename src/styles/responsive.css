@@ -833,6 +833,53 @@
     width: 180px !important;
   }
 
+  /* Merged Traces and Targets Layout */
+  .traces-targets-merged {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .traces-section {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .traces-section-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: var(--type-label);
+    font-weight: 600;
+    color: var(--muted);
+    border-bottom: 1px solid var(--line-soft);
+    padding-bottom: 6px;
+    margin-bottom: 4px;
+  }
+  .traces-section-title .material-symbols-outlined {
+    font-size: 18px;
+  }
+  .traces-divider {
+    height: 1px;
+    background: var(--line-soft);
+    width: 100%;
+  }
+
+  @media (min-width: 560px) {
+    .traces-targets-merged {
+      flex-direction: row;
+      gap: 24px;
+    }
+    .traces-section {
+      flex: 1;
+      min-width: 0;
+    }
+    .traces-divider {
+      width: 1px;
+      height: auto;
+      align-self: stretch;
+      background: var(--line-soft);
+    }
+  }
 }
 
 @media (max-width: 560px) {
