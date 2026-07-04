@@ -1390,6 +1390,7 @@ function App() {
                     <AutoEqTab
                       measurements={measurements}
                       allTargets={allTargets}
+                      activeTargetIds={activeTargetIds}
                       onImportPEQ={importPeq}
                       setStatus={setStatus}
                     />
@@ -1461,6 +1462,8 @@ function App() {
                   onRedo={redo}
                   availableTabs={["Preset", "Import"]}
                   defaultTab="Preset"
+                  allTargets={allTargets}
+                  activeTargetIds={activeTargetIds}
                   settings={settings}
                   onSettingChange={updateSetting}
                 />
@@ -1512,6 +1515,8 @@ function App() {
                   showActions={false}
                   graphViewMode={graphViewMode}
                   onGraphViewModeChange={setGraphViewMode}
+                  allTargets={allTargets}
+                  activeTargetIds={activeTargetIds}
                   settings={settings}
                   onSettingChange={updateSetting}
                 />
@@ -1619,6 +1624,7 @@ function App() {
             setStatus={setStatus}
             measurements={measurements}
             allTargets={allTargets}
+            activeTargetIds={activeTargetIds}
             onAddMeasurement={addMeasurement}
             onRemoveMeasurement={removeMeasurement}
             onToggleMeasurement={toggleMeasurement}

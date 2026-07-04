@@ -125,6 +125,7 @@ interface ToolsPanelProps {
   graphViewMode?: GraphViewMode;
   onGraphViewModeChange?: (mode: GraphViewMode) => void;
   allTargets?: TargetTrace[];
+  activeTargetIds?: string[];
   onSelectedMeasurementChange?: (measurementId: string | null) => void;
   enableOnlineMeasurements?: boolean;
   onEnableOnlineMeasurementsChange?: (enable: boolean) => void;
@@ -176,6 +177,7 @@ export function ToolsPanel(props: ToolsPanelProps) {
             <AutoEqTab
               measurements={props.measurements}
               allTargets={props.allTargets ?? []}
+              activeTargetIds={props.activeTargetIds}
               onImportPEQ={props.onImportPEQ}
               setStatus={props.setStatus}
               onSelectTab={setTab}
@@ -919,6 +921,7 @@ function ImportTab({ peq, profiles, onImportPEQ, onReloadProfiles, setStatus }: 
 interface AutoEqTabProps {
   measurements: MeasurementTrace[];
   allTargets: TargetTrace[];
+  activeTargetIds?: string[];
   onImportPEQ: (data: PEQData, name: string, isSaved: boolean) => void;
   setStatus: (msg: string) => void;
   onSelectTab?: (tab: ToolsTab) => void;
@@ -928,13 +931,12 @@ interface AutoEqTabProps {
 export function AutoEqTab({
   measurements,
   allTargets = [],
+  activeTargetIds = [],
   onImportPEQ,
   setStatus,
   onSelectTab,
   onSelectedMeasurementChange,
 }: AutoEqTabProps) {
-  const [selectedMeasId, setSelectedMeasId] = useState<string>("");
-  const [selectedTargetId, setSelectedTargetId] = useState<string>("");
   const [nBands, setNBands] = useState<number>(10);
   const [steps, setSteps] = useState<number>(2000);
   const [smoothType, setSmoothType] = useState<string>("IE");
@@ -942,42 +944,23 @@ export function AutoEqTab({
   const [isOptimizing, setIsOptimizing] = useState<boolean>(false);
   const [warnings, setWarnings] = useState<string[]>([]);
 
-  // Measurement selection stays empty until the user picks one.
-  useEffect(() => {
-    if (measurements.length === 0) {
-      if (selectedMeasId) {
-        setSelectedMeasId("");
-      }
-      return;
-    }
+  // Resolve source measurement (visible on graph)
+  const visibleMeas = measurements.filter((m) => m.visible);
+  const meas = visibleMeas.length === 1 ? visibleMeas[0] : null;
 
-    if (selectedMeasId && !measurements.some((m) => m.id === selectedMeasId)) {
-      setSelectedMeasId("");
-    }
-  }, [measurements, selectedMeasId]);
+  // Resolve target curve (active target trace)
+  const activeTargets = allTargets.filter((t) => activeTargetIds.includes(t.id));
+  const target = activeTargets.length === 1 ? activeTargets[0] : null;
 
-  useEffect(() => {
-    onSelectedMeasurementChange?.(selectedMeasId || null);
-  }, [onSelectedMeasurementChange, selectedMeasId]);
+  const isSetupValid = !!meas && !!target;
 
+  // Sync selected measurement change for detail display/highlighting on the graph
   useEffect(() => {
-    if (allTargets.length > 0 && !selectedTargetId) {
-      setSelectedTargetId(allTargets[0].id);
-    }
-  }, [allTargets, selectedTargetId]);
+    onSelectedMeasurementChange?.(meas ? meas.id : null);
+  }, [onSelectedMeasurementChange, meas]);
 
   const handleRunAutoEq = async () => {
-    const meas = measurements.find(m => m.id === selectedMeasId);
-    const target = allTargets.find(t => t.id === selectedTargetId);
-
-    if (!meas) {
-      setStatus("Error: Select a measurement trace first.");
-      return;
-    }
-    if (!target) {
-      setStatus("Error: Select a target curve first.");
-      return;
-    }
+    if (!meas || !target) return;
 
     setIsOptimizing(true);
     setStatus("Running AutoEQ optimization engine...");
@@ -1012,145 +995,142 @@ export function AutoEqTab({
     }
   };
 
-  if (measurements.length === 0) {
-    return (
-      <div className="autoeq-tab">
-        <section className="tool-card empty-tool-card">
-          <div className="tool-card-head">
-            <strong>AutoEQ Match</strong>
-          </div>
-          <p className="card-note">Optimize parametric EQ filters against a target curve.</p>
-          <div className="empty-profiles">No measurement traces loaded.</div>
-          {onSelectTab && (
-            <button className="btn" onClick={() => onSelectTab("Measure")}>
-              Go to Measure Tab
-            </button>
-          )}
-        </section>
-      </div>
-    );
-  }
-
   return (
     <div className="autoeq-tab">
       <section className="tool-card">
         <div className="tool-card-head">
           <strong>AutoEQ Match</strong>
-          <span>{measurements.length} source{measurements.length === 1 ? "" : "s"}</span>
         </div>
-        <p className="card-note">Run the native AdaBelief optimizer to fit biquad filters to a target curve.</p>
+        <p className="card-note">Fit parametric EQ filters to a target curve using the native AdaBelief optimizer.</p>
       </section>
 
-      <section className="tool-card">
-        <div className="tool-card-head">
-          <strong>Match Setup</strong>
-        </div>
-        <div className="autoeq-form-grid">
-          <div className="import-field-group">
-            <label htmlFor="autoeq-meas">Source Measurement</label>
-            <Select
-              id="autoeq-meas"
-              value={selectedMeasId}
-              onChange={setSelectedMeasId}
-              options={[
-                { value: "", label: "-- Select measurement --" },
-                ...measurements.map((m) => ({
-                  value: m.id,
-                  label: `${m.name} (${m.points.length} pts)`,
-                })),
-              ]}
-            />
+      {!isSetupValid ? (
+        <section className="tool-card">
+          <div className="tool-card-head">
+            <strong>Match Setup Required</strong>
           </div>
-
-          <div className="import-field-group">
-            <label htmlFor="autoeq-target">Target Reference</label>
-            <Select
-              id="autoeq-target"
-              value={selectedTargetId}
-              onChange={setSelectedTargetId}
-              options={allTargets.map((t) => ({
-                value: t.id,
-                label: t.name,
-              }))}
-            />
+          <p className="card-note">Select exactly one measurement trace and one target curve on the graph to run AutoEQ.</p>
+          <div className="setup-status-box">
+            <div className={`status-indicator-row ${visibleMeas.length === 1 ? "valid" : "invalid"}`}>
+              <Icon>{visibleMeas.length === 1 ? "check_circle" : "info"}</Icon>
+              <span>
+                {visibleMeas.length === 0
+                  ? "No measurement trace is visible"
+                  : visibleMeas.length > 1
+                  ? `Multiple measurements visible (${visibleMeas.length})`
+                  : `Source: ${visibleMeas[0].name}`}
+              </span>
+            </div>
+            <div className={`status-indicator-row ${activeTargets.length === 1 ? "valid" : "invalid"}`}>
+              <Icon>{activeTargets.length === 1 ? "check_circle" : "info"}</Icon>
+              <span>
+                {activeTargets.length === 0
+                  ? "No target curve is active"
+                  : activeTargets.length > 1
+                  ? `Multiple targets active (${activeTargets.length})`
+                  : `Target: ${activeTargets[0].name}`}
+              </span>
+            </div>
           </div>
-
-          <div className="import-field-group">
-            <label htmlFor="autoeq-bands">Bands Count</label>
-            <NumberInput
-              id="autoeq-bands"
-              value={nBands}
-              min={1}
-              max={32}
-              onChange={setNBands}
-              className="autoeq-bands-stepper"
-            />
+          {visibleMeas.length === 0 && onSelectTab && (
+            <button className="btn" style={{ marginTop: "12px", width: "100%" }} onClick={() => onSelectTab("Measure")}>
+              Go to Measure Tab
+            </button>
+          )}
+        </section>
+      ) : (
+        <section className="tool-card">
+          <div className="tool-card-head">
+            <strong>Match Options</strong>
           </div>
+          <div className="autoeq-form-grid">
+            <div className="import-field-group">
+              <label>Source Measurement</label>
+              <div className="autoeq-readonly-value">{meas.name}</div>
+            </div>
 
-          <div className="import-field-group">
-            <label>Treble Smoothing</label>
-            <div className="smooth-buttons">
-              <button
-                className={smoothType === "None" ? "active" : ""}
-                onClick={() => setSmoothType("None")}
-              >
-                None
-              </button>
-              <button
-                className={smoothType === "IE" ? "active" : ""}
-                onClick={() => setSmoothType("IE")}
-              >
-                IE
-              </button>
-              <button
-                className={smoothType === "OE" ? "active" : ""}
-                onClick={() => setSmoothType("OE")}
-              >
-                OE
-              </button>
+            <div className="import-field-group">
+              <label>Target Reference</label>
+              <div className="autoeq-readonly-value">{target.name}</div>
+            </div>
+
+            <div className="import-field-group">
+              <label htmlFor="autoeq-bands">Bands Count</label>
+              <NumberInput
+                id="autoeq-bands"
+                value={nBands}
+                min={1}
+                max={32}
+                onChange={setNBands}
+                className="autoeq-bands-stepper"
+              />
+            </div>
+
+            <div className="import-field-group">
+              <label>Treble Smoothing</label>
+              <div className="smooth-buttons">
+                <button
+                  className={smoothType === "None" ? "active" : ""}
+                  onClick={() => setSmoothType("None")}
+                >
+                  None
+                </button>
+                <button
+                  className={smoothType === "IE" ? "active" : ""}
+                  onClick={() => setSmoothType("IE")}
+                >
+                  IE
+                </button>
+                <button
+                  className={smoothType === "OE" ? "active" : ""}
+                  onClick={() => setSmoothType("OE")}
+                >
+                  OE
+                </button>
+              </div>
+            </div>
+
+            <div className="import-field-group">
+              <label htmlFor="autoeq-steps">Optimizer Steps</label>
+              <Select
+                id="autoeq-steps"
+                value={steps}
+                onChange={setSteps}
+                options={[
+                  { value: 500, label: "500 (Fast)" },
+                  { value: 1000, label: "1000" },
+                  { value: 2000, label: "2000 (Standard)" },
+                  { value: 3000, label: "3000" },
+                  { value: 5000, label: "5000 (Precise)" },
+                ]}
+              />
+            </div>
+
+            <div className="import-field-group">
+              <label htmlFor="autoeq-fs">Sample Rate</label>
+              <Select
+                id="autoeq-fs"
+                value={fs}
+                onChange={setFs}
+                options={[
+                  { value: 44100, label: "44.1 kHz" },
+                  { value: 48000, label: "48.0 kHz" },
+                  { value: 96000, label: "96.0 kHz" },
+                ]}
+              />
             </div>
           </div>
 
-          <div className="import-field-group">
-            <label htmlFor="autoeq-steps">Optimizer Steps</label>
-            <Select
-              id="autoeq-steps"
-              value={steps}
-              onChange={setSteps}
-              options={[
-                { value: 500, label: "500 (Fast)" },
-                { value: 1000, label: "1000" },
-                { value: 2000, label: "2000 (Standard)" },
-                { value: 3000, label: "3000" },
-                { value: 5000, label: "5000 (Precise)" },
-              ]}
-            />
-          </div>
-
-          <div className="import-field-group">
-            <label htmlFor="autoeq-fs">Sample Rate</label>
-            <Select
-              id="autoeq-fs"
-              value={fs}
-              onChange={setFs}
-              options={[
-                { value: 44100, label: "44.1 kHz" },
-                { value: 48000, label: "48.0 kHz" },
-                { value: 96000, label: "96.0 kHz" },
-              ]}
-            />
-          </div>
-        </div>
-
-        <button
-          className="btn filled autoeq-run-btn"
-          disabled={isOptimizing}
-          onClick={handleRunAutoEq}
-        >
-          <Icon>{isOptimizing ? "hourglass_empty" : "bolt"}</Icon>
-          <span>{isOptimizing ? "Optimizing..." : "Run Match"}</span>
-        </button>
-      </section>
+          <button
+            className="btn filled autoeq-run-btn"
+            disabled={isOptimizing}
+            onClick={handleRunAutoEq}
+          >
+            <Icon>{isOptimizing ? "hourglass_empty" : "bolt"}</Icon>
+            <span>{isOptimizing ? "Optimizing..." : "Run Match"}</span>
+          </button>
+        </section>
+      )}
 
       {warnings.length > 0 && (
         <section className="tool-card import-warnings-section">

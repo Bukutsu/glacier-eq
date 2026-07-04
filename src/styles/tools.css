@@ -1264,3 +1264,44 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 .online-result-action:hover {
   color: var(--blue);
 }
+
+/* AutoEQ Minimalist Layout Styles */
+.autoeq-readonly-value {
+  font-size: var(--type-body);
+  color: var(--cyan);
+  padding: 8px 0;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.setup-status-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--bg-dark);
+  padding: 12px;
+  border: 1px solid var(--line-soft);
+  margin-top: 8px;
+}
+
+.status-indicator-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--type-label);
+  color: var(--muted);
+}
+
+.status-indicator-row.valid {
+  color: var(--cyan);
+}
+
+.status-indicator-row.invalid {
+  color: var(--orange);
+}
+
+.status-indicator-row .material-symbols-outlined {
+  font-size: 18px;
+}
