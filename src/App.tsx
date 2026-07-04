@@ -1465,9 +1465,7 @@ function App() {
                           targets={allTargets}
                           activeTargetIds={activeTargetIds}
                           onToggleTarget={toggleTarget}
-                          onAddTarget={addTarget}
                           onRemoveTarget={removeTarget}
-                          setStatus={setStatus}
                         />
                       </div>
                     </div>
@@ -1702,9 +1700,7 @@ function App() {
                     targets={allTargets}
                     activeTargetIds={activeTargetIds}
                     onToggleTarget={toggleTarget}
-                    onAddTarget={addTarget}
                     onRemoveTarget={removeTarget}
-                    setStatus={setStatus}
                   />
                 </div>
               </div>
