@@ -1419,77 +1419,103 @@ function App() {
               </section>
             )}
             {activeTab === "profiles" && (
-              <ToolsPanel
-                peq={peq}
-                onImportPEQ={importPeq}
-                profiles={profiles}
-                selectedPreset={selectedPreset}
-                profileSearch={profileSearch}
-                setProfileSearch={setProfileSearch}
-                newProfileName={newProfileName}
-                setNewProfileName={setNewProfileName}
-                onSelectProfile={applyProfile}
-                onApplyProfile={supportsRamApply ? applyProfileToRam : undefined}
-                onReloadProfiles={loadProfiles}
-                onOpenProfilesDir={openProfilesDir}
-                hideProfileFolderButton={isAndroid}
-                onReset={reset}
-                onSave={saveProfile}
-                onDelete={deleteSelectedProfile}
-                setStatus={setStatus}
-                measurements={measurements}
-                onAddMeasurement={addMeasurement}
-                onRemoveMeasurement={removeMeasurement}
-                onToggleMeasurement={toggleMeasurement}
-                onClearMeasurements={clearMeasurements}
-                onSelectedMeasurementChange={setSelectedMeasurementId}
-                canUndo={undoStack.length > 0}
-                canRedo={redoStack.length > 0}
-                onUndo={undo}
-                onRedo={redo}
-                availableTabs={["Preset", "Import"]}
-                defaultTab="Preset"
-                settings={settings}
-                onSettingChange={updateSetting}
-              />
+              <section className="left-pane">
+                <section className="graph-card">
+                  <EqGraph
+                    peq={peq}
+                    committedPeq={lastPushedPeq}
+                    selectedMeasurementId={selectedMeasurementId}
+                    measurements={measurements}
+                    targets={activeTargets}
+                    viewMode={graphViewMode}
+                    theme={resolvedTheme}
+                  />
+                </section>
+                <ToolsPanel
+                  peq={peq}
+                  onImportPEQ={importPeq}
+                  profiles={profiles}
+                  selectedPreset={selectedPreset}
+                  profileSearch={profileSearch}
+                  setProfileSearch={setProfileSearch}
+                  newProfileName={newProfileName}
+                  setNewProfileName={setNewProfileName}
+                  onSelectProfile={applyProfile}
+                  onApplyProfile={supportsRamApply ? applyProfileToRam : undefined}
+                  onReloadProfiles={loadProfiles}
+                  onOpenProfilesDir={openProfilesDir}
+                  hideProfileFolderButton={isAndroid}
+                  onReset={reset}
+                  onSave={saveProfile}
+                  onDelete={deleteSelectedProfile}
+                  setStatus={setStatus}
+                  measurements={measurements}
+                  onAddMeasurement={addMeasurement}
+                  onRemoveMeasurement={removeMeasurement}
+                  onToggleMeasurement={toggleMeasurement}
+                  onClearMeasurements={clearMeasurements}
+                  onSelectedMeasurementChange={setSelectedMeasurementId}
+                  canUndo={undoStack.length > 0}
+                  canRedo={redoStack.length > 0}
+                  onUndo={undo}
+                  onRedo={redo}
+                  availableTabs={["Preset", "Import"]}
+                  defaultTab="Preset"
+                  settings={settings}
+                  onSettingChange={updateSetting}
+                />
+              </section>
             )}
             {activeTab === "settings" && (
-              <ToolsPanel
-                peq={peq}
-                onImportPEQ={importPeq}
-                profiles={profiles}
-                selectedPreset={selectedPreset}
-                profileSearch={profileSearch}
-                setProfileSearch={setProfileSearch}
-                newProfileName={newProfileName}
-                setNewProfileName={setNewProfileName}
-                onSelectProfile={applyProfile}
-                onApplyProfile={supportsRamApply ? applyProfileToRam : undefined}
-                onReloadProfiles={loadProfiles}
-                onOpenProfilesDir={openProfilesDir}
-                hideProfileFolderButton={isAndroid}
-                onReset={reset}
-                onSave={saveProfile}
-                onDelete={deleteSelectedProfile}
-                setStatus={setStatus}
-                measurements={measurements}
-                onAddMeasurement={addMeasurement}
-                onRemoveMeasurement={removeMeasurement}
-                onToggleMeasurement={toggleMeasurement}
-                onClearMeasurements={clearMeasurements}
-                onSelectedMeasurementChange={setSelectedMeasurementId}
-                canUndo={undoStack.length > 0}
-                canRedo={redoStack.length > 0}
-                onUndo={undo}
-                onRedo={redo}
-                availableTabs={["Settings"]}
-                defaultTab="Settings"
-                showActions={false}
-                graphViewMode={graphViewMode}
-                onGraphViewModeChange={setGraphViewMode}
-                settings={settings}
-                onSettingChange={updateSetting}
-              />
+              <section className="left-pane">
+                <section className="graph-card">
+                  <EqGraph
+                    peq={peq}
+                    committedPeq={lastPushedPeq}
+                    selectedMeasurementId={selectedMeasurementId}
+                    measurements={measurements}
+                    targets={activeTargets}
+                    viewMode={graphViewMode}
+                    theme={resolvedTheme}
+                  />
+                </section>
+                <ToolsPanel
+                  peq={peq}
+                  onImportPEQ={importPeq}
+                  profiles={profiles}
+                  selectedPreset={selectedPreset}
+                  profileSearch={profileSearch}
+                  setProfileSearch={setProfileSearch}
+                  newProfileName={newProfileName}
+                  setNewProfileName={setNewProfileName}
+                  onSelectProfile={applyProfile}
+                  onApplyProfile={supportsRamApply ? applyProfileToRam : undefined}
+                  onReloadProfiles={loadProfiles}
+                  onOpenProfilesDir={openProfilesDir}
+                  hideProfileFolderButton={isAndroid}
+                  onReset={reset}
+                  onSave={saveProfile}
+                  onDelete={deleteSelectedProfile}
+                  setStatus={setStatus}
+                  measurements={measurements}
+                  onAddMeasurement={addMeasurement}
+                  onRemoveMeasurement={removeMeasurement}
+                  onToggleMeasurement={toggleMeasurement}
+                  onClearMeasurements={clearMeasurements}
+                  onSelectedMeasurementChange={setSelectedMeasurementId}
+                  canUndo={undoStack.length > 0}
+                  canRedo={redoStack.length > 0}
+                  onUndo={undo}
+                  onRedo={redo}
+                  availableTabs={["Settings"]}
+                  defaultTab="Settings"
+                  showActions={false}
+                  graphViewMode={graphViewMode}
+                  onGraphViewModeChange={setGraphViewMode}
+                  settings={settings}
+                  onSettingChange={updateSetting}
+                />
+              </section>
             )}
           </div>
           <nav className="mobile-tab-bar">
