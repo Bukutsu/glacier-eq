@@ -818,6 +818,15 @@
   .settings-list .setting-select-wrapper {
     width: 180px !important;
   }
+
+  @media (min-width: 560px) {
+    .tab-panel:has(.profile-card):has(.import-section) {
+      display: grid !important;
+      grid-template-columns: 1fr 1fr !important;
+      gap: 16px !important;
+      align-items: start !important;
+    }
+  }
 }
 
 @media (max-width: 560px) {

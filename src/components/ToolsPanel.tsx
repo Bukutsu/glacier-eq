@@ -617,20 +617,16 @@ function PresetTab({
         ))}
       </div>
 
-      <input
-        className="new-name"
-        placeholder="New Name…"
-        value={newProfileName}
-        onChange={(event) => setNewProfileName(event.target.value)}
-      />
-
-      <div className="profile-card-foot">
-        <small className="modified">
-          {selectedProfile?.modified ? `Modified: ${selectedProfile.modified}` : "Glacier data folder"}
-        </small>
+      <div className="profile-rename-row">
+        <input
+          className="new-name"
+          placeholder="New Name…"
+          value={newProfileName}
+          onChange={(event) => setNewProfileName(event.target.value)}
+        />
         {showActions !== false && (
           <div className="profile-management-actions">
-            <button className="save primary-save" onClick={onSave}>
+            <button className="save primary-save" onClick={onSave} title="Save profile">
               <Icon>save</Icon>
               <span>Save</span>
             </button>
@@ -648,6 +644,12 @@ function PresetTab({
             </button>
           </div>
         )}
+      </div>
+
+      <div className="profile-card-foot">
+        <small className="modified">
+          {selectedProfile?.modified ? `Modified: ${selectedProfile.modified}` : "Glacier data folder"}
+        </small>
       </div>
     </section>
   );
