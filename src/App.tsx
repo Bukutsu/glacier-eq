@@ -1366,18 +1366,47 @@ function App() {
 
                 <details className="tuning-card disclosure-card" open>
                   <summary className="tuning-card-header">
-                    <Icon>track_changes</Icon>
-                    <strong>Targets</strong>
+                    <Icon>analytics</Icon>
+                    <strong>Traces & Targets</strong>
                   </summary>
-                  <div className="tuning-card-body tuning-card-body-flush">
-                    <TargetSelector
-                      targets={allTargets}
-                      activeTargetIds={activeTargetIds}
-                      onToggleTarget={toggleTarget}
-                      onAddTarget={addTarget}
-                      onRemoveTarget={removeTarget}
-                      setStatus={setStatus}
-                    />
+                  <div className="tuning-card-body">
+                    <div className="traces-targets-merged">
+                      <div className="traces-section">
+                        <div className="traces-section-title">
+                          <Icon>query_stats</Icon>
+                          <span>Measurement Traces</span>
+                        </div>
+                        <MeasureTab
+                          measurements={measurements}
+                          onAddMeasurement={addMeasurement}
+                          onRemoveMeasurement={removeMeasurement}
+                          onToggleMeasurement={toggleMeasurement}
+                          onClearMeasurements={clearMeasurements}
+                          setStatus={setStatus}
+                          enableOnlineMeasurements={enableOnlineMeasurements}
+                          onEnableOnlineMeasurementsChange={
+                            handleEnableOnlineMeasurementsChange
+                          }
+                        />
+                      </div>
+                      
+                      <div className="traces-divider" />
+
+                      <div className="traces-section">
+                        <div className="traces-section-title">
+                          <Icon>track_changes</Icon>
+                          <span>Target Curves</span>
+                        </div>
+                        <TargetSelector
+                          targets={allTargets}
+                          activeTargetIds={activeTargetIds}
+                          onToggleTarget={toggleTarget}
+                          onAddTarget={addTarget}
+                          onRemoveTarget={removeTarget}
+                          setStatus={setStatus}
+                        />
+                      </div>
+                    </div>
                   </div>
                 </details>
 
@@ -1393,27 +1422,6 @@ function App() {
                       activeTargetIds={activeTargetIds}
                       onImportPEQ={importPeq}
                       setStatus={setStatus}
-                    />
-                  </div>
-                </details>
-
-                <details className="tuning-card disclosure-card">
-                  <summary className="tuning-card-header">
-                    <Icon>analytics</Icon>
-                    <strong>Measurement Traces</strong>
-                  </summary>
-                  <div className="tuning-card-body">
-                    <MeasureTab
-                      measurements={measurements}
-                      onAddMeasurement={addMeasurement}
-                      onRemoveMeasurement={removeMeasurement}
-                      onToggleMeasurement={toggleMeasurement}
-                      onClearMeasurements={clearMeasurements}
-                      setStatus={setStatus}
-                      enableOnlineMeasurements={enableOnlineMeasurements}
-                      onEnableOnlineMeasurementsChange={
-                        handleEnableOnlineMeasurementsChange
-                      }
                     />
                   </div>
                 </details>
