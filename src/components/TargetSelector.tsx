@@ -44,58 +44,47 @@ export function TargetSelector({
   };
 
   return (
-    <section className="target-strip" aria-label="Target reference overlays">
-      <div className="target-strip-head">
-        <span>Targets</span>
-        <input
-          ref={fileInputRef}
-          type="file"
-          style={{ display: "none" }}
-          accept=".txt,.csv,text/plain,text/csv"
-          onChange={handleFileChange}
-        />
-        <button className="target-add" onClick={() => fileInputRef.current?.click()}>
-          <Icon>add</Icon>
+    <div className="target-pane">
+      <input
+        ref={fileInputRef}
+        type="file"
+        style={{ display: "none" }}
+        accept=".txt,.csv,text/plain,text/csv"
+        onChange={handleFileChange}
+      />
+      <div className="transfer-actions target-import-grid">
+        <button className="icon-action" onClick={() => fileInputRef.current?.click()}>
+          <Icon>playlist_add</Icon>
           <span>Add Target</span>
         </button>
       </div>
-      <div className="target-scroll">
+      <div className="curve-list" style={{ marginTop: "10px" }}>
         {targets.map((target) => {
           const active = activeTargetIds.includes(target.id);
           return (
-            <button
-              key={target.id}
-              className={`target-chip ${active ? "active" : ""}`}
-              onClick={() => onToggleTarget(target.id)}
-              title={target.name}
-            >
-              <span className="target-chip-swatch" style={{ backgroundColor: target.color }} />
-              <span className="target-chip-name">{target.name}</span>
+            <div className="curve-item" key={target.id}>
+              <label className="curve-toggle">
+                <input
+                  type="checkbox"
+                  checked={active}
+                  onChange={() => onToggleTarget(target.id)}
+                />
+                <span className="curve-swatch" style={{ backgroundColor: target.color }} />
+                <span className="curve-name">{target.name}</span>
+              </label>
               {!target.builtIn && (
-                <span
-                  className="target-chip-delete"
-                  role="button"
-                  tabIndex={0}
+                <button
+                  className="curve-delete"
                   title={`Delete ${target.name}`}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onRemoveTarget(target.id);
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      onRemoveTarget(target.id);
-                    }
-                  }}
+                  onClick={() => onRemoveTarget(target.id)}
                 >
-                  <Icon>close</Icon>
-                </span>
+                  <Icon>delete</Icon>
+                </button>
               )}
-            </button>
+            </div>
           );
         })}
       </div>
-    </section>
+    </div>
   );
 }

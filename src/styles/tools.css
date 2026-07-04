@@ -566,13 +566,25 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   outline-offset: -1px;
 }
 
-.measurement-empty {
+.curve-list {
+  background: var(--bg-dark);
+  padding: 4px;
+  height: 142px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  outline: 1px solid var(--line-soft);
+  outline-offset: -1px;
+}
+
+.curve-empty {
   padding: 12px;
   color: var(--muted);
   font-size: var(--type-small);
 }
 
-.measurement-item {
+.curve-item {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 36px;
   align-items: center;
@@ -580,54 +592,59 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   border-bottom: 1px solid var(--line-subtle);
 }
 
-.measurement-item:last-child {
+.curve-item:last-child {
   border-bottom: 0;
 }
 
-.measurement-toggle {
+.curve-toggle {
   min-width: 0;
   min-height: 48px;
   padding: 0 12px;
   display: grid;
-  grid-template-columns: 17px 12px minmax(0, 1fr) auto;
+  grid-template-columns: 17px 12px minmax(0, 1fr);
   align-items: center;
   gap: 10px;
+  cursor: pointer;
 }
 
-.measurement-swatch {
+.curve-swatch {
   width: 12px;
   height: 12px;
+  flex-shrink: 0;
 }
 
-.measurement-meta {
-  min-width: 0;
-  display: contents;
-}
-
-.measurement-name,
-.measurement-points {
+.curve-name {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.measurement-name {
   color: var(--text);
   font-size: var(--type-label);
+  display: inline-flex;
+  align-items: center;
 }
 
-.measurement-points {
+.curve-points {
   color: var(--comment);
   font-size: var(--type-caption);
-  padding-left: 10px;
+  padding-left: 8px;
 }
 
-.measurement-delete {
+.curve-delete {
   min-height: 48px !important;
   padding: 0 !important;
   color: var(--red) !important;
   background: transparent !important;
+  border: none;
+  cursor: pointer;
+}
+
+/* Eliminate double-card backgrounds and borders when nested inside Traces & Targets */
+.traces-targets-merged .tool-card {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  box-shadow: none !important;
 }
 .settings-list {
   display: flex;
