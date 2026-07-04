@@ -112,12 +112,33 @@
     position: sticky;
     top: 0;
     z-index: 20;
-    padding: 12px 12px 10px;
+    padding: 8px 12px;
     border-bottom: 1px solid var(--line-medium);
+    min-height: 56px;
+    background: var(--bg);
   }
   .selection-header {
     min-height: auto;
     padding: 12px;
+  }
+  .header-main {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+  }
+  .desktop-toolbar {
+    display: none !important;
+  }
+  .mobile-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .header-session-strip {
+    display: none !important;
   }
   h1 {
     font-size: var(--type-title);
@@ -126,30 +147,93 @@
     display: none;
   }
   .device-name {
-    font-size: var(--type-label);
+    font-size: var(--type-caption);
+    color: var(--muted);
   }
   .title-stack {
-    gap: 4px;
+    gap: 2px;
+    width: auto;
+    min-width: 0;
   }
   .title-line {
     flex-wrap: nowrap;
+    align-items: center;
+    gap: 6px;
   }
   .title-line strong {
     font-size: var(--type-label);
   }
-  .toolbar {
-    grid-template-columns: 76px repeat(3, minmax(0, 1fr));
+  .mobile-icon-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    cursor: pointer;
+    transition: background-color 0.15s ease;
   }
-  .history-buttons {
-    padding: 2px;
+  .mobile-icon-btn:hover {
+    background: var(--surface-soft);
   }
-  .history-btn {
-    min-width: 34px;
-    min-height: 38px;
-    padding: 0 8px;
+  .mobile-icon-btn:active {
+    background: var(--surface);
   }
-  .history-btn-label {
-    display: none;
+  .mobile-icon-btn:disabled {
+    opacity: 0.38;
+    pointer-events: none;
+  }
+  .mobile-icon-btn.primary {
+    color: var(--cyan);
+  }
+  .mobile-menu-container {
+    position: relative;
+    display: inline-block;
+  }
+  .mobile-dropdown-menu {
+    position: absolute;
+    top: 44px;
+    right: 0;
+    background: var(--legend-bg);
+    border: 1px solid var(--line-outline);
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(12px);
+    z-index: 110;
+    min-width: 180px;
+    padding: 4px 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    min-height: 48px;
+    padding: 0 16px;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    text-align: left;
+    font-size: var(--type-body);
+    cursor: pointer;
+  }
+  .dropdown-item:active {
+    background: var(--surface-soft);
+  }
+  .dropdown-item .material-symbols-outlined {
+    font-size: 20px;
+    color: var(--muted);
+  }
+  .dropdown-item.danger {
+    color: var(--orange);
+  }
+  .dropdown-item.danger .material-symbols-outlined {
+    color: var(--orange);
   }
   .sync-dot,
   .unsaved {
@@ -661,6 +745,35 @@
     flex-direction: column;
     gap: 2px;
   }
+
+  /* M3 Card and Touch Targets */
+  .graph-card,
+  .preamp-card,
+  .bands-card,
+  .tuning-card,
+  .diag-card,
+  .mobile-filter-card {
+    border-radius: 12px !important;
+    border: 1px solid var(--line-soft) !important;
+    background: var(--panel) !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+    overflow: hidden;
+  }
+  
+  .target-add,
+  .target-chip,
+  .graph-view-toggle,
+  .graph-view-toggle button {
+    min-height: 48px !important;
+  }
+
+  .band-picker button {
+    min-height: 48px !important;
+  }
+
+  .custom-number-input {
+    height: 44px !important;
+  }
 }
 
 @media (max-width: 560px) {
@@ -884,5 +997,31 @@
     font-size: var(--type-small);
     color: var(--muted);
     line-height: 1.4;
+  }
+}
+
+@media (pointer: coarse) {
+  .control-slider-input::-webkit-slider-thumb {
+    width: 20px !important;
+    height: 20px !important;
+    border-radius: 50% !important;
+    margin-top: -7px !important;
+    background: var(--slider-thumb, var(--blue)) !important;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3) !important;
+  }
+  .control-slider-input::-moz-range-thumb {
+    width: 20px !important;
+    height: 20px !important;
+    border-radius: 50% !important;
+    background: var(--slider-thumb, var(--blue)) !important;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3) !important;
+  }
+  .control-slider-input::-webkit-slider-runnable-track {
+    height: 6px !important;
+    border-radius: 3px !important;
+  }
+  .control-slider-input::-moz-range-track {
+    height: 6px !important;
+    border-radius: 3px !important;
   }
 }

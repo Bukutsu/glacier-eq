@@ -1,3 +1,4 @@
+import { useState, useRef, useEffect } from "react";
 import { OperationProgress } from "../types";
 import { isTauri } from "../lib/platform";
 
@@ -63,6 +64,19 @@ export function Header({
   onPush,
   onDisconnect,
 }: HeaderProps) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const syncText = isBusy
     ? progress
       ? `${progress.message} · ${Math.round(progress.percentage)}%`
@@ -110,7 +124,8 @@ export function Header({
             {firmwareVersion && <span>FW {firmwareVersion}</span>}
           </div>
         </div>
-        <div className="toolbar">
+        {/* Desktop Toolbar */}
+        <div className="toolbar desktop-toolbar">
           <div className="history-buttons" aria-label="Edit history">
             <button
               type="button"
@@ -138,6 +153,79 @@ export function Header({
           <button className="btn tonal" onClick={onPull} disabled={isBusy}>Pull</button>
           <button className="btn filled" onClick={onPush} disabled={isBusy}>Push</button>
           <button className="btn tonal" onClick={onDisconnect} disabled={isBusy}>Disconnect</button>
+        </div>
+
+        {/* Mobile Toolbar (M3 style) */}
+        <div className="mobile-toolbar">
+          <button
+            type="button"
+            className="mobile-icon-btn"
+            title="Undo"
+            aria-label="Undo"
+            disabled={isBusy || !canUndo}
+            onClick={onUndo}
+          >
+            <span className="material-symbols-outlined">undo</span>
+          </button>
+          <button
+            type="button"
+            className="mobile-icon-btn"
+            title="Redo"
+            aria-label="Redo"
+            disabled={isBusy || !canRedo}
+            onClick={onRedo}
+          >
+            <span className="material-symbols-outlined">redo</span>
+          </button>
+          <button
+            type="button"
+            className="mobile-icon-btn primary"
+            title="Push settings"
+            aria-label="Push settings"
+            disabled={isBusy}
+            onClick={onPush}
+          >
+            <span className="material-symbols-outlined">publish</span>
+          </button>
+          <div className="mobile-menu-container" ref={menuRef}>
+            <button
+              type="button"
+              className="mobile-icon-btn"
+              title="More actions"
+              aria-label="More actions"
+              onClick={() => setMenuOpen(!menuOpen)}
+            >
+              <span className="material-symbols-outlined">more_vert</span>
+            </button>
+            {menuOpen && (
+              <div className="mobile-dropdown-menu">
+                <button
+                  type="button"
+                  className="dropdown-item"
+                  onClick={() => {
+                    onPull();
+                    setMenuOpen(false);
+                  }}
+                  disabled={isBusy}
+                >
+                  <span className="material-symbols-outlined">download</span>
+                  <span>Pull from device</span>
+                </button>
+                <button
+                  type="button"
+                  className="dropdown-item danger"
+                  onClick={() => {
+                    onDisconnect();
+                    setMenuOpen(false);
+                  }}
+                  disabled={isBusy}
+                >
+                  <span className="material-symbols-outlined">link_off</span>
+                  <span>Disconnect</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
       {isBusy && (
