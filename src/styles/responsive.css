@@ -692,7 +692,21 @@
   }
   .preset-list {
     height: auto;
-    max-height: 230px;
+    max-height: 350px !important;
+  }
+  .profile-row {
+    min-height: 48px !important;
+  }
+  .profile-name-btn {
+    min-height: 48px !important;
+  }
+  .profile-apply-btn {
+    min-height: 48px !important;
+    width: 44px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin-right: 4px !important;
   }
   .measurement-list {
     max-height: 260px;
