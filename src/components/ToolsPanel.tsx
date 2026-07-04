@@ -981,14 +981,14 @@ export function AutoEqTab({
 
       const cleanMeasName = meas.name
         .replace(/\s*\(.*?\)/g, "")
-        .trim();
+        .trim() || meas.name;
       const cleanTargetName = target.name
         .replace(/IE 2019/i, "IE")
         .replace(/OE 2018/i, "OE")
         .replace(/Preference \d+/i, "Pref")
         .replace(/PEQdb /i, "")
         .replace(/Reference/i, "")
-        .trim();
+        .trim() || target.name;
       const autoName = `${cleanMeasName} @ ${cleanTargetName}`;
       onImportPEQ(result.peq, autoName, false);
       setWarnings(result.warnings);
