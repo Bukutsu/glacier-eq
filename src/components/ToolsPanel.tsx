@@ -342,14 +342,14 @@ function CurvesTab({
 }: CurvesTabProps) {
   return (
     <div className="curves-tab">
-      <div className="unified-curves-import-grid">
-        <button className="icon-action" onClick={onAddMeasurementFile}>
+      <div className="transfer-actions unified-curves-import-grid">
+        <button className="icon-action" title="Add Measurement" onClick={onAddMeasurementFile}>
           <Icon>playlist_add</Icon>
-          <span>Add Measurement</span>
+          <span>Measurement</span>
         </button>
-        <button className="icon-action" onClick={onAddTargetFile}>
+        <button className="icon-action" title="Add Target" onClick={onAddTargetFile}>
           <Icon>add_box</Icon>
-          <span>Add Target</span>
+          <span>Target</span>
         </button>
       </div>
       <div className="traces-targets-merged">
