@@ -79,6 +79,7 @@ export function Header({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const syncClass = !connected ? "offline" : isBusy ? "working" : dirty ? "unsaved" : "ok";
   const syncText = !connected
     ? "Offline"
     : isBusy
@@ -98,10 +99,8 @@ export function Header({
             <GithubLink />
           </div>
           <div className="header-meta-row">
-            <div className="device-name">{connected ? deviceName : "Offline Mode"}</div>
-            <span className={`sync-dot ${!connected ? "offline" : (isBusy ? "working" : "ok")}`}>
-              ● {syncText}
-            </span>
+            <div className="device-name">{connected ? deviceName : "No device"}</div>
+            <span className={`sync-dot ${syncClass}`}>{syncText}</span>
           </div>
           <div className="header-session-strip" aria-label="EQ session status">
             <span>{activeBands}/{maxBands} bands</span>
