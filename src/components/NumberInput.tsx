@@ -33,8 +33,29 @@ export function NumberInput({
     }
   };
 
+  const decrement = () => {
+    if (disabled) return;
+    const nextVal = Math.max(min, value - step);
+    onChange(Number(nextVal.toFixed(precision)));
+  };
+
+  const increment = () => {
+    if (disabled) return;
+    const nextVal = Math.min(max, value + step);
+    onChange(Number(nextVal.toFixed(precision)));
+  };
+
   return (
     <div className={`custom-number-input ${disabled ? "disabled" : ""} ${className}`}>
+      <button
+        type="button"
+        className="stepper-btn decrement"
+        onClick={decrement}
+        disabled={disabled || value <= min}
+        aria-label="Decrement"
+      >
+        –
+      </button>
       <input
         id={id}
         type="number"
@@ -48,6 +69,15 @@ export function NumberInput({
         disabled={disabled}
         className="stepper-field"
       />
+      <button
+        type="button"
+        className="stepper-btn increment"
+        onClick={increment}
+        disabled={disabled || value >= max}
+        aria-label="Increment"
+      >
+        +
+      </button>
     </div>
   );
 }
