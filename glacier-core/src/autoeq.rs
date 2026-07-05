@@ -1420,10 +1420,17 @@ pub fn run_autoeq(
     }
 
     let mut f0 = vec![1000.0; n_bands];
+    for n in 0..n_bands {
+        if types[n] == crate::eq::FilterType::LowShelf {
+            f0[n] = 80.0;
+        } else if types[n] == crate::eq::FilterType::HighShelf {
+            f0[n] = 10000.0;
+        }
+    }
     let mut gain = vec![0.0; n_bands];
     let mut q_vals = vec![1.0; n_bands];
 
-    let f0_lim = vec![
+    let mut f0_lim = vec![
         Lim {
             lo: 20.0,
             hi: 16000.0
@@ -1440,9 +1447,11 @@ pub fn run_autoeq(
     let mut q_lim = vec![Lim { lo: 0.4, hi: 4.0 }; n_bands];
 
     for n in 0..n_bands {
-        if types[n] == crate::eq::FilterType::LowShelf
-            || types[n] == crate::eq::FilterType::HighShelf
-        {
+        if types[n] == crate::eq::FilterType::LowShelf {
+            f0_lim[n] = Lim { lo: 20.0, hi: 500.0 };
+            q_lim[n] = Lim { lo: 0.4, hi: 3.0 };
+        } else if types[n] == crate::eq::FilterType::HighShelf {
+            f0_lim[n] = Lim { lo: 3000.0, hi: 20000.0 };
             q_lim[n] = Lim { lo: 0.4, hi: 3.0 };
         }
     }
