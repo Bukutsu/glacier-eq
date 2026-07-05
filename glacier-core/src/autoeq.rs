@@ -856,11 +856,11 @@ fn grad(c: &Consts, x: &[f32], g: &mut [f32]) -> f32 {
     let n_bands = c.n_bands;
     let r_k = 1.0 / K as f32;
 
-    let mut dy_dw0 = vec![vec![0.0; K]; n_bands];
-    let mut dy_dgain = vec![vec![0.0; K]; n_bands];
-    let mut dy_dbw = vec![vec![0.0; K]; n_bands];
+    let mut dy_dw0 = [[0.0; K]; MAX_N];
+    let mut dy_dgain = [[0.0; K]; MAX_N];
+    let mut dy_dbw = [[0.0; K]; MAX_N];
 
-    let mut w0_v = vec![0.0; n_bands];
+    let mut w0_v = [0.0; MAX_N];
     let mut pred = [0.0; K];
 
     let (x_lf, x_rest) = x.split_at(n_bands);
@@ -915,7 +915,7 @@ fn grad(c: &Consts, x: &[f32], g: &mut [f32]) -> f32 {
 
             pred[k] *= b_poly / a_poly;
 
-            let _8phi2 = 8.0 * phi_k.powi(2);
+            let _8phi2 = 8.0 * phi_k * phi_k;
             let _2phi = 2.0 * phi_k;
 
             let bm = 20.0 / std::f32::consts::LN_10 / b_poly;
@@ -1057,8 +1057,8 @@ fn fit(
     r: &[f32; K],
     fs: f32,
 ) -> f32 {
-    let mut lf_lim = vec![Lim { lo: 0.0, hi: 0.0 }; n_bands];
-    let mut bw_lim = vec![Lim { lo: 0.0, hi: 0.0 }; n_bands];
+    let mut lf_lim = [Lim { lo: 0.0, hi: 0.0 }; MAX_N];
+    let mut bw_lim = [Lim { lo: 0.0, hi: 0.0 }; MAX_N];
 
     for n in 0..n_bands {
         lf_lim[n] = Lim {
