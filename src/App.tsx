@@ -487,7 +487,31 @@ function App() {
 
   const measurementFileInputRef = useRef<HTMLInputElement>(null);
   const targetFileInputRef = useRef<HTMLInputElement>(null);
-  const leftPaneRef = useRef<HTMLDivElement>(null);
+  const cleanupWheelRef = useRef<(() => void) | null>(null);
+  const leftPaneRef = useCallback((node: HTMLElement | null) => {
+    if (cleanupWheelRef.current) {
+      cleanupWheelRef.current();
+      cleanupWheelRef.current = null;
+    }
+
+    if (node) {
+      const handleWheel = (e: WheelEvent) => {
+        let delta = e.deltaY;
+        if (e.deltaMode === 1) {
+          delta *= 20;
+        } else if (e.deltaMode === 2) {
+          delta *= node.clientHeight;
+        }
+        node.scrollTop += delta;
+        e.preventDefault();
+      };
+
+      node.addEventListener("wheel", handleWheel, { capture: true, passive: false });
+      cleanupWheelRef.current = () => {
+        node.removeEventListener("wheel", handleWheel, { capture: true });
+      };
+    }
+  }, []);
 
   const handleImportMeasurementFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -1310,20 +1334,7 @@ function App() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  useEffect(() => {
-    const pane = leftPaneRef.current;
-    if (!pane) return;
 
-    const handleWheel = (e: WheelEvent) => {
-      pane.scrollTop += e.deltaY;
-      e.preventDefault();
-    };
-
-    pane.addEventListener("wheel", handleWheel, { capture: true, passive: false });
-    return () => {
-      pane.removeEventListener("wheel", handleWheel, { capture: true });
-    };
-  }, [connected]);
 
   return (
     <div id="app">
