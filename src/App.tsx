@@ -215,6 +215,9 @@ function App() {
   const [activeTab, setActiveTab] = useState<
     "eq" | "tuning" | "profiles" | "device" | "settings"
   >("eq");
+  const [graphCollapsed, setGraphCollapsed] = useState(false);
+  const [toolsTab, setToolsTab] = useState<any>("Preset");
+  const [showDeviceModal, setShowDeviceModal] = useState(false);
 
   useEffect(() => {
     const media = window.matchMedia(MOBILE_QUERY);
@@ -234,8 +237,6 @@ function App() {
   const enableOnlineMeasurements = settings.enable_online_measurements;
   const snapToIso = settings.snap_to_iso_frequencies;
   const [resolvedTheme, setResolvedTheme] = useState("tokyo-night");
-  const [showGraphPreview, setShowGraphPreview] = useState(false);
-  const graphPreviewTimerRef = useRef<number | null>(null);
 
   const updateSetting = useCallback(<K extends keyof AppSettings>(
     key: K,
@@ -630,26 +631,7 @@ function App() {
     setDirty(true);
   }, [redoStack]);
 
-  const flashGraphPreview = useCallback(() => {
-    if (!isMobile || activeTab !== "eq") return;
-    if (graphPreviewTimerRef.current !== null) {
-      window.clearTimeout(graphPreviewTimerRef.current);
-    }
-    setShowGraphPreview(true);
-    graphPreviewTimerRef.current = window.setTimeout(() => {
-      setShowGraphPreview(false);
-      graphPreviewTimerRef.current = null;
-    }, 900);
-  }, [activeTab, isMobile]);
-
-  useEffect(
-    () => () => {
-      if (graphPreviewTimerRef.current !== null) {
-        window.clearTimeout(graphPreviewTimerRef.current);
-      }
-    },
-    [],
-  );
+  const flashGraphPreview = useCallback(() => {}, []);
 
   const handleStartChange = useCallback(() => {
     flashGraphPreview();
@@ -1420,47 +1402,37 @@ function App() {
           onPull={pullEq}
           onPush={pushEq}
           onDisconnect={disconnectDevice}
+          onConnectClick={() => setShowDeviceModal(true)}
         />
       )}
-      {!connected ? (
-        <DeviceChooser
-          devices={devices}
-          onScan={scanDevices}
-          onConnect={connectDevice}
-          selectedDevice={selectedDevice}
-          setSelectedDevice={setSelectedDevice}
-          status={status}
-          isBusy={isBusy}
-        />
-      ) : isMobile ? (
+      {isMobile ? (
         <main className="workspace mobile-workspace">
+          {["eq", "tuning", "profiles"].includes(activeTab) && (
+            <section className={`mobile-graph-container ${graphCollapsed ? "collapsed" : ""}`}>
+              <div className="graph-card">
+                <EqGraph
+                  peq={peq}
+                  committedPeq={lastPushedPeq}
+                  selectedMeasurementId={selectedMeasurementId}
+                  measurements={measurements}
+                  targets={activeTargets}
+                  viewMode={graphViewMode}
+                  theme={resolvedTheme}
+                />
+              </div>
+              <button
+                type="button"
+                className="graph-collapse-btn"
+                onClick={() => setGraphCollapsed(!graphCollapsed)}
+                aria-label={graphCollapsed ? "Expand graph" : "Collapse graph"}
+              >
+                <Icon>{graphCollapsed ? "expand_more" : "expand_less"}</Icon>
+              </button>
+            </section>
+          )}
           <div className="mobile-content-area">
             {activeTab === "eq" && (
               <section className="left-pane">
-                {showGraphPreview && (
-                  <section className="mobile-graph-preview" aria-hidden="true">
-                    <EqGraph
-                      peq={peq}
-                      committedPeq={lastPushedPeq}
-                      selectedMeasurementId={selectedMeasurementId}
-                      measurements={measurements}
-                      targets={activeTargets}
-                      viewMode={graphViewMode}
-                      theme={resolvedTheme}
-                    />
-                  </section>
-                )}
-                <section className="graph-card">
-                  <EqGraph
-                    peq={peq}
-                    committedPeq={lastPushedPeq}
-                    selectedMeasurementId={selectedMeasurementId}
-                    measurements={measurements}
-                    targets={activeTargets}
-                    viewMode={graphViewMode}
-                    theme={resolvedTheme}
-                  />
-                </section>
                 <Preamp
                   value={peq.global_gain}
                   resetValue={lastPushedPeq?.global_gain}
@@ -1485,18 +1457,6 @@ function App() {
             )}
             {activeTab === "tuning" && (
               <section className="left-pane">
-                <section className="graph-card">
-                  <EqGraph
-                    peq={peq}
-                    committedPeq={lastPushedPeq}
-                    selectedMeasurementId={selectedMeasurementId}
-                    measurements={measurements}
-                    targets={activeTargets}
-                    viewMode={graphViewMode}
-                    theme={resolvedTheme}
-                  />
-                </section>
-
                 <details className="tuning-card disclosure-card" open>
                   <summary className="tuning-card-header">
                     <Icon>analytics</Icon>
@@ -1574,6 +1534,9 @@ function App() {
                       activeTargetIds={activeTargetIds}
                       onImportPEQ={importPeq}
                       setStatus={setStatus}
+                      onToggleMeasurement={toggleMeasurement}
+                      onToggleTarget={toggleTarget}
+                      onSelectedMeasurementChange={setSelectedMeasurementId}
                     />
                   </div>
                 </details>
@@ -1581,17 +1544,6 @@ function App() {
             )}
             {activeTab === "profiles" && (
               <section className="left-pane">
-                <section className="graph-card">
-                  <EqGraph
-                    peq={peq}
-                    committedPeq={lastPushedPeq}
-                    selectedMeasurementId={selectedMeasurementId}
-                    measurements={measurements}
-                    targets={activeTargets}
-                    viewMode={graphViewMode}
-                    theme={resolvedTheme}
-                  />
-                </section>
                 <ToolsPanel
                   peq={peq}
                   onImportPEQ={importPeq}
@@ -1631,17 +1583,6 @@ function App() {
             )}
             {activeTab === "settings" && (
               <section className="left-pane">
-                <section className="graph-card">
-                  <EqGraph
-                    peq={peq}
-                    committedPeq={lastPushedPeq}
-                    selectedMeasurementId={selectedMeasurementId}
-                    measurements={measurements}
-                    targets={activeTargets}
-                    viewMode={graphViewMode}
-                    theme={resolvedTheme}
-                  />
-                </section>
                 <ToolsPanel
                   peq={peq}
                   onImportPEQ={importPeq}
@@ -1684,17 +1625,6 @@ function App() {
             )}
             {activeTab === "device" && (
               <section className="left-pane">
-                <section className="graph-card">
-                  <EqGraph
-                    peq={peq}
-                    committedPeq={lastPushedPeq}
-                    selectedMeasurementId={selectedMeasurementId}
-                    measurements={measurements}
-                    targets={activeTargets}
-                    viewMode={graphViewMode}
-                    theme={resolvedTheme}
-                  />
-                </section>
                 <ToolsPanel
                   peq={peq}
                   onImportPEQ={importPeq}
@@ -1730,6 +1660,16 @@ function App() {
                   activeTargetIds={activeTargetIds}
                   settings={settings}
                   onSettingChange={updateSetting}
+                  connected={connected}
+                  devices={devices}
+                  selectedDevice={selectedDevice}
+                  setSelectedDevice={setSelectedDevice}
+                  onScan={scanDevices}
+                  onConnect={connectDevice}
+                  onDisconnect={disconnectDevice}
+                  connectionStatus={status}
+                  isBusy={isBusy}
+                  onOpenConnectModal={() => setShowDeviceModal(true)}
                 />
               </section>
             )}
@@ -1873,6 +1813,18 @@ function App() {
             onRemoveTarget={removeTarget}
             onAddMeasurementFile={() => measurementFileInputRef.current?.click()}
             onAddTargetFile={() => targetFileInputRef.current?.click()}
+            connected={connected}
+            devices={devices}
+            selectedDevice={selectedDevice}
+            setSelectedDevice={setSelectedDevice}
+            onScan={scanDevices}
+            onConnect={connectDevice}
+            onDisconnect={disconnectDevice}
+            connectionStatus={status}
+            isBusy={isBusy}
+            activeTab={toolsTab}
+            onActiveTabChange={setToolsTab}
+            onOpenConnectModal={() => setShowDeviceModal(true)}
           />
         </main>
       )}
@@ -1904,6 +1856,33 @@ function App() {
             >
               Cancel & Return to Device Selection
             </button>
+          </div>
+        </div>
+      )}
+      {showDeviceModal && (
+        <div className="modal-overlay" onClick={() => setShowDeviceModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Connect Device</h2>
+              <button className="modal-close-btn" onClick={() => setShowDeviceModal(false)} aria-label="Close">
+                <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>close</span>
+              </button>
+            </div>
+            <div className="modal-body">
+              <DeviceChooser
+                devices={devices}
+                onScan={scanDevices}
+                onConnect={async () => {
+                  await connectDevice();
+                  setShowDeviceModal(false);
+                }}
+                selectedDevice={selectedDevice}
+                setSelectedDevice={setSelectedDevice}
+                status={status}
+                isBusy={isBusy}
+                inline
+              />
+            </div>
           </div>
         </div>
       )}

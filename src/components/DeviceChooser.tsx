@@ -13,6 +13,7 @@ interface DeviceChooserProps {
   setSelectedDevice: (path: string) => void;
   status: string;
   isBusy: boolean;
+  inline?: boolean;
 }
 
 function formatUsbId(value: number | null | undefined): string {
@@ -28,8 +29,10 @@ export function DeviceChooser({
   setSelectedDevice,
   status,
   isBusy,
+  inline = false,
 }: DeviceChooserProps) {
   const [supportedDacs, setSupportedDacs] = useState<SupportedDeviceInfo[]>([]);
+  const [supportedOpen, setSupportedOpen] = useState(false);
 
   useEffect(() => {
     invoke<SupportedDeviceInfo[]>("list_supported_devices")
@@ -44,9 +47,11 @@ export function DeviceChooser({
     onScan();
   };
 
-  return (
-    <main className="disconnected-screen">
-      <section className="device-card">
+  const cardContent = (
+    <section className={inline ? "device-card inline-device-card" : "device-card"}>
+      {inline ? (
+        <button className="btn tonal" style={{ width: "100%" }} onClick={handleScanClick} disabled={isBusy}>{isBusy ? "Scanning…" : "Scan for Devices"}</button>
+      ) : (
         <div className="device-card-head">
           <div>
             <h2>Available Devices</h2>
@@ -54,60 +59,82 @@ export function DeviceChooser({
           </div>
           <button className="btn tonal" onClick={handleScanClick} disabled={isBusy}>{isBusy ? "Scanning…" : "Scan"}</button>
         </div>
+      )}
 
-        {devices.length === 0 ? (
-          <div className="empty-device-state">
-            <strong>No supported DAC found</strong>
-            <span>Plug in one of the supported devices below, then scan again.</span>
-          </div>
-        ) : (
-          <div className="device-list">
-            {devices.map((device) => {
-              const name = device.profile_name || device.product_string || device.manufacturer || "Supported DAC";
-              const selected = selectedDevice === device.path;
-              const isDummy = isDevDummyDevice(device.path);
-              return (
-                <button
-                  key={device.path}
-                  className={selected ? "device-row selected" : "device-row"}
-                  onClick={() => setSelectedDevice(device.path)}
-                  onDoubleClick={onConnect}
-                >
-                  <span className="device-row-title">
-                    {name}
-                    {isDummy && <span className="dev-device-badge">DEV</span>}
-                  </span>
-                  <span className="device-row-meta">
-                    VID: {formatUsbId(device.vendor_id)} &nbsp; PID: {formatUsbId(device.product_id)}
-                  </span>
-                  <small>
-                    {isDummy
-                      ? "No hardware required for UI review"
-                      : device.product_string || device.manufacturer || "Walkplay Family DAC"}
-                  </small>
-                </button>
-              );
-            })}
-          </div>
-        )}
+      {devices.length === 0 ? (
+        <div className="empty-device-state">
+          <strong>No supported DAC found</strong>
+          <span>Plug in one of the supported devices below, then scan again.</span>
+        </div>
+      ) : (
+        <div className="device-list">
+          {devices.map((device) => {
+            const name = device.profile_name || device.product_string || device.manufacturer || "Supported DAC";
+            const selected = selectedDevice === device.path;
+            const isDummy = isDevDummyDevice(device.path);
+            return (
+              <button
+                key={device.path}
+                className={selected ? "device-row selected" : "device-row"}
+                onClick={() => setSelectedDevice(device.path)}
+                onDoubleClick={onConnect}
+              >
+                <span className="device-row-title">
+                  {name}
+                  {isDummy && <span className="dev-device-badge">DEV</span>}
+                </span>
+                <span className="device-row-meta">
+                  VID: {formatUsbId(device.vendor_id)} &nbsp; PID: {formatUsbId(device.product_id)}
+                </span>
+                <small>
+                  {isDummy
+                    ? "No hardware required for UI review"
+                    : device.product_string || device.manufacturer || "Walkplay Family DAC"}
+                </small>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
-        <div className="supported-list">
-          <span>SUPPORTED</span>
+      <details
+        className="supported-list"
+        open={supportedOpen}
+        onToggle={(e) => setSupportedOpen((e.target as HTMLDetailsElement).open)}
+        style={{ padding: "8px 12px", background: "var(--bg-dark)", border: "1px solid var(--line-soft)" }}
+      >
+        <summary style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", color: "var(--comment)", fontSize: "var(--type-caption)", fontWeight: 700, outline: "none", listStyle: "none" }}>
+          <span>SUPPORTED MODELS ({supportedDacs.length})</span>
+          <span className="material-symbols-outlined" style={{ fontSize: "16px", color: "var(--cyan)" }}>
+            {supportedOpen ? "expand_less" : "expand_more"}
+          </span>
+        </summary>
+        <div style={{ display: "grid", gap: "8px", marginTop: "12px" }}>
           {supportedDacs.map((dac) => (
-            <div key={dac.name}>
+            <div key={dac.name} style={{ display: "flex", justifyContent: "space-between", gap: "12px", color: "var(--text)", fontSize: "var(--type-small)" }}>
               <strong>{dac.name}</strong>
-              <small>
+              <small style={{ color: "var(--muted)" }}>
                 {formatUsbId(dac.vendor_id)}:{dac.product_id == null ? "*" : formatUsbId(dac.product_id)} · {dac.status}
               </small>
             </div>
           ))}
         </div>
+      </details>
 
-        <div className="device-actions">
-          <button className="btn filled" onClick={onConnect} disabled={!selectedDevice || isBusy}>Connect</button>
-        </div>
-        <span className="status-text">{status}</span>
-      </section>
+      <div className="device-actions">
+        <button className="btn filled" onClick={onConnect} disabled={!selectedDevice || isBusy}>Connect</button>
+      </div>
+      <span className="status-text">{status}</span>
+    </section>
+  );
+
+  if (inline) {
+    return cardContent;
+  }
+
+  return (
+    <main className="disconnected-screen">
+      {cardContent}
     </main>
   );
 }
