@@ -1448,10 +1448,16 @@ pub fn run_autoeq(
 
     for n in 0..n_bands {
         if types[n] == crate::eq::FilterType::LowShelf {
-            f0_lim[n] = Lim { lo: 20.0, hi: 500.0 };
+            f0_lim[n] = Lim {
+                lo: 20.0,
+                hi: 500.0,
+            };
             q_lim[n] = Lim { lo: 0.4, hi: 3.0 };
         } else if types[n] == crate::eq::FilterType::HighShelf {
-            f0_lim[n] = Lim { lo: 3000.0, hi: 20000.0 };
+            f0_lim[n] = Lim {
+                lo: 3000.0,
+                hi: 20000.0,
+            };
             q_lim[n] = Lim { lo: 0.4, hi: 3.0 };
         }
     }
