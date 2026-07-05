@@ -601,6 +601,7 @@ body::-webkit-scrollbar,
 .import-warnings-box::-webkit-scrollbar,
 .autoeq-tab::-webkit-scrollbar,
 .settings-list::-webkit-scrollbar,
+.left-pane::-webkit-scrollbar,
 .custom-select-dropdown::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -617,6 +618,7 @@ body::-webkit-scrollbar-track,
 .import-warnings-box::-webkit-scrollbar-track,
 .autoeq-tab::-webkit-scrollbar-track,
 .settings-list::-webkit-scrollbar-track,
+.left-pane::-webkit-scrollbar-track,
 .custom-select-dropdown::-webkit-scrollbar-track {
   background: var(--bg-dark);
   border-left: 1px solid var(--line-subtle);
@@ -633,6 +635,7 @@ body::-webkit-scrollbar-track:horizontal,
 .import-warnings-box::-webkit-scrollbar-track:horizontal,
 .autoeq-tab::-webkit-scrollbar-track:horizontal,
 .settings-list::-webkit-scrollbar-track:horizontal,
+.left-pane::-webkit-scrollbar-track:horizontal,
 .custom-select-dropdown::-webkit-scrollbar-track:horizontal {
   border-left: none;
   border-top: 1px solid var(--line-subtle);
@@ -649,6 +652,7 @@ body::-webkit-scrollbar-thumb,
 .import-warnings-box::-webkit-scrollbar-thumb,
 .autoeq-tab::-webkit-scrollbar-thumb,
 .settings-list::-webkit-scrollbar-thumb,
+.left-pane::-webkit-scrollbar-thumb,
 .custom-select-dropdown::-webkit-scrollbar-thumb {
   background: var(--comment);
   border-radius: 0px !important; /* Force completely sharp corners to match design language */
@@ -676,6 +680,8 @@ body::-webkit-scrollbar-thumb:active,
 .autoeq-tab::-webkit-scrollbar-thumb:active,
 .settings-list::-webkit-scrollbar-thumb:hover,
 .settings-list::-webkit-scrollbar-thumb:active,
+.left-pane::-webkit-scrollbar-thumb:hover,
+.left-pane::-webkit-scrollbar-thumb:active,
 .custom-select-dropdown::-webkit-scrollbar-thumb:hover,
 .custom-select-dropdown::-webkit-scrollbar-thumb:active {
   background: var(--cyan);
@@ -692,6 +698,7 @@ body::-webkit-scrollbar-corner,
 .import-warnings-box::-webkit-scrollbar-corner,
 .autoeq-tab::-webkit-scrollbar-corner,
 .settings-list::-webkit-scrollbar-corner,
+.left-pane::-webkit-scrollbar-corner,
 .custom-select-dropdown::-webkit-scrollbar-corner {
   background: var(--bg-dark);
 }
