@@ -22,11 +22,10 @@ import {
 import {
   getBuiltInTargets,
   makeTargetName,
-  nextTargetColor,
+  resolveTargetColor,
 } from "./lib/targetReferences";
 import { buildDefaultState, normalizePeq, peqEquals } from "./lib/peq";
 import { isTauri } from "./lib/platform";
-import { clearThemeCache } from "./lib/theme";
 import type {
   DeviceInfo,
   Filter,
@@ -294,7 +293,6 @@ function App() {
       }
       setResolvedTheme(resolved);
       document.documentElement.setAttribute("data-theme", resolved);
-      clearThemeCache();
     };
 
     applyTheme();
@@ -1219,7 +1217,7 @@ function App() {
         const nextTarget = {
           id: `user-target:${Date.now()}-${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)}`,
           name: makeTargetName(name, [...builtInTargets, ...current]),
-          color: nextTargetColor(builtInTargets.length + current.length),
+          color: resolveTargetColor(builtInTargets.length + current.length),
           builtIn: false,
           points: normalizeMeasurementPoints(points),
         };
