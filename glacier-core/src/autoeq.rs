@@ -842,32 +842,6 @@ fn w_from_n(n: usize) -> usize {
     3 * n + 1
 }
 
-fn lf_at(v: &[f32], _n: usize, i: usize) -> f32 {
-    v[i]
-}
-fn gain_at(v: &[f32], n: usize, i: usize) -> f32 {
-    v[n + i]
-}
-fn bw_at(v: &[f32], n: usize, i: usize) -> f32 {
-    v[2 * n + i]
-}
-fn amp_at(v: &[f32], n: usize) -> f32 {
-    v[3 * n]
-}
-
-fn set_lf_at(v: &mut [f32], _n: usize, i: usize, val: f32) {
-    v[i] = val;
-}
-fn set_gain_at(v: &mut [f32], n: usize, i: usize, val: f32) {
-    v[n + i] = val;
-}
-fn set_bw_at(v: &mut [f32], n: usize, i: usize, val: f32) {
-    v[2 * n + i] = val;
-}
-fn set_amp_at(v: &mut [f32], n: usize, val: f32) {
-    v[3 * n] = val;
-}
-
 fn q_to_bw(q: f32) -> f32 {
     let ln2 = std::f32::consts::LN_2;
     2.0 / ln2 * ((0.5 / q).asinh())
@@ -888,8 +862,13 @@ fn grad(c: &Consts, x: &[f32], g: &mut [f32]) -> f32 {
 
     let mut w0_v = vec![0.0; n_bands];
     let mut pred = [0.0; K];
+
+    let (x_lf, x_rest) = x.split_at(n_bands);
+    let (x_gain, x_rest) = x_rest.split_at(n_bands);
+    let (x_bw, x_amp) = x_rest.split_at(n_bands);
+
     let pred_init = if c.opt_amp {
-        10.0_f32.powf(amp_at(x, n_bands) / 10.0)
+        10.0_f32.powf(x_amp[0] / 10.0)
     } else {
         1.0
     };
@@ -897,9 +876,9 @@ fn grad(c: &Consts, x: &[f32], g: &mut [f32]) -> f32 {
     pred.fill(pred_init);
 
     for n in 0..n_bands {
-        let f0 = lf_at(x, n_bands, n).exp();
-        let gain = gain_at(x, n_bands, n);
-        let bw = bw_at(x, n_bands, n);
+        let f0 = x_lf[n].exp();
+        let gain = x_gain[n];
+        let bw = x_bw[n];
 
         let a_val = 10.0_f32.powf(gain / 40.0);
         let w0 = 2.0 * std::f32::consts::PI / c.fs * f0;
@@ -987,7 +966,12 @@ fn grad(c: &Consts, x: &[f32], g: &mut [f32]) -> f32 {
     }
 
     loss *= r_k;
-    set_amp_at(g, n_bands, if c.opt_amp { dl_dy_sum * r_k } else { 0.0 });
+
+    let (g_lf, g_rest) = g.split_at_mut(n_bands);
+    let (g_gain, g_rest) = g_rest.split_at_mut(n_bands);
+    let (g_bw, g_amp) = g_rest.split_at_mut(n_bands);
+
+    g_amp[0] = if c.opt_amp { dl_dy_sum * r_k } else { 0.0 };
 
     for n in 0..n_bands {
         let mut glf = 0.0;
@@ -1000,9 +984,9 @@ fn grad(c: &Consts, x: &[f32], g: &mut [f32]) -> f32 {
             gbw += dl_dy[k] * dy_dbw[n][k];
         }
 
-        set_lf_at(g, n_bands, n, glf * r_k * w0_v[n]);
-        set_gain_at(g, n_bands, n, ggain * r_k);
-        set_bw_at(g, n_bands, n, gbw * r_k);
+        g_lf[n] = glf * r_k * w0_v[n];
+        g_gain[n] = ggain * r_k;
+        g_bw[n] = gbw * r_k;
     }
 
     loss
@@ -1095,13 +1079,19 @@ fn fit(
     let size = w_from_n(n_bands);
     let mut x = vec![0.0; size];
 
-    for n in 0..n_bands {
-        set_lf_at(&mut x, n_bands, n, f0[n].ln());
-        set_gain_at(&mut x, n_bands, n, gain[n]);
-        set_bw_at(&mut x, n_bands, n, q_to_bw(q_vals[n]));
-    }
-    if let Some(a) = amp {
-        set_amp_at(&mut x, n_bands, *a);
+    {
+        let (x_lf, x_rest) = x.split_at_mut(n_bands);
+        let (x_gain, x_rest) = x_rest.split_at_mut(n_bands);
+        let (x_bw, x_amp) = x_rest.split_at_mut(n_bands);
+
+        for n in 0..n_bands {
+            x_lf[n] = f0[n].ln();
+            x_gain[n] = gain[n];
+            x_bw[n] = q_to_bw(q_vals[n]);
+        }
+        if let Some(a) = amp {
+            x_amp[0] = *a;
+        }
     }
 
     let mut g = vec![0.0; size];
@@ -1124,22 +1114,18 @@ fn fit(
 
         opt.step(&mut x, &g);
 
+        let (x_lf, x_rest) = x.split_at_mut(n_bands);
+        let (x_gain, x_rest) = x_rest.split_at_mut(n_bands);
+        let (x_bw, _) = x_rest.split_at_mut(n_bands);
+
         for n in 0..n_bands {
-            let mut val_lf = lf_at(&x, n_bands, n);
-            if limit(&mut val_lf, lf_lim[n]) {
-                set_lf_at(&mut x, n_bands, n, val_lf);
+            if limit(&mut x_lf[n], lf_lim[n]) {
                 opt.m[n] = 0.0;
             }
-
-            let mut val_gain = gain_at(&x, n_bands, n);
-            if limit(&mut val_gain, gain_lim[n]) {
-                set_gain_at(&mut x, n_bands, n, val_gain);
+            if limit(&mut x_gain[n], gain_lim[n]) {
                 opt.m[n_bands + n] = 0.0;
             }
-
-            let mut val_bw = bw_at(&x, n_bands, n);
-            if limit(&mut val_bw, bw_lim[n]) {
-                set_bw_at(&mut x, n_bands, n, val_bw);
+            if limit(&mut x_bw[n], bw_lim[n]) {
                 opt.m[2 * n_bands + n] = 0.0;
             }
         }
@@ -1150,14 +1136,18 @@ fn fit(
         }
     }
 
+    let (best_lf, best_rest) = best.split_at(n_bands);
+    let (best_gain, best_rest) = best_rest.split_at(n_bands);
+    let (best_bw, best_amp) = best_rest.split_at(n_bands);
+
     for n in 0..n_bands {
-        f0[n] = lf_at(&best, n_bands, n).exp();
-        gain[n] = gain_at(&best, n_bands, n);
-        q_vals[n] = bw_to_q(bw_at(&best, n_bands, n));
+        f0[n] = best_lf[n].exp();
+        gain[n] = best_gain[n];
+        q_vals[n] = bw_to_q(best_bw[n]);
     }
 
     if let Some(a) = amp {
-        *a = amp_at(&best, n_bands);
+        *a = best_amp[0];
     }
 
     best_loss
