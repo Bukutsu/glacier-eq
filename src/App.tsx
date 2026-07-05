@@ -1670,7 +1670,7 @@ function App() {
                   canRedo={redoStack.length > 0}
                   onUndo={undo}
                   onRedo={redo}
-                  availableTabs={["Settings"]}
+                  availableTabs={["Settings", "Device"]}
                   defaultTab="Settings"
                   showActions={false}
                   graphViewMode={graphViewMode}
