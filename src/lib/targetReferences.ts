@@ -24,11 +24,7 @@ export function getBuiltInTargets(): TargetTrace[] {
     });
 }
 
-export function nextTargetColor(existingCount: number): string {
-  return resolveTargetColor(existingCount);
-}
-
-function resolveTargetColor(index: number): string {
+export function resolveTargetColor(index: number): string {
   const idx = index % TARGET_COLOR_VARS.length;
   return `var(${TARGET_COLOR_VARS[idx]})`;
 }
