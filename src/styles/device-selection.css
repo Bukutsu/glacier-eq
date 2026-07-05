@@ -1,8 +1,11 @@
 .disconnected-screen {
   flex: 1;
+  min-height: 0;
   display: grid;
   place-items: center;
   padding: 24px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .device-card {
