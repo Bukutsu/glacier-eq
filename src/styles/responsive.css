@@ -377,6 +377,7 @@
     min-height: 24px;
   }
   .custom-number-input.preamp-value-stepper {
+    width: 120px !important;
     height: 28px;
   }
   .bands-section-header {
@@ -639,6 +640,11 @@
     grid-template-columns: minmax(0, 1fr) 76px;
     align-items: center;
     gap: 8px;
+  }
+  .custom-number-input.band-freq-stepper,
+  .custom-number-input.band-gain-stepper,
+  .custom-number-input.band-q-stepper {
+    width: 100% !important;
   }
   .gain-cell input[type="range"] {
     min-height: 40px;
