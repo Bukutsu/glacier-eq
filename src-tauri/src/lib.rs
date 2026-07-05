@@ -52,6 +52,12 @@ pub fn run() {
             .setup(move |app| {
                 let app_handle = app.handle().clone();
                 if let Some(window) = app.get_webview_window("main") {
+                    let w = window.clone();
+                    std::thread::spawn(move || {
+                        std::thread::sleep(std::time::Duration::from_millis(150));
+                        let _ = w.show();
+                    });
+
                     window.on_window_event(move |event| {
                         if matches!(
                             event,
