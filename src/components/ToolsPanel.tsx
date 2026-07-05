@@ -1,8 +1,6 @@
 import { type CSSProperties, useState, useEffect, useRef } from "react";
 import { invoke, listen, readText, writeText, save } from "../lib/rpc";
-
-
-import type { AppSettings, MeasurementTrace, Profile, PEQData, GraphViewMode, TargetTrace } from "../types";
+import type { DeviceInfo, AppSettings, MeasurementTrace, Profile, PEQData, GraphViewMode, TargetTrace } from "../types";
 import { Icon } from "./Icon";
 import { TargetSelector } from "./TargetSelector";
 import { NumberInput } from "./NumberInput";
@@ -133,17 +131,32 @@ interface ToolsPanelProps {
   onRemoveTarget?: (id: string) => void;
   onAddMeasurementFile?: () => void;
   onAddTargetFile?: () => void;
+  connected?: boolean;
+  devices?: DeviceInfo[];
+  selectedDevice?: string;
+  setSelectedDevice?: (path: string) => void;
+  onScan?: () => void;
+  onConnect?: () => void;
+  onDisconnect?: () => void;
+  connectionStatus?: string;
+  isBusy?: boolean;
+  activeTab?: ToolsTab;
+  onActiveTabChange?: (tab: ToolsTab) => void;
+  onOpenConnectModal?: () => void;
 }
 
 export function ToolsPanel(props: ToolsPanelProps) {
   const requestedTabs = props.availableTabs ?? ["Preset", "Import", "Measure", "AutoEQ", "Device", "Settings"];
   const availableTabs = requestedTabs.filter((name) => name !== "Import" || !requestedTabs.includes("Preset"));
   const showDiagnostics = props.settings.show_diagnostics;
-  const [tab, setTab] = useState<ToolsTab>(() => (
+  const [internalTab, setInternalTab] = useState<ToolsTab>(() => (
     props.defaultTab === "Import" && availableTabs.includes("Preset")
       ? "Preset"
       : props.defaultTab && availableTabs.includes(props.defaultTab) ? props.defaultTab : availableTabs[0]
   ));
+
+  const tab = props.activeTab ?? internalTab;
+  const setTab = props.onActiveTabChange ?? setInternalTab;
 
   useEffect(() => {
     if (!availableTabs.includes(tab)) {
@@ -184,6 +197,8 @@ export function ToolsPanel(props: ToolsPanelProps) {
               setStatus={props.setStatus}
               onSelectTab={setTab}
               onSelectedMeasurementChange={props.onSelectedMeasurementChange}
+              onToggleMeasurement={props.onToggleMeasurement}
+              onToggleTarget={props.onToggleTarget}
             />
           )}
           {tab === "Curves" && (
@@ -213,7 +228,18 @@ export function ToolsPanel(props: ToolsPanelProps) {
             setStatus={props.setStatus}
           />}
           {tab === "Device" && (
-            <DeviceTab setStatus={props.setStatus} />
+            props.connected ? (
+              <DeviceTab setStatus={props.setStatus} />
+            ) : (
+              <div className="device-disconnected-panel" style={{ padding: "24px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
+                <span className="material-symbols-outlined" style={{ fontSize: "48px", color: "var(--muted)" }}>link_off</span>
+                <strong style={{ fontSize: "16px" }}>DSP Offline</strong>
+                <p style={{ color: "var(--muted)", fontSize: "13px", lineHeight: "1.5", margin: "0" }}>Connect a supported Glacier-compatible DAC to adjust hardware options, filter modes, and amplifier gain.</p>
+                <button className="btn filled" style={{ width: "100%", marginTop: "8px" }} onClick={props.onOpenConnectModal}>
+                  Connect Device
+                </button>
+              </div>
+            )
           )}
           {tab === "Settings" && (
             <SettingsTab
@@ -1015,6 +1041,8 @@ interface AutoEqTabProps {
   setStatus: (msg: string) => void;
   onSelectTab?: (tab: ToolsTab) => void;
   onSelectedMeasurementChange?: (measurementId: string | null) => void;
+  onToggleMeasurement?: (id: string) => void;
+  onToggleTarget?: (id: string) => void;
 }
 
 export function AutoEqTab({
@@ -1025,6 +1053,8 @@ export function AutoEqTab({
   setStatus,
   onSelectTab,
   onSelectedMeasurementChange,
+  onToggleMeasurement,
+  onToggleTarget,
 }: AutoEqTabProps) {
   const [nBands, setNBands] = useState<number>(10);
   const [steps, setSteps] = useState<number>(2000);
@@ -1033,20 +1063,70 @@ export function AutoEqTab({
   const [isOptimizing, setIsOptimizing] = useState<boolean>(false);
   const [warnings, setWarnings] = useState<string[]>([]);
 
-  // Resolve source measurement (visible on graph)
-  const visibleMeas = measurements.filter((m) => m.visible);
-  const meas = visibleMeas.length === 1 ? visibleMeas[0] : null;
+  // Local selection states
+  const [localMeasId, setLocalMeasId] = useState<string>("");
+  const [localTargetId, setLocalTargetId] = useState<string>("");
 
-  // Resolve target curve (active target trace)
-  const activeTargets = allTargets.filter((t) => activeTargetIds.includes(t.id));
-  const target = activeTargets.length === 1 ? activeTargets[0] : null;
-
-  const isSetupValid = !!meas && !!target;
-
-  // Sync selected measurement change for detail display/highlighting on the graph
+  // Sync default measurement selection
   useEffect(() => {
-    onSelectedMeasurementChange?.(meas ? meas.id : null);
-  }, [onSelectedMeasurementChange, meas]);
+    if (localMeasId && measurements.some((m) => m.id === localMeasId)) {
+      return;
+    }
+    const visible = measurements.find((m) => m.visible);
+    if (visible) {
+      setLocalMeasId(visible.id);
+    } else if (measurements.length > 0) {
+      setLocalMeasId(measurements[0].id);
+    }
+  }, [measurements, localMeasId]);
+
+  // Sync default target selection
+  useEffect(() => {
+    if (localTargetId && allTargets.some((t) => t.id === localTargetId)) {
+      return;
+    }
+    const active = allTargets.find((t) => activeTargetIds.includes(t.id));
+    if (active) {
+      setLocalTargetId(active.id);
+    } else if (allTargets.length > 0) {
+      setLocalTargetId(allTargets[0].id);
+    }
+  }, [allTargets, activeTargetIds, localTargetId]);
+
+  // Sync selected measurement to parent for graph highlighting
+  useEffect(() => {
+    if (localMeasId) {
+      onSelectedMeasurementChange?.(localMeasId);
+    }
+  }, [onSelectedMeasurementChange, localMeasId]);
+
+  // Resolve measurement and target objects dynamically
+  const meas = measurements.find((m) => m.id === localMeasId) || measurements.find((m) => m.visible) || measurements[0] || null;
+  const target = allTargets.find((t) => t.id === localTargetId) || allTargets.find((t) => activeTargetIds.includes(t.id)) || allTargets[0] || null;
+
+  const handleMeasChange = (id: string) => {
+    setLocalMeasId(id);
+    const m = measurements.find((x) => x.id === id);
+    if (m) {
+      if (!m.visible) {
+        onToggleMeasurement?.(id);
+      }
+      onSelectedMeasurementChange?.(id);
+    }
+  };
+
+  const handleTargetChange = (id: string) => {
+    setLocalTargetId(id);
+    if (!activeTargetIds.includes(id)) {
+      onToggleTarget?.(id);
+    }
+    // Deactivate other active targets to keep display clean
+    activeTargetIds.forEach((activeId) => {
+      if (activeId !== id) {
+        onToggleTarget?.(activeId);
+      }
+    });
+  };
 
   const handleRunAutoEq = async () => {
     if (!meas || !target) return;
@@ -1104,37 +1184,15 @@ export function AutoEqTab({
         <p className="card-note">Fit parametric EQ filters to a target curve using the native AdaBelief optimizer.</p>
       </section>
 
-      {!isSetupValid ? (
+      {measurements.length === 0 ? (
         <section className="tool-card">
           <div className="tool-card-head">
-            <strong>Match Setup Required</strong>
+            <strong>No Measurements Loaded</strong>
           </div>
-          <p className="card-note">Select exactly one measurement trace and one target curve on the graph to run AutoEQ.</p>
-          <div className="setup-status-box">
-            <div className={`status-indicator-row ${visibleMeas.length === 1 ? "valid" : "invalid"}`}>
-              <Icon>{visibleMeas.length === 1 ? "check_circle" : "info"}</Icon>
-              <span>
-                {visibleMeas.length === 0
-                  ? "No measurement trace is visible"
-                  : visibleMeas.length > 1
-                  ? `Multiple measurements visible (${visibleMeas.length})`
-                  : `Source: ${visibleMeas[0].name}`}
-              </span>
-            </div>
-            <div className={`status-indicator-row ${activeTargets.length === 1 ? "valid" : "invalid"}`}>
-              <Icon>{activeTargets.length === 1 ? "check_circle" : "info"}</Icon>
-              <span>
-                {activeTargets.length === 0
-                  ? "No target curve is active"
-                  : activeTargets.length > 1
-                  ? `Multiple targets active (${activeTargets.length})`
-                  : `Target: ${activeTargets[0].name}`}
-              </span>
-            </div>
-          </div>
-          {visibleMeas.length === 0 && onSelectTab && (
-            <button className="btn" style={{ marginTop: "12px", width: "100%" }} onClick={() => onSelectTab("Measure")}>
-              Go to Measure Tab
+          <p className="card-note">Import at least one frequency response measurement before you can match it to a target curve.</p>
+          {onSelectTab && (
+            <button className="btn" style={{ marginTop: "12px", width: "100%" }} onClick={() => onSelectTab("Curves")}>
+              Go to Curves Tab
             </button>
           )}
         </section>
@@ -1146,12 +1204,20 @@ export function AutoEqTab({
           <div className="autoeq-form-grid">
             <div className="import-field-group">
               <label>Source Measurement</label>
-              <div className="autoeq-readonly-value">{meas.name}</div>
+              <Select
+                value={localMeasId}
+                options={measurements.map(m => ({ value: m.id, label: m.name }))}
+                onChange={handleMeasChange}
+              />
             </div>
 
             <div className="import-field-group">
               <label>Target Reference</label>
-              <div className="autoeq-readonly-value">{target.name}</div>
+              <Select
+                value={localTargetId}
+                options={allTargets.map(t => ({ value: t.id, label: t.name }))}
+                onChange={handleTargetChange}
+              />
             </div>
 
             <div className="import-field-group">
