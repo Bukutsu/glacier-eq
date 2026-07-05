@@ -1228,6 +1228,46 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   cursor: not-allowed;
 }
 
+.custom-number-input .stepper-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 100%;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.1s ease, background-color 0.1s ease;
+  padding: 0;
+}
+
+.custom-number-input .stepper-btn:hover:not(:disabled) {
+  color: var(--cyan);
+  background: var(--hover-bg);
+}
+
+.custom-number-input .stepper-btn:active:not(:disabled) {
+  background: var(--hover-bg-strong);
+}
+
+.custom-number-input .stepper-btn:disabled {
+  opacity: 0.18;
+  cursor: not-allowed;
+}
+
+.custom-number-input .stepper-btn.decrement {
+  border-right: 1px solid var(--line-subtle);
+}
+
+.custom-number-input .stepper-btn.increment {
+  border-left: 1px solid var(--line-subtle);
+}
+
 .custom-number-input .stepper-field {
   appearance: textfield;
   flex: 1;
@@ -1252,6 +1292,13 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 
 .custom-number-input .stepper-field:focus {
   background: transparent !important;
+}
+
+@media (max-width: 768px) {
+  .custom-number-input .stepper-btn {
+    width: 32px;
+    font-size: 18px;
+  }
 }
 
 .autoeq-bands-stepper.custom-number-input {
