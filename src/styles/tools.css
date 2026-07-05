@@ -1213,6 +1213,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   position: relative;
   overflow: hidden;
   transition: border-color 0.15s ease, background-color 0.15s ease;
+  container-type: inline-size;
 }
 
 .custom-number-input:hover:not(.disabled) {
@@ -1229,17 +1230,14 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 }
 
 .custom-number-input .stepper-btn {
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: center;
-  width: 20px;
   height: 100%;
   background: transparent;
   border: none;
   color: var(--muted);
   font-family: inherit;
-  font-size: 14px;
-  font-weight: 600;
   cursor: pointer;
   user-select: none;
   transition: color 0.1s ease, background-color 0.1s ease;
@@ -1260,12 +1258,26 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   cursor: not-allowed;
 }
 
-.custom-number-input .stepper-btn.decrement {
-  border-right: 1px solid var(--line-subtle);
+@container (min-width: 72px) {
+  .custom-number-input .stepper-btn {
+    display: flex;
+    width: 18px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .custom-number-input .stepper-btn.decrement {
+    border-right: 1px solid var(--line-subtle);
+  }
+  .custom-number-input .stepper-btn.increment {
+    border-left: 1px solid var(--line-subtle);
+  }
 }
 
-.custom-number-input .stepper-btn.increment {
-  border-left: 1px solid var(--line-subtle);
+@container (min-width: 90px) {
+  .custom-number-input .stepper-btn {
+    width: 24px;
+    font-size: 14px;
+  }
 }
 
 .custom-number-input .stepper-field {
@@ -1296,8 +1308,14 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 
 @media (max-width: 768px) {
   .custom-number-input .stepper-btn {
-    width: 32px;
-    font-size: 18px;
+    width: 24px;
+    font-size: 15px;
+  }
+  @container (min-width: 110px) {
+    .custom-number-input .stepper-btn {
+      width: 36px;
+      font-size: 18px;
+    }
   }
 }
 
