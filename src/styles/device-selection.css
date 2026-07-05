@@ -81,3 +81,11 @@
 .supported-list div { display: flex; justify-content: space-between; gap: 12px; color: var(--text); font-size: var(--type-small); }
 .supported-list small { color: var(--muted); }
 .device-actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+.device-card.inline-device-card {
+  width: 100%;
+  background: transparent;
+  padding: 0;
+  border: none;
+  box-shadow: none;
+}

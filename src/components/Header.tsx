@@ -42,6 +42,7 @@ interface HeaderProps {
   onPull: () => void;
   onPush: () => void;
   onDisconnect: () => void;
+  onConnectClick?: () => void;
 }
 
 export function Header({
@@ -63,6 +64,7 @@ export function Header({
   onPull,
   onPush,
   onDisconnect,
+  onConnectClick,
 }: HeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -77,31 +79,15 @@ export function Header({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const syncText = isBusy
-    ? progress
-      ? `${progress.message} · ${Math.round(progress.percentage)}%`
-      : "Working"
-    : dirty
-      ? "Unsaved"
-      : "Synced";
-
-  if (!connected) {
-    return (
-      <header className="app-header selection-header">
-        <div className="title-stack">
-          <div className="title-line">
-            <h1>Connect DAC</h1>
-            <span className="sync-dot offline">● Offline</span>
-            <GithubLink />
-          </div>
-          <div className="header-session-strip">
-            <span>No device selected</span>
-            <span>Scan or choose a supported DAC</span>
-          </div>
-        </div>
-      </header>
-    );
-  }
+  const syncText = !connected
+    ? "Offline"
+    : isBusy
+      ? progress
+        ? `${progress.message} · ${Math.round(progress.percentage)}%`
+        : "Working"
+      : dirty
+        ? "Unsaved"
+        : "Synced";
 
   return (
     <header className="app-header">
@@ -112,8 +98,8 @@ export function Header({
             <GithubLink />
           </div>
           <div className="header-meta-row">
-            <div className="device-name">{deviceName}</div>
-            <span className={`sync-dot ${isBusy ? "working" : "ok"}`}>
+            <div className="device-name">{connected ? deviceName : "Offline Mode"}</div>
+            <span className={`sync-dot ${!connected ? "offline" : (isBusy ? "working" : "ok")}`}>
               ● {syncText}
             </span>
           </div>
@@ -150,9 +136,18 @@ export function Header({
               <span className="history-btn-label">Redo</span>
             </button>
           </div>
-          <button className="btn tonal" onClick={onPull} disabled={isBusy}>Pull</button>
-          <button className="btn filled" onClick={onPush} disabled={isBusy}>Push</button>
-          <button className="btn tonal" onClick={onDisconnect} disabled={isBusy}>Disconnect</button>
+          {connected ? (
+            <>
+              <button className="btn tonal" onClick={onPull} disabled={isBusy}>Pull</button>
+              <button className="btn filled" onClick={onPush} disabled={isBusy}>Push</button>
+              <button className="btn tonal" onClick={onDisconnect} disabled={isBusy}>Disconnect</button>
+            </>
+          ) : (
+            <button className="btn filled" onClick={onConnectClick} disabled={isBusy}>
+              <span className="material-symbols-outlined" style={{ marginRight: "6px", fontSize: "18px" }}>link</span>
+              Connect DAC
+            </button>
+          )}
         </div>
 
         {/* Mobile Toolbar (M3 style) */}
@@ -177,16 +172,29 @@ export function Header({
           >
             <span className="material-symbols-outlined">redo</span>
           </button>
-          <button
-            type="button"
-            className="mobile-icon-btn primary"
-            title="Push settings"
-            aria-label="Push settings"
-            disabled={isBusy}
-            onClick={onPush}
-          >
-            <span className="material-symbols-outlined">publish</span>
-          </button>
+          {connected ? (
+            <button
+              type="button"
+              className="mobile-icon-btn primary"
+              title="Push settings"
+              aria-label="Push settings"
+              disabled={isBusy}
+              onClick={onPush}
+            >
+              <span className="material-symbols-outlined">publish</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="mobile-icon-btn primary"
+              title="Connect DAC"
+              aria-label="Connect DAC"
+              disabled={isBusy}
+              onClick={onConnectClick}
+            >
+              <span className="material-symbols-outlined">link</span>
+            </button>
+          )}
           <div className="mobile-menu-container" ref={menuRef}>
             <button
               type="button"
@@ -199,30 +207,47 @@ export function Header({
             </button>
             {menuOpen && (
               <div className="mobile-dropdown-menu">
-                <button
-                  type="button"
-                  className="dropdown-item"
-                  onClick={() => {
-                    onPull();
-                    setMenuOpen(false);
-                  }}
-                  disabled={isBusy}
-                >
-                  <span className="material-symbols-outlined">download</span>
-                  <span>Pull from device</span>
-                </button>
-                <button
-                  type="button"
-                  className="dropdown-item danger"
-                  onClick={() => {
-                    onDisconnect();
-                    setMenuOpen(false);
-                  }}
-                  disabled={isBusy}
-                >
-                  <span className="material-symbols-outlined">link_off</span>
-                  <span>Disconnect</span>
-                </button>
+                {connected ? (
+                  <>
+                    <button
+                      type="button"
+                      className="dropdown-item"
+                      onClick={() => {
+                        onPull();
+                        setMenuOpen(false);
+                      }}
+                      disabled={isBusy}
+                    >
+                      <span className="material-symbols-outlined">download</span>
+                      <span>Pull from device</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="dropdown-item danger"
+                      onClick={() => {
+                        onDisconnect();
+                        setMenuOpen(false);
+                      }}
+                      disabled={isBusy}
+                    >
+                      <span className="material-symbols-outlined">link_off</span>
+                      <span>Disconnect</span>
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    className="dropdown-item"
+                    onClick={() => {
+                      onConnectClick?.();
+                      setMenuOpen(false);
+                    }}
+                    disabled={isBusy}
+                  >
+                    <span className="material-symbols-outlined">link</span>
+                    <span>Connect DAC</span>
+                  </button>
+                )}
               </div>
             )}
           </div>
