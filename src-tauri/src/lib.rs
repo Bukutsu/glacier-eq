@@ -15,7 +15,9 @@ use std::sync::Mutex;
 
 use diagnostics::DiagnosticsStore;
 use state::DeviceState;
+#[cfg(not(mobile))]
 use tauri::Manager;
+#[cfg(not(mobile))]
 use tauri_plugin_window_state::{AppHandleExt, StateFlags};
 
 #[tauri::command]
@@ -25,6 +27,7 @@ fn save_text_file(path: String, content: String) -> Result<(), String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    #[cfg(not(mobile))]
     let window_state_flags = StateFlags::SIZE | StateFlags::POSITION | StateFlags::MAXIMIZED;
     let mut builder = tauri::Builder::default()
         .manage(Mutex::new(DeviceState::default()))
@@ -33,31 +36,38 @@ pub fn run() {
     {
         builder = builder.manage(Mutex::new(None::<hid_helper::ElevatedTransport>));
     }
-    builder
+    builder = builder
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_m3::init())
-        .plugin(tauri_plugin_hid::init())
-        .plugin(
-            tauri_plugin_window_state::Builder::new()
-                .with_state_flags(window_state_flags)
-                .build(),
-        )
-        .setup(move |app| {
-            let app_handle = app.handle().clone();
-            if let Some(window) = app.get_webview_window("main") {
-                window.on_window_event(move |event| {
-                    if matches!(
-                        event,
-                        tauri::WindowEvent::CloseRequested { .. }
-                            | tauri::WindowEvent::Moved(_)
-                            | tauri::WindowEvent::Resized(_)
-                    ) {
-                        let _ = app_handle.save_window_state(window_state_flags);
-                    }
-                });
-            }
-            Ok(())
-        })
+        .plugin(tauri_plugin_hid::init());
+
+    #[cfg(not(mobile))]
+    {
+        builder = builder
+            .plugin(
+                tauri_plugin_window_state::Builder::new()
+                    .with_state_flags(window_state_flags)
+                    .build(),
+            )
+            .setup(move |app| {
+                let app_handle = app.handle().clone();
+                if let Some(window) = app.get_webview_window("main") {
+                    window.on_window_event(move |event| {
+                        if matches!(
+                            event,
+                            tauri::WindowEvent::CloseRequested { .. }
+                                | tauri::WindowEvent::Moved(_)
+                                | tauri::WindowEvent::Resized(_)
+                        ) {
+                            let _ = app_handle.save_window_state(window_state_flags);
+                        }
+                    });
+                }
+                Ok(())
+            });
+    }
+
+    builder
         .invoke_handler(tauri::generate_handler![
             device_commands::get_eq_state,
             device_commands::set_eq_state,
