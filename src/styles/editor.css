@@ -20,6 +20,7 @@
   min-height: 260px;
   display: block;
   flex: 1;
+  pointer-events: none;
 }
 
 .graph-legend {
