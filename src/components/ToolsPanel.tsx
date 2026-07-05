@@ -1,4 +1,4 @@
-import { type CSSProperties, type WheelEvent, useState, useEffect, useRef } from "react";
+import { type CSSProperties, useState, useEffect, useRef } from "react";
 import { invoke, listen, readText, writeText, save } from "../lib/rpc";
 
 
@@ -243,26 +243,9 @@ function TabStrip({
     return null;
   }
 
-  const handleWheel = (event: WheelEvent<HTMLElement>) => {
-    let element = event.currentTarget.parentElement;
-    while (element) {
-      const overflowY = window.getComputedStyle(element).overflowY;
-      if (overflowY !== "visible" && element.scrollHeight > element.clientHeight) {
-        const before = element.scrollTop;
-        element.scrollTop += event.deltaY;
-        if (element.scrollTop !== before) {
-          event.preventDefault();
-        }
-        return;
-      }
-      element = element.parentElement;
-    }
-  };
-
   return (
     <nav
       className={`tabs ${tabs.length <= 2 ? "compact" : ""}`}
-      onWheel={handleWheel}
       style={{
         "--tab-count": tabs.length,
         "--tab-columns": tabs.length >= 3 ? 2 : tabs.length,
