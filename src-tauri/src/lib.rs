@@ -34,6 +34,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_m3::init())
         .plugin(tauri_plugin_hid::init())
+        .plugin(tauri_plugin_window_state::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             device_commands::get_eq_state,
             device_commands::set_eq_state,

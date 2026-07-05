@@ -15,8 +15,8 @@
       {
         "title": "Glacier EQ",
         "label": "main",
-        "width": 960,
-        "height": 700,
+        "width": 1100,
+        "height": 760,
         "minWidth": 720,
         "minHeight": 500,
         "resizable": true,
