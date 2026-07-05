@@ -287,7 +287,6 @@ pub struct AutoEqRunResult {
     pub warnings: Vec<String>,
 }
 
-#[tauri::command]
 pub fn run_autoeq_internal(
     measurement_points: Vec<(f64, f64)>,
     target_points: Vec<(f64, f64)>,
