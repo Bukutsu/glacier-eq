@@ -1449,6 +1449,9 @@ function App() {
                           onRemoveMeasurement={removeMeasurement}
                           onToggleMeasurement={toggleMeasurement}
                           onClearMeasurements={clearMeasurements}
+                          settings={settings}
+                          onAddMeasurement={addMeasurement}
+                          setStatus={setStatus}
                         />
                       </div>
                       
