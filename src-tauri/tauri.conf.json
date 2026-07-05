@@ -21,7 +21,7 @@
         "minHeight": 500,
         "resizable": true,
         "theme": "Dark",
-        "visible": false
+        "visible": true
       }
     ],
     "security": {
