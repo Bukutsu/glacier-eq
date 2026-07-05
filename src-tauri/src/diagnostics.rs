@@ -84,26 +84,29 @@ impl DiagnosticsStore {
             self.events.pop_front();
         }
 
-        // Append to file
+        // Append to file asynchronously in background thread to avoid blocking UI/HID thread
         if let Ok(log_path) = get_log_path(app) {
-            // Rotate log file if it exceeds 5MB
-            if let Ok(meta) = fs::metadata(&log_path) {
-                if meta.len() > 5 * 1024 * 1024 {
-                    let backup = log_path.with_extension("log.1");
-                    let _ = fs::rename(&log_path, &backup);
+            let event_clone = event.clone();
+            tauri::async_runtime::spawn_blocking(move || {
+                // Rotate log file if it exceeds 5MB
+                if let Ok(meta) = fs::metadata(&log_path) {
+                    if meta.len() > 5 * 1024 * 1024 {
+                        let backup = log_path.with_extension("log.1");
+                        let _ = fs::rename(&log_path, &backup);
+                    }
                 }
-            }
-            if let Ok(mut file) = fs::OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open(&log_path)
-            {
-                let line = format!(
-                    "{} [{}] [{}] {}\n",
-                    event.timestamp, event.level, event.source, event.message
-                );
-                let _ = file.write_all(line.as_bytes());
-            }
+                if let Ok(mut file) = fs::OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open(&log_path)
+                {
+                    let line = format!(
+                        "{} [{}] [{}] {}\n",
+                        event_clone.timestamp, event_clone.level, event_clone.source, event_clone.message
+                    );
+                    let _ = file.write_all(line.as_bytes());
+                }
+            });
         }
 
         self.events.push_back(event);
