@@ -4,7 +4,7 @@
 use crate::eq::constants::*;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub enum FilterType {
     #[serde(rename = "LSQ", alias = "LSC", alias = "LowShelf", alias = "Low Shelf")]
     LowShelf = 1,
