@@ -1310,16 +1310,47 @@ function App() {
   }, []);
 
   useEffect(() => {
-    function findScrollableParent(element: HTMLElement | null): HTMLElement | null {
+    const isScrollableOverflow = (overflow: string) =>
+      overflow === "auto" || overflow === "scroll" || overflow === "overlay";
+
+    function getScrollElement(element: HTMLElement): HTMLElement {
+      if (element === document.body || element === document.documentElement) {
+        return (document.scrollingElement as HTMLElement | null) || document.documentElement;
+      }
+      return element;
+    }
+
+    function canScroll(element: HTMLElement, scrollElement: HTMLElement, axis: "x" | "y") {
+      const style = window.getComputedStyle(element);
+      return axis === "y"
+        ? isScrollableOverflow(style.overflowY) && scrollElement.scrollHeight > scrollElement.clientHeight
+        : isScrollableOverflow(style.overflowX) && scrollElement.scrollWidth > scrollElement.clientWidth;
+    }
+
+    function findWheelTarget(
+      element: HTMLElement | null,
+      deltaX: number,
+      deltaY: number,
+    ): { element: HTMLElement; deltaX: number; deltaY: number } | null {
       let parent = element;
       while (parent) {
-        if (parent === document.body) return document.body;
-        const style = window.getComputedStyle(parent);
-        const overflowY = style.overflowY;
-        const isScrollable = overflowY === "auto" || overflowY === "scroll";
-        if (isScrollable && parent.scrollHeight > parent.clientHeight) {
-          return parent;
+        const scrollElement = getScrollElement(parent);
+        const canScrollY = deltaY !== 0 && canScroll(parent, scrollElement, "y");
+        const canScrollX = deltaX !== 0 && canScroll(parent, scrollElement, "x");
+
+        if (canScrollY || canScrollX) {
+          return {
+            element: scrollElement,
+            deltaX: canScrollX ? deltaX : 0,
+            deltaY: canScrollY ? deltaY : 0,
+          };
         }
+
+        if (deltaY !== 0 && canScroll(parent, scrollElement, "x")) {
+          return { element: scrollElement, deltaX: deltaY, deltaY: 0 };
+        }
+
+        if (parent === document.body) return null;
         parent = parent.parentElement;
       }
       return null;
@@ -1332,25 +1363,29 @@ function App() {
       const workspace = target.closest(".workspace") || target.closest("#app");
       if (!workspace) return;
 
-      const scrollableParent = findScrollableParent(target);
-      if (!scrollableParent) return;
+      const wheelTarget = findWheelTarget(target, e.deltaX, e.deltaY);
+      if (!wheelTarget) return;
 
-      let deltaY = e.deltaY;
-      let deltaX = e.deltaX;
+      let deltaY = wheelTarget.deltaY;
+      let deltaX = wheelTarget.deltaX;
       if (e.deltaMode === 1) {
         deltaY *= 20;
         deltaX *= 20;
       } else if (e.deltaMode === 2) {
-        deltaY *= scrollableParent.clientHeight;
-        deltaX *= scrollableParent.clientWidth;
+        deltaY *= wheelTarget.element.clientHeight;
+        deltaX *= wheelTarget.element.clientWidth;
       }
 
-      const canScrollY = scrollableParent.scrollHeight > scrollableParent.clientHeight && deltaY !== 0;
-      const canScrollX = scrollableParent.scrollWidth > scrollableParent.clientWidth && deltaX !== 0;
+      const beforeTop = wheelTarget.element.scrollTop;
+      const beforeLeft = wheelTarget.element.scrollLeft;
 
-      if (canScrollY || canScrollX) {
-        if (canScrollY) scrollableParent.scrollTop += deltaY;
-        if (canScrollX) scrollableParent.scrollLeft += deltaX;
+      wheelTarget.element.scrollTop += deltaY;
+      wheelTarget.element.scrollLeft += deltaX;
+
+      if (
+        wheelTarget.element.scrollTop !== beforeTop ||
+        wheelTarget.element.scrollLeft !== beforeLeft
+      ) {
         e.preventDefault();
       }
     };
