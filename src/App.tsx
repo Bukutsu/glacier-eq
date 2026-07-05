@@ -487,6 +487,7 @@ function App() {
 
   const measurementFileInputRef = useRef<HTMLInputElement>(null);
   const targetFileInputRef = useRef<HTMLInputElement>(null);
+  const leftPaneRef = useRef<HTMLDivElement>(null);
 
   const handleImportMeasurementFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -1309,6 +1310,21 @@ function App() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  useEffect(() => {
+    const pane = leftPaneRef.current;
+    if (!pane) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      pane.scrollTop += e.deltaY;
+      e.preventDefault();
+    };
+
+    pane.addEventListener("wheel", handleWheel, { capture: true, passive: false });
+    return () => {
+      pane.removeEventListener("wheel", handleWheel, { capture: true });
+    };
+  }, [connected]);
+
   return (
     <div id="app">
       {!(isAndroid && activeTab === "settings") && (
@@ -1635,7 +1651,7 @@ function App() {
         </main>
       ) : (
         <main className="workspace">
-          <section className="left-pane">
+          <section className="left-pane" ref={leftPaneRef}>
             <section className="graph-card">
               <EqGraph
                 peq={peq}
