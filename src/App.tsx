@@ -213,7 +213,7 @@ function App() {
       /android/i.test(navigator.userAgent) ||
       typeof window.AndroidNotifier !== "undefined");
   const [activeTab, setActiveTab] = useState<
-    "eq" | "tuning" | "profiles" | "settings"
+    "eq" | "tuning" | "profiles" | "device" | "settings"
   >("eq");
 
   useEffect(() => {
@@ -1670,11 +1670,62 @@ function App() {
                   canRedo={redoStack.length > 0}
                   onUndo={undo}
                   onRedo={redo}
-                  availableTabs={["Settings", "Device"]}
+                  availableTabs={["Settings"]}
                   defaultTab="Settings"
                   showActions={false}
                   graphViewMode={graphViewMode}
                   onGraphViewModeChange={setGraphViewMode}
+                  allTargets={allTargets}
+                  activeTargetIds={activeTargetIds}
+                  settings={settings}
+                  onSettingChange={updateSetting}
+                />
+              </section>
+            )}
+            {activeTab === "device" && (
+              <section className="left-pane">
+                <section className="graph-card">
+                  <EqGraph
+                    peq={peq}
+                    committedPeq={lastPushedPeq}
+                    selectedMeasurementId={selectedMeasurementId}
+                    measurements={measurements}
+                    targets={activeTargets}
+                    viewMode={graphViewMode}
+                    theme={resolvedTheme}
+                  />
+                </section>
+                <ToolsPanel
+                  peq={peq}
+                  onImportPEQ={importPeq}
+                  profiles={profiles}
+                  selectedPreset={selectedPreset}
+                  profileSearch={profileSearch}
+                  setProfileSearch={setProfileSearch}
+                  newProfileName={newProfileName}
+                  setNewProfileName={setNewProfileName}
+                  onSelectProfile={applyProfile}
+                  onApplyProfile={supportsRamApply ? applyProfileToRam : undefined}
+                  onReloadProfiles={loadProfiles}
+                  onOpenProfilesDir={openProfilesDir}
+                  hideProfileFolderButton={isAndroid}
+                  onReset={reset}
+                  onSave={saveProfile}
+                  onDelete={deleteSelectedProfile}
+                  setStatus={setStatus}
+                  measurements={measurements}
+                  onAddMeasurement={addMeasurement}
+                  onRemoveMeasurement={removeMeasurement}
+                  onToggleMeasurement={toggleMeasurement}
+                  onClearMeasurements={clearMeasurements}
+                  onSelectedMeasurementChange={setSelectedMeasurementId}
+                  canUndo={undoStack.length > 0}
+                  canRedo={redoStack.length > 0}
+                  onUndo={undo}
+                  onRedo={redo}
+                  availableTabs={["Device"]}
+                  defaultTab="Device"
+                  showActions={false}
                   allTargets={allTargets}
                   activeTargetIds={activeTargetIds}
                   settings={settings}
@@ -1710,6 +1761,15 @@ function App() {
                 <Icon>folder</Icon>
               </div>
               <span>Profiles</span>
+            </button>
+            <button
+              className={`mobile-tab-item ${activeTab === "device" ? "active" : ""}`}
+              onClick={() => setActiveTab("device")}
+            >
+              <div className="mobile-tab-icon-wrapper">
+                <Icon>memory</Icon>
+              </div>
+              <span>DSP</span>
             </button>
             <button
               className={`mobile-tab-item ${activeTab === "settings" ? "active" : ""}`}
