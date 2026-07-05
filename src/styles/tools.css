@@ -1258,10 +1258,10 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   cursor: not-allowed;
 }
 
-@container (min-width: 72px) {
+@container (min-width: 84px) {
   .custom-number-input .stepper-btn {
     display: flex;
-    width: 18px;
+    width: 20px;
     font-size: 11px;
     font-weight: 600;
   }
@@ -1273,10 +1273,17 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   }
 }
 
-@container (min-width: 90px) {
+@container (min-width: 108px) {
   .custom-number-input .stepper-btn {
-    width: 24px;
-    font-size: 14px;
+    width: 26px;
+    font-size: 13px;
+  }
+}
+
+@container (min-width: 130px) {
+  .custom-number-input .stepper-btn {
+    width: 36px;
+    font-size: 16px;
   }
 }
 
@@ -1304,19 +1311,6 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 
 .custom-number-input .stepper-field:focus {
   background: transparent !important;
-}
-
-@media (max-width: 768px) {
-  .custom-number-input .stepper-btn {
-    width: 24px;
-    font-size: 15px;
-  }
-  @container (min-width: 110px) {
-    .custom-number-input .stepper-btn {
-      width: 36px;
-      font-size: 18px;
-    }
-  }
 }
 
 .autoeq-bands-stepper.custom-number-input {
