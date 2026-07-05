@@ -278,13 +278,27 @@ function TabStrip({
   );
 }
 
-interface OnlineDbSearchProps {
-  settings: AppSettings;
+
+
+interface MeasureTabProps {
+  measurements: MeasurementTrace[];
+  onRemoveMeasurement: (id: string) => void;
+  onToggleMeasurement: (id: string) => void;
+  onClearMeasurements: () => void;
+  settings?: AppSettings;
   onAddMeasurement?: (name: string, points: MeasurementTrace["points"]) => void;
   setStatus?: (value: string) => void;
 }
 
-function OnlineDbSearch({ settings, onAddMeasurement, setStatus }: OnlineDbSearchProps) {
+export function MeasureTab({
+  measurements,
+  onRemoveMeasurement,
+  onToggleMeasurement,
+  onClearMeasurements,
+  settings,
+  onAddMeasurement,
+  setStatus,
+}: MeasureTabProps) {
   const [downloaded, setDownloaded] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -294,7 +308,7 @@ function OnlineDbSearch({ settings, onAddMeasurement, setStatus }: OnlineDbSearc
   const [totalCount, setTotalCount] = useState<number | null>(null);
   const [loadingDevice, setLoadingDevice] = useState<string | null>(null);
 
-  const enableOnlineMeasurements = settings.enable_online_measurements;
+  const enableOnlineMeasurements = settings?.enable_online_measurements;
 
   useEffect(() => {
     if (enableOnlineMeasurements) {
@@ -369,129 +383,48 @@ function OnlineDbSearch({ settings, onAddMeasurement, setStatus }: OnlineDbSearc
     }
   };
 
-  const searchTokens = searchQuery.trim().toLowerCase().split(/\s+/).filter(Boolean);
-  const filteredManifest = searchTokens.length === 0
+  const query = searchQuery.trim().toLowerCase();
+  
+  // Filter loaded measurements locally
+  const filteredLocal = query
+    ? measurements.filter((m) => m.name.toLowerCase().includes(query))
+    : measurements;
+
+  // Filter online manifest
+  const searchTokens = query.split(/\s+/).filter(Boolean);
+  const filteredOnline = searchTokens.length === 0
     ? []
     : manifest.filter((dev) => {
         const full = `${dev.brand} ${dev.name}`.toLowerCase();
         return searchTokens.every((token) => full.includes(token));
       });
 
-  const displayResults = filteredManifest.slice(0, 50);
+  const displayOnlineResults = filteredOnline.slice(0, 50);
 
-  if (!enableOnlineMeasurements) return null;
-
-  return (
-    <section className="tool-card online-db-card">
-      <div className="tool-card-head">
-        <strong>Online Database</strong>
-        {downloaded && (
-          <button className="tool-link-button" onClick={handleResetCache}>Clear Cache</button>
-        )}
-      </div>
-      {!downloaded ? (
-        <>
-          <p className="card-note">Download the offline cache to start searching.</p>
-          {downloadProgress !== null ? (
-            <div className="progress-container">
-              <div className="progress-track">
-                <div className="progress-bar" style={{ width: `${downloadProgress * 100}%` }} />
-              </div>
-              <span>{Math.round(downloadProgress * 100)}%</span>
-            </div>
-          ) : (
-            <button className="btn" onClick={handleDownload} disabled={isDownloading}>
-              {isDownloading ? "Downloading..." : "Download Cache"}
-            </button>
-          )}
-        </>
-      ) : (
-        <div className="online-search-section">
-          <input
-            type="text"
-            placeholder={`Search ${totalCount !== null ? `${totalCount} curves` : "online database"}...`}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            disabled={loadingManifest}
-          />
-          {searchQuery && (
-            <div className="online-search-results scrollbar">
-              {loadingManifest ? (
-                <div className="online-result-item online-result-empty">Loading devices index...</div>
-              ) : displayResults.length === 0 ? (
-                <div className="online-result-item online-result-empty">No devices found matching "{searchQuery}"</div>
-              ) : (
-                displayResults.map((dev) => (
-                  <div key={dev.id} className="online-result-item">
-                    <div className="online-result-info">
-                      <div className="online-result-name">
-                        {dev.brand} {dev.name}
-                        {dev.price !== null && (
-                          <span className="online-result-price">${dev.price}</span>
-                        )}
-                      </div>
-                      <div className="online-result-source">Source: {dev.source}</div>
-                    </div>
-                    <button
-                      className="online-result-action"
-                      disabled={loadingDevice !== null}
-                      onClick={() => handleLoadDevice(dev)}
-                    >
-                      {loadingDevice === dev.id ? (
-                        <span>Loading...</span>
-                      ) : (
-                        <>
-                          <Icon>download</Icon>
-                          <span>Load</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-          )}
-        </div>
-      )}
-    </section>
-  );
-}
-
-interface MeasureTabProps {
-  measurements: MeasurementTrace[];
-  onRemoveMeasurement: (id: string) => void;
-  onToggleMeasurement: (id: string) => void;
-  onClearMeasurements: () => void;
-  settings?: AppSettings;
-  onAddMeasurement?: (name: string, points: MeasurementTrace["points"]) => void;
-  setStatus?: (value: string) => void;
-}
-
-export function MeasureTab({
-  measurements,
-  onRemoveMeasurement,
-  onToggleMeasurement,
-  onClearMeasurements,
-  settings,
-  onAddMeasurement,
-  setStatus,
-}: MeasureTabProps) {
   return (
     <div className="measurements-pane">
-      <section className="tool-card measurement-library-card">
-        <div className="tool-card-head">
-          <strong>Loaded Measurements</strong>
-          {measurements.length > 0 && (
-            <button className="tool-link-button danger" onClick={onClearMeasurements}>Clear All</button>
-          )}
-        </div>
-        <div className="curve-list">
-          {measurements.length === 0 ? (
-            <div className="curve-empty">
-              No measurements loaded yet.
-            </div>
-          ) : (
-            measurements.map((trace) => (
+      {/* Search Input Box */}
+      <div className="online-search-section">
+        <input
+          type="text"
+          placeholder={
+            enableOnlineMeasurements && downloaded && totalCount
+              ? `Search loaded or ${totalCount} online curves...`
+              : "Search loaded measurements..."
+          }
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="curves-search-input"
+        />
+      </div>
+
+      {/* Merged list container */}
+      <div className="curve-list">
+        {/* Local matching traces */}
+        {filteredLocal.length > 0 && (
+          <>
+            {query && <div className="curve-section-header">Loaded Measurements</div>}
+            {filteredLocal.map((trace) => (
               <div className="curve-item" key={trace.id}>
                 <label className="curve-toggle">
                   <input
@@ -513,16 +446,102 @@ export function MeasureTab({
                   <Icon>delete</Icon>
                 </button>
               </div>
-            ))
+            ))}
+          </>
+        )}
+
+        {/* If search query entered but no local matches, and online db disabled/empty */}
+        {query && filteredLocal.length === 0 && (!enableOnlineMeasurements || displayOnlineResults.length === 0) && (
+          <div className="curve-empty">No matching measurements found.</div>
+        )}
+
+        {/* Online database search results */}
+        {enableOnlineMeasurements && query && (
+          <>
+            <div className="curve-section-header">Online Database</div>
+            {loadingManifest ? (
+              <div className="online-result-item online-result-empty">Loading online index...</div>
+            ) : !downloaded ? (
+              <div className="online-result-item online-result-empty" style={{ flexDirection: "column", gap: "8px", padding: "12px 6px" }}>
+                <span>Online search requires database cache.</span>
+                {downloadProgress !== null ? (
+                  <span>Downloading... {Math.round(downloadProgress * 100)}%</span>
+                ) : (
+                  <button className="btn compact" onClick={handleDownload} disabled={isDownloading}>
+                    Download Cache
+                  </button>
+                )}
+              </div>
+            ) : displayOnlineResults.length === 0 ? (
+              <div className="online-result-item online-result-empty">No online curves match "{searchQuery}"</div>
+            ) : (
+              displayOnlineResults.map((dev) => (
+                <div key={dev.id} className="online-result-item">
+                  <div className="online-result-info">
+                    <div className="online-result-name">
+                      {dev.brand} {dev.name}
+                      {dev.price !== null && (
+                        <span className="online-result-price">${dev.price}</span>
+                      )}
+                    </div>
+                    <div className="online-result-source">Source: {dev.source}</div>
+                  </div>
+                  <button
+                    className="online-result-action"
+                    disabled={loadingDevice !== null}
+                    onClick={() => handleLoadDevice(dev)}
+                  >
+                    {loadingDevice === dev.id ? (
+                      <span>Loading...</span>
+                    ) : (
+                      <>
+                        <Icon>download</Icon>
+                        <span>Load</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              ))
+            )}
+          </>
+        )}
+
+        {/* If empty search query and no local loaded traces */}
+        {!query && measurements.length === 0 && (
+          <div className="curve-empty">No measurements loaded. Use search or Add Measurement above.</div>
+        )}
+      </div>
+
+      {/* Footer controls for loaded traces */}
+      {measurements.length > 0 && (
+        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "2px" }}>
+          <button className="tool-link-button danger" onClick={onClearMeasurements}>
+            Clear All Loaded
+          </button>
+        </div>
+      )}
+
+      {/* Offline cache controls at the bottom, small and unobtrusive */}
+      {enableOnlineMeasurements && !query && (
+        <div className="online-db-status-bar" style={{ marginTop: "4px", fontSize: "var(--type-caption)", color: "var(--muted)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          {downloaded ? (
+            <>
+              <span>Online database: {totalCount} curves cached</span>
+              <button className="tool-link-button" onClick={handleResetCache}>Clear Cache</button>
+            </>
+          ) : (
+            <>
+              <span>Online database offline</span>
+              {downloadProgress !== null ? (
+                <span>Downloading {Math.round(downloadProgress * 100)}%</span>
+              ) : (
+                <button className="tool-link-button" onClick={handleDownload} disabled={isDownloading}>
+                  Download Cache
+                </button>
+              )}
+            </>
           )}
         </div>
-      </section>
-      {settings && (
-        <OnlineDbSearch
-          settings={settings}
-          onAddMeasurement={onAddMeasurement}
-          setStatus={setStatus}
-        />
       )}
     </div>
   );
@@ -577,40 +596,15 @@ function CurvesTab({
             <Icon>query_stats</Icon>
             <span>Measurements</span>
           </div>
-          <div className="curve-list">
-            {measurements.length === 0 ? (
-              <div className="curve-empty">No measurements loaded.</div>
-            ) : (
-              measurements.map((trace) => (
-                <div className="curve-item" key={trace.id}>
-                  <label className="curve-toggle">
-                    <input
-                      type="checkbox"
-                      checked={trace.visible}
-                      onChange={() => onToggleMeasurement(trace.id)}
-                    />
-                    <span className="curve-swatch" style={{ backgroundColor: trace.color }} />
-                    <span className="curve-name">
-                      {trace.name}
-                      <span className="curve-points">({trace.points.length} pts)</span>
-                    </span>
-                  </label>
-                  <button
-                    className="curve-delete"
-                    title={`Delete ${trace.name}`}
-                    onClick={() => onRemoveMeasurement(trace.id)}
-                  >
-                    <Icon>delete</Icon>
-                  </button>
-                </div>
-              ))
-            )}
-          </div>
-          {measurements.length > 0 && (
-            <button className="tool-link-button danger" style={{ marginTop: 6 }} onClick={onClearMeasurements}>
-              Clear All
-            </button>
-          )}
+          <MeasureTab
+            measurements={measurements}
+            onRemoveMeasurement={onRemoveMeasurement}
+            onToggleMeasurement={onToggleMeasurement}
+            onClearMeasurements={onClearMeasurements}
+            settings={settings}
+            onAddMeasurement={onAddMeasurement}
+            setStatus={setStatus}
+          />
         </div>
         <div className="traces-divider" />
         <div className="traces-section">
@@ -626,11 +620,6 @@ function CurvesTab({
           />
         </div>
       </div>
-      <OnlineDbSearch
-        settings={settings}
-        onAddMeasurement={onAddMeasurement}
-        setStatus={setStatus}
-      />
     </div>
   );
 }

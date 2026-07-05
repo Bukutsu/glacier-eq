@@ -18,7 +18,7 @@
 }
 
 .right-rail:not(.has-diagnostics) .curves-tab .curve-list {
-  overflow: visible;
+  overflow-y: auto;
 }
 
 .right-rail:not(.has-diagnostics) .measurements-pane {
@@ -1530,4 +1530,32 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   grid-template-columns: repeat(2, 1fr);
   gap: 8px;
   margin-bottom: 12px;
+}
+
+.curve-section-header {
+  font-size: var(--type-caption);
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 8px 10px 4px;
+  letter-spacing: 0.05em;
+  background: var(--surface-soft);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  border-bottom: 1px solid var(--line-soft);
+  margin-top: 10px;
+}
+.curve-section-header:first-of-type {
+  margin-top: 0;
+}
+.curves-search-input {
+  border-radius: var(--radius-control) !important;
+  background: var(--surface-soft) !important;
+  border: 1px solid var(--line-soft) !important;
+  transition: border-color 0.15s ease, outline 0.15s ease;
+}
+.curves-search-input:focus {
+  border-color: var(--cyan) !important;
+  outline: none !important;
 }
