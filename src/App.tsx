@@ -487,31 +487,6 @@ function App() {
 
   const measurementFileInputRef = useRef<HTMLInputElement>(null);
   const targetFileInputRef = useRef<HTMLInputElement>(null);
-  const cleanupWheelRef = useRef<(() => void) | null>(null);
-  const leftPaneRef = useCallback((node: HTMLElement | null) => {
-    if (cleanupWheelRef.current) {
-      cleanupWheelRef.current();
-      cleanupWheelRef.current = null;
-    }
-
-    if (node) {
-      const handleWheel = (e: WheelEvent) => {
-        let delta = e.deltaY;
-        if (e.deltaMode === 1) {
-          delta *= 20;
-        } else if (e.deltaMode === 2) {
-          delta *= node.clientHeight;
-        }
-        node.scrollTop += delta;
-        e.preventDefault();
-      };
-
-      node.addEventListener("wheel", handleWheel, { capture: true, passive: false });
-      cleanupWheelRef.current = () => {
-        node.removeEventListener("wheel", handleWheel, { capture: true });
-      };
-    }
-  }, []);
 
   const handleImportMeasurementFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -1334,6 +1309,58 @@ function App() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  useEffect(() => {
+    function findScrollableParent(element: HTMLElement | null): HTMLElement | null {
+      let parent = element;
+      while (parent) {
+        if (parent === document.body) return document.body;
+        const style = window.getComputedStyle(parent);
+        const overflowY = style.overflowY;
+        const isScrollable = overflowY === "auto" || overflowY === "scroll";
+        if (isScrollable && parent.scrollHeight > parent.clientHeight) {
+          return parent;
+        }
+        parent = parent.parentElement;
+      }
+      return null;
+    }
+
+    const handleGlobalWheel = (e: WheelEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+
+      const workspace = target.closest(".workspace") || target.closest("#app");
+      if (!workspace) return;
+
+      const scrollableParent = findScrollableParent(target);
+      if (!scrollableParent) return;
+
+      let deltaY = e.deltaY;
+      let deltaX = e.deltaX;
+      if (e.deltaMode === 1) {
+        deltaY *= 20;
+        deltaX *= 20;
+      } else if (e.deltaMode === 2) {
+        deltaY *= scrollableParent.clientHeight;
+        deltaX *= scrollableParent.clientWidth;
+      }
+
+      const canScrollY = scrollableParent.scrollHeight > scrollableParent.clientHeight && deltaY !== 0;
+      const canScrollX = scrollableParent.scrollWidth > scrollableParent.clientWidth && deltaX !== 0;
+
+      if (canScrollY || canScrollX) {
+        if (canScrollY) scrollableParent.scrollTop += deltaY;
+        if (canScrollX) scrollableParent.scrollLeft += deltaX;
+        e.preventDefault();
+      }
+    };
+
+    window.addEventListener("wheel", handleGlobalWheel, { capture: true, passive: false });
+    return () => {
+      window.removeEventListener("wheel", handleGlobalWheel, { capture: true });
+    };
+  }, []);
+
 
 
   return (
@@ -1662,7 +1689,7 @@ function App() {
         </main>
       ) : (
         <main className="workspace">
-          <section className="left-pane" ref={leftPaneRef}>
+          <section className="left-pane">
             <section className="graph-card">
               <EqGraph
                 peq={peq}
