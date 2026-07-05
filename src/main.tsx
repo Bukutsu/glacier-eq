@@ -1,6 +1,5 @@
 import ReactDOM from "react-dom/client";
 import App from "./App";
-import { isTauri } from "./lib/platform";
 import "./styles/base.css";
 import "./styles/header.css";
 import "./styles/layout.css";
@@ -12,25 +11,6 @@ import "./styles/toasts.css";
 
 // Detect Android platform
 const isAndroid = /android/i.test(navigator.userAgent);
-const DEFAULT_DESKTOP_WIDTH = 1100;
-const DEFAULT_DESKTOP_HEIGHT = 760;
-
-async function correctTinyStartupWindow() {
-  if (!isTauri() || isAndroid) return;
-
-  await new Promise((resolve) => window.setTimeout(resolve, 250));
-  if (
-    window.innerWidth >= DEFAULT_DESKTOP_WIDTH &&
-    window.innerHeight >= DEFAULT_DESKTOP_HEIGHT
-  ) {
-    return;
-  }
-
-  const { getCurrentWindow, LogicalSize } = await import("@tauri-apps/api/window");
-  await getCurrentWindow().setSize(
-    new LogicalSize(DEFAULT_DESKTOP_WIDTH, DEFAULT_DESKTOP_HEIGHT),
-  );
-}
 
 if (isAndroid) {
   document.body.classList.add("is-android");
@@ -74,4 +54,3 @@ if (import.meta.env.PROD) {
 }
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(<App />);
-void correctTinyStartupWindow().catch(console.error);
