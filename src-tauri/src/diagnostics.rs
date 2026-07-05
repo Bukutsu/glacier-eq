@@ -102,7 +102,10 @@ impl DiagnosticsStore {
                 {
                     let line = format!(
                         "{} [{}] [{}] {}\n",
-                        event_clone.timestamp, event_clone.level, event_clone.source, event_clone.message
+                        event_clone.timestamp,
+                        event_clone.level,
+                        event_clone.source,
+                        event_clone.message
                     );
                     let _ = file.write_all(line.as_bytes());
                 }
