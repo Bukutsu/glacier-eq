@@ -26,7 +26,7 @@ fn active_filters(peq: &PEQData) -> Vec<&Filter> {
     filters.sort_by(|a, b| {
         a.freq
             .cmp(&b.freq)
-            .then_with(|| format!("{:?}", a.filter_type).cmp(&format!("{:?}", b.filter_type)))
+            .then_with(|| a.filter_type.cmp(&b.filter_type))
             .then_with(|| a.gain.total_cmp(&b.gain))
             .then_with(|| a.q.total_cmp(&b.q))
     });
