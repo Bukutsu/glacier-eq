@@ -389,7 +389,7 @@
 
 .bands-header, .band-row {
   display: grid;
-  grid-template-columns: 42px minmax(136px, 144px) minmax(92px, .75fr) minmax(160px, 1fr) minmax(76px, .55fr);
+  grid-template-columns: 42px 130px 80px minmax(140px, 1fr) 88px;
   gap: 12px;
   align-items: center;
 }
@@ -522,7 +522,7 @@
   min-width: 0;
 }
 
-.gain-cell .custom-number-input.band-gain-stepper { width: 76px; }
+.gain-cell .custom-number-input.band-gain-stepper { width: 88px; }
 
 .custom-number-input.band-freq-stepper,
 .custom-number-input.band-gain-stepper,
