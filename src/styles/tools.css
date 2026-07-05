@@ -36,8 +36,7 @@
   flex-direction: column;
   gap: 14px;
   min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden;
   overscroll-behavior: contain;
 }
 
@@ -47,8 +46,8 @@
   gap: 14px;
   min-height: 0;
   flex: 1 1 auto;
-  overflow: visible;
-  padding-right: 2px;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .tabs {
@@ -627,7 +626,8 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 .curve-list {
   background: var(--bg-dark);
   padding: 4px;
-  height: 142px;
+  min-height: 142px;
+  max-height: 280px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -638,23 +638,24 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 
 .curves-tab {
   display: flex;
-  flex: 1 1 auto;
-  min-height: 0;
   flex-direction: column;
 }
 
-.curves-tab .traces-targets-merged,
-.curves-tab .traces-section,
-.curves-tab .curve-list {
-  min-height: 0;
-}
-
 .curves-tab .traces-targets-merged {
-  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.curves-tab .traces-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .curves-tab .curve-list {
-  flex: 1 1 auto;
+  min-height: 142px;
+  max-height: 280px;
   height: auto;
 }
 
