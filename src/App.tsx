@@ -7,7 +7,7 @@ import { Header } from "./components/Header";
 import { Icon } from "./components/Icon";
 import { Preamp } from "./components/Preamp";
 import { TargetSelector } from "./components/TargetSelector";
-import { ToolsPanel, MeasureTab, AutoEqTab } from "./components/ToolsPanel";
+import { ToolsPanel, MeasureTab, AutoEqTab, DiagnosticsPanel } from "./components/ToolsPanel";
 import {
   DEV_DUMMY_DEVICE,
   buildDevDummyPeq,
@@ -45,7 +45,6 @@ const DEFAULT_SETTINGS: AppSettings = {
   auto_pull_on_connect: true,
   skip_push_verification: false,
   theme: "tokyo-night",
-  show_diagnostics: false,
   enable_online_measurements: false,
   snap_to_iso_frequencies: true,
 };
@@ -218,6 +217,7 @@ function App() {
   const [graphCollapsed, setGraphCollapsed] = useState(false);
   const [toolsTab, setToolsTab] = useState<any>("Preset");
   const [showDeviceModal, setShowDeviceModal] = useState(false);
+  const [showDiagnosticsModal, setShowDiagnosticsModal] = useState(false);
 
   useEffect(() => {
     const media = window.matchMedia(MOBILE_QUERY);
@@ -1578,6 +1578,7 @@ function App() {
                   activeTargetIds={activeTargetIds}
                   settings={settings}
                   onSettingChange={updateSetting}
+                  onOpenDiagnostics={() => setShowDiagnosticsModal(true)}
                 />
               </section>
             )}
@@ -1620,6 +1621,7 @@ function App() {
                   activeTargetIds={activeTargetIds}
                   settings={settings}
                   onSettingChange={updateSetting}
+                  onOpenDiagnostics={() => setShowDiagnosticsModal(true)}
                 />
               </section>
             )}
@@ -1670,6 +1672,7 @@ function App() {
                   connectionStatus={status}
                   isBusy={isBusy}
                   onOpenConnectModal={() => setShowDeviceModal(true)}
+                  onOpenDiagnostics={() => setShowDiagnosticsModal(true)}
                 />
               </section>
             )}
@@ -1825,6 +1828,7 @@ function App() {
             activeTab={toolsTab}
             onActiveTabChange={setToolsTab}
             onOpenConnectModal={() => setShowDeviceModal(true)}
+            onOpenDiagnostics={() => setShowDiagnosticsModal(true)}
           />
         </main>
       )}
@@ -1882,6 +1886,30 @@ function App() {
                 isBusy={isBusy}
                 inline
               />
+            </div>
+          </div>
+        </div>
+      )}
+      {showDiagnosticsModal && (
+        <div className="modal-overlay" onClick={() => setShowDiagnosticsModal(false)}>
+          <div
+            className="modal-content wide"
+            style={{
+              width: "min(800px, 94vw)",
+              height: "75vh",
+              maxHeight: "75vh",
+              overflow: "hidden",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <h2>System Diagnostics</h2>
+              <button className="modal-close-btn" onClick={() => setShowDiagnosticsModal(false)} aria-label="Close">
+                <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>close</span>
+              </button>
+            </div>
+            <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+              <DiagnosticsPanel />
             </div>
           </div>
         </div>

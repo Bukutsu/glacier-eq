@@ -74,7 +74,6 @@ export interface AppSettings {
   auto_pull_on_connect: boolean;
   skip_push_verification: boolean;
   theme: string;
-  show_diagnostics: boolean;
   enable_online_measurements: boolean;
   snap_to_iso_frequencies: boolean;
 }
