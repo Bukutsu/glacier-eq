@@ -6,26 +6,22 @@
   overflow: hidden;
 }
 
-.right-rail.has-diagnostics {
-  grid-template-rows: minmax(0, 1fr) minmax(220px, 0.85fr);
-}
-
-.right-rail:not(.has-diagnostics) .preset-list {
+.right-rail .preset-list {
   flex: 1;
   min-height: 142px;
   height: auto;
   overflow: visible;
 }
 
-.right-rail:not(.has-diagnostics) .curves-tab .curve-list {
+.right-rail .curves-tab .curve-list {
   overflow-y: auto;
 }
 
-.right-rail:not(.has-diagnostics) .measurements-pane {
+.right-rail .measurements-pane {
   flex: 1;
 }
 
-.right-rail:not(.has-diagnostics) .measurement-list {
+.right-rail .measurement-list {
   flex: 1;
   max-height: none;
 }
@@ -586,19 +582,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   transition: width 0.1s ease;
 }
 
-.right-rail.has-diagnostics .profile-action-group {
-  padding: 8px;
-}
 
-.right-rail.has-diagnostics .profile-card,
-.right-rail.has-diagnostics .tool-card {
-  padding: 8px;
-}
-
-.right-rail.has-diagnostics .profile-management-actions,
-.right-rail.has-diagnostics .transfer-actions {
-  gap: 6px;
-}
 
 .measurements-pane {
   display: flex;
@@ -744,6 +728,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   flex-direction: column;
   gap: 12px;
   overflow: hidden;
+  flex: 1;
 }
 
 .diag-head {
