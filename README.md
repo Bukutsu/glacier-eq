@@ -20,10 +20,6 @@ hardware over HID, edits EQ locally, and works offline.
 | --- | --- |
 | ![Measurement Curves](assets/screenshot-curves.png) | ![System Settings](assets/screenshot-settings.png) |
 
-| System Diagnostics (Modal) |
-| --- |
-| ![System Diagnostics](assets/screenshot-diagnostics.png) |
-
 ## Features
 
 - 10-band PEQ editor with preamp, undo/redo, graph preview, and target curves
