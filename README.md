@@ -10,16 +10,6 @@ hardware over HID, edits EQ locally, and works offline.
 
 <img src="assets/screenshot-main.png" alt="Glacier EQ desktop interface showing EQ graph, filter bands, and profile controls" width="900">
 
-## Showcase
-
-| Main View & Presets | Native AutoEQ |
-| --- | --- |
-| ![Main View & Presets](assets/screenshot-main.png) | ![Native AutoEQ](assets/screenshot-autoeq.png) |
-
-| Measurement Curves | System Settings |
-| --- | --- |
-| ![Measurement Curves](assets/screenshot-curves.png) | ![System Settings](assets/screenshot-settings.png) |
-
 ## Features
 
 - 10-band PEQ editor with preamp, undo/redo, graph preview, and target curves
