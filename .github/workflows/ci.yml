@@ -48,7 +48,7 @@ jobs:
         run: npm ci
 
       - name: Build frontend
-        run: npm run wasm:build && npm run build
+        run: npm run build
 
   rust:
     name: Rust fmt and check
