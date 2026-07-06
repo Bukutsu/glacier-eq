@@ -48,7 +48,9 @@ jobs:
         run: npm ci
 
       - name: Build
-        run: VITE_BASE_PATH=/glacier-eq/ npm run build
+        env:
+          VITE_BASE_PATH: /glacier-eq/
+        run: npm run wasm:build && npm run build
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5
