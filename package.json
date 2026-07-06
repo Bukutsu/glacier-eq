@@ -7,7 +7,6 @@
   "scripts": {
     "dev": "vite",
     "wasm:build": "wasm-pack build --target web --out-dir ../src/wasm_pkg glacier-core",
-    "prebuild": "npm run wasm:build",
     "build": "tsc && vite build",
     "tauri": "tauri",
     "android:doctor": "bash scripts/android-doctor.sh",
