@@ -143,12 +143,12 @@ interface ToolsPanelProps {
   activeTab?: ToolsTab;
   onActiveTabChange?: (tab: ToolsTab) => void;
   onOpenConnectModal?: () => void;
+  onOpenDiagnostics?: () => void;
 }
 
 export function ToolsPanel(props: ToolsPanelProps) {
   const requestedTabs = props.availableTabs ?? ["Preset", "Import", "Measure", "AutoEQ", "Device", "Settings"];
   const availableTabs = requestedTabs.filter((name) => name !== "Import" || !requestedTabs.includes("Preset"));
-  const showDiagnostics = props.settings.show_diagnostics;
   const [internalTab, setInternalTab] = useState<ToolsTab>(() => (
     props.defaultTab === "Import" && availableTabs.includes("Preset")
       ? "Preset"
@@ -165,7 +165,7 @@ export function ToolsPanel(props: ToolsPanelProps) {
   }, [availableTabs, tab]);
 
   return (
-    <aside className={`right-rail ${showDiagnostics ? "has-diagnostics" : ""}`}>
+    <aside className="right-rail">
       <section className="tools-card">
         <TabStrip active={tab} onSelect={setTab} tabs={availableTabs} />
         <div className="tab-panel">
@@ -247,11 +247,11 @@ export function ToolsPanel(props: ToolsPanelProps) {
               onGraphViewModeChange={props.onGraphViewModeChange}
               settings={props.settings}
               onSettingChange={props.onSettingChange}
+              onOpenDiagnostics={props.onOpenDiagnostics}
             />
           )}
         </div>
       </section>
-      {showDiagnostics && <DiagnosticsPanel />}
     </aside>
   );
 }
@@ -1321,11 +1321,13 @@ function SettingsTab({
   onGraphViewModeChange,
   settings,
   onSettingChange,
+  onOpenDiagnostics,
 }: {
   graphViewMode?: GraphViewMode;
   onGraphViewModeChange?: (mode: GraphViewMode) => void;
   settings: AppSettings;
   onSettingChange: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
+  onOpenDiagnostics?: () => void;
 }) {
   return (
     <div className="settings-list">
@@ -1371,14 +1373,15 @@ function SettingsTab({
         <div className="tool-card-head">
           <strong>Interface</strong>
         </div>
-        <label>
-          <input
-            type="checkbox"
-            checked={settings.show_diagnostics}
-            onChange={(e) => onSettingChange("show_diagnostics", e.target.checked)}
-          />
-          Show diagnostic log panel
-        </label>
+        {onOpenDiagnostics && (
+          <div className="setting-row">
+            <span className="setting-label">Diagnostics</span>
+            <button className="btn" onClick={onOpenDiagnostics} style={{ minHeight: "36px", padding: "0 12px" }}>
+              <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>bug_report</span>
+              View Logs
+            </button>
+          </div>
+        )}
         <div className="setting-row">
           <span className="setting-label">Color Theme</span>
           <div className="setting-select-wrapper">
@@ -1648,7 +1651,7 @@ type DiagLevel = "All" | "Error" | "Warn" | "Info";
 
 const DIAG_LEVELS: DiagLevel[] = ["All", "Error", "Warn", "Info"];
 
-function DiagnosticsPanel() {
+export function DiagnosticsPanel() {
   const [events, setEvents] = useState<DiagnosticEvent[]>([]);
   const [levelFilter, setLevelFilter] = useState<DiagLevel>("All");
   const [search, setSearch] = useState("");

@@ -25,9 +25,7 @@
   .tabs {
     position: static;
   }
-  .right-rail.has-diagnostics {
-    grid-template-rows: auto auto;
-  }
+
   .graph-card {
     height: 320px;
     flex: none;
