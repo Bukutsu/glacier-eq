@@ -6,8 +6,9 @@ import { EqGraph } from "./components/EqGraph";
 import { Header } from "./components/Header";
 import { Icon } from "./components/Icon";
 import { Preamp } from "./components/Preamp";
-import { TargetSelector } from "./components/TargetSelector";
-import { ToolsPanel, MeasureTab, AutoEqTab, DiagnosticsPanel } from "./components/ToolsPanel";
+import { ToolsPanel, AutoEqTab, DiagnosticsPanel } from "./components/ToolsPanel";
+import { AddTraceModal } from "./components/AddTraceModal";
+import { UnifiedTracesList } from "./components/UnifiedTraces";
 import {
   DEV_DUMMY_DEVICE,
   buildDevDummyPeq,
@@ -219,6 +220,7 @@ function App() {
   const [toolsTab, setToolsTab] = useState<any>("Preset");
   const [showDeviceModal, setShowDeviceModal] = useState(false);
   const [showDiagnosticsModal, setShowDiagnosticsModal] = useState(false);
+  const [showAddTrace, setShowAddTrace] = useState(false);
 
   useEffect(() => {
     const media = window.matchMedia(MOBILE_QUERY);
@@ -1465,62 +1467,45 @@ function App() {
                     <strong>Traces & Targets</strong>
                   </summary>
                   <div className="tuning-card-body">
-                    <input
-                      ref={measurementFileInputRef}
-                      type="file"
-                      style={{ display: "none" }}
-                      accept=".txt,.csv,text/plain,text/csv"
-                      onChange={handleImportMeasurementFile}
-                    />
-                    <input
-                      ref={targetFileInputRef}
-                      type="file"
-                      style={{ display: "none" }}
-                      accept=".txt,.csv,text/plain,text/csv"
-                      onChange={handleImportTargetFile}
-                    />
-                    <div className="transfer-actions unified-curves-import-grid">
-                      <button className="icon-action" onClick={() => measurementFileInputRef.current?.click()}>
-                        <Icon>playlist_add</Icon>
-                        <span>Add Measurement</span>
-                      </button>
-                      <button className="icon-action" onClick={() => targetFileInputRef.current?.click()}>
-                        <Icon>add_box</Icon>
-                        <span>Add Target</span>
-                      </button>
-                    </div>
-                    <div className="traces-targets-merged">
-                      <div className="traces-section">
-                        <div className="traces-section-title">
-                          <Icon>query_stats</Icon>
-                          <span>Measurement Traces</span>
-                        </div>
-                        <MeasureTab
-                          measurements={measurements}
-                          onRemoveMeasurement={removeMeasurement}
-                          onToggleMeasurement={toggleMeasurement}
-                          onClearMeasurements={clearMeasurements}
-                          settings={settings}
-                          onAddMeasurement={addMeasurement}
-                          setStatus={setStatus}
-                        />
+                    <button className="btn add-trace-btn" onClick={() => setShowAddTrace(true)}>
+                      <Icon>add</Icon>
+                      <span>Add Trace</span>
+                    </button>
+                    <section className="tool-card">
+                      <div className="tool-card-head">
+                        <strong>Loaded Traces</strong>
                       </div>
-                      
-                      <div className="traces-divider" />
-
-                      <div className="traces-section">
-                        <div className="traces-section-title">
-                          <Icon>track_changes</Icon>
-                          <span>Target Curves</span>
+                      <UnifiedTracesList
+                        measurements={measurements}
+                        allTargets={allTargets}
+                        activeTargetIds={activeTargetIds}
+                        onToggleMeasurement={toggleMeasurement}
+                        onRemoveMeasurement={removeMeasurement}
+                        onToggleTarget={toggleTarget}
+                        onRemoveTarget={removeTarget}
+                      />
+                      {measurements.length > 0 && (
+                        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "4px" }}>
+                          <button className="tool-link-button danger" onClick={clearMeasurements}>
+                            Clear All Loaded
+                          </button>
                         </div>
-                        <TargetSelector
-                          targets={allTargets}
-                          activeTargetIds={activeTargetIds}
-                          onToggleTarget={toggleTarget}
-                          onRemoveTarget={removeTarget}
-                        />
-                      </div>
-                    </div>
+                      )}
+                    </section>
+                    {showAddTrace && (
+                      <AddTraceModal
+                        onClose={() => setShowAddTrace(false)}
+                        onAddMeasurementFile={() => measurementFileInputRef.current?.click()}
+                        onAddTargetFile={() => targetFileInputRef.current?.click()}
+                        allTargets={allTargets}
+                        activeTargetIds={activeTargetIds}
+                        onToggleTarget={toggleTarget}
+                        onRemoveTarget={removeTarget}
+                        settings={settings}
+                        onAddMeasurement={addMeasurement}
+                        setStatus={setStatus}
+                      />
+                    )}
                   </div>
                 </details>
 
