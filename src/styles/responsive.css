@@ -933,10 +933,6 @@
     flex-direction: column !important;
     gap: 16px !important;
   }
-  .traces-divider {
-    width: 100% !important;
-    height: 1px !important;
-  }
   .band-row {
     min-width: 0;
   }
