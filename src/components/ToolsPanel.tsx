@@ -2,6 +2,7 @@ import { type CSSProperties, useState, useEffect, useRef } from "react";
 import { invoke, listen, readText, writeText, save } from "../lib/rpc";
 import type { DeviceInfo, AppSettings, MeasurementTrace, Profile, PEQData, GraphViewMode, TargetTrace } from "../types";
 import { Icon } from "./Icon";
+import { AddTraceModal } from "./AddTraceModal";
 import { NumberInput } from "./NumberInput";
 import { Slider } from "./Slider";
 import {
@@ -215,6 +216,9 @@ export function ToolsPanel(props: ToolsPanelProps) {
               onRemoveTarget={props.onRemoveTarget ?? (() => {})}
               onAddMeasurementFile={props.onAddMeasurementFile ?? (() => {})}
               onAddTargetFile={props.onAddTargetFile ?? (() => {})}
+              settings={props.settings}
+              onAddMeasurement={props.onAddMeasurement}
+              setStatus={props.setStatus}
             />
           )}
           {tab === "Measure" && <MeasureTab
@@ -568,6 +572,9 @@ interface CurvesTabProps {
   onRemoveTarget: (id: string) => void;
   onAddMeasurementFile: () => void;
   onAddTargetFile: () => void;
+  settings?: AppSettings;
+  onAddMeasurement?: (name: string, points: MeasurementTrace["points"]) => void;
+  setStatus?: (value: string) => void;
 }
 
 function CurvesTab({
@@ -581,22 +588,21 @@ function CurvesTab({
   onRemoveTarget,
   onAddMeasurementFile,
   onAddTargetFile,
+  settings,
+  onAddMeasurement,
+  setStatus,
 }: CurvesTabProps) {
+  const [showAddModal, setShowAddModal] = useState(false);
+
   return (
     <div className="curves-tab">
-      <div className="unified-curves-import-grid">
-        <button className="icon-action compact" title="Add Measurement" onClick={onAddMeasurementFile}>
-          <Icon>playlist_add</Icon>
-          <span>Measurement</span>
-        </button>
-        <button className="icon-action compact" title="Add Target" onClick={onAddTargetFile}>
-          <Icon>add_box</Icon>
-          <span>Target</span>
-        </button>
-      </div>
+      <button className="btn add-trace-btn" onClick={() => setShowAddModal(true)}>
+        <Icon>add</Icon>
+        <span>Add Trace</span>
+      </button>
       <div className="trace-list">
         {measurements.length === 0 && allTargets.length === 0 && (
-          <div className="curve-empty">No traces loaded. Add a measurement or target above.</div>
+          <div className="curve-empty">No traces loaded. Tap Add Trace to get started.</div>
         )}
         {measurements.map((trace) => (
           <div className="curve-item" key={trace.id}>
@@ -655,6 +661,20 @@ function CurvesTab({
             Clear All Loaded
           </button>
         </div>
+      )}
+      {showAddModal && (
+        <AddTraceModal
+          onClose={() => setShowAddModal(false)}
+          onAddMeasurementFile={onAddMeasurementFile}
+          onAddTargetFile={onAddTargetFile}
+          allTargets={allTargets}
+          activeTargetIds={activeTargetIds}
+          onToggleTarget={onToggleTarget}
+          onRemoveTarget={onRemoveTarget}
+          settings={settings}
+          onAddMeasurement={onAddMeasurement}
+          setStatus={setStatus}
+        />
       )}
     </div>
   );
