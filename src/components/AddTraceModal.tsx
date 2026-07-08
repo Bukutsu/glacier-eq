@@ -108,6 +108,7 @@ export function AddTraceModal({
         next.add(dev.id);
         return next;
       });
+      onClose();
       setStatus?.(`Loaded: ${dev.brand} ${dev.name}`);
     } catch (error) {
       console.error(error);
