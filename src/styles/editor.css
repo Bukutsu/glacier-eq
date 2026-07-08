@@ -261,49 +261,56 @@
 }
 
 .preamp-card {
-  height: 52px;
-  padding: 0 16px;
   display: grid;
-  grid-template-columns: 140px 1fr;
+  grid-template-columns: 100px 1fr;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
+  padding: 0 16px;
+  min-height: 44px;
 }
 
 .preamp-meta {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
 }
 
-.preamp-card strong, .bands-header, .diag-head strong {
-  font-size: var(--type-caption);
-  color: var(--text);
-  font-weight: 700;
+.preamp-card strong {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 600;
   letter-spacing: 0;
-}
-
-.custom-number-input.preamp-value-stepper {
-  width: 90px;
-  height: 28px;
-}
-.custom-number-input.preamp-value-stepper .stepper-field {
-  font-size: var(--type-small);
-  padding: 0;
 }
 
 .preamp-value-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 2px;
+  gap: 4px;
+  margin-top: 0;
 }
 
 .preamp-unit {
   color: var(--comment);
   font-family: var(--font-mono);
-  font-size: var(--type-label);
+  font-size: 11px;
   user-select: none;
+}
+
+.custom-number-input.preamp-value-stepper {
+  width: 80px;
+  height: 24px;
+}
+.custom-number-input.preamp-value-stepper .stepper-field {
+  font-size: 11px;
+  padding: 0;
+}
+
+.bands-card strong, .bands-header, .diag-head strong {
+  font-size: var(--type-caption);
+  color: var(--text);
+  font-weight: 700;
+  letter-spacing: 0;
 }
 
 .control-slider {
