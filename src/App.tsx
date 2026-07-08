@@ -498,6 +498,7 @@ function App() {
       const label = name.replace(/\.[^/.]+$/, "");
       addMeasurement(label, points);
       setStatus(`Loaded measurement: ${label} (${points.length} points)`);
+      setShowAddTrace(false);
     } catch (error) {
       setStatus(`Measurement import failed: ${error}`);
     }
@@ -512,6 +513,7 @@ function App() {
       const label = name.replace(/\.[^/.]+$/, "");
       addTarget(label, points);
       setStatus(`Loaded target: ${label} (${points.length} points)`);
+      setShowAddTrace(false);
     } catch (error) {
       setStatus(`Target import failed: ${error}`);
     }
