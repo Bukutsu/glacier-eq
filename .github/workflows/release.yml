@@ -191,9 +191,9 @@ jobs:
           npm run android:init
           cp -R scripts/android-buildsrc/* src-tauri/gen/android/buildSrc/
           cp -R src-tauri/icons/android/. src-tauri/gen/android/app/src/main/res/
-          # Enable parallel Gradle builds
+          # Append parallel build settings to existing gradle.properties
           echo -e "org.gradle.parallel=true\norg.gradle.caching=true\norg.gradle.jvmargs=-Xmx2048m" \
-            > src-tauri/gen/android/gradle.properties
+            >> src-tauri/gen/android/gradle.properties
 
       - name: Setup Android keystore
         env:
