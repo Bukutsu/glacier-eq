@@ -2,7 +2,7 @@
   min-height: 0;
   flex: 1;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
+  grid-template-columns: 360px minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr);
   gap: 16px;
   padding: 0 18px 18px;
@@ -18,6 +18,7 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   padding-right: 4px;
+  grid-column: 2;
 }
 
 .graph-card, .preamp-card, .bands-card, .tools-card, .diag-card {
