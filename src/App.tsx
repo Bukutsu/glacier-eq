@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { invoke, listen, emit } from "./lib/rpc";
+import { invoke, listen, emit, openFileDialog } from "./lib/rpc";
 import { Bands } from "./components/Bands";
 import { DeviceChooser } from "./components/DeviceChooser";
 import { EqGraph } from "./components/EqGraph";
@@ -489,49 +489,32 @@ function App() {
   const [selectedMeasurementId, setSelectedMeasurementId] = useState<string | null>(null);
   const [activeBandIndex, setActiveBandIndex] = useState<number | null>(null);
 
-  const measurementFileInputRef = useRef<HTMLInputElement>(null);
-  const targetFileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleImportMeasurementFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    if (!/\.(csv|txt)$/i.test(file.name)) {
-      setStatus("Measurement import failed: choose a .csv or .txt file.");
-      event.target.value = "";
-      return;
-    }
+  const handleImportMeasurementFile = async () => {
+    const result = await openFileDialog({ filters: [{ name: "Measurement", extensions: ["csv", "txt"] }] });
+    if (!result) return;
+    const { text, name } = result;
     try {
-      const text = await file.text();
       const points = parseMeasurementText(text);
-      const name = file.name.replace(/\.[^/.]+$/, "");
-      addMeasurement(name, points);
-      setStatus(`Loaded measurement: ${name} (${points.length} points)`);
+      const label = name.replace(/\.[^/.]+$/, "");
+      addMeasurement(label, points);
+      setStatus(`Loaded measurement: ${label} (${points.length} points)`);
     } catch (error) {
       setStatus(`Measurement import failed: ${error}`);
     }
-    event.target.value = "";
   };
 
-
-
-  const handleImportTargetFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    if (!/\.(csv|txt)$/i.test(file.name)) {
-      setStatus("Target import failed: choose a .csv or .txt file.");
-      event.target.value = "";
-      return;
-    }
+  const handleImportTargetFile = async () => {
+    const result = await openFileDialog({ filters: [{ name: "Target", extensions: ["csv", "txt"] }] });
+    if (!result) return;
+    const { text, name } = result;
     try {
-      const text = await file.text();
       const points = parseMeasurementText(text);
-      const name = file.name.replace(/\.[^/.]+$/, "");
-      addTarget(name, points);
-      setStatus(`Loaded target: ${name} (${points.length} points)`);
+      const label = name.replace(/\.[^/.]+$/, "");
+      addTarget(label, points);
+      setStatus(`Loaded target: ${label} (${points.length} points)`);
     } catch (error) {
       setStatus(`Target import failed: ${error}`);
     }
-    event.target.value = "";
   };
 
   useEffect(() => {
@@ -1495,12 +1478,8 @@ function App() {
                     {showAddTrace && (
                       <AddTraceModal
                         onClose={() => setShowAddTrace(false)}
-                        onAddMeasurementFile={() => measurementFileInputRef.current?.click()}
-                        onAddTargetFile={() => targetFileInputRef.current?.click()}
-                        allTargets={allTargets}
-                        activeTargetIds={activeTargetIds}
-                        onToggleTarget={toggleTarget}
-                        onRemoveTarget={removeTarget}
+                        onAddMeasurementFile={handleImportMeasurementFile}
+                        onAddTargetFile={handleImportTargetFile}
                         settings={settings}
                         onAddMeasurement={addMeasurement}
                         setStatus={setStatus}
@@ -1751,20 +1730,6 @@ function App() {
               snapToIso={snapToIso}
             />
           </section>
-          <input
-            ref={measurementFileInputRef}
-            type="file"
-            style={{ display: "none" }}
-            accept=".txt,.csv,text/plain,text/csv"
-            onChange={handleImportMeasurementFile}
-          />
-          <input
-            ref={targetFileInputRef}
-            type="file"
-            style={{ display: "none" }}
-            accept=".txt,.csv,text/plain,text/csv"
-            onChange={handleImportTargetFile}
-          />
           <ToolsPanel
             peq={peq}
             onImportPEQ={importPeq}
@@ -1807,8 +1772,8 @@ function App() {
             availableTabs={["Preset", "Import", "AutoEQ", "Curves", "Device", "Settings"]}
             onToggleTarget={toggleTarget}
             onRemoveTarget={removeTarget}
-            onAddMeasurementFile={() => measurementFileInputRef.current?.click()}
-            onAddTargetFile={() => targetFileInputRef.current?.click()}
+            onAddMeasurementFile={handleImportMeasurementFile}
+            onAddTargetFile={handleImportTargetFile}
             connected={connected}
             devices={devices}
             selectedDevice={selectedDevice}
