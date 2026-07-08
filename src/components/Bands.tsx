@@ -96,7 +96,7 @@ export function Bands({ peq, committedPeq, maxBands, onFilterChange, onStartChan
         {columns.map((bands, columnIndex) => bands.length > 0 && (
           <div className="bands-card" key={columnIndex}>
             <div className="bands-header">
-              <span>BAND</span><span>TYPE</span><span>FREQ (Hz)</span><span>GAIN (dB)</span><span>Q</span>
+              <span>BAND</span><span>TYPE</span><span>FREQ <span className="unit">(Hz)</span></span><span>GAIN <span className="unit">(dB)</span></span><span>Q</span>
             </div>
             {bands.map((filter) => (
               <BandRow

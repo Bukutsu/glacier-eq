@@ -1181,4 +1181,7 @@
   .gain-cell .custom-number-input.band-gain-stepper {
     width: 100% !important;
   }
+  .bands-header .unit {
+    display: none !important;
+  }
 }
