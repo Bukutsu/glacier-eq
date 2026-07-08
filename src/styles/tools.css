@@ -1301,6 +1301,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   font-family: var(--font-mono);
   font-size: var(--type-label);
   outline: none;
+  touch-action: pan-y;
 }
 
 .custom-number-input .stepper-field::-webkit-inner-spin-button,
@@ -1517,10 +1518,20 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   background: var(--surface-soft) !important;
   border: 1px solid var(--line-soft) !important;
   transition: border-color 0.15s ease, outline 0.15s ease;
+  font-family: var(--font-ui);
+  font-size: var(--type-body);
+  color: var(--text);
+  padding: 0 14px;
+  min-height: 42px;
+  width: 100%;
+  box-sizing: border-box;
 }
 .curves-search-input:focus {
   border-color: var(--cyan) !important;
   outline: none !important;
+}
+.curves-search-input::placeholder {
+  color: var(--comment);
 }
 
 .add-trace-modal {

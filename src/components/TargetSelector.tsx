@@ -1,5 +1,6 @@
 import type { TargetTrace } from "../types";
 import { Icon } from "./Icon";
+import { Checkbox } from "./Checkbox";
 
 interface TargetSelectorProps {
   targets: TargetTrace[];
@@ -21,8 +22,7 @@ export function TargetSelector({
         return (
           <div className="curve-item" key={target.id}>
             <label className="curve-toggle">
-              <input
-                type="checkbox"
+              <Checkbox
                 checked={active}
                 onChange={() => onToggleTarget(target.id)}
               />

@@ -328,6 +328,7 @@
   margin: 0;
   background: transparent;
   outline: 0;
+  touch-action: pan-y;
 }
 
 .control-slider-input::-webkit-slider-runnable-track {
