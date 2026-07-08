@@ -1230,7 +1230,7 @@
   }
   .tabs button {
     background: transparent !important;
-    color: var(--muted) !important;
+    color: var(--comment) !important;
     min-height: 30px !important;
     border-radius: 0 !important; /* SHARP CORNERS */
     padding: 0 12px !important;
@@ -1239,7 +1239,7 @@
   }
   .tabs button:hover:not(.active) {
     background: var(--surface-soft) !important;
-    color: var(--text) !important;
+    color: var(--muted) !important;
   }
   .tabs button.active {
     background: var(--cyan) !important;
