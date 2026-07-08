@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import type { AppSettings, MeasurementPoint } from "../types";
 import { Icon } from "./Icon";
 import { SearchBar } from "./SearchBar";
+import { fuzzyMatch } from "../lib/search";
 import {
   isDatabaseDownloaded,
   clearCachedDatabase,
@@ -40,6 +41,7 @@ export function AddTraceModal({
   const [searchQuery, setSearchQuery] = useState("");
   const [totalCount, setTotalCount] = useState<number | null>(null);
   const [loadingDevice, setLoadingDevice] = useState<string | null>(null);
+  const [loadedDevices, setLoadedDevices] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (enableOnlineMeasurements) {
@@ -101,6 +103,11 @@ export function AddTraceModal({
     try {
       const points = await loadDeviceCurvePoints(dev.id);
       onAddMeasurement?.(`${dev.brand} ${dev.name} (${dev.source})`, points);
+      setLoadedDevices((prev) => {
+        const next = new Set(prev);
+        next.add(dev.id);
+        return next;
+      });
       setStatus?.(`Loaded: ${dev.brand} ${dev.name}`);
     } catch (error) {
       console.error(error);
@@ -111,15 +118,9 @@ export function AddTraceModal({
   };
 
   const query = searchQuery.trim().toLowerCase();
-  const searchTokens = query.split(/\s+/).filter(Boolean);
-  const displayOnlineResults = searchTokens.length === 0
+  const displayOnlineResults = !query
     ? []
-    : manifest
-        .filter((dev) => {
-          const full = `${dev.brand} ${dev.name}`.toLowerCase();
-          return searchTokens.every((token) => full.includes(token));
-        })
-        .slice(0, 50);
+    : manifest.filter((dev) => fuzzyMatch(query, `${dev.brand} ${dev.name}`)).slice(0, 50);
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -174,11 +175,11 @@ export function AddTraceModal({
                           <div className="online-result-source">{dev.source}</div>
                         </div>
                         <button
-                          className="online-result-action"
-                          disabled={loadingDevice !== null}
+                          className={`online-result-action${loadedDevices.has(dev.id) ? " added" : ""}`}
+                          disabled={loadingDevice !== null || loadedDevices.has(dev.id)}
                           onClick={() => handleLoadDevice(dev)}
                         >
-                          {loadingDevice === dev.id ? <span>Loading...</span> : <Icon>download</Icon>}
+                          {loadingDevice === dev.id ? <span>Loading...</span> : loadedDevices.has(dev.id) ? <Icon>check</Icon> : <Icon>download</Icon>}
                         </button>
                       </div>
                     ))

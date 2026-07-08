@@ -1422,6 +1422,16 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   color: var(--blue);
 }
 
+.online-result-action.added {
+  color: var(--green);
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+.online-result-action.added .material-symbols-outlined {
+  font-size: 18px;
+}
+
 /* AutoEQ Minimalist Layout Styles */
 .autoeq-readonly-value {
   font-size: var(--type-body);
