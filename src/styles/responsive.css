@@ -1224,16 +1224,17 @@
     flex-direction: column !important;
     background: transparent !important;
     padding: 0 !important;
-    gap: 4px !important;
+    gap: 2px !important;
     position: static !important;
   }
   .tabs button {
     background: transparent !important;
     color: var(--muted) !important;
-    min-height: 38px !important;
+    min-height: 30px !important;
     border-radius: 0 !important; /* SHARP CORNERS */
-    padding: 0 12px !important;
+    padding: 0 10px !important;
     font-weight: 500 !important;
+    font-size: 13px !important;
   }
   .tabs button:hover:not(.active) {
     background: var(--surface-soft) !important;
