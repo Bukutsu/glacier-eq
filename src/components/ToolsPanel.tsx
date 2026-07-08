@@ -4,6 +4,7 @@ import type { DeviceInfo, AppSettings, MeasurementTrace, Profile, PEQData, Graph
 import { Icon } from "./Icon";
 import { Checkbox } from "./Checkbox";
 import { SearchBar } from "./SearchBar";
+import { fuzzyMatch } from "../lib/search";
 import { AddTraceModal } from "./AddTraceModal";
 import { UnifiedTracesList } from "./UnifiedTraces";
 import { NumberInput } from "./NumberInput";
@@ -404,17 +405,13 @@ export function MeasureTab({
   
   // Filter loaded measurements locally
   const filteredLocal = query
-    ? measurements.filter((m) => m.name.toLowerCase().includes(query))
+    ? measurements.filter((m) => fuzzyMatch(query, m.name))
     : measurements;
 
   // Filter online manifest
-  const searchTokens = query.split(/\s+/).filter(Boolean);
-  const filteredOnline = searchTokens.length === 0
+  const filteredOnline = !query
     ? []
-    : manifest.filter((dev) => {
-        const full = `${dev.brand} ${dev.name}`.toLowerCase();
-        return searchTokens.every((token) => full.includes(token));
-      });
+    : manifest.filter((dev) => fuzzyMatch(query, `${dev.brand} ${dev.name}`));
 
   const displayOnlineResults = filteredOnline.slice(0, 50);
 
@@ -654,7 +651,7 @@ function PresetTab({
 }: ToolsPanelProps) {
   const query = profileSearch.trim().toLowerCase();
   const filteredProfiles = profiles.filter(
-    (p) => !query || p.name.toLowerCase().includes(query)
+    (p) => !query || fuzzyMatch(query, p.name)
   );
   const selectedProfile = profiles.find((p) => p.name === selectedPreset);
   const canDelete =
@@ -1733,8 +1730,8 @@ export function DiagnosticsPanel() {
     if (levelFilter !== "All" && e.level !== levelFilter) return false;
     if (searchQuery) {
       return (
-        e.message.toLowerCase().includes(searchQuery) ||
-        e.source.toLowerCase().includes(searchQuery) ||
+        fuzzyMatch(searchQuery, e.message) ||
+        fuzzyMatch(searchQuery, e.source) ||
         e.timestamp.includes(searchQuery)
       );
     }
