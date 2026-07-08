@@ -58,6 +58,14 @@ export async function listen<T>(event: string, callback: (event: { payload: T })
   };
 }
 
+export async function emit(event: string, payload?: any): Promise<void> {
+  if (isTauri()) {
+    const { emit: tauriEmit } = await import("@tauri-apps/api/event");
+    return tauriEmit(event, payload);
+  }
+  emitEvent(event, payload);
+}
+
 function emitEvent(event: string, payload: any) {
   const listeners = eventListeners[event];
   if (listeners) {

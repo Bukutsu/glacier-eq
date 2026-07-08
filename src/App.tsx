@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { invoke, listen } from "./lib/rpc";
+import { invoke, listen, emit } from "./lib/rpc";
 import { Bands } from "./components/Bands";
 import { DeviceChooser } from "./components/DeviceChooser";
 import { EqGraph } from "./components/EqGraph";
@@ -894,6 +894,7 @@ function App() {
       setLastPushedPeq(normalized);
       await selectMatchingProfile(normalized, "Pulled from device");
       setDirty(false);
+      emit("device-pull").catch((err) => console.error("Failed to emit device-pull:", err));
       reportStatus(
         "Info",
         isDevDummyDevice(selectedDevice)
@@ -1547,6 +1548,7 @@ function App() {
                 <ToolsPanel
                   peq={peq}
                   onImportPEQ={importPeq}
+                  onPull={pullEq}
                   profiles={profiles}
                   selectedPreset={selectedPreset}
                   profileSearch={profileSearch}
@@ -1587,6 +1589,7 @@ function App() {
                 <ToolsPanel
                   peq={peq}
                   onImportPEQ={importPeq}
+                  onPull={pullEq}
                   profiles={profiles}
                   selectedPreset={selectedPreset}
                   profileSearch={profileSearch}
@@ -1630,6 +1633,7 @@ function App() {
                 <ToolsPanel
                   peq={peq}
                   onImportPEQ={importPeq}
+                  onPull={pullEq}
                   profiles={profiles}
                   selectedPreset={selectedPreset}
                   profileSearch={profileSearch}
@@ -1776,6 +1780,7 @@ function App() {
           <ToolsPanel
             peq={peq}
             onImportPEQ={importPeq}
+            onPull={pullEq}
             profiles={profiles}
             selectedPreset={selectedPreset}
             profileSearch={profileSearch}
