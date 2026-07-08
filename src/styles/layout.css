@@ -19,6 +19,7 @@
   overscroll-behavior: contain;
   padding-right: 4px;
   grid-column: 2;
+  grid-row: 1;
 }
 
 .graph-card, .preamp-card, .bands-card, .tools-card, .diag-card {
