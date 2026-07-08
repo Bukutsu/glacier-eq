@@ -11,6 +11,14 @@
     overflow: auto;
     overscroll-behavior: contain;
   }
+  .mobile-workspace .left-pane {
+    overflow: visible !important;
+    overscroll-behavior: auto !important;
+  }
+  .mobile-workspace .tab-panel {
+    overflow: visible !important;
+    overscroll-behavior: auto !important;
+  }
   .mobile-workspace .left-pane,
   .mobile-workspace .right-rail {
     flex: 0 0 auto;
@@ -34,12 +42,10 @@
 }
 
 @media (max-width: 960px) {
-  body { overflow: auto; }
+  body { overflow: hidden; }
   #app {
-    min-height: 100vh;
-    min-height: 100dvh;
-    height: auto;
-    overflow: visible;
+    height: 100dvh;
+    overflow: hidden;
   }
   .app-header {
     padding: 14px 16px 12px;
@@ -85,11 +91,21 @@
   .workspace.mobile-workspace {
     display: flex;
     flex-direction: column;
-    overflow: visible;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    touch-action: manipulation;
     padding: 0 12px max(16px, var(--safe-area-bottom, 0px));
   }
   .mobile-workspace .left-pane {
     gap: 10px;
+    overflow: visible !important;
+    overscroll-behavior: auto !important;
+  }
+  .mobile-workspace .tab-panel {
+    overflow: visible !important;
+    overscroll-behavior: auto !important;
   }
   .bands-grid { grid-template-columns: 1fr; }
   .bands-header, .band-row { grid-template-columns: 36px 144px minmax(140px, 1fr) minmax(140px, 1fr) 76px; font-size: var(--type-small); }
@@ -802,6 +818,11 @@
   }
 
   /* Mobile Settings Menu Touch Friendliness */
+  .curves-search-input {
+    min-height: 48px !important;
+    font-size: 17px !important;
+  }
+
   .settings-list label {
     min-height: 48px !important;
     padding: 10px 4px !important;

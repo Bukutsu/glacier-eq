@@ -1,5 +1,6 @@
 import type { MeasurementTrace, TargetTrace } from "../types";
 import { Icon } from "./Icon";
+import { Checkbox } from "./Checkbox";
 
 interface UnifiedTracesListProps {
   measurements: MeasurementTrace[];
@@ -30,8 +31,7 @@ export function UnifiedTracesList({
       {measurements.map((trace) => (
         <div className="curve-item" key={trace.id}>
           <label className="curve-toggle">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={trace.visible}
               onChange={() => onToggleMeasurement(trace.id)}
             />
@@ -56,8 +56,7 @@ export function UnifiedTracesList({
         return (
           <div className="curve-item" key={target.id}>
             <label className="curve-toggle">
-              <input
-                type="checkbox"
+              <Checkbox
                 checked={active}
                 onChange={() => onToggleTarget(target.id)}
               />

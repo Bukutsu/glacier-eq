@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import type { TargetTrace, AppSettings, MeasurementPoint } from "../types";
 import { Icon } from "./Icon";
+import { Checkbox } from "./Checkbox";
+import { SearchBar } from "./SearchBar";
 import {
   isDatabaseDownloaded,
   clearCachedDatabase,
@@ -159,12 +161,10 @@ export function AddTraceModal({
             </div>
             {downloaded ? (
               <>
-                <input
-                  type="text"
+                <SearchBar
                   placeholder="Search online database..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="curves-search-input"
                 />
                 <div className="add-trace-online-results">
                   {loadingManifest ? (
@@ -223,8 +223,7 @@ export function AddTraceModal({
                 return (
                   <div className="add-trace-target-item" key={target.id}>
                     <label className="add-trace-target-toggle">
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         checked={active}
                         onChange={() => onToggleTarget(target.id)}
                       />
