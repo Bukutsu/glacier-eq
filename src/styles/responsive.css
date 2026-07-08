@@ -1156,8 +1156,12 @@
   }
 }
 
-@media (min-width: 961px) and (max-height: 600px) {
+@media (min-width: 961px) and (max-height: 750px) {
   .graph-card {
-    display: none !important;
+    min-height: 160px !important;
+    height: 180px !important;
+  }
+  .eq-graph-shell, .eq-canvas {
+    min-height: 140px !important;
   }
 }
