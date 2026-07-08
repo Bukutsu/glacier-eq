@@ -626,13 +626,24 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-height: 0;
+  flex: 1;
+}
+
+.curves-tab .tool-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  flex: 1;
 }
 
 .curves-tab .curve-list,
 .trace-list {
-  min-height: 100px;
-  max-height: 300px;
+  min-height: 0;
+  max-height: none;
   height: auto;
+  flex: 1;
   overflow-y: auto;
 }
 
