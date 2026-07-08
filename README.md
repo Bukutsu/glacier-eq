@@ -3,6 +3,12 @@
   Glacier EQ
 </h1>
 
+<div>
+  <a href="https://github.com/Bukutsu/glacier-eq/actions/workflows/ci.yml"><img src="https://github.com/Bukutsu/glacier-eq/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>
+  <a href="https://github.com/Bukutsu/glacier-eq/releases/latest"><img src="https://img.shields.io/github/v/release/Bukutsu/glacier-eq?style=flat&logo=github" alt="Latest release"></a>
+  <a href="https://github.com/Bukutsu/glacier-eq/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-GPLv3-blue.svg" alt="License"></a>
+</div>
+
 Cross-platform parametric EQ editor for compatible USB DACs. Glacier EQ talks to
 hardware over HID, edits EQ locally, and works offline.
 
