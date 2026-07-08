@@ -723,13 +723,6 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   cursor: pointer;
 }
 
-/* Eliminate double-card backgrounds and borders when nested inside Traces & Targets */
-.traces-targets-merged .tool-card {
-  background: transparent !important;
-  border: none !important;
-  padding: 0 !important;
-  box-shadow: none !important;
-}
 .settings-list {
   display: flex;
   flex-direction: column;
@@ -1500,48 +1493,6 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   display: flex;
   flex-direction: column;
   gap: 8px;
-}
-
-.traces-section {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.traces-section-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: var(--type-label);
-  font-weight: 600;
-  color: var(--muted);
-  border-bottom: 1px solid var(--line-soft);
-  padding-bottom: 6px;
-  margin-bottom: 4px;
-}
-
-.traces-section-title .material-symbols-outlined {
-  font-size: 18px;
-}
-
-.traces-divider {
-  width: 100%;
-  height: 1px;
-  background: var(--line-soft);
-}
-
-.unified-curves-import-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 6px;
-  margin-bottom: 8px;
-}
-
-.unified-curves-import-grid .icon-action.compact {
-  min-height: 30px;
-  padding: 0 6px;
 }
 
 .curve-section-header {
