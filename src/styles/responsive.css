@@ -1185,3 +1185,25 @@
     display: none !important;
   }
 }
+
+@media (max-width: 850px) {
+  .workspace {
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
+    padding: 0 12px max(16px, var(--safe-area-bottom, 0px));
+  }
+  .left-pane {
+    gap: 10px;
+  }
+  .right-rail {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow: visible;
+  }
+  .tools-card,
+  .diag-card {
+    overflow: visible;
+  }
+}
