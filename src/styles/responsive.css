@@ -1212,12 +1212,13 @@
   .right-rail {
     background: var(--panel) !important;
     border-right: 1px solid var(--line-soft);
-    padding: 16px 12px;
+    padding: 8px 0;
   }
   .tools-card {
     background: transparent !important;
     border: none !important;
-    gap: 16px;
+    padding: 0 !important;
+    gap: 4px;
   }
   .tabs {
     display: flex !important;
@@ -1232,7 +1233,7 @@
     color: var(--muted) !important;
     min-height: 30px !important;
     border-radius: 0 !important; /* SHARP CORNERS */
-    padding: 0 10px !important;
+    padding: 0 12px !important;
     font-weight: 500 !important;
     font-size: 13px !important;
   }
