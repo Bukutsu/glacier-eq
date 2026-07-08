@@ -1165,3 +1165,17 @@
     min-height: 140px !important;
   }
 }
+
+@media (min-width: 769px) and (max-width: 1150px) {
+  .bands-header, .band-row {
+    grid-template-columns: 36px 130px minmax(70px, 1fr) minmax(70px, 1fr) minmax(70px, 1fr);
+    gap: 8px;
+  }
+  .band-row .control-slider {
+    display: none !important;
+  }
+  .freq-cell .custom-number-input.band-freq-stepper,
+  .gain-cell .custom-number-input.band-gain-stepper {
+    width: 100% !important;
+  }
+}
