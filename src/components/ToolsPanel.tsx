@@ -145,6 +145,8 @@ interface ToolsPanelProps {
   onActiveTabChange?: (tab: ToolsTab) => void;
   onOpenConnectModal?: () => void;
   onOpenDiagnostics?: () => void;
+  showGraph?: boolean;
+  onShowGraphChange?: (show: boolean) => void;
 }
 
 export function ToolsPanel(props: ToolsPanelProps) {
@@ -249,6 +251,8 @@ export function ToolsPanel(props: ToolsPanelProps) {
               settings={props.settings}
               onSettingChange={props.onSettingChange}
               onOpenDiagnostics={props.onOpenDiagnostics}
+              showGraph={props.showGraph}
+              onShowGraphChange={props.onShowGraphChange}
             />
           )}
         </div>
@@ -1309,12 +1313,16 @@ function SettingsTab({
   settings,
   onSettingChange,
   onOpenDiagnostics,
+  showGraph,
+  onShowGraphChange,
 }: {
   graphViewMode?: GraphViewMode;
   onGraphViewModeChange?: (mode: GraphViewMode) => void;
   settings: AppSettings;
   onSettingChange: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
   onOpenDiagnostics?: () => void;
+  showGraph?: boolean;
+  onShowGraphChange?: (show: boolean) => void;
 }) {
   return (
     <div className="settings-list">
@@ -1360,6 +1368,16 @@ function SettingsTab({
         <div className="tool-card-head">
           <strong>Interface</strong>
         </div>
+        {onShowGraphChange !== undefined && (
+          <label>
+            <input
+              type="checkbox"
+              checked={!!showGraph}
+              onChange={(e) => onShowGraphChange(e.target.checked)}
+            />
+            Show frequency response graph
+          </label>
+        )}
         {onOpenDiagnostics && (
           <div className="setting-row">
             <span className="setting-label">Diagnostics</span>

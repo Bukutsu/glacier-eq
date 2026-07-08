@@ -215,6 +215,7 @@ function App() {
     "eq" | "tuning" | "profiles" | "device" | "settings"
   >("eq");
   const [graphCollapsed, setGraphCollapsed] = useState(false);
+  const [showGraph, setShowGraph] = useState(true);
   const [toolsTab, setToolsTab] = useState<any>("Preset");
   const [showDeviceModal, setShowDeviceModal] = useState(false);
   const [showDiagnosticsModal, setShowDiagnosticsModal] = useState(false);
@@ -1732,6 +1733,7 @@ function App() {
       ) : (
         <main className="workspace">
           <section className="left-pane">
+            {showGraph && (
             <section className="graph-card">
               <EqGraph
                 peq={peq}
@@ -1743,6 +1745,7 @@ function App() {
                 theme={resolvedTheme}
               />
             </section>
+            )}
             <Preamp
               value={peq.global_gain}
               resetValue={lastPushedPeq?.global_gain}
@@ -1834,6 +1837,8 @@ function App() {
             onActiveTabChange={setToolsTab}
             onOpenConnectModal={() => setShowDeviceModal(true)}
             onOpenDiagnostics={() => setShowDiagnosticsModal(true)}
+            showGraph={showGraph}
+            onShowGraphChange={setShowGraph}
           />
         </main>
       )}
