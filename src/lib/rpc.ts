@@ -709,9 +709,7 @@ export async function openFileDialog(options?: {
     const path = await open(options);
     if (!path) return null;
     const name = path.split("/").pop()?.split("\\").pop() ?? "untitled";
-    const { convertFileSrc } = await import("@tauri-apps/api/core");
-    const resp = await fetch(convertFileSrc(path));
-    const text = await resp.text();
+    const text = await invoke<string>("read_text_file", { path });
     return { text, name };
   }
   // Web fallback: create a hidden file input

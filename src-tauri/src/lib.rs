@@ -25,6 +25,11 @@ fn save_text_file(path: String, content: String) -> Result<(), String> {
     std::fs::write(&path, &content).map_err(|e| format!("Failed to write file: {e}"))
 }
 
+#[tauri::command]
+fn read_text_file(path: String) -> Result<String, String> {
+    std::fs::read_to_string(&path).map_err(|e| format!("Failed to read file: {e}"))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     #[cfg(not(mobile))]
@@ -97,6 +102,7 @@ pub fn run() {
             device_commands::disconnect_device,
             settings::get_settings,
             settings::save_settings,
+            read_text_file,
             diagnostics::get_diagnostics,
             diagnostics::clear_diagnostics,
             diagnostics::add_diagnostic_event,
