@@ -700,3 +700,44 @@ export async function save(options?: any): Promise<string | null> {
   }
   return options?.defaultPath || "profile.txt";
 }
+
+export async function openFileDialog(options?: {
+  filters?: { name: string; extensions: string[] }[];
+}): Promise<{ text: string; name: string } | null> {
+  if (isTauri()) {
+    const { open } = await import("@tauri-apps/plugin-dialog");
+    const path = await open(options);
+    if (!path) return null;
+    const name = path.split("/").pop()?.split("\\").pop() ?? "untitled";
+    const { convertFileSrc } = await import("@tauri-apps/api/core");
+    const resp = await fetch(convertFileSrc(path));
+    const text = await resp.text();
+    return { text, name };
+  }
+  // Web fallback: create a hidden file input
+  return new Promise((resolve) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    if (options?.filters) {
+      input.accept = options.filters
+        .flatMap((f) => f.extensions)
+        .map((e) => "." + e)
+        .join(",");
+    }
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (file) {
+        const text = await file.text();
+        resolve({ text, name: file.name });
+      } else {
+        resolve(null);
+      }
+      input.remove();
+    };
+    input.style.position = "absolute";
+    input.style.opacity = "0";
+    input.style.pointerEvents = "none";
+    document.body.appendChild(input);
+    input.click();
+  });
+}

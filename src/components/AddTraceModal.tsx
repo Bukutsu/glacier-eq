@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
-import type { TargetTrace, AppSettings, MeasurementPoint } from "../types";
+import type { AppSettings, MeasurementPoint } from "../types";
 import { Icon } from "./Icon";
-import { Checkbox } from "./Checkbox";
 import { SearchBar } from "./SearchBar";
 import {
   isDatabaseDownloaded,
@@ -16,10 +15,6 @@ interface AddTraceModalProps {
   onClose: () => void;
   onAddMeasurementFile: () => void;
   onAddTargetFile: () => void;
-  allTargets: TargetTrace[];
-  activeTargetIds: string[];
-  onToggleTarget: (id: string) => void;
-  onRemoveTarget: (id: string) => void;
   settings?: AppSettings;
   onAddMeasurement?: (name: string, points: MeasurementPoint[]) => void;
   setStatus?: (value: string) => void;
@@ -29,10 +24,7 @@ export function AddTraceModal({
   onClose,
   onAddMeasurementFile,
   onAddTargetFile,
-  allTargets,
-  activeTargetIds,
-  onToggleTarget,
-  onRemoveTarget,
+
   settings,
   onAddMeasurement,
   setStatus,
@@ -214,37 +206,6 @@ export function AddTraceModal({
           </div>
         )}
 
-        {allTargets.length > 0 && (
-          <div className="add-trace-section">
-            <div className="add-trace-section-title">Target Curves</div>
-            <div className="add-trace-target-list">
-              {allTargets.map((target) => {
-                const active = activeTargetIds.includes(target.id);
-                return (
-                  <div className="add-trace-target-item" key={target.id}>
-                    <label className="add-trace-target-toggle">
-                      <Checkbox
-                        checked={active}
-                        onChange={() => onToggleTarget(target.id)}
-                      />
-                      <span className="curve-swatch" style={{ backgroundColor: target.color }} />
-                      <span>{target.name}</span>
-                    </label>
-                    {!target.builtIn && (
-                      <button
-                        className="curve-delete"
-                        title={`Delete ${target.name}`}
-                        onClick={() => onRemoveTarget(target.id)}
-                      >
-                        <Icon>delete</Icon>
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
       </section>
     </div>
   );
