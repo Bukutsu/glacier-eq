@@ -1155,3 +1155,9 @@
     border-radius: 3px !important;
   }
 }
+
+@media (min-width: 961px) and (max-height: 600px) {
+  .graph-card {
+    display: none !important;
+  }
+}
