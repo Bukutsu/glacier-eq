@@ -222,10 +222,10 @@ jobs:
           cp -R src-tauri/icons/android/. src-tauri/gen/android/app/src/main/res/
           # app/build.gradle.kts with release-keystore signing support
           cp scripts/android-app/build.gradle.kts src-tauri/gen/android/app/build.gradle.kts
-          # Append build-cache flag without clobbering generated AndroidX/JVM props
-          if ! grep -q "^org.gradle.caching=true" src-tauri/gen/android/gradle.properties; then
-            echo "org.gradle.caching=true" >> src-tauri/gen/android/gradle.properties
-          fi
+          # NOTE: do NOT modify the generated gradle.properties. It already contains
+          # android.useAndroidX=true and JVM args; appending risked concatenating onto
+          # a line with no trailing newline ("AndroidX trueorg.gradle.caching=true").
+          # Build caching is handled by gradle/actions/setup-gradle@v4.
 
       - name: Write Android version properties
         run: |
