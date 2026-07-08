@@ -2,6 +2,8 @@ import { type CSSProperties, useState, useEffect, useRef } from "react";
 import { invoke, listen, readText, writeText, save } from "../lib/rpc";
 import type { DeviceInfo, AppSettings, MeasurementTrace, Profile, PEQData, GraphViewMode, TargetTrace } from "../types";
 import { Icon } from "./Icon";
+import { Checkbox } from "./Checkbox";
+import { SearchBar } from "./SearchBar";
 import { AddTraceModal } from "./AddTraceModal";
 import { UnifiedTracesList } from "./UnifiedTraces";
 import { NumberInput } from "./NumberInput";
@@ -420,8 +422,7 @@ export function MeasureTab({
     <div className="measurements-pane">
       {/* Search Input Box */}
       <div className="online-search-section">
-        <input
-          type="text"
+        <SearchBar
           placeholder={
             enableOnlineMeasurements && downloaded && totalCount
               ? `Search loaded or ${totalCount} online curves...`
@@ -429,7 +430,6 @@ export function MeasureTab({
           }
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="curves-search-input"
         />
       </div>
 
@@ -442,8 +442,7 @@ export function MeasureTab({
             {filteredLocal.map((trace) => (
               <div className="curve-item" key={trace.id}>
                 <label className="curve-toggle">
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={trace.visible}
                     onChange={() => onToggleMeasurement(trace.id)}
                   />
@@ -1346,32 +1345,28 @@ function SettingsTab({
           <strong>Behavior</strong>
         </div>
         <label>
-          <input
-            type="checkbox"
+          <Checkbox
             checked={settings.auto_pull_on_connect}
             onChange={(e) => onSettingChange("auto_pull_on_connect", e.target.checked)}
           />
           Auto-pull EQ from device on connect
         </label>
         <label>
-          <input
-            type="checkbox"
+          <Checkbox
             checked={settings.skip_push_verification}
             onChange={(e) => onSettingChange("skip_push_verification", e.target.checked)}
           />
           Skip push verification
         </label>
         <label>
-          <input
-            type="checkbox"
+          <Checkbox
             checked={settings.snap_to_iso_frequencies}
             onChange={(e) => onSettingChange("snap_to_iso_frequencies", e.target.checked)}
           />
           Snap frequency to ISO standard values
         </label>
         <label>
-          <input
-            type="checkbox"
+          <Checkbox
             checked={settings.enable_online_measurements}
             onChange={(e) => onSettingChange("enable_online_measurements", e.target.checked)}
           />
@@ -1385,8 +1380,7 @@ function SettingsTab({
         </div>
         {onShowGraphChange !== undefined && (
           <label>
-            <input
-              type="checkbox"
+            <Checkbox
               checked={!!showGraph}
               onChange={(e) => onShowGraphChange(e.target.checked)}
             />
@@ -1611,8 +1605,7 @@ function DeviceTab({ setStatus, onPull }: { setStatus: (msg: string) => void; on
         </div>
 
         <label>
-          <input
-            type="checkbox"
+          <Checkbox
             checked={utility.amp_mode_class_ab}
             onChange={(e) => handleSetAmpMode(e.target.checked)}
           />
@@ -1620,8 +1613,7 @@ function DeviceTab({ setStatus, onPull }: { setStatus: (msg: string) => void; on
         </label>
 
         <label>
-          <input
-            type="checkbox"
+          <Checkbox
             checked={utility.high_gain_mode}
             onChange={(e) => handleSetOutputGain(e.target.checked)}
           />
