@@ -134,8 +134,7 @@ interface ToolsPanelProps {
   onSettingChange: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
   onToggleTarget?: (id: string) => void;
   onRemoveTarget?: (id: string) => void;
-  onAddMeasurementFile?: () => void;
-  onAddTargetFile?: () => void;
+  onAddTarget?: (name: string, points: MeasurementTrace["points"]) => void;
   connected?: boolean;
   devices?: DeviceInfo[];
   selectedDevice?: string;
@@ -218,8 +217,7 @@ export function ToolsPanel(props: ToolsPanelProps) {
               activeTargetIds={props.activeTargetIds ?? []}
               onToggleTarget={props.onToggleTarget ?? (() => {})}
               onRemoveTarget={props.onRemoveTarget ?? (() => {})}
-              onAddMeasurementFile={props.onAddMeasurementFile ?? (() => {})}
-              onAddTargetFile={props.onAddTargetFile ?? (() => {})}
+              onAddTarget={props.onAddTarget}
               settings={props.settings}
               onAddMeasurement={props.onAddMeasurement}
               setStatus={props.setStatus}
@@ -567,8 +565,7 @@ interface CurvesTabProps {
   activeTargetIds: string[];
   onToggleTarget: (id: string) => void;
   onRemoveTarget: (id: string) => void;
-  onAddMeasurementFile: () => void;
-  onAddTargetFile: () => void;
+  onAddTarget?: (name: string, points: MeasurementTrace["points"]) => void;
   settings?: AppSettings;
   onAddMeasurement?: (name: string, points: MeasurementTrace["points"]) => void;
   setStatus?: (value: string) => void;
@@ -583,8 +580,7 @@ function CurvesTab({
   activeTargetIds,
   onToggleTarget,
   onRemoveTarget,
-  onAddMeasurementFile,
-  onAddTargetFile,
+  onAddTarget,
   settings,
   onAddMeasurement,
   setStatus,
@@ -621,10 +617,9 @@ function CurvesTab({
       {showAddModal && (
         <AddTraceModal
           onClose={() => setShowAddModal(false)}
-          onAddMeasurementFile={onAddMeasurementFile}
-          onAddTargetFile={onAddTargetFile}
           settings={settings}
           onAddMeasurement={onAddMeasurement}
+          onAddTarget={onAddTarget}
           setStatus={setStatus}
         />
       )}

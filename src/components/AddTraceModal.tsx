@@ -3,6 +3,8 @@ import type { AppSettings, MeasurementPoint } from "../types";
 import { Icon } from "./Icon";
 import { SearchBar } from "./SearchBar";
 import { fuzzyMatch } from "../lib/search";
+import { openFileDialog } from "../lib/rpc";
+import { parseMeasurementText } from "../lib/measurements";
 import {
   isDatabaseDownloaded,
   clearCachedDatabase,
@@ -14,20 +16,17 @@ import {
 
 interface AddTraceModalProps {
   onClose: () => void;
-  onAddMeasurementFile: () => void;
-  onAddTargetFile: () => void;
   settings?: AppSettings;
   onAddMeasurement?: (name: string, points: MeasurementPoint[]) => void;
+  onAddTarget?: (name: string, points: MeasurementPoint[]) => void;
   setStatus?: (value: string) => void;
 }
 
 export function AddTraceModal({
   onClose,
-  onAddMeasurementFile,
-  onAddTargetFile,
-
   settings,
   onAddMeasurement,
+  onAddTarget,
   setStatus,
 }: AddTraceModalProps) {
   const enableOnlineMeasurements = settings?.enable_online_measurements;
@@ -98,6 +97,34 @@ export function AddTraceModal({
     }
   };
 
+  const handleMeasurementFile = async () => {
+    const result = await openFileDialog({ filters: [{ name: "Measurement", extensions: ["csv", "txt"] }] });
+    if (!result) return;
+    try {
+      const points = parseMeasurementText(result.text);
+      const label = result.name.replace(/\.[^/.]+$/, "");
+      onAddMeasurement?.(label, points);
+      setStatus?.(`Loaded measurement: ${label} (${points.length} points)`);
+      onClose();
+    } catch (error) {
+      setStatus?.(`Measurement import failed: ${error}`);
+    }
+  };
+
+  const handleTargetFile = async () => {
+    const result = await openFileDialog({ filters: [{ name: "Target", extensions: ["csv", "txt"] }] });
+    if (!result) return;
+    try {
+      const points = parseMeasurementText(result.text);
+      const label = result.name.replace(/\.[^/.]+$/, "");
+      (onAddTarget ?? onAddMeasurement)?.(label, points);
+      setStatus?.(`Loaded target: ${label} (${points.length} points)`);
+      onClose();
+    } catch (error) {
+      setStatus?.(`Target import failed: ${error}`);
+    }
+  };
+
   const handleLoadDevice = async (dev: OnlineDevice) => {
     setLoadingDevice(dev.id);
     try {
@@ -134,11 +161,11 @@ export function AddTraceModal({
         <div className="add-trace-section">
           <div className="add-trace-section-title">From File</div>
           <div className="add-trace-file-grid">
-            <button className="btn" onClick={onAddMeasurementFile}>
+            <button className="btn" onClick={handleMeasurementFile}>
               <Icon>playlist_add</Icon>
               <span>Measurement</span>
             </button>
-            <button className="btn" onClick={onAddTargetFile}>
+            <button className="btn" onClick={handleTargetFile}>
               <Icon>add_box</Icon>
               <span>Target</span>
             </button>
