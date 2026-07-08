@@ -50,8 +50,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
 
       - name: Install Linux Tauri dependencies
         if: matrix.os == 'ubuntu-22.04'
@@ -311,7 +309,7 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: "Glacier EQ ${{ github.ref_name }}"
           body: "Automated Glacier EQ build. See assets below for installers."
-          draft: false
+          draft: true
           prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}
           generate_release_notes: true
           fail_on_unmatched_files: true
