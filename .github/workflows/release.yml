@@ -208,6 +208,8 @@ jobs:
       - name: Initialize Android project
         run: |
           npm run android:init
+          # Apply our Gradle configuration cache fix (BuildTask/RustPlugin)
+          cp -R scripts/android-buildsrc/* src-tauri/gen/android/buildSrc/
           cp -R src-tauri/icons/android/. src-tauri/gen/android/app/src/main/res/
 
       - name: Verify Android themed icon resources
