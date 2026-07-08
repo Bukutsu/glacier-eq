@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { invoke, listen, emit, openFileDialog } from "./lib/rpc";
+import { invoke, listen, emit } from "./lib/rpc";
 import { Bands } from "./components/Bands";
 import { DeviceChooser } from "./components/DeviceChooser";
 import { EqGraph } from "./components/EqGraph";
@@ -18,7 +18,6 @@ import {
   makeMeasurementName,
   nextMeasurementColor,
   normalizeMeasurementPoints,
-  parseMeasurementText,
 } from "./lib/measurements";
 import {
   getBuiltInTargets,
@@ -488,36 +487,6 @@ function App() {
   const [lastPushedPeq, setLastPushedPeq] = useState<PEQData | null>(null);
   const [selectedMeasurementId, setSelectedMeasurementId] = useState<string | null>(null);
   const [activeBandIndex, setActiveBandIndex] = useState<number | null>(null);
-
-  const handleImportMeasurementFile = async () => {
-    const result = await openFileDialog({ filters: [{ name: "Measurement", extensions: ["csv", "txt"] }] });
-    if (!result) return;
-    const { text, name } = result;
-    try {
-      const points = parseMeasurementText(text);
-      const label = name.replace(/\.[^/.]+$/, "");
-      addMeasurement(label, points);
-      setStatus(`Loaded measurement: ${label} (${points.length} points)`);
-      setShowAddTrace(false);
-    } catch (error) {
-      setStatus(`Measurement import failed: ${error}`);
-    }
-  };
-
-  const handleImportTargetFile = async () => {
-    const result = await openFileDialog({ filters: [{ name: "Target", extensions: ["csv", "txt"] }] });
-    if (!result) return;
-    const { text, name } = result;
-    try {
-      const points = parseMeasurementText(text);
-      const label = name.replace(/\.[^/.]+$/, "");
-      addTarget(label, points);
-      setStatus(`Loaded target: ${label} (${points.length} points)`);
-      setShowAddTrace(false);
-    } catch (error) {
-      setStatus(`Target import failed: ${error}`);
-    }
-  };
 
   useEffect(() => {
     peqRef.current = peq;
@@ -1513,10 +1482,9 @@ function App() {
                     {showAddTrace && (
                       <AddTraceModal
                         onClose={() => setShowAddTrace(false)}
-                        onAddMeasurementFile={handleImportMeasurementFile}
-                        onAddTargetFile={handleImportTargetFile}
                         settings={settings}
                         onAddMeasurement={addMeasurement}
+                        onAddTarget={addTarget}
                         setStatus={setStatus}
                       />
                     )}
@@ -1807,8 +1775,7 @@ function App() {
             availableTabs={["Preset", "Import", "AutoEQ", "Curves", "Device", "Settings"]}
             onToggleTarget={toggleTarget}
             onRemoveTarget={removeTarget}
-            onAddMeasurementFile={handleImportMeasurementFile}
-            onAddTargetFile={handleImportTargetFile}
+            onAddTarget={addTarget}
             connected={connected}
             devices={devices}
             selectedDevice={selectedDevice}
