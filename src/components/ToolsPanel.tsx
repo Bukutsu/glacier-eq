@@ -832,7 +832,7 @@ function ImportTab({ peq, profiles, onImportPEQ, onReloadProfiles, setStatus }: 
       if (!text.trim()) throw new Error("Clipboard is empty.");
       await parseAndLoadText(text, `Pasted ${new Date().toLocaleDateString()}`);
     } catch (err) {
-      setStatus("Unable to read clipboard. Check permissions.");
+      setStatus(`Unable to read clipboard: ${err}`);
       console.error(err);
     }
   };
