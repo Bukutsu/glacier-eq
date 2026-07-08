@@ -617,7 +617,25 @@ function App() {
     setDirty(true);
   }, [redoStack]);
 
-  const flashGraphPreview = useCallback(() => {}, []);
+  const [showGraphPreview, setShowGraphPreview] = useState(false);
+  const graphPreviewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearPreviewTimer = useCallback(() => {
+    if (graphPreviewTimer.current) {
+      clearTimeout(graphPreviewTimer.current);
+      graphPreviewTimer.current = null;
+    }
+  }, []);
+
+  const flashGraphPreview = useCallback(() => {
+    if (!isMobile) return;
+    setShowGraphPreview(true);
+    clearPreviewTimer();
+    graphPreviewTimer.current = setTimeout(() => setShowGraphPreview(false), 2000);
+  }, [isMobile, clearPreviewTimer]);
+
+  // Cleanup on unmount
+  useEffect(() => clearPreviewTimer, [clearPreviewTimer]);
 
   const handleStartChange = useCallback(() => {
     flashGraphPreview();
@@ -1416,6 +1434,21 @@ function App() {
                 <Icon>{graphCollapsed ? "expand_more" : "expand_less"}</Icon>
               </button>
             </section>
+          )}
+          {showGraphPreview && activeTab === "eq" && (
+            <div className="mobile-graph-preview">
+              <div className="graph-card" style={{ height: "100%", padding: 0, border: "none", background: "transparent" }}>
+                <EqGraph
+                  peq={peq}
+                  committedPeq={lastPushedPeq}
+                  selectedMeasurementId={selectedMeasurementId}
+                  measurements={measurements}
+                  targets={activeTargets}
+                  viewMode={graphViewMode}
+                  theme={resolvedTheme}
+                />
+              </div>
+            </div>
           )}
           <div className="mobile-content-area">
             {activeTab === "eq" && (
