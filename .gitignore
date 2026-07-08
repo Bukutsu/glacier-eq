@@ -12,7 +12,14 @@
 coverage/
 dist
 dist-ssr
-*.dmg\n*.msi\n*.exe\n*.deb\n*.rpm\n*.AppImage\ngithub-pages/\nglacier-eq-*-*/
+*.dmg
+*.msi
+*.exe
+*.deb
+*.rpm
+*.AppImage
+github-pages/
+glacier-eq-*-*/
 .DS_Store
 # Editor directories and files
 # Git worktrees
