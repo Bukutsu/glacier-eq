@@ -1184,13 +1184,6 @@ export function AutoEqTab({
 
   return (
     <div className="autoeq-tab">
-      <section className="tool-card">
-        <div className="tool-card-head">
-          <strong>AutoEQ Match</strong>
-        </div>
-        <p className="card-note">Fit parametric EQ filters to a target curve using the native AdaBelief optimizer.</p>
-      </section>
-
       {measurements.length === 0 ? (
         <section className="tool-card">
           <div className="tool-card-head">
