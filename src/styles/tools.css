@@ -1560,3 +1560,113 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   border-color: var(--cyan) !important;
   outline: none !important;
 }
+
+.add-trace-modal {
+  padding: 0 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.add-trace-modal .modal-header strong {
+  font-size: var(--type-title);
+}
+
+.add-trace-section {
+  padding: 12px 16px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.add-trace-section-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.add-trace-section-count {
+  font-weight: 400;
+  color: var(--comment);
+  font-size: 11px;
+}
+
+.add-trace-file-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.add-trace-file-grid .btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+}
+
+.add-trace-online-results {
+  max-height: 220px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.add-trace-cache-row {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.add-trace-download-prompt {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.add-trace-download-prompt .btn {
+  align-self: flex-start;
+}
+
+.add-trace-target-list {
+  max-height: 200px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.add-trace-target-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 28px;
+  align-items: center;
+  min-height: 36px;
+  border-bottom: 1px solid var(--line-subtle);
+}
+
+.add-trace-target-item:last-child {
+  border-bottom: 0;
+}
+
+.add-trace-target-toggle {
+  display: grid;
+  grid-template-columns: 17px 12px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.add-trace-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 34px;
+  width: 100%;
+}
