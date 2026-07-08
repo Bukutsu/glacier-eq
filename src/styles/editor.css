@@ -390,7 +390,7 @@
 
 .bands-header, .band-row {
   display: grid;
-  grid-template-columns: 42px 130px minmax(140px, 1fr) minmax(140px, 1fr) 88px;
+  grid-template-columns: 42px 110px minmax(120px, 1fr) minmax(120px, 1fr) minmax(70px, 1fr);
   gap: 12px;
   align-items: center;
 }
