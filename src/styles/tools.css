@@ -1192,6 +1192,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   display: flex;
   align-items: center;
   width: 100%;
+  min-width: 0;
   height: 36px;
   background: var(--bg-dark);
   border: 1px solid var(--line-subtle);
@@ -1277,6 +1278,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   appearance: textfield;
   flex: 1;
   width: 100%;
+  min-width: 0;
   height: 100%;
   background: transparent !important;
   border: none !important;
