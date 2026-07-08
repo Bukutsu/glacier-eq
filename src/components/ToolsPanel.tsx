@@ -626,10 +626,6 @@ function CurvesTab({
           onClose={() => setShowAddModal(false)}
           onAddMeasurementFile={onAddMeasurementFile}
           onAddTargetFile={onAddTargetFile}
-          allTargets={allTargets}
-          activeTargetIds={activeTargetIds}
-          onToggleTarget={onToggleTarget}
-          onRemoveTarget={onRemoveTarget}
           settings={settings}
           onAddMeasurement={onAddMeasurement}
           setStatus={setStatus}
