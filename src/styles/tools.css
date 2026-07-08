@@ -630,7 +630,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 .curves-tab .traces-targets-merged {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 8px;
 }
 
 .curves-tab .traces-section {
@@ -640,8 +640,8 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 }
 
 .curves-tab .curve-list {
-  min-height: 142px;
-  max-height: 280px;
+  min-height: 100px;
+  max-height: 200px;
   height: auto;
 }
 
@@ -1482,7 +1482,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 .traces-targets-merged {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 8px;
 }
 
 .traces-section {
@@ -1518,8 +1518,13 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 .unified-curves-import-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
-  margin-bottom: 12px;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.unified-curves-import-grid .icon-action.compact {
+  min-height: 30px;
+  padding: 0 6px;
 }
 
 .curve-section-header {
