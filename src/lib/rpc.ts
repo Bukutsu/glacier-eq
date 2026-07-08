@@ -670,10 +670,18 @@ export async function requestWebHidDevice(): Promise<void> {
 }
 
 export async function readText(): Promise<string> {
+  if (isTauri()) {
+    const { readText: tauriReadText } = await import("@tauri-apps/plugin-clipboard-manager");
+    return tauriReadText();
+  }
   return navigator.clipboard.readText();
 }
 
 export async function writeText(text: string): Promise<void> {
+  if (isTauri()) {
+    const { writeText: tauriWriteText } = await import("@tauri-apps/plugin-clipboard-manager");
+    return tauriWriteText(text);
+  }
   return navigator.clipboard.writeText(text);
 }
 

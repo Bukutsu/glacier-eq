@@ -895,8 +895,12 @@ function ImportTab({ peq, profiles, onImportPEQ, onReloadProfiles, setStatus }: 
     setParsed(null);
   };
 
-  if (!parsed) {
-    return (
+  const importNameLower = importName.trim().toLowerCase();
+  const nameExists = parsed ? (!isTemporary && profiles.some((p) => p.name.toLowerCase() === importNameLower)) : false;
+  const activeFilters = parsed ? parsed.peq.filters.filter((f) => f.enabled) : [];
+
+  return (
+    <>
       <section className="profile-action-group import-section">
         <div className="profile-action-head">
           <strong>Import / Export</strong>
@@ -927,109 +931,111 @@ function ImportTab({ peq, profiles, onImportPEQ, onReloadProfiles, setStatus }: 
           </button>
         </div>
       </section>
-    );
-  }
 
-  const importNameLower = importName.trim().toLowerCase();
-  const nameExists = !isTemporary && profiles.some((p) => p.name.toLowerCase() === importNameLower);
-  const activeFilters = parsed.peq.filters.filter((f) => f.enabled);
-
-  return (
-    <div className="import-flow tool-card">
-      <div className="tool-card-head">
-        <strong>Import Profile</strong>
-      </div>
-
-      <div className="import-mode-tabs">
-        <button
-          className={!isTemporary ? "active" : ""}
-          onClick={() => setIsTemporary(false)}
-        >
-          Save to Preset
-        </button>
-        <button
-          className={isTemporary ? "active" : ""}
-          onClick={() => setIsTemporary(true)}
-        >
-          Try (Temporary)
-        </button>
-      </div>
-
-      <div className="import-flow-content">
-        {!isTemporary ? (
-          <div className="import-field-group">
-            <label htmlFor="import-name">Preset Name</label>
-            <input
-              id="import-name"
-              type="text"
-              value={importName}
-              onChange={(e) => setImportName(e.target.value)}
-              placeholder="Preset Name…"
-            />
-            {profiles.length > 0 && (
-              <div className="import-field-group" style={{ marginTop: "8px" }}>
-                <label htmlFor="overwrite-select">Or Overwrite Existing:</label>
-                <Select
-                  id="overwrite-select"
-                  value={profiles.some((p) => p.name === importName) ? importName : ""}
-                  onChange={(val) => {
-                    if (val) setImportName(val);
-                  }}
-                  options={[
-                    { value: "", label: "-- Select profile --" },
-                    ...profiles.map((p) => ({ value: p.name, label: p.name })),
-                  ]}
-                />
+      {parsed && (
+        <div className="modal-overlay" onClick={handleCancel}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Import Profile</h2>
+              <button className="modal-close-btn" onClick={handleCancel} aria-label="Close">
+                <Icon>close</Icon>
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="import-mode-tabs">
+                <button
+                  className={!isTemporary ? "active" : ""}
+                  onClick={() => setIsTemporary(false)}
+                >
+                  Save to Preset
+                </button>
+                <button
+                  className={isTemporary ? "active" : ""}
+                  onClick={() => setIsTemporary(true)}
+                >
+                  Try (Temporary)
+                </button>
               </div>
-            )}
-            {nameExists && (
-              <span className="import-overwrite-warning">
-                ⚠️ Preset already exists. Saving will overwrite it.
-              </span>
-            )}
-          </div>
-        ) : (
-          <div className="import-temp-info">
-            Apply the parsed EQ filters directly to the editor. Unsaved changes will be replaced.
-          </div>
-        )}
 
-        <div className="import-preview-section">
-          <span>Filters Preview:</span>
-          <div className="import-preview-box">
-            {activeFilters.length === 0 ? (
-              <div className="empty-preview">No active filters (preamp only)</div>
-            ) : (
-              activeFilters.map((f, idx) => (
-                <div key={idx} className="preview-line">
-                  Band {f.index + 1}: {f.filter_type} fc {f.freq}Hz, gain {f.gain.toFixed(1)}dB, Q {f.q.toFixed(2)}
-                </div>
-              ))
-            )}
-          </div>
-        </div>
+              <div className="import-flow-content">
+                {!isTemporary ? (
+                  <div className="import-field-group">
+                    <label htmlFor="import-name">Preset Name</label>
+                    <input
+                      id="import-name"
+                      type="text"
+                      value={importName}
+                      onChange={(e) => setImportName(e.target.value)}
+                      placeholder="Preset Name…"
+                    />
+                    {profiles.length > 0 && (
+                      <div className="import-field-group" style={{ marginTop: "8px" }}>
+                        <label htmlFor="overwrite-select">Or Overwrite Existing:</label>
+                        <Select
+                          id="overwrite-select"
+                          value={profiles.some((p) => p.name === importName) ? importName : ""}
+                          onChange={(val) => {
+                            if (val) setImportName(val);
+                          }}
+                          options={[
+                            { value: "", label: "-- Select profile --" },
+                            ...profiles.map((p) => ({ value: p.name, label: p.name })),
+                          ]}
+                        />
+                      </div>
+                    )}
+                    {nameExists && (
+                      <span className="import-overwrite-warning">
+                        ⚠️ Preset already exists. Saving will overwrite it.
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <div className="import-temp-info">
+                    Apply the parsed EQ filters directly to the editor. Unsaved changes will be replaced.
+                  </div>
+                )}
 
-        {parsed.warnings.length > 0 && (
-          <div className="import-warnings-section">
-            <span>Compatibility Adjustments:</span>
-            <div className="import-warnings-box">
-              {parsed.warnings.map((w, idx) => (
-                <div key={idx} className="warning-line">
-                  • {w}
+                <div className="import-preview-section">
+                  <span>Filters Preview:</span>
+                  <div className="import-preview-box">
+                    {activeFilters.length === 0 ? (
+                      <div className="empty-preview">No active filters (preamp only)</div>
+                    ) : (
+                      activeFilters.map((f, idx) => (
+                        <div key={idx} className="preview-line">
+                          Band {f.index + 1}: {f.filter_type} fc {f.freq}Hz, gain {f.gain.toFixed(1)}dB, Q {f.q.toFixed(2)}
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
-              ))}
+
+                {parsed.warnings.length > 0 && (
+                  <div className="import-warnings-section">
+                    <span>Compatibility Adjustments:</span>
+                    <div className="import-warnings-box">
+                      {parsed.warnings.map((w, idx) => (
+                        <div key={idx} className="warning-line">
+                          • {w}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="import-flow-actions">
+                <button className="btn" onClick={handleCancel}>Cancel</button>
+                <button className="btn filled" onClick={handleConfirm}>
+                  {isTemporary ? "Apply to EQ" : "Save Preset"}
+                </button>
+              </div>
             </div>
           </div>
-        )}
-      </div>
-
-      <div className="import-flow-actions">
-        <button className="btn" onClick={handleCancel}>Cancel</button>
-        <button className="btn filled" onClick={handleConfirm}>
-          {isTemporary ? "Apply to EQ" : "Save Preset"}
-        </button>
-      </div>
-    </div>
+        </div>
+      )}
+    </>
   );
 }
 
