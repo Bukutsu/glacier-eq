@@ -5,6 +5,7 @@
   gap: 16px;
   overflow: hidden;
   grid-column: 1;
+  grid-row: 1;
 }
 
 .right-rail .preset-list {
