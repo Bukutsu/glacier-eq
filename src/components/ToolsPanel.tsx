@@ -91,6 +91,7 @@ const TOOL_TAB_META: Record<ToolsTab, { icon: string; label: string }> = {
 interface ToolsPanelProps {
   peq: PEQData;
   onImportPEQ: (data: PEQData, name: string, isSaved: boolean) => void;
+  onPull?: () => Promise<void>;
   profiles: Profile[];
   selectedPreset: string;
   profileSearch: string;
@@ -229,7 +230,7 @@ export function ToolsPanel(props: ToolsPanelProps) {
           />}
           {tab === "Device" && (
             props.connected ? (
-              <DeviceTab setStatus={props.setStatus} />
+              <DeviceTab setStatus={props.setStatus} onPull={props.onPull} />
             ) : (
               <div className="device-disconnected-panel" style={{ padding: "24px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
                 <span className="material-symbols-outlined" style={{ fontSize: "48px", color: "var(--muted)" }}>link_off</span>
@@ -1441,20 +1442,35 @@ type DeviceUtilityState = {
   channel_balance: number;
 };
 
-function DeviceTab({ setStatus }: { setStatus: (msg: string) => void }) {
+function DeviceTab({ setStatus, onPull }: { setStatus: (msg: string) => void; onPull?: () => Promise<void> }) {
   const [utility, setUtility] = useState<DeviceUtilityState | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    invoke<any>("get_dac_utility_state")
-      .then((data) => {
-        setUtility(data);
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error("Failed to load DAC utility state:", err);
-        setLoading(false);
-      });
+    const fetchState = () => {
+      invoke<any>("get_dac_utility_state")
+        .then((data) => {
+          setUtility(data);
+          setLoading(false);
+        })
+        .catch((err) => {
+          console.error("Failed to load DAC utility state:", err);
+          setLoading(false);
+        });
+    };
+
+    fetchState();
+
+    let unlisten: (() => void) | null = null;
+    listen<void>("device-pull", () => {
+      fetchState();
+    }).then((unsub) => {
+      unlisten = unsub;
+    });
+
+    return () => {
+      if (unlisten) unlisten();
+    };
   }, []);
 
   const setUtilityField = async <K extends keyof DeviceUtilityState>(
@@ -1492,6 +1508,9 @@ function DeviceTab({ setStatus }: { setStatus: (msg: string) => void }) {
     try {
       await invoke("reset_device_eq");
       setStatus("Device EQ reset");
+      if (onPull) {
+        await onPull();
+      }
     } catch (err) {
       setStatus(`Device EQ reset failed: ${err}`);
     }
@@ -1513,6 +1532,9 @@ function DeviceTab({ setStatus }: { setStatus: (msg: string) => void }) {
       await invoke("execute_factory_reset");
       const data = await invoke<any>("get_dac_utility_state");
       setUtility(data);
+      if (onPull) {
+        await onPull();
+      }
     } catch (err) {
       console.error("Failed to execute factory reset:", err);
     }
