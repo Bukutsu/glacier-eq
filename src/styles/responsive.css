@@ -1167,8 +1167,11 @@
 }
 
 @media (min-width: 769px) and (max-width: 1150px) {
+  .left-pane {
+    padding-right: 16px !important;
+  }
   .bands-header, .band-row {
-    grid-template-columns: 36px 130px minmax(70px, 1fr) minmax(70px, 1fr) minmax(70px, 1fr);
+    grid-template-columns: 36px 115px minmax(70px, 1fr) minmax(70px, 1fr) minmax(70px, 1fr);
     gap: 8px;
   }
   .band-row .control-slider {
