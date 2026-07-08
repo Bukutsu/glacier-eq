@@ -625,24 +625,15 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 .curves-tab {
   display: flex;
   flex-direction: column;
-}
-
-.curves-tab .traces-targets-merged {
-  display: flex;
-  flex-direction: column;
   gap: 8px;
 }
 
-.curves-tab .traces-section {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.curves-tab .curve-list {
+.curves-tab .curve-list,
+.trace-list {
   min-height: 100px;
-  max-height: 200px;
+  max-height: 300px;
   height: auto;
+  overflow-y: auto;
 }
 
 .curve-empty {
@@ -653,14 +644,29 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 
 .curve-item {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 36px;
+  grid-template-columns: minmax(0, 1fr) 20px 28px;
   align-items: center;
-  min-height: 48px;
+  min-height: 40px;
   border-bottom: 1px solid var(--line-subtle);
 }
 
 .curve-item:last-child {
   border-bottom: 0;
+}
+
+.trace-type-badge {
+  font-size: 10px;
+  font-weight: 700;
+  text-align: center;
+  line-height: 1;
+  user-select: none;
+  opacity: 0.6;
+}
+.trace-type-badge.trace-type-measure {
+  color: var(--green);
+}
+.trace-type-badge.trace-type-target {
+  color: var(--yellow);
 }
 
 .curve-toggle {

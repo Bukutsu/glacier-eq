@@ -2,7 +2,6 @@ import { type CSSProperties, useState, useEffect, useRef } from "react";
 import { invoke, listen, readText, writeText, save } from "../lib/rpc";
 import type { DeviceInfo, AppSettings, MeasurementTrace, Profile, PEQData, GraphViewMode, TargetTrace } from "../types";
 import { Icon } from "./Icon";
-import { TargetSelector } from "./TargetSelector";
 import { NumberInput } from "./NumberInput";
 import { Slider } from "./Slider";
 import {
@@ -216,9 +215,6 @@ export function ToolsPanel(props: ToolsPanelProps) {
               onRemoveTarget={props.onRemoveTarget ?? (() => {})}
               onAddMeasurementFile={props.onAddMeasurementFile ?? (() => {})}
               onAddTargetFile={props.onAddTargetFile ?? (() => {})}
-              settings={props.settings}
-              onAddMeasurement={props.onAddMeasurement}
-              setStatus={props.setStatus}
             />
           )}
           {tab === "Measure" && <MeasureTab
@@ -572,9 +568,6 @@ interface CurvesTabProps {
   onRemoveTarget: (id: string) => void;
   onAddMeasurementFile: () => void;
   onAddTargetFile: () => void;
-  settings: AppSettings;
-  onAddMeasurement: (name: string, points: MeasurementTrace["points"]) => void;
-  setStatus: (value: string) => void;
 }
 
 function CurvesTab({
@@ -588,9 +581,6 @@ function CurvesTab({
   onRemoveTarget,
   onAddMeasurementFile,
   onAddTargetFile,
-  settings,
-  onAddMeasurement,
-  setStatus,
 }: CurvesTabProps) {
   return (
     <div className="curves-tab">
@@ -604,23 +594,68 @@ function CurvesTab({
           <span>Target</span>
         </button>
       </div>
-      <div className="traces-targets-merged">
-        <MeasureTab
-          measurements={measurements}
-          onRemoveMeasurement={onRemoveMeasurement}
-          onToggleMeasurement={onToggleMeasurement}
-          onClearMeasurements={onClearMeasurements}
-          settings={settings}
-          onAddMeasurement={onAddMeasurement}
-          setStatus={setStatus}
-        />
-        <TargetSelector
-          targets={allTargets}
-          activeTargetIds={activeTargetIds}
-          onToggleTarget={onToggleTarget}
-          onRemoveTarget={onRemoveTarget}
-        />
+      <div className="trace-list">
+        {measurements.length === 0 && allTargets.length === 0 && (
+          <div className="curve-empty">No traces loaded. Add a measurement or target above.</div>
+        )}
+        {measurements.map((trace) => (
+          <div className="curve-item" key={trace.id}>
+            <label className="curve-toggle">
+              <input
+                type="checkbox"
+                checked={trace.visible}
+                onChange={() => onToggleMeasurement(trace.id)}
+              />
+              <span className="curve-swatch" style={{ backgroundColor: trace.color }} />
+              <span className="curve-name">
+                {trace.name}
+                <span className="curve-points">({trace.points.length} pts)</span>
+              </span>
+            </label>
+            <span className="trace-type-badge trace-type-measure">M</span>
+            <button
+              className="curve-delete"
+              title={`Delete ${trace.name}`}
+              onClick={() => onRemoveMeasurement(trace.id)}
+            >
+              <Icon>delete</Icon>
+            </button>
+          </div>
+        ))}
+        {allTargets.map((target) => {
+          const active = activeTargetIds.includes(target.id);
+          return (
+            <div className="curve-item" key={target.id}>
+              <label className="curve-toggle">
+                <input
+                  type="checkbox"
+                  checked={active}
+                  onChange={() => onToggleTarget(target.id)}
+                />
+                <span className="curve-swatch" style={{ backgroundColor: target.color }} />
+                <span className="curve-name">{target.name}</span>
+              </label>
+              <span className="trace-type-badge trace-type-target">T</span>
+              {!target.builtIn && (
+                <button
+                  className="curve-delete"
+                  title={`Delete ${target.name}`}
+                  onClick={() => onRemoveTarget(target.id)}
+                >
+                  <Icon>delete</Icon>
+                </button>
+              )}
+            </div>
+          );
+        })}
       </div>
+      {measurements.length > 0 && (
+        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "4px" }}>
+          <button className="tool-link-button danger" onClick={onClearMeasurements}>
+            Clear All Loaded
+          </button>
+        </div>
+      )}
     </div>
   );
 }
