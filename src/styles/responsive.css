@@ -1217,7 +1217,7 @@
   .tools-card {
     background: transparent !important;
     border: none !important;
-    padding: 0 !important;
+    padding: 8px 12px !important;
     gap: 4px;
   }
   .tabs {
