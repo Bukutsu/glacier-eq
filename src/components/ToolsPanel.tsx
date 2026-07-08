@@ -590,45 +590,32 @@ function CurvesTab({
 }: CurvesTabProps) {
   return (
     <div className="curves-tab">
-      <div className="transfer-actions unified-curves-import-grid">
-        <button className="icon-action" title="Add Measurement" onClick={onAddMeasurementFile}>
+      <div className="unified-curves-import-grid">
+        <button className="icon-action compact" title="Add Measurement" onClick={onAddMeasurementFile}>
           <Icon>playlist_add</Icon>
           <span>Measurement</span>
         </button>
-        <button className="icon-action" title="Add Target" onClick={onAddTargetFile}>
+        <button className="icon-action compact" title="Add Target" onClick={onAddTargetFile}>
           <Icon>add_box</Icon>
           <span>Target</span>
         </button>
       </div>
       <div className="traces-targets-merged">
-        <div className="traces-section">
-          <div className="traces-section-title">
-            <Icon>query_stats</Icon>
-            <span>Measurements</span>
-          </div>
-          <MeasureTab
-            measurements={measurements}
-            onRemoveMeasurement={onRemoveMeasurement}
-            onToggleMeasurement={onToggleMeasurement}
-            onClearMeasurements={onClearMeasurements}
-            settings={settings}
-            onAddMeasurement={onAddMeasurement}
-            setStatus={setStatus}
-          />
-        </div>
-        <div className="traces-divider" />
-        <div className="traces-section">
-          <div className="traces-section-title">
-            <Icon>track_changes</Icon>
-            <span>Targets</span>
-          </div>
-          <TargetSelector
-            targets={allTargets}
-            activeTargetIds={activeTargetIds}
-            onToggleTarget={onToggleTarget}
-            onRemoveTarget={onRemoveTarget}
-          />
-        </div>
+        <MeasureTab
+          measurements={measurements}
+          onRemoveMeasurement={onRemoveMeasurement}
+          onToggleMeasurement={onToggleMeasurement}
+          onClearMeasurements={onClearMeasurements}
+          settings={settings}
+          onAddMeasurement={onAddMeasurement}
+          setStatus={setStatus}
+        />
+        <TargetSelector
+          targets={allTargets}
+          activeTargetIds={activeTargetIds}
+          onToggleTarget={onToggleTarget}
+          onRemoveTarget={onRemoveTarget}
+        />
       </div>
     </div>
   );
