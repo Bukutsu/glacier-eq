@@ -223,6 +223,7 @@ function BandRow({
         <span>Q {filter.q.toFixed(2)}</span>
         <Icon>{expanded ? "expand_less" : "expand_more"}</Icon>
       </button>
+      <BandControls filter={filter} committedFilter={committedFilter} onChange={onChange} onStartChange={onStartChange} onActivate={onActivate} snapToIso={snapToIso} />
       <button
         className="band-index"
         aria-label={`Remove band ${filter.index + 1}`}
@@ -236,7 +237,6 @@ function BandRow({
       >
         <Icon>remove</Icon>
       </button>
-      <BandControls filter={filter} committedFilter={committedFilter} onChange={onChange} onStartChange={onStartChange} onActivate={onActivate} snapToIso={snapToIso} />
     </div>
   );
 }
