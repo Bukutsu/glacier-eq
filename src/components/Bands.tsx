@@ -62,9 +62,6 @@ export function Bands({ peq, committedPeq, maxBands, onFilterChange, onStartChan
   const visibleFilters = availableFilters.filter((filter) => filter.enabled);
   const canAddFilter = visibleFilters.length < availableFilters.length;
   const selectedFilter = visibleFilters.find((filter) => filter.index === activeBandIndex) ?? visibleFilters[0];
-  const columns = visibleFilters.length > 5
-    ? [visibleFilters.slice(0, Math.ceil(visibleFilters.length / 2)), visibleFilters.slice(Math.ceil(visibleFilters.length / 2))]
-    : [visibleFilters];
   const [collapsed, setCollapsed] = useState(false);
   const addFilter = () => {
     const next = availableFilters.find((filter) => !filter.enabled);
@@ -93,35 +90,31 @@ export function Bands({ peq, committedPeq, maxBands, onFilterChange, onStartChan
         </span>
       </button>
       <section className="bands-grid">
-        {columns.map((bands, columnIndex) => bands.length > 0 && (
-          <div className="bands-card" key={columnIndex}>
-            <div className="bands-header">
-              <span>BAND</span><span>TYPE</span><span>FREQ <span className="unit">(Hz)</span></span><span>GAIN <span className="unit">(dB)</span></span><span>Q</span>
-            </div>
-            {bands.map((filter) => (
-              <BandRow
-                key={filter.index}
-                filter={filter}
-                committedFilter={committedPeq?.filters[filter.index]}
-                active={activeBandIndex === filter.index}
-                onChange={(updated) => onFilterChange(filter.index, updated)}
-                onStartChange={onStartChange}
-                onActivate={() => onActiveBandChange?.(filter.index)}
-                canRemove={visibleFilters.length > 1}
-                onRemove={() => onFilterChange(filter.index, { ...filter, enabled: false })}
-                snapToIso={snapToIso}
-              />
-            ))}
-            {columnIndex === columns.length - 1 && (
-              <div className="bands-actions">
-                <button type="button" className="btn" onClick={addFilter} disabled={!canAddFilter}>
-                  <Icon>add</Icon>
-                  Add Filter
-                </button>
-              </div>
-            )}
+        <div className="bands-card">
+          <div className="bands-header">
+            <span>BAND</span><span>TYPE</span><span>FREQ <span className="unit">(Hz)</span></span><span>GAIN <span className="unit">(dB)</span></span><span>Q</span><span className="bands-header-spacer"></span>
           </div>
-        ))}
+          {visibleFilters.map((filter) => (
+            <BandRow
+              key={filter.index}
+              filter={filter}
+              committedFilter={committedPeq?.filters[filter.index]}
+              active={activeBandIndex === filter.index}
+              onChange={(updated) => onFilterChange(filter.index, updated)}
+              onStartChange={onStartChange}
+              onActivate={() => onActiveBandChange?.(filter.index)}
+              canRemove={visibleFilters.length > 1}
+              onRemove={() => onFilterChange(filter.index, { ...filter, enabled: false })}
+              snapToIso={snapToIso}
+            />
+          ))}
+          <div className="bands-actions">
+            <button type="button" className="btn" onClick={addFilter} disabled={!canAddFilter}>
+              <Icon>add</Icon>
+              Add Filter
+            </button>
+          </div>
+        </div>
       </section>
       {selectedFilter && (
         <section className="bands-mobile-editor">
@@ -213,6 +206,7 @@ function BandRow({
       className={`band-row ${filter.enabled ? "" : "muted"} ${expanded ? "expanded" : ""} ${active ? "active" : ""}`}
       style={filterColorStyle(filter.index)}
     >
+      <div className="band-number" aria-hidden="true">{filter.index + 1}</div>
       <button
         type="button"
         className="band-summary"
