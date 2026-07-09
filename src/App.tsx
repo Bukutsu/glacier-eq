@@ -676,14 +676,15 @@ function App() {
     [pushToUndoStack],
   );
 
+  const withSyntheticDefault = (raw: Profile[]): Profile[] => [
+    { name: DEFAULT_PROFILE_NAME, data: buildDefaultState(), modified: null },
+    ...raw,
+  ];
+
   const loadProfiles = useCallback(async () => {
     try {
       const loaded = await invoke<Profile[]>("list_profiles");
-      const withDefault = [
-        { name: DEFAULT_PROFILE_NAME, data: buildDefaultState(), modified: null },
-        ...loaded,
-      ];
-      setProfiles(withDefault);
+      setProfiles(withSyntheticDefault(loaded));
 
       const current = selectedPresetRef.current;
       const selected =
@@ -1136,7 +1137,7 @@ function App() {
       setSelectedPreset(name);
       setNewProfileName("");
       setDirty(false);
-      setProfiles(await invoke<Profile[]>("list_profiles"));
+      setProfiles(withSyntheticDefault(await invoke<Profile[]>("list_profiles")));
       setStatus("Profile saved");
     } catch (error) {
       setStatus(`Save failed: ${error}`);
@@ -1152,7 +1153,7 @@ function App() {
       selectedPresetRef.current = DEFAULT_PROFILE_NAME;
       setSelectedPreset(DEFAULT_PROFILE_NAME);
       setPeq(buildDefaultState());
-      setProfiles(await invoke<Profile[]>("list_profiles"));
+      setProfiles(withSyntheticDefault(await invoke<Profile[]>("list_profiles")));
       setStatus("Profile deleted");
     } catch (error) {
       setStatus(`Delete failed: ${error}`);
