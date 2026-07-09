@@ -677,7 +677,11 @@ function App() {
   const loadProfiles = useCallback(async () => {
     try {
       const loaded = await invoke<Profile[]>("list_profiles");
-      setProfiles(loaded);
+      const withDefault = [
+        { name: DEFAULT_PROFILE_NAME, data: buildDefaultState(), modified: null },
+        ...loaded,
+      ];
+      setProfiles(withDefault);
 
       const current = selectedPresetRef.current;
       const selected =
