@@ -1,7 +1,7 @@
 import { type CSSProperties, useState, useEffect, useRef } from "react";
 import { invoke, listen, readText, writeText, save } from "../lib/rpc";
 import type { DeviceInfo, AppSettings, MeasurementTrace, Profile, PEQData, GraphViewMode, TargetTrace } from "../types";
-import { confirmAsync } from "../lib/platform";
+import { useConfirm } from "./ConfirmDialog";
 import { Icon } from "./Icon";
 import { Checkbox } from "./Checkbox";
 import { SearchBar } from "./SearchBar";
@@ -317,6 +317,7 @@ export function MeasureTab({
   onAddMeasurement,
   setStatus,
 }: MeasureTabProps) {
+  const confirm = useConfirm();
   const [downloaded, setDownloaded] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -372,7 +373,7 @@ export function MeasureTab({
   };
 
   const handleResetCache = async () => {
-    if (await confirmAsync("Are you sure you want to delete the cached online measurement database? This will clear about 16MB of local storage.")) {
+    if (await confirm("Are you sure you want to delete the cached online measurement database? This will clear about 16MB of local storage.")) {
       try {
         await clearCachedDatabase();
         setDownloaded(false);
@@ -647,6 +648,7 @@ function PresetTab({
   showActions,
   dirty,
 }: ToolsPanelProps) {
+  const confirm = useConfirm();
   const query = profileSearch.trim().toLowerCase();
   const filteredProfiles = profiles.filter(
     (p) => !query || fuzzyMatch(query, p.name)
@@ -672,7 +674,7 @@ function PresetTab({
   // Clicking a profile: select it, clear search so full list stays visible,
   // clear custom name so Save defaults to the selected profile name
   const handleSelectProfile = async (profile: typeof profiles[0]) => {
-    if (dirty && !await confirmAsync("Discard unsaved changes?")) return;
+    if (dirty && !await confirm("Discard unsaved changes?")) return;
     onSelectProfile(profile);
     setProfileSearch("");
     setNewProfileName("");
