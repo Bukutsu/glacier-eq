@@ -696,6 +696,49 @@ function App() {
     }
   }, [applyProfile]);
 
+  // Auto-refresh profiles when window gains focus (catches external file changes)
+  useEffect(() => {
+    const handleFocus = () => loadProfiles();
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
+  }, [loadProfiles]);
+
+  // Drag-and-drop .txt file import
+  useEffect(() => {
+    const handleDragOver = (e: DragEvent) => {
+      e.preventDefault();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+    };
+    const handleDrop = async (e: DragEvent) => {
+      e.preventDefault();
+      const file = e.dataTransfer?.files[0];
+      if (!file) return;
+      if (!file.name.endsWith(".txt")) {
+        setStatus("Drop .txt AutoEQ files only");
+        return;
+      }
+      try {
+        const text = await file.text();
+        const result = await invoke<{ peq: PEQData; headphone_name: string | null; warnings: string[] }>("parse_autoeq", { text });
+        const name = result.headphone_name || file.name.replace(/\.[^/.]+$/, "");
+        importPeq(result.peq, name, false);
+        setStatus(
+          result.warnings.length > 0
+            ? `Imported "${name}" with ${result.warnings.length} adjustment(s)`
+            : `Imported "${name}"`
+        );
+      } catch (err) {
+        setStatus(`Drop import failed: ${err}`);
+      }
+    };
+    window.addEventListener("dragover", handleDragOver);
+    window.addEventListener("drop", handleDrop);
+    return () => {
+      window.removeEventListener("dragover", handleDragOver);
+      window.removeEventListener("drop", handleDrop);
+    };
+  }, [importPeq]);
+
   const scanDevices = useCallback(async () => {
     setIsBusy(true);
     setStatus("Scanning for devices...");
@@ -948,6 +991,8 @@ function App() {
   }, [selectedDevice, pullEq, selectedDeviceInfo, loadFirmwareVersion, reportStatus, settings.auto_pull_on_connect]);
 
   const pushEq = useCallback(async () => {
+    const activeBands = peq.filters.filter((f) => f.enabled).length;
+    if (!window.confirm(`Push ${activeBands} band(s), ${peq.global_gain.toFixed(1)} dB preamp to device?`)) return;
     setProgress(null);
     setIsBusy(true);
     try {
@@ -1078,6 +1123,11 @@ function App() {
       return;
     }
 
+    const exists = profiles.some(
+      (p) => p.name.toLowerCase() === name.toLowerCase()
+    );
+    if (exists && !window.confirm(`Overwrite profile "${name}"?`)) return;
+
     try {
       await invoke("save_profile", { name, peq });
       selectedPresetRef.current = name;
@@ -1089,10 +1139,11 @@ function App() {
     } catch (error) {
       setStatus(`Save failed: ${error}`);
     }
-  }, [loadProfiles, newProfileName, peq, selectedPreset]);
+  }, [loadProfiles, newProfileName, peq, profiles, selectedPreset]);
 
   const deleteSelectedProfile = useCallback(async () => {
     if (selectedPreset === DEFAULT_PROFILE_NAME) return;
+    if (!window.confirm(`Delete profile "${selectedPreset}"?`)) return;
 
     try {
       await invoke("delete_profile", { name: selectedPreset });
@@ -1126,6 +1177,7 @@ function App() {
   }, [flashGraphPreview]);
 
   const reset = () => {
+    if (!window.confirm("Reset all filters to 0 dB?")) return;
     pushToUndoStack(peqRef.current);
     selectedPresetRef.current = DEFAULT_PROFILE_NAME;
     setPeq(buildDefaultState());
@@ -1521,6 +1573,7 @@ function App() {
                   peq={peq}
                   onImportPEQ={importPeq}
                   onPull={pullEq}
+                  dirty={dirty}
                   profiles={profiles}
                   selectedPreset={selectedPreset}
                   profileSearch={profileSearch}
@@ -1741,6 +1794,7 @@ function App() {
             peq={peq}
             onImportPEQ={importPeq}
             onPull={pullEq}
+            dirty={dirty}
             profiles={profiles}
             selectedPreset={selectedPreset}
             profileSearch={profileSearch}
