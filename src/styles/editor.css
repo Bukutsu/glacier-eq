@@ -385,35 +385,37 @@
 .bands-grid {
   flex: 0 0 auto;
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  grid-template-columns: 1fr;
+  gap: 12px;
   min-height: 0;
 }
 
 .bands-card {
-  padding: 12px 14px 14px;
+  padding: 10px 16px 6px;
   overflow: hidden;
   background: var(--panel);
 }
 
 .bands-header, .band-row {
   display: grid;
-  grid-template-columns: 42px 110px minmax(120px, 1fr) minmax(120px, 1fr) minmax(70px, 1fr);
-  gap: 12px;
+  grid-template-columns: 32px 168px minmax(140px, 1fr) minmax(150px, 1fr) minmax(130px, 1fr) 32px;
+  gap: 14px;
   align-items: center;
 }
 
 .bands-header {
-  height: 30px;
+  height: 28px;
   border-bottom: 1px solid var(--line);
   color: var(--muted);
   font-size: var(--type-small);
 }
 
+.bands-header-spacer { width: 100%; }
+
 .bands-header span:nth-child(4) { padding-left: 4px; }
 .bands-header span:nth-child(5) { text-align: right; }
 .band-row {
-  height: 64px;
+  height: 52px;
   color: var(--text);
   border-bottom: 1px solid var(--line-subtle);
 }
@@ -428,25 +430,38 @@
   box-shadow: inset 3px 0 0 var(--filter-color, var(--cyan));
 }
 .band-row.muted { opacity: .45; }
-.band-index {
+.band-number {
   color: var(--filter-color, var(--cyan));
+  font-weight: 700;
+  font-size: var(--type-subtitle);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.band-index {
+  color: var(--comment);
   background: transparent;
   padding: 0;
   text-align: center;
   font-weight: 700;
   min-height: 32px;
+  width: 32px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   white-space: nowrap;
   border: none;
   cursor: pointer;
-  transition: color 0.12s ease, transform 0.12s ease;
+  opacity: .25;
+  transition: color 0.12s ease, opacity 0.12s ease;
 }
 
 .band-index:hover {
-  color: var(--text);
-  transform: scale(1.1);
+  color: var(--red);
+  opacity: 1;
+  transform: none;
+}
+.band-row.active .band-index {
+  opacity: .7;
 }
 
 .bands-mobile-editor {
@@ -520,7 +535,8 @@
 }
 
 .freq-cell,
-.gain-cell {
+.gain-cell,
+.q-cell {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
@@ -533,7 +549,8 @@
 }
 
 .freq-cell .custom-number-input.band-freq-stepper,
-.gain-cell .custom-number-input.band-gain-stepper { width: 88px; }
+.gain-cell .custom-number-input.band-gain-stepper,
+.q-cell .custom-number-input.band-q-stepper { width: 90px; }
 
 .custom-number-input.band-freq-stepper,
 .custom-number-input.band-gain-stepper,
@@ -549,11 +566,11 @@
 }
 
 .custom-number-input.band-freq-stepper {
-  width: 100%;
+  /* width set by .freq-cell grid above */
 }
 
 .custom-number-input.band-q-stepper {
-  width: 100%;
+  /* width set by .q-cell grid above */
 }
 
 .bands-container {

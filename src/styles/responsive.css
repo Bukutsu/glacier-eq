@@ -1,8 +1,4 @@
-@media (max-width: 1591px) {
-  .bands-grid {
-    grid-template-columns: 1fr;
-  }
-}
+/* ponytail: bands-grid is single-column at all sizes now (full-width rows) */
 
 @media (max-width: 1279px) {
   .workspace.mobile-workspace {
@@ -403,6 +399,9 @@
   }
   .bands-container > .bands-grid {
     display: none;
+  }
+  .band-number {
+    display: none !important;
   }
   .bands-mobile-editor {
     display: flex;
@@ -1188,19 +1187,23 @@
     padding-right: 16px !important;
   }
   .bands-header, .band-row {
-    grid-template-columns: 36px 115px minmax(70px, 1fr) minmax(70px, 1fr) minmax(70px, 1fr);
+    grid-template-columns: 28px 132px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) 28px;
     gap: 8px;
   }
   .band-row .control-slider {
     display: none !important;
   }
   .freq-cell .custom-number-input.band-freq-stepper,
-  .gain-cell .custom-number-input.band-gain-stepper {
+  .gain-cell .custom-number-input.band-gain-stepper,
+  .q-cell .custom-number-input.band-q-stepper {
     width: 100% !important;
   }
   .bands-header .unit {
     display: none !important;
   }
+  .band-number { font-size: var(--type-label); }
+  .type-buttons { gap: 2px; }
+  .type-buttons button { min-height: 24px; height: 24px; font-size: 9px; padding: 0; }
 }
 
 @media (max-width: 850px) {
