@@ -1,6 +1,7 @@
 import { type CSSProperties, useState, useEffect, useRef } from "react";
 import { invoke, listen, readText, writeText, save } from "../lib/rpc";
 import type { DeviceInfo, AppSettings, MeasurementTrace, Profile, PEQData, GraphViewMode, TargetTrace } from "../types";
+import { confirmAsync } from "../lib/platform";
 import { Icon } from "./Icon";
 import { Checkbox } from "./Checkbox";
 import { SearchBar } from "./SearchBar";
@@ -371,7 +372,7 @@ export function MeasureTab({
   };
 
   const handleResetCache = async () => {
-    if (window.confirm("Are you sure you want to delete the cached online measurement database? This will clear about 16MB of local storage.")) {
+    if (await confirmAsync("Are you sure you want to delete the cached online measurement database? This will clear about 16MB of local storage.")) {
       try {
         await clearCachedDatabase();
         setDownloaded(false);
@@ -670,8 +671,8 @@ function PresetTab({
 
   // Clicking a profile: select it, clear search so full list stays visible,
   // clear custom name so Save defaults to the selected profile name
-  const handleSelectProfile = (profile: typeof profiles[0]) => {
-    if (dirty && !window.confirm("Discard unsaved changes?")) return;
+  const handleSelectProfile = async (profile: typeof profiles[0]) => {
+    if (dirty && !await confirmAsync("Discard unsaved changes?")) return;
     onSelectProfile(profile);
     setProfileSearch("");
     setNewProfileName("");
