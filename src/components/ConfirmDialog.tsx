@@ -1,5 +1,6 @@
-import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
 import { Icon } from "./Icon";
+import { Modal } from "./Modal";
 
 interface PendingConfirm {
   message: string;
@@ -34,39 +35,23 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
     setPending(null);
   };
 
-  // Enter confirms, Escape cancels while dialog is open
-  useEffect(() => {
-    if (!pending) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") handleAnswer(false);
-      else if (e.key === "Enter") handleAnswer(true);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pending]);
-
   return (
     <ConfirmContext.Provider value={{ confirm }}>
       {children}
-      {pending && (
-        <div className="confirm-overlay" onClick={() => handleAnswer(false)}>
-          <div className="confirm-dialog" onClick={(e) => e.stopPropagation()}>
-            <div className="confirm-icon">
-              <Icon>warning</Icon>
-            </div>
-            <p className="confirm-message">{pending.message}</p>
-            <div className="confirm-actions">
-              <button className="confirm-btn confirm-btn-cancel" onClick={() => handleAnswer(false)}>
-                Cancel
-              </button>
-              <button className="confirm-btn confirm-btn-ok" onClick={() => handleAnswer(true)} autoFocus>
-                Confirm
-              </button>
-            </div>
-          </div>
+      <Modal open={!!pending} onClose={() => handleAnswer(false)} title="Confirm">
+        <div className="confirm-icon">
+          <Icon>warning</Icon>
         </div>
-      )}
+        <p className="confirm-message">{pending?.message}</p>
+        <div className="confirm-actions">
+            <button className="confirm-btn confirm-btn-cancel" onClick={() => handleAnswer(false)}>
+              Cancel
+            </button>
+            <button className="confirm-btn confirm-btn-ok" onClick={() => handleAnswer(true)} autoFocus>
+              Confirm
+            </button>
+          </div>
+      </Modal>
     </ConfirmContext.Provider>
   );
 }
