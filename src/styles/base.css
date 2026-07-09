@@ -753,7 +753,7 @@ body::-webkit-scrollbar-corner,
 .confirm-dialog {
   background: var(--panel);
   border: 1px solid var(--surface);
-  border-radius: 12px;
+  border-radius: 0;
   padding: 24px 28px 20px;
   min-width: 320px;
   max-width: 420px;
@@ -784,7 +784,7 @@ body::-webkit-scrollbar-corner,
 }
 .confirm-btn {
   padding: 8px 22px;
-  border-radius: 8px;
+  border-radius: 0;
   border: none;
   font-size: 13px;
   font-weight: 600;
