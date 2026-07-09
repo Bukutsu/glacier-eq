@@ -4,7 +4,7 @@ import { Icon } from "./Icon";
 import { SearchBar } from "./SearchBar";
 import { fuzzyMatch } from "../lib/search";
 import { openFileDialog } from "../lib/rpc";
-import { confirmAsync } from "../lib/platform";
+import { useConfirm } from "./ConfirmDialog";
 import { parseMeasurementText } from "../lib/measurements";
 import {
   isDatabaseDownloaded,
@@ -30,6 +30,7 @@ export function AddTraceModal({
   onAddTarget,
   setStatus,
 }: AddTraceModalProps) {
+  const confirm = useConfirm();
   const enableOnlineMeasurements = settings?.enable_online_measurements;
 
   // Online search state
@@ -83,7 +84,7 @@ export function AddTraceModal({
   };
 
   const handleResetCache = async () => {
-    if (await confirmAsync("Clear the cached online measurement database (~16MB)?")) {
+    if (await confirm("Clear the cached online measurement database (~16MB)?")) {
       try {
         await clearCachedDatabase();
         setDownloaded(false);
