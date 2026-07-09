@@ -37,11 +37,16 @@ makedepends=(
 provides=('glacier-eq')
 conflicts=('glacier-eq')
 install="${pkgname}.install"
-source=("git+${url}.git")
-sha256sums=('SKIP')
+
+# Build from local checkout instead of re-cloning.
+# Keeps the README flow (clone → cd → makepkg -si) lean.
+source=()
+sha256sums=()
+
+_origin="${PWD}"
 
 pkgver() {
-  cd glacier-eq
+  cd "$_origin"
   ( set -o pipefail
     git describe --long --abbrev=7 2>/dev/null | sed 's/\([^-]*-g\)/r\1/;s/-/./g' ||
     printf "r%s.%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short=7 HEAD)"
@@ -49,17 +54,19 @@ pkgver() {
 }
 
 prepare() {
-  cd glacier-eq
+  mkdir -p "$srcdir"
+  ln -sfn "$_origin" "$srcdir/glacier-eq"
+  cd "$srcdir/glacier-eq"
   npm ci
 }
 
 build() {
-  cd glacier-eq
+  cd "$srcdir/glacier-eq"
   npm run tauri -- build --no-bundle
 }
 
 package() {
-  cd glacier-eq
+  cd "$srcdir/glacier-eq"
 
   # Binary
   install -Dm755 "target/release/glacier-eq" "${pkgdir}/usr/bin/glacier-eq"
