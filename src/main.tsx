@@ -1,5 +1,6 @@
 import ReactDOM from "react-dom/client";
 import App from "./App";
+import { ConfirmProvider } from "./components/ConfirmDialog";
 import "./styles/base.css";
 import "./styles/header.css";
 import "./styles/layout.css";
@@ -53,4 +54,8 @@ if (import.meta.env.PROD) {
   }
 }
 
-ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(<App />);
+ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
+  <ConfirmProvider>
+    <App />
+  </ConfirmProvider>
+);
