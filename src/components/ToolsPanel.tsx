@@ -122,6 +122,7 @@ interface ToolsPanelProps {
   onRedo: () => void;
   availableTabs?: ToolsTab[];
   defaultTab?: ToolsTab;
+  dirty?: boolean;
   showActions?: boolean;
   graphViewMode?: GraphViewMode;
   onGraphViewModeChange?: (mode: GraphViewMode) => void;
@@ -643,6 +644,7 @@ function PresetTab({
   onSave,
   onDelete,
   showActions,
+  dirty,
 }: ToolsPanelProps) {
   const query = profileSearch.trim().toLowerCase();
   const filteredProfiles = profiles.filter(
@@ -669,6 +671,7 @@ function PresetTab({
   // Clicking a profile: select it, clear search so full list stays visible,
   // clear custom name so Save defaults to the selected profile name
   const handleSelectProfile = (profile: typeof profiles[0]) => {
+    if (dirty && !window.confirm("Discard unsaved changes?")) return;
     onSelectProfile(profile);
     setProfileSearch("");
     setNewProfileName("");
