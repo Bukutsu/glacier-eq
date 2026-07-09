@@ -385,21 +385,23 @@
 .bands-grid {
   flex: 0 0 auto;
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
   min-height: 0;
+  min-width: 0;
 }
 
 .bands-card {
   padding: 10px 16px 6px;
   overflow: hidden;
   background: var(--panel);
+  min-width: 0;
 }
 
 .bands-header, .band-row {
   display: grid;
-  grid-template-columns: 32px 168px minmax(140px, 1fr) minmax(150px, 1fr) minmax(130px, 1fr) 32px;
-  gap: 14px;
+  grid-template-columns: minmax(0, 28px) minmax(0, 120px) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 28px);
+  gap: 12px;
   align-items: center;
 }
 
@@ -541,6 +543,12 @@
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
+  min-width: 0;
+}
+
+.type-buttons {
+  min-width: 0;
+  width: 100%;
 }
 
 .param-cell .control-slider,
