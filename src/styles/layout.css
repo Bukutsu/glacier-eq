@@ -91,30 +91,41 @@
 /* Modal Overlay & Dialog Styles */
 .modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(4px);
+  inset: 0;
   z-index: 9999;
-  display: grid;
-  place-items: center;
-  animation: fadeIn 0.15s ease-out;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(var(--bg-darker-rgb), 0.75);
+  backdrop-filter: blur(4px);
+  animation: modal-fade-in 0.15s ease-out;
+}
+@keyframes modal-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 .modal-content {
   background: var(--panel);
-  border: 1px solid var(--line-soft);
+  border: 1px solid var(--surface);
   border-radius: 0;
   position: relative;
   width: min(420px, 92vw);
   max-height: 85vh;
   overflow-y: auto;
   padding: 0;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
   display: flex;
   flex-direction: column;
+  animation: modal-scale-in 0.18s ease-out;
+}
+@keyframes modal-scale-in {
+  from { transform: scale(0.92); opacity: 0; }
+  to   { transform: scale(1);    opacity: 1; }
+}
+
+.modal-content.wide {
+  width: min(680px, 96vw);
 }
 
 .modal-header {
