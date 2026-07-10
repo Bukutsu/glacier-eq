@@ -73,7 +73,7 @@
   text-align: left;
   border: none;
   cursor: pointer;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition: background-color var(--motion-duration) var(--motion-ease), color var(--motion-duration) var(--motion-ease);
 }
 .tabs button:hover:not(.active) {
   background: var(--hover-bg);
@@ -325,7 +325,7 @@
   background: var(--bg-dark);
   box-shadow: inset 0 0 0 2px var(--panel);
   cursor: pointer;
-  transition: background .14s ease, border-color .14s ease, filter .14s ease;
+  transition: background var(--motion-duration) var(--motion-ease), border-color var(--motion-duration) var(--motion-ease), filter var(--motion-duration) var(--motion-ease);
 }
 .tools-card input[type="checkbox"]:hover {
   border-color: var(--cyan);
@@ -581,7 +581,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 .progress-bar {
   height: 100%;
   background: var(--cyan);
-  transition: width 0.1s ease;
+  transition: width var(--motion-duration) var(--motion-ease);
 }
 
 
@@ -769,7 +769,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   background: var(--surface-soft); color: var(--muted);
   font-size: var(--type-caption); font-family: var(--font-mono);
   border: none; cursor: pointer;
-  transition: background 0.14s ease, color 0.14s ease;
+  transition: background var(--motion-duration) var(--motion-ease), color var(--motion-duration) var(--motion-ease);
   white-space: nowrap;
 }
 .diag-card .diag-filter-btn:hover:not(.active) { background: var(--hover-bg); color: var(--text); }
@@ -790,7 +790,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   height: 38px; min-height: 38px; width: 38px; padding: 0;
   background: var(--surface-soft); color: var(--muted); border: none; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  transition: color 0.14s ease, background 0.14s ease;
+  transition: color var(--motion-duration) var(--motion-ease), background var(--motion-duration) var(--motion-ease);
 }
 .diag-card .diag-scroll-btn.active { color: var(--cyan); }
 .diag-card .diag-scroll-btn:hover  { color: var(--text); filter: brightness(1.14); }
@@ -850,7 +850,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   font-size: var(--type-small);
   padding: 0 8px;
   border-radius: var(--radius-control);
-  transition: background 0.12s, color 0.12s;
+  transition: background var(--motion-duration) var(--motion-ease), color var(--motion-duration) var(--motion-ease);
 }
 
 .import-mode-tabs button.active {
@@ -1120,7 +1120,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   cursor: pointer;
   text-align: left;
   outline: none;
-  transition: border-color 0.15s ease, background-color 0.15s ease;
+  transition: border-color var(--motion-duration) var(--motion-ease), background-color var(--motion-duration) var(--motion-ease);
 }
 
 .custom-select-trigger:hover:not(:disabled) {
@@ -1179,7 +1179,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   color: var(--muted);
   font-size: var(--type-label);
   cursor: pointer;
-  transition: background-color 0.1s ease, color 0.1s ease;
+  transition: background-color var(--motion-duration) var(--motion-ease), color var(--motion-duration) var(--motion-ease);
   outline: none;
 }
 
@@ -1211,7 +1211,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   border-radius: var(--radius-control);
   position: relative;
   overflow: hidden;
-  transition: border-color 0.15s ease, background-color 0.15s ease;
+  transition: border-color var(--motion-duration) var(--motion-ease), background-color var(--motion-duration) var(--motion-ease);
   container-type: inline-size;
 }
 
@@ -1239,7 +1239,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   font-family: inherit;
   cursor: pointer;
   user-select: none;
-  transition: color 0.1s ease, background-color 0.1s ease;
+  transition: color var(--motion-duration) var(--motion-ease), background-color var(--motion-duration) var(--motion-ease);
   padding: 0;
 }
 
@@ -1366,7 +1366,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   width: 100%;
   text-align: left;
   cursor: pointer;
-  transition: background-color 0.12s ease;
+  transition: background-color var(--motion-duration) var(--motion-ease);
 }
 
 .online-result-empty {
@@ -1527,7 +1527,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   border-radius: var(--radius-control) !important;
   background: var(--surface-soft) !important;
   border: 1px solid var(--line-soft) !important;
-  transition: border-color 0.15s ease, outline 0.15s ease;
+  transition: border-color var(--motion-duration) var(--motion-ease), outline var(--motion-duration) var(--motion-ease);
   font-family: var(--font-ui);
   font-size: var(--type-body);
   color: var(--text);

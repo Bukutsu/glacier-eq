@@ -49,6 +49,9 @@
   --terminal-black-rgb: 65 72 104;
   --text-alt: #9aa5ce;
   --text-alt-rgb: 154 165 206;
+  --motion-duration-ms: 160;
+  --motion-duration: calc(var(--motion-duration-ms) * 1ms);
+  --motion-ease: cubic-bezier(0.33, 1, 0.68, 1);
 }
 
 :root[data-theme="nord"] {
@@ -520,7 +523,7 @@ select:focus-visible {
   min-height: 42px;
   padding: 0 18px;
   border-radius: var(--radius-control);
-  transition: filter .14s ease, background .14s ease, color .14s ease, outline-color .14s ease;
+  transition: filter var(--motion-duration) var(--motion-ease), background var(--motion-duration) var(--motion-ease), color var(--motion-duration) var(--motion-ease), outline-color var(--motion-duration) var(--motion-ease);
 }
 
 .btn:hover:not(:disabled), .tools-card button:hover:not(:disabled), .diag-card button:hover:not(:disabled) { filter: brightness(1.14); }
@@ -543,7 +546,7 @@ select:focus-visible {
   background: var(--bg-dark);
   box-shadow: inset 0 0 0 2px var(--panel);
   cursor: pointer;
-  transition: background .14s ease, border-color .14s ease, filter .14s ease;
+  transition: background var(--motion-duration) var(--motion-ease), border-color var(--motion-duration) var(--motion-ease), filter var(--motion-duration) var(--motion-ease);
 }
 .custom-checkbox:hover {
   border-color: var(--cyan);
@@ -577,7 +580,14 @@ select:focus-visible {
 
 .status-banner button { margin-left: auto; background: transparent; color: var(--bg-dark); }
 
+@keyframes motion-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  :root { --motion-duration-ms: 0; }
+
   *, *::before, *::after {
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
@@ -608,7 +618,7 @@ select:focus-visible {
 ::-webkit-scrollbar-thumb {
   background: var(--comment);
   border-radius: var(--radius-none); /* Sharp corners theme */
-  transition: background 0.14s ease;
+  transition: background var(--motion-duration) var(--motion-ease);
 }
 ::-webkit-scrollbar-thumb:hover {
   background: var(--cyan); /* Cyan hover highlight for premium feel */
@@ -760,7 +770,7 @@ body::-webkit-scrollbar-corner,
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s, opacity 0.15s;
+  transition: background var(--motion-duration) var(--motion-ease), opacity var(--motion-duration) var(--motion-ease);
 }
 .confirm-btn-cancel {
   background: var(--surface);
