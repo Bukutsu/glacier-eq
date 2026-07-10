@@ -64,31 +64,18 @@ fn response_values(peq: &PEQData, freqs: Vec<f32>, include_preamp: bool) -> Vec<
     response
 }
 
-fn get_protocol_impl(protocol_str: &str) -> Option<&'static dyn EqProtocol> {
-    match protocol_str.to_lowercase().as_str() {
-        "walkplay" => Some(&WalkplayProtocol),
-        "moondrop" => Some(&crate::device::moondrop::MoondropProtocol),
-        "fiioja11" => Some(&crate::device::fiio::JA11_PROTOCOL),
-        "fiio" => Some(&crate::device::fiio::FIIO_PROTOCOL),
-        _ => None,
-    }
-}
-
 fn eq_protocol(protocol: &str) -> Result<&'static dyn EqProtocol, JsValue> {
-    get_protocol_impl(protocol).ok_or_else(|| JsValue::from_str("Invalid protocol"))
+    match protocol.to_lowercase().as_str() {
+        "walkplay" => Ok(&WalkplayProtocol),
+        "moondrop" => Ok(&crate::device::moondrop::MoondropProtocol),
+        "fiioja11" => Ok(&crate::device::fiio::JA11_PROTOCOL),
+        "fiio" => Ok(&crate::device::fiio::FIIO_PROTOCOL),
+        _ => Err(JsValue::from_str("Invalid protocol")),
+    }
 }
 
 fn unframe<'a>(protocol: &dyn EqProtocol, data: &'a [u8]) -> Result<&'a [u8], JsValue> {
     protocol.unframe_packet(data).map_err(js_err)
-}
-
-fn protocol_name(protocol: DeviceProtocol) -> &'static str {
-    match protocol {
-        DeviceProtocol::Walkplay => "Walkplay",
-        DeviceProtocol::Moondrop => "Moondrop",
-        DeviceProtocol::FiioJa11 => "FiiO JA11",
-        DeviceProtocol::Fiio => "FiiO",
-    }
 }
 
 fn device_caps_or_desktop(vendor_id: Option<u16>, product_id: Option<u16>) -> DeviceCapabilities {
@@ -120,7 +107,7 @@ pub fn list_supported_devices() -> Result<JsValue, JsValue> {
         .iter()
         .map(|device| SupportedDeviceInfoWasm {
             name: device.name.to_string(),
-            protocol: protocol_name(device.protocol).to_string(),
+            protocol: device.protocol.name().to_string(),
             vendor_id: device.vendor_id,
             product_id: device.product_id,
             status: device.status.to_string(),
@@ -408,21 +395,5 @@ pub fn get_write_timing(protocol: String) -> Result<JsValue, JsValue> {
     let p = eq_protocol(&protocol)?;
     let timing = p.write_timing();
 
-    #[derive(Serialize)]
-    struct WriteTimingWasm {
-        per_filter_ms: u64,
-        flood_delay_ms: u64,
-        batch_ms: u64,
-        global_gain_ms: u64,
-        commit_step_ms: u64,
-    }
-
-    let result = WriteTimingWasm {
-        per_filter_ms: timing.per_filter_ms,
-        flood_delay_ms: timing.flood_delay_ms,
-        batch_ms: timing.batch_ms,
-        global_gain_ms: timing.global_gain_ms,
-        commit_step_ms: timing.commit_step_ms,
-    };
-    to_js_value(&result)
+    to_js_value(&timing)
 }

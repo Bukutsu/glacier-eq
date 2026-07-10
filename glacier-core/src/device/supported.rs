@@ -3,7 +3,7 @@
 
 //! Static registry of supported USB DACs.
 
-use crate::device::{DeviceInfo, DeviceProfile};
+use crate::device::DeviceProfile;
 
 pub const SUPPORTED_DEVICES: &[DeviceProfile] = crate::device::walkplay::PROFILES;
 
@@ -15,10 +15,6 @@ pub fn get_supported_device(vendor_id: u16, product_id: u16) -> Option<&'static 
     SUPPORTED_DEVICES
         .iter()
         .find(|device| device.vendor_id == vendor_id && pid_matches(device.product_id, product_id))
-}
-
-pub fn is_supported_device(info: &DeviceInfo) -> bool {
-    get_supported_device(info.vendor_id, info.product_id).is_some()
 }
 
 #[cfg(test)]

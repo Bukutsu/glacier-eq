@@ -47,15 +47,6 @@ pub struct SupportedDeviceInfo {
     supports_ram_apply: bool,
 }
 
-fn protocol_name(protocol: DeviceProtocol) -> &'static str {
-    match protocol {
-        DeviceProtocol::Walkplay => "Walkplay",
-        DeviceProtocol::Moondrop => "Moondrop",
-        DeviceProtocol::FiioJa11 => "FiiO JA11",
-        DeviceProtocol::Fiio => "FiiO",
-    }
-}
-
 fn supports_walkplay_utilities(connected: &ConnectedDevice) -> bool {
     get_supported_device(connected.vendor_id, connected.product_id)
         .is_some_and(|profile| profile.protocol == DeviceProtocol::Walkplay)
@@ -76,17 +67,6 @@ fn lock_device_state<'a, 'r>(
     state
         .lock()
         .map_err(|_| "Device state lock poisoned".to_string())
-}
-
-fn ensure_eq_protocol(profile: &glacier_core::device::DeviceProfile) -> Result<(), String> {
-    // This match is the dispatch tripwire for future protocols: adding one
-    // should fail compilation here until its EQ read/write path exists.
-    match profile.protocol {
-        DeviceProtocol::Walkplay => Ok(()),
-        DeviceProtocol::Moondrop => Ok(()),
-        DeviceProtocol::FiioJa11 => Ok(()),
-        DeviceProtocol::Fiio => Ok(()),
-    }
 }
 
 fn emit_progress(app: &tauri::AppHandle, message: &str, percentage: f32) {
@@ -280,7 +260,6 @@ pub async fn get_eq_state(
 ) -> Result<PEQData, String> {
     let connected = connected_device(&state)?;
     let profile = registered_profile(&connected)?;
-    ensure_eq_protocol(profile)?;
     let caps = &profile.caps;
 
     diagnostics::log(
@@ -710,7 +689,7 @@ pub fn list_supported_devices() -> Vec<SupportedDeviceInfo> {
         .iter()
         .map(|device| SupportedDeviceInfo {
             name: device.name,
-            protocol: protocol_name(device.protocol),
+            protocol: device.protocol.name(),
             vendor_id: device.vendor_id,
             product_id: device.product_id,
             status: device.status,
@@ -1216,7 +1195,6 @@ fn connected_profile_and_peq(
 ) -> Result<(ConnectedDevice, &'static DeviceProfile, PEQData), String> {
     let connected = connected_device(state)?;
     let profile = registered_profile(&connected)?;
-    ensure_eq_protocol(profile)?;
     let peq = normalize_for_push(peq, &profile.caps, profile.protocol);
     Ok((connected, profile, peq))
 }
@@ -1492,7 +1470,6 @@ pub async fn reset_device_eq(
 ) -> Result<(), String> {
     let connected = connected_device(&state)?;
     let profile = registered_profile(&connected)?;
-    ensure_eq_protocol(profile)?;
     let caps = &profile.caps;
     let peq = PEQData {
         filters: (0..caps.num_bands)
