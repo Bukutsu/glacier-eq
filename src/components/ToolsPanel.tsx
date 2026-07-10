@@ -11,6 +11,7 @@ import { UnifiedTracesList } from "./UnifiedTraces";
 import { NumberInput } from "./NumberInput";
 import { Slider } from "./Slider";
 import { useOnlineDatabase, type OnlineDevice } from "../lib/onlineDb";
+import { TAB_META, type ToolsTab } from "../lib/tabs";
 
 const DEFAULT_PROFILE_NAME = "Default EQ";
 
@@ -74,17 +75,6 @@ function Select<T extends string | number>({
 }
 
 
-type ToolsTab = "Preset" | "Import" | "Measure" | "AutoEQ" | "Device" | "Settings" | "Curves";
-
-const TOOL_TAB_META: Record<ToolsTab, { icon: string; label: string }> = {
-  Preset: { icon: "library_music", label: "Preset" },
-  Import: { icon: "file_upload", label: "Import" },
-  Curves: { icon: "analytics", label: "Curves" },
-  Measure: { icon: "analytics", label: "Measure" },
-  AutoEQ: { icon: "auto_awesome", label: "AutoEQ" },
-  Device: { icon: "tune", label: "Device" },
-  Settings: { icon: "settings", label: "Settings" },
-};
 
 interface ToolsPanelProps {
   peq: PEQData;
@@ -281,8 +271,8 @@ function TabStrip({
     >
       {tabs.map((name) => (
         <button key={name} className={active === name ? "active" : ""} onClick={() => onSelect(name)}>
-          <Icon>{TOOL_TAB_META[name].icon}</Icon>
-          <span>{TOOL_TAB_META[name].label}</span>
+          <Icon>{TAB_META[name].icon}</Icon>
+          <span>{TAB_META[name].label}</span>
         </button>
       ))}
     </nav>

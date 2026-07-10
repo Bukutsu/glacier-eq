@@ -256,7 +256,7 @@ export function Header({
         <div className="header-progress-bar">
           <div
             className={`header-progress-fill ${progress ? "" : "indeterminate"}`}
-            style={{ width: progress ? `${progress.percentage}%` : "100%" }}
+            style={progress ? { transform: `scaleX(${Math.max(0, Math.min(100, progress.percentage)) / 100})` } : undefined}
           />
         </div>
       )}

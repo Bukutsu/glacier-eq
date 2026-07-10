@@ -454,7 +454,7 @@
   border: none;
   cursor: pointer;
   opacity: .25;
-  transition: color 0.12s ease, opacity 0.12s ease;
+  transition: color var(--motion-duration) var(--motion-ease), opacity var(--motion-duration) var(--motion-ease);
 }
 
 .band-index:hover {
@@ -495,7 +495,7 @@
   font-weight: 500;
   cursor: pointer;
   border-radius: var(--radius-control);
-  transition: color 0.12s ease, background-color 0.12s ease;
+  transition: color var(--motion-duration) var(--motion-ease), background-color var(--motion-duration) var(--motion-ease);
 }
 .type-buttons button:hover:not(:disabled) {
   color: var(--text);
@@ -600,7 +600,7 @@
   cursor: pointer;
   border: none;
   text-align: left;
-  transition: background 0.15s ease;
+  transition: background var(--motion-duration) var(--motion-ease);
 }
 
 .bands-section-header:hover {
@@ -635,7 +635,7 @@
 
 .bands-section-header .collapse-toggle-btn .icon {
   font-size: 18px;
-  transition: transform 0.2s ease;
+  transition: transform var(--motion-duration) var(--motion-ease);
 }
 
 .bands-container.collapsed .bands-grid,

@@ -190,7 +190,7 @@
     border: none;
     color: var(--text);
     cursor: pointer;
-    transition: background-color 0.15s ease;
+    transition: background-color var(--motion-duration) var(--motion-ease);
   }
   .mobile-icon-btn:hover {
     background: var(--surface-soft);
@@ -311,7 +311,7 @@
     color: var(--text);
     cursor: pointer;
     z-index: 15;
-    transition: all 0.2s ease;
+    transition: all var(--motion-duration) var(--motion-ease);
   }
   .mobile-legend-toggle:active {
     background: var(--surface);
@@ -871,12 +871,12 @@
     flex-direction: column;
     width: 100%;
     margin-bottom: 8px;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all var(--motion-duration) var(--motion-ease);
   }
 
   .mobile-graph-container .graph-card {
     height: clamp(230px, 34dvh, 300px);
-    transition: height 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease;
+    transition: height var(--motion-duration) var(--motion-ease), opacity var(--motion-duration) var(--motion-ease);
     opacity: 1;
   }
 
@@ -903,7 +903,7 @@
     border-bottom-right-radius: var(--radius-surface);
     color: var(--cyan);
     cursor: pointer;
-    transition: background-color 0.15s ease;
+    transition: background-color var(--motion-duration) var(--motion-ease);
   }
 
   .graph-collapse-btn:active {
@@ -1022,7 +1022,7 @@
     padding: 0;
     border: none;
     outline: none;
-    transition: color 0.15s ease;
+    transition: color var(--motion-duration) var(--motion-ease);
   }
 
   .mobile-tab-icon-wrapper {
@@ -1032,7 +1032,7 @@
     width: 60px;
     height: 32px;
     border-radius: var(--radius-control);
-    transition: background-color 0.15s ease, color 0.15s ease;
+    transition: background-color var(--motion-duration) var(--motion-ease), color var(--motion-duration) var(--motion-ease);
     color: var(--muted);
   }
 

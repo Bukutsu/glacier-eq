@@ -40,7 +40,7 @@
   z-index: 9999;
   display: grid;
   place-items: center;
-  animation: fadeIn 0.2s ease-out;
+  animation: motion-fade-in var(--motion-duration) var(--motion-ease);
 }
 
 .reconnecting-card {
@@ -83,11 +83,6 @@
   to { transform: rotate(360deg); }
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
 /* Modal Overlay & Dialog Styles */
 .modal-overlay {
   position: fixed;
@@ -98,11 +93,7 @@
   justify-content: center;
   background: rgba(var(--bg-darker-rgb), 0.75);
   backdrop-filter: blur(4px);
-  animation: modal-fade-in 0.15s ease-out;
-}
-@keyframes modal-fade-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+  animation: motion-fade-in var(--motion-duration) var(--motion-ease);
 }
 
 .modal-content {
@@ -117,7 +108,7 @@
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
   display: flex;
   flex-direction: column;
-  animation: modal-scale-in 0.18s ease-out;
+  animation: modal-scale-in var(--motion-duration) var(--motion-ease);
 }
 @keyframes modal-scale-in {
   from { transform: scale(0.92); opacity: 0; }
@@ -155,7 +146,7 @@
   width: 32px;
   height: 32px;
   flex-shrink: 0;
-  transition: background-color 0.15s ease;
+  transition: background-color var(--motion-duration) var(--motion-ease);
 }
 
 .modal-close-btn:hover {
