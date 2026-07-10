@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
+import { useEffect, useState } from "react";
 import type { MeasurementPoint } from "../types";
 
 const DB_NAME = "glacier-eq-online";
@@ -13,12 +14,6 @@ export interface OnlineDevice {
   name: string;
   price: number | null;
   source: string;
-}
-
-export interface OnlineDbStatus {
-  enabled: boolean;
-  downloaded: boolean;
-  totalDevices: number;
 }
 
 function openDb(): Promise<IDBDatabase> {
@@ -173,6 +168,85 @@ export async function fetchManifest(): Promise<OnlineDevice[]> {
   return devices.sort((a, b) =>
     `${a.brand} ${a.name}`.localeCompare(`${b.brand} ${b.name}`),
   );
+}
+
+export function useOnlineDatabase(
+  enabled: boolean | undefined,
+  setStatus?: (value: string) => void,
+) {
+  const [downloaded, setDownloaded] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [manifest, setManifest] = useState<OnlineDevice[]>([]);
+  const [loadingManifest, setLoadingManifest] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [totalCount, setTotalCount] = useState<number | null>(null);
+  const [loadingDevice, setLoadingDevice] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (enabled) isDatabaseDownloaded().then(setDownloaded);
+  }, [enabled]);
+
+  useEffect(() => {
+    if (!enabled || !downloaded) return;
+    setLoadingManifest(true);
+    fetchManifest()
+      .then((devices) => {
+        setManifest(devices);
+        setTotalCount(devices.length);
+      })
+      .catch((error) => {
+        console.error("Failed to load online manifest:", error);
+        setStatus?.(`Failed to load online search manifest: ${error}`);
+      })
+      .finally(() => setLoadingManifest(false));
+  }, [enabled, downloaded, setStatus]);
+
+  const download = async () => {
+    setIsDownloading(true);
+    setDownloadProgress(0);
+    try {
+      const count = await downloadDatabase(setDownloadProgress);
+      setDownloaded(true);
+      setTotalCount(count);
+      return count;
+    } finally {
+      setIsDownloading(false);
+      setDownloadProgress(null);
+    }
+  };
+
+  const clearCache = async () => {
+    await clearCachedDatabase();
+    setDownloaded(false);
+    setManifest([]);
+    setSearchQuery("");
+    setTotalCount(null);
+  };
+
+  const loadDevice = async (device: OnlineDevice) => {
+    setLoadingDevice(device.id);
+    try {
+      return await loadDeviceCurvePoints(device.id);
+    } finally {
+      setLoadingDevice(null);
+    }
+  };
+
+  return {
+    downloaded,
+    downloadProgress,
+    isDownloading,
+    manifest,
+    loadingManifest,
+    searchQuery,
+    setSearchQuery,
+    totalCount,
+    loadingDevice,
+    download,
+    clearCache,
+    loadDevice,
+  };
 }
 
 export async function loadDeviceCurvePoints(

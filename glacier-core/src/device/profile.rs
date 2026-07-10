@@ -15,6 +15,17 @@ pub enum DeviceProtocol {
     Fiio,
 }
 
+impl DeviceProtocol {
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Walkplay => "Walkplay",
+            Self::Moondrop => "Moondrop",
+            Self::FiioJa11 => "FiiO JA11",
+            Self::Fiio => "FiiO",
+        }
+    }
+}
+
 /// Static identity and capability metadata for a supported USB DAC model.
 pub struct DeviceProfile {
     pub name: &'static str,

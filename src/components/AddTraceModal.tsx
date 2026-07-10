@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import type { AppSettings, MeasurementPoint } from "../types";
 import { Icon } from "./Icon";
 import { SearchBar } from "./SearchBar";
@@ -6,14 +6,7 @@ import { fuzzyMatch } from "../lib/search";
 import { openFileDialog } from "../lib/rpc";
 import { useConfirm } from "./ConfirmDialog";
 import { parseMeasurementText } from "../lib/measurements";
-import {
-  isDatabaseDownloaded,
-  clearCachedDatabase,
-  downloadDatabase,
-  fetchManifest,
-  loadDeviceCurvePoints,
-  type OnlineDevice,
-} from "../lib/onlineDb";
+import { useOnlineDatabase, type OnlineDevice } from "../lib/onlineDb";
 
 interface AddTraceModalProps {
   onClose: () => void;
@@ -33,64 +26,36 @@ export function AddTraceModal({
   const confirm = useConfirm();
   const enableOnlineMeasurements = settings?.enable_online_measurements;
 
-  // Online search state
-  const [downloaded, setDownloaded] = useState(false);
-  const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
-  const [isDownloading, setIsDownloading] = useState(false);
-  const [manifest, setManifest] = useState<OnlineDevice[]>([]);
-  const [loadingManifest, setLoadingManifest] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [totalCount, setTotalCount] = useState<number | null>(null);
-  const [loadingDevice, setLoadingDevice] = useState<string | null>(null);
+  const {
+    downloaded,
+    downloadProgress,
+    isDownloading,
+    manifest,
+    loadingManifest,
+    searchQuery,
+    setSearchQuery,
+    totalCount,
+    loadingDevice,
+    download,
+    clearCache,
+    loadDevice,
+  } = useOnlineDatabase(enableOnlineMeasurements, setStatus);
   const [loadedDevices, setLoadedDevices] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    if (enableOnlineMeasurements) {
-      isDatabaseDownloaded().then(setDownloaded);
-    }
-  }, [enableOnlineMeasurements]);
-
-  useEffect(() => {
-    if (enableOnlineMeasurements && downloaded) {
-      setLoadingManifest(true);
-      fetchManifest()
-        .then((devices) => {
-          setManifest(devices);
-          setTotalCount(devices.length);
-        })
-        .catch((err) => {
-          console.error("Failed to load online manifest:", err);
-          setStatus?.(`Failed to load online search manifest: ${err}`);
-        })
-        .finally(() => setLoadingManifest(false));
-    }
-  }, [enableOnlineMeasurements, downloaded]);
-
   const handleDownload = async () => {
-    setIsDownloading(true);
-    setDownloadProgress(0);
     try {
-      const count = await downloadDatabase((percent) => setDownloadProgress(percent));
-      setDownloaded(true);
-      setTotalCount(count);
+      const count = await download();
       setStatus?.(`Downloaded online database (${count} curves)`);
     } catch (error) {
       console.error(error);
       setStatus?.(`Database download failed: ${error}`);
-    } finally {
-      setIsDownloading(false);
-      setDownloadProgress(null);
     }
   };
 
   const handleResetCache = async () => {
     if (await confirm("Clear the cached online measurement database (~16MB)?")) {
       try {
-        await clearCachedDatabase();
-        setDownloaded(false);
-        setManifest([]);
-        setSearchQuery("");
-        setTotalCount(null);
+        await clearCache();
         setStatus?.("Online database cache cleared.");
       } catch (error) {
         console.error(error);
@@ -128,22 +93,15 @@ export function AddTraceModal({
   };
 
   const handleLoadDevice = async (dev: OnlineDevice) => {
-    setLoadingDevice(dev.id);
     try {
-      const points = await loadDeviceCurvePoints(dev.id);
+      const points = await loadDevice(dev);
       onAddMeasurement?.(`${dev.brand} ${dev.name} (${dev.source})`, points);
-      setLoadedDevices((prev) => {
-        const next = new Set(prev);
-        next.add(dev.id);
-        return next;
-      });
+      setLoadedDevices((prev) => new Set(prev).add(dev.id));
       onClose();
       setStatus?.(`Loaded: ${dev.brand} ${dev.name}`);
     } catch (error) {
       console.error(error);
       setStatus?.(`Failed to load: ${error}`);
-    } finally {
-      setLoadingDevice(null);
     }
   };
 

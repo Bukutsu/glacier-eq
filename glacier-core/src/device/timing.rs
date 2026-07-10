@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 /// Timing configuration for writing data to the device.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct WriteTiming {
     pub per_filter_ms: u64,
     pub flood_delay_ms: u64,

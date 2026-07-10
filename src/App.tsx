@@ -50,6 +50,15 @@ const DEFAULT_SETTINGS: AppSettings = {
   snap_to_iso_frequencies: true,
 };
 
+type MobileTab = "eq" | "tuning" | "profiles" | "device" | "settings";
+const MOBILE_TABS: { id: MobileTab; icon: string; label: string }[] = [
+  { id: "eq", icon: "tune", label: "EQ" },
+  { id: "tuning", icon: "auto_awesome", label: "Tuning" },
+  { id: "profiles", icon: "folder", label: "Profiles" },
+  { id: "device", icon: "memory", label: "DSP" },
+  { id: "settings", icon: "settings", label: "Settings" },
+];
+
 function usePersistedJson(key: string, value: unknown, delayMs = 0) {
   useEffect(() => {
     const save = () => window.localStorage.setItem(key, JSON.stringify(value));
@@ -190,7 +199,7 @@ const applyAndroidDynamicColors = async (prefersDark: boolean) => {
   }
 };
 
-const MOBILE_QUERY = "(max-width: 768px) and (min-height: 600px)";
+const MOBILE_QUERY = "(max-width: 768px)";
 
 const isDisconnectionError = (error: any): boolean => {
   const errStr = String(error).toLowerCase();
@@ -213,9 +222,7 @@ function App() {
     (document.body.classList.contains("is-android") ||
       /android/i.test(navigator.userAgent) ||
       typeof window.AndroidNotifier !== "undefined");
-  const [activeTab, setActiveTab] = useState<
-    "eq" | "tuning" | "profiles" | "device" | "settings"
-  >("eq");
+  const [activeTab, setActiveTab] = useState<MobileTab>("eq");
   const [graphCollapsed, setGraphCollapsed] = useState(false);
   const [showGraph, setShowGraph] = useState(true);
   const [toolsTab, setToolsTab] = useState<any>("Preset");
@@ -1710,51 +1717,18 @@ function App() {
             )}
           </div>
           <nav className="mobile-tab-bar">
-            <button
-              className={`mobile-tab-item ${activeTab === "eq" ? "active" : ""}`}
-              onClick={() => setActiveTab("eq")}
-            >
-              <div className="mobile-tab-icon-wrapper">
-                <Icon>tune</Icon>
-              </div>
-              <span>EQ</span>
-            </button>
-            <button
-              className={`mobile-tab-item ${activeTab === "tuning" ? "active" : ""}`}
-              onClick={() => setActiveTab("tuning")}
-            >
-              <div className="mobile-tab-icon-wrapper">
-                <Icon>auto_awesome</Icon>
-              </div>
-              <span>Tuning</span>
-            </button>
-            <button
-              className={`mobile-tab-item ${activeTab === "profiles" ? "active" : ""}`}
-              onClick={() => setActiveTab("profiles")}
-            >
-              <div className="mobile-tab-icon-wrapper">
-                <Icon>folder</Icon>
-              </div>
-              <span>Profiles</span>
-            </button>
-            <button
-              className={`mobile-tab-item ${activeTab === "device" ? "active" : ""}`}
-              onClick={() => setActiveTab("device")}
-            >
-              <div className="mobile-tab-icon-wrapper">
-                <Icon>memory</Icon>
-              </div>
-              <span>DSP</span>
-            </button>
-            <button
-              className={`mobile-tab-item ${activeTab === "settings" ? "active" : ""}`}
-              onClick={() => setActiveTab("settings")}
-            >
-              <div className="mobile-tab-icon-wrapper">
-                <Icon>settings</Icon>
-              </div>
-              <span>Settings</span>
-            </button>
+            {MOBILE_TABS.map(({ id, icon, label }) => (
+              <button
+                key={id}
+                className={`mobile-tab-item ${activeTab === id ? "active" : ""}`}
+                onClick={() => setActiveTab(id)}
+              >
+                <div className="mobile-tab-icon-wrapper">
+                  <Icon>{icon}</Icon>
+                </div>
+                <span>{label}</span>
+              </button>
+            ))}
           </nav>
         </main>
       ) : (
