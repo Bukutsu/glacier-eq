@@ -8,6 +8,7 @@ import { Icon } from "./components/Icon";
 import { Preamp } from "./components/Preamp";
 import { ToolsPanel, AutoEqTab, DiagnosticsPanel } from "./components/ToolsPanel";
 import { AddTraceModal } from "./components/AddTraceModal";
+import { DESKTOP_TABS, MOBILE_TABS, type MobileTab } from "./lib/tabs";
 import { UnifiedTracesList } from "./components/UnifiedTraces";
 import {
   DEV_DUMMY_DEVICE,
@@ -49,15 +50,6 @@ const DEFAULT_SETTINGS: AppSettings = {
   enable_online_measurements: false,
   snap_to_iso_frequencies: true,
 };
-
-type MobileTab = "eq" | "tuning" | "profiles" | "device" | "settings";
-const MOBILE_TABS: { id: MobileTab; icon: string; label: string }[] = [
-  { id: "eq", icon: "tune", label: "EQ" },
-  { id: "tuning", icon: "auto_awesome", label: "Tuning" },
-  { id: "profiles", icon: "folder", label: "Profiles" },
-  { id: "device", icon: "memory", label: "DSP" },
-  { id: "settings", icon: "settings", label: "Settings" },
-];
 
 function usePersistedJson(key: string, value: unknown, delayMs = 0) {
   useEffect(() => {
@@ -1807,7 +1799,7 @@ function App() {
             }
             settings={settings}
             onSettingChange={updateSetting}
-            availableTabs={["Preset", "Import", "AutoEQ", "Curves", "Device", "Settings"]}
+            availableTabs={DESKTOP_TABS.map((t) => t.id)}
             onToggleTarget={toggleTarget}
             onRemoveTarget={removeTarget}
             onAddTarget={addTarget}

@@ -23,7 +23,7 @@
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
   outline: 1px solid var(--line-medium);
   outline-offset: -1px;
-  animation: toast-in-right 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: toast-in-right var(--motion-duration) var(--motion-ease) forwards;
 }
 
 .toast-item.success {
@@ -72,7 +72,7 @@
   justify-content: center;
   cursor: pointer;
   border-radius: var(--radius-control);
-  transition: color 0.12s ease, background-color 0.12s ease;
+  transition: color var(--motion-duration) var(--motion-ease), background-color var(--motion-duration) var(--motion-ease);
 }
 
 .toast-close:hover {
@@ -114,6 +114,6 @@
   .toast-item {
     min-width: 0;
     max-width: none;
-    animation: toast-in-bottom 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation: toast-in-bottom var(--motion-duration) var(--motion-ease) forwards;
   }
 }

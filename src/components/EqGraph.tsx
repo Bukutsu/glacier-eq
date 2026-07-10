@@ -9,6 +9,26 @@ import { Icon } from "./Icon";
 
 const GRAPH_FREQS = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
 const GRAPH_DBS = [-15, -10, -5, 0, 5, 10, 15];
+
+const DEFAULT_MOTION_MS = 160;
+const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+const easeOutCubic = (t: number) => 1 - (1 - t) ** 3;
+
+function lerpPeq(a: PEQData, b: PEQData, t: number): PEQData {
+  return {
+    global_gain: lerp(a.global_gain, b.global_gain, t),
+    filters: b.filters.map((fb, index) => {
+      const fa = a.filters[index] ?? fb;
+      return {
+        ...(t < 0.5 ? fa : fb),
+        freq: Math.round(lerp(fa.freq, fb.freq, t)),
+        gain: lerp(fa.gain, fb.gain, t),
+        q: lerp(fa.q, fb.q, t),
+      };
+    }),
+  };
+}
+
 export function EqGraph({
   peq,
   committedPeq,
@@ -35,7 +55,7 @@ export function EqGraph({
     : visibleMeasurements.length === 1
       ? visibleMeasurements[0]
       : null;
-  const draw = useCallback(async () => {
+  const draw = useCallback(async (peqOverride?: PEQData) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -63,7 +83,7 @@ export function EqGraph({
       ctx,
       width,
       height,
-      peq,
+      peqOverride ?? peq,
       committedPeq,
       selectedMeasurement,
       visibleMeasurements,
@@ -73,22 +93,69 @@ export function EqGraph({
     );
   }, [peq, committedPeq, selectedMeasurement, visibleMeasurements, targets, viewMode, theme]);
 
-  useEffect(() => {
-    let raf = requestAnimationFrame(() => { void draw(); });
-    const canvas = canvasRef.current;
-    if (!canvas) return () => cancelAnimationFrame(raf);
+  const displayPeqRef = useRef(peq);
+  const targetPeqRef = useRef(peq);
+  const fromPeqRef = useRef(peq);
+  const fromTimeRef = useRef(0);
+  const durationRef = useRef(DEFAULT_MOTION_MS);
+  const animRafRef = useRef(0);
+  const animatingRef = useRef(false);
+  const drawRef = useRef(draw);
+  drawRef.current = draw;
 
+  const tick = useCallback(() => {
+    const t = durationRef.current <= 0
+      ? 1
+      : Math.min(1, (performance.now() - fromTimeRef.current) / durationRef.current);
+    displayPeqRef.current = lerpPeq(fromPeqRef.current, targetPeqRef.current, easeOutCubic(t));
+    void drawRef.current(displayPeqRef.current).then(() => {
+      if (t < 1) {
+        cancelAnimationFrame(animRafRef.current);
+        animRafRef.current = requestAnimationFrame(tick);
+      } else {
+        animatingRef.current = false;
+      }
+    });
+  }, []);
+
+  const beginAnim = useCallback((next: PEQData) => {
+    targetPeqRef.current = next;
+    fromPeqRef.current = displayPeqRef.current;
+    fromTimeRef.current = performance.now();
+    durationRef.current = Number(cssVar("--motion-duration-ms", String(DEFAULT_MOTION_MS)));
+    animatingRef.current = true;
+    cancelAnimationFrame(animRafRef.current);
+    animRafRef.current = requestAnimationFrame(tick);
+  }, [tick]);
+
+  // Ease the EQ curve toward the latest PEQ whenever it changes.
+  useEffect(() => { beginAnim(peq); }, [peq, beginAnim]);
+
+  // Immediate redraw for non-PEQ changes (measurements, targets, view, theme).
+  useEffect(() => {
+    if (animatingRef.current) return;
+    const raf = requestAnimationFrame(() => void drawRef.current(displayPeqRef.current));
+    return () => cancelAnimationFrame(raf);
+  }, [draw]);
+
+  // Redraw on container resize.
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    let raf = 0;
     const observer = new ResizeObserver(() => {
       cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => { void draw(); });
+      raf = requestAnimationFrame(() => void drawRef.current(displayPeqRef.current));
     });
     observer.observe(canvas);
-
     return () => {
       cancelAnimationFrame(raf);
       observer.disconnect();
     };
-  }, [draw]);
+  }, []);
+
+  // Cancel any in-flight animation frame on unmount.
+  useEffect(() => () => cancelAnimationFrame(animRafRef.current), []);
 
   return (
     <div className="eq-graph-shell">
