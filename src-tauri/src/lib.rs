@@ -16,9 +16,7 @@ use std::sync::Mutex;
 use diagnostics::DiagnosticsStore;
 use state::DeviceState;
 #[cfg(not(mobile))]
-use tauri::Manager;
-#[cfg(not(mobile))]
-use tauri_plugin_window_state::{AppHandleExt, StateFlags};
+use tauri_plugin_window_state::StateFlags;
 
 #[tauri::command]
 fn save_text_file(path: String, content: String) -> Result<(), String> {
@@ -49,28 +47,11 @@ pub fn run() {
 
     #[cfg(not(mobile))]
     {
-        builder = builder
-            .plugin(
-                tauri_plugin_window_state::Builder::new()
-                    .with_state_flags(window_state_flags)
-                    .build(),
-            )
-            .setup(move |app| {
-                let app_handle = app.handle().clone();
-                if let Some(window) = app.get_webview_window("main") {
-                    window.on_window_event(move |event| {
-                        if matches!(
-                            event,
-                            tauri::WindowEvent::CloseRequested { .. }
-                                | tauri::WindowEvent::Moved(_)
-                                | tauri::WindowEvent::Resized(_)
-                        ) {
-                            let _ = app_handle.save_window_state(window_state_flags);
-                        }
-                    });
-                }
-                Ok(())
-            });
+        builder = builder.plugin(
+            tauri_plugin_window_state::Builder::new()
+                .with_state_flags(window_state_flags)
+                .build(),
+        );
     }
 
     builder

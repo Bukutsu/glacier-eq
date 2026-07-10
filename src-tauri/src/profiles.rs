@@ -59,21 +59,6 @@ fn modified_time_string(path: &Path) -> Option<String> {
     Some(datetime.format("%Y-%m-%d %H:%M").to_string())
 }
 
-fn connected_caps_or_desktop(
-    state: &tauri::State<'_, Mutex<DeviceState>>,
-) -> Result<DeviceCapabilities, String> {
-    let connected = state
-        .lock()
-        .map_err(|_| "Device state lock poisoned".to_string())?
-        .connected
-        .clone();
-
-    Ok(connected
-        .and_then(|device| get_supported_device(device.vendor_id, device.product_id))
-        .map(|profile| profile.caps.clone())
-        .unwrap_or(DESKTOP_DAC_CAPS))
-}
-
 fn connected_match_target(
     state: &tauri::State<'_, Mutex<DeviceState>>,
 ) -> Result<(DeviceCapabilities, DeviceProtocol), String> {
@@ -266,7 +251,7 @@ pub fn parse_autoeq(
     let (mut peq, headphone_name, mut warnings) =
         glacier_core::autoeq::parse_autoeq_text(&text).map_err(|err| err.to_string())?;
 
-    let mut clamp_warnings = peq.clamp_to_capabilities(&connected_caps_or_desktop(&state)?);
+    let mut clamp_warnings = peq.clamp_to_capabilities(&connected_match_target(&state)?.0);
     warnings.append(&mut clamp_warnings);
 
     Ok(AutoEqParseResult {
@@ -324,7 +309,7 @@ pub async fn run_autoeq(
         fs,
     )?;
 
-    let warnings = peq.clamp_to_capabilities(&connected_caps_or_desktop(&state)?);
+    let warnings = peq.clamp_to_capabilities(&connected_match_target(&state)?.0);
 
     Ok(AutoEqRunResult { peq, warnings })
 }

@@ -10,14 +10,7 @@ import { AddTraceModal } from "./AddTraceModal";
 import { UnifiedTracesList } from "./UnifiedTraces";
 import { NumberInput } from "./NumberInput";
 import { Slider } from "./Slider";
-import {
-  isDatabaseDownloaded,
-  clearCachedDatabase,
-  downloadDatabase,
-  fetchManifest,
-  loadDeviceCurvePoints,
-  type OnlineDevice,
-} from "../lib/onlineDb";
+import { useOnlineDatabase, type OnlineDevice } from "../lib/onlineDb";
 
 const DEFAULT_PROFILE_NAME = "Default EQ";
 
@@ -318,68 +311,36 @@ export function MeasureTab({
   setStatus,
 }: MeasureTabProps) {
   const confirm = useConfirm();
-  const [downloaded, setDownloaded] = useState(false);
-  const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
-  const [isDownloading, setIsDownloading] = useState(false);
-  const [manifest, setManifest] = useState<OnlineDevice[]>([]);
-  const [loadingManifest, setLoadingManifest] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [totalCount, setTotalCount] = useState<number | null>(null);
-  const [loadingDevice, setLoadingDevice] = useState<string | null>(null);
-
   const enableOnlineMeasurements = settings?.enable_online_measurements;
-
-  useEffect(() => {
-    if (enableOnlineMeasurements) {
-      isDatabaseDownloaded().then(setDownloaded);
-    }
-  }, [enableOnlineMeasurements]);
-
-  useEffect(() => {
-    if (enableOnlineMeasurements && downloaded) {
-      setLoadingManifest(true);
-      fetchManifest()
-        .then((devices) => {
-          setManifest(devices);
-          setTotalCount(devices.length);
-        })
-        .catch((err) => {
-          console.error("Failed to load online manifest:", err);
-          setStatus?.(`Failed to load online search manifest: ${err}`);
-        })
-        .finally(() => {
-          setLoadingManifest(false);
-        });
-    }
-  }, [enableOnlineMeasurements, downloaded]);
+  const {
+    downloaded,
+    downloadProgress,
+    isDownloading,
+    manifest,
+    loadingManifest,
+    searchQuery,
+    setSearchQuery,
+    totalCount,
+    loadingDevice,
+    download,
+    clearCache,
+    loadDevice,
+  } = useOnlineDatabase(enableOnlineMeasurements, setStatus);
 
   const handleDownload = async () => {
-    setIsDownloading(true);
-    setDownloadProgress(0);
     try {
-      const count = await downloadDatabase((percent) => {
-        setDownloadProgress(percent);
-      });
-      setDownloaded(true);
-      setTotalCount(count);
+      const count = await download();
       setStatus?.(`Successfully downloaded online database (${count} curves cached)`);
     } catch (error) {
       console.error(error);
       setStatus?.(`Database download failed: ${error}`);
-    } finally {
-      setIsDownloading(false);
-      setDownloadProgress(null);
     }
   };
 
   const handleResetCache = async () => {
     if (await confirm("Are you sure you want to delete the cached online measurement database? This will clear about 16MB of local storage.")) {
       try {
-        await clearCachedDatabase();
-        setDownloaded(false);
-        setManifest([]);
-        setSearchQuery("");
-        setTotalCount(null);
+        await clearCache();
         setStatus?.("Online measurement database cache cleared.");
       } catch (error) {
         console.error(error);
@@ -389,16 +350,13 @@ export function MeasureTab({
   };
 
   const handleLoadDevice = async (dev: OnlineDevice) => {
-    setLoadingDevice(dev.id);
     try {
-      const points = await loadDeviceCurvePoints(dev.id);
+      const points = await loadDevice(dev);
       onAddMeasurement?.(`${dev.brand} ${dev.name} (${dev.source})`, points);
       setStatus?.(`Loaded online measurement: ${dev.brand} ${dev.name} (${points.length} points)`);
     } catch (error) {
       console.error(error);
       setStatus?.(`Failed to load online curve: ${error}`);
-    } finally {
-      setLoadingDevice(null);
     }
   };
 

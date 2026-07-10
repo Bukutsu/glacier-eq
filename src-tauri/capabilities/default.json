@@ -6,13 +6,9 @@
   "permissions": [
     "core:default",
     "dialog:default",
-    "dialog:allow-save",
-    "hid:default",
     "m3:default",
     "clipboard-manager:default",
     "clipboard-manager:allow-read-text",
-    "clipboard-manager:allow-write-text",
-    "core:window:default",
-    "core:window:allow-set-size"
+    "clipboard-manager:allow-write-text"
   ]
 }
