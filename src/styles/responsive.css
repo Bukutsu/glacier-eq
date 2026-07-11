@@ -186,7 +186,7 @@
   }
 }
 
-@media (max-width: 720px) {
+@media (max-width: 850px) {
   .app-header {
     position: sticky;
     top: 0;
