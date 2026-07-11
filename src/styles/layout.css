@@ -160,3 +160,31 @@
   gap: 12px;
   overflow-y: auto;
 }
+
+/* Desktop Graph Preview Overlay */
+.desktop-graph-preview-wrapper {
+  grid-column: 2;
+  grid-row: 1;
+  position: relative;
+  height: 0;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.desktop-graph-preview-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 4px;
+  background: rgb(var(--bg-dark-rgb) / 0.85);
+  backdrop-filter: blur(6px);
+  border: 1px solid var(--accent-line-medium);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
+  padding: 8px;
+}
+
+.desktop-graph-preview-overlay .graph-legend,
+.desktop-graph-preview-overlay .mobile-legend-toggle {
+  display: none !important;
+}
+
