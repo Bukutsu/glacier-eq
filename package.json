@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "wasm:build": "RUSTFLAGS=\"\" wasm-pack build --target web --out-dir ../src/wasm_pkg glacier-core",
+    "wasm:build": "node scripts/wasm-build.js",
     "prebuild": "npm run wasm:build",
     "build": "tsc && vite build",
     "tauri": "tauri",
