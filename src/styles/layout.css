@@ -163,23 +163,24 @@
 
 /* Desktop Graph Preview Overlay */
 .desktop-graph-preview-wrapper {
-  grid-column: 2;
+  grid-column: 1;
   grid-row: 1;
   position: relative;
   height: 0;
-  z-index: 10;
+  z-index: 100;
   pointer-events: none;
+  align-self: end;
 }
 
 .desktop-graph-preview-overlay {
   position: absolute;
-  top: 0;
+  bottom: 0;
   left: 0;
-  right: 4px;
-  background: rgb(var(--bg-dark-rgb) / 0.85);
-  backdrop-filter: blur(6px);
+  right: 0;
+  background: rgb(var(--bg-dark-rgb) / 0.92);
+  backdrop-filter: blur(8px);
   border: 1px solid var(--accent-line-medium);
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.45);
   padding: 8px;
 }
 
