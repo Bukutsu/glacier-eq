@@ -22,11 +22,14 @@ export function CustomScrollbar({ targetRef }: { targetRef: RefObject<HTMLElemen
   const dragRef = useRef<{ startY: number; startScroll: number } | null>(null);
 
   useEffect(() => {
-    if (!window.matchMedia("(min-width: 1280px)").matches) return;
     const target = targetRef.current;
     if (!target) return;
 
     const sync = () => {
+      if (!window.matchMedia("(min-width: 1280px)").matches) {
+        setRect(null);
+        return;
+      }
       const bounds = target.getBoundingClientRect();
       setRect({ top: bounds.top, right: bounds.right, height: bounds.height });
       setMetrics({
@@ -36,6 +39,8 @@ export function CustomScrollbar({ targetRef }: { targetRef: RefObject<HTMLElemen
       });
     };
     const onWheel = (event: WheelEvent) => {
+      if (!window.matchMedia("(min-width: 1280px)").matches) return;
+      if (event.defaultPrevented) return;
       if (target.scrollHeight <= target.clientHeight) return;
       event.preventDefault();
       target.scrollTop += event.deltaY;
