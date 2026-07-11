@@ -2,7 +2,7 @@
 # Source: https://github.com/Bukutsu/glacier-eq
 
 pkgname=glacier-eq-git
-pkgver=v0.1.5.r218.g83bbfe6
+pkgver=v0.1.5.r228.gcb40cd2
 pkgrel=1
 pkgdesc="Cross-platform parametric EQ editor for USB DACs. Offline, direct, and built for dense tuning work on desktop and Android."
 arch=('x86_64' 'aarch64')
@@ -55,19 +55,17 @@ pkgver() {
 }
 
 prepare() {
-  mkdir -p "$srcdir"
-  ln -sfn "$_origin" "$srcdir/glacier-eq"
-  cd "$srcdir/glacier-eq"
+  cd "$_origin"
   npm ci
 }
 
 build() {
-  cd "$srcdir/glacier-eq"
+  cd "$_origin"
   npm run tauri -- build --no-bundle
 }
 
 package() {
-  cd "$srcdir/glacier-eq"
+  cd "$_origin"
 
   # Binary
   install -Dm755 "target/release/glacier-eq" "${pkgdir}/usr/bin/glacier-eq"

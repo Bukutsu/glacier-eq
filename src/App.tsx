@@ -1751,6 +1751,8 @@ function App() {
             ref={mainScrollRef}
             onScroll={(e) => {
               setIsScrolledDown(e.currentTarget.scrollTop > 150);
+              setShowGraphPreview(false);
+              clearPreviewTimer();
             }}
           >
             {showGraph && (
