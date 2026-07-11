@@ -110,12 +110,12 @@
     padding: 14px 16px 12px;
   }
   .header-main {
-    grid-template-columns: 1fr;
-    align-items: stretch;
-    gap: 10px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
   }
   .header-main .toolbar {
-    grid-column: 1 / -1;
+    grid-column: auto;
   }
   .title-stack {
     width: 100%;
@@ -138,9 +138,8 @@
     white-space: nowrap;
   }
   .toolbar {
-    width: 100%;
-    display: grid;
-    grid-template-columns: auto repeat(3, minmax(0, 1fr)) auto;
+    width: auto;
+    display: flex;
     gap: 8px;
   }
   .toolbar .btn {
@@ -1232,19 +1231,5 @@
     background: rgb(var(--cyan-rgb) / 0.12) !important;
     color: var(--cyan) !important;
     box-shadow: inset 3px 0 0 var(--cyan);
-  }
-}
-
-@media (min-width: 851px) and (max-height: 820px),
-       (min-width: 851px) and (max-width: 1150px) {
-  .tools-card {
-    gap: 16px !important;
-    flex-direction: row !important;
-  }
-  .tabs {
-    flex: 0 0 120px !important;
-  }
-  .profile-card {
-    flex: none !important;
   }
 }
