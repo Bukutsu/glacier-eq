@@ -1340,8 +1340,9 @@ function App() {
 
     function canScroll(element: HTMLElement, scrollElement: HTMLElement, axis: "x" | "y") {
       const style = window.getComputedStyle(element);
+      const isCustomScroll = element.classList.contains("custom-scroll-pane");
       return axis === "y"
-        ? isScrollableOverflow(style.overflowY) && scrollElement.scrollHeight > scrollElement.clientHeight
+        ? (isScrollableOverflow(style.overflowY) || isCustomScroll) && scrollElement.scrollHeight > scrollElement.clientHeight
         : isScrollableOverflow(style.overflowX) && scrollElement.scrollWidth > scrollElement.clientWidth;
     }
 
