@@ -490,6 +490,7 @@ function App() {
   const [lastPushedPeq, setLastPushedPeq] = useState<PEQData | null>(null);
   const [selectedMeasurementId, setSelectedMeasurementId] = useState<string | null>(null);
   const [activeBandIndex, setActiveBandIndex] = useState<number | null>(null);
+  const [isScrolledDown, setIsScrolledDown] = useState(false);
 
   useEffect(() => {
     peqRef.current = peq;
@@ -602,11 +603,10 @@ function App() {
   }, []);
 
   const flashGraphPreview = useCallback(() => {
-    if (!isMobile) return;
     setShowGraphPreview(true);
     clearPreviewTimer();
     graphPreviewTimer.current = setTimeout(() => setShowGraphPreview(false), 2000);
-  }, [isMobile, clearPreviewTimer]);
+  }, [clearPreviewTimer]);
 
   // Cleanup on unmount
   useEffect(() => clearPreviewTimer, [clearPreviewTimer]);
@@ -1728,7 +1728,31 @@ function App() {
         </main>
       ) : (
         <main className="workspace">
-          <section id="main-scroll-pane" className="left-pane custom-scroll-pane" ref={mainScrollRef}>
+          {showGraphPreview && isScrolledDown && (
+            <div className="desktop-graph-preview-wrapper">
+              <div className="desktop-graph-preview-overlay">
+                <div className="graph-card" style={{ height: "100%", padding: 0, border: "none", background: "transparent" }}>
+                  <EqGraph
+                    peq={peq}
+                    committedPeq={lastPushedPeq}
+                    selectedMeasurementId={selectedMeasurementId}
+                    measurements={measurements}
+                    targets={activeTargets}
+                    viewMode={graphViewMode}
+                    theme={resolvedTheme}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+          <section
+            id="main-scroll-pane"
+            className="left-pane custom-scroll-pane"
+            ref={mainScrollRef}
+            onScroll={(e) => {
+              setIsScrolledDown(e.currentTarget.scrollTop > 150);
+            }}
+          >
             {showGraph && (
             <section className="graph-card">
               <EqGraph
@@ -1747,6 +1771,7 @@ function App() {
               resetValue={lastPushedPeq?.global_gain}
               onStartChange={handleStartChange}
               onChange={(global_gain) => {
+                flashGraphPreview();
                 setDirty(true);
                 setPeq((previous) => ({ ...previous, global_gain }));
               }}
