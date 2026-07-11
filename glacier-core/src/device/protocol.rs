@@ -51,7 +51,6 @@ impl Packet {
 }
 
 pub trait EqProtocol {
-    fn name(&self) -> &'static str;
     fn write_timing(&self) -> WriteTiming;
     fn is_default_state(&self, peq: &PEQData) -> bool;
     fn init_packets(&self) -> Vec<Packet>;
@@ -101,10 +100,6 @@ impl DeviceProtocol {
 }
 
 impl EqProtocol for DeviceProtocol {
-    fn name(&self) -> &'static str {
-        self.implementation().name()
-    }
-
     fn write_timing(&self) -> WriteTiming {
         self.implementation().write_timing()
     }
@@ -354,10 +349,6 @@ impl WalkplayProtocol {
 }
 
 impl EqProtocol for WalkplayProtocol {
-    fn name(&self) -> &'static str {
-        "Walkplay"
-    }
-
     fn write_timing(&self) -> WriteTiming {
         Self::write_timing()
     }

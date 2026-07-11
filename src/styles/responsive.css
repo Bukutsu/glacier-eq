@@ -1,4 +1,67 @@
-/* ponytail: bands-grid is single-column at all sizes now (full-width rows) */
+@media (min-width: 1280px) {
+  .bands-card {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    padding: 14px;
+  }
+
+  .band-row {
+    min-width: 0;
+    height: auto;
+    min-height: 220px;
+    padding: 14px;
+    grid-template-columns: 36px minmax(0, 1fr) 36px;
+    grid-template-areas:
+      "number type remove"
+      "number freq freq"
+      "number gain gain"
+      "number q q";
+    gap: 12px 14px;
+    background: var(--bg-dark);
+    border: 1px solid var(--line-soft);
+    border-left: 3px solid var(--filter-color, var(--cyan));
+  }
+
+  .band-row:hover {
+    background: var(--surface-soft);
+  }
+
+  .band-number {
+    grid-area: number;
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+  }
+
+  .band-number::before {
+    content: "Band";
+    color: var(--muted);
+    font-size: var(--type-micro);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .band-type-field { grid-area: type; }
+  .band-freq-field { grid-area: freq; }
+  .band-gain-field { grid-area: gain; }
+  .band-q-field { grid-area: q; }
+
+  .band-index {
+    grid-area: remove;
+    align-self: start;
+    margin-top: -6px;
+  }
+
+  .bands-actions {
+    grid-column: 1 / -1;
+    padding-top: 0;
+  }
+}
 
 @media (max-width: 1279px) {
   .workspace.mobile-workspace {
@@ -104,7 +167,7 @@
     overscroll-behavior: auto !important;
   }
   .bands-grid { grid-template-columns: 1fr; }
-  .bands-header, .band-row { grid-template-columns: 36px 144px minmax(140px, 1fr) minmax(140px, 1fr) 76px; font-size: var(--type-small); }
+  .band-row { grid-template-columns: 36px 144px minmax(140px, 1fr) minmax(140px, 1fr) 76px; font-size: var(--type-small); }
   .mobile-workspace .right-rail {
     display: flex;
     flex-direction: column;
@@ -133,10 +196,6 @@
     min-height: 56px;
     background: var(--bg);
   }
-  .selection-header {
-    min-height: auto;
-    padding: 12px;
-  }
   .header-main {
     display: flex;
     flex-direction: row;
@@ -158,9 +217,6 @@
   }
   h1 {
     font-size: var(--type-title);
-  }
-  .title-separator {
-    display: none;
   }
   .device-name {
     font-size: var(--type-caption);
@@ -257,10 +313,6 @@
     display: inline-flex;
     align-items: center;
   }
-  .status-banner {
-    min-height: 40px;
-    padding: 7px 12px;
-  }
   .workspace {
     padding-left: 10px;
     padding-right: 10px;
@@ -327,47 +379,16 @@
     padding: 0 6px;
     font-size: var(--type-caption);
   }
-  .target-strip {
-    grid-template-columns: 1fr;
-    align-items: stretch;
-    gap: 10px;
-    padding: 10px;
-  }
-  .target-strip-head {
-    justify-content: space-between;
-  }
-  .target-add,
-  .target-chip,
   .graph-view-toggle,
   .graph-view-toggle button {
     min-height: 44px;
   }
-  .graph-view-controls {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    gap: 8px 12px;
-    align-items: center;
-    width: 100%;
-  }
   .graph-view-toggle {
-    grid-column: 2;
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     width: auto;
   }
   .graph-view-toggle button { min-width: 0; }
-  .graph-level-readout {
-    grid-column: 1 / span 2;
-    justify-content: flex-end;
-  }
-  .target-scroll {
-    margin: 0 -10px;
-    padding: 2px 10px 6px;
-    scroll-padding-inline: 10px;
-  }
-  .target-chip {
-    max-width: min(76vw, 260px);
-  }
   .preamp-card {
     grid-template-columns: 1fr;
     height: auto;
@@ -518,9 +539,6 @@
     outline: 1px solid var(--line-medium);
     outline-offset: -1px;
   }
-  .bands-header {
-    display: none;
-  }
   .band-row {
     min-width: 0;
     height: auto;
@@ -602,13 +620,6 @@
     flex-direction: column;
     gap: 6px;
   }
-  .band-field::before {
-    display: block;
-    color: var(--comment);
-    font-size: var(--type-micro);
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-  }
   .type-buttons {
     display: flex;
     gap: 4px;
@@ -631,15 +642,6 @@
     flex: 0 0 auto;
     min-width: auto;
     border: none;
-  }
-  .num-input {
-    height: 42px;
-    padding: 0 10px;
-    border-radius: var(--radius-control);
-    font-size: var(--type-label);
-  }
-  .num-input:focus {
-    background: var(--surface);
   }
   .gain-cell {
     display: grid;
@@ -696,11 +698,6 @@
   .tabs button .material-symbols-outlined {
     font-size: 17px;
   }
-  .import-grid,
-  .measurement-import-grid,
-  .target-import-grid {
-    grid-template-columns: 1fr;
-  }
   .header-meta-row {
     flex-direction: row;
     align-items: center;
@@ -711,10 +708,6 @@
   }
   .history-btn {
     min-height: 40px;
-  }
-  .action-row,
-  .action-row-primary {
-    grid-template-columns: 1fr;
   }
   .preset-list {
     height: auto;
@@ -733,10 +726,6 @@
     align-items: center !important;
     justify-content: center !important;
     margin-right: 4px !important;
-  }
-  .curve-list {
-    max-height: 260px;
-    height: auto !important;
   }
   .curve-toggle,
   .curve-delete {
@@ -801,8 +790,6 @@
     overflow: hidden;
   }
   
-  .target-add,
-  .target-chip,
   .graph-view-toggle,
   .graph-view-toggle button {
     min-height: 48px !important;
@@ -948,8 +935,7 @@
   .bands-header {
     display: none;
   }
-  .bands-header,
-  .traces-targets-merged {
+  .bands-header {
     flex-direction: column !important;
     gap: 16px !important;
   }
@@ -959,22 +945,11 @@
   .band-row {
     min-width: 0;
   }
-  .target-strip-head,
-  .graph-view-controls {
-    align-items: stretch;
-  }
-  .graph-view-label,
-  .graph-level-readout {
-    display: flex;
-    align-items: center;
-  }
 }
 
 @media (max-width: 380px) {
   .tabs button,
-  .toolbar .btn,
-  .target-add,
-  .target-chip {
+  .toolbar .btn {
     font-size: var(--type-small);
   }
   .type-buttons {
@@ -1129,14 +1104,6 @@
     padding: 0 18px 14px;
   }
 
-  .tuning-card-body-flush {
-    padding: 0 0 14px;
-  }
-
-  .tuning-card-body-flush .target-strip {
-    background: transparent;
-    padding-top: 0;
-  }
 
   .tuning-card-body p {
     margin: 0;

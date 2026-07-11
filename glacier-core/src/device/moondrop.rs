@@ -9,10 +9,6 @@ use crate::eq::{Filter, FilterType, PEQData};
 pub struct MoondropProtocol;
 
 impl EqProtocol for MoondropProtocol {
-    fn name(&self) -> &'static str {
-        "Moondrop"
-    }
-
     fn write_timing(&self) -> WriteTiming {
         WriteTiming::default()
     }

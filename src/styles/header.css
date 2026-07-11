@@ -6,22 +6,6 @@
   display: block;
 }
 
-.selection-header {
-  min-height: 104px;
-  padding: 28px 32px 18px;
-  border-bottom: 1px solid var(--line-soft);
-  justify-content: flex-start;
-}
-
-.selection-header .title-line { gap: 14px; }
-.selection-header h1 { font-size: var(--type-title); }
-
-.selection-header .device-name {
-  color: var(--muted);
-  font-size: var(--type-body);
-  font-weight: 400;
-}
-
 .header-main {
   min-width: 0;
   display: grid;

@@ -99,19 +99,22 @@ export function EqGraph({
   const fromTimeRef = useRef(0);
   const durationRef = useRef(DEFAULT_MOTION_MS);
   const animRafRef = useRef(0);
+  const animationTokenRef = useRef(0);
   const animatingRef = useRef(false);
   const drawRef = useRef(draw);
   drawRef.current = draw;
 
-  const tick = useCallback(() => {
+  const tick = useCallback((token: number) => {
+    if (token !== animationTokenRef.current) return;
+
     const t = durationRef.current <= 0
       ? 1
       : Math.min(1, (performance.now() - fromTimeRef.current) / durationRef.current);
     displayPeqRef.current = lerpPeq(fromPeqRef.current, targetPeqRef.current, easeOutCubic(t));
     void drawRef.current(displayPeqRef.current).then(() => {
+      if (token !== animationTokenRef.current) return;
       if (t < 1) {
-        cancelAnimationFrame(animRafRef.current);
-        animRafRef.current = requestAnimationFrame(tick);
+        animRafRef.current = requestAnimationFrame(() => tick(token));
       } else {
         animatingRef.current = false;
       }
@@ -119,13 +122,14 @@ export function EqGraph({
   }, []);
 
   const beginAnim = useCallback((next: PEQData) => {
+    const token = ++animationTokenRef.current;
     targetPeqRef.current = next;
     fromPeqRef.current = displayPeqRef.current;
     fromTimeRef.current = performance.now();
     durationRef.current = Number(cssVar("--motion-duration-ms", String(DEFAULT_MOTION_MS)));
     animatingRef.current = true;
     cancelAnimationFrame(animRafRef.current);
-    animRafRef.current = requestAnimationFrame(tick);
+    animRafRef.current = requestAnimationFrame(() => tick(token));
   }, [tick]);
 
   // Ease the EQ curve toward the latest PEQ whenever it changes.
@@ -155,7 +159,10 @@ export function EqGraph({
   }, []);
 
   // Cancel any in-flight animation frame on unmount.
-  useEffect(() => () => cancelAnimationFrame(animRafRef.current), []);
+  useEffect(() => () => {
+    animationTokenRef.current++;
+    cancelAnimationFrame(animRafRef.current);
+  }, []);
 
   return (
     <div className="eq-graph-shell">
