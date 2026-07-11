@@ -1205,8 +1205,7 @@
     background: transparent !important;
     border: none !important;
     padding: 8px 12px !important;
-    gap: 16px !important;
-    flex-direction: row !important;
+    gap: 4px;
   }
   .tabs {
     display: flex !important;
@@ -1215,7 +1214,6 @@
     padding: 0 !important;
     gap: 2px !important;
     position: static !important;
-    flex: 0 0 120px !important;
   }
   .tabs button {
     background: transparent !important;
@@ -1234,5 +1232,19 @@
     background: rgb(var(--cyan-rgb) / 0.12) !important;
     color: var(--cyan) !important;
     box-shadow: inset 3px 0 0 var(--cyan);
+  }
+}
+
+@media (min-width: 851px) and (max-height: 820px),
+       (min-width: 851px) and (max-width: 1150px) {
+  .tools-card {
+    gap: 16px !important;
+    flex-direction: row !important;
+  }
+  .tabs {
+    flex: 0 0 120px !important;
+  }
+  .profile-card {
+    flex: none !important;
   }
 }
