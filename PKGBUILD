@@ -2,7 +2,7 @@
 # Source: https://github.com/Bukutsu/glacier-eq
 
 pkgname=glacier-eq-git
-pkgver=v0.1.5.r228.gcb40cd2
+pkgver=v0.1.5.r231.g050509b
 pkgrel=1
 pkgdesc="Cross-platform parametric EQ editor for USB DACs. Offline, direct, and built for dense tuning work on desktop and Android."
 arch=('x86_64' 'aarch64')

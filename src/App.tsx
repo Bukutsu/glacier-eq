@@ -192,7 +192,7 @@ const applyAndroidDynamicColors = async (prefersDark: boolean) => {
   }
 };
 
-const MOBILE_QUERY = "(max-width: 768px)";
+const MOBILE_QUERY = "(max-width: 850px)";
 
 const isDisconnectionError = (error: any): boolean => {
   const errStr = String(error).toLowerCase();
