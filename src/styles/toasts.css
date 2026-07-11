@@ -103,7 +103,7 @@
 }
 
 /* Mobile responsive layout */
-@media (max-width: 768px) {
+@media (max-width: 850px) {
   .toast-container {
     left: 16px;
     right: 16px;
