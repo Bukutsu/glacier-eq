@@ -9,6 +9,9 @@ import initWasm, { snap_freq_to_iso } from "../wasm_pkg/glacier_core";
 const FREQ_MIN = 20;
 const FREQ_MAX = 20000;
 const FREQ_SLIDER_STEPS = 1000;
+const Q_MIN = 0.1;
+const Q_MAX = 20;
+const Q_SLIDER_STEPS = 1000;
 const FILTER_TYPES: FilterType[] = ["Peak", "HighShelf", "LowShelf", "HighPass", "LowPass"];
 const TYPE_LABELS: Record<FilterType, string> = {
   Peak: "PK",
@@ -57,6 +60,19 @@ function sliderToFreq(value: number) {
   return Math.round(10 ** (min + (value / FREQ_SLIDER_STEPS) * (max - min)));
 }
 
+function qToSlider(q: number) {
+  const min = Math.log10(Q_MIN);
+  const max = Math.log10(Q_MAX);
+  const clamped = Math.max(Q_MIN, Math.min(Q_MAX, q));
+  return Math.round(((Math.log10(clamped) - min) / (max - min)) * Q_SLIDER_STEPS);
+}
+
+function sliderToQ(value: number) {
+  const min = Math.log10(Q_MIN);
+  const max = Math.log10(Q_MAX);
+  return Number((10 ** (min + (value / Q_SLIDER_STEPS) * (max - min))).toFixed(2));
+}
+
 export function Bands({ peq, committedPeq, maxBands, onFilterChange, onStartChange, activeBandIndex, onActiveBandChange, snapToIso }: BandsProps) {
   const availableFilters = peq.filters.slice(0, maxBands);
   const visibleFilters = availableFilters.filter((filter) => filter.enabled);
@@ -91,9 +107,6 @@ export function Bands({ peq, committedPeq, maxBands, onFilterChange, onStartChan
       </button>
       <section className="bands-grid">
         <div className="bands-card">
-          <div className="bands-header">
-            <span>BAND</span><span>TYPE</span><span>FREQ <span className="unit">(Hz)</span></span><span>GAIN <span className="unit">(dB)</span></span><span>Q</span><span className="bands-header-spacer"></span>
-          </div>
           {visibleFilters.map((filter) => (
             <BandRow
               key={filter.index}
@@ -204,6 +217,8 @@ function BandRow({
   return (
     <div
       className={`band-row ${filter.enabled ? "" : "muted"} ${expanded ? "expanded" : ""} ${active ? "active" : ""}`}
+      role="group"
+      aria-label={`Band ${filter.index + 1}`}
       style={filterColorStyle(filter.index)}
     >
       <div className="band-number" aria-hidden="true">{filter.index + 1}</div>
@@ -225,6 +240,7 @@ function BandRow({
       </button>
       <BandControls filter={filter} committedFilter={committedFilter} onChange={onChange} onStartChange={onStartChange} onActivate={onActivate} snapToIso={snapToIso} />
       <button
+        type="button"
         className="band-index"
         aria-label={`Remove band ${filter.index + 1}`}
         disabled={!canRemove}
@@ -297,6 +313,7 @@ function BandControls({
             }}
             onChange={async (val) => onChange({ ...filter, freq: snapToIso ? await snapToIsoFreq(val) : val })}
             className="band-freq-stepper"
+            aria-label={`Band ${filter.index + 1} frequency value`}
           />
         </div>
       </BandField>
@@ -326,6 +343,7 @@ function BandControls({
             }}
             onChange={(val) => onChange({ ...filter, gain: val })}
             className="band-gain-stepper"
+            aria-label={`Band ${filter.index + 1} gain value`}
           />
         </div>
       </BandField>
@@ -333,15 +351,19 @@ function BandControls({
         <div className="param-cell q-cell">
           <Slider
             aria-label={`Band ${filter.index + 1} Q`}
-            min={0.1}
-            max={20}
-            step={0.05}
-            value={filter.q}
+            min={0}
+            max={Q_SLIDER_STEPS}
+            step={1}
+            value={qToSlider(filter.q)}
+            aria-valuemin={Q_MIN}
+            aria-valuemax={Q_MAX}
+            aria-valuenow={filter.q}
+            aria-valuetext={`Q ${filter.q.toFixed(2)}`}
             tone={filter.index >= 5 ? "orange" : "blue"}
             onStartChange={onStartChange}
             onReset={committedFilter ? () => onChange({ ...filter, q: committedFilter.q }) : undefined}
             onFocus={onActivate}
-            onChange={(event) => onChange({ ...filter, q: +event.target.value })}
+            onChange={(event) => onChange({ ...filter, q: sliderToQ(+event.target.value) })}
           />
           <NumberInput
             value={filter.q}
@@ -355,6 +377,7 @@ function BandControls({
             }}
             onChange={(val) => onChange({ ...filter, q: val })}
             className="band-q-stepper"
+            aria-label={`Band ${filter.index + 1} Q value`}
           />
         </div>
       </BandField>
@@ -372,7 +395,8 @@ function BandField({
   children: ReactNode;
 }) {
   return (
-    <div className={`band-field ${className ?? ""}`.trim()} data-label={label}>
+    <div className={`band-field ${className ?? ""}`.trim()} role="group" aria-label={label}>
+      <span className="band-field-label">{label}</span>
       {children}
     </div>
   );
@@ -383,8 +407,10 @@ function FilterTypeButtons({ filter, onChange }: { filter: Filter; onChange: (fi
     <div className="type-buttons">
       {FILTER_TYPES.map((type) => (
         <button
+          type="button"
           key={type}
           className={filter.filter_type === type ? "selected" : ""}
+          aria-pressed={filter.filter_type === type}
           aria-label={`Set band ${filter.index + 1} to ${TYPE_LABELS[type]}`}
           onClick={() => onChange({ ...filter, filter_type: type })}
         >

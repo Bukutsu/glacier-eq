@@ -5,6 +5,7 @@ import { DeviceChooser } from "./components/DeviceChooser";
 import { EqGraph } from "./components/EqGraph";
 import { Header } from "./components/Header";
 import { Icon } from "./components/Icon";
+import { CustomScrollbar } from "./components/CustomScrollbar";
 import { Preamp } from "./components/Preamp";
 import { ToolsPanel, AutoEqTab, DiagnosticsPanel } from "./components/ToolsPanel";
 import { AddTraceModal } from "./components/AddTraceModal";
@@ -221,6 +222,7 @@ function App() {
   const [showDeviceModal, setShowDeviceModal] = useState(false);
   const [showDiagnosticsModal, setShowDiagnosticsModal] = useState(false);
   const [showAddTrace, setShowAddTrace] = useState(false);
+  const mainScrollRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     const media = window.matchMedia(MOBILE_QUERY);
@@ -1725,7 +1727,7 @@ function App() {
         </main>
       ) : (
         <main className="workspace">
-          <section className="left-pane">
+          <section id="main-scroll-pane" className="left-pane custom-scroll-pane" ref={mainScrollRef}>
             {showGraph && (
             <section className="graph-card">
               <EqGraph
@@ -1758,6 +1760,7 @@ function App() {
               onActiveBandChange={setActiveBandIndex}
               snapToIso={snapToIso}
             />
+            <CustomScrollbar targetRef={mainScrollRef} />
           </section>
           <ToolsPanel
             peq={peq}

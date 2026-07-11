@@ -51,11 +51,11 @@ fn response_values(peq: &PEQData, freqs: Vec<f32>, include_preamp: bool) -> Vec<
         freqs.len()
     ];
     for filter in peq.filters.iter().filter(|filter| filter.enabled) {
-        crate::autoeq::spectrum_values(
+        crate::eq::iir_math::accumulate_response_values(
             filter.filter_type,
-            filter.freq as f32,
-            filter.gain as f32,
-            filter.q as f32,
+            filter.freq as f64,
+            filter.gain,
+            filter.q,
             96000.0,
             &freqs,
             &mut response,

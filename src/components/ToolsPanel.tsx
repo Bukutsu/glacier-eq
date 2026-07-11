@@ -4,13 +4,11 @@ import type { DeviceInfo, AppSettings, MeasurementTrace, Profile, PEQData, Graph
 import { useConfirm } from "./ConfirmDialog";
 import { Icon } from "./Icon";
 import { Checkbox } from "./Checkbox";
-import { SearchBar } from "./SearchBar";
 import { fuzzyMatch } from "../lib/search";
 import { AddTraceModal } from "./AddTraceModal";
 import { UnifiedTracesList } from "./UnifiedTraces";
 import { NumberInput } from "./NumberInput";
 import { Slider } from "./Slider";
-import { useOnlineDatabase, type OnlineDevice } from "../lib/onlineDb";
 import { TAB_META, type ToolsTab } from "../lib/tabs";
 
 const DEFAULT_PROFILE_NAME = "Default EQ";
@@ -138,7 +136,7 @@ interface ToolsPanelProps {
 }
 
 export function ToolsPanel(props: ToolsPanelProps) {
-  const requestedTabs = props.availableTabs ?? ["Preset", "Import", "Measure", "AutoEQ", "Device", "Settings"];
+  const requestedTabs = props.availableTabs ?? ["Preset", "Import", "AutoEQ", "Device", "Settings"];
   const availableTabs = requestedTabs.filter((name) => name !== "Import" || !requestedTabs.includes("Preset"));
   const [internalTab, setInternalTab] = useState<ToolsTab>(() => (
     props.defaultTab === "Import" && availableTabs.includes("Preset")
@@ -208,15 +206,6 @@ export function ToolsPanel(props: ToolsPanelProps) {
               setStatus={props.setStatus}
             />
           )}
-          {tab === "Measure" && <MeasureTab
-            measurements={props.measurements}
-            onRemoveMeasurement={props.onRemoveMeasurement}
-            onToggleMeasurement={props.onToggleMeasurement}
-            onClearMeasurements={props.onClearMeasurements}
-            settings={props.settings}
-            onAddMeasurement={props.onAddMeasurement}
-            setStatus={props.setStatus}
-          />}
           {tab === "Device" && (
             props.connected ? (
               <DeviceTab setStatus={props.setStatus} onPull={props.onPull} />
@@ -280,232 +269,6 @@ function TabStrip({
 }
 
 
-
-interface MeasureTabProps {
-  measurements: MeasurementTrace[];
-  onRemoveMeasurement: (id: string) => void;
-  onToggleMeasurement: (id: string) => void;
-  onClearMeasurements: () => void;
-  settings?: AppSettings;
-  onAddMeasurement?: (name: string, points: MeasurementTrace["points"]) => void;
-  setStatus?: (value: string) => void;
-}
-
-export function MeasureTab({
-  measurements,
-  onRemoveMeasurement,
-  onToggleMeasurement,
-  onClearMeasurements,
-  settings,
-  onAddMeasurement,
-  setStatus,
-}: MeasureTabProps) {
-  const confirm = useConfirm();
-  const enableOnlineMeasurements = settings?.enable_online_measurements;
-  const {
-    downloaded,
-    downloadProgress,
-    isDownloading,
-    manifest,
-    loadingManifest,
-    searchQuery,
-    setSearchQuery,
-    totalCount,
-    loadingDevice,
-    download,
-    clearCache,
-    loadDevice,
-  } = useOnlineDatabase(enableOnlineMeasurements, setStatus);
-
-  const handleDownload = async () => {
-    try {
-      const count = await download();
-      setStatus?.(`Successfully downloaded online database (${count} curves cached)`);
-    } catch (error) {
-      console.error(error);
-      setStatus?.(`Database download failed: ${error}`);
-    }
-  };
-
-  const handleResetCache = async () => {
-    if (await confirm("Are you sure you want to delete the cached online measurement database? This will clear about 16MB of local storage.")) {
-      try {
-        await clearCache();
-        setStatus?.("Online measurement database cache cleared.");
-      } catch (error) {
-        console.error(error);
-        setStatus?.(`Failed to clear cache: ${error}`);
-      }
-    }
-  };
-
-  const handleLoadDevice = async (dev: OnlineDevice) => {
-    try {
-      const points = await loadDevice(dev);
-      onAddMeasurement?.(`${dev.brand} ${dev.name} (${dev.source})`, points);
-      setStatus?.(`Loaded online measurement: ${dev.brand} ${dev.name} (${points.length} points)`);
-    } catch (error) {
-      console.error(error);
-      setStatus?.(`Failed to load online curve: ${error}`);
-    }
-  };
-
-  const query = searchQuery.trim().toLowerCase();
-  
-  // Filter loaded measurements locally
-  const filteredLocal = query
-    ? measurements.filter((m) => fuzzyMatch(query, m.name))
-    : measurements;
-
-  // Filter online manifest
-  const filteredOnline = !query
-    ? []
-    : manifest.filter((dev) => fuzzyMatch(query, `${dev.brand} ${dev.name}`));
-
-  const displayOnlineResults = filteredOnline.slice(0, 50);
-
-  return (
-    <div className="measurements-pane">
-      {/* Search Input Box */}
-      <div className="online-search-section">
-        <SearchBar
-          placeholder={
-            enableOnlineMeasurements && downloaded && totalCount
-              ? `Search loaded or ${totalCount} online curves...`
-              : "Search loaded measurements..."
-          }
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-      </div>
-
-      {/* Merged list container */}
-      <div className="curve-list">
-        {/* Local matching traces */}
-        {filteredLocal.length > 0 && (
-          <>
-            {query && <div className="curve-section-header">Loaded Measurements</div>}
-            {filteredLocal.map((trace) => (
-              <div className="curve-item" key={trace.id}>
-                <label className="curve-toggle">
-                  <Checkbox
-                    checked={trace.visible}
-                    onChange={() => onToggleMeasurement(trace.id)}
-                  />
-                  <span className="curve-swatch" style={{ backgroundColor: trace.color }} />
-                  <span className="curve-name">
-                    {trace.name}
-                    <span className="curve-points">({trace.points.length} pts)</span>
-                  </span>
-                </label>
-                <button
-                  className="curve-delete"
-                  title={`Delete ${trace.name}`}
-                  onClick={() => onRemoveMeasurement(trace.id)}
-                >
-                  <Icon>delete</Icon>
-                </button>
-              </div>
-            ))}
-          </>
-        )}
-
-        {/* If search query entered but no local matches, and online db disabled/empty */}
-        {query && filteredLocal.length === 0 && (!enableOnlineMeasurements || displayOnlineResults.length === 0) && (
-          <div className="curve-empty">No matching measurements found.</div>
-        )}
-
-        {/* Online database search results */}
-        {enableOnlineMeasurements && query && (
-          <>
-            <div className="curve-section-header">Online Database</div>
-            {loadingManifest ? (
-              <div className="online-result-item online-result-empty">Loading online index...</div>
-            ) : !downloaded ? (
-              <div className="online-result-item online-result-empty" style={{ flexDirection: "column", gap: "8px", padding: "12px 6px" }}>
-                <span>Online search requires database cache.</span>
-                {downloadProgress !== null ? (
-                  <span>Downloading... {Math.round(downloadProgress * 100)}%</span>
-                ) : (
-                  <button className="btn compact" onClick={handleDownload} disabled={isDownloading}>
-                    Download Cache
-                  </button>
-                )}
-              </div>
-            ) : displayOnlineResults.length === 0 ? (
-              <div className="online-result-item online-result-empty">No online curves match "{searchQuery}"</div>
-            ) : (
-              displayOnlineResults.map((dev) => (
-                <div key={dev.id} className="online-result-item">
-                  <div className="online-result-info">
-                    <div className="online-result-name">
-                      {dev.brand} {dev.name}
-                      {dev.price !== null && (
-                        <span className="online-result-price">${dev.price}</span>
-                      )}
-                    </div>
-                    <div className="online-result-source">Source: {dev.source}</div>
-                  </div>
-                  <button
-                    className="online-result-action"
-                    disabled={loadingDevice !== null}
-                    onClick={() => handleLoadDevice(dev)}
-                  >
-                    {loadingDevice === dev.id ? (
-                      <span>Loading...</span>
-                    ) : (
-                      <>
-                        <Icon>download</Icon>
-                        <span>Load</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              ))
-            )}
-          </>
-        )}
-
-        {/* If empty search query and no local loaded traces */}
-        {!query && measurements.length === 0 && (
-          <div className="curve-empty">No measurements loaded. Use search or Add Measurement above.</div>
-        )}
-      </div>
-
-      {/* Footer controls for loaded traces */}
-      {measurements.length > 0 && (
-        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "2px" }}>
-          <button className="tool-link-button danger" onClick={onClearMeasurements}>
-            Clear All Loaded
-          </button>
-        </div>
-      )}
-
-      {/* Offline cache controls at the bottom, small and unobtrusive */}
-      {enableOnlineMeasurements && !query && (
-        <div className="online-db-status-bar" style={{ marginTop: "4px", fontSize: "var(--type-caption)", color: "var(--muted)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          {downloaded ? (
-            <>
-              <span>Online database: {totalCount} curves cached</span>
-              <button className="tool-link-button" onClick={handleResetCache}>Clear Cache</button>
-            </>
-          ) : (
-            <>
-              <span>Online database offline</span>
-              {downloadProgress !== null ? (
-                <span>Downloading {Math.round(downloadProgress * 100)}%</span>
-              ) : (
-                <button className="tool-link-button" onClick={handleDownload} disabled={isDownloading}>
-                  Download Cache
-                </button>
-              )}
-            </>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
 
 interface CurvesTabProps {
   measurements: MeasurementTrace[];

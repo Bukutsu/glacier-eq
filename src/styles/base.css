@@ -468,8 +468,7 @@ button:disabled, .btn:disabled, .tools-card button:disabled, .diag-card button:d
 button.transparent:disabled,
 button.text:disabled,
 .history-btn:disabled,
-.diag-head button:disabled,
-.search-row button:disabled {
+.diag-head button:disabled {
   background: transparent !important;
 }
 button:focus-visible,
@@ -567,19 +566,6 @@ select:focus-visible {
   outline-offset: 3px;
 }
 
-.status-banner {
-  min-height: 34px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 5px 18px;
-  background: var(--blue);
-  color: var(--bg-dark);
-  font-size: var(--type-label);
-}
-
-.status-banner button { margin-left: auto; background: transparent; color: var(--bg-dark); }
-
 @keyframes motion-fade-in {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -599,25 +585,26 @@ select:focus-visible {
 /* Unify all scrollbars under a single reusable custom design matching the sharp, technical language of Glacier EQ */
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--comment) var(--bg-dark);
+  scrollbar-color: var(--surface) var(--bg-dark);
 }
 
 /* Global scrollbar rules (for WebKit/Blink browsers) */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 ::-webkit-scrollbar-track {
   background: var(--bg-dark);
-  border-left: 1px solid var(--line-subtle);
+  border: 1px solid var(--line-subtle);
 }
 ::-webkit-scrollbar-track:horizontal {
   border-left: none;
   border-top: 1px solid var(--line-subtle);
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--comment);
-  border-radius: var(--radius-none); /* Sharp corners theme */
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: 0; /* Keep the app's sharp-corner language */
   transition: background var(--motion-duration) var(--motion-ease);
 }
 ::-webkit-scrollbar-thumb:hover {
@@ -634,33 +621,27 @@ select:focus-visible {
 body::-webkit-scrollbar,
 .workspace::-webkit-scrollbar,
 .tools-card::-webkit-scrollbar,
-.target-scroll::-webkit-scrollbar,
 .preset-list::-webkit-scrollbar,
-.measurement-list::-webkit-scrollbar,
 .log-box::-webkit-scrollbar,
 .import-preview-box::-webkit-scrollbar,
 .import-warnings-box::-webkit-scrollbar,
 .autoeq-tab::-webkit-scrollbar,
 .settings-list::-webkit-scrollbar,
-.left-pane::-webkit-scrollbar,
-.custom-select-dropdown::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+.left-pane::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
 }
 
 body::-webkit-scrollbar-track,
 .workspace::-webkit-scrollbar-track,
 .tools-card::-webkit-scrollbar-track,
-.target-scroll::-webkit-scrollbar-track,
 .preset-list::-webkit-scrollbar-track,
-.measurement-list::-webkit-scrollbar-track,
 .log-box::-webkit-scrollbar-track,
 .import-preview-box::-webkit-scrollbar-track,
 .import-warnings-box::-webkit-scrollbar-track,
 .autoeq-tab::-webkit-scrollbar-track,
 .settings-list::-webkit-scrollbar-track,
-.left-pane::-webkit-scrollbar-track,
-.custom-select-dropdown::-webkit-scrollbar-track {
+.left-pane::-webkit-scrollbar-track {
   background: var(--bg-dark);
   border-left: 1px solid var(--line-subtle);
 }
@@ -668,16 +649,13 @@ body::-webkit-scrollbar-track,
 body::-webkit-scrollbar-track:horizontal,
 .workspace::-webkit-scrollbar-track:horizontal,
 .tools-card::-webkit-scrollbar-track:horizontal,
-.target-scroll::-webkit-scrollbar-track:horizontal,
 .preset-list::-webkit-scrollbar-track:horizontal,
-.measurement-list::-webkit-scrollbar-track:horizontal,
 .log-box::-webkit-scrollbar-track:horizontal,
 .import-preview-box::-webkit-scrollbar-track:horizontal,
 .import-warnings-box::-webkit-scrollbar-track:horizontal,
 .autoeq-tab::-webkit-scrollbar-track:horizontal,
 .settings-list::-webkit-scrollbar-track:horizontal,
-.left-pane::-webkit-scrollbar-track:horizontal,
-.custom-select-dropdown::-webkit-scrollbar-track:horizontal {
+.left-pane::-webkit-scrollbar-track:horizontal {
   border-left: none;
   border-top: 1px solid var(--line-subtle);
 }
@@ -685,18 +663,16 @@ body::-webkit-scrollbar-track:horizontal,
 body::-webkit-scrollbar-thumb,
 .workspace::-webkit-scrollbar-thumb,
 .tools-card::-webkit-scrollbar-thumb,
-.target-scroll::-webkit-scrollbar-thumb,
 .preset-list::-webkit-scrollbar-thumb,
-.measurement-list::-webkit-scrollbar-thumb,
 .log-box::-webkit-scrollbar-thumb,
 .import-preview-box::-webkit-scrollbar-thumb,
 .import-warnings-box::-webkit-scrollbar-thumb,
 .autoeq-tab::-webkit-scrollbar-thumb,
 .settings-list::-webkit-scrollbar-thumb,
-.left-pane::-webkit-scrollbar-thumb,
-.custom-select-dropdown::-webkit-scrollbar-thumb {
-  background: var(--comment);
-  border-radius: 0px !important; /* Force completely sharp corners to match design language */
+.left-pane::-webkit-scrollbar-thumb {
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: 0 !important; /* Keep the app's sharp-corner language */
 }
 
 body::-webkit-scrollbar-thumb:hover,
@@ -705,12 +681,8 @@ body::-webkit-scrollbar-thumb:active,
 .workspace::-webkit-scrollbar-thumb:active,
 .tools-card::-webkit-scrollbar-thumb:hover,
 .tools-card::-webkit-scrollbar-thumb:active,
-.target-scroll::-webkit-scrollbar-thumb:hover,
-.target-scroll::-webkit-scrollbar-thumb:active,
 .preset-list::-webkit-scrollbar-thumb:hover,
 .preset-list::-webkit-scrollbar-thumb:active,
-.measurement-list::-webkit-scrollbar-thumb:hover,
-.measurement-list::-webkit-scrollbar-thumb:active,
 .log-box::-webkit-scrollbar-thumb:hover,
 .log-box::-webkit-scrollbar-thumb:active,
 .import-preview-box::-webkit-scrollbar-thumb:hover,
@@ -722,26 +694,67 @@ body::-webkit-scrollbar-thumb:active,
 .settings-list::-webkit-scrollbar-thumb:hover,
 .settings-list::-webkit-scrollbar-thumb:active,
 .left-pane::-webkit-scrollbar-thumb:hover,
-.left-pane::-webkit-scrollbar-thumb:active,
-.custom-select-dropdown::-webkit-scrollbar-thumb:hover,
-.custom-select-dropdown::-webkit-scrollbar-thumb:active {
+.left-pane::-webkit-scrollbar-thumb:active {
   background: var(--cyan);
 }
 
 body::-webkit-scrollbar-corner,
 .workspace::-webkit-scrollbar-corner,
 .tools-card::-webkit-scrollbar-corner,
-.target-scroll::-webkit-scrollbar-corner,
 .preset-list::-webkit-scrollbar-corner,
-.measurement-list::-webkit-scrollbar-corner,
 .log-box::-webkit-scrollbar-corner,
 .import-preview-box::-webkit-scrollbar-corner,
 .import-warnings-box::-webkit-scrollbar-corner,
 .autoeq-tab::-webkit-scrollbar-corner,
 .settings-list::-webkit-scrollbar-corner,
-.left-pane::-webkit-scrollbar-corner,
-.custom-select-dropdown::-webkit-scrollbar-corner {
+.left-pane::-webkit-scrollbar-corner {
   background: var(--bg-dark);
+}
+
+@media (min-width: 1280px) {
+  .custom-scroll-pane {
+    position: relative;
+    overflow-y: hidden !important;
+    scrollbar-width: none;
+  }
+
+  .custom-scroll-pane::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .custom-scrollbar {
+    position: fixed;
+    z-index: 20;
+    width: 12px;
+    padding: 0 3px;
+    background: var(--bg-dark);
+    border-left: 1px solid var(--line-subtle);
+    outline: none;
+  }
+
+  .custom-scrollbar:focus-visible {
+    outline: 1px solid var(--focus-ring);
+    outline-offset: -1px;
+  }
+
+  .custom-scrollbar-thumb {
+    width: 100%;
+    min-height: 28px;
+    background: var(--surface);
+    border: 1px solid var(--line-strong);
+    border-radius: 0;
+    cursor: grab;
+    touch-action: none;
+  }
+
+  .custom-scrollbar-thumb:hover,
+  .custom-scrollbar-thumb:active {
+    background: var(--cyan);
+  }
+
+  .custom-scrollbar-thumb:active {
+    cursor: grabbing;
+  }
 }
 
 /* ── Confirm Dialog (inside Modal) ── */
