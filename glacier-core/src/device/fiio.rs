@@ -19,7 +19,6 @@ enum Endian {
 
 #[derive(Clone, Copy)]
 pub struct FiioProtocol {
-    name: &'static str,
     report_id: u8,
     gain_scale: f64,
     endian: Endian,
@@ -28,7 +27,6 @@ pub struct FiioProtocol {
 }
 
 pub const JA11_PROTOCOL: FiioProtocol = FiioProtocol {
-    name: "FiiO JA11",
     report_id: 2,
     gain_scale: 2560.0,
     endian: Endian::Little,
@@ -37,7 +35,6 @@ pub const JA11_PROTOCOL: FiioProtocol = FiioProtocol {
 };
 
 pub const FIIO_PROTOCOL: FiioProtocol = FiioProtocol {
-    name: "FiiO",
     report_id: 7,
     gain_scale: 10.0,
     endian: Endian::Big,
@@ -135,10 +132,6 @@ fn save_packet(report_id: u8, command: u8) -> Packet {
 }
 
 impl EqProtocol for FiioProtocol {
-    fn name(&self) -> &'static str {
-        self.name
-    }
-
     fn write_timing(&self) -> WriteTiming {
         WriteTiming::default()
     }

@@ -12,11 +12,25 @@ pub fn compute_biquad_coeffs(
     filter: &Filter,
     dsp_sample_rate: f64,
 ) -> (f64, f64, f64, f64, f64, f64) {
+    compute_biquad_coeffs_for(
+        filter.filter_type,
+        filter.freq as f64,
+        filter.gain,
+        filter.q,
+        dsp_sample_rate,
+    )
+}
+
+fn compute_biquad_coeffs_for(
+    filter_type: FilterType,
+    frequency: f64,
+    gain: f64,
+    q: f64,
+    dsp_sample_rate: f64,
+) -> (f64, f64, f64, f64, f64, f64) {
     // Clamp the frequency to at most 49% of the sample rate to prevent Nyquist boundary collapse
     let max_safe_freq = 0.49 * dsp_sample_rate;
-    let freq = (filter.freq as f64).clamp(20.0, max_safe_freq);
-    let gain = filter.gain;
-    let q = filter.q;
+    let freq = frequency.clamp(20.0, max_safe_freq);
     let a_val = 10_f64.powf(gain / 40.0);
     let omega = (freq * TAU) / dsp_sample_rate;
     let sin_w = omega.sin();
@@ -25,7 +39,7 @@ pub fn compute_biquad_coeffs(
     // Use standard Q-factor for all filter types, matching PEQdB.
     let alpha = sin_w / (2.0 * q);
 
-    match filter.filter_type {
+    match filter_type {
         FilterType::Peak => (
             1.0 + alpha * a_val,
             -2.0 * cos_w,
@@ -76,6 +90,55 @@ pub fn compute_biquad_coeffs(
             -2.0 * cos_w,
             1.0 - alpha,
         ),
+    }
+}
+
+/// Evaluate a biquad using its stable complex frequency response.
+pub fn response_values(filter: &Filter, freqs: &[f64], dsp_sample_rate: f64) -> Vec<f32> {
+    let coeffs = compute_biquad_coeffs(filter, dsp_sample_rate);
+    freqs
+        .iter()
+        .map(|freq| response_db(coeffs, *freq, dsp_sample_rate))
+        .collect()
+}
+
+/// Accumulate the same stable response without allocating, for AutoEQ's hot loop.
+pub fn accumulate_response_values(
+    filter_type: FilterType,
+    frequency: f64,
+    gain: f64,
+    q: f64,
+    dsp_sample_rate: f64,
+    freqs: &[f32],
+    response: &mut [f32],
+) {
+    let coeffs = compute_biquad_coeffs_for(filter_type, frequency, gain, q, dsp_sample_rate);
+    for (freq, value) in freqs.iter().zip(response.iter_mut()) {
+        *value += response_db(coeffs, *freq as f64, dsp_sample_rate);
+    }
+}
+
+fn response_db(
+    (b0, b1, b2, a0, a1, a2): (f64, f64, f64, f64, f64, f64),
+    freq: f64,
+    dsp_sample_rate: f64,
+) -> f32 {
+    let omega = freq * TAU / dsp_sample_rate;
+    let (sin_w, cos_w) = omega.sin_cos();
+    let sin_2w = 2.0 * sin_w * cos_w;
+    let cos_2w = 2.0 * cos_w * cos_w - 1.0;
+
+    let b_real = b0 + b1 * cos_w + b2 * cos_2w;
+    let b_imag = -(b1 * sin_w + b2 * sin_2w);
+    let a_real = a0 + a1 * cos_w + a2 * cos_2w;
+    let a_imag = -(a1 * sin_w + a2 * sin_2w);
+    let numerator = b_real * b_real + b_imag * b_imag;
+    let denominator = a_real * a_real + a_imag * a_imag;
+
+    if numerator > 0.0 && denominator > 0.0 {
+        (10.0 * (numerator / denominator).log10()) as f32
+    } else {
+        0.0
     }
 }
 
@@ -219,5 +282,20 @@ mod tests {
             );
         }
         assert!(coeffs.3 != 0.0);
+    }
+
+    #[test]
+    fn response_stays_finite_for_high_q_peak() {
+        let filter = Filter {
+            index: 0,
+            enabled: true,
+            filter_type: FilterType::Peak,
+            freq: 1000,
+            gain: 10.0,
+            q: 20.0,
+        };
+        let response = response_values(&filter, &[999.0, 1000.0, 1001.0], 96000.0);
+        assert!(response.iter().all(|value| value.is_finite()));
+        assert!(response[1] > 9.0);
     }
 }

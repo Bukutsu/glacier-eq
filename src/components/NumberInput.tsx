@@ -11,6 +11,7 @@ interface NumberInputProps {
   disabled?: boolean;
   className?: string;
   onFocus?: () => void;
+  "aria-label"?: string;
 }
 
 export function NumberInput({
@@ -24,6 +25,7 @@ export function NumberInput({
   disabled = false,
   className = "",
   onFocus,
+  "aria-label": ariaLabel,
 }: NumberInputProps) {
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     const parsed = Number.parseFloat(e.target.value);
@@ -66,6 +68,7 @@ export function NumberInput({
         value={value.toFixed(precision)}
         onChange={handleInputChange}
         onFocus={onFocus}
+        aria-label={ariaLabel}
         disabled={disabled}
         className="stepper-field"
       />

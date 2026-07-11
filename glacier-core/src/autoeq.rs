@@ -533,29 +533,15 @@ pub fn spectrum_values(
     f: &[f32],
     y: &mut [f32],
 ) {
-    let a_val = 10.0_f32.powf(gain / 40.0);
-    let w0 = 2.0 * std::f32::consts::PI / fs * f0;
-    let cos_w = w0.cos();
-    let sin_w = w0.sin();
-    let alpha = sin_w * 0.5 / q;
-
-    let s = biquad_fn(filter_type, a_val, cos_w, alpha);
-
-    let b_x0 = (s.b0 + s.b1 + s.b2).powi(2);
-    let b_x1 = -4.0 * (s.b0 * s.b1 + 4.0 * s.b0 * s.b2 + s.b1 * s.b2);
-    let b_x2 = 16.0 * s.b0 * s.b2;
-    let a_x0 = (s.a0 + s.a1 + s.a2).powi(2);
-    let a_x1 = -4.0 * (s.a0 * s.a1 + 4.0 * s.a0 * s.a2 + s.a1 * s.a2);
-    let a_x2 = 16.0 * s.a0 * s.a2;
-
-    for (freq, value) in f.iter().zip(y.iter_mut()) {
-        let phi = (std::f32::consts::PI / fs * freq).sin().powi(2);
-        let b_poly = b_x0 + phi * (b_x1 + phi * b_x2);
-        let a_poly = a_x0 + phi * (a_x1 + phi * a_x2);
-        if b_poly > 0.0 && a_poly > 0.0 {
-            *value += 10.0 * (b_poly / a_poly).log10();
-        }
-    }
+    crate::eq::iir_math::accumulate_response_values(
+        filter_type,
+        f0 as f64,
+        gain as f64,
+        q as f64,
+        fs as f64,
+        f,
+        y,
+    );
 }
 
 #[derive(Clone, Copy)]
