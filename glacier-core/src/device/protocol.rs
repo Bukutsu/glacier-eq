@@ -51,9 +51,15 @@ impl Packet {
 }
 
 pub trait EqProtocol {
-    fn write_timing(&self) -> WriteTiming;
-    fn is_default_state(&self, peq: &PEQData) -> bool;
-    fn init_packets(&self) -> Vec<Packet>;
+    fn write_timing(&self) -> WriteTiming {
+        WriteTiming::default()
+    }
+    fn is_default_state(&self, peq: &PEQData) -> bool {
+        peq.global_gain == 0.0 && peq.filters.iter().all(|f| !f.enabled || f.gain == 0.0)
+    }
+    fn init_packets(&self) -> Vec<Packet> {
+        vec![]
+    }
     fn read_filter_request(&self, index: u8, nonce: u8) -> Packet;
     fn matches_filter_response(&self, data: &[u8], index: u8, nonce: u8) -> bool;
     fn parse_filter_response(&self, data: &[u8]) -> Option<Filter>;
@@ -69,7 +75,9 @@ pub trait EqProtocol {
     ) -> Result<Vec<Packet>, String>;
     fn write_global_gain_packets(&self, global_gain: f64) -> Vec<Packet>;
     fn commit_packets(&self) -> Vec<Packet>;
-    fn ram_apply_packets(&self) -> Vec<Packet>;
+    fn ram_apply_packets(&self) -> Vec<Packet> {
+        self.commit_packets()
+    }
 
     fn unframe_packet<'a>(&self, framed: &'a [u8]) -> Result<&'a [u8], String> {
         if framed.is_empty() {
@@ -272,10 +280,6 @@ impl EqProtocol for WalkplayProtocol {
             ),
             Packet::new(REPORT_ID, vec![WRITE, CMD_FLASH_EQ, END]),
         ]
-    }
-
-    fn ram_apply_packets(&self) -> Vec<Packet> {
-        self.commit_packets()
     }
 
     fn report_id(&self) -> u8 {

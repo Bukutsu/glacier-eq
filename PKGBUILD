@@ -24,16 +24,9 @@ depends=(
 )
 makedepends=(
   'git'
-  'nodejs'
   'npm'
-  'cargo'
-  'rust'
   'rust-wasm'
   'pkg-config'
-  'openssl'
-  'appmenu-gtk-module'
-  'libappindicator-gtk3'
-  'systemd'
 )
 provides=('glacier-eq')
 conflicts=('glacier-eq')

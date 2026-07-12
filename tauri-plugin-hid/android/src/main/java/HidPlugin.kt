@@ -28,7 +28,6 @@ import java.util.concurrent.TimeUnit
 private const val TAG = "HidPlugin"
 
 class HidDevice(
-    private val usbManager: UsbManager,
     private val usbDevice: UsbDevice,
     private val deviceConnection: UsbDeviceConnection
 ) {
@@ -463,7 +462,7 @@ class HidPlugin(private val activity: Activity): Plugin(activity) {
         }
         
         // Create new HidDevice
-        val hidDevice = HidDevice(usbManager, usbDevice, connection)
+        val hidDevice = HidDevice(usbDevice, connection)
 
         runCatching { hidDevice.initialize() }
             .onSuccess {
@@ -475,23 +474,6 @@ class HidPlugin(private val activity: Activity): Plugin(activity) {
                 Log.e(TAG, it.message, it)
                 invoke.reject(TAG, "Failed to create HidDevice: ${it.message}")
             }
-    }
-
-    fun cleanup() {
-        if (permissionReceiver != null) {
-            activity.unregisterReceiver(permissionReceiver)
-            permissionReceiver = null
-        }
-        if (usbDetachReceiver != null) {
-            activity.unregisterReceiver(usbDetachReceiver)
-            usbDetachReceiver = null
-        }
-
-        // Close all open devices
-        for (device in connectedDevices.values) {
-            runCatching { device.closeConnection() }
-        }
-        connectedDevices.clear()
     }
 
     @Command

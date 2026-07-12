@@ -6,6 +6,7 @@ import { DEFAULT_PROFILE_NAME } from "../App";
 import { fuzzyMatch } from "../lib/search";
 import { AddTraceModal } from "./AddTraceModal";
 import { UnifiedTracesList } from "./UnifiedTraces";
+import { NumberInput } from "./NumberInput";
 
 
 import { TAB_META, type ToolsTab } from "../lib/tabs";
@@ -98,7 +99,6 @@ interface ToolsPanelProps {
   availableTabs?: ToolsTab[];
   defaultTab?: ToolsTab;
   dirty?: boolean;
-  showActions?: boolean;
   graphViewMode?: GraphViewMode;
   onGraphViewModeChange?: (mode: GraphViewMode) => void;
   allTargets?: TargetTrace[];
@@ -329,7 +329,6 @@ function PresetTab({
   onReset,
   onSave,
   onDelete,
-  showActions,
   dirty,
 }: ToolsPanelProps) {
   const query = profileSearch.trim().toLowerCase();
@@ -424,26 +423,24 @@ function PresetTab({
         )}
       </div>
 
-      {showActions !== false && (
-        <div className="profile-management-actions">
-          <button className="save primary-save" onClick={onSave} title="Save profile">
-            <span className="material-symbols-outlined">save</span>
-            <span>Save</span>
-          </button>
-          <button className="icon-action profile-icon-action" title="Reset profile" aria-label="Reset profile" onClick={onReset}>
-            <span className="material-symbols-outlined">restart_alt</span>
-          </button>
-          <button
-            className="icon-action profile-icon-action danger"
-            title="Delete profile"
-            aria-label="Delete profile"
-            disabled={!canDelete}
-            onClick={onDelete}
-          >
-            <span className="material-symbols-outlined">delete</span>
-          </button>
-        </div>
-      )}
+      <div className="profile-management-actions">
+        <button className="save primary-save" onClick={onSave} title="Save profile">
+          <span className="material-symbols-outlined">save</span>
+          <span>Save</span>
+        </button>
+        <button className="icon-action profile-icon-action" title="Reset profile" aria-label="Reset profile" onClick={onReset}>
+          <span className="material-symbols-outlined">restart_alt</span>
+        </button>
+        <button
+          className="icon-action profile-icon-action danger"
+          title="Delete profile"
+          aria-label="Delete profile"
+          disabled={!canDelete}
+          onClick={onDelete}
+        >
+          <span className="material-symbols-outlined">delete</span>
+        </button>
+      </div>
 
       <div className="profile-card-foot">
         <small className="modified">
@@ -903,13 +900,12 @@ export function AutoEqTab({
 
             <div className="import-field-group">
               <label htmlFor="autoeq-bands">Bands Count</label>
-              <input
-                type="number"
+              <NumberInput
                 id="autoeq-bands"
                 value={nBands}
                 min={1}
                 max={32}
-                onChange={(e) => setNBands(+e.target.value)}
+                onChange={setNBands}
                 className="autoeq-bands-stepper"
               />
             </div>
@@ -1359,7 +1355,6 @@ function DeviceTab({ setStatus, onPull }: { setStatus: (msg: string) => void; on
 interface DiagnosticEvent {
   timestamp: string;
   level: "Info" | "Warn" | "Error";
-  source: "UI" | "Worker" | "HID" | "AutoEQ" | "Device";
   message: string;
 }
 
@@ -1385,7 +1380,6 @@ export function DiagnosticsPanel() {
       const diagEvent: DiagnosticEvent = {
         timestamp: payload.time || new Date().toISOString(),
         level: payload.level === "Error" ? "Error" : payload.level === "Warn" ? "Warn" : "Info",
-        source: "Worker", // tauri-plugin-log doesn't give custom sources out of the box
         message: payload.message || "",
       };
       setEvents((prev) => [...prev, diagEvent].slice(-1000));
@@ -1424,7 +1418,6 @@ export function DiagnosticsPanel() {
     if (searchQuery) {
       return (
         fuzzyMatch(searchQuery, e.message) ||
-        fuzzyMatch(searchQuery, e.source) ||
         e.timestamp.includes(searchQuery)
       );
     }
@@ -1441,7 +1434,7 @@ export function DiagnosticsPanel() {
 
   const copyToClipboard = async () => {
     const text = filtered
-      .map((e) => `${e.timestamp} [${e.level.toUpperCase()}] [${e.source}] ${e.message}`)
+      .map((e) => `${e.timestamp} [${e.level.toUpperCase()}] ${e.message}`)
       .join("\n");
     try {
       await writeText(text);
@@ -1505,7 +1498,7 @@ export function DiagnosticsPanel() {
             <p key={index} className={`log-line log-line-${event.level.toLowerCase()}`}>
               <span className="log-ts">{event.timestamp}</span>
               <span className="log-level">{event.level}</span>
-              <span className="log-msg">[{event.source}] {event.message}</span>
+              <span className="log-msg">{event.message}</span>
             </p>
           ))
         )}
