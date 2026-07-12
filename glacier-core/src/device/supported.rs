@@ -8,9 +8,9 @@ use crate::device::DeviceProfile;
 pub const SUPPORTED_DEVICES: &[DeviceProfile] = crate::device::walkplay::PROFILES;
 
 pub fn get_supported_device(vendor_id: u16, product_id: u16) -> Option<&'static DeviceProfile> {
-    SUPPORTED_DEVICES
-        .iter()
-        .find(|device| device.vendor_id == vendor_id && device.product_id.is_none_or(|pid| pid == product_id))
+    SUPPORTED_DEVICES.iter().find(|device| {
+        device.vendor_id == vendor_id && device.product_id.is_none_or(|pid| pid == product_id)
+    })
 }
 
 #[cfg(test)]

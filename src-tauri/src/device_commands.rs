@@ -3,12 +3,12 @@
 
 use crate::diagnostics::{self, DiagnosticsStore, LogLevel, LogSource};
 use crate::state::{ConnectedDevice, DeviceState};
+use glacier_core::device::walkplay::{
+    CMD_AMP_MODE, CMD_BALANCE, CMD_FILTER_MODE, CMD_GAIN_MODE, CMD_MIC_VOLUME,
+};
 use glacier_core::device::{
     get_supported_device, DeviceCapabilities, DeviceInfo, DeviceProfile, DeviceProtocol,
     EqProtocol, Packet, WalkplayProtocol,
-};
-use glacier_core::device::walkplay::{
-    CMD_AMP_MODE, CMD_BALANCE, CMD_FILTER_MODE, CMD_GAIN_MODE, CMD_MIC_VOLUME,
 };
 use glacier_core::eq::{Filter, PEQData};
 use std::collections::HashSet;
@@ -796,11 +796,14 @@ pub async fn get_firmware_version(
     send_packet(
         &app,
         &connected.path,
-        &Packet::new(WalkplayProtocol::report_id(), vec![
-            glacier_core::device::walkplay::READ,
-            glacier_core::device::walkplay::CMD_VERSION,
-            glacier_core::device::walkplay::END,
-        ]),
+        &Packet::new(
+            WalkplayProtocol::report_id(),
+            vec![
+                glacier_core::device::walkplay::READ,
+                glacier_core::device::walkplay::CMD_VERSION,
+                glacier_core::device::walkplay::END,
+            ],
+        ),
     )?;
     sleep_ms(READ_POST_VERSION_MS);
 
@@ -1180,7 +1183,8 @@ fn connected_profile_and_peq(
 ) -> Result<(ConnectedDevice, &'static DeviceProfile, PEQData), String> {
     let connected = connected_device(state)?;
     let profile = registered_profile(&connected)?;
-    let peq = glacier_core::profile_match::normalize_for_match(peq, &profile.caps, profile.protocol);
+    let peq =
+        glacier_core::profile_match::normalize_for_match(peq, &profile.caps, profile.protocol);
     Ok((connected, profile, peq))
 }
 
@@ -1215,7 +1219,10 @@ fn read_utility_register(app: &tauri::AppHandle, path: &str, cmd: u8) -> Result<
     send_packet(
         app,
         path,
-        &Packet::new(WalkplayProtocol::report_id(), WalkplayProtocol::build_utility_read_request(cmd)),
+        &Packet::new(
+            WalkplayProtocol::report_id(),
+            WalkplayProtocol::build_utility_read_request(cmd),
+        ),
     )?;
     read_matching_packet(
         app,
@@ -1231,7 +1238,10 @@ fn read_balance_register(app: &tauri::AppHandle, path: &str, channel: u8) -> Res
     send_packet(
         app,
         path,
-        &Packet::new(WalkplayProtocol::report_id(), WalkplayProtocol::build_balance_read_request(channel)),
+        &Packet::new(
+            WalkplayProtocol::report_id(),
+            WalkplayProtocol::build_balance_read_request(channel),
+        ),
     )?;
     read_matching_packet(
         app,
@@ -1326,7 +1336,11 @@ pub async fn get_dac_utility_state(
 }
 
 fn write_utility_packet(app: &tauri::AppHandle, path: &str, packet: Vec<u8>) -> Result<(), String> {
-    send_packet(app, path, &Packet::new(WalkplayProtocol::report_id(), packet))?;
+    send_packet(
+        app,
+        path,
+        &Packet::new(WalkplayProtocol::report_id(), packet),
+    )?;
     sleep_ms(50);
     flash_eq(app, path)
 }
@@ -1344,11 +1358,14 @@ fn flash_eq(app: &tauri::AppHandle, path: &str) -> Result<(), String> {
     send_packet(
         app,
         path,
-        &Packet::new(WalkplayProtocol::report_id(), vec![
-            glacier_core::device::walkplay::WRITE,
-            glacier_core::device::walkplay::CMD_FLASH_EQ,
-            0,
-        ]),
+        &Packet::new(
+            WalkplayProtocol::report_id(),
+            vec![
+                glacier_core::device::walkplay::WRITE,
+                glacier_core::device::walkplay::CMD_FLASH_EQ,
+                0,
+            ],
+        ),
     )
 }
 
@@ -1412,7 +1429,11 @@ pub async fn set_dac_balance(
     let path = utility_connected_path(&state)?;
     let packets = WalkplayProtocol::build_balance_write_packets(balance);
     for packet in packets {
-        send_packet(&app, &path, &Packet::new(WalkplayProtocol::report_id(), packet))?;
+        send_packet(
+            &app,
+            &path,
+            &Packet::new(WalkplayProtocol::report_id(), packet),
+        )?;
         sleep_ms(20);
     }
     flash_eq(&app, &path)
@@ -1466,7 +1487,11 @@ pub async fn reset_device_controls(
         write_utility_packet(&app, &path, packet)?;
     }
     for packet in WalkplayProtocol::build_balance_write_packets(0) {
-        send_packet(&app, &path, &Packet::new(WalkplayProtocol::report_id(), packet))?;
+        send_packet(
+            &app,
+            &path,
+            &Packet::new(WalkplayProtocol::report_id(), packet),
+        )?;
         sleep_ms(20);
     }
     flash_eq(&app, &path)?;

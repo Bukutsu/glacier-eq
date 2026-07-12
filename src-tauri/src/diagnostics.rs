@@ -61,11 +61,7 @@ impl DiagnosticEvent {
             .unwrap_or_default();
         let secs = now.as_secs();
         let millis = now.subsec_millis();
-        let (h, m, s) = (
-            (secs / 3600) % 24,
-            (secs / 60) % 60,
-            secs % 60,
-        );
+        let (h, m, s) = ((secs / 3600) % 24, (secs / 60) % 60, secs % 60);
         let timestamp = format!("{h:02}:{m:02}:{s:02}.{millis:03}");
         Self {
             timestamp,
