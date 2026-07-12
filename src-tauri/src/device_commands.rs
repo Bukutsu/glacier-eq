@@ -15,7 +15,6 @@ use std::sync::{Mutex, MutexGuard};
 use std::time::Duration;
 use tauri::Manager;
 
-
 const READ_POST_VERSION_MS: u64 = 50;
 const READ_INTER_FILTER_MS: u64 = 35;
 const READ_POST_FILTER_MS: u64 = 50;
@@ -105,12 +104,10 @@ fn handle_disconnection(app: &tauri::AppHandle, error_msg: &str) {
         if let Some(device) = device_to_close {
             let _ = hid_close(app, &device.path);
 
-
-
             log::error!(
-                        "Connection lost to device (unplugged): {}",
-                        device.profile_name
-                    );
+                "Connection lost to device (unplugged): {}",
+                device.profile_name
+            );
             use tauri::Emitter;
             let _ = app.emit("device-disconnected", device.profile_name);
         }
@@ -172,7 +169,8 @@ fn try_open_device(app: &tauri::AppHandle, path: &str) -> Result<(), String> {
 #[tauri::command]
 pub async fn get_eq_state(
     app: tauri::AppHandle,
-    state: tauri::State<'_, Mutex<DeviceState>>,) -> Result<PEQData, String> {
+    state: tauri::State<'_, Mutex<DeviceState>>,
+) -> Result<PEQData, String> {
     let connected = connected_device(&state)?;
     let profile = registered_profile(&connected)?;
     let caps = &profile.caps;
@@ -221,10 +219,10 @@ pub async fn get_eq_state(
     };
 
     log::info!(
-            "Pull successful: {} bands, global_gain={}",
-            peq.filters.len(),
-            peq.global_gain
-        );
+        "Pull successful: {} bands, global_gain={}",
+        peq.filters.len(),
+        peq.global_gain
+    );
     Ok(peq)
 }
 
@@ -317,7 +315,8 @@ fn write_eq_to_ram(
 #[tauri::command]
 pub async fn set_eq_state(
     app: tauri::AppHandle,
-    state: tauri::State<'_, Mutex<DeviceState>>,    peq: PEQData,
+    state: tauri::State<'_, Mutex<DeviceState>>,
+    peq: PEQData,
 ) -> Result<(), String> {
     let (connected, profile, peq) = connected_profile_and_peq(&state, peq)?;
     let caps = &profile.caps;
@@ -370,7 +369,10 @@ pub async fn set_eq_state(
                         {
                             log::error!("Rollback failed: {rollback_error}");
                         } else {
-                            log::info!("{}", "Rollback successfully written. Verifying rollback...");
+                            log::info!(
+                                "{}",
+                                "Rollback successfully written. Verifying rollback..."
+                            );
                             sleep_ms(READ_PULL_RETRY_DELAY_MS);
                             match pull_once(&app, &connected, profile.protocol, caps) {
                                 Ok(rolled_back_state) => {
@@ -378,8 +380,8 @@ pub async fn set_eq_state(
                                         compare_peq(&rolled_back_state, &backup, caps)
                                     {
                                         log::error!(
-                                                "Rollback verification failed: {rollback_mismatch}"
-                                            );
+                                            "Rollback verification failed: {rollback_mismatch}"
+                                        );
                                     } else {
                                         log::info!("{}", "Rollback verified successfully.");
                                     }
@@ -393,7 +395,10 @@ pub async fn set_eq_state(
 
                     return Err(err_msg);
                 } else {
-                    log::info!("{}", "Verification successful: Pushed settings match device state.");
+                    log::info!(
+                        "{}",
+                        "Verification successful: Pushed settings match device state."
+                    );
                 }
             }
             Err(read_error) => {
@@ -413,7 +418,8 @@ pub async fn set_eq_state(
 #[tauri::command]
 pub async fn apply_eq_state(
     app: tauri::AppHandle,
-    state: tauri::State<'_, Mutex<DeviceState>>,    peq: PEQData,
+    state: tauri::State<'_, Mutex<DeviceState>>,
+    peq: PEQData,
 ) -> Result<(), String> {
     let (connected, profile, peq) = connected_profile_and_peq(&state, peq)?;
     if !profile.caps.supports_ram_apply {
@@ -484,7 +490,8 @@ pub fn list_supported_devices() -> Vec<SupportedDeviceInfo> {
 #[tauri::command]
 pub async fn connect_device(
     app: tauri::AppHandle,
-    state: tauri::State<'_, Mutex<DeviceState>>,    path: String,
+    state: tauri::State<'_, Mutex<DeviceState>>,
+    path: String,
 ) -> Result<(), String> {
     let hid = tauri_plugin_hid::hid(&app);
     let devices = hid.enumerate().map_err(|error| error.to_string())?;
@@ -521,7 +528,8 @@ pub async fn connect_device(
 #[tauri::command]
 pub fn disconnect_device(
     app: tauri::AppHandle,
-    state: tauri::State<'_, Mutex<DeviceState>>,) -> Result<(), String> {
+    state: tauri::State<'_, Mutex<DeviceState>>,
+) -> Result<(), String> {
     if let Some(device) = lock_device_state(&state)?.connected.take() {
         if let Err(error) = hid_close(&app, &device.path) {
             let msg = format!("Failed to close {}: {error}", device.profile_name);
@@ -677,7 +685,8 @@ fn read_global_gain(
     app: &tauri::AppHandle,
     path: &str,
     protocol: DeviceProtocol,
-) -> Result<f64, String> {    log::info!("{}", "--- Read Global Gain ---");
+) -> Result<f64, String> {
+    log::info!("{}", "--- Read Global Gain ---");
 
     send_packet(app, path, &protocol.read_global_gain_request())?;
     sleep_ms(READ_POST_GLOBAL_GAIN_MS);
@@ -702,7 +711,8 @@ fn read_matching_packet(
     label: &str,
     attempts: usize,
     matches: impl Fn(&[u8]) -> bool,
-) -> Result<Vec<u8>, String> {    let mut mismatches = 0usize;
+) -> Result<Vec<u8>, String> {
+    let mut mismatches = 0usize;
     for attempt in 1..=attempts {
         let bytes = hid_read(app, path, 60)
             .map_err(|error| format!("{label} read failed on attempt {attempt}: {error}"))?;
@@ -714,10 +724,10 @@ fn read_matching_packet(
         }
 
         log::info!(
-                "{label} read attempt {attempt}/{attempts}: got raw packet (len {}): {:02X?}",
-                bytes.len(),
-                bytes
-            );
+            "{label} read attempt {attempt}/{attempts}: got raw packet (len {}): {:02X?}",
+            bytes.len(),
+            bytes
+        );
 
         let data = match protocol.unframe_packet(&bytes) {
             Ok(data) => data,
@@ -822,7 +832,8 @@ fn apply_ram_changes(
 }
 
 fn send_packet(app: &tauri::AppHandle, path: &str, packet: &Packet) -> Result<(), String> {
-    let framed = packet.framed();    log::info!("Writing packet (len {}): {:02X?}", framed.len(), framed);
+    let framed = packet.framed();
+    log::info!("Writing packet (len {}): {:02X?}", framed.len(), framed);
     let mut last_error = None;
     for attempt in 1..=WRITE_ATTEMPTS {
         if let Some(state) = app.try_state::<Mutex<DeviceState>>() {
