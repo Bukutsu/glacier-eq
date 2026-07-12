@@ -181,6 +181,7 @@ impl EqProtocol for FiioProtocol {
         index: u8,
         filter: &Filter,
         _dsp_sample_rate: f64,
+        _global_gain: f64,
     ) -> Result<Vec<Packet>, String> {
         Ok(vec![write_filter_packet(self.report_id, index, filter)])
     }

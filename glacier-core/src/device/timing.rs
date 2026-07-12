@@ -9,6 +9,10 @@ pub struct WriteTiming {
     pub global_gain_ms: u64,
     /// Delay applied after each commit packet (pre-commit steps, temp-write, flash-eq).
     pub commit_step_ms: u64,
+    /// Delay between successive read requests during a pull (flood control).
+    pub flood_delay_ms: u64,
+    /// Delay after the global-gain read, before starting the band read loop.
+    pub post_gain_read_ms: u64,
 }
 
 impl Default for WriteTiming {
@@ -18,6 +22,8 @@ impl Default for WriteTiming {
             batch_ms: 100,
             global_gain_ms: 50,
             commit_step_ms: 100,
+            flood_delay_ms: 5,
+            post_gain_read_ms: 0,
         }
     }
 }
