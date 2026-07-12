@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, Fragment, useState } from "react";
 import { dbToY, filterResponseValues, formatFreq, freqToX, peqResponseValues, xToFreq } from "../lib/graph";
-import { cssVar, rgbWithAlpha } from "../lib/theme";
+import { filterColorVars, cssVar } from "../lib/theme";
 import { interpolateMeasurementDb } from "../lib/measurements";
-import { filterColorVars } from "../lib/filterColors";
+
 import { peqEquals } from "../lib/peq";
 import type { GraphViewMode, MeasurementTrace, PEQData, TargetTrace } from "../types";
 
@@ -289,7 +289,7 @@ async function drawCurves(
   if (!isCurrent()) return;
 
   for (const response of bandResponses) {
-    drawResponse(ctx, height, response, rgbWithAlpha("--cyan-rgb", 0.22, "rgba(125, 207, 255, 0.22)"), 1);
+    drawResponse(ctx, height, response, "color-mix(in srgb, var(--cyan) 22%, transparent)", 1);
   }
 
   for (const target of targets) {
@@ -307,7 +307,7 @@ async function drawCurves(
     eqResponse.forEach((db, x) => ctx.lineTo(x, dbToY(db, height)));
     ctx.lineTo(width, zero);
     ctx.closePath();
-    ctx.fillStyle = rgbWithAlpha("--cyan-rgb", 0.15, "rgba(125, 207, 255, 0.15)");
+    ctx.fillStyle = "color-mix(in srgb, var(--cyan) 15%, transparent)";
     ctx.fill();
 
     drawResponse(ctx, height, eqResponse, cssVar("--cyan", "#7dcfff"), 3);

@@ -42,20 +42,14 @@ async function ensureWasm() {
 
 // ─── Browser Event Bus (Tauri Event Mimic) ───────────────────────────────────
 
-const eventListeners: { [event: string]: ((event: { payload: any }) => void)[] } = {};
-
 export async function listen<T>(event: string, callback: (event: { payload: T }) => void): Promise<() => void> {
   if (isTauri()) {
     const { listen: tauriListen } = await import("@tauri-apps/api/event");
     return tauriListen(event, callback);
   }
-  if (!eventListeners[event]) {
-    eventListeners[event] = [];
-  }
-  eventListeners[event].push(callback);
-  return () => {
-    eventListeners[event] = eventListeners[event].filter((cb) => cb !== callback);
-  };
+  const handler = (e: Event) => callback({ payload: (e as CustomEvent).detail });
+  window.addEventListener(event, handler);
+  return () => window.removeEventListener(event, handler);
 }
 
 export async function emit(event: string, payload?: any): Promise<void> {
@@ -63,14 +57,7 @@ export async function emit(event: string, payload?: any): Promise<void> {
     const { emit: tauriEmit } = await import("@tauri-apps/api/event");
     return tauriEmit(event, payload);
   }
-  emitEvent(event, payload);
-}
-
-function emitEvent(event: string, payload: any) {
-  const listeners = eventListeners[event];
-  if (listeners) {
-    listeners.forEach((cb) => cb({ payload }));
-  }
+  window.dispatchEvent(new CustomEvent(event, { detail: payload }));
 }
 
 let webHidDisconnectListenerInstalled = false;
@@ -115,7 +102,7 @@ function addDiagnostic(level: string, source: string, message: string) {
     timestamp: new Date().toISOString(),
   };
   diagnosticsStore.push(event);
-  emitEvent("diagnostic-event", event);
+  window.dispatchEvent(new CustomEvent("diagnostic-event", { detail: event }));
 }
 
 // HID Read Queue
@@ -129,7 +116,7 @@ function markWebHidDisconnected(device?: HIDDevice) {
   activeProfile = null;
   reportQueue = [];
   reportResolvers = [];
-  emitEvent("device-disconnected", name);
+  window.dispatchEvent(new CustomEvent("device-disconnected", { detail: name }));
 }
 
 function setupHidEventListeners(device: HIDDevice) {
@@ -277,16 +264,16 @@ function resetPeq(numBands: number): PEQData {
 async function writeEqPayload(protocol: string, peq: PEQData, initMessage: string) {
   const timing = get_write_timing(protocol);
 
-  emitEvent("operation-progress", { message: initMessage, percentage: 10 });
+  window.dispatchEvent(new CustomEvent("operation-progress", { detail: { message: initMessage, percentage: 10 } }));
   await sendPackets(build_init_packets(protocol));
   await sleep(50);
 
   const total = peq.filters.length;
   for (let i = 0; i < total; i++) {
-    emitEvent("operation-progress", {
+    window.dispatchEvent(new CustomEvent("operation-progress", { detail: {
       message: `Writing band ${i + 1}/${total}...`,
       percentage: 15.0 + (i / total) * 60.0,
-    });
+    }}));
 
     await sendPackets(build_write_filter_packets(
       protocol,
@@ -298,7 +285,7 @@ async function writeEqPayload(protocol: string, peq: PEQData, initMessage: strin
     await sleep(timing.per_filter_ms || 80);
   }
 
-  emitEvent("operation-progress", { message: "Writing preamp...", percentage: 75 });
+  window.dispatchEvent(new CustomEvent("operation-progress", { detail: { message: "Writing preamp...", percentage: 75 } }));
   await sleep(timing.batch_ms || 100);
   await sendPackets(build_write_global_gain_packets(protocol, peq.global_gain));
   await sleep(timing.global_gain_ms || 50);
@@ -517,10 +504,10 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
       await sleep(timing.post_gain_read_ms || 0);
 
       for (let i = 0; i < numBands; i++) {
-        emitEvent("operation-progress", {
+        window.dispatchEvent(new CustomEvent("operation-progress", { detail: {
           message: `Reading band ${i + 1}/${numBands}...`,
           percentage: Math.round(((i + 1) / numBands) * 90),
-        });
+        }}));
 
         const nonce = i;
         const filterReq = build_read_filter_request(protocol, i, nonce);
@@ -566,13 +553,13 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
       await writeEqPayload(protocol, args.peq, "Initializing push connection...");
 
       // 4. commit changes
-      emitEvent("operation-progress", { message: "Committing changes to device...", percentage: 80 });
+      window.dispatchEvent(new CustomEvent("operation-progress", { detail: { message: "Committing changes to device...", percentage: 80 } }));
       for (const pkt of build_commit_packets(protocol)) {
         await sendReport(pkt);
         await sleep(timing.commit_step_ms || 100);
       }
 
-      emitEvent("operation-progress", { message: "Push successful", percentage: 100 });
+      window.dispatchEvent(new CustomEvent("operation-progress", { detail: { message: "Push successful", percentage: 100 } }));
       return null as T;
     }
     case "apply_eq_state": {
@@ -581,13 +568,13 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
       await writeEqPayload(protocol, args.peq, "Initializing apply connection...");
 
       // 4. apply to RAM
-      emitEvent("operation-progress", { message: "Applying to RAM...", percentage: 85 });
+      window.dispatchEvent(new CustomEvent("operation-progress", { detail: { message: "Applying to RAM...", percentage: 85 } }));
       for (const pkt of build_ram_apply_packets(protocol)) {
         await sendReport(pkt);
         await sleep(timing.commit_step_ms || 100);
       }
 
-      emitEvent("operation-progress", { message: "Apply successful", percentage: 100 });
+      window.dispatchEvent(new CustomEvent("operation-progress", { detail: { message: "Apply successful", percentage: 100 } }));
       return null as T;
     }
 
