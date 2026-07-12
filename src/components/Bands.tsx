@@ -1,6 +1,5 @@
 import { type CSSProperties, type ReactNode, useState } from "react";
 import type { Filter, FilterType, PEQData } from "../types";
-import { Icon } from "./Icon";
 import { Slider } from "./Slider";
 import { NumberInput } from "./NumberInput";
 import { filterColorVars } from "../lib/filterColors";
@@ -97,12 +96,12 @@ export function Bands({ peq, committedPeq, maxBands, onFilterChange, onStartChan
         aria-label={collapsed ? "Expand filter bands" : "Collapse filter bands"}
       >
         <span className="title-text">
-          <Icon>tune</Icon>
+          <span className="material-symbols-outlined">tune</span>
           <strong>FILTER BANDS</strong>
         </span>
         <span className="collapse-toggle-btn">
           {visibleFilters.length}/{availableFilters.length}
-          <Icon>{collapsed ? "expand_more" : "expand_less"}</Icon>
+          <span className="material-symbols-outlined">{collapsed ? "expand_more" : "expand_less"}</span>
         </span>
       </button>
       <section className="bands-grid">
@@ -123,7 +122,7 @@ export function Bands({ peq, committedPeq, maxBands, onFilterChange, onStartChan
           ))}
           <div className="bands-actions">
             <button type="button" className="btn" onClick={addFilter} disabled={!canAddFilter}>
-              <Icon>add</Icon>
+              <span className="material-symbols-outlined">add</span>
               Add Filter
             </button>
           </div>
@@ -151,7 +150,7 @@ export function Bands({ peq, committedPeq, maxBands, onFilterChange, onStartChan
               disabled={!canAddFilter}
               aria-label="Add filter"
             >
-              <Icon>add</Icon>
+              <span className="material-symbols-outlined">add</span>
               <span>Add</span>
             </button>
           </div>
@@ -173,7 +172,7 @@ export function Bands({ peq, committedPeq, maxBands, onFilterChange, onStartChan
                   if (next) onActiveBandChange?.(next.index);
                 }}
               >
-                <Icon>remove</Icon>
+                <span className="material-symbols-outlined">remove</span>
               </button>
             </div>
             <BandControls
@@ -233,7 +232,7 @@ function BandRow({
           onRemove();
         }}
       >
-        <Icon>remove</Icon>
+        <span className="material-symbols-outlined">remove</span>
       </button>
     </div>
   );

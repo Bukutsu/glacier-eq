@@ -4,8 +4,6 @@ import { Bands } from "./components/Bands";
 import { DeviceChooser } from "./components/DeviceChooser";
 import { EqGraph } from "./components/EqGraph";
 import { Header } from "./components/Header";
-import { Icon } from "./components/Icon";
-import { CustomScrollbar } from "./components/CustomScrollbar";
 import { Preamp } from "./components/Preamp";
 import { ToolsPanel, AutoEqTab, DiagnosticsPanel } from "./components/ToolsPanel";
 import { AddTraceModal } from "./components/AddTraceModal";
@@ -1196,95 +1194,6 @@ function App() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  useEffect(() => {
-    const isScrollableOverflow = (overflow: string) =>
-      overflow === "auto" || overflow === "scroll" || overflow === "overlay";
-
-    function getScrollElement(element: HTMLElement): HTMLElement {
-      if (element === document.body || element === document.documentElement) {
-        return (document.scrollingElement as HTMLElement | null) || document.documentElement;
-      }
-      return element;
-    }
-
-    function canScroll(element: HTMLElement, scrollElement: HTMLElement, axis: "x" | "y") {
-      const style = window.getComputedStyle(element);
-      const isCustomScroll = element.classList.contains("custom-scroll-pane");
-      return axis === "y"
-        ? (isScrollableOverflow(style.overflowY) || isCustomScroll) && scrollElement.scrollHeight > scrollElement.clientHeight
-        : isScrollableOverflow(style.overflowX) && scrollElement.scrollWidth > scrollElement.clientWidth;
-    }
-
-    function findWheelTarget(
-      element: HTMLElement | null,
-      deltaX: number,
-      deltaY: number,
-    ): { element: HTMLElement; deltaX: number; deltaY: number } | null {
-      let parent = element;
-      while (parent) {
-        const scrollElement = getScrollElement(parent);
-        const canScrollY = deltaY !== 0 && canScroll(parent, scrollElement, "y");
-        const canScrollX = deltaX !== 0 && canScroll(parent, scrollElement, "x");
-
-        if (canScrollY || canScrollX) {
-          return {
-            element: scrollElement,
-            deltaX: canScrollX ? deltaX : 0,
-            deltaY: canScrollY ? deltaY : 0,
-          };
-        }
-
-        if (deltaY !== 0 && canScroll(parent, scrollElement, "x")) {
-          return { element: scrollElement, deltaX: deltaY, deltaY: 0 };
-        }
-
-        if (parent === document.body) return null;
-        parent = parent.parentElement;
-      }
-      return null;
-    }
-
-    const handleGlobalWheel = (e: WheelEvent) => {
-      const target = e.target as HTMLElement | null;
-      if (!target) return;
-
-      const workspace = target.closest(".workspace") || target.closest("#app");
-      if (!workspace) return;
-
-      const wheelTarget = findWheelTarget(target, e.deltaX, e.deltaY);
-      if (!wheelTarget) return;
-
-      let deltaY = wheelTarget.deltaY;
-      let deltaX = wheelTarget.deltaX;
-      if (e.deltaMode === 1) {
-        deltaY *= 20;
-        deltaX *= 20;
-      } else if (e.deltaMode === 2) {
-        deltaY *= wheelTarget.element.clientHeight;
-        deltaX *= wheelTarget.element.clientWidth;
-      }
-
-      const beforeTop = wheelTarget.element.scrollTop;
-      const beforeLeft = wheelTarget.element.scrollLeft;
-
-      wheelTarget.element.scrollTop += deltaY;
-      wheelTarget.element.scrollLeft += deltaX;
-
-      if (
-        wheelTarget.element.scrollTop !== beforeTop ||
-        wheelTarget.element.scrollLeft !== beforeLeft
-      ) {
-        e.preventDefault();
-      }
-    };
-
-    window.addEventListener("wheel", handleGlobalWheel, { capture: true, passive: false });
-    return () => {
-      window.removeEventListener("wheel", handleGlobalWheel, { capture: true });
-    };
-  }, []);
-
-
 
   return (
     <div id="app">
@@ -1332,7 +1241,7 @@ function App() {
                 onClick={() => setGraphCollapsed(!graphCollapsed)}
                 aria-label={graphCollapsed ? "Expand graph" : "Collapse graph"}
               >
-                <Icon>{graphCollapsed ? "expand_more" : "expand_less"}</Icon>
+                <span className="material-symbols-outlined">{graphCollapsed ? "expand_more" : "expand_less"}</span>
               </button>
             </section>
           )}
@@ -1381,12 +1290,12 @@ function App() {
               <section className="left-pane">
                 <details className="tuning-card disclosure-card" open>
                   <summary className="tuning-card-header">
-                    <Icon>analytics</Icon>
+                    <span className="material-symbols-outlined">analytics</span>
                     <strong>Traces & Targets</strong>
                   </summary>
                   <div className="tuning-card-body">
                     <button className="btn add-trace-btn" onClick={() => setShowAddTrace(true)}>
-                      <Icon>add</Icon>
+                      <span className="material-symbols-outlined">add</span>
                       <span>Add Trace</span>
                     </button>
                     <section className="tool-card">
@@ -1424,7 +1333,7 @@ function App() {
 
                 <details className="tuning-card disclosure-card" open>
                   <summary className="tuning-card-header">
-                    <Icon>auto_awesome</Icon>
+                    <span className="material-symbols-outlined">auto_awesome</span>
                     <strong>AutoEQ (Tuning Assistant)</strong>
                   </summary>
                   <div className="tuning-card-body">
@@ -1583,7 +1492,7 @@ function App() {
                 onClick={() => setActiveTab(id)}
               >
                 <div className="mobile-tab-icon-wrapper">
-                  <Icon>{icon}</Icon>
+                  <span className="material-symbols-outlined">{icon}</span>
                 </div>
                 <span>{label}</span>
               </button>
@@ -1653,8 +1562,7 @@ function App() {
               onActiveBandChange={setActiveBandIndex}
               snapToIso={snapToIso}
             />
-            <CustomScrollbar targetRef={mainScrollRef} />
-          </section>
+                      </section>
           <ToolsPanel
             peq={peq}
             onImportPEQ={importPeq}
