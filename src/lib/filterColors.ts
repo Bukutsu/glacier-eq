@@ -1,4 +1,4 @@
-export const FILTER_COLOR_VARS = [
+const FILTER_COLOR_VARS = [
   ["--blue", "--blue-rgb", "#7aa2f7"],
   ["--green", "--green-rgb", "#9ece6a"],
   ["--orange", "--orange-rgb", "#ff9e64"],

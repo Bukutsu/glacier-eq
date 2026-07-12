@@ -9,7 +9,7 @@ pub struct ProfileCandidate<'a> {
     pub data: &'a PEQData,
 }
 
-fn normalize_for_match(
+pub fn normalize_for_match(
     mut peq: PEQData,
     caps: &DeviceCapabilities,
     protocol: DeviceProtocol,

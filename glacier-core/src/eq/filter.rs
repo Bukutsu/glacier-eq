@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::eq::constants::*;
+use crate::eq::constants::{GAIN_STEP, ISO_FREQUENCIES, ISO_Q_VALUES};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
@@ -60,18 +60,6 @@ impl From<FilterType> for u8 {
     }
 }
 
-impl std::fmt::Display for FilterType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            FilterType::LowShelf => write!(f, "Low Shelf"),
-            FilterType::Peak => write!(f, "Peak"),
-            FilterType::HighShelf => write!(f, "High Shelf"),
-            FilterType::HighPass => write!(f, "High Pass"),
-            FilterType::LowPass => write!(f, "Low Pass"),
-        }
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Filter {
     pub index: u8,
@@ -101,11 +89,7 @@ impl Filter {
         }
     }
 
-    pub fn clamp(&mut self, freq_range: (u16, u16), gain_range: (f64, f64), q_range: (f64, f64)) {
-        self.gain = self.gain.clamp(gain_range.0, gain_range.1);
-        self.q = self.q.clamp(q_range.0, q_range.1);
-        self.freq = self.freq.clamp(freq_range.0, freq_range.1);
-    }
+
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
@@ -164,7 +148,9 @@ impl PEQData {
                 let old_gain = filter.gain;
                 let old_q = filter.q;
 
-                filter.clamp(caps.freq_range, caps.band_gain_range, caps.q_range);
+                filter.gain = filter.gain.clamp(caps.band_gain_range.0, caps.band_gain_range.1);
+                filter.q = filter.q.clamp(caps.q_range.0, caps.q_range.1);
+                filter.freq = filter.freq.clamp(caps.freq_range.0, caps.freq_range.1);
 
                 if filter.freq != old_freq {
                     warnings.push(format!(
@@ -185,7 +171,9 @@ impl PEQData {
                     ));
                 }
             } else {
-                filter.clamp(caps.freq_range, caps.band_gain_range, caps.q_range);
+                filter.gain = filter.gain.clamp(caps.band_gain_range.0, caps.band_gain_range.1);
+                filter.q = filter.q.clamp(caps.q_range.0, caps.q_range.1);
+                filter.freq = filter.freq.clamp(caps.freq_range.0, caps.freq_range.1);
             }
 
             if !caps.supported_filter_types.contains(&filter.filter_type) {
@@ -193,7 +181,7 @@ impl PEQData {
                 filter.filter_type = FilterType::Peak; // Fallback
                 if filter.enabled {
                     warnings.push(format!(
-                        "Band {}: Converted filter type from {} to Peak (unsupported by device)",
+                        "Band {}: Converted filter type from {:?} to Peak (unsupported by device)",
                         band_num, old_type
                     ));
                 }
@@ -213,33 +201,6 @@ impl PEQData {
 
         warnings
     }
-    /// Audibly-equivalent comparison with tolerance for float fields.
-    /// Disabled bands match regardless of params (no audible effect).
-    pub fn matches_within(&self, other: &Self, gain_tol: f64, q_tol: f64) -> bool {
-        if (self.global_gain - other.global_gain).abs() > 0.001 {
-            return false;
-        }
-        if self.filters.len() != other.filters.len() {
-            return false;
-        }
-        self.filters
-            .iter()
-            .zip(other.filters.iter())
-            .all(|(a, b)| filter_matches_within(a, b, gain_tol, q_tol))
-    }
-}
-
-fn filter_matches_within(a: &Filter, b: &Filter, gain_tol: f64, q_tol: f64) -> bool {
-    if a.enabled != b.enabled {
-        return false;
-    }
-    if !a.enabled {
-        return true;
-    }
-    a.filter_type == b.filter_type
-        && a.freq == b.freq
-        && (a.gain - b.gain).abs() <= gain_tol
-        && (a.q - b.q).abs() <= q_tol
 }
 
 pub fn snap_freq_to_iso(freq: u16) -> u16 {
