@@ -28,8 +28,7 @@ fn read_text_file(path: String) -> Result<String, String> {
 pub fn run() {
     #[cfg(not(mobile))]
     let window_state_flags = StateFlags::SIZE | StateFlags::POSITION | StateFlags::MAXIMIZED;
-    let mut builder = tauri::Builder::default()
-        .manage(Mutex::new(DeviceState::default()));
+    let mut builder = tauri::Builder::default().manage(Mutex::new(DeviceState::default()));
     builder = builder
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_hid::init())
