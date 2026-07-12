@@ -8,7 +8,7 @@ use std::path::PathBuf;
 
 #[cfg(target_os = "android")]
 fn default_theme() -> String {
-    "auto".to_string()
+    "tokyo-night".to_string()
 }
 
 #[cfg(not(target_os = "android"))]
