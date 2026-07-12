@@ -1,16 +1,15 @@
 import { type CSSProperties, useState, useEffect, useRef } from "react";
 import { invoke, listen, readText, writeText, save } from "../lib/rpc";
 import type { AppSettings, MeasurementTrace, Profile, PEQData, GraphViewMode, TargetTrace } from "../types";
+import { DEFAULT_PROFILE_NAME } from "../App";
 import { Icon } from "./Icon";
-import { Checkbox } from "./Checkbox";
+
 import { fuzzyMatch } from "../lib/search";
 import { AddTraceModal } from "./AddTraceModal";
 import { UnifiedTracesList } from "./UnifiedTraces";
 import { NumberInput } from "./NumberInput";
 import { Slider } from "./Slider";
 import { TAB_META, type ToolsTab } from "../lib/tabs";
-
-const DEFAULT_PROFILE_NAME = "Default EQ";
 
 
 
@@ -1033,28 +1032,28 @@ function SettingsTab({
           <strong>Behavior</strong>
         </div>
         <label>
-          <Checkbox
+          <input type="checkbox" className="custom-checkbox"
             checked={settings.auto_pull_on_connect}
             onChange={(e) => onSettingChange("auto_pull_on_connect", e.target.checked)}
           />
           Auto-pull EQ from device on connect
         </label>
         <label>
-          <Checkbox
+          <input type="checkbox" className="custom-checkbox"
             checked={settings.skip_push_verification}
             onChange={(e) => onSettingChange("skip_push_verification", e.target.checked)}
           />
           Skip push verification
         </label>
         <label>
-          <Checkbox
+          <input type="checkbox" className="custom-checkbox"
             checked={settings.snap_to_iso_frequencies}
             onChange={(e) => onSettingChange("snap_to_iso_frequencies", e.target.checked)}
           />
           Snap frequency to ISO standard values
         </label>
         <label>
-          <Checkbox
+          <input type="checkbox" className="custom-checkbox"
             checked={settings.enable_online_measurements}
             onChange={(e) => onSettingChange("enable_online_measurements", e.target.checked)}
           />
@@ -1068,7 +1067,7 @@ function SettingsTab({
         </div>
         {onShowGraphChange !== undefined && (
           <label>
-            <Checkbox
+            <input type="checkbox" className="custom-checkbox"
               checked={!!showGraph}
               onChange={(e) => onShowGraphChange(e.target.checked)}
             />
@@ -1293,7 +1292,7 @@ function DeviceTab({ setStatus, onPull }: { setStatus: (msg: string) => void; on
         </div>
 
         <label>
-          <Checkbox
+          <input type="checkbox" className="custom-checkbox"
             checked={utility.amp_mode_class_ab}
             onChange={(e) => handleSetAmpMode(e.target.checked)}
           />
@@ -1301,7 +1300,7 @@ function DeviceTab({ setStatus, onPull }: { setStatus: (msg: string) => void; on
         </label>
 
         <label>
-          <Checkbox
+          <input type="checkbox" className="custom-checkbox"
             checked={utility.high_gain_mode}
             onChange={(e) => handleSetOutputGain(e.target.checked)}
           />

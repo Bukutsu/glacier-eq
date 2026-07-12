@@ -3,12 +3,6 @@
 
 use crate::eq::FilterType;
 
-pub const PEAK_SHELF_FILTER_TYPES: &[FilterType] = &[
-    FilterType::Peak,
-    FilterType::LowShelf,
-    FilterType::HighShelf,
-];
-
 /// Static capability profile for a device — pure data, no protocol behavior.
 ///
 /// Queried by the UI (to constrain sliders and show/hide controls) and by the
