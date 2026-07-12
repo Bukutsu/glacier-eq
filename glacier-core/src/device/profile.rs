@@ -47,6 +47,5 @@ pub struct DeviceProfile {
     pub vendor_id: u16,
     pub product_id: Option<u16>,
     pub status: &'static str,
-    pub family: &'static str,
     pub caps: DeviceCapabilities,
 }
