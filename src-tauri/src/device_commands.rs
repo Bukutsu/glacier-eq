@@ -7,6 +7,9 @@ use glacier_core::device::{
     get_supported_device, DeviceCapabilities, DeviceInfo, DeviceProfile, DeviceProtocol,
     EqProtocol, Packet, WalkplayProtocol,
 };
+use glacier_core::device::walkplay::{
+    CMD_AMP_MODE, CMD_BALANCE, CMD_FILTER_MODE, CMD_GAIN_MODE, CMD_MIC_VOLUME,
+};
 use glacier_core::eq::{Filter, PEQData};
 use std::collections::HashSet;
 use std::sync::{Mutex, MutexGuard};
@@ -64,9 +67,7 @@ fn registered_profile(connected: &ConnectedDevice) -> Result<&'static DeviceProf
 fn lock_device_state<'a, 'r>(
     state: &'a tauri::State<'r, Mutex<DeviceState>>,
 ) -> Result<MutexGuard<'a, DeviceState>, String> {
-    state
-        .lock()
-        .map_err(|_| "Device state lock poisoned".to_string())
+    state.lock().map_err(|_| "Lock poisoned".to_string())
 }
 
 fn emit_progress(app: &tauri::AppHandle, message: &str, percentage: f32) {
@@ -1226,26 +1227,14 @@ fn read_utility_register(app: &tauri::AppHandle, path: &str, cmd: u8) -> Result<
         path,
         &walkplay_packet(WalkplayProtocol::build_utility_read_request(cmd)),
     )?;
-    sleep_ms(30);
-
-    for attempt in 1..=10 {
-        let bytes = hid_read(app, path, 60).map_err(|error| {
-            format!("Utility read failed for cmd {cmd} on attempt {attempt}: {error}")
-        })?;
-        if bytes.is_empty() {
-            continue;
-        }
-
-        let data = match DeviceProtocol::Walkplay.unframe_packet(&bytes) {
-            Ok(vec) => vec,
-            Err(_) => continue,
-        };
-
-        if data.len() >= 4 && data[0] == 0x80 && data[1] == cmd {
-            return Ok(data.to_vec());
-        }
-    }
-    Err(format!("Utility read timeout for cmd {cmd}"))
+    read_matching_packet(
+        app,
+        path,
+        DeviceProtocol::Walkplay,
+        "Utility register",
+        10,
+        |data| data.len() >= 4 && data[0] == 0x80 && data[1] == cmd,
+    )
 }
 
 fn read_balance_register(app: &tauri::AppHandle, path: &str, channel: u8) -> Result<u8, String> {
@@ -1254,26 +1243,15 @@ fn read_balance_register(app: &tauri::AppHandle, path: &str, channel: u8) -> Res
         path,
         &walkplay_packet(WalkplayProtocol::build_balance_read_request(channel)),
     )?;
-    sleep_ms(30);
-
-    for attempt in 1..=10 {
-        let bytes = hid_read(app, path, 60).map_err(|error| {
-            format!("Balance read failed for channel {channel} on attempt {attempt}: {error}")
-        })?;
-        if bytes.is_empty() {
-            continue;
-        }
-
-        let data = match DeviceProtocol::Walkplay.unframe_packet(&bytes) {
-            Ok(vec) => vec,
-            Err(_) => continue,
-        };
-
-        if data.len() >= 6 && data[0] == 0x80 && data[1] == 22 && data[3] == channel {
-            return Ok(data[5]);
-        }
-    }
-    Err(format!("Balance read timeout for channel {channel}"))
+    read_matching_packet(
+        app,
+        path,
+        DeviceProtocol::Walkplay,
+        "Balance register",
+        10,
+        |data| data.len() >= 6 && data[0] == 0x80 && data[1] == CMD_BALANCE && data[3] == channel,
+    )
+    .map(|data| data[5])
 }
 
 #[tauri::command]
@@ -1294,7 +1272,7 @@ pub async fn get_dac_utility_state(
 
     drain_stale_frames(&app, &connected.path);
 
-    let filter_val = match read_utility_register(&app, &connected.path, 17) {
+    let filter_val = match read_utility_register(&app, &connected.path, CMD_FILTER_MODE) {
         Ok(data) => data[3],
         Err(_) => 1,
     };
@@ -1308,19 +1286,19 @@ pub async fn get_dac_utility_state(
     }
     .to_string();
 
-    let amp_val = match read_utility_register(&app, &connected.path, 29) {
+    let amp_val = match read_utility_register(&app, &connected.path, CMD_AMP_MODE) {
         Ok(data) => data[3],
         Err(_) => 0,
     };
     let amp_mode_class_ab = amp_val == 1;
 
-    let gain_val = match read_utility_register(&app, &connected.path, 25) {
+    let gain_val = match read_utility_register(&app, &connected.path, CMD_GAIN_MODE) {
         Ok(data) => data[3],
         Err(_) => 0,
     };
     let high_gain_mode = gain_val == 1;
 
-    let mic_val = match read_utility_register(&app, &connected.path, 2) {
+    let mic_val = match read_utility_register(&app, &connected.path, CMD_MIC_VOLUME) {
         Ok(data) => data[4] as i8,
         Err(_) => 0,
     };

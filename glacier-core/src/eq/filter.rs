@@ -83,7 +83,7 @@ pub struct Filter {
     pub filter_type: FilterType,
 }
 
-const DEFAULT_FREQS_10_BAND: [u16; 10] = [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
+pub(crate) const DEFAULT_FREQS_10_BAND: [u16; 10] = [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
 
 impl Filter {
     pub fn enabled(index: u8, enabled: bool) -> Self {

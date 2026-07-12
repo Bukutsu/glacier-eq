@@ -8,7 +8,6 @@
 
 :root, :root[data-theme="tokyo-night"] {
   --bg: #1a1b26;
-  --bg-rgb: 26 27 38;
   --bg-dark: #1b1e2e;
   --bg-dark-rgb: 27 30 46;
   --bg-darker: #16161e;
@@ -16,15 +15,11 @@
   --panel: #24283b;
   --panel-rgb: 36 40 59;
   --surface: #363b54;
-  --surface-rgb: 54 59 84;
   --surface-soft: #292e42;
-  --surface-soft-rgb: 41 46 66;
   --text: #c0caf5;
   --text-rgb: 192 202 245;
   --muted: #a9b1d6;
-  --muted-rgb: 169 177 214;
   --comment: #565f89;
-  --comment-rgb: 86 95 137;
   --cyan: #7dcfff;
   --cyan-rgb: 125 207 255;
   --blue: #7aa2f7;
@@ -48,7 +43,6 @@
   --terminal-black: #414868;
   --terminal-black-rgb: 65 72 104;
   --text-alt: #9aa5ce;
-  --text-alt-rgb: 154 165 206;
   --motion-duration-ms: 160;
   --motion-duration: calc(var(--motion-duration-ms) * 1ms);
   --motion-ease: cubic-bezier(0.33, 1, 0.68, 1);
@@ -56,7 +50,6 @@
 
 :root[data-theme="nord"] {
   --bg: #2e3440;
-  --bg-rgb: 46 52 64;
   --bg-dark: #242933;
   --bg-dark-rgb: 36 41 51;
   --bg-darker: #1d212a;
@@ -64,15 +57,11 @@
   --panel: #3b4252;
   --panel-rgb: 59 66 82;
   --surface: #4c566a;
-  --surface-rgb: 76 86 106;
   --surface-soft: #434c5e;
-  --surface-soft-rgb: 67 76 94;
   --text: #eceff4;
   --text-rgb: 236 239 244;
   --muted: #d8dee9;
-  --muted-rgb: 216 222 233;
   --comment: #60728a;
-  --comment-rgb: 96 114 138;
   --cyan: #88c0d0;
   --cyan-rgb: 136 192 208;
   --blue: #81a1c1;
@@ -96,12 +85,10 @@
   --terminal-black: #4c566a;
   --terminal-black-rgb: 76 86 106;
   --text-alt: #e5e9f0;
-  --text-alt-rgb: 229 233 240;
 }
 
 :root[data-theme="dracula"] {
   --bg: #191a21;
-  --bg-rgb: 25 26 33;
   --bg-dark: #21222c;
   --bg-dark-rgb: 33 34 44;
   --bg-darker: #14151a;
@@ -109,15 +96,11 @@
   --panel: #282a36;
   --panel-rgb: 40 42 54;
   --surface: #44475a;
-  --surface-rgb: 68 71 90;
   --surface-soft: #343746;
-  --surface-soft-rgb: 52 55 70;
   --text: #f8f8f2;
   --text-rgb: 248 248 242;
   --muted: #b0bec5;
-  --muted-rgb: 176 190 197;
   --comment: #6272a4;
-  --comment-rgb: 98 114 164;
   --cyan: #8be9fd;
   --cyan-rgb: 139 233 253;
   --blue: #bd93f9;
@@ -141,12 +124,10 @@
   --terminal-black: #44475a;
   --terminal-black-rgb: 68 71 90;
   --text-alt: #f8f8f2;
-  --text-alt-rgb: 248 248 242;
 }
 
 :root[data-theme="gruvbox"] {
   --bg: #282828;
-  --bg-rgb: 40 40 40;
   --bg-dark: #1d2021;
   --bg-dark-rgb: 29 32 33;
   --bg-darker: #151718;
@@ -154,15 +135,11 @@
   --panel: #3c3836;
   --panel-rgb: 60 56 54;
   --surface: #504945;
-  --surface-rgb: 80 73 69;
   --surface-soft: #32302f;
-  --surface-soft-rgb: 50 48 47;
   --text: #ebdbb2;
   --text-rgb: 235 219 178;
   --muted: #a89984;
-  --muted-rgb: 168 153 132;
   --comment: #928374;
-  --comment-rgb: 146 131 116;
   --cyan: #8ec07c;
   --cyan-rgb: 142 192 124;
   --blue: #83a598;
@@ -186,12 +163,10 @@
   --terminal-black: #665c54;
   --terminal-black-rgb: 102 92 84;
   --text-alt: #d5c4a1;
-  --text-alt-rgb: 213 196 161;
 }
 
 :root[data-theme="catppuccin-mocha"] {
   --bg: #1e1e2e;
-  --bg-rgb: 30 30 46;
   --bg-dark: #181825;
   --bg-dark-rgb: 24 24 37;
   --bg-darker: #11111b;
@@ -199,15 +174,11 @@
   --panel: #313244;
   --panel-rgb: 49 50 68;
   --surface: #585b70;
-  --surface-rgb: 88 91 112;
   --surface-soft: #45475a;
-  --surface-soft-rgb: 69 71 90;
   --text: #cdd6f4;
   --text-rgb: 205 214 244;
   --muted: #a6adc8;
-  --muted-rgb: 166 173 200;
   --comment: #6c7086;
-  --comment-rgb: 108 112 134;
   --cyan: #89dceb;
   --cyan-rgb: 137 220 235;
   --blue: #89b4fa;
@@ -231,12 +202,10 @@
   --terminal-black: #45475a;
   --terminal-black-rgb: 69 71 90;
   --text-alt: #bac2de;
-  --text-alt-rgb: 186 194 222;
 }
 
 :root[data-theme="catppuccin-latte"] {
   --bg: #e6e9ef;
-  --bg-rgb: 230 233 239;
   --bg-dark: #dce0e8;
   --bg-dark-rgb: 220 224 232;
   --bg-darker: #ccd0da;
@@ -244,15 +213,11 @@
   --panel: #eff1f5;
   --panel-rgb: 239 241 245;
   --surface: #ccd0da;
-  --surface-rgb: 204 208 218;
   --surface-soft: #bcc0cc;
-  --surface-soft-rgb: 188 192 204;
   --text: #4c4f69;
   --text-rgb: 76 79 105;
   --muted: #5c5f77;
-  --muted-rgb: 92 95 119;
   --comment: #8c8fa1;
-  --comment-rgb: 140 143 161;
   --cyan: #04a5e5;
   --cyan-rgb: 4 165 229;
   --blue: #1e66f5;
@@ -276,7 +241,6 @@
   --terminal-black: #6c6f85;
   --terminal-black-rgb: 108 111 133;
   --text-alt: #5c5f77;
-  --text-alt-rgb: 92 95 119;
 }
 
 :root[data-theme="material-dark"] {
@@ -321,7 +285,6 @@
   --terminal-black: #444c44;
   --terminal-black-rgb: 68 76 68;
   --text-alt: #c0c9be;
-  --text-alt-rgb: 192 201 190;
   --btn-filled-bg: var(--cyan);
   --btn-filled-text: #073822;
   --tab-active-pill: #334b3e;
@@ -330,7 +293,6 @@
 
 :root[data-theme="material-light"] {
   --bg: #f8fbf4;
-  --bg-rgb: 248 251 244;
   --bg-dark: #edf2ea;
   --bg-dark-rgb: 237 242 234;
   --bg-darker: #e9eee6;
@@ -338,15 +300,11 @@
   --panel: #f1f5ee;
   --panel-rgb: 241 245 238;
   --surface: #dce2d9;
-  --surface-rgb: 220 226 217;
   --surface-soft: #e2e7df;
-  --surface-soft-rgb: 226 231 223;
   --text: #191d19;
   --text-rgb: 25 29 25;
   --muted: #424940;
-  --muted-rgb: 66 73 64;
   --comment: #73796f;
-  --comment-rgb: 115 121 111;
   --cyan: #006c4f;
   --cyan-rgb: 0 108 79;
   --blue: #006c4f;
@@ -370,7 +328,6 @@
   --terminal-black: #73796f;
   --terminal-black-rgb: 115 121 111;
   --text-alt: #424940;
-  --text-alt-rgb: 66 73 64;
   --btn-filled-bg: var(--cyan);
   --btn-filled-text: #ffffff;
   --tab-active-pill: #8df8ca;
@@ -385,18 +342,13 @@
   --line-medium: rgb(var(--terminal-black-rgb) / 0.42);
   --line-strong: rgb(var(--terminal-black-rgb) / 0.52);
   --line-separator: rgb(var(--terminal-black-rgb) / 0.38);
-  --line-heavy: rgb(var(--terminal-black-rgb) / 0.62);
-  --line-separator-heavy: rgb(var(--terminal-black-rgb) / 0.48);
   --line-outline: rgb(var(--terminal-black-rgb) / 0.45);
   --focus-ring: rgb(var(--cyan-rgb) / 0.72);
   --accent-line: rgb(var(--cyan-rgb) / 0.28);
-  --accent-line-soft: rgb(var(--cyan-rgb) / 0.42);
   --accent-line-medium: rgb(var(--cyan-rgb) / 0.48);
-  --accent-line-strong: rgb(var(--cyan-rgb) / 0.62);
   --accent-line-hover: rgb(var(--cyan-rgb) / 0.32);
   --accent-line-outline: rgb(var(--cyan-rgb) / 0.55);
   --accent-line-checkbox: rgb(var(--cyan-rgb) / 0.62);
-  --accent-line-light: rgb(var(--cyan-rgb) / 0.24);
   --hover-bg: rgb(var(--panel-rgb) / 0.44);
   --hover-bg-strong: rgb(var(--panel-rgb) / 0.9);
   --danger-outline: rgb(var(--red-rgb) / 0.9);
@@ -418,7 +370,6 @@
   --type-small: 12px;
   --type-caption: 11px;
   --type-micro: 10px;
-  --radius-none: 0;
   --radius-control: 0;
   --radius-surface: 0;
   /* Glacier uses sharp corners as the default visual language. */
@@ -757,45 +708,3 @@ body::-webkit-scrollbar-corner,
   }
 }
 
-/* ── Confirm Dialog (inside Modal) ── */
-.confirm-icon {
-  font-size: 36px;
-  color: var(--yellow);
-  text-align: center;
-}
-.confirm-message {
-  color: var(--text);
-  font-size: 14px;
-  line-height: 1.5;
-  margin: 0;
-  text-align: center;
-  white-space: pre-wrap;
-}
-.confirm-actions {
-  display: flex;
-  gap: 10px;
-  justify-content: center;
-}
-.confirm-btn {
-  padding: 8px 22px;
-  border-radius: 0;
-  border: none;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background var(--motion-duration) var(--motion-ease), opacity var(--motion-duration) var(--motion-ease);
-}
-.confirm-btn-cancel {
-  background: var(--surface);
-  color: var(--muted);
-}
-.confirm-btn-cancel:hover {
-  background: var(--surface-soft);
-}
-.confirm-btn-ok {
-  background: var(--blue);
-  color: var(--bg-darker);
-}
-.confirm-btn-ok:hover {
-  opacity: 0.85;
-}

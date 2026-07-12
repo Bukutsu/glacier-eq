@@ -4,6 +4,7 @@
 //! `DeviceProfile` — static identity and capability metadata for a USB DAC model.
 
 use crate::device::capabilities::DeviceCapabilities;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DeviceProtocol {
@@ -24,6 +25,18 @@ impl DeviceProtocol {
             Self::Fiio => "FiiO",
         }
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DeviceInfo {
+    pub vendor_id: u16,
+    pub product_id: u16,
+    pub path: String,
+    pub manufacturer: Option<String>,
+    pub product_string: Option<String>,
+    pub profile_name: Option<String>,
+    pub num_bands: usize,
+    pub supports_ram_apply: bool,
 }
 
 /// Static identity and capability metadata for a supported USB DAC model.

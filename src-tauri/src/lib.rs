@@ -3,6 +3,13 @@
 
 //! Tauri backend for Glacier EQ.
 
+use std::sync::Mutex;
+
+use diagnostics::DiagnosticsStore;
+use state::DeviceState;
+#[cfg(not(mobile))]
+use tauri_plugin_window_state::StateFlags;
+
 mod device_commands;
 mod diagnostics;
 #[cfg(target_os = "linux")]
@@ -10,13 +17,6 @@ pub mod hid_helper;
 mod profiles;
 mod settings;
 mod state;
-
-use std::sync::Mutex;
-
-use diagnostics::DiagnosticsStore;
-use state::DeviceState;
-#[cfg(not(mobile))]
-use tauri_plugin_window_state::StateFlags;
 
 #[tauri::command]
 fn save_text_file(path: String, content: String) -> Result<(), String> {

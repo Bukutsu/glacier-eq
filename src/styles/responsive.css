@@ -544,7 +544,6 @@
     padding: 12px;
     grid-template-columns: 44px minmax(0, 1fr) minmax(0, 1fr);
     grid-template-areas:
-      "summary summary summary"
       "type type index"
       "freq freq freq"
       "gain gain gain"
@@ -554,33 +553,6 @@
     outline: 1px solid var(--line-medium);
     outline-offset: -1px;
     border-bottom: 0;
-  }
-  .band-summary {
-    grid-area: summary;
-    min-height: 44px;
-    padding: 0 10px;
-    display: grid;
-    grid-template-columns: 32px auto minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 8px;
-    background: var(--surface-soft);
-    color: var(--text);
-    font-size: var(--type-label);
-    text-align: left;
-  }
-  .band-summary strong {
-    color: var(--cyan);
-    font-size: var(--type-subtitle);
-  }
-  .band-summary span:nth-of-type(3),
-  .band-summary .material-symbols-outlined {
-    display: none;
-  }
-  .band-summary span {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
   .band-row.muted {
     opacity: .6;
@@ -752,17 +724,9 @@
     grid-template-columns: 1fr;
     gap: 3px;
   }
-  .disconnected-screen {
-    place-items: stretch;
-    padding: 12px;
-  }
   .device-card {
     min-height: calc(100dvh - 24px - var(--safe-area-top, 0px) - var(--safe-area-bottom, 0px));
     padding: 18px;
-  }
-  .device-card-head {
-    flex-direction: column;
-    align-items: stretch;
   }
   .device-actions {
     justify-content: stretch;
@@ -930,13 +894,6 @@
     padding: 0;
     overflow: visible;
     background: transparent;
-  }
-  .bands-header {
-    display: none;
-  }
-  .bands-header {
-    flex-direction: column !important;
-    gap: 16px !important;
   }
   .band-row {
     min-width: 0;
@@ -1152,7 +1109,7 @@
   .left-pane {
     padding-right: 16px !important;
   }
-  .bands-header, .band-row {
+  .band-row {
     grid-template-columns: 28px 132px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) 28px;
     gap: 8px;
   }
@@ -1163,9 +1120,6 @@
   .gain-cell .custom-number-input.band-gain-stepper,
   .q-cell .custom-number-input.band-q-stepper {
     width: 100% !important;
-  }
-  .bands-header .unit {
-    display: none !important;
   }
   .band-number { font-size: var(--type-label); }
   .type-buttons { gap: 2px; }

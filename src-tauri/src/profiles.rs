@@ -16,7 +16,7 @@ use tauri::Manager;
 pub struct ProfileDto {
     name: String,
     data: PEQData,
-    modified: Option<String>,
+    modified: Option<u64>,
 }
 
 pub(crate) fn app_data_base_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
@@ -53,10 +53,9 @@ fn sanitize_profile_name(name: &str) -> String {
         .collect()
 }
 
-fn modified_time_string(path: &Path) -> Option<String> {
+fn modified_time_epoch(path: &Path) -> Option<u64> {
     let modified = std::fs::metadata(path).ok()?.modified().ok()?;
-    let datetime = chrono::DateTime::<chrono::Local>::from(modified);
-    Some(datetime.format("%Y-%m-%d %H:%M").to_string())
+    Some(modified.duration_since(std::time::UNIX_EPOCH).ok()?.as_secs())
 }
 
 fn connected_match_target(
@@ -157,7 +156,7 @@ fn read_profile(path: PathBuf) -> Result<Option<ProfileDto>, String> {
     Ok(Some(ProfileDto {
         name,
         data,
-        modified: modified_time_string(&path),
+        modified: modified_time_epoch(&path),
     }))
 }
 

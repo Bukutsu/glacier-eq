@@ -116,25 +116,6 @@ jobs:
             exit 1
           fi
 
-          case "${{ matrix.required-assets }}" in
-            linux-x64)
-              compgen -G 'release-assets/*.deb' >/dev/null || { echo '❌ Missing Linux .deb asset'; exit 1; }
-              compgen -G 'release-assets/*.rpm' >/dev/null || { echo '❌ Missing Linux .rpm asset'; exit 1; }
-              compgen -G 'release-assets/*.AppImage' >/dev/null || { echo '❌ Missing Linux .AppImage asset'; exit 1; }
-              ;;
-            windows-x64)
-              compgen -G 'release-assets/*.msi' >/dev/null || { echo '❌ Missing Windows .msi asset'; exit 1; }
-              compgen -G 'release-assets/*.exe' >/dev/null || { echo '❌ Missing Windows .exe asset'; exit 1; }
-              ;;
-            macos-apple-silicon|macos-intel)
-              compgen -G 'release-assets/*.dmg' >/dev/null || { echo '❌ Missing macOS .dmg asset'; exit 1; }
-              ;;
-            *)
-              echo "❌ Unknown required asset group: ${{ matrix.required-assets }}"
-              exit 1
-              ;;
-          esac
-
           echo "✅ Assets collected for ${{ matrix.name }}:"
           find release-assets -maxdepth 1 -type f -print | sort
 
@@ -216,9 +197,6 @@ jobs:
           set -e
           rm -rf src-tauri/gen/android
           npm run android:init
-          # config-cache-compatible buildSrc (avoids Task.project at execution time,
-          # which the generated buildSrc trips on with org.gradle.configuration-cache=true)
-          cp -R scripts/android-buildsrc/* src-tauri/gen/android/buildSrc/
           cp -R src-tauri/icons/android/. src-tauri/gen/android/app/src/main/res/
           # app/build.gradle.kts with release-keystore signing support
           cp scripts/android-app/build.gradle.kts src-tauri/gen/android/app/build.gradle.kts

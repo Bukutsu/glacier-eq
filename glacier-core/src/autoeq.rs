@@ -174,25 +174,11 @@ fn parse_filter_line(line: &str) -> Option<ParsedFilterLine> {
     let filter_idx = lower.find("filter")?;
     let rest = &line[filter_idx + 6..];
 
-    let mut digits = String::new();
-    let mut found_digit = false;
-    for c in rest.chars() {
-        if c.is_ascii_digit() {
-            digits.push(c);
-            found_digit = true;
-        } else if found_digit {
-            break;
-        } else if c.is_whitespace() {
-            // Skip leading whitespace before finding a digit
-            continue;
-        } else if c == ':' {
-            // If we hit a colon before finding any digit, e.g. "Filter: ON"
-            break;
-        } else {
-            // Any other non-digit character before finding a digit means it's not a standard index
-            break;
-        }
-    }
+    let digits: String = rest
+        .chars()
+        .skip_while(|c| c.is_whitespace())
+        .take_while(|c| c.is_ascii_digit())
+        .collect();
 
     let idx: Option<usize> = if digits.is_empty() {
         None
@@ -271,16 +257,10 @@ pub fn autoeq_token(filter_type: FilterType) -> &'static str {
 }
 
 pub fn peq_to_autoeq(peq: &PEQData) -> String {
-    let preamp_str = {
-        let s = format!("{:.2}", peq.global_gain);
-        if s.ends_with(".00") {
-            s[..s.len() - 3].to_string()
-        } else if s.ends_with('0') {
-            s[..s.len() - 1].to_string()
-        } else {
-            s
-        }
-    };
+    let preamp_str = format!("{:.2}", peq.global_gain)
+        .trim_end_matches('0')
+        .trim_end_matches('.')
+        .to_string();
     let mut lines = vec![format!("Preamp: {} dB", preamp_str)];
 
     let mut sorted_filters = peq.filters.clone();
