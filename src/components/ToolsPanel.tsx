@@ -6,8 +6,8 @@ import { DEFAULT_PROFILE_NAME } from "../App";
 import { fuzzyMatch } from "../lib/search";
 import { AddTraceModal } from "./AddTraceModal";
 import { UnifiedTracesList } from "./UnifiedTraces";
-import { NumberInput } from "./NumberInput";
-import { Slider } from "./Slider";
+
+
 import { TAB_META, type ToolsTab } from "../lib/tabs";
 
 
@@ -913,12 +913,13 @@ export function AutoEqTab({
 
             <div className="import-field-group">
               <label htmlFor="autoeq-bands">Bands Count</label>
-              <NumberInput
+              <input
+                type="number"
                 id="autoeq-bands"
                 value={nBands}
                 min={1}
                 max={32}
-                onChange={setNBands}
+                onChange={(e) => setNBands(+e.target.value)}
                 className="autoeq-bands-stepper"
               />
             </div>
@@ -1319,7 +1320,10 @@ function DeviceTab({ setStatus, onPull }: { setStatus: (msg: string) => void; on
               {utility.channel_balance === 0 ? "Center (0)" : utility.channel_balance > 0 ? `L +${utility.channel_balance}` : `R +${Math.abs(utility.channel_balance)}`}
             </span>
           </div>
-          <Slider
+          <input
+            type="range"
+            className="control-slider-input"
+            style={{ "--slider-thumb": "var(--blue)" } as any}
             min="-15"
             max="15"
             step="1"
@@ -1335,7 +1339,10 @@ function DeviceTab({ setStatus, onPull }: { setStatus: (msg: string) => void; on
               {utility.mic_volume_db} dB
             </span>
           </div>
-          <Slider
+          <input
+            type="range"
+            className="control-slider-input"
+            style={{ "--slider-thumb": "var(--blue)" } as any}
             min="-15"
             max="15"
             step="1"
@@ -1380,15 +1387,18 @@ export function DiagnosticsPanel() {
 
   // Load history + subscribe to live events
   useEffect(() => {
-    invoke<DiagnosticEvent[]>("get_diagnostics")
-      .then((data) => setEvents(data))
-      .catch((err) => console.error("Failed to load diagnostics:", err));
-
     let active = true;
     let unlistenFn: (() => void) | null = null;
 
-    listen<DiagnosticEvent>("diagnostic-event", (event) => {
-      setEvents((prev) => [...prev, event.payload].slice(-1000));
+    listen<any>("log://log", (event) => {
+      const payload = event.payload;
+      const diagEvent: DiagnosticEvent = {
+        timestamp: payload.time || new Date().toISOString(),
+        level: payload.level === "Error" ? "Error" : payload.level === "Warn" ? "Warn" : "Info",
+        source: "Worker", // tauri-plugin-log doesn't give custom sources out of the box
+        message: payload.message || "",
+      };
+      setEvents((prev) => [...prev, diagEvent].slice(-1000));
     }).then((fn) => {
       if (active) {
         unlistenFn = fn;
@@ -1433,7 +1443,6 @@ export function DiagnosticsPanel() {
 
   const clearLogs = async () => {
     try {
-      await invoke("clear_diagnostics");
       setEvents([]);
     } catch (err) {
       console.error("Failed to clear diagnostics:", err);

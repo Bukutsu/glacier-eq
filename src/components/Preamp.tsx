@@ -1,5 +1,4 @@
-import { Slider } from "./Slider";
-import { NumberInput } from "./NumberInput";
+
 
 export function Preamp({
   value,
@@ -28,27 +27,33 @@ export function Preamp({
       <div className="preamp-meta">
         <strong>Preamp</strong>
         <div className="preamp-value-row">
-          <NumberInput
-            value={displayValue}
+          <input
+            type="number"
+            value={displayValue.toFixed(precision)}
             min={-16}
             max={6}
             step={step}
-            precision={precision}
             onFocus={onStartChange}
-            onChange={handleValueChange}
+            onChange={(e) => handleValueChange(+e.target.value)}
             className="preamp-value-stepper"
           />
           <span className="preamp-unit">dB</span>
         </div>
       </div>
-      <Slider
+      <input
+        type="range"
+        className="control-slider-input"
+        style={{ "--slider-thumb": "var(--blue)" } as any}
         aria-label="Preamp gain"
         min={-16}
         max={6}
         step={step}
         value={displayValue}
-        onStartChange={onStartChange}
-        onReset={resetValue === undefined ? undefined : () => handleValueChange(resetValue)}
+        onPointerDown={onStartChange}
+        onKeyDown={(e) => {
+          if (!e.repeat && ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End"].includes(e.key)) onStartChange();
+        }}
+        onDoubleClick={resetValue === undefined ? undefined : () => handleValueChange(resetValue)}
         onChange={(event) => handleValueChange(+event.target.value)}
       />
     </section>

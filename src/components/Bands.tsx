@@ -1,8 +1,7 @@
 import { type CSSProperties, type ReactNode, useState } from "react";
 import type { Filter, FilterType, PEQData } from "../types";
-import { Slider } from "./Slider";
-import { NumberInput } from "./NumberInput";
-import { filterColorVars } from "../lib/filterColors";
+
+import { filterColorVars } from "../lib/theme";
 import initWasm, { snap_freq_to_iso } from "../wasm_pkg/glacier_core";
 
 const FREQ_MIN = 20;
@@ -267,32 +266,40 @@ function BandControls({
       </BandField>
       <BandField label="Freq" className="band-freq-field">
         <div className="param-cell freq-cell">
-          <Slider
+          <input
+            type="range"
+            className="control-slider-input"
+            style={{ "--slider-thumb": filter.index >= 5 ? "var(--orange)" : "var(--blue)" } as any}
             aria-label={`Band ${filter.index + 1} frequency`}
             min={0}
             max={FREQ_SLIDER_STEPS}
             step={5}
             value={freqToSlider(filter.freq)}
-            tone={filter.index >= 5 ? "orange" : "blue"}
-            onStartChange={onStartChange}
-            onReset={committedFilter ? () => onChange({ ...filter, freq: committedFilter.freq }) : undefined}
+            onPointerDown={onStartChange}
+            onKeyDown={(e) => {
+              if (!e.repeat && ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End"].includes(e.key)) onStartChange();
+            }}
+            onDoubleClick={committedFilter ? () => onChange({ ...filter, freq: committedFilter.freq }) : undefined}
             onFocus={onActivate}
             onChange={async (event) => {
               const raw = sliderToFreq(+event.target.value);
               onChange({ ...filter, freq: snapToIso ? await snapToIsoFreq(raw) : raw });
             }}
           />
-          <NumberInput
+          <input
+            type="number"
             value={filter.freq}
             min={FREQ_MIN}
             max={FREQ_MAX}
             step={50}
-            precision={0}
             onFocus={() => {
               onActivate();
               onStartChange();
             }}
-            onChange={async (val) => onChange({ ...filter, freq: snapToIso ? await snapToIsoFreq(val) : val })}
+            onChange={async (e) => {
+              const val = +e.target.value;
+              onChange({ ...filter, freq: snapToIso ? await snapToIsoFreq(val) : val });
+            }}
             className="band-freq-stepper"
             aria-label={`Band ${filter.index + 1} frequency value`}
           />
@@ -300,29 +307,34 @@ function BandControls({
       </BandField>
       <BandField label="Gain" className="band-gain-field">
         <div className="gain-cell">
-          <Slider
+          <input
+            type="range"
+            className="control-slider-input"
+            style={{ "--slider-thumb": filter.index >= 5 ? "var(--orange)" : "var(--blue)" } as any}
             aria-label={`Band ${filter.index + 1} gain`}
             min={-10}
             max={10}
             step={0.01}
             value={filter.gain}
-            tone={filter.index >= 5 ? "orange" : "blue"}
-            onStartChange={onStartChange}
-            onReset={committedFilter ? () => onChange({ ...filter, gain: committedFilter.gain }) : undefined}
+            onPointerDown={onStartChange}
+            onKeyDown={(e) => {
+              if (!e.repeat && ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End"].includes(e.key)) onStartChange();
+            }}
+            onDoubleClick={committedFilter ? () => onChange({ ...filter, gain: committedFilter.gain }) : undefined}
             onFocus={onActivate}
             onChange={(event) => onChange({ ...filter, gain: +event.target.value })}
           />
-          <NumberInput
-            value={filter.gain}
+          <input
+            type="number"
+            value={filter.gain.toFixed(2)}
             min={-10}
             max={10}
             step={0.1}
-            precision={2}
             onFocus={() => {
               onActivate();
               onStartChange();
             }}
-            onChange={(val) => onChange({ ...filter, gain: val })}
+            onChange={(e) => onChange({ ...filter, gain: +e.target.value })}
             className="band-gain-stepper"
             aria-label={`Band ${filter.index + 1} gain value`}
           />
@@ -330,7 +342,10 @@ function BandControls({
       </BandField>
       <BandField label="Q" className="band-q-field">
         <div className="param-cell q-cell">
-          <Slider
+          <input
+            type="range"
+            className="control-slider-input"
+            style={{ "--slider-thumb": filter.index >= 5 ? "var(--orange)" : "var(--blue)" } as any}
             aria-label={`Band ${filter.index + 1} Q`}
             min={0}
             max={Q_SLIDER_STEPS}
@@ -340,23 +355,25 @@ function BandControls({
             aria-valuemax={Q_MAX}
             aria-valuenow={filter.q}
             aria-valuetext={`Q ${filter.q.toFixed(2)}`}
-            tone={filter.index >= 5 ? "orange" : "blue"}
-            onStartChange={onStartChange}
-            onReset={committedFilter ? () => onChange({ ...filter, q: committedFilter.q }) : undefined}
+            onPointerDown={onStartChange}
+            onKeyDown={(e) => {
+              if (!e.repeat && ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End"].includes(e.key)) onStartChange();
+            }}
+            onDoubleClick={committedFilter ? () => onChange({ ...filter, q: committedFilter.q }) : undefined}
             onFocus={onActivate}
             onChange={(event) => onChange({ ...filter, q: sliderToQ(+event.target.value) })}
           />
-          <NumberInput
-            value={filter.q}
+          <input
+            type="number"
+            value={filter.q.toFixed(2)}
             min={0.1}
             max={20}
             step={0.05}
-            precision={2}
             onFocus={() => {
               onActivate();
               onStartChange();
             }}
-            onChange={(val) => onChange({ ...filter, q: val })}
+            onChange={(e) => onChange({ ...filter, q: +e.target.value })}
             className="band-q-stepper"
             aria-label={`Band ${filter.index + 1} Q value`}
           />
