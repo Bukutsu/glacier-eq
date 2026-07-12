@@ -30,22 +30,18 @@ jobs:
             os: ubuntu-22.04
             args: "--bundles deb,rpm,appimage"
             rust-targets: ""
-            required-assets: "linux-x64"
           - name: windows-x64
             os: windows-latest
             args: "--bundles nsis,msi"
             rust-targets: ""
-            required-assets: "windows-x64"
           - name: macos-apple-silicon
             os: macos-latest
             args: "--target aarch64-apple-darwin --bundles dmg"
             rust-targets: "aarch64-apple-darwin"
-            required-assets: "macos-apple-silicon"
           - name: macos-intel
             os: macos-latest
             args: "--target x86_64-apple-darwin --bundles dmg"
             rust-targets: "x86_64-apple-darwin"
-            required-assets: "macos-intel"
 
     steps:
       - name: Checkout
