@@ -5,7 +5,6 @@ import { interpolateMeasurementDb } from "../lib/measurements";
 import { filterColorVars } from "../lib/filterColors";
 import { peqEquals } from "../lib/peq";
 import type { GraphViewMode, MeasurementTrace, PEQData, TargetTrace } from "../types";
-import { Icon } from "./Icon";
 
 const GRAPH_FREQS = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
 const GRAPH_DBS = [-15, -10, -5, 0, 5, 10, 15];
@@ -174,7 +173,7 @@ export function EqGraph({
           title="Toggle legend"
           aria-label="Toggle legend"
         >
-          <Icon>{showMobileLegend ? "close" : "legend_toggle"}</Icon>
+          <span className="material-symbols-outlined">{showMobileLegend ? "close" : "legend_toggle"}</span>
         </button>
       )}
       {(committedPeq || targets.length > 0 || visibleMeasurements.length > 0) && (
