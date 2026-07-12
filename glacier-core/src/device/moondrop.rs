@@ -2,26 +2,13 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::device::protocol::{EqProtocol, Packet};
-use crate::device::timing::WriteTiming;
 use crate::device::walkplay::compute_iir_filter;
 use crate::eq::filter::DEFAULT_FREQS_10_BAND;
-use crate::eq::{Filter, FilterType, PEQData};
+use crate::eq::{Filter, FilterType};
 
 pub struct MoondropProtocol;
 
 impl EqProtocol for MoondropProtocol {
-    fn write_timing(&self) -> WriteTiming {
-        WriteTiming::default()
-    }
-
-    fn is_default_state(&self, peq: &PEQData) -> bool {
-        peq.global_gain == 0.0 && peq.filters.iter().all(|f| !f.enabled || f.gain == 0.0)
-    }
-
-    fn init_packets(&self) -> Vec<Packet> {
-        vec![]
-    }
-
     fn read_filter_request(&self, index: u8, _nonce: u8) -> Packet {
         Packet::padded(0x4B, vec![0x80, 0x09, 0x18, 0x00, index], 63)
     }

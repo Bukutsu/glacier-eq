@@ -1,4 +1,4 @@
-
+import { NumberInput } from "./NumberInput";
 
 export function Preamp({
   value,
@@ -27,14 +27,14 @@ export function Preamp({
       <div className="preamp-meta">
         <strong>Preamp</strong>
         <div className="preamp-value-row">
-          <input
-            type="number"
-            value={displayValue.toFixed(precision)}
+          <NumberInput
+            value={displayValue}
             min={-16}
             max={6}
             step={step}
+            precision={precision}
             onFocus={onStartChange}
-            onChange={(e) => handleValueChange(+e.target.value)}
+            onChange={handleValueChange}
             className="preamp-value-stepper"
           />
           <span className="preamp-unit">dB</span>
