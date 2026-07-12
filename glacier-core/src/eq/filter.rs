@@ -119,6 +119,15 @@ impl PEQData {
             ));
         }
 
+        if caps.integer_preamp && (self.global_gain - self.global_gain.round()).abs() > 1e-9 {
+            let old_gain = self.global_gain;
+            self.global_gain = self.global_gain.round();
+            warnings.push(format!(
+                "Rounded preamp gain from {:.2} dB to {:.0} dB to match device integer preamp capability",
+                old_gain, self.global_gain
+            ));
+        }
+
         // Truncate if there are more filters than supported bands
         if self.filters.len() > caps.num_bands {
             let excess = self.filters.len() - caps.num_bands;
@@ -220,5 +229,25 @@ pub fn snap_freq_to_iso(freq: u16) -> u16 {
         } else {
             right
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::device::capabilities::DESKTOP_DAC_CAPS;
+
+    #[test]
+    fn test_clamp_to_capabilities_rounds_preamp() {
+        let mut peq = PEQData {
+            filters: vec![],
+            global_gain: -3.52,
+        };
+        let mut caps = DESKTOP_DAC_CAPS.clone();
+        caps.integer_preamp = true;
+
+        let warnings = peq.clamp_to_capabilities(&caps);
+        assert_eq!(peq.global_gain, -4.0);
+        assert!(warnings.iter().any(|w| w.contains("Rounded preamp gain")));
     }
 }
