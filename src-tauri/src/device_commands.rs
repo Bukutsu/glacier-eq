@@ -20,8 +20,8 @@ use tauri::Manager;
 use crate::hid_helper::ElevatedTransport;
 
 const READ_POST_VERSION_MS: u64 = 50;
-const READ_INTER_FILTER_MS: u64 = 10;
-const READ_POST_FILTER_MS: u64 = 40;
+const READ_INTER_FILTER_MS: u64 = 35;
+const READ_POST_FILTER_MS: u64 = 50;
 const READ_POST_GLOBAL_GAIN_MS: u64 = 25;
 const READ_WAKE_DELAY_MS: u64 = 50;
 const READ_PULL_RETRY_DELAY_MS: u64 = 100;
