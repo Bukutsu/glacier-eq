@@ -1,5 +1,5 @@
 import { type CSSProperties, useState, useEffect, useRef } from "react";
-import { invoke, listen, readText, writeText, save } from "../lib/rpc";
+import { invoke, listen, readText, writeText } from "../lib/rpc";
 import type { AppSettings, MeasurementTrace, Profile, PEQData, GraphViewMode, TargetTrace } from "../types";
 import { DEFAULT_PROFILE_NAME } from "../App";
 
@@ -95,10 +95,6 @@ interface ToolsPanelProps {
   onRemoveMeasurement: (id: string) => void;
   onToggleMeasurement: (id: string) => void;
   onClearMeasurements: () => void;
-  canUndo: boolean;
-  canRedo: boolean;
-  onUndo: () => void;
-  onRedo: () => void;
   availableTabs?: ToolsTab[];
   defaultTab?: ToolsTab;
   dirty?: boolean;
@@ -123,13 +119,10 @@ interface ToolsPanelProps {
 }
 
 export function ToolsPanel(props: ToolsPanelProps) {
-  const requestedTabs = props.availableTabs ?? ["Preset", "Import", "AutoEQ", "Device", "Settings"];
-  const availableTabs = requestedTabs.filter((name) => name !== "Import" || !requestedTabs.includes("Preset"));
-  const [internalTab, setInternalTab] = useState<ToolsTab>(() => (
-    props.defaultTab === "Import" && availableTabs.includes("Preset")
-      ? "Preset"
-      : props.defaultTab && availableTabs.includes(props.defaultTab) ? props.defaultTab : availableTabs[0]
-  ));
+  const availableTabs = props.availableTabs ?? ["Preset", "AutoEQ", "Device", "Settings"];
+  const [internalTab, setInternalTab] = useState<ToolsTab>(() =>
+    props.defaultTab && availableTabs.includes(props.defaultTab) ? props.defaultTab : availableTabs[0]
+  );
 
   const tab = props.activeTab ?? internalTab;
   const setTab = props.onActiveTabChange ?? setInternalTab;
@@ -542,16 +535,13 @@ function ImportTab({ peq, profiles, onImportPEQ, onReloadProfiles, setStatus }: 
   const handleExportFile = async () => {
     try {
       const text = await invoke<string>("peq_to_autoeq", { peq });
-      const defaultName = `${(importName || "eq_profile").replace(/[^a-zA-Z0-9_\- ]/g, "")}.txt`;
-      const path = await save({
-        defaultPath: defaultName,
-        filters: [{ name: "Text Files", extensions: ["txt"] }],
-      });
-      if (!path) {
-        setStatus("Export cancelled.");
-        return;
-      }
-      await invoke("save_text_file", { path, content: text });
+      const name = `${(importName || "eq_profile").replace(/[^a-zA-Z0-9_\- ]/g, "")}.txt`;
+      const url = URL.createObjectURL(new Blob([text], { type: "text/plain;charset=utf-8" }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = name;
+      link.click();
+      URL.revokeObjectURL(url);
       setStatus("EQ settings exported successfully");
     } catch (err) {
       setStatus(`Export failed: ${err}`);
