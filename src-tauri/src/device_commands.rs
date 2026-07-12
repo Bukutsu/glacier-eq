@@ -1066,7 +1066,7 @@ fn write_filters(
             pct,
         );
         for packet in protocol
-            .write_filter_packets(index as u8, filter, dsp_sample_rate)
+            .write_filter_packets(index as u8, filter, dsp_sample_rate, peq.global_gain)
             .map_err(|error| format!("Band {} write failed: {error}", index + 1))?
         {
             send_packet(app, path, &packet)
