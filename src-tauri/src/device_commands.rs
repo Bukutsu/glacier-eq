@@ -796,7 +796,7 @@ pub async fn get_firmware_version(
     send_packet(
         &app,
         &connected.path,
-        &walkplay_packet(vec![
+        &Packet::new(WalkplayProtocol::report_id(), vec![
             glacier_core::device::walkplay::READ,
             glacier_core::device::walkplay::CMD_VERSION,
             glacier_core::device::walkplay::END,
@@ -1160,10 +1160,6 @@ fn send_packet(app: &tauri::AppHandle, path: &str, packet: &Packet) -> Result<()
     Err(err_msg)
 }
 
-fn walkplay_packet(payload: Vec<u8>) -> Packet {
-    Packet::new(WalkplayProtocol::report_id(), payload)
-}
-
 fn drain_stale_frames(app: &tauri::AppHandle, path: &str) {
     for _ in 0..INIT_DRAIN_ATTEMPTS {
         match hid_read(app, path, 20) {
@@ -1219,7 +1215,7 @@ fn read_utility_register(app: &tauri::AppHandle, path: &str, cmd: u8) -> Result<
     send_packet(
         app,
         path,
-        &walkplay_packet(WalkplayProtocol::build_utility_read_request(cmd)),
+        &Packet::new(WalkplayProtocol::report_id(), WalkplayProtocol::build_utility_read_request(cmd)),
     )?;
     read_matching_packet(
         app,
@@ -1235,7 +1231,7 @@ fn read_balance_register(app: &tauri::AppHandle, path: &str, channel: u8) -> Res
     send_packet(
         app,
         path,
-        &walkplay_packet(WalkplayProtocol::build_balance_read_request(channel)),
+        &Packet::new(WalkplayProtocol::report_id(), WalkplayProtocol::build_balance_read_request(channel)),
     )?;
     read_matching_packet(
         app,
@@ -1330,7 +1326,7 @@ pub async fn get_dac_utility_state(
 }
 
 fn write_utility_packet(app: &tauri::AppHandle, path: &str, packet: Vec<u8>) -> Result<(), String> {
-    send_packet(app, path, &walkplay_packet(packet))?;
+    send_packet(app, path, &Packet::new(WalkplayProtocol::report_id(), packet))?;
     sleep_ms(50);
     flash_eq(app, path)
 }
@@ -1348,7 +1344,7 @@ fn flash_eq(app: &tauri::AppHandle, path: &str) -> Result<(), String> {
     send_packet(
         app,
         path,
-        &walkplay_packet(vec![
+        &Packet::new(WalkplayProtocol::report_id(), vec![
             glacier_core::device::walkplay::WRITE,
             glacier_core::device::walkplay::CMD_FLASH_EQ,
             0,
@@ -1416,7 +1412,7 @@ pub async fn set_dac_balance(
     let path = utility_connected_path(&state)?;
     let packets = WalkplayProtocol::build_balance_write_packets(balance);
     for packet in packets {
-        send_packet(&app, &path, &walkplay_packet(packet))?;
+        send_packet(&app, &path, &Packet::new(WalkplayProtocol::report_id(), packet))?;
         sleep_ms(20);
     }
     flash_eq(&app, &path)
@@ -1470,7 +1466,7 @@ pub async fn reset_device_controls(
         write_utility_packet(&app, &path, packet)?;
     }
     for packet in WalkplayProtocol::build_balance_write_packets(0) {
-        send_packet(&app, &path, &walkplay_packet(packet))?;
+        send_packet(&app, &path, &Packet::new(WalkplayProtocol::report_id(), packet))?;
         sleep_ms(20);
     }
     flash_eq(&app, &path)?;

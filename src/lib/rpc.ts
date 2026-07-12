@@ -199,7 +199,7 @@ async function sendPackets(packets: (number[] | Uint8Array)[], delayMs = 0): Pro
   }
 }
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function loadJson<T>(key: string, fallback: T): T {
   const value = localStorage.getItem(key);

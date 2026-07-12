@@ -1,7 +1,6 @@
 import { useState } from "react";
 import type { AppSettings, MeasurementPoint } from "../types";
 import { Icon } from "./Icon";
-import { SearchBar } from "./SearchBar";
 import { fuzzyMatch } from "../lib/search";
 import { openFileDialog } from "../lib/rpc";
 import { parseMeasurementText } from "../lib/measurements";
@@ -140,7 +139,7 @@ export function AddTraceModal({
             </div>
             {downloaded ? (
               <>
-                <SearchBar
+                <input type="text" className="curves-search-input"
                   placeholder="Search online database..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}

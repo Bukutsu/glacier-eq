@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { invoke, listen, emit } from "./lib/rpc";
+import { invoke, listen, emit, sleep } from "./lib/rpc";
 import { Bands } from "./components/Bands";
 import { DeviceChooser } from "./components/DeviceChooser";
 import { EqGraph } from "./components/EqGraph";
@@ -42,7 +42,7 @@ import type {
 import { ToastContainer, type Toast } from "./components/Toast";
 
 const ANDROID_TOAST_DEDUPE_MS = 2000;
-const DEFAULT_PROFILE_NAME = "Default EQ";
+export const DEFAULT_PROFILE_NAME = "Default EQ";
 const DEFAULT_SETTINGS: AppSettings = {
   auto_pull_on_connect: true,
   skip_push_verification: false,
@@ -71,11 +71,6 @@ function loadPersistedJson<T>(key: string): T | null {
     return null;
   }
 }
-
-const sleep = (ms: number) => {
-  const isAutomated = typeof navigator !== "undefined" && navigator.webdriver;
-  return new Promise((resolve) => setTimeout(resolve, isAutomated ? 0 : ms));
-};
 
 declare global {
   interface Window {

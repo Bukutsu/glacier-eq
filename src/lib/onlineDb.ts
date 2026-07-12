@@ -37,7 +37,7 @@ function idbRequest<T>(request: IDBRequest<T>): Promise<T> {
   });
 }
 
-export async function isDatabaseDownloaded(): Promise<boolean> {
+async function isDatabaseDownloaded(): Promise<boolean> {
   try {
     const db = await openDb();
     const store = db.transaction(STORE_NAME, "readonly").objectStore(STORE_NAME);
@@ -47,13 +47,13 @@ export async function isDatabaseDownloaded(): Promise<boolean> {
   }
 }
 
-export async function clearCachedDatabase(): Promise<void> {
+async function clearCachedDatabase(): Promise<void> {
   const db = await openDb();
   const store = db.transaction(STORE_NAME, "readwrite").objectStore(STORE_NAME);
   await idbRequest(store.clear());
 }
 
-export async function downloadDatabase(
+async function downloadDatabase(
   onProgress: (percent: number) => void,
 ): Promise<number> {
   const [rawData, manifest] = await Promise.all([
@@ -131,7 +131,7 @@ async function fetchJson(url: string, onProgress?: (percent: number) => void): P
   return JSON.parse(text);
 }
 
-export async function fetchManifest(): Promise<OnlineDevice[]> {
+async function fetchManifest(): Promise<OnlineDevice[]> {
   const db = await openDb();
   const store = db.transaction(STORE_NAME, "readonly").objectStore(STORE_NAME);
   const data = await idbRequest<any>(store.get("meta:manifest"));
@@ -249,7 +249,7 @@ export function useOnlineDatabase(
   };
 }
 
-export async function loadDeviceCurvePoints(
+async function loadDeviceCurvePoints(
   deviceId: string,
 ): Promise<MeasurementPoint[]> {
   const db = await openDb();

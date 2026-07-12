@@ -1,7 +1,7 @@
 import type { DeviceInfo, PEQData } from "../types";
 import { DEFAULT_FREQS_10_BAND } from "./peq";
 
-export const DEV_DUMMY_DEVICE_PATH = "glacier-dev://dummy-dac";
+const DEV_DUMMY_DEVICE_PATH = "glacier-dev://dummy-dac";
 
 export const DEV_DUMMY_DEVICE: DeviceInfo = {
   vendor_id: 0x3302,
