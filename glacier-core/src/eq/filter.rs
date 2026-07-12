@@ -71,7 +71,8 @@ pub struct Filter {
     pub filter_type: FilterType,
 }
 
-pub(crate) const DEFAULT_FREQS_10_BAND: [u16; 10] = [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
+pub(crate) const DEFAULT_FREQS_10_BAND: [u16; 10] =
+    [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
 
 impl Filter {
     pub fn enabled(index: u8, enabled: bool) -> Self {
@@ -88,8 +89,6 @@ impl Filter {
             filter_type: FilterType::Peak,
         }
     }
-
-
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
@@ -148,7 +147,9 @@ impl PEQData {
                 let old_gain = filter.gain;
                 let old_q = filter.q;
 
-                filter.gain = filter.gain.clamp(caps.band_gain_range.0, caps.band_gain_range.1);
+                filter.gain = filter
+                    .gain
+                    .clamp(caps.band_gain_range.0, caps.band_gain_range.1);
                 filter.q = filter.q.clamp(caps.q_range.0, caps.q_range.1);
                 filter.freq = filter.freq.clamp(caps.freq_range.0, caps.freq_range.1);
 
@@ -171,7 +172,9 @@ impl PEQData {
                     ));
                 }
             } else {
-                filter.gain = filter.gain.clamp(caps.band_gain_range.0, caps.band_gain_range.1);
+                filter.gain = filter
+                    .gain
+                    .clamp(caps.band_gain_range.0, caps.band_gain_range.1);
                 filter.q = filter.q.clamp(caps.q_range.0, caps.q_range.1);
                 filter.freq = filter.freq.clamp(caps.freq_range.0, caps.freq_range.1);
             }
