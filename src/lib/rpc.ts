@@ -91,20 +91,6 @@ function matchSupportedWebHidDevice(
 let activeDevice: HIDDevice | null = null;
 let activeProfile: any = null; // Contains metadata & caps
 
-// Memory Diagnostic Store for Web mode
-let diagnosticsStore: { level: string; source: string; message: string; timestamp: string }[] = [];
-
-function addDiagnostic(level: string, source: string, message: string) {
-  const event = {
-    level,
-    source,
-    message,
-    timestamp: new Date().toISOString(),
-  };
-  diagnosticsStore.push(event);
-  window.dispatchEvent(new CustomEvent("diagnostic-event", { detail: event }));
-}
-
 // HID Read Queue
 let reportQueue: Uint8Array[] = [];
 let reportResolvers: ((report: Uint8Array) => void)[] = [];
@@ -312,11 +298,6 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
   // Ensure WASM is loaded first
   await ensureWasm();
 
-  // Log WebRPC calls to local diagnostics
-  if (cmd !== "get_diagnostics" && cmd !== "add_diagnostic_event") {
-    addDiagnostic("Info", "UI", `WebRPC invoke("${cmd}", ${JSON.stringify(args || {})})`);
-  }
-
   switch (cmd) {
     // ─── Settings ───────────────────────────────────────────────────────────
     case "get_settings": {
@@ -400,19 +381,6 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
       a.download = filename;
       a.click();
       URL.revokeObjectURL(url);
-      return null as T;
-    }
-
-    // ─── Diagnostics ────────────────────────────────────────────────────────
-    case "add_diagnostic_event": {
-      addDiagnostic(args.level, args.source, args.message);
-      return null as T;
-    }
-    case "get_diagnostics": {
-      return diagnosticsStore as T;
-    }
-    case "clear_diagnostics": {
-      diagnosticsStore = [];
       return null as T;
     }
 

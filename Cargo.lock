@@ -1295,7 +1295,6 @@ name = "glacier-eq"
 version = "0.4.1"
 dependencies = [
  "glacier-core",
- "hidapi",
  "log",
  "serde",
  "serde_json",

@@ -55,7 +55,6 @@ export interface SupportedDeviceInfo {
   vendor_id: number;
   product_id: number | null;
   status: string;
-  family: string;
   num_bands: number;
   supports_ram_apply: boolean;
   integer_preamp: boolean;
