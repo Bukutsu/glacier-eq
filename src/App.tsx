@@ -1160,6 +1160,37 @@ function App() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  const toolsPanelProps = {
+    peq,
+    onImportPEQ: importPeq,
+    onPull: pullEq,
+    profiles,
+    selectedPreset,
+    profileSearch,
+    setProfileSearch,
+    newProfileName,
+    setNewProfileName,
+    onSelectProfile: applyProfile,
+    onApplyProfile: supportsRamApply ? applyProfileToRam : undefined,
+    onReloadProfiles: loadProfiles,
+    onOpenProfilesDir: openProfilesDir,
+    hideProfileFolderButton: isAndroid,
+    onReset: reset,
+    onSave: saveProfile,
+    onDelete: deleteSelectedProfile,
+    setStatus,
+    measurements,
+    onAddMeasurement: addMeasurement,
+    onRemoveMeasurement: removeMeasurement,
+    onToggleMeasurement: toggleMeasurement,
+    onClearMeasurements: clearMeasurements,
+    onSelectedMeasurementChange: setSelectedMeasurementId,
+    allTargets,
+    activeTargetIds,
+    settings,
+    onSettingChange: updateSetting,
+    onOpenDiagnostics: () => setShowDiagnosticsModal(true),
+  };
 
   return (
     <div id="app">
@@ -1320,130 +1351,34 @@ function App() {
             {activeTab === "profiles" && (
               <section className="left-pane">
                 <ToolsPanel
-                  peq={peq}
-                  onImportPEQ={importPeq}
-                  onPull={pullEq}
+                  {...toolsPanelProps}
                   dirty={dirty}
-                  profiles={profiles}
-                  selectedPreset={selectedPreset}
-                  profileSearch={profileSearch}
-                  setProfileSearch={setProfileSearch}
-                  newProfileName={newProfileName}
-                  setNewProfileName={setNewProfileName}
-                  onSelectProfile={applyProfile}
-                  onApplyProfile={supportsRamApply ? applyProfileToRam : undefined}
-                  onReloadProfiles={loadProfiles}
-                  onOpenProfilesDir={openProfilesDir}
-                  hideProfileFolderButton={isAndroid}
-                  onReset={reset}
-                  onSave={saveProfile}
-                  onDelete={deleteSelectedProfile}
-                  setStatus={setStatus}
-                  measurements={measurements}
-                  onAddMeasurement={addMeasurement}
-                  onRemoveMeasurement={removeMeasurement}
-                  onToggleMeasurement={toggleMeasurement}
-                  onClearMeasurements={clearMeasurements}
-                  onSelectedMeasurementChange={setSelectedMeasurementId}
-                  canUndo={undoStack.length > 0}
-                  canRedo={redoStack.length > 0}
-                  onUndo={undo}
-                  onRedo={redo}
-                  availableTabs={["Preset", "Import"]}
+                  availableTabs={["Preset"]}
                   defaultTab="Preset"
-                  allTargets={allTargets}
-                  activeTargetIds={activeTargetIds}
-                  settings={settings}
-                  onSettingChange={updateSetting}
-                  onOpenDiagnostics={() => setShowDiagnosticsModal(true)}
                 />
               </section>
             )}
             {activeTab === "settings" && (
               <section className="left-pane">
                 <ToolsPanel
-                  peq={peq}
-                  onImportPEQ={importPeq}
-                  onPull={pullEq}
-                  profiles={profiles}
-                  selectedPreset={selectedPreset}
-                  profileSearch={profileSearch}
-                  setProfileSearch={setProfileSearch}
-                  newProfileName={newProfileName}
-                  setNewProfileName={setNewProfileName}
-                  onSelectProfile={applyProfile}
-                  onApplyProfile={supportsRamApply ? applyProfileToRam : undefined}
-                  onReloadProfiles={loadProfiles}
-                  onOpenProfilesDir={openProfilesDir}
-                  hideProfileFolderButton={isAndroid}
-                  onReset={reset}
-                  onSave={saveProfile}
-                  onDelete={deleteSelectedProfile}
-                  setStatus={setStatus}
-                  measurements={measurements}
-                  onAddMeasurement={addMeasurement}
-                  onRemoveMeasurement={removeMeasurement}
-                  onToggleMeasurement={toggleMeasurement}
-                  onClearMeasurements={clearMeasurements}
-                  onSelectedMeasurementChange={setSelectedMeasurementId}
-                  canUndo={undoStack.length > 0}
-                  canRedo={redoStack.length > 0}
-                  onUndo={undo}
-                  onRedo={redo}
+                  {...toolsPanelProps}
                   availableTabs={["Settings"]}
                   defaultTab="Settings"
                   showActions={false}
                   graphViewMode={graphViewMode}
                   onGraphViewModeChange={setGraphViewMode}
-                  allTargets={allTargets}
-                  activeTargetIds={activeTargetIds}
-                  settings={settings}
-                  onSettingChange={updateSetting}
-                  onOpenDiagnostics={() => setShowDiagnosticsModal(true)}
                 />
               </section>
             )}
             {activeTab === "device" && (
               <section className="left-pane">
                 <ToolsPanel
-                  peq={peq}
-                  onImportPEQ={importPeq}
-                  onPull={pullEq}
-                  profiles={profiles}
-                  selectedPreset={selectedPreset}
-                  profileSearch={profileSearch}
-                  setProfileSearch={setProfileSearch}
-                  newProfileName={newProfileName}
-                  setNewProfileName={setNewProfileName}
-                  onSelectProfile={applyProfile}
-                  onApplyProfile={supportsRamApply ? applyProfileToRam : undefined}
-                  onReloadProfiles={loadProfiles}
-                  onOpenProfilesDir={openProfilesDir}
-                  hideProfileFolderButton={isAndroid}
-                  onReset={reset}
-                  onSave={saveProfile}
-                  onDelete={deleteSelectedProfile}
-                  setStatus={setStatus}
-                  measurements={measurements}
-                  onAddMeasurement={addMeasurement}
-                  onRemoveMeasurement={removeMeasurement}
-                  onToggleMeasurement={toggleMeasurement}
-                  onClearMeasurements={clearMeasurements}
-                  onSelectedMeasurementChange={setSelectedMeasurementId}
-                  canUndo={undoStack.length > 0}
-                  canRedo={redoStack.length > 0}
-                  onUndo={undo}
-                  onRedo={redo}
+                  {...toolsPanelProps}
                   availableTabs={["Device"]}
                   defaultTab="Device"
                   showActions={false}
-                  allTargets={allTargets}
-                  activeTargetIds={activeTargetIds}
-                  settings={settings}
-                  onSettingChange={updateSetting}
                   connected={connected}
                   onOpenConnectModal={() => setShowDeviceModal(true)}
-                  onOpenDiagnostics={() => setShowDiagnosticsModal(true)}
                 />
               </section>
             )}
@@ -1530,41 +1465,10 @@ function App() {
             />
                       </section>
           <ToolsPanel
-            peq={peq}
-            onImportPEQ={importPeq}
-            onPull={pullEq}
+            {...toolsPanelProps}
             dirty={dirty}
-            profiles={profiles}
-            selectedPreset={selectedPreset}
-            profileSearch={profileSearch}
-            setProfileSearch={setProfileSearch}
-            newProfileName={newProfileName}
-            setNewProfileName={setNewProfileName}
-            onSelectProfile={applyProfile}
-            onApplyProfile={supportsRamApply ? applyProfileToRam : undefined}
-            onReloadProfiles={loadProfiles}
-            onOpenProfilesDir={openProfilesDir}
-            hideProfileFolderButton={isAndroid}
-            onReset={reset}
-            onSave={saveProfile}
-            onDelete={deleteSelectedProfile}
-            setStatus={setStatus}
-            measurements={measurements}
-            allTargets={allTargets}
-            activeTargetIds={activeTargetIds}
-            onAddMeasurement={addMeasurement}
-            onRemoveMeasurement={removeMeasurement}
-            onToggleMeasurement={toggleMeasurement}
-            onClearMeasurements={clearMeasurements}
-            onSelectedMeasurementChange={setSelectedMeasurementId}
-            canUndo={undoStack.length > 0}
-            canRedo={redoStack.length > 0}
-            onUndo={undo}
-            onRedo={redo}
             graphViewMode={graphViewMode}
             onGraphViewModeChange={setGraphViewMode}
-            settings={settings}
-            onSettingChange={updateSetting}
             availableTabs={DESKTOP_TABS.map((t) => t.id)}
             onToggleTarget={toggleTarget}
             onRemoveTarget={removeTarget}
@@ -1573,7 +1477,6 @@ function App() {
             activeTab={toolsTab}
             onActiveTabChange={setToolsTab}
             onOpenConnectModal={() => setShowDeviceModal(true)}
-            onOpenDiagnostics={() => setShowDiagnosticsModal(true)}
             showGraph={showGraph}
             onShowGraphChange={setShowGraph}
           />

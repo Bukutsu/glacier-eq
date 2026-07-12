@@ -276,24 +276,6 @@ pub struct AutoEqRunResult {
     pub warnings: Vec<String>,
 }
 
-pub fn run_autoeq_internal(
-    measurement_points: Vec<(f64, f64)>,
-    target_points: Vec<(f64, f64)>,
-    n_bands: usize,
-    steps: usize,
-    smooth_type: String,
-    fs: f32,
-) -> Result<PEQData, String> {
-    glacier_core::autoeq::run_autoeq(
-        &measurement_points,
-        &target_points,
-        n_bands,
-        steps,
-        &smooth_type,
-        fs,
-    )
-}
-
 #[tauri::command]
 pub async fn run_autoeq(
     measurement_points: Vec<(f64, f64)>,
@@ -304,12 +286,12 @@ pub async fn run_autoeq(
     fs: f32,
     state: tauri::State<'_, Mutex<DeviceState>>,
 ) -> Result<AutoEqRunResult, String> {
-    let mut peq = run_autoeq_internal(
-        measurement_points,
-        target_points,
+    let mut peq = glacier_core::autoeq::run_autoeq(
+        &measurement_points,
+        &target_points,
         n_bands,
         steps,
-        smooth_type,
+        &smooth_type,
         fs,
     )?;
 
@@ -320,8 +302,6 @@ pub async fn run_autoeq(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn test_run_autoeq_preamp_clipping_prevention() {
         let mut measurement_points = Vec::new();
@@ -340,12 +320,12 @@ mod tests {
             }
         }
 
-        let peq = run_autoeq_internal(
-            measurement_points,
-            target_points,
+        let peq = glacier_core::autoeq::run_autoeq(
+            &measurement_points,
+            &target_points,
             5,
             100,
-            "None".to_string(),
+            "None",
             48000.0,
         )
         .unwrap();

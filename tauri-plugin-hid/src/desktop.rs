@@ -44,8 +44,6 @@ impl<R: Runtime> Hid<R> {
                 vendor_id: device.vendor_id(),
                 manufacturer_string: device.manufacturer_string().map(str::to_owned),
                 product_string: device.product_string().map(str::to_owned),
-                serial_number: device.serial_number().map(str::to_owned),
-                release_number: device.release_number(),
             })
             .collect())
     }

@@ -372,18 +372,6 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
         pid
       ) as T;
     }
-    case "save_text_file": {
-      const filename = args.path.split("/").pop() || "profile.txt";
-      const blob = new Blob([args.content], { type: "text/plain;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      a.click();
-      URL.revokeObjectURL(url);
-      return null as T;
-    }
-
     // ─── Device Connection / HID ──────────────────────────────────────────────
     case "list_devices": {
       const devices = await ensureWebHid().getDevices();
@@ -657,26 +645,10 @@ export async function writeText(text: string): Promise<void> {
   return navigator.clipboard.writeText(text);
 }
 
-export async function save(options?: any): Promise<string | null> {
-  if (isTauri()) {
-    const { save: tauriSave } = await import("@tauri-apps/plugin-dialog");
-    return tauriSave(options);
-  }
-  return options?.defaultPath || "profile.txt";
-}
-
 export async function openFileDialog(options?: {
   filters?: { name: string; extensions: string[] }[];
 }): Promise<{ text: string; name: string } | null> {
-  if (isTauri()) {
-    const { open } = await import("@tauri-apps/plugin-dialog");
-    const path = await open(options);
-    if (!path) return null;
-    const name = path.split("/").pop()?.split("\\").pop() ?? "untitled";
-    const text = await invoke<string>("read_text_file", { path });
-    return { text, name };
-  }
-  // Web fallback: create a hidden file input
+  // The DOM picker works in browsers and desktop/mobile webviews.
   return new Promise((resolve) => {
     const input = document.createElement("input");
     input.type = "file";

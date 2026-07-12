@@ -1,6 +1,5 @@
 export const TAB_META = {
   Preset: { icon: "library_music", label: "Preset" },
-  Import: { icon: "file_upload", label: "Import" },
   Curves: { icon: "analytics", label: "Curves" },
   AutoEQ: { icon: "auto_awesome", label: "AutoEQ" },
   Device: { icon: "tune", label: "Device" },
