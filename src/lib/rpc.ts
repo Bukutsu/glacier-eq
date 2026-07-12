@@ -293,6 +293,7 @@ async function writeEqPayload(protocol: string, peq: PEQData, initMessage: strin
       i,
       peq.filters[i],
       activeProfile.dsp_sample_rate || 96000.0,
+      peq.global_gain,
     ));
     await sleep(timing.per_filter_ms || 80);
   }
@@ -511,6 +512,8 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
       // 2. read filters
       const filters = [];
       const timing = get_write_timing(protocol);
+
+      await sleep(timing.post_gain_read_ms || 0);
 
       for (let i = 0; i < numBands; i++) {
         emitEvent("operation-progress", {

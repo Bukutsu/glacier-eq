@@ -8,9 +8,9 @@ use crate::device::timing::WriteTiming;
 use crate::device::walkplay::{
     compute_iir_filter, convert_to_2byte_array, parse_filter_packet, CMD_AMP_MODE, CMD_BALANCE,
     CMD_FACTORY_RESET, CMD_FILTER_MODE, CMD_FLASH_EQ, CMD_GAIN_MODE, CMD_GLOBAL_GAIN,
-    CMD_MIC_VOLUME, CMD_PEQ_VALUES, CMD_TEMP_WRITE, CMD_VERSION, CONST_FLASH_EQ_LEN,
-    CONST_GLOBAL_GAIN_LEN, CONST_PEQ_PAYLOAD_LEN, CONST_TEMP_WRITE_LEN, CONST_TEMP_WRITE_MAGIC_A,
-    CONST_TEMP_WRITE_MAGIC_B, END, FILTER_RESPONSE_MIN_LEN, FILTER_SLOT,
+    CMD_MIC_VOLUME, CMD_PEQ_VALUES, CMD_TEMP_WRITE, CMD_VERSION, CONST_GLOBAL_GAIN_LEN,
+    CONST_PEQ_PAYLOAD_LEN, CONST_TEMP_WRITE_LEN, CONST_TEMP_WRITE_MAGIC_A,
+    CONST_TEMP_WRITE_MAGIC_B, END, FILTER_RESPONSE_MIN_LEN,
     GLOBAL_GAIN_RESPONSE_MIN_LEN, OFFSET_CMD, OFFSET_CMD_TYPE, OFFSET_GAIN_VALUE, OFFSET_INDEX,
     OFFSET_NONCE, READ, REPORT_ID, WRITE,
 };
@@ -65,6 +65,7 @@ pub trait EqProtocol {
         index: u8,
         filter: &Filter,
         dsp_sample_rate: f64,
+        global_gain: f64,
     ) -> Result<Vec<Packet>, String>;
     fn write_global_gain_packets(&self, global_gain: f64) -> Vec<Packet>;
     fn commit_packets(&self) -> Vec<Packet>;
@@ -142,9 +143,10 @@ impl EqProtocol for DeviceProtocol {
         index: u8,
         filter: &Filter,
         dsp_sample_rate: f64,
+        global_gain: f64,
     ) -> Result<Vec<Packet>, String> {
         self.implementation()
-            .write_filter_packets(index, filter, dsp_sample_rate)
+            .write_filter_packets(index, filter, dsp_sample_rate, global_gain)
     }
 
     fn write_global_gain_packets(&self, global_gain: f64) -> Vec<Packet> {
@@ -175,6 +177,8 @@ impl WalkplayProtocol {
     pub(crate) fn write_timing() -> WriteTiming {
         WriteTiming {
             commit_step_ms: 500,
+            flood_delay_ms: 35,
+            post_gain_read_ms: 50,
             ..WriteTiming::default()
         }
     }
@@ -210,6 +214,7 @@ impl WalkplayProtocol {
         index: u8,
         filter: &Filter,
         dsp_sample_rate: f64,
+        global_gain: f64,
     ) -> Vec<u8> {
         let b_arr = compute_iir_filter(
             filter.filter_type,
@@ -219,8 +224,11 @@ impl WalkplayProtocol {
             dsp_sample_rate,
         );
         let filter_type_byte: u8 = filter.filter_type.into();
+        // Global gain is embedded as an unsigned byte in every filter packet,
+        // matching the Walkplay/Savitech wire format (byte 34 of the payload).
+        let gain_byte = (global_gain.round() as i8) as u8;
 
-        let mut packet = Vec::with_capacity(37);
+        let mut packet = Vec::with_capacity(36);
         packet.extend_from_slice(&[
             WRITE,
             CMD_PEQ_VALUES,
@@ -234,7 +242,7 @@ impl WalkplayProtocol {
         packet.extend_from_slice(&convert_to_2byte_array(filter.freq as i32));
         packet.extend_from_slice(&convert_to_2byte_array((filter.q * 256.0).round() as i32));
         packet.extend_from_slice(&convert_to_2byte_array((filter.gain * 256.0).round() as i32));
-        packet.extend_from_slice(&[filter_type_byte, 0x00, FILTER_SLOT, END]);
+        packet.extend_from_slice(&[filter_type_byte, gain_byte, 0x00]);
 
         packet
     }
@@ -283,10 +291,7 @@ impl WalkplayProtocol {
                     END,
                 ],
             ),
-            Packet::new(
-                REPORT_ID,
-                vec![WRITE, CMD_FLASH_EQ, CONST_FLASH_EQ_LEN, FILTER_SLOT, END],
-            ),
+            Packet::new(REPORT_ID, vec![WRITE, CMD_FLASH_EQ, END]),
         ]
     }
 
@@ -394,10 +399,11 @@ impl EqProtocol for WalkplayProtocol {
         index: u8,
         filter: &Filter,
         dsp_sample_rate: f64,
+        global_gain: f64,
     ) -> Result<Vec<Packet>, String> {
         Ok(vec![Packet::new(
             REPORT_ID,
-            Self::build_filter_write_packet(index, filter, dsp_sample_rate),
+            Self::build_filter_write_packet(index, filter, dsp_sample_rate, global_gain),
         )])
     }
 
