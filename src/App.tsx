@@ -290,10 +290,8 @@ function App() {
   );
 
   const reportStatus = useCallback((
-    _level: "Info" | "Warn" | "Error",
     message: string,
     toastType: "success" | "info" | "error" | null = null,
-    _source: "UI" | "Worker" | "HID" | "AutoEQ" | "Device" = "UI",
     statusText: string = message
   ) => {
     setStatusState(statusText);
@@ -650,7 +648,7 @@ function App() {
     addListener<string>("device-disconnected", (event) => {
       setIsReconnecting(true);
       setFirmwareVersion(null);
-      reportStatus("Error", `Connection lost to device (unplugged): ${event.payload}`, "error", "Device", "Reconnecting...");
+      reportStatus(`Connection lost to device (unplugged): ${event.payload}`, "error", "Reconnecting...");
     });
 
     return () => {
@@ -682,7 +680,7 @@ function App() {
             d.product_string === connectedDeviceName
         );
         if (found && active) {
-          reportStatus("Info", `Device found: ${connectedDeviceName}. Attempting to reconnect...`, null, "Device", "Device found. Reconnecting...");
+          reportStatus(`Device found: ${connectedDeviceName}. Attempting to reconnect...`, null, "Device found. Reconnecting...");
           try {
             await invoke("connect_device", { path: found.path });
             await invoke("set_eq_state", { peq: peqRef.current });
@@ -692,11 +690,11 @@ function App() {
               setConnected(true);
               setIsReconnecting(false);
               await loadFirmwareVersion();
-              reportStatus("Info", `Successfully reconnected to ${connectedDeviceName} and restored EQ state`, "success", "Device", "Ready");
+              reportStatus(`Successfully reconnected to ${connectedDeviceName} and restored EQ state`, "success", "Ready");
               return;
             }
           } catch (err) {
-            reportStatus("Warn", `Auto-reconnect connection failed: ${err}. Retrying...`, null, "Device", "Reconnecting...");
+            reportStatus(`Auto-reconnect connection failed: ${err}. Retrying...`, null, "Reconnecting...");
             try {
               await invoke("disconnect_device");
             } catch {}
@@ -755,19 +753,17 @@ function App() {
       setDirty(false);
       emit("device-pull").catch((err) => console.error("Failed to emit device-pull:", err));
       reportStatus(
-        "Info",
         isDevDummyDevice(selectedDevice)
           ? "Loaded dummy DAC EQ"
           : "Pull successful",
-        "success",
-        "UI"
+        "success"
       );
     } catch (error) {
       if (isDisconnectionError(error)) {
         setIsReconnecting(true);
-        reportStatus("Error", `Pull failed (disconnected): ${error}`, "error", "HID", "Reconnecting...");
+        reportStatus(`Pull failed (disconnected): ${error}`, "error", "Reconnecting...");
       } else {
-        reportStatus("Error", `Pull failed: ${error}`, "error", "UI");
+        reportStatus(`Pull failed: ${error}`, "error");
       }
     } finally {
       setIsBusy(false);
@@ -782,7 +778,7 @@ function App() {
       if (isDevDummyDevice(selectedDevice)) {
         setConnected(true);
         setConnectedDeviceName("Glacier Dummy DAC");
-        reportStatus("Info", "Connected to dummy DAC", "success", "UI", "Connected to dummy DAC");
+        reportStatus("Connected to dummy DAC", "success");
         await pullEq();
         await loadFirmwareVersion();
         return;
@@ -797,7 +793,7 @@ function App() {
         setConnectedDeviceName(devName);
       }
       
-      reportStatus("Info", `Connected to device: ${devName}`, "success", "UI", "Ready");
+      reportStatus(`Connected to device: ${devName}`, "success", "Ready");
 
       if (settings.auto_pull_on_connect) {
         // We call the inner fetch code of pullEq directly or call pullEq itself.
@@ -808,18 +804,16 @@ function App() {
     } catch (error) {
       if (isDisconnectionError(error)) {
         setConnected(false);
-        reportStatus("Error", `Connection failed (disconnected): ${error}`, "error", "UI", "Device disconnected");
+        reportStatus(`Connection failed (disconnected): ${error}`, "error", "Device disconnected");
       } else {
         const errorMsg = String(error);
         if (errorMsg.includes("NotAllowedError") && !isTauri()) {
           reportStatus(
-            "Error",
             "Connection failed: Linux permissions error. You need to configure a udev rule to allow WebHID access to this DAC. See the project README for instructions.",
-            "error",
-            "UI"
+            "error"
           );
         } else {
-          reportStatus("Error", `Connection failed: ${error}`, "error", "UI");
+          reportStatus(`Connection failed: ${error}`, "error");
         }
       }
     } finally {
@@ -865,19 +859,17 @@ function App() {
       await selectMatchingProfile(pushed, selectedPresetRef.current);
       setDirty(false);
       reportStatus(
-        "Info",
         isDevDummyDevice(selectedDevice)
           ? "Dummy DAC push simulated"
           : "Push successful",
-        "success",
-        "UI"
+        "success"
       );
     } catch (error) {
       if (isDisconnectionError(error)) {
         setIsReconnecting(true);
-        reportStatus("Error", `Push failed (disconnected): ${error}`, "error", "HID", "Reconnecting...");
+        reportStatus(`Push failed (disconnected): ${error}`, "error", "Reconnecting...");
       } else {
-        reportStatus("Error", `Push failed: ${error}`, "error", "UI");
+        reportStatus(`Push failed: ${error}`, "error");
       }
     } finally {
       setIsBusy(false);
@@ -909,19 +901,17 @@ function App() {
         }
         setLastPushedPeq(data);
         reportStatus(
-          "Info",
           isDevDummyDevice(selectedDevice)
             ? "Dummy DAC apply simulated"
             : `Applied ${profile.name} to device RAM`,
-          "success",
-          "UI"
+          "success"
         );
       } catch (error) {
         if (isDisconnectionError(error)) {
           setIsReconnecting(true);
-          reportStatus("Error", `Apply failed (disconnected): ${error}`, "error", "HID", "Reconnecting...");
+          reportStatus(`Apply failed (disconnected): ${error}`, "error", "Reconnecting...");
         } else {
-          reportStatus("Error", `Apply failed: ${error}`, "error", "UI");
+          reportStatus(`Apply failed: ${error}`, "error");
         }
       } finally {
         setIsBusy(false);
@@ -941,9 +931,9 @@ function App() {
       setIsReconnecting(false);
       setConnectedDeviceName("");
       setFirmwareVersion(null);
-      reportStatus("Info", "Device disconnected manually", null, "UI", "Disconnected");
+      reportStatus("Device disconnected manually", null, "Disconnected");
     } catch (error) {
-      reportStatus("Error", `Disconnect failed: ${error}`, "error", "UI");
+      reportStatus(`Disconnect failed: ${error}`, "error");
     } finally {
       setIsBusy(false);
     }
@@ -1160,38 +1150,6 @@ function App() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  const toolsPanelProps = {
-    peq,
-    onImportPEQ: importPeq,
-    onPull: pullEq,
-    profiles,
-    selectedPreset,
-    profileSearch,
-    setProfileSearch,
-    newProfileName,
-    setNewProfileName,
-    onSelectProfile: applyProfile,
-    onApplyProfile: supportsRamApply ? applyProfileToRam : undefined,
-    onReloadProfiles: loadProfiles,
-    onOpenProfilesDir: openProfilesDir,
-    hideProfileFolderButton: isAndroid,
-    onReset: reset,
-    onSave: saveProfile,
-    onDelete: deleteSelectedProfile,
-    setStatus,
-    measurements,
-    onAddMeasurement: addMeasurement,
-    onRemoveMeasurement: removeMeasurement,
-    onToggleMeasurement: toggleMeasurement,
-    onClearMeasurements: clearMeasurements,
-    onSelectedMeasurementChange: setSelectedMeasurementId,
-    allTargets,
-    activeTargetIds,
-    settings,
-    onSettingChange: updateSetting,
-    onOpenDiagnostics: () => setShowDiagnosticsModal(true),
-  };
-
   return (
     <div id="app">
       {!(isAndroid && activeTab === "settings") && (
@@ -1351,34 +1309,116 @@ function App() {
             {activeTab === "profiles" && (
               <section className="left-pane">
                 <ToolsPanel
-                  {...toolsPanelProps}
+                  peq={peq}
+                  onImportPEQ={importPeq}
+                  onPull={pullEq}
                   dirty={dirty}
+                  profiles={profiles}
+                  selectedPreset={selectedPreset}
+                  profileSearch={profileSearch}
+                  setProfileSearch={setProfileSearch}
+                  newProfileName={newProfileName}
+                  setNewProfileName={setNewProfileName}
+                  onSelectProfile={applyProfile}
+                  onApplyProfile={supportsRamApply ? applyProfileToRam : undefined}
+                  onReloadProfiles={loadProfiles}
+                  onOpenProfilesDir={openProfilesDir}
+                  hideProfileFolderButton={isAndroid}
+                  onReset={reset}
+                  onSave={saveProfile}
+                  onDelete={deleteSelectedProfile}
+                  setStatus={setStatus}
+                  measurements={measurements}
+                  onAddMeasurement={addMeasurement}
+                  onRemoveMeasurement={removeMeasurement}
+                  onToggleMeasurement={toggleMeasurement}
+                  onClearMeasurements={clearMeasurements}
+                  onSelectedMeasurementChange={setSelectedMeasurementId}
                   availableTabs={["Preset"]}
                   defaultTab="Preset"
+                  allTargets={allTargets}
+                  activeTargetIds={activeTargetIds}
+                  settings={settings}
+                  onSettingChange={updateSetting}
+                  onOpenDiagnostics={() => setShowDiagnosticsModal(true)}
                 />
               </section>
             )}
             {activeTab === "settings" && (
               <section className="left-pane">
                 <ToolsPanel
-                  {...toolsPanelProps}
+                  peq={peq}
+                  onImportPEQ={importPeq}
+                  onPull={pullEq}
+                  profiles={profiles}
+                  selectedPreset={selectedPreset}
+                  profileSearch={profileSearch}
+                  setProfileSearch={setProfileSearch}
+                  newProfileName={newProfileName}
+                  setNewProfileName={setNewProfileName}
+                  onSelectProfile={applyProfile}
+                  onApplyProfile={supportsRamApply ? applyProfileToRam : undefined}
+                  onReloadProfiles={loadProfiles}
+                  onOpenProfilesDir={openProfilesDir}
+                  hideProfileFolderButton={isAndroid}
+                  onReset={reset}
+                  onSave={saveProfile}
+                  onDelete={deleteSelectedProfile}
+                  setStatus={setStatus}
+                  measurements={measurements}
+                  onAddMeasurement={addMeasurement}
+                  onRemoveMeasurement={removeMeasurement}
+                  onToggleMeasurement={toggleMeasurement}
+                  onClearMeasurements={clearMeasurements}
+                  onSelectedMeasurementChange={setSelectedMeasurementId}
                   availableTabs={["Settings"]}
                   defaultTab="Settings"
-                  showActions={false}
                   graphViewMode={graphViewMode}
                   onGraphViewModeChange={setGraphViewMode}
+                  allTargets={allTargets}
+                  activeTargetIds={activeTargetIds}
+                  settings={settings}
+                  onSettingChange={updateSetting}
+                  onOpenDiagnostics={() => setShowDiagnosticsModal(true)}
                 />
               </section>
             )}
             {activeTab === "device" && (
               <section className="left-pane">
                 <ToolsPanel
-                  {...toolsPanelProps}
+                  peq={peq}
+                  onImportPEQ={importPeq}
+                  onPull={pullEq}
+                  profiles={profiles}
+                  selectedPreset={selectedPreset}
+                  profileSearch={profileSearch}
+                  setProfileSearch={setProfileSearch}
+                  newProfileName={newProfileName}
+                  setNewProfileName={setNewProfileName}
+                  onSelectProfile={applyProfile}
+                  onApplyProfile={supportsRamApply ? applyProfileToRam : undefined}
+                  onReloadProfiles={loadProfiles}
+                  onOpenProfilesDir={openProfilesDir}
+                  hideProfileFolderButton={isAndroid}
+                  onReset={reset}
+                  onSave={saveProfile}
+                  onDelete={deleteSelectedProfile}
+                  setStatus={setStatus}
+                  measurements={measurements}
+                  onAddMeasurement={addMeasurement}
+                  onRemoveMeasurement={removeMeasurement}
+                  onToggleMeasurement={toggleMeasurement}
+                  onClearMeasurements={clearMeasurements}
+                  onSelectedMeasurementChange={setSelectedMeasurementId}
                   availableTabs={["Device"]}
                   defaultTab="Device"
-                  showActions={false}
+                  allTargets={allTargets}
+                  activeTargetIds={activeTargetIds}
+                  settings={settings}
+                  onSettingChange={updateSetting}
                   connected={connected}
                   onOpenConnectModal={() => setShowDeviceModal(true)}
+                  onOpenDiagnostics={() => setShowDiagnosticsModal(true)}
                 />
               </section>
             )}
@@ -1465,10 +1505,37 @@ function App() {
             />
                       </section>
           <ToolsPanel
-            {...toolsPanelProps}
+            peq={peq}
+            onImportPEQ={importPeq}
+            onPull={pullEq}
             dirty={dirty}
+            profiles={profiles}
+            selectedPreset={selectedPreset}
+            profileSearch={profileSearch}
+            setProfileSearch={setProfileSearch}
+            newProfileName={newProfileName}
+            setNewProfileName={setNewProfileName}
+            onSelectProfile={applyProfile}
+            onApplyProfile={supportsRamApply ? applyProfileToRam : undefined}
+            onReloadProfiles={loadProfiles}
+            onOpenProfilesDir={openProfilesDir}
+            hideProfileFolderButton={isAndroid}
+            onReset={reset}
+            onSave={saveProfile}
+            onDelete={deleteSelectedProfile}
+            setStatus={setStatus}
+            measurements={measurements}
+            allTargets={allTargets}
+            activeTargetIds={activeTargetIds}
+            onAddMeasurement={addMeasurement}
+            onRemoveMeasurement={removeMeasurement}
+            onToggleMeasurement={toggleMeasurement}
+            onClearMeasurements={clearMeasurements}
+            onSelectedMeasurementChange={setSelectedMeasurementId}
             graphViewMode={graphViewMode}
             onGraphViewModeChange={setGraphViewMode}
+            settings={settings}
+            onSettingChange={updateSetting}
             availableTabs={DESKTOP_TABS.map((t) => t.id)}
             onToggleTarget={toggleTarget}
             onRemoveTarget={removeTarget}
@@ -1477,6 +1544,7 @@ function App() {
             activeTab={toolsTab}
             onActiveTabChange={setToolsTab}
             onOpenConnectModal={() => setShowDeviceModal(true)}
+            onOpenDiagnostics={() => setShowDiagnosticsModal(true)}
             showGraph={showGraph}
             onShowGraphChange={setShowGraph}
           />
