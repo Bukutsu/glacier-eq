@@ -80,112 +80,6 @@ declare global {
   }
 }
 
-const ANDROID_DYNAMIC_COLOR_VARS = [
-  "--bg",
-  "--bg-dark",
-  "--bg-darker",
-  "--panel",
-  "--surface",
-  "--surface-soft",
-  "--text",
-  "--muted",
-  "--comment",
-  "--cyan",
-  "--blue",
-  "--green",
-  "--orange",
-  "--yellow",
-  "--red",
-  "--purple",
-  "--teal",
-  "--dark-cyan",
-  "--bright-cyan",
-  "--terminal-black",
-  "--text-alt",
-  "--btn-filled-bg",
-  "--btn-filled-text",
-  "--tab-active-pill",
-  "--tab-active-icon",
-] as const;
-
-const clearAndroidDynamicColors = () => {
-  if (typeof document === "undefined") return;
-  const root = document.documentElement;
-  ANDROID_DYNAMIC_COLOR_VARS.forEach((name) => {
-    root.style.removeProperty(name);
-    root.style.removeProperty(`${name}-rgb`);
-  });
-};
-
-const applyAndroidDynamicColors = async (prefersDark: boolean) => {
-  if (typeof window === "undefined" || typeof document === "undefined") return;
-  try {
-    const { M3 } = await import("tauri-plugin-m3");
-    const tokens = await M3.getColors(prefersDark ? "dark" : "light");
-    if (!tokens || Object.keys(tokens).length === 0) return;
-    const colors = tokens as Record<string, string | undefined>;
-
-    const root = document.documentElement;
-
-    const hexToRgb = (hex: string) => {
-      const match = hex.replace("#", "").slice(0, 6).match(/.{1,2}/g);
-      if (!match) return "0 0 0";
-      return match.map((x) => Number.parseInt(x, 16)).join(" ");
-    };
-
-    const setVar = (name: string, value: string) => {
-      if (!value) return;
-      root.style.setProperty(name, value);
-      if (value.startsWith("#")) {
-        root.style.setProperty(`${name}-rgb`, hexToRgb(value));
-      }
-    };
-
-    const role = (...names: string[]) =>
-      names.map((name) => colors[name]).find(Boolean);
-    const fallback = (dark: string, light: string) => prefersDark ? dark : light;
-    const primary = role("primary") || fallback("#a0d1bc", "#006c4f");
-    const secondary = role("secondary") || primary;
-    const tertiary = role("tertiary") || secondary;
-    const outline = role("outline", "outlineVariant") || fallback("#8a938b", "#73796f");
-    const primaryContainer = role("primaryContainer") || fallback("#00513f", "#8df8ca");
-    const secondaryContainer = role("secondaryContainer") || primaryContainer;
-    const tertiaryContainer = role("tertiaryContainer") || secondaryContainer;
-    const onPrimaryContainer = role("onPrimaryContainer") || fallback("#bff2d6", "#002116");
-
-    [
-      ["--bg", role("surfaceDim", "surface") || fallback("#101510", "#f8fbf4")],
-      ["--bg-dark", role("surfaceContainer", "surfaceContainerLow") || fallback("#1c211c", "#edf2ea")],
-      ["--bg-darker", role("surface", "surfaceDim") || fallback("#101510", "#e9eee6")],
-      ["--panel", role("surfaceContainerLow", "surfaceContainer") || fallback("#191e19", "#f1f5ee")],
-      ["--surface-soft", role("surfaceContainerHigh", "surfaceContainer") || fallback("#262b26", "#e2e7df")],
-      ["--surface", role("surfaceContainerHighest", "surfaceContainerHigh") || fallback("#303630", "#dce2d9")],
-      ["--text", role("onSurface") || fallback("#e0e4dc", "#191d19")],
-      ["--muted", role("onSurfaceVariant") || fallback("#c0c9be", "#424940")],
-      ["--comment", outline],
-      ["--cyan", primary],
-      ["--blue", primary],
-      ["--green", tertiary],
-      ["--orange", secondary],
-      ["--yellow", tertiaryContainer],
-      ["--red", role("error") || fallback("#ffb4ab", "#ba1a1a")],
-      ["--purple", secondary],
-      ["--teal", tertiary],
-      ["--dark-cyan", secondary],
-      ["--bright-cyan", onPrimaryContainer],
-      ["--terminal-black", outline],
-      ["--text-alt", role("onSurfaceVariant") || fallback("#c0c9be", "#424940")],
-      ["--btn-filled-bg", primary],
-      ["--btn-filled-text", role("onPrimary") || fallback("#073822", "#ffffff")],
-      ["--tab-active-pill", secondaryContainer],
-      ["--tab-active-icon", role("onSecondaryContainer") || onPrimaryContainer],
-    ].forEach(([name, value]) => setVar(name, value));
-
-  } catch (e) {
-    console.error("Failed to apply Android dynamic colors:", e);
-  }
-};
-
 const MOBILE_QUERY = "(max-width: 850px)";
 
 const isDisconnectionError = (error: any): boolean => {
@@ -226,11 +120,7 @@ function App() {
     return () => media.removeEventListener("change", listener);
   }, []);
 
-  const [settings, setSettings] = useState<AppSettings>(() =>
-    isAndroid
-      ? { ...DEFAULT_SETTINGS, theme: "auto" }
-      : DEFAULT_SETTINGS,
-  );
+  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const theme = settings.theme;
   const snapToIso = settings.snap_to_iso_frequencies;
   const [resolvedTheme, setResolvedTheme] = useState("tokyo-night");
@@ -254,19 +144,12 @@ function App() {
     const applyTheme = async () => {
       let resolved = theme;
 
-      // Clear any previous Android dynamic color overrides first
-      clearAndroidDynamicColors();
-
       if (theme === "auto") {
         let prefersDark = window.matchMedia(
           "(prefers-color-scheme: dark)",
         ).matches;
 
-        // If Android interface is present, apply dynamic Material You color tokens
-        if (isAndroid) {
-          await applyAndroidDynamicColors(prefersDark);
-          resolved = prefersDark ? "material-dark" : "material-light";
-        } else if (isTauri()) {
+        if (!isAndroid && isTauri()) {
           try {
             const { getCurrentWindow } =
               await import("@tauri-apps/api/window");
@@ -281,9 +164,7 @@ function App() {
             console.error("Failed to query Tauri window theme:", e);
           }
         }
-        if (!isAndroid) {
-          resolved = prefersDark ? "tokyo-night" : "catppuccin-latte";
-        }
+        resolved = prefersDark ? "tokyo-night" : "catppuccin-latte";
       }
       setResolvedTheme(resolved);
       document.documentElement.setAttribute("data-theme", resolved);
@@ -1692,11 +1573,13 @@ function App() {
               </section>
             )}
           </div>
-          <nav className="mobile-tab-bar">
+          <nav className="mobile-tab-bar" aria-label="Primary navigation">
             {MOBILE_TABS.map(({ id, icon, label }) => (
               <button
                 key={id}
+                type="button"
                 className={`mobile-tab-item ${activeTab === id ? "active" : ""}`}
+                aria-current={activeTab === id ? "page" : undefined}
                 onClick={() => setActiveTab(id)}
               >
                 <div className="mobile-tab-icon-wrapper">
