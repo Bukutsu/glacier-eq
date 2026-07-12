@@ -1,10 +1,16 @@
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::device::capabilities::{DeviceCapabilities, PEAK_SHELF_FILTER_TYPES};
+use crate::device::capabilities::DeviceCapabilities;
 use crate::device::profile::{DeviceProfile, DeviceProtocol};
 use crate::eq::iir_math::compute_biquad_coeffs;
 use crate::eq::{Filter, FilterType};
+
+const PEAK_SHELF_FILTER_TYPES: &[FilterType] = &[
+    FilterType::Peak,
+    FilterType::LowShelf,
+    FilterType::HighShelf,
+];
 
 // ─── Wire constants ───────────────────────────────────────────────────────────
 

@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::eq::constants::{GAIN_STEP, ISO_FREQUENCIES, ISO_Q_VALUES};
+use crate::eq::constants::ISO_FREQUENCIES;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
@@ -218,25 +218,4 @@ pub fn snap_freq_to_iso(freq: u16) -> u16 {
             right
         }
     }
-}
-
-pub fn snap_q_to_iso(q: f64) -> f64 {
-    let idx = ISO_Q_VALUES.partition_point(|&v| v < q);
-    if idx == 0 {
-        ISO_Q_VALUES[0]
-    } else if idx >= ISO_Q_VALUES.len() {
-        ISO_Q_VALUES[ISO_Q_VALUES.len() - 1]
-    } else {
-        let left = ISO_Q_VALUES[idx - 1];
-        let right = ISO_Q_VALUES[idx];
-        if (q - left) <= (right - q) {
-            left
-        } else {
-            right
-        }
-    }
-}
-
-pub fn snap_gain_step(gain: f64) -> f64 {
-    (gain / GAIN_STEP).round() * GAIN_STEP
 }

@@ -22,4 +22,4 @@ pub use device::{
     EqProtocol, Packet, WalkplayProtocol, SUPPORTED_DEVICES,
 };
 pub use eq::constants::*;
-pub use eq::{snap_freq_to_iso, snap_gain_step, snap_q_to_iso, Filter, FilterType, PEQData};
+pub use eq::{snap_freq_to_iso, Filter, FilterType, PEQData};
