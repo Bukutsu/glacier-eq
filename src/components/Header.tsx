@@ -79,6 +79,8 @@ export function Header({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  useEffect(() => setMenuOpen(false), [connected]);
+
   const syncClass = !connected ? "offline" : isBusy ? "working" : dirty ? "unsaved" : "ok";
   const syncText = !connected
     ? "Offline"
@@ -149,77 +151,47 @@ export function Header({
           )}
         </div>
 
-        {/* Mobile Toolbar (M3 style) */}
+        {/* Mobile uses the same action hierarchy as desktop, without duplicate actions. */}
         <div className="mobile-toolbar">
-          <button
-            type="button"
-            className="mobile-icon-btn"
-            title="Undo"
-            aria-label="Undo"
-            disabled={isBusy || !canUndo}
-            onClick={onUndo}
-          >
-            <span className="material-symbols-outlined">undo</span>
-          </button>
-          <button
-            type="button"
-            className="mobile-icon-btn"
-            title="Redo"
-            aria-label="Redo"
-            disabled={isBusy || !canRedo}
-            onClick={onRedo}
-          >
-            <span className="material-symbols-outlined">redo</span>
-          </button>
+          <div className="history-buttons mobile-history-buttons" aria-label="Edit history">
+            <button
+              type="button"
+              className="history-btn"
+              title="Undo"
+              aria-label="Undo"
+              disabled={isBusy || !canUndo}
+              onClick={onUndo}
+            >
+              <span className="material-symbols-outlined">undo</span>
+            </button>
+            <button
+              type="button"
+              className="history-btn"
+              title="Redo"
+              aria-label="Redo"
+              disabled={isBusy || !canRedo}
+              onClick={onRedo}
+            >
+              <span className="material-symbols-outlined">redo</span>
+            </button>
+          </div>
           {connected ? (
-            <button
-              type="button"
-              className="mobile-icon-btn primary"
-              title="Push settings"
-              aria-label="Push settings"
-              disabled={isBusy}
-              onClick={onPush}
-            >
-              <span className="material-symbols-outlined">publish</span>
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="mobile-icon-btn primary"
-              title="Connect DAC"
-              aria-label="Connect DAC"
-              disabled={isBusy}
-              onClick={onConnectClick}
-            >
-              <span className="material-symbols-outlined">link</span>
-            </button>
-          )}
-          <div className="mobile-menu-container" ref={menuRef}>
-            <button
-              type="button"
-              className="mobile-icon-btn"
-              title="More actions"
-              aria-label="More actions"
-              onClick={() => setMenuOpen(!menuOpen)}
-            >
-              <span className="material-symbols-outlined">more_vert</span>
-            </button>
-            {menuOpen && (
-              <div className="mobile-dropdown-menu">
-                {connected ? (
-                  <>
-                    <button
-                      type="button"
-                      className="dropdown-item"
-                      onClick={() => {
-                        onPull();
-                        setMenuOpen(false);
-                      }}
-                      disabled={isBusy}
-                    >
-                      <span className="material-symbols-outlined">download</span>
-                      <span>Pull from device</span>
-                    </button>
+            <>
+              <button type="button" className="btn tonal mobile-action-btn" onClick={onPull} disabled={isBusy}>Pull</button>
+              <button type="button" className="btn filled mobile-action-btn" onClick={onPush} disabled={isBusy}>Push</button>
+              <div className="mobile-menu-container" ref={menuRef}>
+                <button
+                  type="button"
+                  className="mobile-more-btn"
+                  title="More actions"
+                  aria-label="More actions"
+                  aria-expanded={menuOpen}
+                  onClick={() => setMenuOpen(!menuOpen)}
+                >
+                  <span className="material-symbols-outlined">more_vert</span>
+                </button>
+                {menuOpen && (
+                  <div className="mobile-dropdown-menu">
                     <button
                       type="button"
                       className="dropdown-item danger"
@@ -232,24 +204,16 @@ export function Header({
                       <span className="material-symbols-outlined">link_off</span>
                       <span>Disconnect</span>
                     </button>
-                  </>
-                ) : (
-                  <button
-                    type="button"
-                    className="dropdown-item"
-                    onClick={() => {
-                      onConnectClick?.();
-                      setMenuOpen(false);
-                    }}
-                    disabled={isBusy}
-                  >
-                    <span className="material-symbols-outlined">link</span>
-                    <span>Connect DAC</span>
-                  </button>
+                  </div>
                 )}
               </div>
-            )}
-          </div>
+            </>
+          ) : (
+            <button type="button" className="btn filled mobile-action-btn mobile-connect-btn" onClick={onConnectClick} disabled={isBusy}>
+              <span className="material-symbols-outlined">link</span>
+              Connect DAC
+            </button>
+          )}
         </div>
       </div>
       {isBusy && (
