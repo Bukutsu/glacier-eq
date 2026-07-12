@@ -48,6 +48,7 @@ pub struct SupportedDeviceInfo {
     family: &'static str,
     num_bands: usize,
     supports_ram_apply: bool,
+    integer_preamp: bool,
 }
 
 fn supports_walkplay_utilities(connected: &ConnectedDevice) -> bool {
@@ -677,6 +678,7 @@ pub async fn list_devices(app: tauri::AppHandle) -> Result<Vec<DeviceInfo>, Stri
                 profile_name: Some(profile.name.to_string()),
                 num_bands: profile.caps.num_bands,
                 supports_ram_apply: profile.caps.supports_ram_apply,
+                integer_preamp: profile.caps.integer_preamp,
             })
         })
         .collect();
@@ -697,6 +699,7 @@ pub fn list_supported_devices() -> Vec<SupportedDeviceInfo> {
             family: device.family,
             num_bands: device.caps.num_bands,
             supports_ram_apply: device.caps.supports_ram_apply,
+            integer_preamp: device.caps.integer_preamp,
         })
         .collect()
 }

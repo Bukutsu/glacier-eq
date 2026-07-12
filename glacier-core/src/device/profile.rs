@@ -37,6 +37,7 @@ pub struct DeviceInfo {
     pub profile_name: Option<String>,
     pub num_bands: usize,
     pub supports_ram_apply: bool,
+    pub integer_preamp: bool,
 }
 
 /// Static identity and capability metadata for a supported USB DAC model.

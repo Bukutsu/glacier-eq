@@ -643,26 +643,26 @@ function App() {
   const applyProfile = useCallback(
     (profile: Profile) => {
       pushToUndoStack(peqRef.current);
-      const data = normalizePeq(profile.data, { enableLoadedFilters: true });
+      const data = normalizePeq(profile.data, { enableLoadedFilters: true, integerPreamp: !!selectedDeviceInfo?.integer_preamp });
       selectedPresetRef.current = profile.name;
       setPeq(data);
       setSelectedPreset(profile.name);
       setNewProfileName(profile.name);
       setDirty(false);
     },
-    [pushToUndoStack],
+    [pushToUndoStack, selectedDeviceInfo],
   );
 
   const importPeq = useCallback(
     (data: PEQData, name: string, isSaved: boolean) => {
       pushToUndoStack(peqRef.current);
-      const normalized = normalizePeq(data, { enableLoadedFilters: true });
+      const normalized = normalizePeq(data, { enableLoadedFilters: true, integerPreamp: !!selectedDeviceInfo?.integer_preamp });
       setPeq(normalized);
       setSelectedPreset(name);
       setNewProfileName(name);
       setDirty(!isSaved);
     },
-    [pushToUndoStack],
+    [pushToUndoStack, selectedDeviceInfo],
   );
 
   const withSyntheticDefault = (raw: Profile[]): Profile[] => [
@@ -903,7 +903,7 @@ function App() {
         data = await invoke<PEQData>("get_eq_state");
         await sleep(400);
       }
-      const normalized = normalizePeq(data);
+      const normalized = normalizePeq(data, { integerPreamp: !!selectedDeviceInfo?.integer_preamp });
       setPeq(normalized);
       setLastPushedPeq(normalized);
       await selectMatchingProfile(normalized, "Pulled from device");
@@ -928,7 +928,7 @@ function App() {
       setIsBusy(false);
       setProgress(null);
     }
-  }, [pushToUndoStack, selectedDevice, reportStatus]);
+  }, [pushToUndoStack, selectedDevice, selectedDeviceInfo, reportStatus]);
 
   const connectDevice = useCallback(async () => {
     if (!selectedDevice) return;
@@ -1042,7 +1042,7 @@ function App() {
 
   const applyProfileToRam = useCallback(
     async (profile: Profile) => {
-      const data = normalizePeq(profile.data, { enableLoadedFilters: true });
+      const data = normalizePeq(profile.data, { enableLoadedFilters: true, integerPreamp: !!selectedDeviceInfo?.integer_preamp });
       pushToUndoStack(peqRef.current);
       selectedPresetRef.current = profile.name;
       setPeq(data);
@@ -1083,7 +1083,7 @@ function App() {
         setProgress(null);
       }
     },
-    [pushToUndoStack, selectedDevice, reportStatus],
+    [pushToUndoStack, selectedDevice, selectedDeviceInfo, reportStatus],
   );
 
   const disconnectDevice = useCallback(async () => {
@@ -1476,6 +1476,7 @@ function App() {
                 <Preamp
                   value={peq.global_gain}
                   resetValue={lastPushedPeq?.global_gain}
+                  integerMode={!!selectedDeviceInfo?.integer_preamp}
                   onStartChange={handleStartChange}
                   onChange={(global_gain) => {
                     flashGraphPreview();
@@ -1751,6 +1752,7 @@ function App() {
             <Preamp
               value={peq.global_gain}
               resetValue={lastPushedPeq?.global_gain}
+              integerMode={!!selectedDeviceInfo?.integer_preamp}
               onStartChange={handleStartChange}
               onChange={(global_gain) => {
                 flashGraphPreview();

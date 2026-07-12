@@ -68,6 +68,7 @@ const SAVITECH_10_BAND_CAPS: DeviceCapabilities = DeviceCapabilities {
     gain_tolerance: 0.15,
     freq_tolerance: 1,
     q_tolerance: 0.05,
+    integer_preamp: true,
 };
 
 const MOONDROP_10_BAND_CAPS: DeviceCapabilities = DeviceCapabilities {
@@ -83,6 +84,7 @@ const MOONDROP_10_BAND_CAPS: DeviceCapabilities = DeviceCapabilities {
     gain_tolerance: 0.15,
     freq_tolerance: 1,
     q_tolerance: 0.05,
+    integer_preamp: false,
 };
 
 const FIIO_5_BAND_CAPS: DeviceCapabilities = DeviceCapabilities {
@@ -98,6 +100,7 @@ const FIIO_5_BAND_CAPS: DeviceCapabilities = DeviceCapabilities {
     gain_tolerance: 0.15,
     freq_tolerance: 1,
     q_tolerance: 0.05,
+    integer_preamp: false,
 };
 
 const FIIO_10_BAND_CAPS: DeviceCapabilities = DeviceCapabilities {
@@ -113,6 +116,7 @@ const FIIO_10_BAND_CAPS: DeviceCapabilities = DeviceCapabilities {
     gain_tolerance: 0.15,
     freq_tolerance: 1,
     q_tolerance: 0.05,
+    integer_preamp: false,
 };
 
 fn clamp_i32(v: f64) -> i32 {
@@ -322,6 +326,7 @@ pub const PROFILES: &[DeviceProfile] = &[
             gain_tolerance: 0.1,
             freq_tolerance: 1,
             q_tolerance: 0.05,
+            integer_preamp: true,
         },
     },
 ];

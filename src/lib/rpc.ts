@@ -467,6 +467,7 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
         product_id: target.productId,
         num_bands: 10,
         supports_ram_apply: false,
+        integer_preamp: true,
       };
 
       return null as T;

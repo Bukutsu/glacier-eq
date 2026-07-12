@@ -20,6 +20,7 @@ pub struct SupportedDeviceInfoWasm {
     pub family: String,
     pub num_bands: usize,
     pub supports_ram_apply: bool,
+    pub integer_preamp: bool,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -114,6 +115,7 @@ pub fn list_supported_devices() -> Result<JsValue, JsValue> {
             family: device.family.to_string(),
             num_bands: device.caps.num_bands,
             supports_ram_apply: device.caps.supports_ram_apply,
+            integer_preamp: device.caps.integer_preamp,
         })
         .collect();
 
