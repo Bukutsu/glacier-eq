@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::device::capabilities::{DeviceCapabilities, ALL_FILTER_TYPES, PEAK_SHELF_FILTER_TYPES};
+use crate::device::capabilities::{DeviceCapabilities, PEAK_SHELF_FILTER_TYPES};
 use crate::device::profile::{DeviceProfile, DeviceProtocol};
 use crate::eq::iir_math::compute_biquad_coeffs;
 use crate::eq::{Filter, FilterType};
@@ -53,15 +53,13 @@ pub(crate) const FILTER_RESPONSE_MIN_LEN: usize = 34;
 pub(crate) const GLOBAL_GAIN_RESPONSE_MIN_LEN: usize = 6;
 
 pub const QUANTIZER_SCALE: f64 = 1_073_741_824.0;
-pub const BYTE_BIT_SHIFT: i32 = 8;
-
 const SAVITECH_10_BAND_CAPS: DeviceCapabilities = DeviceCapabilities {
     num_bands: 10,
     global_gain_range: (-16, 6),
     band_gain_range: (-10.0, 10.0),
     freq_range: (20, 20000),
     q_range: (0.1, 10.0),
-    supported_filter_types: ALL_FILTER_TYPES,
+    supported_filter_types: FilterType::ALL,
     supports_per_band_enable: false,
     supports_ram_apply: false,
     dsp_sample_rate: 96000.0,
@@ -163,20 +161,16 @@ pub fn compute_iir_filter(
     let quantizer_data = quantizer(&[1.0, a1 / a0, a2 / a0], &[b0 / a0, b1 / a0, b2 / a0]);
 
     for (i, &value) in quantizer_data.iter().enumerate() {
-        b_arr[i * 4] = (value & 0xFF) as u8;
-        b_arr[i * 4 + 1] = ((value >> BYTE_BIT_SHIFT) & 0xFF) as u8;
-        b_arr[i * 4 + 2] = ((value >> (BYTE_BIT_SHIFT * 2)) & 0xFF) as u8;
-        b_arr[i * 4 + 3] = ((value >> (BYTE_BIT_SHIFT * 3)) & 0xFF) as u8;
+        let bytes = value.to_le_bytes();
+        b_arr[i * 4..i * 4 + 4].copy_from_slice(&bytes);
     }
 
     b_arr
 }
 
 pub fn convert_to_2byte_array(value: i32) -> [u8; 2] {
-    [
-        (value & 0xFF) as u8,
-        ((value >> BYTE_BIT_SHIFT) & 0xFF) as u8,
-    ]
+    let bytes = value.to_le_bytes();
+    [bytes[0], bytes[1]]
 }
 
 pub fn parse_filter_packet(packet: &[u8]) -> Option<Filter> {
@@ -185,16 +179,9 @@ pub fn parse_filter_packet(packet: &[u8]) -> Option<Filter> {
     }
 
     let filter_index = packet[OFFSET_INDEX];
-    let freq = (packet[OFFSET_FREQ_L] as u16) | ((packet[OFFSET_FREQ_H] as u16) << BYTE_BIT_SHIFT);
-    let q_raw = (packet[OFFSET_Q_L] as u16) | ((packet[OFFSET_Q_H] as u16) << BYTE_BIT_SHIFT);
-    let gain_raw =
-        (packet[OFFSET_GAIN_L] as u16) | ((packet[OFFSET_GAIN_H] as u16) << BYTE_BIT_SHIFT);
-
-    let gain_from_device = if gain_raw > 32767 {
-        (gain_raw as i32 - 65536) as i16
-    } else {
-        gain_raw as i16
-    };
+    let freq = u16::from_le_bytes([packet[OFFSET_FREQ_L], packet[OFFSET_FREQ_H]]);
+    let q_raw = u16::from_le_bytes([packet[OFFSET_Q_L], packet[OFFSET_Q_H]]);
+    let gain_from_device = i16::from_le_bytes([packet[OFFSET_GAIN_L], packet[OFFSET_GAIN_H]]);
 
     let q = (((q_raw as f64) / 256.0 * 100.0).round() / 100.0).max(0.01);
     let gain = ((gain_from_device as f64) / 256.0 * 100.0).round() / 100.0;

@@ -1,27 +1,12 @@
-.disconnected-screen {
-  flex: 1;
-  min-height: 0;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-}
-
 .device-card {
-  width: min(560px, 100%);
-  background: var(--panel);
-  padding: 24px;
+  width: 100%;
+  background: transparent;
+  padding: 0;
   display: flex;
   flex-direction: column;
   gap: 16px;
-}
-
-.device-card-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 18px;
+  border: none;
+  box-shadow: none;
 }
 
 .device-card h2 { margin: 0 0 8px; font-size: var(--type-title); font-weight: 700; }
@@ -82,10 +67,3 @@
 .supported-list small { color: var(--muted); }
 .device-actions { display: flex; gap: 10px; justify-content: flex-end; }
 
-.device-card.inline-device-card {
-  width: 100%;
-  background: transparent;
-  padding: 0;
-  border: none;
-  box-shadow: none;
-}

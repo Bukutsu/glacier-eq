@@ -265,37 +265,6 @@
   align-items: center;
   gap: 9px;
 }
-.tools-card input[type="checkbox"] {
-  appearance: none;
-  width: 17px;
-  height: 17px;
-  margin: 0;
-  flex: 0 0 17px;
-  border: 1px solid var(--accent-line-checkbox);
-  background: var(--bg-dark);
-  box-shadow: inset 0 0 0 2px var(--panel);
-  cursor: pointer;
-  transition: background var(--motion-duration) var(--motion-ease), border-color var(--motion-duration) var(--motion-ease), filter var(--motion-duration) var(--motion-ease);
-}
-.tools-card input[type="checkbox"]:hover {
-  border-color: var(--cyan);
-  filter: brightness(1.12);
-}
-.tools-card input[type="checkbox"]:checked {
-  color: var(--theme-checkmark);
-  border-color: var(--cyan);
-  background-color: var(--cyan);
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 16 16' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M3.2 8.1 6.5 11.4 12.8 4.6' fill='none' stroke='currentColor' stroke-width='2.2' stroke-linecap='square' stroke-linejoin='miter'/%3E%3C/svg%3E");
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: 15px 15px;
-  box-shadow: none;
-}
-.tools-card input[type="checkbox"]:focus-visible {
-  outline: 1px solid var(--focus-ring);
-  outline-offset: 3px;
-}
-
 .action-row { display: grid; gap: 10px; }
 .action-row-primary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .action-row button { min-height: 44px; }
@@ -670,13 +639,6 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 
 .diag-footer { font-size: var(--type-caption); color: var(--comment); padding-top: 2px; text-align: right; font-family: var(--font-ui); }
 
-
-/* Import Flow Inline UI */
-.import-flow {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
 
 .import-flow.tool-card {
   padding: 10px;

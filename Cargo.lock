@@ -1165,7 +1165,6 @@ dependencies = [
 name = "glacier-eq"
 version = "0.3.0"
 dependencies = [
- "chrono",
  "glacier-core",
  "hidapi",
  "libc",

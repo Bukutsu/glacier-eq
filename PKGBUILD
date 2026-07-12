@@ -2,7 +2,7 @@
 # Source: https://github.com/Bukutsu/glacier-eq
 
 pkgname=glacier-eq-git
-pkgver=v0.1.5.r231.g050509b
+pkgver=v0.1.5.r234.g162198f
 pkgrel=1
 pkgdesc="Cross-platform parametric EQ editor for USB DACs. Offline, direct, and built for dense tuning work on desktop and Android."
 arch=('x86_64' 'aarch64')
@@ -37,7 +37,6 @@ makedepends=(
 )
 provides=('glacier-eq')
 conflicts=('glacier-eq')
-install="${pkgname}.install"
 
 # Build from local checkout instead of re-cloning.
 # Keeps the README flow (clone → cd → makepkg -si) lean.

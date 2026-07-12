@@ -3,14 +3,6 @@
 
 use crate::eq::FilterType;
 
-pub const ALL_FILTER_TYPES: &[FilterType] = &[
-    FilterType::Peak,
-    FilterType::LowShelf,
-    FilterType::HighShelf,
-    FilterType::LowPass,
-    FilterType::HighPass,
-];
-
 pub const PEAK_SHELF_FILTER_TYPES: &[FilterType] = &[
     FilterType::Peak,
     FilterType::LowShelf,
@@ -53,7 +45,7 @@ pub const DESKTOP_DAC_CAPS: DeviceCapabilities = DeviceCapabilities {
     band_gain_range: (-10.0, 10.0),
     freq_range: (20, 20000),
     q_range: (0.1, 20.0),
-    supported_filter_types: ALL_FILTER_TYPES,
+    supported_filter_types: FilterType::ALL,
     supports_per_band_enable: true,
     supports_ram_apply: false,
     dsp_sample_rate: 96000.0,

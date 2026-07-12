@@ -1,7 +1,6 @@
 import { type CSSProperties, useState, useEffect, useRef } from "react";
 import { invoke, listen, readText, writeText, save } from "../lib/rpc";
-import type { DeviceInfo, AppSettings, MeasurementTrace, Profile, PEQData, GraphViewMode, TargetTrace } from "../types";
-import { useConfirm } from "./ConfirmDialog";
+import type { AppSettings, MeasurementTrace, Profile, PEQData, GraphViewMode, TargetTrace } from "../types";
 import { Icon } from "./Icon";
 import { Checkbox } from "./Checkbox";
 import { fuzzyMatch } from "../lib/search";
@@ -111,22 +110,12 @@ interface ToolsPanelProps {
   allTargets?: TargetTrace[];
   activeTargetIds?: string[];
   onSelectedMeasurementChange?: (measurementId: string | null) => void;
-  enableOnlineMeasurements?: boolean;
-  onEnableOnlineMeasurementsChange?: (enable: boolean) => void;
   settings: AppSettings;
   onSettingChange: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
   onToggleTarget?: (id: string) => void;
   onRemoveTarget?: (id: string) => void;
   onAddTarget?: (name: string, points: MeasurementTrace["points"]) => void;
   connected?: boolean;
-  devices?: DeviceInfo[];
-  selectedDevice?: string;
-  setSelectedDevice?: (path: string) => void;
-  onScan?: () => void;
-  onConnect?: () => void;
-  onDisconnect?: () => void;
-  connectionStatus?: string;
-  isBusy?: boolean;
   activeTab?: ToolsTab;
   onActiveTabChange?: (tab: ToolsTab) => void;
   onOpenConnectModal?: () => void;
@@ -170,13 +159,6 @@ export function ToolsPanel(props: ToolsPanelProps) {
               />
             </>
           )}
-          {tab === "Import" && <ImportTab
-            peq={props.peq}
-            profiles={props.profiles}
-            onImportPEQ={props.onImportPEQ}
-            onReloadProfiles={props.onReloadProfiles}
-            setStatus={props.setStatus}
-          />}
           {tab === "AutoEQ" && (
             <AutoEqTab
               measurements={props.measurements}
@@ -359,7 +341,6 @@ function PresetTab({
   showActions,
   dirty,
 }: ToolsPanelProps) {
-  const confirm = useConfirm();
   const query = profileSearch.trim().toLowerCase();
   const filteredProfiles = profiles.filter(
     (p) => !query || fuzzyMatch(query, p.name)
@@ -385,7 +366,7 @@ function PresetTab({
   // Clicking a profile: select it, clear search so full list stays visible,
   // clear custom name so Save defaults to the selected profile name
   const handleSelectProfile = async (profile: typeof profiles[0]) => {
-    if (dirty && !await confirm("Discard unsaved changes?")) return;
+    if (dirty && !window.confirm("Discard unsaved changes?")) return;
     onSelectProfile(profile);
     setProfileSearch("");
     setNewProfileName("");
@@ -475,7 +456,9 @@ function PresetTab({
 
       <div className="profile-card-foot">
         <small className="modified">
-          {selectedProfile?.modified ? `Modified: ${selectedProfile.modified}` : "Glacier data folder"}
+          {selectedProfile?.modified != null
+            ? `Modified: ${new Date(selectedProfile.modified! * 1000).toLocaleDateString()}`
+            : "Glacier data folder"}
         </small>
       </div>
     </section>

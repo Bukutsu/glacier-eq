@@ -11,6 +11,7 @@ pub mod autoeq;
 pub mod device;
 pub mod eq;
 pub mod profile_match;
+#[cfg(target_arch = "wasm32")]
 pub mod wasm;
 
 // Logging is configured by the application binary, not this crate.

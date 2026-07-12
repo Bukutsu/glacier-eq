@@ -137,10 +137,6 @@
   outline-offset: -1px;
 }
 
-.band-summary {
-  display: none;
-}
-
 .preamp-card {
   display: grid;
   grid-template-columns: 100px 1fr;
@@ -187,7 +183,7 @@
   padding: 0;
 }
 
-.bands-card strong, .bands-header, .diag-head strong {
+.bands-card strong, .diag-head strong {
   font-size: var(--type-caption);
   color: var(--text);
   font-weight: 700;

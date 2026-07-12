@@ -212,32 +212,14 @@ function BandRow({
   onRemove: () => void;
   snapToIso?: boolean;
 }) {
-  const [expanded, setExpanded] = useState(false);
-
   return (
     <div
-      className={`band-row ${filter.enabled ? "" : "muted"} ${expanded ? "expanded" : ""} ${active ? "active" : ""}`}
+      className={`band-row ${filter.enabled ? "" : "muted"} ${active ? "active" : ""}`}
       role="group"
       aria-label={`Band ${filter.index + 1}`}
       style={filterColorStyle(filter.index)}
     >
       <div className="band-number" aria-hidden="true">{filter.index + 1}</div>
-      <button
-        type="button"
-        className="band-summary"
-        aria-expanded={expanded}
-        onClick={() => {
-          onActivate();
-          setExpanded((value) => !value);
-        }}
-      >
-        <strong>{filter.index + 1}</strong>
-        <span>{TYPE_LABELS[filter.filter_type]}</span>
-        <span>{filter.freq} Hz</span>
-        <span>{filter.gain.toFixed(2)} dB</span>
-        <span>Q {filter.q.toFixed(2)}</span>
-        <Icon>{expanded ? "expand_less" : "expand_more"}</Icon>
-      </button>
       <BandControls filter={filter} committedFilter={committedFilter} onChange={onChange} onStartChange={onStartChange} onActivate={onActivate} snapToIso={snapToIso} />
       <button
         type="button"

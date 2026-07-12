@@ -56,7 +56,17 @@ pub struct DiagnosticEvent {
 
 impl DiagnosticEvent {
     pub fn new(level: LogLevel, source: LogSource, message: String) -> Self {
-        let timestamp = chrono::Local::now().format("%H:%M:%S%.3f").to_string();
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default();
+        let secs = now.as_secs();
+        let millis = now.subsec_millis();
+        let (h, m, s) = (
+            (secs / 3600) % 24,
+            (secs / 60) % 60,
+            secs % 60,
+        );
+        let timestamp = format!("{h:02}:{m:02}:{s:02}.{millis:03}");
         Self {
             timestamp,
             level,
@@ -131,9 +141,7 @@ fn get_log_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
 fn lock_store<'a, 'r>(
     state: &'a tauri::State<'r, Mutex<DiagnosticsStore>>,
 ) -> Result<MutexGuard<'a, DiagnosticsStore>, String> {
-    state
-        .lock()
-        .map_err(|_| "Diagnostics store poisoned".to_string())
+    state.lock().map_err(|_| "Lock poisoned".to_string())
 }
 
 pub fn log(

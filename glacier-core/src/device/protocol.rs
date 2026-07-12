@@ -172,29 +172,29 @@ impl WalkplayProtocol {
         REPORT_ID
     }
 
-    pub fn write_timing() -> WriteTiming {
+    pub(crate) fn write_timing() -> WriteTiming {
         WriteTiming {
             commit_step_ms: 500,
             ..WriteTiming::default()
         }
     }
 
-    pub fn is_default_state(peq: &PEQData) -> bool {
+    pub(crate) fn is_default_state(peq: &PEQData) -> bool {
         let all_disabled = peq.filters.iter().all(|f| !f.enabled);
         let has_default_gain = peq.global_gain == 0.0;
         let all_default_freq = peq.filters.iter().all(|f| f.freq == 100);
         all_disabled && has_default_gain && all_default_freq
     }
 
-    pub fn build_init_packets() -> Vec<Packet> {
+    pub(crate) fn build_init_packets() -> Vec<Packet> {
         vec![Packet::new(REPORT_ID, vec![READ, CMD_VERSION, END])]
     }
 
-    pub fn build_filter_read_request(index: u8, nonce: u8) -> Vec<u8> {
+    pub(crate) fn build_filter_read_request(index: u8, nonce: u8) -> Vec<u8> {
         vec![READ, CMD_PEQ_VALUES, nonce, 0x00, index, END]
     }
 
-    pub fn matches_filter_response(data: &[u8], index: u8, nonce: u8) -> bool {
+    pub(crate) fn matches_filter_response(data: &[u8], index: u8, nonce: u8) -> bool {
         data.len() >= FILTER_RESPONSE_MIN_LEN
             && data[OFFSET_CMD_TYPE] == READ
             && data[OFFSET_CMD] == CMD_PEQ_VALUES
@@ -202,11 +202,11 @@ impl WalkplayProtocol {
             && data[OFFSET_INDEX] == index
     }
 
-    pub fn parse_filter_response(data: &[u8]) -> Option<Filter> {
+    pub(crate) fn parse_filter_response(data: &[u8]) -> Option<Filter> {
         parse_filter_packet(data)
     }
 
-    pub fn build_filter_write_packet(index: u8, filter: &Filter, dsp_sample_rate: f64) -> Vec<u8> {
+    pub(crate) fn build_filter_write_packet(index: u8, filter: &Filter, dsp_sample_rate: f64) -> Vec<u8> {
         let b_arr = compute_iir_filter(
             filter.filter_type,
             filter.freq as f64,
@@ -235,17 +235,17 @@ impl WalkplayProtocol {
         packet
     }
 
-    pub fn build_global_gain_request(_nonce: u8) -> Vec<u8> {
+    pub(crate) fn build_global_gain_request(_nonce: u8) -> Vec<u8> {
         vec![READ, CMD_GLOBAL_GAIN, 0x00, END]
     }
 
-    pub fn matches_global_gain_response(data: &[u8], _nonce: u8) -> bool {
+    pub(crate) fn matches_global_gain_response(data: &[u8], _nonce: u8) -> bool {
         data.len() >= GLOBAL_GAIN_RESPONSE_MIN_LEN
             && data[OFFSET_CMD_TYPE] == READ
             && data[OFFSET_CMD] == CMD_GLOBAL_GAIN
     }
 
-    pub fn parse_global_gain_response(data: &[u8]) -> Option<i8> {
+    pub(crate) fn parse_global_gain_response(data: &[u8]) -> Option<i8> {
         if data.len() > OFFSET_GAIN_VALUE {
             Some(data[OFFSET_GAIN_VALUE] as i8)
         } else {
@@ -253,7 +253,7 @@ impl WalkplayProtocol {
         }
     }
 
-    pub fn build_global_gain_write_packet(gain: i8) -> Vec<u8> {
+    pub(crate) fn build_global_gain_write_packet(gain: i8) -> Vec<u8> {
         vec![
             WRITE,
             CMD_GLOBAL_GAIN,
@@ -264,7 +264,7 @@ impl WalkplayProtocol {
         ]
     }
 
-    pub fn build_commit_packets() -> Vec<Packet> {
+    pub(crate) fn build_commit_packets() -> Vec<Packet> {
         vec![
             Packet::new(
                 REPORT_ID,
@@ -286,7 +286,7 @@ impl WalkplayProtocol {
         ]
     }
 
-    pub fn build_ram_apply_packets() -> Vec<Packet> {
+    pub(crate) fn build_ram_apply_packets() -> Vec<Packet> {
         vec![
             Packet::new(
                 REPORT_ID,

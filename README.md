@@ -1,5 +1,5 @@
 <h1>
-  <img src="assets/glacier-eq.svg" alt="" width="32" height="32" style="vertical-align: middle;">
+  <img src="public/glacier-eq.svg" alt="" width="32" height="32" style="vertical-align: middle;">
   Glacier EQ
 </h1>
 
