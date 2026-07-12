@@ -7,18 +7,19 @@ export function cssVar(name: string, fallback = ""): string {
   );
 }
 
-export function rgbWithAlpha(
-  name: string,
-  alpha: number,
-  fallback = "",
-): string {
-  const resolved = cssVar(name, fallback);
-  if (!resolved) return "transparent";
+const FILTER_COLOR_VARS = [
+  ["--blue", "--blue-rgb", "#7aa2f7"],
+  ["--green", "--green-rgb", "#9ece6a"],
+  ["--orange", "--orange-rgb", "#ff9e64"],
+  ["--yellow", "--yellow-rgb", "#e0af68"],
+  ["--red", "--red-rgb", "#f7768e"],
+  ["--purple", "--purple-rgb", "#bb9af7"],
+  ["--teal", "--teal-rgb", "#73daca"],
+  ["--dark-cyan", "--dark-cyan-rgb", "#2ac3de"],
+  ["--bright-cyan", "--bright-cyan-rgb", "#b4f9f8"],
+  ["--cyan", "--cyan-rgb", "#7dcfff"],
+] as const;
 
-  if (resolved.startsWith("#")) {
-    const hex = Number.parseInt(resolved.slice(1), 16);
-    return `rgba(${(hex >> 16) & 255}, ${(hex >> 8) & 255}, ${hex & 255}, ${alpha})`;
-  }
-
-  return `rgba(${resolved}, ${alpha})`;
+export function filterColorVars(index: number) {
+  return FILTER_COLOR_VARS[index % FILTER_COLOR_VARS.length];
 }

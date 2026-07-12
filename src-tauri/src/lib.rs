@@ -5,15 +5,11 @@
 
 use std::sync::Mutex;
 
-use diagnostics::DiagnosticsStore;
 use state::DeviceState;
 #[cfg(not(mobile))]
 use tauri_plugin_window_state::StateFlags;
 
 mod device_commands;
-mod diagnostics;
-#[cfg(target_os = "linux")]
-pub mod hid_helper;
 mod profiles;
 mod settings;
 mod state;
@@ -33,15 +29,11 @@ pub fn run() {
     #[cfg(not(mobile))]
     let window_state_flags = StateFlags::SIZE | StateFlags::POSITION | StateFlags::MAXIMIZED;
     let mut builder = tauri::Builder::default()
-        .manage(Mutex::new(DeviceState::default()))
-        .manage(Mutex::new(DiagnosticsStore::default()));
-    #[cfg(target_os = "linux")]
-    {
-        builder = builder.manage(Mutex::new(None::<hid_helper::ElevatedTransport>));
-    }
+        .manage(Mutex::new(DeviceState::default()));
     builder = builder
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_hid::init())
+        .plugin(tauri_plugin_log::Builder::new().build())
         .plugin(tauri_plugin_clipboard_manager::init());
 
     #[cfg(not(mobile))]
@@ -83,9 +75,6 @@ pub fn run() {
             settings::get_settings,
             settings::save_settings,
             read_text_file,
-            diagnostics::get_diagnostics,
-            diagnostics::clear_diagnostics,
-            diagnostics::add_diagnostic_event,
             save_text_file,
         ])
         .run(tauri::generate_context!())
