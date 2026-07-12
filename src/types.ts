@@ -62,7 +62,7 @@ export interface SupportedDeviceInfo {
 export interface Profile {
   name: string;
   data: PEQData;
-  modified: string | null;
+  modified: number | null;
 }
 
 export interface OperationProgress {

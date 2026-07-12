@@ -10,7 +10,6 @@ mod desktop;
 #[cfg(mobile)]
 mod mobile;
 
-mod commands;
 mod error;
 mod models;
 
@@ -28,13 +27,6 @@ pub fn hid<R: Runtime, T: Manager<R>>(manager: &T) -> &Hid<R> {
 /// Initializes the plugin.
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
     Builder::new("hid")
-        .invoke_handler(tauri::generate_handler![
-            commands::enumerate,
-            commands::open,
-            commands::close,
-            commands::write,
-            commands::read,
-        ])
         .setup(|app, api| {
             #[cfg(mobile)]
             let hid = mobile::init(app, api)?;

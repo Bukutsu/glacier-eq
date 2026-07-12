@@ -7,14 +7,10 @@ use crate::device::DeviceProfile;
 
 pub const SUPPORTED_DEVICES: &[DeviceProfile] = crate::device::walkplay::PROFILES;
 
-fn pid_matches(configured: Option<u16>, actual: u16) -> bool {
-    configured.is_none_or(|pid| pid == actual)
-}
-
 pub fn get_supported_device(vendor_id: u16, product_id: u16) -> Option<&'static DeviceProfile> {
     SUPPORTED_DEVICES
         .iter()
-        .find(|device| device.vendor_id == vendor_id && pid_matches(device.product_id, product_id))
+        .find(|device| device.vendor_id == vendor_id && device.product_id.is_none_or(|pid| pid == product_id))
 }
 
 #[cfg(test)]

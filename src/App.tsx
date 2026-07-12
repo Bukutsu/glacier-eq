@@ -28,7 +28,6 @@ import {
 } from "./lib/targetReferences";
 import { buildDefaultState, normalizePeq, peqEquals } from "./lib/peq";
 import { isTauri } from "./lib/platform";
-import { useConfirm } from "./components/ConfirmDialog";
 import type {
   DeviceInfo,
   Filter,
@@ -206,7 +205,6 @@ const isDisconnectionError = (error: any): boolean => {
 };
 
 function App() {
-  const confirm = useConfirm();
   const [isMobile, setIsMobile] = useState(
     () => window.matchMedia(MOBILE_QUERY).matches,
   );
@@ -239,7 +237,6 @@ function App() {
       : DEFAULT_SETTINGS,
   );
   const theme = settings.theme;
-  const enableOnlineMeasurements = settings.enable_online_measurements;
   const snapToIso = settings.snap_to_iso_frequencies;
   const [resolvedTheme, setResolvedTheme] = useState("tokyo-night");
 
@@ -257,10 +254,6 @@ function App() {
       return updated;
     });
   }, []);
-
-  const handleEnableOnlineMeasurementsChange = useCallback((value: boolean) => {
-    updateSetting("enable_online_measurements", value);
-  }, [updateSetting]);
 
   useEffect(() => {
     const applyTheme = async () => {
@@ -996,7 +989,7 @@ function App() {
 
   const pushEq = useCallback(async () => {
     const activeBands = peq.filters.filter((f) => f.enabled).length;
-    if (!await confirm(`Push ${activeBands} band(s), ${peq.global_gain.toFixed(1)} dB preamp to device?`)) return;
+    if (!window.confirm(`Push ${activeBands} band(s), ${peq.global_gain.toFixed(1)} dB preamp to device?`)) return;
     setProgress(null);
     setIsBusy(true);
     try {
@@ -1130,7 +1123,7 @@ function App() {
     const exists = profiles.some(
       (p) => p.name.toLowerCase() === name.toLowerCase()
     );
-    if (exists && !await confirm(`Overwrite profile "${name}"?`)) return;
+    if (exists && !window.confirm(`Overwrite profile "${name}"?`)) return;
 
     try {
       await invoke("save_profile", { name, peq });
@@ -1147,7 +1140,7 @@ function App() {
 
   const deleteSelectedProfile = useCallback(async () => {
     if (selectedPreset === DEFAULT_PROFILE_NAME) return;
-    if (!await confirm(`Delete profile "${selectedPreset}"?`)) return;
+    if (!window.confirm(`Delete profile "${selectedPreset}"?`)) return;
 
     try {
       await invoke("delete_profile", { name: selectedPreset });
@@ -1181,7 +1174,7 @@ function App() {
   }, [flashGraphPreview]);
 
   const reset = async () => {
-    if (!await confirm("Reset all filters to 0 dB?")) return;
+    if (!window.confirm("Reset all filters to 0 dB?")) return;
     pushToUndoStack(peqRef.current);
     selectedPresetRef.current = DEFAULT_PROFILE_NAME;
     setPeq(buildDefaultState());
@@ -1697,14 +1690,6 @@ function App() {
                   settings={settings}
                   onSettingChange={updateSetting}
                   connected={connected}
-                  devices={devices}
-                  selectedDevice={selectedDevice}
-                  setSelectedDevice={setSelectedDevice}
-                  onScan={scanDevices}
-                  onConnect={connectDevice}
-                  onDisconnect={disconnectDevice}
-                  connectionStatus={status}
-                  isBusy={isBusy}
                   onOpenConnectModal={() => setShowDeviceModal(true)}
                   onOpenDiagnostics={() => setShowDiagnosticsModal(true)}
                 />
@@ -1824,10 +1809,6 @@ function App() {
             onRedo={redo}
             graphViewMode={graphViewMode}
             onGraphViewModeChange={setGraphViewMode}
-            enableOnlineMeasurements={enableOnlineMeasurements}
-            onEnableOnlineMeasurementsChange={
-              handleEnableOnlineMeasurementsChange
-            }
             settings={settings}
             onSettingChange={updateSetting}
             availableTabs={DESKTOP_TABS.map((t) => t.id)}
@@ -1835,14 +1816,6 @@ function App() {
             onRemoveTarget={removeTarget}
             onAddTarget={addTarget}
             connected={connected}
-            devices={devices}
-            selectedDevice={selectedDevice}
-            setSelectedDevice={setSelectedDevice}
-            onScan={scanDevices}
-            onConnect={connectDevice}
-            onDisconnect={disconnectDevice}
-            connectionStatus={status}
-            isBusy={isBusy}
             activeTab={toolsTab}
             onActiveTabChange={setToolsTab}
             onOpenConnectModal={() => setShowDeviceModal(true)}
@@ -1904,7 +1877,6 @@ function App() {
                 setSelectedDevice={setSelectedDevice}
                 status={status}
                 isBusy={isBusy}
-                inline
               />
             </div>
           </div>

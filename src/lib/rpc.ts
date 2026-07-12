@@ -210,6 +210,11 @@ function saveJson(key: string, value: unknown): void {
   localStorage.setItem(key, JSON.stringify(value));
 }
 
+const CMD_FILTER_MODE = 17;
+const CMD_AMP_MODE = 29;
+const CMD_GAIN_MODE = 25;
+const CMD_MIC_VOLUME = 2;
+
 function walkplayPacket(payload: number[]): number[] {
   return [0x4b, ...payload];
 }
@@ -344,7 +349,7 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
       const newProfile = {
         name: args.name,
         data: args.peq,
-        modified: new Date().toLocaleDateString(),
+        modified: Math.floor(Date.now() / 1000),
       };
       if (idx >= 0) {
         profiles[idx] = newProfile;
@@ -586,10 +591,10 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
     case "get_dac_utility_state": {
       if (!activeDevice || !supportsWalkplayUtilities()) return unsupportedUtilityState() as T;
 
-      const filter = await readWalkplayUtility(17);
-      const amp = await readWalkplayUtility(29);
-      const gain = await readWalkplayUtility(25);
-      const mic = await readWalkplayUtility(2);
+      const filter = await readWalkplayUtility(CMD_FILTER_MODE);
+      const amp = await readWalkplayUtility(CMD_AMP_MODE);
+      const gain = await readWalkplayUtility(CMD_GAIN_MODE);
+      const mic = await readWalkplayUtility(CMD_MIC_VOLUME);
       const leftRaw = await readWalkplayBalance(0);
       const rightRaw = await readWalkplayBalance(1);
       const left = leftRaw > 0 ? 256 - leftRaw : 0;

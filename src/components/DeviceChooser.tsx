@@ -13,7 +13,6 @@ interface DeviceChooserProps {
   setSelectedDevice: (path: string) => void;
   status: string;
   isBusy: boolean;
-  inline?: boolean;
 }
 
 function formatUsbId(value: number | null | undefined): string {
@@ -29,7 +28,6 @@ export function DeviceChooser({
   setSelectedDevice,
   status,
   isBusy,
-  inline = false,
 }: DeviceChooserProps) {
   const [supportedDacs, setSupportedDacs] = useState<SupportedDeviceInfo[]>([]);
   const [supportedOpen, setSupportedOpen] = useState(false);
@@ -47,19 +45,9 @@ export function DeviceChooser({
     onScan();
   };
 
-  const cardContent = (
-    <section className={inline ? "device-card inline-device-card" : "device-card"}>
-      {inline ? (
-        <button className="btn tonal" style={{ width: "100%" }} onClick={handleScanClick} disabled={isBusy}>{isBusy ? "Scanning…" : "Scan for Devices"}</button>
-      ) : (
-        <div className="device-card-head">
-          <div>
-            <h2>Available Devices</h2>
-            <p>Only supported DACs from the Glacier registry are shown.</p>
-          </div>
-          <button className="btn tonal" onClick={handleScanClick} disabled={isBusy}>{isBusy ? "Scanning…" : "Scan"}</button>
-        </div>
-      )}
+  return (
+    <section className="device-card">
+      <button className="btn tonal" style={{ width: "100%" }} onClick={handleScanClick} disabled={isBusy}>{isBusy ? "Scanning…" : "Scan for Devices"}</button>
 
       {devices.length === 0 ? (
         <div className="empty-device-state">
@@ -126,15 +114,5 @@ export function DeviceChooser({
       </div>
       <span className="status-text">{status}</span>
     </section>
-  );
-
-  if (inline) {
-    return cardContent;
-  }
-
-  return (
-    <main className="disconnected-screen">
-      {cardContent}
-    </main>
   );
 }
