@@ -206,7 +206,11 @@ impl WalkplayProtocol {
         parse_filter_packet(data)
     }
 
-    pub(crate) fn build_filter_write_packet(index: u8, filter: &Filter, dsp_sample_rate: f64) -> Vec<u8> {
+    pub(crate) fn build_filter_write_packet(
+        index: u8,
+        filter: &Filter,
+        dsp_sample_rate: f64,
+    ) -> Vec<u8> {
         let b_arr = compute_iir_filter(
             filter.filter_type,
             filter.freq as f64,

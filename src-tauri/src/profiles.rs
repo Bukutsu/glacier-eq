@@ -55,7 +55,12 @@ fn sanitize_profile_name(name: &str) -> String {
 
 fn modified_time_epoch(path: &Path) -> Option<u64> {
     let modified = std::fs::metadata(path).ok()?.modified().ok()?;
-    Some(modified.duration_since(std::time::UNIX_EPOCH).ok()?.as_secs())
+    Some(
+        modified
+            .duration_since(std::time::UNIX_EPOCH)
+            .ok()?
+            .as_secs(),
+    )
 }
 
 fn connected_match_target(

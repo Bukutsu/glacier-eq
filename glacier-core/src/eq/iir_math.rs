@@ -140,7 +140,10 @@ mod tests {
 
     fn assert_finite_coeffs(f: &Filter, sample_rate: f64) {
         let (b0, b1, b2, a0, a1, a2) = compute_biquad_coeffs(f, sample_rate);
-        assert!(a0 != 0.0, "a0 must not be zero — would cause division by zero");
+        assert!(
+            a0 != 0.0,
+            "a0 must not be zero — would cause division by zero"
+        );
         let coeffs = [b0, b1, b2, a0, a1, a2];
         for &c in &coeffs {
             assert!(c.is_finite(), "all coefficients must be finite");
