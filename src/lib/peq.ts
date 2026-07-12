@@ -50,7 +50,7 @@ function numberOr(raw: unknown, fallback: number): number {
 
 export function normalizePeq(
   raw: unknown,
-  options: { enableLoadedFilters?: boolean } = {},
+  options: { enableLoadedFilters?: boolean; integerPreamp?: boolean } = {},
 ): PEQData {
   const source = raw as { filters?: unknown[]; global_gain?: unknown; globalGain?: unknown } | null | undefined;
   const defaults = buildDefaultState();
@@ -72,9 +72,14 @@ export function normalizePeq(
     };
   });
 
+  let global_gain = numberOr(source?.global_gain ?? source?.globalGain, defaults.global_gain);
+  if (options.integerPreamp) {
+    global_gain = Math.round(global_gain);
+  }
+
   return {
     filters,
-    global_gain: numberOr(source?.global_gain ?? source?.globalGain, defaults.global_gain),
+    global_gain,
   };
 }
 

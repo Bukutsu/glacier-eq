@@ -46,6 +46,7 @@ export interface DeviceInfo {
   profile_name: string | null;
   num_bands?: number;
   supports_ram_apply?: boolean;
+  integer_preamp?: boolean;
 }
 
 export interface SupportedDeviceInfo {
@@ -57,6 +58,7 @@ export interface SupportedDeviceInfo {
   family: string;
   num_bands: number;
   supports_ram_apply: boolean;
+  integer_preamp: boolean;
 }
 
 export interface Profile {

@@ -21,6 +21,7 @@ pub struct DeviceCapabilities {
     pub gain_tolerance: f64,
     pub freq_tolerance: i32,
     pub q_tolerance: f64,
+    pub integer_preamp: bool,
 }
 
 /// Default capabilities used when no device is connected (generic desktop DAC).
@@ -40,4 +41,5 @@ pub const DESKTOP_DAC_CAPS: DeviceCapabilities = DeviceCapabilities {
     gain_tolerance: 0.15,
     freq_tolerance: 1,
     q_tolerance: 0.05,
+    integer_preamp: false,
 };
