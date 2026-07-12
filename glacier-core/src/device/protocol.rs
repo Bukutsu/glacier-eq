@@ -186,8 +186,8 @@ impl WalkplayProtocol {
     pub(crate) fn is_default_state(peq: &PEQData) -> bool {
         let all_disabled = peq.filters.iter().all(|f| !f.enabled);
         let has_default_gain = peq.global_gain == 0.0;
-        let all_default_freq = peq.filters.iter().all(|f| f.freq == 100);
-        all_disabled && has_default_gain && all_default_freq
+        let all_zero_gain = peq.filters.iter().all(|f| f.gain == 0.0);
+        all_disabled && has_default_gain && all_zero_gain
     }
 
     pub(crate) fn build_init_packets() -> Vec<Packet> {
