@@ -17,7 +17,6 @@ pub struct SupportedDeviceInfoWasm {
     pub vendor_id: u16,
     pub product_id: Option<u16>,
     pub status: String,
-    pub family: String,
     pub num_bands: usize,
     pub supports_ram_apply: bool,
     pub integer_preamp: bool,
@@ -66,13 +65,14 @@ fn response_values(peq: &PEQData, freqs: Vec<f32>, include_preamp: bool) -> Vec<
 }
 
 fn eq_protocol(protocol: &str) -> Result<&'static dyn EqProtocol, JsValue> {
-    match protocol.to_lowercase().as_str() {
-        "walkplay" => Ok(&WalkplayProtocol),
-        "moondrop" => Ok(&crate::device::moondrop::MoondropProtocol),
-        "fiioja11" => Ok(&crate::device::fiio::JA11_PROTOCOL),
-        "fiio" => Ok(&crate::device::fiio::FIIO_PROTOCOL),
-        _ => Err(JsValue::from_str("Invalid protocol")),
-    }
+    let protocol = match protocol.to_lowercase().as_str() {
+        "walkplay" => DeviceProtocol::Walkplay,
+        "moondrop" => DeviceProtocol::Moondrop,
+        "fiioja11" => DeviceProtocol::FiioJa11,
+        "fiio" => DeviceProtocol::Fiio,
+        _ => return Err(JsValue::from_str("Invalid protocol")),
+    };
+    Ok(protocol.implementation())
 }
 
 fn unframe<'a>(protocol: &dyn EqProtocol, data: &'a [u8]) -> Result<&'a [u8], JsValue> {
@@ -112,7 +112,6 @@ pub fn list_supported_devices() -> Result<JsValue, JsValue> {
             vendor_id: device.vendor_id,
             product_id: device.product_id,
             status: device.status.to_string(),
-            family: device.family.to_string(),
             num_bands: device.caps.num_bands,
             supports_ram_apply: device.caps.supports_ram_apply,
             integer_preamp: device.caps.integer_preamp,

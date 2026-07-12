@@ -90,79 +90,13 @@ static MOONDROP_PROTOCOL: crate::device::moondrop::MoondropProtocol =
     crate::device::moondrop::MoondropProtocol;
 
 impl DeviceProtocol {
-    fn implementation(&self) -> &'static dyn EqProtocol {
+    pub fn implementation(&self) -> &'static dyn EqProtocol {
         match self {
             DeviceProtocol::Walkplay => &WALKPLAY_PROTOCOL,
             DeviceProtocol::Moondrop => &MOONDROP_PROTOCOL,
             DeviceProtocol::FiioJa11 => &crate::device::fiio::JA11_PROTOCOL,
             DeviceProtocol::Fiio => &crate::device::fiio::FIIO_PROTOCOL,
         }
-    }
-}
-
-impl EqProtocol for DeviceProtocol {
-    fn write_timing(&self) -> WriteTiming {
-        self.implementation().write_timing()
-    }
-
-    fn is_default_state(&self, peq: &PEQData) -> bool {
-        self.implementation().is_default_state(peq)
-    }
-
-    fn init_packets(&self) -> Vec<Packet> {
-        self.implementation().init_packets()
-    }
-
-    fn read_filter_request(&self, index: u8, nonce: u8) -> Packet {
-        self.implementation().read_filter_request(index, nonce)
-    }
-
-    fn matches_filter_response(&self, data: &[u8], index: u8, nonce: u8) -> bool {
-        self.implementation()
-            .matches_filter_response(data, index, nonce)
-    }
-
-    fn parse_filter_response(&self, data: &[u8]) -> Option<Filter> {
-        self.implementation().parse_filter_response(data)
-    }
-
-    fn read_global_gain_request(&self) -> Packet {
-        self.implementation().read_global_gain_request()
-    }
-
-    fn matches_global_gain_response(&self, data: &[u8]) -> bool {
-        self.implementation().matches_global_gain_response(data)
-    }
-
-    fn parse_global_gain_response(&self, data: &[u8]) -> Option<f64> {
-        self.implementation().parse_global_gain_response(data)
-    }
-
-    fn write_filter_packets(
-        &self,
-        index: u8,
-        filter: &Filter,
-        dsp_sample_rate: f64,
-        global_gain: f64,
-    ) -> Result<Vec<Packet>, String> {
-        self.implementation()
-            .write_filter_packets(index, filter, dsp_sample_rate, global_gain)
-    }
-
-    fn write_global_gain_packets(&self, global_gain: f64) -> Vec<Packet> {
-        self.implementation().write_global_gain_packets(global_gain)
-    }
-
-    fn commit_packets(&self) -> Vec<Packet> {
-        self.implementation().commit_packets()
-    }
-
-    fn ram_apply_packets(&self) -> Vec<Packet> {
-        self.implementation().ram_apply_packets()
-    }
-
-    fn report_id(&self) -> u8 {
-        self.implementation().report_id()
     }
 }
 
@@ -296,22 +230,7 @@ impl WalkplayProtocol {
     }
 
     pub(crate) fn build_ram_apply_packets() -> Vec<Packet> {
-        vec![
-            Packet::new(
-                REPORT_ID,
-                vec![
-                    WRITE,
-                    CMD_TEMP_WRITE,
-                    CONST_TEMP_WRITE_LEN,
-                    0x00,
-                    0x00,
-                    CONST_TEMP_WRITE_MAGIC_A,
-                    CONST_TEMP_WRITE_MAGIC_B,
-                    END,
-                ],
-            ),
-            Packet::new(REPORT_ID, vec![WRITE, CMD_FLASH_EQ, END]),
-        ]
+        Self::build_commit_packets()
     }
 
     pub fn build_utility_read_request(cmd: u8) -> Vec<u8> {

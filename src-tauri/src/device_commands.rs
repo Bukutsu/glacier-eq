@@ -41,7 +41,6 @@ pub struct SupportedDeviceInfo {
     vendor_id: u16,
     product_id: Option<u16>,
     status: &'static str,
-    family: &'static str,
     num_bands: usize,
     supports_ram_apply: bool,
     integer_preamp: bool,
@@ -174,31 +173,28 @@ pub async fn get_eq_state(
     let connected = connected_device(&state)?;
     let profile = registered_profile(&connected)?;
     let caps = &profile.caps;
+    let protocol = profile.protocol.implementation();
 
     log::info!("{}", "Reading from device...");
-    if let Err(error) = send_packet(
-        &app,
-        &connected.path,
-        &profile.protocol.read_global_gain_request(),
-    ) {
+    if let Err(error) = send_packet(&app, &connected.path, &protocol.read_global_gain_request()) {
         log::warn!("Pull wake request failed: {error}");
     }
     sleep_ms(READ_WAKE_DELAY_MS);
 
-    let first = pull_once(&app, &connected, profile.protocol, caps);
+    let first = pull_once(&app, &connected, protocol, caps);
     let is_connected = state
         .lock()
         .map(|guard| guard.connected.is_some())
         .unwrap_or(false);
     let should_retry = is_connected
         && match &first {
-            Ok(peq) => profile.protocol.is_default_state(peq),
+            Ok(peq) => protocol.is_default_state(peq),
             Err(_) => true,
         };
 
     let peq = if should_retry {
         sleep_ms(READ_PULL_RETRY_DELAY_MS);
-        match pull_once(&app, &connected, profile.protocol, caps) {
+        match pull_once(&app, &connected, protocol, caps) {
             Ok(peq) => peq,
             Err(retry_error) => match first {
                 Ok(defaultish) => defaultish,
@@ -287,7 +283,7 @@ fn compare_peq(
 fn rollback_state(
     app: &tauri::AppHandle,
     connected: &ConnectedDevice,
-    protocol: DeviceProtocol,
+    protocol: &dyn EqProtocol,
     peq: &PEQData,
     caps: &DeviceCapabilities,
 ) -> Result<(), String> {
@@ -301,7 +297,7 @@ fn rollback_state(
 fn write_eq_to_ram(
     app: &tauri::AppHandle,
     connected: &ConnectedDevice,
-    protocol: DeviceProtocol,
+    protocol: &dyn EqProtocol,
     peq: &PEQData,
     caps: &DeviceCapabilities,
 ) -> Result<(), String> {
@@ -320,12 +316,13 @@ pub async fn set_eq_state(
 ) -> Result<(), String> {
     let (connected, profile, peq) = connected_profile_and_peq(&state, peq)?;
     let caps = &profile.caps;
+    let protocol = profile.protocol.implementation();
     let settings = crate::settings::get_settings(app.clone()).unwrap_or_default();
 
     // 1. Snapshot current state before writing
     let backup_state = if !settings.skip_push_verification {
         log::info!("{}", "Snapshotting current device state...");
-        match pull_once(&app, &connected, profile.protocol, caps) {
+        match pull_once(&app, &connected, protocol, caps) {
             Ok(backup) => Some(backup),
             Err(error) => {
                 log::warn!("Failed to snapshot current state before push: {error}. Proceeding without rollback recovery.");
@@ -339,12 +336,12 @@ pub async fn set_eq_state(
     // 2. Write the new settings
     log::info!("Pushing EQ to {}...", connected.profile_name);
 
-    if let Err(error) = write_eq_to_ram(&app, &connected, profile.protocol, &peq, caps) {
+    if let Err(error) = write_eq_to_ram(&app, &connected, protocol, &peq, caps) {
         log::error!("RAM write failed: {error}");
         return Err(error);
     }
     emit_progress(&app, "Committing changes to device...", 80.0);
-    if let Err(error) = commit_changes(&app, &connected.path, profile.protocol) {
+    if let Err(error) = commit_changes(&app, &connected.path, protocol) {
         log::error!("Commit changes failed: {error}");
         return Err(error);
     }
@@ -355,7 +352,7 @@ pub async fn set_eq_state(
         emit_progress(&app, "Verifying changes...", 90.0);
         sleep_ms(READ_PULL_RETRY_DELAY_MS);
 
-        match pull_once(&app, &connected, profile.protocol, caps) {
+        match pull_once(&app, &connected, protocol, caps) {
             Ok(actual) => {
                 if let Err(mismatch) = compare_peq(&actual, &peq, caps) {
                     let err_msg = format!("Push verification failed: {mismatch}");
@@ -365,7 +362,7 @@ pub async fn set_eq_state(
                     if let Some(backup) = backup_state {
                         log::warn!("{}", "Initiating rollback to previous state...");
                         if let Err(rollback_error) =
-                            rollback_state(&app, &connected, profile.protocol, &backup, caps)
+                            rollback_state(&app, &connected, protocol, &backup, caps)
                         {
                             log::error!("Rollback failed: {rollback_error}");
                         } else {
@@ -374,7 +371,7 @@ pub async fn set_eq_state(
                                 "Rollback successfully written. Verifying rollback..."
                             );
                             sleep_ms(READ_PULL_RETRY_DELAY_MS);
-                            match pull_once(&app, &connected, profile.protocol, caps) {
+                            match pull_once(&app, &connected, protocol, caps) {
                                 Ok(rolled_back_state) => {
                                     if let Err(rollback_mismatch) =
                                         compare_peq(&rolled_back_state, &backup, caps)
@@ -429,10 +426,11 @@ pub async fn apply_eq_state(
         ));
     }
     let caps = &profile.caps;
+    let protocol = profile.protocol.implementation();
 
     log::info!("Applying EQ to {} RAM...", connected.profile_name);
-    write_eq_to_ram(&app, &connected, profile.protocol, &peq, caps)?;
-    apply_ram_changes(&app, &connected.path, profile.protocol)?;
+    write_eq_to_ram(&app, &connected, protocol, &peq, caps)?;
+    apply_ram_changes(&app, &connected.path, protocol)?;
     log::info!("{}", "RAM apply successful");
     emit_progress(&app, "Apply successful", 100.0);
     Ok(())
@@ -479,7 +477,6 @@ pub fn list_supported_devices() -> Vec<SupportedDeviceInfo> {
             vendor_id: device.vendor_id,
             product_id: device.product_id,
             status: device.status,
-            family: device.family,
             num_bands: device.caps.num_bands,
             supports_ram_apply: device.caps.supports_ram_apply,
             integer_preamp: device.caps.integer_preamp,
@@ -570,7 +567,7 @@ pub async fn get_firmware_version(
     let data = read_matching_packet(
         &app,
         &connected.path,
-        profile.protocol,
+        profile.protocol.implementation(),
         "Firmware version",
         20,
         |data| {
@@ -616,7 +613,7 @@ fn close_previous_device(
 fn pull_once(
     app: &tauri::AppHandle,
     connected: &ConnectedDevice,
-    protocol: DeviceProtocol,
+    protocol: &dyn EqProtocol,
     caps: &DeviceCapabilities,
 ) -> Result<PEQData, String> {
     emit_progress(app, "Initializing read connection...", 5.0);
@@ -648,7 +645,7 @@ fn pull_once(
 fn read_filter(
     app: &tauri::AppHandle,
     connected: &ConnectedDevice,
-    protocol: DeviceProtocol,
+    protocol: &dyn EqProtocol,
     index: u8,
 ) -> Result<glacier_core::eq::Filter, String> {
     let nonce = index.wrapping_add(1).max(1);
@@ -684,7 +681,7 @@ fn read_filter(
 fn read_global_gain(
     app: &tauri::AppHandle,
     path: &str,
-    protocol: DeviceProtocol,
+    protocol: &dyn EqProtocol,
 ) -> Result<f64, String> {
     log::info!("{}", "--- Read Global Gain ---");
 
@@ -707,7 +704,7 @@ fn read_global_gain(
 fn read_matching_packet(
     app: &tauri::AppHandle,
     path: &str,
-    protocol: DeviceProtocol,
+    protocol: &dyn EqProtocol,
     label: &str,
     attempts: usize,
     matches: impl Fn(&[u8]) -> bool,
@@ -754,7 +751,7 @@ fn read_matching_packet(
 fn run_init_sequence(
     app: &tauri::AppHandle,
     path: &str,
-    protocol: DeviceProtocol,
+    protocol: &dyn EqProtocol,
 ) -> Result<(), String> {
     for packet in protocol.init_packets() {
         send_packet(app, path, &packet).map_err(|error| format!("Init write failed: {error}"))?;
@@ -767,7 +764,7 @@ fn run_init_sequence(
 fn write_filters(
     app: &tauri::AppHandle,
     path: &str,
-    protocol: DeviceProtocol,
+    protocol: &dyn EqProtocol,
     peq: &PEQData,
     dsp_sample_rate: f64,
 ) -> Result<(), String> {
@@ -794,7 +791,7 @@ fn write_filters(
 fn write_global_gain(
     app: &tauri::AppHandle,
     path: &str,
-    protocol: DeviceProtocol,
+    protocol: &dyn EqProtocol,
     global_gain: f64,
 ) -> Result<(), String> {
     sleep_ms(protocol.write_timing().batch_ms);
@@ -809,7 +806,7 @@ fn write_global_gain(
 fn commit_changes(
     app: &tauri::AppHandle,
     path: &str,
-    protocol: DeviceProtocol,
+    protocol: &dyn EqProtocol,
 ) -> Result<(), String> {
     for packet in protocol.commit_packets() {
         send_packet(app, path, &packet).map_err(|error| format!("Commit write failed: {error}"))?;
@@ -821,7 +818,7 @@ fn commit_changes(
 fn apply_ram_changes(
     app: &tauri::AppHandle,
     path: &str,
-    protocol: DeviceProtocol,
+    protocol: &dyn EqProtocol,
 ) -> Result<(), String> {
     for packet in protocol.ram_apply_packets() {
         send_packet(app, path, &packet)
@@ -922,7 +919,7 @@ fn read_utility_register(app: &tauri::AppHandle, path: &str, cmd: u8) -> Result<
     read_matching_packet(
         app,
         path,
-        DeviceProtocol::Walkplay,
+        DeviceProtocol::Walkplay.implementation(),
         "Utility register",
         10,
         |data| data.len() >= 4 && data[0] == 0x80 && data[1] == cmd,
@@ -941,7 +938,7 @@ fn read_balance_register(app: &tauri::AppHandle, path: &str, channel: u8) -> Res
     read_matching_packet(
         app,
         path,
-        DeviceProtocol::Walkplay,
+        DeviceProtocol::Walkplay.implementation(),
         "Balance register",
         10,
         |data| data.len() >= 6 && data[0] == 0x80 && data[1] == CMD_BALANCE && data[3] == channel,
@@ -1162,8 +1159,9 @@ pub async fn reset_device_eq(
         global_gain: 0.0,
     };
 
-    write_eq_to_ram(&app, &connected, profile.protocol, &peq, caps)?;
-    commit_changes(&app, &connected.path, profile.protocol)
+    let protocol = profile.protocol.implementation();
+    write_eq_to_ram(&app, &connected, protocol, &peq, caps)?;
+    commit_changes(&app, &connected.path, protocol)
 }
 
 #[tauri::command]
