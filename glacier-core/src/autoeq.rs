@@ -492,18 +492,6 @@ fn biquad_fn(filter_type: FilterType, a_val: f32, cos_w: f32, alpha: f32) -> Biq
     }
 }
 
-pub fn spectrum(
-    filter_type: FilterType,
-    f0: f32,
-    gain: f32,
-    q: f32,
-    fs: f32,
-    f: &[f32; K],
-    y: &mut [f32; K],
-) {
-    spectrum_values(filter_type, f0, gain, q, fs, f, y);
-}
-
 pub fn spectrum_values(
     filter_type: FilterType,
     f0: f32,
@@ -734,7 +722,7 @@ fn init_lsc(
     limit(&mut q, lim_q);
 
     let mut w = [0.0; K];
-    spectrum(FilterType::LowShelf, f0, 1.0, q, fs, f, &mut w);
+    spectrum_values(FilterType::LowShelf, f0, 1.0, q, fs, f, &mut w);
 
     let mut p = 0.0;
     let mut c = 0.0;
@@ -780,7 +768,7 @@ fn init_hsc(
     limit(&mut q, lim_q);
 
     let mut w = [0.0; K];
-    spectrum(FilterType::HighShelf, f0, 1.0, q, fs, f, &mut w);
+    spectrum_values(FilterType::HighShelf, f0, 1.0, q, fs, f, &mut w);
 
     let mut p = 0.0;
     let mut c = 0.0;
@@ -1276,7 +1264,7 @@ pub fn run_autoeq_optimization(
 
         let p = init_fn(&r_init, f, fs, f0_lim[n], gain_lim[n], q_lim[n]);
         let mut w = [0.0; K];
-        spectrum(type_val, p.f0, -p.gain, p.q, fs, f, &mut w);
+        spectrum_values(type_val, p.f0, -p.gain, p.q, fs, f, &mut w);
         for k in 0..K {
             r_init[k] += w[k];
         }
@@ -1465,7 +1453,7 @@ pub fn run_autoeq(
 
     let mut response = [0.0f32; K];
     for filter in &filters {
-        spectrum(
+        spectrum_values(
             filter.filter_type,
             filter.freq as f32,
             filter.gain as f32,
