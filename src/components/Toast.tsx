@@ -1,4 +1,3 @@
-import { Icon } from "./Icon";
 
 export interface Toast {
   id: string;
@@ -19,7 +18,7 @@ export function ToastContainer({ toasts, onClose }: ToastContainerProps) {
       {toasts.map((toast) => (
         <div key={toast.id} className={`toast-item ${toast.type}`}>
           <span className="toast-icon">
-            <Icon>{toast.type === "success" ? "check_circle" : toast.type === "error" ? "error" : "info"}</Icon>
+            <span className="material-symbols-outlined">{toast.type === "success" ? "check_circle" : toast.type === "error" ? "error" : "info"}</span>
           </span>
           <span className="toast-message">{toast.message}</span>
           <button
@@ -28,7 +27,7 @@ export function ToastContainer({ toasts, onClose }: ToastContainerProps) {
             onClick={() => onClose(toast.id)}
             aria-label="Close notification"
           >
-            <Icon>close</Icon>
+            <span className="material-symbols-outlined">close</span>
           </button>
         </div>
       ))}
