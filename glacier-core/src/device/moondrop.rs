@@ -80,6 +80,7 @@ impl EqProtocol for MoondropProtocol {
         index: u8,
         filter: &Filter,
         dsp_sample_rate: f64,
+        _global_gain: f64,
     ) -> Result<Vec<Packet>, String> {
         let gain = if filter.enabled { filter.gain } else { 0.0 };
         let coeffs = compute_iir_filter(
@@ -184,7 +185,7 @@ mod tests {
         };
 
         let packets = MoondropProtocol
-            .write_filter_packets(0, &filter, 48000.0)
+            .write_filter_packets(0, &filter, 48000.0, 0.0)
             .unwrap();
 
         assert_eq!(packets.len(), 2);

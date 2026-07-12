@@ -38,10 +38,6 @@ pub const CONST_TEMP_WRITE_MAGIC_B: u8 = 0xFF;
 pub const CONST_PEQ_PAYLOAD_LEN: u8 = 0x18;
 pub const CONST_GLOBAL_GAIN_LEN: u8 = 0x02;
 pub const CONST_TEMP_WRITE_LEN: u8 = 0x04;
-pub const CONST_FLASH_EQ_LEN: u8 = 0x01;
-
-pub const FILTER_SLOT: u8 = 101;
-
 pub const OFFSET_CMD_TYPE: usize = 0;
 pub const OFFSET_CMD: usize = 1;
 pub const OFFSET_NONCE: usize = 2;
@@ -350,11 +346,15 @@ mod tests {
     #[test]
     fn build_filter_write_packet_structure() {
         let filter = make_filter(0, 1000, 5.0, 1.0);
-        let packet = WalkplayProtocol::build_filter_write_packet(0, &filter, 96000.0);
+        let packet = WalkplayProtocol::build_filter_write_packet(0, &filter, 96000.0, -3.0);
         assert_eq!(packet[OFFSET_CMD_TYPE], WRITE);
         assert_eq!(packet[OFFSET_CMD], CMD_PEQ_VALUES);
         assert_eq!(packet[OFFSET_INDEX], 0);
-        assert_eq!(packet.len(), 37);
+        assert_eq!(packet.len(), 36);
+        // byte 34 carries the global gain as an unsigned byte
+        assert_eq!(packet[34], (-3i8) as u8);
+        // byte 35 is the terminating 0x00
+        assert_eq!(packet[35], 0x00);
     }
 
     #[test]
