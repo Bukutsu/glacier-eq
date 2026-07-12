@@ -7,7 +7,7 @@ import initWasm, {
 const logMin = Math.log10(20);
 const logMax = Math.log10(20000);
 
-export const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
+const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
 export function freqToX(freq: number, width: number): number {
   return ((Math.log10(clamp(freq, 20, 20000)) - logMin) / (logMax - logMin)) * width;

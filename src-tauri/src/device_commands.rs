@@ -1178,25 +1178,13 @@ fn sleep_ms(ms: u64) {
     std::thread::sleep(Duration::from_millis(ms));
 }
 
-fn normalize_for_push(
-    mut peq: PEQData,
-    caps: &DeviceCapabilities,
-    protocol: DeviceProtocol,
-) -> PEQData {
-    let _ = peq.clamp_to_capabilities(caps);
-    if matches!(protocol, DeviceProtocol::Walkplay) {
-        peq.global_gain = peq.global_gain.round();
-    }
-    peq
-}
-
 fn connected_profile_and_peq(
     state: &tauri::State<'_, Mutex<DeviceState>>,
     peq: PEQData,
 ) -> Result<(ConnectedDevice, &'static DeviceProfile, PEQData), String> {
     let connected = connected_device(state)?;
     let profile = registered_profile(&connected)?;
-    let peq = normalize_for_push(peq, &profile.caps, profile.protocol);
+    let peq = glacier_core::profile_match::normalize_for_match(peq, &profile.caps, profile.protocol);
     Ok((connected, profile, peq))
 }
 
@@ -1210,15 +1198,21 @@ pub struct DacUtilityState {
     pub channel_balance: i8,
 }
 
-fn unsupported_utility_state() -> DacUtilityState {
-    DacUtilityState {
-        supported: false,
-        filter_mode: "FAST-LL".to_string(),
-        amp_mode_class_ab: false,
-        high_gain_mode: false,
-        mic_volume_db: 0,
-        channel_balance: 0,
+impl Default for DacUtilityState {
+    fn default() -> Self {
+        Self {
+            supported: false,
+            filter_mode: "FAST-LL".to_string(),
+            amp_mode_class_ab: false,
+            high_gain_mode: false,
+            mic_volume_db: 0,
+            channel_balance: 0,
+        }
     }
+}
+
+fn unsupported_utility_state() -> DacUtilityState {
+    DacUtilityState::default()
 }
 
 fn read_utility_register(app: &tauri::AppHandle, path: &str, cmd: u8) -> Result<Vec<u8>, String> {

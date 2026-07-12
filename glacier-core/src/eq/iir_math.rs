@@ -93,15 +93,6 @@ fn compute_biquad_coeffs_for(
     }
 }
 
-/// Evaluate a biquad using its stable complex frequency response.
-pub fn response_values(filter: &Filter, freqs: &[f64], dsp_sample_rate: f64) -> Vec<f32> {
-    let coeffs = compute_biquad_coeffs(filter, dsp_sample_rate);
-    freqs
-        .iter()
-        .map(|freq| response_db(coeffs, *freq, dsp_sample_rate))
-        .collect()
-}
-
 /// Accumulate the same stable response without allocating, for AutoEQ's hot loop.
 pub fn accumulate_response_values(
     filter_type: FilterType,
@@ -180,20 +171,5 @@ mod tests {
             };
             assert_finite_coeffs(&f, sr);
         }
-    }
-
-    #[test]
-    fn response_stays_finite_for_high_q_peak() {
-        let filter = Filter {
-            index: 0,
-            enabled: true,
-            filter_type: FilterType::Peak,
-            freq: 1000,
-            gain: 10.0,
-            q: 20.0,
-        };
-        let response = response_values(&filter, &[999.0, 1000.0, 1001.0], 96000.0);
-        assert!(response.iter().all(|value| value.is_finite()));
-        assert!(response[1] > 9.0);
     }
 }
