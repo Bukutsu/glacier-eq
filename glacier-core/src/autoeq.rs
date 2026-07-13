@@ -1112,7 +1112,8 @@ fn fit(
 
     let mut opt = AdaBelief::new(n_bands);
 
-    for _step in 0..steps {
+    for step in 0..steps {
+        opt.lr = 0.03 * 0.5 * (1.0 + ((step as f32) / (steps as f32) * std::f32::consts::PI).cos());
         let loss = grad(&c, &x, &mut g);
 
         opt.step(&mut x, &g);
