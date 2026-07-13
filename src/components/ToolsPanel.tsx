@@ -152,6 +152,7 @@ export function ToolsPanel(props: ToolsPanelProps) {
               <ImportTab
                 peq={props.peq}
                 profiles={props.profiles}
+                selectedPreset={props.selectedPreset}
                 onImportPEQ={props.onImportPEQ}
                 onReloadProfiles={props.onReloadProfiles}
                 setStatus={props.setStatus}
@@ -467,6 +468,7 @@ function PresetTab({
 interface ImportTabProps {
   peq: PEQData;
   profiles: Profile[];
+  selectedPreset: string;
   onImportPEQ: (data: PEQData, name: string, isSaved: boolean) => void;
   onReloadProfiles: () => void;
   setStatus: (msg: string) => void;
@@ -478,7 +480,7 @@ interface ParsedResult {
   warnings: string[];
 }
 
-function ImportTab({ peq, profiles, onImportPEQ, onReloadProfiles, setStatus }: ImportTabProps) {
+function ImportTab({ peq, profiles, selectedPreset, onImportPEQ, onReloadProfiles, setStatus }: ImportTabProps) {
   const [parsed, setParsed] = useState<ParsedResult | null>(null);
   const [importName, setImportName] = useState("");
   const [isTemporary, setIsTemporary] = useState(false);
@@ -543,7 +545,8 @@ function ImportTab({ peq, profiles, onImportPEQ, onReloadProfiles, setStatus }: 
   const handleExportFile = async () => {
     try {
       const text = await invoke<string>("peq_to_autoeq", { peq });
-      const defaultName = `${(importName || "eq_profile").replace(/[^a-zA-Z0-9_\- ]/g, "")}.txt`;
+      const baseName = importName || selectedPreset || "eq_profile";
+      const defaultName = `${baseName.replace(/[^a-zA-Z0-9_\- ]/g, "")}.txt`;
       const path = await save({
         defaultPath: defaultName,
         filters: [{ name: "Text Files", extensions: ["txt"] }],
