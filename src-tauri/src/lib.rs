@@ -10,6 +10,8 @@ use state::DeviceState;
 use tauri_plugin_window_state::StateFlags;
 
 mod device_commands;
+#[cfg(target_os = "linux")]
+pub mod hid_helper;
 mod profiles;
 mod settings;
 mod state;
@@ -19,6 +21,12 @@ pub fn run() {
     #[cfg(not(mobile))]
     let window_state_flags = StateFlags::SIZE | StateFlags::POSITION | StateFlags::MAXIMIZED;
     let mut builder = tauri::Builder::default().manage(Mutex::new(DeviceState::default()));
+
+    #[cfg(target_os = "linux")]
+    {
+        builder = builder.manage(Mutex::new(None::<hid_helper::ElevatedTransport>));
+    }
+
     builder = builder
         .plugin(tauri_plugin_hid::init())
         .plugin(tauri_plugin_log::Builder::new().build())
