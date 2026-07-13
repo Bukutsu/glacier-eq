@@ -27,7 +27,17 @@ import java.util.concurrent.TimeUnit
 
 private const val TAG = "HidPlugin"
 
+sealed class HidResult<out T> {
+    data class Success<T>(val data: T) : HidResult<T>()
+    data class Error(val message: String, val exception: Exception? = null) : HidResult<Nothing>() {
+        init {
+            Log.e(TAG, message, exception)
+        }
+    }
+}
+
 class HidDevice(
+    private val usbManager: UsbManager,
     private val usbDevice: UsbDevice,
     private val deviceConnection: UsbDeviceConnection
 ) {
@@ -42,7 +52,7 @@ class HidDevice(
     private var activeReadRequest: UsbRequest? = null
     
     // Initialize and connect to the device
-    fun initialize() {
+    fun initialize(): HidResult<Unit> {
         try {
             var selectedInterface: UsbInterface? = null
             for (i in 0 until usbDevice.interfaceCount) {
@@ -91,7 +101,7 @@ class HidDevice(
                 }
             }
             if (usbDevice.interfaceCount == 0) {
-                throw IllegalArgumentException("Device has no interfaces")
+                return HidResult.Error("Device has no interfaces")
             }
             val usbInterface = selectedInterface ?: usbDevice.getInterface(0)
             this.usbInterface = usbInterface
@@ -125,17 +135,16 @@ class HidDevice(
             // Claim interface
             val claimed = deviceConnection.claimInterface(usbInterface, true)
             if (!claimed) {
-                throw IllegalArgumentException("Failed to claim interface")
+                return HidResult.Error("Failed to claim interface")
             }
             Log.i(TAG, "Interface claimed successfully")
             
             // Start background reading
             startReading()
             
-        } catch (e: IllegalArgumentException) {
-            throw e
+            return HidResult.Success(Unit)
         } catch (e: Exception) {
-            throw Exception("Error initializing device: ${e.message}", e)
+            return HidResult.Error("Error initializing device: ${e.message}", e)
         }
     }
 
@@ -216,48 +225,63 @@ class HidDevice(
     }
 
     // Read data from the device queue (thread-safe, timed block)
-    fun read(timeout: Int): ByteArray {
-        if (usbInEndpoint == null) {
-            throw Exception("Cannot read: IN endpoint not available")
+    fun read(timeout: Int): HidResult<ByteArray> {
+        val endpoint = usbInEndpoint
+        if (endpoint == null) {
+            return HidResult.Error("Cannot read: IN endpoint not available")
         }
-
+        
         val effectiveTimeout = if (timeout <= 0) 5000L else timeout.toLong()
-        return try {
-            readQueue.poll(effectiveTimeout, TimeUnit.MILLISECONDS)?.also { data ->
+        try {
+            val data = readQueue.poll(effectiveTimeout, TimeUnit.MILLISECONDS)
+            return if (data != null) {
                 Log.i(TAG, "read: got data from queue (size=${data.size}): " + data.joinToString(", ") { String.format("%02X", it) })
-            } ?: ByteArray(0)
-        } catch (_: InterruptedException) {
-            ByteArray(0)
+                HidResult.Success(data)
+            } else {
+                // Timeout
+                HidResult.Success(ByteArray(0))
+            }
+        } catch (e: InterruptedException) {
+            return HidResult.Success(ByteArray(0))
         } catch (e: Exception) {
-            throw Exception("Read error: ${e.message}", e)
+            return HidResult.Error("Read error: ${e.message}", e)
         }
     }
     
     // Write data to the device using bulkTransfer primarily to avoid requestWait queue contention
-    fun write(data: ByteArray) {
+    fun write(data: ByteArray): HidResult<Unit> {
         // Try controlTransfer (SET_REPORT) first, as many USB HID DACs only process commands
         // sent via Control Transfer on Endpoint 0, and silently ignore Interrupt OUT transfers.
-        if (runCatching { writeViaControlTransfer(data) }
-                .onFailure { Log.w(TAG, "write (controlTransfer) failed: ${it.message}, trying bulkTransfer as fallback") }
-                .isSuccess) return
+        try {
+            val controlResult = writeViaControlTransfer(data)
+            if (controlResult is HidResult.Success) {
+                return controlResult
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "write (controlTransfer) failed: ${e.message}, trying bulkTransfer as fallback")
+        }
 
         val endpoint = usbOutEndpoint
-            ?: throw Exception("Failed to write data: OUT endpoint not available and controlTransfer failed")
-
+        if (endpoint == null) {
+            return HidResult.Error("Failed to write data: OUT endpoint not available and controlTransfer failed")
+        }
+        
         Log.i(TAG, "write (fallback to bulkTransfer): data.size=${data.size}, maxPacketSize=${endpoint.maxPacketSize}")
         try {
             val bytesWritten = deviceConnection.bulkTransfer(endpoint, data, data.size, 1000)
             Log.i(TAG, "write (bulkTransfer): bytesWritten=$bytesWritten")
-            if (bytesWritten == data.size) return
+            if (bytesWritten == data.size) {
+                return HidResult.Success(Unit)
+            }
         } catch (e: Exception) {
             Log.e(TAG, "write (bulkTransfer) failed: ${e.message}")
         }
-
-        throw Exception("Failed to write data via both controlTransfer and bulkTransfer")
+        
+        return HidResult.Error("Failed to write data via both controlTransfer and bulkTransfer")
     }
     
     // Write via HID SET_REPORT control transfer (works when interrupt OUT is not available or fails)
-    private fun writeViaControlTransfer(data: ByteArray) {
+    private fun writeViaControlTransfer(data: ByteArray): HidResult<Unit> {
         val ifaceId = usbInterface?.id ?: 0
         // HID SET_REPORT: bmRequestType=0x21 (host-to-device, class, interface)
         // bRequest=0x09 (SET_REPORT), wValue=0x0200 (report type OUTPUT, report ID 0) or with actual report ID
@@ -277,13 +301,15 @@ class HidDevice(
         )
         
         Log.i(TAG, "write (controlTransfer): result=$result")
-        if (result != data.size) {
-            throw Exception("Failed to write data via all methods (UsbRequest, bulkTransfer, controlTransfer). Last result=$result")
+        return if (result == data.size) {
+            HidResult.Success(Unit)
+        } else {
+            HidResult.Error("Failed to write data via all methods (UsbRequest, bulkTransfer, controlTransfer). Last result=$result")
         }
     }
     
     // Close the connection
-    fun closeConnection() {
+    fun closeConnection(): HidResult<Unit> {
         isReading = false
         try {
             activeReadRequest?.cancel()
@@ -291,15 +317,16 @@ class HidDevice(
         readThread?.interrupt()
         
         if (usbInterface == null) {
-            throw Exception("Cannot close: Interface not available")
+            return HidResult.Error("Cannot close: Interface not available")
         }
         try {
             usbInterface?.let { intf ->
                 deviceConnection.releaseInterface(intf)
             }
             deviceConnection.close()
+            return HidResult.Success(Unit)
         } catch (e: Exception) {
-            throw Exception("Error closing device: ${e.message}", e)
+            return HidResult.Error("Error closing device: ${e.message}", e)
         }
     }
 }
@@ -355,7 +382,7 @@ class HidPlugin(private val activity: Activity): Plugin(activity) {
                     val device: UsbDevice? = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE)
                     device?.apply {
                         if (connectedDevices.containsKey(device.deviceName)) {
-                            runCatching { connectedDevices[device.deviceName]!!.closeConnection() }
+                            connectedDevices[device.deviceName]!!.closeConnection()
                             connectedDevices.remove(device.deviceName)
                         }
                         Log.i(TAG, "Device detached: ${device.deviceName}")
@@ -462,18 +489,38 @@ class HidPlugin(private val activity: Activity): Plugin(activity) {
         }
         
         // Create new HidDevice
-        val hidDevice = HidDevice(usbDevice, connection)
+        val hidDevice = HidDevice(usbManager, usbDevice, connection)
 
-        runCatching { hidDevice.initialize() }
-            .onSuccess {
+        when (val result = hidDevice.initialize()) {
+            is HidResult.Success -> {
                 Log.i(TAG, "HidDevice created successfully")
                 connectedDevices[path] = hidDevice
                 invoke.resolve()
             }
-            .onFailure {
-                Log.e(TAG, it.message, it)
-                invoke.reject(TAG, "Failed to create HidDevice: ${it.message}")
+            is HidResult.Error -> {
+                invoke.reject(TAG, "Failed to create HidDevice: ${result.message}")
             }
+            else -> {
+                invoke.reject("Unknown error")
+            }
+        }
+    }
+
+    fun cleanup() {
+        if (permissionReceiver != null) {
+            activity.unregisterReceiver(permissionReceiver)
+            permissionReceiver = null
+        }
+        if (usbDetachReceiver != null) {
+            activity.unregisterReceiver(usbDetachReceiver)
+            usbDetachReceiver = null
+        }
+
+        // Close all open devices
+        for (device in connectedDevices.values) {
+            device.closeConnection()
+        }
+        connectedDevices.clear()
     }
 
     @Command
@@ -486,6 +533,7 @@ class HidPlugin(private val activity: Activity): Plugin(activity) {
         for (dev in deviceList.values) {
             if(!connectedDevices.containsKey(dev.deviceName)) {
                 val device = JSObject()
+                device.put("releaseNumber", 0)
                 device.put("path", dev.deviceName)
                 device.put("vendorId", dev.vendorId)
                 device.put("productId", dev.productId)
@@ -554,17 +602,25 @@ class HidPlugin(private val activity: Activity): Plugin(activity) {
         
         val path = args.path!!
         val device = connectedDevices[path]
-        if (device == null) {
-            invoke.reject("Device not open")
-            return
-        }
-        runCatching { device.closeConnection() }
-            .onSuccess {
-                Log.i(TAG, "Device closed: $path")
-                connectedDevices.remove(path)
-                invoke.resolve()
+        if (device != null) {
+            when (device.closeConnection()) {
+                is HidResult.Error -> {
+                    invoke.reject("Failed to close device")
+                    return
+                }
+                is HidResult.Success -> {
+                    Log.i(TAG, "Device closed: $path")
+                }
+                else -> {
+                    invoke.reject("Unknown error")
+                    return
+                }
             }
-            .onFailure { invoke.reject("Failed to close device") }
+            connectedDevices.remove(path)
+            invoke.resolve()
+        } else {
+            invoke.reject("Device not open")
+        }
     }
     
     @Command
@@ -582,13 +638,19 @@ class HidPlugin(private val activity: Activity): Plugin(activity) {
             return
         }
         
-        runCatching { device.read(args.timeout) }
-            .onSuccess { data ->
+        when (val result = device.read(args.timeout)) {
+            is HidResult.Success -> {
                 val ret = JSObject()
-                ret.put("data", JSArray(data))
+                ret.put("data", JSArray(result.data))
                 invoke.resolve(ret)
             }
-            .onFailure { invoke.reject("Failed to read from device: ${it.message}") }
+            is HidResult.Error -> {
+                invoke.reject("Failed to read from device: ${result.message}")
+            }
+            else -> {
+                invoke.reject("Unknown error")
+            }
+        }
     }
     
     @Command
@@ -606,8 +668,16 @@ class HidPlugin(private val activity: Activity): Plugin(activity) {
             return
         }
         
-        runCatching { device.write(args.data!!) }
-            .onSuccess { invoke.resolve() }
-            .onFailure { invoke.reject("Failed to write to device: ${it.message}") }
+        when (val result = device.write(args.data!!)) {
+            is HidResult.Success -> {
+                invoke.resolve()
+            }
+            is HidResult.Error -> {
+                invoke.reject("Failed to write to device: ${result.message}")
+            }
+            else -> {
+                invoke.reject("Unknown error")
+            }
+        }
     }
 }

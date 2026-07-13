@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::device::protocol::{EqProtocol, Packet};
-use crate::eq::{Filter, FilterType};
+use crate::device::timing::WriteTiming;
+use crate::eq::{Filter, FilterType, PEQData};
 
 const SET_1: u8 = 0xAA;
 const SET_2: u8 = 0x0A;
@@ -40,6 +41,10 @@ pub const FIIO_PROTOCOL: FiioProtocol = FiioProtocol {
     save_command: 0x19,
     clamp_gain: false,
 };
+
+fn default_state(peq: &PEQData) -> bool {
+    peq.global_gain == 0.0 && peq.filters.iter().all(|f| !f.enabled || f.gain == 0.0)
+}
 
 fn unsupported_read_filter(index: u8, report_id: u8) -> Packet {
     Packet::new(
@@ -127,6 +132,18 @@ fn save_packet(report_id: u8, command: u8) -> Packet {
 }
 
 impl EqProtocol for FiioProtocol {
+    fn write_timing(&self) -> WriteTiming {
+        WriteTiming::default()
+    }
+
+    fn is_default_state(&self, peq: &PEQData) -> bool {
+        default_state(peq)
+    }
+
+    fn init_packets(&self) -> Vec<Packet> {
+        vec![]
+    }
+
     fn read_filter_request(&self, index: u8, _nonce: u8) -> Packet {
         unsupported_read_filter(index, self.report_id)
     }
@@ -185,6 +202,10 @@ impl EqProtocol for FiioProtocol {
 
     fn commit_packets(&self) -> Vec<Packet> {
         vec![save_packet(self.report_id, self.save_command)]
+    }
+
+    fn ram_apply_packets(&self) -> Vec<Packet> {
+        self.commit_packets()
     }
 
     fn report_id(&self) -> u8 {

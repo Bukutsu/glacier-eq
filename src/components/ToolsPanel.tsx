@@ -1,12 +1,11 @@
 import { type CSSProperties, useState, useEffect, useRef } from "react";
-import { invoke, listen, readText, writeText } from "../lib/rpc";
+import { invoke, listen, readText, writeText, save } from "../lib/rpc";
 import type { AppSettings, MeasurementTrace, Profile, PEQData, GraphViewMode, TargetTrace } from "../types";
 import { DEFAULT_PROFILE_NAME } from "../App";
 
 import { fuzzyMatch } from "../lib/search";
 import { AddTraceModal } from "./AddTraceModal";
 import { UnifiedTracesList } from "./UnifiedTraces";
-import { NumberInput } from "./NumberInput";
 
 
 import { TAB_META, type ToolsTab } from "../lib/tabs";
@@ -96,9 +95,14 @@ interface ToolsPanelProps {
   onRemoveMeasurement: (id: string) => void;
   onToggleMeasurement: (id: string) => void;
   onClearMeasurements: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
+  onUndo: () => void;
+  onRedo: () => void;
   availableTabs?: ToolsTab[];
   defaultTab?: ToolsTab;
   dirty?: boolean;
+  showActions?: boolean;
   graphViewMode?: GraphViewMode;
   onGraphViewModeChange?: (mode: GraphViewMode) => void;
   allTargets?: TargetTrace[];
@@ -119,10 +123,13 @@ interface ToolsPanelProps {
 }
 
 export function ToolsPanel(props: ToolsPanelProps) {
-  const availableTabs = props.availableTabs ?? ["Preset", "AutoEQ", "Device", "Settings"];
-  const [internalTab, setInternalTab] = useState<ToolsTab>(() =>
-    props.defaultTab && availableTabs.includes(props.defaultTab) ? props.defaultTab : availableTabs[0]
-  );
+  const requestedTabs = props.availableTabs ?? ["Preset", "Import", "AutoEQ", "Device", "Settings"];
+  const availableTabs = requestedTabs.filter((name) => name !== "Import" || !requestedTabs.includes("Preset"));
+  const [internalTab, setInternalTab] = useState<ToolsTab>(() => (
+    props.defaultTab === "Import" && availableTabs.includes("Preset")
+      ? "Preset"
+      : props.defaultTab && availableTabs.includes(props.defaultTab) ? props.defaultTab : availableTabs[0]
+  ));
 
   const tab = props.activeTab ?? internalTab;
   const setTab = props.onActiveTabChange ?? setInternalTab;
@@ -329,6 +336,7 @@ function PresetTab({
   onReset,
   onSave,
   onDelete,
+  showActions,
   dirty,
 }: ToolsPanelProps) {
   const query = profileSearch.trim().toLowerCase();
@@ -423,24 +431,26 @@ function PresetTab({
         )}
       </div>
 
-      <div className="profile-management-actions">
-        <button className="save primary-save" onClick={onSave} title="Save profile">
-          <span className="material-symbols-outlined">save</span>
-          <span>Save</span>
-        </button>
-        <button className="icon-action profile-icon-action" title="Reset profile" aria-label="Reset profile" onClick={onReset}>
-          <span className="material-symbols-outlined">restart_alt</span>
-        </button>
-        <button
-          className="icon-action profile-icon-action danger"
-          title="Delete profile"
-          aria-label="Delete profile"
-          disabled={!canDelete}
-          onClick={onDelete}
-        >
-          <span className="material-symbols-outlined">delete</span>
-        </button>
-      </div>
+      {showActions !== false && (
+        <div className="profile-management-actions">
+          <button className="save primary-save" onClick={onSave} title="Save profile">
+            <span className="material-symbols-outlined">save</span>
+            <span>Save</span>
+          </button>
+          <button className="icon-action profile-icon-action" title="Reset profile" aria-label="Reset profile" onClick={onReset}>
+            <span className="material-symbols-outlined">restart_alt</span>
+          </button>
+          <button
+            className="icon-action profile-icon-action danger"
+            title="Delete profile"
+            aria-label="Delete profile"
+            disabled={!canDelete}
+            onClick={onDelete}
+          >
+            <span className="material-symbols-outlined">delete</span>
+          </button>
+        </div>
+      )}
 
       <div className="profile-card-foot">
         <small className="modified">
@@ -532,13 +542,16 @@ function ImportTab({ peq, profiles, onImportPEQ, onReloadProfiles, setStatus }: 
   const handleExportFile = async () => {
     try {
       const text = await invoke<string>("peq_to_autoeq", { peq });
-      const name = `${(importName || "eq_profile").replace(/[^a-zA-Z0-9_\- ]/g, "")}.txt`;
-      const url = URL.createObjectURL(new Blob([text], { type: "text/plain;charset=utf-8" }));
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = name;
-      link.click();
-      URL.revokeObjectURL(url);
+      const defaultName = `${(importName || "eq_profile").replace(/[^a-zA-Z0-9_\- ]/g, "")}.txt`;
+      const path = await save({
+        defaultPath: defaultName,
+        filters: [{ name: "Text Files", extensions: ["txt"] }],
+      });
+      if (!path) {
+        setStatus("Export cancelled.");
+        return;
+      }
+      await invoke("save_text_file", { path, content: text });
       setStatus("EQ settings exported successfully");
     } catch (err) {
       setStatus(`Export failed: ${err}`);
@@ -900,12 +913,13 @@ export function AutoEqTab({
 
             <div className="import-field-group">
               <label htmlFor="autoeq-bands">Bands Count</label>
-              <NumberInput
+              <input
+                type="number"
                 id="autoeq-bands"
                 value={nBands}
                 min={1}
                 max={32}
-                onChange={setNBands}
+                onChange={(e) => setNBands(+e.target.value)}
                 className="autoeq-bands-stepper"
               />
             </div>
@@ -1355,6 +1369,7 @@ function DeviceTab({ setStatus, onPull }: { setStatus: (msg: string) => void; on
 interface DiagnosticEvent {
   timestamp: string;
   level: "Info" | "Warn" | "Error";
+  source: "UI" | "Worker" | "HID" | "AutoEQ" | "Device";
   message: string;
 }
 
@@ -1380,6 +1395,7 @@ export function DiagnosticsPanel() {
       const diagEvent: DiagnosticEvent = {
         timestamp: payload.time || new Date().toISOString(),
         level: payload.level === "Error" ? "Error" : payload.level === "Warn" ? "Warn" : "Info",
+        source: "Worker", // tauri-plugin-log doesn't give custom sources out of the box
         message: payload.message || "",
       };
       setEvents((prev) => [...prev, diagEvent].slice(-1000));
@@ -1418,6 +1434,7 @@ export function DiagnosticsPanel() {
     if (searchQuery) {
       return (
         fuzzyMatch(searchQuery, e.message) ||
+        fuzzyMatch(searchQuery, e.source) ||
         e.timestamp.includes(searchQuery)
       );
     }
@@ -1434,7 +1451,7 @@ export function DiagnosticsPanel() {
 
   const copyToClipboard = async () => {
     const text = filtered
-      .map((e) => `${e.timestamp} [${e.level.toUpperCase()}] ${e.message}`)
+      .map((e) => `${e.timestamp} [${e.level.toUpperCase()}] [${e.source}] ${e.message}`)
       .join("\n");
     try {
       await writeText(text);
@@ -1498,7 +1515,7 @@ export function DiagnosticsPanel() {
             <p key={index} className={`log-line log-line-${event.level.toLowerCase()}`}>
               <span className="log-ts">{event.timestamp}</span>
               <span className="log-level">{event.level}</span>
-              <span className="log-msg">{event.message}</span>
+              <span className="log-msg">[{event.source}] {event.message}</span>
             </p>
           ))
         )}
