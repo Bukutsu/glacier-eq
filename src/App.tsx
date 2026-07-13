@@ -541,6 +541,7 @@ function App() {
       setPeq(normalized);
       setSelectedPreset(name);
       setNewProfileName(name);
+      setProfileSearch(name);
       setDirty(!isSaved);
     },
     [pushToUndoStack, selectedDeviceInfo],
