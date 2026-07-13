@@ -10,6 +10,9 @@ use std::collections::HashSet;
 use std::sync::{Mutex, MutexGuard};
 use tauri::Manager;
 
+#[cfg(target_os = "linux")]
+use crate::hid_helper::ElevatedTransport;
+
 #[derive(Clone, serde::Serialize)]
 struct OperationProgress {
     message: String,
@@ -70,6 +73,14 @@ fn handle_disconnection(app: &tauri::AppHandle, error: &str) {
         .and_then(|mut state| state.connected.take());
     if let Some(device) = disconnected {
         let _ = hid_close(app, &device.path);
+        #[cfg(target_os = "linux")]
+        {
+            if let Some(elevated_state) = app.try_state::<Mutex<Option<ElevatedTransport>>>() {
+                if let Ok(mut guard) = elevated_state.lock() {
+                    *guard = None;
+                }
+            }
+        }
         use tauri::Emitter;
         let _ = app.emit("device-disconnected", device.profile_name);
     }
@@ -89,6 +100,19 @@ fn ensure_connected(app: &tauri::AppHandle) -> Result<(), String> {
 
 fn hid_read(app: &tauri::AppHandle, path: &str, timeout: i32) -> Result<Vec<u8>, String> {
     ensure_connected(app)?;
+    #[cfg(target_os = "linux")]
+    if let Some(t) = app
+        .state::<Mutex<Option<ElevatedTransport>>>()
+        .lock()
+        .unwrap()
+        .as_mut()
+    {
+        let res = t.read(path, timeout);
+        if let Err(ref e) = res {
+            handle_disconnection(app, e);
+        }
+        return res;
+    }
     tauri_plugin_hid::hid(app)
         .read(path, timeout)
         .map_err(|error| {
@@ -100,6 +124,19 @@ fn hid_read(app: &tauri::AppHandle, path: &str, timeout: i32) -> Result<Vec<u8>,
 
 fn hid_write(app: &tauri::AppHandle, path: &str, data: &[u8]) -> Result<(), String> {
     ensure_connected(app)?;
+    #[cfg(target_os = "linux")]
+    if let Some(t) = app
+        .state::<Mutex<Option<ElevatedTransport>>>()
+        .lock()
+        .unwrap()
+        .as_mut()
+    {
+        let res = t.write(path, data);
+        if let Err(ref e) = res {
+            handle_disconnection(app, e);
+        }
+        return res;
+    }
     tauri_plugin_hid::hid(app)
         .write(path, data)
         .map_err(|error| {
@@ -110,20 +147,44 @@ fn hid_write(app: &tauri::AppHandle, path: &str, data: &[u8]) -> Result<(), Stri
 }
 
 fn hid_close(app: &tauri::AppHandle, path: &str) -> Result<(), String> {
+    #[cfg(target_os = "linux")]
+    if let Some(t) = app
+        .state::<Mutex<Option<ElevatedTransport>>>()
+        .lock()
+        .unwrap()
+        .as_mut()
+    {
+        return t.close(path);
+    }
     tauri_plugin_hid::hid(app)
         .close(path)
         .map_err(|error| error.to_string())
 }
 
 fn try_open_device(app: &tauri::AppHandle, path: &str) -> Result<(), String> {
-    tauri_plugin_hid::hid(app).open(path).map_err(|error| {
-        let message = error.to_string();
-        if message.to_lowercase().contains("permission denied") {
-            "Permission denied. Install udev/99-glacier-eq.rules and replug the DAC.".into()
-        } else {
-            message
+    match tauri_plugin_hid::hid(app).open(path) {
+        Ok(()) => return Ok(()),
+        Err(e) => {
+            let msg = e.to_string();
+            if !msg.to_lowercase().contains("permission denied") {
+                return Err(msg);
+            }
         }
-    })
+    }
+    #[cfg(target_os = "linux")]
+    {
+        let state = app.state::<Mutex<Option<ElevatedTransport>>>();
+        let mut guard = state.lock().map_err(|_| "state poisoned")?;
+        if let Some(ref mut t) = *guard {
+            return t.open(path);
+        }
+        let mut transport = ElevatedTransport::spawn()?;
+        transport.open(path)?;
+        guard.replace(transport);
+        Ok(())
+    }
+    #[cfg(not(target_os = "linux"))]
+    Err("Permission denied. Install udev/99-glacier-eq.rules and replug the DAC.".into())
 }
 
 struct TauriDeviceIo<'a> {
