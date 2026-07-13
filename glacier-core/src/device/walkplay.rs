@@ -322,7 +322,7 @@ pub const PROFILES: &[DeviceProfile] = &[
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::device::protocol::{EqProtocol, WalkplayProtocol};
+    use crate::device::protocol::WalkplayProtocol;
     use crate::eq::FilterType;
 
     fn make_filter(index: u8, freq: u16, gain: f64, q: f64) -> Filter {
@@ -339,11 +339,7 @@ mod tests {
     #[test]
     fn build_filter_write_packet_structure() {
         let filter = make_filter(0, 1000, 5.0, 1.0);
-        let packet = WalkplayProtocol
-            .write_filter_packets(0, &filter, 96000.0, -3.0)
-            .unwrap()
-            .remove(0)
-            .payload;
+        let packet = WalkplayProtocol::build_filter_write_packet(0, &filter, 96000.0, -3.0);
         assert_eq!(packet[OFFSET_CMD_TYPE], WRITE);
         assert_eq!(packet[OFFSET_CMD], CMD_PEQ_VALUES);
         assert_eq!(packet[OFFSET_INDEX], 0);
@@ -356,10 +352,7 @@ mod tests {
 
     #[test]
     fn build_global_gain_write_packet_structure() {
-        let packet = WalkplayProtocol
-            .write_global_gain_packets(5.0)
-            .remove(0)
-            .payload;
+        let packet = WalkplayProtocol::build_global_gain_write_packet(5);
         assert_eq!(packet[OFFSET_CMD_TYPE], WRITE);
         assert_eq!(packet[OFFSET_CMD], CMD_GLOBAL_GAIN);
         assert_eq!(packet[OFFSET_GAIN_VALUE], 5);
@@ -367,16 +360,13 @@ mod tests {
 
     #[test]
     fn build_global_gain_write_packet_negative() {
-        let packet = WalkplayProtocol
-            .write_global_gain_packets(-3.0)
-            .remove(0)
-            .payload;
+        let packet = WalkplayProtocol::build_global_gain_write_packet(-3);
         assert_eq!(packet[OFFSET_GAIN_VALUE] as i8, -3);
     }
 
     #[test]
     fn build_commit_packets_has_two_steps() {
-        let packets = WalkplayProtocol.commit_packets();
+        let packets = WalkplayProtocol::build_commit_packets();
         assert_eq!(packets.len(), 2);
         assert_eq!(packets[0].payload[1], CMD_TEMP_WRITE);
         assert_eq!(packets[1].payload[1], CMD_FLASH_EQ);
@@ -384,7 +374,7 @@ mod tests {
 
     #[test]
     fn build_ram_apply_packets_matches_temp_apply_sequence() {
-        let packets = WalkplayProtocol.ram_apply_packets();
+        let packets = WalkplayProtocol::build_ram_apply_packets();
         assert_eq!(
             packets[0].payload,
             vec![
@@ -403,7 +393,7 @@ mod tests {
 
     #[test]
     fn write_timing_uses_500ms_commit_step() {
-        let timing = WalkplayProtocol.write_timing();
+        let timing = WalkplayProtocol::write_timing();
         assert_eq!(timing.commit_step_ms, 500);
     }
 
@@ -414,7 +404,7 @@ mod tests {
         data[OFFSET_CMD] = CMD_PEQ_VALUES;
         data[OFFSET_NONCE] = 0x42;
         data[OFFSET_INDEX] = 3;
-        assert!(WalkplayProtocol.matches_filter_response(&data, 3, 0x42));
+        assert!(WalkplayProtocol::matches_filter_response(&data, 3, 0x42));
     }
 
     #[test]
@@ -424,12 +414,16 @@ mod tests {
         data[OFFSET_CMD] = CMD_PEQ_VALUES;
         data[OFFSET_NONCE] = 0x42;
         data[OFFSET_INDEX] = 3;
-        assert!(!WalkplayProtocol.matches_filter_response(&data, 3, 0xFF));
+        assert!(!WalkplayProtocol::matches_filter_response(&data, 3, 0xFF));
     }
 
     #[test]
     fn matches_filter_response_rejects_short_packet() {
-        assert!(!WalkplayProtocol.matches_filter_response(&[READ, CMD_PEQ_VALUES], 0, 1));
+        assert!(!WalkplayProtocol::matches_filter_response(
+            &[READ, CMD_PEQ_VALUES],
+            0,
+            1
+        ));
     }
 
     #[test]
@@ -438,16 +432,16 @@ mod tests {
         data[OFFSET_CMD_TYPE] = READ;
         data[OFFSET_CMD] = CMD_GLOBAL_GAIN;
         data[OFFSET_GAIN_VALUE] = 3u8;
-        assert!(WalkplayProtocol.matches_global_gain_response(&data));
+        assert!(WalkplayProtocol::matches_global_gain_response(&data, 0));
         assert_eq!(
-            WalkplayProtocol.parse_global_gain_response(&data),
-            Some(3.0)
+            WalkplayProtocol::parse_global_gain_response(&data),
+            Some(3i8)
         );
     }
 
     #[test]
     fn parse_filter_response_too_short() {
-        assert!(WalkplayProtocol.parse_filter_response(&[0u8; 10]).is_none());
+        assert!(WalkplayProtocol::parse_filter_response(&[0u8; 10]).is_none());
     }
 
     #[test]

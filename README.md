@@ -54,14 +54,7 @@ npm install
 npm run tauri dev
 ```
 
-## CLI
-
-Glacier EQ includes a fully offline CLI for scripting, piping profiles, and bulk AutoEQ tasks. 
-Data goes to `stdout`, diagnostics to `stderr`.
-
-For the full command reference, syntax, and examples, see the [CLI Documentation](https://github.com/Bukutsu/glacier-eq/wiki/CLI).
-
-## GUI Usage
+## Usage
 
 1. Plug in a supported DAC.
 2. Open Glacier EQ.
@@ -139,7 +132,7 @@ Release APK signing is not configured by default.
 - [x] More DAC families beyond Walkplay/Savitech
 - [ ] Interactive filter adjustment from the graph
 - [ ] Full-screen Android filter adjustment
-- [x] Command-line profile tools
+- [ ] Command-line interface
 - [ ] Multi-device support
 - [ ] Localization
 ## Linux HID Permissions

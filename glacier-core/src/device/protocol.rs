@@ -51,15 +51,9 @@ impl Packet {
 }
 
 pub trait EqProtocol {
-    fn write_timing(&self) -> WriteTiming {
-        WriteTiming::default()
-    }
-    fn is_default_state(&self, peq: &PEQData) -> bool {
-        peq.global_gain == 0.0 && peq.filters.iter().all(|f| !f.enabled || f.gain == 0.0)
-    }
-    fn init_packets(&self) -> Vec<Packet> {
-        vec![]
-    }
+    fn write_timing(&self) -> WriteTiming;
+    fn is_default_state(&self, peq: &PEQData) -> bool;
+    fn init_packets(&self) -> Vec<Packet>;
     fn read_filter_request(&self, index: u8, nonce: u8) -> Packet;
     fn matches_filter_response(&self, data: &[u8], index: u8, nonce: u8) -> bool;
     fn parse_filter_response(&self, data: &[u8]) -> Option<Filter>;
@@ -75,9 +69,7 @@ pub trait EqProtocol {
     ) -> Result<Vec<Packet>, String>;
     fn write_global_gain_packets(&self, global_gain: f64) -> Vec<Packet>;
     fn commit_packets(&self) -> Vec<Packet>;
-    fn ram_apply_packets(&self) -> Vec<Packet> {
-        self.commit_packets()
-    }
+    fn ram_apply_packets(&self) -> Vec<Packet>;
 
     fn unframe_packet<'a>(&self, framed: &'a [u8]) -> Result<&'a [u8], String> {
         if framed.is_empty() {
@@ -114,6 +106,131 @@ pub struct WalkplayProtocol;
 impl WalkplayProtocol {
     pub fn report_id() -> u8 {
         REPORT_ID
+    }
+
+    pub(crate) fn write_timing() -> WriteTiming {
+        WriteTiming {
+            commit_step_ms: 500,
+            flood_delay_ms: 35,
+            post_gain_read_ms: 50,
+            ..WriteTiming::default()
+        }
+    }
+
+    pub(crate) fn is_default_state(peq: &PEQData) -> bool {
+        let all_disabled = peq.filters.iter().all(|f| !f.enabled);
+        let has_default_gain = peq.global_gain == 0.0;
+        let all_zero_gain = peq.filters.iter().all(|f| f.gain == 0.0);
+        all_disabled && has_default_gain && all_zero_gain
+    }
+
+    pub(crate) fn build_init_packets() -> Vec<Packet> {
+        vec![Packet::new(REPORT_ID, vec![READ, CMD_VERSION, END])]
+    }
+
+    pub(crate) fn build_filter_read_request(index: u8, nonce: u8) -> Vec<u8> {
+        vec![READ, CMD_PEQ_VALUES, nonce, 0x00, index, END]
+    }
+
+    pub(crate) fn matches_filter_response(data: &[u8], index: u8, nonce: u8) -> bool {
+        data.len() >= FILTER_RESPONSE_MIN_LEN
+            && data[OFFSET_CMD_TYPE] == READ
+            && data[OFFSET_CMD] == CMD_PEQ_VALUES
+            && data[OFFSET_NONCE] == nonce
+            && data[OFFSET_INDEX] == index
+    }
+
+    pub(crate) fn parse_filter_response(data: &[u8]) -> Option<Filter> {
+        parse_filter_packet(data)
+    }
+
+    pub(crate) fn build_filter_write_packet(
+        index: u8,
+        filter: &Filter,
+        dsp_sample_rate: f64,
+        global_gain: f64,
+    ) -> Vec<u8> {
+        let b_arr = compute_iir_filter(
+            filter.filter_type,
+            filter.freq as f64,
+            filter.gain,
+            filter.q,
+            dsp_sample_rate,
+        );
+        let filter_type_byte: u8 = filter.filter_type.into();
+        // Global gain is embedded as an unsigned byte in every filter packet,
+        // matching the Walkplay/Savitech wire format (byte 34 of the payload).
+        let gain_byte = (global_gain.round() as i8) as u8;
+
+        let mut packet = Vec::with_capacity(36);
+        packet.extend_from_slice(&[
+            WRITE,
+            CMD_PEQ_VALUES,
+            CONST_PEQ_PAYLOAD_LEN,
+            0x00,
+            index,
+            0x00,
+            0x00,
+        ]);
+        packet.extend_from_slice(&b_arr);
+        packet.extend_from_slice(&convert_to_2byte_array(filter.freq as i32));
+        packet.extend_from_slice(&convert_to_2byte_array((filter.q * 256.0).round() as i32));
+        packet.extend_from_slice(&convert_to_2byte_array((filter.gain * 256.0).round() as i32));
+        packet.extend_from_slice(&[filter_type_byte, gain_byte, 0x00]);
+
+        packet
+    }
+
+    pub(crate) fn build_global_gain_request(_nonce: u8) -> Vec<u8> {
+        vec![READ, CMD_GLOBAL_GAIN, 0x00, END]
+    }
+
+    pub(crate) fn matches_global_gain_response(data: &[u8], _nonce: u8) -> bool {
+        data.len() >= GLOBAL_GAIN_RESPONSE_MIN_LEN
+            && data[OFFSET_CMD_TYPE] == READ
+            && data[OFFSET_CMD] == CMD_GLOBAL_GAIN
+    }
+
+    pub(crate) fn parse_global_gain_response(data: &[u8]) -> Option<i8> {
+        if data.len() > OFFSET_GAIN_VALUE {
+            Some(data[OFFSET_GAIN_VALUE] as i8)
+        } else {
+            None
+        }
+    }
+
+    pub(crate) fn build_global_gain_write_packet(gain: i8) -> Vec<u8> {
+        vec![
+            WRITE,
+            CMD_GLOBAL_GAIN,
+            CONST_GLOBAL_GAIN_LEN,
+            0x00,
+            gain as u8,
+            END,
+        ]
+    }
+
+    pub(crate) fn build_commit_packets() -> Vec<Packet> {
+        vec![
+            Packet::new(
+                REPORT_ID,
+                vec![
+                    WRITE,
+                    CMD_TEMP_WRITE,
+                    CONST_TEMP_WRITE_LEN,
+                    0x00,
+                    0x00,
+                    CONST_TEMP_WRITE_MAGIC_A,
+                    CONST_TEMP_WRITE_MAGIC_B,
+                    END,
+                ],
+            ),
+            Packet::new(REPORT_ID, vec![WRITE, CMD_FLASH_EQ, END]),
+        ]
+    }
+
+    pub(crate) fn build_ram_apply_packets() -> Vec<Packet> {
+        Self::build_commit_packets()
     }
 
     pub fn build_utility_read_request(cmd: u8) -> Vec<u8> {
@@ -161,56 +278,39 @@ impl WalkplayProtocol {
 
 impl EqProtocol for WalkplayProtocol {
     fn write_timing(&self) -> WriteTiming {
-        WriteTiming {
-            commit_step_ms: 500,
-            flood_delay_ms: 35,
-            post_gain_read_ms: 50,
-            ..WriteTiming::default()
-        }
+        Self::write_timing()
     }
 
     fn is_default_state(&self, peq: &PEQData) -> bool {
-        peq.global_gain == 0.0
-            && peq.filters.iter().all(|filter| !filter.enabled)
-            && peq.filters.iter().all(|filter| filter.gain == 0.0)
+        Self::is_default_state(peq)
     }
 
     fn init_packets(&self) -> Vec<Packet> {
-        vec![Packet::new(REPORT_ID, vec![READ, CMD_VERSION, END])]
+        Self::build_init_packets()
     }
 
     fn read_filter_request(&self, index: u8, nonce: u8) -> Packet {
-        Packet::new(
-            REPORT_ID,
-            vec![READ, CMD_PEQ_VALUES, nonce, 0x00, index, END],
-        )
+        Packet::new(REPORT_ID, Self::build_filter_read_request(index, nonce))
     }
 
     fn matches_filter_response(&self, data: &[u8], index: u8, nonce: u8) -> bool {
-        data.len() >= FILTER_RESPONSE_MIN_LEN
-            && data[OFFSET_CMD_TYPE] == READ
-            && data[OFFSET_CMD] == CMD_PEQ_VALUES
-            && data[OFFSET_NONCE] == nonce
-            && data[OFFSET_INDEX] == index
+        Self::matches_filter_response(data, index, nonce)
     }
 
     fn parse_filter_response(&self, data: &[u8]) -> Option<Filter> {
-        parse_filter_packet(data)
+        Self::parse_filter_response(data)
     }
 
     fn read_global_gain_request(&self) -> Packet {
-        Packet::new(REPORT_ID, vec![READ, CMD_GLOBAL_GAIN, 0x00, END])
+        Packet::new(REPORT_ID, Self::build_global_gain_request(0))
     }
 
     fn matches_global_gain_response(&self, data: &[u8]) -> bool {
-        data.len() >= GLOBAL_GAIN_RESPONSE_MIN_LEN
-            && data[OFFSET_CMD_TYPE] == READ
-            && data[OFFSET_CMD] == CMD_GLOBAL_GAIN
+        Self::matches_global_gain_response(data, 0)
     }
 
     fn parse_global_gain_response(&self, data: &[u8]) -> Option<f64> {
-        data.get(OFFSET_GAIN_VALUE)
-            .map(|gain| f64::from(*gain as i8))
+        Self::parse_global_gain_response(data).map(f64::from)
     }
 
     fn write_filter_packets(
@@ -220,66 +320,25 @@ impl EqProtocol for WalkplayProtocol {
         dsp_sample_rate: f64,
         global_gain: f64,
     ) -> Result<Vec<Packet>, String> {
-        let b_arr = compute_iir_filter(
-            filter.filter_type,
-            filter.freq as f64,
-            filter.gain,
-            filter.q,
-            dsp_sample_rate,
-        );
-        let mut payload = Vec::with_capacity(36);
-        payload.extend_from_slice(&[
-            WRITE,
-            CMD_PEQ_VALUES,
-            CONST_PEQ_PAYLOAD_LEN,
-            0x00,
-            index,
-            0x00,
-            0x00,
-        ]);
-        payload.extend_from_slice(&b_arr);
-        payload.extend_from_slice(&convert_to_2byte_array(filter.freq as i32));
-        payload.extend_from_slice(&convert_to_2byte_array((filter.q * 256.0).round() as i32));
-        payload.extend_from_slice(&convert_to_2byte_array((filter.gain * 256.0).round() as i32));
-        payload.extend_from_slice(&[
-            filter.filter_type.into(),
-            (global_gain.round() as i8) as u8,
-            END,
-        ]);
-        Ok(vec![Packet::new(REPORT_ID, payload)])
+        Ok(vec![Packet::new(
+            REPORT_ID,
+            Self::build_filter_write_packet(index, filter, dsp_sample_rate, global_gain),
+        )])
     }
 
     fn write_global_gain_packets(&self, global_gain: f64) -> Vec<Packet> {
         vec![Packet::new(
             REPORT_ID,
-            vec![
-                WRITE,
-                CMD_GLOBAL_GAIN,
-                CONST_GLOBAL_GAIN_LEN,
-                0x00,
-                global_gain.round() as i8 as u8,
-                END,
-            ],
+            Self::build_global_gain_write_packet(global_gain.round() as i8),
         )]
     }
 
     fn commit_packets(&self) -> Vec<Packet> {
-        vec![
-            Packet::new(
-                REPORT_ID,
-                vec![
-                    WRITE,
-                    CMD_TEMP_WRITE,
-                    CONST_TEMP_WRITE_LEN,
-                    0x00,
-                    0x00,
-                    CONST_TEMP_WRITE_MAGIC_A,
-                    CONST_TEMP_WRITE_MAGIC_B,
-                    END,
-                ],
-            ),
-            Packet::new(REPORT_ID, vec![WRITE, CMD_FLASH_EQ, END]),
-        ]
+        Self::build_commit_packets()
+    }
+
+    fn ram_apply_packets(&self) -> Vec<Packet> {
+        Self::build_ram_apply_packets()
     }
 
     fn report_id(&self) -> u8 {

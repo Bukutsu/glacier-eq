@@ -7,30 +7,60 @@ use glacier_core::device::{
 };
 use glacier_core::eq::PEQData;
 use glacier_core::profile_match::{matching_profile_name, ProfileCandidate};
-use glacier_core::profiles::{ProfileStore, StoredProfile};
+use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use tauri::Manager;
 
-pub type ProfileDto = StoredProfile;
+#[derive(Debug, Clone, Serialize)]
+pub struct ProfileDto {
+    name: String,
+    data: PEQData,
+    modified: Option<u64>,
+}
 
 pub(crate) fn app_data_base_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
-    let dir = std::env::var_os("GLACIER_EQ_HOME")
-        .filter(|path| !path.is_empty())
+    let dir = std::env::var("GLACIER_EQ_HOME")
+        .ok()
+        .filter(|d| !d.trim().is_empty())
         .map(PathBuf::from)
         .map(Ok)
         .unwrap_or_else(|| {
             app.path()
                 .app_data_dir()
-                .map_err(|error| format!("Failed to resolve Glacier EQ data directory: {error}"))
+                .map_err(|e| format!("Failed to resolve Glacier EQ data directory: {e}"))
         })?;
-    std::fs::create_dir_all(&dir)
-        .map_err(|error| format!("Failed to create {}: {error}", dir.display()))?;
+
+    std::fs::create_dir_all(&dir).map_err(|error| {
+        format!(
+            "Failed to create Glacier EQ data directory {}: {error}",
+            dir.display()
+        )
+    })?;
     Ok(dir)
 }
 
-fn store(app: &tauri::AppHandle) -> Result<ProfileStore, String> {
-    ProfileStore::new(app_data_base_dir(app)?)
+fn profiles_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    let dir = app_data_base_dir(app)?.join("profiles");
+    std::fs::create_dir_all(&dir)
+        .map_err(|error| format!("Failed to create profiles directory: {error}"))?;
+    Ok(dir)
+}
+
+fn sanitize_profile_name(name: &str) -> String {
+    name.chars()
+        .filter(|c| c.is_alphanumeric() || *c == '_' || *c == '-' || *c == ' ')
+        .collect()
+}
+
+fn modified_time_epoch(path: &Path) -> Option<u64> {
+    let modified = std::fs::metadata(path).ok()?.modified().ok()?;
+    Some(
+        modified
+            .duration_since(std::time::UNIX_EPOCH)
+            .ok()?
+            .as_secs(),
+    )
 }
 
 fn connected_match_target(
@@ -55,7 +85,7 @@ pub fn match_profile_name(
     state: tauri::State<'_, Mutex<DeviceState>>,
     peq: PEQData,
 ) -> Result<Option<String>, String> {
-    let profiles = store(&app)?.list()?;
+    let profiles = list_profiles(app)?;
     let (caps, protocol) = connected_match_target(&state)?;
     Ok(matching_profile_name(
         &peq,
@@ -70,26 +100,119 @@ pub fn match_profile_name(
 
 #[tauri::command]
 pub fn list_profiles(app: tauri::AppHandle) -> Result<Vec<ProfileDto>, String> {
-    store(&app)?.list()
+    let dir = profiles_dir(&app)?;
+    let mut profiles = Vec::new();
+
+    for entry in std::fs::read_dir(&dir).map_err(|error| {
+        format!(
+            "Failed to read profiles directory {}: {error}",
+            dir.display()
+        )
+    })? {
+        let entry =
+            entry.map_err(|error| format!("Failed to read profile directory entry: {error}"))?;
+        if let Some(profile) = read_profile(entry.path())? {
+            profiles.push(profile);
+        }
+    }
+
+    profiles.sort_by_key(|profile| profile.name.to_lowercase());
+    Ok(profiles)
+}
+
+fn read_profile(path: PathBuf) -> Result<Option<ProfileDto>, String> {
+    if !path.is_file() || path.extension().and_then(|ext| ext.to_str()) != Some("txt") {
+        return Ok(None);
+    }
+
+    let metadata = std::fs::metadata(&path)
+        .map_err(|error| format!("Failed to stat profile {}: {error}", path.display()))?;
+    if metadata.len() > 1024 * 1024 {
+        log::warn!("Skipping oversized profile {}", path.display());
+        return Ok(None);
+    }
+
+    let content = match std::fs::read_to_string(&path) {
+        Ok(content) => content,
+        Err(error) => {
+            log::warn!("Skipping unreadable profile {}: {}", path.display(), error);
+            return Ok(None);
+        }
+    };
+
+    let (data, _, warnings) = match glacier_core::autoeq::parse_autoeq_text(&content) {
+        Ok(parsed) => parsed,
+        Err(error) => {
+            log::warn!("Skipping unparsable profile {}: {}", path.display(), error);
+            return Ok(None);
+        }
+    };
+
+    for warning in warnings {
+        log::warn!("Profile {} warning: {}", path.display(), warning);
+    }
+
+    let name = path
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .unwrap_or("Unnamed Profile")
+        .to_string();
+
+    Ok(Some(ProfileDto {
+        name,
+        data,
+        modified: modified_time_epoch(&path),
+    }))
 }
 
 #[tauri::command]
 pub fn save_profile(app: tauri::AppHandle, name: String, peq: PEQData) -> Result<(), String> {
-    store(&app)?.save(&name, &peq)
+    let sanitized = sanitize_profile_name(&name);
+    if sanitized.trim().is_empty() {
+        return Err("Enter a profile name first.".to_string());
+    }
+
+    let dir = profiles_dir(&app)?;
+    let path = dir.join(format!("{sanitized}.txt"));
+    let tmp_path = dir.join(format!(".{sanitized}.tmp"));
+    let content = glacier_core::autoeq::peq_to_autoeq(&peq);
+
+    std::fs::write(&tmp_path, content).map_err(|error| {
+        format!(
+            "Failed to write temporary profile {}: {error}",
+            tmp_path.display()
+        )
+    })?;
+    std::fs::rename(&tmp_path, &path)
+        .map_err(|error| format!("Failed to save profile {}: {error}", path.display()))?;
+    Ok(())
 }
 
 #[tauri::command]
 pub fn delete_profile(app: tauri::AppHandle, name: String) -> Result<(), String> {
-    store(&app)?.delete(&name)
+    let sanitized = sanitize_profile_name(&name);
+    if sanitized.trim().is_empty() {
+        return Err("No profile selected.".to_string());
+    }
+
+    let path = profiles_dir(&app)?.join(format!("{sanitized}.txt"));
+    match std::fs::remove_file(&path) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(format!(
+            "Failed to delete profile {}: {error}",
+            path.display()
+        )),
+    }
 }
 
 #[tauri::command]
 pub fn open_profiles_dir(app: tauri::AppHandle) -> Result<(), String> {
-    let store = store(&app)?;
-    open_dir(store.directory()).map(|_| ()).map_err(|error| {
+    let dir = profiles_dir(&app)?;
+    open_dir(&dir).map(|_| ()).map_err(|error| {
         format!(
             "Failed to open profiles directory {}: {error}",
-            store.directory().display()
+            dir.display()
         )
     })
 }
@@ -98,14 +221,17 @@ pub fn open_profiles_dir(app: tauri::AppHandle) -> Result<(), String> {
 fn open_dir(dir: &Path) -> std::io::Result<std::process::Child> {
     std::process::Command::new("explorer").arg(dir).spawn()
 }
+
 #[cfg(target_os = "macos")]
 fn open_dir(dir: &Path) -> std::io::Result<std::process::Child> {
     std::process::Command::new("open").arg(dir).spawn()
 }
+
 #[cfg(target_os = "linux")]
 fn open_dir(dir: &Path) -> std::io::Result<std::process::Child> {
     std::process::Command::new("xdg-open").arg(dir).spawn()
 }
+
 #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
 fn open_dir(_dir: &Path) -> std::io::Result<std::process::Child> {
     Err(std::io::Error::new(
@@ -126,8 +252,12 @@ pub fn parse_autoeq(
     text: String,
     state: tauri::State<'_, Mutex<DeviceState>>,
 ) -> Result<AutoEqParseResult, String> {
-    let (mut peq, headphone_name, mut warnings) = glacier_core::autoeq::parse_autoeq_text(&text)?;
-    warnings.append(&mut peq.clamp_to_capabilities(&connected_match_target(&state)?.0));
+    let (mut peq, headphone_name, mut warnings) =
+        glacier_core::autoeq::parse_autoeq_text(&text).map_err(|err| err.to_string())?;
+
+    let mut clamp_warnings = peq.clamp_to_capabilities(&connected_match_target(&state)?.0);
+    warnings.append(&mut clamp_warnings);
+
     Ok(AutoEqParseResult {
         peq,
         headphone_name,
@@ -146,6 +276,24 @@ pub struct AutoEqRunResult {
     pub warnings: Vec<String>,
 }
 
+pub fn run_autoeq_internal(
+    measurement_points: Vec<(f64, f64)>,
+    target_points: Vec<(f64, f64)>,
+    n_bands: usize,
+    steps: usize,
+    smooth_type: String,
+    fs: f32,
+) -> Result<PEQData, String> {
+    glacier_core::autoeq::run_autoeq(
+        &measurement_points,
+        &target_points,
+        n_bands,
+        steps,
+        &smooth_type,
+        fs,
+    )
+}
+
 #[tauri::command]
 pub async fn run_autoeq(
     measurement_points: Vec<(f64, f64)>,
@@ -156,14 +304,53 @@ pub async fn run_autoeq(
     fs: f32,
     state: tauri::State<'_, Mutex<DeviceState>>,
 ) -> Result<AutoEqRunResult, String> {
-    let mut peq = glacier_core::autoeq::run_autoeq(
-        &measurement_points,
-        &target_points,
+    let mut peq = run_autoeq_internal(
+        measurement_points,
+        target_points,
         n_bands,
         steps,
-        &smooth_type,
+        smooth_type,
         fs,
     )?;
+
     let warnings = peq.clamp_to_capabilities(&connected_match_target(&state)?.0);
+
     Ok(AutoEqRunResult { peq, warnings })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_run_autoeq_preamp_clipping_prevention() {
+        let mut measurement_points = Vec::new();
+        let mut target_points = Vec::new();
+
+        // Create a flat measurement and a target with a sharp +12dB boost at 1kHz
+        for freq_val in [
+            20.0_f64, 100.0, 500.0, 1000.0, 2000.0, 5000.0, 10000.0, 20000.0,
+        ] {
+            let freq = freq_val;
+            measurement_points.push((freq, 0.0));
+            if (freq - 1000.0).abs() < 1.0 {
+                target_points.push((freq, 12.0));
+            } else {
+                target_points.push((freq, 0.0));
+            }
+        }
+
+        let peq = run_autoeq_internal(
+            measurement_points,
+            target_points,
+            5,
+            100,
+            "None".to_string(),
+            48000.0,
+        )
+        .unwrap();
+
+        // The optimized EQ must have a negative preamp to prevent digital clipping
+        assert!(peq.global_gain < 0.0);
+    }
 }

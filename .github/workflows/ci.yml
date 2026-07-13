@@ -38,13 +38,10 @@ jobs:
         with:
           workspaces: ". -> target"
 
-      - name: Install HID system dependency
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libudev-dev pkg-config
-
       - name: Check Rust formatting
         run: cargo fmt --all -- --check
 
-      - name: Check glacier-core crate
+      - name: Check glacier-core crate (no system deps needed)
         run: cargo check -p glacier-core --locked
 
   tauri-desktop:
