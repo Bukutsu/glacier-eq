@@ -6,6 +6,12 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 
+#[cfg(target_os = "android")]
+fn default_theme() -> String {
+    "tokyo-night".to_string()
+}
+
+#[cfg(not(target_os = "android"))]
 fn default_theme() -> String {
     "tokyo-night".to_string()
 }
@@ -21,6 +27,8 @@ pub struct Settings {
     #[serde(default = "default_theme")]
     pub theme: String,
     #[serde(default)]
+    pub show_diagnostics: bool,
+    #[serde(default)]
     pub enable_online_measurements: bool,
     #[serde(default = "default_snap_to_iso_frequencies")]
     pub snap_to_iso_frequencies: bool,
@@ -32,6 +40,7 @@ impl Default for Settings {
             auto_pull_on_connect: true,
             skip_push_verification: false,
             theme: default_theme(),
+            show_diagnostics: false,
             enable_online_measurements: false,
             snap_to_iso_frequencies: default_snap_to_iso_frequencies(),
         }

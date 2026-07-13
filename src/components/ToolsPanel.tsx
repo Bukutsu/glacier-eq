@@ -2,12 +2,13 @@ import { type CSSProperties, useState, useEffect, useRef } from "react";
 import { invoke, listen, readText, writeText, save } from "../lib/rpc";
 import type { AppSettings, MeasurementTrace, Profile, PEQData, GraphViewMode, TargetTrace } from "../types";
 import { DEFAULT_PROFILE_NAME } from "../App";
+import { Icon } from "./Icon";
 
 import { fuzzyMatch } from "../lib/search";
 import { AddTraceModal } from "./AddTraceModal";
 import { UnifiedTracesList } from "./UnifiedTraces";
-
-
+import { NumberInput } from "./NumberInput";
+import { Slider } from "./Slider";
 import { TAB_META, type ToolsTab } from "../lib/tabs";
 
 
@@ -63,7 +64,7 @@ function Select<T extends string | number>({
         ))}
       </select>
       <span className="custom-select-arrow" style={{ pointerEvents: "none" }}>
-        <span className="material-symbols-outlined">expand_more</span>
+        <Icon>expand_more</Icon>
       </span>
     </div>
   );
@@ -240,7 +241,7 @@ function TabStrip({
     >
       {tabs.map((name) => (
         <button key={name} className={active === name ? "active" : ""} onClick={() => onSelect(name)}>
-          <span className="material-symbols-outlined">{TAB_META[name].icon}</span>
+          <Icon>{TAB_META[name].icon}</Icon>
           <span>{TAB_META[name].label}</span>
         </button>
       ))}
@@ -284,7 +285,7 @@ function CurvesTab({
   return (
     <div className="curves-tab">
       <button className="btn add-trace-btn" onClick={() => setShowAddModal(true)}>
-        <span className="material-symbols-outlined">add</span>
+        <Icon>add</Icon>
         <span>Add Trace</span>
       </button>
       <section className="tool-card">
@@ -379,11 +380,11 @@ function PresetTab({
         </div>
         <div className="profile-card-tools">
           <button title="Reload profiles" aria-label="Reload profiles" onClick={onReloadProfiles}>
-            <span className="material-symbols-outlined">refresh</span>
+            <Icon>refresh</Icon>
           </button>
           {!hideProfileFolderButton && (
             <button title="Open profiles folder" aria-label="Open profiles folder" onClick={onOpenProfilesDir}>
-              <span className="material-symbols-outlined">folder</span>
+              <Icon>folder</Icon>
             </button>
           )}
         </div>
@@ -423,7 +424,7 @@ function PresetTab({
                   aria-label={`Apply ${profile.name} to device RAM`}
                   onClick={() => onApplyProfile(profile)}
                 >
-                  <span className="material-symbols-outlined">send</span>
+                  <Icon>send</Icon>
                 </button>
               )}
             </div>
@@ -434,11 +435,11 @@ function PresetTab({
       {showActions !== false && (
         <div className="profile-management-actions">
           <button className="save primary-save" onClick={onSave} title="Save profile">
-            <span className="material-symbols-outlined">save</span>
+            <Icon>save</Icon>
             <span>Save</span>
           </button>
           <button className="icon-action profile-icon-action" title="Reset profile" aria-label="Reset profile" onClick={onReset}>
-            <span className="material-symbols-outlined">restart_alt</span>
+            <Icon>restart_alt</Icon>
           </button>
           <button
             className="icon-action profile-icon-action danger"
@@ -447,7 +448,7 @@ function PresetTab({
             disabled={!canDelete}
             onClick={onDelete}
           >
-            <span className="material-symbols-outlined">delete</span>
+            <Icon>delete</Icon>
           </button>
         </div>
       )}
@@ -606,19 +607,19 @@ function ImportTab({ peq, profiles, onImportPEQ, onReloadProfiles, setStatus }: 
         />
         <div className="transfer-actions">
           <button className="icon-action" onClick={handleImportFileClick}>
-            <span className="material-symbols-outlined">file_upload</span>
+            <Icon>file_upload</Icon>
             <span>Import File</span>
           </button>
           <button className="icon-action" onClick={handlePaste}>
-            <span className="material-symbols-outlined">content_paste</span>
+            <Icon>content_paste</Icon>
             <span>Paste</span>
           </button>
           <button className="icon-action" onClick={handleExportFile}>
-            <span className="material-symbols-outlined">file_download</span>
+            <Icon>file_download</Icon>
             <span>Export File</span>
           </button>
           <button className="icon-action" onClick={handleCopy}>
-            <span className="material-symbols-outlined">content_copy</span>
+            <Icon>content_copy</Icon>
             <span>Copy</span>
           </button>
         </div>
@@ -630,7 +631,7 @@ function ImportTab({ peq, profiles, onImportPEQ, onReloadProfiles, setStatus }: 
             <div className="modal-header">
               <h2>Import Profile</h2>
               <button className="modal-close-btn" onClick={handleCancel} aria-label="Close">
-                <span className="material-symbols-outlined">close</span>
+                <Icon>close</Icon>
               </button>
             </div>
             <div className="modal-body">
@@ -913,13 +914,12 @@ export function AutoEqTab({
 
             <div className="import-field-group">
               <label htmlFor="autoeq-bands">Bands Count</label>
-              <input
-                type="number"
+              <NumberInput
                 id="autoeq-bands"
                 value={nBands}
                 min={1}
                 max={32}
-                onChange={(e) => setNBands(+e.target.value)}
+                onChange={setNBands}
                 className="autoeq-bands-stepper"
               />
             </div>
@@ -984,7 +984,7 @@ export function AutoEqTab({
             disabled={isOptimizing}
             onClick={handleRunAutoEq}
           >
-            <span className="material-symbols-outlined">{isOptimizing ? "hourglass_empty" : "bolt"}</span>
+            <Icon>{isOptimizing ? "hourglass_empty" : "bolt"}</Icon>
             <span>{isOptimizing ? "Optimizing..." : "Run Match"}</span>
           </button>
         </section>
@@ -1249,7 +1249,7 @@ function DeviceTab({ setStatus, onPull }: { setStatus: (msg: string) => void; on
       <div className="settings-list device-utility">
         <section className="tool-card">
           <div className="device-empty">
-            <span className="material-symbols-outlined">tune</span>
+            <Icon>tune</Icon>
             <strong>No supported hardware PEQ DAC connected.</strong>
             <span>Connect a supported Savitech DSP DAC.</span>
           </div>
@@ -1320,10 +1320,7 @@ function DeviceTab({ setStatus, onPull }: { setStatus: (msg: string) => void; on
               {utility.channel_balance === 0 ? "Center (0)" : utility.channel_balance > 0 ? `L +${utility.channel_balance}` : `R +${Math.abs(utility.channel_balance)}`}
             </span>
           </div>
-          <input
-            type="range"
-            className="control-slider-input"
-            style={{ "--slider-thumb": "var(--blue)" } as any}
+          <Slider
             min="-15"
             max="15"
             step="1"
@@ -1339,10 +1336,7 @@ function DeviceTab({ setStatus, onPull }: { setStatus: (msg: string) => void; on
               {utility.mic_volume_db} dB
             </span>
           </div>
-          <input
-            type="range"
-            className="control-slider-input"
-            style={{ "--slider-thumb": "var(--blue)" } as any}
+          <Slider
             min="-15"
             max="15"
             step="1"
@@ -1387,18 +1381,15 @@ export function DiagnosticsPanel() {
 
   // Load history + subscribe to live events
   useEffect(() => {
+    invoke<DiagnosticEvent[]>("get_diagnostics")
+      .then((data) => setEvents(data))
+      .catch((err) => console.error("Failed to load diagnostics:", err));
+
     let active = true;
     let unlistenFn: (() => void) | null = null;
 
-    listen<any>("log://log", (event) => {
-      const payload = event.payload;
-      const diagEvent: DiagnosticEvent = {
-        timestamp: payload.time || new Date().toISOString(),
-        level: payload.level === "Error" ? "Error" : payload.level === "Warn" ? "Warn" : "Info",
-        source: "Worker", // tauri-plugin-log doesn't give custom sources out of the box
-        message: payload.message || "",
-      };
-      setEvents((prev) => [...prev, diagEvent].slice(-1000));
+    listen<DiagnosticEvent>("diagnostic-event", (event) => {
+      setEvents((prev) => [...prev, event.payload].slice(-1000));
     }).then((fn) => {
       if (active) {
         unlistenFn = fn;
@@ -1443,6 +1434,7 @@ export function DiagnosticsPanel() {
 
   const clearLogs = async () => {
     try {
+      await invoke("clear_diagnostics");
       setEvents([]);
     } catch (err) {
       console.error("Failed to clear diagnostics:", err);
@@ -1472,10 +1464,10 @@ export function DiagnosticsPanel() {
           <span className="diag-count-i" title="Info">{infoCount}I</span>
         </div>
         <button title={copied ? "Copied!" : "Copy filtered logs to clipboard"} onClick={copyToClipboard}>
-          <span className="material-symbols-outlined">{copied ? "check" : "content_copy"}</span>
+          <Icon>{copied ? "check" : "content_copy"}</Icon>
         </button>
         <button className="danger" title="Clear all logs" onClick={clearLogs}>
-          <span className="material-symbols-outlined">delete</span>
+          <Icon>delete</Icon>
         </button>
       </div>
 
@@ -1501,7 +1493,7 @@ export function DiagnosticsPanel() {
           title={autoScroll ? "Auto-scroll on" : "Auto-scroll paused"}
           onClick={() => setAutoScroll((v) => !v)}
         >
-          <span className="material-symbols-outlined">{autoScroll ? "vertical_align_bottom" : "lock"}</span>
+          <Icon>{autoScroll ? "vertical_align_bottom" : "lock"}</Icon>
         </button>
       </div>
 

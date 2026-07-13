@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { AppSettings, MeasurementPoint } from "../types";
+import { Icon } from "./Icon";
 import { fuzzyMatch } from "../lib/search";
 import { openFileDialog } from "../lib/rpc";
 import { parseMeasurementText } from "../lib/measurements";
@@ -111,18 +112,18 @@ export function AddTraceModal({
       <section className="modal-content add-trace-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <strong>Add Trace</strong>
-          <button className="modal-close-btn" onClick={onClose}><span className="material-symbols-outlined">close</span></button>
+          <button className="modal-close-btn" onClick={onClose}><Icon>close</Icon></button>
         </div>
 
         <div className="add-trace-section">
           <div className="add-trace-section-title">From File</div>
           <div className="add-trace-file-grid">
             <button className="btn" onClick={handleMeasurementFile}>
-              <span className="material-symbols-outlined">playlist_add</span>
+              <Icon>playlist_add</Icon>
               <span>Measurement</span>
             </button>
             <button className="btn" onClick={handleTargetFile}>
-              <span className="material-symbols-outlined">add_box</span>
+              <Icon>add_box</Icon>
               <span>Target</span>
             </button>
           </div>
@@ -163,7 +164,7 @@ export function AddTraceModal({
                           disabled={loadingDevice !== null || loadedDevices.has(dev.id)}
                           onClick={() => handleLoadDevice(dev)}
                         >
-                          {loadingDevice === dev.id ? <span>Loading...</span> : loadedDevices.has(dev.id) ? <span className="material-symbols-outlined">check</span> : <span className="material-symbols-outlined">download</span>}
+                          {loadingDevice === dev.id ? <span>Loading...</span> : loadedDevices.has(dev.id) ? <Icon>check</Icon> : <Icon>download</Icon>}
                         </button>
                       </div>
                     ))

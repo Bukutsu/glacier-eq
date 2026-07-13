@@ -581,5 +581,39 @@ body::-webkit-scrollbar-corner,
   .custom-scroll-pane::-webkit-scrollbar {
     display: none !important;
   }
+
+  .custom-scrollbar {
+    position: fixed;
+    z-index: 20;
+    width: 12px;
+    padding: 0 3px;
+    background: var(--bg-dark);
+    border-left: 1px solid var(--line-subtle);
+    outline: none;
+  }
+
+  .custom-scrollbar:focus-visible {
+    outline: 1px solid var(--focus-ring);
+    outline-offset: -1px;
+  }
+
+  .custom-scrollbar-thumb {
+    width: 100%;
+    min-height: 28px;
+    background: var(--surface);
+    border: 1px solid var(--line-strong);
+    border-radius: 0;
+    cursor: grab;
+    touch-action: none;
+  }
+
+  .custom-scrollbar-thumb:hover,
+  .custom-scrollbar-thumb:active {
+    background: var(--cyan);
+  }
+
+  .custom-scrollbar-thumb:active {
+    cursor: grabbing;
+  }
 }
 
