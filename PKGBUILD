@@ -2,12 +2,12 @@
 # Source: https://github.com/Bukutsu/glacier-eq
 
 pkgname=glacier-eq-git
-pkgver=v0.4.0.r13.g5b24a8c
-pkgrel=2
+pkgver=v0.4.0.r6.g96a983c
+pkgrel=1
 pkgdesc="Cross-platform parametric EQ editor for USB DACs. Offline, direct, and built for dense tuning work on desktop and Android."
 arch=('x86_64' 'aarch64')
 url="https://github.com/Bukutsu/glacier-eq"
-license=('GPL-3.0-only')
+license=('MIT')
 depends=(
   'polkit'
   'webkit2gtk-4.1'
@@ -24,9 +24,16 @@ depends=(
 )
 makedepends=(
   'git'
+  'nodejs'
   'npm'
+  'cargo'
+  'rust'
   'rust-wasm'
   'pkg-config'
+  'openssl'
+  'appmenu-gtk-module'
+  'libappindicator-gtk3'
+  'systemd'
 )
 provides=('glacier-eq')
 conflicts=('glacier-eq')
@@ -54,15 +61,13 @@ prepare() {
 build() {
   cd "$_origin"
   npm run tauri -- build --no-bundle
-  cargo build --release -p glacier-core --bin glacier-eq-cli
 }
 
 package() {
   cd "$_origin"
 
-  # Binaries
+  # Binary
   install -Dm755 "target/release/glacier-eq" "${pkgdir}/usr/bin/glacier-eq"
-  install -Dm755 "target/release/glacier-eq-cli" "${pkgdir}/usr/bin/glacier-eq-cli"
 
   # Desktop file
   install -Dm644 "desktop/glacier-eq.desktop" "${pkgdir}/usr/share/applications/glacier-eq.desktop"

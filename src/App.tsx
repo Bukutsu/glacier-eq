@@ -290,8 +290,10 @@ function App() {
   );
 
   const reportStatus = useCallback((
+    _level: "Info" | "Warn" | "Error",
     message: string,
     toastType: "success" | "info" | "error" | null = null,
+    _source: "UI" | "Worker" | "HID" | "AutoEQ" | "Device" = "UI",
     statusText: string = message
   ) => {
     setStatusState(statusText);
@@ -648,7 +650,7 @@ function App() {
     addListener<string>("device-disconnected", (event) => {
       setIsReconnecting(true);
       setFirmwareVersion(null);
-      reportStatus(`Connection lost to device (unplugged): ${event.payload}`, "error", "Reconnecting...");
+      reportStatus("Error", `Connection lost to device (unplugged): ${event.payload}`, "error", "Device", "Reconnecting...");
     });
 
     return () => {
@@ -680,7 +682,7 @@ function App() {
             d.product_string === connectedDeviceName
         );
         if (found && active) {
-          reportStatus(`Device found: ${connectedDeviceName}. Attempting to reconnect...`, null, "Device found. Reconnecting...");
+          reportStatus("Info", `Device found: ${connectedDeviceName}. Attempting to reconnect...`, null, "Device", "Device found. Reconnecting...");
           try {
             await invoke("connect_device", { path: found.path });
             await invoke("set_eq_state", { peq: peqRef.current });
@@ -690,11 +692,11 @@ function App() {
               setConnected(true);
               setIsReconnecting(false);
               await loadFirmwareVersion();
-              reportStatus(`Successfully reconnected to ${connectedDeviceName} and restored EQ state`, "success", "Ready");
+              reportStatus("Info", `Successfully reconnected to ${connectedDeviceName} and restored EQ state`, "success", "Device", "Ready");
               return;
             }
           } catch (err) {
-            reportStatus(`Auto-reconnect connection failed: ${err}. Retrying...`, null, "Reconnecting...");
+            reportStatus("Warn", `Auto-reconnect connection failed: ${err}. Retrying...`, null, "Device", "Reconnecting...");
             try {
               await invoke("disconnect_device");
             } catch {}
@@ -753,17 +755,19 @@ function App() {
       setDirty(false);
       emit("device-pull").catch((err) => console.error("Failed to emit device-pull:", err));
       reportStatus(
+        "Info",
         isDevDummyDevice(selectedDevice)
           ? "Loaded dummy DAC EQ"
           : "Pull successful",
-        "success"
+        "success",
+        "UI"
       );
     } catch (error) {
       if (isDisconnectionError(error)) {
         setIsReconnecting(true);
-        reportStatus(`Pull failed (disconnected): ${error}`, "error", "Reconnecting...");
+        reportStatus("Error", `Pull failed (disconnected): ${error}`, "error", "HID", "Reconnecting...");
       } else {
-        reportStatus(`Pull failed: ${error}`, "error");
+        reportStatus("Error", `Pull failed: ${error}`, "error", "UI");
       }
     } finally {
       setIsBusy(false);
@@ -778,7 +782,7 @@ function App() {
       if (isDevDummyDevice(selectedDevice)) {
         setConnected(true);
         setConnectedDeviceName("Glacier Dummy DAC");
-        reportStatus("Connected to dummy DAC", "success");
+        reportStatus("Info", "Connected to dummy DAC", "success", "UI", "Connected to dummy DAC");
         await pullEq();
         await loadFirmwareVersion();
         return;
@@ -793,7 +797,7 @@ function App() {
         setConnectedDeviceName(devName);
       }
       
-      reportStatus(`Connected to device: ${devName}`, "success", "Ready");
+      reportStatus("Info", `Connected to device: ${devName}`, "success", "UI", "Ready");
 
       if (settings.auto_pull_on_connect) {
         // We call the inner fetch code of pullEq directly or call pullEq itself.
@@ -804,16 +808,18 @@ function App() {
     } catch (error) {
       if (isDisconnectionError(error)) {
         setConnected(false);
-        reportStatus(`Connection failed (disconnected): ${error}`, "error", "Device disconnected");
+        reportStatus("Error", `Connection failed (disconnected): ${error}`, "error", "UI", "Device disconnected");
       } else {
         const errorMsg = String(error);
         if (errorMsg.includes("NotAllowedError") && !isTauri()) {
           reportStatus(
+            "Error",
             "Connection failed: Linux permissions error. You need to configure a udev rule to allow WebHID access to this DAC. See the project README for instructions.",
-            "error"
+            "error",
+            "UI"
           );
         } else {
-          reportStatus(`Connection failed: ${error}`, "error");
+          reportStatus("Error", `Connection failed: ${error}`, "error", "UI");
         }
       }
     } finally {
@@ -859,17 +865,19 @@ function App() {
       await selectMatchingProfile(pushed, selectedPresetRef.current);
       setDirty(false);
       reportStatus(
+        "Info",
         isDevDummyDevice(selectedDevice)
           ? "Dummy DAC push simulated"
           : "Push successful",
-        "success"
+        "success",
+        "UI"
       );
     } catch (error) {
       if (isDisconnectionError(error)) {
         setIsReconnecting(true);
-        reportStatus(`Push failed (disconnected): ${error}`, "error", "Reconnecting...");
+        reportStatus("Error", `Push failed (disconnected): ${error}`, "error", "HID", "Reconnecting...");
       } else {
-        reportStatus(`Push failed: ${error}`, "error");
+        reportStatus("Error", `Push failed: ${error}`, "error", "UI");
       }
     } finally {
       setIsBusy(false);
@@ -901,17 +909,19 @@ function App() {
         }
         setLastPushedPeq(data);
         reportStatus(
+          "Info",
           isDevDummyDevice(selectedDevice)
             ? "Dummy DAC apply simulated"
             : `Applied ${profile.name} to device RAM`,
-          "success"
+          "success",
+          "UI"
         );
       } catch (error) {
         if (isDisconnectionError(error)) {
           setIsReconnecting(true);
-          reportStatus(`Apply failed (disconnected): ${error}`, "error", "Reconnecting...");
+          reportStatus("Error", `Apply failed (disconnected): ${error}`, "error", "HID", "Reconnecting...");
         } else {
-          reportStatus(`Apply failed: ${error}`, "error");
+          reportStatus("Error", `Apply failed: ${error}`, "error", "UI");
         }
       } finally {
         setIsBusy(false);
@@ -931,9 +941,9 @@ function App() {
       setIsReconnecting(false);
       setConnectedDeviceName("");
       setFirmwareVersion(null);
-      reportStatus("Device disconnected manually", null, "Disconnected");
+      reportStatus("Info", "Device disconnected manually", null, "UI", "Disconnected");
     } catch (error) {
-      reportStatus(`Disconnect failed: ${error}`, "error");
+      reportStatus("Error", `Disconnect failed: ${error}`, "error", "UI");
     } finally {
       setIsBusy(false);
     }
@@ -1150,6 +1160,7 @@ function App() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+
   return (
     <div id="app">
       {!(isAndroid && activeTab === "settings") && (
@@ -1334,7 +1345,11 @@ function App() {
                   onToggleMeasurement={toggleMeasurement}
                   onClearMeasurements={clearMeasurements}
                   onSelectedMeasurementChange={setSelectedMeasurementId}
-                  availableTabs={["Preset"]}
+                  canUndo={undoStack.length > 0}
+                  canRedo={redoStack.length > 0}
+                  onUndo={undo}
+                  onRedo={redo}
+                  availableTabs={["Preset", "Import"]}
                   defaultTab="Preset"
                   allTargets={allTargets}
                   activeTargetIds={activeTargetIds}
@@ -1371,8 +1386,13 @@ function App() {
                   onToggleMeasurement={toggleMeasurement}
                   onClearMeasurements={clearMeasurements}
                   onSelectedMeasurementChange={setSelectedMeasurementId}
+                  canUndo={undoStack.length > 0}
+                  canRedo={redoStack.length > 0}
+                  onUndo={undo}
+                  onRedo={redo}
                   availableTabs={["Settings"]}
                   defaultTab="Settings"
+                  showActions={false}
                   graphViewMode={graphViewMode}
                   onGraphViewModeChange={setGraphViewMode}
                   allTargets={allTargets}
@@ -1410,8 +1430,13 @@ function App() {
                   onToggleMeasurement={toggleMeasurement}
                   onClearMeasurements={clearMeasurements}
                   onSelectedMeasurementChange={setSelectedMeasurementId}
+                  canUndo={undoStack.length > 0}
+                  canRedo={redoStack.length > 0}
+                  onUndo={undo}
+                  onRedo={redo}
                   availableTabs={["Device"]}
                   defaultTab="Device"
+                  showActions={false}
                   allTargets={allTargets}
                   activeTargetIds={activeTargetIds}
                   settings={settings}
@@ -1532,6 +1557,10 @@ function App() {
             onToggleMeasurement={toggleMeasurement}
             onClearMeasurements={clearMeasurements}
             onSelectedMeasurementChange={setSelectedMeasurementId}
+            canUndo={undoStack.length > 0}
+            canRedo={redoStack.length > 0}
+            onUndo={undo}
+            onRedo={redo}
             graphViewMode={graphViewMode}
             onGraphViewModeChange={setGraphViewMode}
             settings={settings}
