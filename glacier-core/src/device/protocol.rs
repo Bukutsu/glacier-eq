@@ -90,7 +90,7 @@ static MOONDROP_PROTOCOL: crate::device::moondrop::MoondropProtocol =
     crate::device::moondrop::MoondropProtocol;
 
 impl DeviceProtocol {
-    fn implementation(&self) -> &'static dyn EqProtocol {
+    pub(crate) fn implementation(&self) -> &'static dyn EqProtocol {
         match self {
             DeviceProtocol::Walkplay => &WALKPLAY_PROTOCOL,
             DeviceProtocol::Moondrop => &MOONDROP_PROTOCOL,

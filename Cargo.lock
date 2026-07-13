@@ -1155,6 +1155,7 @@ dependencies = [
 name = "glacier-core"
 version = "0.1.2"
 dependencies = [
+ "hidapi",
  "log",
  "serde",
  "serde-wasm-bindgen",

@@ -3,6 +3,55 @@
 
 use crate::{Filter, FilterType, PEQData};
 
+/// Parses frequency/dB curves using the same rules as the frontend importer.
+pub fn parse_curve_text(text: &str) -> Result<Vec<(f64, f64)>, String> {
+    let points = text.lines().filter_map(|line| {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with('#') || line.starts_with("//") {
+            return None;
+        }
+        let mut columns = line
+            .split(|character: char| matches!(character, ',' | '\t' | ';' | ' '))
+            .filter(|column| !column.is_empty());
+        let frequency = columns.next()?.parse::<f64>().ok()?;
+        let db = columns.next()?.parse::<f64>().ok()?;
+        Some((frequency, db))
+    });
+    normalize_curve_points(points.collect())
+}
+
+pub fn normalize_curve_points(mut points: Vec<(f64, f64)>) -> Result<Vec<(f64, f64)>, String> {
+    points.retain(|(frequency, db)| {
+        frequency.is_finite() && db.is_finite() && (20.0..=20_000.0).contains(frequency)
+    });
+    points.sort_by(|a, b| a.0.total_cmp(&b.0));
+    if points.len() < 2 {
+        return Err("Need at least 2 valid frequency,dB points.".into());
+    }
+    let reference = interpolate_point(&points, 1000.0);
+    for point in &mut points {
+        point.1 -= reference;
+    }
+    Ok(points)
+}
+
+fn interpolate_point(points: &[(f64, f64)], frequency: f64) -> f64 {
+    if frequency <= points[0].0 {
+        return points[0].1;
+    }
+    if frequency >= points[points.len() - 1].0 {
+        return points[points.len() - 1].1;
+    }
+    let high = points.partition_point(|point| point.0 < frequency);
+    let low = high - 1;
+    let span = points[high].0.log10() - points[low].0.log10();
+    if span <= 0.0 {
+        return points[low].1;
+    }
+    let ratio = (frequency.log10() - points[low].0.log10()) / span;
+    points[low].1 + (points[high].1 - points[low].1) * ratio
+}
+
 pub fn parse_autoeq_text(text: &str) -> Result<(PEQData, Option<String>, Vec<String>), String> {
     let lines: Vec<&str> = text.lines().collect();
     let mut filters: std::collections::BTreeMap<usize, Filter> = std::collections::BTreeMap::new();
@@ -1349,6 +1398,17 @@ pub fn run_autoeq(
     if n_bands == 0 || n_bands > MAX_N {
         return Err("Number of bands must be between 1 and 32".to_string());
     }
+    validate_curve("Measurement", measurement_points)?;
+    validate_curve("Target", target_points)?;
+    if !fs.is_finite() || !(40_000.0..=768_000.0).contains(&fs) {
+        return Err("Sample rate must be between 40000 and 768000 Hz".into());
+    }
+    if !matches!(
+        smooth_type.to_ascii_lowercase().as_str(),
+        "none" | "ie" | "oe"
+    ) {
+        return Err("Smoothing must be none, ie, or oe".into());
+    }
 
     let steps = if steps == 0 { 3000 } else { steps.min(5000) };
 
@@ -1485,10 +1545,60 @@ pub fn run_autoeq(
     })
 }
 
+fn validate_curve(label: &str, points: &[(f64, f64)]) -> Result<(), String> {
+    if points.len() < 2 {
+        return Err(format!("{label} needs at least 2 points"));
+    }
+    if points.iter().any(|(frequency, db)| {
+        !frequency.is_finite() || !db.is_finite() || !(20.0..=20_000.0).contains(frequency)
+    }) {
+        return Err(format!(
+            "{label} points must be finite and between 20 and 20000 Hz"
+        ));
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::MAX_BAND_GAIN;
+
+    #[test]
+    fn parses_and_log_normalizes_curve() {
+        let points =
+            parse_curve_text("# frequency response\n20, 5, ignored\n100 10\n10000;20\n// footer")
+                .unwrap();
+        assert_eq!(points.len(), 3);
+        assert!((interpolate_point(&points, 1000.0)).abs() < 1e-9);
+        assert!(parse_curve_text("header\n10,2\n20,3").is_err());
+    }
+
+    #[test]
+    fn autoeq_rejects_invalid_public_inputs() {
+        let curve = [(20.0, 0.0), (20_000.0, 0.0)];
+        assert!(run_autoeq(&[], &curve, 2, 10, "none", 48_000.0).is_err());
+        assert!(run_autoeq(&curve, &curve, 2, 10, "bad", 48_000.0).is_err());
+        assert!(run_autoeq(&curve, &curve, 2, 10, "none", f32::NAN).is_err());
+    }
+
+    #[test]
+    fn autoeq_preamp_prevents_clipping() {
+        let measurement = [
+            (20.0, 0.0),
+            (100.0, 0.0),
+            (500.0, 0.0),
+            (1000.0, 0.0),
+            (2000.0, 0.0),
+            (5000.0, 0.0),
+            (10000.0, 0.0),
+            (20000.0, 0.0),
+        ];
+        let mut target = measurement;
+        target[3].1 = 12.0;
+        let peq = run_autoeq(&measurement, &target, 5, 100, "none", 48_000.0).unwrap();
+        assert!(peq.global_gain < 0.0);
+    }
 
     #[test]
     fn test_parse_autoeq_with_preamp() {
