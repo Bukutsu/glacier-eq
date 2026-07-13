@@ -546,7 +546,7 @@ function ImportTab({ peq, profiles, selectedPreset, onImportPEQ, onReloadProfile
     try {
       const text = await invoke<string>("peq_to_autoeq", { peq });
       const baseName = importName || selectedPreset || "eq_profile";
-      const defaultName = `${baseName.replace(/[^a-zA-Z0-9_\- ]/g, "")}.txt`;
+      const defaultName = `${baseName.replace(/[^a-zA-Z0-9_\-@+&.() ]/g, "")}.txt`;
       const path = await save({
         defaultPath: defaultName,
         filters: [{ name: "Text Files", extensions: ["txt"] }],
