@@ -11,6 +11,7 @@ pub mod autoeq;
 pub mod device;
 pub mod eq;
 pub mod profile_match;
+pub mod profiles;
 #[cfg(target_arch = "wasm32")]
 pub mod wasm;
 
@@ -18,8 +19,8 @@ pub mod wasm;
 
 // Re-exports
 pub use device::{
-    get_supported_device, DeviceCapabilities, DeviceInfo, DeviceProfile, DeviceProtocol,
-    EqProtocol, Packet, WalkplayProtocol, SUPPORTED_DEVICES,
+    get_supported_device, DacUtilityState, DeviceCapabilities, DeviceInfo, DeviceIo, DeviceProfile,
+    DeviceProtocol, DeviceSession, EqProtocol, Packet, WalkplayProtocol, SUPPORTED_DEVICES,
 };
 pub use eq::constants::*;
 pub use eq::{snap_freq_to_iso, Filter, FilterType, PEQData};
