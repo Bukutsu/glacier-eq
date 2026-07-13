@@ -939,6 +939,125 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   color: var(--muted);
 }
 
+/* Custom Number Stepper Styling */
+.custom-number-input {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  height: 36px;
+  background: var(--bg-dark);
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-control);
+  position: relative;
+  overflow: hidden;
+  transition: border-color var(--motion-duration) var(--motion-ease), background-color var(--motion-duration) var(--motion-ease);
+  container-type: inline-size;
+}
+
+.custom-number-input:hover:not(.disabled) {
+  border-color: var(--accent-line-hover);
+}
+
+.custom-number-input:focus-within:not(.disabled) {
+  border-color: var(--cyan);
+}
+
+.custom-number-input.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.custom-number-input .stepper-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-family: inherit;
+  cursor: pointer;
+  user-select: none;
+  transition: color var(--motion-duration) var(--motion-ease), background-color var(--motion-duration) var(--motion-ease);
+  padding: 0;
+}
+
+.custom-number-input .stepper-btn:hover:not(:disabled) {
+  color: var(--cyan);
+  background: var(--hover-bg);
+}
+
+.custom-number-input .stepper-btn:active:not(:disabled) {
+  background: var(--hover-bg-strong);
+}
+
+.custom-number-input .stepper-btn:disabled {
+  opacity: 0.18;
+  cursor: not-allowed;
+}
+
+@container (min-width: 84px) {
+  .custom-number-input .stepper-btn {
+    display: flex;
+    width: 20px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .custom-number-input .stepper-btn.decrement {
+    border-right: 1px solid var(--line-subtle);
+  }
+  .custom-number-input .stepper-btn.increment {
+    border-left: 1px solid var(--line-subtle);
+  }
+}
+
+@container (min-width: 108px) {
+  .custom-number-input .stepper-btn {
+    width: 26px;
+    font-size: 13px;
+  }
+}
+
+@container (min-width: 130px) {
+  .custom-number-input .stepper-btn {
+    width: 36px;
+    font-size: 16px;
+  }
+}
+
+.custom-number-input .stepper-field {
+  appearance: textfield;
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  color: var(--text);
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: var(--type-label);
+  outline: none;
+  touch-action: pan-y;
+}
+
+.custom-number-input .stepper-field::-webkit-inner-spin-button,
+.custom-number-input .stepper-field::-webkit-outer-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+.custom-number-input .stepper-field:focus {
+  background: transparent !important;
+}
+
+.autoeq-bands-stepper.custom-number-input {
+  max-width: 120px;
+}
+
 .online-result-item {
   display: flex;
   align-items: center;
