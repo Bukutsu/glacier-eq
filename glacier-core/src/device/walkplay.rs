@@ -213,6 +213,7 @@ pub const PROFILES: &[DeviceProfile] = &[
         vendor_id: 0x3302,
         product_id: Some(0x43E6),
         status: "Tested",
+        family: "Walkplay Family",
         caps: SAVITECH_10_BAND_CAPS,
     },
     DeviceProfile {
@@ -221,6 +222,7 @@ pub const PROFILES: &[DeviceProfile] = &[
         vendor_id: 0x3302,
         product_id: Some(0x43E8),
         status: "Tested",
+        family: "Walkplay Family",
         caps: SAVITECH_10_BAND_CAPS,
     },
     DeviceProfile {
@@ -229,6 +231,7 @@ pub const PROFILES: &[DeviceProfile] = &[
         vendor_id: 0x3302,
         product_id: None,
         status: "Untested",
+        family: "Walkplay Family",
         caps: SAVITECH_10_BAND_CAPS,
     },
     DeviceProfile {
@@ -237,6 +240,7 @@ pub const PROFILES: &[DeviceProfile] = &[
         vendor_id: 0x262A,
         product_id: None,
         status: "Untested",
+        family: "Walkplay Family",
         caps: SAVITECH_10_BAND_CAPS,
     },
     DeviceProfile {
@@ -245,6 +249,7 @@ pub const PROFILES: &[DeviceProfile] = &[
         vendor_id: 0x0661,
         product_id: None,
         status: "Untested",
+        family: "Walkplay Family",
         caps: SAVITECH_10_BAND_CAPS,
     },
     DeviceProfile {
@@ -253,6 +258,7 @@ pub const PROFILES: &[DeviceProfile] = &[
         vendor_id: 0x0666,
         product_id: None,
         status: "Untested",
+        family: "Walkplay Family",
         caps: SAVITECH_10_BAND_CAPS,
     },
     DeviceProfile {
@@ -261,6 +267,7 @@ pub const PROFILES: &[DeviceProfile] = &[
         vendor_id: 0x2FC6,
         product_id: None,
         status: "Untested",
+        family: "Moondrop / Comtrue",
         caps: MOONDROP_10_BAND_CAPS,
     },
     DeviceProfile {
@@ -269,6 +276,7 @@ pub const PROFILES: &[DeviceProfile] = &[
         vendor_id: 0x35D8,
         product_id: Some(0x011D),
         status: "Untested",
+        family: "Moondrop / Comtrue",
         caps: MOONDROP_10_BAND_CAPS,
     },
     DeviceProfile {
@@ -277,6 +285,7 @@ pub const PROFILES: &[DeviceProfile] = &[
         vendor_id: 0x2972,
         product_id: Some(0x0102),
         status: "Untested",
+        family: "FiiO",
         caps: FIIO_5_BAND_CAPS,
     },
     DeviceProfile {
@@ -285,6 +294,7 @@ pub const PROFILES: &[DeviceProfile] = &[
         vendor_id: 0x31B2,
         product_id: Some(0x0111),
         status: "Untested",
+        family: "FiiO",
         caps: FIIO_5_BAND_CAPS,
     },
     DeviceProfile {
@@ -293,6 +303,7 @@ pub const PROFILES: &[DeviceProfile] = &[
         vendor_id: 0x2972,
         product_id: None,
         status: "Untested",
+        family: "FiiO",
         caps: FIIO_10_BAND_CAPS,
     },
     DeviceProfile {
@@ -301,6 +312,7 @@ pub const PROFILES: &[DeviceProfile] = &[
         vendor_id: 0x0D8C,
         product_id: Some(0x0210),
         status: "Untested",
+        family: "Walkplay Family",
         caps: DeviceCapabilities {
             num_bands: 8,
             global_gain_range: (-20, 0),

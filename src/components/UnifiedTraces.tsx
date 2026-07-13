@@ -1,4 +1,5 @@
 import type { MeasurementTrace, TargetTrace } from "../types";
+import { Icon } from "./Icon";
 
 
 interface UnifiedTracesListProps {
@@ -46,7 +47,7 @@ export function UnifiedTracesList({
             title={`Delete ${trace.name}`}
             onClick={() => onRemoveMeasurement(trace.id)}
           >
-            <span className="material-symbols-outlined">delete</span>
+            <Icon>delete</Icon>
           </button>
         </div>
       ))}
@@ -69,7 +70,7 @@ export function UnifiedTracesList({
                 title={`Delete ${target.name}`}
                 onClick={() => onRemoveTarget(target.id)}
               >
-                <span className="material-symbols-outlined">delete</span>
+                <Icon>delete</Icon>
               </button>
             )}
           </div>

@@ -4,6 +4,8 @@ import { Bands } from "./components/Bands";
 import { DeviceChooser } from "./components/DeviceChooser";
 import { EqGraph } from "./components/EqGraph";
 import { Header } from "./components/Header";
+import { Icon } from "./components/Icon";
+import { CustomScrollbar } from "./components/CustomScrollbar";
 import { Preamp } from "./components/Preamp";
 import { ToolsPanel, AutoEqTab, DiagnosticsPanel } from "./components/ToolsPanel";
 import { AddTraceModal } from "./components/AddTraceModal";
@@ -269,6 +271,14 @@ function App() {
         toastType = "success";
       }
 
+      // Automatically log all toast notifications to the diagnostics board
+      const diagLevel = toastType === "error" ? "Error" : "Info";
+      invoke("add_diagnostic_event", {
+        level: diagLevel,
+        source: "UI",
+        message: `Notification: ${message}`,
+      }).catch((err) => console.error("Failed to log diagnostic from toast:", err));
+
       const id = Math.random().toString(36).substring(2, 9);
       setToasts((prev) => [...prev, { id, message, type: toastType }]);
 
@@ -290,13 +300,15 @@ function App() {
   );
 
   const reportStatus = useCallback((
-    _level: "Info" | "Warn" | "Error",
+    level: "Info" | "Warn" | "Error",
     message: string,
     toastType: "success" | "info" | "error" | null = null,
-    _source: "UI" | "Worker" | "HID" | "AutoEQ" | "Device" = "UI",
+    source: "UI" | "Worker" | "HID" | "AutoEQ" | "Device" = "UI",
     statusText: string = message
   ) => {
     setStatusState(statusText);
+    invoke("add_diagnostic_event", { level, source, message })
+      .catch((err) => console.error("Failed to log diagnostic:", err));
     if (toastType) {
       showToast(message, toastType);
     }
@@ -664,6 +676,30 @@ function App() {
   useEffect(() => {
     scanDevices();
   }, [scanDevices]);
+
+  // Global uncaught error and promise rejection logger
+  useEffect(() => {
+    const handleError = (event: ErrorEvent) => {
+      const msg = `Uncaught error: ${event.message} at ${event.filename}:${event.lineno}:${event.colno}`;
+      invoke("add_diagnostic_event", { level: "Error", source: "UI", message: msg })
+        .catch((err) => console.error("Failed to log uncaught error:", err));
+    };
+
+    const handleRejection = (event: PromiseRejectionEvent) => {
+      const reasonStr = event.reason instanceof Error ? event.reason.message : String(event.reason);
+      const msg = `Unhandled rejection: ${reasonStr}`;
+      invoke("add_diagnostic_event", { level: "Error", source: "UI", message: msg })
+        .catch((err) => console.error("Failed to log unhandled rejection:", err));
+    };
+
+    window.addEventListener("error", handleError);
+    window.addEventListener("unhandledrejection", handleRejection);
+
+    return () => {
+      window.removeEventListener("error", handleError);
+      window.removeEventListener("unhandledrejection", handleRejection);
+    };
+  }, []);
 
   // Automatic reconnection loop
   useEffect(() => {
@@ -1160,6 +1196,95 @@ function App() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  useEffect(() => {
+    const isScrollableOverflow = (overflow: string) =>
+      overflow === "auto" || overflow === "scroll" || overflow === "overlay";
+
+    function getScrollElement(element: HTMLElement): HTMLElement {
+      if (element === document.body || element === document.documentElement) {
+        return (document.scrollingElement as HTMLElement | null) || document.documentElement;
+      }
+      return element;
+    }
+
+    function canScroll(element: HTMLElement, scrollElement: HTMLElement, axis: "x" | "y") {
+      const style = window.getComputedStyle(element);
+      const isCustomScroll = element.classList.contains("custom-scroll-pane");
+      return axis === "y"
+        ? (isScrollableOverflow(style.overflowY) || isCustomScroll) && scrollElement.scrollHeight > scrollElement.clientHeight
+        : isScrollableOverflow(style.overflowX) && scrollElement.scrollWidth > scrollElement.clientWidth;
+    }
+
+    function findWheelTarget(
+      element: HTMLElement | null,
+      deltaX: number,
+      deltaY: number,
+    ): { element: HTMLElement; deltaX: number; deltaY: number } | null {
+      let parent = element;
+      while (parent) {
+        const scrollElement = getScrollElement(parent);
+        const canScrollY = deltaY !== 0 && canScroll(parent, scrollElement, "y");
+        const canScrollX = deltaX !== 0 && canScroll(parent, scrollElement, "x");
+
+        if (canScrollY || canScrollX) {
+          return {
+            element: scrollElement,
+            deltaX: canScrollX ? deltaX : 0,
+            deltaY: canScrollY ? deltaY : 0,
+          };
+        }
+
+        if (deltaY !== 0 && canScroll(parent, scrollElement, "x")) {
+          return { element: scrollElement, deltaX: deltaY, deltaY: 0 };
+        }
+
+        if (parent === document.body) return null;
+        parent = parent.parentElement;
+      }
+      return null;
+    }
+
+    const handleGlobalWheel = (e: WheelEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+
+      const workspace = target.closest(".workspace") || target.closest("#app");
+      if (!workspace) return;
+
+      const wheelTarget = findWheelTarget(target, e.deltaX, e.deltaY);
+      if (!wheelTarget) return;
+
+      let deltaY = wheelTarget.deltaY;
+      let deltaX = wheelTarget.deltaX;
+      if (e.deltaMode === 1) {
+        deltaY *= 20;
+        deltaX *= 20;
+      } else if (e.deltaMode === 2) {
+        deltaY *= wheelTarget.element.clientHeight;
+        deltaX *= wheelTarget.element.clientWidth;
+      }
+
+      const beforeTop = wheelTarget.element.scrollTop;
+      const beforeLeft = wheelTarget.element.scrollLeft;
+
+      wheelTarget.element.scrollTop += deltaY;
+      wheelTarget.element.scrollLeft += deltaX;
+
+      if (
+        wheelTarget.element.scrollTop !== beforeTop ||
+        wheelTarget.element.scrollLeft !== beforeLeft
+      ) {
+        e.preventDefault();
+      }
+    };
+
+    window.addEventListener("wheel", handleGlobalWheel, { capture: true, passive: false });
+    return () => {
+      window.removeEventListener("wheel", handleGlobalWheel, { capture: true });
+    };
+  }, []);
+
+
 
   return (
     <div id="app">
@@ -1207,7 +1332,7 @@ function App() {
                 onClick={() => setGraphCollapsed(!graphCollapsed)}
                 aria-label={graphCollapsed ? "Expand graph" : "Collapse graph"}
               >
-                <span className="material-symbols-outlined">{graphCollapsed ? "expand_more" : "expand_less"}</span>
+                <Icon>{graphCollapsed ? "expand_more" : "expand_less"}</Icon>
               </button>
             </section>
           )}
@@ -1256,12 +1381,12 @@ function App() {
               <section className="left-pane">
                 <details className="tuning-card disclosure-card" open>
                   <summary className="tuning-card-header">
-                    <span className="material-symbols-outlined">analytics</span>
+                    <Icon>analytics</Icon>
                     <strong>Traces & Targets</strong>
                   </summary>
                   <div className="tuning-card-body">
                     <button className="btn add-trace-btn" onClick={() => setShowAddTrace(true)}>
-                      <span className="material-symbols-outlined">add</span>
+                      <Icon>add</Icon>
                       <span>Add Trace</span>
                     </button>
                     <section className="tool-card">
@@ -1299,7 +1424,7 @@ function App() {
 
                 <details className="tuning-card disclosure-card" open>
                   <summary className="tuning-card-header">
-                    <span className="material-symbols-outlined">auto_awesome</span>
+                    <Icon>auto_awesome</Icon>
                     <strong>AutoEQ (Tuning Assistant)</strong>
                   </summary>
                   <div className="tuning-card-body">
@@ -1458,7 +1583,7 @@ function App() {
                 onClick={() => setActiveTab(id)}
               >
                 <div className="mobile-tab-icon-wrapper">
-                  <span className="material-symbols-outlined">{icon}</span>
+                  <Icon>{icon}</Icon>
                 </div>
                 <span>{label}</span>
               </button>
@@ -1528,7 +1653,8 @@ function App() {
               onActiveBandChange={setActiveBandIndex}
               snapToIso={snapToIso}
             />
-                      </section>
+            <CustomScrollbar targetRef={mainScrollRef} />
+          </section>
           <ToolsPanel
             peq={peq}
             onImportPEQ={importPeq}
