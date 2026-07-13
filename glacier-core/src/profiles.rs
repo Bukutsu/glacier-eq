@@ -131,9 +131,12 @@ fn validate_name(name: &str) -> Result<(), String> {
         || name.len() > 128
         || !name
             .chars()
-            .all(|character| character.is_alphanumeric() || " _-".contains(character))
+            .all(|character| character.is_alphanumeric() || " _-@+&.()".contains(character))
     {
-        Err("Profile name may contain only letters, numbers, spaces, _ and -".into())
+        Err(
+            "Profile name contains invalid characters. Use letters, numbers, spaces, and _-@+&.()"
+                .into(),
+        )
     } else {
         Ok(())
     }
