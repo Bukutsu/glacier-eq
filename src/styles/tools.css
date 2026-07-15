@@ -13,7 +13,7 @@
   flex: 1;
   min-height: 142px;
   height: auto;
-  overflow: visible;
+  overflow-y: auto;
 }
 
 .tools-card {
