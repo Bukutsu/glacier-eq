@@ -64,7 +64,7 @@ jobs:
             pkg-config
 
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: lts/*
           cache: npm
@@ -175,7 +175,7 @@ jobs:
           test -d "$ANDROID_HOME"/platforms/android-36 || { echo "android-36 platform missing"; exit 1; }
           echo "NDK + platform ready: $NDK_DIR"
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: lts/*
           cache: npm
