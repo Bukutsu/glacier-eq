@@ -87,6 +87,8 @@ const isDisconnectionError = (error: any): boolean => {
   return (
     errStr.includes("device disconnected") ||
     errStr.includes("disconnected") ||
+    errStr.includes("no device connected") ||
+    errStr.includes("no supported dac connected") ||
     errStr.includes("no such device") ||
     errStr.includes("device not open") ||
     errStr.includes("no longer exists")
@@ -661,6 +663,7 @@ function App() {
     });
 
     addListener<string>("device-disconnected", (event) => {
+      setConnected(false);
       setIsReconnecting(true);
       setFirmwareVersion(null);
       reportStatus("Error", `Connection lost to device (unplugged): ${event.payload}`, "error", "Device", "Reconnecting...");
@@ -701,6 +704,25 @@ function App() {
       window.removeEventListener("unhandledrejection", handleRejection);
     };
   }, []);
+
+  // Desktop HID does not emit a detach event, so detect the device disappearing.
+  useEffect(() => {
+    if (!isTauri() || isAndroid || !connected || !selectedDevice || isBusy) return;
+
+    const timerId = setInterval(async () => {
+      try {
+        const devices = await invoke<DeviceInfo[]>("list_devices");
+        if (!devices.some((device) => device.path === selectedDevice)) {
+          setConnected(false);
+          setIsReconnecting(true);
+          setFirmwareVersion(null);
+          reportStatus("Error", "Connection lost to device", "error", "Device", "Reconnecting...");
+        }
+      } catch {}
+    }, 1500);
+
+    return () => clearInterval(timerId);
+  }, [connected, isAndroid, selectedDevice, isBusy, reportStatus]);
 
   // Automatic reconnection loop
   useEffect(() => {
