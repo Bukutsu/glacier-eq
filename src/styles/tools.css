@@ -471,12 +471,15 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   flex: 1;
 }
 
-.curves-tab .tool-card {
+.curves-actions {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-height: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.curves-actions .add-trace-btn {
   flex: 1;
+  width: auto;
 }
 
 .trace-list {
@@ -934,8 +937,48 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   min-height: 0;
 }
 
-.autoeq-run-btn {
+.autoeq-match-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+  min-width: 0;
+}
+
+.autoeq-run-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   margin-top: 8px;
+}
+
+.autoeq-bands-label {
+  color: var(--muted);
+  font-size: var(--type-label);
+  flex: 0 0 auto;
+}
+
+.autoeq-run-row .autoeq-bands-stepper.custom-number-input {
+  max-width: 96px;
+}
+
+.autoeq-run-btn {
+  flex: 1;
+}
+
+.autoeq-empty-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 4px 2px;
+  color: var(--muted);
+  font-size: var(--type-label);
+  line-height: 1.5;
+}
+
+.autoeq-empty-hint .material-symbols-outlined {
+  font-size: 18px;
+  flex: 0 0 auto;
 }
 
 /* Custom Select Dropdown Styling */
@@ -1106,10 +1149,6 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 
 .custom-number-input .stepper-field:focus {
   background: transparent !important;
-}
-
-.autoeq-bands-stepper.custom-number-input {
-  max-width: 120px;
 }
 
 .online-result-item {

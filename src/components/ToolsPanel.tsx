@@ -292,31 +292,26 @@ function CurvesTab({
 
   return (
     <div className="curves-tab">
-      <button className="btn add-trace-btn" onClick={() => setShowAddModal(true)}>
-        <Icon>add</Icon>
-        <span>Add Trace</span>
-      </button>
-      <section className="tool-card">
-        <div className="tool-card-head">
-          <strong>Loaded Traces</strong>
-        </div>
-        <UnifiedTracesList
-          measurements={measurements}
-          allTargets={allTargets}
-          activeTargetIds={activeTargetIds}
-          onToggleMeasurement={onToggleMeasurement}
-          onRemoveMeasurement={onRemoveMeasurement}
-          onToggleTarget={onToggleTarget}
-          onRemoveTarget={onRemoveTarget}
-        />
+      <UnifiedTracesList
+        measurements={measurements}
+        allTargets={allTargets}
+        activeTargetIds={activeTargetIds}
+        onToggleMeasurement={onToggleMeasurement}
+        onRemoveMeasurement={onRemoveMeasurement}
+        onToggleTarget={onToggleTarget}
+        onRemoveTarget={onRemoveTarget}
+      />
+      <div className="curves-actions">
+        <button className="btn add-trace-btn" onClick={() => setShowAddModal(true)}>
+          <Icon>add</Icon>
+          <span>Add Trace</span>
+        </button>
         {measurements.length > 0 && (
-          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "4px" }}>
-            <button className="tool-link-button danger" onClick={onClearMeasurements}>
-              Clear All Loaded
-            </button>
-          </div>
+          <button className="tool-link-button danger" onClick={onClearMeasurements}>
+            Clear all
+          </button>
         )}
-      </section>
+      </div>
       {showAddModal && (
         <AddTraceModal
           onClose={() => setShowAddModal(false)}
@@ -914,20 +909,15 @@ export function AutoEqTab({
   return (
     <div className="autoeq-tab">
       {measurements.length === 0 ? (
-        <section className="tool-card">
-          <div className="tool-card-head">
-            <strong>No Measurements Loaded</strong>
-          </div>
-          <p className="card-note">Add a measurement above, or in Traces & Targets on mobile, before matching it to a target curve.</p>
-        </section>
+        <p className="autoeq-empty-hint">
+          <Icon>info</Icon>
+          Add a measurement above, then match it to a target curve.
+        </p>
       ) : (
         <section className="tool-card">
-          <div className="tool-card-head">
-            <strong>Match Options</strong>
-          </div>
-          <div className="autoeq-form-grid">
+          <div className="autoeq-match-grid">
             <div className="import-field-group">
-              <label>Source Measurement</label>
+              <label>Measurement</label>
               <Select
                 value={localMeasId}
                 options={measurements.map(m => ({ value: m.id, label: m.name }))}
@@ -936,26 +926,13 @@ export function AutoEqTab({
             </div>
 
             <div className="import-field-group">
-              <label>Target Reference</label>
+              <label>Target</label>
               <Select
                 value={localTargetId}
                 options={allTargets.map(t => ({ value: t.id, label: t.name }))}
                 onChange={handleTargetChange}
               />
             </div>
-
-            <div className="import-field-group">
-              <label htmlFor="autoeq-bands">Bands Count</label>
-              <NumberInput
-                id="autoeq-bands"
-                value={nBands}
-                min={1}
-                max={Math.max(1, maxBands)}
-                onChange={setNBands}
-                className="autoeq-bands-stepper"
-              />
-            </div>
-
           </div>
 
           <Collapsible title="Advanced options" compact defaultOpen={false}>
@@ -1016,30 +993,37 @@ export function AutoEqTab({
             </div>
           </Collapsible>
 
-          <button
-            className="btn filled autoeq-run-btn"
-            disabled={isOptimizing}
-            onClick={handleRunAutoEq}
-          >
-            <Icon>{isOptimizing ? "hourglass_empty" : "bolt"}</Icon>
-            <span>{isOptimizing ? "Optimizing..." : "Run Match"}</span>
-          </button>
+          <div className="autoeq-run-row">
+            <span className="autoeq-bands-label">Bands</span>
+            <NumberInput
+              id="autoeq-bands"
+              aria-label="Bands"
+              value={nBands}
+              min={1}
+              max={Math.max(1, maxBands)}
+              onChange={setNBands}
+              className="autoeq-bands-stepper"
+            />
+            <button
+              className="btn filled autoeq-run-btn"
+              disabled={isOptimizing || !meas || !target}
+              onClick={handleRunAutoEq}
+            >
+              <Icon>{isOptimizing ? "hourglass_empty" : "bolt"}</Icon>
+              <span>{isOptimizing ? "Optimizing..." : "Run Match"}</span>
+            </button>
+          </div>
         </section>
       )}
 
       {warnings.length > 0 && (
-        <section className="tool-card import-warnings-section">
-          <div className="tool-card-head">
-            <strong>Device Range Adjustments</strong>
-          </div>
-          <div className="import-warnings-box">
-            {warnings.map((w, idx) => (
-              <div key={idx} className="warning-line">
-                • {w}
-              </div>
-            ))}
-          </div>
-        </section>
+        <div className="import-warnings-box">
+          {warnings.map((w, idx) => (
+            <div key={idx} className="warning-line">
+              • {w}
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );
