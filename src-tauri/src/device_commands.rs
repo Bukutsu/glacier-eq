@@ -4,6 +4,7 @@
 use crate::state::{ConnectedDevice, DeviceState};
 use glacier_core::device::{
     get_supported_device, DacUtilityState, DeviceInfo, DeviceIo, DeviceProfile, DeviceSession,
+    EditorCapabilities,
 };
 use glacier_core::eq::PEQData;
 use std::collections::HashSet;
@@ -26,9 +27,9 @@ pub struct SupportedDeviceInfo {
     vendor_id: u16,
     product_id: Option<u16>,
     status: &'static str,
-    num_bands: usize,
-    supports_ram_apply: bool,
-    integer_preamp: bool,
+    family: &'static str,
+    #[serde(flatten)]
+    capabilities: EditorCapabilities,
 }
 
 fn lock_device_state<'a, 'r>(
@@ -294,9 +295,7 @@ pub async fn list_devices(app: tauri::AppHandle) -> Result<Vec<DeviceInfo>, Stri
                 manufacturer: device.manufacturer_string.clone(),
                 product_string: device.product_string.clone(),
                 profile_name: Some(profile.name.to_string()),
-                num_bands: profile.caps.num_bands,
-                supports_ram_apply: profile.caps.supports_ram_apply,
-                integer_preamp: profile.caps.integer_preamp,
+                capabilities: (&profile.caps).into(),
             })
         })
         .collect())
@@ -312,9 +311,8 @@ pub fn list_supported_devices() -> Vec<SupportedDeviceInfo> {
             vendor_id: device.vendor_id,
             product_id: device.product_id,
             status: device.status,
-            num_bands: device.caps.num_bands,
-            supports_ram_apply: device.caps.supports_ram_apply,
-            integer_preamp: device.caps.integer_preamp,
+            family: device.family,
+            capabilities: (&device.caps).into(),
         })
         .collect()
 }

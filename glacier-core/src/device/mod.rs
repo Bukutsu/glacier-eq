@@ -15,7 +15,7 @@ pub mod supported;
 pub mod timing;
 pub mod walkplay;
 
-pub use capabilities::DeviceCapabilities;
+pub use capabilities::{DeviceCapabilities, EditorCapabilities};
 pub use profile::{DeviceInfo, DeviceProfile, DeviceProtocol};
 pub use protocol::{EqProtocol, Packet, WalkplayProtocol};
 pub use session::{DacUtilityState, DeviceIo, DeviceSession};

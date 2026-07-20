@@ -37,28 +37,34 @@ export interface TargetTrace {
 
 export type GraphViewMode = "shape" | "level";
 
-export interface DeviceInfo {
+export interface DeviceCapabilities {
+  num_bands: number;
+  global_gain_range: [number, number];
+  band_gain_range: [number, number];
+  freq_range: [number, number];
+  q_range: [number, number];
+  supported_filter_types: FilterType[];
+  supports_per_band_enable: boolean;
+  supports_ram_apply: boolean;
+  integer_preamp: boolean;
+}
+
+export interface DeviceInfo extends DeviceCapabilities {
   vendor_id: number;
   product_id: number;
   path: string;
   manufacturer: string | null;
   product_string: string | null;
   profile_name: string | null;
-  num_bands?: number;
-  supports_ram_apply?: boolean;
-  integer_preamp?: boolean;
 }
 
-export interface SupportedDeviceInfo {
+export interface SupportedDeviceInfo extends DeviceCapabilities {
   name: string;
   protocol: string;
   vendor_id: number;
   product_id: number | null;
   status: string;
   family: string;
-  num_bands: number;
-  supports_ram_apply: boolean;
-  integer_preamp: boolean;
 }
 
 export interface Profile {

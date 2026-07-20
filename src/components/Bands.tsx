@@ -1,18 +1,13 @@
 import { type CSSProperties, type ReactNode, useState } from "react";
-import type { Filter, FilterType, PEQData } from "../types";
+import type { DeviceCapabilities, Filter, FilterType, PEQData } from "../types";
 import { Icon } from "./Icon";
 import { Slider } from "./Slider";
 import { NumberInput } from "./NumberInput";
 import { filterColorVars } from "../lib/filterColors";
 import initWasm, { snap_freq_to_iso } from "../wasm_pkg/glacier_core";
 
-const FREQ_MIN = 20;
-const FREQ_MAX = 20000;
 const FREQ_SLIDER_STEPS = 1000;
-const Q_MIN = 0.1;
-const Q_MAX = 20;
 const Q_SLIDER_STEPS = 1000;
-const FILTER_TYPES: FilterType[] = ["Peak", "HighShelf", "LowShelf", "HighPass", "LowPass"];
 const TYPE_LABELS: Record<FilterType, string> = {
   Peak: "PK",
   HighShelf: "HS",
@@ -40,7 +35,7 @@ function filterColorStyle(index: number) {
 interface BandsProps {
   peq: PEQData;
   committedPeq?: PEQData | null;
-  maxBands: number;
+  capabilities: DeviceCapabilities;
   onFilterChange: (index: number, filter: Filter) => void;
   onStartChange: () => void;
   activeBandIndex?: number | null;
@@ -48,33 +43,41 @@ interface BandsProps {
   snapToIso?: boolean;
 }
 
-function freqToSlider(freq: number) {
-  const min = Math.log10(FREQ_MIN);
-  const max = Math.log10(FREQ_MAX);
-  return Math.round(((Math.log10(Math.max(FREQ_MIN, Math.min(FREQ_MAX, freq))) - min) / (max - min)) * FREQ_SLIDER_STEPS);
+function clamp(value: number, [min, max]: [number, number]) {
+  return Math.max(min, Math.min(max, value));
 }
 
-function sliderToFreq(value: number) {
-  const min = Math.log10(FREQ_MIN);
-  const max = Math.log10(FREQ_MAX);
+function freqToSlider(freq: number, range: [number, number]) {
+  const min = Math.log10(range[0]);
+  const max = Math.log10(range[1]);
+  return Math.round(((Math.log10(clamp(freq, range)) - min) / (max - min)) * FREQ_SLIDER_STEPS);
+}
+
+function sliderToFreq(value: number, range: [number, number]) {
+  const min = Math.log10(range[0]);
+  const max = Math.log10(range[1]);
   return Math.round(10 ** (min + (value / FREQ_SLIDER_STEPS) * (max - min)));
 }
 
-function qToSlider(q: number) {
-  const min = Math.log10(Q_MIN);
-  const max = Math.log10(Q_MAX);
-  const clamped = Math.max(Q_MIN, Math.min(Q_MAX, q));
-  return Math.round(((Math.log10(clamped) - min) / (max - min)) * Q_SLIDER_STEPS);
+function qToSlider(q: number, range: [number, number]) {
+  const min = Math.log10(range[0]);
+  const max = Math.log10(range[1]);
+  return Math.round(((Math.log10(clamp(q, range)) - min) / (max - min)) * Q_SLIDER_STEPS);
 }
 
-function sliderToQ(value: number) {
-  const min = Math.log10(Q_MIN);
-  const max = Math.log10(Q_MAX);
+function sliderToQ(value: number, range: [number, number]) {
+  const min = Math.log10(range[0]);
+  const max = Math.log10(range[1]);
   return Number((10 ** (min + (value / Q_SLIDER_STEPS) * (max - min))).toFixed(2));
 }
 
-export function Bands({ peq, committedPeq, maxBands, onFilterChange, onStartChange, activeBandIndex, onActiveBandChange, snapToIso }: BandsProps) {
-  const availableFilters = peq.filters.slice(0, maxBands);
+async function constrainFreq(freq: number, range: [number, number], snapToIso?: boolean) {
+  const constrained = clamp(Math.round(freq), range);
+  return clamp(snapToIso ? await snapToIsoFreq(constrained) : constrained, range);
+}
+
+export function Bands({ peq, committedPeq, capabilities, onFilterChange, onStartChange, activeBandIndex, onActiveBandChange, snapToIso }: BandsProps) {
+  const availableFilters = peq.filters.slice(0, capabilities.num_bands);
   const visibleFilters = availableFilters.filter((filter) => filter.enabled);
   const canAddFilter = visibleFilters.length < availableFilters.length;
   const selectedFilter = visibleFilters.find((filter) => filter.index === activeBandIndex) ?? visibleFilters[0];
@@ -118,6 +121,7 @@ export function Bands({ peq, committedPeq, maxBands, onFilterChange, onStartChan
               onActivate={() => onActiveBandChange?.(filter.index)}
               canRemove={visibleFilters.length > 1}
               onRemove={() => onFilterChange(filter.index, { ...filter, enabled: false })}
+              capabilities={capabilities}
               snapToIso={snapToIso}
             />
           ))}
@@ -182,6 +186,7 @@ export function Bands({ peq, committedPeq, maxBands, onFilterChange, onStartChan
               onChange={(updated) => onFilterChange(selectedFilter.index, updated)}
               onStartChange={onStartChange}
               onActivate={() => onActiveBandChange?.(selectedFilter.index)}
+              capabilities={capabilities}
               snapToIso={snapToIso}
             />
           </div>
@@ -200,6 +205,7 @@ function BandRow({
   onActivate,
   canRemove,
   onRemove,
+  capabilities,
   snapToIso,
 }: {
   filter: Filter;
@@ -210,6 +216,7 @@ function BandRow({
   onActivate: () => void;
   canRemove: boolean;
   onRemove: () => void;
+  capabilities: DeviceCapabilities;
   snapToIso?: boolean;
 }) {
   return (
@@ -220,7 +227,7 @@ function BandRow({
       style={filterColorStyle(filter.index)}
     >
       <div className="band-number" aria-hidden="true">{filter.index + 1}</div>
-      <BandControls filter={filter} committedFilter={committedFilter} onChange={onChange} onStartChange={onStartChange} onActivate={onActivate} snapToIso={snapToIso} />
+      <BandControls filter={filter} committedFilter={committedFilter} onChange={onChange} onStartChange={onStartChange} onActivate={onActivate} capabilities={capabilities} snapToIso={snapToIso} />
       <button
         type="button"
         className="band-index"
@@ -245,6 +252,7 @@ function BandControls({
   onChange,
   onStartChange,
   onActivate,
+  capabilities,
   snapToIso,
 }: {
   filter: Filter;
@@ -252,6 +260,7 @@ function BandControls({
   onChange: (filter: Filter) => void;
   onStartChange: () => void;
   onActivate: () => void;
+  capabilities: DeviceCapabilities;
   snapToIso?: boolean;
 }) {
   return (
@@ -259,6 +268,7 @@ function BandControls({
       <BandField label="Type" className="band-type-field">
         <FilterTypeButtons
           filter={filter}
+          supportedTypes={capabilities.supported_filter_types}
           onChange={(updated) => {
             onActivate();
             onStartChange();
@@ -273,27 +283,27 @@ function BandControls({
             min={0}
             max={FREQ_SLIDER_STEPS}
             step={5}
-            value={freqToSlider(filter.freq)}
+            value={freqToSlider(filter.freq, capabilities.freq_range)}
             tone={filter.index >= 5 ? "orange" : "blue"}
             onStartChange={onStartChange}
-            onReset={committedFilter ? () => onChange({ ...filter, freq: committedFilter.freq }) : undefined}
+            onReset={committedFilter ? async () => onChange({ ...filter, freq: await constrainFreq(committedFilter.freq, capabilities.freq_range, snapToIso) }) : undefined}
             onFocus={onActivate}
             onChange={async (event) => {
-              const raw = sliderToFreq(+event.target.value);
-              onChange({ ...filter, freq: snapToIso ? await snapToIsoFreq(raw) : raw });
+              const raw = sliderToFreq(+event.target.value, capabilities.freq_range);
+              onChange({ ...filter, freq: await constrainFreq(raw, capabilities.freq_range, snapToIso) });
             }}
           />
           <NumberInput
-            value={filter.freq}
-            min={FREQ_MIN}
-            max={FREQ_MAX}
+            value={clamp(filter.freq, capabilities.freq_range)}
+            min={capabilities.freq_range[0]}
+            max={capabilities.freq_range[1]}
             step={50}
             precision={0}
             onFocus={() => {
               onActivate();
               onStartChange();
             }}
-            onChange={async (val) => onChange({ ...filter, freq: snapToIso ? await snapToIsoFreq(val) : val })}
+            onChange={async (val) => onChange({ ...filter, freq: await constrainFreq(val, capabilities.freq_range, snapToIso) })}
             className="band-freq-stepper"
             aria-label={`Band ${filter.index + 1} frequency value`}
           />
@@ -303,20 +313,20 @@ function BandControls({
         <div className="gain-cell">
           <Slider
             aria-label={`Band ${filter.index + 1} gain`}
-            min={-10}
-            max={10}
+            min={capabilities.band_gain_range[0]}
+            max={capabilities.band_gain_range[1]}
             step={0.01}
-            value={filter.gain}
+            value={clamp(filter.gain, capabilities.band_gain_range)}
             tone={filter.index >= 5 ? "orange" : "blue"}
             onStartChange={onStartChange}
-            onReset={committedFilter ? () => onChange({ ...filter, gain: committedFilter.gain }) : undefined}
+            onReset={committedFilter ? () => onChange({ ...filter, gain: clamp(committedFilter.gain, capabilities.band_gain_range) }) : undefined}
             onFocus={onActivate}
             onChange={(event) => onChange({ ...filter, gain: +event.target.value })}
           />
           <NumberInput
-            value={filter.gain}
-            min={-10}
-            max={10}
+            value={clamp(filter.gain, capabilities.band_gain_range)}
+            min={capabilities.band_gain_range[0]}
+            max={capabilities.band_gain_range[1]}
             step={0.1}
             precision={2}
             onFocus={() => {
@@ -336,21 +346,21 @@ function BandControls({
             min={0}
             max={Q_SLIDER_STEPS}
             step={1}
-            value={qToSlider(filter.q)}
-            aria-valuemin={Q_MIN}
-            aria-valuemax={Q_MAX}
+            value={qToSlider(filter.q, capabilities.q_range)}
+            aria-valuemin={capabilities.q_range[0]}
+            aria-valuemax={capabilities.q_range[1]}
             aria-valuenow={filter.q}
             aria-valuetext={`Q ${filter.q.toFixed(2)}`}
             tone={filter.index >= 5 ? "orange" : "blue"}
             onStartChange={onStartChange}
-            onReset={committedFilter ? () => onChange({ ...filter, q: committedFilter.q }) : undefined}
+            onReset={committedFilter ? () => onChange({ ...filter, q: clamp(committedFilter.q, capabilities.q_range) }) : undefined}
             onFocus={onActivate}
-            onChange={(event) => onChange({ ...filter, q: sliderToQ(+event.target.value) })}
+            onChange={(event) => onChange({ ...filter, q: sliderToQ(+event.target.value, capabilities.q_range) })}
           />
           <NumberInput
-            value={filter.q}
-            min={0.1}
-            max={20}
+            value={clamp(filter.q, capabilities.q_range)}
+            min={capabilities.q_range[0]}
+            max={capabilities.q_range[1]}
             step={0.05}
             precision={2}
             onFocus={() => {
@@ -384,10 +394,10 @@ function BandField({
   );
 }
 
-function FilterTypeButtons({ filter, onChange }: { filter: Filter; onChange: (filter: Filter) => void }) {
+function FilterTypeButtons({ filter, supportedTypes, onChange }: { filter: Filter; supportedTypes: FilterType[]; onChange: (filter: Filter) => void }) {
   return (
     <div className="type-buttons">
-      {FILTER_TYPES.map((type) => (
+      {supportedTypes.map((type) => (
         <button
           type="button"
           key={type}
