@@ -166,18 +166,6 @@
   white-space: nowrap;
 }
 
-.tools-card .tab-panel > .app-collapse {
-  display: flex;
-  max-height: min(60vh, 460px);
-  flex-direction: column;
-}
-
-.tools-card .tab-panel > .app-collapse > .app-collapse-content {
-  min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-}
-
 .app-collapse-content-inner {
   display: flex;
   min-width: 0;
