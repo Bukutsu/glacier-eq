@@ -245,11 +245,13 @@ async function writeAndFlash(packet: number[] | Uint8Array) {
   await sendReport(build_flash_eq_packet());
 }
 
-async function readWalkplayUtility(cmd: number): Promise<Uint8Array | null> {
+async function readWalkplayUtility(cmd: number): Promise<Uint8Array> {
   await sendReport(walkplayPacket([0x80, cmd, 0x00]));
-  return readMatchingReport(60, (data) =>
+  const report = await readMatchingReport(60, (data) =>
     data.length >= 5 && data[0] === 0x4b && data[1] === 0x80 && data[2] === cmd
   );
+  if (!report) throw new Error(`Timeout reading device utility ${cmd}`);
+  return report;
 }
 
 async function readWalkplayBalance(channel: number): Promise<number> {
@@ -257,7 +259,8 @@ async function readWalkplayBalance(channel: number): Promise<number> {
   const report = await readMatchingReport(60, (data) =>
     data.length >= 7 && data[0] === 0x4b && data[1] === 0x80 && data[2] === 0x16 && data[4] === channel
   );
-  return report?.[6] ?? 0;
+  if (!report) throw new Error(`Timeout reading channel ${channel} balance`);
+  return report[6];
 }
 
 function resetPeq(numBands: number): PEQData {
@@ -609,14 +612,17 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
         3: "Slow-LL",
         4: "Slow-PC",
         5: "NON-OS",
-      }[filter?.[4] ?? 1] ?? "FAST-LL";
+      }[filter[4]];
+      if (!filterMode || amp[4] === undefined || gain[4] === undefined || mic[5] === undefined) {
+        throw new Error("Device utility response was incomplete");
+      }
 
       return {
         supported: true,
         filter_mode: filterMode,
-        amp_mode_class_ab: amp?.[4] === 1,
-        high_gain_mode: gain?.[4] === 1,
-        mic_volume_db: (mic?.[5] ?? 0) << 24 >> 24,
+        amp_mode_class_ab: amp[4] === 1,
+        high_gain_mode: gain[4] === 1,
+        mic_volume_db: mic[5] << 24 >> 24,
         channel_balance: left > 0 ? left : right > 0 ? -right : 0,
       } as T;
     }
@@ -676,13 +682,9 @@ export async function requestWebHidDevice(): Promise<void> {
     productId: s.product_id || undefined,
   }));
   
-  try {
-    const selected = await ensureWebHid().requestDevice({ filters });
-    if (selected.length > 0) {
-      console.log("WebHID device permitted by user:", selected[0]);
-    }
-  } catch (err) {
-    console.error("Failed to request WebHID device:", err);
+  const selected = await ensureWebHid().requestDevice({ filters });
+  if (selected.length > 0) {
+    console.log("WebHID device permitted by user:", selected[0]);
   }
 }
 

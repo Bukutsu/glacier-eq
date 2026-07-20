@@ -564,6 +564,7 @@ function ImportTab({ peq, profiles, selectedPreset, onImportPEQ, onReloadProfile
 
   const handleConfirm = async () => {
     if (!parsed) return;
+    if (nameExists && !window.confirm(`Overwrite profile "${importName.trim()}"?`)) return;
 
     if (isTemporary) {
       onImportPEQ(parsed.peq, importName || "Imported EQ", false);
@@ -1142,20 +1143,21 @@ type DeviceUtilityState = {
 function DeviceTab({ setStatus, onPull }: { setStatus: (msg: string) => void; onPull?: () => Promise<void> }) {
   const [utility, setUtility] = useState<DeviceUtilityState | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const fetchState = async () => {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      setUtility(await invoke<DeviceUtilityState>("get_dac_utility_state"));
+    } catch (err) {
+      setLoadError(`Failed to load device status: ${err}`);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchState = () => {
-      invoke<any>("get_dac_utility_state")
-        .then((data) => {
-          setUtility(data);
-          setLoading(false);
-        })
-        .catch((err) => {
-          console.error("Failed to load DAC utility state:", err);
-          setLoading(false);
-        });
-    };
-
     fetchState();
 
     let unlisten: (() => void) | null = null;
@@ -1177,11 +1179,13 @@ function DeviceTab({ setStatus, onPull }: { setStatus: (msg: string) => void; on
     args: Record<string, unknown>,
   ) => {
     if (!utility) return;
-    setUtility({ ...utility, [field]: value });
+    const previous = utility;
+    setUtility({ ...previous, [field]: value });
     try {
       await invoke(command, args);
     } catch (err) {
-      console.error(`Failed to ${command}:`, err);
+      setUtility(previous);
+      setStatus(`Device setting update failed: ${err}`);
     }
   };
 
@@ -1233,7 +1237,7 @@ function DeviceTab({ setStatus, onPull }: { setStatus: (msg: string) => void; on
         await onPull();
       }
     } catch (err) {
-      console.error("Failed to execute factory reset:", err);
+      setStatus(`Factory reset failed: ${err}`);
     }
   };
 
@@ -1242,6 +1246,21 @@ function DeviceTab({ setStatus, onPull }: { setStatus: (msg: string) => void; on
       <div className="settings-list device-utility">
         <section className="tool-card">
           <div className="device-empty">Loading device status...</div>
+        </section>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="settings-list device-utility">
+        <section className="tool-card">
+          <div className="device-empty">
+            <Icon>error</Icon>
+            <strong>Unable to load device status.</strong>
+            <span>{loadError}</span>
+            <button className="btn" onClick={fetchState}>Retry</button>
+          </div>
         </section>
       </div>
     );
