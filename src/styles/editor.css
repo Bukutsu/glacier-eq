@@ -121,33 +121,79 @@
   display: none;
 }
 
-.disclosure-card {
-  padding: 0;
+.app-collapse {
+  min-width: 0;
+  overflow: hidden;
+  background: var(--panel);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-surface);
 }
 
-.disclosure-card summary {
-  cursor: pointer;
-  list-style: none;
-}
-
-.disclosure-card summary::-webkit-details-marker {
-  display: none;
-}
-
-.disclosure-card summary::after {
-  content: "expand_more";
-  margin-left: auto;
-  font-family: "Material Icons", "Material Symbols Outlined", sans-serif;
-  font-size: 18px;
-  font-weight: 400;
-  line-height: 1;
+.app-collapse .app-collapse-trigger {
+  display: flex;
+  width: 100%;
+  min-height: 44px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  background: transparent;
   color: var(--cyan);
-  font-feature-settings: "liga";
-  -webkit-font-smoothing: antialiased;
+  border: 0;
+  text-align: left;
 }
 
-.disclosure-card[open] summary::after {
-  content: "expand_less";
+.app-collapse.open > .app-collapse-trigger {
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.app-collapse-trigger > .material-symbols-outlined {
+  flex: 0 0 auto;
+  font-size: 18px;
+}
+
+.app-collapse-trigger > .material-symbols-outlined:last-child {
+  margin-left: auto;
+}
+
+.app-collapse-title {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: var(--type-label);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.app-collapse-content-inner {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+}
+
+.app-collapse.compact {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+
+.app-collapse.compact .app-collapse-trigger {
+  min-height: 36px;
+  padding: 0 10px;
+  background: var(--surface-soft);
+  color: var(--muted);
+  border: 1px solid var(--line-soft);
+}
+
+.app-collapse.compact.open > .app-collapse-trigger {
+  color: var(--cyan);
+  border-color: var(--accent-line-medium);
+}
+
+.app-collapse.compact .app-collapse-content-inner {
+  padding: 10px 0 0;
 }
 
 .graph-view-toggle {
