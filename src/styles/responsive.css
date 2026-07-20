@@ -662,6 +662,10 @@
   .history-btn {
     min-height: 40px;
   }
+  .profile-card {
+    flex: none;
+    min-height: 0;
+  }
   .preset-list {
     height: auto;
     max-height: 350px !important;

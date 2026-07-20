@@ -347,14 +347,18 @@ function PresetTab({
   const savedProfiles = profiles.filter((p) => p.modified != null);
   const selectedIsSaved = savedProfiles.some((p) => p.name === selectedPreset);
   const canDelete = selectedIsSaved;
+  const [saveAsOpen, setSaveAsOpen] = useState(false);
+  const showSaveAs = !selectedIsSaved || saveAsOpen;
   const saveName = newProfileName.trim();
   const isOverwrite = savedProfiles.some(
     (p) => p.name.toLowerCase() === saveName.toLowerCase()
   );
-  const canSave = !!saveName || selectedIsSaved;
-  const saveLabel = saveName
-    ? isOverwrite ? "Overwrite profile" : "Save new profile"
-    : selectedIsSaved ? "Save changes" : "Save new profile";
+  const canSave = showSaveAs ? !!saveName : selectedIsSaved;
+  const saveLabel = showSaveAs
+    ? isOverwrite ? "Overwrite profile" : "Save profile"
+    : "Save changes";
+
+  useEffect(() => setSaveAsOpen(false), [selectedPreset]);
 
   const handleSelectProfile = (profile: typeof profiles[0]) => {
     if (dirty && !window.confirm("Discard unsaved changes?")) return;
@@ -422,23 +426,25 @@ function PresetTab({
 
       {showActions !== false && (
         <>
-          <div className="profile-save-field">
-            <label htmlFor="profile-save-name">Save as</label>
-            <div className="profile-name-input-wrap">
-              <input
-                id="profile-save-name"
-                className="profile-search"
-                placeholder="Profile name…"
-                value={newProfileName}
-                onChange={(e) => setNewProfileName(e.target.value)}
-              />
-              {!!saveName && (
-                <span className={`profile-name-badge ${isOverwrite ? "overwrite" : "new"}`}>
-                  {isOverwrite ? "Overwrite" : "New"}
-                </span>
-              )}
+          {showSaveAs && (
+            <div className="profile-save-field">
+              <label htmlFor="profile-save-name">{selectedIsSaved ? "Save a copy" : "Profile name"}</label>
+              <div className="profile-name-input-wrap">
+                <input
+                  id="profile-save-name"
+                  className="profile-search"
+                  placeholder="Profile name…"
+                  value={newProfileName}
+                  onChange={(e) => setNewProfileName(e.target.value)}
+                />
+                {!!saveName && (
+                  <span className={`profile-name-badge ${isOverwrite ? "overwrite" : "new"}`}>
+                    {isOverwrite ? "Overwrite" : "New"}
+                  </span>
+                )}
+              </div>
             </div>
-          </div>
+          )}
           <div className="profile-management-actions">
             <button className="save primary-save" onClick={onSave} title={saveLabel} disabled={!canSave}>
               <Icon>save</Icon>
@@ -457,6 +463,18 @@ function PresetTab({
               <Icon>delete</Icon>
             </button>
           </div>
+          {selectedIsSaved && (
+            <button
+              type="button"
+              className="profile-save-as-toggle"
+              onClick={() => {
+                setNewProfileName("");
+                setSaveAsOpen((open) => !open);
+              }}
+            >
+              {saveAsOpen ? "Cancel save as" : "Save as copy…"}
+            </button>
+          )}
         </>
       )}
 
