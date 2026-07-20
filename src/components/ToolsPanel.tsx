@@ -125,7 +125,7 @@ interface ToolsPanelProps {
 }
 
 export function ToolsPanel(props: ToolsPanelProps) {
-  const requestedTabs = props.availableTabs ?? ["Preset", "Import", "AutoEQ", "Device", "Settings"];
+  const requestedTabs = props.availableTabs ?? ["Preset", "Import", "Tuning", "Device", "Settings"];
   const availableTabs = requestedTabs.filter((name) => name !== "Import" || !requestedTabs.includes("Preset"));
   const [internalTab, setInternalTab] = useState<ToolsTab>(() => (
     props.defaultTab === "Import" && availableTabs.includes("Preset")
@@ -160,35 +160,33 @@ export function ToolsPanel(props: ToolsPanelProps) {
               />
             </>
           )}
-          {tab === "AutoEQ" && (
-            <AutoEqTab
-              measurements={props.measurements}
-              allTargets={props.allTargets ?? []}
-              activeTargetIds={props.activeTargetIds}
-              onImportPEQ={props.onImportPEQ}
-              setStatus={props.setStatus}
-              onSelectTab={setTab}
-              onSelectedMeasurementChange={props.onSelectedMeasurementChange}
-              onToggleMeasurement={props.onToggleMeasurement}
-              onToggleTarget={props.onToggleTarget}
-              maxBands={props.maxBands}
-            />
-          )}
-          {tab === "Curves" && (
-            <CurvesTab
-              measurements={props.measurements}
-              onRemoveMeasurement={props.onRemoveMeasurement}
-              onToggleMeasurement={props.onToggleMeasurement}
-              onClearMeasurements={props.onClearMeasurements}
-              allTargets={props.allTargets ?? []}
-              activeTargetIds={props.activeTargetIds ?? []}
-              onToggleTarget={props.onToggleTarget ?? (() => {})}
-              onRemoveTarget={props.onRemoveTarget ?? (() => {})}
-              onAddTarget={props.onAddTarget}
-              settings={props.settings}
-              onAddMeasurement={props.onAddMeasurement}
-              setStatus={props.setStatus}
-            />
+          {tab === "Tuning" && (
+            <>
+              <CurvesTab
+                measurements={props.measurements}
+                onRemoveMeasurement={props.onRemoveMeasurement}
+                onToggleMeasurement={props.onToggleMeasurement}
+                onClearMeasurements={props.onClearMeasurements}
+                allTargets={props.allTargets ?? []}
+                activeTargetIds={props.activeTargetIds ?? []}
+                onToggleTarget={props.onToggleTarget ?? (() => {})}
+                onRemoveTarget={props.onRemoveTarget ?? (() => {})}
+                onAddTarget={props.onAddTarget}
+                onAddMeasurement={props.onAddMeasurement}
+                setStatus={props.setStatus}
+              />
+              <AutoEqTab
+                measurements={props.measurements}
+                allTargets={props.allTargets ?? []}
+                activeTargetIds={props.activeTargetIds}
+                onImportPEQ={props.onImportPEQ}
+                setStatus={props.setStatus}
+                onSelectedMeasurementChange={props.onSelectedMeasurementChange}
+                onToggleMeasurement={props.onToggleMeasurement}
+                onToggleTarget={props.onToggleTarget}
+                maxBands={props.maxBands}
+              />
+            </>
           )}
           {tab === "Device" && (
             props.connected ? (
@@ -264,7 +262,6 @@ interface CurvesTabProps {
   onToggleTarget: (id: string) => void;
   onRemoveTarget: (id: string) => void;
   onAddTarget?: (name: string, points: MeasurementTrace["points"]) => void;
-  settings?: AppSettings;
   onAddMeasurement?: (name: string, points: MeasurementTrace["points"]) => void;
   setStatus?: (value: string) => void;
 }
@@ -279,7 +276,6 @@ function CurvesTab({
   onToggleTarget,
   onRemoveTarget,
   onAddTarget,
-  settings,
   onAddMeasurement,
   setStatus,
 }: CurvesTabProps) {
@@ -315,7 +311,6 @@ function CurvesTab({
       {showAddModal && (
         <AddTraceModal
           onClose={() => setShowAddModal(false)}
-          settings={settings}
           onAddMeasurement={onAddMeasurement}
           onAddTarget={onAddTarget}
           setStatus={setStatus}
@@ -744,7 +739,6 @@ interface AutoEqTabProps {
   activeTargetIds?: string[];
   onImportPEQ: (data: PEQData, name: string, isSaved: boolean) => void;
   setStatus: (msg: string) => void;
-  onSelectTab?: (tab: ToolsTab) => void;
   onSelectedMeasurementChange?: (measurementId: string | null) => void;
   onToggleMeasurement?: (id: string) => void;
   onToggleTarget?: (id: string) => void;
@@ -757,7 +751,6 @@ export function AutoEqTab({
   activeTargetIds = [],
   onImportPEQ,
   setStatus,
-  onSelectTab,
   onSelectedMeasurementChange,
   onToggleMeasurement,
   onToggleTarget,
@@ -893,12 +886,7 @@ export function AutoEqTab({
           <div className="tool-card-head">
             <strong>No Measurements Loaded</strong>
           </div>
-          <p className="card-note">Import at least one frequency response measurement before you can match it to a target curve.</p>
-          {onSelectTab && (
-            <button className="btn" style={{ marginTop: "12px", width: "100%" }} onClick={() => onSelectTab("Curves")}>
-              Go to Curves Tab
-            </button>
-          )}
+          <p className="card-note">Add a measurement above, or in Traces & Targets on mobile, before matching it to a target curve.</p>
         </section>
       ) : (
         <section className="tool-card">
@@ -936,60 +924,66 @@ export function AutoEqTab({
               />
             </div>
 
-            <div className="import-field-group">
-              <label>Treble Smoothing</label>
-              <div className="smooth-buttons">
-                <button
-                  className={smoothType === "None" ? "active" : ""}
-                  onClick={() => setSmoothType("None")}
-                >
-                  None
-                </button>
-                <button
-                  className={smoothType === "IE" ? "active" : ""}
-                  onClick={() => setSmoothType("IE")}
-                >
-                  IE
-                </button>
-                <button
-                  className={smoothType === "OE" ? "active" : ""}
-                  onClick={() => setSmoothType("OE")}
-                >
-                  OE
-                </button>
+          </div>
+
+          <details>
+            <summary>Advanced options</summary>
+            <div className="autoeq-form-grid">
+              <div className="import-field-group">
+                <label>Treble Smoothing</label>
+                <div className="smooth-buttons">
+                  <button
+                    className={smoothType === "None" ? "active" : ""}
+                    onClick={() => setSmoothType("None")}
+                  >
+                    None
+                  </button>
+                  <button
+                    className={smoothType === "IE" ? "active" : ""}
+                    onClick={() => setSmoothType("IE")}
+                  >
+                    IE
+                  </button>
+                  <button
+                    className={smoothType === "OE" ? "active" : ""}
+                    onClick={() => setSmoothType("OE")}
+                  >
+                    OE
+                  </button>
+                </div>
+              </div>
+
+              <div className="import-field-group">
+                <label htmlFor="autoeq-steps">Optimizer Steps</label>
+                <Select
+                  id="autoeq-steps"
+                  value={steps}
+                  onChange={setSteps}
+                  options={[
+                    { value: 500, label: "500 (Fast)" },
+                    { value: 1000, label: "1000" },
+                    { value: 2000, label: "2000 (Standard)" },
+                    { value: 3000, label: "3000" },
+                    { value: 5000, label: "5000 (Precise)" },
+                  ]}
+                />
+              </div>
+
+              <div className="import-field-group">
+                <label htmlFor="autoeq-fs">Sample Rate</label>
+                <Select
+                  id="autoeq-fs"
+                  value={fs}
+                  onChange={setFs}
+                  options={[
+                    { value: 44100, label: "44.1 kHz" },
+                    { value: 48000, label: "48.0 kHz" },
+                    { value: 96000, label: "96.0 kHz" },
+                  ]}
+                />
               </div>
             </div>
-
-            <div className="import-field-group">
-              <label htmlFor="autoeq-steps">Optimizer Steps</label>
-              <Select
-                id="autoeq-steps"
-                value={steps}
-                onChange={setSteps}
-                options={[
-                  { value: 500, label: "500 (Fast)" },
-                  { value: 1000, label: "1000" },
-                  { value: 2000, label: "2000 (Standard)" },
-                  { value: 3000, label: "3000" },
-                  { value: 5000, label: "5000 (Precise)" },
-                ]}
-              />
-            </div>
-
-            <div className="import-field-group">
-              <label htmlFor="autoeq-fs">Sample Rate</label>
-              <Select
-                id="autoeq-fs"
-                value={fs}
-                onChange={setFs}
-                options={[
-                  { value: 44100, label: "44.1 kHz" },
-                  { value: 48000, label: "48.0 kHz" },
-                  { value: 96000, label: "96.0 kHz" },
-                ]}
-              />
-            </div>
-          </div>
+          </details>
 
           <button
             className="btn filled autoeq-run-btn"
@@ -1063,13 +1057,6 @@ function SettingsTab({
             onChange={(e) => onSettingChange("snap_to_iso_frequencies", e.target.checked)}
           />
           Snap frequency to ISO standard values
-        </label>
-        <label>
-          <input type="checkbox" className="custom-checkbox"
-            checked={settings.enable_online_measurements}
-            onChange={(e) => onSettingChange("enable_online_measurements", e.target.checked)}
-          />
-          Enable online measurement database
         </label>
       </section>
 

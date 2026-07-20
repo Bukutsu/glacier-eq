@@ -1498,7 +1498,6 @@ function App() {
                     {showAddTrace && (
                       <AddTraceModal
                         onClose={() => setShowAddTrace(false)}
-                        settings={settings}
                         onAddMeasurement={addMeasurement}
                         onAddTarget={addTarget}
                         setStatus={setStatus}
