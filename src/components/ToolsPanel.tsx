@@ -421,8 +421,8 @@ function PresetTab({
               {onApplyProfile && (
                 <button
                   className="profile-apply-btn"
-                  title="Apply to device RAM"
-                  aria-label={`Apply ${profile.name} to device RAM`}
+                  title="Try on DAC temporarily"
+                  aria-label={`Try ${profile.name} on DAC temporarily`}
                   onClick={() => onApplyProfile(profile)}
                 >
                   <Icon>send</Icon>
