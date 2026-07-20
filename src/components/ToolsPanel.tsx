@@ -121,6 +121,7 @@ interface ToolsPanelProps {
   onOpenDiagnostics?: () => void;
   showGraph?: boolean;
   onShowGraphChange?: (show: boolean) => void;
+  maxBands?: number;
 }
 
 export function ToolsPanel(props: ToolsPanelProps) {
@@ -170,6 +171,7 @@ export function ToolsPanel(props: ToolsPanelProps) {
               onSelectedMeasurementChange={props.onSelectedMeasurementChange}
               onToggleMeasurement={props.onToggleMeasurement}
               onToggleTarget={props.onToggleTarget}
+              maxBands={props.maxBands}
             />
           )}
           {tab === "Curves" && (
@@ -746,6 +748,7 @@ interface AutoEqTabProps {
   onSelectedMeasurementChange?: (measurementId: string | null) => void;
   onToggleMeasurement?: (id: string) => void;
   onToggleTarget?: (id: string) => void;
+  maxBands?: number;
 }
 
 export function AutoEqTab({
@@ -758,13 +761,18 @@ export function AutoEqTab({
   onSelectedMeasurementChange,
   onToggleMeasurement,
   onToggleTarget,
+  maxBands = 10,
 }: AutoEqTabProps) {
-  const [nBands, setNBands] = useState<number>(10);
+  const [nBands, setNBands] = useState<number>(Math.max(1, maxBands));
   const [steps, setSteps] = useState<number>(2000);
   const [smoothType, setSmoothType] = useState<string>("IE");
   const [fs, setFs] = useState<number>(96000);
   const [isOptimizing, setIsOptimizing] = useState<boolean>(false);
   const [warnings, setWarnings] = useState<string[]>([]);
+
+  useEffect(() => {
+    setNBands((current) => Math.min(current, Math.max(1, maxBands)));
+  }, [maxBands]);
 
   // Local selection states
   const [localMeasId, setLocalMeasId] = useState<string>("");
@@ -922,7 +930,7 @@ export function AutoEqTab({
                 id="autoeq-bands"
                 value={nBands}
                 min={1}
-                max={32}
+                max={Math.max(1, maxBands)}
                 onChange={setNBands}
                 className="autoeq-bands-stepper"
               />

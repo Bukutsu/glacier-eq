@@ -29,6 +29,7 @@ import {
 import { buildDefaultState, normalizePeq, peqEquals } from "./lib/peq";
 import { isTauri } from "./lib/platform";
 import type {
+  DeviceCapabilities,
   DeviceInfo,
   Filter,
   GraphViewMode,
@@ -42,6 +43,17 @@ import type {
 import { ToastContainer, type Toast } from "./components/Toast";
 
 const ANDROID_TOAST_DEDUPE_MS = 2000;
+const OFFLINE_EDITOR_CAPABILITIES: DeviceCapabilities = {
+  num_bands: 10,
+  global_gain_range: [-16, 6],
+  band_gain_range: [-10, 10],
+  freq_range: [20, 20000],
+  q_range: [0.1, 20],
+  supported_filter_types: ["Peak", "HighShelf", "LowShelf", "HighPass", "LowPass"],
+  supports_per_band_enable: true,
+  supports_ram_apply: false,
+  integer_preamp: false,
+};
 export const DEFAULT_PROFILE_NAME = "Default EQ";
 const DEFAULT_SETTINGS: AppSettings = {
   auto_pull_on_connect: true,
@@ -496,9 +508,11 @@ function App() {
     () => devices.find((device) => device.path === selectedDevice),
     [devices, selectedDevice],
   );
+  const selectedCapabilities = selectedDeviceInfo ?? OFFLINE_EDITOR_CAPABILITIES;
+  const capabilities = connected ? selectedCapabilities : OFFLINE_EDITOR_CAPABILITIES;
   const deviceName = selectedDeviceInfo?.profile_name || selectedDeviceInfo?.product_string || "Supported DAC";
-  const maxFilterBands = selectedDeviceInfo?.num_bands ?? peq.filters.length;
-  const supportsRamApply = selectedDeviceInfo?.supports_ram_apply === true;
+  const maxFilterBands = capabilities.num_bands;
+  const supportsRamApply = capabilities.supports_ram_apply;
 
   const selectMatchingProfile = useCallback(
     async (data: PEQData, fallback: string) => {
@@ -527,27 +541,27 @@ function App() {
   const applyProfile = useCallback(
     (profile: Profile) => {
       pushToUndoStack(peqRef.current);
-      const data = normalizePeq(profile.data, { enableLoadedFilters: true, integerPreamp: !!selectedDeviceInfo?.integer_preamp });
+      const data = normalizePeq(profile.data, { enableLoadedFilters: true, integerPreamp: capabilities.integer_preamp, capabilities });
       selectedPresetRef.current = profile.name;
       setPeq(data);
       setSelectedPreset(profile.name);
       setNewProfileName(profile.name);
       setDirty(false);
     },
-    [pushToUndoStack, selectedDeviceInfo],
+    [pushToUndoStack, capabilities],
   );
 
   const importPeq = useCallback(
     (data: PEQData, name: string, isSaved: boolean) => {
       pushToUndoStack(peqRef.current);
-      const normalized = normalizePeq(data, { enableLoadedFilters: true, integerPreamp: !!selectedDeviceInfo?.integer_preamp });
+      const normalized = normalizePeq(data, { enableLoadedFilters: true, integerPreamp: capabilities.integer_preamp, capabilities });
       setPeq(normalized);
       setSelectedPreset(name);
       setNewProfileName(name);
       setProfileSearch(name);
       setDirty(!isSaved);
     },
-    [pushToUndoStack, selectedDeviceInfo],
+    [pushToUndoStack, capabilities],
   );
 
   const withSyntheticDefault = (raw: Profile[]): Profile[] => [
@@ -775,8 +789,8 @@ function App() {
     };
   }, [isReconnecting, connectedDeviceName, loadFirmwareVersion, reportStatus]);
 
-  const pullEq = useCallback(async () => {
-    if (!connected) {
+  const pullEq = useCallback(async (afterConnect = false) => {
+    if (!connected && !afterConnect) {
       setStatus("Connect a DAC before reading its EQ.");
       return;
     }
@@ -811,7 +825,7 @@ function App() {
         data = await invoke<PEQData>("get_eq_state");
         await sleep(400);
       }
-      const normalized = normalizePeq(data, { integerPreamp: !!selectedDeviceInfo?.integer_preamp });
+      const normalized = normalizePeq(data, { integerPreamp: selectedCapabilities.integer_preamp, capabilities: selectedCapabilities });
       setPeq(normalized);
       setLastPushedPeq(normalized);
       const matchedProfile = await selectMatchingProfile(normalized, "Pulled from device");
@@ -837,7 +851,7 @@ function App() {
       setIsBusy(false);
       setProgress(null);
     }
-  }, [connected, dirty, pushToUndoStack, selectedDevice, selectedDeviceInfo, reportStatus, setStatus]);
+  }, [connected, dirty, pushToUndoStack, selectedDevice, selectedCapabilities, reportStatus, setStatus]);
 
   const connectDevice = useCallback(async (): Promise<boolean> => {
     if (!selectedDevice) return false;
@@ -848,7 +862,7 @@ function App() {
         setLastPushedPeq(null);
         setConnectedDeviceName("Glacier Dummy DAC");
         reportStatus("Info", "Connected to dummy DAC", "success", "UI", "Connected to dummy DAC");
-        await pullEq();
+        await pullEq(true);
         await loadFirmwareVersion();
         return true;
       }
@@ -866,9 +880,18 @@ function App() {
       reportStatus("Info", `Connected to device: ${devName}`, "success", "UI", "Ready");
 
       if (settings.auto_pull_on_connect) {
-        // We call the inner fetch code of pullEq directly or call pullEq itself.
-        // Since pullEq sets state asynchronously, calling it is safe.
-        await pullEq();
+        await pullEq(true);
+      } else {
+        const constrained = normalizePeq(peqRef.current, {
+          integerPreamp: selectedCapabilities.integer_preamp,
+          capabilities: selectedCapabilities,
+        });
+        if (!peqEquals(constrained, peqRef.current)) {
+          pushToUndoStack(peqRef.current);
+          setPeq(constrained);
+          setDirty(true);
+          reportStatus("Info", "Editor adjusted to this DAC's supported ranges", "info", "Device");
+        }
       }
       await loadFirmwareVersion();
       return true;
@@ -894,7 +917,7 @@ function App() {
     } finally {
       setIsBusy(false);
     }
-  }, [selectedDevice, pullEq, selectedDeviceInfo, loadFirmwareVersion, reportStatus, settings.auto_pull_on_connect]);
+  }, [selectedDevice, pullEq, selectedDeviceInfo, selectedCapabilities, pushToUndoStack, loadFirmwareVersion, reportStatus, settings.auto_pull_on_connect]);
 
   const pushEq = useCallback(async () => {
     if (!connected) {
@@ -902,7 +925,10 @@ function App() {
       return;
     }
     if (eqOperationInFlightRef.current) return;
-    const snapshot = peqRef.current;
+    const snapshot = normalizePeq(peqRef.current, {
+      integerPreamp: selectedCapabilities.integer_preamp,
+      capabilities: selectedCapabilities,
+    });
     const activeBands = snapshot.filters.filter((f) => f.enabled).length;
     if (!window.confirm(`Write ${activeBands} band(s) and ${snapshot.global_gain.toFixed(1)} dB preamp to the DAC? This stores the EQ on the device.`)) return;
     eqOperationInFlightRef.current = true;
@@ -957,14 +983,14 @@ function App() {
       setIsBusy(false);
       setProgress(null);
     }
-  }, [connected, selectedDevice, reportStatus, setStatus]);
+  }, [connected, selectedDevice, selectedCapabilities, reportStatus, setStatus]);
 
   const applyProfileToRam = useCallback(
     async (profile: Profile) => {
       if (eqOperationInFlightRef.current) return;
       if (dirty && !window.confirm("Discard unsaved profile changes and apply this profile?")) return;
       eqOperationInFlightRef.current = true;
-      const data = normalizePeq(profile.data, { enableLoadedFilters: true, integerPreamp: !!selectedDeviceInfo?.integer_preamp });
+      const data = normalizePeq(profile.data, { enableLoadedFilters: true, integerPreamp: capabilities.integer_preamp, capabilities });
       pushToUndoStack(peqRef.current);
       selectedPresetRef.current = profile.name;
       setPeq(data);
@@ -1006,7 +1032,7 @@ function App() {
         setProgress(null);
       }
     },
-    [dirty, pushToUndoStack, selectedDevice, selectedDeviceInfo, reportStatus],
+    [dirty, pushToUndoStack, selectedDevice, capabilities, reportStatus],
   );
 
   const disconnectDevice = useCallback(async () => {
@@ -1340,7 +1366,7 @@ function App() {
           deviceName={deviceName}
           profileDirty={dirty}
           deviceMatchesEditor={lastPushedPeq ? peqEquals(peq, lastPushedPeq) : null}
-          activeBands={peq.filters.filter((filter) => filter.enabled).length}
+          activeBands={peq.filters.slice(0, maxFilterBands).filter((filter) => filter.enabled).length}
           maxBands={maxFilterBands}
           preampDb={peq.global_gain}
           supportsRamApply={supportsRamApply}
@@ -1401,7 +1427,8 @@ function App() {
                 <Preamp
                   value={peq.global_gain}
                   resetValue={lastPushedPeq?.global_gain}
-                  integerMode={!!selectedDeviceInfo?.integer_preamp}
+                  range={capabilities.global_gain_range}
+                  integerMode={capabilities.integer_preamp}
                   onStartChange={handleStartChange}
                   onChange={(global_gain) => {
                     flashGraphPreview();
@@ -1412,7 +1439,7 @@ function App() {
                 <Bands
                   peq={peq}
                   committedPeq={lastPushedPeq}
-                  maxBands={maxFilterBands}
+                  capabilities={capabilities}
                   onFilterChange={updateFilter}
                   onStartChange={handleStartChange}
                   activeBandIndex={activeBandIndex}
@@ -1481,6 +1508,7 @@ function App() {
                       onToggleMeasurement={toggleMeasurement}
                       onToggleTarget={toggleTarget}
                       onSelectedMeasurementChange={setSelectedMeasurementId}
+                      maxBands={maxFilterBands}
                     />
                   </div>
                 </details>
@@ -1490,6 +1518,7 @@ function App() {
               <section className="left-pane">
                 <ToolsPanel
                   peq={peq}
+                  maxBands={maxFilterBands}
                   onImportPEQ={importPeq}
                   onPull={pullEq}
                   dirty={dirty}
@@ -1532,6 +1561,7 @@ function App() {
               <section className="left-pane">
                 <ToolsPanel
                   peq={peq}
+                  maxBands={maxFilterBands}
                   onImportPEQ={importPeq}
                   onPull={pullEq}
                   profiles={profiles}
@@ -1576,6 +1606,7 @@ function App() {
               <section className="left-pane">
                 <ToolsPanel
                   peq={peq}
+                  maxBands={maxFilterBands}
                   onImportPEQ={importPeq}
                   onPull={pullEq}
                   profiles={profiles}
@@ -1679,7 +1710,8 @@ function App() {
             <Preamp
               value={peq.global_gain}
               resetValue={lastPushedPeq?.global_gain}
-              integerMode={!!selectedDeviceInfo?.integer_preamp}
+              range={capabilities.global_gain_range}
+              integerMode={capabilities.integer_preamp}
               onStartChange={handleStartChange}
               onChange={(global_gain) => {
                 flashGraphPreview();
@@ -1690,7 +1722,7 @@ function App() {
             <Bands
               peq={peq}
               committedPeq={lastPushedPeq}
-              maxBands={maxFilterBands}
+              capabilities={capabilities}
               onFilterChange={updateFilter}
               onStartChange={handleStartChange}
               activeBandIndex={activeBandIndex}
@@ -1701,6 +1733,7 @@ function App() {
           </section>
           <ToolsPanel
             peq={peq}
+            maxBands={maxFilterBands}
             onImportPEQ={importPeq}
             onPull={pullEq}
             dirty={dirty}

@@ -4,23 +4,27 @@ import { NumberInput } from "./NumberInput";
 export function Preamp({
   value,
   resetValue,
+  range = [-16, 6],
   integerMode = false,
   onChange,
   onStartChange,
 }: {
   value: number;
   resetValue?: number;
+  range?: [number, number];
   integerMode?: boolean;
   onChange: (value: number) => void;
   onStartChange: () => void;
 }) {
-  const safeValue = Number.isFinite(value) ? value : 0;
+  const [min, max] = range;
+  const safeValue = Math.max(min, Math.min(max, Number.isFinite(value) ? value : 0));
   const step = integerMode ? 1 : 0.05;
   const precision = integerMode ? 0 : 2;
   const displayValue = integerMode ? Math.round(safeValue) : safeValue;
 
   const handleValueChange = (val: number) => {
-    onChange(integerMode ? Math.round(val) : val);
+    const constrained = Math.max(min, Math.min(max, val));
+    onChange(integerMode ? Math.round(constrained) : constrained);
   };
 
   return (
@@ -30,8 +34,8 @@ export function Preamp({
         <div className="preamp-value-row">
           <NumberInput
             value={displayValue}
-            min={-16}
-            max={6}
+            min={min}
+            max={max}
             step={step}
             precision={precision}
             onFocus={onStartChange}
@@ -43,8 +47,8 @@ export function Preamp({
       </div>
       <Slider
         aria-label="Preamp gain"
-        min={-16}
-        max={6}
+        min={min}
+        max={max}
         step={step}
         value={displayValue}
         onStartChange={onStartChange}

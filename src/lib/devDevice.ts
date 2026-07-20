@@ -11,7 +11,13 @@ export const DEV_DUMMY_DEVICE: DeviceInfo = {
   product_string: "Dev Dummy DAC",
   profile_name: "Glacier Dummy DAC",
   num_bands: 10,
-  supports_ram_apply: true,
+  global_gain_range: [-16, 6],
+  band_gain_range: [-10, 10],
+  freq_range: [20, 20000],
+  q_range: [0.1, 10],
+  supported_filter_types: ["Peak", "HighShelf", "LowShelf", "HighPass", "LowPass"],
+  supports_per_band_enable: false,
+  supports_ram_apply: false,
   integer_preamp: true,
 };
 

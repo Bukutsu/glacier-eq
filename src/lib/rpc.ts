@@ -99,6 +99,24 @@ function matchSupportedWebHidDevice(
   );
 }
 
+const WEB_HID_FALLBACK_PROFILE: SupportedDeviceInfo = {
+  name: "Supported DAC",
+  protocol: "Walkplay",
+  vendor_id: 0,
+  product_id: null,
+  status: "Unknown",
+  family: "Walkplay Family",
+  num_bands: 10,
+  global_gain_range: [-16, 6],
+  band_gain_range: [-10, 10],
+  freq_range: [20, 20000],
+  q_range: [0.1, 10],
+  supported_filter_types: ["Peak", "HighShelf", "LowShelf", "HighPass", "LowPass"],
+  supports_per_band_enable: false,
+  supports_ram_apply: false,
+  integer_preamp: true,
+};
+
 // ─── WebHID Active State ──────────────────────────────────────────────────────
 
 let activeDevice: HIDDevice | null = null;
@@ -437,14 +455,15 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
       const devices = await ensureWebHid().getDevices();
       const supported = list_supported_devices() as SupportedDeviceInfo[];
       return devices.map((dev: any) => {
-        const found = matchSupportedWebHidDevice(dev, supported);
+        const profile = matchSupportedWebHidDevice(dev, supported) ?? WEB_HID_FALLBACK_PROFILE;
         return {
+          ...profile,
           vendor_id: dev.vendorId,
           product_id: dev.productId,
           path: `webhid:${dev.vendorId}:${dev.productId}`,
           manufacturer: dev.manufacturerName || null,
           product_string: dev.productName || null,
-          profile_name: found ? found.name : "Supported DAC",
+          profile_name: profile.name,
         };
       }) as T;
     }
@@ -463,14 +482,10 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
 
       const supported = list_supported_devices() as SupportedDeviceInfo[];
       const found = matchSupportedWebHidDevice(target, supported);
-      activeProfile = found || {
-        name: "Supported DAC",
-        protocol: "Walkplay",
+      activeProfile = {
+        ...(found ?? WEB_HID_FALLBACK_PROFILE),
         vendor_id: target.vendorId,
         product_id: target.productId,
-        num_bands: 10,
-        supports_ram_apply: false,
-        integer_preamp: true,
       };
 
       return null as T;
