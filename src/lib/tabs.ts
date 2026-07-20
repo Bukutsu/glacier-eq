@@ -18,8 +18,8 @@ export const DESKTOP_TABS = [
 
 export const MOBILE_TABS = [
   { id: "eq", icon: "tune", label: "EQ" },
-  { id: "profiles", icon: "folder", label: "Profiles" },
   { id: "tuning", icon: "auto_awesome", label: "Tuning" },
-  { id: "device", icon: "memory", label: "DSP" },
+  { id: "profiles", icon: "folder", label: "Profiles" },
+  { id: "device", icon: "memory", label: "Device" },
   { id: "settings", icon: "settings", label: "Settings" },
 ] as const;

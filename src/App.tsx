@@ -1403,8 +1403,8 @@ function App() {
       )}
       {isMobile ? (
         <main className="workspace mobile-workspace">
-          {["eq", "tuning", "profiles"].includes(activeTab) && (
-            <section className={`mobile-graph-container ${graphCollapsed ? "collapsed" : ""}`}>
+          {(activeTab === "eq" || (activeTab === "tuning" && (measurements.some((trace) => trace.visible) || activeTargets.length > 0))) && (
+            <section className={`mobile-graph-container mobile-graph-${activeTab} ${graphCollapsed ? "collapsed" : ""}`}>
               <div className="graph-card">
                 <EqGraph
                   peq={peq}
