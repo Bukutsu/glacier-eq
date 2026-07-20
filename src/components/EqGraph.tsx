@@ -60,7 +60,11 @@ export function EqGraph({
 }) {
   const [showMobileLegend, setShowMobileLegend] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const shellRef = useRef<HTMLDivElement>(null);
   const drawSerialRef = useRef(0);
+  const wheelGestureRef = useRef<{ index: number; filter: Filter } | null>(null);
+  const wheelGestureTimerRef = useRef<number | undefined>(undefined);
+  const wheelHandlerRef = useRef<(event: WheelEvent, index: number) => void>(() => {});
   const editable = Boolean(capabilities && onActiveBandChange && onStartChange && onFilterChange);
   const visibleMeasurements = measurements.filter((trace) => trace.visible);
   const selectedMeasurement = selectedMeasurementId
@@ -176,6 +180,7 @@ export function EqGraph({
   useEffect(() => () => {
     animationTokenRef.current++;
     cancelAnimationFrame(animRafRef.current);
+    window.clearTimeout(wheelGestureTimerRef.current);
   }, []);
 
   const updateFromPointer = async (event: PointerEvent<HTMLButtonElement>, index: number, filter: Filter) => {
@@ -189,6 +194,51 @@ export function EqGraph({
     const gain = Number(Math.max(capabilities.band_gain_range[0], Math.min(capabilities.band_gain_range[1], yToDb(event.clientY - rect.top, rect.height))).toFixed(2));
     onFilterChange(index, { ...filter, freq, gain });
   };
+
+  const updateFromWheel = (event: WheelEvent, index: number, filter: Filter) => {
+    if (!capabilities || !onFilterChange) return;
+    const delta = event.deltaY || event.deltaX;
+    if (!delta) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    onActiveBandChange?.(index);
+
+    const current = wheelGestureRef.current?.index === index ? wheelGestureRef.current.filter : filter;
+    const direction = delta < 0 ? 1 : -1;
+    const next = event.shiftKey
+      ? {
+          ...current,
+          q: Number(Math.max(capabilities.q_range[0], Math.min(capabilities.q_range[1], current.q * 2 ** (direction / 12))).toFixed(2)),
+        }
+      : {
+          ...current,
+          gain: Number(Math.max(capabilities.band_gain_range[0], Math.min(capabilities.band_gain_range[1], current.gain + direction * 0.1)).toFixed(2)),
+        };
+
+    if (next.q === current.q && next.gain === current.gain) return;
+    if (!wheelGestureRef.current || wheelGestureRef.current.index !== index) onStartChange?.();
+    wheelGestureRef.current = { index, filter: next };
+    window.clearTimeout(wheelGestureTimerRef.current);
+    wheelGestureTimerRef.current = window.setTimeout(() => { wheelGestureRef.current = null; }, 250);
+    onFilterChange(index, next);
+  };
+
+  wheelHandlerRef.current = (event, index) => {
+    const filter = peq.filters[index];
+    if (filter) updateFromWheel(event, index, filter);
+  };
+
+  useEffect(() => {
+    const shell = shellRef.current;
+    if (!shell) return;
+    const handleWheel = (event: WheelEvent) => {
+      const handle = (event.target as HTMLElement | null)?.closest<HTMLElement>(".eq-filter-handle");
+      if (handle) wheelHandlerRef.current(event, Number(handle.dataset.filterIndex));
+    };
+    shell.addEventListener("wheel", handleWheel, { passive: false });
+    return () => shell.removeEventListener("wheel", handleWheel);
+  }, []);
 
   const updateFromKeyboard = async (event: KeyboardEvent<HTMLButtonElement>, index: number, filter: Filter) => {
     if (!capabilities || !onFilterChange || !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) return;
@@ -212,16 +262,17 @@ export function EqGraph({
   };
 
   return (
-    <div className="eq-graph-shell">
+    <div className="eq-graph-shell" ref={shellRef}>
       <canvas className="eq-canvas" ref={canvasRef} />
       {editable && capabilities && peq.filters.slice(0, capabilities.num_bands).map((filter) => {
         if (!filter.enabled) return null;
         const [color, rgb] = filterColorVars(filter.index);
-        const valueText = `${filter.freq} Hz, ${filter.gain >= 0 ? "+" : ""}${filter.gain.toFixed(1)} dB`;
+        const valueText = `${filter.freq} Hz, ${filter.gain >= 0 ? "+" : ""}${filter.gain.toFixed(1)} dB, Q ${filter.q.toFixed(2)}`;
         return (
           <button
             key={filter.index}
             type="button"
+            data-filter-index={filter.index}
             className={`eq-filter-handle${activeBandIndex === filter.index ? " active" : ""}`}
             style={{
               "--filter-color": `var(${color})`,
@@ -229,9 +280,9 @@ export function EqGraph({
               left: `${freqToX(filter.freq, 100)}%`,
               top: `${dbToY(filter.gain, 100)}%`,
             } as CSSProperties}
-            aria-label={`Band ${filter.index + 1}: ${valueText}. Drag or use arrow keys to adjust frequency and gain.`}
+            aria-label={`Band ${filter.index + 1}: ${valueText}. Drag or use arrow keys to adjust frequency and gain. Use the mouse wheel for gain or Shift plus mouse wheel for Q.`}
             aria-pressed={activeBandIndex === filter.index}
-            title={`Band ${filter.index + 1}: ${valueText}`}
+            title={`Band ${filter.index + 1}: ${valueText} · Wheel: gain · Shift+wheel: Q`}
             onPointerDown={(event) => {
               if (!event.isPrimary || event.button !== 0) return;
               onActiveBandChange?.(filter.index);
