@@ -810,23 +810,23 @@ function App() {
       const normalized = normalizePeq(data, { integerPreamp: !!selectedDeviceInfo?.integer_preamp });
       setPeq(normalized);
       setLastPushedPeq(normalized);
-      await selectMatchingProfile(normalized, "Pulled from device");
-      setDirty(false);
+      const matchedProfile = await selectMatchingProfile(normalized, "Pulled from device");
+      setDirty(matchedProfile === "Pulled from device");
       emit("device-pull").catch((err) => console.error("Failed to emit device-pull:", err));
       reportStatus(
         "Info",
         isDevDummyDevice(selectedDevice)
           ? "Loaded dummy DAC EQ"
-          : "Pull successful",
+          : "Read from DAC successful",
         "success",
         "UI"
       );
     } catch (error) {
       if (isDisconnectionError(error)) {
         setIsReconnecting(true);
-        reportStatus("Error", `Pull failed (disconnected): ${error}`, "error", "HID", "Reconnecting...");
+        reportStatus("Error", `Read failed (disconnected): ${error}`, "error", "HID", "Reconnecting...");
       } else {
-        reportStatus("Error", `Pull failed: ${error}`, "error", "UI");
+        reportStatus("Error", `Read from DAC failed: ${error}`, "error", "UI");
       }
     } finally {
       setIsBusy(false);
@@ -888,7 +888,7 @@ function App() {
 
   const pushEq = useCallback(async () => {
     const activeBands = peq.filters.filter((f) => f.enabled).length;
-    if (!window.confirm(`Push ${activeBands} band(s), ${peq.global_gain.toFixed(1)} dB preamp to device?`)) return;
+    if (!window.confirm(`Write ${activeBands} band(s) and ${peq.global_gain.toFixed(1)} dB preamp to the DAC? This stores the EQ on the device.`)) return;
     setProgress(null);
     setIsBusy(true);
     try {
@@ -913,7 +913,7 @@ function App() {
         await sleep(200);
         setProgress({ message: "Verifying changes...", percentage: 90 });
         await sleep(200);
-        setProgress({ message: "Push successful", percentage: 100 });
+        setProgress({ message: "Write successful", percentage: 100 });
         await sleep(400);
       } else {
         await invoke("set_eq_state", { peq });
@@ -921,28 +921,26 @@ function App() {
       }
       const pushed = peqRef.current;
       setLastPushedPeq(pushed);
-      await selectMatchingProfile(pushed, selectedPresetRef.current);
-      setDirty(false);
       reportStatus(
         "Info",
         isDevDummyDevice(selectedDevice)
-          ? "Dummy DAC push simulated"
-          : "Push successful",
+          ? "Dummy DAC write simulated"
+          : "Write to DAC successful",
         "success",
         "UI"
       );
     } catch (error) {
       if (isDisconnectionError(error)) {
         setIsReconnecting(true);
-        reportStatus("Error", `Push failed (disconnected): ${error}`, "error", "HID", "Reconnecting...");
+        reportStatus("Error", `Write failed (disconnected): ${error}`, "error", "HID", "Reconnecting...");
       } else {
-        reportStatus("Error", `Push failed: ${error}`, "error", "UI");
+        reportStatus("Error", `Write to DAC failed: ${error}`, "error", "UI");
       }
     } finally {
       setIsBusy(false);
       setProgress(null);
     }
-  }, [peq, selectedDevice, reportStatus, selectMatchingProfile]);
+  }, [peq, selectedDevice, reportStatus]);
 
   const applyProfileToRam = useCallback(
     async (profile: Profile) => {
@@ -971,7 +969,7 @@ function App() {
           "Info",
           isDevDummyDevice(selectedDevice)
             ? "Dummy DAC apply simulated"
-            : `Applied ${profile.name} to device RAM`,
+            : `Temporarily applied ${profile.name} to DAC`,
           "success",
           "UI"
         );
@@ -1318,7 +1316,8 @@ function App() {
           progress={progress}
           profile={selectedPreset}
           deviceName={deviceName}
-          dirty={dirty}
+          profileDirty={dirty}
+          deviceMatchesEditor={lastPushedPeq ? peqEquals(peq, lastPushedPeq) : null}
           activeBands={peq.filters.filter((filter) => filter.enabled).length}
           maxBands={maxFilterBands}
           preampDb={peq.global_gain}
