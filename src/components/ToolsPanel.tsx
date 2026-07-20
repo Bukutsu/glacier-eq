@@ -6,6 +6,7 @@ import { Icon } from "./Icon";
 
 import { fuzzyMatch } from "../lib/search";
 import { AddTraceModal } from "./AddTraceModal";
+import { Modal } from "./Modal";
 import { UnifiedTracesList } from "./UnifiedTraces";
 import { NumberInput } from "./NumberInput";
 import { Slider } from "./Slider";
@@ -640,14 +641,7 @@ function ImportTab({ peq, profiles, selectedPreset, onImportPEQ, onReloadProfile
       </section>
 
       {parsed && (
-        <div className="modal-overlay" onClick={handleCancel}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>Import Profile</h2>
-              <button className="modal-close-btn" onClick={handleCancel} aria-label="Close">
-                <Icon>close</Icon>
-              </button>
-            </div>
+        <Modal title="Import Profile" onClose={handleCancel}>
             <div className="modal-body">
               <div className="import-mode-tabs">
                 <button
@@ -739,8 +733,7 @@ function ImportTab({ peq, profiles, selectedPreset, onImportPEQ, onReloadProfile
                 </button>
               </div>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
     </>
   );
