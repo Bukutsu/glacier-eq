@@ -80,7 +80,8 @@ h1 {
   background: color-mix(in srgb, var(--green) 12%, transparent);
   outline: 1px solid color-mix(in srgb, var(--green) 30%, transparent);
 }
-.sync-dot.offline {
+.sync-dot.offline,
+.sync-dot.unknown {
   color: var(--muted);
   background: var(--bg-dark);
   outline: 1px solid var(--line-soft);

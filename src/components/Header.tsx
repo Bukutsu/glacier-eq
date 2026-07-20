@@ -29,7 +29,8 @@ interface HeaderProps {
   progress: OperationProgress | null;
   profile: string;
   deviceName: string;
-  dirty: boolean;
+  profileDirty: boolean;
+  deviceMatchesEditor: boolean | null;
   activeBands: number;
   maxBands: number;
   preampDb: number;
@@ -51,7 +52,8 @@ export function Header({
   progress,
   profile,
   deviceName,
-  dirty,
+  profileDirty,
+  deviceMatchesEditor,
   activeBands,
   maxBands,
   preampDb,
@@ -81,16 +83,31 @@ export function Header({
 
   useEffect(() => setMenuOpen(false), [connected]);
 
-  const syncClass = !connected ? "offline" : isBusy ? "working" : dirty ? "unsaved" : "ok";
+  const syncClass = !connected
+    ? "offline"
+    : isBusy
+      ? "working"
+      : deviceMatchesEditor === null
+        ? "unknown"
+        : deviceMatchesEditor
+          ? "ok"
+          : "unsaved";
   const syncText = !connected
-    ? "Offline"
+    ? "Device disconnected"
     : isBusy
       ? progress
         ? `${progress.message} · ${Math.round(progress.percentage)}%`
         : "Working"
-      : dirty
-        ? "Unsaved"
-        : "Synced";
+      : deviceMatchesEditor === null
+        ? "Device state unknown"
+        : deviceMatchesEditor
+          ? "Device matches editor"
+          : "Changes not on device";
+  const profileText = profile === "Pulled from device"
+    ? "Not saved as profile"
+    : profileDirty
+      ? "Profile modified"
+      : "Profile saved";
 
   return (
     <header className="app-header">
@@ -105,9 +122,10 @@ export function Header({
             <span className={`sync-dot ${syncClass}`}>{syncText}</span>
           </div>
           <div className="header-session-strip" aria-label="EQ session status">
+            <span>{profileText}</span>
             <span>{activeBands}/{maxBands} bands</span>
             <span>{preampDb.toFixed(1)} dB preamp</span>
-            <span>{supportsRamApply ? "RAM apply" : "Flash write"}</span>
+            {connected && <span>{supportsRamApply ? "Temporary apply available" : "Persistent writes only"}</span>}
             {firmwareVersion && <span>FW {firmwareVersion}</span>}
           </div>
         </div>
@@ -139,8 +157,8 @@ export function Header({
           </div>
           {connected ? (
             <>
-              <button className="btn tonal" onClick={onPull} disabled={isBusy}>Pull</button>
-              <button className="btn filled" onClick={onPush} disabled={isBusy}>Push</button>
+              <button className="btn tonal" title="Replace the editor with EQ read from the DAC" onClick={onPull} disabled={isBusy}>Read DAC</button>
+              <button className="btn filled" title="Store the editor EQ on the DAC" onClick={onPush} disabled={isBusy}>Write DAC</button>
               <button className="btn tonal" onClick={onDisconnect} disabled={isBusy}>Disconnect</button>
             </>
           ) : (
@@ -177,8 +195,8 @@ export function Header({
           </div>
           {connected ? (
             <>
-              <button type="button" className="btn tonal mobile-action-btn" onClick={onPull} disabled={isBusy}>Pull</button>
-              <button type="button" className="btn filled mobile-action-btn" onClick={onPush} disabled={isBusy}>Push</button>
+              <button type="button" className="btn tonal mobile-action-btn" title="Read EQ from DAC" onClick={onPull} disabled={isBusy}>Read</button>
+              <button type="button" className="btn filled mobile-action-btn" title="Write EQ to DAC" onClick={onPush} disabled={isBusy}>Write</button>
               <div className="mobile-menu-container" ref={menuRef}>
                 <button
                   type="button"
