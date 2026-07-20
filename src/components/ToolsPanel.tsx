@@ -163,8 +163,13 @@ export function ToolsPanel(props: ToolsPanelProps) {
             </>
           )}
           {tab === "Tuning" && (
-            <>
-              <Collapsible title="Traces & Targets" icon="analytics" className="tuning-card">
+            <div className="desktop-tuning-tab">
+              <Collapsible
+                title={`Measurements & Targets (${props.measurements.length})`}
+                icon="analytics"
+                defaultOpen={props.measurements.length === 0}
+                className="tuning-library"
+              >
                 <CurvesTab
                   measurements={props.measurements}
                   onRemoveMeasurement={props.onRemoveMeasurement}
@@ -179,20 +184,18 @@ export function ToolsPanel(props: ToolsPanelProps) {
                   setStatus={props.setStatus}
                 />
               </Collapsible>
-              <Collapsible title="AutoEQ (Tuning Assistant)" icon="auto_awesome" className="tuning-card">
-                <AutoEqTab
-                  measurements={props.measurements}
-                  allTargets={props.allTargets ?? []}
-                  activeTargetIds={props.activeTargetIds}
-                  onImportPEQ={props.onImportPEQ}
-                  setStatus={props.setStatus}
-                  onSelectedMeasurementChange={props.onSelectedMeasurementChange}
-                  onToggleMeasurement={props.onToggleMeasurement}
-                  onToggleTarget={props.onToggleTarget}
-                  maxBands={props.maxBands}
-                />
-              </Collapsible>
-            </>
+              <AutoEqTab
+                measurements={props.measurements}
+                allTargets={props.allTargets ?? []}
+                activeTargetIds={props.activeTargetIds}
+                onImportPEQ={props.onImportPEQ}
+                setStatus={props.setStatus}
+                onSelectedMeasurementChange={props.onSelectedMeasurementChange}
+                onToggleMeasurement={props.onToggleMeasurement}
+                onToggleTarget={props.onToggleTarget}
+                maxBands={props.maxBands}
+              />
+            </div>
           )}
           {tab === "Device" && (
             props.connected ? (

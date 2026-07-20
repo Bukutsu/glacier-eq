@@ -897,6 +897,34 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   color: var(--bg-dark);
 }
 
+.desktop-tuning-tab {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.desktop-tuning-tab .tuning-library {
+  display: flex;
+  max-height: min(52vh, 360px);
+  flex-direction: column;
+}
+
+.desktop-tuning-tab .tuning-library > .app-collapse-trigger {
+  flex: 0 0 auto;
+}
+
+.desktop-tuning-tab .tuning-library > .app-collapse-content {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.desktop-tuning-tab > .autoeq-tab {
+  padding: 0;
+  flex: 0 0 auto;
+}
+
 .autoeq-tab {
   display: flex;
   flex-direction: column;
