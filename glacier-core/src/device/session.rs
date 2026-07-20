@@ -49,10 +49,12 @@ impl Default for DacUtilityState {
     }
 }
 
+pub type ProgressCallback<'a> = dyn FnMut(&str, f32) + 'a;
+
 pub struct DeviceSession<'a> {
     io: &'a mut dyn DeviceIo,
     profile: &'static DeviceProfile,
-    progress: Option<&'a mut dyn FnMut(&str, f32)>,
+    progress: Option<&'a mut ProgressCallback<'a>>,
 }
 
 impl<'a> DeviceSession<'a> {
@@ -67,7 +69,7 @@ impl<'a> DeviceSession<'a> {
     pub fn with_progress(
         io: &'a mut dyn DeviceIo,
         profile: &'static DeviceProfile,
-        progress: &'a mut dyn FnMut(&str, f32),
+        progress: &'a mut ProgressCallback<'a>,
     ) -> Self {
         Self {
             io,

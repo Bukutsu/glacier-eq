@@ -11,7 +11,7 @@ pub fn parse_curve_text(text: &str) -> Result<Vec<(f64, f64)>, String> {
             return None;
         }
         let mut columns = line
-            .split(|character: char| matches!(character, ',' | '\t' | ';' | ' '))
+            .split([',', '\t', ';', ' '])
             .filter(|column| !column.is_empty());
         let frequency = columns.next()?.parse::<f64>().ok()?;
         let db = columns.next()?.parse::<f64>().ok()?;
