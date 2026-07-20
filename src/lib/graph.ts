@@ -2,6 +2,7 @@ import type { Filter, PEQData } from "../types";
 import initWasm, {
   filter_response_values,
   peq_response_values,
+  snap_freq_to_iso,
 } from "../wasm_pkg/glacier_core";
 
 const logMin = Math.log10(20);
@@ -21,6 +22,10 @@ export function dbToY(db: number, height: number): number {
   return (1 - (clamp(db, -18, 18) + 18) / 36) * height;
 }
 
+export function yToDb(y: number, height: number): number {
+  return (1 - clamp(y, 0, height) / height) * 36 - 18;
+}
+
 export function formatFreq(freq: number): string {
   return freq >= 1000 ? `${freq / 1000}k` : `${freq}`;
 }
@@ -30,6 +35,11 @@ let wasmReady: Promise<unknown> | null = null;
 async function ensureWasmReady() {
   wasmReady ??= initWasm();
   await wasmReady;
+}
+
+export async function snapFreqToIso(freq: number): Promise<number> {
+  await ensureWasmReady();
+  return snap_freq_to_iso(freq);
 }
 
 export async function filterResponseValues(filter: Filter, freqs: number[]): Promise<number[]> {

@@ -4,7 +4,7 @@ import { Icon } from "./Icon";
 import { Slider } from "./Slider";
 import { NumberInput } from "./NumberInput";
 import { filterColorVars } from "../lib/filterColors";
-import initWasm, { snap_freq_to_iso } from "../wasm_pkg/glacier_core";
+import { snapFreqToIso } from "../lib/graph";
 
 const FREQ_SLIDER_STEPS = 1000;
 const Q_SLIDER_STEPS = 1000;
@@ -15,14 +15,6 @@ const TYPE_LABELS: Record<FilterType, string> = {
   HighPass: "HP",
   LowPass: "LP",
 };
-
-let wasmReady: Promise<unknown> | null = null;
-
-async function snapToIsoFreq(freq: number): Promise<number> {
-  wasmReady ??= initWasm();
-  await wasmReady;
-  return snap_freq_to_iso(freq);
-}
 
 function filterColorStyle(index: number) {
   const [color, rgb] = filterColorVars(index);
@@ -73,7 +65,7 @@ function sliderToQ(value: number, range: [number, number]) {
 
 async function constrainFreq(freq: number, range: [number, number], snapToIso?: boolean) {
   const constrained = clamp(Math.round(freq), range);
-  return clamp(snapToIso ? await snapToIsoFreq(constrained) : constrained, range);
+  return clamp(snapToIso ? await snapFreqToIso(constrained) : constrained, range);
 }
 
 export function Bands({ peq, committedPeq, capabilities, onFilterChange, onStartChange, activeBandIndex, onActiveBandChange, snapToIso }: BandsProps) {
