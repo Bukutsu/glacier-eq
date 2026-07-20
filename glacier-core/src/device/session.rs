@@ -194,37 +194,39 @@ impl<'a> DeviceSession<'a> {
             return Ok(DacUtilityState::default());
         }
         self.drain();
-        let filter_mode = match self
-            .read_utility(CMD_FILTER_MODE)
-            .ok()
-            .and_then(|data| data.get(3).copied())
-            .unwrap_or(1)
+        let filter = self.read_utility(CMD_FILTER_MODE)?;
+        let filter_mode = match filter
+            .get(3)
+            .copied()
+            .ok_or_else(|| "Filter mode response was incomplete".to_string())?
         {
             1 => "FAST-LL",
             2 => "FAST-PC",
             3 => "Slow-LL",
             4 => "Slow-PC",
             5 => "NON-OS",
-            _ => "FAST-LL",
+            value => return Err(format!("Unknown filter mode value: {value}")),
         }
         .to_string();
         let amp_mode_class_ab = self
-            .read_utility(CMD_AMP_MODE)
-            .ok()
-            .and_then(|data| data.get(3).copied())
-            == Some(1);
+            .read_utility(CMD_AMP_MODE)?
+            .get(3)
+            .copied()
+            .ok_or_else(|| "Amp mode response was incomplete".to_string())?
+            == 1;
         let high_gain_mode = self
-            .read_utility(CMD_GAIN_MODE)
-            .ok()
-            .and_then(|data| data.get(3).copied())
-            == Some(1);
-        let mic_volume_db = self
-            .read_utility(CMD_MIC_VOLUME)
-            .ok()
-            .and_then(|data| data.get(4).copied())
-            .unwrap_or(0) as i8;
-        let left = decode_attenuation(self.read_balance(0).unwrap_or(0));
-        let right = decode_attenuation(self.read_balance(1).unwrap_or(0));
+            .read_utility(CMD_GAIN_MODE)?
+            .get(3)
+            .copied()
+            .ok_or_else(|| "Gain mode response was incomplete".to_string())?
+            == 1;
+        let mic_volume_db =
+            self.read_utility(CMD_MIC_VOLUME)?
+                .get(4)
+                .copied()
+                .ok_or_else(|| "Mic volume response was incomplete".to_string())? as i8;
+        let left = decode_attenuation(self.read_balance(0)?);
+        let right = decode_attenuation(self.read_balance(1)?);
         Ok(DacUtilityState {
             supported: true,
             filter_mode,
@@ -578,6 +580,7 @@ mod tests {
     struct FakeIo {
         reads: VecDeque<Vec<u8>>,
         writes: Vec<Vec<u8>>,
+        read_error: Option<String>,
     }
 
     impl DeviceIo for FakeIo {
@@ -586,6 +589,9 @@ mod tests {
             Ok(())
         }
         fn read(&mut self, _: i32) -> Result<Vec<u8>, String> {
+            if let Some(error) = &self.read_error {
+                return Err(error.clone());
+            }
             Ok(self.reads.pop_front().unwrap_or_default())
         }
         fn sleep_ms(&mut self, _: u64) {}
@@ -622,6 +628,19 @@ mod tests {
         let mut session = DeviceSession::new(&mut io, profile);
         assert!(session.set_gain_mode(true).is_err());
         assert!(io.writes.is_empty());
+    }
+
+    #[test]
+    fn utility_status_propagates_read_failure() {
+        let profile = get_supported_device(0x3302, 0x43e8).unwrap();
+        let mut io = FakeIo {
+            read_error: Some("simulated read failure".into()),
+            ..Default::default()
+        };
+        let error = DeviceSession::new(&mut io, profile)
+            .utility_status()
+            .unwrap_err();
+        assert!(error.contains("simulated read failure"));
     }
 
     fn queue_pull(io: &mut FakeIo, gain: i8) {
