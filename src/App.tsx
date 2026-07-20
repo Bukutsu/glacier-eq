@@ -358,6 +358,7 @@ function App() {
   const [dirty, setDirty] = useState(false);
   const selectedPresetRef = useRef(selectedPreset);
   const peqRef = useRef(peq);
+  const eqOperationInFlightRef = useRef(false);
   const [lastPushedPeq, setLastPushedPeq] = useState<PEQData | null>(null);
   const [selectedMeasurementId, setSelectedMeasurementId] = useState<string | null>(null);
   const [activeBandIndex, setActiveBandIndex] = useState<number | null>(null);
@@ -556,21 +557,11 @@ function App() {
 
   const loadProfiles = useCallback(async () => {
     try {
-      const loaded = await invoke<Profile[]>("list_profiles");
-      setProfiles(withSyntheticDefault(loaded));
-
-      const current = selectedPresetRef.current;
-      const selected =
-        loaded.find((profile) => profile.name === current) ?? loaded[0];
-      if (selected) {
-        applyProfile(selected);
-      } else if (current === DEFAULT_PROFILE_NAME) {
-        setPeq(buildDefaultState());
-      }
+      setProfiles(withSyntheticDefault(await invoke<Profile[]>("list_profiles")));
     } catch (error) {
       setStatus(`Profile load failed: ${error}`);
     }
-  }, [applyProfile]);
+  }, []);
 
   // Auto-refresh profiles when window gains focus (catches external file changes)
   useEffect(() => {
@@ -624,7 +615,11 @@ function App() {
         ? [...realDevices, DEV_DUMMY_DEVICE]
         : realDevices;
       setDevices(list);
-      if (list[0]) setSelectedDevice(list[0].path);
+      setSelectedDevice((current) =>
+        list.some((device) => device.path === current)
+          ? current
+          : list[0]?.path ?? "",
+      );
       setStatus(
         list.length
           ? `Found ${list.length} device(s)`
@@ -665,6 +660,7 @@ function App() {
     addListener<string>("device-disconnected", (event) => {
       setConnected(false);
       setIsReconnecting(true);
+      setLastPushedPeq(null);
       setFirmwareVersion(null);
       reportStatus("Error", `Connection lost to device (unplugged): ${event.payload}`, "error", "Device", "Reconnecting...");
     });
@@ -715,6 +711,7 @@ function App() {
         if (!devices.some((device) => device.path === selectedDevice)) {
           setConnected(false);
           setIsReconnecting(true);
+          setLastPushedPeq(null);
           setFirmwareVersion(null);
           reportStatus("Error", "Connection lost to device", "error", "Device", "Reconnecting...");
         }
@@ -744,14 +741,14 @@ function App() {
           reportStatus("Info", `Device found: ${connectedDeviceName}. Attempting to reconnect...`, null, "Device", "Device found. Reconnecting...");
           try {
             await invoke("connect_device", { path: found.path });
-            await invoke("set_eq_state", { peq: peqRef.current });
-            
+
             if (active) {
               setSelectedDevice(found.path);
               setConnected(true);
               setIsReconnecting(false);
+              setLastPushedPeq(null);
               await loadFirmwareVersion();
-              reportStatus("Info", `Successfully reconnected to ${connectedDeviceName} and restored EQ state`, "success", "Device", "Ready");
+              reportStatus("Info", `Successfully reconnected to ${connectedDeviceName} without changing its EQ`, "success", "Device", "Ready");
               return;
             }
           } catch (err) {
@@ -779,6 +776,13 @@ function App() {
   }, [isReconnecting, connectedDeviceName, loadFirmwareVersion, reportStatus]);
 
   const pullEq = useCallback(async () => {
+    if (!connected) {
+      setStatus("Connect a DAC before reading its EQ.");
+      return;
+    }
+    if (eqOperationInFlightRef.current) return;
+    if (dirty && !window.confirm("Discard unsaved profile changes and read EQ from the DAC?")) return;
+    eqOperationInFlightRef.current = true;
     pushToUndoStack(peqRef.current);
     setProgress(null);
     setIsBusy(true);
@@ -829,26 +833,29 @@ function App() {
         reportStatus("Error", `Read from DAC failed: ${error}`, "error", "UI");
       }
     } finally {
+      eqOperationInFlightRef.current = false;
       setIsBusy(false);
       setProgress(null);
     }
-  }, [pushToUndoStack, selectedDevice, selectedDeviceInfo, reportStatus]);
+  }, [connected, dirty, pushToUndoStack, selectedDevice, selectedDeviceInfo, reportStatus, setStatus]);
 
-  const connectDevice = useCallback(async () => {
-    if (!selectedDevice) return;
+  const connectDevice = useCallback(async (): Promise<boolean> => {
+    if (!selectedDevice) return false;
     setIsBusy(true);
     try {
       if (isDevDummyDevice(selectedDevice)) {
         setConnected(true);
+        setLastPushedPeq(null);
         setConnectedDeviceName("Glacier Dummy DAC");
         reportStatus("Info", "Connected to dummy DAC", "success", "UI", "Connected to dummy DAC");
         await pullEq();
         await loadFirmwareVersion();
-        return;
+        return true;
       }
 
       await invoke("connect_device", { path: selectedDevice });
       setConnected(true);
+      setLastPushedPeq(null);
       
       let devName = "";
       if (selectedDeviceInfo) {
@@ -864,9 +871,11 @@ function App() {
         await pullEq();
       }
       await loadFirmwareVersion();
+      return true;
     } catch (error) {
+      setConnected(false);
+      setLastPushedPeq(null);
       if (isDisconnectionError(error)) {
-        setConnected(false);
         reportStatus("Error", `Connection failed (disconnected): ${error}`, "error", "UI", "Device disconnected");
       } else {
         const errorMsg = String(error);
@@ -881,14 +890,22 @@ function App() {
           reportStatus("Error", `Connection failed: ${error}`, "error", "UI");
         }
       }
+      return false;
     } finally {
       setIsBusy(false);
     }
   }, [selectedDevice, pullEq, selectedDeviceInfo, loadFirmwareVersion, reportStatus, settings.auto_pull_on_connect]);
 
   const pushEq = useCallback(async () => {
-    const activeBands = peq.filters.filter((f) => f.enabled).length;
-    if (!window.confirm(`Write ${activeBands} band(s) and ${peq.global_gain.toFixed(1)} dB preamp to the DAC? This stores the EQ on the device.`)) return;
+    if (!connected) {
+      setStatus("Connect a DAC before writing EQ.");
+      return;
+    }
+    if (eqOperationInFlightRef.current) return;
+    const snapshot = peqRef.current;
+    const activeBands = snapshot.filters.filter((f) => f.enabled).length;
+    if (!window.confirm(`Write ${activeBands} band(s) and ${snapshot.global_gain.toFixed(1)} dB preamp to the DAC? This stores the EQ on the device.`)) return;
+    eqOperationInFlightRef.current = true;
     setProgress(null);
     setIsBusy(true);
     try {
@@ -916,11 +933,10 @@ function App() {
         setProgress({ message: "Write successful", percentage: 100 });
         await sleep(400);
       } else {
-        await invoke("set_eq_state", { peq });
+        await invoke("set_eq_state", { peq: snapshot });
         await sleep(400);
       }
-      const pushed = peqRef.current;
-      setLastPushedPeq(pushed);
+      setLastPushedPeq(snapshot);
       reportStatus(
         "Info",
         isDevDummyDevice(selectedDevice)
@@ -937,13 +953,17 @@ function App() {
         reportStatus("Error", `Write to DAC failed: ${error}`, "error", "UI");
       }
     } finally {
+      eqOperationInFlightRef.current = false;
       setIsBusy(false);
       setProgress(null);
     }
-  }, [peq, selectedDevice, reportStatus]);
+  }, [connected, selectedDevice, reportStatus, setStatus]);
 
   const applyProfileToRam = useCallback(
     async (profile: Profile) => {
+      if (eqOperationInFlightRef.current) return;
+      if (dirty && !window.confirm("Discard unsaved profile changes and apply this profile?")) return;
+      eqOperationInFlightRef.current = true;
       const data = normalizePeq(profile.data, { enableLoadedFilters: true, integerPreamp: !!selectedDeviceInfo?.integer_preamp });
       pushToUndoStack(peqRef.current);
       selectedPresetRef.current = profile.name;
@@ -981,11 +1001,12 @@ function App() {
           reportStatus("Error", `Apply failed: ${error}`, "error", "UI");
         }
       } finally {
+        eqOperationInFlightRef.current = false;
         setIsBusy(false);
         setProgress(null);
       }
     },
-    [pushToUndoStack, selectedDevice, selectedDeviceInfo, reportStatus],
+    [dirty, pushToUndoStack, selectedDevice, selectedDeviceInfo, reportStatus],
   );
 
   const disconnectDevice = useCallback(async () => {
@@ -997,6 +1018,7 @@ function App() {
       setConnected(false);
       setIsReconnecting(false);
       setConnectedDeviceName("");
+      setLastPushedPeq(null);
       setFirmwareVersion(null);
       reportStatus("Info", "Device disconnected manually", null, "UI", "Disconnected");
     } catch (error) {
@@ -1478,7 +1500,7 @@ function App() {
                   newProfileName={newProfileName}
                   setNewProfileName={setNewProfileName}
                   onSelectProfile={applyProfile}
-                  onApplyProfile={supportsRamApply ? applyProfileToRam : undefined}
+                  onApplyProfile={connected && supportsRamApply ? applyProfileToRam : undefined}
                   onReloadProfiles={loadProfiles}
                   onOpenProfilesDir={openProfilesDir}
                   hideProfileFolderButton={isAndroid}
@@ -1519,7 +1541,7 @@ function App() {
                   newProfileName={newProfileName}
                   setNewProfileName={setNewProfileName}
                   onSelectProfile={applyProfile}
-                  onApplyProfile={supportsRamApply ? applyProfileToRam : undefined}
+                  onApplyProfile={connected && supportsRamApply ? applyProfileToRam : undefined}
                   onReloadProfiles={loadProfiles}
                   onOpenProfilesDir={openProfilesDir}
                   hideProfileFolderButton={isAndroid}
@@ -1563,7 +1585,7 @@ function App() {
                   newProfileName={newProfileName}
                   setNewProfileName={setNewProfileName}
                   onSelectProfile={applyProfile}
-                  onApplyProfile={supportsRamApply ? applyProfileToRam : undefined}
+                  onApplyProfile={connected && supportsRamApply ? applyProfileToRam : undefined}
                   onReloadProfiles={loadProfiles}
                   onOpenProfilesDir={openProfilesDir}
                   hideProfileFolderButton={isAndroid}
@@ -1689,7 +1711,7 @@ function App() {
             newProfileName={newProfileName}
             setNewProfileName={setNewProfileName}
             onSelectProfile={applyProfile}
-            onApplyProfile={supportsRamApply ? applyProfileToRam : undefined}
+            onApplyProfile={connected && supportsRamApply ? applyProfileToRam : undefined}
             onReloadProfiles={loadProfiles}
             onOpenProfilesDir={openProfilesDir}
             hideProfileFolderButton={isAndroid}
@@ -1741,6 +1763,8 @@ function App() {
               onClick={() => {
                 setConnected(false);
                 setIsReconnecting(false);
+                setLastPushedPeq(null);
+                setShowDeviceModal(true);
                 setStatus("Disconnected");
               }}
               style={{
@@ -1772,8 +1796,7 @@ function App() {
                 devices={devices}
                 onScan={scanDevices}
                 onConnect={async () => {
-                  await connectDevice();
-                  setShowDeviceModal(false);
+                  if (await connectDevice()) setShowDeviceModal(false);
                 }}
                 selectedDevice={selectedDevice}
                 setSelectedDevice={setSelectedDevice}

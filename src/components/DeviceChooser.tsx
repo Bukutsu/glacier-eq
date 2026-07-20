@@ -7,8 +7,8 @@ import type { DeviceInfo, SupportedDeviceInfo } from "../types";
 
 interface DeviceChooserProps {
   devices: DeviceInfo[];
-  onScan: () => void;
-  onConnect: () => void;
+  onScan: () => void | Promise<void>;
+  onConnect: () => void | Promise<unknown>;
   selectedDevice: string;
   setSelectedDevice: (path: string) => void;
   status: string;
@@ -31,6 +31,7 @@ export function DeviceChooser({
 }: DeviceChooserProps) {
   const [supportedDacs, setSupportedDacs] = useState<SupportedDeviceInfo[]>([]);
   const [supportedOpen, setSupportedOpen] = useState(false);
+  const [authorizationError, setAuthorizationError] = useState<string | null>(null);
 
   useEffect(() => {
     invoke<SupportedDeviceInfo[]>("list_supported_devices")
@@ -39,10 +40,17 @@ export function DeviceChooser({
   }, []);
 
   const handleScanClick = async () => {
-    if (!isTauri()) {
-      await requestWebHidDevice();
+    setAuthorizationError(null);
+    try {
+      if (!isTauri()) await requestWebHidDevice();
+      await onScan();
+    } catch (err) {
+      setAuthorizationError(
+        (err as { name?: string })?.name === "AbortError"
+          ? "Device authorization was cancelled."
+          : `Device authorization failed: ${err}. Check browser permissions and try again.`,
+      );
     }
-    onScan();
   };
 
   return (
@@ -112,7 +120,7 @@ export function DeviceChooser({
       <div className="device-actions">
         <button className="btn filled" onClick={onConnect} disabled={!selectedDevice || isBusy}>Connect</button>
       </div>
-      <span className="status-text">{status}</span>
+      <span className="status-text">{authorizationError ?? status}</span>
     </section>
   );
 }
