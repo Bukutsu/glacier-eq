@@ -1033,47 +1033,6 @@
     flex: 1;
   }
 
-  .tuning-card {
-    background: var(--panel);
-    padding: 14px 18px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .tuning-card.disclosure-card {
-    padding: 0;
-  }
-
-  .tuning-card-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: var(--type-label);
-    font-weight: 600;
-    color: var(--cyan);
-    padding: 14px 18px;
-  }
-
-  .tuning-card-header .material-symbols-outlined {
-    font-size: 18px;
-  }
-
-  .tuning-card-body {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    width: 100%;
-    padding: 0 18px 14px;
-  }
-
-
-  .tuning-card-body p {
-    margin: 0;
-    font-size: var(--type-small);
-    color: var(--muted);
-    line-height: 1.4;
-  }
 }
 
 @media (pointer: coarse) {

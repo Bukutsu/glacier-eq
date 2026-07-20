@@ -9,6 +9,7 @@ import { CustomScrollbar } from "./components/CustomScrollbar";
 import { Preamp } from "./components/Preamp";
 import { ToolsPanel, AutoEqTab, DiagnosticsPanel } from "./components/ToolsPanel";
 import { AddTraceModal } from "./components/AddTraceModal";
+import { Collapsible } from "./components/Collapsible";
 import { Modal } from "./components/Modal";
 import { DESKTOP_TABS, MOBILE_TABS, type MobileTab } from "./lib/tabs";
 import { UnifiedTracesList } from "./components/UnifiedTraces";
@@ -1477,67 +1478,55 @@ function App() {
             )}
             {activeTab === "tuning" && (
               <section className="left-pane">
-                <details className="tuning-card disclosure-card" open>
-                  <summary className="tuning-card-header">
-                    <Icon>analytics</Icon>
-                    <strong>Traces & Targets</strong>
-                  </summary>
-                  <div className="tuning-card-body">
-                    <button className="btn add-trace-btn" onClick={() => setShowAddTrace(true)}>
-                      <Icon>add</Icon>
-                      <span>Add Trace</span>
-                    </button>
-                    <section className="tool-card">
-                      <div className="tool-card-head">
-                        <strong>Loaded Traces</strong>
-                      </div>
-                      <UnifiedTracesList
-                        measurements={measurements}
-                        allTargets={allTargets}
-                        activeTargetIds={activeTargetIds}
-                        onToggleMeasurement={toggleMeasurement}
-                        onRemoveMeasurement={removeMeasurement}
-                        onToggleTarget={toggleTarget}
-                        onRemoveTarget={removeTarget}
-                      />
-                      {measurements.length > 0 && (
-                        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "4px" }}>
-                          <button className="tool-link-button danger" onClick={clearMeasurements}>
-                            Clear All Loaded
-                          </button>
-                        </div>
-                      )}
-                    </section>
-                    {showAddTrace && (
-                      <AddTraceModal
-                        onClose={() => setShowAddTrace(false)}
-                        onAddMeasurement={addMeasurement}
-                        onAddTarget={addTarget}
-                        setStatus={setStatus}
-                      />
-                    )}
-                  </div>
-                </details>
-
-                <details className="tuning-card disclosure-card" open>
-                  <summary className="tuning-card-header">
-                    <Icon>auto_awesome</Icon>
-                    <strong>AutoEQ (Tuning Assistant)</strong>
-                  </summary>
-                  <div className="tuning-card-body">
-                    <AutoEqTab
+                <Collapsible title="Traces & Targets" icon="analytics" className="tuning-card">
+                  <button className="btn add-trace-btn" onClick={() => setShowAddTrace(true)}>
+                    <Icon>add</Icon>
+                    <span>Add Trace</span>
+                  </button>
+                  <section className="tool-card">
+                    <div className="tool-card-head">
+                      <strong>Loaded Traces</strong>
+                    </div>
+                    <UnifiedTracesList
                       measurements={measurements}
                       allTargets={allTargets}
                       activeTargetIds={activeTargetIds}
-                      onImportPEQ={importPeq}
-                      setStatus={setStatus}
                       onToggleMeasurement={toggleMeasurement}
+                      onRemoveMeasurement={removeMeasurement}
                       onToggleTarget={toggleTarget}
-                      onSelectedMeasurementChange={setSelectedMeasurementId}
-                      maxBands={maxFilterBands}
+                      onRemoveTarget={removeTarget}
                     />
-                  </div>
-                </details>
+                    {measurements.length > 0 && (
+                      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "4px" }}>
+                        <button className="tool-link-button danger" onClick={clearMeasurements}>
+                          Clear All Loaded
+                        </button>
+                      </div>
+                    )}
+                  </section>
+                  {showAddTrace && (
+                    <AddTraceModal
+                      onClose={() => setShowAddTrace(false)}
+                      onAddMeasurement={addMeasurement}
+                      onAddTarget={addTarget}
+                      setStatus={setStatus}
+                    />
+                  )}
+                </Collapsible>
+
+                <Collapsible title="AutoEQ (Tuning Assistant)" icon="auto_awesome" className="tuning-card">
+                  <AutoEqTab
+                    measurements={measurements}
+                    allTargets={allTargets}
+                    activeTargetIds={activeTargetIds}
+                    onImportPEQ={importPeq}
+                    setStatus={setStatus}
+                    onToggleMeasurement={toggleMeasurement}
+                    onToggleTarget={toggleTarget}
+                    onSelectedMeasurementChange={setSelectedMeasurementId}
+                    maxBands={maxFilterBands}
+                  />
+                </Collapsible>
               </section>
             )}
             {activeTab === "profiles" && (
