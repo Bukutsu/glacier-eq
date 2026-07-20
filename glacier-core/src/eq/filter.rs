@@ -32,6 +32,16 @@ impl FilterType {
         FilterType::HighPass,
         FilterType::LowPass,
     ];
+
+    pub const fn editor_name(self) -> &'static str {
+        match self {
+            Self::Peak => "Peak",
+            Self::LowShelf => "LowShelf",
+            Self::HighShelf => "HighShelf",
+            Self::HighPass => "HighPass",
+            Self::LowPass => "LowPass",
+        }
+    }
 }
 
 impl From<u8> for FilterType {

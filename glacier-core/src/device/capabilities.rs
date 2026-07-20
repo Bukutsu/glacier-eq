@@ -24,6 +24,40 @@ pub struct DeviceCapabilities {
     pub integer_preamp: bool,
 }
 
+/// JSON-friendly editor capabilities exposed by native and WASM device discovery.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
+pub struct EditorCapabilities {
+    pub num_bands: usize,
+    pub global_gain_range: [i8; 2],
+    pub band_gain_range: [f64; 2],
+    pub freq_range: [u16; 2],
+    pub q_range: [f64; 2],
+    pub supported_filter_types: Vec<String>,
+    pub supports_per_band_enable: bool,
+    pub supports_ram_apply: bool,
+    pub integer_preamp: bool,
+}
+
+impl From<&DeviceCapabilities> for EditorCapabilities {
+    fn from(caps: &DeviceCapabilities) -> Self {
+        Self {
+            num_bands: caps.num_bands,
+            global_gain_range: caps.global_gain_range.into(),
+            band_gain_range: caps.band_gain_range.into(),
+            freq_range: caps.freq_range.into(),
+            q_range: caps.q_range.into(),
+            supported_filter_types: caps
+                .supported_filter_types
+                .iter()
+                .map(|filter_type| filter_type.editor_name().to_string())
+                .collect(),
+            supports_per_band_enable: caps.supports_per_band_enable,
+            supports_ram_apply: caps.supports_ram_apply,
+            integer_preamp: caps.integer_preamp,
+        }
+    }
+}
+
 /// Default capabilities used when no device is connected (generic desktop DAC).
 ///
 /// Supports all 5 filter types with the standard desktop range: 10 bands,
@@ -43,3 +77,19 @@ pub const DESKTOP_DAC_CAPS: DeviceCapabilities = DeviceCapabilities {
     q_tolerance: 0.05,
     integer_preamp: false,
 };
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn editor_capabilities_use_typescript_filter_names() {
+        let caps = EditorCapabilities::from(&DESKTOP_DAC_CAPS);
+        assert_eq!(
+            caps.supported_filter_types,
+            ["Peak", "HighShelf", "LowShelf", "HighPass", "LowPass"]
+        );
+        assert_eq!(caps.global_gain_range, [-16, 6]);
+        assert_eq!(caps.q_range, [0.1, 20.0]);
+    }
+}

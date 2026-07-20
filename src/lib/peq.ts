@@ -1,4 +1,4 @@
-import type { FilterType, PEQData } from "../types";
+import type { DeviceCapabilities, FilterType, PEQData } from "../types";
 
 export const DEFAULT_FREQS_10_BAND = [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
 
@@ -48,9 +48,13 @@ function numberOr(raw: unknown, fallback: number): number {
   return Number.isFinite(value) ? value : fallback;
 }
 
+function clampToRange(value: number, range: [number, number]): number {
+  return Math.max(range[0], Math.min(range[1], value));
+}
+
 export function normalizePeq(
   raw: unknown,
-  options: { enableLoadedFilters?: boolean; integerPreamp?: boolean } = {},
+  options: { enableLoadedFilters?: boolean; integerPreamp?: boolean; capabilities?: DeviceCapabilities } = {},
 ): PEQData {
   const source = raw as { filters?: unknown[]; global_gain?: unknown; globalGain?: unknown } | null | undefined;
   const defaults = buildDefaultState();
@@ -58,21 +62,34 @@ export function normalizePeq(
   const filters = defaults.filters.map((fallback, index) => {
     const hasInput = inputFilters[index] !== undefined;
     const input = (inputFilters[index] ?? {}) as Record<string, unknown>;
+    const capabilities = options.capabilities;
+    const filterType = normalizeFilterType(input.filter_type ?? input.type ?? fallback.filter_type);
     return {
       index,
       // Glacier enables every filter loaded from AutoEQ/profile text, then
       // pads missing device bands as inactive flat filters.
-      enabled: hasInput
+      enabled: index < (capabilities?.num_bands ?? defaults.filters.length) && hasInput
         ? options.enableLoadedFilters || (typeof input.enabled === "boolean" ? input.enabled : fallback.enabled)
         : false,
-      filter_type: normalizeFilterType(input.filter_type ?? input.type ?? fallback.filter_type),
-      freq: Math.round(numberOr(input.freq, fallback.freq)),
-      gain: numberOr(input.gain, fallback.gain),
-      q: numberOr(input.q, fallback.q),
+      filter_type: capabilities && !capabilities.supported_filter_types.includes(filterType)
+        ? capabilities.supported_filter_types[0] ?? "Peak"
+        : filterType,
+      freq: capabilities
+        ? Math.round(clampToRange(numberOr(input.freq, fallback.freq), capabilities.freq_range))
+        : Math.round(numberOr(input.freq, fallback.freq)),
+      gain: capabilities
+        ? clampToRange(numberOr(input.gain, fallback.gain), capabilities.band_gain_range)
+        : numberOr(input.gain, fallback.gain),
+      q: capabilities
+        ? clampToRange(numberOr(input.q, fallback.q), capabilities.q_range)
+        : numberOr(input.q, fallback.q),
     };
   });
 
   let global_gain = numberOr(source?.global_gain ?? source?.globalGain, defaults.global_gain);
+  if (options.capabilities) {
+    global_gain = clampToRange(global_gain, options.capabilities.global_gain_range);
+  }
   if (options.integerPreamp) {
     global_gain = Math.round(global_gain);
   }

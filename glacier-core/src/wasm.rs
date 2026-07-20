@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::device::capabilities::{DeviceCapabilities, DESKTOP_DAC_CAPS};
+use crate::device::capabilities::{DeviceCapabilities, EditorCapabilities, DESKTOP_DAC_CAPS};
 use crate::device::{
     get_supported_device, DeviceProtocol, EqProtocol, Packet, WalkplayProtocol, SUPPORTED_DEVICES,
 };
@@ -18,9 +18,8 @@ pub struct SupportedDeviceInfoWasm {
     pub product_id: Option<u16>,
     pub status: String,
     pub family: String,
-    pub num_bands: usize,
-    pub supports_ram_apply: bool,
-    pub integer_preamp: bool,
+    #[serde(flatten)]
+    pub capabilities: EditorCapabilities,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -99,7 +98,9 @@ fn js_err(error: impl ToString) -> JsValue {
 }
 
 fn to_js_value<T: Serialize>(value: &T) -> Result<JsValue, JsValue> {
-    serde_wasm_bindgen::to_value(value).map_err(js_err)
+    value
+        .serialize(&serde_wasm_bindgen::Serializer::json_compatible())
+        .map_err(js_err)
 }
 
 #[wasm_bindgen]
@@ -113,9 +114,7 @@ pub fn list_supported_devices() -> Result<JsValue, JsValue> {
             product_id: device.product_id,
             status: device.status.to_string(),
             family: device.family.to_string(),
-            num_bands: device.caps.num_bands,
-            supports_ram_apply: device.caps.supports_ram_apply,
-            integer_preamp: device.caps.integer_preamp,
+            capabilities: (&device.caps).into(),
         })
         .collect();
 
