@@ -140,21 +140,6 @@ fn lock_store<'a, 'r>(
     state.lock().map_err(|_| "Lock poisoned".to_string())
 }
 
-pub fn log(
-    level: LogLevel,
-    app: &tauri::AppHandle,
-    store: &Mutex<DiagnosticsStore>,
-    source: LogSource,
-    message: impl Into<String>,
-) {
-    let event = DiagnosticEvent::new(level, source, message.into());
-    if let Ok(mut store) = store.lock() {
-        store.push(app, event.clone());
-    }
-    use tauri::Emitter;
-    let _ = app.emit("diagnostic-event", event);
-}
-
 // --- Commands ---
 
 #[tauri::command]
