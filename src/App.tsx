@@ -521,6 +521,8 @@ function App() {
       const name = match ?? fallback;
       selectedPresetRef.current = name;
       setSelectedPreset(name);
+      setProfileSearch("");
+      setNewProfileName("");
       return name;
     },
     [],
@@ -546,7 +548,8 @@ function App() {
       selectedPresetRef.current = profile.name;
       setPeq(data);
       setSelectedPreset(profile.name);
-      setNewProfileName(profile.name);
+      setProfileSearch("");
+      setNewProfileName("");
       setDirty(false);
     },
     [pushToUndoStack, capabilities],
@@ -558,8 +561,8 @@ function App() {
       const normalized = normalizePeq(data, { enableLoadedFilters: true, integerPreamp: capabilities.integer_preamp, capabilities });
       setPeq(normalized);
       setSelectedPreset(name);
+      setProfileSearch("");
       setNewProfileName(name);
-      setProfileSearch(name);
       setDirty(!isSaved);
     },
     [pushToUndoStack, capabilities],
@@ -999,7 +1002,8 @@ function App() {
       selectedPresetRef.current = profile.name;
       setPeq(data);
       setSelectedPreset(profile.name);
-      setNewProfileName(profile.name);
+      setProfileSearch("");
+      setNewProfileName("");
       setDirty(false);
 
       setProgress(null);
@@ -1078,6 +1082,7 @@ function App() {
       await invoke("save_profile", { name, peq });
       selectedPresetRef.current = name;
       setSelectedPreset(name);
+      setProfileSearch("");
       setNewProfileName("");
       setDirty(false);
       setProfiles(withSyntheticDefault(await invoke<Profile[]>("list_profiles")));
@@ -1095,6 +1100,8 @@ function App() {
       await invoke("delete_profile", { name: selectedPreset });
       selectedPresetRef.current = DEFAULT_PROFILE_NAME;
       setSelectedPreset(DEFAULT_PROFILE_NAME);
+      setProfileSearch("");
+      setNewProfileName("");
       setPeq(buildDefaultState());
       setProfiles(withSyntheticDefault(await invoke<Profile[]>("list_profiles")));
       setStatus("Profile deleted");

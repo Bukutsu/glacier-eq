@@ -343,30 +343,21 @@ function PresetTab({
     (p) => !query || fuzzyMatch(query, p.name)
   );
   const selectedProfile = profiles.find((p) => p.name === selectedPreset);
-  const canDelete =
-    selectedPreset !== DEFAULT_PROFILE_NAME &&
-    profiles.some((p) => p.name === selectedPreset);
-
-  // The effective name that Save will use (mirrors App.tsx logic)
-  const effectiveSaveName = newProfileName.trim() || selectedPreset;
-  const isOverwrite = profiles.some(
-    (p) => p.name.toLowerCase() === effectiveSaveName.toLowerCase()
+  const savedProfiles = profiles.filter((p) => p.modified != null);
+  const selectedIsSaved = savedProfiles.some((p) => p.name === selectedPreset);
+  const canDelete = selectedIsSaved;
+  const saveName = newProfileName.trim();
+  const isOverwrite = savedProfiles.some(
+    (p) => p.name.toLowerCase() === saveName.toLowerCase()
   );
-  const showBadge = !!newProfileName.trim(); // only show when user typed a custom name
+  const canSave = !!saveName || selectedIsSaved;
+  const saveLabel = saveName
+    ? isOverwrite ? "Overwrite profile" : "Save new profile"
+    : selectedIsSaved ? "Save changes" : "Save new profile";
 
-  // Typing: filters the list AND sets a custom save name
-  const handleInputChange = (value: string) => {
-    setProfileSearch(value);
-    setNewProfileName(value);
-  };
-
-  // Clicking a profile: select it, clear search so full list stays visible,
-  // clear custom name so Save defaults to the selected profile name
-  const handleSelectProfile = async (profile: typeof profiles[0]) => {
+  const handleSelectProfile = (profile: typeof profiles[0]) => {
     if (dirty && !window.confirm("Discard unsaved changes?")) return;
     onSelectProfile(profile);
-    setProfileSearch("");
-    setNewProfileName("");
   };
 
   return (
@@ -374,7 +365,7 @@ function PresetTab({
       <div className="profile-card-head">
         <div className="profile-title">
           <strong>Profile Library</strong>
-          <span>{profiles.length} saved</span>
+          <span>{savedProfiles.length} saved</span>
         </div>
         <div className="profile-card-tools">
           <button title="Reload profiles" aria-label="Reload profiles" onClick={onReloadProfiles}>
@@ -388,20 +379,12 @@ function PresetTab({
         </div>
       </div>
 
-      {/* Merged search + name input */}
-      <div className="profile-smart-input-wrap">
-        <input
-          className="profile-search"
-          placeholder="Search or name a profile…"
-          value={profileSearch}
-          onChange={(e) => handleInputChange(e.target.value)}
-        />
-        {showBadge && (
-          <span className={`profile-name-badge ${isOverwrite ? "overwrite" : "new"}`}>
-            {isOverwrite ? "Overwrite" : "New"}
-          </span>
-        )}
-      </div>
+      <input
+        className="profile-search"
+        placeholder="Search profiles…"
+        value={profileSearch}
+        onChange={(e) => setProfileSearch(e.target.value)}
+      />
 
       <div className="preset-list">
         {filteredProfiles.length === 0 ? (
@@ -412,17 +395,23 @@ function PresetTab({
               key={profile.name}
               className={selectedPreset === profile.name ? "profile-row selected" : "profile-row"}
             >
-              <button className="profile-name-btn" onClick={() => handleSelectProfile(profile)}>
+              <button
+                className="profile-name-btn"
+                title={`Load ${profile.name} into editor`}
+                aria-label={`Load ${profile.name} into editor`}
+                onClick={() => handleSelectProfile(profile)}
+              >
                 {profile.name}
               </button>
               {onApplyProfile && (
                 <button
                   className="profile-apply-btn"
-                  title="Try on DAC temporarily"
+                  title={`Try ${profile.name} on DAC temporarily`}
                   aria-label={`Try ${profile.name} on DAC temporarily`}
                   onClick={() => onApplyProfile(profile)}
                 >
                   <Icon>send</Icon>
+                  <span>Try</span>
                 </button>
               )}
             </div>
@@ -431,24 +420,43 @@ function PresetTab({
       </div>
 
       {showActions !== false && (
-        <div className="profile-management-actions">
-          <button className="save primary-save" onClick={onSave} title="Save profile">
-            <Icon>save</Icon>
-            <span>Save</span>
-          </button>
-          <button className="icon-action profile-icon-action" title="Reset profile" aria-label="Reset profile" onClick={onReset}>
-            <Icon>restart_alt</Icon>
-          </button>
-          <button
-            className="icon-action profile-icon-action danger"
-            title="Delete profile"
-            aria-label="Delete profile"
-            disabled={!canDelete}
-            onClick={onDelete}
-          >
-            <Icon>delete</Icon>
-          </button>
-        </div>
+        <>
+          <div className="profile-save-field">
+            <label htmlFor="profile-save-name">Save as</label>
+            <div className="profile-name-input-wrap">
+              <input
+                id="profile-save-name"
+                className="profile-search"
+                placeholder="Profile name…"
+                value={newProfileName}
+                onChange={(e) => setNewProfileName(e.target.value)}
+              />
+              {!!saveName && (
+                <span className={`profile-name-badge ${isOverwrite ? "overwrite" : "new"}`}>
+                  {isOverwrite ? "Overwrite" : "New"}
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="profile-management-actions">
+            <button className="save primary-save" onClick={onSave} title={saveLabel} disabled={!canSave}>
+              <Icon>save</Icon>
+              <span>{saveLabel}</span>
+            </button>
+            <button className="icon-action profile-icon-action" title="Reset profile" aria-label="Reset profile" onClick={onReset}>
+              <Icon>restart_alt</Icon>
+            </button>
+            <button
+              className="icon-action profile-icon-action danger"
+              title="Delete profile"
+              aria-label="Delete profile"
+              disabled={!canDelete}
+              onClick={onDelete}
+            >
+              <Icon>delete</Icon>
+            </button>
+          </div>
+        </>
       )}
 
       <div className="profile-card-foot">
@@ -566,11 +574,15 @@ function ImportTab({ peq, profiles, selectedPreset, onImportPEQ, onReloadProfile
     if (isTemporary) {
       onImportPEQ(parsed.peq, importName || "Imported EQ", false);
       setParsed(null);
-      setStatus("Imported preset applied directly to active EQ (temporary)");
+      setStatus("Imported profile applied directly to active EQ (temporary)");
     } else {
       const name = importName.trim();
       if (!name) {
-        setStatus("Please enter a name for the preset.");
+        setStatus("Please enter a name for the profile.");
+        return;
+      }
+      if (name === DEFAULT_PROFILE_NAME) {
+        setStatus(`"${DEFAULT_PROFILE_NAME}" is reserved. Choose another profile name.`);
         return;
       }
       try {
@@ -578,7 +590,7 @@ function ImportTab({ peq, profiles, selectedPreset, onImportPEQ, onReloadProfile
         await onReloadProfiles();
         onImportPEQ(parsed.peq, name, true);
         setParsed(null);
-        setStatus(`Preset '${name}' saved successfully`);
+        setStatus(`Profile '${name}' saved successfully`);
       } catch (err) {
         setStatus(`Save failed: ${err}`);
       }
@@ -590,7 +602,8 @@ function ImportTab({ peq, profiles, selectedPreset, onImportPEQ, onReloadProfile
   };
 
   const importNameLower = importName.trim().toLowerCase();
-  const nameExists = parsed ? (!isTemporary && profiles.some((p) => p.name.toLowerCase() === importNameLower)) : false;
+  const savedProfiles = profiles.filter((profile) => profile.modified != null);
+  const nameExists = parsed ? (!isTemporary && savedProfiles.some((p) => p.name.toLowerCase() === importNameLower)) : false;
   const activeFilters = parsed ? parsed.peq.filters.filter((f) => f.enabled) : [];
 
   return (
@@ -641,28 +654,28 @@ function ImportTab({ peq, profiles, selectedPreset, onImportPEQ, onReloadProfile
                   className={!isTemporary ? "active" : ""}
                   onClick={() => setIsTemporary(false)}
                 >
-                  Save to Preset
+                  Save to Profile
                 </button>
                 <button
                   className={isTemporary ? "active" : ""}
                   onClick={() => setIsTemporary(true)}
                 >
-                  Try (Temporary)
+                  Try temporarily
                 </button>
               </div>
 
               <div className="import-flow-content">
                 {!isTemporary ? (
                   <div className="import-field-group">
-                    <label htmlFor="import-name">Preset Name</label>
+                    <label htmlFor="import-name">Profile Name</label>
                     <input
                       id="import-name"
                       type="text"
                       value={importName}
                       onChange={(e) => setImportName(e.target.value)}
-                      placeholder="Preset Name…"
+                      placeholder="Profile Name…"
                     />
-                    {profiles.length > 0 && (
+                    {savedProfiles.length > 0 && (
                       <div className="import-field-group" style={{ marginTop: "8px" }}>
                         <label htmlFor="overwrite-select">Or Overwrite Existing:</label>
                         <Select
@@ -673,14 +686,14 @@ function ImportTab({ peq, profiles, selectedPreset, onImportPEQ, onReloadProfile
                           }}
                           options={[
                             { value: "", label: "-- Select profile --" },
-                            ...profiles.map((p) => ({ value: p.name, label: p.name })),
+                            ...savedProfiles.map((p) => ({ value: p.name, label: p.name })),
                           ]}
                         />
                       </div>
                     )}
                     {nameExists && (
                       <span className="import-overwrite-warning">
-                        ⚠️ Preset already exists. Saving will overwrite it.
+                        ⚠️ Profile already exists. Saving will overwrite it.
                       </span>
                     )}
                   </div>
@@ -722,7 +735,7 @@ function ImportTab({ peq, profiles, selectedPreset, onImportPEQ, onReloadProfile
               <div className="import-flow-actions">
                 <button className="btn" onClick={handleCancel}>Cancel</button>
                 <button className="btn filled" onClick={handleConfirm}>
-                  {isTemporary ? "Apply to EQ" : "Save Preset"}
+                  {isTemporary ? "Try temporarily" : "Save Profile"}
                 </button>
               </div>
             </div>
