@@ -93,6 +93,7 @@ declare global {
 }
 
 const MOBILE_QUERY = "(max-width: 850px)";
+const DEVICE_ONBOARDING_KEY = "glacier-device-onboarding-seen";
 
 const isDisconnectionError = (error: any): boolean => {
   const errStr = String(error).toLowerCase();
@@ -649,6 +650,9 @@ function App() {
       setStatus(`Scan failed: ${error}`);
     } finally {
       setIsBusy(false);
+      if (window.localStorage.getItem(DEVICE_ONBOARDING_KEY) !== "true") {
+        setShowDeviceModal(true);
+      }
     }
   }, []);
 
@@ -1827,11 +1831,17 @@ function App() {
         </div>
       )}
       {showDeviceModal && (
-        <div className="modal-overlay" onClick={() => setShowDeviceModal(false)}>
+        <div className="modal-overlay" onClick={() => {
+          window.localStorage.setItem(DEVICE_ONBOARDING_KEY, "true");
+          setShowDeviceModal(false);
+        }}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Connect Device</h2>
-              <button className="modal-close-btn" onClick={() => setShowDeviceModal(false)} aria-label="Close">
+              <button className="modal-close-btn" onClick={() => {
+                window.localStorage.setItem(DEVICE_ONBOARDING_KEY, "true");
+                setShowDeviceModal(false);
+              }} aria-label="Close">
                 <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>close</span>
               </button>
             </div>
@@ -1840,7 +1850,10 @@ function App() {
                 devices={devices}
                 onScan={scanDevices}
                 onConnect={async () => {
-                  if (await connectDevice()) setShowDeviceModal(false);
+                  if (await connectDevice()) {
+                    window.localStorage.setItem(DEVICE_ONBOARDING_KEY, "true");
+                    setShowDeviceModal(false);
+                  }
                 }}
                 selectedDevice={selectedDevice}
                 setSelectedDevice={setSelectedDevice}
