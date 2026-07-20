@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useRef, Fragment, useState } from "react";
-import { dbToY, filterResponseValues, formatFreq, freqToX, peqResponseValues, xToFreq } from "../lib/graph";
+import { useCallback, useEffect, useRef, Fragment, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
+import { dbToY, filterResponseValues, formatFreq, freqToX, peqResponseValues, snapFreqToIso, xToFreq, yToDb } from "../lib/graph";
 import { cssVar, rgbWithAlpha } from "../lib/theme";
 import { interpolateMeasurementDb } from "../lib/measurements";
 import { filterColorVars } from "../lib/filterColors";
 import { peqEquals } from "../lib/peq";
-import type { GraphViewMode, MeasurementTrace, PEQData, TargetTrace } from "../types";
+import type { DeviceCapabilities, Filter, GraphViewMode, MeasurementTrace, PEQData, TargetTrace } from "../types";
 import { Icon } from "./Icon";
 
 const GRAPH_FREQS = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
@@ -37,6 +37,12 @@ export function EqGraph({
   targets,
   viewMode,
   theme,
+  capabilities,
+  activeBandIndex,
+  onActiveBandChange,
+  onStartChange,
+  onFilterChange,
+  snapToIso,
 }: {
   peq: PEQData;
   committedPeq?: PEQData | null;
@@ -45,10 +51,17 @@ export function EqGraph({
   targets: TargetTrace[];
   viewMode: GraphViewMode;
   theme?: string;
+  capabilities?: DeviceCapabilities;
+  activeBandIndex?: number | null;
+  onActiveBandChange?: (index: number) => void;
+  onStartChange?: () => void;
+  onFilterChange?: (index: number, filter: Filter) => void;
+  snapToIso?: boolean;
 }) {
   const [showMobileLegend, setShowMobileLegend] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawSerialRef = useRef(0);
+  const editable = Boolean(capabilities && onActiveBandChange && onStartChange && onFilterChange);
   const visibleMeasurements = measurements.filter((trace) => trace.visible);
   const selectedMeasurement = selectedMeasurementId
     ? measurements.find((trace) => trace.id === selectedMeasurementId && trace.visible) ?? null
@@ -89,9 +102,10 @@ export function EqGraph({
       visibleMeasurements,
       targets,
       viewMode,
+      editable,
       () => drawSerial === drawSerialRef.current,
     );
-  }, [peq, committedPeq, selectedMeasurement, visibleMeasurements, targets, viewMode, theme]);
+  }, [peq, committedPeq, selectedMeasurement, visibleMeasurements, targets, viewMode, theme, editable]);
 
   const displayPeqRef = useRef(peq);
   const targetPeqRef = useRef(peq);
@@ -164,9 +178,79 @@ export function EqGraph({
     cancelAnimationFrame(animRafRef.current);
   }, []);
 
+  const updateFromPointer = async (event: PointerEvent<HTMLButtonElement>, index: number, filter: Filter) => {
+    if (!event.currentTarget.hasPointerCapture(event.pointerId) || !capabilities || !onFilterChange) return;
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect?.width || !rect.height) return;
+
+    const rawFreq = Math.round(xToFreq(event.clientX - rect.left, rect.width));
+    const snappedFreq = snapToIso ? await snapFreqToIso(rawFreq) : rawFreq;
+    const freq = Math.max(capabilities.freq_range[0], Math.min(capabilities.freq_range[1], snappedFreq));
+    const gain = Number(Math.max(capabilities.band_gain_range[0], Math.min(capabilities.band_gain_range[1], yToDb(event.clientY - rect.top, rect.height))).toFixed(2));
+    onFilterChange(index, { ...filter, freq, gain });
+  };
+
+  const updateFromKeyboard = async (event: KeyboardEvent<HTMLButtonElement>, index: number, filter: Filter) => {
+    if (!capabilities || !onFilterChange || !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) return;
+    event.preventDefault();
+    onActiveBandChange?.(index);
+    if (!event.repeat) onStartChange?.();
+
+    if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+      const direction = event.key === "ArrowLeft" ? -1 : 1;
+      const scaled = Math.round(filter.freq * 2 ** (direction / 48));
+      const stepped = direction < 0 ? Math.min(scaled, filter.freq - 1) : Math.max(scaled, filter.freq + 1);
+      const snapped = snapToIso ? await snapFreqToIso(stepped) : stepped;
+      const freq = Math.max(capabilities.freq_range[0], Math.min(capabilities.freq_range[1], snapped));
+      onFilterChange(index, { ...filter, freq });
+      return;
+    }
+
+    const delta = (event.shiftKey ? 1 : 0.1) * (event.key === "ArrowUp" ? 1 : -1);
+    const gain = Number(Math.max(capabilities.band_gain_range[0], Math.min(capabilities.band_gain_range[1], filter.gain + delta)).toFixed(2));
+    onFilterChange(index, { ...filter, gain });
+  };
+
   return (
     <div className="eq-graph-shell">
       <canvas className="eq-canvas" ref={canvasRef} />
+      {editable && capabilities && peq.filters.slice(0, capabilities.num_bands).map((filter) => {
+        if (!filter.enabled) return null;
+        const [color, rgb] = filterColorVars(filter.index);
+        const valueText = `${filter.freq} Hz, ${filter.gain >= 0 ? "+" : ""}${filter.gain.toFixed(1)} dB`;
+        return (
+          <button
+            key={filter.index}
+            type="button"
+            className={`eq-filter-handle${activeBandIndex === filter.index ? " active" : ""}`}
+            style={{
+              "--filter-color": `var(${color})`,
+              "--filter-color-rgb": `var(${rgb})`,
+              left: `${freqToX(filter.freq, 100)}%`,
+              top: `${dbToY(filter.gain, 100)}%`,
+            } as CSSProperties}
+            aria-label={`Band ${filter.index + 1}: ${valueText}. Drag or use arrow keys to adjust frequency and gain.`}
+            aria-pressed={activeBandIndex === filter.index}
+            title={`Band ${filter.index + 1}: ${valueText}`}
+            onPointerDown={(event) => {
+              if (!event.isPrimary || event.button !== 0) return;
+              onActiveBandChange?.(filter.index);
+              onStartChange?.();
+              event.currentTarget.setPointerCapture(event.pointerId);
+            }}
+            onPointerMove={(event) => void updateFromPointer(event, filter.index, filter)}
+            onPointerUp={(event) => {
+              if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+            }}
+            onPointerCancel={(event) => {
+              if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+            }}
+            onKeyDown={(event) => void updateFromKeyboard(event, filter.index, filter)}
+          >
+            {filter.index + 1}
+          </button>
+        );
+      })}
       {(committedPeq || targets.length > 0 || visibleMeasurements.length > 0) && (
         <button
           className={`mobile-legend-toggle ${showMobileLegend ? "active" : ""}`}
@@ -278,6 +362,7 @@ async function drawCurves(
   measurements: MeasurementTrace[],
   targets: TargetTrace[],
   viewMode: GraphViewMode,
+  interactiveHandles: boolean,
   isCurrent: () => boolean,
 ) {
   const freqs = Array.from({ length: width }, (_, x) => xToFreq(x, width));
@@ -314,7 +399,7 @@ async function drawCurves(
     drawResponse(ctx, height, eqResponse, cssVar("--cyan", "#7dcfff"), 3);
     await drawCommittedPreview(ctx, width, height, peq, committedPeq, selectedMeasurement, viewMode, isCurrent);
     if (!isCurrent()) return;
-    drawFilterDots(ctx, width, height, peq);
+    if (!interactiveHandles) drawFilterDots(ctx, width, height, peq);
     return;
   }
 
@@ -324,7 +409,7 @@ async function drawCurves(
     drawResponse(ctx, height, measurementResponseValues(eqResponse, freqs, trace, measurementOffset), trace.color, 3);
   });
   await drawCommittedPreview(ctx, width, height, peq, committedPeq, selectedMeasurement, viewMode, isCurrent);
-  await drawFilterDotsWithMeasurement(ctx, width, height, peq, selectedMeasurement, viewMode, isCurrent);
+  if (!interactiveHandles) await drawFilterDotsWithMeasurement(ctx, width, height, peq, selectedMeasurement, viewMode, isCurrent);
 }
 
 async function drawCommittedPreview(
