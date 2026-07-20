@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { AppSettings, MeasurementPoint } from "../types";
+import type { MeasurementPoint } from "../types";
 import { Icon } from "./Icon";
 import { fuzzyMatch } from "../lib/search";
 import { openFileDialog } from "../lib/rpc";
@@ -8,7 +8,6 @@ import { useOnlineDatabase, type OnlineDevice } from "../lib/onlineDb";
 
 interface AddTraceModalProps {
   onClose: () => void;
-  settings?: AppSettings;
   onAddMeasurement?: (name: string, points: MeasurementPoint[]) => void;
   onAddTarget?: (name: string, points: MeasurementPoint[]) => void;
   setStatus?: (value: string) => void;
@@ -16,13 +15,10 @@ interface AddTraceModalProps {
 
 export function AddTraceModal({
   onClose,
-  settings,
   onAddMeasurement,
   onAddTarget,
   setStatus,
 }: AddTraceModalProps) {
-  const enableOnlineMeasurements = settings?.enable_online_measurements;
-
   const {
     downloaded,
     downloadProgress,
@@ -36,7 +32,7 @@ export function AddTraceModal({
     download,
     clearCache,
     loadDevice,
-  } = useOnlineDatabase(enableOnlineMeasurements, setStatus);
+  } = useOnlineDatabase(true, setStatus);
   const [loadedDevices, setLoadedDevices] = useState<Set<string>>(new Set());
 
   const handleDownload = async () => {
@@ -129,8 +125,7 @@ export function AddTraceModal({
           </div>
         </div>
 
-        {enableOnlineMeasurements && (
-          <div className="add-trace-section">
+        <div className="add-trace-section">
             <div className="add-trace-section-title">
               Online Search
               {downloaded && totalCount && (
@@ -189,8 +184,7 @@ export function AddTraceModal({
                 )}
               </div>
             )}
-          </div>
-        )}
+        </div>
 
       </section>
     </div>
