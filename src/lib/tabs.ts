@@ -1,8 +1,7 @@
 export const TAB_META = {
   Preset: { icon: "library_music", label: "Preset" },
   Import: { icon: "file_upload", label: "Import" },
-  Curves: { icon: "analytics", label: "Curves" },
-  AutoEQ: { icon: "auto_awesome", label: "AutoEQ" },
+  Tuning: { icon: "auto_awesome", label: "Tuning" },
   Device: { icon: "tune", label: "Device" },
   Settings: { icon: "settings", label: "Settings" },
 } as const;
@@ -12,8 +11,7 @@ export type MobileTab = "eq" | "profiles" | "tuning" | "device" | "settings";
 
 export const DESKTOP_TABS = [
   { id: "Preset", ...TAB_META.Preset },
-  { id: "Curves", ...TAB_META.Curves },
-  { id: "AutoEQ", ...TAB_META.AutoEQ },
+  { id: "Tuning", ...TAB_META.Tuning },
   { id: "Device", ...TAB_META.Device },
   { id: "Settings", ...TAB_META.Settings },
 ] as const;
