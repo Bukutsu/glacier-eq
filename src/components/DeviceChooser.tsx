@@ -55,6 +55,16 @@ export function DeviceChooser({
 
   return (
     <section className="device-card">
+      <ol className="device-setup-steps" aria-label="Connection steps">
+        <li><span>1</span>Plug in and power your DAC</li>
+        <li><span>2</span>Scan and approve access if asked</li>
+        <li><span>3</span>Select the DAC and connect</li>
+      </ol>
+
+      {!isTauri() && !("hid" in navigator) && (
+        <div className="device-browser-warning">WebHID requires a Chromium-based browser over HTTPS or localhost.</div>
+      )}
+
       <button className="btn tonal" style={{ width: "100%" }} onClick={handleScanClick} disabled={isBusy}>{isBusy ? "Scanning…" : "Scan for Devices"}</button>
 
       {devices.length === 0 ? (
@@ -68,6 +78,10 @@ export function DeviceChooser({
             const name = device.profile_name || device.product_string || device.manufacturer || "Supported DAC";
             const selected = selectedDevice === device.path;
             const isDummy = isDevDummyDevice(device.path);
+            const support = supportedDacs.find((dac) =>
+              dac.vendor_id === device.vendor_id &&
+              (dac.product_id === null || dac.product_id === device.product_id)
+            );
             return (
               <button
                 key={device.path}
@@ -78,6 +92,9 @@ export function DeviceChooser({
                 <span className="device-row-title">
                   {name}
                   {isDummy && <span className="dev-device-badge">DEV</span>}
+                  {!isDummy && support && (
+                    <span className={`device-support-badge ${support.status.toLowerCase()}`}>{support.status}</span>
+                  )}
                 </span>
                 <span className="device-row-meta">
                   VID: {formatUsbId(device.vendor_id)} &nbsp; PID: {formatUsbId(device.product_id)}
@@ -115,6 +132,16 @@ export function DeviceChooser({
             </div>
           ))}
         </div>
+      </details>
+
+      <details className="device-troubleshooting">
+        <summary>Trouble connecting?</summary>
+        <ul>
+          <li>Replug the DAC and close other apps using it.</li>
+          {!isTauri() && <li>Use Chromium and approve the browser device prompt.</li>}
+          <li>On Linux, install the project udev rules, then replug the DAC.</li>
+        </ul>
+        <a href="https://github.com/Bukutsu/glacier-eq#linux-hid-permissions" target="_blank" rel="noreferrer">Open connection help</a>
       </details>
 
       <div className="device-actions">

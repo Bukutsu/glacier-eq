@@ -12,6 +12,43 @@
 .device-card h2 { margin: 0 0 8px; font-size: var(--type-title); font-weight: 700; }
 .device-card p, .status-text { color: var(--muted); margin: 0; }
 
+.device-setup-steps {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--text);
+  font-size: var(--type-small);
+}
+
+.device-setup-steps li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.device-setup-steps li span {
+  display: inline-flex;
+  width: 22px;
+  height: 22px;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 22px;
+  background: var(--surface-soft);
+  color: var(--cyan);
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+
+.device-browser-warning {
+  padding: 10px 12px;
+  border-left: 3px solid var(--yellow);
+  background: var(--bg-dark);
+  color: var(--yellow);
+  font-size: var(--type-small);
+}
+
 .empty-device-state {
   background: var(--bg-dark);
   padding: 18px;
@@ -45,7 +82,8 @@
   align-items: center;
   gap: 8px;
 }
-.dev-device-badge {
+.dev-device-badge,
+.device-support-badge {
   color: var(--bg-dark);
   background: var(--orange);
   padding: 2px 5px;
@@ -53,6 +91,9 @@
   font-weight: 700;
   letter-spacing: 0.08em;
 }
+
+.device-support-badge.tested { background: var(--green); }
+.device-support-badge.untested { background: var(--yellow); }
 .device-row-meta, .device-row small { color: var(--muted); font-size: var(--type-small); font-family: var(--font-mono); }
 
 .supported-list {
@@ -65,5 +106,26 @@
 .supported-list > span { color: var(--comment); font-size: var(--type-caption); font-weight: 700; }
 .supported-list div { display: flex; justify-content: space-between; gap: 12px; color: var(--text); font-size: var(--type-small); }
 .supported-list small { color: var(--muted); }
+
+.device-troubleshooting {
+  padding: 10px 12px;
+  background: var(--bg-dark);
+  color: var(--muted);
+  font-size: var(--type-small);
+}
+
+.device-troubleshooting summary {
+  cursor: pointer;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.device-troubleshooting ul {
+  margin: 10px 0;
+  padding-left: 18px;
+  line-height: 1.6;
+}
+
+.device-troubleshooting a { color: var(--cyan); }
 .device-actions { display: flex; gap: 10px; justify-content: flex-end; }
 
