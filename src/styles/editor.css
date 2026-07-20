@@ -23,6 +23,42 @@
   pointer-events: none;
 }
 
+.eq-filter-handle {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  transform: translate(-50%, -50%);
+  border: 2px solid var(--panel);
+  border-radius: 50%;
+  background: var(--filter-color, var(--cyan));
+  color: var(--bg-dark);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  touch-action: none;
+  z-index: 5;
+}
+
+.eq-filter-handle.active {
+  box-shadow: 0 0 0 3px rgb(var(--filter-color-rgb, var(--cyan-rgb)) / 0.55);
+  z-index: 6;
+}
+
+.eq-filter-handle:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 3px;
+}
+
+@media (max-width: 850px) {
+  .eq-filter-handle {
+    width: 32px;
+    height: 32px;
+    font-size: 11px;
+  }
+}
+
 .graph-legend {
   position: absolute;
   top: 12px;

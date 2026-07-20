@@ -1107,9 +1107,9 @@ function App() {
     }
   }, []);
 
-  const updateFilter = useCallback((index: number, updated: Filter) => {
+  const updateFilter = useCallback((index: number, updated: Filter, showPreview = true) => {
     setActiveBandIndex(index);
-    flashGraphPreview();
+    if (showPreview) flashGraphPreview();
     setDirty(true);
     setPeq((previous) => {
       const filters = [...previous.filters];
@@ -1117,6 +1117,15 @@ function App() {
       return { ...previous, filters };
     });
   }, [flashGraphPreview]);
+
+  const graphEditorProps = {
+    capabilities,
+    activeBandIndex,
+    onActiveBandChange: setActiveBandIndex,
+    onStartChange: () => pushToUndoStack(peqRef.current),
+    onFilterChange: (index: number, filter: Filter) => updateFilter(index, filter, false),
+    snapToIso,
+  };
 
   const reset = async () => {
     if (!window.confirm("Reset all filters to 0 dB?")) return;
@@ -1394,6 +1403,7 @@ function App() {
                   targets={activeTargets}
                   viewMode={graphViewMode}
                   theme={resolvedTheme}
+                  {...(activeTab === "eq" ? graphEditorProps : {})}
                 />
               </div>
               <button
@@ -1704,6 +1714,7 @@ function App() {
                 targets={activeTargets}
                 viewMode={graphViewMode}
                 theme={resolvedTheme}
+                {...graphEditorProps}
               />
             </section>
             )}
