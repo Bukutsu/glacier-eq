@@ -6,6 +6,7 @@ import { Icon } from "./Icon";
 
 import { fuzzyMatch } from "../lib/search";
 import { AddTraceModal } from "./AddTraceModal";
+import { Collapsible } from "./Collapsible";
 import { Modal } from "./Modal";
 import { UnifiedTracesList } from "./UnifiedTraces";
 import { NumberInput } from "./NumberInput";
@@ -163,30 +164,34 @@ export function ToolsPanel(props: ToolsPanelProps) {
           )}
           {tab === "Tuning" && (
             <>
-              <CurvesTab
-                measurements={props.measurements}
-                onRemoveMeasurement={props.onRemoveMeasurement}
-                onToggleMeasurement={props.onToggleMeasurement}
-                onClearMeasurements={props.onClearMeasurements}
-                allTargets={props.allTargets ?? []}
-                activeTargetIds={props.activeTargetIds ?? []}
-                onToggleTarget={props.onToggleTarget ?? (() => {})}
-                onRemoveTarget={props.onRemoveTarget ?? (() => {})}
-                onAddTarget={props.onAddTarget}
-                onAddMeasurement={props.onAddMeasurement}
-                setStatus={props.setStatus}
-              />
-              <AutoEqTab
-                measurements={props.measurements}
-                allTargets={props.allTargets ?? []}
-                activeTargetIds={props.activeTargetIds}
-                onImportPEQ={props.onImportPEQ}
-                setStatus={props.setStatus}
-                onSelectedMeasurementChange={props.onSelectedMeasurementChange}
-                onToggleMeasurement={props.onToggleMeasurement}
-                onToggleTarget={props.onToggleTarget}
-                maxBands={props.maxBands}
-              />
+              <Collapsible title="Traces & Targets" icon="analytics" className="tuning-card">
+                <CurvesTab
+                  measurements={props.measurements}
+                  onRemoveMeasurement={props.onRemoveMeasurement}
+                  onToggleMeasurement={props.onToggleMeasurement}
+                  onClearMeasurements={props.onClearMeasurements}
+                  allTargets={props.allTargets ?? []}
+                  activeTargetIds={props.activeTargetIds ?? []}
+                  onToggleTarget={props.onToggleTarget ?? (() => {})}
+                  onRemoveTarget={props.onRemoveTarget ?? (() => {})}
+                  onAddTarget={props.onAddTarget}
+                  onAddMeasurement={props.onAddMeasurement}
+                  setStatus={props.setStatus}
+                />
+              </Collapsible>
+              <Collapsible title="AutoEQ (Tuning Assistant)" icon="auto_awesome" className="tuning-card">
+                <AutoEqTab
+                  measurements={props.measurements}
+                  allTargets={props.allTargets ?? []}
+                  activeTargetIds={props.activeTargetIds}
+                  onImportPEQ={props.onImportPEQ}
+                  setStatus={props.setStatus}
+                  onSelectedMeasurementChange={props.onSelectedMeasurementChange}
+                  onToggleMeasurement={props.onToggleMeasurement}
+                  onToggleTarget={props.onToggleTarget}
+                  maxBands={props.maxBands}
+                />
+              </Collapsible>
             </>
           )}
           {tab === "Device" && (
@@ -950,8 +955,7 @@ export function AutoEqTab({
 
           </div>
 
-          <details>
-            <summary>Advanced options</summary>
+          <Collapsible title="Advanced options" compact defaultOpen={false}>
             <div className="autoeq-form-grid">
               <div className="import-field-group">
                 <label>Treble Smoothing</label>
@@ -1007,7 +1011,7 @@ export function AutoEqTab({
                 />
               </div>
             </div>
-          </details>
+          </Collapsible>
 
           <button
             className="btn filled autoeq-run-btn"
