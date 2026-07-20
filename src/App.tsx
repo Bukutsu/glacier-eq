@@ -9,6 +9,7 @@ import { CustomScrollbar } from "./components/CustomScrollbar";
 import { Preamp } from "./components/Preamp";
 import { ToolsPanel, AutoEqTab, DiagnosticsPanel } from "./components/ToolsPanel";
 import { AddTraceModal } from "./components/AddTraceModal";
+import { Modal } from "./components/Modal";
 import { DESKTOP_TABS, MOBILE_TABS, type MobileTab } from "./lib/tabs";
 import { UnifiedTracesList } from "./components/UnifiedTraces";
 import {
@@ -272,7 +273,12 @@ function App() {
       const lowerMessage = message.toLowerCase();
       if (
         lowerMessage.includes("failed") ||
-        lowerMessage.includes("error")
+        lowerMessage.includes("error") ||
+        lowerMessage.includes("unable") ||
+        lowerMessage.includes("invalid") ||
+        lowerMessage.includes("permission") ||
+        lowerMessage.includes("not allowed") ||
+        lowerMessage.includes("please enter")
       ) {
         toastType = "error";
       } else if (
@@ -297,9 +303,11 @@ function App() {
       const id = Math.random().toString(36).substring(2, 9);
       setToasts((prev) => [...prev, { id, message, type: toastType }]);
 
-      setTimeout(() => {
-        setToasts((prev) => prev.filter((t) => t.id !== id));
-      }, 4000);
+      if (toastType !== "error") {
+        setTimeout(() => {
+          setToasts((prev) => prev.filter((t) => t.id !== id));
+        }, 4000);
+      }
     },
     [isAndroid],
   );
@@ -307,11 +315,9 @@ function App() {
   const setStatus = useCallback(
     (message: string) => {
       setStatusState(message);
-      if (connected && !isAndroid) {
-        showToast(message);
-      }
+      showToast(message);
     },
-    [connected, isAndroid, showToast],
+    [showToast],
   );
 
   const reportStatus = useCallback((
@@ -626,7 +632,7 @@ function App() {
 
   const scanDevices = useCallback(async () => {
     setIsBusy(true);
-    setStatus("Scanning for devices...");
+    setStatusState("Scanning for devices...");
     try {
       const realDevices = await invoke<DeviceInfo[]>("list_devices");
       const list = import.meta.env.DEV
@@ -638,7 +644,7 @@ function App() {
           ? current
           : list[0]?.path ?? "",
       );
-      setStatus(
+      setStatusState(
         list.length
           ? `Found ${list.length} device(s)`
           : "No compatible DACs found",
@@ -1837,62 +1843,47 @@ function App() {
         </div>
       )}
       {showDeviceModal && (
-        <div className="modal-overlay" onClick={() => {
-          window.localStorage.setItem(DEVICE_ONBOARDING_KEY, "true");
-          setShowDeviceModal(false);
-        }}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>Connect Device</h2>
-              <button className="modal-close-btn" onClick={() => {
-                window.localStorage.setItem(DEVICE_ONBOARDING_KEY, "true");
-                setShowDeviceModal(false);
-              }} aria-label="Close">
-                <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>close</span>
-              </button>
-            </div>
-            <div className="modal-body">
-              <DeviceChooser
-                devices={devices}
-                onScan={scanDevices}
-                onConnect={async () => {
-                  if (await connectDevice()) {
-                    window.localStorage.setItem(DEVICE_ONBOARDING_KEY, "true");
-                    setShowDeviceModal(false);
-                  }
-                }}
-                selectedDevice={selectedDevice}
-                setSelectedDevice={setSelectedDevice}
-                status={status}
-                isBusy={isBusy}
-              />
-            </div>
+        <Modal
+          title="Connect Device"
+          onClose={() => {
+            window.localStorage.setItem(DEVICE_ONBOARDING_KEY, "true");
+            setShowDeviceModal(false);
+          }}
+        >
+          <div className="modal-body">
+            <DeviceChooser
+              devices={devices}
+              onScan={scanDevices}
+              onConnect={async () => {
+                if (await connectDevice()) {
+                  window.localStorage.setItem(DEVICE_ONBOARDING_KEY, "true");
+                  setShowDeviceModal(false);
+                }
+              }}
+              selectedDevice={selectedDevice}
+              setSelectedDevice={setSelectedDevice}
+              status={status}
+              isBusy={isBusy}
+            />
           </div>
-        </div>
+        </Modal>
       )}
       {showDiagnosticsModal && (
-        <div className="modal-overlay" onClick={() => setShowDiagnosticsModal(false)}>
-          <div
-            className="modal-content wide"
-            style={{
-              width: "min(800px, 94vw)",
-              height: "75vh",
-              maxHeight: "75vh",
-              overflow: "hidden",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="modal-header">
-              <h2>System Diagnostics</h2>
-              <button className="modal-close-btn" onClick={() => setShowDiagnosticsModal(false)} aria-label="Close">
-                <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>close</span>
-              </button>
-            </div>
-            <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-              <DiagnosticsPanel />
-            </div>
+        <Modal
+          title="System Diagnostics"
+          className="wide"
+          onClose={() => setShowDiagnosticsModal(false)}
+          style={{
+            width: "min(800px, 94vw)",
+            height: "75vh",
+            maxHeight: "75vh",
+            overflow: "hidden",
+          }}
+        >
+          <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+            <DiagnosticsPanel />
           </div>
-        </div>
+        </Modal>
       )}
       <ToastContainer
         toasts={toasts}
