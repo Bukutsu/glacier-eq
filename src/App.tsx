@@ -1342,7 +1342,7 @@ function App() {
 
     const handleGlobalWheel = (e: WheelEvent) => {
       const target = e.target as HTMLElement | null;
-      if (!target) return;
+      if (!target || target.closest(".eq-filter-handle")) return;
 
       const workspace = target.closest(".workspace") || target.closest("#app");
       if (!workspace) return;
