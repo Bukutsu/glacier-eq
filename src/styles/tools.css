@@ -191,10 +191,13 @@
 .profile-row.selected .profile-name-btn { color: var(--blue); }
 
 .profile-apply-btn {
-  width: 32px;
+  width: auto;
   min-height: 32px;
   margin-right: 8px;
-  padding: 0;
+  padding: 0 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   color: var(--cyan);
   background: transparent;
   border: 0;
@@ -208,16 +211,26 @@
   background: var(--surface);
 }
 .empty-profiles { color: var(--muted); padding: 12px; font-size: var(--type-label); }
-/* Smart merged input */
-.profile-smart-input-wrap {
+.profile-save-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.profile-save-field > label {
+  color: var(--muted);
+  font-size: var(--type-label);
+}
+
+.profile-name-input-wrap {
   position: relative;
   display: flex;
   align-items: center;
 }
 
-.profile-smart-input-wrap .profile-search {
+.profile-name-input-wrap .profile-search {
   flex: 1;
-  padding-right: 76px; /* make room for badge */
+  padding-right: 76px;
 }
 
 .profile-name-badge {

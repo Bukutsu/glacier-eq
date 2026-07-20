@@ -387,7 +387,7 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
       return null as T;
     }
     case "open_profiles_dir": {
-      alert("Profiles are stored in browser localStorage. You can export/import them using the preset tools.");
+      alert("Profiles are stored in browser localStorage. You can export/import them using the Profile tools.");
       return null as T;
     }
 
