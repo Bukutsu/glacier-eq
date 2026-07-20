@@ -813,6 +813,16 @@
     opacity: 1;
   }
 
+  .mobile-graph-tuning .graph-card {
+    height: clamp(150px, 22dvh, 190px);
+    min-height: 150px;
+  }
+
+  .mobile-graph-tuning .eq-graph-shell,
+  .mobile-graph-tuning .eq-canvas {
+    min-height: 130px;
+  }
+
   .mobile-graph-container.collapsed .graph-card {
     height: 0px !important;
     min-height: 0px !important;
