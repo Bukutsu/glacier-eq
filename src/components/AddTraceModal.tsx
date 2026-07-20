@@ -5,6 +5,7 @@ import { fuzzyMatch } from "../lib/search";
 import { openFileDialog } from "../lib/rpc";
 import { parseMeasurementText } from "../lib/measurements";
 import { useOnlineDatabase, type OnlineDevice } from "../lib/onlineDb";
+import { Modal } from "./Modal";
 
 interface AddTraceModalProps {
   onClose: () => void;
@@ -104,13 +105,7 @@ export function AddTraceModal({
     : manifest.filter((dev) => fuzzyMatch(query, `${dev.brand} ${dev.name}`)).slice(0, 50);
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <section className="modal-content add-trace-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <strong>Add Trace</strong>
-          <button className="modal-close-btn" onClick={onClose}><Icon>close</Icon></button>
-        </div>
-
+    <Modal title="Add Trace" onClose={onClose} className="add-trace-modal">
         <div className="add-trace-section">
           <div className="add-trace-section-title">From File</div>
           <div className="add-trace-file-grid">
@@ -185,8 +180,6 @@ export function AddTraceModal({
               </div>
             )}
         </div>
-
-      </section>
-    </div>
+    </Modal>
   );
 }

@@ -1178,10 +1178,6 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   gap: 0;
 }
 
-.add-trace-modal .modal-header strong {
-  font-size: var(--type-title);
-}
-
 .add-trace-section {
   padding: 12px 16px 0;
   display: flex;
