@@ -366,6 +366,19 @@
   min-height: 40px;
 }
 
+.tools-card .profile-save-as-toggle {
+  align-self: flex-end;
+  min-height: 32px;
+  padding: 0 2px;
+  background: transparent;
+  color: var(--cyan);
+  font-size: var(--type-small);
+}
+
+.profile-save-as-toggle:hover {
+  text-decoration: underline;
+}
+
 .profile-icon-action {
   min-width: 38px;
   width: 38px;
