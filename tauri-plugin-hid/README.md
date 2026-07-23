@@ -1,42 +1,43 @@
-# Tauri Plugin HID
+# Tauri plugin HID
 
-Tauri plugin to provide access to USB HID devices.
+This Tauri plugin provides access to USB HID devices. It uses hidapi-rs on
+macOS, Windows, and Linux, and Android UsbManager on Android.
 
-Uses hidapi-rs on MacOS, Windows and Linux.
+It can:
 
-Uses Android UsbManager on Android.
+* Enumerate devices
+* Open several devices at once
+* Read and write input and output reports
 
-**Features:**
+Current limitations:
 
-*   Enumerate devices
-*   Open multiple devices simultaneously
-*   Read and write input and output reports
-
-**Limitations:**
-
-*   Feature reports not supported yet
-*   Currently only tested on macOS, Windows and Android.
+* Feature reports are not supported yet.
+* The plugin has only been tested on macOS, Windows, and Android.
 
 ## Installation
 
-Install the plugin with cargo:
+Install the plugin with Cargo:
+
 ```sh
 cd src-tauri
 cargo add tauri-plugin-hid
 ```
 
-Alternatively add the dependency directly to Cargo.toml:
+Or add it directly to `Cargo.toml`:
+
 ```toml
 [dependencies]
 tauri-plugin-hid = "0.1.1"
 ```
 
-Install the ts/js api:
+Install the TypeScript/JavaScript API:
+
 ```sh
 npm add @redfernelec/tauri-plugin-hid-api
 ```
 
-Add the plugin to ```src-tauri/src/lib.rs```, for example:
+Register the plugin in `src-tauri/src/lib.rs`:
+
 ```rust
 tauri::Builder::default()
     .plugin(tauri_plugin_opener::init())
@@ -45,7 +46,8 @@ tauri::Builder::default()
     .expect("error while running tauri application");
 ```
 
-Add permisions to ```src-tauri/capabilities/default.json```:
+Add the permission to `src-tauri/capabilities/default.json`:
+
 ```json
 "permissions": [
     "core:default",
@@ -54,9 +56,8 @@ Add permisions to ```src-tauri/capabilities/default.json```:
 ]
 ```
 
-## Example usage in Frontend
+## Frontend example
 
-Basic usage:
 ```typescript
 import { HidDevice, enumerate } from "@redfernelec/tauri-plugin-hid-api";
 
@@ -79,4 +80,5 @@ if(myDevice) {
 }
 ```
 
-An example Vue app is also included in ```examples/tauri-plugin-hid-vue-example```.
+The repository also includes a Vue example in
+`examples/tauri-plugin-hid-vue-example`.

@@ -1,13 +1,15 @@
-# Security Policy
+# Security policy
 
-Glacier EQ communicates with USB DACs over HID. It does not make network requests (outside of the optional online measurement database).
+Glacier EQ communicates with USB DACs over HID. It only makes network requests
+when you use the optional online measurement database.
 
-## Reporting a Vulnerability
+## Reporting a vulnerability
 
-If you find a security issue — particularly anything related to:
+Please report security issues, especially those involving:
 
 - HID command injection or malformed device responses
-- Unsafe file parsing (measurement CSV/TXT imports)
-- Clipboard data leakage
+- Unsafe parsing of measurement CSV or TXT files
+- Clipboard data leaks
 
-Please open a draft security advisory on GitHub or email the maintainer directly. Do not file a public issue for critical vulnerabilities.
+Open a draft security advisory on GitHub or email the maintainer directly. Do
+not open a public issue for a critical vulnerability.

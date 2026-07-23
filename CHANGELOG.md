@@ -4,44 +4,44 @@
 
 ### Added
 
-- Added ability to edit EQ bands directly from the frequency response graph.
-- Added mouse wheel adjustment support for graph bands.
-- Allowed the app to honor specific capabilities of connected DACs (band limits, constraints).
+- EQ bands can now be edited directly from the frequency response graph.
+- Graph bands now respond to mouse wheel adjustments.
+- The app now respects the connected DAC's capabilities, including band limits and constraints.
 
 ### Fixed
 
 - Restored smooth scrolling in the tuning section.
-- Fixed reliable recovery from desktop HID disconnects.
-- Protected editor and device state transitions from race conditions.
+- Fixed recovery after desktop HID disconnects.
+- Prevented race conditions during editor and device state transitions.
 
 ### Changed
 
-- Revamped the UI to simplify the tuning tab layout and align with actual tuning workflows.
-- Unified measurement tuning flow, collapsible sections, and profile save actions.
-- Clarified profile and device states to reduce user confusion.
-- Separated profile search from profile saving workflows.
-- Added guidance for the first-time DAC connection experience.
-- Switched to accessible dialogs and persisted error messages for better visibility.
-- Streamlined desktop tuning workflows and prioritized mobile task content.
+- Reworked the tuning tab around the actual tuning workflow.
+- Combined measurement tuning, collapsible sections, and profile saving into one flow.
+- Made profile and device states clearer.
+- Separated profile search from profile saving.
+- Added instructions for connecting a DAC for the first time.
+- Replaced dialogs with accessible versions and kept error messages visible.
+- Shortened the desktop tuning workflow and moved task content ahead of secondary content on mobile.
 
 ## [0.4.2] - 2026-07-15
 
 ### Added
 
 - Added the offline CLI and shared device architecture.
-- Added Linux polkit/pkexec fallback for USB permissions.
+- Added a Linux polkit/pkexec fallback for USB permissions.
 - Added CLI documentation to the project wiki.
 
 ### Fixed
 
-- Made the Profile Library list scroll when it exceeds the component height.
-- Allowed `@` and other common symbols in profile names.
+- The Profile Library now scrolls when its contents exceed its height.
+- Profile names now accept `@` and other common symbols.
 - Fixed automatic file naming after AutoEQ imports.
-- Applied learning-rate decay during AutoEQ optimization.
+- Added learning rate decay to AutoEQ optimization.
 
 ### Changed
 
-- Refined the mobile UI and Android theme defaults.
+- Adjusted the mobile UI and Android theme defaults.
 - Simplified device and platform integration.
 - Updated the project screenshot and release tooling.
 

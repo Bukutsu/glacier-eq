@@ -1,6 +1,6 @@
 ## Summary
 
-<!-- What does this change do and why? -->
+<!-- What does this change do, and why? -->
 
 Fixes #
 
@@ -9,9 +9,9 @@ Fixes #
 - [ ] Bug fix
 - [ ] New feature
 - [ ] Breaking change
-- [ ] Docs / refactor
+- [ ] Documentation or refactor
 
 ## Checklist
 
 - [ ] `npm run test` passes
-- [ ] Self-reviewed
+- [ ] I reviewed my changes
