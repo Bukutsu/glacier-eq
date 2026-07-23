@@ -9,31 +9,29 @@
   <a href="https://github.com/Bukutsu/glacier-eq/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-GPLv3-blue.svg" alt="License"></a>
 </div>
 
-Cross-platform parametric EQ editor for compatible USB DACs. Glacier EQ talks to
-hardware over HID, edits EQ locally, and works offline.
+Glacier EQ is a cross-platform parametric EQ editor for compatible USB DACs.
+It talks to the hardware over HID, stores edits locally, and works offline.
 
-⚡ **Try the web version directly in your browser:** [bukutsu.github.io/glacier-eq](https://bukutsu.github.io/glacier-eq/)
+Use the web version at [bukutsu.github.io/glacier-eq](https://bukutsu.github.io/glacier-eq/).
 
 <img src="assets/screenshot-main.png" alt="Glacier EQ desktop interface showing EQ graph, filter bands, and profile controls" width="900">
 
 ## Features
 
-- 10-band PEQ editor with preamp, undo/redo, graph preview, and target curves
-- Pull, RAM-apply, push, verify, and rollback EQ on supported DACs
-- Local profiles with search, import/export, copy/paste, and one-tap apply
-- Measurement overlays from files or optional Squiglink offline cache
-- Native AutoEQ matching against measurement and target curves
-- Walkplay/Savitech, Moondrop, and FiiO EQ protocol support
-- Hardware controls for supported Walkplay/Savitech DACs: DAC filter, amp mode,
-  output gain, balance, mic monitor, and reset modes
-- Desktop and Android layouts, themes, diagnostics, and dev dummy DAC
+- 10-band PEQ editor with preamp, undo and redo, graph preview, and target curves
+- Pull, RAM apply, push, verify, and rollback operations for supported DACs
+- Local profiles with search, import and export, copy and paste, and one-tap apply
+- Measurement overlays from local files or an optional offline Squiglink cache
+- Native AutoEQ matching for measurement and target curves
+- EQ protocol support for Walkplay/Savitech, Moondrop, and FiiO devices
+- Hardware controls for supported Walkplay/Savitech DACs, including DAC filter, amp mode, output gain, balance, mic monitor, and reset modes
+- Desktop and Android layouts, themes, diagnostics, and a dummy DAC for development
 
-## Install
+## Installation
 
-Download builds from the
-[releases page](https://github.com/Bukutsu/glacier-eq/releases).
+Download a build from the [releases page](https://github.com/Bukutsu/glacier-eq/releases).
 
-Arch Linux:
+On Arch Linux:
 
 ```sh
 git clone https://github.com/Bukutsu/glacier-eq.git
@@ -41,11 +39,11 @@ cd glacier-eq
 makepkg -si
 ```
 
-The Arch package installs `udev/99-glacier-eq.rules`; after replugging a
-supported DAC, the Linux desktop build can open it directly without the polkit
-elevation popup.
+The Arch package installs `udev/99-glacier-eq.rules`. Replug the DAC after
+installation so the Linux desktop build can open it without a polkit elevation
+prompt.
 
-From source:
+To run from source:
 
 ```sh
 git clone https://github.com/Bukutsu/glacier-eq.git
@@ -56,25 +54,26 @@ npm run tauri dev
 
 ## CLI
 
-Glacier EQ includes a fully offline CLI for scripting, piping profiles, and bulk AutoEQ tasks. 
-Data goes to `stdout`, diagnostics to `stderr`.
+The offline CLI supports scripts, piped profiles, and bulk AutoEQ jobs. It writes
+data to `stdout` and diagnostics to `stderr`.
 
-For the full command reference, syntax, and examples, see the [CLI Documentation](https://github.com/Bukutsu/glacier-eq/wiki/CLI).
+See the [CLI documentation](https://github.com/Bukutsu/glacier-eq/wiki/CLI) for
+commands and examples.
 
-## GUI Usage
+## Using the GUI
 
 1. Plug in a supported DAC.
 2. Open Glacier EQ.
 3. Select the DAC and connect.
 4. Pull the current hardware state.
-5. Edit preamp, bands, filter type, frequency, gain, and Q.
-6. Push changes back to the device.
+5. Edit the preamp, bands, filter type, frequency, gain, and Q.
+6. Push the changes to the device.
 
-## Supported Devices
+## Supported devices
 
-If your DAC appears here, plug it in and check the device picker. `Family match`
-means the USB family looks compatible, but the exact model still needs more
-hardware reports.
+If your DAC is listed below, plug it in and check the device picker. A `Family
+match` means its USB family appears compatible, but the exact model still needs
+more hardware reports.
 
 | Status | Device |
 | --- | --- |
@@ -91,18 +90,17 @@ hardware reports.
 | Testing | FiiO KA Series |
 | Testing | Truthear KEYX |
 
-The app uses one registry for discovery, validation, capabilities, and the
-chooser list:
-[`glacier-core/src/device/walkplay.rs`](glacier-core/src/device/walkplay.rs).
+Discovery, validation, capabilities, and the device picker all use the registry
+in [`glacier-core/src/device/walkplay.rs`](glacier-core/src/device/walkplay.rs).
 
 ## Development
 
-Requirements:
+You will need:
 
 - Node.js and npm
 - Rust
 - Tauri v2 platform dependencies
-- USB/HID permissions for real hardware testing
+- USB/HID permissions to test real hardware
 
 Useful commands:
 
@@ -114,13 +112,13 @@ cargo check              # Rust workspace
 cargo test -p glacier-core
 ```
 
-Optional local guard before pushing:
+To enable the optional local check before pushing:
 
 ```sh
 git config core.hooksPath .githooks
 ```
 
-Android:
+Android commands:
 
 ```sh
 npm run android:doctor
@@ -142,18 +140,22 @@ Release APK signing is not configured by default.
 - [x] Command-line profile tools
 - [ ] Multi-device support
 - [ ] Localization
-## Linux HID Permissions
 
-On Linux, Chromium-based browsers and the desktop build can need udev access to
-raw USB HID devices. Installing the packaged `udev/99-glacier-eq.rules` lets the
-desktop build skip the polkit elevation popup. If you see a `NotAllowedError:
-Failed to open the device` error when connecting in the browser:
+## Linux HID permissions
+
+On Linux, Chromium-based browsers and the desktop build may need udev access to
+raw USB HID devices. The packaged `udev/99-glacier-eq.rules` lets the desktop
+build open supported devices without a polkit elevation prompt. If the browser
+shows `NotAllowedError: Failed to open the device` while connecting:
 
 1. Create a udev rule file:
+
    ```sh
    sudo nano /etc/udev/rules.d/50-glacier-dac.rules
    ```
-2. Paste the following rule to allow access to compatible DACs:
+
+2. Add these rules for compatible DACs:
+
    ```text
    # Walkplay / FiiO / Moondrop / EPZ DACs
    KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="3302", MODE="0666", TAG+="uaccess", TAG+="udev-acl"
@@ -166,15 +168,18 @@ Failed to open the device` error when connecting in the browser:
    KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="31b2", MODE="0666", TAG+="uaccess", TAG+="udev-acl"
    KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0d8c", MODE="0666", TAG+="uaccess", TAG+="udev-acl"
    ```
-3. Reload udev rules and replug the device:
+
+3. Reload the udev rules, then replug the device:
+
    ```sh
    sudo udevadm control --reload-rules
    sudo udevadm trigger
    ```
-   *Note: If you use the Chromium Flatpak or Snap version, you might also need to allow USB access in your sandbox permissions manager (e.g. Flatseal).*
 
-## Project Layout
+Chromium Flatpak and Snap installations may also need USB access enabled in the
+sandbox permissions manager, such as Flatseal.
 
+## Project layout
 
 ```text
 glacier-core/       Rust EQ and device logic
@@ -195,4 +200,4 @@ scripts/            Helper scripts
 
 ## License
 
-GPL-3.0-only. See [LICENSE](LICENSE).
+Glacier EQ is licensed under GPL-3.0-only. See [LICENSE](LICENSE).

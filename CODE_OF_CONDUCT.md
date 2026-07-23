@@ -1,40 +1,39 @@
-# Contributor Covenant Code of Conduct
+# Contributor Covenant code of conduct
 
-## Our Pledge
+## Our pledge
 
-We as members, contributors, and leaders pledge to make participation in our
-community a harassment-free experience for everyone, regardless of age, body
-size, visible or invisible disability, ethnicity, sex characteristics, gender
-identity and expression, level of experience, education, socio-economic status,
-nationality, personal appearance, race, religion, or sexual identity
-and orientation.
+We, as members, contributors, and leaders, pledge to make participation in our
+community free from harassment for everyone, regardless of age, body size,
+visible or invisible disability, ethnicity, sex characteristics, gender identity
+and expression, experience, education, socioeconomic status, nationality,
+personal appearance, race, religion, sexual identity, or sexual orientation.
 
-## Our Standards
+## Our standards
 
-Examples of behavior that contributes to a positive environment:
+We expect community members to:
 
-* Demonstrating empathy and kindness toward other people
-* Being respectful of differing opinions, viewpoints, and experiences
-* Giving and gracefully accepting constructive feedback
-* Accepting responsibility and apologizing to those affected by our mistakes
-* Focusing on what is best for the overall community
+* Treat other people with empathy and kindness
+* Respect different opinions, viewpoints, and experiences
+* Give and accept constructive feedback gracefully
+* Take responsibility for mistakes and apologize to the people affected
+* Put the community's interests first
 
-Examples of unacceptable behavior:
+Unacceptable behavior includes:
 
-* The use of sexualized language or imagery, and sexual attention or advances
-* Trolling, insulting or derogatory comments, and personal or political attacks
+* Sexualized language or imagery, sexual attention, or advances
+* Trolling, insults, derogatory comments, or personal and political attacks
 * Public or private harassment
-* Publishing others' private information without explicit permission
-* Other conduct which could reasonably be considered inappropriate in a professional setting
+* Publishing someone's private information without their explicit permission
+* Conduct that would reasonably be considered inappropriate in a professional setting
 
 ## Enforcement
 
-Project maintainers are responsible for clarifying and enforcing our standards.
-Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported to the project maintainers. All complaints will be reviewed and
-investigated promptly and fairly.
+Project maintainers are responsible for explaining and enforcing these standards.
+Report abusive, harassing, or otherwise unacceptable behavior to the project
+maintainers. Maintainers will review and investigate every complaint promptly
+and fairly.
 
 ## Attribution
 
-This Code of Conduct is adapted from the [Contributor Covenant](https://www.contributor-covenant.org),
-version 2.1.
+This code of conduct is adapted from version 2.1 of the
+[Contributor Covenant](https://www.contributor-covenant.org).
