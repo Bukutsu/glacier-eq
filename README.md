@@ -95,16 +95,33 @@ in [`glacier-core/src/device/walkplay.rs`](glacier-core/src/device/walkplay.rs).
 
 ## Development
 
-You will need:
+### System dependencies
 
-- Node.js and npm
-- Rust
-- Tauri v2 platform dependencies
-- USB/HID permissions to test real hardware
+Building the Tauri desktop app on Linux requires GTK 3, WebKitGTK, `pkg-config`, and related build tools.
 
-Useful commands:
+**Debian / Ubuntu**
 
 ```sh
+sudo apt update
+sudo apt install -y build-essential curl wget file libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev pkg-config
+```
+
+**Arch Linux**
+
+```sh
+sudo pacman -S --needed base-devel curl wget file openssl gtk3 webkit2gtk-4.1 libappindicator-gtk3 librsvg pkg-config
+```
+
+**Fedora**
+
+```sh
+sudo dnf install @development-tools webkit2gtk4.1-devel openssl-devel curl wget file libappindicator-gtk3-devel librsvg2-devel gtk3-devel pkgconf-pkg-config
+```
+
+### Useful commands:
+
+```sh
+npm run wasm:build       # build WASM module (glacier-core)
 npm run dev              # frontend only
 npm run tauri dev        # desktop app
 npm run build            # TypeScript + Vite
