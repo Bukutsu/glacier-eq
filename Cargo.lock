@@ -1169,7 +1169,6 @@ dependencies = [
  "glacier-core",
  "hidapi",
  "libc",
- "log",
  "serde",
  "serde_json",
  "tauri",

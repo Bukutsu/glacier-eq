@@ -11,7 +11,6 @@ pub fn init<R: Runtime, C: DeserializeOwned>(
 ) -> crate::Result<Hid<R>> {
     Ok(Hid {
         hid_api: Mutex::new(HidApi::new().expect("Could not create HidApi instance")),
-        device_list: Mutex::new(HashMap::new()),
         open_devices: Mutex::new(HashMap::new()),
         _phantom: PhantomData,
     })
@@ -20,24 +19,17 @@ pub fn init<R: Runtime, C: DeserializeOwned>(
 /// Access to the hid APIs.
 pub struct Hid<R: Runtime> {
     hid_api: Mutex<HidApi>,
-    device_list: Mutex<HashMap<String, hidapi::DeviceInfo>>,
     open_devices: Mutex<HashMap<String, hidapi::HidDevice>>,
     _phantom: PhantomData<fn() -> R>,
 }
 
 impl<R: Runtime> Hid<R> {
     pub fn enumerate(&self) -> crate::Result<Vec<crate::HidDeviceInfo>> {
-        let mut device_list = self.device_list.lock().unwrap();
         let mut hid_api = self.hid_api.lock().unwrap();
 
-        device_list.clear();
         hid_api.refresh_devices()?;
-        for device in hid_api.device_list() {
-            device_list.insert(device.path().to_string_lossy().to_string(), device.clone());
-        }
-
-        Ok(device_list
-            .values()
+        let devices = hid_api
+            .device_list()
             .map(|device| crate::HidDeviceInfo {
                 path: device.path().to_string_lossy().to_string(),
                 product_id: device.product_id(),
@@ -47,22 +39,21 @@ impl<R: Runtime> Hid<R> {
                 serial_number: device.serial_number().map(str::to_owned),
                 release_number: device.release_number(),
             })
-            .collect())
+            .collect();
+
+        Ok(devices)
     }
 
     pub fn open(&self, path: &str) -> crate::Result<()> {
         let hid_api = self.hid_api.lock().unwrap();
-        let device_list = self.device_list.lock().unwrap();
         let mut open_devices = self.open_devices.lock().unwrap();
 
-        let device = device_list
-            .get(path)
-            .ok_or(crate::Error::HidDeviceNotFound)?;
         if open_devices.contains_key(path) {
             return Err(crate::Error::HidDeviceAlreadyOpen);
         }
 
-        let open_device = device.open_device(&hid_api)?;
+        let c_path = std::ffi::CString::new(path).map_err(|_| crate::Error::HidDeviceNotFound)?;
+        let open_device = hid_api.open_path(&c_path)?;
         open_devices.insert(path.to_string(), open_device);
         Ok(())
     }
@@ -90,7 +81,7 @@ impl<R: Runtime> Hid<R> {
             Some(device) => device,
             None => return Err(crate::Error::HidDeviceNotFoundInOpenDevices),
         };
-        let mut buffer = vec![0; 64];
+        let mut buffer = vec![0; 1024];
         let len = device.read_timeout(&mut buffer, timeout)?;
         buffer.truncate(len);
         Ok(buffer)

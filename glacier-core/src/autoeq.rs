@@ -655,7 +655,10 @@ fn largest_peak(x: &[f32; K], f: &[f32; K], lim: Lim) -> Peak {
 
         let mut left_ip = idx as f32;
         if x[idx] < height && idx + 1 < K {
-            left_ip += (height - x[idx]) / (x[idx + 1] - x[idx]);
+            let denom = x[idx + 1] - x[idx];
+            if denom.abs() > 1e-6 {
+                left_ip += (height - x[idx]) / denom;
+            }
         }
 
         idx = peak;
@@ -665,7 +668,10 @@ fn largest_peak(x: &[f32; K], f: &[f32; K], lim: Lim) -> Peak {
 
         let mut right_ip = idx as f32;
         if x[idx] < height && idx > 0 {
-            right_ip -= (height - x[idx]) / (x[idx - 1] - x[idx]);
+            let denom = x[idx - 1] - x[idx];
+            if denom.abs() > 1e-6 {
+                right_ip -= (height - x[idx]) / denom;
+            }
         }
 
         let width = right_ip - left_ip;

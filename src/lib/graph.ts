@@ -11,18 +11,22 @@ const logMax = Math.log10(20000);
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
 export function freqToX(freq: number, width: number): number {
+  if (width <= 0) return 0;
   return ((Math.log10(clamp(freq, 20, 20000)) - logMin) / (logMax - logMin)) * width;
 }
 
 export function xToFreq(x: number, width: number): number {
+  if (width <= 0) return 20;
   return 10 ** (logMin + (x / width) * (logMax - logMin));
 }
 
 export function dbToY(db: number, height: number): number {
+  if (height <= 0) return 0;
   return (1 - (clamp(db, -18, 18) + 18) / 36) * height;
 }
 
 export function yToDb(y: number, height: number): number {
+  if (height <= 0) return 0;
   return (1 - clamp(y, 0, height) / height) * 36 - 18;
 }
 
