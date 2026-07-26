@@ -28,6 +28,10 @@ fn compute_biquad_coeffs_for(
     q: f64,
     dsp_sample_rate: f64,
 ) -> (f64, f64, f64, f64, f64, f64) {
+    if dsp_sample_rate <= 0.0 {
+        return (1.0, 0.0, 0.0, 1.0, 0.0, 0.0);
+    }
+    let q = q.clamp(0.01, 100.0);
     // Clamp the frequency to at most 49% of the sample rate to prevent Nyquist boundary collapse
     let max_safe_freq = 0.49 * dsp_sample_rate;
     let freq = frequency.clamp(20.0, max_safe_freq);
@@ -114,6 +118,9 @@ fn response_db(
     freq: f64,
     dsp_sample_rate: f64,
 ) -> f32 {
+    if dsp_sample_rate <= 0.0 {
+        return 0.0;
+    }
     let omega = freq * TAU / dsp_sample_rate;
     let (sin_w, cos_w) = omega.sin_cos();
     let sin_2w = 2.0 * sin_w * cos_w;
