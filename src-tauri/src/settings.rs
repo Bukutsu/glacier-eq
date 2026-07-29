@@ -6,12 +6,6 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 
-#[cfg(target_os = "android")]
-fn default_theme() -> String {
-    "tokyo-night".to_string()
-}
-
-#[cfg(not(target_os = "android"))]
 fn default_theme() -> String {
     "tokyo-night".to_string()
 }
