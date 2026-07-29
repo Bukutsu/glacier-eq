@@ -21,9 +21,3 @@ serde-wasm-bindgen = "0.6"
 name = "glacier_core"
 crate-type = ["cdylib", "rlib"]
 
-[profile.release]
-opt-level = "z"
-lto = true
-codegen-units = 1
-panic = "abort"
-
