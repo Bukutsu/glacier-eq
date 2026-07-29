@@ -885,7 +885,7 @@ fn grad(c: &Consts, x: &[f32], g: &mut [f32]) -> f32 {
     pred.fill(pred_init);
 
     for n in 0..n_bands {
-        let f0 = x_lf[n].exp();
+        let f0 = x_lf[n].exp().min(0.49 * c.fs);
         let gain = x_gain[n];
         let bw = x_bw[n];
 
@@ -922,7 +922,8 @@ fn grad(c: &Consts, x: &[f32], g: &mut [f32]) -> f32 {
             let b_poly = b_x0 + phi_k * (b_x1 + phi_k * b_x2);
             let a_poly = a_x0 + phi_k * (a_x1 + phi_k * a_x2);
 
-            pred[k] *= b_poly / a_poly;
+            let ratio = if a_poly > 1e-30 { b_poly / a_poly } else { 1.0 };
+            pred[k] = (pred[k] * ratio).clamp(1e-30, 1e30);
 
             let _8phi2 = 8.0 * phi_k * phi_k;
             let _2phi = 2.0 * phi_k;
@@ -1025,7 +1026,7 @@ impl AdaBelief {
             b1t: 0.9,
             b2t: 0.99,
             eps: 1e-12,
-            eps_root: 1e-12,
+            eps_root: 1e-8,
             lr: 3e-2,
             n_bands,
         }
@@ -1069,10 +1070,11 @@ fn fit(
     let mut lf_lim = [Lim { lo: 0.0, hi: 0.0 }; MAX_N];
     let mut bw_lim = [Lim { lo: 0.0, hi: 0.0 }; MAX_N];
 
+    let max_f0 = 0.49 * fs;
     for n in 0..n_bands {
         lf_lim[n] = Lim {
             lo: f0_lim[n].lo.ln(),
-            hi: f0_lim[n].hi.ln(),
+            hi: f0_lim[n].hi.min(max_f0).ln(),
         };
         bw_lim[n] = Lim {
             lo: q_to_bw(q_lim[n].hi),
@@ -1094,7 +1096,7 @@ fn fit(
         let (x_bw, x_amp) = x_rest.split_at_mut(n_bands);
 
         for n in 0..n_bands {
-            x_lf[n] = f0[n].ln();
+            x_lf[n] = f0[n].min(max_f0).ln();
             x_gain[n] = gain[n];
             x_bw[n] = q_to_bw(q_vals[n]);
         }
@@ -1151,7 +1153,7 @@ fn fit(
     let (best_bw, best_amp) = best_rest.split_at(n_bands);
 
     for n in 0..n_bands {
-        f0[n] = best_lf[n].exp();
+        f0[n] = best_lf[n].exp().min(0.49 * fs);
         gain[n] = best_gain[n];
         q_vals[n] = bw_to_q(best_bw[n]);
     }
@@ -1791,5 +1793,17 @@ Filter 8: ON HSC Fc 7624 Hz Gain 0.59 dB Q 3.000";
         let text2 = "# Sennheiser HD 600\nPreamp: -3 dB";
         let (_, name2, _) = parse_autoeq_text(text2).unwrap();
         assert_eq!(name2, Some("Sennheiser HD 600".to_string()));
+    }
+
+    #[test]
+    fn test_autoeq_nyquist_clamping_and_accumulation_stability() {
+        let measurement = [(20.0, 0.0), (20_000.0, 0.0)];
+        let target = [(20.0, 5.0), (20_000.0, -5.0)];
+        let result = run_autoeq(&measurement, &target, 10, 50, "none", 44_100.0).unwrap();
+        for filter in &result.filters {
+            assert!((filter.freq as f32) <= 0.49 * 44_100.0);
+            assert!(filter.gain.is_finite());
+            assert!(filter.q.is_finite());
+        }
     }
 }
