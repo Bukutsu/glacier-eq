@@ -18,16 +18,6 @@ import {
   buildDevDummyPeq,
   isDevDummyDevice,
 } from "./lib/devDevice";
-import {
-  makeMeasurementName,
-  nextMeasurementColor,
-  normalizeMeasurementPoints,
-} from "./lib/measurements";
-import {
-  getBuiltInTargets,
-  makeTargetName,
-  resolveTargetColor,
-} from "./lib/targetReferences";
 import { buildDefaultState, normalizePeq, peqEquals } from "./lib/peq";
 import { isTauri } from "./lib/platform";
 import type {
@@ -35,14 +25,14 @@ import type {
   DeviceInfo,
   Filter,
   GraphViewMode,
-  MeasurementTrace,
   PEQData,
   Profile,
-  TargetTrace,
   OperationProgress,
   AppSettings,
 } from "./types";
 import { ToastContainer, type Toast } from "./components/Toast";
+import { useThemeSync } from "./hooks/useThemeSync";
+import { useTraces } from "./hooks/useTraces";
 
 const ANDROID_TOAST_DEDUPE_MS = 2000;
 const OFFLINE_EDITOR_CAPABILITIES: DeviceCapabilities = {
@@ -64,27 +54,6 @@ const DEFAULT_SETTINGS: AppSettings = {
   enable_online_measurements: false,
   snap_to_iso_frequencies: true,
 };
-
-function usePersistedJson(key: string, value: unknown, delayMs = 0) {
-  useEffect(() => {
-    const save = () => window.localStorage.setItem(key, JSON.stringify(value));
-    if (delayMs <= 0) {
-      save();
-      return;
-    }
-    const timer = window.setTimeout(save, delayMs);
-    return () => window.clearTimeout(timer);
-  }, [key, value, delayMs]);
-}
-
-function loadPersistedJson<T>(key: string): T | null {
-  try {
-    const saved = window.localStorage.getItem(key);
-    return saved ? JSON.parse(saved) as T : null;
-  } catch {
-    return null;
-  }
-}
 
 declare global {
   interface Window {
@@ -140,7 +109,7 @@ function App() {
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const theme = settings.theme;
   const snapToIso = settings.snap_to_iso_frequencies;
-  const [resolvedTheme, setResolvedTheme] = useState("tokyo-night");
+  const resolvedTheme = useThemeSync(theme);
 
   const updateSetting = useCallback(<K extends keyof AppSettings>(
     key: K,
@@ -156,86 +125,6 @@ function App() {
       return updated;
     });
   }, []);
-
-  useEffect(() => {
-    const applyTheme = async () => {
-      let resolved = theme;
-
-      if (theme === "auto") {
-        let prefersDark = window.matchMedia(
-          "(prefers-color-scheme: dark)",
-        ).matches;
-
-        if (!isAndroid && isTauri()) {
-          try {
-            const { getCurrentWindow } =
-              await import("@tauri-apps/api/window");
-            const appWindow = getCurrentWindow();
-            const tauriTheme = await appWindow.theme();
-            if (tauriTheme === "dark") {
-              prefersDark = true;
-            } else if (tauriTheme === "light") {
-              prefersDark = false;
-            }
-          } catch (e) {
-            console.error("Failed to query Tauri window theme:", e);
-          }
-        }
-        resolved = prefersDark ? "tokyo-night" : "catppuccin-latte";
-      }
-      setResolvedTheme(resolved);
-      document.documentElement.setAttribute("data-theme", resolved);
-    };
-
-    applyTheme();
-
-    const cleanups: (() => void)[] = [];
-
-    // 1. Web media query listener
-    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-    const handleMediaChange = () => {
-      applyTheme();
-    };
-    mediaQuery.addEventListener("change", handleMediaChange);
-    cleanups.push(() =>
-      mediaQuery.removeEventListener("change", handleMediaChange),
-    );
-
-    // 2. Tauri window theme change listener (for instant system theme events)
-    if (theme === "auto" && isTauri()) {
-      let active = true;
-      let tauriUnlisten: (() => void) | null = null;
-
-      (async () => {
-        try {
-          const { getCurrentWindow } = await import("@tauri-apps/api/window");
-          const appWindow = getCurrentWindow();
-          if (!active) return;
-          const unlisten = await appWindow.onThemeChanged(() => {
-            applyTheme();
-          });
-          if (!active) {
-            unlisten();
-          } else {
-            tauriUnlisten = unlisten;
-          }
-        } catch (e) {
-          console.error("Failed to listen to Tauri theme change:", e);
-        }
-      })();
-
-      cleanups.push(() => {
-        active = false;
-        if (tauriUnlisten) {
-          tauriUnlisten();
-        }
-      });
-    }
-
-    return () => {
-      cleanups.forEach((cleanup) => cleanup());
-    };
-  }, [theme]);
 
   useEffect(() => {
     if (!isTauri()) return;
@@ -358,18 +247,21 @@ function App() {
   const [selectedPreset, setSelectedPreset] = useState(DEFAULT_PROFILE_NAME);
   const [profileSearch, setProfileSearch] = useState("");
   const [newProfileName, setNewProfileName] = useState("");
-  const [measurements, setMeasurements] = useState<MeasurementTrace[]>([]);
-  const builtInTargets = useMemo(getBuiltInTargets, []);
-  const [userTargets, setUserTargets] = useState<TargetTrace[]>([]);
-  const allTargets = useMemo(
-    () => [...builtInTargets, ...userTargets],
-    [builtInTargets, userTargets],
-  );
-  const [activeTargetIds, setActiveTargetIds] = useState<string[]>([]);
-  const activeTargets = useMemo(
-    () => allTargets.filter((target) => activeTargetIds.includes(target.id)),
-    [activeTargetIds, allTargets],
-  );
+  const {
+    measurements,
+    allTargets,
+    activeTargetIds,
+    activeTargets,
+    selectedMeasurementId,
+    setSelectedMeasurementId,
+    addMeasurement,
+    removeMeasurement,
+    toggleMeasurement,
+    clearMeasurements,
+    toggleTarget,
+    addTarget,
+    removeTarget,
+  } = useTraces();
   const [graphViewMode, setGraphViewMode] = useState<GraphViewMode>(() =>
     window.localStorage.getItem("glacier-graph-view-mode") === "level"
       ? "level"
@@ -380,70 +272,12 @@ function App() {
   const peqRef = useRef(peq);
   const eqOperationInFlightRef = useRef(false);
   const [lastPushedPeq, setLastPushedPeq] = useState<PEQData | null>(null);
-  const [selectedMeasurementId, setSelectedMeasurementId] = useState<string | null>(null);
   const [activeBandIndex, setActiveBandIndex] = useState<number | null>(null);
   const [isScrolledDown, setIsScrolledDown] = useState(false);
 
   useEffect(() => {
     peqRef.current = peq;
   }, [peq]);
-
-  useEffect(() => {
-    const saved = loadPersistedJson<any[]>("glacier-measurements");
-    if (!Array.isArray(saved)) return;
-
-    setMeasurements(
-      saved
-        .filter(
-          (trace): trace is MeasurementTrace =>
-            trace &&
-            typeof trace.id === "string" &&
-            typeof trace.name === "string" &&
-            typeof trace.color === "string" &&
-            typeof trace.visible === "boolean" &&
-            Array.isArray(trace.points),
-        )
-        .map((trace) => ({
-          ...trace,
-          points: normalizeMeasurementPoints(trace.points),
-        })),
-    );
-  }, []);
-
-  usePersistedJson("glacier-measurements", measurements, 300);
-
-  useEffect(() => {
-    const savedTargets = loadPersistedJson<any[]>("glacier-user-targets");
-    if (Array.isArray(savedTargets)) {
-      setUserTargets(
-        savedTargets
-          .filter(
-            (target): target is TargetTrace =>
-              target &&
-              typeof target.id === "string" &&
-              typeof target.name === "string" &&
-              typeof target.color === "string" &&
-              Array.isArray(target.points),
-          )
-          .map((target) => ({
-            ...target,
-            builtIn: false,
-            points: normalizeMeasurementPoints(target.points),
-          })),
-      );
-    }
-
-    const savedActiveIds = loadPersistedJson<any[]>("glacier-active-targets");
-    if (
-      Array.isArray(savedActiveIds) &&
-      savedActiveIds.every((id) => typeof id === "string")
-    ) {
-      setActiveTargetIds(savedActiveIds);
-    }
-  }, []);
-
-  usePersistedJson("glacier-user-targets", userTargets, 300);
-  usePersistedJson("glacier-active-targets", activeTargetIds);
 
   useEffect(() => {
     window.localStorage.setItem("glacier-graph-view-mode", graphViewMode);
@@ -1158,70 +992,6 @@ function App() {
     setSelectedPreset(DEFAULT_PROFILE_NAME);
     setDirty(true);
   }, [pushToUndoStack]);
-
-  const addMeasurement = useCallback(
-    (name: string, points: MeasurementTrace["points"]) => {
-      setMeasurements((current) => [
-        ...current,
-        {
-          id: `${Date.now()}-${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)}`,
-          name: makeMeasurementName(name, current),
-          color: nextMeasurementColor(current),
-          visible: true,
-          points: normalizeMeasurementPoints(points),
-        },
-      ]);
-    },
-    [],
-  );
-
-  const removeMeasurement = useCallback((id: string) => {
-    setMeasurements((current) => current.filter((trace) => trace.id !== id));
-  }, []);
-
-  const toggleMeasurement = useCallback((id: string) => {
-    setMeasurements((current) =>
-      current.map((trace) =>
-        trace.id === id ? { ...trace, visible: !trace.visible } : trace,
-      ),
-    );
-  }, []);
-
-  const clearMeasurements = useCallback(() => {
-    setMeasurements([]);
-  }, []);
-
-  const toggleTarget = useCallback((id: string) => {
-    setActiveTargetIds((current) =>
-      current.includes(id)
-        ? current.filter((targetId) => targetId !== id)
-        : [...current, id],
-    );
-  }, []);
-
-  const addTarget = useCallback(
-    (name: string, points: TargetTrace["points"]) => {
-      setUserTargets((current) => {
-        const nextTarget = {
-          id: `user-target:${Date.now()}-${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)}`,
-          name: makeTargetName(name, [...builtInTargets, ...current]),
-          color: resolveTargetColor(builtInTargets.length + current.length),
-          builtIn: false,
-          points: normalizeMeasurementPoints(points),
-        };
-        setActiveTargetIds((activeIds) => [...activeIds, nextTarget.id]);
-        return [...current, nextTarget];
-      });
-    },
-    [builtInTargets],
-  );
-
-  const removeTarget = useCallback((id: string) => {
-    setUserTargets((current) => current.filter((target) => target.id !== id));
-    setActiveTargetIds((current) =>
-      current.filter((targetId) => targetId !== id),
-    );
-  }, []);
 
   const handleOpenDeviceModal = useCallback(() => setShowDeviceModal(true), []);
   const handleCloseDeviceModal = useCallback(() => {
