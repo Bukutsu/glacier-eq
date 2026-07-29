@@ -99,15 +99,24 @@ impl ElevatedTransport {
             .and_then(|_| self.stdin.flush())
             .map_err(|e| format!("IPC write: {e}"))?;
 
-        let mut resp_line = String::new();
-        self.stdout
-            .read_line(&mut resp_line)
-            .map_err(|e| format!("IPC read: {e}"))?;
+        loop {
+            let mut resp_line = String::new();
+            let n = self
+                .stdout
+                .read_line(&mut resp_line)
+                .map_err(|e| format!("IPC read: {e}"))?;
 
-        let resp: IpcResponse = serde_json::from_str(&resp_line)
-            .map_err(|e| format!("IPC parse: {e} (raw: {resp_line:?})"))?;
+            if n == 0 {
+                return Err("IPC read: EOF".to_string());
+            }
 
-        Ok(resp.payload)
+            let resp: IpcResponse = serde_json::from_str(&resp_line)
+                .map_err(|e| format!("IPC parse: {e} (raw: {resp_line:?})"))?;
+
+            if resp.id == msg.id {
+                return Ok(resp.payload);
+            }
+        }
     }
 
     pub fn open(&mut self, path: &str) -> Result<(), String> {
