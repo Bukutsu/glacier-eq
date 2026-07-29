@@ -71,6 +71,7 @@ impl From<FilterType> for u8 {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct Filter {
     pub index: u8,
     pub enabled: bool,
@@ -102,6 +103,7 @@ impl Filter {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+#[serde(deny_unknown_fields)]
 pub struct PEQData {
     pub filters: Vec<Filter>,
     #[serde(rename = "globalGain", alias = "global_gain")]

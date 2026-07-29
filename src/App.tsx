@@ -250,7 +250,7 @@ function App() {
     toggleTarget,
     addTarget,
     removeTarget,
-  } = useTraces();
+  } = useTraces(showToast);
   const [graphViewMode, setGraphViewMode] = useState<GraphViewMode>(() =>
     window.localStorage.getItem("glacier-graph-view-mode") === "level"
       ? "level"
