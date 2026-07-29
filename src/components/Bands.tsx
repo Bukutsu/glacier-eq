@@ -1,4 +1,4 @@
-import { type CSSProperties, type ReactNode, useState } from "react";
+import { memo, type CSSProperties, type ReactNode, useState } from "react";
 import type { DeviceCapabilities, Filter, FilterType, PEQData } from "../types";
 import { Icon } from "./Icon";
 import { Slider } from "./Slider";
@@ -68,7 +68,7 @@ async function constrainFreq(freq: number, range: [number, number], snapToIso?: 
   return clamp(snapToIso ? await snapFreqToIso(constrained) : constrained, range);
 }
 
-export function Bands({ peq, committedPeq, capabilities, onFilterChange, onStartChange, activeBandIndex, onActiveBandChange, snapToIso }: BandsProps) {
+export const Bands = memo(function Bands({ peq, committedPeq, capabilities, onFilterChange, onStartChange, activeBandIndex, onActiveBandChange, snapToIso }: BandsProps) {
   const availableFilters = peq.filters.slice(0, capabilities.num_bands);
   const visibleFilters = availableFilters.filter((filter) => filter.enabled);
   const canAddFilter = visibleFilters.length < availableFilters.length;
@@ -186,7 +186,7 @@ export function Bands({ peq, committedPeq, capabilities, onFilterChange, onStart
       )}
     </div>
   );
-}
+});
 
 function BandRow({
   filter,

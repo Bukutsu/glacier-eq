@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, Fragment, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
+import { memo, useCallback, useEffect, useRef, Fragment, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
 import { dbToY, filterResponseValues, formatFreq, freqToX, peqResponseValues, snapFreqToIso, xToFreq, yToDb } from "../lib/graph";
 import { cssVar, rgbWithAlpha } from "../lib/theme";
 import { interpolateMeasurementDb } from "../lib/measurements";
@@ -29,7 +29,7 @@ function lerpPeq(a: PEQData, b: PEQData, t: number): PEQData {
   };
 }
 
-export function EqGraph({
+export const EqGraph = memo(function EqGraph({
   peq,
   committedPeq,
   selectedMeasurementId,
@@ -369,7 +369,7 @@ export function EqGraph({
       )}
     </div>
   );
-}
+});
 
 function drawBackground(ctx: CanvasRenderingContext2D, width: number, height: number) {
   ctx.clearRect(0, 0, width, height);
