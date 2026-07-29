@@ -1360,7 +1360,7 @@ pub fn interpolate_curve(points: &[(f64, f64)], freqs: &[f32; K]) -> [f32; K] {
     }
 
     let mut sorted = points.to_vec();
-    sorted.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+    sorted.sort_by(|a, b| a.0.total_cmp(&b.0));
 
     let n = sorted.len();
     let lx: Vec<f64> = sorted.iter().map(|p| p.0.ln()).collect();

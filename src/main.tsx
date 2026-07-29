@@ -1,5 +1,7 @@
+import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import "./styles/base.css";
 import "./styles/header.css";
 import "./styles/layout.css";
@@ -54,5 +56,9 @@ if (import.meta.env.PROD) {
 }
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
-  <App />
+  <React.StrictMode>
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
+  </React.StrictMode>
 );
