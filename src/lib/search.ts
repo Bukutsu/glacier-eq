@@ -20,8 +20,8 @@ export function fuzzyMatch(query: string, target: string): boolean {
 /** True if every character of `chars` appears in `target` in order. */
 function isSubsequence(chars: string, target: string): boolean {
   let ti = 0;
-  for (let ci = 0; ci < chars.length; ci++) {
-    ti = target.indexOf(chars[ci], ti);
+  for (const char of chars) {
+    ti = target.indexOf(char, ti);
     if (ti === -1) return false;
     ti++;
   }
