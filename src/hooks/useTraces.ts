@@ -124,7 +124,7 @@ export function useTraces(notify?: (message: string) => void) {
 
     // Prune active ids that no longer reference an existing target.
     const existingTargetIds = new Set(
-      [...builtInTargets, ...loadedUserTargets].map((target) => target.id),
+      loadedUserTargets.map((target) => target.id),
     );
     const savedActiveIds = loadPersistedJson<any[]>("glacier-active-targets", notify);
     if (
@@ -133,7 +133,7 @@ export function useTraces(notify?: (message: string) => void) {
     ) {
       setActiveTargetIds(savedActiveIds.filter((id) => existingTargetIds.has(id)));
     }
-  }, [notify, builtInTargets]);
+  }, [notify]);
 
   usePersistedJson("glacier-user-targets", userTargets, 300);
   usePersistedJson("glacier-active-targets", activeTargetIds);
