@@ -1241,7 +1241,7 @@ function DeviceTab({ setStatus, onPull }: { setStatus: (msg: string) => void; on
     if (!confirm("Are you sure you want to perform a factory reset? This will restore default settings.")) return;
     try {
       await invoke("execute_factory_reset");
-      const data = await invoke<any>("get_dac_utility_state");
+      const data = await invoke<DeviceUtilityState>("get_dac_utility_state");
       setUtility(data);
       if (onPull) {
         await onPull();

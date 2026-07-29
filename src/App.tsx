@@ -20,6 +20,7 @@ import {
 } from "./lib/devDevice";
 import { buildDefaultState, normalizePeq, peqEquals } from "./lib/peq";
 import { isTauri } from "./lib/platform";
+import { isDisconnectionError } from "./lib/errors";
 import type {
   DeviceCapabilities,
   DeviceInfo,
@@ -66,18 +67,6 @@ declare global {
 const MOBILE_QUERY = "(max-width: 850px)";
 const DEVICE_ONBOARDING_KEY = "glacier-device-onboarding-seen";
 
-const isDisconnectionError = (error: any): boolean => {
-  const errStr = String(error).toLowerCase();
-  return (
-    errStr.includes("device disconnected") ||
-    errStr.includes("disconnected") ||
-    errStr.includes("no device connected") ||
-    errStr.includes("no supported dac connected") ||
-    errStr.includes("no such device") ||
-    errStr.includes("device not open") ||
-    errStr.includes("no longer exists")
-  );
-};
 
 function App() {
   const [isMobile, setIsMobile] = useState(
