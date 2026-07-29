@@ -99,7 +99,7 @@ impl EqProtocol for MoondropProtocol {
         payload[27..29].copy_from_slice(&filter.freq.to_le_bytes());
         payload[29..31].copy_from_slice(&((filter.q * 256.0).round() as u16).to_le_bytes());
         payload[31..33].copy_from_slice(&((gain * 256.0).round() as i16).to_le_bytes());
-        payload[33] = filter_type_code(filter.filter_type);
+        payload[33] = u8::from(filter.filter_type);
 
         let mut trigger = vec![0; 63];
         trigger[0] = 0x01;
@@ -131,14 +131,6 @@ impl EqProtocol for MoondropProtocol {
 
     fn report_id(&self) -> u8 {
         0x4B
-    }
-}
-
-fn filter_type_code(filter_type: FilterType) -> u8 {
-    match filter_type {
-        FilterType::LowShelf => 1,
-        FilterType::HighShelf => 3,
-        _ => 2,
     }
 }
 
