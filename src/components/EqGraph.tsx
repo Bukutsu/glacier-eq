@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useRef, Fragment, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
-import { dbToY, filterResponseValues, formatFreq, freqToX, peqResponseValues, snapFreqToIso, xToFreq, yToDb } from "../lib/graph";
+import { dbToY, filterResponseValues, formatFreq, freqToX, getFreqGrid, peqResponseValues, snapFreqToIso, xToFreq, yToDb } from "../lib/graph";
 import { cssVar, rgbWithAlpha } from "../lib/theme";
 import { interpolateMeasurementDb } from "../lib/measurements";
 import { filterColorVars } from "../lib/filterColors";
@@ -416,7 +416,7 @@ async function drawCurves(
   interactiveHandles: boolean,
   isCurrent: () => boolean,
 ) {
-  const freqs = Array.from({ length: width }, (_, x) => xToFreq(x, width));
+  const freqs = getFreqGrid(width);
   const eqResponse = await responseValues(peq, freqs, viewMode);
   const bandResponses = await Promise.all(
     peq.filters
@@ -441,7 +441,9 @@ async function drawCurves(
     const zero = dbToY(0, height);
     ctx.beginPath();
     ctx.moveTo(0, zero);
-    eqResponse.forEach((db, x) => ctx.lineTo(x, dbToY(db, height)));
+    for (let x = 0; x < eqResponse.length; x++) {
+      ctx.lineTo(x, dbToY(eqResponse[x], height));
+    }
     ctx.lineTo(width, zero);
     ctx.closePath();
     ctx.fillStyle = rgbWithAlpha("--cyan-rgb", 0.15, "rgba(125, 207, 255, 0.15)");
@@ -477,7 +479,7 @@ async function drawCommittedPreview(
     return;
   }
 
-  const freqs = Array.from({ length: width }, (_, x) => xToFreq(x, width));
+  const freqs = getFreqGrid(width);
   const values = await responseValues(committedPeq, freqs, viewMode, selectedMeasurement);
   if (!isCurrent()) return;
   const isCompact = width < 520;
@@ -506,26 +508,34 @@ async function combinedResponseAt(peq: PEQData, freq: number, viewMode: GraphVie
 
 async function responseValues(
   peq: PEQData,
-  freqs: number[],
+  freqs: Float32Array | number[],
   viewMode: GraphViewMode,
   measurement?: MeasurementTrace | null,
-): Promise<number[]> {
+): Promise<Float32Array> {
   const offset = measurement && viewMode === "shape" ? -(await combinedResponseAt(peq, 1000, "shape")) : 0;
   const eqValues = await peqResponseValues(peq, freqs, viewMode === "level");
-  return freqs.map((freq, index) => {
+  const result = new Float32Array(freqs.length);
+  for (let index = 0; index < freqs.length; index++) {
+    const freq = freqs[index];
     const db = (eqValues[index] ?? 0) + offset;
     const measured = measurement ? interpolateMeasurementDb(measurement.points, freq) : 0;
-    return Number.isFinite(db + measured) ? db + measured : 0;
-  });
+    const sum = db + measured;
+    result[index] = Number.isFinite(sum) ? sum : 0;
+  }
+  return result;
 }
 
 function measurementResponseValues(
-  eqResponse: number[],
-  freqs: number[],
+  eqResponse: ArrayLike<number>,
+  freqs: ArrayLike<number>,
   measurement: MeasurementTrace,
   offset: number,
-): number[] {
-  return eqResponse.map((db, x) => db + interpolateMeasurementDb(measurement.points, freqs[x]) + offset);
+): Float32Array {
+  const result = new Float32Array(eqResponse.length);
+  for (let x = 0; x < eqResponse.length; x++) {
+    result[x] = eqResponse[x] + interpolateMeasurementDb(measurement.points, freqs[x]) + offset;
+  }
+  return result;
 }
 
 function resolveColor(color: string): string {
@@ -572,16 +582,17 @@ function withAlpha(color: string, alpha: number): string {
 function drawResponse(
   ctx: CanvasRenderingContext2D,
   height: number,
-  values: number[],
+  values: ArrayLike<number>,
   color: string,
   width = 1,
   dash: number[] = [],
 ) {
   ctx.beginPath();
-  values.forEach((db, x) => {
-    const y = dbToY(db, height);
-    x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-  });
+  for (let x = 0; x < values.length; x++) {
+    const y = dbToY(values[x], height);
+    if (x === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
   ctx.strokeStyle = resolveColor(color);
   ctx.lineWidth = width;
   ctx.setLineDash(dash);
