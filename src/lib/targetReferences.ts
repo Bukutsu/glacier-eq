@@ -3,10 +3,6 @@ import type { TargetTrace } from "../types";
 
 const TARGET_COLOR_VARS = ["--yellow", "--green", "--purple", "--red", "--blue", "--cyan"];
 
-export function getBuiltInTargets(): TargetTrace[] {
-  return [];
-}
-
 export function resolveTargetColor(index: number): string {
   const idx = index % TARGET_COLOR_VARS.length;
   return `var(${TARGET_COLOR_VARS[idx]})`;
