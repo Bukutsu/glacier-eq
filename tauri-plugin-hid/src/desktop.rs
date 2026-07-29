@@ -2,15 +2,16 @@ use hidapi::HidApi;
 use serde::de::DeserializeOwned;
 use std::collections::HashMap;
 use std::marker::PhantomData;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use tauri::{plugin::PluginApi, AppHandle, Runtime};
 
 pub fn init<R: Runtime, C: DeserializeOwned>(
     _app: &AppHandle<R>,
     _api: PluginApi<R, C>,
 ) -> crate::Result<Hid<R>> {
+    let hid_api = HidApi::new()?;
     Ok(Hid {
-        hid_api: Mutex::new(HidApi::new().expect("Could not create HidApi instance")),
+        hid_api: Mutex::new(hid_api),
         open_devices: Mutex::new(HashMap::new()),
         _phantom: PhantomData,
     })
@@ -19,7 +20,7 @@ pub fn init<R: Runtime, C: DeserializeOwned>(
 /// Access to the hid APIs.
 pub struct Hid<R: Runtime> {
     hid_api: Mutex<HidApi>,
-    open_devices: Mutex<HashMap<String, hidapi::HidDevice>>,
+    open_devices: Mutex<HashMap<String, Arc<Mutex<hidapi::HidDevice>>>>,
     _phantom: PhantomData<fn() -> R>,
 }
 
@@ -54,7 +55,7 @@ impl<R: Runtime> Hid<R> {
 
         let c_path = std::ffi::CString::new(path).map_err(|_| crate::Error::HidDeviceNotFound)?;
         let open_device = hid_api.open_path(&c_path)?;
-        open_devices.insert(path.to_string(), open_device);
+        open_devices.insert(path.to_string(), Arc::new(Mutex::new(open_device)));
         Ok(())
     }
 
@@ -65,23 +66,23 @@ impl<R: Runtime> Hid<R> {
     }
 
     pub fn write(&self, path: &str, data: &[u8]) -> crate::Result<()> {
-        let open_devices = self.open_devices.lock().unwrap();
-        let device = match open_devices.get(path) {
-            Some(device) => device,
-            None => return Err(crate::Error::HidDeviceNotFoundInOpenDevices),
+        let device = {
+            let open_devices = self.open_devices.lock().unwrap();
+            open_devices.get(path).cloned().ok_or(crate::Error::HidDeviceNotFoundInOpenDevices)?
         };
 
+        let device = device.lock().unwrap();
         device.write(data)?;
         Ok(())
     }
 
     pub fn read(&self, path: &str, timeout: i32) -> crate::Result<Vec<u8>> {
-        let open_devices = self.open_devices.lock().unwrap();
-        let device = match open_devices.get(path) {
-            Some(device) => device,
-            None => return Err(crate::Error::HidDeviceNotFoundInOpenDevices),
+        let device = {
+            let open_devices = self.open_devices.lock().unwrap();
+            open_devices.get(path).cloned().ok_or(crate::Error::HidDeviceNotFoundInOpenDevices)?
         };
         let mut buffer = vec![0; 1024];
+        let device = device.lock().unwrap();
         let len = device.read_timeout(&mut buffer, timeout)?;
         buffer.truncate(len);
         Ok(buffer)

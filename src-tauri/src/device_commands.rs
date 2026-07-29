@@ -221,25 +221,31 @@ fn registered_profile(connected: &ConnectedDevice) -> Result<&'static DeviceProf
     })
 }
 
-fn with_session<T>(
+async fn with_session<T: Send + 'static>(
     app: &tauri::AppHandle,
     state: &tauri::State<'_, Mutex<DeviceState>>,
-    operation: impl FnOnce(&mut DeviceSession<'_>) -> Result<T, String>,
+    operation: impl FnOnce(&mut DeviceSession<'_>) -> Result<T, String> + Send + 'static,
 ) -> Result<T, String> {
     let connected = connected_device(state)?;
     let profile = registered_profile(&connected)?;
-    let mut io = TauriDeviceIo {
-        app,
-        path: &connected.path,
-    };
-    let progress_app = app.clone();
-    let mut progress =
-        move |message: &str, percentage| emit_progress(&progress_app, message, percentage);
-    operation(&mut DeviceSession::with_progress(
-        &mut io,
-        profile,
-        &mut progress,
-    ))
+    let app_clone = app.clone();
+    let path = connected.path.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut io = TauriDeviceIo {
+            app: &app_clone,
+            path: &path,
+        };
+        let progress_app = app_clone.clone();
+        let mut progress =
+            move |message: &str, percentage| emit_progress(&progress_app, message, percentage);
+        operation(&mut DeviceSession::with_progress(
+            &mut io,
+            profile,
+            &mut progress,
+        ))
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -247,7 +253,7 @@ pub async fn get_eq_state(
     app: tauri::AppHandle,
     state: tauri::State<'_, Mutex<DeviceState>>,
 ) -> Result<PEQData, String> {
-    with_session(&app, &state, |session| session.pull())
+    with_session(&app, &state, |session| session.pull()).await
 }
 
 #[tauri::command]
@@ -259,7 +265,7 @@ pub async fn set_eq_state(
     let skip_verification = crate::settings::get_settings(app.clone())
         .unwrap_or_default()
         .skip_push_verification;
-    with_session(&app, &state, |session| {
+    with_session(&app, &state, move |session| {
         if skip_verification {
             session.unverified_push(peq)
         } else {
@@ -267,6 +273,7 @@ pub async fn set_eq_state(
         }
         .map(|_| ())
     })
+    .await
 }
 
 #[tauri::command]
@@ -275,30 +282,34 @@ pub async fn apply_eq_state(
     state: tauri::State<'_, Mutex<DeviceState>>,
     peq: PEQData,
 ) -> Result<(), String> {
-    with_session(&app, &state, |session| session.apply_ram(peq).map(|_| ()))
+    with_session(&app, &state, |session| session.apply_ram(peq).map(|_| ())).await
 }
 
 #[tauri::command]
 pub async fn list_devices(app: tauri::AppHandle) -> Result<Vec<DeviceInfo>, String> {
-    let devices = tauri_plugin_hid::hid(&app)
-        .enumerate()
-        .map_err(|error| error.to_string())?;
-    let mut seen = HashSet::new();
-    Ok(devices
-        .iter()
-        .filter_map(|device| {
-            let profile = get_supported_device(device.vendor_id, device.product_id)?;
-            seen.insert(device.path.clone()).then(|| DeviceInfo {
-                vendor_id: device.vendor_id,
-                product_id: device.product_id,
-                path: device.path.clone(),
-                manufacturer: device.manufacturer_string.clone(),
-                product_string: device.product_string.clone(),
-                profile_name: Some(profile.name.to_string()),
-                capabilities: (&profile.caps).into(),
+    tauri::async_runtime::spawn_blocking(move || {
+        let devices = tauri_plugin_hid::hid(&app)
+            .enumerate()
+            .map_err(|error| error.to_string())?;
+        let mut seen = HashSet::new();
+        Ok(devices
+            .iter()
+            .filter_map(|device| {
+                let profile = get_supported_device(device.vendor_id, device.product_id)?;
+                seen.insert(device.path.clone()).then(|| DeviceInfo {
+                    vendor_id: device.vendor_id,
+                    product_id: device.product_id,
+                    path: device.path.clone(),
+                    manufacturer: device.manufacturer_string.clone(),
+                    product_string: device.product_string.clone(),
+                    profile_name: Some(profile.name.to_string()),
+                    capabilities: (&profile.caps).into(),
+                })
             })
-        })
-        .collect())
+            .collect())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -320,33 +331,40 @@ pub fn list_supported_devices() -> Vec<SupportedDeviceInfo> {
 #[tauri::command]
 pub async fn connect_device(
     app: tauri::AppHandle,
-    state: tauri::State<'_, Mutex<DeviceState>>,
+    _state: tauri::State<'_, Mutex<DeviceState>>,
     path: String,
 ) -> Result<(), String> {
-    let devices = tauri_plugin_hid::hid(&app)
-        .enumerate()
-        .map_err(|error| error.to_string())?;
-    let device = devices
-        .iter()
-        .find(|device| device.path == path)
-        .ok_or_else(|| "Device disappeared. Scan again and reconnect.".to_string())?;
-    let profile = get_supported_device(device.vendor_id, device.product_id).ok_or_else(|| {
-        format!(
-            "Unsupported HID device {:04X}:{:04X}",
-            device.vendor_id, device.product_id
-        )
-    })?;
-    if let Some(previous) = lock_device_state(&state)?.connected.take() {
-        let _ = hid_close(&app, &previous.path);
-    }
-    try_open_device(&app, &path)?;
-    lock_device_state(&state)?.connected = Some(ConnectedDevice {
-        path,
-        vendor_id: device.vendor_id,
-        product_id: device.product_id,
-        profile_name: profile.name.to_string(),
-    });
-    Ok(())
+    let app_clone = app.clone();
+    let path_clone = path.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app_clone.state::<Mutex<DeviceState>>();
+        let devices = tauri_plugin_hid::hid(&app_clone)
+            .enumerate()
+            .map_err(|error| error.to_string())?;
+        let device = devices
+            .iter()
+            .find(|device| device.path == path_clone)
+            .ok_or_else(|| "Device disappeared. Scan again and reconnect.".to_string())?;
+        let profile = get_supported_device(device.vendor_id, device.product_id).ok_or_else(|| {
+            format!(
+                "Unsupported HID device {:04X}:{:04X}",
+                device.vendor_id, device.product_id
+            )
+        })?;
+        if let Some(previous) = lock_device_state(&state)?.connected.take() {
+            let _ = hid_close(&app_clone, &previous.path);
+        }
+        try_open_device(&app_clone, &path_clone)?;
+        lock_device_state(&state)?.connected = Some(ConnectedDevice {
+            path: path_clone,
+            vendor_id: device.vendor_id,
+            product_id: device.product_id,
+            profile_name: profile.name.to_string(),
+        });
+        Ok(())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -365,7 +383,7 @@ pub async fn get_firmware_version(
     app: tauri::AppHandle,
     state: tauri::State<'_, Mutex<DeviceState>>,
 ) -> Result<Option<String>, String> {
-    with_session(&app, &state, |session| session.firmware_version())
+    with_session(&app, &state, |session| session.firmware_version()).await
 }
 
 #[tauri::command]
@@ -376,7 +394,7 @@ pub async fn get_dac_utility_state(
     if lock_device_state(&state)?.connected.is_none() {
         return Ok(DacUtilityState::default());
     }
-    with_session(&app, &state, |session| session.utility_status())
+    with_session(&app, &state, |session| session.utility_status()).await
 }
 
 #[tauri::command]
@@ -385,7 +403,7 @@ pub async fn set_dac_filter_mode(
     state: tauri::State<'_, Mutex<DeviceState>>,
     mode: String,
 ) -> Result<(), String> {
-    with_session(&app, &state, |session| session.set_filter_mode(&mode))
+    with_session(&app, &state, move |session| session.set_filter_mode(&mode)).await
 }
 
 #[tauri::command]
@@ -394,7 +412,7 @@ pub async fn set_dac_work_mode(
     state: tauri::State<'_, Mutex<DeviceState>>,
     is_class_ab: bool,
 ) -> Result<(), String> {
-    with_session(&app, &state, |session| session.set_amp_mode(is_class_ab))
+    with_session(&app, &state, move |session| session.set_amp_mode(is_class_ab)).await
 }
 
 #[tauri::command]
@@ -403,7 +421,7 @@ pub async fn set_dac_output_gain(
     state: tauri::State<'_, Mutex<DeviceState>>,
     is_high_gain: bool,
 ) -> Result<(), String> {
-    with_session(&app, &state, |session| session.set_gain_mode(is_high_gain))
+    with_session(&app, &state, move |session| session.set_gain_mode(is_high_gain)).await
 }
 
 #[tauri::command]
@@ -412,7 +430,7 @@ pub async fn set_dac_balance(
     state: tauri::State<'_, Mutex<DeviceState>>,
     balance: i8,
 ) -> Result<(), String> {
-    with_session(&app, &state, |session| session.set_balance(balance))
+    with_session(&app, &state, move |session| session.set_balance(balance)).await
 }
 
 #[tauri::command]
@@ -421,7 +439,7 @@ pub async fn set_mic_volume(
     state: tauri::State<'_, Mutex<DeviceState>>,
     volume_db: i8,
 ) -> Result<(), String> {
-    with_session(&app, &state, |session| session.set_mic_volume(volume_db))
+    with_session(&app, &state, move |session| session.set_mic_volume(volume_db)).await
 }
 
 #[tauri::command]
@@ -429,7 +447,7 @@ pub async fn reset_device_eq(
     app: tauri::AppHandle,
     state: tauri::State<'_, Mutex<DeviceState>>,
 ) -> Result<(), String> {
-    with_session(&app, &state, |session| session.reset_eq())
+    with_session(&app, &state, |session| session.reset_eq()).await
 }
 
 #[tauri::command]
@@ -437,7 +455,7 @@ pub async fn reset_device_controls(
     app: tauri::AppHandle,
     state: tauri::State<'_, Mutex<DeviceState>>,
 ) -> Result<DacUtilityState, String> {
-    with_session(&app, &state, |session| session.reset_controls())
+    with_session(&app, &state, |session| session.reset_controls()).await
 }
 
 #[tauri::command]
@@ -445,5 +463,5 @@ pub async fn execute_factory_reset(
     app: tauri::AppHandle,
     state: tauri::State<'_, Mutex<DeviceState>>,
 ) -> Result<(), String> {
-    with_session(&app, &state, |session| session.factory_reset())
+    with_session(&app, &state, |session| session.factory_reset()).await
 }
