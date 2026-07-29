@@ -41,7 +41,7 @@ pub struct ProfileCandidateWasm {
     pub data: PEQData,
 }
 
-fn response_values(peq: &PEQData, freqs: Vec<f32>, include_preamp: bool) -> Vec<f32> {
+fn response_values(peq: &PEQData, freqs: &[f32], include_preamp: bool) -> Vec<f32> {
     let mut response = vec![
         if include_preamp {
             peq.global_gain as f32
@@ -50,14 +50,18 @@ fn response_values(peq: &PEQData, freqs: Vec<f32>, include_preamp: bool) -> Vec<
         };
         freqs.len()
     ];
+    let dsp_sample_rate = 96000.0;
+    let factor = std::f64::consts::TAU / dsp_sample_rate;
+    let cos_w_arr: Vec<f64> = freqs.iter().map(|&f| (f as f64 * factor).cos()).collect();
+
     for filter in peq.filters.iter().filter(|filter| filter.enabled) {
-        crate::eq::iir_math::accumulate_response_values(
+        crate::eq::iir_math::accumulate_response_values_cos(
             filter.filter_type,
             filter.freq as f64,
             filter.gain,
             filter.q,
-            96000.0,
-            &freqs,
+            dsp_sample_rate,
+            &cos_w_arr,
             &mut response,
         );
     }
@@ -179,23 +183,21 @@ pub fn match_profile_name(
 #[wasm_bindgen]
 pub fn peq_response_values(
     peq_js: JsValue,
-    freqs_js: JsValue,
+    freqs: &[f32],
     include_preamp: bool,
-) -> Result<JsValue, JsValue> {
+) -> Result<Vec<f32>, JsValue> {
     let peq: PEQData = serde_wasm_bindgen::from_value(peq_js).map_err(js_err)?;
-    let freqs: Vec<f32> = serde_wasm_bindgen::from_value(freqs_js).map_err(js_err)?;
-    to_js_value(&response_values(&peq, freqs, include_preamp))
+    Ok(response_values(&peq, freqs, include_preamp))
 }
 
 #[wasm_bindgen]
-pub fn filter_response_values(filter_js: JsValue, freqs_js: JsValue) -> Result<JsValue, JsValue> {
+pub fn filter_response_values(filter_js: JsValue, freqs: &[f32]) -> Result<Vec<f32>, JsValue> {
     let filter: Filter = serde_wasm_bindgen::from_value(filter_js).map_err(js_err)?;
     let peq = PEQData {
         filters: vec![filter],
         global_gain: 0.0,
     };
-    let freqs: Vec<f32> = serde_wasm_bindgen::from_value(freqs_js).map_err(js_err)?;
-    to_js_value(&response_values(&peq, freqs, false))
+    Ok(response_values(&peq, freqs, false))
 }
 
 #[wasm_bindgen]
