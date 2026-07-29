@@ -3,6 +3,7 @@
 
 //! Tauri backend for Glacier EQ.
 
+use std::path::PathBuf;
 use std::sync::Mutex;
 
 use diagnostics::DiagnosticsStore;
@@ -18,13 +19,58 @@ mod profiles;
 mod settings;
 mod state;
 
+/// Resolve the set of directories the raw fs commands are allowed to touch.
+/// We scope file access to the user's home directory and the Tauri config dir
+/// so these IPC commands cannot be abused to read/write arbitrary system files.
+fn allowed_bases() -> Vec<PathBuf> {
+    let mut bases = Vec::new();
+    if let Ok(home) = std::env::var("HOME") {
+        bases.push(PathBuf::from(home));
+    } else if let Ok(profile) = std::env::var("USERPROFILE") {
+        bases.push(PathBuf::from(profile));
+    }
+    if let Ok(config) = std::env::var("XDG_CONFIG_HOME") {
+        bases.push(PathBuf::from(config));
+    } else if let Ok(home) = std::env::var("HOME") {
+        bases.push(PathBuf::from(home).join(".config"));
+    } else if let Ok(appdata) = std::env::var("APPDATA") {
+        bases.push(PathBuf::from(appdata));
+    }
+    bases
+}
+
+/// Returns true only if `path` canonicalizes to a location inside one of the
+/// allowed base directories (symlinks resolved, traversal rejected).
+fn is_path_allowed(path: &str) -> bool {
+    let Ok(canon) = std::fs::canonicalize(path) else {
+        // If the file does not exist yet (write path), validate the parent.
+        let p = PathBuf::from(path);
+        let Some(parent) = p.parent() else {
+            return false;
+        };
+        let Ok(parent_canon) = std::fs::canonicalize(parent) else {
+            return false;
+        };
+        return allowed_bases().iter().any(|base| {
+            parent_canon.starts_with(base)
+        });
+    };
+    allowed_bases().iter().any(|base| canon.starts_with(base))
+}
+
 #[tauri::command]
 fn save_text_file(path: String, content: String) -> Result<(), String> {
+    if !is_path_allowed(&path) {
+        return Err("Refused: file path is outside allowed directories".into());
+    }
     std::fs::write(&path, &content).map_err(|e| format!("Failed to write file: {e}"))
 }
 
 #[tauri::command]
 fn read_text_file(path: String) -> Result<String, String> {
+    if !is_path_allowed(&path) {
+        return Err("Refused: file path is outside allowed directories".into());
+    }
     std::fs::read_to_string(&path).map_err(|e| format!("Failed to read file: {e}"))
 }
 
