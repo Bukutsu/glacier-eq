@@ -49,7 +49,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
       - name: Install Linux Tauri dependencies
         if: matrix.os == 'ubuntu-22.04'
@@ -64,18 +64,18 @@ jobs:
             pkg-config
 
       - name: Set up Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: lts/*
           cache: npm
 
       - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9cd735e725c4060f
         with:
           targets: ${{ matrix.rust-targets }}
 
       - name: Cache Rust build outputs
-        uses: swatinem/rust-cache@v2
+        uses: swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32
         with:
           workspaces: ". -> target"
           shared-key: "tauri-desktop-${{ matrix.name }}"
@@ -84,9 +84,11 @@ jobs:
         run: npm ci
 
       - name: Build app
-        uses: tauri-apps/tauri-action@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # NOTE: no GITHUB_TOKEN here on purpose. tauri-action would otherwise
+        # create its own release (per matrix OS) and collide with the single
+        # release published by the `release` job below. It only builds here;
+        # bundles are collected as artifacts and published once by softprops.
+        uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f
         with:
           args: ${{ matrix.args }}
           assetNamePattern: "glacier-eq_[version]_[platform]_[arch].[ext]"
@@ -120,7 +122,7 @@ jobs:
           find release-assets -maxdepth 1 -type f -print | sort
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: glacier-eq-${{ matrix.name }}
           path: release-assets/*
@@ -138,14 +140,14 @@ jobs:
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
-      - uses: actions/setup-java@v5
+      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95
         with:
           distribution: "zulu"
           java-version: "17"
 
-      - uses: gradle/actions/setup-gradle@v6
+      - uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92
         with:
           cache-read-only: false
 
@@ -175,17 +177,17 @@ jobs:
           test -d "$ANDROID_HOME"/platforms/android-36 || { echo "android-36 platform missing"; exit 1; }
           echo "NDK + platform ready: $NDK_DIR"
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: lts/*
           cache: npm
 
       - name: Install Rust (aarch64-linux-android)
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9cd735e725c4060f
         with:
           targets: aarch64-linux-android
 
-      - uses: swatinem/rust-cache@v2
+      - uses: swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32
         with:
           workspaces: ". -> target"
           shared-key: "tauri-android"
@@ -255,7 +257,7 @@ jobs:
           cp "$apk" "glacier-eq_v${version}_android-arm64.apk"
           echo "APK: glacier-eq_v${version}_android-arm64.apk ($(du -h "$apk" | cut -f1))"
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: glacier-eq-android-apk
           path: glacier-eq_v*_android-arm64.apk
@@ -268,7 +270,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
       - name: Verify tag matches Cargo.toml version
         run: |
@@ -283,7 +285,7 @@ jobs:
           echo "✅ Version check passed: $TAG_VERSION"
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           path: artifacts
           pattern: glacier-eq-*
@@ -322,7 +324,7 @@ jobs:
           echo "✅ All expected OS release assets are present."
 
       - name: Create release and upload verified assets
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228
         with:
           tag_name: ${{ github.ref_name }}
           name: "Glacier EQ ${{ github.ref_name }}"
