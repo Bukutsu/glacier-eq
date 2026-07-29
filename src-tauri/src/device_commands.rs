@@ -35,7 +35,7 @@ pub struct SupportedDeviceInfo {
 fn lock_device_state<'a, 'r>(
     state: &'a tauri::State<'r, Mutex<DeviceState>>,
 ) -> Result<MutexGuard<'a, DeviceState>, String> {
-    state.lock().map_err(|_| "Lock poisoned".to_string())
+    Ok(state.lock().unwrap_or_else(|p| p.into_inner()))
 }
 
 fn emit_progress(app: &tauri::AppHandle, message: &str, percentage: f32) {
@@ -68,18 +68,17 @@ fn handle_disconnection(app: &tauri::AppHandle, error: &str) {
         return;
     }
     let state = app.state::<Mutex<DeviceState>>();
-    let disconnected = state
-        .lock()
-        .ok()
-        .and_then(|mut state| state.connected.take());
+    let disconnected = {
+        let mut guard = state.lock().unwrap_or_else(|p| p.into_inner());
+        guard.connected.take()
+    };
     if let Some(device) = disconnected {
         let _ = hid_close(app, &device.path);
         #[cfg(target_os = "linux")]
         {
             if let Some(elevated_state) = app.try_state::<Mutex<Option<ElevatedTransport>>>() {
-                if let Ok(mut guard) = elevated_state.lock() {
-                    *guard = None;
-                }
+                let mut guard = elevated_state.lock().unwrap_or_else(|p| p.into_inner());
+                *guard = None;
             }
         }
         use tauri::Emitter;
@@ -90,7 +89,7 @@ fn handle_disconnection(app: &tauri::AppHandle, error: &str) {
 fn ensure_connected(app: &tauri::AppHandle) -> Result<(), String> {
     if app
         .try_state::<Mutex<DeviceState>>()
-        .and_then(|state| state.lock().ok().map(|state| state.connected.is_some()))
+        .map(|state| state.lock().unwrap_or_else(|p| p.into_inner()).connected.is_some())
         == Some(false)
     {
         Err("Device disconnected".into())
@@ -105,7 +104,7 @@ fn hid_read(app: &tauri::AppHandle, path: &str, timeout: i32) -> Result<Vec<u8>,
     if let Some(t) = app
         .state::<Mutex<Option<ElevatedTransport>>>()
         .lock()
-        .unwrap()
+        .unwrap_or_else(|p| p.into_inner())
         .as_mut()
     {
         let res = t.read(path, timeout);
@@ -129,7 +128,7 @@ fn hid_write(app: &tauri::AppHandle, path: &str, data: &[u8]) -> Result<(), Stri
     if let Some(t) = app
         .state::<Mutex<Option<ElevatedTransport>>>()
         .lock()
-        .unwrap()
+        .unwrap_or_else(|p| p.into_inner())
         .as_mut()
     {
         let res = t.write(path, data);
@@ -152,7 +151,7 @@ fn hid_close(app: &tauri::AppHandle, path: &str) -> Result<(), String> {
     if let Some(t) = app
         .state::<Mutex<Option<ElevatedTransport>>>()
         .lock()
-        .unwrap()
+        .unwrap_or_else(|p| p.into_inner())
         .as_mut()
     {
         return t.close(path);
@@ -175,7 +174,7 @@ fn try_open_device(app: &tauri::AppHandle, path: &str) -> Result<(), String> {
     #[cfg(target_os = "linux")]
     {
         let state = app.state::<Mutex<Option<ElevatedTransport>>>();
-        let mut guard = state.lock().map_err(|_| "state poisoned")?;
+        let mut guard = state.lock().unwrap_or_else(|p| p.into_inner());
         if let Some(ref mut t) = *guard {
             return t.open(path);
         }
