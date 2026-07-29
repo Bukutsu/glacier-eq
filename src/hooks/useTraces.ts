@@ -5,7 +5,6 @@ import {
   normalizeMeasurementPoints,
 } from "../lib/measurements";
 import {
-  getBuiltInTargets,
   makeTargetName,
   resolveTargetColor,
 } from "../lib/targetReferences";
@@ -34,14 +33,13 @@ function usePersistedJson(key: string, value: unknown, delayMs = 0) {
 
 export function useTraces() {
   const [measurements, setMeasurements] = useState<MeasurementTrace[]>([]);
-  const builtInTargets = useMemo(getBuiltInTargets, []);
   const [userTargets, setUserTargets] = useState<TargetTrace[]>([]);
   const [activeTargetIds, setActiveTargetIds] = useState<string[]>([]);
   const [selectedMeasurementId, setSelectedMeasurementId] = useState<string | null>(null);
 
   const allTargets = useMemo(
-    () => [...builtInTargets, ...userTargets],
-    [builtInTargets, userTargets],
+    () => [...userTargets],
+    [userTargets],
   );
 
   const activeTargets = useMemo(
@@ -151,8 +149,8 @@ export function useTraces() {
       setUserTargets((current) => {
         const nextTarget = {
           id: `user-target:${Date.now()}-${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)}`,
-          name: makeTargetName(name, [...builtInTargets, ...current]),
-          color: resolveTargetColor(builtInTargets.length + current.length),
+          name: makeTargetName(name, [...current]),
+          color: resolveTargetColor(current.length),
           builtIn: false,
           points: normalizeMeasurementPoints(points),
         };
@@ -160,7 +158,7 @@ export function useTraces() {
         return [...current, nextTarget];
       });
     },
-    [builtInTargets],
+    [],
   );
 
   const removeTarget = useCallback((id: string) => {
@@ -175,7 +173,6 @@ export function useTraces() {
     setMeasurements,
     userTargets,
     setUserTargets,
-    builtInTargets,
     allTargets,
     activeTargetIds,
     setActiveTargetIds,

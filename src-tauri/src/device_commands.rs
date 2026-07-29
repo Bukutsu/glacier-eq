@@ -50,21 +50,7 @@ fn emit_progress(app: &tauri::AppHandle, message: &str, percentage: f32) {
 }
 
 fn handle_disconnection(app: &tauri::AppHandle, error: &str) {
-    let lower = error.to_lowercase();
-    if ![
-        "no such device",
-        "device not found",
-        "disconnected",
-        "not open",
-        "io error",
-        "os error 19",
-        "os error 5",
-        "transfer failed",
-        "no longer exists",
-    ]
-    .iter()
-    .any(|needle| lower.contains(needle))
-    {
+    if !glacier_core::error::is_disconnection(error) {
         return;
     }
     let state = app.state::<Mutex<DeviceState>>();
