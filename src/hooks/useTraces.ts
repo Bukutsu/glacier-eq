@@ -10,18 +10,48 @@ import {
 } from "../lib/targetReferences";
 import type { MeasurementTrace, TargetTrace } from "../types";
 
-function loadPersistedJson<T>(key: string): T | null {
+function loadPersistedJson<T>(
+  key: string,
+  notify?: (message: string) => void,
+): T | null {
+  const raw = window.localStorage.getItem(key);
+  if (!raw) return null;
   try {
-    const saved = window.localStorage.getItem(key);
-    return saved ? (JSON.parse(saved) as T) : null;
+    return JSON.parse(raw) as T;
   } catch {
+    // Corrupt stored data: keep a timestamped backup so it can be recovered
+    // instead of being silently overwritten on the next save.
+    try {
+      const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+      window.localStorage.setItem(`${key}.bak.${stamp}`, raw);
+    } catch {
+      // Backup write failed (likely the same quota problem) — give up quietly.
+    }
+    notify?.(
+      `Saved data for "${key}" was corrupted and could not be loaded; a backup copy was kept for recovery.`,
+    );
     return null;
   }
 }
 
 function usePersistedJson(key: string, value: unknown, delayMs = 0) {
   useEffect(() => {
-    const save = () => window.localStorage.setItem(key, JSON.stringify(value));
+    const save = () => {
+      try {
+        window.localStorage.setItem(key, JSON.stringify(value));
+      } catch (error) {
+        // Storage may be full (private mode, quota). Fail soft rather than
+        // crashing the app — the in-memory state is still intact.
+        const quota =
+          error instanceof DOMException ||
+          (error as { name?: string } | null)?.name === "QuotaExceededError";
+        if (quota) {
+          console.warn(`localStorage quota exceeded while saving "${key}".`);
+        } else {
+          console.error(`Failed to save "${key}" to localStorage:`, error);
+        }
+      }
+    };
     if (delayMs <= 0) {
       save();
       return;
@@ -31,7 +61,7 @@ function usePersistedJson(key: string, value: unknown, delayMs = 0) {
   }, [key, value, delayMs]);
 }
 
-export function useTraces() {
+export function useTraces(notify?: (message: string) => void) {
   const [measurements, setMeasurements] = useState<MeasurementTrace[]>([]);
   const [userTargets, setUserTargets] = useState<TargetTrace[]>([]);
   const [activeTargetIds, setActiveTargetIds] = useState<string[]>([]);
@@ -48,7 +78,7 @@ export function useTraces() {
   );
 
   useEffect(() => {
-    const saved = loadPersistedJson<any[]>("glacier-measurements");
+    const saved = loadPersistedJson<any[]>("glacier-measurements", notify);
     if (!Array.isArray(saved)) return;
 
     setMeasurements(
@@ -60,22 +90,22 @@ export function useTraces() {
             typeof trace.name === "string" &&
             typeof trace.color === "string" &&
             typeof trace.visible === "boolean" &&
-            Array.isArray(trace.points),
+            Array.isArray(trace.points) &&
+            trace.points.length >= 2,
         )
         .map((trace) => ({
           ...trace,
           points: normalizeMeasurementPoints(trace.points),
         })),
     );
-  }, []);
+  }, [notify]);
 
   usePersistedJson("glacier-measurements", measurements, 300);
 
   useEffect(() => {
-    const savedTargets = loadPersistedJson<any[]>("glacier-user-targets");
-    if (Array.isArray(savedTargets)) {
-      setUserTargets(
-        savedTargets
+    const savedTargets = loadPersistedJson<any[]>("glacier-user-targets", notify);
+    const loadedUserTargets: TargetTrace[] = Array.isArray(savedTargets)
+      ? savedTargets
           .filter(
             (target): target is TargetTrace =>
               target &&
@@ -88,18 +118,22 @@ export function useTraces() {
             ...target,
             builtIn: false,
             points: normalizeMeasurementPoints(target.points),
-          })),
-      );
-    }
+          }))
+      : [];
+    setUserTargets(loadedUserTargets);
 
-    const savedActiveIds = loadPersistedJson<any[]>("glacier-active-targets");
+    // Prune active ids that no longer reference an existing target.
+    const existingTargetIds = new Set(
+      [...builtInTargets, ...loadedUserTargets].map((target) => target.id),
+    );
+    const savedActiveIds = loadPersistedJson<any[]>("glacier-active-targets", notify);
     if (
       Array.isArray(savedActiveIds) &&
       savedActiveIds.every((id) => typeof id === "string")
     ) {
-      setActiveTargetIds(savedActiveIds);
+      setActiveTargetIds(savedActiveIds.filter((id) => existingTargetIds.has(id)));
     }
-  }, []);
+  }, [notify, builtInTargets]);
 
   usePersistedJson("glacier-user-targets", userTargets, 300);
   usePersistedJson("glacier-active-targets", activeTargetIds);

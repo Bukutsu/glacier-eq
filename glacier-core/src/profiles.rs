@@ -2,11 +2,15 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::autoeq::{parse_autoeq_text, peq_to_autoeq};
+use crate::device::capabilities::DESKTOP_DAC_CAPS;
 use crate::eq::PEQData;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
 const MAX_PROFILE_BYTES: u64 = 1024 * 1024;
+/// Hard cap on the number of stored bands so a malformed or hostile profile
+/// can never blow up device apply paths.
+const MAX_FILTERS: usize = 64;
 const APP_ID: &str = "com.bukutsu.glaciereq";
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -67,6 +71,17 @@ impl ProfileStore {
             let path = entry
                 .map_err(|error| format!("Failed to read profile entry: {error}"))?
                 .path();
+            if path.extension().and_then(|ext| ext.to_str()) != Some("txt") {
+                continue;
+            }
+            // file_stem round-trip: only expose names that survive a save→load
+            // cycle, so everything listed here is always loadable via `load()`.
+            let Some(name) = path.file_stem().and_then(|name| name.to_str()) else {
+                continue;
+            };
+            if validate_name(name).is_err() {
+                continue;
+            }
             if let Some(profile) = read_profile(&path)? {
                 profiles.push(profile);
             }
@@ -128,6 +143,7 @@ impl ProfileStore {
 fn validate_name(name: &str) -> Result<(), String> {
     if name.is_empty()
         || name.trim() != name
+        || name.ends_with('.')
         || name.len() > 128
         || !name
             .chars()
@@ -137,9 +153,26 @@ fn validate_name(name: &str) -> Result<(), String> {
             "Profile name contains invalid characters. Use letters, numbers, spaces, and _-@+&.()"
                 .into(),
         )
+    } else if is_reserved_windows_name(name) {
+        Err("Profile name is a reserved system name and cannot be used".into())
     } else {
         Ok(())
     }
+}
+
+/// Reserved Windows device filenames (case-insensitive, ignoring extension),
+/// which are illegal on Windows filesystems and break portable save/load.
+fn is_reserved_windows_name(name: &str) -> bool {
+    const RESERVED: &[&str] = &[
+        "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7",
+        "COM8", "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8",
+        "LPT9",
+    ];
+    let stem = Path::new(name)
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .unwrap_or(name);
+    RESERVED.contains(&stem.to_uppercase().as_str())
 }
 
 fn read_profile(path: &Path) -> Result<Option<StoredProfile>, String> {
@@ -158,10 +191,22 @@ fn read_profile(path: &Path) -> Result<Option<StoredProfile>, String> {
         Ok(text) => text,
         Err(_) => return Ok(None),
     };
-    let (data, _, _) = match parse_autoeq_text(&text) {
+    let (mut data, _, _) = match parse_autoeq_text(&text) {
         Ok(profile) => profile,
         Err(_) => return Ok(None),
     };
+    // Enforce a hard filter-count ceiling so a malformed profile can't overflow
+    // device band limits on apply.
+    if data.filters.len() > MAX_FILTERS {
+        data.filters.truncate(MAX_FILTERS);
+    }
+    // Clamp stored values into the generic device-safe envelope so data is
+    // always within device limits regardless of where it came from.
+    // `num_bands` is pinned to the current filter count so this only clamps
+    // ranges (no padding to device band counts — that's the apply path's job).
+    let mut caps = DESKTOP_DAC_CAPS.clone();
+    caps.num_bands = data.filters.len();
+    let _ = data.clamp_to_capabilities(&caps);
     Ok(Some(StoredProfile {
         name: path
             .file_stem()
@@ -214,6 +259,37 @@ mod tests {
         assert!(store.save("../escape", &peq).is_err());
         store.delete("Daily").unwrap();
         assert!(store.list().unwrap().is_empty());
+        std::fs::remove_dir_all(base).unwrap();
+    }
+
+    #[test]
+    fn validate_name_rejects_unsafe_names() {
+        assert!(validate_name("ok name").is_ok());
+        assert!(validate_name("trailing.").is_err());
+        assert!(validate_name("con").is_err());
+        assert!(validate_name("CON.txt").is_err());
+        assert!(validate_name("lpt9").is_err());
+        assert!(validate_name("com1").is_err());
+    }
+
+    #[test]
+    fn profile_sanitized_on_load() {
+        let base = temporary_dir();
+        let store = ProfileStore::new(&base).unwrap();
+        let peq = PEQData {
+            filters: (0..70).map(|i| crate::Filter::enabled(i as u8, true)).collect(),
+            global_gain: 100.0,
+        };
+        store.save("Loud", &peq).unwrap();
+        let loaded = store.load("Loud").unwrap().data;
+        assert!(
+            loaded.filters.len() <= MAX_FILTERS,
+            "excess filters truncated to the safe max"
+        );
+        assert!(
+            loaded.global_gain <= DESKTOP_DAC_CAPS.global_gain_range.1 as f64,
+            "preamp gain clamped into the device-safe envelope"
+        );
         std::fs::remove_dir_all(base).unwrap();
     }
 }
