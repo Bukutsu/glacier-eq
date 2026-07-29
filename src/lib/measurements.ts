@@ -1,14 +1,26 @@
-import type { MeasurementPoint, MeasurementTrace } from "../types";
+import type { MeasurementPoint, MeasurementTrace, TargetTrace } from "../types";
 
 const MEASUREMENT_COLOR_VARS = ["--cyan", "--red", "--green", "--yellow", "--purple", "--blue"];
+const TARGET_COLOR_VARS = ["--yellow", "--green", "--purple", "--red", "--blue", "--cyan"];
+
+function colorVar(vars: string[], index: number): string {
+  return `var(${vars[index % vars.length]})`;
+}
 
 export function nextMeasurementColor(existing: MeasurementTrace[]): string {
-  const idx = existing.length % MEASUREMENT_COLOR_VARS.length;
-  return `var(${MEASUREMENT_COLOR_VARS[idx]})`;
+  return colorVar(MEASUREMENT_COLOR_VARS, existing.length);
+}
+
+export function resolveTargetColor(index: number): string {
+  return colorVar(TARGET_COLOR_VARS, index);
 }
 
 export function makeMeasurementName(baseName: string, existing: MeasurementTrace[]): string {
   return makeUniqueName(baseName, existing.map((trace) => trace.name), "Measurement");
+}
+
+export function makeTargetName(baseName: string, existing: TargetTrace[]): string {
+  return makeUniqueName(baseName, existing.map((target) => target.name), "Target");
 }
 
 export function makeUniqueName(baseName: string, existingNames: string[], fallback: string): string {
