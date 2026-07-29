@@ -10,6 +10,7 @@
     "wasm:build": "cross-env RUSTFLAGS= wasm-pack build glacier-core --target web --out-dir ../src/wasm_pkg",
     "prebuild": "npm run wasm:build",
     "build": "tsc && vite build",
+    "test": "vitest run",
     "tauri": "tauri",
     "android:doctor": "tauri doctor",
     "android:init": "tauri android init --ci",
@@ -35,6 +36,7 @@
     "cross-env": "^10.1.0",
     "typescript": "^5.8.0",
     "vite": "^8.1.5",
+    "vitest": "^4.1.10",
     "wasm-pack": "^0.15.0"
   }
 }
