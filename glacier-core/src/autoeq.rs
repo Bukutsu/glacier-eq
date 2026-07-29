@@ -53,7 +53,14 @@ fn interpolate_point(points: &[(f64, f64)], frequency: f64) -> f64 {
 }
 
 pub fn parse_autoeq_text(text: &str) -> Result<(PEQData, Option<String>, Vec<String>), String> {
+    // CPU-DoS guard: reject absurdly large inputs before touching them.
+    if text.len() > 1 << 20 {
+        return Err("AutoEQ input exceeds maximum size (1 MiB)".into());
+    }
     let lines: Vec<&str> = text.lines().collect();
+    if lines.len() > 4096 {
+        return Err("AutoEQ input exceeds maximum line count (4096)".into());
+    }
     let mut filters: std::collections::BTreeMap<usize, Filter> = std::collections::BTreeMap::new();
     let mut preamp: f64 = 0.0;
     let mut parsed_count: usize = 0;
@@ -105,12 +112,26 @@ pub fn parse_autoeq_text(text: &str) -> Result<(PEQData, Option<String>, Vec<Str
                     ));
                     continue;
                 }
+                // Clamp frequency into a cast-safe, sane range before `as u16`
+                // to avoid the silent wraparound the old code had for huge/negative Fc.
+                let freq: u16 = if !parsed.freq.is_finite()
+                    || parsed.freq < 1.0
+                    || parsed.freq > 1_000_000.0
+                {
+                    warnings.push(format!(
+                        "Line {}: Frequency {} Hz out of range [1, 1000000]; clamping",
+                        line_num, parsed.freq
+                    ));
+                    parsed.freq.clamp(1.0, u16::MAX as f64) as u16
+                } else {
+                    parsed.freq as u16
+                };
                 filters.insert(
                     idx,
                     Filter {
                         index: idx as u8,
                         enabled: parsed.enabled,
-                        freq: parsed.freq as u16,
+                        freq,
                         gain: parsed.gain,
                         q: parsed.q,
                         filter_type: parsed.filter_type,
@@ -1572,6 +1593,79 @@ fn validate_curve(label: &str, points: &[(f64, f64)]) -> Result<(), String> {
 mod tests {
     use super::*;
     use crate::MAX_BAND_GAIN;
+    use proptest::prelude::*;
+
+    // Generate a 2-decimal preamp in [-16, 6] that is always non-zero, so an
+    // all-empty PEQ still survives parse_autoeq_text's "no filters & no preamp" Err.
+    fn arb_preamp() -> impl Strategy<Value = f64> {
+        (1i32..=2200).prop_map(|x| {
+            if x <= 1600 {
+                -(x as f64) / 100.0
+            } else {
+                ((x - 1600) as f64) / 100.0
+            }
+        })
+    }
+
+    fn arb_filter() -> impl Strategy<Value = Filter> {
+        (
+            any::<bool>(),
+            20u16..=20000u16, // freq
+            -1000i32..=1000i32, // gain, 2-decimal steps
+            100i32..=20000i32,  // q, 3-decimal steps
+            0u8..=4u8,
+        )
+            .prop_map(|(enabled, freq, gain_h, q_t, ft)| Filter {
+                index: 0,
+                enabled,
+                freq,
+                gain: (gain_h as f64) / 100.0,
+                q: (q_t as f64) / 1000.0,
+                filter_type: match ft {
+                    0 => FilterType::LowShelf,
+                    1 => FilterType::Peak,
+                    2 => FilterType::HighShelf,
+                    3 => FilterType::HighPass,
+                    _ => FilterType::LowPass,
+                },
+            })
+    }
+
+    // Content key ignoring index: round-trip compares as a multiset of filters.
+    fn filter_key(f: &Filter) -> (u16, FilterType, i64, i64, bool) {
+        (
+            f.freq,
+            f.filter_type,
+            (f.gain * 100.0).round() as i64,
+            (f.q * 1000.0).round() as i64,
+            f.enabled,
+        )
+    }
+
+    fn normalize(peq: &PEQData) -> Vec<(u16, FilterType, i64, i64, bool)> {
+        let mut v: Vec<_> = peq.filters.iter().map(filter_key).collect();
+        v.sort();
+        v
+    }
+
+    proptest! {
+        #[test]
+        fn prop_peq_autoeq_roundtrip(
+            filters in prop::collection::vec(arb_filter(), 0..=32),
+            preamp in arb_preamp(),
+        ) {
+            let peq = PEQData {
+                filters,
+                global_gain: preamp,
+            };
+            let text = peq_to_autoeq(&peq);
+            let (parsed, _, _warnings) = parse_autoeq_text(&text).unwrap();
+            // Equal up to frequency re-sort and reindexing: compare as multiset.
+            prop_assert_eq!(normalize(&peq), normalize(&parsed));
+            // Preamp round-trips exactly (2-decimal precision).
+            prop_assert!((parsed.global_gain - preamp).abs() < 1e-9);
+        }
+    }
 
     #[test]
     fn parses_and_log_normalizes_curve() {
