@@ -226,20 +226,10 @@ impl PEQData {
 }
 
 pub fn snap_freq_to_iso(freq: u16) -> u16 {
-    let idx = ISO_FREQUENCIES.partition_point(|&f| f < freq);
-    if idx == 0 {
-        ISO_FREQUENCIES[0]
-    } else if idx >= ISO_FREQUENCIES.len() {
-        ISO_FREQUENCIES[ISO_FREQUENCIES.len() - 1]
-    } else {
-        let left = ISO_FREQUENCIES[idx - 1];
-        let right = ISO_FREQUENCIES[idx];
-        if (freq - left) <= (right - freq) {
-            left
-        } else {
-            right
-        }
-    }
+    ISO_FREQUENCIES
+        .into_iter()
+        .min_by_key(|&f| (freq as i32 - f as i32).abs())
+        .unwrap_or(freq)
 }
 
 #[cfg(test)]
@@ -259,5 +249,13 @@ mod tests {
         let warnings = peq.clamp_to_capabilities(&caps);
         assert_eq!(peq.global_gain, -4.0);
         assert!(warnings.iter().any(|w| w.contains("Rounded preamp gain")));
+    }
+
+    #[test]
+    fn test_snap_freq_to_iso() {
+        assert_eq!(snap_freq_to_iso(10), 20);
+        assert_eq!(snap_freq_to_iso(900), 800);
+        assert_eq!(snap_freq_to_iso(950), 1000);
+        assert_eq!(snap_freq_to_iso(25000), 20000);
     }
 }
