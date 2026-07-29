@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { memo, useState, useRef, useEffect } from "react";
 import { OperationProgress } from "../types";
 import { isTauri } from "../lib/platform";
 
@@ -46,7 +46,7 @@ interface HeaderProps {
   onConnectClick?: () => void;
 }
 
-export function Header({
+export const Header = memo(function Header({
   connected,
   isBusy,
   progress,
@@ -244,4 +244,4 @@ export function Header({
       )}
     </header>
   );
-}
+});

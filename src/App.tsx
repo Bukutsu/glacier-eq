@@ -1136,23 +1136,28 @@ function App() {
     });
   }, [flashGraphPreview]);
 
-  const graphEditorProps = {
+  const handleFilterChangeNoPreview = useCallback(
+    (index: number, filter: Filter) => updateFilter(index, filter, false),
+    [updateFilter],
+  );
+
+  const graphEditorProps = useMemo(() => ({
     capabilities,
     activeBandIndex,
     onActiveBandChange: setActiveBandIndex,
-    onStartChange: () => pushToUndoStack(peqRef.current),
-    onFilterChange: (index: number, filter: Filter) => updateFilter(index, filter, false),
+    onStartChange: handleStartChange,
+    onFilterChange: handleFilterChangeNoPreview,
     snapToIso,
-  };
+  }), [capabilities, activeBandIndex, setActiveBandIndex, handleStartChange, handleFilterChangeNoPreview, snapToIso]);
 
-  const reset = async () => {
+  const reset = useCallback(async () => {
     if (!window.confirm("Reset all filters to 0 dB?")) return;
     pushToUndoStack(peqRef.current);
     selectedPresetRef.current = DEFAULT_PROFILE_NAME;
     setPeq(buildDefaultState());
     setSelectedPreset(DEFAULT_PROFILE_NAME);
     setDirty(true);
-  };
+  }, [pushToUndoStack]);
 
   const addMeasurement = useCallback(
     (name: string, points: MeasurementTrace["points"]) => {
@@ -1217,6 +1222,45 @@ function App() {
       current.filter((targetId) => targetId !== id),
     );
   }, []);
+
+  const handleOpenDeviceModal = useCallback(() => setShowDeviceModal(true), []);
+  const handleCloseDeviceModal = useCallback(() => {
+    window.localStorage.setItem(DEVICE_ONBOARDING_KEY, "true");
+    setShowDeviceModal(false);
+  }, []);
+  const handleOpenDiagnosticsModal = useCallback(() => setShowDiagnosticsModal(true), []);
+  const handleCloseDiagnosticsModal = useCallback(() => setShowDiagnosticsModal(false), []);
+  const handleShowAddTrace = useCallback(() => setShowAddTrace(true), []);
+  const handleCloseAddTrace = useCallback(() => setShowAddTrace(false), []);
+  const handleCloseToast = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+  const handlePreampChange = useCallback((global_gain: number) => {
+    flashGraphPreview();
+    setDirty(true);
+    setPeq((previous) => ({ ...previous, global_gain }));
+  }, [flashGraphPreview]);
+  const handleConnectDevice = useCallback(async () => {
+    if (await connectDevice()) {
+      window.localStorage.setItem(DEVICE_ONBOARDING_KEY, "true");
+      setShowDeviceModal(false);
+    }
+  }, [connectDevice]);
+  const handleToggleGraphCollapsed = useCallback(() => {
+    setGraphCollapsed((v) => !v);
+  }, []);
+  const handleCancelReconnection = useCallback(() => {
+    setConnected(false);
+    setIsReconnecting(false);
+    setLastPushedPeq(null);
+    setShowDeviceModal(true);
+    setStatus("Disconnected");
+  }, [setStatus]);
+  const handleMainScroll = useCallback((e: React.UIEvent<HTMLElement>) => {
+    setIsScrolledDown(e.currentTarget.scrollTop > 150);
+    setShowGraphPreview(false);
+    clearPreviewTimer();
+  }, [clearPreviewTimer]);
 
   const undoRedoRef = useRef({
     undo,
@@ -1405,7 +1449,7 @@ function App() {
           onPull={pullEq}
           onPush={pushEq}
           onDisconnect={disconnectDevice}
-          onConnectClick={() => setShowDeviceModal(true)}
+          onConnectClick={handleOpenDeviceModal}
         />
       )}
       {isMobile ? (
@@ -1427,7 +1471,7 @@ function App() {
               <button
                 type="button"
                 className="graph-collapse-btn"
-                onClick={() => setGraphCollapsed(!graphCollapsed)}
+                onClick={handleToggleGraphCollapsed}
                 aria-label={graphCollapsed ? "Expand graph" : "Collapse graph"}
               >
                 <Icon>{graphCollapsed ? "expand_more" : "expand_less"}</Icon>
@@ -1458,11 +1502,7 @@ function App() {
                   range={capabilities.global_gain_range}
                   integerMode={capabilities.integer_preamp}
                   onStartChange={handleStartChange}
-                  onChange={(global_gain) => {
-                    flashGraphPreview();
-                    setDirty(true);
-                    setPeq((previous) => ({ ...previous, global_gain }));
-                  }}
+                  onChange={handlePreampChange}
                 />
                 <Bands
                   peq={peq}
@@ -1479,7 +1519,7 @@ function App() {
             {activeTab === "tuning" && (
               <section className="left-pane">
                 <Collapsible title="Traces & Targets" icon="analytics" className="tuning-card">
-                  <button className="btn add-trace-btn" onClick={() => setShowAddTrace(true)}>
+                  <button className="btn add-trace-btn" onClick={handleShowAddTrace}>
                     <Icon>add</Icon>
                     <span>Add Trace</span>
                   </button>
@@ -1506,7 +1546,7 @@ function App() {
                   </section>
                   {showAddTrace && (
                     <AddTraceModal
-                      onClose={() => setShowAddTrace(false)}
+                      onClose={handleCloseAddTrace}
                       onAddMeasurement={addMeasurement}
                       onAddTarget={addTarget}
                       setStatus={setStatus}
@@ -1568,7 +1608,7 @@ function App() {
                   activeTargetIds={activeTargetIds}
                   settings={settings}
                   onSettingChange={updateSetting}
-                  onOpenDiagnostics={() => setShowDiagnosticsModal(true)}
+                  onOpenDiagnostics={handleOpenDiagnosticsModal}
                 />
               </section>
             )}
@@ -1613,7 +1653,7 @@ function App() {
                   activeTargetIds={activeTargetIds}
                   settings={settings}
                   onSettingChange={updateSetting}
-                  onOpenDiagnostics={() => setShowDiagnosticsModal(true)}
+                  onOpenDiagnostics={handleOpenDiagnosticsModal}
                 />
               </section>
             )}
@@ -1657,8 +1697,8 @@ function App() {
                   settings={settings}
                   onSettingChange={updateSetting}
                   connected={connected}
-                  onOpenConnectModal={() => setShowDeviceModal(true)}
-                  onOpenDiagnostics={() => setShowDiagnosticsModal(true)}
+                  onOpenConnectModal={handleOpenDeviceModal}
+                  onOpenDiagnostics={handleOpenDiagnosticsModal}
                 />
               </section>
             )}
@@ -1703,11 +1743,7 @@ function App() {
             id="main-scroll-pane"
             className="left-pane custom-scroll-pane"
             ref={mainScrollRef}
-            onScroll={(e) => {
-              setIsScrolledDown(e.currentTarget.scrollTop > 150);
-              setShowGraphPreview(false);
-              clearPreviewTimer();
-            }}
+            onScroll={handleMainScroll}
           >
             {showGraph && (
             <section className="graph-card">
@@ -1791,8 +1827,8 @@ function App() {
             connected={connected}
             activeTab={toolsTab}
             onActiveTabChange={setToolsTab}
-            onOpenConnectModal={() => setShowDeviceModal(true)}
-            onOpenDiagnostics={() => setShowDiagnosticsModal(true)}
+            onOpenConnectModal={handleOpenDeviceModal}
+            onOpenDiagnostics={handleOpenDiagnosticsModal}
             showGraph={showGraph}
             onShowGraphChange={setShowGraph}
           />
@@ -1809,13 +1845,7 @@ function App() {
             </p>
             <button
               className="btn"
-              onClick={() => {
-                setConnected(false);
-                setIsReconnecting(false);
-                setLastPushedPeq(null);
-                setShowDeviceModal(true);
-                setStatus("Disconnected");
-              }}
+              onClick={handleCancelReconnection}
               style={{
                 marginTop: "8px",
                 padding: "8px 16px",
@@ -1834,21 +1864,13 @@ function App() {
       {showDeviceModal && (
         <Modal
           title="Connect Device"
-          onClose={() => {
-            window.localStorage.setItem(DEVICE_ONBOARDING_KEY, "true");
-            setShowDeviceModal(false);
-          }}
+          onClose={handleCloseDeviceModal}
         >
           <div className="modal-body">
             <DeviceChooser
               devices={devices}
               onScan={scanDevices}
-              onConnect={async () => {
-                if (await connectDevice()) {
-                  window.localStorage.setItem(DEVICE_ONBOARDING_KEY, "true");
-                  setShowDeviceModal(false);
-                }
-              }}
+              onConnect={handleConnectDevice}
               selectedDevice={selectedDevice}
               setSelectedDevice={setSelectedDevice}
               status={status}
@@ -1861,7 +1883,7 @@ function App() {
         <Modal
           title="System Diagnostics"
           className="wide"
-          onClose={() => setShowDiagnosticsModal(false)}
+          onClose={handleCloseDiagnosticsModal}
           style={{
             width: "min(800px, 94vw)",
             height: "75vh",
@@ -1876,7 +1898,7 @@ function App() {
       )}
       <ToastContainer
         toasts={toasts}
-        onClose={(id) => setToasts((prev) => prev.filter((t) => t.id !== id))}
+        onClose={handleCloseToast}
       />
     </div>
   );

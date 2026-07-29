@@ -1,3 +1,4 @@
+import { memo } from "react";
 import type { MeasurementTrace, TargetTrace } from "../types";
 import { Icon } from "./Icon";
 
@@ -12,7 +13,7 @@ interface UnifiedTracesListProps {
   onRemoveTarget: (id: string) => void;
 }
 
-export function UnifiedTracesList({
+export const UnifiedTracesList = memo(function UnifiedTracesList({
   measurements,
   allTargets,
   activeTargetIds,
@@ -78,4 +79,4 @@ export function UnifiedTracesList({
       })}
     </div>
   );
-}
+});

@@ -1,4 +1,4 @@
-import { type CSSProperties, useState, useEffect, useRef } from "react";
+import { memo, type CSSProperties, useState, useEffect, useRef } from "react";
 import { invoke, listen, readText, writeText, save } from "../lib/rpc";
 import type { AppSettings, MeasurementTrace, Profile, PEQData, GraphViewMode, TargetTrace } from "../types";
 import { DEFAULT_PROFILE_NAME } from "../App";
@@ -126,7 +126,7 @@ interface ToolsPanelProps {
   maxBands?: number;
 }
 
-export function ToolsPanel(props: ToolsPanelProps) {
+export const ToolsPanel = memo(function ToolsPanel(props: ToolsPanelProps) {
   const requestedTabs = props.availableTabs ?? ["Preset", "Import", "Tuning", "Device", "Settings"];
   const availableTabs = requestedTabs.filter((name) => name !== "Import" || !requestedTabs.includes("Preset"));
   const [internalTab, setInternalTab] = useState<ToolsTab>(() => (
@@ -226,7 +226,7 @@ export function ToolsPanel(props: ToolsPanelProps) {
       </section>
     </aside>
   );
-}
+});
 
 function TabStrip({
   active,
