@@ -107,34 +107,64 @@ pub fn accumulate_response_values(
     freqs: &[f32],
     response: &mut [f32],
 ) {
+    if dsp_sample_rate <= 0.0 {
+        return;
+    }
+    let factor = TAU / dsp_sample_rate;
     let coeffs = compute_biquad_coeffs_for(filter_type, frequency, gain, q, dsp_sample_rate);
+    let mag_coeffs = biquad_mag_squared_coeffs(coeffs);
+
     for (freq, value) in freqs.iter().zip(response.iter_mut()) {
-        *value += response_db(coeffs, *freq as f64, dsp_sample_rate);
+        let cos_w = (*freq as f64 * factor).cos();
+        *value += eval_biquad_mag_squared_db(mag_coeffs, cos_w);
     }
 }
 
-fn response_db(
-    (b0, b1, b2, a0, a1, a2): (f64, f64, f64, f64, f64, f64),
-    freq: f64,
+pub fn accumulate_response_values_cos(
+    filter_type: FilterType,
+    frequency: f64,
+    gain: f64,
+    q: f64,
     dsp_sample_rate: f64,
-) -> f32 {
+    cos_w_arr: &[f64],
+    response: &mut [f32],
+) {
     if dsp_sample_rate <= 0.0 {
-        return 0.0;
+        return;
     }
-    let omega = freq * TAU / dsp_sample_rate;
-    let (sin_w, cos_w) = omega.sin_cos();
-    let sin_2w = 2.0 * sin_w * cos_w;
-    let cos_2w = 2.0 * cos_w * cos_w - 1.0;
+    let coeffs = compute_biquad_coeffs_for(filter_type, frequency, gain, q, dsp_sample_rate);
+    let mag_coeffs = biquad_mag_squared_coeffs(coeffs);
 
-    let b_real = b0 + b1 * cos_w + b2 * cos_2w;
-    let b_imag = -(b1 * sin_w + b2 * sin_2w);
-    let a_real = a0 + a1 * cos_w + a2 * cos_2w;
-    let a_imag = -(a1 * sin_w + a2 * sin_2w);
-    let numerator = b_real * b_real + b_imag * b_imag;
-    let denominator = a_real * a_real + a_imag * a_imag;
+    for (&cos_w, value) in cos_w_arr.iter().zip(response.iter_mut()) {
+        *value += eval_biquad_mag_squared_db(mag_coeffs, cos_w);
+    }
+}
 
-    if numerator > 0.0 && denominator > 0.0 {
-        (10.0 * (numerator / denominator).log10()) as f32
+#[inline]
+fn biquad_mag_squared_coeffs(
+    (b0, b1, b2, a0, a1, a2): (f64, f64, f64, f64, f64, f64),
+) -> (f64, f64, f64, f64, f64, f64) {
+    let c0_b = (b0 - b2) * (b0 - b2) + b1 * b1;
+    let c1_b = 2.0 * b1 * (b0 + b2);
+    let c2_b = 4.0 * b0 * b2;
+
+    let c0_a = (a0 - a2) * (a0 - a2) + a1 * a1;
+    let c1_a = 2.0 * a1 * (a0 + a2);
+    let c2_a = 4.0 * a0 * a2;
+
+    (c0_b, c1_b, c2_b, c0_a, c1_a, c2_a)
+}
+
+#[inline]
+fn eval_biquad_mag_squared_db(
+    (c0_b, c1_b, c2_b, c0_a, c1_a, c2_a): (f64, f64, f64, f64, f64, f64),
+    cos_w: f64,
+) -> f32 {
+    let num = c0_b + cos_w * (c1_b + c2_b * cos_w);
+    let den = c0_a + cos_w * (c1_a + c2_a * cos_w);
+
+    if num > 0.0 && den > 0.0 {
+        (10.0 * (num / den).log10()) as f32
     } else {
         0.0
     }
@@ -155,6 +185,26 @@ mod tests {
         for &c in &coeffs {
             assert!(c.is_finite(), "all coefficients must be finite");
         }
+    }
+
+    #[test]
+    fn accumulate_response_matches_cos_precomputed() {
+        let freqs: Vec<f32> = vec![20.0, 100.0, 1000.0, 10000.0, 20000.0];
+        let sr = 96000.0;
+        let factor = TAU / sr;
+        let cos_w_arr: Vec<f64> = freqs.iter().map(|&f| (f as f64 * factor).cos()).collect();
+
+        let mut res1 = vec![0.0f32; freqs.len()];
+        let mut res2 = vec![0.0f32; freqs.len()];
+
+        accumulate_response_values(FilterType::Peak, 1000.0, 6.0, 1.414, sr, &freqs, &mut res1);
+        accumulate_response_values_cos(FilterType::Peak, 1000.0, 6.0, 1.414, sr, &cos_w_arr, &mut res2);
+
+        for (v1, v2) in res1.iter().zip(res2.iter()) {
+            assert!((v1 - v2).abs() < 1e-6);
+        }
+        // At center frequency (1000Hz), gain should be approximately 6 dB
+        assert!((res1[2] - 6.0).abs() < 0.1);
     }
 
     #[test]

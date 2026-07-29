@@ -34,6 +34,22 @@ export function formatFreq(freq: number): string {
   return freq >= 1000 ? `${freq / 1000}k` : `${freq}`;
 }
 
+let cachedWidth = -1;
+let cachedFreqGrid: Float32Array | null = null;
+
+export function getFreqGrid(width: number): Float32Array {
+  if (width === cachedWidth && cachedFreqGrid) {
+    return cachedFreqGrid;
+  }
+  const freqs = new Float32Array(width);
+  for (let x = 0; x < width; x++) {
+    freqs[x] = xToFreq(x, width);
+  }
+  cachedWidth = width;
+  cachedFreqGrid = freqs;
+  return freqs;
+}
+
 let wasmReady: Promise<unknown> | null = null;
 
 async function ensureWasmReady() {
@@ -46,12 +62,21 @@ export async function snapFreqToIso(freq: number): Promise<number> {
   return snap_freq_to_iso(freq);
 }
 
-export async function filterResponseValues(filter: Filter, freqs: number[]): Promise<number[]> {
+export async function filterResponseValues(
+  filter: Filter,
+  freqs: Float32Array | number[]
+): Promise<Float32Array> {
   await ensureWasmReady();
-  return filter_response_values(filter, freqs) as number[];
+  const f32Freqs = freqs instanceof Float32Array ? freqs : new Float32Array(freqs);
+  return filter_response_values(filter, f32Freqs) as Float32Array;
 }
 
-export async function peqResponseValues(peq: PEQData, freqs: number[], includePreamp: boolean): Promise<number[]> {
+export async function peqResponseValues(
+  peq: PEQData,
+  freqs: Float32Array | number[],
+  includePreamp: boolean
+): Promise<Float32Array> {
   await ensureWasmReady();
-  return peq_response_values(peq, freqs, includePreamp) as number[];
+  const f32Freqs = freqs instanceof Float32Array ? freqs : new Float32Array(freqs);
+  return peq_response_values(peq, f32Freqs, includePreamp) as Float32Array;
 }
