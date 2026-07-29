@@ -123,6 +123,7 @@ let activeDevice: HIDDevice | null = null;
 let activeProfile: any = null; // Contains metadata & caps
 
 // Memory Diagnostic Store for Web mode
+const MAX_DIAGNOSTICS = 500;
 let diagnosticsStore: { level: string; source: string; message: string; timestamp: string }[] = [];
 
 function addDiagnostic(level: string, source: string, message: string) {
@@ -133,6 +134,9 @@ function addDiagnostic(level: string, source: string, message: string) {
     timestamp: new Date().toISOString(),
   };
   diagnosticsStore.push(event);
+  if (diagnosticsStore.length > MAX_DIAGNOSTICS) {
+    diagnosticsStore.shift();
+  }
   emitEvent("diagnostic-event", event);
 }
 
@@ -140,8 +144,21 @@ function addDiagnostic(level: string, source: string, message: string) {
 let reportQueue: Uint8Array[] = [];
 let reportResolvers: ((report: Uint8Array) => void)[] = [];
 
+const inputReportListeners = new Map<HIDDevice, (event: any) => void>();
+
+function detachHidEventListeners(device?: HIDDevice | null) {
+  if (!device) return;
+  const listener = inputReportListeners.get(device);
+  if (listener) {
+    device.removeEventListener("inputreport", listener);
+    inputReportListeners.delete(device);
+  }
+}
+
 function markWebHidDisconnected(device?: HIDDevice) {
+  const target = device || activeDevice;
   if (!activeDevice || (device && activeDevice !== device)) return;
+  detachHidEventListeners(target);
   const name = activeProfile?.name || activeDevice.productName || "WebHID device";
   activeDevice = null;
   activeProfile = null;
@@ -151,7 +168,9 @@ function markWebHidDisconnected(device?: HIDDevice) {
 }
 
 function setupHidEventListeners(device: HIDDevice) {
-  device.addEventListener("inputreport", (event: any) => {
+  detachHidEventListeners(device);
+
+  const listener = (event: any) => {
     const bytes = new Uint8Array(event.data.buffer, event.data.byteOffset, event.data.byteLength);
     const framed = new Uint8Array(bytes.length + 1);
     framed[0] = event.reportId;
@@ -163,7 +182,10 @@ function setupHidEventListeners(device: HIDDevice) {
     } else {
       reportQueue.push(framed);
     }
-  });
+  };
+
+  inputReportListeners.set(device, listener);
+  device.addEventListener("inputreport", listener);
 }
 
 async function sendReport(packet: number[] | Uint8Array): Promise<void> {
@@ -492,6 +514,7 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
     }
     case "disconnect_device": {
       if (activeDevice) {
+        detachHidEventListeners(activeDevice);
         await activeDevice.close();
         activeDevice = null;
         activeProfile = null;

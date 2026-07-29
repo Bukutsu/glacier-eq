@@ -8,8 +8,7 @@ export function useThemeSync(theme: string): string {
     const isAndroid =
       typeof navigator !== "undefined" &&
       (document.body.classList.contains("is-android") ||
-        /android/i.test(navigator.userAgent) ||
-        typeof window.AndroidNotifier !== "undefined");
+        /android/i.test(navigator.userAgent));
 
     const applyTheme = async () => {
       let resolved = theme;
