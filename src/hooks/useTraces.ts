@@ -1,13 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   makeMeasurementName,
+  makeTargetName,
   nextMeasurementColor,
   normalizeMeasurementPoints,
-} from "../lib/measurements";
-import {
-  makeTargetName,
   resolveTargetColor,
-} from "../lib/targetReferences";
+} from "../lib/measurements";
 import type { MeasurementTrace, TargetTrace } from "../types";
 
 function loadPersistedJson<T>(

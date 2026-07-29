@@ -36,6 +36,9 @@ import { useThemeSync } from "./hooks/useThemeSync";
 import { useTraces } from "./hooks/useTraces";
 
 const ANDROID_TOAST_DEDUPE_MS = 2000;
+// Offline editor fallback. Must stay in sync with glacier-core
+// `DESKTOP_DAC_CAPS` (glacier-core/src/device/capabilities.rs); there is no
+// wasm export exposing it, so this constant is the TS-side mirror.
 const OFFLINE_EDITOR_CAPABILITIES: DeviceCapabilities = {
   num_bands: 10,
   global_gain_range: [-16, 6],
@@ -52,7 +55,6 @@ const DEFAULT_SETTINGS: AppSettings = {
   auto_pull_on_connect: true,
   skip_push_verification: false,
   theme: "tokyo-night",
-  enable_online_measurements: false,
   snap_to_iso_frequencies: true,
 };
 
