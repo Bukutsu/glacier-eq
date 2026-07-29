@@ -481,6 +481,7 @@ select:focus-visible {
 body::-webkit-scrollbar,
 .workspace::-webkit-scrollbar,
 .tools-card::-webkit-scrollbar,
+.tab-panel::-webkit-scrollbar,
 .preset-list::-webkit-scrollbar,
 .log-box::-webkit-scrollbar,
 .import-preview-box::-webkit-scrollbar,
@@ -492,9 +493,18 @@ body::-webkit-scrollbar,
   height: 8px;
 }
 
+/* Wider scrollbar on the two main content panes so small windows don't
+   read as "clipped" — the affordance is obvious. */
+.left-pane::-webkit-scrollbar,
+.tab-panel::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
 body::-webkit-scrollbar-track,
 .workspace::-webkit-scrollbar-track,
 .tools-card::-webkit-scrollbar-track,
+.tab-panel::-webkit-scrollbar-track,
 .preset-list::-webkit-scrollbar-track,
 .log-box::-webkit-scrollbar-track,
 .import-preview-box::-webkit-scrollbar-track,
@@ -509,6 +519,7 @@ body::-webkit-scrollbar-track,
 body::-webkit-scrollbar-track:horizontal,
 .workspace::-webkit-scrollbar-track:horizontal,
 .tools-card::-webkit-scrollbar-track:horizontal,
+.tab-panel::-webkit-scrollbar-track:horizontal,
 .preset-list::-webkit-scrollbar-track:horizontal,
 .log-box::-webkit-scrollbar-track:horizontal,
 .import-preview-box::-webkit-scrollbar-track:horizontal,
@@ -523,6 +534,7 @@ body::-webkit-scrollbar-track:horizontal,
 body::-webkit-scrollbar-thumb,
 .workspace::-webkit-scrollbar-thumb,
 .tools-card::-webkit-scrollbar-thumb,
+.tab-panel::-webkit-scrollbar-thumb,
 .preset-list::-webkit-scrollbar-thumb,
 .log-box::-webkit-scrollbar-thumb,
 .import-preview-box::-webkit-scrollbar-thumb,
@@ -541,6 +553,8 @@ body::-webkit-scrollbar-thumb:active,
 .workspace::-webkit-scrollbar-thumb:active,
 .tools-card::-webkit-scrollbar-thumb:hover,
 .tools-card::-webkit-scrollbar-thumb:active,
+.tab-panel::-webkit-scrollbar-thumb:hover,
+.tab-panel::-webkit-scrollbar-thumb:active,
 .preset-list::-webkit-scrollbar-thumb:hover,
 .preset-list::-webkit-scrollbar-thumb:active,
 .log-box::-webkit-scrollbar-thumb:hover,
