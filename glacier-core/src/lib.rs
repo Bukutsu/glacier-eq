@@ -10,6 +10,7 @@
 pub mod autoeq;
 pub mod device;
 pub mod eq;
+pub mod error;
 pub mod profile_match;
 pub mod profiles;
 #[cfg(target_arch = "wasm32")]
