@@ -47,10 +47,7 @@ impl<R: Runtime> Hid<R> {
 
     pub fn open(&self, path: &str) -> crate::Result<()> {
         let hid_api = self.hid_api.lock().unwrap_or_else(|p| p.into_inner());
-        let mut open_devices = self
-            .open_devices
-            .lock()
-            .unwrap_or_else(|p| p.into_inner());
+        let mut open_devices = self.open_devices.lock().unwrap_or_else(|p| p.into_inner());
 
         if open_devices.contains_key(path) {
             return Err(crate::Error::HidDeviceAlreadyOpen);
@@ -63,20 +60,14 @@ impl<R: Runtime> Hid<R> {
     }
 
     pub fn close(&self, path: &str) -> crate::Result<()> {
-        let mut open_devices = self
-            .open_devices
-            .lock()
-            .unwrap_or_else(|p| p.into_inner());
+        let mut open_devices = self.open_devices.lock().unwrap_or_else(|p| p.into_inner());
         open_devices.remove(path);
         Ok(())
     }
 
     pub fn write(&self, path: &str, data: &[u8]) -> crate::Result<()> {
         let device = {
-            let open_devices = self
-                .open_devices
-                .lock()
-                .unwrap_or_else(|p| p.into_inner());
+            let open_devices = self.open_devices.lock().unwrap_or_else(|p| p.into_inner());
             open_devices
                 .get(path)
                 .cloned()
@@ -90,10 +81,7 @@ impl<R: Runtime> Hid<R> {
 
     pub fn read(&self, path: &str, timeout: i32) -> crate::Result<Vec<u8>> {
         let device = {
-            let open_devices = self
-                .open_devices
-                .lock()
-                .unwrap_or_else(|p| p.into_inner());
+            let open_devices = self.open_devices.lock().unwrap_or_else(|p| p.into_inner());
             open_devices
                 .get(path)
                 .cloned()

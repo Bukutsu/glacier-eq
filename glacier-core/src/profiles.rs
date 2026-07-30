@@ -164,9 +164,8 @@ fn validate_name(name: &str) -> Result<(), String> {
 /// which are illegal on Windows filesystems and break portable save/load.
 fn is_reserved_windows_name(name: &str) -> bool {
     const RESERVED: &[&str] = &[
-        "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7",
-        "COM8", "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8",
-        "LPT9",
+        "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8",
+        "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
     ];
     let stem = Path::new(name)
         .file_stem()
@@ -277,7 +276,9 @@ mod tests {
         let base = temporary_dir();
         let store = ProfileStore::new(&base).unwrap();
         let peq = PEQData {
-            filters: (0..70).map(|i| crate::Filter::enabled(i as u8, true)).collect(),
+            filters: (0..70)
+                .map(|i| crate::Filter::enabled(i as u8, true))
+                .collect(),
             global_gain: 100.0,
         };
         store.save("Loud", &peq).unwrap();

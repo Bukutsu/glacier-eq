@@ -114,18 +114,16 @@ pub fn parse_autoeq_text(text: &str) -> Result<(PEQData, Option<String>, Vec<Str
                 }
                 // Clamp frequency into a cast-safe, sane range before `as u16`
                 // to avoid the silent wraparound the old code had for huge/negative Fc.
-                let freq: u16 = if !parsed.freq.is_finite()
-                    || parsed.freq < 1.0
-                    || parsed.freq > 1_000_000.0
-                {
-                    warnings.push(format!(
-                        "Line {}: Frequency {} Hz out of range [1, 1000000]; clamping",
-                        line_num, parsed.freq
-                    ));
-                    parsed.freq.clamp(1.0, u16::MAX as f64) as u16
-                } else {
-                    parsed.freq as u16
-                };
+                let freq: u16 =
+                    if !parsed.freq.is_finite() || parsed.freq < 1.0 || parsed.freq > 1_000_000.0 {
+                        warnings.push(format!(
+                            "Line {}: Frequency {} Hz out of range [1, 1000000]; clamping",
+                            line_num, parsed.freq
+                        ));
+                        parsed.freq.clamp(1.0, u16::MAX as f64) as u16
+                    } else {
+                        parsed.freq as u16
+                    };
                 filters.insert(
                     idx,
                     Filter {
@@ -1610,7 +1608,7 @@ mod tests {
     fn arb_filter() -> impl Strategy<Value = Filter> {
         (
             any::<bool>(),
-            20u16..=20000u16, // freq
+            20u16..=20000u16,   // freq
             -1000i32..=1000i32, // gain, 2-decimal steps
             100i32..=20000i32,  // q, 3-decimal steps
             0u8..=4u8,

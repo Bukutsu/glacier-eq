@@ -73,10 +73,13 @@ fn handle_disconnection(app: &tauri::AppHandle, error: &str) {
 }
 
 fn ensure_connected(app: &tauri::AppHandle) -> Result<(), String> {
-    if app
-        .try_state::<Mutex<DeviceState>>()
-        .map(|state| state.lock().unwrap_or_else(|p| p.into_inner()).connected.is_some())
-        == Some(false)
+    if app.try_state::<Mutex<DeviceState>>().map(|state| {
+        state
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .connected
+            .is_some()
+    }) == Some(false)
     {
         Err("Device disconnected".into())
     } else {
@@ -330,12 +333,13 @@ pub async fn connect_device(
             .iter()
             .find(|device| device.path == path_clone)
             .ok_or_else(|| "Device disappeared. Scan again and reconnect.".to_string())?;
-        let profile = get_supported_device(device.vendor_id, device.product_id).ok_or_else(|| {
-            format!(
-                "Unsupported HID device {:04X}:{:04X}",
-                device.vendor_id, device.product_id
-            )
-        })?;
+        let profile =
+            get_supported_device(device.vendor_id, device.product_id).ok_or_else(|| {
+                format!(
+                    "Unsupported HID device {:04X}:{:04X}",
+                    device.vendor_id, device.product_id
+                )
+            })?;
         if let Some(previous) = lock_device_state(&state)?.connected.take() {
             let _ = hid_close(&app_clone, &previous.path);
         }
@@ -397,7 +401,10 @@ pub async fn set_dac_work_mode(
     state: tauri::State<'_, Mutex<DeviceState>>,
     is_class_ab: bool,
 ) -> Result<(), String> {
-    with_session(&app, &state, move |session| session.set_amp_mode(is_class_ab)).await
+    with_session(&app, &state, move |session| {
+        session.set_amp_mode(is_class_ab)
+    })
+    .await
 }
 
 #[tauri::command]
@@ -406,7 +413,10 @@ pub async fn set_dac_output_gain(
     state: tauri::State<'_, Mutex<DeviceState>>,
     is_high_gain: bool,
 ) -> Result<(), String> {
-    with_session(&app, &state, move |session| session.set_gain_mode(is_high_gain)).await
+    with_session(&app, &state, move |session| {
+        session.set_gain_mode(is_high_gain)
+    })
+    .await
 }
 
 #[tauri::command]
@@ -424,7 +434,10 @@ pub async fn set_mic_volume(
     state: tauri::State<'_, Mutex<DeviceState>>,
     volume_db: i8,
 ) -> Result<(), String> {
-    with_session(&app, &state, move |session| session.set_mic_volume(volume_db)).await
+    with_session(&app, &state, move |session| {
+        session.set_mic_volume(volume_db)
+    })
+    .await
 }
 
 #[tauri::command]
