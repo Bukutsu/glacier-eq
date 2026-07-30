@@ -20,7 +20,7 @@ env:
 
 jobs:
   rust:
-    name: Rust fmt and check
+    name: Rust fmt, check, and test
     runs-on: ubuntu-22.04
     timeout-minutes: 20
 
@@ -44,8 +44,37 @@ jobs:
       - name: Check Rust formatting
         run: cargo fmt --all -- --check
 
-      - name: Check glacier-core crate
-        run: cargo check -p glacier-core --locked
+      - name: Run Rust workspace tests
+        run: cargo test --workspace --locked
+
+  frontend:
+    name: Frontend tests and typecheck
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - name: Install Rust stable for WASM
+        uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9cd735e725c4060f
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Typecheck and build frontend
+        run: npm run build
 
   tauri-desktop:
     name: Tauri Desktop compile (${{ matrix.name }})
@@ -97,7 +126,7 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9cd735e725c4060f
         with:
-          targets: ${{ matrix.rust-targets }}
+          targets: wasm32-unknown-unknown ${{ matrix.rust-targets }}
 
       - name: Cache Rust build outputs
         uses: swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32

@@ -51,9 +51,9 @@ fn is_path_allowed(path: &str) -> bool {
         let Ok(parent_canon) = std::fs::canonicalize(parent) else {
             return false;
         };
-        return allowed_bases().iter().any(|base| {
-            parent_canon.starts_with(base)
-        });
+        return allowed_bases()
+            .iter()
+            .any(|base| parent_canon.starts_with(base));
     };
     allowed_bases().iter().any(|base| canon.starts_with(base))
 }

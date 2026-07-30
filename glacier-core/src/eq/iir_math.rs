@@ -198,7 +198,15 @@ mod tests {
         let mut res2 = vec![0.0f32; freqs.len()];
 
         accumulate_response_values(FilterType::Peak, 1000.0, 6.0, 1.414, sr, &freqs, &mut res1);
-        accumulate_response_values_cos(FilterType::Peak, 1000.0, 6.0, 1.414, sr, &cos_w_arr, &mut res2);
+        accumulate_response_values_cos(
+            FilterType::Peak,
+            1000.0,
+            6.0,
+            1.414,
+            sr,
+            &cos_w_arr,
+            &mut res2,
+        );
 
         for (v1, v2) in res1.iter().zip(res2.iter()) {
             assert!((v1 - v2).abs() < 1e-6);
