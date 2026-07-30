@@ -34,7 +34,7 @@
     "@types/w3c-web-hid": "^1.0.7",
     "@vitejs/plugin-react": "^6.0.4",
     "cross-env": "^10.1.0",
-    "typescript": "^5.8.0",
+    "typescript": "^7.0.2",
     "vite": "^8.1.5",
     "vitest": "^4.1.10",
     "wasm-pack": "^0.15.0"
