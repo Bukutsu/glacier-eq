@@ -70,7 +70,7 @@ jobs:
           cache: npm
 
       - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9cd735e725c4060f
+        uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown ${{ matrix.rust-targets }}
 
@@ -183,7 +183,7 @@ jobs:
           cache: npm
 
       - name: Install Rust (aarch64-linux-android + wasm32)
-        uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9cd735e725c4060f
+        uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-linux-android wasm32-unknown-unknown
 

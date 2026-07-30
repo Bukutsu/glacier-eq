@@ -29,7 +29,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
       - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9cd735e725c4060f
+        uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
 
@@ -63,7 +63,7 @@ jobs:
           cache: npm
 
       - name: Install Rust stable for WASM
-        uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9cd735e725c4060f
+        uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
 
@@ -124,7 +124,7 @@ jobs:
           cache: npm
 
       - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9cd735e725c4060f
+        uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown ${{ matrix.rust-targets }}
 
