@@ -42,7 +42,7 @@ export function AddTraceModal({
       setStatus?.(`Downloaded online database (${count} curves)`);
     } catch (error) {
       console.error(error);
-      setStatus?.(`Database download failed: ${error}`);
+      setStatus?.(`Failed to download database: ${error}`);
     }
   };
 
@@ -68,7 +68,7 @@ export function AddTraceModal({
       setStatus?.(`Loaded measurement: ${label} (${points.length} points)`);
       onClose();
     } catch (error) {
-      setStatus?.(`Measurement import failed: ${error}`);
+      setStatus?.(`Failed to import measurement: ${error}`);
     }
   };
 
@@ -82,7 +82,7 @@ export function AddTraceModal({
       setStatus?.(`Loaded target: ${label} (${points.length} points)`);
       onClose();
     } catch (error) {
-      setStatus?.(`Target import failed: ${error}`);
+      setStatus?.(`Failed to import target: ${error}`);
     }
   };
 

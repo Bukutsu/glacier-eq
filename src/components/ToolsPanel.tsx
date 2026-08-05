@@ -204,7 +204,7 @@ export const ToolsPanel = memo(function ToolsPanel(props: ToolsPanelProps) {
               <div className="device-disconnected-panel" style={{ padding: "24px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
                 <span className="material-symbols-outlined" style={{ fontSize: "48px", color: "var(--muted)" }}>link_off</span>
                 <strong style={{ fontSize: "16px" }}>DSP Offline</strong>
-                <p style={{ color: "var(--muted)", fontSize: "13px", lineHeight: "1.5", margin: "0" }}>Connect a supported Glacier-compatible DAC to adjust hardware options, filter modes, and amplifier gain.</p>
+                <p style={{ color: "var(--muted)", fontSize: "13px", lineHeight: "1.5", margin: "0" }}>Connect a supported DAC to adjust hardware options, filter modes, and amplifier gain.</p>
                 <button className="btn filled" style={{ width: "100%", marginTop: "8px" }} onClick={props.onOpenConnectModal}>
                   Connect Device
                 </button>
@@ -530,7 +530,7 @@ function ImportTab({ peq, profiles, selectedPreset, onImportPEQ, onReloadProfile
       const text = await file.text();
       await parseAndLoadText(text, file.name.replace(/\.[^/.]+$/, ""));
     } catch (error) {
-      setStatus(`Import failed: ${error}`);
+      setStatus(`Failed to import: ${error}`);
     }
     e.target.value = "";
   };
@@ -542,9 +542,9 @@ function ImportTab({ peq, profiles, selectedPreset, onImportPEQ, onReloadProfile
       const initialName = result.headphone_name || defaultNameFallback || "Imported Profile";
       setImportName(initialName);
       setIsTemporary(false);
-      setStatus("AutoEQ profile parsed successfully");
+      setStatus("Parsed AutoEQ profile");
     } catch (error) {
-      setStatus(`Import failed: ${error}`);
+      setStatus(`Failed to import: ${error}`);
     }
   };
 
@@ -565,7 +565,7 @@ function ImportTab({ peq, profiles, selectedPreset, onImportPEQ, onReloadProfile
       await writeText(text);
       setStatus("EQ settings copied to clipboard");
     } catch (err) {
-      setStatus(`Copy failed: ${err}`);
+      setStatus(`Failed to copy: ${err}`);
     }
   };
 
@@ -585,7 +585,7 @@ function ImportTab({ peq, profiles, selectedPreset, onImportPEQ, onReloadProfile
       await invoke("save_text_file", { path, content: text });
       setStatus("EQ settings exported successfully");
     } catch (err) {
-      setStatus(`Export failed: ${err}`);
+      setStatus(`Failed to export: ${err}`);
     }
   };
 
@@ -596,7 +596,7 @@ function ImportTab({ peq, profiles, selectedPreset, onImportPEQ, onReloadProfile
     if (isTemporary) {
       onImportPEQ(parsed.peq, importName || "Imported EQ", false);
       setParsed(null);
-      setStatus("Imported profile applied directly to active EQ (temporary)");
+      setStatus("Applied to the editor without saving");
     } else {
       const name = importName.trim();
       if (!name) {
@@ -612,9 +612,9 @@ function ImportTab({ peq, profiles, selectedPreset, onImportPEQ, onReloadProfile
         await onReloadProfiles();
         onImportPEQ(parsed.peq, name, true);
         setParsed(null);
-        setStatus(`Profile '${name}' saved successfully`);
+        setStatus(`Profile '${name}' saved`);
       } catch (err) {
-        setStatus(`Save failed: ${err}`);
+        setStatus(`Failed to save profile: ${err}`);
       }
     }
   };
@@ -692,7 +692,7 @@ function ImportTab({ peq, profiles, selectedPreset, onImportPEQ, onReloadProfile
                     />
                     {savedProfiles.length > 0 && (
                       <div className="import-field-group" style={{ marginTop: "8px" }}>
-                        <label htmlFor="overwrite-select">Or Overwrite Existing:</label>
+                        <label htmlFor="overwrite-select">Or overwrite an existing profile:</label>
                         <Select
                           id="overwrite-select"
                           value={profiles.some((p) => p.name === importName) ? importName : ""}
@@ -708,13 +708,13 @@ function ImportTab({ peq, profiles, selectedPreset, onImportPEQ, onReloadProfile
                     )}
                     {nameExists && (
                       <span className="import-overwrite-warning">
-                        ⚠️ Profile already exists. Saving will overwrite it.
+                        A profile with this name already exists. Saving will replace it.
                       </span>
                     )}
                   </div>
                 ) : (
                   <div className="import-temp-info">
-                    Apply the parsed EQ filters directly to the editor. Unsaved changes will be replaced.
+                    Applies the parsed EQ to the editor, replacing unsaved changes.
                   </div>
                 )}
 
@@ -863,7 +863,7 @@ export function AutoEqTab({
     if (!meas || !target) return;
 
     setIsOptimizing(true);
-    setStatus("Running AutoEQ optimization engine...");
+    setStatus("Running AutoEQ optimization...");
     setWarnings([]);
 
     try {
@@ -894,12 +894,12 @@ export function AutoEqTab({
       setWarnings(result.warnings);
       
       if (result.warnings.length > 0) {
-        setStatus(`AutoEQ optimized successfully with ${result.warnings.length} device warnings.`);
+        setStatus(`AutoEQ match complete with ${result.warnings.length} device warning${result.warnings.length === 1 ? "" : "s"}`);
       } else {
-        setStatus("AutoEQ optimization completed successfully!");
+        setStatus("AutoEQ match complete");
       }
     } catch (err) {
-      setStatus(`AutoEQ optimization failed: ${err}`);
+      setStatus(`AutoEQ match failed: ${err}`);
       console.error(err);
     } finally {
       setIsOptimizing(false);
@@ -1161,7 +1161,7 @@ function DeviceTab({ setStatus, onPull }: { setStatus: (msg: string) => void; on
     try {
       setUtility(await invoke<DeviceUtilityState>("get_dac_utility_state"));
     } catch (err) {
-      setLoadError(`Failed to load device status: ${err}`);
+      setLoadError(`Couldn't load device status: ${err}`);
     } finally {
       setLoading(false);
     }
@@ -1195,7 +1195,7 @@ function DeviceTab({ setStatus, onPull }: { setStatus: (msg: string) => void; on
       await invoke(command, args);
     } catch (err) {
       setUtility(previous);
-      setStatus(`Device setting update failed: ${err}`);
+      setStatus(`Failed to update device setting: ${err}`);
     }
   };
 
@@ -1223,7 +1223,7 @@ function DeviceTab({ setStatus, onPull }: { setStatus: (msg: string) => void; on
         await onPull();
       }
     } catch (err) {
-      setStatus(`Device EQ reset failed: ${err}`);
+      setStatus(`Failed to reset device EQ: ${err}`);
     }
   };
 
@@ -1233,7 +1233,7 @@ function DeviceTab({ setStatus, onPull }: { setStatus: (msg: string) => void; on
       setUtility(await invoke<typeof utility>("reset_device_controls"));
       setStatus("Device controls reset");
     } catch (err) {
-      setStatus(`Device controls reset failed: ${err}`);
+      setStatus(`Failed to reset device controls: ${err}`);
     }
   };
 
@@ -1247,7 +1247,7 @@ function DeviceTab({ setStatus, onPull }: { setStatus: (msg: string) => void; on
         await onPull();
       }
     } catch (err) {
-      setStatus(`Factory reset failed: ${err}`);
+      setStatus(`Failed to factory reset: ${err}`);
     }
   };
 
@@ -1267,7 +1267,7 @@ function DeviceTab({ setStatus, onPull }: { setStatus: (msg: string) => void; on
         <section className="tool-card">
           <div className="device-empty">
             <Icon>error</Icon>
-            <strong>Unable to load device status.</strong>
+            <strong>Couldn't load device status.</strong>
             <span>{loadError}</span>
             <button className="btn" onClick={fetchState}>Retry</button>
           </div>
@@ -1282,8 +1282,8 @@ function DeviceTab({ setStatus, onPull }: { setStatus: (msg: string) => void; on
         <section className="tool-card">
           <div className="device-empty">
             <Icon>tune</Icon>
-            <strong>No supported hardware PEQ DAC connected.</strong>
-            <span>Connect a supported Savitech DSP DAC.</span>
+            <strong>No supported DSP DAC connected.</strong>
+            <span>Connect a supported Savitech DSP DAC to use these controls.</span>
           </div>
         </section>
       </div>
@@ -1316,11 +1316,11 @@ function DeviceTab({ setStatus, onPull }: { setStatus: (msg: string) => void; on
           </div>
         </div>
         <div className="device-hint">
-          {utility.filter_mode === "FAST-LL" && "FAST-LL: Minimizes pre-ringing, warm and punchy sound."}
-          {utility.filter_mode === "FAST-PC" && "FAST-PC: Preserves phase linearity, clean and balanced sound."}
-          {utility.filter_mode === "Slow-LL" && "Slow-LL: Gentle high-frequency roll-off, warm and relaxed sound."}
-          {utility.filter_mode === "Slow-PC" && "Slow-PC: Phase linearity with a gentler high-frequency roll-off."}
-          {utility.filter_mode === "NON-OS" && "NON-OS: Bypasses digital interpolation. Pure, raw analog signature."}
+          {utility.filter_mode === "FAST-LL" && "FAST-LL: minimizes pre-ringing for a warm, punchy sound."}
+          {utility.filter_mode === "FAST-PC" && "FAST-PC: preserves phase linearity for a clean, balanced sound."}
+          {utility.filter_mode === "Slow-LL" && "Slow-LL: gentle high-frequency roll-off for a warm, relaxed sound."}
+          {utility.filter_mode === "Slow-PC" && "Slow-PC: phase linearity with a gentler high-frequency roll-off."}
+          {utility.filter_mode === "NON-OS" && "NON-OS: bypasses digital interpolation for a raw analog sound."}
         </div>
 
         <label>

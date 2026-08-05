@@ -4,7 +4,7 @@
 pkgname=glacier-eq-git
 pkgver=0.5.0
 pkgrel=1
-pkgdesc="Cross-platform parametric EQ editor for USB DACs. Offline, direct, and built for dense tuning work on desktop and Android."
+pkgdesc="Cross-platform parametric EQ editor for USB DACs. Runs offline and works directly with the hardware, on desktop and Android."
 arch=('x86_64' 'aarch64')
 url="https://github.com/Bukutsu/glacier-eq"
 license=('GPL-3.0-only')

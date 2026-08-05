@@ -409,7 +409,7 @@ function App() {
     try {
       setProfiles(withSyntheticDefault(await invoke<Profile[]>("list_profiles")));
     } catch (error) {
-      setStatus(`Profile load failed: ${error}`);
+      setStatus(`Failed to load profiles: ${error}`);
     }
   }, []);
 
@@ -431,7 +431,7 @@ function App() {
       const file = e.dataTransfer?.files[0];
       if (!file) return;
       if (!file.name.endsWith(".txt")) {
-        setStatus("Drop .txt AutoEQ files only");
+        setStatus("Only .txt AutoEQ files can be dropped here");
         return;
       }
       try {
@@ -439,13 +439,16 @@ function App() {
         const result = await invoke<{ peq: PEQData; headphone_name: string | null; warnings: string[] }>("parse_autoeq", { text });
         const name = result.headphone_name || file.name.replace(/\.[^/.]+$/, "");
         importPeq(result.peq, name, false);
+        const adjustments = result.warnings.length === 1
+          ? "1 adjustment"
+          : `${result.warnings.length} adjustments`;
         setStatus(
           result.warnings.length > 0
-            ? `Imported "${name}" with ${result.warnings.length} adjustment(s)`
+            ? `Imported "${name}" with ${adjustments}`
             : `Imported "${name}"`
         );
       } catch (err) {
-        setStatus(`Drop import failed: ${err}`);
+        setStatus(`Failed to import dropped file: ${err}`);
       }
     };
     window.addEventListener("dragover", handleDragOver);
@@ -472,7 +475,7 @@ function App() {
       );
       setStatusState(
         list.length
-          ? `Found ${list.length} device(s)`
+          ? `Found ${list.length} device${list.length === 1 ? "" : "s"}`
           : "No compatible DACs found",
       );
     } catch (error) {
@@ -482,7 +485,7 @@ function App() {
         setStatus("Hardware scan failed; using dummy DAC for dev review");
         return;
       }
-      setStatus(`Scan failed: ${error}`);
+      setStatus(`Failed to scan for devices: ${error}`);
     } finally {
       setIsBusy(false);
       if (window.localStorage.getItem(DEVICE_ONBOARDING_KEY) !== "true") {
@@ -515,7 +518,7 @@ function App() {
       setIsReconnecting(true);
       setLastPushedPeq(null);
       setFirmwareVersion(null);
-      reportStatus("Error", `Connection lost to device (unplugged): ${event.payload}`, "error", "Device", "Reconnecting...");
+      reportStatus("Error", `Lost connection to device (unplugged): ${event.payload}`, "error", "Device", "Reconnecting...");
     });
 
     return () => {
@@ -566,7 +569,7 @@ function App() {
           setIsReconnecting(true);
           setLastPushedPeq(null);
           setFirmwareVersion(null);
-          reportStatus("Error", "Connection lost to device", "error", "Device", "Reconnecting...");
+          reportStatus("Error", "Lost connection to device", "error", "Device", "Reconnecting...");
         }
       } catch {}
     }, 1500);
@@ -591,7 +594,7 @@ function App() {
             d.product_string === connectedDeviceName
         );
         if (found && active) {
-          reportStatus("Info", `Device found: ${connectedDeviceName}. Attempting to reconnect...`, null, "Device", "Device found. Reconnecting...");
+          reportStatus("Info", `Device found: ${connectedDeviceName}. Reconnecting...`, null, "Device", "Device found. Reconnecting...");
           try {
             await invoke("connect_device", { path: found.path });
 
@@ -601,11 +604,11 @@ function App() {
               setIsReconnecting(false);
               setLastPushedPeq(null);
               await loadFirmwareVersion();
-              reportStatus("Info", `Successfully reconnected to ${connectedDeviceName} without changing its EQ`, "success", "Device", "Ready");
+              reportStatus("Info", `Reconnected to ${connectedDeviceName} without changing its EQ`, "success", "Device", "Ready");
               return;
             }
           } catch (err) {
-            reportStatus("Warn", `Auto-reconnect connection failed: ${err}. Retrying...`, null, "Device", "Reconnecting...");
+            reportStatus("Warn", `Reconnect attempt failed: ${err}. Retrying...`, null, "Device", "Reconnecting...");
             try {
               await invoke("disconnect_device");
             } catch {}
@@ -657,7 +660,7 @@ function App() {
         await sleep(150);
         setProgress({ message: "Reading device preamp...", percentage: 90 });
         await sleep(150);
-        setProgress({ message: "Read successful", percentage: 100 });
+        setProgress({ message: "Read complete", percentage: 100 });
         await sleep(400);
         data = buildDevDummyPeq();
       } else {
@@ -674,16 +677,16 @@ function App() {
         "Info",
         isDevDummyDevice(selectedDevice)
           ? "Loaded dummy DAC EQ"
-          : "Read from DAC successful",
+          : "Loaded EQ from DAC",
         "success",
         "UI"
       );
     } catch (error) {
       if (isDisconnectionError(error)) {
         setIsReconnecting(true);
-        reportStatus("Error", `Read failed (disconnected): ${error}`, "error", "HID", "Reconnecting...");
+        reportStatus("Error", `Failed to read from DAC (disconnected): ${error}`, "error", "HID", "Reconnecting...");
       } else {
-        reportStatus("Error", `Read from DAC failed: ${error}`, "error", "UI");
+        reportStatus("Error", `Failed to read from DAC: ${error}`, "error", "UI");
       }
     } finally {
       eqOperationInFlightRef.current = false;
@@ -738,7 +741,7 @@ function App() {
       setConnected(false);
       setLastPushedPeq(null);
       if (isDisconnectionError(error)) {
-        reportStatus("Error", `Connection failed (disconnected): ${error}`, "error", "UI", "Device disconnected");
+        reportStatus("Error", `Failed to connect (disconnected): ${error}`, "error", "UI", "Device disconnected");
       } else {
         const errorMsg = String(error);
         if (errorMsg.includes("NotAllowedError") && !isTauri()) {
@@ -749,7 +752,7 @@ function App() {
             "UI"
           );
         } else {
-          reportStatus("Error", `Connection failed: ${error}`, "error", "UI");
+          reportStatus("Error", `Failed to connect: ${error}`, "error", "UI");
         }
       }
       return false;
@@ -769,7 +772,8 @@ function App() {
       capabilities: selectedCapabilities,
     });
     const activeBands = snapshot.filters.filter((f) => f.enabled).length;
-    if (!window.confirm(`Write ${activeBands} band(s) and ${snapshot.global_gain.toFixed(1)} dB preamp to the DAC? This stores the EQ on the device.`)) return;
+    const bandCount = activeBands === 1 ? "band" : "bands";
+    if (!window.confirm(`Write ${activeBands} ${bandCount} and ${snapshot.global_gain.toFixed(1)} dB preamp to the DAC? This stores the EQ on the device.`)) return;
     eqOperationInFlightRef.current = true;
     setProgress(null);
     setIsBusy(true);
@@ -795,7 +799,7 @@ function App() {
         await sleep(200);
         setProgress({ message: "Verifying changes...", percentage: 90 });
         await sleep(200);
-        setProgress({ message: "Write successful", percentage: 100 });
+        setProgress({ message: "Write complete", percentage: 100 });
         await sleep(400);
       } else {
         await invoke("set_eq_state", { peq: snapshot });
@@ -806,16 +810,16 @@ function App() {
         "Info",
         isDevDummyDevice(selectedDevice)
           ? "Dummy DAC write simulated"
-          : "Write to DAC successful",
+          : "Saved EQ to DAC",
         "success",
         "UI"
       );
     } catch (error) {
       if (isDisconnectionError(error)) {
         setIsReconnecting(true);
-        reportStatus("Error", `Write failed (disconnected): ${error}`, "error", "HID", "Reconnecting...");
+        reportStatus("Error", `Failed to write to DAC (disconnected): ${error}`, "error", "HID", "Reconnecting...");
       } else {
-        reportStatus("Error", `Write to DAC failed: ${error}`, "error", "UI");
+        reportStatus("Error", `Failed to write to DAC: ${error}`, "error", "UI");
       }
     } finally {
       eqOperationInFlightRef.current = false;
@@ -862,9 +866,9 @@ function App() {
       } catch (error) {
         if (isDisconnectionError(error)) {
           setIsReconnecting(true);
-          reportStatus("Error", `Apply failed (disconnected): ${error}`, "error", "HID", "Reconnecting...");
+          reportStatus("Error", `Failed to apply EQ (disconnected): ${error}`, "error", "HID", "Reconnecting...");
         } else {
-          reportStatus("Error", `Apply failed: ${error}`, "error", "UI");
+          reportStatus("Error", `Failed to apply EQ: ${error}`, "error", "UI");
         }
       } finally {
         eqOperationInFlightRef.current = false;
@@ -886,9 +890,9 @@ function App() {
       setConnectedDeviceName("");
       setLastPushedPeq(null);
       setFirmwareVersion(null);
-      reportStatus("Info", "Device disconnected manually", null, "UI", "Disconnected");
+      reportStatus("Info", "Disconnected from device", null, "UI", "Disconnected");
     } catch (error) {
-      reportStatus("Error", `Disconnect failed: ${error}`, "error", "UI");
+      reportStatus("Error", `Failed to disconnect: ${error}`, "error", "UI");
     } finally {
       setIsBusy(false);
     }
@@ -920,7 +924,7 @@ function App() {
       setProfiles(withSyntheticDefault(await invoke<Profile[]>("list_profiles")));
       setStatus("Profile saved");
     } catch (error) {
-      setStatus(`Save failed: ${error}`);
+      setStatus(`Failed to save profile: ${error}`);
     }
   }, [loadProfiles, newProfileName, peq, profiles, selectedPreset]);
 
@@ -938,7 +942,7 @@ function App() {
       setProfiles(withSyntheticDefault(await invoke<Profile[]>("list_profiles")));
       setStatus("Profile deleted");
     } catch (error) {
-      setStatus(`Delete failed: ${error}`);
+      setStatus(`Failed to delete profile: ${error}`);
     }
   }, [loadProfiles, selectedPreset]);
 
@@ -946,7 +950,7 @@ function App() {
     try {
       await invoke("open_profiles_dir");
     } catch (error) {
-      setStatus(`Open profiles folder failed: ${error}`);
+      setStatus(`Failed to open profiles folder: ${error}`);
     }
   }, []);
 
@@ -1599,7 +1603,7 @@ function App() {
         <div className="reconnecting-overlay">
           <div className="reconnecting-card">
             <div className="reconnecting-spinner"></div>
-            <h3>Connection Lost</h3>
+            <h3>Connection lost</h3>
             <p>
               Attempting to automatically reconnect to{" "}
               <strong>{connectedDeviceName}</strong>...
@@ -1617,7 +1621,7 @@ function App() {
                 fontWeight: 600,
               }}
             >
-              Cancel & Return to Device Selection
+              Cancel and return to device selection
             </button>
           </div>
         </div>

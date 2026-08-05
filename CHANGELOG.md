@@ -6,17 +6,17 @@
 
 - EQ bands can now be edited directly from the frequency response graph.
 - Graph bands now respond to mouse wheel adjustments.
-- The app now respects the connected DAC's capabilities, including band limits and constraints.
+- The app now respects the connected DAC's capabilities, including band limits and other constraints.
 
 ### Fixed
 
 - Restored smooth scrolling in the tuning section.
-- Fixed recovery after desktop HID disconnects.
-- Prevented race conditions during editor and device state transitions.
+- Fixed recovery when the desktop HID connection drops.
+- Fixed race conditions between editor and device state changes.
 
 ### Changed
 
-- Reworked the tuning tab around the actual tuning workflow.
+- Reworked the tuning tab to match the tuning workflow.
 - Combined measurement tuning, collapsible sections, and profile saving into one flow.
 - Made profile and device states clearer.
 - Separated profile search from profile saving.

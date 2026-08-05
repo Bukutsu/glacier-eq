@@ -21,7 +21,7 @@ Use the web version at [bukutsu.github.io/glacier-eq](https://bukutsu.github.io/
 - Pull, RAM apply, push, verify, and rollback operations for supported DACs
 - Local profiles with search, import and export, copy and paste, and one-tap apply
 - Measurement overlays from local files or an optional offline Squiglink cache
-- Native AutoEQ matching for measurement and target curves
+- Native AutoEQ matching against measurement and target curves
 - EQ protocol support for Walkplay/Savitech, Moondrop, and FiiO devices
 - Hardware controls for supported Walkplay/Savitech DACs, including DAC filter, amp mode, output gain, balance, mic monitor, and reset modes
 - Desktop and Android layouts, themes, diagnostics, and a dummy DAC for development
