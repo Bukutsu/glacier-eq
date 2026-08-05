@@ -613,7 +613,7 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
         await sleep(timing.commit_step_ms || 100);
       }
 
-      emitEvent("operation-progress", { message: "Write successful", percentage: 100 });
+      emitEvent("operation-progress", { message: "Write complete", percentage: 100 });
       return null as T;
     }
     case "apply_eq_state": {
@@ -628,7 +628,7 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
         await sleep(timing.commit_step_ms || 100);
       }
 
-      emitEvent("operation-progress", { message: "Apply successful", percentage: 100 });
+      emitEvent("operation-progress", { message: "Apply complete", percentage: 100 });
       return null as T;
     }
 
