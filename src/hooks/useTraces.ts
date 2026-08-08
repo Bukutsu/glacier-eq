@@ -202,7 +202,6 @@ export function useTraces(notify?: (message: string) => void) {
 
   return {
     measurements,
-    userTargets,
     allTargets,
     activeTargetIds,
     activeTargets,

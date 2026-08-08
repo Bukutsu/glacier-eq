@@ -93,11 +93,11 @@ interface ToolsPanelProps {
   onSave: () => void;
   onDelete: () => void;
   setStatus: (value: string) => void;
-  measurements: MeasurementTrace[];
-  onAddMeasurement: (name: string, points: MeasurementTrace["points"]) => void;
-  onRemoveMeasurement: (id: string) => void;
-  onToggleMeasurement: (id: string) => void;
-  onClearMeasurements: () => void;
+  measurements?: MeasurementTrace[];
+  onAddMeasurement?: (name: string, points: MeasurementTrace["points"]) => void;
+  onRemoveMeasurement?: (id: string) => void;
+  onToggleMeasurement?: (id: string) => void;
+  onClearMeasurements?: () => void;
   availableTabs?: ToolsTab[];
   defaultTab?: ToolsTab;
   dirty?: boolean;
@@ -127,9 +127,7 @@ export const ToolsPanel = memo(function ToolsPanel(props: ToolsPanelProps) {
   // Import lives inside the Preset panel, so it is never offered as its own tab.
   const availableTabs = requestedTabs.filter((name): name is ToolsTab => name !== "Import");
   const [internalTab, setInternalTab] = useState<ToolsTab>(() => (
-    props.defaultTab === "Import" && availableTabs.includes("Preset")
-      ? "Preset"
-      : props.defaultTab && availableTabs.includes(props.defaultTab) ? props.defaultTab : availableTabs[0]
+    props.defaultTab && availableTabs.includes(props.defaultTab) ? props.defaultTab : availableTabs[0]
   ));
 
   const tab = props.activeTab ?? internalTab;
@@ -162,16 +160,16 @@ export const ToolsPanel = memo(function ToolsPanel(props: ToolsPanelProps) {
           {tab === "Tuning" && (
             <div className="desktop-tuning-tab">
               <Collapsible
-                title={`Measurements & Targets (${props.measurements.length})`}
+                title={`Measurements & Targets (${props.measurements?.length ?? 0})`}
                 icon="analytics"
-                defaultOpen={props.measurements.length === 0}
+                defaultOpen={props.measurements?.length === 0}
                 className="tuning-library"
               >
                 <CurvesTab
-                  measurements={props.measurements}
-                  onRemoveMeasurement={props.onRemoveMeasurement}
-                  onToggleMeasurement={props.onToggleMeasurement}
-                  onClearMeasurements={props.onClearMeasurements}
+                  measurements={props.measurements ?? []}
+                  onRemoveMeasurement={props.onRemoveMeasurement ?? (() => {})}
+                  onToggleMeasurement={props.onToggleMeasurement ?? (() => {})}
+                  onClearMeasurements={props.onClearMeasurements ?? (() => {})}
                   allTargets={props.allTargets ?? []}
                   activeTargetIds={props.activeTargetIds ?? []}
                   onToggleTarget={props.onToggleTarget ?? (() => {})}
@@ -182,7 +180,7 @@ export const ToolsPanel = memo(function ToolsPanel(props: ToolsPanelProps) {
                 />
               </Collapsible>
               <AutoEqTab
-                measurements={props.measurements}
+                measurements={props.measurements ?? []}
                 allTargets={props.allTargets ?? []}
                 activeTargetIds={props.activeTargetIds}
                 onImportPEQ={props.onImportPEQ}

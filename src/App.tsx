@@ -1179,10 +1179,10 @@ function App() {
   }, []);
 
   // Shared props for the mobile ToolsPanel instances; each mobile tab only
-  // overrides the tab selection and per-tab extras below.
+  // overrides the tab selection and per-tab extras below. Tuning-only props
+  // (curves, targets, bands) are omitted: mobile renders its own tuning panel.
   const mobileToolsPanelProps = {
     peq,
-    maxBands: maxFilterBands,
     onImportPEQ: importPeq,
     onPull: pullEq,
     profiles,
@@ -1200,14 +1200,6 @@ function App() {
     onSave: saveProfile,
     onDelete: deleteSelectedProfile,
     setStatus,
-    measurements,
-    onAddMeasurement: addMeasurement,
-    onRemoveMeasurement: removeMeasurement,
-    onToggleMeasurement: toggleMeasurement,
-    onClearMeasurements: clearMeasurements,
-    onSelectedMeasurementChange: setSelectedMeasurementId,
-    allTargets,
-    activeTargetIds,
     settings,
     onSettingChange: updateSetting,
     onOpenDiagnostics: handleOpenDiagnosticsModal,
