@@ -20,7 +20,7 @@ pub struct StoredProfile {
     pub modified: Option<u64>,
 }
 
-pub fn data_dir() -> Result<PathBuf, String> {
+fn data_dir() -> Result<PathBuf, String> {
     if let Some(path) = std::env::var_os("GLACIER_EQ_HOME").filter(|path| !path.is_empty()) {
         return Ok(PathBuf::from(path));
     }

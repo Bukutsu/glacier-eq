@@ -98,10 +98,6 @@ interface ToolsPanelProps {
   onRemoveMeasurement: (id: string) => void;
   onToggleMeasurement: (id: string) => void;
   onClearMeasurements: () => void;
-  canUndo: boolean;
-  canRedo: boolean;
-  onUndo: () => void;
-  onRedo: () => void;
   availableTabs?: ToolsTab[];
   defaultTab?: ToolsTab;
   dirty?: boolean;
@@ -349,7 +345,6 @@ function PresetTab({
   const selectedProfile = profiles.find((p) => p.name === selectedPreset);
   const savedProfiles = profiles.filter((p) => p.modified != null);
   const selectedIsSaved = savedProfiles.some((p) => p.name === selectedPreset);
-  const canDelete = selectedIsSaved;
   const [saveAsOpen, setSaveAsOpen] = useState(false);
   const showSaveAs = !selectedIsSaved || saveAsOpen;
   const saveName = newProfileName.trim();
@@ -460,7 +455,7 @@ function PresetTab({
               className="icon-action profile-icon-action danger"
               title="Delete profile"
               aria-label="Delete profile"
-              disabled={!canDelete}
+              disabled={!selectedIsSaved}
               onClick={onDelete}
             >
               <Icon>delete</Icon>

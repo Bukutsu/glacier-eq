@@ -544,9 +544,7 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
       try {
         const res = await readMatchingReport(200, (data) => matches_global_gain_response(protocol, data));
         if (!res) throw new Error("Global gain read timeout");
-        if (matches_global_gain_response(protocol, res)) {
-          global_gain = parse_global_gain_response(protocol, res);
-        }
+        global_gain = parse_global_gain_response(protocol, res);
       } catch (e) {
         console.warn("Global gain read failed, using 0:", e);
       }

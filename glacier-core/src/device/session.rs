@@ -49,7 +49,7 @@ impl Default for DacUtilityState {
     }
 }
 
-pub type ProgressCallback<'a> = dyn FnMut(&str, f32) + 'a;
+pub(crate) type ProgressCallback<'a> = dyn FnMut(&str, f32) + 'a;
 
 pub struct DeviceSession<'a> {
     io: &'a mut dyn DeviceIo,
@@ -58,7 +58,8 @@ pub struct DeviceSession<'a> {
 }
 
 impl<'a> DeviceSession<'a> {
-    pub fn new(io: &'a mut dyn DeviceIo, profile: &'static DeviceProfile) -> Self {
+    #[cfg(test)]
+    fn new(io: &'a mut dyn DeviceIo, profile: &'static DeviceProfile) -> Self {
         Self {
             io,
             profile,
@@ -530,7 +531,7 @@ fn validate_control_range(label: &str, value: i8) -> Result<(), String> {
     }
 }
 
-pub fn validate_peq(peq: &PEQData) -> Result<(), String> {
+fn validate_peq(peq: &PEQData) -> Result<(), String> {
     if !peq.global_gain.is_finite() {
         return Err("Preamp must be finite".into());
     }
@@ -542,7 +543,7 @@ pub fn validate_peq(peq: &PEQData) -> Result<(), String> {
     Ok(())
 }
 
-pub fn compare_peq(
+fn compare_peq(
     actual: &PEQData,
     expected: &PEQData,
     caps: &super::DeviceCapabilities,

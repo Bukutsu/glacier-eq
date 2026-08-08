@@ -33,7 +33,7 @@ export function AddTraceModal({
     download,
     clearCache,
     loadDevice,
-  } = useOnlineDatabase(true, setStatus);
+  } = useOnlineDatabase(setStatus);
   const [loadedDevices, setLoadedDevices] = useState<Set<string>>(new Set());
 
   const handleDownload = async () => {
@@ -58,31 +58,22 @@ export function AddTraceModal({
     }
   };
 
-  const handleMeasurementFile = async () => {
-    const result = await openFileDialog({ filters: [{ name: "Measurement", extensions: ["csv", "txt"] }] });
+  const handleFile = async (kind: "measurement" | "target") => {
+    const result = await openFileDialog({ filters: [{ name: kind === "measurement" ? "Measurement" : "Target", extensions: ["csv", "txt"] }] });
     if (!result) return;
     try {
       const points = parseMeasurementText(result.text);
       const label = result.name.replace(/\.[^/.]+$/, "");
-      onAddMeasurement?.(label, points);
-      setStatus?.(`Loaded measurement: ${label} (${points.length} points)`);
+      if (kind === "measurement") {
+        onAddMeasurement?.(label, points);
+        setStatus?.(`Loaded measurement: ${label} (${points.length} points)`);
+      } else {
+        (onAddTarget ?? onAddMeasurement)?.(label, points);
+        setStatus?.(`Loaded target: ${label} (${points.length} points)`);
+      }
       onClose();
     } catch (error) {
-      setStatus?.(`Failed to import measurement: ${error}`);
-    }
-  };
-
-  const handleTargetFile = async () => {
-    const result = await openFileDialog({ filters: [{ name: "Target", extensions: ["csv", "txt"] }] });
-    if (!result) return;
-    try {
-      const points = parseMeasurementText(result.text);
-      const label = result.name.replace(/\.[^/.]+$/, "");
-      (onAddTarget ?? onAddMeasurement)?.(label, points);
-      setStatus?.(`Loaded target: ${label} (${points.length} points)`);
-      onClose();
-    } catch (error) {
-      setStatus?.(`Failed to import target: ${error}`);
+      setStatus?.(`Failed to import ${kind}: ${error}`);
     }
   };
 
@@ -109,11 +100,11 @@ export function AddTraceModal({
         <div className="add-trace-section">
           <div className="add-trace-section-title">From File</div>
           <div className="add-trace-file-grid">
-            <button className="btn" onClick={handleMeasurementFile}>
+            <button className="btn" onClick={() => handleFile("measurement")}>
               <Icon>playlist_add</Icon>
               <span>Measurement</span>
             </button>
-            <button className="btn" onClick={handleTargetFile}>
+            <button className="btn" onClick={() => handleFile("target")}>
               <Icon>add_box</Icon>
               <span>Target</span>
             </button>

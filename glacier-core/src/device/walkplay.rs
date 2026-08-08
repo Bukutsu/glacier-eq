@@ -42,19 +42,19 @@ pub const OFFSET_CMD_TYPE: usize = 0;
 pub const OFFSET_CMD: usize = 1;
 pub const OFFSET_NONCE: usize = 2;
 pub const OFFSET_INDEX: usize = 4;
-pub const OFFSET_FREQ_L: usize = 27;
-pub const OFFSET_FREQ_H: usize = 28;
-pub const OFFSET_Q_L: usize = 29;
-pub const OFFSET_Q_H: usize = 30;
-pub const OFFSET_GAIN_L: usize = 31;
-pub const OFFSET_GAIN_H: usize = 32;
-pub const OFFSET_FILTER_TYPE: usize = 33;
+const OFFSET_FREQ_L: usize = 27;
+const OFFSET_FREQ_H: usize = 28;
+const OFFSET_Q_L: usize = 29;
+const OFFSET_Q_H: usize = 30;
+const OFFSET_GAIN_L: usize = 31;
+const OFFSET_GAIN_H: usize = 32;
+const OFFSET_FILTER_TYPE: usize = 33;
 pub const OFFSET_GAIN_VALUE: usize = 4;
 
 pub(crate) const FILTER_RESPONSE_MIN_LEN: usize = 34;
 pub(crate) const GLOBAL_GAIN_RESPONSE_MIN_LEN: usize = 6;
 
-pub const QUANTIZER_SCALE: f64 = 1_073_741_824.0;
+const QUANTIZER_SCALE: f64 = 1_073_741_824.0;
 const SAVITECH_10_BAND_CAPS: DeviceCapabilities = DeviceCapabilities {
     num_bands: 10,
     global_gain_range: (-16, 6),

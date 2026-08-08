@@ -23,7 +23,7 @@ export function makeTargetName(baseName: string, existing: TargetTrace[]): strin
   return makeUniqueName(baseName, existing.map((target) => target.name), "Target");
 }
 
-export function makeUniqueName(baseName: string, existingNames: string[], fallback: string): string {
+function makeUniqueName(baseName: string, existingNames: string[], fallback: string): string {
   const normalized = baseName.trim() || fallback;
   if (!existingNames.includes(normalized)) return normalized;
 

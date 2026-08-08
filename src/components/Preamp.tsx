@@ -4,15 +4,15 @@ import { NumberInput } from "./NumberInput";
 export function Preamp({
   value,
   resetValue,
-  range = [-16, 6],
-  integerMode = false,
+  range,
+  integerMode,
   onChange,
   onStartChange,
 }: {
   value: number;
   resetValue?: number;
-  range?: [number, number];
-  integerMode?: boolean;
+  range: [number, number];
+  integerMode: boolean;
   onChange: (value: number) => void;
   onStartChange: () => void;
 }) {

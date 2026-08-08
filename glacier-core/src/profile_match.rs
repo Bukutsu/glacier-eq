@@ -40,7 +40,7 @@ fn filters_match(a: &Filter, b: &Filter, caps: &DeviceCapabilities) -> bool {
         && (a.q - b.q).abs() <= caps.q_tolerance
 }
 
-pub fn peq_matches_profile(
+fn peq_matches_profile(
     current: &PEQData,
     profile: &PEQData,
     caps: &DeviceCapabilities,

@@ -20,7 +20,7 @@ pub fn parse_curve_text(text: &str) -> Result<Vec<(f64, f64)>, String> {
     normalize_curve_points(points.collect())
 }
 
-pub fn normalize_curve_points(mut points: Vec<(f64, f64)>) -> Result<Vec<(f64, f64)>, String> {
+fn normalize_curve_points(mut points: Vec<(f64, f64)>) -> Result<Vec<(f64, f64)>, String> {
     points.retain(|(frequency, db)| {
         frequency.is_finite() && db.is_finite() && (20.0..=20_000.0).contains(frequency)
     });
@@ -351,11 +351,11 @@ pub fn peq_to_autoeq(peq: &PEQData) -> String {
     lines.join("\n")
 }
 
-pub const K: usize = 384;
-pub const MAX_N: usize = 32;
+const K: usize = 384;
+const MAX_N: usize = 32;
 
 #[derive(Clone, Copy, Debug)]
-pub struct Biquad {
+struct Biquad {
     pub b0: f32,
     pub b1: f32,
     pub b2: f32,
@@ -382,20 +382,20 @@ pub struct Biquad {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct InitFilter {
+struct InitFilter {
     pub f0: f32,
     pub gain: f32,
     pub q: f32,
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct Lim {
+struct Lim {
     pub lo: f32,
     pub hi: f32,
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct Smooth {
+struct Smooth {
     pub smooth_f0: f32,
     pub smooth_f1: f32,
     pub smooth_lo: f32,
@@ -410,7 +410,7 @@ pub struct Smooth {
     pub clip_f: f32,
 }
 
-pub const IE_SMOOTH: Smooth = Smooth {
+const IE_SMOOTH: Smooth = Smooth {
     smooth_lo: 0.3,
     smooth_hi: 0.03,
     smooth_f0: 3000.0,
@@ -425,7 +425,7 @@ pub const IE_SMOOTH: Smooth = Smooth {
     clip_f: 18500.0,
 };
 
-pub const OE_SMOOTH: Smooth = Smooth {
+const OE_SMOOTH: Smooth = Smooth {
     smooth_lo: 0.3,
     smooth_hi: 0.03,
     smooth_f0: 5000.0,
@@ -560,7 +560,7 @@ fn biquad_fn(filter_type: FilterType, a_val: f32, cos_w: f32, alpha: f32) -> Biq
     }
 }
 
-pub fn spectrum_values(
+fn spectrum_values(
     filter_type: FilterType,
     f0: f32,
     gain: f32,
@@ -1275,7 +1275,7 @@ fn center_mean(x: &mut [f32; K]) -> f32 {
     mean
 }
 
-pub fn preprocess(
+fn preprocess(
     f: &[f32; K],
     dst: &[f32; K],
     src: &[f32; K],
@@ -1313,7 +1313,7 @@ pub fn preprocess(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn run_autoeq_optimization(
+fn run_autoeq_optimization(
     steps: usize,
     types: &[FilterType],
     f0: &mut [f32],
@@ -1360,7 +1360,7 @@ pub fn run_autoeq_optimization(
     )
 }
 
-pub fn generate_log_spaced_freqs() -> [f32; K] {
+fn generate_log_spaced_freqs() -> [f32; K] {
     let f0 = 20.0_f32;
     let f1 = 20000.0_f32;
     let l0 = f0.ln();
@@ -1374,7 +1374,7 @@ pub fn generate_log_spaced_freqs() -> [f32; K] {
     freqs
 }
 
-pub fn interpolate_curve(points: &[(f64, f64)], freqs: &[f32; K]) -> [f32; K] {
+fn interpolate_curve(points: &[(f64, f64)], freqs: &[f32; K]) -> [f32; K] {
     let mut curve = [0.0; K];
     if points.is_empty() {
         return curve;
@@ -1590,8 +1590,9 @@ fn validate_curve(label: &str, points: &[(f64, f64)]) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::MAX_BAND_GAIN;
     use proptest::prelude::*;
+
+    const MAX_BAND_GAIN: f64 = 10.0;
 
     // Generate a 2-decimal preamp in [-16, 6] that is always non-zero, so an
     // all-empty PEQ still survives parse_autoeq_text's "no filters & no preamp" Err.

@@ -171,7 +171,6 @@ async function fetchManifest(): Promise<OnlineDevice[]> {
 }
 
 export function useOnlineDatabase(
-  enabled: boolean | undefined,
   setStatus?: (value: string) => void,
 ) {
   const [downloaded, setDownloaded] = useState(false);
@@ -184,11 +183,11 @@ export function useOnlineDatabase(
   const [loadingDevice, setLoadingDevice] = useState<string | null>(null);
 
   useEffect(() => {
-    if (enabled) isDatabaseDownloaded().then(setDownloaded);
-  }, [enabled]);
+    isDatabaseDownloaded().then(setDownloaded);
+  }, []);
 
   useEffect(() => {
-    if (!enabled || !downloaded) return;
+    if (!downloaded) return;
     setLoadingManifest(true);
     fetchManifest()
       .then((devices) => {
@@ -200,7 +199,7 @@ export function useOnlineDatabase(
         setStatus?.(`Failed to load online search manifest: ${error}`);
       })
       .finally(() => setLoadingManifest(false));
-  }, [enabled, downloaded, setStatus]);
+  }, [downloaded, setStatus]);
 
   const download = async () => {
     setIsDownloading(true);

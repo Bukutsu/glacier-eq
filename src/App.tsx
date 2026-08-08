@@ -259,7 +259,6 @@ function App() {
       : "shape",
   );
   const [dirty, setDirty] = useState(false);
-  const selectedPresetRef = useRef(selectedPreset);
   const peqRef = useRef(peq);
   const eqOperationInFlightRef = useRef(false);
   const [lastPushedPeq, setLastPushedPeq] = useState<PEQData | null>(null);
@@ -333,10 +332,6 @@ function App() {
     pushToUndoStack(peqRef.current);
   }, [flashGraphPreview, pushToUndoStack]);
 
-  useEffect(() => {
-    selectedPresetRef.current = selectedPreset;
-  }, [selectedPreset]);
-
   const selectedDeviceInfo = useMemo(
     () => devices.find((device) => device.path === selectedDevice),
     [devices, selectedDevice],
@@ -351,7 +346,6 @@ function App() {
     async (data: PEQData, fallback: string) => {
       const match = await invoke<string | null>("match_profile_name", { peq: data });
       const name = match ?? fallback;
-      selectedPresetRef.current = name;
       setSelectedPreset(name);
       setProfileSearch("");
       setNewProfileName("");
@@ -377,7 +371,6 @@ function App() {
     (profile: Profile) => {
       pushToUndoStack(peqRef.current);
       const data = normalizePeq(profile.data, { enableLoadedFilters: true, integerPreamp: capabilities.integer_preamp, capabilities });
-      selectedPresetRef.current = profile.name;
       setPeq(data);
       setSelectedPreset(profile.name);
       setProfileSearch("");
@@ -835,7 +828,6 @@ function App() {
       eqOperationInFlightRef.current = true;
       const data = normalizePeq(profile.data, { enableLoadedFilters: true, integerPreamp: capabilities.integer_preamp, capabilities });
       pushToUndoStack(peqRef.current);
-      selectedPresetRef.current = profile.name;
       setPeq(data);
       setSelectedPreset(profile.name);
       setProfileSearch("");
@@ -916,7 +908,6 @@ function App() {
 
     try {
       await invoke("save_profile", { name, peq });
-      selectedPresetRef.current = name;
       setSelectedPreset(name);
       setProfileSearch("");
       setNewProfileName("");
@@ -934,7 +925,6 @@ function App() {
 
     try {
       await invoke("delete_profile", { name: selectedPreset });
-      selectedPresetRef.current = DEFAULT_PROFILE_NAME;
       setSelectedPreset(DEFAULT_PROFILE_NAME);
       setProfileSearch("");
       setNewProfileName("");
@@ -982,7 +972,6 @@ function App() {
   const reset = useCallback(async () => {
     if (!window.confirm("Reset all filters to 0 dB?")) return;
     pushToUndoStack(peqRef.current);
-    selectedPresetRef.current = DEFAULT_PROFILE_NAME;
     setPeq(buildDefaultState());
     setSelectedPreset(DEFAULT_PROFILE_NAME);
     setDirty(true);
@@ -1189,6 +1178,54 @@ function App() {
     };
   }, []);
 
+  // Shared props for the mobile ToolsPanel instances; each mobile tab only
+  // overrides the tab selection and per-tab extras below.
+  const mobileToolsPanelProps = {
+    peq,
+    maxBands: maxFilterBands,
+    onImportPEQ: importPeq,
+    onPull: pullEq,
+    profiles,
+    selectedPreset,
+    profileSearch,
+    setProfileSearch,
+    newProfileName,
+    setNewProfileName,
+    onSelectProfile: applyProfile,
+    onApplyProfile: connected && supportsRamApply ? applyProfileToRam : undefined,
+    onReloadProfiles: loadProfiles,
+    onOpenProfilesDir: openProfilesDir,
+    hideProfileFolderButton: isAndroid,
+    onReset: reset,
+    onSave: saveProfile,
+    onDelete: deleteSelectedProfile,
+    setStatus,
+    measurements,
+    onAddMeasurement: addMeasurement,
+    onRemoveMeasurement: removeMeasurement,
+    onToggleMeasurement: toggleMeasurement,
+    onClearMeasurements: clearMeasurements,
+    onSelectedMeasurementChange: setSelectedMeasurementId,
+    allTargets,
+    activeTargetIds,
+    settings,
+    onSettingChange: updateSetting,
+    onOpenDiagnostics: handleOpenDiagnosticsModal,
+  };
+  // One graph element for all four render sites; the editor props (drag/
+  // wheel/keyboard editing) are only attached where the graph is editable.
+  const graphElement = (withEditor: boolean) => (
+    <EqGraph
+      peq={peq}
+      committedPeq={lastPushedPeq}
+      selectedMeasurementId={selectedMeasurementId}
+      measurements={measurements}
+      targets={activeTargets}
+      viewMode={graphViewMode}
+      theme={resolvedTheme}
+      {...(withEditor ? graphEditorProps : {})}
+    />
+  );
 
 
   return (
@@ -1222,16 +1259,7 @@ function App() {
           {(activeTab === "eq" || (activeTab === "tuning" && (measurements.some((trace) => trace.visible) || activeTargets.length > 0))) && (
             <section className={`mobile-graph-container mobile-graph-${activeTab} ${graphCollapsed ? "collapsed" : ""}`}>
               <div className="graph-card">
-                <EqGraph
-                  peq={peq}
-                  committedPeq={lastPushedPeq}
-                  selectedMeasurementId={selectedMeasurementId}
-                  measurements={measurements}
-                  targets={activeTargets}
-                  viewMode={graphViewMode}
-                  theme={resolvedTheme}
-                  {...(activeTab === "eq" ? graphEditorProps : {})}
-                />
+                {graphElement(activeTab === "eq")}
               </div>
               <button
                 type="button"
@@ -1246,15 +1274,7 @@ function App() {
           {showGraphPreview && activeTab === "eq" && (
             <div className="mobile-graph-preview">
               <div className="graph-card" style={{ height: "100%", padding: 0, border: "none", background: "transparent" }}>
-                <EqGraph
-                  peq={peq}
-                  committedPeq={lastPushedPeq}
-                  selectedMeasurementId={selectedMeasurementId}
-                  measurements={measurements}
-                  targets={activeTargets}
-                  viewMode={graphViewMode}
-                  theme={resolvedTheme}
-                />
+                {graphElement(false)}
               </div>
             </div>
           )}
@@ -1337,133 +1357,34 @@ function App() {
             {activeTab === "profiles" && (
               <section className="left-pane">
                 <ToolsPanel
-                  peq={peq}
-                  maxBands={maxFilterBands}
-                  onImportPEQ={importPeq}
-                  onPull={pullEq}
+                  {...mobileToolsPanelProps}
                   dirty={dirty}
-                  profiles={profiles}
-                  selectedPreset={selectedPreset}
-                  profileSearch={profileSearch}
-                  setProfileSearch={setProfileSearch}
-                  newProfileName={newProfileName}
-                  setNewProfileName={setNewProfileName}
-                  onSelectProfile={applyProfile}
-                  onApplyProfile={connected && supportsRamApply ? applyProfileToRam : undefined}
-                  onReloadProfiles={loadProfiles}
-                  onOpenProfilesDir={openProfilesDir}
-                  hideProfileFolderButton={isAndroid}
-                  onReset={reset}
-                  onSave={saveProfile}
-                  onDelete={deleteSelectedProfile}
-                  setStatus={setStatus}
-                  measurements={measurements}
-                  onAddMeasurement={addMeasurement}
-                  onRemoveMeasurement={removeMeasurement}
-                  onToggleMeasurement={toggleMeasurement}
-                  onClearMeasurements={clearMeasurements}
-                  onSelectedMeasurementChange={setSelectedMeasurementId}
-                  canUndo={undoStack.length > 0}
-                  canRedo={redoStack.length > 0}
-                  onUndo={undo}
-                  onRedo={redo}
                   availableTabs={["Preset", "Import"]}
                   defaultTab="Preset"
-                  allTargets={allTargets}
-                  activeTargetIds={activeTargetIds}
-                  settings={settings}
-                  onSettingChange={updateSetting}
-                  onOpenDiagnostics={handleOpenDiagnosticsModal}
                 />
               </section>
             )}
             {activeTab === "settings" && (
               <section className="left-pane">
                 <ToolsPanel
-                  peq={peq}
-                  maxBands={maxFilterBands}
-                  onImportPEQ={importPeq}
-                  onPull={pullEq}
-                  profiles={profiles}
-                  selectedPreset={selectedPreset}
-                  profileSearch={profileSearch}
-                  setProfileSearch={setProfileSearch}
-                  newProfileName={newProfileName}
-                  setNewProfileName={setNewProfileName}
-                  onSelectProfile={applyProfile}
-                  onApplyProfile={connected && supportsRamApply ? applyProfileToRam : undefined}
-                  onReloadProfiles={loadProfiles}
-                  onOpenProfilesDir={openProfilesDir}
-                  hideProfileFolderButton={isAndroid}
-                  onReset={reset}
-                  onSave={saveProfile}
-                  onDelete={deleteSelectedProfile}
-                  setStatus={setStatus}
-                  measurements={measurements}
-                  onAddMeasurement={addMeasurement}
-                  onRemoveMeasurement={removeMeasurement}
-                  onToggleMeasurement={toggleMeasurement}
-                  onClearMeasurements={clearMeasurements}
-                  onSelectedMeasurementChange={setSelectedMeasurementId}
-                  canUndo={undoStack.length > 0}
-                  canRedo={redoStack.length > 0}
-                  onUndo={undo}
-                  onRedo={redo}
+                  {...mobileToolsPanelProps}
                   availableTabs={["Settings"]}
                   defaultTab="Settings"
                   showActions={false}
                   graphViewMode={graphViewMode}
                   onGraphViewModeChange={setGraphViewMode}
-                  allTargets={allTargets}
-                  activeTargetIds={activeTargetIds}
-                  settings={settings}
-                  onSettingChange={updateSetting}
-                  onOpenDiagnostics={handleOpenDiagnosticsModal}
                 />
               </section>
             )}
             {activeTab === "device" && (
               <section className="left-pane">
                 <ToolsPanel
-                  peq={peq}
-                  maxBands={maxFilterBands}
-                  onImportPEQ={importPeq}
-                  onPull={pullEq}
-                  profiles={profiles}
-                  selectedPreset={selectedPreset}
-                  profileSearch={profileSearch}
-                  setProfileSearch={setProfileSearch}
-                  newProfileName={newProfileName}
-                  setNewProfileName={setNewProfileName}
-                  onSelectProfile={applyProfile}
-                  onApplyProfile={connected && supportsRamApply ? applyProfileToRam : undefined}
-                  onReloadProfiles={loadProfiles}
-                  onOpenProfilesDir={openProfilesDir}
-                  hideProfileFolderButton={isAndroid}
-                  onReset={reset}
-                  onSave={saveProfile}
-                  onDelete={deleteSelectedProfile}
-                  setStatus={setStatus}
-                  measurements={measurements}
-                  onAddMeasurement={addMeasurement}
-                  onRemoveMeasurement={removeMeasurement}
-                  onToggleMeasurement={toggleMeasurement}
-                  onClearMeasurements={clearMeasurements}
-                  onSelectedMeasurementChange={setSelectedMeasurementId}
-                  canUndo={undoStack.length > 0}
-                  canRedo={redoStack.length > 0}
-                  onUndo={undo}
-                  onRedo={redo}
+                  {...mobileToolsPanelProps}
                   availableTabs={["Device"]}
                   defaultTab="Device"
                   showActions={false}
-                  allTargets={allTargets}
-                  activeTargetIds={activeTargetIds}
-                  settings={settings}
-                  onSettingChange={updateSetting}
                   connected={connected}
                   onOpenConnectModal={handleOpenDeviceModal}
-                  onOpenDiagnostics={handleOpenDiagnosticsModal}
                 />
               </section>
             )}
@@ -1491,15 +1412,7 @@ function App() {
             <div className="desktop-graph-preview-wrapper">
               <div className="desktop-graph-preview-overlay">
                 <div className="graph-card" style={{ height: "100%", padding: 0, border: "none", background: "transparent" }}>
-                  <EqGraph
-                    peq={peq}
-                    committedPeq={lastPushedPeq}
-                    selectedMeasurementId={selectedMeasurementId}
-                    measurements={measurements}
-                    targets={activeTargets}
-                    viewMode={graphViewMode}
-                    theme={resolvedTheme}
-                  />
+                  {graphElement(false)}
                 </div>
               </div>
             </div>
@@ -1512,16 +1425,7 @@ function App() {
           >
             {showGraph && (
             <section className="graph-card">
-              <EqGraph
-                peq={peq}
-                committedPeq={lastPushedPeq}
-                selectedMeasurementId={selectedMeasurementId}
-                measurements={measurements}
-                targets={activeTargets}
-                viewMode={graphViewMode}
-                theme={resolvedTheme}
-                {...graphEditorProps}
-              />
+              {graphElement(true)}
             </section>
             )}
             <Preamp
@@ -1530,11 +1434,7 @@ function App() {
               range={capabilities.global_gain_range}
               integerMode={capabilities.integer_preamp}
               onStartChange={handleStartChange}
-              onChange={(global_gain) => {
-                flashGraphPreview();
-                setDirty(true);
-                setPeq((previous) => ({ ...previous, global_gain }));
-              }}
+              onChange={handlePreampChange}
             />
             <Bands
               peq={peq}
@@ -1577,10 +1477,6 @@ function App() {
             onToggleMeasurement={toggleMeasurement}
             onClearMeasurements={clearMeasurements}
             onSelectedMeasurementChange={setSelectedMeasurementId}
-            canUndo={undoStack.length > 0}
-            canRedo={redoStack.length > 0}
-            onUndo={undo}
-            onRedo={redo}
             graphViewMode={graphViewMode}
             onGraphViewModeChange={setGraphViewMode}
             settings={settings}
