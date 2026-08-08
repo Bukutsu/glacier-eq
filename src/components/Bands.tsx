@@ -5,6 +5,7 @@ import { Slider } from "./Slider";
 import { NumberInput } from "./NumberInput";
 import { filterColorVars } from "../lib/filterColors";
 import { snapFreqToIso } from "../lib/graph";
+import { clampToRange } from "../lib/peq";
 
 const FREQ_SLIDER_STEPS = 1000;
 const Q_SLIDER_STEPS = 1000;
@@ -35,14 +36,10 @@ interface BandsProps {
   snapToIso?: boolean;
 }
 
-function clamp(value: number, [min, max]: [number, number]) {
-  return Math.max(min, Math.min(max, value));
-}
-
 function freqToSlider(freq: number, range: [number, number]) {
   const min = Math.log10(range[0]);
   const max = Math.log10(range[1]);
-  return Math.round(((Math.log10(clamp(freq, range)) - min) / (max - min)) * FREQ_SLIDER_STEPS);
+  return Math.round(((Math.log10(clampToRange(freq, range)) - min) / (max - min)) * FREQ_SLIDER_STEPS);
 }
 
 function sliderToFreq(value: number, range: [number, number]) {
@@ -54,7 +51,7 @@ function sliderToFreq(value: number, range: [number, number]) {
 function qToSlider(q: number, range: [number, number]) {
   const min = Math.log10(range[0]);
   const max = Math.log10(range[1]);
-  return Math.round(((Math.log10(clamp(q, range)) - min) / (max - min)) * Q_SLIDER_STEPS);
+  return Math.round(((Math.log10(clampToRange(q, range)) - min) / (max - min)) * Q_SLIDER_STEPS);
 }
 
 function sliderToQ(value: number, range: [number, number]) {
@@ -64,8 +61,8 @@ function sliderToQ(value: number, range: [number, number]) {
 }
 
 async function constrainFreq(freq: number, range: [number, number], snapToIso?: boolean) {
-  const constrained = clamp(Math.round(freq), range);
-  return clamp(snapToIso ? await snapFreqToIso(constrained) : constrained, range);
+  const constrained = clampToRange(Math.round(freq), range);
+  return clampToRange(snapToIso ? await snapFreqToIso(constrained) : constrained, range);
 }
 
 export const Bands = memo(function Bands({ peq, committedPeq, capabilities, onFilterChange, onStartChange, activeBandIndex, onActiveBandChange, snapToIso }: BandsProps) {
@@ -286,7 +283,7 @@ function BandControls({
             }}
           />
           <NumberInput
-            value={clamp(filter.freq, capabilities.freq_range)}
+            value={clampToRange(filter.freq, capabilities.freq_range)}
             min={capabilities.freq_range[0]}
             max={capabilities.freq_range[1]}
             step={50}
@@ -308,15 +305,15 @@ function BandControls({
             min={capabilities.band_gain_range[0]}
             max={capabilities.band_gain_range[1]}
             step={0.01}
-            value={clamp(filter.gain, capabilities.band_gain_range)}
+            value={clampToRange(filter.gain, capabilities.band_gain_range)}
             tone={filter.index >= 5 ? "orange" : "blue"}
             onStartChange={onStartChange}
-            onReset={committedFilter ? () => onChange({ ...filter, gain: clamp(committedFilter.gain, capabilities.band_gain_range) }) : undefined}
+            onReset={committedFilter ? () => onChange({ ...filter, gain: clampToRange(committedFilter.gain, capabilities.band_gain_range) }) : undefined}
             onFocus={onActivate}
             onChange={(event) => onChange({ ...filter, gain: +event.target.value })}
           />
           <NumberInput
-            value={clamp(filter.gain, capabilities.band_gain_range)}
+            value={clampToRange(filter.gain, capabilities.band_gain_range)}
             min={capabilities.band_gain_range[0]}
             max={capabilities.band_gain_range[1]}
             step={0.1}
@@ -345,12 +342,12 @@ function BandControls({
             aria-valuetext={`Q ${filter.q.toFixed(2)}`}
             tone={filter.index >= 5 ? "orange" : "blue"}
             onStartChange={onStartChange}
-            onReset={committedFilter ? () => onChange({ ...filter, q: clamp(committedFilter.q, capabilities.q_range) }) : undefined}
+            onReset={committedFilter ? () => onChange({ ...filter, q: clampToRange(committedFilter.q, capabilities.q_range) }) : undefined}
             onFocus={onActivate}
             onChange={(event) => onChange({ ...filter, q: sliderToQ(+event.target.value, capabilities.q_range) })}
           />
           <NumberInput
-            value={clamp(filter.q, capabilities.q_range)}
+            value={clampToRange(filter.q, capabilities.q_range)}
             min={capabilities.q_range[0]}
             max={capabilities.q_range[1]}
             step={0.05}

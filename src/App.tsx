@@ -1227,6 +1227,30 @@ function App() {
     />
   );
 
+  // Preamp + band rows are identical in the mobile EQ tab and the desktop pane.
+  const editorControls = (
+    <>
+      <Preamp
+        value={peq.global_gain}
+        resetValue={lastPushedPeq?.global_gain}
+        range={capabilities.global_gain_range}
+        integerMode={capabilities.integer_preamp}
+        onStartChange={handleStartChange}
+        onChange={handlePreampChange}
+      />
+      <Bands
+        peq={peq}
+        committedPeq={lastPushedPeq}
+        capabilities={capabilities}
+        onFilterChange={updateFilter}
+        onStartChange={handleStartChange}
+        activeBandIndex={activeBandIndex}
+        onActiveBandChange={setActiveBandIndex}
+        snapToIso={snapToIso}
+      />
+    </>
+  );
+
 
   return (
     <div id="app">
@@ -1281,24 +1305,7 @@ function App() {
           <div className="mobile-content-area">
             {activeTab === "eq" && (
               <section className="left-pane">
-                <Preamp
-                  value={peq.global_gain}
-                  resetValue={lastPushedPeq?.global_gain}
-                  range={capabilities.global_gain_range}
-                  integerMode={capabilities.integer_preamp}
-                  onStartChange={handleStartChange}
-                  onChange={handlePreampChange}
-                />
-                <Bands
-                  peq={peq}
-                  committedPeq={lastPushedPeq}
-                  capabilities={capabilities}
-                  onFilterChange={updateFilter}
-                  onStartChange={handleStartChange}
-                  activeBandIndex={activeBandIndex}
-                  onActiveBandChange={setActiveBandIndex}
-                  snapToIso={snapToIso}
-                />
+                {editorControls}
               </section>
             )}
             {activeTab === "tuning" && (
@@ -1428,24 +1435,7 @@ function App() {
               {graphElement(true)}
             </section>
             )}
-            <Preamp
-              value={peq.global_gain}
-              resetValue={lastPushedPeq?.global_gain}
-              range={capabilities.global_gain_range}
-              integerMode={capabilities.integer_preamp}
-              onStartChange={handleStartChange}
-              onChange={handlePreampChange}
-            />
-            <Bands
-              peq={peq}
-              committedPeq={lastPushedPeq}
-              capabilities={capabilities}
-              onFilterChange={updateFilter}
-              onStartChange={handleStartChange}
-              activeBandIndex={activeBandIndex}
-              onActiveBandChange={setActiveBandIndex}
-              snapToIso={snapToIso}
-            />
+            {editorControls}
             <CustomScrollbar targetRef={mainScrollRef} />
           </section>
           <ToolsPanel

@@ -124,7 +124,8 @@ interface ToolsPanelProps {
 
 export const ToolsPanel = memo(function ToolsPanel(props: ToolsPanelProps) {
   const requestedTabs = props.availableTabs ?? ["Preset", "Import", "Tuning", "Device", "Settings"];
-  const availableTabs = requestedTabs.filter((name) => name !== "Import" || !requestedTabs.includes("Preset"));
+  // Import lives inside the Preset panel, so it is never offered as its own tab.
+  const availableTabs = requestedTabs.filter((name): name is ToolsTab => name !== "Import");
   const [internalTab, setInternalTab] = useState<ToolsTab>(() => (
     props.defaultTab === "Import" && availableTabs.includes("Preset")
       ? "Preset"

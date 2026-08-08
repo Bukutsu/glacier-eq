@@ -456,7 +456,7 @@ async function drawCurves(
     return;
   }
 
-  const measurementOffset = viewMode === "shape" ? -(await combinedResponseAt(peq, 1000, "shape")) : 0;
+  const measurementOffset = await shapeOffset(peq, viewMode);
   if (!isCurrent()) return;
   measurements.forEach((trace) => {
     drawResponse(ctx, height, measurementResponseValues(eqResponse, freqs, trace, measurementOffset), trace.color, 3);
@@ -506,13 +506,18 @@ async function combinedResponseAt(peq: PEQData, freq: number, viewMode: GraphVie
   return (await peqResponseValues(peq, [freq], viewMode === "level"))[0] ?? 0;
 }
 
+/** In shape view, curves are drawn relative to the 1 kHz response. */
+async function shapeOffset(peq: PEQData, viewMode: GraphViewMode): Promise<number> {
+  return viewMode === "shape" ? -(await combinedResponseAt(peq, 1000, "shape")) : 0;
+}
+
 async function responseValues(
   peq: PEQData,
   freqs: Float32Array | number[],
   viewMode: GraphViewMode,
   measurement?: MeasurementTrace | null,
 ): Promise<Float32Array> {
-  const offset = measurement && viewMode === "shape" ? -(await combinedResponseAt(peq, 1000, "shape")) : 0;
+  const offset = measurement ? await shapeOffset(peq, viewMode) : 0;
   const eqValues = await peqResponseValues(peq, freqs, viewMode === "level");
   const result = new Float32Array(freqs.length);
   for (let index = 0; index < freqs.length; index++) {
@@ -653,7 +658,7 @@ async function drawFilterDotsWithMeasurement(
 
   const activeBands = peq.filters.filter((filter) => filter.enabled);
   const freqs = activeBands.map((filter) => filter.freq);
-  const measurementOffset = viewMode === "shape" ? -(await combinedResponseAt(peq, 1000, "shape")) : 0;
+  const measurementOffset = await shapeOffset(peq, viewMode);
   const eqValues = await peqResponseValues(peq, freqs, viewMode === "level");
   if (!isCurrent()) return;
   const dotValues = freqs.map((freq, index) =>

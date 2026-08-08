@@ -48,7 +48,7 @@ function numberOr(raw: unknown, fallback: number): number {
   return Number.isFinite(value) ? value : fallback;
 }
 
-function clampToRange(value: number, range: [number, number]): number {
+export function clampToRange(value: number, range: [number, number]): number {
   return Math.max(range[0], Math.min(range[1], value));
 }
 
