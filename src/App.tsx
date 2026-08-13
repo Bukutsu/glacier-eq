@@ -1359,13 +1359,17 @@ function App() {
             {activeTab === "tuning" && (
               <section className="left-pane">
                 <Collapsible title="Traces & Targets" icon="analytics" className="tuning-card">
-                  <button className="btn add-trace-btn" onClick={handleShowAddTrace}>
-                    <Icon>add</Icon>
-                    <span>Add Trace</span>
-                  </button>
-                  <section className="tool-card">
-                    <div className="tool-card-head">
-                      <strong>Loaded Traces</strong>
+                  <div className="curves-tab">
+                    <div className="curves-actions">
+                      <button className="btn add-trace-btn" onClick={handleShowAddTrace}>
+                        <Icon>add</Icon>
+                        <span>Add Trace</span>
+                      </button>
+                      {measurements.length > 0 && (
+                        <button className="tool-link-button danger" onClick={clearMeasurements}>
+                          Clear all
+                        </button>
+                      )}
                     </div>
                     <UnifiedTracesList
                       measurements={measurements}
@@ -1376,14 +1380,7 @@ function App() {
                       onToggleTarget={toggleTarget}
                       onRemoveTarget={removeTarget}
                     />
-                    {measurements.length > 0 && (
-                      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "4px" }}>
-                        <button className="tool-link-button danger" onClick={clearMeasurements}>
-                          Clear All Loaded
-                        </button>
-                      </div>
-                    )}
-                  </section>
+                  </div>
                   {showAddTrace && (
                     <AddTraceModal
                       onClose={handleCloseAddTrace}
@@ -1394,7 +1391,7 @@ function App() {
                   )}
                 </Collapsible>
 
-                <Collapsible title="AutoEQ (Tuning Assistant)" icon="auto_awesome" className="tuning-card">
+                <Collapsible title="AutoEQ" icon="auto_awesome" className="tuning-card">
                   <AutoEqTab
                     measurements={measurements}
                     allTargets={allTargets}

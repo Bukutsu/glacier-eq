@@ -1003,20 +1003,37 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   flex: 1;
 }
 
-.autoeq-empty-hint {
+.autoeq-empty {
   display: flex;
+  flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  margin: 0;
-  padding: 4px 2px;
+  padding: 24px 16px;
+  text-align: center;
   color: var(--muted);
-  font-size: var(--type-label);
-  line-height: 1.5;
+  background: var(--bg-dark);
+  outline: 1px solid var(--line-soft);
+  outline-offset: -1px;
 }
 
-.autoeq-empty-hint .material-symbols-outlined {
-  font-size: 18px;
-  flex: 0 0 auto;
+.autoeq-empty .material-symbols-outlined {
+  font-size: 28px;
+  color: var(--comment);
+}
+
+.autoeq-empty p {
+  margin: 0;
+  font-size: var(--type-small);
+  line-height: 1.5;
+  max-width: 240px;
+}
+
+.autoeq-description {
+  margin: -4px 0 0;
+  color: var(--muted);
+  font-size: var(--type-small);
+  line-height: 1.45;
 }
 
 /* Custom Select Dropdown Styling */

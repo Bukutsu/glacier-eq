@@ -170,9 +170,9 @@ export const ToolsPanel = memo(function ToolsPanel(props: ToolsPanelProps) {
           {tab === "Tuning" && (
             <div className="desktop-tuning-tab">
               <Collapsible
-                title={`Measurements & Targets (${props.measurements?.length ?? 0})`}
+                title={`Traces & Targets (${(props.measurements?.length ?? 0) + (props.allTargets?.length ?? 0)})`}
                 icon="analytics"
-                defaultOpen={props.measurements?.length === 0}
+                defaultOpen={(props.measurements?.length ?? 0) === 0 && (props.allTargets?.length ?? 0) === 0}
                 className="tuning-library"
               >
                 <CurvesTab
@@ -297,15 +297,6 @@ function CurvesTab({
 
   return (
     <div className="curves-tab">
-      <UnifiedTracesList
-        measurements={measurements}
-        allTargets={allTargets}
-        activeTargetIds={activeTargetIds}
-        onToggleMeasurement={onToggleMeasurement}
-        onRemoveMeasurement={onRemoveMeasurement}
-        onToggleTarget={onToggleTarget}
-        onRemoveTarget={onRemoveTarget}
-      />
       <div className="curves-actions">
         <button className="btn add-trace-btn" onClick={() => setShowAddModal(true)}>
           <Icon>add</Icon>
@@ -317,6 +308,15 @@ function CurvesTab({
           </button>
         )}
       </div>
+      <UnifiedTracesList
+        measurements={measurements}
+        allTargets={allTargets}
+        activeTargetIds={activeTargetIds}
+        onToggleMeasurement={onToggleMeasurement}
+        onRemoveMeasurement={onRemoveMeasurement}
+        onToggleTarget={onToggleTarget}
+        onRemoveTarget={onRemoveTarget}
+      />
       {showAddModal && (
         <AddTraceModal
           onClose={() => setShowAddModal(false)}
@@ -922,12 +922,18 @@ export function AutoEqTab({
   return (
     <div className="autoeq-tab">
       {measurements.length === 0 ? (
-        <p className="autoeq-empty-hint">
-          <Icon>info</Icon>
-          Add a measurement above, then match it to a target curve.
-        </p>
+        <div className="autoeq-empty">
+          <Icon>auto_awesome</Icon>
+          <p>Add a measurement, then match it to a target curve to generate an EQ automatically.</p>
+        </div>
       ) : (
         <section className="tool-card">
+          <div className="tool-card-head">
+            <strong>AutoEQ Match</strong>
+          </div>
+          <p className="autoeq-description">
+            Fit the selected measurement to a target curve and load the result into the editor.
+          </p>
           <div className="autoeq-match-grid">
             <div className="import-field-group">
               <label>Measurement</label>
