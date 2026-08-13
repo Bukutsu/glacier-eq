@@ -1438,7 +1438,7 @@ function App() {
         </main>
       ) : (
         <main className="workspace">
-          {showGraphPreview && isScrolledDown && (
+          {isScrolledDown && (
             <div className="desktop-graph-preview-wrapper">
               <div className="desktop-graph-preview-overlay">
                 <div className="graph-card" style={{ height: "100%", padding: 0, border: "none", background: "transparent" }}>
