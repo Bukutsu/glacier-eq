@@ -6,6 +6,7 @@ import { openFileDialog } from "../lib/rpc";
 import { parseMeasurementText } from "../lib/measurements";
 import { useOnlineDatabase, type OnlineDevice } from "../lib/onlineDb";
 import { Modal } from "./Modal";
+import { confirmDialog } from "./ConfirmDialog";
 
 interface AddTraceModalProps {
   onClose: () => void;
@@ -47,7 +48,12 @@ export function AddTraceModal({
   };
 
   const handleResetCache = async () => {
-    if (window.confirm("Clear the cached online measurement database (~16MB)?")) {
+    if (await confirmDialog({
+      title: "Clear database cache?",
+      message: "Clear the cached online measurement database (~16MB)?",
+      confirmLabel: "Clear cache",
+      danger: true,
+    })) {
       try {
         await clearCache();
         setStatus?.("Online database cache cleared.");

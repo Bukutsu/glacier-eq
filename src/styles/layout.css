@@ -191,3 +191,28 @@ dialog.modal-content.wide {
   display: none !important;
 }
 
+/* Confirm Dialog */
+.confirm-message {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--type-body);
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.confirm-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.confirm-actions .btn {
+  min-height: 40px;
+}
+
+.btn.confirm-danger {
+  background: var(--red);
+  color: var(--bg-dark);
+}
+

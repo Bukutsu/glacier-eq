@@ -10,6 +10,7 @@ import { Preamp } from "./components/Preamp";
 import { ToolsPanel, AutoEqTab, DiagnosticsPanel } from "./components/ToolsPanel";
 import { AddTraceModal } from "./components/AddTraceModal";
 import { Collapsible } from "./components/Collapsible";
+import { ConfirmDialogHost, confirmDialog } from "./components/ConfirmDialog";
 import { Modal } from "./components/Modal";
 import { DESKTOP_TABS, MOBILE_TABS, type MobileTab } from "./lib/tabs";
 import { UnifiedTracesList } from "./components/UnifiedTraces";
@@ -630,7 +631,11 @@ function App() {
       return;
     }
     if (eqOperationInFlightRef.current) return;
-    if (dirty && !window.confirm("Discard unsaved profile changes and read EQ from the DAC?")) return;
+    if (dirty && !(await confirmDialog({
+      title: "Discard changes?",
+      message: "Reading the EQ from the DAC will replace the current unsaved profile changes.",
+      confirmLabel: "Discard and read",
+    }))) return;
     eqOperationInFlightRef.current = true;
     pushToUndoStack(peqRef.current);
     setProgress(null);
@@ -766,7 +771,12 @@ function App() {
     });
     const activeBands = snapshot.filters.filter((f) => f.enabled).length;
     const bandCount = activeBands === 1 ? "band" : "bands";
-    if (!window.confirm(`Write ${activeBands} ${bandCount} and ${snapshot.global_gain.toFixed(1)} dB preamp to the DAC? This stores the EQ on the device.`)) return;
+    if (!(await confirmDialog({
+      title: "Write to DAC?",
+      message: `Write ${activeBands} ${bandCount} and ${snapshot.global_gain.toFixed(1)} dB preamp to the DAC? This stores the EQ on the device.`,
+      confirmLabel: "Write DAC",
+      danger: true,
+    }))) return;
     eqOperationInFlightRef.current = true;
     setProgress(null);
     setIsBusy(true);
@@ -824,7 +834,11 @@ function App() {
   const applyProfileToRam = useCallback(
     async (profile: Profile) => {
       if (eqOperationInFlightRef.current) return;
-      if (dirty && !window.confirm("Discard unsaved profile changes and apply this profile?")) return;
+      if (dirty && !(await confirmDialog({
+        title: "Discard changes?",
+        message: "Applying this profile will replace the current unsaved profile changes.",
+        confirmLabel: "Discard and apply",
+      }))) return;
       eqOperationInFlightRef.current = true;
       const data = normalizePeq(profile.data, { enableLoadedFilters: true, integerPreamp: capabilities.integer_preamp, capabilities });
       pushToUndoStack(peqRef.current);
@@ -904,7 +918,12 @@ function App() {
     const exists = profiles.some(
       (p) => p.name.toLowerCase() === name.toLowerCase()
     );
-    if (exists && !window.confirm(`Overwrite profile "${name}"?`)) return;
+    if (exists && !(await confirmDialog({
+      title: "Overwrite profile?",
+      message: `A profile named "${name}" already exists. Saving will replace it.`,
+      confirmLabel: "Overwrite",
+      danger: true,
+    }))) return;
 
     try {
       await invoke("save_profile", { name, peq });
@@ -921,7 +940,12 @@ function App() {
 
   const deleteSelectedProfile = useCallback(async () => {
     if (selectedPreset === DEFAULT_PROFILE_NAME) return;
-    if (!window.confirm(`Delete profile "${selectedPreset}"?`)) return;
+    if (!(await confirmDialog({
+      title: "Delete profile?",
+      message: `Delete profile "${selectedPreset}"? This cannot be undone.`,
+      confirmLabel: "Delete",
+      danger: true,
+    }))) return;
 
     try {
       await invoke("delete_profile", { name: selectedPreset });
@@ -970,7 +994,12 @@ function App() {
   }), [capabilities, activeBandIndex, setActiveBandIndex, handleStartChange, handleFilterChangeNoPreview, snapToIso]);
 
   const reset = useCallback(async () => {
-    if (!window.confirm("Reset all filters to 0 dB?")) return;
+    if (!(await confirmDialog({
+      title: "Reset EQ?",
+      message: "Reset all filters to 0 dB and preamp to 0 dB?",
+      confirmLabel: "Reset",
+      danger: true,
+    }))) return;
     pushToUndoStack(peqRef.current);
     setPeq(buildDefaultState());
     setSelectedPreset(DEFAULT_PROFILE_NAME);
@@ -1543,6 +1572,7 @@ function App() {
         toasts={toasts}
         onClose={handleCloseToast}
       />
+      <ConfirmDialogHost />
     </div>
   );
 }

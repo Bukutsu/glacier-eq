@@ -3,6 +3,7 @@ import { invoke, listen, readText, writeText, save } from "../lib/rpc";
 import type { AppSettings, MeasurementTrace, Profile, PEQData, GraphViewMode, TargetTrace } from "../types";
 import { DEFAULT_PROFILE_NAME } from "../App";
 import { Icon } from "./Icon";
+import { confirmDialog } from "./ConfirmDialog";
 
 import { fuzzyMatch } from "../lib/search";
 import { AddTraceModal } from "./AddTraceModal";
@@ -357,8 +358,12 @@ function PresetTab({
 
   useEffect(() => setSaveAsOpen(false), [selectedPreset]);
 
-  const handleSelectProfile = (profile: typeof profiles[0]) => {
-    if (dirty && !window.confirm("Discard unsaved changes?")) return;
+  const handleSelectProfile = async (profile: typeof profiles[0]) => {
+    if (dirty && !(await confirmDialog({
+      title: "Discard changes?",
+      message: "Loading this profile will replace the current unsaved changes.",
+      confirmLabel: "Discard and load",
+    }))) return;
     onSelectProfile(profile);
   };
 
@@ -585,7 +590,12 @@ function ImportTab({ peq, profiles, selectedPreset, onImportPEQ, onReloadProfile
 
   const handleConfirm = async () => {
     if (!parsed) return;
-    if (nameExists && !window.confirm(`Overwrite profile "${importName.trim()}"?`)) return;
+    if (nameExists && !(await confirmDialog({
+      title: "Overwrite profile?",
+      message: `A profile named "${importName.trim()}" already exists. Saving will replace it.`,
+      confirmLabel: "Overwrite",
+      danger: true,
+    }))) return;
 
     if (isTemporary) {
       onImportPEQ(parsed.peq, importName || "Imported EQ", false);
@@ -1209,7 +1219,12 @@ function DeviceTab({ setStatus, onPull }: { setStatus: (msg: string) => void; on
     setUtilityField("mic_volume_db", volumeDb, "set_mic_volume", { volumeDb });
 
   const handleResetDeviceEq = async () => {
-    if (!confirm("Reset device EQ? This clears all hardware bands and sets device preamp to 0 dB.")) return;
+    if (!(await confirmDialog({
+      title: "Reset device EQ?",
+      message: "This clears all hardware bands and sets device preamp to 0 dB.",
+      confirmLabel: "Reset EQ",
+      danger: true,
+    }))) return;
     try {
       await invoke("reset_device_eq");
       setStatus("Device EQ reset");
@@ -1222,7 +1237,12 @@ function DeviceTab({ setStatus, onPull }: { setStatus: (msg: string) => void; on
   };
 
   const handleResetDeviceControls = async () => {
-    if (!confirm("Reset device controls? This restores filter, amp mode, output gain, mic volume, and balance defaults.")) return;
+    if (!(await confirmDialog({
+      title: "Reset device controls?",
+      message: "This restores filter, amp mode, output gain, mic volume, and balance defaults.",
+      confirmLabel: "Reset controls",
+      danger: true,
+    }))) return;
     try {
       setUtility(await invoke<typeof utility>("reset_device_controls"));
       setStatus("Device controls reset");
@@ -1232,7 +1252,12 @@ function DeviceTab({ setStatus, onPull }: { setStatus: (msg: string) => void; on
   };
 
   const handleFactoryReset = async () => {
-    if (!confirm("Are you sure you want to perform a factory reset? This will restore default settings.")) return;
+    if (!(await confirmDialog({
+      title: "Factory reset?",
+      message: "This will restore all device settings to their factory defaults.",
+      confirmLabel: "Factory reset",
+      danger: true,
+    }))) return;
     try {
       await invoke("execute_factory_reset");
       const data = await invoke<DeviceUtilityState>("get_dac_utility_state");
