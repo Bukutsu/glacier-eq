@@ -1,7 +1,7 @@
 import { memo, type CSSProperties, useState, useEffect, useRef } from "react";
 import { invoke, listen, readText, writeText, save } from "../lib/rpc";
 import type { AppSettings, MeasurementTrace, Profile, PEQData, GraphViewMode, TargetTrace } from "../types";
-import { DEFAULT_PROFILE_NAME } from "../App";
+import { DEFAULT_PROFILE_NAME } from "../lib/peq";
 import { Icon } from "./Icon";
 import { confirmDialog } from "./ConfirmDialog";
 

@@ -12,14 +12,14 @@ import { AddTraceModal } from "./components/AddTraceModal";
 import { Collapsible } from "./components/Collapsible";
 import { ConfirmDialogHost, confirmDialog } from "./components/ConfirmDialog";
 import { Modal } from "./components/Modal";
-import { DESKTOP_TABS, MOBILE_TABS, type MobileTab } from "./lib/tabs";
+import { DESKTOP_TABS, MOBILE_TABS, type MobileTab, type ToolsTab } from "./lib/tabs";
 import { UnifiedTracesList } from "./components/UnifiedTraces";
 import {
   DEV_DUMMY_DEVICE,
   buildDevDummyPeq,
   isDevDummyDevice,
 } from "./lib/devDevice";
-import { buildDefaultState, normalizePeq, peqEquals } from "./lib/peq";
+import { buildDefaultState, DEFAULT_PROFILE_NAME, normalizePeq, peqEquals } from "./lib/peq";
 import { isTauri } from "./lib/platform";
 import { isDisconnectionError } from "./lib/errors";
 import type {
@@ -51,7 +51,6 @@ const OFFLINE_EDITOR_CAPABILITIES: DeviceCapabilities = {
   supports_ram_apply: false,
   integer_preamp: false,
 };
-export const DEFAULT_PROFILE_NAME = "Default EQ";
 const DEFAULT_SETTINGS: AppSettings = {
   auto_pull_on_connect: true,
   skip_push_verification: false,
@@ -84,7 +83,7 @@ function App() {
   const [activeTab, setActiveTab] = useState<MobileTab>("eq");
   const [graphCollapsed, setGraphCollapsed] = useState(false);
   const [showGraph, setShowGraph] = useState(true);
-  const [toolsTab, setToolsTab] = useState<any>("Preset");
+  const [toolsTab, setToolsTab] = useState<ToolsTab>("Preset");
   const [showDeviceModal, setShowDeviceModal] = useState(false);
   const [showDiagnosticsModal, setShowDiagnosticsModal] = useState(false);
   const [showAddTrace, setShowAddTrace] = useState(false);
@@ -581,7 +580,7 @@ function App() {
     if (!isReconnecting || !connectedDeviceName) return;
 
     let active = true;
-    let timerId: any = null;
+    let timerId: ReturnType<typeof setTimeout> | null = null;
 
     const runPoll = async () => {
       if (!active) return;

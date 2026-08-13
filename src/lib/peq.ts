@@ -2,6 +2,9 @@ import type { DeviceCapabilities, FilterType, PEQData } from "../types";
 
 export const DEFAULT_FREQS_10_BAND = [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
 
+// Name of the synthetic "reset to flat" profile shown first in the library.
+export const DEFAULT_PROFILE_NAME = "Default EQ";
+
 export function buildDefaultState(): PEQData {
   return {
     global_gain: 0,
