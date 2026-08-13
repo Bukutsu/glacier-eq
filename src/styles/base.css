@@ -297,6 +297,8 @@ html, body, #root { height: 100%; margin: 0; }
 body {
   overflow: hidden;
   background: var(--bg);
+  /* Whole-app color treatment: slightly more vivid and punchy. */
+  filter: saturate(1.2) contrast(1.05);
   -webkit-tap-highlight-color: rgb(var(--cyan-rgb) / 0.18);
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
