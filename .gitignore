@@ -47,7 +47,6 @@ pnpm-debug.log*
 *.sln
 src/glacier-eq/
 *.src.tar.gz
-src-tauri/gen/android/
 src-tauri/gen/android/app/build/
 src-tauri/gen/android/app/.cxx/
 src-tauri/gen/android/build/
