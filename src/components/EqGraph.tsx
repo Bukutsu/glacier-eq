@@ -433,16 +433,16 @@ async function drawCurves(
 ) {
   const freqs = getFreqGrid(width);
   const eqResponse = await responseValues(peq, freqs, viewMode);
+  const enabledFilters = peq.filters.filter((filter) => filter.enabled);
   const bandResponses = await Promise.all(
-    peq.filters
-      .filter((filter) => filter.enabled)
-      .map((band) => filterResponseValues(band, freqs)),
+    enabledFilters.map((band) => filterResponseValues(band, freqs)),
   );
   if (!isCurrent()) return;
 
-  for (const response of bandResponses) {
-    drawResponse(ctx, height, response, rgbWithAlpha("--cyan-rgb", 0.22, "rgba(125, 207, 255, 0.22)"), 1);
-  }
+  bandResponses.forEach((response, i) => {
+    const [, rgbToken, fallback] = filterColorVars(enabledFilters[i].index);
+    drawResponse(ctx, height, response, rgbWithAlpha(rgbToken, 0.22, fallback), 1);
+  });
 
   for (const target of targets) {
     drawTrace(ctx, width, height, target, 1.6, [2, 6]);

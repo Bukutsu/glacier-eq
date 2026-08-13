@@ -1,7 +1,7 @@
 // Filter band colors, ordered as a warm→cool hue progression that maps to
 // frequency: band 1 (31 Hz, bass) is warm and band 10 (16 kHz, treble) is cool.
-// Bands 1–8 are distinct hues; the two cyan variants are reserved for the
-// highest "air" bands, which are less commonly used.
+// All ten are distinct hues; bands 9–10 use the two extra tokens instead of
+// the old cyan look-alikes so no two bands are easily confused.
 const FILTER_COLOR_VARS = [
   ["--red", "--red-rgb", "#f7768e"],
   ["--orange", "--orange-rgb", "#ff9e64"],
@@ -11,8 +11,8 @@ const FILTER_COLOR_VARS = [
   ["--cyan", "--cyan-rgb", "#7dcfff"],
   ["--blue", "--blue-rgb", "#7aa2f7"],
   ["--purple", "--purple-rgb", "#9d7cd8"],
-  ["--dark-cyan", "--dark-cyan-rgb", "#2ac3de"],
-  ["--bright-cyan", "--bright-cyan-rgb", "#b4f9f8"],
+  ["--teal2", "--teal2-rgb", "#1abc9c"],
+  ["--magenta2", "--magenta2-rgb", "#ff007c"],
 ] as const;
 
 export function filterColorVars(index: number) {

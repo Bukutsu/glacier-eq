@@ -95,14 +95,14 @@ describe("normalizeMeasurementPoints", () => {
 });
 
 describe("nextMeasurementColor", () => {
-  const VARS = ["--cyan", "--red", "--green", "--yellow", "--purple", "--blue"];
+  const VARS = ["--steel", "--navy", "--sea", "--azure", "--sky", "--crimson"];
 
   it("cycles through the color variables and wraps around", () => {
     for (let i = 0; i < VARS.length; i++) {
       expect(nextMeasurementColor(Array.from({ length: i }, trace))).toBe(`var(${VARS[i]})`);
     }
-    expect(nextMeasurementColor(Array.from({ length: VARS.length }, trace))).toBe("var(--cyan)");
-    expect(nextMeasurementColor(Array.from({ length: VARS.length + 1 }, trace))).toBe("var(--red)");
+    expect(nextMeasurementColor(Array.from({ length: VARS.length }, trace))).toBe(`var(${VARS[0]})`);
+    expect(nextMeasurementColor(Array.from({ length: VARS.length + 1 }, trace))).toBe(`var(${VARS[1]})`);
   });
 });
 

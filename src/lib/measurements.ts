@@ -1,7 +1,7 @@
 import type { MeasurementPoint, MeasurementTrace, TargetTrace } from "../types";
 
-const MEASUREMENT_COLOR_VARS = ["--cyan", "--red", "--green", "--yellow", "--purple", "--blue"];
-const TARGET_COLOR_VARS = ["--yellow", "--green", "--purple", "--red", "--blue", "--cyan"];
+const MEASUREMENT_COLOR_VARS = ["--steel", "--navy", "--sea", "--azure", "--sky", "--crimson"];
+const TARGET_COLOR_VARS = ["--crimson", "--sky", "--azure", "--sea", "--navy", "--steel"];
 
 function colorVar(vars: string[], index: number): string {
   return `var(${vars[index % vars.length]})`;
