@@ -208,7 +208,18 @@
     gap: 8px;
     width: 100%;
   }
-  .header-session-strip { display: none !important; }
+  .header-session-strip {
+    display: flex;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .header-session-strip .session-hide-mobile {
+    display: none;
+  }
+  .header-session-strip .session-hide-mobile + span::before {
+    content: none;
+  }
   h1 { font-size: var(--type-title); }
   .device-name {
     font-size: var(--type-caption);

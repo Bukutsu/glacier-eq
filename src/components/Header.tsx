@@ -122,11 +122,11 @@ export const Header = memo(function Header({
             <span className={`sync-dot ${syncClass}`}>{syncText}</span>
           </div>
           <div className="header-session-strip" aria-label="EQ session status">
-            <span>{profileText}</span>
+            <span className="session-hide-mobile">{profileText}</span>
             <span>{activeBands}/{maxBands} bands</span>
             <span>{preampDb.toFixed(1)} dB preamp</span>
-            {connected && <span>{supportsRamApply ? "Temporary apply available" : "Persistent writes only"}</span>}
-            {firmwareVersion && <span>FW {firmwareVersion}</span>}
+            {connected && <span className="session-hide-mobile">{supportsRamApply ? "Temporary apply available" : "Persistent writes only"}</span>}
+            {firmwareVersion && <span className="session-hide-mobile">FW {firmwareVersion}</span>}
           </div>
         </div>
         {/* Desktop Toolbar */}
