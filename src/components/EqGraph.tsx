@@ -396,7 +396,7 @@ function drawBackground(ctx: CanvasRenderingContext2D, width: number, height: nu
 
 function drawGrid(ctx: CanvasRenderingContext2D, width: number, height: number) {
   const mono = cssVar("--font-mono", "ui-monospace");
-  ctx.strokeStyle = cssVar("--canvas-grid", "rgba(128, 128, 128, 0.20)");
+  ctx.strokeStyle = cssVar("--canvas-grid", "rgba(65, 72, 104, 0.22)");
   ctx.lineWidth = 1;
   ctx.font = `12px ${mono}`;
   ctx.fillStyle = cssVar("--muted", "#a9b1d6");
@@ -629,7 +629,7 @@ function drawFilterDots(
   peq: PEQData,
   dotValues?: number[],
 ) {
-  const text = cssVar("--bg-dark", "#1a1b26");
+  const text = cssVar("--bg-dark", "#1b1e2e");
   const stroke = cssVar("--panel", "#24283b");
   const activeBands = peq.filters.filter((filter) => filter.enabled);
 

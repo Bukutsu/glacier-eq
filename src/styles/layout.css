@@ -188,3 +188,6 @@ dialog.modal-content.wide {
   color: var(--on-accent);
 }
 
+/* Latte's red is dark enough that dark on-accent text fails contrast. */
+:root[data-theme="catppuccin-latte"] .btn.confirm-danger { color: #ffffff; }
+

@@ -105,6 +105,8 @@
   --crimson: #b03636;
   --terminal-black-rgb: 52 59 88;
   --on-accent: #ffffff;
+  --sync-working: #075985;
+  --sync-unsaved: #7a4d0a;
 }
 
 :root[data-theme="nord"] {
@@ -119,7 +121,7 @@
   --text: #eceff4;
   --text-rgb: 236 239 244;
   --muted: #d8dee9;
-  --comment: #60728a;
+  --comment: #9aa5c0;
   --cyan: #88c0d0;
   --cyan-rgb: 136 192 208;
   --blue: #81a1c1;
@@ -162,7 +164,7 @@
   --text: #f8f8f2;
   --text-rgb: 248 248 242;
   --muted: #b0bec5;
-  --comment: #6272a4;
+  --comment: #9aa7c8;
   --cyan: #8be9fd;
   --cyan-rgb: 139 233 253;
   --blue: #bd93f9;
@@ -205,7 +207,7 @@
   --text: #ebdbb2;
   --text-rgb: 235 219 178;
   --muted: #a89984;
-  --comment: #928374;
+  --comment: #b8ad96;
   --cyan: #8ec07c;
   --cyan-rgb: 142 192 124;
   --blue: #83a598;
@@ -248,7 +250,7 @@
   --text: #cdd6f4;
   --text-rgb: 205 214 244;
   --muted: #a6adc8;
-  --comment: #6c7086;
+  --comment: #a0a8c0;
   --cyan: #89dceb;
   --cyan-rgb: 137 220 235;
   --blue: #89b4fa;
@@ -321,6 +323,9 @@
   --crimson: #d20f39;
   --terminal-black-rgb: 108 111 133;
   --on-accent: #11111b;
+  --sync-ok: #1a5c1a;
+  --sync-working: #075985;
+  --sync-unsaved: #7a4d0a;
 }
 
 :root {
@@ -347,6 +352,9 @@
   --legend-bg: rgb(var(--bg-darker-rgb) / 0.82);
   --on-accent: #11111b;
   --theme-checkmark: var(--on-accent);
+  --sync-ok: var(--green);
+  --sync-working: var(--cyan);
+  --sync-unsaved: var(--yellow);
   --surface-disabled: rgb(var(--text-rgb) / 0.12);
   --text-disabled: rgb(var(--text-rgb) / 0.38);
   --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, sans-serif;
@@ -479,7 +487,7 @@ select:focus-visible {
 
 .btn:hover:not(:disabled), .tools-card button:hover:not(:disabled), .diag-card button:hover:not(:disabled) { filter: brightness(1.14); }
 .btn:active:not(:disabled), .tools-card button:active:not(:disabled), .diag-card button:active:not(:disabled) { filter: brightness(1.24); }
-.btn.filled, button.save { background: var(--btn-filled-bg, var(--cyan)); color: var(--on-accent); }
+.btn.filled, button.save { background: var(--cyan); color: var(--on-accent); }
 .btn.warning { background: var(--yellow); color: var(--on-accent); }
 
 @media (pointer: coarse) {

@@ -88,6 +88,7 @@ function App() {
   const [showDiagnosticsModal, setShowDiagnosticsModal] = useState(false);
   const [showAddTrace, setShowAddTrace] = useState(false);
   const mainScrollRef = useRef<HTMLElement | null>(null);
+  const reconnectCancelRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const media = window.matchMedia(MOBILE_QUERY);
@@ -175,17 +176,17 @@ function App() {
         toastType = "success";
       }
 
-      // On Android, transient info/success is handled by the native toast;
-      // errors are also rendered persistently so they are not lost.
-      if (isAndroid && toastType !== "error") return;
-
-      // Automatically log all toast notifications to the diagnostics board
+      // Automatically log all toast notifications to the diagnostics board.
       const diagLevel = toastType === "error" ? "Error" : "Info";
       invoke("add_diagnostic_event", {
         level: diagLevel,
         source: "UI",
         message: `Notification: ${message}`,
       }).catch((err) => console.error("Failed to log diagnostic from toast:", err));
+
+      // On Android, transient info/success is handled by the native toast;
+      // errors are also rendered persistently so they are not lost.
+      if (isAndroid && toastType !== "error") return;
 
       const id = Math.random().toString(36).substring(2, 9);
       setToasts((prev) => {
@@ -287,19 +288,26 @@ function App() {
 
   const [undoStack, setUndoStack] = useState<PEQData[]>([]);
   const [redoStack, setRedoStack] = useState<PEQData[]>([]);
+  const undoStackRef = useRef(undoStack);
+
+  useEffect(() => {
+    undoStackRef.current = undoStack;
+  }, [undoStack]);
 
   const pushToUndoStack = useCallback((currentPeq: PEQData) => {
+    const stack = undoStackRef.current;
+    if (stack.length > 0 && peqEquals(stack[stack.length - 1], currentPeq)) {
+      // No change since the last snapshot — nothing to push or clear.
+      return;
+    }
+    setRedoStack([]);
     setUndoStack((prev) => {
-      if (prev.length > 0 && peqEquals(prev[prev.length - 1], currentPeq)) {
-        return prev;
-      }
       const next = [...prev, currentPeq];
       if (next.length > 50) {
         next.shift();
       }
       return next;
     });
-    setRedoStack([]);
   }, []);
 
   const undo = useCallback(() => {
@@ -1525,7 +1533,18 @@ function App() {
         </main>
       )}
       {isReconnecting && (
-        <div className="reconnecting-overlay" role="alertdialog" aria-modal="true" aria-label="Connection lost">
+        <div
+          className="reconnecting-overlay"
+          role="alertdialog"
+          aria-modal="true"
+          aria-label="Connection lost"
+          onKeyDown={(e) => {
+            if (e.key === "Tab") {
+              e.preventDefault();
+              reconnectCancelRef.current?.focus();
+            }
+          }}
+        >
           <div className="reconnecting-card">
             <div className="reconnecting-spinner"></div>
             <h3>Connection lost</h3>
@@ -1534,6 +1553,7 @@ function App() {
               <strong>{connectedDeviceName}</strong>...
             </p>
             <button
+              ref={reconnectCancelRef}
               className="btn"
               autoFocus
               onClick={handleCancelReconnection}

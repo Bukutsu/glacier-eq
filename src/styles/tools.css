@@ -356,14 +356,6 @@
   padding-top: 10px;
 }
 
-.profile-management-actions {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 38px 38px;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
 .profile-management-actions .primary-save {
   min-width: 0;
   min-height: 40px;

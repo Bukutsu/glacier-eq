@@ -720,6 +720,7 @@ function ImportTab({ peq, profiles, selectedPreset, onImportPEQ, onReloadProfile
                 </button>
                 <button
                   className={isTemporary ? "active" : ""}
+                  aria-pressed={isTemporary}
                   onClick={() => setIsTemporary(true)}
                 >
                   Try temporarily
@@ -1516,6 +1517,13 @@ export function DiagnosticsPanel() {
   const [autoScroll, setAutoScroll] = useState(true);
   const [copied, setCopied] = useState(false);
   const logBoxRef = useRef<HTMLDivElement>(null);
+  const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+    };
+  }, []);
 
   // Load history + subscribe to live events
   useEffect(() => {
@@ -1586,7 +1594,8 @@ export function DiagnosticsPanel() {
     try {
       await writeText(text);
       setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
+      if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+      copiedTimerRef.current = setTimeout(() => setCopied(false), 1500);
     } catch (err) {
       console.error("Failed to copy logs:", err);
     }
@@ -1614,6 +1623,7 @@ export function DiagnosticsPanel() {
           <button
             key={lvl}
             className={`diag-filter-btn${levelFilter === lvl ? " active" : ""}${lvl === "Error" ? " f-error" : ""}${lvl === "Warn" ? " f-warn" : ""}`}
+            aria-pressed={levelFilter === lvl}
             onClick={() => setLevelFilter(lvl)}
           >
             {lvl}

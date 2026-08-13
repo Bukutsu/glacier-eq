@@ -76,7 +76,7 @@ h1 {
   letter-spacing: 0.02em;
 }
 .sync-dot.ok {
-  color: var(--green);
+  color: var(--sync-ok);
   background: var(--bg-dark);
   background: color-mix(in srgb, var(--green) 12%, transparent);
   outline: 1px solid var(--line-soft);
@@ -89,7 +89,7 @@ h1 {
   outline: 1px solid var(--line-soft);
 }
 .sync-dot.working {
-  color: var(--cyan);
+  color: var(--sync-working);
   background: var(--bg-dark);
   background: color-mix(in srgb, var(--cyan) 12%, transparent);
   outline: 1px solid var(--line-soft);
@@ -97,18 +97,12 @@ h1 {
   animation: sync-pulse 1.5s infinite ease-in-out;
 }
 .unsaved > .sync-dot, .sync-dot.unsaved {
-  color: var(--yellow);
+  color: var(--sync-unsaved);
   background: var(--bg-dark);
   background: color-mix(in srgb, var(--yellow) 12%, transparent);
   outline: 1px solid var(--line-soft);
   outline: 1px solid color-mix(in srgb, var(--yellow) 30%, transparent);
 }
-
-/* Catppuccin Latte's bright accents are too light as text on the light
-   backdrop; use darker status text for the sync indicator. */
-:root[data-theme="catppuccin-latte"] .sync-dot.ok { color: #2e7d1f; }
-:root[data-theme="catppuccin-latte"] .sync-dot.working { color: #0284b8; }
-:root[data-theme="catppuccin-latte"] .sync-dot.unsaved { color: #b45309; }
 
 .header-session-strip {
   display: flex;

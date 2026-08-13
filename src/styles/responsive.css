@@ -996,7 +996,7 @@
   }
 
   .mobile-tab-item.active {
-    color: var(--tab-active-icon, var(--cyan));
+    color: var(--cyan);
   }
 
   .mobile-tab-item.active::before {
@@ -1005,11 +1005,11 @@
     top: -4px;
     width: 32px;
     height: 2px;
-    background: var(--tab-active-icon, var(--cyan));
+    background: var(--cyan);
   }
 
   .mobile-tab-item.active .mobile-tab-icon-wrapper {
-    background-color: var(--tab-active-pill, rgb(var(--cyan-rgb) / 0.12));
+    background-color: rgb(var(--cyan-rgb) / 0.12);
     border-color: rgb(var(--cyan-rgb) / 0.32);
   }
 
@@ -1035,8 +1035,8 @@
 
   .mobile-graph-preview {
     position: fixed;
-    left: 12px;
-    right: 12px;
+    left: max(12px, var(--safe-area-left, 0px));
+    right: max(12px, var(--safe-area-right, 0px));
     top: calc(128px + var(--safe-area-top, 0px));
     height: min(22vh, 180px);
     min-height: 132px;
@@ -1085,11 +1085,11 @@
   }
   .control-slider-input::-webkit-slider-runnable-track {
     height: 6px !important;
-    border-radius: 3px !important;
+    border-radius: var(--radius-control) !important;
   }
   .control-slider-input::-moz-range-track {
     height: 6px !important;
-    border-radius: 3px !important;
+    border-radius: var(--radius-control) !important;
   }
 }
 

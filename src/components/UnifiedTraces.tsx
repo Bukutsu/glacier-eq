@@ -42,7 +42,7 @@ export const UnifiedTracesList = memo(function UnifiedTracesList({
               <span className="curve-points">({trace.points.length} pts)</span>
             </span>
           </label>
-          <span className="trace-type-badge trace-type-measure">M</span>
+          <span className="trace-type-badge trace-type-measure" title="Measurement">M</span>
           <button
             className="curve-delete"
             title={`Delete ${trace.name}`}
@@ -65,7 +65,7 @@ export const UnifiedTracesList = memo(function UnifiedTracesList({
               <span className="curve-swatch" style={{ backgroundColor: target.color }} />
               <span className="curve-name">{target.name}</span>
             </label>
-            <span className="trace-type-badge trace-type-target">T</span>
+            <span className="trace-type-badge trace-type-target" title="Target">T</span>
             {!target.builtIn && (
               <button
                 className="curve-delete"

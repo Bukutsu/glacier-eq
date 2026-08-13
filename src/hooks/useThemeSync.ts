@@ -5,6 +5,8 @@ export function useThemeSync(theme: string): string {
   const [resolvedTheme, setResolvedTheme] = useState("tokyo-night");
 
   useEffect(() => {
+    let active = true;
+
     const isAndroid =
       typeof navigator !== "undefined" &&
       (document.body.classList.contains("is-android") ||
@@ -35,6 +37,8 @@ export function useThemeSync(theme: string): string {
         }
         resolved = prefersDark ? "tokyo-night" : "tokyo-night-day";
       }
+
+      if (!active) return;
       setResolvedTheme(resolved);
       document.documentElement.setAttribute("data-theme", resolved);
     };
@@ -85,6 +89,7 @@ export function useThemeSync(theme: string): string {
     }
 
     return () => {
+      active = false;
       cleanups.forEach((cleanup) => cleanup());
     };
   }, [theme]);
