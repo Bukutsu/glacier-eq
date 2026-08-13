@@ -158,7 +158,7 @@ export const Header = memo(function Header({
           {connected ? (
             <>
               <button className="btn tonal" title="Replace the editor with EQ read from the DAC" onClick={onPull} disabled={isBusy}>Read DAC</button>
-              <button className="btn filled" title="Store the editor EQ on the DAC" onClick={onPush} disabled={isBusy}>Write DAC</button>
+              <button className="btn warning" title="Store the editor EQ on the DAC" onClick={onPush} disabled={isBusy}>Write DAC</button>
               <button className="btn tonal" onClick={onDisconnect} disabled={isBusy}>Disconnect</button>
             </>
           ) : (
@@ -196,7 +196,7 @@ export const Header = memo(function Header({
           {connected ? (
             <>
               <button type="button" className="btn tonal mobile-action-btn" title="Read EQ from DAC" onClick={onPull} disabled={isBusy}>Read</button>
-              <button type="button" className="btn filled mobile-action-btn" title="Write EQ to DAC" onClick={onPush} disabled={isBusy}>Write</button>
+              <button type="button" className="btn warning mobile-action-btn" title="Write EQ to DAC" onClick={onPush} disabled={isBusy}>Write</button>
               <div className="mobile-menu-container" ref={menuRef}>
                 <button
                   type="button"

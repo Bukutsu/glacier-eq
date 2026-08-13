@@ -388,6 +388,7 @@ select:focus-visible {
 .btn:hover:not(:disabled), .tools-card button:hover:not(:disabled), .diag-card button:hover:not(:disabled) { filter: brightness(1.14); }
 .btn:active:not(:disabled), .tools-card button:active:not(:disabled), .diag-card button:active:not(:disabled) { filter: brightness(1.24); }
 .btn.filled, button.save { background: var(--btn-filled-bg, var(--cyan)); color: var(--btn-filled-text, var(--bg-dark)); }
+.btn.warning { background: var(--yellow); color: var(--bg-dark); }
 
 @media (pointer: coarse) {
   .btn, .tools-card button, .diag-card button, .device-actions button {
