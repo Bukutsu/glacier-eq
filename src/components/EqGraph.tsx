@@ -8,7 +8,7 @@ import type { DeviceCapabilities, Filter, GraphViewMode, MeasurementTrace, PEQDa
 import { Icon } from "./Icon";
 
 const GRAPH_FREQS = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
-const GRAPH_DBS = [-15, -10, -5, 0, 5, 10, 15];
+const GRAPH_DBS = [-18, -12, -6, 0, 6, 12, 18];
 
 const DEFAULT_MOTION_MS = 160;
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
