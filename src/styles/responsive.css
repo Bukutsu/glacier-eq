@@ -770,6 +770,11 @@
     font-size: 17px !important;
   }
 
+  /* Keyboard shortcuts are desktop-only; mobile has no physical keyboard. */
+  .shortcuts-card {
+    display: none;
+  }
+
   .settings-list label {
     min-height: 48px !important;
     padding: 10px 4px !important;

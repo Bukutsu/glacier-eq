@@ -1164,7 +1164,7 @@ function SettingsTab({
         )}
       </section>
 
-      <section className="tool-card">
+      <section className="tool-card shortcuts-card">
         <div className="tool-card-head">
           <strong>Keyboard Shortcuts</strong>
         </div>
