@@ -575,6 +575,44 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   flex: 1;
 }
 
+.setting-hint {
+  margin: -6px 0 0;
+  color: var(--comment);
+  font-size: var(--type-caption);
+  line-height: 1.45;
+}
+
+.shortcut-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.shortcut-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 30px;
+  border-top: 1px solid var(--line-subtle);
+}
+
+.shortcut-row:first-child {
+  border-top: 0;
+}
+
+.shortcut-keys {
+  color: var(--cyan);
+  font-family: var(--font-mono);
+  font-size: var(--type-caption);
+  white-space: nowrap;
+}
+
+.shortcut-action {
+  color: var(--muted);
+  font-size: var(--type-small);
+  text-align: right;
+}
+
 /* Diagnostics Panel */
 .diag-card {
   padding: 14px 18px 16px;

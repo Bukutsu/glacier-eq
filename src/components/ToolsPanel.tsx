@@ -14,6 +14,15 @@ import { NumberInput } from "./NumberInput";
 import { Slider } from "./Slider";
 import { TAB_META, type ToolsTab } from "../lib/tabs";
 
+const KEYBOARD_SHORTCUTS: [string, string][] = [
+  ["Ctrl/⌘ Z", "Undo"],
+  ["Ctrl/⌘ Shift Z", "Redo"],
+  ["Ctrl/⌘ S", "Save profile"],
+  ["Ctrl/⌘ R", "Read EQ from DAC"],
+  ["Ctrl/⌘ Shift R", "Reset EQ"],
+  ["Ctrl/⌘ Enter", "Write EQ to DAC"],
+];
+
 
 
 interface SelectOption<T extends string | number> {
@@ -1122,24 +1131,45 @@ function SettingsTab({
         </div>
 
         {graphViewMode && onGraphViewModeChange && (
-          <div className="setting-row">
-            <span className="setting-label">Graph View</span>
-            <div className="graph-view-toggle">
-              <button
-                className={graphViewMode === "shape" ? "active" : ""}
-                onClick={() => onGraphViewModeChange("shape")}
-              >
-                Shape
-              </button>
-              <button
-                className={graphViewMode === "level" ? "active" : ""}
-                onClick={() => onGraphViewModeChange("level")}
-              >
-                Level
-              </button>
+          <>
+            <div className="setting-row">
+              <span className="setting-label">Graph View</span>
+              <div className="graph-view-toggle">
+                <button
+                  className={graphViewMode === "shape" ? "active" : ""}
+                  title="Normalize the curve to its 1 kHz response"
+                  onClick={() => onGraphViewModeChange("shape")}
+                >
+                  Shape
+                </button>
+                <button
+                  className={graphViewMode === "level" ? "active" : ""}
+                  title="Show absolute gain across the frequency range"
+                  onClick={() => onGraphViewModeChange("level")}
+                >
+                  Level
+                </button>
+              </div>
             </div>
-          </div>
+            <p className="setting-hint">
+              Shape normalizes the curve to its 1 kHz response; Level shows absolute gain.
+            </p>
+          </>
         )}
+      </section>
+
+      <section className="tool-card">
+        <div className="tool-card-head">
+          <strong>Keyboard Shortcuts</strong>
+        </div>
+        <div className="shortcut-list">
+          {KEYBOARD_SHORTCUTS.map(([keys, action]) => (
+            <div className="shortcut-row" key={action}>
+              <span className="shortcut-keys">{keys}</span>
+              <span className="shortcut-action">{action}</span>
+            </div>
+          ))}
+        </div>
       </section>
     </div>
   );
