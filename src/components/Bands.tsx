@@ -4,7 +4,7 @@ import { Icon } from "./Icon";
 import { Slider } from "./Slider";
 import { NumberInput } from "./NumberInput";
 import { filterColorVars } from "../lib/filterColors";
-import { snapFreqToIso } from "../lib/graph";
+import { formatFreq, snapFreqToIso } from "../lib/graph";
 import { clampToRange } from "../lib/peq";
 
 const FREQ_SLIDER_STEPS = 1000;
@@ -134,7 +134,7 @@ export const Bands = memo(function Bands({ peq, committedPeq, capabilities, onFi
                 onClick={() => onActiveBandChange?.(filter.index)}
               >
                 <strong>{filter.index + 1}</strong>
-                <span>{TYPE_LABELS[filter.filter_type]}</span>
+                <span>{formatFreq(filter.freq)}</span>
               </button>
             ))}
             <button
