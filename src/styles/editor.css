@@ -7,6 +7,51 @@
   position: relative;
 }
 
+.editor-empty-hint {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--bg-dark);
+  outline: 1px solid var(--accent-line-outline);
+  outline-offset: -1px;
+  color: var(--muted);
+  font-size: var(--type-label);
+  line-height: 1.4;
+  flex: 0 0 auto;
+}
+
+.editor-empty-hint > .material-symbols-outlined {
+  font-size: 18px;
+  color: var(--cyan);
+  flex-shrink: 0;
+}
+
+.editor-empty-hint-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.editor-empty-hint button {
+  background: transparent;
+  color: var(--comment);
+  padding: 4px;
+  min-width: 24px;
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.editor-empty-hint button:hover {
+  color: var(--text);
+}
+
+.editor-empty-hint button .material-symbols-outlined {
+  font-size: 18px;
+}
+
 .eq-graph-shell {
   position: relative;
   width: 100%;

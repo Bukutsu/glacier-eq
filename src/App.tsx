@@ -69,6 +69,7 @@ declare global {
 
 const MOBILE_QUERY = "(max-width: 850px)";
 const DEVICE_ONBOARDING_KEY = "glacier-device-onboarding-seen";
+const EDITOR_HINT_KEY = "glacier-editor-hint-dismissed";
 
 
 function App() {
@@ -267,6 +268,9 @@ function App() {
   const [lastPushedPeq, setLastPushedPeq] = useState<PEQData | null>(null);
   const [activeBandIndex, setActiveBandIndex] = useState<number | null>(null);
   const [isScrolledDown, setIsScrolledDown] = useState(false);
+  const [editorHintDismissed, setEditorHintDismissed] = useState(
+    () => window.localStorage.getItem(EDITOR_HINT_KEY) === "true",
+  );
 
   useEffect(() => {
     peqRef.current = peq;
@@ -1275,6 +1279,26 @@ function App() {
   );
 
 
+  const editorHint = !connected && !editorHintDismissed ? (
+    <div className="editor-empty-hint" role="status">
+      <Icon>info</Icon>
+      <span className="editor-empty-hint-text">
+        No DAC connected — edit freely, or connect to push EQ and read the device state.
+      </span>
+      <button
+        type="button"
+        aria-label="Dismiss hint"
+        onClick={() => {
+          window.localStorage.setItem(EDITOR_HINT_KEY, "true");
+          setEditorHintDismissed(true);
+        }}
+      >
+        <Icon>close</Icon>
+      </button>
+    </div>
+  ) : null;
+
+
   return (
     <div id="app">
       {!(isAndroid && activeTab === "settings") && (
@@ -1328,6 +1352,7 @@ function App() {
           <div className="mobile-content-area">
             {activeTab === "eq" && (
               <section className="left-pane">
+                {editorHint}
                 {editorControls}
               </section>
             )}
@@ -1453,6 +1478,7 @@ function App() {
             ref={mainScrollRef}
             onScroll={handleMainScroll}
           >
+            {editorHint}
             {showGraph && (
             <section className="graph-card">
               {graphElement(true)}
