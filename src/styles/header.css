@@ -104,6 +104,12 @@ h1 {
   outline: 1px solid color-mix(in srgb, var(--yellow) 30%, transparent);
 }
 
+/* Catppuccin Latte's bright accents are too light as text on the light
+   backdrop; use darker status text for the sync indicator. */
+:root[data-theme="catppuccin-latte"] .sync-dot.ok { color: #2e7d1f; }
+:root[data-theme="catppuccin-latte"] .sync-dot.working { color: #0284b8; }
+:root[data-theme="catppuccin-latte"] .sync-dot.unsaved { color: #b45309; }
+
 .header-session-strip {
   display: flex;
   align-items: center;

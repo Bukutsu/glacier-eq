@@ -131,6 +131,7 @@ export const Bands = memo(function Bands({ peq, committedPeq, capabilities, onFi
                 type="button"
                 style={filterColorStyle(filter.index)}
                 className={filter.index === selectedFilter.index ? "active" : ""}
+                aria-pressed={filter.index === selectedFilter.index}
                 onClick={() => onActiveBandChange?.(filter.index)}
               >
                 <strong>{filter.index + 1}</strong>
@@ -273,6 +274,7 @@ function BandControls({
             max={FREQ_SLIDER_STEPS}
             step={5}
             value={freqToSlider(filter.freq, capabilities.freq_range)}
+            aria-valuetext={`${filter.freq} Hz`}
             onStartChange={onStartChange}
             onReset={committedFilter ? async () => onChange({ ...filter, freq: await constrainFreq(committedFilter.freq, capabilities.freq_range, snapToIso) }) : undefined}
             onFocus={onActivate}

@@ -65,7 +65,7 @@ export function DeviceChooser({
         <div className="device-browser-warning">WebHID requires a Chromium-based browser over HTTPS or localhost.</div>
       )}
 
-      <button className="btn tonal" style={{ width: "100%" }} onClick={handleScanClick} disabled={isBusy}>{isBusy ? "Scanning…" : "Scan for Devices"}</button>
+      <button className="btn" style={{ width: "100%" }} onClick={handleScanClick} disabled={isBusy}>{isBusy ? "Scanning…" : "Scan for Devices"}</button>
 
       {devices.length === 0 ? (
         <div className="empty-device-state">
@@ -120,7 +120,7 @@ export function DeviceChooser({
       >
         <summary style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", color: "var(--comment)", fontSize: "var(--type-caption)", fontWeight: 700, listStyle: "none" }}>
           <span>SUPPORTED MODELS ({supportedDacs.length})</span>
-          <span className="material-symbols-outlined" style={{ fontSize: "16px", color: "var(--cyan)" }}>
+          <span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: "16px", color: "var(--cyan)" }}>
             {supportedOpen ? "expand_less" : "expand_more"}
           </span>
         </summary>

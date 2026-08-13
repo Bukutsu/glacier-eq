@@ -35,7 +35,7 @@
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(var(--bg-darker-rgb), 0.75);
   backdrop-filter: blur(4px);
   z-index: 9999;
   display: grid;
@@ -185,6 +185,6 @@ dialog.modal-content.wide {
 
 .btn.confirm-danger {
   background: var(--red);
-  color: var(--bg-dark);
+  color: var(--on-accent);
 }
 

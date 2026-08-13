@@ -1,4 +1,4 @@
-import { memo, type CSSProperties, useState, useEffect, useRef } from "react";
+import { memo, type CSSProperties, type KeyboardEvent, useState, useEffect, useRef } from "react";
 import { invoke, listen, readText, writeText, save } from "../lib/rpc";
 import type { AppSettings, MeasurementTrace, Profile, PEQData, GraphViewMode, TargetTrace } from "../types";
 import { DEFAULT_PROFILE_NAME } from "../lib/peq";
@@ -154,7 +154,12 @@ export const ToolsPanel = memo(function ToolsPanel(props: ToolsPanelProps) {
     <aside className="right-rail">
       <section className="tools-card">
         <TabStrip active={tab} onSelect={setTab} tabs={availableTabs} />
-        <div className="tab-panel">
+        <div
+          className="tab-panel"
+          role="tabpanel"
+          id={`tools-panel-${tab}`}
+          aria-labelledby={`tools-tab-${tab}`}
+        >
           {tab === "Preset" && (
             <>
               <PresetTab {...props} />
@@ -207,11 +212,11 @@ export const ToolsPanel = memo(function ToolsPanel(props: ToolsPanelProps) {
             props.connected ? (
               <DeviceTab setStatus={props.setStatus} onPull={props.onPull} />
             ) : (
-              <div className="device-disconnected-panel" style={{ padding: "24px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
-                <span className="material-symbols-outlined" style={{ fontSize: "48px", color: "var(--muted)" }}>link_off</span>
-                <strong style={{ fontSize: "16px" }}>DSP Offline</strong>
-                <p style={{ color: "var(--muted)", fontSize: "13px", lineHeight: "1.5", margin: "0" }}>Connect a supported DAC to adjust hardware options, filter modes, and amplifier gain.</p>
-                <button className="btn filled" style={{ width: "100%", marginTop: "8px" }} onClick={props.onOpenConnectModal}>
+              <div className="device-empty">
+                <span className="material-symbols-outlined" aria-hidden="true">link_off</span>
+                <strong>DSP Offline</strong>
+                <span>Connect a supported DAC to adjust hardware options, filter modes, and amplifier gain.</span>
+                <button className="btn filled" onClick={props.onOpenConnectModal}>
                   Connect Device
                 </button>
               </div>
@@ -243,9 +248,20 @@ function TabStrip({
   onSelect: (tab: ToolsTab) => void;
   tabs: ToolsTab[];
 }) {
+  const buttonRefs = useRef<(HTMLButtonElement | null)[]>([]);
+
   if (tabs.length <= 1) {
     return null;
   }
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLButtonElement>, index: number) => {
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    e.preventDefault();
+    const delta = e.key === "ArrowRight" ? 1 : -1;
+    const next = (index + delta + tabs.length) % tabs.length;
+    onSelect(tabs[next]);
+    buttonRefs.current[next]?.focus();
+  };
 
   return (
     <nav
@@ -257,13 +273,20 @@ function TabStrip({
         "--tab-columns": tabs.length >= 3 ? 2 : tabs.length,
       } as CSSProperties}
     >
-      {tabs.map((name) => (
+      {tabs.map((name, index) => (
         <button
           key={name}
+          ref={(el) => {
+            buttonRefs.current[index] = el;
+          }}
+          id={`tools-tab-${name}`}
           role="tab"
           aria-selected={active === name}
+          aria-controls={`tools-panel-${name}`}
+          tabIndex={active === name ? 0 : -1}
           className={active === name ? "active" : ""}
           onClick={() => onSelect(name)}
+          onKeyDown={(e) => handleKeyDown(e, index)}
         >
           <Icon>{TAB_META[name].icon}</Icon>
           <span>{TAB_META[name].label}</span>
@@ -690,6 +713,7 @@ function ImportTab({ peq, profiles, selectedPreset, onImportPEQ, onReloadProfile
               <div className="import-mode-tabs">
                 <button
                   className={!isTemporary ? "active" : ""}
+                  aria-pressed={!isTemporary}
                   onClick={() => setIsTemporary(false)}
                 >
                   Save to Profile
@@ -973,18 +997,21 @@ export function AutoEqTab({
                 <div className="smooth-buttons">
                   <button
                     className={smoothType === "None" ? "active" : ""}
+                    aria-pressed={smoothType === "None"}
                     onClick={() => setSmoothType("None")}
                   >
                     None
                   </button>
                   <button
                     className={smoothType === "IE" ? "active" : ""}
+                    aria-pressed={smoothType === "IE"}
                     onClick={() => setSmoothType("IE")}
                   >
                     IE
                   </button>
                   <button
                     className={smoothType === "OE" ? "active" : ""}
+                    aria-pressed={smoothType === "OE"}
                     onClick={() => setSmoothType("OE")}
                   >
                     OE
@@ -1123,7 +1150,7 @@ function SettingsTab({
           <div className="setting-row">
             <span className="setting-label">Diagnostics</span>
             <button className="btn" onClick={onOpenDiagnostics} style={{ minHeight: "36px", padding: "0 12px" }}>
-              <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>bug_report</span>
+              <span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: "18px" }}>bug_report</span>
               View Logs
             </button>
           </div>
@@ -1157,6 +1184,7 @@ function SettingsTab({
               <div className="graph-view-toggle">
                 <button
                   className={graphViewMode === "shape" ? "active" : ""}
+                  aria-pressed={graphViewMode === "shape"}
                   title="Normalize the curve to its 1 kHz response"
                   onClick={() => onGraphViewModeChange("shape")}
                 >
@@ -1164,6 +1192,7 @@ function SettingsTab({
                 </button>
                 <button
                   className={graphViewMode === "level" ? "active" : ""}
+                  aria-pressed={graphViewMode === "level"}
                   title="Show absolute gain across the frequency range"
                   onClick={() => onGraphViewModeChange("level")}
                 >
@@ -1222,16 +1251,22 @@ function DeviceTab({ setStatus, onPull }: { setStatus: (msg: string) => void; on
   };
 
   useEffect(() => {
+    let active = true;
     fetchState();
 
     let unlisten: (() => void) | null = null;
     listen<void>("device-pull", () => {
-      fetchState();
+      if (active) fetchState();
     }).then((unsub) => {
-      unlisten = unsub;
+      if (active) {
+        unlisten = unsub;
+      } else {
+        try { unsub(); } catch {}
+      }
     });
 
     return () => {
+      active = false;
       if (unlisten) unlisten();
     };
   }, []);

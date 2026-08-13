@@ -140,7 +140,7 @@ export const Header = memo(function Header({
               disabled={isBusy || !canUndo}
               onClick={onUndo}
             >
-              <span className="material-symbols-outlined">undo</span>
+              <span className="material-symbols-outlined" aria-hidden="true">undo</span>
               <span className="history-btn-label">Undo</span>
             </button>
             <button
@@ -151,19 +151,19 @@ export const Header = memo(function Header({
               disabled={isBusy || !canRedo}
               onClick={onRedo}
             >
-              <span className="material-symbols-outlined">redo</span>
+              <span className="material-symbols-outlined" aria-hidden="true">redo</span>
               <span className="history-btn-label">Redo</span>
             </button>
           </div>
           {connected ? (
             <>
-              <button className="btn tonal" title="Replace the editor with EQ read from the DAC" onClick={onPull} disabled={isBusy}>Read DAC</button>
+              <button className="btn" title="Replace the editor with EQ read from the DAC" onClick={onPull} disabled={isBusy}>Read DAC</button>
               <button className="btn warning" title="Store the editor EQ on the DAC" onClick={onPush} disabled={isBusy}>Write DAC</button>
-              <button className="btn tonal" onClick={onDisconnect} disabled={isBusy}>Disconnect</button>
+              <button className="btn" onClick={onDisconnect} disabled={isBusy}>Disconnect</button>
             </>
           ) : (
             <button className="btn filled" onClick={onConnectClick} disabled={isBusy}>
-              <span className="material-symbols-outlined" style={{ marginRight: "6px", fontSize: "18px" }}>link</span>
+              <span className="material-symbols-outlined" aria-hidden="true" style={{ marginRight: "6px", fontSize: "18px" }}>link</span>
               Connect DAC
             </button>
           )}
@@ -180,7 +180,7 @@ export const Header = memo(function Header({
               disabled={isBusy || !canUndo}
               onClick={onUndo}
             >
-              <span className="material-symbols-outlined">undo</span>
+              <span className="material-symbols-outlined" aria-hidden="true">undo</span>
             </button>
             <button
               type="button"
@@ -190,12 +190,12 @@ export const Header = memo(function Header({
               disabled={isBusy || !canRedo}
               onClick={onRedo}
             >
-              <span className="material-symbols-outlined">redo</span>
+              <span className="material-symbols-outlined" aria-hidden="true">redo</span>
             </button>
           </div>
           {connected ? (
             <>
-              <button type="button" className="btn tonal mobile-action-btn" title="Read EQ from DAC" onClick={onPull} disabled={isBusy}>Read</button>
+              <button type="button" className="btn mobile-action-btn" title="Read EQ from DAC" onClick={onPull} disabled={isBusy}>Read</button>
               <button type="button" className="btn warning mobile-action-btn" title="Write EQ to DAC" onClick={onPush} disabled={isBusy}>Write</button>
               <div className="mobile-menu-container" ref={menuRef}>
                 <button
@@ -206,7 +206,7 @@ export const Header = memo(function Header({
                   aria-expanded={menuOpen}
                   onClick={() => setMenuOpen(!menuOpen)}
                 >
-                  <span className="material-symbols-outlined">more_vert</span>
+                  <span className="material-symbols-outlined" aria-hidden="true">more_vert</span>
                 </button>
                 {menuOpen && (
                   <div className="mobile-dropdown-menu">
@@ -219,7 +219,7 @@ export const Header = memo(function Header({
                       }}
                       disabled={isBusy}
                     >
-                      <span className="material-symbols-outlined">link_off</span>
+                      <span className="material-symbols-outlined" aria-hidden="true">link_off</span>
                       <span>Disconnect</span>
                     </button>
                   </div>
@@ -228,7 +228,7 @@ export const Header = memo(function Header({
             </>
           ) : (
             <button type="button" className="btn filled mobile-action-btn mobile-connect-btn" onClick={onConnectClick} disabled={isBusy}>
-              <span className="material-symbols-outlined">link</span>
+              <span className="material-symbols-outlined" aria-hidden="true">link</span>
               Connect DAC
             </button>
           )}

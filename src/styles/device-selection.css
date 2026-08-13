@@ -84,7 +84,7 @@
 }
 .dev-device-badge,
 .device-support-badge {
-  color: var(--bg-dark);
+  color: var(--on-accent);
   background: var(--orange);
   padding: 2px 5px;
   font-size: var(--type-micro);

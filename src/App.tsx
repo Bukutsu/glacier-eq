@@ -960,16 +960,18 @@ function App() {
 
     try {
       await invoke("delete_profile", { name: selectedPreset });
+      pushToUndoStack(peqRef.current);
       setSelectedPreset(DEFAULT_PROFILE_NAME);
       setProfileSearch("");
       setNewProfileName("");
       setPeq(buildDefaultState());
+      setDirty(false);
       setProfiles(withSyntheticDefault(await invoke<Profile[]>("list_profiles")));
       setStatus("Profile deleted");
     } catch (error) {
       setStatus(`Failed to delete profile: ${error}`);
     }
-  }, [loadProfiles, selectedPreset]);
+  }, [loadProfiles, selectedPreset, pushToUndoStack]);
 
   const openProfilesDir = useCallback(async () => {
     try {
@@ -1523,7 +1525,7 @@ function App() {
         </main>
       )}
       {isReconnecting && (
-        <div className="reconnecting-overlay">
+        <div className="reconnecting-overlay" role="alertdialog" aria-modal="true" aria-label="Connection lost">
           <div className="reconnecting-card">
             <div className="reconnecting-spinner"></div>
             <h3>Connection lost</h3>
@@ -1533,6 +1535,7 @@ function App() {
             </p>
             <button
               className="btn"
+              autoFocus
               onClick={handleCancelReconnection}
               style={{
                 marginTop: "8px",

@@ -425,12 +425,9 @@
 
 .transfer-actions {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   min-width: 0;
-}
-
-.transfer-actions {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .autoeq-form-grid {
@@ -732,7 +729,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 
 .import-mode-tabs button.active {
   background: var(--cyan);
-  color: var(--bg-dark);
+  color: var(--on-accent);
 }
 
 .import-flow-content {
@@ -938,7 +935,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 }
 .smooth-buttons button.active {
   background: var(--cyan);
-  color: var(--bg-dark);
+  color: var(--on-accent);
 }
 
 .desktop-tuning-tab {
@@ -1303,7 +1300,8 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 }
 .curves-search-input:focus {
   border-color: var(--cyan) !important;
-  outline: none !important;
+  outline: 1px solid var(--focus-ring);
+  outline-offset: 2px;
 }
 .curves-search-input::placeholder {
   color: var(--comment);

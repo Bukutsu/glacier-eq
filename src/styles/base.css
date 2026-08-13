@@ -18,7 +18,7 @@
   --text: #c0caf5;
   --text-rgb: 192 202 245;
   --muted: #a9b1d6;
-  --comment: #737aa2;
+  --comment: #8a90b8;
   --cyan: #7dcfff;
   --cyan-rgb: 125 207 255;
   --blue: #7aa2f7;
@@ -104,8 +104,7 @@
   --teal2-rgb: 26 138 114;
   --crimson: #b03636;
   --terminal-black-rgb: 52 59 88;
-  --btn-filled-text: #ffffff;
-  --btn-warning-text: #ffffff;
+  --on-accent: #ffffff;
 }
 
 :root[data-theme="nord"] {
@@ -292,7 +291,7 @@
   --text: #4c4f69;
   --text-rgb: 76 79 105;
   --muted: #5c5f77;
-  --comment: #8c8fa1;
+  --comment: #5c5f77;
   --cyan: #04a5e5;
   --cyan-rgb: 4 165 229;
   --blue: #1e66f5;
@@ -321,8 +320,7 @@
   --teal2-rgb: 29 138 128;
   --crimson: #d20f39;
   --terminal-black-rgb: 108 111 133;
-  --btn-filled-text: #ffffff;
-  --btn-warning-text: #ffffff;
+  --on-accent: #11111b;
 }
 
 :root {
@@ -347,7 +345,8 @@
   --accent-bg-subtle: rgb(var(--cyan-rgb) / 0.05);
   --panel-dark: rgb(var(--bg-darker-rgb) / 0.65);
   --legend-bg: rgb(var(--bg-darker-rgb) / 0.82);
-  --theme-checkmark: var(--bg-dark);
+  --on-accent: #11111b;
+  --theme-checkmark: var(--on-accent);
   --surface-disabled: rgb(var(--text-rgb) / 0.12);
   --text-disabled: rgb(var(--text-rgb) / 0.38);
   --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, sans-serif;
@@ -480,8 +479,8 @@ select:focus-visible {
 
 .btn:hover:not(:disabled), .tools-card button:hover:not(:disabled), .diag-card button:hover:not(:disabled) { filter: brightness(1.14); }
 .btn:active:not(:disabled), .tools-card button:active:not(:disabled), .diag-card button:active:not(:disabled) { filter: brightness(1.24); }
-.btn.filled, button.save { background: var(--btn-filled-bg, var(--cyan)); color: var(--btn-filled-text, var(--bg-dark)); }
-.btn.warning { background: var(--yellow); color: var(--btn-warning-text, var(--bg-dark)); }
+.btn.filled, button.save { background: var(--btn-filled-bg, var(--cyan)); color: var(--on-accent); }
+.btn.warning { background: var(--yellow); color: var(--on-accent); }
 
 @media (pointer: coarse) {
   .btn, .tools-card button, .diag-card button, .device-actions button {

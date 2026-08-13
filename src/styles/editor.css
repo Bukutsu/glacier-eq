@@ -85,7 +85,7 @@
   border: 2px solid var(--panel);
   border-radius: 50%;
   background: var(--filter-color, var(--cyan));
-  color: var(--bg-dark);
+  color: var(--on-accent);
   font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 700;
@@ -505,6 +505,7 @@
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 4px;
   width: 100%;
+  min-width: 0;
   background: transparent;
   outline: none;
   padding: 2px;
@@ -550,11 +551,6 @@
   min-width: 0;
 }
 
-.type-buttons {
-  min-width: 0;
-  width: 100%;
-}
-
 .param-cell .control-slider,
 .gain-cell .control-slider {
   min-width: 0;
@@ -575,14 +571,6 @@
 .custom-number-input.band-q-stepper .stepper-field {
   font-size: var(--type-small);
   padding: 0;
-}
-
-.custom-number-input.band-freq-stepper {
-  /* width set by .freq-cell grid above */
-}
-
-.custom-number-input.band-q-stepper {
-  /* width set by .q-cell grid above */
 }
 
 .bands-container {
@@ -677,21 +665,6 @@
 
 @media (pointer: coarse) {
   .control-slider-input {
-    height: 28px;
-  }
-  .control-slider-input::-webkit-slider-runnable-track {
-    height: 4px;
-  }
-  .control-slider-input::-webkit-slider-thumb {
-    width: 12px;
-    height: 28px;
-    margin-top: -12px;
-  }
-  .control-slider-input::-moz-range-track {
-    height: 4px;
-  }
-  .control-slider-input::-moz-range-thumb {
-    width: 12px;
     height: 28px;
   }
 }

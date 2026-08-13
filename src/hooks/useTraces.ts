@@ -110,7 +110,8 @@ export function useTraces(notify?: (message: string) => void) {
               typeof target.id === "string" &&
               typeof target.name === "string" &&
               typeof target.color === "string" &&
-              Array.isArray(target.points),
+              Array.isArray(target.points) &&
+              target.points.length >= 2,
           )
           .map((target) => ({
             ...target,
