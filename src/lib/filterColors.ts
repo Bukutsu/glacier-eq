@@ -10,7 +10,7 @@ const FILTER_COLOR_VARS = [
   ["--teal", "--teal-rgb", "#73daca"],
   ["--cyan", "--cyan-rgb", "#7dcfff"],
   ["--blue", "--blue-rgb", "#7aa2f7"],
-  ["--purple", "--purple-rgb", "#bb9af7"],
+  ["--purple", "--purple-rgb", "#9d7cd8"],
   ["--dark-cyan", "--dark-cyan-rgb", "#2ac3de"],
   ["--bright-cyan", "--bright-cyan-rgb", "#b4f9f8"],
 ] as const;
