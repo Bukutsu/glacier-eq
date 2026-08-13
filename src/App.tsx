@@ -148,7 +148,9 @@ function App() {
 
   const showToast = useCallback(
     (message: string, type: "info" | "error" | "success" = "info") => {
-      if (isAndroid) return;
+      // On Android, transient info/success is handled by the native toast;
+      // errors are also rendered persistently so they are not lost.
+      if (isAndroid && type !== "error") return;
       if (message === "Ready" || !message.trim()) return;
 
       let toastType = type;

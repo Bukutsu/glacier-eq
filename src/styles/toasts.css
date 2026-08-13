@@ -117,3 +117,8 @@
     animation: toast-in-bottom var(--motion-duration) var(--motion-ease) forwards;
   }
 }
+
+/* On Android, keep toasts clear of the fixed bottom tab bar. */
+body.is-android .toast-container {
+  bottom: calc(84px + var(--safe-area-bottom, 0px));
+}
