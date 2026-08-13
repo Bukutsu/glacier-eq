@@ -305,8 +305,8 @@ body {
   -webkit-user-select: none;
 }
 body.is-android {
-  --safe-area-top: var(--safe-area-inset-top-android, 28px);
-  --safe-area-bottom: var(--safe-area-inset-bottom-android, 16px);
+  --safe-area-top: env(safe-area-inset-top, 28px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 16px);
 }
 input, textarea, [contenteditable="true"] {
   user-select: text;

@@ -588,8 +588,8 @@
     display: none;
   }
   .type-buttons button {
-    min-height: 36px;
-    height: 36px;
+    min-height: 44px;
+    height: 44px;
     padding: 0 12px;
     border-radius: var(--radius-control);
     flex: 0 0 auto;
@@ -598,14 +598,14 @@
   }
   .gain-cell {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 76px;
+    grid-template-columns: minmax(0, 1fr) 110px;
     align-items: center;
     gap: 8px;
   }
   .freq-cell,
   .q-cell {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 76px;
+    grid-template-columns: minmax(0, 1fr) 110px;
     align-items: center;
     gap: 8px;
   }
