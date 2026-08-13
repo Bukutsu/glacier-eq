@@ -40,6 +40,7 @@ export function Slider({
 
   const handleDoubleClick = (e: React.MouseEvent<HTMLInputElement>) => {
     if (onReset) {
+      onStartChange?.();
       onReset();
     }
     if (props.onDoubleClick) props.onDoubleClick(e);

@@ -258,9 +258,11 @@
 }
 
 .profile-management-actions {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 38px 38px;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  min-width: 0;
 }
 
 .profile-card-foot {
@@ -357,6 +359,7 @@
 .profile-management-actions {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 38px 38px;
+  align-items: center;
   gap: 8px;
   min-width: 0;
 }

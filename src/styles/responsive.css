@@ -930,9 +930,6 @@
   .band-row {
     min-width: 0;
   }
-  .band-row {
-    min-width: 0;
-  }
 }
 
 @media (max-width: 380px) {

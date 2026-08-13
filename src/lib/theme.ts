@@ -20,5 +20,7 @@ export function rgbWithAlpha(
     return `rgba(${(hex >> 16) & 255}, ${(hex >> 8) & 255}, ${hex & 255}, ${alpha})`;
   }
 
-  return `rgba(${resolved}, ${alpha})`;
+  // `resolved` is a space-separated triplet (e.g. "122 162 247"); use the
+  // modern slash syntax — mixing spaces with a comma is invalid CSS.
+  return `rgba(${resolved} / ${alpha})`;
 }

@@ -178,17 +178,18 @@ export function useTraces(notify?: (message: string) => void) {
 
   const addTarget = useCallback(
     (name: string, points: TargetTrace["points"]) => {
-      setUserTargets((current) => {
-        const nextTarget = {
-          id: `user-target:${Date.now()}-${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)}`,
+      const id = `user-target:${Date.now()}-${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)}`;
+      setUserTargets((current) => [
+        ...current,
+        {
+          id,
           name: makeTargetName(name, [...current]),
           color: resolveTargetColor(current.length),
           builtIn: false,
           points: normalizeMeasurementPoints(points),
-        };
-        setActiveTargetIds((activeIds) => [...activeIds, nextTarget.id]);
-        return [...current, nextTarget];
-      });
+        },
+      ]);
+      setActiveTargetIds((activeIds) => [...activeIds, id]);
     },
     [],
   );

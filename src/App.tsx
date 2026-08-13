@@ -148,11 +148,10 @@ function App() {
 
   const showToast = useCallback(
     (message: string, type: "info" | "error" | "success" = "info") => {
-      // On Android, transient info/success is handled by the native toast;
-      // errors are also rendered persistently so they are not lost.
-      if (isAndroid && type !== "error") return;
       if (message === "Ready" || !message.trim()) return;
 
+      // Classify by content first, so error messages passed with the default
+      // "info" type are still treated (and shown) as errors.
       let toastType = type;
       const lowerMessage = message.toLowerCase();
       if (
@@ -176,6 +175,10 @@ function App() {
         toastType = "success";
       }
 
+      // On Android, transient info/success is handled by the native toast;
+      // errors are also rendered persistently so they are not lost.
+      if (isAndroid && toastType !== "error") return;
+
       // Automatically log all toast notifications to the diagnostics board
       const diagLevel = toastType === "error" ? "Error" : "Info";
       invoke("add_diagnostic_event", {
@@ -185,7 +188,11 @@ function App() {
       }).catch((err) => console.error("Failed to log diagnostic from toast:", err));
 
       const id = Math.random().toString(36).substring(2, 9);
-      setToasts((prev) => [...prev, { id, message, type: toastType }]);
+      setToasts((prev) => {
+        // Dedupe: don't stack identical messages.
+        if (prev.some((t) => t.message === message)) return prev;
+        return [...prev, { id, message, type: toastType }];
+      });
 
       if (toastType !== "error") {
         setTimeout(() => {
@@ -1532,7 +1539,7 @@ function App() {
                 padding: "8px 16px",
                 cursor: "pointer",
                 background: "var(--surface-soft)",
-                border: "1px solid var(--border)",
+                border: "1px solid var(--line-soft)",
                 color: "var(--text)",
                 fontWeight: 600,
               }}

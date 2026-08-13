@@ -26,12 +26,12 @@ export class ErrorBoundary extends Component<Props, State> {
   public render() {
     if (this.state.hasError) {
       return (
-        <div style={{ padding: 24, background: "var(--bg)", color: "var(--text)", height: "100vh", fontFamily: "sans-serif" }}>
+        <div style={{ padding: 24, background: "var(--bg)", color: "var(--text)", height: "100vh", fontFamily: "var(--font-ui)" }}>
           <h2>Something went wrong</h2>
           <pre style={{ color: "var(--red)" }}>{this.state.error?.toString()}</pre>
           <button
             onClick={() => window.location.reload()}
-            style={{ padding: "8px 16px", background: "var(--surface-soft)", color: "var(--text)", border: "none", borderRadius: 4, cursor: "pointer" }}
+            style={{ padding: "8px 16px", background: "var(--surface-soft)", color: "var(--text)", border: "none", borderRadius: "var(--radius-control)", cursor: "pointer" }}
           >
             Reload Application
           </button>

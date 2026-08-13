@@ -37,12 +37,14 @@ export function NumberInput({
 
   const decrement = () => {
     if (disabled) return;
+    onFocus?.();
     const nextVal = Math.max(min, value - step);
     onChange(Number(nextVal.toFixed(precision)));
   };
 
   const increment = () => {
     if (disabled) return;
+    onFocus?.();
     const nextVal = Math.min(max, value + step);
     onChange(Number(nextVal.toFixed(precision)));
   };

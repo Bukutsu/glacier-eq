@@ -77,7 +77,9 @@ h1 {
 }
 .sync-dot.ok {
   color: var(--green);
+  background: var(--bg-dark);
   background: color-mix(in srgb, var(--green) 12%, transparent);
+  outline: 1px solid var(--line-soft);
   outline: 1px solid color-mix(in srgb, var(--green) 30%, transparent);
 }
 .sync-dot.offline,
@@ -88,13 +90,17 @@ h1 {
 }
 .sync-dot.working {
   color: var(--cyan);
+  background: var(--bg-dark);
   background: color-mix(in srgb, var(--cyan) 12%, transparent);
+  outline: 1px solid var(--line-soft);
   outline: 1px solid color-mix(in srgb, var(--cyan) 30%, transparent);
   animation: sync-pulse 1.5s infinite ease-in-out;
 }
 .unsaved > .sync-dot, .sync-dot.unsaved {
   color: var(--yellow);
+  background: var(--bg-dark);
   background: color-mix(in srgb, var(--yellow) 12%, transparent);
+  outline: 1px solid var(--line-soft);
   outline: 1px solid color-mix(in srgb, var(--yellow) 30%, transparent);
 }
 
@@ -197,7 +203,7 @@ h1 {
     90deg,
     rgba(255, 255, 255, 0) 0%,
     rgba(255, 255, 255, 0.4) 50%,
-    rgba(255, 255, 255, 0) 100
+    rgba(255, 255, 255, 0) 100%
   );
   animation: progress-shimmer 1.5s infinite linear;
   background-size: 200% 100%;
@@ -214,11 +220,6 @@ h1 {
   animation: indeterminate-slide 1.4s infinite linear;
   background-size: 200% 100%;
   box-shadow: none;
-}
-
-.sync-dot.working {
-  color: var(--cyan);
-  animation: sync-pulse 1.5s infinite ease-in-out;
 }
 
 @keyframes progress-shimmer {
