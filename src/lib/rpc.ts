@@ -243,7 +243,12 @@ export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve
 
 function loadJson<T>(key: string, fallback: T): T {
   const value = localStorage.getItem(key);
-  return value ? JSON.parse(value) as T : fallback;
+  if (!value) return fallback;
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return fallback;
+  }
 }
 
 function saveJson(key: string, value: unknown): void {
@@ -584,10 +589,10 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
           filters.push({
             index: i,
             enabled: false,
+            filter_type: "Peak",
             freq: 1000,
             gain: 0,
             q: 1.0,
-            type: "PK",
           });
         }
 
