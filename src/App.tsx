@@ -267,7 +267,6 @@ function App() {
   const eqOperationInFlightRef = useRef(false);
   const [lastPushedPeq, setLastPushedPeq] = useState<PEQData | null>(null);
   const [activeBandIndex, setActiveBandIndex] = useState<number | null>(null);
-  const [isScrolledDown, setIsScrolledDown] = useState(false);
   const [editorHintDismissed, setEditorHintDismissed] = useState(
     () => window.localStorage.getItem(EDITOR_HINT_KEY) === "true",
   );
@@ -1045,11 +1044,6 @@ function App() {
     setShowDeviceModal(true);
     setStatus("Disconnected");
   }, [setStatus]);
-  const handleMainScroll = useCallback((e: React.UIEvent<HTMLElement>) => {
-    setIsScrolledDown(e.currentTarget.scrollTop > 150);
-    setShowGraphPreview(false);
-    clearPreviewTimer();
-  }, [clearPreviewTimer]);
 
   const undoRedoRef = useRef({
     undo,
@@ -1460,20 +1454,10 @@ function App() {
         </main>
       ) : (
         <main className="workspace">
-          {isScrolledDown && (
-            <div className="desktop-graph-preview-wrapper">
-              <div className="desktop-graph-preview-overlay">
-                <div className="graph-card" style={{ height: "100%", padding: 0, border: "none", background: "transparent" }}>
-                  {graphElement(false)}
-                </div>
-              </div>
-            </div>
-          )}
           <section
             id="main-scroll-pane"
             className="left-pane custom-scroll-pane"
             ref={mainScrollRef}
-            onScroll={handleMainScroll}
           >
             {editorHint}
             {showGraph && (

@@ -7,6 +7,14 @@
   position: relative;
 }
 
+/* Pin the graph to the top of the desktop scroll pane so it stays visible
+   while the band list scrolls beneath it. */
+.left-pane > .graph-card {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
 .editor-empty-hint {
   display: flex;
   align-items: center;
