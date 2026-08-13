@@ -1,16 +1,12 @@
 import React, { CSSProperties, InputHTMLAttributes } from "react";
 
-type SliderTone = "blue" | "orange";
-
 interface SliderProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "type"> {
-  tone?: SliderTone;
   onStartChange?: () => void;
   onReset?: () => void;
 }
 
 export function Slider({
   className = "",
-  tone = "blue",
   style,
   onStartChange,
   onReset,
@@ -18,7 +14,9 @@ export function Slider({
 }: SliderProps) {
   const sliderStyle = {
     ...style,
-    "--slider-thumb": tone === "orange" ? "var(--orange)" : "var(--blue)",
+    // Thumb matches the band's --filter-color where present (band rows set it),
+    // falling back to blue elsewhere.
+    "--slider-thumb": "var(--filter-color, var(--blue))",
   } as CSSProperties;
 
   const handlePointerDown = (e: React.PointerEvent<HTMLInputElement>) => {

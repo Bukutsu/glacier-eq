@@ -273,7 +273,6 @@ function BandControls({
             max={FREQ_SLIDER_STEPS}
             step={5}
             value={freqToSlider(filter.freq, capabilities.freq_range)}
-            tone={filter.index >= 5 ? "orange" : "blue"}
             onStartChange={onStartChange}
             onReset={committedFilter ? async () => onChange({ ...filter, freq: await constrainFreq(committedFilter.freq, capabilities.freq_range, snapToIso) }) : undefined}
             onFocus={onActivate}
@@ -306,7 +305,6 @@ function BandControls({
             max={capabilities.band_gain_range[1]}
             step={0.01}
             value={clampToRange(filter.gain, capabilities.band_gain_range)}
-            tone={filter.index >= 5 ? "orange" : "blue"}
             onStartChange={onStartChange}
             onReset={committedFilter ? () => onChange({ ...filter, gain: clampToRange(committedFilter.gain, capabilities.band_gain_range) }) : undefined}
             onFocus={onActivate}
@@ -340,7 +338,6 @@ function BandControls({
             aria-valuemax={capabilities.q_range[1]}
             aria-valuenow={filter.q}
             aria-valuetext={`Q ${filter.q.toFixed(2)}`}
-            tone={filter.index >= 5 ? "orange" : "blue"}
             onStartChange={onStartChange}
             onReset={committedFilter ? () => onChange({ ...filter, q: clampToRange(committedFilter.q, capabilities.q_range) }) : undefined}
             onFocus={onActivate}

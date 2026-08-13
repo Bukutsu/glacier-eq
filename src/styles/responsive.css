@@ -298,7 +298,7 @@
     color: var(--muted);
   }
   .dropdown-item.danger,
-  .dropdown-item.danger .material-symbols-outlined { color: var(--orange); }
+  .dropdown-item.danger .material-symbols-outlined { color: var(--red); }
   .sync-dot,
   .unsaved {
     min-height: 24px;
