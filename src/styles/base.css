@@ -305,15 +305,16 @@ body {
   -webkit-user-select: none;
 }
 
-/* Subtle film-grain noise layer over the whole app. Static, cheap, and
-   pointer-transparent so it never blocks interaction. */
+/* Subtle film-grain noise layer over the whole app. Tuned to the app's dark,
+   technical look: fine grain, low opacity so it adds texture without haze.
+   Static and pointer-transparent, so it never blocks interaction. */
 body::after {
   content: "";
   position: fixed;
   inset: 0;
   z-index: 2147483647;
   pointer-events: none;
-  opacity: 0.05;
+  opacity: 0.04;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 body.is-android {
