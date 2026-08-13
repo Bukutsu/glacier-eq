@@ -55,7 +55,7 @@ h1 {
 
 .device-name {
   min-width: 0;
-  color: var(--cyan);
+  color: var(--blue);
   font-size: var(--type-small);
   font-weight: 600;
   letter-spacing: 0.03em;

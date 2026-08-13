@@ -363,7 +363,7 @@ export const EqGraph = memo(function EqGraph({
             <div className="graph-legend-item eq-curve">
               <span className="graph-legend-swatch">
                 <svg width="24" height="8" viewBox="0 0 24 8" className="graph-legend-svg">
-                  <line x1="0" y1="4" x2="24" y2="4" stroke="var(--cyan)" strokeWidth="3" />
+                  <line x1="0" y1="4" x2="24" y2="4" stroke="var(--blue)" strokeWidth="3" />
                 </svg>
               </span>
               <span>EQ Curve</span>
@@ -461,10 +461,10 @@ async function drawCurves(
     }
     ctx.lineTo(width, zero);
     ctx.closePath();
-    ctx.fillStyle = rgbWithAlpha("--cyan-rgb", 0.15, "rgba(125, 207, 255, 0.15)");
+    ctx.fillStyle = rgbWithAlpha("--blue-rgb", 0.15, "rgba(122, 162, 247, 0.15)");
     ctx.fill();
 
-    drawResponse(ctx, height, eqResponse, cssVar("--cyan", "#7dcfff"), 3);
+    drawResponse(ctx, height, eqResponse, cssVar("--blue", "#7aa2f7"), 3);
     await drawCommittedPreview(ctx, width, height, peq, committedPeq, selectedMeasurement, viewMode, isCurrent);
     if (!isCurrent()) return;
     if (!interactiveHandles) drawFilterDots(ctx, width, height, peq);
