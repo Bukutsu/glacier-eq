@@ -143,6 +143,12 @@ npm run android:dev
 npm run android:apk
 ```
 
+Android builds require JDK 17–23 (Gradle 8.14 rejects newer JDKs), the Android
+SDK, and NDK r26 or newer. `tauri android init` auto-detects them from
+`ANDROID_HOME` and `NDK_HOME`; run `npm run android:doctor` to verify. If your
+system `java` is too new, point Gradle at a compatible JDK via
+`org.gradle.java.home` in `~/.gradle/gradle.properties`.
+
 Release APK signing is not configured by default.
 
 ## Roadmap
