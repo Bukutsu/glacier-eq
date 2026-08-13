@@ -33,7 +33,7 @@ export function useThemeSync(theme: string): string {
             console.error("Failed to query Tauri window theme:", e);
           }
         }
-        resolved = prefersDark ? "tokyo-night" : "catppuccin-latte";
+        resolved = prefersDark ? "tokyo-night" : "tokyo-night-day";
       }
       setResolvedTheme(resolved);
       document.documentElement.setAttribute("data-theme", resolved);

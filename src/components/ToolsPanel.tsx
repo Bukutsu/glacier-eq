@@ -1126,6 +1126,8 @@ function SettingsTab({
               options={[
                 { value: "auto", label: "Auto (System Theme)" },
                 { value: "tokyo-night", label: "Tokyo Night" },
+                { value: "tokyo-night-storm", label: "Tokyo Night Storm" },
+                { value: "tokyo-night-day", label: "Tokyo Night Day (Light)" },
                 { value: "nord", label: "Nord" },
                 { value: "dracula", label: "Dracula" },
                 { value: "gruvbox", label: "Gruvbox Dark" },
