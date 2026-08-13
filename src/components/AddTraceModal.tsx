@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { MeasurementPoint } from "../types";
 import { Icon } from "./Icon";
 import { fuzzyMatch } from "../lib/search";
@@ -36,6 +36,12 @@ export function AddTraceModal({
     loadDevice,
   } = useOnlineDatabase(setStatus);
   const [loadedDevices, setLoadedDevices] = useState<Set<string>>(new Set());
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedQuery(searchQuery), 150);
+    return () => window.clearTimeout(timer);
+  }, [searchQuery]);
 
   const handleDownload = async () => {
     try {
@@ -96,7 +102,7 @@ export function AddTraceModal({
     }
   };
 
-  const query = searchQuery.trim().toLowerCase();
+  const query = debouncedQuery.trim().toLowerCase();
   const displayOnlineResults = !query
     ? []
     : manifest.filter((dev) => fuzzyMatch(query, `${dev.brand} ${dev.name}`)).slice(0, 50);
@@ -134,7 +140,7 @@ export function AddTraceModal({
                 <div className="add-trace-online-results">
                   {loadingManifest ? (
                     <div className="online-result-empty">Loading index...</div>
-                  ) : searchQuery.trim() && displayOnlineResults.length === 0 ? (
+                  ) : debouncedQuery.trim() && displayOnlineResults.length === 0 ? (
                     <div className="online-result-empty">No matches</div>
                   ) : (
                     displayOnlineResults.map((dev) => (
@@ -156,7 +162,7 @@ export function AddTraceModal({
                       </div>
                     ))
                   )}
-                  {!searchQuery.trim() && (
+                  {!debouncedQuery.trim() && (
                     <div className="online-result-empty">Type to search online curves</div>
                   )}
                 </div>
