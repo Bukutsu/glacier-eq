@@ -41,6 +41,7 @@ export function Preamp({
             onFocus={onStartChange}
             onChange={handleValueChange}
             className="preamp-value-stepper"
+            aria-label="Preamp gain"
           />
           <span className="preamp-unit">dB</span>
         </div>

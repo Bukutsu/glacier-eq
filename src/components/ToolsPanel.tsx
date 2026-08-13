@@ -17,6 +17,7 @@ import { TAB_META, type ToolsTab } from "../lib/tabs";
 const KEYBOARD_SHORTCUTS: [string, string][] = [
   ["Ctrl/⌘ Z", "Undo"],
   ["Ctrl/⌘ Shift Z", "Redo"],
+  ["Ctrl/⌘ Y", "Redo"],
   ["Ctrl/⌘ S", "Save profile"],
   ["Ctrl/⌘ R", "Read EQ from DAC"],
   ["Ctrl/⌘ Shift R", "Reset EQ"],
@@ -249,13 +250,21 @@ function TabStrip({
   return (
     <nav
       className={`tabs ${tabs.length <= 2 ? "compact" : ""}`}
+      role="tablist"
+      aria-label="Tools"
       style={{
         "--tab-count": tabs.length,
         "--tab-columns": tabs.length >= 3 ? 2 : tabs.length,
       } as CSSProperties}
     >
       {tabs.map((name) => (
-        <button key={name} className={active === name ? "active" : ""} onClick={() => onSelect(name)}>
+        <button
+          key={name}
+          role="tab"
+          aria-selected={active === name}
+          className={active === name ? "active" : ""}
+          onClick={() => onSelect(name)}
+        >
           <Icon>{TAB_META[name].icon}</Icon>
           <span>{TAB_META[name].label}</span>
         </button>
@@ -398,6 +407,7 @@ function PresetTab({
       <input
         className="profile-search"
         placeholder="Search profiles…"
+        aria-label="Search profiles"
         value={profileSearch}
         onChange={(e) => setProfileSearch(e.target.value)}
       />
@@ -936,8 +946,9 @@ export function AutoEqTab({
           </p>
           <div className="autoeq-match-grid">
             <div className="import-field-group">
-              <label>Measurement</label>
+              <label htmlFor="autoeq-measurement">Measurement</label>
               <Select
+                id="autoeq-measurement"
                 value={localMeasId}
                 options={measurements.map(m => ({ value: m.id, label: m.name }))}
                 onChange={handleMeasChange}
@@ -945,8 +956,9 @@ export function AutoEqTab({
             </div>
 
             <div className="import-field-group">
-              <label>Target</label>
+              <label htmlFor="autoeq-target">Target</label>
               <Select
+                id="autoeq-target"
                 value={localTargetId}
                 options={allTargets.map(t => ({ value: t.id, label: t.name }))}
                 onChange={handleTargetChange}
@@ -1117,7 +1129,7 @@ function SettingsTab({
           </div>
         )}
         <div className="setting-row">
-          <span className="setting-label">Color Theme</span>
+          <label className="setting-label" htmlFor="theme-select">Color Theme</label>
           <div className="setting-select-wrapper">
             <Select
               id="theme-select"
@@ -1356,7 +1368,7 @@ function DeviceTab({ setStatus, onPull }: { setStatus: (msg: string) => void; on
         </div>
 
         <div className="setting-row">
-          <span className="setting-label">Filter Mode</span>
+          <label className="setting-label" htmlFor="utility-filter-select">Filter Mode</label>
           <div className="setting-select-wrapper">
             <Select
               id="utility-filter-select"
@@ -1413,6 +1425,7 @@ function DeviceTab({ setStatus, onPull }: { setStatus: (msg: string) => void; on
             min="-15"
             max="15"
             step="1"
+            aria-label="Channel Balance"
             value={utility.channel_balance}
             onChange={(e) => handleSetBalance(Number(e.target.value))}
           />
@@ -1429,6 +1442,7 @@ function DeviceTab({ setStatus, onPull }: { setStatus: (msg: string) => void; on
             min="-15"
             max="15"
             step="1"
+            aria-label="Microphone Monitor Loopback"
             value={utility.mic_volume_db}
             onChange={(e) => handleSetMicVolume(Number(e.target.value))}
           />
@@ -1552,10 +1566,10 @@ export function DiagnosticsPanel() {
           <span className="diag-count-w" title="Warnings">{warnCount}W</span>
           <span className="diag-count-i" title="Info">{infoCount}I</span>
         </div>
-        <button title={copied ? "Copied!" : "Copy filtered logs to clipboard"} onClick={copyToClipboard}>
+        <button title={copied ? "Copied!" : "Copy filtered logs to clipboard"} aria-label={copied ? "Copied" : "Copy filtered logs to clipboard"} onClick={copyToClipboard}>
           <Icon>{copied ? "check" : "content_copy"}</Icon>
         </button>
-        <button className="danger" title="Clear all logs" onClick={clearLogs}>
+        <button className="danger" title="Clear all logs" aria-label="Clear all logs" onClick={clearLogs}>
           <Icon>delete</Icon>
         </button>
       </div>
@@ -1574,12 +1588,14 @@ export function DiagnosticsPanel() {
           className="diag-search"
           type="search"
           placeholder="Search…"
+          aria-label="Search logs"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
         <button
           className={`diag-scroll-btn${autoScroll ? " active" : ""}`}
           title={autoScroll ? "Auto-scroll on" : "Auto-scroll paused"}
+          aria-label={autoScroll ? "Auto-scroll on" : "Auto-scroll paused"}
           onClick={() => setAutoScroll((v) => !v)}
         >
           <Icon>{autoScroll ? "vertical_align_bottom" : "lock"}</Icon>

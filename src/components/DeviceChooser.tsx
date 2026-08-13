@@ -87,6 +87,7 @@ export function DeviceChooser({
                 key={device.path}
                 className={selected ? "device-row selected" : "device-row"}
                 title="Click to select · Double-click to connect"
+                aria-pressed={selected}
                 onClick={() => setSelectedDevice(device.path)}
                 onDoubleClick={onConnect}
               >
@@ -117,7 +118,7 @@ export function DeviceChooser({
         onToggle={(e) => setSupportedOpen((e.target as HTMLDetailsElement).open)}
         style={{ padding: "8px 12px", background: "var(--bg-dark)", border: "1px solid var(--line-soft)" }}
       >
-        <summary style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", color: "var(--comment)", fontSize: "var(--type-caption)", fontWeight: 700, outline: "none", listStyle: "none" }}>
+        <summary style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", color: "var(--comment)", fontSize: "var(--type-caption)", fontWeight: 700, listStyle: "none" }}>
           <span>SUPPORTED MODELS ({supportedDacs.length})</span>
           <span className="material-symbols-outlined" style={{ fontSize: "16px", color: "var(--cyan)" }}>
             {supportedOpen ? "expand_less" : "expand_more"}

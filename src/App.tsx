@@ -1071,6 +1071,7 @@ function App() {
         active &&
         (active.tagName === "INPUT" ||
           active.tagName === "TEXTAREA" ||
+          active.tagName === "SELECT" ||
           (active as HTMLElement).isContentEditable);
 
       const isCtrl = e.ctrlKey || e.metaKey;

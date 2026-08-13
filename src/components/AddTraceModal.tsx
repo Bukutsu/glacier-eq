@@ -134,6 +134,7 @@ export function AddTraceModal({
               <>
                 <input type="text" className="curves-search-input"
                   placeholder="Search online database..."
+                  aria-label="Search online database"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
@@ -155,6 +156,7 @@ export function AddTraceModal({
                         <button
                           className={`online-result-action${loadedDevices.has(dev.id) ? " added" : ""}`}
                           disabled={loadingDevice !== null || loadedDevices.has(dev.id)}
+                          aria-label={loadedDevices.has(dev.id) ? `${dev.brand} ${dev.name} loaded` : `Load ${dev.brand} ${dev.name}`}
                           onClick={() => handleLoadDevice(dev)}
                         >
                           {loadingDevice === dev.id ? <span>Loading...</span> : loadedDevices.has(dev.id) ? <Icon>check</Icon> : <Icon>download</Icon>}

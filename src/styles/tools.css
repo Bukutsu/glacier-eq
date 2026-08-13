@@ -1149,11 +1149,11 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   cursor: not-allowed;
 }
 
-@container (min-width: 84px) {
+@container (min-width: 64px) {
   .custom-number-input .stepper-btn {
     display: flex;
-    width: 20px;
-    font-size: 11px;
+    width: 16px;
+    font-size: 10px;
     font-weight: 600;
   }
   .custom-number-input .stepper-btn.decrement {

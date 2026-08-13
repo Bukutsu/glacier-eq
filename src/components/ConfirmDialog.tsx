@@ -55,7 +55,7 @@ export function ConfirmDialogHost() {
       <div className="modal-body">
         <p className="confirm-message">{options.message}</p>
         <div className="confirm-actions">
-          <button type="button" className="btn" onClick={() => close(false)}>
+          <button type="button" className="btn" autoFocus onClick={() => close(false)}>
             {options.cancelLabel ?? "Cancel"}
           </button>
           <button

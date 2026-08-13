@@ -285,7 +285,7 @@ export const EqGraph = memo(function EqGraph({
               top: `${dbToY(filter.gain, 100)}%`,
             } as CSSProperties}
             aria-label={`Band ${filter.index + 1}: ${valueText}. Drag or use arrow keys to adjust frequency and gain. Use the mouse wheel for gain or Shift plus mouse wheel for Q.`}
-            aria-pressed={activeBandIndex === filter.index}
+            aria-current={activeBandIndex === filter.index ? "true" : undefined}
             title={`Band ${filter.index + 1}: ${valueText} · Wheel: gain · Shift+wheel: Q`}
             onPointerDown={(event) => {
               if (!event.isPrimary || event.button !== 0) return;
@@ -312,6 +312,7 @@ export const EqGraph = memo(function EqGraph({
           onClick={() => setShowMobileLegend(!showMobileLegend)}
           title="Toggle legend"
           aria-label="Toggle legend"
+          aria-expanded={showMobileLegend}
         >
           <Icon>{showMobileLegend ? "close" : "legend_toggle"}</Icon>
         </button>
@@ -374,6 +375,7 @@ export const EqGraph = memo(function EqGraph({
       {activeBand && (
         <div
           className="graph-band-readout"
+          aria-live="polite"
           style={{ "--band-color": `var(${filterColorVars(activeBand.index)[0]})` } as CSSProperties}
         >
           <span className="graph-band-readout-index">Band {activeBand.index + 1}</span>

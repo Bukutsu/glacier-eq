@@ -19,7 +19,7 @@
   --text: #c0caf5;
   --text-rgb: 192 202 245;
   --muted: #a9b1d6;
-  --comment: #565f89;
+  --comment: #737aa2;
   --cyan: #7dcfff;
   --cyan-rgb: 125 207 255;
   --blue: #7aa2f7;
@@ -139,6 +139,8 @@
   --terminal-black: #343b58;
   --terminal-black-rgb: 52 59 88;
   --text-alt: #40434f;
+  --btn-filled-text: #ffffff;
+  --btn-warning-text: #ffffff;
 }
 
 :root[data-theme="nord"] {
@@ -439,6 +441,8 @@
   --terminal-black: #6c6f85;
   --terminal-black-rgb: 108 111 133;
   --text-alt: #5c5f77;
+  --btn-filled-text: #ffffff;
+  --btn-warning-text: #ffffff;
 }
 
 :root {
@@ -599,7 +603,7 @@ select:focus-visible {
 .btn:hover:not(:disabled), .tools-card button:hover:not(:disabled), .diag-card button:hover:not(:disabled) { filter: brightness(1.14); }
 .btn:active:not(:disabled), .tools-card button:active:not(:disabled), .diag-card button:active:not(:disabled) { filter: brightness(1.24); }
 .btn.filled, button.save { background: var(--btn-filled-bg, var(--cyan)); color: var(--btn-filled-text, var(--bg-dark)); }
-.btn.warning { background: var(--yellow); color: var(--bg-dark); }
+.btn.warning { background: var(--yellow); color: var(--btn-warning-text, var(--bg-dark)); }
 
 @media (pointer: coarse) {
   .btn, .tools-card button, .diag-card button, .device-actions button {

@@ -239,9 +239,9 @@
     padding: 2px;
   }
   .mobile-history-buttons .history-btn {
-    width: 40px;
-    min-width: 40px;
-    min-height: 40px;
+    width: 44px;
+    min-width: 44px;
+    min-height: 44px;
     padding: 0;
   }
   .mobile-action-btn {
@@ -851,6 +851,25 @@
     margin: 0 !important;
     opacity: 0;
     pointer-events: none;
+  }
+
+  /* Landscape: shrink the graph so the band editor stays usable. */
+  @media (orientation: landscape) {
+    .mobile-graph-container .graph-card {
+      height: clamp(120px, 40dvh, 200px);
+      min-height: 120px;
+    }
+    .mobile-graph-container .eq-graph-shell,
+    .mobile-graph-container .eq-canvas {
+      min-height: 100px;
+    }
+    .mobile-graph-tuning .graph-card {
+      height: clamp(90px, 24dvh, 150px);
+      min-height: 90px;
+    }
+    .mobile-tab-bar {
+      height: 56px;
+    }
   }
 
   .graph-collapse-btn {

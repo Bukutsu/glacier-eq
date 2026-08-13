@@ -1,3 +1,7 @@
 export function Icon({ children }: { children: string }) {
-  return <span className="material-symbols-outlined">{children}</span>;
+  return (
+    <span className="material-symbols-outlined" aria-hidden="true">
+      {children}
+    </span>
+  );
 }

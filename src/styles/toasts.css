@@ -107,7 +107,8 @@
   .toast-container {
     left: 16px;
     right: 16px;
-    bottom: calc(16px + var(--safe-area-bottom));
+    /* Above the fixed bottom tab bar on all mobile platforms. */
+    bottom: calc(84px + var(--safe-area-bottom, 0px));
     align-items: stretch;
   }
 
@@ -116,9 +117,4 @@
     max-width: none;
     animation: toast-in-bottom var(--motion-duration) var(--motion-ease) forwards;
   }
-}
-
-/* On Android, keep toasts clear of the fixed bottom tab bar. */
-body.is-android .toast-container {
-  bottom: calc(84px + var(--safe-area-bottom, 0px));
 }
