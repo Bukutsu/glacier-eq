@@ -86,6 +86,7 @@ export function DeviceChooser({
               <button
                 key={device.path}
                 className={selected ? "device-row selected" : "device-row"}
+                title="Click to select · Double-click to connect"
                 onClick={() => setSelectedDevice(device.path)}
                 onDoubleClick={onConnect}
               >
