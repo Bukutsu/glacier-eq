@@ -207,9 +207,9 @@ h1 {
   transform: none;
   background: linear-gradient(
     90deg,
-    rgba(125, 207, 255, 0) 0%,
-    rgba(125, 207, 255, 0.8) 50%,
-    rgba(125, 207, 255, 0) 100
+    rgb(var(--cyan-rgb) / 0) 0%,
+    rgb(var(--cyan-rgb) / 0.8) 50%,
+    rgb(var(--cyan-rgb) / 0) 100%
   );
   animation: indeterminate-slide 1.4s infinite linear;
   background-size: 200% 100%;
