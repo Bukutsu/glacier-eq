@@ -121,6 +121,33 @@
   display: none;
 }
 
+.graph-band-readout {
+  position: absolute;
+  left: 50%;
+  bottom: 10px;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 12px;
+  background: var(--legend-bg);
+  border: 1px solid var(--line-outline);
+  border-radius: var(--radius-surface);
+  backdrop-filter: blur(8px);
+  font-family: var(--font-mono);
+  font-size: var(--type-caption);
+  color: var(--text);
+  pointer-events: none;
+  z-index: 9;
+  white-space: nowrap;
+  max-width: calc(100% - 24px);
+}
+
+.graph-band-readout-index {
+  font-weight: 700;
+  color: var(--band-color, var(--cyan));
+}
+
 .app-collapse {
   min-width: 0;
   flex: 0 0 auto;

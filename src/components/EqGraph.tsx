@@ -66,6 +66,10 @@ export const EqGraph = memo(function EqGraph({
   const wheelGestureTimerRef = useRef<number | undefined>(undefined);
   const wheelHandlerRef = useRef<(event: WheelEvent, index: number) => void>(() => {});
   const editable = Boolean(capabilities && onActiveBandChange && onStartChange && onFilterChange);
+  const activeBand =
+    editable && activeBandIndex != null
+      ? peq.filters.find((filter) => filter.index === activeBandIndex && filter.enabled)
+      : undefined;
   const visibleMeasurements = measurements.filter((trace) => trace.visible);
   const selectedMeasurement = selectedMeasurementId
     ? measurements.find((trace) => trace.id === selectedMeasurementId && trace.visible) ?? null
@@ -365,6 +369,17 @@ export const EqGraph = memo(function EqGraph({
               <span>EQ Curve</span>
             </div>
           )}
+        </div>
+      )}
+      {activeBand && (
+        <div
+          className="graph-band-readout"
+          style={{ "--band-color": `var(${filterColorVars(activeBand.index)[0]})` } as CSSProperties}
+        >
+          <span className="graph-band-readout-index">Band {activeBand.index + 1}</span>
+          <span className="graph-band-readout-values">
+            {formatFreq(activeBand.freq)} Hz · {activeBand.gain >= 0 ? "+" : ""}{activeBand.gain.toFixed(1)} dB · Q {activeBand.q.toFixed(2)}
+          </span>
         </div>
       )}
     </div>
