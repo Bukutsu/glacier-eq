@@ -1385,3 +1385,31 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   min-height: 34px;
   width: 100%;
 }
+
+@media (max-width: 850px), ((max-height: 540px) and (pointer: coarse)) {
+  .smooth-buttons button {
+    height: 44px;
+    min-height: 44px;
+  }
+  .profile-search {
+    height: 44px;
+  }
+  .profile-save-as-toggle {
+    min-height: 44px;
+  }
+  .add-trace-btn {
+    min-height: 44px;
+  }
+  .online-result-item {
+    min-height: 48px;
+  }
+  .diag-filter-btn {
+    min-height: 44px;
+  }
+  .diag-card .diag-scroll-btn {
+    min-height: 44px;
+    min-width: 44px;
+    width: 44px;
+    height: 44px;
+  }
+}

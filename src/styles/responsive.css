@@ -185,7 +185,7 @@
   }
 }
 
-@media (max-width: 850px) {
+@media (max-width: 850px), ((max-height: 540px) and (pointer: coarse)) {
   .app-header {
     position: sticky;
     top: 0;
@@ -401,7 +401,7 @@
   }
   .custom-number-input.preamp-value-stepper {
     width: 120px !important;
-    height: 28px;
+    height: 44px;
   }
   .bands-section-header {
     display: none;
@@ -945,7 +945,10 @@
   display: none;
 }
 
-@media (max-width: 850px) {
+@media (max-width: 850px), ((max-height: 540px) and (pointer: coarse)) {
+  #app {
+    padding-bottom: 0;
+  }
   .mobile-tab-bar {
     display: flex;
     position: fixed;
@@ -1134,7 +1137,7 @@
   .type-buttons button { min-height: 24px; height: 24px; font-size: var(--type-micro); padding: 0; }
 }
 
-@media (max-width: 850px) {
+@media (max-width: 850px), ((max-height: 540px) and (pointer: coarse)) {
   .workspace {
     display: flex;
     flex-direction: column;
@@ -1156,7 +1159,7 @@
   }
 }
 
-@media (min-width: 851px) {
+@media (min-width: 851px) and ((min-height: 541px) or (pointer: fine)) {
   .right-rail {
     background: var(--panel) !important;
     border-right: 1px solid var(--line-soft);

@@ -66,7 +66,7 @@ declare global {
   }
 }
 
-const MOBILE_QUERY = "(max-width: 850px)";
+const MOBILE_QUERY = "(max-width: 850px), ((max-height: 540px) and (pointer: coarse))";
 const DEVICE_ONBOARDING_KEY = "glacier-device-onboarding-seen";
 const EDITOR_HINT_KEY = "glacier-editor-hint-dismissed";
 
@@ -413,11 +413,18 @@ function App() {
     }
   }, []);
 
-  // Auto-refresh profiles when window gains focus (catches external file changes)
+  // Auto-refresh profiles when window gains focus or tab becomes visible (catches external file changes)
   useEffect(() => {
     const handleFocus = () => loadProfiles();
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") loadProfiles();
+    };
     window.addEventListener("focus", handleFocus);
-    return () => window.removeEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
   }, [loadProfiles]);
 
   // Drag-and-drop .txt file import
@@ -591,15 +598,22 @@ function App() {
     }
   }, [selectedDevice]);
 
-  // Poll for reconnection when disconnected
+  // Poll for reconnection when disconnected (paused when app is in background)
   useEffect(() => {
     if (!isReconnecting || !connectedDeviceName) return;
 
     let active = true;
     let timerId: ReturnType<typeof setTimeout> | null = null;
 
-    const runPoll = async () => {
+    const schedulePoll = (delayMs: number) => {
       if (!active) return;
+      if (timerId) clearTimeout(timerId);
+      if (document.visibilityState === "hidden") return;
+      timerId = setTimeout(runPoll, delayMs);
+    };
+
+    const runPoll = async () => {
+      if (!active || document.visibilityState === "hidden") return;
       try {
         const realDevices = await invoke<DeviceInfo[]>("list_devices");
         const found = realDevices.find(
@@ -633,15 +647,23 @@ function App() {
       }
 
       if (active) {
-        timerId = setTimeout(runPoll, 1500);
+        schedulePoll(1500);
       }
     };
 
-    timerId = setTimeout(runPoll, 1000);
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible" && active) {
+        runPoll();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibility);
+    schedulePoll(1000);
 
     return () => {
       active = false;
       if (timerId) clearTimeout(timerId);
+      document.removeEventListener("visibilitychange", handleVisibility);
     };
   }, [isReconnecting, connectedDeviceName, loadFirmwareVersion, reportStatus]);
 
@@ -1028,15 +1050,49 @@ function App() {
     setDirty(true);
   }, [pushToUndoStack]);
 
-  const handleOpenDeviceModal = useCallback(() => setShowDeviceModal(true), []);
+  // Android back button / popstate handling for modal and overlay dismissal
+  useEffect(() => {
+    const handlePopState = () => {
+      setShowDeviceModal(false);
+      setShowDiagnosticsModal(false);
+      setShowAddTrace(false);
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  const handleOpenDeviceModal = useCallback(() => {
+    window.history.pushState({ modal: "device" }, "");
+    setShowDeviceModal(true);
+  }, []);
   const handleCloseDeviceModal = useCallback(() => {
     window.localStorage.setItem(DEVICE_ONBOARDING_KEY, "true");
+    if (window.history.state?.modal === "device") {
+      window.history.back();
+    }
     setShowDeviceModal(false);
   }, []);
-  const handleOpenDiagnosticsModal = useCallback(() => setShowDiagnosticsModal(true), []);
-  const handleCloseDiagnosticsModal = useCallback(() => setShowDiagnosticsModal(false), []);
-  const handleShowAddTrace = useCallback(() => setShowAddTrace(true), []);
-  const handleCloseAddTrace = useCallback(() => setShowAddTrace(false), []);
+  const handleOpenDiagnosticsModal = useCallback(() => {
+    window.history.pushState({ modal: "diagnostics" }, "");
+    setShowDiagnosticsModal(true);
+  }, []);
+  const handleCloseDiagnosticsModal = useCallback(() => {
+    if (window.history.state?.modal === "diagnostics") {
+      window.history.back();
+    }
+    setShowDiagnosticsModal(false);
+  }, []);
+  const handleShowAddTrace = useCallback(() => {
+    window.history.pushState({ modal: "add-trace" }, "");
+    setShowAddTrace(true);
+  }, []);
+  const handleCloseAddTrace = useCallback(() => {
+    if (window.history.state?.modal === "add-trace") {
+      window.history.back();
+    }
+    setShowAddTrace(false);
+  }, []);
   const handleCloseToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);

@@ -1,0 +1,20 @@
+{
+  "name": "Glacier EQ",
+  "short_name": "Glacier EQ",
+  "description": "Parametric EQ tool for WebHID DACs, DSP filters, and AutoEQ profile matching",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#1a1b26",
+  "theme_color": "#1a1b26",
+  "categories": ["utilities", "music", "audio"],
+  "icons": [
+    {
+      "src": "glacier-eq.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

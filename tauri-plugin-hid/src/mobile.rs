@@ -90,7 +90,8 @@ impl<R: Runtime> Hid<R> {
         // to fit the endpoint's maxPacketSize.
         let data: Vec<i8> = if !data.is_empty() {
             if data[0] == 0 {
-                data[1..].iter().map(|&byte| byte as i8).collect()
+                let len = data.len().min(65);
+                data[1..len].iter().map(|&byte| byte as i8).collect()
             } else {
                 let len = data.len().min(64);
                 data[..len].iter().map(|&byte| byte as i8).collect()

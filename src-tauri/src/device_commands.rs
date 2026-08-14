@@ -172,8 +172,14 @@ fn try_open_device(app: &tauri::AppHandle, path: &str) -> Result<(), String> {
         guard.replace(transport);
         Ok(())
     }
-    #[cfg(not(target_os = "linux"))]
-    Err("Permission denied. Install udev/99-glacier-eq.rules and replug the DAC.".into())
+    #[cfg(target_os = "android")]
+    {
+        Err("USB permission denied. Please grant permission when prompted.".into())
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "android")))]
+    {
+        Err("Permission denied. Ensure the DAC is not locked by another application.".into())
+    }
 }
 
 struct TauriDeviceIo<'a> {

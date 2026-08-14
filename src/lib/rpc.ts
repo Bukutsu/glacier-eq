@@ -163,7 +163,10 @@ function markWebHidDisconnected(device?: HIDDevice) {
   activeDevice = null;
   activeProfile = null;
   reportQueue = [];
-  reportResolvers = [];
+  while (reportResolvers.length > 0) {
+    const resolver = reportResolvers.shift();
+    if (resolver) resolver(new Uint8Array(0));
+  }
   emitEvent("device-disconnected", name);
 }
 
@@ -180,6 +183,9 @@ function setupHidEventListeners(device: HIDDevice) {
       const resolver = reportResolvers.shift();
       if (resolver) resolver(framed);
     } else {
+      if (reportQueue.length >= 50) {
+        reportQueue.shift();
+      }
       reportQueue.push(framed);
     }
   };
@@ -501,7 +507,15 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
         throw new Error("Device not found. Please click 'Scan' to authorize.");
       }
 
-      await target.open();
+      if (activeDevice && activeDevice !== target) {
+        detachHidEventListeners(activeDevice);
+        try { await activeDevice.close(); } catch {}
+        activeDevice = null;
+      }
+
+      if (!target.opened) {
+        await target.open();
+      }
       activeDevice = target;
       reportQueue = [];
       reportResolvers = [];

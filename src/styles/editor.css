@@ -104,11 +104,11 @@
   outline-offset: 3px;
 }
 
-@media (max-width: 850px) {
+@media (max-width: 850px), ((max-height: 540px) and (pointer: coarse)) {
   .eq-filter-handle {
-    width: 40px;
-    height: 40px;
-    font-size: 12px;
+    width: 44px;
+    height: 44px;
+    font-size: 13px;
   }
 }
 

@@ -118,6 +118,10 @@
   cursor: pointer;
   color: var(--text);
   font-weight: 600;
+  padding: 8px 0;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
 }
 
 .device-troubleshooting ul {

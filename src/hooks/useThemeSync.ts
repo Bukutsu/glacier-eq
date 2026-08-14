@@ -1,6 +1,29 @@
 import { useEffect, useState } from "react";
 import { isTauri } from "../lib/platform";
 
+const THEME_BG_COLORS: Record<string, string> = {
+  "tokyo-night": "#1a1b26",
+  "tokyo-night-storm": "#24283b",
+  "tokyo-night-day": "#e6e7ed",
+  nord: "#2e3440",
+  dracula: "#191a21",
+  gruvbox: "#282828",
+  "catppuccin-mocha": "#1e1e2e",
+  "catppuccin-latte": "#e6e9ef",
+};
+
+function updateThemeColorMeta(themeName: string) {
+  if (typeof document === "undefined") return;
+  const color = THEME_BG_COLORS[themeName] || "#1a1b26";
+  let meta = document.querySelector('meta[name="theme-color"]');
+  if (!meta) {
+    meta = document.createElement("meta");
+    meta.setAttribute("name", "theme-color");
+    document.head.appendChild(meta);
+  }
+  meta.setAttribute("content", color);
+}
+
 export function useThemeSync(theme: string): string {
   const [resolvedTheme, setResolvedTheme] = useState("tokyo-night");
 
@@ -41,6 +64,7 @@ export function useThemeSync(theme: string): string {
       if (!active) return;
       setResolvedTheme(resolved);
       document.documentElement.setAttribute("data-theme", resolved);
+      updateThemeColorMeta(resolved);
     };
 
     applyTheme();

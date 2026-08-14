@@ -57,41 +57,74 @@ async function downloadDatabase(
   onProgress: (percent: number) => void,
   signal?: AbortSignal,
 ): Promise<number> {
-  const [rawData, manifest] = await Promise.all([
-    fetchJson("https://raw.githubusercontent.com/PEQHUB/Squig-Rank/main/public/data/curves.json", onProgress, signal),
-    fetchJson("https://raw.githubusercontent.com/PEQHUB/Squig-Rank/main/public/data/manifest.json", undefined, signal),
-  ]);
+  onProgress(0.05);
+  // Download manifest first sequentially to minimize peak memory pressure
+  const manifest = await fetchJson(
+    "https://raw.githubusercontent.com/PEQHUB/Squig-Rank/main/public/data/manifest.json",
+    undefined,
+    signal,
+  );
 
-  if (!rawData.meta || !rawData.curves) {
+  const db = await openDb();
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    tx.objectStore(STORE_NAME).put(manifest, "meta:manifest");
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+
+  onProgress(0.15);
+
+  // Now fetch curves.json
+  const rawData = await fetchJson(
+    "https://raw.githubusercontent.com/PEQHUB/Squig-Rank/main/public/data/curves.json",
+    (p) => onProgress(0.15 + p * 0.7),
+    signal,
+  );
+
+  if (!rawData?.meta || !rawData?.curves) {
     throw new Error("Invalid database format: missing meta or curves");
   }
 
-  const db = await openDb();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(STORE_NAME, "readwrite");
-    const store = transaction.objectStore(STORE_NAME);
-
-    // Save frequencies
-    store.put(rawData.meta.frequencies, "meta:frequencies");
-    store.put(manifest, "meta:manifest");
-
-    // Save each curve
-    let count = 0;
-    for (const [key, curve] of Object.entries(rawData.curves)) {
-      if (curve && typeof curve === "object" && "d" in curve) {
-        store.put(curve.d, key);
-        count++;
-      }
-    }
-
-    transaction.oncomplete = () => {
-      onProgress(1.0);
-      resolve(count);
-    };
-    transaction.onerror = () => {
-      reject(transaction.error);
-    };
+  // Save frequencies
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    tx.objectStore(STORE_NAME).put(rawData.meta.frequencies, "meta:frequencies");
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
   });
+
+  // Batch insert curves in chunks of 400 to prevent IPC buffer choke and allow GC
+  const entries = Object.entries(rawData.curves);
+  const totalEntries = entries.length;
+  let count = 0;
+  const chunkSize = 400;
+
+  for (let i = 0; i < totalEntries; i += chunkSize) {
+    if (signal?.aborted) {
+      throw new Error("Download cancelled");
+    }
+    const chunk = entries.slice(i, i + chunkSize);
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, "readwrite");
+      const store = tx.objectStore(STORE_NAME);
+      for (const [key, curve] of chunk) {
+        if (curve && typeof curve === "object" && "d" in curve) {
+          store.put((curve as any).d, key);
+          count++;
+        }
+      }
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+
+    onProgress(0.85 + (i / totalEntries) * 0.14);
+    // Yield to microtask/macrotask loop for Android GC
+    await new Promise((r) => setTimeout(r, 0));
+  }
+
+  onProgress(1.0);
+  return count;
 }
 
 async function fetchJson(

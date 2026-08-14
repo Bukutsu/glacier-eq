@@ -85,7 +85,7 @@ export const EqGraph = memo(function EqGraph({
     const height = Math.floor(rect.height);
     if (width < 2 || height < 2) return;
 
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const canvasWidth = Math.floor(width * dpr);
     const canvasHeight = Math.floor(height * dpr);
     if (canvas.width !== canvasWidth || canvas.height !== canvasHeight) {

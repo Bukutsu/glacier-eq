@@ -257,3 +257,12 @@ h1 {
 .mobile-toolbar {
   display: none;
 }
+
+@media (max-width: 850px), ((max-height: 540px) and (pointer: coarse)) {
+  .github-link {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+  }
+}

@@ -22,6 +22,7 @@ import app.tauri.plugin.JSArray
 import app.tauri.plugin.JSObject
 import app.tauri.plugin.Plugin
 import java.nio.ByteBuffer
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
@@ -161,6 +162,7 @@ class HidDevice(
             
             try {
                 if (request.initialize(deviceConnection, endpoint)) {
+                    var failureCount = 0
                     while (isReading) {
                         val buffer = ByteBuffer.allocateDirect(bufferSize)
                         buffer.clear()
@@ -174,9 +176,15 @@ class HidDevice(
                         
                         if (!queued) {
                             Log.e(TAG, "Read thread: failed to queue UsbRequest")
+                            failureCount++
+                            if (failureCount > 5) {
+                                Log.w(TAG, "Read thread: persistent queue failure (device disconnected), stopping loop")
+                                break
+                            }
                             Thread.sleep(100)
                             continue
                         }
+                        failureCount = 0
                         
                         val completed = deviceConnection.requestWait()
                         if (!isReading) {
@@ -285,7 +293,7 @@ class HidDevice(
         val ifaceId = usbInterface?.id ?: 0
         // HID SET_REPORT: bmRequestType=0x21 (host-to-device, class, interface)
         // bRequest=0x09 (SET_REPORT), wValue=0x0200 (report type OUTPUT, report ID 0) or with actual report ID
-        val reportId = if (data.isNotEmpty()) (data[0].toInt() and 0xFF) else 0
+        val reportId = if (data.size > 64) (data[0].toInt() and 0xFF) else 0
         val wValue = 0x0200 or reportId  // Output report type (0x02) | report ID
         
         Log.i(TAG, "write (controlTransfer): SET_REPORT reportId=0x${String.format("%02X", reportId)}, ifaceId=$ifaceId, dataSize=${data.size}")
@@ -308,30 +316,35 @@ class HidDevice(
         }
     }
     
-    // Close the connection
-    fun closeConnection(): HidResult<Unit> {
+    // Close the connection and release resources
+    fun closeConnection() {
         isReading = false
-        try {
-            activeReadRequest?.cancel()
-        } catch (_: Exception) {}
+        activeReadRequest?.let {
+            try {
+                it.cancel()
+                it.close()
+            } catch (_: Exception) {}
+        }
         readThread?.interrupt()
         
-        if (usbInterface == null) {
-            return HidResult.Error("Cannot close: Interface not available")
-        }
         try {
-            usbInterface?.let { intf ->
-                deviceConnection.releaseInterface(intf)
+            readThread?.join(500)
+        } catch (_: InterruptedException) {}
+        
+        readThread = null
+        readQueue.clear()
+        
+        try {
+            usbInterface?.let {
+                deviceConnection.releaseInterface(it)
             }
             deviceConnection.close()
-            return HidResult.Success(Unit)
         } catch (e: Exception) {
-            return HidResult.Error("Error closing device: ${e.message}", e)
+            Log.e(TAG, "Error closing connection: ${e.message}")
         }
     }
 }
 
-// Argument classes
 @InvokeArg
 class OpenArgs {
     var path: String? = null
@@ -361,7 +374,7 @@ class HidPlugin(private val activity: Activity): Plugin(activity) {
     }
     
     private val usbManager = activity.getSystemService(Context.USB_SERVICE) as UsbManager
-    private val connectedDevices = HashMap<String, HidDevice>()
+    private val connectedDevices = ConcurrentHashMap<String, HidDevice>()
     private var permissionReceiver: BroadcastReceiver? = null
     private var usbDetachReceiver: BroadcastReceiver? = null
     
@@ -379,21 +392,32 @@ class HidPlugin(private val activity: Activity): Plugin(activity) {
         usbDetachReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
                 if (UsbManager.ACTION_USB_DEVICE_DETACHED == intent.action) {
-                    val device: UsbDevice? = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE)
+                    val device: UsbDevice? = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                        intent.getParcelableExtra(UsbManager.EXTRA_DEVICE, UsbDevice::class.java)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        intent.getParcelableExtra(UsbManager.EXTRA_DEVICE) as? UsbDevice
+                    }
                     device?.apply {
                         if (connectedDevices.containsKey(device.deviceName)) {
-                            connectedDevices[device.deviceName]!!.closeConnection()
+                            connectedDevices[device.deviceName]?.closeConnection()
                             connectedDevices.remove(device.deviceName)
                         }
                         Log.i(TAG, "Device detached: ${device.deviceName}")
+                        val payload = JSObject()
+                        payload.put("path", device.deviceName)
+                        trigger("deviceDisconnected", payload)
                     }
                 }
             }
         }
 
-        val filter = IntentFilter()
-        filter.addAction(UsbManager.ACTION_USB_DEVICE_DETACHED)
-        activity.registerReceiver(usbDetachReceiver, filter)
+        val filter = IntentFilter(UsbManager.ACTION_USB_DEVICE_DETACHED)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            activity.registerReceiver(usbDetachReceiver, filter, Context.RECEIVER_EXPORTED)
+        } else {
+            activity.registerReceiver(usbDetachReceiver, filter)
+        }
     }
 
     private fun registerUsbPermissionReceiver() {
@@ -498,7 +522,7 @@ class HidPlugin(private val activity: Activity): Plugin(activity) {
                 invoke.resolve()
             }
             is HidResult.Error -> {
-                invoke.reject(TAG, "Failed to create HidDevice: ${result.message}")
+                invoke.reject("Failed to create HidDevice: ${result.message}", TAG)
             }
             else -> {
                 invoke.reject("Unknown error")
@@ -531,16 +555,14 @@ class HidPlugin(private val activity: Activity): Plugin(activity) {
         val deviceList = usbManager.deviceList
 
         for (dev in deviceList.values) {
-            if(!connectedDevices.containsKey(dev.deviceName)) {
-                val device = JSObject()
-                device.put("releaseNumber", 0)
-                device.put("path", dev.deviceName)
-                device.put("vendorId", dev.vendorId)
-                device.put("productId", dev.productId)
-                device.put("manufacturerString", dev.manufacturerName)
-                device.put("productString", dev.productName)
-                devices.put(device)
-            }
+            val device = JSObject()
+            device.put("releaseNumber", 0)
+            device.put("path", dev.deviceName)
+            device.put("vendorId", dev.vendorId)
+            device.put("productId", dev.productId)
+            device.put("manufacturerString", dev.manufacturerName)
+            device.put("productString", dev.productName)
+            devices.put(device)
         }
 
         ret.put("devices", devices)
@@ -577,6 +599,7 @@ class HidPlugin(private val activity: Activity): Plugin(activity) {
                 } else {
                     // No permission, request it first
                     synchronized(this) {
+                        pendingInvoke?.reject("Cancelled by subsequent connection request")
                         pendingDevicePath = path
                         pendingUsbDevice = device
                         pendingInvoke = invoke
