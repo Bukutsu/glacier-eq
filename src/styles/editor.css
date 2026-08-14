@@ -492,9 +492,113 @@
   opacity: .7;
 }
 
-.bands-mobile-editor {
+.bands-grid {
   display: none;
 }
+
+.bands-mobile-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.band-picker {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  padding: 4px;
+  background: var(--panel);
+  scrollbar-width: thin;
+}
+
+.band-picker button {
+  flex: 0 0 auto;
+  min-width: 54px;
+  min-height: 38px;
+  display: grid;
+  place-items: center;
+  gap: 1px;
+  padding: 4px 8px;
+  color: var(--muted);
+  background: var(--bg-dark);
+  outline: 1px solid var(--line-medium);
+  outline-offset: -1px;
+}
+
+.band-picker button strong {
+  color: var(--filter-color, var(--cyan));
+  font-size: var(--type-label);
+  line-height: 1;
+}
+
+.band-picker button span {
+  font-size: var(--type-micro);
+}
+
+.band-picker button.active {
+  color: var(--text);
+  background: rgb(var(--filter-color-rgb, var(--cyan-rgb)) / 0.12);
+  outline-color: rgb(var(--filter-color-rgb, var(--cyan-rgb)) / 0.64);
+}
+
+.band-picker button.add-filter-chip {
+  color: var(--cyan);
+  outline-style: dashed;
+}
+
+.mobile-filter-card {
+  display: grid;
+  grid-template-columns: minmax(140px, 0.8fr) repeat(3, minmax(0, 1fr));
+  grid-template-areas:
+    "head type type type"
+    "head freq gain q";
+  gap: 12px;
+  padding: 12px;
+  background: linear-gradient(
+    90deg,
+    rgb(var(--filter-color-rgb, var(--cyan-rgb)) / 0.12),
+    var(--bg-dark) 140px
+  );
+  outline: 1px solid rgb(var(--filter-color-rgb, var(--cyan-rgb)) / 0.42);
+  outline-offset: -1px;
+}
+
+.mobile-filter-head {
+  grid-area: head;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 32px;
+  gap: 8px;
+  align-items: center;
+}
+
+.mobile-filter-head div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.mobile-filter-head strong {
+  color: var(--filter-color, var(--cyan));
+  font-size: var(--type-subtitle);
+}
+
+.mobile-filter-head span {
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-filter-head .band-index {
+  width: 32px;
+  min-height: 32px;
+}
+
+.mobile-filter-card .band-type-field { grid-area: type; }
+.mobile-filter-card .band-freq-field { grid-area: freq; }
+.mobile-filter-card .band-gain-field { grid-area: gain; }
+.mobile-filter-card .band-q-field { grid-area: q; }
 
 .band-index strong {
   font: inherit;
