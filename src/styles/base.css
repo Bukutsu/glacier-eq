@@ -8,17 +8,17 @@
 
 :root, :root[data-theme="tokyo-night"] {
   --bg: #1a1b26;
-  --bg-dark: #1b1e2e;
-  --bg-dark-rgb: 27 30 46;
-  --bg-darker-rgb: 22 22 30;
-  --panel: #24283b;
-  --panel-rgb: 36 40 59;
-  --surface: #363b54;
-  --surface-soft: #292e42;
-  --text: #c0caf5;
-  --text-rgb: 192 202 245;
-  --muted: #a9b1d6;
-  --comment: #8a90b8;
+  --bg-dark: #16161e;
+  --bg-dark-rgb: 22 22 30;
+  --bg-darker-rgb: 16 16 20;
+  --panel: #16161e;
+  --panel-rgb: 22 22 30;
+  --surface: #3b3e52;
+  --surface-soft: #202330;
+  --text: #a9b1d6;
+  --text-rgb: 169 177 214;
+  --muted: #787c99;
+  --comment: #51597d;
   --cyan: #7dcfff;
   --cyan-rgb: 125 207 255;
   --blue: #7aa2f7;
@@ -56,11 +56,13 @@
   --bg: #24283b;
   --bg-dark: #1f2335;
   --bg-dark-rgb: 31 35 53;
-  --bg-darker-rgb: 22 22 30;
-  --panel: #292e42;
-  --panel-rgb: 41 46 66;
-  --surface: #363b54;
-  --surface-soft: #292e42;
+  --bg-darker-rgb: 27 30 46;
+  --panel: #1f2335;
+  --panel-rgb: 31 35 53;
+  --surface: #41496b;
+  --surface-soft: #2c324a;
+  --muted: #8089b3;
+  --comment: #5f6996;
 }
 
 :root[data-theme="tokyo-night-day"] {
@@ -489,7 +491,7 @@ select:focus-visible {
 
 .btn:hover:not(:disabled), .tools-card button:hover:not(:disabled), .diag-card button:hover:not(:disabled) { filter: brightness(1.14); }
 .btn:active:not(:disabled), .tools-card button:active:not(:disabled), .diag-card button:active:not(:disabled) { filter: brightness(1.24); }
-.btn.filled, button.save { background: var(--cyan); color: var(--on-accent); }
+.btn.filled, button.save { background: var(--navy); color: #ffffff; }
 .btn.warning { background: var(--yellow); color: var(--on-accent); }
 
 @media (pointer: coarse) {

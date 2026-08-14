@@ -402,7 +402,7 @@ export const EqGraph = memo(function EqGraph({
 
 function drawBackground(ctx: CanvasRenderingContext2D, width: number, height: number) {
   ctx.clearRect(0, 0, width, height);
-  ctx.fillStyle = cssVar("--panel", "#24283b");
+  ctx.fillStyle = cssVar("--panel", "#16161e");
   ctx.fillRect(0, 0, width, height);
 }
 
@@ -411,7 +411,7 @@ function drawGrid(ctx: CanvasRenderingContext2D, width: number, height: number) 
   ctx.strokeStyle = cssVar("--canvas-grid", "rgba(65, 72, 104, 0.22)");
   ctx.lineWidth = 1;
   ctx.font = `12px ${mono}`;
-  ctx.fillStyle = cssVar("--muted", "#a9b1d6");
+  ctx.fillStyle = cssVar("--muted", "#787c99");
 
   for (const freq of GRAPH_FREQS) {
     const x = freqToX(freq, width);
@@ -524,7 +524,7 @@ async function drawCommittedPreview(
     ctx,
     height,
     values,
-    cssVar("--bg-dark", "#1b1e2e"),
+    cssVar("--bg-dark", "#16161e"),
     isCompact ? 3 : 4,
     [12, 6],
   );
@@ -648,8 +648,8 @@ function drawFilterDots(
   peq: PEQData,
   dotValues?: number[],
 ) {
-  const text = cssVar("--bg-dark", "#1b1e2e");
-  const stroke = cssVar("--panel", "#24283b");
+  const text = cssVar("--bg-dark", "#16161e");
+  const stroke = cssVar("--panel", "#16161e");
   const activeBands = peq.filters.filter((filter) => filter.enabled);
 
   activeBands.forEach((filter, index) => {

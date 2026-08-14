@@ -1219,7 +1219,7 @@ function SettingsTab({
         </div>
         <div className="shortcut-list">
           {KEYBOARD_SHORTCUTS.map(([keys, action]) => (
-            <div className="shortcut-row" key={action}>
+            <div className="shortcut-row" key={keys}>
               <span className="shortcut-keys">{keys}</span>
               <span className="shortcut-action">{action}</span>
             </div>
