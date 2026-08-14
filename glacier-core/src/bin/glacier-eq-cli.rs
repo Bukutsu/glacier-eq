@@ -582,8 +582,12 @@ fn open_session<T>(
     let api = hidapi::HidApi::new().map_err(|error| error.to_string())?;
     let devices = found_devices(&api);
     let selected = select_device(&devices, selector)?;
-    let profile = get_supported_device(selected.vendor, selected.product)
-        .ok_or_else(|| format!("No profile registered for {:04x}:{:04x}", selected.vendor, selected.product))?;
+    let profile = get_supported_device(selected.vendor, selected.product).ok_or_else(|| {
+        format!(
+            "No profile registered for {:04x}:{:04x}",
+            selected.vendor, selected.product
+        )
+    })?;
     eprintln!("device: {}", selected.name);
     let mut io = HidIo(api.open_path(&selected.path).map_err(|error| {
         let message = format!("failed to open {}: {error}", selected.display_path);

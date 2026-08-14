@@ -236,7 +236,11 @@ impl<'a> DeviceSession<'a> {
             amp_mode_class_ab,
             high_gain_mode,
             mic_volume_db,
-            channel_balance: if left > 0 { left } else { right.saturating_neg() },
+            channel_balance: if left > 0 {
+                left
+            } else {
+                right.saturating_neg()
+            },
         })
     }
 
