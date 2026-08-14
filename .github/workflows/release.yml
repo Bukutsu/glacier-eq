@@ -323,12 +323,23 @@ jobs:
 
           echo "✅ All expected OS release assets are present."
 
+      - name: Extract release notes from CHANGELOG.md
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG_VERSION="${{ github.ref_name }}"
+          TAG_VERSION="${TAG_VERSION#v}"
+          sed -n '/^## \['"${TAG_VERSION}"'\]/,/^## \[/p' CHANGELOG.md | sed '$d' > RELEASE_NOTES.md
+          if [ ! -s RELEASE_NOTES.md ]; then
+            echo "Automated Glacier EQ build. See assets below for installers." > RELEASE_NOTES.md
+          fi
+
       - name: Create release and upload verified assets
         uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228
         with:
           tag_name: ${{ github.ref_name }}
           name: "Glacier EQ ${{ github.ref_name }}"
-          body: "Automated Glacier EQ build. See assets below for installers."
+          body_path: RELEASE_NOTES.md
           draft: false
           prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}
           generate_release_notes: true
