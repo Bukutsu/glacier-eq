@@ -4,9 +4,9 @@
 
 ### Fixed
 
-- Refined design tokens across dark and light themes for translucent line rendering and consistent component contrast.
-- Fixed theme selection dropdown truncation across responsive viewports.
-- Enhanced contrast and hover states for sidebar tabs and navigation controls.
+- Fixed theme tokens so line borders use proper translucent layers across dark and light themes.
+- Prevented theme dropdown labels from getting cut off on small screens.
+- Improved text contrast and hover highlights on sidebar tabs.
 
 ## [0.5.0] - 2026-07-21
 
