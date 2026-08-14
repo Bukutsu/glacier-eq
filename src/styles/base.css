@@ -8,17 +8,23 @@
 
 :root, :root[data-theme="tokyo-night"] {
   --bg: #1a1b26;
-  --bg-dark: #16161e;
-  --bg-dark-rgb: 22 22 30;
+  --bg-dark: #14141b;
+  --bg-dark-rgb: 20 20 27;
   --bg-darker-rgb: 16 16 20;
   --panel: #16161e;
   --panel-rgb: 22 22 30;
   --surface: #3b3e52;
   --surface-soft: #202330;
+  --input-bg: #14141b;
+  --input-border: #0f0f14;
+  --panel-border: #101014;
+  --list-hover-bg: #13131a;
+  --focus-border: #545c7e33;
+  --scrollbar-color: #868bc4;
   --text: #a9b1d6;
   --text-rgb: 169 177 214;
   --muted: #787c99;
-  --comment: #51597d;
+  --comment: #515670;
   --cyan: #7dcfff;
   --cyan-rgb: 125 207 255;
   --blue: #7aa2f7;
@@ -54,30 +60,42 @@
 
 :root[data-theme="tokyo-night-storm"] {
   --bg: #24283b;
-  --bg-dark: #1f2335;
-  --bg-dark-rgb: 31 35 53;
+  --bg-dark: #1b1e2e;
+  --bg-dark-rgb: 27 30 46;
   --bg-darker-rgb: 27 30 46;
   --panel: #1f2335;
   --panel-rgb: 31 35 53;
   --surface: #41496b;
   --surface-soft: #2c324a;
+  --input-bg: #1b1e2e;
+  --input-border: #282e44;
+  --panel-border: #1b1e2e;
+  --list-hover-bg: #1b1e2e;
+  --focus-border: #545c7e33;
+  --scrollbar-color: #9cacff;
   --muted: #8089b3;
-  --comment: #5f6996;
+  --comment: #545c7e;
 }
 
 :root[data-theme="tokyo-night-day"] {
   --bg: #e6e7ed;
-  --bg-dark: #d6d8df;
-  --bg-dark-rgb: 214 216 223;
+  --bg-dark: #e6e7ed;
+  --bg-dark-rgb: 230 231 237;
   --bg-darker-rgb: 193 194 199;
   --panel: #d6d8df;
   --panel-rgb: 214 216 223;
   --surface: #707280;
   --surface-soft: #e6e7ed;
-  --text: #363c4d;
-  --text-rgb: 54 60 77;
-  --muted: #707280;
-  --comment: #888b94;
+  --input-bg: #e6e7ed;
+  --input-border: #c1c2c7;
+  --panel-border: #c1c2c7;
+  --list-hover-bg: #e1e2e8;
+  --focus-border: #70728033;
+  --scrollbar-color: #909296;
+  --text: #343b59;
+  --text-rgb: 52 59 89;
+  --muted: #363c4d;
+  --comment: #707280;
   --cyan: #0f4b6e;
   --cyan-rgb: 15 75 110;
   --blue: #2959aa;
@@ -331,21 +349,21 @@
 }
 
 :root {
-  --line: rgb(var(--terminal-black-rgb) / 0.55);
-  --line-subtle: rgb(var(--terminal-black-rgb) / 0.28);
-  --canvas-grid: rgb(var(--terminal-black-rgb) / 0.22);
-  --line-soft: rgb(var(--terminal-black-rgb) / 0.35);
-  --line-medium: rgb(var(--terminal-black-rgb) / 0.42);
-  --line-strong: rgb(var(--terminal-black-rgb) / 0.52);
-  --line-separator: rgb(var(--terminal-black-rgb) / 0.38);
-  --line-outline: rgb(var(--terminal-black-rgb) / 0.45);
-  --focus-ring: rgb(var(--cyan-rgb) / 0.72);
+  --line: var(--panel-border, rgb(var(--terminal-black-rgb) / 0.55));
+  --line-subtle: var(--panel-border, rgb(var(--terminal-black-rgb) / 0.28));
+  --canvas-grid: var(--panel-border, rgb(var(--terminal-black-rgb) / 0.22));
+  --line-soft: var(--panel-border, rgb(var(--terminal-black-rgb) / 0.35));
+  --line-medium: var(--panel-border, rgb(var(--terminal-black-rgb) / 0.42));
+  --line-strong: var(--panel-border, rgb(var(--terminal-black-rgb) / 0.52));
+  --line-separator: var(--panel-border, rgb(var(--terminal-black-rgb) / 0.38));
+  --line-outline: var(--panel-border, rgb(var(--terminal-black-rgb) / 0.45));
+  --focus-ring: var(--focus-border, rgb(var(--cyan-rgb) / 0.72));
   --accent-line-medium: rgb(var(--cyan-rgb) / 0.48);
   --accent-line-hover: rgb(var(--cyan-rgb) / 0.32);
   --accent-line-outline: rgb(var(--cyan-rgb) / 0.55);
   --accent-line-checkbox: rgb(var(--cyan-rgb) / 0.62);
-  --hover-bg: rgb(var(--panel-rgb) / 0.44);
-  --hover-bg-strong: rgb(var(--panel-rgb) / 0.9);
+  --hover-bg: var(--list-hover-bg, rgb(var(--panel-rgb) / 0.44));
+  --hover-bg-strong: var(--surface-soft);
   --danger-outline: rgb(var(--red-rgb) / 0.9);
   --warning-border: rgb(var(--yellow-rgb) / 0.4);
   --warning-bg: rgb(var(--yellow-rgb) / 0.05);
