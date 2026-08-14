@@ -26,6 +26,7 @@ function GithubLink() {
 interface HeaderProps {
   inert?: boolean;
   connected: boolean;
+  isSimulated?: boolean;
   isBusy: boolean;
   progress: OperationProgress | null;
   profile: string;
@@ -50,6 +51,7 @@ interface HeaderProps {
 export const Header = memo(function Header({
   inert,
   connected,
+  isSimulated = false,
   isBusy,
   progress,
   profile,
@@ -98,22 +100,26 @@ export const Header = memo(function Header({
     ? "offline"
     : isBusy
       ? "working"
-      : deviceMatchesEditor === null
-        ? "unknown"
-        : deviceMatchesEditor
-          ? "ok"
-          : "unsaved";
+      : isSimulated
+        ? "simulation"
+        : deviceMatchesEditor === null
+          ? "unknown"
+          : deviceMatchesEditor
+            ? "ok"
+            : "unsaved";
   const syncText = !connected
     ? "Device disconnected"
     : isBusy
       ? progress
         ? `${progress.message} · ${Math.round(progress.percentage)}%`
         : "Working"
-      : deviceMatchesEditor === null
-        ? "Device state unknown"
-        : deviceMatchesEditor
-          ? "Device matches editor"
-          : "Changes not on device";
+      : isSimulated
+        ? "Simulation · editor only"
+        : deviceMatchesEditor === null
+          ? "Device state unknown"
+          : deviceMatchesEditor
+            ? "Device matches editor"
+            : "Changes not on device";
   const profileText = profile === "Pulled from device"
     ? "Not saved as profile"
     : profileDirty
@@ -169,7 +175,7 @@ export const Header = memo(function Header({
           {connected ? (
             <>
               <button className="btn" title="Replace the editor with EQ read from the DAC" onClick={onPull} disabled={isBusy}>Read DAC</button>
-              <button className="btn warning" title="Store the editor EQ on the DAC" onClick={onPush} disabled={isBusy}>Write DAC</button>
+              <button className={`btn${deviceMatchesEditor === false ? " warning" : ""}`} title="Store the editor EQ on the DAC" onClick={onPush} disabled={isBusy}>Write to DAC</button>
               <button className="btn" onClick={onDisconnect} disabled={isBusy}>Disconnect</button>
             </>
           ) : (
@@ -207,7 +213,7 @@ export const Header = memo(function Header({
           {connected ? (
             <>
               <button type="button" className="btn mobile-action-btn" title="Read EQ from DAC" onClick={onPull} disabled={isBusy}>Read</button>
-              <button type="button" className="btn warning mobile-action-btn" title="Write EQ to DAC" onClick={onPush} disabled={isBusy}>Write</button>
+              <button type="button" className={`btn mobile-action-btn${deviceMatchesEditor === false ? " warning" : ""}`} title="Write EQ to DAC" onClick={onPush} disabled={isBusy}>Write</button>
               <div className="mobile-menu-container" ref={menuRef}>
                 <button
                   type="button"

@@ -1,25 +1,17 @@
 @media (min-width: 1280px) {
   .bands-card {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
-    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding: 6px 16px 4px;
   }
 
   .band-row {
     min-width: 0;
     height: auto;
-    min-height: 220px;
-    padding: 14px;
-    grid-template-columns: 36px minmax(0, 1fr) 36px;
-    grid-template-areas:
-      "number type remove"
-      "number freq freq"
-      "number gain gain"
-      "number q q";
-    gap: 12px 14px;
-    background: var(--bg-dark);
-    border: 1px solid var(--line-soft);
+    min-height: 64px;
+    padding: 6px 0 6px 8px;
+    gap: 8px 12px;
     border-left: 3px solid var(--filter-color, var(--cyan));
   }
 
@@ -28,38 +20,11 @@
   }
 
   .band-number {
-    grid-area: number;
-    align-self: stretch;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-  }
-
-  .band-number::before {
-    content: "Band";
-    color: var(--muted);
-    font-size: var(--type-micro);
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-
-  .band-type-field { grid-area: type; }
-  .band-freq-field { grid-area: freq; }
-  .band-gain-field { grid-area: gain; }
-  .band-q-field { grid-area: q; }
-
-  .band-index {
-    grid-area: remove;
-    align-self: start;
-    margin-top: -6px;
+    align-self: center;
   }
 
   .bands-actions {
-    grid-column: 1 / -1;
-    padding-top: 0;
+    padding-top: 8px;
   }
 }
 

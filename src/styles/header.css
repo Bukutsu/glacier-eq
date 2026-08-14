@@ -90,6 +90,13 @@ h1 {
   background: var(--bg-dark);
   outline: 1px solid var(--line-soft);
 }
+.sync-dot.simulation {
+  color: var(--cyan);
+  background: var(--bg-dark);
+  background: color-mix(in srgb, var(--cyan) 12%, transparent);
+  outline: 1px solid var(--line-soft);
+  outline: 1px solid color-mix(in srgb, var(--cyan) 30%, transparent);
+}
 .sync-dot.working {
   color: var(--sync-working);
   background: var(--bg-dark);

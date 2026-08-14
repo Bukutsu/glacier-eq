@@ -1334,6 +1334,7 @@ function App() {
     settings,
     onSettingChange: updateSetting,
     onOpenDiagnostics: handleOpenDiagnosticsModal,
+    isSimulated: isDevDummyDevice(selectedDevice),
   };
   // One graph element for all four render sites; the editor props (drag/
   // wheel/keyboard editing) are only attached where the graph is editable.
@@ -1407,6 +1408,7 @@ function App() {
         <Header
           inert={isReconnecting ? true : undefined}
           connected={connected}
+          isSimulated={isDevDummyDevice(selectedDevice)}
           isBusy={isBusy}
           progress={progress}
           profile={selectedPreset}
@@ -1616,6 +1618,7 @@ function App() {
             onRemoveTarget={removeTarget}
             onAddTarget={addTarget}
             connected={connected}
+            isSimulated={isDevDummyDevice(selectedDevice)}
             activeTab={toolsTab}
             onActiveTabChange={setToolsTab}
             onOpenConnectModal={handleOpenDeviceModal}

@@ -124,6 +124,7 @@ interface ToolsPanelProps {
   onRemoveTarget?: (id: string) => void;
   onAddTarget?: (name: string, points: MeasurementTrace["points"]) => void;
   connected?: boolean;
+  isSimulated?: boolean;
   activeTab?: ToolsTab;
   onActiveTabChange?: (tab: ToolsTab) => void;
   onOpenConnectModal?: () => void;
@@ -210,7 +211,11 @@ export const ToolsPanel = memo(function ToolsPanel(props: ToolsPanelProps) {
           )}
           {tab === "Device" && (
             props.connected ? (
-              <DeviceTab setStatus={props.setStatus} onPull={props.onPull} />
+              <DeviceTab
+                setStatus={props.setStatus}
+                onPull={props.onPull}
+                isSimulated={props.isSimulated}
+              />
             ) : (
               <div className="device-empty">
                 <span className="material-symbols-outlined" aria-hidden="true">link_off</span>
@@ -1234,7 +1239,15 @@ type DeviceUtilityState = {
   channel_balance: number;
 };
 
-function DeviceTab({ setStatus, onPull }: { setStatus: (msg: string) => void; onPull?: () => Promise<void> }) {
+function DeviceTab({
+  setStatus,
+  onPull,
+  isSimulated = false,
+}: {
+  setStatus: (msg: string) => void;
+  onPull?: () => Promise<void>;
+  isSimulated?: boolean;
+}) {
   const [utility, setUtility] = useState<DeviceUtilityState | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -1388,8 +1401,12 @@ function DeviceTab({ setStatus, onPull }: { setStatus: (msg: string) => void; on
         <section className="tool-card">
           <div className="device-empty">
             <Icon>tune</Icon>
-            <strong>No supported DSP DAC connected.</strong>
-            <span>Connect a supported Savitech DSP DAC to use these controls.</span>
+            <strong>{isSimulated ? "Simulation · editor only" : "No supported DSP DAC connected."}</strong>
+            <span>
+              {isSimulated
+                ? "Hardware DSP controls are unavailable for the dummy DAC."
+                : "Connect a supported Savitech DSP DAC to use these controls."}
+            </span>
           </div>
         </section>
       </div>
@@ -1512,6 +1529,25 @@ interface DiagnosticEvent {
 type DiagLevel = "All" | "Error" | "Warn" | "Info";
 
 const DIAG_LEVELS: DiagLevel[] = ["All", "Error", "Warn", "Info"];
+const DIAG_PREVIEW_LENGTH = 180;
+
+function formatDiagnosticTimestamp(timestamp: string) {
+  const match = timestamp.match(/T(\d{2}:\d{2}:\d{2}(?:\.\d{3})?)/);
+  return match?.[1] ?? timestamp;
+}
+
+function DiagnosticMessage({ message }: { message: string }) {
+  if (message.length <= DIAG_PREVIEW_LENGTH) {
+    return <span className="log-msg">{message}</span>;
+  }
+
+  return (
+    <details className="log-details">
+      <summary className="log-msg">{message.slice(0, DIAG_PREVIEW_LENGTH).trimEnd()}…</summary>
+      <pre>{message}</pre>
+    </details>
+  );
+}
 
 export function DiagnosticsPanel() {
   const [events, setEvents] = useState<DiagnosticEvent[]>([]);
@@ -1668,11 +1704,13 @@ export function DiagnosticsPanel() {
           </div>
         ) : (
           filtered.map((event, index) => (
-            <p key={index} className={`log-line log-line-${event.level.toLowerCase()}`}>
-              <span className="log-ts">{event.timestamp}</span>
+            <div key={index} className={`log-line log-line-${event.level.toLowerCase()}`}>
+              <span className="log-ts" title={event.timestamp}>
+                {formatDiagnosticTimestamp(event.timestamp)}
+              </span>
               <span className="log-level">{event.level}</span>
-              <span className="log-msg">[{event.source}] {event.message}</span>
-            </p>
+              <DiagnosticMessage message={`[${event.source}] ${event.message}`} />
+            </div>
           ))
         )}
       </div>

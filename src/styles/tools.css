@@ -685,8 +685,8 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 .log-line {
   margin: 0; padding: 6px 10px;
   display: grid;
-  grid-template-columns: 88px 46px minmax(0, 1fr);
-  gap: 8px; align-items: baseline;
+  grid-template-columns: 96px 46px minmax(0, 1fr);
+  gap: 8px; align-items: start;
   color: var(--comment);
   font-size: var(--type-caption);
   font-family: var(--font-mono);
@@ -696,12 +696,23 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 .log-line.log-line-error { color: var(--red); }
 .log-line.log-line-warn  { color: var(--yellow); }
 
-.log-ts     { color: var(--comment); flex-shrink: 0; font-size: var(--type-caption); }
+.log-ts     { color: var(--comment); flex-shrink: 0; font-size: var(--type-caption); white-space: nowrap; }
 .log-level  { font-size: var(--type-caption); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
 .log-line.log-line-error .log-level { color: var(--red); }
 .log-line.log-line-warn  .log-level { color: var(--yellow); }
 .log-line:not(.log-line-error):not(.log-line-warn) .log-level { color: var(--comment); }
 .log-msg    { word-break: break-word; white-space: pre-wrap; color: inherit; }
+.log-details { min-width: 0; }
+.log-details summary { cursor: pointer; }
+.log-details pre {
+  margin: 6px 0 0;
+  padding: 8px;
+  overflow-x: auto;
+  color: var(--text);
+  background: var(--surface-soft);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
 
 .diag-empty { padding: 12px; color: var(--muted); font-size: var(--type-label); font-family: var(--font-ui); }
 
