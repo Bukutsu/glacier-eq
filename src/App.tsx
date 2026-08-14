@@ -134,6 +134,8 @@ function App() {
   const [peq, setPeq] = useState<PEQData>(buildDefaultState);
   const [devices, setDevices] = useState<DeviceInfo[]>([]);
   const [selectedDevice, setSelectedDevice] = useState("");
+  const selectedDeviceRef = useRef(selectedDevice);
+  selectedDeviceRef.current = selectedDevice;
   const [connected, setConnected] = useState(false);
   const [isReconnecting, setIsReconnecting] = useState(false);
   const [connectedDeviceName, setConnectedDeviceName] = useState("");
@@ -521,6 +523,7 @@ function App() {
     });
 
     addListener<string>("device-disconnected", (event) => {
+      if (isDevDummyDevice(selectedDeviceRef.current)) return;
       setConnected(false);
       setIsReconnecting(true);
       setLastPushedPeq(null);
@@ -547,7 +550,6 @@ function App() {
       invoke("add_diagnostic_event", { level: "Error", source: "UI", message: msg })
         .catch((err) => console.error("Failed to log uncaught error:", err));
     };
-
     const handleRejection = (event: PromiseRejectionEvent) => {
       const reasonStr = event.reason instanceof Error ? event.reason.message : String(event.reason);
       const msg = `Unhandled rejection: ${reasonStr}`;
@@ -566,10 +568,11 @@ function App() {
 
   // Desktop HID does not emit a detach event, so detect the device disappearing.
   useEffect(() => {
-    if (!isTauri() || isAndroid || !connected || !selectedDevice || isBusy) return;
+    if (!isTauri() || isAndroid || !connected || !selectedDevice || isDevDummyDevice(selectedDevice) || isBusy) return;
 
     const timerId = setInterval(async () => {
       try {
+        if (isDevDummyDevice(selectedDevice)) return;
         const devices = await invoke<DeviceInfo[]>("list_devices");
         if (!devices.some((device) => device.path === selectedDevice)) {
           setConnected(false);
@@ -598,9 +601,9 @@ function App() {
     }
   }, [selectedDevice]);
 
-  // Poll for reconnection when disconnected (paused when app is in background)
+  // Poll for reconnection when disconnected (paused when app is in background or using dummy device)
   useEffect(() => {
-    if (!isReconnecting || !connectedDeviceName) return;
+    if (!isReconnecting || !connectedDeviceName || isDevDummyDevice(selectedDevice)) return;
 
     let active = true;
     let timerId: ReturnType<typeof setTimeout> | null = null;
@@ -860,7 +863,7 @@ function App() {
         "UI"
       );
     } catch (error) {
-      if (isDisconnectionError(error)) {
+      if (!isDevDummyDevice(selectedDevice) && isDisconnectionError(error)) {
         setIsReconnecting(true);
         reportStatus("Error", `Failed to write to DAC (disconnected): ${error}`, "error", "HID", "Reconnecting...");
       } else {
@@ -912,7 +915,7 @@ function App() {
           "UI"
         );
       } catch (error) {
-        if (isDisconnectionError(error)) {
+        if (!isDevDummyDevice(selectedDevice) && isDisconnectionError(error)) {
           setIsReconnecting(true);
           reportStatus("Error", `Failed to apply EQ (disconnected): ${error}`, "error", "HID", "Reconnecting...");
         } else {

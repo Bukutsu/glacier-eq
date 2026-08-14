@@ -163,8 +163,8 @@ class HidDevice(
             try {
                 if (request.initialize(deviceConnection, endpoint)) {
                     var failureCount = 0
+                    val buffer = ByteBuffer.allocateDirect(bufferSize)
                     while (isReading) {
-                        val buffer = ByteBuffer.allocateDirect(bufferSize)
                         buffer.clear()
                         
                         val queued = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
@@ -256,36 +256,60 @@ class HidDevice(
         }
     }
     
-    // Write data to the device using bulkTransfer primarily to avoid requestWait queue contention
+    // Write data to the device
     fun write(data: ByteArray): HidResult<Unit> {
-        // Try controlTransfer (SET_REPORT) first, as many USB HID DACs only process commands
-        // sent via Control Transfer on Endpoint 0, and silently ignore Interrupt OUT transfers.
-        try {
-            val controlResult = writeViaControlTransfer(data)
-            if (controlResult is HidResult.Success) {
-                return controlResult
-            }
-        } catch (e: Exception) {
-            Log.w(TAG, "write (controlTransfer) failed: ${e.message}, trying bulkTransfer as fallback")
-        }
-
-        val endpoint = usbOutEndpoint
-        if (endpoint == null) {
-            return HidResult.Error("Failed to write data: OUT endpoint not available and controlTransfer failed")
+        if (!deviceConnection.claimInterface(usbInterface, true)) {
+            Log.w(TAG, "write: Failed to claim interface, attempting anyway")
         }
         
-        Log.i(TAG, "write (fallback to bulkTransfer): data.size=${data.size}, maxPacketSize=${endpoint.maxPacketSize}")
+        // Strategy 1: Try UsbRequest (asynchronous interrupt transfer)
         try {
-            val bytesWritten = deviceConnection.bulkTransfer(endpoint, data, data.size, 1000)
-            Log.i(TAG, "write (bulkTransfer): bytesWritten=$bytesWritten")
-            if (bytesWritten == data.size) {
-                return HidResult.Success(Unit)
+            val outEndpoint = usbOutEndpoint
+            if (outEndpoint != null) {
+                val request = UsbRequest()
+                if (request.initialize(deviceConnection, outEndpoint)) {
+                    val buffer = ByteBuffer.allocateDirect(data.size)
+                    buffer.put(data)
+                    buffer.flip()
+                    
+                    val queued = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                        request.queue(buffer)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        request.queue(buffer, data.size)
+                    }
+                    
+                    if (queued) {
+                        val completed = deviceConnection.requestWait()
+                        request.close()
+                        if (completed != null) {
+                            Log.i(TAG, "write (UsbRequest): successfully wrote ${data.size} bytes")
+                            return HidResult.Success(Unit)
+                        }
+                    }
+                    request.close()
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "write (UsbRequest) failed: ${e.message}")
+        }
+        
+        // Strategy 2: Try bulkTransfer on OUT endpoint
+        try {
+            val outEndpoint = usbOutEndpoint
+            if (outEndpoint != null) {
+                val bytesWritten = deviceConnection.bulkTransfer(outEndpoint, data, data.size, 1000)
+                if (bytesWritten >= 0) {
+                    Log.i(TAG, "write (bulkTransfer): wrote $bytesWritten bytes")
+                    return HidResult.Success(Unit)
+                }
             }
         } catch (e: Exception) {
             Log.e(TAG, "write (bulkTransfer) failed: ${e.message}")
         }
         
-        return HidResult.Error("Failed to write data via both controlTransfer and bulkTransfer")
+        // Strategy 3: Try HID SET_REPORT control transfer
+        return writeViaControlTransfer(data)
     }
     
     // Write via HID SET_REPORT control transfer (works when interrupt OUT is not available or fails)
@@ -293,7 +317,8 @@ class HidDevice(
         val ifaceId = usbInterface?.id ?: 0
         // HID SET_REPORT: bmRequestType=0x21 (host-to-device, class, interface)
         // bRequest=0x09 (SET_REPORT), wValue=0x0200 (report type OUTPUT, report ID 0) or with actual report ID
-        val reportId = if (data.size > 64) (data[0].toInt() and 0xFF) else 0
+        // Walkplay / Savitech uses Report ID 0x4B; devices with 0-report-ID use 0
+        val reportId = if (data.isNotEmpty() && data[0] == 0x4B.toByte()) 0x4B else 0
         val wValue = 0x0200 or reportId  // Output report type (0x02) | report ID
         
         Log.i(TAG, "write (controlTransfer): SET_REPORT reportId=0x${String.format("%02X", reportId)}, ifaceId=$ifaceId, dataSize=${data.size}")
@@ -399,13 +424,11 @@ class HidPlugin(private val activity: Activity): Plugin(activity) {
                         intent.getParcelableExtra(UsbManager.EXTRA_DEVICE) as? UsbDevice
                     }
                     device?.apply {
-                        if (connectedDevices.containsKey(device.deviceName)) {
-                            connectedDevices[device.deviceName]?.closeConnection()
-                            connectedDevices.remove(device.deviceName)
-                        }
+                        connectedDevices.remove(device.deviceName)?.closeConnection()
                         Log.i(TAG, "Device detached: ${device.deviceName}")
                         val payload = JSObject()
                         payload.put("path", device.deviceName)
+                        trigger("device-disconnected", payload)
                         trigger("deviceDisconnected", payload)
                     }
                 }
@@ -472,8 +495,8 @@ class HidPlugin(private val activity: Activity): Plugin(activity) {
         
         val filter = IntentFilter(ACTION_USB_PERMISSION)
         
-        // Register with RECEIVER_EXPORTED flag on Android 12+
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+        // Register with RECEIVER_EXPORTED flag on Android 13+ (TIRAMISU)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
             activity.registerReceiver(permissionReceiver, filter, Context.RECEIVER_EXPORTED)
         } else {
             activity.registerReceiver(permissionReceiver, filter)

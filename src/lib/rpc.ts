@@ -534,9 +534,16 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
     case "disconnect_device": {
       if (activeDevice) {
         detachHidEventListeners(activeDevice);
-        await activeDevice.close();
+        try {
+          await activeDevice.close();
+        } catch {}
         activeDevice = null;
         activeProfile = null;
+        reportQueue = [];
+        while (reportResolvers.length > 0) {
+          const resolver = reportResolvers.shift();
+          if (resolver) resolver(new Uint8Array(0));
+        }
       }
       return null as T;
     }
