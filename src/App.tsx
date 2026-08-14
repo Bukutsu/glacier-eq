@@ -522,7 +522,7 @@ function App() {
       setProgress(event.payload);
     });
 
-    addListener<string>("device-disconnected", (event) => {
+    const handleDeviceDisconnected = (event: { payload: string }) => {
       if (isDevDummyDevice(selectedDeviceRef.current)) return;
       invoke("disconnect_device").catch(() => {});
       setConnected(false);
@@ -530,7 +530,26 @@ function App() {
       setLastPushedPeq(null);
       setFirmwareVersion(null);
       reportStatus("Error", `Lost connection to device (unplugged): ${event.payload}`, "error", "Device", "Reconnecting...");
-    });
+    };
+
+    if (isTauri() && isAndroid) {
+      import("@tauri-apps/api/core")
+        .then(({ addPluginListener }) =>
+          addPluginListener<string>("hid", "device-disconnected", (payload) =>
+            handleDeviceDisconnected({ payload }),
+          ),
+        )
+        .then((listener) => {
+          const unlisten = () => {
+            listener.unregister().catch(() => {});
+          };
+          if (active) unlistenFns.push(unlisten);
+          else unlisten();
+        })
+        .catch((error) => console.error("Failed to listen for Android HID disconnects:", error));
+    } else {
+      addListener<string>("device-disconnected", handleDeviceDisconnected);
+    }
 
     return () => {
       active = false;
@@ -538,7 +557,7 @@ function App() {
         try { fn(); } catch {}
       });
     };
-  }, [reportStatus]);
+  }, [isAndroid, reportStatus]);
 
   useEffect(() => {
     scanDevices();

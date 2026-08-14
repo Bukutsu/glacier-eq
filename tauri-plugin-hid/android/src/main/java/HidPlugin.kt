@@ -46,7 +46,7 @@ sealed class HidResult<out T> {
 class HidDevice(
     private val usbDevice: UsbDevice,
     private val deviceConnection: UsbDeviceConnection,
-    private val onDisconnected: () -> Unit
+    private val onDisconnected: (HidDevice) -> Unit
 ) {
     private var usbInEndpoint: UsbEndpoint? = null
     private var usbOutEndpoint: UsbEndpoint? = null
@@ -262,7 +262,7 @@ class HidDevice(
                 } catch (_: Exception) {}
                 activeReadRequest = null
                 if (readFailed && !closed) {
-                    onDisconnected()
+                    onDisconnected(this)
                 }
                 Log.i(TAG, "Background read thread stopped")
             }
@@ -634,10 +634,13 @@ class HidPlugin(private val activity: Activity): Plugin(activity) {
         }
     }
     
-    private fun handleDeviceFailure(path: String) {
-        val device = connectedDevices.remove(path) ?: return
+    private fun handleDeviceFailure(path: String, failedDevice: HidDevice) {
+        if (!connectedDevices.remove(path, failedDevice)) {
+            failedDevice.closeConnection()
+            return
+        }
         Log.w(TAG, "HID reader stopped unexpectedly: $path")
-        device.closeConnection()
+        failedDevice.closeConnection()
         triggerObject("device-disconnected", path)
         triggerObject("deviceDisconnected", path)
     }
@@ -706,7 +709,9 @@ class HidPlugin(private val activity: Activity): Plugin(activity) {
         }
         
         // Create new HidDevice
-        val hidDevice = HidDevice(usbDevice, connection) { handleDeviceFailure(path) }
+        val hidDevice = HidDevice(usbDevice, connection) { failedDevice ->
+            handleDeviceFailure(path, failedDevice)
+        }
 
         when (val result = hidDevice.initialize()) {
             is HidResult.Success -> {
