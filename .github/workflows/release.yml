@@ -329,7 +329,7 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: "Glacier EQ ${{ github.ref_name }}"
           body: "Automated Glacier EQ build. See assets below for installers."
-          draft: true
+          draft: false
           prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}
           generate_release_notes: true
           fail_on_unmatched_files: true
