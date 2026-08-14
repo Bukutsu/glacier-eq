@@ -24,6 +24,7 @@ function GithubLink() {
 }
 
 interface HeaderProps {
+  inert?: boolean;
   connected: boolean;
   isBusy: boolean;
   progress: OperationProgress | null;
@@ -47,6 +48,7 @@ interface HeaderProps {
 }
 
 export const Header = memo(function Header({
+  inert,
   connected,
   isBusy,
   progress,
@@ -110,7 +112,7 @@ export const Header = memo(function Header({
       : "Profile saved";
 
   return (
-    <header className="app-header">
+    <header className="app-header" inert={inert}>
       <div className="header-main">
         <div className="title-stack">
           <div className="title-line">

@@ -316,8 +316,8 @@ function App() {
     setUndoStack((stack) => stack.slice(0, -1));
     setRedoStack((stack) => [...stack, peqRef.current]);
     setPeq(prev);
-    setDirty(true);
-  }, [undoStack]);
+    setDirty(lastPushedPeq ? !peqEquals(prev, lastPushedPeq) : true);
+  }, [undoStack, lastPushedPeq]);
 
   const redo = useCallback(() => {
     if (redoStack.length === 0) return;
@@ -325,8 +325,8 @@ function App() {
     setRedoStack((stack) => stack.slice(0, -1));
     setUndoStack((stack) => [...stack, peqRef.current]);
     setPeq(next);
-    setDirty(true);
-  }, [redoStack]);
+    setDirty(lastPushedPeq ? !peqEquals(next, lastPushedPeq) : true);
+  }, [redoStack, lastPushedPeq]);
 
   const [showGraphPreview, setShowGraphPreview] = useState(false);
   const graphPreviewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1314,6 +1314,7 @@ function App() {
     <div id="app">
       {!(isAndroid && activeTab === "settings") && (
         <Header
+          inert={isReconnecting ? true : undefined}
           connected={connected}
           isBusy={isBusy}
           progress={progress}
@@ -1337,7 +1338,7 @@ function App() {
         />
       )}
       {isMobile ? (
-        <main className="workspace mobile-workspace">
+        <main className="workspace mobile-workspace" inert={isReconnecting ? true : undefined}>
           {(activeTab === "eq" || (activeTab === "tuning" && (measurements.some((trace) => trace.visible) || activeTargets.length > 0))) && (
             <section className={`mobile-graph-container mobile-graph-${activeTab} ${graphCollapsed ? "collapsed" : ""}`}>
               <div className="graph-card">
@@ -1470,7 +1471,7 @@ function App() {
           </nav>
         </main>
       ) : (
-        <main className="workspace">
+        <main className="workspace" inert={isReconnecting ? true : undefined}>
           <section
             id="main-scroll-pane"
             className="left-pane custom-scroll-pane"

@@ -738,12 +738,14 @@
   .preamp-card,
   .bands-card,
   .tuning-card,
-  .diag-card,
-  .mobile-filter-card {
+  .diag-card {
     border-radius: var(--radius-surface) !important;
     border: 1px solid var(--line-soft) !important;
     background: var(--panel) !important;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+    overflow: hidden;
+  }
+  .mobile-filter-card {
+    border-radius: var(--radius-surface) !important;
     overflow: hidden;
   }
   
@@ -961,7 +963,7 @@
   /* Shrink the tab bar in landscape to reclaim vertical space. */
   @media (orientation: landscape) {
     .mobile-tab-bar {
-      height: 56px;
+      height: calc(56px + var(--safe-area-bottom, 0px));
     }
   }
 
@@ -1037,7 +1039,7 @@
     position: fixed;
     left: max(12px, var(--safe-area-left, 0px));
     right: max(12px, var(--safe-area-right, 0px));
-    top: calc(128px + var(--safe-area-top, 0px));
+    top: calc(144px + var(--safe-area-top, 0px));
     height: min(22vh, 180px);
     min-height: 132px;
     z-index: 90;
@@ -1047,6 +1049,14 @@
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.42);
     pointer-events: none;
     backdrop-filter: blur(6px);
+  }
+
+  @media (orientation: landscape) {
+    .mobile-graph-preview {
+      top: calc(96px + var(--safe-area-top, 0px));
+      height: min(30vh, 120px);
+      min-height: 96px;
+    }
   }
 
   .mobile-graph-preview .eq-graph-shell,

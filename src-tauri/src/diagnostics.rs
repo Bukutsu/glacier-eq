@@ -33,6 +33,7 @@ pub enum LogSource {
     Worker,
     HID,
     AutoEQ,
+    Device,
 }
 
 impl std::fmt::Display for LogSource {
@@ -42,6 +43,7 @@ impl std::fmt::Display for LogSource {
             LogSource::Worker => write!(f, "Worker"),
             LogSource::HID => write!(f, "HID"),
             LogSource::AutoEQ => write!(f, "AutoEQ"),
+            LogSource::Device => write!(f, "Device"),
         }
     }
 }

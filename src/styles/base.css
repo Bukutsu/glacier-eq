@@ -177,10 +177,10 @@
   --yellow-rgb: 241 250 140;
   --red: #ff5555;
   --red-rgb: 255 85 85;
-  --purple: #bd93f9;
-  --purple-rgb: 189 147 249;
-  --teal: #8be9fd;
-  --teal-rgb: 139 233 253;
+  --purple: #d6acff;
+  --purple-rgb: 214 172 255;
+  --teal: #54d896;
+  --teal-rgb: 84 216 150;
   --bright-cyan: #a4ffff;
   --magenta2: #ff79c6;
   --magenta2-rgb: 255 121 198;
@@ -222,8 +222,8 @@
   --red-rgb: 251 73 52;
   --purple: #d3869b;
   --purple-rgb: 211 134 155;
-  --teal: #8ec07c;
-  --teal-rgb: 142 192 124;
+  --teal: #689d6a;
+  --teal-rgb: 104 157 106;
   --bright-cyan: #a8e6cf;
   --magenta2: #b16286;
   --magenta2-rgb: 177 98 134;
@@ -292,24 +292,24 @@
   --surface-soft: #bcc0cc;
   --text: #4c4f69;
   --text-rgb: 76 79 105;
-  --muted: #5c5f77;
+  --muted: #4c4f69;
   --comment: #5c5f77;
-  --cyan: #04a5e5;
-  --cyan-rgb: 4 165 229;
-  --blue: #1e66f5;
-  --blue-rgb: 30 102 245;
-  --green: #40a02b;
-  --green-rgb: 64 160 43;
-  --orange: #fe641b;
-  --orange-rgb: 254 100 27;
-  --yellow: #df8e1d;
-  --yellow-rgb: 223 142 29;
-  --red: #d20f39;
-  --red-rgb: 210 15 57;
-  --purple: #8839ef;
-  --purple-rgb: 136 57 239;
-  --teal: #179299;
-  --teal-rgb: 23 146 153;
+  --cyan: #026893;
+  --cyan-rgb: 2 104 147;
+  --blue: #1d4ed8;
+  --blue-rgb: 29 78 216;
+  --green: #166534;
+  --green-rgb: 22 101 52;
+  --orange: #9a3412;
+  --orange-rgb: 154 52 18;
+  --yellow: #854d0e;
+  --yellow-rgb: 133 77 14;
+  --red: #b91c1c;
+  --red-rgb: 185 28 28;
+  --purple: #6b21a8;
+  --purple-rgb: 107 33 168;
+  --teal: #0f766e;
+  --teal-rgb: 15 118 110;
   --bright-cyan: #74d3ae;
   --magenta2: #ea76cb;
   --magenta2-rgb: 234 118 203;
@@ -322,7 +322,7 @@
   --teal2-rgb: 29 138 128;
   --crimson: #d20f39;
   --terminal-black-rgb: 108 111 133;
-  --on-accent: #11111b;
+  --on-accent: #ffffff;
   --sync-ok: #1a5c1a;
   --sync-working: #075985;
   --sync-unsaved: #7a4d0a;
@@ -407,6 +407,8 @@ body::after {
 body.is-android {
   --safe-area-top: env(safe-area-inset-top, 28px);
   --safe-area-bottom: env(safe-area-inset-bottom, 16px);
+  --safe-area-left: env(safe-area-inset-left, 0px);
+  --safe-area-right: env(safe-area-inset-right, 0px);
 }
 input, textarea, [contenteditable="true"] {
   user-select: text;

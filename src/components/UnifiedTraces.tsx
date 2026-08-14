@@ -32,8 +32,11 @@ export const UnifiedTracesList = memo(function UnifiedTracesList({
       {measurements.map((trace) => (
         <div className="curve-item" key={trace.id}>
           <label className="curve-toggle">
-            <input type="checkbox" className="custom-checkbox"
+            <input
+              type="checkbox"
+              className="custom-checkbox"
               checked={trace.visible}
+              aria-label={`Measurement: ${trace.name} (${trace.points.length} points)`}
               onChange={() => onToggleMeasurement(trace.id)}
             />
             <span className="curve-swatch" style={{ backgroundColor: trace.color }} />
@@ -58,8 +61,11 @@ export const UnifiedTracesList = memo(function UnifiedTracesList({
         return (
           <div className="curve-item" key={target.id}>
             <label className="curve-toggle">
-              <input type="checkbox" className="custom-checkbox"
+              <input
+                type="checkbox"
+                className="custom-checkbox"
                 checked={active}
+                aria-label={`Target: ${target.name}`}
                 onChange={() => onToggleTarget(target.id)}
               />
               <span className="curve-swatch" style={{ backgroundColor: target.color }} />

@@ -93,9 +93,9 @@ dialog.modal-content {
   position: fixed;
   inset: 0;
   margin: auto;
-  width: min(420px, 92vw);
+  width: min(420px, calc(100vw - 32px - var(--safe-area-left, 0px) - var(--safe-area-right, 0px)));
   max-width: none;
-  max-height: min(85vh, calc(100dvh - 32px));
+  max-height: min(85vh, calc(100dvh - 32px - var(--safe-area-top, 0px) - var(--safe-area-bottom, 0px)));
   overflow-y: auto;
   padding: 0;
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
@@ -145,8 +145,8 @@ dialog.modal-content.wide {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 44px;
+  height: 44px;
   flex-shrink: 0;
   transition: background-color var(--motion-duration) var(--motion-ease);
 }

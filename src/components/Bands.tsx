@@ -274,6 +274,8 @@ function BandControls({
             max={FREQ_SLIDER_STEPS}
             step={5}
             value={freqToSlider(filter.freq, capabilities.freq_range)}
+            aria-valuemin={capabilities.freq_range[0]}
+            aria-valuemax={capabilities.freq_range[1]}
             aria-valuetext={`${filter.freq} Hz`}
             onStartChange={onStartChange}
             onReset={committedFilter ? async () => onChange({ ...filter, freq: await constrainFreq(committedFilter.freq, capabilities.freq_range, snapToIso) }) : undefined}

@@ -135,7 +135,7 @@ export function useTraces(notify?: (message: string) => void) {
   }, [notify]);
 
   usePersistedJson("glacier-user-targets", userTargets, 300);
-  usePersistedJson("glacier-active-targets", activeTargetIds);
+  usePersistedJson("glacier-active-targets", activeTargetIds, 300);
 
   const addMeasurement = useCallback(
     (name: string, points: MeasurementTrace["points"]) => {

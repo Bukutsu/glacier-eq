@@ -66,8 +66,10 @@
   background: transparent;
   border: none;
   color: var(--comment);
-  padding: 4px;
-  display: flex;
+  padding: 10px;
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
@@ -105,8 +107,8 @@
 /* Mobile responsive layout */
 @media (max-width: 850px) {
   .toast-container {
-    left: 16px;
-    right: 16px;
+    left: max(16px, var(--safe-area-left, 0px));
+    right: max(16px, var(--safe-area-right, 0px));
     /* Above the fixed bottom tab bar on all mobile platforms. */
     bottom: calc(84px + var(--safe-area-bottom, 0px));
     align-items: stretch;

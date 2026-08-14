@@ -267,7 +267,12 @@ export const EqGraph = memo(function EqGraph({
 
   return (
     <div className="eq-graph-shell" ref={shellRef}>
-      <canvas className="eq-canvas" ref={canvasRef} />
+      <canvas
+        className="eq-canvas"
+        ref={canvasRef}
+        role="img"
+        aria-label="Equalizer frequency response graph displaying live parametric filter curves, measurements, and targets"
+      />
       {editable && capabilities && peq.filters.slice(0, capabilities.num_bands).map((filter) => {
         if (!filter.enabled) return null;
         const [color, rgb] = filterColorVars(filter.index);
@@ -407,7 +412,13 @@ function drawGrid(ctx: CanvasRenderingContext2D, width: number, height: number) 
     ctx.moveTo(x, 18);
     ctx.lineTo(x, height - 18);
     ctx.stroke();
-    ctx.fillText(formatFreq(freq), x + 4, height - 4);
+    if (freq >= 20000) {
+      ctx.textAlign = "right";
+      ctx.fillText(formatFreq(freq), width - 6, height - 4);
+      ctx.textAlign = "left";
+    } else {
+      ctx.fillText(formatFreq(freq), Math.max(4, x + 4), height - 4);
+    }
   }
 
   for (const db of GRAPH_DBS) {
@@ -416,7 +427,8 @@ function drawGrid(ctx: CanvasRenderingContext2D, width: number, height: number) 
     ctx.moveTo(14, y);
     ctx.lineTo(width - 14, y);
     ctx.stroke();
-    ctx.fillText(`${db > 0 ? "+" : ""}${db}dB`, 18, y - 4);
+    const labelY = y <= 12 ? y + 12 : y - 4;
+    ctx.fillText(`${db > 0 ? "+" : ""}${db}dB`, 18, labelY);
   }
 }
 
