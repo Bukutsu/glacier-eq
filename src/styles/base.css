@@ -15,12 +15,12 @@
   --panel-rgb: 22 22 30;
   --surface: #3b3e52;
   --surface-soft: #202330;
-  --input-bg: #14141b;
-  --input-border: #0f0f14;
-  --panel-border: #101014;
-  --list-hover-bg: #13131a;
-  --focus-border: #545c7e33;
-  --scrollbar-color: #868bc4;
+  --input-bg: var(--bg-dark);
+  --input-border: var(--surface);
+  --panel-border: var(--surface);
+  --list-hover-bg: var(--surface-soft);
+  --focus-border: rgb(var(--cyan-rgb) / 0.72);
+  --scrollbar-color: var(--surface);
   --text: #a9b1d6;
   --text-rgb: 169 177 214;
   --muted: #787c99;
