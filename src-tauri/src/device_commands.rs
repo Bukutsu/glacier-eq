@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::state::{ConnectedDevice, DeviceState};
+use crate::state::{ConnectedDevice, DeviceSessionLock, DeviceState};
 use glacier_core::device::{
     get_supported_device, DacUtilityState, DeviceInfo, DeviceIo, DeviceProfile, DeviceSession,
     EditorCapabilities,
@@ -220,6 +220,9 @@ async fn with_session<T: Send + 'static>(
     state: &tauri::State<'_, Mutex<DeviceState>>,
     operation: impl FnOnce(&mut DeviceSession<'_>) -> Result<T, String> + Send + 'static,
 ) -> Result<T, String> {
+    let session_lock = app.state::<DeviceSessionLock>();
+    let _guard = session_lock.0.lock().await;
+
     let connected = connected_device(state)?;
     let profile = registered_profile(&connected)?;
     let app_clone = app.clone();
@@ -328,6 +331,9 @@ pub async fn connect_device(
     _state: tauri::State<'_, Mutex<DeviceState>>,
     path: String,
 ) -> Result<(), String> {
+    let session_lock = app.state::<DeviceSessionLock>();
+    let _guard = session_lock.0.lock().await;
+
     let app_clone = app.clone();
     let path_clone = path.clone();
     tauri::async_runtime::spawn_blocking(move || {
@@ -378,6 +384,9 @@ pub async fn get_firmware_version(
     app: tauri::AppHandle,
     state: tauri::State<'_, Mutex<DeviceState>>,
 ) -> Result<Option<String>, String> {
+    if lock_device_state(&state)?.connected.is_none() {
+        return Ok(None);
+    }
     with_session(&app, &state, |session| session.firmware_version()).await
 }
 

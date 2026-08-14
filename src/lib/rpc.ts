@@ -228,11 +228,11 @@ async function readMatchingReport(
   matches: (report: Uint8Array) => boolean,
 ): Promise<Uint8Array | null> {
   for (let attempt = 0; attempt < 20; attempt++) {
-    const report = await readReport(timeoutMs);
     try {
+      const report = await readReport(timeoutMs);
       if (matches(report)) return report;
     } catch {
-      // Ignore stale packets from earlier commands.
+      // Ignore timeout or mismatch and continue next attempt
     }
   }
   return null;
@@ -297,21 +297,37 @@ async function writeAndFlash(packet: number[] | Uint8Array) {
 }
 
 async function readWalkplayUtility(cmd: number): Promise<Uint8Array> {
-  await sendReport(walkplayPacket([0x80, cmd, 0x00]));
-  const report = await readMatchingReport(60, (data) =>
-    data.length >= 5 && data[0] === 0x4b && data[1] === 0x80 && data[2] === cmd
-  );
-  if (!report) throw new Error(`Timeout reading device utility ${cmd}`);
-  return report;
+  for (let retry = 0; retry < 3; retry++) {
+    try {
+      await sendReport(walkplayPacket([0x80, cmd, 0x00]));
+      await sleep(25);
+      const report = await readMatchingReport(100, (data) =>
+        data.length >= 5 && data[0] === 0x4b && data[1] === 0x80 && data[2] === cmd
+      );
+      if (report) return report;
+    } catch {
+      // Retry
+    }
+    await sleep(40);
+  }
+  throw new Error(`Timeout reading device utility ${cmd}`);
 }
 
 async function readWalkplayBalance(channel: number): Promise<number> {
-  await sendReport(walkplayPacket([0x80, 0x16, 0x01, channel]));
-  const report = await readMatchingReport(60, (data) =>
-    data.length >= 7 && data[0] === 0x4b && data[1] === 0x80 && data[2] === 0x16 && data[4] === channel
-  );
-  if (!report) throw new Error(`Timeout reading channel ${channel} balance`);
-  return report[6];
+  for (let retry = 0; retry < 3; retry++) {
+    try {
+      await sendReport(walkplayPacket([0x80, 0x16, 0x01, channel]));
+      await sleep(25);
+      const report = await readMatchingReport(100, (data) =>
+        data.length >= 7 && data[0] === 0x4b && data[1] === 0x80 && data[2] === 0x16 && data[4] === channel
+      );
+      if (report) return report[6];
+    } catch {
+      // Retry
+    }
+    await sleep(40);
+  }
+  throw new Error(`Timeout reading channel ${channel} balance`);
 }
 
 function resetPeq(numBands: number): PEQData {
@@ -661,10 +677,15 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
       if (!activeDevice || !supportsWalkplayUtilities()) return unsupportedUtilityState() as T;
 
       const filter = await readWalkplayUtility(CMD_FILTER_MODE);
+      await sleep(25);
       const amp = await readWalkplayUtility(CMD_AMP_MODE);
+      await sleep(25);
       const gain = await readWalkplayUtility(CMD_GAIN_MODE);
+      await sleep(25);
       const mic = await readWalkplayUtility(CMD_MIC_VOLUME);
+      await sleep(25);
       const leftRaw = await readWalkplayBalance(0);
+      await sleep(25);
       const rightRaw = await readWalkplayBalance(1);
       const left = leftRaw > 0 ? 256 - leftRaw : 0;
       const right = rightRaw > 0 ? 256 - rightRaw : 0;

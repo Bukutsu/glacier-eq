@@ -13,8 +13,9 @@ use crate::profile_match::normalize_for_match;
 
 const INIT_DRAIN_ATTEMPTS: usize = 100;
 const FILTER_READ_ATTEMPTS: usize = 60;
-const MAX_MISMATCHES: usize = 8;
 const GAIN_READ_ATTEMPTS: usize = 20;
+const UTILITY_READ_ATTEMPTS: usize = 25;
+const UTILITY_READ_RETRIES: usize = 3;
 const WRITE_ATTEMPTS: usize = 3;
 const RETRY_DELAY_MS: u64 = 100;
 
@@ -174,22 +175,36 @@ impl<'a> DeviceSession<'a> {
         if self.profile.protocol != DeviceProtocol::Walkplay {
             return Ok(None);
         }
-        self.send(&Packet::new(
-            WalkplayProtocol::report_id(),
-            vec![READ, CMD_VERSION, END],
-        ))?;
-        self.io.sleep_ms(50);
-        let data = self.read_matching("Firmware version", 20, |data| {
-            data.len() >= 10 && data[0] == READ && data[1] == CMD_VERSION
-        })?;
-        let version: String = data
-            .iter()
-            .skip(3)
-            .take(7)
-            .take_while(|byte| byte.is_ascii_graphic())
-            .map(|byte| *byte as char)
-            .collect();
-        Ok((!version.is_empty()).then_some(version))
+        let mut last_err = "Firmware version read timeout".to_string();
+        for attempt in 1..=UTILITY_READ_RETRIES {
+            self.send(&Packet::new(
+                WalkplayProtocol::report_id(),
+                vec![READ, CMD_VERSION, END],
+            ))?;
+            self.io.sleep_ms(50);
+            match self.read_matching("Firmware version", 20, |data| {
+                data.len() >= 10 && data[0] == READ && data[1] == CMD_VERSION
+            }) {
+                Ok(data) => {
+                    let version: String = data
+                        .iter()
+                        .skip(3)
+                        .take(7)
+                        .take_while(|byte| byte.is_ascii_graphic())
+                        .map(|byte| *byte as char)
+                        .collect();
+                    return Ok((!version.is_empty()).then_some(version));
+                }
+                Err(err) => {
+                    last_err = err;
+                    if attempt < UTILITY_READ_RETRIES {
+                        self.drain();
+                        self.io.sleep_ms(35);
+                    }
+                }
+            }
+        }
+        Err(last_err)
     }
 
     pub fn utility_status(&mut self) -> Result<DacUtilityState, String> {
@@ -197,7 +212,9 @@ impl<'a> DeviceSession<'a> {
             return Ok(DacUtilityState::default());
         }
         self.drain();
+        self.io.sleep_ms(30);
         let filter = self.read_utility(CMD_FILTER_MODE)?;
+        self.io.sleep_ms(25);
         let filter_mode = match filter
             .get(3)
             .copied()
@@ -211,24 +228,29 @@ impl<'a> DeviceSession<'a> {
             value => return Err(format!("Unknown filter mode value: {value}")),
         }
         .to_string();
+        self.io.sleep_ms(25);
         let amp_mode_class_ab = self
             .read_utility(CMD_AMP_MODE)?
             .get(3)
             .copied()
             .ok_or_else(|| "Amp mode response was incomplete".to_string())?
             == 1;
+        self.io.sleep_ms(25);
         let high_gain_mode = self
             .read_utility(CMD_GAIN_MODE)?
             .get(3)
             .copied()
             .ok_or_else(|| "Gain mode response was incomplete".to_string())?
             == 1;
+        self.io.sleep_ms(25);
         let mic_volume_db =
             self.read_utility(CMD_MIC_VOLUME)?
                 .get(4)
                 .copied()
                 .ok_or_else(|| "Mic volume response was incomplete".to_string())? as i8;
+        self.io.sleep_ms(25);
         let left = decode_attenuation(self.read_balance(0)?);
+        self.io.sleep_ms(25);
         let right = decode_attenuation(self.read_balance(1)?);
         Ok(DacUtilityState {
             supported: true,
@@ -380,7 +402,6 @@ impl<'a> DeviceSession<'a> {
         matches: impl Fn(&[u8]) -> bool,
     ) -> Result<Vec<u8>, String> {
         let protocol = self.protocol();
-        let mut mismatches = 0;
         for attempt in 1..=attempts {
             let bytes = self
                 .io
@@ -395,10 +416,6 @@ impl<'a> DeviceSession<'a> {
             };
             if matches(data) {
                 return Ok(data.to_vec());
-            }
-            mismatches += 1;
-            if mismatches > MAX_MISMATCHES {
-                break;
             }
         }
         Err(format!("{label} read timeout"))
@@ -485,24 +502,52 @@ impl<'a> DeviceSession<'a> {
     }
 
     fn read_utility(&mut self, cmd: u8) -> Result<Vec<u8>, String> {
-        self.send(&Packet::new(
-            WalkplayProtocol::report_id(),
-            WalkplayProtocol::build_utility_read_request(cmd),
-        ))?;
-        self.read_matching("Utility register", 10, |data| {
-            data.len() >= 5 && data[0] == READ && data[1] == cmd
-        })
+        let min_len = if cmd == CMD_MIC_VOLUME { 5 } else { 4 };
+        let mut last_err = format!("Utility register {cmd} read timeout");
+        for attempt in 1..=UTILITY_READ_RETRIES {
+            self.send(&Packet::new(
+                WalkplayProtocol::report_id(),
+                WalkplayProtocol::build_utility_read_request(cmd),
+            ))?;
+            self.io.sleep_ms(30);
+            match self.read_matching("Utility register", UTILITY_READ_ATTEMPTS, |data| {
+                data.len() >= min_len && data[0] == READ && data[1] == cmd
+            }) {
+                Ok(data) => return Ok(data),
+                Err(err) => {
+                    last_err = err;
+                    if attempt < UTILITY_READ_RETRIES {
+                        self.drain();
+                        self.io.sleep_ms(35);
+                    }
+                }
+            }
+        }
+        Err(last_err)
     }
 
     fn read_balance(&mut self, channel: u8) -> Result<u8, String> {
-        self.send(&Packet::new(
-            WalkplayProtocol::report_id(),
-            WalkplayProtocol::build_balance_read_request(channel),
-        ))?;
-        self.read_matching("Balance register", 10, |data| {
-            data.len() >= 6 && data[0] == READ && data[1] == CMD_BALANCE && data[3] == channel
-        })
-        .map(|data| data[5])
+        let mut last_err = format!("Balance register {channel} read timeout");
+        for attempt in 1..=UTILITY_READ_RETRIES {
+            self.send(&Packet::new(
+                WalkplayProtocol::report_id(),
+                WalkplayProtocol::build_balance_read_request(channel),
+            ))?;
+            self.io.sleep_ms(30);
+            match self.read_matching("Balance register", UTILITY_READ_ATTEMPTS, |data| {
+                data.len() >= 6 && data[0] == READ && data[1] == CMD_BALANCE && data[3] == channel
+            }) {
+                Ok(data) => return Ok(data[5]),
+                Err(err) => {
+                    last_err = err;
+                    if attempt < UTILITY_READ_RETRIES {
+                        self.drain();
+                        self.io.sleep_ms(35);
+                    }
+                }
+            }
+        }
+        Err(last_err)
     }
 
     fn write_utility(&mut self, payload: Vec<u8>) -> Result<(), String> {
@@ -649,6 +694,66 @@ mod tests {
             .utility_status()
             .unwrap_err();
         assert!(error.contains("simulated read failure"));
+    }
+
+    #[test]
+    fn utility_status_succeeds_with_valid_responses() {
+        let profile = get_supported_device(0x3302, 0x43e8).unwrap();
+        let mut io = FakeIo::default();
+        io.reads.push_back(vec![]); // drain terminator
+        io.reads.push_back(vec![READ, CMD_FILTER_MODE, 1, 1]); // FAST-LL
+        io.reads.push_back(vec![READ, CMD_AMP_MODE, 1, 1]); // Class AB = true
+        io.reads.push_back(vec![READ, CMD_GAIN_MODE, 1, 0]); // High gain = false
+        io.reads.push_back(vec![READ, CMD_MIC_VOLUME, 2, 128, 5]); // Mic = 5 dB
+        io.reads.push_back(vec![READ, CMD_BALANCE, 1, 0, 0, 0]); // Balance L = 0
+        io.reads.push_back(vec![READ, CMD_BALANCE, 1, 1, 0, 0]); // Balance R = 0
+
+        let status = DeviceSession::new(&mut io, profile)
+            .utility_status()
+            .unwrap();
+        assert_eq!(
+            status,
+            DacUtilityState {
+                supported: true,
+                filter_mode: "FAST-LL".into(),
+                amp_mode_class_ab: true,
+                high_gain_mode: false,
+                mic_volume_db: 5,
+                channel_balance: 0,
+            }
+        );
+    }
+
+    #[test]
+    fn utility_status_handles_stale_packets_and_recovers() {
+        let profile = get_supported_device(0x3302, 0x43e8).unwrap();
+        let mut io = FakeIo::default();
+        io.reads.push_back(vec![]); // drain terminator
+        // Several stale non-matching packets before the actual filter response
+        for _ in 0..12 {
+            io.reads.push_back(vec![READ, 0x99, 0, 0]);
+        }
+        io.reads.push_back(vec![READ, CMD_FILTER_MODE, 1, 2]); // FAST-PC
+        io.reads.push_back(vec![READ, CMD_AMP_MODE, 1, 0]); // Class AB = false
+        io.reads.push_back(vec![READ, CMD_GAIN_MODE, 1, 1]); // High gain = true
+        io.reads.push_back(vec![READ, CMD_MIC_VOLUME, 2, 128, 0]); // Mic = 0 dB
+        io.reads.push_back(vec![READ, CMD_BALANCE, 1, 0, 0, 0]); // Balance L = 0
+        io.reads.push_back(vec![READ, CMD_BALANCE, 1, 1, 0, 0]); // Balance R = 0
+
+        let status = DeviceSession::new(&mut io, profile)
+            .utility_status()
+            .unwrap();
+        assert_eq!(
+            status,
+            DacUtilityState {
+                supported: true,
+                filter_mode: "FAST-PC".into(),
+                amp_mode_class_ab: false,
+                high_gain_mode: true,
+                mic_volume_db: 0,
+                channel_balance: 0,
+            }
+        );
     }
 
     fn queue_pull(io: &mut FakeIo, gain: i8) {

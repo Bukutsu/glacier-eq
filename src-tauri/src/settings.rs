@@ -7,10 +7,14 @@ use std::fs;
 use std::path::PathBuf;
 
 fn default_theme() -> String {
-    "tokyo-night".to_string()
+    "auto".to_string()
 }
 
 fn default_snap_to_iso_frequencies() -> bool {
+    true
+}
+
+fn default_floating_graph_preview() -> bool {
     true
 }
 
@@ -22,6 +26,8 @@ pub struct Settings {
     pub theme: String,
     #[serde(default = "default_snap_to_iso_frequencies")]
     pub snap_to_iso_frequencies: bool,
+    #[serde(default = "default_floating_graph_preview")]
+    pub floating_graph_preview: bool,
 }
 
 impl Default for Settings {
@@ -31,6 +37,7 @@ impl Default for Settings {
             skip_push_verification: false,
             theme: default_theme(),
             snap_to_iso_frequencies: default_snap_to_iso_frequencies(),
+            floating_graph_preview: default_floating_graph_preview(),
         }
     }
 }

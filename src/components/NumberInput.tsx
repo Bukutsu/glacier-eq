@@ -11,6 +11,7 @@ interface NumberInputProps {
   disabled?: boolean;
   className?: string;
   onFocus?: () => void;
+  onBlur?: () => void;
   "aria-label"?: string;
 }
 
@@ -25,6 +26,7 @@ export function NumberInput({
   disabled = false,
   className = "",
   onFocus,
+  onBlur,
   "aria-label": ariaLabel,
 }: NumberInputProps) {
   // Draft keeps the raw string while typing (e.g. "1." for an in-progress
@@ -52,6 +54,7 @@ export function NumberInput({
   const handleBlur = () => {
     if (draft !== null) commit(draft);
     setDraft(null);
+    onBlur?.();
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {

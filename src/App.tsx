@@ -54,8 +54,9 @@ const OFFLINE_EDITOR_CAPABILITIES: DeviceCapabilities = {
 const DEFAULT_SETTINGS: AppSettings = {
   auto_pull_on_connect: true,
   skip_push_verification: false,
-  theme: "tokyo-night",
+  theme: "auto",
   snap_to_iso_frequencies: true,
+  floating_graph_preview: true,
 };
 
 declare global {
@@ -88,6 +89,7 @@ function App() {
   const [showDiagnosticsModal, setShowDiagnosticsModal] = useState(false);
   const [showAddTrace, setShowAddTrace] = useState(false);
   const mainScrollRef = useRef<HTMLElement | null>(null);
+  const mobileScrollRef = useRef<HTMLElement | null>(null);
   const reconnectCancelRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -332,6 +334,7 @@ function App() {
 
   const [showGraphPreview, setShowGraphPreview] = useState(false);
   const graphPreviewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isAdjustingRef = useRef(false);
 
   const clearPreviewTimer = useCallback(() => {
     if (graphPreviewTimer.current) {
@@ -340,19 +343,69 @@ function App() {
     }
   }, []);
 
-  const flashGraphPreview = useCallback(() => {
-    setShowGraphPreview(true);
+  const startGraphPreview = useCallback(() => {
+    if (settings.floating_graph_preview === false) return;
+    const scrollEl = mobileScrollRef.current;
+    if (scrollEl && !graphCollapsed && scrollEl.scrollTop < 180) {
+      return;
+    }
     clearPreviewTimer();
-    graphPreviewTimer.current = setTimeout(() => setShowGraphPreview(false), 2000);
+    isAdjustingRef.current = true;
+    setShowGraphPreview(true);
+  }, [settings.floating_graph_preview, graphCollapsed, clearPreviewTimer]);
+
+  const schedulePreviewDismiss = useCallback((delay = 1500) => {
+    clearPreviewTimer();
+    isAdjustingRef.current = false;
+    graphPreviewTimer.current = setTimeout(() => {
+      if (!isAdjustingRef.current) {
+        setShowGraphPreview(false);
+      }
+    }, delay);
   }, [clearPreviewTimer]);
 
   // Cleanup on unmount
   useEffect(() => clearPreviewTimer, [clearPreviewTimer]);
 
+  // Instantly dismiss preview when tapping on empty space
+  useEffect(() => {
+    if (!showGraphPreview) return;
+    const handleTapToDismiss = (e: PointerEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target?.closest?.("input, select, button, .control-slider, .eq-filter-handle, .mobile-graph-preview")) {
+        return;
+      }
+      clearPreviewTimer();
+      isAdjustingRef.current = false;
+      setShowGraphPreview(false);
+    };
+
+    window.addEventListener("pointerdown", handleTapToDismiss, { capture: true, passive: true });
+    return () => {
+      window.removeEventListener("pointerdown", handleTapToDismiss, { capture: true });
+    };
+  }, [showGraphPreview, clearPreviewTimer]);
+
   const handleStartChange = useCallback(() => {
-    flashGraphPreview();
+    startGraphPreview();
     pushToUndoStack(peqRef.current);
-  }, [flashGraphPreview, pushToUndoStack]);
+  }, [startGraphPreview, pushToUndoStack]);
+
+  const handleEndChange = useCallback(() => {
+    schedulePreviewDismiss(1500);
+  }, [schedulePreviewDismiss]);
+
+  const handlePreviewClick = useCallback(() => {
+    mobileScrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+    clearPreviewTimer();
+    isAdjustingRef.current = false;
+    setShowGraphPreview(false);
+  }, [clearPreviewTimer]);
+
+  const handlePreampStartChange = useCallback(() => {
+    // Preamp is positioned directly below the graph; never trigger the floating preview
+    pushToUndoStack(peqRef.current);
+  }, [pushToUndoStack]);
 
   const selectedDeviceInfo = useMemo(
     () => devices.find((device) => device.path === selectedDevice),
@@ -1037,14 +1090,14 @@ function App() {
 
   const updateFilter = useCallback((index: number, updated: Filter, showPreview = true) => {
     setActiveBandIndex(index);
-    if (showPreview) flashGraphPreview();
+    if (showPreview) startGraphPreview();
     setDirty(true);
     setPeq((previous) => {
       const filters = [...previous.filters];
       filters[index] = updated;
       return { ...previous, filters };
     });
-  }, [flashGraphPreview]);
+  }, [startGraphPreview]);
 
   const handleFilterChangeNoPreview = useCallback(
     (index: number, filter: Filter) => updateFilter(index, filter, false),
@@ -1073,16 +1126,32 @@ function App() {
     setDirty(true);
   }, [pushToUndoStack]);
 
-  // Android back button / popstate handling for modal and overlay dismissal
+  // Android back button / popstate handling for modal and overlay dismissal & tab navigation
   useEffect(() => {
-    const handlePopState = () => {
+    const handlePopState = (event: PopStateEvent) => {
       setShowDeviceModal(false);
       setShowDiagnosticsModal(false);
       setShowAddTrace(false);
+
+      if (event.state?.tab) {
+        setActiveTab(event.state.tab);
+      } else if (!event.state?.modal) {
+        setActiveTab("eq");
+      }
     };
 
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  const handleSelectMobileTab = useCallback((id: MobileTab) => {
+    setActiveTab((prev) => {
+      if (prev === id) return prev;
+      if (id !== "eq") {
+        window.history.pushState({ tab: id }, "");
+      }
+      return id;
+    });
   }, []);
 
   const handleOpenDeviceModal = useCallback(() => {
@@ -1120,10 +1189,9 @@ function App() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
   const handlePreampChange = useCallback((global_gain: number) => {
-    flashGraphPreview();
     setDirty(true);
     setPeq((previous) => ({ ...previous, global_gain }));
-  }, [flashGraphPreview]);
+  }, []);
   const handleConnectDevice = useCallback(async () => {
     if (await connectDevice()) {
       window.localStorage.setItem(DEVICE_ONBOARDING_KEY, "true");
@@ -1338,7 +1406,7 @@ function App() {
   };
   // One graph element for all four render sites; the editor props (drag/
   // wheel/keyboard editing) are only attached where the graph is editable.
-  const graphElement = (withEditor: boolean) => (
+  const graphElement = (withEditor: boolean, highlightActiveBand: boolean = false) => (
     <EqGraph
       peq={peq}
       committedPeq={lastPushedPeq}
@@ -1347,6 +1415,7 @@ function App() {
       targets={activeTargets}
       viewMode={graphViewMode}
       theme={resolvedTheme}
+      activeBandIndex={highlightActiveBand ? activeBandIndex : undefined}
       {...(withEditor ? graphEditorProps : {})}
     />
   );
@@ -1359,7 +1428,7 @@ function App() {
         resetValue={lastPushedPeq?.global_gain}
         range={capabilities.global_gain_range}
         integerMode={capabilities.integer_preamp}
-        onStartChange={handleStartChange}
+        onStartChange={handlePreampStartChange}
         onChange={handlePreampChange}
       />
       <Bands
@@ -1368,6 +1437,7 @@ function App() {
         capabilities={capabilities}
         onFilterChange={updateFilter}
         onStartChange={handleStartChange}
+        onEndChange={handleEndChange}
         activeBandIndex={activeBandIndex}
         onActiveBandChange={setActiveBandIndex}
         snapToIso={snapToIso}
@@ -1431,7 +1501,7 @@ function App() {
         />
       )}
       {isMobile ? (
-        <main className="workspace mobile-workspace" inert={isReconnecting ? true : undefined}>
+        <main ref={mobileScrollRef} className="workspace mobile-workspace" inert={isReconnecting ? true : undefined}>
           {(activeTab === "eq" || (activeTab === "tuning" && (measurements.some((trace) => trace.visible) || activeTargets.length > 0))) && (
             <section className={`mobile-graph-container mobile-graph-${activeTab} ${graphCollapsed ? "collapsed" : ""}`}>
               <div className="graph-card">
@@ -1448,10 +1518,16 @@ function App() {
               </button>
             </section>
           )}
-          {showGraphPreview && activeTab === "eq" && (
-            <div className="mobile-graph-preview">
+          {activeTab === "eq" && (
+            <div
+              className={`mobile-graph-preview ${showGraphPreview ? "visible" : ""}`}
+              onClick={handlePreviewClick}
+              role="button"
+              tabIndex={showGraphPreview ? 0 : -1}
+              aria-label="Scroll back to top graph"
+            >
               <div className="graph-card" style={{ height: "100%", padding: 0, border: "none", background: "transparent" }}>
-                {graphElement(false)}
+                {graphElement(false, true)}
               </div>
             </div>
           )}
@@ -1554,7 +1630,7 @@ function App() {
                 type="button"
                 className={`mobile-tab-item ${activeTab === id ? "active" : ""}`}
                 aria-current={activeTab === id ? "page" : undefined}
-                onClick={() => setActiveTab(id)}
+                onClick={() => handleSelectMobileTab(id)}
               >
                 <div className="mobile-tab-icon-wrapper">
                   <Icon>{icon}</Icon>

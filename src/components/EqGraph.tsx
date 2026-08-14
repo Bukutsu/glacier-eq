@@ -66,10 +66,6 @@ export const EqGraph = memo(function EqGraph({
   const wheelGestureTimerRef = useRef<number | undefined>(undefined);
   const wheelHandlerRef = useRef<(event: WheelEvent, index: number) => void>(() => {});
   const editable = Boolean(capabilities && onActiveBandChange && onStartChange && onFilterChange);
-  const activeBand =
-    editable && activeBandIndex != null
-      ? peq.filters.find((filter) => filter.index === activeBandIndex && filter.enabled)
-      : undefined;
   const visibleMeasurements = measurements.filter((trace) => trace.visible);
   const selectedMeasurement = selectedMeasurementId
     ? measurements.find((trace) => trace.id === selectedMeasurementId && trace.visible) ?? null
@@ -384,18 +380,6 @@ export const EqGraph = memo(function EqGraph({
           )}
         </div>
       )}
-      {activeBand && (
-        <div
-          className="graph-band-readout"
-          aria-live="polite"
-          style={{ "--band-color": `var(${filterColorVars(activeBand.index)[0]})` } as CSSProperties}
-        >
-          <span className="graph-band-readout-index">Band {activeBand.index + 1}</span>
-          <span className="graph-band-readout-values">
-            {formatFreq(activeBand.freq)} Hz · {activeBand.gain >= 0 ? "+" : ""}{activeBand.gain.toFixed(1)} dB · Q {activeBand.q.toFixed(2)}
-          </span>
-        </div>
-      )}
     </div>
   );
 });
@@ -410,7 +394,7 @@ function drawGrid(ctx: CanvasRenderingContext2D, width: number, height: number) 
   const mono = cssVar("--font-mono", "ui-monospace");
   ctx.strokeStyle = cssVar("--canvas-grid", "rgba(65, 72, 104, 0.22)");
   ctx.lineWidth = 1;
-  ctx.font = `12px ${mono}`;
+  ctx.font = `500 12px ${mono}`;
   ctx.fillStyle = cssVar("--muted", "#787c99");
 
   for (const freq of GRAPH_FREQS) {
@@ -419,13 +403,6 @@ function drawGrid(ctx: CanvasRenderingContext2D, width: number, height: number) 
     ctx.moveTo(x, 18);
     ctx.lineTo(x, height - 18);
     ctx.stroke();
-    if (freq >= 20000) {
-      ctx.textAlign = "right";
-      ctx.fillText(formatFreq(freq), width - 6, height - 4);
-      ctx.textAlign = "left";
-    } else {
-      ctx.fillText(formatFreq(freq), Math.max(4, x + 4), height - 4);
-    }
   }
 
   for (const db of GRAPH_DBS) {
@@ -435,7 +412,26 @@ function drawGrid(ctx: CanvasRenderingContext2D, width: number, height: number) 
     ctx.lineTo(width - 14, y);
     ctx.stroke();
     const labelY = y <= 12 ? y + 12 : y - 4;
-    ctx.fillText(`${db > 0 ? "+" : ""}${db}dB`, 18, labelY);
+    // Prevent drawing lowest dB label if it falls into bottom frequency label area
+    if (labelY < height - 16) {
+      ctx.fillText(`${db > 0 ? "+" : ""}${db}dB`, 14, labelY);
+    }
+  }
+
+  const isNarrow = width < 540;
+  const freqsToLabel = isNarrow
+    ? [50, 200, 1000, 5000, 20000]
+    : [50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
+
+  for (const freq of freqsToLabel) {
+    const x = freqToX(freq, width);
+    if (freq >= 20000) {
+      ctx.textAlign = "right";
+      ctx.fillText(formatFreq(freq), width - 8, height - 4);
+      ctx.textAlign = "left";
+    } else {
+      ctx.fillText(formatFreq(freq), x + 4, height - 4);
+    }
   }
 }
 

@@ -31,6 +31,7 @@ interface BandsProps {
   capabilities: DeviceCapabilities;
   onFilterChange: (index: number, filter: Filter) => void;
   onStartChange: () => void;
+  onEndChange?: () => void;
   activeBandIndex?: number | null;
   onActiveBandChange?: (index: number) => void;
   snapToIso?: boolean;
@@ -65,7 +66,7 @@ function constrainFreq(freq: number, range: [number, number], snapToIso?: boolea
   return clampToRange(snapToIso ? snapFreqToIsoSync(constrained) : constrained, range);
 }
 
-export const Bands = memo(function Bands({ peq, committedPeq, capabilities, onFilterChange, onStartChange, activeBandIndex, onActiveBandChange, snapToIso }: BandsProps) {
+export const Bands = memo(function Bands({ peq, committedPeq, capabilities, onFilterChange, onStartChange, onEndChange, activeBandIndex, onActiveBandChange, snapToIso }: BandsProps) {
   const availableFilters = peq.filters.slice(0, capabilities.num_bands);
   const visibleFilters = availableFilters.filter((filter) => filter.enabled);
   const canAddFilter = visibleFilters.length < availableFilters.length;
@@ -77,6 +78,7 @@ export const Bands = memo(function Bands({ peq, committedPeq, capabilities, onFi
     onActiveBandChange?.(next.index);
     onStartChange();
     onFilterChange(next.index, { ...next, enabled: true });
+    onEndChange?.();
   };
 
   return (
@@ -106,6 +108,7 @@ export const Bands = memo(function Bands({ peq, committedPeq, capabilities, onFi
               active={activeBandIndex === filter.index}
               onChange={(updated) => onFilterChange(filter.index, updated)}
               onStartChange={onStartChange}
+              onEndChange={onEndChange}
               onActivate={() => onActiveBandChange?.(filter.index)}
               canRemove={visibleFilters.length > 1}
               onRemove={() => onFilterChange(filter.index, { ...filter, enabled: false })}
@@ -191,6 +194,7 @@ function BandRow({
   active,
   onChange,
   onStartChange,
+  onEndChange,
   onActivate,
   canRemove,
   onRemove,
@@ -202,6 +206,7 @@ function BandRow({
   active: boolean;
   onChange: (filter: Filter) => void;
   onStartChange: () => void;
+  onEndChange?: () => void;
   onActivate: () => void;
   canRemove: boolean;
   onRemove: () => void;
@@ -216,7 +221,7 @@ function BandRow({
       style={filterColorStyle(filter.index)}
     >
       <div className="band-number" aria-hidden="true">{filter.index + 1}</div>
-      <BandControls filter={filter} committedFilter={committedFilter} onChange={onChange} onStartChange={onStartChange} onActivate={onActivate} capabilities={capabilities} snapToIso={snapToIso} />
+      <BandControls filter={filter} committedFilter={committedFilter} onChange={onChange} onStartChange={onStartChange} onEndChange={onEndChange} onActivate={onActivate} capabilities={capabilities} snapToIso={snapToIso} />
       <button
         type="button"
         className="band-index"
@@ -227,6 +232,7 @@ function BandRow({
           onActivate();
           onStartChange();
           onRemove();
+          onEndChange?.();
         }}
       >
         <Icon>remove</Icon>
@@ -240,6 +246,7 @@ function BandControls({
   committedFilter,
   onChange,
   onStartChange,
+  onEndChange,
   onActivate,
   capabilities,
   snapToIso,
@@ -248,6 +255,7 @@ function BandControls({
   committedFilter?: Filter;
   onChange: (filter: Filter) => void;
   onStartChange: () => void;
+  onEndChange?: () => void;
   onActivate: () => void;
   capabilities: DeviceCapabilities;
   snapToIso?: boolean;
@@ -262,6 +270,7 @@ function BandControls({
             onActivate();
             onStartChange();
             onChange(updated);
+            onEndChange?.();
           }}
         />
       </BandField>
@@ -278,6 +287,7 @@ function BandControls({
             aria-valuenow={filter.freq}
             aria-valuetext={`${filter.freq} Hz`}
             onStartChange={onStartChange}
+            onEndChange={onEndChange}
             onReset={committedFilter ? () => onChange({ ...filter, freq: constrainFreq(committedFilter.freq, capabilities.freq_range, snapToIso) }) : undefined}
             onFocus={onActivate}
             onChange={(event) => {
@@ -295,6 +305,7 @@ function BandControls({
               onActivate();
               onStartChange();
             }}
+            onBlur={onEndChange}
             onChange={(val) => onChange({ ...filter, freq: constrainFreq(val, capabilities.freq_range, snapToIso) })}
             className="band-freq-stepper"
             aria-label={`Band ${filter.index + 1} frequency value`}
@@ -311,6 +322,7 @@ function BandControls({
             value={clampToRange(filter.gain, capabilities.band_gain_range)}
             aria-valuetext={`${filter.gain >= 0 ? "+" : ""}${filter.gain.toFixed(2)} dB`}
             onStartChange={onStartChange}
+            onEndChange={onEndChange}
             onReset={committedFilter ? () => onChange({ ...filter, gain: clampToRange(committedFilter.gain, capabilities.band_gain_range) }) : undefined}
             onFocus={onActivate}
             onChange={(event) => onChange({ ...filter, gain: +event.target.value })}
@@ -325,6 +337,7 @@ function BandControls({
               onActivate();
               onStartChange();
             }}
+            onBlur={onEndChange}
             onChange={(val) => onChange({ ...filter, gain: val })}
             className="band-gain-stepper"
             aria-label={`Band ${filter.index + 1} gain value`}
@@ -344,6 +357,7 @@ function BandControls({
             aria-valuenow={filter.q}
             aria-valuetext={`Q ${filter.q.toFixed(2)}`}
             onStartChange={onStartChange}
+            onEndChange={onEndChange}
             onReset={committedFilter ? () => onChange({ ...filter, q: clampToRange(committedFilter.q, capabilities.q_range) }) : undefined}
             onFocus={onActivate}
             onChange={(event) => onChange({ ...filter, q: sliderToQ(+event.target.value, capabilities.q_range) })}
@@ -358,6 +372,7 @@ function BandControls({
               onActivate();
               onStartChange();
             }}
+            onBlur={onEndChange}
             onChange={(val) => onChange({ ...filter, q: val })}
             className="band-q-stepper"
             aria-label={`Band ${filter.index + 1} Q value`}

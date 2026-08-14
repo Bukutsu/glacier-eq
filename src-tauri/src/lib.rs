@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 
 use diagnostics::DiagnosticsStore;
-use state::DeviceState;
+use state::{DeviceSessionLock, DeviceState};
 #[cfg(not(mobile))]
 use tauri_plugin_window_state::StateFlags;
 
@@ -90,6 +90,7 @@ pub fn run() {
     let window_state_flags = StateFlags::SIZE | StateFlags::POSITION | StateFlags::MAXIMIZED;
     let mut builder = tauri::Builder::default()
         .manage(Mutex::new(DeviceState::default()))
+        .manage(DeviceSessionLock::default())
         .manage(Mutex::new(DiagnosticsStore::default()));
     #[cfg(target_os = "linux")]
     {

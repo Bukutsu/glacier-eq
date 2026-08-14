@@ -13,3 +13,6 @@ pub struct ConnectedDevice {
 pub struct DeviceState {
     pub connected: Option<ConnectedDevice>,
 }
+
+#[derive(Default)]
+pub struct DeviceSessionLock(pub tauri::async_runtime::Mutex<()>);

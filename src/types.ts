@@ -83,4 +83,5 @@ export interface AppSettings {
   skip_push_verification: boolean;
   theme: string;
   snap_to_iso_frequencies: boolean;
+  floating_graph_preview: boolean;
 }

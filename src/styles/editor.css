@@ -106,9 +106,15 @@
 
 @media (max-width: 850px), ((max-height: 540px) and (pointer: coarse)) {
   .eq-filter-handle {
-    width: 44px;
-    height: 44px;
-    font-size: 13px;
+    width: 28px;
+    height: 28px;
+    font-size: 11px;
+  }
+  .eq-filter-handle::after {
+    content: "";
+    position: absolute;
+    inset: -8px;
+    border-radius: 50%;
   }
 }
 
@@ -172,33 +178,6 @@
 
 .mobile-legend-toggle {
   display: none;
-}
-
-.graph-band-readout {
-  position: absolute;
-  left: 50%;
-  bottom: 10px;
-  transform: translateX(-50%);
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 4px 12px;
-  background: var(--legend-bg);
-  border: 1px solid var(--line-outline);
-  border-radius: var(--radius-surface);
-  backdrop-filter: blur(8px);
-  font-family: var(--font-mono);
-  font-size: var(--type-caption);
-  color: var(--text);
-  pointer-events: none;
-  z-index: 9;
-  white-space: nowrap;
-  max-width: calc(100% - 24px);
-}
-
-.graph-band-readout-index {
-  font-weight: 700;
-  color: var(--band-color, var(--cyan));
 }
 
 .app-collapse {
@@ -368,7 +347,7 @@
   margin: 0;
   background: transparent;
   outline: 0;
-  touch-action: pan-y;
+  touch-action: none;
 }
 
 .control-slider-input::-webkit-slider-runnable-track {
@@ -618,24 +597,25 @@
   height: 28px;
   min-height: 28px;
   background: transparent;
-  color: var(--muted);
+  color: var(--text);
   padding: 0;
   border: none;
   font-size: var(--type-small);
   font-family: var(--font-mono);
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   border-radius: var(--radius-control);
   transition: color var(--motion-duration) var(--motion-ease), background-color var(--motion-duration) var(--motion-ease);
 }
 .type-buttons button:hover:not(:disabled) {
-  color: var(--text);
+  color: var(--cyan);
   background: var(--surface-soft);
 }
 .type-buttons button.selected {
-  background: var(--accent-bg-subtle) !important;
+  background: var(--surface-soft) !important;
   color: var(--cyan) !important;
   font-weight: 700;
+  outline: 1px solid var(--accent-line-outline);
 }
 
 .param-cell {

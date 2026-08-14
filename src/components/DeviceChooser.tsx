@@ -130,9 +130,9 @@ export function DeviceChooser({
           {supportedDacs.map((dac) => (
             <div key={dac.name} style={{ display: "flex", justifyContent: "space-between", gap: "12px", color: "var(--text)", fontSize: "var(--type-small)" }}>
               <strong>{dac.name}</strong>
-              <small style={{ color: "var(--muted)" }}>
-                {formatUsbId(dac.vendor_id)}:{dac.product_id == null ? "*" : formatUsbId(dac.product_id)} · {dac.status}
-              </small>
+              <span style={{ color: "var(--text-dim, var(--cyan))", fontFamily: "var(--font-mono)", fontSize: "var(--type-caption)" }}>
+                {formatUsbId(dac.vendor_id)}:{dac.product_id == null ? "*" : formatUsbId(dac.product_id)} · <span style={{ color: dac.status === "Tested" ? "var(--green)" : "var(--yellow)" }}>{dac.status}</span>
+              </span>
             </div>
           ))}
         </div>

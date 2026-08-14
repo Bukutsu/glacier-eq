@@ -1152,6 +1152,13 @@ function SettingsTab({
             Show frequency response graph
           </label>
         )}
+        <label>
+          <input type="checkbox" className="custom-checkbox"
+            checked={settings.floating_graph_preview ?? true}
+            onChange={(e) => onSettingChange("floating_graph_preview", e.target.checked)}
+          />
+          Show floating graph preview while scrolling
+        </label>
         {onOpenDiagnostics && (
           <div className="setting-row">
             <span className="setting-label">Diagnostics</span>
@@ -1252,14 +1259,25 @@ function DeviceTab({
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const fetchState = async (isActive = () => true) => {
-    setLoading(true);
-    setLoadError(null);
+  const fetchState = async (isActive = () => true, silent = false) => {
+    if (!silent) {
+      setLoading(true);
+      setLoadError(null);
+    }
     try {
       const data = await invoke<DeviceUtilityState>("get_dac_utility_state");
-      if (isActive()) setUtility(data);
+      if (isActive()) {
+        setUtility(data);
+        setLoadError(null);
+      }
     } catch (err) {
-      if (isActive()) setLoadError(`Couldn't load device status: ${err}`);
+      if (isActive()) {
+        if (!silent || !utility) {
+          setLoadError(`Couldn't load device status: ${err}`);
+        } else {
+          setStatus(`Couldn't refresh device status: ${err}`);
+        }
+      }
     } finally {
       if (isActive()) setLoading(false);
     }
@@ -1271,7 +1289,7 @@ function DeviceTab({
 
     let unlisten: (() => void) | null = null;
     listen<void>("device-pull", () => {
-      if (active) fetchState(() => active);
+      if (active) fetchState(() => active, true);
     }).then((unsub) => {
       if (active) {
         unlisten = unsub;

@@ -10,8 +10,8 @@
 }
 
 .right-rail .preset-list {
-  flex: 1;
-  min-height: 142px;
+  max-height: 150px;
+  min-height: 80px;
   height: auto;
   overflow-y: auto;
 }
@@ -94,9 +94,8 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  flex: 1 1 auto;
-  min-height: 0;
-  padding: 10px;
+  flex: 0 0 auto;
+  padding: 12px;
   background: var(--bg-dark);
   outline: 1px solid var(--line-soft);
   outline-offset: -1px;
@@ -1139,7 +1138,8 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   height: 100%;
   background: transparent;
   border: none;
-  color: var(--muted);
+  color: var(--text);
+  font-weight: 600;
   font-family: inherit;
   cursor: pointer;
   user-select: none;
