@@ -911,7 +911,9 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 }
 
 .setting-select-wrapper {
-  width: 140px;
+  flex: 0 1 240px;
+  width: min(240px, 60%);
+  min-width: 190px;
 }
 
 .smooth-buttons {

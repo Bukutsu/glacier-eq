@@ -53,6 +53,10 @@
   --teal2-rgb: 115 218 202;
   --crimson: #f7768e;
   --terminal-black-rgb: 65 72 104;
+  --on-accent: #11111b;
+  --sync-ok: #9ece6a;
+  --sync-working: #7dcfff;
+  --sync-unsaved: #e0af68;
   --motion-duration-ms: 160;
   --motion-duration: calc(var(--motion-duration-ms) * 1ms);
   --motion-ease: cubic-bezier(0.33, 1, 0.68, 1);
@@ -105,6 +109,7 @@
   --teal2-rgb: 115 218 202;
   --crimson: #f7768e;
   --terminal-black-rgb: 78 85 117;
+  --on-accent: #11111b;
   --sync-ok: #9ece6a;
   --sync-working: #7dcfff;
   --sync-unsaved: #e0af68;
@@ -119,6 +124,12 @@
   --panel-rgb: 240 241 245;
   --surface: #8e95b3;
   --surface-soft: #d3d7e5;
+  --input-bg: var(--bg-dark);
+  --input-border: var(--surface);
+  --panel-border: var(--surface);
+  --list-hover-bg: var(--surface-soft);
+  --focus-border: rgb(var(--cyan-rgb) / 0.72);
+  --scrollbar-color: var(--surface);
   --text: #1f2335;
   --text-rgb: 31 35 53;
   --muted: #4f587d;
@@ -166,6 +177,12 @@
   --panel-rgb: 59 66 82;
   --surface: #4c566a;
   --surface-soft: #434c5e;
+  --input-bg: var(--bg-dark);
+  --input-border: var(--surface);
+  --panel-border: var(--surface);
+  --list-hover-bg: var(--surface-soft);
+  --focus-border: rgb(var(--cyan-rgb) / 0.72);
+  --scrollbar-color: var(--surface);
   --text: #eceff4;
   --text-rgb: 236 239 244;
   --muted: #d8dee9;
@@ -198,6 +215,10 @@
   --teal2-rgb: 131 184 175;
   --crimson: #b84a52;
   --terminal-black-rgb: 76 86 106;
+  --on-accent: #2e3440;
+  --sync-ok: #a3be8c;
+  --sync-working: #88c0d0;
+  --sync-unsaved: #ebcb8b;
 }
 
 :root[data-theme="dracula"] {
@@ -209,6 +230,12 @@
   --panel-rgb: 40 42 54;
   --surface: #44475a;
   --surface-soft: #343746;
+  --input-bg: var(--bg-dark);
+  --input-border: var(--surface);
+  --panel-border: var(--surface);
+  --list-hover-bg: var(--surface-soft);
+  --focus-border: rgb(var(--cyan-rgb) / 0.72);
+  --scrollbar-color: var(--surface);
   --text: #f8f8f2;
   --text-rgb: 248 248 242;
   --muted: #b0bec5;
@@ -241,6 +268,10 @@
   --teal2-rgb: 102 217 200;
   --crimson: #ff5555;
   --terminal-black-rgb: 68 71 90;
+  --on-accent: #21222c;
+  --sync-ok: #50fa7b;
+  --sync-working: #8be9fd;
+  --sync-unsaved: #f1fa8c;
 }
 
 :root[data-theme="gruvbox"] {
@@ -252,6 +283,12 @@
   --panel-rgb: 60 56 54;
   --surface: #504945;
   --surface-soft: #32302f;
+  --input-bg: var(--bg-dark);
+  --input-border: var(--surface);
+  --panel-border: var(--surface);
+  --list-hover-bg: var(--surface-soft);
+  --focus-border: rgb(var(--cyan-rgb) / 0.72);
+  --scrollbar-color: var(--surface);
   --text: #ebdbb2;
   --text-rgb: 235 219 178;
   --muted: #bdae93;
@@ -284,6 +321,10 @@
   --teal2-rgb: 124 159 126;
   --crimson: #fb4934;
   --terminal-black-rgb: 102 92 84;
+  --on-accent: #1d2021;
+  --sync-ok: #b8bb26;
+  --sync-working: #8ec07c;
+  --sync-unsaved: #fabd2f;
 }
 
 :root[data-theme="catppuccin-mocha"] {
@@ -295,6 +336,12 @@
   --panel-rgb: 49 50 68;
   --surface: #585b70;
   --surface-soft: #45475a;
+  --input-bg: var(--bg-dark);
+  --input-border: var(--surface);
+  --panel-border: var(--surface);
+  --list-hover-bg: var(--surface-soft);
+  --focus-border: rgb(var(--cyan-rgb) / 0.72);
+  --scrollbar-color: var(--surface);
   --text: #cdd6f4;
   --text-rgb: 205 214 244;
   --muted: #bac2de;
@@ -327,6 +374,10 @@
   --teal2-rgb: 148 226 213;
   --crimson: #e64553;
   --terminal-black-rgb: 69 71 90;
+  --on-accent: #11111b;
+  --sync-ok: #a6e3a1;
+  --sync-working: #89dceb;
+  --sync-unsaved: #f9e2af;
 }
 
 :root[data-theme="catppuccin-latte"] {
@@ -338,6 +389,12 @@
   --panel-rgb: 239 241 245;
   --surface: #ccd0da;
   --surface-soft: #bcc0cc;
+  --input-bg: var(--bg-dark);
+  --input-border: var(--surface);
+  --panel-border: var(--surface);
+  --list-hover-bg: var(--surface-soft);
+  --focus-border: rgb(var(--cyan-rgb) / 0.72);
+  --scrollbar-color: var(--surface);
   --text: #4c4f69;
   --text-rgb: 76 79 105;
   --muted: #43465e;
@@ -371,20 +428,20 @@
   --crimson: #d20f39;
   --terminal-black-rgb: 108 111 133;
   --on-accent: #ffffff;
-  --sync-ok: #1a5c1a;
-  --sync-working: #075985;
-  --sync-unsaved: #7a4d0a;
+  --sync-ok: #166534;
+  --sync-working: #01567a;
+  --sync-unsaved: #854d0e;
 }
 
 :root {
-  --line: var(--panel-border, rgb(var(--terminal-black-rgb) / 0.55));
-  --line-subtle: var(--panel-border, rgb(var(--terminal-black-rgb) / 0.28));
-  --canvas-grid: var(--panel-border, rgb(var(--terminal-black-rgb) / 0.22));
-  --line-soft: var(--panel-border, rgb(var(--terminal-black-rgb) / 0.35));
-  --line-medium: var(--panel-border, rgb(var(--terminal-black-rgb) / 0.42));
-  --line-strong: var(--panel-border, rgb(var(--terminal-black-rgb) / 0.52));
-  --line-separator: var(--panel-border, rgb(var(--terminal-black-rgb) / 0.38));
-  --line-outline: var(--panel-border, rgb(var(--terminal-black-rgb) / 0.45));
+  --line: color-mix(in srgb, var(--panel-border, #414868) 50%, transparent);
+  --line-subtle: color-mix(in srgb, var(--panel-border, #414868) 25%, transparent);
+  --canvas-grid: color-mix(in srgb, var(--panel-border, #414868) 22%, transparent);
+  --line-soft: color-mix(in srgb, var(--panel-border, #414868) 35%, transparent);
+  --line-medium: color-mix(in srgb, var(--panel-border, #414868) 45%, transparent);
+  --line-strong: color-mix(in srgb, var(--panel-border, #414868) 60%, transparent);
+  --line-separator: color-mix(in srgb, var(--panel-border, #414868) 38%, transparent);
+  --line-outline: color-mix(in srgb, var(--panel-border, #414868) 48%, transparent);
   --focus-ring: var(--focus-border, rgb(var(--cyan-rgb) / 0.72));
   --accent-line-medium: rgb(var(--cyan-rgb) / 0.48);
   --accent-line-hover: rgb(var(--cyan-rgb) / 0.32);
@@ -397,12 +454,8 @@
   --warning-bg: rgb(var(--yellow-rgb) / 0.05);
   --accent-bg-subtle: rgb(var(--cyan-rgb) / 0.05);
   --panel-dark: rgb(var(--bg-darker-rgb) / 0.65);
-  --legend-bg: rgb(var(--bg-darker-rgb) / 0.82);
-  --on-accent: #11111b;
+  --legend-bg: color-mix(in srgb, var(--bg-dark) 85%, transparent);
   --theme-checkmark: var(--on-accent);
-  --sync-ok: var(--green);
-  --sync-working: var(--cyan);
-  --sync-unsaved: var(--yellow);
   --surface-disabled: rgb(var(--text-rgb) / 0.12);
   --text-disabled: rgb(var(--text-rgb) / 0.38);
   --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, sans-serif;

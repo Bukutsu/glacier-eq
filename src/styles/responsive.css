@@ -782,7 +782,9 @@
   }
 
   .settings-list .setting-select-wrapper {
-    width: 180px !important;
+    flex: 0 1 260px !important;
+    width: min(260px, 65%) !important;
+    min-width: 200px !important;
   }
 
   /* Collapsible mobile graph */
@@ -1173,7 +1175,7 @@
   }
   .tabs button:hover:not(.active) {
     background: var(--surface-soft) !important;
-    color: var(--muted) !important;
+    color: var(--text) !important;
   }
   .tabs button.active {
     background: rgb(var(--cyan-rgb) / 0.12) !important;

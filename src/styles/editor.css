@@ -642,7 +642,7 @@
 
 .freq-cell .custom-number-input.band-freq-stepper,
 .gain-cell .custom-number-input.band-gain-stepper,
-.q-cell .custom-number-input.band-q-stepper { width: 90px; }
+.q-cell .custom-number-input.band-q-stepper { width: 96px; }
 
 .custom-number-input.band-freq-stepper,
 .custom-number-input.band-gain-stepper,
@@ -654,7 +654,7 @@
 .custom-number-input.band-gain-stepper .stepper-field,
 .custom-number-input.band-q-stepper .stepper-field {
   font-size: var(--type-small);
-  padding: 0;
+  padding: 0 2px;
 }
 
 .bands-container {
