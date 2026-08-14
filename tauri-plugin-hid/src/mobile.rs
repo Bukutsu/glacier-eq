@@ -80,8 +80,7 @@ impl<R: Runtime> Hid<R> {
 
     pub fn write(&self, path: &str, data: &[u8]) -> crate::Result<()> {
         // HIDAPI includes the report ID as the first byte. Keep it separate so
-        // Android can put it in SET_REPORT's wValue and only prepend it to an
-        // interrupt packet when it is non-zero.
+        // Android can frame control and interrupt transfers correctly.
         let (report_id, payload) = split_report(data);
         let data = payload.iter().map(|&byte| byte as i8).collect();
 

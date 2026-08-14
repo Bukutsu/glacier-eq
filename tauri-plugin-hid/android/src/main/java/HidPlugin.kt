@@ -94,6 +94,9 @@ class HidDevice(
                 }
             }
             if (selectedInterface == null) {
+                selectedInterface = firstHidInterface
+            }
+            if (selectedInterface == null) {
                 for (i in 0 until usbDevice.interfaceCount) {
                     val intf = usbDevice.getInterface(i)
                     var hasIn = false
@@ -113,9 +116,6 @@ class HidDevice(
                         break
                     }
                 }
-            }
-            if (selectedInterface == null) {
-                selectedInterface = firstHidInterface
             }
             if (usbDevice.interfaceCount == 0) {
                 return HidResult.Error("Device has no interfaces")
@@ -366,13 +366,17 @@ class HidDevice(
         }
     }
 
-    // SET_REPORT receives the complete HID report, including its leading report
-    // ID byte (zero for unnumbered reports). The ID is also repeated in wValue.
+    // SET_REPORT receives the report ID for numbered reports. Unnumbered HID
+    // reports omit the zero ID byte from the control-transfer payload.
     private fun writeViaControlTransfer(reportId: Int, data: ByteArray): HidResult<Unit> {
         val ifaceId = usbInterface?.id
             ?: return HidResult.Error("Cannot write: interface is not available")
         val wValue = 0x0200 or reportId
-        val controlData = byteArrayOf(reportId.toByte()) + data
+        val controlData = if (reportId == 0) {
+            data
+        } else {
+            byteArrayOf(reportId.toByte()) + data
+        }
 
         Log.i(TAG, "write (controlTransfer): SET_REPORT reportId=0x${String.format("%02X", reportId)}, ifaceId=$ifaceId, dataSize=${controlData.size}")
 
@@ -659,8 +663,17 @@ class HidPlugin(private val activity: Activity): Plugin(activity) {
         )
 
         try {
-            usbManager.requestPermission(device, permissionIntent)
-            Log.i(TAG, "Permission requested for device: ${device.deviceName}")
+            val canRequest = synchronized(this) {
+                if (destroyed || pendingPermissionToken != token) {
+                    false
+                } else {
+                    usbManager.requestPermission(device, permissionIntent)
+                    true
+                }
+            }
+            if (canRequest) {
+                Log.i(TAG, "Permission requested for device: ${device.deviceName}")
+            }
         } catch (e: Exception) {
             val waiting = synchronized(this) {
                 if (pendingPermissionToken == token) {
@@ -822,12 +835,21 @@ class HidPlugin(private val activity: Activity): Plugin(activity) {
                 } else {
                     // No permission, request it first
                     val token = UUID.randomUUID().toString()
-                    synchronized(this) {
-                        pendingInvoke?.reject("Cancelled by subsequent connection request")
-                        pendingDevicePath = path
-                        pendingUsbDevice = device
-                        pendingInvoke = invoke
-                        pendingPermissionToken = token
+                    val accepted = synchronized(this) {
+                        if (destroyed) {
+                            false
+                        } else {
+                            pendingInvoke?.reject("Cancelled by subsequent connection request")
+                            pendingDevicePath = path
+                            pendingUsbDevice = device
+                            pendingInvoke = invoke
+                            pendingPermissionToken = token
+                            true
+                        }
+                    }
+                    if (!accepted) {
+                        invoke.reject("HID plugin is no longer active")
+                        return
                     }
                     requestPermission(device, token)
                 }

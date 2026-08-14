@@ -7,7 +7,9 @@ use glacier_core::autoeq::{
 use glacier_core::device::{capabilities::DESKTOP_DAC_CAPS, get_supported_device};
 use glacier_core::eq::iir_math::accumulate_response_values;
 use glacier_core::profiles::ProfileStore;
-use glacier_core::{DeviceCapabilities, DeviceIo, DeviceSession, PEQData, SUPPORTED_DEVICES};
+use glacier_core::{DeviceCapabilities, PEQData, SUPPORTED_DEVICES};
+#[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
+use glacier_core::{DeviceIo, DeviceSession};
 use std::io::Read;
 use std::process::ExitCode;
 
