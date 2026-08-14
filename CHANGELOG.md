@@ -2,11 +2,24 @@
 
 ## [0.5.1] - 2026-08-14
 
+### Added
+
+- Added full token sets for Tokyo Night Storm, Tokyo Night Day, Nord, Dracula, Gruvbox, Catppuccin Mocha, and Catppuccin Latte themes.
+- Added frequency readouts to mobile band picker chips and larger filter drag handles.
+- Added a subtle film-grain texture to the app background.
+
 ### Fixed
 
-- Fixed theme tokens so line borders use proper translucent layers across dark and light themes.
-- Prevented theme dropdown labels from getting cut off on small screens.
-- Improved text contrast and hover highlights on sidebar tabs.
+- Rebuilt the theme token system so card borders, grid lines, and dividers use translucent layers instead of flat opaque borders.
+- Fixed theme tokens across light themes (Tokyo Night Day, Catppuccin Latte) to prevent dark theme variables from leaking.
+- Fixed theme dropdown labels on the Settings tab so full theme names are never cut off on small or mobile screens.
+- Fixed high-contrast text and hover highlights for sidebar tabs, buttons, and navigation controls to meet WCAG AA standards.
+- Hardened Android HID communication against connection teardown races, Android 12 receiver crashes, and report ID extraction failures.
+- Aligned Android native libraries for 16 KB page memory support.
+- Fixed biquad filter math for low sample rates and clamped balance attenuation.
+- Added input bounds checks, frequency range clamping, and round-trip tests to AutoEQ optimization.
+- Fixed error handling for poisoned mutex locks and improved localStorage recovery during state restoration.
+- Improved accessibility labels, keyboard navigation, focus trapping, and modal safe-area insets.
 
 ## [0.5.0] - 2026-07-21
 
