@@ -150,6 +150,11 @@
   padding: 0 10px;
   outline: 0;
 }
+.profile-search:focus {
+  outline: 1px solid var(--focus-ring);
+  outline-offset: -1px;
+  background: var(--bg-dark);
+}
 .profile-search::placeholder { color: var(--muted); opacity: 1; }
 
 .preset-list {
@@ -672,6 +677,10 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   background: var(--bg-dark); overflow-y: auto; min-height: 0; flex: 1;
   outline: 1px solid var(--line-soft); outline-offset: -1px;
   scroll-behavior: smooth;
+}
+.log-box:focus-visible {
+  outline: 1px solid var(--focus-ring);
+  outline-offset: -1px;
 }
 .log-line {
   margin: 0; padding: 6px 10px;

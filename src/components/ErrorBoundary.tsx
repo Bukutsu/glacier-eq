@@ -26,7 +26,7 @@ export class ErrorBoundary extends Component<Props, State> {
   public render() {
     if (this.state.hasError) {
       return (
-        <div style={{ padding: 24, background: "var(--bg)", color: "var(--text)", height: "100vh", fontFamily: "var(--font-ui)" }}>
+        <div role="alert" aria-live="assertive" style={{ padding: 24, background: "var(--bg)", color: "var(--text)", height: "100vh", fontFamily: "var(--font-ui)" }}>
           <h2>Something went wrong</h2>
           <pre style={{ color: "var(--red)" }}>{this.state.error?.toString()}</pre>
           <button

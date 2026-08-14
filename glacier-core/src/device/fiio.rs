@@ -90,8 +90,10 @@ fn parse_filter_response(data: &[u8]) -> Option<Filter> {
 
 fn write_filter_packet(report_id: u8, index: u8, filter: &Filter) -> Packet {
     let gain = (filter.gain * 10.0).round() as i16;
-    let freq = filter.freq;
+    let [gain_h, gain_l] = gain.to_be_bytes();
+    let [freq_h, freq_l] = filter.freq.to_be_bytes();
     let q = (filter.q * 100.0).round() as u16;
+    let [q_h, q_l] = q.to_be_bytes();
     Packet::new(
         report_id,
         vec![
@@ -102,12 +104,12 @@ fn write_filter_packet(report_id: u8, index: u8, filter: &Filter) -> Packet {
             FILTER_PARAMS,
             8,
             index,
-            (gain >> 8) as u8,
-            gain as u8,
-            (freq >> 8) as u8,
-            freq as u8,
-            (q >> 8) as u8,
-            q as u8,
+            gain_h,
+            gain_l,
+            freq_h,
+            freq_l,
+            q_h,
+            q_l,
             filter_type_to_fiio(filter.filter_type),
             0,
             END,

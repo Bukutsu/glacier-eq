@@ -135,7 +135,12 @@ export function CustomScrollbar({ targetRef }: { targetRef: RefObject<HTMLElemen
           dragRef.current = null;
           event.currentTarget.releasePointerCapture(event.pointerId);
         }}
-        onPointerCancel={() => { dragRef.current = null; }}
+        onPointerCancel={(event) => {
+          dragRef.current = null;
+          if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+            event.currentTarget.releasePointerCapture(event.pointerId);
+          }
+        }}
       />
     </div>
   );

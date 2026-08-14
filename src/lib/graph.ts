@@ -62,6 +62,14 @@ export async function snapFreqToIso(freq: number): Promise<number> {
   return snap_freq_to_iso(freq);
 }
 
+export function snapFreqToIsoSync(freq: number): number {
+  try {
+    return snap_freq_to_iso(freq);
+  } catch {
+    return freq;
+  }
+}
+
 export async function filterResponseValues(
   filter: Filter,
   freqs: Float32Array | number[]

@@ -4,7 +4,7 @@ import { Icon } from "./Icon";
 import { Slider } from "./Slider";
 import { NumberInput } from "./NumberInput";
 import { filterColorVars } from "../lib/filterColors";
-import { formatFreq, snapFreqToIso } from "../lib/graph";
+import { formatFreq, snapFreqToIsoSync } from "../lib/graph";
 import { clampToRange } from "../lib/peq";
 
 const FREQ_SLIDER_STEPS = 1000;
@@ -60,9 +60,9 @@ function sliderToQ(value: number, range: [number, number]) {
   return Number((10 ** (min + (value / Q_SLIDER_STEPS) * (max - min))).toFixed(2));
 }
 
-async function constrainFreq(freq: number, range: [number, number], snapToIso?: boolean) {
+function constrainFreq(freq: number, range: [number, number], snapToIso?: boolean) {
   const constrained = clampToRange(Math.round(freq), range);
-  return clampToRange(snapToIso ? await snapFreqToIso(constrained) : constrained, range);
+  return clampToRange(snapToIso ? snapFreqToIsoSync(constrained) : constrained, range);
 }
 
 export const Bands = memo(function Bands({ peq, committedPeq, capabilities, onFilterChange, onStartChange, activeBandIndex, onActiveBandChange, snapToIso }: BandsProps) {
@@ -86,7 +86,6 @@ export const Bands = memo(function Bands({ peq, committedPeq, capabilities, onFi
         className="bands-section-header"
         onClick={() => setCollapsed((v) => !v)}
         aria-expanded={!collapsed}
-        aria-label={collapsed ? "Expand filter bands" : "Collapse filter bands"}
       >
         <span className="title-text">
           <Icon>tune</Icon>
@@ -276,13 +275,14 @@ function BandControls({
             value={freqToSlider(filter.freq, capabilities.freq_range)}
             aria-valuemin={capabilities.freq_range[0]}
             aria-valuemax={capabilities.freq_range[1]}
+            aria-valuenow={filter.freq}
             aria-valuetext={`${filter.freq} Hz`}
             onStartChange={onStartChange}
-            onReset={committedFilter ? async () => onChange({ ...filter, freq: await constrainFreq(committedFilter.freq, capabilities.freq_range, snapToIso) }) : undefined}
+            onReset={committedFilter ? () => onChange({ ...filter, freq: constrainFreq(committedFilter.freq, capabilities.freq_range, snapToIso) }) : undefined}
             onFocus={onActivate}
-            onChange={async (event) => {
+            onChange={(event) => {
               const raw = sliderToFreq(+event.target.value, capabilities.freq_range);
-              onChange({ ...filter, freq: await constrainFreq(raw, capabilities.freq_range, snapToIso) });
+              onChange({ ...filter, freq: constrainFreq(raw, capabilities.freq_range, snapToIso) });
             }}
           />
           <NumberInput
@@ -295,7 +295,7 @@ function BandControls({
               onActivate();
               onStartChange();
             }}
-            onChange={async (val) => onChange({ ...filter, freq: await constrainFreq(val, capabilities.freq_range, snapToIso) })}
+            onChange={(val) => onChange({ ...filter, freq: constrainFreq(val, capabilities.freq_range, snapToIso) })}
             className="band-freq-stepper"
             aria-label={`Band ${filter.index + 1} frequency value`}
           />
@@ -309,6 +309,7 @@ function BandControls({
             max={capabilities.band_gain_range[1]}
             step={0.01}
             value={clampToRange(filter.gain, capabilities.band_gain_range)}
+            aria-valuetext={`${filter.gain >= 0 ? "+" : ""}${filter.gain.toFixed(2)} dB`}
             onStartChange={onStartChange}
             onReset={committedFilter ? () => onChange({ ...filter, gain: clampToRange(committedFilter.gain, capabilities.band_gain_range) }) : undefined}
             onFocus={onActivate}

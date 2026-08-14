@@ -254,7 +254,7 @@ fn dispatch(
         },
         IpcPayload::Read { path, timeout } => match open.get(&path) {
             Some(dev) => {
-                let mut buf = vec![0u8; 64];
+                let mut buf = vec![0u8; 1024];
                 match dev.read_timeout(&mut buf, timeout) {
                     Ok(0) => IpcResult::Ok(Some(serde_json::Value::Array(vec![]))),
                     Ok(n) => {

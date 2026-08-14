@@ -28,7 +28,12 @@ fn compute_biquad_coeffs_for(
     q: f64,
     dsp_sample_rate: f64,
 ) -> (f64, f64, f64, f64, f64, f64) {
-    if dsp_sample_rate <= 0.0 {
+    if !dsp_sample_rate.is_finite()
+        || dsp_sample_rate <= 0.0
+        || !frequency.is_finite()
+        || !gain.is_finite()
+        || !q.is_finite()
+    {
         return (1.0, 0.0, 0.0, 1.0, 0.0, 0.0);
     }
     let q = q.clamp(0.01, 100.0);

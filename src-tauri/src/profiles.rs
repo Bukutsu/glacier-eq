@@ -86,12 +86,16 @@ pub fn delete_profile(app: tauri::AppHandle, name: String) -> Result<(), String>
 #[tauri::command]
 pub fn open_profiles_dir(app: tauri::AppHandle) -> Result<(), String> {
     let store = store(&app)?;
-    open_dir(store.directory()).map(|_| ()).map_err(|error| {
+    let mut child = open_dir(store.directory()).map_err(|error| {
         format!(
             "Failed to open profiles directory {}: {error}",
             store.directory().display()
         )
-    })
+    })?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let _ = child.wait();
+    });
+    Ok(())
 }
 
 #[cfg(target_os = "windows")]

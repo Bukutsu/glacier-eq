@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   makeMeasurementName,
   makeTargetName,
@@ -75,8 +75,13 @@ export function useTraces(notify?: (message: string) => void) {
     [activeTargetIds, allTargets],
   );
 
+  const notifyRef = useRef(notify);
   useEffect(() => {
-    const saved = loadPersistedJson<any[]>("glacier-measurements", notify);
+    notifyRef.current = notify;
+  }, [notify]);
+
+  useEffect(() => {
+    const saved = loadPersistedJson<any[]>("glacier-measurements", (msg) => notifyRef.current?.(msg));
     if (!Array.isArray(saved)) return;
 
     setMeasurements(
@@ -96,12 +101,12 @@ export function useTraces(notify?: (message: string) => void) {
           points: normalizeMeasurementPoints(trace.points),
         })),
     );
-  }, [notify]);
+  }, []);
 
   usePersistedJson("glacier-measurements", measurements, 300);
 
   useEffect(() => {
-    const savedTargets = loadPersistedJson<any[]>("glacier-user-targets", notify);
+    const savedTargets = loadPersistedJson<any[]>("glacier-user-targets", (msg) => notifyRef.current?.(msg));
     const loadedUserTargets: TargetTrace[] = Array.isArray(savedTargets)
       ? savedTargets
           .filter(
@@ -125,14 +130,14 @@ export function useTraces(notify?: (message: string) => void) {
     const existingTargetIds = new Set(
       loadedUserTargets.map((target) => target.id),
     );
-    const savedActiveIds = loadPersistedJson<any[]>("glacier-active-targets", notify);
+    const savedActiveIds = loadPersistedJson<any[]>("glacier-active-targets", (msg) => notifyRef.current?.(msg));
     if (
       Array.isArray(savedActiveIds) &&
       savedActiveIds.every((id) => typeof id === "string")
     ) {
       setActiveTargetIds(savedActiveIds.filter((id) => existingTargetIds.has(id)));
     }
-  }, [notify]);
+  }, []);
 
   usePersistedJson("glacier-user-targets", userTargets, 300);
   usePersistedJson("glacier-active-targets", activeTargetIds, 300);

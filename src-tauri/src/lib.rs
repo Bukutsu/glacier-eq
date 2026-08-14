@@ -19,29 +19,41 @@ mod profiles;
 mod settings;
 mod state;
 
+use tauri::Manager;
+
 /// Resolve the set of directories the raw fs commands are allowed to touch.
-/// We scope file access to the user's home directory and the Tauri config dir
+/// We scope file access to the application data directory, user documents, and downloads
 /// so these IPC commands cannot be abused to read/write arbitrary system files.
-fn allowed_bases() -> Vec<PathBuf> {
+fn allowed_bases(app: &tauri::AppHandle) -> Vec<PathBuf> {
     let mut bases = Vec::new();
-    if let Ok(home) = std::env::var("HOME") {
-        bases.push(PathBuf::from(home));
-    } else if let Ok(profile) = std::env::var("USERPROFILE") {
-        bases.push(PathBuf::from(profile));
+    if let Ok(dir) = profiles::app_data_base_dir(app) {
+        if let Ok(canon) = std::fs::canonicalize(&dir) {
+            bases.push(canon);
+        } else {
+            bases.push(dir);
+        }
     }
-    if let Ok(config) = std::env::var("XDG_CONFIG_HOME") {
-        bases.push(PathBuf::from(config));
-    } else if let Ok(home) = std::env::var("HOME") {
-        bases.push(PathBuf::from(home).join(".config"));
-    } else if let Ok(appdata) = std::env::var("APPDATA") {
-        bases.push(PathBuf::from(appdata));
+    if let Ok(docs) = app.path().document_dir() {
+        if let Ok(canon) = std::fs::canonicalize(&docs) {
+            bases.push(canon);
+        } else {
+            bases.push(docs);
+        }
+    }
+    if let Ok(downloads) = app.path().download_dir() {
+        if let Ok(canon) = std::fs::canonicalize(&downloads) {
+            bases.push(canon);
+        } else {
+            bases.push(downloads);
+        }
     }
     bases
 }
 
 /// Returns true only if `path` canonicalizes to a location inside one of the
 /// allowed base directories (symlinks resolved, traversal rejected).
-fn is_path_allowed(path: &str) -> bool {
+fn is_path_allowed(app: &tauri::AppHandle, path: &str) -> bool {
+    let bases = allowed_bases(app);
     let Ok(canon) = std::fs::canonicalize(path) else {
         // If the file does not exist yet (write path), validate the parent.
         let p = PathBuf::from(path);
@@ -51,24 +63,22 @@ fn is_path_allowed(path: &str) -> bool {
         let Ok(parent_canon) = std::fs::canonicalize(parent) else {
             return false;
         };
-        return allowed_bases()
-            .iter()
-            .any(|base| parent_canon.starts_with(base));
+        return bases.iter().any(|base| parent_canon.starts_with(base));
     };
-    allowed_bases().iter().any(|base| canon.starts_with(base))
+    bases.iter().any(|base| canon.starts_with(base))
 }
 
 #[tauri::command]
-fn save_text_file(path: String, content: String) -> Result<(), String> {
-    if !is_path_allowed(&path) {
+fn save_text_file(app: tauri::AppHandle, path: String, content: String) -> Result<(), String> {
+    if !is_path_allowed(&app, &path) {
         return Err("Refused: file path is outside allowed directories".into());
     }
     std::fs::write(&path, &content).map_err(|e| format!("Failed to write file: {e}"))
 }
 
 #[tauri::command]
-fn read_text_file(path: String) -> Result<String, String> {
-    if !is_path_allowed(&path) {
+fn read_text_file(app: tauri::AppHandle, path: String) -> Result<String, String> {
+    if !is_path_allowed(&app, &path) {
         return Err("Refused: file path is outside allowed directories".into());
     }
     std::fs::read_to_string(&path).map_err(|e| format!("Failed to read file: {e}"))

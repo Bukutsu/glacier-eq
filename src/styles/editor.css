@@ -43,9 +43,9 @@
 .editor-empty-hint button {
   background: transparent;
   color: var(--comment);
-  padding: 4px;
-  min-width: 24px;
-  min-height: 24px;
+  padding: 6px;
+  min-width: 36px;
+  min-height: 36px;
   display: inline-flex;
   align-items: center;
   justify-content: center;

@@ -74,14 +74,23 @@ export const Header = memo(function Header({
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
+    function handlePointerDown(event: PointerEvent) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setMenuOpen(false);
       }
     }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape" && menuOpen) {
+        setMenuOpen(false);
+      }
+    }
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [menuOpen]);
 
   useEffect(() => setMenuOpen(false), [connected]);
 
@@ -205,15 +214,17 @@ export const Header = memo(function Header({
                   className="mobile-more-btn"
                   title="More actions"
                   aria-label="More actions"
+                  aria-haspopup="menu"
                   aria-expanded={menuOpen}
                   onClick={() => setMenuOpen(!menuOpen)}
                 >
                   <span className="material-symbols-outlined" aria-hidden="true">more_vert</span>
                 </button>
                 {menuOpen && (
-                  <div className="mobile-dropdown-menu">
+                  <div className="mobile-dropdown-menu" role="menu">
                     <button
                       type="button"
+                      role="menuitem"
                       className="dropdown-item danger"
                       onClick={() => {
                         onDisconnect();
@@ -237,7 +248,14 @@ export const Header = memo(function Header({
         </div>
       </div>
       {isBusy && (
-        <div className="header-progress-bar">
+        <div
+          className="header-progress-bar"
+          role="progressbar"
+          aria-label={progress ? progress.message : "Device operation in progress"}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={progress ? Math.round(progress.percentage) : undefined}
+        >
           <div
             className={`header-progress-fill ${progress ? "" : "indeterminate"}`}
             style={progress ? { transform: `scaleX(${Math.max(0, Math.min(100, progress.percentage)) / 100})` } : undefined}

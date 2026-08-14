@@ -374,19 +374,6 @@ function App() {
     [],
   );
 
-  const loadFirmwareVersion = useCallback(async () => {
-    if (isDevDummyDevice(selectedDevice)) {
-      setFirmwareVersion("DEV");
-      return;
-    }
-    try {
-      setFirmwareVersion(await invoke<string | null>("get_firmware_version"));
-    } catch (error) {
-      setFirmwareVersion(null);
-      console.error("Failed to read firmware version:", error);
-    }
-  }, [selectedDevice]);
-
   const applyProfile = useCallback(
     (profile: Profile) => {
       pushToUndoStack(peqRef.current);
@@ -590,7 +577,21 @@ function App() {
     return () => clearInterval(timerId);
   }, [connected, isAndroid, selectedDevice, isBusy, reportStatus]);
 
-  // Automatic reconnection loop
+  const loadFirmwareVersion = useCallback(async (targetPath?: string) => {
+    const activePath = targetPath ?? selectedDevice;
+    if (isDevDummyDevice(activePath)) {
+      setFirmwareVersion("DEV");
+      return;
+    }
+    try {
+      setFirmwareVersion(await invoke<string | null>("get_firmware_version"));
+    } catch (error) {
+      setFirmwareVersion(null);
+      console.error("Failed to read firmware version:", error);
+    }
+  }, [selectedDevice]);
+
+  // Poll for reconnection when disconnected
   useEffect(() => {
     if (!isReconnecting || !connectedDeviceName) return;
 
@@ -616,7 +617,7 @@ function App() {
               setConnected(true);
               setIsReconnecting(false);
               setLastPushedPeq(null);
-              await loadFirmwareVersion();
+              await loadFirmwareVersion(found.path);
               reportStatus("Info", `Reconnected to ${connectedDeviceName} without changing its EQ`, "success", "Device", "Ready");
               return;
             }
@@ -1083,6 +1084,11 @@ function App() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Prevent global shortcuts while modals or alerts are active
+      if (document.querySelector("dialog[open], .reconnecting-overlay")) {
+        return;
+      }
+
       const active = document.activeElement;
       const isEditingText =
         active &&
@@ -1310,6 +1316,12 @@ function App() {
   ) : null;
 
 
+  useEffect(() => {
+    if (isReconnecting) {
+      reconnectCancelRef.current?.focus();
+    }
+  }, [isReconnecting]);
+
   return (
     <div id="app">
       {!(isAndroid && activeTab === "settings") && (
@@ -1348,6 +1360,7 @@ function App() {
                 type="button"
                 className="graph-collapse-btn"
                 onClick={handleToggleGraphCollapsed}
+                aria-expanded={!graphCollapsed}
                 aria-label={graphCollapsed ? "Expand graph" : "Collapse graph"}
               >
                 <Icon>{graphCollapsed ? "expand_more" : "expand_less"}</Icon>
@@ -1543,6 +1556,9 @@ function App() {
             if (e.key === "Tab") {
               e.preventDefault();
               reconnectCancelRef.current?.focus();
+            } else if (e.key === "Escape") {
+              e.preventDefault();
+              handleCancelReconnection();
             }
           }}
         >

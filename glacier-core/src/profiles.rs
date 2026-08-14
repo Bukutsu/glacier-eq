@@ -33,9 +33,14 @@ fn data_dir() -> Result<PathBuf, String> {
         .map(PathBuf::from)
         .map(|path| path.join("Library/Application Support").join(APP_ID));
     #[cfg(not(any(target_os = "windows", target_os = "macos")))]
-    let path = std::env::var_os("HOME")
+    let path = std::env::var_os("XDG_DATA_HOME")
         .map(PathBuf::from)
-        .map(|path| path.join(".local/share").join(APP_ID));
+        .map(|path| path.join(APP_ID))
+        .or_else(|| {
+            std::env::var_os("HOME")
+                .map(PathBuf::from)
+                .map(|path| path.join(".local/share").join(APP_ID))
+        });
     path.ok_or_else(|| "Cannot resolve Glacier EQ data directory; set GLACIER_EQ_HOME".into())
 }
 

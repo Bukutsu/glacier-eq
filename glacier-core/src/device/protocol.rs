@@ -343,15 +343,16 @@ impl WalkplayProtocol {
     }
 
     pub fn build_balance_write_packets(balance: i8) -> Vec<Vec<u8>> {
-        if balance <= 0 {
+        let b = (balance as i32).clamp(-15, 15);
+        if b <= 0 {
             vec![
-                vec![WRITE, CMD_BALANCE, 4, 1, 0, (-balance.abs()) as u8, 0],
+                vec![WRITE, CMD_BALANCE, 4, 1, 0, (-b.abs()) as u8, 0],
                 vec![WRITE, CMD_BALANCE, 4, 0, 0, 0, 0],
             ]
         } else {
             vec![
                 vec![WRITE, CMD_BALANCE, 4, 1, 0, 0, 0],
-                vec![WRITE, CMD_BALANCE, 4, 0, 0, (-balance) as u8, 0],
+                vec![WRITE, CMD_BALANCE, 4, 0, 0, (-b) as u8, 0],
             ]
         }
     }

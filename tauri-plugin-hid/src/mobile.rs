@@ -104,7 +104,7 @@ impl<R: Runtime> Hid<R> {
                 "write",
                 WriteArgs {
                     path: path.to_string(),
-                    data: data,
+                    data,
                 },
             )
             .map_err(Error::PluginInvoke)

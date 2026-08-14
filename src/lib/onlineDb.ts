@@ -55,10 +55,11 @@ async function clearCachedDatabase(): Promise<void> {
 
 async function downloadDatabase(
   onProgress: (percent: number) => void,
+  signal?: AbortSignal,
 ): Promise<number> {
   const [rawData, manifest] = await Promise.all([
-    fetchJson("https://raw.githubusercontent.com/PEQHUB/Squig-Rank/main/public/data/curves.json", onProgress),
-    fetchJson("https://raw.githubusercontent.com/PEQHUB/Squig-Rank/main/public/data/manifest.json"),
+    fetchJson("https://raw.githubusercontent.com/PEQHUB/Squig-Rank/main/public/data/curves.json", onProgress, signal),
+    fetchJson("https://raw.githubusercontent.com/PEQHUB/Squig-Rank/main/public/data/manifest.json", undefined, signal),
   ]);
 
   if (!rawData.meta || !rawData.curves) {
@@ -93,8 +94,12 @@ async function downloadDatabase(
   });
 }
 
-async function fetchJson(url: string, onProgress?: (percent: number) => void): Promise<any> {
-  const response = await fetch(url);
+async function fetchJson(
+  url: string,
+  onProgress?: (percent: number) => void,
+  signal?: AbortSignal,
+): Promise<any> {
+  const response = await fetch(url, { signal });
   if (!response.ok) {
     throw new Error(`Failed to fetch database: ${response.statusText}`);
   }
@@ -103,24 +108,22 @@ async function fetchJson(url: string, onProgress?: (percent: number) => void): P
   const totalBytes = contentLength ? parseInt(contentLength, 10) : 0;
   let loadedBytes = 0;
 
-  let text: string;
+  let text = "";
   const reader = response.body?.getReader?.();
   if (reader) {
-    const chunks: Uint8Array[] = [];
+    const decoder = new TextDecoder();
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
       if (value) {
-        chunks.push(value);
+        text += decoder.decode(value, { stream: true });
         loadedBytes += value.length;
         if (onProgress && totalBytes > 0) {
           onProgress(Math.min(0.99, loadedBytes / totalBytes));
         }
       }
     }
-
-    const blob = new Blob(chunks as BlobPart[]);
-    text = await blob.text();
+    text += decoder.decode();
   } else {
     // Android WebView/Tauri builds may not expose ReadableStream on fetch responses.
     // Fall back to reading the whole response so the online database still works.
@@ -183,22 +186,36 @@ export function useOnlineDatabase(
   const [loadingDevice, setLoadingDevice] = useState<string | null>(null);
 
   useEffect(() => {
-    isDatabaseDownloaded().then(setDownloaded);
+    let active = true;
+    isDatabaseDownloaded().then((res) => {
+      if (active) setDownloaded(res);
+    });
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
     if (!downloaded) return;
+    let active = true;
     setLoadingManifest(true);
     fetchManifest()
       .then((devices) => {
+        if (!active) return;
         setManifest(devices);
         setTotalCount(devices.length);
       })
       .catch((error) => {
+        if (!active) return;
         console.error("Failed to load online manifest:", error);
         setStatus?.(`Failed to load online search manifest: ${error}`);
       })
-      .finally(() => setLoadingManifest(false));
+      .finally(() => {
+        if (active) setLoadingManifest(false);
+      });
+    return () => {
+      active = false;
+    };
   }, [downloaded, setStatus]);
 
   const download = async () => {

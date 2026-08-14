@@ -55,10 +55,10 @@ export function DeviceChooser({
 
   return (
     <section className="device-card">
-      <ol className="device-setup-steps" aria-label="Connection steps">
-        <li><span>1</span>Plug in and power your DAC</li>
-        <li><span>2</span>Scan and approve access if asked</li>
-        <li><span>3</span>Select the DAC and connect</li>
+      <ol className="device-setup-steps" role="list" aria-label="Connection steps">
+        <li role="listitem"><span>1</span>Plug in and power your DAC</li>
+        <li role="listitem"><span>2</span>Scan and approve access if asked</li>
+        <li role="listitem"><span>3</span>Select the DAC and connect</li>
       </ol>
 
       {!isTauri() && !("hid" in navigator) && (
@@ -73,7 +73,7 @@ export function DeviceChooser({
           <span>Plug in one of the supported devices below, then scan again.</span>
         </div>
       ) : (
-        <div className="device-list">
+        <div className="device-list" role="radiogroup" aria-label="Available DACs">
           {devices.map((device) => {
             const name = device.profile_name || device.product_string || device.manufacturer || "Supported DAC";
             const selected = selectedDevice === device.path;
@@ -85,9 +85,11 @@ export function DeviceChooser({
             return (
               <button
                 key={device.path}
+                type="button"
+                role="radio"
                 className={selected ? "device-row selected" : "device-row"}
                 title="Click to select · Double-click to connect"
-                aria-pressed={selected}
+                aria-checked={selected}
                 onClick={() => setSelectedDevice(device.path)}
                 onDoubleClick={onConnect}
               >
@@ -149,7 +151,7 @@ export function DeviceChooser({
       <div className="device-actions">
         <button className="btn filled" onClick={onConnect} disabled={!selectedDevice || isBusy}>Connect</button>
       </div>
-      <span className="status-text">{authorizationError ?? status}</span>
+      <span className="status-text" role="status" aria-live="polite">{authorizationError ?? status}</span>
     </section>
   );
 }

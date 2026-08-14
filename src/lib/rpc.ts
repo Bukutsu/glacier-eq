@@ -774,16 +774,52 @@ export async function openFileDialog(options?: {
         .map((e) => "." + e)
         .join(",");
     }
-    input.onchange = async () => {
-      const file = input.files?.[0];
-      if (file) {
-        const text = await file.text();
-        resolve({ text, name: file.name });
-      } else {
-        resolve(null);
-      }
+
+    let settled = false;
+    const cleanup = () => {
+      window.removeEventListener("focus", handleWindowFocus);
       input.remove();
     };
+
+    const handleWindowFocus = () => {
+      // Browsers refocus window when file picker dialog is dismissed
+      setTimeout(() => {
+        if (!settled && (!input.files || input.files.length === 0)) {
+          settled = true;
+          cleanup();
+          resolve(null);
+        }
+      }, 300);
+    };
+
+    input.oncancel = () => {
+      if (!settled) {
+        settled = true;
+        cleanup();
+        resolve(null);
+      }
+    };
+
+    input.onchange = async () => {
+      if (settled) return;
+      settled = true;
+      const file = input.files?.[0];
+      if (file) {
+        try {
+          const text = await file.text();
+          cleanup();
+          resolve({ text, name: file.name });
+        } catch {
+          cleanup();
+          resolve(null);
+        }
+      } else {
+        cleanup();
+        resolve(null);
+      }
+    };
+
+    window.addEventListener("focus", handleWindowFocus, { once: true });
     input.style.position = "absolute";
     input.style.opacity = "0";
     input.style.pointerEvents = "none";

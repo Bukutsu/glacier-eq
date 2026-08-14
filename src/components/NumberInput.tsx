@@ -34,7 +34,7 @@ export function NumberInput({
 
   const commit = (raw: string) => {
     const parsed = Number.parseFloat(raw);
-    if (!Number.isNaN(parsed)) {
+    if (!Number.isNaN(parsed) && Number.isFinite(parsed)) {
       const clamped = Math.max(min, Math.min(max, parsed));
       onChange(Number(clamped.toFixed(precision)));
     }
@@ -42,7 +42,11 @@ export function NumberInput({
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     setDraft(e.target.value);
-    commit(e.target.value);
+    const parsed = Number.parseFloat(e.target.value);
+    // Only live-commit if the parsed number is fully within bounds without forced premature clamping
+    if (!Number.isNaN(parsed) && Number.isFinite(parsed) && parsed >= min && parsed <= max) {
+      onChange(Number(parsed.toFixed(precision)));
+    }
   };
 
   const handleBlur = () => {
@@ -55,6 +59,28 @@ export function NumberInput({
       if (draft !== null) commit(draft);
       setDraft(null);
       e.currentTarget.blur();
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      increment();
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      decrement();
+    } else if (e.key === "PageUp") {
+      e.preventDefault();
+      if (disabled) return;
+      onFocus?.();
+      setDraft(null);
+      const largeStep = step * 10;
+      const nextVal = Math.min(max, value + largeStep);
+      onChange(Number(nextVal.toFixed(precision)));
+    } else if (e.key === "PageDown") {
+      e.preventDefault();
+      if (disabled) return;
+      onFocus?.();
+      setDraft(null);
+      const largeStep = step * 10;
+      const nextVal = Math.max(min, value - largeStep);
+      onChange(Number(nextVal.toFixed(precision)));
     }
   };
 
@@ -90,6 +116,11 @@ export function NumberInput({
       <input
         id={id}
         type="text"
+        role="spinbutton"
+        aria-valuemin={min}
+        aria-valuemax={max}
+        aria-valuenow={Number.isFinite(value) ? value : min}
+        aria-valuetext={displayValue}
         inputMode={precision > 0 ? "decimal" : "numeric"}
         min={min}
         max={max}

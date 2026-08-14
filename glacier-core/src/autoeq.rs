@@ -238,9 +238,9 @@ struct ParsedFilterLine {
 }
 
 fn parse_filter_line(line: &str) -> Option<ParsedFilterLine> {
-    let lower = line.to_lowercase();
+    let lower = line.to_ascii_lowercase();
     let filter_idx = lower.find("filter")?;
-    let rest = &line[filter_idx + 6..];
+    let rest = &lower[filter_idx + 6..];
 
     let digits: String = rest
         .chars()
@@ -289,8 +289,8 @@ fn parse_filter_line(line: &str) -> Option<ParsedFilterLine> {
 }
 
 fn extract_number_after(s: &str, keyword: &str) -> Option<f64> {
-    let lower = s.to_lowercase();
-    let keyword_lower = keyword.to_lowercase();
+    let lower = s.to_ascii_lowercase();
+    let keyword_lower = keyword.to_ascii_lowercase();
     let mut search_start = 0;
     while let Some(pos) = lower[search_start..].find(&keyword_lower) {
         let actual_pos = search_start + pos;
@@ -303,7 +303,7 @@ fn extract_number_after(s: &str, keyword: &str) -> Option<f64> {
                 continue;
             }
         }
-        return extract_number(&s[actual_pos + keyword.len()..]);
+        return extract_number(&lower[actual_pos + keyword.len()..]);
     }
     None
 }
@@ -1125,8 +1125,7 @@ fn fit(
     }
 
     let mut g = vec![0.0; size];
-    let mut best = vec![0.0; size];
-    let mut best_loss = 1e9_f32;
+    let mut best = x.clone();
 
     let c = Consts {
         types,
@@ -1136,6 +1135,8 @@ fn fit(
         n_bands,
         opt_amp: amp.is_some(),
     };
+
+    let mut best_loss = grad(&c, &x, &mut g);
 
     let mut opt = AdaBelief::new(n_bands);
 
@@ -1161,7 +1162,7 @@ fn fit(
             }
         }
 
-        if loss < best_loss {
+        if loss.is_finite() && loss < best_loss {
             best_loss = loss;
             best.copy_from_slice(&x);
         }

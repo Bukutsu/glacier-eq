@@ -17,8 +17,10 @@
 .title-stack { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
 .title-line { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .github-link {
-  width: 28px;
-  height: 28px;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
   display: inline-flex;
   align-items: center;
   justify-content: center;

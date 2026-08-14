@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useRef, Fragment, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
-import { dbToY, filterResponseValues, formatFreq, freqToX, getFreqGrid, peqResponseValues, snapFreqToIso, xToFreq, yToDb } from "../lib/graph";
+import { dbToY, filterResponseValues, formatFreq, freqToX, getFreqGrid, peqResponseValues, snapFreqToIsoSync, xToFreq, yToDb } from "../lib/graph";
 import { cssVar, rgbWithAlpha } from "../lib/theme";
 import { interpolateMeasurementDb } from "../lib/measurements";
 import { filterColorVars } from "../lib/filterColors";
@@ -133,14 +133,19 @@ export const EqGraph = memo(function EqGraph({
       ? 1
       : Math.min(1, (performance.now() - fromTimeRef.current) / durationRef.current);
     displayPeqRef.current = lerpPeq(fromPeqRef.current, targetPeqRef.current, easeOutCubic(t));
-    void drawRef.current(displayPeqRef.current).then(() => {
-      if (token !== animationTokenRef.current) return;
-      if (t < 1) {
-        animRafRef.current = requestAnimationFrame(() => tick(token));
-      } else {
+    drawRef.current(displayPeqRef.current)
+      .then(() => {
+        if (token !== animationTokenRef.current) return;
+        if (t < 1) {
+          animRafRef.current = requestAnimationFrame(() => tick(token));
+        } else {
+          animatingRef.current = false;
+        }
+      })
+      .catch((err) => {
+        console.error("EqGraph canvas draw failed:", err);
         animatingRef.current = false;
-      }
-    });
+      });
   }, []);
 
   const beginAnim = useCallback((next: PEQData) => {
@@ -187,13 +192,13 @@ export const EqGraph = memo(function EqGraph({
     window.clearTimeout(wheelGestureTimerRef.current);
   }, []);
 
-  const updateFromPointer = async (event: PointerEvent<HTMLButtonElement>, index: number, filter: Filter) => {
+  const updateFromPointer = (event: PointerEvent<HTMLButtonElement>, index: number, filter: Filter) => {
     if (!event.currentTarget.hasPointerCapture(event.pointerId) || !capabilities || !onFilterChange) return;
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect?.width || !rect.height) return;
 
     const rawFreq = Math.round(xToFreq(event.clientX - rect.left, rect.width));
-    const snappedFreq = snapToIso ? await snapFreqToIso(rawFreq) : rawFreq;
+    const snappedFreq = snapToIso ? snapFreqToIsoSync(rawFreq) : rawFreq;
     const freq = Math.max(capabilities.freq_range[0], Math.min(capabilities.freq_range[1], snappedFreq));
     const gain = Number(Math.max(capabilities.band_gain_range[0], Math.min(capabilities.band_gain_range[1], yToDb(event.clientY - rect.top, rect.height))).toFixed(2));
     onFilterChange(index, { ...filter, freq, gain });
@@ -244,7 +249,7 @@ export const EqGraph = memo(function EqGraph({
     return () => shell.removeEventListener("wheel", handleWheel);
   }, []);
 
-  const updateFromKeyboard = async (event: KeyboardEvent<HTMLButtonElement>, index: number, filter: Filter) => {
+  const updateFromKeyboard = (event: KeyboardEvent<HTMLButtonElement>, index: number, filter: Filter) => {
     if (!capabilities || !onFilterChange || !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) return;
     event.preventDefault();
     onActiveBandChange?.(index);
@@ -254,7 +259,7 @@ export const EqGraph = memo(function EqGraph({
       const direction = event.key === "ArrowLeft" ? -1 : 1;
       const scaled = Math.round(filter.freq * 2 ** (direction / 48));
       const stepped = direction < 0 ? Math.min(scaled, filter.freq - 1) : Math.max(scaled, filter.freq + 1);
-      const snapped = snapToIso ? await snapFreqToIso(stepped) : stepped;
+      const snapped = snapToIso ? snapFreqToIsoSync(stepped) : stepped;
       const freq = Math.max(capabilities.freq_range[0], Math.min(capabilities.freq_range[1], snapped));
       onFilterChange(index, { ...filter, freq });
       return;
@@ -272,7 +277,9 @@ export const EqGraph = memo(function EqGraph({
         ref={canvasRef}
         role="img"
         aria-label="Equalizer frequency response graph displaying live parametric filter curves, measurements, and targets"
-      />
+      >
+        <p>Interactive frequency response graph displaying active parametric EQ filters and measurements.</p>
+      </canvas>
       {editable && capabilities && peq.filters.slice(0, capabilities.num_bands).map((filter) => {
         if (!filter.enabled) return null;
         const [color, rgb] = filterColorVars(filter.index);

@@ -52,6 +52,7 @@ export function Preamp({
         max={max}
         step={step}
         value={displayValue}
+        aria-valuetext={`${displayValue >= 0 ? "+" : ""}${displayValue.toFixed(precision)} dB`}
         onStartChange={onStartChange}
         onReset={resetValue === undefined ? undefined : () => handleValueChange(resetValue)}
         onChange={(event) => handleValueChange(+event.target.value)}

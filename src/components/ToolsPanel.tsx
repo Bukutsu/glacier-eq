@@ -710,7 +710,7 @@ function ImportTab({ peq, profiles, selectedPreset, onImportPEQ, onReloadProfile
       {parsed && (
         <Modal title="Import Profile" onClose={handleCancel}>
             <div className="modal-body">
-              <div className="import-mode-tabs">
+              <div className="import-mode-tabs" role="group" aria-label="Import destination mode">
                 <button
                   className={!isTemporary ? "active" : ""}
                   aria-pressed={!isTemporary}
@@ -995,7 +995,7 @@ export function AutoEqTab({
             <div className="autoeq-form-grid">
               <div className="import-field-group">
                 <label>Treble Smoothing</label>
-                <div className="smooth-buttons">
+                <div className="smooth-buttons" role="group" aria-label="Treble smoothing algorithm">
                   <button
                     className={smoothType === "None" ? "active" : ""}
                     aria-pressed={smoothType === "None"}
@@ -1053,7 +1053,7 @@ export function AutoEqTab({
           </Collapsible>
 
           <div className="autoeq-run-row">
-            <span className="autoeq-bands-label">Bands</span>
+            <label htmlFor="autoeq-bands" className="autoeq-bands-label">Bands</label>
             <NumberInput
               id="autoeq-bands"
               aria-label="Bands"
@@ -1182,7 +1182,7 @@ function SettingsTab({
           <>
             <div className="setting-row">
               <span className="setting-label">Graph View</span>
-              <div className="graph-view-toggle">
+              <div className="graph-view-toggle" role="group" aria-label="Graph view mode">
                 <button
                   className={graphViewMode === "shape" ? "active" : ""}
                   aria-pressed={graphViewMode === "shape"}
@@ -1239,25 +1239,26 @@ function DeviceTab({ setStatus, onPull }: { setStatus: (msg: string) => void; on
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const fetchState = async () => {
+  const fetchState = async (isActive = () => true) => {
     setLoading(true);
     setLoadError(null);
     try {
-      setUtility(await invoke<DeviceUtilityState>("get_dac_utility_state"));
+      const data = await invoke<DeviceUtilityState>("get_dac_utility_state");
+      if (isActive()) setUtility(data);
     } catch (err) {
-      setLoadError(`Couldn't load device status: ${err}`);
+      if (isActive()) setLoadError(`Couldn't load device status: ${err}`);
     } finally {
-      setLoading(false);
+      if (isActive()) setLoading(false);
     }
   };
 
   useEffect(() => {
     let active = true;
-    fetchState();
+    fetchState(() => active);
 
     let unlisten: (() => void) | null = null;
     listen<void>("device-pull", () => {
-      if (active) fetchState();
+      if (active) fetchState(() => active);
     }).then((unsub) => {
       if (active) {
         unlisten = unsub;
@@ -1374,7 +1375,7 @@ function DeviceTab({ setStatus, onPull }: { setStatus: (msg: string) => void; on
             <Icon>error</Icon>
             <strong>Couldn't load device status.</strong>
             <span>{loadError}</span>
-            <button className="btn" onClick={fetchState}>Retry</button>
+            <button className="btn" onClick={() => fetchState()}>Retry</button>
           </div>
         </section>
       </div>
@@ -1458,10 +1459,11 @@ function DeviceTab({ setStatus, onPull }: { setStatus: (msg: string) => void; on
             </span>
           </div>
           <Slider
-            min="-15"
-            max="15"
-            step="1"
+            min={-15}
+            max={15}
+            step={1}
             aria-label="Channel Balance"
+            aria-valuetext={utility.channel_balance === 0 ? "Center (0)" : utility.channel_balance > 0 ? `Left +${utility.channel_balance}` : `Right +${Math.abs(utility.channel_balance)}`}
             value={utility.channel_balance}
             onChange={(e) => handleSetBalance(Number(e.target.value))}
           />
@@ -1475,10 +1477,11 @@ function DeviceTab({ setStatus, onPull }: { setStatus: (msg: string) => void; on
             </span>
           </div>
           <Slider
-            min="-15"
-            max="15"
-            step="1"
+            min={-15}
+            max={15}
+            step={1}
             aria-label="Microphone Monitor Loopback"
+            aria-valuetext={`${utility.mic_volume_db} dB`}
             value={utility.mic_volume_db}
             onChange={(e) => handleSetMicVolume(Number(e.target.value))}
           />
@@ -1527,15 +1530,19 @@ export function DiagnosticsPanel() {
 
   // Load history + subscribe to live events
   useEffect(() => {
+    let active = true;
     invoke<DiagnosticEvent[]>("get_diagnostics")
-      .then((data) => setEvents(data))
+      .then((data) => {
+        if (active) setEvents(data);
+      })
       .catch((err) => console.error("Failed to load diagnostics:", err));
 
-    let active = true;
     let unlistenFn: (() => void) | null = null;
 
     listen<DiagnosticEvent>("diagnostic-event", (event) => {
-      setEvents((prev) => [...prev, event.payload].slice(-1000));
+      if (active) {
+        setEvents((prev) => [...prev, event.payload].slice(-1000));
+      }
     }).then((fn) => {
       if (active) {
         unlistenFn = fn;
@@ -1606,9 +1613,9 @@ export function DiagnosticsPanel() {
       <div className="diag-head">
         <strong>Diagnostics</strong>
         <div className="diag-counts">
-          <span className="diag-count-e" title="Errors">{errorCount}E</span>
-          <span className="diag-count-w" title="Warnings">{warnCount}W</span>
-          <span className="diag-count-i" title="Info">{infoCount}I</span>
+          <span className="diag-count-e" title="Errors" aria-label={`${errorCount} errors`}>{errorCount}E</span>
+          <span className="diag-count-w" title="Warnings" aria-label={`${warnCount} warnings`}>{warnCount}W</span>
+          <span className="diag-count-i" title="Info" aria-label={`${infoCount} info events`}>{infoCount}I</span>
         </div>
         <button title={copied ? "Copied!" : "Copy filtered logs to clipboard"} aria-label={copied ? "Copied" : "Copy filtered logs to clipboard"} onClick={copyToClipboard}>
           <Icon>{copied ? "check" : "content_copy"}</Icon>
@@ -1647,7 +1654,14 @@ export function DiagnosticsPanel() {
         </button>
       </div>
 
-      <div className="log-box" ref={logBoxRef}>
+      <div
+        className="log-box"
+        ref={logBoxRef}
+        tabIndex={0}
+        role="log"
+        aria-label="Diagnostics event log"
+        aria-live="polite"
+      >
         {filtered.length === 0 ? (
           <div className="diag-empty">
             {events.length === 0 ? "No logs yet." : "No matches for current filter."}
