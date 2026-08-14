@@ -236,7 +236,7 @@ impl<'a> DeviceSession<'a> {
             amp_mode_class_ab,
             high_gain_mode,
             mic_volume_db,
-            channel_balance: if left > 0 { left } else { -right },
+            channel_balance: if left > 0 { left } else { right.saturating_neg() },
         })
     }
 
@@ -519,7 +519,8 @@ fn decode_attenuation(raw: u8) -> i8 {
     if raw == 0 {
         0
     } else {
-        (256 - raw as u16) as i8
+        let val = 256i16 - (raw as i16);
+        val.clamp(-15, 15) as i8
     }
 }
 

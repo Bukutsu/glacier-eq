@@ -29,7 +29,7 @@ fn compute_biquad_coeffs_for(
     dsp_sample_rate: f64,
 ) -> (f64, f64, f64, f64, f64, f64) {
     if !dsp_sample_rate.is_finite()
-        || dsp_sample_rate <= 0.0
+        || dsp_sample_rate < 41.0
         || !frequency.is_finite()
         || !gain.is_finite()
         || !q.is_finite()
@@ -38,7 +38,7 @@ fn compute_biquad_coeffs_for(
     }
     let q = q.clamp(0.01, 100.0);
     // Clamp the frequency to at most 49% of the sample rate to prevent Nyquist boundary collapse
-    let max_safe_freq = 0.49 * dsp_sample_rate;
+    let max_safe_freq = (0.49 * dsp_sample_rate).max(20.0);
     let freq = frequency.clamp(20.0, max_safe_freq);
     let a_val = 10_f64.powf(gain / 40.0);
     let omega = (freq * TAU) / dsp_sample_rate;

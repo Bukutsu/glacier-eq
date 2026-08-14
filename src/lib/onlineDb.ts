@@ -139,7 +139,7 @@ async function fetchManifest(): Promise<OnlineDevice[]> {
   const store = db.transaction(STORE_NAME, "readonly").objectStore(STORE_NAME);
   const data = await idbRequest<any>(store.get("meta:manifest"));
 
-  if (!data.iems) {
+  if (!data?.iems) {
     throw new Error("Search manifest not cached. Please download the database.");
   }
 
