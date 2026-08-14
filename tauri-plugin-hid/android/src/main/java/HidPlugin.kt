@@ -317,8 +317,7 @@ class HidDevice(
         val ifaceId = usbInterface?.id ?: 0
         // HID SET_REPORT: bmRequestType=0x21 (host-to-device, class, interface)
         // bRequest=0x09 (SET_REPORT), wValue=0x0200 (report type OUTPUT, report ID 0) or with actual report ID
-        // Walkplay / Savitech uses Report ID 0x4B; devices with 0-report-ID use 0
-        val reportId = if (data.isNotEmpty() && data[0] == 0x4B.toByte()) 0x4B else 0
+        val reportId = if (data.isNotEmpty()) (data[0].toInt() and 0xFF) else 0
         val wValue = 0x0200 or reportId  // Output report type (0x02) | report ID
         
         Log.i(TAG, "write (controlTransfer): SET_REPORT reportId=0x${String.format("%02X", reportId)}, ifaceId=$ifaceId, dataSize=${data.size}")
@@ -647,22 +646,10 @@ class HidPlugin(private val activity: Activity): Plugin(activity) {
         }
         
         val path = args.path!!
-        val device = connectedDevices[path]
+        val device = connectedDevices.remove(path)
         if (device != null) {
-            when (device.closeConnection()) {
-                is HidResult.Error -> {
-                    invoke.reject("Failed to close device")
-                    return
-                }
-                is HidResult.Success -> {
-                    Log.i(TAG, "Device closed: $path")
-                }
-                else -> {
-                    invoke.reject("Unknown error")
-                    return
-                }
-            }
-            connectedDevices.remove(path)
+            device.closeConnection()
+            Log.i(TAG, "Device closed: $path")
             invoke.resolve()
         } else {
             invoke.reject("Device not open")
