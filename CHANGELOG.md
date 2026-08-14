@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.1] - 2026-08-14
+
+### Fixed
+
+- Refined design tokens across dark and light themes for translucent line rendering and consistent component contrast.
+- Fixed theme selection dropdown truncation across responsive viewports.
+- Enhanced contrast and hover states for sidebar tabs and navigation controls.
+
 ## [0.5.0] - 2026-07-21
 
 ### Added
@@ -45,5 +53,6 @@
 - Simplified device and platform integration.
 - Updated the project screenshot and release tooling.
 
+[0.5.1]: https://github.com/Bukutsu/glacier-eq/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/Bukutsu/glacier-eq/compare/v0.4.2...v0.5.0
 [0.4.2]: https://github.com/Bukutsu/glacier-eq/compare/v0.4.1...v0.4.2
