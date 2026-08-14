@@ -36,9 +36,7 @@ fn store(app: &tauri::AppHandle) -> Result<ProfileStore, String> {
 fn connected_match_target(
     state: &tauri::State<'_, Mutex<DeviceState>>,
 ) -> Result<(DeviceCapabilities, DeviceProtocol), String> {
-    let guard = state
-        .lock()
-        .map_err(|_| "Device state lock poisoned".to_string())?;
+    let guard = state.lock().unwrap_or_else(|p| p.into_inner());
     let Some(connected) = &guard.connected else {
         return Ok((DESKTOP_DAC_CAPS, DeviceProtocol::Walkplay));
     };

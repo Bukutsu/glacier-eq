@@ -82,8 +82,8 @@ fn parse_filter_response(data: &[u8]) -> Option<Filter> {
         index: data[6],
         enabled: true,
         freq,
-        gain: ((gain_raw as f64 / 10.0) * 10.0).round() / 10.0,
-        q: ((q_raw as f64 / 100.0) * 100.0).round() / 100.0,
+        gain: gain_raw as f64 / 10.0,
+        q: q_raw as f64 / 100.0,
         filter_type: filter_type_from_fiio(data[13]),
     })
 }
