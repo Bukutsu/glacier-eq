@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = "uk.redfern.tauri.plugin.hid"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         minSdk = 21

@@ -61,8 +61,6 @@ impl<R: Runtime> Hid<R> {
         // For compatibility with HIDAPI (where -1 means blocking read and 0 means return immediately)
         if timeout == 0 {
             timeout = 1; // 1ms is closest to HIDAPI's non-blocking read
-        } else if timeout < 0 {
-            timeout = 0; // Wait indefinitely
         }
 
         let result = self
@@ -81,30 +79,18 @@ impl<R: Runtime> Hid<R> {
     }
 
     pub fn write(&self, path: &str, data: &[u8]) -> crate::Result<()> {
-        // Convert unsigned bytes to signed bytes for Android.
-        // If the first byte (the HID Report ID) is 0, we strip it because devices
-        // without report IDs expect the raw payload directly on the wire.
-        // If the Report ID is non-zero, we KEEP it because the device's descriptors
-        // declare a Report ID, meaning the device expects the Report ID as the first
-        // byte of the packet on the wire. We truncate the total packet to 64 bytes
-        // to fit the endpoint's maxPacketSize.
-        let data: Vec<i8> = if !data.is_empty() {
-            if data[0] == 0 {
-                let len = data.len().min(65);
-                data[1..len].iter().map(|&byte| byte as i8).collect()
-            } else {
-                let len = data.len().min(64);
-                data[..len].iter().map(|&byte| byte as i8).collect()
-            }
-        } else {
-            Vec::new()
-        };
+        // HIDAPI includes the report ID as the first byte. Keep it separate so
+        // Android can put it in SET_REPORT's wValue and only prepend it to an
+        // interrupt packet when it is non-zero.
+        let (report_id, payload) = split_report(data);
+        let data = payload.iter().map(|&byte| byte as i8).collect();
 
         self.0
             .run_mobile_plugin(
                 "write",
                 WriteArgs {
                     path: path.to_string(),
+                    report_id,
                     data,
                 },
             )

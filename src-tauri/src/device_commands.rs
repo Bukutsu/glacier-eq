@@ -368,7 +368,7 @@ pub fn disconnect_device(
     state: tauri::State<'_, Mutex<DeviceState>>,
 ) -> Result<(), String> {
     if let Some(device) = lock_device_state(&state)?.connected.take() {
-        hid_close(&app, &device.path)?;
+        let _ = hid_close(&app, &device.path);
     }
     Ok(())
 }

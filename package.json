@@ -12,7 +12,7 @@
     "build": "tsc && vite build",
     "test": "vitest run",
     "tauri": "tauri",
-    "android:doctor": "tauri doctor",
+    "android:doctor": "tauri info",
     "android:init": "tauri android init --ci",
     "android:dev": "tauri android dev",
     "android:run": "tauri android run",

@@ -524,6 +524,7 @@ function App() {
 
     addListener<string>("device-disconnected", (event) => {
       if (isDevDummyDevice(selectedDeviceRef.current)) return;
+      invoke("disconnect_device").catch(() => {});
       setConnected(false);
       setIsReconnecting(true);
       setLastPushedPeq(null);
