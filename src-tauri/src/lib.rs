@@ -49,6 +49,7 @@ fn allowed_bases(app: &tauri::AppHandle) -> Vec<PathBuf> {
             bases.push(downloads);
         }
     }
+    #[cfg(not(mobile))]
     if let Ok(desktop) = app.path().desktop_dir() {
         if let Ok(canon) = std::fs::canonicalize(&desktop) {
             bases.push(canon);
