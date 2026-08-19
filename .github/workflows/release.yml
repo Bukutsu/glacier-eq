@@ -308,7 +308,14 @@ jobs:
           [[ "$RELEASE_TAG" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]
           apk=$(find src-tauri/gen/android/app/build/outputs/apk -name '*.apk' -print -quit 2>/dev/null)
           if [ -z "${apk:-}" ]; then echo "No APK found"; exit 1; fi
-          apksigner verify --verbose "$apk"
+          apksigner_path=$(command -v apksigner || true)
+          if [ -z "$apksigner_path" ]; then
+            apksigner_path=$(find "$ANDROID_HOME/build-tools" -type f -name apksigner -print 2>/dev/null | sort -V | tail -1)
+          fi
+          if [ -z "$apksigner_path" ] || [ ! -x "$apksigner_path" ]; then
+            echo "No apksigner found"; exit 1
+          fi
+          "$apksigner_path" verify --verbose "$apk"
           version="$RELEASE_TAG"
           version="${version#v}"
           cp "$apk" "glacier-eq_v${version}_android-arm64.apk"
