@@ -3,6 +3,7 @@
 
 use crate::device::protocol::{EqProtocol, Packet};
 use crate::device::timing::WriteTiming;
+use crate::eq::filter::DEFAULT_FREQS_10_BAND;
 use crate::eq::{Filter, FilterType, PEQData};
 
 const SET_1: u8 = 0xAA;
@@ -74,17 +75,44 @@ fn parse_filter_response(data: &[u8]) -> Option<Filter> {
         return None;
     }
 
+    let index = data[6];
     let gain_raw = i16::from_be_bytes([data[7], data[8]]);
-    let freq = u16::from_be_bytes([data[9], data[10]]);
-    let q_raw = u16::from_be_bytes([data[11], data[12]]);
+    let raw_freq = u16::from_be_bytes([data[9], data[10]]);
+    let raw_q = u16::from_be_bytes([data[11], data[12]]);
+    let q = raw_q as f64 / 100.0;
+    let invalid = raw_freq == 0
+        || raw_freq == u16::MAX
+        || raw_freq > 20000
+        || raw_q == u16::MAX
+        || !(q > 0.0 && q <= 10.0);
+    let (freq, gain, q, filter_type, enabled) = if invalid {
+        (
+            DEFAULT_FREQS_10_BAND
+                .get(index as usize)
+                .copied()
+                .unwrap_or(1000),
+            0.0,
+            1.0,
+            FilterType::Peak,
+            false,
+        )
+    } else {
+        (
+            raw_freq,
+            gain_raw as f64 / 10.0,
+            q,
+            filter_type_from_fiio(data[13]),
+            gain_raw != 0,
+        )
+    };
 
     Some(Filter {
-        index: data[6],
-        enabled: gain_raw != 0,
+        index,
+        enabled,
         freq,
-        gain: gain_raw as f64 / 10.0,
-        q: q_raw as f64 / 100.0,
-        filter_type: filter_type_from_fiio(data[13]),
+        gain,
+        q,
+        filter_type,
     })
 }
 
@@ -251,6 +279,24 @@ mod tests {
         assert_eq!(filter.freq, 1000);
         assert_eq!(filter.q, 1.0);
         assert_eq!(filter.filter_type, FilterType::LowShelf);
+    }
+
+    #[test]
+    fn parses_invalid_filter_response_as_safe_default() {
+        let mut data = [0u8; 14];
+        data[4] = FILTER_PARAMS;
+        data[6] = 3;
+        data[9..11].copy_from_slice(&u16::MAX.to_be_bytes());
+        data[11..13].copy_from_slice(&u16::MAX.to_be_bytes());
+
+        let filter = JA11_PROTOCOL.parse_filter_response(&data).unwrap();
+
+        assert_eq!(filter.index, 3);
+        assert_eq!(filter.freq, 250);
+        assert_eq!(filter.gain, 0.0);
+        assert_eq!(filter.q, 1.0);
+        assert_eq!(filter.filter_type, FilterType::Peak);
+        assert!(!filter.enabled);
     }
 
     #[test]
