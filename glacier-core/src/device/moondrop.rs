@@ -3,7 +3,7 @@
 
 use crate::device::protocol::{EqProtocol, Packet};
 use crate::device::timing::WriteTiming;
-use crate::device::walkplay::{compute_iir_filter, identity_iir_filter};
+use crate::device::walkplay::compute_iir_filter;
 use crate::eq::filter::DEFAULT_FREQS_10_BAND;
 use crate::eq::{Filter, FilterType, PEQData};
 
@@ -34,24 +34,30 @@ impl EqProtocol for MoondropProtocol {
         if data.len() < 34 {
             return None;
         }
-        let mut freq = u16::from_le_bytes([data[27], data[28]]);
+        let raw_freq = u16::from_le_bytes([data[27], data[28]]);
         let q_raw = u16::from_le_bytes([data[29], data[30]]);
         let gain_raw = i16::from_le_bytes([data[31], data[32]]);
-        let enabled = freq != 0 && gain_raw != 0;
-        let mut q = ((q_raw as f64 / 256.0) * 100.0).round() / 100.0;
-        let mut gain = ((gain_raw as f64 / 256.0) * 10.0).round() / 10.0;
-        let mut filter_type = match data[33] {
-            1 => FilterType::LowShelf,
-            3 => FilterType::HighShelf,
-            _ => FilterType::Peak,
+        let raw_q = q_raw as f64 / 256.0;
+        let invalid = raw_freq == 0
+            || raw_freq == u16::MAX
+            || raw_freq > 20000
+            || q_raw == u16::MAX
+            || !(raw_q > 0.0 && raw_q <= 10.0);
+        let enabled = !invalid && gain_raw != 0;
+        let (freq, q, gain, filter_type) = if invalid {
+            (default_freq(data[4]), 0.75, 0.0, FilterType::Peak)
+        } else {
+            (
+                raw_freq,
+                (raw_q * 100.0).round() / 100.0,
+                ((gain_raw as f64 / 256.0) * 10.0).round() / 10.0,
+                match data[33] {
+                    1 => FilterType::LowShelf,
+                    3 => FilterType::HighShelf,
+                    _ => FilterType::Peak,
+                },
+            )
         };
-
-        if freq == 0 || q <= 0.0 {
-            freq = default_freq(data[4]);
-            q = 0.75;
-            gain = 0.0;
-            filter_type = FilterType::Peak;
-        }
 
         Some(Filter {
             index: data[4],
@@ -84,17 +90,13 @@ impl EqProtocol for MoondropProtocol {
         _global_gain: f64,
     ) -> Result<Vec<Packet>, String> {
         let gain = if filter.enabled { filter.gain } else { 0.0 };
-        let coeffs = if filter.enabled {
-            compute_iir_filter(
-                filter.filter_type,
-                filter.freq as f64,
-                gain,
-                filter.q,
-                dsp_sample_rate,
-            )
-        } else {
-            identity_iir_filter()
-        };
+        let coeffs = compute_iir_filter(
+            filter.filter_type,
+            filter.freq as f64,
+            gain,
+            filter.q,
+            dsp_sample_rate,
+        );
         let mut payload = vec![0; 63];
         payload[0] = 0x01;
         payload[1] = 0x09;
@@ -168,6 +170,53 @@ mod tests {
         assert_eq!(filter.gain, -1.5);
         assert_eq!(filter.q, 1.0);
         assert_eq!(filter.filter_type, FilterType::HighShelf);
+    }
+
+    #[test]
+    fn parses_invalid_filter_response_as_safe_default() {
+        let mut data = vec![0u8; 63];
+        data[0] = 0x80;
+        data[1] = 0x09;
+        data[4] = 2;
+        data[27..29].copy_from_slice(&u16::MAX.to_le_bytes());
+        data[29..31].copy_from_slice(&u16::MAX.to_le_bytes());
+        data[31..33].copy_from_slice(&256i16.to_le_bytes());
+        data[33] = 3;
+
+        let filter = MoondropProtocol.parse_filter_response(&data).unwrap();
+
+        assert_eq!(filter.index, 2);
+        assert_eq!(filter.freq, 125);
+        assert_eq!(filter.gain, 0.0);
+        assert_eq!(filter.q, 0.75);
+        assert_eq!(filter.filter_type, FilterType::Peak);
+        assert!(!filter.enabled);
+    }
+
+    #[test]
+    fn disabled_filter_writes_zero_gain_coefficients() {
+        let filter = Filter {
+            index: 0,
+            enabled: false,
+            freq: 1000,
+            gain: 6.0,
+            q: 1.0,
+            filter_type: FilterType::Peak,
+        };
+
+        let packet = MoondropProtocol
+            .write_filter_packets(0, &filter, 48000.0, 0.0)
+            .unwrap()
+            .remove(0);
+
+        assert_eq!(
+            &packet.payload[7..27],
+            &compute_iir_filter(FilterType::Peak, 1000.0, 0.0, 1.0, 48000.0)
+        );
+        assert_eq!(
+            i16::from_le_bytes([packet.payload[31], packet.payload[32]]),
+            0
+        );
     }
 
     #[test]
