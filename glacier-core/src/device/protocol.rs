@@ -6,7 +6,7 @@
 use crate::device::profile::DeviceProtocol;
 use crate::device::timing::WriteTiming;
 use crate::device::walkplay::{
-    compute_iir_filter, convert_to_2byte_array, identity_iir_filter, parse_filter_packet,
+    compute_iir_filter, convert_to_2byte_array, parse_filter_packet,
     CMD_AMP_MODE, CMD_BALANCE, CMD_FACTORY_RESET, CMD_FILTER_MODE, CMD_FLASH_EQ, CMD_GAIN_MODE,
     CMD_GLOBAL_GAIN, CMD_MIC_VOLUME, CMD_PEQ_VALUES, CMD_TEMP_WRITE, CMD_VERSION,
     CONST_GLOBAL_GAIN_LEN, CONST_PEQ_PAYLOAD_LEN, CONST_TEMP_WRITE_LEN, CONST_TEMP_WRITE_MAGIC_A,
@@ -216,19 +216,17 @@ impl WalkplayProtocol {
         dsp_sample_rate: f64,
         global_gain: f64,
     ) -> Vec<u8> {
-        let freq = if filter.enabled { filter.freq } else { 0 };
+        // Savitech has no per-band enable field. WalkPlay bypasses a band by
+        // writing zero gain while keeping its frequency/Q/type metadata intact.
+        let freq = filter.freq;
         let gain = if filter.enabled { filter.gain } else { 0.0 };
-        let b_arr = if filter.enabled {
-            compute_iir_filter(
-                filter.filter_type,
-                freq as f64,
-                gain,
-                filter.q,
-                dsp_sample_rate,
-            )
-        } else {
-            identity_iir_filter()
-        };
+        let b_arr = compute_iir_filter(
+            filter.filter_type,
+            freq as f64,
+            gain,
+            filter.q,
+            dsp_sample_rate,
+        );
         let filter_type_byte: u8 = filter.filter_type.into();
         // Global gain is embedded as an unsigned byte in every filter packet,
         // matching the Walkplay/Savitech wire format (byte 34 of the payload).
