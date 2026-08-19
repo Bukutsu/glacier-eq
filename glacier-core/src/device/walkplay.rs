@@ -3,6 +3,7 @@
 
 use crate::device::capabilities::DeviceCapabilities;
 use crate::device::profile::{DeviceProfile, DeviceProtocol};
+use crate::eq::filter::DEFAULT_FREQS_10_BAND;
 use crate::eq::iir_math::compute_biquad_coeffs;
 use crate::eq::{Filter, FilterType};
 
@@ -194,18 +195,40 @@ pub fn parse_filter_packet(packet: &[u8]) -> Option<Filter> {
     }
 
     let filter_index = packet[OFFSET_INDEX];
-    let freq = u16::from_le_bytes([packet[OFFSET_FREQ_L], packet[OFFSET_FREQ_H]]);
-    let q_raw = u16::from_le_bytes([packet[OFFSET_Q_L], packet[OFFSET_Q_H]]);
-    let gain_from_device = i16::from_le_bytes([packet[OFFSET_GAIN_L], packet[OFFSET_GAIN_H]]);
+    let raw_freq = u16::from_le_bytes([packet[OFFSET_FREQ_L], packet[OFFSET_FREQ_H]]);
+    let raw_q = u16::from_le_bytes([packet[OFFSET_Q_L], packet[OFFSET_Q_H]]);
+    let raw_gain = i16::from_le_bytes([packet[OFFSET_GAIN_L], packet[OFFSET_GAIN_H]]);
+    let q = raw_q as f64 / 256.0;
 
-    let q = (((q_raw as f64) / 256.0 * 100.0).round() / 100.0).max(0.01);
-    let gain = ((gain_from_device as f64) / 256.0 * 100.0).round() / 100.0;
-    let filter_type = FilterType::from(packet[OFFSET_FILTER_TYPE]);
-    let enabled = !(freq == 0 && gain_from_device == 0);
+    // WalkPlay can return erased/uninitialized PEQ slots as zeroes or 0xffff.
+    // Do not let those values enter the next push or verification cycle.
+    let invalid = raw_freq == 0
+        || raw_freq == u16::MAX
+        || raw_freq > 24000
+        || raw_q == u16::MAX
+        || !(q > 0.0 && q <= 100.0);
+    let (freq, q, gain, filter_type) = if invalid {
+        (
+            DEFAULT_FREQS_10_BAND
+                .get(filter_index as usize)
+                .copied()
+                .unwrap_or(1000),
+            0.75,
+            0.0,
+            FilterType::Peak,
+        )
+    } else {
+        (
+            raw_freq,
+            (q * 100.0).round() / 100.0,
+            ((raw_gain as f64) / 256.0 * 100.0).round() / 100.0,
+            FilterType::from(packet[OFFSET_FILTER_TYPE]),
+        )
+    };
 
     Some(Filter {
         index: filter_index,
-        enabled,
+        enabled: true,
         freq,
         gain,
         q,
@@ -474,6 +497,35 @@ mod tests {
     #[test]
     fn parse_filter_response_too_short() {
         assert!(WalkplayProtocol::parse_filter_response(&[0u8; 10]).is_none());
+    }
+
+    #[test]
+    fn parse_invalid_filter_packet_restores_defaults() {
+        let mut data = vec![0u8; FILTER_RESPONSE_MIN_LEN];
+        data[OFFSET_INDEX] = 3;
+
+        let filter = parse_filter_packet(&data).expect("invalid slots still produce a safe filter");
+        assert_eq!(filter.index, 3);
+        assert_eq!(filter.freq, 250);
+        assert_eq!(filter.q, 0.75);
+        assert_eq!(filter.gain, 0.0);
+        assert_eq!(filter.filter_type, FilterType::Peak);
+        assert!(filter.enabled);
+    }
+
+    #[test]
+    fn parse_sentinel_filter_packet_restores_defaults() {
+        let mut data = vec![0u8; FILTER_RESPONSE_MIN_LEN];
+        data[OFFSET_INDEX] = 5;
+        data[27..29].copy_from_slice(&u16::MAX.to_le_bytes());
+        data[29..31].copy_from_slice(&u16::MAX.to_le_bytes());
+
+        let filter =
+            parse_filter_packet(&data).expect("sentinel slots still produce a safe filter");
+        assert_eq!(filter.freq, 1000);
+        assert_eq!(filter.q, 0.75);
+        assert_eq!(filter.gain, 0.0);
+        assert_eq!(filter.filter_type, FilterType::Peak);
     }
 
     #[test]
