@@ -84,7 +84,7 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Require release signing credentials
+      - name: Check release signing credentials
         if: startsWith(matrix.os, 'macos') || startsWith(matrix.os, 'windows')
         shell: bash
         env:
@@ -96,9 +96,15 @@ jobs:
         run: |
           set -euo pipefail
           if [[ "$RUNNER_OS" == "macOS" ]]; then
-            [[ -n "$APPLE_CERTIFICATE" && -n "$APPLE_CERTIFICATE_PASSWORD" && -n "$APPLE_SIGNING_IDENTITY" ]]
+            if [[ -n "$APPLE_CERTIFICATE" && -n "$APPLE_CERTIFICATE_PASSWORD" && -n "$APPLE_SIGNING_IDENTITY" ]]; then
+              echo "✅ macOS signing credentials found."
+            else
+              echo "::warning::Apple signing credentials are unavailable; building unsigned macOS artifacts."
+            fi
+          elif [[ -n "$WINDOWS_CERTIFICATE" && -n "$WINDOWS_CERTIFICATE_PASSWORD" ]]; then
+            echo "✅ Windows signing credentials found."
           else
-            [[ -n "$WINDOWS_CERTIFICATE" && -n "$WINDOWS_CERTIFICATE_PASSWORD" ]]
+            echo "::warning::Windows signing credentials are unavailable; building unsigned Windows artifacts."
           fi
 
       - name: Build app
