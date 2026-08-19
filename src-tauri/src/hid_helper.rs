@@ -127,8 +127,10 @@ impl ElevatedTransport {
     }
 
     pub fn close(&mut self, path: &str) -> Result<(), String> {
-        let _ = self.round_trip(IpcPayload::Close { path: path.into() });
-        Ok(())
+        match self.round_trip(IpcPayload::Close { path: path.into() })? {
+            IpcResult::Ok(_) => Ok(()),
+            IpcResult::Err(error) => Err(error),
+        }
     }
 
     pub fn write(&mut self, path: &str, data: &[u8]) -> Result<(), String> {
@@ -159,7 +161,7 @@ impl ElevatedTransport {
 
 impl Drop for ElevatedTransport {
     fn drop(&mut self) {
-        let _ = self.round_trip(IpcPayload::Shutdown);
+        let _ = self.child.kill();
         let _ = self.child.wait();
     }
 }

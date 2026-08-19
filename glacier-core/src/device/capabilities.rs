@@ -35,6 +35,7 @@ pub struct EditorCapabilities {
     pub supported_filter_types: Vec<String>,
     pub supports_per_band_enable: bool,
     pub supports_ram_apply: bool,
+    pub dsp_sample_rate: f64,
     pub integer_preamp: bool,
 }
 
@@ -53,6 +54,7 @@ impl From<&DeviceCapabilities> for EditorCapabilities {
                 .collect(),
             supports_per_band_enable: caps.supports_per_band_enable,
             supports_ram_apply: caps.supports_ram_apply,
+            dsp_sample_rate: caps.dsp_sample_rate,
             integer_preamp: caps.integer_preamp,
         }
     }

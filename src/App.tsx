@@ -49,6 +49,7 @@ const OFFLINE_EDITOR_CAPABILITIES: DeviceCapabilities = {
   supported_filter_types: ["Peak", "HighShelf", "LowShelf", "HighPass", "LowPass"],
   supports_per_band_enable: true,
   supports_ram_apply: false,
+  dsp_sample_rate: 96000,
   integer_preamp: false,
 };
 const DEFAULT_SETTINGS: AppSettings = {
@@ -112,18 +113,14 @@ function App() {
   ) => {
     setSettings((previous) => {
       const updated = { ...previous, [key]: value };
-      if (isTauri()) {
-        invoke("save_settings", { settings: updated }).catch((err) => {
-          console.error("Failed to save settings:", err);
-        });
-      }
+      invoke("save_settings", { settings: updated }).catch((err) => {
+        console.error("Failed to save settings:", err);
+      });
       return updated;
     });
   }, []);
 
   useEffect(() => {
-    if (!isTauri()) return;
-
     invoke<AppSettings>("get_settings")
       .then((settings) => {
         setSettings({ ...DEFAULT_SETTINGS, ...settings });
@@ -497,6 +494,7 @@ function App() {
         return;
       }
       try {
+        if (file.size > 1_048_576) throw new Error("File exceeds the 1 MiB limit");
         const text = await file.text();
         const result = await invoke<{ peq: PEQData; headphone_name: string | null; warnings: string[] }>("parse_autoeq", { text });
         const name = result.headphone_name || file.name.replace(/\.[^/.]+$/, "");
@@ -565,10 +563,14 @@ function App() {
     const unlistenFns: (() => void)[] = [];
 
     const addListener = <T,>(event: string, callback: (event: { payload: T }) => void) => {
-      listen<T>(event, callback).then((fn) => {
-        if (active) unlistenFns.push(fn);
-        else try { fn(); } catch {}
-      });
+      listen<T>(event, callback)
+        .then((fn) => {
+          if (active) unlistenFns.push(fn);
+          else try { fn(); } catch {}
+        })
+        .catch((error) => {
+          if (active) console.error(`Failed to listen for ${event}:`, error);
+        });
     };
 
     addListener<OperationProgress>("operation-progress", (event) => {
@@ -648,6 +650,9 @@ function App() {
         if (isDevDummyDevice(selectedDevice)) return;
         const devices = await invoke<DeviceInfo[]>("list_devices");
         if (!devices.some((device) => device.path === selectedDevice)) {
+          await invoke("disconnect_device").catch((error) => {
+            console.error("Failed to close disconnected device:", error);
+          });
           setConnected(false);
           setIsReconnecting(true);
           setLastPushedPeq(null);
@@ -1403,6 +1408,7 @@ function App() {
     onSettingChange: updateSetting,
     onOpenDiagnostics: handleOpenDiagnosticsModal,
     isSimulated: isDevDummyDevice(selectedDevice),
+    dspSampleRate: capabilities.dsp_sample_rate,
   };
   // One graph element for all four render sites; the editor props (drag/
   // wheel/keyboard editing) are only attached where the graph is editable.
@@ -1659,6 +1665,7 @@ function App() {
           <ToolsPanel
             peq={peq}
             maxBands={maxFilterBands}
+            dspSampleRate={capabilities.dsp_sample_rate}
             onImportPEQ={importPeq}
             onPull={pullEq}
             dirty={dirty}

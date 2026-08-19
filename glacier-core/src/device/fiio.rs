@@ -80,7 +80,7 @@ fn parse_filter_response(data: &[u8]) -> Option<Filter> {
 
     Some(Filter {
         index: data[6],
-        enabled: true,
+        enabled: gain_raw != 0,
         freq,
         gain: gain_raw as f64 / 10.0,
         q: q_raw as f64 / 100.0,
@@ -89,7 +89,11 @@ fn parse_filter_response(data: &[u8]) -> Option<Filter> {
 }
 
 fn write_filter_packet(report_id: u8, index: u8, filter: &Filter) -> Packet {
-    let gain = (filter.gain * 10.0).round() as i16;
+    let gain = if filter.enabled {
+        (filter.gain * 10.0).round() as i16
+    } else {
+        0
+    };
     let [gain_h, gain_l] = gain.to_be_bytes();
     let [freq_h, freq_l] = filter.freq.to_be_bytes();
     let q = (filter.q * 100.0).round() as u16;
@@ -207,7 +211,9 @@ impl EqProtocol for FiioProtocol {
     }
 
     fn ram_apply_packets(&self) -> Vec<Packet> {
-        self.commit_packets()
+        // Filter writes take effect immediately; the save packet would persist
+        // the change, which RAM apply must avoid.
+        vec![]
     }
 
     fn report_id(&self) -> u8 {

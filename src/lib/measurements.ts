@@ -33,6 +33,9 @@ function makeUniqueName(baseName: string, existingNames: string[], fallback: str
 }
 
 export function parseMeasurementText(text: string): MeasurementPoint[] {
+  if (text.length > 1_048_576 || text.split(/\r?\n/).length > 4096) {
+    throw new Error("Measurement input exceeds maximum size");
+  }
   const points: MeasurementPoint[] = [];
 
   for (const rawLine of text.split(/\r?\n/)) {
@@ -63,6 +66,9 @@ export function parseMeasurementText(text: string): MeasurementPoint[] {
     points.push({ freq, db });
   }
 
+  if (points.length > 100_000) {
+    throw new Error("Measurement input exceeds maximum point count.");
+  }
   if (points.length < 2) {
     throw new Error("Need at least 2 valid frequency,dB points.");
   }

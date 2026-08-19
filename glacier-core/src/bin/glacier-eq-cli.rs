@@ -320,15 +320,29 @@ fn require_confirmation(command: &Command) -> Result<(), String> {
     }
 }
 
+const MAX_TEXT_BYTES: u64 = 1 << 20;
+
 fn read_text(path: &str) -> Result<String, String> {
     let mut text = String::new();
     if path == "-" {
         std::io::stdin()
+            .take(MAX_TEXT_BYTES + 1)
             .read_to_string(&mut text)
             .map_err(|error| format!("failed to read stdin: {error}"))?;
     } else {
+        let metadata =
+            std::fs::metadata(path).map_err(|error| format!("failed to stat {path}: {error}"))?;
+        if metadata.len() > MAX_TEXT_BYTES {
+            return Err(format!(
+                "input file exceeds {} MiB",
+                MAX_TEXT_BYTES / (1 << 20)
+            ));
+        }
         text = std::fs::read_to_string(path)
             .map_err(|error| format!("failed to read {path}: {error}"))?;
+    }
+    if text.len() as u64 > MAX_TEXT_BYTES {
+        return Err("input exceeds 1 MiB".into());
     }
     Ok(text)
 }

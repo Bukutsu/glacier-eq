@@ -65,10 +65,7 @@ export function useTraces(notify?: (message: string) => void) {
   const [activeTargetIds, setActiveTargetIds] = useState<string[]>([]);
   const [selectedMeasurementId, setSelectedMeasurementId] = useState<string | null>(null);
 
-  const allTargets = useMemo(
-    () => [...userTargets],
-    [userTargets],
-  );
+  const allTargets = userTargets;
 
   const activeTargets = useMemo(
     () => allTargets.filter((target) => activeTargetIds.includes(target.id)),

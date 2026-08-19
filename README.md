@@ -8,8 +8,7 @@
   <a href="https://github.com/Bukutsu/glacier-eq/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-GPLv3-blue.svg" alt="License"></a>
 </div>
 
-Glacier EQ is a cross-platform parametric EQ editor for compatible USB DACs.
-It talks to the hardware over HID, stores edits locally, and works offline.
+Glacier EQ is a parametric EQ editor for USB DACs. It talks to supported hardware over HID, keeps edits on your device, and works without an internet connection.
 
 Use the web version at [bukutsu.github.io/glacier-eq](https://bukutsu.github.io/glacier-eq/).
 
@@ -17,14 +16,14 @@ Use the web version at [bukutsu.github.io/glacier-eq](https://bukutsu.github.io/
 
 ## Features
 
-- 10-band PEQ editor with preamp, undo and redo, graph preview, and target curves
-- Pull, RAM apply, push, verify, and rollback operations for supported DACs
-- Local profiles with search, import and export, copy and paste, and one-tap apply
+- A 10-band PEQ editor with preamp, undo and redo, graph previews, and target curves
+- Pull, RAM apply, push, verification, and rollback for supported DACs
+- Local profiles with search, import/export, copy/paste, and quick apply
 - Measurement overlays from local files or an optional offline Squiglink cache
-- Native AutoEQ matching against measurement and target curves
-- EQ protocol support for Walkplay/Savitech, Moondrop, and FiiO devices
-- Hardware controls for supported Walkplay/Savitech DACs, including DAC filter, amp mode, output gain, balance, mic monitor, and reset modes
-- Desktop and Android layouts, themes, diagnostics, and a dummy DAC for development
+- AutoEQ matching for measurement and target curves
+- Walkplay/Savitech, Moondrop, and FiiO protocol support
+- Hardware controls for supported Walkplay/Savitech DACs: DAC filter, amp mode, output gain, balance, mic monitor, and reset
+- Desktop and Android layouts, themes, diagnostics, and a development dummy DAC
 
 ## Installation
 
@@ -39,8 +38,8 @@ makepkg -si
 ```
 
 The Arch package installs `udev/99-glacier-eq.rules`. Replug the DAC after
-installation so the Linux desktop build can open it without a polkit elevation
-prompt.
+installation. The desktop build should then open it without asking polkit for
+elevation.
 
 To run from source:
 
@@ -70,9 +69,9 @@ commands and examples.
 
 ## Supported devices
 
-If your DAC is listed below, plug it in and check the device picker. A `Family
-match` means its USB family appears compatible, but the exact model still needs
-more hardware reports.
+If your DAC is listed below, plug it in and check the device picker. `Family
+match` means the USB family looks compatible; the exact model still needs more
+hardware testing.
 
 | Status | Device |
 | --- | --- |
@@ -117,7 +116,7 @@ sudo pacman -S --needed base-devel curl wget file openssl gtk3 webkit2gtk-4.1 li
 sudo dnf install @development-tools webkit2gtk4.1-devel openssl-devel curl wget file libappindicator-gtk3-devel librsvg2-devel gtk3-devel pkgconf-pkg-config
 ```
 
-### Useful commands:
+### Useful commands
 
 ```sh
 npm run wasm:build       # build WASM module (glacier-core)
@@ -128,7 +127,7 @@ cargo check              # Rust workspace
 cargo test -p glacier-core
 ```
 
-To enable the optional local check before pushing:
+To run the optional local check before pushing:
 
 ```sh
 git config core.hooksPath .githooks
@@ -149,7 +148,7 @@ SDK, and NDK r26 or newer. `tauri android init` auto-detects them from
 system `java` is too new, point Gradle at a compatible JDK via
 `org.gradle.java.home` in `~/.gradle/gradle.properties`.
 
-Release APK signing is not configured by default.
+Release APK signing requires the release credentials configured in CI.
 
 ## Roadmap
 
@@ -165,9 +164,8 @@ Release APK signing is not configured by default.
 
 ## Linux HID permissions
 
-On Linux, Chromium-based browsers and the desktop build may need udev access to
-raw USB HID devices. The packaged `udev/99-glacier-eq.rules` lets the desktop
-build open supported devices without a polkit elevation prompt. If the browser
+Chromium and the desktop build need udev access to raw USB HID devices on Linux.
+The packaged `udev/99-glacier-eq.rules` handles the desktop build. If the browser
 shows `NotAllowedError: Failed to open the device` while connecting:
 
 1. Create a udev rule file:
@@ -180,15 +178,15 @@ shows `NotAllowedError: Failed to open the device` while connecting:
 
    ```text
    # Walkplay / FiiO / Moondrop / EPZ DACs
-   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="3302", MODE="0666", TAG+="uaccess", TAG+="udev-acl"
-   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="262a", MODE="0666", TAG+="uaccess", TAG+="udev-acl"
-   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2fc6", MODE="0666", TAG+="uaccess", TAG+="udev-acl"
-   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2972", MODE="0666", TAG+="uaccess", TAG+="udev-acl"
-   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0661", MODE="0666", TAG+="uaccess", TAG+="udev-acl"
-   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0666", MODE="0666", TAG+="uaccess", TAG+="udev-acl"
-   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="35d8", MODE="0666", TAG+="uaccess", TAG+="udev-acl"
-   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="31b2", MODE="0666", TAG+="uaccess", TAG+="udev-acl"
-   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0d8c", MODE="0666", TAG+="uaccess", TAG+="udev-acl"
+   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="3302", TAG+="uaccess"
+   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="262a", TAG+="uaccess"
+   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2fc6", TAG+="uaccess"
+   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2972", TAG+="uaccess"
+   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0661", TAG+="uaccess"
+   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0666", TAG+="uaccess"
+   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="35d8", TAG+="uaccess"
+   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="31b2", TAG+="uaccess"
+   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0d8c", TAG+="uaccess"
    ```
 
 3. Reload the udev rules, then replug the device:

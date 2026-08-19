@@ -18,6 +18,7 @@ export const DEV_DUMMY_DEVICE: DeviceInfo = {
   supported_filter_types: ["Peak", "HighShelf", "LowShelf", "HighPass", "LowPass"],
   supports_per_band_enable: false,
   supports_ram_apply: false,
+  dsp_sample_rate: 96000,
   integer_preamp: true,
 };
 

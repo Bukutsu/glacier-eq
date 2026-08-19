@@ -69,10 +69,10 @@ export function normalizePeq(
     const filterType = normalizeFilterType(input.filter_type ?? input.type ?? fallback.filter_type);
     return {
       index,
-      // Glacier enables every filter loaded from AutoEQ/profile text, then
-      // pads missing device bands as inactive flat filters.
+      // AutoEQ text has no enabled field, while saved profiles may explicitly
+      // disable a band. Preserve an explicit state either way.
       enabled: index < (capabilities?.num_bands ?? defaults.filters.length) && hasInput
-        ? options.enableLoadedFilters || (typeof input.enabled === "boolean" ? input.enabled : fallback.enabled)
+        ? typeof input.enabled === "boolean" ? input.enabled : options.enableLoadedFilters || fallback.enabled
         : false,
       filter_type: capabilities && !capabilities.supported_filter_types.includes(filterType)
         ? capabilities.supported_filter_types[0] ?? "Peak"

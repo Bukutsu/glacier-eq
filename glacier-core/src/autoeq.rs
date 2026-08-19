@@ -5,6 +5,9 @@ use crate::{Filter, FilterType, PEQData};
 
 /// Parses frequency/dB curves using the same rules as the frontend importer.
 pub fn parse_curve_text(text: &str) -> Result<Vec<(f64, f64)>, String> {
+    if text.len() > 1 << 20 || text.lines().count() > 4096 {
+        return Err("Curve input exceeds maximum size".into());
+    }
     let points = text.lines().filter_map(|line| {
         let line = line.trim();
         if line.is_empty() || line.starts_with('#') || line.starts_with("//") {
@@ -20,7 +23,12 @@ pub fn parse_curve_text(text: &str) -> Result<Vec<(f64, f64)>, String> {
     normalize_curve_points(points.collect())
 }
 
+const MAX_CURVE_POINTS: usize = 100_000;
+
 fn normalize_curve_points(mut points: Vec<(f64, f64)>) -> Result<Vec<(f64, f64)>, String> {
+    if points.len() > MAX_CURVE_POINTS {
+        return Err("Curve exceeds maximum point count (100000)".into());
+    }
     points.retain(|(frequency, db)| {
         frequency.is_finite() && db.is_finite() && (20.0..=20_000.0).contains(frequency)
     });
@@ -1575,6 +1583,9 @@ pub fn run_autoeq(
 }
 
 fn validate_curve(label: &str, points: &[(f64, f64)]) -> Result<(), String> {
+    if points.len() > MAX_CURVE_POINTS {
+        return Err(format!("{label} exceeds maximum point count (100000)"));
+    }
     if points.len() < 2 {
         return Err(format!("{label} needs at least 2 points"));
     }

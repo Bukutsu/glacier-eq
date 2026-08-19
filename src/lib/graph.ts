@@ -57,11 +57,6 @@ async function ensureWasmReady() {
   await wasmReady;
 }
 
-export async function snapFreqToIso(freq: number): Promise<number> {
-  await ensureWasmReady();
-  return snap_freq_to_iso(freq);
-}
-
 export function snapFreqToIsoSync(freq: number): number {
   try {
     return snap_freq_to_iso(freq);
@@ -72,19 +67,21 @@ export function snapFreqToIsoSync(freq: number): number {
 
 export async function filterResponseValues(
   filter: Filter,
-  freqs: Float32Array | number[]
+  freqs: Float32Array | number[],
+  dspSampleRate = 96000,
 ): Promise<Float32Array> {
   await ensureWasmReady();
   const f32Freqs = freqs instanceof Float32Array ? freqs : new Float32Array(freqs);
-  return filter_response_values(filter, f32Freqs) as Float32Array;
+  return filter_response_values(filter, f32Freqs, dspSampleRate) as Float32Array;
 }
 
 export async function peqResponseValues(
   peq: PEQData,
   freqs: Float32Array | number[],
-  includePreamp: boolean
+  includePreamp: boolean,
+  dspSampleRate = 96000,
 ): Promise<Float32Array> {
   await ensureWasmReady();
   const f32Freqs = freqs instanceof Float32Array ? freqs : new Float32Array(freqs);
-  return peq_response_values(peq, f32Freqs, includePreamp) as Float32Array;
+  return peq_response_values(peq, f32Freqs, includePreamp, dspSampleRate) as Float32Array;
 }

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 import { isTauri } from "./platform";
-import type { Filter, PEQData, SupportedDeviceInfo } from "../types";
+import type { AppSettings, Filter, PEQData, SupportedDeviceInfo } from "../types";
 import initWasm, {
   list_supported_devices,
   parse_autoeq,
@@ -99,28 +99,21 @@ function matchSupportedWebHidDevice(
   );
 }
 
-const WEB_HID_FALLBACK_PROFILE: SupportedDeviceInfo = {
-  name: "Supported DAC",
-  protocol: "Walkplay",
-  vendor_id: 0,
-  product_id: null,
-  status: "Unknown",
-  family: "Walkplay Family",
-  num_bands: 10,
-  global_gain_range: [-16, 6],
-  band_gain_range: [-10, 10],
-  freq_range: [20, 20000],
-  q_range: [0.1, 10],
-  supported_filter_types: ["Peak", "HighShelf", "LowShelf", "HighPass", "LowPass"],
-  supports_per_band_enable: false,
-  supports_ram_apply: false,
-  integer_preamp: true,
-};
-
 // ─── WebHID Active State ──────────────────────────────────────────────────────
 
 let activeDevice: HIDDevice | null = null;
 let activeProfile: any = null; // Contains metadata & caps
+const webHidIds = new WeakMap<HIDDevice, number>();
+let nextWebHidId = 1;
+
+function webHidPath(device: HIDDevice): string {
+  let id = webHidIds.get(device);
+  if (!id) {
+    id = nextWebHidId++;
+    webHidIds.set(device, id);
+  }
+  return `webhid:${device.vendorId}:${device.productId}:${id}`;
+}
 
 // Memory Diagnostic Store for Web mode
 const MAX_DIAGNOSTICS = 500;
@@ -386,12 +379,23 @@ function parseWalkplayFirmwareVersion(data: Uint8Array): string | null {
 
 // ─── Tauri Command Mock Routing ──────────────────────────────────────────────
 
+let webHidOperation = Promise.resolve();
+
+function serializeWebHid<T>(operation: () => Promise<T>): Promise<T> {
+  const result = webHidOperation.then(operation, operation);
+  webHidOperation = result.then(() => undefined, () => undefined);
+  return result;
+}
+
 export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
   if (isTauri()) {
     const { invoke: tauriInvoke } = await import("@tauri-apps/api/core");
     return tauriInvoke<T>(cmd, args);
   }
+  return serializeWebHid(() => invokeWeb<T>(cmd, args));
+}
 
+async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
   // Ensure WASM is loaded first
   await ensureWasm();
 
@@ -416,7 +420,8 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
     }
     case "save_profile": {
       const profiles = loadJson<any[]>("glacier-eq-profiles", []);
-      const idx = profiles.findIndex((p: any) => p.name === args.name);
+      const normalizedName = String(args.name).toLocaleLowerCase();
+      const idx = profiles.findIndex((p: any) => String(p.name).toLocaleLowerCase() === normalizedName);
       const newProfile = {
         name: args.name,
         data: args.peq,
@@ -503,24 +508,25 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
     case "list_devices": {
       const devices = await ensureWebHid().getDevices();
       const supported = list_supported_devices() as SupportedDeviceInfo[];
-      return devices.map((dev: any) => {
-        const profile = matchSupportedWebHidDevice(dev, supported) ?? WEB_HID_FALLBACK_PROFILE;
-        return {
+      return devices.flatMap((dev: any) => {
+        const profile = matchSupportedWebHidDevice(dev, supported);
+        if (!profile) return [];
+        return [{
           ...profile,
           vendor_id: dev.vendorId,
           product_id: dev.productId,
-          path: `webhid:${dev.vendorId}:${dev.productId}`,
+          path: webHidPath(dev),
           manufacturer: dev.manufacturerName || null,
           product_string: dev.productName || null,
           profile_name: profile.name,
-        };
+        }];
       }) as T;
     }
     case "connect_device": {
       const devices = await ensureWebHid().getDevices();
-      const target = devices.find((dev: any) => `webhid:${dev.vendorId}:${dev.productId}` === args.path);
-      if (!target) {
-        throw new Error("Device not found. Please click 'Scan' to authorize.");
+      const target = devices.find((dev: any) => webHidPath(dev) === args.path);
+      if (!target || !matchSupportedWebHidDevice(target, list_supported_devices() as SupportedDeviceInfo[])) {
+        throw new Error("Unsupported or unavailable device. Please click 'Scan' to authorize a supported DAC.");
       }
 
       if (activeDevice && activeDevice !== target) {
@@ -540,7 +546,7 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
       const supported = list_supported_devices() as SupportedDeviceInfo[];
       const found = matchSupportedWebHidDevice(target, supported);
       activeProfile = {
-        ...(found ?? WEB_HID_FALLBACK_PROFILE),
+        ...found!,
         vendor_id: target.vendorId,
         product_id: target.productId,
       };
@@ -577,19 +583,17 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
       const profile = connectedProfile();
       const protocol = profile.protocol;
       const numBands = profile.num_bands;
+      reportQueue = [];
+      await sendPackets(build_init_packets(protocol));
+      await sleep(50);
 
       // 1. read global gain
       const req = build_read_global_gain_request(protocol);
       await sendReport(req);
       
-      let global_gain = 0.0;
-      try {
-        const res = await readMatchingReport(200, (data) => matches_global_gain_response(protocol, data));
-        if (!res) throw new Error("Global gain read timeout");
-        global_gain = parse_global_gain_response(protocol, res);
-      } catch (e) {
-        console.warn("Global gain read failed, using 0:", e);
-      }
+      const globalResponse = await readMatchingReport(200, (data) => matches_global_gain_response(protocol, data));
+      if (!globalResponse) throw new Error("Global gain read timeout");
+      const global_gain = parse_global_gain_response(protocol, globalResponse);
 
       // 2. read filters
       const filters = [];
@@ -620,18 +624,10 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
           }
         }
 
-        if (filter) {
-          filters.push(filter);
-        } else {
-          filters.push({
-            index: i,
-            enabled: false,
-            filter_type: "Peak",
-            freq: 1000,
-            gain: 0,
-            q: 1.0,
-          });
+        if (!filter) {
+          throw new Error(`Failed to read band ${i + 1}`);
         }
+        filters.push(filter);
 
         await sleep(timing.flood_delay_ms || 5);
       }
@@ -653,6 +649,17 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
         await sleep(timing.commit_step_ms || 100);
       }
 
+      if (!loadJson<Partial<AppSettings>>("glacier-eq-settings", {}).skip_push_verification) {
+        const actual = await invokeWeb<PEQData>("get_eq_state");
+        if (Math.abs(actual.global_gain - args.peq.global_gain) > 0.2 || actual.filters.some((filter, index) => {
+          const expected = args.peq.filters[index];
+          if (!expected) return true;
+          if (!expected.enabled) return Math.abs(filter.gain) > 0.2;
+          return Math.abs(filter.gain - expected.gain) > 0.2 || Math.abs(filter.freq - expected.freq) > 1 || Math.abs(filter.q - expected.q) > 0.1;
+        })) {
+          throw new Error("Device verification failed after write");
+        }
+      }
       emitEvent("operation-progress", { message: "Write complete", percentage: 100 });
       return null as T;
     }
@@ -734,16 +741,16 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
     }
     case "reset_device_eq": {
       const peq = resetPeq(activeProfile?.num_bands ?? 10);
-      await invoke("set_eq_state", { peq });
+      await invokeWeb("set_eq_state", { peq });
       return null as T;
     }
     case "reset_device_controls": {
-      await invoke("set_dac_filter_mode", { mode: "FAST-LL" });
-      await invoke("set_dac_work_mode", { isClassAb: false });
-      await invoke("set_dac_output_gain", { isHighGain: false });
-      await invoke("set_mic_volume", { volumeDb: 0 });
-      await invoke("set_dac_balance", { balance: 0 });
-      return invoke<T>("get_dac_utility_state");
+      await invokeWeb("set_dac_filter_mode", { mode: "FAST-LL" });
+      await invokeWeb("set_dac_work_mode", { isClassAb: false });
+      await invokeWeb("set_dac_output_gain", { isHighGain: false });
+      await invokeWeb("set_mic_volume", { volumeDb: 0 });
+      await invokeWeb("set_dac_balance", { balance: 0 });
+      return invokeWeb<T>("get_dac_utility_state");
     }
     case "execute_factory_reset": {
       await writeAndFlash(build_factory_reset_packet());
@@ -847,6 +854,11 @@ export async function openFileDialog(options?: {
       settled = true;
       const file = input.files?.[0];
       if (file) {
+        if (file.size > 1_048_576) {
+          cleanup();
+          resolve(null);
+          return;
+        }
         try {
           const text = await file.text();
           cleanup();

@@ -3,7 +3,7 @@
 
 use crate::device::protocol::{EqProtocol, Packet};
 use crate::device::timing::WriteTiming;
-use crate::device::walkplay::compute_iir_filter;
+use crate::device::walkplay::{compute_iir_filter, identity_iir_filter};
 use crate::eq::filter::DEFAULT_FREQS_10_BAND;
 use crate::eq::{Filter, FilterType, PEQData};
 
@@ -37,6 +37,7 @@ impl EqProtocol for MoondropProtocol {
         let mut freq = u16::from_le_bytes([data[27], data[28]]);
         let q_raw = u16::from_le_bytes([data[29], data[30]]);
         let gain_raw = i16::from_le_bytes([data[31], data[32]]);
+        let enabled = freq != 0 && gain_raw != 0;
         let mut q = ((q_raw as f64 / 256.0) * 100.0).round() / 100.0;
         let mut gain = ((gain_raw as f64 / 256.0) * 10.0).round() / 10.0;
         let mut filter_type = match data[33] {
@@ -54,7 +55,7 @@ impl EqProtocol for MoondropProtocol {
 
         Some(Filter {
             index: data[4],
-            enabled: true,
+            enabled,
             freq,
             gain,
             q,
@@ -83,13 +84,17 @@ impl EqProtocol for MoondropProtocol {
         _global_gain: f64,
     ) -> Result<Vec<Packet>, String> {
         let gain = if filter.enabled { filter.gain } else { 0.0 };
-        let coeffs = compute_iir_filter(
-            filter.filter_type,
-            filter.freq as f64,
-            gain,
-            filter.q,
-            dsp_sample_rate,
-        );
+        let coeffs = if filter.enabled {
+            compute_iir_filter(
+                filter.filter_type,
+                filter.freq as f64,
+                gain,
+                filter.q,
+                dsp_sample_rate,
+            )
+        } else {
+            identity_iir_filter()
+        };
         let mut payload = vec![0; 63];
         payload[0] = 0x01;
         payload[1] = 0x09;
