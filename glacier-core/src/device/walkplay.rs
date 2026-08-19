@@ -61,7 +61,7 @@ const SAVITECH_10_BAND_CAPS: DeviceCapabilities = DeviceCapabilities {
     band_gain_range: (-10.0, 10.0),
     freq_range: (20, 20000),
     q_range: (0.1, 10.0),
-    supported_filter_types: FilterType::ALL,
+    supported_filter_types: PEAK_SHELF_FILTER_TYPES,
     supports_per_band_enable: false,
     supports_ram_apply: false,
     dsp_sample_rate: 96000.0,
@@ -369,6 +369,17 @@ mod tests {
         assert_eq!(packet[34], (-3i8) as u8);
         // byte 35 is the terminating 0x00
         assert_eq!(packet[35], 0x00);
+    }
+
+    #[test]
+    fn disabled_band_keeps_metadata_and_zeros_gain() {
+        let mut filter = make_filter(2, 1000, 5.0, 1.0);
+        filter.enabled = false;
+        let packet = WalkplayProtocol::build_filter_write_packet(2, &filter, 96000.0, 0.0);
+
+        assert_eq!(u16::from_le_bytes([packet[27], packet[28]]), 1000);
+        assert_eq!(u16::from_le_bytes([packet[29], packet[30]]), 256);
+        assert_eq!(i16::from_le_bytes([packet[31], packet[32]]), 0);
     }
 
     #[test]
