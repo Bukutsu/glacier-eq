@@ -8,6 +8,7 @@
 - Sanitized invalid PEQ readback values across WalkPlay, Moondrop, and FiiO protocols.
 - Fixed Moondrop disabled-band writes to use valid zero-gain coefficients.
 - Hardened HID device handling, disconnect recovery, settings writes, and release asset verification.
+- macOS and Windows release installers are currently unsigned.
 
 ## [0.5.1] - 2026-08-14
 
