@@ -85,6 +85,7 @@ jobs:
         run: npm ci
 
       - name: Check release signing credentials
+        id: signing
         if: startsWith(matrix.os, 'macos') || startsWith(matrix.os, 'windows')
         shell: bash
         env:
@@ -97,21 +98,33 @@ jobs:
           set -euo pipefail
           if [[ "$RUNNER_OS" == "macOS" ]]; then
             if [[ -n "$APPLE_CERTIFICATE" && -n "$APPLE_CERTIFICATE_PASSWORD" && -n "$APPLE_SIGNING_IDENTITY" ]]; then
+              echo "signed=true" >> "$GITHUB_OUTPUT"
               echo "✅ macOS signing credentials found."
             else
+              echo "signed=false" >> "$GITHUB_OUTPUT"
               echo "::warning::Apple signing credentials are unavailable; building unsigned macOS artifacts."
             fi
           elif [[ -n "$WINDOWS_CERTIFICATE" && -n "$WINDOWS_CERTIFICATE_PASSWORD" ]]; then
+            echo "signed=true" >> "$GITHUB_OUTPUT"
             echo "✅ Windows signing credentials found."
           else
+            echo "signed=false" >> "$GITHUB_OUTPUT"
             echo "::warning::Windows signing credentials are unavailable; building unsigned Windows artifacts."
           fi
 
-      - name: Build app
+      - name: Build Linux app
+        if: matrix.os == 'ubuntu-22.04'
         # NOTE: no GITHUB_TOKEN here on purpose. tauri-action would otherwise
         # create its own release (per matrix OS) and collide with the single
         # release published by the `release` job below. It only builds here;
         # bundles are collected as artifacts and published once by softprops.
+        uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f
+        with:
+          args: ${{ matrix.args }}
+          releaseAssetNamePattern: "glacier-eq_[version]_[platform]_[arch].[ext]"
+
+      - name: Build signed app
+        if: matrix.os != 'ubuntu-22.04' && steps.signing.outputs.signed == 'true'
         uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
@@ -124,7 +137,14 @@ jobs:
           WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
         with:
           args: ${{ matrix.args }}
-          assetNamePattern: "glacier-eq_[version]_[platform]_[arch].[ext]"
+          releaseAssetNamePattern: "glacier-eq_[version]_[platform]_[arch].[ext]"
+
+      - name: Build unsigned app
+        if: matrix.os != 'ubuntu-22.04' && steps.signing.outputs.signed != 'true'
+        uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f
+        with:
+          args: ${{ matrix.args }}
+          releaseAssetNamePattern: "glacier-eq_[version]_[platform]_[arch].[ext]"
 
       - name: Collect and verify release assets
         shell: bash
