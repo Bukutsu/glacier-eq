@@ -21,6 +21,8 @@ mod state;
 
 use tauri::Manager;
 
+const MAX_TEXT_FILE_BYTES: u64 = 1 << 20;
+
 /// Resolve the set of directories the raw fs commands are allowed to touch.
 /// We scope file access to the application data directory, user documents, and downloads
 /// so these IPC commands cannot be abused to read/write arbitrary system files.
@@ -47,6 +49,13 @@ fn allowed_bases(app: &tauri::AppHandle) -> Vec<PathBuf> {
             bases.push(downloads);
         }
     }
+    if let Ok(desktop) = app.path().desktop_dir() {
+        if let Ok(canon) = std::fs::canonicalize(&desktop) {
+            bases.push(canon);
+        } else {
+            bases.push(desktop);
+        }
+    }
     bases
 }
 
@@ -54,6 +63,12 @@ fn allowed_bases(app: &tauri::AppHandle) -> Vec<PathBuf> {
 /// allowed base directories (symlinks resolved, traversal rejected).
 fn is_path_allowed(app: &tauri::AppHandle, path: &str) -> bool {
     let bases = allowed_bases(app);
+    if std::fs::symlink_metadata(path)
+        .map(|metadata| metadata.file_type().is_symlink())
+        .unwrap_or(false)
+    {
+        return false;
+    }
     let Ok(canon) = std::fs::canonicalize(path) else {
         // If the file does not exist yet (write path), validate the parent.
         let p = PathBuf::from(path);
@@ -73,6 +88,9 @@ fn save_text_file(app: tauri::AppHandle, path: String, content: String) -> Resul
     if !is_path_allowed(&app, &path) {
         return Err("Refused: file path is outside allowed directories".into());
     }
+    if content.len() as u64 > MAX_TEXT_FILE_BYTES {
+        return Err("Refused: content exceeds the 1 MiB limit".into());
+    }
     std::fs::write(&path, &content).map_err(|e| format!("Failed to write file: {e}"))
 }
 
@@ -80,6 +98,10 @@ fn save_text_file(app: tauri::AppHandle, path: String, content: String) -> Resul
 fn read_text_file(app: tauri::AppHandle, path: String) -> Result<String, String> {
     if !is_path_allowed(&app, &path) {
         return Err("Refused: file path is outside allowed directories".into());
+    }
+    let metadata = std::fs::metadata(&path).map_err(|e| format!("Failed to stat file: {e}"))?;
+    if metadata.len() > MAX_TEXT_FILE_BYTES {
+        return Err("Refused: file exceeds the 1 MiB limit".into());
     }
     std::fs::read_to_string(&path).map_err(|e| format!("Failed to read file: {e}"))
 }

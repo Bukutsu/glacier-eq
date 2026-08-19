@@ -20,7 +20,10 @@ function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     request.onerror = () => reject(request.error);
-    request.onsuccess = () => resolve(request.result);
+    request.onsuccess = () => {
+      request.result.onversionchange = () => request.result.close();
+      resolve(request.result);
+    }
     request.onupgradeneeded = () => {
       const db = request.result;
       if (!db.objectStoreNames.contains(STORE_NAME)) {
@@ -38,24 +41,44 @@ function idbRequest<T>(request: IDBRequest<T>): Promise<T> {
 }
 
 async function isDatabaseDownloaded(): Promise<boolean> {
+  let db: IDBDatabase | undefined;
   try {
-    const db = await openDb();
+    db = await openDb();
     const store = db.transaction(STORE_NAME, "readonly").objectStore(STORE_NAME);
-    return (await idbRequest(store.count())) > 10;
+    return Boolean(await idbRequest(store.get("meta:complete")));
   } catch {
     return false;
+  } finally {
+    db?.close();
   }
 }
 
 async function clearCachedDatabase(): Promise<void> {
   const db = await openDb();
-  const store = db.transaction(STORE_NAME, "readwrite").objectStore(STORE_NAME);
-  await idbRequest(store.clear());
+  try {
+    const store = db.transaction(STORE_NAME, "readwrite").objectStore(STORE_NAME);
+    await idbRequest(store.clear());
+  } finally {
+    db.close();
+  }
 }
 
 async function downloadDatabase(
   onProgress: (percent: number) => void,
   signal?: AbortSignal,
+): Promise<number> {
+  const db = await openDb();
+  try {
+    return await downloadDatabaseWithDb(onProgress, signal, db);
+  } finally {
+    db.close();
+  }
+}
+
+async function downloadDatabaseWithDb(
+  onProgress: (percent: number) => void,
+  signal: AbortSignal | undefined,
+  db: IDBDatabase,
 ): Promise<number> {
   onProgress(0.05);
   // Download manifest first sequentially to minimize peak memory pressure
@@ -65,9 +88,9 @@ async function downloadDatabase(
     signal,
   );
 
-  const db = await openDb();
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readwrite");
+    tx.objectStore(STORE_NAME).delete("meta:complete");
     tx.objectStore(STORE_NAME).put(manifest, "meta:manifest");
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
@@ -123,6 +146,12 @@ async function downloadDatabase(
     await new Promise((r) => setTimeout(r, 0));
   }
 
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    tx.objectStore(STORE_NAME).put(true, "meta:complete");
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
   onProgress(1.0);
   return count;
 }
@@ -139,6 +168,8 @@ async function fetchJson(
 
   const contentLength = response.headers.get("content-length");
   const totalBytes = contentLength ? parseInt(contentLength, 10) : 0;
+  const maxBytes = 64 * 1024 * 1024;
+  if (totalBytes > maxBytes) throw new Error("Online database response is too large");
   let loadedBytes = 0;
 
   let text = "";
@@ -151,6 +182,10 @@ async function fetchJson(
       if (value) {
         text += decoder.decode(value, { stream: true });
         loadedBytes += value.length;
+        if (loadedBytes > maxBytes) {
+          await reader.cancel();
+          throw new Error("Online database response is too large");
+        }
         if (onProgress && totalBytes > 0) {
           onProgress(Math.min(0.99, loadedBytes / totalBytes));
         }
@@ -161,6 +196,7 @@ async function fetchJson(
     // Android WebView/Tauri builds may not expose ReadableStream on fetch responses.
     // Fall back to reading the whole response so the online database still works.
     text = await response.text();
+    if (text.length > maxBytes) throw new Error("Online database response is too large");
   }
 
   onProgress?.(0.99); // Parsing JSON next
@@ -169,14 +205,15 @@ async function fetchJson(
 
 async function fetchManifest(): Promise<OnlineDevice[]> {
   const db = await openDb();
-  const store = db.transaction(STORE_NAME, "readonly").objectStore(STORE_NAME);
-  const data = await idbRequest<any>(store.get("meta:manifest"));
+  try {
+    const store = db.transaction(STORE_NAME, "readonly").objectStore(STORE_NAME);
+    const data = await idbRequest<any>(store.get("meta:manifest"));
 
-  if (!data?.iems) {
-    throw new Error("Search manifest not cached. Please download the database.");
-  }
+    if (!data?.iems) {
+      throw new Error("Search manifest not cached. Please download the database.");
+    }
 
-  const devices: OnlineDevice[] = [];
+    const devices: OnlineDevice[] = [];
   for (const [key, details] of Object.entries(data.iems)) {
     const parts = key.split("::");
     if (parts.length < 2) continue;
@@ -201,9 +238,12 @@ async function fetchManifest(): Promise<OnlineDevice[]> {
     });
   }
 
-  return devices.sort((a, b) =>
-    `${a.brand} ${a.name}`.localeCompare(`${b.brand} ${b.name}`),
-  );
+    return devices.sort((a, b) =>
+      `${a.brand} ${a.name}`.localeCompare(`${b.brand} ${b.name}`),
+    );
+  } finally {
+    db.close();
+  }
 }
 
 export function useOnlineDatabase(
@@ -302,9 +342,9 @@ async function loadDeviceCurvePoints(
   deviceId: string,
 ): Promise<MeasurementPoint[]> {
   const db = await openDb();
-
-  // Get frequencies and raw decibels
-  const store = db.transaction(STORE_NAME, "readonly").objectStore(STORE_NAME);
+  try {
+    // Get frequencies and raw decibels
+    const store = db.transaction(STORE_NAME, "readonly").objectStore(STORE_NAME);
   const [frequencies, dbValues] = await Promise.all([
     idbRequest<number[]>(store.get("meta:frequencies")).then((value) => value || []),
     idbRequest<number[]>(store.get(deviceId)).then((value) => value || []),
@@ -324,5 +364,8 @@ async function loadDeviceCurvePoints(
     });
   }
 
-  return points;
+    return points;
+  } finally {
+    db.close();
+  }
 }

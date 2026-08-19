@@ -92,8 +92,6 @@ impl<'a> DeviceSession<'a> {
 
     pub fn pull(&mut self) -> Result<PEQData, String> {
         let protocol = self.protocol();
-        let _ = self.send(&protocol.read_global_gain_request());
-        self.io.sleep_ms(50);
         let first = self.pull_once();
         let retry = first
             .as_ref()
@@ -612,10 +610,19 @@ fn compare_peq(
         ));
     }
     for (actual, expected) in actual.filters.iter().zip(&expected.filters) {
-        if (actual.gain - expected.gain).abs() > caps.gain_tolerance
-            || (actual.freq as i32 - expected.freq as i32).abs() > caps.freq_tolerance
-            || (actual.q - expected.q).abs() > caps.q_tolerance
-            || actual.filter_type != expected.filter_type
+        let expected_gain = if expected.enabled { expected.gain } else { 0.0 };
+        let metadata_mismatch = expected.enabled
+            && ((actual.freq as i32 - expected.freq as i32).abs() > caps.freq_tolerance
+                || (actual.q - expected.q).abs() > caps.q_tolerance
+                || actual.filter_type != expected.filter_type);
+        if (actual.gain - expected_gain).abs() > caps.gain_tolerance
+            || metadata_mismatch
+            || (!caps.supports_per_band_enable
+                && expected.enabled
+                && ((actual.freq as i32 - expected.freq as i32).abs() > caps.freq_tolerance
+                    || (actual.q - expected.q).abs() > caps.q_tolerance
+                    || actual.filter_type != expected.filter_type))
+            || (caps.supports_per_band_enable && actual.enabled != expected.enabled)
         {
             return Err(format!("Band {} mismatch", expected.index + 1));
         }
@@ -729,7 +736,7 @@ mod tests {
         let profile = get_supported_device(0x3302, 0x43e8).unwrap();
         let mut io = FakeIo::default();
         io.reads.push_back(vec![]); // drain terminator
-        // Several stale non-matching packets before the actual filter response
+                                    // Several stale non-matching packets before the actual filter response
         for _ in 0..12 {
             io.reads.push_back(vec![READ, 0x99, 0, 0]);
         }

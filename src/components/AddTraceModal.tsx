@@ -71,9 +71,9 @@ export function AddTraceModal({
   };
 
   const handleFile = async (kind: "measurement" | "target") => {
-    const result = await openFileDialog({ filters: [{ name: kind === "measurement" ? "Measurement" : "Target", extensions: ["csv", "txt"] }] });
-    if (!result) return;
     try {
+      const result = await openFileDialog({ filters: [{ name: kind === "measurement" ? "Measurement" : "Target", extensions: ["csv", "txt"] }] });
+      if (!result) return;
       const points = parseMeasurementText(result.text);
       const label = result.name.replace(/\.[^/.]+$/, "");
       if (kind === "measurement") {

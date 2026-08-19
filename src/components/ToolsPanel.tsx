@@ -132,6 +132,7 @@ interface ToolsPanelProps {
   showGraph?: boolean;
   onShowGraphChange?: (show: boolean) => void;
   maxBands?: number;
+  dspSampleRate?: number;
 }
 
 export const ToolsPanel = memo(function ToolsPanel(props: ToolsPanelProps) {
@@ -206,6 +207,7 @@ export const ToolsPanel = memo(function ToolsPanel(props: ToolsPanelProps) {
                 onToggleMeasurement={props.onToggleMeasurement}
                 onToggleTarget={props.onToggleTarget}
                 maxBands={props.maxBands}
+                dspSampleRate={props.dspSampleRate}
               />
             </div>
           )}
@@ -573,6 +575,7 @@ function ImportTab({ peq, profiles, selectedPreset, onImportPEQ, onReloadProfile
     }
 
     try {
+      if (file.size > 1_048_576) throw new Error("File exceeds the 1 MiB limit");
       const text = await file.text();
       await parseAndLoadText(text, file.name.replace(/\.[^/.]+$/, ""));
     } catch (error) {
@@ -823,6 +826,7 @@ interface AutoEqTabProps {
   onToggleMeasurement?: (id: string) => void;
   onToggleTarget?: (id: string) => void;
   maxBands?: number;
+  dspSampleRate?: number;
 }
 
 export function AutoEqTab({
@@ -835,17 +839,22 @@ export function AutoEqTab({
   onToggleMeasurement,
   onToggleTarget,
   maxBands = 10,
+  dspSampleRate = 96000,
 }: AutoEqTabProps) {
   const [nBands, setNBands] = useState<number>(Math.max(1, maxBands));
   const [steps, setSteps] = useState<number>(2000);
   const [smoothType, setSmoothType] = useState<string>("IE");
-  const [fs, setFs] = useState<number>(96000);
+  const [fs, setFs] = useState<number>(dspSampleRate);
   const [isOptimizing, setIsOptimizing] = useState<boolean>(false);
   const [warnings, setWarnings] = useState<string[]>([]);
 
   useEffect(() => {
     setNBands((current) => Math.min(current, Math.max(1, maxBands)));
   }, [maxBands]);
+
+  useEffect(() => {
+    setFs(dspSampleRate);
+  }, [dspSampleRate]);
 
   // Local selection states
   const [localMeasId, setLocalMeasId] = useState<string>("");
@@ -1290,13 +1299,17 @@ function DeviceTab({
     let unlisten: (() => void) | null = null;
     listen<void>("device-pull", () => {
       if (active) fetchState(() => active, true);
-    }).then((unsub) => {
-      if (active) {
-        unlisten = unsub;
-      } else {
-        try { unsub(); } catch {}
-      }
-    });
+    })
+      .then((unsub) => {
+        if (active) {
+          unlisten = unsub;
+        } else {
+          try { unsub(); } catch {}
+        }
+      })
+      .catch((error) => {
+        if (active) console.error("Failed to listen for device-pull:", error);
+      });
 
     return () => {
       active = false;
@@ -1597,13 +1610,17 @@ export function DiagnosticsPanel() {
       if (active) {
         setEvents((prev) => [...prev, event.payload].slice(-1000));
       }
-    }).then((fn) => {
-      if (active) {
-        unlistenFn = fn;
-      } else {
-        try { fn(); } catch {}
-      }
-    });
+    })
+      .then((fn) => {
+        if (active) {
+          unlistenFn = fn;
+        } else {
+          try { fn(); } catch {}
+        }
+      })
+      .catch((error) => {
+        if (active) console.error("Failed to listen for diagnostic-event:", error);
+      });
 
     return () => {
       active = false;

@@ -146,6 +146,15 @@ fn quantizer(d_arr: &[f64; 3], d_arr2: &[f64; 3]) -> [i32; 5] {
     ]
 }
 
+pub fn identity_iir_filter() -> [u8; 20] {
+    let quantizer_data = quantizer(&[1.0, 0.0, 0.0], &[1.0, 0.0, 0.0]);
+    let mut bytes = [0u8; 20];
+    for (index, value) in quantizer_data.iter().enumerate() {
+        bytes[index * 4..index * 4 + 4].copy_from_slice(&value.to_le_bytes());
+    }
+    bytes
+}
+
 pub fn compute_iir_filter(
     filter_type: FilterType,
     freq: f64,

@@ -46,6 +46,7 @@ export interface DeviceCapabilities {
   supported_filter_types: FilterType[];
   supports_per_band_enable: boolean;
   supports_ram_apply: boolean;
+  dsp_sample_rate: number;
   integer_preamp: boolean;
 }
 

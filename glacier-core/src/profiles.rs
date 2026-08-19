@@ -100,7 +100,22 @@ impl ProfileStore {
     }
 
     pub fn save(&self, name: &str, peq: &PEQData) -> Result<(), String> {
-        let path = self.path(name)?;
+        if peq.filters.len() > MAX_FILTERS {
+            return Err(format!(
+                "Profile exceeds maximum filter count ({MAX_FILTERS})"
+            ));
+        }
+        let content = peq_to_autoeq(peq);
+        if content.len() as u64 > MAX_PROFILE_BYTES {
+            return Err("Profile exceeds maximum size (1 MiB)".into());
+        }
+        let requested = self.path(name)?;
+        let path = self
+            .list()?
+            .into_iter()
+            .find(|profile| profile.name.eq_ignore_ascii_case(name))
+            .map(|profile| self.dir.join(format!("{}.txt", profile.name)))
+            .unwrap_or(requested);
         let nonce = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
@@ -116,15 +131,17 @@ impl ProfileStore {
                     temporary.display()
                 )
             })?;
-        file.write_all(peq_to_autoeq(peq).as_bytes())
+        if let Err(error) = file
+            .write_all(content.as_bytes())
             .and_then(|_| file.sync_all())
-            .map_err(|error| {
-                format!(
-                    "Failed to write temporary profile {}: {error}",
-                    temporary.display()
-                )
-            })?;
-        std::fs::rename(&temporary, &path).map_err(|error| {
+        {
+            let _ = std::fs::remove_file(&temporary);
+            return Err(format!(
+                "Failed to write temporary profile {}: {error}",
+                temporary.display()
+            ));
+        }
+        replace_file(&temporary, &path).map_err(|error| {
             let _ = std::fs::remove_file(&temporary);
             format!("Failed to save profile {}: {error}", path.display())
         })
@@ -141,8 +158,28 @@ impl ProfileStore {
 
     fn path(&self, name: &str) -> Result<PathBuf, String> {
         validate_name(name)?;
+        if let Some(existing) = std::fs::read_dir(&self.dir).ok().and_then(|entries| {
+            entries.flatten().find(|entry| {
+                entry.path().extension().and_then(|ext| ext.to_str()) == Some("txt")
+                    && entry
+                        .path()
+                        .file_stem()
+                        .and_then(|stem| stem.to_str())
+                        .is_some_and(|stem| stem.eq_ignore_ascii_case(name))
+            })
+        }) {
+            return Ok(existing.path());
+        }
         Ok(self.dir.join(format!("{name}.txt")))
     }
+}
+
+fn replace_file(temporary: &Path, destination: &Path) -> std::io::Result<()> {
+    #[cfg(windows)]
+    if destination.exists() {
+        std::fs::remove_file(destination)?;
+    }
+    std::fs::rename(temporary, destination)
 }
 
 fn validate_name(name: &str) -> Result<(), String> {
@@ -286,7 +323,7 @@ mod tests {
                 .collect(),
             global_gain: 100.0,
         };
-        store.save("Loud", &peq).unwrap();
+        std::fs::write(base.join("profiles/Loud.txt"), peq_to_autoeq(&peq)).unwrap();
         let loaded = store.load("Loud").unwrap().data;
         assert!(
             loaded.filters.len() <= MAX_FILTERS,

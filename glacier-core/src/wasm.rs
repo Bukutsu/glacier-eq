@@ -41,7 +41,12 @@ pub struct ProfileCandidateWasm {
     pub data: PEQData,
 }
 
-fn response_values(peq: &PEQData, freqs: &[f32], include_preamp: bool) -> Vec<f32> {
+fn response_values(
+    peq: &PEQData,
+    freqs: &[f32],
+    include_preamp: bool,
+    dsp_sample_rate: f64,
+) -> Vec<f32> {
     let mut response = vec![
         if include_preamp {
             peq.global_gain as f32
@@ -50,7 +55,6 @@ fn response_values(peq: &PEQData, freqs: &[f32], include_preamp: bool) -> Vec<f3
         };
         freqs.len()
     ];
-    let dsp_sample_rate = 96000.0;
     let factor = std::f64::consts::TAU / dsp_sample_rate;
     let cos_w_arr: Vec<f64> = freqs.iter().map(|&f| (f as f64 * factor).cos()).collect();
 
@@ -185,19 +189,29 @@ pub fn peq_response_values(
     peq_js: JsValue,
     freqs: &[f32],
     include_preamp: bool,
+    dsp_sample_rate: f64,
 ) -> Result<Vec<f32>, JsValue> {
     let peq: PEQData = serde_wasm_bindgen::from_value(peq_js).map_err(js_err)?;
-    Ok(response_values(&peq, freqs, include_preamp))
+    Ok(response_values(
+        &peq,
+        freqs,
+        include_preamp,
+        dsp_sample_rate,
+    ))
 }
 
 #[wasm_bindgen]
-pub fn filter_response_values(filter_js: JsValue, freqs: &[f32]) -> Result<Vec<f32>, JsValue> {
+pub fn filter_response_values(
+    filter_js: JsValue,
+    freqs: &[f32],
+    dsp_sample_rate: f64,
+) -> Result<Vec<f32>, JsValue> {
     let filter: Filter = serde_wasm_bindgen::from_value(filter_js).map_err(js_err)?;
     let peq = PEQData {
         filters: vec![filter],
         global_gain: 0.0,
     };
-    Ok(response_values(&peq, freqs, false))
+    Ok(response_values(&peq, freqs, false, dsp_sample_rate))
 }
 
 #[wasm_bindgen]

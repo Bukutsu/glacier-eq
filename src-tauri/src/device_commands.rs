@@ -90,17 +90,17 @@ fn ensure_connected(app: &tauri::AppHandle) -> Result<(), String> {
 fn hid_read(app: &tauri::AppHandle, path: &str, timeout: i32) -> Result<Vec<u8>, String> {
     ensure_connected(app)?;
     #[cfg(target_os = "linux")]
-    if let Some(t) = app
-        .state::<Mutex<Option<ElevatedTransport>>>()
-        .lock()
-        .unwrap_or_else(|p| p.into_inner())
-        .as_mut()
     {
-        let res = t.read(path, timeout);
-        if let Err(ref e) = res {
-            handle_disconnection(app, e);
+        let transport_state = app.state::<Mutex<Option<ElevatedTransport>>>();
+        let mut guard = transport_state.lock().unwrap_or_else(|p| p.into_inner());
+        if let Some(transport) = guard.as_mut() {
+            let res = transport.read(path, timeout);
+            drop(guard);
+            if let Err(ref e) = res {
+                handle_disconnection(app, e);
+            }
+            return res;
         }
-        return res;
     }
     tauri_plugin_hid::hid(app)
         .read(path, timeout)
@@ -114,17 +114,17 @@ fn hid_read(app: &tauri::AppHandle, path: &str, timeout: i32) -> Result<Vec<u8>,
 fn hid_write(app: &tauri::AppHandle, path: &str, data: &[u8]) -> Result<(), String> {
     ensure_connected(app)?;
     #[cfg(target_os = "linux")]
-    if let Some(t) = app
-        .state::<Mutex<Option<ElevatedTransport>>>()
-        .lock()
-        .unwrap_or_else(|p| p.into_inner())
-        .as_mut()
     {
-        let res = t.write(path, data);
-        if let Err(ref e) = res {
-            handle_disconnection(app, e);
+        let transport_state = app.state::<Mutex<Option<ElevatedTransport>>>();
+        let mut guard = transport_state.lock().unwrap_or_else(|p| p.into_inner());
+        if let Some(transport) = guard.as_mut() {
+            let res = transport.write(path, data);
+            drop(guard);
+            if let Err(ref e) = res {
+                handle_disconnection(app, e);
+            }
+            return res;
         }
-        return res;
     }
     tauri_plugin_hid::hid(app)
         .write(path, data)
@@ -354,6 +354,13 @@ pub async fn connect_device(
             })?;
         if let Some(previous) = lock_device_state(&state)?.connected.take() {
             let _ = hid_close(&app_clone, &previous.path);
+            #[cfg(target_os = "linux")]
+            {
+                *app_clone
+                    .state::<Mutex<Option<ElevatedTransport>>>()
+                    .lock()
+                    .unwrap_or_else(|p| p.into_inner()) = None;
+            }
         }
         try_open_device(&app_clone, &path_clone)?;
         lock_device_state(&state)?.connected = Some(ConnectedDevice {
@@ -369,12 +376,20 @@ pub async fn connect_device(
 }
 
 #[tauri::command]
-pub fn disconnect_device(
+pub async fn disconnect_device(
     app: tauri::AppHandle,
     state: tauri::State<'_, Mutex<DeviceState>>,
 ) -> Result<(), String> {
+    let session_lock = app.state::<DeviceSessionLock>();
+    let _guard = session_lock.0.lock().await;
     if let Some(device) = lock_device_state(&state)?.connected.take() {
         let _ = hid_close(&app, &device.path);
+    }
+    #[cfg(target_os = "linux")]
+    {
+        *app.state::<Mutex<Option<ElevatedTransport>>>()
+            .lock()
+            .unwrap_or_else(|p| p.into_inner()) = None;
     }
     Ok(())
 }

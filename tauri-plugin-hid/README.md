@@ -1,18 +1,14 @@
 # Tauri plugin HID
 
-This Tauri plugin provides access to USB HID devices. It uses hidapi-rs on
-macOS, Windows, and Linux, and Android UsbManager on Android.
+This plugin gives a Tauri app access to USB HID devices. It uses hidapi-rs on
+macOS, Windows, and Linux, and Android's `UsbManager` on Android.
 
-It can:
+It supports device enumeration, multiple open devices, and input/output reports.
 
-* Enumerate devices
-* Open several devices at once
-* Read and write input and output reports
+Known limits:
 
-Current limitations:
-
-* Feature reports are not supported yet.
-* The plugin has only been tested on macOS, Windows, and Android.
+- Feature reports are not supported.
+- The plugin has been tested on macOS, Windows, and Android.
 
 ## Installation
 
@@ -27,7 +23,7 @@ Or add it directly to `Cargo.toml`:
 
 ```toml
 [dependencies]
-tauri-plugin-hid = "0.1.1"
+tauri-plugin-hid = "0.2.4"
 ```
 
 Install the TypeScript/JavaScript API:
@@ -41,7 +37,7 @@ Register the plugin in `src-tauri/src/lib.rs`:
 ```rust
 tauri::Builder::default()
     .plugin(tauri_plugin_opener::init())
-    .plugin(tauri_plugin_hid::init())   // Register hid plugin
+    .plugin(tauri_plugin_hid::init()) // Register the HID plugin
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
 ```
@@ -63,7 +59,7 @@ import { HidDevice, enumerate } from "@redfernelec/tauri-plugin-hid-api";
 
 let myDevice: HidDevice | null = null;
 
-// Enumerate devices and find one based on product string
+// Find a device by product string.
 let devices = await enumerate();
 for (const device of devices) {
     if (device.productString === "My Device") {
@@ -72,13 +68,13 @@ for (const device of devices) {
     }
 }
 
-if(myDevice) {
+if (myDevice) {
     await myDevice.open();
     await myDevice.write(new Uint8Array([0x00, 0x00]));
-    let data = await myDevice.read(2);
+    const data = await myDevice.read(2);
     await myDevice.close();
 }
 ```
 
-The repository also includes a Vue example in
-`examples/tauri-plugin-hid-vue-example`.
+The repository also includes Android and desktop implementation examples in
+this plugin's source tree.
