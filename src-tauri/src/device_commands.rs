@@ -396,7 +396,12 @@ pub async fn connect_device(
         // actually opened before storing it as connected.
         let reopened = tauri_plugin_hid::hid(&app_clone)
             .enumerate()
-            .map_err(|error| error.to_string())?
+            .map_err(|error| {
+                // Without this the opened device stays resident with no way
+                // to disconnect (DeviceState.connected was never set).
+                let _ = hid_close(&app_clone, &path_clone);
+                error.to_string()
+            })?
             .into_iter()
             .find(|device| device.path == path_clone)
             .map_or_else(
