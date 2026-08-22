@@ -322,16 +322,17 @@ function App() {
       // where the last undo left it.
       return;
     }
-    if (
+    const sittingAtRedoBase =
       redoStackRef.current.length > 0 &&
       redoBaseRef.current &&
-      peqEquals(currentPeq, redoBaseRef.current)
-    ) {
-      // Still sitting exactly where the last undo left us: this gesture has not
-      // changed anything yet, so it must not wipe redo history.
-      return;
+      peqEquals(currentPeq, redoBaseRef.current);
+    if (!sittingAtRedoBase) {
+      setRedoStack([]);
     }
-    setRedoStack([]);
+    // Record the snapshot even when sitting at the redo base (undo left the
+    // stack empty): without it, an edit made after that undo could never be
+    // undone. Redo history survives until a real edit lands away from the
+    // base, and redo() re-validates the base on every attempt.
     setUndoStack((prev) => {
       const next = [...prev, currentPeq];
       if (next.length > 50) {
