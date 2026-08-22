@@ -1742,9 +1742,9 @@ export function DiagnosticsPanel() {
             {events.length === 0 ? "No logs yet." : "No matches for current filter."}
           </div>
         ) : (
-          filtered.map((event) => (
+          filtered.map((event, index) => (
             <div
-              key={`${event.timestamp}-${event.level}-${event.message}`}
+              key={`${index}-${event.timestamp}-${event.level}-${event.message}`}
               className={`log-line log-line-${event.level.toLowerCase()}`}
             >
               <span className="log-ts" title={event.timestamp}>

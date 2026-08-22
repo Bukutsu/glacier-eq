@@ -1,5 +1,20 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- Fixed multi-level redo losing the remaining redo history after the first redo.
+- Fixed a crash when importing AutoEQ profiles whose comment headers contain characters that change length when lowercased (e.g. "İ").
+- Fixed silent saturation of filter frequencies above 65535 Hz during AutoEQ import; they now warn and clamp.
+- Fixed duplicate Android versionCodes for prerelease tags with numbers above the supported range; affected tags now fail the release build instead of colliding.
+- Android versionCode prerelease bands are now disjoint (numeric, alpha, beta, rc/other) so distinct tags can never share a code.
+- Release builds now verify tag/manifest versions in a fast first job instead of after the full build matrix.
+
+### Changed
+
+- Pull timing now uses each protocol's declared flood/gain-read delays instead of hardcoded values.
+
 ## [0.5.2] - 2026-08-20
 
 ### Fixed

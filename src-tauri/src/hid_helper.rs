@@ -235,6 +235,21 @@ fn dispatch(
                 Ok(c) => c,
                 Err(_) => return IpcResult::Err("invalid path".into()),
             };
+            // Running as root, this helper must not become a generic HID
+            // read/write oracle if the unprivileged main process is
+            // compromised: only open paths whose VID:PID belongs to a
+            // supported DAC.
+            let supported = api.device_list().any(|info| {
+                info.path() == cpath.as_c_str()
+                    && glacier_core::device::get_supported_device(
+                        info.vendor_id(),
+                        info.product_id(),
+                    )
+                    .is_some()
+            });
+            if !supported {
+                return IpcResult::Err("refused: device is not a supported DAC".into());
+            }
             match api.open_path(&cpath) {
                 Ok(dev) => {
                     open.insert(path, dev);

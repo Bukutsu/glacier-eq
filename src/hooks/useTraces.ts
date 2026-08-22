@@ -33,6 +33,9 @@ function loadPersistedJson<T>(
 }
 
 function usePersistedJson(key: string, value: unknown, delayMs = 0) {
+  // Latest save routine, so a pagehide flush always persists current state.
+  const saveRef = useRef<() => void>(() => {});
+
   useEffect(() => {
     const save = () => {
       try {
@@ -50,6 +53,7 @@ function usePersistedJson(key: string, value: unknown, delayMs = 0) {
         }
       }
     };
+    saveRef.current = save;
     if (delayMs <= 0) {
       save();
       return;
@@ -57,6 +61,15 @@ function usePersistedJson(key: string, value: unknown, delayMs = 0) {
     const timer = window.setTimeout(save, delayMs);
     return () => window.clearTimeout(timer);
   }, [key, value, delayMs]);
+
+  // The debounce timer dies with the document before its callback runs, so
+  // flush synchronously when the page is being hidden or unloaded.
+  useEffect(() => {
+    if (delayMs <= 0) return;
+    const flush = () => saveRef.current();
+    window.addEventListener("pagehide", flush);
+    return () => window.removeEventListener("pagehide", flush);
+  }, [delayMs]);
 }
 
 export function useTraces(notify?: (message: string) => void) {

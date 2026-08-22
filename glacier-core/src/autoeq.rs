@@ -122,22 +122,27 @@ pub fn parse_autoeq_text(text: &str) -> Result<(PEQData, Option<String>, Vec<Str
                 }
                 // Clamp frequency into a cast-safe, sane range before `as u16`
                 // to avoid the silent wraparound the old code had for huge/negative Fc.
-                let freq: u16 =
-                    if !parsed.freq.is_finite() || parsed.freq < 1.0 || parsed.freq > 1_000_000.0 {
-                        warnings.push(format!(
-                            "Line {}: Frequency {} Hz out of range [1, 1000000]; clamping",
-                            line_num, parsed.freq
-                        ));
-                        // `clamp` propagates NaN and `NaN as u16` saturates to 0,
-                        // so non-finite input must be replaced before the cast.
-                        if !parsed.freq.is_finite() {
-                            1
-                        } else {
-                            parsed.freq.clamp(1.0, u16::MAX as f64) as u16
-                        }
+                let freq: u16 = if !parsed.freq.is_finite()
+                    || parsed.freq < 1.0
+                    || parsed.freq > 1_000_000.0
+                    || parsed.freq > u16::MAX as f64
+                {
+                    warnings.push(format!(
+                        "Line {}: Frequency {} Hz out of range [1, {}]; clamping",
+                        line_num,
+                        parsed.freq,
+                        u16::MAX
+                    ));
+                    // `clamp` propagates NaN and `NaN as u16` saturates to 0,
+                    // so non-finite input must be replaced before the cast.
+                    if !parsed.freq.is_finite() {
+                        1
                     } else {
-                        parsed.freq as u16
-                    };
+                        parsed.freq.clamp(1.0, u16::MAX as f64) as u16
+                    }
+                } else {
+                    parsed.freq as u16
+                };
                 filters.insert(
                     idx,
                     Filter {
@@ -186,29 +191,36 @@ fn extract_name_from_comments(text: &str) -> Option<String> {
                 continue;
             }
 
-            // Check for explicit headers
-            if let Some(pos) = content.to_lowercase().find("graphiceq:") {
-                let name = content[pos + 10..].trim();
-                if !name.is_empty() {
-                    return Some(name.to_string());
-                }
+            // Check for explicit headers. Match in a lowered copy but slice the
+            // original by char index: Unicode lowercasing can change byte
+            // lengths (e.g. 'İ'), so lowered byte offsets are invalid indices
+            // into `content`, and slicing the lowered copy would lose casing.
+            let lowered = content.to_lowercase();
+            let header_name = |needle: &str| -> Option<String> {
+                let byte_pos = lowered.find(needle)?;
+                let char_pos = lowered[..byte_pos].chars().count();
+                let name: String = content
+                    .chars()
+                    .skip(char_pos + needle.chars().count())
+                    .collect();
+                let name = name.trim();
+                (!name.is_empty()).then(|| name.to_string())
+            };
+            if let Some(name) = header_name("graphiceq:") {
+                return Some(name);
             }
-            if let Some(pos) = content.to_lowercase().find("autoeq:") {
-                let name = content[pos + 7..].trim();
-                if !name.is_empty() {
-                    return Some(name.to_string());
-                }
+            if let Some(name) = header_name("autoeq:") {
+                return Some(name);
             }
 
             // Or if it's the first non-empty comment line and doesn't look like a URL or generic info
-            let lower = content.to_lowercase();
-            if !lower.contains("http")
-                && !lower.contains("squig.link")
-                && !lower.contains("equalizer")
-                && !lower.contains("preamp")
-                && !lower.contains("filter")
-                && !lower.contains("frequency")
-                && !lower.contains("response")
+            if !lowered.contains("http")
+                && !lowered.contains("squig.link")
+                && !lowered.contains("equalizer")
+                && !lowered.contains("preamp")
+                && !lowered.contains("filter")
+                && !lowered.contains("frequency")
+                && !lowered.contains("response")
                 && content.len() < 100
             {
                 return Some(content.to_string());
@@ -1904,6 +1916,16 @@ Filter 8: ON HSC Fc 7624 Hz Gain 0.59 dB Q 3.000";
         let text2 = "# Sennheiser HD 600\nPreamp: -3 dB";
         let (_, name2, _) = parse_autoeq_text(text2).unwrap();
         assert_eq!(name2, Some("Sennheiser HD 600".to_string()));
+    }
+
+    #[test]
+    fn test_parse_unicode_header_no_panic() {
+        // 'İ' lowercases to two chars, shifting byte offsets between the
+        // lowered copy and the original; slicing by lowered byte offset used
+        // to panic. Casing of the extracted name must be preserved.
+        let text = "# İ: graphiceq: Sennheiser HD 600\nFilter 1: ON PK Fc 100 Hz Gain 5 dB Q 1.0";
+        let (_, name, _) = parse_autoeq_text(text).unwrap();
+        assert_eq!(name.as_deref(), Some("Sennheiser HD 600"));
     }
 
     #[test]

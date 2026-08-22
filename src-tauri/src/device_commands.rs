@@ -377,6 +377,19 @@ pub async fn connect_device(
             }
         }
         try_open_device(&app_clone, &path_clone)?;
+        // /dev/hidrawN nodes can be reused by a different device between the
+        // enumeration above and the open, so re-check the identity of what was
+        // actually opened before storing it as connected.
+        let reopened = tauri_plugin_hid::hid(&app_clone)
+            .enumerate()
+            .map_err(|error| error.to_string())?
+            .into_iter()
+            .find(|device| device.path == path_clone)
+            .ok_or_else(|| "Device disappeared during connect.".to_string())?;
+        if reopened.vendor_id != device.vendor_id || reopened.product_id != device.product_id {
+            let _ = hid_close(&app_clone, &path_clone);
+            return Err("Device changed while connecting. Scan again and reconnect.".into());
+        }
         lock_device_state(&state)?.connected = Some(ConnectedDevice {
             path: path_clone,
             vendor_id: device.vendor_id,

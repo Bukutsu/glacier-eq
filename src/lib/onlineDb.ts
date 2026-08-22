@@ -20,6 +20,9 @@ function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     request.onerror = () => reject(request.error);
+    // Without this, a second window holding an older DB version blocks the
+    // upgrade forever and the promise never settles.
+    request.onblocked = () => reject(new Error("Database locked by another window"));
     request.onsuccess = () => {
       request.result.onversionchange = () => request.result.close();
       resolve(request.result);

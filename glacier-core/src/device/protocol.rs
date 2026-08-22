@@ -42,6 +42,11 @@ impl Packet {
 
     pub fn framed(&self) -> Vec<u8> {
         let payload_len = self.pad_to.unwrap_or(self.payload.len());
+        assert!(
+            self.payload.len() <= payload_len,
+            "payload of {} bytes does not fit padded frame of {payload_len} bytes",
+            self.payload.len()
+        );
         let mut buf = Vec::with_capacity(payload_len + 1);
         buf.push(self.report_id);
         buf.extend_from_slice(&self.payload);
