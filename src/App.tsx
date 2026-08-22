@@ -301,20 +301,23 @@ function App() {
   const [undoStack, setUndoStack] = useState<PEQData[]>([]);
   const [redoStack, setRedoStack] = useState<PEQData[]>([]);
   const undoStackRef = useRef(undoStack);
+  // PEQ state captured at undo time; redo() refuses unless the current state
+  // still matches it.
+  const redoBaseRef = useRef<PEQData | null>(null);
 
   useEffect(() => {
     undoStackRef.current = undoStack;
   }, [undoStack]);
 
   const pushToUndoStack = useCallback((currentPeq: PEQData) => {
-    // Any new action invalidates redo — even one that dedupes against the top
-    // of the undo stack, otherwise redo would resurrect an abandoned future.
-    setRedoStack([]);
     const stack = undoStackRef.current;
     if (stack.length > 0 && peqEquals(stack[stack.length - 1], currentPeq)) {
-      // No change since the last snapshot — nothing to push.
+      // No change since the last snapshot — nothing to push. Redo validity is
+      // enforced separately in redo(), which checks that the PEQ still sits
+      // where the last undo left it.
       return;
     }
+    setRedoStack([]);
     setUndoStack((prev) => {
       const next = [...prev, currentPeq];
       if (next.length > 50) {
@@ -329,12 +332,21 @@ function App() {
     const prev = undoStack[undoStack.length - 1];
     setUndoStack((stack) => stack.slice(0, -1));
     setRedoStack((stack) => [...stack, peqRef.current]);
+    redoBaseRef.current = prev;
     setPeq(prev);
     setDirty(lastPushedPeq ? !peqEquals(prev, lastPushedPeq) : true);
   }, [undoStack, lastPushedPeq]);
 
   const redo = useCallback(() => {
     if (redoStack.length === 0) return;
+    // A redo entry is only valid while the PEQ still sits exactly where the
+    // last undo left it: a no-op gesture must not wipe redo, but any real
+    // edit after an undo invalidates the abandoned future.
+    const base = redoBaseRef.current;
+    if (!base || !peqEquals(peqRef.current, base)) {
+      setRedoStack([]);
+      return;
+    }
     const next = redoStack[redoStack.length - 1];
     setRedoStack((stack) => stack.slice(0, -1));
     setUndoStack((stack) => [...stack, peqRef.current]);

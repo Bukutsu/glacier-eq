@@ -8,6 +8,10 @@ interface NumberInputProps {
   step?: number;
   precision?: number;
   onChange: (value: number) => void;
+  /** When set, stepper interactions (buttons/arrows/PageUp/Down) call this
+   *  instead of applying value ± step, letting the parent guarantee progress
+   *  (e.g. stepping along a snapped grid). Typed input still goes to onChange. */
+  onStep?: (direction: 1 | -1, largeStep: boolean) => void;
   disabled?: boolean;
   className?: string;
   onFocus?: () => void;
@@ -23,6 +27,7 @@ export function NumberInput({
   step = 1,
   precision = 0,
   onChange,
+  onStep,
   disabled = false,
   className = "",
   onFocus,
@@ -73,17 +78,25 @@ export function NumberInput({
       if (disabled) return;
       onFocus?.();
       setDraft(null);
-      const largeStep = step * 10;
-      const nextVal = Math.min(max, value + largeStep);
-      onChange(Number(nextVal.toFixed(precision)));
+      if (onStep) {
+        onStep(1, true);
+      } else {
+        const largeStep = step * 10;
+        const nextVal = Math.min(max, value + largeStep);
+        onChange(Number(nextVal.toFixed(precision)));
+      }
     } else if (e.key === "PageDown") {
       e.preventDefault();
       if (disabled) return;
       onFocus?.();
       setDraft(null);
-      const largeStep = step * 10;
-      const nextVal = Math.max(min, value - largeStep);
-      onChange(Number(nextVal.toFixed(precision)));
+      if (onStep) {
+        onStep(-1, true);
+      } else {
+        const largeStep = step * 10;
+        const nextVal = Math.max(min, value - largeStep);
+        onChange(Number(nextVal.toFixed(precision)));
+      }
     }
   };
 
@@ -91,6 +104,10 @@ export function NumberInput({
     if (disabled) return;
     onFocus?.();
     setDraft(null);
+    if (onStep) {
+      onStep(-1, false);
+      return;
+    }
     const nextVal = Math.max(min, value - step);
     onChange(Number(nextVal.toFixed(precision)));
   };
@@ -99,6 +116,10 @@ export function NumberInput({
     if (disabled) return;
     onFocus?.();
     setDraft(null);
+    if (onStep) {
+      onStep(1, false);
+      return;
+    }
     const nextVal = Math.min(max, value + step);
     onChange(Number(nextVal.toFixed(precision)));
   };

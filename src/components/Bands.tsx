@@ -66,6 +66,31 @@ function constrainFreq(freq: number, range: [number, number], snapToIso?: boolea
   return clampToRange(snapToIso ? snapFreqToIsoSync(constrained) : constrained, range);
 }
 
+/** Steps frequency along the (optionally ISO-snapped) grid with guaranteed
+ *  progress: snapping can cancel a plain ±step at an ISO center
+ *  (1000 + 50 → snap → 1000), so advance until the snapped value moves. */
+function makeFreqStepper(
+  filter: Filter,
+  range: [number, number],
+  snapToIso: boolean | undefined,
+  onChange: (filter: Filter) => void,
+) {
+  return (direction: 1 | -1, largeStep: boolean) => {
+    const stepSize = largeStep ? 500 : 50;
+    const current = snapToIso ? snapFreqToIsoSync(filter.freq) : filter.freq;
+    let candidate = filter.freq + direction * stepSize;
+    let snapped = constrainFreq(candidate, range, snapToIso);
+    let guard = 0;
+    while (snapped === current && candidate >= range[0] && candidate <= range[1] && guard++ < 400) {
+      candidate += direction * stepSize;
+      snapped = constrainFreq(candidate, range, snapToIso);
+    }
+    if (snapped !== filter.freq) {
+      onChange({ ...filter, freq: snapped });
+    }
+  };
+}
+
 export const Bands = memo(function Bands({ peq, committedPeq, capabilities, onFilterChange, onStartChange, onEndChange, activeBandIndex, onActiveBandChange, snapToIso }: BandsProps) {
   const availableFilters = peq.filters.slice(0, capabilities.num_bands);
   const visibleFilters = availableFilters.filter((filter) => filter.enabled);
@@ -307,6 +332,7 @@ function BandControls({
             }}
             onBlur={onEndChange}
             onChange={(val) => onChange({ ...filter, freq: constrainFreq(val, capabilities.freq_range, snapToIso) })}
+            onStep={makeFreqStepper(filter, capabilities.freq_range, snapToIso, onChange)}
             className="band-freq-stepper"
             aria-label={`Band ${filter.index + 1} frequency value`}
           />

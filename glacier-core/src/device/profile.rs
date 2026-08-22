@@ -14,6 +14,8 @@ pub enum DeviceProtocol {
     Moondrop,
     FiioJa11,
     Fiio,
+    /// Matching fallback for unrecognized devices; never drives hardware.
+    Unknown,
 }
 
 impl DeviceProtocol {
@@ -23,6 +25,7 @@ impl DeviceProtocol {
             Self::Moondrop => "Moondrop",
             Self::FiioJa11 => "FiiO JA11",
             Self::Fiio => "FiiO",
+            Self::Unknown => "Unknown",
         }
     }
 }

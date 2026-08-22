@@ -177,6 +177,10 @@ fn try_open_device(app: &tauri::AppHandle, path: &str) -> Result<(), String> {
         if let Some(ref mut t) = *guard {
             return t.open(path);
         }
+        // ElevatedTransport::spawn blocks on the pkexec prompt and can hold
+        // this mutex for minutes. That's acceptable today only because every
+        // contender (connect/read/write/close) serializes on DeviceSessionLock
+        // first; keep that invariant when adding new transport callers.
         let mut transport = ElevatedTransport::spawn()?;
         transport.open(path)?;
         guard.replace(transport);
