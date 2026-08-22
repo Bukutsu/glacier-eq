@@ -4,6 +4,7 @@
 use crate::profiles::app_data_base_dir;
 use serde::{Deserialize, Serialize};
 use std::fs;
+use std::io::Write;
 use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock};
 
@@ -81,11 +82,26 @@ pub fn save_settings(app: tauri::AppHandle, settings: Settings) -> Result<(), St
         .get_or_init(|| Mutex::new(()))
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
-    let tmp_path = path.with_extension("tmp");
+    // Unique temp name per write: two app instances share the directory but
+    // not this process's lock, so a fixed name could interleave and publish a
+    // partially written file.
+    let nonce = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos();
+    let tmp_path = path.with_extension(format!("{nonce}.tmp"));
     let content = serde_json::to_string_pretty(&settings)
         .map_err(|error| format!("Failed to serialize settings: {error}"))?;
 
-    if let Err(error) = fs::write(&tmp_path, content) {
+    let write_result = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&tmp_path)
+        .and_then(|mut file| {
+            file.write_all(content.as_bytes())
+                .and_then(|_| file.sync_all())
+        });
+    if let Err(error) = write_result {
         let _ = fs::remove_file(&tmp_path);
         return Err(format!("Failed to write temporary settings file: {error}"));
     }
