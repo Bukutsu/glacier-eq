@@ -292,27 +292,22 @@ fn dispatch(
             // read/write oracle if the unprivileged main process is
             // compromised: only open paths whose VID:PID belongs to a
             // supported DAC.
-            let supported = api.device_list().any(|info| {
-                info.path() == cpath.as_c_str()
-                    && glacier_core::device::get_supported_device(
-                        info.vendor_id(),
-                        info.product_id(),
-                    )
-                    .is_some()
+            let expected = api.device_list().find_map(|info| {
+                (info.path() == cpath.as_c_str()).then(|| {
+                    glacier_core::device::get_supported_device(info.vendor_id(), info.product_id())
+                        .map(|_| (info.vendor_id(), info.product_id()))
+                })
             });
-            if !supported {
+            let Some(Some((vendor_id, product_id))) = expected else {
                 return IpcResult::Err("refused: device is not a supported DAC".into());
-            }
+            };
             match api.open_path(&cpath) {
                 Ok(dev) => {
                     // hidraw nodes can be reassigned between the enumeration
-                    // above and this open; refuse whatever we actually got.
+                    // above and this open; require the exact VID:PID we saw,
+                    // not just any supported DAC (two DACs, unplug/replug).
                     let opened_ok = dev.get_device_info().is_ok_and(|info| {
-                        glacier_core::device::get_supported_device(
-                            info.vendor_id(),
-                            info.product_id(),
-                        )
-                        .is_some()
+                        info.vendor_id() == vendor_id && info.product_id() == product_id
                     });
                     if !opened_ok {
                         return IpcResult::Err("refused: device changed while opening".into());
