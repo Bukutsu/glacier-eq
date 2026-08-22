@@ -171,8 +171,7 @@ pub async fn run_autoeq(
         )
     })
     .await
-    .map_err(|error| format!("AutoEQ worker failed: {error}"))?
-    ?;
+    .map_err(|error| format!("AutoEQ worker failed: {error}"))??;
     let warnings = peq.clamp_to_capabilities(&connected_match_target(&state)?.0);
     Ok(AutoEqRunResult { peq, warnings })
 }

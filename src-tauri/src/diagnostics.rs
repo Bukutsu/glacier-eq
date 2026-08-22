@@ -131,7 +131,11 @@ fn append_to_log(app: &tauri::AppHandle, event: &DiagnosticEvent) {
             let _ = fs::rename(&log_path, &backup);
         }
     }
-    if let Ok(mut file) = fs::OpenOptions::new().create(true).append(true).open(&log_path) {
+    if let Ok(mut file) = fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&log_path)
+    {
         let line = format!(
             "{} [{}] [{}] {}\n",
             event.timestamp, event.level, event.source, event.message
@@ -145,7 +149,9 @@ fn append_to_log(app: &tauri::AppHandle, event: &DiagnosticEvent) {
 fn lock_store<'a, 'r>(
     state: &'a tauri::State<'r, Mutex<DiagnosticsStore>>,
 ) -> MutexGuard<'a, DiagnosticsStore> {
-    state.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+    state
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
 // --- Commands ---

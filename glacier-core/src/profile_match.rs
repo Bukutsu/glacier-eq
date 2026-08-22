@@ -133,7 +133,8 @@ mod tests {
             global_gain: -3.3,
         };
 
-        let normalized = normalize_for_match(saved.clone(), &DESKTOP_DAC_CAPS, DeviceProtocol::Moondrop);
+        let normalized =
+            normalize_for_match(saved.clone(), &DESKTOP_DAC_CAPS, DeviceProtocol::Moondrop);
         assert_eq!(normalized.global_gain, -3.3);
         assert!(peq_matches_profile(
             &pulled,
