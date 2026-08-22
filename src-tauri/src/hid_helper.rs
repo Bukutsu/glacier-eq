@@ -118,10 +118,17 @@ impl ElevatedTransport {
         let mut line = serde_json::to_string(&msg).map_err(|e| format!("IPC serialize: {e}"))?;
         line.push('\n');
 
-        self.stdin
+        if let Err(e) = self
+            .stdin
             .write_all(line.as_bytes())
             .and_then(|_| self.stdin.flush())
-            .map_err(|e| format!("IPC write: {e}"))?;
+        {
+            // A write failure means the pipe or child is gone (e.g. the
+            // helper was OOM-killed); flag it so callers replace the
+            // transport instead of failing through it forever.
+            self.dead = true;
+            return Err(format!("IPC write: {e}"));
+        }
 
         loop {
             match self.responses.recv_timeout(RESPONSE_TIMEOUT) {
