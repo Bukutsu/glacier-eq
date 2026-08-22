@@ -71,25 +71,38 @@ async function clearCachedDatabase(): Promise<void> {
 // writes into the same store.
 let downloadInFlight: Promise<number> | null = null;
 
+// Progress goes to every caller of the shared download, not just the one
+// that started it.
+type ProgressListener = (percent: number) => void;
+const progressListeners = new Set<ProgressListener>();
+const notifyProgress = (percent: number) => {
+  for (const listener of [...progressListeners]) listener(percent);
+};
+
 async function downloadDatabase(
   onProgress: (percent: number) => void,
   signal?: AbortSignal,
 ): Promise<number> {
-  downloadInFlight ??= (async () => {
-    try {
-      const db = await openDb();
+  progressListeners.add(onProgress);
+  try {
+    downloadInFlight ??= (async () => {
       try {
-        return await downloadDatabaseWithDb(onProgress, signal, db);
+        const db = await openDb();
+        try {
+          return await downloadDatabaseWithDb(notifyProgress, signal, db);
+        } finally {
+          db.close();
+        }
       } finally {
-        db.close();
+        // Reset even when openDb() rejects, or every later download would
+        // await this failed promise forever.
+        downloadInFlight = null;
       }
-    } finally {
-      // Reset even when openDb() rejects, or every later download would
-      // await this failed promise forever.
-      downloadInFlight = null;
-    }
-  })();
-  return downloadInFlight;
+    })();
+    return await downloadInFlight;
+  } finally {
+    progressListeners.delete(onProgress);
+  }
 }
 
 async function downloadDatabaseWithDb(
