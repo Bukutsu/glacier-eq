@@ -112,8 +112,8 @@ pub fn accumulate_response_values(
     freqs: &[f32],
     response: &mut [f32],
 ) {
-    // Reject non-finite rates too (NaN <= 0.0 is false).
-    if !(dsp_sample_rate > 0.0) {
+    // Reject non-finite and non-positive rates.
+    if !dsp_sample_rate.is_finite() || dsp_sample_rate <= 0.0 {
         return;
     }
     let factor = TAU / dsp_sample_rate;
@@ -135,8 +135,8 @@ pub fn accumulate_response_values_cos(
     cos_w_arr: &[f64],
     response: &mut [f32],
 ) {
-    // Reject non-finite rates too (NaN <= 0.0 is false).
-    if !(dsp_sample_rate > 0.0) {
+    // Reject non-finite and non-positive rates.
+    if !dsp_sample_rate.is_finite() || dsp_sample_rate <= 0.0 {
         return;
     }
     let coeffs = compute_biquad_coeffs_for(filter_type, frequency, gain, q, dsp_sample_rate);
