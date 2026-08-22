@@ -260,7 +260,21 @@ export const EqGraph = memo(function EqGraph({
       const direction = event.key === "ArrowLeft" ? -1 : 1;
       const scaled = Math.round(filter.freq * 2 ** (direction / 48));
       const stepped = direction < 0 ? Math.min(scaled, filter.freq - 1) : Math.max(scaled, filter.freq + 1);
-      const snapped = snapToIso ? snapFreqToIsoSync(stepped) : stepped;
+      let snapped = snapToIso ? snapFreqToIsoSync(stepped) : stepped;
+      if (snapToIso) {
+        // At an ISO center the ±1/48-octave step snaps straight back
+        // (1000 → 1015 → 1000), leaving the band stuck; widen the step until
+        // the snapped value actually moves.
+        const current = snapFreqToIsoSync(filter.freq);
+        let candidate = stepped;
+        while (snapped === current) {
+          const next = Math.round(candidate * 2 ** (direction / 48));
+          const bounded = direction < 0 ? Math.min(next, filter.freq - 1) : Math.max(next, filter.freq + 1);
+          if (bounded === candidate) break; // pinned against the range edge
+          candidate = bounded;
+          snapped = snapFreqToIsoSync(candidate);
+        }
+      }
       const freq = Math.max(capabilities.freq_range[0], Math.min(capabilities.freq_range[1], snapped));
       onFilterChange(index, { ...filter, freq });
       return;

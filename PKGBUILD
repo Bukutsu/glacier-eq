@@ -68,6 +68,9 @@ package() {
   # Desktop file
   install -Dm644 "desktop/glacier-eq.desktop" "${pkgdir}/usr/share/applications/glacier-eq.desktop"
 
+  # License
+  install -Dm644 "LICENSE" "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+
   # Icons
   install -Dm644 "src-tauri/icons/32x32.png"   "${pkgdir}/usr/share/icons/hicolor/32x32/apps/glacier-eq.png"
   install -Dm644 "src-tauri/icons/64x64.png"   "${pkgdir}/usr/share/icons/hicolor/64x64/apps/glacier-eq.png"

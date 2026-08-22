@@ -24,12 +24,22 @@ pub fn normalize_for_match(
         DeviceProtocol::Moondrop | DeviceProtocol::FiioJa11 | DeviceProtocol::Fiio => {
             (peq.global_gain * 10.0).round() / 10.0
         }
+        // Unrecognized device: leave preamp untouched rather than assuming an
+        // integer step (the old Walkplay fallback could mask ~1 dB differences).
+        DeviceProtocol::Unknown => peq.global_gain,
     };
     peq
 }
 
 fn active_filters(peq: &PEQData) -> Vec<&Filter> {
-    let mut filters: Vec<&Filter> = peq.filters.iter().filter(|filter| filter.enabled).collect();
+    // Enabled bands with zero gain are inactive acoustically, and Moondrop/FiiO
+    // pulls even report them as disabled (enabled = gain != 0); treat them as
+    // inactive on both sides so filter counts line up.
+    let mut filters: Vec<&Filter> = peq
+        .filters
+        .iter()
+        .filter(|filter| filter.enabled && filter.gain != 0.0)
+        .collect();
     filters.sort_by(|a, b| {
         a.freq
             .cmp(&b.freq)

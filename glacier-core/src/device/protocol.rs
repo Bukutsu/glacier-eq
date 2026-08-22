@@ -96,6 +96,11 @@ impl DeviceProtocol {
             DeviceProtocol::Moondrop => &MOONDROP_PROTOCOL,
             DeviceProtocol::FiioJa11 => &crate::device::fiio::JA11_PROTOCOL,
             DeviceProtocol::Fiio => &crate::device::fiio::FIIO_PROTOCOL,
+            DeviceProtocol::Unknown => {
+                // Only real device profiles drive hardware; Unknown exists solely
+                // as a matching fallback.
+                panic!("Unknown protocol has no device implementation")
+            }
         }
     }
 }

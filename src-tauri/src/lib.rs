@@ -130,14 +130,17 @@ fn read_text_file(app: tauri::AppHandle, path: String) -> Result<String, String>
     }
     let mut file = open_no_follow(&PathBuf::from(&path), false)
         .map_err(|e| format!("Failed to read file: {e}"))?;
-    let metadata = file.metadata().map_err(|e| format!("Failed to stat file: {e}"))?;
-    if metadata.len() > MAX_TEXT_FILE_BYTES {
+    // Read bounded: the stat-then-read gap could otherwise admit a swapped or
+    // growing file larger than the limit into memory.
+    use std::io::Read;
+    let mut limited = file.take(MAX_TEXT_FILE_BYTES + 1);
+    let mut content = String::new();
+    limited
+        .read_to_string(&mut content)
+        .map_err(|e| format!("Failed to read file: {e}"))?;
+    if content.len() as u64 > MAX_TEXT_FILE_BYTES {
         return Err("Refused: file exceeds the 1 MiB limit".into());
     }
-    use std::io::Read;
-    let mut content = String::new();
-    file.read_to_string(&mut content)
-        .map_err(|e| format!("Failed to read file: {e}"))?;
     Ok(content)
 }
 

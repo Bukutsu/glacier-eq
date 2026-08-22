@@ -41,13 +41,21 @@ self.addEventListener("fetch", (event) => {
 
   event.respondWith(
     fetch(request)
-      .then((response) => {
+      .then(async (response) => {
         if (response.ok) {
           const copy = response.clone();
           return caches.open(CACHE)
             .then((cache) => cache.put(request, copy))
             .catch(() => {})
             .then(() => response);
+        }
+        // A transient server error (e.g. during a Pages redeploy) shouldn't
+        // fail a navigation that the warm cache could still serve.
+        if (!response.ok && request.mode === "navigate") {
+          const cached =
+            (await caches.match(request)) ||
+            (await caches.match(self.registration.scope));
+          if (cached) return cached;
         }
         return response;
       })

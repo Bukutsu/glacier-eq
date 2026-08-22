@@ -171,7 +171,7 @@ pub fn match_profile_name(
     let protocol = vendor_id
         .zip(product_id)
         .and_then(|(vid, pid)| get_supported_device(vid, pid).map(|profile| profile.protocol))
-        .unwrap_or(DeviceProtocol::Walkplay);
+        .unwrap_or(DeviceProtocol::Unknown);
 
     Ok(matching_profile_name(
         &peq,
