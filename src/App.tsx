@@ -1081,7 +1081,7 @@ function App() {
     } finally {
       setIsBusy(false);
     }
-  }, [selectedDevice, reportStatus, selectMatchingProfile]);
+  }, [selectedDevice, reportStatus]);
 
   const saveProfile = useCallback(async () => {
     const name = newProfileName.trim() || selectedPreset;
@@ -1115,7 +1115,7 @@ function App() {
     } catch (error) {
       setStatus(`Failed to save profile: ${error}`);
     }
-  }, [loadProfiles, newProfileName, peq, profiles, selectedPreset]);
+  }, [newProfileName, peq, profiles, selectedPreset]);
 
   const deleteSelectedProfile = useCallback(async () => {
     if (selectedPreset === DEFAULT_PROFILE_NAME) return;
