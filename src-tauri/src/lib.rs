@@ -3,7 +3,7 @@
 
 //! Tauri backend for Glacier EQ.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
 #[cfg(unix)]
@@ -16,6 +16,7 @@ use tauri_plugin_window_state::StateFlags;
 
 mod device_commands;
 mod diagnostics;
+mod fsutil;
 #[cfg(target_os = "linux")]
 pub mod hid_helper;
 mod profiles;
@@ -121,21 +122,13 @@ async fn save_text_file(
         return Err("Refused: content exceeds the 1 MiB limit".into());
     }
     // Disk I/O stays off the IPC thread so a slow/fsync-stalled disk cannot
-    // freeze the UI.
+    // freeze the UI. The write goes through a temp file + rename so a crash
+    // cannot leave a truncated export behind.
     tauri::async_runtime::spawn_blocking(move || {
-        use std::io::Write;
-        let mut file = open_no_follow(&PathBuf::from(&path), true)
-            .map_err(|e| format!("Failed to write file: {e}"))?;
-        // Re-validate after open: a path component swapped in between the pre-open
-        // check and open() canonicalizes outside the allowed bases now. Ceiling:
-        // the create/truncate has already happened at this point; fully closing
-        // that gap needs openat2(RESOLVE_NO_SYMLINKS).
         if !is_path_allowed(&app, &path) {
-            drop(file);
             return Err("Refused: file path is outside allowed directories".into());
         }
-        file.write_all(content.as_bytes())
-            .map_err(|e| format!("Failed to write file: {e}"))
+        crate::fsutil::atomic_write(Path::new(&path), content.as_bytes())
     })
     .await
     .map_err(|e| e.to_string())?
