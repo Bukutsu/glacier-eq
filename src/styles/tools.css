@@ -1375,6 +1375,10 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 .add-trace-cache-row {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
+  padding-top: 8px;
+  margin-top: 4px;
+  border-top: 1px solid var(--line-subtle);
 }
 
 .add-trace-download-prompt {
