@@ -115,10 +115,9 @@ pub fn parse_autoeq_text(text: &str) -> Result<(PEQData, Option<String>, Vec<Str
                     i
                 });
 
-                if parsed.index.is_some() {
-                    next_sequential_idx = idx + 1;
-                }
-
+                // Reject out-of-range indexes before touching the sequential
+                // cursor, or one malformed line poisons every unlabeled
+                // filter after it.
                 if idx >= 32 {
                     warnings.push(format!(
                         "Line {}: Filter index {} exceeds maximum allowed bands (32)",
@@ -126,6 +125,10 @@ pub fn parse_autoeq_text(text: &str) -> Result<(PEQData, Option<String>, Vec<Str
                         idx + 1
                     ));
                     continue;
+                }
+
+                if parsed.index.is_some() {
+                    next_sequential_idx = idx + 1;
                 }
                 // Clamp frequency into a cast-safe, sane range before `as u16`
                 // to avoid the silent wraparound the old code had for huge/negative Fc.
@@ -1727,6 +1730,16 @@ mod tests {
         let (peq, name, _) = parse_autoeq_text(text).unwrap();
         assert_eq!(name.as_deref(), Some("AB"));
         assert_eq!(peq.global_gain, -3.0);
+    }
+
+    #[test]
+    fn out_of_range_index_does_not_poison_sequential_fill() {
+        // A rejected explicit index must not advance the sequential cursor.
+        let text = "Preamp: -3 dB\nFilter 9999: ON PK Fc 200 Hz Gain 1 dB Q 1.0\nFilter: ON PK Fc 300 Hz Gain 1 dB Q 1.0";
+        let (peq, _, warnings) = parse_autoeq_text(text).unwrap();
+        assert_eq!(peq.filters.len(), 1);
+        assert_eq!(warnings.len(), 1);
+        assert!(peq.filters.iter().any(|f| f.freq == 300));
     }
 
     #[test]
