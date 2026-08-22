@@ -566,7 +566,10 @@ function ImportTab({ peq, profiles, selectedPreset, onImportPEQ, onReloadProfile
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Clear up front so re-selecting the same file re-fires onChange even
+    // when we early-return below.
     const file = e.target.files?.[0];
+    e.target.value = "";
     if (!file) return;
 
     if (!file.name.endsWith(".txt")) {
@@ -581,7 +584,6 @@ function ImportTab({ peq, profiles, selectedPreset, onImportPEQ, onReloadProfile
     } catch (error) {
       setStatus(`Failed to import: ${error}`);
     }
-    e.target.value = "";
   };
 
   const parseAndLoadText = async (text: string, defaultNameFallback: string) => {
