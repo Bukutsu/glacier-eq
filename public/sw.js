@@ -6,20 +6,42 @@ self.addEventListener("install", (event) => {
       .open(CACHE)
       .then(async (cache) => {
         const manifestUrl = new URL("offline-assets.json", self.registration.scope);
-        let manifest = [];
+        let manifest = null;
         try {
           manifest = await fetch(manifestUrl).then((response) => response.json());
         } catch {}
 
-        await Promise.allSettled([
+        const wanted = [
           self.registration.scope,
           manifestUrl.href,
           new URL("MaterialIcons-Regular.ttf", self.registration.scope).href,
-          ...manifest.map((file) => new URL(file, self.registration.scope).href),
-        ].map(async (url) => {
-          const response = await fetch(url, { cache: "reload" });
-          if (response.ok) await cache.put(url, response);
-        }));
+        ];
+        if (Array.isArray(manifest)) {
+          wanted.push(
+            ...manifest.map((file) => new URL(file, self.registration.scope).href),
+          );
+        }
+
+        await Promise.allSettled(
+          wanted.map(async (url) => {
+            const response = await fetch(url, { cache: "reload" });
+            if (response.ok) await cache.put(url, response);
+          }),
+        );
+
+        // Prune entries from previous deploys (old hashed assets, ad-hoc
+        // runtime responses) so the cache stays bounded per release. Only do
+        // this with a fresh manifest: without one this is likely an offline
+        // install and "stale" entries may be the only copies available.
+        if (Array.isArray(manifest)) {
+          const keep = new Set(wanted);
+          const keys = await cache.keys();
+          await Promise.all(
+            keys
+              .filter((request) => !keep.has(request.url))
+              .map((request) => cache.delete(request)),
+          );
+        }
       })
       .then(() => self.skipWaiting()),
   );
