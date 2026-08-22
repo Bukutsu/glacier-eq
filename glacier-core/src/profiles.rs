@@ -179,7 +179,16 @@ fn replace_file(temporary: &Path, destination: &Path) -> std::io::Result<()> {
     if destination.exists() {
         std::fs::remove_file(destination)?;
     }
-    std::fs::rename(temporary, destination)
+    std::fs::rename(temporary, destination)?;
+    // Persist the rename: without a directory fsync, power loss can silently
+    // revert the destination to its previous contents.
+    #[cfg(unix)]
+    if let Some(parent) = destination.parent() {
+        if let Ok(dir) = std::fs::File::open(parent) {
+            let _ = dir.sync_all();
+        }
+    }
+    Ok(())
 }
 
 fn validate_name(name: &str) -> Result<(), String> {

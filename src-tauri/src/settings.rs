@@ -129,6 +129,14 @@ fn save_settings_sync(path: &std::path::Path, settings: &Settings) -> Result<(),
         let _ = fs::remove_file(&tmp_path);
         return Err(format!("Failed to save settings file: {error}"));
     }
+    // Persist the rename: without a directory fsync, power loss can silently
+    // revert settings.json to the previous version.
+    #[cfg(unix)]
+    if let Some(parent) = path.parent() {
+        if let Ok(dir) = fs::File::open(parent) {
+            let _ = dir.sync_all();
+        }
+    }
 
     Ok(())
 }
