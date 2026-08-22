@@ -66,16 +66,25 @@ async function clearCachedDatabase(): Promise<void> {
   }
 }
 
+// One download at a time: closing and reopening the modal mid-download
+// remounts the hook, and a second concurrent fetch would interleave chunk
+// writes into the same store.
+let downloadInFlight: Promise<number> | null = null;
+
 async function downloadDatabase(
   onProgress: (percent: number) => void,
   signal?: AbortSignal,
 ): Promise<number> {
-  const db = await openDb();
-  try {
-    return await downloadDatabaseWithDb(onProgress, signal, db);
-  } finally {
-    db.close();
-  }
+  downloadInFlight ??= (async () => {
+    const db = await openDb();
+    try {
+      return await downloadDatabaseWithDb(onProgress, signal, db);
+    } finally {
+      db.close();
+      downloadInFlight = null;
+    }
+  })();
+  return downloadInFlight;
 }
 
 async function downloadDatabaseWithDb(
