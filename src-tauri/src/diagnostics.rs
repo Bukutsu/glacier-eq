@@ -7,7 +7,7 @@ use std::collections::VecDeque;
 use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
-use std::sync::{Mutex, MutexGuard};
+use std::sync::{Mutex, MutexGuard, OnceLock};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum LogLevel {
@@ -120,10 +120,18 @@ fn get_log_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     Ok(app_data_base_dir(app)?.join("diagnostics.log"))
 }
 
+static LOG_IO_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+
 fn append_to_log(app: &tauri::AppHandle, event: &DiagnosticEvent) {
     let Ok(log_path) = get_log_path(app) else {
         return;
     };
+    // Serialize rotation and append across concurrent command tasks: two
+    // racing rotations would send one task's line into the backup file.
+    let _guard = LOG_IO_LOCK
+        .get_or_init(|| Mutex::new(()))
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     // Rotate log file if it exceeds 5MB
     if let Ok(meta) = fs::metadata(&log_path) {
         if meta.len() > 5 * 1024 * 1024 {
