@@ -298,6 +298,18 @@ fn dispatch(
             }
             match api.open_path(&cpath) {
                 Ok(dev) => {
+                    // hidraw nodes can be reassigned between the enumeration
+                    // above and this open; refuse whatever we actually got.
+                    let opened_ok = dev.get_device_info().is_ok_and(|info| {
+                        glacier_core::device::get_supported_device(
+                            info.vendor_id(),
+                            info.product_id(),
+                        )
+                        .is_some()
+                    });
+                    if !opened_ok {
+                        return IpcResult::Err("refused: device changed while opening".into());
+                    }
                     open.insert(path, dev);
                     IpcResult::Ok(None)
                 }
