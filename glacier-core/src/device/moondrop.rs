@@ -96,7 +96,7 @@ impl EqProtocol for MoondropProtocol {
             gain,
             filter.q,
             dsp_sample_rate,
-        );
+        )?;
         let mut payload = vec![0; 63];
         payload[0] = 0x01;
         payload[1] = 0x09;
@@ -210,8 +210,8 @@ mod tests {
             .remove(0);
 
         assert_eq!(
-            &packet.payload[7..27],
-            &compute_iir_filter(FilterType::Peak, 1000.0, 0.0, 1.0, 48000.0)
+            packet.payload[7..27],
+            compute_iir_filter(FilterType::Peak, 1000.0, 0.0, 1.0, 48000.0).unwrap()
         );
         assert_eq!(
             i16::from_le_bytes([packet.payload[31], packet.payload[32]]),
