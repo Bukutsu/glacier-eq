@@ -120,11 +120,10 @@ fn save_settings_sync(path: &std::path::Path, settings: &Settings) -> Result<(),
         return Err(format!("Failed to write temporary settings file: {error}"));
     }
 
-    #[cfg(windows)]
-    if path.exists() {
-        fs::remove_file(path)
-            .map_err(|error| format!("Failed to replace settings file: {error}"))?;
-    }
+    // std::fs::rename replaces an existing destination on Windows
+    // (MoveFileExW with MOVEFILE_REPLACE_EXISTING), so no pre-delete is
+    // needed: deleting first would leave settings.json missing if we crash
+    // before the rename.
     if let Err(error) = fs::rename(&tmp_path, path) {
         let _ = fs::remove_file(&tmp_path);
         return Err(format!("Failed to save settings file: {error}"));
