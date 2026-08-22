@@ -76,11 +76,16 @@ async function downloadDatabase(
   signal?: AbortSignal,
 ): Promise<number> {
   downloadInFlight ??= (async () => {
-    const db = await openDb();
     try {
-      return await downloadDatabaseWithDb(onProgress, signal, db);
+      const db = await openDb();
+      try {
+        return await downloadDatabaseWithDb(onProgress, signal, db);
+      } finally {
+        db.close();
+      }
     } finally {
-      db.close();
+      // Reset even when openDb() rejects, or every later download would
+      // await this failed promise forever.
       downloadInFlight = null;
     }
   })();
