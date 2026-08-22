@@ -743,8 +743,12 @@ function App() {
       timerId = setTimeout(runPoll, delayMs);
     };
 
+    // Guards against overlap: visibilitychange fires runPoll directly while
+    // a scheduled poll may still be in flight.
+    let polling = false;
     const runPoll = async () => {
-      if (!active || document.visibilityState === "hidden") return;
+      if (!active || polling || document.visibilityState === "hidden") return;
+      polling = true;
       try {
         const realDevices = await invoke<DeviceInfo[]>("list_devices");
         const found = realDevices.find(
@@ -775,6 +779,8 @@ function App() {
         }
       } catch (error) {
         console.error("Auto-reconnect poll error:", error);
+      } finally {
+        polling = false;
       }
 
       if (active) {
