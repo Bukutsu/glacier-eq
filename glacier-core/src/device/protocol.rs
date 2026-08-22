@@ -233,7 +233,7 @@ impl WalkplayProtocol {
         filter: &Filter,
         dsp_sample_rate: f64,
         global_gain: f64,
-    ) -> Vec<u8> {
+    ) -> Result<Vec<u8>, String> {
         // Savitech has no per-band enable field. WalkPlay bypasses a band by
         // writing zero gain while keeping its frequency/Q/type metadata intact.
         let freq = filter.freq;
@@ -244,7 +244,7 @@ impl WalkplayProtocol {
             gain,
             filter.q,
             dsp_sample_rate,
-        );
+        )?;
         let filter_type_byte: u8 = filter.filter_type.into();
         // Global gain is embedded as an unsigned byte in every filter packet,
         // matching the Walkplay/Savitech wire format (byte 34 of the payload).
@@ -266,7 +266,7 @@ impl WalkplayProtocol {
         packet.extend_from_slice(&convert_to_2byte_array((gain * 256.0).round() as i32));
         packet.extend_from_slice(&[filter_type_byte, gain_byte, 0x00]);
 
-        packet
+        Ok(packet)
     }
 
     pub(crate) fn build_global_gain_request(_nonce: u8) -> Vec<u8> {
@@ -411,7 +411,7 @@ impl EqProtocol for WalkplayProtocol {
     ) -> Result<Vec<Packet>, String> {
         Ok(vec![Packet::new(
             REPORT_ID,
-            Self::build_filter_write_packet(index, filter, dsp_sample_rate, global_gain),
+            Self::build_filter_write_packet(index, filter, dsp_sample_rate, global_gain)?,
         )])
     }
 
