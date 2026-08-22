@@ -605,14 +605,28 @@ fn open_session<T>(
         )
     })?;
     eprintln!("device: {}", selected.name);
-    let mut io = HidIo(api.open_path(&selected.path).map_err(|error| {
+    let device = api.open_path(&selected.path).map_err(|error| {
         let message = format!("failed to open {}: {error}", selected.display_path);
         if message.to_lowercase().contains("permission denied") {
             format!("{message}; install Glacier EQ's udev rules, reload udev, and replug the DAC")
         } else {
             message
         }
-    })?);
+    })?;
+    // hidraw nodes can be reassigned between enumeration and open; abort
+    // rather than operate on the wrong device.
+    let opened = device
+        .get_device_info()
+        .map_err(|error| format!("opened device info unavailable: {error}"))?;
+    if opened.vendor_id() != selected.vendor || opened.product_id() != selected.product {
+        return Err(format!(
+            "device at {} changed while opening (now {:04x}:{:04x}); rescan and retry",
+            selected.display_path,
+            opened.vendor_id(),
+            opened.product_id()
+        ));
+    }
+    let mut io = HidIo(device);
     let mut progress = |message: &str, percentage: f32| eprintln!("{percentage:>3.0}% {message}");
     operation(&mut DeviceSession::with_progress(
         &mut io,
