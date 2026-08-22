@@ -105,6 +105,11 @@ pub fn parse_autoeq_text(text: &str) -> Result<(PEQData, Option<String>, Vec<Str
         if line.to_lowercase().contains("filter") {
             if let Some(parsed) = parse_filter_line(line) {
                 let idx = parsed.index.unwrap_or_else(|| {
+                    // Explicit indexes can appear out of order; never let a
+                    // sequential fill clobber one already parsed.
+                    while filters.contains_key(&next_sequential_idx) {
+                        next_sequential_idx += 1;
+                    }
                     let i = next_sequential_idx;
                     next_sequential_idx += 1;
                     i
@@ -1722,6 +1727,17 @@ mod tests {
         let (peq, name, _) = parse_autoeq_text(text).unwrap();
         assert_eq!(name.as_deref(), Some("AB"));
         assert_eq!(peq.global_gain, -3.0);
+    }
+
+    #[test]
+    fn unlabeled_filters_skip_occupied_indexes() {
+        // "Filter 2" then "Filter 1" resets the sequential fill to 1; the
+        // unlabeled line must take the next free slot, not clobber Filter 2.
+        let text = "Preamp: -3 dB\nFilter 2: ON PK Fc 200 Hz Gain 1 dB Q 1.0\nFilter 1: ON PK Fc 100 Hz Gain 1 dB Q 1.0\nFilter: ON PK Fc 300 Hz Gain 1 dB Q 1.0";
+        let (peq, _, warnings) = parse_autoeq_text(text).unwrap();
+        assert_eq!(peq.filters.len(), 3);
+        assert!(warnings.is_empty());
+        assert!(peq.filters.iter().any(|f| f.freq == 300));
     }
 
     #[test]
