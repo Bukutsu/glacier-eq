@@ -40,6 +40,14 @@ impl Packet {
         }
     }
 
+    /// Builds the HID report: report ID byte followed by the payload,
+    /// zero-padded to the declared report length.
+    ///
+    /// # Panics
+    ///
+    /// If the payload exceeds `pad_to`. That is a caller contract violation
+    /// (all current packet builders use fixed sizes); failing loudly beats
+    /// sending a truncated frame to the device.
     pub fn framed(&self) -> Vec<u8> {
         let payload_len = self.pad_to.unwrap_or(self.payload.len());
         assert!(
