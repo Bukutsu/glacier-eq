@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from "react";
 import type { MeasurementPoint } from "../types";
+import { normalizeMeasurementPoints } from "./measurements";
 
 const DB_NAME = "glacier-eq-online";
 const DB_VERSION = 1;
@@ -406,7 +407,17 @@ async function loadDeviceCurvePoints(
     });
   }
 
-    return points;
+  // Cache contents come from a third-party network source; validate them like
+  // the file/paste path instead of trusting what was stored.
+  if (points.length > 100_000) {
+    throw new Error("Cached curve exceeds maximum point count.");
+  }
+  const validated = normalizeMeasurementPoints(points);
+  if (validated.length < 2) {
+    throw new Error("Cached curve has fewer than 2 valid points.");
+  }
+
+    return validated;
   } finally {
     db.close();
   }
