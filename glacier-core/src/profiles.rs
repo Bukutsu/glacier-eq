@@ -175,10 +175,10 @@ impl ProfileStore {
 }
 
 fn replace_file(temporary: &Path, destination: &Path) -> std::io::Result<()> {
-    #[cfg(windows)]
-    if destination.exists() {
-        std::fs::remove_file(destination)?;
-    }
+    // std::fs::rename replaces an existing destination on Windows
+    // (MoveFileExW with MOVEFILE_REPLACE_EXISTING), so no pre-delete is
+    // needed: deleting first would leave the destination missing if we crash
+    // before the rename.
     std::fs::rename(temporary, destination)?;
     // Persist the rename: without a directory fsync, power loss can silently
     // revert the destination to its previous contents.
