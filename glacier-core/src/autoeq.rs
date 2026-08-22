@@ -201,15 +201,20 @@ fn extract_name_from_comments(text: &str) -> Option<String> {
             // lowered copy are not valid indices into `content`.
             let header_name = |needle: &str| -> Option<String> {
                 let chars: Vec<char> = content.chars().collect();
+                let needle: Vec<char> = needle.chars().collect();
                 let matches_at = |start: usize| {
-                    needle
-                        .chars()
-                        .zip(chars[start..].iter())
-                        .all(|(n, c)| c.to_lowercase().eq(n.to_lowercase()))
+                    // zip() truncates at the shorter side, so a content
+                    // shorter than the needle would "match" its own prefix;
+                    // require the full needle to fit first.
+                    chars.len() - start >= needle.len()
+                        && chars[start..]
+                            .iter()
+                            .zip(&needle)
+                            .all(|(c, n)| c.to_lowercase().eq(n.to_lowercase()))
                 };
-                let start = (0..chars.len().saturating_sub(needle.chars().count()) + 1)
+                let start = (0..chars.len().saturating_sub(needle.len()) + 1)
                     .find(|&start| matches_at(start))?;
-                let name: String = chars[start + needle.chars().count()..].iter().collect();
+                let name: String = chars[start + needle.len()..].iter().collect();
                 let name = name.trim();
                 (!name.is_empty()).then(|| name.to_string())
             };
@@ -1719,6 +1724,22 @@ mod tests {
         assert_eq!(peq.global_gain, -3.0);
     }
 
+    #[test]
+    fn header_name_rejects_prefix_shorter_than_needle() {
+        // Regression: a comment line shorter than the needle used to panic
+        // on the slice after a truncated zip match.
+        for text in [
+            "# G\nPreamp: -3 dB",
+            "# A",
+            "# GraphicEQ",
+            "# xİgraphiceq:AB",
+        ] {
+            let _ = parse_autoeq_text(text);
+        }
+        let (peq, name, _) = parse_autoeq_text("# GraphicEQ:Flat\nPreamp: -3 dB").unwrap();
+        assert_eq!(name.as_deref(), Some("Flat"));
+        assert_eq!(peq.global_gain, -3.0);
+    }
     #[test]
     fn parses_and_log_normalizes_curve() {
         let points =
