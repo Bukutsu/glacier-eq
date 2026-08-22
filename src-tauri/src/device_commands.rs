@@ -381,7 +381,10 @@ pub async fn connect_device(
                     device.vendor_id, device.product_id
                 )
             })?;
-        if let Some(previous) = lock_device_state(&state)?.connected.take() {
+        // Bind outside the if-let so the state lock guard drops before the
+        // blocking hid_close below (helper IPC can take seconds on Linux).
+        let previous = lock_device_state(&state)?.connected.take();
+        if let Some(previous) = previous {
             let _ = hid_close(&app_clone, &previous.path);
             #[cfg(target_os = "linux")]
             {
