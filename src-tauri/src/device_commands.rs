@@ -429,8 +429,18 @@ pub async fn disconnect_device(
 ) -> Result<(), String> {
     let session_lock = app.state::<DeviceSessionLock>();
     let _guard = session_lock.0.lock().await;
-    if let Some(device) = lock_device_state(&state)?.connected.take() {
-        let _ = hid_close(&app, &device.path);
+    // Bind outside the if-let so the state lock guard drops before .await.
+    let device = lock_device_state(&state)?.connected.take();
+    if let Some(device) = device {
+        // The elevated route writes to the helper's stdin and can block up
+        // to RESPONSE_TIMEOUT; keep it off the async runtime like the other
+        // device commands.
+        let close_app = app.clone();
+        tauri::async_runtime::spawn_blocking(move || {
+            let _ = hid_close(&close_app, &device.path);
+        })
+        .await
+        .map_err(|e| e.to_string())?;
     }
     #[cfg(target_os = "linux")]
     {
