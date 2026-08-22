@@ -89,6 +89,16 @@ fn ensure_connected(app: &tauri::AppHandle) -> Result<(), String> {
 
 fn hid_read(app: &tauri::AppHandle, path: &str, timeout: i32) -> Result<Vec<u8>, String> {
     ensure_connected(app)?;
+    // The Linux elevated transport is guarded by a std Mutex that must never be
+    // held across unbounded blocking I/O: connect/close/list all need the same
+    // lock, and hidapi treats a negative timeout as "wait forever". Session
+    // reads poll with 20-60 ms timeouts; cap anything longer.
+    const MAX_READ_TIMEOUT_MS: i32 = 1_000;
+    let timeout = if !(0..=MAX_READ_TIMEOUT_MS).contains(&timeout) {
+        MAX_READ_TIMEOUT_MS
+    } else {
+        timeout
+    };
     #[cfg(target_os = "linux")]
     {
         let transport_state = app.state::<Mutex<Option<ElevatedTransport>>>();

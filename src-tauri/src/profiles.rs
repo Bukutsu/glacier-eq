@@ -158,14 +158,21 @@ pub async fn run_autoeq(
     fs: f32,
     state: tauri::State<'_, Mutex<DeviceState>>,
 ) -> Result<AutoEqRunResult, String> {
-    let mut peq = glacier_core::autoeq::run_autoeq(
-        &measurement_points,
-        &target_points,
-        n_bands,
-        steps,
-        &smooth_type,
-        fs,
-    )?;
+    // CPU-bound optimization: run off the async workers so progress events and
+    // other IPC keep flowing while it crunches.
+    let mut peq = tauri::async_runtime::spawn_blocking(move || {
+        glacier_core::autoeq::run_autoeq(
+            &measurement_points,
+            &target_points,
+            n_bands,
+            steps,
+            &smooth_type,
+            fs,
+        )
+    })
+    .await
+    .map_err(|error| format!("AutoEQ worker failed: {error}"))?
+    ?;
     let warnings = peq.clamp_to_capabilities(&connected_match_target(&state)?.0);
     Ok(AutoEqRunResult { peq, warnings })
 }

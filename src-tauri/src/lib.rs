@@ -6,6 +6,9 @@
 use std::path::PathBuf;
 use std::sync::Mutex;
 
+#[cfg(unix)]
+use std::os::unix::fs::OpenOptionsExt;
+
 use diagnostics::DiagnosticsStore;
 use state::{DeviceSessionLock, DeviceState};
 #[cfg(not(mobile))]
@@ -84,6 +87,27 @@ fn is_path_allowed(app: &tauri::AppHandle, path: &str) -> bool {
     bases.iter().any(|base| canon.starts_with(base))
 }
 
+/// Opens `path` without following a symlink at the final component, closing
+/// the check-then-use window between `is_path_allowed` and the file I/O.
+#[cfg(unix)]
+fn open_no_follow(path: &PathBuf, create: bool) -> std::io::Result<std::fs::File> {
+    let mut options = std::fs::OpenOptions::new();
+    options.read(!create).custom_flags(libc::O_NOFOLLOW);
+    if create {
+        options.write(true).create(true).truncate(true);
+    }
+    options.open(path)
+}
+
+#[cfg(not(unix))]
+fn open_no_follow(path: &PathBuf, create: bool) -> std::io::Result<std::fs::File> {
+    if create {
+        std::fs::File::create(path)
+    } else {
+        std::fs::File::open(path)
+    }
+}
+
 #[tauri::command]
 fn save_text_file(app: tauri::AppHandle, path: String, content: String) -> Result<(), String> {
     if !is_path_allowed(&app, &path) {
@@ -92,7 +116,11 @@ fn save_text_file(app: tauri::AppHandle, path: String, content: String) -> Resul
     if content.len() as u64 > MAX_TEXT_FILE_BYTES {
         return Err("Refused: content exceeds the 1 MiB limit".into());
     }
-    std::fs::write(&path, &content).map_err(|e| format!("Failed to write file: {e}"))
+    use std::io::Write;
+    let mut file = open_no_follow(&PathBuf::from(&path), true)
+        .map_err(|e| format!("Failed to write file: {e}"))?;
+    file.write_all(content.as_bytes())
+        .map_err(|e| format!("Failed to write file: {e}"))
 }
 
 #[tauri::command]
@@ -100,11 +128,17 @@ fn read_text_file(app: tauri::AppHandle, path: String) -> Result<String, String>
     if !is_path_allowed(&app, &path) {
         return Err("Refused: file path is outside allowed directories".into());
     }
-    let metadata = std::fs::metadata(&path).map_err(|e| format!("Failed to stat file: {e}"))?;
+    let mut file = open_no_follow(&PathBuf::from(&path), false)
+        .map_err(|e| format!("Failed to read file: {e}"))?;
+    let metadata = file.metadata().map_err(|e| format!("Failed to stat file: {e}"))?;
     if metadata.len() > MAX_TEXT_FILE_BYTES {
         return Err("Refused: file exceeds the 1 MiB limit".into());
     }
-    std::fs::read_to_string(&path).map_err(|e| format!("Failed to read file: {e}"))
+    use std::io::Read;
+    let mut content = String::new();
+    file.read_to_string(&mut content)
+        .map_err(|e| format!("Failed to read file: {e}"))?;
+    Ok(content)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

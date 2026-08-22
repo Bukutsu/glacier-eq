@@ -64,7 +64,7 @@ impl DiagnosticEvent {
         let secs = now.as_secs();
         let millis = now.subsec_millis();
         let (h, m, s) = ((secs / 3600) % 24, (secs / 60) % 60, secs % 60);
-        let timestamp = format!("{h:02}:{m:02}:{s:02}.{millis:03}");
+        let timestamp = format!("{h:02}:{m:02}:{s:02}.{millis:03} UTC");
         Self {
             timestamp,
             level,
@@ -86,33 +86,24 @@ impl Default for DiagnosticsStore {
     }
 }
 
+/// Caps message length and flattens newlines so a crafted message cannot forge
+/// additional log entries or bloat the retained ring buffer.
+fn sanitize_message(message: String) -> String {
+    const MAX_MESSAGE_CHARS: usize = 2000;
+    let flattened = message.replace(['\r', '\n'], " ");
+    match flattened.char_indices().nth(MAX_MESSAGE_CHARS) {
+        Some((byte_index, _)) => flattened[..byte_index].to_string(),
+        None => flattened,
+    }
+}
+
 impl DiagnosticsStore {
-    pub fn push(&mut self, app: &tauri::AppHandle, event: DiagnosticEvent) {
+    /// Updates the in-memory ring buffer only. Log-file I/O happens in
+    /// [`append_to_log`], outside the store lock.
+    pub fn push(&mut self, event: DiagnosticEvent) {
         if self.events.len() >= 500 {
             self.events.pop_front();
         }
-
-        if let Ok(log_path) = get_log_path(app) {
-            // Rotate log file if it exceeds 5MB
-            if let Ok(meta) = fs::metadata(&log_path) {
-                if meta.len() > 5 * 1024 * 1024 {
-                    let backup = log_path.with_extension("log.1");
-                    let _ = fs::rename(&log_path, &backup);
-                }
-            }
-            if let Ok(mut file) = fs::OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open(&log_path)
-            {
-                let line = format!(
-                    "{} [{}] [{}] {}\n",
-                    event.timestamp, event.level, event.source, event.message
-                );
-                let _ = file.write_all(line.as_bytes());
-            }
-        }
-
         self.events.push_back(event);
     }
 
@@ -129,10 +120,32 @@ fn get_log_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     Ok(app_data_base_dir(app)?.join("diagnostics.log"))
 }
 
+fn append_to_log(app: &tauri::AppHandle, event: &DiagnosticEvent) {
+    let Ok(log_path) = get_log_path(app) else {
+        return;
+    };
+    // Rotate log file if it exceeds 5MB
+    if let Ok(meta) = fs::metadata(&log_path) {
+        if meta.len() > 5 * 1024 * 1024 {
+            let backup = log_path.with_extension("log.1");
+            let _ = fs::rename(&log_path, &backup);
+        }
+    }
+    if let Ok(mut file) = fs::OpenOptions::new().create(true).append(true).open(&log_path) {
+        let line = format!(
+            "{} [{}] [{}] {}\n",
+            event.timestamp, event.level, event.source, event.message
+        );
+        let _ = file.write_all(line.as_bytes());
+    }
+}
+
+/// Same poisoned-lock recovery convention as the rest of the backend: the ring
+/// buffer is safe to keep after a panic while holding the guard.
 fn lock_store<'a, 'r>(
     state: &'a tauri::State<'r, Mutex<DiagnosticsStore>>,
-) -> Result<MutexGuard<'a, DiagnosticsStore>, String> {
-    state.lock().map_err(|_| "Lock poisoned".to_string())
+) -> MutexGuard<'a, DiagnosticsStore> {
+    state.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
 // --- Commands ---
@@ -141,12 +154,12 @@ fn lock_store<'a, 'r>(
 pub fn get_diagnostics(
     state: tauri::State<'_, Mutex<DiagnosticsStore>>,
 ) -> Result<Vec<DiagnosticEvent>, String> {
-    Ok(lock_store(&state)?.events())
+    Ok(lock_store(&state).events())
 }
 
 #[tauri::command]
 pub fn clear_diagnostics(state: tauri::State<'_, Mutex<DiagnosticsStore>>) -> Result<(), String> {
-    lock_store(&state)?.clear();
+    lock_store(&state).clear();
     Ok(())
 }
 
@@ -158,8 +171,10 @@ pub fn add_diagnostic_event(
     source: LogSource,
     message: String,
 ) -> Result<(), String> {
-    let event = DiagnosticEvent::new(level, source, message);
-    lock_store(&state)?.push(&app, event.clone());
+    let event = DiagnosticEvent::new(level, source, sanitize_message(message));
+    lock_store(&state).push(event.clone());
+    // File I/O happens after the guard is dropped so readers never block on disk.
+    append_to_log(&app, &event);
     use tauri::Emitter;
     let _ = app.emit("diagnostic-event", event);
     Ok(())
