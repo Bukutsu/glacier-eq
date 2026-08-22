@@ -73,7 +73,8 @@ fn response_values(
 }
 
 fn eq_protocol(protocol: &str) -> Result<&'static dyn EqProtocol, JsValue> {
-    match protocol.to_lowercase().as_str() {
+    let normalized = protocol.to_lowercase().replace([' ', '-', '_'], "");
+    match normalized.as_str() {
         "walkplay" => Ok(&WalkplayProtocol),
         "moondrop" => Ok(&crate::device::moondrop::MoondropProtocol),
         "fiioja11" => Ok(&crate::device::fiio::JA11_PROTOCOL),
@@ -414,4 +415,21 @@ pub fn get_write_timing(protocol: String) -> Result<JsValue, JsValue> {
     let timing = p.write_timing();
 
     to_js_value(&timing)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn eq_protocol_matches_device_protocol_names() {
+        assert!(eq_protocol("Walkplay").is_ok());
+        assert!(eq_protocol("Moondrop").is_ok());
+        assert!(eq_protocol("FiiO JA11").is_ok());
+        assert!(eq_protocol("fiioja11").is_ok());
+        assert!(eq_protocol("fiio ja11").is_ok());
+        assert!(eq_protocol("FiiO").is_ok());
+        assert!(eq_protocol("fiio").is_ok());
+        assert!(eq_protocol("Unknown").is_err());
+    }
 }
