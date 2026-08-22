@@ -169,7 +169,13 @@ export function AddTraceModal({
                   )}
                 </div>
                 <div className="add-trace-cache-row">
-                  <button className="tool-link-button" onClick={handleResetCache}>Clear Cache</button>
+                  <button
+                    type="button"
+                    className="tool-link-button"
+                    onClick={handleResetCache}
+                  >
+                    Clear Cache
+                  </button>
                 </div>
               </>
             ) : (
