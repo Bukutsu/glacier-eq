@@ -342,9 +342,16 @@ function App() {
   }, []);
 
   const undo = useCallback(() => {
-    if (undoStack.length === 0) return;
-    const prev = undoStack[undoStack.length - 1];
-    setUndoStack((stack) => stack.slice(0, -1));
+    // Gesture-start snapshots can match the current state when no edit
+    // followed (focus-only gestures); skipping them keeps Ctrl+Z from
+    // silently doing nothing.
+    let idx = undoStack.length - 1;
+    while (idx >= 0 && peqEquals(undoStack[idx], peqRef.current)) {
+      idx -= 1;
+    }
+    if (idx < 0) return;
+    const prev = undoStack[idx];
+    setUndoStack(undoStack.slice(0, idx));
     setRedoStack((stack) => [...stack, peqRef.current]);
     redoBaseRef.current = prev;
     setPeq(prev);
