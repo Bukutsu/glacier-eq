@@ -224,7 +224,15 @@ fn read_responses(stdout: ChildStdout, tx: Sender<(u64, IpcResult)>) {
 pub fn run_helper() -> ! {
     #[cfg(target_os = "linux")]
     unsafe {
+        let parent_before = libc::getppid();
         libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGTERM);
+        // If the parent died between spawn and prctl, the signal never fires
+        // and this privileged process would linger until stdin EOF. Exit
+        // immediately when we already lost the parent we started with.
+        if libc::getppid() != parent_before {
+            eprintln!("glacier-eq --hid-helper: parent died during startup");
+            std::process::exit(0);
+        }
     }
 
     let mut api = match hidapi::HidApi::new() {
