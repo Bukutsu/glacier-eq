@@ -33,11 +33,10 @@ import initWasm, {
 
 // ─── WASM Initialization ──────────────────────────────────────────────────────
 
-let wasmInitialized = false;
+let wasmInitPromise: Promise<unknown> | null = null;
 async function ensureWasm() {
-  if (wasmInitialized) return;
-  await initWasm();
-  wasmInitialized = true;
+  wasmInitPromise ??= initWasm();
+  await wasmInitPromise;
 }
 
 // ─── Browser Event Bus (Tauri Event Mimic) ───────────────────────────────────
