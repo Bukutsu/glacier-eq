@@ -399,7 +399,13 @@ pub async fn connect_device(
             .map_err(|error| error.to_string())?
             .into_iter()
             .find(|device| device.path == path_clone)
-            .ok_or_else(|| "Device disappeared during connect.".to_string())?;
+            .map_or_else(
+                || {
+                    let _ = hid_close(&app_clone, &path_clone);
+                    Err("Device disappeared during connect.".to_string())
+                },
+                Ok,
+            )?;
         if reopened.vendor_id != device.vendor_id || reopened.product_id != device.product_id {
             let _ = hid_close(&app_clone, &path_clone);
             return Err("Device changed while connecting. Scan again and reconnect.".into());
