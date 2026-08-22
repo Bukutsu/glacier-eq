@@ -14,7 +14,6 @@ const DISCONNECT_NEEDLES: &[&str] = &[
     "not open",
     "io error",
     "os error 19",
-    "os error 5",
     "transfer failed",
     "no longer exists",
     "device disconnected",
@@ -22,10 +21,18 @@ const DISCONNECT_NEEDLES: &[&str] = &[
     "no supported dac connected",
 ];
 
+/// On Windows errno 5 is ERROR_ACCESS_DENIED (permissions/locked device), not a
+/// disconnect; on Linux/macOS it maps to EIO, which correlates with USB resets.
+#[cfg(not(target_os = "windows"))]
+const PLATFORM_DISCONNECT_NEEDLES: &[&str] = &["os error 5"];
+#[cfg(target_os = "windows")]
+const PLATFORM_DISCONNECT_NEEDLES: &[&str] = &[];
+
 /// Returns true if the error message indicates a device disconnection.
 pub fn is_disconnection(message: &str) -> bool {
     let lower = message.to_lowercase();
     DISCONNECT_NEEDLES
         .iter()
+        .chain(PLATFORM_DISCONNECT_NEEDLES.iter())
         .any(|needle| lower.contains(needle))
 }

@@ -19,9 +19,15 @@ fn default_floating_graph_preview() -> bool {
     true
 }
 
+fn default_auto_pull_on_connect() -> bool {
+    true
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Settings {
+    #[serde(default = "default_auto_pull_on_connect")]
     pub auto_pull_on_connect: bool,
+    #[serde(default)]
     pub skip_push_verification: bool,
     #[serde(default = "default_theme")]
     pub theme: String,
@@ -59,10 +65,13 @@ pub fn get_settings(app: tauri::AppHandle) -> Result<Settings, String> {
     let content = fs::read_to_string(&path)
         .map_err(|error| format!("Failed to read settings file: {error}"))?;
 
-    let settings = serde_json::from_str(&content)
-        .map_err(|error| format!("Failed to parse settings JSON: {error}"))?;
-
-    Ok(settings)
+    // A corrupt or schema-drifted file must not wedge every future get_settings
+    // call (or silently diverge from callers that fall back to the default):
+    // self-heal to defaults instead.
+    match serde_json::from_str(&content) {
+        Ok(settings) => Ok(settings),
+        Err(_) => Ok(Settings::default()),
+    }
 }
 
 #[tauri::command]

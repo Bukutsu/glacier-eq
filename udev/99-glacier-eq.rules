@@ -1,17 +1,22 @@
 # Glacier EQ USB DAC udev rules
 # Grants access to supported HID DACs for local users (uaccess)
 
-# Walkplay / EPZ devices (including vendor-family profiles)
+# Walkplay / EPZ devices. Vendor-wide on purpose: supported.rs carries
+# product_id: None family profiles for these VIDs, so any PID from the same
+# vendor is a supported DAC. Vendor-wide hidraw access is scoped further by
+# uaccess (active seat user only).
 KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="3302", TAG+="uaccess"
 KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="262a", TAG+="uaccess"
 KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0661", TAG+="uaccess"
 KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0666", TAG+="uaccess"
 
-# Moondrop devices
+# Moondrop devices (vendor-wide: Moondrop / Comtrue family profile)
 KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2fc6", TAG+="uaccess"
 
 # FiiO and other supported fixed-product devices
 KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="35d8", ATTRS{idProduct}=="011d", TAG+="uaccess"
+# FiiO KA series ships many product IDs under vendor 2972 (JA11 + KA series
+# profiles), so this stays vendor-wide like the other family matches above.
 KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2972", TAG+="uaccess"
 KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="31b2", ATTRS{idProduct}=="0111", TAG+="uaccess"
 

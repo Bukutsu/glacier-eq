@@ -15,9 +15,16 @@ pub fn normalize_for_match(
     protocol: DeviceProtocol,
 ) -> PEQData {
     let _ = peq.clamp_to_capabilities(caps);
-    if matches!(protocol, DeviceProtocol::Walkplay) {
-        peq.global_gain = peq.global_gain.round();
-    }
+    // Quantize preamp to each protocol's readback granularity: every protocol
+    // reports global gain coarser than we store it, and comparing unquantized
+    // values against the pulled state makes push verification and profile
+    // matching fail on fractional preamp.
+    peq.global_gain = match protocol {
+        DeviceProtocol::Walkplay => peq.global_gain.round(),
+        DeviceProtocol::Moondrop | DeviceProtocol::FiioJa11 | DeviceProtocol::Fiio => {
+            (peq.global_gain * 10.0).round() / 10.0
+        }
+    };
     peq
 }
 
@@ -101,6 +108,28 @@ mod tests {
             &saved,
             &DESKTOP_DAC_CAPS,
             DeviceProtocol::Walkplay,
+        ));
+    }
+
+    #[test]
+    fn moondrop_quantization_matches_pulled_preamp() {
+        let saved = PEQData {
+            filters: vec![],
+            global_gain: -3.33,
+        };
+        // The device stores 0.1 dB steps, so pulling -3.33 reads back -3.3.
+        let pulled = PEQData {
+            filters: vec![],
+            global_gain: -3.3,
+        };
+
+        let normalized = normalize_for_match(saved.clone(), &DESKTOP_DAC_CAPS, DeviceProtocol::Moondrop);
+        assert_eq!(normalized.global_gain, -3.3);
+        assert!(peq_matches_profile(
+            &pulled,
+            &saved,
+            &DESKTOP_DAC_CAPS,
+            DeviceProtocol::Moondrop,
         ));
     }
 }

@@ -83,6 +83,10 @@ function App() {
       /android/i.test(navigator.userAgent) ||
       typeof window.AndroidNotifier !== "undefined");
   const [activeTab, setActiveTab] = useState<MobileTab>("eq");
+  const activeTabRef = useRef(activeTab);
+  useEffect(() => {
+    activeTabRef.current = activeTab;
+  }, [activeTab]);
   const [graphCollapsed, setGraphCollapsed] = useState(false);
   const [showGraph, setShowGraph] = useState(true);
   const [toolsTab, setToolsTab] = useState<ToolsTab>("Preset");
@@ -103,6 +107,7 @@ function App() {
   }, []);
 
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
+  const settingsRef = useRef(settings);
   const theme = settings.theme;
   const snapToIso = settings.snap_to_iso_frequencies;
   const resolvedTheme = useThemeSync(theme);
@@ -111,19 +116,25 @@ function App() {
     key: K,
     value: AppSettings[K],
   ) => {
-    setSettings((previous) => {
-      const updated = { ...previous, [key]: value };
-      invoke("save_settings", { settings: updated }).catch((err) => {
-        console.error("Failed to save settings:", err);
-      });
-      return updated;
+    // Compute and persist outside the updater: updaters must be pure and are
+    // double-invoked under StrictMode, which duplicated the IPC write.
+    const updated = { ...settingsRef.current, [key]: value };
+    settingsRef.current = updated;
+    setSettings(updated);
+    invoke("save_settings", { settings: updated }).catch((err) => {
+      console.error("Failed to save settings:", err);
     });
   }, []);
 
   useEffect(() => {
     invoke<AppSettings>("get_settings")
       .then((settings) => {
-        setSettings({ ...DEFAULT_SETTINGS, ...settings });
+        // A user change may land during the load window; don't clobber it with
+        // the late IPC response.
+        if (settingsRef.current !== DEFAULT_SETTINGS) return;
+        const merged = { ...DEFAULT_SETTINGS, ...settings };
+        settingsRef.current = merged;
+        setSettings(merged);
       })
       .catch((err) => {
         console.error("Failed to load initial settings:", err);
@@ -296,12 +307,14 @@ function App() {
   }, [undoStack]);
 
   const pushToUndoStack = useCallback((currentPeq: PEQData) => {
+    // Any new action invalidates redo — even one that dedupes against the top
+    // of the undo stack, otherwise redo would resurrect an abandoned future.
+    setRedoStack([]);
     const stack = undoStackRef.current;
     if (stack.length > 0 && peqEquals(stack[stack.length - 1], currentPeq)) {
-      // No change since the last snapshot — nothing to push or clear.
+      // No change since the last snapshot — nothing to push.
       return;
     }
-    setRedoStack([]);
     setUndoStack((prev) => {
       const next = [...prev, currentPeq];
       if (next.length > 50) {
@@ -1150,13 +1163,12 @@ function App() {
   }, []);
 
   const handleSelectMobileTab = useCallback((id: MobileTab) => {
-    setActiveTab((prev) => {
-      if (prev === id) return prev;
-      if (id !== "eq") {
-        window.history.pushState({ tab: id }, "");
-      }
-      return id;
-    });
+    setActiveTab((prev) => (prev === id ? prev : id));
+    // History side effect stays out of the updater: StrictMode double-invokes
+    // updaters, which pushed duplicate history entries.
+    if (id !== "eq" && activeTabRef.current !== id) {
+      window.history.pushState({ tab: id }, "");
+    }
   }, []);
 
   const handleOpenDeviceModal = useCallback(() => {

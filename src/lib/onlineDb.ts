@@ -94,6 +94,9 @@ async function downloadDatabaseWithDb(
     tx.objectStore(STORE_NAME).put(manifest, "meta:manifest");
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
+    // Aborts (quota exceeded, private-mode eviction) fire only onabort; without
+    // this the awaited promise never settles and the UI hangs.
+    tx.onabort = () => reject(tx.error ?? new Error("Transaction aborted"));
   });
 
   onProgress(0.15);
@@ -115,6 +118,9 @@ async function downloadDatabaseWithDb(
     tx.objectStore(STORE_NAME).put(rawData.meta.frequencies, "meta:frequencies");
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
+    // Aborts (quota exceeded, private-mode eviction) fire only onabort; without
+    // this the awaited promise never settles and the UI hangs.
+    tx.onabort = () => reject(tx.error ?? new Error("Transaction aborted"));
   });
 
   // Batch insert curves in chunks of 400 to prevent IPC buffer choke and allow GC
@@ -139,6 +145,9 @@ async function downloadDatabaseWithDb(
       }
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
+      // Aborts fire only onabort; without this the awaited promise never
+      // settles and the UI hangs.
+      tx.onabort = () => reject(tx.error ?? new Error("Transaction aborted"));
     });
 
     onProgress(0.85 + (i / totalEntries) * 0.14);
@@ -151,6 +160,9 @@ async function downloadDatabaseWithDb(
     tx.objectStore(STORE_NAME).put(true, "meta:complete");
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
+    // Aborts (quota exceeded, private-mode eviction) fire only onabort; without
+    // this the awaited promise never settles and the UI hangs.
+    tx.onabort = () => reject(tx.error ?? new Error("Transaction aborted"));
   });
   onProgress(1.0);
   return count;

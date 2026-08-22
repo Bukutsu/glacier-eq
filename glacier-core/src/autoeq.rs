@@ -128,7 +128,13 @@ pub fn parse_autoeq_text(text: &str) -> Result<(PEQData, Option<String>, Vec<Str
                             "Line {}: Frequency {} Hz out of range [1, 1000000]; clamping",
                             line_num, parsed.freq
                         ));
-                        parsed.freq.clamp(1.0, u16::MAX as f64) as u16
+                        // `clamp` propagates NaN and `NaN as u16` saturates to 0,
+                        // so non-finite input must be replaced before the cast.
+                        if !parsed.freq.is_finite() {
+                            1
+                        } else {
+                            parsed.freq.clamp(1.0, u16::MAX as f64) as u16
+                        }
                     } else {
                         parsed.freq as u16
                     };

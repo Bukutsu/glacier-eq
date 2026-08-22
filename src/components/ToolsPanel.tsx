@@ -1265,6 +1265,9 @@ function DeviceTab({
   isSimulated?: boolean;
 }) {
   const [utility, setUtility] = useState<DeviceUtilityState | null>(null);
+  // Mirror for the mount-only device-pull listener below, whose closure would
+  // otherwise see the first render's `utility` (always null) forever.
+  const utilityRef = useRef<DeviceUtilityState | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -1277,11 +1280,12 @@ function DeviceTab({
       const data = await invoke<DeviceUtilityState>("get_dac_utility_state");
       if (isActive()) {
         setUtility(data);
+        utilityRef.current = data;
         setLoadError(null);
       }
     } catch (err) {
       if (isActive()) {
-        if (!silent || !utility) {
+        if (!silent || utilityRef.current === null) {
           setLoadError(`Couldn't load device status: ${err}`);
         } else {
           setStatus(`Couldn't refresh device status: ${err}`);
