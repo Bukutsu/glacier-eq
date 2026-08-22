@@ -80,17 +80,16 @@ const notifyProgress = (percent: number) => {
   for (const listener of [...progressListeners]) listener(percent);
 };
 
-async function downloadDatabase(
-  onProgress: (percent: number) => void,
-  signal?: AbortSignal,
-): Promise<number> {
+// Only the download that starts the shared promise can pass an abort
+// signal; joiners cannot cancel a download they did not initiate.
+async function downloadDatabase(onProgress: (percent: number) => void): Promise<number> {
   progressListeners.add(onProgress);
   try {
     downloadInFlight ??= (async () => {
       try {
         const db = await openDb();
         try {
-          return await downloadDatabaseWithDb(notifyProgress, signal, db);
+          return await downloadDatabaseWithDb(notifyProgress, undefined, db);
         } finally {
           db.close();
         }
