@@ -71,6 +71,7 @@ pub fn parse_autoeq_text(text: &str) -> Result<(PEQData, Option<String>, Vec<Str
     }
     let mut filters: std::collections::BTreeMap<usize, Filter> = std::collections::BTreeMap::new();
     let mut preamp: f64 = 0.0;
+    let mut preamp_seen = false;
     let mut parsed_count: usize = 0;
     let mut warnings: Vec<String> = Vec::new();
 
@@ -94,6 +95,7 @@ pub fn parse_autoeq_text(text: &str) -> Result<(PEQData, Option<String>, Vec<Str
             if let Some(m) = extract_number(line) {
                 // Preamp is unbounded here, will be clamped later
                 preamp = m;
+                preamp_seen = true;
             } else {
                 warnings.push(format!("Line {}: Failed to parse preamp value", line_num));
             }
@@ -161,7 +163,9 @@ pub fn parse_autoeq_text(text: &str) -> Result<(PEQData, Option<String>, Vec<Str
         }
     }
 
-    if parsed_count == 0 && preamp.abs() < 1e-5 {
+    // An explicit "Preamp: 0 dB" line is a valid identity EQ; only reject
+    // files with nothing recognizable at all.
+    if parsed_count == 0 && !preamp_seen && preamp.abs() < 1e-5 {
         return Err("No valid filters or preamp found in AutoEQ text".into());
     }
 
@@ -355,10 +359,15 @@ pub fn autoeq_token(filter_type: FilterType) -> &'static str {
 }
 
 pub fn peq_to_autoeq(peq: &PEQData) -> String {
-    let preamp_str = format!("{:.2}", peq.global_gain)
+    let mut preamp_str = format!("{:.2}", peq.global_gain)
         .trim_end_matches('0')
         .trim_end_matches('.')
         .to_string();
+    // "-0" reparses as a zero preamp that trips the empty-profile check;
+    // write canonical zero instead.
+    if preamp_str == "-0" {
+        preamp_str = "0".to_string();
+    }
     let mut lines = vec![format!("Preamp: {} dB", preamp_str)];
 
     let mut sorted_filters = peq.filters.clone();
@@ -1786,6 +1795,18 @@ mod tests {
             global_gain: -3.55,
         };
         assert!(peq_to_autoeq(&peq_two_dec).contains("Preamp: -3.55 dB"));
+    }
+
+    #[test]
+    fn negative_zero_preamp_round_trips() {
+        let peq = PEQData {
+            filters: vec![],
+            global_gain: -0.004,
+        };
+        let text = peq_to_autoeq(&peq);
+        assert!(text.contains("Preamp: 0 dB"), "got: {text}");
+        let (parsed, _, _) = parse_autoeq_text(&text).unwrap();
+        assert_eq!(parsed.global_gain, 0.0);
     }
 
     #[test]
