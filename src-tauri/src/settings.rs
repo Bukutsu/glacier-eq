@@ -59,23 +59,26 @@ fn settings_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
 #[tauri::command]
 pub async fn get_settings(app: tauri::AppHandle) -> Result<Settings, String> {
     let path = settings_path(&app)?;
-    if !path.exists() {
-        return Ok(Settings::default());
-    }
 
-    // Disk I/O stays off the IPC thread (see save_settings).
-    let content = tauri::async_runtime::spawn_blocking(move || {
-        fs::read_to_string(&path).map_err(|error| format!("Failed to read settings file: {error}"))
-    })
-    .await
-    .map_err(|e| e.to_string())??;
+    // Disk I/O stays off the IPC thread (see save_settings). No existence
+    // pre-check: a file deleted between check and read must fall back to
+    // defaults like a missing file, not surface as a hard error.
+    let content = tauri::async_runtime::spawn_blocking(move || fs::read_to_string(&path))
+        .await
+        .map_err(|e| e.to_string())?;
 
-    // A corrupt or schema-drifted file must not wedge every future get_settings
-    // call (or silently diverge from callers that fall back to the default):
-    // self-heal to defaults instead.
-    match serde_json::from_str(&content) {
-        Ok(settings) => Ok(settings),
-        Err(_) => Ok(Settings::default()),
+    match content {
+        Ok(content) => {
+            // A corrupt or schema-drifted file must not wedge every future
+            // get_settings call (or silently diverge from callers that fall
+            // back to the default): self-heal to defaults instead.
+            match serde_json::from_str(&content) {
+                Ok(settings) => Ok(settings),
+                Err(_) => Ok(Settings::default()),
+            }
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(Settings::default()),
+        Err(error) => Err(format!("Failed to read settings file: {error}")),
     }
 }
 
