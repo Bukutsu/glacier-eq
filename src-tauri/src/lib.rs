@@ -109,55 +109,69 @@ fn open_no_follow(path: &PathBuf, create: bool) -> std::io::Result<std::fs::File
 }
 
 #[tauri::command]
-fn save_text_file(app: tauri::AppHandle, path: String, content: String) -> Result<(), String> {
+async fn save_text_file(
+    app: tauri::AppHandle,
+    path: String,
+    content: String,
+) -> Result<(), String> {
     if !is_path_allowed(&app, &path) {
         return Err("Refused: file path is outside allowed directories".into());
     }
     if content.len() as u64 > MAX_TEXT_FILE_BYTES {
         return Err("Refused: content exceeds the 1 MiB limit".into());
     }
-    use std::io::Write;
-    let mut file = open_no_follow(&PathBuf::from(&path), true)
-        .map_err(|e| format!("Failed to write file: {e}"))?;
-    // Re-validate after open: a path component swapped in between the pre-open
-    // check and open() canonicalizes outside the allowed bases now. Ceiling:
-    // the create/truncate has already happened at this point; fully closing
-    // that gap needs openat2(RESOLVE_NO_SYMLINKS).
-    if !is_path_allowed(&app, &path) {
-        drop(file);
-        return Err("Refused: file path is outside allowed directories".into());
-    }
-    file.write_all(content.as_bytes())
-        .map_err(|e| format!("Failed to write file: {e}"))
+    // Disk I/O stays off the IPC thread so a slow/fsync-stalled disk cannot
+    // freeze the UI.
+    tauri::async_runtime::spawn_blocking(move || {
+        use std::io::Write;
+        let mut file = open_no_follow(&PathBuf::from(&path), true)
+            .map_err(|e| format!("Failed to write file: {e}"))?;
+        // Re-validate after open: a path component swapped in between the pre-open
+        // check and open() canonicalizes outside the allowed bases now. Ceiling:
+        // the create/truncate has already happened at this point; fully closing
+        // that gap needs openat2(RESOLVE_NO_SYMLINKS).
+        if !is_path_allowed(&app, &path) {
+            drop(file);
+            return Err("Refused: file path is outside allowed directories".into());
+        }
+        file.write_all(content.as_bytes())
+            .map_err(|e| format!("Failed to write file: {e}"))
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
-fn read_text_file(app: tauri::AppHandle, path: String) -> Result<String, String> {
+async fn read_text_file(app: tauri::AppHandle, path: String) -> Result<String, String> {
     if !is_path_allowed(&app, &path) {
         return Err("Refused: file path is outside allowed directories".into());
     }
-    let file = open_no_follow(&PathBuf::from(&path), false)
-        .map_err(|e| format!("Failed to read file: {e}"))?;
-    // Re-validate after open (see save_text_file): refuses to read content if
-    // a component was swapped in after the pre-open check.
-    if !is_path_allowed(&app, &path) {
-        drop(file);
-        return Err("Refused: file path is outside allowed directories".into());
-    }
-    // Read bounded: the stat-then-read gap could otherwise admit a swapped or
-    // growing file larger than the limit into memory.
-    use std::io::Read;
-    let mut limited = file.take(MAX_TEXT_FILE_BYTES + 1);
-    let mut bytes = Vec::new();
-    limited
-        .read_to_end(&mut bytes)
-        .map_err(|e| format!("Failed to read file: {e}"))?;
-    if bytes.len() as u64 > MAX_TEXT_FILE_BYTES {
-        return Err("Refused: file exceeds the 1 MiB limit".into());
-    }
-    // Size-check before decoding so an oversized file gets the size refusal,
-    // not a confusing invalid-UTF-8 error from cutting mid-character.
-    String::from_utf8(bytes).map_err(|e| format!("Failed to decode file as UTF-8: {e}"))
+    tauri::async_runtime::spawn_blocking(move || {
+        let file = open_no_follow(&PathBuf::from(&path), false)
+            .map_err(|e| format!("Failed to read file: {e}"))?;
+        // Re-validate after open (see save_text_file): refuses to read content if
+        // a component was swapped in after the pre-open check.
+        if !is_path_allowed(&app, &path) {
+            drop(file);
+            return Err("Refused: file path is outside allowed directories".into());
+        }
+        // Read bounded: the stat-then-read gap could otherwise admit a swapped or
+        // growing file larger than the limit into memory.
+        use std::io::Read;
+        let mut limited = file.take(MAX_TEXT_FILE_BYTES + 1);
+        let mut bytes = Vec::new();
+        limited
+            .read_to_end(&mut bytes)
+            .map_err(|e| format!("Failed to read file: {e}"))?;
+        if bytes.len() as u64 > MAX_TEXT_FILE_BYTES {
+            return Err("Refused: file exceeds the 1 MiB limit".into());
+        }
+        // Size-check before decoding so an oversized file gets the size refusal,
+        // not a confusing invalid-UTF-8 error from cutting mid-character.
+        String::from_utf8(bytes).map_err(|e| format!("Failed to decode file as UTF-8: {e}"))
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

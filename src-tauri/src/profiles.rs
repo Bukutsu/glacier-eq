@@ -48,37 +48,50 @@ fn connected_match_target(
 }
 
 #[tauri::command]
-pub fn match_profile_name(
+pub async fn match_profile_name(
     app: tauri::AppHandle,
     state: tauri::State<'_, Mutex<DeviceState>>,
     peq: PEQData,
 ) -> Result<Option<String>, String> {
-    let profiles = store(&app)?.list()?;
     let (caps, protocol) = connected_match_target(&state)?;
-    Ok(matching_profile_name(
-        &peq,
-        profiles.iter().map(|profile| ProfileCandidate {
-            name: &profile.name,
-            data: &profile.data,
-        }),
-        &caps,
-        protocol,
-    ))
+    // Profile listing reads every profile file from disk.
+    tauri::async_runtime::spawn_blocking(move || {
+        let profiles = store(&app)?.list()?;
+        Ok(matching_profile_name(
+            &peq,
+            profiles.iter().map(|profile| ProfileCandidate {
+                name: &profile.name,
+                data: &profile.data,
+            }),
+            &caps,
+            protocol,
+        ))
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
-pub fn list_profiles(app: tauri::AppHandle) -> Result<Vec<ProfileDto>, String> {
-    store(&app)?.list()
+pub async fn list_profiles(app: tauri::AppHandle) -> Result<Vec<ProfileDto>, String> {
+    // Reads every profile file from disk; keep it off the IPC thread.
+    tauri::async_runtime::spawn_blocking(move || store(&app)?.list())
+        .await
+        .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
-pub fn save_profile(app: tauri::AppHandle, name: String, peq: PEQData) -> Result<(), String> {
-    store(&app)?.save(&name, &peq)
+pub async fn save_profile(app: tauri::AppHandle, name: String, peq: PEQData) -> Result<(), String> {
+    // fsync + atomic rename must not run on the IPC thread.
+    tauri::async_runtime::spawn_blocking(move || store(&app)?.save(&name, &peq))
+        .await
+        .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
-pub fn delete_profile(app: tauri::AppHandle, name: String) -> Result<(), String> {
-    store(&app)?.delete(&name)
+pub async fn delete_profile(app: tauri::AppHandle, name: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || store(&app)?.delete(&name))
+        .await
+        .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -124,11 +137,16 @@ pub struct AutoEqParseResult {
 }
 
 #[tauri::command]
-pub fn parse_autoeq(
+pub async fn parse_autoeq(
     text: String,
     state: tauri::State<'_, Mutex<DeviceState>>,
 ) -> Result<AutoEqParseResult, String> {
-    let (mut peq, headphone_name, mut warnings) = glacier_core::autoeq::parse_autoeq_text(&text)?;
+    // Parsing untrusted input is CPU-bound (up to 1 MiB of text).
+    let (mut peq, headphone_name, mut warnings) = tauri::async_runtime::spawn_blocking(move || {
+        glacier_core::autoeq::parse_autoeq_text(&text)
+    })
+    .await
+    .map_err(|e| e.to_string())??;
     warnings.append(&mut peq.clamp_to_capabilities(&connected_match_target(&state)?.0));
     Ok(AutoEqParseResult {
         peq,

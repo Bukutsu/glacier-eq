@@ -170,7 +170,7 @@ pub fn clear_diagnostics(state: tauri::State<'_, Mutex<DiagnosticsStore>>) -> Re
 }
 
 #[tauri::command]
-pub fn add_diagnostic_event(
+pub async fn add_diagnostic_event(
     app: tauri::AppHandle,
     state: tauri::State<'_, Mutex<DiagnosticsStore>>,
     level: LogLevel,
@@ -179,8 +179,14 @@ pub fn add_diagnostic_event(
 ) -> Result<(), String> {
     let event = DiagnosticEvent::new(level, source, sanitize_message(message));
     lock_store(&state).push(event.clone());
-    // File I/O happens after the guard is dropped so readers never block on disk.
-    append_to_log(&app, &event);
+    // File I/O happens off the IPC thread and after the guard is dropped so
+    // readers never block on disk. Cross-event ordering in the log file can
+    // interleave; each line carries its own timestamp.
+    let log_app = app.clone();
+    let log_event = event.clone();
+    tauri::async_runtime::spawn_blocking(move || append_to_log(&log_app, &log_event))
+        .await
+        .map_err(|e| e.to_string())?;
     use tauri::Emitter;
     let _ = app.emit("diagnostic-event", event);
     Ok(())
