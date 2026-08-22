@@ -105,6 +105,11 @@ fn hid_read(app: &tauri::AppHandle, path: &str, timeout: i32) -> Result<Vec<u8>,
         let mut guard = transport_state.lock().unwrap_or_else(|p| p.into_inner());
         if let Some(transport) = guard.as_mut() {
             let res = transport.read(path, timeout);
+            if res.is_err() && transport.is_dead() {
+                // Helper missed its deadline and was killed; stop routing
+                // through it so later ops fall back to direct hidapi access.
+                *guard = None;
+            }
             drop(guard);
             if let Err(ref e) = res {
                 handle_disconnection(app, e);
@@ -129,6 +134,9 @@ fn hid_write(app: &tauri::AppHandle, path: &str, data: &[u8]) -> Result<(), Stri
         let mut guard = transport_state.lock().unwrap_or_else(|p| p.into_inner());
         if let Some(transport) = guard.as_mut() {
             let res = transport.write(path, data);
+            if res.is_err() && transport.is_dead() {
+                *guard = None;
+            }
             drop(guard);
             if let Err(ref e) = res {
                 handle_disconnection(app, e);
@@ -147,13 +155,15 @@ fn hid_write(app: &tauri::AppHandle, path: &str, data: &[u8]) -> Result<(), Stri
 
 fn hid_close(app: &tauri::AppHandle, path: &str) -> Result<(), String> {
     #[cfg(target_os = "linux")]
-    if let Some(t) = app
-        .state::<Mutex<Option<ElevatedTransport>>>()
-        .lock()
-        .unwrap_or_else(|p| p.into_inner())
-        .as_mut()
     {
-        return t.close(path);
+        let transport_state = app.state::<Mutex<Option<ElevatedTransport>>>();
+        let mut guard = transport_state.lock().unwrap_or_else(|p| p.into_inner());
+        let route_elevated = matches!(&*guard, Some(t) if !t.is_dead());
+        if route_elevated {
+            return guard.as_mut().unwrap().close(path);
+        }
+        // A dead helper must not shadow direct access; drop it.
+        *guard = None;
     }
     tauri_plugin_hid::hid(app)
         .close(path)
@@ -175,7 +185,11 @@ fn try_open_device(app: &tauri::AppHandle, path: &str) -> Result<(), String> {
         let state = app.state::<Mutex<Option<ElevatedTransport>>>();
         let mut guard = state.lock().unwrap_or_else(|p| p.into_inner());
         if let Some(ref mut t) = *guard {
-            return t.open(path);
+            if !t.is_dead() {
+                return t.open(path);
+            }
+            // Dead helper: drop it and spawn a fresh one below.
+            *guard = None;
         }
         // ElevatedTransport::spawn blocks on the pkexec prompt and can hold
         // this mutex for minutes. That's acceptable today only because every

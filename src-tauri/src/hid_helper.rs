@@ -12,6 +12,9 @@ use std::collections::HashMap;
 use std::ffi::CString;
 use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
+use std::sync::mpsc::{Receiver, RecvTimeoutError, Sender};
+use std::thread;
+use std::time::Duration;
 
 // ── IPC protocol ────────────────────────────────────────────────────────
 
@@ -53,9 +56,18 @@ enum IpcResult {
 pub struct ElevatedTransport {
     child: Child,
     stdin: BufWriter<ChildStdin>,
-    stdout: BufReader<ChildStdout>,
+    responses: Receiver<(u64, IpcResult)>,
     next_id: u64,
+    /// Set when the helper missed a response deadline or died; the child is
+    /// killed and every later request fails fast until the transport is
+    /// replaced.
+    dead: bool,
 }
+
+/// Upper bound for one helper round trip. Device reads are capped at 1 s
+/// upstream; writes on a healthy device take milliseconds. A helper wedged on
+/// suspended USB I/O must not hold the transport mutex forever.
+const RESPONSE_TIMEOUT: Duration = Duration::from_secs(10);
 
 impl ElevatedTransport {
     pub fn spawn() -> Result<Self, String> {
@@ -77,16 +89,28 @@ impl ElevatedTransport {
             })?;
 
         let stdin = BufWriter::new(child.stdin.take().expect("child stdin"));
-        let stdout = BufReader::new(child.stdout.take().expect("child stdout"));
+        let stdout = child.stdout.take().expect("child stdout");
+        let (tx, rx) = std::sync::mpsc::channel();
+        thread::spawn(move || read_responses(stdout, tx));
         Ok(ElevatedTransport {
             child,
             stdin,
-            stdout,
+            responses: rx,
             next_id: 1,
+            dead: false,
         })
     }
 
+    /// True once the helper missed a response deadline or its stdout closed.
+    /// The caller must drop this transport and spawn a fresh one.
+    pub fn is_dead(&self) -> bool {
+        self.dead
+    }
+
     fn round_trip(&mut self, payload: IpcPayload) -> Result<IpcResult, String> {
+        if self.dead {
+            return Err("IPC helper is unresponsive".to_string());
+        }
         let id = self.next_id;
         self.next_id += 1;
 
@@ -100,21 +124,20 @@ impl ElevatedTransport {
             .map_err(|e| format!("IPC write: {e}"))?;
 
         loop {
-            let mut resp_line = String::new();
-            let n = self
-                .stdout
-                .read_line(&mut resp_line)
-                .map_err(|e| format!("IPC read: {e}"))?;
-
-            if n == 0 {
-                return Err("IPC read: EOF".to_string());
-            }
-
-            let resp: IpcResponse = serde_json::from_str(&resp_line)
-                .map_err(|e| format!("IPC parse: {e} (raw: {resp_line:?})"))?;
-
-            if resp.id == msg.id {
-                return Ok(resp.payload);
+            match self.responses.recv_timeout(RESPONSE_TIMEOUT) {
+                Ok((resp_id, resp)) if resp_id == id => return Ok(resp),
+                Ok(_) => continue, // stale response from an abandoned request
+                Err(RecvTimeoutError::Timeout) => {
+                    self.dead = true;
+                    let _ = self.child.kill();
+                    let _ = self.child.wait();
+                    return Err("IPC timeout: privileged helper is unresponsive".to_string());
+                }
+                Err(RecvTimeoutError::Disconnected) => {
+                    self.dead = true;
+                    let _ = self.child.wait();
+                    return Err("IPC read: EOF".to_string());
+                }
             }
         }
     }
@@ -163,6 +186,29 @@ impl Drop for ElevatedTransport {
     fn drop(&mut self) {
         let _ = self.child.kill();
         let _ = self.child.wait();
+    }
+}
+
+/// Reads helper responses on a dedicated thread so `round_trip` can bound its
+/// wait with `recv_timeout` instead of blocking forever on `read_line`.
+fn read_responses(stdout: ChildStdout, tx: Sender<(u64, IpcResult)>) {
+    let mut reader = BufReader::new(stdout);
+    loop {
+        let mut resp_line = String::new();
+        match reader.read_line(&mut resp_line) {
+            Ok(0) | Err(_) => break,
+            Ok(_) => {}
+        }
+        let resp: IpcResponse = match serde_json::from_str(&resp_line) {
+            Ok(r) => r,
+            Err(e) => {
+                eprintln!("--hid-helper transport: bad response: {e}");
+                break;
+            }
+        };
+        if tx.send((resp.id, resp.payload)).is_err() {
+            break;
+        }
     }
 }
 
