@@ -422,12 +422,25 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
       return loadJson("glacier-eq-profiles", []) as T;
     }
     case "save_profile": {
+      // Mirror ProfileStore::save's envelope so both platforms enforce
+      // identical limits instead of trusting the IPC payload verbatim.
+      const peq = args.peq;
+      if (!peq || !Array.isArray(peq.filters) || peq.filters.length > 32) {
+        throw new Error("Profile exceeds maximum filter count (32)");
+      }
+      const text = peq_to_autoeq(peq);
+      if (text.length > 1_048_576) {
+        throw new Error("Profile exceeds maximum size (1 MiB)");
+      }
+      const vid = activeProfile?.vendor_id ?? null;
+      const pid = activeProfile?.product_id ?? null;
+      const normalized = (parse_autoeq(text, vid, pid) as any).peq;
       const profiles = loadJson<any[]>("glacier-eq-profiles", []);
       const normalizedName = String(args.name).toLocaleLowerCase();
       const idx = profiles.findIndex((p: any) => String(p.name).toLocaleLowerCase() === normalizedName);
       const newProfile = {
         name: args.name,
-        data: args.peq,
+        data: normalized,
         modified: Math.floor(Date.now() / 1000),
       };
       if (idx >= 0) {
