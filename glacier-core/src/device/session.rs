@@ -349,6 +349,7 @@ impl<'a> DeviceSession<'a> {
     fn pull_once(&mut self) -> Result<PEQData, String> {
         self.progress("Initializing read connection...", 5.0);
         self.init()?;
+        let timing = self.protocol().write_timing();
         let count = self.profile.caps.num_bands;
         let mut filters = Vec::with_capacity(count);
         for index in 0..count {
@@ -357,9 +358,9 @@ impl<'a> DeviceSession<'a> {
                 10.0 + index as f32 / count as f32 * 75.0,
             );
             filters.push(self.read_filter(index as u8)?);
-            self.io.sleep_ms(35);
+            self.io.sleep_ms(timing.flood_delay_ms);
         }
-        self.io.sleep_ms(50);
+        self.io.sleep_ms(timing.post_gain_read_ms);
         self.progress("Reading device preamp...", 90.0);
         let global_gain = self.read_gain()?;
         self.progress("Read successful", 100.0);
@@ -617,11 +618,6 @@ fn compare_peq(
                 || actual.filter_type != expected.filter_type);
         if (actual.gain - expected_gain).abs() > caps.gain_tolerance
             || metadata_mismatch
-            || (!caps.supports_per_band_enable
-                && expected.enabled
-                && ((actual.freq as i32 - expected.freq as i32).abs() > caps.freq_tolerance
-                    || (actual.q - expected.q).abs() > caps.q_tolerance
-                    || actual.filter_type != expected.filter_type))
             || (caps.supports_per_band_enable && actual.enabled != expected.enabled)
         {
             return Err(format!("Band {} mismatch", expected.index + 1));

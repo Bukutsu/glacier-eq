@@ -399,9 +399,12 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
   // Ensure WASM is loaded first
   await ensureWasm();
 
-  // Log WebRPC calls to local diagnostics
+  // Log WebRPC calls to local diagnostics. Args are truncated: measurement and
+  // AutoEQ payloads serialize to hundreds of KB per call.
   if (cmd !== "get_diagnostics" && cmd !== "add_diagnostic_event") {
-    addDiagnostic("Info", "UI", `WebRPC invoke("${cmd}", ${JSON.stringify(args || {})})`);
+    const serialized = JSON.stringify(args || {});
+    const summary = serialized.length > 200 ? `${serialized.slice(0, 200)}…(${serialized.length} bytes)` : serialized;
+    addDiagnostic("Info", "UI", `WebRPC invoke("${cmd}", ${summary})`);
   }
 
   switch (cmd) {

@@ -301,6 +301,7 @@ function App() {
   const [undoStack, setUndoStack] = useState<PEQData[]>([]);
   const [redoStack, setRedoStack] = useState<PEQData[]>([]);
   const undoStackRef = useRef(undoStack);
+  const redoStackRef = useRef(redoStack);
   // PEQ state captured at undo time; redo() refuses unless the current state
   // still matches it.
   const redoBaseRef = useRef<PEQData | null>(null);
@@ -309,12 +310,25 @@ function App() {
     undoStackRef.current = undoStack;
   }, [undoStack]);
 
+  useEffect(() => {
+    redoStackRef.current = redoStack;
+  }, [redoStack]);
+
   const pushToUndoStack = useCallback((currentPeq: PEQData) => {
     const stack = undoStackRef.current;
     if (stack.length > 0 && peqEquals(stack[stack.length - 1], currentPeq)) {
       // No change since the last snapshot — nothing to push. Redo validity is
       // enforced separately in redo(), which checks that the PEQ still sits
       // where the last undo left it.
+      return;
+    }
+    if (
+      redoStackRef.current.length > 0 &&
+      redoBaseRef.current &&
+      peqEquals(currentPeq, redoBaseRef.current)
+    ) {
+      // Still sitting exactly where the last undo left us: this gesture has not
+      // changed anything yet, so it must not wipe redo history.
       return;
     }
     setRedoStack([]);
@@ -350,6 +364,9 @@ function App() {
     const next = redoStack[redoStack.length - 1];
     setRedoStack((stack) => stack.slice(0, -1));
     setUndoStack((stack) => [...stack, peqRef.current]);
+    // Multi-level redo: each redo re-bases on the state it restores, so the
+    // next redo validates against it instead of the stale original base.
+    redoBaseRef.current = next;
     setPeq(next);
     setDirty(lastPushedPeq ? !peqEquals(next, lastPushedPeq) : true);
   }, [redoStack, lastPushedPeq]);

@@ -120,6 +120,7 @@ export const EqGraph = memo(function EqGraph({
   const animRafRef = useRef(0);
   const animationTokenRef = useRef(0);
   const animatingRef = useRef(false);
+  const pendingRedrawRef = useRef(false);
   const drawRef = useRef(draw);
   drawRef.current = draw;
 
@@ -137,6 +138,14 @@ export const EqGraph = memo(function EqGraph({
           animRafRef.current = requestAnimationFrame(() => tick(token));
         } else {
           animatingRef.current = false;
+          if (pendingRedrawRef.current) {
+            // A non-PEQ change landed mid-animation; catch up now that the
+            // animation is done.
+            pendingRedrawRef.current = false;
+            requestAnimationFrame(() => {
+              void drawRef.current(displayPeqRef.current).catch((error) => console.error("EqGraph redraw failed:", error));
+            });
+          }
         }
       })
       .catch((err) => {
@@ -161,7 +170,11 @@ export const EqGraph = memo(function EqGraph({
 
   // Immediate redraw for non-PEQ changes (measurements, targets, view, theme).
   useEffect(() => {
-    if (animatingRef.current) return;
+    if (animatingRef.current) {
+      // Don't race the running animation; tick() chains a trailing redraw.
+      pendingRedrawRef.current = true;
+      return;
+    }
     const raf = requestAnimationFrame(() => {
       void drawRef.current(displayPeqRef.current).catch((error) => console.error("EqGraph redraw failed:", error));
     });
@@ -508,10 +521,10 @@ async function drawCurves(
     return;
   }
 
-  const measurementOffset = await shapeOffset(peq, viewMode, dspSampleRate);
   if (!isCurrent()) return;
   measurements.forEach((trace) => {
-    drawResponse(ctx, height, measurementResponseValues(eqResponse, freqs, trace, measurementOffset), trace.color, 3);
+    // eqResponse already carries the shape offset from responseValues.
+    drawResponse(ctx, height, measurementResponseValues(eqResponse, freqs, trace), trace.color, 3);
   });
   await drawCommittedPreview(ctx, width, height, peq, committedPeq, selectedMeasurement, viewMode, dspSampleRate, isCurrent);
   if (!interactiveHandles) await drawFilterDotsWithMeasurement(ctx, width, height, peq, selectedMeasurement, viewMode, dspSampleRate, isCurrent);
@@ -571,7 +584,9 @@ async function responseValues(
   measurement?: MeasurementTrace | null,
   dspSampleRate = 96000,
 ): Promise<Float32Array> {
-  const offset = measurement ? await shapeOffset(peq, viewMode, dspSampleRate) : 0;
+  // The 1 kHz normalization applies to the EQ curve itself, so it must also
+  // apply when no measurement traces are drawn.
+  const offset = await shapeOffset(peq, viewMode, dspSampleRate);
   const eqValues = await peqResponseValues(peq, freqs, viewMode === "level", dspSampleRate);
   const result = new Float32Array(freqs.length);
   for (let index = 0; index < freqs.length; index++) {
@@ -588,11 +603,10 @@ function measurementResponseValues(
   eqResponse: ArrayLike<number>,
   freqs: ArrayLike<number>,
   measurement: MeasurementTrace,
-  offset: number,
 ): Float32Array {
   const result = new Float32Array(eqResponse.length);
   for (let x = 0; x < eqResponse.length; x++) {
-    result[x] = eqResponse[x] + interpolateMeasurementDb(measurement.points, freqs[x]) + offset;
+    result[x] = eqResponse[x] + interpolateMeasurementDb(measurement.points, freqs[x]);
   }
   return result;
 }
