@@ -191,18 +191,21 @@ fn extract_name_from_comments(text: &str) -> Option<String> {
                 continue;
             }
 
-            // Check for explicit headers. Match in a lowered copy but slice the
-            // original by char index: Unicode lowercasing can change byte
-            // lengths (e.g. 'İ'), so lowered byte offsets are invalid indices
-            // into `content`, and slicing the lowered copy would lose casing.
-            let lowered = content.to_lowercase();
+            // Check for explicit headers. Compare char-by-char, lowercasing
+            // each source char on its own: Unicode lowercasing can change
+            // byte and char counts ('İ' → "i̇"), so positions found in a
+            // lowered copy are not valid indices into `content`.
             let header_name = |needle: &str| -> Option<String> {
-                let byte_pos = lowered.find(needle)?;
-                let char_pos = lowered[..byte_pos].chars().count();
-                let name: String = content
-                    .chars()
-                    .skip(char_pos + needle.chars().count())
-                    .collect();
+                let chars: Vec<char> = content.chars().collect();
+                let matches_at = |start: usize| {
+                    needle
+                        .chars()
+                        .zip(chars[start..].iter())
+                        .all(|(n, c)| c.to_lowercase().eq(n.to_lowercase()))
+                };
+                let start = (0..chars.len().saturating_sub(needle.chars().count()) + 1)
+                    .find(|&start| matches_at(start))?;
+                let name: String = chars[start + needle.chars().count()..].iter().collect();
                 let name = name.trim();
                 (!name.is_empty()).then(|| name.to_string())
             };
@@ -214,6 +217,7 @@ fn extract_name_from_comments(text: &str) -> Option<String> {
             }
 
             // Or if it's the first non-empty comment line and doesn't look like a URL or generic info
+            let lowered = content.to_lowercase();
             if !lowered.contains("http")
                 && !lowered.contains("squig.link")
                 && !lowered.contains("equalizer")
@@ -1694,6 +1698,16 @@ mod tests {
             // Preamp round-trips exactly (2-decimal precision).
             prop_assert!((parsed.global_gain - preamp).abs() < 1e-9);
         }
+    }
+
+    #[test]
+    fn header_name_survives_expanding_lowercase() {
+        // 'İ' lowercases to two chars; the name must still come from the
+        // original casing, not a shifted lowered-copy offset.
+        let text = "# xİgraphiceq:AB\nPreamp: -3 dB";
+        let (peq, name, _) = parse_autoeq_text(text).unwrap();
+        assert_eq!(name.as_deref(), Some("AB"));
+        assert_eq!(peq.global_gain, -3.0);
     }
 
     #[test]
