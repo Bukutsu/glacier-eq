@@ -136,7 +136,18 @@ fn append_to_log(app: &tauri::AppHandle, event: &DiagnosticEvent) {
     if let Ok(meta) = fs::metadata(&log_path) {
         if meta.len() > 5 * 1024 * 1024 {
             let backup = log_path.with_extension("log.1");
-            let _ = fs::rename(&log_path, &backup);
+            if fs::rename(&log_path, &backup).is_err()
+                && meta.len() > 20 * 1024 * 1024
+            {
+                // Persistent rotation failure (backup held open by a viewer
+                // or AV) must not grow the log without bound: truncate above
+                // a hard ceiling.
+                eprintln!(
+                    "diagnostics: rotating {:?} failed; truncating oversized log",
+                    log_path
+                );
+                let _ = fs::File::create(&log_path);
+            }
         }
     }
     if let Ok(mut file) = fs::OpenOptions::new()
