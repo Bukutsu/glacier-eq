@@ -288,6 +288,7 @@ pub async fn set_eq_state(
     peq: PEQData,
 ) -> Result<(), String> {
     let skip_verification = crate::settings::get_settings(app.clone())
+        .await
         .unwrap_or_default()
         .skip_push_verification;
     with_session(&app, &state, move |session| {

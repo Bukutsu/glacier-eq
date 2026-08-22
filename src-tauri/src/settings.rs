@@ -57,14 +57,18 @@ fn settings_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
 }
 
 #[tauri::command]
-pub fn get_settings(app: tauri::AppHandle) -> Result<Settings, String> {
+pub async fn get_settings(app: tauri::AppHandle) -> Result<Settings, String> {
     let path = settings_path(&app)?;
     if !path.exists() {
         return Ok(Settings::default());
     }
 
-    let content = fs::read_to_string(&path)
-        .map_err(|error| format!("Failed to read settings file: {error}"))?;
+    // Disk I/O stays off the IPC thread (see save_settings).
+    let content = tauri::async_runtime::spawn_blocking(move || {
+        fs::read_to_string(&path).map_err(|error| format!("Failed to read settings file: {error}"))
+    })
+    .await
+    .map_err(|e| e.to_string())??;
 
     // A corrupt or schema-drifted file must not wedge every future get_settings
     // call (or silently diverge from callers that fall back to the default):
@@ -76,12 +80,22 @@ pub fn get_settings(app: tauri::AppHandle) -> Result<Settings, String> {
 }
 
 #[tauri::command]
-pub fn save_settings(app: tauri::AppHandle, settings: Settings) -> Result<(), String> {
+pub async fn save_settings(app: tauri::AppHandle, settings: Settings) -> Result<(), String> {
     let path = settings_path(&app)?;
-    let _guard = SETTINGS_SAVE_LOCK
-        .get_or_init(|| Mutex::new(()))
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    tauri::async_runtime::spawn_blocking(move || {
+        // Disk I/O (including sync_all) stays off the IPC thread so a slow
+        // disk cannot freeze the UI.
+        let _guard = SETTINGS_SAVE_LOCK
+            .get_or_init(|| Mutex::new(()))
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        save_settings_sync(&path, &settings)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+fn save_settings_sync(path: &std::path::Path, settings: &Settings) -> Result<(), String> {
     // Unique temp name per write: two app instances share the directory but
     // not this process's lock, so a fixed name could interleave and publish a
     // partially written file.
@@ -90,7 +104,7 @@ pub fn save_settings(app: tauri::AppHandle, settings: Settings) -> Result<(), St
         .unwrap_or_default()
         .as_nanos();
     let tmp_path = path.with_extension(format!("{nonce}.tmp"));
-    let content = serde_json::to_string_pretty(&settings)
+    let content = serde_json::to_string_pretty(settings)
         .map_err(|error| format!("Failed to serialize settings: {error}"))?;
 
     let write_result = std::fs::OpenOptions::new()
@@ -108,10 +122,10 @@ pub fn save_settings(app: tauri::AppHandle, settings: Settings) -> Result<(), St
 
     #[cfg(windows)]
     if path.exists() {
-        fs::remove_file(&path)
+        fs::remove_file(path)
             .map_err(|error| format!("Failed to replace settings file: {error}"))?;
     }
-    if let Err(error) = fs::rename(&tmp_path, &path) {
+    if let Err(error) = fs::rename(&tmp_path, path) {
         let _ = fs::remove_file(&tmp_path);
         return Err(format!("Failed to save settings file: {error}"));
     }
