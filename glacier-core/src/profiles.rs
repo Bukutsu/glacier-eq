@@ -1,16 +1,13 @@
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::autoeq::{parse_autoeq_text, peq_to_autoeq};
+use crate::autoeq::{parse_autoeq_text, peq_to_autoeq, MAX_FILTERS};
 use crate::device::capabilities::DESKTOP_DAC_CAPS;
 use crate::eq::PEQData;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
 const MAX_PROFILE_BYTES: u64 = 1024 * 1024;
-/// Hard cap on the number of stored bands so a malformed or hostile profile
-/// can never blow up device apply paths.
-const MAX_FILTERS: usize = 64;
 const APP_ID: &str = "com.bukutsu.glaciereq";
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -309,6 +306,30 @@ mod tests {
         assert!(store.save("../escape", &peq).is_err());
         store.delete("Daily").unwrap();
         assert!(store.list().unwrap().is_empty());
+        std::fs::remove_dir_all(base).unwrap();
+    }
+
+    #[test]
+    fn profile_filter_limit_round_trips_and_rejects_oversized_replacement() {
+        let base = temporary_dir();
+        let store = ProfileStore::new(&base).unwrap();
+        let peq = PEQData {
+            filters: (0..MAX_FILTERS)
+                .map(|index| crate::Filter::enabled(index as u8, true))
+                .collect(),
+            global_gain: -2.0,
+        };
+
+        store.save("Full", &peq).unwrap();
+        assert_eq!(store.load("Full").unwrap().data.filters.len(), MAX_FILTERS);
+
+        let mut oversized = peq;
+        oversized
+            .filters
+            .push(crate::Filter::enabled(MAX_FILTERS as u8, true));
+        assert!(store.save("Full", &oversized).is_err());
+        assert_eq!(store.load("Full").unwrap().data.filters.len(), MAX_FILTERS);
+
         std::fs::remove_dir_all(base).unwrap();
     }
 
