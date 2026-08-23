@@ -4,6 +4,8 @@ import {
   constrainPeqToBandCount,
   peqVerificationError,
   persistentPushFailureMessage,
+  shouldRetryWebHidRead,
+  WebHidReadTimeout,
 } from "./rpc";
 
 function peqWithBands(count: number): PEQData {
@@ -96,6 +98,20 @@ describe("peqVerificationError", () => {
       ...VERIFICATION_CAPS,
       supports_per_band_enable: false,
     })).toBeNull();
+  });
+});
+
+describe("WebHID report retry classification", () => {
+  it("retries its own timeout while connected", () => {
+    expect(shouldRetryWebHidRead(new WebHidReadTimeout(), true)).toBe(true);
+  });
+
+  it("does not retry timeouts after disconnection", () => {
+    expect(shouldRetryWebHidRead(new WebHidReadTimeout(), false)).toBe(false);
+  });
+
+  it("does not swallow transport failures", () => {
+    expect(shouldRetryWebHidRead(new Error("sendReport failed"), true)).toBe(false);
   });
 });
 
