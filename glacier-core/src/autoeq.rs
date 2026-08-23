@@ -39,8 +39,14 @@ fn normalize_curve_points(mut points: Vec<(f64, f64)>) -> Result<Vec<(f64, f64)>
         return Err("Need at least 2 valid frequency,dB points.".into());
     }
     let reference = interpolate_point(&points, 1000.0);
+    if !reference.is_finite() {
+        return Err("Curve normalization produced non-finite dB values".into());
+    }
     for point in &mut points {
         point.1 -= reference;
+        if !point.1.is_finite() {
+            return Err("Curve normalization produced non-finite dB values".into());
+        }
     }
     Ok(points)
 }
@@ -1337,7 +1343,7 @@ fn preprocess(
     r: &mut [f32; K],
     smooth: Option<&Smooth>,
     demean: bool,
-) -> f32 {
+) -> Result<f32, String> {
     let f_treble_smooth = 16000.0;
     let f_treble_unsmooth = 18500.0;
 
@@ -1345,14 +1351,23 @@ fn preprocess(
     if let Some(s) = smooth {
         adaptive_smooth(s, f, &mut b);
     }
+    if b.iter().any(|value| !value.is_finite()) {
+        return Err("AutoEQ smoothing produced non-finite values".into());
+    }
 
     for k in 0..K {
         r[k] = dst[k] - b[k];
+    }
+    if r.iter().any(|value| !value.is_finite()) {
+        return Err("AutoEQ residual preprocessing produced non-finite values".into());
     }
 
     let mut mean = 0.0;
     if demean {
         mean = center_mean(r);
+        if !mean.is_finite() || r.iter().any(|value| !value.is_finite()) {
+            return Err("AutoEQ residual centering produced non-finite values".into());
+        }
     }
 
     treble_rolloff(
@@ -1364,7 +1379,10 @@ fn preprocess(
             f_treble_unsmooth
         },
     );
-    mean
+    if r.iter().any(|value| !value.is_finite()) {
+        return Err("AutoEQ residual preprocessing produced non-finite values".into());
+    }
+    Ok(mean)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1429,10 +1447,14 @@ fn generate_log_spaced_freqs() -> [f32; K] {
     freqs
 }
 
-fn interpolate_curve(points: &[(f64, f64)], freqs: &[f32; K]) -> [f32; K] {
+fn interpolate_curve(
+    label: &str,
+    points: &[(f64, f64)],
+    freqs: &[f32; K],
+) -> Result<[f32; K], String> {
     let mut curve = [0.0; K];
     if points.is_empty() {
-        return curve;
+        return Ok(curve);
     }
 
     let mut sorted = points.to_vec();
@@ -1444,30 +1466,28 @@ fn interpolate_curve(points: &[(f64, f64)], freqs: &[f32; K]) -> [f32; K] {
     let mut i = 0;
     for j in 0..K {
         let t = (freqs[j] as f64).ln();
+        let value = if t <= lx[0] {
+            sorted[0].1
+        } else if t >= lx[n - 1] {
+            sorted[n - 1].1
+        } else {
+            while i + 1 < n - 1 && lx[i + 1] < t {
+                i += 1;
+            }
 
-        if t <= lx[0] {
-            curve[j] = sorted[0].1 as f32;
-            continue;
+            let x0 = lx[i];
+            let x1 = lx[i + 1];
+            let den = x1 - x0;
+            let u = if den == 0.0 { 0.0 } else { (t - x0) / den };
+            sorted[i].1 + u * (sorted[i + 1].1 - sorted[i].1)
+        };
+        let value = value as f32;
+        if !value.is_finite() {
+            return Err(format!("{label} interpolation produced non-finite values"));
         }
-
-        if t >= lx[n - 1] {
-            curve[j] = sorted[n - 1].1 as f32;
-            continue;
-        }
-
-        while i + 1 < n - 1 && lx[i + 1] < t {
-            i += 1;
-        }
-
-        let x0 = lx[i];
-        let x1 = lx[i + 1];
-
-        let den = x1 - x0;
-        let u = if den == 0.0 { 0.0 } else { (t - x0) / den };
-
-        curve[j] = (sorted[i].1 + u * (sorted[i + 1].1 - sorted[i].1)) as f32;
+        curve[j] = value;
     }
-    curve
+    Ok(curve)
 }
 
 pub fn run_autoeq(
@@ -1496,8 +1516,8 @@ pub fn run_autoeq(
     let steps = if steps == 0 { 3000 } else { steps.min(5000) };
 
     let f = generate_log_spaced_freqs();
-    let src = interpolate_curve(measurement_points, &f);
-    let dst = interpolate_curve(target_points, &f);
+    let src = interpolate_curve("Measurement", measurement_points, &f)?;
+    let dst = interpolate_curve("Target", target_points, &f)?;
 
     let smooth = match smooth_type.to_lowercase().as_str() {
         "ie" => Some(&IE_SMOOTH),
@@ -1506,7 +1526,7 @@ pub fn run_autoeq(
     };
 
     let mut r = [0.0; K];
-    let preamp_mean = preprocess(&f, &dst, &src, &mut r, smooth, true);
+    let preamp_mean = preprocess(&f, &dst, &src, &mut r, smooth, true)?;
 
     let mut types = vec![crate::eq::FilterType::Peak; n_bands];
     if n_bands >= 1 {
@@ -1779,6 +1799,27 @@ mod tests {
         assert_eq!(points.len(), 3);
         assert!((interpolate_point(&points, 1000.0)).abs() < 1e-9);
         assert!(parse_curve_text("header\n10,2\n20,3").is_err());
+    }
+
+    #[test]
+    fn curve_normalization_rejects_finite_values_that_overflow() {
+        let text = format!("20 {}\n20000 {}", f64::MAX, -f64::MAX);
+        assert!(parse_curve_text(&text).is_err());
+    }
+
+    #[test]
+    fn autoeq_rejects_finite_values_that_overflow_f32_conversion() {
+        let extreme = [(20.0, f64::MAX), (20_000.0, f64::MAX)];
+        let flat = [(20.0, 0.0), (20_000.0, 0.0)];
+        assert!(run_autoeq(&extreme, &flat, 2, 10, "none", 48_000.0).is_err());
+    }
+
+    #[test]
+    fn autoeq_rejects_finite_values_that_overflow_residual() {
+        let high = f32::MAX as f64;
+        let measurement = [(20.0, high), (20_000.0, high)];
+        let target = [(20.0, -high), (20_000.0, -high)];
+        assert!(run_autoeq(&measurement, &target, 2, 10, "none", 48_000.0).is_err());
     }
 
     #[test]
