@@ -711,24 +711,42 @@ function App() {
   useEffect(() => {
     if (!isTauri() || isAndroid || !connected || !selectedDevice || isDevDummyDevice(selectedDevice) || isBusy) return;
 
-    const timerId = setInterval(async () => {
+    let active = true;
+    let timerId: ReturnType<typeof setTimeout> | null = null;
+    const schedulePoll = () => {
+      if (!active) return;
+      timerId = setTimeout(runPoll, 1500);
+    };
+    const runPoll = async () => {
       try {
-        if (isDevDummyDevice(selectedDevice)) return;
-        const devices = await invoke<DeviceInfo[]>("list_devices");
-        if (!devices.some((device) => device.path === selectedDevice)) {
-          await invoke("disconnect_device").catch((error) => {
-            console.error("Failed to close disconnected device:", error);
-          });
-          setConnected(false);
-          setIsReconnecting(true);
-          setLastPushedPeq(null);
-          setFirmwareVersion(null);
-          reportStatus("Error", "Lost connection to device", "error", "Device", "Reconnecting...");
+        const scannedDevices = await invoke<DeviceInfo[]>("list_devices");
+        if (!active) return;
+        if (scannedDevices.some((device) => device.path === selectedDevice)) {
+          schedulePoll();
+          return;
         }
-      } catch {}
-    }, 1500);
+        try {
+          await invoke("disconnect_device", { expectedPath: selectedDevice });
+        } catch (error) {
+          if (!active) return;
+          console.error("Failed to close disconnected device:", error);
+        }
+        if (!active) return;
+        setConnected(false);
+        setIsReconnecting(true);
+        setLastPushedPeq(null);
+        setFirmwareVersion(null);
+        reportStatus("Error", "Lost connection to device", "error", "Device", "Reconnecting...");
+      } catch {
+        schedulePoll();
+      }
+    };
 
-    return () => clearInterval(timerId);
+    schedulePoll();
+    return () => {
+      active = false;
+      if (timerId) clearTimeout(timerId);
+    };
   }, [connected, isAndroid, selectedDevice, isBusy, reportStatus]);
 
   const loadFirmwareVersion = useCallback(async (targetPath?: string) => {

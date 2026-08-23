@@ -435,11 +435,22 @@ pub async fn connect_device(
 pub async fn disconnect_device(
     app: tauri::AppHandle,
     state: tauri::State<'_, Mutex<DeviceState>>,
+    expected_path: Option<String>,
 ) -> Result<(), String> {
     let session_lock = app.state::<DeviceSessionLock>();
     let _guard = session_lock.0.lock().await;
     // Bind outside the if-let so the state lock guard drops before .await.
-    let device = lock_device_state(&state)?.connected.take();
+    let device = {
+        let mut state = lock_device_state(&state)?;
+        if let (Some(expected), Some(current)) =
+            (expected_path.as_deref(), state.connected.as_ref())
+        {
+            if current.path != expected {
+                return Ok(());
+            }
+        }
+        state.connected.take()
+    };
     if let Some(device) = device {
         // The elevated route writes to the helper's stdin and can block up
         // to RESPONSE_TIMEOUT; keep it off the async runtime like the other
