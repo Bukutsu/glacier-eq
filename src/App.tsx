@@ -97,6 +97,7 @@ function App() {
   const mainScrollRef = useRef<HTMLElement | null>(null);
   const mobileScrollRef = useRef<HTMLElement | null>(null);
   const reconnectCancelRef = useRef<HTMLButtonElement>(null);
+  const reconnectEffectGenerationRef = useRef(0);
 
   useEffect(() => {
     const media = window.matchMedia(MOBILE_QUERY);
@@ -789,29 +790,39 @@ function App() {
     };
   }, [connected, isAndroid, selectedDevice, isBusy, reportStatus]);
 
-  const loadFirmwareVersion = useCallback(async (targetPath?: string) => {
-    const activePath = targetPath ?? selectedDevice;
-    if (isDevDummyDevice(activePath)) {
-      setFirmwareVersion("DEV");
+  const loadFirmwareVersion = useCallback(async (
+    targetPath: string,
+    expectedConnectionGeneration: number,
+  ) => {
+    const isCurrentConnection = () =>
+      connectionGenerationRef.current === expectedConnectionGeneration &&
+      connectedPathRef.current === targetPath;
+    if (isDevDummyDevice(targetPath)) {
+      if (isCurrentConnection()) setFirmwareVersion("DEV");
       return;
     }
     try {
-      setFirmwareVersion(await invoke<string | null>("get_firmware_version"));
+      const version = await invoke<string | null>("get_firmware_version");
+      if (isCurrentConnection()) setFirmwareVersion(version);
     } catch (error) {
+      if (!isCurrentConnection()) return;
       setFirmwareVersion(null);
       console.error("Failed to read firmware version:", error);
     }
-  }, [selectedDevice]);
+  }, []);
 
   // Poll for reconnection when disconnected (paused when app is in background or using dummy device)
   useEffect(() => {
+    const generation = ++reconnectEffectGenerationRef.current;
     if (!isReconnecting || !connectedDeviceName || isDevDummyDevice(selectedDevice)) return;
 
     let active = true;
     let timerId: ReturnType<typeof setTimeout> | null = null;
+    const isCurrent = () =>
+      active && reconnectEffectGenerationRef.current === generation;
 
     const schedulePoll = (delayMs: number) => {
-      if (!active) return;
+      if (!isCurrent()) return;
       if (timerId) clearTimeout(timerId);
       if (document.visibilityState === "hidden") return;
       timerId = setTimeout(runPoll, delayMs);
@@ -821,11 +832,11 @@ function App() {
     // a scheduled poll may still be in flight.
     let polling = false;
     const runPoll = async () => {
-      if (!active || polling || document.visibilityState === "hidden") return;
+      if (!isCurrent() || polling || document.visibilityState === "hidden") return;
       polling = true;
       try {
         const realDevices = await invoke<DeviceInfo[]>("list_devices");
-        if (!active) return;
+        if (!isCurrent()) return;
         const deviceList = import.meta.env.DEV
           ? [...realDevices, DEV_DUMMY_DEVICE]
           : realDevices;
@@ -835,40 +846,45 @@ function App() {
             d.profile_name === connectedDeviceName ||
             d.product_string === connectedDeviceName
         );
-        if (found && active) {
+        if (found && isCurrent()) {
           reportStatus("Info", `Device found: ${connectedDeviceName}. Reconnecting...`, null, "Device", "Device found. Reconnecting...");
           try {
             await invoke("connect_device", { path: found.path });
-
-            if (active) {
-              setSelectedDevice(found.path);
-              setConnected(true, found.path);
-              setIsReconnecting(false);
-              setLastPushedPeq(null);
-              await loadFirmwareVersion(found.path);
-              reportStatus("Info", `Reconnected to ${connectedDeviceName} without changing its EQ`, "success", "Device", "Ready");
+            if (!isCurrent()) {
+              await invoke("disconnect_device", { expectedPath: found.path }).catch(() => {});
               return;
             }
+
+            selectedDeviceRef.current = found.path;
+            setSelectedDevice(found.path);
+            setConnected(true, found.path);
+            setLastPushedPeq(null);
+            const connectionGeneration = connectionGenerationRef.current;
+            await loadFirmwareVersion(found.path, connectionGeneration);
+            if (!isCurrent() || connectionGenerationRef.current !== connectionGeneration) return;
+            setIsReconnecting(false);
+            reportStatus("Info", `Reconnected to ${connectedDeviceName} without changing its EQ`, "success", "Device", "Ready");
+            return;
           } catch (err) {
-            reportStatus("Warn", `Reconnect attempt failed: ${err}. Retrying...`, null, "Device", "Reconnecting...");
+            if (!isCurrent()) return;
             try {
-              await invoke("disconnect_device");
+              await invoke("disconnect_device", { expectedPath: found.path });
             } catch {}
+            if (!isCurrent()) return;
+            reportStatus("Warn", `Reconnect attempt failed: ${err}. Retrying...`, null, "Device", "Reconnecting...");
           }
         }
       } catch (error) {
-        console.error("Auto-reconnect poll error:", error);
+        if (isCurrent()) console.error("Auto-reconnect poll error:", error);
       } finally {
         polling = false;
       }
 
-      if (active) {
-        schedulePoll(1500);
-      }
+      schedulePoll(1500);
     };
 
     const handleVisibility = () => {
-      if (document.visibilityState === "visible" && active) {
+      if (document.visibilityState === "visible" && isCurrent()) {
         runPoll();
       }
     };
@@ -881,7 +897,7 @@ function App() {
       if (timerId) clearTimeout(timerId);
       document.removeEventListener("visibilitychange", handleVisibility);
     };
-  }, [isReconnecting, connectedDeviceName, loadFirmwareVersion, reportStatus]);
+  }, [isReconnecting, connectedDeviceName, selectedDevice, loadFirmwareVersion, reportStatus]);
 
   const pullEq = useCallback(async (afterConnect = false) => {
     if (!connected && !afterConnect) {
@@ -964,7 +980,7 @@ function App() {
         setConnectedDeviceName("Glacier Dummy DAC");
         reportStatus("Info", "Connected to dummy DAC", "success", "UI", "Connected to dummy DAC");
         await pullEq(true);
-        await loadFirmwareVersion();
+        await loadFirmwareVersion(selectedDevice, connectionGenerationRef.current);
         return true;
       }
 
@@ -994,7 +1010,7 @@ function App() {
           reportStatus("Info", "Editor adjusted to this DAC's supported ranges", "info", "Device");
         }
       }
-      await loadFirmwareVersion();
+      await loadFirmwareVersion(selectedDevice, connectionGenerationRef.current);
       return true;
     } catch (error) {
       setConnected(false);
