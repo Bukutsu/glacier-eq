@@ -352,6 +352,9 @@ impl<'a> DeviceSession<'a> {
         self.progress("Initializing read connection...", 5.0);
         self.init()?;
         let timing = self.protocol().write_timing();
+        self.progress("Reading device preamp...", 10.0);
+        let global_gain = self.read_gain()?;
+        self.io.sleep_ms(timing.post_gain_read_ms);
         let count = self.profile.caps.num_bands;
         let mut filters = Vec::with_capacity(count);
         for index in 0..count {
@@ -362,9 +365,6 @@ impl<'a> DeviceSession<'a> {
             filters.push(self.read_filter(index as u8)?);
             self.io.sleep_ms(timing.flood_delay_ms);
         }
-        self.io.sleep_ms(timing.post_gain_read_ms);
-        self.progress("Reading device preamp...", 90.0);
-        let global_gain = self.read_gain()?;
         self.progress("Read successful", 100.0);
         Ok(PEQData {
             filters,
@@ -634,10 +634,18 @@ mod tests {
     use crate::device::get_supported_device;
     use std::collections::VecDeque;
 
+    #[derive(Debug, PartialEq)]
+    enum IoEvent {
+        Write(u8),
+        Read,
+        Sleep(u64),
+    }
+
     #[derive(Default)]
     struct FakeIo {
         reads: VecDeque<Vec<u8>>,
         writes: Vec<Vec<u8>>,
+        events: Vec<IoEvent>,
         read_error: Option<String>,
         write_calls: usize,
         failing_write_calls: VecDeque<usize>,
@@ -647,6 +655,8 @@ mod tests {
         fn write(&mut self, data: &[u8]) -> Result<(), String> {
             self.write_calls += 1;
             self.writes.push(data.to_vec());
+            self.events
+                .push(IoEvent::Write(data.get(2).copied().unwrap_or_default()));
             if self.failing_write_calls.front() == Some(&self.write_calls) {
                 self.failing_write_calls.pop_front();
                 Err("simulated write failure".into())
@@ -655,12 +665,15 @@ mod tests {
             }
         }
         fn read(&mut self, _: i32) -> Result<Vec<u8>, String> {
+            self.events.push(IoEvent::Read);
             if let Some(error) = &self.read_error {
                 return Err(error.clone());
             }
             Ok(self.reads.pop_front().unwrap_or_default())
         }
-        fn sleep_ms(&mut self, _: u64) {}
+        fn sleep_ms(&mut self, ms: u64) {
+            self.events.push(IoEvent::Sleep(ms));
+        }
     }
 
     #[test]
@@ -771,6 +784,14 @@ mod tests {
 
     fn queue_pull(io: &mut FakeIo, gain: i8) {
         io.reads.push_back(vec![]); // init drain terminator
+        io.reads.push_back(vec![
+            READ,
+            super::super::walkplay::CMD_GLOBAL_GAIN,
+            0,
+            0,
+            gain as u8,
+            0,
+        ]);
         for index in 0..10u8 {
             let mut packet = vec![0; 34];
             packet[0] = READ;
@@ -783,14 +804,36 @@ mod tests {
             packet[33] = 2;
             io.reads.push_back(packet);
         }
-        io.reads.push_back(vec![
-            READ,
-            super::super::walkplay::CMD_GLOBAL_GAIN,
-            0,
-            0,
-            gain as u8,
-            0,
-        ]);
+    }
+
+    #[test]
+    fn pull_reads_gain_and_waits_before_first_band() {
+        let profile = get_supported_device(0x3302, 0x43e8).unwrap();
+        let mut io = FakeIo::default();
+        queue_pull(&mut io, -1);
+
+        DeviceSession::new(&mut io, profile).pull().unwrap();
+
+        let gain_request = io
+            .events
+            .iter()
+            .position(|event| *event == IoEvent::Write(super::super::walkplay::CMD_GLOBAL_GAIN))
+            .unwrap();
+        let first_band_request = io
+            .events
+            .iter()
+            .position(|event| *event == IoEvent::Write(super::super::walkplay::CMD_PEQ_VALUES))
+            .unwrap();
+        assert!(gain_request < first_band_request);
+        assert!(
+            io.events[gain_request + 1..first_band_request].contains(&IoEvent::Sleep(
+                profile
+                    .protocol
+                    .implementation()
+                    .write_timing()
+                    .post_gain_read_ms
+            ))
+        );
     }
 
     fn test_peq() -> PEQData {
