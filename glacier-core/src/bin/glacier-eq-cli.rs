@@ -524,15 +524,24 @@ fn execute_profile(action: ProfileAction) -> Result<String, String> {
 }
 
 #[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
+fn ensure_complete_hid_write(expected: usize, actual: usize) -> Result<(), String> {
+    if actual == expected {
+        Ok(())
+    } else {
+        Err(format!(
+            "HID write length mismatch: expected {expected} bytes, actual {actual}"
+        ))
+    }
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
 struct HidIo(hidapi::HidDevice);
 
 #[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
 impl DeviceIo for HidIo {
     fn write(&mut self, data: &[u8]) -> Result<(), String> {
-        self.0
-            .write(data)
-            .map(|_| ())
-            .map_err(|error| error.to_string())
+        let written = self.0.write(data).map_err(|error| error.to_string())?;
+        ensure_complete_hid_write(data.len(), written)
     }
 
     fn read(&mut self, timeout_ms: i32) -> Result<Vec<u8>, String> {
@@ -714,6 +723,15 @@ fn execute_controls(_: ControlAction, _: Option<&str>) -> Result<String, String>
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
+    #[test]
+    fn rejects_short_hid_writes() {
+        assert!(ensure_complete_hid_write(64, 64).is_ok());
+        let error = ensure_complete_hid_write(64, 12).unwrap_err();
+        assert!(error.contains("expected 64 bytes"), "{error}");
+        assert!(error.contains("actual 12"), "{error}");
+    }
 
     #[test]
     fn bounded_text_reader_rejects_oversized_and_invalid_utf8_input() {

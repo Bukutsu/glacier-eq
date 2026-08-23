@@ -282,6 +282,16 @@ pub fn run_helper() -> ! {
     std::process::exit(0);
 }
 
+fn ensure_complete_write(expected: usize, actual: usize) -> Result<(), String> {
+    if actual == expected {
+        Ok(())
+    } else {
+        Err(format!(
+            "HID write length mismatch: expected {expected} bytes, actual {actual}"
+        ))
+    }
+}
+
 fn dispatch(
     api: &mut hidapi::HidApi,
     open: &mut HashMap<String, hidapi::HidDevice>,
@@ -331,9 +341,13 @@ fn dispatch(
             IpcResult::Ok(None)
         }
         IpcPayload::Write { path, data } => match open.get(&path) {
-            Some(dev) => match dev.write(&data) {
-                Ok(_) => IpcResult::Ok(None),
-                Err(e) => IpcResult::Err(format!("write: {e}")),
+            Some(dev) => match dev
+                .write(&data)
+                .map_err(|error| format!("write: {error}"))
+                .and_then(|written| ensure_complete_write(data.len(), written))
+            {
+                Ok(()) => IpcResult::Ok(None),
+                Err(error) => IpcResult::Err(error),
             },
             None => IpcResult::Err("device not open".into()),
         },
@@ -352,5 +366,18 @@ fn dispatch(
             None => IpcResult::Err("device not open".into()),
         },
         IpcPayload::Shutdown => IpcResult::Ok(None),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rejects_short_hid_writes() {
+        assert!(ensure_complete_write(64, 64).is_ok());
+        let error = ensure_complete_write(64, 12).unwrap_err();
+        assert!(error.contains("expected 64 bytes"), "{error}");
+        assert!(error.contains("actual 12"), "{error}");
     }
 }
