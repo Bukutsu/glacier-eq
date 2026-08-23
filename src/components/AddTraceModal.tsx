@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { MeasurementPoint } from "../types";
 import { Icon } from "./Icon";
 import { fuzzyMatch } from "../lib/search";
@@ -37,6 +37,18 @@ export function AddTraceModal({
   } = useOnlineDatabase(setStatus);
   const [loadedDevices, setLoadedDevices] = useState<Set<string>>(new Set());
   const [debouncedQuery, setDebouncedQuery] = useState("");
+  const mountedRef = useRef(true);
+  const loadRequestRef = useRef(0);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      // Invalidate pending file/curve loads so a completion after close
+      // cannot add measurements from an unmounted context.
+      loadRequestRef.current += 1;
+    };
+  }, []);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedQuery(searchQuery), 150);
@@ -71,9 +83,10 @@ export function AddTraceModal({
   };
 
   const handleFile = async (kind: "measurement" | "target") => {
+    const request = ++loadRequestRef.current;
     try {
       const result = await openFileDialog({ filters: [{ name: kind === "measurement" ? "Measurement" : "Target", extensions: ["csv", "txt"] }] });
-      if (!result) return;
+      if (!result || request !== loadRequestRef.current || !mountedRef.current) return;
       const points = parseMeasurementText(result.text);
       const label = result.name.replace(/\.[^/.]+$/, "");
       if (kind === "measurement") {
@@ -85,20 +98,26 @@ export function AddTraceModal({
       }
       onClose();
     } catch (error) {
-      setStatus?.(`Failed to import ${kind}: ${error}`);
+      if (request === loadRequestRef.current && mountedRef.current) {
+        setStatus?.(`Failed to import ${kind}: ${error}`);
+      }
     }
   };
 
   const handleLoadDevice = async (dev: OnlineDevice) => {
+    const request = ++loadRequestRef.current;
     try {
       const points = await loadDevice(dev);
+      if (request !== loadRequestRef.current || !mountedRef.current) return;
       onAddMeasurement?.(`${dev.brand} ${dev.name} (${dev.source})`, points);
       setLoadedDevices((prev) => new Set(prev).add(dev.id));
       onClose();
       setStatus?.(`Loaded: ${dev.brand} ${dev.name}`);
     } catch (error) {
-      console.error(error);
-      setStatus?.(`Failed to load: ${error}`);
+      if (request === loadRequestRef.current && mountedRef.current) {
+        console.error(error);
+        setStatus?.(`Failed to load: ${error}`);
+      }
     }
   };
 
