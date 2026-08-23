@@ -106,38 +106,40 @@ impl<'a> DeviceSession<'a> {
         }
     }
 
-    /// Normalizes before writing, snapshots, commits, verifies, and rolls back on mismatch.
+    /// Normalizes before writing, snapshots, commits, verifies, and rolls back on failure.
     pub fn persistent_push(&mut self, peq: PEQData) -> Result<PEQData, String> {
         let normalized = self.normalize(peq)?;
         let backup = self.pull()?;
-        self.write_to_ram(&normalized)?;
-        self.commit()?;
-        self.io.sleep_ms(RETRY_DELAY_MS);
-        let verification = self.pull().and_then(|actual| {
-            compare_peq(&actual, &normalized, &self.profile.caps).map(|_| actual)
-        });
-        match verification {
-            Ok(_) => {
+        let attempt = (|| {
+            self.write_to_ram(&normalized)
+                .map_err(|error| format!("Push write failed: {error}"))?;
+            self.commit()
+                .map_err(|error| format!("Push commit failed: {error}"))?;
+            self.io.sleep_ms(RETRY_DELAY_MS);
+            let actual = self
+                .pull()
+                .map_err(|error| format!("Push verification failed: {error}"))?;
+            compare_peq(&actual, &normalized, &self.profile.caps)
+                .map_err(|error| format!("Push verification failed: {error}"))
+        })();
+        match attempt {
+            Ok(()) => {
                 self.progress("Push successful", 100.0);
                 Ok(normalized)
             }
-            Err(error) => {
-                let rollback = self
-                    .write_to_ram(&backup)
-                    .and_then(|_| self.commit())
-                    .and_then(|_| {
-                        self.io.sleep_ms(RETRY_DELAY_MS);
-                        let actual = self.pull()?;
-                        compare_peq(&actual, &backup, &self.profile.caps)
-                    });
-                Err(match rollback {
-                    Ok(()) => format!("Push verification failed: {error}; previous state restored"),
-                    Err(rollback) => {
-                        format!("Push verification failed: {error}; rollback failed: {rollback}")
-                    }
-                })
-            }
+            Err(error) => Err(match self.restore_and_verify(&backup) {
+                Ok(()) => format!("{error}; previous state restored"),
+                Err(rollback) => format!("{error}; rollback failed: {rollback}"),
+            }),
         }
+    }
+
+    fn restore_and_verify(&mut self, backup: &PEQData) -> Result<(), String> {
+        self.write_to_ram(backup)?;
+        self.commit()?;
+        self.io.sleep_ms(RETRY_DELAY_MS);
+        let actual = self.pull()?;
+        compare_peq(&actual, backup, &self.profile.caps)
     }
 
     /// Writes persistently without a readback. Kept for the GUI's explicit
@@ -637,12 +639,20 @@ mod tests {
         reads: VecDeque<Vec<u8>>,
         writes: Vec<Vec<u8>>,
         read_error: Option<String>,
+        write_calls: usize,
+        failing_write_calls: VecDeque<usize>,
     }
 
     impl DeviceIo for FakeIo {
         fn write(&mut self, data: &[u8]) -> Result<(), String> {
+            self.write_calls += 1;
             self.writes.push(data.to_vec());
-            Ok(())
+            if self.failing_write_calls.front() == Some(&self.write_calls) {
+                self.failing_write_calls.pop_front();
+                Err("simulated write failure".into())
+            } else {
+                Ok(())
+            }
         }
         fn read(&mut self, _: i32) -> Result<Vec<u8>, String> {
             if let Some(error) = &self.read_error {
@@ -783,16 +793,8 @@ mod tests {
         ]);
     }
 
-    #[test]
-    fn verification_mismatch_rolls_back_and_verifies_backup() {
-        let profile = get_supported_device(0x3302, 0x43e8).unwrap();
-        let mut io = FakeIo::default();
-        queue_pull(&mut io, -1); // snapshot
-        io.reads.push_back(vec![]); // push init drain
-        queue_pull(&mut io, -2); // mismatching readback
-        io.reads.push_back(vec![]); // rollback init drain
-        queue_pull(&mut io, -1); // rollback readback
-        let peq = PEQData {
+    fn test_peq() -> PEQData {
+        PEQData {
             filters: (0..10)
                 .map(|index| Filter {
                     index,
@@ -804,9 +806,58 @@ mod tests {
                 })
                 .collect(),
             global_gain: -1.0,
-        };
+        }
+    }
+
+    #[test]
+    fn mid_write_failure_rolls_back_and_verifies_backup() {
+        let profile = get_supported_device(0x3302, 0x43e8).unwrap();
+        let mut io = FakeIo::default();
+        queue_pull(&mut io, -1); // snapshot
+        io.reads.push_back(vec![]); // push init drain
+        io.reads.push_back(vec![]); // rollback init drain
+        queue_pull(&mut io, -1); // rollback readback
+        io.failing_write_calls = [15, 16, 17].into();
+
         let error = DeviceSession::new(&mut io, profile)
-            .persistent_push(peq)
+            .persistent_push(test_peq())
+            .unwrap_err();
+
+        assert!(error.contains("Push write failed"), "{error}");
+        assert!(error.contains("simulated write failure"), "{error}");
+        assert!(error.contains("previous state restored"), "{error}");
+    }
+
+    #[test]
+    fn commit_failure_rolls_back_and_verifies_backup() {
+        let profile = get_supported_device(0x3302, 0x43e8).unwrap();
+        let mut io = FakeIo::default();
+        queue_pull(&mut io, -1); // snapshot
+        io.reads.push_back(vec![]); // push init drain
+        io.reads.push_back(vec![]); // rollback init drain
+        queue_pull(&mut io, -1); // rollback readback
+        io.failing_write_calls = [25, 26, 27].into();
+
+        let error = DeviceSession::new(&mut io, profile)
+            .persistent_push(test_peq())
+            .unwrap_err();
+
+        assert!(error.contains("Push commit failed"), "{error}");
+        assert!(error.contains("simulated write failure"), "{error}");
+        assert!(error.contains("previous state restored"), "{error}");
+    }
+
+    #[test]
+    fn verification_mismatch_rolls_back_and_verifies_backup() {
+        let profile = get_supported_device(0x3302, 0x43e8).unwrap();
+        let mut io = FakeIo::default();
+        queue_pull(&mut io, -1); // snapshot
+        io.reads.push_back(vec![]); // push init drain
+        queue_pull(&mut io, -2); // mismatching readback
+        io.reads.push_back(vec![]); // rollback init drain
+        queue_pull(&mut io, -1); // rollback readback
+        let error = DeviceSession::new(&mut io, profile)
+            .persistent_push(test_peq())
             .unwrap_err();
         assert!(error.contains("previous state restored"));
         assert_eq!(
