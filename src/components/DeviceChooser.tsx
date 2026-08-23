@@ -90,6 +90,7 @@ export function DeviceChooser({
                 className={selected ? "device-row selected" : "device-row"}
                 title="Click to select · Double-click to connect"
                 aria-checked={selected}
+                disabled={isBusy}
                 onClick={() => setSelectedDevice(device.path)}
                 onDoubleClick={onConnect}
               >
