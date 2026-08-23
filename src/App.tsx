@@ -283,6 +283,7 @@ function App() {
   );
   const [dirty, setDirty] = useState(false);
   const peqRef = useRef(peq);
+  const editorCleanPeqRef = useRef(peq);
   const eqOperationInFlightRef = useRef(false);
   const [lastPushedPeq, setLastPushedPeq] = useState<PEQData | null>(null);
   const [activeBandIndex, setActiveBandIndex] = useState<number | null>(null);
@@ -369,8 +370,8 @@ function App() {
     setRedoStack((stack) => [...stack, peqRef.current]);
     redoBaseRef.current = prev;
     setPeq(prev);
-    setDirty(lastPushedPeq ? !peqEquals(prev, lastPushedPeq) : true);
-  }, [undoStack, lastPushedPeq]);
+    setDirty(!peqEquals(prev, editorCleanPeqRef.current));
+  }, [undoStack]);
 
   const redo = useCallback(() => {
     if (redoStack.length === 0) return;
@@ -389,8 +390,8 @@ function App() {
     // next redo validates against it instead of the stale original base.
     redoBaseRef.current = next;
     setPeq(next);
-    setDirty(lastPushedPeq ? !peqEquals(next, lastPushedPeq) : true);
-  }, [redoStack, lastPushedPeq]);
+    setDirty(!peqEquals(next, editorCleanPeqRef.current));
+  }, [redoStack]);
 
   const [showGraphPreview, setShowGraphPreview] = useState(false);
   const graphPreviewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -497,6 +498,7 @@ function App() {
       setSelectedPreset(profile.name);
       setProfileSearch("");
       setNewProfileName("");
+      editorCleanPeqRef.current = data;
       setDirty(false);
     },
     [pushToUndoStack, capabilities],
@@ -510,6 +512,7 @@ function App() {
       setSelectedPreset(name);
       setProfileSearch("");
       setNewProfileName(name);
+      if (isSaved) editorCleanPeqRef.current = normalized;
       setDirty(!isSaved);
     },
     [pushToUndoStack, capabilities],
@@ -861,6 +864,9 @@ function App() {
       setPeq(normalized);
       setLastPushedPeq(normalized);
       const matchedProfile = await selectMatchingProfile(normalized, "Pulled from device");
+      if (matchedProfile !== "Pulled from device") {
+        editorCleanPeqRef.current = normalized;
+      }
       setDirty(matchedProfile === "Pulled from device");
       emit("device-pull").catch((err) => console.error("Failed to emit device-pull:", err));
       reportStatus(
@@ -1038,6 +1044,7 @@ function App() {
       setSelectedPreset(profile.name);
       setProfileSearch("");
       setNewProfileName("");
+      editorCleanPeqRef.current = data;
       setDirty(false);
 
       setProgress(null);
@@ -1122,6 +1129,9 @@ function App() {
       setSelectedPreset(name);
       setProfileSearch("");
       setNewProfileName("");
+      if (peqEquals(peqRef.current, peq)) {
+        editorCleanPeqRef.current = peq;
+      }
       setDirty(false);
       setProfiles(withSyntheticDefault(await invoke<Profile[]>("list_profiles")));
       setStatus("Profile saved");
@@ -1145,7 +1155,9 @@ function App() {
       setSelectedPreset(DEFAULT_PROFILE_NAME);
       setProfileSearch("");
       setNewProfileName("");
-      setPeq(buildDefaultState());
+      const defaultPeq = buildDefaultState();
+      setPeq(defaultPeq);
+      editorCleanPeqRef.current = defaultPeq;
       setDirty(false);
       setProfiles(withSyntheticDefault(await invoke<Profile[]>("list_profiles")));
       setStatus("Profile deleted");
