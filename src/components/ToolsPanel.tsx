@@ -560,6 +560,11 @@ function ImportTab({ peq, profiles, selectedPreset, onImportPEQ, onReloadProfile
   const [importName, setImportName] = useState("");
   const [isTemporary, setIsTemporary] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const parseRequestRef = useRef(0);
+
+  useEffect(() => () => {
+    parseRequestRef.current += 1;
+  }, []);
 
   const handleImportFileClick = () => {
     fileInputRef.current?.click();
@@ -571,6 +576,7 @@ function ImportTab({ peq, profiles, selectedPreset, onImportPEQ, onReloadProfile
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
+    const request = ++parseRequestRef.current;
 
     if (!file.name.endsWith(".txt")) {
       setStatus("Error: Only .txt AutoEQ files are supported.");
@@ -580,33 +586,49 @@ function ImportTab({ peq, profiles, selectedPreset, onImportPEQ, onReloadProfile
     try {
       if (file.size > 1_048_576) throw new Error("File exceeds the 1 MiB limit");
       const text = await file.text();
-      await parseAndLoadText(text, file.name.replace(/\.[^/.]+$/, ""));
+      await parseAndLoadText(text, file.name.replace(/\.[^/.]+$/, ""), request);
     } catch (error) {
-      setStatus(`Failed to import: ${error}`);
+      if (request === parseRequestRef.current) {
+        setStatus(`Failed to import: ${error}`);
+      }
     }
   };
 
-  const parseAndLoadText = async (text: string, defaultNameFallback: string) => {
+  const parseAndLoadText = async (
+    text: string,
+    defaultNameFallback: string,
+    request: number,
+  ) => {
     try {
       const result = await invoke<ParsedResult>("parse_autoeq", { text });
+      if (request !== parseRequestRef.current) return;
       setParsed(result);
       const initialName = result.headphone_name || defaultNameFallback || "Imported Profile";
       setImportName(initialName);
       setIsTemporary(false);
       setStatus("Parsed AutoEQ profile");
     } catch (error) {
-      setStatus(`Failed to import: ${error}`);
+      if (request === parseRequestRef.current) {
+        setStatus(`Failed to import: ${error}`);
+      }
     }
   };
 
   const handlePaste = async () => {
+    const request = ++parseRequestRef.current;
     try {
       const text = await readText();
       if (!text.trim()) throw new Error("Clipboard is empty.");
-      await parseAndLoadText(text, `Pasted ${new Date().toLocaleDateString()}`);
+      await parseAndLoadText(
+        text,
+        `Pasted ${new Date().toLocaleDateString()}`,
+        request,
+      );
     } catch (err) {
-      setStatus(`Unable to read clipboard: ${err}`);
-      console.error(err);
+      if (request === parseRequestRef.current) {
+        setStatus(`Unable to read clipboard: ${err}`);
+        console.error(err);
+      }
     }
   };
 
