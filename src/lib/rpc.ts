@@ -197,14 +197,26 @@ async function sendReport(packet: number[] | Uint8Array): Promise<void> {
   }
 }
 
+export class WebHidReadTimeout extends Error {
+  constructor() {
+    super("Timeout reading from device");
+    this.name = "WebHidReadTimeout";
+  }
+}
+
+export function shouldRetryWebHidRead(error: unknown, connected: boolean): boolean {
+  return connected && error instanceof WebHidReadTimeout;
+}
+
 async function readReport(timeoutMs: number): Promise<Uint8Array> {
   if (reportQueue.length > 0) {
-    return reportQueue.shift()!;
+    const report = reportQueue.shift();
+    if (report) return report;
   }
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
       reportResolvers = reportResolvers.filter((r) => r !== resolver);
-      reject(new Error("Timeout reading from device"));
+      reject(new WebHidReadTimeout());
     }, timeoutMs);
     
     const resolver = (report: Uint8Array) => {
@@ -220,11 +232,13 @@ async function readMatchingReport(
   matches: (report: Uint8Array) => boolean,
 ): Promise<Uint8Array | null> {
   for (let attempt = 0; attempt < 20; attempt++) {
+    if (!activeDevice) throw new Error("Device disconnected");
     try {
       const report = await readReport(timeoutMs);
+      if (!activeDevice) throw new Error("Device disconnected");
       if (matches(report)) return report;
-    } catch {
-      // Ignore timeout or mismatch and continue next attempt
+    } catch (error) {
+      if (!shouldRetryWebHidRead(error, activeDevice !== null)) throw error;
     }
   }
   return null;
@@ -297,8 +311,8 @@ async function readWalkplayUtility(cmd: number): Promise<Uint8Array> {
         data.length >= 5 && data[0] === 0x4b && data[1] === 0x80 && data[2] === cmd
       );
       if (report) return report;
-    } catch {
-      // Retry
+    } catch (error) {
+      if (!activeDevice) throw error;
     }
     await sleep(40);
   }
@@ -314,8 +328,8 @@ async function readWalkplayBalance(channel: number): Promise<number> {
         data.length >= 7 && data[0] === 0x4b && data[1] === 0x80 && data[2] === 0x16 && data[4] === channel
       );
       if (report) return report[6];
-    } catch {
-      // Retry
+    } catch (error) {
+      if (!activeDevice) throw error;
     }
     await sleep(40);
   }
@@ -705,8 +719,9 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
               filter = parse_filter_response(protocol, res);
               break;
             }
-          } catch (e) {
-            console.warn(`Retry ${retry + 1} reading band ${i} failed:`, e);
+          } catch (error) {
+            if (!activeDevice) throw error;
+            console.warn(`Retry ${retry + 1} reading band ${i} failed:`, error);
           }
         }
 
