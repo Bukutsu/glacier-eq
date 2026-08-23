@@ -3,7 +3,15 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 import { isTauri } from "./platform";
-import type { AppSettings, DeviceCapabilities, Filter, PEQData, SupportedDeviceInfo } from "../types";
+import type {
+  AppSettings,
+  DeviceCapabilities,
+  Filter,
+  FilterType,
+  PEQData,
+  Profile,
+  SupportedDeviceInfo,
+} from "../types";
 import initWasm, {
   list_supported_devices,
   parse_autoeq,
@@ -253,18 +261,253 @@ async function sendPackets(packets: (number[] | Uint8Array)[], delayMs = 0): Pro
 
 export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-function loadJson<T>(key: string, fallback: T): T {
-  const value = localStorage.getItem(key);
-  if (!value) return fallback;
-  try {
-    return JSON.parse(value) as T;
-  } catch {
-    return fallback;
+interface ParsedStorage<T> {
+  value: T;
+  malformed: boolean;
+}
+
+const DEFAULT_WEB_SETTINGS: AppSettings = {
+  auto_pull_on_connect: true,
+  skip_push_verification: false,
+  theme: "auto",
+  snap_to_iso_frequencies: true,
+  floating_graph_preview: true,
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function hasOnlyKeys(value: Record<string, unknown>, keys: readonly string[]): boolean {
+  const known = new Set(keys);
+  return Object.keys(value).every((key) => known.has(key));
+}
+
+function commandField(args: unknown, name: string): unknown {
+  if (!isRecord(args) || !(name in args)) {
+    throw new Error(`Missing ${name} argument`);
   }
+  return args[name];
+}
+
+export function parseWebSettings(value: unknown): ParsedStorage<AppSettings> {
+  const settings = { ...DEFAULT_WEB_SETTINGS };
+  if (!isRecord(value)) return { value: settings, malformed: true };
+
+  let malformed = !hasOnlyKeys(value, Object.keys(DEFAULT_WEB_SETTINGS));
+  const booleanFields = [
+    "auto_pull_on_connect",
+    "skip_push_verification",
+    "snap_to_iso_frequencies",
+    "floating_graph_preview",
+  ] as const;
+  for (const field of booleanFields) {
+    if (!(field in value)) continue;
+    if (typeof value[field] === "boolean") {
+      settings[field] = value[field];
+    } else {
+      malformed = true;
+    }
+  }
+  if ("theme" in value) {
+    if (typeof value.theme === "string") {
+      settings.theme = value.theme;
+    } else {
+      malformed = true;
+    }
+  }
+  return { value: settings, malformed };
+}
+
+function parseFilterType(value: unknown): FilterType | null {
+  switch (value) {
+    case "PK":
+    case "Peak":
+      return "Peak";
+    case "LSQ":
+    case "LSC":
+    case "LowShelf":
+      return "LowShelf";
+    case "HSQ":
+    case "HSC":
+    case "HighShelf":
+      return "HighShelf";
+    case "HP":
+    case "HighPass":
+      return "HighPass";
+    case "LP":
+    case "LowPass":
+      return "LowPass";
+    default:
+      return null;
+  }
+}
+
+function parseStoredFilter(value: unknown): Filter | null {
+  if (!isRecord(value) || !hasOnlyKeys(value, [
+    "index", "enabled", "type", "filter_type", "freq", "gain", "q",
+  ])) {
+    return null;
+  }
+  const filterType = parseFilterType(value.filter_type ?? value.type);
+  const aliasesConflict = value.filter_type !== undefined && value.type !== undefined &&
+    parseFilterType(value.filter_type) !== parseFilterType(value.type);
+  if (
+    !Number.isInteger(value.index) ||
+    typeof value.index !== "number" ||
+    value.index < 0 ||
+    value.index > 255 ||
+    typeof value.enabled !== "boolean" ||
+    !Number.isInteger(value.freq) ||
+    typeof value.freq !== "number" ||
+    value.freq <= 0 ||
+    value.freq > 65_535 ||
+    typeof value.gain !== "number" ||
+    !Number.isFinite(value.gain) ||
+    typeof value.q !== "number" ||
+    !Number.isFinite(value.q) ||
+    value.q <= 0 ||
+    !filterType ||
+    aliasesConflict
+  ) {
+    return null;
+  }
+  return {
+    index: value.index,
+    enabled: value.enabled,
+    filter_type: filterType,
+    freq: value.freq,
+    gain: value.gain,
+    q: value.q,
+  };
+}
+
+function parseStoredPeq(value: unknown): PEQData | null {
+  if (!isRecord(value) || !hasOnlyKeys(value, ["filters", "globalGain", "global_gain"])) {
+    return null;
+  }
+  if (!Array.isArray(value.filters) || value.filters.length > 32) return null;
+  const globalGain = value.global_gain ?? value.globalGain;
+  const aliasesConflict = value.global_gain !== undefined && value.globalGain !== undefined &&
+    value.global_gain !== value.globalGain;
+  if (typeof globalGain !== "number" || !Number.isFinite(globalGain) || aliasesConflict) {
+    return null;
+  }
+  const filters: Filter[] = [];
+  for (const candidate of value.filters) {
+    const filter = parseStoredFilter(candidate);
+    if (!filter) return null;
+    filters.push(filter);
+  }
+  return { filters, global_gain: globalGain };
+}
+
+function isValidProfileName(value: unknown): value is string {
+  if (
+    typeof value !== "string" ||
+    value.length === 0 ||
+    value.length > 128 ||
+    value.trim() !== value ||
+    value.endsWith(".") ||
+    ![...value].every((character) => /[\p{L}\p{N}]/u.test(character) || " _-@+&.()".includes(character))
+  ) {
+    return false;
+  }
+  const finalDot = value.lastIndexOf(".");
+  const stem = (finalDot > 0 ? value.slice(0, finalDot) : value).toUpperCase();
+  return ![
+    "CON", "PRN", "AUX", "NUL",
+    "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+    "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+  ].includes(stem);
+}
+
+function parseStoredProfile(value: unknown): Profile | null {
+  if (!isRecord(value) || !hasOnlyKeys(value, ["name", "data", "modified"])) return null;
+  if (!isValidProfileName(value.name)) return null;
+  const data = parseStoredPeq(value.data);
+  const modified = value.modified;
+  if (
+    !data ||
+    !(modified === null || (
+      typeof modified === "number" && Number.isSafeInteger(modified) && modified >= 0
+    ))
+  ) {
+    return null;
+  }
+  return { name: value.name, data, modified };
+}
+
+export function parseWebProfiles(value: unknown): ParsedStorage<Profile[]> {
+  if (!Array.isArray(value)) return { value: [], malformed: true };
+  const profiles: Profile[] = [];
+  const names = new Set<string>();
+  let malformed = false;
+  for (const candidate of value) {
+    const profile = parseStoredProfile(candidate);
+    const normalizedName = profile?.name.toLocaleLowerCase();
+    if (!profile || !normalizedName || names.has(normalizedName)) {
+      malformed = true;
+      continue;
+    }
+    names.add(normalizedName);
+    profiles.push(profile);
+  }
+  return { value: profiles, malformed };
 }
 
 function saveJson(key: string, value: unknown): void {
   localStorage.setItem(key, JSON.stringify(value));
+}
+
+function quarantineStorage(key: string, raw: string, safeValue: unknown): void {
+  try {
+    let suffix = Date.now();
+    let backupKey = `${key}-malformed-${suffix}`;
+    while (localStorage.getItem(backupKey) !== null) {
+      backupKey = `${key}-malformed-${++suffix}`;
+    }
+    localStorage.setItem(backupKey, raw);
+    saveJson(key, safeValue);
+  } catch {
+    // Keep the original value if storage is full or unavailable.
+  }
+}
+
+function loadValidatedStorage<T>(
+  key: string,
+  fallback: T,
+  parser: (value: unknown) => ParsedStorage<T>,
+): T {
+  const raw = localStorage.getItem(key);
+  if (raw === null) return fallback;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    quarantineStorage(key, raw, fallback);
+    return fallback;
+  }
+  const result = parser(parsed);
+  if (result.malformed) quarantineStorage(key, raw, result.value);
+  return result.value;
+}
+
+function loadWebSettings(): AppSettings {
+  return loadValidatedStorage("glacier-eq-settings", DEFAULT_WEB_SETTINGS, parseWebSettings);
+}
+
+function loadWebProfiles(): Profile[] {
+  return loadValidatedStorage("glacier-eq-profiles", [], parseWebProfiles);
+}
+
+function parseAutoEqResultPeq(value: unknown): PEQData {
+  if (!isRecord(value) || !("peq" in value)) {
+    throw new Error("Invalid AutoEQ response");
+  }
+  const peq = parseStoredPeq(value.peq);
+  if (!peq) throw new Error("Invalid PEQ data in AutoEQ response");
+  return peq;
 }
 
 const CMD_FILTER_MODE = 17;
@@ -520,23 +763,28 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
   switch (cmd) {
     // ─── Settings ───────────────────────────────────────────────────────────
     case "get_settings": {
-      return loadJson("glacier-eq-settings", {}) as T;
+      return loadWebSettings() as T;
     }
     case "save_settings": {
-      saveJson("glacier-eq-settings", args.settings);
+      const settings = parseWebSettings(commandField(args, "settings"));
+      saveJson("glacier-eq-settings", settings.value);
       return null as T;
     }
 
     // ─── Profiles / Presets ─────────────────────────────────────────────────
     case "list_profiles": {
-      return loadJson("glacier-eq-profiles", []) as T;
+      return loadWebProfiles() as T;
     }
     case "save_profile": {
       // Mirror ProfileStore::save's envelope so both platforms enforce
       // identical limits instead of trusting the IPC payload verbatim.
-      const peq = args.peq;
-      if (!peq || !Array.isArray(peq.filters) || peq.filters.length > 32) {
-        throw new Error("Profile exceeds maximum filter count (32)");
+      const name = commandField(args, "name");
+      if (!isValidProfileName(name)) {
+        throw new Error("Profile name contains invalid characters");
+      }
+      const peq = parseStoredPeq(commandField(args, "peq"));
+      if (!peq || peq.filters.length > 32) {
+        throw new Error("Profile exceeds maximum filter count (32) or contains invalid data");
       }
       const text = peq_to_autoeq(peq);
       if (text.length > 1_048_576) {
@@ -544,12 +792,12 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
       }
       const vid = activeProfile?.vendor_id ?? null;
       const pid = activeProfile?.product_id ?? null;
-      const normalized = (parse_autoeq(text, vid, pid) as any).peq;
-      const profiles = loadJson<any[]>("glacier-eq-profiles", []);
-      const normalizedName = String(args.name).toLocaleLowerCase();
-      const idx = profiles.findIndex((p: any) => String(p.name).toLocaleLowerCase() === normalizedName);
-      const newProfile = {
-        name: args.name,
+      const normalized = parseAutoEqResultPeq(parse_autoeq(text, vid, pid));
+      const profiles = loadWebProfiles();
+      const normalizedName = name.toLocaleLowerCase();
+      const idx = profiles.findIndex((profile) => profile.name.toLocaleLowerCase() === normalizedName);
+      const newProfile: Profile = {
+        name,
         data: normalized,
         modified: Math.floor(Date.now() / 1000),
       };
@@ -562,8 +810,10 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
       return null as T;
     }
     case "delete_profile": {
-      const profiles = loadJson<any[]>("glacier-eq-profiles", []);
-      saveJson("glacier-eq-profiles", profiles.filter((p: any) => p.name !== args.name));
+      const name = commandField(args, "name");
+      if (!isValidProfileName(name)) throw new Error("Invalid profile name");
+      const profiles = loadWebProfiles();
+      saveJson("glacier-eq-profiles", profiles.filter((profile) => profile.name !== name));
       return null as T;
     }
     case "open_profiles_dir": {
@@ -584,10 +834,12 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
       return peq_to_autoeq(args.peq) as T;
     }
     case "match_profile_name": {
-      const profiles = loadJson<any[]>("glacier-eq-profiles", []);
+      const peq = parseStoredPeq(commandField(args, "peq"));
+      if (!peq) throw new Error("Invalid PEQ data for profile matching");
+      const profiles = loadWebProfiles();
       const vid = activeProfile?.vendor_id ?? null;
       const pid = activeProfile?.product_id ?? null;
-      return match_profile_name(args.peq, profiles, vid, pid) as T;
+      return match_profile_name(peq, profiles, vid, pid) as T;
     }
     case "run_autoeq": {
       const vid = activeProfile?.vendor_id ?? null;
@@ -737,14 +989,15 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
 
         const nonce = i;
         const filterReq = build_read_filter_request(protocol, i, nonce);
-        let filter: any = null;
+        let filter: Filter | null = null;
 
         for (let retry = 0; retry < 3; retry++) {
           try {
             await sendReport(filterReq);
             const res = await readMatchingReport(250, (data) => matches_filter_response(protocol, data, i, nonce));
             if (res) {
-              filter = parse_filter_response(protocol, res);
+              filter = parseStoredFilter(parse_filter_response(protocol, res));
+              if (!filter) throw new Error(`Invalid band ${i + 1} response`);
               break;
             }
           } catch (error) {
@@ -770,8 +1023,7 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
       const profile = connectedProfile();
       const protocol = profile.protocol;
       const peq = constrainPeqToBandCount(args.peq, profile.num_bands);
-      const skipVerification = loadJson<Partial<AppSettings>>("glacier-eq-settings", {})
-        .skip_push_verification === true;
+      const skipVerification = loadWebSettings().skip_push_verification;
 
       if (skipVerification) {
         await writeEqPayload(protocol, peq, "Initializing unverified push connection...");

@@ -3,6 +3,8 @@ import type { PEQData } from "../types";
 import {
   constrainPeqToBandCount,
   peqVerificationError,
+  parseWebProfiles,
+  parseWebSettings,
   persistentPushFailureMessage,
   shouldRetryWebHidRead,
   WebHidReadTimeout,
@@ -98,6 +100,101 @@ describe("peqVerificationError", () => {
       ...VERIFICATION_CAPS,
       supports_per_band_enable: false,
     })).toBeNull();
+  });
+});
+
+describe("web settings parser", () => {
+  it("ignores wrong-shaped fields and never enables malformed verification skipping", () => {
+    const parsed = parseWebSettings({
+      auto_pull_on_connect: false,
+      skip_push_verification: "true",
+      theme: "dark",
+      snap_to_iso_frequencies: 1,
+      unknown_setting: true,
+    });
+
+    expect(parsed.malformed).toBe(true);
+    expect(parsed.value).toEqual({
+      auto_pull_on_connect: false,
+      skip_push_verification: false,
+      theme: "dark",
+      snap_to_iso_frequencies: true,
+      floating_graph_preview: true,
+    });
+  });
+
+  it("falls back safely when settings are not an object", () => {
+    const parsed = parseWebSettings(["skip_push_verification"]);
+
+    expect(parsed.malformed).toBe(true);
+    expect(parsed.value.skip_push_verification).toBe(false);
+  });
+});
+
+describe("web profile parser", () => {
+  const validProfile = {
+    name: "Desk EQ",
+    modified: 123,
+    data: {
+      globalGain: -2,
+      filters: [
+        { index: 0, enabled: true, type: "LSQ", freq: 80, gain: -1.5, q: 0.7 },
+      ],
+    },
+  };
+
+  it("normalizes Rust field and filter-type aliases", () => {
+    const parsed = parseWebProfiles([validProfile]);
+
+    expect(parsed.malformed).toBe(false);
+    expect(parsed.value).toEqual([{
+      name: "Desk EQ",
+      modified: 123,
+      data: {
+        global_gain: -2,
+        filters: [
+          { index: 0, enabled: true, filter_type: "LowShelf", freq: 80, gain: -1.5, q: 0.7 },
+        ],
+      },
+    }]);
+  });
+
+  it("retains valid entries while rejecting malformed profiles", () => {
+    const malformedFilter = {
+      ...validProfile,
+      name: "Broken EQ",
+      data: {
+        ...validProfile.data,
+        filters: [{ ...validProfile.data.filters[0], gain: "loud" }],
+      },
+    };
+    const malformedModified = { ...validProfile, name: "No Date", modified: "today" };
+    const parsed = parseWebProfiles([malformedFilter, validProfile, malformedModified]);
+
+    expect(parsed.malformed).toBe(true);
+    expect(parsed.value.map((profile) => profile.name)).toEqual(["Desk EQ"]);
+  });
+
+  it("rejects profiles the 32-filter storage format cannot retain", () => {
+    const oversized = {
+      ...validProfile,
+      data: {
+        ...validProfile.data,
+        filters: Array.from({ length: 33 }, (_, index) => ({
+          ...validProfile.data.filters[0],
+          index,
+        })),
+      },
+    };
+
+    expect(parseWebProfiles([oversized])).toEqual({ value: [], malformed: true });
+  });
+
+  it("rejects a wrong-shaped profile collection", () => {
+    expect(parseWebProfiles({ profiles: [validProfile] })).toEqual({
+      value: [],
+      malformed: true,
+    });
   });
 });
 
