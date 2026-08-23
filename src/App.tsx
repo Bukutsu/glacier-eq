@@ -1204,30 +1204,43 @@ function App() {
   }, [profiles, loadProfiles, setStatus]);
 
   const deleteSelectedProfile = useCallback(async () => {
-    if (selectedPreset === DEFAULT_PROFILE_NAME) return;
+    const deletedName = selectedPresetRef.current;
+    if (deletedName === DEFAULT_PROFILE_NAME) return;
+    const editorSnapshot = peqRef.current;
+    const deletedContext = {
+      profileSearch: profileSearchRef.current,
+      newProfileName: newProfileNameRef.current,
+    };
     if (!(await confirmDialog({
       title: "Delete profile?",
-      message: `Delete profile "${selectedPreset}"? This cannot be undone.`,
+      message: `Delete profile "${deletedName}"? This cannot be undone.`,
       confirmLabel: "Delete",
       danger: true,
     }))) return;
 
     try {
-      await invoke("delete_profile", { name: selectedPreset });
-      pushToUndoStack(peqRef.current);
-      setSelectedPreset(DEFAULT_PROFILE_NAME);
-      setProfileSearch("");
-      setNewProfileName("");
-      const defaultPeq = buildDefaultState();
-      setPeq(defaultPeq);
-      editorCleanPeqRef.current = defaultPeq;
-      setDirty(false);
+      await invoke("delete_profile", { name: deletedName });
       await loadProfiles();
+      const contextStillCurrent =
+        selectedPresetRef.current === deletedName &&
+        peqEquals(peqRef.current, editorSnapshot) &&
+        profileSearchRef.current === deletedContext.profileSearch &&
+        newProfileNameRef.current === deletedContext.newProfileName;
+      if (contextStillCurrent) {
+        pushToUndoStack(editorSnapshot);
+        setSelectedPreset(DEFAULT_PROFILE_NAME);
+        setProfileSearch("");
+        setNewProfileName("");
+        const defaultPeq = buildDefaultState();
+        setPeq(defaultPeq);
+        editorCleanPeqRef.current = defaultPeq;
+        setDirty(false);
+      }
       setStatus("Profile deleted");
     } catch (error) {
       setStatus(`Failed to delete profile: ${error}`);
     }
-  }, [loadProfiles, selectedPreset, pushToUndoStack]);
+  }, [loadProfiles, pushToUndoStack, setStatus]);
 
   const openProfilesDir = useCallback(async () => {
     try {
