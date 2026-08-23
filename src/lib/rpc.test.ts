@@ -83,7 +83,8 @@ const hidMock = {
   getDevices: vi.fn(async () => hidMock.devices),
 };
 
-function fakeHidDevice(): HIDDevice {
+function fakeHidDevice(options: { respondToReports?: boolean } = {}): HIDDevice {
+  let inputReportListener: ((event: { data: DataView; reportId: number }) => void) | null = null;
   return {
     vendorId: profile.vendor_id,
     productId: profile.product_id!,
@@ -96,8 +97,17 @@ function fakeHidDevice(): HIDDevice {
     close: vi.fn(async () => undefined),
     receiveFeatureReport: vi.fn(),
     sendFeatureReport: vi.fn(),
-    sendReport: vi.fn(async () => undefined),
-    addEventListener: vi.fn(),
+    sendReport: vi.fn(async () => {
+      if (options.respondToReports && inputReportListener) {
+        const bytes = Uint8Array.of(1, 2, 3);
+        inputReportListener({ data: new DataView(bytes.buffer), reportId: 1 });
+      }
+    }),
+    addEventListener: vi.fn((event: string, listener: EventListenerOrEventListenerObject) => {
+      if (event === "inputreport" && typeof listener === "function") {
+        inputReportListener = listener as (event: { data: DataView; reportId: number }) => void;
+      }
+    }),
     removeEventListener: vi.fn(),
     dispatchEvent: vi.fn(),
     oninputreport: null,
@@ -124,6 +134,7 @@ beforeEach(() => {
     value: localStorageMock,
   });
   wasm.normalize_peq_for_device.mockImplementation((peq) => peq);
+  wasm.is_default_peq_for_device.mockReturnValue(false);
   wasm.build_init_packets.mockReturnValue([]);
   wasm.build_write_filter_packets.mockReturnValue([]);
   wasm.build_write_global_gain_packets.mockReturnValue([]);
