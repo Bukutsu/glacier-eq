@@ -1,34 +1,12 @@
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::device::{DeviceCapabilities, DeviceProtocol};
+use crate::device::{normalize_peq_for_capabilities, DeviceCapabilities, DeviceProtocol};
 use crate::eq::{Filter, PEQData};
 
 pub struct ProfileCandidate<'a> {
     pub name: &'a str,
     pub data: &'a PEQData,
-}
-
-pub fn normalize_for_match(
-    mut peq: PEQData,
-    caps: &DeviceCapabilities,
-    protocol: DeviceProtocol,
-) -> PEQData {
-    let _ = peq.clamp_to_capabilities(caps);
-    // Quantize preamp to each protocol's readback granularity: every protocol
-    // reports global gain coarser than we store it, and comparing unquantized
-    // values against the pulled state makes push verification and profile
-    // matching fail on fractional preamp.
-    peq.global_gain = match protocol {
-        DeviceProtocol::Walkplay => peq.global_gain.round(),
-        DeviceProtocol::Moondrop | DeviceProtocol::FiioJa11 | DeviceProtocol::Fiio => {
-            (peq.global_gain * 10.0).round() / 10.0
-        }
-        // Unrecognized device: leave preamp untouched rather than assuming an
-        // integer step (the old Walkplay fallback could mask ~1 dB differences).
-        DeviceProtocol::Unknown => peq.global_gain,
-    };
-    peq
 }
 
 fn quantized_band_gain(gain: f64, protocol: DeviceProtocol) -> f64 {
@@ -79,8 +57,12 @@ fn peq_matches_profile(
     caps: &DeviceCapabilities,
     protocol: DeviceProtocol,
 ) -> bool {
-    let current = normalize_for_match(current.clone(), caps, protocol);
-    let profile = normalize_for_match(profile.clone(), caps, protocol);
+    let Ok(current) = normalize_peq_for_capabilities(current.clone(), caps, protocol) else {
+        return false;
+    };
+    let Ok(profile) = normalize_peq_for_capabilities(profile.clone(), caps, protocol) else {
+        return false;
+    };
     let current_filters = active_filters(&current, caps, protocol);
     let profile_filters = active_filters(&profile, caps, protocol);
 
@@ -189,8 +171,12 @@ mod tests {
             global_gain: -3.3,
         };
 
-        let normalized =
-            normalize_for_match(saved.clone(), &DESKTOP_DAC_CAPS, DeviceProtocol::Moondrop);
+        let normalized = normalize_peq_for_capabilities(
+            saved.clone(),
+            &DESKTOP_DAC_CAPS,
+            DeviceProtocol::Moondrop,
+        )
+        .unwrap();
         assert_eq!(normalized.global_gain, -3.3);
         assert!(peq_matches_profile(
             &pulled,
