@@ -55,11 +55,11 @@ enum IpcResult {
 
 pub struct ElevatedTransport {
     child: Child,
-    stdin: BufWriter<ChildStdin>,
+    stdin: Option<BufWriter<ChildStdin>>,
     responses: Receiver<(u64, IpcResult)>,
     next_id: u64,
-    /// Set when the helper missed a response deadline or died; the child is
-    /// killed and every later request fails fast until the transport is
+    /// Set when the helper missed a response deadline or died; termination is
+    /// requested and every later request fails fast until the transport is
     /// replaced.
     dead: bool,
 }
@@ -68,6 +68,10 @@ pub struct ElevatedTransport {
 /// upstream; writes on a healthy device take milliseconds. A helper wedged on
 /// suspended USB I/O must not hold the transport mutex forever.
 const RESPONSE_TIMEOUT: Duration = Duration::from_secs(10);
+/// Bound cleanup to roughly half a second even when a privileged helper ignores
+/// EOF and cannot be killed by the unprivileged parent.
+const REAP_ATTEMPTS: usize = 50;
+const REAP_POLL_INTERVAL: Duration = Duration::from_millis(10);
 
 impl ElevatedTransport {
     pub fn spawn() -> Result<Self, String> {
@@ -94,7 +98,7 @@ impl ElevatedTransport {
         thread::spawn(move || read_responses(stdout, tx));
         Ok(ElevatedTransport {
             child,
-            stdin,
+            stdin: Some(stdin),
             responses: rx,
             next_id: 1,
             dead: false,
@@ -118,11 +122,11 @@ impl ElevatedTransport {
         let mut line = serde_json::to_string(&msg).map_err(|e| format!("IPC serialize: {e}"))?;
         line.push('\n');
 
-        if let Err(e) = self
-            .stdin
-            .write_all(line.as_bytes())
-            .and_then(|_| self.stdin.flush())
-        {
+        let Some(stdin) = self.stdin.as_mut() else {
+            self.dead = true;
+            return Err("IPC helper is unresponsive".to_string());
+        };
+        if let Err(e) = stdin.write_all(line.as_bytes()).and_then(|_| stdin.flush()) {
             // A write failure means the pipe or child is gone (e.g. the
             // helper was OOM-killed); flag it so callers replace the
             // transport instead of failing through it forever.
@@ -136,13 +140,12 @@ impl ElevatedTransport {
                 Ok(_) => continue, // stale response from an abandoned request
                 Err(RecvTimeoutError::Timeout) => {
                     self.dead = true;
-                    let _ = self.child.kill();
-                    let _ = self.child.wait();
+                    self.cleanup();
                     return Err("IPC timeout: privileged helper is unresponsive".to_string());
                 }
                 Err(RecvTimeoutError::Disconnected) => {
                     self.dead = true;
-                    let _ = self.child.wait();
+                    self.cleanup();
                     return Err("IPC read: EOF".to_string());
                 }
             }
@@ -187,13 +190,40 @@ impl ElevatedTransport {
             IpcResult::Err(e) => Err(e),
         }
     }
+
+    fn cleanup(&mut self) {
+        if let Some(stdin) = self.stdin.take() {
+            // Healthy writes flush before waiting for a response. Discard any
+            // leftover buffer so cleanup cannot block while flushing it.
+            let (stdin, _) = stdin.into_parts();
+            drop(stdin);
+        }
+
+        let _ = self.child.kill();
+        let _ = poll_for_exit(REAP_ATTEMPTS, || self.child.try_wait(), thread::sleep);
+    }
 }
 
 impl Drop for ElevatedTransport {
     fn drop(&mut self) {
-        let _ = self.child.kill();
-        let _ = self.child.wait();
+        self.cleanup();
     }
+}
+
+fn poll_for_exit<T>(
+    attempts: usize,
+    mut try_wait: impl FnMut() -> std::io::Result<Option<T>>,
+    mut pause: impl FnMut(Duration),
+) -> std::io::Result<bool> {
+    for attempt in 0..attempts {
+        if try_wait()?.is_some() {
+            return Ok(true);
+        }
+        if attempt + 1 < attempts {
+            pause(REAP_POLL_INTERVAL);
+        }
+    }
+    Ok(false)
 }
 
 /// Reads helper responses on a dedicated thread so `round_trip` can bound its
@@ -379,5 +409,43 @@ mod tests {
         let error = ensure_complete_write(64, 12).unwrap_err();
         assert!(error.contains("expected 64 bytes"), "{error}");
         assert!(error.contains("actual 12"), "{error}");
+    }
+
+    #[test]
+    fn bounded_reap_stops_when_process_exits() {
+        let mut polls = 0;
+        let mut pauses = 0;
+        let exited = poll_for_exit(
+            5,
+            || {
+                polls += 1;
+                Ok((polls == 3).then_some(()))
+            },
+            |_| pauses += 1,
+        )
+        .unwrap();
+
+        assert!(exited);
+        assert_eq!(polls, 3);
+        assert_eq!(pauses, 2);
+    }
+
+    #[test]
+    fn bounded_reap_stops_after_attempt_limit() {
+        let mut polls = 0;
+        let mut pauses = 0;
+        let exited = poll_for_exit::<()>(
+            4,
+            || {
+                polls += 1;
+                Ok(None)
+            },
+            |_| pauses += 1,
+        )
+        .unwrap();
+
+        assert!(!exited);
+        assert_eq!(polls, 4);
+        assert_eq!(pauses, 3);
     }
 }
