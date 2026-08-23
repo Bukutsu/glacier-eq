@@ -707,7 +707,13 @@ function ImportTab({
         setStatus("Export cancelled.");
         return;
       }
-      await invoke("save_text_file", { path, content: text });
+      // Backend-owned dialogs report cancellation as a null result rather
+      // than a failure, so the user gets the right message.
+      const savedName = await invoke<string | null>("save_text_file", { path, content: text });
+      if (savedName === null) {
+        setStatus("Export cancelled.");
+        return;
+      }
       setStatus("EQ settings exported successfully");
     } catch (err) {
       setStatus(`Failed to export: ${err}`);
@@ -1837,6 +1843,10 @@ export function DiagnosticsPanel() {
   const logBoxRef = useRef<HTMLDivElement>(null);
   const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mountedRef = useRef(true);
+  // Set while a backend clear is in flight; live events received meanwhile
+  // are buffered here so the clear cannot erase them.
+  const clearingRef = useRef(false);
+  const clearedBufferRef = useRef<DiagnosticEvent[]>([]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -1857,6 +1867,12 @@ export function DiagnosticsPanel() {
       if (!active) return;
       if (loadingHistory) {
         buffered.push(event);
+        return;
+      }
+      // Events arriving while a clear is in flight are kept aside so the
+      // clear cannot erase them locally.
+      if (clearingRef.current) {
+        clearedBufferRef.current.push(event);
         return;
       }
       setEvents((previous) => [...previous, event].slice(-1000));
@@ -1938,11 +1954,22 @@ export function DiagnosticsPanel() {
   });
 
   const clearLogs = async () => {
+    // Events emitted while the backend clear is in flight must survive it:
+    // buffer them and merge after the local history is reset.
+    clearingRef.current = true;
     try {
       await invoke("clear_diagnostics");
-      if (mountedRef.current) setEvents([]);
+      if (!mountedRef.current) return;
+      setEvents([]);
+      const survived = clearedBufferRef.current;
+      clearedBufferRef.current = [];
+      if (survived.length > 0) {
+        setEvents(mergeDiagnosticEvents([], survived));
+      }
     } catch (err) {
       console.error("Failed to clear diagnostics:", err);
+    } finally {
+      clearingRef.current = false;
     }
   };
 

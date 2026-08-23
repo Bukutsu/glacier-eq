@@ -1,4 +1,6 @@
 export interface DiagnosticEvent {
+  /** Backend-assigned monotonic ID; absent in legacy payloads. */
+  seq?: number;
   timestamp: string;
   level: "Info" | "Warn" | "Error";
   source: "UI" | "Worker" | "HID" | "AutoEQ" | "Device";
@@ -12,6 +14,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 export function parseDiagnosticEvent(value: unknown): DiagnosticEvent {
   if (
     !isRecord(value) ||
+    (value.seq !== undefined &&
+      (typeof value.seq !== "number" || !Number.isSafeInteger(value.seq) || value.seq <= 0)) ||
     typeof value.timestamp !== "string" ||
     (value.level !== "Info" && value.level !== "Warn" && value.level !== "Error") ||
     (
@@ -26,6 +30,7 @@ export function parseDiagnosticEvent(value: unknown): DiagnosticEvent {
     throw new Error("Invalid diagnostic event payload");
   }
   return {
+    ...(typeof value.seq === "number" ? { seq: value.seq } : {}),
     timestamp: value.timestamp,
     level: value.level,
     source: value.source,
@@ -41,6 +46,9 @@ export function parseDiagnosticHistory(value: unknown): DiagnosticEvent[] {
 }
 
 function eventKey(event: DiagnosticEvent): string {
+  // Prefer the backend sequence ID: two distinct events can share a
+  // millisecond timestamp and identical content.
+  if (event.seq !== undefined) return `seq:${event.seq}`;
   return JSON.stringify([
     event.timestamp,
     event.level,

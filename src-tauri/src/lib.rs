@@ -254,7 +254,7 @@ async fn save_text_file_dialog(
     app: tauri::AppHandle,
     content: String,
     default_name: Option<String>,
-) -> Result<(), String> {
+) -> Result<Option<String>, String> {
     if content.len() as u64 > MAX_TEXT_FILE_BYTES {
         return Err("Refused: content exceeds the 1 MiB limit".into());
     }
@@ -270,15 +270,17 @@ async fn save_text_file_dialog(
     })
     .await
     .map_err(|e| e.to_string())?;
+    // Cancellation is a normal outcome, not an error: report it distinctly so
+    // the UI can say "cancelled" instead of "failed".
     let Some(selected) = selected else {
-        return Err("Export cancelled".into());
+        return Ok(None);
     };
     tauri::async_runtime::spawn_blocking(move || {
-        write_selected_text(&app, selected, content.as_bytes())
+        write_selected_text(&app, selected.clone(), content.as_bytes())?;
+        Ok(Some(selected_file_name(&selected)))
     })
     .await
-    .map_err(|e| e.to_string())??;
-    Ok(())
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
