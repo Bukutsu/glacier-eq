@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::autoeq::{parse_autoeq_text, peq_to_autoeq, MAX_FILTERS};
-use crate::device::capabilities::DESKTOP_DAC_CAPS;
-use crate::eq::PEQData;
+use crate::device::capabilities::{DeviceCapabilities, DESKTOP_DAC_CAPS};
+use crate::device::SUPPORTED_DEVICES;
+use crate::eq::{FilterType, PEQData};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
@@ -222,6 +223,31 @@ fn is_reserved_windows_name(name: &str) -> bool {
     RESERVED.contains(&stem.to_uppercase().as_str())
 }
 
+fn storage_capabilities(num_bands: usize) -> DeviceCapabilities {
+    let mut caps = DESKTOP_DAC_CAPS.clone();
+    caps.num_bands = num_bands;
+    caps.supported_filter_types = FilterType::ALL;
+    caps.supports_per_band_enable = true;
+    caps.integer_preamp = false;
+    for device in SUPPORTED_DEVICES {
+        caps.global_gain_range.0 = caps
+            .global_gain_range
+            .0
+            .min(device.caps.global_gain_range.0);
+        caps.global_gain_range.1 = caps
+            .global_gain_range
+            .1
+            .max(device.caps.global_gain_range.1);
+        caps.band_gain_range.0 = caps.band_gain_range.0.min(device.caps.band_gain_range.0);
+        caps.band_gain_range.1 = caps.band_gain_range.1.max(device.caps.band_gain_range.1);
+        caps.freq_range.0 = caps.freq_range.0.min(device.caps.freq_range.0);
+        caps.freq_range.1 = caps.freq_range.1.max(device.caps.freq_range.1);
+        caps.q_range.0 = caps.q_range.0.min(device.caps.q_range.0);
+        caps.q_range.1 = caps.q_range.1.max(device.caps.q_range.1);
+    }
+    caps
+}
+
 fn read_profile(path: &Path) -> Result<Option<StoredProfile>, String> {
     if path.extension().and_then(|ext| ext.to_str()) != Some("txt") {
         return Ok(None);
@@ -247,12 +273,9 @@ fn read_profile(path: &Path) -> Result<Option<StoredProfile>, String> {
     if data.filters.len() > MAX_FILTERS {
         data.filters.truncate(MAX_FILTERS);
     }
-    // Clamp stored values into the generic device-safe envelope so data is
-    // always within device limits regardless of where it came from.
-    // `num_bands` is pinned to the current filter count so this only clamps
-    // ranges (no padding to device band counts — that's the apply path's job).
-    let mut caps = DESKTOP_DAC_CAPS.clone();
-    caps.num_bands = data.filters.len();
+    // Sanitize against the storage envelope, not one target device. The apply
+    // and match paths perform target-specific clamping later.
+    let caps = storage_capabilities(data.filters.len());
     let _ = data.clamp_to_capabilities(&caps);
     Ok(Some(StoredProfile {
         name: path
@@ -344,25 +367,40 @@ mod tests {
     }
 
     #[test]
-    fn profile_sanitized_on_load() {
+    fn profile_load_preserves_supported_values_and_clamps_absurd_values() {
         let base = temporary_dir();
         let store = ProfileStore::new(&base).unwrap();
+        let mut supported = crate::Filter::enabled(0, false);
+        supported.gain = 11.0;
+        supported.filter_type = FilterType::HighPass;
         let peq = PEQData {
-            filters: (0..70)
-                .map(|i| crate::Filter::enabled(i as u8, true))
-                .collect(),
-            global_gain: 100.0,
+            filters: vec![supported],
+            global_gain: -18.0,
         };
-        std::fs::write(base.join("profiles/Loud.txt"), peq_to_autoeq(&peq)).unwrap();
-        let loaded = store.load("Loud").unwrap().data;
-        assert!(
-            loaded.filters.len() <= MAX_FILTERS,
-            "excess filters truncated to the safe max"
-        );
-        assert!(
-            loaded.global_gain <= DESKTOP_DAC_CAPS.global_gain_range.1 as f64,
-            "preamp gain clamped into the device-safe envelope"
-        );
+        std::fs::write(base.join("profiles/Supported.txt"), peq_to_autoeq(&peq)).unwrap();
+
+        let loaded = store.load("Supported").unwrap().data;
+        assert_eq!(loaded.global_gain, -18.0);
+        assert_eq!(loaded.filters[0].gain, 11.0);
+        assert!(!loaded.filters[0].enabled);
+        assert_eq!(loaded.filters[0].filter_type, FilterType::HighPass);
+
+        let mut absurd_filter = crate::Filter::enabled(0, true);
+        absurd_filter.freq = u16::MAX;
+        absurd_filter.gain = 100.0;
+        absurd_filter.q = 100.0;
+        let absurd = PEQData {
+            filters: vec![absurd_filter],
+            global_gain: -100.0,
+        };
+        std::fs::write(base.join("profiles/Absurd.txt"), peq_to_autoeq(&absurd)).unwrap();
+        let loaded = store.load("Absurd").unwrap().data;
+        let envelope = storage_capabilities(1);
+        assert_eq!(loaded.global_gain, envelope.global_gain_range.0 as f64);
+        assert_eq!(loaded.filters[0].gain, envelope.band_gain_range.1);
+        assert_eq!(loaded.filters[0].freq, envelope.freq_range.1);
+        assert_eq!(loaded.filters[0].q, envelope.q_range.1);
+
         std::fs::remove_dir_all(base).unwrap();
     }
 }
