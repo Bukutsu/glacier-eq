@@ -32,11 +32,23 @@ function loadPersistedJson<T>(
   }
 }
 
-function usePersistedJson(key: string, value: unknown, delayMs = 0) {
+function usePersistedJson(
+  key: string,
+  value: unknown,
+  hydrated: boolean,
+  delayMs = 0,
+) {
   // Latest save routine, so a pagehide flush always persists current state.
+  // Keep it inert until hydration has completed so an early pagehide cannot
+  // replace stored data with the initial state.
   const saveRef = useRef<() => void>(() => {});
 
   useEffect(() => {
+    if (!hydrated) {
+      saveRef.current = () => {};
+      return;
+    }
+
     const save = () => {
       try {
         window.localStorage.setItem(key, JSON.stringify(value));
@@ -60,7 +72,7 @@ function usePersistedJson(key: string, value: unknown, delayMs = 0) {
     }
     const timer = window.setTimeout(save, delayMs);
     return () => window.clearTimeout(timer);
-  }, [key, value, delayMs]);
+  }, [key, value, hydrated, delayMs]);
 
   // The debounce timer dies with the document before its callback runs, so
   // flush synchronously when the page is being hidden or unloaded.
@@ -76,6 +88,8 @@ export function useTraces(notify?: (message: string) => void) {
   const [measurements, setMeasurements] = useState<MeasurementTrace[]>([]);
   const [userTargets, setUserTargets] = useState<TargetTrace[]>([]);
   const [activeTargetIds, setActiveTargetIds] = useState<string[]>([]);
+  const [measurementsHydrated, setMeasurementsHydrated] = useState(false);
+  const [targetsHydrated, setTargetsHydrated] = useState(false);
   const [selectedMeasurementId, setSelectedMeasurementId] = useState<string | null>(null);
 
   const allTargets = userTargets;
@@ -92,11 +106,10 @@ export function useTraces(notify?: (message: string) => void) {
 
   useEffect(() => {
     const saved = loadPersistedJson<any[]>("glacier-measurements", (msg) => notifyRef.current?.(msg));
-    if (!Array.isArray(saved)) return;
-
-    setMeasurements(
-      saved
-        .filter(
+    if (Array.isArray(saved)) {
+      setMeasurements(
+        saved
+          .filter(
           (trace): trace is MeasurementTrace =>
             trace &&
             typeof trace.id === "string" &&
@@ -106,14 +119,16 @@ export function useTraces(notify?: (message: string) => void) {
             Array.isArray(trace.points) &&
             trace.points.length >= 2,
         )
-        .map((trace) => ({
-          ...trace,
-          points: normalizeMeasurementPoints(trace.points),
-        })),
-    );
+          .map((trace) => ({
+            ...trace,
+            points: normalizeMeasurementPoints(trace.points),
+          })),
+      );
+    }
+    setMeasurementsHydrated(true);
   }, []);
 
-  usePersistedJson("glacier-measurements", measurements, 300);
+  usePersistedJson("glacier-measurements", measurements, measurementsHydrated, 300);
 
   useEffect(() => {
     const savedTargets = loadPersistedJson<any[]>("glacier-user-targets", (msg) => notifyRef.current?.(msg));
@@ -147,10 +162,11 @@ export function useTraces(notify?: (message: string) => void) {
     ) {
       setActiveTargetIds(savedActiveIds.filter((id) => existingTargetIds.has(id)));
     }
+    setTargetsHydrated(true);
   }, []);
 
-  usePersistedJson("glacier-user-targets", userTargets, 300);
-  usePersistedJson("glacier-active-targets", activeTargetIds, 300);
+  usePersistedJson("glacier-user-targets", userTargets, targetsHydrated, 300);
+  usePersistedJson("glacier-active-targets", activeTargetIds, targetsHydrated, 300);
 
   const addMeasurement = useCallback(
     (name: string, points: MeasurementTrace["points"]) => {
