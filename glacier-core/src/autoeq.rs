@@ -3,6 +3,8 @@
 
 use crate::{Filter, FilterType, PEQData};
 
+pub const MAX_FILTERS: usize = 32;
+
 /// Parses frequency/dB curves using the same rules as the frontend importer.
 pub fn parse_curve_text(text: &str) -> Result<Vec<(f64, f64)>, String> {
     if text.len() > 1 << 20 || text.lines().count() > 4096 {
@@ -118,9 +120,9 @@ pub fn parse_autoeq_text(text: &str) -> Result<(PEQData, Option<String>, Vec<Str
                 // Reject out-of-range indexes before touching the sequential
                 // cursor, or one malformed line poisons every unlabeled
                 // filter after it.
-                if idx >= 32 {
+                if idx >= MAX_FILTERS {
                     warnings.push(format!(
-                        "Line {}: Filter index {} exceeds maximum allowed bands (32)",
+                        "Line {}: Filter index {} exceeds maximum allowed bands ({MAX_FILTERS})",
                         line_num,
                         idx + 1
                     ));
@@ -404,7 +406,7 @@ pub fn peq_to_autoeq(peq: &PEQData) -> String {
 }
 
 const K: usize = 384;
-const MAX_N: usize = 32;
+const MAX_N: usize = MAX_FILTERS;
 
 #[derive(Clone, Copy, Debug)]
 struct Biquad {
