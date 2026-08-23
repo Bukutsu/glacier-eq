@@ -5,6 +5,18 @@ use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
 use tauri::{plugin::PluginApi, AppHandle, Runtime};
 
+fn ensure_complete_write(expected: usize, actual: usize) -> crate::Result<()> {
+    if actual == expected {
+        Ok(())
+    } else {
+        Err(std::io::Error::new(
+            std::io::ErrorKind::WriteZero,
+            format!("HID write length mismatch: expected {expected} bytes, actual {actual}"),
+        )
+        .into())
+    }
+}
+
 pub fn init<R: Runtime, C: DeserializeOwned>(
     _app: &AppHandle<R>,
     _api: PluginApi<R, C>,
@@ -75,8 +87,8 @@ impl<R: Runtime> Hid<R> {
         };
 
         let device = device.lock().unwrap_or_else(|p| p.into_inner());
-        device.write(data)?;
-        Ok(())
+        let written = device.write(data)?;
+        ensure_complete_write(data.len(), written)
     }
 
     pub fn read(&self, path: &str, timeout: i32) -> crate::Result<Vec<u8>> {
@@ -92,5 +104,18 @@ impl<R: Runtime> Hid<R> {
         let len = device.read_timeout(&mut buffer, timeout)?;
         buffer.truncate(len);
         Ok(buffer)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rejects_short_hid_writes() {
+        assert!(ensure_complete_write(64, 64).is_ok());
+        let error = ensure_complete_write(64, 12).unwrap_err().to_string();
+        assert!(error.contains("expected 64 bytes"), "{error}");
+        assert!(error.contains("actual 12"), "{error}");
     }
 }
