@@ -526,13 +526,18 @@ function App() {
     ...raw,
   ];
 
+  const profileLoadGenerationRef = useRef(0);
   const loadProfiles = useCallback(async () => {
+    const generation = ++profileLoadGenerationRef.current;
     try {
-      setProfiles(withSyntheticDefault(await invoke<Profile[]>("list_profiles")));
+      const loadedProfiles = await invoke<Profile[]>("list_profiles");
+      if (generation !== profileLoadGenerationRef.current) return;
+      setProfiles(withSyntheticDefault(loadedProfiles));
     } catch (error) {
+      if (generation !== profileLoadGenerationRef.current) return;
       setStatus(`Failed to load profiles: ${error}`);
     }
-  }, []);
+  }, [setStatus]);
 
   // Auto-refresh profiles when window gains focus or tab becomes visible (catches external file changes)
   useEffect(() => {
@@ -1159,12 +1164,12 @@ function App() {
         editorCleanPeqRef.current = peq;
       }
       setDirty(false);
-      setProfiles(withSyntheticDefault(await invoke<Profile[]>("list_profiles")));
+      await loadProfiles();
       setStatus("Profile saved");
     } catch (error) {
       setStatus(`Failed to save profile: ${error}`);
     }
-  }, [newProfileName, peq, profiles, selectedPreset]);
+  }, [newProfileName, peq, profiles, selectedPreset, loadProfiles]);
 
   const deleteSelectedProfile = useCallback(async () => {
     if (selectedPreset === DEFAULT_PROFILE_NAME) return;
@@ -1185,7 +1190,7 @@ function App() {
       setPeq(defaultPeq);
       editorCleanPeqRef.current = defaultPeq;
       setDirty(false);
-      setProfiles(withSyntheticDefault(await invoke<Profile[]>("list_profiles")));
+      await loadProfiles();
       setStatus("Profile deleted");
     } catch (error) {
       setStatus(`Failed to delete profile: ${error}`);
