@@ -13,6 +13,7 @@ import { UnifiedTracesList } from "./UnifiedTraces";
 import { NumberInput } from "./NumberInput";
 import { Slider } from "./Slider";
 import { TAB_META, type ToolsTab } from "../lib/tabs";
+import { parseAutoEqResult, type ParsedAutoEqResult } from "../lib/parsedAutoEq";
 
 const KEYBOARD_SHORTCUTS: [string, string][] = [
   ["Ctrl/⌘ Z", "Undo"],
@@ -549,14 +550,8 @@ interface ImportTabProps {
   setStatus: (msg: string) => void;
 }
 
-interface ParsedResult {
-  peq: PEQData;
-  headphone_name: string | null;
-  warnings: string[];
-}
-
 function ImportTab({ peq, profiles, selectedPreset, onImportPEQ, onReloadProfiles, setStatus }: ImportTabProps) {
-  const [parsed, setParsed] = useState<ParsedResult | null>(null);
+  const [parsed, setParsed] = useState<ParsedAutoEqResult | null>(null);
   const [importName, setImportName] = useState("");
   const [isTemporary, setIsTemporary] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -600,8 +595,9 @@ function ImportTab({ peq, profiles, selectedPreset, onImportPEQ, onReloadProfile
     request: number,
   ) => {
     try {
-      const result = await invoke<ParsedResult>("parse_autoeq", { text });
+      const rawResult = await invoke<unknown>("parse_autoeq", { text });
       if (request !== parseRequestRef.current) return;
+      const result = parseAutoEqResult(rawResult);
       setParsed(result);
       const initialName = result.headphone_name || defaultNameFallback || "Imported Profile";
       setImportName(initialName);
