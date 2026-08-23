@@ -44,6 +44,15 @@ describe("parseAutoEqResult", () => {
     expect(result.peq.filters[0].filter_type).toBe(frontendType);
   });
 
+  it("accepts run results without a headphone name", () => {
+    const result = parseAutoEqResult({
+      peq: { globalGain: 0, filters: [filter] },
+      warnings: [],
+    });
+
+    expect(result.headphone_name).toBeNull();
+  });
+
   it("accepts the frontend filter_type field too", () => {
     const result = parseAutoEqResult({
       peq: {

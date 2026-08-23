@@ -233,6 +233,7 @@ export const ToolsPanel = memo(function ToolsPanel(props: ToolsPanelProps) {
                 onToggleTarget={props.onToggleTarget}
                 maxBands={props.maxBands}
                 dspSampleRate={props.dspSampleRate}
+                getAsyncContext={props.getAsyncContext}
               />
             </div>
           )}
@@ -925,6 +926,9 @@ function ImportTab({
   );
 }
 
+const EMPTY_TARGETS: TargetTrace[] = [];
+const EMPTY_TARGET_IDS: string[] = [];
+
 interface AutoEqTabProps {
   measurements: MeasurementTrace[];
   allTargets: TargetTrace[];
@@ -936,12 +940,13 @@ interface AutoEqTabProps {
   onToggleTarget?: (id: string) => void;
   maxBands?: number;
   dspSampleRate?: number;
+  getAsyncContext: () => AsyncContext;
 }
 
 export function AutoEqTab({
   measurements,
-  allTargets = [],
-  activeTargetIds = [],
+  allTargets = EMPTY_TARGETS,
+  activeTargetIds = EMPTY_TARGET_IDS,
   onImportPEQ,
   setStatus,
   onSelectedMeasurementChange,
@@ -949,6 +954,7 @@ export function AutoEqTab({
   onToggleTarget,
   maxBands = 10,
   dspSampleRate = 96000,
+  getAsyncContext,
 }: AutoEqTabProps) {
   const [nBands, setNBands] = useState<number>(Math.max(1, maxBands));
   const [steps, setSteps] = useState<number>(2000);
@@ -956,12 +962,33 @@ export function AutoEqTab({
   const [fs, setFs] = useState<number>(dspSampleRate);
   const [isOptimizing, setIsOptimizing] = useState<boolean>(false);
   const [warnings, setWarnings] = useState<string[]>([]);
+  const requestRef = useRef(0);
+  const mountedRef = useRef(true);
+
+  const invalidateRequest = () => {
+    requestRef.current += 1;
+    setIsOptimizing(false);
+  };
 
   useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      requestRef.current += 1;
+    };
+  }, []);
+
+  useEffect(() => {
+    requestRef.current += 1;
+  }, [measurements, allTargets, activeTargetIds]);
+
+  useEffect(() => {
+    requestRef.current += 1;
     setNBands((current) => Math.min(current, Math.max(1, maxBands)));
   }, [maxBands]);
 
   useEffect(() => {
+    requestRef.current += 1;
     setFs(dspSampleRate);
   }, [dspSampleRate]);
 
@@ -1007,6 +1034,7 @@ export function AutoEqTab({
   const target = allTargets.find((t) => t.id === localTargetId) || allTargets.find((t) => activeTargetIds.includes(t.id)) || allTargets[0] || null;
 
   const handleMeasChange = (id: string) => {
+    invalidateRequest();
     setLocalMeasId(id);
     const m = measurements.find((x) => x.id === id);
     if (m) {
@@ -1018,6 +1046,7 @@ export function AutoEqTab({
   };
 
   const handleTargetChange = (id: string) => {
+    invalidateRequest();
     setLocalTargetId(id);
     if (!activeTargetIds.includes(id)) {
       onToggleTarget?.(id);
@@ -1033,47 +1062,64 @@ export function AutoEqTab({
   const handleRunAutoEq = async () => {
     if (!meas || !target) return;
 
+    const request = ++requestRef.current;
+    const context = getAsyncContext();
+    const input = {
+      measurementName: meas.name,
+      measurementPoints: meas.points.map((point) => [point.freq, point.db]),
+      targetName: target.name,
+      targetPoints: target.points.map((point) => [point.freq, point.db]),
+      nBands,
+      steps,
+      smoothType,
+      fs,
+    };
+    const isCurrent = () => mountedRef.current
+      && request === requestRef.current
+      && sameAsyncContext(context, getAsyncContext());
+
     setIsOptimizing(true);
     setStatus("Running AutoEQ optimization...");
     setWarnings([]);
 
     try {
-      const measurementPoints = meas.points.map(p => [p.freq, p.db]);
-      const targetPoints = target.points.map(p => [p.freq, p.db]);
-
-      const result = await invoke<{ peq: PEQData; warnings: string[] }>("run_autoeq", {
-        measurementPoints,
-        targetPoints,
-        nBands,
-        steps,
-        smoothType,
-        fs,
+      const rawResult = await invoke<unknown>("run_autoeq", {
+        measurementPoints: input.measurementPoints,
+        targetPoints: input.targetPoints,
+        nBands: input.nBands,
+        steps: input.steps,
+        smoothType: input.smoothType,
+        fs: input.fs,
       });
+      const result = parseAutoEqResult(rawResult);
+      if (!isCurrent()) return;
 
-      const cleanMeasName = meas.name
+      const cleanMeasName = input.measurementName
         .replace(/\s*\(.*?\)/g, "")
-        .trim() || meas.name;
-      const cleanTargetName = target.name
+        .trim() || input.measurementName;
+      const cleanTargetName = input.targetName
         .replace(/IE 2019/i, "IE")
         .replace(/OE 2018/i, "OE")
         .replace(/Preference \d+/i, "Pref")
         .replace(/PEQdb /i, "")
         .replace(/Reference/i, "")
-        .trim() || target.name;
+        .trim() || input.targetName;
       const autoName = `${cleanMeasName} @ ${cleanTargetName}`;
       onImportPEQ(result.peq, autoName, false);
       setWarnings(result.warnings);
-      
+
       if (result.warnings.length > 0) {
         setStatus(`AutoEQ match complete with ${result.warnings.length} device warning${result.warnings.length === 1 ? "" : "s"}`);
       } else {
         setStatus("AutoEQ match complete");
       }
     } catch (err) {
-      setStatus(`AutoEQ match failed: ${err}`);
-      console.error(err);
+      if (isCurrent()) {
+        setStatus(`AutoEQ match failed: ${err}`);
+        console.error(err);
+      }
     } finally {
-      setIsOptimizing(false);
+      if (isCurrent()) setIsOptimizing(false);
     }
   };
 
@@ -1122,21 +1168,30 @@ export function AutoEqTab({
                   <button
                     className={smoothType === "None" ? "active" : ""}
                     aria-pressed={smoothType === "None"}
-                    onClick={() => setSmoothType("None")}
+                    onClick={() => {
+                      invalidateRequest();
+                      setSmoothType("None");
+                    }}
                   >
                     None
                   </button>
                   <button
                     className={smoothType === "IE" ? "active" : ""}
                     aria-pressed={smoothType === "IE"}
-                    onClick={() => setSmoothType("IE")}
+                    onClick={() => {
+                      invalidateRequest();
+                      setSmoothType("IE");
+                    }}
                   >
                     IE
                   </button>
                   <button
                     className={smoothType === "OE" ? "active" : ""}
                     aria-pressed={smoothType === "OE"}
-                    onClick={() => setSmoothType("OE")}
+                    onClick={() => {
+                      invalidateRequest();
+                      setSmoothType("OE");
+                    }}
                   >
                     OE
                   </button>
@@ -1148,7 +1203,10 @@ export function AutoEqTab({
                 <Select
                   id="autoeq-steps"
                   value={steps}
-                  onChange={setSteps}
+                  onChange={(value) => {
+                    invalidateRequest();
+                    setSteps(value);
+                  }}
                   options={[
                     { value: 500, label: "500 (Fast)" },
                     { value: 1000, label: "1000" },
@@ -1164,7 +1222,10 @@ export function AutoEqTab({
                 <Select
                   id="autoeq-fs"
                   value={fs}
-                  onChange={setFs}
+                  onChange={(value) => {
+                    invalidateRequest();
+                    setFs(value);
+                  }}
                   options={[
                     { value: 44100, label: "44.1 kHz" },
                     { value: 48000, label: "48.0 kHz" },
@@ -1183,7 +1244,10 @@ export function AutoEqTab({
               value={nBands}
               min={1}
               max={Math.max(1, maxBands)}
-              onChange={setNBands}
+              onChange={(value) => {
+                invalidateRequest();
+                setNBands(value);
+              }}
               className="autoeq-bands-stepper"
             />
             <button

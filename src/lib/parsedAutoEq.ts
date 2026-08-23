@@ -76,7 +76,11 @@ export function parseAutoEqResult(value: unknown): ParsedAutoEqResult {
   if (!isRecord(value) || !isRecord(value.peq)) {
     throw new Error("Invalid parsed AutoEQ result: expected a peq object");
   }
-  if (value.headphone_name !== null && typeof value.headphone_name !== "string") {
+  if (
+    value.headphone_name !== undefined
+    && value.headphone_name !== null
+    && typeof value.headphone_name !== "string"
+  ) {
     throw new Error("Invalid parsed AutoEQ result: headphone_name must be a string or null");
   }
   if (!Array.isArray(value.warnings) || value.warnings.length > MAX_WARNINGS) {
@@ -97,7 +101,7 @@ export function parseAutoEqResult(value: unknown): ParsedAutoEqResult {
       ),
       filters: value.peq.filters.map(parseFilter),
     },
-    headphone_name: value.headphone_name,
+    headphone_name: value.headphone_name ?? null,
     warnings: [...value.warnings],
   };
 }
