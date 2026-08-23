@@ -272,8 +272,14 @@ function App() {
   }, [status, isAndroid]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [selectedPreset, setSelectedPreset] = useState(DEFAULT_PROFILE_NAME);
+  const selectedPresetRef = useRef(selectedPreset);
+  selectedPresetRef.current = selectedPreset;
   const [profileSearch, setProfileSearch] = useState("");
+  const profileSearchRef = useRef(profileSearch);
+  profileSearchRef.current = profileSearch;
   const [newProfileName, setNewProfileName] = useState("");
+  const newProfileNameRef = useRef(newProfileName);
+  newProfileNameRef.current = newProfileName;
   const {
     measurements,
     allTargets,
@@ -296,6 +302,7 @@ function App() {
   );
   const [dirty, setDirty] = useState(false);
   const peqRef = useRef(peq);
+  peqRef.current = peq;
   const editorCleanPeqRef = useRef(peq);
   const eqOperationInFlightRef = useRef(false);
   const [lastPushedPeq, setLastPushedPeq] = useState<PEQData | null>(null);
@@ -303,10 +310,6 @@ function App() {
   const [editorHintDismissed, setEditorHintDismissed] = useState(
     () => window.localStorage.getItem(EDITOR_HINT_KEY) === "true",
   );
-
-  useEffect(() => {
-    peqRef.current = peq;
-  }, [peq]);
 
   useEffect(() => {
     window.localStorage.setItem("glacier-graph-view-mode", graphViewMode);
@@ -1153,7 +1156,13 @@ function App() {
   }, [selectedDevice, reportStatus]);
 
   const saveProfile = useCallback(async () => {
-    const name = newProfileName.trim() || selectedPreset;
+    const savedPeq = peqRef.current;
+    const savedContext = {
+      selectedPreset: selectedPresetRef.current,
+      profileSearch: profileSearchRef.current,
+      newProfileName: newProfileNameRef.current,
+    };
+    const name = savedContext.newProfileName.trim() || savedContext.selectedPreset;
     if (
       !name ||
       name === DEFAULT_PROFILE_NAME ||
@@ -1174,20 +1183,25 @@ function App() {
     }))) return;
 
     try {
-      await invoke("save_profile", { name, peq });
-      setSelectedPreset(name);
-      setProfileSearch("");
-      setNewProfileName("");
-      if (peqEquals(peqRef.current, peq)) {
-        editorCleanPeqRef.current = peq;
-      }
-      setDirty(false);
+      await invoke("save_profile", { name, peq: savedPeq });
       await loadProfiles();
+      const contextStillCurrent =
+        peqEquals(peqRef.current, savedPeq) &&
+        selectedPresetRef.current === savedContext.selectedPreset &&
+        profileSearchRef.current === savedContext.profileSearch &&
+        newProfileNameRef.current === savedContext.newProfileName;
+      if (contextStillCurrent) {
+        setSelectedPreset(name);
+        setProfileSearch("");
+        setNewProfileName("");
+        editorCleanPeqRef.current = savedPeq;
+        setDirty(false);
+      }
       setStatus("Profile saved");
     } catch (error) {
       setStatus(`Failed to save profile: ${error}`);
     }
-  }, [newProfileName, peq, profiles, selectedPreset, loadProfiles]);
+  }, [profiles, loadProfiles, setStatus]);
 
   const deleteSelectedProfile = useCallback(async () => {
     if (selectedPreset === DEFAULT_PROFILE_NAME) return;
