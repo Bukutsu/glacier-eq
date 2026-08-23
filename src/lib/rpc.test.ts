@@ -282,7 +282,7 @@ describe("web settings parser", () => {
     const parsed = parseWebSettings({
       auto_pull_on_connect: false,
       skip_push_verification: "true",
-      theme: "dark",
+      theme: "dracula",
       snap_to_iso_frequencies: 1,
       unknown_setting: true,
     });
@@ -291,7 +291,7 @@ describe("web settings parser", () => {
     expect(parsed.value).toEqual({
       auto_pull_on_connect: false,
       skip_push_verification: false,
-      theme: "dark",
+      theme: "dracula",
       snap_to_iso_frequencies: true,
       floating_graph_preview: true,
     });

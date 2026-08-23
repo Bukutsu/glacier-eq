@@ -124,12 +124,16 @@ function webHidPath(device: HIDDevice): string {
   return `webhid:${device.vendorId}:${device.productId}:${id}`;
 }
 
-// Memory Diagnostic Store for Web mode
+// Memory Diagnostic Store for Web mode. Sequence IDs let the diagnostics UI
+// deduplicate history against the live buffer without relying on identical
+// millisecond timestamps.
 const MAX_DIAGNOSTICS = 500;
-let diagnosticsStore: { level: string; source: string; message: string; timestamp: string }[] = [];
+let diagnosticsSequence = 0;
+let diagnosticsStore: { seq: number; level: string; source: string; message: string; timestamp: string }[] = [];
 
 function addDiagnostic(level: string, source: string, message: string) {
   const event = {
+    seq: ++diagnosticsSequence,
     level,
     source,
     message,
@@ -161,7 +165,12 @@ function markWebHidDisconnected(device?: HIDDevice) {
   const target = device || activeDevice;
   if (!activeDevice || (device && activeDevice !== device)) return;
   detachHidEventListeners(target);
-  const name = activeProfile?.name || activeDevice.productName || "WebHID device";
+  // Structured identity lets listeners reject delayed events for a session
+  // that has already been replaced.
+  const payload = {
+    path: webHidPath(activeDevice),
+    name: activeProfile?.name || activeDevice.productName || "WebHID device",
+  };
   activeDevice = null;
   activeProfile = null;
   reportQueue = [];
@@ -169,7 +178,7 @@ function markWebHidDisconnected(device?: HIDDevice) {
     const resolver = reportResolvers.shift();
     if (resolver) resolver(new Uint8Array(0));
   }
-  emitEvent("device-disconnected", name);
+  emitEvent("device-disconnected", payload);
 }
 
 function setupHidEventListeners(device: HIDDevice) {
@@ -276,6 +285,19 @@ const DEFAULT_WEB_SETTINGS: AppSettings = {
   floating_graph_preview: true,
 };
 
+// Must match the themes offered by the settings UI.
+const KNOWN_THEMES = new Set([
+  "auto",
+  "tokyo-night",
+  "tokyo-night-storm",
+  "tokyo-night-day",
+  "nord",
+  "dracula",
+  "gruvbox",
+  "catppuccin-mocha",
+  "catppuccin-latte",
+]);
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -312,7 +334,7 @@ export function parseWebSettings(value: unknown): ParsedStorage<AppSettings> {
     }
   }
   if ("theme" in value) {
-    if (typeof value.theme === "string") {
+    if (typeof value.theme === "string" && KNOWN_THEMES.has(value.theme)) {
       settings.theme = value.theme;
     } else {
       malformed = true;
@@ -405,10 +427,12 @@ function parseStoredPeq(value: unknown): PEQData | null {
 }
 
 function isValidProfileName(value: unknown): value is string {
+  // Match Rust's 128-byte UTF-8 limit rather than JS UTF-16 units.
+  const utf8Bytes = typeof value === "string" ? new TextEncoder().encode(value).length : 0;
   if (
     typeof value !== "string" ||
     value.length === 0 ||
-    value.length > 128 ||
+    utf8Bytes > 128 ||
     value.trim() !== value ||
     value.endsWith(".") ||
     ![...value].every((character) => /[\p{L}\p{N}]/u.test(character) || " _-@+&.()".includes(character))
@@ -501,15 +525,6 @@ function loadWebSettings(): AppSettings {
 
 function loadWebProfiles(): Profile[] {
   return loadValidatedStorage("glacier-eq-profiles", [], parseWebProfiles);
-}
-
-function parseAutoEqResultPeq(value: unknown): PEQData {
-  if (!isRecord(value) || !("peq" in value)) {
-    throw new Error("Invalid AutoEQ response");
-  }
-  const peq = parseStoredPeq(value.peq);
-  if (!peq) throw new Error("Invalid PEQ data in AutoEQ response");
-  return peq;
 }
 
 const CMD_FILTER_MODE = 17;
@@ -860,6 +875,9 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
     case "save_profile": {
       // Mirror ProfileStore::save's envelope so both platforms enforce
       // identical limits instead of trusting the IPC payload verbatim.
+      // Stored profiles are portable: validation is against the storage
+      // envelope (schema, ≤32 filters), never the connected device's caps,
+      // which would truncate multi-band profiles or pad preamp-only ones.
       const name = commandField(args, "name");
       if (!isValidProfileName(name)) {
         throw new Error("Profile name contains invalid characters");
@@ -868,19 +886,16 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
       if (!peq || peq.filters.length > 32) {
         throw new Error("Profile exceeds maximum filter count (32) or contains invalid data");
       }
-      const text = peq_to_autoeq(peq);
-      if (text.length > 1_048_576) {
+      const serialized = JSON.stringify(peq);
+      if (serialized.length > 1_048_576) {
         throw new Error("Profile exceeds maximum size (1 MiB)");
       }
-      const vid = activeProfile?.vendor_id ?? null;
-      const pid = activeProfile?.product_id ?? null;
-      const normalized = parseAutoEqResultPeq(parse_autoeq(text, vid, pid));
       const profiles = loadWebProfiles();
       const normalizedName = name.toLocaleLowerCase();
       const idx = profiles.findIndex((profile) => profile.name.toLocaleLowerCase() === normalizedName);
       const newProfile: Profile = {
         name,
-        data: normalized,
+        data: peq,
         modified: Math.floor(Date.now() / 1000),
       };
       if (idx >= 0) {
@@ -1253,7 +1268,7 @@ export async function openFileDialog(options?: {
     return parseOpenedTextFile(await invoke<unknown>("open_text_file_dialog"));
   }
   // Web fallback: create a hidden file input
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const input = document.createElement("input");
     input.type = "file";
     if (options?.filters) {
@@ -1295,16 +1310,18 @@ export async function openFileDialog(options?: {
       if (file) {
         if (file.size > 1_048_576) {
           cleanup();
-          resolve(null);
+          // Size and read failures are errors, not cancellations: callers
+          // must be able to tell the user why their import did not happen.
+          reject(new Error("File exceeds the 1 MiB limit"));
           return;
         }
         try {
           const text = await file.text();
           cleanup();
           resolve({ text, name: file.name });
-        } catch {
+        } catch (error) {
           cleanup();
-          resolve(null);
+          reject(error instanceof Error ? error : new Error(String(error)));
         }
       } else {
         cleanup();
