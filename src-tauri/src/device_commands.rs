@@ -286,7 +286,7 @@ pub async fn set_eq_state(
     app: tauri::AppHandle,
     state: tauri::State<'_, Mutex<DeviceState>>,
     peq: PEQData,
-) -> Result<(), String> {
+) -> Result<PEQData, String> {
     let skip_verification = crate::settings::get_settings(app.clone())
         .await
         .unwrap_or_default()
@@ -297,7 +297,6 @@ pub async fn set_eq_state(
         } else {
             session.persistent_push(peq)
         }
-        .map(|_| ())
     })
     .await
 }
@@ -307,8 +306,8 @@ pub async fn apply_eq_state(
     app: tauri::AppHandle,
     state: tauri::State<'_, Mutex<DeviceState>>,
     peq: PEQData,
-) -> Result<(), String> {
-    with_session(&app, &state, |session| session.apply_ram(peq).map(|_| ())).await
+) -> Result<PEQData, String> {
+    with_session(&app, &state, |session| session.apply_ram(peq)).await
 }
 
 #[tauri::command]
