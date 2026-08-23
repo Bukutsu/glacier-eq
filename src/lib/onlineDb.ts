@@ -23,8 +23,12 @@ export interface OnlineDevice {
   source: string;
 }
 
-function openDb(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
+let pendingOpen: Promise<IDBDatabase> | null = null;
+
+export function openDb(): Promise<IDBDatabase> {
+  if (pendingOpen) return pendingOpen;
+
+  const attempt = new Promise<IDBDatabase>((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     let settled = false;
     const rejectOnce = (error: unknown) => {
@@ -32,12 +36,16 @@ function openDb(): Promise<IDBDatabase> {
       settled = true;
       reject(error);
     };
-    request.onerror = () => rejectOnce(request.error);
-    // Without this, a second window holding an older DB version blocks the
-    // upgrade forever and the promise never settles.
+    request.onerror = () => {
+      rejectOnce(request.error);
+      pendingOpen = null;
+    };
+    // The request keeps running after onblocked. Keep this rejected attempt
+    // shared until its late success or error so retries do not pile up.
     request.onblocked = () => rejectOnce(new Error("Database locked by another window"));
     request.onsuccess = () => {
       const db = request.result;
+      pendingOpen = null;
       if (settled) {
         db.close();
         return;
@@ -53,6 +61,8 @@ function openDb(): Promise<IDBDatabase> {
       }
     };
   });
+  pendingOpen = attempt;
+  return attempt;
 }
 
 function idbRequest<T>(request: IDBRequest<T>): Promise<T> {
