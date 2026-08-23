@@ -15,7 +15,8 @@ import { Slider } from "./Slider";
 import { TAB_META, type ToolsTab } from "../lib/tabs";
 import { parseAutoEqResult, type ParsedAutoEqResult } from "../lib/parsedAutoEq";
 import {
-  createSerialTaskQueue,
+  createCoalescingTaskScheduler,
+  mergeFieldsAtUnchangedRevisions,
   revertFieldIfCurrent,
   setField,
 } from "../lib/serializedWrites";
@@ -1444,7 +1445,10 @@ function DeviceTab({
   const confirmedUtilityRef = useRef<DeviceUtilityState | null>(null);
   const fieldRevisionsRef = useRef<Partial<Record<keyof DeviceUtilityState, number>>>({});
   const mountedRef = useRef(true);
-  const [enqueueUtilityWrite] = useState(createSerialTaskQueue);
+  // One lifecycle-aware scheduler for every utility mutation (field writes,
+  // refreshes, resets). Tasks coalesce per key, and invalidation on unmount
+  // drops queued work so it can never target a replacement device.
+  const [scheduleUtilityTask] = useState(() => createCoalescingTaskScheduler<string>());
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -1453,11 +1457,22 @@ function DeviceTab({
       setLoading(true);
       setLoadError(null);
     }
+    // A refresh started before optimistic edits must not clobber newer user
+    // values: merge only fields whose revision has not advanced since the
+    // refresh began.
+    const revisionsAtRefresh = { ...fieldRevisionsRef.current };
     try {
       const data = await invoke<DeviceUtilityState>("get_dac_utility_state");
       if (isActive()) {
-        setUtility(data);
-        utilityRef.current = data;
+        const base = utilityRef.current ?? data;
+        const merged = mergeFieldsAtUnchangedRevisions(
+          base,
+          data,
+          revisionsAtRefresh,
+          fieldRevisionsRef.current,
+        );
+        setUtility(merged);
+        utilityRef.current = merged;
         confirmedUtilityRef.current = data;
         setLoadError(null);
       }
@@ -1477,7 +1492,9 @@ function DeviceTab({
   useEffect(() => {
     let active = true;
     mountedRef.current = true;
-    fetchState(() => active);
+    scheduleUtilityTask.enqueue("refresh", async (isCurrent) => {
+      await fetchState(() => active && isCurrent());
+    });
 
     let unlisten: (() => void) | null = null;
     listen<void>("device-pull", () => {
@@ -1497,6 +1514,8 @@ function DeviceTab({
     return () => {
       active = false;
       mountedRef.current = false;
+      // Drop queued utility work so a replacement device never receives it.
+      scheduleUtilityTask.invalidate();
       if (unlisten) unlisten();
     };
   }, []);
@@ -1516,14 +1535,18 @@ function DeviceTab({
     utilityRef.current = optimistic;
     setUtility(optimistic);
 
-    await enqueueUtilityWrite(async () => {
+    // Per-field coalescing: slider streams collapse to the latest value per
+    // control while preserving cross-field ordering.
+    scheduleUtilityTask.enqueue(field, async (isCurrent) => {
+      if (!isCurrent()) return;
       try {
         await invoke(command, args);
         const confirmed = confirmedUtilityRef.current;
-        if (confirmed) {
+        if (confirmed && isCurrent()) {
           confirmedUtilityRef.current = setField(confirmed, field, value);
         }
       } catch (err) {
+        if (!isCurrent()) return;
         const latest = utilityRef.current;
         const confirmed = confirmedUtilityRef.current;
         if (latest && confirmed) {
@@ -1568,15 +1591,21 @@ function DeviceTab({
       confirmLabel: "Reset EQ",
       danger: true,
     }))) return;
-    try {
-      await invoke("reset_device_eq");
-      setStatus("Device EQ reset");
-      if (onPull) {
-        await onPull();
+    // Resets supersede queued field writes so stale slider values cannot
+    // overwrite the reset on hardware.
+    scheduleUtilityTask.enqueue("reset", async (isCurrent) => {
+      try {
+        await invoke("reset_device_eq");
+        if (!isCurrent()) return;
+        setStatus("Device EQ reset");
+        if (onPull) {
+          await onPull();
+        }
+      } catch (err) {
+        if (!isCurrent()) return;
+        setStatus(`Failed to reset device EQ: ${err}`);
       }
-    } catch (err) {
-      setStatus(`Failed to reset device EQ: ${err}`);
-    }
+    }, { supersedePending: true });
   };
 
   const handleResetDeviceControls = async () => {
@@ -1586,15 +1615,19 @@ function DeviceTab({
       confirmLabel: "Reset controls",
       danger: true,
     }))) return;
-    try {
-      const data = await invoke<DeviceUtilityState>("reset_device_controls");
-      utilityRef.current = data;
-      confirmedUtilityRef.current = data;
-      setUtility(data);
-      setStatus("Device controls reset");
-    } catch (err) {
-      setStatus(`Failed to reset device controls: ${err}`);
-    }
+    scheduleUtilityTask.enqueue("reset", async (isCurrent) => {
+      try {
+        const data = await invoke<DeviceUtilityState>("reset_device_controls");
+        if (!isCurrent()) return;
+        utilityRef.current = data;
+        confirmedUtilityRef.current = data;
+        setUtility(data);
+        setStatus("Device controls reset");
+      } catch (err) {
+        if (!isCurrent()) return;
+        setStatus(`Failed to reset device controls: ${err}`);
+      }
+    }, { supersedePending: true });
   };
 
   const handleFactoryReset = async () => {
@@ -1604,18 +1637,23 @@ function DeviceTab({
       confirmLabel: "Factory reset",
       danger: true,
     }))) return;
-    try {
-      await invoke("execute_factory_reset");
-      const data = await invoke<DeviceUtilityState>("get_dac_utility_state");
-      utilityRef.current = data;
-      confirmedUtilityRef.current = data;
-      setUtility(data);
-      if (onPull) {
-        await onPull();
+    scheduleUtilityTask.enqueue("reset", async (isCurrent) => {
+      try {
+        await invoke("execute_factory_reset");
+        if (!isCurrent()) return;
+        const data = await invoke<DeviceUtilityState>("get_dac_utility_state");
+        if (!isCurrent()) return;
+        utilityRef.current = data;
+        confirmedUtilityRef.current = data;
+        setUtility(data);
+        if (onPull) {
+          await onPull();
+        }
+      } catch (err) {
+        if (!isCurrent()) return;
+        setStatus(`Failed to factory reset: ${err}`);
       }
-    } catch (err) {
-      setStatus(`Failed to factory reset: ${err}`);
-    }
+    }, { supersedePending: true });
   };
 
   if (loading) {
