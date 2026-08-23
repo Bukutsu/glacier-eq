@@ -97,6 +97,15 @@ function Select<T extends string | number>({
 
 
 
+export interface AsyncContext {
+  editorRevision: number;
+  connectionRevision: number;
+}
+
+export type ProfileMutationRunner = <T>(
+  task: () => Promise<T>,
+) => Promise<{ value: T; current: boolean }>;
+
 interface ToolsPanelProps {
   peq: PEQData;
   onImportPEQ: (data: PEQData, name: string, isSaved: boolean) => void;
@@ -145,6 +154,8 @@ interface ToolsPanelProps {
   onShowGraphChange?: (show: boolean) => void;
   maxBands?: number;
   dspSampleRate?: number;
+  getAsyncContext: () => AsyncContext;
+  runProfileMutation: ProfileMutationRunner;
 }
 
 export const ToolsPanel = memo(function ToolsPanel(props: ToolsPanelProps) {
@@ -184,6 +195,8 @@ export const ToolsPanel = memo(function ToolsPanel(props: ToolsPanelProps) {
                 onImportPEQ={props.onImportPEQ}
                 onReloadProfiles={props.onReloadProfiles}
                 setStatus={props.setStatus}
+                getAsyncContext={props.getAsyncContext}
+                runProfileMutation={props.runProfileMutation}
               />
             </>
           )}
@@ -557,20 +570,49 @@ interface ImportTabProps {
   profiles: Profile[];
   selectedPreset: string;
   onImportPEQ: (data: PEQData, name: string, isSaved: boolean) => void;
-  onReloadProfiles: () => void;
+  onReloadProfiles: () => void | Promise<void>;
   setStatus: (msg: string) => void;
+  getAsyncContext: () => AsyncContext;
+  runProfileMutation: ProfileMutationRunner;
 }
 
-function ImportTab({ peq, profiles, selectedPreset, onImportPEQ, onReloadProfiles, setStatus }: ImportTabProps) {
+function sameAsyncContext(left: AsyncContext, right: AsyncContext): boolean {
+  return left.editorRevision === right.editorRevision
+    && left.connectionRevision === right.connectionRevision;
+}
+
+function ImportTab({
+  peq,
+  profiles,
+  selectedPreset,
+  onImportPEQ,
+  onReloadProfiles,
+  setStatus,
+  getAsyncContext,
+  runProfileMutation,
+}: ImportTabProps) {
   const [parsed, setParsed] = useState<ParsedAutoEqResult | null>(null);
   const [importName, setImportName] = useState("");
   const [isTemporary, setIsTemporary] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const parseRequestRef = useRef(0);
+  const modalContextRef = useRef(0);
+  const mountedRef = useRef(true);
 
-  useEffect(() => () => {
-    parseRequestRef.current += 1;
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      parseRequestRef.current += 1;
+      modalContextRef.current += 1;
+    };
   }, []);
+
+  const invalidateModalOperation = () => {
+    modalContextRef.current += 1;
+    setIsSubmitting(false);
+  };
 
   const handleImportFileClick = () => {
     fileInputRef.current?.click();
@@ -609,6 +651,7 @@ function ImportTab({ peq, profiles, selectedPreset, onImportPEQ, onReloadProfile
       const rawResult = await invoke<unknown>("parse_autoeq", { text });
       if (request !== parseRequestRef.current) return;
       const result = parseAutoEqResult(rawResult);
+      invalidateModalOperation();
       setParsed(result);
       const initialName = result.headphone_name || defaultNameFallback || "Imported Profile";
       setImportName(initialName);
@@ -670,20 +713,35 @@ function ImportTab({ peq, profiles, selectedPreset, onImportPEQ, onReloadProfile
   };
 
   const handleConfirm = async () => {
-    if (!parsed) return;
-    if (nameExists && !(await confirmDialog({
-      title: "Overwrite profile?",
-      message: `A profile named "${importName.trim()}" already exists. Saving will replace it.`,
-      confirmLabel: "Overwrite",
-      danger: true,
-    }))) return;
+    if (!parsed || isSubmitting) return;
 
-    if (isTemporary) {
-      onImportPEQ(parsed.peq, importName || "Imported EQ", false);
-      setParsed(null);
-      setStatus("Applied to the editor without saving");
-    } else {
-      const name = importName.trim();
+    const operation = ++modalContextRef.current;
+    const context = getAsyncContext();
+    const parsedSnapshot = parsed;
+    const nameSnapshot = importName;
+    const temporarySnapshot = isTemporary;
+    const isCurrent = () => mountedRef.current
+      && operation === modalContextRef.current
+      && sameAsyncContext(context, getAsyncContext());
+    setIsSubmitting(true);
+
+    try {
+      if (nameExists && !(await confirmDialog({
+        title: "Overwrite profile?",
+        message: `A profile named "${nameSnapshot.trim()}" already exists. Saving will replace it.`,
+        confirmLabel: "Overwrite",
+        danger: true,
+      }))) return;
+      if (!isCurrent()) return;
+
+      if (temporarySnapshot) {
+        onImportPEQ(parsedSnapshot.peq, nameSnapshot || "Imported EQ", false);
+        setParsed(null);
+        setStatus("Applied to the editor without saving");
+        return;
+      }
+
+      const name = nameSnapshot.trim();
       if (!name) {
         setStatus("Please enter a name for the profile.");
         return;
@@ -692,19 +750,27 @@ function ImportTab({ peq, profiles, selectedPreset, onImportPEQ, onReloadProfile
         setStatus(`"${DEFAULT_PROFILE_NAME}" is reserved. Choose another profile name.`);
         return;
       }
-      try {
-        await invoke("save_profile", { name, peq: parsed.peq });
+
+      const mutation = await runProfileMutation(async () => {
+        await invoke("save_profile", { name, peq: parsedSnapshot.peq });
         await onReloadProfiles();
-        onImportPEQ(parsed.peq, name, true);
-        setParsed(null);
-        setStatus(`Profile '${name}' saved`);
-      } catch (err) {
-        setStatus(`Failed to save profile: ${err}`);
+      });
+      if (!mutation.current || !isCurrent()) return;
+
+      onImportPEQ(parsedSnapshot.peq, name, true);
+      setParsed(null);
+      setStatus(`Profile '${name}' saved`);
+    } catch (err) {
+      if (isCurrent()) setStatus(`Failed to save profile: ${err}`);
+    } finally {
+      if (mountedRef.current && operation === modalContextRef.current) {
+        setIsSubmitting(false);
       }
     }
   };
 
   const handleCancel = () => {
+    invalidateModalOperation();
     setParsed(null);
   };
 
@@ -753,14 +819,20 @@ function ImportTab({ peq, profiles, selectedPreset, onImportPEQ, onReloadProfile
                 <button
                   className={!isTemporary ? "active" : ""}
                   aria-pressed={!isTemporary}
-                  onClick={() => setIsTemporary(false)}
+                  onClick={() => {
+                    invalidateModalOperation();
+                    setIsTemporary(false);
+                  }}
                 >
                   Save to Profile
                 </button>
                 <button
                   className={isTemporary ? "active" : ""}
                   aria-pressed={isTemporary}
-                  onClick={() => setIsTemporary(true)}
+                  onClick={() => {
+                    invalidateModalOperation();
+                    setIsTemporary(true);
+                  }}
                 >
                   Try temporarily
                 </button>
@@ -774,7 +846,10 @@ function ImportTab({ peq, profiles, selectedPreset, onImportPEQ, onReloadProfile
                       id="import-name"
                       type="text"
                       value={importName}
-                      onChange={(e) => setImportName(e.target.value)}
+                      onChange={(e) => {
+                        invalidateModalOperation();
+                        setImportName(e.target.value);
+                      }}
                       placeholder="Profile Name…"
                     />
                     {savedProfiles.length > 0 && (
@@ -784,7 +859,10 @@ function ImportTab({ peq, profiles, selectedPreset, onImportPEQ, onReloadProfile
                           id="overwrite-select"
                           value={profiles.some((p) => p.name === importName) ? importName : ""}
                           onChange={(val) => {
-                            if (val) setImportName(val);
+                            if (val) {
+                              invalidateModalOperation();
+                              setImportName(val);
+                            }
                           }}
                           options={[
                             { value: "", label: "-- Select profile --" },
@@ -836,8 +914,8 @@ function ImportTab({ peq, profiles, selectedPreset, onImportPEQ, onReloadProfile
 
               <div className="import-flow-actions">
                 <button className="btn" onClick={handleCancel}>Cancel</button>
-                <button className="btn filled" onClick={handleConfirm}>
-                  {isTemporary ? "Try temporarily" : "Save Profile"}
+                <button className="btn filled" onClick={handleConfirm} disabled={isSubmitting}>
+                  {isSubmitting ? "Saving..." : isTemporary ? "Try temporarily" : "Save Profile"}
                 </button>
               </div>
             </div>
