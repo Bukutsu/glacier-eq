@@ -6,16 +6,20 @@ import {
   normalizeMeasurementPoints,
   resolveTargetColor,
 } from "../lib/measurements";
+import {
+  parsePersistedMeasurements,
+  parsePersistedTargets,
+} from "../lib/persistedTraces";
 import type { MeasurementTrace, TargetTrace } from "../types";
 
-function loadPersistedJson<T>(
+function loadPersistedJson(
   key: string,
   notify?: (message: string) => void,
-): T | null {
+): unknown {
   const raw = window.localStorage.getItem(key);
   if (!raw) return null;
   try {
-    return JSON.parse(raw) as T;
+    return JSON.parse(raw);
   } catch {
     // Corrupt stored data: keep a timestamped backup so it can be recovered
     // instead of being silently overwritten on the next save.
@@ -105,57 +109,23 @@ export function useTraces(notify?: (message: string) => void) {
   }, [notify]);
 
   useEffect(() => {
-    const saved = loadPersistedJson<any[]>("glacier-measurements", (msg) => notifyRef.current?.(msg));
-    if (Array.isArray(saved)) {
-      setMeasurements(
-        saved
-          .filter(
-          (trace): trace is MeasurementTrace =>
-            trace &&
-            typeof trace.id === "string" &&
-            typeof trace.name === "string" &&
-            typeof trace.color === "string" &&
-            typeof trace.visible === "boolean" &&
-            Array.isArray(trace.points) &&
-            trace.points.length >= 2,
-        )
-          .map((trace) => ({
-            ...trace,
-            points: normalizeMeasurementPoints(trace.points),
-          })),
-      );
-    }
+    const saved = loadPersistedJson("glacier-measurements", (msg) => notifyRef.current?.(msg));
+    setMeasurements(parsePersistedMeasurements(saved));
     setMeasurementsHydrated(true);
   }, []);
 
   usePersistedJson("glacier-measurements", measurements, measurementsHydrated, 300);
 
   useEffect(() => {
-    const savedTargets = loadPersistedJson<any[]>("glacier-user-targets", (msg) => notifyRef.current?.(msg));
-    const loadedUserTargets: TargetTrace[] = Array.isArray(savedTargets)
-      ? savedTargets
-          .filter(
-            (target): target is TargetTrace =>
-              target &&
-              typeof target.id === "string" &&
-              typeof target.name === "string" &&
-              typeof target.color === "string" &&
-              Array.isArray(target.points) &&
-              target.points.length >= 2,
-          )
-          .map((target) => ({
-            ...target,
-            builtIn: false,
-            points: normalizeMeasurementPoints(target.points),
-          }))
-      : [];
+    const savedTargets = loadPersistedJson("glacier-user-targets", (msg) => notifyRef.current?.(msg));
+    const loadedUserTargets = parsePersistedTargets(savedTargets);
     setUserTargets(loadedUserTargets);
 
     // Prune active ids that no longer reference an existing target.
     const existingTargetIds = new Set(
       loadedUserTargets.map((target) => target.id),
     );
-    const savedActiveIds = loadPersistedJson<any[]>("glacier-active-targets", (msg) => notifyRef.current?.(msg));
+    const savedActiveIds = loadPersistedJson("glacier-active-targets", (msg) => notifyRef.current?.(msg));
     if (
       Array.isArray(savedActiveIds) &&
       savedActiveIds.every((id) => typeof id === "string")
