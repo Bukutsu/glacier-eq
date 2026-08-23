@@ -11,6 +11,8 @@ use std::os::unix::fs::OpenOptionsExt;
 
 use diagnostics::DiagnosticsStore;
 use state::{DeviceSessionLock, DeviceState};
+use tauri_plugin_dialog::DialogExt;
+use tauri_plugin_fs::{FilePath, FsExt, OpenOptions};
 #[cfg(not(mobile))]
 use tauri_plugin_window_state::StateFlags;
 
@@ -26,6 +28,12 @@ mod state;
 use tauri::Manager;
 
 const MAX_TEXT_FILE_BYTES: u64 = 1 << 20;
+
+#[derive(serde::Serialize)]
+struct OpenedTextFile {
+    text: String,
+    name: String,
+}
 
 /// Resolve the set of directories the raw fs commands are allowed to touch.
 /// We scope file access to the application data directory, user documents, and downloads
@@ -134,6 +142,145 @@ async fn save_text_file(
     .map_err(|e| e.to_string())?
 }
 
+fn read_bounded_utf8(reader: impl std::io::Read) -> Result<String, String> {
+    use std::io::Read;
+
+    let mut limited = reader.take(MAX_TEXT_FILE_BYTES + 1);
+    let mut bytes = Vec::new();
+    limited
+        .read_to_end(&mut bytes)
+        .map_err(|e| format!("Failed to read file: {e}"))?;
+    if bytes.len() as u64 > MAX_TEXT_FILE_BYTES {
+        return Err("Refused: file exceeds the 1 MiB limit".into());
+    }
+    // Size-check before decoding so an oversized file gets the size refusal,
+    // not a confusing invalid-UTF-8 error from cutting mid-character.
+    String::from_utf8(bytes).map_err(|e| format!("Failed to decode file as UTF-8: {e}"))
+}
+
+fn read_selected_text(app: &tauri::AppHandle, path: FilePath) -> Result<String, String> {
+    let file = match path {
+        FilePath::Path(path) => open_no_follow(&path, false),
+        path @ FilePath::Url(_) => {
+            let mut options = OpenOptions::new();
+            options.read(true);
+            app.fs().open(path, options)
+        }
+    }
+    .map_err(|error| format!("Failed to read file: {error}"))?;
+    read_bounded_utf8(file)
+}
+
+fn write_selected_text(
+    app: &tauri::AppHandle,
+    path: FilePath,
+    content: &[u8],
+) -> Result<(), String> {
+    match path {
+        FilePath::Path(path) => crate::fsutil::atomic_write(&path, content),
+        path @ FilePath::Url(_) => {
+            use std::io::Write;
+
+            // Android content URIs and iOS security-scoped URLs are not local
+            // paths, so atomic sibling replacement is unavailable. The
+            // platform picker grants this one handle; truncate and write it.
+            let mut options = OpenOptions::new();
+            options.write(true).truncate(true).create(true);
+            let mut file = app
+                .fs()
+                .open(path, options)
+                .map_err(|error| format!("Failed to open selected file: {error}"))?;
+            file.write_all(content)
+                .and_then(|_| file.sync_all())
+                .map_err(|error| format!("Failed to write selected file: {error}"))
+        }
+    }
+}
+
+fn selected_file_name(path: &FilePath) -> String {
+    match path {
+        FilePath::Path(path) => path
+            .file_name()
+            .map(|name| name.to_string_lossy().into_owned()),
+        FilePath::Url(url) => url
+            .path_segments()
+            .and_then(|mut segments| segments.next_back())
+            .filter(|name| !name.is_empty())
+            .map(str::to_string),
+    }
+    .unwrap_or_else(|| "untitled".into())
+}
+
+fn text_default_name(requested: Option<&str>) -> String {
+    let name = requested
+        .and_then(|value| Path::new(value).file_name())
+        .and_then(|value| value.to_str())
+        .filter(|value| !value.is_empty())
+        .unwrap_or("profile.txt");
+    if Path::new(name)
+        .extension()
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("txt"))
+    {
+        name.to_string()
+    } else {
+        format!("{name}.txt")
+    }
+}
+
+#[tauri::command]
+async fn open_text_file_dialog(app: tauri::AppHandle) -> Result<Option<OpenedTextFile>, String> {
+    let dialog_app = app.clone();
+    let selected = tauri::async_runtime::spawn_blocking(move || {
+        dialog_app
+            .dialog()
+            .file()
+            .add_filter("Text and CSV files", &["txt", "csv"])
+            .blocking_pick_file()
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+    let Some(selected) = selected else {
+        return Ok(None);
+    };
+    let name = selected_file_name(&selected);
+    let text = tauri::async_runtime::spawn_blocking(move || read_selected_text(&app, selected))
+        .await
+        .map_err(|e| e.to_string())??;
+    Ok(Some(OpenedTextFile { text, name }))
+}
+
+#[tauri::command]
+async fn save_text_file_dialog(
+    app: tauri::AppHandle,
+    content: String,
+    default_name: Option<String>,
+) -> Result<(), String> {
+    if content.len() as u64 > MAX_TEXT_FILE_BYTES {
+        return Err("Refused: content exceeds the 1 MiB limit".into());
+    }
+    let default_name = text_default_name(default_name.as_deref());
+    let dialog_app = app.clone();
+    let selected = tauri::async_runtime::spawn_blocking(move || {
+        dialog_app
+            .dialog()
+            .file()
+            .add_filter("Text files", &["txt"])
+            .set_file_name(default_name)
+            .blocking_save_file()
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+    let Some(selected) = selected else {
+        return Err("Export cancelled".into());
+    };
+    tauri::async_runtime::spawn_blocking(move || {
+        write_selected_text(&app, selected, content.as_bytes())
+    })
+    .await
+    .map_err(|e| e.to_string())??;
+    Ok(())
+}
+
 #[tauri::command]
 async fn read_text_file(app: tauri::AppHandle, path: String) -> Result<String, String> {
     if !is_path_allowed(&app, &path) {
@@ -148,20 +295,7 @@ async fn read_text_file(app: tauri::AppHandle, path: String) -> Result<String, S
             drop(file);
             return Err("Refused: file path is outside allowed directories".into());
         }
-        // Read bounded: the stat-then-read gap could otherwise admit a swapped or
-        // growing file larger than the limit into memory.
-        use std::io::Read;
-        let mut limited = file.take(MAX_TEXT_FILE_BYTES + 1);
-        let mut bytes = Vec::new();
-        limited
-            .read_to_end(&mut bytes)
-            .map_err(|e| format!("Failed to read file: {e}"))?;
-        if bytes.len() as u64 > MAX_TEXT_FILE_BYTES {
-            return Err("Refused: file exceeds the 1 MiB limit".into());
-        }
-        // Size-check before decoding so an oversized file gets the size refusal,
-        // not a confusing invalid-UTF-8 error from cutting mid-character.
-        String::from_utf8(bytes).map_err(|e| format!("Failed to decode file as UTF-8: {e}"))
+        read_bounded_utf8(file)
     })
     .await
     .map_err(|e| e.to_string())?
@@ -180,6 +314,7 @@ pub fn run() {
         builder = builder.manage(Mutex::new(None::<hid_helper::ElevatedTransport>));
     }
     builder = builder
+        .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_hid::init())
         .plugin(tauri_plugin_clipboard_manager::init());
@@ -222,6 +357,8 @@ pub fn run() {
             device_commands::disconnect_device,
             settings::get_settings,
             settings::save_settings,
+            open_text_file_dialog,
+            save_text_file_dialog,
             read_text_file,
             diagnostics::get_diagnostics,
             diagnostics::clear_diagnostics,
@@ -230,4 +367,40 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running glacier-eq");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Cursor;
+
+    #[test]
+    fn bounded_text_reader_accepts_utf8_within_limit() {
+        assert_eq!(
+            read_bounded_utf8(Cursor::new("Filter 1: ON")),
+            Ok("Filter 1: ON".into())
+        );
+    }
+
+    #[test]
+    fn bounded_text_reader_rejects_oversized_input() {
+        let bytes = vec![b'a'; MAX_TEXT_FILE_BYTES as usize + 1];
+        assert_eq!(
+            read_bounded_utf8(Cursor::new(bytes)),
+            Err("Refused: file exceeds the 1 MiB limit".into())
+        );
+    }
+
+    #[test]
+    fn bounded_text_reader_rejects_invalid_utf8() {
+        let error = read_bounded_utf8(Cursor::new([0xff])).unwrap_err();
+        assert!(error.starts_with("Failed to decode file as UTF-8:"));
+    }
+
+    #[test]
+    fn save_default_name_is_a_text_file_name_only() {
+        assert_eq!(text_default_name(Some("eq_profile.txt")), "eq_profile.txt");
+        assert_eq!(text_default_name(Some("../outside.csv")), "outside.csv.txt");
+        assert_eq!(text_default_name(None), "profile.txt");
+    }
 }

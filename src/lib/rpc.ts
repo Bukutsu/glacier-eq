@@ -469,9 +469,37 @@ function serializeWebHid<T>(operation: () => Promise<T>): Promise<T> {
   return result;
 }
 
+const SAVE_TEXT_DIALOG_TOKEN = "tauri-save-text-dialog:";
+
+function parseSaveTextDialogRequest(args: unknown): { content: string; defaultName: string } | null {
+  if (typeof args !== "object" || args === null || !("path" in args) || !("content" in args)) {
+    return null;
+  }
+  if (typeof args.path !== "string" || !args.path.startsWith(SAVE_TEXT_DIALOG_TOKEN)) {
+    return null;
+  }
+  if (typeof args.content !== "string") {
+    throw new Error("Invalid text export content");
+  }
+  const encodedName = args.path.slice(SAVE_TEXT_DIALOG_TOKEN.length);
+  let defaultName: string;
+  try {
+    defaultName = decodeURIComponent(encodedName);
+  } catch {
+    throw new Error("Invalid text export file name");
+  }
+  return { content: args.content, defaultName };
+}
+
 export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
   if (isTauri()) {
     const { invoke: tauriInvoke } = await import("@tauri-apps/api/core");
+    if (cmd === "save_text_file") {
+      const dialogRequest = parseSaveTextDialogRequest(args);
+      if (dialogRequest) {
+        return tauriInvoke<T>("save_text_file_dialog", dialogRequest);
+      }
+    }
     return tauriInvoke<T>(cmd, args);
   }
   return serializeWebHid(() => invokeWeb<T>(cmd, args));
@@ -912,24 +940,40 @@ export async function writeText(text: string): Promise<void> {
   return navigator.clipboard.writeText(text);
 }
 
-export async function save(options?: any): Promise<string | null> {
+interface FileDialogOptions {
+  defaultPath?: string;
+  filters?: { name: string; extensions: string[] }[];
+}
+
+export async function save(options?: FileDialogOptions): Promise<string | null> {
+  const defaultName = options?.defaultPath || "profile.txt";
   if (isTauri()) {
-    const { save: tauriSave } = await import("@tauri-apps/plugin-dialog");
-    return tauriSave(options);
+    // The following save_text_file invocation sends this opaque suggestion to
+    // the backend-owned dialog command. No selected path crosses IPC.
+    return `${SAVE_TEXT_DIALOG_TOKEN}${encodeURIComponent(defaultName)}`;
   }
-  return options?.defaultPath || "profile.txt";
+  return defaultName;
+}
+
+function parseOpenedTextFile(value: unknown): { text: string; name: string } | null {
+  if (value === null) return null;
+  if (
+    typeof value !== "object" ||
+    !("text" in value) ||
+    typeof value.text !== "string" ||
+    !("name" in value) ||
+    typeof value.name !== "string"
+  ) {
+    throw new Error("Invalid open-file response from backend");
+  }
+  return { text: value.text, name: value.name };
 }
 
 export async function openFileDialog(options?: {
   filters?: { name: string; extensions: string[] }[];
 }): Promise<{ text: string; name: string } | null> {
   if (isTauri()) {
-    const { open } = await import("@tauri-apps/plugin-dialog");
-    const path = await open(options);
-    if (!path) return null;
-    const name = path.split("/").pop()?.split("\\").pop() ?? "untitled";
-    const text = await invoke<string>("read_text_file", { path });
-    return { text, name };
+    return parseOpenedTextFile(await invoke<unknown>("open_text_file_dialog"));
   }
   // Web fallback: create a hidden file input
   return new Promise((resolve) => {
