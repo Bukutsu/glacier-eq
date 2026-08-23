@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { MeasurementPoint } from "../types";
 import { normalizeMeasurementPoints } from "./measurements";
 import {
@@ -113,29 +113,39 @@ const notifyProgress = (percent: number) => {
   for (const listener of [...progressListeners]) listener(percent);
 };
 
-// Only the download that starts the shared promise can pass an abort
-// signal; joiners cannot cancel a download they did not initiate.
-async function downloadDatabase(onProgress: (percent: number) => void): Promise<number> {
+export interface DownloadSubscription {
+  result: Promise<number>;
+  unsubscribe: () => void;
+}
+
+export function subscribeToDatabaseDownload(
+  onProgress: ProgressListener,
+): DownloadSubscription {
   progressListeners.add(onProgress);
-  try {
-    downloadInFlight ??= (async () => {
+  downloadInFlight ??= (async () => {
+    try {
+      const db = await openDb();
       try {
-        const db = await openDb();
-        try {
-          return await downloadDatabaseWithDb(notifyProgress, undefined, db);
-        } finally {
-          db.close();
-        }
+        return await downloadDatabaseWithDb(notifyProgress, undefined, db);
       } finally {
-        // Reset even when openDb() rejects, or every later download would
-        // await this failed promise forever.
-        downloadInFlight = null;
+        db.close();
       }
-    })();
-    return await downloadInFlight;
-  } finally {
-    progressListeners.delete(onProgress);
-  }
+    } finally {
+      // Reset even when openDb() rejects, or every later download would
+      // await this failed promise forever.
+      downloadInFlight = null;
+    }
+  })();
+
+  let subscribed = true;
+  return {
+    result: downloadInFlight,
+    unsubscribe: () => {
+      if (!subscribed) return;
+      subscribed = false;
+      progressListeners.delete(onProgress);
+    },
+  };
 }
 
 async function downloadDatabaseWithDb(
@@ -313,6 +323,12 @@ export function useOnlineDatabase(
   const [searchQuery, setSearchQuery] = useState("");
   const [totalCount, setTotalCount] = useState<number | null>(null);
   const [loadingDevice, setLoadingDevice] = useState<string | null>(null);
+  const downloadSubscriptionRef = useRef<DownloadSubscription | null>(null);
+
+  useEffect(() => () => {
+    downloadSubscriptionRef.current?.unsubscribe();
+    downloadSubscriptionRef.current = null;
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -350,14 +366,23 @@ export function useOnlineDatabase(
   const download = async () => {
     setIsDownloading(true);
     setDownloadProgress(0);
+    downloadSubscriptionRef.current?.unsubscribe();
+    const subscription = subscribeToDatabaseDownload(setDownloadProgress);
+    downloadSubscriptionRef.current = subscription;
     try {
-      const count = await downloadDatabase(setDownloadProgress);
-      setDownloaded(true);
-      setTotalCount(count);
+      const count = await subscription.result;
+      if (downloadSubscriptionRef.current === subscription) {
+        setDownloaded(true);
+        setTotalCount(count);
+      }
       return count;
     } finally {
-      setIsDownloading(false);
-      setDownloadProgress(null);
+      subscription.unsubscribe();
+      if (downloadSubscriptionRef.current === subscription) {
+        downloadSubscriptionRef.current = null;
+        setIsDownloading(false);
+        setDownloadProgress(null);
+      }
     }
   };
 

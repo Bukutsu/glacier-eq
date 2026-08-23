@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { clearCachedDatabase, openDb } from "./onlineDb";
+import {
+  clearCachedDatabase,
+  openDb,
+  subscribeToDatabaseDownload,
+} from "./onlineDb";
 
 class MockOpenRequest {
   error: DOMException | null = null;
@@ -102,6 +106,34 @@ describe("openDb", () => {
     secondRequest.result = database as unknown as IDBDatabase;
     fire(secondRequest.onsuccess);
     await expect(retry).resolves.toBe(database);
+  });
+});
+
+describe("download subscriptions", () => {
+  it("removes one caller's listener without cancelling the shared download", async () => {
+    const request = new MockOpenRequest();
+    vi.stubGlobal("indexedDB", { open: vi.fn(() => request) });
+    const fetchMock = vi.fn().mockRejectedValue(new Error("network failure"));
+    vi.stubGlobal("fetch", fetchMock);
+    const firstProgress = vi.fn();
+    const removedProgress = vi.fn();
+
+    const first = subscribeToDatabaseDownload(firstProgress);
+    const joined = subscribeToDatabaseDownload(removedProgress);
+    expect(joined.result).toBe(first.result);
+    joined.unsubscribe();
+
+    const database = mockDatabase();
+    request.result = database as unknown as IDBDatabase;
+    fire(request.onsuccess);
+
+    await expect(first.result).rejects.toThrow("network failure");
+    await expect(joined.result).rejects.toThrow("network failure");
+    expect(firstProgress).toHaveBeenCalledWith(0.05);
+    expect(removedProgress).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(database.close).toHaveBeenCalledOnce();
+    first.unsubscribe();
   });
 });
 
