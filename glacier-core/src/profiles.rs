@@ -5,7 +5,7 @@ use crate::autoeq::{parse_autoeq_text, peq_to_autoeq, MAX_FILTERS};
 use crate::device::capabilities::{DeviceCapabilities, DESKTOP_DAC_CAPS};
 use crate::device::SUPPORTED_DEVICES;
 use crate::eq::{FilterType, PEQData};
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
 const MAX_PROFILE_BYTES: u64 = 1024 * 1024;
@@ -252,18 +252,31 @@ fn read_profile(path: &Path) -> Result<Option<StoredProfile>, String> {
     if path.extension().and_then(|ext| ext.to_str()) != Some("txt") {
         return Ok(None);
     }
-    let metadata = std::fs::symlink_metadata(path)
+    let path_metadata = std::fs::symlink_metadata(path)
         .map_err(|error| format!("Failed to stat {}: {error}", path.display()))?;
-    if !metadata.file_type().is_file() {
+    if !path_metadata.file_type().is_file() {
         return Ok(None);
     }
+    let file = match std::fs::File::open(path) {
+        Ok(file) => file,
+        Err(_) => return Ok(None),
+    };
+    let metadata = match file.metadata() {
+        Ok(metadata) if metadata.file_type().is_file() => metadata,
+        _ => return Ok(None),
+    };
     if metadata.len() > MAX_PROFILE_BYTES {
         return Ok(None);
     }
-    let text = match std::fs::read_to_string(path) {
-        Ok(text) => text,
-        Err(_) => return Ok(None),
-    };
+    let mut text = String::new();
+    if file
+        .take(MAX_PROFILE_BYTES + 1)
+        .read_to_string(&mut text)
+        .is_err()
+        || text.len() as u64 > MAX_PROFILE_BYTES
+    {
+        return Ok(None);
+    }
     let (mut data, _, _) = match parse_autoeq_text(&text) {
         Ok(profile) => profile,
         Err(_) => return Ok(None),
@@ -364,6 +377,22 @@ mod tests {
         assert!(validate_name("CON.txt").is_err());
         assert!(validate_name("lpt9").is_err());
         assert!(validate_name("com1").is_err());
+    }
+
+    #[test]
+    fn oversized_profile_is_skipped() {
+        let base = temporary_dir();
+        let store = ProfileStore::new(&base).unwrap();
+        std::fs::write(
+            base.join("profiles/Oversized.txt"),
+            vec![b'x'; MAX_PROFILE_BYTES as usize + 1],
+        )
+        .unwrap();
+
+        assert!(store.list().unwrap().is_empty());
+        assert!(store.load("Oversized").is_err());
+
+        std::fs::remove_dir_all(base).unwrap();
     }
 
     #[test]
