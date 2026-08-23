@@ -36,6 +36,9 @@ pub struct EditorCapabilities {
     pub supports_per_band_enable: bool,
     pub supports_ram_apply: bool,
     pub dsp_sample_rate: f64,
+    pub gain_tolerance: f64,
+    pub freq_tolerance: i32,
+    pub q_tolerance: f64,
     pub integer_preamp: bool,
 }
 
@@ -55,6 +58,9 @@ impl From<&DeviceCapabilities> for EditorCapabilities {
             supports_per_band_enable: caps.supports_per_band_enable,
             supports_ram_apply: caps.supports_ram_apply,
             dsp_sample_rate: caps.dsp_sample_rate,
+            gain_tolerance: caps.gain_tolerance,
+            freq_tolerance: caps.freq_tolerance,
+            q_tolerance: caps.q_tolerance,
             integer_preamp: caps.integer_preamp,
         }
     }
@@ -93,5 +99,8 @@ mod tests {
         );
         assert_eq!(caps.global_gain_range, [-16, 6]);
         assert_eq!(caps.q_range, [0.1, 20.0]);
+        assert_eq!(caps.gain_tolerance, 0.15);
+        assert_eq!(caps.freq_tolerance, 1);
+        assert_eq!(caps.q_tolerance, 0.05);
     }
 }
