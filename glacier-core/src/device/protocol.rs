@@ -202,10 +202,10 @@ impl WalkplayProtocol {
     }
 
     pub(crate) fn is_default_state(peq: &PEQData) -> bool {
-        let all_disabled = peq.filters.iter().all(|f| !f.enabled);
-        let has_default_gain = peq.global_gain == 0.0;
-        let all_zero_gain = peq.filters.iter().all(|f| f.gain == 0.0);
-        all_disabled && has_default_gain && all_zero_gain
+        // Walkplay pull responses do not represent per-band enable state: every
+        // parsed filter is enabled. A transient reset response is observable as
+        // a flat filter set and zero preamp instead.
+        peq.global_gain == 0.0 && peq.filters.iter().all(|filter| filter.gain == 0.0)
     }
 
     pub(crate) fn build_init_packets() -> Vec<Packet> {
@@ -432,5 +432,29 @@ impl EqProtocol for WalkplayProtocol {
 
     fn report_id(&self) -> u8 {
         REPORT_ID
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn walkplay_default_state_uses_representable_pulled_fields() {
+        let mut filter = Filter::enabled(0, true);
+        filter.gain = 0.0;
+        let flat = PEQData {
+            filters: vec![filter.clone()],
+            global_gain: 0.0,
+        };
+        assert!(WalkplayProtocol::is_default_state(&flat));
+
+        let mut boosted = flat.clone();
+        boosted.filters[0].gain = 0.01;
+        assert!(!WalkplayProtocol::is_default_state(&boosted));
+
+        let mut preamped = flat;
+        preamped.global_gain = -1.0;
+        assert!(!WalkplayProtocol::is_default_state(&preamped));
     }
 }
