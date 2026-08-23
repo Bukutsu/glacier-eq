@@ -14,6 +14,11 @@ import { NumberInput } from "./NumberInput";
 import { Slider } from "./Slider";
 import { TAB_META, type ToolsTab } from "../lib/tabs";
 import { parseAutoEqResult, type ParsedAutoEqResult } from "../lib/parsedAutoEq";
+import {
+  createSerialTaskQueue,
+  revertFieldIfCurrent,
+  setField,
+} from "../lib/serializedWrites";
 
 const KEYBOARD_SHORTCUTS: [string, string][] = [
   ["Ctrl/⌘ Z", "Undo"],
@@ -1288,6 +1293,10 @@ function DeviceTab({
   // Mirror for the mount-only device-pull listener below, whose closure would
   // otherwise see the first render's `utility` (always null) forever.
   const utilityRef = useRef<DeviceUtilityState | null>(null);
+  const confirmedUtilityRef = useRef<DeviceUtilityState | null>(null);
+  const fieldRevisionsRef = useRef<Partial<Record<keyof DeviceUtilityState, number>>>({});
+  const mountedRef = useRef(true);
+  const [enqueueUtilityWrite] = useState(createSerialTaskQueue);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -1301,6 +1310,7 @@ function DeviceTab({
       if (isActive()) {
         setUtility(data);
         utilityRef.current = data;
+        confirmedUtilityRef.current = data;
         setLoadError(null);
       }
     } catch (err) {
@@ -1318,6 +1328,7 @@ function DeviceTab({
 
   useEffect(() => {
     let active = true;
+    mountedRef.current = true;
     fetchState(() => active);
 
     let unlisten: (() => void) | null = null;
@@ -1337,6 +1348,7 @@ function DeviceTab({
 
     return () => {
       active = false;
+      mountedRef.current = false;
       if (unlisten) unlisten();
     };
   }, []);
@@ -1347,15 +1359,43 @@ function DeviceTab({
     command: string,
     args: Record<string, unknown>,
   ) => {
-    if (!utility) return;
-    const previous = utility;
-    setUtility({ ...previous, [field]: value });
-    try {
-      await invoke(command, args);
-    } catch (err) {
-      setUtility(previous);
-      setStatus(`Failed to update device setting: ${err}`);
-    }
+    const current = utilityRef.current;
+    if (!current) return;
+
+    const revision = (fieldRevisionsRef.current[field] ?? 0) + 1;
+    fieldRevisionsRef.current[field] = revision;
+    const optimistic = setField(current, field, value);
+    utilityRef.current = optimistic;
+    setUtility(optimistic);
+
+    await enqueueUtilityWrite(async () => {
+      try {
+        await invoke(command, args);
+        const confirmed = confirmedUtilityRef.current;
+        if (confirmed) {
+          confirmedUtilityRef.current = setField(confirmed, field, value);
+        }
+      } catch (err) {
+        const latest = utilityRef.current;
+        const confirmed = confirmedUtilityRef.current;
+        if (latest && confirmed) {
+          const reverted = revertFieldIfCurrent(
+            latest,
+            confirmed,
+            field,
+            revision,
+            fieldRevisionsRef.current[field] ?? 0,
+          );
+          if (reverted !== latest) {
+            utilityRef.current = reverted;
+            if (mountedRef.current) setUtility(reverted);
+          }
+        }
+        if (mountedRef.current) {
+          setStatus(`Failed to update device setting: ${err}`);
+        }
+      }
+    });
   };
 
   const handleSetFilter = (mode: string) =>
@@ -1399,7 +1439,10 @@ function DeviceTab({
       danger: true,
     }))) return;
     try {
-      setUtility(await invoke<typeof utility>("reset_device_controls"));
+      const data = await invoke<DeviceUtilityState>("reset_device_controls");
+      utilityRef.current = data;
+      confirmedUtilityRef.current = data;
+      setUtility(data);
       setStatus("Device controls reset");
     } catch (err) {
       setStatus(`Failed to reset device controls: ${err}`);
@@ -1416,6 +1459,8 @@ function DeviceTab({
     try {
       await invoke("execute_factory_reset");
       const data = await invoke<DeviceUtilityState>("get_dac_utility_state");
+      utilityRef.current = data;
+      confirmedUtilityRef.current = data;
       setUtility(data);
       if (onPull) {
         await onPull();
