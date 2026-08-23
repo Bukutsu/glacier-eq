@@ -8,7 +8,6 @@ const DISCONNECT_NEEDLES = [
   "not open",
   "io error",
   "os error 19",
-  "os error 5",
   "transfer failed",
   "no longer exists",
   "device disconnected",
@@ -16,7 +15,17 @@ const DISCONNECT_NEEDLES = [
   "no supported dac connected",
 ];
 
-export function isDisconnectionError(error: unknown): boolean {
+export function isWindowsPlatform(platformName?: string): boolean {
+  const platform = platformName ?? (typeof navigator === "undefined" ? "" : navigator.platform);
+  return platform.toLowerCase().startsWith("win");
+}
+
+export function isDisconnectionErrorForPlatform(error: unknown, windows: boolean): boolean {
   const lower = String(error).toLowerCase();
-  return DISCONNECT_NEEDLES.some((needle) => lower.includes(needle));
+  return DISCONNECT_NEEDLES.some((needle) => lower.includes(needle)) ||
+    (!windows && lower.includes("os error 5"));
+}
+
+export function isDisconnectionError(error: unknown): boolean {
+  return isDisconnectionErrorForPlatform(error, isWindowsPlatform());
 }
