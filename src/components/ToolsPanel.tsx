@@ -1504,7 +1504,13 @@ function DeviceTab({
 
     let unlisten: (() => void) | null = null;
     listen<void>("device-pull", () => {
-      if (active) fetchState(() => active, true);
+      if (active) {
+        // Route background refreshes through the same scheduler as writes so
+        // they cannot interleave with pending utility mutations.
+        scheduleUtilityTask.enqueue("refresh", async (isCurrent) => {
+          await fetchState(() => active && isCurrent(), true);
+        });
+      }
     })
       .then((unsub) => {
         if (active) {

@@ -1170,10 +1170,10 @@ function App() {
       } else {
         // set_eq_state returns the PEQ actually committed (quantized to the
         // protocol), not necessarily the request.
+        const context = getAsyncContext();
         const committed = await invoke<unknown>("set_eq_state", { peq: snapshot });
         committedPeq = parseStoredPeqResponse(committed);
         await sleep(400);
-        const context = getAsyncContext();
         // Adopt the quantized device state into the editor only when nobody
         // edited or reconnected during the write.
         if (!peqEquals(committedPeq, snapshot) && asyncContextEquals(context, getAsyncContext())) {
