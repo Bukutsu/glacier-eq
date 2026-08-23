@@ -8,6 +8,8 @@ use crate::eq::{Filter, FilterType, PEQData};
 
 const SET_1: u8 = 0xAA;
 const SET_2: u8 = 0x0A;
+const RESPONSE_1: u8 = 0xCC;
+const RESPONSE_2: u8 = 0x0C;
 const END: u8 = 0xEE;
 const FILTER_PARAMS: u8 = 0x15;
 const GLOBAL_GAIN: u8 = 0x17;
@@ -68,6 +70,13 @@ fn filter_type_to_fiio(filter_type: FilterType) -> u8 {
         FilterType::HighShelf => 2,
         _ => 0,
     }
+}
+
+fn matches_response(data: &[u8], command: u8, payload_len: u8) -> bool {
+    data.len() == 6 + payload_len as usize
+        && data[..4] == [RESPONSE_1, RESPONSE_2, 0, 0]
+        && data[4] == command
+        && data[5] == payload_len
 }
 
 fn parse_filter_response(data: &[u8]) -> Option<Filter> {
@@ -183,7 +192,7 @@ impl EqProtocol for FiioProtocol {
     }
 
     fn matches_filter_response(&self, data: &[u8], index: u8, _nonce: u8) -> bool {
-        data.len() >= 14 && data[4] == FILTER_PARAMS && data[6] == index
+        matches_response(data, FILTER_PARAMS, 8) && data[6] == index
     }
 
     fn parse_filter_response(&self, data: &[u8]) -> Option<Filter> {
@@ -198,7 +207,7 @@ impl EqProtocol for FiioProtocol {
     }
 
     fn matches_global_gain_response(&self, data: &[u8]) -> bool {
-        data.len() >= 8 && data[4] == GLOBAL_GAIN
+        matches_response(data, GLOBAL_GAIN, 2)
     }
 
     fn parse_global_gain_response(&self, data: &[u8]) -> Option<f64> {
@@ -297,6 +306,42 @@ mod tests {
         assert_eq!(filter.q, 1.0);
         assert_eq!(filter.filter_type, FilterType::Peak);
         assert!(!filter.enabled);
+    }
+
+    #[test]
+    fn read_matchers_reject_write_echoes() {
+        let filter = Filter::enabled(3, true);
+        let filter_echo = write_filter_packet(2, 3, &filter).payload;
+        let gain_echo = write_global_gain_packet(2, -1.0, 2560.0, Endian::Little).payload;
+
+        assert!(!JA11_PROTOCOL.matches_filter_response(&filter_echo, 3, 0));
+        assert!(!JA11_PROTOCOL.matches_global_gain_response(&gain_echo));
+    }
+
+    #[test]
+    fn read_matchers_require_complete_response_frames() {
+        let filter_response = [
+            RESPONSE_1,
+            RESPONSE_2,
+            0,
+            0,
+            FILTER_PARAMS,
+            8,
+            3,
+            0,
+            0,
+            0x03,
+            0xE8,
+            0,
+            100,
+            0,
+        ];
+        let gain_response = [RESPONSE_1, RESPONSE_2, 0, 0, GLOBAL_GAIN, 2, 0, 0];
+
+        assert!(JA11_PROTOCOL.matches_filter_response(&filter_response, 3, 0));
+        assert!(!JA11_PROTOCOL.matches_filter_response(&filter_response[..13], 3, 0));
+        assert!(JA11_PROTOCOL.matches_global_gain_response(&gain_response));
+        assert!(!JA11_PROTOCOL.matches_global_gain_response(&gain_response[..7]));
     }
 
     #[test]
