@@ -68,7 +68,12 @@ fn handle_disconnection(app: &tauri::AppHandle, error: &str) {
             }
         }
         use tauri::Emitter;
-        let _ = app.emit("device-disconnected", device.profile_name);
+        // Structured identity lets listeners reject delayed events for a
+        // session that has already been replaced.
+        let _ = app.emit(
+            "device-disconnected",
+            serde_json::json!({ "path": device.path, "name": device.profile_name }),
+        );
     }
 }
 
