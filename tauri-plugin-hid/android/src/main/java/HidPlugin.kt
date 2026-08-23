@@ -62,6 +62,12 @@ class HidDevice(
     private var readThread: Thread? = null
     @Volatile
     private var activeReadRequest: UsbRequest? = null
+
+    val path: String
+        get() = usbDevice.deviceName
+
+    val displayName: String
+        get() = usbDevice.productName ?: usbDevice.deviceName
     
     // Initialize and connect to the device
     fun initialize(): HidResult<Unit> {
@@ -521,6 +527,11 @@ class HidPlugin(private val activity: Activity): Plugin(activity) {
         }
     }
 
+    private fun disconnectedPayload(path: String, name: String): JSObject = JSObject().apply {
+        put("path", path)
+        put("name", name)
+    }
+
     private fun registerUsbDetachReceiver() {
         usbDetachReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
@@ -550,8 +561,12 @@ class HidPlugin(private val activity: Activity): Plugin(activity) {
                         Log.i(TAG, "Device detached: ${it.deviceName}")
                         if (detached != null) {
                             detached.closeConnection()
-                            triggerObject("device-disconnected", it.deviceName)
-                            triggerObject("deviceDisconnected", it.deviceName)
+                            val payload = disconnectedPayload(
+                                it.deviceName,
+                                it.productName ?: it.deviceName
+                            )
+                            triggerObject("device-disconnected", payload)
+                            triggerObject("deviceDisconnected", payload)
                         }
                     }
                 }
@@ -641,8 +656,9 @@ class HidPlugin(private val activity: Activity): Plugin(activity) {
         }
         Log.w(TAG, "HID reader stopped unexpectedly: $path")
         failedDevice.closeConnection()
-        triggerObject("device-disconnected", path)
-        triggerObject("deviceDisconnected", path)
+        val payload = disconnectedPayload(failedDevice.path, failedDevice.displayName)
+        triggerObject("device-disconnected", payload)
+        triggerObject("deviceDisconnected", payload)
     }
 
     private fun requestPermission(device: UsbDevice, token: String) {
