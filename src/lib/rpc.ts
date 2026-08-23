@@ -322,17 +322,28 @@ async function readWalkplayBalance(channel: number): Promise<number> {
   throw new Error(`Timeout reading channel ${channel} balance`);
 }
 
+function disabledFilter(index: number): Filter {
+  return {
+    index,
+    enabled: false,
+    filter_type: "Peak",
+    freq: 1000,
+    gain: 0,
+    q: 1,
+  };
+}
+
+export function constrainPeqToBandCount(peq: PEQData, numBands: number): PEQData {
+  return {
+    global_gain: peq.global_gain,
+    filters: Array.from({ length: numBands }, (_, index) => peq.filters[index] ?? disabledFilter(index)),
+  };
+}
+
 function resetPeq(numBands: number): PEQData {
   return {
     global_gain: 0,
-    filters: Array.from({ length: numBands }, (_, index): Filter => ({
-      index,
-      enabled: false,
-      filter_type: "Peak",
-      freq: 1000,
-      gain: 0,
-      q: 1,
-    })),
+    filters: Array.from({ length: numBands }, (_, index) => disabledFilter(index)),
   };
 }
 
@@ -655,9 +666,11 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
       } as T;
     }
     case "set_eq_state": {
-      const protocol = connectedProfile().protocol;
+      const profile = connectedProfile();
+      const protocol = profile.protocol;
       const timing = get_write_timing(protocol);
-      await writeEqPayload(protocol, args.peq, "Initializing push connection...");
+      const peq = constrainPeqToBandCount(args.peq, profile.num_bands);
+      await writeEqPayload(protocol, peq, "Initializing push connection...");
 
       // 4. commit changes
       emitEvent("operation-progress", { message: "Committing changes to device...", percentage: 80 });
@@ -668,8 +681,8 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
 
       if (!loadJson<Partial<AppSettings>>("glacier-eq-settings", {}).skip_push_verification) {
         const actual = await invokeWeb<PEQData>("get_eq_state");
-        if (Math.abs(actual.global_gain - args.peq.global_gain) > 0.2 || actual.filters.some((filter, index) => {
-          const expected = args.peq.filters[index];
+        if (Math.abs(actual.global_gain - peq.global_gain) > 0.2 || actual.filters.some((filter, index) => {
+          const expected = peq.filters[index];
           if (!expected) return true;
           if (!expected.enabled) return Math.abs(filter.gain) > 0.2;
           return Math.abs(filter.gain - expected.gain) > 0.2 || Math.abs(filter.freq - expected.freq) > 1 || Math.abs(filter.q - expected.q) > 0.1;
@@ -681,9 +694,11 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
       return null as T;
     }
     case "apply_eq_state": {
-      const protocol = connectedProfile().protocol;
+      const profile = connectedProfile();
+      const protocol = profile.protocol;
       const timing = get_write_timing(protocol);
-      await writeEqPayload(protocol, args.peq, "Initializing apply connection...");
+      const peq = constrainPeqToBandCount(args.peq, profile.num_bands);
+      await writeEqPayload(protocol, peq, "Initializing apply connection...");
 
       // 4. apply to RAM
       emitEvent("operation-progress", { message: "Applying to RAM...", percentage: 85 });
