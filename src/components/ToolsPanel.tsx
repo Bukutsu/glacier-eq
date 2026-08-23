@@ -19,6 +19,12 @@ import {
   revertFieldIfCurrent,
   setField,
 } from "../lib/serializedWrites";
+import {
+  mergeDiagnosticEvents,
+  parseDiagnosticEvent,
+  parseDiagnosticHistory,
+  type DiagnosticEvent,
+} from "../lib/diagnostics";
 
 const KEYBOARD_SHORTCUTS: [string, string][] = [
   ["Ctrl/⌘ Z", "Undo"],
@@ -1619,13 +1625,6 @@ function DeviceTab({
   );
 }
 
-interface DiagnosticEvent {
-  timestamp: string;
-  level: "Info" | "Warn" | "Error";
-  source: "UI" | "Worker" | "HID" | "AutoEQ" | "Device";
-  message: string;
-}
-
 type DiagLevel = "All" | "Error" | "Warn" | "Info";
 
 const DIAG_LEVELS: DiagLevel[] = ["All", "Error", "Warn", "Info"];
@@ -1657,42 +1656,75 @@ export function DiagnosticsPanel() {
   const [copied, setCopied] = useState(false);
   const logBoxRef = useRef<HTMLDivElement>(null);
   const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
+    mountedRef.current = true;
     return () => {
+      mountedRef.current = false;
       if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
     };
   }, []);
 
-  // Load history + subscribe to live events
+  // Subscribe first so events emitted while history is loading cannot be lost.
   useEffect(() => {
     let active = true;
-    invoke<DiagnosticEvent[]>("get_diagnostics")
-      .then((data) => {
-        if (active) setEvents(data);
-      })
-      .catch((err) => console.error("Failed to load diagnostics:", err));
-
+    let loadingHistory = true;
+    let buffered: DiagnosticEvent[] = [];
     let unlistenFn: (() => void) | null = null;
 
-    listen<DiagnosticEvent>("diagnostic-event", (event) => {
-      if (active) {
-        setEvents((prev) => [...prev, event.payload].slice(-1000));
+    const appendLiveEvent = (event: DiagnosticEvent) => {
+      if (!active) return;
+      if (loadingHistory) {
+        buffered.push(event);
+        return;
       }
-    })
-      .then((fn) => {
-        if (active) {
-          unlistenFn = fn;
-        } else {
-          try { fn(); } catch {}
-        }
-      })
-      .catch((error) => {
-        if (active) console.error("Failed to listen for diagnostic-event:", error);
-      });
+      setEvents((previous) => [...previous, event].slice(-1000));
+    };
 
+    const start = async () => {
+      try {
+        const unlisten = await listen<unknown>(
+          "diagnostic-event",
+          (event) => {
+            try {
+              appendLiveEvent(parseDiagnosticEvent(event.payload));
+            } catch (error) {
+              console.error("Ignored invalid diagnostic event:", error);
+            }
+          },
+        );
+        if (!active) {
+          try { unlisten(); } catch {}
+          return;
+        }
+        unlistenFn = unlisten;
+      } catch (error) {
+        if (!active) return;
+        console.error("Failed to listen for diagnostic-event:", error);
+      }
+
+      if (!active) return;
+      try {
+        const rawHistory = await invoke<unknown>("get_diagnostics");
+        if (!active) return;
+        const history = parseDiagnosticHistory(rawHistory);
+        loadingHistory = false;
+        setEvents(mergeDiagnosticEvents(history, buffered));
+        buffered = [];
+      } catch (error) {
+        if (!active) return;
+        console.error("Failed to load diagnostics:", error);
+        loadingHistory = false;
+        setEvents(buffered.slice(-1000));
+        buffered = [];
+      }
+    };
+
+    void start();
     return () => {
       active = false;
+      buffered = [];
       try { unlistenFn?.(); } catch {}
     };
   }, []);
@@ -1728,7 +1760,7 @@ export function DiagnosticsPanel() {
   const clearLogs = async () => {
     try {
       await invoke("clear_diagnostics");
-      setEvents([]);
+      if (mountedRef.current) setEvents([]);
     } catch (err) {
       console.error("Failed to clear diagnostics:", err);
     }
@@ -1740,9 +1772,12 @@ export function DiagnosticsPanel() {
       .join("\n");
     try {
       await writeText(text);
+      if (!mountedRef.current) return;
       setCopied(true);
       if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
-      copiedTimerRef.current = setTimeout(() => setCopied(false), 1500);
+      copiedTimerRef.current = setTimeout(() => {
+        if (mountedRef.current) setCopied(false);
+      }, 1500);
     } catch (err) {
       console.error("Failed to copy logs:", err);
     }
