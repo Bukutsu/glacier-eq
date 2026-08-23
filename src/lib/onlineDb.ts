@@ -85,11 +85,16 @@ async function isDatabaseDownloaded(): Promise<boolean> {
   }
 }
 
-async function clearCachedDatabase(): Promise<void> {
+export async function clearCachedDatabase(): Promise<void> {
   const db = await openDb();
   try {
-    const store = db.transaction(STORE_NAME, "readwrite").objectStore(STORE_NAME);
-    await idbRequest(store.clear());
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, "readwrite");
+      tx.objectStore(STORE_NAME).clear();
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error ?? new Error("Transaction aborted"));
+    });
   } finally {
     db.close();
   }
