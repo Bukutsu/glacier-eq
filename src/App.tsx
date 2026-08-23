@@ -1645,6 +1645,7 @@ function App() {
                     onToggleTarget={toggleTarget}
                     onSelectedMeasurementChange={setSelectedMeasurementId}
                     maxBands={maxFilterBands}
+                    dspSampleRate={capabilities.dsp_sample_rate}
                   />
                 </Collapsible>
               </section>
