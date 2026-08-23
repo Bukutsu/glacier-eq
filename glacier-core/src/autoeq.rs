@@ -100,7 +100,7 @@ pub fn parse_autoeq_text(text: &str) -> Result<(PEQData, Option<String>, Vec<Str
         }
 
         if line.to_lowercase().starts_with("preamp") {
-            if let Some(m) = extract_number(line) {
+            if let Some(m) = extract_number(line).filter(|value| value.is_finite()) {
                 // Preamp is unbounded here, will be clamped later
                 preamp = m;
                 preamp_seen = true;
@@ -332,6 +332,9 @@ fn parse_filter_line(line: &str) -> Option<ParsedFilterLine> {
     let freq = extract_number_after(rest, "Fc")?;
     let gain = extract_number_after(rest, "Gain").unwrap_or(0.0);
     let q = extract_number_after(rest, "Q").unwrap_or(1.0);
+    if !gain.is_finite() || !q.is_finite() || q <= 0.0 {
+        return None;
+    }
 
     Some(ParsedFilterLine {
         index: idx,
@@ -1846,6 +1849,38 @@ mod tests {
         target[3].1 = 12.0;
         let peq = run_autoeq(&measurement, &target, 5, 100, "none", 48_000.0).unwrap();
         assert!(peq.global_gain < 0.0);
+    }
+
+    #[test]
+    fn rejects_overflowing_preamp_and_filter_values() {
+        let overflow = "9".repeat(400);
+        let text = format!(
+            "Preamp: {overflow} dB\n\
+             Filter 1: ON PK Fc 100 Hz Gain {overflow} dB Q 1.0\n\
+             Filter 2: ON PK Fc 200 Hz Gain 1.0 dB Q {overflow}\n\
+             Filter 3: ON PK Fc 300 Hz Gain 1.0 dB Q 1.0"
+        );
+
+        let (peq, _, warnings) = parse_autoeq_text(&text).unwrap();
+
+        assert_eq!(peq.global_gain, 0.0);
+        assert_eq!(peq.filters.len(), 1);
+        assert_eq!(peq.filters[0].freq, 300);
+        assert_eq!(warnings.len(), 3);
+    }
+
+    #[test]
+    fn rejects_zero_and_negative_q() {
+        let text = "Preamp: -3 dB\n\
+                    Filter 1: ON PK Fc 100 Hz Gain 1.0 dB Q 0\n\
+                    Filter 2: ON PK Fc 200 Hz Gain 1.0 dB Q -1\n\
+                    Filter 3: ON PK Fc 300 Hz Gain 1.0 dB Q 0.5";
+
+        let (peq, _, warnings) = parse_autoeq_text(text).unwrap();
+
+        assert_eq!(peq.filters.len(), 1);
+        assert_eq!(peq.filters[0].freq, 300);
+        assert_eq!(warnings.len(), 2);
     }
 
     #[test]
