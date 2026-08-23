@@ -22,7 +22,12 @@ import {
 import { buildDefaultState, DEFAULT_PROFILE_NAME, normalizePeq, peqEquals } from "./lib/peq";
 import { isTauri } from "./lib/platform";
 import { isDisconnectionError } from "./lib/errors";
-import { parseDeviceDisconnectedPayload } from "./lib/asyncContext";
+import {
+  asyncContextEquals,
+  parseDeviceDisconnectedPayload,
+  type AsyncContext,
+} from "./lib/asyncContext";
+import { parseAutoEqResult } from "./lib/parsedAutoEq";
 import type {
   DeviceCapabilities,
   DeviceInfo,
@@ -312,6 +317,12 @@ function App() {
   const peqRef = useRef(peq);
   peqRef.current = peq;
   const editorCleanPeqRef = useRef(peq);
+  // Bumped whenever the editor PEQ actually changes, so async completions
+  // (pulls, imports, pushes) can detect edits that happened while they ran.
+  const editorRevisionRef = useRef(0);
+  const noteEditorMutation = useCallback(() => {
+    editorRevisionRef.current += 1;
+  }, []);
   const eqOperationInFlightRef = useRef(false);
   const [lastPushedPeq, setLastPushedPeq] = useState<PEQData | null>(null);
   const [activeBandIndex, setActiveBandIndex] = useState<number | null>(null);
@@ -394,8 +405,9 @@ function App() {
     setRedoStack((stack) => [...stack, peqRef.current]);
     redoBaseRef.current = prev;
     setPeq(prev);
+    noteEditorMutation();
     setDirty(!peqEquals(prev, editorCleanPeqRef.current));
-  }, [undoStack]);
+  }, [undoStack, noteEditorMutation]);
 
   const redo = useCallback(() => {
     if (redoStack.length === 0) return;
@@ -414,8 +426,9 @@ function App() {
     // next redo validates against it instead of the stale original base.
     redoBaseRef.current = next;
     setPeq(next);
+    noteEditorMutation();
     setDirty(!peqEquals(next, editorCleanPeqRef.current));
-  }, [redoStack]);
+  }, [redoStack, noteEditorMutation]);
 
   const [showGraphPreview, setShowGraphPreview] = useState(false);
   const graphPreviewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -502,6 +515,57 @@ function App() {
   const maxFilterBands = capabilities.num_bands;
   const supportsRamApply = capabilities.supports_ram_apply;
 
+  // Validates a set/apply_eq_state response before trusting it as the
+  // committed device state.
+  const parseStoredPeqResponse = (value: unknown): PEQData => {
+    if (
+      typeof value !== "object" ||
+      value === null ||
+      !Array.isArray((value as { filters?: unknown }).filters) ||
+      typeof (value as { global_gain?: unknown }).global_gain !== "number" ||
+      !Number.isFinite((value as { global_gain: number }).global_gain)
+    ) {
+      throw new Error("Device returned an invalid EQ state");
+    }
+    const peq = value as PEQData;
+    for (const filter of peq.filters) {
+      if (
+        typeof filter.gain !== "number" || !Number.isFinite(filter.gain) ||
+        typeof filter.q !== "number" || !Number.isFinite(filter.q) || filter.q <= 0 ||
+        typeof filter.freq !== "number" || !(filter.freq > 0)
+      ) {
+        throw new Error("Device returned an invalid EQ state");
+      }
+    }
+    return peq;
+  };
+
+  const getAsyncContext = useCallback((): AsyncContext => ({
+    editorRevision: editorRevisionRef.current,
+    connectionRevision: connectionGenerationRef.current,
+  }), []);
+
+  // All profile save/delete/import-save work runs through this queue in user
+  // request order. `current` is false when a newer mutation was requested
+  // while the task ran, so stale completions never update profiles or editor.
+  const profileMutationQueueRef = useRef(Promise.resolve());
+  const profileMutationTicketRef = useRef(0);
+  const runProfileMutation = useCallback(
+    async <T,>(task: () => Promise<T>): Promise<{ value: T; current: boolean }> => {
+      const ticket = ++profileMutationTicketRef.current;
+      const run = profileMutationQueueRef.current.then(async () => {
+        const value = await task();
+        return { value, current: profileMutationTicketRef.current === ticket };
+      });
+      profileMutationQueueRef.current = run.then(
+        () => undefined,
+        () => undefined,
+      );
+      return run;
+    },
+    [],
+  );
+
   const selectMatchingProfile = useCallback(
     async (data: PEQData, fallback: string) => {
       const match = await invoke<string | null>("match_profile_name", { peq: data });
@@ -523,9 +587,10 @@ function App() {
       setProfileSearch("");
       setNewProfileName("");
       editorCleanPeqRef.current = data;
+      noteEditorMutation();
       setDirty(false);
     },
-    [pushToUndoStack, capabilities],
+    [pushToUndoStack, capabilities, noteEditorMutation],
   );
 
   const importPeq = useCallback(
@@ -537,9 +602,10 @@ function App() {
       setProfileSearch("");
       setNewProfileName(name);
       if (isSaved) editorCleanPeqRef.current = normalized;
+      noteEditorMutation();
       setDirty(!isSaved);
     },
-    [pushToUndoStack, capabilities],
+    [pushToUndoStack, capabilities, noteEditorMutation],
   );
 
   const withSyntheticDefault = (raw: Profile[]): Profile[] => [
@@ -575,6 +641,7 @@ function App() {
   }, [loadProfiles]);
 
   // Drag-and-drop .txt file import
+  const dropRequestRef = useRef(0);
   useEffect(() => {
     const handleDragOver = (e: DragEvent) => {
       e.preventDefault();
@@ -588,10 +655,17 @@ function App() {
         setStatus("Only .txt AutoEQ files can be dropped here");
         return;
       }
+      // Only the newest drop may land, and only onto the editor/connection
+      // context it started with; anything else raced a newer user action.
+      const request = ++dropRequestRef.current;
+      const context = getAsyncContext();
       try {
         if (file.size > 1_048_576) throw new Error("File exceeds the 1 MiB limit");
         const text = await file.text();
-        const result = await invoke<{ peq: PEQData; headphone_name: string | null; warnings: string[] }>("parse_autoeq", { text });
+        if (request !== dropRequestRef.current || !asyncContextEquals(context, getAsyncContext())) return;
+        const rawResult = await invoke<unknown>("parse_autoeq", { text });
+        if (request !== dropRequestRef.current || !asyncContextEquals(context, getAsyncContext())) return;
+        const result = parseAutoEqResult(rawResult);
         const name = result.headphone_name || file.name.replace(/\.[^/.]+$/, "");
         importPeq(result.peq, name, false);
         const adjustments = result.warnings.length === 1
@@ -603,7 +677,9 @@ function App() {
             : `Imported "${name}"`
         );
       } catch (err) {
-        setStatus(`Failed to import dropped file: ${err}`);
+        if (request === dropRequestRef.current) {
+          setStatus(`Failed to import dropped file: ${err}`);
+        }
       }
     };
     window.addEventListener("dragover", handleDragOver);
@@ -612,7 +688,7 @@ function App() {
       window.removeEventListener("dragover", handleDragOver);
       window.removeEventListener("drop", handleDrop);
     };
-  }, [importPeq]);
+  }, [importPeq, getAsyncContext]);
 
   const scanDevices = useCallback(async () => {
     setIsBusy(true);
@@ -911,9 +987,13 @@ function App() {
       confirmLabel: "Discard and read",
     }))) return;
     eqOperationInFlightRef.current = true;
-    pushToUndoStack(peqRef.current);
     setProgress(null);
     setIsBusy(true);
+    // A pull must not land on an editor/connection state that changed while
+    // the device read or profile match ran; the undo snapshot is deferred
+    // until the result is known to be current.
+    const context = getAsyncContext();
+    const isCurrentPull = () => asyncContextEquals(context, getAsyncContext());
     try {
       let data: PEQData;
       if (isDevDummyDevice(selectedDevice)) {
@@ -939,10 +1019,14 @@ function App() {
         data = await invoke<PEQData>("get_eq_state");
         await sleep(400);
       }
+      if (!isCurrentPull()) return;
+      pushToUndoStack(peqRef.current);
       const normalized = normalizePeq(data, { integerPreamp: selectedCapabilities.integer_preamp, capabilities: selectedCapabilities });
       setPeq(normalized);
+      noteEditorMutation();
       setLastPushedPeq(normalized);
       const matchedProfile = await selectMatchingProfile(normalized, "Pulled from device");
+      if (!isCurrentPull()) return;
       if (matchedProfile !== "Pulled from device") {
         editorCleanPeqRef.current = normalized;
       }
@@ -968,7 +1052,7 @@ function App() {
       setIsBusy(false);
       setProgress(null);
     }
-  }, [connected, dirty, pushToUndoStack, selectedDevice, selectedCapabilities, reportStatus, setStatus]);
+  }, [connected, dirty, pushToUndoStack, selectedDevice, selectedCapabilities, reportStatus, setStatus, getAsyncContext, noteEditorMutation]);
 
   const connectDevice = useCallback(async (): Promise<boolean> => {
     if (!selectedDevice) return false;
@@ -1006,7 +1090,8 @@ function App() {
         if (!peqEquals(constrained, peqRef.current)) {
           pushToUndoStack(peqRef.current);
           setPeq(constrained);
-          setDirty(true);
+          noteEditorMutation();
+          setDirty(!peqEquals(constrained, editorCleanPeqRef.current));
           reportStatus("Info", "Editor adjusted to this DAC's supported ranges", "info", "Device");
         }
       }
@@ -1034,7 +1119,7 @@ function App() {
     } finally {
       setIsBusy(false);
     }
-  }, [selectedDevice, pullEq, selectedDeviceInfo, selectedCapabilities, pushToUndoStack, loadFirmwareVersion, reportStatus, settings.auto_pull_on_connect]);
+  }, [selectedDevice, pullEq, selectedDeviceInfo, selectedCapabilities, pushToUndoStack, loadFirmwareVersion, reportStatus, settings.auto_pull_on_connect, noteEditorMutation]);
 
   const pushEq = useCallback(async () => {
     if (!connected) {
@@ -1057,6 +1142,7 @@ function App() {
     eqOperationInFlightRef.current = true;
     setProgress(null);
     setIsBusy(true);
+    let committedPeq: PEQData | null = null;
     try {
       if (isDevDummyDevice(selectedDevice)) {
         setProgress({
@@ -1082,10 +1168,21 @@ function App() {
         setProgress({ message: "Write complete", percentage: 100 });
         await sleep(400);
       } else {
-        await invoke("set_eq_state", { peq: snapshot });
+        // set_eq_state returns the PEQ actually committed (quantized to the
+        // protocol), not necessarily the request.
+        const committed = await invoke<unknown>("set_eq_state", { peq: snapshot });
+        committedPeq = parseStoredPeqResponse(committed);
         await sleep(400);
+        const context = getAsyncContext();
+        // Adopt the quantized device state into the editor only when nobody
+        // edited or reconnected during the write.
+        if (!peqEquals(committedPeq, snapshot) && asyncContextEquals(context, getAsyncContext())) {
+          pushToUndoStack(peqRef.current);
+          setPeq(committedPeq);
+          noteEditorMutation();
+        }
       }
-      setLastPushedPeq(snapshot);
+      setLastPushedPeq(committedPeq ?? snapshot);
       reportStatus(
         "Info",
         isDevDummyDevice(selectedDevice)
@@ -1106,7 +1203,7 @@ function App() {
       setIsBusy(false);
       setProgress(null);
     }
-  }, [connected, selectedDevice, selectedCapabilities, reportStatus, setStatus]);
+  }, [connected, selectedDevice, selectedCapabilities, reportStatus, setStatus, getAsyncContext, noteEditorMutation, pushToUndoStack]);
 
   const applyProfileToRam = useCallback(
     async (profile: Profile) => {
@@ -1120,6 +1217,7 @@ function App() {
       const data = normalizePeq(profile.data, { enableLoadedFilters: true, integerPreamp: capabilities.integer_preamp, capabilities });
       pushToUndoStack(peqRef.current);
       setPeq(data);
+      noteEditorMutation();
       setSelectedPreset(profile.name);
       setProfileSearch("");
       setNewProfileName("");
@@ -1135,10 +1233,14 @@ function App() {
           setProgress({ message: "Apply successful", percentage: 100 });
           await sleep(300);
         } else {
-          await invoke("apply_eq_state", { peq: data });
+          // apply_eq_state returns the normalized state written to RAM.
+          const applied = parseStoredPeqResponse(await invoke<unknown>("apply_eq_state", { peq: data }));
           await sleep(300);
+          setLastPushedPeq(applied);
         }
-        setLastPushedPeq(data);
+        if (isDevDummyDevice(selectedDevice)) {
+          setLastPushedPeq(data);
+        }
         reportStatus(
           "Info",
           isDevDummyDevice(selectedDevice)
@@ -1160,7 +1262,7 @@ function App() {
         setProgress(null);
       }
     },
-    [dirty, pushToUndoStack, selectedDevice, capabilities, reportStatus],
+    [dirty, pushToUndoStack, selectedDevice, capabilities, reportStatus, noteEditorMutation],
   );
 
   const disconnectDevice = useCallback(async () => {
@@ -1267,7 +1369,7 @@ function App() {
     } catch (error) {
       setStatus(`Failed to delete profile: ${error}`);
     }
-  }, [loadProfiles, pushToUndoStack, setStatus]);
+  }, [loadProfiles, pushToUndoStack, setStatus, runProfileMutation]);
 
   const openProfilesDir = useCallback(async () => {
     try {
@@ -1280,13 +1382,16 @@ function App() {
   const updateFilter = useCallback((index: number, updated: Filter, showPreview = true) => {
     setActiveBandIndex(index);
     if (showPreview) startGraphPreview();
-    setDirty(true);
     setPeq((previous) => {
       const filters = [...previous.filters];
       filters[index] = updated;
       return { ...previous, filters };
     });
-  }, [startGraphPreview]);
+    noteEditorMutation();
+    // A no-op edit or one restored exactly to the clean baseline must not
+    // mark the profile dirty.
+    setDirty(!peqEquals({ ...peqRef.current, filters: peqRef.current.filters.map((f, i) => i === index ? updated : f) }, editorCleanPeqRef.current));
+  }, [startGraphPreview, noteEditorMutation]);
 
   const handleFilterChangeNoPreview = useCallback(
     (index: number, filter: Filter) => updateFilter(index, filter, false),
@@ -1310,10 +1415,12 @@ function App() {
       danger: true,
     }))) return;
     pushToUndoStack(peqRef.current);
-    setPeq(buildDefaultState());
+    const defaultPeq = buildDefaultState();
+    setPeq(defaultPeq);
+    noteEditorMutation();
     setSelectedPreset(DEFAULT_PROFILE_NAME);
-    setDirty(true);
-  }, [pushToUndoStack]);
+    setDirty(!peqEquals(defaultPeq, editorCleanPeqRef.current));
+  }, [pushToUndoStack, noteEditorMutation]);
 
   // Android back button / popstate handling for modal and overlay dismissal & tab navigation
   useEffect(() => {
@@ -1377,9 +1484,11 @@ function App() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
   const handlePreampChange = useCallback((global_gain: number) => {
-    setDirty(true);
-    setPeq((previous) => ({ ...previous, global_gain }));
-  }, []);
+    const next = { ...peqRef.current, global_gain };
+    setPeq(next);
+    noteEditorMutation();
+    setDirty(!peqEquals(next, editorCleanPeqRef.current));
+  }, [noteEditorMutation]);
   const handleConnectDevice = useCallback(async () => {
     if (await connectDevice()) {
       window.localStorage.setItem(DEVICE_ONBOARDING_KEY, "true");
@@ -1592,6 +1701,8 @@ function App() {
     onOpenDiagnostics: handleOpenDiagnosticsModal,
     isSimulated: isDevDummyDevice(selectedDevice),
     dspSampleRate: capabilities.dsp_sample_rate,
+    getAsyncContext,
+    runProfileMutation,
   };
   // One graph element for all four render sites; the editor props (drag/
   // wheel/keyboard editing) are only attached where the graph is editable.
@@ -1774,6 +1885,7 @@ function App() {
                     onSelectedMeasurementChange={setSelectedMeasurementId}
                     maxBands={maxFilterBands}
                     dspSampleRate={capabilities.dsp_sample_rate}
+                    getAsyncContext={getAsyncContext}
                   />
                 </Collapsible>
               </section>
@@ -1892,6 +2004,8 @@ function App() {
             onOpenDiagnostics={handleOpenDiagnosticsModal}
             showGraph={showGraph}
             onShowGraphChange={setShowGraph}
+            getAsyncContext={getAsyncContext}
+            runProfileMutation={runProfileMutation}
           />
         </main>
       )}
