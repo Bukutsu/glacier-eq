@@ -1,7 +1,43 @@
-import { describe, expect, it } from "vitest";
-import type { PEQData } from "../types";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { PEQData, SupportedDeviceInfo } from "../types";
+
+const wasm = vi.hoisted(() => ({
+  init: vi.fn(async () => undefined),
+  list_supported_devices: vi.fn(),
+  parse_autoeq: vi.fn(),
+  peq_to_autoeq: vi.fn(),
+  normalize_peq_for_device: vi.fn(),
+  is_default_peq_for_device: vi.fn(),
+  match_profile_name: vi.fn(),
+  run_autoeq: vi.fn(),
+  build_init_packets: vi.fn(() => []),
+  build_read_filter_request: vi.fn(),
+  matches_filter_response: vi.fn(),
+  parse_filter_response: vi.fn(),
+  build_read_global_gain_request: vi.fn(),
+  matches_global_gain_response: vi.fn(),
+  parse_global_gain_response: vi.fn(),
+  build_write_filter_packets: vi.fn(() => []),
+  build_write_global_gain_packets: vi.fn(() => []),
+  build_commit_packets: vi.fn(() => []),
+  build_ram_apply_packets: vi.fn(() => []),
+  build_filter_mode_write_packet: vi.fn(),
+  build_amp_mode_write_packet: vi.fn(),
+  build_gain_mode_write_packet: vi.fn(),
+  build_balance_write_packets: vi.fn(),
+  build_mic_volume_write_packet: vi.fn(),
+  build_factory_reset_packet: vi.fn(),
+  build_flash_eq_packet: vi.fn(),
+  get_write_timing: vi.fn(() => ({})),
+}));
+
+vi.mock("../wasm_pkg/glacier_core", () => ({
+  default: wasm.init,
+  ...wasm,
+}));
+
 import {
-  constrainPeqToBandCount,
+  invoke,
   peqVerificationError,
   parseWebProfiles,
   parseWebSettings,
@@ -9,6 +45,92 @@ import {
   shouldRetryWebHidRead,
   WebHidReadTimeout,
 } from "./rpc";
+
+const profile: SupportedDeviceInfo = {
+  name: "Test DAC",
+  protocol: "TestProtocol",
+  vendor_id: 0x1234,
+  product_id: 0x5678,
+  status: "supported",
+  family: "test",
+  num_bands: 10,
+  global_gain_range: [-16, 6],
+  band_gain_range: [-10, 10],
+  freq_range: [20, 20_000],
+  q_range: [0.1, 20],
+  supported_filter_types: ["Peak", "LowShelf", "HighShelf", "HighPass", "LowPass"],
+  supports_per_band_enable: true,
+  supports_ram_apply: true,
+  dsp_sample_rate: 96_000,
+  gain_tolerance: 0.15,
+  freq_tolerance: 1,
+  q_tolerance: 0.05,
+  integer_preamp: false,
+};
+
+const localStorageValues = new Map<string, string>();
+const localStorageMock = {
+  getItem: vi.fn((key: string) => localStorageValues.get(key) ?? null),
+  setItem: vi.fn((key: string, value: string) => localStorageValues.set(key, value)),
+};
+
+const hidListeners = new Map<string, (event: { device: HIDDevice }) => void>();
+const hidMock = {
+  devices: [] as HIDDevice[],
+  addEventListener: vi.fn((event: string, listener: (event: { device: HIDDevice }) => void) => {
+    hidListeners.set(event, listener);
+  }),
+  getDevices: vi.fn(async () => hidMock.devices),
+};
+
+function fakeHidDevice(): HIDDevice {
+  return {
+    vendorId: profile.vendor_id,
+    productId: profile.product_id!,
+    productName: "Browser DAC",
+    manufacturerName: "Test",
+    opened: true,
+    collections: [],
+    open: vi.fn(async () => undefined),
+    forget: vi.fn(async () => undefined),
+    close: vi.fn(async () => undefined),
+    receiveFeatureReport: vi.fn(),
+    sendFeatureReport: vi.fn(),
+    sendReport: vi.fn(async () => undefined),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+    oninputreport: null,
+  };
+}
+
+async function connectWebHid(device: HIDDevice, deviceProfile = profile): Promise<void> {
+  wasm.list_supported_devices.mockReturnValue([deviceProfile]);
+  hidMock.devices = [device];
+  const listed = await invoke<Array<{ path: string }>>("list_devices");
+  await invoke("connect_device", { path: listed[0].path });
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  localStorageValues.clear();
+  hidMock.devices = [];
+  Object.defineProperty(globalThis, "navigator", {
+    configurable: true,
+    value: { hid: hidMock },
+  });
+  Object.defineProperty(globalThis, "localStorage", {
+    configurable: true,
+    value: localStorageMock,
+  });
+  wasm.normalize_peq_for_device.mockImplementation((peq) => peq);
+  wasm.build_init_packets.mockReturnValue([]);
+  wasm.build_write_filter_packets.mockReturnValue([]);
+  wasm.build_write_global_gain_packets.mockReturnValue([]);
+  wasm.build_commit_packets.mockReturnValue([]);
+  wasm.build_ram_apply_packets.mockReturnValue([]);
+  wasm.get_write_timing.mockReturnValue({});
+});
 
 function peqWithBands(count: number): PEQData {
   return {
@@ -41,24 +163,65 @@ function verificationPeq(): PEQData {
   };
 }
 
-describe("constrainPeqToBandCount", () => {
-  it("truncates UI slots beyond the device band count", () => {
-    const constrained = constrainPeqToBandCount(peqWithBands(10), 5);
+describe("browser EQ writes", () => {
+  it("normalizes a persistent write before sending and returns the normalized PEQ", async () => {
+    const device = fakeHidDevice();
+    await connectWebHid(device);
+    localStorageValues.set("glacier-eq-settings", JSON.stringify({ skip_push_verification: true }));
+    const requested = peqWithBands(1);
+    const normalized = { filters: [], global_gain: -4 };
+    wasm.normalize_peq_for_device.mockReturnValue(normalized);
+    wasm.build_write_global_gain_packets.mockReturnValue([[1, 2]]);
 
-    expect(constrained.filters).toHaveLength(5);
-    expect(constrained.filters.map((filter) => filter.freq)).toEqual([100, 101, 102, 103, 104]);
-    expect(constrained.global_gain).toBe(-2);
+    await expect(invoke<PEQData>("set_eq_state", { peq: requested })).resolves.toEqual(normalized);
+
+    expect(wasm.normalize_peq_for_device).toHaveBeenCalledWith(
+      requested,
+      profile.vendor_id,
+      profile.product_id,
+    );
+    expect(wasm.build_write_global_gain_packets).toHaveBeenCalledWith(profile.protocol, -4);
+    expect(device.sendReport).toHaveBeenCalledTimes(1);
   });
 
-  it("pads missing slots with safe disabled filters", () => {
-    const constrained = constrainPeqToBandCount(peqWithBands(2), 5);
+  it.each([
+    { filters: [], global_gain: Number.NaN },
+    { filters: [{ index: 0 }], global_gain: 0 },
+  ])("rejects malformed persistent input before sending packets", async (peq) => {
+    const device = fakeHidDevice();
+    await connectWebHid(device);
 
-    expect(constrained.filters).toHaveLength(5);
-    expect(constrained.filters.slice(2)).toEqual([
-      { index: 2, enabled: false, filter_type: "Peak", freq: 1000, gain: 0, q: 1 },
-      { index: 3, enabled: false, filter_type: "Peak", freq: 1000, gain: 0, q: 1 },
-      { index: 4, enabled: false, filter_type: "Peak", freq: 1000, gain: 0, q: 1 },
-    ]);
+    await expect(invoke("set_eq_state", { peq })).rejects.toThrow("Invalid PEQ data");
+
+    expect(wasm.normalize_peq_for_device).not.toHaveBeenCalled();
+    expect(device.sendReport).not.toHaveBeenCalled();
+  });
+
+  it("rejects volatile apply when the active device does not support it", async () => {
+    const device = fakeHidDevice();
+    await connectWebHid(device, { ...profile, supports_ram_apply: false });
+
+    await expect(invoke("apply_eq_state", { peq: peqWithBands(1) })).rejects.toThrow(
+      "does not advertise volatile RAM apply support",
+    );
+
+    expect(wasm.normalize_peq_for_device).not.toHaveBeenCalled();
+    expect(wasm.build_ram_apply_packets).not.toHaveBeenCalled();
+    expect(device.sendReport).not.toHaveBeenCalled();
+  });
+
+  it("normalizes volatile apply before sending and returns the normalized PEQ", async () => {
+    const device = fakeHidDevice();
+    await connectWebHid(device);
+    const normalized = { filters: [], global_gain: -3 };
+    wasm.normalize_peq_for_device.mockReturnValue(normalized);
+    wasm.build_ram_apply_packets.mockReturnValue([[1, 9]]);
+
+    await expect(invoke<PEQData>("apply_eq_state", { peq: peqWithBands(1) })).resolves.toEqual(normalized);
+
+    expect(wasm.build_write_global_gain_packets).toHaveBeenCalledWith(profile.protocol, -3);
+    expect(wasm.build_ram_apply_packets).toHaveBeenCalledWith(profile.protocol);
+    expect(device.sendReport).toHaveBeenCalledTimes(1);
   });
 });
 

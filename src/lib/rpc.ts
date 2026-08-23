@@ -16,6 +16,7 @@ import initWasm, {
   list_supported_devices,
   parse_autoeq,
   peq_to_autoeq,
+  normalize_peq_for_device,
   match_profile_name,
   run_autoeq,
   build_init_packets,
@@ -528,6 +529,20 @@ function connectedProfile(): SupportedDeviceInfo {
   return activeProfile;
 }
 
+function activeProfileIds(profile: SupportedDeviceInfo): { vendorId: number; productId: number } {
+  if (profile.product_id === null) throw new Error("Connected device profile has no product ID");
+  return { vendorId: profile.vendor_id, productId: profile.product_id };
+}
+
+function normalizeActivePeq(value: unknown, profile: SupportedDeviceInfo): PEQData {
+  const peq = parseStoredPeq(value);
+  if (!peq) throw new Error("Invalid PEQ data");
+  const { vendorId, productId } = activeProfileIds(profile);
+  const normalized = parseStoredPeq(normalize_peq_for_device(peq, vendorId, productId));
+  if (!normalized) throw new Error("Device normalization returned invalid PEQ data");
+  return normalized;
+}
+
 function unsupportedUtilityState() {
   return {
     supported: false,
@@ -587,13 +602,6 @@ function disabledFilter(index: number): Filter {
     freq: 1000,
     gain: 0,
     q: 1,
-  };
-}
-
-export function constrainPeqToBandCount(peq: PEQData, numBands: number): PEQData {
-  return {
-    global_gain: peq.global_gain,
-    filters: Array.from({ length: numBands }, (_, index) => peq.filters[index] ?? disabledFilter(index)),
   };
 }
 
@@ -1022,20 +1030,17 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
     case "set_eq_state": {
       const profile = connectedProfile();
       const protocol = profile.protocol;
-      const peq = constrainPeqToBandCount(args.peq, profile.num_bands);
+      const peq = normalizeActivePeq(commandField(args, "peq"), profile);
       const skipVerification = loadWebSettings().skip_push_verification;
 
       if (skipVerification) {
         await writeEqPayload(protocol, peq, "Initializing unverified push connection...");
         await commitEqPayload(protocol, "Committing unverified changes to device...");
         emitEvent("operation-progress", { message: "Write complete (unverified)", percentage: 100 });
-        return null as T;
+        return peq as T;
       }
 
-      const backup = constrainPeqToBandCount(
-        await invokeWeb<PEQData>("get_eq_state"),
-        profile.num_bands,
-      );
+      const backup = await invokeWeb<PEQData>("get_eq_state");
       try {
         await writeEqPayload(protocol, peq, "Initializing push connection...");
         await commitEqPayload(protocol, "Committing changes to device...");
@@ -1057,13 +1062,16 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
       }
 
       emitEvent("operation-progress", { message: "Write complete", percentage: 100 });
-      return null as T;
+      return peq as T;
     }
     case "apply_eq_state": {
       const profile = connectedProfile();
+      if (!profile.supports_ram_apply) {
+        throw new Error(`${profile.name} does not advertise volatile RAM apply support`);
+      }
       const protocol = profile.protocol;
       const timing = get_write_timing(protocol);
-      const peq = constrainPeqToBandCount(args.peq, profile.num_bands);
+      const peq = normalizeActivePeq(commandField(args, "peq"), profile);
       await writeEqPayload(protocol, peq, "Initializing apply connection...");
 
       // 4. apply to RAM
@@ -1074,7 +1082,7 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
       }
 
       emitEvent("operation-progress", { message: "Apply complete", percentage: 100 });
-      return null as T;
+      return peq as T;
     }
 
     // ─── Walkplay Hardware controls ──────────────────────────────────────────
