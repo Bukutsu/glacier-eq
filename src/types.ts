@@ -47,6 +47,9 @@ export interface DeviceCapabilities {
   supports_per_band_enable: boolean;
   supports_ram_apply: boolean;
   dsp_sample_rate: number;
+  gain_tolerance?: number;
+  freq_tolerance?: number;
+  q_tolerance?: number;
   integer_preamp: boolean;
 }
 

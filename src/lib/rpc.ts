@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 import { isTauri } from "./platform";
-import type { AppSettings, Filter, PEQData, SupportedDeviceInfo } from "../types";
+import type { AppSettings, DeviceCapabilities, Filter, PEQData, SupportedDeviceInfo } from "../types";
 import initWasm, {
   list_supported_devices,
   parse_autoeq,
@@ -101,7 +101,7 @@ function matchSupportedWebHidDevice(
 // ─── WebHID Active State ──────────────────────────────────────────────────────
 
 let activeDevice: HIDDevice | null = null;
-let activeProfile: any = null; // Contains metadata & caps
+let activeProfile: SupportedDeviceInfo | null = null;
 const webHidIds = new WeakMap<HIDDevice, number>();
 let nextWebHidId = 1;
 
@@ -266,7 +266,7 @@ function supportsWalkplayUtilities(): boolean {
   return activeProfile?.protocol === "Walkplay";
 }
 
-function connectedProfile(): any {
+function connectedProfile(): SupportedDeviceInfo {
   if (!activeProfile) throw new Error("No device connected");
   return activeProfile;
 }
@@ -340,6 +340,55 @@ export function constrainPeqToBandCount(peq: PEQData, numBands: number): PEQData
   };
 }
 
+export function peqVerificationError(
+  actual: PEQData,
+  expected: PEQData,
+  capabilities: Pick<
+    DeviceCapabilities,
+    "supports_per_band_enable" | "gain_tolerance" | "freq_tolerance" | "q_tolerance"
+  >,
+): string | null {
+  if (Math.abs(actual.global_gain - expected.global_gain) > 0.001) {
+    return `Global gain mismatch: expected ${expected.global_gain}, got ${actual.global_gain}`;
+  }
+  if (actual.filters.length !== expected.filters.length) {
+    return `Filter count mismatch: expected ${expected.filters.length}, got ${actual.filters.length}`;
+  }
+
+  const gainTolerance = capabilities.gain_tolerance ?? 0.15;
+  const freqTolerance = capabilities.freq_tolerance ?? 1;
+  const qTolerance = capabilities.q_tolerance ?? 0.05;
+  for (let index = 0; index < expected.filters.length; index++) {
+    const actualFilter = actual.filters[index];
+    const expectedFilter = expected.filters[index];
+    const expectedGain = expectedFilter.enabled ? expectedFilter.gain : 0;
+    const metadataMismatch = expectedFilter.enabled && (
+      Math.abs(actualFilter.freq - expectedFilter.freq) > freqTolerance ||
+      Math.abs(actualFilter.q - expectedFilter.q) > qTolerance ||
+      actualFilter.filter_type !== expectedFilter.filter_type
+    );
+    if (
+      Math.abs(actualFilter.gain - expectedGain) > gainTolerance ||
+      metadataMismatch ||
+      (capabilities.supports_per_band_enable && actualFilter.enabled !== expectedFilter.enabled)
+    ) {
+      return `Band ${expectedFilter.index + 1} mismatch`;
+    }
+  }
+  return null;
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+export function persistentPushFailureMessage(pushError: unknown, restoreError: unknown | null): string {
+  const push = errorMessage(pushError);
+  return restoreError === null
+    ? `Persistent push failed: ${push}; previous state restored`
+    : `Persistent push failed: ${push}; restore failed: ${errorMessage(restoreError)}`;
+}
+
 function resetPeq(numBands: number): PEQData {
   return {
     global_gain: 0,
@@ -365,7 +414,7 @@ async function writeEqPayload(protocol: string, peq: PEQData, initMessage: strin
       protocol,
       i,
       peq.filters[i],
-      activeProfile.dsp_sample_rate || 96000.0,
+      connectedProfile().dsp_sample_rate || 96000.0,
       peq.global_gain,
     ));
     await sleep(timing.per_filter_ms || 80);
@@ -375,6 +424,15 @@ async function writeEqPayload(protocol: string, peq: PEQData, initMessage: strin
   await sleep(timing.batch_ms || 100);
   await sendPackets(build_write_global_gain_packets(protocol, peq.global_gain));
   await sleep(timing.global_gain_ms || 50);
+}
+
+async function commitEqPayload(protocol: string, progressMessage: string): Promise<void> {
+  const timing = get_write_timing(protocol);
+  emitEvent("operation-progress", { message: progressMessage, percentage: 80 });
+  for (const packet of build_commit_packets(protocol)) {
+    await sendReport(packet);
+    await sleep(timing.commit_step_ms || 100);
+  }
 }
 
 function parseWalkplayFirmwareVersion(data: Uint8Array): string | null {
@@ -668,28 +726,41 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
     case "set_eq_state": {
       const profile = connectedProfile();
       const protocol = profile.protocol;
-      const timing = get_write_timing(protocol);
       const peq = constrainPeqToBandCount(args.peq, profile.num_bands);
-      await writeEqPayload(protocol, peq, "Initializing push connection...");
+      const skipVerification = loadJson<Partial<AppSettings>>("glacier-eq-settings", {})
+        .skip_push_verification === true;
 
-      // 4. commit changes
-      emitEvent("operation-progress", { message: "Committing changes to device...", percentage: 80 });
-      for (const pkt of build_commit_packets(protocol)) {
-        await sendReport(pkt);
-        await sleep(timing.commit_step_ms || 100);
+      if (skipVerification) {
+        await writeEqPayload(protocol, peq, "Initializing unverified push connection...");
+        await commitEqPayload(protocol, "Committing unverified changes to device...");
+        emitEvent("operation-progress", { message: "Write complete (unverified)", percentage: 100 });
+        return null as T;
       }
 
-      if (!loadJson<Partial<AppSettings>>("glacier-eq-settings", {}).skip_push_verification) {
+      const backup = constrainPeqToBandCount(
+        await invokeWeb<PEQData>("get_eq_state"),
+        profile.num_bands,
+      );
+      try {
+        await writeEqPayload(protocol, peq, "Initializing push connection...");
+        await commitEqPayload(protocol, "Committing changes to device...");
         const actual = await invokeWeb<PEQData>("get_eq_state");
-        if (Math.abs(actual.global_gain - peq.global_gain) > 0.2 || actual.filters.some((filter, index) => {
-          const expected = peq.filters[index];
-          if (!expected) return true;
-          if (!expected.enabled) return Math.abs(filter.gain) > 0.2;
-          return Math.abs(filter.gain - expected.gain) > 0.2 || Math.abs(filter.freq - expected.freq) > 1 || Math.abs(filter.q - expected.q) > 0.1;
-        })) {
-          throw new Error("Device verification failed after write");
+        const mismatch = peqVerificationError(actual, peq, profile);
+        if (mismatch) throw new Error(mismatch);
+      } catch (pushError) {
+        let restoreError: unknown | null = null;
+        try {
+          await writeEqPayload(protocol, backup, "Restoring previous device state...");
+          await commitEqPayload(protocol, "Committing restored device state...");
+          const restored = await invokeWeb<PEQData>("get_eq_state");
+          const mismatch = peqVerificationError(restored, backup, profile);
+          if (mismatch) throw new Error(mismatch);
+        } catch (error) {
+          restoreError = error;
         }
+        throw new Error(persistentPushFailureMessage(pushError, restoreError));
       }
+
       emitEvent("operation-progress", { message: "Write complete", percentage: 100 });
       return null as T;
     }
