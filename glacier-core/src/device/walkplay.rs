@@ -149,13 +149,7 @@ fn quantizer(d_arr: &[f64; 3], d_arr2: &[f64; 3]) -> Result<[i32; 5], String> {
         quantize_coefficient(d_arr2[1])?,
         quantize_coefficient(d_arr2[2])?,
     ];
-    Ok([
-        i_arr2[0],
-        i_arr2[1],
-        i_arr2[2],
-        -i_arr[1],
-        -i_arr[2],
-    ])
+    Ok([i_arr2[0], i_arr2[1], i_arr2[2], -i_arr[1], -i_arr[2]])
 }
 
 pub fn compute_iir_filter(
@@ -392,7 +386,8 @@ mod tests {
     #[test]
     fn build_filter_write_packet_structure() {
         let filter = make_filter(0, 1000, 5.0, 1.0);
-        let packet = WalkplayProtocol::build_filter_write_packet(0, &filter, 96000.0, -3.0).unwrap();
+        let packet =
+            WalkplayProtocol::build_filter_write_packet(0, &filter, 96000.0, -3.0).unwrap();
         assert_eq!(packet[OFFSET_CMD_TYPE], WRITE);
         assert_eq!(packet[OFFSET_CMD], CMD_PEQ_VALUES);
         assert_eq!(packet[OFFSET_INDEX], 0);
@@ -410,7 +405,10 @@ mod tests {
         let filter = make_filter(0, 12000, 12.0, 0.1);
         let error = WalkplayProtocol::build_filter_write_packet(0, &filter, 48000.0, 0.0)
             .expect_err("out-of-range coefficients must be rejected");
-        assert!(error.contains("fixed-point range"), "unexpected error: {error}");
+        assert!(
+            error.contains("fixed-point range"),
+            "unexpected error: {error}"
+        );
     }
 
     #[test]
