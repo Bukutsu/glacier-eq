@@ -17,6 +17,7 @@ import initWasm, {
   parse_autoeq,
   peq_to_autoeq,
   normalize_peq_for_device,
+  is_default_peq_for_device,
   match_profile_name,
   run_autoeq,
   build_init_packets,
@@ -700,6 +701,79 @@ async function commitEqPayload(protocol: string, progressMessage: string): Promi
   }
 }
 
+async function pullEqStateOnce(profile: SupportedDeviceInfo): Promise<PEQData> {
+  const protocol = profile.protocol;
+  const numBands = profile.num_bands;
+  reportQueue = [];
+  await sendPackets(build_init_packets(protocol));
+  await sleep(50);
+
+  const req = build_read_global_gain_request(protocol);
+  await sendReport(req);
+  const globalResponse = await readMatchingReport(200, (data) =>
+    matches_global_gain_response(protocol, data)
+  );
+  if (!globalResponse) throw new Error("Global gain read timeout");
+  const global_gain = parse_global_gain_response(protocol, globalResponse);
+
+  const filters: Filter[] = [];
+  const timing = get_write_timing(protocol);
+  await sleep(timing.post_gain_read_ms || 0);
+
+  for (let i = 0; i < numBands; i++) {
+    emitEvent("operation-progress", {
+      message: `Reading band ${i + 1}/${numBands}...`,
+      percentage: Math.round(((i + 1) / numBands) * 90),
+    });
+
+    const nonce = i;
+    const filterReq = build_read_filter_request(protocol, i, nonce);
+    let filter: Filter | null = null;
+
+    for (let retry = 0; retry < 3; retry++) {
+      try {
+        await sendReport(filterReq);
+        const res = await readMatchingReport(250, (data) =>
+          matches_filter_response(protocol, data, i, nonce)
+        );
+        if (res) {
+          filter = parseStoredFilter(parse_filter_response(protocol, res));
+          if (!filter) throw new Error(`Invalid band ${i + 1} response`);
+          break;
+        }
+      } catch (error) {
+        if (!activeDevice) throw error;
+        console.warn(`Retry ${retry + 1} reading band ${i} failed:`, error);
+      }
+    }
+
+    if (!filter) throw new Error(`Failed to read band ${i + 1}`);
+    filters.push(filter);
+    await sleep(timing.flood_delay_ms || 5);
+  }
+
+  return { filters, global_gain };
+}
+
+async function pullEqState(profile: SupportedDeviceInfo): Promise<PEQData> {
+  let first: PEQData | null = null;
+  try {
+    first = await pullEqStateOnce(profile);
+    const { vendorId, productId } = activeProfileIds(profile);
+    if (!is_default_peq_for_device(first, vendorId, productId)) return first;
+  } catch {
+    // DeviceSession::pull retries one complete read after any first-attempt error.
+  }
+
+  await sleep(100);
+  try {
+    return await pullEqStateOnce(profile);
+  } catch (error) {
+    if (first) return first;
+    throw error;
+  }
+}
+
 function parseWalkplayFirmwareVersion(data: Uint8Array): string | null {
   const bytes = Array.from(data.slice(3, 10));
   let version = "";
@@ -968,64 +1042,7 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
       return parseWalkplayFirmwareVersion(report.slice(1)) as T;
     }
     case "get_eq_state": {
-      const profile = connectedProfile();
-      const protocol = profile.protocol;
-      const numBands = profile.num_bands;
-      reportQueue = [];
-      await sendPackets(build_init_packets(protocol));
-      await sleep(50);
-
-      // 1. read global gain
-      const req = build_read_global_gain_request(protocol);
-      await sendReport(req);
-      
-      const globalResponse = await readMatchingReport(200, (data) => matches_global_gain_response(protocol, data));
-      if (!globalResponse) throw new Error("Global gain read timeout");
-      const global_gain = parse_global_gain_response(protocol, globalResponse);
-
-      // 2. read filters
-      const filters = [];
-      const timing = get_write_timing(protocol);
-
-      await sleep(timing.post_gain_read_ms || 0);
-
-      for (let i = 0; i < numBands; i++) {
-        emitEvent("operation-progress", {
-          message: `Reading band ${i + 1}/${numBands}...`,
-          percentage: Math.round(((i + 1) / numBands) * 90),
-        });
-
-        const nonce = i;
-        const filterReq = build_read_filter_request(protocol, i, nonce);
-        let filter: Filter | null = null;
-
-        for (let retry = 0; retry < 3; retry++) {
-          try {
-            await sendReport(filterReq);
-            const res = await readMatchingReport(250, (data) => matches_filter_response(protocol, data, i, nonce));
-            if (res) {
-              filter = parseStoredFilter(parse_filter_response(protocol, res));
-              if (!filter) throw new Error(`Invalid band ${i + 1} response`);
-              break;
-            }
-          } catch (error) {
-            if (!activeDevice) throw error;
-            console.warn(`Retry ${retry + 1} reading band ${i} failed:`, error);
-          }
-        }
-
-        if (!filter) {
-          throw new Error(`Failed to read band ${i + 1}`);
-        }
-        filters.push(filter);
-
-        await sleep(timing.flood_delay_ms || 5);
-      }
-
-      return {
-        filters,
-        global_gain,
-      } as T;
+      return await pullEqState(connectedProfile()) as T;
     }
     case "set_eq_state": {
       const profile = connectedProfile();
@@ -1040,11 +1057,11 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
         return peq as T;
       }
 
-      const backup = await invokeWeb<PEQData>("get_eq_state");
+      const backup = await pullEqState(profile);
       try {
         await writeEqPayload(protocol, peq, "Initializing push connection...");
         await commitEqPayload(protocol, "Committing changes to device...");
-        const actual = await invokeWeb<PEQData>("get_eq_state");
+        const actual = await pullEqState(profile);
         const mismatch = peqVerificationError(actual, peq, profile);
         if (mismatch) throw new Error(mismatch);
       } catch (pushError) {
@@ -1052,7 +1069,7 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
         try {
           await writeEqPayload(protocol, backup, "Restoring previous device state...");
           await commitEqPayload(protocol, "Committing restored device state...");
-          const restored = await invokeWeb<PEQData>("get_eq_state");
+          const restored = await pullEqState(profile);
           const mismatch = peqVerificationError(restored, backup, profile);
           if (mismatch) throw new Error(mismatch);
         } catch (error) {
