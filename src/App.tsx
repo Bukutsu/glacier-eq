@@ -22,6 +22,7 @@ import {
 import { buildDefaultState, DEFAULT_PROFILE_NAME, normalizePeq, peqEquals } from "./lib/peq";
 import { isTauri } from "./lib/platform";
 import { isDisconnectionError } from "./lib/errors";
+import { parseDeviceDisconnectedPayload } from "./lib/asyncContext";
 import type {
   DeviceCapabilities,
   DeviceInfo,
@@ -151,13 +152,19 @@ function App() {
   selectedDeviceRef.current = selectedDevice;
   const [connected, setConnectedState] = useState(false);
   const connectedRef = useRef(false);
+  const connectedPathRef = useRef<string | null>(null);
   const connectionGenerationRef = useRef(0);
   const handledDisconnectGenerationRef = useRef<number | null>(null);
-  const setConnected = useCallback((nextConnected: boolean) => {
-    if (nextConnected && !connectedRef.current) {
+  const setConnected = useCallback((nextConnected: boolean, path: string | null = null) => {
+    const nextPath = nextConnected ? path : null;
+    if (
+      connectedRef.current !== nextConnected ||
+      connectedPathRef.current !== nextPath
+    ) {
       connectionGenerationRef.current += 1;
     }
     connectedRef.current = nextConnected;
+    connectedPathRef.current = nextPath;
     setConnectedState(nextConnected);
   }, []);
   const [isReconnecting, setIsReconnecting] = useState(false);
@@ -664,10 +671,14 @@ function App() {
       setProgress(event.payload);
     });
 
-    const handleDeviceDisconnected = (event: { payload: string }) => {
+    const handleDeviceDisconnected = (event: { payload: unknown }) => {
+      const activePath = connectedPathRef.current;
+      const payload = parseDeviceDisconnectedPayload(event.payload, activePath);
       const connectionGeneration = connectionGenerationRef.current;
       if (
-        isDevDummyDevice(selectedDeviceRef.current) ||
+        payload === null ||
+        payload.path !== activePath ||
+        isDevDummyDevice(activePath ?? "") ||
         !connectedRef.current ||
         handledDisconnectGenerationRef.current === connectionGeneration
       ) {
@@ -675,19 +686,19 @@ function App() {
       }
       handledDisconnectGenerationRef.current = connectionGeneration;
       setConnected(false);
-      invoke("disconnect_device").catch(() => {});
+      invoke("disconnect_device", { expectedPath: payload.path }).catch(() => {});
       setIsReconnecting(true);
       setLastPushedPeq(null);
       setFirmwareVersion(null);
-      reportStatus("Error", `Lost connection to device (unplugged): ${event.payload}`, "error", "Device", "Reconnecting...");
+      reportStatus("Error", `Lost connection to device (unplugged): ${payload.name}`, "error", "Device", "Reconnecting...");
     };
 
-    addListener<string>("device-disconnected", handleDeviceDisconnected);
+    addListener<unknown>("device-disconnected", handleDeviceDisconnected);
 
     if (isTauri() && isAndroid) {
       import("@tauri-apps/api/core")
         .then(({ addPluginListener }) =>
-          addPluginListener<string>("hid", "device-disconnected", (payload) =>
+          addPluginListener<unknown>("hid", "device-disconnected", (payload) =>
             handleDeviceDisconnected({ payload }),
           ),
         )
@@ -831,7 +842,7 @@ function App() {
 
             if (active) {
               setSelectedDevice(found.path);
-              setConnected(true);
+              setConnected(true, found.path);
               setIsReconnecting(false);
               setLastPushedPeq(null);
               await loadFirmwareVersion(found.path);
@@ -948,7 +959,7 @@ function App() {
     setIsBusy(true);
     try {
       if (isDevDummyDevice(selectedDevice)) {
-        setConnected(true);
+        setConnected(true, selectedDevice);
         setLastPushedPeq(null);
         setConnectedDeviceName("Glacier Dummy DAC");
         reportStatus("Info", "Connected to dummy DAC", "success", "UI", "Connected to dummy DAC");
@@ -958,7 +969,7 @@ function App() {
       }
 
       await invoke("connect_device", { path: selectedDevice });
-      setConnected(true);
+      setConnected(true, selectedDevice);
       setLastPushedPeq(null);
       
       let devName = "";
