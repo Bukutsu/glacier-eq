@@ -211,10 +211,11 @@ impl PEQData {
                 }
             }
 
-            if !caps.supports_per_band_enable {
-                // If per-band enable is not supported, effectively disable by zeroing gain
-                if !filter.enabled && filter.gain.abs() > 0.001 {
-                    filter.gain = 0.0;
+            if !caps.supports_per_band_enable && !filter.enabled && filter.gain != 0.0 {
+                // These protocols represent a disabled band by writing zero gain.
+                let should_warn = filter.gain.abs() > 0.001;
+                filter.gain = 0.0;
+                if should_warn {
                     warnings.push(format!(
                         "Band {}: Set disabled band gain to 0 dB (device lacks per-band disable support)",
                         band_num

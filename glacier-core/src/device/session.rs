@@ -7,9 +7,11 @@ use super::walkplay::{
     CMD_AMP_MODE, CMD_BALANCE, CMD_FILTER_MODE, CMD_GAIN_MODE, CMD_MIC_VOLUME, CMD_VERSION, END,
     READ, WRITE,
 };
-use super::{DeviceProfile, DeviceProtocol, EqProtocol, Packet, WalkplayProtocol};
+use super::{
+    normalize_peq_for_profile, validate_peq, DeviceProfile, DeviceProtocol, EqProtocol, Packet,
+    WalkplayProtocol,
+};
 use crate::eq::{Filter, PEQData};
-use crate::profile_match::normalize_for_match;
 
 const INIT_DRAIN_ATTEMPTS: usize = 100;
 const FILTER_READ_ATTEMPTS: usize = 60;
@@ -331,10 +333,7 @@ impl<'a> DeviceSession<'a> {
     }
 
     fn normalize(&self, peq: PEQData) -> Result<PEQData, String> {
-        validate_peq(&peq)?;
-        let normalized = normalize_for_match(peq, &self.profile.caps, self.profile.protocol);
-        validate_peq(&normalized)?;
-        Ok(normalized)
+        normalize_peq_for_profile(peq, self.profile)
     }
 
     fn require_walkplay(&self) -> Result<(), String> {
@@ -580,18 +579,6 @@ fn validate_control_range(label: &str, value: i8) -> Result<(), String> {
     } else {
         Err(format!("{label} must be between -15 and 15"))
     }
-}
-
-fn validate_peq(peq: &PEQData) -> Result<(), String> {
-    if !peq.global_gain.is_finite() {
-        return Err("Preamp must be finite".into());
-    }
-    for (index, filter) in peq.filters.iter().enumerate() {
-        if !filter.gain.is_finite() || !filter.q.is_finite() || filter.q <= 0.0 {
-            return Err(format!("Band {} has invalid gain or Q", index + 1));
-        }
-    }
-    Ok(())
 }
 
 fn compare_peq(

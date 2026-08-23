@@ -131,6 +131,28 @@ pub fn list_supported_devices() -> Result<JsValue, JsValue> {
 }
 
 #[wasm_bindgen]
+pub fn normalize_peq_for_device(
+    peq_js: JsValue,
+    vendor_id: u16,
+    product_id: u16,
+) -> Result<JsValue, JsValue> {
+    let peq: PEQData = serde_wasm_bindgen::from_value(peq_js).map_err(js_err)?;
+    let normalized =
+        crate::device::normalize_peq_for_device(peq, vendor_id, product_id).map_err(js_err)?;
+    to_js_value(&normalized)
+}
+
+#[wasm_bindgen]
+pub fn is_default_peq_for_device(
+    peq_js: JsValue,
+    vendor_id: u16,
+    product_id: u16,
+) -> Result<bool, JsValue> {
+    let peq: PEQData = serde_wasm_bindgen::from_value(peq_js).map_err(js_err)?;
+    crate::device::is_default_peq_for_device(&peq, vendor_id, product_id).map_err(js_err)
+}
+
+#[wasm_bindgen]
 pub fn parse_autoeq(
     text: String,
     vendor_id: Option<u16>,
