@@ -14,6 +14,7 @@ import {
 const DB_NAME = "glacier-eq-online";
 const DB_VERSION = 1;
 const STORE_NAME = "curves";
+const MAX_DATABASE_BYTES = 64 * 1024 * 1024;
 
 export interface OnlineDevice {
   id: string;
@@ -223,7 +224,14 @@ async function downloadDatabaseWithDb(
   return totalEntries;
 }
 
-async function fetchJson(
+function parseContentLength(value: string | null): number | null {
+  const normalized = value?.trim();
+  if (!normalized || !/^\d+$/.test(normalized)) return null;
+  const bytes = Number(normalized);
+  return Number.isSafeInteger(bytes) ? bytes : null;
+}
+
+export async function fetchJson(
   url: string,
   onProgress?: (percent: number) => void,
   signal?: AbortSignal,
@@ -233,10 +241,10 @@ async function fetchJson(
     throw new Error(`Failed to fetch database: ${response.statusText}`);
   }
 
-  const contentLength = response.headers.get("content-length");
-  const totalBytes = contentLength ? parseInt(contentLength, 10) : 0;
-  const maxBytes = 64 * 1024 * 1024;
-  if (totalBytes > maxBytes) throw new Error("Online database response is too large");
+  const totalBytes = parseContentLength(response.headers.get("content-length"));
+  if (totalBytes !== null && totalBytes > MAX_DATABASE_BYTES) {
+    throw new Error("Online database response is too large");
+  }
   let loadedBytes = 0;
 
   let text = "";
@@ -249,11 +257,11 @@ async function fetchJson(
       if (value) {
         text += decoder.decode(value, { stream: true });
         loadedBytes += value.length;
-        if (loadedBytes > maxBytes) {
+        if (loadedBytes > MAX_DATABASE_BYTES) {
           await reader.cancel();
           throw new Error("Online database response is too large");
         }
-        if (onProgress && totalBytes > 0) {
+        if (onProgress && totalBytes !== null && totalBytes > 0) {
           onProgress(Math.min(0.99, loadedBytes / totalBytes));
         }
       }
@@ -261,9 +269,14 @@ async function fetchJson(
     text += decoder.decode();
   } else {
     // Android WebView/Tauri builds may not expose ReadableStream on fetch responses.
-    // Fall back to reading the whole response so the online database still works.
+    // Whole-body reads are safe only when the server supplies a bounded length.
+    if (totalBytes === null) {
+      throw new Error("Online database response requires a valid Content-Length");
+    }
     text = await response.text();
-    if (text.length > maxBytes) throw new Error("Online database response is too large");
+    if (new TextEncoder().encode(text).byteLength > MAX_DATABASE_BYTES) {
+      throw new Error("Online database response is too large");
+    }
   }
 
   onProgress?.(0.99); // Parsing JSON next
