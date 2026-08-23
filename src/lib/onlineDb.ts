@@ -4,6 +4,12 @@
 import { useEffect, useState } from "react";
 import type { MeasurementPoint } from "../types";
 import { normalizeMeasurementPoints } from "./measurements";
+import {
+  parseOnlineCurves,
+  parseOnlineCurveValues,
+  parseOnlineFrequencies,
+  parseOnlineManifest,
+} from "./onlineDbParsers";
 
 const DB_NAME = "glacier-eq-online";
 const DB_VERSION = 1;
@@ -61,7 +67,7 @@ async function isDatabaseDownloaded(): Promise<boolean> {
   try {
     db = await openDb();
     const store = db.transaction(STORE_NAME, "readonly").objectStore(STORE_NAME);
-    return Boolean(await idbRequest(store.get("meta:complete")));
+    return await idbRequest<unknown>(store.get("meta:complete")) === true;
   } catch {
     return false;
   } finally {
@@ -123,41 +129,27 @@ async function downloadDatabaseWithDb(
   db: IDBDatabase,
 ): Promise<number> {
   onProgress(0.05);
-  // Download manifest first sequentially to minimize peak memory pressure
-  const manifest = await fetchJson(
+  // Validate both third-party payloads before changing the existing cache.
+  const manifest = parseOnlineManifest(await fetchJson(
     "https://raw.githubusercontent.com/PEQHUB/Squig-Rank/main/public/data/manifest.json",
     undefined,
     signal,
-  );
-
-  await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, "readwrite");
-    tx.objectStore(STORE_NAME).delete("meta:complete");
-    tx.objectStore(STORE_NAME).put(manifest, "meta:manifest");
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-    // Aborts (quota exceeded, private-mode eviction) fire only onabort; without
-    // this the awaited promise never settles and the UI hangs.
-    tx.onabort = () => reject(tx.error ?? new Error("Transaction aborted"));
-  });
+  ));
 
   onProgress(0.15);
 
-  // Now fetch curves.json
-  const rawData = await fetchJson(
+  const database = parseOnlineCurves(await fetchJson(
     "https://raw.githubusercontent.com/PEQHUB/Squig-Rank/main/public/data/curves.json",
     (p) => onProgress(0.15 + p * 0.7),
     signal,
-  );
+  ));
 
-  if (!rawData?.meta || !rawData?.curves) {
-    throw new Error("Invalid database format: missing meta or curves");
-  }
-
-  // Save frequencies
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readwrite");
-    tx.objectStore(STORE_NAME).put(rawData.meta.frequencies, "meta:frequencies");
+    const store = tx.objectStore(STORE_NAME);
+    store.clear();
+    store.put(manifest, "meta:manifest");
+    store.put(database.frequencies, "meta:frequencies");
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
     // Aborts (quota exceeded, private-mode eviction) fire only onabort; without
@@ -166,9 +158,8 @@ async function downloadDatabaseWithDb(
   });
 
   // Batch insert curves in chunks of 400 to prevent IPC buffer choke and allow GC
-  const entries = Object.entries(rawData.curves);
+  const entries = Object.entries(database.curves);
   const totalEntries = entries.length;
-  let count = 0;
   const chunkSize = 400;
 
   for (let i = 0; i < totalEntries; i += chunkSize) {
@@ -180,10 +171,7 @@ async function downloadDatabaseWithDb(
       const tx = db.transaction(STORE_NAME, "readwrite");
       const store = tx.objectStore(STORE_NAME);
       for (const [key, curve] of chunk) {
-        if (curve && typeof curve === "object" && "d" in curve) {
-          store.put((curve as any).d, key);
-          count++;
-        }
+        store.put(curve, key);
       }
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
@@ -207,14 +195,14 @@ async function downloadDatabaseWithDb(
     tx.onabort = () => reject(tx.error ?? new Error("Transaction aborted"));
   });
   onProgress(1.0);
-  return count;
+  return totalEntries;
 }
 
 async function fetchJson(
   url: string,
   onProgress?: (percent: number) => void,
   signal?: AbortSignal,
-): Promise<any> {
+): Promise<unknown> {
   const response = await fetch(url, { signal });
   if (!response.ok) {
     throw new Error(`Failed to fetch database: ${response.statusText}`);
@@ -261,36 +249,35 @@ async function fetchManifest(): Promise<OnlineDevice[]> {
   const db = await openDb();
   try {
     const store = db.transaction(STORE_NAME, "readonly").objectStore(STORE_NAME);
-    const data = await idbRequest<any>(store.get("meta:manifest"));
-
-    if (!data?.iems) {
+    const cached = await idbRequest<unknown>(store.get("meta:manifest"));
+    if (cached === undefined) {
       throw new Error("Search manifest not cached. Please download the database.");
     }
+    const data = parseOnlineManifest(cached);
 
     const devices: OnlineDevice[] = [];
-  for (const [key, details] of Object.entries(data.iems)) {
-    const parts = key.split("::");
-    if (parts.length < 2) continue;
-    const source = parts[0];
-    const fullName = parts[1];
+    for (const [key, details] of Object.entries(data.iems)) {
+      const separator = key.indexOf("::");
+      const source = key.slice(0, separator);
+      const fullName = key.slice(separator + 2);
 
-    // Try to guess brand and model name
-    let brand = source;
-    let name = fullName;
-    const firstSpace = fullName.indexOf(" ");
-    if (firstSpace > 0) {
-      brand = fullName.substring(0, firstSpace);
-      name = fullName.substring(firstSpace + 1);
+      // Try to guess brand and model name
+      let brand = source;
+      let name = fullName;
+      const firstSpace = fullName.indexOf(" ");
+      if (firstSpace > 0) {
+        brand = fullName.substring(0, firstSpace);
+        name = fullName.substring(firstSpace + 1);
+      }
+
+      devices.push({
+        id: key,
+        brand,
+        name,
+        price: details.price,
+        source,
+      });
     }
-
-    devices.push({
-      id: key,
-      brand,
-      name,
-      price: (details as any).price || null,
-      source,
-    });
-  }
 
     return devices.sort((a, b) =>
       `${a.brand} ${a.name}`.localeCompare(`${b.brand} ${b.name}`),
@@ -397,38 +384,32 @@ async function loadDeviceCurvePoints(
 ): Promise<MeasurementPoint[]> {
   const db = await openDb();
   try {
-    // Get frequencies and raw decibels
+    // Cache contents came from a third-party source and may have been written
+    // by an older app version, so validate both records on every read.
     const store = db.transaction(STORE_NAME, "readonly").objectStore(STORE_NAME);
-  const [frequencies, dbValues] = await Promise.all([
-    idbRequest<number[]>(store.get("meta:frequencies")).then((value) => value || []),
-    idbRequest<number[]>(store.get(deviceId)).then((value) => value || []),
-  ]);
+    const [cachedFrequencies, cachedValues] = await Promise.all([
+      idbRequest<unknown>(store.get("meta:frequencies")),
+      idbRequest<unknown>(store.get(deviceId)),
+    ]);
 
-  if (frequencies.length === 0 || dbValues.length === 0) {
-    throw new Error(
-      "Curve not found in local cache. Please download the database.",
+    if (cachedFrequencies === undefined || cachedValues === undefined) {
+      throw new Error(
+        "Curve not found in local cache. Please download the database.",
+      );
+    }
+
+    const frequencies = parseOnlineFrequencies(cachedFrequencies);
+    const dbValues = parseOnlineCurveValues(
+      cachedValues,
+      frequencies.length,
+      deviceId,
     );
-  }
+    const points: MeasurementPoint[] = frequencies.map((freq, index) => ({
+      freq,
+      db: dbValues[index],
+    }));
 
-  const points: MeasurementPoint[] = [];
-  for (let i = 0; i < Math.min(frequencies.length, dbValues.length); i++) {
-    points.push({
-      freq: frequencies[i],
-      db: dbValues[i],
-    });
-  }
-
-  // Cache contents come from a third-party network source; validate them like
-  // the file/paste path instead of trusting what was stored.
-  if (points.length > 100_000) {
-    throw new Error("Cached curve exceeds maximum point count.");
-  }
-  const validated = normalizeMeasurementPoints(points);
-  if (validated.length < 2) {
-    throw new Error("Cached curve has fewer than 2 valid points.");
-  }
-
-    return validated;
+    return normalizeMeasurementPoints(points);
   } finally {
     db.close();
   }
