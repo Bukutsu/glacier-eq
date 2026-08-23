@@ -965,7 +965,7 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
       // Revoking synchronously can cancel the download before the browser
       // fetches the blob URL; give it time to complete.
       setTimeout(() => URL.revokeObjectURL(url), 10_000);
-      return null as T;
+      return filename as T;
     }
 
     // ─── Diagnostics ────────────────────────────────────────────────────────

@@ -7,6 +7,7 @@ use std::collections::VecDeque;
 use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -50,11 +51,17 @@ impl std::fmt::Display for LogSource {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DiagnosticEvent {
+    /// Monotonic per-process sequence number. Lets consumers deduplicate
+    /// history against the live stream without relying on identical
+    /// millisecond timestamps.
+    pub seq: u64,
     pub timestamp: String,
     pub level: LogLevel,
     pub source: LogSource,
     pub message: String,
 }
+
+static EVENT_SEQUENCE: AtomicU64 = AtomicU64::new(1);
 
 impl DiagnosticEvent {
     pub fn new(level: LogLevel, source: LogSource, message: String) -> Self {
@@ -66,6 +73,8 @@ impl DiagnosticEvent {
         let (h, m, s) = ((secs / 3600) % 24, (secs / 60) % 60, secs % 60);
         let timestamp = format!("{h:02}:{m:02}:{s:02}.{millis:03} UTC");
         Self {
+            // Never reset, even on clear: a stale ID must never collide.
+            seq: EVENT_SEQUENCE.fetch_add(1, Ordering::Relaxed),
             timestamp,
             level,
             source,

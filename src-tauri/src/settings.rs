@@ -11,6 +11,22 @@ fn default_theme() -> String {
     "auto".to_string()
 }
 
+/// Must match the themes offered by the settings UI (and the web parser).
+fn is_known_theme(theme: &str) -> bool {
+    matches!(
+        theme,
+        "auto"
+            | "tokyo-night"
+            | "tokyo-night-storm"
+            | "tokyo-night-day"
+            | "nord"
+            | "dracula"
+            | "gruvbox"
+            | "catppuccin-mocha"
+            | "catppuccin-latte"
+    )
+}
+
 fn default_snap_to_iso_frequencies() -> bool {
     true
 }
@@ -71,8 +87,15 @@ pub async fn get_settings(app: tauri::AppHandle) -> Result<Settings, String> {
             // A corrupt or schema-drifted file must not wedge every future
             // get_settings call (or silently diverge from callers that fall
             // back to the default): self-heal to defaults instead.
-            match serde_json::from_str(&content) {
-                Ok(settings) => Ok(settings),
+            match serde_json::from_str::<Settings>(&content) {
+                Ok(mut settings) => {
+                    // An unknown theme string would select a nonexistent
+                    // theme; fall back to auto like the web parser.
+                    if !is_known_theme(&settings.theme) {
+                        settings.theme = default_theme();
+                    }
+                    Ok(settings)
+                }
                 Err(_) => Ok(Settings::default()),
             }
         }
@@ -83,6 +106,10 @@ pub async fn get_settings(app: tauri::AppHandle) -> Result<Settings, String> {
 
 #[tauri::command]
 pub async fn save_settings(app: tauri::AppHandle, settings: Settings) -> Result<(), String> {
+    let mut settings = settings;
+    if !is_known_theme(&settings.theme) {
+        settings.theme = default_theme();
+    }
     let path = settings_path(&app)?;
     tauri::async_runtime::spawn_blocking(move || {
         // Disk I/O (including sync_all) stays off the IPC thread so a slow
@@ -101,4 +128,28 @@ fn save_settings_sync(path: &std::path::Path, settings: &Settings) -> Result<(),
     let content = serde_json::to_string_pretty(settings)
         .map_err(|error| format!("Failed to serialize settings: {error}"))?;
     crate::fsutil::atomic_write(path, content.as_bytes())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn known_themes_match_settings_ui_options() {
+        for theme in [
+            "auto",
+            "tokyo-night",
+            "tokyo-night-storm",
+            "tokyo-night-day",
+            "nord",
+            "dracula",
+            "gruvbox",
+            "catppuccin-mocha",
+            "catppuccin-latte",
+        ] {
+            assert!(is_known_theme(theme));
+        }
+        assert!(!is_known_theme("dark"));
+        assert!(!is_known_theme(""));
+    }
 }
