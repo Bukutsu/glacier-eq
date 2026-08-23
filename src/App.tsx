@@ -108,6 +108,7 @@ function App() {
 
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const settingsRef = useRef(settings);
+  const settingsSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const theme = settings.theme;
   const snapToIso = settings.snap_to_iso_frequencies;
   const resolvedTheme = useThemeSync(theme);
@@ -121,9 +122,11 @@ function App() {
     const updated = { ...settingsRef.current, [key]: value };
     settingsRef.current = updated;
     setSettings(updated);
-    invoke("save_settings", { settings: updated }).catch((err) => {
-      console.error("Failed to save settings:", err);
-    });
+    settingsSaveQueueRef.current = settingsSaveQueueRef.current
+      .then(() => invoke<void>("save_settings", { settings: updated }))
+      .catch((err: unknown) => {
+        console.error("Failed to save settings:", err);
+      });
   }, []);
 
   useEffect(() => {
