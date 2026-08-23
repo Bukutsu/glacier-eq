@@ -322,29 +322,35 @@ fn require_confirmation(command: &Command) -> Result<(), String> {
 
 const MAX_TEXT_BYTES: u64 = 1 << 20;
 
-fn read_text(path: &str) -> Result<String, String> {
+fn read_bounded_text(reader: impl Read, label: &str) -> Result<String, String> {
     let mut text = String::new();
-    if path == "-" {
-        std::io::stdin()
-            .take(MAX_TEXT_BYTES + 1)
-            .read_to_string(&mut text)
-            .map_err(|error| format!("failed to read stdin: {error}"))?;
-    } else {
-        let metadata =
-            std::fs::metadata(path).map_err(|error| format!("failed to stat {path}: {error}"))?;
-        if metadata.len() > MAX_TEXT_BYTES {
-            return Err(format!(
-                "input file exceeds {} MiB",
-                MAX_TEXT_BYTES / (1 << 20)
-            ));
-        }
-        text = std::fs::read_to_string(path)
-            .map_err(|error| format!("failed to read {path}: {error}"))?;
-    }
+    reader
+        .take(MAX_TEXT_BYTES + 1)
+        .read_to_string(&mut text)
+        .map_err(|error| format!("failed to read {label}: {error}"))?;
     if text.len() as u64 > MAX_TEXT_BYTES {
         return Err("input exceeds 1 MiB".into());
     }
     Ok(text)
+}
+
+fn read_text(path: &str) -> Result<String, String> {
+    if path == "-" {
+        return read_bounded_text(std::io::stdin(), "stdin");
+    }
+
+    let file =
+        std::fs::File::open(path).map_err(|error| format!("failed to read {path}: {error}"))?;
+    let metadata = file
+        .metadata()
+        .map_err(|error| format!("failed to stat {path}: {error}"))?;
+    if metadata.len() > MAX_TEXT_BYTES {
+        return Err(format!(
+            "input file exceeds {} MiB",
+            MAX_TEXT_BYTES / (1 << 20)
+        ));
+    }
+    read_bounded_text(file, path)
 }
 
 fn read_peq(path: &str) -> Result<(PEQData, Option<String>, Vec<String>), String> {
@@ -708,6 +714,19 @@ fn execute_controls(_: ControlAction, _: Option<&str>) -> Result<String, String>
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn bounded_text_reader_rejects_oversized_and_invalid_utf8_input() {
+        let oversized = vec![b'x'; MAX_TEXT_BYTES as usize + 1];
+        assert_eq!(
+            read_bounded_text(std::io::Cursor::new(oversized), "test").unwrap_err(),
+            "input exceeds 1 MiB"
+        );
+
+        let error = read_bounded_text(std::io::Cursor::new([0xff]), "test").unwrap_err();
+        assert!(error.starts_with("failed to read test:"));
+        assert!(error.contains("UTF-8"));
+    }
 
     #[test]
     fn mutation_confirmation_is_pure_and_precedes_hid() {
