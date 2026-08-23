@@ -92,6 +92,20 @@ describe("normalizeMeasurementPoints", () => {
     ]);
     expect(out.map((p) => p.freq)).toEqual([100, 1000]);
   });
+
+  it("rejects when interpolation overflows the 1 kHz reference", () => {
+    expect(() => normalizeMeasurementPoints([
+      { freq: 100, db: -Number.MAX_VALUE },
+      { freq: 10000, db: Number.MAX_VALUE },
+    ])).toThrow("non-finite");
+  });
+
+  it("rejects when reference subtraction overflows a normalized point", () => {
+    expect(() => normalizeMeasurementPoints([
+      { freq: 1000, db: -Number.MAX_VALUE },
+      { freq: 20000, db: Number.MAX_VALUE },
+    ])).toThrow("non-finite");
+  });
 });
 
 describe("nextMeasurementColor", () => {

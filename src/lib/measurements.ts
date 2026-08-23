@@ -91,11 +91,17 @@ export function normalizeMeasurementPoints(points: MeasurementPoint[]): Measurem
   }
 
   const referenceDb = interpolateMeasurementDb(sorted, 1000);
+  if (!Number.isFinite(referenceDb)) {
+    throw new Error("Measurement normalization produced a non-finite reference");
+  }
 
-  return sorted.map((point) => ({
-    freq: point.freq,
-    db: point.db - referenceDb,
-  }));
+  return sorted.map((point) => {
+    const db = point.db - referenceDb;
+    if (!Number.isFinite(db)) {
+      throw new Error("Measurement normalization produced a non-finite dB value");
+    }
+    return { freq: point.freq, db };
+  });
 }
 
 export function interpolateMeasurementDb(points: MeasurementPoint[], freq: number): number {
