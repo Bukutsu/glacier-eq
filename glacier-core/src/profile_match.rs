@@ -31,14 +31,30 @@ pub fn normalize_for_match(
     peq
 }
 
-fn active_filters(peq: &PEQData) -> Vec<&Filter> {
-    // Enabled bands with zero gain are inactive acoustically, and Moondrop/FiiO
-    // pulls even report them as disabled (enabled = gain != 0); treat them as
-    // inactive on both sides so filter counts line up.
+fn quantized_band_gain(gain: f64, protocol: DeviceProtocol) -> f64 {
+    match protocol {
+        DeviceProtocol::Walkplay => (((gain * 256.0).round() / 256.0) * 100.0).round() / 100.0,
+        DeviceProtocol::Moondrop => (((gain * 256.0).round() / 256.0) * 10.0).round() / 10.0,
+        DeviceProtocol::FiioJa11 | DeviceProtocol::Fiio => (gain * 10.0).round() / 10.0,
+        DeviceProtocol::Unknown => gain,
+    }
+}
+
+fn active_filters<'a>(
+    peq: &'a PEQData,
+    caps: &DeviceCapabilities,
+    protocol: DeviceProtocol,
+) -> Vec<&'a Filter> {
     let mut filters: Vec<&Filter> = peq
         .filters
         .iter()
-        .filter(|filter| filter.enabled && filter.gain != 0.0)
+        .filter(|filter| {
+            let pass_filter = matches!(
+                filter.filter_type,
+                crate::eq::FilterType::HighPass | crate::eq::FilterType::LowPass
+            ) && caps.supported_filter_types.contains(&filter.filter_type);
+            filter.enabled && (pass_filter || quantized_band_gain(filter.gain, protocol) != 0.0)
+        })
         .collect();
     filters.sort_by(|a, b| {
         a.freq
@@ -65,8 +81,8 @@ fn peq_matches_profile(
 ) -> bool {
     let current = normalize_for_match(current.clone(), caps, protocol);
     let profile = normalize_for_match(profile.clone(), caps, protocol);
-    let current_filters = active_filters(&current);
-    let profile_filters = active_filters(&profile);
+    let current_filters = active_filters(&current, caps, protocol);
+    let profile_filters = active_filters(&profile, caps, protocol);
 
     (current.global_gain - profile.global_gain).abs() <= 0.001
         && current_filters.len() == profile_filters.len()
@@ -119,6 +135,46 @@ mod tests {
             &DESKTOP_DAC_CAPS,
             DeviceProtocol::Walkplay,
         ));
+    }
+
+    #[test]
+    fn substep_band_gains_match_inactive_device_readback() {
+        for (protocol, gain) in [
+            (DeviceProtocol::Moondrop, 0.04),
+            (DeviceProtocol::FiioJa11, 0.04),
+            (DeviceProtocol::Fiio, 0.04),
+            (DeviceProtocol::Walkplay, 0.004),
+        ] {
+            let mut filter = Filter::enabled(0, true);
+            filter.gain = gain;
+            let saved = PEQData {
+                filters: vec![filter],
+                global_gain: 0.0,
+            };
+            let pulled = PEQData::default();
+            assert!(
+                peq_matches_profile(&pulled, &saved, &DESKTOP_DAC_CAPS, protocol),
+                "{protocol:?} should classify {gain} dB as inactive"
+            );
+        }
+    }
+
+    #[test]
+    fn enabled_pass_filters_remain_active_at_zero_gain() {
+        for filter_type in [crate::FilterType::HighPass, crate::FilterType::LowPass] {
+            let mut filter = Filter::enabled(0, true);
+            filter.filter_type = filter_type;
+            let saved = PEQData {
+                filters: vec![filter],
+                global_gain: 0.0,
+            };
+            assert!(!peq_matches_profile(
+                &PEQData::default(),
+                &saved,
+                &DESKTOP_DAC_CAPS,
+                DeviceProtocol::Unknown,
+            ));
+        }
     }
 
     #[test]
