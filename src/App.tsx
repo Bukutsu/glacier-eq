@@ -314,6 +314,19 @@ function App() {
     redoStackRef.current = redoStack;
   }, [redoStack]);
 
+  useEffect(() => {
+    const redoBase = redoBaseRef.current;
+    if (
+      redoStackRef.current.length === 0 ||
+      (redoBase && peqEquals(peq, redoBase))
+    ) {
+      return;
+    }
+    redoStackRef.current = [];
+    redoBaseRef.current = null;
+    setRedoStack([]);
+  }, [peq]);
+
   const pushToUndoStack = useCallback((currentPeq: PEQData) => {
     const stack = undoStackRef.current;
     if (stack.length > 0 && peqEquals(stack[stack.length - 1], currentPeq)) {
