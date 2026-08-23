@@ -767,6 +767,11 @@ function App() {
       polling = true;
       try {
         const realDevices = await invoke<DeviceInfo[]>("list_devices");
+        if (!active) return;
+        const deviceList = import.meta.env.DEV
+          ? [...realDevices, DEV_DUMMY_DEVICE]
+          : realDevices;
+        setDevices(deviceList);
         const found = realDevices.find(
           (d) =>
             d.profile_name === connectedDeviceName ||
