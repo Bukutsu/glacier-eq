@@ -136,9 +136,7 @@ fn append_to_log(app: &tauri::AppHandle, event: &DiagnosticEvent) {
     if let Ok(meta) = fs::metadata(&log_path) {
         if meta.len() > 5 * 1024 * 1024 {
             let backup = log_path.with_extension("log.1");
-            if fs::rename(&log_path, &backup).is_err()
-                && meta.len() > 20 * 1024 * 1024
-            {
+            if fs::rename(&log_path, &backup).is_err() && meta.len() > 20 * 1024 * 1024 {
                 // Persistent rotation failure (backup held open by a viewer
                 // or AV) must not grow the log without bound: truncate above
                 // a hard ceiling.
