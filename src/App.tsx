@@ -149,7 +149,17 @@ function App() {
   const [selectedDevice, setSelectedDevice] = useState("");
   const selectedDeviceRef = useRef(selectedDevice);
   selectedDeviceRef.current = selectedDevice;
-  const [connected, setConnected] = useState(false);
+  const [connected, setConnectedState] = useState(false);
+  const connectedRef = useRef(false);
+  const connectionGenerationRef = useRef(0);
+  const handledDisconnectGenerationRef = useRef<number | null>(null);
+  const setConnected = useCallback((nextConnected: boolean) => {
+    if (nextConnected && !connectedRef.current) {
+      connectionGenerationRef.current += 1;
+    }
+    connectedRef.current = nextConnected;
+    setConnectedState(nextConnected);
+  }, []);
   const [isReconnecting, setIsReconnecting] = useState(false);
   const [connectedDeviceName, setConnectedDeviceName] = useState("");
   const [firmwareVersion, setFirmwareVersion] = useState<string | null>(null);
@@ -652,14 +662,24 @@ function App() {
     });
 
     const handleDeviceDisconnected = (event: { payload: string }) => {
-      if (isDevDummyDevice(selectedDeviceRef.current)) return;
-      invoke("disconnect_device").catch(() => {});
+      const connectionGeneration = connectionGenerationRef.current;
+      if (
+        isDevDummyDevice(selectedDeviceRef.current) ||
+        !connectedRef.current ||
+        handledDisconnectGenerationRef.current === connectionGeneration
+      ) {
+        return;
+      }
+      handledDisconnectGenerationRef.current = connectionGeneration;
       setConnected(false);
+      invoke("disconnect_device").catch(() => {});
       setIsReconnecting(true);
       setLastPushedPeq(null);
       setFirmwareVersion(null);
       reportStatus("Error", `Lost connection to device (unplugged): ${event.payload}`, "error", "Device", "Reconnecting...");
     };
+
+    addListener<string>("device-disconnected", handleDeviceDisconnected);
 
     if (isTauri() && isAndroid) {
       import("@tauri-apps/api/core")
@@ -676,8 +696,6 @@ function App() {
           else unlisten();
         })
         .catch((error) => console.error("Failed to listen for Android HID disconnects:", error));
-    } else {
-      addListener<string>("device-disconnected", handleDeviceDisconnected);
     }
 
     return () => {
