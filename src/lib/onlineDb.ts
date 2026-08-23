@@ -20,14 +20,26 @@ export interface OnlineDevice {
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
-    request.onerror = () => reject(request.error);
+    let settled = false;
+    const rejectOnce = (error: unknown) => {
+      if (settled) return;
+      settled = true;
+      reject(error);
+    };
+    request.onerror = () => rejectOnce(request.error);
     // Without this, a second window holding an older DB version blocks the
     // upgrade forever and the promise never settles.
-    request.onblocked = () => reject(new Error("Database locked by another window"));
+    request.onblocked = () => rejectOnce(new Error("Database locked by another window"));
     request.onsuccess = () => {
-      request.result.onversionchange = () => request.result.close();
-      resolve(request.result);
-    }
+      const db = request.result;
+      if (settled) {
+        db.close();
+        return;
+      }
+      settled = true;
+      db.onversionchange = () => db.close();
+      resolve(db);
+    };
     request.onupgradeneeded = () => {
       const db = request.result;
       if (!db.objectStoreNames.contains(STORE_NAME)) {
