@@ -40,6 +40,7 @@ fn compute_biquad_coeffs_for(
     // Clamp the frequency to at most 49% of the sample rate to prevent Nyquist boundary collapse
     let max_safe_freq = (0.49 * dsp_sample_rate).max(20.0);
     let freq = frequency.clamp(20.0, max_safe_freq);
+    let gain = gain.clamp(-150.0, 150.0);
     let a_val = 10_f64.powf(gain / 40.0);
     let omega = (freq * TAU) / dsp_sample_rate;
     let sin_w = omega.sin();
@@ -232,6 +233,9 @@ mod tests {
             (FilterType::LowPass, 12000, 0.0, 0.707, 96000.0),
             // High Q with max gain — old formula would produce NaN
             (FilterType::LowShelf, 100, 10.0, 10.0, 96000.0),
+            // Extreme gain must not overflow f64
+            (FilterType::Peak, 1000, 10000.0, 1.0, 96000.0),
+            (FilterType::LowShelf, 1000, -10000.0, 1.0, 96000.0),
             // Frequency above Nyquist for 44.1kHz
             (FilterType::Peak, 23000, 5.0, 1.0, 44100.0),
         ];
