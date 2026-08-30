@@ -73,7 +73,7 @@ fn filter_type_to_fiio(filter_type: FilterType) -> u8 {
 }
 
 fn matches_response(data: &[u8], command: u8, payload_len: u8) -> bool {
-    data.len() == 6 + payload_len as usize
+    data.len() >= 6 + payload_len as usize
         && data[..4] == [RESPONSE_1, RESPONSE_2, 0, 0]
         && data[4] == command
         && data[5] == payload_len
@@ -342,6 +342,14 @@ mod tests {
         assert!(!JA11_PROTOCOL.matches_filter_response(&filter_response[..13], 3, 0));
         assert!(JA11_PROTOCOL.matches_global_gain_response(&gain_response));
         assert!(!JA11_PROTOCOL.matches_global_gain_response(&gain_response[..7]));
+
+        let mut padded_filter = vec![0u8; 64];
+        padded_filter[..filter_response.len()].copy_from_slice(&filter_response);
+        assert!(JA11_PROTOCOL.matches_filter_response(&padded_filter, 3, 0));
+
+        let mut padded_gain = vec![0u8; 64];
+        padded_gain[..gain_response.len()].copy_from_slice(&gain_response);
+        assert!(JA11_PROTOCOL.matches_global_gain_response(&padded_gain));
     }
 
     #[test]
