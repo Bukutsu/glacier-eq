@@ -139,10 +139,8 @@ function App() {
   useEffect(() => {
     invoke<AppSettings>("get_settings")
       .then((settings) => {
-        // A user change may land during the load window; don't clobber it with
-        // the late IPC response.
-        if (settingsRef.current !== DEFAULT_SETTINGS) return;
-        const merged = { ...DEFAULT_SETTINGS, ...settings };
+        // A user change may land during the load window; preserve user edits over loaded settings.
+        const merged = { ...DEFAULT_SETTINGS, ...settings, ...settingsRef.current };
         settingsRef.current = merged;
         setSettings(merged);
       })
