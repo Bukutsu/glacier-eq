@@ -1032,10 +1032,10 @@ function App() {
       pushToUndoStack(peqRef.current);
       const normalized = normalizePeq(data, { integerPreamp: selectedCapabilities.integer_preamp, capabilities: selectedCapabilities });
       setPeq(normalized);
-      noteEditorMutation();
       setLastPushedPeq(normalized);
       const matchedProfile = await selectMatchingProfile(normalized, "Pulled from device");
       if (!isCurrentPull()) return;
+      noteEditorMutation();
       if (matchedProfile !== "Pulled from device") {
         editorCleanPeqRef.current = normalized;
       }
