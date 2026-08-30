@@ -19,6 +19,8 @@ const DISCONNECT_NEEDLES: &[&str] = &[
     "device disconnected",
     "no device connected",
     "no supported dac connected",
+    "device is closed",
+    "device closed",
 ];
 
 /// On Windows errno 5 is ERROR_ACCESS_DENIED (permissions/locked device), not a
@@ -35,4 +37,19 @@ pub fn is_disconnection(message: &str) -> bool {
         .iter()
         .chain(PLATFORM_DISCONNECT_NEEDLES.iter())
         .any(|needle| lower.contains(needle))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn classifies_disconnection_errors() {
+        assert!(is_disconnection("Cannot write: device is closed"));
+        assert!(is_disconnection("Device closed: /dev/bus/usb/001/002"));
+        assert!(is_disconnection("HidError: device disconnected"));
+        assert!(is_disconnection("No such device (os error 19)"));
+        assert!(!is_disconnection("Checksum verification failed"));
+        assert!(!is_disconnection("Invalid frequency range"));
+    }
 }
