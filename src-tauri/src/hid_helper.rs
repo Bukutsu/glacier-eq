@@ -336,6 +336,9 @@ fn dispatch(
                 Ok(c) => c,
                 Err(_) => return IpcResult::Err("invalid path".into()),
             };
+            if let Err(e) = api.refresh_devices() {
+                return IpcResult::Err(format!("refresh: {e}"));
+            }
             // Running as root, this helper must not become a generic HID
             // read/write oracle if the unprivileged main process is
             // compromised: only open paths whose VID:PID belongs to a
