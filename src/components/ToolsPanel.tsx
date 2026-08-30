@@ -1013,6 +1013,8 @@ export function AutoEqTab({
       setLocalMeasId(visible.id);
     } else if (measurements.length > 0) {
       setLocalMeasId(measurements[0].id);
+    } else {
+      setLocalMeasId("");
     }
   }, [measurements, localMeasId]);
 
@@ -1026,14 +1028,14 @@ export function AutoEqTab({
       setLocalTargetId(active.id);
     } else if (allTargets.length > 0) {
       setLocalTargetId(allTargets[0].id);
+    } else {
+      setLocalTargetId("");
     }
   }, [allTargets, activeTargetIds, localTargetId]);
 
   // Sync selected measurement to parent for graph highlighting
   useEffect(() => {
-    if (localMeasId) {
-      onSelectedMeasurementChange?.(localMeasId);
-    }
+    onSelectedMeasurementChange?.(localMeasId || null);
   }, [onSelectedMeasurementChange, localMeasId]);
 
   // Resolve measurement and target objects dynamically
@@ -1126,7 +1128,7 @@ export function AutoEqTab({
         console.error(err);
       }
     } finally {
-      if (isCurrent()) setIsOptimizing(false);
+      if (mountedRef.current) setIsOptimizing(false);
     }
   };
 
