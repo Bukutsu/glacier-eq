@@ -94,6 +94,12 @@ pub fn parse_autoeq_text(text: &str) -> Result<(PEQData, Option<String>, Vec<Str
         if let Some((before, _)) = line.split_once('#') {
             line = before.trim();
         }
+        if let Some((before, _)) = line.split_once("//") {
+            line = before.trim();
+        }
+        if let Some((before, _)) = line.split_once(';') {
+            line = before.trim();
+        }
 
         if line.is_empty() {
             continue;
@@ -2075,12 +2081,16 @@ Filter 4: ON LowPass Fc 18000 Hz Gain 0 dB Q 0.7";
 
     #[test]
     fn test_parse_inline_comments() {
-        let text = "Preamp: -3 dB # Set preamplifier gain\nFilter 1: ON PK Fc 1000 Hz Gain 1.5 dB Q 1.4 # peak filter";
+        let text = "Preamp: -3 dB # Set preamplifier gain\nFilter 1: ON PK Fc 1000 Hz Gain 1.5 dB Q 1.4 // peak filter with roll-off\nFilter 2: ON PK Fc 5000 Hz Gain 1.0 dB Q 0.7 ; Semicolon comment";
         let (result, _, _) = parse_autoeq_text(text).unwrap();
         assert_eq!(result.global_gain, -3.0);
+        assert_eq!(result.filters.len(), 2);
         assert_eq!(result.filters[0].freq, 1000);
         assert!((result.filters[0].gain - 1.5).abs() < 0.01);
         assert!((result.filters[0].q - 1.4).abs() < 0.01);
+        assert!(result.filters[0].enabled);
+        assert_eq!(result.filters[1].freq, 5000);
+        assert!((result.filters[1].gain - 1.0).abs() < 0.01);
     }
 
     #[test]
