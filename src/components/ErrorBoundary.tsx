@@ -1,4 +1,5 @@
 import { Component, ErrorInfo, ReactNode } from "react";
+import { invoke } from "../lib/rpc";
 
 interface Props {
   children: ReactNode;
@@ -21,6 +22,11 @@ export class ErrorBoundary extends Component<Props, State> {
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error("Uncaught error:", error, errorInfo);
+    invoke("add_diagnostic_event", {
+      level: "Error",
+      source: "UI",
+      message: `Render crash: ${error?.message || error}${errorInfo.componentStack ? `\nStack: ${errorInfo.componentStack}` : ""}`,
+    }).catch(() => undefined);
   }
 
   public render() {
