@@ -1049,6 +1049,9 @@ function App() {
       );
     } catch (error) {
       if (isDisconnectionError(error)) {
+        setConnected(false);
+        setLastPushedPeq(null);
+        setFirmwareVersion(null);
         setIsReconnecting(true);
         reportStatus("Error", `Failed to read from DAC (disconnected): ${error}`, "error", "HID", "Reconnecting...");
       } else {
@@ -1205,6 +1208,9 @@ function App() {
       );
     } catch (error) {
       if (!isDevDummyDevice(selectedDevice) && isDisconnectionError(error)) {
+        setConnected(false);
+        setLastPushedPeq(null);
+        setFirmwareVersion(null);
         setIsReconnecting(true);
         reportStatus("Error", `Failed to write to DAC (disconnected): ${error}`, "error", "HID", "Reconnecting...");
       } else {
@@ -1263,6 +1269,9 @@ function App() {
         );
       } catch (error) {
         if (!isDevDummyDevice(selectedDevice) && isDisconnectionError(error)) {
+          setConnected(false);
+          setLastPushedPeq(null);
+          setFirmwareVersion(null);
           setIsReconnecting(true);
           reportStatus("Error", `Failed to apply EQ (disconnected): ${error}`, "error", "HID", "Reconnecting...");
         } else {
