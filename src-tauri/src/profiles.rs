@@ -33,18 +33,22 @@ fn store(app: &tauri::AppHandle) -> Result<ProfileStore, String> {
     ProfileStore::new(app_data_base_dir(app)?)
 }
 
+fn match_target_for_connected(
+    connected: Option<&crate::state::ConnectedDevice>,
+) -> (DeviceCapabilities, DeviceProtocol) {
+    let Some(connected) = connected else {
+        return (DESKTOP_DAC_CAPS, DeviceProtocol::Unknown);
+    };
+    get_supported_device(connected.vendor_id, connected.product_id)
+        .map(|profile| (profile.caps.clone(), profile.protocol))
+        .unwrap_or((DESKTOP_DAC_CAPS, DeviceProtocol::Unknown))
+}
+
 fn connected_match_target(
     state: &tauri::State<'_, Mutex<DeviceState>>,
 ) -> Result<(DeviceCapabilities, DeviceProtocol), String> {
     let guard = state.lock().unwrap_or_else(|p| p.into_inner());
-    let Some(connected) = &guard.connected else {
-        return Ok((DESKTOP_DAC_CAPS, DeviceProtocol::Walkplay));
-    };
-    Ok(
-        get_supported_device(connected.vendor_id, connected.product_id)
-            .map(|profile| (profile.caps.clone(), profile.protocol))
-            .unwrap_or((DESKTOP_DAC_CAPS, DeviceProtocol::Walkplay)),
-    )
+    Ok(match_target_for_connected(guard.connected.as_ref()))
 }
 
 #[tauri::command]
@@ -192,4 +196,27 @@ pub async fn run_autoeq(
     .map_err(|error| format!("AutoEQ worker failed: {error}"))??;
     let warnings = peq.clamp_to_capabilities(&connected_match_target(&state)?.0);
     Ok(AutoEqRunResult { peq, warnings })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::state::ConnectedDevice;
+
+    #[test]
+    fn match_target_uses_unknown_protocol_when_disconnected_or_unsupported() {
+        let (caps, protocol) = match_target_for_connected(None);
+        assert_eq!(caps.integer_preamp, false);
+        assert_eq!(protocol, DeviceProtocol::Unknown);
+
+        let unsupported = ConnectedDevice {
+            path: "/dev/hidraw0".to_string(),
+            vendor_id: 0xFFFF,
+            product_id: 0xFFFF,
+            profile_name: "Generic".to_string(),
+        };
+        let (caps, protocol) = match_target_for_connected(Some(&unsupported));
+        assert_eq!(caps.integer_preamp, false);
+        assert_eq!(protocol, DeviceProtocol::Unknown);
+    }
 }
