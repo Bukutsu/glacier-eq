@@ -361,19 +361,24 @@ fn parse_filter_line(line: &str) -> Option<ParsedFilterLine> {
 fn extract_number_after(s: &str, keyword: &str) -> Option<f64> {
     let lower = s.to_ascii_lowercase();
     let keyword_lower = keyword.to_ascii_lowercase();
+    let bytes = lower.as_bytes();
     let mut search_start = 0;
     while let Some(pos) = lower[search_start..].find(&keyword_lower) {
         let actual_pos = search_start + pos;
-        if keyword_lower == "q" {
-            // Ensure the matched 'q' is not part of a token like "lsq", "hsq"
-            let slice_before = &lower[..actual_pos];
-            let is_filter_type_q = slice_before.ends_with("ls") || slice_before.ends_with("hs");
-            if is_filter_type_q {
-                search_start = actual_pos + 1;
-                continue;
-            }
+        let prefix_ok = actual_pos == 0 || !bytes[actual_pos - 1].is_ascii_alphanumeric();
+        let suffix_ok = bytes
+            .get(actual_pos + keyword.len())
+            .is_none_or(|b| !b.is_ascii_alphabetic());
+
+        if !prefix_ok || !suffix_ok {
+            search_start = actual_pos + 1;
+            continue;
         }
-        return extract_number(&lower[actual_pos + keyword.len()..]);
+
+        if let Some(num) = extract_number(&lower[actual_pos + keyword.len()..]) {
+            return Some(num);
+        }
+        search_start = actual_pos + 1;
     }
     None
 }
@@ -2048,6 +2053,16 @@ Filter 4: ON LowPass Fc 18000 Hz Gain 0 dB Q 0.7";
         assert_eq!(result.filters[1].freq, 1000);
         assert_eq!(warnings.len(), 1);
         assert!(warnings[0].contains("Failed to parse"));
+    }
+
+    #[test]
+    fn test_parse_filter_line_with_embedded_q_words() {
+        let text = "Filter 1: ON PK Fc 1000 Hz Gain -2.0 dB Equalizer Q 1.41";
+        let (result, _, warnings) = parse_autoeq_text(text).unwrap();
+        assert_eq!(result.filters[0].freq, 1000);
+        assert_eq!(result.filters[0].gain, -2.0);
+        assert_eq!(result.filters[0].q, 1.41);
+        assert!(warnings.is_empty());
     }
 
     #[test]
