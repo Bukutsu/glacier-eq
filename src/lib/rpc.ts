@@ -582,7 +582,7 @@ async function readWalkplayUtility(cmd: number): Promise<Uint8Array> {
       await sendReport(walkplayPacket([0x80, cmd, 0x00]));
       await sleep(25);
       const report = await readMatchingReport(100, (data) =>
-        data.length >= (cmd === 0x27 ? 6 : 5) && data[0] === 0x4b && data[1] === 0x80 && data[2] === cmd
+        data.length >= (cmd === CMD_MIC_VOLUME ? 6 : 5) && data[0] === 0x4b && data[1] === 0x80 && data[2] === cmd
       );
       if (report) return report;
     } catch (error) {
