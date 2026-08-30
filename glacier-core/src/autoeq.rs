@@ -313,13 +313,25 @@ fn parse_filter_line(line: &str) -> Option<ParsedFilterLine> {
     let on_off = !lower.contains("off");
     let rest_upper = rest.to_uppercase();
 
-    let filter_type = if contains_token(&rest_upper, "LSC") || contains_token(&rest_upper, "LSQ") {
+    let filter_type = if contains_token(&rest_upper, "LSC")
+        || contains_token(&rest_upper, "LSQ")
+        || contains_token(&rest_upper, "LOWSHELF")
+    {
         FilterType::LowShelf
-    } else if contains_token(&rest_upper, "HSC") || contains_token(&rest_upper, "HSQ") {
+    } else if contains_token(&rest_upper, "HSC")
+        || contains_token(&rest_upper, "HSQ")
+        || contains_token(&rest_upper, "HIGHSHELF")
+    {
         FilterType::HighShelf
-    } else if contains_token(&rest_upper, "HP") || contains_token(&rest_upper, "HPF") {
+    } else if contains_token(&rest_upper, "HP")
+        || contains_token(&rest_upper, "HPF")
+        || contains_token(&rest_upper, "HIGHPASS")
+    {
         FilterType::HighPass
-    } else if contains_token(&rest_upper, "LP") || contains_token(&rest_upper, "LPF") {
+    } else if contains_token(&rest_upper, "LP")
+        || contains_token(&rest_upper, "LPF")
+        || contains_token(&rest_upper, "LOWPASS")
+    {
         FilterType::LowPass
     } else if contains_token(&rest_upper, "LS") {
         FilterType::LowShelf
@@ -2008,6 +2020,24 @@ Filter 8: ON HSC Fc 7624 Hz Gain 0.59 dB Q 3.000";
         let (result, _, _) = parse_autoeq_text(text).unwrap();
         assert_eq!(result.filters[0].filter_type, FilterType::LowShelf);
         assert_eq!(result.filters[1].filter_type, FilterType::HighShelf);
+    }
+
+    #[test]
+    fn test_parse_full_name_filter_types() {
+        let text = "Filter 1: ON LowShelf Fc 80 Hz Gain -2 dB Q 0.7
+Filter 2: ON HighShelf Fc 8000 Hz Gain 1 dB Q 0.7
+Filter 3: ON HighPass Fc 20 Hz Gain 0 dB Q 0.7
+Filter 4: ON LowPass Fc 18000 Hz Gain 0 dB Q 0.7";
+        let (result, _, _) = parse_autoeq_text(text).unwrap();
+        // Filters are sorted by frequency
+        assert_eq!(result.filters[0].freq, 20);
+        assert_eq!(result.filters[0].filter_type, FilterType::HighPass);
+        assert_eq!(result.filters[1].freq, 80);
+        assert_eq!(result.filters[1].filter_type, FilterType::LowShelf);
+        assert_eq!(result.filters[2].freq, 8000);
+        assert_eq!(result.filters[2].filter_type, FilterType::HighShelf);
+        assert_eq!(result.filters[3].freq, 18000);
+        assert_eq!(result.filters[3].filter_type, FilterType::LowPass);
     }
 
     #[test]
