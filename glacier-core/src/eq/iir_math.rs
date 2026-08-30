@@ -173,6 +173,8 @@ fn eval_biquad_mag_squared_db(
 
     if num > 0.0 && den > 0.0 {
         (10.0 * (num / den).log10()) as f32
+    } else if num <= 0.0 && den > 0.0 {
+        -150.0
     } else {
         0.0
     }
@@ -221,6 +223,20 @@ mod tests {
         }
         // At center frequency (1000Hz), gain should be approximately 6 dB
         assert!((res1[2] - 6.0).abs() < 0.1);
+    }
+
+    #[test]
+    fn highpass_transmission_zero_at_dc_attenuates() {
+        let coeffs = biquad_mag_squared_coeffs(compute_biquad_coeffs_for(
+            FilterType::HighPass,
+            1000.0,
+            0.0,
+            0.707,
+            48000.0,
+        ));
+        // At DC (0 Hz), cos(0) = 1.0
+        let db = eval_biquad_mag_squared_db(coeffs, 1.0);
+        assert!(db <= -100.0, "HighPass at DC must deeply attenuate, got {db} dB");
     }
 
     #[test]
