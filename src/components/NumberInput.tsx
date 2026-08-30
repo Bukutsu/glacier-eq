@@ -85,6 +85,7 @@ export function NumberInput({
         const nextVal = Math.min(max, value + largeStep);
         onChange(Number(nextVal.toFixed(precision)));
       }
+      onBlur?.();
     } else if (e.key === "PageDown") {
       e.preventDefault();
       if (disabled) return;
@@ -97,6 +98,7 @@ export function NumberInput({
         const nextVal = Math.max(min, value - largeStep);
         onChange(Number(nextVal.toFixed(precision)));
       }
+      onBlur?.();
     }
   };
 
@@ -106,10 +108,12 @@ export function NumberInput({
     setDraft(null);
     if (onStep) {
       onStep(-1, false);
+      onBlur?.();
       return;
     }
     const nextVal = Math.max(min, value - step);
     onChange(Number(nextVal.toFixed(precision)));
+    onBlur?.();
   };
 
   const increment = () => {
@@ -118,10 +122,12 @@ export function NumberInput({
     setDraft(null);
     if (onStep) {
       onStep(1, false);
+      onBlur?.();
       return;
     }
     const nextVal = Math.min(max, value + step);
     onChange(Number(nextVal.toFixed(precision)));
+    onBlur?.();
   };
 
   const displayValue = draft ?? value.toFixed(precision);
