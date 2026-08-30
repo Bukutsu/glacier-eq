@@ -190,6 +190,7 @@ export const Bands = memo(function Bands({ peq, committedPeq, capabilities, onFi
                   if (visibleFilters.length <= 1) return;
                   onStartChange();
                   onFilterChange(selectedFilter.index, { ...selectedFilter, enabled: false });
+                  onEndChange?.();
                   const next = visibleFilters.find((filter) => filter.index !== selectedFilter.index);
                   if (next) onActiveBandChange?.(next.index);
                 }}
