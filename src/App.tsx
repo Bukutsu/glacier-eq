@@ -115,6 +115,7 @@ function App() {
 
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const settingsRef = useRef(settings);
+  const userSettingsEditsRef = useRef<Partial<AppSettings>>({});
   const settingsSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const theme = settings.theme;
   const snapToIso = settings.snap_to_iso_frequencies;
@@ -124,6 +125,7 @@ function App() {
     key: K,
     value: AppSettings[K],
   ) => {
+    userSettingsEditsRef.current[key] = value;
     // Compute and persist outside the updater: updaters must be pure and are
     // double-invoked under StrictMode, which duplicated the IPC write.
     const updated = { ...settingsRef.current, [key]: value };
@@ -140,7 +142,7 @@ function App() {
     invoke<AppSettings>("get_settings")
       .then((settings) => {
         // A user change may land during the load window; preserve user edits over loaded settings.
-        const merged = { ...DEFAULT_SETTINGS, ...settings, ...settingsRef.current };
+        const merged = { ...DEFAULT_SETTINGS, ...settings, ...userSettingsEditsRef.current };
         settingsRef.current = merged;
         setSettings(merged);
       })
