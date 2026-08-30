@@ -37,6 +37,10 @@ export function ConfirmDialogHost() {
     listeners.add(listener);
     return () => {
       listeners.delete(listener);
+      if (pendingResolver) {
+        pendingResolver(false);
+        pendingResolver = null;
+      }
     };
   }, []);
 
