@@ -177,7 +177,15 @@ fn hid_close(app: &tauri::AppHandle, path: &str) -> Result<(), String> {
 
 fn try_open_device(app: &tauri::AppHandle, path: &str) -> Result<(), String> {
     match tauri_plugin_hid::hid(app).open(path) {
-        Ok(()) => return Ok(()),
+        Ok(()) => {
+            #[cfg(target_os = "linux")]
+            {
+                let state = app.state::<Mutex<Option<ElevatedTransport>>>();
+                let mut guard = state.lock().unwrap_or_else(|p| p.into_inner());
+                *guard = None;
+            }
+            return Ok(());
+        }
         Err(e) => {
             let msg = e.to_string();
             if !msg.to_lowercase().contains("permission denied") {
