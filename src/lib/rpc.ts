@@ -582,7 +582,7 @@ async function readWalkplayUtility(cmd: number): Promise<Uint8Array> {
       await sendReport(walkplayPacket([0x80, cmd, 0x00]));
       await sleep(25);
       const report = await readMatchingReport(100, (data) =>
-        data.length >= 5 && data[0] === 0x4b && data[1] === 0x80 && data[2] === cmd
+        data.length >= (cmd === 0x27 ? 6 : 5) && data[0] === 0x4b && data[1] === 0x80 && data[2] === cmd
       );
       if (report) return report;
     } catch (error) {
@@ -741,7 +741,7 @@ async function pullEqStateOnce(profile: SupportedDeviceInfo): Promise<PEQData> {
       percentage: Math.round(((i + 1) / numBands) * 90),
     });
 
-    const nonce = i;
+    const nonce = (i + 1) & 0xff;
     const filterReq = build_read_filter_request(protocol, i, nonce);
     let filter: Filter | null = null;
 
