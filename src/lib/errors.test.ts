@@ -26,5 +26,7 @@ describe("isDisconnectionErrorForPlatform", () => {
   it("keeps platform-independent disconnect classifications", () => {
     expect(isDisconnectionErrorForPlatform("No such device", true)).toBe(true);
     expect(isDisconnectionErrorForPlatform("No such device", false)).toBe(true);
+    expect(isDisconnectionErrorForPlatform("Cannot write: device is closed", false)).toBe(true);
+    expect(isDisconnectionErrorForPlatform("Device closed: /dev/bus/usb/001/002", false)).toBe(true);
   });
 });
