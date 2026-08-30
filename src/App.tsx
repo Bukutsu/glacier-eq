@@ -1063,27 +1063,32 @@ function App() {
     }
   }, [connected, dirty, pushToUndoStack, selectedDevice, selectedCapabilities, reportStatus, setStatus, getAsyncContext, noteEditorMutation]);
 
-  const connectDevice = useCallback(async (): Promise<boolean> => {
-    if (!selectedDevice) return false;
+  const connectDevice = useCallback(async (targetPath?: string): Promise<boolean> => {
+    const pathToConnect = targetPath || selectedDevice;
+    if (!pathToConnect) return false;
+    if (pathToConnect !== selectedDevice) {
+      setSelectedDevice(pathToConnect);
+    }
     setIsBusy(true);
     try {
-      if (isDevDummyDevice(selectedDevice)) {
-        setConnected(true, selectedDevice);
+      if (isDevDummyDevice(pathToConnect)) {
+        setConnected(true, pathToConnect);
         setLastPushedPeq(null);
         setConnectedDeviceName("Glacier Dummy DAC");
         reportStatus("Info", "Connected to dummy DAC", "success", "UI", "Connected to dummy DAC");
         await pullEq(true);
-        await loadFirmwareVersion(selectedDevice, connectionGenerationRef.current);
+        await loadFirmwareVersion(pathToConnect, connectionGenerationRef.current);
         return true;
       }
 
-      await invoke("connect_device", { path: selectedDevice });
-      setConnected(true, selectedDevice);
+      await invoke("connect_device", { path: pathToConnect });
+      setConnected(true, pathToConnect);
       setLastPushedPeq(null);
       
       let devName = "";
-      if (selectedDeviceInfo) {
-        devName = selectedDeviceInfo.profile_name ?? selectedDeviceInfo.product_string ?? "";
+      const devInfo = devices.find((d) => d.path === pathToConnect) ?? selectedDeviceInfo;
+      if (devInfo) {
+        devName = devInfo.profile_name ?? devInfo.product_string ?? "";
         setConnectedDeviceName(devName);
       }
       
@@ -1104,7 +1109,7 @@ function App() {
           reportStatus("Info", "Editor adjusted to this DAC's supported ranges", "info", "Device");
         }
       }
-      await loadFirmwareVersion(selectedDevice, connectionGenerationRef.current);
+      await loadFirmwareVersion(pathToConnect, connectionGenerationRef.current);
       return true;
     } catch (error) {
       setConnected(false);
@@ -1321,9 +1326,12 @@ function App() {
     }))) return;
 
     try {
-      await invoke("save_profile", { name, peq: savedPeq });
-      await loadProfiles();
+      const mutation = await runProfileMutation(async () => {
+        await invoke("save_profile", { name, peq: savedPeq });
+        await loadProfiles();
+      });
       const contextStillCurrent =
+        mutation.current &&
         peqEquals(peqRef.current, savedPeq) &&
         selectedPresetRef.current === savedContext.selectedPreset &&
         profileSearchRef.current === savedContext.profileSearch &&
@@ -1339,7 +1347,7 @@ function App() {
     } catch (error) {
       setStatus(`Failed to save profile: ${error}`);
     }
-  }, [profiles, loadProfiles, setStatus]);
+  }, [profiles, loadProfiles, setStatus, runProfileMutation]);
 
   const deleteSelectedProfile = useCallback(async () => {
     const deletedName = selectedPresetRef.current;
@@ -1357,9 +1365,12 @@ function App() {
     }))) return;
 
     try {
-      await invoke("delete_profile", { name: deletedName });
-      await loadProfiles();
+      const mutation = await runProfileMutation(async () => {
+        await invoke("delete_profile", { name: deletedName });
+        await loadProfiles();
+      });
       const contextStillCurrent =
+        mutation.current &&
         selectedPresetRef.current === deletedName &&
         peqEquals(peqRef.current, editorSnapshot) &&
         profileSearchRef.current === deletedContext.profileSearch &&
@@ -1498,12 +1509,11 @@ function App() {
     noteEditorMutation();
     setDirty(!peqEquals(next, editorCleanPeqRef.current));
   }, [noteEditorMutation]);
-  const handleConnectDevice = useCallback(async () => {
-    if (await connectDevice()) {
-      window.localStorage.setItem(DEVICE_ONBOARDING_KEY, "true");
-      setShowDeviceModal(false);
+  const handleConnectDevice = useCallback(async (targetPath?: string) => {
+    if (await connectDevice(targetPath)) {
+      handleCloseDeviceModal();
     }
-  }, [connectDevice]);
+  }, [connectDevice, handleCloseDeviceModal]);
   const handleToggleGraphCollapsed = useCallback(() => {
     setGraphCollapsed((v) => !v);
   }, []);

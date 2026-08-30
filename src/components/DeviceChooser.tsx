@@ -8,7 +8,7 @@ import type { DeviceInfo, SupportedDeviceInfo } from "../types";
 interface DeviceChooserProps {
   devices: DeviceInfo[];
   onScan: () => void | Promise<void>;
-  onConnect: () => void | Promise<unknown>;
+  onConnect: (targetPath?: string) => void | Promise<unknown>;
   selectedDevice: string;
   setSelectedDevice: (path: string) => void;
   status: string;
@@ -92,7 +92,10 @@ export function DeviceChooser({
                 aria-checked={selected}
                 disabled={isBusy}
                 onClick={() => setSelectedDevice(device.path)}
-                onDoubleClick={onConnect}
+                onDoubleClick={() => {
+                  setSelectedDevice(device.path);
+                  onConnect(device.path);
+                }}
               >
                 <span className="device-row-title">
                   {name}
@@ -150,7 +153,7 @@ export function DeviceChooser({
       </details>
 
       <div className="device-actions">
-        <button className="btn filled" onClick={onConnect} disabled={!selectedDevice || isBusy}>Connect</button>
+        <button className="btn filled" onClick={() => onConnect()} disabled={!selectedDevice || isBusy}>Connect</button>
       </div>
       <span className="status-text" role="status" aria-live="polite">{authorizationError ?? status}</span>
     </section>
