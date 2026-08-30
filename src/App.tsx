@@ -521,23 +521,32 @@ function App() {
     if (
       typeof value !== "object" ||
       value === null ||
-      !Array.isArray((value as { filters?: unknown }).filters) ||
-      typeof (value as { global_gain?: unknown }).global_gain !== "number" ||
-      !Number.isFinite((value as { global_gain: number }).global_gain)
+      !Array.isArray((value as { filters?: unknown }).filters)
     ) {
       throw new Error("Device returned an invalid EQ state");
     }
-    const peq = value as PEQData;
-    for (const filter of peq.filters) {
+    const raw = value as { filters: unknown[]; global_gain?: unknown; globalGain?: unknown };
+    const globalGain = raw.global_gain ?? raw.globalGain;
+    if (typeof globalGain !== "number" || !Number.isFinite(globalGain)) {
+      throw new Error("Device returned an invalid EQ state");
+    }
+    for (const filter of raw.filters) {
+      if (typeof filter !== "object" || filter === null) {
+        throw new Error("Device returned an invalid EQ state");
+      }
+      const f = filter as Record<string, unknown>;
       if (
-        typeof filter.gain !== "number" || !Number.isFinite(filter.gain) ||
-        typeof filter.q !== "number" || !Number.isFinite(filter.q) || filter.q <= 0 ||
-        typeof filter.freq !== "number" || !(filter.freq > 0)
+        typeof f.gain !== "number" || !Number.isFinite(f.gain) ||
+        typeof f.q !== "number" || !Number.isFinite(f.q) || f.q <= 0 ||
+        typeof f.freq !== "number" || !(f.freq > 0)
       ) {
         throw new Error("Device returned an invalid EQ state");
       }
     }
-    return peq;
+    return normalizePeq(value, {
+      integerPreamp: capabilities.integer_preamp,
+      capabilities,
+    });
   };
 
   const getAsyncContext = useCallback((): AsyncContext => ({
