@@ -1128,7 +1128,7 @@ export function AutoEqTab({
         console.error(err);
       }
     } finally {
-      if (mountedRef.current) setIsOptimizing(false);
+      if (mountedRef.current && request === requestRef.current) setIsOptimizing(false);
     }
   };
 
