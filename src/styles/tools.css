@@ -955,7 +955,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   display: flex;
   min-height: 0;
   flex-direction: column;
-  gap: 10px;
+  gap: 14px;
 }
 
 .desktop-tuning-tab .tuning-library {
@@ -966,6 +966,22 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 
 .desktop-tuning-tab .tuning-library > .app-collapse-trigger {
   flex: 0 0 auto;
+}
+
+.desktop-tuning-tab .tuning-library .app-collapse-content-inner {
+  padding: 10px;
+}
+
+.desktop-tuning-tab .curves-actions {
+  flex-wrap: wrap;
+}
+
+.desktop-tuning-tab .curve-toggle {
+  padding: 0 4px;
+}
+
+.desktop-tuning-tab .curve-points {
+  display: none;
 }
 
 .desktop-tuning-tab .tuning-library > .app-collapse-content {
@@ -990,16 +1006,17 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 
 .autoeq-match-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
   min-width: 0;
 }
 
 .autoeq-run-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto;
   align-items: center;
   gap: 10px;
-  margin-top: 8px;
+  margin-top: 0;
 }
 
 .autoeq-bands-label {
@@ -1009,11 +1026,17 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 }
 
 .autoeq-run-row .autoeq-bands-stepper.custom-number-input {
-  max-width: 96px;
+  width: 96px;
 }
 
 .autoeq-run-btn {
-  flex: 1;
+  grid-column: 1 / -1;
+  width: 100%;
+  min-height: 44px;
+}
+
+.autoeq-match-card {
+  gap: 10px;
 }
 
 .autoeq-empty {

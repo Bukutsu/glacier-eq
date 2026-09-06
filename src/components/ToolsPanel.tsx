@@ -206,7 +206,6 @@ export const ToolsPanel = memo(function ToolsPanel(props: ToolsPanelProps) {
               <Collapsible
                 title={`Traces & Targets (${(props.measurements?.length ?? 0) + (props.allTargets?.length ?? 0)})`}
                 icon="analytics"
-                defaultOpen={(props.measurements?.length ?? 0) === 0 && (props.allTargets?.length ?? 0) === 0}
                 className="tuning-library"
               >
                 <CurvesTab
@@ -370,7 +369,7 @@ function CurvesTab({
         </button>
         {measurements.length > 0 && (
           <button className="tool-link-button danger" onClick={onClearMeasurements}>
-            Clear all
+            Clear measurements
           </button>
         )}
       </div>
@@ -1140,12 +1139,12 @@ export function AutoEqTab({
           <p>Add a measurement, then match it to a target curve to generate an EQ automatically.</p>
         </div>
       ) : (
-        <section className="tool-card">
+        <section className="tool-card autoeq-match-card">
           <div className="tool-card-head">
-            <strong>AutoEQ Match</strong>
+            <strong>Match to target</strong>
           </div>
           <p className="autoeq-description">
-            Fit the selected measurement to a target curve and load the result into the editor.
+            Generate EQ from a measurement and target.
           </p>
           <div className="autoeq-match-grid">
             <div className="import-field-group">
@@ -1169,7 +1168,7 @@ export function AutoEqTab({
             </div>
           </div>
 
-          <Collapsible title="Advanced options" compact defaultOpen={false}>
+          <Collapsible title="Advanced settings" compact defaultOpen={false}>
             <div className="autoeq-form-grid">
               <div className="import-field-group">
                 <label>Treble Smoothing</label>
@@ -1265,9 +1264,10 @@ export function AutoEqTab({
               onClick={handleRunAutoEq}
             >
               <Icon>{isOptimizing ? "hourglass_empty" : "bolt"}</Icon>
-              <span>{isOptimizing ? "Optimizing..." : "Run Match"}</span>
+              <span>{isOptimizing ? "Generating EQ..." : "Generate EQ"}</span>
             </button>
           </div>
+          {!target && <p className="card-note" role="status">Add a target using Add Trace to continue.</p>}
         </section>
       )}
 
