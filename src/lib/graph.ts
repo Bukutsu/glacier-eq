@@ -2,6 +2,7 @@ import type { Filter, PEQData } from "../types";
 import initWasm, {
   filter_response_values,
   peq_response_values,
+  peq_response_and_band_values,
   snap_freq_to_iso,
 } from "../wasm_pkg/glacier_core";
 
@@ -84,4 +85,15 @@ export async function peqResponseValues(
   await ensureWasmReady();
   const f32Freqs = freqs instanceof Float32Array ? freqs : new Float32Array(freqs);
   return peq_response_values(peq, f32Freqs, includePreamp, dspSampleRate) as Float32Array;
+}
+
+export async function peqResponseAndBandValues(
+  peq: PEQData,
+  freqs: Float32Array | number[],
+  includePreamp: boolean,
+  dspSampleRate = 96000,
+): Promise<Float32Array> {
+  await ensureWasmReady();
+  const f32Freqs = freqs instanceof Float32Array ? freqs : new Float32Array(freqs);
+  return peq_response_and_band_values(peq, f32Freqs, includePreamp, dspSampleRate);
 }
