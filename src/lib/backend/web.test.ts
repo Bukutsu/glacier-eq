@@ -31,7 +31,7 @@ const wasm = vi.hoisted(() => ({
   get_write_timing: vi.fn(() => ({})),
 }));
 
-vi.mock("../wasm_pkg/glacier_core", () => ({
+vi.mock("../../wasm_pkg/glacier_core", () => ({
   default: wasm.init,
   ...wasm,
 }));
@@ -44,7 +44,7 @@ import {
   persistentPushFailureMessage,
   shouldRetryWebHidRead,
   WebHidReadTimeout,
-} from "./rpc";
+} from "./web";
 
 const profile: SupportedDeviceInfo = {
   name: "Test DAC",

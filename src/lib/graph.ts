@@ -1,10 +1,10 @@
 import type { Filter, PEQData } from "../types";
-import initWasm, {
-  filter_response_values,
-  peq_response_values,
-  peq_response_and_band_values,
-  snap_freq_to_iso,
-} from "../wasm_pkg/glacier_core";
+import {
+  filterResponseValues as calculateFilterResponseValues,
+  peqResponseValues as calculatePeqResponseValues,
+  peqResponseAndBandValues as calculatePeqResponseAndBandValues,
+  snapFreqToIso,
+} from "./graphMath";
 
 const logMin = Math.log10(20);
 const logMax = Math.log10(20000);
@@ -51,19 +51,8 @@ export function getFreqGrid(width: number): Float32Array {
   return freqs;
 }
 
-let wasmReady: Promise<unknown> | null = null;
-
-async function ensureWasmReady() {
-  wasmReady ??= initWasm();
-  await wasmReady;
-}
-
 export function snapFreqToIsoSync(freq: number): number {
-  try {
-    return snap_freq_to_iso(freq);
-  } catch {
-    return freq;
-  }
+  return snapFreqToIso(freq);
 }
 
 export async function filterResponseValues(
@@ -71,9 +60,8 @@ export async function filterResponseValues(
   freqs: Float32Array | number[],
   dspSampleRate = 96000,
 ): Promise<Float32Array> {
-  await ensureWasmReady();
   const f32Freqs = freqs instanceof Float32Array ? freqs : new Float32Array(freqs);
-  return filter_response_values(filter, f32Freqs, dspSampleRate) as Float32Array;
+  return calculateFilterResponseValues(filter, f32Freqs, dspSampleRate);
 }
 
 export async function peqResponseValues(
@@ -82,9 +70,8 @@ export async function peqResponseValues(
   includePreamp: boolean,
   dspSampleRate = 96000,
 ): Promise<Float32Array> {
-  await ensureWasmReady();
   const f32Freqs = freqs instanceof Float32Array ? freqs : new Float32Array(freqs);
-  return peq_response_values(peq, f32Freqs, includePreamp, dspSampleRate) as Float32Array;
+  return calculatePeqResponseValues(peq, f32Freqs, includePreamp, dspSampleRate);
 }
 
 export async function peqResponseAndBandValues(
@@ -93,7 +80,6 @@ export async function peqResponseAndBandValues(
   includePreamp: boolean,
   dspSampleRate = 96000,
 ): Promise<Float32Array> {
-  await ensureWasmReady();
   const f32Freqs = freqs instanceof Float32Array ? freqs : new Float32Array(freqs);
-  return peq_response_and_band_values(peq, f32Freqs, includePreamp, dspSampleRate);
+  return calculatePeqResponseAndBandValues(peq, f32Freqs, includePreamp, dspSampleRate);
 }

@@ -4,6 +4,9 @@
     "useDefineForClassFields": true,
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "module": "ESNext",
+    "paths": {
+      "@glacier-eq/backend": ["./src/lib/backend/tauri.ts"]
+    },
     "skipLibCheck": true,
 
     /* Bundler mode */

@@ -101,7 +101,7 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable
         with:
-          targets: wasm32-unknown-unknown ${{ matrix.rust-targets }}
+          targets: ${{ matrix.rust-targets }}
 
       - name: Cache Rust build outputs
         uses: swatinem/rust-cache@258712b0b7b1ddf8bddc9fc3b0faca682b2736c3
@@ -265,10 +265,10 @@ jobs:
           node-version: lts/*
           cache: npm
 
-      - name: Install Rust (aarch64-linux-android + wasm32)
+      - name: Install Rust (aarch64-linux-android)
         uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable
         with:
-          targets: aarch64-linux-android wasm32-unknown-unknown
+          targets: aarch64-linux-android
 
       - uses: swatinem/rust-cache@258712b0b7b1ddf8bddc9fc3b0faca682b2736c3
         with:
