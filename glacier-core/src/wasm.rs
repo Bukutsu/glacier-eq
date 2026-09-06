@@ -72,6 +72,45 @@ fn response_values(
     response
 }
 
+/// Returns the aggregate response followed by one response per enabled filter.
+/// All responses share one cosine grid and each filter is evaluated once.
+fn response_values_and_bands(
+    peq: &PEQData,
+    freqs: &[f32],
+    include_preamp: bool,
+    dsp_sample_rate: f64,
+) -> Vec<f32> {
+    let enabled_filters: Vec<&Filter> =
+        peq.filters.iter().filter(|filter| filter.enabled).collect();
+    let stride = freqs.len();
+    let mut responses = vec![0.0; (enabled_filters.len() + 1) * stride];
+    if include_preamp {
+        responses[..stride].fill(peq.global_gain as f32);
+    }
+
+    let factor = std::f64::consts::TAU / dsp_sample_rate;
+    let cos_w_arr: Vec<f64> = freqs.iter().map(|&f| (f as f64 * factor).cos()).collect();
+
+    for (band_index, filter) in enabled_filters.into_iter().enumerate() {
+        let band_start = (band_index + 1) * stride;
+        let (aggregate, remaining) = responses.split_at_mut(band_start);
+        let band_response = &mut remaining[..stride];
+        crate::eq::iir_math::accumulate_response_values_cos(
+            filter.filter_type,
+            filter.freq as f64,
+            filter.gain,
+            filter.q,
+            dsp_sample_rate,
+            &cos_w_arr,
+            band_response,
+        );
+        for (total, band) in aggregate.iter_mut().zip(band_response.iter()) {
+            *total += *band;
+        }
+    }
+    responses
+}
+
 fn eq_protocol(protocol: &str) -> Result<&'static dyn EqProtocol, JsValue> {
     let normalized = protocol.to_lowercase().replace([' ', '-', '_'], "");
     match normalized.as_str() {
@@ -216,6 +255,22 @@ pub fn peq_response_values(
 ) -> Result<Vec<f32>, JsValue> {
     let peq: PEQData = serde_wasm_bindgen::from_value(peq_js).map_err(js_err)?;
     Ok(response_values(
+        &peq,
+        freqs,
+        include_preamp,
+        dsp_sample_rate,
+    ))
+}
+
+#[wasm_bindgen]
+pub fn peq_response_and_band_values(
+    peq_js: JsValue,
+    freqs: &[f32],
+    include_preamp: bool,
+    dsp_sample_rate: f64,
+) -> Result<Vec<f32>, JsValue> {
+    let peq: PEQData = serde_wasm_bindgen::from_value(peq_js).map_err(js_err)?;
+    Ok(response_values_and_bands(
         &peq,
         freqs,
         include_preamp,

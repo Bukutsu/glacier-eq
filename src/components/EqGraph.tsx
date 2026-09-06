@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useRef, Fragment, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
-import { dbToY, filterResponseValues, formatFreq, freqToX, getFreqGrid, peqResponseValues, snapFreqToIsoSync, xToFreq, yToDb } from "../lib/graph";
+import { dbToY, formatFreq, freqToX, getFreqGrid, peqResponseAndBandValues, peqResponseValues, snapFreqToIsoSync, xToFreq, yToDb } from "../lib/graph";
 import { cssVar, rgbWithAlpha } from "../lib/theme";
 import { interpolateMeasurementDb } from "../lib/measurements";
 import { filterColorVars } from "../lib/filterColors";
@@ -482,11 +482,23 @@ async function drawCurves(
   isCurrent: () => boolean,
 ) {
   const freqs = getFreqGrid(width);
-  const eqResponse = await responseValues(peq, freqs, viewMode, undefined, dspSampleRate);
-  const enabledFilters = peq.filters.filter((filter) => filter.enabled);
-  const bandResponses = await Promise.all(
-    enabledFilters.map((band) => filterResponseValues(band, freqs, dspSampleRate)),
+  const offset = await shapeOffset(peq, viewMode, dspSampleRate);
+  const combinedResponse = await peqResponseAndBandValues(
+    peq,
+    freqs,
+    viewMode === "level",
+    dspSampleRate,
   );
+  const enabledFilters = peq.filters.filter((filter) => filter.enabled);
+  const eqResponse = new Float32Array(freqs.length);
+  for (let index = 0; index < freqs.length; index++) {
+    const value = (combinedResponse[index] ?? 0) + offset;
+    eqResponse[index] = Number.isFinite(value) ? value : 0;
+  }
+  const bandResponses = enabledFilters.map((_, index) => {
+    const start = (index + 1) * freqs.length;
+    return combinedResponse.subarray(start, start + freqs.length);
+  });
   if (!isCurrent()) return;
 
   bandResponses.forEach((response, i) => {
