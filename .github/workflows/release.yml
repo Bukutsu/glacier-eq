@@ -92,6 +92,19 @@ jobs:
             libudev-dev \
             pkg-config
 
+      - name: Seed modern linuxdeploy (excludes stale libwayland-client)
+        if: matrix.os == 'ubuntu-22.04'
+        run: |
+          set -euo pipefail
+          cache_dir="$HOME/.cache/tauri"
+          target="$cache_dir/linuxdeploy-x86_64.AppImage"
+          mkdir -p "$cache_dir"
+          curl -fsSL --retry 3 \
+            -o "$target" \
+            "https://github.com/linuxdeploy/linuxdeploy/releases/download/1-alpha-20251107-1/linuxdeploy-x86_64.AppImage"
+          echo "c20cd71e3a4e3b80c3483cef793cda3f4e990aca14014d23c544ca3ce1270b4d  $target" | sha256sum -c -
+          chmod +x "$target"
+
       - name: Set up Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
@@ -150,6 +163,27 @@ jobs:
         with:
           args: ${{ matrix.args }}
           releaseAssetNamePattern: "glacier-eq_[version]_[platform]_[arch].[ext]"
+
+      - name: Guard against bundled libwayland-client
+        if: matrix.os == 'ubuntu-22.04'
+        run: |
+          set -euo pipefail
+          appimage=$(find target -path '*/bundle/appimage/*.AppImage' -print -quit 2>/dev/null || true)
+          if [ -z "$appimage" ]; then
+            echo "❌ No AppImage found under target/*/bundle/appimage/"
+            exit 1
+          fi
+          workdir=$(mktemp -d)
+          cp "$appimage" "$workdir/app.AppImage"
+          chmod +x "$workdir/app.AppImage"
+          (cd "$workdir" && ./app.AppImage --appimage-extract >/dev/null)
+          found=$(find "$workdir/squashfs-root" -name 'libwayland-client.so*' -print -quit)
+          rm -rf "$workdir"
+          if [ -n "$found" ]; then
+            echo "❌ Error: $(basename "$appimage") bundles $found (shadows host Mesa and causes white screen)"
+            exit 1
+          fi
+          echo "✅ Verified: $(basename "$appimage") does not bundle libwayland-client"
 
       - name: Build signed app
         if: matrix.os != 'ubuntu-22.04' && steps.signing.outputs.signed == 'true'
