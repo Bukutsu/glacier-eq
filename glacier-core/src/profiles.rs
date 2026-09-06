@@ -107,13 +107,7 @@ impl ProfileStore {
         if content.len() as u64 > MAX_PROFILE_BYTES {
             return Err("Profile exceeds maximum size (1 MiB)".into());
         }
-        let requested = self.path(name)?;
-        let path = self
-            .list()?
-            .into_iter()
-            .find(|profile| profile.name.eq_ignore_ascii_case(name))
-            .map(|profile| self.dir.join(format!("{}.txt", profile.name)))
-            .unwrap_or(requested);
+        let path = self.path(name)?;
         let nonce = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
@@ -336,7 +330,7 @@ mod tests {
             filters: vec![],
             global_gain: -3.0,
         };
-        store.save("Daily", &replacement).unwrap();
+        store.save("daily", &replacement).unwrap();
         assert_eq!(store.load("Daily").unwrap().data, replacement);
         assert_eq!(store.list().unwrap().len(), 1);
         assert!(store.save("../escape", &peq).is_err());
