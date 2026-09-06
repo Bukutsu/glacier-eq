@@ -26,7 +26,6 @@ depends=(
 makedepends=(
   'git'
   'npm'
-  'rust-wasm'
   'pkg-config'
 )
 provides=('glacier-eq')

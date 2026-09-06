@@ -1,11 +1,21 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { fileURLToPath } from "node:url";
 
 // @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;
 
 // https://vite.dev/config/
-export default defineConfig(async () => ({
+export default defineConfig(async ({ mode }) => {
+  const runtime = mode === "web" ? "web" : "tauri";
+  const backend = fileURLToPath(new URL(`./src/lib/backend/${runtime}.ts`, import.meta.url));
+
+  return {
+  resolve: {
+    alias: {
+      "@glacier-eq/backend": backend,
+    },
+  },
   plugins: [
     react(),
     {
@@ -42,4 +52,5 @@ export default defineConfig(async () => ({
       ignored: ["**/src-tauri/**"],
     },
   },
-}));
+  };
+});
