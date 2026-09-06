@@ -96,6 +96,11 @@ export function parseOnlineFrequencies(value: unknown): number[] {
   return frequencies;
 }
 
+function isFiniteNumberArray(value: unknown): value is number[] {
+  return Array.isArray(value)
+    && value.every((db: unknown) => typeof db === "number" && Number.isFinite(db));
+}
+
 export function parseOnlineCurveValues(
   value: unknown,
   expectedLength: number,
@@ -105,15 +110,10 @@ export function parseOnlineCurveValues(
   if (!Array.isArray(value) || value.length !== expectedLength) {
     invalid("curves", `${label} must contain ${expectedLength} values`);
   }
-
-  const values: number[] = [];
-  for (const db of value) {
-    if (typeof db !== "number" || !Number.isFinite(db)) {
-      invalid("curves", `${label} must contain only finite numbers`);
-    }
-    values.push(db);
+  if (!isFiniteNumberArray(value)) {
+    invalid("curves", `${label} must contain only finite numbers`);
   }
-  return values;
+  return value;
 }
 
 export function parseOnlineCurves(value: unknown): OnlineCurves {
