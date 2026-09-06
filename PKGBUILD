@@ -3,7 +3,7 @@
 
 pkgname=glacier-eq-git
 # Placeholder; pkgver() derives the real version from git for local builds.
-pkgver=0.5.2
+pkgver=0.6.0
 pkgrel=1
 pkgdesc="Cross-platform parametric EQ editor for USB DACs. Runs offline and works directly with the hardware, on desktop and Android."
 arch=('x86_64' 'aarch64')

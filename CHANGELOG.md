@@ -1,6 +1,16 @@
 # Changelog
 
-## [Unreleased]
+## [0.6.0] - 2026-09-06
+
+### Added
+
+- Decoupled native desktop and web runtime adapters so desktop builds run without bundling WebAssembly.
+- Updated high-resolution application branding and adaptive platform icons.
+
+### Changed
+
+- Streamlined the tuning section with unified measurement and target matching and minimal controls.
+- Pull timing now uses each protocol's declared flood/gain-read delays instead of hardcoded values.
 
 ### Fixed
 
@@ -10,10 +20,7 @@
 - Fixed duplicate Android versionCodes for prerelease tags with numbers above the supported range; affected tags now fail the release build instead of colliding.
 - Android versionCode prerelease bands are now disjoint (numeric, alpha, beta, rc/other) so distinct tags can never share a code.
 - Release builds now verify tag/manifest versions in a fast first job instead of after the full build matrix.
-
-### Changed
-
-- Pull timing now uses each protocol's declared flood/gain-read delays instead of hardcoded values.
+- Hardened device disconnection recovery, utility setting synchronization, and profile mutation concurrency.
 
 ## [0.5.2] - 2026-08-20
 
@@ -91,6 +98,7 @@
 - Simplified device and platform integration.
 - Updated the project screenshot and release tooling.
 
+[0.6.0]: https://github.com/Bukutsu/glacier-eq/compare/v0.5.2...v0.6.0
 [0.5.2]: https://github.com/Bukutsu/glacier-eq/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/Bukutsu/glacier-eq/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/Bukutsu/glacier-eq/compare/v0.4.2...v0.5.0
