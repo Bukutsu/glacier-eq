@@ -450,7 +450,7 @@ jobs:
           [[ "$RELEASE_TAG" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]
           TAG_VERSION="${RELEASE_TAG#v}"
           awk -v version="$TAG_VERSION" '
-            $0 == "## [" version "]" { found=1; next }
+            $0 ~ "^## \\[" version "\\]" { found=1; next }
             found && /^## \[/ { exit }
             found { print }
           ' CHANGELOG.md > RELEASE_NOTES.md
