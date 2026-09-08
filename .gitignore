@@ -64,5 +64,7 @@ test-results/
 .worktrees/
 yarn-debug.log*
 yarn-error.log*
+bun.lock
+bun.lockb
 .pi/
 .pi-subagents/
