@@ -123,9 +123,20 @@ function evaluateMagnitudeDb(
   return 0;
 }
 
+function responseCosines(freqs: Float32Array, dspSampleRate: number): Float64Array {
+  const cosines = new Float64Array(freqs.length);
+  if (!Number.isFinite(dspSampleRate) || dspSampleRate <= 0) return cosines;
+
+  const factor = TAU / dspSampleRate;
+  for (let index = 0; index < freqs.length; index++) {
+    cosines[index] = Math.cos(freqs[index] * factor);
+  }
+  return cosines;
+}
+
 function accumulateFilterResponse(
   filter: Filter,
-  freqs: Float32Array,
+  cosines: Float64Array,
   dspSampleRate: number,
   response: Float32Array,
   bandOffset: number | null,
@@ -133,9 +144,8 @@ function accumulateFilterResponse(
   if (!Number.isFinite(dspSampleRate) || dspSampleRate <= 0) return;
 
   const coefficients = magnitudeCoefficients(computeBiquadCoefficients(filter, dspSampleRate));
-  const factor = TAU / dspSampleRate;
-  for (let index = 0; index < freqs.length; index++) {
-    const value = evaluateMagnitudeDb(coefficients, Math.cos(freqs[index] * factor));
+  for (let index = 0; index < cosines.length; index++) {
+    const value = evaluateMagnitudeDb(coefficients, cosines[index]);
     if (bandOffset !== null) response[bandOffset + index] = value;
     response[index] += value;
   }
@@ -148,13 +158,10 @@ export function filterResponseValues(
 ): Float32Array {
   const response = new Float32Array(freqs.length);
   if (filter.enabled) {
+    const cosines = responseCosines(freqs, dspSampleRate);
     const coefficients = magnitudeCoefficients(computeBiquadCoefficients(filter, dspSampleRate));
-    const factor = TAU / dspSampleRate;
     for (let index = 0; index < freqs.length; index++) {
-      response[index] = evaluateMagnitudeDb(
-        coefficients,
-        Math.cos(freqs[index] * factor),
-      );
+      response[index] = evaluateMagnitudeDb(coefficients, cosines[index]);
     }
   }
   return response;
@@ -169,9 +176,10 @@ export function peqResponseValues(
   const response = new Float32Array(freqs.length);
   if (includePreamp) response.fill(peq.global_gain);
 
-  for (const filter of peq.filters) {
-    if (!filter.enabled) continue;
-    accumulateFilterResponse(filter, freqs, dspSampleRate, response, null);
+  const enabledFilters = peq.filters.filter((filter) => filter.enabled);
+  const cosines = responseCosines(freqs, dspSampleRate);
+  for (const filter of enabledFilters) {
+    accumulateFilterResponse(filter, cosines, dspSampleRate, response, null);
   }
   return response;
 }
@@ -187,8 +195,9 @@ export function peqResponseAndBandValues(
   const response = new Float32Array((enabledFilters.length + 1) * stride);
   if (includePreamp) response.subarray(0, stride).fill(peq.global_gain);
 
+  const cosines = responseCosines(freqs, dspSampleRate);
   enabledFilters.forEach((filter, bandIndex) => {
-    accumulateFilterResponse(filter, freqs, dspSampleRate, response, (bandIndex + 1) * stride);
+    accumulateFilterResponse(filter, cosines, dspSampleRate, response, (bandIndex + 1) * stride);
   });
   return response;
 }
