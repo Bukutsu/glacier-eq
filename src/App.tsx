@@ -1,4 +1,14 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Fragment,
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentProps,
+} from "react";
 import { invoke, listen, emit, sleep } from "./lib/rpc";
 import { Bands } from "./components/Bands";
 import { DeviceChooser } from "./components/DeviceChooser";
@@ -7,12 +17,10 @@ import { Header } from "./components/Header";
 import { Icon } from "./components/Icon";
 import { CustomScrollbar } from "./components/CustomScrollbar";
 import { Preamp } from "./components/Preamp";
-import { ToolsPanel, AutoEqTab, DiagnosticsPanel } from "./components/ToolsPanel";
-import { AddTraceModal } from "./components/AddTraceModal";
+import { MOBILE_TABS, type MobileTab, type ToolsTab } from "./lib/tabs";
 import { Collapsible } from "./components/Collapsible";
 import { ConfirmDialogHost, confirmDialog } from "./components/ConfirmDialog";
 import { Modal } from "./components/Modal";
-import { MOBILE_TABS, type MobileTab, type ToolsTab } from "./lib/tabs";
 import { UnifiedTracesList } from "./components/UnifiedTraces";
 import {
   DEV_DUMMY_DEVICE,
@@ -73,6 +81,55 @@ declare global {
     };
     __glacierTauriPerfStarted__?: boolean;
   }
+}
+
+const LazyToolsPanel = lazy(() =>
+  import("./components/ToolsPanel").then(({ ToolsPanel }) => ({ default: ToolsPanel })),
+);
+const LazyAutoEqTab = lazy(() =>
+  import("./components/ToolsPanel").then(({ AutoEqTab }) => ({ default: AutoEqTab })),
+);
+const LazyDiagnosticsPanel = lazy(() =>
+  import("./components/ToolsPanel").then(({ DiagnosticsPanel }) => ({ default: DiagnosticsPanel })),
+);
+const LazyAddTraceModal = lazy(() =>
+  import("./components/AddTraceModal").then(({ AddTraceModal }) => ({ default: AddTraceModal })),
+);
+
+function ToolLoadingFallback() {
+  return <div className="tool-loading" aria-busy="true">Loading tools…</div>;
+}
+
+function ToolsPanel(props: ComponentProps<typeof LazyToolsPanel>) {
+  return (
+    <Suspense fallback={<ToolLoadingFallback />}>
+      <LazyToolsPanel {...props} />
+    </Suspense>
+  );
+}
+
+function AutoEqTab(props: ComponentProps<typeof LazyAutoEqTab>) {
+  return (
+    <Suspense fallback={<ToolLoadingFallback />}>
+      <LazyAutoEqTab {...props} />
+    </Suspense>
+  );
+}
+
+function DiagnosticsPanel() {
+  return (
+    <Suspense fallback={<ToolLoadingFallback />}>
+      <LazyDiagnosticsPanel />
+    </Suspense>
+  );
+}
+
+function AddTraceModal(props: ComponentProps<typeof LazyAddTraceModal>) {
+  return (
+    <Suspense fallback={<ToolLoadingFallback />}>
+      <LazyAddTraceModal {...props} />
+    </Suspense>
+  );
 }
 
 const MOBILE_QUERY = "(max-width: 850px), ((max-height: 540px) and (pointer: coarse))";
