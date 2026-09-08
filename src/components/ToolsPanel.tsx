@@ -204,7 +204,14 @@ export const ToolsPanel = memo(function ToolsPanel(props: ToolsPanelProps) {
           {tab === "Tuning" && (
             <div className="desktop-tuning-tab">
               <Collapsible
-                title={`Traces & Targets (${(props.measurements?.length ?? 0) + (props.allTargets?.length ?? 0)})`}
+                title={
+                  <span className="tuning-library-header">
+                    <span>Traces & Targets</span>
+                    <span className="tuning-count-badge">
+                      {(props.measurements?.length ?? 0) + (props.allTargets?.length ?? 0)}
+                    </span>
+                  </span>
+                }
                 icon="analytics"
                 className="tuning-library"
               >
@@ -368,8 +375,14 @@ function CurvesTab({
           <span>Add Trace</span>
         </button>
         {measurements.length > 0 && (
-          <button className="tool-link-button danger" onClick={onClearMeasurements}>
-            Clear measurements
+          <button
+            className="btn danger curves-clear-btn"
+            title="Clear all measurements"
+            aria-label="Clear all measurements"
+            onClick={onClearMeasurements}
+          >
+            <Icon>delete</Icon>
+            <span>Clear</span>
           </button>
         )}
       </div>
@@ -543,13 +556,15 @@ function PresetTab({
           {selectedIsSaved && (
             <button
               type="button"
-              className="profile-save-as-toggle"
+              className="btn profile-save-as-toggle"
+              title={saveAsOpen ? "Cancel saving a copy" : "Save current profile as a new copy"}
               onClick={() => {
                 setNewProfileName("");
                 setSaveAsOpen((open) => !open);
               }}
             >
-              {saveAsOpen ? "Cancel save as" : "Save as copy…"}
+              <Icon>{saveAsOpen ? "close" : "content_copy"}</Icon>
+              <span>{saveAsOpen ? "Cancel save as" : "Save as copy…"}</span>
             </button>
           )}
         </>
@@ -1141,7 +1156,10 @@ export function AutoEqTab({
       ) : (
         <section className="tool-card autoeq-match-card">
           <div className="tool-card-head">
-            <strong>Match to target</strong>
+            <div className="tool-card-title">
+              <Icon>auto_awesome</Icon>
+              <strong>Match to target</strong>
+            </div>
           </div>
           <p className="autoeq-description">
             Generate EQ from a measurement and target.

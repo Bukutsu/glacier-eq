@@ -6,6 +6,7 @@ import {
   interpolateMeasurementDb,
   nextMeasurementColor,
   makeMeasurementName,
+  identifyTraceKind,
 } from "./measurements";
 
 function trace(name: string): MeasurementTrace {
@@ -133,5 +134,40 @@ describe("makeMeasurementName", () => {
   it("appends a copy index for duplicate names", () => {
     expect(makeMeasurementName("Test", [trace("Test")])).toBe("Test 2");
     expect(makeMeasurementName("Test", [trace("Test"), trace("Test 2")])).toBe("Test 3");
+  });
+});
+
+describe("identifyTraceKind", () => {
+  it("identifies targets by filename keywords", () => {
+    expect(identifyTraceKind("Harman In-Ear 2019v2.csv")).toBe("target");
+    expect(identifyTraceKind("IEF_Neutral_Target.txt")).toBe("target");
+    expect(identifyTraceKind("Diffuse Field.csv")).toBe("target");
+    expect(identifyTraceKind("my_house_curve.txt")).toBe("target");
+    expect(identifyTraceKind("JM-1 Target.csv")).toBe("target");
+    expect(identifyTraceKind("Bass Boost Curve.txt")).toBe("target");
+    expect(identifyTraceKind("SoundID Reference.csv")).toBe("target");
+    expect(identifyTraceKind("PEQdB Diamond β.txt")).toBe("target");
+    expect(identifyTraceKind("HiFiEndgame MKIII.txt")).toBe("target");
+  });
+
+  it("identifies targets by header comments in text", () => {
+    const targetFile = "# Target Curve: Harman 2019\n20, 5\n100, 3\n1000, 0";
+    expect(identifyTraceKind("curve.csv", targetFile, 200)).toBe("target");
+  });
+
+  it("identifies measurements by filename keywords or header comments", () => {
+    expect(identifyTraceKind("HD600_raw_711.csv")).toBe("measurement");
+    expect(identifyTraceKind("Sennheiser HD600 (Sample 1).txt")).toBe("measurement");
+    const measFile = "# Measurement: Left Ear\n20, 75\n100, 78\n1000, 80";
+    expect(identifyTraceKind("curve.csv", measFile, 300)).toBe("measurement");
+  });
+
+  it("identifies sparse point counts as target curves", () => {
+    expect(identifyTraceKind("custom.txt", "20, 5\n1000, 0", 15)).toBe("target");
+  });
+
+  it("defaults normal headphone sweep files to measurement", () => {
+    expect(identifyTraceKind("Moondrop Chu II.csv", undefined, 500)).toBe("measurement");
+    expect(identifyTraceKind("AKG EO-IG955.txt", undefined, 1200)).toBe("measurement");
   });
 });
