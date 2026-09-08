@@ -3,7 +3,7 @@ import type { MeasurementPoint } from "../types";
 import { Icon } from "./Icon";
 import { fuzzyMatch } from "../lib/search";
 import { openFileDialog } from "../lib/rpc";
-import { parseMeasurementText } from "../lib/measurements";
+import { parseMeasurementText, identifyTraceKind } from "../lib/measurements";
 import { useOnlineDatabase, type OnlineDevice } from "../lib/onlineDb";
 import { Modal } from "./Modal";
 import { confirmDialog } from "./ConfirmDialog";
@@ -82,24 +82,28 @@ export function AddTraceModal({
     }
   };
 
-  const handleFile = async (kind: "measurement" | "target") => {
+  const handleImportFile = async () => {
     const request = ++loadRequestRef.current;
     try {
-      const result = await openFileDialog({ filters: [{ name: kind === "measurement" ? "Measurement" : "Target", extensions: ["csv", "txt"] }] });
+      const result = await openFileDialog({
+        filters: [{ name: "Frequency Response (.csv, .txt)", extensions: ["csv", "txt"] }],
+      });
       if (!result || request !== loadRequestRef.current || !mountedRef.current) return;
       const points = parseMeasurementText(result.text);
       const label = result.name.replace(/\.[^/.]+$/, "");
-      if (kind === "measurement") {
-        onAddMeasurement?.(label, points);
-        setStatus?.(`Loaded measurement: ${label} (${points.length} points)`);
-      } else {
+      const kind = identifyTraceKind(result.name, result.text, points.length);
+
+      if (kind === "target") {
         (onAddTarget ?? onAddMeasurement)?.(label, points);
         setStatus?.(`Loaded target: ${label} (${points.length} points)`);
+      } else {
+        onAddMeasurement?.(label, points);
+        setStatus?.(`Loaded measurement: ${label} (${points.length} points)`);
       }
       onClose();
     } catch (error) {
       if (request === loadRequestRef.current && mountedRef.current) {
-        setStatus?.(`Failed to import ${kind}: ${error}`);
+        setStatus?.(`Failed to import file: ${error}`);
       }
     }
   };
@@ -130,16 +134,14 @@ export function AddTraceModal({
     <Modal title="Add Trace" onClose={onClose} className="add-trace-modal">
         <div className="add-trace-section">
           <div className="add-trace-section-title">From File</div>
-          <div className="add-trace-file-grid">
-            <button className="btn" onClick={() => handleFile("measurement")}>
-              <Icon>playlist_add</Icon>
-              <span>Measurement</span>
-            </button>
-            <button className="btn" onClick={() => handleFile("target")}>
-              <Icon>add_box</Icon>
-              <span>Target</span>
-            </button>
-          </div>
+          <button
+            type="button"
+            className="btn add-trace-file-btn"
+            onClick={handleImportFile}
+          >
+            <Icon>file_upload</Icon>
+            <span>Import Curve File (.csv, .txt)</span>
+          </button>
         </div>
 
         <div className="add-trace-section">
@@ -188,12 +190,17 @@ export function AddTraceModal({
                   )}
                 </div>
                 <div className="add-trace-cache-row">
+                  <span className="add-trace-cache-status">
+                    {totalCount ? `${totalCount.toLocaleString()} curves cached` : "Offline database cached"}
+                  </span>
                   <button
                     type="button"
-                    className="tool-link-button"
+                    className="btn add-trace-clear-cache-btn"
+                    title="Clear cached online database (~16MB)"
                     onClick={handleResetCache}
                   >
-                    Clear Cache
+                    <Icon>delete</Icon>
+                    <span>Clear Cache</span>
                   </button>
                 </div>
               </>

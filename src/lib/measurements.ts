@@ -128,3 +128,96 @@ export function interpolateMeasurementDb(points: MeasurementPoint[], freq: numbe
   const ratio = (Math.log10(freq) - Math.log10(lowPoint.freq)) / span;
   return lowPoint.db + (highPoint.db - lowPoint.db) * ratio;
 }
+
+export type TraceKind = "measurement" | "target";
+
+const TARGET_KEYWORDS = [
+  "target",
+  "harman",
+  "ief",
+  "diffuse field",
+  "diffuse-field",
+  "diffuse_field",
+  "free field",
+  "free-field",
+  "free_field",
+  "house curve",
+  "house-curve",
+  "house_curve",
+  "housecurve",
+  "preference",
+  "tilt",
+  "df-neutral",
+  "df_neutral",
+  "jm-1",
+  "soundid",
+  "reference",
+  "bass boost",
+  "bass-boost",
+  "bass_boost",
+  "autoeq target",
+  "autoeq-target",
+  "autoeq_target",
+  "peqdb",
+  "endgame",
+  "hifiendgame",
+  "compensation",
+];
+
+const MEASUREMENT_KEYWORDS = [
+  "measurement",
+  "meas",
+  "raw",
+  "sample",
+  "coupler",
+  "coupled",
+  "711",
+  "5128",
+  "iec",
+  "spl",
+  "sweep",
+];
+
+export function identifyTraceKind(
+  name: string,
+  text?: string,
+  pointCount?: number,
+): TraceKind {
+  const lowerName = name.toLowerCase();
+
+  // 1. Check content comments / headers if available
+  if (text) {
+    const headerText = text
+      .split(/\r?\n/, 30)
+      .filter((l) => /^\s*([#/*;]|Frequency|Freq)/i.test(l))
+      .join(" ")
+      .toLowerCase();
+
+    if (TARGET_KEYWORDS.some((kw) => headerText.includes(kw))) {
+      return "target";
+    }
+    if (MEASUREMENT_KEYWORDS.some((kw) => headerText.includes(kw))) {
+      return "measurement";
+    }
+  }
+
+  // 2. Check filename
+  const isTargetName = TARGET_KEYWORDS.some((kw) => lowerName.includes(kw));
+  const isMeasName = MEASUREMENT_KEYWORDS.some((kw) => lowerName.includes(kw));
+
+  if (isTargetName && !isMeasName) {
+    return "target";
+  }
+  if (isMeasName) {
+    return "measurement";
+  }
+
+  // 3. Sparse points heuristic (house curves typically have < 50 points, whereas measurements have hundreds)
+  if (typeof pointCount === "number" && pointCount >= 2 && pointCount <= 45) {
+    return "target";
+  }
+
+  // Default: most imported curves are headphone measurements
+  return "measurement";
+}
+

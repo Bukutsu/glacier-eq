@@ -40,8 +40,8 @@ export const UnifiedTracesList = memo(function UnifiedTracesList({
               onChange={() => onToggleMeasurement(trace.id)}
             />
             <span className="curve-swatch" style={{ backgroundColor: trace.color }} />
-            <span className="curve-name">
-              {trace.name}
+            <span className="curve-name" title={`${trace.name} (${trace.points.length} points)`}>
+              <span className="curve-label">{trace.name}</span>
               <span className="curve-points">({trace.points.length} pts)</span>
             </span>
           </label>
@@ -69,10 +69,12 @@ export const UnifiedTracesList = memo(function UnifiedTracesList({
                 onChange={() => onToggleTarget(target.id)}
               />
               <span className="curve-swatch" style={{ backgroundColor: target.color }} />
-              <span className="curve-name">{target.name}</span>
+              <span className="curve-name" title={target.name}>
+              <span className="curve-label">{target.name}</span>
+            </span>
             </label>
             <span className="trace-type-badge trace-type-target" aria-hidden="true" title="Target">T</span>
-            {!target.builtIn && (
+            {!target.builtIn ? (
               <button
                 className="curve-delete"
                 title={`Delete ${target.name}`}
@@ -81,6 +83,8 @@ export const UnifiedTracesList = memo(function UnifiedTracesList({
               >
                 <Icon>delete</Icon>
               </button>
+            ) : (
+              <span className="curve-delete-spacer" aria-hidden="true" />
             )}
           </div>
         );

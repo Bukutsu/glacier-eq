@@ -1876,8 +1876,14 @@ function App() {
                         <span>Add Trace</span>
                       </button>
                       {measurements.length > 0 && (
-                        <button className="tool-link-button danger" onClick={clearMeasurements}>
-                          Clear all
+                        <button
+                          className="btn danger curves-clear-btn"
+                          title="Clear all measurements"
+                          aria-label="Clear all measurements"
+                          onClick={clearMeasurements}
+                        >
+                          <Icon>delete</Icon>
+                          <span>Clear</span>
                         </button>
                       )}
                     </div>
