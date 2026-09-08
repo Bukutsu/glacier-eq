@@ -77,6 +77,13 @@ declare global {
 const MOBILE_QUERY = "(max-width: 850px), ((max-height: 540px) and (pointer: coarse))";
 const DEVICE_ONBOARDING_KEY = "glacier-device-onboarding-seen";
 const EDITOR_HINT_KEY = "glacier-editor-hint-dismissed";
+const TOOL_TAB_BY_WORKSPACE: Record<MobileTab, ToolsTab | null> = {
+  eq: null,
+  tuning: "Tuning",
+  profiles: "Preset",
+  device: "Device",
+  settings: "Settings",
+};
 
 
 function App() {
@@ -1459,7 +1466,10 @@ function App() {
       setShowAddTrace(false);
 
       if (event.state?.tab) {
-        setActiveTab(event.state.tab);
+        const tab = event.state.tab as MobileTab;
+        setActiveTab(tab);
+        const toolTab = TOOL_TAB_BY_WORKSPACE[tab];
+        if (toolTab) setToolsTab(toolTab);
       } else if (!event.state?.modal) {
         setActiveTab("eq");
       }
@@ -1469,8 +1479,10 @@ function App() {
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
-  const handleSelectMobileTab = useCallback((id: MobileTab) => {
+  const handleSelectWorkspaceTab = useCallback((id: MobileTab) => {
     setActiveTab((prev) => (prev === id ? prev : id));
+    const toolTab = TOOL_TAB_BY_WORKSPACE[id];
+    if (toolTab) setToolsTab(toolTab);
     // History side effect stays out of the updater: StrictMode double-invokes
     // updaters, which pushed duplicate history entries.
     if (id !== "eq" && activeTabRef.current !== id) {
@@ -1830,7 +1842,7 @@ function App() {
       )}
       {isMobile ? (
         <main ref={mobileScrollRef} className="workspace mobile-workspace" inert={isReconnecting ? true : undefined}>
-          {(activeTab === "eq" || (activeTab === "tuning" && (measurements.some((trace) => trace.visible) || activeTargets.length > 0))) && (
+          {(activeTab === "eq" || activeTab === "profiles" || (activeTab === "tuning" && (measurements.some((trace) => trace.visible) || activeTargets.length > 0))) && (
             <section className={`mobile-graph-container mobile-graph-${activeTab} ${graphCollapsed ? "collapsed" : ""}`}>
               <div className="graph-card">
                 {graphElement(activeTab === "eq")}
@@ -1864,6 +1876,16 @@ function App() {
               <section className="left-pane">
                 {editorHint}
                 {editorControls}
+              </section>
+            )}
+            {activeTab === "profiles" && (
+              <section className="left-pane">
+                <ToolsPanel
+                  {...mobileToolsPanelProps}
+                  dirty={dirty}
+                  availableTabs={["Preset", "Import"]}
+                  defaultTab="Preset"
+                />
               </section>
             )}
             {activeTab === "tuning" && (
@@ -1924,16 +1946,6 @@ function App() {
                 </Collapsible>
               </section>
             )}
-            {activeTab === "profiles" && (
-              <section className="left-pane">
-                <ToolsPanel
-                  {...mobileToolsPanelProps}
-                  dirty={dirty}
-                  availableTabs={["Preset", "Import"]}
-                  defaultTab="Preset"
-                />
-              </section>
-            )}
             {activeTab === "settings" && (
               <section className="left-pane">
                 <ToolsPanel
@@ -1966,7 +1978,7 @@ function App() {
                 type="button"
                 className={`mobile-tab-item ${activeTab === id ? "active" : ""}`}
                 aria-current={activeTab === id ? "page" : undefined}
-                onClick={() => handleSelectMobileTab(id)}
+                onClick={() => handleSelectWorkspaceTab(id)}
               >
                 <div className="mobile-tab-icon-wrapper">
                   <Icon>{icon}</Icon>
@@ -1977,22 +1989,40 @@ function App() {
           </nav>
         </main>
       ) : (
-        <main className="workspace" inert={isReconnecting ? true : undefined}>
+        <main className={`workspace desktop-workspace desktop-view-${activeTab}`} inert={isReconnecting ? true : undefined}>
+          <aside className="desktop-sidebar">
+            <nav className="desktop-sidebar-nav" aria-label="Primary navigation">
+              {MOBILE_TABS.map(({ id, icon, label }) => (
+                <button
+                  key={id}
+                  type="button"
+                  className={`desktop-sidebar-item ${activeTab === id ? "active" : ""}`}
+                  aria-current={activeTab === id ? "page" : undefined}
+                  onClick={() => handleSelectWorkspaceTab(id)}
+                >
+                  <Icon>{icon}</Icon>
+                  <span>{label}</span>
+                </button>
+              ))}
+            </nav>
+          </aside>
           <section
             id="main-scroll-pane"
             className="left-pane custom-scroll-pane"
             ref={mainScrollRef}
           >
             {editorHint}
-            {showGraph && (
+            {showGraph && (activeTab === "eq" || activeTab === "profiles" || activeTab === "tuning") && (
             <section className="graph-card">
-              {graphElement(true)}
+              {graphElement(activeTab === "eq")}
             </section>
             )}
-            {editorControls}
+            {activeTab === "eq" && editorControls}
             <CustomScrollbar targetRef={mainScrollRef} />
           </section>
+          {activeTab !== "eq" && (
           <ToolsPanel
+            hideTabStrip
             peq={peq}
             maxBands={maxFilterBands}
             dspSampleRate={capabilities.dsp_sample_rate}
@@ -2041,6 +2071,7 @@ function App() {
             getAsyncContext={getAsyncContext}
             runProfileMutation={runProfileMutation}
           />
+          )}
         </main>
       )}
       {isReconnecting && (

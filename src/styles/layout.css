@@ -2,7 +2,7 @@
   min-height: 0;
   flex: 1;
   display: grid;
-  grid-template-columns: clamp(288px, 27vw, 360px) minmax(0, 1fr);
+  grid-template-columns: clamp(156px, 14vw, 188px) minmax(0, 1fr) clamp(300px, 27vw, 360px);
   grid-template-rows: minmax(0, 1fr);
   gap: 16px;
   padding: 0 18px 18px;

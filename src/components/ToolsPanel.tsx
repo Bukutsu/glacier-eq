@@ -153,6 +153,7 @@ interface ToolsPanelProps {
   onOpenDiagnostics?: () => void;
   showGraph?: boolean;
   onShowGraphChange?: (show: boolean) => void;
+  hideTabStrip?: boolean;
   maxBands?: number;
   dspSampleRate?: number;
   getAsyncContext: () => AsyncContext;
@@ -179,7 +180,7 @@ export const ToolsPanel = memo(function ToolsPanel(props: ToolsPanelProps) {
   return (
     <aside className="right-rail">
       <section className="tools-card">
-        <TabStrip active={tab} onSelect={setTab} tabs={availableTabs} />
+        {!props.hideTabStrip && <TabStrip active={tab} onSelect={setTab} tabs={availableTabs} />}
         <div
           className="tab-panel"
           role="tabpanel"
