@@ -214,19 +214,7 @@ export const Bands = memo(function Bands({ peq, committedPeq, capabilities, onFi
   );
 });
 
-function BandRow({
-  filter,
-  committedFilter,
-  active,
-  onChange,
-  onStartChange,
-  onEndChange,
-  onActivate,
-  canRemove,
-  onRemove,
-  capabilities,
-  snapToIso,
-}: {
+type BandRowProps = {
   filter: Filter;
   committedFilter?: Filter;
   active: boolean;
@@ -238,7 +226,21 @@ function BandRow({
   onRemove: () => void;
   capabilities: DeviceCapabilities;
   snapToIso?: boolean;
-}) {
+};
+
+const BandRow = memo(function BandRow({
+  filter,
+  committedFilter,
+  active,
+  onChange,
+  onStartChange,
+  onEndChange,
+  onActivate,
+  canRemove,
+  onRemove,
+  capabilities,
+  snapToIso,
+}: BandRowProps) {
   return (
     <div
       className={`band-row ${filter.enabled ? "" : "muted"} ${active ? "active" : ""}`}
@@ -265,18 +267,18 @@ function BandRow({
       </button>
     </div>
   );
-}
+}, (previous, next) => (
+  previous.filter === next.filter &&
+  previous.committedFilter === next.committedFilter &&
+  previous.active === next.active &&
+  previous.canRemove === next.canRemove &&
+  previous.capabilities === next.capabilities &&
+  previous.snapToIso === next.snapToIso &&
+  previous.onStartChange === next.onStartChange &&
+  previous.onEndChange === next.onEndChange
+));
 
-function BandControls({
-  filter,
-  committedFilter,
-  onChange,
-  onStartChange,
-  onEndChange,
-  onActivate,
-  capabilities,
-  snapToIso,
-}: {
+type BandControlsProps = {
   filter: Filter;
   committedFilter?: Filter;
   onChange: (filter: Filter) => void;
@@ -285,7 +287,18 @@ function BandControls({
   onActivate: () => void;
   capabilities: DeviceCapabilities;
   snapToIso?: boolean;
-}) {
+};
+
+const BandControls = memo(function BandControls({
+  filter,
+  committedFilter,
+  onChange,
+  onStartChange,
+  onEndChange,
+  onActivate,
+  capabilities,
+  snapToIso,
+}: BandControlsProps) {
   return (
     <>
       <BandField label="Type" className="band-type-field">
@@ -408,7 +421,14 @@ function BandControls({
       </BandField>
     </>
   );
-}
+}, (previous, next) => (
+  previous.filter === next.filter &&
+  previous.committedFilter === next.committedFilter &&
+  previous.capabilities === next.capabilities &&
+  previous.snapToIso === next.snapToIso &&
+  previous.onStartChange === next.onStartChange &&
+  previous.onEndChange === next.onEndChange
+));
 
 function BandField({
   label,
