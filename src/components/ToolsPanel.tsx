@@ -1,4 +1,4 @@
-import { memo, type CSSProperties, type KeyboardEvent, useState, useEffect, useRef } from "react";
+import { memo, useState, useEffect, useRef } from "react";
 import { invoke, listen, readText, writeText, save } from "../lib/rpc";
 import type { AppSettings, MeasurementTrace, Profile, PEQData, GraphViewMode, TargetTrace } from "../types";
 import { DEFAULT_PROFILE_NAME } from "../lib/peq";
@@ -12,7 +12,7 @@ import { Modal } from "./Modal";
 import { UnifiedTracesList } from "./UnifiedTraces";
 import { NumberInput } from "./NumberInput";
 import { Slider } from "./Slider";
-import { TAB_META, type ToolsTab } from "../lib/tabs";
+import { type ToolsTab } from "../lib/tabs";
 import { parseAutoEqResult, type ParsedAutoEqResult } from "../lib/parsedAutoEq";
 import {
   createCoalescingTaskScheduler,
@@ -131,8 +131,6 @@ interface ToolsPanelProps {
   onRemoveMeasurement?: (id: string) => void;
   onToggleMeasurement?: (id: string) => void;
   onClearMeasurements?: () => void;
-  availableTabs?: ToolsTab[];
-  defaultTab?: ToolsTab;
   dirty?: boolean;
   showActions?: boolean;
   graphViewMode?: GraphViewMode;
@@ -147,13 +145,11 @@ interface ToolsPanelProps {
   onAddTarget?: (name: string, points: MeasurementTrace["points"]) => void;
   connected?: boolean;
   isSimulated?: boolean;
-  activeTab?: ToolsTab;
-  onActiveTabChange?: (tab: ToolsTab) => void;
+  activeTab: ToolsTab;
   onOpenConnectModal?: () => void;
   onOpenDiagnostics?: () => void;
   showGraph?: boolean;
   onShowGraphChange?: (show: boolean) => void;
-  hideTabStrip?: boolean;
   maxBands?: number;
   dspSampleRate?: number;
   getAsyncContext: () => AsyncContext;
@@ -161,32 +157,12 @@ interface ToolsPanelProps {
 }
 
 export const ToolsPanel = memo(function ToolsPanel(props: ToolsPanelProps) {
-  const requestedTabs = props.availableTabs ?? ["Preset", "Import", "Tuning", "Device", "Settings"];
-  // Import lives inside the Preset panel, so it is never offered as its own tab.
-  const availableTabs = requestedTabs.filter((name): name is ToolsTab => name !== "Import");
-  const [internalTab, setInternalTab] = useState<ToolsTab>(() => (
-    props.defaultTab && availableTabs.includes(props.defaultTab) ? props.defaultTab : availableTabs[0]
-  ));
-
-  const tab = props.activeTab ?? internalTab;
-  const setTab = props.onActiveTabChange ?? setInternalTab;
-
-  useEffect(() => {
-    if (!availableTabs.includes(tab)) {
-      setTab(availableTabs[0]);
-    }
-  }, [availableTabs, tab]);
+  const tab = props.activeTab;
 
   return (
     <aside className="right-rail">
       <section className="tools-card">
-        {!props.hideTabStrip && <TabStrip active={tab} onSelect={setTab} tabs={availableTabs} />}
-        <div
-          className="tab-panel"
-          role="tabpanel"
-          id={`tools-panel-${tab}`}
-          aria-labelledby={`tools-tab-${tab}`}
-        >
+        <div className="tab-panel">
           {tab === "Preset" && (
             <>
               <PresetTab {...props} />
@@ -279,65 +255,6 @@ export const ToolsPanel = memo(function ToolsPanel(props: ToolsPanelProps) {
     </aside>
   );
 });
-
-function TabStrip({
-  active,
-  onSelect,
-  tabs,
-}: {
-  active: ToolsTab;
-  onSelect: (tab: ToolsTab) => void;
-  tabs: ToolsTab[];
-}) {
-  const buttonRefs = useRef<(HTMLButtonElement | null)[]>([]);
-
-  if (tabs.length <= 1) {
-    return null;
-  }
-
-  const handleKeyDown = (e: KeyboardEvent<HTMLButtonElement>, index: number) => {
-    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
-    e.preventDefault();
-    const delta = e.key === "ArrowRight" ? 1 : -1;
-    const next = (index + delta + tabs.length) % tabs.length;
-    onSelect(tabs[next]);
-    buttonRefs.current[next]?.focus();
-  };
-
-  return (
-    <nav
-      className={`tabs ${tabs.length <= 2 ? "compact" : ""}`}
-      role="tablist"
-      aria-label="Tools"
-      style={{
-        "--tab-count": tabs.length,
-        "--tab-columns": tabs.length >= 3 ? 2 : tabs.length,
-      } as CSSProperties}
-    >
-      {tabs.map((name, index) => (
-        <button
-          key={name}
-          ref={(el) => {
-            buttonRefs.current[index] = el;
-          }}
-          id={`tools-tab-${name}`}
-          role="tab"
-          aria-selected={active === name}
-          aria-controls={`tools-panel-${name}`}
-          tabIndex={active === name ? 0 : -1}
-          className={active === name ? "active" : ""}
-          onClick={() => onSelect(name)}
-          onKeyDown={(e) => handleKeyDown(e, index)}
-        >
-          <Icon>{TAB_META[name].icon}</Icon>
-          <span>{TAB_META[name].label}</span>
-        </button>
-      ))}
-    </nav>
-  );
-}
-
-
 
 interface CurvesTabProps {
   measurements: MeasurementTrace[];
