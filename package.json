@@ -24,21 +24,21 @@
   },
   "dependencies": {
     "@tauri-apps/api": "^2",
-    "@tauri-apps/plugin-clipboard-manager": "^2.3.2",
-    "@tauri-apps/plugin-dialog": "^2.7.2",
+    "@tauri-apps/plugin-clipboard-manager": "^2.3.3",
+    "@tauri-apps/plugin-dialog": "^2.7.3",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",
     "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.4",
+    "@types/react-dom": "^19.2.5",
     "@types/w3c-web-hid": "^1.0.7",
-    "@vitejs/plugin-react": "^6.0.5",
+    "@vitejs/plugin-react": "^6.1.1",
     "cross-env": "^10.1.0",
     "typescript": "^7.0.2",
-    "vite": "^8.2.1",
-    "vitest": "^4.1.10",
+    "vite": "^8.2.2",
+    "vitest": "^4.1.11",
     "wasm-pack": "^0.15.0"
   }
 }
