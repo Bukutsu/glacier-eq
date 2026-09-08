@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { invoke, listen, emit, sleep } from "./lib/rpc";
 import { Bands } from "./components/Bands";
 import { DeviceChooser } from "./components/DeviceChooser";
@@ -1812,6 +1812,14 @@ function App() {
     }
   }, [isReconnecting]);
 
+  const desktopConfigPage = !isMobile
+    ? activeTab === "device"
+      ? "device"
+      : activeTab === "settings"
+        ? "settings"
+        : undefined
+    : undefined;
+
   return (
     <div id="app">
       {!(isAndroid && activeTab === "settings") && (
@@ -1838,6 +1846,7 @@ function App() {
           onPush={pushEq}
           onDisconnect={disconnectDevice}
           onConnectClick={handleOpenDeviceModal}
+          configPage={desktopConfigPage}
         />
       )}
       {isMobile ? (
@@ -1990,16 +1999,20 @@ function App() {
           <aside className="desktop-sidebar">
             <nav className="desktop-sidebar-nav" aria-label="Primary navigation">
               {MOBILE_TABS.map(({ id, icon, label }) => (
-                <button
-                  key={id}
-                  type="button"
-                  className={`desktop-sidebar-item ${activeTab === id ? "active" : ""}`}
-                  aria-current={activeTab === id ? "page" : undefined}
-                  onClick={() => handleSelectWorkspaceTab(id)}
-                >
-                  <Icon>{icon}</Icon>
-                  <span>{label}</span>
-                </button>
+                <Fragment key={id}>
+                  {id === "device" && (
+                    <div className="desktop-sidebar-divider" role="separator" aria-orientation="horizontal" />
+                  )}
+                  <button
+                    type="button"
+                    className={`desktop-sidebar-item ${activeTab === id ? "active" : ""}`}
+                    aria-current={activeTab === id ? "page" : undefined}
+                    onClick={() => handleSelectWorkspaceTab(id)}
+                  >
+                    <Icon>{icon}</Icon>
+                    <span>{label}</span>
+                  </button>
+                </Fragment>
               ))}
             </nav>
           </aside>
