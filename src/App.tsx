@@ -149,7 +149,6 @@ function App() {
   // production unless explicitly enabled at Vite startup.
   useEffect(() => {
     if (
-      !import.meta.env.DEV ||
       import.meta.env.VITE_TAURI_PERF !== "1" ||
       !isTauri() ||
       window.__glacierTauriPerfStarted__
