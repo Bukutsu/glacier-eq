@@ -1159,6 +1159,12 @@
     padding: 8px 0;
   }
 
+  .desktop-sidebar-divider {
+    height: 1px;
+    margin: 12px 10px 8px;
+    background: var(--line-soft);
+  }
+
   .desktop-sidebar-item {
     display: flex;
     min-width: 0;
@@ -1224,5 +1230,14 @@
   .desktop-workspace.desktop-view-device > .right-rail,
   .desktop-workspace.desktop-view-settings > .right-rail {
     grid-column: 2 / -1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .desktop-workspace.desktop-view-device > .right-rail > .tools-card,
+  .desktop-workspace.desktop-view-settings > .right-rail > .tools-card {
+    width: min(100%, 1080px);
+    flex: 1 1 auto;
   }
 }

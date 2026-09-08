@@ -46,6 +46,7 @@ interface HeaderProps {
   onPush: () => void;
   onDisconnect: () => void;
   onConnectClick?: () => void;
+  configPage?: "device" | "settings";
 }
 
 export const Header = memo(function Header({
@@ -71,7 +72,11 @@ export const Header = memo(function Header({
   onPush,
   onDisconnect,
   onConnectClick,
+  configPage,
 }: HeaderProps) {
+  const isConfigPage = configPage !== undefined;
+  const showDeviceEditorActions = !isConfigPage || configPage === "device";
+  const pageTitle = configPage === "device" ? "Device" : configPage === "settings" ? "Settings" : profile;
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -131,51 +136,59 @@ export const Header = memo(function Header({
       <div className="header-main">
         <div className="title-stack">
           <div className="title-line">
-            <h1>{profile}</h1>
+            <h1>{pageTitle}</h1>
             <GithubLink />
           </div>
           <div className="header-meta-row">
             <div className="device-name">{connected ? deviceName : "No device"}</div>
             <span className={`sync-dot ${syncClass}`}>{syncText}</span>
           </div>
-          <div className="header-session-strip" aria-label="EQ session status">
-            <span className="session-hide-mobile">{profileText}</span>
-            <span>{activeBands}/{maxBands} bands</span>
-            <span>{preampDb.toFixed(1)} dB preamp</span>
-            {connected && <span className="session-hide-mobile">{supportsRamApply ? "Temporary apply available" : "Persistent writes only"}</span>}
-            {firmwareVersion && <span className="session-hide-mobile">FW {firmwareVersion}</span>}
-          </div>
+          {!isConfigPage && (
+            <div className="header-session-strip" aria-label="EQ session status">
+              <span className="session-hide-mobile">{profileText}</span>
+              <span>{activeBands}/{maxBands} bands</span>
+              <span>{preampDb.toFixed(1)} dB preamp</span>
+              {connected && <span className="session-hide-mobile">{supportsRamApply ? "Temporary apply available" : "Persistent writes only"}</span>}
+              {firmwareVersion && <span className="session-hide-mobile">FW {firmwareVersion}</span>}
+            </div>
+          )}
         </div>
         {/* Desktop Toolbar */}
         <div className="toolbar desktop-toolbar">
-          <div className="history-buttons" aria-label="Edit history">
-            <button
-              type="button"
-              className="history-btn"
-              title="Undo"
-              aria-label="Undo"
-              disabled={isBusy || !canUndo}
-              onClick={onUndo}
-            >
-              <span className="material-symbols-outlined" aria-hidden="true">undo</span>
-              <span className="history-btn-label">Undo</span>
-            </button>
-            <button
-              type="button"
-              className="history-btn"
-              title="Redo"
-              aria-label="Redo"
-              disabled={isBusy || !canRedo}
-              onClick={onRedo}
-            >
-              <span className="material-symbols-outlined" aria-hidden="true">redo</span>
-              <span className="history-btn-label">Redo</span>
-            </button>
-          </div>
+          {!isConfigPage && (
+            <div className="history-buttons" aria-label="Edit history">
+              <button
+                type="button"
+                className="history-btn"
+                title="Undo"
+                aria-label="Undo"
+                disabled={isBusy || !canUndo}
+                onClick={onUndo}
+              >
+                <span className="material-symbols-outlined" aria-hidden="true">undo</span>
+                <span className="history-btn-label">Undo</span>
+              </button>
+              <button
+                type="button"
+                className="history-btn"
+                title="Redo"
+                aria-label="Redo"
+                disabled={isBusy || !canRedo}
+                onClick={onRedo}
+              >
+                <span className="material-symbols-outlined" aria-hidden="true">redo</span>
+                <span className="history-btn-label">Redo</span>
+              </button>
+            </div>
+          )}
           {connected ? (
             <>
-              <button className="btn" title="Replace the editor with EQ read from the DAC" onClick={onPull} disabled={isBusy}>Read DAC</button>
-              <button className={`btn${deviceMatchesEditor === false ? " warning" : ""}`} title="Store the editor EQ on the DAC" onClick={onPush} disabled={isBusy}>Write to DAC</button>
+              {showDeviceEditorActions && (
+                <>
+                  <button className="btn" title="Replace the editor with EQ read from the DAC" onClick={onPull} disabled={isBusy}>Read DAC</button>
+                  <button className={`btn${deviceMatchesEditor === false ? " warning" : ""}`} title="Store the editor EQ on the DAC" onClick={onPush} disabled={isBusy}>Write to DAC</button>
+                </>
+              )}
               <button className="btn" onClick={onDisconnect} disabled={isBusy}>Disconnect</button>
             </>
           ) : (
