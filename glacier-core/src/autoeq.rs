@@ -966,13 +966,16 @@ fn bw_to_q(bw: f32) -> f32 {
     0.5 / ((0.5 * ln2 * bw).sinh())
 }
 
-fn grad(c: &Consts, x: &[f32], g: &mut [f32]) -> f32 {
+fn grad(
+    c: &Consts,
+    x: &[f32],
+    g: &mut [f32],
+    dy_dw0: &mut [[f32; K]; MAX_N],
+    dy_dgain: &mut [[f32; K]; MAX_N],
+    dy_dbw: &mut [[f32; K]; MAX_N],
+) -> f32 {
     let n_bands = c.n_bands;
     let r_k = 1.0 / K as f32;
-
-    let mut dy_dw0 = [[0.0; K]; MAX_N];
-    let mut dy_dgain = [[0.0; K]; MAX_N];
-    let mut dy_dbw = [[0.0; K]; MAX_N];
 
     let mut w0_v = [0.0; MAX_N];
     let mut pred = [0.0; K];
@@ -1212,6 +1215,9 @@ fn fit(
 
     let mut g = vec![0.0; size];
     let mut best = x.clone();
+    let mut dy_dw0 = [[0.0; K]; MAX_N];
+    let mut dy_dgain = [[0.0; K]; MAX_N];
+    let mut dy_dbw = [[0.0; K]; MAX_N];
 
     let c = Consts {
         types,
@@ -1222,13 +1228,27 @@ fn fit(
         opt_amp: amp.is_some(),
     };
 
-    let mut best_loss = grad(&c, &x, &mut g);
+    let mut best_loss = grad(
+        &c,
+        &x,
+        &mut g,
+        &mut dy_dw0,
+        &mut dy_dgain,
+        &mut dy_dbw,
+    );
 
     let mut opt = AdaBelief::new(n_bands);
 
     for step in 0..steps {
         opt.lr = 0.03 * 0.5 * (1.0 + ((step as f32) / (steps as f32) * std::f32::consts::PI).cos());
-        let loss = grad(&c, &x, &mut g);
+        let loss = grad(
+            &c,
+            &x,
+            &mut g,
+            &mut dy_dw0,
+            &mut dy_dgain,
+            &mut dy_dbw,
+        );
 
         opt.step(&mut x, &g);
 
