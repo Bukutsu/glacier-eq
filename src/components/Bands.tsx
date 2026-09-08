@@ -73,7 +73,7 @@ function makeFreqStepper(
   filter: Filter,
   range: [number, number],
   snapToIso: boolean | undefined,
-  onChange: (filter: Filter) => void,
+  onChange: (index: number, filter: Filter) => void,
 ) {
   return (direction: 1 | -1, largeStep: boolean) => {
     const stepSize = largeStep ? 500 : 50;
@@ -86,7 +86,7 @@ function makeFreqStepper(
       snapped = constrainFreq(candidate, range, snapToIso);
     }
     if (snapped !== filter.freq) {
-      onChange({ ...filter, freq: snapped });
+      onChange(filter.index, { ...filter, freq: snapped });
     }
   };
 }
@@ -131,12 +131,11 @@ export const Bands = memo(function Bands({ peq, committedPeq, capabilities, onFi
               filter={filter}
               committedFilter={committedPeq?.filters[filter.index]}
               active={activeBandIndex === filter.index}
-              onChange={(updated) => onFilterChange(filter.index, updated)}
+              onChange={onFilterChange}
               onStartChange={onStartChange}
               onEndChange={onEndChange}
-              onActivate={() => onActiveBandChange?.(filter.index)}
+              onActivate={onActiveBandChange}
               canRemove={visibleFilters.length > 1}
-              onRemove={() => onFilterChange(filter.index, { ...filter, enabled: false })}
               capabilities={capabilities}
               snapToIso={snapToIso}
             />
@@ -201,9 +200,9 @@ export const Bands = memo(function Bands({ peq, committedPeq, capabilities, onFi
             <BandControls
               filter={selectedFilter}
               committedFilter={committedPeq?.filters[selectedFilter.index]}
-              onChange={(updated) => onFilterChange(selectedFilter.index, updated)}
+              onChange={onFilterChange}
               onStartChange={onStartChange}
-              onActivate={() => onActiveBandChange?.(selectedFilter.index)}
+              onActivate={onActiveBandChange}
               capabilities={capabilities}
               snapToIso={snapToIso}
             />
@@ -218,12 +217,11 @@ type BandRowProps = {
   filter: Filter;
   committedFilter?: Filter;
   active: boolean;
-  onChange: (filter: Filter) => void;
+  onChange: (index: number, filter: Filter) => void;
   onStartChange: () => void;
   onEndChange?: () => void;
-  onActivate: () => void;
+  onActivate?: (index: number) => void;
   canRemove: boolean;
-  onRemove: () => void;
   capabilities: DeviceCapabilities;
   snapToIso?: boolean;
 };
@@ -237,7 +235,6 @@ const BandRow = memo(function BandRow({
   onEndChange,
   onActivate,
   canRemove,
-  onRemove,
   capabilities,
   snapToIso,
 }: BandRowProps) {
@@ -257,9 +254,9 @@ const BandRow = memo(function BandRow({
         disabled={!canRemove}
         onClick={() => {
           if (!canRemove) return;
-          onActivate();
+          onActivate?.(filter.index);
           onStartChange();
-          onRemove();
+          onChange(filter.index, { ...filter, enabled: false });
           onEndChange?.();
         }}
       >
@@ -274,17 +271,19 @@ const BandRow = memo(function BandRow({
   previous.canRemove === next.canRemove &&
   previous.capabilities === next.capabilities &&
   previous.snapToIso === next.snapToIso &&
+  previous.onChange === next.onChange &&
   previous.onStartChange === next.onStartChange &&
-  previous.onEndChange === next.onEndChange
+  previous.onEndChange === next.onEndChange &&
+  previous.onActivate === next.onActivate
 ));
 
 type BandControlsProps = {
   filter: Filter;
   committedFilter?: Filter;
-  onChange: (filter: Filter) => void;
+  onChange: (index: number, filter: Filter) => void;
   onStartChange: () => void;
   onEndChange?: () => void;
-  onActivate: () => void;
+  onActivate?: (index: number) => void;
   capabilities: DeviceCapabilities;
   snapToIso?: boolean;
 };
@@ -306,9 +305,9 @@ const BandControls = memo(function BandControls({
           filter={filter}
           supportedTypes={capabilities.supported_filter_types}
           onChange={(updated) => {
-            onActivate();
+            onActivate?.(filter.index);
             onStartChange();
-            onChange(updated);
+            onChange(filter.index, updated);
             onEndChange?.();
           }}
         />
@@ -327,11 +326,11 @@ const BandControls = memo(function BandControls({
             aria-valuetext={`${filter.freq} Hz`}
             onStartChange={onStartChange}
             onEndChange={onEndChange}
-            onReset={committedFilter ? () => onChange({ ...filter, freq: constrainFreq(committedFilter.freq, capabilities.freq_range, snapToIso) }) : undefined}
-            onFocus={onActivate}
+            onReset={committedFilter ? () => onChange(filter.index, { ...filter, freq: constrainFreq(committedFilter.freq, capabilities.freq_range, snapToIso) }) : undefined}
+            onFocus={() => onActivate?.(filter.index)}
             onChange={(event) => {
               const raw = sliderToFreq(+event.target.value, capabilities.freq_range);
-              onChange({ ...filter, freq: constrainFreq(raw, capabilities.freq_range, snapToIso) });
+              onChange(filter.index, { ...filter, freq: constrainFreq(raw, capabilities.freq_range, snapToIso) });
             }}
           />
           <NumberInput
@@ -341,11 +340,11 @@ const BandControls = memo(function BandControls({
             step={50}
             precision={0}
             onFocus={() => {
-              onActivate();
+              onActivate?.(filter.index);
               onStartChange();
             }}
             onBlur={onEndChange}
-            onChange={(val) => onChange({ ...filter, freq: constrainFreq(val, capabilities.freq_range, snapToIso) })}
+            onChange={(val) => onChange(filter.index, { ...filter, freq: constrainFreq(val, capabilities.freq_range, snapToIso) })}
             onStep={makeFreqStepper(filter, capabilities.freq_range, snapToIso, onChange)}
             className="band-freq-stepper"
             aria-label={`Band ${filter.index + 1} frequency value`}
@@ -363,9 +362,9 @@ const BandControls = memo(function BandControls({
             aria-valuetext={`${filter.gain >= 0 ? "+" : ""}${filter.gain.toFixed(2)} dB`}
             onStartChange={onStartChange}
             onEndChange={onEndChange}
-            onReset={committedFilter ? () => onChange({ ...filter, gain: clampToRange(committedFilter.gain, capabilities.band_gain_range) }) : undefined}
-            onFocus={onActivate}
-            onChange={(event) => onChange({ ...filter, gain: +event.target.value })}
+            onReset={committedFilter ? () => onChange(filter.index, { ...filter, gain: clampToRange(committedFilter.gain, capabilities.band_gain_range) }) : undefined}
+            onFocus={() => onActivate?.(filter.index)}
+            onChange={(event) => onChange(filter.index, { ...filter, gain: +event.target.value })}
           />
           <NumberInput
             value={clampToRange(filter.gain, capabilities.band_gain_range)}
@@ -374,11 +373,11 @@ const BandControls = memo(function BandControls({
             step={0.1}
             precision={2}
             onFocus={() => {
-              onActivate();
+              onActivate?.(filter.index);
               onStartChange();
             }}
             onBlur={onEndChange}
-            onChange={(val) => onChange({ ...filter, gain: val })}
+            onChange={(val) => onChange(filter.index, { ...filter, gain: val })}
             className="band-gain-stepper"
             aria-label={`Band ${filter.index + 1} gain value`}
           />
@@ -398,9 +397,9 @@ const BandControls = memo(function BandControls({
             aria-valuetext={`Q ${filter.q.toFixed(2)}`}
             onStartChange={onStartChange}
             onEndChange={onEndChange}
-            onReset={committedFilter ? () => onChange({ ...filter, q: clampToRange(committedFilter.q, capabilities.q_range) }) : undefined}
-            onFocus={onActivate}
-            onChange={(event) => onChange({ ...filter, q: sliderToQ(+event.target.value, capabilities.q_range) })}
+            onReset={committedFilter ? () => onChange(filter.index, { ...filter, q: clampToRange(committedFilter.q, capabilities.q_range) }) : undefined}
+            onFocus={() => onActivate?.(filter.index)}
+            onChange={(event) => onChange(filter.index, { ...filter, q: sliderToQ(+event.target.value, capabilities.q_range) })}
           />
           <NumberInput
             value={clampToRange(filter.q, capabilities.q_range)}
@@ -409,11 +408,11 @@ const BandControls = memo(function BandControls({
             step={0.05}
             precision={2}
             onFocus={() => {
-              onActivate();
+              onActivate?.(filter.index);
               onStartChange();
             }}
             onBlur={onEndChange}
-            onChange={(val) => onChange({ ...filter, q: val })}
+            onChange={(val) => onChange(filter.index, { ...filter, q: val })}
             className="band-q-stepper"
             aria-label={`Band ${filter.index + 1} Q value`}
           />
@@ -426,6 +425,8 @@ const BandControls = memo(function BandControls({
   previous.committedFilter === next.committedFilter &&
   previous.capabilities === next.capabilities &&
   previous.snapToIso === next.snapToIso &&
+  previous.onChange === next.onChange &&
+  previous.onActivate === next.onActivate &&
   previous.onStartChange === next.onStartChange &&
   previous.onEndChange === next.onEndChange
 ));
