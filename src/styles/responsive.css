@@ -1178,41 +1178,87 @@
 }
 
 @media (min-width: 851px) and ((min-height: 541px) or (pointer: fine)) {
-  .right-rail {
-    background: var(--panel) !important;
-    border-right: 1px solid var(--line-soft);
+  .desktop-sidebar {
+    min-width: 0;
+    min-height: 0;
+    padding: 8px 0;
+    overflow: hidden;
+    background: transparent;
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .desktop-sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
     padding: 8px 0;
   }
-  .tools-card {
+
+  .desktop-sidebar-item {
+    display: flex;
+    min-width: 0;
+    min-height: 38px;
+    align-items: center;
+    gap: 9px;
+    padding: 0 10px;
+    background: transparent;
+    color: var(--muted);
+    text-align: left;
+    transition: background-color var(--motion-duration) var(--motion-ease), color var(--motion-duration) var(--motion-ease);
+  }
+
+  .desktop-sidebar-item:hover:not(.active) {
+    background: var(--surface-soft);
+    color: var(--text);
+  }
+
+  .desktop-sidebar-item .material-symbols-outlined {
+    flex: 0 0 auto;
+    font-size: 17px;
+  }
+
+  .desktop-sidebar-item span:last-child {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--type-label);
+  }
+
+  .desktop-sidebar-item.active {
+    background: rgb(var(--cyan-rgb) / 0.12);
+    color: var(--cyan);
+    box-shadow: inset 3px 0 0 var(--cyan);
+  }
+
+  .desktop-workspace > .right-rail {
+    background: var(--panel);
+    border-left: 1px solid var(--line-soft);
+    border-right: 0;
+    padding: 8px 0;
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .desktop-workspace > .right-rail > .tools-card {
     background: transparent !important;
     border: none !important;
     padding: 8px 12px !important;
     gap: 4px;
   }
-  .tabs {
-    display: flex !important;
-    flex-direction: column !important;
-    background: transparent !important;
-    padding: 0 !important;
-    gap: 2px !important;
-    position: static !important;
+
+  .desktop-workspace.desktop-view-eq > .left-pane {
+    grid-column: 2 / -1;
   }
-  .tabs button {
-    background: transparent !important;
-    color: var(--muted) !important;
-    min-height: 30px !important;
-    border-radius: 0 !important; /* SHARP CORNERS */
-    padding: 0 12px !important;
-    font-weight: 500 !important;
-    font-size: 13px !important;
+
+  .desktop-workspace.desktop-view-device .left-pane,
+  .desktop-workspace.desktop-view-settings .left-pane {
+    display: none;
   }
-  .tabs button:hover:not(.active) {
-    background: var(--surface-soft) !important;
-    color: var(--text) !important;
-  }
-  .tabs button.active {
-    background: rgb(var(--cyan-rgb) / 0.12) !important;
-    color: var(--cyan) !important;
-    box-shadow: inset 3px 0 0 var(--cyan);
+
+  .desktop-workspace.desktop-view-device > .right-rail,
+  .desktop-workspace.desktop-view-settings > .right-rail {
+    grid-column: 2 / -1;
   }
 }

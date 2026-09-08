@@ -5,7 +5,7 @@
   grid-template-rows: 1fr;
   gap: 16px;
   overflow: hidden;
-  grid-column: 1;
+  grid-column: 3;
   grid-row: 1;
 }
 
