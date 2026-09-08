@@ -30,4 +30,3 @@ libc = "0.2"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 hidapi = { version = "2.6.3", features = ["linux-native"], default-features = false }
-gtk = "0.18"

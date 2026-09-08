@@ -8,3 +8,4 @@ Categories=AudioVideo;Audio;Mixer;
 Terminal=false
 StartupNotify=true
 DBusActivatable=false
+StartupWMClass=glacier-eq
