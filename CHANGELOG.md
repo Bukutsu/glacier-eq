@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.7.0] - 2026-09-08
+
+### Added
+
+- Bundled reference target curves into the application for offline use.
+- Desktop sidebar with grouped navigation: EQ, Tuning, and Profiles are separated from Device and Settings.
+
+### Changed
+
+- Redesigned the desktop workspace layout with a persistent navigation sidebar and dedicated right rail.
+- Streamlined profile and tuning controls and fixed mobile horizontal scroll overflow.
+- Device and Settings pages now show a focused header without EQ session details or undo/redo.
+- Device and Settings content is centered with a constrained max width on desktop.
+- Removed the obsolete internal tool tab strip.
+
+### Fixed
+
+- Fixed Linux desktop entry and icons for Wayland and KDE taskbars.
+- Fixed Linux icon resolution by using Tauri-native icon paths.
+- Seeded modern linuxdeploy in CI to prevent bundled libwayland white screen on AppImage.
+
 ## [0.6.0] - 2026-09-06
 
 ### Added
