@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useRef, Fragment, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, Fragment, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
 import { dbToY, formatFreq, freqToX, getFreqGrid, peqResponseAndBandValues, peqResponseValues, snapFreqToIsoSync, xToFreq, yToDb } from "../lib/graph";
 import { cssVar, rgbWithAlpha } from "../lib/theme";
 import { interpolateMeasurementDb } from "../lib/measurements";
@@ -66,12 +66,16 @@ export const EqGraph = memo(function EqGraph({
   const wheelGestureTimerRef = useRef<number | undefined>(undefined);
   const wheelHandlerRef = useRef<(event: WheelEvent, index: number) => void>(() => {});
   const editable = Boolean(capabilities && onActiveBandChange && onStartChange && onFilterChange);
-  const visibleMeasurements = measurements.filter((trace) => trace.visible);
-  const selectedMeasurement = selectedMeasurementId
-    ? measurements.find((trace) => trace.id === selectedMeasurementId && trace.visible) ?? null
-    : visibleMeasurements.length === 1
-      ? visibleMeasurements[0]
-      : null;
+  const visibleMeasurements = useMemo(
+    () => measurements.filter((trace) => trace.visible),
+    [measurements],
+  );
+  const selectedMeasurement = useMemo(() => {
+    if (selectedMeasurementId) {
+      return measurements.find((trace) => trace.id === selectedMeasurementId && trace.visible) ?? null;
+    }
+    return visibleMeasurements.length === 1 ? visibleMeasurements[0] : null;
+  }, [measurements, selectedMeasurementId, visibleMeasurements]);
   const draw = useCallback(async (peqOverride?: PEQData) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
