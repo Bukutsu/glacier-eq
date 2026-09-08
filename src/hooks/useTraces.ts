@@ -11,6 +11,7 @@ import {
   parsePersistedTargets,
 } from "../lib/persistedTraces";
 import type { MeasurementTrace, TargetTrace } from "../types";
+import { BUILTIN_TARGETS } from "../lib/builtinTargets";
 
 interface LoadedPersistedJson {
   value: unknown;
@@ -195,7 +196,10 @@ export function useTraces(notify?: (message: string) => void) {
   const [targetsHydrated, setTargetsHydrated] = useState(false);
   const [selectedMeasurementId, setSelectedMeasurementId] = useState<string | null>(null);
 
-  const allTargets = userTargets;
+  const allTargets = useMemo(
+    () => [...BUILTIN_TARGETS, ...userTargets],
+    [userTargets],
+  );
 
   const activeTargets = useMemo(
     () => allTargets.filter((target) => activeTargetIds.includes(target.id)),
@@ -234,9 +238,10 @@ export function useTraces(notify?: (message: string) => void) {
     );
     setUserTargets(parsedTargets.value);
 
-    const existingTargetIds = new Set(
-      parsedTargets.value.map((target) => target.id),
-    );
+    const existingTargetIds = new Set([
+      ...BUILTIN_TARGETS.map((target) => target.id),
+      ...parsedTargets.value.map((target) => target.id),
+    ]);
     const activeIdsKey = "glacier-active-targets";
     const savedActiveIds = loadPersistedJson(activeIdsKey, (msg) => notifyRef.current?.(msg));
     const parsedActiveIds = savedActiveIds.raw === null
@@ -248,7 +253,11 @@ export function useTraces(notify?: (message: string) => void) {
       parsedActiveIds.malformed,
       (msg) => notifyRef.current?.(msg),
     );
-    setActiveTargetIds(parsedActiveIds.value);
+    setActiveTargetIds(
+      savedActiveIds.raw === null && BUILTIN_TARGETS.length > 0
+        ? [BUILTIN_TARGETS[0].id]
+        : parsedActiveIds.value,
+    );
     setTargetsHydrated(true);
   }, []);
 
@@ -302,8 +311,8 @@ export function useTraces(notify?: (message: string) => void) {
         ...current,
         {
           id,
-          name: makeTargetName(name, [...current]),
-          color: resolveTargetColor(current.length),
+          name: makeTargetName(name, [...BUILTIN_TARGETS, ...current]),
+          color: resolveTargetColor(BUILTIN_TARGETS.length + current.length),
           builtIn: false,
           points: normalizeMeasurementPoints(points),
         },
