@@ -1,5 +1,5 @@
-// [PERF-PROBE] Development-only Tauri IPC benchmark. Loaded only when
-// VITE_TAURI_PERF=1 so production builds do not run it.
+// [PERF-PROBE] Opt-in Tauri IPC benchmark. Loaded only when
+// VITE_TAURI_PERF=1 so normal builds do not run it.
 import { invoke } from "./rpc";
 
 type ProbeResult = {
@@ -18,9 +18,17 @@ type ProbeFailure = {
 };
 
 const encoder = new TextEncoder();
-const workdir = import.meta.env.VITE_TAURI_PERF_DIR || "/tmp/glacier-eq-tauri-perf";
-const outputFile = `${workdir}/ipc-results.json`;
-const payloadFile = `${workdir}/ipc-payload.txt`;
+
+async function getWorkdir(): Promise<string> {
+  const configured = import.meta.env.VITE_TAURI_PERF_DIR;
+  if (configured) return configured.replace(/\/+$/, "");
+  try {
+    const { appDataDir } = await import("@tauri-apps/api/path");
+    return (await appDataDir()).replace(/\/+$/, "");
+  } catch {
+    return "/tmp/glacier-eq-tauri-perf";
+  }
+}
 
 function byteLength(value: unknown): number {
   return encoder.encode(JSON.stringify(value) ?? "null").byteLength;
@@ -105,6 +113,9 @@ function makePeq() {
 
 export async function runTauriPerfProbe(): Promise<void> {
   const started = performance.now();
+  const workdir = await getWorkdir();
+  const outputFile = `${workdir}/ipc-results.json`;
+  const payloadFile = `${workdir}/ipc-payload.txt`;
   const results: Array<ProbeResult | ProbeFailure> = [];
   const peq = makePeq();
   const smallAutoEq = makeAutoEqText(10_000);
@@ -156,9 +167,16 @@ export async function runTauriPerfProbe(): Promise<void> {
     elapsed_ms: Number((performance.now() - started).toFixed(3)),
     results,
   };
-  await invoke("save_text_file", {
-    path: outputFile,
-    content: JSON.stringify(report, null, 2),
-  });
-  console.info("[PERF-PROBE] Tauri IPC results written to", outputFile, report);
+  try {
+    await invoke("save_text_file", {
+      path: outputFile,
+      content: JSON.stringify(report, null, 2),
+    });
+    console.info("[PERF-PROBE] Tauri IPC results written to", outputFile, report);
+  } catch (error) {
+    // Android logcat is the fallback when a platform-specific app-data path
+    // cannot be resolved by the filesystem command.
+    console.info("[PERF-PROBE] Tauri IPC results", JSON.stringify(report));
+    console.error("[PERF-PROBE] Could not persist results:", error);
+  }
 }
