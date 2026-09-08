@@ -21,8 +21,6 @@ mod diagnostics;
 mod fsutil;
 #[cfg(target_os = "linux")]
 pub mod hid_helper;
-#[cfg(target_os = "linux")]
-mod linux_icon;
 mod profiles;
 mod settings;
 mod state;
@@ -331,19 +329,6 @@ pub fn run() {
                 .build(),
         );
     }
-
-    builder = builder.setup(|app| {
-        #[cfg(target_os = "linux")]
-        {
-            linux_icon::ensure_linux_desktop_icon();
-        }
-        if let Some(window) = app.get_webview_window("main") {
-            if let Some(icon) = app.default_window_icon() {
-                let _ = window.set_icon(icon.clone());
-            }
-        }
-        Ok(())
-    });
 
     builder
         .invoke_handler(tauri::generate_handler![

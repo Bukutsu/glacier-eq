@@ -1168,7 +1168,6 @@ name = "glacier-eq"
 version = "0.6.0"
 dependencies = [
  "glacier-core",
- "gtk",
  "hidapi",
  "libc",
  "serde",
