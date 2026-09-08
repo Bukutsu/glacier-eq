@@ -59,12 +59,12 @@ The feature-delivery experiment lazy-loads `ToolsPanel` and `AddTraceModal`:
 - Web main JS: 426.1 KB → 378.1 KB (-11.3%); gzip 133.0 KB → 120.8 KB.
 - The deferred chunks are absent from the initial resource set and load successfully when Profiles, Tuning, and Add Trace are opened.
 
-The release desktop binary also passed `npx tauri build --no-bundle`. Android profiling is blocked in this environment because the Android SDK is not installed (`ANDROID_HOME` is unset and `/home/bukutsu/Android/Sdk` is absent).
+The release desktop binary passed `npx tauri build --no-bundle`. The Android toolchain is now installed (SDK, NDK 27.2, Rust Android targets, and JDK 17), and the debug APK builds successfully for both `aarch64` and the x86_64 emulator target. The Android IPC run was not completed after the emulator session was stopped, so no Android latency numbers are recorded here.
 
 ## Remaining measurement plan
 
 - Run the same harness against a release desktop binary when a release WebView automation path is available.
-- Repeat on Android after installing the SDK and building an APK; do not infer Android performance from Linux or browser results.
+- Run the opt-in Android probe on a connected device or stable emulator; do not infer Android performance from Linux or browser results.
 - Use `vite --profile` and React/browser profiling for future startup or interaction changes.
 - Keep the existing graph benchmark as the CPU baseline and pair it with frame-drop/INP measurements.
 

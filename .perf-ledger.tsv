@@ -1,0 +1,14 @@
+run_id	commit	metric_before	metric_after	delta	status	description
+0	6ab8a70	23.172 ms	23.172 ms	0%	baseline	AutoEQ CLI, 10 bands, 2000 IE-smoothing steps, six release runs
+1	6ab8a70	23.172 ms	61.652 ms	-166.4%	discard	Removed derivative matrices, but recomputed polynomial terms in a second per-frequency band pass
+2	cd0362a	23.123 ms	21.765 ms	-5.9%	keep	Reuse AutoEQ derivative buffers across optimizer steps; release output is byte-identical
+3	cd0362a	21.765 ms	22.594 ms	-3.8%	discard	Precomputed 2phi and 8phi2, but added grid loads outweighed the saved multiplications
+4	cd0362a	21.765 ms	21.153 ms	-2.8%	discard	Specialized zero derivative terms for peak filters; sub-5% gain did not justify added branching and code
+5	cd0362a	21.765 ms	22.408 ms	-3.0%	discard	Reused the initial gradient for optimizer step zero; one saved pass did not offset loop branching
+6	56e0df1	0.2835 ms	0.2835 ms	0%	baseline	UI graph aggregate+per-band response, 1280 points, 10 enabled bands
+7	3997867	0.2835 ms	0.2456 ms	-13.4%	keep	Reuse one cosine frequency grid for all enabled bands during UI graph response calculation
+8	e7373ab	340 renders	60 renders	-82.4%	keep	Memoized unchanged BandRow/BandControls during ten band edits; browser stayed at 60 FPS with no dropped frames
+9	d8414d1	12 canvas redraws	0 canvas redraws	-100%	keep	Memoize visible/selected traces; changing the active band no longer redraws the graph canvas
+10	1d4a170	60 renders	60 renders	0%	keep-simple	Pass stable indexed handlers through memoized band controls, preserving the render win without stale closure props
+11	7910b02	395.70 KB main JS	347.67 KB main JS	-12.1%	keep	Lazy-load ToolsPanel and AddTraceModal; deferred chunks load on secondary-tool navigation
+12	5920d84	N/A	Linux WebKitGTK IPC probe	N/A	baseline	Real invoke measurements: 1 MiB parse 7 ms median, 4,000-point AutoEQ 12 ms, 1 MiB read 21 ms
