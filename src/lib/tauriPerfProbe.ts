@@ -18,8 +18,9 @@ type ProbeFailure = {
 };
 
 const encoder = new TextEncoder();
-const outputFile = "/tmp/glacier-eq-tauri-perf/ipc-results.json";
-const payloadFile = "/tmp/glacier-eq-tauri-perf/ipc-payload.txt";
+const workdir = import.meta.env.VITE_TAURI_PERF_DIR || "/tmp/glacier-eq-tauri-perf";
+const outputFile = `${workdir}/ipc-results.json`;
+const payloadFile = `${workdir}/ipc-payload.txt`;
 
 function byteLength(value: unknown): number {
   return encoder.encode(JSON.stringify(value) ?? "null").byteLength;

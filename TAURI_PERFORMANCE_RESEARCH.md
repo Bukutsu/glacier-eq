@@ -38,11 +38,34 @@ Scope: Tauri 2 desktop/mobile IPC, command scheduling, state ownership, streamin
 4. **High-rate future flows.** If HID telemetry, streamed measurements, or database progress becomes high frequency, batch/coalesce UI updates and use a Tauri Channel for ordered streaming. Keep events for lifecycle notifications.
 5. **Lock contention.** Hardware operations are intentionally serialized. If future commands need concurrent non-device work, keep the device session lock scoped to the actual operation and never hold a standard state mutex across an await.
 
-## Recommended measurement plan
+## Follow-up run
 
-- Add a small Tauri-only benchmark harness that records command payload bytes, invoke round-trip duration, and UI frame timing for: `run_autoeq`, profile load/save, device pull/push, and text import/export.
-- Run it against release desktop builds and the Android debug/release APK separately.
-- Use `vite --profile` for startup/module costs and the React/browser profiler for WebView interactions.
-- Keep the existing graph benchmark as the CPU baseline; pair it with frame-drop/INP measurements so a faster pure function is only kept when the user-visible interaction improves.
+The dev-only harness in [`scripts/bench-tauri-ipc.sh`](scripts/bench-tauri-ipc.sh) ran real invokes through the Linux WebKitGTK WebView. These are Linux development-WebView measurements, not Android or release numbers:
 
-No Tauri-specific code change is recommended solely from this research yet; the current native command scheduling is already in good shape. The next highest-value investigation is measured IPC payload/round-trip cost on desktop versus Android.
+| Command | Input bytes | Output bytes | Median | P95 |
+| --- | ---: | ---: | ---: | ---: |
+| `get_settings` | 4 | 136 | 1 ms | 6 ms |
+| `list_devices` | 4 | 488 | 5 ms | 6 ms |
+| `parse_autoeq` (1 MiB text) | 1,003,287 | 738 | 7 ms | 7 ms |
+| `run_autoeq` (4,000 points, 20 steps) | 316,119 | 1,061 | 12 ms | 13 ms |
+| `save_text_file` (1 MiB) | 999,994 | 4 | 6 ms | 6 ms |
+| `read_text_file` (1 MiB) | 60 | 999,923 | 21 ms | 24 ms |
+
+The normal bundled reference curves are about 383 lines each, so typical AutoEQ inputs are much smaller than the stress case. These results do not justify a binary `Response` or Channel migration yet; the measured operations are dominated by useful parsing, optimization, or disk work, and current progress events are low frequency.
+
+The feature-delivery experiment lazy-loads `ToolsPanel` and `AddTraceModal`:
+
+- Desktop main JS: 395.7 KB → 347.7 KB (-12.1%); gzip 124.6 KB → 111.0 KB.
+- Web main JS: 426.1 KB → 378.1 KB (-11.3%); gzip 133.0 KB → 120.8 KB.
+- The deferred chunks are absent from the initial resource set and load successfully when Profiles, Tuning, and Add Trace are opened.
+
+The release desktop binary also passed `npx tauri build --no-bundle`. Android profiling is blocked in this environment because the Android SDK is not installed (`ANDROID_HOME` is unset and `/home/bukutsu/Android/Sdk` is absent).
+
+## Remaining measurement plan
+
+- Run the same harness against a release desktop binary when a release WebView automation path is available.
+- Repeat on Android after installing the SDK and building an APK; do not infer Android performance from Linux or browser results.
+- Use `vite --profile` and React/browser profiling for future startup or interaction changes.
+- Keep the existing graph benchmark as the CPU baseline and pair it with frame-drop/INP measurements.
+
+Outcome: one measured frontend win was kept (lazy secondary tools); native command scheduling and IPC transport were left unchanged because the audit and Linux measurements found no justified 5%+ improvement. Channels remain reserved for a future high-rate stream.
