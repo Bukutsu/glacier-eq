@@ -71,6 +71,7 @@ declare global {
     AndroidNotifier?: {
       showToast: (message: string) => void;
     };
+    __glacierTauriPerfStarted__?: boolean;
   }
 }
 
@@ -87,6 +88,23 @@ const TOOL_TAB_BY_WORKSPACE: Record<MobileTab, ToolsTab | null> = {
 
 
 function App() {
+  // [PERF-PROBE] Keep the native IPC benchmark out of normal development and
+  // production unless explicitly enabled at Vite startup.
+  useEffect(() => {
+    if (
+      !import.meta.env.DEV ||
+      import.meta.env.VITE_TAURI_PERF !== "1" ||
+      !isTauri() ||
+      window.__glacierTauriPerfStarted__
+    ) {
+      return;
+    }
+    window.__glacierTauriPerfStarted__ = true;
+    import("./lib/tauriPerfProbe")
+      .then(({ runTauriPerfProbe }) => runTauriPerfProbe())
+      .catch((error) => console.error("Tauri performance probe failed:", error));
+  }, []);
+
   const [isMobile, setIsMobile] = useState(
     () => window.matchMedia(MOBILE_QUERY).matches,
   );
