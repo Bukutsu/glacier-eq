@@ -12,7 +12,7 @@ import { AddTraceModal } from "./components/AddTraceModal";
 import { Collapsible } from "./components/Collapsible";
 import { ConfirmDialogHost, confirmDialog } from "./components/ConfirmDialog";
 import { Modal } from "./components/Modal";
-import { DESKTOP_TABS, MOBILE_TABS, type MobileTab, type ToolsTab } from "./lib/tabs";
+import { MOBILE_TABS, type MobileTab, type ToolsTab } from "./lib/tabs";
 import { UnifiedTracesList } from "./components/UnifiedTraces";
 import {
   DEV_DUMMY_DEVICE,
@@ -1883,8 +1883,7 @@ function App() {
                 <ToolsPanel
                   {...mobileToolsPanelProps}
                   dirty={dirty}
-                  availableTabs={["Preset", "Import"]}
-                  defaultTab="Preset"
+                  activeTab="Preset"
                 />
               </section>
             )}
@@ -1950,8 +1949,7 @@ function App() {
               <section className="left-pane">
                 <ToolsPanel
                   {...mobileToolsPanelProps}
-                  availableTabs={["Settings"]}
-                  defaultTab="Settings"
+                  activeTab="Settings"
                   showActions={false}
                   graphViewMode={graphViewMode}
                   onGraphViewModeChange={setGraphViewMode}
@@ -1962,8 +1960,7 @@ function App() {
               <section className="left-pane">
                 <ToolsPanel
                   {...mobileToolsPanelProps}
-                  availableTabs={["Device"]}
-                  defaultTab="Device"
+                  activeTab="Device"
                   showActions={false}
                   connected={connected}
                   onOpenConnectModal={handleOpenDeviceModal}
@@ -2022,7 +2019,6 @@ function App() {
           </section>
           {activeTab !== "eq" && (
           <ToolsPanel
-            hideTabStrip
             peq={peq}
             maxBands={maxFilterBands}
             dspSampleRate={capabilities.dsp_sample_rate}
@@ -2056,14 +2052,12 @@ function App() {
             onGraphViewModeChange={setGraphViewMode}
             settings={settings}
             onSettingChange={updateSetting}
-            availableTabs={DESKTOP_TABS.map((t) => t.id)}
             onToggleTarget={toggleTarget}
             onRemoveTarget={removeTarget}
             onAddTarget={addTarget}
             connected={connected}
             isSimulated={isDevDummyDevice(selectedDevice)}
             activeTab={toolsTab}
-            onActiveTabChange={setToolsTab}
             onOpenConnectModal={handleOpenDeviceModal}
             onOpenDiagnostics={handleOpenDiagnosticsModal}
             showGraph={showGraph}

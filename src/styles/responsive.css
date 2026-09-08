@@ -55,10 +55,6 @@
   .mobile-workspace .tools-card {
     overflow: visible;
   }
-  .tabs {
-    position: static;
-  }
-
   .mobile-workspace .graph-card {
     height: 320px;
     flex: none;
@@ -606,28 +602,6 @@
     padding-left: 12px;
     padding-right: 12px;
   }
-  .tabs {
-    grid-template-columns: repeat(var(--tab-count, 4), minmax(0, 1fr));
-    min-height: 48px;
-    padding: 4px;
-  }
-  .tabs button {
-    min-height: 40px;
-    padding: 0 8px;
-    font-size: var(--type-small);
-    justify-content: center;
-    text-align: center;
-  }
-  .tabs button:nth-child(n + 3) {
-    border-top: 0;
-  }
-  .tabs.compact button {
-    font-size: var(--type-label);
-    font-weight: 600;
-  }
-  .tabs button .material-symbols-outlined {
-    font-size: 17px;
-  }
   .header-meta-row {
     flex-direction: row;
     align-items: center;
@@ -875,15 +849,6 @@
     padding: 0 6px;
     font-size: var(--type-label);
   }
-  .tabs button {
-    gap: 6px;
-  }
-  .tabs button .material-symbols-outlined {
-    font-size: 16px;
-  }
-  .tabs.compact button span:last-child {
-    font-size: var(--type-label);
-  }
   .bands-grid {
     display: flex;
     flex-direction: column;
@@ -900,7 +865,6 @@
 }
 
 @media (max-width: 380px) {
-  .tabs button,
   .toolbar .btn {
     font-size: var(--type-small);
   }
