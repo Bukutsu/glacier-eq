@@ -478,6 +478,20 @@ mod tests {
     }
 
     #[test]
+    fn walkplay_resends_unanswered_reads() {
+        use crate::device::{DeviceProtocol, EqProtocol};
+        assert_eq!(
+            WalkplayProtocol.resend_unanswered_after(),
+            Some(15)
+        );
+        assert_eq!(
+            DeviceProtocol::Walkplay.resend_unanswered_after(),
+            Some(15)
+        );
+        assert_eq!(DeviceProtocol::Moondrop.resend_unanswered_after(), None);
+    }
+
+    #[test]
     fn matches_filter_response_accepts_valid_packet() {
         let mut data = vec![0u8; 34];
         data[OFFSET_CMD_TYPE] = READ;
