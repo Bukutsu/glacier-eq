@@ -194,9 +194,13 @@ impl WalkplayProtocol {
 
     pub(crate) fn write_timing() -> WriteTiming {
         WriteTiming {
-            commit_step_ms: 500,
-            flood_delay_ms: 35,
-            post_gain_read_ms: 50,
+            commit_step_ms: 200,
+            flood_delay_ms: 15,
+            post_gain_read_ms: 20,
+            per_filter_ms: 40,
+            batch_ms: 50,
+            global_gain_ms: 20,
+            init_ms: 20,
             ..WriteTiming::default()
         }
     }

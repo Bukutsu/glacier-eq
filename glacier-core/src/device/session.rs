@@ -426,7 +426,7 @@ impl<'a> DeviceSession<'a> {
             self.send(&packet)
                 .map_err(|error| format!("Init write failed: {error}"))?;
         }
-        self.io.sleep_ms(50);
+        self.io.sleep_ms(self.protocol().write_timing().init_ms);
         self.drain();
         Ok(())
     }
