@@ -13,6 +13,8 @@ pub struct WriteTiming {
     pub flood_delay_ms: u64,
     /// Delay after the global-gain read, before starting the band read loop.
     pub post_gain_read_ms: u64,
+    /// Settle delay after sending init packets, before draining stale input.
+    pub init_ms: u64,
 }
 
 impl Default for WriteTiming {
@@ -24,6 +26,7 @@ impl Default for WriteTiming {
             commit_step_ms: 100,
             flood_delay_ms: 5,
             post_gain_read_ms: 0,
+            init_ms: 50,
         }
     }
 }

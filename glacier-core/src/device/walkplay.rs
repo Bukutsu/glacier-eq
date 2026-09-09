@@ -464,9 +464,17 @@ mod tests {
     }
 
     #[test]
-    fn write_timing_uses_500ms_commit_step() {
+    fn write_timing_uses_validated_pacing() {
+        // Validated against EPZ TP35 Pro hardware: full push verifies via
+        // readback compare, pulls are byte-identical across repeats.
         let timing = WalkplayProtocol::write_timing();
-        assert_eq!(timing.commit_step_ms, 500);
+        assert_eq!(timing.commit_step_ms, 200);
+        assert_eq!(timing.flood_delay_ms, 15);
+        assert_eq!(timing.post_gain_read_ms, 20);
+        assert_eq!(timing.per_filter_ms, 40);
+        assert_eq!(timing.batch_ms, 50);
+        assert_eq!(timing.global_gain_ms, 20);
+        assert_eq!(timing.init_ms, 20);
     }
 
     #[test]
