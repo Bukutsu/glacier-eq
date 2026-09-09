@@ -23,8 +23,18 @@ npm run build
 cargo build --release -p glacier-core
 ```
 
-The HID path was not changed: its waits are protocol timing requirements, and no
-physical DAC was available for a safe latency experiment. Web AutoEQ remains a
+The HID path was tuned against a connected EPZ TP35 Pro (Walkplay): pull
+798 ms -> ~430 ms (-46%) and verified push 3.9 s -> ~2.0 s (-47%) by
+tightening Walkplay pacing (flood 35->15 ms, post-gain 50->20 ms, per-filter
+80->40 ms, commit step 500->200 ms, batch 100->50 ms, gain 50->20 ms, and a
+new per-protocol init settle of 20 ms). Defaults for Moondrop/FiiO are
+unchanged. The DAC occasionally drops a band response (~1 in 10 pulls at any
+pacing, including stock); the existing 60-attempt retry plus second-pull and
+push readback-compare absorb it, so slow outliers still verify byte-identical. A
+follow-up landed Walkplay-only resends: an unanswered band/gain request is
+re-sent after 15 attempts (total read budget unchanged, other protocols still
+send once), so a dropped request recovers in ~0.9 s instead of ~3.9 s; healthy
+pulls are unchanged at ~430 ms. Web AutoEQ remains a
 follow-up candidate because it runs synchronously in the browser; changing that
 would require an end-to-end worker benchmark and a larger execution-boundary
 refactor.
