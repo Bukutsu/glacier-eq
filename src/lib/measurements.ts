@@ -33,37 +33,73 @@ function makeUniqueName(baseName: string, existingNames: string[], fallback: str
 }
 
 export function parseMeasurementText(text: string): MeasurementPoint[] {
-  if (text.length > 1_048_576 || text.split(/\r?\n/).length > 4096) {
+  if (text.length > 1_048_576) {
     throw new Error("Measurement input exceeds maximum size");
   }
   const points: MeasurementPoint[] = [];
+  let lineCount = 0;
+  let lineStart = 0;
 
-  for (const rawLine of text.split(/\r?\n/)) {
-    const line = rawLine.trim();
-    if (!line || line.startsWith("#") || line.startsWith("//")) {
-      continue;
+  const consumeLine = (lineEnd: number): void => {
+    lineCount++;
+    if (lineCount > 4096 || points.length > 100_000) return;
+    let start = lineStart;
+    let end = lineEnd;
+    if (end > start && text.charCodeAt(end - 1) === 13) end--;
+    while (start < end && text.charCodeAt(start) <= 32) start++;
+    while (end > start && text.charCodeAt(end - 1) <= 32) end--;
+    if (start >= end) return;
+    const first = text.charCodeAt(start);
+    if (first === 35) return;
+    if (first === 47 && start + 1 < end && text.charCodeAt(start + 1) === 47) return;
+
+    const tokenEnd = (from: number): number => {
+      let index = from;
+      while (index < end) {
+        const code = text.charCodeAt(index);
+        if (code === 44 || code === 59 || code === 9 || code === 32) break;
+        index++;
+      }
+      return index;
+    };
+    const firstEnd = tokenEnd(start);
+    let secondStart = firstEnd;
+    while (secondStart < end) {
+      const code = text.charCodeAt(secondStart);
+      if (code !== 44 && code !== 59 && code !== 9 && code !== 32) break;
+      secondStart++;
     }
+    if (secondStart >= end) return;
+    const secondEnd = tokenEnd(secondStart);
 
-    const tokens = line
-      .split(/[,\t; ]+/)
-      .map((token) => token.trim())
-      .filter(Boolean);
-
-    if (tokens.length < 2) {
-      continue;
-    }
-
-    const freq = Number(tokens[0]);
-    const db = Number(tokens[1]);
+    const freq = Number(text.slice(start, firstEnd));
+    const db = Number(text.slice(secondStart, secondEnd));
     if (!Number.isFinite(freq) || !Number.isFinite(db)) {
-      continue;
+      return;
     }
 
     if (freq < 20 || freq > 20000) {
-      continue;
+      return;
     }
 
     points.push({ freq, db });
+  };
+
+  for (let index = 0; index < text.length; index++) {
+    if (text.charCodeAt(index) === 10) {
+      consumeLine(index);
+      lineStart = index + 1;
+    }
+  }
+  if (lineStart < text.length) {
+    consumeLine(text.length);
+  } else if (lineStart === text.length && lineStart > 0) {
+    // A trailing newline leaves the same empty final element that split would.
+    lineCount++;
+  }
+
+  if (lineCount > 4096) {
+    throw new Error("Measurement input exceeds maximum size");
   }
 
   if (points.length > 100_000) {
