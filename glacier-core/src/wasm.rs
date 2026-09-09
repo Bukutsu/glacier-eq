@@ -314,6 +314,7 @@ pub fn run_autoeq(
     let target_points: Vec<(f64, f64)> =
         serde_wasm_bindgen::from_value(target_points_js).map_err(js_err)?;
 
+    let caps = device_caps_or_desktop(vendor_id, product_id);
     let mut peq = crate::autoeq::run_autoeq(
         &measurement_points,
         &target_points,
@@ -321,10 +322,11 @@ pub fn run_autoeq(
         steps,
         &smooth_type,
         fs,
+        Some(&caps),
     )
     .map_err(js_err)?;
 
-    let warnings = peq.clamp_to_capabilities(&device_caps_or_desktop(vendor_id, product_id));
+    let warnings = peq.clamp_to_capabilities(&caps);
 
     let result = AutoEqRunResultWasm { peq, warnings };
     to_js_value(&result)

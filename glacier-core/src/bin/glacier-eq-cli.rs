@@ -479,9 +479,10 @@ fn autoeq(
     }
     let measurement = parse_curve_text(&read_text(measurement)?)?;
     let target = parse_curve_text(&read_text(target)?)?;
-    let mut peq = run_autoeq(&measurement, &target, bands, steps, smooth, sample_rate)?;
-    if let Some(device) = device {
-        for warning in peq.clamp_to_capabilities(capabilities_for(device)?) {
+    let caps = device.map(capabilities_for).transpose()?;
+    let mut peq = run_autoeq(&measurement, &target, bands, steps, smooth, sample_rate, caps)?;
+    if let Some(caps) = caps {
+        for warning in peq.clamp_to_capabilities(caps) {
             eprintln!("warning: {warning}");
         }
     }

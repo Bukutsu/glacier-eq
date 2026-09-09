@@ -181,7 +181,9 @@ pub async fn run_autoeq(
     state: tauri::State<'_, Mutex<DeviceState>>,
 ) -> Result<AutoEqRunResult, String> {
     // CPU-bound optimization: run off the async workers so progress events and
-    // other IPC keep flowing while it crunches.
+    // other IPC keep flowing while it crunches. The connected DAC's limits
+    // shape the optimization itself, so the fit never depends on clamping.
+    let (caps, _) = connected_match_target(&state)?;
     let mut peq = tauri::async_runtime::spawn_blocking(move || {
         glacier_core::autoeq::run_autoeq(
             &measurement_points,
@@ -190,6 +192,7 @@ pub async fn run_autoeq(
             steps,
             &smooth_type,
             fs,
+            Some(&caps),
         )
     })
     .await

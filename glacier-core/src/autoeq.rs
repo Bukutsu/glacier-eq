@@ -1543,6 +1543,7 @@ pub fn run_autoeq(
     steps: usize,
     smooth_type: &str,
     fs: f32,
+    caps: Option<&crate::device::DeviceCapabilities>,
 ) -> Result<crate::eq::PEQData, String> {
     if n_bands == 0 || n_bands > MAX_N {
         return Err("Number of bands must be between 1 and 32".to_string());
@@ -1575,10 +1576,15 @@ pub fn run_autoeq(
     let preamp_mean = preprocess(&f, &dst, &src, &mut r, smooth, true)?;
 
     let mut types = vec![crate::eq::FilterType::Peak; n_bands];
-    if n_bands >= 1 {
+    // Work inside the device's feasible set: only use shelf filters the DAC
+    // implements, so the fit never depends on post-hoc clamping to survive.
+    let supports = |t: crate::eq::FilterType| {
+        caps.map_or(true, |c| c.supported_filter_types.contains(&t))
+    };
+    if n_bands >= 1 && supports(crate::eq::FilterType::LowShelf) {
         types[0] = crate::eq::FilterType::LowShelf;
     }
-    if n_bands >= 2 {
+    if n_bands >= 2 && supports(crate::eq::FilterType::HighShelf) {
         types[1] = crate::eq::FilterType::HighShelf;
     }
 
@@ -1593,35 +1599,37 @@ pub fn run_autoeq(
     let mut gain = vec![0.0; n_bands];
     let mut q_vals = vec![1.0; n_bands];
 
-    let mut f0_lim = vec![
-        Lim {
-            lo: 20.0,
-            hi: 16000.0
-        };
-        n_bands
-    ];
-    let gain_lim = vec![
-        Lim {
-            lo: -16.0,
-            hi: 16.0
-        };
-        n_bands
-    ];
-    let mut q_lim = vec![Lim { lo: 0.4, hi: 4.0 }; n_bands];
+    // Intersect the generic optimizer bounds with the device ranges. When a
+    // device range does not overlap the default, the device range wins: the
+    // result must always be something the DAC can reproduce.
+    fn intersect(lo: f32, hi: f32, clo: f64, chi: f64) -> Lim {
+        let lo = lo.max(clo as f32);
+        let hi = hi.min(chi as f32);
+        if lo < hi {
+            Lim { lo, hi }
+        } else {
+            Lim {
+                lo: clo as f32,
+                hi: chi as f32,
+            }
+        }
+    }
+    let (cap_gain_lo, cap_gain_hi) = caps.map_or((-16.0, 16.0), |c| c.band_gain_range);
+    let (cap_q_lo, cap_q_hi) = caps.map_or((0.4, 4.0), |c| c.q_range);
+    let (cap_f_lo, cap_f_hi) = caps.map_or((20.0, 20000.0), |c| {
+        (c.freq_range.0 as f64, c.freq_range.1 as f64)
+    });
+    let mut f0_lim = vec![intersect(20.0, 16000.0, cap_f_lo, cap_f_hi); n_bands];
+    let gain_lim = vec![intersect(-16.0, 16.0, cap_gain_lo, cap_gain_hi); n_bands];
+    let mut q_lim = vec![intersect(0.4, 4.0, cap_q_lo, cap_q_hi); n_bands];
 
     for n in 0..n_bands {
         if types[n] == crate::eq::FilterType::LowShelf {
-            f0_lim[n] = Lim {
-                lo: 20.0,
-                hi: 500.0,
-            };
-            q_lim[n] = Lim { lo: 0.4, hi: 3.0 };
+            f0_lim[n] = intersect(20.0, 500.0, cap_f_lo, cap_f_hi);
+            q_lim[n] = intersect(0.4, 3.0, cap_q_lo, cap_q_hi);
         } else if types[n] == crate::eq::FilterType::HighShelf {
-            f0_lim[n] = Lim {
-                lo: 3000.0,
-                hi: 20000.0,
-            };
-            q_lim[n] = Lim { lo: 0.4, hi: 3.0 };
+            f0_lim[n] = intersect(3000.0, 20000.0, cap_f_lo, cap_f_hi);
+            q_lim[n] = intersect(0.4, 3.0, cap_q_lo, cap_q_hi);
         }
     }
 
@@ -1857,7 +1865,7 @@ mod tests {
     fn autoeq_rejects_finite_values_that_overflow_f32_conversion() {
         let extreme = [(20.0, f64::MAX), (20_000.0, f64::MAX)];
         let flat = [(20.0, 0.0), (20_000.0, 0.0)];
-        assert!(run_autoeq(&extreme, &flat, 2, 10, "none", 48_000.0).is_err());
+        assert!(run_autoeq(&extreme, &flat, 2, 10, "none", 48_000.0, None).is_err());
     }
 
     #[test]
@@ -1865,15 +1873,237 @@ mod tests {
         let high = f32::MAX as f64;
         let measurement = [(20.0, high), (20_000.0, high)];
         let target = [(20.0, -high), (20_000.0, -high)];
-        assert!(run_autoeq(&measurement, &target, 2, 10, "none", 48_000.0).is_err());
+        assert!(run_autoeq(&measurement, &target, 2, 10, "none", 48_000.0, None).is_err());
     }
 
     #[test]
     fn autoeq_rejects_invalid_public_inputs() {
         let curve = [(20.0, 0.0), (20_000.0, 0.0)];
-        assert!(run_autoeq(&[], &curve, 2, 10, "none", 48_000.0).is_err());
-        assert!(run_autoeq(&curve, &curve, 2, 10, "bad", 48_000.0).is_err());
-        assert!(run_autoeq(&curve, &curve, 2, 10, "none", f32::NAN).is_err());
+        assert!(run_autoeq(&[], &curve, 2, 10, "none", 48_000.0, None).is_err());
+        assert!(run_autoeq(&curve, &curve, 2, 10, "bad", 48_000.0, None).is_err());
+        assert!(run_autoeq(&curve, &curve, 2, 10, "none", f32::NAN, None).is_err());
+    }
+
+    /// Hand-derived biquad gradients must match central finite differences of
+    /// an independent f64 reference loss built on the canonical forward model.
+    /// Covers all three coefficient branches (Peak, LowShelf, HighShelf).
+    #[test]
+    fn analytic_gradients_match_finite_differences() {
+        use crate::eq::FilterType;
+        let n_bands = 3;
+        let types = [
+            FilterType::Peak,
+            FilterType::LowShelf,
+            FilterType::HighShelf,
+        ];
+        let fs = 96_000.0_f32;
+        let f = generate_log_spaced_freqs();
+        let mut phi = [0.0; K];
+        for k in 0..K {
+            phi[k] = (std::f32::consts::PI / fs * f[k]).sin().powi(2);
+        }
+        let mut r = [0.0; K];
+        for k in 0..K {
+            let t = (f[k] / 1000.0).ln();
+            r[k] = 3.0 * (2.0 * t).sin() - 2.0 * (t - 1.0).tanh() + 1.0;
+        }
+        let c = Consts {
+            types: &types,
+            phi: &phi,
+            r: &r,
+            fs,
+            n_bands,
+            opt_amp: true,
+        };
+        let size = w_from_n(n_bands);
+        let mut x = vec![0.0; size];
+        x[0] = 200.0_f32.ln();
+        x[1] = 80.0_f32.ln();
+        x[2] = 10_000.0_f32.ln();
+        x[3] = 2.0;
+        x[4] = -1.0;
+        x[5] = 1.5;
+        x[6] = q_to_bw(1.0);
+        x[7] = q_to_bw(0.7);
+        x[8] = q_to_bw(0.7);
+        x[9] = 0.1;
+
+        let mut g = vec![0.0; size];
+        let mut buf = || [[0.0; K]; MAX_N];
+        let analytic_loss = grad(&c, &x, &mut g, &mut buf(), &mut buf(), &mut buf());
+
+        // Independent reference: same loss through iir_math, in f64.
+        let reference_loss = |x: &[f32]| -> f64 {
+            let mut total = vec![0.0f64; K];
+            for k in 0..K {
+                total[k] = x[3 * n_bands] as f64;
+            }
+            for n in 0..n_bands {
+                let f0 = (x[n].exp().min(0.49 * fs)) as f64;
+                let gain = x[n_bands + n] as f64;
+                let q = bw_to_q(x[2 * n_bands + n]) as f64;
+                let mut resp = vec![0.0f32; K];
+                crate::eq::iir_math::accumulate_response_values(
+                    types[n],
+                    f0,
+                    gain,
+                    q,
+                    fs as f64,
+                    &f,
+                    &mut resp,
+                );
+                for k in 0..K {
+                    total[k] += resp[k] as f64;
+                }
+            }
+            let mut loss = 0.0;
+            for k in 0..K {
+                let d = total[k] - r[k] as f64;
+                loss += d * d;
+            }
+            loss / K as f64
+        };
+
+        let ref_loss = reference_loss(&x);
+        println!("loss analytic={analytic_loss} reference={ref_loss}");
+        // Human scale: 0.05 MSE over 384 points ≈ 0.01 dB per point,
+        // far below audibility (~0.1 dB) but above f32 evaluation noise.
+        assert!(
+            (analytic_loss as f64 - ref_loss).abs() <= 0.05,
+            "forward model mismatch"
+        );
+
+        let eps = 1e-4;
+        let mut failures = 0;
+        for w in 0..size {
+            let mut xp = x.clone();
+            xp[w] += eps;
+            let mut xm = x.clone();
+            xm[w] -= eps;
+            let numeric = (reference_loss(&xp) - reference_loss(&xm)) / (2.0 * eps as f64);
+            // AdaBelief only needs roughly-correct descent directions; 10%
+            // guards against gross derivative bugs, not f32 dust.
+            let tolerance = 0.10 * (1.0 + numeric.abs()) + 1e-2;
+            let ok = (g[w] as f64 - numeric).abs() <= tolerance;
+            if !ok {
+                failures += 1;
+            }
+            println!("param {w}: analytic={} numeric={numeric:.6} {}", g[w], if ok { "ok" } else { "MISMATCH" });
+        }
+        assert!(failures == 0, "{failures} gradient mismatches");
+    }
+
+    static PEAK_ONLY_TYPES: &[crate::eq::FilterType] = &[crate::eq::FilterType::Peak];
+
+    fn restrictive_caps() -> crate::device::DeviceCapabilities {
+        crate::device::DeviceCapabilities {
+            num_bands: 5,
+            global_gain_range: (-12, 0),
+            band_gain_range: (-6.0, 6.0),
+            freq_range: (30, 18000),
+            q_range: (0.5, 3.0),
+            supported_filter_types: PEAK_ONLY_TYPES,
+            supports_per_band_enable: false,
+            supports_ram_apply: false,
+            dsp_sample_rate: 48000.0,
+            gain_tolerance: 0.15,
+            freq_tolerance: 1,
+            q_tolerance: 0.05,
+            integer_preamp: false,
+        }
+    }
+
+    fn hump_case() -> (Vec<(f64, f64)>, Vec<(f64, f64)>) {
+        // Flat measurement, target with a +14 dB hump at 200 Hz: needs more
+        // gain than the restrictive ±6 dB device allows.
+        let measurement = [20.0, 50.0, 100.0, 200.0, 500.0, 1000.0, 2000.0, 5000.0, 10000.0, 20000.0]
+            .map(|freq| (freq, 0.0))
+            .to_vec();
+        let target = [
+            (20.0, 0.0),
+            (50.0, 1.0),
+            (100.0, 6.0),
+            (200.0, 14.0),
+            (500.0, 6.0),
+            (1000.0, 1.0),
+            (2000.0, 0.0),
+            (5000.0, 0.0),
+            (10000.0, 0.0),
+            (20000.0, 0.0),
+        ]
+        .to_vec();
+        (measurement, target)
+    }
+
+    fn fit_mse(peq: &PEQData, r: &[f32; K], preamp_mean: f32, fs: f32) -> f64 {
+        let f = generate_log_spaced_freqs();
+        let mut resp = vec![0.0f32; K];
+        for filter in &peq.filters {
+            if filter.enabled {
+                crate::eq::iir_math::accumulate_response_values(
+                    filter.filter_type,
+                    filter.freq as f64,
+                    filter.gain,
+                    filter.q,
+                    fs as f64,
+                    &f,
+                    &mut resp,
+                );
+            }
+        }
+        let mut mse = 0.0;
+        for k in 0..K {
+            let d = resp[k] as f64 + peq.global_gain - (r[k] as f64 + preamp_mean as f64);
+            mse += d * d;
+        }
+        mse / K as f64
+    }
+
+    #[test]
+    fn caps_aware_fit_stays_in_bounds_without_clamping() {
+        let (measurement, target) = hump_case();
+        let caps = restrictive_caps();
+        let mut peq = run_autoeq(&measurement, &target, 5, 200, "none", 48000.0, Some(&caps))
+            .unwrap();
+        for filter in &peq.filters {
+            assert_eq!(filter.filter_type, crate::eq::FilterType::Peak);
+            assert!((30..=18000).contains(&filter.freq), "freq {}", filter.freq);
+            assert!((-6.0..=6.0).contains(&filter.gain), "gain {}", filter.gain);
+            assert!((0.5..=3.0).contains(&filter.q), "q {}", filter.q);
+        }
+        // Bands must survive without clamping. The preamp may still warn: it
+        // is derived after the fact, and tightening it upward would trade
+        // away the anti-clipping guarantee for inaudible level precision.
+        let warnings = peq.clamp_to_capabilities(&caps);
+        assert!(
+            warnings.iter().all(|w| !w.contains("Band")),
+            "{warnings:?}"
+        );
+    }
+
+    #[test]
+    fn caps_aware_fit_beats_clamp_after_fit() {
+        let (measurement, target) = hump_case();
+        let caps = restrictive_caps();
+        let f = generate_log_spaced_freqs();
+        let src = interpolate_curve("Measurement", &measurement, &f).unwrap();
+        let dst = interpolate_curve("Target", &target, &f).unwrap();
+        let mut r = [0.0; K];
+        let preamp_mean = preprocess(&f, &dst, &src, &mut r, None, true).unwrap();
+
+        let mut clamped = run_autoeq(&measurement, &target, 5, 200, "none", 48000.0, None)
+            .unwrap();
+        assert!(!clamped.clamp_to_capabilities(&caps).is_empty());
+        let clamped_mse = fit_mse(&clamped, &r, preamp_mean, 48000.0);
+
+        let aware =
+            run_autoeq(&measurement, &target, 5, 200, "none", 48000.0, Some(&caps)).unwrap();
+        let aware_mse = fit_mse(&aware, &r, preamp_mean, 48000.0);
+        println!("clamped_mse={clamped_mse} aware_mse={aware_mse}");
+        assert!(
+            aware_mse <= clamped_mse,
+            "caps-aware {aware_mse} should beat clamp-after {clamped_mse}"
+        );
     }
 
     #[test]
@@ -1890,7 +2120,7 @@ mod tests {
         ];
         let mut target = measurement;
         target[3].1 = 12.0;
-        let peq = run_autoeq(&measurement, &target, 5, 100, "none", 48_000.0).unwrap();
+        let peq = run_autoeq(&measurement, &target, 5, 100, "none", 48_000.0, None).unwrap();
         assert!(peq.global_gain < 0.0);
     }
 
@@ -2170,7 +2400,7 @@ Filter 4: ON LowPass Fc 18000 Hz Gain 0 dB Q 0.7";
     fn test_autoeq_nyquist_clamping_and_accumulation_stability() {
         let measurement = [(20.0, 0.0), (20_000.0, 0.0)];
         let target = [(20.0, 5.0), (20_000.0, -5.0)];
-        let result = run_autoeq(&measurement, &target, 10, 50, "none", 44_100.0).unwrap();
+        let result = run_autoeq(&measurement, &target, 10, 50, "none", 44_100.0, None).unwrap();
         for filter in &result.filters {
             assert!((filter.freq as f32) <= 0.49 * 44_100.0);
             assert!(filter.gain.is_finite());
