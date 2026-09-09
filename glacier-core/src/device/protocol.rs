@@ -65,6 +65,13 @@ impl Packet {
 
 pub trait EqProtocol {
     fn write_timing(&self) -> WriteTiming;
+    /// Re-send an unanswered read request after this many attempts instead of
+    /// only re-reading. `None` preserves send-once behavior. A dropped request
+    /// recovers after one round instead of burning the full attempt budget and
+    /// failing the phase.
+    fn resend_unanswered_after(&self) -> Option<usize> {
+        None
+    }
     fn is_default_state(&self, peq: &PEQData) -> bool;
     fn init_packets(&self) -> Vec<Packet>;
     fn read_filter_request(&self, index: u8, nonce: u8) -> Packet;
@@ -121,6 +128,10 @@ impl DeviceProtocol {
 impl EqProtocol for DeviceProtocol {
     fn write_timing(&self) -> WriteTiming {
         self.implementation().write_timing()
+    }
+
+    fn resend_unanswered_after(&self) -> Option<usize> {
+        self.implementation().resend_unanswered_after()
     }
 
     fn is_default_state(&self, peq: &PEQData) -> bool {
@@ -194,9 +205,13 @@ impl WalkplayProtocol {
 
     pub(crate) fn write_timing() -> WriteTiming {
         WriteTiming {
-            commit_step_ms: 500,
-            flood_delay_ms: 35,
-            post_gain_read_ms: 50,
+            commit_step_ms: 200,
+            flood_delay_ms: 15,
+            post_gain_read_ms: 20,
+            per_filter_ms: 40,
+            batch_ms: 50,
+            global_gain_ms: 20,
+            init_ms: 20,
             ..WriteTiming::default()
         }
     }
@@ -368,6 +383,12 @@ impl WalkplayProtocol {
 impl EqProtocol for WalkplayProtocol {
     fn write_timing(&self) -> WriteTiming {
         Self::write_timing()
+    }
+
+    fn resend_unanswered_after(&self) -> Option<usize> {
+        // TP35 Pro hardware drops about one band/gain request per ten pulls;
+        // a resend recovers in one round instead of failing the phase.
+        Some(15)
     }
 
     fn is_default_state(&self, peq: &PEQData) -> bool {
