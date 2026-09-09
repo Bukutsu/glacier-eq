@@ -30,7 +30,11 @@ tightening Walkplay pacing (flood 35->15 ms, post-gain 50->20 ms, per-filter
 new per-protocol init settle of 20 ms). Defaults for Moondrop/FiiO are
 unchanged. The DAC occasionally drops a band response (~1 in 10 pulls at any
 pacing, including stock); the existing 60-attempt retry plus second-pull and
-push readback-compare absorb it, so slow outliers still verify byte-identical. Web AutoEQ remains a
+push readback-compare absorb it, so slow outliers still verify byte-identical. A
+follow-up landed Walkplay-only resends: an unanswered band/gain request is
+re-sent after 15 attempts (total read budget unchanged, other protocols still
+send once), so a dropped request recovers in ~0.9 s instead of ~3.9 s; healthy
+pulls are unchanged at ~430 ms. Web AutoEQ remains a
 follow-up candidate because it runs synchronously in the browser; changing that
 would require an end-to-end worker benchmark and a larger execution-boundary
 refactor.

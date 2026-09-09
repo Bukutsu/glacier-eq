@@ -21,3 +21,4 @@ run_id	commit	metric_before	metric_after	delta	status	description
 19	HEAD	3916 ms	3916 ms	0%	baseline	TP35 Pro push-back-same-state, persistent_push with verify, state md5-identical
 20	HEAD	798 ms	463 ms	-42.0%	keep	Walkplay flood 35->15ms + post-gain 50->20ms; pulls byte-identical, retry net covers firmware wedges
 21	HEAD	3916 ms	2064 ms	-47.3%	keep	Walkplay per-filter 80->40, commit 500->200, batch 100->50, gain 50->20, init new field 20ms; push verifies via readback compare
+22	HEAD	4352 ms	1343 ms	-69.1%	keep	Walkplay resends unanswered band/gain requests after 15 attempts (same 60/20 read budget); wedge recovery 3.9s->0.9s, healthy path unchanged

@@ -374,8 +374,8 @@ impl<'a> DeviceSession<'a> {
     fn read_filter(&mut self, index: u8) -> Result<Filter, String> {
         let protocol = self.protocol();
         let nonce = index.wrapping_add(1).max(1);
-        self.send(&protocol.read_filter_request(index, nonce))?;
-        let data = self.read_matching("Filter", FILTER_READ_ATTEMPTS, |data| {
+        let request = protocol.read_filter_request(index, nonce);
+        let data = self.send_and_read("Filter", &request, FILTER_READ_ATTEMPTS, 0, |data| {
             protocol.matches_filter_response(data, index, nonce)
         })?;
         protocol
@@ -385,14 +385,44 @@ impl<'a> DeviceSession<'a> {
 
     fn read_gain(&mut self) -> Result<f64, String> {
         let protocol = self.protocol();
-        self.send(&protocol.read_global_gain_request())?;
-        self.io.sleep_ms(25);
-        let data = self.read_matching("Global gain", GAIN_READ_ATTEMPTS, |data| {
+        let request = protocol.read_global_gain_request();
+        let data = self.send_and_read("Global gain", &request, GAIN_READ_ATTEMPTS, 25, |data| {
             protocol.matches_global_gain_response(data)
         })?;
         protocol
             .parse_global_gain_response(&data)
             .ok_or_else(|| "Global gain response could not be parsed".into())
+    }
+
+    /// Sends a read request, re-sending it when the protocol opts in and a full
+    /// round of attempts goes unanswered. The total read budget is unchanged.
+    fn send_and_read(
+        &mut self,
+        label: &str,
+        request: &Packet,
+        attempts: usize,
+        settle_ms: u64,
+        matches: impl Fn(&[u8]) -> bool,
+    ) -> Result<Vec<u8>, String> {
+        let per_round = self
+            .protocol()
+            .resend_unanswered_after()
+            .unwrap_or(attempts);
+        let mut remaining = attempts;
+        let mut last_err = format!("{label} read timeout");
+        while remaining > 0 {
+            self.send(request)?;
+            self.io.sleep_ms(settle_ms);
+            let take = per_round.min(remaining);
+            match self.read_matching(label, take, &matches) {
+                Ok(data) => return Ok(data),
+                Err(error) => {
+                    last_err = error;
+                    remaining -= take;
+                }
+            }
+        }
+        Err(last_err)
     }
 
     fn read_matching(
@@ -821,6 +851,65 @@ mod tests {
                     .post_gain_read_ms
             ))
         );
+    }
+
+    #[test]
+    fn dropped_band_response_is_resent_and_pull_succeeds() {
+        use super::super::walkplay::CMD_PEQ_VALUES;
+        let profile = get_supported_device(0x3302, 0x43e8).unwrap();
+        let mut io = FakeIo::default();
+        io.reads.push_back(vec![]); // init drain terminator
+        io.reads.push_back(vec![
+            READ,
+            super::super::walkplay::CMD_GLOBAL_GAIN,
+            0,
+            0,
+            0xFF,
+            0,
+        ]);
+        // The DAC drops the first band-0 request: a full round of attempts
+        // goes unanswered, then the resent request is answered.
+        for _ in 0..15 {
+            io.reads.push_back(vec![]);
+        }
+        for index in 0..10u8 {
+            let mut packet = vec![0; 34];
+            packet[0] = READ;
+            packet[1] = CMD_PEQ_VALUES;
+            packet[2] = index + 1;
+            packet[4] = index;
+            packet[27..29].copy_from_slice(&(100 + index as u16).to_le_bytes());
+            packet[29..31].copy_from_slice(&256u16.to_le_bytes());
+            packet[31..33].copy_from_slice(&256i16.to_le_bytes());
+            packet[33] = 2;
+            io.reads.push_back(packet);
+        }
+
+        let peq = DeviceSession::new(&mut io, profile).pull().unwrap();
+        assert_eq!(peq.filters.len(), 10);
+        let band_requests = io
+            .events
+            .iter()
+            .filter(|event| **event == IoEvent::Write(CMD_PEQ_VALUES))
+            .count();
+        assert_eq!(band_requests, 11);
+    }
+
+    #[test]
+    fn healthy_pull_sends_each_band_request_once() {
+        use super::super::walkplay::CMD_PEQ_VALUES;
+        let profile = get_supported_device(0x3302, 0x43e8).unwrap();
+        let mut io = FakeIo::default();
+        queue_pull(&mut io, -1);
+
+        DeviceSession::new(&mut io, profile).pull().unwrap();
+
+        let band_requests = io
+            .events
+            .iter()
+            .filter(|event| **event == IoEvent::Write(CMD_PEQ_VALUES))
+            .count();
+        assert_eq!(band_requests, 10);
     }
 
     fn test_peq() -> PEQData {
