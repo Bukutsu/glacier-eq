@@ -12,3 +12,7 @@ run_id	commit	metric_before	metric_after	delta	status	description
 10	1d4a170	60 renders	60 renders	0%	keep-simple	Pass stable indexed handlers through memoized band controls, preserving the render win without stale closure props
 11	7910b02	395.70 KB main JS	347.67 KB main JS	-12.1%	keep	Lazy-load ToolsPanel and AddTraceModal; deferred chunks load on secondary-tool navigation
 12	5920d84	N/A	Linux WebKitGTK IPC probe	N/A	baseline	Real invoke measurements: 1 MiB parse 7 ms median, 4,000-point AutoEQ 12 ms, 1 MiB read 21 ms
+13	556e609	0.294 ms	0.294 ms	0%	baseline	UI graph re-baseline, 1280 points, 10 enabled bands, taskset CPU0, 20 warmup + 15 runs
+14	556e609	0.2936 ms	0.2835 ms	-3.4%	discard	Cache cosine grid across graph frames; cos is ~3% of frame, copy/alloc dominates
+15	556e609	0.2936 ms	0.2926 ms	-0.3%	discard	Manual indexed filter loop without intermediate allocation; filter count too small to matter
+16	556e609	0.2936 ms	0.2960 ms	+0.8%	discard	Float32 cosine grid; narrower loads did not offset float conversion cost
