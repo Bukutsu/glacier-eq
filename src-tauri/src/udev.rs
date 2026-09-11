@@ -14,11 +14,14 @@ use serde::Serialize;
 use std::path::PathBuf;
 
 /// Destination of the installed rules file. Fixed by convention; never
-/// derived from user input.
-pub const DEST_PATH: &str = "/etc/udev/rules.d/99-glacier-eq.rules";
-/// Rules content shipped in `udev/99-glacier-eq.rules`, embedded at compile
+/// derived from user input. Must be numbered < 70 (e.g. 69-) so it runs
+/// before systemd's 73-seat-late.rules uaccess processor.
+pub const DEST_PATH: &str = "/etc/udev/rules.d/69-glacier-eq.rules";
+/// Legacy destination from earlier releases that was numbered too late (99-).
+pub const LEGACY_DEST_PATH: &str = "/etc/udev/rules.d/99-glacier-eq.rules";
+/// Rules content shipped in `udev/69-glacier-eq.rules`, embedded at compile
 /// time so the installer cannot be pointed at a different file.
-const EXPECTED_RULES: &str = include_str!("../../udev/99-glacier-eq.rules");
+const EXPECTED_RULES: &str = include_str!("../../udev/69-glacier-eq.rules");
 
 #[derive(Debug, Clone, Serialize)]
 pub struct UdevStatus {
@@ -74,8 +77,10 @@ fn get_udev_status_linux() -> Result<UdevStatus, String> {
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
         Err(error) => return Err(format!("Failed to read {DEST_PATH}: {error}")),
     };
-    let installed = installed_content.is_some();
-    let up_to_date = installed_content.is_some_and(|content| rules_match(&content, EXPECTED_RULES));
+    let legacy_exists = std::fs::symlink_metadata(LEGACY_DEST_PATH).is_ok();
+    let installed = installed_content.is_some() || legacy_exists;
+    let up_to_date = !legacy_exists
+        && installed_content.is_some_and(|content| rules_match(&content, EXPECTED_RULES));
     Ok(UdevStatus {
         supported: true,
         installed,
@@ -87,8 +92,8 @@ fn get_udev_status_linux() -> Result<UdevStatus, String> {
 
 #[cfg(target_os = "linux")]
 fn pkexec_missing_error() -> String {
-    "pkexec not found. Install polkit (policykit-1), or copy udev/99-glacier-eq.rules \
-     to /etc/udev/rules.d/99-glacier-eq.rules manually as root, then run \
+    "pkexec not found. Install polkit (policykit-1), or copy udev/69-glacier-eq.rules \
+     to /etc/udev/rules.d/69-glacier-eq.rules manually as root, then run \
      `udevadm control --reload-rules && udevadm trigger --subsystem-match=hidraw --action=change`."
         .to_string()
 }
@@ -144,11 +149,13 @@ fn install_sync() -> Result<(), String> {
     let tmp_str = tmp.to_string_lossy().into_owned();
     let quoted_tmp = shell_quote(&tmp_str)?;
     let quoted_dest = shell_quote(DEST_PATH)?;
-    // One prompt: copy into place, make it world-readable, reload udev and
-    // re-apply hidraw permissions. `cp`/`chmod` paths are quoted constants.
+    let quoted_legacy = shell_quote(LEGACY_DEST_PATH)?;
+    // One prompt: copy into place, make it world-readable, remove legacy rule,
+    // reload udev and re-apply hidraw permissions. `cp`/`chmod`/`rm` paths are quoted constants.
     let script = format!(
         "cp -- {quoted_tmp} {quoted_dest} \
          && chmod 644 {quoted_dest} \
+         && rm -f -- {quoted_legacy} \
          && udevadm control --reload-rules \
          && udevadm trigger --subsystem-match=hidraw --action=change"
     );
@@ -168,14 +175,17 @@ fn uninstall_sync() -> Result<(), String> {
         return Err(pkexec_missing_error());
     }
     let quoted_dest = shell_quote(DEST_PATH)?;
+    let quoted_legacy = shell_quote(LEGACY_DEST_PATH)?;
     let script = format!(
-        "rm -f {quoted_dest} \
+        "rm -f -- {quoted_dest} {quoted_legacy} \
          && udevadm control --reload-rules \
          && udevadm trigger --subsystem-match=hidraw --action=change"
     );
     run_pkexec_script(&script)?;
-    if std::fs::symlink_metadata(DEST_PATH).is_ok() {
-        return Err(format!("Remove ran but {DEST_PATH} still exists."));
+    if std::fs::symlink_metadata(DEST_PATH).is_ok()
+        || std::fs::symlink_metadata(LEGACY_DEST_PATH).is_ok()
+    {
+        return Err(format!("Remove ran but rules file still exists."));
     }
     Ok(())
 }
@@ -243,7 +253,7 @@ mod tests {
 
     #[test]
     fn shell_quote_refuses_hostile_paths() {
-        assert_eq!(shell_quote("/etc/udev/rules.d/99-glacier-eq.rules").unwrap(), "'/etc/udev/rules.d/99-glacier-eq.rules'");
+        assert_eq!(shell_quote("/etc/udev/rules.d/69-glacier-eq.rules").unwrap(), "'/etc/udev/rules.d/69-glacier-eq.rules'");
         assert!(shell_quote("a'b").is_err());
         assert!(shell_quote("a\nb").is_err());
         assert!(shell_quote("").is_err());
@@ -252,6 +262,7 @@ mod tests {
     #[test]
     fn bundled_rules_are_nonempty_and_tag_uaccess() {
         assert!(EXPECTED_RULES.contains("uaccess"));
+        assert!(EXPECTED_RULES.contains("MODE=\"0666\""));
         assert!(EXPECTED_RULES.contains("idVendor"));
     }
 }

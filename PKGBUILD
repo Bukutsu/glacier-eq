@@ -77,7 +77,7 @@ package() {
   install -Dm644 "src-tauri/icons/128x128@2x.png" "${pkgdir}/usr/share/icons/hicolor/256x256/apps/glacier-eq.png"
 
   # Udev rules
-  install -Dm644 "udev/99-glacier-eq.rules" "${pkgdir}/usr/lib/udev/rules.d/99-glacier-eq.rules"
+  install -Dm644 "udev/69-glacier-eq.rules" "${pkgdir}/usr/lib/udev/rules.d/69-glacier-eq.rules"
 }
 
 post_install() {
