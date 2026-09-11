@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.8.0] - 2026-09-12
+
+### Added
+
+- Hardware specifications HUD in the desktop sidebar displaying DAC chip, outputs, max power, decoding, DSP rate, PEQ bands, gain range, and firmware version.
+- Linux one-shot USB permissions (udev rules) installer and uninstaller in Settings with automatic legacy cleanup.
+- Seamless auto-connect and continuous background hotplug detection when replugging supported USB DACs.
+
+### Changed
+
+- Renamed packaged Linux udev rules to `69-glacier-eq.rules` so they execute before systemd's `73-seat-late.rules` seat processor.
+- Added explicit `MODE="0666"` permissions to DAC udev rules alongside `TAG+="uaccess"`.
+- Instant auto-connect immediately upon installing USB permissions without requiring DAC replug.
+- Replaced disruptive full-screen reconnect overlays when working in secondary workspace tabs.
+- Deduplicated firmware version display between the header strip and sidebar specs card.
+
+### Performance
+
+- Walkplay pacing tightened and validated on hardware (-46% pull latency, -47% push latency).
+- AutoEQ gradient optimization inside device feasible set with gradient buffer reuse (-5.9% latency).
+- High-performance single-pass measurement text scanner (-25% scan, -16% line split, -14% normalize).
+- Reused internal cosine grid across frames (-2.5%) and split band/aggregate accumulators (-2.8%).
+- Fast-path for already-ascending measurement curves (-11%).
+- Table-driven delimiter classification (-8%).
+- Hoisted band callbacks and avoided redraws for unchanged band controls.
+
 ## [0.7.0] - 2026-09-08
 
 ### Added
