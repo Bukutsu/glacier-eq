@@ -123,15 +123,28 @@ function evaluateMagnitudeDb(
   return 0;
 }
 
-function responseCosines(freqs: Float32Array, dspSampleRate: number): Float64Array {
-  const cosines = new Float64Array(freqs.length);
-  if (!Number.isFinite(dspSampleRate) || dspSampleRate <= 0) return cosines;
+function responseCosines(freqs: Float32Array, dspSampleRate: number, out?: Float64Array): Float64Array {
+  const cosines = out !== undefined && out.length === freqs.length ? out : new Float64Array(freqs.length);
+  if (!Number.isFinite(dspSampleRate) || dspSampleRate <= 0) {
+    cosines.fill(0);
+    return cosines;
+  }
 
   const factor = TAU / dspSampleRate;
   for (let index = 0; index < freqs.length; index++) {
     cosines[index] = Math.cos(freqs[index] * factor);
   }
   return cosines;
+}
+
+// Internal cosine scratch: fully overwritten on every call and never
+// returned, so no caller-visible contract changes. One buffer is enough —
+// all three entry points refill it completely before reading.
+let cosineScratch: Float64Array | null = null;
+
+function takeCosines(freqs: Float32Array, dspSampleRate: number): Float64Array {
+  cosineScratch = responseCosines(freqs, dspSampleRate, cosineScratch ?? undefined);
+  return cosineScratch;
 }
 
 function accumulateFilterResponse(
@@ -158,7 +171,7 @@ export function filterResponseValues(
 ): Float32Array {
   const response = new Float32Array(freqs.length);
   if (filter.enabled) {
-    const cosines = responseCosines(freqs, dspSampleRate);
+    const cosines = takeCosines(freqs, dspSampleRate);
     const coefficients = magnitudeCoefficients(computeBiquadCoefficients(filter, dspSampleRate));
     for (let index = 0; index < freqs.length; index++) {
       response[index] = evaluateMagnitudeDb(coefficients, cosines[index]);
@@ -177,7 +190,7 @@ export function peqResponseValues(
   if (includePreamp) response.fill(peq.global_gain);
 
   const enabledFilters = peq.filters.filter((filter) => filter.enabled);
-  const cosines = responseCosines(freqs, dspSampleRate);
+  const cosines = takeCosines(freqs, dspSampleRate);
   for (const filter of enabledFilters) {
     accumulateFilterResponse(filter, cosines, dspSampleRate, response, null);
   }
@@ -195,7 +208,7 @@ export function peqResponseAndBandValues(
   const response = new Float32Array((enabledFilters.length + 1) * stride);
   if (includePreamp) response.subarray(0, stride).fill(peq.global_gain);
 
-  const cosines = responseCosines(freqs, dspSampleRate);
+  const cosines = takeCosines(freqs, dspSampleRate);
   enabledFilters.forEach((filter, bandIndex) => {
     accumulateFilterResponse(filter, cosines, dspSampleRate, response, (bandIndex + 1) * stride);
   });
