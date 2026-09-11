@@ -32,6 +32,16 @@ function makeUniqueName(baseName: string, existingNames: string[], fallback: str
   return `${normalized} ${copyIndex}`;
 }
 
+function isDelim(code: number): boolean {
+  return code === 44 || code === 59 || code === 9 || code === 32;
+}
+
+function tokenEnd(text: string, from: number, end: number): number {
+  let index = from;
+  while (index < end && !isDelim(text.charCodeAt(index))) index++;
+  return index;
+}
+
 export function parseMeasurementText(text: string): MeasurementPoint[] {
   if (text.length > 1_048_576) {
     throw new Error("Measurement input exceeds maximum size");
@@ -53,24 +63,11 @@ export function parseMeasurementText(text: string): MeasurementPoint[] {
     if (first === 35) return;
     if (first === 47 && start + 1 < end && text.charCodeAt(start + 1) === 47) return;
 
-    const tokenEnd = (from: number): number => {
-      let index = from;
-      while (index < end) {
-        const code = text.charCodeAt(index);
-        if (code === 44 || code === 59 || code === 9 || code === 32) break;
-        index++;
-      }
-      return index;
-    };
-    const firstEnd = tokenEnd(start);
+    const firstEnd = tokenEnd(text, start, end);
     let secondStart = firstEnd;
-    while (secondStart < end) {
-      const code = text.charCodeAt(secondStart);
-      if (code !== 44 && code !== 59 && code !== 9 && code !== 32) break;
-      secondStart++;
-    }
+    while (secondStart < end && isDelim(text.charCodeAt(secondStart))) secondStart++;
     if (secondStart >= end) return;
-    const secondEnd = tokenEnd(secondStart);
+    const secondEnd = tokenEnd(text, secondStart, end);
 
     const freq = Number(text.slice(start, firstEnd));
     const db = Number(text.slice(secondStart, secondEnd));
