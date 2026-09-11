@@ -1279,7 +1279,7 @@ function UdevSection({ setStatus }: { setStatus?: (value: string) => void }) {
       title: update ? "Update USB permissions?" : "Install USB permissions?",
       message:
         "This asks for administrator access (one system password prompt) to copy a single file to " +
-        `${status?.dest_path ?? "/etc/udev/rules.d/99-glacier-eq.rules"}, make it world-readable, ` +
+        `${status?.dest_path ?? "/etc/udev/rules.d/69-glacier-eq.rules"}, make it world-readable, ` +
         "and reload udev so your supported DACs work without extra prompts. It installs no services, " +
         "touches nothing else, and you can remove it from this same screen. Unplug and replug the DAC afterwards.",
       confirmLabel: update ? "Update" : "Install",
@@ -1305,7 +1305,7 @@ function UdevSection({ setStatus }: { setStatus?: (value: string) => void }) {
       title: "Remove USB permissions?",
       message:
         "This asks for administrator access (one system password prompt) to delete " +
-        `${status?.dest_path ?? "/etc/udev/rules.d/99-glacier-eq.rules"} and reload udev. ` +
+        `${status?.dest_path ?? "/etc/udev/rules.d/69-glacier-eq.rules"} and reload udev. ` +
         "Afterwards the DAC will need per-connect authorization again until you reinstall. Nothing else changes.",
       confirmLabel: "Remove",
       cancelLabel: "Keep",
@@ -1342,12 +1342,12 @@ function UdevSection({ setStatus }: { setStatus?: (value: string) => void }) {
       <p className="card-note" role="status">{statusLine}</p>
       <p className="card-note">
         What installing does: copies one rules file to{" "}
-        <span style={{ fontFamily: "var(--font-mono)" }}>{status?.dest_path ?? "/etc/udev/rules.d/99-glacier-eq.rules"}</span>{" "}
+        <span style={{ fontFamily: "var(--font-mono)" }}>{status?.dest_path ?? "/etc/udev/rules.d/69-glacier-eq.rules"}</span>{" "}
         granting the logged-in user access to supported DACs only, then reloads udev. No services, no other changes.
       </p>
       {!checking && status !== null && !status.has_pkexec && (
         <p className="card-note">
-          No system password helper (pkexec) was found. Install polkit, or copy udev/99-glacier-eq.rules into place manually as root.
+          No system password helper (pkexec) was found. Install polkit, or copy udev/69-glacier-eq.rules into place manually as root.
         </p>
       )}
       <div className="setting-row" style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>

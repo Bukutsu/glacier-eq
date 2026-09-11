@@ -37,7 +37,7 @@ cd glacier-eq
 makepkg -si
 ```
 
-The Arch package installs `udev/99-glacier-eq.rules`. Replug the DAC after
+The Arch package installs `udev/69-glacier-eq.rules`. Replug the DAC after
 installation. The desktop build should then open it without asking polkit for
 elevation.
 
@@ -165,28 +165,28 @@ Release APK signing requires the release credentials configured in CI.
 ## Linux HID permissions
 
 Chromium and the desktop build need udev access to raw USB HID devices on Linux.
-The packaged `udev/99-glacier-eq.rules` handles the desktop build. If the browser
+The packaged `udev/69-glacier-eq.rules` handles the desktop build. If the browser
 shows `NotAllowedError: Failed to open the device` while connecting:
 
 1. Create a udev rule file:
 
    ```sh
-   sudo nano /etc/udev/rules.d/50-glacier-dac.rules
+   sudo nano /etc/udev/rules.d/69-glacier-dac.rules
    ```
 
 2. Add these rules for compatible DACs:
 
    ```text
    # Walkplay / FiiO / Moondrop / EPZ DACs
-   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="3302", TAG+="uaccess"
-   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="262a", TAG+="uaccess"
-   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2fc6", TAG+="uaccess"
-   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2972", TAG+="uaccess"
-   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0661", TAG+="uaccess"
-   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0666", TAG+="uaccess"
-   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="35d8", TAG+="uaccess"
-   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="31b2", TAG+="uaccess"
-   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0d8c", TAG+="uaccess"
+   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="3302", MODE="0666", TAG+="uaccess"
+   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="262a", MODE="0666", TAG+="uaccess"
+   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2fc6", MODE="0666", TAG+="uaccess"
+   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2972", MODE="0666", TAG+="uaccess"
+   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0661", MODE="0666", TAG+="uaccess"
+   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0666", MODE="0666", TAG+="uaccess"
+   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="35d8", MODE="0666", TAG+="uaccess"
+   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="31b2", MODE="0666", TAG+="uaccess"
+   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0d8c", MODE="0666", TAG+="uaccess"
    ```
 
 3. Reload the udev rules, then replug the device:
