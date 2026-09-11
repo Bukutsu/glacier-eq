@@ -22,6 +22,7 @@ import { Collapsible } from "./components/Collapsible";
 import { ConfirmDialogHost, confirmDialog } from "./components/ConfirmDialog";
 import { Modal } from "./components/Modal";
 import { UnifiedTracesList } from "./components/UnifiedTraces";
+import { SidebarDeviceSpecs } from "./components/SidebarDeviceSpecs";
 import {
   DEV_DUMMY_DEVICE,
   buildDevDummyPeq,
@@ -1911,7 +1912,6 @@ function App() {
           maxBands={maxFilterBands}
           preampDb={peq.global_gain}
           supportsRamApply={supportsRamApply}
-          firmwareVersion={firmwareVersion}
           canUndo={undoStack.length > 0}
           canRedo={redoStack.length > 0}
           onUndo={undo}
@@ -2089,6 +2089,13 @@ function App() {
                 </Fragment>
               ))}
             </nav>
+            <SidebarDeviceSpecs
+              connected={connected}
+              isSimulated={isDevDummyDevice(selectedDevice)}
+              deviceInfo={selectedDeviceInfo}
+              capabilities={capabilities}
+              firmwareVersion={firmwareVersion}
+            />
           </aside>
           <section
             id="main-scroll-pane"
