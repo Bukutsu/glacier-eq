@@ -24,6 +24,7 @@ pub mod hid_helper;
 mod profiles;
 mod settings;
 mod state;
+mod udev;
 
 use tauri::Manager;
 
@@ -359,6 +360,9 @@ pub fn run() {
             device_commands::disconnect_device,
             settings::get_settings,
             settings::save_settings,
+            udev::get_udev_status,
+            udev::install_udev_rules,
+            udev::uninstall_udev_rules,
             open_text_file_dialog,
             save_text_file_dialog,
             read_text_file,
