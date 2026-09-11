@@ -1936,7 +1936,7 @@ mod tests {
         x[9] = 0.1;
 
         let mut g = vec![0.0; size];
-        let mut buf = || [[0.0; K]; MAX_N];
+        let buf = || [[0.0; K]; MAX_N];
         let analytic_loss = grad(&c, &x, &mut g, &mut buf(), &mut buf(), &mut buf());
 
         // Independent reference: same loss through iir_math, in f64.
