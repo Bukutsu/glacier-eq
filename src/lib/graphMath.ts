@@ -147,19 +147,35 @@ function takeCosines(freqs: Float32Array, dspSampleRate: number): Float64Array {
   return cosineScratch;
 }
 
-function accumulateFilterResponse(
+// Split by destination so the per-point loop has no offset branch: simpler
+// bodies vectorize better and the aggregate-only path skips band stores.
+function accumulateAggregateResponse(
   filter: Filter,
   cosines: Float64Array,
   dspSampleRate: number,
   response: Float32Array,
-  bandOffset: number | null,
+): void {
+  if (!Number.isFinite(dspSampleRate) || dspSampleRate <= 0) return;
+
+  const coefficients = magnitudeCoefficients(computeBiquadCoefficients(filter, dspSampleRate));
+  for (let index = 0; index < cosines.length; index++) {
+    response[index] += evaluateMagnitudeDb(coefficients, cosines[index]);
+  }
+}
+
+function accumulateBandResponse(
+  filter: Filter,
+  cosines: Float64Array,
+  dspSampleRate: number,
+  response: Float32Array,
+  bandOffset: number,
 ): void {
   if (!Number.isFinite(dspSampleRate) || dspSampleRate <= 0) return;
 
   const coefficients = magnitudeCoefficients(computeBiquadCoefficients(filter, dspSampleRate));
   for (let index = 0; index < cosines.length; index++) {
     const value = evaluateMagnitudeDb(coefficients, cosines[index]);
-    if (bandOffset !== null) response[bandOffset + index] = value;
+    response[bandOffset + index] = value;
     response[index] += value;
   }
 }
@@ -192,7 +208,7 @@ export function peqResponseValues(
   const enabledFilters = peq.filters.filter((filter) => filter.enabled);
   const cosines = takeCosines(freqs, dspSampleRate);
   for (const filter of enabledFilters) {
-    accumulateFilterResponse(filter, cosines, dspSampleRate, response, null);
+    accumulateAggregateResponse(filter, cosines, dspSampleRate, response);
   }
   return response;
 }
@@ -210,7 +226,7 @@ export function peqResponseAndBandValues(
 
   const cosines = takeCosines(freqs, dspSampleRate);
   enabledFilters.forEach((filter, bandIndex) => {
-    accumulateFilterResponse(filter, cosines, dspSampleRate, response, (bandIndex + 1) * stride);
+    accumulateBandResponse(filter, cosines, dspSampleRate, response, (bandIndex + 1) * stride);
   });
   return response;
 }
