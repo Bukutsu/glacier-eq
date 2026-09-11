@@ -121,7 +121,16 @@ export function parseMeasurementText(text: string): MeasurementPoint[] {
 // normalizeMeasurementPoints on such inputs; external callers keep the
 // copying contract above.
 function normalizeParsedInPlace(points: MeasurementPoint[]): MeasurementPoint[] {
-  points.sort((a, b) => a.freq - b.freq);
+  // Measurement exports are almost always ascending; a comparator-free
+  // linear pre-check lets TimSort's own run detection be skipped.
+  let ascending = true;
+  for (let i = 1; i < points.length; i++) {
+    if (points[i].freq < points[i - 1].freq) {
+      ascending = false;
+      break;
+    }
+  }
+  if (!ascending) points.sort((a, b) => a.freq - b.freq);
 
   if (points.length < 2) {
     return points;
