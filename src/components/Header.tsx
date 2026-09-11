@@ -37,7 +37,6 @@ interface HeaderProps {
   maxBands: number;
   preampDb: number;
   supportsRamApply: boolean;
-  firmwareVersion?: string | null;
   canUndo: boolean;
   canRedo: boolean;
   onUndo: () => void;
@@ -63,7 +62,6 @@ export const Header = memo(function Header({
   maxBands,
   preampDb,
   supportsRamApply,
-  firmwareVersion,
   canUndo,
   canRedo,
   onUndo,
@@ -149,7 +147,6 @@ export const Header = memo(function Header({
               <span>{activeBands}/{maxBands} bands</span>
               <span>{preampDb.toFixed(1)} dB preamp</span>
               {connected && <span className="session-hide-mobile">{supportsRamApply ? "Temporary apply available" : "Persistent writes only"}</span>}
-              {firmwareVersion && <span className="session-hide-mobile">FW {firmwareVersion}</span>}
             </div>
           )}
         </div>
