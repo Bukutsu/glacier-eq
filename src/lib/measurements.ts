@@ -113,7 +113,9 @@ export function parseMeasurementText(text: string): MeasurementPoint[] {
 }
 
 export function normalizeMeasurementPoints(points: MeasurementPoint[]): MeasurementPoint[] {
-  const sorted = [...points]
+  // filter() already returns a fresh array, so no spread is needed before
+  // the in-place sort; the caller's array is never mutated.
+  const sorted = points
     .filter((point) => (
       Number.isFinite(point.freq) &&
       Number.isFinite(point.db) &&
