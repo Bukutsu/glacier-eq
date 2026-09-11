@@ -32,8 +32,11 @@ function makeUniqueName(baseName: string, existingNames: string[], fallback: str
   return `${normalized} ${copyIndex}`;
 }
 
+const DELIM_TABLE = new Uint8Array(128);
+for (const code of [44, 59, 9, 32]) DELIM_TABLE[code] = 1;
+
 function isDelim(code: number): boolean {
-  return code === 44 || code === 59 || code === 9 || code === 32;
+  return code < 128 && DELIM_TABLE[code] === 1;
 }
 
 function tokenEnd(text: string, from: number, end: number): number {
