@@ -85,11 +85,13 @@ export function parseMeasurementText(text: string): MeasurementPoint[] {
     points.push({ freq, db });
   };
 
-  for (let index = 0; index < text.length; index++) {
-    if (text.charCodeAt(index) === 10) {
-      consumeLine(index);
-      lineStart = index + 1;
-    }
+  // Bulk line splitting via indexOf (memchr) rather than a per-character
+  // scan: identical (lineStart, lineEnd) sequence, same trailing handling.
+  let lineEnd = text.indexOf("\n", lineStart);
+  while (lineEnd !== -1) {
+    consumeLine(lineEnd);
+    lineStart = lineEnd + 1;
+    lineEnd = text.indexOf("\n", lineStart);
   }
   if (lineStart < text.length) {
     consumeLine(text.length);
