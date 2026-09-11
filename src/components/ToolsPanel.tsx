@@ -4,6 +4,7 @@ import type { AppSettings, MeasurementTrace, Profile, PEQData, GraphViewMode, Ta
 import { DEFAULT_PROFILE_NAME } from "../lib/peq";
 import { Icon } from "./Icon";
 import { confirmDialog } from "./ConfirmDialog";
+import { isTauri } from "../lib/platform";
 
 import { fuzzyMatch } from "../lib/search";
 import { AddTraceModal } from "./AddTraceModal";
@@ -248,6 +249,7 @@ export const ToolsPanel = memo(function ToolsPanel(props: ToolsPanelProps) {
               onOpenDiagnostics={props.onOpenDiagnostics}
               showGraph={props.showGraph}
               onShowGraphChange={props.onShowGraphChange}
+              setStatus={props.setStatus}
             />
           )}
         </div>
@@ -1220,6 +1222,151 @@ export function AutoEqTab({
   );
 }
 
+interface UdevStatus {
+  supported: boolean;
+  installed: boolean;
+  up_to_date: boolean;
+  dest_path: string;
+  has_pkexec: boolean;
+}
+
+function udevErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+// Linux-only one-shot udev installer. Hidden everywhere else: the backend
+// reports supported=false off Linux, and the web build has no backend.
+function UdevSection({ setStatus }: { setStatus?: (value: string) => void }) {
+  const [status, setUdevStatus] = useState<UdevStatus | null>(null);
+  const [checking, setChecking] = useState(true);
+  const [busy, setBusy] = useState<"install" | "remove" | null>(null);
+  const [note, setNote] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isTauri()) {
+      setChecking(false);
+      return;
+    }
+    let cancelled = false;
+    invoke<UdevStatus>("get_udev_status")
+      .then((next) => {
+        if (!cancelled) {
+          setUdevStatus(next);
+          setChecking(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setChecking(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (!isTauri() || (!checking && (status === null || !status.supported))) {
+    return null;
+  }
+
+  const refresh = async () => {
+    const next = await invoke<UdevStatus>("get_udev_status");
+    setUdevStatus(next);
+    return next;
+  };
+
+  const handleInstall = async () => {
+    const update = status?.installed === true;
+    const confirmed = await confirmDialog({
+      title: update ? "Update USB permissions?" : "Install USB permissions?",
+      message:
+        "This asks for administrator access (one system password prompt) to copy a single file to " +
+        `${status?.dest_path ?? "/etc/udev/rules.d/99-glacier-eq.rules"}, make it world-readable, ` +
+        "and reload udev so your supported DACs work without extra prompts. It installs no services, " +
+        "touches nothing else, and you can remove it from this same screen. Unplug and replug the DAC afterwards.",
+      confirmLabel: update ? "Update" : "Install",
+      cancelLabel: "Cancel",
+    });
+    if (!confirmed) return;
+    setBusy("install");
+    setNote(null);
+    try {
+      await invoke("install_udev_rules");
+      await refresh();
+      setNote("Installed. Unplug and replug the DAC, then reconnect.");
+      setStatus?.("USB permissions installed.");
+    } catch (error) {
+      setNote(udevErrorMessage(error));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleRemove = async () => {
+    const confirmed = await confirmDialog({
+      title: "Remove USB permissions?",
+      message:
+        "This asks for administrator access (one system password prompt) to delete " +
+        `${status?.dest_path ?? "/etc/udev/rules.d/99-glacier-eq.rules"} and reload udev. ` +
+        "Afterwards the DAC will need per-connect authorization again until you reinstall. Nothing else changes.",
+      confirmLabel: "Remove",
+      cancelLabel: "Keep",
+      danger: true,
+    });
+    if (!confirmed) return;
+    setBusy("remove");
+    setNote(null);
+    try {
+      await invoke("uninstall_udev_rules");
+      await refresh();
+      setNote("Removed. Unplug and replug the DAC for the change to take effect.");
+      setStatus?.("USB permissions removed.");
+    } catch (error) {
+      setNote(udevErrorMessage(error));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const statusLine = checking
+    ? "Checking USB permissions…"
+    : status?.installed === true && status.up_to_date
+      ? "Installed and up to date."
+      : status?.installed === true
+        ? "Installed, but differs from the bundled rules (edited or outdated)."
+        : "Not installed — connecting may ask for your password each time.";
+
+  return (
+    <section className="tool-card">
+      <div className="tool-card-head">
+        <strong>USB permissions (Linux)</strong>
+      </div>
+      <p className="card-note" role="status">{statusLine}</p>
+      <p className="card-note">
+        What installing does: copies one rules file to{" "}
+        <span style={{ fontFamily: "var(--font-mono)" }}>{status?.dest_path ?? "/etc/udev/rules.d/99-glacier-eq.rules"}</span>{" "}
+        granting the logged-in user access to supported DACs only, then reloads udev. No services, no other changes.
+      </p>
+      {!checking && status !== null && !status.has_pkexec && (
+        <p className="card-note">
+          No system password helper (pkexec) was found. Install polkit, or copy udev/99-glacier-eq.rules into place manually as root.
+        </p>
+      )}
+      <div className="setting-row" style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+        <button className="btn filled" disabled={checking || busy !== null} onClick={handleInstall}>
+          <span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: "18px" }}>usb</span>
+          {busy === "install" ? "Working…" : status?.installed === true ? "Reinstall" : "Install"}
+        </button>
+        {status?.installed === true && (
+          <button className="btn" disabled={checking || busy !== null} onClick={handleRemove}>
+            <span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: "18px" }}>delete</span>
+            {busy === "remove" ? "Working…" : "Remove"}
+          </button>
+        )}
+      </div>
+      {note !== null && <p className="card-note" role="status">{note}</p>}
+    </section>
+  );
+}
+
 function SettingsTab({
   graphViewMode,
   onGraphViewModeChange,
@@ -1228,6 +1375,7 @@ function SettingsTab({
   onOpenDiagnostics,
   showGraph,
   onShowGraphChange,
+  setStatus,
 }: {
   graphViewMode?: GraphViewMode;
   onGraphViewModeChange?: (mode: GraphViewMode) => void;
@@ -1236,9 +1384,11 @@ function SettingsTab({
   onOpenDiagnostics?: () => void;
   showGraph?: boolean;
   onShowGraphChange?: (show: boolean) => void;
+  setStatus?: (value: string) => void;
 }) {
   return (
     <div className="settings-list">
+      <UdevSection setStatus={setStatus} />
       <section className="tool-card">
         <div className="tool-card-head">
           <strong>Behavior</strong>

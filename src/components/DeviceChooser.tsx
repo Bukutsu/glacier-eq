@@ -147,7 +147,9 @@ export function DeviceChooser({
         <ul>
           <li>Replug the DAC and close other apps using it.</li>
           {!isTauri() && <li>Use Chromium and approve the browser device prompt.</li>}
-          <li>On Linux, install the project udev rules, then replug the DAC.</li>
+          {isTauri()
+            ? <li>On Linux, use Settings → USB permissions to install the udev rules, then replug the DAC.</li>
+            : <li>On Linux, install the project udev rules, then replug the DAC.</li>}
         </ul>
         <a href="https://github.com/Bukutsu/glacier-eq#linux-hid-permissions" target="_blank" rel="noreferrer">Open connection help</a>
       </details>
