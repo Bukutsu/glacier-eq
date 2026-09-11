@@ -185,6 +185,8 @@ function App() {
   const mobileScrollRef = useRef<HTMLElement | null>(null);
   const reconnectCancelRef = useRef<HTMLButtonElement>(null);
   const reconnectEffectGenerationRef = useRef(0);
+  const manualDisconnectRef = useRef(false);
+  const lastConnectedNameRef = useRef<string>("");
 
   useEffect(() => {
     const media = window.matchMedia(MOBILE_QUERY);
@@ -978,10 +980,10 @@ function App() {
     }
   }, []);
 
-  // Poll for reconnection when disconnected (paused when app is in background or using dummy device)
+  // Poll for reconnection / hotplug when disconnected (paused when app is in background, busy, or after explicit manual disconnect)
   useEffect(() => {
     const generation = ++reconnectEffectGenerationRef.current;
-    if (!isReconnecting || !connectedDeviceName || isDevDummyDevice(selectedDevice)) return;
+    if (connected || manualDisconnectRef.current || isDevDummyDevice(selectedDevice) || isBusy) return;
 
     let active = true;
     let timerId: ReturnType<typeof setTimeout> | null = null;
@@ -1008,13 +1010,18 @@ function App() {
           ? [...realDevices, DEV_DUMMY_DEVICE]
           : realDevices;
         setDevices(deviceList);
+
+        const targetName = connectedDeviceName || lastConnectedNameRef.current;
         const found = realDevices.find(
           (d) =>
-            d.profile_name === connectedDeviceName ||
-            d.product_string === connectedDeviceName
+            (targetName &&
+              (d.profile_name === targetName || d.product_string === targetName)) ||
+            (!targetName && realDevices.length === 1 && !isDevDummyDevice(d.path)),
         );
+
         if (found && isCurrent()) {
-          reportStatus("Info", `Device found: ${connectedDeviceName}. Reconnecting...`, null, "Device", "Device found. Reconnecting...");
+          const devName = found.profile_name || found.product_string || "DAC";
+          reportStatus("Info", `Device found: ${devName}. Reconnecting...`, null, "Device", "Device found. Reconnecting...");
           try {
             await invoke("connect_device", { path: found.path });
             if (!isCurrent()) {
@@ -1025,17 +1032,19 @@ function App() {
             selectedDeviceRef.current = found.path;
             setSelectedDevice(found.path);
             setConnected(true, found.path);
+            setConnectedDeviceName(devName);
+            lastConnectedNameRef.current = devName;
             setLastPushedPeq(null);
             const connectionGeneration = connectionGenerationRef.current;
             await loadFirmwareVersion(found.path, connectionGeneration);
             if (!isCurrent() || connectionGenerationRef.current !== connectionGeneration) return;
             setIsReconnecting(false);
-            reportStatus("Info", `Reconnected to ${connectedDeviceName} without changing its EQ`, "success", "Device", "Ready");
+            reportStatus("Info", `Connected to ${devName}`, "success", "Device", "Ready");
             return;
           } catch (err) {
             if (!isCurrent()) return;
             try {
-              await invoke("disconnect_device", { expectedPath: found.path });
+              await invoke("disconnect_device", { expectedPath: found.path }).catch(() => {});
             } catch {}
             if (!isCurrent()) return;
             reportStatus("Warn", `Reconnect attempt failed: ${err}. Retrying...`, null, "Device", "Reconnecting...");
@@ -1047,7 +1056,7 @@ function App() {
         polling = false;
       }
 
-      schedulePoll(1500);
+      schedulePoll(1200);
     };
 
     const handleVisibility = () => {
@@ -1057,14 +1066,14 @@ function App() {
     };
 
     document.addEventListener("visibilitychange", handleVisibility);
-    schedulePoll(1000);
+    schedulePoll(600);
 
     return () => {
       active = false;
       if (timerId) clearTimeout(timerId);
       document.removeEventListener("visibilitychange", handleVisibility);
     };
-  }, [isReconnecting, connectedDeviceName, selectedDevice, loadFirmwareVersion, reportStatus]);
+  }, [connected, connectedDeviceName, selectedDevice, isBusy, loadFirmwareVersion, reportStatus, setConnected]);
 
   const pullEq = useCallback(async (afterConnect = false) => {
     if (!connected && !afterConnect) {
@@ -1149,6 +1158,7 @@ function App() {
   }, [connected, dirty, pushToUndoStack, selectedDevice, selectedCapabilities, reportStatus, setStatus, getAsyncContext, noteEditorMutation]);
 
   const connectDevice = useCallback(async (targetPath?: string): Promise<boolean> => {
+    manualDisconnectRef.current = false;
     const pathToConnect = targetPath || selectedDevice;
     if (!pathToConnect) return false;
     if (pathToConnect !== selectedDevice) {
@@ -1160,6 +1170,7 @@ function App() {
         setConnected(true, pathToConnect);
         setLastPushedPeq(null);
         setConnectedDeviceName("Glacier Dummy DAC");
+        lastConnectedNameRef.current = "Glacier Dummy DAC";
         reportStatus("Info", "Connected to dummy DAC", "success", "UI", "Connected to dummy DAC");
         await pullEq(true);
         await loadFirmwareVersion(pathToConnect, connectionGenerationRef.current);
@@ -1175,6 +1186,7 @@ function App() {
       if (devInfo) {
         devName = devInfo.profile_name ?? devInfo.product_string ?? "";
         setConnectedDeviceName(devName);
+        lastConnectedNameRef.current = devName;
       }
       
       reportStatus("Info", `Connected to device: ${devName}`, "success", "UI", "Ready");
@@ -1219,6 +1231,30 @@ function App() {
       setIsBusy(false);
     }
   }, [selectedDevice, pullEq, selectedDeviceInfo, selectedCapabilities, pushToUndoStack, loadFirmwareVersion, reportStatus, settings.auto_pull_on_connect, noteEditorMutation]);
+
+  const handleUdevInstalled = useCallback(async (): Promise<string | null> => {
+    manualDisconnectRef.current = false;
+    try {
+      const realDevices = await invoke<DeviceInfo[]>("list_devices");
+      const list = import.meta.env.DEV ? [...realDevices, DEV_DUMMY_DEVICE] : realDevices;
+      setDevices(list);
+      const target = list.find((d) => !isDevDummyDevice(d.path)) ?? list[0];
+      if (target) {
+        selectedDeviceRef.current = target.path;
+        setSelectedDevice(target.path);
+        const ok = await connectDevice(target.path);
+        if (ok) {
+          const devName = target.profile_name || target.product_string || "DAC";
+          setConnectedDeviceName(devName);
+          lastConnectedNameRef.current = devName;
+          return devName;
+        }
+      }
+    } catch (e) {
+      console.error("Auto-connect after udev install failed:", e);
+    }
+    return null;
+  }, [connectDevice]);
 
   const pushEq = useCallback(async () => {
     if (!connected) {
@@ -1372,6 +1408,8 @@ function App() {
 
   const disconnectDevice = useCallback(async () => {
     setIsBusy(true);
+    manualDisconnectRef.current = true;
+    lastConnectedNameRef.current = "";
     try {
       if (!isDevDummyDevice(selectedDevice)) {
         await invoke("disconnect_device");
@@ -1818,6 +1856,7 @@ function App() {
     dspSampleRate: capabilities.dsp_sample_rate,
     getAsyncContext,
     runProfileMutation,
+    onUdevInstalled: handleUdevInstalled,
   };
   // One graph element for all four render sites; the editor props (drag/
   // wheel/keyboard editing) are only attached where the graph is editable.
@@ -2158,11 +2197,12 @@ function App() {
             onShowGraphChange={setShowGraph}
             getAsyncContext={getAsyncContext}
             runProfileMutation={runProfileMutation}
+            onUdevInstalled={handleUdevInstalled}
           />
           )}
         </main>
       )}
-      {isReconnecting && (
+      {isReconnecting && activeTab === "eq" && (
         <div
           className="reconnecting-overlay"
           role="alertdialog"

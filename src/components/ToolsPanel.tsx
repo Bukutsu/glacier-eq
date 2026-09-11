@@ -155,6 +155,7 @@ interface ToolsPanelProps {
   dspSampleRate?: number;
   getAsyncContext: () => AsyncContext;
   runProfileMutation: ProfileMutationRunner;
+  onUdevInstalled?: () => Promise<string | null>;
 }
 
 export const ToolsPanel = memo(function ToolsPanel(props: ToolsPanelProps) {
@@ -250,6 +251,7 @@ export const ToolsPanel = memo(function ToolsPanel(props: ToolsPanelProps) {
               showGraph={props.showGraph}
               onShowGraphChange={props.onShowGraphChange}
               setStatus={props.setStatus}
+              onUdevInstalled={props.onUdevInstalled}
             />
           )}
         </div>
@@ -1236,7 +1238,13 @@ function udevErrorMessage(error: unknown): string {
 
 // Linux-only one-shot udev installer. Hidden everywhere else: the backend
 // reports supported=false off Linux, and the web build has no backend.
-function UdevSection({ setStatus }: { setStatus?: (value: string) => void }) {
+function UdevSection({
+  setStatus,
+  onUdevInstalled,
+}: {
+  setStatus?: (value: string) => void;
+  onUdevInstalled?: () => Promise<string | null>;
+}) {
   const [status, setUdevStatus] = useState<UdevStatus | null>(null);
   const [checking, setChecking] = useState(true);
   const [busy, setBusy] = useState<"install" | "remove" | null>(null);
@@ -1281,17 +1289,26 @@ function UdevSection({ setStatus }: { setStatus?: (value: string) => void }) {
         "This asks for administrator access (one system password prompt) to copy a single file to " +
         `${status?.dest_path ?? "/etc/udev/rules.d/69-glacier-eq.rules"}, make it world-readable, ` +
         "and reload udev so your supported DACs work without extra prompts. It installs no services, " +
-        "touches nothing else, and you can remove it from this same screen. Unplug and replug the DAC afterwards.",
+        "touches nothing else, and you can remove it from this same screen.",
       confirmLabel: update ? "Update" : "Install",
       cancelLabel: "Cancel",
     });
     if (!confirmed) return;
     setBusy("install");
-    setNote(null);
+    setNote("Installing permissions and detecting DAC…");
     try {
       await invoke("install_udev_rules");
       await refresh();
-      setNote("Installed. Unplug and replug the DAC, then reconnect.");
+      if (onUdevInstalled) {
+        const connectedName = await onUdevInstalled();
+        if (connectedName) {
+          setNote(`Permissions installed. Seamlessly connected to ${connectedName}.`);
+        } else {
+          setNote("Permissions installed. Plug in your DAC and it will connect automatically.");
+        }
+      } else {
+        setNote("Permissions installed.");
+      }
       setStatus?.("USB permissions installed.");
     } catch (error) {
       setNote(udevErrorMessage(error));
@@ -1317,7 +1334,7 @@ function UdevSection({ setStatus }: { setStatus?: (value: string) => void }) {
     try {
       await invoke("uninstall_udev_rules");
       await refresh();
-      setNote("Removed. Unplug and replug the DAC for the change to take effect.");
+      setNote("USB permissions removed.");
       setStatus?.("USB permissions removed.");
     } catch (error) {
       setNote(udevErrorMessage(error));
@@ -1376,6 +1393,7 @@ function SettingsTab({
   showGraph,
   onShowGraphChange,
   setStatus,
+  onUdevInstalled,
 }: {
   graphViewMode?: GraphViewMode;
   onGraphViewModeChange?: (mode: GraphViewMode) => void;
@@ -1385,10 +1403,11 @@ function SettingsTab({
   showGraph?: boolean;
   onShowGraphChange?: (show: boolean) => void;
   setStatus?: (value: string) => void;
+  onUdevInstalled?: () => Promise<string | null>;
 }) {
   return (
     <div className="settings-list">
-      <UdevSection setStatus={setStatus} />
+      <UdevSection setStatus={setStatus} onUdevInstalled={onUdevInstalled} />
       <section className="tool-card">
         <div className="tool-card-head">
           <strong>Behavior</strong>
