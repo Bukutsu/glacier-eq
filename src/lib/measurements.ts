@@ -44,10 +44,10 @@ export function parseMeasurementText(text: string): MeasurementPoint[] {
     lineCount++;
     if (lineCount > 4096 || points.length > 100_000) return;
     let start = lineStart;
-    let end = lineEnd;
-    if (end > start && text.charCodeAt(end - 1) === 13) end--;
+    const end = lineEnd;
+    // No trailing trim: tokens stop at delimiters regardless, and Number()
+    // tolerates trailing \r/whitespace, so a backward walk changes nothing.
     while (start < end && text.charCodeAt(start) <= 32) start++;
-    while (end > start && text.charCodeAt(end - 1) <= 32) end--;
     if (start >= end) return;
     const first = text.charCodeAt(start);
     if (first === 35) return;
