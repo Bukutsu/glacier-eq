@@ -109,7 +109,34 @@ export function parseMeasurementText(text: string): MeasurementPoint[] {
     throw new Error("Need at least 2 valid frequency,dB points.");
   }
 
-  return normalizeMeasurementPoints(points);
+  return normalizeParsedInPlace(points);
+}
+
+// Owned-array fast path for parseMeasurementText: its points are freshly
+// built and already finite + range-checked, so the re-filter is redundant
+// and the reference subtraction can happen in place instead of allocating
+// a second object generation. Same values, order, and errors as
+// normalizeMeasurementPoints on such inputs; external callers keep the
+// copying contract above.
+function normalizeParsedInPlace(points: MeasurementPoint[]): MeasurementPoint[] {
+  points.sort((a, b) => a.freq - b.freq);
+
+  if (points.length < 2) {
+    return points;
+  }
+
+  const referenceDb = interpolateMeasurementDb(points, 1000);
+  if (!Number.isFinite(referenceDb)) {
+    throw new Error("Measurement normalization produced a non-finite reference");
+  }
+
+  for (const point of points) {
+    point.db -= referenceDb;
+    if (!Number.isFinite(point.db)) {
+      throw new Error("Measurement normalization produced a non-finite dB value");
+    }
+  }
+  return points;
 }
 
 export function normalizeMeasurementPoints(points: MeasurementPoint[]): MeasurementPoint[] {
