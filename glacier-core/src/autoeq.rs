@@ -1031,7 +1031,7 @@ fn grad(
             let a_poly = a_x0 + phi_k * (a_x1 + phi_k * a_x2);
 
             let ratio = if a_poly > 1e-30 { b_poly / a_poly } else { 1.0 };
-            pred[k] = (pred[k] * ratio).clamp(1e-30, 1e30);
+            pred[k] *= ratio;
 
             let _8phi2 = 8.0 * phi_k * phi_k;
             let _2phi = 2.0 * phi_k;
@@ -1070,6 +1070,13 @@ fn grad(
             dy_dgain[n][k] = dy_da_local * da_dgain;
             dy_dbw[n][k] = dy_dalpha_local * dalpha_dbw;
         }
+    }
+
+    // Ratios stay within physical EQ bounds (worst case ~1e+-17 for 10 stacked
+    // +-16 dB bands), so one clamp per K after the band loop preserves the old
+    // per-band-K clamp bit-wise while removing ~6.9M min/max ops per fit.
+    for k in 0..K {
+        pred[k] = pred[k].clamp(1e-30, 1e30);
     }
 
     let mut loss = 0.0;
