@@ -22,6 +22,7 @@ import { ConfirmDialogHost, confirmDialog } from "./components/ConfirmDialog";
 import { Modal } from "./components/Modal";
 import { UnifiedTracesList } from "./components/UnifiedTraces";
 import { SidebarDeviceSpecs } from "./components/SidebarDeviceSpecs";
+import { FastScroller } from "./components/FastScroller";
 import {
   DEV_DUMMY_DEVICE,
   buildDevDummyPeq,
@@ -1860,7 +1861,8 @@ function App() {
         />
       )}
       {isMobile ? (
-        <main ref={mobileScrollRef} className="workspace mobile-workspace" inert={isReconnecting ? true : undefined}>
+        <>
+          <main ref={mobileScrollRef} className="workspace mobile-workspace" inert={isReconnecting ? true : undefined}>
           {(activeTab === "eq" || activeTab === "profiles" || (activeTab === "tuning" && (measurements.some((trace) => trace.visible) || activeTargets.length > 0))) && (
             <section className={`mobile-graph-container mobile-graph-${activeTab} ${graphCollapsed ? "collapsed" : ""}`}>
               <div className="graph-card">
@@ -2004,6 +2006,8 @@ function App() {
             ))}
           </nav>
         </main>
+        <FastScroller targetRef={mobileScrollRef} />
+      </>
       ) : (
         <main className={`workspace desktop-workspace desktop-view-${activeTab}`} inert={isReconnecting ? true : undefined}>
           <aside className="desktop-sidebar">
