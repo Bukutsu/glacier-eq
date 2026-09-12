@@ -7,7 +7,11 @@ use crate::eq::filter::DEFAULT_FREQS_10_BAND;
 use crate::eq::iir_math::compute_biquad_coeffs;
 use crate::eq::{Filter, FilterType};
 
-const PEAK_SHELF_FILTER_TYPES: &[FilterType] = &[
+// Walkplay's PEQ register uses the complete five-value filter enum. Keep the
+// generic Walkplay capability broad; individual profiles retain their Tested /
+// Untested status until each model has hardware sign-off.
+const WALKPLAY_FILTER_TYPES: &[FilterType] = FilterType::ALL;
+const LIMITED_FILTER_TYPES: &[FilterType] = &[
     FilterType::Peak,
     FilterType::LowShelf,
     FilterType::HighShelf,
@@ -56,21 +60,25 @@ pub(crate) const FILTER_RESPONSE_MIN_LEN: usize = 34;
 pub(crate) const GLOBAL_GAIN_RESPONSE_MIN_LEN: usize = 6;
 
 const QUANTIZER_SCALE: f64 = 1_073_741_824.0;
-const SAVITECH_10_BAND_CAPS: DeviceCapabilities = DeviceCapabilities {
-    num_bands: 10,
-    global_gain_range: (-16, 6),
-    band_gain_range: (-10.0, 10.0),
-    freq_range: (20, 20000),
-    q_range: (0.1, 10.0),
-    supported_filter_types: PEAK_SHELF_FILTER_TYPES,
-    supports_per_band_enable: false,
-    supports_ram_apply: false,
-    dsp_sample_rate: 96000.0,
-    gain_tolerance: 0.15,
-    freq_tolerance: 1,
-    q_tolerance: 0.05,
-    integer_preamp: true,
-};
+const fn savitech_caps(supported_filter_types: &'static [FilterType]) -> DeviceCapabilities {
+    DeviceCapabilities {
+        num_bands: 10,
+        global_gain_range: (-16, 6),
+        band_gain_range: (-10.0, 10.0),
+        freq_range: (20, 20000),
+        q_range: (0.1, 10.0),
+        supported_filter_types,
+        supports_per_band_enable: false,
+        supports_ram_apply: false,
+        dsp_sample_rate: 96000.0,
+        gain_tolerance: 0.15,
+        freq_tolerance: 1,
+        q_tolerance: 0.05,
+        integer_preamp: true,
+    }
+}
+
+const SAVITECH_10_BAND_CAPS: DeviceCapabilities = savitech_caps(WALKPLAY_FILTER_TYPES);
 
 const MOONDROP_10_BAND_CAPS: DeviceCapabilities = DeviceCapabilities {
     num_bands: 10,
@@ -78,7 +86,7 @@ const MOONDROP_10_BAND_CAPS: DeviceCapabilities = DeviceCapabilities {
     band_gain_range: (-12.0, 12.0),
     freq_range: (20, 20000),
     q_range: (0.1, 10.0),
-    supported_filter_types: PEAK_SHELF_FILTER_TYPES,
+    supported_filter_types: LIMITED_FILTER_TYPES,
     supports_per_band_enable: false,
     supports_ram_apply: true,
     dsp_sample_rate: 48000.0,
@@ -94,7 +102,7 @@ const FIIO_5_BAND_CAPS: DeviceCapabilities = DeviceCapabilities {
     band_gain_range: (-12.0, 12.0),
     freq_range: (20, 20000),
     q_range: (0.1, 10.0),
-    supported_filter_types: PEAK_SHELF_FILTER_TYPES,
+    supported_filter_types: LIMITED_FILTER_TYPES,
     supports_per_band_enable: false,
     supports_ram_apply: true,
     dsp_sample_rate: 48000.0,
@@ -110,7 +118,7 @@ const FIIO_10_BAND_CAPS: DeviceCapabilities = DeviceCapabilities {
     band_gain_range: (-12.0, 12.0),
     freq_range: (20, 20000),
     q_range: (0.1, 10.0),
-    supported_filter_types: PEAK_SHELF_FILTER_TYPES,
+    supported_filter_types: LIMITED_FILTER_TYPES,
     supports_per_band_enable: false,
     supports_ram_apply: false,
     dsp_sample_rate: 48000.0,
@@ -354,7 +362,7 @@ pub const PROFILES: &[DeviceProfile] = &[
             band_gain_range: (-12.0, 12.0),
             freq_range: (20, 20000),
             q_range: (0.1, 10.0),
-            supported_filter_types: PEAK_SHELF_FILTER_TYPES,
+            supported_filter_types: WALKPLAY_FILTER_TYPES,
             supports_per_band_enable: false,
             supports_ram_apply: false,
             dsp_sample_rate: 48000.0,
@@ -380,6 +388,36 @@ mod tests {
             freq,
             gain,
             q,
+        }
+    }
+
+    #[test]
+    fn walkplay_profiles_advertise_all_filter_types() {
+        for profile in PROFILES
+            .iter()
+            .filter(|profile| profile.protocol == DeviceProtocol::Walkplay)
+        {
+            assert_eq!(
+                profile.caps.supported_filter_types,
+                FilterType::ALL,
+                "{}",
+                profile.name
+            );
+        }
+    }
+
+    #[test]
+    fn non_walkplay_profiles_keep_the_limited_filter_set() {
+        for profile in PROFILES
+            .iter()
+            .filter(|profile| profile.protocol != DeviceProtocol::Walkplay)
+        {
+            assert_eq!(
+                profile.caps.supported_filter_types,
+                LIMITED_FILTER_TYPES,
+                "{}",
+                profile.name
+            );
         }
     }
 

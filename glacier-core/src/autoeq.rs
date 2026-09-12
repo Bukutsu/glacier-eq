@@ -1543,6 +1543,12 @@ fn interpolate_curve(
     Ok(curve)
 }
 
+const AUTOEQ_FILTER_TYPES: &[FilterType] = &[
+    FilterType::Peak,
+    FilterType::LowShelf,
+    FilterType::HighShelf,
+];
+
 pub fn run_autoeq(
     measurement_points: &[(f64, f64)],
     target_points: &[(f64, f64)],
@@ -1582,17 +1588,25 @@ pub fn run_autoeq(
     let mut r = [0.0; K];
     let preamp_mean = preprocess(&f, &dst, &src, &mut r, smooth, true)?;
 
-    let mut types = vec![crate::eq::FilterType::Peak; n_bands];
-    // Work inside the device's feasible set: only use shelf filters the DAC
-    // implements, so the fit never depends on post-hoc clamping to survive.
-    let supports = |t: crate::eq::FilterType| {
-        caps.map_or(true, |c| c.supported_filter_types.contains(&t))
-    };
-    if n_bands >= 1 && supports(crate::eq::FilterType::LowShelf) {
-        types[0] = crate::eq::FilterType::LowShelf;
+    // Work inside the device's feasible set: every filter type selected by the
+    // optimizer must be advertised by the DAC. The optimizer has analytic
+    // gradients for peak and shelf filters; pass filters remain available for
+    // manual editing but are not substituted into a model that cannot fit them.
+    let supported_types = caps.map_or(FilterType::ALL, |c| c.supported_filter_types);
+    let supports = |filter_type: FilterType| supported_types.contains(&filter_type);
+    let default_type = AUTOEQ_FILTER_TYPES
+        .iter()
+        .copied()
+        .find(|filter_type| supports(*filter_type))
+        .ok_or_else(|| {
+            "AutoEQ requires a DAC with Peak, LowShelf, or HighShelf support".to_string()
+        })?;
+    let mut types = vec![default_type; n_bands];
+    if n_bands >= 1 && supports(FilterType::LowShelf) {
+        types[0] = FilterType::LowShelf;
     }
-    if n_bands >= 2 && supports(crate::eq::FilterType::HighShelf) {
-        types[1] = crate::eq::FilterType::HighShelf;
+    if n_bands >= 2 && supports(FilterType::HighShelf) {
+        types[1] = FilterType::HighShelf;
     }
 
     let mut f0 = vec![1000.0; n_bands];
@@ -2001,6 +2015,14 @@ mod tests {
     }
 
     static PEAK_ONLY_TYPES: &[crate::eq::FilterType] = &[crate::eq::FilterType::Peak];
+    static SHELF_ONLY_TYPES: &[crate::eq::FilterType] = &[
+        crate::eq::FilterType::LowShelf,
+        crate::eq::FilterType::HighShelf,
+    ];
+    static PASS_ONLY_TYPES: &[crate::eq::FilterType] = &[
+        crate::eq::FilterType::HighPass,
+        crate::eq::FilterType::LowPass,
+    ];
 
     fn restrictive_caps() -> crate::device::DeviceCapabilities {
         crate::device::DeviceCapabilities {
@@ -2085,6 +2107,63 @@ mod tests {
         assert!(
             warnings.iter().all(|w| !w.contains("Band")),
             "{warnings:?}"
+        );
+    }
+
+    #[test]
+    fn caps_aware_fit_uses_supported_filter_types_for_all_profiles() {
+        let curve = vec![
+            (20.0, 0.0),
+            (100.0, 1.0),
+            (1000.0, 0.0),
+            (10_000.0, -1.0),
+            (20_000.0, 0.0),
+        ];
+        for profile in crate::device::SUPPORTED_DEVICES {
+            let peq = run_autoeq(
+                &curve,
+                &curve,
+                5.min(profile.caps.num_bands),
+                20,
+                "none",
+                profile.caps.dsp_sample_rate as f32,
+                Some(&profile.caps),
+            )
+            .unwrap_or_else(|error| panic!("{}: {error}", profile.name));
+            assert!(
+                peq.filters.iter().all(|filter| profile
+                    .caps
+                    .supported_filter_types
+                    .contains(&filter.filter_type)),
+                "{} generated an unsupported filter: {:?}",
+                profile.name,
+                peq.filters
+            );
+        }
+    }
+
+    #[test]
+    fn caps_aware_fit_uses_supported_fallback_when_peak_unavailable() {
+        let (measurement, target) = hump_case();
+        let mut caps = restrictive_caps();
+        caps.supported_filter_types = SHELF_ONLY_TYPES;
+        let peq = run_autoeq(&measurement, &target, 5, 20, "none", 48000.0, Some(&caps))
+            .unwrap();
+        assert!(peq
+            .filters
+            .iter()
+            .all(|filter| SHELF_ONLY_TYPES.contains(&filter.filter_type)));
+    }
+
+    #[test]
+    fn caps_aware_fit_rejects_devices_with_only_pass_filters() {
+        let (measurement, target) = hump_case();
+        let mut caps = restrictive_caps();
+        caps.supported_filter_types = PASS_ONLY_TYPES;
+        assert_eq!(
+            run_autoeq(&measurement, &target, 5, 20, "none", 48000.0, Some(&caps))
+                .unwrap_err(),
+            "AutoEQ requires a DAC with Peak, LowShelf, or HighShelf support"
         );
     }
 

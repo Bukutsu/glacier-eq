@@ -11,4 +11,7 @@ pub struct DynamicColors {
     pub dark: bool,
     #[serde(default)]
     pub palettes: HashMap<String, HashMap<String, String>>,
+    /// Resolved Android Material 3 roles, when available.
+    #[serde(default)]
+    pub roles: HashMap<String, String>,
 }

@@ -110,24 +110,25 @@
 }
 
 :root[data-theme="material-you"] {
-  --bg: #141416;
-  --bg-dark: #101012;
-  --bg-dark-rgb: 16 16 18;
-  --bg-darker-rgb: 12 12 14;
-  --panel: #1b1b1f;
-  --panel-rgb: 27 27 31;
-  --surface: #44474f;
-  --surface-soft: #2e3036;
+  /* Static values mirror Android's dark Material 3 roles until Monet loads. */
+  --bg: #181920;
+  --bg-dark: #121318;
+  --bg-dark-rgb: 18 19 24;
+  --bg-darker-rgb: 0 0 0;
+  --panel: #2a2c34;
+  --panel-rgb: 42 44 52;
+  --surface: #73757f;
+  --surface-soft: #23252e;
   --input-bg: var(--bg-dark);
   --input-border: var(--surface);
-  --panel-border: var(--surface);
-  --list-hover-bg: var(--surface-soft);
+  --panel-border: #464850;
+  --list-hover-bg: var(--panel);
   --focus-border: rgb(var(--cyan-rgb) / 0.72);
   --scrollbar-color: var(--surface);
-  --text: #e2e2e9;
-  --text-rgb: 226 226 233;
-  --muted: #c4c6d0;
-  --comment: #8e9099;
+  --text: #e4e5f0;
+  --text-rgb: 228 229 240;
+  --muted: #a9aab5;
+  --comment: #73757f;
   --cyan: #bac5ee;
   --cyan-rgb: 186 197 238;
   --blue: #bac5ee;
@@ -138,25 +139,25 @@
   --orange-rgb: 229 190 158;
   --yellow: #dfc38c;
   --yellow-rgb: 223 195 140;
-  --red: #f2b8b5;
-  --red-rgb: 242 184 181;
-  --purple: #d1bcff;
-  --purple-rgb: 209 188 255;
-  --teal: #a8dadc;
-  --teal-rgb: 168 218 220;
+  --red: #fa746f;
+  --red-rgb: 250 116 111;
+  --purple: #c0c6dd;
+  --purple-rgb: 192 198 221;
+  --teal: #f2deff;
+  --teal-rgb: 242 222 255;
   --bright-cyan: #dce2f9;
-  --magenta2: #d1bcff;
-  --magenta2-rgb: 209 188 255;
-  --navy: #bac5ee;
+  --magenta2: #c0c6dd;
+  --magenta2-rgb: 192 198 221;
+  --navy: #c0c6dd;
   --azure: #bac5ee;
   --sky: #bac5ee;
-  --steel: #8e9099;
-  --sea: #a8dadc;
-  --teal2: #a8dadc;
-  --teal2-rgb: 168 218 220;
-  --crimson: #f2b8b5;
-  --terminal-black-rgb: 27 27 31;
-  --on-accent: #1b1b1f;
+  --steel: #73757f;
+  --sea: #f2deff;
+  --teal2: #f2deff;
+  --teal2-rgb: 242 222 255;
+  --crimson: #fa746f;
+  --terminal-black-rgb: 0 0 0;
+  --on-accent: #333f61;
   --sync-ok: #c2cd9e;
   --sync-working: #bac5ee;
   --sync-unsaved: #dfc38c;
@@ -561,6 +562,12 @@ body.is-android {
   --safe-area-left: env(safe-area-inset-left, 0px);
   --safe-area-right: env(safe-area-inset-right, 0px);
 }
+
+/* Android's native surfaces are flat; the desktop grain makes Monet colors
+   look dirty and shifts the sampled surface tones. */
+body.is-android::after {
+  display: none;
+}
 input, textarea, [contenteditable="true"] {
   user-select: text;
   -webkit-user-select: text;
@@ -636,6 +643,11 @@ select:focus-visible {
 .btn:hover:not(:disabled), .tools-card button:hover:not(:disabled), .diag-card button:hover:not(:disabled) { filter: brightness(1.14); }
 .btn:active:not(:disabled), .tools-card button:active:not(:disabled), .diag-card button:active:not(:disabled) { filter: brightness(1.24); }
 .btn.filled, button.save { background: var(--navy); color: #ffffff; }
+:root[data-theme="material-you"] .btn.filled,
+:root[data-theme="material-you"] button.save {
+  background: var(--m3-primary, var(--cyan));
+  color: var(--on-accent);
+}
 .btn.warning { background: var(--yellow); color: var(--on-accent); }
 
 @media (pointer: coarse) {

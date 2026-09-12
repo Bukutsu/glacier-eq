@@ -8,7 +8,7 @@ import {
 import { isAndroidDevice, isTauri } from "../lib/platform";
 
 const THEME_BG_COLORS: Record<string, string> = {
-  "material-you": "#1a1b26",
+  "material-you": "#181920",
   "tokyo-night": "#1a1b26",
   "tokyo-night-storm": "#24283b",
   "tokyo-night-day": "#e1e2e7",

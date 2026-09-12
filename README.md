@@ -35,6 +35,18 @@ That's it. The sound stays on your dongle, even on other devices.
 
 Save favorites as profiles so you can switch back anytime.
 
+## Hardware developer CLI
+
+The workspace CLI can inspect a connected DAC and send raw HID reports for protocol testing:
+
+```sh
+cargo run -p glacier-core --bin glacier-eq-cli -- hardware list
+cargo run -p glacier-core --bin glacier-eq-cli -- hardware raw \
+  --device 3302:43e6 --report-id 4b --data 80 0c 00 --read-ms 250 --yes
+```
+
+Raw writes require `--yes`; use `--read-ms 0` when no response should be read. The report ID is supplied separately and the data accepts space-, comma-, colon-, or compact hexadecimal bytes.
+
 ## Problems connecting?
 
 [Linux setup and troubleshooting](https://github.com/Bukutsu/glacier-eq/wiki/Troubleshooting)
