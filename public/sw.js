@@ -11,11 +11,7 @@ self.addEventListener("install", (event) => {
           manifest = await fetch(manifestUrl).then((response) => response.json());
         } catch {}
 
-        const wanted = [
-          self.registration.scope,
-          manifestUrl.href,
-          new URL("MaterialIcons-Regular.ttf", self.registration.scope).href,
-        ];
+        const wanted = [self.registration.scope, manifestUrl.href];
         if (Array.isArray(manifest)) {
           wanted.push(
             ...manifest.map((file) => new URL(file, self.registration.scope).href),

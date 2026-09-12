@@ -1,5 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { HashRouter } from "react-router";
 import App from "./App";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import "./styles/base.css";
@@ -46,8 +47,10 @@ if (import.meta.env.PROD) {
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    <ErrorBoundary>
-      <App />
-    </ErrorBoundary>
+    <HashRouter>
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>
+    </HashRouter>
   </React.StrictMode>
 );

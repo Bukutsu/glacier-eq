@@ -1,17 +1,9 @@
 import { Icon } from "./Icon";
+import { useToastStore } from "../stores/toastStore";
 
-export interface Toast {
-  id: string;
-  message: string;
-  type: "info" | "error" | "success";
-}
-
-interface ToastContainerProps {
-  toasts: Toast[];
-  onClose: (id: string) => void;
-}
-
-export function ToastContainer({ toasts, onClose }: ToastContainerProps) {
+export function ToastContainer() {
+  const toasts = useToastStore((s) => s.toasts);
+  const removeToast = useToastStore((s) => s.removeToast);
   if (toasts.length === 0) return null;
 
   return (
@@ -30,7 +22,7 @@ export function ToastContainer({ toasts, onClose }: ToastContainerProps) {
           <button
             type="button"
             className="toast-close"
-            onClick={() => onClose(toast.id)}
+            onClick={() => removeToast(toast.id)}
             aria-label="Close notification"
           >
             <Icon>close</Icon>

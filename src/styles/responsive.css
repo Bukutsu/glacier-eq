@@ -121,7 +121,7 @@
     overflow-y: auto;
     overscroll-behavior: contain;
     touch-action: manipulation;
-    padding: 0 12px max(16px, var(--safe-area-bottom, 0px));
+    padding: 0 0 max(16px, var(--safe-area-bottom, 0px));
   }
   .mobile-workspace .left-pane {
     gap: 10px;
@@ -160,6 +160,11 @@
     padding: 10px 12px 8px;
     border-bottom: 1px solid var(--line-medium);
     background: var(--bg);
+  }
+  /* The bottom navigation already names these views; do not repeat the tab
+     label in a second mobile app bar. */
+  .app-header.compact-mobile {
+    display: none;
   }
   .header-main {
     display: flex;
@@ -217,7 +222,9 @@
     outline: 1px solid var(--line-soft);
     outline-offset: -1px;
   }
-  .mobile-action-btn .material-symbols-outlined { font-size: 18px; }
+  .mobile-action-btn .app-icon { font-size: 18px;
+  width: 18px;
+  height: 18px;}
   .mobile-menu-container {
     position: relative;
     display: inline-block;
@@ -264,12 +271,13 @@
     cursor: pointer;
   }
   .dropdown-item:active { background: var(--surface-soft); }
-  .dropdown-item .material-symbols-outlined {
+  .dropdown-item .app-icon {
     font-size: 20px;
     color: var(--muted);
-  }
+  width: 20px;
+  height: 20px;}
   .dropdown-item.danger,
-  .dropdown-item.danger .material-symbols-outlined { color: var(--red); }
+  .dropdown-item.danger .app-icon { color: var(--red); }
   .sync-dot,
   .unsaved {
     min-height: 24px;
@@ -277,8 +285,8 @@
     align-items: center;
   }
   .workspace {
-    padding-left: 10px;
-    padding-right: 10px;
+    padding-left: 0;
+    padding-right: 0;
   }
   .graph-card {
     height: clamp(230px, 34dvh, 300px);
@@ -326,7 +334,7 @@
     color: var(--text);
     cursor: pointer;
     z-index: 15;
-    transition: all var(--motion-duration) var(--motion-ease);
+    transition: background-color var(--motion-duration) var(--motion-ease), color var(--motion-duration) var(--motion-ease), border-color var(--motion-duration) var(--motion-ease);
   }
   .mobile-legend-toggle:active {
     background: var(--surface);
@@ -369,10 +377,10 @@
     font-size: var(--type-small);
   }
   .preamp-card input[type="range"] {
-    min-height: 24px;
+    min-height: 44px;
   }
   .custom-number-input.preamp-value-stepper {
-    width: 120px !important;
+    width: 132px !important;
     height: 44px;
   }
   .bands-section-header {
@@ -394,13 +402,22 @@
     gap: 10px;
   }
   .band-picker {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 56px;
+    gap: 6px;
+    min-width: 0;
+    overflow: hidden;
+    padding-bottom: 2px;
+  }
+  .band-picker-scroll {
     display: flex;
+    min-width: 0;
     gap: 6px;
     overflow-x: auto;
-    padding-bottom: 2px;
+    padding: 1px 6px 1px 1px;
     scrollbar-width: none;
   }
-  .band-picker::-webkit-scrollbar {
+  .band-picker-scroll::-webkit-scrollbar {
     display: none;
   }
   .band-picker button {
@@ -431,6 +448,7 @@
     outline-color: rgb(var(--filter-color-rgb, var(--cyan-rgb)) / 0.64);
   }
   .band-picker button.add-filter-chip {
+    width: 56px;
     color: var(--cyan);
     outline-style: dashed;
   }
@@ -438,9 +456,10 @@
     color: var(--muted);
     opacity: .55;
   }
-  .band-picker button.add-filter-chip .material-symbols-outlined {
+  .band-picker button.add-filter-chip .app-icon {
     font-size: 18px;
-  }
+  width: 18px;
+  height: 18px;}
   .mobile-filter-card {
     display: grid;
     grid-template-columns: 1fr;
@@ -463,20 +482,33 @@
   .mobile-filter-head {
     grid-area: head;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 44px;
+    grid-template-columns: minmax(0, 1fr) auto;
     gap: 8px;
     align-items: center;
   }
-  .mobile-filter-head div {
+  .mobile-filter-summary {
     min-width: 0;
     display: grid;
     gap: 2px;
   }
+  .mobile-filter-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .mobile-filter-reset {
+    min-height: 44px;
+    padding: 0 10px;
+  }
+  .mobile-filter-reset .app-icon {
+    font-size: 18px;
+  width: 18px;
+  height: 18px;}
   .mobile-filter-head strong {
     color: var(--filter-color, var(--cyan));
     font-size: var(--type-subtitle);
   }
-  .mobile-filter-head span {
+  .mobile-filter-summary > span {
     color: var(--muted);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -578,17 +610,24 @@
     flex: 0 0 auto;
     min-width: auto;
     border: none;
+    white-space: nowrap;
+  }
+  .type-label-short {
+    display: none;
+  }
+  .type-label-long {
+    display: inline;
   }
   .gain-cell {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 110px;
+    grid-template-columns: minmax(0, 1fr) 132px;
     align-items: center;
     gap: 8px;
   }
   .freq-cell,
   .q-cell {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 110px;
+    grid-template-columns: minmax(0, 1fr) 132px;
     align-items: center;
     gap: 8px;
   }
@@ -597,8 +636,17 @@
   .custom-number-input.band-q-stepper {
     width: 100% !important;
   }
-  .gain-cell input[type="range"] {
-    min-height: 40px;
+  .custom-number-input.preamp-value-stepper .stepper-btn,
+  .custom-number-input.band-freq-stepper .stepper-btn,
+  .custom-number-input.band-gain-stepper .stepper-btn,
+  .custom-number-input.band-q-stepper .stepper-btn {
+    width: 44px;
+    flex: 0 0 44px;
+  }
+  .gain-cell input[type="range"],
+  .freq-cell input[type="range"],
+  .q-cell input[type="range"] {
+    min-height: 44px;
   }
   .gain-cell .gain {
     width: 100%;
@@ -698,6 +746,32 @@
     border-radius: var(--radius-surface) !important;
     overflow: hidden;
   }
+
+  .band-undo-toast {
+    position: fixed;
+    right: max(12px, var(--safe-area-right, 0px));
+    bottom: calc(88px + var(--safe-area-bottom, 0px));
+    left: max(12px, var(--safe-area-left, 0px));
+    z-index: 110;
+    display: flex;
+    min-height: 52px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 4px 4px 4px 14px;
+    background: var(--legend-bg);
+    border: 1px solid var(--line-outline);
+    color: var(--text);
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.42);
+  }
+  .band-undo-toast button {
+    min-width: 64px;
+    min-height: 44px;
+    padding: 0 12px;
+    background: transparent;
+    color: var(--cyan);
+    font-weight: 700;
+  }
   
   .graph-view-toggle,
   .graph-view-toggle button {
@@ -723,49 +797,155 @@
     display: none;
   }
 
-  .settings-list label {
-    min-height: 48px !important;
-    padding: 10px 4px !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: space-between !important;
-    flex-direction: row-reverse !important;
-    gap: 16px !important;
-    cursor: pointer !important;
+  .mobile-workspace .stack-view {
+    padding: 0 0 40px;
+    gap: 0;
+  }
+
+  .mobile-workspace .stack-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    min-height: 52px;
+    padding: 0 16px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line-soft);
+  }
+
+  .mobile-workspace .stack-topbar.subscreen {
+    padding-left: 4px;
+  }
+
+  .mobile-workspace .stack-nav-row {
+    min-height: 60px;
+    padding: 14px 16px;
+    border-radius: 0 !important;
+  }
+
+  .mobile-workspace .stack-content {
+    padding: 0;
+    gap: 12px;
+  }
+
+  .mobile-workspace .stack-card,
+  .mobile-workspace .settings-card {
+    border-left: none !important;
+    border-right: none !important;
+    border-radius: 0 !important;
+  }
+
+  .mobile-workspace .device-hero-card {
+    margin: 0;
+    padding: 16px;
+    border-left: none !important;
+    border-right: none !important;
+    border-top: none !important;
+    border-radius: 0 !important;
+  }
+
+  .mobile-workspace .stack-pref-row {
+    min-height: 52px;
+    padding: 12px 16px;
+    gap: 14px;
+    border-radius: 0 !important;
+  }
+
+  .mobile-workspace .stack-pref-row.select-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .mobile-workspace .stack-pref-row.select-row .stack-pref-control,
+  .mobile-workspace .stack-pref-row.select-row .setting-select-wrapper {
     width: 100% !important;
-    border-top: 1px solid var(--line-subtle) !important;
-    margin: 0 !important;
+    min-width: 100% !important;
+    flex: 1 1 100% !important;
   }
 
-  .settings-list label + label {
-    border-top: 1px solid var(--line-subtle) !important;
+  .mobile-workspace .device-spec-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0;
+    border-top: 1px solid var(--line-soft);
+    border-bottom: 1px solid var(--line-soft);
   }
 
-  .settings-list input[type="checkbox"] {
-    width: 22px !important;
-    height: 22px !important;
-    flex: 0 0 22px !important;
+  .mobile-workspace .spec-tile {
+    padding: 12px 14px;
+    border: none;
+    border-bottom: 1px solid var(--line-subtle);
+    border-radius: 0 !important;
   }
 
-  .settings-list .setting-row {
-    min-height: 48px !important;
-    padding: 10px 4px !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: space-between !important;
-    border-top: 1px solid var(--line-subtle) !important;
-    width: 100% !important;
-    margin: 0 !important;
+  .mobile-workspace .spec-tile:nth-child(odd) {
+    border-right: 1px solid var(--line-subtle);
   }
 
-  .settings-list label + .setting-row {
-    border-top: 1px solid var(--line-subtle) !important;
+  .mobile-workspace .device-hero-actions {
+    flex-direction: column;
+    align-items: stretch;
   }
 
-  .settings-list .setting-select-wrapper {
-    flex: 0 1 260px !important;
-    width: min(260px, 65%) !important;
-    min-width: 200px !important;
+  .mobile-workspace .device-hero-actions .btn {
+    width: 100%;
+    min-height: 48px;
+    border-radius: 0 !important;
+  }
+
+  /* Profiles View on Mobile: edge-to-edge, single scroll container, no trapped scrollbars, spacious touch targets */
+  .mobile-workspace .profiles-mobile-pane {
+    gap: 14px;
+    padding: 0 0 32px;
+  }
+
+  .mobile-workspace .profiles-view-wrapper {
+    gap: 14px;
+    width: 100%;
+  }
+
+  .mobile-workspace .profile-card,
+  .mobile-workspace .profile-action-group.import-section {
+    padding: 16px;
+    border-left: none !important;
+    border-right: none !important;
+    border-radius: 0 !important;
+    outline: none !important;
+    background: var(--panel);
+  }
+
+  .mobile-workspace .preset-list {
+    max-height: none !important;
+    overflow: visible !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-radius: 0 !important;
+    background: var(--panel);
+  }
+
+  .mobile-workspace .profile-row {
+    min-height: 54px !important;
+    padding: 10px 16px !important;
+    border-radius: 0 !important;
+  }
+
+  .mobile-workspace .profile-name-text {
+    font-size: 15px !important;
+  }
+
+  .mobile-workspace .profile-apply-btn {
+    min-height: 38px !important;
+    padding: 0 14px !important;
+    border-radius: 0 !important;
+  }
+
+  .mobile-workspace .transfer-actions {
+    gap: 10px;
+  }
+
+  .mobile-workspace .transfer-actions .icon-action {
+    min-height: 52px !important;
+    font-size: 14px !important;
+    border-radius: 0 !important;
   }
 
   /* Collapsible mobile graph */
@@ -774,7 +954,6 @@
     flex-direction: column;
     width: 100%;
     margin-bottom: 6px;
-    transition: all var(--motion-duration) var(--motion-ease);
   }
 
   .mobile-graph-container .graph-card {
@@ -820,31 +999,48 @@
   }
 
   .graph-collapse-btn {
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
     width: 100%;
-    min-height: 20px;
-    height: 20px;
+    min-height: 44px;
+    height: 44px;
+    background: transparent;
+    border: 0;
+    color: var(--muted);
+    cursor: pointer;
+    transition: color var(--motion-duration) var(--motion-ease);
+  }
+
+  .graph-collapse-btn::before {
+    content: "";
+    position: absolute;
+    inset: 12px 0;
     background: var(--surface-soft);
     border: 1px solid var(--line-soft);
     border-top: none;
     border-bottom-left-radius: var(--radius-surface);
     border-bottom-right-radius: var(--radius-surface);
-    color: var(--muted);
-    cursor: pointer;
-    transition: background-color var(--motion-duration) var(--motion-ease), color var(--motion-duration) var(--motion-ease);
+    transition: background-color var(--motion-duration) var(--motion-ease);
   }
 
   .graph-collapse-btn:active,
   .graph-collapse-btn:hover {
-    background: var(--surface);
     color: var(--cyan);
   }
 
-  .graph-collapse-btn .material-symbols-outlined {
-    font-size: 16px;
+  .graph-collapse-btn:active::before,
+  .graph-collapse-btn:hover::before {
+    background: var(--surface);
   }
+
+  .graph-collapse-btn .app-icon {
+    position: relative;
+    z-index: 1;
+    font-size: 16px;
+  width: 16px;
+  height: 16px;}
 
 }
 
@@ -906,6 +1102,8 @@
     background: var(--bg);
     border-top: 1px solid var(--line-medium);
     z-index: 100;
+    -webkit-tap-highlight-color: transparent !important;
+    user-select: none !important;
   }
 
   /* Shrink the tab bar in landscape to reclaim vertical space. */
@@ -924,50 +1122,46 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 2px;
+    gap: 4px;
     padding: 0;
-    background: transparent;
-    color: var(--muted);
-    font-size: var(--type-caption);
+    background: transparent !important;
+    color: var(--comment);
+    font-size: 11px;
     font-weight: 600;
+    letter-spacing: 0.02em;
     touch-action: manipulation;
-    transition: color var(--motion-duration) var(--motion-ease);
+    transition: none !important;
+    -webkit-tap-highlight-color: transparent !important;
+    outline: none !important;
+    filter: none !important;
+    user-select: none !important;
   }
 
   .mobile-tab-icon-wrapper {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 48px;
-    height: 30px;
-    border: 1px solid transparent;
     color: inherit;
-    transition: background-color var(--motion-duration) var(--motion-ease), border-color var(--motion-duration) var(--motion-ease);
+    pointer-events: none;
+    transition: none !important;
   }
 
   .mobile-tab-item.active {
     color: var(--cyan);
   }
 
-  .mobile-tab-item.active::before {
-    content: "";
-    position: absolute;
-    top: -4px;
-    width: 32px;
-    height: 2px;
-    background: var(--cyan);
-  }
-
   .mobile-tab-item.active .mobile-tab-icon-wrapper {
-    background-color: rgb(var(--cyan-rgb) / 0.12);
-    border-color: rgb(var(--cyan-rgb) / 0.32);
+    color: var(--cyan);
   }
 
-  .mobile-tab-item:active:not(.active) .mobile-tab-icon-wrapper {
-    background: var(--surface-soft);
+  .mobile-tab-item:active {
+    filter: none !important;
+    background: transparent !important;
   }
 
-  .mobile-tab-item .material-symbols-outlined { font-size: 21px; }
+  .mobile-tab-item .app-icon { font-size: 21px;
+  width: 21px;
+  height: 21px;}
 
   /* Spacing to prevent overlay collision with fixed tab bar */
   .workspace.mobile-workspace {
@@ -988,9 +1182,9 @@
   .mobile-graph-preview {
     position: fixed;
     right: max(8px, var(--safe-area-right, 0px));
-    top: calc(64px + var(--safe-area-top, 0px));
-    width: min(220px, 56vw);
-    height: 100px;
+    top: calc(168px + var(--safe-area-top, 0px));
+    width: min(300px, 76vw);
+    height: 132px;
     z-index: 90;
     padding: 2px;
     background: rgb(var(--bg-dark-rgb) / 0.9);
@@ -1007,13 +1201,19 @@
   .mobile-graph-preview.visible {
     opacity: 1;
     transform: translateY(0) scale(1);
+    pointer-events: auto;
+  }
+
+  .mobile-graph-preview:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
   }
 
   @media (orientation: landscape) {
     .mobile-graph-preview {
-      top: calc(52px + var(--safe-area-top, 0px));
-      width: min(180px, 38vw);
-      height: 78px;
+      top: calc(104px + var(--safe-area-top, 0px));
+      width: min(240px, 50vw);
+      height: 104px;
     }
   }
 
@@ -1080,6 +1280,159 @@ body.is-android *,
   scrollbar-width: none !important;
   -ms-overflow-style: none !important;
 }
+
+/* Mobile layout rhythm: use predictable 8dp increments and keep content
+   inside the system-safe page gutter. */
+@media (max-width: 850px), ((max-height: 540px) and (pointer: coarse)) {
+  .app-header {
+    padding-inline: 16px;
+  }
+
+  .app-header .github-link {
+    display: none;
+  }
+
+  .workspace.mobile-workspace {
+    padding-top: 8px;
+    padding-inline: 0;
+  }
+
+  .mobile-workspace .left-pane {
+    gap: 12px;
+  }
+
+  .mobile-content-area {
+    gap: 12px;
+    overflow: visible;
+  }
+
+  /* Keep one page scroll container. A horizontal `hidden` overflow value can
+     silently create a second vertical scroller in WebView. */
+  .mobile-workspace .left-pane,
+  .mobile-workspace .right-rail {
+    overflow: visible !important;
+  }
+
+  .mobile-graph-container {
+    margin-bottom: 0;
+  }
+
+  .mobile-graph-preview {
+    width: min(248px, 60vw);
+    height: 112px;
+  }
+
+  /* The 230px desktop minimum otherwise wins over the mobile clamp. */
+  .mobile-graph-container .graph-card {
+    height: clamp(170px, 21dvh, 196px);
+    min-height: 0;
+    padding: 8px 8px 6px;
+  }
+
+  .mobile-graph-container .eq-graph-shell,
+  .mobile-graph-container .eq-canvas {
+    min-height: 0;
+  }
+
+  .mobile-graph-tuning .graph-card {
+    height: clamp(112px, 16dvh, 148px);
+    min-height: 0;
+  }
+
+  .mobile-graph-tuning .eq-graph-shell,
+  .mobile-graph-tuning .eq-canvas {
+    min-height: 0;
+  }
+
+  .mobile-connect-btn {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .mobile-action-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    padding-inline: 8px;
+  }
+
+  .editor-empty-hint {
+    gap: 12px;
+    padding: 12px 16px;
+    font-size: 14px;
+  }
+
+  .editor-empty-hint button {
+    min-width: 44px;
+    min-height: 44px;
+    margin-right: -8px;
+  }
+
+  .band-picker-scroll {
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x;
+  }
+
+  .mobile-filter-card {
+    gap: 16px;
+    padding: 16px;
+  }
+
+  .graph-collapse-btn::before {
+    inset: 8px 0;
+  }
+
+  /* Keep the complete filter vocabulary visible without a clipped horizontal
+     choice row. Five supported filters form a 3 + 2 segmented group. */
+  .mobile-filter-card .type-buttons-5 {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 4px;
+    overflow: visible;
+    padding: 0;
+  }
+
+  .mobile-filter-card .type-buttons-5 button {
+    min-width: 0;
+    min-height: 48px;
+    height: 48px;
+    padding-inline: 6px;
+    background: var(--bg-dark);
+    outline: 1px solid var(--line-soft);
+    outline-offset: -1px;
+  }
+
+  .mobile-filter-card .type-buttons-5 button.selected {
+    background: var(--surface-soft) !important;
+    outline-color: var(--accent-line-outline);
+  }
+
+  .mobile-filter-card .type-buttons-5 button:nth-child(1),
+  .mobile-filter-card .type-buttons-5 button:nth-child(2),
+  .mobile-filter-card .type-buttons-5 button:nth-child(3) {
+    grid-column: span 2;
+  }
+
+  .mobile-filter-card .type-buttons-5 button:nth-child(4),
+  .mobile-filter-card .type-buttons-5 button:nth-child(5) {
+    grid-column: span 3;
+  }
+
+  .band-undo-toast {
+    right: max(16px, var(--safe-area-right, 0px));
+    left: max(16px, var(--safe-area-left, 0px));
+  }
+}
+
+@media (max-width: 850px) and (orientation: landscape), ((max-height: 540px) and (pointer: coarse) and (orientation: landscape)) {
+  .mobile-graph-container .graph-card {
+    height: clamp(100px, 32dvh, 150px);
+  }
+
+  .mobile-graph-tuning .graph-card {
+    height: clamp(80px, 20dvh, 120px);
+  }
+}
+
 
 @media (pointer: coarse) {
   /* No visible scrollbars on touch — finger scrolling only, like native mobile apps */
@@ -1157,7 +1510,7 @@ body.is-android *,
     display: flex;
     flex-direction: column;
     overflow: visible;
-    padding: 0 12px max(16px, var(--safe-area-bottom, 0px));
+    padding: 0 0 max(16px, var(--safe-area-bottom, 0px));
   }
   .left-pane {
     gap: 10px;
@@ -1219,10 +1572,11 @@ body.is-android *,
     color: var(--text);
   }
 
-  .desktop-sidebar-item .material-symbols-outlined {
+  .desktop-sidebar-item .app-icon {
     flex: 0 0 auto;
     font-size: 17px;
-  }
+  width: 17px;
+  height: 17px;}
 
   .desktop-sidebar-item span:last-child {
     min-width: 0;
@@ -1290,5 +1644,8 @@ body.is-android *,
   .desktop-workspace.desktop-view-settings > .right-rail > .tools-card {
     width: min(100%, 1080px);
     flex: 1 1 auto;
+    padding: 20px 24px;
+    background: transparent;
+    border: none;
   }
 }

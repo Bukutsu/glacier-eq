@@ -1,7 +1,14 @@
 import { useEffect, useState } from "react";
+import {
+  applyMaterialYouVars,
+  clearMaterialYouVars,
+  getMaterialYouColors,
+  materialYouToCssVars,
+} from "../lib/materialYou";
 import { isTauri } from "../lib/platform";
 
 const THEME_BG_COLORS: Record<string, string> = {
+  "material-you": "#1a1b26",
   "tokyo-night": "#1a1b26",
   "tokyo-night-storm": "#24283b",
   "tokyo-night-day": "#e1e2e7",
@@ -12,9 +19,9 @@ const THEME_BG_COLORS: Record<string, string> = {
   "catppuccin-latte": "#e6e9ef",
 };
 
-function updateThemeColorMeta(themeName: string) {
+function updateThemeColorMeta(themeName: string, overrideColor?: string) {
   if (typeof document === "undefined") return;
-  const color = THEME_BG_COLORS[themeName] || "#1a1b26";
+  const color = overrideColor ?? THEME_BG_COLORS[themeName] ?? "#1a1b26";
   let meta = document.querySelector('meta[name="theme-color"]');
   if (!meta) {
     meta = document.createElement("meta");
@@ -47,6 +54,42 @@ export function useThemeSync(theme: string): string {
 
     const applyTheme = async () => {
       let resolved = theme;
+
+      if (theme === "material-you") {
+        if (!active) return;
+        setResolvedTheme(resolved);
+        document.documentElement.setAttribute("data-theme", resolved);
+        if (isTauri()) {
+          try {
+            const colors = await getMaterialYouColors();
+            if (!active) return;
+            if (colors) {
+              const vars = materialYouToCssVars(colors);
+              applyMaterialYouVars(vars);
+              updateThemeColorMeta(resolved, vars["--bg"]);
+              console.info(
+                `[theme] Material You applied (dark=${colors.dark} primary=${vars["--cyan"]})`,
+              );
+              return;
+            }
+          } catch (e) {
+            console.error("Failed to read Material You colors:", e);
+          }
+        }
+        // Unavailable (desktop, web, or pre-Android-12): fall back to auto.
+        clearMaterialYouVars();
+        const prefersDark = window.matchMedia(
+          "(prefers-color-scheme: dark)",
+        ).matches;
+        resolved = prefersDark ? "tokyo-night" : "tokyo-night-day";
+        if (!active) return;
+        setResolvedTheme(resolved);
+        document.documentElement.setAttribute("data-theme", resolved);
+        updateThemeColorMeta(resolved);
+        return;
+      }
+
+      clearMaterialYouVars();
 
       if (theme === "auto") {
         let prefersDark = window.matchMedia(

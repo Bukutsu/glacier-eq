@@ -1,4 +1,4 @@
-import { memo, type CSSProperties, type ReactNode, useState } from "react";
+import { memo, type CSSProperties, type ReactNode, useEffect, useRef, useState } from "react";
 import type { DeviceCapabilities, Filter, FilterType, PEQData } from "../types";
 import { Icon } from "./Icon";
 import { Slider } from "./Slider";
@@ -9,7 +9,15 @@ import { clampToRange } from "../lib/peq";
 
 const FREQ_SLIDER_STEPS = 1000;
 const Q_SLIDER_STEPS = 1000;
-const TYPE_LABELS: Record<FilterType, string> = {
+const TYPE_NAMES: Record<FilterType, string> = {
+  Peak: "Bell",
+  HighShelf: "High Shelf",
+  LowShelf: "Low Shelf",
+  HighPass: "High Pass",
+  LowPass: "Low Pass",
+};
+
+const TYPE_ABBREVIATIONS: Record<FilterType, string> = {
   Peak: "PK",
   HighShelf: "HS",
   LowShelf: "LS",
@@ -97,9 +105,33 @@ export const Bands = memo(function Bands({ peq, committedPeq, capabilities, onFi
   const canAddFilter = visibleFilters.length < availableFilters.length;
   const selectedFilter = visibleFilters.find((filter) => filter.index === activeBandIndex) ?? visibleFilters[0];
   const [collapsed, setCollapsed] = useState(false);
+  const [removedFilter, setRemovedFilter] = useState<Filter | null>(null);
+  const bandPickerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!selectedFilter) return;
+    const picker = bandPickerRef.current;
+    const chip = picker?.querySelector<HTMLElement>(`[data-band-index="${selectedFilter.index}"]`);
+    if (!picker || !chip) return;
+
+    const chipStart = chip.offsetLeft;
+    const chipEnd = chipStart + chip.offsetWidth;
+    if (chipStart < picker.scrollLeft) {
+      picker.scrollTo({ left: chipStart });
+    } else if (chipEnd > picker.scrollLeft + picker.clientWidth) {
+      picker.scrollTo({ left: chipEnd - picker.clientWidth });
+    }
+  }, [selectedFilter?.index]);
+
+  useEffect(() => {
+    if (removedFilter === null) return;
+    const timer = window.setTimeout(() => setRemovedFilter(null), 5000);
+    return () => window.clearTimeout(timer);
+  }, [removedFilter]);
   const addFilter = () => {
     const next = availableFilters.find((filter) => !filter.enabled);
     if (!next) return;
+    setRemovedFilter(null);
     onActiveBandChange?.(next.index);
     onStartChange();
     onFilterChange(next.index, { ...next, enabled: true });
@@ -150,20 +182,23 @@ export const Bands = memo(function Bands({ peq, committedPeq, capabilities, onFi
       </section>
       {selectedFilter && (
         <section className="bands-mobile-editor">
-          <div className="band-picker" aria-label="Filter bands">
-            {visibleFilters.map((filter) => (
-              <button
-                key={filter.index}
-                type="button"
-                style={filterColorStyle(filter.index)}
-                className={filter.index === selectedFilter.index ? "active" : ""}
-                aria-pressed={filter.index === selectedFilter.index}
-                onClick={() => onActiveBandChange?.(filter.index)}
-              >
-                <strong>{filter.index + 1}</strong>
-                <span>{formatFreq(filter.freq)}</span>
-              </button>
-            ))}
+          <div className="band-picker" role="group" aria-label="Filter bands">
+            <div className="band-picker-scroll" ref={bandPickerRef}>
+              {visibleFilters.map((filter) => (
+                <button
+                  key={filter.index}
+                  type="button"
+                  data-band-index={filter.index}
+                  style={filterColorStyle(filter.index)}
+                  className={filter.index === selectedFilter.index ? "active" : ""}
+                  aria-pressed={filter.index === selectedFilter.index}
+                  onClick={() => onActiveBandChange?.(filter.index)}
+                >
+                  <strong>{filter.index + 1}</strong>
+                  <span>{formatFreq(filter.freq)}</span>
+                </button>
+              ))}
+            </div>
             <button
               type="button"
               className="add-filter-chip"
@@ -177,36 +212,75 @@ export const Bands = memo(function Bands({ peq, committedPeq, capabilities, onFi
           </div>
           <div className="mobile-filter-card" style={filterColorStyle(selectedFilter.index)}>
             <div className="mobile-filter-head">
-              <div>
+              <div className="mobile-filter-summary">
                 <strong>Band {selectedFilter.index + 1}</strong>
                 <span>{selectedFilter.freq} Hz · {selectedFilter.gain.toFixed(2)} dB · Q {selectedFilter.q.toFixed(2)}</span>
               </div>
-              <button
-                className="band-index"
-                aria-label={`Remove band ${selectedFilter.index + 1}`}
-                disabled={visibleFilters.length <= 1}
-                onClick={() => {
-                  if (visibleFilters.length <= 1) return;
-                  onStartChange();
-                  onFilterChange(selectedFilter.index, { ...selectedFilter, enabled: false });
-                  onEndChange?.();
-                  const next = visibleFilters.find((filter) => filter.index !== selectedFilter.index);
-                  if (next) onActiveBandChange?.(next.index);
-                }}
-              >
-                <Icon>remove</Icon>
-              </button>
+              <div className="mobile-filter-actions">
+                {committedPeq?.filters[selectedFilter.index] && (
+                  <button
+                    type="button"
+                    className="mobile-filter-reset"
+                    aria-label={`Reset band ${selectedFilter.index + 1} to last saved values`}
+                    onClick={() => {
+                      const committed = committedPeq.filters[selectedFilter.index];
+                      onStartChange();
+                      onFilterChange(selectedFilter.index, { ...committed, index: selectedFilter.index, enabled: true });
+                      onEndChange?.();
+                    }}
+                  >
+                    <Icon>restart_alt</Icon>
+                    <span>Reset</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="band-index"
+                  aria-label={`Remove band ${selectedFilter.index + 1}`}
+                  disabled={visibleFilters.length <= 1}
+                  onClick={() => {
+                    if (visibleFilters.length <= 1) return;
+                    const removedIndex = selectedFilter.index;
+                    onStartChange();
+                    onFilterChange(removedIndex, { ...selectedFilter, enabled: false });
+                    onEndChange?.();
+                    setRemovedFilter(selectedFilter);
+                    const next = visibleFilters.find((filter) => filter.index !== removedIndex);
+                    if (next) onActiveBandChange?.(next.index);
+                  }}
+                >
+                  <Icon>delete</Icon>
+                </button>
+              </div>
             </div>
             <BandControls
               filter={selectedFilter}
               committedFilter={committedPeq?.filters[selectedFilter.index]}
               onChange={onFilterChange}
               onStartChange={onStartChange}
+              onEndChange={onEndChange}
               onActivate={onActiveBandChange}
               capabilities={capabilities}
               snapToIso={snapToIso}
             />
           </div>
+          {removedFilter !== null && (
+            <div className="band-undo-toast" role="status" aria-live="polite">
+              <span>Band {removedFilter.index + 1} removed</span>
+              <button
+                type="button"
+                onClick={() => {
+                  onStartChange();
+                  onFilterChange(removedFilter.index, { ...removedFilter, enabled: true });
+                  onEndChange?.();
+                  onActiveBandChange?.(removedFilter.index);
+                  setRemovedFilter(null);
+                }}
+              >
+                Undo
+              </button>
+            </div>
+          )}
         </section>
       )}
     </div>
@@ -450,17 +524,18 @@ function BandField({
 
 function FilterTypeButtons({ filter, supportedTypes, onChange }: { filter: Filter; supportedTypes: FilterType[]; onChange: (filter: Filter) => void }) {
   return (
-    <div className="type-buttons">
+    <div className={`type-buttons type-buttons-${supportedTypes.length}`}>
       {supportedTypes.map((type) => (
         <button
           type="button"
           key={type}
           className={filter.filter_type === type ? "selected" : ""}
           aria-pressed={filter.filter_type === type}
-          aria-label={`Set band ${filter.index + 1} to ${TYPE_LABELS[type]}`}
+          aria-label={`Set band ${filter.index + 1} to ${TYPE_NAMES[type]}`}
           onClick={() => onChange({ ...filter, filter_type: type })}
         >
-          {TYPE_LABELS[type]}
+          <span className="type-label-short" aria-hidden="true">{TYPE_ABBREVIATIONS[type]}</span>
+          <span className="type-label-long" aria-hidden="true">{TYPE_NAMES[type]}</span>
         </button>
       ))}
     </div>
