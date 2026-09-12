@@ -1040,6 +1040,88 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   gap: 8px;
 }
 
+/* DAC Filter Mode Visualization */
+.dac-filter-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 10px;
+  background: rgb(var(--cyan-rgb) / 0.03);
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-card, 0);
+  margin-top: 2px;
+}
+
+.dac-filter-graph-frame {
+  position: relative;
+  width: 100%;
+  height: 48px;
+  background: var(--bg-dark);
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-card, 0);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+}
+
+.dac-filter-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.dac-filter-baseline {
+  stroke: var(--line-soft);
+  stroke-dasharray: 3 3;
+  stroke-width: 1;
+}
+
+.dac-filter-curve {
+  fill: none;
+  stroke: var(--cyan);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 4px rgb(var(--cyan-rgb) / 0.4));
+}
+
+.dac-filter-badge {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  font-size: var(--type-micro);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--cyan);
+  background: rgb(var(--bg-darker-rgb, 10 10 10) / 0.75);
+  padding: 1px 5px;
+  border: 1px solid rgb(var(--cyan-rgb) / 0.25);
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+.dac-filter-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dac-filter-tag {
+  font-size: var(--type-micro);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.dac-filter-desc {
+  margin: 0;
+  font-size: var(--type-small);
+  color: var(--comment);
+  line-height: 1.35;
+}
+
 .device-utility {
   min-height: 0;
 }
