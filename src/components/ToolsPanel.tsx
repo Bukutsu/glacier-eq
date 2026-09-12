@@ -15,6 +15,7 @@ import { Icon } from "./Icon";
 import { confirmDialog } from "./ConfirmDialog";
 import { isTauri } from "../lib/platform";
 import { SidebarDeviceSpecs } from "./SidebarDeviceSpecs";
+import { DacFilterVisual } from "./DacFilterVisual";
 
 import { fuzzyMatch } from "../lib/search";
 import { AddTraceModal } from "./AddTraceModal";
@@ -1909,13 +1910,7 @@ function DeviceTab({
             />
           </div>
         </div>
-        <div className="device-hint">
-          {utility.filter_mode === "FAST-LL" && "FAST-LL: minimizes pre-ringing for a warm, punchy sound."}
-          {utility.filter_mode === "FAST-PC" && "FAST-PC: preserves phase linearity for a clean, balanced sound."}
-          {utility.filter_mode === "Slow-LL" && "Slow-LL: gentle high-frequency roll-off for a warm, relaxed sound."}
-          {utility.filter_mode === "Slow-PC" && "Slow-PC: phase linearity with a gentler high-frequency roll-off."}
-          {utility.filter_mode === "NON-OS" && "NON-OS: bypasses digital interpolation for a raw analog sound."}
-        </div>
+        <DacFilterVisual mode={utility.filter_mode} />
 
         <label>
           <input type="checkbox" className="custom-checkbox"
