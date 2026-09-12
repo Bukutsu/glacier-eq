@@ -11,6 +11,7 @@
 //! install/remove; there is no daemon and nothing else on the system changes.
 
 use serde::Serialize;
+#[cfg(target_os = "linux")]
 use std::path::PathBuf;
 
 /// Destination of the installed rules file. Fixed by convention; never
@@ -18,9 +19,11 @@ use std::path::PathBuf;
 /// before systemd's 73-seat-late.rules uaccess processor.
 pub const DEST_PATH: &str = "/etc/udev/rules.d/69-glacier-eq.rules";
 /// Legacy destination from earlier releases that was numbered too late (99-).
+#[cfg(target_os = "linux")]
 pub const LEGACY_DEST_PATH: &str = "/etc/udev/rules.d/99-glacier-eq.rules";
 /// Rules content shipped in `udev/69-glacier-eq.rules`, embedded at compile
 /// time so the installer cannot be pointed at a different file.
+#[cfg(target_os = "linux")]
 const EXPECTED_RULES: &str = include_str!("../../udev/69-glacier-eq.rules");
 
 #[derive(Debug, Clone, Serialize)]
@@ -46,6 +49,7 @@ fn unsupported_status() -> UdevStatus {
 /// Compare installed file content against the bundled rules. Normalizes
 /// line endings and a single trailing newline so an install verified on a
 /// different checkout still matches; any other difference counts as stale.
+#[cfg(target_os = "linux")]
 fn rules_match(installed: &str, expected: &str) -> bool {
     fn normalize(content: &str) -> String {
         content.replace("\r\n", "\n").trim_end_matches('\n').to_string()
@@ -55,6 +59,7 @@ fn rules_match(installed: &str, expected: &str) -> bool {
 
 /// Single-quote a path for `sh -c`. All interpolated paths are constants we
 /// generate; refuse anything unexpected rather than escaping it.
+#[cfg(target_os = "linux")]
 fn shell_quote(path: &str) -> Result<String, String> {
     if path.is_empty() || path.contains('\'') || path.contains('\n') {
         return Err("Refused: unexpected path while building privileged command".into());
