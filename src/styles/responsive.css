@@ -767,24 +767,24 @@
     display: flex;
     flex-direction: column;
     width: 100%;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
     transition: all var(--motion-duration) var(--motion-ease);
   }
 
   .mobile-graph-container .graph-card {
-    height: clamp(230px, 34dvh, 300px);
+    height: clamp(135px, 18dvh, 165px);
     transition: height var(--motion-duration) var(--motion-ease), opacity var(--motion-duration) var(--motion-ease);
     opacity: 1;
   }
 
   .mobile-graph-tuning .graph-card {
-    height: clamp(150px, 22dvh, 190px);
-    min-height: 150px;
+    height: clamp(110px, 15dvh, 140px);
+    min-height: 110px;
   }
 
   .mobile-graph-tuning .eq-graph-shell,
   .mobile-graph-tuning .eq-canvas {
-    min-height: 130px;
+    min-height: 95px;
   }
 
   .mobile-graph-container.collapsed .graph-card {
@@ -800,16 +800,16 @@
   /* Landscape: shrink the graph so the band editor stays usable. */
   @media (orientation: landscape) {
     .mobile-graph-container .graph-card {
-      height: clamp(120px, 40dvh, 200px);
-      min-height: 120px;
+      height: clamp(100px, 32dvh, 160px);
+      min-height: 100px;
     }
     .mobile-graph-container .eq-graph-shell,
     .mobile-graph-container .eq-canvas {
-      min-height: 100px;
+      min-height: 85px;
     }
     .mobile-graph-tuning .graph-card {
-      height: clamp(90px, 24dvh, 150px);
-      min-height: 90px;
+      height: clamp(80px, 20dvh, 120px);
+      min-height: 80px;
     }
   }
 
@@ -818,23 +818,26 @@
     align-items: center;
     justify-content: center;
     width: 100%;
-    min-height: 44px;
+    min-height: 20px;
+    height: 20px;
     background: var(--surface-soft);
     border: 1px solid var(--line-soft);
     border-top: none;
     border-bottom-left-radius: var(--radius-surface);
     border-bottom-right-radius: var(--radius-surface);
-    color: var(--cyan);
+    color: var(--muted);
     cursor: pointer;
-    transition: background-color var(--motion-duration) var(--motion-ease);
+    transition: background-color var(--motion-duration) var(--motion-ease), color var(--motion-duration) var(--motion-ease);
   }
 
-  .graph-collapse-btn:active {
+  .graph-collapse-btn:active,
+  .graph-collapse-btn:hover {
     background: var(--surface);
+    color: var(--cyan);
   }
 
   .graph-collapse-btn .material-symbols-outlined {
-    font-size: 20px;
+    font-size: 16px;
   }
 
 }
@@ -978,39 +981,33 @@
 
   .mobile-graph-preview {
     position: fixed;
-    right: max(12px, var(--safe-area-right, 0px));
-    top: calc(76px + var(--safe-area-top, 0px));
-    width: min(210px, 52vw);
-    height: 88px;
+    right: max(8px, var(--safe-area-right, 0px));
+    top: calc(64px + var(--safe-area-top, 0px));
+    width: min(140px, 36vw);
+    height: 60px;
     z-index: 90;
-    padding: 4px;
-    background: rgb(var(--bg-dark-rgb) / 0.88);
+    padding: 2px;
+    background: rgb(var(--bg-dark-rgb) / 0.9);
     border: 1px solid var(--accent-line-outline);
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
     backdrop-filter: blur(8px);
     border-radius: var(--radius-surface);
-    cursor: pointer;
     opacity: 0;
-    transform: translateY(-6px) scale(0.96);
+    transform: translateY(-4px) scale(0.96);
     pointer-events: none;
-    transition: opacity 220ms var(--motion-ease), transform 220ms var(--motion-ease);
+    transition: opacity 200ms var(--motion-ease), transform 200ms var(--motion-ease);
   }
 
   .mobile-graph-preview.visible {
     opacity: 1;
     transform: translateY(0) scale(1);
-    pointer-events: auto;
-  }
-
-  .mobile-graph-preview:active {
-    transform: translateY(0) scale(0.98);
   }
 
   @media (orientation: landscape) {
     .mobile-graph-preview {
-      top: calc(56px + var(--safe-area-top, 0px));
-      width: min(180px, 38vw);
-      height: 72px;
+      top: calc(52px + var(--safe-area-top, 0px));
+      width: min(120px, 28vw);
+      height: 52px;
     }
   }
 
