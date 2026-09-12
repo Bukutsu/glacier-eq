@@ -175,6 +175,7 @@ export function AddTraceModal({
                           <div className="online-result-source">{dev.source}</div>
                         </div>
                         <button
+                          type="button"
                           className={`online-result-action${loadedDevices.has(dev.id) ? " added" : ""}`}
                           disabled={loadingDevice !== null || loadedDevices.has(dev.id)}
                           aria-label={loadedDevices.has(dev.id) ? `${dev.brand} ${dev.name} loaded` : `Load ${dev.brand} ${dev.name}`}
@@ -210,7 +211,7 @@ export function AddTraceModal({
                 {downloadProgress !== null ? (
                   <span>Downloading... {Math.round(downloadProgress * 100)}%</span>
                 ) : (
-                  <button className="btn" onClick={handleDownload} disabled={isDownloading}>
+                  <button type="button" className="btn" onClick={handleDownload} disabled={isDownloading}>
                     Download Cache
                   </button>
                 )}

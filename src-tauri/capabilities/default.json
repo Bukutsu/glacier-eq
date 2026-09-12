@@ -9,6 +9,8 @@
     "clipboard-manager:default",
     "clipboard-manager:allow-read-text",
     "clipboard-manager:allow-write-text",
-    "material-you:allow-get-dynamic-colors"
+    "material-you:allow-get-dynamic-colors",
+    "hid:allow-register-listener",
+    "hid:allow-remove-listener"
   ]
 }

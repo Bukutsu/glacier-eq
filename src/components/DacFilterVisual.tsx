@@ -3,6 +3,7 @@
 
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { cssVar, rgbWithAlpha } from "../lib/theme";
+import { useThemeVarsRevision } from "../lib/materialYou";
 import {
   getFilterModeMeta,
   getFilterTimeCurve,
@@ -43,6 +44,9 @@ export const DacFilterVisual = memo(function DacFilterVisual({
   const getTarget = useCallback((m: string, d: ViewDomain) => {
     return d === "time" ? getFilterTimeCurve(m, DEFAULT_POINTS) : getFilterFreqCurve(m, DEFAULT_POINTS);
   }, []);
+
+  // Repaint when theme CSS vars change outside React (Material You apply).
+  const themeVarsRevision = useThemeVarsRevision();
 
   const draw = useCallback((curve: Float32Array) => {
     const canvas = canvasRef.current;
@@ -244,7 +248,7 @@ export const DacFilterVisual = memo(function DacFilterVisual({
       ctx.fill();
       ctx.restore();
     }
-  }, [domain]);
+  }, [domain, themeVarsRevision]);
 
   // Smooth animation loop when curve changes (mode switch or domain switch)
   const animateTo = useCallback((nextCurve: Float32Array) => {

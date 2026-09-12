@@ -214,12 +214,13 @@ function CurvesTab({
   return (
     <div className="curves-tab">
       <div className="curves-actions">
-        <button className="btn add-trace-btn" onClick={() => setShowAddModal(true)}>
+        <button type="button" className="btn add-trace-btn" onClick={() => setShowAddModal(true)}>
           <Icon>add</Icon>
           <span>Add Trace</span>
         </button>
         {measurements.length > 0 && (
           <button
+            type="button"
             className="btn danger curves-clear-btn"
             title="Clear all measurements"
             aria-label="Clear all measurements"
@@ -498,6 +499,7 @@ export function AutoEqTab({
                 <label>Treble Smoothing</label>
                 <div className="smooth-buttons" role="group" aria-label="Treble smoothing algorithm">
                   <button
+                    type="button"
                     className={smoothType === "None" ? "active" : ""}
                     aria-pressed={smoothType === "None"}
                     onClick={() => {
@@ -508,6 +510,7 @@ export function AutoEqTab({
                     None
                   </button>
                   <button
+                    type="button"
                     className={smoothType === "IE" ? "active" : ""}
                     aria-pressed={smoothType === "IE"}
                     onClick={() => {
@@ -518,6 +521,7 @@ export function AutoEqTab({
                     IE
                   </button>
                   <button
+                    type="button"
                     className={smoothType === "OE" ? "active" : ""}
                     aria-pressed={smoothType === "OE"}
                     onClick={() => {
@@ -583,6 +587,7 @@ export function AutoEqTab({
               className="autoeq-bands-stepper"
             />
             <button
+              type="button"
               className="btn filled autoeq-run-btn"
               disabled={isOptimizing || !meas || !target}
               onClick={handleRunAutoEq}
@@ -800,10 +805,10 @@ export function DiagnosticsPanel() {
           <span className="diag-count-w" title="Warnings" aria-label={`${warnCount} warnings`}>{warnCount}W</span>
           <span className="diag-count-i" title="Info" aria-label={`${infoCount} info events`}>{infoCount}I</span>
         </div>
-        <button title={copied ? "Copied!" : "Copy filtered logs to clipboard"} aria-label={copied ? "Copied" : "Copy filtered logs to clipboard"} onClick={copyToClipboard}>
+        <button type="button" title={copied ? "Copied!" : "Copy filtered logs to clipboard"} aria-label={copied ? "Copied" : "Copy filtered logs to clipboard"} onClick={copyToClipboard}>
           <Icon>{copied ? "check" : "content_copy"}</Icon>
         </button>
-        <button className="danger" title="Clear all logs" aria-label="Clear all logs" onClick={clearLogs}>
+        <button type="button" className="danger" title="Clear all logs" aria-label="Clear all logs" onClick={clearLogs}>
           <Icon>delete</Icon>
         </button>
       </div>
@@ -811,6 +816,7 @@ export function DiagnosticsPanel() {
       <div className="diag-toolbar">
         {DIAG_LEVELS.map((lvl) => (
           <button
+            type="button"
             key={lvl}
             className={`diag-filter-btn${levelFilter === lvl ? " active" : ""}${lvl === "Error" ? " f-error" : ""}${lvl === "Warn" ? " f-warn" : ""}`}
             aria-pressed={levelFilter === lvl}
@@ -828,6 +834,7 @@ export function DiagnosticsPanel() {
           onChange={(e) => setSearch(e.target.value)}
         />
         <button
+          type="button"
           className={`diag-scroll-btn${autoScroll ? " active" : ""}`}
           title={autoScroll ? "Auto-scroll on" : "Auto-scroll paused"}
           aria-label={autoScroll ? "Auto-scroll on" : "Auto-scroll paused"}

@@ -1,6 +1,8 @@
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
+import { useEffect, useState } from "react";
+
 export interface MaterialYouColors {
   available: boolean;
   dark: boolean;
@@ -118,8 +120,8 @@ export function materialYouToCssVars(data: MaterialYouColors): Record<string, st
     "--cyan-rgb": hexToRgb(primary),
     "--azure": primary,
     "--sky": primary,
-    "--blue": secondary,
-    "--blue-rgb": hexToRgb(secondary),
+    "--blue": primary,
+    "--blue-rgb": hexToRgb(primary),
     "--purple": secondary,
     "--purple-rgb": hexToRgb(secondary),
     "--teal": tertiary,
@@ -164,6 +166,25 @@ export function materialYouToCssVars(data: MaterialYouColors): Record<string, st
     "--sync-unsaved": orange,
     "--on-accent": luminance(primary) > 0.6 ? "#11111b" : "#f4f6fb",
   };
+}
+
+export const THEME_VARS_CHANGED_EVENT = "theme-vars-changed";
+
+function notifyThemeVarsChanged(): void {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent(THEME_VARS_CHANGED_EVENT));
+  }
+}
+
+/** Subscribe to CSS variable updates performed outside React. */
+export function useThemeVarsRevision(): number {
+  const [revision, setRevision] = useState(0);
+  useEffect(() => {
+    const handleChange = () => setRevision((value) => value + 1);
+    window.addEventListener(THEME_VARS_CHANGED_EVENT, handleChange);
+    return () => window.removeEventListener(THEME_VARS_CHANGED_EVENT, handleChange);
+  }, []);
+  return revision;
 }
 
 export const MATERIAL_YOU_VARS = [
@@ -241,6 +262,8 @@ export function applyMaterialYouVars(vars: Record<string, string>): void {
   for (const [name, value] of Object.entries(vars)) {
     root.style.setProperty(name, value);
   }
+  // Canvas graphs snapshot computed vars at draw time; tell them to repaint.
+  notifyThemeVarsChanged();
 }
 
 export function clearMaterialYouVars(): void {
@@ -249,4 +272,5 @@ export function clearMaterialYouVars(): void {
   for (const name of MATERIAL_YOU_VARS) {
     root.style.removeProperty(name);
   }
+  notifyThemeVarsChanged();
 }

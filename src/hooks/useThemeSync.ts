@@ -5,7 +5,7 @@ import {
   getMaterialYouColors,
   materialYouToCssVars,
 } from "../lib/materialYou";
-import { isTauri } from "../lib/platform";
+import { isAndroidDevice, isTauri } from "../lib/platform";
 
 const THEME_BG_COLORS: Record<string, string> = {
   "material-you": "#1a1b26",
@@ -47,35 +47,35 @@ export function useThemeSync(theme: string): string {
   useEffect(() => {
     let active = true;
 
-    const isAndroid =
-      typeof navigator !== "undefined" &&
-      (document.body.classList.contains("is-android") ||
-        /android/i.test(navigator.userAgent));
+    const isAndroid = isAndroidDevice();
+
+    // Try Material You; returns true when dynamic colors were applied.
+    const applyMaterialYou = async (): Promise<boolean> => {
+      if (!isTauri()) return false;
+      try {
+        const colors = await getMaterialYouColors();
+        if (!active || !colors) return false;
+        const vars = materialYouToCssVars(colors);
+        applyMaterialYouVars(vars);
+        updateThemeColorMeta("material-you", vars["--bg"]);
+        console.info(
+          `[theme] Material You applied (dark=${colors.dark} primary=${vars["--cyan"]})`,
+        );
+        return true;
+      } catch (e) {
+        console.error("Failed to read Material You colors:", e);
+        return false;
+      }
+    };
 
     const applyTheme = async () => {
       let resolved = theme;
 
-      if (theme === "material-you") {
+      if (theme === "material-you" || (theme === "auto" && isAndroid)) {
         if (!active) return;
-        setResolvedTheme(resolved);
-        document.documentElement.setAttribute("data-theme", resolved);
-        if (isTauri()) {
-          try {
-            const colors = await getMaterialYouColors();
-            if (!active) return;
-            if (colors) {
-              const vars = materialYouToCssVars(colors);
-              applyMaterialYouVars(vars);
-              updateThemeColorMeta(resolved, vars["--bg"]);
-              console.info(
-                `[theme] Material You applied (dark=${colors.dark} primary=${vars["--cyan"]})`,
-              );
-              return;
-            }
-          } catch (e) {
-            console.error("Failed to read Material You colors:", e);
-          }
-        }
+        setResolvedTheme("material-you");
+        document.documentElement.setAttribute("data-theme", "material-you");
+        if (await applyMaterialYou()) return;
         // Unavailable (desktop, web, or pre-Android-12): fall back to auto.
         clearMaterialYouVars();
         const prefersDark = window.matchMedia(

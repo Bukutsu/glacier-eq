@@ -8,7 +8,11 @@ use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock};
 
 fn default_theme() -> String {
-    "auto".to_string()
+    // Material You is the default on Android; everywhere else follows Auto.
+    #[cfg(target_os = "android")]
+    return "material-you".to_string();
+    #[cfg(not(target_os = "android"))]
+    return "auto".to_string();
 }
 
 /// Must match the themes offered by the settings UI (and the web parser).
