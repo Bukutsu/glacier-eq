@@ -14,7 +14,7 @@ import {
 describe("dacFilterModes", () => {
   it("generates FAST-LL time curve with zero pre-ringing", () => {
     const meta = getFilterModeMeta("FAST-LL");
-    expect(meta.badge).toBe("Zero Pre-Ringing");
+    expect(meta.badge).toBe("No pre-ringing");
     expect(meta.phaseType).toBe("minimum");
 
     const curve = getFilterTimeCurve("FAST-LL", DEFAULT_POINTS);
@@ -31,6 +31,10 @@ describe("dacFilterModes", () => {
   });
 
   it("generates FAST-PC time curve with symmetric ringing", () => {
+    const meta = getFilterModeMeta("FAST-PC");
+    expect(meta.badge).toBe("Symmetric");
+    expect(meta.phaseType).toBe("linear");
+
     const curve = getFilterTimeCurve("FAST-PC", DEFAULT_POINTS);
     const centerIdx = Math.floor(DEFAULT_POINTS / 2);
 
@@ -48,6 +52,10 @@ describe("dacFilterModes", () => {
   });
 
   it("generates NON-OS time curve with zero ringing", () => {
+    const meta = getFilterModeMeta("NON-OS");
+    expect(meta.badge).toBe("Zero ringing");
+    expect(meta.phaseType).toBe("nos");
+
     const curve = getFilterTimeCurve("NON-OS", DEFAULT_POINTS);
     const centerIdx = Math.floor(DEFAULT_POINTS / 2);
 
