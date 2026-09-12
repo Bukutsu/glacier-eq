@@ -36,6 +36,23 @@
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--text-rgb) / 0.28) transparent;
+  }
+  .workspace.mobile-workspace::-webkit-scrollbar {
+    width: 4px !important;
+  }
+  .workspace.mobile-workspace::-webkit-scrollbar-track {
+    background: transparent !important;
+    border: none !important;
+  }
+  .workspace.mobile-workspace::-webkit-scrollbar-thumb {
+    background: rgb(var(--text-rgb) / 0.28) !important;
+    border: none !important;
+    border-radius: 2px !important;
+  }
+  .workspace.mobile-workspace::-webkit-scrollbar-thumb:active {
+    background: rgb(var(--text-rgb) / 0.45) !important;
   }
   .mobile-workspace .left-pane {
     overflow: visible !important;
@@ -1060,7 +1077,70 @@
 
 }
 
+body.is-android ::-webkit-scrollbar {
+  width: 4px !important;
+  height: 4px !important;
+}
+body.is-android ::-webkit-scrollbar-track {
+  background: transparent !important;
+  border: none !important;
+}
+body.is-android ::-webkit-scrollbar-thumb {
+  background: rgb(var(--text-rgb) / 0.28) !important;
+  border: none !important;
+  border-radius: 2px !important;
+}
+body.is-android ::-webkit-scrollbar-thumb:active {
+  background: rgb(var(--text-rgb) / 0.45) !important;
+}
+
 @media (pointer: coarse) {
+  /* On touchscreens, use a slim floating overlay indicator instead of a heavy desktop gutter */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--text-rgb) / 0.25) transparent;
+  }
+  ::-webkit-scrollbar {
+    width: 4px !important;
+    height: 4px !important;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent !important;
+    border: none !important;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgb(var(--text-rgb) / 0.25) !important;
+    border: none !important;
+    border-radius: 2px !important;
+  }
+  ::-webkit-scrollbar-thumb:hover,
+  ::-webkit-scrollbar-thumb:active {
+    background: rgb(var(--text-rgb) / 0.4) !important;
+  }
+
+  body::-webkit-scrollbar,
+  .workspace::-webkit-scrollbar,
+  .left-pane::-webkit-scrollbar,
+  .tab-panel::-webkit-scrollbar {
+    width: 4px !important;
+    height: 4px !important;
+  }
+  body::-webkit-scrollbar-track,
+  .workspace::-webkit-scrollbar-track,
+  .left-pane::-webkit-scrollbar-track,
+  .tab-panel::-webkit-scrollbar-track {
+    background: transparent !important;
+    border: none !important;
+  }
+  body::-webkit-scrollbar-thumb,
+  .workspace::-webkit-scrollbar-thumb,
+  .left-pane::-webkit-scrollbar-thumb,
+  .tab-panel::-webkit-scrollbar-thumb {
+    background: rgb(var(--text-rgb) / 0.25) !important;
+    border: none !important;
+    border-radius: 2px !important;
+  }
+
   .control-slider-input::-webkit-slider-thumb {
     width: 12px !important;
     height: 26px !important;
