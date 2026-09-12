@@ -209,7 +209,7 @@ mod tests {
     #[test]
     fn match_target_uses_unknown_protocol_when_disconnected_or_unsupported() {
         let (caps, protocol) = match_target_for_connected(None);
-        assert_eq!(caps.integer_preamp, false);
+        assert!(!caps.integer_preamp);
         assert_eq!(protocol, DeviceProtocol::Unknown);
 
         let unsupported = ConnectedDevice {
@@ -219,7 +219,7 @@ mod tests {
             profile_name: "Generic".to_string(),
         };
         let (caps, protocol) = match_target_for_connected(Some(&unsupported));
-        assert_eq!(caps.integer_preamp, false);
+        assert!(!caps.integer_preamp);
         assert_eq!(protocol, DeviceProtocol::Unknown);
     }
 }

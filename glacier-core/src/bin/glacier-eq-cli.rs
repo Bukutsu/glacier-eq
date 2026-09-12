@@ -373,7 +373,9 @@ fn parse_hex_bytes(value: &str) -> Result<Vec<u8>, String> {
         }
         return compact
             .as_bytes()
-            .chunks_exact(2)
+            .as_chunks::<2>()
+            .0
+            .iter()
             .map(|chunk| {
                 let token = std::str::from_utf8(chunk).expect("hex input is ASCII");
                 parse_hex_byte(token, "data byte")
@@ -382,7 +384,7 @@ fn parse_hex_bytes(value: &str) -> Result<Vec<u8>, String> {
     }
 
     value
-        .split(|character: char| matches!(character, ' ' | '\t' | ',' | ':'))
+        .split([' ', '\t', ',', ':'])
         .filter(|token| !token.is_empty())
         .map(|token| parse_hex_byte(token, "data byte"))
         .collect()

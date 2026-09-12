@@ -190,7 +190,7 @@ fn uninstall_sync() -> Result<(), String> {
     if std::fs::symlink_metadata(DEST_PATH).is_ok()
         || std::fs::symlink_metadata(LEGACY_DEST_PATH).is_ok()
     {
-        return Err(format!("Remove ran but rules file still exists."));
+        return Err("Remove ran but rules file still exists.".to_string());
     }
     Ok(())
 }
