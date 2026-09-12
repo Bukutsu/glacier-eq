@@ -1840,6 +1840,9 @@ function App() {
     getAsyncContext,
     runProfileMutation,
     onUdevInstalled: handleUdevInstalled,
+    deviceInfo: selectedDeviceInfo,
+    capabilities,
+    firmwareVersion,
   };
   // One graph element for all four render sites; the editor props (drag/
   // wheel/keyboard editing) are only attached where the graph is editable.
@@ -2181,6 +2184,9 @@ function App() {
             getAsyncContext={getAsyncContext}
             runProfileMutation={runProfileMutation}
             onUdevInstalled={handleUdevInstalled}
+            deviceInfo={selectedDeviceInfo}
+            capabilities={capabilities}
+            firmwareVersion={firmwareVersion}
           />
           )}
         </main>

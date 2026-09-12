@@ -2,24 +2,26 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 import { memo } from "react";
-import { getOfficialDacSpec } from "../lib/dacSpecs";
+import { getOfficialDacSpec, OFFLINE_EDITOR_CAPABILITIES } from "../lib/dacSpecs";
 import type { DeviceCapabilities, DeviceInfo } from "../types";
 
-interface SidebarDeviceSpecsProps {
+export interface DeviceSpecsProps {
   connected: boolean;
   isSimulated?: boolean;
   deviceInfo?: DeviceInfo;
-  capabilities: DeviceCapabilities;
+  capabilities?: DeviceCapabilities;
   firmwareVersion?: string | null;
+  className?: string;
 }
 
-export const SidebarDeviceSpecs = memo(function SidebarDeviceSpecs({
+export const DeviceSpecs = memo(function DeviceSpecs({
   connected,
   isSimulated = false,
   deviceInfo,
-  capabilities,
+  capabilities = OFFLINE_EDITOR_CAPABILITIES,
   firmwareVersion,
-}: SidebarDeviceSpecsProps) {
+  className,
+}: DeviceSpecsProps) {
   const officialSpec = connected || isSimulated
     ? getOfficialDacSpec(
         deviceInfo?.vendor_id,
@@ -46,9 +48,10 @@ export const SidebarDeviceSpecs = memo(function SidebarDeviceSpecs({
 
   const dspKhz = Math.round(capabilities.dsp_sample_rate / 1000);
   const bandGain = Math.abs(capabilities.band_gain_range[1]);
+  const rootClass = className ? `sidebar-specs-card ${className}` : "sidebar-specs-card";
 
   return (
-    <div className="sidebar-specs-card" aria-label="DAC specifications">
+    <div className={rootClass} aria-label="DAC specifications">
       <div className="sidebar-specs-header">
         <span className="sidebar-specs-eyebrow">
           <span className={`sidebar-specs-dot ${dotClass}`} aria-hidden="true" />
@@ -113,3 +116,5 @@ export const SidebarDeviceSpecs = memo(function SidebarDeviceSpecs({
     </div>
   );
 });
+
+export const SidebarDeviceSpecs = DeviceSpecs;
