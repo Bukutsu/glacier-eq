@@ -2040,7 +2040,9 @@ mod tests {
         }
     }
 
-    fn hump_case() -> (Vec<(f64, f64)>, Vec<(f64, f64)>) {
+    type CurvePoints = Vec<(f64, f64)>;
+
+    fn hump_case() -> (CurvePoints, CurvePoints) {
         // Flat measurement, target with a +14 dB hump at 200 Hz: needs more
         // gain than the restrictive ±6 dB device allows.
         let measurement = [20.0, 50.0, 100.0, 200.0, 500.0, 1000.0, 2000.0, 5000.0, 10000.0, 20000.0]
