@@ -33,7 +33,12 @@ import initWasm, {
 let wasmInitPromise: Promise<unknown> | null = null;
 
 export async function ensureWasm(): Promise<void> {
-  wasmInitPromise ??= initWasm();
+  wasmInitPromise ??= initWasm().catch((error) => {
+    // A failed load (offline, interrupted fetch) must not poison every
+    // later backend call until a full page reload; let the next caller retry.
+    wasmInitPromise = null;
+    throw error;
+  });
   await wasmInitPromise;
 }
 
