@@ -15,7 +15,6 @@ import { DeviceChooser } from "./components/DeviceChooser";
 import { EqGraph } from "./components/EqGraph";
 import { Header } from "./components/Header";
 import { Icon } from "./components/Icon";
-import { CustomScrollbar } from "./components/CustomScrollbar";
 import { Preamp } from "./components/Preamp";
 import { MOBILE_TABS, type MobileTab, type ToolsTab } from "./lib/tabs";
 import { Collapsible } from "./components/Collapsible";
@@ -1722,94 +1721,6 @@ function App() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  useEffect(() => {
-    const isScrollableOverflow = (overflow: string) =>
-      overflow === "auto" || overflow === "scroll" || overflow === "overlay";
-
-    function getScrollElement(element: HTMLElement): HTMLElement {
-      if (element === document.body || element === document.documentElement) {
-        return (document.scrollingElement as HTMLElement | null) || document.documentElement;
-      }
-      return element;
-    }
-
-    function canScroll(element: HTMLElement, scrollElement: HTMLElement, axis: "x" | "y") {
-      const style = window.getComputedStyle(element);
-      const isCustomScroll = element.classList.contains("custom-scroll-pane");
-      return axis === "y"
-        ? (isScrollableOverflow(style.overflowY) || isCustomScroll) && scrollElement.scrollHeight > scrollElement.clientHeight
-        : isScrollableOverflow(style.overflowX) && scrollElement.scrollWidth > scrollElement.clientWidth;
-    }
-
-    function findWheelTarget(
-      element: HTMLElement | null,
-      deltaX: number,
-      deltaY: number,
-    ): { element: HTMLElement; deltaX: number; deltaY: number } | null {
-      let parent = element;
-      while (parent) {
-        const scrollElement = getScrollElement(parent);
-        const canScrollY = deltaY !== 0 && canScroll(parent, scrollElement, "y");
-        const canScrollX = deltaX !== 0 && canScroll(parent, scrollElement, "x");
-
-        if (canScrollY || canScrollX) {
-          return {
-            element: scrollElement,
-            deltaX: canScrollX ? deltaX : 0,
-            deltaY: canScrollY ? deltaY : 0,
-          };
-        }
-
-        if (deltaY !== 0 && canScroll(parent, scrollElement, "x")) {
-          return { element: scrollElement, deltaX: deltaY, deltaY: 0 };
-        }
-
-        if (parent === document.body) return null;
-        parent = parent.parentElement;
-      }
-      return null;
-    }
-
-    const handleGlobalWheel = (e: WheelEvent) => {
-      const target = e.target as HTMLElement | null;
-      if (!target || target.closest(".eq-filter-handle")) return;
-
-      const workspace = target.closest(".workspace") || target.closest("#app");
-      if (!workspace) return;
-
-      const wheelTarget = findWheelTarget(target, e.deltaX, e.deltaY);
-      if (!wheelTarget) return;
-
-      let deltaY = wheelTarget.deltaY;
-      let deltaX = wheelTarget.deltaX;
-      if (e.deltaMode === 1) {
-        deltaY *= 20;
-        deltaX *= 20;
-      } else if (e.deltaMode === 2) {
-        deltaY *= wheelTarget.element.clientHeight;
-        deltaX *= wheelTarget.element.clientWidth;
-      }
-
-      const beforeTop = wheelTarget.element.scrollTop;
-      const beforeLeft = wheelTarget.element.scrollLeft;
-
-      wheelTarget.element.scrollTop += deltaY;
-      wheelTarget.element.scrollLeft += deltaX;
-
-      if (
-        wheelTarget.element.scrollTop !== beforeTop ||
-        wheelTarget.element.scrollLeft !== beforeLeft
-      ) {
-        e.preventDefault();
-      }
-    };
-
-    window.addEventListener("wheel", handleGlobalWheel, { capture: true, passive: false });
-    return () => {
-      window.removeEventListener("wheel", handleGlobalWheel, { capture: true });
-    };
-  }, []);
-
   // Shared props for the mobile ToolsPanel instances; each mobile tab only
   // overrides the tab selection and per-tab extras below. Tuning-only props
   // (curves, targets, bands) are omitted: mobile renders its own tuning panel.
@@ -2124,7 +2035,7 @@ function App() {
           </aside>
           <section
             id="main-scroll-pane"
-            className="left-pane custom-scroll-pane"
+            className="left-pane"
             ref={mainScrollRef}
           >
             {editorHint}
@@ -2134,7 +2045,6 @@ function App() {
             </section>
             )}
             {activeTab === "eq" && editorControls}
-            <CustomScrollbar targetRef={mainScrollRef} />
           </section>
           {activeTab !== "eq" && (
           <ToolsPanel
