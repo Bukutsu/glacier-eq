@@ -24,6 +24,7 @@ fn is_known_theme(theme: &str) -> bool {
             | "gruvbox"
             | "catppuccin-mocha"
             | "catppuccin-latte"
+            | "material-you"
     )
 }
 

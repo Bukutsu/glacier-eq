@@ -1,5 +1,6 @@
 import { invoke, requestWebHidDevice } from "../lib/rpc";
 import { useEffect, useState } from "react";
+import { Icon } from "./Icon";
 import { isDevDummyDevice } from "../lib/devDevice";
 import { isTauri } from "../lib/platform";
 import type { DeviceInfo, SupportedDeviceInfo } from "../types";
@@ -126,9 +127,9 @@ export function DeviceChooser({
       >
         <summary style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", color: "var(--comment)", fontSize: "var(--type-caption)", fontWeight: 700, listStyle: "none" }}>
           <span>SUPPORTED MODELS ({supportedDacs.length})</span>
-          <span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: "16px", color: "var(--cyan)" }}>
+          <Icon size={16} className="text-cyan">
             {supportedOpen ? "expand_less" : "expand_more"}
-          </span>
+          </Icon>
         </summary>
         <div style={{ display: "grid", gap: "8px", marginTop: "12px" }}>
           {supportedDacs.map((dac) => (

@@ -1178,6 +1178,7 @@ dependencies = [
  "tauri-plugin-dialog",
  "tauri-plugin-fs",
  "tauri-plugin-hid",
+ "tauri-plugin-material-you",
  "tauri-plugin-window-state",
 ]
 
@@ -3546,6 +3547,16 @@ name = "tauri-plugin-hid"
 version = "0.2.4"
 dependencies = [
  "hidapi",
+ "serde",
+ "tauri",
+ "tauri-plugin",
+ "thiserror 2.0.20",
+]
+
+[[package]]
+name = "tauri-plugin-material-you"
+version = "0.1.0"
+dependencies = [
  "serde",
  "tauri",
  "tauri-plugin",

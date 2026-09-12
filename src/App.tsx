@@ -9,6 +9,7 @@ import {
   useState,
   type ComponentProps,
 } from "react";
+import { useLocation, useNavigate } from "react-router";
 import { invoke, listen, emit, sleep } from "./lib/rpc";
 import { Bands } from "./components/Bands";
 import { DeviceChooser } from "./components/DeviceChooser";
@@ -16,7 +17,13 @@ import { EqGraph } from "./components/EqGraph";
 import { Header } from "./components/Header";
 import { Icon } from "./components/Icon";
 import { Preamp } from "./components/Preamp";
-import { MOBILE_TABS, type MobileTab, type ToolsTab } from "./lib/tabs";
+import {
+  MOBILE_TABS,
+  parseWorkspacePath,
+  workspacePath,
+  type MobileTab,
+  type ToolsTab,
+} from "./lib/tabs";
 import { Collapsible } from "./components/Collapsible";
 import { ConfirmDialogHost, confirmDialog } from "./components/ConfirmDialog";
 import { Modal } from "./components/Modal";
@@ -46,9 +53,13 @@ import type {
   OperationProgress,
   AppSettings,
 } from "./types";
-import { ToastContainer, type Toast } from "./components/Toast";
+import { ToastContainer } from "./components/Toast";
+import { useToastStore } from "./stores/toastStore";
+import { useHistoryStore } from "./stores/historyStore";
 import { useThemeSync } from "./hooks/useThemeSync";
 import { useTraces } from "./hooks/useTraces";
+import { DeviceView } from "./components/DeviceView";
+import { SettingsView } from "./components/SettingsView";
 
 const ANDROID_TOAST_DEDUPE_MS = 2000;
 // Offline editor fallback. Must stay in sync with glacier-core
@@ -82,6 +93,9 @@ declare global {
   }
 }
 
+const LazyProfilesView = lazy(() =>
+  import("./components/ProfilesView").then(({ ProfilesView }) => ({ default: ProfilesView })),
+);
 const LazyToolsPanel = lazy(() =>
   import("./components/ToolsPanel").then(({ ToolsPanel }) => ({ default: ToolsPanel })),
 );
@@ -97,6 +111,14 @@ const LazyAddTraceModal = lazy(() =>
 
 function ToolLoadingFallback() {
   return <div className="tool-loading" aria-busy="true">Loading tools…</div>;
+}
+
+function ProfilesView(props: ComponentProps<typeof LazyProfilesView>) {
+  return (
+    <Suspense fallback={<ToolLoadingFallback />}>
+      <LazyProfilesView {...props} />
+    </Suspense>
+  );
 }
 
 function ToolsPanel(props: ComponentProps<typeof LazyToolsPanel>) {
@@ -144,6 +166,9 @@ const TOOL_TAB_BY_WORKSPACE: Record<MobileTab, ToolsTab | null> = {
 
 
 function App() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { tab: activeTab, deviceSection, settingsSection } = parseWorkspacePath(location.pathname);
   const [isMobile, setIsMobile] = useState(
     () => window.matchMedia(MOBILE_QUERY).matches,
   );
@@ -152,19 +177,24 @@ function App() {
     (document.body.classList.contains("is-android") ||
       /android/i.test(navigator.userAgent) ||
       typeof window.AndroidNotifier !== "undefined");
-  const [activeTab, setActiveTab] = useState<MobileTab>("eq");
   const activeTabRef = useRef(activeTab);
   useEffect(() => {
     activeTabRef.current = activeTab;
   }, [activeTab]);
   const [graphCollapsed, setGraphCollapsed] = useState(false);
   const [showGraph, setShowGraph] = useState(true);
-  const [toolsTab, setToolsTab] = useState<ToolsTab>("Preset");
   const [showDeviceModal, setShowDeviceModal] = useState(false);
   const [showDiagnosticsModal, setShowDiagnosticsModal] = useState(false);
   const [showAddTrace, setShowAddTrace] = useState(false);
   const mainScrollRef = useRef<HTMLElement | null>(null);
   const mobileScrollRef = useRef<HTMLElement | null>(null);
+  const mobileScrollPositionsRef = useRef<Record<MobileTab, number>>({
+    eq: 0,
+    tuning: 0,
+    profiles: 0,
+    device: 0,
+    settings: 0,
+  });
   const reconnectCancelRef = useRef<HTMLButtonElement>(null);
   const reconnectEffectGenerationRef = useRef(0);
   const manualDisconnectRef = useRef(false);
@@ -244,8 +274,7 @@ function App() {
   const [firmwareVersion, setFirmwareVersion] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
   const [progress, setProgress] = useState<OperationProgress | null>(null);
-  const [status, setStatusState] = useState("Ready");
-  const [toasts, setToasts] = useState<Toast[]>([]);
+  const status = useToastStore((s) => s.status);
   const lastAndroidToastRef = useRef<{
     message: string;
     shownAt: number;
@@ -255,62 +284,35 @@ function App() {
     (message: string, type: "info" | "error" | "success" = "info") => {
       if (message === "Ready" || !message.trim()) return;
 
-      // Classify by content first, so error messages passed with the default
-      // "info" type are still treated (and shown) as errors.
-      let toastType = type;
+      // Automatically log all toast notifications to the diagnostics board.
       const lowerMessage = message.toLowerCase();
-      if (
+      const isError =
+        type === "error" ||
         lowerMessage.includes("failed") ||
         lowerMessage.includes("error") ||
         lowerMessage.includes("unable") ||
         lowerMessage.includes("invalid") ||
         lowerMessage.includes("permission") ||
         lowerMessage.includes("not allowed") ||
-        lowerMessage.includes("please enter")
-      ) {
-        toastType = "error";
-      } else if (
-        lowerMessage.includes("successful") ||
-        lowerMessage.includes("synced") ||
-        lowerMessage.includes("loaded") ||
-        lowerMessage.includes("parsed") ||
-        lowerMessage.includes("deleted") ||
-        lowerMessage.includes("saved")
-      ) {
-        toastType = "success";
-      }
-
-      // Automatically log all toast notifications to the diagnostics board.
-      const diagLevel = toastType === "error" ? "Error" : "Info";
+        lowerMessage.includes("please enter");
       invoke("add_diagnostic_event", {
-        level: diagLevel,
+        level: isError ? "Error" : "Info",
         source: "UI",
         message: `Notification: ${message}`,
       }).catch((err) => console.error("Failed to log diagnostic from toast:", err));
 
       // On Android, transient info/success is handled by the native toast;
       // errors are also rendered persistently so they are not lost.
-      if (isAndroid && toastType !== "error") return;
+      if (isAndroid && type !== "error") return;
 
-      const id = Math.random().toString(36).substring(2, 9);
-      setToasts((prev) => {
-        // Dedupe: don't stack identical messages.
-        if (prev.some((t) => t.message === message)) return prev;
-        return [...prev, { id, message, type: toastType }];
-      });
-
-      if (toastType !== "error") {
-        setTimeout(() => {
-          setToasts((prev) => prev.filter((t) => t.id !== id));
-        }, 4000);
-      }
+      useToastStore.getState().addToast(message, type);
     },
     [isAndroid],
   );
 
   const setStatus = useCallback(
     (message: string) => {
-      setStatusState(message);
+      useToastStore.getState().setStatus(message);
       showToast(message);
     },
     [showToast],
@@ -323,7 +325,7 @@ function App() {
     source: "UI" | "Worker" | "HID" | "AutoEQ" | "Device" = "UI",
     statusText: string = message
   ) => {
-    setStatusState(statusText);
+    useToastStore.setState({ status: statusText });
     invoke("add_diagnostic_event", { level, source, message })
       .catch((err) => console.error("Failed to log diagnostic:", err));
     if (toastType) {
@@ -400,101 +402,25 @@ function App() {
     window.localStorage.setItem("glacier-graph-view-mode", graphViewMode);
   }, [graphViewMode]);
 
-  const [undoStack, setUndoStack] = useState<PEQData[]>([]);
-  const [redoStack, setRedoStack] = useState<PEQData[]>([]);
-  const undoStackRef = useRef(undoStack);
-  const redoStackRef = useRef(redoStack);
-  // PEQ state captured at undo time; redo() refuses unless the current state
-  // still matches it.
-  const redoBaseRef = useRef<PEQData | null>(null);
-
-  useEffect(() => {
-    undoStackRef.current = undoStack;
-  }, [undoStack]);
-
-  useEffect(() => {
-    redoStackRef.current = redoStack;
-  }, [redoStack]);
-
-  useEffect(() => {
-    const redoBase = redoBaseRef.current;
-    if (
-      redoStackRef.current.length === 0 ||
-      (redoBase && peqEquals(peq, redoBase))
-    ) {
-      return;
-    }
-    redoStackRef.current = [];
-    redoBaseRef.current = null;
-    setRedoStack([]);
-  }, [peq]);
-
-  const pushToUndoStack = useCallback((currentPeq: PEQData) => {
-    const stack = undoStackRef.current;
-    if (stack.length > 0 && peqEquals(stack[stack.length - 1], currentPeq)) {
-      // No change since the last snapshot — nothing to push. Redo validity is
-      // enforced separately in redo(), which checks that the PEQ still sits
-      // where the last undo left it.
-      return;
-    }
-    const sittingAtRedoBase =
-      redoStackRef.current.length > 0 &&
-      redoBaseRef.current &&
-      peqEquals(currentPeq, redoBaseRef.current);
-    if (!sittingAtRedoBase) {
-      setRedoStack([]);
-    }
-    // Record the snapshot even when sitting at the redo base (undo left the
-    // stack empty): without it, an edit made after that undo could never be
-    // undone. Redo history survives until a real edit lands away from the
-    // base, and redo() re-validates the base on every attempt.
-    setUndoStack((prev) => {
-      const next = [...prev, currentPeq];
-      if (next.length > 50) {
-        next.shift();
-      }
-      return next;
-    });
-  }, []);
-
   const undo = useCallback(() => {
-    // Gesture-start snapshots can match the current state when no edit
-    // followed (focus-only gestures); skipping them keeps Ctrl+Z from
-    // silently doing nothing.
-    let idx = undoStack.length - 1;
-    while (idx >= 0 && peqEquals(undoStack[idx], peqRef.current)) {
-      idx -= 1;
-    }
-    if (idx < 0) return;
-    const prev = undoStack[idx];
-    setUndoStack(undoStack.slice(0, idx));
-    setRedoStack((stack) => [...stack, peqRef.current]);
-    redoBaseRef.current = prev;
+    const prev = useHistoryStore.getState().undo(peqRef.current);
+    if (!prev) return;
     setPeq(prev);
     noteEditorMutation();
     setDirty(!peqEquals(prev, editorCleanPeqRef.current));
-  }, [undoStack, noteEditorMutation]);
+  }, [noteEditorMutation]);
 
   const redo = useCallback(() => {
-    if (redoStack.length === 0) return;
-    // A redo entry is only valid while the PEQ still sits exactly where the
-    // last undo left it: a no-op gesture must not wipe redo, but any real
-    // edit after an undo invalidates the abandoned future.
-    const base = redoBaseRef.current;
-    if (!base || !peqEquals(peqRef.current, base)) {
-      setRedoStack([]);
-      return;
-    }
-    const next = redoStack[redoStack.length - 1];
-    setRedoStack((stack) => stack.slice(0, -1));
-    setUndoStack((stack) => [...stack, peqRef.current]);
-    // Multi-level redo: each redo re-bases on the state it restores, so the
-    // next redo validates against it instead of the stale original base.
-    redoBaseRef.current = next;
+    const next = useHistoryStore.getState().redo(peqRef.current);
+    if (!next) return;
     setPeq(next);
     noteEditorMutation();
     setDirty(!peqEquals(next, editorCleanPeqRef.current));
-  }, [redoStack, noteEditorMutation]);
+  }, [noteEditorMutation]);
+
+  const pushToUndoStack = useCallback((currentPeq: PEQData) => {
+    useHistoryStore.getState().pushSnapshot(currentPeq);
+  }, []);
 
   const [showGraphPreview, setShowGraphPreview] = useState(false);
   const graphPreviewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -516,6 +442,13 @@ function App() {
     clearPreviewTimer();
     isAdjustingRef.current = true;
     setShowGraphPreview(true);
+    // Android WebView may omit the range input's end event. An idle fallback
+    // keeps the floating preview from becoming a permanent obstruction.
+    graphPreviewTimer.current = setTimeout(() => {
+      if (!isAdjustingRef.current) return;
+      isAdjustingRef.current = false;
+      setShowGraphPreview(false);
+    }, 1500);
   }, [settings.floating_graph_preview, graphCollapsed, clearPreviewTimer]);
 
   const schedulePreviewDismiss = useCallback((delay = 1500) => {
@@ -530,6 +463,24 @@ function App() {
 
   // Cleanup on unmount
   useEffect(() => clearPreviewTimer, [clearPreviewTimer]);
+
+  // Range inputs do not consistently deliver pointerup to the input in Android
+  // WebView, so finish an active preview gesture at the window boundary too.
+  useEffect(() => {
+    const finishAdjustment = () => {
+      if (isAdjustingRef.current) schedulePreviewDismiss(1500);
+    };
+    window.addEventListener("pointerup", finishAdjustment, true);
+    window.addEventListener("pointercancel", finishAdjustment, true);
+    window.addEventListener("touchend", finishAdjustment, true);
+    window.addEventListener("touchcancel", finishAdjustment, true);
+    return () => {
+      window.removeEventListener("pointerup", finishAdjustment, true);
+      window.removeEventListener("pointercancel", finishAdjustment, true);
+      window.removeEventListener("touchend", finishAdjustment, true);
+      window.removeEventListener("touchcancel", finishAdjustment, true);
+    };
+  }, [schedulePreviewDismiss]);
 
   // Instantly dismiss preview when tapping on empty space
   useEffect(() => {
@@ -767,7 +718,7 @@ function App() {
 
   const scanDevices = useCallback(async () => {
     setIsBusy(true);
-    setStatusState("Scanning for devices...");
+    setStatus("Scanning for devices...");
     try {
       const realDevices = await invoke<DeviceInfo[]>("list_devices");
       const list = import.meta.env.DEV
@@ -779,7 +730,7 @@ function App() {
           ? current
           : list[0]?.path ?? "",
       );
-      setStatusState(
+      useToastStore.getState().setStatus(
         list.length
           ? `Found ${list.length} device${list.length === 1 ? "" : "s"}`
           : "No compatible DACs found",
@@ -1553,21 +1504,25 @@ function App() {
     setDirty(!peqEquals(defaultPeq, editorCleanPeqRef.current));
   }, [pushToUndoStack, noteEditorMutation]);
 
-  // Android back button / popstate handling for modal and overlay dismissal & tab navigation
   useEffect(() => {
-    const handlePopState = (event: PopStateEvent) => {
+    if (!isMobile) return;
+    const frame = window.requestAnimationFrame(() => {
+      mobileScrollRef.current?.scrollTo({
+        top: mobileScrollPositionsRef.current[activeTab],
+        behavior: "auto",
+      });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [activeTab, isMobile]);
+
+  // React Router owns workspace history. Keep the native popstate listener only
+  // for dismissing the existing modal overlays on Android back.
+  useEffect(() => {
+    const handlePopState = () => {
       setShowDeviceModal(false);
       setShowDiagnosticsModal(false);
       setShowAddTrace(false);
-
-      if (event.state?.tab) {
-        const tab = event.state.tab as MobileTab;
-        setActiveTab(tab);
-        const toolTab = TOOL_TAB_BY_WORKSPACE[tab];
-        if (toolTab) setToolsTab(toolTab);
-      } else if (!event.state?.modal) {
-        setActiveTab("eq");
-      }
+      mobileScrollPositionsRef.current[activeTabRef.current] = mobileScrollRef.current?.scrollTop ?? 0;
     };
 
     window.addEventListener("popstate", handlePopState);
@@ -1575,15 +1530,17 @@ function App() {
   }, []);
 
   const handleSelectWorkspaceTab = useCallback((id: MobileTab) => {
-    setActiveTab((prev) => (prev === id ? prev : id));
-    const toolTab = TOOL_TAB_BY_WORKSPACE[id];
-    if (toolTab) setToolsTab(toolTab);
-    // History side effect stays out of the updater: StrictMode double-invokes
-    // updaters, which pushed duplicate history entries.
-    if (id !== "eq" && activeTabRef.current !== id) {
-      window.history.pushState({ tab: id }, "");
+    const currentTab = activeTabRef.current;
+    const scrollEl = mobileScrollRef.current;
+    if (currentTab === id) {
+      scrollEl?.scrollTo({ top: 0, behavior: "smooth" });
+      mobileScrollPositionsRef.current[id] = 0;
+      return;
     }
-  }, []);
+
+    mobileScrollPositionsRef.current[currentTab] = scrollEl?.scrollTop ?? 0;
+    navigate(workspacePath(id));
+  }, [navigate]);
 
   const handleOpenDeviceModal = useCallback(() => {
     window.history.pushState({ modal: "device" }, "");
@@ -1616,9 +1573,8 @@ function App() {
     }
     setShowAddTrace(false);
   }, []);
-  const handleCloseToast = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  }, []);
+  const canUndoHistory = useHistoryStore((s) => s.past.length > 0);
+  const canRedoHistory = useHistoryStore((s) => s.future.length > 0);
   const handlePreampChange = useCallback((global_gain: number) => {
     const next = { ...peqRef.current, global_gain };
     setPeq(next);
@@ -1801,7 +1757,7 @@ function App() {
     <div className="editor-empty-hint" role="status">
       <Icon>info</Icon>
       <span className="editor-empty-hint-text">
-        No DAC connected — edit freely, or connect to push EQ and read the device state.
+        Offline editing — connect a DAC when you’re ready to read or write EQ.
       </span>
       <button
         type="button"
@@ -1830,10 +1786,12 @@ function App() {
         ? "settings"
         : undefined
     : undefined;
+  const mobilePageTitle = activeTab === "eq"
+    ? selectedPreset
+    : MOBILE_TABS.find((tab) => tab.id === activeTab)?.label ?? selectedPreset;
 
   return (
     <div id="app">
-      {!(isAndroid && activeTab === "settings") && (
         <Header
           inert={isReconnecting ? true : undefined}
           connected={connected}
@@ -1848,8 +1806,8 @@ function App() {
           maxBands={maxFilterBands}
           preampDb={peq.global_gain}
           supportsRamApply={supportsRamApply}
-          canUndo={undoStack.length > 0}
-          canRedo={redoStack.length > 0}
+          canUndo={canUndoHistory}
+          canRedo={canRedoHistory}
           onUndo={undo}
           onRedo={redo}
           onPull={pullEq}
@@ -1857,8 +1815,9 @@ function App() {
           onDisconnect={disconnectDevice}
           onConnectClick={handleOpenDeviceModal}
           configPage={desktopConfigPage}
+          pageTitle={isMobile ? mobilePageTitle : undefined}
+          compact={isMobile && activeTab !== "eq"}
         />
-      )}
       {isMobile ? (
         <>
           <main ref={mobileScrollRef} className="workspace mobile-workspace" inert={isReconnecting ? true : undefined}>
@@ -1882,6 +1841,11 @@ function App() {
             <div
               className={`mobile-graph-preview ${showGraphPreview ? "visible" : ""}`}
               onClick={handlePreviewClick}
+              onKeyDown={(event) => {
+                if (event.key !== "Enter" && event.key !== " ") return;
+                event.preventDefault();
+                handlePreviewClick();
+              }}
               role="button"
               tabIndex={showGraphPreview ? 0 : -1}
               aria-label="Scroll back to top graph"
@@ -1899,11 +1863,11 @@ function App() {
               </section>
             )}
             {activeTab === "profiles" && (
-              <section className="left-pane">
-                <ToolsPanel
+              <section className="left-pane profiles-mobile-pane">
+                <ProfilesView
                   {...mobileToolsPanelProps}
                   dirty={dirty}
-                  activeTab="Preset"
+                  isMobile={true}
                 />
               </section>
             )}
@@ -1967,23 +1931,33 @@ function App() {
             )}
             {activeTab === "settings" && (
               <section className="left-pane">
-                <ToolsPanel
-                  {...mobileToolsPanelProps}
-                  activeTab="Settings"
-                  showActions={false}
+                <SettingsView
+                  settings={settings}
+                  onSettingChange={updateSetting}
+                  section={settingsSection}
                   graphViewMode={graphViewMode}
                   onGraphViewModeChange={setGraphViewMode}
+                  onOpenDiagnostics={handleOpenDiagnosticsModal}
+                  showGraph={showGraph}
+                  onShowGraphChange={setShowGraph}
+                  setStatus={setStatus}
+                  onUdevInstalled={handleUdevInstalled}
                 />
               </section>
             )}
             {activeTab === "device" && (
               <section className="left-pane">
-                <ToolsPanel
-                  {...mobileToolsPanelProps}
-                  activeTab="Device"
-                  showActions={false}
+                <DeviceView
                   connected={connected}
+                  isSimulated={isDevDummyDevice(selectedDevice)}
+                  deviceInfo={selectedDeviceInfo}
+                  capabilities={capabilities}
+                  firmwareVersion={firmwareVersion}
+                  section={deviceSection}
+                  setStatus={setStatus}
+                  onPull={pullEq}
                   onOpenConnectModal={handleOpenDeviceModal}
+                  onDisconnect={connected ? disconnectDevice : undefined}
                 />
               </section>
             )}
@@ -2088,7 +2062,7 @@ function App() {
             onAddTarget={addTarget}
             connected={connected}
             isSimulated={isDevDummyDevice(selectedDevice)}
-            activeTab={toolsTab}
+            activeTab={TOOL_TAB_BY_WORKSPACE[activeTab] ?? "Preset"}
             onOpenConnectModal={handleOpenDeviceModal}
             onOpenDiagnostics={handleOpenDiagnosticsModal}
             showGraph={showGraph}
@@ -2099,6 +2073,9 @@ function App() {
             deviceInfo={selectedDeviceInfo}
             capabilities={capabilities}
             firmwareVersion={firmwareVersion}
+            deviceSection={deviceSection}
+            settingsSection={settingsSection}
+            onDisconnect={connected ? disconnectDevice : undefined}
           />
           )}
         </main>
@@ -2181,10 +2158,7 @@ function App() {
           </div>
         </Modal>
       )}
-      <ToastContainer
-        toasts={toasts}
-        onClose={handleCloseToast}
-      />
+      <ToastContainer />
       <ConfirmDialogHost />
     </div>
   );

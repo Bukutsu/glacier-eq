@@ -29,11 +29,12 @@
   flex: 0 0 auto;
 }
 
-.editor-empty-hint > .material-symbols-outlined {
+.editor-empty-hint > .app-icon {
   font-size: 18px;
   color: var(--cyan);
   flex-shrink: 0;
-}
+  width: 18px;
+  height: 18px;}
 
 .editor-empty-hint-text {
   flex: 1;
@@ -56,9 +57,10 @@
   color: var(--text);
 }
 
-.editor-empty-hint button .material-symbols-outlined {
+.editor-empty-hint button .app-icon {
   font-size: 18px;
-}
+  width: 18px;
+  height: 18px;}
 
 .eq-graph-shell {
   position: relative;
@@ -206,12 +208,13 @@
   border-bottom: 1px solid var(--line-soft);
 }
 
-.app-collapse-trigger > .material-symbols-outlined {
+.app-collapse-trigger > .app-icon {
   flex: 0 0 auto;
   font-size: 18px;
-}
+  width: 18px;
+  height: 18px;}
 
-.app-collapse-trigger > .material-symbols-outlined:last-child {
+.app-collapse-trigger > .app-icon:last-child {
   margin-left: auto;
 }
 
@@ -484,11 +487,19 @@
 }
 
 .band-picker {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 4px;
-  overflow-x: auto;
+  min-width: 0;
   padding: 4px;
   background: var(--panel);
+}
+
+.band-picker-scroll {
+  display: flex;
+  min-width: 0;
+  gap: 4px;
+  overflow-x: auto;
   scrollbar-width: thin;
 }
 
@@ -548,15 +559,36 @@
   grid-area: head;
   min-width: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 32px;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
   align-items: center;
 }
 
-.mobile-filter-head div {
+.mobile-filter-summary {
   min-width: 0;
   display: grid;
   gap: 2px;
+}
+
+.mobile-filter-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.mobile-filter-reset {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 8px;
+  background: var(--surface-soft);
+  color: var(--muted);
+}
+
+.mobile-filter-reset:hover {
+  color: var(--cyan);
 }
 
 .mobile-filter-head strong {
@@ -564,7 +596,7 @@
   font-size: var(--type-subtitle);
 }
 
-.mobile-filter-head span {
+.mobile-filter-summary > span {
   color: var(--muted);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -618,6 +650,10 @@
   color: var(--cyan) !important;
   font-weight: 700;
   outline: 1px solid var(--accent-line-outline);
+}
+
+.type-label-long {
+  display: none;
 }
 
 .param-cell {
@@ -750,7 +786,12 @@
 }
 
 @media (pointer: coarse) {
+  .control-slider,
   .control-slider-input {
-    height: 28px;
+    min-height: 44px;
+  }
+
+  .control-slider-input {
+    height: 44px;
   }
 }

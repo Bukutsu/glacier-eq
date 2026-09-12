@@ -320,6 +320,7 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_hid::init())
+        .plugin(tauri_plugin_material_you::init())
         .plugin(tauri_plugin_clipboard_manager::init());
 
     #[cfg(not(mobile))]

@@ -1,4 +1,5 @@
 import { memo, useState, useRef, useEffect } from "react";
+import { Icon } from "./Icon";
 import { OperationProgress } from "../types";
 import { isTauri } from "../lib/platform";
 
@@ -46,6 +47,8 @@ interface HeaderProps {
   onDisconnect: () => void;
   onConnectClick?: () => void;
   configPage?: "device" | "settings";
+  pageTitle?: string;
+  compact?: boolean;
 }
 
 export const Header = memo(function Header({
@@ -71,10 +74,12 @@ export const Header = memo(function Header({
   onDisconnect,
   onConnectClick,
   configPage,
+  pageTitle: pageTitleOverride,
+  compact = false,
 }: HeaderProps) {
   const isConfigPage = configPage !== undefined;
   const showDeviceEditorActions = !isConfigPage || configPage === "device";
-  const pageTitle = configPage === "device" ? "Device" : configPage === "settings" ? "Settings" : profile;
+  const pageTitle = pageTitleOverride ?? (configPage === "device" ? "Device" : configPage === "settings" ? "Settings" : profile);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -130,7 +135,7 @@ export const Header = memo(function Header({
       : "Profile saved";
 
   return (
-    <header className="app-header" inert={inert}>
+    <header className={`app-header${compact ? " compact-mobile" : ""}`} inert={inert}>
       <div className="header-main">
         <div className="title-stack">
           <div className="title-line">
@@ -138,7 +143,7 @@ export const Header = memo(function Header({
             <GithubLink />
           </div>
           <div className="header-meta-row">
-            <div className="device-name">{connected ? deviceName : "No device"}</div>
+            {connected && <div className="device-name">{deviceName}</div>}
             <span className={`sync-dot ${syncClass}`}>{syncText}</span>
           </div>
           {!isConfigPage && (
@@ -162,7 +167,7 @@ export const Header = memo(function Header({
                 disabled={isBusy || !canUndo}
                 onClick={onUndo}
               >
-                <span className="material-symbols-outlined" aria-hidden="true">undo</span>
+                <Icon>undo</Icon>
                 <span className="history-btn-label">Undo</span>
               </button>
               <button
@@ -173,7 +178,7 @@ export const Header = memo(function Header({
                 disabled={isBusy || !canRedo}
                 onClick={onRedo}
               >
-                <span className="material-symbols-outlined" aria-hidden="true">redo</span>
+                <Icon>redo</Icon>
                 <span className="history-btn-label">Redo</span>
               </button>
             </div>
@@ -190,8 +195,8 @@ export const Header = memo(function Header({
             </>
           ) : (
             <button className="btn filled" onClick={onConnectClick} disabled={isBusy}>
-              <span className="material-symbols-outlined" aria-hidden="true" style={{ marginRight: "6px", fontSize: "18px" }}>link</span>
-              Connect DAC
+              <Icon>link</Icon>
+              <span>Connect DAC</span>
             </button>
           )}
         </div>
@@ -207,7 +212,7 @@ export const Header = memo(function Header({
               disabled={isBusy || !canUndo}
               onClick={onUndo}
             >
-              <span className="material-symbols-outlined" aria-hidden="true">undo</span>
+              <Icon>undo</Icon>
             </button>
             <button
               type="button"
@@ -217,13 +222,13 @@ export const Header = memo(function Header({
               disabled={isBusy || !canRedo}
               onClick={onRedo}
             >
-              <span className="material-symbols-outlined" aria-hidden="true">redo</span>
+              <Icon>redo</Icon>
             </button>
           </div>
           {connected ? (
             <>
-              <button type="button" className="btn mobile-action-btn" title="Read EQ from DAC" onClick={onPull} disabled={isBusy}>Read</button>
-              <button type="button" className={`btn mobile-action-btn${deviceMatchesEditor === false ? " warning" : ""}`} title="Write EQ to DAC" onClick={onPush} disabled={isBusy}>Write</button>
+              <button type="button" className="btn mobile-action-btn" title="Read EQ from DAC" onClick={onPull} disabled={isBusy}>Read DAC</button>
+              <button type="button" className={`btn mobile-action-btn${deviceMatchesEditor === false ? " warning" : ""}`} title="Write EQ to DAC" onClick={onPush} disabled={isBusy}>Write DAC</button>
               <div className="mobile-menu-container" ref={menuRef}>
                 <button
                   type="button"
@@ -234,7 +239,7 @@ export const Header = memo(function Header({
                   aria-expanded={menuOpen}
                   onClick={() => setMenuOpen(!menuOpen)}
                 >
-                  <span className="material-symbols-outlined" aria-hidden="true">more_vert</span>
+                  <Icon>more_vert</Icon>
                 </button>
                 {menuOpen && (
                   <div className="mobile-dropdown-menu" role="menu">
@@ -248,7 +253,7 @@ export const Header = memo(function Header({
                       }}
                       disabled={isBusy}
                     >
-                      <span className="material-symbols-outlined" aria-hidden="true">link_off</span>
+                      <Icon>link_off</Icon>
                       <span>Disconnect</span>
                     </button>
                   </div>
@@ -257,8 +262,8 @@ export const Header = memo(function Header({
             </>
           ) : (
             <button type="button" className="btn filled mobile-action-btn mobile-connect-btn" onClick={onConnectClick} disabled={isBusy}>
-              <span className="material-symbols-outlined" aria-hidden="true">link</span>
-              Connect DAC
+              <Icon>link</Icon>
+              <span>Connect DAC</span>
             </button>
           )}
         </div>
