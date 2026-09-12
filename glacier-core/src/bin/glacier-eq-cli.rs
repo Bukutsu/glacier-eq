@@ -26,6 +26,7 @@ Usage:
   glacier-eq-cli hardware pull [--device PATH|VID:PID]
   glacier-eq-cli hardware push FILE [--device SELECTOR] --yes
   glacier-eq-cli hardware apply FILE [--device SELECTOR] --yes
+  glacier-eq-cli hardware raw --device SELECTOR --report-id HEX --data HEX [--read-ms N] [--count N] [--delay-ms N] --yes
   glacier-eq-cli autoeq MEASUREMENT TARGET [--bands N] [--steps N]
       [--smooth none|ie|oe] [--sample-rate HZ] [--device VID:PID]
   glacier-eq-cli profile list
@@ -39,6 +40,8 @@ Usage:
 
 FILE defaults to stdin only for inspect/normalize/response. Mutations require --yes.
 If --device is omitted, exactly one supported HID device must be attached.
+The raw command writes one HID report (report ID plus payload) and prints received
+input reports as hex. Use --read-ms 0 to send without reading a response.
 AutoEQ and pulled profiles go to stdout; diagnostics go to stderr.
 ";
 
@@ -77,6 +80,16 @@ enum HardwareAction {
     Pull,
     Push(String),
     Apply(String),
+    Raw(RawSignal),
+}
+
+#[derive(Debug, PartialEq)]
+struct RawSignal {
+    report_id: u8,
+    data: Vec<u8>,
+    read_ms: u64,
+    count: usize,
+    delay_ms: u64,
 }
 
 #[derive(Debug, PartialEq)]
@@ -149,12 +162,53 @@ fn parse_hardware(args: &[String]) -> Result<Command, String> {
         Some("pull") if args.len() == 1 => HardwareAction::Pull,
         Some("push") if args.len() == 2 => HardwareAction::Push(args.remove(1)),
         Some("apply") if args.len() == 2 => HardwareAction::Apply(args.remove(1)),
+        Some("raw") => HardwareAction::Raw(parse_raw_signal(&args[1..])?),
         _ => return Err("invalid hardware command".into()),
     };
     Ok(Command::Hardware {
         action,
         selector,
         yes,
+    })
+}
+
+fn parse_raw_signal(args: &[String]) -> Result<RawSignal, String> {
+    let mut args = args.to_vec();
+    let report_id = take_option(&mut args, "--report-id")?
+        .ok_or_else(|| "raw requires --report-id".to_string())
+        .and_then(|value| parse_hex_byte(&value, "report ID"))?;
+    let data = take_data_option(&mut args)?
+        .ok_or_else(|| "raw requires --data".to_string())
+        .and_then(|value| parse_hex_bytes(&value))?;
+    let read_ms = take_option(&mut args, "--read-ms")?
+        .map_or(Ok(250), |value| integer_u64(&value, "read timeout"))?;
+    let count =
+        take_option(&mut args, "--count")?.map_or(Ok(1), |value| integer(&value, "count"))?;
+    let delay_ms = take_option(&mut args, "--delay-ms")?
+        .map_or(Ok(0), |value| integer_u64(&value, "delay"))?;
+
+    if !args.is_empty() {
+        return Err(format!("unexpected raw argument: {}", args[0]));
+    }
+    if data.is_empty() {
+        return Err("raw data must contain at least one byte".into());
+    }
+    if count == 0 {
+        return Err("raw count must be at least 1".into());
+    }
+    if read_ms > 10_000 {
+        return Err("raw read timeout must be between 0 and 10000 ms".into());
+    }
+    if delay_ms > 10_000 {
+        return Err("raw delay must be between 0 and 10000 ms".into());
+    }
+
+    Ok(RawSignal {
+        report_id,
+        data,
+        read_ms,
+        count,
+        delay_ms,
     })
 }
 
@@ -255,6 +309,25 @@ fn take_option(args: &mut Vec<String>, name: &str) -> Result<Option<String>, Str
     Ok(Some(value))
 }
 
+fn take_data_option(args: &mut Vec<String>) -> Result<Option<String>, String> {
+    let name = "--data";
+    let Some(index) = args.iter().position(|argument| argument == name) else {
+        return Ok(None);
+    };
+    let mut values = Vec::new();
+    while index + 1 < args.len() && !args[index + 1].starts_with("--") {
+        values.push(args.remove(index + 1));
+    }
+    args.remove(index);
+    if args.iter().any(|argument| argument == name) {
+        return Err(format!("{name} may be specified once"));
+    }
+    if values.is_empty() {
+        return Err(format!("{name} requires a value"));
+    }
+    Ok(Some(values.join(" ")))
+}
+
 fn take_flag(args: &mut Vec<String>, name: &str) -> bool {
     let found = args.iter().any(|argument| argument == name);
     args.retain(|argument| argument != name);
@@ -269,6 +342,50 @@ fn number<T: std::str::FromStr>(value: &str, label: &str) -> Result<T, String> {
 
 fn integer(value: &str, label: &str) -> Result<usize, String> {
     number(value, label)
+}
+
+fn integer_u64(value: &str, label: &str) -> Result<u64, String> {
+    number(value, label)
+}
+
+fn parse_hex_byte(value: &str, label: &str) -> Result<u8, String> {
+    let digits = value
+        .strip_prefix("0x")
+        .or_else(|| value.strip_prefix("0X"))
+        .unwrap_or(value);
+    if digits.is_empty() || digits.len() > 2 {
+        return Err(format!("invalid hexadecimal {label}: {value}"));
+    }
+    u8::from_str_radix(digits, 16).map_err(|_| format!("invalid hexadecimal {label}: {value}"))
+}
+
+fn parse_hex_bytes(value: &str) -> Result<Vec<u8>, String> {
+    let has_separators = value
+        .chars()
+        .any(|character| matches!(character, ' ' | '\t' | ',' | ':'));
+    let compact = value
+        .strip_prefix("0x")
+        .or_else(|| value.strip_prefix("0X"))
+        .unwrap_or(value);
+    if !has_separators && compact.len() > 2 {
+        if compact.len() % 2 != 0 {
+            return Err(format!("raw data must contain complete hex bytes: {value}"));
+        }
+        return compact
+            .as_bytes()
+            .chunks_exact(2)
+            .map(|chunk| {
+                let token = std::str::from_utf8(chunk).expect("hex input is ASCII");
+                parse_hex_byte(token, "data byte")
+            })
+            .collect();
+    }
+
+    value
+        .split(|character: char| matches!(character, ' ' | '\t' | ',' | ':'))
+        .filter(|token| !token.is_empty())
+        .map(|token| parse_hex_byte(token, "data byte"))
+        .collect()
 }
 
 fn execute(command: Command) -> Result<String, String> {
@@ -309,7 +426,10 @@ fn execute(command: Command) -> Result<String, String> {
 fn require_confirmation(command: &Command) -> Result<(), String> {
     let confirmed = match command {
         Command::Hardware { action, yes, .. } => {
-            !matches!(action, HardwareAction::Push(_) | HardwareAction::Apply(_)) || *yes
+            !matches!(
+                action,
+                HardwareAction::Push(_) | HardwareAction::Apply(_) | HardwareAction::Raw(_)
+            ) || *yes
         }
         Command::Controls { action, yes, .. } => matches!(action, ControlAction::Status) || *yes,
         Command::Profile(ProfileAction::Delete { yes, .. }) => *yes,
@@ -553,10 +673,10 @@ fn ensure_complete_hid_write(expected: usize, actual: usize) -> Result<(), Strin
 }
 
 #[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
-struct HidIo(hidapi::HidDevice);
+struct HidIo<'a>(&'a hidapi::HidDevice);
 
 #[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
-impl DeviceIo for HidIo {
+impl DeviceIo for HidIo<'_> {
     fn write(&mut self, data: &[u8]) -> Result<(), String> {
         let written = self.0.write(data).map_err(|error| error.to_string())?;
         ensure_complete_hid_write(data.len(), written)
@@ -624,20 +744,13 @@ fn select_device<'a>(
 }
 
 #[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
-fn open_session<T>(
+fn with_hid_device<T>(
     selector: Option<&str>,
-    operation: impl FnOnce(&mut DeviceSession<'_>) -> Result<T, String>,
+    operation: impl FnOnce(&FoundDevice, &hidapi::HidDevice) -> Result<T, String>,
 ) -> Result<T, String> {
     let api = hidapi::HidApi::new().map_err(|error| error.to_string())?;
     let devices = found_devices(&api);
     let selected = select_device(&devices, selector)?;
-    let profile = get_supported_device(selected.vendor, selected.product).ok_or_else(|| {
-        format!(
-            "No profile registered for {:04x}:{:04x}",
-            selected.vendor, selected.product
-        )
-    })?;
-    eprintln!("device: {}", selected.name);
     let device = api.open_path(&selected.path).map_err(|error| {
         let message = format!("failed to open {}: {error}", selected.display_path);
         if message.to_lowercase().contains("permission denied") {
@@ -659,17 +772,39 @@ fn open_session<T>(
             opened.product_id()
         ));
     }
-    let mut io = HidIo(device);
-    let mut progress = |message: &str, percentage: f32| eprintln!("{percentage:>3.0}% {message}");
-    operation(&mut DeviceSession::with_progress(
-        &mut io,
-        profile,
-        &mut progress,
-    ))
+    operation(selected, &device)
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
+fn open_session<T>(
+    selector: Option<&str>,
+    operation: impl FnOnce(&mut DeviceSession<'_>) -> Result<T, String>,
+) -> Result<T, String> {
+    with_hid_device(selector, |selected, device| {
+        let profile = get_supported_device(selected.vendor, selected.product).ok_or_else(|| {
+            format!(
+                "No profile registered for {:04x}:{:04x}",
+                selected.vendor, selected.product
+            )
+        })?;
+        eprintln!("device: {}", selected.name);
+        let mut io = HidIo(device);
+        let mut progress =
+            |message: &str, percentage: f32| eprintln!("{percentage:>3.0}% {message}");
+        operation(&mut DeviceSession::with_progress(
+            &mut io,
+            profile,
+            &mut progress,
+        ))
+    })
 }
 
 #[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
 fn execute_hardware(action: HardwareAction, selector: Option<&str>) -> Result<String, String> {
+    let action = match action {
+        HardwareAction::Raw(signal) => return execute_raw_signal(signal, selector),
+        other => other,
+    };
     if action == HardwareAction::List {
         let api = hidapi::HidApi::new().map_err(|error| error.to_string())?;
         let mut output = String::from("path,usb_id,device\n");
@@ -697,8 +832,55 @@ fn execute_hardware(action: HardwareAction, selector: Option<&str>) -> Result<St
             }
             session.apply_ram(peq).map(|_| String::new())
         }
-        HardwareAction::List => unreachable!(),
+        HardwareAction::List | HardwareAction::Raw(_) => unreachable!(),
     })
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
+fn execute_raw_signal(signal: RawSignal, selector: Option<&str>) -> Result<String, String> {
+    with_hid_device(selector, |selected, device| {
+        eprintln!("device: {}", selected.name);
+        let mut frame = Vec::with_capacity(signal.data.len() + 1);
+        frame.push(signal.report_id);
+        frame.extend_from_slice(&signal.data);
+        let mut output = String::new();
+
+        for attempt in 0..signal.count {
+            let written = device.write(&frame).map_err(|error| error.to_string())?;
+            ensure_complete_hid_write(frame.len(), written)?;
+            output.push_str(&format!(
+                "sent[{}/{}]: {}\n",
+                attempt + 1,
+                signal.count,
+                format_hex(&frame)
+            ));
+
+            if signal.read_ms > 0 {
+                let mut response = [0u8; 512];
+                let length = device
+                    .read_timeout(&mut response, signal.read_ms as i32)
+                    .map_err(|error| error.to_string())?;
+                if length == 0 {
+                    output.push_str("response: timeout\n");
+                } else {
+                    output.push_str(&format!("response: {}\n", format_hex(&response[..length])));
+                }
+            }
+            if attempt + 1 < signal.count && signal.delay_ms > 0 {
+                std::thread::sleep(std::time::Duration::from_millis(signal.delay_ms));
+            }
+        }
+        Ok(output)
+    })
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
+fn format_hex(bytes: &[u8]) -> String {
+    bytes
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 #[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
@@ -762,6 +944,64 @@ mod tests {
         let error = read_bounded_text(std::io::Cursor::new([0xff]), "test").unwrap_err();
         assert!(error.starts_with("failed to read test:"));
         assert!(error.contains("UTF-8"));
+    }
+
+    #[test]
+    fn parses_raw_signal_hex_and_options() {
+        let command = parse(vec![
+            "hardware".into(),
+            "raw".into(),
+            "--device".into(),
+            "3302:43e6".into(),
+            "--report-id".into(),
+            "0x4b".into(),
+            "--data".into(),
+            "80".into(),
+            "09".into(),
+            "00".into(),
+            "01".into(),
+            "00".into(),
+            "00".into(),
+            "--read-ms".into(),
+            "500".into(),
+            "--count".into(),
+            "2".into(),
+            "--delay-ms".into(),
+            "15".into(),
+            "--yes".into(),
+        ])
+        .unwrap();
+        assert_eq!(
+            command,
+            Command::Hardware {
+                action: HardwareAction::Raw(RawSignal {
+                    report_id: 0x4b,
+                    data: vec![0x80, 0x09, 0x00, 0x01, 0x00, 0x00],
+                    read_ms: 500,
+                    count: 2,
+                    delay_ms: 15,
+                }),
+                selector: Some("3302:43e6".into()),
+                yes: true,
+            }
+        );
+    }
+
+    #[test]
+    fn raw_signal_requires_confirmation() {
+        let command = parse(vec![
+            "hardware".into(),
+            "raw".into(),
+            "--report-id".into(),
+            "4b".into(),
+            "--data".into(),
+            "80 0c 00".into(),
+        ])
+        .unwrap();
+        assert_eq!(
+            require_confirmation(&command).unwrap_err(),
+            "mutation requires explicit --yes"
+        );
     }
 
     #[test]

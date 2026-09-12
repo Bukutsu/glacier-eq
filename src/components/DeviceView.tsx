@@ -559,7 +559,7 @@ export const DeviceView = memo(function DeviceView({
                   onChange={handleSetOutputGain}
                 />
 
-                <div className="pref-slider-item">
+                <div className="pref-slider-item pref-slider-first">
                   <div className="pref-slider-head">
                     <div className="stack-pref-info">
                       <span className="stack-pref-title">Channel Balance</span>

@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.10.0] - 2026-09-13
+
+### Added
+
+- Added raw HID developer CLI support for sending arbitrary reports, reading responses, repeats, and delays with explicit `--yes` confirmation.
+- Added verified five-filter support for Walkplay DAC profiles, including High-Pass and Low-Pass editing.
+
+### Changed
+
+- Made AutoEQ choose only the Peak, LowShelf, and HighShelf filter types supported by each DAC.
+- Aligned Android Material You colors with native Material 3 surface, text, outline, error, and primary roles.
+- Refined DSP control spacing and Android rendering.
+
+### Fixed
+
+- Preserved resolved Android Material You roles across the Rust bridge so native colors reach the app.
+
 ## [0.9.0] - 2026-09-13
 
 ### Added

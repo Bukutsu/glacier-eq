@@ -17,7 +17,7 @@ const DARK_SAMPLE: MaterialYouColors = {
     accent2: { "200": "#bb0002", "600": "#ffffff" },
     accent3: { "200": "#cc0003", "600": "#ffffff" },
     neutral1: { "50": "#000001", "100": "#d0d004", "800": "#e00008", "900": "#f00009", "950": "#aa000a" },
-    neutral2: { "200": "#00000b", "400": "#c00004", "500": "#b00005", "700": "#a00007", "800": "#900008" },
+    neutral2: { "200": "#00000b", "400": "#c00004", "500": "#b00005", "600": "#b00006", "700": "#a00007", "800": "#900008", "900": "#800009" },
   },
 };
 
@@ -40,10 +40,41 @@ describe("materialYouToCssVars", () => {
     const vars = materialYouToCssVars(DARK_SAMPLE);
     expect(vars["--cyan"]).toBe("#abc001");
     expect(vars["--bg"]).toBe("#f00009");
-    expect(vars["--bg-dark"]).toBe("#aa000a");
-    expect(vars["--panel"]).toBe("#e00008");
+    expect(vars["--bg-dark"]).toBe("#b40007");
+    expect(vars["--panel"]).toBe("#8d0008");
     expect(vars["--text"]).toBe("#d0d004");
     expect(vars["--cyan-rgb"]).toBe(hexToRgb("#abc001"));
+  });
+
+  it("uses Android's resolved Material 3 roles when available", () => {
+    const vars = materialYouToCssVars({
+      available: true,
+      dark: true,
+      palettes: {},
+      roles: {
+        primary: "#bac5ee",
+        secondary: "#c0c6dd",
+        tertiary: "#f2deff",
+        error: "#fa746f",
+        surface_container: "#181920",
+        surface_container_low: "#121318",
+        surface_container_lowest: "#000000",
+        surface_bright: "#2a2c34",
+        surface_container_highest: "#23252e",
+        outline: "#73757f",
+        outline_variant: "#464850",
+        on_surface: "#e4e5f0",
+        on_surface_variant: "#a9aab5",
+        on_primary: "#333f61",
+      },
+    });
+    expect(vars["--bg"]).toBe("#181920");
+    expect(vars["--bg-dark"]).toBe("#121318");
+    expect(vars["--panel"]).toBe("#2a2c34");
+    expect(vars["--surface-soft"]).toBe("#23252e");
+    expect(vars["--text"]).toBe("#e4e5f0");
+    expect(vars["--muted"]).toBe("#a9aab5");
+    expect(vars["--on-accent"]).toBe("#333f61");
   });
 
   it("uses light-mode tones for light palettes", () => {
@@ -66,8 +97,8 @@ describe("materialYouToCssVars", () => {
 
   it("falls back when tones are missing", () => {
     const vars = materialYouToCssVars({ available: true, dark: true, palettes: {} });
-    expect(vars["--cyan"]).toBe("#7dcfff");
-    expect(vars["--bg"]).toBe("#1a1b26");
+    expect(vars["--cyan"]).toBe("#bac5ee");
+    expect(vars["--bg"]).toBe("#181920");
     expect(vars["--on-accent"]).toBeDefined();
   });
 
@@ -77,13 +108,13 @@ describe("materialYouToCssVars", () => {
       dark: false,
       palettes: { accent1: { "600": "#ffffff" } },
     });
-    expect(bright["--on-accent"]).toBe("#11111b");
+    expect(bright["--on-accent"]).toBe("#ffffff");
     const darkPrimary = materialYouToCssVars({
       available: true,
       dark: true,
       palettes: { accent1: { "200": "#101010" } },
     });
-    expect(darkPrimary["--on-accent"]).toBe("#f4f6fb");
+    expect(darkPrimary["--on-accent"]).toBe("#333f61");
   });
 });
 

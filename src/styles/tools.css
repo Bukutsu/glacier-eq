@@ -1964,14 +1964,16 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 14px 0;
+  padding: 14px 16px;
   border-top: 1px solid var(--line-subtle);
   border-radius: 0 !important;
 }
 
-.pref-slider-item:first-of-type {
+/* The slider rows follow the toggle rows, so :first-of-type cannot identify
+   the first slider (the card already contains other divs). */
+.pref-slider-item.pref-slider-first {
   border-top: none;
-  padding-top: 4px;
+  padding-top: 12px;
 }
 
 .pref-slider-head {

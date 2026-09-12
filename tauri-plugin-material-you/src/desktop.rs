@@ -21,6 +21,7 @@ impl<R: Runtime> MaterialYou<R> {
             available: false,
             dark: false,
             palettes: HashMap::new(),
+            roles: HashMap::new(),
         })
     }
 }
