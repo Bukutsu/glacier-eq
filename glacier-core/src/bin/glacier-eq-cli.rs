@@ -4,7 +4,9 @@
 use glacier_core::autoeq::{
     autoeq_token, parse_autoeq_text, parse_curve_text, peq_to_autoeq, run_autoeq,
 };
-use glacier_core::device::{capabilities::DESKTOP_DAC_CAPS, get_supported_device};
+use glacier_core::device::{
+    capabilities::DESKTOP_DAC_CAPS, get_supported_device, normalize_peq_for_profile,
+};
 use glacier_core::eq::iir_math::accumulate_response_values;
 use glacier_core::profiles::ProfileStore;
 use glacier_core::{DeviceCapabilities, PEQData, SUPPORTED_DEVICES};
@@ -405,14 +407,29 @@ fn inspect(path: &str) -> Result<String, String> {
 }
 
 fn normalize(path: &str, device_id: Option<&str>) -> Result<String, String> {
-    let (mut peq, _, mut warnings) = read_peq(path)?;
-    warnings.extend(
-        peq.clamp_to_capabilities(device_id.map_or(Ok(&DESKTOP_DAC_CAPS), capabilities_for)?),
-    );
+    let (peq, _, mut warnings) = read_peq(path)?;
+    let normalized = match device_id {
+        None => {
+            let mut peq = peq;
+            warnings.extend(peq.clamp_to_capabilities(&DESKTOP_DAC_CAPS));
+            peq
+        }
+        Some(id) => {
+            let (vendor, product) = parse_usb_id(id)?;
+            let profile = get_supported_device(vendor, product)
+                .ok_or_else(|| format!("unsupported USB device {id}"))?;
+            // Clamp on a clone for warnings, then run the same full
+            // normalization the push path uses so protocol preamp
+            // quantization (e.g. 0.1 dB steps) is reflected in the output.
+            let mut for_warnings = peq.clone();
+            warnings.extend(for_warnings.clamp_to_capabilities(&profile.caps));
+            normalize_peq_for_profile(peq, profile)?
+        }
+    };
     for warning in warnings {
         eprintln!("warning: {warning}");
     }
-    Ok(peq_to_autoeq(&peq))
+    Ok(peq_to_autoeq(&normalized))
 }
 
 fn parse_usb_id(id: &str) -> Result<(u16, u16), String> {
