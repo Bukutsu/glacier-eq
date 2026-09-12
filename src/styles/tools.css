@@ -923,6 +923,123 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   margin-top: 4px;
 }
 
+.sidebar-specs-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  user-select: none;
+}
+
+.sidebar-specs-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.sidebar-specs-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--type-micro);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.sidebar-specs-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.sidebar-specs-dot.connected {
+  background: var(--green);
+  box-shadow: 0 0 6px rgb(var(--green-rgb, 34 197 94) / 0.5);
+}
+
+.sidebar-specs-dot.simulated {
+  background: var(--yellow);
+  box-shadow: 0 0 6px rgb(var(--yellow-rgb, 234 179 8) / 0.5);
+}
+
+.sidebar-specs-dot.offline {
+  background: var(--comment);
+}
+
+.sidebar-specs-title {
+  font-size: var(--type-label);
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+.sidebar-specs-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 0;
+  padding: 5px 0 0;
+  border-top: 1px solid var(--line-subtle);
+}
+
+.sidebar-specs-row {
+  display: grid;
+  grid-template-columns: 32px 1fr;
+  align-items: baseline;
+  gap: 4px;
+  line-height: 1.3;
+}
+
+.sidebar-specs-row dt {
+  color: var(--comment);
+  font-size: var(--type-micro);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.sidebar-specs-row dd {
+  margin: 0;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--type-micro);
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.sidebar-specs-row dd.highlight {
+  color: var(--cyan);
+}
+
+.device-specs-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  user-select: none;
+}
+
+.device-specs-panel .sidebar-specs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 6px 16px;
+  border-top: 1px solid var(--line-subtle);
+  padding-top: 8px;
+}
+
+.device-specs-panel .sidebar-specs-row {
+  grid-template-columns: 36px 1fr;
+  gap: 8px;
+}
+
 .device-utility {
   min-height: 0;
 }

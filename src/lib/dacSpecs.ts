@@ -1,6 +1,24 @@
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
+import type { DeviceCapabilities } from "../types";
+
+export const OFFLINE_EDITOR_CAPABILITIES: DeviceCapabilities = {
+  num_bands: 10,
+  global_gain_range: [-10, 0],
+  band_gain_range: [-10, 10],
+  freq_range: [20, 20000],
+  q_range: [0.1, 10],
+  supported_filter_types: ["Peak", "LowShelf", "HighShelf"],
+  supports_per_band_enable: true,
+  supports_ram_apply: true,
+  dsp_sample_rate: 96000,
+  gain_tolerance: 0.1,
+  freq_tolerance: 1,
+  q_tolerance: 0.05,
+  integer_preamp: false,
+};
+
 export interface DacOfficialSpec {
   name: string;
   chip: string;

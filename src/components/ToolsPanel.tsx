@@ -1,10 +1,20 @@
 import { memo, useState, useEffect, useRef } from "react";
 import { invoke, listen, readText, writeText, save } from "../lib/rpc";
-import type { AppSettings, MeasurementTrace, Profile, PEQData, GraphViewMode, TargetTrace } from "../types";
+import type {
+  AppSettings,
+  MeasurementTrace,
+  Profile,
+  PEQData,
+  GraphViewMode,
+  TargetTrace,
+  DeviceCapabilities,
+  DeviceInfo,
+} from "../types";
 import { DEFAULT_PROFILE_NAME } from "../lib/peq";
 import { Icon } from "./Icon";
 import { confirmDialog } from "./ConfirmDialog";
 import { isTauri } from "../lib/platform";
+import { SidebarDeviceSpecs } from "./SidebarDeviceSpecs";
 
 import { fuzzyMatch } from "../lib/search";
 import { AddTraceModal } from "./AddTraceModal";
@@ -156,6 +166,9 @@ interface ToolsPanelProps {
   getAsyncContext: () => AsyncContext;
   runProfileMutation: ProfileMutationRunner;
   onUdevInstalled?: () => Promise<string | null>;
+  deviceInfo?: DeviceInfo;
+  capabilities?: DeviceCapabilities;
+  firmwareVersion?: string | null;
 }
 
 export const ToolsPanel = memo(function ToolsPanel(props: ToolsPanelProps) {
@@ -229,15 +242,30 @@ export const ToolsPanel = memo(function ToolsPanel(props: ToolsPanelProps) {
                 setStatus={props.setStatus}
                 onPull={props.onPull}
                 isSimulated={props.isSimulated}
+                deviceInfo={props.deviceInfo}
+                capabilities={props.capabilities}
+                firmwareVersion={props.firmwareVersion}
               />
             ) : (
-              <div className="device-empty">
-                <span className="material-symbols-outlined" aria-hidden="true">link_off</span>
-                <strong>DSP Offline</strong>
-                <span>Connect a supported DAC to adjust hardware options, filter modes, and amplifier gain.</span>
-                <button className="btn filled" onClick={props.onOpenConnectModal}>
-                  Connect Device
-                </button>
+              <div className="settings-list device-utility">
+                <SidebarDeviceSpecs
+                  connected={false}
+                  isSimulated={props.isSimulated}
+                  deviceInfo={props.deviceInfo}
+                  capabilities={props.capabilities}
+                  firmwareVersion={props.firmwareVersion}
+                  className="tool-card device-specs-panel"
+                />
+                <section className="tool-card">
+                  <div className="device-empty">
+                    <span className="material-symbols-outlined" aria-hidden="true">link_off</span>
+                    <strong>DSP Offline</strong>
+                    <span>Connect a supported DAC to adjust hardware options, filter modes, and amplifier gain.</span>
+                    <button className="btn filled" onClick={props.onOpenConnectModal}>
+                      Connect Device
+                    </button>
+                  </div>
+                </section>
               </div>
             )
           )}
@@ -1546,10 +1574,16 @@ function DeviceTab({
   setStatus,
   onPull,
   isSimulated = false,
+  deviceInfo,
+  capabilities,
+  firmwareVersion,
 }: {
   setStatus: (msg: string) => void;
   onPull?: () => Promise<void>;
   isSimulated?: boolean;
+  deviceInfo?: DeviceInfo;
+  capabilities?: DeviceCapabilities;
+  firmwareVersion?: string | null;
 }) {
   const [utility, setUtility] = useState<DeviceUtilityState | null>(null);
   // Mirror for the mount-only device-pull listener below, whose closure would
@@ -1778,6 +1812,14 @@ function DeviceTab({
   if (loading) {
     return (
       <div className="settings-list device-utility">
+        <SidebarDeviceSpecs
+          connected={true}
+          isSimulated={isSimulated}
+          deviceInfo={deviceInfo}
+          capabilities={capabilities}
+          firmwareVersion={firmwareVersion}
+          className="tool-card device-specs-panel"
+        />
         <section className="tool-card">
           <div className="device-empty">Loading device status...</div>
         </section>
@@ -1788,6 +1830,14 @@ function DeviceTab({
   if (loadError) {
     return (
       <div className="settings-list device-utility">
+        <SidebarDeviceSpecs
+          connected={true}
+          isSimulated={isSimulated}
+          deviceInfo={deviceInfo}
+          capabilities={capabilities}
+          firmwareVersion={firmwareVersion}
+          className="tool-card device-specs-panel"
+        />
         <section className="tool-card">
           <div className="device-empty">
             <Icon>error</Icon>
@@ -1803,6 +1853,14 @@ function DeviceTab({
   if (!utility?.supported) {
     return (
       <div className="settings-list device-utility">
+        <SidebarDeviceSpecs
+          connected={true}
+          isSimulated={isSimulated}
+          deviceInfo={deviceInfo}
+          capabilities={capabilities}
+          firmwareVersion={firmwareVersion}
+          className="tool-card device-specs-panel"
+        />
         <section className="tool-card">
           <div className="device-empty">
             <Icon>tune</Icon>
@@ -1820,6 +1878,14 @@ function DeviceTab({
 
   return (
     <div className="settings-list device-utility">
+      <SidebarDeviceSpecs
+        connected={true}
+        isSimulated={isSimulated}
+        deviceInfo={deviceInfo}
+        capabilities={capabilities}
+        firmwareVersion={firmwareVersion}
+        className="tool-card device-specs-panel"
+      />
       <section className="tool-card">
         <div className="tool-card-head">
           <strong>Hardware DSP</strong>
