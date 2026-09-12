@@ -12,6 +12,7 @@ interface FastScrollerProps {
 
 export function FastScroller({ targetRef }: FastScrollerProps) {
   const trackRef = useRef<HTMLDivElement | null>(null);
+  const activeTargetRef = useRef<HTMLElement | null>(null);
   const [layout, setLayout] = useState<FastScrollerLayout>({
     visible: false,
     maxScroll: 0,
@@ -38,10 +39,24 @@ export function FastScroller({ targetRef }: FastScrollerProps) {
   };
 
   useEffect(() => {
-    const target = targetRef.current;
-    if (!target) return;
+    const root = targetRef.current;
+    if (!root) return;
+
+    const resolveTarget = (): HTMLElement => {
+      // If root itself overflows, use it
+      if (root.scrollHeight > root.clientHeight + 4) return root;
+      // When graph is on, the preamp/bands scroll inside .left-pane
+      const childPane = root.querySelector<HTMLElement>(".left-pane, .tab-panel");
+      if (childPane && childPane.scrollHeight > childPane.clientHeight + 4) {
+        return childPane;
+      }
+      return childPane || root;
+    };
 
     const sync = () => {
+      const target = resolveTarget();
+      activeTargetRef.current = target;
+
       const rect = target.getBoundingClientRect();
       const tabBar = document.querySelector(".mobile-tab-bar");
       const tabTop = tabBar ? tabBar.getBoundingClientRect().top : window.innerHeight;
@@ -68,16 +83,27 @@ export function FastScroller({ targetRef }: FastScrollerProps) {
     const resizeObserver = new ResizeObserver(sync);
     const mutationObserver = new MutationObserver(sync);
 
-    target.addEventListener("scroll", handleScroll, { passive: true });
+    root.addEventListener("scroll", handleScroll, { passive: true });
+    // Also listen to child pane scroll (the preamp scroll container)
+    const childPane = root.querySelector<HTMLElement>(".left-pane, .tab-panel");
+    if (childPane) {
+      childPane.addEventListener("scroll", handleScroll, { passive: true });
+      resizeObserver.observe(childPane);
+    }
+
     window.addEventListener("resize", sync);
     window.addEventListener("orientationchange", sync);
-    resizeObserver.observe(target);
-    mutationObserver.observe(target, { childList: true, subtree: true });
+    resizeObserver.observe(root);
+    mutationObserver.observe(root, { childList: true, subtree: true });
 
     sync();
 
     return () => {
-      target.removeEventListener("scroll", handleScroll);
+      root.removeEventListener("scroll", handleScroll);
+      if (childPane) {
+        childPane.removeEventListener("scroll", handleScroll);
+        resizeObserver.unobserve(childPane);
+      }
       window.removeEventListener("resize", sync);
       window.removeEventListener("orientationchange", sync);
       resizeObserver.disconnect();
@@ -92,7 +118,7 @@ export function FastScroller({ targetRef }: FastScrollerProps) {
 
   const startDragAt = (clientY: number) => {
     const track = trackRef.current;
-    const target = targetRef.current;
+    const target = activeTargetRef.current;
     if (!track || !target) return;
 
     setIsDragging(true);
@@ -120,7 +146,7 @@ export function FastScroller({ targetRef }: FastScrollerProps) {
 
   const updateDragAt = (clientY: number) => {
     const drag = dragRef.current;
-    const target = targetRef.current;
+    const target = activeTargetRef.current;
     if (!drag || !target) return;
 
     const nextScroll = computeScrollFromDrag(
@@ -139,7 +165,6 @@ export function FastScroller({ targetRef }: FastScrollerProps) {
     scheduleFade();
   };
 
-  // Pointer events (mouse, stylus, and desktop touch emulation)
   const handlePointerDown = (e: PointerEvent<HTMLDivElement>) => {
     if (!e.isPrimary) return;
     trackRef.current?.setPointerCapture(e.pointerId);
@@ -158,7 +183,6 @@ export function FastScroller({ targetRef }: FastScrollerProps) {
     stopDrag();
   };
 
-  // Native mobile touch events (100% hardware-backed on Android WebView)
   const handleTouchStart = (e: TouchEvent<HTMLDivElement>) => {
     const touch = e.touches[0];
     if (!touch) return;
@@ -194,7 +218,7 @@ export function FastScroller({ targetRef }: FastScrollerProps) {
       role="scrollbar"
       aria-label="Fast scroll"
       aria-orientation="vertical"
-      aria-valuenow={Math.round(targetRef.current?.scrollTop ?? 0)}
+      aria-valuenow={Math.round(activeTargetRef.current?.scrollTop ?? 0)}
       aria-valuemin={0}
       aria-valuemax={layout.maxScroll}
     >
