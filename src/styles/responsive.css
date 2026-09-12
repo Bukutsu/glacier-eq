@@ -355,9 +355,10 @@
   .preamp-card {
     grid-template-columns: 1fr;
     height: auto;
-    min-height: 58px;
+    min-height: 84px;
     padding: 8px 12px;
     gap: 6px;
+    flex-shrink: 0 !important;
   }
   .preamp-meta {
     flex-direction: row;
