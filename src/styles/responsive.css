@@ -989,8 +989,8 @@
     position: fixed;
     right: max(8px, var(--safe-area-right, 0px));
     top: calc(64px + var(--safe-area-top, 0px));
-    width: min(140px, 36vw);
-    height: 60px;
+    width: min(220px, 56vw);
+    height: 100px;
     z-index: 90;
     padding: 2px;
     background: rgb(var(--bg-dark-rgb) / 0.9);
@@ -1012,8 +1012,8 @@
   @media (orientation: landscape) {
     .mobile-graph-preview {
       top: calc(52px + var(--safe-area-top, 0px));
-      width: min(120px, 28vw);
-      height: 52px;
+      width: min(180px, 38vw);
+      height: 78px;
     }
   }
 
