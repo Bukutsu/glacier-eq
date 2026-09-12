@@ -93,18 +93,18 @@ export function useThemeSync(theme: string): string {
 
     // 2. Tauri window theme change listener (for instant system theme events)
     if (theme === "auto" && isTauri()) {
-      let active = true;
+      let listenerActive = true;
       let tauriUnlisten: (() => void) | null = null;
 
       (async () => {
         try {
           const { getCurrentWindow } = await import("@tauri-apps/api/window");
           const appWindow = getCurrentWindow();
-          if (!active) return;
+          if (!listenerActive) return;
           const unlisten = await appWindow.onThemeChanged(() => {
             applyTheme();
           });
-          if (!active) {
+          if (!listenerActive) {
             unlisten();
           } else {
             tauriUnlisten = unlisten;
@@ -115,7 +115,7 @@ export function useThemeSync(theme: string): string {
       })();
 
       cleanups.push(() => {
-        active = false;
+        listenerActive = false;
         if (tauriUnlisten) {
           tauriUnlisten();
         }
