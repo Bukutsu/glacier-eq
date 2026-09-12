@@ -368,7 +368,7 @@ fn parse_hex_bytes(value: &str) -> Result<Vec<u8>, String> {
         .or_else(|| value.strip_prefix("0X"))
         .unwrap_or(value);
     if !has_separators && compact.len() > 2 {
-        if compact.len() % 2 != 0 {
+        if !compact.len().is_multiple_of(2) {
             return Err(format!("raw data must contain complete hex bytes: {value}"));
         }
         return compact

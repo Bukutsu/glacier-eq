@@ -212,7 +212,6 @@ impl WalkplayProtocol {
             batch_ms: 50,
             global_gain_ms: 20,
             init_ms: 20,
-            ..WriteTiming::default()
         }
     }
 
