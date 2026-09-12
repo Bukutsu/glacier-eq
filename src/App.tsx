@@ -22,7 +22,6 @@ import { ConfirmDialogHost, confirmDialog } from "./components/ConfirmDialog";
 import { Modal } from "./components/Modal";
 import { UnifiedTracesList } from "./components/UnifiedTraces";
 import { SidebarDeviceSpecs } from "./components/SidebarDeviceSpecs";
-import { FastScroller } from "./components/FastScroller";
 import {
   DEV_DUMMY_DEVICE,
   buildDevDummyPeq,
@@ -2006,7 +2005,6 @@ function App() {
             ))}
           </nav>
         </main>
-        <FastScroller targetRef={mobileScrollRef} />
       </>
       ) : (
         <main className={`workspace desktop-workspace desktop-view-${activeTab}`} inert={isReconnecting ? true : undefined}>

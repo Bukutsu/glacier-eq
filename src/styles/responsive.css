@@ -1062,63 +1062,6 @@
   .tuning-card .autoeq-match-card > .autoeq-description {
     display: none !important;
   }
-
-  /* Mobile Fast Scroller */
-  .fast-scroller-track {
-    position: fixed;
-    right: max(2px, var(--safe-area-right, 0px));
-    width: 48px; /* 48px touch target matching mobile guidelines */
-    z-index: 95;
-    touch-action: none;
-    user-select: none;
-    -webkit-user-select: none;
-    pointer-events: auto;
-    opacity: 0;
-    transition: opacity 150ms var(--motion-ease);
-  }
-
-  .fast-scroller-track.visible {
-    opacity: 1;
-  }
-
-  .fast-scroller-thumb {
-    position: absolute;
-    top: 0;
-    right: 0;
-    width: 100%;
-    cursor: grab;
-    display: flex;
-    justify-content: flex-end;
-    touch-action: none;
-    pointer-events: none; /* Let track handle pointer capture */
-  }
-
-  .fast-scroller-thumb-bar {
-    width: 5px;
-    height: 100%;
-    margin-right: 2px;
-    background: var(--surface);
-    border: 1px solid var(--line-strong);
-    border-radius: 0;
-    transition: width 150ms var(--motion-ease), background 150ms var(--motion-ease), opacity 200ms var(--motion-ease);
-    opacity: 0.7;
-  }
-
-  .fast-scroller-thumb.active .fast-scroller-thumb-bar {
-    opacity: 1;
-    background: var(--cyan);
-    border-color: var(--cyan);
-  }
-
-  .fast-scroller-thumb.dragging .fast-scroller-thumb-bar {
-    width: 8px;
-    margin-right: 1px;
-    opacity: 1;
-    background: var(--cyan);
-    border-color: var(--cyan);
-    box-shadow: 0 0 10px rgb(var(--cyan-rgb) / 0.5);
-  }
-
 }
 
 body.is-android ::-webkit-scrollbar,
@@ -1136,50 +1079,18 @@ body.is-android *,
 }
 
 @media (pointer: coarse) {
-  /* On touchscreens, use a slim floating overlay indicator instead of a heavy desktop gutter */
+  /* No visible scrollbars on touch — finger scrolling only, like native mobile apps */
   * {
-    scrollbar-width: thin;
-    scrollbar-color: rgb(var(--text-rgb) / 0.25) transparent;
+    scrollbar-width: none !important;
   }
-  ::-webkit-scrollbar {
-    width: 4px !important;
-    height: 4px !important;
-  }
-  ::-webkit-scrollbar-track {
-    background: transparent !important;
-    border: none !important;
-  }
-  ::-webkit-scrollbar-thumb {
-    background: rgb(var(--text-rgb) / 0.25) !important;
-    border: none !important;
-    border-radius: 2px !important;
-  }
-  ::-webkit-scrollbar-thumb:hover,
-  ::-webkit-scrollbar-thumb:active {
-    background: rgb(var(--text-rgb) / 0.4) !important;
-  }
-
+  ::-webkit-scrollbar,
   body::-webkit-scrollbar,
   .workspace::-webkit-scrollbar,
   .left-pane::-webkit-scrollbar,
   .tab-panel::-webkit-scrollbar {
-    width: 4px !important;
-    height: 4px !important;
-  }
-  body::-webkit-scrollbar-track,
-  .workspace::-webkit-scrollbar-track,
-  .left-pane::-webkit-scrollbar-track,
-  .tab-panel::-webkit-scrollbar-track {
-    background: transparent !important;
-    border: none !important;
-  }
-  body::-webkit-scrollbar-thumb,
-  .workspace::-webkit-scrollbar-thumb,
-  .left-pane::-webkit-scrollbar-thumb,
-  .tab-panel::-webkit-scrollbar-thumb {
-    background: rgb(var(--text-rgb) / 0.25) !important;
-    border: none !important;
-    border-radius: 2px !important;
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
   }
 
   .control-slider-input::-webkit-slider-thumb {
