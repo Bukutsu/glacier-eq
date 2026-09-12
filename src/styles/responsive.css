@@ -34,7 +34,8 @@
     flex-direction: column;
     overflow-y: auto;
     overflow-x: hidden;
-    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: auto;
   }
   .mobile-workspace .left-pane {
     overflow: visible !important;
