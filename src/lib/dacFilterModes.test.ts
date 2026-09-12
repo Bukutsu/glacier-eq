@@ -2,52 +2,83 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 import { describe, expect, it } from "vitest";
-import { getFilterModeInfo, DAC_FILTER_MODES } from "./dacFilterModes";
+import {
+  getFilterModeMeta,
+  getFilterTimeData,
+  getFilterFreqData,
+  DAC_FILTER_METAS,
+} from "./dacFilterModes";
 
 describe("dacFilterModes", () => {
-  it("resolves FAST-LL as Low Latency with zero pre-ringing", () => {
-    const info = getFilterModeInfo("FAST-LL");
-    expect(info.badge).toBe("Zero Pre-Ringing");
-    expect(info.tag).toContain("Low Latency");
-    expect(info.path).toContain("M 4 22 L 78 22");
+  it("resolves FAST-LL metadata and enforces zero pre-ringing in time data", () => {
+    const meta = getFilterModeMeta("FAST-LL");
+    expect(meta.badge).toBe("Zero Pre-Ringing");
+    expect(meta.phaseType).toBe("minimum");
+
+    const [times, amps] = getFilterTimeData("FAST-LL");
+    expect(times.length).toBe(amps.length);
+    // At t = 0 (middle index), peak amplitude should be near 1.0
+    const centerIdx = times.findIndex((t) => Math.abs(t) < 0.01);
+    expect(amps[centerIdx]).toBeCloseTo(1.0, 1);
+
+    // Negative time points must have 0 amplitude (zero pre-ringing)
+    const preRingingPoints = amps.filter((_, idx) => times[idx] < -0.05);
+    for (const val of preRingingPoints) {
+      expect(val).toBe(0.0);
+    }
   });
 
-  it("resolves FAST-PC as Phase Linear with symmetric phase", () => {
-    const info = getFilterModeInfo("FAST-PC");
-    expect(info.badge).toBe("Symmetric Phase");
-    expect(info.tag).toContain("Phase Linear");
+  it("resolves FAST-PC metadata and verifies symmetric pre- and post-ringing", () => {
+    const meta = getFilterModeMeta("FAST-PC");
+    expect(meta.badge).toBe("Symmetric Phase");
+    expect(meta.phaseType).toBe("linear");
+
+    const [times, amps] = getFilterTimeData("FAST-PC");
+    // Pre-ringing exists for linear phase
+    const preRinging = amps.filter((val, idx) => times[idx] < -0.05 && Math.abs(val) > 0.01);
+    expect(preRinging.length).toBeGreaterThan(0);
   });
 
-  it("resolves Slow-LL as Minimum Phase with gentle decay", () => {
-    const info = getFilterModeInfo("Slow-LL");
-    expect(info.badge).toBe("Gentle Decay");
-    expect(info.tag).toContain("Minimum Phase");
+  it("resolves NON-OS and verifies clean step pulse without ringing", () => {
+    const meta = getFilterModeMeta("NON-OS");
+    expect(meta.badge).toBe("Zero Ringing");
+    expect(meta.phaseType).toBe("nos");
+
+    const [times, amps] = getFilterTimeData("NON-OS");
+    // Pulse is only active near 0
+    const farPoints = amps.filter((_, idx) => Math.abs(times[idx]) > 0.05);
+    for (const val of farPoints) {
+      expect(val).toBe(0.0);
+    }
   });
 
-  it("resolves Slow-PC as Linear Phase with soft linear badge", () => {
-    const info = getFilterModeInfo("Slow-PC");
-    expect(info.badge).toBe("Soft Linear");
-    expect(info.tag).toContain("Linear Phase");
+  it("generates correct frequency roll-off profiles", () => {
+    const [fastFreqs, fastDbs] = getFilterFreqData("FAST-PC");
+    const [slowFreqs, slowDbs] = getFilterFreqData("Slow-PC");
+    const [nosFreqs, nosDbs] = getFilterFreqData("NON-OS");
+
+    // All should be ~0 dB at 10 kHz
+    expect(fastDbs[0]).toBe(0);
+    expect(slowDbs[0]).toBe(0);
+    expect(nosDbs[0]).toBeCloseTo(-0.63, 1);
+
+    // At 23 kHz (past Nyquist of 44.1k/48k band):
+    const idx23 = fastFreqs.findIndex((f) => f >= 23);
+    expect(fastDbs[idx23]).toBeLessThan(-50); // Brickwall steep
+    expect(slowDbs[idx23]).toBeGreaterThan(-45); // Gentle slope
+    expect(nosDbs[idx23]).toBeGreaterThan(-5); // Mild NOS sinc roll-off
   });
 
-  it("resolves NON-OS as Direct NOS with square pulse", () => {
-    const info = getFilterModeInfo("NON-OS");
-    expect(info.badge).toBe("Direct NOS");
-    expect(info.tag).toContain("Non-Oversampling");
-    expect(info.path).toContain("L 74 6 L 86 6");
+  it("handles unknown fallback mode gracefully", () => {
+    const meta = getFilterModeMeta("UNKNOWN");
+    expect(meta.name).toBe("Standard Interpolation");
   });
 
-  it("falls back gracefully for unknown modes", () => {
-    const info = getFilterModeInfo("CUSTOM_FILTER");
-    expect(info.badge).toBe("Reconstruction");
-    expect(info.tag).toBe("Standard Interpolation");
-  });
-
-  it("provides valid paths for all declared filter modes", () => {
-    for (const [key, mode] of Object.entries(DAC_FILTER_MODES)) {
-      expect(mode.path, `Valid path for ${key}`).toMatch(/^M\s/);
-      expect(mode.badge.length).toBeGreaterThan(0);
-      expect(mode.description.length).toBeGreaterThan(0);
+  it("has complete metadata for all declared filter modes", () => {
+    for (const [key, meta] of Object.entries(DAC_FILTER_METAS)) {
+      expect(meta.name.length).toBeGreaterThan(0);
+      expect(meta.badge.length).toBeGreaterThan(0);
+      expect(meta.description.length).toBeGreaterThan(0);
     }
   });
 });

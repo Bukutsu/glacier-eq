@@ -27,7 +27,8 @@
     "@tauri-apps/plugin-clipboard-manager": "^2.3.3",
     "@tauri-apps/plugin-dialog": "^2.7.3",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react-dom": "^19.2.8",
+    "uplot": "^1.6.32"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",
