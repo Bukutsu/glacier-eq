@@ -1040,79 +1040,106 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   gap: 8px;
 }
 
-/* DAC Filter Mode Visualization */
+/* DAC Filter Mode Visualization (uPlot oscilloscope) */
 .dac-filter-card {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 8px 10px;
-  background: rgb(var(--cyan-rgb) / 0.03);
-  border: 1px solid var(--line-subtle);
-  border-radius: var(--radius-card, 0);
-  margin-top: 2px;
-}
-
-.dac-filter-graph-frame {
-  position: relative;
-  width: 100%;
-  height: 48px;
+  gap: 10px;
+  padding: 10px 12px;
   background: var(--bg-dark);
   border: 1px solid var(--line-subtle);
   border-radius: var(--radius-card, 0);
-  overflow: hidden;
+  margin-top: 4px;
+}
+
+.dac-filter-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-.dac-filter-svg {
+.dac-filter-title {
+  font-size: var(--type-small);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.dac-filter-toggle {
+  display: inline-flex;
+  background: var(--surface-dark, #16181d);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-pill, 9999px);
+  padding: 2px;
+  gap: 2px;
+}
+
+.dac-filter-tab {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: var(--type-micro);
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: var(--radius-pill, 9999px);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.dac-filter-tab:hover {
+  color: var(--text);
+}
+
+.dac-filter-tab.active {
+  background: var(--cyan);
+  color: #0b0f14;
+}
+
+.dac-filter-chart-wrapper {
+  position: relative;
   width: 100%;
-  height: 100%;
-  display: block;
+  height: 130px;
+  background: #090b10;
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-card, 0);
+  overflow: hidden;
 }
 
-.dac-filter-baseline {
-  stroke: var(--line-soft);
-  stroke-dasharray: 3 3;
-  stroke-width: 1;
+/* uPlot overrides for dark theme */
+.dac-filter-chart-wrapper .uplot {
+  font-family: var(--font-mono);
 }
 
-.dac-filter-curve {
-  fill: none;
-  stroke: var(--cyan);
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  filter: drop-shadow(0 0 4px rgb(var(--cyan-rgb) / 0.4));
+.dac-filter-chart-wrapper .u-cursor-x,
+.dac-filter-chart-wrapper .u-cursor-y {
+  border-color: rgba(56, 189, 248, 0.4) !important;
+}
+
+.dac-filter-chart-wrapper .u-cursor-pt {
+  background: var(--cyan) !important;
+  border: 2px solid #090b10 !important;
+  box-shadow: 0 0 6px rgba(56, 189, 248, 0.8) !important;
+}
+
+.dac-filter-footer {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
 }
 
 .dac-filter-badge {
-  position: absolute;
-  top: 4px;
-  right: 6px;
   font-size: var(--type-micro);
   font-family: var(--font-mono);
   font-weight: 700;
   letter-spacing: 0.04em;
   color: var(--cyan);
-  background: rgb(var(--bg-darker-rgb, 10 10 10) / 0.75);
-  padding: 1px 5px;
+  background: rgb(var(--cyan-rgb) / 0.1);
+  padding: 2px 6px;
   border: 1px solid rgb(var(--cyan-rgb) / 0.25);
-  border-radius: 2px;
-  pointer-events: none;
-}
-
-.dac-filter-meta {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.dac-filter-tag {
-  font-size: var(--type-micro);
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--text);
+  border-radius: 3px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .dac-filter-desc {
