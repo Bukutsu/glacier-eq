@@ -47,6 +47,7 @@ export const UnifiedTracesList = memo(function UnifiedTracesList({
           </label>
           <span className="trace-type-badge trace-type-measure" aria-hidden="true" title="Measurement">M</span>
           <button
+            type="button"
             className="curve-delete"
             title={`Delete ${trace.name}`}
             aria-label={`Delete ${trace.name}`}
@@ -76,6 +77,7 @@ export const UnifiedTracesList = memo(function UnifiedTracesList({
             <span className="trace-type-badge trace-type-target" aria-hidden="true" title="Target">T</span>
             {!target.builtIn ? (
               <button
+                type="button"
                 className="curve-delete"
                 title={`Delete ${target.name}`}
                 aria-label={`Delete ${target.name}`}

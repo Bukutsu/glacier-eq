@@ -36,6 +36,7 @@ export class ErrorBoundary extends Component<Props, State> {
           <h2>Something went wrong</h2>
           <pre style={{ color: "var(--red)" }}>{this.state.error?.toString()}</pre>
           <button
+            type="button"
             onClick={() => window.location.reload()}
             style={{ padding: "8px 16px", background: "var(--surface-soft)", color: "var(--text)", border: "none", borderRadius: "var(--radius-control)", cursor: "pointer" }}
           >

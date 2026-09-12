@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.9.0] - 2026-09-13
+
+### Added
+
+- Material You dynamic color theming on Android 12+, with safe system-theme fallback on older Android, desktop, and web.
+- Mobile section-stack navigation for Device and Settings, with focused subsections and native momentum scrolling.
+- Mobile graph preview while editing filters, profile management, undoable band removal, and centralized toast/history state.
+
+### Changed
+
+- Replaced icon fonts with crisp inline Lucide SVG icons and removed the service-worker registration from Tauri builds.
+- Added Android HID listener permissions and kept USB DAC hotplug handling available to the native plugin.
+- Refreshed mobile layouts, filter controls, diagnostics, and accessibility semantics for release use.
+
+### Fixed
+
+- Repainted canvas graphs when asynchronously applied Material You CSS variables change.
+- Kept the Material You theme selection intact when settings are restored in Android webviews.
+
 ## [0.8.0] - 2026-09-12
 
 ### Added

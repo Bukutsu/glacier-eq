@@ -187,14 +187,14 @@ export const Header = memo(function Header({
             <>
               {showDeviceEditorActions && (
                 <>
-                  <button className="btn" title="Replace the editor with EQ read from the DAC" onClick={onPull} disabled={isBusy}>Read DAC</button>
-                  <button className={`btn${deviceMatchesEditor === false ? " warning" : ""}`} title="Store the editor EQ on the DAC" onClick={onPush} disabled={isBusy}>Write to DAC</button>
+                  <button type="button" className="btn" title="Replace the editor with EQ read from the DAC" onClick={onPull} disabled={isBusy}>Read DAC</button>
+                  <button type="button" className={`btn${deviceMatchesEditor === false ? " warning" : ""}`} title="Store the editor EQ on the DAC" onClick={onPush} disabled={isBusy}>Write to DAC</button>
                 </>
               )}
-              <button className="btn" onClick={onDisconnect} disabled={isBusy}>Disconnect</button>
+              <button type="button" className="btn" onClick={onDisconnect} disabled={isBusy}>Disconnect</button>
             </>
           ) : (
-            <button className="btn filled" onClick={onConnectClick} disabled={isBusy}>
+            <button type="button" className="btn filled" onClick={onConnectClick} disabled={isBusy}>
               <Icon>link</Icon>
               <span>Connect DAC</span>
             </button>

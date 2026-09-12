@@ -35,7 +35,7 @@ import {
   isDevDummyDevice,
 } from "./lib/devDevice";
 import { buildDefaultState, DEFAULT_PROFILE_NAME, normalizePeq, peqEquals } from "./lib/peq";
-import { isTauri } from "./lib/platform";
+import { isAndroidDevice, isTauri } from "./lib/platform";
 import { isDisconnectionError } from "./lib/errors";
 import {
   asyncContextEquals,
@@ -80,7 +80,8 @@ const OFFLINE_EDITOR_CAPABILITIES: DeviceCapabilities = {
 const DEFAULT_SETTINGS: AppSettings = {
   auto_pull_on_connect: true,
   skip_push_verification: false,
-  theme: "auto",
+  // Material You is the default on Android; everywhere else follows Auto.
+  theme: isAndroidDevice() ? "material-you" : "auto",
   snap_to_iso_frequencies: true,
   floating_graph_preview: true,
 };
@@ -434,7 +435,7 @@ function App() {
   }, []);
 
   const startGraphPreview = useCallback(() => {
-    if (settings.floating_graph_preview === false) return;
+    if (!showGraph || settings.floating_graph_preview === false) return;
     const scrollEl = mobileScrollRef.current;
     if (scrollEl && !graphCollapsed && scrollEl.scrollTop < 180) {
       return;
@@ -449,7 +450,7 @@ function App() {
       isAdjustingRef.current = false;
       setShowGraphPreview(false);
     }, 1500);
-  }, [settings.floating_graph_preview, graphCollapsed, clearPreviewTimer]);
+  }, [showGraph, settings.floating_graph_preview, graphCollapsed, clearPreviewTimer]);
 
   const schedulePreviewDismiss = useCallback((delay = 1500) => {
     clearPreviewTimer();
@@ -461,8 +462,15 @@ function App() {
     }, delay);
   }, [clearPreviewTimer]);
 
-  // Cleanup on unmount
-  useEffect(() => clearPreviewTimer, [clearPreviewTimer]);
+  // Cleanup on unmount and when the graph is disabled.
+  useEffect(() => {
+    if (!showGraph) {
+      clearPreviewTimer();
+      isAdjustingRef.current = false;
+      setShowGraphPreview(false);
+    }
+    return clearPreviewTimer;
+  }, [showGraph, clearPreviewTimer]);
 
   // Range inputs do not consistently deliver pointerup to the input in Android
   // WebView, so finish an active preview gesture at the window boundary too.
@@ -1821,7 +1829,7 @@ function App() {
       {isMobile ? (
         <>
           <main ref={mobileScrollRef} className="workspace mobile-workspace" inert={isReconnecting ? true : undefined}>
-          {(activeTab === "eq" || activeTab === "profiles" || (activeTab === "tuning" && (measurements.some((trace) => trace.visible) || activeTargets.length > 0))) && (
+          {showGraph && (activeTab === "eq" || activeTab === "profiles" || (activeTab === "tuning" && (measurements.some((trace) => trace.visible) || activeTargets.length > 0))) && (
             <section className={`mobile-graph-container mobile-graph-${activeTab} ${graphCollapsed ? "collapsed" : ""}`}>
               <div className="graph-card">
                 {graphElement(activeTab === "eq")}
@@ -1837,7 +1845,7 @@ function App() {
               </button>
             </section>
           )}
-          {activeTab === "eq" && (
+          {showGraph && activeTab === "eq" && (
             <div
               className={`mobile-graph-preview ${showGraphPreview ? "visible" : ""}`}
               onClick={handlePreviewClick}
@@ -1876,12 +1884,13 @@ function App() {
                 <Collapsible title="Traces & Targets" icon="analytics" className="tuning-card">
                   <div className="curves-tab">
                     <div className="curves-actions">
-                      <button className="btn add-trace-btn" onClick={handleShowAddTrace}>
+                      <button type="button" className="btn add-trace-btn" onClick={handleShowAddTrace}>
                         <Icon>add</Icon>
                         <span>Add Trace</span>
                       </button>
                       {measurements.length > 0 && (
                         <button
+                          type="button"
                           className="btn danger curves-clear-btn"
                           title="Clear all measurements"
                           aria-label="Clear all measurements"
@@ -2104,6 +2113,7 @@ function App() {
               <strong>{connectedDeviceName}</strong>...
             </p>
             <button
+              type="button"
               ref={reconnectCancelRef}
               className="btn"
               autoFocus

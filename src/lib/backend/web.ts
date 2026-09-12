@@ -272,6 +272,7 @@ const DEFAULT_WEB_SETTINGS: AppSettings = {
 // Must match the themes offered by the settings UI.
 const KNOWN_THEMES = new Set([
   "auto",
+  "material-you",
   "tokyo-night",
   "tokyo-night-storm",
   "tokyo-night-day",

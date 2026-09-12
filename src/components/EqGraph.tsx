@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, Fragment, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
 import { dbToY, formatFreq, freqToX, getFreqGrid, peqResponseAndBandValues, peqResponseValues, snapFreqToIsoSync, xToFreq, yToDb } from "../lib/graph";
 import { cssVar, rgbWithAlpha } from "../lib/theme";
+import { useThemeVarsRevision } from "../lib/materialYou";
 import { interpolateMeasurementDb } from "../lib/measurements";
 import { filterColorVars } from "../lib/filterColors";
 import { peqEquals } from "../lib/peq";
@@ -66,6 +67,8 @@ export const EqGraph = memo(function EqGraph({
   const wheelGestureTimerRef = useRef<number | undefined>(undefined);
   const wheelHandlerRef = useRef<(event: WheelEvent, index: number) => void>(() => {});
   const editable = Boolean(capabilities && onActiveBandChange && onStartChange && onFilterChange);
+  // Repaint when theme CSS vars change outside React (Material You apply).
+  const themeVarsRevision = useThemeVarsRevision();
   const visibleMeasurements = useMemo(
     () => measurements.filter((trace) => trace.visible),
     [measurements],
@@ -114,7 +117,7 @@ export const EqGraph = memo(function EqGraph({
       capabilities?.dsp_sample_rate ?? 96000,
       () => drawSerial === drawSerialRef.current,
     );
-  }, [peq, committedPeq, selectedMeasurement, visibleMeasurements, targets, viewMode, theme, editable, capabilities?.dsp_sample_rate]);
+  }, [peq, committedPeq, selectedMeasurement, visibleMeasurements, targets, viewMode, theme, themeVarsRevision, editable, capabilities?.dsp_sample_rate]);
 
   const displayPeqRef = useRef(peq);
   const targetPeqRef = useRef(peq);
@@ -352,6 +355,7 @@ export const EqGraph = memo(function EqGraph({
       })}
       {(committedPeq || targets.length > 0 || visibleMeasurements.length > 0) && (
         <button
+          type="button"
           className={`mobile-legend-toggle ${showMobileLegend ? "active" : ""}`}
           onClick={() => setShowMobileLegend(!showMobileLegend)}
           title="Toggle legend"

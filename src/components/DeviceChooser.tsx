@@ -66,7 +66,7 @@ export function DeviceChooser({
         <div className="device-browser-warning">WebHID requires a Chromium-based browser over HTTPS or localhost.</div>
       )}
 
-      <button className="btn" style={{ width: "100%" }} onClick={handleScanClick} disabled={isBusy}>{isBusy ? "Scanning…" : "Scan for Devices"}</button>
+      <button type="button" className="btn" style={{ width: "100%" }} onClick={handleScanClick} disabled={isBusy}>{isBusy ? "Scanning…" : "Scan for Devices"}</button>
 
       {devices.length === 0 ? (
         <div className="empty-device-state">
@@ -156,7 +156,7 @@ export function DeviceChooser({
       </details>
 
       <div className="device-actions">
-        <button className="btn filled" onClick={() => onConnect()} disabled={!selectedDevice || isBusy}>Connect</button>
+        <button type="button" className="btn filled" onClick={() => onConnect()} disabled={!selectedDevice || isBusy}>Connect</button>
       </div>
       <span className="status-text" role="status" aria-live="polite">{authorizationError ?? status}</span>
     </section>

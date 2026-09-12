@@ -297,6 +297,13 @@ describe("web settings parser", () => {
     });
   });
 
+  it("preserves the Material You selection for Android webviews without native colors", () => {
+    const parsed = parseWebSettings({ theme: "material-you" });
+
+    expect(parsed.malformed).toBe(false);
+    expect(parsed.value.theme).toBe("material-you");
+  });
+
   it("falls back safely when settings are not an object", () => {
     const parsed = parseWebSettings(["skip_push_verification"]);
 
