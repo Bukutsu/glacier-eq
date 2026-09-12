@@ -8,216 +8,41 @@
   <a href="https://github.com/Bukutsu/glacier-eq/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-GPLv3-blue.svg" alt="License"></a>
 </div>
 
-Glacier EQ is a parametric EQ editor for USB DACs. It talks to supported hardware over HID, keeps edits on your device, and works without an internet connection.
+Tune how your earphones sound. Glacier EQ edits the EQ on USB DAC dongles. More bass, less harsh treble, whatever fits you. It saves on the dongle itself.
 
-Use the web version at [bukutsu.github.io/glacier-eq](https://bukutsu.github.io/glacier-eq/).
+No account, works offline.
 
-<img src="assets/screenshot-main.png" alt="Glacier EQ desktop interface showing EQ graph, filter bands, and profile controls" width="900">
+[Try it in your browser](https://bukutsu.github.io/glacier-eq/) (Chrome or Edge) · [Download for desktop and Android](https://github.com/Bukutsu/glacier-eq/releases)
 
-## Features
+<img src="assets/screenshot-main.png" alt="Glacier EQ showing EQ sliders and sound curve" width="900">
 
-- A 10-band PEQ editor with preamp, undo and redo, graph previews, and target curves
-- Pull, RAM apply, push, verification, and rollback for supported DACs
-- Local profiles with search, import/export, copy/paste, and quick apply
-- Measurement overlays from local files or an optional offline Squiglink cache
-- AutoEQ matching for measurement and target curves
-- Walkplay/Savitech, Moondrop, and FiiO protocol support
-- Hardware controls for supported Walkplay/Savitech DACs: DAC filter, amp mode, output gain, balance, mic monitor, and reset
-- Desktop and Android layouts, themes, diagnostics, and a development dummy DAC
+## Will it work with mine?
 
-## Installation
+Plug your DAC in and check if it shows up in the app. Confirmed working:
 
-Download a build from the [releases page](https://github.com/Bukutsu/glacier-eq/releases).
+- EPZ TP35 Pro
+- TRN Black Pearl
 
-On Arch Linux:
+More models work too. [See the full list](https://github.com/Bukutsu/glacier-eq/wiki/Supported-Devices).
 
-```sh
-git clone https://github.com/Bukutsu/glacier-eq.git
-cd glacier-eq
-makepkg -si
-```
+## How to use
 
-The Arch package installs `udev/69-glacier-eq.rules`. Replug the DAC after
-installation. The desktop build should then open it without asking polkit for
-elevation.
+1. Plug in your DAC and open Glacier EQ.
+2. Pick your DAC, hit **Connect**, then **Pull**.
+3. Move the sliders till it sounds right, then hit **Push** to save.
 
-To run from source:
+That's it. The sound stays on your dongle, even on other devices.
 
-```sh
-git clone https://github.com/Bukutsu/glacier-eq.git
-cd glacier-eq
-npm install
-npm run tauri dev
-```
+Save favorites as profiles so you can switch back anytime.
 
-## CLI
+## Problems connecting?
 
-The offline CLI supports scripts, piped profiles, and bulk AutoEQ jobs. It writes
-data to `stdout` and diagnostics to `stderr`.
+[Linux setup and troubleshooting](https://github.com/Bukutsu/glacier-eq/wiki/Troubleshooting)
 
-See the [CLI documentation](https://github.com/Bukutsu/glacier-eq/wiki/CLI) for
-commands and examples.
+## Links
 
-## Using the GUI
-
-1. Plug in a supported DAC.
-2. Open Glacier EQ.
-3. Select the DAC and connect.
-4. Pull the current hardware state.
-5. Edit the preamp, bands, filter type, frequency, gain, and Q.
-6. Push the changes to the device.
-
-## Supported devices
-
-If your DAC is listed below, plug it in and check the device picker. `Family
-match` means the USB family looks compatible; the exact model still needs more
-hardware testing.
-
-| Status | Device |
-| --- | --- |
-| Confirmed | EPZ TP35 Pro |
-| Confirmed | TRN Black Pearl |
-| Family match | Audiocular Aura |
-| Family match | Fosi Audio DS2 / iBasso DC04 Pro |
-| Family match | JCally JM20 / Savitech Generic |
-| Family match | JCally JM20 Pro / Alt Savitech |
-| Testing | Moondrop Dawn Pro |
-| Testing | Moondrop Dawn Pro 2 |
-| Testing | FiiO JA11 |
-| Testing | JCally JM12 |
-| Testing | FiiO KA Series |
-| Testing | Truthear KEYX |
-
-Discovery, validation, capabilities, and the device picker all use the registry
-in [`glacier-core/src/device/walkplay.rs`](glacier-core/src/device/walkplay.rs).
-
-## Development
-
-### System dependencies
-
-Building the Tauri desktop app on Linux requires GTK 3, WebKitGTK, `pkg-config`, and related build tools.
-
-**Debian / Ubuntu**
-
-```sh
-sudo apt update
-sudo apt install -y build-essential curl wget file libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev pkg-config
-```
-
-**Arch Linux**
-
-```sh
-sudo pacman -S --needed base-devel curl wget file openssl gtk3 webkit2gtk-4.1 libappindicator-gtk3 librsvg pkg-config
-```
-
-**Fedora**
-
-```sh
-sudo dnf install @development-tools webkit2gtk4.1-devel openssl-devel curl wget file libappindicator-gtk3-devel librsvg2-devel gtk3-devel pkgconf-pkg-config
-```
-
-### Useful commands
-
-```sh
-npm run wasm:build       # build WASM module (glacier-core)
-npm run dev              # frontend only
-npm run tauri dev        # desktop app
-npm run build            # TypeScript + Vite
-cargo check              # Rust workspace
-cargo test -p glacier-core
-```
-
-To run the optional local check before pushing:
-
-```sh
-git config core.hooksPath .githooks
-```
-
-Android commands:
-
-```sh
-npm run android:doctor
-npm run android:init
-npm run android:dev
-npm run android:apk
-```
-
-Android builds require JDK 17–23 (Gradle 8.14 rejects newer JDKs), the Android
-SDK, and NDK r26 or newer. `tauri android init` auto-detects them from
-`ANDROID_HOME` and `NDK_HOME`; run `npm run android:doctor` to verify. If your
-system `java` is too new, point Gradle at a compatible JDK via
-`org.gradle.java.home` in `~/.gradle/gradle.properties`.
-
-Release APK signing requires the release credentials configured in CI.
-
-## Roadmap
-
-- [x] Real-time frequency response graph
-- [x] AutoEQ matching
-- [x] Desktop and Android builds
-- [x] More DAC families beyond Walkplay/Savitech
-- [ ] Interactive filter adjustment from the graph
-- [ ] Full-screen Android filter adjustment
-- [x] Command-line profile tools
-- [ ] Multi-device support
-- [ ] Localization
-
-## Linux HID permissions
-
-Chromium and the desktop build need udev access to raw USB HID devices on Linux.
-The packaged `udev/69-glacier-eq.rules` handles the desktop build. If the browser
-shows `NotAllowedError: Failed to open the device` while connecting:
-
-1. Create a udev rule file:
-
-   ```sh
-   sudo nano /etc/udev/rules.d/69-glacier-dac.rules
-   ```
-
-2. Add these rules for compatible DACs:
-
-   ```text
-   # Walkplay / FiiO / Moondrop / EPZ DACs
-   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="3302", MODE="0666", TAG+="uaccess"
-   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="262a", MODE="0666", TAG+="uaccess"
-   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2fc6", MODE="0666", TAG+="uaccess"
-   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2972", MODE="0666", TAG+="uaccess"
-   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0661", MODE="0666", TAG+="uaccess"
-   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0666", MODE="0666", TAG+="uaccess"
-   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="35d8", MODE="0666", TAG+="uaccess"
-   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="31b2", MODE="0666", TAG+="uaccess"
-   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0d8c", MODE="0666", TAG+="uaccess"
-   ```
-
-3. Reload the udev rules, then replug the device:
-
-   ```sh
-   sudo udevadm control --reload-rules
-   sudo udevadm trigger
-   ```
-
-Chromium Flatpak and Snap installations may also need USB access enabled in the
-sandbox permissions manager, such as Flatseal.
-
-## Project layout
-
-```text
-glacier-core/       Rust EQ and device logic
-src/                React frontend
-src-tauri/          Tauri backend
-tauri-plugin-hid/   Local HID plugin
-scripts/            Helper scripts
-```
-
-## Credits
-
-- [Tauri](https://v2.tauri.app/)
-- [React](https://react.dev/)
-- [hidapi](https://github.com/libusb/hidapi)
-- [devicePEQ](https://github.com/jeromeof/devicePEQ)
-- [AutoEQ-C](https://github.com/peqdb/autoeq-c)
-- [Audiocular-Aura](https://github.com/mandy321/Audiocular-Aura), used as a reference for Moondrop and FiiO HID protocol behavior
-
-## License
+- [Wiki](https://github.com/Bukutsu/glacier-eq/wiki) — device list, install options, command line tools, building from source
+- [Releases](https://github.com/Bukutsu/glacier-eq/releases) — downloads
+- [Issues](https://github.com/Bukutsu/glacier-eq/issues) — bugs and requests
 
 Glacier EQ is licensed under GPL-3.0-only. See [LICENSE](LICENSE).
