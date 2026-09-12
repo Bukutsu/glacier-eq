@@ -1040,14 +1040,14 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   gap: 8px;
 }
 
-/* DAC Filter Mode Visualization (uPlot oscilloscope) */
+/* DAC Filter Mode Visualization (EqGraph style) */
 .dac-filter-card {
   display: flex;
   flex-direction: column;
   gap: 10px;
   padding: 10px 12px;
   background: var(--bg-dark);
-  border: 1px solid var(--line-subtle);
+  border: 1px solid var(--line-soft);
   border-radius: var(--radius-card, 0);
   margin-top: 4px;
 }
@@ -1068,10 +1068,10 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 
 .dac-filter-toggle {
   display: inline-flex;
-  background: var(--surface-dark, #16181d);
+  background: var(--bg-darker, #101216);
   border: 1px solid var(--line-soft);
-  border-radius: var(--radius-pill, 9999px);
-  padding: 2px;
+  border-radius: var(--radius-pill, 0);
+  padding: 1px;
   gap: 2px;
 }
 
@@ -1081,8 +1081,8 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   color: var(--muted);
   font-size: var(--type-micro);
   font-weight: 600;
-  padding: 3px 8px;
-  border-radius: var(--radius-pill, 9999px);
+  padding: 2px 8px;
+  border-radius: var(--radius-pill, 0);
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
 }
@@ -1092,54 +1092,75 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 }
 
 .dac-filter-tab.active {
-  background: var(--cyan);
-  color: #0b0f14;
+  background: var(--surface-soft, rgba(255, 255, 255, 0.08));
+  color: var(--cyan);
 }
 
 .dac-filter-chart-wrapper {
   position: relative;
   width: 100%;
-  height: 130px;
-  background: #090b10;
+  height: 136px;
+  background: var(--panel, #16161e);
   border: 1px solid var(--line-subtle);
   border-radius: var(--radius-card, 0);
   overflow: hidden;
+  touch-action: none;
 }
 
-/* uPlot overrides for dark theme */
-.dac-filter-chart-wrapper .uplot {
+.dac-filter-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: crosshair;
+}
+
+.dac-filter-hover-pill {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-family: var(--font-mono);
+  font-size: var(--type-micro);
+  background: var(--panel, #16161e);
+  border: 1px solid var(--line-soft);
+  padding: 2px 6px;
+  color: var(--muted);
+  pointer-events: none;
 }
 
-.dac-filter-chart-wrapper .u-cursor-x,
-.dac-filter-chart-wrapper .u-cursor-y {
-  border-color: rgba(56, 189, 248, 0.4) !important;
-}
-
-.dac-filter-chart-wrapper .u-cursor-pt {
-  background: var(--cyan) !important;
-  border: 2px solid #090b10 !important;
-  box-shadow: 0 0 6px rgba(56, 189, 248, 0.8) !important;
+.dac-filter-hover-val {
+  color: var(--cyan);
+  font-weight: 600;
 }
 
 .dac-filter-footer {
   display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.dac-filter-tags-row {
+  display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.dac-filter-sound {
+  font-size: var(--type-small);
+  font-weight: 700;
+  color: var(--text);
 }
 
 .dac-filter-badge {
   font-size: var(--type-micro);
   font-family: var(--font-mono);
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 0.04em;
   color: var(--cyan);
-  background: rgb(var(--cyan-rgb) / 0.1);
-  padding: 2px 6px;
-  border: 1px solid rgb(var(--cyan-rgb) / 0.25);
-  border-radius: 3px;
   white-space: nowrap;
-  flex-shrink: 0;
 }
 
 .dac-filter-desc {

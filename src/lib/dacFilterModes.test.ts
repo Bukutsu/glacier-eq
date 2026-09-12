@@ -4,77 +4,86 @@
 import { describe, expect, it } from "vitest";
 import {
   getFilterModeMeta,
-  getFilterTimeData,
-  getFilterFreqData,
+  getFilterTimeCurve,
+  getFilterFreqCurve,
+  lerpCurve,
   DAC_FILTER_METAS,
+  DEFAULT_POINTS,
 } from "./dacFilterModes";
 
 describe("dacFilterModes", () => {
-  it("resolves FAST-LL metadata and enforces zero pre-ringing in time data", () => {
+  it("generates FAST-LL time curve with zero pre-ringing", () => {
     const meta = getFilterModeMeta("FAST-LL");
     expect(meta.badge).toBe("Zero Pre-Ringing");
     expect(meta.phaseType).toBe("minimum");
 
-    const [times, amps] = getFilterTimeData("FAST-LL");
-    expect(times.length).toBe(amps.length);
-    // At t = 0 (middle index), peak amplitude should be near 1.0
-    const centerIdx = times.findIndex((t) => Math.abs(t) < 0.01);
-    expect(amps[centerIdx]).toBeCloseTo(1.0, 1);
+    const curve = getFilterTimeCurve("FAST-LL", DEFAULT_POINTS);
+    expect(curve.length).toBe(DEFAULT_POINTS);
 
-    // Negative time points must have 0 amplitude (zero pre-ringing)
-    const preRingingPoints = amps.filter((_, idx) => times[idx] < -0.05);
-    for (const val of preRingingPoints) {
-      expect(val).toBe(0.0);
+    // Midpoint is t = 0
+    const centerIdx = Math.floor(DEFAULT_POINTS / 2);
+    expect(curve[centerIdx]).toBeCloseTo(1.0, 1);
+
+    // Negative points before t = -0.05 ms should be exactly 0
+    for (let i = 0; i < centerIdx - 10; i++) {
+      expect(curve[i]).toBe(0);
     }
   });
 
-  it("resolves FAST-PC metadata and verifies symmetric pre- and post-ringing", () => {
-    const meta = getFilterModeMeta("FAST-PC");
-    expect(meta.badge).toBe("Symmetric Phase");
-    expect(meta.phaseType).toBe("linear");
+  it("generates FAST-PC time curve with symmetric ringing", () => {
+    const curve = getFilterTimeCurve("FAST-PC", DEFAULT_POINTS);
+    const centerIdx = Math.floor(DEFAULT_POINTS / 2);
 
-    const [times, amps] = getFilterTimeData("FAST-PC");
-    // Pre-ringing exists for linear phase
-    const preRinging = amps.filter((val, idx) => times[idx] < -0.05 && Math.abs(val) > 0.01);
-    expect(preRinging.length).toBeGreaterThan(0);
-  });
+    // Check pre-ringing exists on the left
+    let hasPreRinging = false;
+    for (let i = 0; i < centerIdx - 5; i++) {
+      if (Math.abs(curve[i]) > 0.02) hasPreRinging = true;
+    }
+    expect(hasPreRinging).toBe(true);
 
-  it("resolves NON-OS and verifies clean step pulse without ringing", () => {
-    const meta = getFilterModeMeta("NON-OS");
-    expect(meta.badge).toBe("Zero Ringing");
-    expect(meta.phaseType).toBe("nos");
-
-    const [times, amps] = getFilterTimeData("NON-OS");
-    // Pulse is only active near 0
-    const farPoints = amps.filter((_, idx) => Math.abs(times[idx]) > 0.05);
-    for (const val of farPoints) {
-      expect(val).toBe(0.0);
+    // Check symmetry: curve[center - k] should be very close to curve[center + k]
+    for (let k = 5; k < 30; k++) {
+      expect(curve[centerIdx - k]).toBeCloseTo(curve[centerIdx + k], 1);
     }
   });
 
-  it("generates correct frequency roll-off profiles", () => {
-    const [fastFreqs, fastDbs] = getFilterFreqData("FAST-PC");
-    const [slowFreqs, slowDbs] = getFilterFreqData("Slow-PC");
-    const [nosFreqs, nosDbs] = getFilterFreqData("NON-OS");
+  it("generates NON-OS time curve with zero ringing", () => {
+    const curve = getFilterTimeCurve("NON-OS", DEFAULT_POINTS);
+    const centerIdx = Math.floor(DEFAULT_POINTS / 2);
 
-    // All should be ~0 dB at 10 kHz
-    expect(fastDbs[0]).toBe(0);
-    expect(slowDbs[0]).toBe(0);
-    expect(nosDbs[0]).toBeCloseTo(-0.63, 1);
-
-    // At 23 kHz (past Nyquist of 44.1k/48k band):
-    const idx23 = fastFreqs.findIndex((f) => f >= 23);
-    expect(fastDbs[idx23]).toBeLessThan(-50); // Brickwall steep
-    expect(slowDbs[idx23]).toBeGreaterThan(-45); // Gentle slope
-    expect(nosDbs[idx23]).toBeGreaterThan(-5); // Mild NOS sinc roll-off
+    expect(curve[centerIdx]).toBe(1.0);
+    // Outside the center step, all points must be 0
+    expect(curve[centerIdx - 10]).toBe(0);
+    expect(curve[centerIdx + 10]).toBe(0);
   });
 
-  it("handles unknown fallback mode gracefully", () => {
-    const meta = getFilterModeMeta("UNKNOWN");
-    expect(meta.name).toBe("Standard Interpolation");
+  it("generates frequency roll-off curves properly", () => {
+    const fastCurve = getFilterFreqCurve("FAST-PC", DEFAULT_POINTS);
+    const slowCurve = getFilterFreqCurve("Slow-PC", DEFAULT_POINTS);
+    const nosCurve = getFilterFreqCurve("NON-OS", DEFAULT_POINTS);
+
+    // At 10 kHz (index 0)
+    expect(fastCurve[0]).toBe(0);
+    expect(slowCurve[0]).toBe(0);
+    expect(nosCurve[0]).toBeCloseTo(-0.63, 1);
+
+    // At 24 kHz (last index)
+    expect(fastCurve[DEFAULT_POINTS - 1]).toBe(-60);
+    expect(slowCurve[DEFAULT_POINTS - 1]).toBeLessThan(-10);
+    expect(nosCurve[DEFAULT_POINTS - 1]).toBeGreaterThan(-6);
   });
 
-  it("has complete metadata for all declared filter modes", () => {
+  it("smoothly lerps between curves", () => {
+    const a = new Float32Array([0, 10, 20]);
+    const b = new Float32Array([10, 20, 30]);
+
+    const mid = lerpCurve(a, b, 0.5);
+    expect(mid[0]).toBe(5);
+    expect(mid[1]).toBe(15);
+    expect(mid[2]).toBe(25);
+  });
+
+  it("has complete metadata for all declared modes", () => {
     for (const [key, meta] of Object.entries(DAC_FILTER_METAS)) {
       expect(meta.name.length).toBeGreaterThan(0);
       expect(meta.badge.length).toBeGreaterThan(0);

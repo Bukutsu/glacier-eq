@@ -5,6 +5,7 @@ export interface FilterModeMeta {
   name: string;
   tag: string;
   badge: string;
+  sound: string;
   description: string;
   phaseType: "linear" | "minimum" | "nos";
   rollOff: "fast" | "slow" | "none";
@@ -15,7 +16,8 @@ export const DAC_FILTER_METAS: Record<string, FilterModeMeta> = {
     name: "Fast Roll-Off, Low Latency",
     tag: "Minimum Phase · Fast",
     badge: "Zero Pre-Ringing",
-    description: "Eliminates unnatural pre-echo for punchy, authentic transient attack on percussion and strings.",
+    sound: "Punchy & Snappy",
+    description: "Drums and plucks hit with clean, instant snap. Great for rock, electronic music, and gaming where you want sharp beats.",
     phaseType: "minimum",
     rollOff: "fast",
   },
@@ -23,7 +25,8 @@ export const DAC_FILTER_METAS: Record<string, FilterModeMeta> = {
     name: "Fast Roll-Off, Phase Compensated",
     tag: "Linear Phase · Fast",
     badge: "Symmetric Phase",
-    description: "Preserves perfect linear phase alignment across all frequencies for holographic spatial imaging.",
+    sound: "Clean & Balanced",
+    description: "Clear, natural sound with precise instrument placement. The best all-around default for any genre.",
     phaseType: "linear",
     rollOff: "fast",
   },
@@ -31,7 +34,8 @@ export const DAC_FILTER_METAS: Record<string, FilterModeMeta> = {
     name: "Slow Roll-Off, Low Latency",
     tag: "Minimum Phase · Slow",
     badge: "Gentle Decay",
-    description: "Gentle high-frequency attenuation with zero pre-ringing for a warm, relaxed presentation.",
+    sound: "Warm & Relaxed",
+    description: "Rounds off sharp highs for a warmer, mellow tone. Great for fatigue-free listening or bright headphones.",
     phaseType: "minimum",
     rollOff: "slow",
   },
@@ -39,7 +43,8 @@ export const DAC_FILTER_METAS: Record<string, FilterModeMeta> = {
     name: "Slow Roll-Off, Phase Compensated",
     tag: "Linear Phase · Slow",
     badge: "Soft Linear",
-    description: "Linear phase with a softer roll-off slope to tame aggressive high-frequency harshness.",
+    sound: "Smooth & Clear",
+    description: "Keeps detail intact while gently smoothing treble glare. Helpful if vocals or cymbals sound piercing.",
     phaseType: "linear",
     rollOff: "slow",
   },
@@ -47,7 +52,8 @@ export const DAC_FILTER_METAS: Record<string, FilterModeMeta> = {
     name: "Non-Oversampling (Direct NOS)",
     tag: "Direct Conversion",
     badge: "Zero Ringing",
-    description: "Bypasses the digital interpolation filter entirely for raw zero-order-hold analog conversion.",
+    sound: "Raw & Vintage",
+    description: "No digital smoothing filter. Delivers a direct, unfiltered signal with a classic retro warmth.",
     phaseType: "nos",
     rollOff: "none",
   },
@@ -57,7 +63,8 @@ export const DEFAULT_FILTER_META: FilterModeMeta = {
   name: "Standard Interpolation",
   tag: "Reconstruction Filter",
   badge: "Standard",
-  description: "Digital reconstruction filter applied by the DAC hardware during conversion.",
+  sound: "Standard Sound",
+  description: "Standard digital filter applied by the hardware to convert digital samples into analog audio.",
   phaseType: "linear",
   rollOff: "fast",
 };
@@ -66,7 +73,11 @@ export function getFilterModeMeta(mode: string): FilterModeMeta {
   return DAC_FILTER_METAS[mode] ?? DEFAULT_FILTER_META;
 }
 
-// ─── Mathematical Simulation for Real Graph Plotting ──────────────────────────
+// ─── Mathematical Simulation for Canvas Oscilloscope ──────────────────────────
+
+export const TIME_RANGE_MS = [-0.8, 0.8] as const;
+export const FREQ_RANGE_KHZ = [10.0, 24.0] as const;
+export const DEFAULT_POINTS = 181;
 
 function sinc(x: number): number {
   if (Math.abs(x) < 1e-6) return 1.0;
@@ -75,34 +86,30 @@ function sinc(x: number): number {
 }
 
 /**
- * Generates high-resolution impulse response data (Time Domain).
- * X: time in milliseconds [-0.8 ms, +0.8 ms]
- * Y: normalized amplitude [-0.5, 1.0]
+ * Generates an array of normalized amplitude values for Time Domain [-0.8ms, +0.8ms].
+ * Peak at t = 0 is normalized to 1.0.
  */
-export function getFilterTimeData(mode: string): [number[], number[]] {
+export function getFilterTimeCurve(mode: string, length = DEFAULT_POINTS): Float32Array {
   const meta = getFilterModeMeta(mode);
   const samplePeriodMs = 1 / 48; // 48 kHz standard base (~0.02083 ms)
-  const steps = 160;
-  const startMs = -0.8;
-  const endMs = 0.8;
-  const stepMs = (endMs - startMs) / steps;
+  const [startMs, endMs] = TIME_RANGE_MS;
+  const stepMs = (endMs - startMs) / (length - 1);
 
-  const times: number[] = [];
-  const amplitudes: number[] = [];
+  const curve = new Float32Array(length);
 
-  for (let i = 0; i <= steps; i++) {
-    const t = Number((startMs + i * stepMs).toFixed(4));
+  for (let i = 0; i < length; i++) {
+    const t = startMs + i * stepMs;
     const n = t / samplePeriodMs;
     let y = 0;
 
     switch (meta.phaseType) {
       case "nos":
-        // Zero-Order Hold rectangular pulse
+        // Zero-order hold sample step pulse
         y = Math.abs(t) <= samplePeriodMs * 0.75 ? 1.0 : 0.0;
         break;
 
       case "minimum":
-        if (t < -0.01) {
+        if (t < -0.015) {
           y = 0.0; // ZERO pre-ringing!
         } else if (meta.rollOff === "fast") {
           y = sinc(n) * Math.exp(-0.065 * n);
@@ -121,30 +128,25 @@ export function getFilterTimeData(mode: string): [number[], number[]] {
         break;
     }
 
-    times.push(t);
-    amplitudes.push(Number(y.toFixed(4)));
+    curve[i] = y;
   }
 
-  return [times, amplitudes];
+  return curve;
 }
 
 /**
- * Generates high-resolution frequency roll-off curve data (Frequency Domain).
- * X: frequency in kHz [10.0 kHz, 24.0 kHz]
- * Y: attenuation in dB [-60 dB, 0 dB]
+ * Generates an array of attenuation dB values for Frequency Domain [10.0kHz, 24.0kHz].
+ * Range: [-60 dB, 0 dB]
  */
-export function getFilterFreqData(mode: string): [number[], number[]] {
+export function getFilterFreqCurve(mode: string, length = DEFAULT_POINTS): Float32Array {
   const meta = getFilterModeMeta(mode);
-  const steps = 140;
-  const startKhz = 10.0;
-  const endKhz = 24.0;
-  const stepKhz = (endKhz - startKhz) / steps;
+  const [startKhz, endKhz] = FREQ_RANGE_KHZ;
+  const stepKhz = (endKhz - startKhz) / (length - 1);
 
-  const freqs: number[] = [];
-  const dbs: number[] = [];
+  const curve = new Float32Array(length);
 
-  for (let i = 0; i <= steps; i++) {
-    const f = Number((startKhz + i * stepKhz).toFixed(2));
+  for (let i = 0; i < length; i++) {
+    const f = startKhz + i * stepKhz;
     let db = 0;
 
     switch (meta.rollOff) {
@@ -156,7 +158,7 @@ export function getFilterFreqData(mode: string): [number[], number[]] {
       }
 
       case "slow": {
-        // Gentle roll-off starting around 15 kHz, -3 dB at 20 kHz, -18 dB at 22 kHz, -32 dB at 24 kHz
+        // Gentle roll-off starting around 15 kHz
         if (f <= 15) {
           db = 0;
         } else {
@@ -181,9 +183,20 @@ export function getFilterFreqData(mode: string): [number[], number[]] {
       }
     }
 
-    freqs.push(f);
-    dbs.push(Number(Math.max(-60, db).toFixed(2)));
+    curve[i] = Math.max(-60, db);
   }
 
-  return [freqs, dbs];
+  return curve;
+}
+
+/**
+ * Smoothly interpolates between two curves point-by-point.
+ */
+export function lerpCurve(a: Float32Array, b: Float32Array, t: number): Float32Array {
+  const len = Math.min(a.length, b.length);
+  const out = new Float32Array(len);
+  for (let i = 0; i < len; i++) {
+    out[i] = a[i] + (b[i] - a[i]) * t;
+  }
+  return out;
 }
