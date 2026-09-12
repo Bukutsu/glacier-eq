@@ -1075,8 +1075,8 @@ fn grad(
     // Ratios stay within physical EQ bounds (worst case ~1e+-17 for 10 stacked
     // +-16 dB bands), so one clamp per K after the band loop preserves the old
     // per-band-K clamp bit-wise while removing ~6.9M min/max ops per fit.
-    for k in 0..K {
-        pred[k] = pred[k].clamp(1e-30, 1e30);
+    for pred_k in pred.iter_mut() {
+        *pred_k = pred_k.clamp(1e-30, 1e30);
     }
 
     let mut loss = 0.0;
@@ -1956,9 +1956,7 @@ mod tests {
         // Independent reference: same loss through iir_math, in f64.
         let reference_loss = |x: &[f32]| -> f64 {
             let mut total = vec![0.0f64; K];
-            for k in 0..K {
-                total[k] = x[3 * n_bands] as f64;
-            }
+            total.fill(x[3 * n_bands] as f64);
             for n in 0..n_bands {
                 let f0 = (x[n].exp().min(0.49 * fs)) as f64;
                 let gain = x[n_bands + n] as f64;
