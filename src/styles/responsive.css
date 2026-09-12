@@ -1064,6 +1064,7 @@
   }
 }
 
+html::-webkit-scrollbar,
 body.is-android ::-webkit-scrollbar,
 .mobile-workspace::-webkit-scrollbar,
 .mobile-workspace *::-webkit-scrollbar {
@@ -1071,11 +1072,13 @@ body.is-android ::-webkit-scrollbar,
   width: 0 !important;
   height: 0 !important;
 }
+html,
 body.is-android,
 body.is-android *,
 .mobile-workspace,
 .mobile-workspace * {
   scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
 }
 
 @media (pointer: coarse) {
