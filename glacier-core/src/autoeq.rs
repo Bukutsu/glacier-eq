@@ -985,7 +985,7 @@ fn grad(
     let (x_bw, x_amp) = x_rest.split_at(n_bands);
 
     let pred_init = if c.opt_amp {
-        10.0_f32.powf(x_amp[0] / 10.0)
+        (x_amp[0] * std::f32::consts::LN_10 / 10.0).exp()
     } else {
         1.0
     };
@@ -997,7 +997,7 @@ fn grad(
         let gain = x_gain[n];
         let bw = x_bw[n];
 
-        let a_val = 10.0_f32.powf(gain / 40.0);
+        let a_val = (gain * std::f32::consts::LN_10 / 40.0).exp();
         let w0 = 2.0 * std::f32::consts::PI / c.fs * f0;
         let cos_w = w0.cos();
         let sin_w = w0.sin();
