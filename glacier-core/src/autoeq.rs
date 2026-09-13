@@ -1084,7 +1084,7 @@ fn grad(
     let mut dl_dy_sum = 0.0;
 
     for k in 0..K {
-        let d = 10.0 * pred[k].log10() - c.r[k];
+        let d = pred[k].ln() * (10.0 / std::f32::consts::LN_10) - c.r[k];
         loss += d.powi(2);
         dl_dy[k] = 2.0 * d;
         dl_dy_sum += dl_dy[k];
