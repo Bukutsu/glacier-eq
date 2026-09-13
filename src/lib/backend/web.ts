@@ -521,6 +521,20 @@ function normalizeActivePeq(value: unknown, profile: SupportedDeviceInfo): PEQDa
   return normalized;
 }
 
+function requireWalkplayUtilities(): SupportedDeviceInfo {
+  const profile = connectedProfile();
+  if (profile.protocol !== "Walkplay") {
+    throw new Error(`${profile.name} does not support Walkplay utility controls`);
+  }
+  return profile;
+}
+
+function validateControlRange(label: string, value: unknown): asserts value is number {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < -15 || value > 15) {
+    throw new Error(`${label} must be between -15 and 15`);
+  }
+}
+
 function unsupportedUtilityState() {
   return {
     supported: false,
@@ -1085,18 +1099,23 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
       } as T;
     }
     case "set_dac_filter_mode": {
+      requireWalkplayUtilities();
       await writeAndFlash(wasm().build_filter_mode_write_packet(args.mode));
       return null as T;
     }
     case "set_dac_work_mode": {
+      requireWalkplayUtilities();
       await writeAndFlash(wasm().build_amp_mode_write_packet(args.isClassAb));
       return null as T;
     }
     case "set_dac_output_gain": {
+      requireWalkplayUtilities();
       await writeAndFlash(wasm().build_gain_mode_write_packet(args.isHighGain));
       return null as T;
     }
     case "set_dac_balance": {
+      requireWalkplayUtilities();
+      validateControlRange("Balance", args.balance);
       const packets = wasm().build_balance_write_packets(args.balance);
       await sendPackets(packets, 20);
       const flash = wasm().build_flash_eq_packet();
@@ -1104,6 +1123,8 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
       return null as T;
     }
     case "set_mic_volume": {
+      requireWalkplayUtilities();
+      validateControlRange("Mic volume", args.volumeDb);
       await writeAndFlash(wasm().build_mic_volume_write_packet(args.volumeDb));
       return null as T;
     }
@@ -1113,6 +1134,7 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
       return null as T;
     }
     case "reset_device_controls": {
+      requireWalkplayUtilities();
       await invokeWeb("set_dac_filter_mode", { mode: "FAST-LL" });
       await invokeWeb("set_dac_work_mode", { isClassAb: false });
       await invokeWeb("set_dac_output_gain", { isHighGain: false });
@@ -1121,6 +1143,7 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
       return invokeWeb<T>("get_dac_utility_state");
     }
     case "execute_factory_reset": {
+      requireWalkplayUtilities();
       await writeAndFlash(wasm().build_factory_reset_packet());
       return null as T;
     }

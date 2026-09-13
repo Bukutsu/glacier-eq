@@ -15,7 +15,6 @@ import {
   ToggleRow,
 } from "./SettingsPrimitives";
 import { invoke, listen } from "../lib/rpc";
-import { isTauri } from "../lib/platform";
 import { getOfficialDacSpec, OFFLINE_EDITOR_CAPABILITIES } from "../lib/dacSpecs";
 import type { DeviceSection } from "../lib/tabs";
 import {
@@ -70,7 +69,7 @@ export const DeviceView = memo(function DeviceView({
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const fetchState = async (isActive = () => true, silent = false) => {
-    if (!connected || !isTauri()) return;
+    if (!connected) return;
     if (!silent) {
       setLoading(true);
       setLoadError(null);
@@ -105,7 +104,7 @@ export const DeviceView = memo(function DeviceView({
   };
 
   useEffect(() => {
-    if (!connected || !isTauri()) {
+    if (!connected) {
       setUtility(null);
       utilityRef.current = null;
       confirmedUtilityRef.current = null;
