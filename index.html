@@ -38,7 +38,13 @@
     <title>Glacier EQ - WebHID DAC Parametric EQ</title>
     <style>
       html, body, #root { height: 100%; margin: 0; background: #1a1b26; }
-      #root > main { display: none; }
+      /* Static splash: paints immediately from this document while the JS
+         bundle loads; React's first render replaces the #root content. */
+      .splash { min-height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 2rem; box-sizing: border-box; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; color: #a9b1d6; }
+      .splash h1 { color: #c0caf5; font-size: 1.6rem; margin: 0 0 0.75rem; }
+      .splash p { max-width: 34rem; margin: 0.25rem 0; line-height: 1.5; font-size: 0.95rem; }
+      .splash a { color: #7aa2f7; }
+      .splash-status { margin-top: 1.25rem; font-size: 0.85rem; opacity: 0.7; }
     </style>
     <script type="application/ld+json">
       {
@@ -62,7 +68,7 @@
 
   <body>
     <div id="root">
-      <main>
+      <main class="splash">
         <h1>Glacier EQ</h1>
         <p>
           Glacier EQ is a browser and desktop parametric EQ editor for compatible USB DACs.
@@ -74,6 +80,7 @@
           Source code and release downloads are available on
           <a href="https://github.com/Bukutsu/glacier-eq">GitHub</a>.
         </p>
+        <p class="splash-status">Loading interface…</p>
       </main>
     </div>
     <script type="module" src="/src/main.tsx"></script>
