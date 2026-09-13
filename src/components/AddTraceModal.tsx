@@ -58,26 +58,26 @@ export function AddTraceModal({
   const handleDownload = async () => {
     try {
       const count = await download();
-      setStatus?.(`Downloaded online database (${count} curves)`);
+      setStatus?.(`Downloaded ${count} curves`);
     } catch (error) {
       console.error(error);
-      setStatus?.(`Failed to download database: ${error}`);
+      setStatus?.(`Could not download database: ${error}`);
     }
   };
 
   const handleResetCache = async () => {
     if (await confirmDialog({
       title: "Clear database cache?",
-      message: "Clear the cached online measurement database (~16MB)?",
+      message: "Clear the cached measurement database (~16 MB)?",
       confirmLabel: "Clear cache",
       danger: true,
     })) {
       try {
         await clearCache();
-        setStatus?.("Online database cache cleared.");
+        setStatus?.("Database cache cleared.");
       } catch (error) {
         console.error(error);
-        setStatus?.(`Failed to clear cache: ${error}`);
+        setStatus?.(`Could not clear cache: ${error}`);
       }
     }
   };
@@ -103,7 +103,7 @@ export function AddTraceModal({
       onClose();
     } catch (error) {
       if (request === loadRequestRef.current && mountedRef.current) {
-        setStatus?.(`Failed to import file: ${error}`);
+        setStatus?.(`Could not import file: ${error}`);
       }
     }
   };
@@ -120,7 +120,7 @@ export function AddTraceModal({
     } catch (error) {
       if (request === loadRequestRef.current && mountedRef.current) {
         console.error(error);
-        setStatus?.(`Failed to load: ${error}`);
+        setStatus?.(`Could not load: ${error}`);
       }
     }
   };
@@ -133,20 +133,20 @@ export function AddTraceModal({
   return (
     <Modal title="Add Trace" onClose={onClose} className="add-trace-modal">
         <div className="add-trace-section">
-          <div className="add-trace-section-title">From File</div>
+          <div className="add-trace-section-title">From file</div>
           <button
             type="button"
             className="btn add-trace-file-btn"
             onClick={handleImportFile}
           >
             <Icon>file_upload</Icon>
-            <span>Import Curve File (.csv, .txt)</span>
+            <span>Import file (.csv, .txt)</span>
           </button>
         </div>
 
         <div className="add-trace-section">
             <div className="add-trace-section-title">
-              Online Search
+              Online search
               {downloaded && totalCount && (
                 <span className="add-trace-section-count">{totalCount} curves</span>
               )}
@@ -154,8 +154,8 @@ export function AddTraceModal({
             {downloaded ? (
               <>
                 <input type="text" className="curves-search-input"
-                  placeholder="Search online database..."
-                  aria-label="Search online database"
+                  placeholder="Search online curves…"
+                  aria-label="Search online curves"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
@@ -187,32 +187,32 @@ export function AddTraceModal({
                     ))
                   )}
                   {!debouncedQuery.trim() && (
-                    <div className="online-result-empty">Type to search online curves</div>
+                    <div className="online-result-empty">Type to search curves</div>
                   )}
                 </div>
                 <div className="add-trace-cache-row">
                   <span className="add-trace-cache-status">
-                    {totalCount ? `${totalCount.toLocaleString()} curves cached` : "Offline database cached"}
+                    {totalCount ? `${totalCount.toLocaleString()} curves cached` : "Database cached offline"}
                   </span>
                   <button
                     type="button"
                     className="btn add-trace-clear-cache-btn"
-                    title="Clear cached online database (~16MB)"
+                    title="Clear cached database (~16 MB)"
                     onClick={handleResetCache}
                   >
                     <Icon>delete</Icon>
-                    <span>Clear Cache</span>
+                    <span>Clear cache</span>
                   </button>
                 </div>
               </>
             ) : (
               <div className="add-trace-download-prompt">
-                <span>Download the online database to search measurements.</span>
+                <span>Download the database to search curves offline.</span>
                 {downloadProgress !== null ? (
-                  <span>Downloading... {Math.round(downloadProgress * 100)}%</span>
+                  <span>Downloading… {Math.round(downloadProgress * 100)}%</span>
                 ) : (
                   <button type="button" className="btn" onClick={handleDownload} disabled={isDownloading}>
-                    Download Cache
+                    Download database
                   </button>
                 )}
               </div>

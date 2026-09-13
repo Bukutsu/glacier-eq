@@ -27,7 +27,7 @@ export const UnifiedTracesList = memo(function UnifiedTracesList({
   return (
     <div className="trace-list">
       {isEmpty && (
-        <div className="curve-empty">No traces loaded. Tap Add Trace to get started.</div>
+        <div className="curve-empty">No traces loaded. Use Add Trace to add a measurement or target.</div>
       )}
       {measurements.map((trace) => (
         <div className="curve-item" key={trace.id}>

@@ -409,7 +409,7 @@ export function AutoEqTab({
       && asyncContextEquals(context, getAsyncContext());
 
     setIsOptimizing(true);
-    setStatus("Running AutoEQ optimization...");
+    setStatus("Optimizing EQ...");
     setWarnings([]);
 
     try {
@@ -439,13 +439,13 @@ export function AutoEqTab({
       setWarnings(result.warnings);
 
       if (result.warnings.length > 0) {
-        setStatus(`AutoEQ match complete with ${result.warnings.length} device warning${result.warnings.length === 1 ? "" : "s"}`);
+        setStatus(`EQ matched with ${result.warnings.length} warning${result.warnings.length === 1 ? "" : "s"}`);
       } else {
-        setStatus("AutoEQ match complete");
+        setStatus("EQ matched");
       }
     } catch (err) {
       if (isCurrent()) {
-        setStatus(`AutoEQ match failed: ${err}`);
+        setStatus(`Could not match EQ: ${err}`);
         console.error(err);
       }
     } finally {
@@ -458,7 +458,7 @@ export function AutoEqTab({
       {measurements.length === 0 ? (
         <div className="autoeq-empty">
           <Icon>auto_awesome</Icon>
-          <p>Add a measurement, then match it to a target curve to generate an EQ automatically.</p>
+          <p>Add a measurement and pick a target curve to generate an EQ.</p>
         </div>
       ) : (
         <section className="tool-card autoeq-match-card">
@@ -469,7 +469,7 @@ export function AutoEqTab({
             </div>
           </div>
           <p className="autoeq-description">
-            Generate EQ from a measurement and target.
+            Match a measurement to a target curve to generate filter values.
           </p>
           <div className="autoeq-match-grid">
             <div className="import-field-group">
@@ -496,7 +496,7 @@ export function AutoEqTab({
           <Collapsible title="Advanced settings" compact defaultOpen={false}>
             <div className="autoeq-form-grid">
               <div className="import-field-group">
-                <label>Treble Smoothing</label>
+                <label>Treble smoothing</label>
                 <div className="smooth-buttons" role="group" aria-label="Treble smoothing algorithm">
                   <button
                     type="button"
@@ -535,7 +535,7 @@ export function AutoEqTab({
               </div>
 
               <div className="import-field-group">
-                <label htmlFor="autoeq-steps">Optimizer Steps</label>
+                <label htmlFor="autoeq-steps">Optimizer steps</label>
                 <Select
                   id="autoeq-steps"
                   value={steps}
@@ -554,7 +554,7 @@ export function AutoEqTab({
               </div>
 
               <div className="import-field-group">
-                <label htmlFor="autoeq-fs">Sample Rate</label>
+                <label htmlFor="autoeq-fs">Sample rate</label>
                 <Select
                   id="autoeq-fs"
                   value={fs}
@@ -596,7 +596,7 @@ export function AutoEqTab({
               <span>{isOptimizing ? "Generating EQ..." : "Generate EQ"}</span>
             </button>
           </div>
-          {!target && <p className="card-note" role="status">Add a target using Add Trace to continue.</p>}
+          {!target && <p className="card-note" role="status">Add a target to continue.</p>}
         </section>
       )}
 
@@ -805,10 +805,10 @@ export function DiagnosticsPanel() {
           <span className="diag-count-w" title="Warnings" aria-label={`${warnCount} warnings`}>{warnCount}W</span>
           <span className="diag-count-i" title="Info" aria-label={`${infoCount} info events`}>{infoCount}I</span>
         </div>
-        <button type="button" title={copied ? "Copied!" : "Copy filtered logs to clipboard"} aria-label={copied ? "Copied" : "Copy filtered logs to clipboard"} onClick={copyToClipboard}>
+        <button type="button" title={copied ? "Copied!" : "Copy logs to clipboard"} aria-label={copied ? "Copied" : "Copy logs to clipboard"} onClick={copyToClipboard}>
           <Icon>{copied ? "check" : "content_copy"}</Icon>
         </button>
-        <button type="button" className="danger" title="Clear all logs" aria-label="Clear all logs" onClick={clearLogs}>
+        <button type="button" className="danger" title="Clear logs" aria-label="Clear logs" onClick={clearLogs}>
           <Icon>delete</Icon>
         </button>
       </div>
@@ -854,7 +854,7 @@ export function DiagnosticsPanel() {
       >
         {filtered.length === 0 ? (
           <div className="diag-empty">
-            {events.length === 0 ? "No logs yet." : "No matches for current filter."}
+            {events.length === 0 ? "No logs yet." : "No matching logs."}
           </div>
         ) : (
           filtered.map((event, index) => (

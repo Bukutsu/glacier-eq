@@ -109,10 +109,9 @@ function UdevSection({
     const confirmed = await confirmDialog({
       title: update ? "Update USB permissions?" : "Install USB permissions?",
       message:
-        "This asks for administrator access (one system password prompt) to copy a single file to " +
-        `${status?.dest_path ?? "/etc/udev/rules.d/69-glacier-eq.rules"}, make it world-readable, ` +
-        "and reload udev so your supported DACs work without extra prompts. It installs no services, " +
-        "touches nothing else, and you can remove it from this same screen.",
+        "This requires administrator access (one password prompt) to install a udev rule to " +
+        `${status?.dest_path ?? "/etc/udev/rules.d/69-glacier-eq.rules"} and reload udev. ` +
+        "It installs no background services and can be removed here anytime.",
       confirmLabel: update ? "Update" : "Install",
       cancelLabel: "Cancel",
     });
@@ -125,7 +124,7 @@ function UdevSection({
       if (onUdevInstalled) {
         const connectedName = await onUdevInstalled();
         if (connectedName) {
-          setNote(`Permissions installed. Seamlessly connected to ${connectedName}.`);
+          setNote(`Permissions installed. Connected to ${connectedName}.`);
         } else {
           setNote("Permissions installed. Plug in your DAC and it will connect automatically.");
         }
@@ -145,8 +144,8 @@ function UdevSection({
     const confirmed = await confirmDialog({
       title: "Remove USB permissions?",
       message:
-        `This will delete ${status?.dest_path ?? "/etc/udev/rules.d/69-glacier-eq.rules"}. ` +
-        "You may need root access to communicate with your DAC over USB until rules are reinstalled.",
+        `This deletes ${status?.dest_path ?? "/etc/udev/rules.d/69-glacier-eq.rules"}. ` +
+        "You may need root permissions to access your DAC over USB until rules are reinstalled.",
       confirmLabel: "Remove",
       cancelLabel: "Cancel",
       danger: true,
@@ -193,13 +192,13 @@ function UdevSection({
       </div>
 
       <p className="card-desc">
-        Linux restricts raw USB HID access to root by default. Installing a udev rule grants user permission for verified DACs without running Glacier EQ as root.
+        Linux restricts raw USB access by default. Installing a udev rule lets you access supported DACs without running Glacier EQ as root.
       </p>
 
       <div className="stack-pref-row">
         <div className="stack-pref-info">
           <span className="stack-pref-title">
-            {installed ? (current ? "Permissions active" : "Permissions rule update available") : "Install udev rule"}
+            {installed ? (current ? "Permissions active" : "Rule update available") : "Install udev rule"}
           </span>
           <span className="stack-pref-desc">
             Target: <code>{status?.dest_path ?? "/etc/udev/rules.d/69-glacier-eq.rules"}</code>
@@ -257,7 +256,7 @@ export const SettingsView = memo(function SettingsView({
             to="/settings/general"
             icon="tune"
             title="Behavior & Audio"
-            desc="Auto-pull EQ, frequency snapping, graph preview"
+            desc="Auto-pull EQ, frequency snapping, and graph preview"
           />
 
           <CategoryHeader title="Appearance" />
@@ -265,7 +264,7 @@ export const SettingsView = memo(function SettingsView({
             to="/settings/appearance"
             icon="palette"
             title="Interface & Theme"
-            desc="Color theme, frequency graph view mode"
+            desc="Color theme and graph view mode"
           />
 
           <CategoryHeader title="System" />
@@ -273,7 +272,7 @@ export const SettingsView = memo(function SettingsView({
             to="/settings/diagnostics"
             icon="bug_report"
             title="Diagnostics & Permissions"
-            desc="USB communication logs, Linux udev rules"
+            desc="Diagnostics log and Linux udev rules"
           />
         </div>
       </div>
@@ -300,28 +299,28 @@ export const SettingsView = memo(function SettingsView({
           <div className="stack-card">
             <ToggleRow
               title="Auto-pull EQ on connect"
-              desc="Automatically read on-board filter parameters whenever a DAC is connected"
+              desc="Read EQ automatically when a DAC connects"
               checked={settings.auto_pull_on_connect}
               onChange={(v) => onSettingChange("auto_pull_on_connect", v)}
             />
 
             <ToggleRow
               title="Skip push verification"
-              desc="Transmit filter adjustments faster by skipping post-write readback verification"
+              desc="Write faster by skipping readback verification"
               checked={settings.skip_push_verification}
               onChange={(v) => onSettingChange("skip_push_verification", v)}
             />
 
             <ToggleRow
-              title="Snap frequency to ISO standard values"
-              desc="Quantize slider and drag adjustments to standard 1/3-octave ISO frequencies"
+              title="Snap frequency to ISO steps"
+              desc="Snap frequency sliders and handles to standard 1/3-octave ISO steps"
               checked={settings.snap_to_iso_frequencies}
               onChange={(v) => onSettingChange("snap_to_iso_frequencies", v)}
             />
 
             <ToggleRow
-              title="Floating graph preview while scrolling"
-              desc="Display a miniature response curve thumbnail while scrolling down through filter bands"
+              title="Floating graph preview"
+              desc="Show a small graph preview when scrolling past filter bands"
               checked={settings.floating_graph_preview ?? true}
               onChange={(v) => onSettingChange("floating_graph_preview", v)}
             />
@@ -329,7 +328,7 @@ export const SettingsView = memo(function SettingsView({
             {onShowGraphChange !== undefined && (
               <ToggleRow
                 title="Show frequency response graph"
-                desc="Display the interactive response curve and trace overlays above controls"
+                desc="Show the frequency response graph above controls"
                 checked={!!showGraph}
                 onChange={onShowGraphChange}
               />
@@ -342,7 +341,7 @@ export const SettingsView = memo(function SettingsView({
             <SelectRow<AppSettings["theme"]>
               id="theme-select"
               title="Color Theme"
-              desc="Select visual appearance and syntax palette"
+              desc="Choose the app color scheme"
               value={settings.theme}
               options={THEME_OPTIONS}
               onChange={(val) => onSettingChange("theme", val)}
@@ -353,7 +352,7 @@ export const SettingsView = memo(function SettingsView({
                 <div className="stack-pref-info">
                   <span className="stack-pref-title">Graph View Mode</span>
                   <span className="stack-pref-desc">
-                    Shape normalizes curve response to 1 kHz; Level plots absolute dB output across frequencies.
+                    Shape normalizes curves at 1 kHz. Level shows absolute dB output.
                   </span>
                 </div>
                 <div className="stack-pref-control">
@@ -388,8 +387,8 @@ export const SettingsView = memo(function SettingsView({
             <div className="stack-card">
               {onOpenDiagnostics && (
                 <ActionRow
-                  title="Live Diagnostics Event Log"
-                  desc="Inspect USB packets, connection states, and background driver activity"
+                  title="Diagnostics Log"
+                  desc="View USB traffic, connection events, and driver logs"
                   actionLabel="View Logs"
                   icon="terminal"
                   onAction={onOpenDiagnostics}
@@ -403,7 +402,7 @@ export const SettingsView = memo(function SettingsView({
                   <Icon>keyboard</Icon>
                   <strong>Keyboard Shortcuts</strong>
                 </div>
-                <span className="card-head-sub">Desktop hotkeys for rapid editing and syncing</span>
+                <span className="card-head-sub">Desktop shortcuts for editing and syncing</span>
               </div>
               <div className="shortcut-list">
                 {KEYBOARD_SHORTCUTS.map(([keys, action]) => (

@@ -119,7 +119,7 @@ export const ProfilesView = memo(function ProfilesView({
       dirty &&
       !(await confirmDialog({
         title: "Discard changes?",
-        message: "Loading this profile will replace the current unsaved changes.",
+        message: "Loading this profile will discard your unsaved changes.",
         confirmLabel: "Discard and load",
       }))
     ) {
@@ -144,7 +144,7 @@ export const ProfilesView = memo(function ProfilesView({
     const request = ++parseRequestRef.current;
 
     if (!file.name.endsWith(".txt")) {
-      setStatus("Error: Only .txt AutoEQ files are supported.");
+      setStatus("Only .txt AutoEQ files are supported.");
       return;
     }
 
@@ -194,7 +194,7 @@ export const ProfilesView = memo(function ProfilesView({
       );
     } catch (err) {
       if (request === parseRequestRef.current) {
-        setStatus(`Unable to read clipboard: ${err}`);
+        setStatus(`Could not read clipboard: ${err}`);
         console.error(err);
       }
     }
@@ -204,7 +204,7 @@ export const ProfilesView = memo(function ProfilesView({
     try {
       const text = await invoke<string>("peq_to_autoeq", { peq });
       await writeText(text);
-      setStatus("EQ settings copied to clipboard");
+      setStatus("Copied EQ to clipboard");
     } catch (err) {
       setStatus(`Failed to copy: ${err}`);
     }
@@ -231,7 +231,7 @@ export const ProfilesView = memo(function ProfilesView({
         setStatus("Export cancelled.");
         return;
       }
-      setStatus("EQ settings exported successfully");
+      setStatus("Exported EQ profile");
     } catch (err) {
       setStatus(`Failed to export: ${err}`);
     }
@@ -256,7 +256,7 @@ export const ProfilesView = memo(function ProfilesView({
         nameExists &&
         !(await confirmDialog({
           title: "Overwrite profile?",
-          message: `A profile named "${nameSnapshot.trim()}" already exists. Saving will replace it.`,
+          message: `A profile named "${nameSnapshot.trim()}" already exists. Overwrite it?`,
           confirmLabel: "Overwrite",
           danger: true,
         }))
@@ -268,17 +268,17 @@ export const ProfilesView = memo(function ProfilesView({
       if (temporarySnapshot) {
         onImportPEQ(parsedSnapshot.peq, nameSnapshot || "Imported EQ", false);
         setParsed(null);
-        setStatus("Applied to the editor without saving");
+        setStatus("Applied to editor without saving");
         return;
       }
 
       const name = nameSnapshot.trim();
       if (!name) {
-        setStatus("Please enter a name for the profile.");
+        setStatus("Enter a name for the profile.");
         return;
       }
       if (name === DEFAULT_PROFILE_NAME) {
-        setStatus(`"${DEFAULT_PROFILE_NAME}" is reserved. Choose another profile name.`);
+        setStatus(`"${DEFAULT_PROFILE_NAME}" is reserved. Choose another name.`);
         return;
       }
 
@@ -290,7 +290,7 @@ export const ProfilesView = memo(function ProfilesView({
 
       onImportPEQ(parsedSnapshot.peq, name, true);
       setParsed(null);
-      setStatus(`Profile '${name}' saved`);
+      setStatus(`Profile "${name}" saved`);
     } catch (err) {
       if (isCurrent()) setStatus(`Failed to save profile: ${err}`);
     } finally {
@@ -401,8 +401,8 @@ export const ProfilesView = memo(function ProfilesView({
                     <button
                       type="button"
                       className="profile-apply-btn"
-                      title={`Try ${profile.name} on DAC temporarily`}
-                      aria-label={`Try ${profile.name} on DAC temporarily`}
+                      title={`Try ${profile.name} on DAC`}
+                      aria-label={`Try ${profile.name} on DAC`}
                       onClick={(e) => {
                         e.stopPropagation();
                         onApplyProfile(profile);
@@ -424,7 +424,7 @@ export const ProfilesView = memo(function ProfilesView({
               <>
                 <div className="profile-save-field">
                   <label htmlFor="profile-save-name">
-                    {selectedIsSaved ? "Save as new copy" : "New profile name"}
+                    {selectedIsSaved ? "Save as copy" : "Profile name"}
                   </label>
                   <div className="profile-name-input-wrap">
                     <input
@@ -515,7 +515,7 @@ export const ProfilesView = memo(function ProfilesView({
                   <button
                     type="button"
                     className="profile-save-as-toggle"
-                    title="Save current profile as a new copy"
+                    title="Save as copy"
                     onClick={() => {
                       setNewProfileName("");
                       setSaveAsOpen(true);
@@ -530,7 +530,7 @@ export const ProfilesView = memo(function ProfilesView({
               <button
                 type="button"
                 className="profile-save-as-toggle"
-                title="Save current EQ as a new profile"
+                title="Save as new profile"
                 onClick={() => {
                   setNewProfileName("");
                   setSaveAsOpen(true);
@@ -652,13 +652,13 @@ export const ProfilesView = memo(function ProfilesView({
                 </div>
               ) : (
                 <p className="import-temp-note">
-                  This will apply the imported filters to your current session without saving a permanent profile.
+                  Applies the imported filters to your current session without saving a profile.
                 </p>
               )}
 
               {activeFilters.length > 0 && (
                 <div className="import-preview-section">
-                  <span>Filters Preview:</span>
+                  <span>Filters preview:</span>
                   <div className="import-preview-box">
                     {activeFilters.map((f: Filter, idx: number) => (
                       <div key={idx} className="preview-line">
@@ -671,7 +671,7 @@ export const ProfilesView = memo(function ProfilesView({
 
               {parsed.warnings.length > 0 && (
                 <div className="import-warnings-section">
-                  <span>Compatibility Adjustments:</span>
+                  <span>Adjustments:</span>
                   <div className="import-warnings-box">
                     {parsed.warnings.map((w: string, idx: number) => (
                       <div key={idx} className="warning-line">
@@ -691,7 +691,7 @@ export const ProfilesView = memo(function ProfilesView({
                 onClick={handleConfirmImport}
               >
                 <Icon>check</Icon>
-                <span>{isTemporary ? "Apply to Editor" : "Save Profile"}</span>
+                <span>{isTemporary ? "Apply to editor" : "Save profile"}</span>
               </button>
               <button
                 type="button"
