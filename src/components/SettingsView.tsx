@@ -13,7 +13,8 @@ import {
   ToggleRow,
 } from "./SettingsPrimitives";
 import { invoke } from "../lib/rpc";
-import { isTauri } from "../lib/platform";
+import { isLinux, isTauri } from "../lib/platform";
+import { LinuxUdevGuide } from "./LinuxUdevGuide";
 import type { SettingsSection } from "../lib/tabs";
 import type { AppSettings, GraphViewMode } from "../types";
 
@@ -76,6 +77,8 @@ function UdevSection({
   useEffect(() => {
     if (!isTauri()) {
       setChecking(false);
+      // Web builds cannot escalate privileges (no polkit), so there is no
+      // daemon status to query — the manual guide below is the whole flow.
       return;
     }
     let cancelled = false;
@@ -94,7 +97,23 @@ function UdevSection({
     };
   }, []);
 
-  if (!isTauri() || (!checking && (status === null || !status.supported))) {
+  if (!isTauri()) {
+    if (!isLinux()) return null;
+    return (
+      <section className="settings-card udev-card">
+        <div className="settings-card-head">
+          <div className="card-head-title">
+            <Icon>security</Icon>
+            <strong>Linux USB Permissions</strong>
+          </div>
+          <span className="card-head-sub">One-time terminal setup</span>
+        </div>
+        <LinuxUdevGuide setStatus={setStatus} />
+      </section>
+    );
+  }
+
+  if (!checking && (status === null || !status.supported)) {
     return null;
   }
 

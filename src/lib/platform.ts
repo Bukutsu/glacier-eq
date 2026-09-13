@@ -6,3 +6,8 @@ export const isAndroidDevice = () =>
   (/android/i.test(navigator.userAgent) ||
     (typeof document !== "undefined" &&
       document.body.classList.contains("is-android")));
+
+export const isLinux = () =>
+  typeof navigator !== "undefined" &&
+  /linux/i.test(navigator.userAgent) &&
+  !/android/i.test(navigator.userAgent);

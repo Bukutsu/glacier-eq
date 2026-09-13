@@ -1159,7 +1159,7 @@ function App() {
         if (errorMsg.includes("NotAllowedError") && !isTauri()) {
           reportStatus(
             "Error",
-            "Permission denied. On Linux, set up udev rules to allow WebHID access to this DAC. See the project README for instructions.",
+            "Permission denied. On Linux this is usually the missing udev rule: open Settings > Diagnostics & Permissions for the one-time terminal command, then replug the DAC and Scan again.",
             "error",
             "UI"
           );
