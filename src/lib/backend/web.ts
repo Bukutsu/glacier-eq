@@ -11,35 +11,12 @@ import type {
   Profile,
   SupportedDeviceInfo,
 } from "../../types";
-import {
-  ensureWasm,
-  list_supported_devices,
-  parse_autoeq,
-  peq_to_autoeq,
-  normalize_peq_for_device,
-  is_default_peq_for_device,
-  match_profile_name,
-  run_autoeq,
-  build_init_packets,
-  build_read_filter_request,
-  matches_filter_response,
-  parse_filter_response,
-  build_read_global_gain_request,
-  matches_global_gain_response,
-  parse_global_gain_response,
-  build_write_filter_packets,
-  build_write_global_gain_packets,
-  build_commit_packets,
-  build_ram_apply_packets,
-  build_filter_mode_write_packet,
-  build_amp_mode_write_packet,
-  build_gain_mode_write_packet,
-  build_balance_write_packets,
-  build_mic_volume_write_packet,
-  build_factory_reset_packet,
-  build_flash_eq_packet,
-  get_write_timing,
-} from "./wasm";
+import { ensureWasm, getWasm } from "./wasm";
+
+// Wasm entry points are resolved lazily: ensureWasm() has already run on every
+// path that reaches them (invokeWeb awaits it before dispatching), so the
+// wasm binary stays off the startup-critical chunk graph.
+const wasm = () => getWasm();
 
 // ─── Browser Event Bus ───────────────────────────────────────────────────────
 
@@ -539,7 +516,7 @@ function normalizeActivePeq(value: unknown, profile: SupportedDeviceInfo): PEQDa
   const peq = parseStoredPeq(value);
   if (!peq) throw new Error("Invalid PEQ data");
   const { vendorId, productId } = activeProfileIds(profile);
-  const normalized = parseStoredPeq(normalize_peq_for_device(peq, vendorId, productId));
+  const normalized = parseStoredPeq(wasm().normalize_peq_for_device(peq, vendorId, productId));
   if (!normalized) throw new Error("Device normalization returned invalid PEQ data");
   return normalized;
 }
@@ -558,7 +535,7 @@ function unsupportedUtilityState() {
 async function writeAndFlash(packet: number[] | Uint8Array) {
   await sendReport(packet);
   await sleep(50);
-  await sendReport(build_flash_eq_packet());
+  await sendReport(wasm().build_flash_eq_packet());
 }
 
 async function readWalkplayUtility(cmd: number): Promise<Uint8Array> {
@@ -663,10 +640,10 @@ function resetPeq(numBands: number): PEQData {
 }
 
 async function writeEqPayload(protocol: string, peq: PEQData, initMessage: string) {
-  const timing = get_write_timing(protocol);
+  const timing = wasm().get_write_timing(protocol);
 
   emitEvent("operation-progress", { message: initMessage, percentage: 10 });
-  await sendPackets(build_init_packets(protocol));
+  await sendPackets(wasm().build_init_packets(protocol));
   await sleep(50);
 
   const total = peq.filters.length;
@@ -676,7 +653,7 @@ async function writeEqPayload(protocol: string, peq: PEQData, initMessage: strin
       percentage: 15.0 + (i / total) * 60.0,
     });
 
-    await sendPackets(build_write_filter_packets(
+    await sendPackets(wasm().build_write_filter_packets(
       protocol,
       i,
       peq.filters[i],
@@ -688,14 +665,14 @@ async function writeEqPayload(protocol: string, peq: PEQData, initMessage: strin
 
   emitEvent("operation-progress", { message: "Writing preamp...", percentage: 75 });
   await sleep(timing.batch_ms || 100);
-  await sendPackets(build_write_global_gain_packets(protocol, peq.global_gain));
+  await sendPackets(wasm().build_write_global_gain_packets(protocol, peq.global_gain));
   await sleep(timing.global_gain_ms || 50);
 }
 
 async function commitEqPayload(protocol: string, progressMessage: string): Promise<void> {
-  const timing = get_write_timing(protocol);
+  const timing = wasm().get_write_timing(protocol);
   emitEvent("operation-progress", { message: progressMessage, percentage: 80 });
-  for (const packet of build_commit_packets(protocol)) {
+  for (const packet of wasm().build_commit_packets(protocol)) {
     await sendReport(packet);
     await sleep(timing.commit_step_ms || 100);
   }
@@ -705,19 +682,19 @@ async function pullEqStateOnce(profile: SupportedDeviceInfo): Promise<PEQData> {
   const protocol = profile.protocol;
   const numBands = profile.num_bands;
   reportQueue = [];
-  await sendPackets(build_init_packets(protocol));
+  await sendPackets(wasm().build_init_packets(protocol));
   await sleep(50);
 
-  const req = build_read_global_gain_request(protocol);
+  const req = wasm().build_read_global_gain_request(protocol);
   await sendReport(req);
   const globalResponse = await readMatchingReport(200, (data) =>
-    matches_global_gain_response(protocol, data)
+    wasm().matches_global_gain_response(protocol, data)
   );
   if (!globalResponse) throw new Error("Global gain read timeout");
-  const global_gain = parse_global_gain_response(protocol, globalResponse);
+  const global_gain = wasm().parse_global_gain_response(protocol, globalResponse);
 
   const filters: Filter[] = [];
-  const timing = get_write_timing(protocol);
+  const timing = wasm().get_write_timing(protocol);
   await sleep(timing.post_gain_read_ms || 0);
 
   for (let i = 0; i < numBands; i++) {
@@ -727,17 +704,17 @@ async function pullEqStateOnce(profile: SupportedDeviceInfo): Promise<PEQData> {
     });
 
     const nonce = (i + 1) & 0xff;
-    const filterReq = build_read_filter_request(protocol, i, nonce);
+    const filterReq = wasm().build_read_filter_request(protocol, i, nonce);
     let filter: Filter | null = null;
 
     for (let retry = 0; retry < 3; retry++) {
       try {
         await sendReport(filterReq);
         const res = await readMatchingReport(250, (data) =>
-          matches_filter_response(protocol, data, i, nonce)
+          wasm().matches_filter_response(protocol, data, i, nonce)
         );
         if (res) {
-          filter = parseStoredFilter(parse_filter_response(protocol, res));
+          filter = parseStoredFilter(wasm().parse_filter_response(protocol, res));
           if (!filter) throw new Error(`Invalid band ${i + 1} response`);
           break;
         }
@@ -760,7 +737,7 @@ async function pullEqState(profile: SupportedDeviceInfo): Promise<PEQData> {
   try {
     first = await pullEqStateOnce(profile);
     const { vendorId, productId } = activeProfileIds(profile);
-    if (!is_default_peq_for_device(first, vendorId, productId)) return first;
+    if (!wasm().is_default_peq_for_device(first, vendorId, productId)) return first;
   } catch {
     // DeviceSession::pull retries one complete read after any first-attempt error.
   }
@@ -873,15 +850,15 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
 
     // ─── AutoEQ & Utilities ──────────────────────────────────────────────────
     case "list_supported_devices": {
-      return list_supported_devices() as T;
+      return wasm().list_supported_devices() as T;
     }
     case "parse_autoeq": {
       const vid = activeProfile?.vendor_id ?? null;
       const pid = activeProfile?.product_id ?? null;
-      return parse_autoeq(args.text, vid, pid) as T;
+      return wasm().parse_autoeq(args.text, vid, pid) as T;
     }
     case "peq_to_autoeq": {
-      return peq_to_autoeq(args.peq) as T;
+      return wasm().peq_to_autoeq(args.peq) as T;
     }
     case "match_profile_name": {
       const peq = parseStoredPeq(commandField(args, "peq"));
@@ -889,14 +866,14 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
       const profiles = loadWebProfiles();
       const vid = activeProfile?.vendor_id ?? null;
       const pid = activeProfile?.product_id ?? null;
-      return match_profile_name(peq, profiles, vid, pid) as T;
+      return wasm().match_profile_name(peq, profiles, vid, pid) as T;
     }
     case "run_autoeq": {
       const vid = activeProfile?.vendor_id ?? null;
       const pid = activeProfile?.product_id ?? null;
       const measurementPoints = args.measurement_points ?? args.measurementPoints;
       const targetPoints = args.target_points ?? args.targetPoints;
-      return run_autoeq(
+      return wasm().run_autoeq(
         measurementPoints,
         targetPoints,
         args.n_bands ?? args.nBands,
@@ -937,7 +914,7 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
     // ─── Device Connection / HID ──────────────────────────────────────────────
     case "list_devices": {
       const devices = await ensureWebHid().getDevices();
-      const supported = list_supported_devices() as SupportedDeviceInfo[];
+      const supported = wasm().list_supported_devices() as SupportedDeviceInfo[];
       return devices.flatMap((dev: any) => {
         const profile = matchSupportedWebHidDevice(dev, supported);
         if (!profile) return [];
@@ -955,7 +932,7 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
     case "connect_device": {
       const devices = await ensureWebHid().getDevices();
       const target = devices.find((dev: any) => webHidPath(dev) === args.path);
-      if (!target || !matchSupportedWebHidDevice(target, list_supported_devices() as SupportedDeviceInfo[])) {
+      if (!target || !matchSupportedWebHidDevice(target, wasm().list_supported_devices() as SupportedDeviceInfo[])) {
         throw new Error("Unsupported or unavailable device. Please click 'Scan' to authorize a supported DAC.");
       }
 
@@ -973,7 +950,7 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
       reportResolvers = [];
       setupHidEventListeners(target);
 
-      const supported = list_supported_devices() as SupportedDeviceInfo[];
+      const supported = wasm().list_supported_devices() as SupportedDeviceInfo[];
       const found = matchSupportedWebHidDevice(target, supported);
       activeProfile = {
         ...found!,
@@ -1055,13 +1032,13 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
         throw new Error(`${profile.name} does not advertise volatile RAM apply support`);
       }
       const protocol = profile.protocol;
-      const timing = get_write_timing(protocol);
+      const timing = wasm().get_write_timing(protocol);
       const peq = normalizeActivePeq(commandField(args, "peq"), profile);
       await writeEqPayload(protocol, peq, "Initializing apply connection...");
 
       // 4. apply to RAM
       emitEvent("operation-progress", { message: "Applying to RAM...", percentage: 85 });
-      for (const pkt of build_ram_apply_packets(protocol)) {
+      for (const pkt of wasm().build_ram_apply_packets(protocol)) {
         await sendReport(pkt);
         await sleep(timing.commit_step_ms || 100);
       }
@@ -1108,26 +1085,26 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
       } as T;
     }
     case "set_dac_filter_mode": {
-      await writeAndFlash(build_filter_mode_write_packet(args.mode));
+      await writeAndFlash(wasm().build_filter_mode_write_packet(args.mode));
       return null as T;
     }
     case "set_dac_work_mode": {
-      await writeAndFlash(build_amp_mode_write_packet(args.isClassAb));
+      await writeAndFlash(wasm().build_amp_mode_write_packet(args.isClassAb));
       return null as T;
     }
     case "set_dac_output_gain": {
-      await writeAndFlash(build_gain_mode_write_packet(args.isHighGain));
+      await writeAndFlash(wasm().build_gain_mode_write_packet(args.isHighGain));
       return null as T;
     }
     case "set_dac_balance": {
-      const packets = build_balance_write_packets(args.balance);
+      const packets = wasm().build_balance_write_packets(args.balance);
       await sendPackets(packets, 20);
-      const flash = build_flash_eq_packet();
+      const flash = wasm().build_flash_eq_packet();
       await sendReport(flash);
       return null as T;
     }
     case "set_mic_volume": {
-      await writeAndFlash(build_mic_volume_write_packet(args.volumeDb));
+      await writeAndFlash(wasm().build_mic_volume_write_packet(args.volumeDb));
       return null as T;
     }
     case "reset_device_eq": {
@@ -1144,7 +1121,7 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
       return invokeWeb<T>("get_dac_utility_state");
     }
     case "execute_factory_reset": {
-      await writeAndFlash(build_factory_reset_packet());
+      await writeAndFlash(wasm().build_factory_reset_packet());
       return null as T;
     }
 
@@ -1157,7 +1134,7 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
 // Helper to trigger browser WebHID picker
 export async function requestWebHidDevice(): Promise<void> {
   await ensureWasm();
-  const supported = list_supported_devices();
+  const supported = wasm().list_supported_devices();
   const filters = supported.map((s: any) => ({
     vendorId: s.vendor_id,
     productId: s.product_id || undefined,
