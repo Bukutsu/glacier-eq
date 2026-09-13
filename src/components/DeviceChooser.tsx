@@ -1,8 +1,9 @@
 import { invoke, requestWebHidDevice } from "../lib/rpc";
 import { useEffect, useState } from "react";
 import { Icon } from "./Icon";
+import { LinuxUdevGuide } from "./LinuxUdevGuide";
 import { isDevDummyDevice } from "../lib/devDevice";
-import { isTauri } from "../lib/platform";
+import { isLinux, isTauri } from "../lib/platform";
 import type { DeviceInfo, SupportedDeviceInfo } from "../types";
 
 
@@ -150,9 +151,12 @@ export function DeviceChooser({
           {!isTauri() && <li>Use Chromium and approve the browser device prompt.</li>}
           {isTauri()
             ? <li>On Linux, open Settings &gt; Diagnostics to install the udev rule, then replug the DAC.</li>
-            : <li>On Linux, install the udev rules, then replug the DAC.</li>}
+            : !isLinux()
+              ? <li>On Linux, install the udev rules, then replug the DAC.</li>
+              : null}
         </ul>
-        <a href="https://github.com/Bukutsu/glacier-eq#linux-hid-permissions" target="_blank" rel="noreferrer">Open connection help</a>
+        {!isTauri() && isLinux() && <LinuxUdevGuide compact />}
+        <a href="https://github.com/Bukutsu/glacier-eq/wiki/Troubleshooting" target="_blank" rel="noreferrer">Open connection help</a>
       </details>
 
       <div className="device-actions">

@@ -133,3 +133,10 @@
 .device-troubleshooting a { color: var(--cyan); }
 .device-actions { display: flex; gap: 10px; justify-content: flex-end; }
 
+.linux-udev-guide { display: grid; gap: 10px; margin: 10px 0; font-size: var(--type-small); line-height: 1.6; }
+.linux-udev-guide p { margin: 0; }
+.linux-udev-guide a { color: var(--cyan); }
+.udev-command-row { display: grid; gap: 8px; }
+.udev-command-row code { display: block; overflow-x: auto; white-space: pre; padding: 10px 12px; background: var(--bg-dark); border: 1px solid var(--line-soft); border-radius: 8px; font-size: var(--type-caption); }
+.udev-steps { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+
