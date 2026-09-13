@@ -69,3 +69,5 @@ bun.lock
 bun.lockb
 .pi/
 .pi-subagents/
+
+.perf/
