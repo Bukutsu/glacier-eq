@@ -1024,6 +1024,48 @@ fn grad(
         let ba = s.b0 + s.b1 + s.b2;
         let aa = s.a0 + s.a1 + s.a2;
 
+        // The six per-point derivative numerators share the form
+        // D(phi) = c0 - phi*c1 + phi^2*c2, so the coefficient-weighted sums the
+        // chain rule needs collapse to three quadratics with band-constant
+        // coefficients instead of six separately evaluated polynomials.
+        let b_da_c0 = ba * (s.db0_da + s.db1_da + s.db2_da);
+        let b_da_c1 = 2.0
+            * (s.db0_da * (s.b1 + 4.0 * s.b2)
+                + s.db1_da * (s.b0 + s.b2)
+                + s.db2_da * (4.0 * s.b0 + s.b1));
+        let b_da_c2 = 8.0 * (s.db0_da * s.b2 + s.db2_da * s.b0);
+
+        let b_al_c0 = ba * (s.db0_dalpha + s.db2_dalpha);
+        let b_al_c1 = 2.0
+            * (s.db0_dalpha * (s.b1 + 4.0 * s.b2) + s.db2_dalpha * (4.0 * s.b0 + s.b1));
+        let b_al_c2 = 8.0 * (s.db0_dalpha * s.b2 + s.db2_dalpha * s.b0);
+
+        let b_co_c0 = ba * (s.db0_dcos + s.db1_dcos + s.db2_dcos);
+        let b_co_c1 = 2.0
+            * (s.db0_dcos * (s.b1 + 4.0 * s.b2)
+                + s.db1_dcos * (s.b0 + s.b2)
+                + s.db2_dcos * (4.0 * s.b0 + s.b1));
+        let b_co_c2 = 8.0 * (s.db0_dcos * s.b2 + s.db2_dcos * s.b0);
+
+        let a_da_c0 = aa * (s.da0_da + s.da1_da + s.da2_da);
+        let a_da_c1 = 2.0
+            * (s.da0_da * (s.a1 + 4.0 * s.a2)
+                + s.da1_da * (s.a0 + s.a2)
+                + s.da2_da * (4.0 * s.a0 + s.a1));
+        let a_da_c2 = 8.0 * (s.da0_da * s.a2 + s.da2_da * s.a0);
+
+        let a_al_c0 = aa * (s.da0_dalpha + s.da2_dalpha);
+        let a_al_c1 = 2.0
+            * (s.da0_dalpha * (s.a1 + 4.0 * s.a2) + s.da2_dalpha * (4.0 * s.a0 + s.a1));
+        let a_al_c2 = 8.0 * (s.da0_dalpha * s.a2 + s.da2_dalpha * s.a0);
+
+        let a_co_c0 = aa * (s.da0_dcos + s.da1_dcos + s.da2_dcos);
+        let a_co_c1 = 2.0
+            * (s.da0_dcos * (s.a1 + 4.0 * s.a2)
+                + s.da1_dcos * (s.a0 + s.a2)
+                + s.da2_dcos * (4.0 * s.a0 + s.a1));
+        let a_co_c2 = 8.0 * (s.da0_dcos * s.a2 + s.da2_dcos * s.a0);
+
         for k in 0..K {
             let phi_k = c.phi[k];
 
@@ -1033,38 +1075,16 @@ fn grad(
             let ratio = if a_poly > 1e-30 { b_poly / a_poly } else { 1.0 };
             pred[k] *= ratio;
 
-            let _8phi2 = 8.0 * phi_k * phi_k;
-            let _2phi = 2.0 * phi_k;
-
+            let phi2 = phi_k * phi_k;
             let bm = 20.0 / std::f32::consts::LN_10 / b_poly;
             let am = -20.0 / std::f32::consts::LN_10 / a_poly;
 
-            let dy_db0 = bm * (ba - _2phi * (s.b1 + 4.0 * s.b2) + _8phi2 * s.b2);
-            let dy_db1 = bm * (ba - _2phi * (s.b0 + s.b2));
-            let dy_db2 = bm * (ba - _2phi * (4.0 * s.b0 + s.b1) + _8phi2 * s.b0);
-
-            let dy_da0 = am * (aa - _2phi * (s.a1 + 4.0 * s.a2) + _8phi2 * s.a2);
-            let dy_da1 = am * (aa - _2phi * (s.a0 + s.a2));
-            let dy_da2 = am * (aa - _2phi * (4.0 * s.a0 + s.a1) + _8phi2 * s.a0);
-
-            let dy_da_local = dy_db0 * s.db0_da
-                + dy_db1 * s.db1_da
-                + dy_db2 * s.db2_da
-                + dy_da0 * s.da0_da
-                + dy_da1 * s.da1_da
-                + dy_da2 * s.da2_da;
-
-            let dy_dalpha_local = dy_db0 * s.db0_dalpha
-                + dy_db2 * s.db2_dalpha
-                + dy_da0 * s.da0_dalpha
-                + dy_da2 * s.da2_dalpha;
-
-            let dy_dcos_local = dy_db0 * s.db0_dcos
-                + dy_db1 * s.db1_dcos
-                + dy_db2 * s.db2_dcos
-                + dy_da0 * s.da0_dcos
-                + dy_da1 * s.da1_dcos
-                + dy_da2 * s.da2_dcos;
+            let dy_da_local = bm * (b_da_c0 + phi2 * b_da_c2 - phi_k * b_da_c1)
+                + am * (a_da_c0 + phi2 * a_da_c2 - phi_k * a_da_c1);
+            let dy_dalpha_local = bm * (b_al_c0 + phi2 * b_al_c2 - phi_k * b_al_c1)
+                + am * (a_al_c0 + phi2 * a_al_c2 - phi_k * a_al_c1);
+            let dy_dcos_local = bm * (b_co_c0 + phi2 * b_co_c2 - phi_k * b_co_c1)
+                + am * (a_co_c0 + phi2 * a_co_c2 - phi_k * a_co_c1);
 
             dy_dw0[n][k] = dy_dalpha_local * dalpha_dw0 + dy_dcos_local * dcos_dw0;
             dy_dgain[n][k] = dy_da_local * da_dgain;
