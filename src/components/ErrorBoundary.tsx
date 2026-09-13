@@ -40,7 +40,7 @@ export class ErrorBoundary extends Component<Props, State> {
             onClick={() => window.location.reload()}
             style={{ padding: "8px 16px", background: "var(--surface-soft)", color: "var(--text)", border: "none", borderRadius: "var(--radius-control)", cursor: "pointer" }}
           >
-            Reload Application
+            Reload app
           </button>
         </div>
       );

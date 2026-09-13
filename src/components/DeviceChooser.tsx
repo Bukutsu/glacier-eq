@@ -48,7 +48,7 @@ export function DeviceChooser({
     } catch (err) {
       setAuthorizationError(
         (err as { name?: string })?.name === "AbortError"
-          ? "Device authorization was cancelled."
+          ? "Device authorization cancelled."
           : `Device authorization failed: ${err}. Check browser permissions and try again.`,
       );
     }
@@ -110,7 +110,7 @@ export function DeviceChooser({
                 </span>
                 <small>
                   {isDummy
-                    ? "No hardware required for UI review"
+                    ? "Simulated device for testing without hardware"
                     : device.product_string || device.manufacturer || "Walkplay Family DAC"}
                 </small>
               </button>
@@ -149,8 +149,8 @@ export function DeviceChooser({
           <li>Replug the DAC and close other apps using it.</li>
           {!isTauri() && <li>Use Chromium and approve the browser device prompt.</li>}
           {isTauri()
-            ? <li>On Linux, use Settings → USB permissions to install the udev rules, then replug the DAC.</li>
-            : <li>On Linux, install the project udev rules, then replug the DAC.</li>}
+            ? <li>On Linux, open Settings &gt; Diagnostics to install the udev rule, then replug the DAC.</li>
+            : <li>On Linux, install the udev rules, then replug the DAC.</li>}
         </ul>
         <a href="https://github.com/Bukutsu/glacier-eq#linux-hid-permissions" target="_blank" rel="noreferrer">Open connection help</a>
       </details>

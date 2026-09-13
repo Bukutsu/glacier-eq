@@ -36,7 +36,7 @@ function quarantinePersistedJson(
     // Backup write failed (likely the same quota problem) — give up quietly.
   }
   notify?.(
-    `Saved data for "${key}" was corrupted and could not be loaded; a backup copy was kept for recovery.`,
+    `Could not load saved data for "${key}". Created a backup copy.`,
   );
 }
 

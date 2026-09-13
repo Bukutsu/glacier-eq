@@ -1024,7 +1024,7 @@ function App() {
     if (eqOperationInFlightRef.current) return;
     if (dirty && !(await confirmDialog({
       title: "Discard changes?",
-      message: "Reading the EQ from the DAC will replace the current unsaved profile changes.",
+      message: "Reading EQ from the DAC will discard your unsaved changes.",
       confirmLabel: "Discard and read",
     }))) return;
     eqOperationInFlightRef.current = true;
@@ -1087,9 +1087,9 @@ function App() {
         setLastPushedPeq(null);
         setFirmwareVersion(null);
         setIsReconnecting(true);
-        reportStatus("Error", `Failed to read from DAC (disconnected): ${error}`, "error", "HID", "Reconnecting...");
+        reportStatus("Error", `Could not read from DAC (disconnected): ${error}`, "error", "HID", "Reconnecting...");
       } else {
-        reportStatus("Error", `Failed to read from DAC: ${error}`, "error", "UI");
+        reportStatus("Error", `Could not read from DAC: ${error}`, "error", "UI");
       }
     } finally {
       eqOperationInFlightRef.current = false;
@@ -1144,7 +1144,7 @@ function App() {
           setPeq(constrained);
           noteEditorMutation();
           setDirty(!peqEquals(constrained, editorCleanPeqRef.current));
-          reportStatus("Info", "Editor adjusted to this DAC's supported ranges", "info", "Device");
+          reportStatus("Info", "Adjusted editor to this DAC's ranges", "info", "Device");
         }
       }
       await loadFirmwareVersion(pathToConnect, connectionGenerationRef.current);
@@ -1153,18 +1153,18 @@ function App() {
       setConnected(false);
       setLastPushedPeq(null);
       if (isDisconnectionError(error)) {
-        reportStatus("Error", `Failed to connect (disconnected): ${error}`, "error", "UI", "Device disconnected");
+        reportStatus("Error", `Could not connect (disconnected): ${error}`, "error", "UI", "Device disconnected");
       } else {
         const errorMsg = String(error);
         if (errorMsg.includes("NotAllowedError") && !isTauri()) {
           reportStatus(
             "Error",
-            "Connection failed: Linux permissions error. You need to configure a udev rule to allow WebHID access to this DAC. See the project README for instructions.",
+            "Permission denied. On Linux, set up udev rules to allow WebHID access to this DAC. See the project README for instructions.",
             "error",
             "UI"
           );
         } else {
-          reportStatus("Error", `Failed to connect: ${error}`, "error", "UI");
+          reportStatus("Error", `Could not connect: ${error}`, "error", "UI");
         }
       }
       return false;
@@ -1211,7 +1211,7 @@ function App() {
     const bandCount = activeBands === 1 ? "band" : "bands";
     if (!(await confirmDialog({
       title: "Write to DAC?",
-      message: `Write ${activeBands} ${bandCount} and ${snapshot.global_gain.toFixed(1)} dB preamp to the DAC? This stores the EQ on the device.`,
+      message: `Write ${activeBands} ${bandCount} and ${snapshot.global_gain.toFixed(1)} dB preamp to the DAC? This saves the EQ to the device.`,
       confirmLabel: "Write DAC",
       danger: true,
     }))) return;
@@ -1273,9 +1273,9 @@ function App() {
         setLastPushedPeq(null);
         setFirmwareVersion(null);
         setIsReconnecting(true);
-        reportStatus("Error", `Failed to write to DAC (disconnected): ${error}`, "error", "HID", "Reconnecting...");
+        reportStatus("Error", `Could not write to DAC (disconnected): ${error}`, "error", "HID", "Reconnecting...");
       } else {
-        reportStatus("Error", `Failed to write to DAC: ${error}`, "error", "UI");
+        reportStatus("Error", `Could not write to DAC: ${error}`, "error", "UI");
       }
     } finally {
       eqOperationInFlightRef.current = false;
@@ -1289,7 +1289,7 @@ function App() {
       if (eqOperationInFlightRef.current) return;
       if (dirty && !(await confirmDialog({
         title: "Discard changes?",
-        message: "Applying this profile will replace the current unsaved profile changes.",
+        message: "Applying this profile will discard your unsaved changes.",
         confirmLabel: "Discard and apply",
       }))) return;
       eqOperationInFlightRef.current = true;
@@ -1324,7 +1324,7 @@ function App() {
           "Info",
           isDevDummyDevice(selectedDevice)
             ? "Dummy DAC apply simulated"
-            : `Temporarily applied ${profile.name} to DAC`,
+            : `Applied ${profile.name} to DAC temporarily`,
           "success",
           "UI"
         );
@@ -1334,9 +1334,9 @@ function App() {
           setLastPushedPeq(null);
           setFirmwareVersion(null);
           setIsReconnecting(true);
-          reportStatus("Error", `Failed to apply EQ (disconnected): ${error}`, "error", "HID", "Reconnecting...");
+          reportStatus("Error", `Could not apply EQ (disconnected): ${error}`, "error", "HID", "Reconnecting...");
         } else {
-          reportStatus("Error", `Failed to apply EQ: ${error}`, "error", "UI");
+          reportStatus("Error", `Could not apply EQ: ${error}`, "error", "UI");
         }
       } finally {
         eqOperationInFlightRef.current = false;
@@ -1362,7 +1362,7 @@ function App() {
       setFirmwareVersion(null);
       reportStatus("Info", "Disconnected from device", null, "UI", "Disconnected");
     } catch (error) {
-      reportStatus("Error", `Failed to disconnect: ${error}`, "error", "UI");
+      reportStatus("Error", `Could not disconnect: ${error}`, "error", "UI");
     } finally {
       setIsBusy(false);
     }
@@ -1390,7 +1390,7 @@ function App() {
     );
     if (exists && !(await confirmDialog({
       title: "Overwrite profile?",
-      message: `A profile named "${name}" already exists. Saving will replace it.`,
+      message: `A profile named "${name}" already exists. Overwrite it?`,
       confirmLabel: "Overwrite",
       danger: true,
     }))) return;
@@ -1765,7 +1765,7 @@ function App() {
     <div className="editor-empty-hint" role="status">
       <Icon>info</Icon>
       <span className="editor-empty-hint-text">
-        Offline editing — connect a DAC when you’re ready to read or write EQ.
+        Offline editing. Connect a DAC to read or write EQ.
       </span>
       <button
         type="button"
@@ -2109,8 +2109,7 @@ function App() {
             <div className="reconnecting-spinner"></div>
             <h3>Connection lost</h3>
             <p>
-              Attempting to automatically reconnect to{" "}
-              <strong>{connectedDeviceName}</strong>...
+              Reconnecting to <strong>{connectedDeviceName}</strong>...
             </p>
             <button
               type="button"
@@ -2128,14 +2127,14 @@ function App() {
                 fontWeight: 600,
               }}
             >
-              Cancel and return to device selection
+              Cancel reconnection
             </button>
           </div>
         </div>
       )}
       {showDeviceModal && (
         <Modal
-          title="Connect Device"
+          title="Connect DAC"
           onClose={handleCloseDeviceModal}
         >
           <div className="modal-body">
@@ -2153,7 +2152,7 @@ function App() {
       )}
       {showDiagnosticsModal && (
         <Modal
-          title="System Diagnostics"
+          title="Diagnostics"
           className="wide"
           onClose={handleCloseDiagnosticsModal}
           style={{

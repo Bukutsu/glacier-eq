@@ -94,9 +94,9 @@ export const DeviceView = memo(function DeviceView({
     } catch (err) {
       if (isActive()) {
         if (!silent || utilityRef.current === null) {
-          setLoadError(`Couldn't load device status: ${err}`);
+          setLoadError(`Could not load device status: ${err}`);
         } else {
-          setStatus(`Couldn't refresh device status: ${err}`);
+          setStatus(`Could not refresh device status: ${err}`);
         }
       }
     } finally {
@@ -187,7 +187,7 @@ export const DeviceView = memo(function DeviceView({
           }
         }
         if (mountedRef.current) {
-          setStatus(`Failed to update device setting: ${err}`);
+          setStatus(`Could not update device setting: ${err}`);
         }
       }
     });
@@ -211,7 +211,7 @@ export const DeviceView = memo(function DeviceView({
   const handleResetDeviceEq = async () => {
     if (!(await confirmDialog({
       title: "Reset device EQ?",
-      message: "Reset all hardware PEQ bands on the device to 0 dB flat?",
+      message: "Reset all hardware EQ bands on the DAC to 0 dB?",
       confirmLabel: "Reset",
       danger: true,
     }))) return;
@@ -223,7 +223,7 @@ export const DeviceView = memo(function DeviceView({
         if (isCurrent()) setStatus("Device EQ reset to flat.");
       } catch (err) {
         if (!isCurrent()) return;
-        setStatus(`Failed to reset device EQ: ${err}`);
+        setStatus(`Could not reset device EQ: ${err}`);
       }
     }, { supersedePending: true });
   };
@@ -231,7 +231,7 @@ export const DeviceView = memo(function DeviceView({
   const handleResetDeviceControls = async () => {
     if (!(await confirmDialog({
       title: "Reset hardware controls?",
-      message: "Reset filter mode, amp mode, gain, balance, and mic volume to factory defaults?",
+      message: "Reset filter mode, amp mode, gain, balance, and mic volume to defaults?",
       confirmLabel: "Reset",
       danger: true,
     }))) return;
@@ -248,7 +248,7 @@ export const DeviceView = memo(function DeviceView({
         setStatus("Device controls reset to defaults.");
       } catch (err) {
         if (!isCurrent()) return;
-        setStatus(`Failed to reset device controls: ${err}`);
+        setStatus(`Could not reset device controls: ${err}`);
       }
     }, { supersedePending: true });
   };
@@ -256,7 +256,7 @@ export const DeviceView = memo(function DeviceView({
   const handleFactoryReset = async () => {
     if (!(await confirmDialog({
       title: "Factory reset DAC?",
-      message: "This will reset all EQ filters, volume, amplifier mode, and restore the device to its factory defaults.",
+      message: "This resets all EQ filters, volume, amplifier mode, and restores the device to factory defaults.",
       confirmLabel: "Factory Reset",
       danger: true,
     }))) return;
@@ -274,7 +274,7 @@ export const DeviceView = memo(function DeviceView({
         setStatus("Device restored to factory defaults.");
       } catch (err) {
         if (!isCurrent()) return;
-        setStatus(`Failed to factory reset: ${err}`);
+        setStatus(`Could not restore factory defaults: ${err}`);
       }
     }, { supersedePending: true });
   };
@@ -289,7 +289,7 @@ export const DeviceView = memo(function DeviceView({
 
   const deviceTitle = connected || isSimulated
     ? deviceInfo?.profile_name || deviceInfo?.product_string || officialSpec?.name || "Connected DAC"
-    : "Virtual DAC (Offline Engine)";
+    : "Virtual DAC (Offline)";
 
   const dspKhz = Math.round(capabilities.dsp_sample_rate / 1000);
   const bandGain = Math.abs(capabilities.band_gain_range[1]);
@@ -318,9 +318,9 @@ export const DeviceView = memo(function DeviceView({
             <p className="device-hero-desc">
               {connected
                 ? isSimulated
-                  ? "Development simulation mode active. Audio processing, filters, and preamp are simulated in software."
-                  : "Hardware DSP connected. Filter parameters and DSP settings synchronize directly with on-board flash."
-                : "Glacier EQ is running in offline editor mode. Connect a supported USB DAC over OTG or USB-C to adjust hardware DSP filters, output balance, and amplifier modes."}
+                  ? "Simulated DAC active. Filter adjustments and preamp run in software."
+                  : "Hardware DAC connected. EQ and hardware settings save directly to the device."
+                : "Offline editor mode. Connect a supported USB DAC to adjust hardware filters, balance, and amp modes."}
             </p>
           </div>
 
@@ -357,21 +357,21 @@ export const DeviceView = memo(function DeviceView({
             to="/device/overview"
             icon="memory"
             title="Hardware Specifications"
-            desc="Chipset architecture, sample rates, PEQ capacity, outputs"
+            desc="Chip, sample rate, EQ bands, and outputs"
           />
 
           <NavRow
             to="/device/controls"
             icon="tune"
             title="Hardware DSP Controls"
-            desc="Reconstruction filters, amplifier class AB, gain, balance"
+            desc="Reconstruction filters, amplifier mode, gain, and balance"
           />
 
           <NavRow
             to="/device/maintenance"
             icon="build"
             title="Maintenance & Resets"
-            desc="Clear hardware PEQ filters, reset controls, factory restore"
+            desc="Reset EQ, restore controls, or factory reset"
           />
         </div>
       </div>
@@ -445,24 +445,24 @@ export const DeviceView = memo(function DeviceView({
                   <Icon>info</Icon>
                   <strong>Supported Hardware</strong>
                 </div>
-                <span className="card-head-sub">Verified USB DAC architectures</span>
+                <span className="card-head-sub">Supported USB DAC families</span>
               </div>
               <div className="supported-guide">
                 <p className="guide-text">
-                  Glacier EQ provides native hardware DSP control for Savitech SA9312L family USB DACs, including FiiO KA11, FiiO KA13, Moondrop Dawn Pro, and compatible Walkplay USB HID DSP bridges.
+                  Direct hardware DSP control for Savitech SA9312L family USB DACs, including FiiO KA11, FiiO KA13, Moondrop Dawn Pro, and compatible Walkplay USB devices.
                 </p>
                 <div className="guide-bullets">
                   <div className="guide-bullet-item">
                     <Icon>check</Icon>
-                    <span>Real-time parametric EQ filtering written directly to hardware DSP memory</span>
+                    <span>Parametric EQ saved directly to the DAC</span>
                   </div>
                   <div className="guide-bullet-item">
                     <Icon>check</Icon>
-                    <span>Hardware reconstruction filters, amplifier bias, and analog gain controls</span>
+                    <span>Filter modes, amplifier class AB, and gain controls</span>
                   </div>
                   <div className="guide-bullet-item">
                     <Icon>check</Icon>
-                    <span>Zero battery drain background operation via USB OTG</span>
+                    <span>No background battery drain once saved</span>
                   </div>
                 </div>
               </div>
@@ -476,8 +476,8 @@ export const DeviceView = memo(function DeviceView({
               <section className="settings-card empty-card">
                 <div className="empty-state">
                   <Icon size={44}>tune</Icon>
-                  <h3>Hardware DSP Controls Offline</h3>
-                  <p>Reconstruction filters, amplifier bias mode, and hardware channel balance require a connected hardware DAC.</p>
+                  <h3>Device Not Connected</h3>
+                  <p>Connect a supported DAC to adjust filter modes, amplifier mode, and channel balance.</p>
                   {onOpenConnectModal && (
                     <button type="button" className="btn filled" onClick={onOpenConnectModal}>
                       <Icon>usb</Icon>
@@ -490,19 +490,19 @@ export const DeviceView = memo(function DeviceView({
               <section className="settings-card empty-card">
                 <div className="empty-state">
                   <div className="reconnecting-spinner" style={{ width: 32, height: 32 }} />
-                  <h3>Reading Hardware Parameters</h3>
-                  <p>Querying on-board DSP registers over USB HID…</p>
+                  <h3>Reading Device Settings</h3>
+                  <p>Reading settings from the DAC…</p>
                 </div>
               </section>
             ) : loadError ? (
               <section className="settings-card empty-card">
                 <div className="empty-state">
                   <Icon>error</Icon>
-                  <h3>Failed to Load Controls</h3>
+                  <h3>Could Not Load Controls</h3>
                   <p>{loadError}</p>
                   <button type="button" className="btn" onClick={() => fetchState()}>
                     <Icon>refresh</Icon>
-                    <span>Retry Query</span>
+                    <span>Retry</span>
                   </button>
                 </div>
               </section>
@@ -510,11 +510,11 @@ export const DeviceView = memo(function DeviceView({
               <section className="settings-card empty-card">
                 <div className="empty-state">
                   <Icon>tune</Icon>
-                  <h3>{isSimulated ? "Simulation Mode" : "DSP Utility Unavailable"}</h3>
+                  <h3>{isSimulated ? "Simulation Mode" : "Controls Unavailable"}</h3>
                   <p>
                     {isSimulated
-                      ? "Hardware DSP registers are unavailable for the simulated device."
-                      : "The connected DAC supports PEQ streaming, but does not provide vendor-specific filter and amplifier registers."}
+                      ? "Hardware controls are not available on the simulated device."
+                      : "This DAC supports EQ, but does not support filter or amplifier settings."}
                   </p>
                 </div>
               </section>
@@ -522,8 +522,8 @@ export const DeviceView = memo(function DeviceView({
               <div className="stack-card">
                 <div className="stack-pref-row select-row">
                   <div className="stack-pref-info">
-                    <span className="stack-pref-title">Interpolation Filter Mode</span>
-                    <span className="stack-pref-desc">Configures DAC digital oversampling roll-off and phase characteristics</span>
+                    <span className="stack-pref-title">Reconstruction Filter</span>
+                    <span className="stack-pref-desc">Sets digital filter roll-off and phase response</span>
                   </div>
                   <div className="stack-pref-control">
                     <div className="setting-select-wrapper">
@@ -546,15 +546,15 @@ export const DeviceView = memo(function DeviceView({
                 <DacFilterVisual mode={utility.filter_mode} />
 
                 <ToggleRow
-                  title="Amplifier Class AB Mode"
-                  desc="Reduces thermal dissipation and power draw on mobile devices"
+                  title="Amplifier Class AB"
+                  desc="Runs cooler and uses less power"
                   checked={utility.amp_mode_class_ab}
                   onChange={handleSetAmpMode}
                 />
 
                 <ToggleRow
-                  title="Hardware High Gain"
-                  desc="Increases analog voltage swing for high-impedance headphones"
+                  title="High Gain"
+                  desc="Higher output power for hard-to-drive headphones"
                   checked={utility.high_gain_mode}
                   onChange={handleSetOutputGain}
                 />
@@ -563,7 +563,7 @@ export const DeviceView = memo(function DeviceView({
                   <div className="pref-slider-head">
                     <div className="stack-pref-info">
                       <span className="stack-pref-title">Channel Balance</span>
-                      <span className="stack-pref-desc">Shift stereo output balance between left and right channels</span>
+                      <span className="stack-pref-desc">Adjust balance between left and right channels</span>
                     </div>
                     <span className="pref-value-badge">
                       {utility.channel_balance === 0
@@ -593,8 +593,8 @@ export const DeviceView = memo(function DeviceView({
                 <div className="pref-slider-item">
                   <div className="pref-slider-head">
                     <div className="stack-pref-info">
-                      <span className="stack-pref-title">Microphone Monitor Loopback</span>
-                      <span className="stack-pref-desc">Hardware sidetone monitoring volume from headphone microphone</span>
+                      <span className="stack-pref-title">Microphone Sidetone</span>
+                      <span className="stack-pref-desc">Monitor volume for headset microphone</span>
                     </div>
                     <span className="pref-value-badge">{utility.mic_volume_db} dB</span>
                   </div>
@@ -602,7 +602,7 @@ export const DeviceView = memo(function DeviceView({
                     min={-15}
                     max={15}
                     step={1}
-                    aria-label="Microphone Monitor Loopback"
+                    aria-label="Microphone Sidetone"
                     aria-valuetext={`${utility.mic_volume_db} dB`}
                     value={utility.mic_volume_db}
                     onChange={(e) => handleSetMicVolume(Number(e.target.value))}
@@ -619,8 +619,8 @@ export const DeviceView = memo(function DeviceView({
               <section className="settings-card empty-card">
                 <div className="empty-state">
                   <Icon size={44}>build</Icon>
-                  <h3>Hardware Maintenance Offline</h3>
-                  <p>Connect a supported hardware DAC to perform on-board filter resets or factory firmware restoration.</p>
+                  <h3>Device Not Connected</h3>
+                  <p>Connect a supported DAC to reset EQ, controls, or restore factory defaults.</p>
                   {onOpenConnectModal && (
                     <button type="button" className="btn filled" onClick={onOpenConnectModal}>
                       <Icon>usb</Icon>
@@ -633,21 +633,21 @@ export const DeviceView = memo(function DeviceView({
               <div className="stack-card">
                 <ActionRow
                   title="Reset Hardware EQ"
-                  desc="Sets all parametric equalizer filters on the DAC back to 0 dB flat"
+                  desc="Resets all EQ bands on the DAC to 0 dB flat"
                   actionLabel="Reset EQ"
                   onAction={handleResetDeviceEq}
                 />
 
                 <ActionRow
                   title="Reset Hardware Controls"
-                  desc="Restores filter mode, amplifier bias, gain stage, and balance to defaults"
+                  desc="Resets filter mode, amplifier mode, gain, and balance to defaults"
                   actionLabel="Reset Controls"
                   onAction={handleResetDeviceControls}
                 />
 
                 <ActionRow
                   title="Factory Reset"
-                  desc="Completely restores the DAC hardware to factory firmware state"
+                  desc="Restores the DAC to its factory defaults"
                   actionLabel="Factory Reset"
                   danger
                   onAction={handleFactoryReset}
