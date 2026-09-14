@@ -44,7 +44,6 @@ import {
 } from "./lib/asyncContext";
 import { parseAutoEqResult } from "./lib/parsedAutoEq";
 import type {
-  DeviceCapabilities,
   DeviceInfo,
   Filter,
   GraphViewMode,
@@ -58,25 +57,11 @@ import { useToastStore } from "./stores/toastStore";
 import { useHistoryStore } from "./stores/historyStore";
 import { useThemeSync } from "./hooks/useThemeSync";
 import { useTraces } from "./hooks/useTraces";
+import { OFFLINE_EDITOR_CAPABILITIES } from "./lib/dacSpecs";
 import { DeviceView } from "./components/DeviceView";
 import { SettingsView } from "./components/SettingsView";
 
 const ANDROID_TOAST_DEDUPE_MS = 2000;
-// Offline editor fallback. Must stay in sync with glacier-core
-// `DESKTOP_DAC_CAPS` (glacier-core/src/device/capabilities.rs); there is no
-// wasm export exposing it, so this constant is the TS-side mirror.
-const OFFLINE_EDITOR_CAPABILITIES: DeviceCapabilities = {
-  num_bands: 10,
-  global_gain_range: [-16, 6],
-  band_gain_range: [-10, 10],
-  freq_range: [20, 20000],
-  q_range: [0.1, 20],
-  supported_filter_types: ["Peak", "HighShelf", "LowShelf", "HighPass", "LowPass"],
-  supports_per_band_enable: true,
-  supports_ram_apply: false,
-  dsp_sample_rate: 96000,
-  integer_preamp: false,
-};
 const DEFAULT_SETTINGS: AppSettings = {
   auto_pull_on_connect: true,
   skip_push_verification: false,
