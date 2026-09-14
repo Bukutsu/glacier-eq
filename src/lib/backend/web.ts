@@ -1076,8 +1076,8 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
       const leftRaw = await readWalkplayBalance(0);
       await sleep(25);
       const rightRaw = await readWalkplayBalance(1);
-      const left = leftRaw > 0 ? 256 - leftRaw : 0;
-      const right = rightRaw > 0 ? 256 - rightRaw : 0;
+      const left = leftRaw > 0 ? Math.min(256 - leftRaw, 15) : 0;
+      const right = rightRaw > 0 ? Math.min(256 - rightRaw, 15) : 0;
       const filterMode = {
         1: "FAST-LL",
         2: "FAST-PC",
