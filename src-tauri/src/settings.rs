@@ -151,6 +151,7 @@ mod tests {
             "gruvbox",
             "catppuccin-mocha",
             "catppuccin-latte",
+            "material-you",
         ] {
             assert!(is_known_theme(theme));
         }
