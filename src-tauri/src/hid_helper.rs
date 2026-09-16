@@ -54,7 +54,9 @@ enum IpcResult {
 // ── Elevated transport (main process side) ─────────────────────────────
 
 pub struct ElevatedTransport {
-    child: Child,
+    /// Owned so cleanup can decide between reaping and intentionally
+    /// leaking a wedged helper (leaked children get reparented to init).
+    child: Option<Child>,
     stdin: Option<BufWriter<ChildStdin>>,
     responses: Receiver<(u64, IpcResult)>,
     next_id: u64,
@@ -97,7 +99,7 @@ impl ElevatedTransport {
         let (tx, rx) = std::sync::mpsc::channel();
         thread::spawn(move || read_responses(stdout, tx));
         Ok(ElevatedTransport {
-            child,
+            child: Some(child),
             stdin: Some(stdin),
             responses: rx,
             next_id: 1,
@@ -199,8 +201,18 @@ impl ElevatedTransport {
             drop(stdin);
         }
 
-        let _ = self.child.kill();
-        let _ = poll_for_exit(REAP_ATTEMPTS, || self.child.try_wait(), thread::sleep);
+        let Some(mut child) = self.child.take() else {
+            return;
+        };
+        let _ = child.kill();
+        // The kill is SIGKILL, so poll_for_exit only reports "still running"
+        // when the process is unstoppable right now (e.g. wedged in
+        // uninterruptible USB I/O). Dropping the Child would leave a zombie
+        // until app exit; leaking it hands reaping to init once the wedged
+        // process eventually dies. Bounded here, so no UI-thread block either.
+        if !poll_for_exit(REAP_ATTEMPTS, || child.try_wait(), thread::sleep).unwrap_or(false) {
+            std::mem::forget(child);
+        }
     }
 }
 
