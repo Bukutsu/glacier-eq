@@ -6,6 +6,7 @@ import {
   parseStoredTargets,
   quarantineIfMalformed,
 } from "./useTraces";
+import { BUILTIN_TARGETS } from "../lib/builtinTargets";
 
 const validPoints = [
   { freq: 100, db: 1 },
@@ -51,6 +52,27 @@ describe("persisted trace parsing", () => {
     ]);
 
     expect(parsed.value.map((trace) => trace.id)).toEqual(["valid"]);
+    expect(parsed.malformed).toBe(true);
+  });
+
+  it("keeps one trace when stored measurements share an id", () => {
+    const parsed = parseStoredMeasurements([
+      { id: "dup", name: "First", color: "red", visible: true, points: validPoints },
+      { id: "dup", name: "Second", color: "blue", visible: true, points: validPoints },
+    ]);
+
+    expect(parsed.value.map((trace) => trace.name)).toEqual(["First"]);
+    expect(parsed.malformed).toBe(true);
+  });
+
+  it("keeps one target when stored targets share an id or shadow a built-in", () => {
+    const parsed = parseStoredTargets([
+      { id: "dup", name: "First", color: "red", points: validPoints },
+      { id: "dup", name: "Second", color: "blue", points: validPoints },
+      { id: BUILTIN_TARGETS[0].id, name: "Shadow", color: "red", points: validPoints },
+    ]);
+
+    expect(parsed.value.map((target) => target.name)).toEqual(["First"]);
     expect(parsed.malformed).toBe(true);
   });
 

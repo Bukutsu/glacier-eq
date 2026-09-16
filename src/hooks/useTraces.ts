@@ -60,6 +60,7 @@ export function parseStoredMeasurements(
   if (!Array.isArray(value)) return { value: [], malformed: true };
 
   const measurements: MeasurementTrace[] = [];
+  const seenIds = new Set<string>();
   let malformed = false;
   for (const candidate of value) {
     try {
@@ -68,6 +69,13 @@ export function parseStoredMeasurements(
         malformed = true;
         continue;
       }
+      // IDs key every remove/toggle action; a duplicate would make one click
+      // affect two traces, so treat collisions like any other schema damage.
+      if (seenIds.has(parsed[0].id)) {
+        malformed = true;
+        continue;
+      }
+      seenIds.add(parsed[0].id);
       const points = typeof candidate === "object" && candidate !== null && "points" in candidate
         ? candidate.points
         : null;
@@ -88,6 +96,7 @@ export function parseStoredTargets(
   if (!Array.isArray(value)) return { value: [], malformed: true };
 
   const targets: TargetTrace[] = [];
+  const seenIds = new Set<string>();
   let malformed = false;
   for (const candidate of value) {
     try {
@@ -96,6 +105,13 @@ export function parseStoredTargets(
         malformed = true;
         continue;
       }
+      // One ID must map to one action, and a saved ID must never shadow a
+      // built-in target; both collisions mark the storage malformed.
+      if (seenIds.has(parsed[0].id) || BUILTIN_TARGETS.some((t) => t.id === parsed[0].id)) {
+        malformed = true;
+        continue;
+      }
+      seenIds.add(parsed[0].id);
       const points = typeof candidate === "object" && candidate !== null && "points" in candidate
         ? candidate.points
         : null;
