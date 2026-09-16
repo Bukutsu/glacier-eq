@@ -880,7 +880,7 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
       const profiles = loadWebProfiles();
       const vid = activeProfile?.vendor_id ?? null;
       const pid = activeProfile?.product_id ?? null;
-      return wasm().match_profile_name(peq, profiles, vid, pid) as T;
+      return (wasm().match_profile_name(peq, profiles, vid, pid) ?? null) as T;
     }
     case "run_autoeq": {
       const vid = activeProfile?.vendor_id ?? null;
