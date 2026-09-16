@@ -42,6 +42,7 @@ import {
   parseDeviceDisconnectedPayload,
   type AsyncContext,
 } from "./lib/asyncContext";
+import { resolvePulledProfile } from "./lib/pulledProfile";
 import { parseAutoEqResult } from "./lib/parsedAutoEq";
 import type {
   DeviceInfo,
@@ -585,18 +586,6 @@ function App() {
     [],
   );
 
-  const selectMatchingProfile = useCallback(
-    async (data: PEQData, fallback: string) => {
-      const match = await invoke<string | null>("match_profile_name", { peq: data });
-      const name = match ?? fallback;
-      setSelectedPreset(name);
-      setProfileSearch("");
-      setNewProfileName("");
-      return name;
-    },
-    [],
-  );
-
   const applyProfile = useCallback(
     (profile: Profile) => {
       pushToUndoStack(peqRef.current);
@@ -1046,12 +1035,19 @@ function App() {
         await sleep(400);
       }
       if (!isCurrentPull()) return;
-      pushToUndoStack(peqRef.current);
       const normalized = normalizePeq(data, { integerPreamp: selectedCapabilities.integer_preamp, capabilities: selectedCapabilities });
+      const matchedProfile = await resolvePulledProfile(
+        normalized,
+        (peq) => invoke<string | null>("match_profile_name", { peq }),
+        isCurrentPull,
+      );
+      if (matchedProfile === null || !isCurrentPull()) return;
+      pushToUndoStack(peqRef.current);
       setPeq(normalized);
       setLastPushedPeq(normalized);
-      const matchedProfile = await selectMatchingProfile(normalized, "Pulled from device");
-      if (!isCurrentPull()) return;
+      setSelectedPreset(matchedProfile);
+      setProfileSearch("");
+      setNewProfileName("");
       noteEditorMutation();
       if (matchedProfile !== "Pulled from device") {
         editorCleanPeqRef.current = normalized;
