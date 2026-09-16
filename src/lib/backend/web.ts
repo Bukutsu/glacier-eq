@@ -59,13 +59,19 @@ function ensureWebHid(): HID {
   return hid;
 }
 
-function matchSupportedWebHidDevice(
+export function matchSupportedWebHidDevice(
   device: Pick<HIDDevice, "vendorId" | "productId">,
   supportedDevices: SupportedDeviceInfo[],
 ): SupportedDeviceInfo | undefined {
+  // Mirror get_supported_device (glacier-core): an exact PID match wins over
+  // a vendor-level fallback regardless of list order, so web and desktop
+  // classify the same VID/PID identically even if the registry is reordered.
   return supportedDevices.find((supported) =>
     supported.vendor_id === device.vendorId &&
-    (supported.product_id == null || supported.product_id === device.productId),
+    supported.product_id === device.productId,
+  ) ?? supportedDevices.find((supported) =>
+    supported.vendor_id === device.vendorId &&
+    supported.product_id == null,
   );
 }
 

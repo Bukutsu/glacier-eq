@@ -38,6 +38,7 @@ vi.mock("../../wasm_pkg/glacier_core", () => ({
 
 import {
   invoke,
+  matchSupportedWebHidDevice,
   peqVerificationError,
   parseWebProfiles,
   parseWebSettings,
@@ -389,6 +390,36 @@ describe("web profile parser", () => {
       value: [],
       malformed: true,
     });
+  });
+});
+
+describe("WebHID device matching", () => {
+  it("prefers an exact PID match over a vendor fallback regardless of order", () => {
+    const fallback: SupportedDeviceInfo = {
+      ...profile,
+      name: "Vendor Generic",
+      product_id: null,
+    };
+    const exact: SupportedDeviceInfo = { ...profile, name: "Exact Model" };
+
+    // Fallback listed first must not shadow the exact profile,
+    // mirroring get_supported_device in glacier-core.
+    expect(matchSupportedWebHidDevice({ vendorId: 0x1234, productId: 0x5678 }, [fallback, exact]))
+      .toBe(exact);
+    expect(matchSupportedWebHidDevice({ vendorId: 0x1234, productId: 0x5678 }, [exact, fallback]))
+      .toBe(exact);
+  });
+
+  it("falls back to a vendor-level profile when no exact PID matches", () => {
+    const fallback: SupportedDeviceInfo = {
+      ...profile,
+      name: "Vendor Generic",
+      product_id: null,
+    };
+
+    expect(matchSupportedWebHidDevice({ vendorId: 0x1234, productId: 0xabcd }, [fallback]))
+      .toBe(fallback);
+    expect(matchSupportedWebHidDevice({ vendorId: 0x1234, productId: 0xabcd }, [])).toBeUndefined();
   });
 });
 
