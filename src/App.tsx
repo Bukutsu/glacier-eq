@@ -1063,6 +1063,10 @@ function App() {
         "UI"
       );
     } catch (error) {
+      // A pull that lost its editor/connection context mid-read must not
+      // report against newer state or clear a connection made after it
+      // started; only a current pull may act on its failure.
+      if (!isCurrentPull()) return;
       if (isDisconnectionError(error)) {
         setConnected(false);
         setLastPushedPeq(null);
