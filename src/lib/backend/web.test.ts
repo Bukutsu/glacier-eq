@@ -174,6 +174,19 @@ function verificationPeq(): PEQData {
   };
 }
 
+describe("browser profile matching", () => {
+  it("returns null when WASM has no matching profile", async () => {
+    wasm.match_profile_name.mockReturnValue(undefined);
+    await expect(invoke("match_profile_name", { peq: peqWithBands(1) })).resolves.toBeNull();
+  });
+
+  it("preserves a matching profile name", async () => {
+    wasm.match_profile_name.mockReturnValue("Saved profile");
+    await expect(invoke("match_profile_name", { peq: peqWithBands(1) }))
+      .resolves.toBe("Saved profile");
+  });
+});
+
 describe("browser EQ writes", () => {
   it("normalizes a persistent write before sending and returns the normalized PEQ", async () => {
     const device = fakeHidDevice();
