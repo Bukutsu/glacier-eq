@@ -463,24 +463,52 @@ pub async fn disconnect_device(
         }
         state.connected.take()
     };
-    if let Some(device) = device {
-        // The elevated route writes to the helper's stdin and can block up
-        // to RESPONSE_TIMEOUT; keep it off the async runtime like the other
-        // device commands.
-        let close_app = app.clone();
-        tauri::async_runtime::spawn_blocking(move || {
-            let _ = hid_close(&close_app, &device.path);
-        })
-        .await
-        .map_err(|e| e.to_string())?;
+    // State is already disconnected. Both close and transport destruction may
+    // block, and cleanup must run even when close reports an error.
+    let close_app = app.clone();
+    let close_device = device.clone();
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        close_and_release(
+            || {
+                close_device
+                    .as_ref()
+                    .map_or(Ok(()), |device| hid_close(&close_app, &device.path))
+            },
+            || {
+                #[cfg(target_os = "linux")]
+                {
+                    *close_app
+                        .state::<Mutex<Option<ElevatedTransport>>>()
+                        .lock()
+                        .unwrap_or_else(|p| p.into_inner()) = None;
+                }
+            },
+        )
+    })
+    .await
+    .map_err(|error| error.to_string())
+    .and_then(|result| result);
+    if result.is_err() {
+        if let Some(device) = device {
+            use tauri::Emitter;
+            // A rejected invoke must not leave the frontend showing a live
+            // connection after local cleanup. Keep the existing identity contract.
+            let _ = app.emit(
+                "device-disconnected",
+                serde_json::json!({ "path": device.path, "name": device.profile_name }),
+            );
+        }
     }
-    #[cfg(target_os = "linux")]
-    {
-        *app.state::<Mutex<Option<ElevatedTransport>>>()
-            .lock()
-            .unwrap_or_else(|p| p.into_inner()) = None;
-    }
-    Ok(())
+    result
+}
+
+fn close_and_release(
+    close: impl FnOnce() -> Result<(), String>,
+    release: impl FnOnce(),
+) -> Result<(), String> {
+    let result = close();
+    release();
+    result
 }
 
 #[tauri::command]
@@ -581,4 +609,42 @@ pub async fn execute_factory_reset(
     state: tauri::State<'_, Mutex<DeviceState>>,
 ) -> Result<(), String> {
     with_session(&app, &state, |session| session.factory_reset()).await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::close_and_release;
+    use std::cell::Cell;
+
+    #[test]
+    fn failed_close_still_releases_transport_and_reports_error() {
+        let released = Cell::new(false);
+        let result = close_and_release(
+            || Err("IPC timeout: privileged helper is unresponsive".into()),
+            || released.set(true),
+        );
+        assert!(released.get());
+        assert_eq!(
+            result,
+            Err("IPC timeout: privileged helper is unresponsive".into())
+        );
+    }
+
+    #[test]
+    fn successful_close_releases_transport_after_close() {
+        let closed = Cell::new(false);
+        let released = Cell::new(false);
+        let result = close_and_release(
+            || {
+                closed.set(true);
+                Ok(())
+            },
+            || {
+                assert!(closed.get());
+                released.set(true);
+            },
+        );
+        assert!(released.get());
+        assert_eq!(result, Ok(()));
+    }
 }

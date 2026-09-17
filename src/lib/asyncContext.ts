@@ -42,3 +42,22 @@ export function parseDeviceDisconnectedPayload(
 
   return null;
 }
+
+export function isHandledDeviceDisconnected(options: {
+  payload: DeviceDisconnectedPayload | null;
+  activePath: string | null;
+  connected: boolean;
+  manualDisconnect: boolean;
+  devDummy: boolean;
+  alreadyHandled: boolean;
+}): boolean {
+  const { payload, activePath, connected, manualDisconnect, devDummy, alreadyHandled } = options;
+  return (
+    payload === null ||
+    payload.path !== activePath ||
+    manualDisconnect ||
+    devDummy ||
+    alreadyHandled ||
+    !connected
+  );
+}

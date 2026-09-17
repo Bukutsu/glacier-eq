@@ -39,6 +39,7 @@ import { isAndroidDevice, isTauri } from "./lib/platform";
 import { isDisconnectionError } from "./lib/errors";
 import {
   asyncContextEquals,
+  isHandledDeviceDisconnected,
   parseDeviceDisconnectedPayload,
   type AsyncContext,
 } from "./lib/asyncContext";
@@ -752,14 +753,18 @@ function App() {
       const payload = parseDeviceDisconnectedPayload(event.payload, activePath);
       const connectionGeneration = connectionGenerationRef.current;
       if (
-        payload === null ||
-        payload.path !== activePath ||
-        isDevDummyDevice(activePath ?? "") ||
-        !connectedRef.current ||
-        handledDisconnectGenerationRef.current === connectionGeneration
+        isHandledDeviceDisconnected({
+          payload,
+          activePath,
+          connected: connectedRef.current,
+          manualDisconnect: manualDisconnectRef.current,
+          devDummy: isDevDummyDevice(activePath ?? ""),
+          alreadyHandled: handledDisconnectGenerationRef.current === connectionGeneration,
+        })
       ) {
         return;
       }
+      if (!payload) return;
       handledDisconnectGenerationRef.current = connectionGeneration;
       setConnected(false);
       invoke("disconnect_device", { expectedPath: payload.path }).catch(() => {});
@@ -1340,7 +1345,14 @@ function App() {
       setFirmwareVersion(null);
       reportStatus("Info", "Disconnected from device", null, "UI", "Disconnected");
     } catch (error) {
-      reportStatus("Error", `Could not disconnect: ${error}`, "error", "UI");
+      // The backend releases local state even when closing the transport
+      // fails, so the UI must not keep showing a live connection.
+      setConnected(false);
+      setIsReconnecting(false);
+      setConnectedDeviceName("");
+      setLastPushedPeq(null);
+      setFirmwareVersion(null);
+      reportStatus("Error", `Disconnected, but releasing the device failed: ${error}`, "error", "UI", "Disconnected");
     } finally {
       setIsBusy(false);
     }
