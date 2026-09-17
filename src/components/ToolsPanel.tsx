@@ -24,9 +24,11 @@ import { ProfilesView } from "./ProfilesView";
 import { type DeviceSection, type SettingsSection, type ToolsTab } from "../lib/tabs";
 import { parseAutoEqResult } from "../lib/parsedAutoEq";
 import {
+  appendDiagnosticEvent,
   mergeDiagnosticEvents,
   parseDiagnosticEvent,
   parseDiagnosticHistory,
+  settleDiagnosticClear,
   type DiagnosticEvent,
 } from "../lib/diagnostics";
 
@@ -672,16 +674,16 @@ export function DiagnosticsPanel() {
     const appendLiveEvent = (event: DiagnosticEvent) => {
       if (!active) return;
       if (loadingHistory) {
-        buffered.push(event);
+        buffered = appendDiagnosticEvent(buffered, event);
         return;
       }
       // Events arriving while a clear is in flight are kept aside so the
       // clear cannot erase them locally.
       if (clearingRef.current) {
-        clearedBufferRef.current.push(event);
+        clearedBufferRef.current = appendDiagnosticEvent(clearedBufferRef.current, event);
         return;
       }
-      setEvents((previous) => [...previous, event].slice(-1000));
+      setEvents((previous) => appendDiagnosticEvent(previous, event));
     };
 
     const start = async () => {
@@ -718,7 +720,7 @@ export function DiagnosticsPanel() {
         if (!active) return;
         console.error("Failed to load diagnostics:", error);
         loadingHistory = false;
-        setEvents(buffered.slice(-1000));
+        setEvents(buffered);
         buffered = [];
       }
     };
@@ -760,22 +762,27 @@ export function DiagnosticsPanel() {
   });
 
   const clearLogs = async () => {
-    // Events emitted while the backend clear is in flight must survive it:
-    // buffer them and merge after the local history is reset.
+    // A second clear must not drain the first request's live-event buffer.
+    if (clearingRef.current) return;
     clearingRef.current = true;
+    let outcome: "cleared" | "failed" = "failed";
     try {
       await invoke("clear_diagnostics");
-      if (!mountedRef.current) return;
-      setEvents([]);
-      const survived = clearedBufferRef.current;
-      clearedBufferRef.current = [];
-      if (survived.length > 0) {
-        setEvents(mergeDiagnosticEvents([], survived));
-      }
+      outcome = "cleared";
     } catch (err) {
       console.error("Failed to clear diagnostics:", err);
     } finally {
+      // Drain on both outcomes: a failed clear preserves the previous log too.
+      const survived = clearedBufferRef.current;
+      clearedBufferRef.current = [];
       clearingRef.current = false;
+      if (mountedRef.current) {
+        setEvents((previous) => settleDiagnosticClear({
+          events: previous,
+          buffered: survived,
+          outcome,
+        }));
+      }
     }
   };
 

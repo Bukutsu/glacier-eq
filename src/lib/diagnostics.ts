@@ -7,6 +7,16 @@ export interface DiagnosticEvent {
   message: string;
 }
 
+export const DIAGNOSTIC_EVENT_LIMIT = 1_000;
+
+/** Apply the same retention bound to pending buffers and the displayed log. */
+export function appendDiagnosticEvent(
+  events: DiagnosticEvent[],
+  event: DiagnosticEvent,
+): DiagnosticEvent[] {
+  return [...events.slice(-(DIAGNOSTIC_EVENT_LIMIT - 1)), event];
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -60,7 +70,7 @@ function eventKey(event: DiagnosticEvent): string {
 export function mergeDiagnosticEvents(
   history: DiagnosticEvent[],
   buffered: DiagnosticEvent[],
-  limit = 1_000,
+  limit = DIAGNOSTIC_EVENT_LIMIT,
 ): DiagnosticEvent[] {
   const seen = new Set<string>();
   const merged: DiagnosticEvent[] = [];
@@ -71,4 +81,16 @@ export function mergeDiagnosticEvents(
     merged.push(event);
   }
   return merged.slice(-limit);
+}
+
+export function settleDiagnosticClear({
+  events,
+  buffered,
+  outcome,
+}: {
+  events: DiagnosticEvent[];
+  buffered: DiagnosticEvent[];
+  outcome: "cleared" | "failed";
+}): DiagnosticEvent[] {
+  return mergeDiagnosticEvents(outcome === "cleared" ? [] : events, buffered);
 }
