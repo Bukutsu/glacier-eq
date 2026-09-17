@@ -45,6 +45,7 @@ import {
 import { resolvePulledProfile } from "./lib/pulledProfile";
 import { createSettingsPersistence } from "./lib/settingsPersistence";
 import { restoreHistorySnapshot } from "./lib/restoredHistory";
+import { profileOverwriteMessage } from "./lib/profileOverwrite";
 import { parseAutoEqResult } from "./lib/parsedAutoEq";
 import type {
   DeviceInfo,
@@ -1362,12 +1363,12 @@ function App() {
       return;
     }
 
-    const exists = profiles.some(
+    const existing = profiles.find(
       (p) => p.name.toLowerCase() === name.toLowerCase()
     );
-    if (exists && !(await confirmDialog({
+    if (existing && !(await confirmDialog({
       title: "Overwrite profile?",
-      message: `A profile named "${name}" already exists. Overwrite it?`,
+      message: profileOverwriteMessage(name, existing.data, savedPeq),
       confirmLabel: "Overwrite",
       danger: true,
     }))) return;
