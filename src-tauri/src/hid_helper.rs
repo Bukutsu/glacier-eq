@@ -214,7 +214,7 @@ impl Drop for ElevatedTransport {
 }
 
 /// Kills the helper and reaps it, with an eventual owner for slow exits.
-fn kill_and_reap(mut child: Child) {
+pub(crate) fn kill_and_reap(mut child: Child) {
     let _ = child.kill();
     // Killing a privileged helper may fail (EPERM), or USB I/O may delay exit
     // past the bounded reap window. Keep an eventual reaping owner without
