@@ -9,7 +9,6 @@ import { Select } from "./Select";
 import { Slider } from "./Slider";
 import {
   ActionRow,
-  CategoryHeader,
   NavRow,
   StackHeader,
   ToggleRow,
@@ -291,25 +290,19 @@ export const DeviceView = memo(function DeviceView({
     : "Virtual DAC (Offline)";
 
   const dspKhz = Math.round(capabilities.dsp_sample_rate / 1000);
-  const bandGain = Math.abs(capabilities.band_gain_range[1]);
 
-  // Section select FIRST!
   if (section === "root") {
     return (
       <div className="stack-view device-stack-view">
         <StackHeader title="Device" />
 
-        <section className="device-hero-card">
+        <section className="device-summary" aria-label="Device connection">
           <div className="device-hero-header">
             <span className={`device-status-badge ${connected ? (isSimulated ? "simulated" : "connected") : "offline"}`}>
               <span className="status-dot" aria-hidden="true" />
-              <span>{connected ? (isSimulated ? "DEV SIMULATION" : "CONNECTED") : "OFFLINE ENGINE"}</span>
+              <span>{connected ? (isSimulated ? "Simulation" : "Connected") : "Offline"}</span>
             </span>
-            {deviceInfo && (
-              <span className="device-id-tag">
-                {`USB ${deviceInfo.vendor_id?.toString(16).padStart(4, "0")}:${deviceInfo.product_id?.toString(16).padStart(4, "0")}`}
-              </span>
-            )}
+
           </div>
 
           <div className="device-hero-body">
@@ -317,9 +310,9 @@ export const DeviceView = memo(function DeviceView({
             <p className="device-hero-desc">
               {connected
                 ? isSimulated
-                  ? "Simulated DAC active. Filter adjustments and preamp run in software."
-                  : "Hardware DAC connected. EQ and hardware settings save directly to the device."
-                : "Offline editor mode. Connect a supported USB DAC to adjust hardware filters, balance, and amp modes."}
+                  ? "Preview EQ without changing hardware."
+                  : "Manage your DAC’s sound and settings."
+                : "Edit EQ offline, or connect a DAC to adjust its hardware."}
             </p>
           </div>
 
@@ -350,29 +343,28 @@ export const DeviceView = memo(function DeviceView({
           </div>
         </section>
 
-        <div className="stack-list">
-          <CategoryHeader title="Device Configuration" />
+        <nav className="stack-list device-navigation" aria-label="Device settings">
           <NavRow
             to="/device/overview"
             icon="memory"
-            title="Hardware Specifications"
+            title="Specifications"
             desc="Chip, sample rate, EQ bands, and outputs"
           />
 
           <NavRow
             to="/device/controls"
             icon="tune"
-            title="Hardware DSP Controls"
+            title="Sound controls"
             desc="Reconstruction filters, amplifier mode, gain, and balance"
           />
 
           <NavRow
             to="/device/maintenance"
             icon="build"
-            title="Maintenance & Resets"
-            desc="Reset EQ, restore controls, or factory reset"
+            title="Reset & maintenance"
+            desc="Restore EQ or device defaults"
           />
-        </div>
+        </nav>
       </div>
     );
   }
@@ -383,10 +375,10 @@ export const DeviceView = memo(function DeviceView({
       <StackHeader
         title={
           section === "overview"
-            ? "Hardware Specifications"
+            ? "Specifications"
             : section === "controls"
-              ? "Hardware DSP Controls"
-              : "Maintenance & Resets"
+              ? "Sound controls"
+              : "Reset & maintenance"
         }
         backTo="/device"
         backLabel="Back to device"
@@ -395,77 +387,30 @@ export const DeviceView = memo(function DeviceView({
       <div className="stack-content">
         {section === "overview" && (
           <>
-            <div className="device-spec-grid">
-              <div className="spec-tile">
-                <span className="spec-label">CHIP ARCHITECTURE</span>
-                <span className="spec-value highlight">{officialSpec?.chip ?? "Savitech DSP Audio"}</span>
-              </div>
-              <div className="spec-tile">
-                <span className="spec-label">DSP SAMPLE RATE</span>
-                <span className="spec-value">{dspKhz} kHz Audio DSP</span>
-              </div>
-              <div className="spec-tile">
-                <span className="spec-label">PEQ FILTER BANDS</span>
-                <span className="spec-value">{capabilities.num_bands} Parametric Bands</span>
-              </div>
-              <div className="spec-tile">
-                <span className="spec-label">FILTER GAIN RANGE</span>
-                <span className="spec-value">±{bandGain}.0 dB per band</span>
-              </div>
+            <dl className="device-spec-list">
+              <div><dt>Chip</dt><dd>{officialSpec?.chip ?? "Not reported"}</dd></div>
+              <div><dt>DSP sample rate</dt><dd>{dspKhz} kHz</dd></div>
+              <div><dt>EQ bands</dt><dd>{capabilities.num_bands}</dd></div>
+              <div><dt>Band gain</dt><dd>{capabilities.band_gain_range[0]} to {capabilities.band_gain_range[1]} dB</dd></div>
               {officialSpec?.outputs && (
-                <div className="spec-tile">
-                  <span className="spec-label">HEADPHONE OUTPUTS</span>
-                  <span className="spec-value">{officialSpec.outputs}</span>
-                </div>
+                <div><dt>Outputs</dt><dd>{officialSpec.outputs}</dd></div>
               )}
               {officialSpec?.maxPower && (
-                <div className="spec-tile">
-                  <span className="spec-label">OUTPUT POWER</span>
-                  <span className="spec-value">{officialSpec.maxPower}</span>
-                </div>
+                <div><dt>Output power</dt><dd>{officialSpec.maxPower}</dd></div>
               )}
               {officialSpec?.decoding && (
-                <div className="spec-tile">
-                  <span className="spec-label">DECODING SUPPORT</span>
-                  <span className="spec-value">{officialSpec.decoding}</span>
-                </div>
+                <div><dt>Decoding</dt><dd>{officialSpec.decoding}</dd></div>
               )}
               {connected && firmwareVersion && (
-                <div className="spec-tile">
-                  <span className="spec-label">FIRMWARE VERSION</span>
-                  <span className="spec-value mono">v{firmwareVersion}</span>
-                </div>
+                <div><dt>Firmware</dt><dd>{firmwareVersion}</dd></div>
               )}
-            </div>
-
-            <section className="settings-card">
-              <div className="settings-card-head">
-                <div className="card-head-title">
-                  <Icon>info</Icon>
-                  <strong>Supported Hardware</strong>
-                </div>
-                <span className="card-head-sub">Supported USB DAC families</span>
-              </div>
-              <div className="supported-guide">
-                <p className="guide-text">
-                  Direct hardware DSP control for Savitech SA9312L family USB DACs, including FiiO KA11, FiiO KA13, Moondrop Dawn Pro, and compatible Walkplay USB devices.
-                </p>
-                <div className="guide-bullets">
-                  <div className="guide-bullet-item">
-                    <Icon>check</Icon>
-                    <span>Parametric EQ saved directly to the DAC</span>
-                  </div>
-                  <div className="guide-bullet-item">
-                    <Icon>check</Icon>
-                    <span>Filter modes, amplifier class AB, and gain controls</span>
-                  </div>
-                  <div className="guide-bullet-item">
-                    <Icon>check</Icon>
-                    <span>No background battery drain once saved</span>
-                  </div>
-                </div>
-              </div>
-            </section>
+              {connected && deviceInfo && (
+                <div><dt>USB ID</dt><dd>{deviceInfo.vendor_id.toString(16).padStart(4, "0")}:{deviceInfo.product_id.toString(16).padStart(4, "0")}</dd></div>
+              )}
+            </dl>
+            <p className="device-note">
+              {connected ? "Available controls depend on your DAC." : "Showing offline editor capabilities. Connect a DAC to see its hardware details."}
+            </p>
           </>
         )}
 
@@ -542,7 +487,10 @@ export const DeviceView = memo(function DeviceView({
                   </div>
                 </div>
 
-                <DacFilterVisual mode={utility.filter_mode} />
+                <details className="device-filter-details">
+                  <summary>Filter response</summary>
+                  <DacFilterVisual mode={utility.filter_mode} />
+                </details>
 
                 <ToggleRow
                   title="Amplifier Class AB"

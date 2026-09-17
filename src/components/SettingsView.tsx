@@ -6,7 +6,6 @@ import { confirmDialog } from "./ConfirmDialog";
 import { Icon } from "./Icon";
 import {
   ActionRow,
-  CategoryHeader,
   NavRow,
   SelectRow,
   StackHeader,
@@ -100,14 +99,8 @@ function UdevSection({
   if (!isTauri()) {
     if (!isLinux()) return null;
     return (
-      <section className="settings-card udev-card">
-        <div className="settings-card-head">
-          <div className="card-head-title">
-            <Icon>security</Icon>
-            <strong>Linux USB Permissions</strong>
-          </div>
-          <span className="card-head-sub">One-time terminal setup</span>
-        </div>
+      <section className="settings-plain" aria-label="Linux USB permissions">
+        <h2 className="settings-plain-title">Linux USB permissions</h2>
         <LinuxUdevGuide setStatus={setStatus} />
       </section>
     );
@@ -190,12 +183,9 @@ function UdevSection({
   const current = status?.up_to_date === true;
 
   return (
-    <section className="settings-card udev-card">
-      <div className="settings-card-head">
-        <div className="card-head-title">
-          <Icon>security</Icon>
-          <strong>Linux USB Permissions</strong>
-        </div>
+    <section className="settings-plain" aria-label="Linux USB permissions">
+      <div className="settings-plain-head">
+        <h2 className="settings-plain-title">Linux USB permissions</h2>
         <span className={`status-pill ${installed ? (current ? "installed" : "outdated") : "missing"}`}>
           <span className="status-dot" aria-hidden="true" />
           <span>
@@ -210,7 +200,7 @@ function UdevSection({
         </span>
       </div>
 
-      <p className="card-desc">
+      <p className="settings-plain-desc">
         Linux restricts raw USB access by default. Installing a udev rule lets you access supported DACs without running Glacier EQ as root.
       </p>
 
@@ -223,7 +213,7 @@ function UdevSection({
             Target: <code>{status?.dest_path ?? "/etc/udev/rules.d/69-glacier-eq.rules"}</code>
           </span>
         </div>
-        <div className="stack-pref-control action-buttons">
+        <div className="stack-pref-control">
           <button
             type="button"
             className={`btn ${installed && current ? "" : "filled"}`}
@@ -269,31 +259,28 @@ export const SettingsView = memo(function SettingsView({
       <div className="stack-view settings-stack-view">
         <StackHeader title="Settings" />
 
-        <div className="stack-list">
-          <CategoryHeader title="Audio & Behavior" />
+        <nav className="stack-list settings-navigation" aria-label="Settings">
           <NavRow
             to="/settings/general"
             icon="tune"
-            title="Behavior & Audio"
+            title="Behavior & audio"
             desc="Auto-pull EQ, frequency snapping, and graph preview"
           />
 
-          <CategoryHeader title="Appearance" />
           <NavRow
             to="/settings/appearance"
             icon="palette"
-            title="Interface & Theme"
+            title="Interface & theme"
             desc="Color theme and graph view mode"
           />
 
-          <CategoryHeader title="System" />
           <NavRow
             to="/settings/diagnostics"
             icon="bug_report"
-            title="Diagnostics & Permissions"
+            title="Diagnostics & permissions"
             desc="Diagnostics log and Linux udev rules"
           />
-        </div>
+        </nav>
       </div>
     );
   }
@@ -304,10 +291,10 @@ export const SettingsView = memo(function SettingsView({
       <StackHeader
         title={
           section === "general"
-            ? "Behavior & Audio"
+            ? "Behavior & audio"
             : section === "appearance"
-              ? "Interface & Theme"
-              : "Diagnostics & Permissions"
+              ? "Interface & theme"
+              : "Diagnostics & permissions"
         }
         backTo="/settings"
         backLabel="Back to settings"
@@ -415,14 +402,8 @@ export const SettingsView = memo(function SettingsView({
               )}
             </div>
 
-            <section className="settings-card shortcuts-card">
-              <div className="settings-card-head">
-                <div className="card-head-title">
-                  <Icon>keyboard</Icon>
-                  <strong>Keyboard Shortcuts</strong>
-                </div>
-                <span className="card-head-sub">Desktop shortcuts for editing and syncing</span>
-              </div>
+            <section className="shortcuts-card settings-plain" aria-label="Keyboard shortcuts">
+              <h2 className="settings-plain-title">Keyboard shortcuts</h2>
               <div className="shortcut-list">
                 {KEYBOARD_SHORTCUTS.map(([keys, action]) => (
                   <div className="shortcut-row" key={keys}>
