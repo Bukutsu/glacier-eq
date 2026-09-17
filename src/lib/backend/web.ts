@@ -981,6 +981,10 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
       return null as T;
     }
     case "disconnect_device": {
+      if (activeDevice && typeof args?.expectedPath === "string" &&
+          args.expectedPath !== webHidPath(activeDevice)) {
+        return null as T;
+      }
       if (activeDevice) {
         detachHidEventListeners(activeDevice);
         try {
