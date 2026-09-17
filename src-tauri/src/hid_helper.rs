@@ -54,8 +54,7 @@ enum IpcResult {
 // ── Elevated transport (main process side) ─────────────────────────────
 
 pub struct ElevatedTransport {
-    /// Owned so cleanup can decide between reaping and intentionally
-    /// leaking a wedged helper (leaked children get reparented to init).
+    /// Taken once during cleanup; a background waiter owns slow-exiting children.
     child: Option<Child>,
     stdin: Option<BufWriter<ChildStdin>>,
     responses: Receiver<(u64, IpcResult)>,
@@ -201,18 +200,10 @@ impl ElevatedTransport {
             drop(stdin);
         }
 
-        let Some(mut child) = self.child.take() else {
+        let Some(child) = self.child.take() else {
             return;
         };
-        let _ = child.kill();
-        // The kill is SIGKILL, so poll_for_exit only reports "still running"
-        // when the process is unstoppable right now (e.g. wedged in
-        // uninterruptible USB I/O). Dropping the Child would leave a zombie
-        // until app exit; leaking it hands reaping to init once the wedged
-        // process eventually dies. Bounded here, so no UI-thread block either.
-        if !poll_for_exit(REAP_ATTEMPTS, || child.try_wait(), thread::sleep).unwrap_or(false) {
-            std::mem::forget(child);
-        }
+        kill_and_reap(child);
     }
 }
 
@@ -220,6 +211,25 @@ impl Drop for ElevatedTransport {
     fn drop(&mut self) {
         self.cleanup();
     }
+}
+
+/// Kills the helper and reaps it, with an eventual owner for slow exits.
+fn kill_and_reap(mut child: Child) {
+    let _ = child.kill();
+    // Killing a privileged helper may fail (EPERM), or USB I/O may delay exit
+    // past the bounded reap window. Keep an eventual reaping owner without
+    // holding the transport lock or blocking the caller.
+    if !poll_for_exit(REAP_ATTEMPTS, || child.try_wait(), thread::sleep).unwrap_or(false) {
+        reap_in_background(child);
+    }
+}
+
+fn reap_in_background(mut child: Child) -> thread::JoinHandle<()> {
+    thread::spawn(move || {
+        if let Err(error) = child.wait() {
+            eprintln!("glacier-eq: failed to reap privileged helper: {error}");
+        }
+    })
 }
 
 fn poll_for_exit<T>(
@@ -462,5 +472,24 @@ mod tests {
         assert!(!exited);
         assert_eq!(polls, 4);
         assert_eq!(pauses, 3);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn kill_and_reap_reaps_an_exited_child_inline() {
+        let child = Command::new("sleep").arg("0").spawn().unwrap();
+        // Exits immediately, so the bounded poll reaps it without the
+        // background waiter; the call must not panic or hang.
+        kill_and_reap(child);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn background_reaper_waits_for_a_lingering_child() {
+        let child = Command::new("sleep").arg("0.2").spawn().unwrap();
+        let handle = reap_in_background(child);
+        // join() returns only after the child was waited on, so no zombie
+        // remains even though cleanup could not block for it.
+        handle.join().unwrap();
     }
 }
