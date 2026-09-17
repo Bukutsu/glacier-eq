@@ -1002,13 +1002,22 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 
 .diag-head {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto auto auto;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
   align-items: center;
   gap: 8px;
 }
 .diag-head strong { min-width: 0; color: var(--text); font-size: var(--type-label); }
 .diag-head button { width: 36px; min-height: 36px; padding: 0; background: transparent; color: var(--cyan); }
 .diag-head button.danger { color: var(--red); }
+.diag-head .diag-copy-btn {
+  width: auto;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  font-size: var(--type-caption);
+}
 
 .diag-counts { display: flex; align-items: center; gap: 12px; font-size: var(--type-caption); font-family: var(--font-mono); }
 .diag-count-e { color: var(--red); }

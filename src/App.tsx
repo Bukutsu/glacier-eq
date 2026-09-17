@@ -229,25 +229,28 @@ function App() {
   } | null>(null);
 
   const showToast = useCallback(
-    (message: string, type: "info" | "error" | "success" = "info") => {
+    (message: string, type: "info" | "error" | "success" = "info", log = true) => {
       if (message === "Ready" || !message.trim()) return;
 
-      // Automatically log all toast notifications to the diagnostics board.
-      const lowerMessage = message.toLowerCase();
-      const isError =
-        type === "error" ||
-        lowerMessage.includes("failed") ||
-        lowerMessage.includes("error") ||
-        lowerMessage.includes("unable") ||
-        lowerMessage.includes("invalid") ||
-        lowerMessage.includes("permission") ||
-        lowerMessage.includes("not allowed") ||
-        lowerMessage.includes("please enter");
-      invoke("add_diagnostic_event", {
-        level: isError ? "Error" : "Info",
-        source: "UI",
-        message: `Notification: ${message}`,
-      }).catch((err) => console.error("Failed to log diagnostic from toast:", err));
+      // Direct notifications need a diagnostic entry. reportStatus already
+      // records its event and opts out here to avoid duplicate report lines.
+      if (log) {
+        const lowerMessage = message.toLowerCase();
+        const isError =
+          type === "error" ||
+          lowerMessage.includes("failed") ||
+          lowerMessage.includes("error") ||
+          lowerMessage.includes("unable") ||
+          lowerMessage.includes("invalid") ||
+          lowerMessage.includes("permission") ||
+          lowerMessage.includes("not allowed") ||
+          lowerMessage.includes("please enter");
+        invoke("add_diagnostic_event", {
+          level: isError ? "Error" : "Info",
+          source: "UI",
+          message: `Notification: ${message}`,
+        }).catch((err) => console.error("Failed to log diagnostic from toast:", err));
+      }
 
       // On Android, transient info/success is handled by the native toast;
       // errors are also rendered persistently so they are not lost.
@@ -277,7 +280,7 @@ function App() {
     invoke("add_diagnostic_event", { level, source, message })
       .catch((err) => console.error("Failed to log diagnostic:", err));
     if (toastType) {
-      showToast(message, toastType);
+      showToast(message, toastType, false);
     }
   }, [showToast]);
 

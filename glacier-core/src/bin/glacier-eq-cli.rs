@@ -665,11 +665,14 @@ fn execute_profile(action: ProfileAction) -> Result<String, String> {
 
 #[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
 fn ensure_complete_hid_write(expected: usize, actual: usize) -> Result<(), String> {
-    if actual == expected {
+    // Windows pads short payloads to the device's output report length and
+    // reports the padded length. Only a result shorter than our payload is a
+    // partial write.
+    if actual >= expected {
         Ok(())
     } else {
         Err(format!(
-            "HID write length mismatch: expected {expected} bytes, actual {actual}"
+            "Short HID write: expected at least {expected} bytes, actual {actual}"
         ))
     }
 }
@@ -928,10 +931,16 @@ mod tests {
 
     #[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
     #[test]
+    fn accepts_complete_and_padded_hid_writes() {
+        assert!(ensure_complete_hid_write(4, 4).is_ok());
+        assert!(ensure_complete_hid_write(4, 64).is_ok());
+    }
+
+    #[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
+    #[test]
     fn rejects_short_hid_writes() {
-        assert!(ensure_complete_hid_write(64, 64).is_ok());
         let error = ensure_complete_hid_write(64, 12).unwrap_err();
-        assert!(error.contains("expected 64 bytes"), "{error}");
+        assert!(error.contains("expected at least 64 bytes"), "{error}");
         assert!(error.contains("actual 12"), "{error}");
     }
 

@@ -7,6 +7,17 @@ export interface DiagnosticEvent {
   message: string;
 }
 
+export interface DiagnosticContext {
+  app_version: string;
+  runtime: string;
+  platform: string;
+  architecture: string | null;
+  device_name: string | null;
+  device_id: string | null;
+  protocol: string | null;
+  transport: string | null;
+}
+
 export const DIAGNOSTIC_EVENT_LIMIT = 1_000;
 
 /** Apply the same retention bound to pending buffers and the displayed log. */
@@ -93,4 +104,32 @@ export function settleDiagnosticClear({
   outcome: "cleared" | "failed";
 }): DiagnosticEvent[] {
   return mergeDiagnosticEvents(outcome === "cleared" ? [] : events, buffered);
+}
+
+export function formatDiagnosticReport(
+  events: DiagnosticEvent[],
+  context: DiagnosticContext,
+  generatedAt = new Date(),
+): string {
+  const platform = context.architecture
+    ? `${context.platform} (${context.architecture})`
+    : context.platform;
+  const device = context.device_name
+    ? `${context.device_name}${context.device_id ? ` (${context.device_id})` : ""}`
+    : "Not connected";
+  const details = [
+    "Glacier EQ diagnostic report",
+    `Generated: ${generatedAt.toISOString()}`,
+    `App: ${context.app_version}`,
+    `Runtime: ${context.runtime}`,
+    `Platform: ${platform}`,
+    `Device: ${device}`,
+  ];
+  if (context.protocol) details.push(`Protocol: ${context.protocol}`);
+  if (context.transport) details.push(`Transport: ${context.transport}`);
+  details.push("", `Events (${events.length}):`, "----------------------------------------");
+
+  return `${details.join("\n")}\n${events
+    .map((event) => `${event.timestamp} [${event.level.toUpperCase()}] [${event.source}] ${event.message}`)
+    .join("\n")}`;
 }

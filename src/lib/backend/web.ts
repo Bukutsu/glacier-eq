@@ -801,7 +801,11 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
 
   // Log WebRPC calls to local diagnostics. Args are truncated: measurement and
   // AutoEQ payloads serialize to hundreds of KB per call.
-  if (cmd !== "get_diagnostics" && cmd !== "add_diagnostic_event") {
+  if (
+    cmd !== "get_diagnostics" &&
+    cmd !== "get_diagnostic_context" &&
+    cmd !== "add_diagnostic_event"
+  ) {
     const serialized = JSON.stringify(args || {});
     const summary = serialized.length > 200 ? `${serialized.slice(0, 200)}…(${serialized.length} bytes)` : serialized;
     addDiagnostic("Info", "UI", `WebRPC invoke("${cmd}", ${summary})`);
@@ -919,6 +923,20 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
     }
 
     // ─── Diagnostics ────────────────────────────────────────────────────────
+    case "get_diagnostic_context": {
+      return {
+        app_version: __APP_VERSION__,
+        runtime: "Web",
+        platform: navigator.userAgent,
+        architecture: null,
+        device_name: activeProfile?.name || activeDevice?.productName || null,
+        device_id: activeDevice
+          ? `${activeDevice.vendorId.toString(16).padStart(4, "0").toUpperCase()}:${activeDevice.productId.toString(16).padStart(4, "0").toUpperCase()}`
+          : null,
+        protocol: activeProfile?.protocol || null,
+        transport: activeDevice ? "WebHID" : null,
+      } as T;
+    }
     case "add_diagnostic_event": {
       addDiagnostic(args.level, args.source, args.message);
       return null as T;

@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::profiles::app_data_base_dir;
+use crate::state::DeviceState;
+use glacier_core::device::get_supported_device;
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::fs;
@@ -59,6 +61,18 @@ pub struct DiagnosticEvent {
     pub level: LogLevel,
     pub source: LogSource,
     pub message: String,
+}
+
+#[derive(Serialize)]
+pub struct DiagnosticContext {
+    app_version: &'static str,
+    runtime: &'static str,
+    platform: &'static str,
+    architecture: &'static str,
+    device_name: Option<String>,
+    device_id: Option<String>,
+    protocol: Option<&'static str>,
+    transport: Option<&'static str>,
 }
 
 static EVENT_SEQUENCE: AtomicU64 = AtomicU64::new(1);
@@ -181,6 +195,58 @@ fn lock_store<'a, 'r>(
 }
 
 // --- Commands ---
+
+#[tauri::command]
+pub fn get_diagnostic_context(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Mutex<DeviceState>>,
+) -> DiagnosticContext {
+    let connected = state
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .connected
+        .clone();
+    let profile = connected
+        .as_ref()
+        .and_then(|device| get_supported_device(device.vendor_id, device.product_id));
+
+    #[cfg(target_os = "linux")]
+    let transport = connected.as_ref().map(|_| {
+        use tauri::Manager;
+        let elevated = app
+            .state::<Mutex<Option<crate::hid_helper::ElevatedTransport>>>()
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .is_some();
+        if elevated {
+            "HIDAPI (elevated helper)"
+        } else {
+            "HIDAPI (direct)"
+        }
+    });
+    #[cfg(target_os = "android")]
+    let transport = connected.as_ref().map(|_| "Android USB HID");
+    #[cfg(not(any(target_os = "linux", target_os = "android")))]
+    let transport = connected.as_ref().map(|_| "HIDAPI (direct)");
+
+    let _ = app;
+    DiagnosticContext {
+        app_version: env!("CARGO_PKG_VERSION"),
+        runtime: if cfg!(target_os = "android") {
+            "Android"
+        } else {
+            "Desktop"
+        },
+        platform: std::env::consts::OS,
+        architecture: std::env::consts::ARCH,
+        device_name: connected.as_ref().map(|device| device.profile_name.clone()),
+        device_id: connected
+            .as_ref()
+            .map(|device| format!("{:04X}:{:04X}", device.vendor_id, device.product_id)),
+        protocol: profile.map(|profile| profile.protocol.name()),
+        transport,
+    }
+}
 
 #[tauri::command]
 pub fn get_diagnostics(
