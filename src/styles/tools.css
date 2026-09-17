@@ -370,6 +370,7 @@
 
 .profile-management-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
   width: 100%;
@@ -554,8 +555,16 @@
 }
 
 .profile-management-actions .primary-save {
-  min-width: 0;
-  min-height: 40px;
+  width: auto;
+  min-width: max-content;
+  min-height: 44px;
+  white-space: nowrap;
+}
+
+.tools-card .profile-management-actions > .profile-save-as-toggle {
+  flex: 0 0 100%;
+  min-height: 44px;
+  white-space: nowrap;
 }
 
 .tools-card .profile-save-as-toggle {
