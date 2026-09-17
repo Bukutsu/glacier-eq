@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   appendDiagnosticEvent,
   DIAGNOSTIC_EVENT_LIMIT,
+  formatDiagnosticReport,
   mergeDiagnosticEvents,
   parseDiagnosticEvent,
   parseDiagnosticHistory,
@@ -25,6 +26,35 @@ describe("diagnostic payload parsing", () => {
     expect(parseDiagnosticHistory([event])).toEqual([event]);
     expect(() => parseDiagnosticEvent({ ...event, level: "Debug" })).toThrow();
     expect(() => parseDiagnosticHistory({ event })).toThrow();
+  });
+});
+
+describe("formatDiagnosticReport", () => {
+  it("includes report context and every event", () => {
+    const report = formatDiagnosticReport(
+      [diagnostic("first"), diagnostic("second")],
+      {
+        app_version: "0.10.0",
+        runtime: "Desktop",
+        platform: "windows",
+        architecture: "x86_64",
+        device_name: "EPZ TP35 Pro",
+        device_id: "0ABC:1234",
+        protocol: "Walkplay",
+        transport: "HIDAPI (direct)",
+      },
+      new Date("2026-09-17T00:00:00.000Z"),
+    );
+
+    expect(report).toContain("Glacier EQ diagnostic report");
+    expect(report).toContain("Generated: 2026-09-17T00:00:00.000Z");
+    expect(report).toContain("Platform: windows (x86_64)");
+    expect(report).toContain("Device: EPZ TP35 Pro (0ABC:1234)");
+    expect(report).toContain("Protocol: Walkplay");
+    expect(report).toContain("Transport: HIDAPI (direct)");
+    expect(report).toContain("Events (2):");
+    expect(report).toContain("first");
+    expect(report).toContain("second");
   });
 });
 

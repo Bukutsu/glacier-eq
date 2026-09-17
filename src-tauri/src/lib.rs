@@ -367,6 +367,7 @@ pub fn run() {
             open_text_file_dialog,
             save_text_file_dialog,
             read_text_file,
+            diagnostics::get_diagnostic_context,
             diagnostics::get_diagnostics,
             diagnostics::clear_diagnostics,
             diagnostics::add_diagnostic_event,
