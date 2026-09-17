@@ -854,6 +854,14 @@
     border-radius: 0 !important;
   }
 
+  .mobile-workspace .settings-plain {
+    padding-inline: 16px;
+  }
+
+  .mobile-workspace .settings-plain .stack-pref-row {
+    padding-inline: 0;
+  }
+
   .mobile-workspace .stack-pref-row.select-row {
     flex-direction: column;
     align-items: stretch;
