@@ -474,7 +474,7 @@ export const DeviceView = memo(function DeviceView({
               <div className="stack-card">
                 <div className="stack-pref-row select-row">
                   <div className="stack-pref-info">
-                    <span className="stack-pref-title">Reconstruction Filter</span>
+                    <label className="stack-pref-title" htmlFor="utility-filter-select">Reconstruction Filter</label>
                     <span className="stack-pref-desc">Sets digital filter roll-off and phase response</span>
                   </div>
                   <div className="stack-pref-control">

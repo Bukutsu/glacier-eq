@@ -568,7 +568,7 @@ body.is-android {
 body.is-android::after {
   display: none;
 }
-input, textarea, [contenteditable="true"] {
+input, textarea, [contenteditable="true"], pre, code {
   user-select: text;
   -webkit-user-select: text;
 }
