@@ -980,17 +980,17 @@ function App() {
     };
   }, [connected, connectedDeviceName, selectedDevice, isBusy, loadFirmwareVersion, reportStatus, setConnected]);
 
-  const pullEq = useCallback(async (afterConnect = false) => {
+  const pullEq = useCallback(async (afterConnect = false): Promise<boolean> => {
     if (!connected && !afterConnect) {
       setStatus("Connect a DAC before reading its EQ.");
-      return;
+      return false;
     }
-    if (eqOperationInFlightRef.current) return;
+    if (eqOperationInFlightRef.current) return false;
     if (dirty && !(await confirmDialog({
       title: "Discard changes?",
       message: "Reading EQ from the DAC will discard your unsaved changes.",
       confirmLabel: "Discard and read",
-    }))) return;
+    }))) return false;
     eqOperationInFlightRef.current = true;
     setProgress(null);
     setIsBusy(true);
@@ -1024,14 +1024,14 @@ function App() {
         data = await invoke<PEQData>("get_eq_state");
         await sleep(400);
       }
-      if (!isCurrentPull()) return;
+      if (!isCurrentPull()) return false;
       const normalized = normalizePeq(data, { integerPreamp: selectedCapabilities.integer_preamp, capabilities: selectedCapabilities });
       const matchedProfile = await resolvePulledProfile(
         normalized,
         (peq) => invoke<string | null>("match_profile_name", { peq }),
         isCurrentPull,
       );
-      if (matchedProfile === null || !isCurrentPull()) return;
+      if (matchedProfile === null || !isCurrentPull()) return false;
       pushToUndoStack(peqRef.current);
       setPeq(normalized);
       setLastPushedPeq(normalized);
@@ -1052,11 +1052,12 @@ function App() {
         "success",
         "UI"
       );
+      return true;
     } catch (error) {
       // A pull that lost its editor/connection context mid-read must not
       // report against newer state or clear a connection made after it
       // started; only a current pull may act on its failure.
-      if (!isCurrentPull()) return;
+      if (!isCurrentPull()) return false;
       if (isDisconnectionError(error)) {
         setConnected(false);
         setLastPushedPeq(null);
@@ -1066,6 +1067,7 @@ function App() {
       } else {
         reportStatus("Error", `Could not read from DAC: ${error}`, "error", "UI");
       }
+      return false;
     } finally {
       eqOperationInFlightRef.current = false;
       setIsBusy(false);

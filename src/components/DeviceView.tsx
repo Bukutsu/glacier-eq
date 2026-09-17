@@ -32,7 +32,7 @@ export interface DeviceViewProps {
   firmwareVersion?: string | null;
   section?: DeviceSection;
   setStatus: (msg: string) => void;
-  onPull?: () => Promise<void>;
+  onPull?: () => Promise<void | boolean>;
   onOpenConnectModal?: () => void;
   onDisconnect?: () => Promise<void>;
 }
@@ -217,8 +217,12 @@ export const DeviceView = memo(function DeviceView({
     scheduleUtilityTask.enqueue("reset", async (isCurrent) => {
       try {
         await invoke("reset_device_eq");
-        if (onPull) await onPull();
-        if (isCurrent()) setStatus("Device EQ reset to flat.");
+        if (!isCurrent()) return;
+        const pulled = await onPull?.();
+        if (!isCurrent()) return;
+        setStatus(pulled === false
+          ? "Device EQ was reset, but reading it back failed. Read EQ from the DAC again before editing."
+          : "Device EQ reset to flat.");
       } catch (err) {
         if (!isCurrent()) return;
         setStatus(`Could not reset device EQ: ${err}`);
@@ -268,8 +272,12 @@ export const DeviceView = memo(function DeviceView({
         utilityRef.current = data;
         confirmedUtilityRef.current = data;
         setUtility(data);
-        if (onPull) await onPull();
-        setStatus("Device restored to factory defaults.");
+        if (!isCurrent()) return;
+        const pulled = await onPull?.();
+        if (!isCurrent()) return;
+        setStatus(pulled === false
+          ? "Device restored to factory defaults, but reading it back failed. Read EQ from the DAC again before editing."
+          : "Device restored to factory defaults.");
       } catch (err) {
         if (!isCurrent()) return;
         setStatus(`Could not restore factory defaults: ${err}`);
