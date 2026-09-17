@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   asyncContextEquals,
+  isHandledDeviceDisconnected,
   parseDeviceDisconnectedPayload,
 } from "./asyncContext";
 
@@ -34,5 +35,35 @@ describe("parseDeviceDisconnectedPayload", () => {
       .toBeNull();
     expect(parseDeviceDisconnectedPayload({ path: "/dev/hidraw2" }, "/dev/hidraw2"))
       .toBeNull();
+  });
+});
+
+describe("isHandledDeviceDisconnected", () => {
+  const base = {
+    payload: { path: "/dev/hidraw2", name: "Example DAC" } as const,
+    activePath: "/dev/hidraw2",
+    connected: true,
+    manualDisconnect: false,
+    devDummy: false,
+    alreadyHandled: false,
+  };
+
+  it("suppresses the event during a manual disconnect close failure", () => {
+    expect(isHandledDeviceDisconnected({ ...base, manualDisconnect: true })).toBe(true);
+  });
+
+  it("handles a genuine unplug while connected", () => {
+    expect(isHandledDeviceDisconnected(base)).toBe(false);
+  });
+
+  it("suppresses stale, unconnected, dummy, and duplicate events", () => {
+    expect(isHandledDeviceDisconnected({
+      ...base,
+      payload: { path: "/dev/hidraw3", name: "Other DAC" },
+    })).toBe(true);
+    expect(isHandledDeviceDisconnected({ ...base, payload: null })).toBe(true);
+    expect(isHandledDeviceDisconnected({ ...base, connected: false })).toBe(true);
+    expect(isHandledDeviceDisconnected({ ...base, devDummy: true })).toBe(true);
+    expect(isHandledDeviceDisconnected({ ...base, alreadyHandled: true })).toBe(true);
   });
 });

@@ -987,9 +987,12 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
       }
       if (activeDevice) {
         detachHidEventListeners(activeDevice);
+        let closeError: unknown = null;
         try {
           await activeDevice.close();
-        } catch {}
+        } catch (error) {
+          closeError = error;
+        }
         activeDevice = null;
         activeProfile = null;
         reportQueue = [];
@@ -997,6 +1000,7 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
           const resolver = reportResolvers.shift();
           if (resolver) resolver(new Uint8Array(0));
         }
+        if (closeError !== null) throw closeError;
       }
       return null as T;
     }

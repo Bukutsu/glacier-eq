@@ -189,6 +189,20 @@ describe("browser connection cleanup", () => {
     await invoke("disconnect_device", { expectedPath: paths[1].path });
     expect(second.close).toHaveBeenCalledOnce();
   });
+
+  it("releases local state and reports a transport close failure", async () => {
+    const device = fakeHidDevice();
+    (device.close as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error("busy"));
+    wasm.list_supported_devices.mockReturnValue([profile]);
+    hidMock.devices = [device];
+    const paths = await invoke<Array<{ path: string }>>("list_devices");
+    await invoke("connect_device", { path: paths[0].path });
+    await expect(invoke("disconnect_device")).rejects.toThrow("busy");
+    // Local state is released despite the failure: a second disconnect is a
+    // no-op instead of retrying the close.
+    await invoke("disconnect_device");
+    expect(device.close).toHaveBeenCalledOnce();
+  });
 });
 
 describe("browser profile matching", () => {
