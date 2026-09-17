@@ -13,7 +13,7 @@ import {
 } from "./SettingsPrimitives";
 import { invoke } from "../lib/rpc";
 import { isLinux, isTauri } from "../lib/platform";
-import { LinuxUdevGuide } from "./LinuxUdevGuide";
+import { LinuxUdevGuide, UDEV_INSTALL_COMMAND } from "./LinuxUdevGuide";
 import type { SettingsSection } from "../lib/tabs";
 import type { AppSettings, GraphViewMode } from "../types";
 
@@ -70,6 +70,8 @@ function UdevSection({
 }) {
   const [status, setUdevStatus] = useState<UdevStatus | null>(null);
   const [checking, setChecking] = useState(true);
+  const [checkError, setCheckError] = useState<string | null>(null);
+  const [checkAttempt, setCheckAttempt] = useState(0);
   const [busy, setBusy] = useState<"install" | "remove" | null>(null);
   const [note, setNote] = useState<string | null>(null);
 
@@ -81,6 +83,8 @@ function UdevSection({
       return;
     }
     let cancelled = false;
+    setChecking(true);
+    setCheckError(null);
     invoke<UdevStatus>("get_udev_status")
       .then((next) => {
         if (!cancelled) {
@@ -88,13 +92,16 @@ function UdevSection({
           setChecking(false);
         }
       })
-      .catch(() => {
-        if (!cancelled) setChecking(false);
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setCheckError(`Could not check USB permissions: ${error}`);
+          setChecking(false);
+        }
       });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [checkAttempt]);
 
   if (!isTauri()) {
     if (!isLinux()) return null;
@@ -106,7 +113,24 @@ function UdevSection({
     );
   }
 
-  if (!checking && (status === null || !status.supported)) {
+  if (checkError !== null) {
+    return (
+      <section className="settings-plain" aria-label="Linux USB permissions">
+        <h2 className="settings-plain-title">Linux USB permissions</h2>
+        <p className="settings-plain-desc" role="alert">{checkError}</p>
+        <button type="button" className="btn" onClick={() => setCheckAttempt((attempt) => attempt + 1)}>
+          <Icon>refresh</Icon>
+          <span>Retry permissions check</span>
+        </button>
+        <p className="settings-plain-desc">
+          On Linux, you can install the rule manually by running this command in a terminal, then reconnecting your DAC:
+        </p>
+        <div className="udev-command-row"><code>{UDEV_INSTALL_COMMAND}</code></div>
+      </section>
+    );
+  }
+
+  if (!checking && status !== null && !status.supported) {
     return null;
   }
 
