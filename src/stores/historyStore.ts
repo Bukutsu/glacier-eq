@@ -7,14 +7,17 @@ import type { PEQData } from "../types";
 
 const MAX_HISTORY = 50;
 
+type NormalizeSnapshot = (snapshot: PEQData) => PEQData;
+const unchangedSnapshot: NormalizeSnapshot = (snapshot) => snapshot;
+
 interface HistoryState {
   past: PEQData[];
   future: PEQData[];
   /** PEQ captured when the last undo landed; redo validates against it. */
   redoBase: PEQData | null;
   pushSnapshot: (current: PEQData) => void;
-  undo: (current: PEQData) => PEQData | null;
-  redo: (current: PEQData) => PEQData | null;
+  undo: (current: PEQData, normalize?: NormalizeSnapshot) => PEQData | null;
+  redo: (current: PEQData, normalize?: NormalizeSnapshot) => PEQData | null;
   clearFuture: () => void;
 }
 
@@ -39,29 +42,33 @@ export const useHistoryStore = create<HistoryState>()((set, get) => ({
     });
   },
 
-  undo: (current) => {
+  undo: (current, normalize = unchangedSnapshot) => {
     const { past, future } = get();
-    let idx = past.length - 1;
-    while (idx >= 0 && peqEquals(past[idx], current)) idx -= 1;
+    // Normalize scanned entries so comparisons and the restored state match
+    // what the editor will actually display; normalizers are idempotent.
+    const normalizedPast = past.map(normalize);
+    let idx = normalizedPast.length - 1;
+    while (idx >= 0 && peqEquals(normalizedPast[idx], current)) idx -= 1;
     if (idx < 0) return null;
 
-    const prev = past[idx];
+    // The redo base must be the state actually restored into the editor.
+    const prev = normalizedPast[idx];
     set({
-      past: past.slice(0, idx),
+      past: normalizedPast.slice(0, idx),
       future: [...future, current],
       redoBase: prev,
     });
     return prev;
   },
 
-  redo: (current) => {
+  redo: (current, normalize = unchangedSnapshot) => {
     const { past, future, redoBase } = get();
     if (future.length === 0) return null;
     if (!redoBase || !peqEquals(current, redoBase)) {
       set({ future: [], redoBase: null });
       return null;
     }
-    const next = future[future.length - 1];
+    const next = normalize(future[future.length - 1]);
     set({
       future: future.slice(0, -1),
       past: [...past, current],

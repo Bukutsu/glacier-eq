@@ -44,6 +44,7 @@ import {
 } from "./lib/asyncContext";
 import { resolvePulledProfile } from "./lib/pulledProfile";
 import { createSettingsPersistence } from "./lib/settingsPersistence";
+import { restoreHistorySnapshot } from "./lib/restoredHistory";
 import { parseAutoEqResult } from "./lib/parsedAutoEq";
 import type {
   DeviceInfo,
@@ -377,22 +378,6 @@ function App() {
     window.localStorage.setItem("glacier-graph-view-mode", graphViewMode);
   }, [graphViewMode]);
 
-  const undo = useCallback(() => {
-    const prev = useHistoryStore.getState().undo(peqRef.current);
-    if (!prev) return;
-    setPeq(prev);
-    noteEditorMutation();
-    setDirty(!peqEquals(prev, editorCleanPeqRef.current));
-  }, [noteEditorMutation]);
-
-  const redo = useCallback(() => {
-    const next = useHistoryStore.getState().redo(peqRef.current);
-    if (!next) return;
-    setPeq(next);
-    noteEditorMutation();
-    setDirty(!peqEquals(next, editorCleanPeqRef.current));
-  }, [noteEditorMutation]);
-
   const pushToUndoStack = useCallback((currentPeq: PEQData) => {
     useHistoryStore.getState().pushSnapshot(currentPeq);
   }, []);
@@ -513,6 +498,23 @@ function App() {
   const deviceName = selectedDeviceInfo?.profile_name || selectedDeviceInfo?.product_string || "Supported DAC";
   const maxFilterBands = capabilities.num_bands;
   const supportsRamApply = capabilities.supports_ram_apply;
+
+  const restoreHistory = useCallback((direction: "undo" | "redo") => {
+    const restored = restoreHistorySnapshot({
+      restore: useHistoryStore.getState()[direction],
+      current: peqRef.current,
+      clean: editorCleanPeqRef.current,
+      capabilities,
+    });
+    if (!restored) return;
+    peqRef.current = restored.peq;
+    setPeq(restored.peq);
+    noteEditorMutation();
+    setDirty(restored.dirty);
+  }, [capabilities, noteEditorMutation]);
+
+  const undo = useCallback(() => restoreHistory("undo"), [restoreHistory]);
+  const redo = useCallback(() => restoreHistory("redo"), [restoreHistory]);
 
   // Validates a set/apply_eq_state response before trusting it as the
   // committed device state.
