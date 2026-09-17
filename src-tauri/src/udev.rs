@@ -13,6 +13,120 @@
 use serde::Serialize;
 #[cfg(target_os = "linux")]
 use std::path::PathBuf;
+#[cfg(target_os = "linux")]
+use std::{
+    io::Read,
+    os::fd::AsRawFd,
+    process::{Child, Command, ExitStatus, Stdio},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+    time::{Duration, Instant},
+};
+
+#[cfg(target_os = "linux")]
+const AUTH_TIMEOUT: Duration = Duration::from_secs(120);
+#[cfg(target_os = "linux")]
+const PROBE_TIMEOUT: Duration = Duration::from_secs(2);
+
+/// Dropping an awaiting command requests cancellation of its blocking worker.
+/// Aborting spawn_blocking itself would not stop a running subprocess.
+#[cfg(target_os = "linux")]
+#[derive(Default)]
+struct CommandOwner(Arc<AtomicBool>);
+
+#[cfg(target_os = "linux")]
+impl Drop for CommandOwner {
+    fn drop(&mut self) {
+        self.0.store(true, Ordering::Release);
+    }
+}
+
+#[cfg(target_os = "linux")]
+struct OwnedChild(Option<Child>);
+
+#[cfg(target_os = "linux")]
+impl Drop for OwnedChild {
+    fn drop(&mut self) {
+        if let Some(child) = self.0.take() {
+            crate::hid_helper::kill_and_reap(child);
+        }
+    }
+}
+
+/// Own the process through every error/unwind path. Poll stderr without waiting
+/// for EOF (descendants can inherit the pipe), retaining only a bounded prefix.
+/// Like the HID transport, cleanup cannot guarantee killing an elevated child:
+/// on EPERM an eventual background waiter retains reaping responsibility.
+#[cfg(target_os = "linux")]
+fn run_bounded(
+    command: &mut Command,
+    timeout: Duration,
+    cancelled: &AtomicBool,
+) -> Result<(ExitStatus, Vec<u8>), String> {
+    if cancelled.load(Ordering::Acquire) {
+        return Err("Privileged command cancelled before launch.".into());
+    }
+    let child = command
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|error| {
+            if error.kind() == std::io::ErrorKind::NotFound {
+                pkexec_missing_error()
+            } else {
+                format!("Failed to launch privileged helper: {error}")
+            }
+        })?;
+    let mut owned = OwnedChild(Some(child));
+    let child = owned.0.as_mut().expect("owned child");
+    let mut stderr = child.stderr.take().expect("piped stderr");
+    let fd = stderr.as_raw_fd();
+    // SAFETY: fd is a live, exclusively owned pipe. Preserve its existing flags.
+    let flags = unsafe { libc::fcntl(fd, libc::F_GETFL) };
+    if flags < 0 || unsafe { libc::fcntl(fd, libc::F_SETFL, flags | libc::O_NONBLOCK) } < 0 {
+        return Err(format!(
+            "Failed to configure helper stderr: {}",
+            std::io::Error::last_os_error()
+        ));
+    }
+    let deadline = Instant::now() + timeout;
+    let mut detail = Vec::new();
+    loop {
+        if cancelled.load(Ordering::Acquire) {
+            return Err("Privileged command cancelled; changes may already have been applied. Check USB permissions status.".into());
+        }
+        if Instant::now() >= deadline {
+            return Err("Privileged command timed out; changes may already have been applied. Check USB permissions status.".into());
+        }
+        let status = child
+            .try_wait()
+            .map_err(|error| format!("Failed to wait for privileged helper: {error}"))?;
+        // Bound each drain as well as retained output: a noisy process must not
+        // starve the deadline/cancellation checks or fill an unbounded buffer.
+        let mut buffer = [0; 4096];
+        for _ in 0..16 {
+            match stderr.read(&mut buffer) {
+                Ok(0) => break,
+                Ok(count) => {
+                    let keep = count.min(2_000 - detail.len());
+                    detail.extend_from_slice(&buffer[..keep]);
+                }
+                Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => break,
+                Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+                Err(error) => return Err(format!("Failed to read helper stderr: {error}")),
+            }
+        }
+        if let Some(status) = status {
+            // try_wait reaped the child; avoid sending a signal after its exit.
+            owned.0.take();
+            return Ok((status, detail));
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
+}
 
 /// Destination of the installed rules file. Fixed by convention; never
 /// derived from user input. Must be numbered < 70 (e.g. 69-) so it runs
@@ -52,7 +166,10 @@ fn unsupported_status() -> UdevStatus {
 #[cfg(target_os = "linux")]
 fn rules_match(installed: &str, expected: &str) -> bool {
     fn normalize(content: &str) -> String {
-        content.replace("\r\n", "\n").trim_end_matches('\n').to_string()
+        content
+            .replace("\r\n", "\n")
+            .trim_end_matches('\n')
+            .to_string()
     }
     normalize(installed) == normalize(expected)
 }
@@ -68,15 +185,17 @@ fn shell_quote(path: &str) -> Result<String, String> {
 }
 
 #[cfg(target_os = "linux")]
-fn has_pkexec() -> bool {
-    std::process::Command::new("pkexec")
-        .arg("--version")
-        .output()
-        .is_ok_and(|output| output.status.success())
+fn has_pkexec(cancelled: &AtomicBool) -> bool {
+    run_bounded(
+        Command::new("pkexec").arg("--version"),
+        PROBE_TIMEOUT,
+        cancelled,
+    )
+    .is_ok_and(|(status, _)| status.success())
 }
 
 #[cfg(target_os = "linux")]
-fn get_udev_status_linux() -> Result<UdevStatus, String> {
+fn get_udev_status_linux(cancelled: &AtomicBool) -> Result<UdevStatus, String> {
     let installed_content = match std::fs::read_to_string(DEST_PATH) {
         Ok(content) => Some(content),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
@@ -91,7 +210,7 @@ fn get_udev_status_linux() -> Result<UdevStatus, String> {
         installed,
         up_to_date,
         dest_path: DEST_PATH.to_string(),
-        has_pkexec: has_pkexec(),
+        has_pkexec: has_pkexec(cancelled),
     })
 }
 
@@ -106,31 +225,26 @@ fn pkexec_missing_error() -> String {
 /// Run a fixed privileged script through one polkit prompt. The script is
 /// built only from constants, never from user input.
 #[cfg(target_os = "linux")]
-fn run_pkexec_script(script: &str) -> Result<(), String> {
-    let output = std::process::Command::new("pkexec")
-        .args(["sh", "-c", script])
-        .output()
-        .map_err(|error| {
-            if error.kind() == std::io::ErrorKind::NotFound {
-                pkexec_missing_error()
-            } else {
-                format!("Failed to launch privileged helper: {error}")
-            }
-        })?;
-    if output.status.success() {
+fn run_pkexec_script(script: &str, cancelled: &AtomicBool) -> Result<(), String> {
+    let (status, stderr) = run_bounded(
+        Command::new("pkexec").args(["sh", "-c", script]),
+        AUTH_TIMEOUT,
+        cancelled,
+    )?;
+    if status.success() {
         return Ok(());
     }
     // 126/127 from pkexec mean the prompt was dismissed or auth failed;
     // report that distinctly from a script failure so the UI can say
     // "cancelled, nothing changed" instead of "failed".
-    if matches!(output.status.code(), Some(126) | Some(127)) {
+    if matches!(status.code(), Some(126) | Some(127)) {
         return Err("Authorization cancelled or failed — no changes were made.".into());
     }
-    let detail = String::from_utf8_lossy(&output.stderr).trim().to_string();
+    let detail = String::from_utf8_lossy(&stderr).trim().to_string();
     if detail.is_empty() {
         Err(format!(
             "Privileged command failed with status {} — no changes may have been applied.",
-            output.status
+            status
         ))
     } else {
         const MAX_DETAIL: usize = 500;
@@ -143,8 +257,8 @@ fn run_pkexec_script(script: &str) -> Result<(), String> {
 }
 
 #[cfg(target_os = "linux")]
-fn install_sync() -> Result<(), String> {
-    if !has_pkexec() {
+fn install_sync(cancelled: &AtomicBool) -> Result<(), String> {
+    if !has_pkexec(cancelled) {
         return Err(pkexec_missing_error());
     }
     let tmp: PathBuf =
@@ -164,7 +278,7 @@ fn install_sync() -> Result<(), String> {
          && udevadm control --reload-rules \
          && udevadm trigger --subsystem-match=hidraw --action=change"
     );
-    let result = run_pkexec_script(&script);
+    let result = run_pkexec_script(&script, cancelled);
     let _ = std::fs::remove_file(&tmp);
     result?;
     match std::fs::read_to_string(DEST_PATH) {
@@ -175,8 +289,8 @@ fn install_sync() -> Result<(), String> {
 }
 
 #[cfg(target_os = "linux")]
-fn uninstall_sync() -> Result<(), String> {
-    if !has_pkexec() {
+fn uninstall_sync(cancelled: &AtomicBool) -> Result<(), String> {
+    if !has_pkexec(cancelled) {
         return Err(pkexec_missing_error());
     }
     let quoted_dest = shell_quote(DEST_PATH)?;
@@ -186,7 +300,7 @@ fn uninstall_sync() -> Result<(), String> {
          && udevadm control --reload-rules \
          && udevadm trigger --subsystem-match=hidraw --action=change"
     );
-    run_pkexec_script(&script)?;
+    run_pkexec_script(&script, cancelled)?;
     if std::fs::symlink_metadata(DEST_PATH).is_ok()
         || std::fs::symlink_metadata(LEGACY_DEST_PATH).is_ok()
     {
@@ -197,10 +311,14 @@ fn uninstall_sync() -> Result<(), String> {
 
 #[tauri::command]
 pub async fn get_udev_status() -> Result<UdevStatus, String> {
-    tauri::async_runtime::spawn_blocking(|| {
+    #[cfg(target_os = "linux")]
+    let owner = CommandOwner::default();
+    #[cfg(target_os = "linux")]
+    let cancelled = owner.0.clone();
+    tauri::async_runtime::spawn_blocking(move || {
         #[cfg(target_os = "linux")]
         {
-            get_udev_status_linux()
+            get_udev_status_linux(&cancelled)
         }
         #[cfg(not(target_os = "linux"))]
         {
@@ -215,10 +333,14 @@ pub async fn get_udev_status() -> Result<UdevStatus, String> {
 pub async fn install_udev_rules() -> Result<(), String> {
     // The pkexec prompt can sit open for minutes; keep it off the IPC thread
     // so the UI stays responsive while the user decides.
-    tauri::async_runtime::spawn_blocking(|| {
+    #[cfg(target_os = "linux")]
+    let owner = CommandOwner::default();
+    #[cfg(target_os = "linux")]
+    let cancelled = owner.0.clone();
+    tauri::async_runtime::spawn_blocking(move || {
         #[cfg(target_os = "linux")]
         {
-            install_sync()
+            install_sync(&cancelled)
         }
         #[cfg(not(target_os = "linux"))]
         {
@@ -231,10 +353,14 @@ pub async fn install_udev_rules() -> Result<(), String> {
 
 #[tauri::command]
 pub async fn uninstall_udev_rules() -> Result<(), String> {
-    tauri::async_runtime::spawn_blocking(|| {
+    #[cfg(target_os = "linux")]
+    let owner = CommandOwner::default();
+    #[cfg(target_os = "linux")]
+    let cancelled = owner.0.clone();
+    tauri::async_runtime::spawn_blocking(move || {
         #[cfg(target_os = "linux")]
         {
-            uninstall_sync()
+            uninstall_sync(&cancelled)
         }
         #[cfg(not(target_os = "linux"))]
         {
@@ -245,9 +371,105 @@ pub async fn uninstall_udev_rules() -> Result<(), String> {
     .map_err(|error| error.to_string())?
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_os = "linux"))]
 mod tests {
     use super::*;
+
+    #[test]
+    fn bounded_command_preserves_status_and_stderr() {
+        let (status, stderr) = run_bounded(
+            Command::new("sh").args(["-c", "printf 'script failed' >&2; exit 42"]),
+            Duration::from_secs(2),
+            &AtomicBool::new(false),
+        )
+        .unwrap();
+        assert_eq!(status.code(), Some(42));
+        assert_eq!(stderr, b"script failed");
+    }
+
+    #[test]
+    fn bounded_command_drains_noisy_stderr_without_retaining_it_all() {
+        let (status, stderr) = run_bounded(
+            Command::new("sh").args(["-c", "head -c 100000 /dev/zero >&2"]),
+            Duration::from_secs(5),
+            &AtomicBool::new(false),
+        )
+        .unwrap();
+        assert!(status.success());
+        assert_eq!(stderr.len(), 2_000);
+    }
+
+    #[test]
+    fn bounded_command_does_not_wait_for_descendant_stderr_eof() {
+        let started = Instant::now();
+        let (status, _) = run_bounded(
+            Command::new("sh").args(["-c", "sleep 1 >&2 & exit 0"]),
+            Duration::from_secs(2),
+            &AtomicBool::new(false),
+        )
+        .unwrap();
+        assert!(status.success());
+        assert!(started.elapsed() < Duration::from_millis(900));
+    }
+
+    #[test]
+    fn bounded_command_times_out() {
+        let started = Instant::now();
+        let error = run_bounded(
+            Command::new("sleep").arg("30"),
+            Duration::from_millis(30),
+            &AtomicBool::new(false),
+        )
+        .unwrap_err();
+        assert!(error.contains("timed out"), "{error}");
+        assert!(started.elapsed() < Duration::from_secs(3));
+    }
+
+    #[test]
+    fn dropping_owner_cancels_running_command() {
+        let owner = CommandOwner::default();
+        let cancelled = owner.0.clone();
+        let worker = std::thread::spawn(move || {
+            run_bounded(
+                Command::new("sleep").arg("30"),
+                Duration::from_secs(10),
+                &cancelled,
+            )
+        });
+        std::thread::sleep(Duration::from_millis(50));
+        let started = Instant::now();
+        drop(owner);
+        let error = worker.join().unwrap().unwrap_err();
+        assert!(error.contains("cancelled"), "{error}");
+        assert!(started.elapsed() < Duration::from_secs(3));
+    }
+
+    #[test]
+    fn cancelled_command_is_not_launched() {
+        let error = run_bounded(
+            &mut Command::new("/nonexistent/glacier-eq-test"),
+            Duration::from_secs(1),
+            &AtomicBool::new(true),
+        )
+        .unwrap_err();
+        assert!(error.contains("cancelled before launch"), "{error}");
+    }
+
+    #[test]
+    fn owned_child_drop_kills_and_reaps() {
+        let child = Command::new("sleep").arg("30").spawn().unwrap();
+        let pid = child.id() as libc::pid_t;
+        drop(OwnedChild(Some(child)));
+        // SAFETY: waitpid with WNOHANG only queries this child; no pointer is used.
+        assert_eq!(
+            unsafe { libc::waitpid(pid, std::ptr::null_mut(), libc::WNOHANG) },
+            -1
+        );
+        assert_eq!(
+            std::io::Error::last_os_error().raw_os_error(),
+            Some(libc::ECHILD)
+        );
+    }
 
     #[test]
     fn rules_match_ignores_trailing_newline_and_crlf() {
@@ -258,7 +480,10 @@ mod tests {
 
     #[test]
     fn shell_quote_refuses_hostile_paths() {
-        assert_eq!(shell_quote("/etc/udev/rules.d/69-glacier-eq.rules").unwrap(), "'/etc/udev/rules.d/69-glacier-eq.rules'");
+        assert_eq!(
+            shell_quote("/etc/udev/rules.d/69-glacier-eq.rules").unwrap(),
+            "'/etc/udev/rules.d/69-glacier-eq.rules'"
+        );
         assert!(shell_quote("a'b").is_err());
         assert!(shell_quote("a\nb").is_err());
         assert!(shell_quote("").is_err());
