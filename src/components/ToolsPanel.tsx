@@ -44,7 +44,7 @@ export type ProfileMutationRunner = <T>(
 interface ToolsPanelProps {
   peq: PEQData;
   onImportPEQ: (data: PEQData, name: string, isSaved: boolean) => void;
-  onPull?: () => Promise<void>;
+  onPull?: () => Promise<boolean>;
   profiles: Profile[];
   selectedPreset: string;
   profileSearch: string;
