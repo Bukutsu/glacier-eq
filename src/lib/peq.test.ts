@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import type { DeviceCapabilities } from "../types";
 import {
   normalizePeq,
+  parseStoredPeqResponse,
   buildDefaultState,
   DEFAULT_FREQS_10_BAND,
 } from "./peq";
@@ -106,5 +107,37 @@ describe("normalizePeq", () => {
       normalizePeq({ filters: [{}, {}, {}, {}] }, { enableLoadedFilters: true }).filters[3]
         .enabled,
     ).toBe(true);
+  });
+});
+
+describe("parseStoredPeqResponse", () => {
+  it("accepts a well-formed device state and normalizes it", () => {
+    const parsed = parseStoredPeqResponse(
+      {
+        filters: [{ freq: 1000, gain: -3, q: 1 }],
+        global_gain: 0,
+      },
+      { capabilities: CAPS },
+    );
+    expect(parsed.global_gain).toBe(0);
+    expect(parsed.filters[0].freq).toBe(1000);
+  });
+
+  it("accepts the camelCase globalGain spelling", () => {
+    const parsed = parseStoredPeqResponse({
+      filters: [],
+      globalGain: -2,
+    });
+    expect(parsed.global_gain).toBe(-2);
+  });
+
+  it.each([
+    ["null", null],
+    ["missing filters", { global_gain: 0 }],
+    ["non-numeric gain", { filters: [], global_gain: "0" }],
+    ["non-positive q", { filters: [{ freq: 100, gain: 0, q: 0 }], global_gain: 0 }],
+    ["non-positive freq", { filters: [{ freq: 0, gain: 0, q: 1 }], global_gain: 0 }],
+  ])("rejects %s", (_label, value) => {
+    expect(() => parseStoredPeqResponse(value)).toThrow("invalid EQ state");
   });
 });

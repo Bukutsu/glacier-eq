@@ -2,7 +2,7 @@
   position: fixed;
   top: 72px;
   right: 24px;
-  z-index: 1000;
+  z-index: var(--z-toast);
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -104,8 +104,8 @@
   }
 }
 
-/* Mobile responsive layout */
-@media (max-width: 850px) {
+/* Mobile responsive layout - matches MOBILE_QUERY in src/lib/tabs.ts */
+@media (max-width: 850px), ((max-height: 540px) and (pointer: coarse)) {
   .toast-container {
     top: calc(72px + var(--safe-area-top, 0px));
     bottom: auto;

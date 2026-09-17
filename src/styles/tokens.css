@@ -1,0 +1,48 @@
+/* Glacier EQ design tokens — single source of truth for scale values.
+   Imported first in main.tsx so component stylesheets resolve these.
+   Canonical mobile query (mirrors MOBILE_QUERY in src/lib/tabs.ts):
+   "(max-width: 850px), ((max-height: 540px) and (pointer: coarse))" */
+
+:root {
+  /* Spacing scale — prefer these over raw px literals. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  /* Touch targets (WCAG 2.5.8 minimum). */
+  --touch-md: 44px;
+  --touch-lg: 48px;
+
+  /* Corner language: Glacier uses sharp corners by default. */
+  --radius-card: 0;
+  --radius-pill: 0;
+
+  /* Shadows. */
+  --shadow-sm: 0 2px 8px rgb(0 0 0 / 0.4);
+  --shadow-md: 0 4px 20px rgb(0 0 0 / 0.4);
+  --shadow-lg: 0 8px 32px rgb(0 0 0 / 0.5);
+  --shadow-overlay: 0 16px 48px rgb(0 0 0 / 0.5);
+
+  /* Stacking scale — no raw z-index literals in component stylesheets.
+     Grain sits above everything: it is pointer-transparent 4% texture. */
+  --z-graph-sticky: 5;
+  --z-graph-handle: 6;
+  --z-sticky: 10;
+  --z-raised: 15;
+  --z-header: 20;
+  --z-preview: 90;
+  --z-tabbar: 100;
+  --z-menu: 110;
+  --z-toast: 1000;
+  --z-modal: 2000;
+  --z-reconnect: 3000;
+  --z-grain: 4000;
+
+  /* Graph + tab-bar geometry referenced by JS scroll/preview logic. */
+  --graph-h-desktop: 280px;
+  --graph-h-mobile: clamp(170px, 21dvh, 196px);
+  --tabbar-h: 76px;
+}

@@ -28,45 +28,6 @@
   }
 }
 
-@media (max-width: 1279px) {
-  .workspace.mobile-workspace {
-    display: flex;
-    flex-direction: column;
-    overflow-y: auto;
-    overflow-x: hidden;
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior-y: auto;
-    scrollbar-width: none !important;
-  }
-  .workspace.mobile-workspace::-webkit-scrollbar {
-    display: none !important;
-  }
-  .mobile-workspace .left-pane {
-    overflow: visible !important;
-    overscroll-behavior: auto !important;
-  }
-  .mobile-workspace .tab-panel {
-    overflow: visible !important;
-    overscroll-behavior: auto !important;
-  }
-  .mobile-workspace .left-pane,
-  .mobile-workspace .right-rail {
-    flex: 0 0 auto;
-  }
-  .mobile-workspace .right-rail {
-    grid-template-rows: 1fr;
-    overflow: visible;
-  }
-  .mobile-workspace .tools-card {
-    overflow: visible;
-  }
-  .mobile-workspace .graph-card {
-    height: 320px;
-    flex: none;
-  }
-  .mobile-workspace .bands-grid { flex-basis: auto; }
-}
-
 @media (max-width: 960px) {
   body { overflow: hidden; }
   #app {
@@ -156,7 +117,7 @@
   .app-header {
     position: sticky;
     top: 0;
-    z-index: 20;
+    z-index: var(--z-header);
     padding: 10px 12px 8px;
     border-bottom: 1px solid var(--line-medium);
     background: var(--bg);
@@ -250,7 +211,7 @@
     border-radius: var(--radius-surface);
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
     backdrop-filter: blur(12px);
-    z-index: 110;
+    z-index: var(--z-menu);
     min-width: 180px;
     padding: 4px 0;
     display: flex;
@@ -333,7 +294,7 @@
     border: 1px solid var(--line-outline);
     color: var(--text);
     cursor: pointer;
-    z-index: 15;
+    z-index: var(--z-raised);
     transition: background-color var(--motion-duration) var(--motion-ease), color var(--motion-duration) var(--motion-ease), border-color var(--motion-duration) var(--motion-ease);
   }
   .mobile-legend-toggle:active {
@@ -752,7 +713,7 @@
     right: max(12px, var(--safe-area-right, 0px));
     bottom: calc(88px + var(--safe-area-bottom, 0px));
     left: max(12px, var(--safe-area-left, 0px));
-    z-index: 110;
+    z-index: var(--z-menu);
     display: flex;
     min-height: 52px;
     align-items: center;
@@ -805,7 +766,7 @@
   .mobile-workspace .stack-topbar {
     position: sticky;
     top: 0;
-    z-index: 10;
+    z-index: var(--z-sticky);
     min-height: 52px;
     padding: 0 16px;
     background: var(--panel);
@@ -1042,13 +1003,6 @@
 
 
 @media (max-width: 560px) {
-  .toolbar {
-    grid-template-columns: 76px repeat(3, minmax(0, 1fr));
-  }
-  .toolbar .btn {
-    padding: 0 6px;
-    font-size: var(--type-label);
-  }
   .bands-grid {
     display: flex;
     flex-direction: column;
@@ -1065,9 +1019,6 @@
 }
 
 @media (max-width: 380px) {
-  .toolbar .btn {
-    font-size: var(--type-small);
-  }
   .type-buttons {
     grid-template-columns: repeat(5, minmax(34px, 1fr));
   }
@@ -1096,7 +1047,7 @@
     padding: 4px max(6px, var(--safe-area-right, 0px)) var(--safe-area-bottom, 0px) max(6px, var(--safe-area-left, 0px));
     background: var(--bg);
     border-top: 1px solid var(--line-medium);
-    z-index: 100;
+    z-index: var(--z-tabbar);
     -webkit-tap-highlight-color: transparent !important;
     user-select: none !important;
   }
@@ -1180,7 +1131,7 @@
     top: calc(168px + var(--safe-area-top, 0px));
     width: min(300px, 76vw);
     height: 132px;
-    z-index: 90;
+    z-index: var(--z-preview);
     padding: 2px;
     background: rgb(var(--bg-dark-rgb) / 0.9);
     border: 1px solid var(--accent-line-outline);
@@ -1498,6 +1449,10 @@ body.is-android *,
   .band-number { font-size: var(--type-label); }
   .type-buttons { gap: 2px; }
   .type-buttons button { min-height: 24px; height: 24px; font-size: var(--type-micro); padding: 0; }
+}
+/* Touch laptops in the squeeze range keep usable targets. */
+@media (min-width: 769px) and (max-width: 1150px) and (pointer: coarse) {
+  .type-buttons button { min-height: var(--touch-md); height: auto; }
 }
 
 @media (max-width: 850px), ((max-height: 540px) and (pointer: coarse)) {

@@ -37,7 +37,7 @@
   height: 100vh;
   background: rgba(var(--bg-darker-rgb), 0.75);
   backdrop-filter: blur(4px);
-  z-index: 9999;
+  z-index: var(--z-reconnect);
   display: grid;
   place-items: center;
   animation: motion-fade-in var(--motion-duration) var(--motion-ease);
