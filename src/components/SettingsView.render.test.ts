@@ -45,6 +45,7 @@ describe("SettingsView markup", () => {
 
   it("renders behavior toggles as quiet rows", () => {
     const html = renderSettingsView({ section: "general" });
+    expect(html).toContain('class="stack-topbar subscreen"');
     expect(html).toContain("Auto-pull EQ on connect");
     expect(html).toContain("stack-card");
   });

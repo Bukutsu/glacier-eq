@@ -1553,6 +1553,12 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   background: var(--surface-soft);
 }
 
+.stack-nav-row:focus-visible,
+.stack-back-btn:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: -2px;
+}
+
 .stack-nav-row:active {
   background: color-mix(in srgb, var(--cyan) 10%, var(--surface-soft));
 }
@@ -1585,7 +1591,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 
 .stack-row-desc {
   font-size: 12px;
-  color: var(--comment);
+  color: var(--muted);
   line-height: 1.35;
 }
 
@@ -1664,7 +1670,8 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 
 .stack-pref-desc {
   font-size: 12px;
-  color: var(--comment);
+  color: var(--muted);
+  overflow-wrap: anywhere;
   line-height: 1.35;
 }
 

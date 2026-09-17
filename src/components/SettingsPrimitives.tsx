@@ -18,7 +18,7 @@ export function StackHeader({
   actions?: ReactNode;
 }) {
   return (
-    <header className="stack-topbar">
+    <header className={`stack-topbar${backTo ? " subscreen" : ""}`}>
       {backTo ? (
         <NavLink to={backTo} className="stack-back-btn" aria-label={backLabel}>
           <Icon>arrow_back</Icon>
