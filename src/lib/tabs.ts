@@ -33,6 +33,9 @@ export interface WorkspaceRoute {
   settingsSection: SettingsSection;
 }
 
+export const MOBILE_QUERY =
+  "(max-width: 850px), ((max-height: 540px) and (pointer: coarse))";
+
 export function parseWorkspacePath(pathname: string): WorkspaceRoute {
   const [tab, section] = pathname.replace(/^\/+|\/+$/g, "").split("/");
   const activeTab = MOBILE_TAB_IDS.has(tab as MobileTab) ? tab as MobileTab : "eq";

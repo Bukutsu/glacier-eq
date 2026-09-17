@@ -114,3 +114,40 @@ export function peqEquals(a: PEQData, b: PEQData): boolean {
       filter.q === other.q;
   });
 }
+
+/**
+ * Validates a set/apply_eq_state response before trusting it as the
+ * committed device state, then normalizes it to the DAC capabilities.
+ * Throws when the device payload is malformed.
+ */
+export function parseStoredPeqResponse(
+  value: unknown,
+  options: { integerPreamp?: boolean; capabilities?: DeviceCapabilities } = {},
+): PEQData {
+  if (
+    typeof value !== "object" ||
+    value === null ||
+    !Array.isArray((value as { filters?: unknown }).filters)
+  ) {
+    throw new Error("Device returned an invalid EQ state");
+  }
+  const raw = value as { filters: unknown[]; global_gain?: unknown; globalGain?: unknown };
+  const globalGain = raw.global_gain ?? raw.globalGain;
+  if (typeof globalGain !== "number" || !Number.isFinite(globalGain)) {
+    throw new Error("Device returned an invalid EQ state");
+  }
+  for (const filter of raw.filters) {
+    if (typeof filter !== "object" || filter === null) {
+      throw new Error("Device returned an invalid EQ state");
+    }
+    const f = filter as Record<string, unknown>;
+    if (
+      typeof f.gain !== "number" || !Number.isFinite(f.gain) ||
+      typeof f.q !== "number" || !Number.isFinite(f.q) || f.q <= 0 ||
+      typeof f.freq !== "number" || !(f.freq > 0)
+    ) {
+      throw new Error("Device returned an invalid EQ state");
+    }
+  }
+  return normalizePeq(value, options);
+}

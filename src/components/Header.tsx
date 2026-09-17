@@ -2,11 +2,15 @@ import { memo, useState, useRef, useEffect } from "react";
 import { Icon } from "./Icon";
 import { OperationProgress } from "../types";
 import { isTauri } from "../lib/platform";
+import { useIsMobile } from "../hooks/useIsMobile";
 
 const REPO_URL = "https://github.com/Bukutsu/glacier-eq";
 
 function GithubLink() {
-  if (isTauri()) return null;
+  const isMobile = useIsMobile();
+  // CSS also hides the link on mobile; returning null keeps it out of the
+  // keyboard tab order instead of leaving a focusable hidden element.
+  if (isTauri() || isMobile) return null;
 
   return (
     <a
