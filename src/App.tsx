@@ -34,7 +34,7 @@ import {
   buildDevDummyPeq,
   isDevDummyDevice,
 } from "./lib/devDevice";
-import { buildDefaultState, DEFAULT_PROFILE_NAME, normalizePeq, peqEquals } from "./lib/peq";
+import { buildDefaultState, DEFAULT_PROFILE_NAME, normalizePeq, parseStoredPeqResponse, peqEquals } from "./lib/peq";
 import { isAndroidDevice, isTauri } from "./lib/platform";
 import { isDisconnectionError } from "./lib/errors";
 import {
@@ -46,7 +46,6 @@ import {
 import { resolvePulledProfile } from "./lib/pulledProfile";
 import { createSettingsPersistence } from "./lib/settingsPersistence";
 import { restoreHistorySnapshot } from "./lib/restoredHistory";
-import { profileOverwriteMessage } from "./lib/profileOverwrite";
 import { parseAutoEqResult } from "./lib/parsedAutoEq";
 import type {
   DeviceInfo,
@@ -61,8 +60,11 @@ import { ToastContainer } from "./components/Toast";
 import { useToastStore } from "./stores/toastStore";
 import { useHistoryStore } from "./stores/historyStore";
 import { useThemeSync } from "./hooks/useThemeSync";
+import { useIsMobile } from "./hooks/useIsMobile";
 import { useTraces } from "./hooks/useTraces";
 import { OFFLINE_EDITOR_CAPABILITIES } from "./lib/dacSpecs";
+import { markDeviceLost } from "./features/device/deviceOperations";
+import { useProfiles } from "./features/profiles/useProfiles";
 import { DeviceView } from "./components/DeviceView";
 import { SettingsView } from "./components/SettingsView";
 
@@ -144,7 +146,6 @@ function AddTraceModal(props: ComponentProps<typeof LazyAddTraceModal>) {
   );
 }
 
-const MOBILE_QUERY = "(max-width: 850px), ((max-height: 540px) and (pointer: coarse))";
 const DEVICE_ONBOARDING_KEY = "glacier-device-onboarding-seen";
 const EDITOR_HINT_KEY = "glacier-editor-hint-dismissed";
 const TOOL_TAB_BY_WORKSPACE: Record<MobileTab, ToolsTab | null> = {
@@ -160,9 +161,7 @@ function App() {
   const location = useLocation();
   const navigate = useNavigate();
   const { tab: activeTab, deviceSection, settingsSection } = parseWorkspacePath(location.pathname);
-  const [isMobile, setIsMobile] = useState(
-    () => window.matchMedia(MOBILE_QUERY).matches,
-  );
+  const isMobile = useIsMobile();
   const isAndroid =
     typeof navigator !== "undefined" &&
     (document.body.classList.contains("is-android") ||
@@ -190,15 +189,6 @@ function App() {
   const reconnectEffectGenerationRef = useRef(0);
   const manualDisconnectRef = useRef(false);
   const lastConnectedNameRef = useRef<string>("");
-
-  useEffect(() => {
-    const media = window.matchMedia(MOBILE_QUERY);
-    const listener = (e: MediaQueryListEvent) => {
-      setIsMobile(e.matches);
-    };
-    media.addEventListener("change", listener);
-    return () => media.removeEventListener("change", listener);
-  }, []);
 
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const theme = settings.theme;
@@ -329,16 +319,6 @@ function App() {
       // Native bridge not available, fall through silently
     }
   }, [status, isAndroid]);
-  const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [selectedPreset, setSelectedPreset] = useState(DEFAULT_PROFILE_NAME);
-  const selectedPresetRef = useRef(selectedPreset);
-  selectedPresetRef.current = selectedPreset;
-  const [profileSearch, setProfileSearch] = useState("");
-  const profileSearchRef = useRef(profileSearch);
-  profileSearchRef.current = profileSearch;
-  const [newProfileName, setNewProfileName] = useState("");
-  const newProfileNameRef = useRef(newProfileName);
-  newProfileNameRef.current = newProfileName;
   const {
     measurements,
     allTargets,
@@ -501,6 +481,32 @@ function App() {
   const maxFilterBands = capabilities.num_bands;
   const supportsRamApply = capabilities.supports_ram_apply;
 
+  const profilesEditor = useMemo(() => ({
+    peqRef,
+    editorCleanPeqRef,
+    capabilities,
+    pushToUndoStack,
+    setPeq,
+    setDirty,
+    noteEditorMutation,
+  }), [capabilities, pushToUndoStack, noteEditorMutation]);
+  const {
+    profiles,
+    selectedPreset,
+    setSelectedPreset,
+    profileSearch,
+    setProfileSearch,
+    newProfileName,
+    setNewProfileName,
+    loadProfiles,
+    saveProfile,
+    deleteSelectedProfile,
+    openProfilesDir,
+    applyProfile,
+    importPeq,
+    runProfileMutation,
+  } = useProfiles(profilesEditor, setStatus);
+
   const restoreHistory = useCallback((direction: "undo" | "redo") => {
     const restored = restoreHistorySnapshot({
       restore: useHistoryStore.getState()[direction],
@@ -518,113 +524,10 @@ function App() {
   const undo = useCallback(() => restoreHistory("undo"), [restoreHistory]);
   const redo = useCallback(() => restoreHistory("redo"), [restoreHistory]);
 
-  // Validates a set/apply_eq_state response before trusting it as the
-  // committed device state.
-  const parseStoredPeqResponse = (value: unknown): PEQData => {
-    if (
-      typeof value !== "object" ||
-      value === null ||
-      !Array.isArray((value as { filters?: unknown }).filters)
-    ) {
-      throw new Error("Device returned an invalid EQ state");
-    }
-    const raw = value as { filters: unknown[]; global_gain?: unknown; globalGain?: unknown };
-    const globalGain = raw.global_gain ?? raw.globalGain;
-    if (typeof globalGain !== "number" || !Number.isFinite(globalGain)) {
-      throw new Error("Device returned an invalid EQ state");
-    }
-    for (const filter of raw.filters) {
-      if (typeof filter !== "object" || filter === null) {
-        throw new Error("Device returned an invalid EQ state");
-      }
-      const f = filter as Record<string, unknown>;
-      if (
-        typeof f.gain !== "number" || !Number.isFinite(f.gain) ||
-        typeof f.q !== "number" || !Number.isFinite(f.q) || f.q <= 0 ||
-        typeof f.freq !== "number" || !(f.freq > 0)
-      ) {
-        throw new Error("Device returned an invalid EQ state");
-      }
-    }
-    return normalizePeq(value, {
-      integerPreamp: capabilities.integer_preamp,
-      capabilities,
-    });
-  };
-
   const getAsyncContext = useCallback((): AsyncContext => ({
     editorRevision: editorRevisionRef.current,
     connectionRevision: connectionGenerationRef.current,
   }), []);
-
-  // All profile save/delete/import-save work runs through this queue in user
-  // request order. `current` is false when a newer mutation was requested
-  // while the task ran, so stale completions never update profiles or editor.
-  const profileMutationQueueRef = useRef(Promise.resolve());
-  const profileMutationTicketRef = useRef(0);
-  const runProfileMutation = useCallback(
-    async <T,>(task: () => Promise<T>): Promise<{ value: T; current: boolean }> => {
-      const ticket = ++profileMutationTicketRef.current;
-      const run = profileMutationQueueRef.current.then(async () => {
-        const value = await task();
-        return { value, current: profileMutationTicketRef.current === ticket };
-      });
-      profileMutationQueueRef.current = run.then(
-        () => undefined,
-        () => undefined,
-      );
-      return run;
-    },
-    [],
-  );
-
-  const applyProfile = useCallback(
-    (profile: Profile) => {
-      pushToUndoStack(peqRef.current);
-      const data = normalizePeq(profile.data, { enableLoadedFilters: true, integerPreamp: capabilities.integer_preamp, capabilities });
-      setPeq(data);
-      setSelectedPreset(profile.name);
-      setProfileSearch("");
-      setNewProfileName("");
-      editorCleanPeqRef.current = data;
-      noteEditorMutation();
-      setDirty(false);
-    },
-    [pushToUndoStack, capabilities, noteEditorMutation],
-  );
-
-  const importPeq = useCallback(
-    (data: PEQData, name: string, isSaved: boolean) => {
-      pushToUndoStack(peqRef.current);
-      const normalized = normalizePeq(data, { enableLoadedFilters: true, integerPreamp: capabilities.integer_preamp, capabilities });
-      setPeq(normalized);
-      setSelectedPreset(name);
-      setProfileSearch("");
-      setNewProfileName(name);
-      if (isSaved) editorCleanPeqRef.current = normalized;
-      noteEditorMutation();
-      setDirty(!isSaved);
-    },
-    [pushToUndoStack, capabilities, noteEditorMutation],
-  );
-
-  const withSyntheticDefault = (raw: Profile[]): Profile[] => [
-    { name: DEFAULT_PROFILE_NAME, data: buildDefaultState(), modified: null },
-    ...raw,
-  ];
-
-  const profileLoadGenerationRef = useRef(0);
-  const loadProfiles = useCallback(async () => {
-    const generation = ++profileLoadGenerationRef.current;
-    try {
-      const loadedProfiles = await invoke<Profile[]>("list_profiles");
-      if (generation !== profileLoadGenerationRef.current) return;
-      setProfiles(withSyntheticDefault(loadedProfiles));
-    } catch (error) {
-      if (generation !== profileLoadGenerationRef.current) return;
-      setStatus(`Failed to load profiles: ${error}`);
-    }
-  }, [setStatus]);
 
   // Auto-refresh profiles when window gains focus or tab becomes visible (catches external file changes)
   useEffect(() => {
@@ -766,12 +669,11 @@ function App() {
       }
       if (!payload) return;
       handledDisconnectGenerationRef.current = connectionGeneration;
-      setConnected(false);
       invoke("disconnect_device", { expectedPath: payload.path }).catch(() => {});
-      setIsReconnecting(true);
-      setLastPushedPeq(null);
-      setFirmwareVersion(null);
-      reportStatus("Error", `Lost connection to device (unplugged): ${payload.name}`, "error", "Device", "Reconnecting...");
+      markDeviceLost(
+        { setConnected, setIsReconnecting, setLastPushedPeq, setFirmwareVersion, reportStatus },
+        `Lost connection to device (unplugged): ${payload.name}`,
+      );
     };
 
     addListener<unknown>("device-disconnected", handleDeviceDisconnected);
@@ -799,7 +701,7 @@ function App() {
         try { fn(); } catch {}
       });
     };
-  }, [isAndroid, reportStatus]);
+  }, [isAndroid, reportStatus, setConnected]);
 
   useEffect(() => {
     scanDevices();
@@ -853,11 +755,10 @@ function App() {
           console.error("Failed to close disconnected device:", error);
         }
         if (!active) return;
-        setConnected(false);
-        setIsReconnecting(true);
-        setLastPushedPeq(null);
-        setFirmwareVersion(null);
-        reportStatus("Error", "Lost connection to device", "error", "Device", "Reconnecting...");
+        markDeviceLost(
+          { setConnected, setIsReconnecting, setLastPushedPeq, setFirmwareVersion, reportStatus },
+          "Lost connection to device",
+        );
       } catch {
         schedulePoll();
       }
@@ -1065,11 +966,11 @@ function App() {
       // started; only a current pull may act on its failure.
       if (!isCurrentPull()) return false;
       if (isDisconnectionError(error)) {
-        setConnected(false);
-        setLastPushedPeq(null);
-        setFirmwareVersion(null);
-        setIsReconnecting(true);
-        reportStatus("Error", `Could not read from DAC (disconnected): ${error}`, "error", "HID", "Reconnecting...");
+        markDeviceLost(
+          { setConnected, setIsReconnecting, setLastPushedPeq, setFirmwareVersion, reportStatus },
+          `Could not read from DAC (disconnected): ${error}`,
+          "HID",
+        );
       } else {
         reportStatus("Error", `Could not read from DAC: ${error}`, "error", "UI");
       }
@@ -1231,7 +1132,10 @@ function App() {
         // protocol), not necessarily the request.
         const context = getAsyncContext();
         const committed = await invoke<unknown>("set_eq_state", { peq: snapshot });
-        committedPeq = parseStoredPeqResponse(committed);
+        committedPeq = parseStoredPeqResponse(committed, {
+          integerPreamp: selectedCapabilities.integer_preamp,
+          capabilities: selectedCapabilities,
+        });
         await sleep(400);
         // Adopt the quantized device state into the editor only when nobody
         // edited or reconnected during the write.
@@ -1252,11 +1156,11 @@ function App() {
       );
     } catch (error) {
       if (!isDevDummyDevice(selectedDevice) && isDisconnectionError(error)) {
-        setConnected(false);
-        setLastPushedPeq(null);
-        setFirmwareVersion(null);
-        setIsReconnecting(true);
-        reportStatus("Error", `Could not write to DAC (disconnected): ${error}`, "error", "HID", "Reconnecting...");
+        markDeviceLost(
+          { setConnected, setIsReconnecting, setLastPushedPeq, setFirmwareVersion, reportStatus },
+          `Could not write to DAC (disconnected): ${error}`,
+          "HID",
+        );
       } else {
         reportStatus("Error", `Could not write to DAC: ${error}`, "error", "UI");
       }
@@ -1296,7 +1200,10 @@ function App() {
           await sleep(300);
         } else {
           // apply_eq_state returns the normalized state written to RAM.
-          const applied = parseStoredPeqResponse(await invoke<unknown>("apply_eq_state", { peq: data }));
+          const applied = parseStoredPeqResponse(await invoke<unknown>("apply_eq_state", { peq: data }), {
+            integerPreamp: capabilities.integer_preamp,
+            capabilities,
+          });
           await sleep(300);
           setLastPushedPeq(applied);
         }
@@ -1313,11 +1220,11 @@ function App() {
         );
       } catch (error) {
         if (!isDevDummyDevice(selectedDevice) && isDisconnectionError(error)) {
-          setConnected(false);
-          setLastPushedPeq(null);
-          setFirmwareVersion(null);
-          setIsReconnecting(true);
-          reportStatus("Error", `Could not apply EQ (disconnected): ${error}`, "error", "HID", "Reconnecting...");
+          markDeviceLost(
+            { setConnected, setIsReconnecting, setLastPushedPeq, setFirmwareVersion, reportStatus },
+            `Could not apply EQ (disconnected): ${error}`,
+            "HID",
+          );
         } else {
           reportStatus("Error", `Could not apply EQ: ${error}`, "error", "UI");
         }
@@ -1357,107 +1264,6 @@ function App() {
       setIsBusy(false);
     }
   }, [selectedDevice, reportStatus]);
-
-  const saveProfile = useCallback(async () => {
-    const savedPeq = peqRef.current;
-    const savedContext = {
-      selectedPreset: selectedPresetRef.current,
-      profileSearch: profileSearchRef.current,
-      newProfileName: newProfileNameRef.current,
-    };
-    const name = savedContext.newProfileName.trim() || savedContext.selectedPreset;
-    if (
-      !name ||
-      name === DEFAULT_PROFILE_NAME ||
-      name === "Pulled from device"
-    ) {
-      setStatus("Enter a profile name before saving.");
-      return;
-    }
-
-    const existing = profiles.find(
-      (p) => p.name.toLowerCase() === name.toLowerCase()
-    );
-    if (existing && !(await confirmDialog({
-      title: "Overwrite profile?",
-      message: profileOverwriteMessage(name, existing.data, savedPeq),
-      confirmLabel: "Overwrite",
-      danger: true,
-    }))) return;
-
-    try {
-      const mutation = await runProfileMutation(async () => {
-        await invoke("save_profile", { name, peq: savedPeq });
-        await loadProfiles();
-      });
-      const contextStillCurrent =
-        mutation.current &&
-        peqEquals(peqRef.current, savedPeq) &&
-        selectedPresetRef.current === savedContext.selectedPreset &&
-        profileSearchRef.current === savedContext.profileSearch &&
-        newProfileNameRef.current === savedContext.newProfileName;
-      if (contextStillCurrent) {
-        setSelectedPreset(name);
-        setProfileSearch("");
-        setNewProfileName("");
-        editorCleanPeqRef.current = savedPeq;
-        setDirty(false);
-      }
-      setStatus("Profile saved");
-    } catch (error) {
-      setStatus(`Failed to save profile: ${error}`);
-    }
-  }, [profiles, loadProfiles, setStatus, runProfileMutation]);
-
-  const deleteSelectedProfile = useCallback(async () => {
-    const deletedName = selectedPresetRef.current;
-    if (deletedName === DEFAULT_PROFILE_NAME) return;
-    const editorSnapshot = peqRef.current;
-    const deletedContext = {
-      profileSearch: profileSearchRef.current,
-      newProfileName: newProfileNameRef.current,
-    };
-    if (!(await confirmDialog({
-      title: "Delete profile?",
-      message: `Delete profile "${deletedName}"? This cannot be undone.`,
-      confirmLabel: "Delete",
-      danger: true,
-    }))) return;
-
-    try {
-      const mutation = await runProfileMutation(async () => {
-        await invoke("delete_profile", { name: deletedName });
-        await loadProfiles();
-      });
-      const contextStillCurrent =
-        mutation.current &&
-        selectedPresetRef.current === deletedName &&
-        peqEquals(peqRef.current, editorSnapshot) &&
-        profileSearchRef.current === deletedContext.profileSearch &&
-        newProfileNameRef.current === deletedContext.newProfileName;
-      if (contextStillCurrent) {
-        pushToUndoStack(editorSnapshot);
-        setSelectedPreset(DEFAULT_PROFILE_NAME);
-        setProfileSearch("");
-        setNewProfileName("");
-        const defaultPeq = buildDefaultState();
-        setPeq(defaultPeq);
-        editorCleanPeqRef.current = defaultPeq;
-        setDirty(false);
-      }
-      setStatus("Profile deleted");
-    } catch (error) {
-      setStatus(`Failed to delete profile: ${error}`);
-    }
-  }, [loadProfiles, pushToUndoStack, setStatus, runProfileMutation]);
-
-  const openProfilesDir = useCallback(async () => {
-    try {
-      await invoke("open_profiles_dir");
-    } catch (error) {
-      setStatus(`Failed to open profiles folder: ${error}`);
-    }
-  }, []);
 
   const updateFilter = useCallback((index: number, updated: Filter, showPreview = true) => {
     setActiveBandIndex(index);

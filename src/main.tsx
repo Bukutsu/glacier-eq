@@ -4,6 +4,7 @@ import { HashRouter } from "react-router";
 import App from "./App";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { isTauri } from "./lib/platform";
+import "./styles/tokens.css";
 import "./styles/base.css";
 import "./styles/header.css";
 import "./styles/layout.css";

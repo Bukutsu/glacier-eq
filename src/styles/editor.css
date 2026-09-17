@@ -12,7 +12,7 @@
 .left-pane > .graph-card {
   position: sticky;
   top: 0;
-  z-index: 5;
+  z-index: var(--z-graph-sticky);
 }
 
 .editor-empty-hint {
@@ -93,12 +93,12 @@
   font-weight: 700;
   line-height: 1;
   touch-action: none;
-  z-index: 5;
+  z-index: var(--z-graph-sticky);
 }
 
 .eq-filter-handle.active {
   box-shadow: 0 0 0 3px rgb(var(--filter-color-rgb, var(--cyan-rgb)) / 0.55);
-  z-index: 6;
+  z-index: var(--z-graph-handle);
 }
 
 .eq-filter-handle:focus-visible {
@@ -139,7 +139,7 @@
   backdrop-filter: blur(8px);
   pointer-events: none;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-  z-index: 10;
+  z-index: var(--z-sticky);
 }
 
 .graph-legend-item {

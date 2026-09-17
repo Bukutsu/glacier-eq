@@ -10,7 +10,7 @@ import type {
   DeviceCapabilities,
   DeviceInfo,
 } from "../types";
-import { asyncContextEquals } from "../lib/asyncContext";
+import { asyncContextEquals, type AsyncContext } from "../lib/asyncContext";
 import { fuzzyMatch } from "../lib/search";
 import { Icon } from "./Icon";
 import { DeviceView } from "./DeviceView";
@@ -22,6 +22,7 @@ import { NumberInput } from "./NumberInput";
 import { Select } from "./Select";
 import { ProfilesView } from "./ProfilesView";
 import { type DeviceSection, type SettingsSection, type ToolsTab } from "../lib/tabs";
+import type { ProfileMutationRunner } from "../features/profiles/useProfiles";
 import { parseAutoEqResult } from "../lib/parsedAutoEq";
 import {
   appendDiagnosticEvent,
@@ -34,14 +35,7 @@ import {
 
 
 
-export interface AsyncContext {
-  editorRevision: number;
-  connectionRevision: number;
-}
-
-export type ProfileMutationRunner = <T>(
-  task: () => Promise<T>,
-) => Promise<{ value: T; current: boolean }>;
+export type { ProfileMutationRunner };
 
 interface ToolsPanelProps {
   peq: PEQData;
@@ -416,11 +410,11 @@ export function AutoEqTab({
 
     try {
       const rawResult = await invoke<unknown>("run_autoeq", {
-        measurementPoints: input.measurementPoints,
-        targetPoints: input.targetPoints,
-        nBands: input.nBands,
+        measurement_points: input.measurementPoints,
+        target_points: input.targetPoints,
+        n_bands: input.nBands,
         steps: input.steps,
-        smoothType: input.smoothType,
+        smooth_type: input.smoothType,
         fs: input.fs,
       });
       const result = parseAutoEqResult(rawResult);

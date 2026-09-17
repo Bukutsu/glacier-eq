@@ -393,7 +393,7 @@ export const ProfilesView = memo(function ProfilesView({
                     <Icon className="profile-row-indicator">
                       {isSelected ? "radio_button_checked" : "radio_button_unchecked"}
                     </Icon>
-                    <span className="profile-name-text">{profile.name}</span>
+                    <span className="profile-name-text" title={profile.name}>{profile.name}</span>
                     {isSelected && <span className="profile-active-badge">Active</span>}
                   </div>
 
@@ -537,7 +537,7 @@ export const ProfilesView = memo(function ProfilesView({
                 }}
               >
                 <Icon>add</Icon>
-                <span>Save current EQ as new profile…</span>
+                <span>Save as new profile…</span>
               </button>
             )}
           </div>
