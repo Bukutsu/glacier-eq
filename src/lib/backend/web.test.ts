@@ -175,6 +175,22 @@ function verificationPeq(): PEQData {
   };
 }
 
+describe("browser connection cleanup", () => {
+  it("does not close a newer device when stale cleanup names the old path", async () => {
+    const first = fakeHidDevice();
+    const second = fakeHidDevice();
+    wasm.list_supported_devices.mockReturnValue([profile]);
+    hidMock.devices = [first, second];
+    const paths = await invoke<Array<{ path: string }>>("list_devices");
+    await invoke("connect_device", { path: paths[0].path });
+    await invoke("connect_device", { path: paths[1].path });
+    await invoke("disconnect_device", { expectedPath: paths[0].path });
+    expect(second.close).not.toHaveBeenCalled();
+    await invoke("disconnect_device", { expectedPath: paths[1].path });
+    expect(second.close).toHaveBeenCalledOnce();
+  });
+});
+
 describe("browser profile matching", () => {
   it("returns null when WASM has no matching profile", async () => {
     wasm.match_profile_name.mockReturnValue(undefined);
