@@ -43,6 +43,7 @@ import {
   type AsyncContext,
 } from "./lib/asyncContext";
 import { resolvePulledProfile } from "./lib/pulledProfile";
+import { createSettingsPersistence } from "./lib/settingsPersistence";
 import { parseAutoEqResult } from "./lib/parsedAutoEq";
 import type {
   DeviceInfo,
@@ -197,42 +198,9 @@ function App() {
   }, []);
 
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
-  const settingsRef = useRef(settings);
-  const userSettingsEditsRef = useRef<Partial<AppSettings>>({});
-  const settingsSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const theme = settings.theme;
   const snapToIso = settings.snap_to_iso_frequencies;
   const resolvedTheme = useThemeSync(theme);
-
-  const updateSetting = useCallback(<K extends keyof AppSettings>(
-    key: K,
-    value: AppSettings[K],
-  ) => {
-    userSettingsEditsRef.current[key] = value;
-    // Compute and persist outside the updater: updaters must be pure and are
-    // double-invoked under StrictMode, which duplicated the IPC write.
-    const updated = { ...settingsRef.current, [key]: value };
-    settingsRef.current = updated;
-    setSettings(updated);
-    settingsSaveQueueRef.current = settingsSaveQueueRef.current
-      .then(() => invoke<void>("save_settings", { settings: updated }))
-      .catch((err: unknown) => {
-        console.error("Failed to save settings:", err);
-      });
-  }, []);
-
-  useEffect(() => {
-    invoke<AppSettings>("get_settings")
-      .then((settings) => {
-        // A user change may land during the load window; preserve user edits over loaded settings.
-        const merged = { ...DEFAULT_SETTINGS, ...settings, ...userSettingsEditsRef.current };
-        settingsRef.current = merged;
-        setSettings(merged);
-      })
-      .catch((err) => {
-        console.error("Failed to load initial settings:", err);
-      });
-  }, []);
 
   const [peq, setPeq] = useState<PEQData>(buildDefaultState);
   const [devices, setDevices] = useState<DeviceInfo[]>([]);
@@ -319,6 +287,26 @@ function App() {
       showToast(message, toastType);
     }
   }, [showToast]);
+
+  const [settingsPersistence] = useState(() => createSettingsPersistence({
+    defaults: DEFAULT_SETTINGS,
+    load: () => invoke<AppSettings>("get_settings"),
+    save: (settings) => invoke<void>("save_settings", { settings }),
+    onChange: setSettings,
+    onError: (operation, error) => showToast(
+      operation === "save"
+        ? `Could not save settings. Your changes may be lost when you restart: ${error}`
+        : `Could not load settings. Changes will not be saved until loading succeeds: ${error}`,
+      "error",
+    ),
+  }));
+  const updateSetting = useCallback(<K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
+    void settingsPersistence.update(key, value);
+  }, [settingsPersistence]);
+
+  useEffect(() => {
+    void settingsPersistence.load();
+  }, [settingsPersistence]);
 
   // Show native Android Toast when status changes, instead of the web StatusBanner
   useEffect(() => {
