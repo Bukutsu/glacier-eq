@@ -656,7 +656,7 @@
     min-height: 48px !important;
   }
   .diag-head {
-    grid-template-columns: minmax(0, 1fr) repeat(3, 36px);
+    grid-template-columns: minmax(0, 1fr) auto 36px;
   }
   .diag-counts {
     grid-column: 1 / -1;

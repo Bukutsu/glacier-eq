@@ -26,10 +26,12 @@ import type { ProfileMutationRunner } from "../features/profiles/useProfiles";
 import { parseAutoEqResult } from "../lib/parsedAutoEq";
 import {
   appendDiagnosticEvent,
+  formatDiagnosticReport,
   mergeDiagnosticEvents,
   parseDiagnosticEvent,
   parseDiagnosticHistory,
   settleDiagnosticClear,
+  type DiagnosticContext,
   type DiagnosticEvent,
 } from "../lib/diagnostics";
 
@@ -641,7 +643,7 @@ export function DiagnosticsPanel() {
   const [levelFilter, setLevelFilter] = useState<DiagLevel>("All");
   const [search, setSearch] = useState("");
   const [autoScroll, setAutoScroll] = useState(true);
-  const [copied, setCopied] = useState(false);
+  const [copyState, setCopyState] = useState<"idle" | "copying" | "copied" | "failed">("idle");
   const logBoxRef = useRef<HTMLDivElement>(null);
   const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mountedRef = useRef(true);
@@ -781,21 +783,31 @@ export function DiagnosticsPanel() {
   };
 
   const copyToClipboard = async () => {
-    const text = filtered
-      .map((e) => `${e.timestamp} [${e.level.toUpperCase()}] [${e.source}] ${e.message}`)
-      .join("\n");
+    if (copyState === "copying") return;
+    setCopyState("copying");
     try {
-      await writeText(text);
+      const context = await invoke<DiagnosticContext>("get_diagnostic_context");
+      await writeText(formatDiagnosticReport(events, context));
       if (!mountedRef.current) return;
-      setCopied(true);
-      if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
-      copiedTimerRef.current = setTimeout(() => {
-        if (mountedRef.current) setCopied(false);
-      }, 1500);
+      setCopyState("copied");
     } catch (err) {
-      console.error("Failed to copy logs:", err);
+      console.error("Failed to copy diagnostic report:", err);
+      if (!mountedRef.current) return;
+      setCopyState("failed");
     }
+    if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+    copiedTimerRef.current = setTimeout(() => {
+      if (mountedRef.current) setCopyState("idle");
+    }, 2000);
   };
+
+  const copyLabel = copyState === "copying"
+    ? "Copying…"
+    : copyState === "copied"
+      ? "Report copied"
+      : copyState === "failed"
+        ? "Copy failed"
+        : "Copy report";
 
   return (
     <section className="diag-card">
@@ -806,8 +818,16 @@ export function DiagnosticsPanel() {
           <span className="diag-count-w" title="Warnings" aria-label={`${warnCount} warnings`}>{warnCount}W</span>
           <span className="diag-count-i" title="Info" aria-label={`${infoCount} info events`}>{infoCount}I</span>
         </div>
-        <button type="button" title={copied ? "Copied!" : "Copy logs to clipboard"} aria-label={copied ? "Copied" : "Copy logs to clipboard"} onClick={copyToClipboard}>
-          <Icon>{copied ? "check" : "content_copy"}</Icon>
+        <button
+          type="button"
+          className="diag-copy-btn"
+          onClick={copyToClipboard}
+          disabled={copyState === "copying"}
+          title="Copy system, device, and all log details"
+          aria-live="polite"
+        >
+          <Icon>{copyState === "copied" ? "check" : "content_copy"}</Icon>
+          <span>{copyLabel}</span>
         </button>
         <button type="button" className="danger" title="Clear logs" aria-label="Clear logs" onClick={clearLogs}>
           <Icon>delete</Icon>

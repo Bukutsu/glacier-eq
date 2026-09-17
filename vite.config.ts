@@ -4,6 +4,8 @@ import { fileURLToPath } from "node:url";
 
 // @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;
+// @ts-expect-error process is a nodejs global
+const appVersion = process.env.npm_package_version || "unknown";
 
 // https://vite.dev/config/
 export default defineConfig(async ({ mode }) => {
@@ -15,6 +17,9 @@ export default defineConfig(async ({ mode }) => {
     alias: {
       "@glacier-eq/backend": backend,
     },
+  },
+  define: {
+    __APP_VERSION__: JSON.stringify(appVersion),
   },
   plugins: [
     react(),
