@@ -1716,15 +1716,180 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   line-height: 1.4;
 }
 
-/* Device Hero Card - Sharp */
-.device-hero-card {
-  margin: 12px 16px 0;
-  padding: 20px;
-  background: var(--bg-dark);
-  border: 1px solid var(--line-soft);
-  border-radius: 0 !important;
+/* Device workspace: compact connection summary and quiet detail rows. */
+.device-summary {
+  margin: 0 16px;
+  padding: 20px 0;
+  border-bottom: 1px solid var(--line-soft);
 }
 
+.device-summary .device-status-badge,
+.device-summary .device-status-badge.connected,
+.device-summary .device-status-badge.simulated,
+.device-summary .device-status-badge.offline {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: var(--type-small);
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.device-summary .device-hero-title {
+  font-size: 20px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.device-summary .device-hero-desc {
+  max-width: 52ch;
+}
+
+.device-summary .device-hero-actions {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.device-summary .device-hero-actions .btn {
+  width: auto;
+  min-height: 44px;
+  flex: 0 1 auto;
+}
+
+.device-stack-view .device-navigation {
+  padding: 8px 0;
+}
+
+.device-navigation .stack-nav-row {
+  background: transparent;
+  border: 0;
+  min-height: 72px;
+}
+
+.device-navigation .stack-nav-row:hover {
+  background: var(--surface-soft);
+}
+
+.device-navigation .stack-row-icon {
+  background: transparent;
+  color: var(--muted);
+}
+
+.settings-stack-view .settings-navigation {
+  padding: 8px 0;
+}
+
+.settings-navigation .stack-nav-row {
+  background: transparent;
+  border: 0;
+  min-height: 72px;
+}
+
+.settings-navigation .stack-nav-row:hover {
+  background: var(--surface-soft);
+}
+
+.settings-navigation .stack-row-icon {
+  background: transparent;
+  color: var(--muted);
+}
+
+.settings-plain {
+  padding: 4px 0 2px;
+}
+
+.settings-plain + .settings-plain,
+.stack-card + .settings-plain,
+.settings-plain + .stack-card {
+  border-top: 1px solid var(--line-subtle);
+}
+
+.settings-plain-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+}
+
+.settings-plain-title {
+  margin: 0;
+  font-size: var(--type-label);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.settings-plain-desc {
+  margin: 4px 0 0;
+  max-width: 60ch;
+  color: var(--muted);
+  font-size: var(--type-small);
+  line-height: 1.5;
+}
+
+.settings-plain .stack-pref-row {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.settings-plain .card-note {
+  padding: 8px 0 0;
+}
+
+.device-spec-list {
+  margin: 0;
+  padding: 0 16px;
+}
+
+.device-spec-list > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
+  align-items: baseline;
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line-subtle);
+  font-size: var(--type-label);
+  line-height: 1.5;
+}
+
+.device-spec-list dt { color: var(--muted); }
+.device-spec-list dd {
+  margin: 0;
+  text-align: right;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.device-note {
+  margin: 0;
+  padding: 12px 16px;
+  color: var(--muted);
+  font-size: var(--type-small);
+  line-height: 1.5;
+}
+
+.device-filter-details {
+  border-bottom: 1px solid var(--line-subtle);
+}
+
+.device-filter-details > summary {
+  padding: 12px 16px;
+  min-height: 44px;
+  box-sizing: border-box;
+  color: var(--muted);
+  font-size: var(--type-small);
+  cursor: pointer;
+}
+
+.device-filter-details > summary:hover { color: var(--text); }
+.device-filter-details > summary:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: -2px;
+}
+
+/* Device summary header rows (DeviceView root section) */
 .device-hero-header {
   display: flex;
   align-items: center;
@@ -1778,16 +1943,6 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   background: var(--comment);
 }
 
-.device-id-tag {
-  font-family: var(--font-mono);
-  font-size: var(--type-micro);
-  color: var(--comment);
-  background: var(--panel);
-  padding: 2px 6px;
-  border-radius: 0 !important;
-  border: 1px solid var(--line-subtle);
-}
-
 .device-hero-body {
   display: flex;
   flex-direction: column;
@@ -1823,82 +1978,6 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   font-weight: 600;
   border-radius: 0 !important;
 }
-
-/* Sharp Spec Tiles */
-.device-spec-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 8px;
-}
-
-.spec-tile {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 10px 12px;
-  background: var(--bg-dark);
-  border: 1px solid var(--line-subtle);
-  border-radius: 0 !important;
-}
-
-.spec-tile .spec-label {
-  font-size: var(--type-micro);
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  color: var(--comment);
-  text-transform: uppercase;
-}
-
-.spec-tile .spec-value {
-  font-size: 13.5px;
-  font-weight: 600;
-  color: var(--text);
-}
-
-.spec-tile .spec-value.highlight {
-  color: var(--cyan);
-}
-
-.spec-tile .spec-value.mono {
-  font-family: var(--font-mono);
-}
-
-/* Supported Devices Guide - Sharp */
-.supported-guide {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.supported-guide .guide-text {
-  margin: 0;
-  font-size: var(--type-label);
-  color: var(--text);
-  line-height: 1.5;
-}
-
-.guide-bullets {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.guide-bullet-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  font-size: var(--type-small);
-  color: var(--muted);
-  line-height: 1.4;
-}
-
-.guide-bullet-item .app-icon {
-  font-size: 18px;
-  color: var(--cyan);
-  flex-shrink: 0;
-  margin-top: 1px;
-  width: 18px;
-  height: 18px;}
 
 /* Preference Rows - Sharp & Spacious */
 .pref-row {
