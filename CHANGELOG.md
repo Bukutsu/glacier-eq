@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.10.1] - 2026-09-18
+
+### Fixed
+
+- Fixed EQ write and DAC operations failing on Windows caused by HIDAPI output padding to report length (fixes #45).
+- Prevented duplicate diagnostic log entries when status toasts are displayed.
+
+### Changed
+
+- Enhanced diagnostic reports with system environment, platform architecture, connected device VID:PID, protocol, and transport details when copying logs.
+
 ## [0.10.0] - 2026-09-13
 
 ### Added
