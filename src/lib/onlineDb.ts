@@ -26,10 +26,8 @@ export interface OnlineDevice {
 
 let pendingOpen: Promise<IDBDatabase> | null = null;
 
-export function openDb(): Promise<IDBDatabase> {
-  if (pendingOpen) return pendingOpen;
-
-  const attempt = new Promise<IDBDatabase>((resolve, reject) => {
+function requestOpenDb(): Promise<IDBDatabase> {
+  return new Promise<IDBDatabase>((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     let settled = false;
     const rejectOnce = (error: unknown) => {
@@ -62,6 +60,78 @@ export function openDb(): Promise<IDBDatabase> {
       }
     };
   });
+}
+
+export function isUnrecoverableDbError(error: unknown): boolean {
+  if (!error) return false;
+  const name =
+    typeof error === "object" && error !== null && "name" in error
+      ? String((error as { name?: unknown }).name)
+      : "";
+  const message =
+    typeof error === "object" && error !== null && "message" in error
+      ? String((error as { message?: unknown }).message)
+      : String(error);
+
+  if (name === "UnknownError" || name === "VersionError") return true;
+  if (
+    message.includes("Unable to establish IDB database file") ||
+    message.includes("database file on disk") ||
+    message.includes("corrupt") ||
+    message.includes("Metadata version") ||
+    message.includes("Stored database name does not match")
+  ) {
+    return true;
+  }
+  return false;
+}
+
+export function deleteDatabase(): Promise<void> {
+  pendingOpen = null;
+  if (typeof indexedDB === "undefined" || typeof indexedDB.deleteDatabase !== "function") {
+    return Promise.resolve();
+  }
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.deleteDatabase(DB_NAME);
+    let settled = false;
+    const resolveOnce = () => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
+    request.onsuccess = resolveOnce;
+    request.onerror = () => {
+      if (settled) return;
+      settled = true;
+      reject(request.error ?? new Error("Failed to delete database"));
+    };
+    request.onblocked = resolveOnce;
+  });
+}
+
+export function openDb(): Promise<IDBDatabase> {
+  if (pendingOpen) return pendingOpen;
+
+  const attempt = (async () => {
+    try {
+      return await requestOpenDb();
+    } catch (error) {
+      if (isUnrecoverableDbError(error)) {
+        console.warn(
+          "IndexedDB online database cache is unreadable or incompatible; resetting database:",
+          error,
+        );
+        try {
+          await deleteDatabase();
+          return await requestOpenDb();
+        } catch (resetError) {
+          console.error("Failed to reset corrupted IndexedDB cache:", resetError);
+        }
+      }
+      throw error;
+    }
+  })();
+
   pendingOpen = attempt;
   return attempt;
 }
@@ -87,7 +157,18 @@ async function isDatabaseDownloaded(): Promise<boolean> {
 }
 
 export async function clearCachedDatabase(): Promise<void> {
-  const db = await openDb();
+  pendingOpen = null;
+  let db: IDBDatabase;
+  try {
+    db = await requestOpenDb();
+  } catch (openError) {
+    if (isUnrecoverableDbError(openError)) {
+      await deleteDatabase();
+      return;
+    }
+    throw openError;
+  }
+
   try {
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(STORE_NAME, "readwrite");
@@ -125,7 +206,17 @@ export function subscribeToDatabaseDownload(
   progressListeners.add(onProgress);
   downloadInFlight ??= (async () => {
     try {
-      const db = await openDb();
+      let db: IDBDatabase;
+      try {
+        db = await openDb();
+      } catch (openErr) {
+        if (isUnrecoverableDbError(openErr)) {
+          await deleteDatabase().catch(() => {});
+          db = await requestOpenDb();
+        } else {
+          throw openErr;
+        }
+      }
       try {
         return await downloadDatabaseWithDb(notifyProgress, undefined, db);
       } finally {
