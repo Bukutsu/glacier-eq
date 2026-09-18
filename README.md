@@ -51,6 +51,10 @@ Raw writes require `--yes`; use `--read-ms 0` when no response should be read. T
 
 [Linux setup and troubleshooting](https://github.com/Bukutsu/glacier-eq/wiki/Troubleshooting)
 
+## Support
+
+If you find Glacier EQ useful, give it a star or support/sponsor on [GitHub Sponsors](https://github.com/sponsors/Bukutsu) or [Ko-fi](https://ko-fi.com/bukutsu) :3
+
 ## Links
 
 - [Wiki](https://github.com/Bukutsu/glacier-eq/wiki) — device list, install options, command line tools, building from source
