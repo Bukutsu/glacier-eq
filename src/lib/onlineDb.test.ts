@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   clearCachedDatabase,
+  deleteDatabase,
+  isUnrecoverableDbError,
   openDb,
   subscribeToDatabaseDownload,
 } from "./onlineDb";
@@ -107,6 +109,69 @@ describe("openDb", () => {
     fire(secondRequest.onsuccess);
     await expect(retry).resolves.toBe(database);
   });
+
+  it("automatically recovers from unrecoverable IDB establishment error by deleting and reopening", async () => {
+    const firstRequest = new MockOpenRequest();
+    const secondRequest = new MockOpenRequest();
+    const open = vi.fn()
+      .mockReturnValueOnce(firstRequest)
+      .mockReturnValueOnce(secondRequest);
+    const deleteRequest = {
+      onsuccess: null as ((event: Event) => void) | null,
+      onerror: null as ((event: Event) => void) | null,
+      onblocked: null as ((event: Event) => void) | null,
+    };
+    const deleteDb = vi.fn(() => deleteRequest);
+    vi.stubGlobal("indexedDB", { open, deleteDatabase: deleteDb });
+
+    const openAttempt = openDb();
+    firstRequest.error = new DOMException("Unable to establish IDB database file", "UnknownError");
+    fire(firstRequest.onerror);
+
+    await Promise.resolve();
+    expect(deleteDb).toHaveBeenCalledOnce();
+    fire(deleteRequest.onsuccess);
+
+    await Promise.resolve();
+    expect(open).toHaveBeenCalledTimes(2);
+
+    const database = mockDatabase();
+    secondRequest.result = database as unknown as IDBDatabase;
+    fire(secondRequest.onsuccess);
+
+    await expect(openAttempt).resolves.toBe(database);
+  });
+
+  it("does not delete database on normal or non-unrecoverable errors", async () => {
+    const request = new MockOpenRequest();
+    const open = vi.fn().mockReturnValue(request);
+    const deleteDb = vi.fn();
+    vi.stubGlobal("indexedDB", { open, deleteDatabase: deleteDb });
+
+    const openAttempt = openDb();
+    request.error = new DOMException("The operation was insecure", "SecurityError");
+    fire(request.onerror);
+
+    await expect(openAttempt).rejects.toThrow("The operation was insecure");
+    expect(deleteDb).not.toHaveBeenCalled();
+  });
+});
+
+describe("isUnrecoverableDbError", () => {
+  it("identifies unrecoverable database file and version errors", () => {
+    expect(
+      isUnrecoverableDbError(new DOMException("Unable to establish IDB database file", "UnknownError")),
+    ).toBe(true);
+    expect(isUnrecoverableDbError(new DOMException("Version mismatch", "VersionError"))).toBe(true);
+    expect(isUnrecoverableDbError(new Error("Unable to open database file on disk"))).toBe(true);
+    expect(isUnrecoverableDbError(new Error("Database corrupt"))).toBe(true);
+    expect(isUnrecoverableDbError(new Error("Stored database name does not match requested name"))).toBe(true);
+
+    expect(isUnrecoverableDbError(null)).toBe(false);
+    expect(isUnrecoverableDbError(new DOMException("Permission denied", "SecurityError"))).toBe(false);
+    expect(isUnrecoverableDbError(new Error("Database locked by another window"))).toBe(false);
+    expect(isUnrecoverableDbError(new Error("network failure"))).toBe(false);
+  });
 });
 
 describe("download subscriptions", () => {
@@ -165,5 +230,27 @@ describe("clearCachedDatabase", () => {
     fire(transaction.onabort);
     await expect(clearing).rejects.toThrow("Transaction aborted");
     expect(database.close).toHaveBeenCalledOnce();
+  });
+
+  it("deletes the database when opening fails with an unrecoverable establishment error", async () => {
+    const request = new MockOpenRequest();
+    const open = vi.fn().mockReturnValue(request);
+    const deleteRequest = {
+      onsuccess: null as ((event: Event) => void) | null,
+      onerror: null as ((event: Event) => void) | null,
+      onblocked: null as ((event: Event) => void) | null,
+    };
+    const deleteDb = vi.fn(() => deleteRequest);
+    vi.stubGlobal("indexedDB", { open, deleteDatabase: deleteDb });
+
+    const clearing = clearCachedDatabase();
+    request.error = new DOMException("Unable to establish IDB database file", "UnknownError");
+    fire(request.onerror);
+
+    await Promise.resolve();
+    expect(deleteDb).toHaveBeenCalledOnce();
+    fire(deleteRequest.onsuccess);
+
+    await expect(clearing).resolves.toBeUndefined();
   });
 });
