@@ -1184,8 +1184,9 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
     }
 
     default:
-      console.warn(`Unhandled mock command: ${cmd}`);
-      return null as T;
+      // Match Tauri's unknown-command rejection: returning null would let
+      // callers treat typos (e.g. get_udev_status on web) as success.
+      throw new Error(`Unknown command: ${cmd}`);
   }
 }
 
