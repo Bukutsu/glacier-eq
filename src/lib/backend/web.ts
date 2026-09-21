@@ -864,7 +864,10 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
       const name = commandField(args, "name");
       if (!isValidProfileName(name)) throw new Error("Invalid profile name");
       const profiles = loadWebProfiles();
-      saveJson("glacier-eq-profiles", profiles.filter((profile) => profile.name !== name));
+      // Mirror ProfileStore::path's case-insensitive lookup so a delete for
+      // "daily" removes a stored "Daily" exactly like the desktop backend.
+      const normalized = name.toLocaleLowerCase();
+      saveJson("glacier-eq-profiles", profiles.filter((profile) => profile.name.toLocaleLowerCase() !== normalized));
       return null as T;
     }
     case "open_profiles_dir": {
