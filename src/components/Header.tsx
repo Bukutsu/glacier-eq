@@ -120,7 +120,7 @@ export const Header = memo(function Header({
             ? "ok"
             : "unsaved";
   const syncText = !connected
-    ? "Device disconnected"
+    ? "Offline"
     : isBusy
       ? progress
         ? `${progress.message} · ${Math.round(progress.percentage)}%`

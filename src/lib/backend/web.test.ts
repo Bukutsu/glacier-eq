@@ -39,6 +39,7 @@ vi.mock("../../wasm_pkg/glacier_core", () => ({
 import {
   invoke,
   matchSupportedWebHidDevice,
+  openUrl,
   peqVerificationError,
   parseWebProfiles,
   parseWebSettings,
@@ -478,5 +479,20 @@ describe("persistentPushFailureMessage", () => {
     expect(persistentPushFailureMessage("commit failed", new Error("device disconnected"))).toBe(
       "Persistent push failed: commit failed; restore failed: device disconnected",
     );
+  });
+});
+
+describe("openUrl", () => {
+  it("opens external URL in new tab", async () => {
+    const originalWindow = globalThis.window;
+    const openMock = vi.fn();
+    (globalThis as unknown as { window?: { open: typeof openMock } }).window = { open: openMock };
+    await openUrl("https://github.com/Bukutsu/glacier-eq");
+    expect(openMock).toHaveBeenCalledWith(
+      "https://github.com/Bukutsu/glacier-eq",
+      "_blank",
+      "noopener,noreferrer",
+    );
+    globalThis.window = originalWindow;
   });
 });

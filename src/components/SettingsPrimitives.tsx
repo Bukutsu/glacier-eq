@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { NavLink } from "react-router";
 import { Icon } from "./Icon";
 import { Select, type SelectOption } from "./Select";
+import { openUrl } from "../lib/rpc";
 
 export function StackHeader({
   title,
@@ -164,5 +165,41 @@ export function ActionRow({
         </button>
       </div>
     </div>
+  );
+}
+
+export function ExternalLinkRow({
+  href,
+  icon,
+  title,
+  desc,
+}: {
+  href: string;
+  icon?: string;
+  title: string;
+  desc?: string;
+}) {
+  const handleClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    event.preventDefault();
+    openUrl(href).catch((err) => {
+      console.error("Failed to open external URL:", err);
+    });
+  };
+
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      className="stack-nav-row external-link-row"
+      onClick={handleClick}
+    >
+      {icon ? <Icon className="stack-row-icon">{icon}</Icon> : null}
+      <div className="stack-row-content">
+        <span className="stack-row-title">{title}</span>
+        {desc ? <span className="stack-row-desc">{desc}</span> : null}
+      </div>
+      <Icon className="stack-row-chevron">open_in_new</Icon>
+    </a>
   );
 }

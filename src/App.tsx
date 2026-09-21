@@ -10,7 +10,7 @@ import {
   type ComponentProps,
 } from "react";
 import { useLocation, useNavigate } from "react-router";
-import { invoke, listen, emit, sleep } from "./lib/rpc";
+import { invoke, listen, emit, sleep, openUrl } from "./lib/rpc";
 import { Bands } from "./components/Bands";
 import { DeviceChooser } from "./components/DeviceChooser";
 import { EqGraph } from "./components/EqGraph";
@@ -531,6 +531,27 @@ function App() {
     editorRevision: editorRevisionRef.current,
     connectionRevision: connectionGenerationRef.current,
   }), []);
+
+  // Open external links in default browser instead of dropping them in Tauri webviews
+  useEffect(() => {
+    const handleGlobalClick = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      const anchor = target?.closest?.("a");
+      if (!anchor) return;
+      const href = anchor.getAttribute("href");
+      if (href && (href.startsWith("http://") || href.startsWith("https://"))) {
+        event.preventDefault();
+        openUrl(href).catch((err) => {
+          console.error("Failed to open external URL:", err);
+        });
+      }
+    };
+
+    document.addEventListener("click", handleGlobalClick);
+    return () => {
+      document.removeEventListener("click", handleGlobalClick);
+    };
+  }, []);
 
   // Auto-refresh profiles when window gains focus or tab becomes visible (catches external file changes)
   useEffect(() => {

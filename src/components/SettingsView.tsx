@@ -6,13 +6,14 @@ import { confirmDialog } from "./ConfirmDialog";
 import { Icon } from "./Icon";
 import {
   ActionRow,
+  ExternalLinkRow,
   NavRow,
   SelectRow,
   StackHeader,
   ToggleRow,
 } from "./SettingsPrimitives";
 import { invoke } from "../lib/rpc";
-import { isLinux, isTauri } from "../lib/platform";
+import { isAndroidDevice, isLinux, isTauri } from "../lib/platform";
 import { LinuxUdevGuide, UDEV_INSTALL_COMMAND } from "./LinuxUdevGuide";
 import type { SettingsSection } from "../lib/tabs";
 import type { AppSettings, GraphViewMode } from "../types";
@@ -304,6 +305,13 @@ export const SettingsView = memo(function SettingsView({
             title="Diagnostics & permissions"
             desc="Diagnostics log and Linux udev rules"
           />
+
+          <NavRow
+            to="/settings/about"
+            icon="info"
+            title="About"
+            desc="Version, system info, and project links"
+          />
         </nav>
       </div>
     );
@@ -318,7 +326,9 @@ export const SettingsView = memo(function SettingsView({
             ? "Behavior & audio"
             : section === "appearance"
               ? "Interface & theme"
-              : "Diagnostics & permissions"
+              : section === "diagnostics"
+                ? "Diagnostics & permissions"
+                : "About"
         }
         backTo="/settings"
         backLabel="Back to settings"
@@ -437,6 +447,70 @@ export const SettingsView = memo(function SettingsView({
                 ))}
               </div>
             </section>
+          </>
+        )}
+
+        {section === "about" && (
+          <>
+            <section className="settings-plain" aria-label="About Glacier EQ">
+              <h2 className="settings-plain-title">Glacier EQ</h2>
+              <p className="settings-plain-desc">
+                Parametric equalizer and hardware DSP controller for USB DACs.
+              </p>
+            </section>
+
+            <dl className="device-spec-list">
+              <div>
+                <dt>Version</dt>
+                <dd>v{typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "0.10.1"}</dd>
+              </div>
+              <div>
+                <dt>Platform</dt>
+                <dd>{isTauri() ? (isAndroidDevice() ? "Android (USB HID)" : "Desktop (Tauri)") : "Web (WebHID)"}</dd>
+              </div>
+              <div>
+                <dt>Hardware target</dt>
+                <dd>Savitech SA9312L DSP</dd>
+              </div>
+              <div>
+                <dt>License</dt>
+                <dd>GPL-3.0-only</dd>
+              </div>
+            </dl>
+
+            <section className="settings-plain" aria-label="Project links">
+              <h2 className="settings-plain-title">Project links</h2>
+              <div className="stack-list">
+                <ExternalLinkRow
+                  href="https://github.com/Bukutsu/glacier-eq"
+                  icon="code"
+                  title="Source code"
+                  desc="GitHub repository and releases"
+                />
+                <ExternalLinkRow
+                  href="https://github.com/Bukutsu/glacier-eq/wiki/Supported-Devices"
+                  icon="memory"
+                  title="Supported devices"
+                  desc="Hardware compatibility and DAC profiles"
+                />
+                <ExternalLinkRow
+                  href="https://github.com/Bukutsu/glacier-eq/wiki/Troubleshooting"
+                  icon="build"
+                  title="Troubleshooting"
+                  desc="Permissions, connection tips, and guides"
+                />
+                <ExternalLinkRow
+                  href="https://github.com/Bukutsu/glacier-eq/issues"
+                  icon="bug_report"
+                  title="Report an issue"
+                  desc="Bug reports and feature requests"
+                />
+              </div>
+            </section>
+
+            <p className="card-note">
+              Glacier EQ communicates directly with supported USB DACs over HID. Parametric EQ settings are saved into device flash memory with no background battery drain.
+            </p>
           </>
         )}
       </div>

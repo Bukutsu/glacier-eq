@@ -304,6 +304,53 @@ async fn read_text_file(app: tauri::AppHandle, path: String) -> Result<String, S
     .map_err(|e| e.to_string())?
 }
 
+fn validate_browser_url(url: &str) -> Result<(), String> {
+    if !url.starts_with("http://") && !url.starts_with("https://") {
+        return Err("Refused: only http and https URLs are allowed".into());
+    }
+    if url.chars().any(|c| c.is_control() || c.is_whitespace()) {
+        return Err("Refused: URL contains invalid characters".into());
+    }
+    Ok(())
+}
+
+#[cfg(target_os = "windows")]
+fn open_browser_url(url: &str) -> std::io::Result<std::process::Child> {
+    std::process::Command::new("rundll32")
+        .args(["url.dll,FileProtocolHandler", url])
+        .spawn()
+}
+
+#[cfg(target_os = "macos")]
+fn open_browser_url(url: &str) -> std::io::Result<std::process::Child> {
+    std::process::Command::new("open").arg(url).spawn()
+}
+
+#[cfg(target_os = "linux")]
+fn open_browser_url(url: &str) -> std::io::Result<std::process::Child> {
+    std::process::Command::new("xdg-open").arg(url).spawn()
+}
+
+#[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+fn open_browser_url(_url: &str) -> std::io::Result<std::process::Child> {
+    Err(std::io::Error::new(
+        std::io::ErrorKind::Unsupported,
+        "opening external URLs is not supported on this platform",
+    ))
+}
+
+#[tauri::command]
+async fn open_url(url: String) -> Result<(), String> {
+    validate_browser_url(&url)?;
+    let mut child = open_browser_url(&url).map_err(|error| {
+        format!("Failed to open URL: {error}")
+    })?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let _ = child.wait();
+    });
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     #[cfg(not(mobile))]
@@ -372,6 +419,7 @@ pub fn run() {
             diagnostics::clear_diagnostics,
             diagnostics::add_diagnostic_event,
             save_text_file,
+            open_url,
         ])
         .run(tauri::generate_context!())
         .expect("error while running glacier-eq");
@@ -410,5 +458,19 @@ mod tests {
         assert_eq!(text_default_name(Some("eq_profile.txt")), "eq_profile.txt");
         assert_eq!(text_default_name(Some("../outside.csv")), "outside.csv.txt");
         assert_eq!(text_default_name(None), "profile.txt");
+    }
+
+    #[test]
+    fn validate_browser_url_accepts_valid_http_and_https() {
+        assert!(validate_browser_url("https://github.com/Bukutsu/glacier-eq").is_ok());
+        assert!(validate_browser_url("http://localhost:1420").is_ok());
+    }
+
+    #[test]
+    fn validate_browser_url_rejects_unsafe_schemes_and_characters() {
+        assert!(validate_browser_url("file:///etc/passwd").is_err());
+        assert!(validate_browser_url("javascript:alert(1)").is_err());
+        assert!(validate_browser_url("https://example.com/foo bar").is_err());
+        assert!(validate_browser_url("https://example.com\n").is_err());
     }
 }

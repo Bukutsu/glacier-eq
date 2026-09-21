@@ -40,6 +40,7 @@ describe("SettingsView markup", () => {
     expect(html).toContain("settings-navigation");
     expect(html).toContain("Behavior &amp; audio");
     expect(html).toContain("Diagnostics &amp; permissions");
+    expect(html).toContain("About");
     expect(html).not.toContain("stack-category-header");
   });
 
@@ -56,5 +57,18 @@ describe("SettingsView markup", () => {
     expect(html).toContain("Keyboard shortcuts");
     expect(html).toContain("shortcut-list");
     expect(html).not.toContain("settings-card");
+  });
+
+  it("renders about screen with version, platform, license, and project links", () => {
+    const html = renderSettingsView({ section: "about" });
+    expect(html).toContain("Glacier EQ");
+    expect(html).toContain("v0.10.1");
+    expect(html).toContain("GPL-3.0-only");
+    expect(html).toContain("Savitech SA9312L DSP");
+    expect(html).toContain("Project links");
+    expect(html).toContain("Source code");
+    expect(html).toContain("Supported devices");
+    expect(html).toContain("Troubleshooting");
+    expect(html).toContain("Report an issue");
   });
 });

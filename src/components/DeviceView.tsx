@@ -295,7 +295,7 @@ export const DeviceView = memo(function DeviceView({
 
   const deviceTitle = connected || isSimulated
     ? deviceInfo?.profile_name || deviceInfo?.product_string || officialSpec?.name || "Connected DAC"
-    : "Virtual DAC (Offline)";
+    : "Offline Editor";
 
   const dspKhz = Math.round(capabilities.dsp_sample_rate / 1000);
 
@@ -355,23 +355,27 @@ export const DeviceView = memo(function DeviceView({
           <NavRow
             to="/device/overview"
             icon="memory"
-            title="Specifications"
-            desc="Chip, sample rate, EQ bands, and outputs"
+            title={connected ? "Specifications" : "Offline specifications"}
+            desc={connected ? "Chip, sample rate, EQ bands, and outputs" : "Sample rate, EQ bands, and gain limits"}
           />
 
-          <NavRow
-            to="/device/controls"
-            icon="tune"
-            title="Sound controls"
-            desc="Reconstruction filters, amplifier mode, gain, and balance"
-          />
+          {connected && (
+            <>
+              <NavRow
+                to="/device/controls"
+                icon="tune"
+                title="Sound controls"
+                desc="Reconstruction filters, amplifier mode, gain, and balance"
+              />
 
-          <NavRow
-            to="/device/maintenance"
-            icon="build"
-            title="Reset & maintenance"
-            desc="Restore EQ or device defaults"
-          />
+              <NavRow
+                to="/device/maintenance"
+                icon="build"
+                title="Reset & maintenance"
+                desc="Restore EQ or device defaults"
+              />
+            </>
+          )}
         </nav>
       </div>
     );
@@ -383,7 +387,9 @@ export const DeviceView = memo(function DeviceView({
       <StackHeader
         title={
           section === "overview"
-            ? "Specifications"
+            ? connected
+              ? "Specifications"
+              : "Offline specifications"
             : section === "controls"
               ? "Sound controls"
               : "Reset & maintenance"
@@ -396,7 +402,9 @@ export const DeviceView = memo(function DeviceView({
         {section === "overview" && (
           <>
             <dl className="device-spec-list">
-              <div><dt>Chip</dt><dd>{officialSpec?.chip ?? "Not reported"}</dd></div>
+              {connected && (
+                <div><dt>Chip</dt><dd>{officialSpec?.chip ?? "Not reported"}</dd></div>
+              )}
               <div><dt>DSP sample rate</dt><dd>{dspKhz} kHz</dd></div>
               <div><dt>EQ bands</dt><dd>{capabilities.num_bands}</dd></div>
               <div><dt>Band gain</dt><dd>{capabilities.band_gain_range[0]} to {capabilities.band_gain_range[1]} dB</dd></div>

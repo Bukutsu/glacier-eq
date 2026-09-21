@@ -1,7 +1,7 @@
 export type ToolsTab = "Preset" | "Tuning" | "Device" | "Settings";
 export type MobileTab = "eq" | "profiles" | "tuning" | "device" | "settings";
 export type DeviceSection = "root" | "overview" | "controls" | "maintenance";
-export type SettingsSection = "root" | "general" | "appearance" | "diagnostics";
+export type SettingsSection = "root" | "general" | "appearance" | "diagnostics" | "about";
 
 export const DEVICE_SECTIONS = [
   { id: "overview", label: "Overview", icon: "info" },
@@ -13,6 +13,7 @@ export const SETTINGS_SECTIONS = [
   { id: "general", label: "Behavior & Audio", icon: "tune" },
   { id: "appearance", label: "Interface & Appearance", icon: "palette" },
   { id: "diagnostics", label: "Diagnostics & Permissions", icon: "bug_report" },
+  { id: "about", label: "About", icon: "info" },
 ] as const satisfies ReadonlyArray<{ id: Exclude<SettingsSection, "root">; label: string; icon: string }>;
 
 export const MOBILE_TABS = [
@@ -25,7 +26,7 @@ export const MOBILE_TABS = [
 
 const MOBILE_TAB_IDS = new Set<MobileTab>(MOBILE_TABS.map(({ id }) => id));
 const DEVICE_SECTION_IDS = new Set<DeviceSection>(["overview", "controls", "maintenance"]);
-const SETTINGS_SECTION_IDS = new Set<SettingsSection>(["general", "appearance", "diagnostics"]);
+const SETTINGS_SECTION_IDS = new Set<SettingsSection>(["general", "appearance", "diagnostics", "about"]);
 
 export interface WorkspaceRoute {
   tab: MobileTab;
@@ -38,6 +39,13 @@ export const MOBILE_QUERY =
 
 export function parseWorkspacePath(pathname: string): WorkspaceRoute {
   const [tab, section] = pathname.replace(/^\/+|\/+$/g, "").split("/");
+  if (tab === "about") {
+    return {
+      tab: "settings",
+      deviceSection: "root",
+      settingsSection: "about",
+    };
+  }
   const activeTab = MOBILE_TAB_IDS.has(tab as MobileTab) ? tab as MobileTab : "eq";
 
   return {

@@ -40,6 +40,29 @@ describe("DeviceView markup", () => {
     expect(html).toContain("EQ bands");
     expect(html).not.toContain("spec-tile");
     expect(html).not.toContain("Supported Hardware");
+    expect(html).not.toContain("Chip");
+    expect(html).not.toContain("Not reported");
+  });
+
+  it("selects only offline specifications and hides hardware-only nav rows when not connected", () => {
+    const html = renderDeviceView({ connected: false });
+    expect(html).toContain("Offline Editor");
+    expect(html).toContain("Offline specifications");
+    expect(html).not.toContain("Sound controls");
+    expect(html).not.toContain("Reset &amp; maintenance");
+    expect(html).not.toContain("Virtual DAC");
+  });
+
+  it("renders all navigation rows when a device is connected", () => {
+    const html = renderDeviceView({ connected: true });
+    expect(html).toContain("Specifications");
+    expect(html).toContain("Sound controls");
+    expect(html).toContain("Reset &amp; maintenance");
+  });
+
+  it("includes chip in specifications when connected", () => {
+    const html = renderDeviceView({ connected: true, section: "overview" });
+    expect(html).toContain("Chip");
   });
 
   it("gates the controls behind loaded hardware state", () => {

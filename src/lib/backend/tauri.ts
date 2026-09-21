@@ -97,3 +97,8 @@ export async function openFileDialog(_options?: {
   return parseOpenedTextFile(await invoke<unknown>("open_text_file_dialog"));
 }
 
+export async function openUrl(url: string): Promise<void> {
+  return invoke("open_url", { url });
+}
+
+
