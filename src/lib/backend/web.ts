@@ -12,6 +12,7 @@ import type {
   SupportedDeviceInfo,
 } from "../../types";
 import { ensureWasm, getWasm } from "./wasm";
+import { profileIdentityKey } from "../profileIdentity";
 
 // Wasm entry points are resolved lazily: ensureWasm() has already run on every
 // path that reaches them (invokeWeb awaits it before dispatching), so the
@@ -439,7 +440,7 @@ export function parseWebProfiles(value: unknown): ParsedStorage<Profile[]> {
   let malformed = false;
   for (const candidate of value) {
     const profile = parseStoredProfile(candidate);
-    const normalizedName = profile?.name.toLocaleLowerCase();
+    const normalizedName = profile ? profileIdentityKey(profile.name) : null;
     if (!profile || !normalizedName || names.has(normalizedName)) {
       malformed = true;
       continue;
@@ -845,8 +846,8 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
         throw new Error("Profile exceeds maximum size (1 MiB)");
       }
       const profiles = loadWebProfiles();
-      const normalizedName = name.toLocaleLowerCase();
-      const idx = profiles.findIndex((profile) => profile.name.toLocaleLowerCase() === normalizedName);
+      const normalizedName = profileIdentityKey(name);
+      const idx = profiles.findIndex((profile) => profileIdentityKey(profile.name) === normalizedName);
       const newProfile: Profile = {
         name,
         data: peq,
@@ -864,10 +865,11 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
       const name = commandField(args, "name");
       if (!isValidProfileName(name)) throw new Error("Invalid profile name");
       const profiles = loadWebProfiles();
-      // Mirror ProfileStore::path's case-insensitive lookup so a delete for
-      // "daily" removes a stored "Daily" exactly like the desktop backend.
-      const normalized = name.toLocaleLowerCase();
-      saveJson("glacier-eq-profiles", profiles.filter((profile) => profile.name.toLocaleLowerCase() !== normalized));
+      // Mirror ProfileStore::path's ASCII case-insensitive lookup
+      // (eq_ignore_ascii_case) so a delete for "daily" removes a stored
+      // "Daily" exactly like the desktop backend — and nothing else does.
+      const normalized = profileIdentityKey(name);
+      saveJson("glacier-eq-profiles", profiles.filter((profile) => profileIdentityKey(profile.name) !== normalized));
       return null as T;
     }
     case "open_profiles_dir": {
