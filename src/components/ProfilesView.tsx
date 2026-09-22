@@ -7,6 +7,7 @@ import { Icon } from "./Icon";
 import { Modal } from "./Modal";
 import { Select } from "./Select";
 import { invoke, readText, writeText, save } from "../lib/rpc";
+import { profileIdentityKey } from "../lib/profileIdentity";
 import { fuzzyMatch } from "../lib/search";
 import { DEFAULT_PROFILE_NAME } from "../lib/peq";
 import {
@@ -102,7 +103,7 @@ export const ProfilesView = memo(function ProfilesView({
   const showSaveAs = (!selectedIsSaved && dirty) || saveAsOpen;
   const saveName = newProfileName.trim();
   const isOverwrite = savedProfiles.some(
-    (p) => p.name.toLowerCase() === saveName.toLowerCase(),
+    (p) => profileIdentityKey(p.name) === profileIdentityKey(saveName),
   );
   const canSave = showSaveAs ? !!saveName : (selectedIsSaved && dirty);
   const saveLabel = showSaveAs
@@ -305,9 +306,9 @@ export const ProfilesView = memo(function ProfilesView({
     setParsed(null);
   };
 
-  const importNameLower = importName.trim().toLowerCase();
+  const importNameKey = profileIdentityKey(importName.trim());
   const nameExists = parsed
-    ? !isTemporary && savedProfiles.some((p) => p.name.toLowerCase() === importNameLower)
+    ? !isTemporary && savedProfiles.some((p) => profileIdentityKey(p.name) === importNameKey)
     : false;
   const activeFilters = parsed ? parsed.peq.filters.filter((f: Filter) => f.enabled) : [];
 

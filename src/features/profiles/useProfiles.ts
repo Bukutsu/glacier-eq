@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import { invoke } from "../../lib/rpc";
+import { profileIdentityKey } from "../../lib/profileIdentity";
 import { confirmDialog } from "../../components/ConfirmDialog";
 import { profileOverwriteMessage } from "../../lib/profileOverwrite";
 import {
@@ -135,7 +136,7 @@ export function useProfiles(
     }
 
     const existing = profiles.find(
-      (p) => p.name.toLowerCase() === name.toLowerCase(),
+      (p) => profileIdentityKey(p.name) === profileIdentityKey(name),
     );
     if (existing && !(await confirmDialog({
       title: "Overwrite profile?",
