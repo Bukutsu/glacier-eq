@@ -404,7 +404,7 @@ function isValidProfileName(value: unknown): value is string {
     utf8Bytes > 128 ||
     value.trim() !== value ||
     value.endsWith(".") ||
-    ![...value].every((character) => /[\p{L}\p{N}]/u.test(character) || " _-@+&.()".includes(character))
+    ![...value].every((character) => /[\p{Alphabetic}\p{N}]/u.test(character) || " _-@+&.()".includes(character))
   ) {
     return false;
   }
@@ -847,7 +847,10 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
       const normalizedName = profileIdentityKey(name);
       const idx = profiles.findIndex((profile) => profileIdentityKey(profile.name) === normalizedName);
       const newProfile: Profile = {
-        name,
+        // Overwrites keep the stored spelling (case-only saves included),
+        // mirroring ProfileStore::path, which rewrites the existing file
+        // instead of renaming it to the caller's casing.
+        name: idx >= 0 ? profiles[idx].name : name,
         data: peq,
         modified: Math.floor(Date.now() / 1000),
       };

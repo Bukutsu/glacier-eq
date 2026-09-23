@@ -422,6 +422,16 @@ describe("web profile parser", () => {
       malformed: true,
     });
   });
+
+  it("accepts names Rust's is_alphanumeric accepts (Other_Alphabetic marks)", async () => {
+    // Devanagari vowel signs are Alphabetic but not \p{L}; Rust's
+    // char::is_alphanumeric accepts them, so the web validator must too.
+    const name = "का profile";
+    await invoke("save_profile", { name, peq: { filters: [], global_gain: 0 } });
+
+    const stored = JSON.parse(localStorageValues.get("glacier-eq-profiles") ?? "[]");
+    expect(stored.map((entry: { name: string }) => entry.name)).toEqual([name]);
+  });
 });
 
 describe("WebHID device matching", () => {
