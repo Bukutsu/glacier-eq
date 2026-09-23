@@ -3,6 +3,7 @@
 
 use crate::profiles::app_data_base_dir;
 use serde::{Deserialize, Serialize};
+use serde_json::{Map as JsonMap, Value as JsonValue};
 use std::fs;
 use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock};
@@ -56,6 +57,11 @@ pub struct Settings {
     pub snap_to_iso_frequencies: bool,
     #[serde(default = "default_floating_graph_preview")]
     pub floating_graph_preview: bool,
+    /// Keys written by a newer or forked build. The frontend spreads them
+    /// back into every save (settingsPersistence), so keeping them here
+    /// stops a save from silently dropping settings this build doesn't know.
+    #[serde(flatten)]
+    pub extra: JsonMap<String, JsonValue>,
 }
 
 impl Default for Settings {
@@ -66,6 +72,7 @@ impl Default for Settings {
             theme: default_theme(),
             snap_to_iso_frequencies: default_snap_to_iso_frequencies(),
             floating_graph_preview: default_floating_graph_preview(),
+            extra: JsonMap::new(),
         }
     }
 }
@@ -138,6 +145,28 @@ fn save_settings_sync(path: &std::path::Path, settings: &Settings) -> Result<(),
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn unknown_settings_keys_survive_a_get_save_round_trip() {
+        // Simulates get_settings output flowing back through save_settings:
+        // the frontend spreads the whole object, so unknown keys reach the
+        // deserializer and must land in `extra`, then re-serialize unchanged.
+        let raw = r#"{"theme":"nord","future_option":42,"nested":{"a":true}}"#;
+        let settings: Settings = serde_json::from_str(raw).unwrap();
+        assert_eq!(settings.theme, "nord");
+        assert_eq!(
+            settings.extra.get("future_option"),
+            Some(&serde_json::json!(42))
+        );
+
+        let reencoded: serde_json::Value =
+            serde_json::from_str(&serde_json::to_string(&settings).unwrap()).unwrap();
+        assert_eq!(reencoded["theme"], serde_json::json!("nord"));
+        assert_eq!(reencoded["future_option"], serde_json::json!(42));
+        assert_eq!(reencoded["nested"]["a"], serde_json::json!(true));
+        // Known fields still serialize with their defaults filled in.
+        assert_eq!(reencoded["auto_pull_on_connect"], serde_json::json!(true));
+    }
 
     #[test]
     fn known_themes_match_settings_ui_options() {
