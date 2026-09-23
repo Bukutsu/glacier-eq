@@ -26,55 +26,32 @@ Or add it directly to `Cargo.toml`:
 tauri-plugin-hid = "0.2.4"
 ```
 
-Install the TypeScript/JavaScript API:
-
-```sh
-npm add @redfernelec/tauri-plugin-hid-api
-```
+This plugin exposes HID through the host application's Rust API. It does not
+register a frontend `enumerate`/`open`/`read`/`write` command set, so there is
+no separate TypeScript package to install and no `hid:default` permission to
+add for those operations.
 
 Register the plugin in `src-tauri/src/lib.rs`:
 
 ```rust
 tauri::Builder::default()
-    .plugin(tauri_plugin_opener::init())
-    .plugin(tauri_plugin_hid::init()) // Register the HID plugin
+    .plugin(tauri_plugin_hid::init())
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
 ```
 
-Add the permission to `src-tauri/capabilities/default.json`:
+Use the Rust API from a Tauri command or other trusted host code:
 
-```json
-"permissions": [
-    "core:default",
-    "opener:default",
-    "hid:default"
-]
+```rust
+let hid = tauri_plugin_hid::hid(&app);
+let devices = hid.enumerate()?;
+hid.open("/dev/hidraw0")?;
+hid.write("/dev/hidraw0", &[0x00, 0x00])?;
+let data = hid.read("/dev/hidraw0", 100)?;
+hid.close("/dev/hidraw0")?;
 ```
 
-## Frontend example
-
-```typescript
-import { HidDevice, enumerate } from "@redfernelec/tauri-plugin-hid-api";
-
-let myDevice: HidDevice | null = null;
-
-// Find a device by product string.
-let devices = await enumerate();
-for (const device of devices) {
-    if (device.productString === "My Device") {
-        myDevice = device;
-        break;
-    }
-}
-
-if (myDevice) {
-    await myDevice.open();
-    await myDevice.write(new Uint8Array([0x00, 0x00]));
-    const data = await myDevice.read(2);
-    await myDevice.close();
-}
-```
-
-The repository also includes Android and desktop implementation examples in
-this plugin's source tree.
+The Android implementation uses the same host-side lifecycle, while the
+browser build uses the WebHID adapter in the application. Listener commands
+(`register_listener` and `remove_listener`) are the only commands registered
+by this plugin's Tauri builder.
