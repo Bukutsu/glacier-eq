@@ -3,6 +3,7 @@ import type { DeviceCapabilities, Filter, FilterType, PEQData } from "../types";
 import { Icon } from "./Icon";
 import { Slider } from "./Slider";
 import { NumberInput } from "./NumberInput";
+import { Select } from "./Select";
 import { filterColorVars } from "../lib/filterColors";
 import { formatFreq, snapFreqToIsoSync } from "../lib/graph";
 import { clampToRange } from "../lib/peq";
@@ -11,18 +12,10 @@ const FREQ_SLIDER_STEPS = 1000;
 const Q_SLIDER_STEPS = 1000;
 const TYPE_NAMES: Record<FilterType, string> = {
   Peak: "Bell",
-  HighShelf: "High Shelf",
-  LowShelf: "Low Shelf",
-  HighPass: "High Pass",
-  LowPass: "Low Pass",
-};
-
-const TYPE_ABBREVIATIONS: Record<FilterType, string> = {
-  Peak: "PK",
-  HighShelf: "HS",
-  LowShelf: "LS",
-  HighPass: "HP",
-  LowPass: "LP",
+  HighShelf: "High shelf",
+  LowShelf: "Low shelf",
+  HighPass: "High pass",
+  LowPass: "Low pass",
 };
 
 function filterColorStyle(index: number) {
@@ -192,6 +185,7 @@ export const Bands = memo(function Bands({ peq, committedPeq, capabilities, onFi
                   style={filterColorStyle(filter.index)}
                   className={filter.index === selectedFilter.index ? "active" : ""}
                   aria-pressed={filter.index === selectedFilter.index}
+                  aria-label={`Band ${filter.index + 1}, ${filter.freq} Hz`}
                   onClick={() => onActiveBandChange?.(filter.index)}
                 >
                   <strong>{filter.index + 1}</strong>
@@ -214,7 +208,6 @@ export const Bands = memo(function Bands({ peq, committedPeq, capabilities, onFi
             <div className="mobile-filter-head">
               <div className="mobile-filter-summary">
                 <strong>Band {selectedFilter.index + 1}</strong>
-                <span>{selectedFilter.freq} Hz · {selectedFilter.gain.toFixed(2)} dB · Q {selectedFilter.q.toFixed(2)}</span>
               </div>
               <div className="mobile-filter-actions">
                 {committedPeq?.filters[selectedFilter.index] && (
@@ -236,6 +229,7 @@ export const Bands = memo(function Bands({ peq, committedPeq, capabilities, onFi
                 <button
                   type="button"
                   className="band-index"
+                  title={`Remove band ${selectedFilter.index + 1}`}
                   aria-label={`Remove band ${selectedFilter.index + 1}`}
                   disabled={visibleFilters.length <= 1}
                   onClick={() => {
@@ -254,6 +248,7 @@ export const Bands = memo(function Bands({ peq, committedPeq, capabilities, onFi
               </div>
             </div>
             <BandControls
+              key={selectedFilter.index}
               filter={selectedFilter}
               committedFilter={committedPeq?.filters[selectedFilter.index]}
               onChange={onFilterChange}
@@ -374,19 +369,20 @@ const BandControls = memo(function BandControls({
 }: BandControlsProps) {
   return (
     <>
-      <BandField label="Type" className="band-type-field">
-        <FilterTypeButtons
-          filter={filter}
-          supportedTypes={capabilities.supported_filter_types}
-          onChange={(updated) => {
+      <label className="band-field band-type-field">
+        <span className="band-field-label">Filter</span>
+        <Select
+          value={filter.filter_type}
+          options={capabilities.supported_filter_types.map((type) => ({ value: type, label: TYPE_NAMES[type] }))}
+          onChange={(type) => {
             onActivate?.(filter.index);
             onStartChange();
-            onChange(filter.index, updated);
+            onChange(filter.index, { ...filter, filter_type: type });
             onEndChange?.();
           }}
         />
-      </BandField>
-      <BandField label="Freq" className="band-freq-field">
+      </label>
+      <BandField label="Frequency" unit="Hz" className="band-freq-field">
         <div className="param-cell freq-cell">
           <Slider
             aria-label={`Band ${filter.index + 1} frequency`}
@@ -425,7 +421,7 @@ const BandControls = memo(function BandControls({
           />
         </div>
       </BandField>
-      <BandField label="Gain" className="band-gain-field">
+      <BandField label="Gain" unit="dB" className="band-gain-field">
         <div className="gain-cell">
           <Slider
             aria-label={`Band ${filter.index + 1} gain`}
@@ -507,37 +503,19 @@ const BandControls = memo(function BandControls({
 
 function BandField({
   label,
+  unit,
   className,
   children,
 }: {
   label: string;
+  unit?: string;
   className?: string;
   children: ReactNode;
 }) {
   return (
     <div className={`band-field ${className ?? ""}`.trim()} role="group" aria-label={label}>
-      <span className="band-field-label">{label}</span>
+      <span className="band-field-label">{label}{unit && <span className="band-field-unit">{unit}</span>}</span>
       {children}
-    </div>
-  );
-}
-
-function FilterTypeButtons({ filter, supportedTypes, onChange }: { filter: Filter; supportedTypes: FilterType[]; onChange: (filter: Filter) => void }) {
-  return (
-    <div className={`type-buttons type-buttons-${supportedTypes.length}`}>
-      {supportedTypes.map((type) => (
-        <button
-          type="button"
-          key={type}
-          className={filter.filter_type === type ? "selected" : ""}
-          aria-pressed={filter.filter_type === type}
-          aria-label={`Set band ${filter.index + 1} to ${TYPE_NAMES[type]}`}
-          onClick={() => onChange({ ...filter, filter_type: type })}
-        >
-          <span className="type-label-short" aria-hidden="true">{TYPE_ABBREVIATIONS[type]}</span>
-          <span className="type-label-long" aria-hidden="true">{TYPE_NAMES[type]}</span>
-        </button>
-      ))}
     </div>
   );
 }

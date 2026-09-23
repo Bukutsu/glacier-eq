@@ -357,128 +357,25 @@
   .band-number {
     display: none !important;
   }
-  .bands-mobile-editor {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-  .band-picker {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 56px;
-    gap: 6px;
-    min-width: 0;
-    overflow: hidden;
-    padding-bottom: 2px;
-  }
   .band-picker-scroll {
-    display: flex;
-    min-width: 0;
-    gap: 6px;
-    overflow-x: auto;
-    padding: 1px 6px 1px 1px;
     scrollbar-width: none;
   }
   .band-picker-scroll::-webkit-scrollbar {
     display: none;
   }
-  .band-picker button {
-    flex: 0 0 auto;
-    min-width: 56px;
+  .mobile-filter-reset,
+  .mobile-filter-card .custom-select-trigger {
     min-height: 44px;
-    display: grid;
-    place-items: center;
-    gap: 1px;
-    padding: 4px 10px;
-    color: var(--muted);
-    background: var(--bg-dark);
-    outline: 1px solid var(--line-medium);
-    outline-offset: -1px;
-    border: 0;
-  }
-  .band-picker button strong {
-    color: var(--filter-color, var(--cyan));
-    font-size: var(--type-subtitle);
-    line-height: 1;
-  }
-  .band-picker button span {
-    font-size: var(--type-micro);
-  }
-  .band-picker button.active {
-    color: var(--text);
-    background: rgb(var(--filter-color-rgb, var(--cyan-rgb)) / 0.12);
-    outline-color: rgb(var(--filter-color-rgb, var(--cyan-rgb)) / 0.64);
-  }
-  .band-picker button.add-filter-chip {
-    width: 56px;
-    color: var(--cyan);
-    outline-style: dashed;
-  }
-  .band-picker button.add-filter-chip:disabled {
-    color: var(--muted);
-    opacity: .55;
-  }
-  .band-picker button.add-filter-chip .app-icon {
-    font-size: 18px;
-  width: 18px;
-  height: 18px;}
-  .mobile-filter-card {
-    display: grid;
-    grid-template-columns: 1fr;
-    grid-template-areas:
-      "head"
-      "type"
-      "freq"
-      "gain"
-      "q";
-    gap: 12px;
-    padding: 12px;
-    background: linear-gradient(
-      90deg,
-      rgb(var(--filter-color-rgb, var(--cyan-rgb)) / 0.12),
-      var(--bg-dark) 46px
-    );
-    outline: 1px solid rgb(var(--filter-color-rgb, var(--cyan-rgb)) / 0.42);
-    outline-offset: -1px;
-  }
-  .mobile-filter-head {
-    grid-area: head;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 8px;
-    align-items: center;
-  }
-  .mobile-filter-summary {
-    min-width: 0;
-    display: grid;
-    gap: 2px;
-  }
-  .mobile-filter-actions {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-  }
-  .mobile-filter-reset {
-    min-height: 44px;
-    padding: 0 10px;
-  }
-  .mobile-filter-reset .app-icon {
-    font-size: 18px;
-  width: 18px;
-  height: 18px;}
-  .mobile-filter-head strong {
-    color: var(--filter-color, var(--cyan));
-    font-size: var(--type-subtitle);
-  }
-  .mobile-filter-summary > span {
-    color: var(--muted);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
   .mobile-filter-head .band-index {
     grid-area: auto;
     width: 44px;
     min-height: 44px;
+  }
+  .mobile-filter-card .freq-cell,
+  .mobile-filter-card .gain-cell,
+  .mobile-filter-card .q-cell {
+    grid-template-columns: minmax(0, 1fr) 112px;
   }
   .bands-card {
     padding: 0;
@@ -549,36 +446,6 @@
     flex-direction: column;
     gap: 6px;
   }
-  .type-buttons {
-    display: flex;
-    gap: 4px;
-    overflow-x: auto;
-    padding-bottom: 0;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-    background: transparent;
-    outline: none;
-    padding: 2px;
-  }
-  .type-buttons::-webkit-scrollbar {
-    display: none;
-  }
-  .type-buttons button {
-    min-height: 44px;
-    height: 44px;
-    padding: 0 12px;
-    border-radius: var(--radius-control);
-    flex: 0 0 auto;
-    min-width: auto;
-    border: none;
-    white-space: nowrap;
-  }
-  .type-label-short {
-    display: none;
-  }
-  .type-label-long {
-    display: inline;
-  }
   .gain-cell {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 132px;
@@ -597,12 +464,13 @@
   .custom-number-input.band-q-stepper {
     width: 100% !important;
   }
-  .custom-number-input.preamp-value-stepper .stepper-btn,
-  .custom-number-input.band-freq-stepper .stepper-btn,
-  .custom-number-input.band-gain-stepper .stepper-btn,
-  .custom-number-input.band-q-stepper .stepper-btn {
+  .custom-number-input.preamp-value-stepper .stepper-btn {
     width: 44px;
     flex: 0 0 44px;
+  }
+  .mobile-filter-card .custom-number-input .stepper-btn {
+    width: 28px;
+    flex: 0 0 28px;
   }
   .gain-cell input[type="range"],
   .freq-cell input[type="range"],
@@ -1018,15 +886,6 @@
   }
 }
 
-@media (max-width: 380px) {
-  .type-buttons {
-    grid-template-columns: repeat(5, minmax(34px, 1fr));
-  }
-  .type-buttons button {
-    font-size: var(--type-label);
-  }
-}
-
 /* Mobile Bottom Tab Bar */
 .mobile-tab-bar {
   display: none;
@@ -1318,49 +1177,8 @@ body.is-android *,
     touch-action: pan-x;
   }
 
-  .mobile-filter-card {
-    gap: 16px;
-    padding: 16px;
-  }
-
   .graph-collapse-btn::before {
     inset: 8px 0;
-  }
-
-  /* Keep the complete filter vocabulary visible without a clipped horizontal
-     choice row. Five supported filters form a 3 + 2 segmented group. */
-  .mobile-filter-card .type-buttons-5 {
-    display: grid;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-    gap: 4px;
-    overflow: visible;
-    padding: 0;
-  }
-
-  .mobile-filter-card .type-buttons-5 button {
-    min-width: 0;
-    min-height: 48px;
-    height: 48px;
-    padding-inline: 6px;
-    background: var(--bg-dark);
-    outline: 1px solid var(--line-soft);
-    outline-offset: -1px;
-  }
-
-  .mobile-filter-card .type-buttons-5 button.selected {
-    background: var(--surface-soft) !important;
-    outline-color: var(--accent-line-outline);
-  }
-
-  .mobile-filter-card .type-buttons-5 button:nth-child(1),
-  .mobile-filter-card .type-buttons-5 button:nth-child(2),
-  .mobile-filter-card .type-buttons-5 button:nth-child(3) {
-    grid-column: span 2;
-  }
-
-  .mobile-filter-card .type-buttons-5 button:nth-child(4),
-  .mobile-filter-card .type-buttons-5 button:nth-child(5) {
-    grid-column: span 3;
   }
 
   .band-undo-toast {
@@ -1447,12 +1265,6 @@ body.is-android *,
     width: 100% !important;
   }
   .band-number { font-size: var(--type-label); }
-  .type-buttons { gap: 2px; }
-  .type-buttons button { min-height: 24px; height: 24px; font-size: var(--type-micro); padding: 0; }
-}
-/* Touch laptops in the squeeze range keep usable targets. */
-@media (min-width: 769px) and (max-width: 1150px) and (pointer: coarse) {
-  .type-buttons button { min-height: var(--touch-md); height: auto; }
 }
 
 @media (max-width: 850px), ((max-height: 540px) and (pointer: coarse)) {

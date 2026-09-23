@@ -483,38 +483,41 @@
 .bands-mobile-editor {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 0;
+  background: var(--panel);
+  container-type: inline-size;
 }
 
 .band-picker {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 4px;
+  gap: var(--space-2);
   min-width: 0;
-  padding: 4px;
-  background: var(--panel);
+  padding: 0 var(--space-3);
+  border-bottom: 1px solid var(--line-soft);
 }
 
 .band-picker-scroll {
+  position: relative;
   display: flex;
   min-width: 0;
-  gap: 4px;
+  gap: var(--space-1);
   overflow-x: auto;
   scrollbar-width: thin;
 }
 
 .band-picker button {
   flex: 0 0 auto;
-  min-width: 54px;
-  min-height: 38px;
+  min-width: 60px;
+  min-height: 48px;
   display: grid;
   place-items: center;
   gap: 1px;
-  padding: 4px 8px;
+  padding: var(--space-2);
   color: var(--muted);
-  background: var(--bg-dark);
-  outline: 1px solid var(--line-medium);
-  outline-offset: -1px;
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
 }
 
 .band-picker button strong {
@@ -529,30 +532,40 @@
 
 .band-picker button.active {
   color: var(--text);
-  background: rgb(var(--filter-color-rgb, var(--cyan-rgb)) / 0.12);
-  outline-color: rgb(var(--filter-color-rgb, var(--cyan-rgb)) / 0.64);
+  background: var(--surface-soft);
+  border-bottom-color: var(--filter-color, var(--cyan));
+}
+
+.band-picker button:hover:not(:disabled) {
+  background: var(--surface-soft);
+}
+
+.band-picker button:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: -2px;
 }
 
 .band-picker button.add-filter-chip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
   color: var(--cyan);
-  outline-style: dashed;
+}
+
+.band-picker button.add-filter-chip span {
+  font-size: var(--type-label);
 }
 
 .mobile-filter-card {
   display: grid;
-  grid-template-columns: minmax(140px, 0.8fr) repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(140px, 0.6fr) repeat(3, minmax(0, 1fr));
   grid-template-areas:
-    "head type type type"
-    "head freq gain q";
-  gap: 12px;
-  padding: 12px;
-  background: linear-gradient(
-    90deg,
-    rgb(var(--filter-color-rgb, var(--cyan-rgb)) / 0.12),
-    var(--bg-dark) 140px
-  );
-  outline: 1px solid rgb(var(--filter-color-rgb, var(--cyan-rgb)) / 0.42);
-  outline-offset: -1px;
+    "head head head head"
+    "type freq gain q";
+  gap: var(--space-3) var(--space-5);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  background: var(--panel);
 }
 
 .mobile-filter-head {
@@ -583,7 +596,7 @@
   justify-content: center;
   gap: 4px;
   padding: 0 8px;
-  background: var(--surface-soft);
+  background: transparent;
   color: var(--muted);
 }
 
@@ -593,19 +606,27 @@
 
 .mobile-filter-head strong {
   color: var(--filter-color, var(--cyan));
-  font-size: var(--type-subtitle);
-}
-
-.mobile-filter-summary > span {
-  color: var(--muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: var(--type-label);
 }
 
 .mobile-filter-head .band-index {
   width: 32px;
   min-height: 32px;
+  color: var(--muted);
+  opacity: 1;
+  background: transparent;
+}
+
+.mobile-filter-head .band-index:hover:not(:disabled) {
+  color: var(--red);
+}
+
+.mobile-filter-head .band-index:disabled {
+  opacity: 0.4;
+}
+
+.mobile-filter-card .custom-select-trigger {
+  height: 32px;
 }
 
 .mobile-filter-card .band-type-field { grid-area: type; }
@@ -615,45 +636,6 @@
 
 .band-index strong {
   font: inherit;
-}
-
-.type-buttons {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 4px;
-  width: 100%;
-  min-width: 0;
-  background: transparent;
-  outline: none;
-  padding: 2px;
-}
-.type-buttons button {
-  height: 28px;
-  min-height: 28px;
-  background: transparent;
-  color: var(--text);
-  padding: 0;
-  border: none;
-  font-size: var(--type-small);
-  font-family: var(--font-mono);
-  font-weight: 600;
-  cursor: pointer;
-  border-radius: var(--radius-control);
-  transition: color var(--motion-duration) var(--motion-ease), background-color var(--motion-duration) var(--motion-ease);
-}
-.type-buttons button:hover:not(:disabled) {
-  color: var(--cyan);
-  background: var(--surface-soft);
-}
-.type-buttons button.selected {
-  background: var(--surface-soft) !important;
-  color: var(--cyan) !important;
-  font-weight: 700;
-  outline: 1px solid var(--accent-line-outline);
-}
-
-.type-label-long {
-  display: none;
 }
 
 .param-cell {
@@ -667,7 +649,7 @@
 .gain-cell,
 .q-cell {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) 96px;
   align-items: center;
   gap: 8px;
   min-width: 0;
@@ -685,7 +667,7 @@
 .custom-number-input.band-freq-stepper,
 .custom-number-input.band-gain-stepper,
 .custom-number-input.band-q-stepper {
-  height: 28px;
+  height: 32px;
 }
 
 .custom-number-input.band-freq-stepper .stepper-field,
@@ -776,13 +758,50 @@
 }
 
 .band-field-label {
-  display: block;
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1);
   color: var(--muted);
+  font-size: var(--type-small);
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.band-field-unit {
   font-size: var(--type-micro);
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  line-height: 1;
-  text-transform: uppercase;
+}
+
+@container (max-width: 700px) {
+  .mobile-filter-card {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "head" "type" "freq" "gain" "q";
+    gap: var(--space-3);
+  }
+
+  .mobile-filter-card .band-field {
+    display: grid;
+    grid-template-columns: 88px minmax(0, 1fr);
+    align-items: center;
+    gap: var(--space-2);
+  }
+}
+
+.band-undo-toast {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  border-top: 1px solid var(--line-soft);
+  color: var(--muted);
+  font-size: var(--type-label);
+}
+
+.band-undo-toast button {
+  min-height: 32px;
+  padding: 0 var(--space-2);
+  color: var(--cyan);
+  background: transparent;
 }
 
 @media (pointer: coarse) {
