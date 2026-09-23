@@ -460,6 +460,20 @@ mod tests {
     }
 
     #[test]
+    fn disabled_pass_filters_use_identity_encoding() {
+        for filter_type in [FilterType::HighPass, FilterType::LowPass] {
+            let mut filter = make_filter(0, 1000, 5.0, 1.0);
+            filter.filter_type = filter_type;
+            filter.enabled = false;
+            let packet =
+                WalkplayProtocol::build_filter_write_packet(0, &filter, 96000.0, 0.0).unwrap();
+            let identity = compute_iir_filter(FilterType::Peak, 1000.0, 0.0, 1.0, 96000.0).unwrap();
+            assert_eq!(packet[33], u8::from(FilterType::Peak));
+            assert_eq!(&packet[7..27], &identity);
+        }
+    }
+
+    #[test]
     fn build_global_gain_write_packet_structure() {
         let packet = WalkplayProtocol::build_global_gain_write_packet(5);
         assert_eq!(packet[OFFSET_CMD_TYPE], WRITE);

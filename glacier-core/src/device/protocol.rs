@@ -218,8 +218,16 @@ impl WalkplayProtocol {
     pub(crate) fn is_default_state(peq: &PEQData) -> bool {
         // Walkplay pull responses do not represent per-band enable state: every
         // parsed filter is enabled. A transient reset response is observable as
-        // a flat filter set and zero preamp instead.
-        peq.global_gain == 0.0 && peq.filters.iter().all(|filter| filter.gain == 0.0)
+        // a flat filter set and zero preamp instead; an active pass filter is
+        // not flat even when its gain metadata is zero.
+        peq.global_gain == 0.0
+            && peq.filters.iter().all(|filter| {
+                filter.gain == 0.0
+                    && !matches!(
+                        filter.filter_type,
+                        crate::eq::FilterType::HighPass | crate::eq::FilterType::LowPass
+                    )
+            })
     }
 
     pub(crate) fn build_init_packets() -> Vec<Packet> {
@@ -248,18 +256,22 @@ impl WalkplayProtocol {
         dsp_sample_rate: f64,
         global_gain: f64,
     ) -> Result<Vec<u8>, String> {
-        // Savitech has no per-band enable field. WalkPlay bypasses a band by
-        // writing zero gain while keeping its frequency/Q/type metadata intact.
+        // Savitech has no per-band enable field. A zero-gain peak is the
+        // identity representation; retaining HP/LP here would leave an active
+        // pass filter in the DSP even though its UI band is disabled.
         let freq = filter.freq;
         let gain = if filter.enabled { filter.gain } else { 0.0 };
-        let b_arr = compute_iir_filter(
-            filter.filter_type,
-            freq as f64,
-            gain,
-            filter.q,
-            dsp_sample_rate,
-        )?;
-        let filter_type_byte: u8 = filter.filter_type.into();
+        let filter_type = if !filter.enabled
+            && matches!(
+                filter.filter_type,
+                crate::eq::FilterType::HighPass | crate::eq::FilterType::LowPass
+            ) {
+            crate::eq::FilterType::Peak
+        } else {
+            filter.filter_type
+        };
+        let b_arr = compute_iir_filter(filter_type, freq as f64, gain, filter.q, dsp_sample_rate)?;
+        let filter_type_byte: u8 = filter_type.into();
         // Global gain is embedded as an unsigned byte in every filter packet,
         // matching the Walkplay/Savitech wire format (byte 34 of the payload).
         let gain_byte = (global_gain.round() as i8) as u8;
@@ -473,8 +485,17 @@ mod tests {
         boosted.filters[0].gain = 0.01;
         assert!(!WalkplayProtocol::is_default_state(&boosted));
 
-        let mut preamped = flat;
+        let mut preamped = flat.clone();
         preamped.global_gain = -1.0;
         assert!(!WalkplayProtocol::is_default_state(&preamped));
+
+        for filter_type in [
+            crate::eq::FilterType::HighPass,
+            crate::eq::FilterType::LowPass,
+        ] {
+            let mut pass = flat.clone();
+            pass.filters[0].filter_type = filter_type;
+            assert!(!WalkplayProtocol::is_default_state(&pass));
+        }
     }
 }

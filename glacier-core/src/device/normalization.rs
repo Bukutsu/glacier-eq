@@ -225,6 +225,7 @@ mod tests {
         let peq = PEQData {
             filters: vec![Filter {
                 gain: 0.0,
+                filter_type: FilterType::Peak,
                 ..filter()
             }],
             global_gain: 0.0,
