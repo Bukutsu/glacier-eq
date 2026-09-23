@@ -432,6 +432,18 @@ describe("web profile parser", () => {
     const stored = JSON.parse(localStorageValues.get("glacier-eq-profiles") ?? "[]");
     expect(stored.map((entry: { name: string }) => entry.name)).toEqual([name]);
   });
+
+  it("keeps the stored name on a case-only save, like ProfileStore::path", async () => {
+    await invoke("save_profile", { name: "Daily EQ", peq: { filters: [], global_gain: -1 } });
+    await invoke("save_profile", { name: "daily eq", peq: { filters: [], global_gain: -2 } });
+
+    const stored = JSON.parse(localStorageValues.get("glacier-eq-profiles") ?? "[]");
+    expect(stored).toHaveLength(1);
+    // The data is replaced, but the stored identity keeps its original casing
+    // — the desktop store rewrites the existing file rather than renaming it.
+    expect(stored[0].name).toBe("Daily EQ");
+    expect(stored[0].data.global_gain).toBe(-2);
+  });
 });
 
 describe("WebHID device matching", () => {

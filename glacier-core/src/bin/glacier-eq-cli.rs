@@ -622,7 +622,15 @@ fn autoeq(
     let measurement = parse_curve_text(&read_text(measurement)?)?;
     let target = parse_curve_text(&read_text(target)?)?;
     let caps = device.map(capabilities_for).transpose()?;
-    let mut peq = run_autoeq(&measurement, &target, bands, steps, smooth, sample_rate, caps)?;
+    let mut peq = run_autoeq(
+        &measurement,
+        &target,
+        bands,
+        steps,
+        smooth,
+        sample_rate,
+        caps,
+    )?;
     if let Some(caps) = caps {
         for warning in peq.clamp_to_capabilities(caps) {
             eprintln!("warning: {warning}");
@@ -966,7 +974,10 @@ mod tests {
         // so it takes the compact path where a multi-byte character straddles
         // a 2-byte chunk ([0x61, 0xe2] is not valid UTF-8).
         let error = parse_hex_bytes("a€").unwrap_err();
-        assert!(error.starts_with("invalid hexadecimal data byte:"), "{error}");
+        assert!(
+            error.starts_with("invalid hexadecimal data byte:"),
+            "{error}"
+        );
         // Valid hex mixed with a non-ASCII character reports the same way.
         assert!(parse_hex_bytes("4b€").is_err());
     }

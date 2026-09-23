@@ -413,8 +413,7 @@ mod tests {
             .filter(|profile| profile.protocol != DeviceProtocol::Walkplay)
         {
             assert_eq!(
-                profile.caps.supported_filter_types,
-                LIMITED_FILTER_TYPES,
+                profile.caps.supported_filter_types, LIMITED_FILTER_TYPES,
                 "{}",
                 profile.name
             );
@@ -518,14 +517,8 @@ mod tests {
     #[test]
     fn walkplay_resends_unanswered_reads() {
         use crate::device::{DeviceProtocol, EqProtocol};
-        assert_eq!(
-            WalkplayProtocol.resend_unanswered_after(),
-            Some(15)
-        );
-        assert_eq!(
-            DeviceProtocol::Walkplay.resend_unanswered_after(),
-            Some(15)
-        );
+        assert_eq!(WalkplayProtocol.resend_unanswered_after(), Some(15));
+        assert_eq!(DeviceProtocol::Walkplay.resend_unanswered_after(), Some(15));
         assert_eq!(DeviceProtocol::Moondrop.resend_unanswered_after(), None);
     }
 

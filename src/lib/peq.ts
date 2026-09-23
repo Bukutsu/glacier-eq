@@ -5,6 +5,10 @@ export const DEFAULT_FREQS_10_BAND = [31, 62, 125, 250, 500, 1000, 2000, 4000, 8
 // Name of the synthetic "reset to flat" profile shown first in the library.
 export const DEFAULT_PROFILE_NAME = "Default EQ";
 
+// Storage ceiling shared with ProfileStore::save and parseStoredPeq: stored
+// or device-reported filter lists are clamped, never trusted to any length.
+const MAX_FILTERS = 32;
+
 export function buildDefaultState(): PEQData {
   return {
     global_gain: 0,
@@ -62,7 +66,22 @@ export function normalizePeq(
   const source = raw as { filters?: unknown[]; global_gain?: unknown; globalGain?: unknown } | null | undefined;
   const defaults = buildDefaultState();
   const inputFilters = Array.isArray(source?.filters) ? source.filters : [];
-  const filters = defaults.filters.map((fallback, index) => {
+  // Never truncate stored data, but pad at least to the device band count:
+  // the UI and push paths slice by num_bands, so fewer bands than that would
+  // silently drop filters on devices with more bands than the 10 defaults.
+  const size = Math.min(
+    MAX_FILTERS,
+    Math.max(inputFilters.length, options.capabilities?.num_bands ?? defaults.filters.length),
+  );
+  const filters = Array.from({ length: size }, (_, index) => {
+    const fallback = defaults.filters[index] ?? {
+      index,
+      enabled: false,
+      filter_type: "Peak" as FilterType,
+      freq: 1000,
+      gain: 0,
+      q: 1,
+    };
     const hasInput = inputFilters[index] !== undefined;
     const input = (inputFilters[index] ?? {}) as Record<string, unknown>;
     const capabilities = options.capabilities;

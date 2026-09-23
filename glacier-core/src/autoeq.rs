@@ -1036,8 +1036,8 @@ fn grad(
         let b_da_c2 = 8.0 * (s.db0_da * s.b2 + s.db2_da * s.b0);
 
         let b_al_c0 = ba * (s.db0_dalpha + s.db2_dalpha);
-        let b_al_c1 = 2.0
-            * (s.db0_dalpha * (s.b1 + 4.0 * s.b2) + s.db2_dalpha * (4.0 * s.b0 + s.b1));
+        let b_al_c1 =
+            2.0 * (s.db0_dalpha * (s.b1 + 4.0 * s.b2) + s.db2_dalpha * (4.0 * s.b0 + s.b1));
         let b_al_c2 = 8.0 * (s.db0_dalpha * s.b2 + s.db2_dalpha * s.b0);
 
         let b_co_c0 = ba * (s.db0_dcos + s.db1_dcos + s.db2_dcos);
@@ -1055,8 +1055,8 @@ fn grad(
         let a_da_c2 = 8.0 * (s.da0_da * s.a2 + s.da2_da * s.a0);
 
         let a_al_c0 = aa * (s.da0_dalpha + s.da2_dalpha);
-        let a_al_c1 = 2.0
-            * (s.da0_dalpha * (s.a1 + 4.0 * s.a2) + s.da2_dalpha * (4.0 * s.a0 + s.a1));
+        let a_al_c1 =
+            2.0 * (s.da0_dalpha * (s.a1 + 4.0 * s.a2) + s.da2_dalpha * (4.0 * s.a0 + s.a1));
         let a_al_c2 = 8.0 * (s.da0_dalpha * s.a2 + s.da2_dalpha * s.a0);
 
         let a_co_c0 = aa * (s.da0_dcos + s.da1_dcos + s.da2_dcos);
@@ -1255,27 +1255,13 @@ fn fit(
         opt_amp: amp.is_some(),
     };
 
-    let mut best_loss = grad(
-        &c,
-        &x,
-        &mut g,
-        &mut dy_dw0,
-        &mut dy_dgain,
-        &mut dy_dbw,
-    );
+    let mut best_loss = grad(&c, &x, &mut g, &mut dy_dw0, &mut dy_dgain, &mut dy_dbw);
 
     let mut opt = AdaBelief::new(n_bands);
 
     for step in 0..steps {
         opt.lr = 0.03 * 0.5 * (1.0 + ((step as f32) / (steps as f32) * std::f32::consts::PI).cos());
-        let loss = grad(
-            &c,
-            &x,
-            &mut g,
-            &mut dy_dw0,
-            &mut dy_dgain,
-            &mut dy_dbw,
-        );
+        let loss = grad(&c, &x, &mut g, &mut dy_dw0, &mut dy_dgain, &mut dy_dbw);
 
         opt.step(&mut x, &g);
 
@@ -1983,13 +1969,7 @@ mod tests {
                 let q = bw_to_q(x[2 * n_bands + n]) as f64;
                 let mut resp = vec![0.0f32; K];
                 crate::eq::iir_math::accumulate_response_values(
-                    types[n],
-                    f0,
-                    gain,
-                    q,
-                    fs as f64,
-                    &f,
-                    &mut resp,
+                    types[n], f0, gain, q, fs as f64, &f, &mut resp,
                 );
                 for k in 0..K {
                     total[k] += resp[k] as f64;
@@ -2027,7 +2007,11 @@ mod tests {
             if !ok {
                 failures += 1;
             }
-            println!("param {w}: analytic={} numeric={numeric:.6} {}", g[w], if ok { "ok" } else { "MISMATCH" });
+            println!(
+                "param {w}: analytic={} numeric={numeric:.6} {}",
+                g[w],
+                if ok { "ok" } else { "MISMATCH" }
+            );
         }
         assert!(failures == 0, "{failures} gradient mismatches");
     }
@@ -2065,9 +2049,11 @@ mod tests {
     fn hump_case() -> (CurvePoints, CurvePoints) {
         // Flat measurement, target with a +14 dB hump at 200 Hz: needs more
         // gain than the restrictive ±6 dB device allows.
-        let measurement = [20.0, 50.0, 100.0, 200.0, 500.0, 1000.0, 2000.0, 5000.0, 10000.0, 20000.0]
-            .map(|freq| (freq, 0.0))
-            .to_vec();
+        let measurement = [
+            20.0, 50.0, 100.0, 200.0, 500.0, 1000.0, 2000.0, 5000.0, 10000.0, 20000.0,
+        ]
+        .map(|freq| (freq, 0.0))
+        .to_vec();
         let target = [
             (20.0, 0.0),
             (50.0, 1.0),
@@ -2112,8 +2098,8 @@ mod tests {
     fn caps_aware_fit_stays_in_bounds_without_clamping() {
         let (measurement, target) = hump_case();
         let caps = restrictive_caps();
-        let mut peq = run_autoeq(&measurement, &target, 5, 200, "none", 48000.0, Some(&caps))
-            .unwrap();
+        let mut peq =
+            run_autoeq(&measurement, &target, 5, 200, "none", 48000.0, Some(&caps)).unwrap();
         for filter in &peq.filters {
             assert_eq!(filter.filter_type, crate::eq::FilterType::Peak);
             assert!((30..=18000).contains(&filter.freq), "freq {}", filter.freq);
@@ -2124,10 +2110,7 @@ mod tests {
         // is derived after the fact, and tightening it upward would trade
         // away the anti-clipping guarantee for inaudible level precision.
         let warnings = peq.clamp_to_capabilities(&caps);
-        assert!(
-            warnings.iter().all(|w| !w.contains("Band")),
-            "{warnings:?}"
-        );
+        assert!(warnings.iter().all(|w| !w.contains("Band")), "{warnings:?}");
     }
 
     #[test]
@@ -2167,8 +2150,7 @@ mod tests {
         let (measurement, target) = hump_case();
         let mut caps = restrictive_caps();
         caps.supported_filter_types = SHELF_ONLY_TYPES;
-        let peq = run_autoeq(&measurement, &target, 5, 20, "none", 48000.0, Some(&caps))
-            .unwrap();
+        let peq = run_autoeq(&measurement, &target, 5, 20, "none", 48000.0, Some(&caps)).unwrap();
         assert!(peq
             .filters
             .iter()
@@ -2181,8 +2163,7 @@ mod tests {
         let mut caps = restrictive_caps();
         caps.supported_filter_types = PASS_ONLY_TYPES;
         assert_eq!(
-            run_autoeq(&measurement, &target, 5, 20, "none", 48000.0, Some(&caps))
-                .unwrap_err(),
+            run_autoeq(&measurement, &target, 5, 20, "none", 48000.0, Some(&caps)).unwrap_err(),
             "AutoEQ requires a DAC with Peak, LowShelf, or HighShelf support"
         );
     }
@@ -2197,8 +2178,7 @@ mod tests {
         let mut r = [0.0; K];
         let preamp_mean = preprocess(&f, &dst, &src, &mut r, None, true).unwrap();
 
-        let mut clamped = run_autoeq(&measurement, &target, 5, 200, "none", 48000.0, None)
-            .unwrap();
+        let mut clamped = run_autoeq(&measurement, &target, 5, 200, "none", 48000.0, None).unwrap();
         assert!(!clamped.clamp_to_capabilities(&caps).is_empty());
         let clamped_mse = fit_mse(&clamped, &r, preamp_mean, 48000.0);
 

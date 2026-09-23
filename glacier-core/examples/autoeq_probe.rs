@@ -12,7 +12,9 @@ use glacier_core::device::SUPPORTED_DEVICES;
 /// Deterministic measurement curve: broad low hump + mid dip + treble rise,
 /// 10 log-spaced points (similar count to real PARC files).
 fn measurement_curve() -> Vec<(f64, f64)> {
-    let freqs = [20.0, 45.0, 100.0, 220.0, 500.0, 1100.0, 2500.0, 5500.0, 12000.0, 20000.0];
+    let freqs = [
+        20.0, 45.0, 100.0, 220.0, 500.0, 1100.0, 2500.0, 5500.0, 12000.0, 20000.0,
+    ];
     let dbs = [4.5, 6.2, 3.1, -1.5, -3.2, -0.8, 1.9, 3.4, 2.2, 0.5];
     freqs.iter().copied().zip(dbs.iter().copied()).collect()
 }
@@ -24,7 +26,16 @@ fn flat_target() -> Vec<(f64, f64)> {
 fn run_app_path() {
     let meas = measurement_curve();
     let target = flat_target();
-    let _ = run_autoeq(&meas, &target, 10, 2000, "none", 48000.0, Some(&DESKTOP_DAC_CAPS)).unwrap();
+    let _ = run_autoeq(
+        &meas,
+        &target,
+        10,
+        2000,
+        "none",
+        48000.0,
+        Some(&DESKTOP_DAC_CAPS),
+    )
+    .unwrap();
 }
 
 fn main() {
@@ -49,8 +60,16 @@ fn main() {
             let one = || {
                 let meas = measurement_curve();
                 let target = flat_target();
-                let _ = run_autoeq(&meas, &target, 10, 1, "none", 48000.0, Some(&DESKTOP_DAC_CAPS))
-                    .unwrap();
+                let _ = run_autoeq(
+                    &meas,
+                    &target,
+                    10,
+                    1,
+                    "none",
+                    48000.0,
+                    Some(&DESKTOP_DAC_CAPS),
+                )
+                .unwrap();
             };
             for _ in 0..warmups {
                 one();
@@ -65,8 +84,16 @@ fn main() {
             let one = || {
                 let meas = measurement_curve();
                 let target = flat_target();
-                let _ = run_autoeq(&meas, &target, 5, 1000, "none", 48000.0, Some(&DESKTOP_DAC_CAPS))
-                    .unwrap();
+                let _ = run_autoeq(
+                    &meas,
+                    &target,
+                    5,
+                    1000,
+                    "none",
+                    48000.0,
+                    Some(&DESKTOP_DAC_CAPS),
+                )
+                .unwrap();
             };
             for _ in 0..warmups {
                 one();
@@ -128,5 +155,8 @@ fn main() {
     let median = durations[durations.len() / 2];
     let min = durations[0];
     let max = durations[durations.len() - 1];
-    println!("{mode}\tmedian_ms={median:.3}\tmin_ms={min:.3}\tmax_ms={max:.3}\tsamples={}", durations.len());
+    println!(
+        "{mode}\tmedian_ms={median:.3}\tmin_ms={min:.3}\tmax_ms={max:.3}\tsamples={}",
+        durations.len()
+    );
 }

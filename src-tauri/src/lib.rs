@@ -348,9 +348,8 @@ fn open_browser_url(_url: &str) -> std::io::Result<std::process::Child> {
 #[tauri::command]
 async fn open_url(url: String) -> Result<(), String> {
     validate_browser_url(&url)?;
-    let mut child = open_browser_url(&url).map_err(|error| {
-        format!("Failed to open URL: {error}")
-    })?;
+    let mut child =
+        open_browser_url(&url).map_err(|error| format!("Failed to open URL: {error}"))?;
     tauri::async_runtime::spawn_blocking(move || {
         let _ = child.wait();
     });

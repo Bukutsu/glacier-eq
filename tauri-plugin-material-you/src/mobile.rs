@@ -13,10 +13,7 @@ pub fn init<R: Runtime, C: DeserializeOwned>(
 ) -> crate::Result<MaterialYou<R>> {
     #[cfg(target_os = "android")]
     return api
-        .register_android_plugin(
-            "com.bukutsu.tauri.plugin.materialyou",
-            "MaterialYouPlugin",
-        )
+        .register_android_plugin("com.bukutsu.tauri.plugin.materialyou", "MaterialYouPlugin")
         .map(MaterialYou)
         .map_err(crate::Error::PluginInvoke);
     #[cfg(not(target_os = "android"))]

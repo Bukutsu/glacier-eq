@@ -236,7 +236,10 @@ mod tests {
         ));
         // At DC (0 Hz), cos(0) = 1.0
         let db = eval_biquad_mag_squared_db(coeffs, 1.0);
-        assert!(db <= -100.0, "HighPass at DC must deeply attenuate, got {db} dB");
+        assert!(
+            db <= -100.0,
+            "HighPass at DC must deeply attenuate, got {db} dB"
+        );
     }
 
     #[test]

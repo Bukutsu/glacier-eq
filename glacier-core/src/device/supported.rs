@@ -12,13 +12,11 @@ pub fn get_supported_device(vendor_id: u16, product_id: u16) -> Option<&'static 
     // so a future fallback entry cannot shadow an exact profile.
     SUPPORTED_DEVICES
         .iter()
-        .find(|device| {
-            device.vendor_id == vendor_id && device.product_id == Some(product_id)
-        })
+        .find(|device| device.vendor_id == vendor_id && device.product_id == Some(product_id))
         .or_else(|| {
-            SUPPORTED_DEVICES.iter().find(|device| {
-                device.vendor_id == vendor_id && device.product_id.is_none()
-            })
+            SUPPORTED_DEVICES
+                .iter()
+                .find(|device| device.vendor_id == vendor_id && device.product_id.is_none())
         })
 }
 
