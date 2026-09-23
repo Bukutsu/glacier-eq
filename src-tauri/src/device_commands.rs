@@ -272,14 +272,15 @@ async fn with_session<T: Send + 'static>(
     state: &tauri::State<'_, Mutex<DeviceState>>,
     operation: impl FnOnce(&mut DeviceSession<'_>) -> Result<T, String> + Send + 'static,
 ) -> Result<T, String> {
-    let session_lock = app.state::<DeviceSessionLock>();
-    let _guard = session_lock.0.lock().await;
+    let session_lock = app.state::<DeviceSessionLock>().0.clone();
+    let guard = session_lock.lock_owned().await;
 
     let connected = connected_device(state)?;
     let profile = registered_profile(&connected)?;
     let app_clone = app.clone();
     let path = connected.path.clone();
     tauri::async_runtime::spawn_blocking(move || {
+        let _guard = guard;
         let mut io = TauriDeviceIo {
             app: &app_clone,
             path: &path,
@@ -394,12 +395,13 @@ pub async fn connect_device(
     _state: tauri::State<'_, Mutex<DeviceState>>,
     path: String,
 ) -> Result<(), String> {
-    let session_lock = app.state::<DeviceSessionLock>();
-    let _guard = session_lock.0.lock().await;
+    let session_lock = app.state::<DeviceSessionLock>().0.clone();
+    let guard = session_lock.lock_owned().await;
 
     let app_clone = app.clone();
     let path_clone = path.clone();
     tauri::async_runtime::spawn_blocking(move || {
+        let _guard = guard;
         let state = app_clone.state::<Mutex<DeviceState>>();
         let devices = tauri_plugin_hid::hid(&app_clone)
             .enumerate()
@@ -494,8 +496,8 @@ pub async fn disconnect_device(
     state: tauri::State<'_, Mutex<DeviceState>>,
     expected_path: Option<String>,
 ) -> Result<(), String> {
-    let session_lock = app.state::<DeviceSessionLock>();
-    let _guard = session_lock.0.lock().await;
+    let session_lock = app.state::<DeviceSessionLock>().0.clone();
+    let guard = session_lock.lock_owned().await;
     // Bind outside the if-let so the state lock guard drops before .await.
     let device = {
         let mut state = lock_device_state(&state)?;
@@ -513,6 +515,7 @@ pub async fn disconnect_device(
     let close_app = app.clone();
     let close_device = device.clone();
     let result = tauri::async_runtime::spawn_blocking(move || {
+        let _guard = guard;
         close_and_release(
             || {
                 close_device

@@ -15,4 +15,4 @@ pub struct DeviceState {
 }
 
 #[derive(Default)]
-pub struct DeviceSessionLock(pub tauri::async_runtime::Mutex<()>);
+pub struct DeviceSessionLock(pub std::sync::Arc<tauri::async_runtime::Mutex<()>>);
