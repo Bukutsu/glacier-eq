@@ -416,6 +416,15 @@ pub async fn connect_device(
                 // Without this the opened device stays resident with no way
                 // to disconnect (DeviceState.connected was never set).
                 let _ = hid_close(&app_clone, &path_clone);
+                // A failed connect also leaves nothing connected: release the
+                // root helper like disconnect_device does instead of idling.
+                #[cfg(target_os = "linux")]
+                {
+                    *app_clone
+                        .state::<Mutex<Option<ElevatedTransport>>>()
+                        .lock()
+                        .unwrap_or_else(|p| p.into_inner()) = None;
+                }
                 error.to_string()
             })?
             .into_iter()
@@ -423,12 +432,26 @@ pub async fn connect_device(
             .map_or_else(
                 || {
                     let _ = hid_close(&app_clone, &path_clone);
+                    #[cfg(target_os = "linux")]
+                    {
+                        *app_clone
+                            .state::<Mutex<Option<ElevatedTransport>>>()
+                            .lock()
+                            .unwrap_or_else(|p| p.into_inner()) = None;
+                    }
                     Err("Device disappeared during connect.".to_string())
                 },
                 Ok,
             )?;
         if reopened.vendor_id != device.vendor_id || reopened.product_id != device.product_id {
             let _ = hid_close(&app_clone, &path_clone);
+            #[cfg(target_os = "linux")]
+            {
+                *app_clone
+                    .state::<Mutex<Option<ElevatedTransport>>>()
+                    .lock()
+                    .unwrap_or_else(|p| p.into_inner()) = None;
+            }
             return Err("Device changed while connecting. Scan again and reconnect.".into());
         }
         lock_device_state(&state)?.connected = Some(ConnectedDevice {
