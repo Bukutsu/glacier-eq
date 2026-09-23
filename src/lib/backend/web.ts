@@ -890,9 +890,25 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
   return serializeWebHid(() => invokeWeb<T>(cmd, args));
 }
 
+/** Diagnostics-plane commands that never call into the wasm module. */
+const PURE_JS_COMMANDS = new Set([
+  "get_diagnostics",
+  "get_diagnostic_context",
+  "add_diagnostic_event",
+  "clear_diagnostics",
+]);
+
 async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
-  // Ensure WASM is loaded first
-  await ensureWasm();
+  // These four commands run entirely on in-memory JS state (diagnostics
+  // store, platform/device reads) and never touch wasm. Gating them behind
+  // the wasm chunk made the ToolsPanel history load fail — and fall back to
+  // a silent "No logs yet." — during a wasm fetch outage (wasm.ts retries
+  // per call, so every panel open re-fails), a view the store can serve
+  // without wasm.
+  if (!PURE_JS_COMMANDS.has(cmd)) {
+    // Ensure WASM is loaded first
+    await ensureWasm();
+  }
 
   // Log WebRPC calls to local diagnostics. Args are truncated: measurement and
   // AutoEQ payloads serialize to hundreds of KB per call.

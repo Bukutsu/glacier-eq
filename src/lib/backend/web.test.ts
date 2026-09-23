@@ -36,6 +36,24 @@ vi.mock("../../wasm_pkg/glacier_core", () => ({
   ...wasm,
 }));
 
+// Controllable wasm gate: the round-5 P3 finding is that invokeWeb awaited
+// ensureWasm() even for pure-JS diagnostics commands, so a failed wasm fetch
+// blanked the ToolsPanel history view. Default path delegates to the real
+// ensureWasm (which imports the mocked wasm_pkg above); setting
+// wasmGate.failure simulates the outage.
+const wasmGate = vi.hoisted(() => ({ failure: null as Error | null }));
+
+vi.mock("./wasm", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./wasm")>();
+  return {
+    ...actual,
+    ensureWasm: async () => {
+      if (wasmGate.failure) throw wasmGate.failure;
+      await actual.ensureWasm();
+    },
+  };
+});
+
 import {
   invoke,
   matchSupportedWebHidDevice,
@@ -793,5 +811,25 @@ describe("save_text_file command boundary", () => {
     await expect(
       invoke("save_text_file", { path: "export/profile.txt", content: ["x"] }),
     ).rejects.toThrow("Invalid text export content");
+  });
+});
+
+describe("wasm outage isolation", () => {
+  it("keeps pure-JS diagnostics commands working when the wasm chunk fails to load", async () => {
+    wasmGate.failure = new Error("Failed to fetch dynamically imported module");
+    try {
+      // wasm-dependent commands fail loudly while the gate is down...
+      await expect(invoke("list_supported_devices")).rejects.toThrow(
+        "Failed to fetch",
+      );
+      // ...but the panel's history load and clear are pure JS and must
+      // serve the view the store actually holds. (get_diagnostic_context is
+      // in the same set but reads __APP_VERSION__, a build-time define that
+      // vitest does not inject — it cannot run under this harness.)
+      expect(Array.isArray(await invoke("get_diagnostics"))).toBe(true);
+      await expect(invoke("clear_diagnostics")).resolves.toBeNull();
+    } finally {
+      wasmGate.failure = null;
+    }
   });
 });
