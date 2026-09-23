@@ -185,15 +185,6 @@ export function openDb(): Promise<IDBDatabase> {
         "IndexedDB online database cache is unreadable or incompatible; resetting database:",
         error,
       );
-      // The reset discards the user's explicitly downloaded curve cache;
-      // console-only left them watching their curves silently disappear
-      // and re-download. Say it where they can see it.
-      useToastStore
-        .getState()
-        .addToast(
-          "The downloaded curve cache was incompatible and has been reset. Curves will re-download as needed.",
-          "info",
-        );
       try {
         const deletion = deleteDatabase();
         // deleteDatabase() drops the shared slot — correct for the public
@@ -207,13 +198,29 @@ export function openDb(): Promise<IDBDatabase> {
         epoch = connectionEpoch;
         db = await requestOpenDb();
       } catch (resetError) {
+        const detail = resetError instanceof Error ? resetError.message : String(resetError);
         console.error("Failed to reset corrupted IndexedDB cache:", resetError);
         // Recovery failed after onerror held the slot for it: release the
         // slot, or this rejected attempt would be handed to every future
         // openDb() forever.
         if (pendingOpen === shared.attempt) pendingOpen = null;
+        // Say the reset did NOT happen: the success toast below only fires
+        // after a successful reopen, and the passive isDatabaseDownloaded
+        // caller swallows this rejection entirely.
+        useToastStore
+          .getState()
+          .addToast(`Curve cache recovery failed: ${detail}`, "error");
         throw error;
       }
+      // The reset actually happened — only now claim it. (Fired before the
+      // delete, this asserted a reset that could still fail and leave the
+      // user believing their cache had been cleared when it had not.)
+      useToastStore
+        .getState()
+        .addToast(
+          "The curve cache database was incompatible and has been reset. Curves will download again as needed.",
+          "info",
+        );
     }
     if (epoch !== connectionEpoch) {
       // deleteDatabase() ran while this open request was in flight; this

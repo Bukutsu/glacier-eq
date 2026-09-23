@@ -238,12 +238,10 @@ describe("openDb", () => {
 
     await Promise.resolve();
     expect(deleteDb).toHaveBeenCalledOnce();
-    // Deleting the database discards the downloaded curve cache — the
-    // reset must reach the user, not only the console.
-    const toasts = useToastStore.getState().toasts;
-    expect(toasts).toHaveLength(1);
-    expect(toasts[0].message).toContain("curve cache");
-    expect(toasts[0].message).toContain("reset");
+    // The wipe hasn't happened yet — no toast may claim it has (the old
+    // code toasted before the delete, so a failed reset showed a false
+    // "has been reset").
+    expect(useToastStore.getState().toasts).toHaveLength(0);
     fire(deleteRequest.onsuccess);
 
     await Promise.resolve();
@@ -254,6 +252,12 @@ describe("openDb", () => {
     fire(secondRequest.onsuccess);
 
     await expect(openAttempt).resolves.toBe(database);
+    // Reset actually completed — only now may the wipe be disclosed.
+    const toasts = useToastStore.getState().toasts;
+    expect(toasts).toHaveLength(1);
+    expect(toasts[0].type).toBe("info");
+    expect(toasts[0].message).toContain("curve cache");
+    expect(toasts[0].message).toContain("reset");
   });
 
   it("holds the shared slot through recovery so a concurrent open cannot race the delete", async () => {
@@ -307,6 +311,106 @@ describe("openDb", () => {
     await expect(firstAttempt).resolves.toBe(database);
     await expect(concurrent).resolves.toBe(database);
   });
+
+  it("reports a failed reset instead of a false success and frees the slot", async () => {
+    const firstRequest = new MockOpenRequest();
+    const open = vi.fn()
+      .mockReturnValueOnce(firstRequest)
+      .mockImplementation(() => new MockOpenRequest());
+    const deleteRequest = {
+      onsuccess: null as ((event: Event) => void) | null,
+      onerror: null as ((event: Event) => void) | null,
+      onblocked: null as ((event: Event) => void) | null,
+    };
+    const deleteDb = vi.fn(() => deleteRequest);
+    vi.stubGlobal("indexedDB", { open, deleteDatabase: deleteDb });
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const attempt = openDb();
+    firstRequest.error = new DOMException(
+      "Unable to establish IDB database file",
+      "UnknownError",
+    );
+    fire(firstRequest.onerror);
+    await Promise.resolve();
+    expect(deleteDb).toHaveBeenCalledOnce();
+    // Another window still holds the database: the wipe never happens.
+    fire(deleteRequest.onblocked);
+
+    // The ORIGINAL unrecoverable error propagates, not the delete's error.
+    await expect(attempt).rejects.toThrow("Unable to establish IDB database file");
+
+    // The failure must be visible — no premature "has been reset" claim.
+    const toasts = useToastStore.getState().toasts;
+    expect(toasts).toHaveLength(1);
+    expect(toasts[0].type).toBe("error");
+    expect(toasts[0].message).toContain("recovery failed");
+    expect(toasts.some((toast) => toast.type === "info")).toBe(false);
+
+    // The slot was released: the next open starts a fresh IndexedDB.open
+    // instead of inheriting this rejected attempt forever.
+    void openDb();
+    expect(open).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([
+    // Recoverable: the inner onerror already released the slot; the
+    // identity guard in the reset-failure catch must not disturb anyone.
+    ["SecurityError", false],
+    // Unrecoverable again: the inner onerror HELD the slot; the
+    // reset-failure catch must release it by identity.
+    ["UnknownError", true],
+  ] as const)(
+    "reports a failed recovery reopen, frees the slot, never re-runs the delete (%s)",
+    async (errorName, _slotHeldByInnerOnerror) => {
+      const firstRequest = new MockOpenRequest();
+      const secondRequest = new MockOpenRequest();
+      const open = vi.fn()
+        .mockReturnValueOnce(firstRequest)
+        .mockReturnValueOnce(secondRequest)
+        .mockImplementation(() => new MockOpenRequest());
+      const deleteRequest = {
+        onsuccess: null as ((event: Event) => void) | null,
+        onerror: null as ((event: Event) => void) | null,
+        onblocked: null as ((event: Event) => void) | null,
+      };
+      const deleteDb = vi.fn(() => deleteRequest);
+      vi.stubGlobal("indexedDB", { open, deleteDatabase: deleteDb });
+      vi.spyOn(console, "warn").mockImplementation(() => undefined);
+      vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+      const attempt = openDb();
+      firstRequest.error = new DOMException(
+        "Unable to establish IDB database file",
+        "UnknownError",
+      );
+      fire(firstRequest.onerror);
+      await Promise.resolve();
+      expect(deleteDb).toHaveBeenCalledOnce();
+      fire(deleteRequest.onsuccess);
+      await Promise.resolve();
+      expect(open).toHaveBeenCalledTimes(2);
+
+      secondRequest.error = new DOMException("reopen failed", errorName);
+      fire(secondRequest.onerror);
+
+      // Original error still propagates (clearCachedDatabase rethrows it),
+      // and the delete ran exactly once — no recovery recursion.
+      await expect(attempt).rejects.toThrow("Unable to establish IDB database file");
+      expect(deleteDb).toHaveBeenCalledTimes(1);
+
+      const toasts = useToastStore.getState().toasts;
+      expect(toasts).toHaveLength(1);
+      expect(toasts[0].type).toBe("error");
+      expect(toasts[0].message).toContain("recovery failed");
+      expect(toasts.some((toast) => toast.type === "info")).toBe(false);
+
+      // Slot free either way: the next open is a fresh IndexedDB.open.
+      void openDb();
+      expect(open).toHaveBeenCalledTimes(3);
+    },
+  );
 
   it("does not delete database on normal or non-unrecoverable errors", async () => {
     const request = new MockOpenRequest();
