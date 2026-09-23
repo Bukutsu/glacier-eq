@@ -527,6 +527,11 @@ describe("download cache safety (generation swap)", () => {
             return { onsuccess: null, onerror: null };
           },
           delete: (key: string) => {
+            // Same seam as put: a transaction that writes the poisoned key
+            // aborts entirely — used by the sweep-failure test.
+            if (store.abortWritesFor === key) {
+              abortWith = new DOMException("Quota exceeded", "QuotaExceededError");
+            }
             pending.push(() => store.records.delete(key));
             return { onsuccess: null, onerror: null };
           },
@@ -666,7 +671,10 @@ describe("download cache safety (generation swap)", () => {
     store.records.set("source::Legacy Device", [5, 5, 5]);
     stubFetch("ok");
 
-    await expect(startDownload(store)).resolves.toBe(2);
+    await expect(startDownload(store)).resolves.toEqual({
+      entries: 2,
+      sweepFailed: false,
+    });
 
     // Published state: meta:gen and the completeness flag land together.
     expect(store.records.get("meta:gen")).toBe(1);
@@ -744,7 +752,10 @@ describe("download cache safety (generation swap)", () => {
     store.records.set("gen:7:source::Ahead Window", [7, 7, 7]);
     stubFetch("ok");
 
-    await expect(startDownload(store)).resolves.toBe(2);
+    await expect(startDownload(store)).resolves.toEqual({
+      entries: 2,
+      sweepFailed: false,
+    });
 
     expect(store.records.get("meta:gen")).toBe(2);
     expect(store.records.get("gen:2:complete")).toBe(true);
@@ -757,6 +768,34 @@ describe("download cache safety (generation swap)", () => {
     expect(store.records.has("gen:1:complete")).toBe(false);
     expect(store.records.has("gen:1:manifest")).toBe(false);
     expect(store.records.has("gen:1:source::Old Device")).toBe(false);
+  });
+
+  it("reports a failed sweep on the resolved result instead of unqualified success", async () => {
+    const store = new MemoryStore();
+    seedLiveGenerationOne(store);
+    stubFetch("ok");
+    // The sweep's delete transaction aborts (quota, private-mode eviction).
+    store.abortWritesFor = "gen:1:manifest";
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    // The download still resolves — the cache IS published and readable —
+    // but the result carries the cleanup failure so the caller can say so.
+    await expect(startDownload(store)).resolves.toEqual({
+      entries: 2,
+      sweepFailed: true,
+    });
+
+    expect(store.records.get("meta:gen")).toBe(2);
+    expect(store.records.get("gen:2:complete")).toBe(true);
+    // The aborted sweep discarded every pending delete: superseded keys
+    // remain until a later download retries — which the caller now knows.
+    expect(store.records.get("gen:1:manifest")).toEqual({ iems: {} });
+    expect(store.records.has("gen:1:complete")).toBe(true);
+    expect(warnSpy).toHaveBeenCalledWith(
+      "Failed to sweep superseded online database records:",
+      expect.anything(),
+    );
+    warnSpy.mockRestore();
   });
 
   it("fetches the manifest from the same snapshot as the pointer, even when another window publishes mid-read", async () => {

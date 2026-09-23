@@ -57,8 +57,12 @@ export function AddTraceModal({
 
   const handleDownload = async () => {
     try {
-      const count = await download();
-      setStatus?.(`Downloaded ${count} curves`);
+      const result = await download();
+      setStatus?.(
+        result.sweepFailed
+          ? `Downloaded ${result.entries} curves — cleanup of old cached data failed and will retry on the next download`
+          : `Downloaded ${result.entries} curves`,
+      );
     } catch (error) {
       console.error(error);
       setStatus?.(`Could not download database: ${error}`);

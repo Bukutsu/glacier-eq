@@ -314,7 +314,7 @@ export async function clearCachedDatabase(): Promise<void> {
 // One download at a time: closing and reopening the modal mid-download
 // remounts the hook, and a second concurrent fetch would interleave chunk
 // writes into the same store.
-let downloadInFlight: Promise<number> | null = null;
+let downloadInFlight: Promise<DownloadResult> | null = null;
 
 // Progress goes to every caller of the shared download, not just the one
 // that started it.
@@ -324,8 +324,21 @@ const notifyProgress = (percent: number) => {
   for (const listener of [...progressListeners]) listener(percent);
 };
 
+export interface DownloadResult {
+  /** Curve records this download wrote and published. */
+  entries: number;
+  /**
+   * True when the post-publish sweep of superseded generations failed. The
+   * download itself is complete and readable either way, but stale
+   * generations remain on disk — callers MUST surface this, or the eventual
+   * QuotaExceededError they cause will be misattributed to a download-time
+   * storage problem instead of the cleanup that actually failed.
+   */
+  sweepFailed: boolean;
+}
+
 export interface DownloadSubscription {
-  result: Promise<number>;
+  result: Promise<DownloadResult>;
   unsubscribe: () => void;
 }
 
@@ -361,7 +374,7 @@ async function downloadDatabaseWithDb(
   onProgress: (percent: number) => void,
   signal: AbortSignal | undefined,
   db: IDBDatabase,
-): Promise<number> {
+): Promise<DownloadResult> {
   onProgress(0.05);
   // Validate both third-party payloads before touching any cached record —
   // a failed or cancelled fetch below must leave the previous cache usable.
@@ -488,10 +501,14 @@ async function downloadDatabaseWithDb(
       );
   });
 
-  // Best-effort sweep of superseded generations and any legacy records; a
-  // failed sweep only wastes space — the next successful download retries.
-  // Never touch a HIGHER generation: it belongs to a window ahead of us whose
-  // in-flight records are not superseded by our older publish.
+  // Best-effort sweep of superseded generations and any legacy records;
+  // never touch a HIGHER generation: it belongs to a window ahead of us whose
+  // in-flight records are not superseded by our older publish. A failed sweep
+  // only wastes space — the next successful download retries — but it is NOT
+  // swallowed: the result carries the failure so the caller can say so,
+  // instead of the user later hitting quota death with a misleading
+  // "storage full during download".
+  let sweepFailed = false;
   try {
     const keys = await idbRequest<IDBValidKey[]>(
       db.transaction(STORE_NAME, "readonly").objectStore(STORE_NAME).getAllKeys(),
@@ -514,11 +531,12 @@ async function downloadDatabaseWithDb(
       });
     }
   } catch (cleanupError) {
+    sweepFailed = true;
     console.warn("Failed to sweep superseded online database records:", cleanupError);
   }
 
   onProgress(1.0);
-  return totalEntries;
+  return { entries: totalEntries, sweepFailed };
 }
 
 function parseContentLength(value: string | null): number | null {
@@ -679,12 +697,12 @@ export function useOnlineDatabase(
     const subscription = subscribeToDatabaseDownload(setDownloadProgress);
     downloadSubscriptionRef.current = subscription;
     try {
-      const count = await subscription.result;
+      const result = await subscription.result;
       if (downloadSubscriptionRef.current === subscription) {
         setDownloaded(true);
-        setTotalCount(count);
+        setTotalCount(result.entries);
       }
-      return count;
+      return result;
     } finally {
       subscription.unsubscribe();
       if (downloadSubscriptionRef.current === subscription) {
