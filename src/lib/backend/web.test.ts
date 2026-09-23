@@ -289,6 +289,33 @@ describe("browser EQ writes", () => {
     expect(device.sendReport).toHaveBeenCalledTimes(1);
   });
 
+  it("returns the verified readback after a persistent write", async () => {
+    const device = fakeHidDevice({ respondToReports: true });
+    await connectWebHid(device);
+    const requested = peqWithBands(10);
+    const readback = {
+      ...requested,
+      filters: requested.filters.map((filter) => ({ ...filter, gain: filter.gain - 0.1 })),
+    };
+    wasm.normalize_peq_for_device.mockReturnValue({ peq: requested, warnings: [] });
+    wasm.build_read_global_gain_request.mockReturnValue([1]);
+    wasm.matches_global_gain_response.mockReturnValue(true);
+    wasm.parse_global_gain_response.mockReturnValue(requested.global_gain);
+    wasm.build_read_filter_request.mockReturnValue([1]);
+    wasm.matches_filter_response.mockReturnValue(true);
+    let readCount = 0;
+    wasm.parse_filter_response.mockImplementation(
+      () => readback.filters[readCount++ % readback.filters.length],
+    );
+    wasm.is_default_peq_for_device.mockReturnValue(false);
+
+    await expect(invoke<PEQData>("set_eq_state", { peq: requested })).resolves.toMatchObject({
+      global_gain: requested.global_gain,
+      filters: readback.filters,
+      warnings: [],
+    });
+  });
+
   it.each([
     { filters: [], global_gain: Number.NaN },
     { filters: [{ index: 0 }], global_gain: 0 },

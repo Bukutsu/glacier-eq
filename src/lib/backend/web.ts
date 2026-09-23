@@ -1189,10 +1189,11 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
       }
 
       const backup = await pullEqState(profile);
+      let actual: PEQData;
       try {
         await writeEqPayload(protocol, peq, "Initializing push connection...");
         await commitEqPayload(protocol, "Committing changes to device...");
-        const actual = await pullEqState(profile);
+        actual = await pullEqState(profile);
         const mismatch = peqVerificationError(actual, peq, profile);
         if (mismatch) throw new Error(mismatch);
       } catch (pushError) {
@@ -1210,7 +1211,7 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
       }
 
       emitEvent("operation-progress", { message: "Write complete", percentage: 100 });
-      return { ...peq, warnings } as T;
+      return { ...actual, warnings } as T;
     }
     case "apply_eq_state": {
       const profile = connectedProfile();
