@@ -37,6 +37,24 @@ export interface DiagnosticContext {
 
 export const DIAGNOSTIC_EVENT_LIMIT = 1_000;
 
+/** Mirrors the desktop `sanitize_message` cap (diagnostics.rs). */
+export const MAX_DIAGNOSTIC_MESSAGE_CHARS = 2_000;
+
+/**
+ * Mirrors the desktop `sanitize_message` (src-tauri/src/diagnostics.rs):
+ * flatten newlines so a crafted message cannot forge additional entries in
+ * the line-oriented report exporter, and cap length so the retained store
+ * stays bounded. Without this, the same event exports as different bytes on
+ * web vs desktop (the ErrorBoundary deliberately emits multi-line messages).
+ */
+export function sanitizeDiagnosticMessage(message: string): string {
+  const flattened = message.replace(/[\r\n]/g, " ");
+  const chars = [...flattened];
+  return chars.length <= MAX_DIAGNOSTIC_MESSAGE_CHARS
+    ? flattened
+    : chars.slice(0, MAX_DIAGNOSTIC_MESSAGE_CHARS).join("");
+}
+
 /** Apply the same retention bound to pending buffers and the displayed log. */
 export function appendDiagnosticEvent(
   events: DiagnosticEvent[],

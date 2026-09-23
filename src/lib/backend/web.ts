@@ -14,7 +14,7 @@ import type {
 import { ensureWasm, getWasm } from "./wasm";
 import { profileIdentityKey } from "../profileIdentity";
 import type { DiagnosticEvent } from "../diagnostics";
-import { isDiagnosticLevel, isDiagnosticSource } from "../diagnostics";
+import { isDiagnosticLevel, isDiagnosticSource, sanitizeDiagnosticMessage } from "../diagnostics";
 
 // Wasm entry points are resolved lazily: ensureWasm() has already run on every
 // path that reaches them (invokeWeb awaits it before dispatching), so the
@@ -115,11 +115,14 @@ function addDiagnostic(
   source: DiagnosticEvent["source"],
   message: string,
 ) {
+  // Single funnel for every web emitter (quarantine, WebRPC log, the
+  // add_diagnostic_event command): sanitize like desktop's record()/command
+  // so stored and emitted messages match the desktop contract byte-for-byte.
   const event = {
     seq: ++diagnosticsSequence,
     level,
     source,
-    message,
+    message: sanitizeDiagnosticMessage(message),
     timestamp: new Date().toISOString(),
   };
   diagnosticsStore.push(event);

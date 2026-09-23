@@ -733,6 +733,34 @@ describe("add_diagnostic_event command boundary", () => {
     ).rejects.toThrow("Invalid diagnostic event payload");
 
     expect((await invoke<unknown[]>("get_diagnostics")).length).toBe(before);
+
+    // P4 round-5 probe: a rejected event must not poison the chain — the
+    // very next history read still resolves.
+    await expect(invoke("get_diagnostics")).resolves.toBeDefined();
+  });
+
+  it("sanitizes messages like desktop's sanitize_message (flatten + 2000 cap)", async () => {
+    await invoke("add_diagnostic_event", {
+      level: "Error",
+      source: "UI",
+      message: "Render crash: boom\nStack: at <Panel>",
+    });
+    await invoke("add_diagnostic_event", {
+      level: "Info",
+      source: "UI",
+      message: "y".repeat(2_500),
+    });
+
+    const history = await invoke<unknown[]>("get_diagnostics");
+    const parsed = parseDiagnosticHistory(history);
+    const flattened = parsed[parsed.length - 2];
+    const capped = parsed[parsed.length - 1];
+    // Desktop flattens \r and \n to spaces: the exporter's
+    // "timestamp [LEVEL] [SOURCE] message" lines cannot be forged.
+    expect(flattened.message).toBe("Render crash: boom Stack: at <Panel>");
+    expect(flattened.message).not.toMatch(/[\r\n]/);
+    expect(capped.message).toHaveLength(2_000);
+    expect(capped.message).not.toMatch(/[\r\n]/);
   });
 
   it("accepts a valid event and keeps the whole history parseable", async () => {
