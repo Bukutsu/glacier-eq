@@ -412,6 +412,92 @@ describe("openDb", () => {
     },
   );
 
+  it("keeps a later attempt's slot when a failed recovery releases its own", async () => {
+    // P2 round-5 probe: the reset-failure identity guard releases ONLY its
+    // own slot — a caller that claims the slot in the instant between the
+    // inner onerror release and the recovery catch must survive.
+    const firstRequest = new MockOpenRequest();
+    const secondRequest = new MockOpenRequest();
+    const open = vi.fn()
+      .mockReturnValueOnce(firstRequest)
+      .mockReturnValueOnce(secondRequest)
+      .mockImplementation(() => new MockOpenRequest());
+    const deleteRequest = {
+      onsuccess: null as ((event: Event) => void) | null,
+      onerror: null as ((event: Event) => void) | null,
+      onblocked: null as ((event: Event) => void) | null,
+    };
+    const deleteDb = vi.fn(() => deleteRequest);
+    vi.stubGlobal("indexedDB", { open, deleteDatabase: deleteDb });
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const attempt = openDb();
+    firstRequest.error = new DOMException(
+      "Unable to establish IDB database file",
+      "UnknownError",
+    );
+    fire(firstRequest.onerror);
+    await Promise.resolve();
+    fire(deleteRequest.onsuccess);
+    await Promise.resolve();
+
+    // Reopen fails recoverably: the inner onerror releases the slot.
+    secondRequest.error = new DOMException("reopen failed", "SecurityError");
+    fire(secondRequest.onerror);
+    // Another caller claims it synchronously, before the rejection surfaces.
+    const later = openDb();
+    expect(open).toHaveBeenCalledTimes(3);
+
+    await expect(attempt).rejects.toThrow("Unable to establish IDB database file");
+    // The recovery catch skipped its release (identity mismatch): `later`
+    // still owns the single-flight slot.
+    expect(openDb()).toBe(later);
+    expect(open).toHaveBeenCalledTimes(3);
+  });
+
+  it("a late blocked-open success does not clear a later attempt's slot", async () => {
+    // P4 round-5 probe: a blocked, rejected open keeps sharing its slot
+    // until the request settles; if an external wipe (which nulls the slot)
+    // and a new attempt happen first, the late success must not clobber the
+    // new attempt's single-flight guard.
+    const firstRequest = new MockOpenRequest();
+    const open = vi.fn()
+      .mockReturnValueOnce(firstRequest)
+      .mockImplementation(() => new MockOpenRequest());
+    const deleteRequest = {
+      onsuccess: null as ((event: Event) => void) | null,
+      onerror: null as ((event: Event) => void) | null,
+      onblocked: null as ((event: Event) => void) | null,
+    };
+    const deleteDb = vi.fn(() => deleteRequest);
+    vi.stubGlobal("indexedDB", { open, deleteDatabase: deleteDb });
+
+    const first = openDb();
+    fire(firstRequest.onblocked);
+    await expect(first).rejects.toThrow("Database locked by another window");
+    expect(open).toHaveBeenCalledTimes(1);
+
+    // External wipe: nulls the slot and bumps the epoch.
+    const wipe = deleteDatabase();
+    fire(deleteRequest.onsuccess);
+    await wipe;
+
+    // A later attempt claims the slot...
+    const second = openDb();
+    expect(open).toHaveBeenCalledTimes(2);
+    expect(openDb()).toBe(second);
+
+    // ...before the blocked request finally succeeds.
+    firstRequest.result = mockDatabase() as unknown as IDBDatabase;
+    fire(firstRequest.onsuccess); // settled -> closes its own handle
+
+    // Identity guard held: the later attempt still owns the slot, so no
+    // third IndexedDB.open starts while it is in flight.
+    expect(openDb()).toBe(second);
+    expect(open).toHaveBeenCalledTimes(2);
+  });
+
   it("does not delete database on normal or non-unrecoverable errors", async () => {
     const request = new MockOpenRequest();
     const open = vi.fn().mockReturnValue(request);

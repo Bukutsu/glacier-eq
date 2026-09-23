@@ -39,7 +39,7 @@ let sharedDb: IDBDatabase | null = null;
 // their pre-delete handle as the shared connection.
 let connectionEpoch = 0;
 
-function requestOpenDb(): Promise<IDBDatabase> {
+function requestOpenDb(slot: { attempt: Promise<IDBDatabase> | null }): Promise<IDBDatabase> {
   return new Promise<IDBDatabase>((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     let settled = false;
@@ -57,14 +57,20 @@ function requestOpenDb(): Promise<IDBDatabase> {
       // an earlier rejection) release the slot as before.
       const willRecover = !settled && isUnrecoverableDbError(request.error);
       rejectOnce(request.error);
-      if (!willRecover) pendingOpen = null;
+      // Release only while the slot is still ours: an external wipe can
+      // null it and a later attempt can re-claim it before this handler's
+      // release runs — clearing unconditionally would drop that guard.
+      if (!willRecover && pendingOpen === slot.attempt) pendingOpen = null;
     };
     // The request keeps running after onblocked. Keep this rejected attempt
     // shared until its late success or error so retries do not pile up.
     request.onblocked = () => rejectOnce(new Error("Database locked by another window"));
     request.onsuccess = () => {
       const db = request.result;
-      pendingOpen = null;
+      // Identity-guarded for the same reason as onerror: a late success
+      // after an external delete must not clear the slot a later attempt
+      // is already using (its release comes from that attempt's own path).
+      if (pendingOpen === slot.attempt) pendingOpen = null;
       if (settled) {
         db.close();
         return;
@@ -176,7 +182,7 @@ export function openDb(): Promise<IDBDatabase> {
     let epoch = connectionEpoch;
     let db: IDBDatabase;
     try {
-      db = await requestOpenDb();
+      db = await requestOpenDb(shared);
     } catch (error) {
       if (!isUnrecoverableDbError(error)) {
         throw error;
@@ -196,7 +202,7 @@ export function openDb(): Promise<IDBDatabase> {
         pendingOpen = shared.attempt!;
         await deletion;
         epoch = connectionEpoch;
-        db = await requestOpenDb();
+        db = await requestOpenDb(shared);
       } catch (resetError) {
         const detail = resetError instanceof Error ? resetError.message : String(resetError);
         console.error("Failed to reset corrupted IndexedDB cache:", resetError);
