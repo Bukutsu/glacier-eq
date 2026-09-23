@@ -98,7 +98,6 @@ export const Bands = memo(function Bands({ peq, committedPeq, capabilities, onFi
   const canAddFilter = visibleFilters.length < availableFilters.length;
   const selectedFilter = visibleFilters.find((filter) => filter.index === activeBandIndex) ?? visibleFilters[0];
   const [collapsed, setCollapsed] = useState(false);
-  const [removedFilter, setRemovedFilter] = useState<Filter | null>(null);
   const bandPickerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -116,15 +115,9 @@ export const Bands = memo(function Bands({ peq, committedPeq, capabilities, onFi
     }
   }, [selectedFilter?.index]);
 
-  useEffect(() => {
-    if (removedFilter === null) return;
-    const timer = window.setTimeout(() => setRemovedFilter(null), 5000);
-    return () => window.clearTimeout(timer);
-  }, [removedFilter]);
   const addFilter = () => {
     const next = availableFilters.find((filter) => !filter.enabled);
     if (!next) return;
-    setRemovedFilter(null);
     onActiveBandChange?.(next.index);
     onStartChange();
     onFilterChange(next.index, { ...next, enabled: true });
@@ -195,10 +188,11 @@ export const Bands = memo(function Bands({ peq, committedPeq, capabilities, onFi
             </div>
             <button
               type="button"
-              className="add-filter-chip"
+              className={`add-filter-chip${canAddFilter ? "" : " at-limit"}`}
               onClick={addFilter}
               disabled={!canAddFilter}
-              aria-label="Add filter"
+              aria-label={canAddFilter ? "Add filter" : "Add filter (all bands in use)"}
+              title={canAddFilter ? "Add filter" : "All filter bands are in use"}
             >
               <Icon>add</Icon>
               <span>Add</span>
@@ -238,7 +232,6 @@ export const Bands = memo(function Bands({ peq, committedPeq, capabilities, onFi
                     onStartChange();
                     onFilterChange(removedIndex, { ...selectedFilter, enabled: false });
                     onEndChange?.();
-                    setRemovedFilter(selectedFilter);
                     const next = visibleFilters.find((filter) => filter.index !== removedIndex);
                     if (next) onActiveBandChange?.(next.index);
                   }}
@@ -259,23 +252,6 @@ export const Bands = memo(function Bands({ peq, committedPeq, capabilities, onFi
               snapToIso={snapToIso}
             />
           </div>
-          {removedFilter !== null && (
-            <div className="band-undo-toast" role="status" aria-live="polite">
-              <span>Band {removedFilter.index + 1} removed</span>
-              <button
-                type="button"
-                onClick={() => {
-                  onStartChange();
-                  onFilterChange(removedFilter.index, { ...removedFilter, enabled: true });
-                  onEndChange?.();
-                  onActiveBandChange?.(removedFilter.index);
-                  setRemovedFilter(null);
-                }}
-              >
-                Undo
-              </button>
-            </div>
-          )}
         </section>
       )}
     </div>

@@ -55,4 +55,14 @@ describe("Band editor markup", () => {
     expect(html).toContain('aria-pressed="true" aria-label="Band 3, 125 Hz"');
     expect(html).toContain('aria-label="Remove band 3" disabled=""');
   });
+
+  it("keeps the capacity state readable without a redundant local undo toast", () => {
+    const peq = buildDevDummyPeq();
+    peq.filters = peq.filters.map((filter) => ({ ...filter, enabled: true }));
+    const html = renderEditor({ peq, activeBandIndex: 0 });
+    expect(html).toContain('class="add-filter-chip at-limit"');
+    expect(html).toContain('aria-label="Add filter (all bands in use)"');
+    expect(html).toContain('title="All filter bands are in use"');
+    expect(html).not.toContain("band-undo-toast");
+  });
 });
