@@ -26,6 +26,8 @@ export interface OnlineDevice {
 
 let pendingOpen: Promise<IDBDatabase> | null = null;
 
+const META_GEN_KEY = "meta:gen";
+
 // One shared connection for the module's lifetime. Every caller receives this
 // same handle and must NOT close it: a close by any caller would invalidate
 // the connection for every other user mid-transaction (the open/clear/read
@@ -194,11 +196,38 @@ function idbRequest<T>(request: IDBRequest<T>): Promise<T> {
   });
 }
 
+/**
+ * The live generation readers follow; null means the legacy pre-generation
+ * layout (bare `meta:*` records and device-ID curve keys). Only ever written
+ * by the publish transaction of a completed download.
+ */
+async function liveGeneration(db: IDBDatabase): Promise<number | null> {
+  const store = db.transaction(STORE_NAME, "readonly").objectStore(STORE_NAME);
+  const raw = await idbRequest<unknown>(store.get(META_GEN_KEY));
+  return typeof raw === "number" && Number.isSafeInteger(raw) && raw >= 1
+    ? raw
+    : null;
+}
+
+/**
+ * Map a legacy record key into the live generation's key space: `meta:*`
+ * records drop the prefix (`meta:complete` → `gen:{n}:complete`), while curve
+ * keys keep their device ID verbatim. Device IDs always contain `::`, so a
+ * curve key can never alias a `meta:*` record after the prefix strip.
+ */
+function generationKey(generation: number | null, legacyKey: string): string {
+  if (generation === null) return legacyKey;
+  const name = legacyKey.startsWith("meta:") ? legacyKey.slice("meta:".length) : legacyKey;
+  return `gen:${generation}:${name}`;
+}
+
 async function isDatabaseDownloaded(): Promise<boolean> {
   try {
     const db = await openDb();
+    const generation = await liveGeneration(db);
     const store = db.transaction(STORE_NAME, "readonly").objectStore(STORE_NAME);
-    return await idbRequest<unknown>(store.get("meta:complete")) === true;
+    const completeKey = generationKey(generation, "meta:complete");
+    return await idbRequest<unknown>(store.get(completeKey)) === true;
   } catch {
     return false;
   }
@@ -279,7 +308,8 @@ async function downloadDatabaseWithDb(
   db: IDBDatabase,
 ): Promise<number> {
   onProgress(0.05);
-  // Validate both third-party payloads before changing the existing cache.
+  // Validate both third-party payloads before touching any cached record —
+  // a failed or cancelled fetch below must leave the previous cache usable.
   const manifest = parseOnlineManifest(await fetchJson(
     "https://raw.githubusercontent.com/PEQHUB/Squig-Rank/main/public/data/manifest.json",
     undefined,
@@ -294,12 +324,19 @@ async function downloadDatabaseWithDb(
     signal,
   ));
 
+  // Readers follow meta:gen to a complete generation. This download writes a
+  // NEW generation alongside the live one and publishes it — meta:gen plus
+  // the generation's completeness flag, in one transaction — only after every
+  // chunk has landed. Cancellation, quota exhaustion, or a crash anywhere
+  // before that flip destroys nothing of the previous cache.
+  const previousGeneration = await liveGeneration(db);
+  const generation = (previousGeneration ?? 0) + 1;
+
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readwrite");
     const store = tx.objectStore(STORE_NAME);
-    store.clear();
-    store.put(manifest, "meta:manifest");
-    store.put(database.frequencies, "meta:frequencies");
+    store.put(manifest, generationKey(generation, "meta:manifest"));
+    store.put(database.frequencies, generationKey(generation, "meta:frequencies"));
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
     // Aborts (quota exceeded, private-mode eviction) fire only onabort; without
@@ -321,7 +358,7 @@ async function downloadDatabaseWithDb(
       const tx = db.transaction(STORE_NAME, "readwrite");
       const store = tx.objectStore(STORE_NAME);
       for (const [key, curve] of chunk) {
-        store.put(curve, key);
+        store.put(curve, generationKey(generation, key));
       }
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
@@ -335,15 +372,45 @@ async function downloadDatabaseWithDb(
     await new Promise((r) => setTimeout(r, 0));
   }
 
+  // Publish atomically: readers see either the previous complete generation
+  // or this one, never a partial download.
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readwrite");
-    tx.objectStore(STORE_NAME).put(true, "meta:complete");
+    const store = tx.objectStore(STORE_NAME);
+    store.put(true, generationKey(generation, "meta:complete"));
+    store.put(generation, META_GEN_KEY);
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
     // Aborts (quota exceeded, private-mode eviction) fire only onabort; without
     // this the awaited promise never settles and the UI hangs.
     tx.onabort = () => reject(tx.error ?? new Error("Transaction aborted"));
   });
+
+  // Best-effort sweep of the superseded generation and any legacy records;
+  // a failed sweep only wastes space — the next successful download retries.
+  try {
+    const keys = await idbRequest<IDBValidKey[]>(
+      db.transaction(STORE_NAME, "readonly").objectStore(STORE_NAME).getAllKeys(),
+    );
+    const livePrefix = `gen:${generation}:`;
+    const stale = keys.filter((key) => {
+      const name = String(key);
+      return name !== META_GEN_KEY && !name.startsWith(livePrefix);
+    });
+    if (stale.length > 0) {
+      await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, "readwrite");
+        const store = tx.objectStore(STORE_NAME);
+        for (const key of stale) store.delete(key);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error ?? new Error("Transaction aborted"));
+      });
+    }
+  } catch (cleanupError) {
+    console.warn("Failed to sweep superseded online database records:", cleanupError);
+  }
+
   onProgress(1.0);
   return totalEntries;
 }
@@ -409,8 +476,11 @@ export async function fetchJson(
 
 async function fetchManifest(): Promise<OnlineDevice[]> {
   const db = await openDb();
+  const generation = await liveGeneration(db);
   const store = db.transaction(STORE_NAME, "readonly").objectStore(STORE_NAME);
-  const cached = await idbRequest<unknown>(store.get("meta:manifest"));
+  const cached = await idbRequest<unknown>(
+    store.get(generationKey(generation, "meta:manifest")),
+  );
   if (cached === undefined) {
     throw new Error("Search manifest not cached. Please download the database.");
   }
@@ -556,12 +626,13 @@ async function loadDeviceCurvePoints(
   deviceId: string,
 ): Promise<MeasurementPoint[]> {
   const db = await openDb();
+  const generation = await liveGeneration(db);
   // Cache contents came from a third-party source and may have been written
   // by an older app version, so validate both records on every read.
   const store = db.transaction(STORE_NAME, "readonly").objectStore(STORE_NAME);
   const [cachedFrequencies, cachedValues] = await Promise.all([
-    idbRequest<unknown>(store.get("meta:frequencies")),
-    idbRequest<unknown>(store.get(deviceId)),
+    idbRequest<unknown>(store.get(generationKey(generation, "meta:frequencies"))),
+    idbRequest<unknown>(store.get(generationKey(generation, deviceId))),
   ]);
 
   if (cachedFrequencies === undefined || cachedValues === undefined) {

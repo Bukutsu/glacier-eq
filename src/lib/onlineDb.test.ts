@@ -381,3 +381,184 @@ describe("clearCachedDatabase", () => {
     expect(database.close).not.toHaveBeenCalled();
   });
 });
+
+describe("download cache safety (generation swap)", () => {
+  const manifestFixture = {
+    iems: {
+      "source::Example One": { price: 99 },
+      "source::Example Two": { price: null },
+    },
+  };
+  const curvesFixture = {
+    meta: { frequencies: [20, 1000, 20000] },
+    curves: {
+      "source::Example One": { d: [1, 2, 3] },
+      "source::Example Two": { d: [-1, 0, 1] },
+    },
+  };
+
+  // Minimal in-memory store: transactions apply their writes and complete on
+  // a microtask (after the caller has synchronously assigned its handlers),
+  // matching IDB's promise-friendly event ordering. `abortWritesFor` makes
+  // the transaction that writes that key abort instead — the quota case.
+  class MemoryStore {
+    records = new Map<string, unknown>();
+    clearCalls = 0;
+    abortWritesFor: string | null = null;
+
+    private request<T>(value: T) {
+      const request = {
+        result: value,
+        error: null,
+        onsuccess: null as ((event: Event) => void) | null,
+        onerror: null as ((event: Event) => void) | null,
+      };
+      queueMicrotask(() => request.onsuccess?.(new Event("mock")));
+      return request;
+    }
+
+    transaction() {
+      const store = this;
+      const pending: Array<() => void> = [];
+      let abortWith: Error | null = null;
+      const tx = {
+        error: null as Error | null,
+        oncomplete: null as ((event: Event) => void) | null,
+        onerror: null as ((event: Event) => void) | null,
+        onabort: null as ((event: Event) => void) | null,
+        objectStore: () => ({
+          put: (value: unknown, key?: string) => {
+            if (typeof key !== "string") throw new Error("fixture requires explicit keys");
+            if (store.abortWritesFor === key) {
+              abortWith = new DOMException("Quota exceeded", "QuotaExceededError");
+            }
+            pending.push(() => store.records.set(key, value));
+            return { onsuccess: null, onerror: null };
+          },
+          delete: (key: string) => {
+            pending.push(() => store.records.delete(key));
+            return { onsuccess: null, onerror: null };
+          },
+          get: (key: string) => store.request(store.records.get(key)),
+          getAllKeys: () => store.request([...store.records.keys()]),
+          clear: () => {
+            store.clearCalls += 1;
+            pending.push(() => store.records.clear());
+            return { onsuccess: null, onerror: null };
+          },
+        }),
+      };
+      queueMicrotask(() => {
+        if (abortWith) {
+          tx.error = abortWith;
+          tx.onabort?.(new Event("mock"));
+          return;
+        }
+        for (const apply of pending) apply();
+        tx.oncomplete?.(new Event("mock"));
+      });
+      return tx;
+    }
+  }
+
+  function jsonResponse(value: unknown) {
+    const json = JSON.stringify(value);
+    return {
+      ok: true,
+      status: 200,
+      statusText: "",
+      headers: new Headers({ "content-length": String(json.length) }),
+      body: null,
+      text: async () => json,
+    };
+  }
+
+  function stubFetch(behavior: "ok" | "curves-fail") {
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      if (url.includes("manifest.json")) return jsonResponse(manifestFixture);
+      if (behavior === "ok") return jsonResponse(curvesFixture);
+      throw new Error("network failure");
+    }));
+  }
+
+  function startDownload(store: MemoryStore): Promise<number> {
+    const openRequest = new MockOpenRequest();
+    vi.stubGlobal("indexedDB", { open: vi.fn(() => openRequest) });
+    const subscription = subscribeToDatabaseDownload(vi.fn());
+    const database = {
+      close: vi.fn(),
+      closed: false,
+      onversionchange: null,
+      onclose: null,
+      transaction: vi.fn(() => store.transaction()),
+    };
+    openRequest.result = database as unknown as IDBDatabase;
+    fire(openRequest.onsuccess);
+    return subscription.result;
+  }
+
+  function seedLiveGenerationOne(store: MemoryStore) {
+    store.records.set("meta:gen", 1);
+    store.records.set("gen:1:complete", true);
+    store.records.set("gen:1:manifest", { iems: {} });
+    store.records.set("gen:1:frequencies", [20, 1000, 20000]);
+    store.records.set("gen:1:source::Old Device", [9, 9, 9]);
+  }
+
+  it("leaves the live cache untouched when a fetch fails before any write", async () => {
+    const store = new MemoryStore();
+    seedLiveGenerationOne(store);
+    const before = structuredClone(store.records);
+    stubFetch("curves-fail");
+
+    await expect(startDownload(store)).rejects.toThrow("network failure");
+
+    expect(store.records).toEqual(before);
+    expect(store.clearCalls).toBe(0);
+  });
+
+  it("keeps the previous cache when a chunk transaction hits quota mid-download", async () => {
+    const store = new MemoryStore();
+    seedLiveGenerationOne(store);
+    stubFetch("ok");
+    // Abort the curve chunk: the manifest and frequencies of the NEW
+    // generation have already been written at this point.
+    store.abortWritesFor = "gen:2:source::Example One";
+
+    await expect(startDownload(store)).rejects.toThrow(/Quota exceeded/);
+
+    // No publish flip: readers still see the complete first generation, and
+    // the old code's clear-before-rewrite would have destroyed it here.
+    expect(store.records.get("meta:gen")).toBe(1);
+    expect(store.records.get("gen:1:complete")).toBe(true);
+    expect(store.records.get("gen:1:manifest")).toEqual({ iems: {} });
+    expect(store.records.get("gen:1:source::Old Device")).toEqual([9, 9, 9]);
+    expect(store.clearCalls).toBe(0);
+  });
+
+  it("publishes a completed download atomically and sweeps superseded keys", async () => {
+    const store = new MemoryStore();
+    // Legacy-layout cache from a pre-generation app version.
+    store.records.set("meta:complete", true);
+    store.records.set("meta:manifest", { iems: {} });
+    store.records.set("meta:frequencies", [100]);
+    store.records.set("source::Legacy Device", [5, 5, 5]);
+    stubFetch("ok");
+
+    await expect(startDownload(store)).resolves.toBe(2);
+
+    // Published state: meta:gen and the completeness flag land together.
+    expect(store.records.get("meta:gen")).toBe(1);
+    expect(store.records.get("gen:1:complete")).toBe(true);
+    expect(store.records.get("gen:1:frequencies")).toEqual([20, 1000, 20000]);
+    expect(store.records.get("gen:1:source::Example One")).toEqual([1, 2, 3]);
+    expect(store.records.get("gen:1:source::Example Two")).toEqual([-1, 0, 1]);
+
+    // The legacy generation was swept after the publish, never before.
+    expect(store.records.has("meta:complete")).toBe(false);
+    expect(store.records.has("meta:manifest")).toBe(false);
+    expect(store.records.has("meta:frequencies")).toBe(false);
+    expect(store.records.has("source::Legacy Device")).toBe(false);
+    expect(store.clearCalls).toBe(0);
+  });
+});
