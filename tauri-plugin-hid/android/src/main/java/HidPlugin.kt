@@ -68,6 +68,8 @@ class HidDevice(
 
     val displayName: String
         get() = usbDevice.productName ?: usbDevice.deviceName
+
+    fun matchesDevice(device: UsbDevice): Boolean = usbDevice == device
     
     // Initialize and connect to the device
     fun initialize(): HidResult<Unit> {
@@ -172,88 +174,83 @@ class HidDevice(
 
     fun startReading() {
         val endpoint = usbInEndpoint ?: return
-        if (closed) return
-        isReading = true
-        readQueue.clear()
+        val request = UsbRequest()
+        if (!request.initialize(deviceConnection, endpoint)) {
+            Log.e(TAG, "Read thread: failed to initialize UsbRequest")
+            request.close()
+            return
+        }
 
         val thread = Thread {
             Log.i(TAG, "Background read thread started using UsbRequest")
             val bufferSize = maxOf(endpoint.maxPacketSize, 64)
-            val request = UsbRequest()
-            activeReadRequest = request
-
             var readFailed = false
             try {
-                if (request.initialize(deviceConnection, endpoint)) {
-                    var failureCount = 0
-                    val buffer = ByteBuffer.allocateDirect(bufferSize)
-                    while (isReading && !closed) {
-                        buffer.clear()
+                var failureCount = 0
+                val buffer = ByteBuffer.allocateDirect(bufferSize)
+                while (isReading && !closed) {
+                    buffer.clear()
 
-                        val queued = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                            request.queue(buffer)
-                        } else {
-                            @Suppress("DEPRECATION")
-                            request.queue(buffer, bufferSize)
-                        }
+                    val queued = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                        request.queue(buffer)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        request.queue(buffer, bufferSize)
+                    }
 
-                        if (!queued) {
-                            Log.e(TAG, "Read thread: failed to queue UsbRequest")
-                            failureCount++
-                            if (failureCount > 5) {
-                                Log.w(TAG, "Read thread: persistent queue failure (device disconnected), stopping loop")
-                                readFailed = true
-                                break
-                            }
-                            Thread.sleep(100)
-                            continue
+                    if (!queued) {
+                        Log.e(TAG, "Read thread: failed to queue UsbRequest")
+                        failureCount++
+                        if (failureCount > 5) {
+                            Log.w(TAG, "Read thread: persistent queue failure (device disconnected), stopping loop")
+                            readFailed = true
+                            break
                         }
+                        Thread.sleep(100)
+                        continue
+                    }
 
-                        val completed = deviceConnection.requestWait()
-                        if (!isReading || closed) break
-                        if (completed == null) {
-                            failureCount++
-                            if (failureCount > 5) {
-                                Log.w(TAG, "Read thread: repeated requestWait failure, stopping loop")
-                                readFailed = true
-                                break
-                            }
-                            Thread.sleep(10)
-                            continue
+                    val completed = deviceConnection.requestWait()
+                    if (!isReading || closed) break
+                    if (completed == null) {
+                        failureCount++
+                        if (failureCount > 5) {
+                            Log.w(TAG, "Read thread: repeated requestWait failure, stopping loop")
+                            readFailed = true
+                            break
                         }
-                        if (completed !== request) {
-                            Log.w(TAG, "Read thread: unexpected UsbRequest completion")
-                            failureCount++
-                            if (failureCount > 5) {
-                                readFailed = true
-                                break
-                            }
-                            continue
+                        Thread.sleep(10)
+                        continue
+                    }
+                    if (completed !== request) {
+                        Log.w(TAG, "Read thread: unexpected UsbRequest completion")
+                        failureCount++
+                        if (failureCount > 5) {
+                            readFailed = true
+                            break
                         }
-                        failureCount = 0
+                        continue
+                    }
+                    failureCount = 0
 
-                        val bytesRead = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                            val size = buffer.position()
-                            buffer.flip()
-                            size
-                        } else {
-                            buffer.flip()
-                            buffer.remaining()
-                        }
+                    val bytesRead = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                        val size = buffer.position()
+                        buffer.flip()
+                        size
+                    } else {
+                        buffer.flip()
+                        buffer.remaining()
+                    }
 
-                        if (bytesRead > 0) {
-                            val data = ByteArray(bytesRead)
-                            buffer.get(data)
-                            Log.i(TAG, "Read thread: got data (size=$bytesRead): " + data.joinToString(", ") { String.format("%02X", it) })
-                            if (!readQueue.offer(data)) {
-                                readQueue.poll()
-                                readQueue.offer(data)
-                            }
+                    if (bytesRead > 0) {
+                        val data = ByteArray(bytesRead)
+                        buffer.get(data)
+                        Log.i(TAG, "Read thread: got data (size=$bytesRead): " + data.joinToString(", ") { String.format("%02X", it) })
+                        if (!readQueue.offer(data)) {
+                            readQueue.poll()
+                            readQueue.offer(data)
                         }
                     }
-                } else {
-                    Log.e(TAG, "Read thread: failed to initialize UsbRequest")
-                    readFailed = true
                 }
             } catch (e: InterruptedException) {
                 readFailed = !closed
@@ -266,15 +263,30 @@ class HidDevice(
                     request.cancel()
                     request.close()
                 } catch (_: Exception) {}
-                activeReadRequest = null
+                synchronized(connectionLock) {
+                    if (activeReadRequest === request) activeReadRequest = null
+                }
                 if (readFailed && !closed) {
                     onDisconnected(this)
                 }
                 Log.i(TAG, "Background read thread stopped")
             }
         }
-        readThread = thread
-        thread.start()
+
+        synchronized(connectionLock) {
+            if (closed) {
+                try {
+                    request.cancel()
+                    request.close()
+                } catch (_: Exception) {}
+                return
+            }
+            isReading = true
+            readQueue.clear()
+            activeReadRequest = request
+            readThread = thread
+            thread.start()
+        }
     }
 
     // Read data from the device queue (thread-safe, timed block)
@@ -543,9 +555,11 @@ class HidPlugin(private val activity: Activity): Plugin(activity) {
                         intent.getParcelableExtra(UsbManager.EXTRA_DEVICE) as? UsbDevice
                     }
                     device?.let {
-                        val detached = connectedDevices.remove(it.deviceName)
+                        val detached = connectedDevices[it.deviceName]
+                            ?.takeIf { current -> current.matchesDevice(it) }
+                            ?.also { current -> connectedDevices.remove(it.deviceName, current) }
                         val pending = synchronized(this@HidPlugin) {
-                            if (pendingUsbDevice?.deviceName == it.deviceName) {
+                            if (pendingUsbDevice == it) {
                                 val waitingInvoke = pendingInvoke
                                 pendingInvoke = null
                                 pendingUsbDevice = null
@@ -845,7 +859,7 @@ class HidPlugin(private val activity: Activity): Plugin(activity) {
                 // Check if we already have this device open
                 val existingDevice = connectedDevices[path]
                 if (existingDevice != null) {
-                    invoke.resolve()
+                    invoke.reject("Device already open")
                     return
                 }
                 
@@ -904,7 +918,7 @@ class HidPlugin(private val activity: Activity): Plugin(activity) {
                 device.closeConnection()
             }
         } else {
-            invoke.reject("Device not open")
+            invoke.resolve()
         }
     }
     
