@@ -28,7 +28,7 @@ export interface ProfilesViewProps {
   setNewProfileName: (value: string) => void;
   onSelectProfile: (profile: Profile) => void;
   onApplyProfile?: (profile: Profile) => void;
-  onReloadProfiles: () => void | Promise<void>;
+  onReloadProfiles: () => void | Promise<Profile[]>;
   onOpenProfilesDir?: () => void;
   hideProfileFolderButton?: boolean;
   onReset: () => void;
@@ -44,6 +44,13 @@ export interface ProfilesViewProps {
 }
 
 
+
+export function isProfileRowKeyboardTarget(
+  target: EventTarget | null,
+  currentTarget: EventTarget | null,
+): boolean {
+  return target === currentTarget;
+}
 
 export const ProfilesView = memo(function ProfilesView({
   peq,
@@ -96,9 +103,14 @@ export const ProfilesView = memo(function ProfilesView({
   const filteredProfiles = profiles.filter(
     (p) => !query || fuzzyMatch(query, p.name),
   );
-  const selectedProfile = profiles.find((p) => p.name === selectedPreset);
+  const selectedPresetKey = profileIdentityKey(selectedPreset);
+  const selectedProfile = profiles.find(
+    (profile) => profileIdentityKey(profile.name) === selectedPresetKey,
+  );
   const savedProfiles = profiles.filter((p) => p.modified != null);
-  const selectedIsSaved = savedProfiles.some((p) => p.name === selectedPreset);
+  const selectedIsSaved = savedProfiles.some(
+    (profile) => profileIdentityKey(profile.name) === selectedPresetKey,
+  );
 
   const showSaveAs = (!selectedIsSaved && dirty) || saveAsOpen;
   const saveName = newProfileName.trim();
@@ -115,7 +127,7 @@ export const ProfilesView = memo(function ProfilesView({
       : "Profile saved";
 
   const handleSelectProfile = async (profile: Profile) => {
-    if (selectedPreset === profile.name) return;
+    if (profileIdentityKey(selectedPreset) === profileIdentityKey(profile.name)) return;
     if (
       dirty &&
       !(await confirmDialog({
@@ -283,15 +295,21 @@ export const ProfilesView = memo(function ProfilesView({
         return;
       }
 
+      let canonicalName = profiles.find(
+        (profile) => profileIdentityKey(profile.name) === profileIdentityKey(name),
+      )?.name ?? name;
       const mutation = await runProfileMutation(async () => {
         await invoke("save_profile", { name, peq: parsedSnapshot.peq });
-        await onReloadProfiles();
+        const loadedProfiles = await onReloadProfiles();
+        canonicalName = loadedProfiles?.find(
+          (profile) => profileIdentityKey(profile.name) === profileIdentityKey(name),
+        )?.name ?? canonicalName;
       });
       if (!mutation.current || !isCurrent()) return;
 
-      onImportPEQ(parsedSnapshot.peq, name, true);
+      onImportPEQ(parsedSnapshot.peq, canonicalName, true);
       setParsed(null);
-      setStatus(`Profile "${name}" saved`);
+      setStatus(`Profile "${canonicalName}" saved`);
     } catch (err) {
       if (isCurrent()) setStatus(`Failed to save profile: ${err}`);
     } finally {
@@ -374,7 +392,7 @@ export const ProfilesView = memo(function ProfilesView({
             </div>
           ) : (
             filteredProfiles.map((profile) => {
-              const isSelected = selectedPreset === profile.name;
+              const isSelected = profileIdentityKey(profile.name) === selectedPresetKey;
               return (
                 <div
                   key={profile.name}
@@ -384,6 +402,7 @@ export const ProfilesView = memo(function ProfilesView({
                   tabIndex={0}
                   onClick={() => handleSelectProfile(profile)}
                   onKeyDown={(e) => {
+                    if (!isProfileRowKeyboardTarget(e.target, e.currentTarget)) return;
                     if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();
                       handleSelectProfile(profile);

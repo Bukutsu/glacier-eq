@@ -106,15 +106,18 @@ export function useProfiles(
   );
 
   const profileLoadGenerationRef = useRef(0);
-  const loadProfiles = useCallback(async () => {
+  const loadProfiles = useCallback(async (): Promise<Profile[]> => {
     const generation = ++profileLoadGenerationRef.current;
     try {
       const loadedProfiles = await invoke<Profile[]>("list_profiles");
-      if (generation !== profileLoadGenerationRef.current) return;
-      setProfiles(withSyntheticDefault(loadedProfiles));
+      if (generation !== profileLoadGenerationRef.current) return [];
+      const nextProfiles = withSyntheticDefault(loadedProfiles);
+      setProfiles(nextProfiles);
+      return nextProfiles;
     } catch (error) {
-      if (generation !== profileLoadGenerationRef.current) return;
+      if (generation !== profileLoadGenerationRef.current) return [];
       setStatus(`Failed to load profiles: ${error}`);
+      return [];
     }
   }, [setStatus]);
 
@@ -146,9 +149,13 @@ export function useProfiles(
     }))) return;
 
     try {
+      let canonicalName = existing?.name ?? name;
       const mutation = await runProfileMutation(async () => {
         await invoke("save_profile", { name, peq: savedPeq });
-        await loadProfiles();
+        const loadedProfiles = await loadProfiles();
+        canonicalName = loadedProfiles.find(
+          (profile) => profileIdentityKey(profile.name) === profileIdentityKey(name),
+        )?.name ?? canonicalName;
       });
       const contextStillCurrent =
         mutation.current &&
@@ -157,7 +164,7 @@ export function useProfiles(
         profileSearchRef.current === savedContext.profileSearch &&
         newProfileNameRef.current === savedContext.newProfileName;
       if (contextStillCurrent) {
-        setSelectedPreset(name);
+        setSelectedPreset(canonicalName);
         setProfileSearch("");
         setNewProfileName("");
         editor.editorCleanPeqRef.current = savedPeq;
