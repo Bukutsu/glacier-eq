@@ -29,14 +29,22 @@ function quarantinePersistedJson(
   notify?: (message: string) => void,
 ) {
   // Keep the same timestamped backup convention for syntax and schema damage.
+  let backedUp = false;
   try {
     const stamp = new Date().toISOString().replace(/[:.]/g, "-");
     window.localStorage.setItem(`${key}.bak.${stamp}`, raw);
-  } catch {
-    // Backup write failed (likely the same quota problem) — give up quietly.
+    backedUp = true;
+  } catch (error) {
+    // Backup write failed (likely the same quota problem that damaged the
+    // data). Never swallow it: the claim below depends on this write — a
+    // silent failure would announce a copy that does not exist while the
+    // only copy of the data sits un-copied under its original key.
+    console.warn(`Could not back up malformed saved data for "${key}":`, error);
   }
   notify?.(
-    `Could not load saved data for "${key}". Created a backup copy.`,
+    backedUp
+      ? `Could not load saved data for "${key}". Created a backup copy.`
+      : `Could not load saved data for "${key}", and no backup copy could be written (storage full?) — the damaged original was left in place.`,
   );
 }
 

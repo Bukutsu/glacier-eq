@@ -146,4 +146,41 @@ describe("persisted trace quarantine", () => {
       storedKey.startsWith(`${key}.bak.`)
     )).toBe(true);
   });
+
+  it("claims a backup copy only when the backup write succeeded", () => {
+    const notify = vi.fn();
+    storage.setItem("glacier-user-targets", "{");
+
+    loadPersistedJson("glacier-user-targets", notify);
+
+    expect(notify).toHaveBeenCalledWith(
+      expect.stringContaining("Created a backup copy"),
+    );
+  });
+
+  it("does not claim a backup copy when the backup write fails", () => {
+    const notify = vi.fn();
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    storage.setItem("glacier-user-targets", "{");
+    // The backup write itself hits the quota that likely damaged the data.
+    vi.spyOn(storage, "setItem").mockImplementationOnce(() => {
+      throw new DOMException("Quota exceeded", "QuotaExceededError");
+    });
+
+    loadPersistedJson("glacier-user-targets", notify);
+
+    // The old message announced a copy that was never written — the only
+    // copy of the data is the untouched, still-malformed original.
+    expect(notify).toHaveBeenCalledWith(
+      expect.stringContaining("no backup copy could be written"),
+    );
+    expect(notify).not.toHaveBeenCalledWith(
+      expect.stringContaining("Created a backup copy"),
+    );
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("Could not back up malformed saved data"),
+      expect.objectContaining({ name: "QuotaExceededError" }),
+    );
+    warnSpy.mockRestore();
+  });
 });
