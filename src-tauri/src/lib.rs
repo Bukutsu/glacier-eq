@@ -386,6 +386,14 @@ pub fn run() {
     }
 
     builder
+        .setup(|app| {
+            // Clear temp files a crash left between creation and rename
+            // (atomic_write and ProfileStore::save siblings in app data).
+            if let Ok(dir) = profiles::app_data_base_dir(app.handle()) {
+                fsutil::sweep_stale_temp_files(&dir);
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             device_commands::get_eq_state,
             device_commands::set_eq_state,
