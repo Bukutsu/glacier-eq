@@ -306,7 +306,7 @@ impl WalkplayProtocol {
     }
 
     pub(crate) fn parse_global_gain_response(data: &[u8]) -> Option<i8> {
-        if data.len() > OFFSET_GAIN_VALUE {
+        if Self::matches_global_gain_response(data, 0) {
             Some(data[OFFSET_GAIN_VALUE] as i8)
         } else {
             None
@@ -470,6 +470,22 @@ impl EqProtocol for WalkplayProtocol {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn walkplay_global_gain_parser_requires_a_complete_matching_frame() {
+        assert_eq!(
+            WalkplayProtocol::parse_global_gain_response(&[0, 0, 0, 0, 7]),
+            None
+        );
+        let mut wrong_header = vec![0u8; 6];
+        wrong_header[OFFSET_CMD_TYPE] = READ;
+        wrong_header[OFFSET_CMD] = CMD_GLOBAL_GAIN + 1;
+        wrong_header[OFFSET_GAIN_VALUE] = 7;
+        assert_eq!(
+            WalkplayProtocol::parse_global_gain_response(&wrong_header),
+            None
+        );
+    }
 
     #[test]
     fn walkplay_default_state_uses_representable_pulled_fields() {
