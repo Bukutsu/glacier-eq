@@ -85,9 +85,11 @@ impl ProfileStore {
             // file_stem round-trip: only expose names that survive a save→load
             // cycle, so everything listed here is always loadable via `load()`.
             let Some(name) = path.file_stem().and_then(|name| name.to_str()) else {
+                warnings.extend(skip(&path, "filename is not valid UTF-8"));
                 continue;
             };
-            if validate_name(name).is_err() {
+            if let Err(error) = validate_name(name) {
+                warnings.extend(skip(&path, &format!("invalid profile name: {error}")));
                 continue;
             }
             let (profile, mut file_warnings) = read_profile(&path)?;
@@ -486,6 +488,25 @@ mod tests {
         );
         // The list() wrapper keeps its previous contract for every existing caller.
         assert_eq!(store.list().unwrap().len(), 1);
+        std::fs::remove_dir_all(base).unwrap();
+    }
+
+    #[test]
+    fn list_reports_invalid_profile_names() {
+        let base = temporary_dir();
+        let store = ProfileStore::new(&base).unwrap();
+        std::fs::write(store.directory().join("CON.txt"), "Preamp: 0 dB\n").unwrap();
+
+        let (listed, warnings) = store.list_detailed().unwrap();
+        assert!(listed.is_empty());
+        assert!(
+            warnings
+                .iter()
+                .any(|warning| warning.contains("CON.txt")
+                    && warning.contains("invalid profile name")),
+            "the invalid name must be reported, got {warnings:?}"
+        );
+
         std::fs::remove_dir_all(base).unwrap();
     }
 
