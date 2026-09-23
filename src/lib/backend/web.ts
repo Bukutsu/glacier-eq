@@ -764,12 +764,10 @@ async function pullEqState(profile: SupportedDeviceInfo): Promise<PEQData> {
   }
 
   await sleep(100);
-  try {
-    return await pullEqStateOnce(profile);
-  } catch (error) {
-    if (first) return first;
-    throw error;
-  }
+  // The retry exists because a default-state read may be a transient lie;
+  // when it fails, surface its error instead of reporting the
+  // uncorroborated default as device truth (mirrors DeviceSession::pull).
+  return pullEqStateOnce(profile);
 }
 
 function parseWalkplayFirmwareVersion(data: Uint8Array): string | null {

@@ -102,10 +102,11 @@ impl<'a> DeviceSession<'a> {
             return first;
         }
         self.io.sleep_ms(RETRY_DELAY_MS);
-        match self.pull_once() {
-            Ok(peq) => Ok(peq),
-            Err(error) => first.map_err(|_| error),
-        }
+        // The retry exists because a default-state read may be a transient
+        // lie. When this corroborating attempt fails, surface its error
+        // instead of reporting the uncorroborated default as device truth
+        // (an earlier read being Ok does not outweigh a failed confirmation).
+        self.pull_once()
     }
 
     /// Normalizes before writing, snapshots, commits, verifies, and rolls back on failure.
@@ -821,6 +822,44 @@ mod tests {
             packet[33] = 2;
             io.reads.push_back(packet);
         }
+    }
+
+    /// One complete pull whose responses parse to a flat, zero-preamp state:
+    /// exactly the transient default that `pull`'s retry exists to confirm.
+    fn queue_default_pull(io: &mut FakeIo) {
+        io.reads.push_back(vec![]); // init drain terminator
+        io.reads.push_back(vec![
+            READ,
+            super::super::walkplay::CMD_GLOBAL_GAIN,
+            0,
+            0,
+            0,
+            0,
+        ]);
+        for index in 0..10u8 {
+            let mut packet = vec![0; 34];
+            packet[0] = READ;
+            packet[1] = super::super::walkplay::CMD_PEQ_VALUES;
+            packet[2] = index + 1;
+            packet[4] = index;
+            packet[27..29].copy_from_slice(&(100 + index as u16).to_le_bytes());
+            packet[29..31].copy_from_slice(&256u16.to_le_bytes());
+            // raw gain stays 0 → parsed gain 0.0 → flat bands → default state.
+            packet[33] = 2;
+            io.reads.push_back(packet);
+        }
+    }
+
+    #[test]
+    fn pull_surfaces_retry_error_instead_of_uncorroborated_default() {
+        let profile = get_supported_device(0x3302, 0x43e8).unwrap();
+        let mut io = FakeIo::default();
+        queue_default_pull(&mut io);
+        // First attempt returns the suspect default; the confirming retry
+        // exhausts its read budget unanswered and must fail the pull rather
+        // than hand back the uncorroborated default as device truth.
+        let error = DeviceSession::new(&mut io, profile).pull().unwrap_err();
+        assert!(!error.is_empty());
     }
 
     #[test]
