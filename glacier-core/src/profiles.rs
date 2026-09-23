@@ -89,7 +89,15 @@ impl ProfileStore {
                 profiles.push(profile);
             }
         }
-        profiles.sort_by_key(|profile| profile.name.to_lowercase());
+        // One identity (`Foo` and `foo` are the same profile), one entry, and
+        // the retained entry is the same file `load()` resolves for that name.
+        profiles.sort_by(|left, right| {
+            left.name
+                .to_lowercase()
+                .cmp(&right.name.to_lowercase())
+                .then_with(|| left.name.cmp(&right.name))
+        });
+        profiles.dedup_by(|left, right| left.name.eq_ignore_ascii_case(&right.name));
         Ok(profiles)
     }
 
@@ -136,33 +144,71 @@ impl ProfileStore {
         replace_file(&temporary, &path).map_err(|error| {
             let _ = std::fs::remove_file(&temporary);
             format!("Failed to save profile {}: {error}", path.display())
-        })
+        })?;
+        // Collapse case-variant siblings so one identity never leaves a stale
+        // shadow file behind for `list()` to show or `load()` to read.
+        for sibling in self.case_variant_paths(name) {
+            if sibling == path {
+                continue;
+            }
+            std::fs::remove_file(&sibling).map_err(|error| {
+                format!(
+                    "Profile saved, but duplicate {} could not be removed: {error}",
+                    sibling.display()
+                )
+            })?;
+        }
+        Ok(())
     }
 
     pub fn delete(&self, name: &str) -> Result<(), String> {
-        let path = self.path(name)?;
-        match std::fs::remove_file(&path) {
-            Ok(()) => Ok(()),
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
-            Err(error) => Err(format!("Failed to delete {}: {error}", path.display())),
+        validate_name(name)?;
+        let mut failure = None;
+        // Remove every case-variant match: deleting one identity must not
+        // leave a same-identity file behind for `list()` to resurrect.
+        for path in self.case_variant_paths(name) {
+            match std::fs::remove_file(&path) {
+                Ok(()) => {}
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                Err(error) => {
+                    failure.get_or_insert(format!("Failed to delete {}: {error}", path.display()));
+                }
+            };
+        }
+        match failure {
+            Some(error) => Err(error),
+            None => Ok(()),
         }
     }
 
     fn path(&self, name: &str) -> Result<PathBuf, String> {
         validate_name(name)?;
-        if let Some(existing) = std::fs::read_dir(&self.dir).ok().and_then(|entries| {
-            entries.flatten().find(|entry| {
-                entry.path().extension().and_then(|ext| ext.to_str()) == Some("txt")
-                    && entry
-                        .path()
+        if let Some(existing) = self.case_variant_paths(name).into_iter().next() {
+            return Ok(existing);
+        }
+        Ok(self.dir.join(format!("{name}.txt")))
+    }
+
+    /// Every `*.txt` file whose stem matches `name` case-insensitively,
+    /// sorted so the first entry is the deterministic winner `path()`, `save()`,
+    /// and `list()` all agree on (readdir order is not stable across calls).
+    fn case_variant_paths(&self, name: &str) -> Vec<PathBuf> {
+        let Some(entries) = std::fs::read_dir(&self.dir).ok() else {
+            return Vec::new();
+        };
+        let mut paths: Vec<PathBuf> = entries
+            .flatten()
+            .map(|entry| entry.path())
+            .filter(|path| {
+                path.extension().and_then(|ext| ext.to_str()) == Some("txt")
+                    && path
                         .file_stem()
                         .and_then(|stem| stem.to_str())
                         .is_some_and(|stem| stem.eq_ignore_ascii_case(name))
             })
-        }) {
-            return Ok(existing.path());
-        }
-        Ok(self.dir.join(format!("{name}.txt")))
+            .collect();
+        paths.sort_by(|left, right| left.file_stem().cmp(&right.file_stem()));
+        paths
     }
 }
 
@@ -359,6 +405,44 @@ mod tests {
             .push(crate::Filter::enabled(MAX_FILTERS as u8, true));
         assert!(store.save("Full", &oversized).is_err());
         assert_eq!(store.load("Full").unwrap().data.filters.len(), MAX_FILTERS);
+
+        std::fs::remove_dir_all(base).unwrap();
+    }
+
+    #[test]
+    fn case_variant_duplicates_share_one_identity() {
+        let base = temporary_dir();
+        let store = ProfileStore::new(&base).unwrap();
+        let upper = PEQData {
+            filters: vec![crate::Filter::enabled(0, true)],
+            global_gain: -1.0,
+        };
+        let lower = PEQData {
+            filters: vec![],
+            global_gain: -5.0,
+        };
+        std::fs::write(base.join("profiles/Foo.txt"), peq_to_autoeq(&upper)).unwrap();
+        std::fs::write(base.join("profiles/foo.txt"), peq_to_autoeq(&lower)).unwrap();
+
+        // list() shows one entry, and it is exactly what load() resolves for
+        // either spelling — no shadow profile that disagrees with load().
+        let listed = store.list().unwrap();
+        assert_eq!(listed.len(), 1);
+        assert_eq!(store.load("Foo").unwrap().data, listed[0].data);
+        assert_eq!(store.load("foo").unwrap().data, listed[0].data);
+
+        // save() collapses the sibling instead of leaving a stale duplicate.
+        store.save("FOO", &lower).unwrap();
+        assert_eq!(store.list().unwrap().len(), 1);
+        assert_eq!(store.load("Foo").unwrap().data, lower);
+
+        // A freshly recreated sibling is also collapsed, and delete() removes
+        // every case-variant match so the identity cannot resurrect.
+        std::fs::write(base.join("profiles/FOO.txt"), peq_to_autoeq(&upper)).unwrap();
+        store.delete("foo").unwrap();
+        assert!(store.list().unwrap().is_empty());
+        assert!(!base.join("profiles/Foo.txt").exists());
+        assert!(!base.join("profiles/FOO.txt").exists());
 
         std::fs::remove_dir_all(base).unwrap();
     }
