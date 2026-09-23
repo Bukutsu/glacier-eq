@@ -1011,6 +1011,12 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
       ) as T;
     }
     case "save_text_file": {
+      // Mirror the desktop command's String serde plus tauri.ts:48-50's
+      // guard: new Blob([42]) would happily stringify non-string content
+      // and download a coerced file the desktop rejects outright.
+      if (typeof args.content !== "string") {
+        throw new Error("Invalid text export content");
+      }
       const filename = args.path.split("/").pop() || "profile.txt";
       const blob = new Blob([args.content], { type: "text/plain;charset=utf-8" });
       const url = URL.createObjectURL(blob);

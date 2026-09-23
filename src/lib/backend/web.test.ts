@@ -779,3 +779,19 @@ describe("add_diagnostic_event command boundary", () => {
     expect(parseDiagnosticHistory(history)).toHaveLength(history.length);
   });
 });
+
+describe("save_text_file command boundary", () => {
+  it("rejects non-string content like the desktop command", async () => {
+    // The desktop path runs content through String serde + tauri.ts:48-50;
+    // without this check new Blob([42]) downloads a coerced "42" file.
+    await expect(
+      invoke("save_text_file", { path: "export/profile.txt", content: 42 }),
+    ).rejects.toThrow("Invalid text export content");
+    await expect(
+      invoke("save_text_file", { path: "export/profile.txt", content: { a: 1 } }),
+    ).rejects.toThrow("Invalid text export content");
+    await expect(
+      invoke("save_text_file", { path: "export/profile.txt", content: ["x"] }),
+    ).rejects.toThrow("Invalid text export content");
+  });
+});
