@@ -1,15 +1,26 @@
-const CACHE = "glacier-eq-v1";
+const CACHE_PREFIX = "glacier-eq-v2-";
+let CACHE = "";
+
+async function cacheNameFor(manifest) {
+  const bytes = new TextEncoder().encode(JSON.stringify(manifest));
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  const hex = Array.from(new Uint8Array(digest), (byte) =>
+    byte.toString(16).padStart(2, "0"),
+  ).join("");
+  return `${CACHE_PREFIX}${hex}`;
+}
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches
-      .open(CACHE)
-      .then(async (cache) => {
+    (async () => {
         const manifestUrl = new URL("offline-assets.json", self.registration.scope);
-        let manifest = null;
-        try {
-          manifest = await fetch(manifestUrl).then((response) => response.json());
-        } catch {}
+        const manifestResponse = await fetch(manifestUrl);
+        if (!manifestResponse.ok) {
+          throw new Error(`Failed to fetch offline asset manifest: ${manifestResponse.status}`);
+        }
+        const manifest = await manifestResponse.json();
+        CACHE = await cacheNameFor(manifest);
+        const releaseCache = await caches.open(CACHE);
 
         const wanted = [self.registration.scope, manifestUrl.href];
         if (Array.isArray(manifest)) {
@@ -18,10 +29,13 @@ self.addEventListener("install", (event) => {
           );
         }
 
-        await Promise.allSettled(
+        await Promise.all(
           wanted.map(async (url) => {
             const response = await fetch(url, { cache: "reload" });
-            if (response.ok) await cache.put(url, response);
+            if (!response.ok) {
+              throw new Error(`Failed to preload ${url}: ${response.status}`);
+            }
+            await releaseCache.put(url, response);
           }),
         );
 
@@ -31,14 +45,14 @@ self.addEventListener("install", (event) => {
         // install and "stale" entries may be the only copies available.
         if (Array.isArray(manifest)) {
           const keep = new Set(wanted);
-          const keys = await cache.keys();
+          const keys = await releaseCache.keys();
           await Promise.all(
             keys
               .filter((request) => !keep.has(request.url))
-              .map((request) => cache.delete(request)),
+              .map((request) => releaseCache.delete(request)),
           );
         }
-      })
+      })()
       .then(() => self.skipWaiting()),
   );
 });
@@ -55,7 +69,7 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const request = event.request;
   const url = new URL(request.url);
-  if (request.method !== "GET" || url.origin !== location.origin) return;
+  if (request.method !== "GET" || url.origin !== location.origin || !CACHE) return;
 
   event.respondWith(
     fetch(request)
