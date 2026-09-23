@@ -58,6 +58,7 @@ pub struct DeviceSession<'a> {
     io: &'a mut dyn DeviceIo,
     profile: &'static DeviceProfile,
     progress: Option<&'a mut ProgressCallback<'a>>,
+    next_nonce: u8,
 }
 
 impl<'a> DeviceSession<'a> {
@@ -67,6 +68,7 @@ impl<'a> DeviceSession<'a> {
             io,
             profile,
             progress: None,
+            next_nonce: 0,
         }
     }
 
@@ -79,6 +81,7 @@ impl<'a> DeviceSession<'a> {
             io,
             profile,
             progress: Some(progress),
+            next_nonce: 0,
         }
     }
 
@@ -376,7 +379,8 @@ impl<'a> DeviceSession<'a> {
 
     fn read_filter(&mut self, index: u8) -> Result<Filter, String> {
         let protocol = self.protocol();
-        let nonce = index.wrapping_add(1).max(1);
+        self.next_nonce = self.next_nonce.wrapping_add(1).max(1);
+        let nonce = self.next_nonce;
         let request = protocol.read_filter_request(index, nonce);
         let data = self.send_and_read("Filter", &request, FILTER_READ_ATTEMPTS, 0, |data| {
             protocol.matches_filter_response(data, index, nonce)
@@ -803,6 +807,10 @@ mod tests {
     }
 
     fn queue_pull(io: &mut FakeIo, gain: i8) {
+        queue_pull_with_nonce_start(io, gain, 1);
+    }
+
+    fn queue_pull_with_nonce_start(io: &mut FakeIo, gain: i8, nonce_start: u8) {
         io.reads.push_back(vec![]); // init drain terminator
         io.reads.push_back(vec![
             READ,
@@ -816,7 +824,7 @@ mod tests {
             let mut packet = vec![0; 34];
             packet[0] = READ;
             packet[1] = super::super::walkplay::CMD_PEQ_VALUES;
-            packet[2] = index + 1;
+            packet[2] = nonce_start + index;
             packet[4] = index;
             packet[27..29].copy_from_slice(&(100 + index as u16).to_le_bytes());
             packet[29..31].copy_from_slice(&256u16.to_le_bytes());
@@ -953,6 +961,26 @@ mod tests {
         assert_eq!(band_requests, 10);
     }
 
+    #[test]
+    fn pull_rotates_filter_nonces_between_reads() {
+        use super::super::walkplay::CMD_PEQ_VALUES;
+        let profile = get_supported_device(0x3302, 0x43e8).unwrap();
+        let mut io = FakeIo::default();
+        queue_pull(&mut io, -1);
+        queue_pull_with_nonce_start(&mut io, -1, 11);
+        let mut session = DeviceSession::new(&mut io, profile);
+        session.pull().unwrap();
+        session.pull().unwrap();
+
+        let nonces: Vec<u8> = io
+            .writes
+            .iter()
+            .filter(|packet| packet.get(2) == Some(&CMD_PEQ_VALUES))
+            .map(|packet| packet[3])
+            .collect();
+        assert_eq!(nonces, (1..=20).collect::<Vec<_>>());
+    }
+
     fn test_peq() -> PEQData {
         PEQData {
             filters: (0..10)
@@ -976,7 +1004,7 @@ mod tests {
         queue_pull(&mut io, -1); // snapshot
         io.reads.push_back(vec![]); // push init drain
         io.reads.push_back(vec![]); // rollback init drain
-        queue_pull(&mut io, -1); // rollback readback
+        queue_pull_with_nonce_start(&mut io, -1, 11); // rollback readback
         io.failing_write_calls = [15, 16, 17].into();
 
         let error = DeviceSession::new(&mut io, profile)
@@ -995,7 +1023,7 @@ mod tests {
         queue_pull(&mut io, -1); // snapshot
         io.reads.push_back(vec![]); // push init drain
         io.reads.push_back(vec![]); // rollback init drain
-        queue_pull(&mut io, -1); // rollback readback
+        queue_pull_with_nonce_start(&mut io, -1, 11); // rollback readback
         io.failing_write_calls = [25, 26, 27].into();
 
         let error = DeviceSession::new(&mut io, profile)
@@ -1013,9 +1041,9 @@ mod tests {
         let mut io = FakeIo::default();
         queue_pull(&mut io, -1); // snapshot
         io.reads.push_back(vec![]); // push init drain
-        queue_pull(&mut io, -2); // mismatching readback
+        queue_pull_with_nonce_start(&mut io, -2, 11); // mismatching readback
         io.reads.push_back(vec![]); // rollback init drain
-        queue_pull(&mut io, -1); // rollback readback
+        queue_pull_with_nonce_start(&mut io, -1, 21); // rollback readback
         let error = DeviceSession::new(&mut io, profile)
             .persistent_push(test_peq())
             .unwrap_err();
