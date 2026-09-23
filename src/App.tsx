@@ -34,7 +34,7 @@ import {
   buildDevDummyPeq,
   isDevDummyDevice,
 } from "./lib/devDevice";
-import { buildDefaultState, DEFAULT_PROFILE_NAME, normalizePeq, parseStoredPeqResponse, peqEquals } from "./lib/peq";
+import { buildDefaultState, DEFAULT_PROFILE_NAME, extractPushWarnings, normalizePeq, parseStoredPeqResponse, peqEquals } from "./lib/peq";
 import { isAndroidDevice, isTauri } from "./lib/platform";
 import { isDisconnectionError } from "./lib/errors";
 import {
@@ -1127,6 +1127,7 @@ function App() {
     setProgress(null);
     setIsBusy(true);
     let committedPeq: PEQData | null = null;
+    let pushWarnings: string[] = [];
     try {
       if (isDevDummyDevice(selectedDevice)) {
         setProgress({
@@ -1153,10 +1154,12 @@ function App() {
         await sleep(400);
       } else {
         // set_eq_state returns the PEQ actually committed (quantized to the
-        // protocol), not necessarily the request.
+        // protocol), not necessarily the request, plus any capability-clamp
+        // warnings from normalization.
         const context = getAsyncContext();
-        const committed = await invoke<unknown>("set_eq_state", { peq: snapshot });
-        committedPeq = parseStoredPeqResponse(committed, {
+        const outcome = await invoke<unknown>("set_eq_state", { peq: snapshot });
+        pushWarnings = extractPushWarnings(outcome);
+        committedPeq = parseStoredPeqResponse(outcome, {
           integerPreamp: selectedCapabilities.integer_preamp,
           capabilities: selectedCapabilities,
         });
@@ -1170,14 +1173,22 @@ function App() {
         }
       }
       setLastPushedPeq(committedPeq ?? snapshot);
-      reportStatus(
-        "Info",
-        isDevDummyDevice(selectedDevice)
-          ? "Dummy DAC write simulated"
-          : "Saved EQ to DAC",
-        "success",
-        "UI"
-      );
+      const savedMessage = isDevDummyDevice(selectedDevice)
+        ? "Dummy DAC write simulated"
+        : "Saved EQ to DAC";
+      if (pushWarnings.length > 0) {
+        // The push rewrote out-of-range values: "Saved EQ to DAC" alone
+        // would hide a change to the user's EQ.
+        reportStatus(
+          "Warn",
+          `${savedMessage} — ${pushWarnings.join(" · ")}`,
+          "info",
+          "UI",
+          `${savedMessage} (values adjusted to device limits)`
+        );
+      } else {
+        reportStatus("Info", savedMessage, "success", "UI");
+      }
     } catch (error) {
       if (!isDevDummyDevice(selectedDevice) && isDisconnectionError(error)) {
         markDeviceLost(
@@ -1216,6 +1227,7 @@ function App() {
 
       setProgress(null);
       setIsBusy(true);
+      let applyWarnings: string[] = [];
       try {
         if (isDevDummyDevice(selectedDevice)) {
           setProgress({ message: "Writing to RAM...", percentage: 60 });
@@ -1223,8 +1235,11 @@ function App() {
           setProgress({ message: "Apply successful", percentage: 100 });
           await sleep(300);
         } else {
-          // apply_eq_state returns the normalized state written to RAM.
-          const applied = parseStoredPeqResponse(await invoke<unknown>("apply_eq_state", { peq: data }), {
+          // apply_eq_state returns the normalized state written to RAM, plus
+          // any capability-clamp warnings from normalization.
+          const outcome = await invoke<unknown>("apply_eq_state", { peq: data });
+          applyWarnings = extractPushWarnings(outcome);
+          const applied = parseStoredPeqResponse(outcome, {
             integerPreamp: capabilities.integer_preamp,
             capabilities,
           });
@@ -1234,14 +1249,20 @@ function App() {
         if (isDevDummyDevice(selectedDevice)) {
           setLastPushedPeq(data);
         }
-        reportStatus(
-          "Info",
-          isDevDummyDevice(selectedDevice)
-            ? "Dummy DAC apply simulated"
-            : `Applied ${profile.name} to DAC temporarily`,
-          "success",
-          "UI"
-        );
+        const appliedMessage = isDevDummyDevice(selectedDevice)
+          ? "Dummy DAC apply simulated"
+          : `Applied ${profile.name} to DAC temporarily`;
+        if (applyWarnings.length > 0) {
+          reportStatus(
+            "Warn",
+            `${appliedMessage} — ${applyWarnings.join(" · ")}`,
+            "info",
+            "UI",
+            `${appliedMessage} (values adjusted to device limits)`
+          );
+        } else {
+          reportStatus("Info", appliedMessage, "success", "UI");
+        }
       } catch (error) {
         if (!isDevDummyDevice(selectedDevice) && isDisconnectionError(error)) {
           markDeviceLost(

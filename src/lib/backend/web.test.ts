@@ -135,7 +135,7 @@ beforeEach(() => {
     configurable: true,
     value: localStorageMock,
   });
-  wasm.normalize_peq_for_device.mockImplementation((peq) => peq);
+  wasm.normalize_peq_for_device.mockImplementation((peq) => ({ peq, warnings: [] }));
   wasm.is_default_peq_for_device.mockReturnValue(false);
   wasm.build_init_packets.mockReturnValue([]);
   wasm.build_write_filter_packets.mockReturnValue([]);
@@ -215,7 +215,10 @@ describe("browser connection cleanup", () => {
     (device.sendReport as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
       new Error("transfer failed"),
     );
-    wasm.normalize_peq_for_device.mockReturnValue({ filters: [], global_gain: 0 });
+    wasm.normalize_peq_for_device.mockReturnValue({
+      peq: { filters: [], global_gain: 0 },
+      warnings: [],
+    });
     wasm.build_write_global_gain_packets.mockReturnValue([[1, 2]]);
 
     await expect(invoke("set_eq_state", { peq: peqWithBands(1) })).rejects.toThrow(
@@ -250,10 +253,13 @@ describe("browser EQ writes", () => {
     localStorageValues.set("glacier-eq-settings", JSON.stringify({ skip_push_verification: true }));
     const requested = peqWithBands(1);
     const normalized = { filters: [], global_gain: -4 };
-    wasm.normalize_peq_for_device.mockReturnValue(normalized);
+    wasm.normalize_peq_for_device.mockReturnValue({ peq: normalized, warnings: [] });
     wasm.build_write_global_gain_packets.mockReturnValue([[1, 2]]);
 
-    await expect(invoke<PEQData>("set_eq_state", { peq: requested })).resolves.toEqual(normalized);
+    await expect(invoke<PEQData>("set_eq_state", { peq: requested })).resolves.toEqual({
+      ...normalized,
+      warnings: [],
+    });
 
     expect(wasm.normalize_peq_for_device).toHaveBeenCalledWith(
       requested,
@@ -294,14 +300,38 @@ describe("browser EQ writes", () => {
     const device = fakeHidDevice();
     await connectWebHid(device);
     const normalized = { filters: [], global_gain: -3 };
-    wasm.normalize_peq_for_device.mockReturnValue(normalized);
+    wasm.normalize_peq_for_device.mockReturnValue({ peq: normalized, warnings: [] });
     wasm.build_ram_apply_packets.mockReturnValue([[1, 9]]);
 
-    await expect(invoke<PEQData>("apply_eq_state", { peq: peqWithBands(1) })).resolves.toEqual(normalized);
+    await expect(invoke<PEQData>("apply_eq_state", { peq: peqWithBands(1) })).resolves.toEqual({
+      ...normalized,
+      warnings: [],
+    });
 
     expect(wasm.build_write_global_gain_packets).toHaveBeenCalledWith(profile.protocol, -3);
     expect(wasm.build_ram_apply_packets).toHaveBeenCalledWith(profile.protocol);
     expect(device.sendReport).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns capability-clamp warnings on the push result instead of discarding them", async () => {
+    const device = fakeHidDevice();
+    await connectWebHid(device);
+    localStorageValues.set("glacier-eq-settings", JSON.stringify({ skip_push_verification: true }));
+    const clamps = ["Clamped preamp gain from 20.0 dB to 12.0 dB"];
+    wasm.normalize_peq_for_device.mockReturnValue({
+      peq: { filters: [], global_gain: 12 },
+      warnings: clamps,
+    });
+    wasm.build_write_global_gain_packets.mockReturnValue([[1, 2]]);
+
+    const result = await invoke<{ global_gain: number; warnings?: string[] }>("set_eq_state", {
+      peq: peqWithBands(1),
+    });
+
+    // The old path returned the bare PEQ: the clamp silently rewrote the
+    // value and the UI's "Saved EQ to DAC" was the only signal.
+    expect(result.warnings).toEqual(clamps);
+    expect(result.global_gain).toBe(12);
   });
 });
 

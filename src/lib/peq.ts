@@ -170,3 +170,15 @@ export function parseStoredPeqResponse(
   }
   return normalizePeq(value, options);
 }
+
+/**
+ * Pulls the capability-clamp warnings off a set/apply_eq_state response.
+ * The backends attach them next to the committed PEQ so a push that rewrote
+ * out-of-range values can be reported honestly. Malformed entries are
+ * dropped rather than failing a push that already succeeded on the device.
+ */
+export function extractPushWarnings(value: unknown): string[] {
+  const warnings = (value as { warnings?: unknown } | null | undefined)?.warnings;
+  if (!Array.isArray(warnings)) return [];
+  return warnings.filter((warning): warning is string => typeof warning === "string");
+}

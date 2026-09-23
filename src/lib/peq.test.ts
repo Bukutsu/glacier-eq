@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { DeviceCapabilities } from "../types";
 import {
+  extractPushWarnings,
   normalizePeq,
   parseStoredPeqResponse,
   buildDefaultState,
@@ -162,5 +163,25 @@ describe("parseStoredPeqResponse", () => {
     ["non-positive freq", { filters: [{ freq: 0, gain: 0, q: 1 }], global_gain: 0 }],
   ])("rejects %s", (_label, value) => {
     expect(() => parseStoredPeqResponse(value)).toThrow("invalid EQ state");
+  });
+});
+
+describe("extractPushWarnings", () => {
+  it("reads the clamp warnings off a push response", () => {
+    const warnings = ["Clamped preamp gain from 20.0 dB to 12.0 dB"];
+    expect(
+      extractPushWarnings({ filters: [], global_gain: 12, warnings }),
+    ).toEqual(warnings);
+  });
+
+  it("returns nothing for a clean push or a response without warnings", () => {
+    expect(extractPushWarnings({ filters: [], global_gain: 0 })).toEqual([]);
+    expect(extractPushWarnings(null)).toEqual([]);
+    expect(extractPushWarnings(undefined)).toEqual([]);
+    // A push that already succeeded must not be failed by garbage here.
+    expect(extractPushWarnings({ filters: [], global_gain: 0, warnings: "oops" })).toEqual([]);
+    expect(
+      extractPushWarnings({ filters: [], global_gain: 0, warnings: ["ok", 42, null] }),
+    ).toEqual(["ok"]);
   });
 });

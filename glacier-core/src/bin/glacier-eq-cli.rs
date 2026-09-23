@@ -543,12 +543,13 @@ fn normalize(path: &str, device_id: Option<&str>) -> Result<String, String> {
             let (vendor, product) = parse_usb_id(id)?;
             let profile = get_supported_device(vendor, product)
                 .ok_or_else(|| format!("unsupported USB device {id}"))?;
-            // Clamp on a clone for warnings, then run the same full
-            // normalization the push path uses so protocol preamp
-            // quantization (e.g. 0.1 dB steps) is reflected in the output.
-            let mut for_warnings = peq.clone();
-            warnings.extend(for_warnings.clamp_to_capabilities(&profile.caps));
-            normalize_peq_for_profile(peq, profile)?
+            // Same full normalization the push path uses — which now returns
+            // its clamp warnings directly, so the clone-for-warnings pass is
+            // gone. Protocol preamp quantization (e.g. 0.1 dB steps) is
+            // reflected in the output.
+            let (normalized, device_warnings) = normalize_peq_for_profile(peq, profile)?;
+            warnings.extend(device_warnings);
+            normalized
         }
     };
     for warning in warnings {

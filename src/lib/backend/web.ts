@@ -570,13 +570,27 @@ function activeProfileIds(profile: SupportedDeviceInfo): { vendorId: number; pro
   return { vendorId: profile.vendor_id, productId: profile.product_id };
 }
 
-function normalizeActivePeq(value: unknown, profile: SupportedDeviceInfo): PEQData {
+interface NormalizedPeqOutcome {
+  peq: unknown;
+  warnings?: unknown;
+}
+
+function normalizeActivePeq(
+  value: unknown,
+  profile: SupportedDeviceInfo,
+): { peq: PEQData; warnings: string[] } {
   const peq = parseStoredPeq(value);
   if (!peq) throw new Error("Invalid PEQ data");
   const { vendorId, productId } = activeProfileIds(profile);
-  const normalized = parseStoredPeq(wasm().normalize_peq_for_device(peq, vendorId, productId));
+  const outcome = wasm().normalize_peq_for_device(peq, vendorId, productId) as NormalizedPeqOutcome;
+  const normalized = parseStoredPeq(outcome?.peq);
   if (!normalized) throw new Error("Device normalization returned invalid PEQ data");
-  return normalized;
+  // Clamp warnings must survive to the invoke result: they are the only
+  // signal that the push rewrote out-of-range values.
+  const warnings = Array.isArray(outcome.warnings)
+    ? outcome.warnings.filter((warning): warning is string => typeof warning === "string")
+    : [];
+  return { peq: normalized, warnings };
 }
 
 function requireWalkplayUtilities(): SupportedDeviceInfo {
@@ -1095,14 +1109,14 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
     case "set_eq_state": {
       const profile = connectedProfile();
       const protocol = profile.protocol;
-      const peq = normalizeActivePeq(commandField(args, "peq"), profile);
+      const { peq, warnings } = normalizeActivePeq(commandField(args, "peq"), profile);
       const skipVerification = loadWebSettings().skip_push_verification;
 
       if (skipVerification) {
         await writeEqPayload(protocol, peq, "Initializing unverified push connection...");
         await commitEqPayload(protocol, "Committing unverified changes to device...");
         emitEvent("operation-progress", { message: "Write complete (unverified)", percentage: 100 });
-        return peq as T;
+        return { ...peq, warnings } as T;
       }
 
       const backup = await pullEqState(profile);
@@ -1127,7 +1141,7 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
       }
 
       emitEvent("operation-progress", { message: "Write complete", percentage: 100 });
-      return peq as T;
+      return { ...peq, warnings } as T;
     }
     case "apply_eq_state": {
       const profile = connectedProfile();
@@ -1136,7 +1150,7 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
       }
       const protocol = profile.protocol;
       const timing = wasm().get_write_timing(protocol);
-      const peq = normalizeActivePeq(commandField(args, "peq"), profile);
+      const { peq, warnings } = normalizeActivePeq(commandField(args, "peq"), profile);
       await writeEqPayload(protocol, peq, "Initializing apply connection...");
 
       // 4. apply to RAM
@@ -1147,7 +1161,7 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
       }
 
       emitEvent("operation-progress", { message: "Apply complete", percentage: 100 });
-      return peq as T;
+      return { ...peq, warnings } as T;
     }
 
     // ─── Walkplay Hardware controls ──────────────────────────────────────────

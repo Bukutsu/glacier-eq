@@ -20,6 +20,17 @@ struct OperationProgress {
     percentage: f32,
 }
 
+/// A completed EQ write: the committed state flattened so the response stays
+/// a valid PEQ document, plus the capability-clamp warnings from
+/// normalization — the UI must be able to tell the user their values were
+/// adjusted instead of claiming an unqualified "Saved EQ to DAC".
+#[derive(Clone, serde::Serialize)]
+pub struct EqWriteOutcome {
+    #[serde(flatten)]
+    committed: PEQData,
+    warnings: Vec<String>,
+}
+
 #[derive(Clone, serde::Serialize)]
 pub struct SupportedDeviceInfo {
     name: &'static str,
@@ -299,17 +310,21 @@ pub async fn set_eq_state(
     app: tauri::AppHandle,
     state: tauri::State<'_, Mutex<DeviceState>>,
     peq: PEQData,
-) -> Result<PEQData, String> {
+) -> Result<EqWriteOutcome, String> {
     let skip_verification = crate::settings::get_settings(app.clone())
         .await
         .unwrap_or_default()
         .skip_push_verification;
     with_session(&app, &state, move |session| {
-        if skip_verification {
-            session.unverified_push(peq)
+        let (committed, warnings) = if skip_verification {
+            session.unverified_push(peq)?
         } else {
-            session.persistent_push(peq)
-        }
+            session.persistent_push(peq)?
+        };
+        Ok(EqWriteOutcome {
+            committed,
+            warnings,
+        })
     })
     .await
 }
@@ -319,8 +334,15 @@ pub async fn apply_eq_state(
     app: tauri::AppHandle,
     state: tauri::State<'_, Mutex<DeviceState>>,
     peq: PEQData,
-) -> Result<PEQData, String> {
-    with_session(&app, &state, |session| session.apply_ram(peq)).await
+) -> Result<EqWriteOutcome, String> {
+    with_session(&app, &state, |session| {
+        let (committed, warnings) = session.apply_ram(peq)?;
+        Ok(EqWriteOutcome {
+            committed,
+            warnings,
+        })
+    })
+    .await
 }
 
 #[tauri::command]

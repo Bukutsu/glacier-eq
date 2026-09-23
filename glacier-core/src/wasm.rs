@@ -169,6 +169,14 @@ pub fn list_supported_devices() -> Result<JsValue, JsValue> {
     to_js_value(&list)
 }
 
+/// Normalization outcome for the web backend: the rewritten PEQ plus any
+/// capability-clamp warnings the user must see after a push.
+#[derive(serde::Serialize)]
+struct NormalizedPeq {
+    peq: PEQData,
+    warnings: Vec<String>,
+}
+
 #[wasm_bindgen]
 pub fn normalize_peq_for_device(
     peq_js: JsValue,
@@ -176,9 +184,11 @@ pub fn normalize_peq_for_device(
     product_id: u16,
 ) -> Result<JsValue, JsValue> {
     let peq: PEQData = serde_wasm_bindgen::from_value(peq_js).map_err(js_err)?;
-    let normalized =
+    let (peq, warnings) =
         crate::device::normalize_peq_for_device(peq, vendor_id, product_id).map_err(js_err)?;
-    to_js_value(&normalized)
+    // The warnings ride alongside the normalized PEQ: the web UI surfaces
+    // them after a push instead of silently altering the user's values.
+    to_js_value(&NormalizedPeq { peq, warnings })
 }
 
 #[wasm_bindgen]

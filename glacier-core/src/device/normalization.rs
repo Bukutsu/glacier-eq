@@ -7,7 +7,13 @@ use super::{get_supported_device, DeviceCapabilities, DeviceProfile, DeviceProto
 use crate::eq::PEQData;
 
 /// Validates and normalizes PEQ data for a device profile before a hardware write.
-pub fn normalize_peq_for_profile(peq: PEQData, profile: &DeviceProfile) -> Result<PEQData, String> {
+/// Returns the normalized PEQ together with every capability-clamp warning, so
+/// callers can tell the user their values were adjusted instead of the write
+/// silently changing the EQ.
+pub fn normalize_peq_for_profile(
+    peq: PEQData,
+    profile: &DeviceProfile,
+) -> Result<(PEQData, Vec<String>), String> {
     normalize_peq_for_capabilities(peq, &profile.caps, profile.protocol)
 }
 
@@ -17,7 +23,7 @@ pub fn normalize_peq_for_device(
     peq: PEQData,
     vendor_id: u16,
     product_id: u16,
-) -> Result<PEQData, String> {
+) -> Result<(PEQData, Vec<String>), String> {
     let profile = selected_profile(vendor_id, product_id)?;
     normalize_peq_for_profile(peq, profile)
 }
@@ -27,15 +33,17 @@ pub fn normalize_peq_for_capabilities(
     mut peq: PEQData,
     caps: &DeviceCapabilities,
     protocol: DeviceProtocol,
-) -> Result<PEQData, String> {
+) -> Result<(PEQData, Vec<String>), String> {
     validate_peq(&peq)?;
-    let _ = peq.clamp_to_capabilities(caps);
+    // The warnings are the whole point of returning them: discarding them
+    // here meant every push altered out-of-range values with no signal.
+    let warnings = peq.clamp_to_capabilities(caps);
     for (index, filter) in peq.filters.iter_mut().enumerate() {
         filter.index = index as u8;
     }
     peq.global_gain = quantize_preamp(peq.global_gain, protocol);
     validate_peq(&peq)?;
-    Ok(peq)
+    Ok((peq, warnings))
 }
 
 /// Uses the selected protocol's transient-default policy for a pulled device state.
@@ -95,7 +103,7 @@ mod tests {
     fn selected_device_normalization_clamps_and_canonicalizes_filters() {
         let mut disabled = filter();
         disabled.enabled = false;
-        let normalized = normalize_peq_for_device(
+        let (normalized, warnings) = normalize_peq_for_device(
             PEQData {
                 filters: vec![filter(), disabled],
                 global_gain: 20.0,
@@ -114,11 +122,22 @@ mod tests {
         assert_eq!(normalized.filters[0].filter_type, FilterType::Peak);
         assert_eq!(normalized.filters[1].gain, 0.0);
         assert_eq!(normalized.filters[4].index, 4);
+        // Every value above that got altered must be reported: the old code
+        // dropped these warnings at `let _ = clamp_to_capabilities`, so a
+        // push silently rewrote the user's EQ.
+        assert!(
+            !warnings.is_empty(),
+            "clamping must produce warnings for the caller to surface"
+        );
+        assert!(
+            warnings.iter().any(|warning| warning.contains("preamp")),
+            "the 20.0 dB preamp clamp must be among {warnings:?}"
+        );
     }
 
     #[test]
     fn tenth_db_protocol_rounds_half_steps_like_device_writes() {
-        let normalized = normalize_peq_for_device(
+        let (normalized, _warnings) = normalize_peq_for_device(
             PEQData {
                 filters: vec![],
                 global_gain: 0.05,

@@ -110,8 +110,10 @@ impl<'a> DeviceSession<'a> {
     }
 
     /// Normalizes before writing, snapshots, commits, verifies, and rolls back on failure.
-    pub fn persistent_push(&mut self, peq: PEQData) -> Result<PEQData, String> {
-        let normalized = self.normalize(peq)?;
+    /// Returns the committed PEQ plus the capability-clamp warnings, which
+    /// callers must surface — the clamp rewrites the user's values.
+    pub fn persistent_push(&mut self, peq: PEQData) -> Result<(PEQData, Vec<String>), String> {
+        let (normalized, warnings) = self.normalize(peq)?;
         let backup = self.pull()?;
         let attempt = (|| {
             self.write_to_ram(&normalized)
@@ -128,7 +130,7 @@ impl<'a> DeviceSession<'a> {
         match attempt {
             Ok(()) => {
                 self.progress("Push successful", 100.0);
-                Ok(normalized)
+                Ok((normalized, warnings))
             }
             Err(error) => Err(match self.restore_and_verify(&backup) {
                 Ok(()) => format!("{error}; previous state restored"),
@@ -147,15 +149,15 @@ impl<'a> DeviceSession<'a> {
 
     /// Writes persistently without a readback. Kept for the GUI's explicit
     /// skip-verification setting; CLI writes always use `persistent_push`.
-    pub fn unverified_push(&mut self, peq: PEQData) -> Result<PEQData, String> {
-        let normalized = self.normalize(peq)?;
+    pub fn unverified_push(&mut self, peq: PEQData) -> Result<(PEQData, Vec<String>), String> {
+        let (normalized, warnings) = self.normalize(peq)?;
         self.write_to_ram(&normalized)?;
         self.commit()?;
         self.progress("Push successful", 100.0);
-        Ok(normalized)
+        Ok((normalized, warnings))
     }
 
-    pub fn apply_ram(&mut self, peq: PEQData) -> Result<PEQData, String> {
+    pub fn apply_ram(&mut self, peq: PEQData) -> Result<(PEQData, Vec<String>), String> {
         validate_peq(&peq)?;
         if !self.profile.caps.supports_ram_apply {
             return Err(format!(
@@ -163,7 +165,7 @@ impl<'a> DeviceSession<'a> {
                 self.profile.name
             ));
         }
-        let normalized = self.normalize(peq)?;
+        let (normalized, warnings) = self.normalize(peq)?;
         self.write_to_ram(&normalized)?;
         for packet in self.protocol().ram_apply_packets() {
             self.send(&packet)?;
@@ -171,7 +173,7 @@ impl<'a> DeviceSession<'a> {
                 .sleep_ms(self.protocol().write_timing().commit_step_ms);
         }
         self.progress("Apply successful", 100.0);
-        Ok(normalized)
+        Ok((normalized, warnings))
     }
 
     pub fn firmware_version(&mut self) -> Result<Option<String>, String> {
@@ -333,7 +335,7 @@ impl<'a> DeviceSession<'a> {
         self.write_utility(WalkplayProtocol::build_factory_reset_packet())
     }
 
-    fn normalize(&self, peq: PEQData) -> Result<PEQData, String> {
+    fn normalize(&self, peq: PEQData) -> Result<(PEQData, Vec<String>), String> {
         normalize_peq_for_profile(peq, self.profile)
     }
 
@@ -1024,6 +1026,29 @@ mod tests {
                 .filter(|packet| packet.get(2) == Some(&super::super::walkplay::CMD_TEMP_WRITE))
                 .count(),
             2
+        );
+    }
+
+    #[test]
+    fn push_surfaces_capability_clamp_warnings_instead_of_discarding_them() {
+        let profile = get_supported_device(0x3302, 0x43e8).unwrap();
+        let mut io = FakeIo::default();
+
+        // 99 dB is far outside this profile's preamp range; the clamp must
+        // both rewrite the value AND report it. The old push path discarded
+        // the warnings at normalization, so "Saved EQ to DAC" hid a silent
+        // change to the user's EQ.
+        let (committed, warnings) = DeviceSession::new(&mut io, profile)
+            .unverified_push(PEQData {
+                filters: vec![],
+                global_gain: 99.0,
+            })
+            .unwrap();
+
+        assert_eq!(committed.global_gain, 6.0, "value must be clamped");
+        assert!(
+            warnings.iter().any(|warning| warning.contains("preamp")),
+            "clamp must be reported to the caller, got {warnings:?}"
         );
     }
 }

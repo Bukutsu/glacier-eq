@@ -57,10 +57,12 @@ fn peq_matches_profile(
     caps: &DeviceCapabilities,
     protocol: DeviceProtocol,
 ) -> bool {
-    let Ok(current) = normalize_peq_for_capabilities(current.clone(), caps, protocol) else {
+    let Ok((current, _warnings)) = normalize_peq_for_capabilities(current.clone(), caps, protocol)
+    else {
         return false;
     };
-    let Ok(profile) = normalize_peq_for_capabilities(profile.clone(), caps, protocol) else {
+    let Ok((profile, _warnings)) = normalize_peq_for_capabilities(profile.clone(), caps, protocol)
+    else {
         return false;
     };
     let current_filters = active_filters(&current, caps, protocol);
@@ -171,7 +173,7 @@ mod tests {
             global_gain: -3.3,
         };
 
-        let normalized = normalize_peq_for_capabilities(
+        let (normalized, _warnings) = normalize_peq_for_capabilities(
             saved.clone(),
             &DESKTOP_DAC_CAPS,
             DeviceProtocol::Moondrop,
