@@ -50,6 +50,12 @@ function normalizeFilterType(raw: unknown): FilterType {
   }
 }
 
+function isKnownFilterType(value: unknown): boolean {
+  if (typeof value !== "string") return false;
+  return ["lsq", "lsc", "ls", "lowshelf", "hsq", "hsc", "hs", "highshelf", "hp", "hpf", "highpass", "lp", "lpf", "lowpass", "pk", "peak"]
+    .includes(value.replace(/\s+/g, "").toLowerCase());
+}
+
 function numberOr(raw: unknown, fallback: number): number {
   const value = Number(raw);
   return Number.isFinite(value) ? value : fallback;
@@ -152,7 +158,10 @@ export function parseStoredPeqResponse(
   }
   const raw = value as { filters: unknown[]; global_gain?: unknown; globalGain?: unknown };
   const globalGain = raw.global_gain ?? raw.globalGain;
-  if (typeof globalGain !== "number" || !Number.isFinite(globalGain)) {
+  const globalAliasesConflict = raw.global_gain !== undefined
+    && raw.globalGain !== undefined
+    && raw.global_gain !== raw.globalGain;
+  if (globalAliasesConflict || typeof globalGain !== "number" || !Number.isFinite(globalGain)) {
     throw new Error("Device returned an invalid EQ state");
   }
   for (const filter of raw.filters) {
@@ -160,10 +169,21 @@ export function parseStoredPeqResponse(
       throw new Error("Device returned an invalid EQ state");
     }
     const f = filter as Record<string, unknown>;
+    const hasIndex = "index" in f;
+    const hasEnabled = "enabled" in f;
+    const hasFilterType = "filter_type" in f;
+    const hasType = "type" in f;
+    const filterAliasesConflict = hasFilterType && hasType
+      && normalizeFilterType(f.filter_type) !== normalizeFilterType(f.type);
+    const invalidType = (hasFilterType && !isKnownFilterType(f.filter_type))
+      || (hasType && !isKnownFilterType(f.type));
     if (
+      (hasIndex && (typeof f.index !== "number" || !Number.isInteger(f.index) || f.index < 0 || f.index > 255)) ||
+      (hasEnabled && typeof f.enabled !== "boolean") ||
+      invalidType || filterAliasesConflict ||
       typeof f.gain !== "number" || !Number.isFinite(f.gain) ||
       typeof f.q !== "number" || !Number.isFinite(f.q) || f.q <= 0 ||
-      typeof f.freq !== "number" || !(f.freq > 0)
+      typeof f.freq !== "number" || !Number.isFinite(f.freq) || !Number.isInteger(f.freq) || f.freq <= 0 || f.freq > 65_535
     ) {
       throw new Error("Device returned an invalid EQ state");
     }

@@ -161,6 +161,10 @@ describe("parseStoredPeqResponse", () => {
     ["non-numeric gain", { filters: [], global_gain: "0" }],
     ["non-positive q", { filters: [{ freq: 100, gain: 0, q: 0 }], global_gain: 0 }],
     ["non-positive freq", { filters: [{ freq: 0, gain: 0, q: 1 }], global_gain: 0 }],
+    ["infinite freq", { filters: [{ freq: Infinity, gain: 0, q: 1 }], global_gain: 0 }],
+    ["fractional freq", { filters: [{ freq: 100.5, gain: 0, q: 1 }], global_gain: 0 }],
+    ["invalid enabled", { filters: [{ enabled: "yes", freq: 100, gain: 0, q: 1 }], global_gain: 0 }],
+    ["unknown filter type", { filters: [{ filter_type: "bogus", freq: 100, gain: 0, q: 1 }], global_gain: 0 }],
   ])("rejects %s", (_label, value) => {
     expect(() => parseStoredPeqResponse(value)).toThrow("invalid EQ state");
   });
