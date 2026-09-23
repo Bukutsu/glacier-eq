@@ -26,6 +26,16 @@ export interface OnlineDevice {
 
 let pendingOpen: Promise<IDBDatabase> | null = null;
 
+// One shared connection for the module's lifetime. Every caller receives this
+// same handle and must NOT close it: a close by any caller would invalidate
+// the connection for every other user mid-transaction (the open/clear/read
+// overlap during a download's fetch gap is the reachable instance). The
+// handle is only released on versionchange/close or deleteDatabase().
+let sharedDb: IDBDatabase | null = null;
+// Bumped by deleteDatabase(): opens started before a delete must not publish
+// their pre-delete handle as the shared connection.
+let connectionEpoch = 0;
+
 function requestOpenDb(): Promise<IDBDatabase> {
   return new Promise<IDBDatabase>((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -50,7 +60,16 @@ function requestOpenDb(): Promise<IDBDatabase> {
         return;
       }
       settled = true;
-      db.onversionchange = () => db.close();
+      // Release the shared handle when the browser retires it (another
+      // context upgraded the DB, or the connection was dropped), so the next
+      // openDb() reconnects instead of handing out a dead connection.
+      db.onversionchange = () => {
+        if (sharedDb === db) sharedDb = null;
+        db.close();
+      };
+      db.onclose = () => {
+        if (sharedDb === db) sharedDb = null;
+      };
       resolve(db);
     };
     request.onupgradeneeded = () => {
@@ -87,7 +106,14 @@ export function isUnrecoverableDbError(error: unknown): boolean {
 }
 
 export function deleteDatabase(): Promise<void> {
+  // In-flight opens captured the pre-delete epoch; they close themselves
+  // instead of publishing a handle to a database that no longer exists.
+  connectionEpoch += 1;
   pendingOpen = null;
+  // Drop our own connection first so it cannot block the delete.
+  const previous = sharedDb;
+  sharedDb = null;
+  previous?.close();
   if (typeof indexedDB === "undefined" || typeof indexedDB.deleteDatabase !== "function") {
     return Promise.resolve();
   }
@@ -110,26 +136,51 @@ export function deleteDatabase(): Promise<void> {
 }
 
 export function openDb(): Promise<IDBDatabase> {
+  if (sharedDb) {
+    // `closed` is spec but missing from this project's DOM lib typing; it
+    // guards browsers that drop a connection without firing onclose.
+    const closed = (sharedDb as IDBDatabase & { closed?: boolean }).closed;
+    if (!closed) return Promise.resolve(sharedDb);
+    // The browser dropped the handle without an event; reconnect below.
+    sharedDb = null;
+  }
   if (pendingOpen) return pendingOpen;
 
   const attempt = (async () => {
+    let epoch = connectionEpoch;
+    let db: IDBDatabase;
     try {
-      return await requestOpenDb();
+      db = await requestOpenDb();
     } catch (error) {
-      if (isUnrecoverableDbError(error)) {
-        console.warn(
-          "IndexedDB online database cache is unreadable or incompatible; resetting database:",
-          error,
-        );
-        try {
-          await deleteDatabase();
-          return await requestOpenDb();
-        } catch (resetError) {
-          console.error("Failed to reset corrupted IndexedDB cache:", resetError);
-        }
+      if (!isUnrecoverableDbError(error)) {
+        throw error;
       }
-      throw error;
+      console.warn(
+        "IndexedDB online database cache is unreadable or incompatible; resetting database:",
+        error,
+      );
+      try {
+        await deleteDatabase();
+        epoch = connectionEpoch;
+        db = await requestOpenDb();
+      } catch (resetError) {
+        console.error("Failed to reset corrupted IndexedDB cache:", resetError);
+        throw error;
+      }
     }
+    if (epoch !== connectionEpoch) {
+      // deleteDatabase() ran while this open request was in flight; this
+      // handle belongs to the pre-delete database.
+      db.close();
+      throw new Error("Online database cache was deleted while opening");
+    }
+    if (sharedDb && sharedDb !== db) {
+      // A concurrent attempt already published the shared handle.
+      db.close();
+      return sharedDb;
+    }
+    sharedDb = db;
+    return db;
   })();
 
   pendingOpen = attempt;
@@ -144,23 +195,21 @@ function idbRequest<T>(request: IDBRequest<T>): Promise<T> {
 }
 
 async function isDatabaseDownloaded(): Promise<boolean> {
-  let db: IDBDatabase | undefined;
   try {
-    db = await openDb();
+    const db = await openDb();
     const store = db.transaction(STORE_NAME, "readonly").objectStore(STORE_NAME);
     return await idbRequest<unknown>(store.get("meta:complete")) === true;
   } catch {
     return false;
-  } finally {
-    db?.close();
   }
 }
 
 export async function clearCachedDatabase(): Promise<void> {
-  pendingOpen = null;
   let db: IDBDatabase;
   try {
-    db = await requestOpenDb();
+    // openDb() already recovers from an unreadable database by deleting and
+    // reopening it, so reaching here means a usable connection exists.
+    db = await openDb();
   } catch (openError) {
     if (isUnrecoverableDbError(openError)) {
       await deleteDatabase();
@@ -169,17 +218,13 @@ export async function clearCachedDatabase(): Promise<void> {
     throw openError;
   }
 
-  try {
-    await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction(STORE_NAME, "readwrite");
-      tx.objectStore(STORE_NAME).clear();
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
-      tx.onabort = () => reject(tx.error ?? new Error("Transaction aborted"));
-    });
-  } finally {
-    db.close();
-  }
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    tx.objectStore(STORE_NAME).clear();
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error ?? new Error("Transaction aborted"));
+  });
 }
 
 // One download at a time: closing and reopening the modal mid-download
@@ -206,22 +251,10 @@ export function subscribeToDatabaseDownload(
   progressListeners.add(onProgress);
   downloadInFlight ??= (async () => {
     try {
-      let db: IDBDatabase;
-      try {
-        db = await openDb();
-      } catch (openErr) {
-        if (isUnrecoverableDbError(openErr)) {
-          await deleteDatabase().catch(() => {});
-          db = await requestOpenDb();
-        } else {
-          throw openErr;
-        }
-      }
-      try {
-        return await downloadDatabaseWithDb(notifyProgress, undefined, db);
-      } finally {
-        db.close();
-      }
+      // openDb() owns the shared handle and its unrecoverable-error recovery;
+      // the handle must stay open for other readers during the whole download.
+      const db = await openDb();
+      return await downloadDatabaseWithDb(notifyProgress, undefined, db);
     } finally {
       // Reset even when openDb() rejects, or every later download would
       // await this failed promise forever.
@@ -376,44 +409,40 @@ export async function fetchJson(
 
 async function fetchManifest(): Promise<OnlineDevice[]> {
   const db = await openDb();
-  try {
-    const store = db.transaction(STORE_NAME, "readonly").objectStore(STORE_NAME);
-    const cached = await idbRequest<unknown>(store.get("meta:manifest"));
-    if (cached === undefined) {
-      throw new Error("Search manifest not cached. Please download the database.");
-    }
-    const data = parseOnlineManifest(cached);
-
-    const devices: OnlineDevice[] = [];
-    for (const [key, details] of Object.entries(data.iems)) {
-      const separator = key.indexOf("::");
-      const source = key.slice(0, separator);
-      const fullName = key.slice(separator + 2);
-
-      // Try to guess brand and model name
-      let brand = source;
-      let name = fullName;
-      const firstSpace = fullName.indexOf(" ");
-      if (firstSpace > 0) {
-        brand = fullName.substring(0, firstSpace);
-        name = fullName.substring(firstSpace + 1);
-      }
-
-      devices.push({
-        id: key,
-        brand,
-        name,
-        price: details.price,
-        source,
-      });
-    }
-
-    return devices.sort((a, b) =>
-      `${a.brand} ${a.name}`.localeCompare(`${b.brand} ${b.name}`),
-    );
-  } finally {
-    db.close();
+  const store = db.transaction(STORE_NAME, "readonly").objectStore(STORE_NAME);
+  const cached = await idbRequest<unknown>(store.get("meta:manifest"));
+  if (cached === undefined) {
+    throw new Error("Search manifest not cached. Please download the database.");
   }
+  const data = parseOnlineManifest(cached);
+
+  const devices: OnlineDevice[] = [];
+  for (const [key, details] of Object.entries(data.iems)) {
+    const separator = key.indexOf("::");
+    const source = key.slice(0, separator);
+    const fullName = key.slice(separator + 2);
+
+    // Try to guess brand and model name
+    let brand = source;
+    let name = fullName;
+    const firstSpace = fullName.indexOf(" ");
+    if (firstSpace > 0) {
+      brand = fullName.substring(0, firstSpace);
+      name = fullName.substring(firstSpace + 1);
+    }
+
+    devices.push({
+      id: key,
+      brand,
+      name,
+      price: details.price,
+      source,
+    });
+  }
+
+  return devices.sort((a, b) =>
+    `${a.brand} ${a.name}`.localeCompare(`${b.brand} ${b.name}`),
+  );
 }
 
 export function useOnlineDatabase(
@@ -527,34 +556,30 @@ async function loadDeviceCurvePoints(
   deviceId: string,
 ): Promise<MeasurementPoint[]> {
   const db = await openDb();
-  try {
-    // Cache contents came from a third-party source and may have been written
-    // by an older app version, so validate both records on every read.
-    const store = db.transaction(STORE_NAME, "readonly").objectStore(STORE_NAME);
-    const [cachedFrequencies, cachedValues] = await Promise.all([
-      idbRequest<unknown>(store.get("meta:frequencies")),
-      idbRequest<unknown>(store.get(deviceId)),
-    ]);
+  // Cache contents came from a third-party source and may have been written
+  // by an older app version, so validate both records on every read.
+  const store = db.transaction(STORE_NAME, "readonly").objectStore(STORE_NAME);
+  const [cachedFrequencies, cachedValues] = await Promise.all([
+    idbRequest<unknown>(store.get("meta:frequencies")),
+    idbRequest<unknown>(store.get(deviceId)),
+  ]);
 
-    if (cachedFrequencies === undefined || cachedValues === undefined) {
-      throw new Error(
-        "Curve not found in local cache. Please download the database.",
-      );
-    }
-
-    const frequencies = parseOnlineFrequencies(cachedFrequencies);
-    const dbValues = parseOnlineCurveValues(
-      cachedValues,
-      frequencies.length,
-      deviceId,
+  if (cachedFrequencies === undefined || cachedValues === undefined) {
+    throw new Error(
+      "Curve not found in local cache. Please download the database.",
     );
-    const points: MeasurementPoint[] = frequencies.map((freq, index) => ({
-      freq,
-      db: dbValues[index],
-    }));
-
-    return normalizeMeasurementPoints(points);
-  } finally {
-    db.close();
   }
+
+  const frequencies = parseOnlineFrequencies(cachedFrequencies);
+  const dbValues = parseOnlineCurveValues(
+    cachedValues,
+    frequencies.length,
+    deviceId,
+  );
+  const points: MeasurementPoint[] = frequencies.map((freq, index) => ({
+    freq,
+    db: dbValues[index],
+  }));
+
+  return normalizeMeasurementPoints(points);
 }

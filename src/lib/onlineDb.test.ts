@@ -36,7 +36,9 @@ class MockTransaction {
 function mockDatabase() {
   return {
     close: vi.fn(),
+    closed: false,
     onversionchange: null as ((event: Event) => void) | null,
+    onclose: null as ((event: Event) => void) | null,
   };
 }
 
@@ -44,9 +46,111 @@ function fire(handler: ((event: Event) => void) | null) {
   handler?.(new Event("mock"));
 }
 
+beforeEach(() => {
+  vi.restoreAllMocks();
+  // Release any shared handle or pending attempt left by the previous test:
+  // the connection is module-scoped, so without this every test would keep
+  // operating on the previous test's database.
+  vi.stubGlobal("indexedDB", {
+    deleteDatabase: vi.fn(() => ({
+      onsuccess: null as ((event: Event) => void) | null,
+      onerror: null as ((event: Event) => void) | null,
+      onblocked: null as ((event: Event) => void) | null,
+    })),
+  });
+  void deleteDatabase();
+});
+
 describe("openDb", () => {
-  beforeEach(() => {
-    vi.restoreAllMocks();
+  it("reuses one shared handle for every caller without closing it between uses", async () => {
+    const request = new MockOpenRequest();
+    const open = vi.fn(() => request);
+    vi.stubGlobal("indexedDB", { open });
+
+    const opening = openDb();
+    const database = mockDatabase();
+    request.result = database as unknown as IDBDatabase;
+    fire(request.onsuccess);
+
+    const first = await opening;
+    // The second caller joins the already-open connection instead of opening
+    // (and later closing) a second handle that would race the first user.
+    const second = await openDb();
+    expect(second).toBe(first);
+    expect(open).toHaveBeenCalledTimes(1);
+    expect(database.close).not.toHaveBeenCalled();
+
+    // Version change is the sanctioned close path — it also releases the
+    // shared handle so the next openDb() reconnects.
+    fire(database.onversionchange);
+    expect(database.close).toHaveBeenCalledOnce();
+
+    const secondRequest = new MockOpenRequest();
+    open.mockReturnValue(secondRequest);
+    const reopening = openDb();
+    const freshDatabase = mockDatabase();
+    secondRequest.result = freshDatabase as unknown as IDBDatabase;
+    fire(secondRequest.onsuccess);
+    await expect(reopening).resolves.toBe(freshDatabase);
+    expect(open).toHaveBeenCalledTimes(2);
+  });
+
+  it("reconnects after the browser drops the shared handle abnormally", async () => {
+    const request = new MockOpenRequest();
+    const open = vi.fn(() => request);
+    vi.stubGlobal("indexedDB", { open });
+
+    const opening = openDb();
+    const database = mockDatabase();
+    request.result = database as unknown as IDBDatabase;
+    fire(request.onsuccess);
+    await opening;
+
+    // onclose fires when the browser retires the connection without a
+    // version change; the dead handle must not be handed out again.
+    fire(database.onclose);
+
+    const secondRequest = new MockOpenRequest();
+    open.mockReturnValue(secondRequest);
+    const reopening = openDb();
+    const freshDatabase = mockDatabase();
+    secondRequest.result = freshDatabase as unknown as IDBDatabase;
+    fire(secondRequest.onsuccess);
+    await expect(reopening).resolves.toBe(freshDatabase);
+    expect(open).toHaveBeenCalledTimes(2);
+  });
+
+  it("closes an open that lands after deleteDatabase instead of publishing it", async () => {
+    const request = new MockOpenRequest();
+    const open = vi.fn(() => request);
+    vi.stubGlobal("indexedDB", {
+      open,
+      deleteDatabase: vi.fn(() => ({
+        onsuccess: null as ((event: Event) => void) | null,
+        onerror: null as ((event: Event) => void) | null,
+        onblocked: null as ((event: Event) => void) | null,
+      })),
+    });
+
+    const opening = openDb();
+    // The delete arrives while the open request is still in flight: the
+    // connection that lands belongs to the deleted database.
+    void deleteDatabase();
+    const database = mockDatabase();
+    request.result = database as unknown as IDBDatabase;
+    fire(request.onsuccess);
+
+    await expect(opening).rejects.toThrow("deleted while opening");
+    expect(database.close).toHaveBeenCalledOnce();
+
+    // The next open starts clean against the post-delete database.
+    const secondRequest = new MockOpenRequest();
+    open.mockReturnValue(secondRequest);
+    const reopening = openDb();
+    const freshDatabase = mockDatabase();
+    secondRequest.result = freshDatabase as unknown as IDBDatabase;
+    fire(secondRequest.onsuccess);
+    await expect(reopening).resolves.toBe(freshDatabase);
   });
 
   it("shares a blocked attempt until late success closes its unusable database", async () => {
@@ -197,7 +301,9 @@ describe("download subscriptions", () => {
     expect(firstProgress).toHaveBeenCalledWith(0.05);
     expect(removedProgress).not.toHaveBeenCalled();
     expect(fetchMock).toHaveBeenCalledOnce();
-    expect(database.close).toHaveBeenCalledOnce();
+    // The shared handle outlives the download — closing here would kill the
+    // connection under any concurrent reader.
+    expect(database.close).not.toHaveBeenCalled();
     first.unsubscribe();
   });
 });
@@ -229,10 +335,11 @@ describe("clearCachedDatabase", () => {
 
     fire(transaction.onabort);
     await expect(clearing).rejects.toThrow("Transaction aborted");
-    expect(database.close).toHaveBeenCalledOnce();
+    // Clearing uses the shared handle; it stays open for everyone else.
+    expect(database.close).not.toHaveBeenCalled();
   });
 
-  it("deletes the database when opening fails with an unrecoverable establishment error", async () => {
+  it("deletes and recovers when opening fails with an unrecoverable establishment error", async () => {
     const request = new MockOpenRequest();
     const open = vi.fn().mockReturnValue(request);
     const deleteRequest = {
@@ -251,6 +358,26 @@ describe("clearCachedDatabase", () => {
     expect(deleteDb).toHaveBeenCalledOnce();
     fire(deleteRequest.onsuccess);
 
+    // Let the recovery path re-arm the open request before its success
+    // lands — the second requestOpenDb() owns the resolving handlers now.
+    await Promise.resolve();
+
+    // The reopen after the reset succeeds and clearing proceeds on the
+    // recovered shared connection without ever closing it.
+    const transaction = new MockTransaction();
+    const database = {
+      close: vi.fn(),
+      closed: false,
+      onversionchange: null,
+      transaction: vi.fn(() => transaction),
+    };
+    request.result = database as unknown as IDBDatabase;
+    fire(request.onsuccess);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    fire(transaction.oncomplete);
     await expect(clearing).resolves.toBeUndefined();
+    expect(database.close).not.toHaveBeenCalled();
   });
 });
