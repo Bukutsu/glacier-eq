@@ -589,7 +589,8 @@ mod tests {
     #[test]
     fn bundled_rules_are_nonempty_and_tag_uaccess() {
         assert!(EXPECTED_RULES.contains("uaccess"));
-        assert!(EXPECTED_RULES.contains("MODE=\"0666\""));
+        assert!(!EXPECTED_RULES.contains("MODE=\"0666\""));
+        assert!(!EXPECTED_RULES.lines().any(|line| line.contains("MODE=")));
         assert!(EXPECTED_RULES.contains("idVendor"));
     }
 }
