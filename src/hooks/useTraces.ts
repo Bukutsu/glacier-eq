@@ -152,11 +152,39 @@ export function quarantineIfMalformed(
   }
 }
 
+export function savePersistedJson(
+  key: string,
+  value: unknown,
+  notify?: (message: string) => void,
+) {
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value));
+  } catch (error) {
+    // Storage may be full (private mode, quota). Fail soft rather than
+    // crashing the app — the in-memory state is still intact — but never
+    // silently: cross-session data loss must reach the user (the toast
+    // store dedupes repeated failures with the same message).
+    const quota =
+      error instanceof DOMException ||
+      (error as { name?: string } | null)?.name === "QuotaExceededError";
+    if (quota) {
+      console.warn(`localStorage quota exceeded while saving "${key}".`);
+      notify?.(
+        `Could not save "${key}" — storage is full. Recent changes may be lost when the app closes.`,
+      );
+    } else {
+      console.error(`Failed to save "${key}" to localStorage:`, error);
+      notify?.(`Could not save "${key}" to local storage: ${error}`);
+    }
+  }
+}
+
 function usePersistedJson(
   key: string,
   value: unknown,
   hydrated: boolean,
   delayMs = 0,
+  notify?: (message: string) => void,
 ) {
   // Latest save routine, so a pagehide flush always persists current state.
   // Keep it inert until hydration has completed so an early pagehide cannot
@@ -169,22 +197,7 @@ function usePersistedJson(
       return;
     }
 
-    const save = () => {
-      try {
-        window.localStorage.setItem(key, JSON.stringify(value));
-      } catch (error) {
-        // Storage may be full (private mode, quota). Fail soft rather than
-        // crashing the app — the in-memory state is still intact.
-        const quota =
-          error instanceof DOMException ||
-          (error as { name?: string } | null)?.name === "QuotaExceededError";
-        if (quota) {
-          console.warn(`localStorage quota exceeded while saving "${key}".`);
-        } else {
-          console.error(`Failed to save "${key}" to localStorage:`, error);
-        }
-      }
-    };
+    const save = () => savePersistedJson(key, value, notify);
     saveRef.current = save;
     if (delayMs <= 0) {
       save();
@@ -192,7 +205,7 @@ function usePersistedJson(
     }
     const timer = window.setTimeout(save, delayMs);
     return () => window.clearTimeout(timer);
-  }, [key, value, hydrated, delayMs]);
+  }, [key, value, hydrated, delayMs, notify]);
 
   // The debounce timer dies with the document before its callback runs, so
   // flush synchronously when the page is being hidden or unloaded.
@@ -238,7 +251,13 @@ export function useTraces(notify?: (message: string) => void) {
     setMeasurementsHydrated(true);
   }, []);
 
-  usePersistedJson("glacier-measurements", measurements, measurementsHydrated, 300);
+  usePersistedJson(
+    "glacier-measurements",
+    measurements,
+    measurementsHydrated,
+    300,
+    (msg) => notifyRef.current?.(msg),
+  );
 
   useEffect(() => {
     const targetsKey = "glacier-user-targets";
@@ -277,8 +296,20 @@ export function useTraces(notify?: (message: string) => void) {
     setTargetsHydrated(true);
   }, []);
 
-  usePersistedJson("glacier-user-targets", userTargets, targetsHydrated, 300);
-  usePersistedJson("glacier-active-targets", activeTargetIds, targetsHydrated, 300);
+  usePersistedJson(
+    "glacier-user-targets",
+    userTargets,
+    targetsHydrated,
+    300,
+    (msg) => notifyRef.current?.(msg),
+  );
+  usePersistedJson(
+    "glacier-active-targets",
+    activeTargetIds,
+    targetsHydrated,
+    300,
+    (msg) => notifyRef.current?.(msg),
+  );
 
   const addMeasurement = useCallback(
     (name: string, points: MeasurementTrace["points"]) => {
