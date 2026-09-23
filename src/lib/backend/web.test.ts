@@ -204,6 +204,30 @@ describe("browser connection cleanup", () => {
     await invoke("disconnect_device");
     expect(device.close).toHaveBeenCalledOnce();
   });
+
+  it("closes the WebHID handle when a send failure disconnects a present device", async () => {
+    const device = fakeHidDevice();
+    await connectWebHid(device);
+    localStorageValues.set("glacier-eq-settings", JSON.stringify({ skip_push_verification: true }));
+    // Transient send failure while the device is still enumerated (e.g. a USB
+    // glitch that recovers): the session ends, but the OS interface must be
+    // released — afterwards nothing can close this handle again.
+    (device.sendReport as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new Error("transfer failed"),
+    );
+    wasm.normalize_peq_for_device.mockReturnValue({ filters: [], global_gain: 0 });
+    wasm.build_write_global_gain_packets.mockReturnValue([[1, 2]]);
+
+    await expect(invoke("set_eq_state", { peq: peqWithBands(1) })).rejects.toThrow(
+      "transfer failed",
+    );
+
+    expect(device.close).toHaveBeenCalledOnce();
+    // A later disconnect is a no-op (activeDevice already null) — it must not
+    // close again, and the first close must not have been skipped.
+    await invoke("disconnect_device");
+    expect(device.close).toHaveBeenCalledOnce();
+  });
 });
 
 describe("browser profile matching", () => {

@@ -133,6 +133,16 @@ function markWebHidDisconnected(device?: HIDDevice) {
   const target = device || activeDevice;
   if (!activeDevice || (device && activeDevice !== device)) return;
   detachHidEventListeners(target);
+  // Release the OS-level interface now, because no path can after
+  // activeDevice is null: disconnect_device is a no-op without an active
+  // device, and connect_device only closes a previous device while it is
+  // still set. This function is the receiver of send failures on a device
+  // that is still present and enumerated, so without this close the opened
+  // handle — and the HID interface it claims — would strand for the rest of
+  // the page lifetime. Mirrors handle_disconnection's hid_close on the Rust
+  // side; failures are swallowed because the device may already be gone and
+  // the disconnect is reported regardless.
+  void target?.close().catch(() => {});
   // Structured identity lets listeners reject delayed events for a session
   // that has already been replaced.
   const payload = {
