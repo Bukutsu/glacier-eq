@@ -1,13 +1,19 @@
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   MATERIAL_YOU_VARS,
+  getMaterialYouColors,
   hexToRgb,
   materialYouToCssVars,
   type MaterialYouColors,
 } from "./materialYou";
+
+// rpc.ts pulls in the Vite-only backend alias; mocking it here keeps the
+// dynamic import inside getMaterialYouColors on the test's terms.
+const rpc = vi.hoisted(() => ({ invoke: vi.fn() }));
+vi.mock("./rpc", () => ({ invoke: rpc.invoke }));
 
 const DARK_SAMPLE: MaterialYouColors = {
   available: true,
@@ -160,5 +166,32 @@ describe("MATERIAL_YOU_VARS", () => {
     });
     expect(vars["--red"]).toBe("#aabb11");
     expect(vars["--crimson"]).toBe("#aabb11");
+  });
+});
+
+describe("getMaterialYouColors", () => {
+  it("logs the original error when the plugin invoke fails", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    rpc.invoke.mockRejectedValueOnce(new Error("plugin not registered"));
+
+    // Never rejects — callers fall back to the static theme — but the failure
+    // must be observable: useThemeSync's console.error sits in a .catch that
+    // can never fire, so this log is the only signal that the selected
+    // material-you setting silently diverged from the rendered theme.
+    await expect(getMaterialYouColors()).resolves.toBeNull();
+    expect(errorSpy).toHaveBeenCalledWith(
+      "Failed to read Material You colors:",
+      expect.objectContaining({ message: "plugin not registered" }),
+    );
+    errorSpy.mockRestore();
+  });
+
+  it("stays quiet for a legitimate unavailable response", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    rpc.invoke.mockResolvedValueOnce({ available: false, dark: false, palettes: {} });
+
+    await expect(getMaterialYouColors()).resolves.toBeNull();
+    expect(errorSpy).not.toHaveBeenCalled();
+    errorSpy.mockRestore();
   });
 });

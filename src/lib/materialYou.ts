@@ -312,7 +312,15 @@ export async function getMaterialYouColors(): Promise<MaterialYouColors | null> 
       await invoke<MaterialYouColors>("plugin:material-you|get_dynamic_colors");
     if (!colors || !colors.available) return null;
     return colors;
-  } catch {
+  } catch (error) {
+    // Never reject — callers treat null as "fall back to the static theme" —
+    // but an IPC/plugin failure must stay distinguishable from the
+    // legitimate `available: false` response: the console.error in
+    // useThemeSync sits in a .catch() that can never fire (this function
+    // swallows everything), so without this log an Android user whose
+    // material-you call fails gets a silent theme fallback while the
+    // settings panel still shows "material-you", with zero signal anywhere.
+    console.error("Failed to read Material You colors:", error);
     return null;
   }
 }
