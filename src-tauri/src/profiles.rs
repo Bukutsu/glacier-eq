@@ -76,11 +76,31 @@ pub async fn match_profile_name(
 }
 
 #[tauri::command]
-pub async fn list_profiles(app: tauri::AppHandle) -> Result<Vec<ProfileDto>, String> {
+pub async fn list_profiles(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Mutex<crate::diagnostics::DiagnosticsStore>>,
+) -> Result<Vec<ProfileDto>, String> {
     // Reads every profile file from disk; keep it off the IPC thread.
-    tauri::async_runtime::spawn_blocking(move || store(&app)?.list())
-        .await
-        .map_err(|e| e.to_string())?
+    let list_app = app.clone();
+    let (profiles, warnings) = tauri::async_runtime::spawn_blocking(move || {
+        let (profiles, warnings) = store(&list_app)?.list_detailed()?;
+        Ok::<_, String>((profiles, warnings))
+    })
+    .await
+    .map_err(|e| e.to_string())??;
+    // Files that failed to load used to disappear from the list with no
+    // signal anywhere; record each skip as a diagnostic so a profile the
+    // user still has on disk never silently vanishes from the UI.
+    for warning in warnings {
+        crate::diagnostics::record(
+            &app,
+            state.inner(),
+            crate::diagnostics::LogLevel::Warn,
+            crate::diagnostics::LogSource::Storage,
+            warning,
+        );
+    }
+    Ok(profiles)
 }
 
 #[tauri::command]

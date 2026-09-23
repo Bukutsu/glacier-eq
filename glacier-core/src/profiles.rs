@@ -66,8 +66,13 @@ impl ProfileStore {
         Ok(self.path(name)?.is_file())
     }
 
-    pub fn list(&self) -> Result<Vec<StoredProfile>, String> {
+    /// Reads every loadable profile together with warnings for each file
+    /// that was skipped or had values dropped. Callers must surface the
+    /// warnings — without them a broken file simply vanishes from the UI
+    /// with no console, log, or diagnostic anywhere.
+    pub fn list_detailed(&self) -> Result<(Vec<StoredProfile>, Vec<String>), String> {
         let mut profiles = Vec::new();
+        let mut warnings: Vec<String> = Vec::new();
         for entry in std::fs::read_dir(&self.dir)
             .map_err(|error| format!("Failed to read {}: {error}", self.dir.display()))?
         {
@@ -85,7 +90,9 @@ impl ProfileStore {
             if validate_name(name).is_err() {
                 continue;
             }
-            if let Some(profile) = read_profile(&path)? {
+            let (profile, mut file_warnings) = read_profile(&path)?;
+            warnings.append(&mut file_warnings);
+            if let Some(profile) = profile {
                 profiles.push(profile);
             }
         }
@@ -98,11 +105,18 @@ impl ProfileStore {
                 .then_with(|| left.name.cmp(&right.name))
         });
         profiles.dedup_by(|left, right| left.name.eq_ignore_ascii_case(&right.name));
-        Ok(profiles)
+        Ok((profiles, warnings))
+    }
+
+    pub fn list(&self) -> Result<Vec<StoredProfile>, String> {
+        Ok(self.list_detailed()?.0)
     }
 
     pub fn load(&self, name: &str) -> Result<StoredProfile, String> {
-        read_profile(&self.path(name)?)?.ok_or_else(|| format!("Profile not found: {name}"))
+        // read_profile already eprintlns its warnings; the CLI and library
+        // consumers see them on stderr without extra plumbing.
+        let (profile, _) = read_profile(&self.path(name)?)?;
+        profile.ok_or_else(|| format!("Profile not found: {name}"))
     }
 
     pub fn save(&self, name: &str, peq: &PEQData) -> Result<(), String> {
@@ -288,61 +302,110 @@ fn storage_capabilities(num_bands: usize) -> DeviceCapabilities {
     caps
 }
 
-fn read_profile(path: &Path) -> Result<Option<StoredProfile>, String> {
+/// One skipped-or-degraded file, surfaced on stderr so library and CLI
+/// consumers see it without extra plumbing.
+fn skip(path: &Path, reason: &str) -> Vec<String> {
+    let message = format!(
+        "Skipped profile {}: {reason}",
+        path.file_name().unwrap_or_default().to_string_lossy()
+    );
+    eprintln!("glacier-eq: {message}");
+    vec![message]
+}
+
+/// Reads one profile file. Every failure branch used to return a silent
+/// `Ok(None)`: the file disappeared from `list()` and the user believed the
+/// profile was deleted — permissions, non-UTF-8, oversize, and parse
+/// failures all left nothing in console, log, or diagnostics. Warnings now
+/// travel back to the caller (recorded as diagnostics by the app layer);
+/// `eprintln` covers `load()` and the CLI.
+fn read_profile(path: &Path) -> Result<(Option<StoredProfile>, Vec<String>), String> {
     if path.extension().and_then(|ext| ext.to_str()) != Some("txt") {
-        return Ok(None);
+        return Ok((None, Vec::new()));
     }
     let path_metadata = std::fs::symlink_metadata(path)
         .map_err(|error| format!("Failed to stat {}: {error}", path.display()))?;
     if !path_metadata.file_type().is_file() {
-        return Ok(None);
+        // Symlinked or directory entries are rejected by design (the loader
+        // never follows links); not an unexpected data loss.
+        return Ok((None, Vec::new()));
     }
     let file = match std::fs::File::open(path) {
         Ok(file) => file,
-        Err(_) => return Ok(None),
+        Err(error) => return Ok((None, skip(path, &format!("cannot be opened: {error}")))),
     };
     let metadata = match file.metadata() {
         Ok(metadata) if metadata.file_type().is_file() => metadata,
-        _ => return Ok(None),
+        Err(error) => return Ok((None, skip(path, &format!("cannot be read: {error}")))),
+        Ok(_) => return Ok((None, skip(path, "is not a regular file"))),
     };
     if metadata.len() > MAX_PROFILE_BYTES {
-        return Ok(None);
+        return Ok((
+            None,
+            skip(path, &format!("exceeds the {MAX_PROFILE_BYTES} byte limit")),
+        ));
     }
     let mut text = String::new();
     if file
         .take(MAX_PROFILE_BYTES + 1)
         .read_to_string(&mut text)
         .is_err()
-        || text.len() as u64 > MAX_PROFILE_BYTES
     {
-        return Ok(None);
+        return Ok((None, skip(path, "is not readable as UTF-8 text")));
     }
-    let (mut data, _, _) = match parse_autoeq_text(&text) {
-        Ok(profile) => profile,
-        Err(_) => return Ok(None),
+    if text.len() as u64 > MAX_PROFILE_BYTES {
+        return Ok((
+            None,
+            skip(path, &format!("exceeds the {MAX_PROFILE_BYTES} byte limit")),
+        ));
+    }
+    let (mut data, _headphone_name, parse_warnings) = match parse_autoeq_text(&text) {
+        Ok(parsed) => parsed,
+        Err(error) => return Ok((None, skip(path, &format!("failed to parse: {error}")))),
     };
+    let file_name = path
+        .file_name()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .into_owned();
+    let mut warnings: Vec<String> = parse_warnings
+        .into_iter()
+        .map(|warning| format!("Profile {file_name}: {warning}"))
+        .collect();
     // Enforce a hard filter-count ceiling so a malformed profile can't overflow
     // device band limits on apply.
     if data.filters.len() > MAX_FILTERS {
+        warnings.push(format!(
+            "Profile {file_name}: truncated {} filters to the {MAX_FILTERS} filter limit",
+            data.filters.len()
+        ));
         data.filters.truncate(MAX_FILTERS);
     }
     // Sanitize against the storage envelope, not one target device. The apply
     // and match paths perform target-specific clamping later.
     let caps = storage_capabilities(data.filters.len());
-    let _ = data.clamp_to_capabilities(&caps);
-    Ok(Some(StoredProfile {
-        name: path
-            .file_stem()
-            .and_then(|name| name.to_str())
-            .unwrap_or("Unnamed Profile")
-            .to_string(),
-        data,
-        modified: metadata
-            .modified()
-            .ok()
-            .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok())
-            .map(|duration| duration.as_secs()),
-    }))
+    for warning in data.clamp_to_capabilities(&caps) {
+        warnings.push(format!("Profile {file_name}: {warning}"));
+    }
+    for warning in &warnings {
+        eprintln!("glacier-eq: {warning}");
+    }
+    Ok((
+        Some(StoredProfile {
+            name: path
+                .file_stem()
+                .and_then(|name| name.to_str())
+                .unwrap_or("Unnamed Profile")
+                .to_string(),
+            data,
+            modified: metadata
+                .modified()
+                .ok()
+                .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok())
+                .map(|duration| duration.as_secs()),
+        }),
+        warnings,
+    ))
 }
 
 #[cfg(test)]
@@ -360,6 +423,49 @@ mod tests {
         ));
         std::fs::create_dir_all(&dir).unwrap();
         dir
+    }
+
+    #[test]
+    fn list_reports_broken_profile_files_instead_of_dropping_them_silently() {
+        let base = temporary_dir();
+        let store = ProfileStore::new(&base).unwrap();
+        let peq = PEQData {
+            filters: vec![crate::Filter::enabled(0, true)],
+            global_gain: -2.0,
+        };
+        store.save("Healthy", &peq).unwrap();
+        // Oversize: fails the byte limit before parsing is ever attempted.
+        std::fs::write(
+            store.directory().join("Oversize.txt"),
+            vec![b'x'; (MAX_PROFILE_BYTES + 1) as usize],
+        )
+        .unwrap();
+        // Too many lines: passes the byte limit, fails parse's line-count guard.
+        std::fs::write(
+            store.directory().join("TooManyLines.txt"),
+            "\n".repeat(4100),
+        )
+        .unwrap();
+
+        let (listed, warnings) = store.list_detailed().unwrap();
+
+        let names: Vec<&str> = listed.iter().map(|profile| profile.name.as_str()).collect();
+        assert_eq!(names, ["Healthy"]);
+        assert!(
+            warnings
+                .iter()
+                .any(|warning| warning.contains("Oversize.txt")),
+            "the oversize skip must be reported, got {warnings:?}"
+        );
+        assert!(
+            warnings
+                .iter()
+                .any(|warning| warning.contains("TooManyLines.txt")),
+            "the parse-failure skip must be reported, got {warnings:?}"
+        );
+        // The list() wrapper keeps its previous contract for every existing caller.
+        assert_eq!(store.list().unwrap().len(), 1);
+        std::fs::remove_dir_all(base).unwrap();
     }
 
     #[test]

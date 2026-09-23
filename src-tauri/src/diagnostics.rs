@@ -37,6 +37,10 @@ pub enum LogSource {
     HID,
     AutoEQ,
     Device,
+    /// Storage-layer problems (profile files skipped, quarantines): emitted
+    /// by the backend itself through [`record`] rather than reported by the
+    /// UI. The web backend's diagnostics parser accepts the same spelling.
+    Storage,
 }
 
 impl std::fmt::Display for LogSource {
@@ -47,6 +51,7 @@ impl std::fmt::Display for LogSource {
             LogSource::HID => write!(f, "HID"),
             LogSource::AutoEQ => write!(f, "AutoEQ"),
             LogSource::Device => write!(f, "Device"),
+            LogSource::Storage => write!(f, "Storage"),
         }
     }
 }
@@ -192,6 +197,31 @@ fn lock_store<'a, 'r>(
     state
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
+/// Records a problem the backend discovered itself — store, log file, and
+/// frontend event — for failures the UI cannot observe on its own (e.g. a
+/// profile file skipped during `list_profiles`). Unlike the
+/// `add_diagnostic_event` command, which reports the outcome of a UI action
+/// and must propagate its errors, this path is best-effort: a diagnostic
+/// that cannot be recorded must not fail the operation that found it.
+pub fn record(
+    app: &tauri::AppHandle,
+    store: &Mutex<DiagnosticsStore>,
+    level: LogLevel,
+    source: LogSource,
+    message: String,
+) {
+    let event = DiagnosticEvent::new(level, source, sanitize_message(message));
+    store
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .push(event.clone());
+    let log_app = app.clone();
+    let log_event = event.clone();
+    tauri::async_runtime::spawn_blocking(move || append_to_log(&log_app, &log_event));
+    use tauri::Emitter;
+    let _ = app.emit("diagnostic-event", event);
 }
 
 // --- Commands ---
