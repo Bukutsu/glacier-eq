@@ -108,6 +108,29 @@ describe("normalizePeq", () => {
         .enabled,
     ).toBe(true);
   });
+
+  it("keeps stored bands beyond the 10 defaults and pads up to num_bands", () => {
+    const stored = Array.from({ length: 24 }, (_, index) => ({
+      freq: 20 * (index + 1),
+      gain: 1,
+      q: 1,
+    }));
+    // A 24-band profile must survive load intact — the 10-band defaults are
+    // a floor, not a template that truncates stored data.
+    expect(normalizePeq({ filters: stored, global_gain: -3 }).filters).toHaveLength(24);
+    expect(normalizePeq({ filters: stored, global_gain: -3 }).filters[23].freq).toBe(480);
+
+    // And devices with more bands than the defaults get a full-size state.
+    const padded = normalizePeq({ filters: [{ freq: 31 }] }, {
+      capabilities: { ...CAPS, num_bands: 12 },
+    });
+    expect(padded.filters).toHaveLength(12);
+  });
+
+  it("clamps oversized filter lists to the 32-filter storage ceiling", () => {
+    const huge = Array.from({ length: 100 }, () => ({ freq: 1000, gain: 0, q: 1 }));
+    expect(normalizePeq({ filters: huge }).filters).toHaveLength(32);
+  });
 });
 
 describe("parseStoredPeqResponse", () => {
