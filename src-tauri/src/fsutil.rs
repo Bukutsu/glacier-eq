@@ -75,6 +75,74 @@ pub(crate) fn sweep_stale_temp_files(dir: &Path) {
     sweep_at(dir, SWEEP_DEPTH);
 }
 
+/// Where [`record_export_dir`] remembers local directories that received an
+/// `atomic_write` temp, relative to the app-data dir.
+const EXPORT_MANIFEST_FILE: &str = "export_dirs.txt";
+
+/// Bound on the recorded-directory manifest: keep the most recent entries.
+/// Covers a realistic set of export locations while keeping the startup
+/// sweep cheap and the file from growing without limit.
+const MAX_RECORDED_EXPORT_DIRS: usize = 100;
+
+/// Remembers the directory a local text export was written into so
+/// [`sweep_recorded_export_dirs`] can reclaim a crash orphan there on a
+/// later launch. Dialog-chosen and nested destinations can sit beyond
+/// [`SWEEP_DEPTH`] of any allowed base — or entirely outside the bases
+/// (an external drive) — where the base sweep never walks; without this
+/// record such an orphan was permanent litter. Only directories we
+/// ourselves wrote into are ever remembered. Best-effort: a failed record
+/// must never fail the export that triggered it.
+pub(crate) fn record_export_dir(appdata: &Path, written: &Path) {
+    let Some(dir) = written.parent() else {
+        return;
+    };
+    // Prefer the canonical path so `..` spellings of the same directory
+    // dedupe; fall back to the path as written if canonicalize fails.
+    let dir = fs::canonicalize(dir).unwrap_or_else(|_| dir.to_path_buf());
+    let dir = dir.to_string_lossy();
+    let manifest = appdata.join(EXPORT_MANIFEST_FILE);
+    let existing = fs::read_to_string(&manifest).unwrap_or_default();
+    let mut dirs: Vec<String> = existing.lines().map(str::to_string).collect();
+    if dirs.iter().any(|entry| entry == dir.as_ref()) {
+        return;
+    }
+    dirs.push(dir.into_owned());
+    if dirs.len() > MAX_RECORDED_EXPORT_DIRS {
+        let overflow = dirs.len() - MAX_RECORDED_EXPORT_DIRS;
+        dirs.drain(..overflow);
+    }
+    let contents = dirs.join("\n");
+    // atomic_write (not fs::write) so a crash mid-record cannot tear the
+    // manifest and lose every previously recorded directory.
+    if let Err(error) = atomic_write(&manifest, contents.as_bytes()) {
+        eprintln!(
+            "glacier-eq: cannot record export dir {}: {error}",
+            written.display()
+        );
+    }
+}
+
+/// Sweeps every directory [`record_export_dir`] remembered, at
+/// direct-children depth: the recorded dir is the exported file's own
+/// parent, so nested and outside-base destinations are covered by
+/// construction. A recorded dir that no longer exists (unplugged drive)
+/// is skipped silently by [`sweep_at`]'s `NotFound` handling, and the
+/// nonce-plus-age matcher still spares everything that is not a crash
+/// orphan.
+pub(crate) fn sweep_recorded_export_dirs(appdata: &Path) {
+    let manifest = appdata.join(EXPORT_MANIFEST_FILE);
+    let Ok(contents) = fs::read_to_string(&manifest) else {
+        return;
+    };
+    for line in contents.lines() {
+        let dir = line.trim();
+        if dir.is_empty() {
+            continue;
+        }
+        sweep_at(Path::new(dir), 0);
+    }
+}
+
 fn sweep_at(dir: &Path, depth: usize) {
     let entries = match fs::read_dir(dir) {
         Ok(entries) => entries,
@@ -232,5 +300,64 @@ mod tests {
     #[test]
     fn sweep_ignores_missing_directory() {
         sweep_stale_temp_files(Path::new("/definitely/not/a/real/dir/glacier-eq"));
+    }
+
+    #[test]
+    fn recorded_export_dirs_are_swept_even_outside_the_bases() {
+        let appdata = temporary_dir();
+        // A dialog-chosen destination no allowed-base sweep walks to.
+        let external = temporary_dir();
+        let orphan = external.join("Report.1700000000000000004.tmp");
+        fs::write(&orphan, b"x").unwrap();
+        set_stale(&orphan);
+        let fresh = external.join("Report.1700000000000000005.tmp");
+        fs::write(&fresh, b"x").unwrap();
+        fs::write(external.join("Report.txt"), b"keep").unwrap();
+
+        record_export_dir(&appdata, &external.join("Report.txt"));
+        // Recording the same destination again must not duplicate entries.
+        record_export_dir(&appdata, &external.join("Report.txt"));
+        sweep_recorded_export_dirs(&appdata);
+
+        assert!(
+            !orphan.exists(),
+            "a stale temp in a recorded dir must be swept"
+        );
+        assert!(fresh.exists(), "a fresh temp may be a sibling's live write");
+        assert!(external.join("Report.txt").exists());
+        let manifest = fs::read_to_string(appdata.join(EXPORT_MANIFEST_FILE)).unwrap();
+        assert_eq!(
+            manifest.lines().count(),
+            1,
+            "recordings dedupe, manifest: {manifest:?}"
+        );
+
+        let _ = fs::remove_dir_all(&appdata);
+        let _ = fs::remove_dir_all(&external);
+    }
+
+    #[test]
+    fn sweep_of_recorded_dirs_ignores_unrecorded_dirs_and_missing_drives() {
+        let appdata = temporary_dir();
+        let other = temporary_dir();
+        let orphan = other.join("Notes.1700000000000000006.tmp");
+        fs::write(&orphan, b"x").unwrap();
+        set_stale(&orphan);
+
+        // Only directories we recorded are ever swept: the sweep must not
+        // wander arbitrary user trees.
+        sweep_recorded_export_dirs(&appdata);
+        assert!(orphan.exists(), "unrecorded dirs are out of scope");
+
+        // A recorded dir that vanished (unplugged drive) is a silent no-op.
+        fs::write(
+            appdata.join(EXPORT_MANIFEST_FILE),
+            "/definitely/not/a/real/dir/glacier-eq",
+        )
+        .unwrap();
+        sweep_recorded_export_dirs(&appdata);
+
+        let _ = fs::remove_dir_all(&appdata);
+        let _ = fs::remove_dir_all(&other);
     }
 }

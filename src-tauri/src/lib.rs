@@ -137,6 +137,13 @@ async fn save_text_file(
         if !is_path_allowed(&app, &path) {
             return Err("Refused: file path is outside allowed directories".into());
         }
+        // Remember the destination dir first: if we crash between temp
+        // creation and rename, the orphan can only be reclaimed on a later
+        // launch when the dir is recorded — nested destinations sit beyond
+        // SWEEP_DEPTH of the base sweep.
+        if let Ok(appdata) = crate::profiles::app_data_base_dir(&app) {
+            crate::fsutil::record_export_dir(&appdata, Path::new(&path));
+        }
         crate::fsutil::atomic_write(Path::new(&path), content.as_bytes())?;
         // Resolve to the file name on success (matching save_text_file_dialog
         // and the web backend) so callers never read `null` as "cancelled".
@@ -184,7 +191,16 @@ fn write_selected_text(
     content: &[u8],
 ) -> Result<(), String> {
     match path {
-        FilePath::Path(path) => crate::fsutil::atomic_write(&path, content),
+        FilePath::Path(path) => {
+            // Dialog-chosen paths can lie outside every allowed base (an
+            // external drive) or nested deeper than the base sweep
+            // descends; record the dir so a crash orphan there is still
+            // reclaimed on a later launch.
+            if let Ok(appdata) = crate::profiles::app_data_base_dir(app) {
+                crate::fsutil::record_export_dir(&appdata, &path);
+            }
+            crate::fsutil::atomic_write(&path, content)
+        }
         path @ FilePath::Url(_) => {
             use std::io::Write;
 
@@ -395,6 +411,13 @@ pub fn run() {
             // this startup.
             for base in allowed_bases(app.handle()) {
                 fsutil::sweep_stale_temp_files(&base);
+            }
+            // Dialog-chosen and nested export directories are unreachable
+            // from any base at SWEEP_DEPTH (or outside the bases entirely);
+            // sweep the directories exports actually landed in, as
+            // recorded by fsutil::record_export_dir at write time.
+            if let Ok(appdata) = profiles::app_data_base_dir(app.handle()) {
+                fsutil::sweep_recorded_export_dirs(&appdata);
             }
             Ok(())
         })
