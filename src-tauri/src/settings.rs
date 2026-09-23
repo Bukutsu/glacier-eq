@@ -5,6 +5,7 @@ use crate::profiles::app_data_base_dir;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map as JsonMap, Value as JsonValue};
 use std::fs;
+use std::io::Write;
 use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock};
 
@@ -79,6 +80,14 @@ impl Default for Settings {
 
 static SETTINGS_SAVE_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
 
+fn with_settings_lock<T>(operation: impl FnOnce() -> T) -> T {
+    let _guard = SETTINGS_SAVE_LOCK
+        .get_or_init(|| Mutex::new(()))
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    operation()
+}
+
 fn settings_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     Ok(app_data_base_dir(app)?.join("settings.json"))
 }
@@ -96,11 +105,11 @@ pub async fn get_settings(app: tauri::AppHandle) -> Result<Settings, String> {
 }
 
 fn read_settings(path: &std::path::Path) -> Result<Settings, String> {
-    match fs::read_to_string(path) {
+    with_settings_lock(|| match fs::read_to_string(path) {
         Ok(content) => Ok(parse_settings(&content, path)),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(Settings::default()),
         Err(error) => Err(format!("Failed to read settings file: {error}")),
-    }
+    })
 }
 
 fn parse_settings(content: &str, path: &std::path::Path) -> Settings {
@@ -122,24 +131,50 @@ fn parse_settings(content: &str, path: &std::path::Path) -> Settings {
         // event) and log the parse error that used to be discarded.
         Err(error) => {
             eprintln!("glacier-eq: settings.json is unreadable; using defaults: {error}");
-            if let Err(backup_error) = quarantine_corrupt_settings(path, content) {
-                eprintln!("glacier-eq: failed to back up unreadable settings: {backup_error}");
+            if let Err(recovery_error) = recover_corrupt_settings(path, content) {
+                eprintln!("glacier-eq: failed to recover unreadable settings: {recovery_error}");
             }
             Settings::default()
         }
     }
 }
 
-/// Preserve the corrupt bytes beside the original before any save overwrites
-/// them. The `settings.json.bak.<epoch-ms>` name is not swept: the startup
-/// sweep only matches `.tmp` extensions.
+/// Preserve the corrupt bytes beside the original before replacing the
+/// primary. A single backup is retained for a settings path; repeated loads
+/// must not create an unbounded stream of identical quarantine files.
 fn quarantine_corrupt_settings(path: &std::path::Path, content: &str) -> Result<(), String> {
+    if let Some(parent) = path.parent() {
+        if let Ok(entries) = fs::read_dir(parent) {
+            if entries.flatten().any(|entry| {
+                entry
+                    .file_name()
+                    .to_string_lossy()
+                    .starts_with("settings.json.bak.")
+            }) {
+                return Ok(());
+            }
+        }
+    }
     let stamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_millis();
     let backup = path.with_file_name(format!("settings.json.bak.{stamp}"));
-    fs::write(&backup, content.as_bytes()).map_err(|e| e.to_string())
+    let mut file = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&backup)
+        .map_err(|e| e.to_string())?;
+    file.write_all(content.as_bytes())
+        .and_then(|_| file.sync_all())
+        .map_err(|e| e.to_string())
+}
+
+fn recover_corrupt_settings(path: &std::path::Path, content: &str) -> Result<(), String> {
+    quarantine_corrupt_settings(path, content)?;
+    let defaults = serde_json::to_vec_pretty(&Settings::default())
+        .map_err(|error| format!("Failed to serialize default settings: {error}"))?;
+    crate::fsutil::atomic_write(path, &defaults)
 }
 
 #[tauri::command]
@@ -152,11 +187,7 @@ pub async fn save_settings(app: tauri::AppHandle, settings: Settings) -> Result<
     tauri::async_runtime::spawn_blocking(move || {
         // Disk I/O (including sync_all) stays off the IPC thread so a slow
         // disk cannot freeze the UI.
-        let _guard = SETTINGS_SAVE_LOCK
-            .get_or_init(|| Mutex::new(()))
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
-        save_settings_sync(&path, &settings)
+        with_settings_lock(|| save_settings_sync(&path, &settings))
     })
     .await
     .map_err(|e| e.to_string())?
@@ -231,6 +262,9 @@ mod tests {
         let settings = read_settings(&path).expect("corrupt file must not hard-error");
         assert_eq!(settings.theme, default_theme());
         assert_eq!(settings.extra.len(), 0);
+        let repeated = read_settings(&path).expect("recovered settings must load");
+        assert_eq!(repeated.theme, default_theme());
+        assert!(serde_json::from_str::<Settings>(&fs::read_to_string(&path).unwrap()).is_ok());
 
         // The original bytes survive beside the file — without the quarantine
         // the directory would hold only settings.json, defaults-only.
