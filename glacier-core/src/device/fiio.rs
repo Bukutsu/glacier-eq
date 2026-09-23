@@ -195,6 +195,21 @@ impl EqProtocol for FiioProtocol {
         matches_response(data, FILTER_PARAMS, 8) && data[6] == index
     }
 
+    fn is_filter_response_valid(&self, data: &[u8], index: u8, nonce: u8) -> bool {
+        if !self.matches_filter_response(data, index, nonce) {
+            return false;
+        }
+        let raw_freq = u16::from_be_bytes([data[9], data[10]]);
+        let raw_q = u16::from_be_bytes([data[11], data[12]]);
+        let q = raw_q as f64 / 100.0;
+        raw_freq != 0
+            && raw_freq != u16::MAX
+            && raw_freq <= 20000
+            && raw_q != u16::MAX
+            && q > 0.0
+            && q <= 10.0
+    }
+
     fn parse_filter_response(&self, data: &[u8]) -> Option<Filter> {
         parse_filter_response(data)
     }

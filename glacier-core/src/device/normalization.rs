@@ -69,6 +69,49 @@ pub fn validate_peq(peq: &PEQData) -> Result<(), String> {
     Ok(())
 }
 
+pub(crate) fn validate_peq_for_capabilities(
+    peq: &PEQData,
+    caps: &DeviceCapabilities,
+) -> Result<(), String> {
+    validate_capabilities(caps)?;
+    validate_peq(peq)?;
+    let global_tolerance = 0.001;
+    if peq.global_gain < caps.global_gain_range.0 as f64 - global_tolerance
+        || peq.global_gain > caps.global_gain_range.1 as f64 + global_tolerance
+    {
+        return Err(format!(
+            "Pulled preamp {} dB is outside the device range",
+            peq.global_gain
+        ));
+    }
+    for (index, filter) in peq.filters.iter().enumerate() {
+        if filter.index as usize >= caps.num_bands
+            || !caps.supported_filter_types.contains(&filter.filter_type)
+        {
+            return Err(format!(
+                "Pulled band {} has unsupported metadata",
+                index + 1
+            ));
+        }
+        let freq_tolerance = caps.freq_tolerance as f64;
+        let gain_tolerance = caps.gain_tolerance.max(0.001);
+        let q_tolerance = caps.q_tolerance.max(0.001);
+        if (filter.freq as f64) < caps.freq_range.0 as f64 - freq_tolerance
+            || (filter.freq as f64) > caps.freq_range.1 as f64 + freq_tolerance
+            || filter.gain < caps.band_gain_range.0 - gain_tolerance
+            || filter.gain > caps.band_gain_range.1 + gain_tolerance
+            || filter.q < caps.q_range.0 - q_tolerance
+            || filter.q > caps.q_range.1 + q_tolerance
+        {
+            return Err(format!(
+                "Pulled band {} is outside device capabilities",
+                index + 1
+            ));
+        }
+    }
+    Ok(())
+}
+
 pub(crate) fn validate_capabilities(caps: &DeviceCapabilities) -> Result<(), String> {
     if caps.num_bands == 0 {
         return Err("Device must support at least one band".into());
@@ -218,6 +261,18 @@ mod tests {
         caps.q_range = (0.5, 3.0);
         caps.freq_range = (20_000, 20);
         assert!(normalize_peq_for_capabilities(peq, &caps, DeviceProtocol::Unknown).is_err());
+    }
+
+    #[test]
+    fn pulled_state_validation_rejects_out_of_capability_values() {
+        let caps = crate::device::capabilities::DESKTOP_DAC_CAPS;
+        let mut filter = filter();
+        filter.gain = 100.0;
+        let peq = PEQData {
+            filters: vec![filter],
+            global_gain: 0.0,
+        };
+        assert!(validate_peq_for_capabilities(&peq, &caps).is_err());
     }
 
     #[test]

@@ -30,6 +30,21 @@ impl EqProtocol for MoondropProtocol {
         data.len() >= 34 && data[0] == 0x80 && data[1] == 0x09 && data[4] == index
     }
 
+    fn is_filter_response_valid(&self, data: &[u8], index: u8, _nonce: u8) -> bool {
+        if !self.matches_filter_response(data, index, _nonce) {
+            return false;
+        }
+        let raw_freq = u16::from_le_bytes([data[27], data[28]]);
+        let raw_q = u16::from_le_bytes([data[29], data[30]]);
+        let q = raw_q as f64 / 256.0;
+        raw_freq != 0
+            && raw_freq != u16::MAX
+            && raw_freq <= 20000
+            && raw_q != u16::MAX
+            && q > 0.0
+            && q <= 10.0
+    }
+
     fn parse_filter_response(&self, data: &[u8]) -> Option<Filter> {
         if data.len() < 34 {
             return None;

@@ -8,8 +8,8 @@ use super::walkplay::{
     READ, WRITE,
 };
 use super::{
-    normalize_peq_for_profile, validate_peq, DeviceProfile, DeviceProtocol, EqProtocol, Packet,
-    WalkplayProtocol,
+    normalize_peq_for_profile, validate_peq, validate_peq_for_capabilities, DeviceProfile,
+    DeviceProtocol, EqProtocol, Packet, WalkplayProtocol,
 };
 use crate::eq::{Filter, PEQData};
 
@@ -67,6 +67,7 @@ pub struct DeviceSession<'a> {
     profile: &'static DeviceProfile,
     progress: Option<&'a mut ProgressCallback<'a>>,
     next_nonce: u8,
+    last_pull_had_invalid_response: bool,
 }
 
 impl<'a> DeviceSession<'a> {
@@ -77,6 +78,7 @@ impl<'a> DeviceSession<'a> {
             profile,
             progress: None,
             next_nonce: 0,
+            last_pull_had_invalid_response: false,
         }
     }
 
@@ -90,6 +92,7 @@ impl<'a> DeviceSession<'a> {
             profile,
             progress: Some(progress),
             next_nonce: 0,
+            last_pull_had_invalid_response: false,
         }
     }
 
@@ -104,6 +107,7 @@ impl<'a> DeviceSession<'a> {
     }
 
     pub fn pull(&mut self) -> Result<PEQData, String> {
+        self.last_pull_had_invalid_response = false;
         let protocol = self.protocol();
         match self.pull_once() {
             Ok(peq) if !protocol.is_default_state(&peq) => Ok(peq),
@@ -129,6 +133,10 @@ impl<'a> DeviceSession<'a> {
     pub fn persistent_push(&mut self, peq: PEQData) -> Result<(PEQData, Vec<String>), String> {
         let (normalized, warnings) = self.normalize(peq)?;
         let backup = self.pull()?;
+        if self.last_pull_had_invalid_response {
+            return Err("Cannot push while the device returned an invalid EQ response".into());
+        }
+        validate_peq_for_capabilities(&backup, &self.profile.caps)?;
         let attempt: Result<PEQData, String> = (|| {
             self.write_to_ram(&normalized)
                 .map_err(|error| format!("Push write failed: {error}"))?;
@@ -137,6 +145,13 @@ impl<'a> DeviceSession<'a> {
             self.io.sleep_ms(RETRY_DELAY_MS);
             let actual = self
                 .pull()
+                .map_err(|error| format!("Push verification failed: {error}"))?;
+            if self.last_pull_had_invalid_response {
+                return Err(
+                    "Push verification failed: device returned an invalid EQ response".into(),
+                );
+            }
+            validate_peq_for_capabilities(&actual, &self.profile.caps)
                 .map_err(|error| format!("Push verification failed: {error}"))?;
             compare_peq(&actual, &normalized, &self.profile.caps)
                 .map_err(|error| format!("Push verification failed: {error}"))?;
@@ -159,6 +174,10 @@ impl<'a> DeviceSession<'a> {
         self.commit()?;
         self.io.sleep_ms(RETRY_DELAY_MS);
         let actual = self.pull()?;
+        if self.last_pull_had_invalid_response {
+            return Err("Device returned an invalid EQ response during restore".into());
+        }
+        validate_peq_for_capabilities(&actual, &self.profile.caps)?;
         compare_peq(&actual, backup, &self.profile.caps)
     }
 
@@ -397,6 +416,9 @@ impl<'a> DeviceSession<'a> {
         let data = self.send_and_read("Filter", &request, FILTER_READ_ATTEMPTS, 0, |data| {
             protocol.matches_filter_response(data, index, nonce)
         })?;
+        if !protocol.is_filter_response_valid(&data, index, nonce) {
+            self.last_pull_had_invalid_response = true;
+        }
         protocol
             .parse_filter_response(&data)
             .ok_or_else(|| format!("Filter {} response could not be parsed", index + 1))
@@ -1093,6 +1115,54 @@ mod tests {
                 .count(),
             2
         );
+    }
+
+    #[test]
+    fn persistent_push_refuses_an_invalid_rollback_snapshot() {
+        let profile = get_supported_device(0x3302, 0x43e8).unwrap();
+        let mut io = FakeIo::default();
+        io.reads.push_back(vec![]); // init drain terminator
+        io.reads.push_back(vec![
+            READ,
+            super::super::walkplay::CMD_GLOBAL_GAIN,
+            0,
+            0,
+            0xFF,
+            0,
+        ]);
+        for index in 0..10u8 {
+            let mut packet = vec![0; 34];
+            packet[0] = READ;
+            packet[1] = super::super::walkplay::CMD_PEQ_VALUES;
+            packet[2] = index + 1;
+            packet[4] = index;
+            if index == 0 {
+                packet[27..29].copy_from_slice(&0u16.to_le_bytes());
+            } else {
+                packet[27..29].copy_from_slice(&(100 + index as u16).to_le_bytes());
+            }
+            packet[29..31].copy_from_slice(&256u16.to_le_bytes());
+            packet[31..33].copy_from_slice(&256i16.to_le_bytes());
+            packet[33] = 2;
+            io.reads.push_back(packet);
+        }
+
+        let error = DeviceSession::new(&mut io, profile)
+            .persistent_push(test_peq())
+            .unwrap_err();
+        assert!(error.contains("invalid EQ response"), "{error}");
+        assert_eq!(
+            io.writes
+                .iter()
+                .filter(|packet| packet.get(2) == Some(&super::super::walkplay::CMD_PEQ_VALUES))
+                .count(),
+            10
+        );
+        assert!(io
+            .writes
+            .iter()
+            .filter(|packet| packet.get(2) == Some(&super::super::walkplay::CMD_PEQ_VALUES))
+            .all(|packet| packet.get(1) == Some(&READ)));
     }
 
     #[test]

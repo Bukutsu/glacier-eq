@@ -200,6 +200,21 @@ pub fn convert_to_2byte_array(value: i32) -> [u8; 2] {
     [bytes[0], bytes[1]]
 }
 
+pub(crate) fn valid_filter_packet(packet: &[u8]) -> bool {
+    if packet.len() < FILTER_RESPONSE_MIN_LEN {
+        return false;
+    }
+    let raw_freq = u16::from_le_bytes([packet[OFFSET_FREQ_L], packet[OFFSET_FREQ_H]]);
+    let raw_q = u16::from_le_bytes([packet[OFFSET_Q_L], packet[OFFSET_Q_H]]);
+    let q = raw_q as f64 / 256.0;
+    raw_freq != 0
+        && raw_freq != u16::MAX
+        && raw_freq <= 24000
+        && raw_q != u16::MAX
+        && q > 0.0
+        && q <= 100.0
+}
+
 pub fn parse_filter_packet(packet: &[u8]) -> Option<Filter> {
     if packet.len() < FILTER_RESPONSE_MIN_LEN {
         return None;
@@ -213,11 +228,7 @@ pub fn parse_filter_packet(packet: &[u8]) -> Option<Filter> {
 
     // WalkPlay can return erased/uninitialized PEQ slots as zeroes or 0xffff.
     // Do not let those values enter the next push or verification cycle.
-    let invalid = raw_freq == 0
-        || raw_freq == u16::MAX
-        || raw_freq > 24000
-        || raw_q == u16::MAX
-        || !(q > 0.0 && q <= 100.0);
+    let invalid = !valid_filter_packet(packet);
     let (freq, q, gain, filter_type) = if invalid {
         (
             DEFAULT_FREQS_10_BAND

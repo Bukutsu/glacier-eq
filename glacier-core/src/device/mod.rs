@@ -17,6 +17,7 @@ pub mod timing;
 pub mod walkplay;
 
 pub use capabilities::{DeviceCapabilities, EditorCapabilities};
+pub(crate) use normalization::validate_peq_for_capabilities;
 pub use normalization::{
     is_default_peq_for_device, normalize_peq_for_capabilities, normalize_peq_for_device,
     normalize_peq_for_profile, validate_peq,

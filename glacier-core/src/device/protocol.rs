@@ -76,6 +76,9 @@ pub trait EqProtocol {
     fn init_packets(&self) -> Vec<Packet>;
     fn read_filter_request(&self, index: u8, nonce: u8) -> Packet;
     fn matches_filter_response(&self, data: &[u8], index: u8, nonce: u8) -> bool;
+    fn is_filter_response_valid(&self, data: &[u8], index: u8, nonce: u8) -> bool {
+        self.matches_filter_response(data, index, nonce)
+    }
     fn parse_filter_response(&self, data: &[u8]) -> Option<Filter>;
     fn read_global_gain_request(&self) -> Packet;
     fn matches_global_gain_response(&self, data: &[u8]) -> bool;
@@ -149,6 +152,11 @@ impl EqProtocol for DeviceProtocol {
     fn matches_filter_response(&self, data: &[u8], index: u8, nonce: u8) -> bool {
         self.implementation()
             .matches_filter_response(data, index, nonce)
+    }
+
+    fn is_filter_response_valid(&self, data: &[u8], index: u8, nonce: u8) -> bool {
+        self.implementation()
+            .is_filter_response_valid(data, index, nonce)
     }
 
     fn parse_filter_response(&self, data: &[u8]) -> Option<Filter> {
@@ -416,6 +424,11 @@ impl EqProtocol for WalkplayProtocol {
 
     fn matches_filter_response(&self, data: &[u8], index: u8, nonce: u8) -> bool {
         Self::matches_filter_response(data, index, nonce)
+    }
+
+    fn is_filter_response_valid(&self, data: &[u8], index: u8, nonce: u8) -> bool {
+        Self::matches_filter_response(data, index, nonce)
+            && crate::device::walkplay::valid_filter_packet(data)
     }
 
     fn parse_filter_response(&self, data: &[u8]) -> Option<Filter> {
