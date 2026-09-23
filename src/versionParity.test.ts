@@ -12,7 +12,13 @@ import { readFileSync } from "node:fs";
  */
 function packageTomlVersion(): string {
   const toml = readFileSync("src-tauri/Cargo.toml", "utf8");
-  const match = toml.match(/^\[package\]\s*[\s\S]*?^version = "([^"]+)"/m);
+  // Split before each line-start table header and pick the [package] one,
+  // so the version search cannot walk into a later table (a bare
+  // lazy [\s\S]*? span would accept `version = "..."` from [dependencies]).
+  const packageTable = toml
+    .split(/(?=^\[)/m)
+    .find((part) => part.startsWith("[package]"));
+  const match = packageTable?.match(/^version = "([^"]+)"$/m);
   if (!match) throw new Error("no version in Cargo.toml [package]");
   return match[1];
 }
@@ -37,5 +43,15 @@ describe("version parity", () => {
 
   it("src-tauri Cargo.toml [package] matches package.json", () => {
     expect(packageTomlVersion()).toBe(expected);
+  });
+
+  it("Cargo.lock root package matches package.json", () => {
+    // P2 round-5 probe: Cargo.lock is a second version source release
+    // tooling reads; it must not drift like package-lock did.
+    const cargoLock = readFileSync("Cargo.lock", "utf8");
+    const match = cargoLock.match(
+      /^\[\[package\]\]\s*name = "glacier-eq"\s*version = "([^"]+)"/m,
+    );
+    expect(match?.[1]).toBe(expected);
   });
 });
