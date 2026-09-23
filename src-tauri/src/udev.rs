@@ -15,8 +15,9 @@ use serde::Serialize;
 use std::path::PathBuf;
 #[cfg(target_os = "linux")]
 use std::{
-    io::Read,
+    io::{Read, Write},
     os::fd::AsRawFd,
+    os::unix::fs::{OpenOptionsExt, PermissionsExt},
     process::{Child, Command, ExitStatus, Stdio},
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -257,15 +258,66 @@ fn run_pkexec_script(script: &str, cancelled: &AtomicBool) -> Result<(), String>
 }
 
 #[cfg(target_os = "linux")]
+struct StagedRules {
+    dir: PathBuf,
+    file: PathBuf,
+}
+
+#[cfg(target_os = "linux")]
+impl Drop for StagedRules {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.file);
+        let _ = std::fs::remove_dir(&self.dir);
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn stage_rules() -> Result<StagedRules, String> {
+    for _ in 0..10 {
+        let nonce = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos();
+        let dir =
+            std::env::temp_dir().join(format!("glacier-eq-udev-{}-{nonce}", std::process::id()));
+        match std::fs::create_dir(&dir) {
+            Ok(()) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(error) => return Err(format!("Failed to create private rules directory: {error}")),
+        }
+        let dir_permissions = std::fs::Permissions::from_mode(0o700);
+        if let Err(error) = std::fs::set_permissions(&dir, dir_permissions) {
+            let _ = std::fs::remove_dir(&dir);
+            return Err(format!("Failed to secure private rules directory: {error}"));
+        }
+        let file = dir.join("rules");
+        let write_result = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .mode(0o600)
+            .open(&file)
+            .and_then(|mut output| {
+                output
+                    .write_all(EXPECTED_RULES.as_bytes())
+                    .and_then(|_| output.sync_all())
+            });
+        if let Err(error) = write_result {
+            let _ = std::fs::remove_file(&file);
+            let _ = std::fs::remove_dir(&dir);
+            return Err(format!("Failed to stage rules file: {error}"));
+        }
+        return Ok(StagedRules { dir, file });
+    }
+    Err("Failed to allocate a private rules staging directory".into())
+}
+
+#[cfg(target_os = "linux")]
 fn install_sync(cancelled: &AtomicBool) -> Result<(), String> {
     if !has_pkexec(cancelled) {
         return Err(pkexec_missing_error());
     }
-    let tmp: PathBuf =
-        std::env::temp_dir().join(format!("glacier-eq-udev-{}.rules", std::process::id()));
-    std::fs::write(&tmp, EXPECTED_RULES)
-        .map_err(|error| format!("Failed to stage rules file: {error}"))?;
-    let tmp_str = tmp.to_string_lossy().into_owned();
+    let staged = stage_rules()?;
+    let tmp_str = staged.file.to_string_lossy().into_owned();
     let quoted_tmp = shell_quote(&tmp_str)?;
     let quoted_dest = shell_quote(DEST_PATH)?;
     let quoted_legacy = shell_quote(LEGACY_DEST_PATH)?;
@@ -279,7 +331,7 @@ fn install_sync(cancelled: &AtomicBool) -> Result<(), String> {
          && udevadm trigger --subsystem-match=hidraw --action=change"
     );
     let result = run_pkexec_script(&script, cancelled);
-    let _ = std::fs::remove_file(&tmp);
+    drop(staged);
     result?;
     match std::fs::read_to_string(DEST_PATH) {
         Ok(content) if rules_match(&content, EXPECTED_RULES) => Ok(()),
@@ -487,6 +539,28 @@ mod tests {
         assert!(shell_quote("a'b").is_err());
         assert!(shell_quote("a\nb").is_err());
         assert!(shell_quote("").is_err());
+    }
+
+    #[test]
+    fn staged_rules_use_a_private_regular_file() {
+        let staged = stage_rules().unwrap();
+        let dir_mode = std::fs::metadata(&staged.dir).unwrap().permissions().mode() & 0o777;
+        let file_mode = std::fs::metadata(&staged.file)
+            .unwrap()
+            .permissions()
+            .mode()
+            & 0o777;
+        assert_eq!(dir_mode, 0o700);
+        assert_eq!(file_mode, 0o600);
+        assert!(std::fs::symlink_metadata(&staged.file)
+            .unwrap()
+            .file_type()
+            .is_file());
+        let dir = staged.dir.clone();
+        let file = staged.file.clone();
+        drop(staged);
+        assert!(!dir.exists());
+        assert!(!file.exists());
     }
 
     #[test]
