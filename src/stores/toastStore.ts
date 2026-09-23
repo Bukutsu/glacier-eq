@@ -43,12 +43,18 @@ export const useToastStore = create<ToastStore>()((set, get) => ({
     ) {
       toastType = "error";
     } else if (
-      lowerMessage.includes("successful") ||
-      lowerMessage.includes("synced") ||
-      lowerMessage.includes("loaded") ||
-      lowerMessage.includes("parsed") ||
-      lowerMessage.includes("deleted") ||
-      lowerMessage.includes("saved")
+      // An explicitly-typed error must not be downgraded by a success
+      // keyword later in the message ("...saved...", "...loaded..." — the
+      // round-3 recovery toast shipped misclassified because "downloaded"
+      // contains "loaded"). Promotion to success stays available for the
+      // default info path.
+      toastType !== "error" &&
+      (lowerMessage.includes("successful") ||
+        lowerMessage.includes("synced") ||
+        lowerMessage.includes("loaded") ||
+        lowerMessage.includes("parsed") ||
+        lowerMessage.includes("deleted") ||
+        lowerMessage.includes("saved"))
     ) {
       toastType = "success";
     }

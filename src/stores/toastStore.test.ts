@@ -45,4 +45,18 @@ describe("toastStore", () => {
     expect(toasts[toasts.length - 1].message).toBe("Failed operation 59");
     expect(toasts.every((toast) => toast.type === "error")).toBe(true);
   });
+
+  it("does not downgrade an explicitly-typed error on success keywords", () => {
+    // P1 probe-1 latent vector: App settings' load-failure status message
+    // contains "saved" — passing it with type "error" must stay an error,
+    // not become a green success banner.
+    useToastStore
+      .getState()
+      .addToast("Settings will not be saved until loading succeeds", "error");
+    expect(useToastStore.getState().toasts[0].type).toBe("error");
+
+    // Default info path keeps inferring success from the same keyword.
+    useToastStore.getState().addToast("Profile saved");
+    expect(useToastStore.getState().toasts[1].type).toBe("success");
+  });
 });
