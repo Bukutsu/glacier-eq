@@ -129,7 +129,7 @@ impl<'a> DeviceSession<'a> {
     pub fn persistent_push(&mut self, peq: PEQData) -> Result<(PEQData, Vec<String>), String> {
         let (normalized, warnings) = self.normalize(peq)?;
         let backup = self.pull()?;
-        let attempt = (|| {
+        let attempt: Result<PEQData, String> = (|| {
             self.write_to_ram(&normalized)
                 .map_err(|error| format!("Push write failed: {error}"))?;
             self.commit()
@@ -139,12 +139,13 @@ impl<'a> DeviceSession<'a> {
                 .pull()
                 .map_err(|error| format!("Push verification failed: {error}"))?;
             compare_peq(&actual, &normalized, &self.profile.caps)
-                .map_err(|error| format!("Push verification failed: {error}"))
+                .map_err(|error| format!("Push verification failed: {error}"))?;
+            Ok(actual)
         })();
         match attempt {
-            Ok(()) => {
+            Ok(actual) => {
                 self.progress("Push successful", 100.0);
-                Ok((normalized, warnings))
+                Ok((actual, warnings))
             }
             Err(error) => Err(match self.restore_and_verify(&backup) {
                 Ok(()) => format!("{error}; previous state restored"),
@@ -1092,6 +1093,26 @@ mod tests {
                 .count(),
             2
         );
+    }
+
+    #[test]
+    fn persistent_push_returns_the_verified_quantized_state() {
+        let profile = get_supported_device(0x3302, 0x43e8).unwrap();
+        let mut io = FakeIo::default();
+        queue_pull(&mut io, -1); // snapshot
+        io.reads.push_back(vec![]); // push init drain
+        queue_pull_with_nonce_start(&mut io, -1, 11); // verification readback
+
+        let mut requested = test_peq();
+        for filter in &mut requested.filters {
+            filter.gain = 1.004;
+        }
+        let (committed, _warnings) = DeviceSession::new(&mut io, profile)
+            .persistent_push(requested)
+            .unwrap();
+
+        assert_eq!(committed.filters[0].gain, 1.0);
+        assert!(committed.filters.iter().all(|filter| filter.gain == 1.0));
     }
 
     #[test]
