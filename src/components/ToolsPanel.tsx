@@ -148,6 +148,7 @@ export const ToolsPanel = memo(function ToolsPanel(props: ToolsPanelProps) {
           )}
           {tab === "Device" && (
             <DeviceView
+              key={`${props.connected ? "connected" : "offline"}:${props.deviceInfo?.path ?? "none"}`}
               connected={!!props.connected}
               isSimulated={props.isSimulated}
               deviceInfo={props.deviceInfo}

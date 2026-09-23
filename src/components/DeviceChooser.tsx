@@ -10,7 +10,7 @@ import type { DeviceInfo, SupportedDeviceInfo } from "../types";
 interface DeviceChooserProps {
   devices: DeviceInfo[];
   onScan: () => void | Promise<void>;
-  onConnect: (targetPath?: string) => void | Promise<unknown>;
+  onConnect: (targetPath?: string, target?: DeviceInfo) => void | Promise<unknown>;
   selectedDevice: string;
   setSelectedDevice: (path: string) => void;
   status: string;
@@ -96,7 +96,7 @@ export function DeviceChooser({
                 onClick={() => setSelectedDevice(device.path)}
                 onDoubleClick={() => {
                   setSelectedDevice(device.path);
-                  onConnect(device.path);
+                  onConnect(device.path, device);
                 }}
               >
                 <span className="device-row-title">

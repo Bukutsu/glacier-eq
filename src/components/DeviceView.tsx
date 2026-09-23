@@ -103,10 +103,11 @@ export const DeviceView = memo(function DeviceView({
   };
 
   useEffect(() => {
+    setUtility(null);
+    utilityRef.current = null;
+    confirmedUtilityRef.current = null;
+    fieldRevisionsRef.current = {};
     if (!connected) {
-      setUtility(null);
-      utilityRef.current = null;
-      confirmedUtilityRef.current = null;
       setLoading(false);
       return;
     }
@@ -142,7 +143,7 @@ export const DeviceView = memo(function DeviceView({
       scheduleUtilityTask.invalidate();
       if (unlisten) unlisten();
     };
-  }, [connected]);
+  }, [connected, deviceInfo?.path]);
 
   const setUtilityField = async <K extends keyof DeviceUtilityState>(
     field: K,

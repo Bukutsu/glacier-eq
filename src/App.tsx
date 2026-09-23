@@ -49,6 +49,7 @@ import { createSettingsPersistence } from "./lib/settingsPersistence";
 import { restoreHistorySnapshot } from "./lib/restoredHistory";
 import { parseAutoEqResult } from "./lib/parsedAutoEq";
 import type {
+  DeviceCapabilities,
   DeviceInfo,
   Filter,
   GraphViewMode,
@@ -189,6 +190,11 @@ function App() {
   const reconnectCancelRef = useRef<HTMLButtonElement>(null);
   const reconnectEffectGenerationRef = useRef(0);
   const manualDisconnectRef = useRef(false);
+  const pullEqRef = useRef<(
+    afterConnect?: boolean,
+    targetPath?: string,
+    targetCapabilities?: DeviceCapabilities,
+  ) => Promise<boolean>>(async () => false);
   const lastConnectedNameRef = useRef<string>("");
 
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
@@ -862,8 +868,26 @@ function App() {
             lastConnectedNameRef.current = devName;
             setLastPushedPeq(null);
             const connectionGeneration = connectionGenerationRef.current;
+            if (settings.auto_pull_on_connect) {
+              await pullEqRef.current(true, found.path, found);
+            } else {
+              const constrained = normalizePeq(peqRef.current, {
+                integerPreamp: found.integer_preamp,
+                capabilities: found,
+              });
+              if (!peqEquals(constrained, peqRef.current)) {
+                pushToUndoStack(peqRef.current);
+                setPeq(constrained);
+                noteEditorMutation();
+                setDirty(!peqEquals(constrained, editorCleanPeqRef.current));
+                reportStatus("Info", "Adjusted editor to this DAC's ranges", "info", "Device");
+              }
+            }
             await loadFirmwareVersion(found.path, connectionGeneration);
-            if (!isCurrent() || connectionGenerationRef.current !== connectionGeneration) return;
+            if (
+              connectionGenerationRef.current !== connectionGeneration
+              || connectedPathRef.current !== found.path
+            ) return;
             setIsReconnecting(false);
             reportStatus("Info", `Connected to ${devName}`, "success", "Device", "Ready");
             return;
@@ -899,9 +923,13 @@ function App() {
       if (timerId) clearTimeout(timerId);
       document.removeEventListener("visibilitychange", handleVisibility);
     };
-  }, [connected, connectedDeviceName, selectedDevice, isBusy, loadFirmwareVersion, reportStatus, setConnected]);
+  }, [connected, connectedDeviceName, selectedDevice, isBusy, loadFirmwareVersion, pushToUndoStack, noteEditorMutation, reportStatus, setConnected, settings.auto_pull_on_connect]);
 
-  const pullEq = useCallback(async (afterConnect = false): Promise<boolean> => {
+  const pullEq = useCallback(async (
+    afterConnect = false,
+    targetPath = selectedDevice,
+    targetCapabilities = selectedCapabilities,
+  ): Promise<boolean> => {
     if (!connected && !afterConnect) {
       setStatus("Connect a DAC before reading its EQ.");
       return false;
@@ -922,7 +950,7 @@ function App() {
     const isCurrentPull = () => asyncContextEquals(context, getAsyncContext());
     try {
       let data: PEQData;
-      if (isDevDummyDevice(selectedDevice)) {
+      if (isDevDummyDevice(targetPath)) {
         setProgress({
           message: "Initializing read connection...",
           percentage: 5,
@@ -946,7 +974,7 @@ function App() {
         await sleep(400);
       }
       if (!isCurrentPull()) return false;
-      const normalized = normalizePeq(data, { integerPreamp: selectedCapabilities.integer_preamp, capabilities: selectedCapabilities });
+      const normalized = normalizePeq(data, { integerPreamp: targetCapabilities.integer_preamp, capabilities: targetCapabilities });
       const matchedProfile = await resolvePulledProfile(
         normalized,
         (peq) => invoke<string | null>("match_profile_name", { peq }),
@@ -967,7 +995,7 @@ function App() {
       emit("device-pull").catch((err) => console.error("Failed to emit device-pull:", err));
       reportStatus(
         "Info",
-        isDevDummyDevice(selectedDevice)
+        isDevDummyDevice(targetPath)
           ? "Loaded dummy DAC EQ"
           : "Loaded EQ from DAC",
         "success",
@@ -996,10 +1024,16 @@ function App() {
     }
   }, [connected, dirty, pushToUndoStack, selectedDevice, selectedCapabilities, reportStatus, setStatus, getAsyncContext, noteEditorMutation]);
 
-  const connectDevice = useCallback(async (targetPath?: string): Promise<boolean> => {
+  useEffect(() => {
+    pullEqRef.current = pullEq;
+  }, [pullEq]);
+
+  const connectDevice = useCallback(async (targetPath?: string, targetInfo?: DeviceInfo): Promise<boolean> => {
     manualDisconnectRef.current = false;
     const pathToConnect = targetPath || selectedDevice;
     if (!pathToConnect) return false;
+    const resolvedTarget = targetInfo ?? devices.find((device) => device.path === pathToConnect);
+    const targetCapabilities = resolvedTarget ?? selectedCapabilities;
     if (pathToConnect !== selectedDevice) {
       setSelectedDevice(pathToConnect);
     }
@@ -1011,7 +1045,7 @@ function App() {
         setConnectedDeviceName("Glacier Dummy DAC");
         lastConnectedNameRef.current = "Glacier Dummy DAC";
         reportStatus("Info", "Connected to dummy DAC", "success", "UI", "Connected to dummy DAC");
-        await pullEq(true);
+        await pullEq(true, pathToConnect, targetCapabilities);
         await loadFirmwareVersion(pathToConnect, connectionGenerationRef.current);
         return true;
       }
@@ -1021,7 +1055,7 @@ function App() {
       setLastPushedPeq(null);
       
       let devName = "";
-      const devInfo = devices.find((d) => d.path === pathToConnect) ?? selectedDeviceInfo;
+      const devInfo = resolvedTarget ?? selectedDeviceInfo;
       if (devInfo) {
         devName = devInfo.profile_name ?? devInfo.product_string ?? "";
         setConnectedDeviceName(devName);
@@ -1031,11 +1065,11 @@ function App() {
       reportStatus("Info", `Connected to device: ${devName}`, "success", "UI", "Ready");
 
       if (settings.auto_pull_on_connect) {
-        await pullEq(true);
+        await pullEq(true, pathToConnect, targetCapabilities);
       } else {
         const constrained = normalizePeq(peqRef.current, {
-          integerPreamp: selectedCapabilities.integer_preamp,
-          capabilities: selectedCapabilities,
+          integerPreamp: targetCapabilities.integer_preamp,
+          capabilities: targetCapabilities,
         });
         if (!peqEquals(constrained, peqRef.current)) {
           pushToUndoStack(peqRef.current);
@@ -1069,7 +1103,7 @@ function App() {
     } finally {
       setIsBusy(false);
     }
-  }, [selectedDevice, pullEq, selectedDeviceInfo, selectedCapabilities, pushToUndoStack, loadFirmwareVersion, reportStatus, settings.auto_pull_on_connect, noteEditorMutation]);
+  }, [devices, selectedDevice, pullEq, selectedDeviceInfo, selectedCapabilities, pushToUndoStack, loadFirmwareVersion, reportStatus, settings.auto_pull_on_connect, noteEditorMutation]);
 
   const handleUdevInstalled = useCallback(async (): Promise<string | null> => {
     manualDisconnectRef.current = false;
@@ -1081,7 +1115,7 @@ function App() {
       if (target) {
         selectedDeviceRef.current = target.path;
         setSelectedDevice(target.path);
-        const ok = await connectDevice(target.path);
+        const ok = await connectDevice(target.path, target);
         if (ok) {
           const devName = target.profile_name || target.product_string || "DAC";
           setConnectedDeviceName(devName);
@@ -1420,8 +1454,8 @@ function App() {
     noteEditorMutation();
     setDirty(!peqEquals(next, editorCleanPeqRef.current));
   }, [noteEditorMutation]);
-  const handleConnectDevice = useCallback(async (targetPath?: string) => {
-    if (await connectDevice(targetPath)) {
+  const handleConnectDevice = useCallback(async (targetPath?: string, target?: DeviceInfo) => {
+    if (await connectDevice(targetPath, target)) {
       handleCloseDeviceModal();
     }
   }, [connectDevice, handleCloseDeviceModal]);
@@ -1429,12 +1463,16 @@ function App() {
     setGraphCollapsed((v) => !v);
   }, []);
   const handleCancelReconnection = useCallback(() => {
+    manualDisconnectRef.current = true;
+    reconnectEffectGenerationRef.current += 1;
+    setConnectedDeviceName("");
+    lastConnectedNameRef.current = "";
     setConnected(false);
     setIsReconnecting(false);
     setLastPushedPeq(null);
     setShowDeviceModal(true);
     setStatus("Disconnected");
-  }, [setStatus]);
+  }, [setConnected, setStatus]);
 
   const undoRedoRef = useRef({
     undo,
@@ -1788,6 +1826,7 @@ function App() {
             {activeTab === "device" && (
               <section className="left-pane">
                 <DeviceView
+                  key={`${connected ? "connected" : "offline"}:${selectedDevice}`}
                   connected={connected}
                   isSimulated={isDevDummyDevice(selectedDevice)}
                   deviceInfo={selectedDeviceInfo}
