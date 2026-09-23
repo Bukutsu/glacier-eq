@@ -21,6 +21,14 @@ const UTILITY_READ_RETRIES: usize = 3;
 const WRITE_ATTEMPTS: usize = 3;
 const RETRY_DELAY_MS: u64 = 100;
 
+fn combine_errors(first: String, retry: String) -> String {
+    if first == retry {
+        first
+    } else {
+        format!("{first}; retry failed: {retry}")
+    }
+}
+
 pub trait DeviceIo {
     fn write(&mut self, data: &[u8]) -> Result<(), String>;
     fn read(&mut self, timeout_ms: i32) -> Result<Vec<u8>, String>;
@@ -97,19 +105,22 @@ impl<'a> DeviceSession<'a> {
 
     pub fn pull(&mut self) -> Result<PEQData, String> {
         let protocol = self.protocol();
-        let first = self.pull_once();
-        let retry = first
-            .as_ref()
-            .map_or(true, |peq| protocol.is_default_state(peq));
-        if !retry {
-            return first;
+        match self.pull_once() {
+            Ok(peq) if !protocol.is_default_state(&peq) => Ok(peq),
+            Ok(_) => {
+                self.io.sleep_ms(RETRY_DELAY_MS);
+                // The retry exists because a default-state read may be a
+                // transient lie. When this corroborating attempt fails,
+                // surface its error instead of reporting the uncorroborated
+                // default as device truth.
+                self.pull_once()
+            }
+            Err(first) => {
+                self.io.sleep_ms(RETRY_DELAY_MS);
+                self.pull_once()
+                    .map_err(|retry| combine_errors(first, retry))
+            }
         }
-        self.io.sleep_ms(RETRY_DELAY_MS);
-        // The retry exists because a default-state read may be a transient
-        // lie. When this corroborating attempt fails, surface its error
-        // instead of reporting the uncorroborated default as device truth
-        // (an earlier read being Ok does not outweigh a failed confirmation).
-        self.pull_once()
     }
 
     /// Normalizes before writing, snapshots, commits, verifies, and rolls back on failure.
@@ -416,7 +427,8 @@ impl<'a> DeviceSession<'a> {
             .resend_unanswered_after()
             .unwrap_or(attempts);
         let mut remaining = attempts;
-        let mut last_err = format!("{label} read timeout");
+        let mut first_err = None;
+        let mut last_err = None;
         while remaining > 0 {
             self.send(request)?;
             self.io.sleep_ms(settle_ms);
@@ -424,12 +436,19 @@ impl<'a> DeviceSession<'a> {
             match self.read_matching(label, take, &matches) {
                 Ok(data) => return Ok(data),
                 Err(error) => {
-                    last_err = error;
+                    if first_err.is_none() {
+                        first_err = Some(error.clone());
+                    }
+                    last_err = Some(error);
                     remaining -= take;
                 }
             }
         }
-        Err(last_err)
+        Err(match (first_err, last_err) {
+            (Some(first), Some(last)) => combine_errors(first, last),
+            (Some(error), None) | (None, Some(error)) => error,
+            (None, None) => format!("{label} read timeout"),
+        })
     }
 
     fn read_matching(
@@ -671,6 +690,7 @@ mod tests {
         writes: Vec<Vec<u8>>,
         events: Vec<IoEvent>,
         read_error: Option<String>,
+        read_errors: VecDeque<Option<String>>,
         write_calls: usize,
         failing_write_calls: VecDeque<usize>,
     }
@@ -693,7 +713,13 @@ mod tests {
             if let Some(error) = &self.read_error {
                 return Err(error.clone());
             }
-            Ok(self.reads.pop_front().unwrap_or_default())
+            if let Some(bytes) = self.reads.pop_front() {
+                return Ok(bytes);
+            }
+            if let Some(Some(error)) = self.read_errors.pop_front() {
+                return Err(error);
+            }
+            Ok(Vec::new())
         }
         fn sleep_ms(&mut self, ms: u64) {
             self.events.push(IoEvent::Sleep(ms));
@@ -870,6 +896,17 @@ mod tests {
         // than hand back the uncorroborated default as device truth.
         let error = DeviceSession::new(&mut io, profile).pull().unwrap_err();
         assert!(!error.is_empty());
+    }
+
+    #[test]
+    fn pull_preserves_a_concrete_read_error_across_retry() {
+        let profile = get_supported_device(0x3302, 0x43e8).unwrap();
+        let mut io = FakeIo::default();
+        io.reads.push_back(vec![]); // init drain terminator
+        io.read_errors.push_back(Some("device disconnected".into()));
+
+        let error = DeviceSession::new(&mut io, profile).pull().unwrap_err();
+        assert!(error.contains("device disconnected"), "{error}");
     }
 
     #[test]
