@@ -423,6 +423,36 @@ describe("web profile parser", () => {
     });
   });
 
+  it("clamps loaded profiles to the storage envelope like the desktop store", () => {
+    // read_profile (profiles.rs) clamps every load to the storage envelope;
+    // the web load path must clamp identically so a hand-edited or legacy
+    // localStorage profile cannot smuggle out-of-envelope values past load.
+    localStorageValues.set("glacier-eq-profiles", JSON.stringify([{
+      name: "Wild",
+      modified: 1,
+      data: {
+        global_gain: 99,
+        filters: [
+          { index: 0, enabled: true, type: "PK", freq: 60_000, gain: -99, q: 50 },
+          { index: 1, enabled: true, type: "PK", freq: 5, gain: 99, q: 0.05 },
+        ],
+      },
+    }]));
+
+    const parsed = parseWebProfiles(
+      JSON.parse(localStorageValues.get("glacier-eq-profiles") ?? "[]"),
+    );
+    expect(parsed.malformed).toBe(false);
+    const [profile] = parsed.value;
+    expect(profile.data.global_gain).toBe(12);
+    expect(profile.data.filters[0].freq).toBe(20_000);
+    expect(profile.data.filters[0].gain).toBe(-12);
+    expect(profile.data.filters[0].q).toBe(20);
+    expect(profile.data.filters[1].freq).toBe(20);
+    expect(profile.data.filters[1].gain).toBe(12);
+    expect(profile.data.filters[1].q).toBeCloseTo(0.1);
+  });
+
   it("accepts names Rust's is_alphanumeric accepts (Other_Alphabetic marks)", async () => {
     // Devanagari vowel signs are Alphabetic but not \p{L}; Rust's
     // char::is_alphanumeric accepts them, so the web validator must too.

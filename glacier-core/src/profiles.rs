@@ -448,6 +448,18 @@ mod tests {
     }
 
     #[test]
+    fn storage_envelope_matches_web_mirror() {
+        // src/lib/backend/web.ts clamps loaded profiles to STORAGE_ENVELOPE;
+        // both sides must stay in lockstep or the platforms disagree about
+        // which stored values survive a load.
+        let caps = storage_capabilities(10);
+        assert_eq!(caps.global_gain_range, (-20, 12));
+        assert_eq!(caps.band_gain_range, (-12.0, 12.0));
+        assert_eq!(caps.freq_range, (20, 20000));
+        assert_eq!(caps.q_range, (0.1, 20.0));
+    }
+
+    #[test]
     fn validate_name_rejects_unsafe_names() {
         assert!(validate_name("ok name").is_ok());
         assert!(validate_name("trailing.").is_err());
