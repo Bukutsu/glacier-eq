@@ -394,6 +394,26 @@ describe("web settings parser", () => {
       theme: "dracula",
       snap_to_iso_frequencies: true,
       floating_graph_preview: true,
+      // The wrong-typed known fields still fall back to defaults, but the
+      // unknown key is data a future build wrote — it survives alongside
+      // the fallback instead of being destroyed with the quarantine.
+      unknown_setting: true,
+    });
+  });
+
+  it("preserves unknown settings keys without flagging corruption, like desktop's serde flatten", () => {
+    const parsed = parseWebSettings({
+      theme: "nord",
+      future_setting_from_a_newer_build: { nested: [1, 2] },
+    });
+
+    // Desktop keeps unknown keys (settings.rs extra flatten) and never
+    // quarantines for them; an unknown key alone must not trigger
+    // quarantine on web either.
+    expect(parsed.malformed).toBe(false);
+    expect(parsed.value).toMatchObject({
+      theme: "nord",
+      future_setting_from_a_newer_build: { nested: [1, 2] },
     });
   });
 
@@ -409,6 +429,31 @@ describe("web settings parser", () => {
 
     expect(parsed.malformed).toBe(true);
     expect(parsed.value.skip_push_verification).toBe(false);
+  });
+
+  it("round-trips an unknown settings key through get/save without quarantining it", async () => {
+    localStorageValues.set(
+      "glacier-eq-settings",
+      JSON.stringify({ theme: "dracula", future_setting: 42 }),
+    );
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    const loaded = await invoke<Record<string, unknown>>("get_settings");
+    expect(loaded.future_setting).toBe(42);
+
+    await invoke("save_settings", { settings: loaded });
+    const stored = JSON.parse(
+      localStorageValues.get("glacier-eq-settings") ?? "{}",
+    ) as Record<string, unknown>;
+    expect(stored.future_setting).toBe(42);
+    expect(stored.theme).toBe("dracula");
+    // Desktop's extra-flatten contract: the key never became "corrupt",
+    // so no quarantine backup was created for it.
+    const backup = [...localStorageValues.entries()].find(([key]) =>
+      key.startsWith("glacier-eq-settings-malformed-"),
+    );
+    expect(backup).toBeUndefined();
+    warnSpy.mockRestore();
   });
 });
 

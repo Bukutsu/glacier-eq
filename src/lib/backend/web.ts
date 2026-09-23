@@ -311,7 +311,12 @@ export function parseWebSettings(value: unknown): ParsedStorage<AppSettings> {
   const settings = { ...DEFAULT_WEB_SETTINGS };
   if (!isRecord(value)) return { value: settings, malformed: true };
 
-  let malformed = !hasOnlyKeys(value, Object.keys(DEFAULT_WEB_SETTINGS));
+  // Only a wrong-TYPED known key is corruption. Unknown keys are how a
+  // newer or forked build writes settings this one doesn't know; desktop
+  // round-trips them through serde's `extra` flatten, so the web mirror
+  // must carry them through too — flagging them malformed quarantined and
+  // destroyed the key on the first load→save cycle.
+  let malformed = false;
   const booleanFields = [
     "auto_pull_on_connect",
     "skip_push_verification",
@@ -333,7 +338,15 @@ export function parseWebSettings(value: unknown): ParsedStorage<AppSettings> {
       malformed = true;
     }
   }
-  return { value: settings, malformed };
+  const preserved: Record<string, unknown> = { ...settings };
+  const knownKeys = new Set(Object.keys(DEFAULT_WEB_SETTINGS));
+  for (const [key, entry] of Object.entries(value)) {
+    if (!knownKeys.has(key)) preserved[key] = entry;
+  }
+  // Unknown extras are intentionally untyped at the AppSettings level —
+  // exactly like desktop, where serde's flatten serializes `extra` keys
+  // into siblings the shared AppSettings interface doesn't declare.
+  return { value: preserved as unknown as AppSettings, malformed };
 }
 
 function parseFilterType(value: unknown): FilterType | null {
