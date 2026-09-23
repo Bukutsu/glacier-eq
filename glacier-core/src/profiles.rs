@@ -326,8 +326,13 @@ fn read_profile(path: &Path) -> Result<(Option<StoredProfile>, Vec<String>), Str
     if path.extension().and_then(|ext| ext.to_str()) != Some("txt") {
         return Ok((None, Vec::new()));
     }
-    let path_metadata = std::fs::symlink_metadata(path)
-        .map_err(|error| format!("Failed to stat {}: {error}", path.display()))?;
+    let path_metadata = match std::fs::symlink_metadata(path) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            return Ok((None, Vec::new()));
+        }
+        Err(error) => return Err(format!("Failed to stat {}: {error}", path.display())),
+    };
     if !path_metadata.file_type().is_file() {
         // Symlinked or directory entries are rejected by design (the loader
         // never follows links); not an unexpected data loss.
@@ -491,6 +496,17 @@ mod tests {
         assert!(store.save("../escape", &peq).is_err());
         store.delete("Daily").unwrap();
         assert!(store.list().unwrap().is_empty());
+        std::fs::remove_dir_all(base).unwrap();
+    }
+
+    #[test]
+    fn missing_profile_reports_stable_not_found_error() {
+        let base = temporary_dir();
+        let store = ProfileStore::new(&base).unwrap();
+        assert_eq!(
+            store.load("Missing").unwrap_err(),
+            "Profile not found: Missing"
+        );
         std::fs::remove_dir_all(base).unwrap();
     }
 
