@@ -1662,7 +1662,7 @@ pub fn run_autoeq(
 
     let mut amp = Some(0.0);
 
-    run_autoeq_optimization(
+    let best_loss = run_autoeq_optimization(
         steps,
         &types,
         &mut f0,
@@ -1677,6 +1677,9 @@ pub fn run_autoeq(
         &r,
         fs,
     );
+    if !best_loss.is_finite() {
+        return Err("AutoEQ optimization produced a non-finite loss".into());
+    }
 
     let mut filters = Vec::with_capacity(n_bands);
     for i in 0..n_bands {
@@ -1900,6 +1903,13 @@ mod tests {
         let high = f32::MAX as f64;
         let measurement = [(20.0, high), (20_000.0, high)];
         let target = [(20.0, -high), (20_000.0, -high)];
+        assert!(run_autoeq(&measurement, &target, 2, 10, "none", 48_000.0, None).is_err());
+    }
+
+    #[test]
+    fn autoeq_rejects_finite_values_that_overflow_loss() {
+        let measurement = [(20.0, 0.0), (20_000.0, 0.0)];
+        let target = [(20.0, 1.0e20), (20_000.0, -1.0e20)];
         assert!(run_autoeq(&measurement, &target, 2, 10, "none", 48_000.0, None).is_err());
     }
 
