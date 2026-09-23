@@ -113,30 +113,64 @@ fn read_settings(path: &std::path::Path) -> Result<Settings, String> {
 }
 
 fn parse_settings(content: &str, path: &std::path::Path) -> Settings {
-    match serde_json::from_str::<Settings>(content) {
-        Ok(mut settings) => {
-            // An unknown theme string would select a nonexistent
-            // theme; fall back to auto like the web parser.
-            if !is_known_theme(&settings.theme) {
-                settings.theme = default_theme();
-            }
-            settings
-        }
-        // A corrupt or schema-drifted file must not wedge every future
-        // get_settings call (or silently diverge from callers that fall
-        // back to the default): self-heal to defaults instead. But never
-        // silently and never destructively — the next save_settings
-        // atomically replaces the file, so preserve the original bytes
-        // first (the web parser quarantines to `-malformed-` for the same
-        // event) and log the parse error that used to be discarded.
+    let value = match serde_json::from_str::<JsonValue>(content) {
+        Ok(value) => value,
         Err(error) => {
             eprintln!("glacier-eq: settings.json is unreadable; using defaults: {error}");
-            if let Err(recovery_error) = recover_corrupt_settings(path, content) {
+            let defaults = Settings::default();
+            if let Err(recovery_error) = recover_corrupt_settings(path, content, &defaults) {
                 eprintln!("glacier-eq: failed to recover unreadable settings: {recovery_error}");
             }
-            Settings::default()
+            return defaults;
+        }
+    };
+    let JsonValue::Object(mut values) = value else {
+        let defaults = Settings::default();
+        if let Err(recovery_error) = recover_corrupt_settings(path, content, &defaults) {
+            eprintln!("glacier-eq: failed to recover unreadable settings: {recovery_error}");
+        }
+        return defaults;
+    };
+
+    let mut settings = Settings::default();
+    let mut malformed = false;
+    for (field, target) in [
+        ("auto_pull_on_connect", &mut settings.auto_pull_on_connect),
+        (
+            "skip_push_verification",
+            &mut settings.skip_push_verification,
+        ),
+        (
+            "snap_to_iso_frequencies",
+            &mut settings.snap_to_iso_frequencies,
+        ),
+        (
+            "floating_graph_preview",
+            &mut settings.floating_graph_preview,
+        ),
+    ] {
+        if let Some(value) = values.remove(field) {
+            if let Some(valid) = value.as_bool() {
+                *target = valid;
+            } else {
+                malformed = true;
+            }
         }
     }
+    if let Some(value) = values.remove("theme") {
+        if let Some(theme) = value.as_str().filter(|theme| is_known_theme(theme)) {
+            settings.theme = theme.to_string();
+        } else {
+            malformed = true;
+        }
+    }
+    settings.extra = values;
+    if malformed {
+        if let Err(recovery_error) = recover_corrupt_settings(path, content, &settings) {
+            eprintln!("glacier-eq: failed to recover malformed settings: {recovery_error}");
+        }
+    }
+    settings
 }
 
 /// Preserve the corrupt bytes beside the original before replacing the
@@ -170,11 +204,15 @@ fn quarantine_corrupt_settings(path: &std::path::Path, content: &str) -> Result<
         .map_err(|e| e.to_string())
 }
 
-fn recover_corrupt_settings(path: &std::path::Path, content: &str) -> Result<(), String> {
+fn recover_corrupt_settings(
+    path: &std::path::Path,
+    content: &str,
+    recovered: &Settings,
+) -> Result<(), String> {
     quarantine_corrupt_settings(path, content)?;
-    let defaults = serde_json::to_vec_pretty(&Settings::default())
-        .map_err(|error| format!("Failed to serialize default settings: {error}"))?;
-    crate::fsutil::atomic_write(path, &defaults)
+    let sanitized = serde_json::to_vec_pretty(recovered)
+        .map_err(|error| format!("Failed to serialize recovered settings: {error}"))?;
+    crate::fsutil::atomic_write(path, &sanitized)
 }
 
 #[tauri::command]
@@ -223,6 +261,36 @@ mod tests {
         assert_eq!(reencoded["nested"]["a"], serde_json::json!(true));
         // Known fields still serialize with their defaults filled in.
         assert_eq!(reencoded["auto_pull_on_connect"], serde_json::json!(true));
+    }
+
+    #[test]
+    fn malformed_known_fields_recover_independently_like_web() {
+        let dir = std::env::temp_dir().join(format!(
+            "glacier-settings-field-recovery-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id(),
+        ));
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("settings.json");
+        fs::write(
+            &path,
+            r#"{"auto_pull_on_connect":false,"skip_push_verification":"true","theme":"dracula","future_setting":42}"#,
+        )
+        .unwrap();
+
+        let settings = read_settings(&path).unwrap();
+        assert!(!settings.auto_pull_on_connect);
+        assert!(!settings.skip_push_verification);
+        assert_eq!(settings.theme, "dracula");
+        assert_eq!(
+            settings.extra.get("future_setting"),
+            Some(&serde_json::json!(42))
+        );
+        let repeated = read_settings(&path).unwrap();
+        assert!(!repeated.auto_pull_on_connect);
+        assert_eq!(repeated.theme, "dracula");
+
+        fs::remove_dir_all(dir).ok();
     }
 
     #[test]
