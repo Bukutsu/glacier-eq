@@ -412,11 +412,11 @@ export function AutoEqTab({
 
     try {
       const rawResult = await invoke<unknown>("run_autoeq", {
-        measurement_points: input.measurementPoints,
-        target_points: input.targetPoints,
-        n_bands: input.nBands,
+        measurementPoints: input.measurementPoints,
+        targetPoints: input.targetPoints,
+        nBands: input.nBands,
         steps: input.steps,
-        smooth_type: input.smoothType,
+        smoothType: input.smoothType,
         fs: input.fs,
       });
       const result = parseAutoEqResult(rawResult);
