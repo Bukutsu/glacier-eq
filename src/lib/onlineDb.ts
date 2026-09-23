@@ -127,13 +127,22 @@ export function deleteDatabase(): Promise<void> {
       settled = true;
       resolve();
     };
+    // Blocked means another window still holds the database open: the delete
+    // has NOT happened. Resolving here would report a wipe that never
+    // occurred (callers would flip to "not downloaded" while the data
+    // survives), so reject like the open path does. The request keeps
+    // running; if the blocker closes later it still completes on its own.
+    request.onblocked = () => {
+      if (settled) return;
+      settled = true;
+      reject(new Error("Database locked by another window"));
+    };
     request.onsuccess = resolveOnce;
     request.onerror = () => {
       if (settled) return;
       settled = true;
       reject(request.error ?? new Error("Failed to delete database"));
     };
-    request.onblocked = resolveOnce;
   });
 }
 

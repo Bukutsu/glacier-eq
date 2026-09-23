@@ -261,6 +261,60 @@ describe("openDb", () => {
   });
 });
 
+describe("deleteDatabase", () => {
+  it("rejects when the delete is blocked instead of reporting a wipe that did not happen", async () => {
+    const deleteRequest = {
+      onsuccess: null as ((event: Event) => void) | null,
+      onerror: null as ((event: Event) => void) | null,
+      onblocked: null as ((event: Event) => void) | null,
+    };
+    vi.stubGlobal("indexedDB", { deleteDatabase: vi.fn(() => deleteRequest) });
+
+    const attempt = deleteDatabase();
+    // Another window still holds the database open: the data survives, so
+    // callers must not flip to "not downloaded"/"cleared".
+    fire(deleteRequest.onblocked);
+    await expect(attempt).rejects.toThrow("Database locked by another window");
+
+    // A late success (blocker closed afterwards) must not resurrect the
+    // settled promise into a success the caller already treated as failure.
+    let lateSettled = false;
+    void attempt.then(
+      () => { lateSettled = true; },
+      () => { lateSettled = true; },
+    );
+    fire(deleteRequest.onsuccess);
+    await Promise.resolve();
+    expect(lateSettled).toBe(true);
+    await expect(attempt).rejects.toThrow("Database locked by another window");
+  });
+
+  it("resolves on success and rejects on delete error", async () => {
+    const successRequest = {
+      onsuccess: null as ((event: Event) => void) | null,
+      onerror: null as ((event: Event) => void) | null,
+      onblocked: null as ((event: Event) => void) | null,
+    };
+    vi.stubGlobal("indexedDB", { deleteDatabase: vi.fn(() => successRequest) });
+    const success = deleteDatabase();
+    fire(successRequest.onsuccess);
+    await expect(success).resolves.toBeUndefined();
+
+    const errorRequest = {
+      onsuccess: null as ((event: Event) => void) | null,
+      onerror: null as ((event: Event) => void) | null,
+      onblocked: null as ((event: Event) => void) | null,
+    };
+    vi.stubGlobal("indexedDB", { deleteDatabase: vi.fn(() => errorRequest) });
+    const failure = deleteDatabase();
+    // Simulate a request that carries a DOMException error.
+    const holder = errorRequest as { onerror: ((e: Event) => void) | null; error?: DOMException };
+    holder.error = new DOMException("denied", "InvalidStateError");
+    fire(holder.onerror);
+    await expect(failure).rejects.toThrow("denied");
+  });
+});
+
 describe("isUnrecoverableDbError", () => {
   it("identifies unrecoverable database file and version errors", () => {
     expect(
