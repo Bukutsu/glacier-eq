@@ -181,7 +181,8 @@ pub async fn parse_autoeq(
 
 #[tauri::command]
 pub fn peq_to_autoeq(peq: PEQData) -> Result<String, String> {
-    Ok(glacier_core::autoeq::peq_to_autoeq(&peq))
+    let normalized = glacier_core::profiles::normalize_for_storage(&peq)?;
+    Ok(glacier_core::autoeq::peq_to_autoeq(&normalized))
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -225,6 +226,17 @@ pub async fn run_autoeq(
 mod tests {
     use super::*;
     use crate::state::ConnectedDevice;
+
+    #[test]
+    fn peq_to_autoeq_rejects_invalid_storage_values() {
+        let mut filter = glacier_core::Filter::enabled(0, true);
+        filter.q = 0.0;
+        let invalid = PEQData {
+            filters: vec![filter],
+            global_gain: 0.0,
+        };
+        assert!(peq_to_autoeq(invalid).is_err());
+    }
 
     #[test]
     fn match_target_uses_unknown_protocol_when_disconnected_or_unsupported() {

@@ -46,6 +46,19 @@ pub struct ProfileStore {
     dir: PathBuf,
 }
 
+/// Validate and canonicalize a PEQ for the portable profile text format.
+pub fn normalize_for_storage(peq: &PEQData) -> Result<PEQData, String> {
+    if peq.filters.len() > MAX_FILTERS {
+        return Err(format!(
+            "Profile exceeds maximum filter count ({MAX_FILTERS})"
+        ));
+    }
+    crate::device::validate_peq(peq)?;
+    let mut normalized = peq.clone();
+    normalized.clamp_to_capabilities(&storage_capabilities(peq.filters.len()));
+    Ok(normalized)
+}
+
 impl ProfileStore {
     pub fn new(base: impl AsRef<Path>) -> Result<Self, String> {
         let dir = base.as_ref().join("profiles");
@@ -128,14 +141,7 @@ impl ProfileStore {
     }
 
     pub fn save(&self, name: &str, peq: &PEQData) -> Result<(), String> {
-        if peq.filters.len() > MAX_FILTERS {
-            return Err(format!(
-                "Profile exceeds maximum filter count ({MAX_FILTERS})"
-            ));
-        }
-        crate::device::validate_peq(peq)?;
-        let mut normalized = peq.clone();
-        normalized.clamp_to_capabilities(&storage_capabilities(peq.filters.len()));
+        let normalized = normalize_for_storage(peq)?;
         let content = peq_to_autoeq(&normalized);
         if content.len() as u64 > MAX_PROFILE_BYTES {
             return Err("Profile exceeds maximum size (1 MiB)".into());

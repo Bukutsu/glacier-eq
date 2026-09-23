@@ -226,7 +226,8 @@ pub fn parse_autoeq(
 #[wasm_bindgen]
 pub fn peq_to_autoeq(peq_js: JsValue) -> Result<String, JsValue> {
     let peq: PEQData = serde_wasm_bindgen::from_value(peq_js).map_err(js_err)?;
-    Ok(crate::autoeq::peq_to_autoeq(&peq))
+    let normalized = crate::profiles::normalize_for_storage(&peq).map_err(js_err)?;
+    Ok(crate::autoeq::peq_to_autoeq(&normalized))
 }
 
 #[wasm_bindgen]
