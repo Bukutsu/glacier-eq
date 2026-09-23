@@ -45,6 +45,8 @@ input reports as hex. Use --read-ms 0 to send without reading a response.
 AutoEQ and pulled profiles go to stdout; diagnostics go to stderr.
 ";
 
+const MAX_RAW_SIGNAL_COUNT: usize = 100_000;
+
 #[derive(Debug, PartialEq)]
 enum Command {
     Help,
@@ -195,6 +197,9 @@ fn parse_raw_signal(args: &[String]) -> Result<RawSignal, String> {
     }
     if count == 0 {
         return Err("raw count must be at least 1".into());
+    }
+    if count > MAX_RAW_SIGNAL_COUNT {
+        return Err(format!("raw count must not exceed {MAX_RAW_SIGNAL_COUNT}"));
     }
     if read_ms > 10_000 {
         return Err("raw read timeout must be between 0 and 10000 ms".into());
@@ -1022,6 +1027,22 @@ mod tests {
                 yes: true,
             }
         );
+    }
+
+    #[test]
+    fn raw_signal_rejects_unbounded_repeat_counts() {
+        let error = parse(vec![
+            "hardware".into(),
+            "raw".into(),
+            "--report-id".into(),
+            "4b".into(),
+            "--data".into(),
+            "80".into(),
+            "--count".into(),
+            (MAX_RAW_SIGNAL_COUNT + 1).to_string(),
+        ])
+        .unwrap_err();
+        assert!(error.contains("raw count must not exceed"), "{error}");
     }
 
     #[test]
