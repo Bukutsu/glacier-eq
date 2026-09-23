@@ -13,6 +13,7 @@ import type {
 } from "../../types";
 import { ensureWasm, getWasm } from "./wasm";
 import { profileIdentityKey } from "../profileIdentity";
+import type { DiagnosticEvent } from "../diagnostics";
 
 // Wasm entry points are resolved lazily: ensureWasm() has already run on every
 // path that reaches them (invokeWeb awaits it before dispatching), so the
@@ -97,9 +98,22 @@ function webHidPath(device: HIDDevice): string {
 // millisecond timestamps.
 const MAX_DIAGNOSTICS = 500;
 let diagnosticsSequence = 0;
-let diagnosticsStore: { seq: number; level: string; source: string; message: string; timestamp: string }[] = [];
+// `level`/`source` are typed so an emitter cannot introduce a value the
+// diagnostic-event parser rejects: an invalid source would drop the live
+// event AND throw inside parseDiagnosticHistory, breaking history load.
+let diagnosticsStore: {
+  seq: number;
+  level: DiagnosticEvent["level"];
+  source: DiagnosticEvent["source"];
+  message: string;
+  timestamp: string;
+}[] = [];
 
-function addDiagnostic(level: string, source: string, message: string) {
+function addDiagnostic(
+  level: DiagnosticEvent["level"],
+  source: DiagnosticEvent["source"],
+  message: string,
+) {
   const event = {
     seq: ++diagnosticsSequence,
     level,

@@ -47,6 +47,7 @@ import {
   shouldRetryWebHidRead,
   WebHidReadTimeout,
 } from "./web";
+import { parseDiagnosticHistory } from "../diagnostics";
 
 const profile: SupportedDeviceInfo = {
   name: "Test DAC",
@@ -619,6 +620,16 @@ describe("storage quarantine", () => {
     expect(backup?.[1]).toBe("{not json at all");
     // The live key holds the safe fallback now, not the garbage.
     expect(() => JSON.parse(localStorageValues.get("glacier-eq-settings") ?? "")).not.toThrow();
+    // The diagnostic the fix emits must survive the parser contract:
+    // source "Storage" is in the DiagnosticEvent union, so both the live
+    // event consumer and get_diagnostics history keep working afterwards.
+    const history = await invoke<unknown[]>("get_diagnostics");
+    const events = parseDiagnosticHistory(history);
+    expect(
+      events.some(
+        (event) => event.source === "Storage" && event.message.includes("backed up"),
+      ),
+    ).toBe(true);
     warnSpy.mockRestore();
   });
 

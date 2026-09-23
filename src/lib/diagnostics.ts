@@ -3,7 +3,11 @@ export interface DiagnosticEvent {
   seq?: number;
   timestamp: string;
   level: "Info" | "Warn" | "Error";
-  source: "UI" | "Worker" | "HID" | "AutoEQ" | "Device";
+  /**
+   * `Storage` is emitted by the web backend's quarantine path; the other
+   * sources mirror the desktop `LogSource` enum.
+   */
+  source: "UI" | "Worker" | "HID" | "AutoEQ" | "Device" | "Storage";
   message: string;
 }
 
@@ -44,7 +48,8 @@ export function parseDiagnosticEvent(value: unknown): DiagnosticEvent {
       value.source !== "Worker" &&
       value.source !== "HID" &&
       value.source !== "AutoEQ" &&
-      value.source !== "Device"
+      value.source !== "Device" &&
+      value.source !== "Storage"
     ) ||
     typeof value.message !== "string"
   ) {

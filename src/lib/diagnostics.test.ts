@@ -27,6 +27,22 @@ describe("diagnostic payload parsing", () => {
     expect(() => parseDiagnosticEvent({ ...event, level: "Debug" })).toThrow();
     expect(() => parseDiagnosticHistory({ event })).toThrow();
   });
+
+  it("accepts the Storage source the web quarantine path emits", () => {
+    // quarantineStorage emits source "Storage"; rejecting it dropped the
+    // live event AND made parseDiagnosticHistory throw on the first stored
+    // Storage event, bricking the web diagnostics history for the session.
+    const event: DiagnosticEvent = {
+      ...diagnostic("quarantined"),
+      level: "Warn",
+      source: "Storage",
+    };
+    expect(parseDiagnosticEvent(event)).toEqual(event);
+    expect(parseDiagnosticHistory([diagnostic("older"), event])).toHaveLength(2);
+    expect(() =>
+      parseDiagnosticEvent({ ...event, source: "Disk" }),
+    ).toThrow();
+  });
 });
 
 describe("formatDiagnosticReport", () => {
