@@ -9,6 +9,9 @@ use std::fs;
 use std::io::Write;
 use std::path::Path;
 
+#[cfg(unix)]
+use std::{ffi::CString, os::fd::FromRawFd, os::unix::ffi::OsStrExt, path::Component};
+
 pub(crate) fn atomic_write(path: &Path, contents: &[u8]) -> Result<(), String> {
     // Unique temp name per write: two app instances share the directory but
     // not this process's lock, so a fixed name could interleave and publish a
@@ -48,6 +51,162 @@ pub(crate) fn atomic_write(path: &Path, contents: &[u8]) -> Result<(), String> {
         }
     }
     Ok(())
+}
+
+/// Atomically writes below a trusted base while holding directory file
+/// descriptors for every component. A concurrent rename of a parent directory
+/// therefore cannot redirect the temporary file or final rename through a
+/// symlink between validation and use.
+#[cfg(unix)]
+pub(crate) fn atomic_write_in_base(
+    path: &Path,
+    base: &Path,
+    contents: &[u8],
+) -> Result<(), String> {
+    let parent = path
+        .parent()
+        .ok_or_else(|| "Destination has no parent directory".to_string())?;
+    let parent = fs::canonicalize(parent)
+        .map_err(|error| format!("Failed to resolve destination directory: {error}"))?;
+    let relative_parent = parent
+        .strip_prefix(base)
+        .map_err(|_| "Destination is outside the trusted base".to_string())?;
+    let file_name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or_else(|| "Destination has no file name".to_string())?;
+    let file_name_c = CString::new(file_name.as_bytes())
+        .map_err(|_| "Destination name contains a NUL byte".to_string())?;
+    let base_c = CString::new(base.as_os_str().as_bytes())
+        .map_err(|_| "Base path contains a NUL byte".to_string())?;
+    // SAFETY: base is opened read-only as a directory; the returned descriptor
+    // is immediately owned by this function and closed on every return path.
+    let base_fd = unsafe {
+        libc::open(
+            base_c.as_ptr(),
+            libc::O_RDONLY | libc::O_DIRECTORY | libc::O_CLOEXEC | libc::O_NOFOLLOW,
+        )
+    };
+    if base_fd < 0 {
+        return Err(format!(
+            "Failed to open trusted base directory: {}",
+            std::io::Error::last_os_error()
+        ));
+    }
+    let mut directory_fd = base_fd;
+    let close_directory = |fd: libc::c_int| {
+        if fd >= 0 {
+            unsafe { libc::close(fd) };
+        }
+    };
+
+    for component in relative_parent.components() {
+        let Component::Normal(name) = component else {
+            close_directory(directory_fd);
+            return Err("Destination path contains an unsafe component".into());
+        };
+        let name_c = match CString::new(name.as_bytes()) {
+            Ok(name) => name,
+            Err(_) => {
+                close_directory(directory_fd);
+                return Err("Destination path contains a NUL byte".into());
+            }
+        };
+        // SAFETY: directory_fd is owned here and name_c is NUL-terminated.
+        let next_fd = unsafe {
+            libc::openat(
+                directory_fd,
+                name_c.as_ptr(),
+                libc::O_RDONLY | libc::O_DIRECTORY | libc::O_CLOEXEC | libc::O_NOFOLLOW,
+            )
+        };
+        close_directory(directory_fd);
+        if next_fd < 0 {
+            return Err(format!(
+                "Failed to open destination directory: {}",
+                std::io::Error::last_os_error()
+            ));
+        }
+        directory_fd = next_fd;
+    }
+
+    let nonce = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos();
+    let temporary_name = format!(".{file_name}.{nonce}.tmp");
+    let temporary_c = match CString::new(temporary_name.as_bytes()) {
+        Ok(name) => name,
+        Err(_) => {
+            close_directory(directory_fd);
+            return Err("Temporary name contains a NUL byte".into());
+        }
+    };
+    // SAFETY: directory_fd is an owned directory descriptor and the temporary
+    // name is NUL-terminated. O_EXCL prevents replacing an existing entry.
+    let temporary_fd = unsafe {
+        libc::openat(
+            directory_fd,
+            temporary_c.as_ptr(),
+            libc::O_WRONLY | libc::O_CREAT | libc::O_EXCL | libc::O_CLOEXEC | libc::O_NOFOLLOW,
+            0o600,
+        )
+    };
+    if temporary_fd < 0 {
+        close_directory(directory_fd);
+        return Err(format!(
+            "Failed to create secure temporary file: {}",
+            std::io::Error::last_os_error()
+        ));
+    }
+    // SAFETY: temporary_fd is a fresh owned descriptor returned by openat.
+    let mut temporary = unsafe { fs::File::from_raw_fd(temporary_fd) };
+    let write_result = temporary
+        .write_all(contents)
+        .and_then(|_| temporary.sync_all());
+    if let Err(error) = write_result {
+        let _ = temporary.sync_all();
+        // SAFETY: both descriptors are owned by this function.
+        unsafe {
+            libc::unlinkat(directory_fd, temporary_c.as_ptr(), 0);
+            libc::close(directory_fd);
+        }
+        return Err(format!("Failed to write secure temporary file: {error}"));
+    }
+    drop(temporary);
+    // SAFETY: both names are NUL-terminated and directory_fd remains owned.
+    let rename_result = unsafe {
+        libc::renameat(
+            directory_fd,
+            temporary_c.as_ptr(),
+            directory_fd,
+            file_name_c.as_ptr(),
+        )
+    };
+    if rename_result < 0 {
+        let error = std::io::Error::last_os_error();
+        // SAFETY: directory_fd is still owned; temporary_c is NUL-terminated.
+        unsafe {
+            libc::unlinkat(directory_fd, temporary_c.as_ptr(), 0);
+            libc::close(directory_fd);
+        }
+        return Err(format!("Failed to replace secure destination: {error}"));
+    }
+    // SAFETY: directory_fd is owned and remains open after rename.
+    unsafe {
+        libc::fsync(directory_fd);
+        libc::close(directory_fd);
+    }
+    Ok(())
+}
+
+#[cfg(not(unix))]
+pub(crate) fn atomic_write_in_base(
+    path: &Path,
+    _base: &Path,
+    contents: &[u8],
+) -> Result<(), String> {
+    atomic_write(path, contents)
 }
 
 /// Temp files younger than this are never swept. The sweep runs at every
@@ -218,7 +377,32 @@ mod tests {
         dir
     }
 
-    /// Backdate a file past [`STALE_TEMP_AGE`] so the sweep considers it.
+    #[cfg(unix)]
+    #[test]
+    fn secure_write_rejects_symlinked_parent_and_replaces_final_symlink() {
+        let root = temporary_dir();
+        let base = root.join("base");
+        let outside = root.join("outside");
+        fs::create_dir_all(&base).unwrap();
+        fs::create_dir_all(&outside).unwrap();
+        let outside_file = outside.join("report.txt");
+        fs::write(&outside_file, b"outside").unwrap();
+
+        let parent_link = root.join("linked-base");
+        std::os::unix::fs::symlink(&outside, &parent_link).unwrap();
+        let linked_path = parent_link.join("report.txt");
+        assert!(atomic_write_in_base(&linked_path, &base, b"blocked").is_err());
+        assert_eq!(fs::read(&outside_file).unwrap(), b"outside");
+
+        let destination = base.join("report.txt");
+        std::os::unix::fs::symlink(&outside_file, &destination).unwrap();
+        atomic_write_in_base(&destination, &base, b"inside").unwrap();
+        assert_eq!(fs::read(&destination).unwrap(), b"inside");
+        assert_eq!(fs::read(&outside_file).unwrap(), b"outside");
+
+        let _ = fs::remove_dir_all(root);
+    }
+
     fn set_stale(path: &Path) {
         let file = fs::File::options().write(true).open(path).unwrap();
         let stale =

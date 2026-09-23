@@ -137,6 +137,15 @@ async fn save_text_file(
         if !is_path_allowed(&app, &path) {
             return Err("Refused: file path is outside allowed directories".into());
         }
+        let base = allowed_bases(&app)
+            .into_iter()
+            .find(|base| {
+                Path::new(&path)
+                    .parent()
+                    .and_then(|parent| std::fs::canonicalize(parent).ok())
+                    .is_some_and(|parent| parent.starts_with(base))
+            })
+            .ok_or_else(|| "Refused: file path is outside allowed directories".to_string())?;
         // Remember the destination dir first: if we crash between temp
         // creation and rename, the orphan can only be reclaimed on a later
         // launch when the dir is recorded — nested destinations sit beyond
@@ -144,7 +153,7 @@ async fn save_text_file(
         if let Ok(appdata) = crate::profiles::app_data_base_dir(&app) {
             crate::fsutil::record_export_dir(&appdata, Path::new(&path));
         }
-        crate::fsutil::atomic_write(Path::new(&path), content.as_bytes())?;
+        crate::fsutil::atomic_write_in_base(Path::new(&path), &base, content.as_bytes())?;
         // Resolve to the file name on success (matching save_text_file_dialog
         // and the web backend) so callers never read `null` as "cancelled".
         Ok(Path::new(&path)
