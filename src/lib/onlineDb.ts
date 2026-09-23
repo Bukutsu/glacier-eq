@@ -205,6 +205,54 @@ function idbRequest<T>(request: IDBRequest<T>): Promise<T> {
   });
 }
 
+function parseGeneration(raw: unknown): number | null {
+  return typeof raw === "number" && Number.isSafeInteger(raw) && raw >= 1
+    ? raw
+    : null;
+}
+
+/**
+ * Read the live generation pointer and the records derived from it in ONE
+ * readonly transaction. Pointer and records in separate transactions lets a
+ * concurrent publish + sweep commit in between: the reader would then follow
+ * a generation whose records were just swept and report "please download"
+ * while a complete cache sits right there. Within one transaction the engine
+ * guarantees the view cannot change under us. Validation requests are chained
+ * synchronously inside onsuccess — the pattern that keeps a transaction
+ * active in every engine.
+ */
+function readLiveRecords(
+  db: IDBDatabase,
+  keysFor: (generation: number | null) => string[],
+): Promise<{ generation: number | null; values: unknown[] }> {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, "readonly");
+    const store = tx.objectStore(STORE_NAME);
+    const generationRequest = store.get(META_GEN_KEY);
+    generationRequest.onerror = () => reject(generationRequest.error);
+    generationRequest.onsuccess = () => {
+      const generation = parseGeneration(generationRequest.result);
+      const keys = keysFor(generation);
+      const values: unknown[] = new Array(keys.length);
+      let remaining = keys.length;
+      if (remaining === 0) {
+        resolve({ generation, values });
+        return;
+      }
+      keys.forEach((key, index) => {
+        const request = store.get(key);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+          values[index] = request.result;
+          remaining -= 1;
+          if (remaining === 0) resolve({ generation, values });
+        };
+      });
+    };
+    tx.onabort = () => reject(tx.error ?? new Error("Transaction aborted"));
+  });
+}
+
 /**
  * The live generation readers follow; null means the legacy pre-generation
  * layout (bare `meta:*` records and device-ID curve keys). Only ever written
@@ -213,9 +261,7 @@ function idbRequest<T>(request: IDBRequest<T>): Promise<T> {
 async function liveGeneration(db: IDBDatabase): Promise<number | null> {
   const store = db.transaction(STORE_NAME, "readonly").objectStore(STORE_NAME);
   const raw = await idbRequest<unknown>(store.get(META_GEN_KEY));
-  return typeof raw === "number" && Number.isSafeInteger(raw) && raw >= 1
-    ? raw
-    : null;
+  return parseGeneration(raw);
 }
 
 /**
@@ -233,10 +279,10 @@ function generationKey(generation: number | null, legacyKey: string): string {
 async function isDatabaseDownloaded(): Promise<boolean> {
   try {
     const db = await openDb();
-    const generation = await liveGeneration(db);
-    const store = db.transaction(STORE_NAME, "readonly").objectStore(STORE_NAME);
-    const completeKey = generationKey(generation, "meta:complete");
-    return await idbRequest<unknown>(store.get(completeKey)) === true;
+    const { values } = await readLiveRecords(db, (generation) => [
+      generationKey(generation, "meta:complete"),
+    ]);
+    return values[0] === true;
   } catch {
     return false;
   }
@@ -534,13 +580,13 @@ export async function fetchJson(
   return JSON.parse(text);
 }
 
-async function fetchManifest(): Promise<OnlineDevice[]> {
+// Exported for tests: the single-transaction read path is regression-tested
+// against a pointer/record interleaving that used to strand these readers.
+export async function fetchManifest(): Promise<OnlineDevice[]> {
   const db = await openDb();
-  const generation = await liveGeneration(db);
-  const store = db.transaction(STORE_NAME, "readonly").objectStore(STORE_NAME);
-  const cached = await idbRequest<unknown>(
-    store.get(generationKey(generation, "meta:manifest")),
-  );
+  const { values: [cached] } = await readLiveRecords(db, (generation) => [
+    generationKey(generation, "meta:manifest"),
+  ]);
   if (cached === undefined) {
     throw new Error("Search manifest not cached. Please download the database.");
   }
@@ -682,19 +728,21 @@ export function useOnlineDatabase(
   };
 }
 
-async function loadDeviceCurvePoints(
+// Exported for tests: see fetchManifest.
+export async function loadDeviceCurvePoints(
   deviceId: string,
 ): Promise<MeasurementPoint[]> {
   const db = await openDb();
-  const generation = await liveGeneration(db);
+  const { values: [cachedFrequencies, cachedValues] } = await readLiveRecords(
+    db,
+    (generation) => [
+      generationKey(generation, "meta:frequencies"),
+      generationKey(generation, deviceId),
+    ],
+  );
+
   // Cache contents came from a third-party source and may have been written
   // by an older app version, so validate both records on every read.
-  const store = db.transaction(STORE_NAME, "readonly").objectStore(STORE_NAME);
-  const [cachedFrequencies, cachedValues] = await Promise.all([
-    idbRequest<unknown>(store.get(generationKey(generation, "meta:frequencies"))),
-    idbRequest<unknown>(store.get(generationKey(generation, deviceId))),
-  ]);
-
   if (cachedFrequencies === undefined || cachedValues === undefined) {
     throw new Error(
       "Curve not found in local cache. Please download the database.",

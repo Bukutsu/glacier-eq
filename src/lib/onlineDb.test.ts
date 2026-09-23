@@ -2,7 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   clearCachedDatabase,
   deleteDatabase,
+  fetchManifest,
   isUnrecoverableDbError,
+  loadDeviceCurvePoints,
   openDb,
   subscribeToDatabaseDownload,
 } from "./onlineDb";
@@ -462,6 +464,9 @@ describe("download cache safety (generation swap)", () => {
     records = new Map<string, unknown>();
     clearCalls = 0;
     abortWritesFor: string | null = null;
+    // Test seam: fired right after a get() succeeds — lets a test simulate
+    // another window committing between this store's reads.
+    afterGet: ((key: string) => void) | null = null;
 
     transaction() {
       const store = this;
@@ -470,7 +475,7 @@ describe("download cache safety (generation swap)", () => {
       let outstanding = 0;
       let settled = false;
 
-      const request = <T>(value: T) => {
+      const request = <T>(value: T, key?: string) => {
         outstanding += 1;
         const req = {
           result: value,
@@ -481,6 +486,7 @@ describe("download cache safety (generation swap)", () => {
         queueMicrotask(() => {
           outstanding -= 1;
           req.onsuccess?.(new Event("mock"));
+          if (key !== undefined) store.afterGet?.(key);
         });
         return req;
       };
@@ -524,7 +530,7 @@ describe("download cache safety (generation swap)", () => {
             pending.push(() => store.records.delete(key));
             return { onsuccess: null, onerror: null };
           },
-          get: (key: string) => request(store.records.get(key)),
+          get: (key: string) => request(store.records.get(key), key),
           getAllKeys: () => request([...store.records.keys()]),
           clear: () => {
             store.clearCalls += 1;
@@ -583,6 +589,41 @@ describe("download cache safety (generation swap)", () => {
     store.records.set("gen:1:manifest", { iems: {} });
     store.records.set("gen:1:frequencies", [20, 1000, 20000]);
     store.records.set("gen:1:source::Old Device", [9, 9, 9]);
+  }
+
+  // Wire the shared handle to this store's database so reader functions
+  // (which call openDb() themselves) operate on the fixture.
+  async function connectStore(store: MemoryStore): Promise<void> {
+    const openRequest = new MockOpenRequest();
+    vi.stubGlobal("indexedDB", { open: vi.fn(() => openRequest) });
+    const opening = openDb();
+    const database = {
+      close: vi.fn(),
+      closed: false,
+      onversionchange: null,
+      onclose: null,
+      transaction: vi.fn(() => store.transaction()),
+    };
+    openRequest.result = database as unknown as IDBDatabase;
+    fire(openRequest.onsuccess);
+    await opening;
+  }
+
+  // Simulate another window finishing its download (publish gen N+1) and
+  // sweeping the generation the reader just pointed at.
+  function strandAfterPointerRead(store: MemoryStore) {
+    let fired = false;
+    store.afterGet = (key) => {
+      if (key !== "meta:gen" || fired) return;
+      fired = true;
+      store.records.set("meta:gen", 2);
+      store.records.set("gen:2:complete", true);
+      store.records.set("gen:2:manifest", { iems: {} });
+      store.records.set("gen:2:frequencies", [20, 1000, 20000]);
+      for (const existing of [...store.records.keys()]) {
+        if (existing.startsWith("gen:1:")) store.records.delete(existing);
+      }
+    };
   }
 
   it("leaves the live cache untouched when a fetch fails before any write", async () => {
@@ -716,5 +757,44 @@ describe("download cache safety (generation swap)", () => {
     expect(store.records.has("gen:1:complete")).toBe(false);
     expect(store.records.has("gen:1:manifest")).toBe(false);
     expect(store.records.has("gen:1:source::Old Device")).toBe(false);
+  });
+
+  it("fetches the manifest from the same snapshot as the pointer, even when another window publishes mid-read", async () => {
+    const store = new MemoryStore();
+    seedLiveGenerationOne(store);
+    store.records.set("gen:1:manifest", manifestFixture);
+    await connectStore(store);
+    // Fires right after the reader observes meta:gen: generation 1 is swept
+    // and generation 2 published before the reader would fetch its records —
+    // exactly the split-transaction strand.
+    strandAfterPointerRead(store);
+
+    // Single transaction: records resolve from the pointer's own snapshot
+    // instead of throwing "Search manifest not cached" against a store where
+    // the swept generation's keys are gone.
+    await expect(fetchManifest()).resolves.toEqual([
+      { id: "source::Example One", brand: "Example", name: "One", price: 99, source: "source" },
+      { id: "source::Example Two", brand: "Example", name: "Two", price: null, source: "source" },
+    ]);
+  });
+
+  it("loads curve points from the same snapshot as the pointer, even when another window publishes mid-read", async () => {
+    const store = new MemoryStore();
+    seedLiveGenerationOne(store);
+    store.records.set("gen:1:source::Example One", [1, 2, 3]);
+    await connectStore(store);
+    strandAfterPointerRead(store);
+
+    // The split-transaction version read the pointer in tx1, then looked for
+    // gen:1 keys in tx2 — post-sweep — and rejected with "Curve not found"
+    // while a complete cache sat right there.
+    const points = await loadDeviceCurvePoints("source::Example One");
+    expect(points).toHaveLength(3);
+    expect(points.map((point) => point.freq)).toEqual([20, 1000, 20000]);
+    // normalizeMeasurementPoints re-references to 1000 Hz: [1, 2, 3] dB
+    // becomes [-1, 0, 1]. The assertion that discriminates is that the load
+    // RESOLVED at all — the split-transaction version rejected with
+    // "Curve not found" here.
+    expect(points.map((point) => point.db)).toEqual([-1, 0, 1]);
   });
 });
