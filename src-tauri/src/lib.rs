@@ -153,7 +153,7 @@ async fn save_text_file(
         if let Ok(appdata) = crate::profiles::app_data_base_dir(&app) {
             crate::fsutil::record_export_dir(&appdata, Path::new(&path));
         }
-        crate::fsutil::atomic_write_in_base(Path::new(&path), &base, content.as_bytes())?;
+        crate::fsutil::atomic_write_export_in_base(Path::new(&path), &base, content.as_bytes())?;
         // Resolve to the file name on success (matching save_text_file_dialog
         // and the web backend) so callers never read `null` as "cancelled".
         Ok(Path::new(&path)

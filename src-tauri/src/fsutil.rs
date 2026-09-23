@@ -5,12 +5,19 @@
 //! then rename over the destination. Shared by settings persistence and user
 //! text-file exports.
 
+use std::ffi::OsString;
 use std::fs;
-use std::io::Write;
-use std::path::Path;
+use std::io::{Read, Seek, SeekFrom, Write};
+use std::path::{Path, PathBuf};
 
 #[cfg(unix)]
-use std::{ffi::CString, os::fd::FromRawFd, os::unix::ffi::OsStrExt, path::Component};
+use std::os::{
+    fd::AsRawFd,
+    unix::ffi::{OsStrExt, OsStringExt},
+};
+
+#[cfg(unix)]
+use std::{ffi::CString, os::fd::FromRawFd, path::Component};
 
 pub(crate) fn atomic_write(path: &Path, contents: &[u8]) -> Result<(), String> {
     // Unique temp name per write: two app instances share the directory but
@@ -57,11 +64,15 @@ pub(crate) fn atomic_write(path: &Path, contents: &[u8]) -> Result<(), String> {
 /// descriptors for every component. A concurrent rename of a parent directory
 /// therefore cannot redirect the temporary file or final rename through a
 /// symlink between validation and use.
+const EXPORT_TEMP_PREFIX: &str = ".glacier-eq-export-";
+const EXPORT_TEMP_MARKER: &[u8] = b"glacier-eq-export-temp-v1\n";
+
 #[cfg(unix)]
-pub(crate) fn atomic_write_in_base(
+fn atomic_write_in_base_impl(
     path: &Path,
     base: &Path,
     contents: &[u8],
+    export_marker: Option<&[u8]>,
 ) -> Result<(), String> {
     let parent = path
         .parent()
@@ -134,7 +145,11 @@ pub(crate) fn atomic_write_in_base(
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_nanos();
-    let temporary_name = format!(".{file_name}.{nonce}.tmp");
+    let temporary_name = if export_marker.is_some() {
+        format!("{EXPORT_TEMP_PREFIX}{nonce}.tmp")
+    } else {
+        format!(".{file_name}.{nonce}.tmp")
+    };
     let temporary_c = match CString::new(temporary_name.as_bytes()) {
         Ok(name) => name,
         Err(_) => {
@@ -161,9 +176,20 @@ pub(crate) fn atomic_write_in_base(
     }
     // SAFETY: temporary_fd is a fresh owned descriptor returned by openat.
     let mut temporary = unsafe { fs::File::from_raw_fd(temporary_fd) };
-    let write_result = temporary
-        .write_all(contents)
-        .and_then(|_| temporary.sync_all());
+    let write_result = export_marker
+        .map(|marker| {
+            temporary
+                .write_all(marker)
+                .and_then(|_| temporary.sync_all())
+                .and_then(|_| temporary.set_len(0))
+                .and_then(|_| temporary.seek(SeekFrom::Start(0)))
+        })
+        .unwrap_or(Ok(0))
+        .and_then(|_| {
+            temporary
+                .write_all(contents)
+                .and_then(|_| temporary.sync_all())
+        });
     if let Err(error) = write_result {
         let _ = temporary.sync_all();
         // SAFETY: both descriptors are owned by this function.
@@ -200,8 +226,17 @@ pub(crate) fn atomic_write_in_base(
     Ok(())
 }
 
+#[cfg(unix)]
+pub(crate) fn atomic_write_export_in_base(
+    path: &Path,
+    base: &Path,
+    contents: &[u8],
+) -> Result<(), String> {
+    atomic_write_in_base_impl(path, base, contents, Some(EXPORT_TEMP_MARKER))
+}
+
 #[cfg(not(unix))]
-pub(crate) fn atomic_write_in_base(
+pub(crate) fn atomic_write_export_in_base(
     path: &Path,
     _base: &Path,
     contents: &[u8],
@@ -243,6 +278,77 @@ const EXPORT_MANIFEST_FILE: &str = "export_dirs.txt";
 /// sweep cheap and the file from growing without limit.
 const MAX_RECORDED_EXPORT_DIRS: usize = 100;
 
+#[cfg(unix)]
+fn with_manifest_lock<T>(
+    appdata: &Path,
+    operation: impl FnOnce() -> Result<T, String>,
+) -> Result<T, String> {
+    let lock_path = appdata.join("export_dirs.lock");
+    let lock = fs::OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .read(true)
+        .write(true)
+        .open(&lock_path)
+        .map_err(|error| format!("Failed to open export manifest lock: {error}"))?;
+    // SAFETY: lock owns a live file descriptor for the duration of the guard.
+    if unsafe { libc::flock(lock.as_raw_fd(), libc::LOCK_EX) } < 0 {
+        return Err(format!(
+            "Failed to lock export manifest: {}",
+            std::io::Error::last_os_error()
+        ));
+    }
+    let result = operation();
+    // SAFETY: the descriptor remains owned by lock until after unlock.
+    unsafe {
+        libc::flock(lock.as_raw_fd(), libc::LOCK_UN);
+    }
+    result
+}
+
+#[cfg(not(unix))]
+fn with_manifest_lock<T>(
+    _appdata: &Path,
+    operation: impl FnOnce() -> Result<T, String>,
+) -> Result<T, String> {
+    operation()
+}
+
+fn encode_export_path(path: &Path) -> Option<String> {
+    #[cfg(unix)]
+    let bytes = path.as_os_str().as_bytes();
+    #[cfg(not(unix))]
+    let bytes = path.to_str()?.as_bytes();
+    let mut encoded = String::from("hex:");
+    for byte in bytes {
+        use std::fmt::Write as _;
+        write!(&mut encoded, "{byte:02x}").ok()?;
+    }
+    Some(encoded)
+}
+
+fn decode_export_path(encoded: &str) -> Option<PathBuf> {
+    if let Some(hex) = encoded.strip_prefix("hex:") {
+        if hex.len() % 2 != 0 {
+            return None;
+        }
+        let mut bytes = Vec::with_capacity(hex.len() / 2);
+        let encoded_bytes = hex.as_bytes();
+        for index in (0..encoded_bytes.len()).step_by(2) {
+            let text = std::str::from_utf8(&encoded_bytes[index..index + 2]).ok()?;
+            bytes.push(u8::from_str_radix(text, 16).ok()?);
+        }
+        #[cfg(unix)]
+        return Some(PathBuf::from(OsString::from_vec(bytes)));
+        #[cfg(not(unix))]
+        return Some(PathBuf::from(String::from_utf8(bytes).ok()?));
+    }
+    // Legacy unescaped entries are accepted only as absolute paths. They are
+    // never trusted for deletion without the new temp marker below.
+    let path = PathBuf::from(encoded);
+    path.is_absolute().then_some(path)
+}
+
 /// Remembers the directory a local text export was written into so
 /// [`sweep_recorded_export_dirs`] can reclaim a crash orphan there on a
 /// later launch. Dialog-chosen and nested destinations can sit beyond
@@ -255,25 +361,30 @@ pub(crate) fn record_export_dir(appdata: &Path, written: &Path) {
     let Some(dir) = written.parent() else {
         return;
     };
-    // Prefer the canonical path so `..` spellings of the same directory
-    // dedupe; fall back to the path as written if canonicalize fails.
-    let dir = fs::canonicalize(dir).unwrap_or_else(|_| dir.to_path_buf());
-    let dir = dir.to_string_lossy();
-    let manifest = appdata.join(EXPORT_MANIFEST_FILE);
-    let existing = fs::read_to_string(&manifest).unwrap_or_default();
-    let mut dirs: Vec<String> = existing.lines().map(str::to_string).collect();
-    if dirs.iter().any(|entry| entry == dir.as_ref()) {
+    let Ok(dir) = fs::canonicalize(dir) else {
+        return;
+    };
+    if !dir.is_absolute() {
         return;
     }
-    dirs.push(dir.into_owned());
-    if dirs.len() > MAX_RECORDED_EXPORT_DIRS {
-        let overflow = dirs.len() - MAX_RECORDED_EXPORT_DIRS;
-        dirs.drain(..overflow);
-    }
-    let contents = dirs.join("\n");
-    // atomic_write (not fs::write) so a crash mid-record cannot tear the
-    // manifest and lose every previously recorded directory.
-    if let Err(error) = atomic_write(&manifest, contents.as_bytes()) {
+    let Some(encoded) = encode_export_path(&dir) else {
+        return;
+    };
+    let result = with_manifest_lock(appdata, || {
+        let manifest = appdata.join(EXPORT_MANIFEST_FILE);
+        let existing = fs::read_to_string(&manifest).unwrap_or_default();
+        let mut dirs: Vec<String> = existing.lines().map(str::to_string).collect();
+        if dirs.iter().any(|entry| entry == &encoded) {
+            return Ok(());
+        }
+        dirs.push(encoded);
+        if dirs.len() > MAX_RECORDED_EXPORT_DIRS {
+            let overflow = dirs.len() - MAX_RECORDED_EXPORT_DIRS;
+            dirs.drain(..overflow);
+        }
+        atomic_write(&manifest, dirs.join("\n").as_bytes())
+    });
+    if let Err(error) = result {
         eprintln!(
             "glacier-eq: cannot record export dir {}: {error}",
             written.display()
@@ -290,15 +401,79 @@ pub(crate) fn record_export_dir(appdata: &Path, written: &Path) {
 /// orphan.
 pub(crate) fn sweep_recorded_export_dirs(appdata: &Path) {
     let manifest = appdata.join(EXPORT_MANIFEST_FILE);
-    let Ok(contents) = fs::read_to_string(&manifest) else {
-        return;
+    let contents = match with_manifest_lock(appdata, || {
+        fs::read_to_string(&manifest).map_err(|error| error.to_string())
+    }) {
+        Ok(contents) => contents,
+        Err(_) => return,
     };
     for line in contents.lines() {
-        let dir = line.trim();
-        if dir.is_empty() {
+        let Some(dir) = decode_export_path(line.trim()) else {
+            continue;
+        };
+        sweep_export_dir(&dir);
+    }
+}
+
+fn sweep_export_dir(dir: &Path) {
+    match fs::symlink_metadata(dir) {
+        Ok(metadata) if metadata.file_type().is_dir() => {}
+        Ok(_) | Err(_) => return,
+    }
+    let Ok(dir) = fs::canonicalize(dir) else {
+        return;
+    };
+    let entries = match fs::read_dir(&dir) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return,
+        Err(error) => {
+            eprintln!(
+                "glacier-eq: export temp sweep cannot list {}: {error}",
+                dir.display()
+            );
+            return;
+        }
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if !entry.file_type().is_ok_and(|file_type| file_type.is_file()) {
             continue;
         }
-        sweep_at(Path::new(dir), 0);
+        let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
+            continue;
+        };
+        let Some(nonce) = name
+            .strip_prefix(EXPORT_TEMP_PREFIX)
+            .and_then(|name| name.strip_suffix(".tmp"))
+        else {
+            continue;
+        };
+        if nonce.len() < 18 || !nonce.chars().all(|character| character.is_ascii_digit()) {
+            continue;
+        }
+        let mut marker = vec![0; EXPORT_TEMP_MARKER.len()];
+        let has_marker = fs::File::open(&path)
+            .and_then(|mut file| file.read_exact(&mut marker))
+            .is_ok()
+            && marker == EXPORT_TEMP_MARKER;
+        if !has_marker {
+            continue;
+        }
+        match fs::metadata(&path).and_then(|metadata| metadata.modified()) {
+            Ok(modified) if modified.elapsed().unwrap_or_default() < STALE_TEMP_AGE => {}
+            Ok(_) => {
+                if let Err(error) = fs::remove_file(&path) {
+                    eprintln!(
+                        "glacier-eq: export temp sweep cannot remove {}: {error}",
+                        path.display()
+                    );
+                }
+            }
+            Err(error) => eprintln!(
+                "glacier-eq: export temp sweep cannot age {}: {error}",
+                path.display()
+            ),
+        }
     }
 }
 
@@ -391,12 +566,12 @@ mod tests {
         let parent_link = root.join("linked-base");
         std::os::unix::fs::symlink(&outside, &parent_link).unwrap();
         let linked_path = parent_link.join("report.txt");
-        assert!(atomic_write_in_base(&linked_path, &base, b"blocked").is_err());
+        assert!(atomic_write_in_base_impl(&linked_path, &base, b"blocked", None).is_err());
         assert_eq!(fs::read(&outside_file).unwrap(), b"outside");
 
         let destination = base.join("report.txt");
         std::os::unix::fs::symlink(&outside_file, &destination).unwrap();
-        atomic_write_in_base(&destination, &base, b"inside").unwrap();
+        atomic_write_in_base_impl(&destination, &base, b"inside", None).unwrap();
         assert_eq!(fs::read(&destination).unwrap(), b"inside");
         assert_eq!(fs::read(&outside_file).unwrap(), b"outside");
 
@@ -491,11 +666,14 @@ mod tests {
         let appdata = temporary_dir();
         // A dialog-chosen destination no allowed-base sweep walks to.
         let external = temporary_dir();
-        let orphan = external.join("Report.1700000000000000004.tmp");
-        fs::write(&orphan, b"x").unwrap();
+        let orphan = external.join(format!("{EXPORT_TEMP_PREFIX}1700000000000000004.tmp"));
+        fs::write(&orphan, EXPORT_TEMP_MARKER).unwrap();
         set_stale(&orphan);
-        let fresh = external.join("Report.1700000000000000005.tmp");
-        fs::write(&fresh, b"x").unwrap();
+        let fresh = external.join(format!("{EXPORT_TEMP_PREFIX}1700000000000000005.tmp"));
+        fs::write(&fresh, EXPORT_TEMP_MARKER).unwrap();
+        let unmarked = external.join(format!("{EXPORT_TEMP_PREFIX}1700000000000000006.tmp"));
+        fs::write(&unmarked, b"user file").unwrap();
+        set_stale(&unmarked);
         fs::write(external.join("Report.txt"), b"keep").unwrap();
 
         record_export_dir(&appdata, &external.join("Report.txt"));
@@ -508,6 +686,7 @@ mod tests {
             "a stale temp in a recorded dir must be swept"
         );
         assert!(fresh.exists(), "a fresh temp may be a sibling's live write");
+        assert!(unmarked.exists(), "an unmarked user file must be preserved");
         assert!(external.join("Report.txt").exists());
         let manifest = fs::read_to_string(appdata.join(EXPORT_MANIFEST_FILE)).unwrap();
         assert_eq!(
@@ -518,6 +697,55 @@ mod tests {
 
         let _ = fs::remove_dir_all(&appdata);
         let _ = fs::remove_dir_all(&external);
+    }
+
+    #[test]
+    fn export_manifest_updates_are_serialized() {
+        let appdata = temporary_dir();
+        let first = temporary_dir();
+        let second = temporary_dir();
+        let barrier = std::sync::Arc::new(std::sync::Barrier::new(2));
+        let handles: Vec<_> = [first.clone(), second.clone()]
+            .into_iter()
+            .map(|directory| {
+                let appdata = appdata.clone();
+                let barrier = barrier.clone();
+                std::thread::spawn(move || {
+                    barrier.wait();
+                    record_export_dir(&appdata, &directory.join("Report.txt"));
+                })
+            })
+            .collect();
+        for handle in handles {
+            handle.join().unwrap();
+        }
+        let manifest = fs::read_to_string(appdata.join(EXPORT_MANIFEST_FILE)).unwrap();
+        assert_eq!(manifest.lines().count(), 2, "manifest: {manifest:?}");
+
+        let _ = fs::remove_dir_all(appdata);
+        let _ = fs::remove_dir_all(first);
+        let _ = fs::remove_dir_all(second);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn export_manifest_preserves_non_utf8_directory_names() {
+        let appdata = temporary_dir();
+        let root = temporary_dir();
+        let mut name = OsString::from("export-");
+        name.push(OsString::from_vec(vec![0xff]));
+        let external = root.join(name);
+        fs::create_dir(&external).unwrap();
+        let orphan = external.join(format!("{EXPORT_TEMP_PREFIX}1700000000000000007.tmp"));
+        fs::write(&orphan, EXPORT_TEMP_MARKER).unwrap();
+        set_stale(&orphan);
+
+        record_export_dir(&appdata, &external.join("Report.txt"));
+        sweep_recorded_export_dirs(&appdata);
+
+        assert!(!orphan.exists());
+        let _ = fs::remove_dir_all(appdata);
+        let _ = fs::remove_dir_all(root);
     }
 
     #[test]
