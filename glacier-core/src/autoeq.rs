@@ -1572,6 +1572,9 @@ pub fn run_autoeq(
     if !fs.is_finite() || !(40_000.0..=768_000.0).contains(&fs) {
         return Err("Sample rate must be between 40000 and 768000 Hz".into());
     }
+    if let Some(caps) = caps {
+        crate::device::normalization::validate_capabilities(caps)?;
+    }
     if !matches!(
         smooth_type.to_ascii_lowercase().as_str(),
         "none" | "ie" | "oe"
@@ -1919,6 +1922,18 @@ mod tests {
         assert!(run_autoeq(&[], &curve, 2, 10, "none", 48_000.0, None).is_err());
         assert!(run_autoeq(&curve, &curve, 2, 10, "bad", 48_000.0, None).is_err());
         assert!(run_autoeq(&curve, &curve, 2, 10, "none", f32::NAN, None).is_err());
+    }
+
+    #[test]
+    fn autoeq_rejects_invalid_capability_ranges() {
+        let curve = [(20.0, 0.0), (20_000.0, 0.0)];
+        let mut caps = crate::device::capabilities::DESKTOP_DAC_CAPS;
+        caps.q_range = (3.0, 0.5);
+        assert!(run_autoeq(&curve, &curve, 2, 1, "none", 48_000.0, Some(&caps)).is_err());
+
+        caps.q_range = (0.5, 3.0);
+        caps.freq_range = (20_000, 20);
+        assert!(run_autoeq(&curve, &curve, 2, 1, "none", 48_000.0, Some(&caps)).is_err());
     }
 
     /// Hand-derived biquad gradients must match central finite differences of

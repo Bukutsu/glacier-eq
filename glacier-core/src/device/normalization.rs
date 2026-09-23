@@ -34,6 +34,7 @@ pub fn normalize_peq_for_capabilities(
     caps: &DeviceCapabilities,
     protocol: DeviceProtocol,
 ) -> Result<(PEQData, Vec<String>), String> {
+    validate_capabilities(caps)?;
     validate_peq(&peq)?;
     // The warnings are the whole point of returning them: discarding them
     // here meant every push altered out-of-range values with no signal.
@@ -64,6 +65,35 @@ pub fn validate_peq(peq: &PEQData) -> Result<(), String> {
         if !filter.gain.is_finite() || !filter.q.is_finite() || filter.q <= 0.0 {
             return Err(format!("Band {} has invalid gain or Q", index + 1));
         }
+    }
+    Ok(())
+}
+
+pub(crate) fn validate_capabilities(caps: &DeviceCapabilities) -> Result<(), String> {
+    if caps.num_bands == 0 {
+        return Err("Device must support at least one band".into());
+    }
+    if caps.global_gain_range.0 > caps.global_gain_range.1 {
+        return Err("Device global gain range is invalid".into());
+    }
+    if !caps.band_gain_range.0.is_finite()
+        || !caps.band_gain_range.1.is_finite()
+        || caps.band_gain_range.0 > caps.band_gain_range.1
+    {
+        return Err("Device band gain range must be finite and ordered".into());
+    }
+    if caps.freq_range.0 == 0 || caps.freq_range.0 > caps.freq_range.1 {
+        return Err("Device frequency range must be positive and ordered".into());
+    }
+    if !caps.q_range.0.is_finite()
+        || !caps.q_range.1.is_finite()
+        || caps.q_range.0 <= 0.0
+        || caps.q_range.0 > caps.q_range.1
+    {
+        return Err("Device Q range must be positive, finite, and ordered".into());
+    }
+    if !caps.dsp_sample_rate.is_finite() || caps.dsp_sample_rate <= 0.0 {
+        return Err("Device sample rate must be positive and finite".into());
     }
     Ok(())
 }
@@ -171,6 +201,23 @@ mod tests {
         ] {
             assert!(normalize_peq_for_device(peq, 0x2972, 0x0102).is_err());
         }
+    }
+
+    #[test]
+    fn normalization_rejects_invalid_capability_ranges() {
+        let peq = PEQData {
+            filters: vec![filter()],
+            global_gain: 0.0,
+        };
+        let mut caps = crate::device::capabilities::DESKTOP_DAC_CAPS;
+        caps.q_range = (3.0, 0.5);
+        assert!(
+            normalize_peq_for_capabilities(peq.clone(), &caps, DeviceProtocol::Unknown).is_err()
+        );
+
+        caps.q_range = (0.5, 3.0);
+        caps.freq_range = (20_000, 20);
+        assert!(normalize_peq_for_capabilities(peq, &caps, DeviceProtocol::Unknown).is_err());
     }
 
     #[test]
