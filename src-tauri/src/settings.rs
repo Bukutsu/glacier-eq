@@ -90,30 +90,56 @@ pub async fn get_settings(app: tauri::AppHandle) -> Result<Settings, String> {
     // Disk I/O stays off the IPC thread (see save_settings). No existence
     // pre-check: a file deleted between check and read must fall back to
     // defaults like a missing file, not surface as a hard error.
-    let content = tauri::async_runtime::spawn_blocking(move || fs::read_to_string(&path))
+    tauri::async_runtime::spawn_blocking(move || read_settings(&path))
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| e.to_string())?
+}
 
-    match content {
-        Ok(content) => {
-            // A corrupt or schema-drifted file must not wedge every future
-            // get_settings call (or silently diverge from callers that fall
-            // back to the default): self-heal to defaults instead.
-            match serde_json::from_str::<Settings>(&content) {
-                Ok(mut settings) => {
-                    // An unknown theme string would select a nonexistent
-                    // theme; fall back to auto like the web parser.
-                    if !is_known_theme(&settings.theme) {
-                        settings.theme = default_theme();
-                    }
-                    Ok(settings)
-                }
-                Err(_) => Ok(Settings::default()),
-            }
-        }
+fn read_settings(path: &std::path::Path) -> Result<Settings, String> {
+    match fs::read_to_string(path) {
+        Ok(content) => Ok(parse_settings(&content, path)),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(Settings::default()),
         Err(error) => Err(format!("Failed to read settings file: {error}")),
     }
+}
+
+fn parse_settings(content: &str, path: &std::path::Path) -> Settings {
+    match serde_json::from_str::<Settings>(content) {
+        Ok(mut settings) => {
+            // An unknown theme string would select a nonexistent
+            // theme; fall back to auto like the web parser.
+            if !is_known_theme(&settings.theme) {
+                settings.theme = default_theme();
+            }
+            settings
+        }
+        // A corrupt or schema-drifted file must not wedge every future
+        // get_settings call (or silently diverge from callers that fall
+        // back to the default): self-heal to defaults instead. But never
+        // silently and never destructively — the next save_settings
+        // atomically replaces the file, so preserve the original bytes
+        // first (the web parser quarantines to `-malformed-` for the same
+        // event) and log the parse error that used to be discarded.
+        Err(error) => {
+            eprintln!("glacier-eq: settings.json is unreadable; using defaults: {error}");
+            if let Err(backup_error) = quarantine_corrupt_settings(path, content) {
+                eprintln!("glacier-eq: failed to back up unreadable settings: {backup_error}");
+            }
+            Settings::default()
+        }
+    }
+}
+
+/// Preserve the corrupt bytes beside the original before any save overwrites
+/// them. The `settings.json.bak.<epoch-ms>` name is not swept: the startup
+/// sweep only matches `.tmp` extensions.
+fn quarantine_corrupt_settings(path: &std::path::Path, content: &str) -> Result<(), String> {
+    let stamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis();
+    let backup = path.with_file_name(format!("settings.json.bak.{stamp}"));
+    fs::write(&backup, content.as_bytes()).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -186,5 +212,71 @@ mod tests {
         }
         assert!(!is_known_theme("dark"));
         assert!(!is_known_theme(""));
+    }
+
+    #[test]
+    fn corrupt_settings_default_and_keep_original_bytes_backup() {
+        let dir = std::env::temp_dir().join(format!(
+            "glacier-settings-quarantine-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id(),
+        ));
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("settings.json");
+        // Truncated by an external editor mid-write: parse fails, and the
+        // next save_settings would irrecoverably replace these bytes.
+        let corrupt = r#"{"theme": "nord", "future_option": "#;
+        fs::write(&path, corrupt).unwrap();
+
+        let settings = read_settings(&path).expect("corrupt file must not hard-error");
+        assert_eq!(settings.theme, default_theme());
+        assert_eq!(settings.extra.len(), 0);
+
+        // The original bytes survive beside the file — without the quarantine
+        // the directory would hold only settings.json, defaults-only.
+        let backups: Vec<_> = fs::read_dir(&dir)
+            .unwrap()
+            .filter_map(|entry| entry.ok())
+            .filter(|entry| {
+                entry
+                    .file_name()
+                    .to_string_lossy()
+                    .starts_with("settings.json.bak.")
+            })
+            .collect();
+        assert_eq!(backups.len(), 1, "exactly one timestamped backup");
+        let preserved = fs::read(backups[0].path()).unwrap();
+        assert_eq!(preserved, corrupt.as_bytes());
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn valid_settings_produce_no_backup() {
+        let dir = std::env::temp_dir().join(format!(
+            "glacier-settings-noquarantine-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id(),
+        ));
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("settings.json");
+        fs::write(&path, r#"{"theme": "nord"}"#).unwrap();
+
+        let settings = read_settings(&path).unwrap();
+        assert_eq!(settings.theme, "nord");
+
+        let backup_count = fs::read_dir(&dir)
+            .unwrap()
+            .filter_map(|entry| entry.ok())
+            .filter(|entry| {
+                entry
+                    .file_name()
+                    .to_string_lossy()
+                    .starts_with("settings.json.bak.")
+            })
+            .count();
+        assert_eq!(backup_count, 0);
+
+        fs::remove_dir_all(&dir).ok();
     }
 }
