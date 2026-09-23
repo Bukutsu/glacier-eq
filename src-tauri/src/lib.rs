@@ -123,7 +123,7 @@ async fn save_text_file(
     app: tauri::AppHandle,
     path: String,
     content: String,
-) -> Result<(), String> {
+) -> Result<String, String> {
     if !is_path_allowed(&app, &path) {
         return Err("Refused: file path is outside allowed directories".into());
     }
@@ -137,7 +137,13 @@ async fn save_text_file(
         if !is_path_allowed(&app, &path) {
             return Err("Refused: file path is outside allowed directories".into());
         }
-        crate::fsutil::atomic_write(Path::new(&path), content.as_bytes())
+        crate::fsutil::atomic_write(Path::new(&path), content.as_bytes())?;
+        // Resolve to the file name on success (matching save_text_file_dialog
+        // and the web backend) so callers never read `null` as "cancelled".
+        Ok(Path::new(&path)
+            .file_name()
+            .map(|name| name.to_string_lossy().into_owned())
+            .unwrap_or(path))
     })
     .await
     .map_err(|e| e.to_string())?
