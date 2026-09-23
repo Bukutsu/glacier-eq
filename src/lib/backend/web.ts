@@ -1393,7 +1393,17 @@ export async function openFileDialog(options?: {
 
 export async function openUrl(url: string): Promise<void> {
   if (typeof window !== "undefined") {
-    window.open(url, "_blank", "noopener,noreferrer");
+    // Passing noopener/noreferrer in windowFeatures forces window.open to
+    // return null even on success (the new context has no opener), which
+    // made popup-blocking indistinguishable from success — a blocked open
+    // resolved the promise and did nothing, invisibly. Open without those
+    // features and sever the opener handle instead: same guarantee, and a
+    // null return now reliably means the popup was blocked.
+    const opened = window.open(url, "_blank");
+    if (!opened) {
+      throw new Error("The browser blocked opening this link in a new tab");
+    }
+    opened.opener = null;
   }
 }
 

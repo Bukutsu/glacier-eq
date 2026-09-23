@@ -635,15 +635,34 @@ describe("persistentPushFailureMessage", () => {
 });
 
 describe("openUrl", () => {
-  it("opens external URL in new tab", async () => {
+  it("opens the URL without handing the opener to the new tab", async () => {
     const originalWindow = globalThis.window;
-    const openMock = vi.fn();
-    (globalThis as unknown as { window?: { open: typeof openMock } }).window = { open: openMock };
+    const opened = { opener: globalThis } as unknown as Window;
+    const openMock = vi.fn(() => opened);
+    (globalThis as unknown as { window?: unknown }).window = { open: openMock };
+
     await openUrl("https://github.com/Bukutsu/glacier-eq");
+
+    // No windowFeatures: noopener/noreferrer in features force a null
+    // return even on success, which made popup-blocking undetectable.
+    // The opener handle is severed below instead.
     expect(openMock).toHaveBeenCalledWith(
       "https://github.com/Bukutsu/glacier-eq",
       "_blank",
-      "noopener,noreferrer",
+    );
+    expect(opened.opener).toBeNull();
+    globalThis.window = originalWindow;
+  });
+
+  it("rejects when the browser blocks the popup instead of resolving as success", async () => {
+    const originalWindow = globalThis.window;
+    const openMock = vi.fn(() => null);
+    (globalThis as unknown as { window?: unknown }).window = { open: openMock };
+
+    // The old implementation ignored the return value: a blocked popup
+    // resolved the promise and the click vanished without a trace.
+    await expect(openUrl("https://example.com")).rejects.toThrow(
+      /blocked opening this link/,
     );
     globalThis.window = originalWindow;
   });

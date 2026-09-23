@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { NavLink } from "react-router";
 import { Icon } from "./Icon";
 import { Select, type SelectOption } from "./Select";
-import { openUrl } from "../lib/rpc";
+import { openExternalLink } from "../lib/externalLinks";
 
 export function StackHeader({
   title,
@@ -181,9 +181,7 @@ export function ExternalLinkRow({
 }) {
   const handleClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
     event.preventDefault();
-    openUrl(href).catch((err) => {
-      console.error("Failed to open external URL:", err);
-    });
+    void openExternalLink(href);
   };
 
   return (

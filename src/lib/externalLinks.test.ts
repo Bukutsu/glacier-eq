@@ -1,9 +1,10 @@
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
-import { describe, expect, it, vi, beforeEach } from "vitest";
-import { createExternalLinkClickHandler } from "./externalLinks";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { createExternalLinkClickHandler, openExternalLink } from "./externalLinks";
 import { openUrl } from "./rpc";
+import { useToastStore } from "../stores/toastStore";
 
 vi.mock("./rpc", () => ({
   openUrl: vi.fn().mockResolvedValue(undefined),
@@ -37,7 +38,12 @@ function fakeClick(options: {
 describe("createExternalLinkClickHandler", () => {
   beforeEach(() => {
     openUrlMock.mockClear();
+    useToastStore.setState({ toasts: [], status: "Ready" });
     vi.spyOn(console, "error").mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it("skips clicks a component already handled, so the URL opens once", () => {
@@ -84,5 +90,39 @@ describe("createExternalLinkClickHandler", () => {
     const nonAnchor = fakeClick({ href: null });
     handler(nonAnchor.event);
     expect(openUrlMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("openExternalLink failure reporting", () => {
+  beforeEach(() => {
+    openUrlMock.mockClear();
+    useToastStore.setState({ toasts: [], status: "Ready" });
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("surfaces a rejected open as an error toast, not console-only", async () => {
+    openUrlMock.mockRejectedValueOnce(
+      new Error("The browser blocked opening this link in a new tab"),
+    );
+
+    await openExternalLink("https://example.com");
+
+    // console.error alone left the click looking like it did nothing.
+    const toasts = useToastStore.getState().toasts;
+    expect(toasts).toHaveLength(1);
+    expect(toasts[0].type).toBe("error");
+    expect(toasts[0].message).toContain(
+      "The browser blocked opening this link in a new tab",
+    );
+    expect(console.error).toHaveBeenCalled();
+  });
+
+  it("adds no toast when the open succeeds", async () => {
+    await openExternalLink("https://example.com");
+    expect(useToastStore.getState().toasts).toHaveLength(0);
   });
 });

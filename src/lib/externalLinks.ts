@@ -2,6 +2,23 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 import { openUrl } from "./rpc";
+import { useToastStore } from "../stores/toastStore";
+
+/**
+ * Opens a link and reports failures where the user can see them. Both
+ * openUrl backends can reject (the web backend when the popup is blocked,
+ * the desktop backend when the opener command fails); ending in
+ * console.error alone left the click looking like it simply did nothing.
+ */
+export function openExternalLink(href: string): Promise<void> {
+  return openUrl(href).catch((err: unknown) => {
+    const detail = err instanceof Error ? err.message : String(err);
+    console.error("Failed to open external URL:", err);
+    useToastStore
+      .getState()
+      .addToast(`Failed to open external link: ${detail}`, "error");
+  });
+}
 
 /**
  * Document-level click handler that opens http(s) anchors in the default
@@ -22,9 +39,7 @@ export function createExternalLinkClickHandler(): (event: MouseEvent) => void {
     const href = anchor.getAttribute("href");
     if (href && (href.startsWith("http://") || href.startsWith("https://"))) {
       event.preventDefault();
-      openUrl(href).catch((err) => {
-        console.error("Failed to open external URL:", err);
-      });
+      void openExternalLink(href);
     }
   };
 }
