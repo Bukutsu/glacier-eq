@@ -125,7 +125,10 @@ impl ProfileStore {
                 "Profile exceeds maximum filter count ({MAX_FILTERS})"
             ));
         }
-        let content = peq_to_autoeq(peq);
+        crate::device::validate_peq(peq)?;
+        let mut normalized = peq.clone();
+        normalized.clamp_to_capabilities(&storage_capabilities(peq.filters.len()));
+        let content = peq_to_autoeq(&normalized);
         if content.len() as u64 > MAX_PROFILE_BYTES {
             return Err("Profile exceeds maximum size (1 MiB)".into());
         }
@@ -488,6 +491,42 @@ mod tests {
         assert!(store.save("../escape", &peq).is_err());
         store.delete("Daily").unwrap();
         assert!(store.list().unwrap().is_empty());
+        std::fs::remove_dir_all(base).unwrap();
+    }
+
+    #[test]
+    fn profile_save_rejects_invalid_values_and_canonicalizes_storage_range() {
+        let base = temporary_dir();
+        let store = ProfileStore::new(&base).unwrap();
+        let mut filter = crate::Filter::enabled(0, true);
+        filter.q = 0.0;
+        let invalid = PEQData {
+            filters: vec![filter.clone()],
+            global_gain: 0.0,
+        };
+        assert!(store.save("Invalid", &invalid).is_err());
+        assert!(!store.exists("Invalid").unwrap());
+
+        filter.q = f64::NAN;
+        let invalid_nan = PEQData {
+            filters: vec![filter],
+            global_gain: 0.0,
+        };
+        assert!(store.save("InvalidNan", &invalid_nan).is_err());
+
+        let mut small_q = crate::Filter::enabled(0, true);
+        small_q.q = 0.0004;
+        store
+            .save(
+                "Canonical",
+                &PEQData {
+                    filters: vec![small_q],
+                    global_gain: 0.0,
+                },
+            )
+            .unwrap();
+        assert_eq!(store.load("Canonical").unwrap().data.filters[0].q, 0.1);
+
         std::fs::remove_dir_all(base).unwrap();
     }
 
