@@ -9,6 +9,11 @@ export interface Toast {
   type: "info" | "error" | "success";
 }
 
+// Error toasts deliberately stay until dismissed, so without a cap distinct
+// error messages (device names, import failures) accumulate for the whole
+// session. Keep the newest N and let the oldest fall off.
+const MAX_TOASTS = 50;
+
 interface ToastStore {
   toasts: Toast[];
   status: string;
@@ -52,7 +57,8 @@ export const useToastStore = create<ToastStore>()((set, get) => ({
     if (toasts.some((t) => t.message === message)) return;
 
     const id = Math.random().toString(36).substring(2, 9);
-    set({ toasts: [...toasts, { id, message, type: toastType }] });
+    const next = [...toasts, { id, message, type: toastType }];
+    set({ toasts: next.length > MAX_TOASTS ? next.slice(next.length - MAX_TOASTS) : next });
 
     if (toastType !== "error") {
       setTimeout(() => {

@@ -33,4 +33,16 @@ describe("toastStore", () => {
     useToastStore.getState().removeToast(id);
     expect(useToastStore.getState().toasts.length).toBe(0);
   });
+
+  it("caps accumulated error toasts at the newest 50", () => {
+    // Errors never auto-expire, so distinct messages would pile up forever.
+    for (let i = 0; i < 60; i++) {
+      useToastStore.getState().addToast(`Failed operation ${i}`);
+    }
+    const toasts = useToastStore.getState().toasts;
+    expect(toasts.length).toBe(50);
+    expect(toasts[0].message).toBe("Failed operation 10");
+    expect(toasts[toasts.length - 1].message).toBe("Failed operation 59");
+    expect(toasts.every((toast) => toast.type === "error")).toBe(true);
+  });
 });
