@@ -113,10 +113,16 @@ impl ProfileStore {
     }
 
     pub fn load(&self, name: &str) -> Result<StoredProfile, String> {
-        // read_profile already eprintlns its warnings; the CLI and library
-        // consumers see them on stderr without extra plumbing.
-        let (profile, _) = read_profile(&self.path(name)?)?;
-        profile.ok_or_else(|| format!("Profile not found: {name}"))
+        validate_name(name)?;
+        // A malformed case-variant sibling must not shadow a valid profile:
+        // walk the same variants list_detailed uses until one is readable.
+        for path in self.case_variant_paths(name) {
+            let (profile, _) = read_profile(&path)?;
+            if let Some(profile) = profile {
+                return Ok(profile);
+            }
+        }
+        Err(format!("Profile not found: {name}"))
     }
 
     pub fn save(&self, name: &str, peq: &PEQData) -> Result<(), String> {
@@ -200,7 +206,14 @@ impl ProfileStore {
 
     fn path(&self, name: &str) -> Result<PathBuf, String> {
         validate_name(name)?;
-        if let Some(existing) = self.case_variant_paths(name).into_iter().next() {
+        let variants = self.case_variant_paths(name);
+        if let Some(path) = variants
+            .iter()
+            .find(|path| matches!(read_profile(path), Ok((Some(_), _))))
+        {
+            return Ok(path.clone());
+        }
+        if let Some(existing) = variants.into_iter().next() {
             return Ok(existing);
         }
         Ok(self.dir.join(format!("{name}.txt")))
@@ -496,6 +509,24 @@ mod tests {
         assert!(store.save("../escape", &peq).is_err());
         store.delete("Daily").unwrap();
         assert!(store.list().unwrap().is_empty());
+        std::fs::remove_dir_all(base).unwrap();
+    }
+
+    #[test]
+    fn load_uses_the_same_valid_case_variant_as_listing() {
+        let base = temporary_dir();
+        let store = ProfileStore::new(&base).unwrap();
+        let valid = PEQData {
+            filters: vec![crate::Filter::enabled(0, true)],
+            global_gain: -2.0,
+        };
+        std::fs::write(base.join("profiles/A.txt"), "not a profile").unwrap();
+        std::fs::write(base.join("profiles/a.txt"), peq_to_autoeq(&valid)).unwrap();
+
+        let listed = store.list().unwrap();
+        assert_eq!(listed.len(), 1);
+        assert_eq!(store.load("a").unwrap().data, listed[0].data);
+
         std::fs::remove_dir_all(base).unwrap();
     }
 
