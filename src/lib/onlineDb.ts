@@ -382,29 +382,80 @@ async function downloadDatabaseWithDb(
   }
 
   // Publish atomically: readers see either the previous complete generation
-  // or this one, never a partial download.
+  // or this one, never a partial download. The flip is also a FENCE — another
+  // window can clear() the store or publish a newer generation while this
+  // download is writing chunks, and the completeness flag must only ever land
+  // on records that are still present and still the newest generation. Both
+  // checks run inside the publishing transaction, so no interleaving can slip
+  // between validation and flip: a mismatch ABORTS the publish (and with it
+  // the download) instead of marking a torn generation complete.
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readwrite");
     const store = tx.objectStore(STORE_NAME);
-    store.put(true, generationKey(generation, "meta:complete"));
-    store.put(generation, META_GEN_KEY);
+    let fenceFailure: string | null = null;
+    // Chain validation requests synchronously inside onsuccess handlers —
+    // the pattern that keeps a transaction active in every engine.
+    const genRequest = store.get(META_GEN_KEY);
+    genRequest.onsuccess = () => {
+      const current = genRequest.result;
+      const currentGeneration =
+        typeof current === "number" && Number.isSafeInteger(current) && current >= 1
+          ? current
+          : null;
+      if (currentGeneration !== previousGeneration) {
+        fenceFailure = currentGeneration === null
+          ? "The online database cache was cleared during the download; please download again."
+          : "The online database cache was updated by another window during the download; please download again.";
+        tx.abort();
+        return;
+      }
+      const keysRequest = store.getAllKeys();
+      keysRequest.onsuccess = () => {
+        const prefix = `gen:${generation}:`;
+        let hasManifest = false;
+        let hasFrequencies = false;
+        let curveCount = 0;
+        for (const key of keysRequest.result) {
+          const name = String(key);
+          if (name === generationKey(generation, "meta:manifest")) hasManifest = true;
+          else if (name === generationKey(generation, "meta:frequencies")) hasFrequencies = true;
+          else if (name.startsWith(prefix)) curveCount += 1;
+        }
+        if (!hasManifest || !hasFrequencies || curveCount < totalEntries) {
+          fenceFailure = "The online database cache was cleared during the download; please download again.";
+          tx.abort();
+          return;
+        }
+        store.put(true, generationKey(generation, "meta:complete"));
+        store.put(generation, META_GEN_KEY);
+      };
+    };
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
-    // Aborts (quota exceeded, private-mode eviction) fire only onabort; without
-    // this the awaited promise never settles and the UI hangs.
-    tx.onabort = () => reject(tx.error ?? new Error("Transaction aborted"));
+    // Aborts (fence failure, quota exceeded, private-mode eviction) fire only
+    // onabort; without this the awaited promise never settles and the UI hangs.
+    tx.onabort = () =>
+      reject(
+        fenceFailure !== null
+          ? new Error(fenceFailure)
+          : (tx.error ?? new Error("Transaction aborted")),
+      );
   });
 
-  // Best-effort sweep of the superseded generation and any legacy records;
-  // a failed sweep only wastes space — the next successful download retries.
+  // Best-effort sweep of superseded generations and any legacy records; a
+  // failed sweep only wastes space — the next successful download retries.
+  // Never touch a HIGHER generation: it belongs to a window ahead of us whose
+  // in-flight records are not superseded by our older publish.
   try {
     const keys = await idbRequest<IDBValidKey[]>(
       db.transaction(STORE_NAME, "readonly").objectStore(STORE_NAME).getAllKeys(),
     );
-    const livePrefix = `gen:${generation}:`;
     const stale = keys.filter((key) => {
       const name = String(key);
-      return name !== META_GEN_KEY && !name.startsWith(livePrefix);
+      if (name === META_GEN_KEY) return false;
+      const generationMatch = /^gen:(\d+):/.exec(name);
+      if (generationMatch) return Number(generationMatch[1]) < generation;
+      return true;
     });
     if (stale.length > 0) {
       await new Promise<void>((resolve, reject) => {

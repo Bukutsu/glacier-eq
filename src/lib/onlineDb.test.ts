@@ -453,33 +453,64 @@ describe("download cache safety (generation swap)", () => {
 
   // Minimal in-memory store: transactions apply their writes and complete on
   // a microtask (after the caller has synchronously assigned its handlers),
-  // matching IDB's promise-friendly event ordering. `abortWritesFor` makes
+  // matching IDB's promise-friendly event ordering. A transaction stays alive
+  // while requests are in flight and completes only once none remain — the
+  // model that lets code chain validation requests inside onsuccess handlers
+  // (the publish fence) behave as it does in a browser. `abortWritesFor` makes
   // the transaction that writes that key abort instead — the quota case.
   class MemoryStore {
     records = new Map<string, unknown>();
     clearCalls = 0;
     abortWritesFor: string | null = null;
 
-    private request<T>(value: T) {
-      const request = {
-        result: value,
-        error: null,
-        onsuccess: null as ((event: Event) => void) | null,
-        onerror: null as ((event: Event) => void) | null,
-      };
-      queueMicrotask(() => request.onsuccess?.(new Event("mock")));
-      return request;
-    }
-
     transaction() {
       const store = this;
       const pending: Array<() => void> = [];
       let abortWith: Error | null = null;
+      let outstanding = 0;
+      let settled = false;
+
+      const request = <T>(value: T) => {
+        outstanding += 1;
+        const req = {
+          result: value,
+          error: null,
+          onsuccess: null as ((event: Event) => void) | null,
+          onerror: null as ((event: Event) => void) | null,
+        };
+        queueMicrotask(() => {
+          outstanding -= 1;
+          req.onsuccess?.(new Event("mock"));
+        });
+        return req;
+      };
+
+      const settle = (): void => {
+        queueMicrotask(() => {
+          if (settled) return;
+          if (outstanding > 0) {
+            settle();
+            return;
+          }
+          settled = true;
+          if (abortWith) {
+            tx.error = abortWith;
+            tx.onabort?.(new Event("mock"));
+            return;
+          }
+          for (const apply of pending) apply();
+          tx.oncomplete?.(new Event("mock"));
+        });
+      };
+
       const tx = {
         error: null as Error | null,
         oncomplete: null as ((event: Event) => void) | null,
         onerror: null as ((event: Event) => void) | null,
         onabort: null as ((event: Event) => void) | null,
+        abort: () => {
+          abortWith ??= new Error("The operation was aborted.");
+        },
         objectStore: () => ({
           put: (value: unknown, key?: string) => {
             if (typeof key !== "string") throw new Error("fixture requires explicit keys");
@@ -493,8 +524,8 @@ describe("download cache safety (generation swap)", () => {
             pending.push(() => store.records.delete(key));
             return { onsuccess: null, onerror: null };
           },
-          get: (key: string) => store.request(store.records.get(key)),
-          getAllKeys: () => store.request([...store.records.keys()]),
+          get: (key: string) => request(store.records.get(key)),
+          getAllKeys: () => request([...store.records.keys()]),
           clear: () => {
             store.clearCalls += 1;
             pending.push(() => store.records.clear());
@@ -502,15 +533,7 @@ describe("download cache safety (generation swap)", () => {
           },
         }),
       };
-      queueMicrotask(() => {
-        if (abortWith) {
-          tx.error = abortWith;
-          tx.onabort?.(new Event("mock"));
-          return;
-        }
-        for (const apply of pending) apply();
-        tx.oncomplete?.(new Event("mock"));
-      });
+      settle();
       return tx;
     }
   }
@@ -535,10 +558,13 @@ describe("download cache safety (generation swap)", () => {
     }));
   }
 
-  function startDownload(store: MemoryStore): Promise<number> {
+  function startDownload(
+    store: MemoryStore,
+    onProgress: (percent: number) => void = vi.fn(),
+  ): Promise<number> {
     const openRequest = new MockOpenRequest();
     vi.stubGlobal("indexedDB", { open: vi.fn(() => openRequest) });
-    const subscription = subscribeToDatabaseDownload(vi.fn());
+    const subscription = subscribeToDatabaseDownload(onProgress);
     const database = {
       close: vi.fn(),
       closed: false,
@@ -614,5 +640,81 @@ describe("download cache safety (generation swap)", () => {
     expect(store.records.has("meta:frequencies")).toBe(false);
     expect(store.records.has("source::Legacy Device")).toBe(false);
     expect(store.clearCalls).toBe(0);
+  });
+
+  it("refuses to publish a generation another window cleared during the download", async () => {
+    const store = new MemoryStore();
+    seedLiveGenerationOne(store);
+    stubFetch("ok");
+    // After the first chunk lands (progress 0.85), another window clears the
+    // whole store before this window reaches its publish transaction.
+    let cleared = false;
+    const download = startDownload(store, (percent) => {
+      if (percent >= 0.85 && !cleared) {
+        cleared = true;
+        void clearCachedDatabase();
+      }
+    });
+
+    await expect(download).rejects.toThrow(/cleared during the download/);
+
+    // No torn "complete": without the fence the old publish wrote
+    // meta:gen + complete over the wiped store, leaving a generation no
+    // reader can use while isDatabaseDownloaded() answered true.
+    expect(store.records.has("meta:gen")).toBe(false);
+    expect(store.records.has("gen:2:complete")).toBe(false);
+    expect(store.records.has("gen:2:manifest")).toBe(false);
+    expect(store.clearCalls).toBe(1);
+  });
+
+  it("does not rewind the pointer when another window published a newer generation mid-download", async () => {
+    const store = new MemoryStore();
+    seedLiveGenerationOne(store);
+    stubFetch("ok");
+    // Another window finishes ITS download (generation 9 goes live) while
+    // this window — based on generation 1 — is still writing chunks.
+    let advanced = false;
+    const download = startDownload(store, (percent) => {
+      if (percent >= 0.85 && !advanced) {
+        advanced = true;
+        store.records.set("meta:gen", 9);
+        store.records.set("gen:9:complete", true);
+        store.records.set("gen:9:manifest", { iems: {} });
+        store.records.set("gen:9:frequencies", [20, 1000, 20000]);
+        store.records.set("gen:9:source::Ahead Window", [7, 7, 7]);
+      }
+    });
+
+    await expect(download).rejects.toThrow(/updated by another window/);
+
+    // The newer generation stays authoritative; our older flip never commits.
+    expect(store.records.get("meta:gen")).toBe(9);
+    expect(store.records.get("gen:9:complete")).toBe(true);
+    expect(store.records.get("gen:9:source::Ahead Window")).toEqual([7, 7, 7]);
+    expect(store.records.has("gen:2:complete")).toBe(false);
+    expect(store.clearCalls).toBe(0);
+  });
+
+  it("spares a newer in-flight generation from another window when sweeping", async () => {
+    const store = new MemoryStore();
+    seedLiveGenerationOne(store);
+    // A window ahead of this one is mid-download writing generation 7.
+    store.records.set("gen:7:manifest", { iems: {} });
+    store.records.set("gen:7:source::Ahead Window", [7, 7, 7]);
+    stubFetch("ok");
+
+    await expect(startDownload(store)).resolves.toBe(2);
+
+    expect(store.records.get("meta:gen")).toBe(2);
+    expect(store.records.get("gen:2:complete")).toBe(true);
+    // The higher generation is NOT superseded by our older publish — the old
+    // filter deleted every non-live key, eating the other window's chunks and
+    // publishing holes for it.
+    expect(store.records.get("gen:7:manifest")).toEqual({ iems: {} });
+    expect(store.records.get("gen:7:source::Ahead Window")).toEqual([7, 7, 7]);
+    // Superseded and legacy keys are still swept.
+    expect(store.records.has("gen:1:complete")).toBe(false);
+    expect(store.records.has("gen:1:manifest")).toBe(false);
+    expect(store.records.has("gen:1:source::Old Device")).toBe(false);
   });
 });
