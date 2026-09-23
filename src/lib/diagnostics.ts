@@ -1,13 +1,26 @@
+export const DIAGNOSTIC_LEVELS = ["Info", "Warn", "Error"] as const;
+export type DiagnosticLevel = (typeof DIAGNOSTIC_LEVELS)[number];
+
+/**
+ * `Storage` is emitted by the web backend's quarantine path; the other
+ * sources mirror the desktop `LogSource` enum.
+ */
+export const DIAGNOSTIC_SOURCES = [
+  "UI",
+  "Worker",
+  "HID",
+  "AutoEQ",
+  "Device",
+  "Storage",
+] as const;
+export type DiagnosticSource = (typeof DIAGNOSTIC_SOURCES)[number];
+
 export interface DiagnosticEvent {
   /** Backend-assigned monotonic ID; absent in legacy payloads. */
   seq?: number;
   timestamp: string;
-  level: "Info" | "Warn" | "Error";
-  /**
-   * `Storage` is emitted by the web backend's quarantine path; the other
-   * sources mirror the desktop `LogSource` enum.
-   */
-  source: "UI" | "Worker" | "HID" | "AutoEQ" | "Device" | "Storage";
+  level: DiagnosticLevel;
+  source: DiagnosticSource;
   message: string;
 }
 
@@ -36,21 +49,24 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+/** Union membership check shared by the parser and the web command boundary. */
+export function isDiagnosticLevel(value: unknown): value is DiagnosticLevel {
+  return DIAGNOSTIC_LEVELS.includes(value as DiagnosticLevel);
+}
+
+/** Union membership check shared by the parser and the web command boundary. */
+export function isDiagnosticSource(value: unknown): value is DiagnosticSource {
+  return DIAGNOSTIC_SOURCES.includes(value as DiagnosticSource);
+}
+
 export function parseDiagnosticEvent(value: unknown): DiagnosticEvent {
   if (
     !isRecord(value) ||
     (value.seq !== undefined &&
       (typeof value.seq !== "number" || !Number.isSafeInteger(value.seq) || value.seq <= 0)) ||
     typeof value.timestamp !== "string" ||
-    (value.level !== "Info" && value.level !== "Warn" && value.level !== "Error") ||
-    (
-      value.source !== "UI" &&
-      value.source !== "Worker" &&
-      value.source !== "HID" &&
-      value.source !== "AutoEQ" &&
-      value.source !== "Device" &&
-      value.source !== "Storage"
-    ) ||
+    !isDiagnosticLevel(value.level) ||
+    !isDiagnosticSource(value.source) ||
     typeof value.message !== "string"
   ) {
     throw new Error("Invalid diagnostic event payload");

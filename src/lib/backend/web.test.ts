@@ -715,3 +715,39 @@ describe("storage quarantine", () => {
     warnSpy.mockRestore();
   });
 });
+
+describe("add_diagnostic_event command boundary", () => {
+  it("rejects out-of-union level or source like desktop's serde boundary", async () => {
+    const before = (await invoke<unknown[]>("get_diagnostics")).length;
+
+    // An invalid event reaching the store would later make
+    // parseDiagnosticHistory throw and blank the whole history view.
+    await expect(
+      invoke("add_diagnostic_event", { level: "Info", source: "Bogus", message: "x" }),
+    ).rejects.toThrow("Invalid diagnostic event payload");
+    await expect(
+      invoke("add_diagnostic_event", { level: "Severe", source: "UI", message: "x" }),
+    ).rejects.toThrow("Invalid diagnostic event payload");
+    await expect(
+      invoke("add_diagnostic_event", { level: "Info", source: "UI", message: 42 }),
+    ).rejects.toThrow("Invalid diagnostic event payload");
+
+    expect((await invoke<unknown[]>("get_diagnostics")).length).toBe(before);
+  });
+
+  it("accepts a valid event and keeps the whole history parseable", async () => {
+    const before = (await invoke<unknown[]>("get_diagnostics")).length;
+
+    await invoke("add_diagnostic_event", {
+      level: "Warn",
+      source: "Storage",
+      message: "boundary-ok",
+    });
+
+    const history = await invoke<unknown[]>("get_diagnostics");
+    expect(history.length).toBe(before + 1);
+    // Nothing invalid entered the store: the history the ToolsPanel loads
+    // must parse end-to-end.
+    expect(parseDiagnosticHistory(history)).toHaveLength(history.length);
+  });
+});

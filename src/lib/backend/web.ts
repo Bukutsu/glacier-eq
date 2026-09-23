@@ -14,6 +14,7 @@ import type {
 import { ensureWasm, getWasm } from "./wasm";
 import { profileIdentityKey } from "../profileIdentity";
 import type { DiagnosticEvent } from "../diagnostics";
+import { isDiagnosticLevel, isDiagnosticSource } from "../diagnostics";
 
 // Wasm entry points are resolved lazily: ensureWasm() has already run on every
 // path that reaches them (invokeWeb awaits it before dispatching), so the
@@ -1036,7 +1037,23 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
       } as T;
     }
     case "add_diagnostic_event": {
-      addDiagnostic(args.level, args.source, args.message);
+      // Match the desktop command boundary (diagnostics.rs deserializes
+      // level/source as enums and rejects out-of-union values): an invalid
+      // event must not enter the store, where parseDiagnosticHistory would
+      // later throw on it and blank the whole history view.
+      const { level, source, message } = args as {
+        level?: unknown;
+        source?: unknown;
+        message?: unknown;
+      };
+      if (
+        !isDiagnosticLevel(level) ||
+        !isDiagnosticSource(source) ||
+        typeof message !== "string"
+      ) {
+        throw new Error("Invalid diagnostic event payload");
+      }
+      addDiagnostic(level, source, message);
       return null as T;
     }
     case "get_diagnostics": {
