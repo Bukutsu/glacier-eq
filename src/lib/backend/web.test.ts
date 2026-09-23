@@ -572,3 +572,41 @@ describe("openUrl", () => {
     globalThis.window = originalWindow;
   });
 });
+
+describe("storage quarantine", () => {
+  it("signals when malformed saved settings are quarantined and where the backup went", async () => {
+    localStorageValues.set("glacier-eq-settings", "{not json at all");
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    await invoke("get_settings");
+
+    // The old path replaced the value with total silence — the only trace
+    // was a -malformed- key nobody knows to look for.
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("backed up"));
+    const backup = [...localStorageValues.entries()].find(([key]) =>
+      key.startsWith("glacier-eq-settings-malformed-"),
+    );
+    expect(backup?.[1]).toBe("{not json at all");
+    // The live key holds the safe fallback now, not the garbage.
+    expect(() => JSON.parse(localStorageValues.get("glacier-eq-settings") ?? "")).not.toThrow();
+    warnSpy.mockRestore();
+  });
+
+  it("signals when the quarantine backup itself cannot be written", async () => {
+    localStorageValues.set("glacier-eq-profiles", "{not json at all");
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    localStorageMock.setItem.mockImplementationOnce(() => {
+      throw new DOMException("Quota exceeded", "QuotaExceededError");
+    });
+
+    await invoke("list_profiles");
+
+    // Without this signal the malformed original silently stays behind and
+    // every later load re-quarantines and fails the same way, with defaults
+    // mysteriously winning over "saved" data.
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("could not be replaced"));
+    // The failed backup lost nothing: the original is still there.
+    expect(localStorageValues.get("glacier-eq-profiles")).toBe("{not json at all");
+    warnSpy.mockRestore();
+  });
+});

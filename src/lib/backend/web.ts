@@ -502,8 +502,21 @@ function quarantineStorage(key: string, raw: string, safeValue: unknown): void {
     }
     localStorage.setItem(backupKey, raw);
     saveJson(key, safeValue);
-  } catch {
-    // Keep the original value if storage is full or unavailable.
+    // Without this the quarantine is invisible: the user's saved
+    // settings/profiles were corrupt and just got replaced by the fallback,
+    // yet the app claims nothing — the only trace is a `-malformed-` key
+    // nobody knows to look for. Say what happened and where the original is.
+    const message = `Malformed saved data for "${key}" was backed up to "${backupKey}" and replaced with a safe fallback.`;
+    console.warn(message);
+    addDiagnostic("Warn", "Storage", message);
+  } catch (error) {
+    // Keep the original value if storage is full or unavailable — but never
+    // silently either: the malformed value stays behind, every later load
+    // retries and fails the same way, and without a signal nobody learns
+    // why their "saved" settings keep reverting to defaults.
+    const message = `Malformed saved data for "${key}" could not be replaced (original kept, defaults used for this load): ${error}`;
+    console.warn(message);
+    addDiagnostic("Error", "Storage", message);
   }
 }
 
