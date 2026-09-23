@@ -343,6 +343,30 @@ describe("browser EQ writes", () => {
     });
   });
 
+  it("rejects an out-of-capability backup before writing", async () => {
+    const device = fakeHidDevice({ respondToReports: true });
+    await connectWebHid(device);
+    const requested = peqWithBands(10);
+    const invalid = {
+      ...requested,
+      filters: requested.filters.map((filter) => ({ ...filter, gain: 100 })),
+    };
+    wasm.normalize_peq_for_device.mockReturnValue({ peq: requested, warnings: [] });
+    wasm.build_read_global_gain_request.mockReturnValue([1]);
+    wasm.matches_global_gain_response.mockReturnValue(true);
+    wasm.parse_global_gain_response.mockReturnValue(requested.global_gain);
+    wasm.build_read_filter_request.mockReturnValue([1]);
+    wasm.matches_filter_response.mockReturnValue(true);
+    wasm.parse_filter_response.mockReturnValue(invalid.filters[0]);
+    wasm.is_default_peq_for_device.mockReturnValue(false);
+    wasm.build_write_global_gain_packets.mockReturnValue([[1, 2]]);
+
+    await expect(invoke("set_eq_state", { peq: requested })).rejects.toThrow(
+      "outside device capabilities",
+    );
+    expect(wasm.build_write_global_gain_packets).not.toHaveBeenCalled();
+  });
+
   it.each([
     { filters: [], global_gain: Number.NaN },
     { filters: [{ index: 0 }], global_gain: 0 },

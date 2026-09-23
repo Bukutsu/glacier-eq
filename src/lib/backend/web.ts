@@ -701,6 +701,37 @@ function disabledFilter(index: number): Filter {
   };
 }
 
+function validatePulledPeqForProfile(peq: PEQData, profile: SupportedDeviceInfo): void {
+  const globalTolerance = 0.001;
+  if (
+    peq.global_gain < profile.global_gain_range[0] - globalTolerance ||
+    peq.global_gain > profile.global_gain_range[1] + globalTolerance
+  ) {
+    throw new Error(`Pulled preamp ${peq.global_gain} dB is outside the device range`);
+  }
+  if (peq.filters.length > profile.num_bands) {
+    throw new Error("Pulled EQ has too many bands for the device");
+  }
+  for (const filter of peq.filters) {
+    const gainTolerance = profile.gain_tolerance ?? 0.15;
+    const freqTolerance = profile.freq_tolerance ?? 1;
+    const qTolerance = profile.q_tolerance ?? 0.05;
+    if (
+      filter.index < 0 ||
+      filter.index >= profile.num_bands ||
+      !profile.supported_filter_types.includes(filter.filter_type) ||
+      filter.freq < profile.freq_range[0] - freqTolerance ||
+      filter.freq > profile.freq_range[1] + freqTolerance ||
+      filter.gain < profile.band_gain_range[0] - gainTolerance ||
+      filter.gain > profile.band_gain_range[1] + gainTolerance ||
+      filter.q < profile.q_range[0] - qTolerance ||
+      filter.q > profile.q_range[1] + qTolerance
+    ) {
+      throw new Error(`Pulled band ${filter.index + 1} is outside device capabilities`);
+    }
+  }
+}
+
 export function peqVerificationError(
   actual: PEQData,
   expected: PEQData,
@@ -1192,11 +1223,13 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
       }
 
       const backup = await pullEqState(profile);
+      validatePulledPeqForProfile(backup, profile);
       let actual: PEQData;
       try {
         await writeEqPayload(protocol, peq, "Initializing push connection...");
         await commitEqPayload(protocol, "Committing changes to device...");
         actual = await pullEqState(profile);
+        validatePulledPeqForProfile(actual, profile);
         const mismatch = peqVerificationError(actual, peq, profile);
         if (mismatch) throw new Error(mismatch);
       } catch (pushError) {
@@ -1205,6 +1238,7 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
           await writeEqPayload(protocol, backup, "Restoring previous device state...");
           await commitEqPayload(protocol, "Committing restored device state...");
           const restored = await pullEqState(profile);
+          validatePulledPeqForProfile(restored, profile);
           const mismatch = peqVerificationError(restored, backup, profile);
           if (mismatch) throw new Error(mismatch);
         } catch (error) {
