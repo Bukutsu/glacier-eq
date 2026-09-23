@@ -163,12 +163,12 @@ mod tests {
         let dir = temporary_dir();
         // Orphans from both temp-naming schemes (19-digit nanosecond nonces),
         // old enough to be crashes rather than a sibling's live writes.
-        let settingsOrphan = dir.join("settings.1700000000000000000.tmp");
-        let profileOrphan = dir.join(".1700000000000000000.tmp");
-        fs::write(&settingsOrphan, b"x").unwrap();
-        fs::write(&profileOrphan, b"x").unwrap();
-        set_stale(&settingsOrphan);
-        set_stale(&profileOrphan);
+        let settings_orphan = dir.join("settings.1700000000000000000.tmp");
+        let profile_orphan = dir.join(".1700000000000000000.tmp");
+        fs::write(&settings_orphan, b"x").unwrap();
+        fs::write(&profile_orphan, b"x").unwrap();
+        set_stale(&settings_orphan);
+        set_stale(&profile_orphan);
         // Files that merely end in .tmp, or whose tail is not a fresh nonce.
         fs::write(dir.join("notes.tmp"), b"x").unwrap();
         fs::write(dir.join("report.20240101.tmp"), b"x").unwrap();
