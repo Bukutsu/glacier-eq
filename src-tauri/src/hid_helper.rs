@@ -16,6 +16,9 @@ use std::sync::mpsc::{Receiver, RecvTimeoutError, Sender};
 use std::thread;
 use std::time::Duration;
 
+#[cfg(unix)]
+use std::os::unix::process::CommandExt;
+
 // ── IPC protocol ────────────────────────────────────────────────────────
 
 #[derive(Serialize, Deserialize)]
@@ -78,12 +81,16 @@ impl ElevatedTransport {
     pub fn spawn() -> Result<Self, String> {
         let exe = std::env::current_exe().map_err(|e| format!("Cannot resolve own path: {e}"))?;
 
-        let mut child = Command::new("pkexec")
+        let mut command = Command::new("pkexec");
+        command
             .arg(exe.as_os_str())
             .arg("--hid-helper")
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::inherit())
+            .stderr(Stdio::inherit());
+        #[cfg(unix)]
+        command.process_group(0);
+        let mut child = command
             .spawn()
             .map_err(|e| {
                 if e.kind() == std::io::ErrorKind::NotFound {
@@ -213,16 +220,37 @@ impl Drop for ElevatedTransport {
     }
 }
 
-/// Kills the helper and reaps it, with an eventual owner for slow exits.
+/// Kills the helper's dedicated process group and reaps it, with an eventual
+/// owner for slow exits. The group also covers shell wrappers spawned by
+/// `pkexec`; killing only the tracked PID can leave a privileged descendant
+/// holding the response pipe or continuing a udev operation.
 pub(crate) fn kill_and_reap(mut child: Child) {
+    if matches!(child.try_wait(), Ok(Some(_))) {
+        return;
+    }
+    kill_process_group(child.id());
     let _ = child.kill();
-    // Killing a privileged helper may fail (EPERM), or USB I/O may delay exit
-    // past the bounded reap window. Keep an eventual reaping owner without
-    // holding the transport lock or blocking the caller.
     if !poll_for_exit(REAP_ATTEMPTS, || child.try_wait(), thread::sleep).unwrap_or(false) {
         reap_in_background(child);
     }
 }
+
+#[cfg(unix)]
+pub(crate) fn kill_process_group(pid: u32) {
+    let Ok(pid) = i32::try_from(pid) else {
+        return;
+    };
+    if pid > 0 {
+        // SAFETY: the PID is used only as a process-group ID created by the
+        // child immediately before launch; an invalid/reused group returns ESRCH.
+        unsafe {
+            libc::kill(-pid, libc::SIGKILL);
+        }
+    }
+}
+
+#[cfg(not(unix))]
+pub(crate) fn kill_process_group(_pid: u32) {}
 
 fn reap_in_background(mut child: Child) -> thread::JoinHandle<()> {
     thread::spawn(move || {

@@ -18,6 +18,7 @@ use std::{
     io::{Read, Write},
     os::fd::AsRawFd,
     os::unix::fs::{OpenOptionsExt, PermissionsExt},
+    os::unix::process::CommandExt,
     process::{Child, Command, ExitStatus, Stdio},
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -69,6 +70,7 @@ fn run_bounded(
     if cancelled.load(Ordering::Acquire) {
         return Err("Privileged command cancelled before launch.".into());
     }
+    command.process_group(0);
     let child = command
         .stdin(Stdio::null())
         .stdout(Stdio::null())
@@ -121,7 +123,9 @@ fn run_bounded(
             }
         }
         if let Some(status) = status {
-            // try_wait reaped the child; avoid sending a signal after its exit.
+            // try_wait reaped the tracked child; terminate any wrapper
+            // descendants that inherited its process group before returning.
+            crate::hid_helper::kill_process_group(child.id());
             owned.0.take();
             return Ok((status, detail));
         }
@@ -462,6 +466,25 @@ mod tests {
         .unwrap();
         assert!(status.success());
         assert!(started.elapsed() < Duration::from_millis(900));
+    }
+
+    #[test]
+    fn bounded_command_kills_descendants_after_parent_exit() {
+        let marker = std::env::temp_dir().join(format!(
+            "glacier-eq-udev-descendant-{}-{}",
+            std::process::id(),
+            Instant::now().elapsed().as_nanos()
+        ));
+        let script = format!("(sleep 0.2; touch {}) & exit 0", marker.display());
+        let (status, _) = run_bounded(
+            Command::new("sh").args(["-c", &script]),
+            Duration::from_secs(2),
+            &AtomicBool::new(false),
+        )
+        .unwrap();
+        assert!(status.success());
+        std::thread::sleep(Duration::from_millis(350));
+        assert!(!marker.exists());
     }
 
     #[test]
