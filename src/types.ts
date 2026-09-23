@@ -14,6 +14,29 @@ export interface PEQData {
   global_gain: number;
 }
 
+/**
+ * A stored filter as either backend actually serializes it: the desktop Tauri
+ * command emits `type` (the serde rename of `filter_type`), while web
+ * localStorage may hold either alias. Exactly one spelling is present at
+ * runtime; normalize via parseStoredPeq()/normalizePeq() before reading
+ * values as a Filter.
+ */
+export type StoredFilter = Omit<Filter, "filter_type"> &
+  (
+    | { filter_type: FilterType; type?: FilterType }
+    | { type: FilterType; filter_type?: FilterType }
+  );
+
+/**
+ * A profile's stored EQ payload: the desktop DTO serializes `global_gain` as
+ * `globalGain`, web storage writes `global_gain` (parsers accept both, and
+ * reject conflicting values). This is deliberately not a PEQData — callers
+ * must pass it through normalizePeq() before treating it as editor state.
+ */
+export type StoredPEQData =
+  | { filters: StoredFilter[]; global_gain: number; globalGain?: number }
+  | { filters: StoredFilter[]; globalGain: number; global_gain?: number };
+
 export interface MeasurementPoint {
   freq: number;
   db: number;
@@ -73,7 +96,7 @@ export interface SupportedDeviceInfo extends DeviceCapabilities {
 
 export interface Profile {
   name: string;
-  data: PEQData;
+  data: StoredPEQData;
   modified: number | null;
 }
 
