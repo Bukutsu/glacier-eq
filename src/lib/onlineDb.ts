@@ -3,6 +3,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { MeasurementPoint } from "../types";
+import { useToastStore } from "../stores/toastStore";
 import { normalizeMeasurementPoints } from "./measurements";
 import {
   parseOnlineCurves,
@@ -170,6 +171,15 @@ export function openDb(): Promise<IDBDatabase> {
         "IndexedDB online database cache is unreadable or incompatible; resetting database:",
         error,
       );
+      // The reset discards the user's explicitly downloaded curve cache;
+      // console-only left them watching their curves silently disappear
+      // and re-download. Say it where they can see it.
+      useToastStore
+        .getState()
+        .addToast(
+          "The downloaded curve cache was incompatible and has been reset. Curves will re-download as needed.",
+          "info",
+        );
       try {
         await deleteDatabase();
         epoch = connectionEpoch;

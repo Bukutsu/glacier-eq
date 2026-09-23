@@ -8,6 +8,7 @@ import {
   openDb,
   subscribeToDatabaseDownload,
 } from "./onlineDb";
+import { useToastStore } from "../stores/toastStore";
 
 class MockOpenRequest {
   error: DOMException | null = null;
@@ -50,6 +51,7 @@ function fire(handler: ((event: Event) => void) | null) {
 
 beforeEach(() => {
   vi.restoreAllMocks();
+  useToastStore.setState({ toasts: [], status: "Ready" });
   // Release any shared handle or pending attempt left by the previous test:
   // the connection is module-scoped, so without this every test would keep
   // operating on the previous test's database.
@@ -236,6 +238,12 @@ describe("openDb", () => {
 
     await Promise.resolve();
     expect(deleteDb).toHaveBeenCalledOnce();
+    // Deleting the database discards the downloaded curve cache — the
+    // reset must reach the user, not only the console.
+    const toasts = useToastStore.getState().toasts;
+    expect(toasts).toHaveLength(1);
+    expect(toasts[0].message).toContain("curve cache");
+    expect(toasts[0].message).toContain("reset");
     fire(deleteRequest.onsuccess);
 
     await Promise.resolve();
