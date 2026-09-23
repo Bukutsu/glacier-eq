@@ -266,6 +266,33 @@ describe("browser profile matching", () => {
 });
 
 describe("browser EQ writes", () => {
+  it("rotates filter nonces across complete reads", async () => {
+    const device = fakeHidDevice({ respondToReports: true });
+    await connectWebHid(device);
+    wasm.build_read_global_gain_request.mockReturnValue([1]);
+    wasm.matches_global_gain_response.mockReturnValue(true);
+    wasm.parse_global_gain_response.mockReturnValue(0);
+    wasm.build_read_filter_request.mockReturnValue([1]);
+    wasm.matches_filter_response.mockReturnValue(true);
+    wasm.parse_filter_response.mockReturnValue({
+      index: 0,
+      enabled: true,
+      filter_type: "Peak",
+      freq: 100,
+      gain: 0,
+      q: 1,
+    });
+    wasm.is_default_peq_for_device.mockReturnValue(false);
+
+    await invoke("get_eq_state");
+    await invoke("get_eq_state");
+
+    const nonces = wasm.build_read_filter_request.mock.calls.map((call) => call[2]);
+    expect(nonces).toEqual([...Array(10)].map((_, index) => index + 1).concat(
+      [...Array(10)].map((_, index) => index + 11),
+    ));
+  });
+
   it("normalizes a persistent write before sending and returns the normalized PEQ", async () => {
     const device = fakeHidDevice();
     await connectWebHid(device);

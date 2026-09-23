@@ -135,6 +135,7 @@ function addDiagnostic(
 // HID Read Queue
 let reportQueue: Uint8Array[] = [];
 let reportResolvers: ((report: Uint8Array) => void)[] = [];
+let nextFilterNonce = 0;
 
 const inputReportListeners = new Map<HIDDevice, (event: any) => void>();
 
@@ -820,7 +821,9 @@ async function pullEqStateOnce(profile: SupportedDeviceInfo): Promise<PEQData> {
       percentage: Math.round(((i + 1) / numBands) * 90),
     });
 
-    const nonce = (i + 1) & 0xff;
+    nextFilterNonce = (nextFilterNonce + 1) & 0xff;
+    if (nextFilterNonce === 0) nextFilterNonce = 1;
+    const nonce = nextFilterNonce;
     const filterReq = wasm().build_read_filter_request(protocol, i, nonce);
     let filter: Filter | null = null;
 
