@@ -386,10 +386,15 @@ pub fn run() {
 
     builder
         .setup(|app| {
-            // Clear temp files a crash left between creation and rename
-            // (atomic_write and ProfileStore::save siblings in app data).
-            if let Ok(dir) = profiles::app_data_base_dir(app.handle()) {
-                fsutil::sweep_stale_temp_files(&dir);
+            // Clear temp files a crash left between creation and rename:
+            // atomic_write siblings in every allowed base — app data, and
+            // text exports in Documents/Downloads/Desktop — with the sweep
+            // itself descending into <appdata>/profiles for
+            // ProfileStore::save's temps. Files younger than an hour are
+            // left alone so a sibling instance's in-flight writes survive
+            // this startup.
+            for base in allowed_bases(app.handle()) {
+                fsutil::sweep_stale_temp_files(&base);
             }
             Ok(())
         })
