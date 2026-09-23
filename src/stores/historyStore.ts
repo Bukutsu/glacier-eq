@@ -53,9 +53,16 @@ export const useHistoryStore = create<HistoryState>()((set, get) => ({
 
     // The redo base must be the state actually restored into the editor.
     const prev = normalizedPast[idx];
+    // Bound the redo stack like `past`: repeated undo→edit→undo cycles keep
+    // `future` alive via the redo base, so it grows without limit otherwise.
+    // Redo consumes from the end, so the oldest (farthest) entries are trimmed.
+    const nextFuture = [...future, current];
     set({
       past: normalizedPast.slice(0, idx),
-      future: [...future, current],
+      future:
+        nextFuture.length > MAX_HISTORY
+          ? nextFuture.slice(nextFuture.length - MAX_HISTORY)
+          : nextFuture,
       redoBase: prev,
     });
     return prev;
