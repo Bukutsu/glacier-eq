@@ -22,11 +22,22 @@ depends=(
   'gdk-pixbuf2'
   'pango'
   'libsoup3'
+  'systemd-libs'
 )
 makedepends=(
+  'base-devel'
+  'cargo'
+  'curl'
+  'file'
   'git'
+  'nodejs'
   'npm'
-  'pkg-config'
+  'openssl'
+  'patchelf'
+  'pkgconf'
+  'rust'
+  'wget'
+  'xdotool'
 )
 provides=('glacier-eq')
 conflicts=('glacier-eq')
@@ -53,8 +64,8 @@ prepare() {
 
 build() {
   cd "$_origin"
-  npm run tauri -- build --no-bundle
-  cargo build --release -p glacier-core --bin glacier-eq-cli
+  npm run tauri -- build --no-bundle --runner "$PWD/scripts/cargo-locked"
+  cargo build --release --locked -p glacier-core --bin glacier-eq-cli
 }
 
 package() {

@@ -8,7 +8,7 @@
     "dev": "npm run dev:web",
     "dev:web": "npm run wasm:build && vite --mode web",
     "dev:desktop": "vite --mode desktop",
-    "wasm:build": "cross-env RUSTFLAGS= wasm-pack build glacier-core --target web --out-dir ../src/wasm_pkg",
+    "wasm:build": "cross-env RUSTFLAGS= wasm-pack build glacier-core --target web --out-dir ../src/wasm_pkg --locked",
     "build": "npm run build:web",
     "build:web": "npm run wasm:build && tsc -p tsconfig.web.json && vite build --mode web",
     "build:desktop": "tsc -p tsconfig.desktop.json && vite build --mode desktop",
