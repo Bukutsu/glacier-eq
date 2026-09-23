@@ -377,7 +377,10 @@ fn parse_hex_bytes(value: &str) -> Result<Vec<u8>, String> {
             .0
             .iter()
             .map(|chunk| {
-                let token = std::str::from_utf8(chunk).expect("hex input is ASCII");
+                // Multi-byte characters can straddle a 2-byte chunk, so the
+                // chunk may not be valid UTF-8; report cleanly, never panic.
+                let token = std::str::from_utf8(chunk)
+                    .map_err(|_| format!("invalid hexadecimal data byte: {value}"))?;
                 parse_hex_byte(token, "data byte")
             })
             .collect();
@@ -955,6 +958,17 @@ mod tests {
         let error = read_bounded_text(std::io::Cursor::new([0xff]), "test").unwrap_err();
         assert!(error.starts_with("failed to read test:"));
         assert!(error.contains("UTF-8"));
+    }
+
+    #[test]
+    fn rejects_non_ascii_raw_data_without_panicking() {
+        // "a€" = [0x61, 0xe2, 0x82, 0xac]: separator-free, even byte length,
+        // so it takes the compact path where a multi-byte character straddles
+        // a 2-byte chunk ([0x61, 0xe2] is not valid UTF-8).
+        let error = parse_hex_bytes("a€").unwrap_err();
+        assert!(error.starts_with("invalid hexadecimal data byte:"), "{error}");
+        // Valid hex mixed with a non-ASCII character reports the same way.
+        assert!(parse_hex_bytes("4b€").is_err());
     }
 
     #[test]
