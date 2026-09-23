@@ -49,8 +49,15 @@ function requestOpenDb(): Promise<IDBDatabase> {
       reject(error);
     };
     request.onerror = () => {
+      // An unrecoverable error hands control to the attempt's delete+reopen
+      // recovery; hold the shared slot for the whole course of that
+      // recovery — releasing it here would let a concurrent openDb start a
+      // second IndexedDB.open that races the delete and rejects with
+      // "deleted while opening". Permanent failures (and late errors after
+      // an earlier rejection) release the slot as before.
+      const willRecover = !settled && isUnrecoverableDbError(request.error);
       rejectOnce(request.error);
-      pendingOpen = null;
+      if (!willRecover) pendingOpen = null;
     };
     // The request keeps running after onblocked. Keep this rejected attempt
     // shared until its late success or error so retries do not pile up.
@@ -158,6 +165,13 @@ export function openDb(): Promise<IDBDatabase> {
   }
   if (pendingOpen) return pendingOpen;
 
+  // Identity of the shared attempt, reachable from inside its own body:
+  // recovery re-owns pendingOpen mid-flight and the reset-failure path
+  // releases it — both guarded by identity so they can never disturb a
+  // slot that already belongs to a later attempt. Assigned synchronously
+  // after the body is created; the body suspends at its first await until
+  // then.
+  const shared: { attempt: Promise<IDBDatabase> | null } = { attempt: null };
   const attempt = (async () => {
     let epoch = connectionEpoch;
     let db: IDBDatabase;
@@ -181,11 +195,23 @@ export function openDb(): Promise<IDBDatabase> {
           "info",
         );
       try {
-        await deleteDatabase();
+        const deletion = deleteDatabase();
+        // deleteDatabase() drops the shared slot — correct for the public
+        // wipe command, but here it would reopen the single-flight gate in
+        // the middle of recovery: a concurrent openDb() would start a
+        // second IndexedDB.open racing the delete. Re-own the slot (same
+        // synchronous turn, no interleaving) until the recovery's own
+        // request settles and releases it.
+        pendingOpen = shared.attempt!;
+        await deletion;
         epoch = connectionEpoch;
         db = await requestOpenDb();
       } catch (resetError) {
         console.error("Failed to reset corrupted IndexedDB cache:", resetError);
+        // Recovery failed after onerror held the slot for it: release the
+        // slot, or this rejected attempt would be handed to every future
+        // openDb() forever.
+        if (pendingOpen === shared.attempt) pendingOpen = null;
         throw error;
       }
     }
@@ -204,6 +230,7 @@ export function openDb(): Promise<IDBDatabase> {
     return db;
   })();
 
+  shared.attempt = attempt;
   pendingOpen = attempt;
   return attempt;
 }

@@ -256,6 +256,58 @@ describe("openDb", () => {
     await expect(openAttempt).resolves.toBe(database);
   });
 
+  it("holds the shared slot through recovery so a concurrent open cannot race the delete", async () => {
+    const firstRequest = new MockOpenRequest();
+    const secondRequest = new MockOpenRequest();
+    const open = vi.fn()
+      .mockReturnValueOnce(firstRequest)
+      .mockReturnValueOnce(secondRequest);
+    // Gate the delete so the recovery window between the failed open and
+    // the reopen stays open for inspection.
+    let releaseDelete!: () => void;
+    const deleteGate = new Promise<void>((resolve) => {
+      releaseDelete = resolve;
+    });
+    const deleteRequest = {
+      onsuccess: null as ((event: Event) => void) | null,
+      onerror: null as ((event: Event) => void) | null,
+      onblocked: null as ((event: Event) => void) | null,
+    };
+    const deleteDb = vi.fn(() => {
+      void deleteGate.then(() => fire(deleteRequest.onsuccess));
+      return deleteRequest;
+    });
+    vi.stubGlobal("indexedDB", { open, deleteDatabase: deleteDb });
+
+    const firstAttempt = openDb();
+    firstRequest.error = new DOMException(
+      "Unable to establish IDB database file",
+      "UnknownError",
+    );
+    fire(firstRequest.onerror);
+    await Promise.resolve();
+    expect(deleteDb).toHaveBeenCalledOnce();
+
+    // Recovery is mid-flight (delete still pending). The old code released
+    // pendingOpen at the inner onerror, so this call started a SECOND
+    // IndexedDB.open racing the delete — the probe P2 asked for.
+    const concurrent = openDb();
+    expect(concurrent).toBe(firstAttempt);
+    expect(open).toHaveBeenCalledTimes(1);
+
+    releaseDelete();
+    await deleteGate;
+    await Promise.resolve();
+    expect(open).toHaveBeenCalledTimes(2);
+
+    const database = mockDatabase();
+    secondRequest.result = database as unknown as IDBDatabase;
+    fire(secondRequest.onsuccess);
+
+    await expect(firstAttempt).resolves.toBe(database);
+    await expect(concurrent).resolves.toBe(database);
+  });
+
   it("does not delete database on normal or non-unrecoverable errors", async () => {
     const request = new MockOpenRequest();
     const open = vi.fn().mockReturnValue(request);
