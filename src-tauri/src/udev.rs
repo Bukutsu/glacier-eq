@@ -325,11 +325,18 @@ fn install_sync(cancelled: &AtomicBool) -> Result<(), String> {
     let quoted_tmp = shell_quote(&tmp_str)?;
     let quoted_dest = shell_quote(DEST_PATH)?;
     let quoted_legacy = shell_quote(LEGACY_DEST_PATH)?;
-    // One prompt: copy into place, make it world-readable, remove legacy rule,
-    // reload udev and re-apply hidraw permissions. `cp`/`chmod`/`rm` paths are quoted constants.
+    // One prompt: stage in the destination directory, atomically rename the
+    // complete file into place, make it world-readable, remove the legacy rule,
+    // reload udev and re-apply hidraw permissions. The temporary path is
+    // created by root in a root-only directory, so a failed copy cannot leave a
+    // partially written live rule.
+    let dest_dir = shell_quote("/etc/udev/rules.d")?;
     let script = format!(
-        "cp -- {quoted_tmp} {quoted_dest} \
-         && chmod 644 {quoted_dest} \
+        "umask 077; tmp_dest=$(mktemp {dest_dir}/.glacier-eq.rules.XXXXXX) \
+         && trap 'rm -f -- \"$tmp_dest\"' EXIT \
+         && cp -- {quoted_tmp} \"$tmp_dest\" \
+         && chmod 644 \"$tmp_dest\" \
+         && mv -f -- \"$tmp_dest\" {quoted_dest} \
          && rm -f -- {quoted_legacy} \
          && udevadm control --reload-rules \
          && udevadm trigger --subsystem-match=hidraw --action=change"
