@@ -218,6 +218,28 @@ describe("browser connection cleanup", () => {
     expect(second.close).toHaveBeenCalledOnce();
   });
 
+  it("does not close a replacement session with a stale same-path session id", async () => {
+    const device = fakeHidDevice();
+    wasm.list_supported_devices.mockReturnValue([profile]);
+    hidMock.devices = [device];
+    const listed = await invoke<Array<{ path: string }>>("list_devices");
+    const firstSession = await invoke<number>("connect_device", { path: listed[0].path });
+    const replacementSession = await invoke<number>("connect_device", { path: listed[0].path });
+    expect(replacementSession).not.toBe(firstSession);
+
+    await invoke("disconnect_device", {
+      expectedPath: listed[0].path,
+      expectedSessionId: firstSession,
+    });
+    expect(device.close).not.toHaveBeenCalled();
+
+    await invoke("disconnect_device", {
+      expectedPath: listed[0].path,
+      expectedSessionId: replacementSession,
+    });
+    expect(device.close).toHaveBeenCalledOnce();
+  });
+
   it("releases local state and reports a transport close failure", async () => {
     const device = fakeHidDevice();
     (device.close as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error("busy"));

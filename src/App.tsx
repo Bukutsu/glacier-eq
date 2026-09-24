@@ -961,7 +961,6 @@ function App() {
           let openedSessionId: number | null = null;
           try {
             openedSessionId = await invoke<number | null>("connect_device", { path: found.path });
-            connectedSessionIdRef.current = openedSessionId;
             if (!isCurrent()) {
               await invoke("disconnect_device", {
                 expectedPath: found.path,
@@ -969,6 +968,7 @@ function App() {
               }).catch(() => {});
               return;
             }
+            connectedSessionIdRef.current = openedSessionId;
 
             selectedDeviceRef.current = found.path;
             setSelectedDevice(found.path);
@@ -978,7 +978,16 @@ function App() {
             setLastPushedPeq(null);
             const connectionGeneration = connectionGenerationRef.current;
             if (settings.auto_pull_on_connect) {
-              await pullEqRef.current(true, found.path, found);
+              const pulled = await pullEqRef.current(true, found.path, found);
+              if (!pulled && !connectedRef.current) {
+                if (openedSessionId !== null) {
+                  await invoke("disconnect_device", {
+                    expectedPath: found.path,
+                    expectedSessionId: openedSessionId,
+                  }).catch(() => {});
+                }
+                return;
+              }
             } else {
               const constrained = normalizePeq(peqRef.current, {
                 integerPreamp: found.integer_preamp,
@@ -1168,7 +1177,6 @@ function App() {
       }
 
       openedSessionId = await invoke<number | null>("connect_device", { path: pathToConnect });
-      connectedSessionIdRef.current = openedSessionId;
       if (!isCurrentConnect()) {
         if (openedSessionId !== null) {
           await invoke("disconnect_device", {
@@ -1178,6 +1186,7 @@ function App() {
         }
         return false;
       }
+      connectedSessionIdRef.current = openedSessionId;
       selectedDeviceRef.current = pathToConnect;
       setSelectedDevice(pathToConnect);
       setConnected(true, pathToConnect);
@@ -1194,7 +1203,22 @@ function App() {
       reportStatus("Info", `Connected to device: ${devName}`, "success", "UI", "Ready");
 
       if (settings.auto_pull_on_connect) {
-        await pullEq(true, pathToConnect, targetCapabilities);
+        const pulled = await pullEq(true, pathToConnect, targetCapabilities);
+        if (!pulled && !connectedRef.current) {
+          // A failed auto-pull can mark the UI disconnected while the backend
+          // still owns an open HID handle. Close that exact session before
+          // returning so a retry cannot inherit a half-initialized device.
+          if (openedSessionId !== null) {
+            await invoke("disconnect_device", {
+              expectedPath: pathToConnect,
+              expectedSessionId: openedSessionId,
+            }).catch(() => {});
+          }
+          setConnected(false);
+          setConnectedDeviceName("");
+          setFirmwareVersion(null);
+          return false;
+        }
       } else {
         const constrained = normalizePeq(peqRef.current, {
           integerPreamp: targetCapabilities.integer_preamp,

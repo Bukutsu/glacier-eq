@@ -83,6 +83,8 @@ export function matchSupportedWebHidDevice(
 
 let activeDevice: HIDDevice | null = null;
 let activeProfile: SupportedDeviceInfo | null = null;
+let activeSessionId: number | null = null;
+let nextWebHidSessionId = 1;
 const webHidIds = new WeakMap<HIDDevice, number>();
 let nextWebHidId = 1;
 
@@ -165,12 +167,15 @@ function markWebHidDisconnected(device?: HIDDevice) {
   void target?.close().catch(() => {});
   // Structured identity lets listeners reject delayed events for a session
   // that has already been replaced.
+  const sessionId = activeSessionId;
   const payload = {
     path: webHidPath(activeDevice),
     name: activeProfile?.name || activeDevice.productName || "WebHID device",
+    ...(sessionId !== null ? { session_id: sessionId } : {}),
   };
   activeDevice = null;
   activeProfile = null;
+  activeSessionId = null;
   reportQueue = [];
   while (reportResolvers.length > 0) {
     const resolver = reportResolvers.shift();
@@ -1230,11 +1235,13 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
         try { await activeDevice.close(); } catch {}
         activeDevice = null;
         activeProfile = null;
+        activeSessionId = null;
       }
 
       // Clear the previous identity before opening a replacement. If opening
       // fails, no diagnostic or later command may observe the old profile.
       activeProfile = null;
+      activeSessionId = null;
       if (!target.opened) {
         await target.open();
       }
@@ -1250,12 +1257,16 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
         vendor_id: target.vendorId,
         product_id: target.productId,
       };
-
-      return null as T;
+      activeSessionId = nextWebHidSessionId++;
+      return activeSessionId as T;
     }
     case "disconnect_device": {
       if (activeDevice && typeof args?.expectedPath === "string" &&
           args.expectedPath !== webHidPath(activeDevice)) {
+        return null as T;
+      }
+      if (activeDevice && args && Object.prototype.hasOwnProperty.call(args, "expectedSessionId") &&
+          args.expectedSessionId !== activeSessionId) {
         return null as T;
       }
       if (activeDevice) {
@@ -1268,6 +1279,7 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
         }
         activeDevice = null;
         activeProfile = null;
+        activeSessionId = null;
         reportQueue = [];
         while (reportResolvers.length > 0) {
           const resolver = reportResolvers.shift();
@@ -1278,6 +1290,7 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
       // Also clear a stale profile if a previous replacement failed before
       // it could install a new active device.
       activeProfile = null;
+      activeSessionId = null;
       reportQueue = [];
       while (reportResolvers.length > 0) {
         const resolver = reportResolvers.shift();
