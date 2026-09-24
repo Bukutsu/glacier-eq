@@ -663,14 +663,15 @@ fn execute_profile(action: ProfileAction) -> Result<String, String> {
         }
         ProfileAction::Show(name) => Ok(peq_to_autoeq(&store.load(&name)?.data)),
         ProfileAction::Save { name, file, yes } => {
-            if store.exists(&name)? && !yes {
-                return Err("profile exists; pass --yes to overwrite".into());
-            }
             let (peq, _, warnings) = read_peq(&file)?;
             for warning in warnings {
                 eprintln!("warning: {warning}");
             }
-            store.save(&name, &peq)?;
+            if yes {
+                store.save(&name, &peq)?;
+            } else if !store.save_if_absent(&name, &peq)? {
+                return Err("profile exists; pass --yes to overwrite".into());
+            }
             Ok(String::new())
         }
         ProfileAction::Delete { name, .. } => {

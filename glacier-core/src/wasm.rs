@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::device::capabilities::{DeviceCapabilities, EditorCapabilities, DESKTOP_DAC_CAPS};
+use crate::device::capabilities::{DeviceCapabilities, EditorCapabilities};
 use crate::device::{
     get_supported_device, DeviceProtocol, EqProtocol, Packet, WalkplayProtocol, SUPPORTED_DEVICES,
 };
@@ -127,9 +127,7 @@ fn unframe<'a>(protocol: &dyn EqProtocol, data: &'a [u8]) -> Result<&'a [u8], Js
 }
 
 fn portable_caps() -> DeviceCapabilities {
-    let mut caps = DESKTOP_DAC_CAPS.clone();
-    caps.num_bands = crate::autoeq::MAX_FILTERS;
-    caps
+    crate::profiles::storage_capabilities(crate::autoeq::MAX_FILTERS)
 }
 
 fn device_caps_or_desktop(vendor_id: Option<u16>, product_id: Option<u16>) -> DeviceCapabilities {
@@ -145,6 +143,15 @@ fn device_caps_or_desktop(vendor_id: Option<u16>, product_id: Option<u16>) -> De
 fn framed_packets(packets: Vec<Packet>) -> Result<JsValue, JsValue> {
     let framed: Vec<Vec<u8>> = packets.iter().map(|pkt| pkt.framed()).collect();
     to_js_value(&framed)
+}
+
+fn validate_dsp_sample_rate(sample_rate: f64) -> Result<(), JsValue> {
+    if !sample_rate.is_finite() || !(40_000.0..=768_000.0).contains(&sample_rate) {
+        return Err(JsValue::from_str(
+            "DSP sample rate must be between 40000 and 768000 Hz",
+        ));
+    }
+    Ok(())
 }
 
 fn js_err(error: impl ToString) -> JsValue {
@@ -271,6 +278,7 @@ pub fn peq_response_values(
     dsp_sample_rate: f64,
 ) -> Result<Vec<f32>, JsValue> {
     let peq: PEQData = serde_wasm_bindgen::from_value(peq_js).map_err(js_err)?;
+    validate_dsp_sample_rate(dsp_sample_rate)?;
     Ok(response_values(
         &peq,
         freqs,
@@ -287,6 +295,7 @@ pub fn peq_response_and_band_values(
     dsp_sample_rate: f64,
 ) -> Result<Vec<f32>, JsValue> {
     let peq: PEQData = serde_wasm_bindgen::from_value(peq_js).map_err(js_err)?;
+    validate_dsp_sample_rate(dsp_sample_rate)?;
     Ok(response_values_and_bands(
         &peq,
         freqs,
@@ -302,6 +311,7 @@ pub fn filter_response_values(
     dsp_sample_rate: f64,
 ) -> Result<Vec<f32>, JsValue> {
     let filter: Filter = serde_wasm_bindgen::from_value(filter_js).map_err(js_err)?;
+    validate_dsp_sample_rate(dsp_sample_rate)?;
     let peq = PEQData {
         filters: vec![filter],
         global_gain: 0.0,
@@ -542,6 +552,9 @@ mod tests {
             device_caps_or_desktop(Some(0x1234), Some(0x5678)).num_bands,
             crate::autoeq::MAX_FILTERS
         );
+        let caps = device_caps_or_desktop(None, None);
+        assert_eq!(caps.global_gain_range, (-20, 12));
+        assert_eq!(caps.band_gain_range, (-12.0, 12.0));
     }
 
     #[test]

@@ -430,28 +430,43 @@ impl<'a> DeviceSession<'a> {
 
     fn read_filter(&mut self, index: u8) -> Result<Filter, String> {
         let protocol = self.protocol();
-        self.next_nonce = self.next_nonce.wrapping_add(1).max(1);
-        let nonce = self.next_nonce;
-        let request = protocol.read_filter_request(index, nonce);
-        let data = self.send_and_read(
-            "Filter",
-            &request,
-            FILTER_READ_ATTEMPTS,
-            0,
-            |data| protocol.matches_filter_response(data, index, nonce),
-            false,
-        )?;
-        let valid = protocol.is_filter_response_valid(&data, index, nonce);
-        if !valid {
-            self.last_pull_had_invalid_response = true;
-            return Err(format!(
-                "Device returned an invalid EQ response: filter {} values",
-                index + 1
-            ));
+        let per_round = protocol
+            .resend_unanswered_after()
+            .unwrap_or(FILTER_READ_ATTEMPTS);
+        let mut remaining = FILTER_READ_ATTEMPTS;
+        let mut last_error = None;
+        while remaining > 0 {
+            // Use a fresh nonce for every retry where the protocol carries
+            // one. A late response from an earlier attempt then cannot satisfy
+            // the new request's correlation predicate.
+            self.next_nonce = self.next_nonce.wrapping_add(1).max(1);
+            let nonce = self.next_nonce;
+            let request = protocol.read_filter_request(index, nonce);
+            let take = per_round.min(remaining);
+            self.send(&request)?;
+            match self.read_matching("Filter", take, |data| {
+                protocol.matches_filter_response(data, index, nonce)
+            }) {
+                Ok(data) => {
+                    let valid = protocol.is_filter_response_valid(&data, index, nonce);
+                    if !valid {
+                        self.last_pull_had_invalid_response = true;
+                        return Err(format!(
+                            "Device returned an invalid EQ response: filter {} values",
+                            index + 1
+                        ));
+                    }
+                    return protocol.parse_filter_response(&data).ok_or_else(|| {
+                        format!("Filter {} response could not be parsed", index + 1)
+                    });
+                }
+                Err(error) => {
+                    last_error = Some(error);
+                    remaining -= take;
+                }
+            }
         }
-        protocol
-            .parse_filter_response(&data)
-            .ok_or_else(|| format!("Filter {} response could not be parsed", index + 1))
+        Err(last_error.unwrap_or_else(|| "Filter read timeout".into()))
     }
 
     fn read_gain(&mut self) -> Result<f64, String> {
@@ -1066,7 +1081,8 @@ mod tests {
             0,
         ]);
         // The DAC drops the first band-0 request: a full round of attempts
-        // goes unanswered, then the resent request is answered.
+        // goes unanswered, then the resent request (with a fresh nonce) is
+        // answered.
         for _ in 0..15 {
             io.reads.push_back(vec![]);
         }
@@ -1074,7 +1090,7 @@ mod tests {
             let mut packet = vec![0; 34];
             packet[0] = READ;
             packet[1] = CMD_PEQ_VALUES;
-            packet[2] = index + 1;
+            packet[2] = index + 2;
             packet[4] = index;
             packet[27..29].copy_from_slice(&(100 + index as u16).to_le_bytes());
             packet[29..31].copy_from_slice(&256u16.to_le_bytes());

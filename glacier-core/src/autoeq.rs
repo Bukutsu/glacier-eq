@@ -7,7 +7,7 @@ pub const MAX_FILTERS: usize = 32;
 
 /// Parses frequency/dB curves using the same rules as the frontend importer.
 pub fn parse_curve_text(text: &str) -> Result<Vec<(f64, f64)>, String> {
-    if text.len() > 1 << 20 || text.lines().count() > 4096 {
+    if text.len() > 1 << 20 || text.split('\n').count() > 4096 {
         return Err("Curve input exceeds maximum size".into());
     }
     let mut points = Vec::new();
@@ -1641,6 +1641,14 @@ pub fn run_autoeq(
         if caps.q_range.1 < 0.01 {
             return Err("AutoEQ capability Q range is below the canonical 0.01 minimum".into());
         }
+        if caps.q_range.0 > 100.0 {
+            return Err("AutoEQ capability Q range exceeds the canonical 100 maximum".into());
+        }
+        if caps.band_gain_range.0 < -150.0 || caps.band_gain_range.1 > 150.0 {
+            return Err(
+                "AutoEQ capability gain range exceeds the canonical +/-150 dB domain".into(),
+            );
+        }
     }
     if !matches!(
         smooth_type.to_ascii_lowercase().as_str(),
@@ -2052,6 +2060,11 @@ mod tests {
         assert!(run_autoeq(&curve, &curve, 1, 1, "none", 48_000.0, Some(&caps)).is_err());
         caps.q_range = (0.001, 0.002);
         assert!(run_autoeq(&curve, &curve, 1, 1, "none", 48_000.0, Some(&caps)).is_err());
+        caps.q_range = (101.0, 102.0);
+        assert!(run_autoeq(&curve, &curve, 1, 1, "none", 48_000.0, Some(&caps)).is_err());
+        caps.q_range = (0.4, 4.0);
+        caps.band_gain_range = (-151.0, 10.0);
+        assert!(run_autoeq(&curve, &curve, 1, 1, "none", 48_000.0, Some(&caps)).is_err());
     }
 
     /// Hand-derived biquad gradients must match central finite differences of
@@ -2452,6 +2465,12 @@ mod tests {
         let (parsed, _, warnings) = parse_autoeq_text(&peq_to_autoeq(&original)).unwrap();
         assert!(warnings.is_empty());
         assert_eq!(parsed.filters[0].q, 0.0004);
+    }
+
+    #[test]
+    fn curve_parser_matches_frontend_trailing_line_limit() {
+        let text = format!("{}20 0\n", "20 0\n".repeat(4095));
+        assert!(parse_curve_text(&text).is_err());
     }
 
     #[test]

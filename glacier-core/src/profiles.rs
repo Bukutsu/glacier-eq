@@ -7,10 +7,15 @@ use crate::device::SUPPORTED_DEVICES;
 use crate::eq::{FilterType, PEQData};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
+#[cfg(not(target_arch = "wasm32"))]
 use std::time::Duration;
+
+#[cfg(not(target_arch = "wasm32"))]
+use fs2::FileExt;
 
 const MAX_PROFILE_BYTES: u64 = 1024 * 1024;
 const APP_ID: &str = "com.bukutsu.glaciereq";
+const DEFAULT_PROFILE_NAME: &str = "Default EQ";
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct StoredProfile {
@@ -48,13 +53,17 @@ pub struct ProfileStore {
 }
 
 struct ProfileLock {
-    path: PathBuf,
+    file: std::fs::File,
 }
 
 impl Drop for ProfileLock {
+    #[cfg(not(target_arch = "wasm32"))]
     fn drop(&mut self) {
-        let _ = std::fs::remove_dir(&self.path);
+        let _ = self.file.unlock();
     }
+
+    #[cfg(target_arch = "wasm32")]
+    fn drop(&mut self) {}
 }
 
 /// Validate and canonicalize a PEQ for the portable profile text format.
@@ -92,25 +101,24 @@ impl ProfileStore {
     fn lock_profiles(&self) -> Result<ProfileLock, String> {
         self.ensure_profiles_directory()?;
         let path = self.dir.join(".profile-operation.lock");
+        let file = std::fs::OpenOptions::new()
+            .create(true)
+            .truncate(false)
+            .read(true)
+            .write(true)
+            .open(&path)
+            .map_err(|error| format!("Failed to open profiles lock: {error}"))?;
         for _ in 0..500 {
-            match std::fs::create_dir(&path) {
-                Ok(()) => return Ok(ProfileLock { path }),
-                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
-                    // A process killed while holding the lock must not block
-                    // the store forever. Only reclaim an old lock; a live
-                    // operation is given time to finish.
-                    if let Ok(metadata) = std::fs::metadata(&path) {
-                        if let Ok(modified) = metadata.modified() {
-                            if modified.elapsed().unwrap_or_default() > Duration::from_secs(60) {
-                                let _ = std::fs::remove_dir_all(&path);
-                                continue;
-                            }
-                        }
-                    }
+            #[cfg(not(target_arch = "wasm32"))]
+            match file.try_lock_exclusive() {
+                Ok(()) => return Ok(ProfileLock { file }),
+                Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
                     std::thread::sleep(Duration::from_millis(10));
                 }
                 Err(error) => return Err(format!("Failed to lock profiles directory: {error}")),
             }
+            #[cfg(target_arch = "wasm32")]
+            return Ok(ProfileLock { file });
         }
         Err("Timed out waiting for another profile operation".into())
     }
@@ -196,6 +204,22 @@ impl ProfileStore {
     pub fn save(&self, name: &str, peq: &PEQData) -> Result<(), String> {
         self.ensure_profiles_directory()?;
         let _lock = self.lock_profiles()?;
+        self.save_locked(name, peq)
+    }
+
+    /// Save only when the identity is still absent while holding the
+    /// interprocess lock. This closes the CLI's check-then-write race.
+    pub fn save_if_absent(&self, name: &str, peq: &PEQData) -> Result<bool, String> {
+        self.ensure_profiles_directory()?;
+        let _lock = self.lock_profiles()?;
+        if !self.case_variant_paths(name).is_empty() {
+            return Ok(false);
+        }
+        self.save_locked(name, peq)?;
+        Ok(true)
+    }
+
+    fn save_locked(&self, name: &str, peq: &PEQData) -> Result<(), String> {
         let normalized = normalize_for_storage(peq)?;
         let content = peq_to_autoeq(&normalized);
         if content.len() as u64 > MAX_PROFILE_BYTES {
@@ -337,6 +361,8 @@ fn validate_name(name: &str) -> Result<(), String> {
             "Profile name contains invalid characters. Use letters, numbers, spaces, and _-@+&.()"
                 .into(),
         )
+    } else if name.eq_ignore_ascii_case(DEFAULT_PROFILE_NAME) {
+        Err("Profile name is reserved for the built-in default profile".into())
     } else if is_reserved_windows_name(name) {
         Err("Profile name is a reserved system name and cannot be used".into())
     } else {
@@ -352,10 +378,15 @@ fn is_reserved_windows_name(name: &str) -> bool {
         "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
     ];
     let stem = name.split('.').next().unwrap_or(name);
-    RESERVED.contains(&stem.to_uppercase().as_str())
+    let normalized = stem
+        .replace('¹', "1")
+        .replace('²', "2")
+        .replace('³', "3")
+        .to_uppercase();
+    RESERVED.contains(&normalized.as_str())
 }
 
-fn storage_capabilities(num_bands: usize) -> DeviceCapabilities {
+pub fn storage_capabilities(num_bands: usize) -> DeviceCapabilities {
     let mut caps = DESKTOP_DAC_CAPS.clone();
     caps.num_bands = num_bands;
     caps.supported_filter_types = FilterType::ALL;
@@ -609,6 +640,20 @@ mod tests {
     }
 
     #[test]
+    fn save_if_absent_is_atomic_for_case_insensitive_identity() {
+        let base = temporary_dir();
+        let store = ProfileStore::new(&base).unwrap();
+        let peq = PEQData {
+            filters: vec![crate::Filter::enabled(0, true)],
+            global_gain: -2.0,
+        };
+        assert!(store.save_if_absent("Daily", &peq).unwrap());
+        assert!(!store.save_if_absent("daily", &peq).unwrap());
+        assert_eq!(store.list().unwrap().len(), 1);
+        std::fs::remove_dir_all(base).unwrap();
+    }
+
+    #[test]
     fn load_uses_the_same_valid_case_variant_as_listing() {
         let base = temporary_dir();
         let store = ProfileStore::new(&base).unwrap();
@@ -754,6 +799,9 @@ mod tests {
         assert!(validate_name("con").is_err());
         assert!(validate_name("CON.txt").is_err());
         assert!(validate_name("CON.log.gz").is_err());
+        assert!(validate_name("COM¹.txt").is_err());
+        assert!(validate_name("LPT³").is_err());
+        assert!(validate_name("default eq").is_err());
         assert!(validate_name("lpt9").is_err());
         assert!(validate_name("com1").is_err());
     }
