@@ -234,8 +234,18 @@ impl<'a> DeviceSession<'a> {
     /// skip-verification setting; CLI writes always use `persistent_push`.
     pub fn unverified_push(&mut self, peq: PEQData) -> Result<(PEQData, Vec<String>), String> {
         let (normalized, warnings) = self.normalize(peq)?;
-        self.write_to_ram(&normalized)?;
-        self.commit()?;
+        let backup = self.pull()?;
+        if self.last_pull_had_invalid_response {
+            return Err("Cannot push while the device returned an invalid EQ response".into());
+        }
+        validate_peq_for_capabilities(&backup, &self.profile.caps)?;
+        let attempt = self.write_to_ram(&normalized).and_then(|_| self.commit());
+        if let Err(error) = attempt {
+            return Err(match self.restore_and_verify(&backup) {
+                Ok(()) => format!("{error}; previous state restored"),
+                Err(rollback) => format!("{error}; rollback failed: {rollback}"),
+            });
+        }
         self.progress("Push successful", 100.0);
         Ok((normalized, warnings))
     }
@@ -256,14 +266,30 @@ impl<'a> DeviceSession<'a> {
         let (normalized, warnings) = self.normalize(peq)?;
         let attempt = self.write_ram_and_apply(&normalized);
         if let Err(error) = attempt {
-            let restore = self.write_ram_and_apply(&backup);
-            return Err(match restore {
-                Ok(()) => format!("{error}; previous RAM state restored"),
-                Err(rollback) => format!("{error}; RAM rollback failed: {rollback}"),
-            });
+            return Err(self.rollback_ram(&backup, error));
         }
         self.progress("Apply successful", 100.0);
         Ok((normalized, warnings))
+    }
+
+    fn verify_ram_state(&mut self, expected: &PEQData) -> Result<(), String> {
+        self.io.sleep_ms(RETRY_DELAY_MS);
+        let actual = self.pull()?;
+        if self.last_pull_had_invalid_response {
+            return Err("Device returned an invalid EQ response during RAM verification".into());
+        }
+        validate_peq_for_capabilities(&actual, &self.profile.caps)?;
+        compare_peq(&actual, expected, &self.profile.caps)
+    }
+
+    fn rollback_ram(&mut self, backup: &PEQData, apply_error: String) -> String {
+        let restore = self
+            .write_ram_and_apply(backup)
+            .and_then(|_| self.verify_ram_state(backup));
+        match restore {
+            Ok(()) => format!("{apply_error}; previous RAM state restored"),
+            Err(rollback) => format!("{apply_error}; RAM rollback failed: {rollback}"),
+        }
     }
 
     fn write_ram_and_apply(&mut self, peq: &PEQData) -> Result<(), String> {
@@ -916,6 +942,18 @@ mod tests {
                 0xCC, 0x0C, 0, 0, 0x15, 8, index, 0, 10, 0x03, 0xE8, 0, 100, 0, 0, END,
             ]);
         }
+        // Requested write, rollback write, and verification pull each perform
+        // their own init drain before the verification responses.
+        io.reads.push_back(vec![]);
+        io.reads.push_back(vec![]);
+        io.reads.push_back(vec![]);
+        io.reads
+            .push_back(vec![0xCC, 0x0C, 0, 0, 0x17, 2, 0, 10, END]);
+        for index in 0..5u8 {
+            io.reads.push_back(vec![
+                0xCC, 0x0C, 0, 0, 0x15, 8, index, 0, 10, 0x03, 0xE8, 0, 100, 0, 0, END,
+            ]);
+        }
         // Initial pull uses writes 1..6. Fail all three attempts for the
         // requested filter at writes 9..11, then allow the rollback writes.
         io.failing_write_calls.extend([9, 10, 11]);
@@ -1463,6 +1501,7 @@ mod tests {
     fn push_surfaces_capability_clamp_warnings_instead_of_discarding_them() {
         let profile = get_supported_device(0x3302, 0x43e8).unwrap();
         let mut io = FakeIo::default();
+        queue_pull(&mut io, 0);
 
         // 99 dB is far outside this profile's preamp range; the clamp must
         // both rewrite the value AND report it. The old push path discarded

@@ -352,7 +352,7 @@ export const SettingsView = memo(function SettingsView({
 
             <ToggleRow
               title="Skip push verification"
-              desc="Write faster by skipping readback verification"
+              desc="Write faster by skipping successful-write readback; failed writes still restore the previous state"
               checked={settings.skip_push_verification}
               onChange={(v) => onSettingChange("skip_push_verification", v)}
             />

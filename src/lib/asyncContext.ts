@@ -4,6 +4,12 @@ export interface AsyncContext {
   operationRevision: number;
 }
 
+export interface DeviceConnectingPayload {
+  path: string;
+  name: string;
+  sessionId: number;
+}
+
 export interface DeviceDisconnectedPayload {
   path: string;
   name: string;
@@ -49,6 +55,26 @@ export function parseDeviceDisconnectedPayload(
   }
 
   return null;
+}
+
+export function parseDeviceConnectingPayload(
+  value: unknown,
+  expectedPath: string | null,
+): DeviceConnectingPayload | null {
+  if (!isRecord(value)) return null;
+  const { path, name, session_id: sessionId } = value;
+  if (
+    typeof path !== "string" ||
+    path.length === 0 ||
+    (expectedPath !== null && path !== expectedPath) ||
+    (name !== undefined && typeof name !== "string") ||
+    typeof sessionId !== "number" ||
+    !Number.isSafeInteger(sessionId) ||
+    sessionId < 1
+  ) {
+    return null;
+  }
+  return { path, name: name || path, sessionId };
 }
 
 export function isHandledDeviceDisconnected(options: {

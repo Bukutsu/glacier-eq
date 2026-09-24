@@ -41,6 +41,7 @@ import { isDisconnectionError } from "./lib/errors";
 import {
   asyncContextEquals,
   isHandledDeviceDisconnected,
+  parseDeviceConnectingPayload,
   parseDeviceDisconnectedPayload,
   type AsyncContext,
 } from "./lib/asyncContext";
@@ -217,6 +218,7 @@ function App() {
   const connectedPathRef = useRef<string | null>(null);
   const connectedSessionIdRef = useRef<number | null>(null);
   const connectingPathRef = useRef<string | null>(null);
+  const connectingSessionIdRef = useRef<number | null>(null);
   const connectionGenerationRef = useRef(0);
   const operationRevisionRef = useRef(0);
   const handledDisconnectGenerationRef = useRef<number | null>(null);
@@ -651,7 +653,10 @@ function App() {
         if (request !== dropRequestRef.current || !asyncContextEquals(context, getAsyncContext())) return;
         const result = parseAutoEqResult(rawResult);
         const name = result.headphone_name || file.name.replace(/\.[^/.]+$/, "");
-        importPeq(result.peq, name, false);
+        if (!importPeq(result.peq, name, false)) {
+          setStatus("Import was not applied because another device operation is busy.");
+          return;
+        }
         const adjustments = result.warnings.length === 1
           ? "1 adjustment"
           : `${result.warnings.length} adjustments`;
@@ -744,20 +749,34 @@ function App() {
       setProgress(event.payload);
     });
 
+    const handleDeviceConnecting = (event: { payload: unknown }) => {
+      const payload = parseDeviceConnectingPayload(
+        event.payload,
+        connectingPathRef.current,
+      );
+      if (payload && connectingPathRef.current === payload.path) {
+        connectingSessionIdRef.current = payload.sessionId;
+      }
+    };
+
     const handleDeviceDisconnected = (event: { payload: unknown }) => {
       const activePath = connectedPathRef.current;
       const payload = parseDeviceDisconnectedPayload(event.payload, activePath);
       const connectionGeneration = connectionGenerationRef.current;
-      if (
+      const pendingSessionId = connectingSessionIdRef.current;
+      const isPendingConnection =
         !connectedRef.current &&
         payload !== null &&
-        connectingPathRef.current === payload.path
-      ) {
+        connectingPathRef.current === payload.path &&
+        (pendingSessionId === null || payload.sessionId === undefined || payload.sessionId === pendingSessionId);
+      if (isPendingConnection) {
         // Android can fail its reader before connect_device resolves. Fence
         // that pending attempt instead of dropping the event merely because
         // the connected flag has not flipped yet.
         connectingPathRef.current = null;
+        connectingSessionIdRef.current = null;
         connectOperationIdRef.current += 1;
+        reconnectEffectGenerationRef.current += 1;
         handledDisconnectGenerationRef.current = connectionGeneration;
         invoke("disconnect_device", {
           expectedPath: payload.path,
@@ -795,6 +814,7 @@ function App() {
       );
     };
 
+    addListener<unknown>("device-connecting", handleDeviceConnecting);
     addListener<unknown>("device-disconnected", handleDeviceDisconnected);
 
     if (isTauri() && isAndroid) {
@@ -987,6 +1007,7 @@ function App() {
           reportStatus("Info", `Device found: ${devName}. Reconnecting...`, null, "Device", "Device found. Reconnecting...");
           let openedSessionId: number | null = null;
           connectingPathRef.current = found.path;
+          connectingSessionIdRef.current = null;
           try {
             openedSessionId = await invoke<number | null>("connect_device", { path: found.path });
             if (!isCurrent()) {
@@ -1001,7 +1022,10 @@ function App() {
             selectedDeviceRef.current = found.path;
             setSelectedDevice(found.path);
             setConnected(true, found.path);
-            if (connectingPathRef.current === found.path) connectingPathRef.current = null;
+            if (connectingPathRef.current === found.path) {
+              connectingPathRef.current = null;
+              connectingSessionIdRef.current = null;
+            }
             setConnectedDeviceName(devName);
             lastConnectedNameRef.current = devName;
             setLastPushedPeq(null);
@@ -1047,7 +1071,10 @@ function App() {
                 }).catch(() => {});
               } catch {}
             }
-            if (connectingPathRef.current === found.path) connectingPathRef.current = null;
+            if (connectingPathRef.current === found.path) {
+              connectingPathRef.current = null;
+              connectingSessionIdRef.current = null;
+            }
             if (!isCurrent()) return;
             reportStatus("Warn", `Reconnect attempt failed: ${err}. Retrying...`, null, "Device", "Reconnecting...");
           }
@@ -1187,6 +1214,7 @@ function App() {
     const pathToConnect = targetPath || selectedDevice;
     if (!pathToConnect) return false;
     connectingPathRef.current = pathToConnect;
+    connectingSessionIdRef.current = null;
     operationRevisionRef.current += 1;
     const operationId = ++connectOperationIdRef.current;
     const isCurrentConnect = () => operationId === connectOperationIdRef.current;
@@ -1304,7 +1332,10 @@ function App() {
       }
       return false;
     } finally {
-      if (connectingPathRef.current === pathToConnect) connectingPathRef.current = null;
+      if (connectingPathRef.current === pathToConnect) {
+        connectingPathRef.current = null;
+        connectingSessionIdRef.current = null;
+      }
       if (isCurrentConnect()) setIsBusy(false);
     }
   }, [devices, selectedDevice, pullEq, selectedDeviceInfo, selectedCapabilities, pushToUndoStack, loadFirmwareVersion, reportStatus, settings.auto_pull_on_connect, noteEditorMutation]);
@@ -2167,7 +2198,7 @@ function App() {
             setNewProfileName={setNewProfileName}
             onSelectProfile={applyProfile}
             onApplyProfile={connected && supportsRamApply ? applyProfileToRam : undefined}
-            onReloadProfiles={loadProfiles}
+            onReloadProfiles={reloadProfiles}
             onOpenProfilesDir={openProfilesDir}
             hideProfileFolderButton={isAndroid}
             onReset={reset}

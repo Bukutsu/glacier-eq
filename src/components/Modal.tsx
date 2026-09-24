@@ -6,6 +6,7 @@ export const MODAL_HISTORY_KEY = "__glacierModal";
 interface ModalHistoryEntry {
   id: string;
   onClose: () => void;
+  canClose: () => boolean;
 }
 
 // Modal instances share one history stack. A system Back event removes only
@@ -30,6 +31,12 @@ function handleModalPopState(event: PopStateEvent) {
   // A cleanup already removed the top entry before calling history.back().
   // If the state now names the next entry, that entry is still open.
   if (activeId === top.id) return;
+  if (!top.canClose()) {
+    // The browser has already moved off the sentinel. Reinsert it so Back
+    // cannot bypass a close-disabled operation such as an in-flight save.
+    window.history.pushState(modalStateWithId(top.id), "");
+    return;
+  }
   modalHistoryStack.pop();
   top.onClose();
 }
@@ -49,11 +56,17 @@ export function Modal({ title, onClose, className = "", style, children, closeDi
   const modalId = `modal-${titleId}`;
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
+  const closeDisabledRef = useRef(closeDisabled);
+  closeDisabledRef.current = closeDisabled;
 
   useEffect(() => {
     const dialog = dialogRef.current;
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const entry: ModalHistoryEntry = { id: modalId, onClose: () => onCloseRef.current() };
+    const entry: ModalHistoryEntry = {
+      id: modalId,
+      onClose: () => onCloseRef.current(),
+      canClose: () => !closeDisabledRef.current,
+    };
 
     modalHistoryStack.push(entry);
     window.history.pushState(modalStateWithId(modalId), "");

@@ -276,15 +276,30 @@ describe("browser connection cleanup", () => {
   });
 
   it("closes the WebHID handle when a send failure disconnects a present device", async () => {
-    const device = fakeHidDevice();
-    await connectWebHid(device);
+    const device = fakeHidDevice({ respondToReports: true });
+    await connectWebHid(device, { ...profile, num_bands: 1 });
+    wasm.build_read_global_gain_request.mockReturnValue([1]);
+    wasm.matches_global_gain_response.mockReturnValue(true);
+    wasm.parse_global_gain_response.mockReturnValue(0);
+    wasm.build_read_filter_request.mockReturnValue([1]);
+    wasm.matches_filter_response.mockReturnValue(true);
+    wasm.parse_filter_response.mockReturnValue({
+      index: 0,
+      enabled: true,
+      filter_type: "Peak",
+      freq: 100,
+      gain: 0,
+      q: 1,
+    });
     localStorageValues.set("glacier-eq-settings", JSON.stringify({ skip_push_verification: true }));
     // Transient send failure while the device is still enumerated (e.g. a USB
     // glitch that recovers): the session ends, but the OS interface must be
     // released — afterwards nothing can close this handle again.
-    (device.sendReport as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
-      new Error("transfer failed"),
-    );
+    const respond = (device.sendReport as ReturnType<typeof vi.fn>).getMockImplementation()!;
+    (device.sendReport as ReturnType<typeof vi.fn>).mockImplementation(async (reportId: number, data: Uint8Array) => {
+      if (reportId === 1 && data[0] === 2) throw new Error("transfer failed");
+      return respond(reportId, data);
+    });
     wasm.normalize_peq_for_device.mockReturnValue({
       peq: { filters: [], global_gain: 0 },
       warnings: [],
@@ -339,9 +354,10 @@ describe("browser EQ writes", () => {
     await invoke("get_eq_state");
 
     const nonces = wasm.build_read_filter_request.mock.calls.map((call) => call[2]);
-    expect(nonces).toEqual([...Array(10)].map((_, index) => index + 1).concat(
-      [...Array(10)].map((_, index) => index + 11),
-    ));
+    expect(nonces).toHaveLength(20);
+    for (let index = 1; index < nonces.length; index++) {
+      expect(nonces[index]).toBe(nonces[index - 1] + 1);
+    }
   });
 
   it("rejects a default returned after an initial WebHID read error", async () => {
@@ -430,8 +446,23 @@ describe("browser EQ writes", () => {
   });
 
   it("normalizes a persistent write before sending and returns the normalized PEQ", async () => {
-    const device = fakeHidDevice();
-    await connectWebHid(device);
+    const device = fakeHidDevice({ respondToReports: true });
+    const oneBand = { ...profile, num_bands: 1 };
+    await connectWebHid(device, oneBand);
+    wasm.build_read_global_gain_request.mockReturnValue([1]);
+    wasm.matches_global_gain_response.mockReturnValue(true);
+    wasm.parse_global_gain_response.mockReturnValue(0);
+    wasm.build_read_filter_request.mockReturnValue([1]);
+    wasm.matches_filter_response.mockReturnValue(true);
+    wasm.parse_filter_response.mockReturnValue({
+      index: 0,
+      enabled: true,
+      filter_type: "Peak",
+      freq: 100,
+      gain: 0,
+      q: 1,
+    });
+    wasm.is_default_peq_for_device.mockReturnValue(false);
     localStorageValues.set("glacier-eq-settings", JSON.stringify({ skip_push_verification: true }));
     const requested = peqWithBands(1);
     const normalized = { filters: [], global_gain: -4 };
@@ -448,8 +479,8 @@ describe("browser EQ writes", () => {
       profile.vendor_id,
       profile.product_id,
     );
-    expect(wasm.build_write_global_gain_packets).toHaveBeenCalledWith(profile.protocol, -4);
-    expect(device.sendReport).toHaveBeenCalledTimes(1);
+    expect(wasm.build_write_global_gain_packets).toHaveBeenCalledWith(oneBand.protocol, -4);
+    expect(device.sendReport.mock.calls.length).toBeGreaterThan(1);
   });
 
   it("returns the verified readback after a persistent write", async () => {
@@ -593,8 +624,23 @@ describe("browser EQ writes", () => {
   });
 
   it("returns capability-clamp warnings on the push result instead of discarding them", async () => {
-    const device = fakeHidDevice();
-    await connectWebHid(device);
+    const device = fakeHidDevice({ respondToReports: true });
+    const oneBand = { ...profile, num_bands: 1 };
+    await connectWebHid(device, oneBand);
+    wasm.build_read_global_gain_request.mockReturnValue([1]);
+    wasm.matches_global_gain_response.mockReturnValue(true);
+    wasm.parse_global_gain_response.mockReturnValue(0);
+    wasm.build_read_filter_request.mockReturnValue([1]);
+    wasm.matches_filter_response.mockReturnValue(true);
+    wasm.parse_filter_response.mockReturnValue({
+      index: 0,
+      enabled: true,
+      filter_type: "Peak",
+      freq: 100,
+      gain: 0,
+      q: 1,
+    });
+    wasm.is_default_peq_for_device.mockReturnValue(false);
     localStorageValues.set("glacier-eq-settings", JSON.stringify({ skip_push_verification: true }));
     const clamps = ["Clamped preamp gain from 20.0 dB to 12.0 dB"];
     wasm.normalize_peq_for_device.mockReturnValue({

@@ -869,6 +869,19 @@ async function commitEqPayload(protocol: string, progressMessage: string): Promi
   }
 }
 
+async function restorePersistentState(
+  protocol: string,
+  backup: PEQData,
+  profile: SupportedDeviceInfo,
+): Promise<void> {
+  await writeEqPayload(protocol, backup, "Restoring previous device state...");
+  await commitEqPayload(protocol, "Committing restored device state...");
+  const restored = await pullEqState(profile);
+  validatePulledPeqForProfile(restored, profile);
+  const mismatch = peqVerificationError(restored, backup, profile);
+  if (mismatch) throw new Error(mismatch);
+}
+
 async function applyRamPayload(protocol: string, peq: PEQData, initMessage: string): Promise<void> {
   await writeEqPayload(protocol, peq, initMessage);
   const timing = wasm().get_write_timing(protocol);
@@ -1334,16 +1347,26 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
       const protocol = profile.protocol;
       const { peq, warnings } = normalizeActivePeq(commandField(args, "peq"), profile);
       const skipVerification = loadWebSettings().skip_push_verification;
+      const backup = await pullEqState(profile);
+      validatePulledPeqForProfile(backup, profile);
 
       if (skipVerification) {
-        await writeEqPayload(protocol, peq, "Initializing unverified push connection...");
-        await commitEqPayload(protocol, "Committing unverified changes to device...");
+        try {
+          await writeEqPayload(protocol, peq, "Initializing unverified push connection...");
+          await commitEqPayload(protocol, "Committing unverified changes to device...");
+        } catch (pushError) {
+          let restoreError: unknown | null = null;
+          try {
+            await restorePersistentState(protocol, backup, profile);
+          } catch (error) {
+            restoreError = error;
+          }
+          throw new Error(persistentPushFailureMessage(pushError, restoreError));
+        }
         emitEvent("operation-progress", { message: "Write complete (unverified)", percentage: 100 });
         return { ...peq, warnings } as T;
       }
 
-      const backup = await pullEqState(profile);
-      validatePulledPeqForProfile(backup, profile);
       let actual: PEQData;
       try {
         await writeEqPayload(protocol, peq, "Initializing push connection...");
@@ -1355,12 +1378,7 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
       } catch (pushError) {
         let restoreError: unknown | null = null;
         try {
-          await writeEqPayload(protocol, backup, "Restoring previous device state...");
-          await commitEqPayload(protocol, "Committing restored device state...");
-          const restored = await pullEqState(profile);
-          validatePulledPeqForProfile(restored, profile);
-          const mismatch = peqVerificationError(restored, backup, profile);
-          if (mismatch) throw new Error(mismatch);
+          await restorePersistentState(protocol, backup, profile);
         } catch (error) {
           restoreError = error;
         }

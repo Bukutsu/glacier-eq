@@ -307,15 +307,18 @@ export function AutoEqTab({
 
   useEffect(() => {
     requestRef.current += 1;
+    setIsOptimizing(false);
   }, [measurements, allTargets, activeTargetIds]);
 
   useEffect(() => {
     requestRef.current += 1;
+    setIsOptimizing(false);
     setNBands((current) => Math.min(current, Math.max(1, maxBands)));
   }, [maxBands]);
 
   useEffect(() => {
     requestRef.current += 1;
+    setIsOptimizing(false);
     setFs(dspSampleRate);
   }, [dspSampleRate]);
 
