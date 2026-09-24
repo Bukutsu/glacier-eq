@@ -12,7 +12,7 @@ import {
 } from "../lib/persistedTraces";
 import type { MeasurementTrace, TargetTrace } from "../types";
 import { BUILTIN_TARGETS } from "../lib/builtinTargets";
-import { readLocalStorage, tryWriteLocalStorage, writeLocalStorage } from "../lib/safeStorage";
+import { readLocalStorage, tryWriteLocalStorage } from "../lib/safeStorage";
 
 interface LoadedPersistedJson {
   value: unknown;
@@ -32,11 +32,12 @@ function quarantinePersistedJson(
   // Keep the same timestamped backup convention for syntax and schema damage.
   let backedUp = false;
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-  backedUp = writeLocalStorage(`${key}.bak.${stamp}`, raw);
+  const result = tryWriteLocalStorage(`${key}.bak.${stamp}`, raw);
+  backedUp = result.ok;
   if (!backedUp) {
     // Backup write failed (likely the same quota problem that damaged the
     // data). Never announce a copy that does not exist.
-    console.warn(`Could not back up malformed saved data for "${key}".`);
+    console.warn(`Could not back up malformed saved data for "${key}":`, result.error);
   }
   notify?.(
     backedUp
