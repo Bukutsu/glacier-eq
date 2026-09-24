@@ -1058,6 +1058,27 @@ mod tests {
     }
 
     #[test]
+    fn pull_rejects_gain_retry_as_uncorrelated_state() {
+        let profile = get_supported_device(0x3302, 0x43e8).unwrap();
+        let mut io = FakeIo::default();
+        io.reads.push_back(vec![]); // init drain terminator
+        for _ in 0..15 {
+            io.reads.push_back(vec![]); // first gain round is unanswered
+        }
+        io.reads.push_back(vec![]); // retry quarantine terminator
+        io.reads.push_back(vec![
+            READ,
+            super::super::walkplay::CMD_GLOBAL_GAIN,
+            0,
+            0,
+            (-7i8) as u8,
+            0,
+        ]);
+        let error = DeviceSession::new(&mut io, profile).pull().unwrap_err();
+        assert!(error.contains("uncorrelated"), "{error}");
+    }
+
+    #[test]
     fn pull_reads_gain_and_waits_before_first_band() {
         let profile = get_supported_device(0x3302, 0x43e8).unwrap();
         let mut io = FakeIo::default();
