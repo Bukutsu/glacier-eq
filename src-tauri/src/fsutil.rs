@@ -7,7 +7,7 @@
 
 use std::ffi::OsString;
 use std::fs;
-use std::io::{Read, Seek, SeekFrom, Write};
+use std::io::{Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 
 const ATOMIC_TEMP_PREFIX: &str = ".glacier-eq-atomic-";
@@ -454,14 +454,10 @@ fn sweep_export_dir(dir: &Path) {
         if nonce.len() < 18 || !nonce.chars().all(|character| character.is_ascii_digit()) {
             continue;
         }
-        let mut marker = vec![0; EXPORT_TEMP_MARKER.len()];
-        let has_marker = fs::File::open(&path)
-            .and_then(|mut file| file.read_exact(&mut marker))
-            .is_ok()
-            && marker == EXPORT_TEMP_MARKER;
-        if !has_marker {
-            continue;
-        }
+        // The prefix is reserved for Glacier EQ and the directory is recorded
+        // by the exporter itself. Do not require the in-file marker: a crash
+        // can truncate it before the temp is renamed, leaving a recoverable
+        // orphan with the same reserved name.
         match fs::metadata(&path).and_then(|metadata| metadata.modified()) {
             Ok(modified) if modified.elapsed().unwrap_or_default() < STALE_TEMP_AGE => {}
             Ok(_) => {
@@ -700,7 +696,10 @@ mod tests {
             "a stale temp in a recorded dir must be swept"
         );
         assert!(fresh.exists(), "a fresh temp may be a sibling's live write");
-        assert!(unmarked.exists(), "an unmarked user file must be preserved");
+        assert!(
+            !unmarked.exists(),
+            "a stale reserved export orphan must be swept"
+        );
         assert!(external.join("Report.txt").exists());
         let manifest = fs::read_to_string(appdata.join(EXPORT_MANIFEST_FILE)).unwrap();
         assert_eq!(
