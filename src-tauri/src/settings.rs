@@ -92,6 +92,12 @@ fn settings_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     Ok(app_data_base_dir(app)?.join("settings.json"))
 }
 
+#[derive(Debug)]
+struct SettingsRead {
+    settings: Settings,
+    recovery: Option<String>,
+}
+
 #[tauri::command]
 pub async fn get_settings(app: tauri::AppHandle) -> Result<Settings, String> {
     let path = settings_path(&app)?;
@@ -99,19 +105,40 @@ pub async fn get_settings(app: tauri::AppHandle) -> Result<Settings, String> {
     // Disk I/O stays off the IPC thread (see save_settings). No existence
     // pre-check: a file deleted between check and read must fall back to
     // defaults like a missing file, not surface as a hard error.
-    tauri::async_runtime::spawn_blocking(move || read_settings(&path))
+    let loaded = tauri::async_runtime::spawn_blocking(move || read_settings_detailed(&path))
         .await
-        .map_err(|e| e.to_string())?
+        .map_err(|e| e.to_string())??;
+    if let Some(notice) = loaded.recovery {
+        use tauri::Manager;
+        if let Some(state) = app.try_state::<Mutex<crate::diagnostics::DiagnosticsStore>>() {
+            crate::diagnostics::record(
+                &app,
+                &state,
+                crate::diagnostics::LogLevel::Warn,
+                crate::diagnostics::LogSource::Storage,
+                notice,
+            );
+        }
+    }
+    Ok(loaded.settings)
 }
 
 const MAX_SETTINGS_BYTES: u64 = 1 << 20;
 
+#[cfg(test)]
 fn read_settings(path: &std::path::Path) -> Result<Settings, String> {
+    read_settings_detailed(path).map(|loaded| loaded.settings)
+}
+
+fn read_settings_detailed(path: &std::path::Path) -> Result<SettingsRead, String> {
     with_settings_lock(|| {
         let file = match fs::File::open(path) {
             Ok(file) => file,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                return Ok(Settings::default())
+                return Ok(SettingsRead {
+                    settings: Settings::default(),
+                    recovery: None,
+                })
             }
             Err(error) => return Err(format!("Failed to open settings file: {error}")),
         };
@@ -121,7 +148,10 @@ fn read_settings(path: &std::path::Path) -> Result<Settings, String> {
             .map_err(|error| format!("Failed to read settings file: {error}"))?;
         if bytes.len() as u64 > MAX_SETTINGS_BYTES {
             recover_oversized_settings(path)?;
-            return Ok(Settings::default());
+            return Ok(SettingsRead {
+                settings: Settings::default(),
+                recovery: Some("Settings file exceeded 1 MiB and was replaced with defaults; the original was preserved as a backup.".into()),
+            });
         }
         let content = match String::from_utf8(bytes) {
             Ok(content) => content,
@@ -132,27 +162,36 @@ fn read_settings(path: &std::path::Path) -> Result<Settings, String> {
                     format!("Failed to serialize recovered settings: {recovery_error}")
                 })?;
                 crate::fsutil::atomic_write(path, &sanitized)?;
-                return Ok(defaults);
+                return Ok(SettingsRead {
+                    settings: defaults,
+                    recovery: Some("Settings contained invalid UTF-8 and were replaced with defaults; the original was preserved as a backup.".into()),
+                });
             }
         };
         parse_settings(&content, path)
     })
 }
 
-fn parse_settings(content: &str, path: &std::path::Path) -> Result<Settings, String> {
+fn parse_settings(content: &str, path: &std::path::Path) -> Result<SettingsRead, String> {
     let value = match serde_json::from_str::<JsonValue>(content) {
         Ok(value) => value,
         Err(error) => {
             eprintln!("glacier-eq: settings.json is unreadable; using defaults: {error}");
             let defaults = Settings::default();
             recover_corrupt_settings(path, content, &defaults)?;
-            return Ok(defaults);
+            return Ok(SettingsRead {
+                settings: defaults,
+                recovery: Some("Settings JSON was unreadable and was replaced with defaults; the original was preserved as a backup.".into()),
+            });
         }
     };
     let JsonValue::Object(mut values) = value else {
         let defaults = Settings::default();
         recover_corrupt_settings(path, content, &defaults)?;
-        return Ok(defaults);
+        return Ok(SettingsRead {
+            settings: defaults,
+            recovery: Some("Settings JSON was not an object and was replaced with defaults; the original was preserved as a backup.".into()),
+        });
     };
 
     let mut settings = Settings::default();
@@ -191,7 +230,12 @@ fn parse_settings(content: &str, path: &std::path::Path) -> Result<Settings, Str
     if malformed {
         recover_corrupt_settings(path, content, &settings)?;
     }
-    Ok(settings)
+    Ok(SettingsRead {
+        settings,
+        recovery: malformed.then(|| {
+            "Settings contained invalid fields and were replaced with a valid copy; the original was preserved as a backup.".into()
+        }),
+    })
 }
 
 fn next_settings_backup(path: &std::path::Path) -> PathBuf {

@@ -109,6 +109,8 @@ post_upgrade() {
 post_remove() {
   gtk-update-icon-cache -q -t /usr/share/icons/hicolor
   update-desktop-database /usr/share/applications
+  # The package owns /usr/lib; remove only application-created /etc copies.
+  rm -f /etc/udev/rules.d/69-glacier-eq.rules /etc/udev/rules.d/99-glacier-eq.rules
   udevadm control --reload
   udevadm trigger --subsystem-match=hidraw --action=change
 }

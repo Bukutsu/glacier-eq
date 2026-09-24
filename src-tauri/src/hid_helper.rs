@@ -230,6 +230,10 @@ impl Drop for ElevatedTransport {
 /// holding the response pipe or continuing a udev operation.
 pub(crate) fn kill_and_reap(mut child: Child) {
     if matches!(child.try_wait(), Ok(Some(_))) {
+        // The tracked wrapper may already have exited while a descendant still
+        // owns the privileged pipe/process group. Tear down that group before
+        // returning; the PID came from the just-reaped child, not user input.
+        kill_process_group(child.id());
         return;
     }
     kill_process_group(child.id());

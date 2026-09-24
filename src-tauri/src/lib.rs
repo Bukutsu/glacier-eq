@@ -225,8 +225,20 @@ fn write_selected_text(
                 .open(path, options)
                 .map_err(|error| format!("Failed to open selected file: {error}"))?;
             file.write_all(content)
-                .and_then(|_| file.sync_all())
-                .map_err(|error| format!("Failed to write selected file: {error}"))
+                .map_err(|error| format!("Failed to write selected file: {error}"))?;
+            #[cfg(target_os = "android")]
+            {
+                // Content providers may expose a pipe-backed descriptor for
+                // which fsync is unsupported even after the provider accepted
+                // the complete write. The provider owns durability there.
+                if let Err(error) = file.sync_all() {
+                    eprintln!("glacier-eq: provider descriptor sync unsupported: {error}");
+                }
+            }
+            #[cfg(not(target_os = "android"))]
+            file.sync_all()
+                .map_err(|error| format!("Failed to write selected file: {error}"))?;
+            Ok(())
         }
     }
 }

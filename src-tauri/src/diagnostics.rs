@@ -261,7 +261,7 @@ pub fn get_diagnostic_context(
 
     let _ = app;
     DiagnosticContext {
-        app_version: env!("CARGO_PKG_VERSION"),
+        app_version: option_env!("GLACIER_EQ_RELEASE_VERSION").unwrap_or(env!("CARGO_PKG_VERSION")),
         runtime: if cfg!(target_os = "android") {
             "Android"
         } else {

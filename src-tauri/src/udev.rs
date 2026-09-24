@@ -137,6 +137,9 @@ fn run_bounded(
 /// derived from user input. Must be numbered < 70 (e.g. 69-) so it runs
 /// before systemd's 73-seat-late.rules uaccess processor.
 pub const DEST_PATH: &str = "/etc/udev/rules.d/69-glacier-eq.rules";
+/// Package-owned rule location used by distribution packages.
+#[cfg(target_os = "linux")]
+pub const PACKAGE_DEST_PATH: &str = "/usr/lib/udev/rules.d/69-glacier-eq.rules";
 /// Legacy destination from earlier releases that was numbered too late (99-).
 #[cfg(target_os = "linux")]
 pub const LEGACY_DEST_PATH: &str = "/etc/udev/rules.d/99-glacier-eq.rules";
@@ -144,6 +147,8 @@ pub const LEGACY_DEST_PATH: &str = "/etc/udev/rules.d/99-glacier-eq.rules";
 /// time so the installer cannot be pointed at a different file.
 #[cfg(target_os = "linux")]
 const EXPECTED_RULES: &str = include_str!("../../udev/69-glacier-eq.rules");
+const EXPECTED_RULES_SHA256: &str =
+    "20deaec429a39ea7acd57ef14002664b83398c8e813e4d5005da9b1ff7f95a77";
 
 #[derive(Debug, Clone, Serialize)]
 pub struct UdevStatus {
@@ -201,20 +206,32 @@ fn has_pkexec(cancelled: &AtomicBool) -> bool {
 
 #[cfg(target_os = "linux")]
 fn get_udev_status_linux(cancelled: &AtomicBool) -> Result<UdevStatus, String> {
-    let installed_content = match std::fs::read_to_string(DEST_PATH) {
-        Ok(content) => Some(content),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
-        Err(error) => return Err(format!("Failed to read {DEST_PATH}: {error}")),
+    let read_rules = |path: &str| -> Result<Option<String>, String> {
+        match std::fs::read_to_string(path) {
+            Ok(content) => Ok(Some(content)),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(error) => Err(format!("Failed to read {path}: {error}")),
+        }
     };
+    let installed_content = read_rules(DEST_PATH)?;
+    let package_content = read_rules(PACKAGE_DEST_PATH)?;
     let legacy_exists = std::fs::symlink_metadata(LEGACY_DEST_PATH).is_ok();
-    let installed = installed_content.is_some() || legacy_exists;
+    let active_content = installed_content.as_ref().or(package_content.as_ref());
+    let installed = active_content.is_some() || legacy_exists;
     let up_to_date = !legacy_exists
-        && installed_content.is_some_and(|content| rules_match(&content, EXPECTED_RULES));
+        && active_content.is_some_and(|content| rules_match(content, EXPECTED_RULES));
+    let dest_path = if installed_content.is_some() {
+        DEST_PATH.to_string()
+    } else if package_content.is_some() {
+        PACKAGE_DEST_PATH.to_string()
+    } else {
+        DEST_PATH.to_string()
+    };
     Ok(UdevStatus {
         supported: true,
         installed,
         up_to_date,
-        dest_path: DEST_PATH.to_string(),
+        dest_path,
         has_pkexec: has_pkexec(cancelled),
     })
 }
@@ -335,6 +352,7 @@ fn install_sync(cancelled: &AtomicBool) -> Result<(), String> {
         "umask 077; tmp_dest=$(mktemp {dest_dir}/.glacier-eq.rules.XXXXXX) \
          && trap 'rm -f -- \"$tmp_dest\"' EXIT \
          && cp -- {quoted_tmp} \"$tmp_dest\" \
+         && test \"$(sha256sum -- \"$tmp_dest\" | cut -d' ' -f1)\" = '{EXPECTED_RULES_SHA256}' \
          && chmod 644 \"$tmp_dest\" \
          && mv -f -- \"$tmp_dest\" {quoted_dest} \
          && rm -f -- {quoted_legacy} \
