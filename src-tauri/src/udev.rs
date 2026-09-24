@@ -147,6 +147,7 @@ pub const LEGACY_DEST_PATH: &str = "/etc/udev/rules.d/99-glacier-eq.rules";
 /// time so the installer cannot be pointed at a different file.
 #[cfg(target_os = "linux")]
 const EXPECTED_RULES: &str = include_str!("../../udev/69-glacier-eq.rules");
+#[cfg(target_os = "linux")]
 const EXPECTED_RULES_SHA256: &str =
     "20deaec429a39ea7acd57ef14002664b83398c8e813e4d5005da9b1ff7f95a77";
 
