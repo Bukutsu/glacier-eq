@@ -861,6 +861,11 @@ async function pullEqStateOnce(profile: SupportedDeviceInfo): Promise<PEQData> {
   const req = wasm().build_read_global_gain_request(protocol);
   let globalResponse: Uint8Array | null = null;
   for (let retry = 0; retry < 3 && !globalResponse; retry++) {
+    if (retry > 0) {
+      // Drop late frames from the previous request before retrying this
+      // protocol command, which carries no nonce of its own.
+      reportQueue = [];
+    }
     await sendReport(req);
     globalResponse = await readMatchingReport(200, (data) =>
       wasm().matches_global_gain_response(protocol, data)

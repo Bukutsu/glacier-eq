@@ -272,6 +272,12 @@ function App() {
     [isAndroid],
   );
 
+  const persistUiPreference = useCallback((key: string, value: string) => {
+    if (!writeLocalStorage(key, value)) {
+      showToast("This browser could not save the preference; it may not persist after restart.", "error");
+    }
+  }, [showToast]);
+
   const setStatus = useCallback(
     (message: string) => {
       useToastStore.getState().setStatus(message);
@@ -372,8 +378,8 @@ function App() {
   );
 
   useEffect(() => {
-    writeLocalStorage("glacier-graph-view-mode", graphViewMode);
-  }, [graphViewMode]);
+    persistUiPreference("glacier-graph-view-mode", graphViewMode);
+  }, [graphViewMode, persistUiPreference]);
 
   const pushToUndoStack = useCallback((currentPeq: PEQData) => {
     useHistoryStore.getState().pushSnapshot(currentPeq, {
@@ -1495,12 +1501,12 @@ function App() {
   }, []);
   const handleCloseDeviceModal = useCallback(() => {
     ambiguousReconnectRef.current = false;
-    writeLocalStorage(DEVICE_ONBOARDING_KEY, "true");
+    persistUiPreference(DEVICE_ONBOARDING_KEY, "true");
     if (window.history.state?.modal === "device") {
       window.history.back();
     }
     setShowDeviceModal(false);
-  }, []);
+  }, [persistUiPreference]);
   const handleOpenDiagnosticsModal = useCallback(() => {
     window.history.pushState({ modal: "diagnostics" }, "");
     setShowDiagnosticsModal(true);
@@ -1716,7 +1722,7 @@ function App() {
         type="button"
         aria-label="Dismiss hint"
         onClick={() => {
-          writeLocalStorage(EDITOR_HINT_KEY, "true");
+          persistUiPreference(EDITOR_HINT_KEY, "true");
           setEditorHintDismissed(true);
         }}
       >

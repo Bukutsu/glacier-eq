@@ -477,8 +477,15 @@ impl<'a> DeviceSession<'a> {
         let mut remaining = attempts;
         let mut first_err = None;
         let mut last_err = None;
+        let mut sent_request = false;
         while remaining > 0 {
+            if sent_request {
+                // A late response from the previous request must not satisfy
+                // a resend of the same uncorrelated command.
+                self.drain();
+            }
             self.send(request)?;
+            sent_request = true;
             self.io.sleep_ms(settle_ms);
             let take = per_round.min(remaining);
             match self.read_matching(label, take, &matches) {
@@ -959,7 +966,7 @@ mod tests {
         let profile = get_supported_device(0x3302, 0x43e8).unwrap();
         let mut io = FakeIo::default();
         io.reads.push_back(vec![]); // first init drain
-        io.read_error_until = Some((2, 3, "transient read".into()));
+        io.read_error_until = Some((2, 4, "transient read".into()));
         queue_default_pull(&mut io);
         let error = DeviceSession::new(&mut io, profile).pull().unwrap_err();
         assert!(error.contains("unconfirmed default"), "{error}");
