@@ -429,7 +429,7 @@ jobs:
           prerelease_code=50
           if [[ "$raw_version" != "$base_version" ]]; then
             pre="${raw_version#*-}"
-            if [[ "$pre" =~ ^[0-9]+$ ]]; then
+            if [[ "$pre" =~ ^[1-9]$ ]]; then
               if (( 10#$pre < 1 || 10#$pre > 9 )); then
                 echo "Refusing tag: numeric prerelease '$pre' must be in 1..9" >&2
                 exit 1

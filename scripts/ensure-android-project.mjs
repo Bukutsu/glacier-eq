@@ -8,6 +8,10 @@ const androidRoot = join(root, "src-tauri", "gen", "android");
 const required = [
   join(androidRoot, "settings.gradle"),
   join(androidRoot, "gradlew"),
+  // These generated includes are ignored by git but are required by the
+  // tracked Gradle entrypoints before a fresh checkout can build.
+  join(androidRoot, "tauri.settings.gradle"),
+  join(androidRoot, "app", "tauri.build.gradle.kts"),
 ];
 const buildTask = join(
   androidRoot,
