@@ -105,8 +105,8 @@ export function useProfiles(
   );
 
   const importPeq = useCallback(
-    (data: PEQData, name: string, isSaved: boolean) => {
-      if (editor.isBusy) return;
+    (data: PEQData, name: string, isSaved: boolean): boolean => {
+      if (editor.isBusy) return false;
       const { capabilities } = editor;
       editor.pushToUndoStack(editor.peqRef.current);
       const normalized = normalizePeq(data, { enableLoadedFilters: true, integerPreamp: capabilities.integer_preamp, capabilities });
@@ -117,46 +117,56 @@ export function useProfiles(
       if (isSaved) editor.editorCleanPeqRef.current = normalized;
       editor.noteEditorMutation();
       editor.setDirty(!isSaved);
+      return true;
     },
     [editor],
   );
 
   const profileLoadGenerationRef = useRef(0);
-  const loadProfiles = useCallback(async (): Promise<Profile[]> => {
+  const loadProfiles = useCallback(async (options?: {
+    preserveSelection?: boolean;
+    throwOnError?: boolean;
+  }): Promise<Profile[]> => {
     const generation = ++profileLoadGenerationRef.current;
     try {
       const loadedProfiles = await invoke<Profile[]>("list_profiles");
       if (generation !== profileLoadGenerationRef.current) return [];
       const nextProfiles = withSyntheticDefault(loadedProfiles);
       setProfiles(nextProfiles);
-      const reconciliation = reconcileProfileSelection(
-        nextProfiles,
-        selectedPresetRef.current,
-      );
-      if (reconciliation.name !== selectedPresetRef.current) {
-        selectedPresetRef.current = reconciliation.name;
-        setSelectedPreset(reconciliation.name);
-      }
-      if (reconciliation.missing) {
-        const renamed = nextProfiles.find(
-          (profile) => profileIdentityKey(profile.name) !== profileIdentityKey(DEFAULT_PROFILE_NAME)
-            && peqEquals(profile.data as unknown as PEQData, editor.peqRef.current),
+      if (!options?.preserveSelection) {
+        const reconciliation = reconcileProfileSelection(
+          nextProfiles,
+          selectedPresetRef.current,
         );
-        if (renamed) {
-          selectedPresetRef.current = renamed.name;
-          setSelectedPreset(renamed.name);
-        } else {
-          // The selected file was removed or renamed outside this window.
-          // Keep the editor data visible, but make the loss of its saved
-          // identity explicit instead of continuing to label it as saved.
-          setProfileSearch("");
-          setNewProfileName("");
-          editor.setDirty(true);
+        if (reconciliation.name !== selectedPresetRef.current) {
+          selectedPresetRef.current = reconciliation.name;
+          setSelectedPreset(reconciliation.name);
+        }
+        if (reconciliation.missing) {
+          const renamed = nextProfiles.find(
+            (profile) => profileIdentityKey(profile.name) !== profileIdentityKey(DEFAULT_PROFILE_NAME)
+              && peqEquals(
+                normalizePeq(profile.data, { enableLoadedFilters: true }),
+                editor.peqRef.current,
+              ),
+          );
+          if (renamed) {
+            selectedPresetRef.current = renamed.name;
+            setSelectedPreset(renamed.name);
+          } else {
+            // The selected file was removed or renamed outside this window.
+            // Keep the editor data visible, but make the loss of its saved
+            // identity explicit instead of continuing to label it as saved.
+            setProfileSearch("");
+            setNewProfileName("");
+            editor.setDirty(true);
+          }
         }
       }
       return nextProfiles;
     } catch (error) {
       if (generation !== profileLoadGenerationRef.current) return [];
+      if (options?.throwOnError) throw error;
       setStatus(`Failed to load profiles: ${error}`);
       return [];
     }
@@ -190,11 +200,13 @@ export function useProfiles(
       danger: true,
     }))) return;
 
+    let writeCompleted = false;
     try {
       let canonicalName = existing?.name ?? name;
       const mutation = await runProfileMutation(async () => {
         await invoke("save_profile", { name, peq: savedPeq });
-        const loadedProfiles = await loadProfiles();
+        writeCompleted = true;
+        const loadedProfiles = await loadProfiles({ throwOnError: true });
         canonicalName = loadedProfiles.find(
           (profile) => profileIdentityKey(profile.name) === profileIdentityKey(name),
         )?.name ?? canonicalName;
@@ -214,7 +226,11 @@ export function useProfiles(
       }
       setStatus("Profile saved");
     } catch (error) {
-      setStatus(`Failed to save profile: ${error}`);
+      setStatus(
+        writeCompleted
+          ? `Profile saved, but the profile list could not be refreshed: ${error}`
+          : `Failed to save profile: ${error}`,
+      );
     }
   }, [editor, profiles, loadProfiles, setStatus, runProfileMutation]);
 
@@ -234,10 +250,12 @@ export function useProfiles(
       danger: true,
     }))) return;
 
+    let writeCompleted = false;
     try {
       const mutation = await runProfileMutation(async () => {
         await invoke("delete_profile", { name: deletedName });
-        await loadProfiles();
+        writeCompleted = true;
+        await loadProfiles({ preserveSelection: true, throwOnError: true });
       });
       const contextStillCurrent =
         mutation.current &&
@@ -257,7 +275,11 @@ export function useProfiles(
       }
       setStatus("Profile deleted");
     } catch (error) {
-      setStatus(`Failed to delete profile: ${error}`);
+      setStatus(
+        writeCompleted
+          ? `Profile deleted, but the profile list could not be refreshed: ${error}`
+          : `Failed to delete profile: ${error}`,
+      );
     }
   }, [editor, loadProfiles, setStatus, runProfileMutation]);
 

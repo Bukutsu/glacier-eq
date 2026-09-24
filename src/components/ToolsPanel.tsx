@@ -41,7 +41,7 @@ export type { ProfileMutationRunner };
 
 interface ToolsPanelProps {
   peq: PEQData;
-  onImportPEQ: (data: PEQData, name: string, isSaved: boolean) => void;
+  onImportPEQ: (data: PEQData, name: string, isSaved: boolean) => boolean;
   onPull?: () => Promise<boolean>;
   profiles: Profile[];
   selectedPreset: string;
@@ -260,7 +260,7 @@ interface AutoEqTabProps {
   measurements: MeasurementTrace[];
   allTargets: TargetTrace[];
   activeTargetIds?: string[];
-  onImportPEQ: (data: PEQData, name: string, isSaved: boolean) => void;
+  onImportPEQ: (data: PEQData, name: string, isSaved: boolean) => boolean;
   setStatus: (msg: string) => void;
   onSelectedMeasurementChange?: (measurementId: string | null) => void;
   onToggleMeasurement?: (id: string) => void;
@@ -434,7 +434,11 @@ export function AutoEqTab({
         .replace(/Reference/i, "")
         .trim() || input.targetName;
       const autoName = `${cleanMeasName} @ ${cleanTargetName}`;
-      onImportPEQ(result.peq, autoName, false);
+      const applied = onImportPEQ(result.peq, autoName, false);
+      if (!applied) {
+        setStatus("EQ match was not applied because another device operation is busy.");
+        return;
+      }
       setWarnings(result.warnings);
 
       if (result.warnings.length > 0) {

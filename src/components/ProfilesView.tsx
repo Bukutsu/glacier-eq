@@ -35,7 +35,7 @@ export interface ProfilesViewProps {
   onSave: () => void;
   onDelete: () => void;
   setStatus: (value: string) => void;
-  onImportPEQ: (data: PEQData, name: string, isSaved: boolean) => void;
+  onImportPEQ: (data: PEQData, name: string, isSaved: boolean) => boolean;
   getAsyncContext: () => AsyncContext;
   runProfileMutation: ProfileMutationRunner;
   dirty?: boolean;
@@ -263,6 +263,7 @@ export const ProfilesView = memo(function ProfilesView({
       operation === modalContextRef.current &&
       asyncContextEquals(context, getAsyncContext());
     setIsSubmitting(true);
+    let writeCompleted = false;
 
     try {
       if (
@@ -279,7 +280,11 @@ export const ProfilesView = memo(function ProfilesView({
       if (!isCurrent()) return;
 
       if (temporarySnapshot) {
-        onImportPEQ(parsedSnapshot.peq, nameSnapshot || "Imported EQ", false);
+        const applied = onImportPEQ(parsedSnapshot.peq, nameSnapshot || "Imported EQ", false);
+        if (!applied) {
+          setStatus("Import was not applied because another device operation is busy.");
+          return;
+        }
         setParsed(null);
         setStatus("Applied to editor without saving");
         return;
@@ -300,6 +305,7 @@ export const ProfilesView = memo(function ProfilesView({
       )?.name ?? name;
       const mutation = await runProfileMutation(async () => {
         await invoke("save_profile", { name, peq: parsedSnapshot.peq });
+        writeCompleted = true;
         const loadedProfiles = await onReloadProfiles();
         canonicalName = loadedProfiles?.find(
           (profile) => profileIdentityKey(profile.name) === profileIdentityKey(name),
@@ -307,11 +313,21 @@ export const ProfilesView = memo(function ProfilesView({
       });
       if (!mutation.current || !isCurrent()) return;
 
-      onImportPEQ(parsedSnapshot.peq, canonicalName, true);
+      const applied = onImportPEQ(parsedSnapshot.peq, canonicalName, true);
+      if (!applied) {
+        setStatus("Profile was saved, but the editor is busy and was not changed.");
+        return;
+      }
       setParsed(null);
       setStatus(`Profile "${canonicalName}" saved`);
     } catch (err) {
-      if (isCurrent()) setStatus(`Failed to save profile: ${err}`);
+      if (isCurrent()) {
+        setStatus(
+          writeCompleted
+            ? `Profile was saved, but the profile list could not be refreshed: ${err}`
+            : `Failed to save profile: ${err}`,
+        );
+      }
     } finally {
       if (mountedRef.current && operation === modalContextRef.current) {
         setIsSubmitting(false);

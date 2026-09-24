@@ -373,6 +373,8 @@ function App() {
     editorRevisionRef.current += 1;
   }, []);
   const eqOperationInFlightRef = useRef(false);
+  const eqOperationIdRef = useRef(0);
+  const connectOperationIdRef = useRef(0);
   const [lastPushedPeq, setLastPushedPeq] = useState<PEQData | null>(null);
   const [activeBandIndex, setActiveBandIndex] = useState<number | null>(null);
   const [editorHintDismissed, setEditorHintDismissed] = useState(
@@ -946,11 +948,15 @@ function App() {
         if (found && isCurrent()) {
           const devName = found.profile_name || found.product_string || "DAC";
           reportStatus("Info", `Device found: ${devName}. Reconnecting...`, null, "Device", "Device found. Reconnecting...");
+          let openedSessionId: number | null = null;
           try {
-            const sessionId = await invoke<number | null>("connect_device", { path: found.path });
-            connectedSessionIdRef.current = sessionId;
+            openedSessionId = await invoke<number | null>("connect_device", { path: found.path });
+            connectedSessionIdRef.current = openedSessionId;
             if (!isCurrent()) {
-              await invoke("disconnect_device", { expectedPath: found.path }).catch(() => {});
+              await invoke("disconnect_device", {
+                expectedPath: found.path,
+                expectedSessionId: openedSessionId,
+              }).catch(() => {});
               return;
             }
 
@@ -985,10 +991,15 @@ function App() {
             reportStatus("Info", `Connected to ${devName}`, "success", "Device", "Ready");
             return;
           } catch (err) {
+            if (openedSessionId !== null) {
+              try {
+                await invoke("disconnect_device", {
+                  expectedPath: found.path,
+                  expectedSessionId: openedSessionId,
+                }).catch(() => {});
+              } catch {}
+            }
             if (!isCurrent()) return;
-            try {
-              await invoke("disconnect_device", { expectedPath: found.path }).catch(() => {});
-            } catch {}
             if (!isCurrent()) return;
             reportStatus("Warn", `Reconnect attempt failed: ${err}. Retrying...`, null, "Device", "Reconnecting...");
           }
@@ -1126,6 +1137,9 @@ function App() {
     ambiguousReconnectRef.current = false;
     const pathToConnect = targetPath || selectedDevice;
     if (!pathToConnect) return false;
+    const operationId = ++connectOperationIdRef.current;
+    const isCurrentConnect = () => operationId === connectOperationIdRef.current;
+    let openedSessionId: number | null = null;
     const resolvedTarget = targetInfo ?? devices.find((device) => device.path === pathToConnect);
     const targetCapabilities = resolvedTarget ?? selectedCapabilities;
     setIsBusy(true);
@@ -1143,8 +1157,17 @@ function App() {
         return true;
       }
 
-      const sessionId = await invoke<number | null>("connect_device", { path: pathToConnect });
-      connectedSessionIdRef.current = sessionId;
+      openedSessionId = await invoke<number | null>("connect_device", { path: pathToConnect });
+      connectedSessionIdRef.current = openedSessionId;
+      if (!isCurrentConnect()) {
+        if (openedSessionId !== null) {
+          await invoke("disconnect_device", {
+            expectedPath: pathToConnect,
+            expectedSessionId: openedSessionId,
+          }).catch(() => {});
+        }
+        return false;
+      }
       selectedDeviceRef.current = pathToConnect;
       setSelectedDevice(pathToConnect);
       setConnected(true, pathToConnect);
@@ -1176,8 +1199,26 @@ function App() {
         }
       }
       await loadFirmwareVersion(pathToConnect, connectionGenerationRef.current);
+      if (!isCurrentConnect()) {
+        if (openedSessionId !== null) {
+          await invoke("disconnect_device", {
+            expectedPath: pathToConnect,
+            expectedSessionId: openedSessionId,
+          }).catch(() => {});
+        }
+        return false;
+      }
       return true;
     } catch (error) {
+      if (!isCurrentConnect()) {
+        if (openedSessionId !== null) {
+          await invoke("disconnect_device", {
+            expectedPath: pathToConnect,
+            expectedSessionId: openedSessionId,
+          }).catch(() => {});
+        }
+        return false;
+      }
       setConnected(false);
       setLastPushedPeq(null);
       if (!manualDisconnectRef.current && isDisconnectionError(error)) {
@@ -1197,7 +1238,7 @@ function App() {
       }
       return false;
     } finally {
-      setIsBusy(false);
+      if (isCurrentConnect()) setIsBusy(false);
     }
   }, [devices, selectedDevice, pullEq, selectedDeviceInfo, selectedCapabilities, pushToUndoStack, loadFirmwareVersion, reportStatus, settings.auto_pull_on_connect, noteEditorMutation]);
 
@@ -1244,11 +1285,15 @@ function App() {
       danger: true,
     }))) return;
     eqOperationInFlightRef.current = true;
+    const operationId = ++eqOperationIdRef.current;
     setProgress(null);
     setIsBusy(true);
     let committedPeq: PEQData | null = null;
     let pushWarnings: string[] = [];
     const operationContext = getAsyncContext();
+    const isCurrentOperation = () =>
+      operationId === eqOperationIdRef.current
+      && asyncContextEquals(operationContext, getAsyncContext());
     try {
       if (isDevDummyDevice(selectedDevice)) {
         setProgress({
@@ -1286,13 +1331,13 @@ function App() {
         await sleep(400);
         // Adopt the quantized device state into the editor only when nobody
         // edited or reconnected during the write.
-        if (!peqEquals(committedPeq, snapshot) && asyncContextEquals(operationContext, getAsyncContext())) {
+        if (!peqEquals(committedPeq, snapshot) && isCurrentOperation()) {
           pushToUndoStack(peqRef.current);
           setPeq(committedPeq);
           noteEditorMutation();
         }
       }
-      if (!asyncContextEquals(operationContext, getAsyncContext())) return;
+      if (!isCurrentOperation()) return;
       setLastPushedPeq(committedPeq ?? snapshot);
       const savedMessage = isDevDummyDevice(selectedDevice)
         ? "Dummy DAC write simulated"
@@ -1311,6 +1356,7 @@ function App() {
         reportStatus("Info", savedMessage, "success", "UI");
       }
     } catch (error) {
+      if (!isCurrentOperation()) return;
       if (!manualDisconnectRef.current && !isDevDummyDevice(selectedDevice) && isDisconnectionError(error)) {
         markDeviceLost(
           { setConnected, setIsReconnecting, setLastPushedPeq, setFirmwareVersion, reportStatus },
@@ -1321,9 +1367,11 @@ function App() {
         reportStatus("Error", `Could not write to DAC: ${error}`, "error", "UI");
       }
     } finally {
-      eqOperationInFlightRef.current = false;
-      setIsBusy(false);
-      setProgress(null);
+      if (operationId === eqOperationIdRef.current) {
+        eqOperationInFlightRef.current = false;
+        setIsBusy(false);
+        setProgress(null);
+      }
     }
   }, [connected, selectedDevice, selectedCapabilities, reportStatus, setStatus, getAsyncContext, noteEditorMutation, pushToUndoStack]);
 
@@ -1348,7 +1396,11 @@ function App() {
 
       setProgress(null);
       setIsBusy(true);
+      const operationId = ++eqOperationIdRef.current;
       const operationContext = getAsyncContext();
+      const isCurrentOperation = () =>
+        operationId === eqOperationIdRef.current
+        && asyncContextEquals(operationContext, getAsyncContext());
       let applyWarnings: string[] = [];
       try {
         if (isDevDummyDevice(selectedDevice)) {
@@ -1366,9 +1418,10 @@ function App() {
             capabilities,
           });
           await sleep(300);
+          if (!isCurrentOperation()) return;
           setLastPushedPeq(applied);
         }
-        if (!asyncContextEquals(operationContext, getAsyncContext())) return;
+        if (!isCurrentOperation()) return;
         if (isDevDummyDevice(selectedDevice)) {
           setLastPushedPeq(data);
         }
@@ -1387,6 +1440,7 @@ function App() {
           reportStatus("Info", appliedMessage, "success", "UI");
         }
       } catch (error) {
+        if (!isCurrentOperation()) return;
         if (!manualDisconnectRef.current && !isDevDummyDevice(selectedDevice) && isDisconnectionError(error)) {
           markDeviceLost(
             { setConnected, setIsReconnecting, setLastPushedPeq, setFirmwareVersion, reportStatus },
@@ -1397,9 +1451,11 @@ function App() {
           reportStatus("Error", `Could not apply EQ: ${error}`, "error", "UI");
         }
       } finally {
-        eqOperationInFlightRef.current = false;
-        setIsBusy(false);
-        setProgress(null);
+        if (operationId === eqOperationIdRef.current) {
+          eqOperationInFlightRef.current = false;
+          setIsBusy(false);
+          setProgress(null);
+        }
       }
     },
     [dirty, pushToUndoStack, selectedDevice, capabilities, reportStatus, noteEditorMutation, getAsyncContext],
@@ -1412,7 +1468,10 @@ function App() {
     lastConnectedNameRef.current = "";
     try {
       if (!isDevDummyDevice(selectedDevice)) {
-        await invoke("disconnect_device");
+        await invoke("disconnect_device", {
+          expectedPath: connectedPathRef.current,
+          expectedSessionId: connectedSessionIdRef.current,
+        });
       }
       setConnected(false);
       setIsReconnecting(false);
@@ -1435,6 +1494,7 @@ function App() {
   }, [selectedDevice, reportStatus]);
 
   const updateFilter = useCallback((index: number, updated: Filter, showPreview = true) => {
+    if (isBusy || eqOperationInFlightRef.current) return;
     setActiveBandIndex(index);
     if (showPreview) startGraphPreview();
     setPeq((previous) => {
@@ -1446,7 +1506,7 @@ function App() {
     // A no-op edit or one restored exactly to the clean baseline must not
     // mark the profile dirty.
     setDirty(!peqEquals({ ...peqRef.current, filters: peqRef.current.filters.map((f, i) => i === index ? updated : f) }, editorCleanPeqRef.current));
-  }, [startGraphPreview, noteEditorMutation]);
+  }, [isBusy, startGraphPreview, noteEditorMutation]);
 
   const handleFilterChangeNoPreview = useCallback(
     (index: number, filter: Filter) => updateFilter(index, filter, false),
