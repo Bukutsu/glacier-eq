@@ -226,6 +226,19 @@ describe("browser connection cleanup", () => {
     expect(device.close).toHaveBeenCalledOnce();
   });
 
+  it("clears the old profile when replacement open fails", async () => {
+    const first = fakeHidDevice();
+    const second = fakeHidDevice();
+    second.opened = false;
+    (second.open as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error("open failed"));
+    wasm.list_supported_devices.mockReturnValue([profile]);
+    hidMock.devices = [first, second];
+    const paths = await invoke<Array<{ path: string }>>("list_devices");
+    await invoke("connect_device", { path: paths[0].path });
+    await expect(invoke("connect_device", { path: paths[1].path })).rejects.toThrow("open failed");
+    await expect(invoke("get_eq_state")).rejects.toThrow("No device connected");
+  });
+
   it("closes the WebHID handle when a send failure disconnects a present device", async () => {
     const device = fakeHidDevice();
     await connectWebHid(device);
@@ -293,6 +306,32 @@ describe("browser EQ writes", () => {
     expect(nonces).toEqual([...Array(10)].map((_, index) => index + 1).concat(
       [...Array(10)].map((_, index) => index + 11),
     ));
+  });
+
+  it("resends an unanswered global-gain request before retrying the pull", async () => {
+    const device = fakeHidDevice({ respondToReports: true });
+    const oneBand = { ...profile, num_bands: 1 };
+    await connectWebHid(device, oneBand);
+    wasm.build_read_global_gain_request.mockReturnValue([1]);
+    wasm.matches_global_gain_response
+      .mockReturnValueOnce(false)
+      .mockReturnValue(true);
+    wasm.parse_global_gain_response.mockReturnValue(0);
+    wasm.build_read_filter_request.mockReturnValue([1]);
+    wasm.matches_filter_response.mockReturnValue(true);
+    wasm.parse_filter_response.mockReturnValue({
+      index: 0,
+      enabled: true,
+      filter_type: "Peak",
+      freq: 100,
+      gain: 0,
+      q: 1,
+    });
+    wasm.is_default_peq_for_device.mockReturnValue(false);
+
+    await expect(invoke("get_eq_state")).resolves.toMatchObject({ global_gain: 0 });
+    expect(wasm.build_read_global_gain_request).toHaveBeenCalled();
+    expect(device.sendReport.mock.calls.length).toBeGreaterThanOrEqual(3);
   });
 
   it("rejects an invalid matching filter response before parsing or rollback", async () => {

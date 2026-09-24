@@ -835,10 +835,13 @@ async function pullEqStateOnce(profile: SupportedDeviceInfo): Promise<PEQData> {
   await sleep(50);
 
   const req = wasm().build_read_global_gain_request(protocol);
-  await sendReport(req);
-  const globalResponse = await readMatchingReport(200, (data) =>
-    wasm().matches_global_gain_response(protocol, data)
-  );
+  let globalResponse: Uint8Array | null = null;
+  for (let retry = 0; retry < 3 && !globalResponse; retry++) {
+    await sendReport(req);
+    globalResponse = await readMatchingReport(200, (data) =>
+      wasm().matches_global_gain_response(protocol, data)
+    );
+  }
   if (!globalResponse) throw new Error("Global gain read timeout");
   const global_gain = wasm().parse_global_gain_response(protocol, globalResponse);
 
@@ -1155,8 +1158,12 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
         detachHidEventListeners(activeDevice);
         try { await activeDevice.close(); } catch {}
         activeDevice = null;
+        activeProfile = null;
       }
 
+      // Clear the previous identity before opening a replacement. If opening
+      // fails, no diagnostic or later command may observe the old profile.
+      activeProfile = null;
       if (!target.opened) {
         await target.open();
       }
@@ -1196,6 +1203,14 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
           if (resolver) resolver(new Uint8Array(0));
         }
         if (closeError !== null) throw closeError;
+      }
+      // Also clear a stale profile if a previous replacement failed before
+      // it could install a new active device.
+      activeProfile = null;
+      reportQueue = [];
+      while (reportResolvers.length > 0) {
+        const resolver = reportResolvers.shift();
+        if (resolver) resolver(new Uint8Array(0));
       }
       return null as T;
     }
