@@ -136,7 +136,7 @@ fn device_caps_or_desktop(vendor_id: Option<u16>, product_id: Option<u16>) -> De
     if let (Some(vid), Some(pid)) = (vendor_id, product_id) {
         get_supported_device(vid, pid)
             .map(|profile| profile.caps.clone())
-            .unwrap_or_else(|_| portable_caps())
+            .unwrap_or_else(portable_caps)
     } else {
         portable_caps()
     }
