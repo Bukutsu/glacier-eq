@@ -452,18 +452,18 @@ fn format_filter_number(value: f64, decimals: usize) -> String {
         .trim_end_matches('0')
         .trim_end_matches('.')
         .to_string();
-    if value != 0.0 && trimmed.parse::<f64>().is_ok_and(|parsed| parsed == 0.0) {
-        format!("{value:?}")
-    } else {
+    if trimmed.parse::<f64>().is_ok_and(|parsed| parsed == value) {
         trimmed
+    } else {
+        // AutoEQ accepts exponent notation. If the human-friendly rounded
+        // form would lose the value, retain the shortest round-trippable
+        // representation instead of silently changing the user's EQ.
+        format!("{value:?}")
     }
 }
 
 pub fn peq_to_autoeq(peq: &PEQData) -> String {
-    let mut preamp_str = format!("{:.2}", peq.global_gain)
-        .trim_end_matches('0')
-        .trim_end_matches('.')
-        .to_string();
+    let mut preamp_str = format_filter_number(peq.global_gain, 2);
     // "-0" reparses as a zero preamp that trips the empty-profile check;
     // write canonical zero instead.
     if preamp_str == "-0" {
@@ -2484,15 +2484,24 @@ mod tests {
     }
 
     #[test]
-    fn negative_zero_preamp_round_trips() {
+    fn precise_preamp_and_filter_values_round_trip() {
         let peq = PEQData {
-            filters: vec![],
+            filters: vec![Filter {
+                index: 0,
+                enabled: true,
+                filter_type: FilterType::Peak,
+                freq: 1000,
+                gain: 1.23456,
+                q: 0.876543,
+            }],
             global_gain: -0.004,
         };
         let text = peq_to_autoeq(&peq);
-        assert!(text.contains("Preamp: 0 dB"), "got: {text}");
-        let (parsed, _, _) = parse_autoeq_text(&text).unwrap();
-        assert_eq!(parsed.global_gain, 0.0);
+        let (parsed, _, warnings) = parse_autoeq_text(&text).unwrap();
+        assert!(warnings.is_empty());
+        assert_eq!(parsed.global_gain, -0.004);
+        assert_eq!(parsed.filters[0].gain, 1.23456);
+        assert_eq!(parsed.filters[0].q, 0.876543);
     }
 
     #[test]
