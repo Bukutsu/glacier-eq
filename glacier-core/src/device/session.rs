@@ -71,6 +71,7 @@ pub struct DeviceSession<'a> {
     next_nonce: u8,
     last_pull_had_invalid_response: bool,
     last_pull_sent_gain_request: bool,
+    last_pull_gain_read_completed: bool,
     gain_read_requires_correlation: bool,
     last_read_was_retried: bool,
 }
@@ -85,6 +86,7 @@ impl<'a> DeviceSession<'a> {
             next_nonce: 0,
             last_pull_had_invalid_response: false,
             last_pull_sent_gain_request: false,
+            last_pull_gain_read_completed: false,
             gain_read_requires_correlation: false,
             last_read_was_retried: false,
         }
@@ -111,6 +113,7 @@ impl<'a> DeviceSession<'a> {
             next_nonce: initial_nonce,
             last_pull_had_invalid_response: false,
             last_pull_sent_gain_request: false,
+            last_pull_gain_read_completed: false,
             gain_read_requires_correlation: false,
             last_read_was_retried: false,
         }
@@ -148,7 +151,7 @@ impl<'a> DeviceSession<'a> {
                 }
                 let first_sent_gain = self.last_pull_sent_gain_request;
                 self.io.sleep_ms(RETRY_DELAY_MS);
-                if first_sent_gain {
+                if first_sent_gain && !self.last_pull_gain_read_completed {
                     // Moondrop/FiiO do not carry a gain nonce. If the first
                     // complete pull already sent that request, a response read
                     // by the retry could be the late answer to the first one.
@@ -444,12 +447,14 @@ impl<'a> DeviceSession<'a> {
     fn pull_once(&mut self) -> Result<PEQData, String> {
         self.last_pull_had_invalid_response = false;
         self.last_pull_sent_gain_request = false;
+        self.last_pull_gain_read_completed = false;
         self.progress("Initializing read connection...", 5.0);
         self.init()?;
         let timing = self.protocol().write_timing();
         self.progress("Reading device preamp...", 10.0);
         self.last_pull_sent_gain_request = true;
         let global_gain = self.read_gain()?;
+        self.last_pull_gain_read_completed = true;
         self.io.sleep_ms(timing.post_gain_read_ms);
         let count = self.profile.caps.num_bands;
         let mut filters = Vec::with_capacity(count);
@@ -894,7 +899,8 @@ mod tests {
         let profile = get_supported_device(0x2972, 0x0102).unwrap();
         let mut io = FakeIo::default();
         io.reads.push_back(vec![]);
-        io.reads.push_back(vec![0xCC, 0x0C, 0, 0, 0x17, 2, 0, 10, END]);
+        io.reads
+            .push_back(vec![0xCC, 0x0C, 0, 0, 0x17, 2, 0, 10, END]);
         for index in 0..5u8 {
             io.reads.push_back(vec![
                 0xCC, 0x0C, 0, 0, 0x15, 8, index, 0, 10, 0x03, 0xE8, 0, 100, 0, 0, END,
@@ -1073,14 +1079,14 @@ mod tests {
     }
 
     #[test]
-    fn pull_rejects_a_default_returned_after_an_initial_read_error() {
+    fn pull_rejects_a_default_after_an_unanswered_gain_request() {
         let profile = get_supported_device(0x3302, 0x43e8).unwrap();
         let mut io = FakeIo::default();
         io.reads.push_back(vec![]); // first init drain
         io.read_error_until = Some((2, 4, "transient read".into()));
         queue_default_pull(&mut io);
         let error = DeviceSession::new(&mut io, profile).pull().unwrap_err();
-        assert!(error.contains("unconfirmed default"), "{error}");
+        assert!(error.contains("uncorrelated"), "{error}");
     }
 
     #[test]
@@ -1177,25 +1183,11 @@ mod tests {
             io.reads.push_back(vec![]);
         }
         io.reads.push_back(vec![]);
-        io.reads.push_back(vec![0xCC, 0x0C, 0, 0, 0x17, 2, 0, 10, END]);
+        io.reads
+            .push_back(vec![0xCC, 0x0C, 0, 0, 0x17, 2, 0, 10, END]);
         for index in 0..5u8 {
             io.reads.push_back(vec![
-                0xCC,
-                0x0C,
-                0,
-                0,
-                0x15,
-                8,
-                index,
-                0,
-                10,
-                0x03,
-                0xE8,
-                0,
-                100,
-                0,
-                0,
-                END,
+                0xCC, 0x0C, 0, 0, 0x15, 8, index, 0, 10, 0x03, 0xE8, 0, 100, 0, 0, END,
             ]);
         }
 

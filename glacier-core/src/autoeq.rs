@@ -1630,17 +1630,17 @@ pub fn run_autoeq(
         return Err("Sample rate must be between 40000 and 768000 Hz".into());
     }
     if let Some(caps) = caps {
-        if (fs as f64 - caps.dsp_sample_rate).abs() > 0.5 {
-            return Err(format!(
-                "Sample rate {fs} does not match the device DSP sample rate {}",
-                caps.dsp_sample_rate
-            ));
-        }
         crate::device::normalization::validate_capabilities(caps)?;
         if n_bands > caps.num_bands {
             return Err(format!(
                 "Requested {n_bands} AutoEQ bands, but the device supports only {}",
                 caps.num_bands
+            ));
+        }
+        if (fs as f64 - caps.dsp_sample_rate).abs() > 0.5 {
+            return Err(format!(
+                "Sample rate {fs} does not match the device DSP sample rate {}",
+                caps.dsp_sample_rate
             ));
         }
         if caps.band_gain_range.1.abs() > f32::MAX as f64 || caps.q_range.1.abs() > f32::MAX as f64
@@ -2068,7 +2068,16 @@ mod tests {
         let error = run_autoeq(&curve, &curve, 2, 1, "none", 48_000.0, Some(&caps))
             .expect_err("a device-bound fit must use the device DSP sample rate");
         assert!(error.contains("does not match"));
-        assert!(run_autoeq(&curve, &curve, 2, 1, "none", caps.dsp_sample_rate as f32, Some(&caps)).is_ok());
+        assert!(run_autoeq(
+            &curve,
+            &curve,
+            2,
+            1,
+            "none",
+            caps.dsp_sample_rate as f32,
+            Some(&caps)
+        )
+        .is_ok());
     }
 
     #[test]
