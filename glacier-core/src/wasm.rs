@@ -443,6 +443,7 @@ pub fn build_write_filter_packets(
 ) -> Result<JsValue, JsValue> {
     let p = eq_protocol(&protocol)?;
     let filter: Filter = serde_wasm_bindgen::from_value(filter_js).map_err(js_err)?;
+    validate_dsp_sample_rate(dsp_sample_rate)?;
     let packets = p
         .write_filter_packets(index, &filter, dsp_sample_rate, global_gain)
         .map_err(|err| JsValue::from_str(&err))?;

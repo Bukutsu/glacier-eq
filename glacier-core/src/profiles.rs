@@ -211,6 +211,7 @@ impl ProfileStore {
     /// Save only when the identity is still absent while holding the
     /// interprocess lock. This closes the CLI's check-then-write race.
     pub fn save_if_absent(&self, name: &str, peq: &PEQData) -> Result<bool, String> {
+        validate_name(name)?;
         self.ensure_profiles_directory()?;
         let _lock = self.lock_profiles()?;
         if !self.case_variant_paths(name).is_empty() {

@@ -1638,10 +1638,10 @@ pub fn run_autoeq(
         {
             return Err("AutoEQ capability ranges exceed the optimizer numeric domain".into());
         }
-        if caps.q_range.1 < 0.01 {
+        if caps.q_range.0 < 0.01 {
             return Err("AutoEQ capability Q range is below the canonical 0.01 minimum".into());
         }
-        if caps.q_range.0 > 100.0 {
+        if caps.q_range.1 > 100.0 {
             return Err("AutoEQ capability Q range exceeds the canonical 100 maximum".into());
         }
         if caps.band_gain_range.0 < -150.0 || caps.band_gain_range.1 > 150.0 {
@@ -2061,6 +2061,10 @@ mod tests {
         caps.q_range = (0.001, 0.002);
         assert!(run_autoeq(&curve, &curve, 1, 1, "none", 48_000.0, Some(&caps)).is_err());
         caps.q_range = (101.0, 102.0);
+        assert!(run_autoeq(&curve, &curve, 1, 1, "none", 48_000.0, Some(&caps)).is_err());
+        caps.q_range = (0.4, 101.0);
+        assert!(run_autoeq(&curve, &curve, 1, 1, "none", 48_000.0, Some(&caps)).is_err());
+        caps.q_range = (0.005, 0.1);
         assert!(run_autoeq(&curve, &curve, 1, 1, "none", 48_000.0, Some(&caps)).is_err());
         caps.q_range = (0.4, 4.0);
         caps.band_gain_range = (-151.0, 10.0);
