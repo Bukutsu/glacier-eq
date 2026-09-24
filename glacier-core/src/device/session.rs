@@ -433,9 +433,14 @@ impl<'a> DeviceSession<'a> {
         self.next_nonce = self.next_nonce.wrapping_add(1).max(1);
         let nonce = self.next_nonce;
         let request = protocol.read_filter_request(index, nonce);
-        let data = self.send_and_read("Filter", &request, FILTER_READ_ATTEMPTS, 0, |data| {
-            protocol.matches_filter_response(data, index, nonce)
-        })?;
+        let data = self.send_and_read(
+            "Filter",
+            &request,
+            FILTER_READ_ATTEMPTS,
+            0,
+            |data| protocol.matches_filter_response(data, index, nonce),
+            false,
+        )?;
         let valid = protocol.is_filter_response_valid(&data, index, nonce);
         if !valid {
             self.last_pull_had_invalid_response = true;
@@ -452,9 +457,14 @@ impl<'a> DeviceSession<'a> {
     fn read_gain(&mut self) -> Result<f64, String> {
         let protocol = self.protocol();
         let request = protocol.read_global_gain_request();
-        let data = self.send_and_read("Global gain", &request, GAIN_READ_ATTEMPTS, 25, |data| {
-            protocol.matches_global_gain_response(data)
-        })?;
+        let data = self.send_and_read(
+            "Global gain",
+            &request,
+            GAIN_READ_ATTEMPTS,
+            25,
+            |data| protocol.matches_global_gain_response(data),
+            true,
+        )?;
         protocol
             .parse_global_gain_response(&data)
             .ok_or_else(|| "Global gain response could not be parsed".into())
@@ -469,6 +479,7 @@ impl<'a> DeviceSession<'a> {
         attempts: usize,
         settle_ms: u64,
         matches: impl Fn(&[u8]) -> bool,
+        quarantine_before_resend: bool,
     ) -> Result<Vec<u8>, String> {
         let per_round = self
             .protocol()
@@ -479,7 +490,7 @@ impl<'a> DeviceSession<'a> {
         let mut last_err = None;
         let mut sent_request = false;
         while remaining > 0 {
-            if sent_request {
+            if sent_request && quarantine_before_resend {
                 // A late response from the previous request must not satisfy
                 // a resend of the same uncorrelated command.
                 self.drain();
