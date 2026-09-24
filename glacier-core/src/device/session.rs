@@ -70,6 +70,8 @@ pub struct DeviceSession<'a> {
     progress: Option<&'a mut ProgressCallback<'a>>,
     next_nonce: u8,
     last_pull_had_invalid_response: bool,
+    last_pull_sent_gain_request: bool,
+    gain_read_requires_correlation: bool,
     last_read_was_retried: bool,
 }
 
@@ -82,6 +84,8 @@ impl<'a> DeviceSession<'a> {
             progress: None,
             next_nonce: 0,
             last_pull_had_invalid_response: false,
+            last_pull_sent_gain_request: false,
+            gain_read_requires_correlation: false,
             last_read_was_retried: false,
         }
     }
@@ -106,6 +110,8 @@ impl<'a> DeviceSession<'a> {
             progress: Some(progress),
             next_nonce: initial_nonce,
             last_pull_had_invalid_response: false,
+            last_pull_sent_gain_request: false,
+            gain_read_requires_correlation: false,
             last_read_was_retried: false,
         }
     }
@@ -121,6 +127,10 @@ impl<'a> DeviceSession<'a> {
     }
 
     pub fn pull(&mut self) -> Result<PEQData, String> {
+        // A complete-pull retry is only safe when the failed attempt did not
+        // issue an uncorrelatable global-gain request. Clear this one-shot
+        // guard before starting a new user-visible operation.
+        self.gain_read_requires_correlation = false;
         let protocol = self.protocol();
         match self.pull_once() {
             Ok(peq) if !protocol.is_default_state(&peq) => Ok(peq),
@@ -136,8 +146,17 @@ impl<'a> DeviceSession<'a> {
                 if first.contains(UNCORRELATED_GAIN_ERROR) {
                     return Err(first);
                 }
+                let first_sent_gain = self.last_pull_sent_gain_request;
                 self.io.sleep_ms(RETRY_DELAY_MS);
-                match self.pull_once() {
+                if first_sent_gain {
+                    // Moondrop/FiiO do not carry a gain nonce. If the first
+                    // complete pull already sent that request, a response read
+                    // by the retry could be the late answer to the first one.
+                    self.gain_read_requires_correlation = true;
+                }
+                let retry = self.pull_once();
+                self.gain_read_requires_correlation = false;
+                match retry {
                     Ok(peq) if protocol.is_default_state(&peq) => Err(format!(
                         "{first}; retry returned an unconfirmed default EQ state"
                     )),
@@ -220,15 +239,32 @@ impl<'a> DeviceSession<'a> {
                 self.profile.name
             ));
         }
+        let backup = self.pull()?;
+        if self.last_pull_had_invalid_response {
+            return Err("Cannot apply while the device returned an invalid EQ response".into());
+        }
+        validate_peq_for_capabilities(&backup, &self.profile.caps)?;
         let (normalized, warnings) = self.normalize(peq)?;
-        self.write_to_ram(&normalized)?;
+        let attempt = self.write_ram_and_apply(&normalized);
+        if let Err(error) = attempt {
+            let restore = self.write_ram_and_apply(&backup);
+            return Err(match restore {
+                Ok(()) => format!("{error}; previous RAM state restored"),
+                Err(rollback) => format!("{error}; RAM rollback failed: {rollback}"),
+            });
+        }
+        self.progress("Apply successful", 100.0);
+        Ok((normalized, warnings))
+    }
+
+    fn write_ram_and_apply(&mut self, peq: &PEQData) -> Result<(), String> {
+        self.write_to_ram(peq)?;
         for packet in self.protocol().ram_apply_packets() {
             self.send(&packet)?;
             self.io
                 .sleep_ms(self.protocol().write_timing().commit_step_ms);
         }
-        self.progress("Apply successful", 100.0);
-        Ok((normalized, warnings))
+        Ok(())
     }
 
     pub fn firmware_version(&mut self) -> Result<Option<String>, String> {
@@ -407,10 +443,12 @@ impl<'a> DeviceSession<'a> {
 
     fn pull_once(&mut self) -> Result<PEQData, String> {
         self.last_pull_had_invalid_response = false;
+        self.last_pull_sent_gain_request = false;
         self.progress("Initializing read connection...", 5.0);
         self.init()?;
         let timing = self.protocol().write_timing();
         self.progress("Reading device preamp...", 10.0);
+        self.last_pull_sent_gain_request = true;
         let global_gain = self.read_gain()?;
         self.io.sleep_ms(timing.post_gain_read_ms);
         let count = self.profile.caps.num_bands;
@@ -479,7 +517,7 @@ impl<'a> DeviceSession<'a> {
 
     fn read_gain(&mut self) -> Result<f64, String> {
         let gain = self.read_gain_once()?;
-        if self.last_read_was_retried {
+        if self.last_read_was_retried || self.gain_read_requires_correlation {
             // Global-gain frames do not carry a transaction nonce. A retry can
             // accept a late response from the first command, so fail closed
             // instead of allowing it to become rollback truth.
@@ -852,6 +890,32 @@ mod tests {
     }
 
     #[test]
+    fn apply_ram_restores_the_snapshot_when_apply_fails() {
+        let profile = get_supported_device(0x2972, 0x0102).unwrap();
+        let mut io = FakeIo::default();
+        io.reads.push_back(vec![]);
+        io.reads.push_back(vec![0xCC, 0x0C, 0, 0, 0x17, 2, 0, 10, END]);
+        for index in 0..5u8 {
+            io.reads.push_back(vec![
+                0xCC, 0x0C, 0, 0, 0x15, 8, index, 0, 10, 0x03, 0xE8, 0, 100, 0, 0, END,
+            ]);
+        }
+        // Initial pull uses writes 1..6. Fail all three attempts for the
+        // requested filter at writes 9..11, then allow the rollback writes.
+        io.failing_write_calls.extend([9, 10, 11]);
+        let peq = PEQData {
+            filters: (0..5).map(|index| Filter::enabled(index, false)).collect(),
+            global_gain: -2.0,
+        };
+
+        let error = DeviceSession::new(&mut io, profile)
+            .apply_ram(peq)
+            .expect_err("a failed RAM apply must report the rollback result");
+        assert!(error.contains("previous RAM state restored"), "{error}");
+        assert!(io.write_calls >= 15, "rollback writes were not attempted");
+    }
+
+    #[test]
     fn control_range_is_checked_before_write() {
         let profile = get_supported_device(0x3302, 0x43e8).unwrap();
         let mut io = FakeIo::default();
@@ -1074,6 +1138,67 @@ mod tests {
             (-7i8) as u8,
             0,
         ]);
+        let error = DeviceSession::new(&mut io, profile).pull().unwrap_err();
+        assert!(error.contains("uncorrelated"), "{error}");
+    }
+
+    #[test]
+    fn pull_rejects_late_moondrop_gain_after_complete_pull_retry() {
+        let profile = get_supported_device(0x35d8, 0x011d).unwrap();
+        let mut io = FakeIo::default();
+        io.reads.push_back(vec![]); // first init drain
+        for _ in 0..GAIN_READ_ATTEMPTS {
+            io.reads.push_back(vec![]); // unanswered first gain request
+        }
+        io.reads.push_back(vec![]); // retry init drain
+        io.reads.push_back(vec![0x80, 0x23, 0, 26, 0]); // late +1.0 dB response
+        for index in 0..10u8 {
+            let mut response = vec![0u8; 63];
+            response[0] = 0x80;
+            response[1] = 0x09;
+            response[4] = index;
+            response[27..29].copy_from_slice(&1_000u16.to_le_bytes());
+            response[29..31].copy_from_slice(&256u16.to_le_bytes());
+            response[31..33].copy_from_slice(&256i16.to_le_bytes());
+            response[33] = 2;
+            io.reads.push_back(response);
+        }
+
+        let error = DeviceSession::new(&mut io, profile).pull().unwrap_err();
+        assert!(error.contains("uncorrelated"), "{error}");
+    }
+
+    #[test]
+    fn pull_rejects_late_fiio_gain_after_complete_pull_retry() {
+        let profile = get_supported_device(0x2972, 0x0102).unwrap();
+        let mut io = FakeIo::default();
+        io.reads.push_back(vec![]);
+        for _ in 0..GAIN_READ_ATTEMPTS {
+            io.reads.push_back(vec![]);
+        }
+        io.reads.push_back(vec![]);
+        io.reads.push_back(vec![0xCC, 0x0C, 0, 0, 0x17, 2, 0, 10, END]);
+        for index in 0..5u8 {
+            io.reads.push_back(vec![
+                0xCC,
+                0x0C,
+                0,
+                0,
+                0x15,
+                8,
+                index,
+                0,
+                10,
+                0x03,
+                0xE8,
+                0,
+                100,
+                0,
+                0,
+                END,
+            ]);
+        }
+
         let error = DeviceSession::new(&mut io, profile).pull().unwrap_err();
         assert!(error.contains("uncorrelated"), "{error}");
     }
