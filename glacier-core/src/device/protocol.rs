@@ -76,8 +76,14 @@ pub trait EqProtocol {
     fn init_packets(&self) -> Vec<Packet>;
     fn read_filter_request(&self, index: u8, nonce: u8) -> Packet;
     fn matches_filter_response(&self, data: &[u8], index: u8, nonce: u8) -> bool;
+    /// Checks payload validity independently of command/index/nonce correlation.
+    /// Parsers may still return a sanitized placeholder for legacy callers, but
+    /// public WASM/parser boundaries use this to reject the frame instead.
+    fn is_filter_packet_valid(&self, data: &[u8]) -> bool {
+        self.parse_filter_response(data).is_some()
+    }
     fn is_filter_response_valid(&self, data: &[u8], index: u8, nonce: u8) -> bool {
-        self.matches_filter_response(data, index, nonce)
+        self.matches_filter_response(data, index, nonce) && self.is_filter_packet_valid(data)
     }
     fn parse_filter_response(&self, data: &[u8]) -> Option<Filter>;
     fn read_global_gain_request(&self) -> Packet;
@@ -152,6 +158,10 @@ impl EqProtocol for DeviceProtocol {
     fn matches_filter_response(&self, data: &[u8], index: u8, nonce: u8) -> bool {
         self.implementation()
             .matches_filter_response(data, index, nonce)
+    }
+
+    fn is_filter_packet_valid(&self, data: &[u8]) -> bool {
+        self.implementation().is_filter_packet_valid(data)
     }
 
     fn is_filter_response_valid(&self, data: &[u8], index: u8, nonce: u8) -> bool {
@@ -424,6 +434,10 @@ impl EqProtocol for WalkplayProtocol {
 
     fn matches_filter_response(&self, data: &[u8], index: u8, nonce: u8) -> bool {
         Self::matches_filter_response(data, index, nonce)
+    }
+
+    fn is_filter_packet_valid(&self, data: &[u8]) -> bool {
+        crate::device::walkplay::valid_filter_packet(data)
     }
 
     fn is_filter_response_valid(&self, data: &[u8], index: u8, nonce: u8) -> bool {

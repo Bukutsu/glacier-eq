@@ -13,6 +13,7 @@ const wasm = vi.hoisted(() => ({
   build_init_packets: vi.fn(() => []),
   build_read_filter_request: vi.fn(),
   matches_filter_response: vi.fn(),
+  is_filter_response_valid: vi.fn(() => true),
   parse_filter_response: vi.fn(),
   build_read_global_gain_request: vi.fn(),
   matches_global_gain_response: vi.fn(),
@@ -161,6 +162,7 @@ beforeEach(() => {
   wasm.build_write_global_gain_packets.mockReturnValue([]);
   wasm.build_commit_packets.mockReturnValue([]);
   wasm.build_ram_apply_packets.mockReturnValue([]);
+  wasm.is_filter_response_valid.mockReturnValue(true);
   wasm.get_write_timing.mockReturnValue({});
 });
 
@@ -291,6 +293,30 @@ describe("browser EQ writes", () => {
     expect(nonces).toEqual([...Array(10)].map((_, index) => index + 1).concat(
       [...Array(10)].map((_, index) => index + 11),
     ));
+  });
+
+  it("rejects an invalid matching filter response before parsing or rollback", async () => {
+    const device = fakeHidDevice({ respondToReports: true });
+    const oneBand = { ...profile, num_bands: 1 };
+    await connectWebHid(device, oneBand);
+    wasm.build_read_global_gain_request.mockReturnValue([1]);
+    wasm.matches_global_gain_response.mockReturnValue(true);
+    wasm.parse_global_gain_response.mockReturnValue(0);
+    wasm.build_read_filter_request.mockReturnValue([1]);
+    wasm.matches_filter_response.mockReturnValue(true);
+    wasm.is_filter_response_valid.mockReturnValue(false);
+    wasm.parse_filter_response.mockReturnValue({
+      index: 0,
+      enabled: true,
+      filter_type: "Peak",
+      freq: 100,
+      gain: 0,
+      q: 1,
+    });
+    wasm.is_default_peq_for_device.mockReturnValue(false);
+
+    await expect(invoke("get_eq_state")).rejects.toThrow("Failed to read band 1");
+    expect(wasm.parse_filter_response).not.toHaveBeenCalled();
   });
 
   it("normalizes a persistent write before sending and returns the normalized PEQ", async () => {

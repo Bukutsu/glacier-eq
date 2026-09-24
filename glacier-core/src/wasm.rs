@@ -372,9 +372,24 @@ pub fn matches_filter_response(
 }
 
 #[wasm_bindgen]
+pub fn is_filter_response_valid(
+    protocol: String,
+    data: Vec<u8>,
+    index: u8,
+    nonce: u8,
+) -> Result<bool, JsValue> {
+    let p = eq_protocol(&protocol)?;
+    let unframed = unframe(p, &data)?;
+    Ok(p.is_filter_response_valid(unframed, index, nonce))
+}
+
+#[wasm_bindgen]
 pub fn parse_filter_response(protocol: String, data: Vec<u8>) -> Result<JsValue, JsValue> {
     let p = eq_protocol(&protocol)?;
     let unframed = unframe(p, &data)?;
+    if !p.is_filter_packet_valid(unframed) {
+        return Err(JsValue::from_str("Invalid filter response"));
+    }
     let filter = p
         .parse_filter_response(unframed)
         .ok_or_else(|| JsValue::from_str("Parse failed"))?;

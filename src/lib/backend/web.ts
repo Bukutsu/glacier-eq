@@ -865,6 +865,9 @@ async function pullEqStateOnce(profile: SupportedDeviceInfo): Promise<PEQData> {
           wasm().matches_filter_response(protocol, data, i, nonce)
         );
         if (res) {
+          if (!wasm().is_filter_response_valid(protocol, res, i, nonce)) {
+            throw new Error(`Invalid band ${i + 1} response values`);
+          }
           filter = parseStoredFilter(wasm().parse_filter_response(protocol, res));
           if (!filter) throw new Error(`Invalid band ${i + 1} response`);
           break;

@@ -30,8 +30,8 @@ impl EqProtocol for MoondropProtocol {
         data.len() >= 34 && data[0] == 0x80 && data[1] == 0x09 && data[4] == index
     }
 
-    fn is_filter_response_valid(&self, data: &[u8], index: u8, _nonce: u8) -> bool {
-        if !self.matches_filter_response(data, index, _nonce) {
+    fn is_filter_packet_valid(&self, data: &[u8]) -> bool {
+        if data.len() < 34 || !matches!(data[33], 0 | 1 | 3) {
             return false;
         }
         let raw_freq = u16::from_le_bytes([data[27], data[28]]);
@@ -43,6 +43,10 @@ impl EqProtocol for MoondropProtocol {
             && raw_q != u16::MAX
             && q > 0.0
             && q <= 10.0
+    }
+
+    fn is_filter_response_valid(&self, data: &[u8], index: u8, _nonce: u8) -> bool {
+        self.matches_filter_response(data, index, _nonce) && self.is_filter_packet_valid(data)
     }
 
     fn parse_filter_response(&self, data: &[u8]) -> Option<Filter> {
@@ -93,6 +97,9 @@ impl EqProtocol for MoondropProtocol {
     }
 
     fn parse_global_gain_response(&self, data: &[u8]) -> Option<f64> {
+        if !self.matches_global_gain_response(data) {
+            return None;
+        }
         let raw = i16::from_le_bytes([*data.get(3)?, *data.get(4)?]);
         Some((raw as f64 / 256.0 * 10.0).round() / 10.0)
     }
@@ -206,6 +213,11 @@ mod tests {
         assert_eq!(filter.q, 0.75);
         assert_eq!(filter.filter_type, FilterType::Peak);
         assert!(!filter.enabled);
+    }
+
+    #[test]
+    fn global_gain_parser_rejects_unmatched_frames() {
+        assert_eq!(MoondropProtocol.parse_global_gain_response(&[0u8; 5]), None);
     }
 
     #[test]

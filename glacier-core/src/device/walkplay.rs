@@ -213,6 +213,7 @@ pub(crate) fn valid_filter_packet(packet: &[u8]) -> bool {
         && raw_q != u16::MAX
         && q > 0.0
         && q <= 100.0
+        && matches!(packet[OFFSET_FILTER_TYPE], 1..=5)
 }
 
 pub fn parse_filter_packet(packet: &[u8]) -> Option<Filter> {
@@ -388,7 +389,7 @@ pub const PROFILES: &[DeviceProfile] = &[
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::device::protocol::WalkplayProtocol;
+    use crate::device::protocol::{EqProtocol, WalkplayProtocol};
     use crate::eq::FilterType;
 
     fn make_filter(index: u8, freq: u16, gain: f64, q: f64) -> Filter {
@@ -555,6 +556,22 @@ mod tests {
         data[OFFSET_NONCE] = 0x42;
         data[OFFSET_INDEX] = 3;
         assert!(WalkplayProtocol::matches_filter_response(&data, 3, 0x42));
+    }
+
+    #[test]
+    fn filter_response_validity_rejects_unknown_filter_type() {
+        let mut data = vec![0u8; 34];
+        data[OFFSET_CMD_TYPE] = READ;
+        data[OFFSET_CMD] = CMD_PEQ_VALUES;
+        data[OFFSET_NONCE] = 0x42;
+        data[OFFSET_INDEX] = 0;
+        data[27..29].copy_from_slice(&1000u16.to_le_bytes());
+        data[29..31].copy_from_slice(&256u16.to_le_bytes());
+        data[31..33].copy_from_slice(&0i16.to_le_bytes());
+        data[OFFSET_FILTER_TYPE] = 0xff;
+        assert!(!WalkplayProtocol.is_filter_response_valid(&data, 0, 0x42));
+        data[OFFSET_FILTER_TYPE] = 2;
+        assert!(WalkplayProtocol.is_filter_response_valid(&data, 0, 0x42));
     }
 
     #[test]

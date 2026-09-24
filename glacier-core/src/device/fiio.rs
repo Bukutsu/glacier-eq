@@ -195,8 +195,8 @@ impl EqProtocol for FiioProtocol {
         matches_response(data, FILTER_PARAMS, 8) && data[6] == index
     }
 
-    fn is_filter_response_valid(&self, data: &[u8], index: u8, nonce: u8) -> bool {
-        if !self.matches_filter_response(data, index, nonce) {
+    fn is_filter_packet_valid(&self, data: &[u8]) -> bool {
+        if data.len() < 14 || data[13] > 2 {
             return false;
         }
         let raw_freq = u16::from_be_bytes([data[9], data[10]]);
@@ -208,6 +208,10 @@ impl EqProtocol for FiioProtocol {
             && raw_q != u16::MAX
             && q > 0.0
             && q <= 10.0
+    }
+
+    fn is_filter_response_valid(&self, data: &[u8], index: u8, nonce: u8) -> bool {
+        self.matches_filter_response(data, index, nonce) && self.is_filter_packet_valid(data)
     }
 
     fn parse_filter_response(&self, data: &[u8]) -> Option<Filter> {
@@ -226,6 +230,9 @@ impl EqProtocol for FiioProtocol {
     }
 
     fn parse_global_gain_response(&self, data: &[u8]) -> Option<f64> {
+        if !self.matches_global_gain_response(data) {
+            return None;
+        }
         let bytes = [*data.get(6)?, *data.get(7)?];
         let raw = match self.endian {
             Endian::Little => i16::from_le_bytes(bytes),
@@ -365,6 +372,7 @@ mod tests {
         let mut padded_gain = vec![0u8; 64];
         padded_gain[..gain_response.len()].copy_from_slice(&gain_response);
         assert!(JA11_PROTOCOL.matches_global_gain_response(&padded_gain));
+        assert_eq!(JA11_PROTOCOL.parse_global_gain_response(&[0u8; 8]), None);
     }
 
     #[test]

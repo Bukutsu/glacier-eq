@@ -402,6 +402,9 @@ impl<'a> DeviceSession<'a> {
             self.io.sleep_ms(timing.flood_delay_ms);
         }
         self.progress("Read successful", 100.0);
+        if self.last_pull_had_invalid_response {
+            return Err("Device returned an invalid EQ response".into());
+        }
         Ok(PEQData {
             filters,
             global_gain,
@@ -416,7 +419,8 @@ impl<'a> DeviceSession<'a> {
         let data = self.send_and_read("Filter", &request, FILTER_READ_ATTEMPTS, 0, |data| {
             protocol.matches_filter_response(data, index, nonce)
         })?;
-        if !protocol.is_filter_response_valid(&data, index, nonce) {
+        let valid = protocol.is_filter_response_valid(&data, index, nonce);
+        if !valid {
             self.last_pull_had_invalid_response = true;
         }
         protocol
