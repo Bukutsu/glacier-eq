@@ -545,6 +545,17 @@ class HidPlugin(private val activity: Activity): Plugin(activity) {
         put("name", name)
     }
 
+    private fun emitDisconnected(payload: JSObject) {
+        // Plugin listener registration/removal runs on the UI command thread;
+        // serialize reader/detach notifications onto that same thread.
+        activity.runOnUiThread {
+            if (!destroyed) {
+                triggerObject("device-disconnected", payload)
+                triggerObject("deviceDisconnected", payload)
+            }
+        }
+    }
+
     private fun registerUsbDetachReceiver() {
         usbDetachReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
@@ -580,8 +591,7 @@ class HidPlugin(private val activity: Activity): Plugin(activity) {
                                 it.deviceName,
                                 it.productName ?: it.deviceName
                             )
-                            triggerObject("device-disconnected", payload)
-                            triggerObject("deviceDisconnected", payload)
+                            emitDisconnected(payload)
                         }
                     }
                 }
@@ -672,8 +682,7 @@ class HidPlugin(private val activity: Activity): Plugin(activity) {
         Log.w(TAG, "HID reader stopped unexpectedly: $path")
         failedDevice.closeConnection()
         val payload = disconnectedPayload(failedDevice.path, failedDevice.displayName)
-        triggerObject("device-disconnected", payload)
-        triggerObject("deviceDisconnected", payload)
+        emitDisconnected(payload)
     }
 
     private fun requestPermission(device: UsbDevice, token: String) {
