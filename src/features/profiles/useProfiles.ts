@@ -33,6 +33,19 @@ const withSyntheticDefault = (raw: Profile[]): Profile[] => [
   ...raw,
 ];
 
+export function reconcileProfileSelection(
+  profiles: Profile[],
+  selected: string,
+): { name: string; missing: boolean } {
+  const match = profiles.find(
+    (profile) => profileIdentityKey(profile.name) === profileIdentityKey(selected),
+  );
+  return {
+    name: match?.name ?? DEFAULT_PROFILE_NAME,
+    missing: !match && selected !== DEFAULT_PROFILE_NAME,
+  };
+}
+
 /**
  * Owns the profile library: list state, selection/search/name inputs, the
  * serialized save/delete queue, and load/save/delete/apply/import operations.
@@ -113,13 +126,29 @@ export function useProfiles(
       if (generation !== profileLoadGenerationRef.current) return [];
       const nextProfiles = withSyntheticDefault(loadedProfiles);
       setProfiles(nextProfiles);
+      const reconciliation = reconcileProfileSelection(
+        nextProfiles,
+        selectedPresetRef.current,
+      );
+      if (reconciliation.name !== selectedPresetRef.current) {
+        selectedPresetRef.current = reconciliation.name;
+        setSelectedPreset(reconciliation.name);
+      }
+      if (reconciliation.missing) {
+        // The selected file was removed or renamed outside this window.
+        // Keep the editor data visible, but make the loss of its saved
+        // identity explicit instead of continuing to label it as saved.
+        setProfileSearch("");
+        setNewProfileName("");
+        editor.setDirty(true);
+      }
       return nextProfiles;
     } catch (error) {
       if (generation !== profileLoadGenerationRef.current) return [];
       setStatus(`Failed to load profiles: ${error}`);
       return [];
     }
-  }, [setStatus]);
+  }, [editor, setStatus]);
 
   const saveProfile = useCallback(async () => {
     const savedPeq = editor.peqRef.current;

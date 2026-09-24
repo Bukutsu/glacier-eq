@@ -105,8 +105,9 @@ const hidMock = {
   getDevices: vi.fn(async () => hidMock.devices),
 };
 
-function fakeHidDevice(options: { respondToReports?: boolean } = {}): HIDDevice {
+function fakeHidDevice(options: { respondToReports?: boolean; firmwareResponseAfter?: number } = {}): HIDDevice {
   let inputReportListener: ((event: { data: DataView; reportId: number }) => void) | null = null;
+  let sendCount = 0;
   return {
     vendorId: profile.vendor_id,
     productId: profile.product_id!,
@@ -120,9 +121,14 @@ function fakeHidDevice(options: { respondToReports?: boolean } = {}): HIDDevice 
     receiveFeatureReport: vi.fn(),
     sendFeatureReport: vi.fn(),
     sendReport: vi.fn(async () => {
+      sendCount += 1;
       if (options.respondToReports && inputReportListener) {
         const bytes = Uint8Array.of(1, 2, 3);
         inputReportListener({ data: new DataView(bytes.buffer), reportId: 1 });
+      }
+      if (options.firmwareResponseAfter === sendCount && inputReportListener) {
+        const bytes = Uint8Array.of(0x80, 0x0c, 0, ...Array.from("FW1.0", (char) => char.charCodeAt(0)), 0, 0);
+        inputReportListener({ data: new DataView(bytes.buffer), reportId: 0x4b });
       }
     }),
     addEventListener: vi.fn((event: string, listener: EventListenerOrEventListenerObject) => {
@@ -332,6 +338,14 @@ describe("browser EQ writes", () => {
     await expect(invoke("get_eq_state")).resolves.toMatchObject({ global_gain: 0 });
     expect(wasm.build_read_global_gain_request).toHaveBeenCalled();
     expect(device.sendReport.mock.calls.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("resends a firmware request when the first response is lost", async () => {
+    const device = fakeHidDevice({ firmwareResponseAfter: 2 });
+    await connectWebHid(device, { ...profile, protocol: "Walkplay" });
+
+    await expect(invoke("get_firmware_version")).resolves.toBe("FW1.0");
+    expect(device.sendReport).toHaveBeenCalledTimes(2);
   });
 
   it("rejects an invalid matching filter response before parsing or rollback", async () => {
@@ -590,6 +604,27 @@ describe("web settings parser", () => {
 
     expect(parsed.malformed).toBe(true);
     expect(parsed.value.skip_push_verification).toBe(false);
+  });
+
+  it("rejects a settings save when local storage denies the write", async () => {
+    localStorageMock.setItem.mockImplementationOnce(() => {
+      throw new Error("storage denied");
+    });
+    await expect(
+      invoke("save_settings", { settings: { theme: "nord" } }),
+    ).rejects.toThrow("local storage is unavailable or full");
+  });
+
+  it("rejects a profile save when local storage denies the write", async () => {
+    localStorageMock.setItem.mockImplementationOnce(() => {
+      throw new Error("storage full");
+    });
+    await expect(
+      invoke("save_profile", {
+        name: "Denied",
+        peq: { filters: [], global_gain: 0 },
+      }),
+    ).rejects.toThrow("local storage is unavailable or full");
   });
 
   it("round-trips an unknown settings key through get/save without quarantining it", async () => {

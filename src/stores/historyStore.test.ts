@@ -92,6 +92,24 @@ describe("historyStore", () => {
     expect(future[future.length - 1].global_gain).toBe(60);
   });
 
+  it("keeps identical PEQ snapshots when profile metadata changes", () => {
+    const before = buildDefaultState();
+    useHistoryStore.getState().pushSnapshot(before, {
+      selectedPreset: "Daily",
+      cleanPeq: before,
+    });
+    const currentMetadata = {
+      selectedPreset: "Bright",
+      cleanPeq: before,
+    };
+    const restored = useHistoryStore.getState().undo(before, undefined, currentMetadata);
+    expect(restored).toEqual(before);
+    expect(useHistoryStore.getState().lastRestoredMetadata).toEqual({
+      selectedPreset: "Daily",
+      cleanPeq: before,
+    });
+  });
+
   it("restores profile selection metadata with the PEQ snapshot", () => {
     const before = buildDefaultState();
     const after = { ...before, global_gain: -3 };

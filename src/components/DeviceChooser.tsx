@@ -49,9 +49,20 @@ export function DeviceChooser({
       if (!isTauri()) await requestWebHidDevice();
       await onScan();
     } catch (err) {
+      const cancelled = (err as { name?: string })?.name === "AbortError";
+      if (cancelled) {
+        // Cancelling the chooser does not revoke previously granted devices;
+        // refresh the list so authorized hardware remains discoverable.
+        try {
+          await onScan();
+        } catch (scanError) {
+          setAuthorizationError(`Device authorization cancelled; refresh failed: ${scanError}`);
+          return;
+        }
+      }
       setAuthorizationError(
-        (err as { name?: string })?.name === "AbortError"
-          ? "Device authorization cancelled."
+        cancelled
+          ? "Device authorization cancelled. Previously authorized devices were rescanned."
           : `Device authorization failed: ${err}. Check browser permissions and try again.`,
       );
     }

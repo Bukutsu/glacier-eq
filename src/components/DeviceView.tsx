@@ -26,6 +26,7 @@ import type { DeviceCapabilities, DeviceInfo } from "../types";
 
 export interface DeviceViewProps {
   connected: boolean;
+  isBusy?: boolean;
   isSimulated?: boolean;
   deviceInfo?: DeviceInfo;
   capabilities?: DeviceCapabilities;
@@ -48,6 +49,7 @@ type DeviceUtilityState = {
 
 export const DeviceView = memo(function DeviceView({
   connected,
+  isBusy = false,
   isSimulated = false,
   deviceInfo,
   capabilities = OFFLINE_EDITOR_CAPABILITIES,
@@ -329,7 +331,7 @@ export const DeviceView = memo(function DeviceView({
             {connected ? (
               <>
                 {onDisconnect && (
-                  <button type="button" className="btn" onClick={onDisconnect}>
+                  <button type="button" className="btn" onClick={onDisconnect} disabled={isBusy}>
                     <Icon>link_off</Icon>
                     <span>Disconnect</span>
                   </button>

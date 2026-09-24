@@ -261,6 +261,21 @@ async function readMatchingReport(
   return null;
 }
 
+async function readMatchingReportOnce(
+  timeoutMs: number,
+  matches: (report: Uint8Array) => boolean,
+): Promise<Uint8Array | null> {
+  if (!activeDevice) throw new Error("Device disconnected");
+  try {
+    const report = await readReport(timeoutMs);
+    if (!activeDevice) throw new Error("Device disconnected");
+    return matches(report) ? report : null;
+  } catch (error) {
+    if (shouldRetryWebHidRead(error, activeDevice !== null)) return null;
+    throw error;
+  }
+}
+
 async function sendPackets(packets: (number[] | Uint8Array)[], delayMs = 0): Promise<void> {
   for (const packet of packets) {
     await sendReport(packet);
@@ -524,10 +539,12 @@ export function parseWebProfiles(value: unknown): ParsedStorage<Profile[]> {
 
 function saveJson(key: string, value: unknown): boolean {
   try {
-    return writeLocalStorage(key, JSON.stringify(value));
+    const serialized = JSON.stringify(value);
+    if (writeLocalStorage(key, serialized)) return true;
+    throw new Error("local storage is unavailable or full");
   } catch (error) {
-    console.warn(`Could not serialize ${key} for local storage`, error);
-    return false;
+    console.warn(`Could not save ${key} to local storage`, error);
+    throw error instanceof Error ? error : new Error(String(error));
   }
 }
 
@@ -1226,10 +1243,13 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
     case "get_firmware_version": {
       if (!activeDevice || activeProfile?.protocol !== "Walkplay") return null as T;
 
-      await sendReport([0x4b, 0x80, 0x0c, 0x00]);
-      const report = await readMatchingReport(500, (data) =>
-        data.length >= 10 && data[0] === 0x4b && data[1] === 0x80 && data[2] === 0x0c
-      );
+      let report: Uint8Array | null = null;
+      for (let retry = 0; retry < 3 && !report; retry++) {
+        await sendReport([0x4b, 0x80, 0x0c, 0x00]);
+        report = await readMatchingReportOnce(500, (data) =>
+          data.length >= 10 && data[0] === 0x4b && data[1] === 0x80 && data[2] === 0x0c
+        );
+      }
       if (!report) return null as T;
       return parseWalkplayFirmwareVersion(report.slice(1)) as T;
     }

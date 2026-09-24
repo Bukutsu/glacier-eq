@@ -66,6 +66,7 @@ import { useIsMobile } from "./hooks/useIsMobile";
 import { useTraces } from "./hooks/useTraces";
 import { OFFLINE_EDITOR_CAPABILITIES } from "./lib/dacSpecs";
 import { chooseReconnectDevice } from "./lib/reconnectDevice";
+import { profileIdentityKey } from "./lib/profileIdentity";
 import { readLocalStorage, writeLocalStorage } from "./lib/safeStorage";
 import { markDeviceLost } from "./features/device/deviceOperations";
 import { useProfiles } from "./features/profiles/useProfiles";
@@ -192,6 +193,7 @@ function App() {
   const reconnectCancelRef = useRef<HTMLButtonElement>(null);
   const reconnectEffectGenerationRef = useRef(0);
   const manualDisconnectRef = useRef(false);
+  const ambiguousReconnectRef = useRef(false);
   const pullEqRef = useRef<(
     afterConnect?: boolean,
     targetPath?: string,
@@ -545,7 +547,12 @@ function App() {
     peqRef.current = restored.peq;
     editorCleanPeqRef.current = restoredClean;
     setPeq(restored.peq);
-    if (metadata?.selectedPreset && profiles.some((profile) => profile.name === metadata.selectedPreset)) {
+    if (
+      metadata?.selectedPreset
+      && profiles.some(
+        (profile) => profileIdentityKey(profile.name) === profileIdentityKey(metadata.selectedPreset!),
+      )
+    ) {
       selectedPresetRef.current = metadata.selectedPreset;
       setSelectedPreset(metadata.selectedPreset);
     }
@@ -643,12 +650,24 @@ function App() {
       const list = import.meta.env.DEV
         ? [...realDevices, DEV_DUMMY_DEVICE]
         : realDevices;
-      setDevices(list);
-      setSelectedDevice((current) =>
-        list.some((device) => device.path === current)
+      setDevices((currentDevices) => {
+        const activePath = connectedPathRef.current;
+        if (connectedRef.current && activePath && !list.some((device) => device.path === activePath)) {
+          const activeDevice = currentDevices.find((device) => device.path === activePath);
+          // Keep the active device's identity/capabilities visible until the
+          // disconnect poll confirms loss; a rescan must not retarget the
+          // editor to an unrelated replacement device.
+          return activeDevice ? [...list, activeDevice] : list;
+        }
+        return list;
+      });
+      setSelectedDevice((current) => {
+        const activePath = connectedPathRef.current;
+        if (connectedRef.current && activePath) return activePath;
+        return list.some((device) => device.path === current)
           ? current
-          : list[0]?.path ?? "",
-      );
+          : list[0]?.path ?? "";
+      });
       useToastStore.getState().setStatus(
         list.length
           ? `Found ${list.length} device${list.length === 1 ? "" : "s"}`
@@ -837,7 +856,13 @@ function App() {
   // Poll for reconnection / hotplug when disconnected (paused when app is in background, busy, or after explicit manual disconnect)
   useEffect(() => {
     const generation = ++reconnectEffectGenerationRef.current;
-    if (connected || manualDisconnectRef.current || isDevDummyDevice(selectedDevice) || isBusy) return;
+    if (
+      connected
+      || manualDisconnectRef.current
+      || ambiguousReconnectRef.current
+      || isDevDummyDevice(selectedDevice)
+      || isBusy
+    ) return;
 
     let active = true;
     let timerId: ReturnType<typeof setTimeout> | null = null;
@@ -855,7 +880,12 @@ function App() {
     // a scheduled poll may still be in flight.
     let polling = false;
     const runPoll = async () => {
-      if (!isCurrent() || polling || document.visibilityState === "hidden") return;
+      if (
+        !isCurrent()
+        || ambiguousReconnectRef.current
+        || polling
+        || document.visibilityState === "hidden"
+      ) return;
       polling = true;
       try {
         const realDevices = await invoke<DeviceInfo[]>("list_devices");
@@ -877,13 +907,17 @@ function App() {
           : [];
         const found = chooseReconnectDevice(realDevices, targetPath, targetName);
         if (!exactPathMatch && nameMatches.length > 1) {
+          ambiguousReconnectRef.current = true;
+          setIsReconnecting(false);
+          setShowDeviceModal(true);
           reportStatus(
             "Warn",
             "Multiple matching DACs found; choose the device to reconnect.",
-            null,
+            "info",
             "Device",
-            "More than one matching DAC is available",
+            "Choose a matching DAC to reconnect",
           );
+          return;
         }
 
         if (found && isCurrent()) {
@@ -1042,7 +1076,7 @@ function App() {
       // report against newer state or clear a connection made after it
       // started; only a current pull may act on its failure.
       if (!isCurrentPull()) return false;
-      if (isDisconnectionError(error)) {
+      if (!manualDisconnectRef.current && isDisconnectionError(error)) {
         markDeviceLost(
           { setConnected, setIsReconnecting, setLastPushedPeq, setFirmwareVersion, reportStatus },
           `Could not read from DAC (disconnected): ${error}`,
@@ -1065,6 +1099,7 @@ function App() {
 
   const connectDevice = useCallback(async (targetPath?: string, targetInfo?: DeviceInfo): Promise<boolean> => {
     manualDisconnectRef.current = false;
+    ambiguousReconnectRef.current = false;
     const pathToConnect = targetPath || selectedDevice;
     if (!pathToConnect) return false;
     const resolvedTarget = targetInfo ?? devices.find((device) => device.path === pathToConnect);
@@ -1120,7 +1155,7 @@ function App() {
     } catch (error) {
       setConnected(false);
       setLastPushedPeq(null);
-      if (isDisconnectionError(error)) {
+      if (!manualDisconnectRef.current && isDisconnectionError(error)) {
         reportStatus("Error", `Could not connect (disconnected): ${error}`, "error", "UI", "Device disconnected");
       } else {
         const errorMsg = String(error);
@@ -1250,7 +1285,7 @@ function App() {
         reportStatus("Info", savedMessage, "success", "UI");
       }
     } catch (error) {
-      if (!isDevDummyDevice(selectedDevice) && isDisconnectionError(error)) {
+      if (!manualDisconnectRef.current && !isDevDummyDevice(selectedDevice) && isDisconnectionError(error)) {
         markDeviceLost(
           { setConnected, setIsReconnecting, setLastPushedPeq, setFirmwareVersion, reportStatus },
           `Could not write to DAC (disconnected): ${error}`,
@@ -1324,7 +1359,7 @@ function App() {
           reportStatus("Info", appliedMessage, "success", "UI");
         }
       } catch (error) {
-        if (!isDevDummyDevice(selectedDevice) && isDisconnectionError(error)) {
+        if (!manualDisconnectRef.current && !isDevDummyDevice(selectedDevice) && isDisconnectionError(error)) {
           markDeviceLost(
             { setConnected, setIsReconnecting, setLastPushedPeq, setFirmwareVersion, reportStatus },
             `Could not apply EQ (disconnected): ${error}`,
@@ -1343,6 +1378,7 @@ function App() {
   );
 
   const disconnectDevice = useCallback(async () => {
+    if (eqOperationInFlightRef.current) return;
     setIsBusy(true);
     manualDisconnectRef.current = true;
     lastConnectedNameRef.current = "";
@@ -1428,6 +1464,8 @@ function App() {
   // for dismissing the existing modal overlays on Android back.
   useEffect(() => {
     const handlePopState = () => {
+      reconnectEffectGenerationRef.current += 1;
+      setIsReconnecting(false);
       setShowDeviceModal(false);
       setShowDiagnosticsModal(false);
       setShowAddTrace(false);
@@ -1456,6 +1494,7 @@ function App() {
     setShowDeviceModal(true);
   }, []);
   const handleCloseDeviceModal = useCallback(() => {
+    ambiguousReconnectRef.current = false;
     writeLocalStorage(DEVICE_ONBOARDING_KEY, "true");
     if (window.history.state?.modal === "device") {
       window.history.back();
@@ -1500,6 +1539,7 @@ function App() {
   }, []);
   const handleCancelReconnection = useCallback(() => {
     manualDisconnectRef.current = true;
+    ambiguousReconnectRef.current = false;
     reconnectEffectGenerationRef.current += 1;
     setConnectedDeviceName("");
     lastConnectedNameRef.current = "";
@@ -1864,6 +1904,7 @@ function App() {
                 <DeviceView
                   key={`${connected ? "connected" : "offline"}:${selectedDevice}`}
                   connected={connected}
+                  isBusy={isBusy}
                   isSimulated={isDevDummyDevice(selectedDevice)}
                   deviceInfo={selectedDeviceInfo}
                   capabilities={capabilities}

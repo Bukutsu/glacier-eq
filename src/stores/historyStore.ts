@@ -37,6 +37,17 @@ interface HistoryState {
   clearFuture: () => void;
 }
 
+function metadataEquals(
+  left: HistoryMetadata | null | undefined,
+  right: HistoryMetadata | null | undefined,
+): boolean {
+  const leftPreset = left?.selectedPreset ?? null;
+  const rightPreset = right?.selectedPreset ?? null;
+  if (leftPreset !== rightPreset) return false;
+  if (!left?.cleanPeq || !right?.cleanPeq) return !left?.cleanPeq && !right?.cleanPeq;
+  return peqEquals(left.cleanPeq, right.cleanPeq);
+}
+
 function trim<T>(values: T[]): T[] {
   return values.length > MAX_HISTORY ? values.slice(values.length - MAX_HISTORY) : values;
 }
@@ -51,11 +62,18 @@ export const useHistoryStore = create<HistoryState>()((set, get) => ({
   lastRestoredMetadata: null,
 
   pushSnapshot: (current, metadata = null) => {
-    const { past, pastMeta, future, futureMeta, redoBase } = get();
-    if (past.length > 0 && peqEquals(past[past.length - 1], current)) return;
+    const { past, pastMeta, future, futureMeta, redoBase, redoBaseMeta } = get();
+    if (
+      past.length > 0
+      && peqEquals(past[past.length - 1], current)
+      && metadataEquals(pastMeta[pastMeta.length - 1], metadata)
+    ) return;
 
     const sittingAtRedoBase =
-      future.length > 0 && redoBase && peqEquals(current, redoBase);
+      future.length > 0
+      && redoBase
+      && peqEquals(current, redoBase)
+      && metadataEquals(redoBaseMeta, metadata);
     const next = [...past, current];
     const nextMeta = [...pastMeta, metadata];
     if (next.length > MAX_HISTORY) {
@@ -79,7 +97,11 @@ export const useHistoryStore = create<HistoryState>()((set, get) => ({
     const normalizedPast = past.map(normalize);
     const normalizedPastMeta = pastMeta;
     let idx = normalizedPast.length - 1;
-    while (idx >= 0 && peqEquals(normalizedPast[idx], current)) idx -= 1;
+    while (
+      idx >= 0
+      && peqEquals(normalizedPast[idx], current)
+      && metadataEquals(normalizedPastMeta[idx], currentMetadata)
+    ) idx -= 1;
     if (idx < 0) return null;
 
     const prev = normalizedPast[idx];
@@ -99,9 +121,9 @@ export const useHistoryStore = create<HistoryState>()((set, get) => ({
   },
 
   redo: (current, normalize = unchangedSnapshot, currentMetadata = null) => {
-    const { past, pastMeta, future, futureMeta, redoBase } = get();
+    const { past, pastMeta, future, futureMeta, redoBase, redoBaseMeta } = get();
     if (future.length === 0) return null;
-    if (!redoBase || !peqEquals(current, redoBase)) {
+    if (!redoBase || !peqEquals(current, redoBase) || !metadataEquals(redoBaseMeta, currentMetadata)) {
       set({ future: [], futureMeta: [], redoBase: null, redoBaseMeta: null, lastRestoredMetadata: null });
       return null;
     }
