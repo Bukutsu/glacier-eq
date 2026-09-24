@@ -1,6 +1,7 @@
 export interface AsyncContext {
   editorRevision: number;
   connectionRevision: number;
+  operationRevision: number;
 }
 
 export interface DeviceDisconnectedPayload {
@@ -15,7 +16,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 export function asyncContextEquals(a: AsyncContext, b: AsyncContext): boolean {
   return a.editorRevision === b.editorRevision &&
-    a.connectionRevision === b.connectionRevision;
+    a.connectionRevision === b.connectionRevision &&
+    a.operationRevision === b.operationRevision;
 }
 
 export function parseDeviceDisconnectedPayload(

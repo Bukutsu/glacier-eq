@@ -215,7 +215,9 @@ function App() {
   const connectedRef = useRef(false);
   const connectedPathRef = useRef<string | null>(null);
   const connectedSessionIdRef = useRef<number | null>(null);
+  const connectingPathRef = useRef<string | null>(null);
   const connectionGenerationRef = useRef(0);
+  const operationRevisionRef = useRef(0);
   const handledDisconnectGenerationRef = useRef<number | null>(null);
   const setConnected = useCallback((nextConnected: boolean, path: string | null = null) => {
     const nextPath = nextConnected ? path : null;
@@ -539,6 +541,7 @@ function App() {
     newProfileName,
     setNewProfileName,
     loadProfiles,
+    reloadProfiles,
     saveProfile,
     deleteSelectedProfile,
     openProfilesDir,
@@ -593,6 +596,7 @@ function App() {
   const getAsyncContext = useCallback((): AsyncContext => ({
     editorRevision: editorRevisionRef.current,
     connectionRevision: connectionGenerationRef.current,
+    operationRevision: operationRevisionRef.current,
   }), []);
 
   // Open external links in default browser instead of dropping them in Tauri webviews
@@ -743,6 +747,28 @@ function App() {
       const activePath = connectedPathRef.current;
       const payload = parseDeviceDisconnectedPayload(event.payload, activePath);
       const connectionGeneration = connectionGenerationRef.current;
+      if (
+        !connectedRef.current &&
+        payload !== null &&
+        connectingPathRef.current === payload.path
+      ) {
+        // Android can fail its reader before connect_device resolves. Fence
+        // that pending attempt instead of dropping the event merely because
+        // the connected flag has not flipped yet.
+        connectingPathRef.current = null;
+        connectOperationIdRef.current += 1;
+        handledDisconnectGenerationRef.current = connectionGeneration;
+        invoke("disconnect_device", {
+          expectedPath: payload.path,
+          expectedSessionId: payload.sessionId,
+        }).catch(() => {});
+        markDeviceLost(
+          { setConnected, setIsReconnecting, setLastPushedPeq, setFirmwareVersion, reportStatus },
+          `Lost connection while connecting to device: ${payload.name}`,
+        );
+        setIsBusy(false);
+        return;
+      }
       if (
         isHandledDeviceDisconnected({
           payload,
@@ -959,6 +985,7 @@ function App() {
           const devName = found.profile_name || found.product_string || "DAC";
           reportStatus("Info", `Device found: ${devName}. Reconnecting...`, null, "Device", "Device found. Reconnecting...");
           let openedSessionId: number | null = null;
+          connectingPathRef.current = found.path;
           try {
             openedSessionId = await invoke<number | null>("connect_device", { path: found.path });
             if (!isCurrent()) {
@@ -973,6 +1000,7 @@ function App() {
             selectedDeviceRef.current = found.path;
             setSelectedDevice(found.path);
             setConnected(true, found.path);
+            if (connectingPathRef.current === found.path) connectingPathRef.current = null;
             setConnectedDeviceName(devName);
             lastConnectedNameRef.current = devName;
             setLastPushedPeq(null);
@@ -1018,7 +1046,7 @@ function App() {
                 }).catch(() => {});
               } catch {}
             }
-            if (!isCurrent()) return;
+            if (connectingPathRef.current === found.path) connectingPathRef.current = null;
             if (!isCurrent()) return;
             reportStatus("Warn", `Reconnect attempt failed: ${err}. Retrying...`, null, "Device", "Reconnecting...");
           }
@@ -1063,6 +1091,7 @@ function App() {
       message: "Reading EQ from the DAC will discard your unsaved changes.",
       confirmLabel: "Discard and read",
     }))) return false;
+    operationRevisionRef.current += 1;
     eqOperationInFlightRef.current = true;
     setProgress(null);
     setIsBusy(true);
@@ -1156,6 +1185,8 @@ function App() {
     ambiguousReconnectRef.current = false;
     const pathToConnect = targetPath || selectedDevice;
     if (!pathToConnect) return false;
+    connectingPathRef.current = pathToConnect;
+    operationRevisionRef.current += 1;
     const operationId = ++connectOperationIdRef.current;
     const isCurrentConnect = () => operationId === connectOperationIdRef.current;
     let openedSessionId: number | null = null;
@@ -1272,6 +1303,7 @@ function App() {
       }
       return false;
     } finally {
+      if (connectingPathRef.current === pathToConnect) connectingPathRef.current = null;
       if (isCurrentConnect()) setIsBusy(false);
     }
   }, [devices, selectedDevice, pullEq, selectedDeviceInfo, selectedCapabilities, pushToUndoStack, loadFirmwareVersion, reportStatus, settings.auto_pull_on_connect, noteEditorMutation]);
@@ -1318,6 +1350,7 @@ function App() {
       confirmLabel: "Write DAC",
       danger: true,
     }))) return;
+    operationRevisionRef.current += 1;
     eqOperationInFlightRef.current = true;
     const operationId = ++eqOperationIdRef.current;
     setProgress(null);
@@ -1417,6 +1450,7 @@ function App() {
         message: "Applying this profile will discard your unsaved changes.",
         confirmLabel: "Discard and apply",
       }))) return;
+      operationRevisionRef.current += 1;
       eqOperationInFlightRef.current = true;
       const data = normalizePeq(profile.data, { enableLoadedFilters: true, integerPreamp: capabilities.integer_preamp, capabilities });
       pushToUndoStack(peqRef.current);
@@ -1497,6 +1531,7 @@ function App() {
 
   const disconnectDevice = useCallback(async () => {
     if (eqOperationInFlightRef.current) return;
+    operationRevisionRef.current += 1;
     setIsBusy(true);
     manualDisconnectRef.current = true;
     lastConnectedNameRef.current = "";
@@ -1761,7 +1796,7 @@ function App() {
     setNewProfileName,
     onSelectProfile: applyProfile,
     onApplyProfile: connected && supportsRamApply ? applyProfileToRam : undefined,
-    onReloadProfiles: loadProfiles,
+    onReloadProfiles: reloadProfiles,
     onOpenProfilesDir: openProfilesDir,
     hideProfileFolderButton: isAndroid,
     onReset: reset,

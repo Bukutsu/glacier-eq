@@ -345,6 +345,11 @@ export const ProfilesView = memo(function ProfilesView({
     ? !isTemporary && savedProfiles.some((p) => profileIdentityKey(p.name) === importNameKey)
     : false;
   const activeFilters = parsed ? parsed.peq.filters.filter((f: Filter) => f.enabled) : [];
+  const handleReloadProfiles = () => {
+    void Promise.resolve(onReloadProfiles()).catch((error) => {
+      setStatus(`Failed to refresh profiles: ${error}`);
+    });
+  };
 
   return (
     <div className="profiles-view-wrapper">
@@ -360,7 +365,7 @@ export const ProfilesView = memo(function ProfilesView({
               className="icon-btn"
               title="Reload profiles"
               aria-label="Reload profiles"
-              onClick={onReloadProfiles}
+              onClick={handleReloadProfiles}
             >
               <Icon>refresh</Icon>
             </button>

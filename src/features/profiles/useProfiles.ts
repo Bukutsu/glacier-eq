@@ -172,6 +172,11 @@ export function useProfiles(
     }
   }, [editor, setStatus]);
 
+  const reloadProfiles = useCallback(
+    () => loadProfiles({ throwOnError: true }),
+    [loadProfiles],
+  );
+
   const saveProfile = useCallback(async () => {
     if (editor.isBusy) return;
     const savedPeq = editor.peqRef.current;
@@ -300,6 +305,7 @@ export function useProfiles(
     newProfileName,
     setNewProfileName,
     loadProfiles,
+    reloadProfiles,
     saveProfile,
     deleteSelectedProfile,
     openProfilesDir,

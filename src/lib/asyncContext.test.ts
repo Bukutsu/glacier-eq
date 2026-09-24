@@ -7,11 +7,12 @@ import {
 
 describe("asyncContextEquals", () => {
   it("requires both editor and connection revisions to match", () => {
-    const context = { editorRevision: 3, connectionRevision: 7 };
+    const context = { editorRevision: 3, connectionRevision: 7, operationRevision: 2 };
 
     expect(asyncContextEquals(context, { ...context })).toBe(true);
     expect(asyncContextEquals(context, { ...context, editorRevision: 4 })).toBe(false);
     expect(asyncContextEquals(context, { ...context, connectionRevision: 8 })).toBe(false);
+    expect(asyncContextEquals(context, { ...context, operationRevision: 3 })).toBe(false);
   });
 });
 
