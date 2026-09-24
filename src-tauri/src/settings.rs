@@ -128,8 +128,9 @@ fn read_settings(path: &std::path::Path) -> Result<Settings, String> {
             Err(error) => {
                 let defaults = Settings::default();
                 quarantine_corrupt_bytes(path, &error.into_bytes())?;
-                let sanitized = serde_json::to_vec_pretty(&defaults)
-                    .map_err(|recovery_error| format!("Failed to serialize recovered settings: {recovery_error}"))?;
+                let sanitized = serde_json::to_vec_pretty(&defaults).map_err(|recovery_error| {
+                    format!("Failed to serialize recovered settings: {recovery_error}")
+                })?;
                 crate::fsutil::atomic_write(path, &sanitized)?;
                 return Ok(defaults);
             }
@@ -387,17 +388,18 @@ mod tests {
             ("utf8", vec![0xff, 0xfe, 0xfd]),
             ("oversized", vec![b'x'; (MAX_SETTINGS_BYTES + 1) as usize]),
         ] {
-            let dir = std::env::temp_dir().join(format!(
-                "glacier-settings-{name}-{}",
-                std::process::id()
-            ));
+            let dir = std::env::temp_dir()
+                .join(format!("glacier-settings-{name}-{}", std::process::id()));
             fs::create_dir_all(&dir).unwrap();
             let path = dir.join("settings.json");
             fs::write(&path, bytes).unwrap();
             let settings = read_settings(&path).expect("settings should recover to defaults");
             assert_eq!(settings.theme, default_theme());
             assert!(fs::read_dir(&dir).unwrap().flatten().any(|entry| {
-                entry.file_name().to_string_lossy().starts_with("settings.json.bak.")
+                entry
+                    .file_name()
+                    .to_string_lossy()
+                    .starts_with("settings.json.bak.")
             }));
             fs::remove_dir_all(dir).ok();
         }

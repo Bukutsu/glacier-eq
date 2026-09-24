@@ -528,7 +528,10 @@ mod tests {
     #[test]
     fn bounds_helper_request_lines_before_deserialization() {
         let mut reader = std::io::Cursor::new(b"small request\n".to_vec());
-        assert_eq!(read_bounded_line(&mut reader, 64).unwrap().unwrap(), b"small request\n");
+        assert_eq!(
+            read_bounded_line(&mut reader, 64).unwrap().unwrap(),
+            b"small request\n"
+        );
         let mut oversized = std::io::Cursor::new(vec![b'x'; 65]);
         assert!(read_bounded_line(&mut oversized, 64).is_err());
     }

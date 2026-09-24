@@ -273,9 +273,7 @@ fn registered_profile(connected: &ConnectedDevice) -> Result<&'static DeviceProf
     })
 }
 
-fn reserve_session_nonce(
-    state: &tauri::State<'_, Mutex<DeviceState>>,
-) -> Result<u8, String> {
+fn reserve_session_nonce(state: &tauri::State<'_, Mutex<DeviceState>>) -> Result<u8, String> {
     let mut guard = lock_device_state(state)?;
     let seed = guard.next_nonce.wrapping_add(1).max(1);
     guard.next_nonce = seed;
