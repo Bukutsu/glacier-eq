@@ -7,11 +7,13 @@ pub struct ConnectedDevice {
     pub vendor_id: u16,
     pub product_id: u16,
     pub profile_name: String,
+    pub session_id: u64,
 }
 
 #[derive(Debug, Default)]
 pub struct DeviceState {
     pub connected: Option<ConnectedDevice>,
+    pub next_session_id: u64,
     /// Monotonic seed for filter-response nonces across short-lived Tauri
     /// command sessions. The device protocol carries only an 8-bit nonce, so
     /// reusing one for every command could match a delayed response.

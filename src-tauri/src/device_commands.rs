@@ -83,7 +83,11 @@ fn handle_disconnection(app: &tauri::AppHandle, error: &str) {
         // session that has already been replaced.
         let _ = app.emit(
             "device-disconnected",
-            serde_json::json!({ "path": device.path, "name": device.profile_name }),
+            serde_json::json!({
+                "path": device.path,
+                "name": device.profile_name,
+                "session_id": device.session_id,
+            }),
         );
     }
 }
@@ -409,7 +413,7 @@ pub async fn connect_device(
     app: tauri::AppHandle,
     _state: tauri::State<'_, Mutex<DeviceState>>,
     path: String,
-) -> Result<(), String> {
+) -> Result<u64, String> {
     let session_lock = app.state::<DeviceSessionLock>().0.clone();
     let guard = session_lock.lock_owned().await;
 
@@ -493,13 +497,20 @@ pub async fn connect_device(
             }
             return Err("Device changed while connecting. Scan again and reconnect.".into());
         }
-        lock_device_state(&state)?.connected = Some(ConnectedDevice {
-            path: path_clone,
-            vendor_id: device.vendor_id,
-            product_id: device.product_id,
-            profile_name: profile.name.to_string(),
-        });
-        Ok(())
+        let session_id = {
+            let mut state = lock_device_state(&state)?;
+            state.next_session_id = state.next_session_id.wrapping_add(1).max(1);
+            let session_id = state.next_session_id;
+            state.connected = Some(ConnectedDevice {
+                path: path_clone,
+                vendor_id: device.vendor_id,
+                product_id: device.product_id,
+                profile_name: profile.name.to_string(),
+                session_id,
+            });
+            session_id
+        };
+        Ok(session_id)
     })
     .await
     .map_err(|e| e.to_string())?
@@ -510,16 +521,21 @@ pub async fn disconnect_device(
     app: tauri::AppHandle,
     state: tauri::State<'_, Mutex<DeviceState>>,
     expected_path: Option<String>,
+    expected_session_id: Option<u64>,
 ) -> Result<(), String> {
     let session_lock = app.state::<DeviceSessionLock>().0.clone();
     let guard = session_lock.lock_owned().await;
     // Bind outside the if-let so the state lock guard drops before .await.
     let device = {
         let mut state = lock_device_state(&state)?;
-        if let (Some(expected), Some(current)) =
-            (expected_path.as_deref(), state.connected.as_ref())
-        {
-            if current.path != expected {
+        if let Some(current) = state.connected.as_ref() {
+            if expected_path
+                .as_deref()
+                .is_some_and(|expected| current.path != expected)
+            {
+                return Ok(());
+            }
+            if expected_session_id.is_some_and(|expected| current.session_id != expected) {
                 return Ok(());
             }
         }
@@ -558,7 +574,11 @@ pub async fn disconnect_device(
             // connection after local cleanup. Keep the existing identity contract.
             let _ = app.emit(
                 "device-disconnected",
-                serde_json::json!({ "path": device.path, "name": device.profile_name }),
+                serde_json::json!({
+                    "path": device.path,
+                    "name": device.profile_name,
+                    "session_id": device.session_id,
+                }),
             );
         }
     }

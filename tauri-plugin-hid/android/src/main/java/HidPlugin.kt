@@ -269,6 +269,14 @@ class HidDevice(
                 if (readFailed && !closed) {
                     onDisconnected(this)
                 }
+                val releaseFromReader = synchronized(connectionLock) {
+                    closed && readThread === Thread.currentThread()
+                }
+                if (releaseFromReader) {
+                    // If closeConnection was requested from the reader itself,
+                    // defer resource release until this thread has finished.
+                    releaseConnectionResources()
+                }
                 Log.i(TAG, "Background read thread stopped")
             }
         }
@@ -434,6 +442,11 @@ class HidDevice(
             thread = readThread
         }
 
+        if (thread != null && thread === Thread.currentThread()) {
+            Log.e(TAG, "Connection close requested from the HID reader thread")
+            return
+        }
+
         if (thread != null && thread !== Thread.currentThread()) {
             thread.interrupt()
             try {
@@ -441,8 +454,26 @@ class HidDevice(
             } catch (_: InterruptedException) {
                 Thread.currentThread().interrupt()
             }
+            if (thread.isAlive) {
+                // A wedged driver must not have its connection closed underneath
+                // the reader. Finish cleanup on a supervisor thread once the
+                // reader has actually exited.
+                Thread({
+                    try {
+                        thread.join()
+                    } catch (_: InterruptedException) {
+                        Thread.currentThread().interrupt()
+                    }
+                    releaseConnectionResources()
+                }, "glacier-eq-hid-cleanup").start()
+                return
+            }
         }
 
+        releaseConnectionResources()
+    }
+
+    private fun releaseConnectionResources() {
         synchronized(connectionLock) {
             readThread = null
             readQueue.clear()

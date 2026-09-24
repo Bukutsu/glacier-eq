@@ -17,9 +17,11 @@ open class BuildTask : DefaultTask() {
     @TaskAction
     fun assemble() {
         val candidates = if (Os.isFamily(Os.FAMILY_WINDOWS)) {
-            listOf("bun", "bun.exe", "bun.cmd", "bun.bat", "npm.cmd", "npm.exe", "npm")
+            // npm is the locked project entrypoint; Bun is only a fallback for
+            // developer machines that do not have Node/npm available.
+            listOf("npm.cmd", "npm.exe", "npm", "bun", "bun.exe", "bun.cmd", "bun.bat")
         } else {
-            listOf("bun", "npm")
+            listOf("npm", "bun")
         }
         var lastException: Exception? = null
         for (executable in candidates) {

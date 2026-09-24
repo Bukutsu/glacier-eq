@@ -249,6 +249,7 @@ mod tests {
             vendor_id: 0xFFFF,
             product_id: 0xFFFF,
             profile_name: "Generic".to_string(),
+            session_id: 1,
         };
         let (caps, protocol) = match_target_for_connected(Some(&unsupported));
         assert!(!caps.integer_preamp);

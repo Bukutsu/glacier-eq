@@ -155,6 +155,7 @@ pub struct UdevStatus {
     pub supported: bool,
     pub installed: bool,
     pub up_to_date: bool,
+    pub package_managed: bool,
     pub dest_path: String,
     pub has_pkexec: bool,
 }
@@ -165,6 +166,7 @@ fn unsupported_status() -> UdevStatus {
         supported: false,
         installed: false,
         up_to_date: false,
+        package_managed: false,
         dest_path: DEST_PATH.to_string(),
         has_pkexec: false,
     }
@@ -231,6 +233,7 @@ fn get_udev_status_linux(cancelled: &AtomicBool) -> Result<UdevStatus, String> {
         supported: true,
         installed,
         up_to_date,
+        package_managed: package_content.is_some(),
         dest_path,
         has_pkexec: has_pkexec(cancelled),
     })
@@ -371,6 +374,12 @@ fn install_sync(cancelled: &AtomicBool) -> Result<(), String> {
 
 #[cfg(target_os = "linux")]
 fn uninstall_sync(cancelled: &AtomicBool) -> Result<(), String> {
+    if std::fs::symlink_metadata(PACKAGE_DEST_PATH).is_ok()
+        && std::fs::symlink_metadata(DEST_PATH).is_err()
+        && std::fs::symlink_metadata(LEGACY_DEST_PATH).is_err()
+    {
+        return Err("USB permissions are managed by the installed system package; remove the package instead.".into());
+    }
     if !has_pkexec(cancelled) {
         return Err(pkexec_missing_error());
     }

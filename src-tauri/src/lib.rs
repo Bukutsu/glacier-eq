@@ -232,6 +232,12 @@ fn write_selected_text(
                 // which fsync is unsupported even after the provider accepted
                 // the complete write. The provider owns durability there.
                 if let Err(error) = file.sync_all() {
+                    let unsupported = error.raw_os_error().is_some_and(|code| {
+                        code == libc::EINVAL || code == libc::ENOTSUP || code == libc::EOPNOTSUPP
+                    });
+                    if !unsupported {
+                        return Err(format!("Failed to synchronize selected file: {error}"));
+                    }
                     eprintln!("glacier-eq: provider descriptor sync unsupported: {error}");
                 }
             }
