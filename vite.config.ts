@@ -1,6 +1,19 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { fileURLToPath } from "node:url";
+import { readdirSync } from "node:fs";
+import { join, relative } from "node:path";
+
+function collectPublicAssets(
+  directory = fileURLToPath(new URL("./public", import.meta.url)),
+  root = directory,
+): string[] {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(directory, entry.name);
+    if (entry.isDirectory()) return collectPublicAssets(path, root);
+    return [`./${relative(root, path).replaceAll("\\", "/")}`];
+  });
+}
 
 // @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;
@@ -29,7 +42,12 @@ export default defineConfig(async ({ mode }) => {
         this.emitFile({
           type: "asset",
           fileName: "offline-assets.json",
-          source: JSON.stringify(Object.keys(bundle).map((file) => `./${file}`)),
+          source: JSON.stringify([
+            ...new Set([
+              ...Object.keys(bundle).map((file) => `./${file}`),
+              ...collectPublicAssets(),
+            ]),
+          ]),
         });
       },
     },

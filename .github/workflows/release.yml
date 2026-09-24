@@ -20,6 +20,8 @@ jobs:
   check-tag:
     name: Verify tag and manifests
     runs-on: ubuntu-latest
+    outputs:
+      release-version: ${{ steps.version.outputs.version }}
     if: startsWith(github.ref, 'refs/tags/')
     timeout-minutes: 5
     steps:
@@ -27,14 +29,14 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
       - name: Verify tag matches Cargo.toml version
+        id: version
         env:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
           set -euo pipefail
           [[ "$RELEASE_TAG" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]
-          TAG_VERSION="$RELEASE_TAG"
-          TAG_VERSION="${TAG_VERSION#v}"
-          TAG_VERSION="${TAG_VERSION%%-*}"
+          RELEASE_VERSION="${RELEASE_TAG#v}"
+          TAG_VERSION="${RELEASE_VERSION%%-*}"
           CARGO_VERSION=$(grep '^version' src-tauri/Cargo.toml | head -1 | sed 's/.*"\(.*\)"/\1/')
           PACKAGE_VERSION=$(node -p "require('./package.json').version")
           TAURI_VERSION=$(node -p "require('./src-tauri/tauri.conf.json').version")
@@ -43,11 +45,47 @@ jobs:
             echo "Update src-tauri/Cargo.toml, src-tauri/tauri.conf.json, and package.json before tagging."
             exit 1
           fi
+          echo "version=$RELEASE_VERSION" >> "$GITHUB_OUTPUT"
           echo "✅ Version check passed: $TAG_VERSION"
+
+  verify:
+    name: Verify locked source and tests
+    needs: [check-tag]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Verify frontend
+        run: |
+          npm test
+          npx tsc -p tsconfig.web.json --noEmit
+          npx tsc -p tsconfig.desktop.json --noEmit
+
+      - name: Verify Rust
+        run: |
+          cargo metadata --locked --no-deps
+          cargo test --workspace --locked
+          cargo fmt --all -- --check
+          cargo clippy --workspace --all-targets --locked -- -D warnings
 
   desktop:
     name: Desktop build (${{ matrix.name }})
-    needs: [check-tag]
+    needs: [check-tag, verify]
     runs-on: ${{ matrix.os }}
     if: startsWith(github.ref, 'refs/tags/')
     timeout-minutes: 60
@@ -125,6 +163,14 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      - name: Write release version config
+        shell: bash
+        env:
+          RELEASE_VERSION: ${{ needs.check-tag.outputs.release-version }}
+        run: |
+          set -euo pipefail
+          printf '{"version":"%s"}\n' "$RELEASE_VERSION" > release-config.json
+
       - name: Check release signing credentials
         id: signing
         if: startsWith(matrix.os, 'macos') || startsWith(matrix.os, 'windows')
@@ -161,7 +207,7 @@ jobs:
         # bundles are collected as artifacts and published once by softprops.
         uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f
         with:
-          args: ${{ matrix.args }}
+          args: ${{ matrix.args }} --config release-config.json
           releaseAssetNamePattern: "glacier-eq_[version]_[platform]_[arch].[ext]"
 
       - name: Guard against bundled libwayland-client
@@ -198,14 +244,14 @@ jobs:
           WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
           WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
         with:
-          args: ${{ matrix.args }}
+          args: ${{ matrix.args }} --config release-config.json
           releaseAssetNamePattern: "glacier-eq_[version]_[platform]_[arch].[ext]"
 
       - name: Build unsigned app
         if: matrix.os != 'ubuntu-22.04' && steps.signing.outputs.signed != 'true'
         uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f
         with:
-          args: ${{ matrix.args }}
+          args: ${{ matrix.args }} --config release-config.json
           releaseAssetNamePattern: "glacier-eq_[version]_[platform]_[arch].[ext]"
 
       - name: Collect and verify release assets
@@ -246,7 +292,7 @@ jobs:
 
   android:
     name: Android APK
-    needs: [check-tag]
+    needs: [check-tag, verify]
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-22.04
     timeout-minutes: 30
@@ -311,12 +357,21 @@ jobs:
 
       - run: npm ci
 
+      - name: Verify Cargo lock is current
+        run: cargo metadata --locked --no-deps
+
       - name: Init Android project (buildSrc + signing fixes)
         run: |
           set -e
+          buildtask=src-tauri/gen/android/buildSrc/src/main/java/com/bukutsu/glaciereq/kotlin/BuildTask.kt
+          buildtask_backup=$(mktemp)
+          cp "$buildtask" "$buildtask_backup"
+          trap 'cp "$buildtask_backup" "$buildtask" 2>/dev/null || true; rm -f "$buildtask_backup"' EXIT
           rm -rf src-tauri/gen/android
           npm run android:init
           cp -R src-tauri/icons/android/. src-tauri/gen/android/app/src/main/res/
+          # Preserve the tracked npm fallback after Tauri regenerates buildSrc.
+          cp "$buildtask_backup" "$buildtask"
           # app/build.gradle.kts with release-keystore signing support
           cp scripts/android-app/build.gradle.kts src-tauri/gen/android/app/build.gradle.kts
           wrapper=src-tauri/gen/android/gradle/wrapper/gradle-wrapper.properties
@@ -407,6 +462,7 @@ jobs:
         env:
           RELEASE_TAG: ${{ github.ref_name }}
           EXPECTED_VERSION_CODE: ${{ steps.android-version.outputs.version_code }}
+          EXPECTED_VERSION_NAME: ${{ needs.check-tag.outputs.release-version }}
         run: |
           set -euo pipefail
           [[ "$RELEASE_TAG" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]
@@ -414,16 +470,21 @@ jobs:
           if [ -z "${apk:-}" ]; then echo "No APK found"; exit 1; fi
           metadata="$(dirname "$apk")/output-metadata.json"
           if [ ! -f "$metadata" ]; then echo "No APK metadata found: $metadata"; exit 1; fi
-          actual_version_code=$(python3 - "$metadata" <<'PY'
+          metadata_values=$(python3 - "$metadata" <<'PY'
           import json
           import sys
           with open(sys.argv[1], encoding="utf-8") as handle:
-              elements = json.load(handle)["elements"]
-          print(elements[0]["versionCode"])
+              element = json.load(handle)["elements"][0]
+          print(f"{element['versionCode']}\t{element['versionName']}")
           PY
           )
+          IFS=$'\t' read -r actual_version_code actual_version_name <<< "$metadata_values"
           if [ "$actual_version_code" != "$EXPECTED_VERSION_CODE" ]; then
             echo "Android versionCode mismatch: expected $EXPECTED_VERSION_CODE, got $actual_version_code" >&2
+            exit 1
+          fi
+          if [ "$actual_version_name" != "$EXPECTED_VERSION_NAME" ]; then
+            echo "Android versionName mismatch: expected $EXPECTED_VERSION_NAME, got $actual_version_name" >&2
             exit 1
           fi
           apksigner_path=$(command -v apksigner || true)

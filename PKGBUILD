@@ -23,6 +23,7 @@ depends=(
   'pango'
   'libsoup3'
   'systemd-libs'
+  'systemd'
 )
 makedepends=(
   'base-devel'
@@ -94,8 +95,11 @@ package() {
 post_install() {
   gtk-update-icon-cache -q -t /usr/share/icons/hicolor
   update-desktop-database /usr/share/applications
+  # The package-owned rule lives in /usr/lib; remove an older app-installed
+  # /etc copy so it cannot shadow future package updates.
+  rm -f /etc/udev/rules.d/69-glacier-eq.rules
   udevadm control --reload
-  udevadm trigger
+  udevadm trigger --subsystem-match=hidraw --action=change
 }
 
 post_upgrade() {
@@ -106,4 +110,5 @@ post_remove() {
   gtk-update-icon-cache -q -t /usr/share/icons/hicolor
   update-desktop-database /usr/share/applications
   udevadm control --reload
+  udevadm trigger --subsystem-match=hidraw --action=change
 }

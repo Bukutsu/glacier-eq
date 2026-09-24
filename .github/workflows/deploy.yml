@@ -12,7 +12,9 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  # Manual dispatches must not cancel an in-flight tag deployment. Pushes
+  # still replace an older deployment of the same ref.
+  group: pages-${{ github.event_name == 'push' && github.ref || github.run_id }}
   cancel-in-progress: true
 
 jobs:
@@ -46,6 +48,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Run frontend tests
+        run: npm test
 
       - name: Build
         run: VITE_BASE_PATH=/glacier-eq/ npm run build

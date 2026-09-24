@@ -16,39 +16,32 @@ open class BuildTask : DefaultTask() {
 
     @TaskAction
     fun assemble() {
-        val executable = """bun""";
-        try {
-            runTauriCli(executable)
-        } catch (e: Exception) {
-            if (Os.isFamily(Os.FAMILY_WINDOWS)) {
-                // Try different Windows-specific extensions
-                val fallbacks = listOf(
-                    "$executable.exe",
-                    "$executable.cmd",
-                    "$executable.bat",
-                )
-                
-                var lastException: Exception = e
-                for (fallback in fallbacks) {
-                    try {
-                        runTauriCli(fallback)
-                        return
-                    } catch (fallbackException: Exception) {
-                        lastException = fallbackException
-                    }
-                }
-                throw lastException
-            } else {
-                throw e;
+        val candidates = if (Os.isFamily(Os.FAMILY_WINDOWS)) {
+            listOf("bun", "bun.exe", "bun.cmd", "bun.bat", "npm.cmd", "npm.exe", "npm")
+        } else {
+            listOf("bun", "npm")
+        }
+        var lastException: Exception? = null
+        for (executable in candidates) {
+            try {
+                runTauriCli(executable)
+                return
+            } catch (error: Exception) {
+                lastException = error
             }
         }
+        throw lastException ?: GradleException("No supported JavaScript package runner found")
     }
 
     fun runTauriCli(executable: String) {
         val rootDirRel = rootDirRel ?: throw GradleException("rootDirRel cannot be null")
         val target = target ?: throw GradleException("target cannot be null")
         val release = release ?: throw GradleException("release cannot be null")
-        val args = listOf("tauri", "android", "android-studio-script");
+        val args = if (executable.startsWith("npm")) {
+            listOf("exec", "--", "tauri", "android", "android-studio-script")
+        } else {
+            listOf("tauri", "android", "android-studio-script")
+        };
 
         project.exec {
             workingDir(File(project.projectDir, rootDirRel))
