@@ -16,6 +16,7 @@ import { profileIdentityKey } from "../profileIdentity";
 import type { DiagnosticEvent } from "../diagnostics";
 import { isDiagnosticLevel, isDiagnosticSource, sanitizeDiagnosticMessage } from "../diagnostics";
 import { readLocalStorage, writeLocalStorage } from "../safeStorage";
+import { decodeUtf8 } from "../utf8";
 
 // Wasm entry points are resolved lazily: ensureWasm() has already run on every
 // path that reaches them (invokeWeb awaits it before dispatching), so the
@@ -1529,7 +1530,7 @@ export async function save(options?: FileDialogOptions): Promise<string | null> 
 }
 
 export function decodeUtf8File(bytes: ArrayBuffer): string {
-  return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  return decodeUtf8(bytes);
 }
 
 export async function openFileDialog(options?: {

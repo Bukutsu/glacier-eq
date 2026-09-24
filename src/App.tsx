@@ -69,6 +69,7 @@ import { chooseReconnectDevice } from "./lib/reconnectDevice";
 import { profileIdentityKey } from "./lib/profileIdentity";
 import { readLocalStorage, writeLocalStorage } from "./lib/safeStorage";
 import { markDeviceLost } from "./features/device/deviceOperations";
+import { decodeUtf8 } from "./lib/utf8";
 import { useProfiles } from "./features/profiles/useProfiles";
 import { DeviceView } from "./components/DeviceView";
 import { SettingsView } from "./components/SettingsView";
@@ -644,7 +645,7 @@ function App() {
       const context = getAsyncContext();
       try {
         if (file.size > 1_048_576) throw new Error("File exceeds the 1 MiB limit");
-        const text = await file.text();
+        const text = decodeUtf8(await file.arrayBuffer());
         if (request !== dropRequestRef.current || !asyncContextEquals(context, getAsyncContext())) return;
         const rawResult = await invoke<unknown>("parse_autoeq", { text });
         if (request !== dropRequestRef.current || !asyncContextEquals(context, getAsyncContext())) return;
