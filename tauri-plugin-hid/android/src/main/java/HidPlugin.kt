@@ -172,13 +172,13 @@ class HidDevice(
         }
     }
 
-    fun startReading() {
-        val endpoint = usbInEndpoint ?: return
+    fun startReading(): HidResult<Unit> {
+        val endpoint = usbInEndpoint ?: return HidResult.Error("Cannot start reader: IN endpoint not available")
         val request = UsbRequest()
         if (!request.initialize(deviceConnection, endpoint)) {
             Log.e(TAG, "Read thread: failed to initialize UsbRequest")
             request.close()
-            return
+            return HidResult.Error("Failed to initialize USB read endpoint")
         }
 
         val thread = Thread {
@@ -279,7 +279,7 @@ class HidDevice(
                     request.cancel()
                     request.close()
                 } catch (_: Exception) {}
-                return
+                return HidResult.Error("Cannot start reader: device is closed")
             }
             isReading = true
             readQueue.clear()
@@ -287,6 +287,7 @@ class HidDevice(
             readThread = thread
             thread.start()
         }
+        return HidResult.Success(Unit)
     }
 
     // Read data from the device queue (thread-safe, timed block)
@@ -756,11 +757,18 @@ class HidPlugin(private val activity: Activity): Plugin(activity) {
                     return
                 }
                 if (installed) {
-                    hidDevice.startReading()
+                    when (val reading = hidDevice.startReading()) {
+                        is HidResult.Success -> invoke.resolve()
+                        is HidResult.Error -> {
+                            connectedDevices.remove(path, hidDevice)
+                            hidDevice.closeConnection()
+                            invoke.reject("Failed to start HID reader: ${reading.message}", TAG)
+                        }
+                    }
                 } else {
                     hidDevice.closeConnection()
+                    invoke.reject("HID device is already connected")
                 }
-                invoke.resolve()
             }
             is HidResult.Error -> {
                 hidDevice.closeConnection()
