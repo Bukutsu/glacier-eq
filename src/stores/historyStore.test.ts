@@ -8,7 +8,15 @@ import type { PEQData } from "../types";
 
 describe("historyStore", () => {
   beforeEach(() => {
-    useHistoryStore.setState({ past: [], future: [], redoBase: null });
+    useHistoryStore.setState({
+      past: [],
+      future: [],
+      pastMeta: [],
+      futureMeta: [],
+      redoBase: null,
+      redoBaseMeta: null,
+      lastRestoredMetadata: null,
+    });
   });
 
   it("pushes snapshots to past", () => {
@@ -82,6 +90,23 @@ describe("historyStore", () => {
     expect(future.length).toBe(50);
     // The most recent undone state is still the next redo.
     expect(future[future.length - 1].global_gain).toBe(60);
+  });
+
+  it("restores profile selection metadata with the PEQ snapshot", () => {
+    const before = buildDefaultState();
+    const after = { ...before, global_gain: -3 };
+    useHistoryStore.getState().pushSnapshot(before, {
+      selectedPreset: "Daily",
+      cleanPeq: before,
+    });
+    useHistoryStore.getState().undo(after, undefined, {
+      selectedPreset: "Other",
+      cleanPeq: after,
+    });
+    expect(useHistoryStore.getState().lastRestoredMetadata).toEqual({
+      selectedPreset: "Daily",
+      cleanPeq: before,
+    });
   });
 
   it("invalidates redo when the stored base does not match the editor", () => {

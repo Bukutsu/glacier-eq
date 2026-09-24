@@ -10,81 +10,122 @@ const MAX_HISTORY = 50;
 type NormalizeSnapshot = (snapshot: PEQData) => PEQData;
 const unchangedSnapshot: NormalizeSnapshot = (snapshot) => snapshot;
 
+export interface HistoryMetadata {
+  selectedPreset?: string;
+  cleanPeq?: PEQData;
+}
+
 interface HistoryState {
   past: PEQData[];
   future: PEQData[];
-  /** PEQ captured when the last undo landed; redo validates against it. */
+  pastMeta: Array<HistoryMetadata | null>;
+  futureMeta: Array<HistoryMetadata | null>;
   redoBase: PEQData | null;
-  pushSnapshot: (current: PEQData) => void;
-  undo: (current: PEQData, normalize?: NormalizeSnapshot) => PEQData | null;
-  redo: (current: PEQData, normalize?: NormalizeSnapshot) => PEQData | null;
+  redoBaseMeta: HistoryMetadata | null;
+  lastRestoredMetadata: HistoryMetadata | null;
+  pushSnapshot: (current: PEQData, metadata?: HistoryMetadata | null) => void;
+  undo: (
+    current: PEQData,
+    normalize?: NormalizeSnapshot,
+    currentMetadata?: HistoryMetadata | null,
+  ) => PEQData | null;
+  redo: (
+    current: PEQData,
+    normalize?: NormalizeSnapshot,
+    currentMetadata?: HistoryMetadata | null,
+  ) => PEQData | null;
   clearFuture: () => void;
+}
+
+function trim<T>(values: T[]): T[] {
+  return values.length > MAX_HISTORY ? values.slice(values.length - MAX_HISTORY) : values;
 }
 
 export const useHistoryStore = create<HistoryState>()((set, get) => ({
   past: [],
   future: [],
+  pastMeta: [],
+  futureMeta: [],
   redoBase: null,
+  redoBaseMeta: null,
+  lastRestoredMetadata: null,
 
-  pushSnapshot: (current) => {
-    const { past, future, redoBase } = get();
+  pushSnapshot: (current, metadata = null) => {
+    const { past, pastMeta, future, futureMeta, redoBase } = get();
     if (past.length > 0 && peqEquals(past[past.length - 1], current)) return;
 
     const sittingAtRedoBase =
       future.length > 0 && redoBase && peqEquals(current, redoBase);
     const next = [...past, current];
-    if (next.length > MAX_HISTORY) next.shift();
+    const nextMeta = [...pastMeta, metadata];
+    if (next.length > MAX_HISTORY) {
+      next.shift();
+      nextMeta.shift();
+    }
 
     set({
       past: next,
+      pastMeta: nextMeta,
       future: sittingAtRedoBase ? future : [],
+      futureMeta: sittingAtRedoBase ? futureMeta : [],
       redoBase: sittingAtRedoBase ? redoBase : null,
+      redoBaseMeta: sittingAtRedoBase ? get().redoBaseMeta : null,
+      lastRestoredMetadata: null,
     });
   },
 
-  undo: (current, normalize = unchangedSnapshot) => {
-    const { past, future } = get();
-    // Normalize scanned entries so comparisons and the restored state match
-    // what the editor will actually display; normalizers are idempotent.
+  undo: (current, normalize = unchangedSnapshot, currentMetadata = null) => {
+    const { past, pastMeta, future, futureMeta } = get();
     const normalizedPast = past.map(normalize);
+    const normalizedPastMeta = pastMeta;
     let idx = normalizedPast.length - 1;
     while (idx >= 0 && peqEquals(normalizedPast[idx], current)) idx -= 1;
     if (idx < 0) return null;
 
-    // The redo base must be the state actually restored into the editor.
     const prev = normalizedPast[idx];
-    // Bound the redo stack like `past`: repeated undo→edit→undo cycles keep
-    // `future` alive via the redo base, so it grows without limit otherwise.
-    // Redo consumes from the end, so the oldest (farthest) entries are trimmed.
+    const prevMeta = normalizedPastMeta[idx] ?? null;
     const nextFuture = [...future, current];
+    const nextFutureMeta = [...futureMeta, currentMetadata];
     set({
       past: normalizedPast.slice(0, idx),
-      future:
-        nextFuture.length > MAX_HISTORY
-          ? nextFuture.slice(nextFuture.length - MAX_HISTORY)
-          : nextFuture,
+      pastMeta: normalizedPastMeta.slice(0, idx),
+      future: trim(nextFuture),
+      futureMeta: trim(nextFutureMeta),
       redoBase: prev,
+      redoBaseMeta: prevMeta,
+      lastRestoredMetadata: prevMeta,
     });
     return prev;
   },
 
-  redo: (current, normalize = unchangedSnapshot) => {
-    const { past, future, redoBase } = get();
+  redo: (current, normalize = unchangedSnapshot, currentMetadata = null) => {
+    const { past, pastMeta, future, futureMeta, redoBase } = get();
     if (future.length === 0) return null;
     if (!redoBase || !peqEquals(current, redoBase)) {
-      set({ future: [], redoBase: null });
+      set({ future: [], futureMeta: [], redoBase: null, redoBaseMeta: null, lastRestoredMetadata: null });
       return null;
     }
     const next = normalize(future[future.length - 1]);
+    const nextMeta = futureMeta[futureMeta.length - 1] ?? null;
     set({
-      future: future.slice(0, -1),
       past: [...past, current],
+      pastMeta: [...pastMeta, currentMetadata],
+      future: future.slice(0, -1),
+      futureMeta: futureMeta.slice(0, -1),
       redoBase: next,
+      redoBaseMeta: nextMeta,
+      lastRestoredMetadata: nextMeta,
     });
     return next;
   },
 
-  clearFuture: () => set({ future: [], redoBase: null }),
+  clearFuture: () => set({
+    future: [],
+    futureMeta: [],
+    redoBase: null,
+    redoBaseMeta: null,
+    lastRestoredMetadata: null,
+  }),
 }));
 
 export function canUndo(past: PEQData[]): boolean {

@@ -604,7 +604,7 @@ export const ProfilesView = memo(function ProfilesView({
       </section>
 
       {parsed && (
-        <Modal title="Import Profile" onClose={handleCancelImport}>
+        <Modal title="Import Profile" onClose={handleCancelImport} closeDisabled={isSubmitting}>
           <div className="modal-body">
             <div className="import-mode-tabs" role="group" aria-label="Import destination mode">
               <button

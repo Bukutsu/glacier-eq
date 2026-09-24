@@ -7,9 +7,10 @@ interface ModalProps {
   className?: string;
   style?: CSSProperties;
   children: ReactNode;
+  closeDisabled?: boolean;
 }
 
-export function Modal({ title, onClose, className = "", style, children }: ModalProps) {
+export function Modal({ title, onClose, className = "", style, children, closeDisabled = false }: ModalProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
 
@@ -25,7 +26,7 @@ export function Modal({ title, onClose, className = "", style, children }: Modal
   }, []);
 
   const handleBackdropClick = (event: MouseEvent<HTMLDialogElement>) => {
-    if (event.target !== event.currentTarget) return;
+    if (closeDisabled || event.target !== event.currentTarget) return;
     const rect = event.currentTarget.getBoundingClientRect();
     if (
       event.clientX < rect.left || event.clientX > rect.right ||
@@ -44,13 +45,19 @@ export function Modal({ title, onClose, className = "", style, children }: Modal
       aria-modal="true"
       onCancel={(event) => {
         event.preventDefault();
-        onClose();
+        if (!closeDisabled) onClose();
       }}
       onClick={handleBackdropClick}
     >
       <div className="modal-header">
         <h2 id={titleId}>{title}</h2>
-        <button type="button" className="modal-close-btn" onClick={onClose} aria-label={`Close ${title}`}>
+        <button
+          type="button"
+          className="modal-close-btn"
+          onClick={() => { if (!closeDisabled) onClose(); }}
+          disabled={closeDisabled}
+          aria-label={`Close ${title}`}
+        >
           <Icon>close</Icon>
         </button>
       </div>

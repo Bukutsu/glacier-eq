@@ -15,6 +15,7 @@ interface DeviceChooserProps {
   setSelectedDevice: (path: string) => void;
   status: string;
   isBusy: boolean;
+  connected: boolean;
 }
 
 function formatUsbId(value: number | null | undefined): string {
@@ -30,6 +31,7 @@ export function DeviceChooser({
   setSelectedDevice,
   status,
   isBusy,
+  connected,
 }: DeviceChooserProps) {
   const [supportedDacs, setSupportedDacs] = useState<SupportedDeviceInfo[]>([]);
   const [supportedOpen, setSupportedOpen] = useState(false);
@@ -93,9 +95,11 @@ export function DeviceChooser({
                 title="Click to select · Double-click to connect"
                 aria-checked={selected}
                 disabled={isBusy}
-                onClick={() => setSelectedDevice(device.path)}
+                onClick={() => {
+                  if (!connected) setSelectedDevice(device.path);
+                }}
                 onDoubleClick={() => {
-                  setSelectedDevice(device.path);
+                  if (!connected) setSelectedDevice(device.path);
                   onConnect(device.path, device);
                 }}
               >

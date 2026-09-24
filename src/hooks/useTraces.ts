@@ -12,6 +12,7 @@ import {
 } from "../lib/persistedTraces";
 import type { MeasurementTrace, TargetTrace } from "../types";
 import { BUILTIN_TARGETS } from "../lib/builtinTargets";
+import { readLocalStorage, tryWriteLocalStorage, writeLocalStorage } from "../lib/safeStorage";
 
 interface LoadedPersistedJson {
   value: unknown;
@@ -30,16 +31,12 @@ function quarantinePersistedJson(
 ) {
   // Keep the same timestamped backup convention for syntax and schema damage.
   let backedUp = false;
-  try {
-    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-    window.localStorage.setItem(`${key}.bak.${stamp}`, raw);
-    backedUp = true;
-  } catch (error) {
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  backedUp = writeLocalStorage(`${key}.bak.${stamp}`, raw);
+  if (!backedUp) {
     // Backup write failed (likely the same quota problem that damaged the
-    // data). Never swallow it: the claim below depends on this write — a
-    // silent failure would announce a copy that does not exist while the
-    // only copy of the data sits un-copied under its original key.
-    console.warn(`Could not back up malformed saved data for "${key}":`, error);
+    // data). Never announce a copy that does not exist.
+    console.warn(`Could not back up malformed saved data for "${key}".`);
   }
   notify?.(
     backedUp
@@ -52,7 +49,7 @@ export function loadPersistedJson(
   key: string,
   notify?: (message: string) => void,
 ): LoadedPersistedJson {
-  const raw = window.localStorage.getItem(key);
+  const raw = readLocalStorage(key);
   if (raw === null) return { value: null, raw: null };
   try {
     return { value: JSON.parse(raw), raw };
@@ -166,12 +163,9 @@ export function savePersistedJson(
   notify?: (message: string) => void,
 ) {
   try {
-    window.localStorage.setItem(key, JSON.stringify(value));
-  } catch (error) {
-    // Storage may be full (private mode, quota). Fail soft rather than
-    // crashing the app — the in-memory state is still intact — but never
-    // silently: cross-session data loss must reach the user (the toast
-    // store dedupes repeated failures with the same message).
+    const result = tryWriteLocalStorage(key, JSON.stringify(value));
+    if (result.ok) return;
+    const error = result.error;
     const quota =
       error instanceof DOMException ||
       (error as { name?: string } | null)?.name === "QuotaExceededError";
@@ -184,6 +178,10 @@ export function savePersistedJson(
       console.error(`Failed to save "${key}" to localStorage:`, error);
       notify?.(`Could not save "${key}" to local storage: ${error}`);
     }
+  } catch (error) {
+    // JSON serialization can still fail for an unexpected caller value.
+    console.error(`Failed to serialize "${key}" for localStorage:`, error);
+    notify?.(`Could not save "${key}" to local storage: ${error}`);
   }
 }
 

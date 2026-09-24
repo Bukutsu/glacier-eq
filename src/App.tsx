@@ -65,6 +65,8 @@ import { useThemeSync } from "./hooks/useThemeSync";
 import { useIsMobile } from "./hooks/useIsMobile";
 import { useTraces } from "./hooks/useTraces";
 import { OFFLINE_EDITOR_CAPABILITIES } from "./lib/dacSpecs";
+import { chooseReconnectDevice } from "./lib/reconnectDevice";
+import { readLocalStorage, writeLocalStorage } from "./lib/safeStorage";
 import { markDeviceLost } from "./features/device/deviceOperations";
 import { useProfiles } from "./features/profiles/useProfiles";
 import { DeviceView } from "./components/DeviceView";
@@ -345,7 +347,7 @@ function App() {
     removeTarget,
   } = useTraces(showToast);
   const [graphViewMode, setGraphViewMode] = useState<GraphViewMode>(() =>
-    window.localStorage.getItem("glacier-graph-view-mode") === "level"
+    readLocalStorage("glacier-graph-view-mode") === "level"
       ? "level"
       : "shape",
   );
@@ -353,6 +355,7 @@ function App() {
   const peqRef = useRef(peq);
   peqRef.current = peq;
   const editorCleanPeqRef = useRef(peq);
+  const selectedPresetRef = useRef(DEFAULT_PROFILE_NAME);
   // Bumped whenever the editor PEQ actually changes, so async completions
   // (pulls, imports, pushes) can detect edits that happened while they ran.
   const editorRevisionRef = useRef(0);
@@ -363,15 +366,18 @@ function App() {
   const [lastPushedPeq, setLastPushedPeq] = useState<PEQData | null>(null);
   const [activeBandIndex, setActiveBandIndex] = useState<number | null>(null);
   const [editorHintDismissed, setEditorHintDismissed] = useState(
-    () => window.localStorage.getItem(EDITOR_HINT_KEY) === "true",
+    () => readLocalStorage(EDITOR_HINT_KEY) === "true",
   );
 
   useEffect(() => {
-    window.localStorage.setItem("glacier-graph-view-mode", graphViewMode);
+    writeLocalStorage("glacier-graph-view-mode", graphViewMode);
   }, [graphViewMode]);
 
   const pushToUndoStack = useCallback((currentPeq: PEQData) => {
-    useHistoryStore.getState().pushSnapshot(currentPeq);
+    useHistoryStore.getState().pushSnapshot(currentPeq, {
+      selectedPreset: selectedPresetRef.current,
+      cleanPeq: editorCleanPeqRef.current,
+    });
   }, []);
 
   const [showGraphPreview, setShowGraphPreview] = useState(false);
@@ -517,19 +523,35 @@ function App() {
     runProfileMutation,
   } = useProfiles(profilesEditor, setStatus);
 
+  useEffect(() => {
+    selectedPresetRef.current = selectedPreset;
+  }, [selectedPreset]);
+
   const restoreHistory = useCallback((direction: "undo" | "redo") => {
+    const history = useHistoryStore.getState();
     const restored = restoreHistorySnapshot({
-      restore: useHistoryStore.getState()[direction],
+      restore: history[direction],
       current: peqRef.current,
+      currentMetadata: {
+        selectedPreset: selectedPresetRef.current,
+        cleanPeq: editorCleanPeqRef.current,
+      },
       clean: editorCleanPeqRef.current,
       capabilities,
     });
     if (!restored) return;
+    const metadata = useHistoryStore.getState().lastRestoredMetadata;
+    const restoredClean = metadata?.cleanPeq ?? editorCleanPeqRef.current;
     peqRef.current = restored.peq;
+    editorCleanPeqRef.current = restoredClean;
     setPeq(restored.peq);
+    if (metadata?.selectedPreset && profiles.some((profile) => profile.name === metadata.selectedPreset)) {
+      selectedPresetRef.current = metadata.selectedPreset;
+      setSelectedPreset(metadata.selectedPreset);
+    }
     noteEditorMutation();
-    setDirty(restored.dirty);
-  }, [capabilities, noteEditorMutation]);
+    setDirty(!peqEquals(restored.peq, restoredClean));
+  }, [capabilities, noteEditorMutation, profiles, setSelectedPreset]);
 
   const undo = useCallback(() => restoreHistory("undo"), [restoreHistory]);
   const redo = useCallback(() => restoreHistory("redo"), [restoreHistory]);
@@ -642,7 +664,7 @@ function App() {
       setStatus(`Failed to scan for devices: ${error}`);
     } finally {
       setIsBusy(false);
-      if (window.localStorage.getItem(DEVICE_ONBOARDING_KEY) !== "true") {
+      if (readLocalStorage(DEVICE_ONBOARDING_KEY) !== "true") {
         setShowDeviceModal(true);
       }
     }
@@ -844,12 +866,25 @@ function App() {
         setDevices(deviceList);
 
         const targetName = connectedDeviceName || lastConnectedNameRef.current;
-        const found = realDevices.find(
-          (d) =>
-            (targetName &&
-              (d.profile_name === targetName || d.product_string === targetName)) ||
-            (!targetName && realDevices.length === 1 && !isDevDummyDevice(d.path)),
-        );
+        const targetPath = selectedDevice;
+        const exactPathMatch = targetPath
+          ? realDevices.find((device) => device.path === targetPath)
+          : undefined;
+        const nameMatches = targetName
+          ? realDevices.filter((device) =>
+              device.profile_name === targetName || device.product_string === targetName,
+            )
+          : [];
+        const found = chooseReconnectDevice(realDevices, targetPath, targetName);
+        if (!exactPathMatch && nameMatches.length > 1) {
+          reportStatus(
+            "Warn",
+            "Multiple matching DACs found; choose the device to reconnect.",
+            null,
+            "Device",
+            "More than one matching DAC is available",
+          );
+        }
 
         if (found && isCurrent()) {
           const devName = found.profile_name || found.product_string || "DAC";
@@ -1034,12 +1069,11 @@ function App() {
     if (!pathToConnect) return false;
     const resolvedTarget = targetInfo ?? devices.find((device) => device.path === pathToConnect);
     const targetCapabilities = resolvedTarget ?? selectedCapabilities;
-    if (pathToConnect !== selectedDevice) {
-      setSelectedDevice(pathToConnect);
-    }
     setIsBusy(true);
     try {
       if (isDevDummyDevice(pathToConnect)) {
+        selectedDeviceRef.current = pathToConnect;
+        setSelectedDevice(pathToConnect);
         setConnected(true, pathToConnect);
         setLastPushedPeq(null);
         setConnectedDeviceName("Glacier Dummy DAC");
@@ -1051,6 +1085,8 @@ function App() {
       }
 
       await invoke("connect_device", { path: pathToConnect });
+      selectedDeviceRef.current = pathToConnect;
+      setSelectedDevice(pathToConnect);
       setConnected(true, pathToConnect);
       setLastPushedPeq(null);
       
@@ -1113,10 +1149,10 @@ function App() {
       setDevices(list);
       const target = list.find((d) => !isDevDummyDevice(d.path)) ?? list[0];
       if (target) {
-        selectedDeviceRef.current = target.path;
-        setSelectedDevice(target.path);
         const ok = await connectDevice(target.path, target);
         if (ok) {
+          selectedDeviceRef.current = target.path;
+          setSelectedDevice(target.path);
           const devName = target.profile_name || target.product_string || "DAC";
           setConnectedDeviceName(devName);
           lastConnectedNameRef.current = devName;
@@ -1420,7 +1456,7 @@ function App() {
     setShowDeviceModal(true);
   }, []);
   const handleCloseDeviceModal = useCallback(() => {
-    window.localStorage.setItem(DEVICE_ONBOARDING_KEY, "true");
+    writeLocalStorage(DEVICE_ONBOARDING_KEY, "true");
     if (window.history.state?.modal === "device") {
       window.history.back();
     }
@@ -1640,7 +1676,7 @@ function App() {
         type="button"
         aria-label="Dismiss hint"
         onClick={() => {
-          window.localStorage.setItem(EDITOR_HINT_KEY, "true");
+          writeLocalStorage(EDITOR_HINT_KEY, "true");
           setEditorHintDismissed(true);
         }}
       >
@@ -1959,7 +1995,7 @@ function App() {
           )}
         </main>
       )}
-      {isReconnecting && activeTab === "eq" && (
+      {isReconnecting && (
         <div
           className="reconnecting-overlay"
           role="alertdialog"
@@ -2014,6 +2050,7 @@ function App() {
               onConnect={handleConnectDevice}
               selectedDevice={selectedDevice}
               setSelectedDevice={setSelectedDevice}
+              connected={connected}
               status={status}
               isBusy={isBusy}
             />

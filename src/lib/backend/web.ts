@@ -15,6 +15,7 @@ import { ensureWasm, getWasm } from "./wasm";
 import { profileIdentityKey } from "../profileIdentity";
 import type { DiagnosticEvent } from "../diagnostics";
 import { isDiagnosticLevel, isDiagnosticSource, sanitizeDiagnosticMessage } from "../diagnostics";
+import { readLocalStorage, writeLocalStorage } from "../safeStorage";
 
 // Wasm entry points are resolved lazily: ensureWasm() has already run on every
 // path that reaches them (invokeWeb awaits it before dispatching), so the
@@ -521,19 +522,25 @@ export function parseWebProfiles(value: unknown): ParsedStorage<Profile[]> {
   return { value: profiles, malformed };
 }
 
-function saveJson(key: string, value: unknown): void {
-  localStorage.setItem(key, JSON.stringify(value));
+function saveJson(key: string, value: unknown): boolean {
+  try {
+    return writeLocalStorage(key, JSON.stringify(value));
+  } catch (error) {
+    console.warn(`Could not serialize ${key} for local storage`, error);
+    return false;
+  }
 }
 
 function quarantineStorage(key: string, raw: string, safeValue: unknown): void {
   try {
     let suffix = Date.now();
     let backupKey = `${key}-malformed-${suffix}`;
-    while (localStorage.getItem(backupKey) !== null) {
+    while (readLocalStorage(backupKey) !== null) {
       backupKey = `${key}-malformed-${++suffix}`;
     }
-    localStorage.setItem(backupKey, raw);
-    saveJson(key, safeValue);
+    if (!writeLocalStorage(backupKey, raw) || !saveJson(key, safeValue)) {
+      throw new Error("local storage is unavailable or full");
+    }
     // Without this the quarantine is invisible: the user's saved
     // settings/profiles were corrupt and just got replaced by the fallback,
     // yet the app claims nothing — the only trace is a `-malformed-` key
@@ -557,7 +564,7 @@ function loadValidatedStorage<T>(
   fallback: T,
   parser: (value: unknown) => ParsedStorage<T>,
 ): T {
-  const raw = localStorage.getItem(key);
+  const raw = readLocalStorage(key);
   if (raw === null) return fallback;
   let parsed: unknown;
   try {
