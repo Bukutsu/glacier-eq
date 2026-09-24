@@ -5,8 +5,19 @@ use crate::{Filter, FilterType, PEQData};
 
 pub const MAX_FILTERS: usize = 32;
 
+fn strip_leading_bom<'a>(text: &'a str, label: &str) -> Result<&'a str, String> {
+    let Some(without_bom) = text.strip_prefix('\u{feff}') else {
+        return Ok(text);
+    };
+    if without_bom.starts_with('\u{feff}') {
+        return Err(format!("{label} contains multiple UTF-8 BOM markers"));
+    }
+    Ok(without_bom)
+}
+
 /// Parses frequency/dB curves using the same rules as the frontend importer.
 pub fn parse_curve_text(text: &str) -> Result<Vec<(f64, f64)>, String> {
+    let text = strip_leading_bom(text, "Curve input")?;
     if text.len() > 1 << 20 || text.split('\n').count() > 4096 {
         return Err("Curve input exceeds maximum size".into());
     }
@@ -76,9 +87,10 @@ fn interpolate_point(points: &[(f64, f64)], frequency: f64) -> f64 {
 }
 
 pub fn parse_autoeq_text(text: &str) -> Result<(PEQData, Option<String>, Vec<String>), String> {
-    // A UTF-8 BOM is metadata, not part of the first directive. Strip it before
-    // both line parsing and header-name extraction so `Preamp:` is not hidden.
-    let text = text.strip_prefix('\u{feff}').unwrap_or(text);
+    // A UTF-8 BOM is metadata, not part of the first directive. Strip one
+    // before both line parsing and header-name extraction; repeated markers
+    // are malformed rather than silently changing the first field.
+    let text = strip_leading_bom(text, "AutoEQ input")?;
     // CPU-DoS guard: reject absurdly large inputs before touching them.
     if text.len() > 1 << 20 {
         return Err("AutoEQ input exceeds maximum size (1 MiB)".into());
@@ -1988,6 +2000,13 @@ mod tests {
     }
 
     #[test]
+    fn curve_parser_accepts_one_bom_and_rejects_repeated_markers() {
+        let points = parse_curve_text("\u{feff}20 0\n20000 0").unwrap();
+        assert_eq!(points.len(), 2);
+        assert!(parse_curve_text("\u{feff}\u{feff}20 0\n20000 0").is_err());
+    }
+
+    #[test]
     fn curve_normalization_rejects_finite_values_that_overflow() {
         let text = format!("20 {}\n20000 {}", f64::MAX, -f64::MAX);
         assert!(parse_curve_text(&text).is_err());
@@ -2448,6 +2467,10 @@ mod tests {
         assert_eq!(peq.filters.len(), 1);
         assert_eq!(name, None);
         assert!(warnings.is_empty());
+        assert!(parse_autoeq_text(
+            "\u{feff}\u{feff}Preamp: -6.5 dB\nFilter 1: ON PK Fc 100 Hz Gain 1 dB Q 1"
+        )
+        .is_err());
     }
 
     #[test]

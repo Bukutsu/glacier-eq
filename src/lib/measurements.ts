@@ -45,10 +45,20 @@ function tokenEnd(text: string, from: number, end: number): number {
   return index;
 }
 
-export function parseMeasurementText(text: string): MeasurementPoint[] {
-  if (text.length > 1_048_576) {
+function stripLeadingBom(text: string, label: string): string {
+  if (!text.startsWith("\uFEFF")) return text;
+  const stripped = text.slice(1);
+  if (stripped.startsWith("\uFEFF")) {
+    throw new Error(`${label} contains multiple UTF-8 BOM markers`);
+  }
+  return stripped;
+}
+
+export function parseMeasurementText(input: string): MeasurementPoint[] {
+  if (input.length > 1_048_576) {
     throw new Error("Measurement input exceeds maximum size");
   }
+  const text = stripLeadingBom(input, "Measurement input");
   const points: MeasurementPoint[] = [];
   let lineCount = 0;
   let lineStart = 0;

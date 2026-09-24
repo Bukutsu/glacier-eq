@@ -24,6 +24,11 @@ describe("parseMeasurementText", () => {
     expect(interpolateMeasurementDb(points, 1000)).toBeCloseTo(0, 9);
   });
 
+  it("accepts one UTF-8 BOM and rejects repeated BOM markers", () => {
+    expect(parseMeasurementText("\uFEFF20 0\n20000 0").map((p) => p.freq)).toEqual([20, 20000]);
+    expect(() => parseMeasurementText("\uFEFF\uFEFF20 0\n20000 0")).toThrow("multiple UTF-8 BOM");
+  });
+
   it("throws when fewer than 2 points remain after range filtering", () => {
     // 10 Hz is out of the [20, 20000] range and gets dropped, leaving one point
     expect(() => parseMeasurementText("header\n10,2\n20,3")).toThrow();

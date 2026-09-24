@@ -38,9 +38,22 @@ pub fn normalize_peq_for_capabilities(
     validate_peq(&peq)?;
     // The warnings are the whole point of returning them: discarding them
     // here meant every push altered out-of-range values with no signal.
-    let warnings = peq.clamp_to_capabilities(caps);
+    let mut warnings = peq.clamp_to_capabilities(caps);
     for (index, filter) in peq.filters.iter_mut().enumerate() {
         filter.index = index as u8;
+        if filter.enabled {
+            let old_gain = filter.gain;
+            let quantized = quantize_band_gain(old_gain, protocol);
+            if (quantized - old_gain).abs() > 0.0001 {
+                warnings.push(format!(
+                    "Band {}: Rounded gain from {:.3} dB to {:.3} dB to match protocol precision",
+                    index + 1,
+                    old_gain,
+                    quantized
+                ));
+            }
+            filter.gain = quantized;
+        }
     }
     peq.global_gain = quantize_preamp(peq.global_gain, protocol);
     validate_peq(&peq)?;
@@ -146,6 +159,14 @@ fn selected_profile(vendor_id: u16, product_id: u16) -> Result<&'static DevicePr
         .ok_or_else(|| format!("No profile registered for {vendor_id:04X}:{product_id:04X}"))
 }
 
+fn quantize_band_gain(gain: f64, protocol: DeviceProtocol) -> f64 {
+    match protocol {
+        // FiiO encodes band gain in 0.1 dB units.
+        DeviceProtocol::FiioJa11 | DeviceProtocol::Fiio => (gain * 10.0).round() / 10.0,
+        DeviceProtocol::Moondrop | DeviceProtocol::Walkplay | DeviceProtocol::Unknown => gain,
+    }
+}
+
 fn quantize_preamp(global_gain: f64, protocol: DeviceProtocol) -> f64 {
     match protocol {
         DeviceProtocol::Walkplay => global_gain.round(),
@@ -221,6 +242,26 @@ mod tests {
         .unwrap();
 
         assert_eq!(normalized.global_gain, 0.1);
+    }
+
+    #[test]
+    fn device_band_gain_quantization_is_reported() {
+        let peq = PEQData {
+            filters: vec![Filter {
+                index: 0,
+                enabled: true,
+                freq: 1000,
+                gain: 0.04,
+                q: 1.0,
+                filter_type: FilterType::Peak,
+            }],
+            global_gain: 0.0,
+        };
+        let (normalized, warnings) = normalize_peq_for_device(peq, 0x2972, 0x0102).unwrap();
+        assert_eq!(normalized.filters[0].gain, 0.0);
+        assert!(warnings
+            .iter()
+            .any(|warning| warning.contains("protocol precision")));
     }
 
     #[test]

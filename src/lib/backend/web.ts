@@ -694,6 +694,7 @@ async function writeAndFlash(packet: number[] | Uint8Array) {
 }
 
 async function readWalkplayUtility(cmd: number): Promise<Uint8Array> {
+  reportQueue = [];
   for (let retry = 0; retry < 3; retry++) {
     if (retry > 0) reportQueue = [];
     try {
@@ -712,6 +713,7 @@ async function readWalkplayUtility(cmd: number): Promise<Uint8Array> {
 }
 
 async function readWalkplayBalance(channel: number): Promise<number> {
+  reportQueue = [];
   for (let retry = 0; retry < 3; retry++) {
     if (retry > 0) reportQueue = [];
     try {
@@ -861,6 +863,16 @@ async function commitEqPayload(protocol: string, progressMessage: string): Promi
   const timing = wasm().get_write_timing(protocol);
   emitEvent("operation-progress", { message: progressMessage, percentage: 80 });
   for (const packet of wasm().build_commit_packets(protocol)) {
+    await sendReport(packet);
+    await sleep(timing.commit_step_ms || 100);
+  }
+}
+
+async function applyRamPayload(protocol: string, peq: PEQData, initMessage: string): Promise<void> {
+  await writeEqPayload(protocol, peq, initMessage);
+  const timing = wasm().get_write_timing(protocol);
+  emitEvent("operation-progress", { message: "Applying to RAM...", percentage: 85 });
+  for (const packet of wasm().build_ram_apply_packets(protocol)) {
     await sendReport(packet);
     await sleep(timing.commit_step_ms || 100);
   }
@@ -1302,6 +1314,7 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
       if (!activeDevice || activeProfile?.protocol !== "Walkplay") return null as T;
 
       let report: Uint8Array | null = null;
+      reportQueue = [];
       for (let retry = 0; retry < 3 && !report; retry++) {
         if (retry > 0) reportQueue = [];
         await sendReport([0x4b, 0x80, 0x0c, 0x00]);
@@ -1362,15 +1375,27 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
         throw new Error(`${profile.name} does not advertise volatile RAM apply support`);
       }
       const protocol = profile.protocol;
-      const timing = wasm().get_write_timing(protocol);
       const { peq, warnings } = normalizeActivePeq(commandField(args, "peq"), profile);
-      await writeEqPayload(protocol, peq, "Initializing apply connection...");
-
-      // 4. apply to RAM
-      emitEvent("operation-progress", { message: "Applying to RAM...", percentage: 85 });
-      for (const pkt of wasm().build_ram_apply_packets(protocol)) {
-        await sendReport(pkt);
-        await sleep(timing.commit_step_ms || 100);
+      const backup = await pullEqState(profile);
+      validatePulledPeqForProfile(backup, profile);
+      try {
+        await applyRamPayload(protocol, peq, "Initializing apply connection...");
+      } catch (applyError) {
+        let restoreError: unknown | null = null;
+        try {
+          await applyRamPayload(protocol, backup, "Restoring previous RAM state...");
+          const restored = await pullEqState(profile);
+          validatePulledPeqForProfile(restored, profile);
+          const mismatch = peqVerificationError(restored, backup, profile);
+          if (mismatch) throw new Error(mismatch);
+        } catch (error) {
+          restoreError = error;
+        }
+        throw new Error(
+          restoreError === null
+            ? `RAM apply failed: ${errorMessage(applyError)}; previous state restored`
+            : `RAM apply failed: ${errorMessage(applyError)}; restore failed: ${errorMessage(restoreError)}`,
+        );
       }
 
       emitEvent("operation-progress", { message: "Apply complete", percentage: 100 });
@@ -1503,6 +1528,10 @@ export async function save(options?: FileDialogOptions): Promise<string | null> 
   return options?.defaultPath || "profile.txt";
 }
 
+export function decodeUtf8File(bytes: ArrayBuffer): string {
+  return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+}
+
 export async function openFileDialog(options?: {
   filters?: { name: string; extensions: string[] }[];
 }): Promise<{ text: string; name: string } | null> {
@@ -1555,7 +1584,7 @@ export async function openFileDialog(options?: {
           return;
         }
         try {
-          const text = await file.text();
+          const text = decodeUtf8File(await file.arrayBuffer());
           cleanup();
           resolve({ text, name: file.name });
         } catch (error) {

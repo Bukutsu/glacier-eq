@@ -34,6 +34,12 @@ fn combine_errors(first: String, retry: String) -> String {
 pub trait DeviceIo {
     fn write(&mut self, data: &[u8]) -> Result<(), String>;
     fn read(&mut self, timeout_ms: i32) -> Result<Vec<u8>, String>;
+    /// Whether `read` returns the transport report ID as byte zero. Android's
+    /// USB endpoint queue exposes payload bytes only; desktop HIDAPI and the
+    /// WebHID adapter include the report ID explicitly.
+    fn reads_include_report_id(&self) -> bool {
+        false
+    }
     fn sleep_ms(&mut self, ms: u64) {
         std::thread::sleep(std::time::Duration::from_millis(ms));
     }
@@ -611,9 +617,13 @@ impl<'a> DeviceSession<'a> {
             if bytes.is_empty() {
                 continue;
             }
-            let data = match protocol.unframe_packet(&bytes) {
-                Ok(data) => data,
-                Err(_) => continue,
+            let data = if self.io.reads_include_report_id() {
+                match protocol.unframe_packet(&bytes) {
+                    Ok(data) => data,
+                    Err(_) => continue,
+                }
+            } else {
+                bytes.as_slice()
             };
             if matches(data) {
                 return Ok(data.to_vec());

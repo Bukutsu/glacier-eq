@@ -713,6 +713,10 @@ impl DeviceIo for HidIo<'_> {
             .map_err(|error| error.to_string())?;
         Ok(data[..length].to_vec())
     }
+
+    fn reads_include_report_id(&self) -> bool {
+        true
+    }
 }
 
 #[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]

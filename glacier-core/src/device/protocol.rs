@@ -104,11 +104,14 @@ pub trait EqProtocol {
         if framed.is_empty() {
             return Err("Received empty framed packet".to_string());
         }
-        Ok(if framed[0] == self.report_id() {
-            &framed[1..]
-        } else {
-            framed
-        })
+        if framed[0] != self.report_id() {
+            return Err(format!(
+                "Unexpected HID report ID 0x{:02X}; expected 0x{:02X}",
+                framed[0],
+                self.report_id()
+            ));
+        }
+        Ok(&framed[1..])
     }
 
     fn report_id(&self) -> u8;
@@ -497,6 +500,19 @@ impl EqProtocol for WalkplayProtocol {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn walkplay_unframing_rejects_unexpected_report_ids() {
+        assert!(WalkplayProtocol
+            .unframe_packet(&[0x80, READ, CMD_GLOBAL_GAIN, 7])
+            .is_err());
+        assert_eq!(
+            WalkplayProtocol
+                .unframe_packet(&[REPORT_ID, READ, CMD_GLOBAL_GAIN, 7])
+                .unwrap(),
+            &[READ, CMD_GLOBAL_GAIN, 7]
+        );
+    }
 
     #[test]
     fn walkplay_global_gain_parser_requires_a_complete_matching_frame() {

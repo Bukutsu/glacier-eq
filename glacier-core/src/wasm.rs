@@ -154,6 +154,40 @@ fn validate_dsp_sample_rate(sample_rate: f64) -> Result<(), JsValue> {
     Ok(())
 }
 
+fn validate_filter_numeric(filter: &Filter) -> Result<(), JsValue> {
+    if filter.freq == 0 {
+        return Err(JsValue::from_str(
+            "Filter frequency must be greater than zero",
+        ));
+    }
+    if !filter.gain.is_finite() || !filter.q.is_finite() || filter.q <= 0.0 {
+        return Err(JsValue::from_str(
+            "Filter gain and Q must be finite with Q greater than zero",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_peq_numeric(peq: &PEQData) -> Result<(), JsValue> {
+    crate::device::normalization::validate_peq(peq).map_err(js_err)?;
+    for filter in &peq.filters {
+        validate_filter_numeric(filter)?;
+    }
+    Ok(())
+}
+
+fn validate_response_freqs(freqs: &[f32]) -> Result<(), JsValue> {
+    if freqs
+        .iter()
+        .any(|frequency| !frequency.is_finite() || *frequency <= 0.0)
+    {
+        return Err(JsValue::from_str(
+            "Response frequencies must be finite and positive",
+        ));
+    }
+    Ok(())
+}
+
 fn js_err(error: impl ToString) -> JsValue {
     JsValue::from_str(&error.to_string())
 }
@@ -278,6 +312,8 @@ pub fn peq_response_values(
     dsp_sample_rate: f64,
 ) -> Result<Vec<f32>, JsValue> {
     let peq: PEQData = serde_wasm_bindgen::from_value(peq_js).map_err(js_err)?;
+    validate_peq_numeric(&peq)?;
+    validate_response_freqs(freqs)?;
     validate_dsp_sample_rate(dsp_sample_rate)?;
     Ok(response_values(
         &peq,
@@ -295,6 +331,8 @@ pub fn peq_response_and_band_values(
     dsp_sample_rate: f64,
 ) -> Result<Vec<f32>, JsValue> {
     let peq: PEQData = serde_wasm_bindgen::from_value(peq_js).map_err(js_err)?;
+    validate_peq_numeric(&peq)?;
+    validate_response_freqs(freqs)?;
     validate_dsp_sample_rate(dsp_sample_rate)?;
     Ok(response_values_and_bands(
         &peq,
@@ -311,6 +349,8 @@ pub fn filter_response_values(
     dsp_sample_rate: f64,
 ) -> Result<Vec<f32>, JsValue> {
     let filter: Filter = serde_wasm_bindgen::from_value(filter_js).map_err(js_err)?;
+    validate_filter_numeric(&filter)?;
+    validate_response_freqs(freqs)?;
     validate_dsp_sample_rate(dsp_sample_rate)?;
     let peq = PEQData {
         filters: vec![filter],
@@ -443,6 +483,10 @@ pub fn build_write_filter_packets(
 ) -> Result<JsValue, JsValue> {
     let p = eq_protocol(&protocol)?;
     let filter: Filter = serde_wasm_bindgen::from_value(filter_js).map_err(js_err)?;
+    validate_filter_numeric(&filter)?;
+    if !global_gain.is_finite() {
+        return Err(JsValue::from_str("Global gain must be finite"));
+    }
     validate_dsp_sample_rate(dsp_sample_rate)?;
     let packets = p
         .write_filter_packets(index, &filter, dsp_sample_rate, global_gain)
@@ -456,6 +500,9 @@ pub fn build_write_global_gain_packets(
     global_gain: f64,
 ) -> Result<JsValue, JsValue> {
     let p = eq_protocol(&protocol)?;
+    if !global_gain.is_finite() {
+        return Err(JsValue::from_str("Global gain must be finite"));
+    }
     framed_packets(p.write_global_gain_packets(global_gain))
 }
 

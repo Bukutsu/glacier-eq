@@ -248,6 +248,15 @@ impl EqProtocol for FiioProtocol {
         _dsp_sample_rate: f64,
         _global_gain: f64,
     ) -> Result<Vec<Packet>, String> {
+        if filter.enabled {
+            let quantized = (filter.gain * 10.0).round() / 10.0;
+            if (quantized - filter.gain).abs() > 1e-9 {
+                return Err(format!(
+                    "Band gain {:.3} dB is not representable at FiiO's 0.1 dB precision",
+                    filter.gain
+                ));
+            }
+        }
         Ok(vec![write_filter_packet(self.report_id, index, filter)])
     }
 

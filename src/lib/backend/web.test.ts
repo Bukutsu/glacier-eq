@@ -57,6 +57,7 @@ vi.mock("./wasm", async (importOriginal) => {
 
 import {
   invoke,
+  decodeUtf8File,
   matchSupportedWebHidDevice,
   openUrl,
   peqVerificationError,
@@ -202,6 +203,13 @@ function verificationPeq(): PEQData {
     ],
   };
 }
+
+describe("UTF-8 file decoding", () => {
+  it("rejects malformed bytes instead of replacing them", () => {
+    expect(() => decodeUtf8File(Uint8Array.from([0x23, 0xff]).buffer)).toThrow();
+    expect(decodeUtf8File(Uint8Array.from([0x68, 0x69]).buffer)).toBe("hi");
+  });
+});
 
 describe("browser connection cleanup", () => {
   it("does not close a newer device when stale cleanup names the old path", async () => {
@@ -522,8 +530,23 @@ describe("browser EQ writes", () => {
   });
 
   it("normalizes volatile apply before sending and returns the normalized PEQ", async () => {
-    const device = fakeHidDevice();
-    await connectWebHid(device);
+    const device = fakeHidDevice({ respondToReports: true });
+    const oneBand = { ...profile, num_bands: 1 };
+    await connectWebHid(device, oneBand);
+    wasm.build_read_global_gain_request.mockReturnValue([1]);
+    wasm.matches_global_gain_response.mockReturnValue(true);
+    wasm.parse_global_gain_response.mockReturnValue(0);
+    wasm.build_read_filter_request.mockReturnValue([1]);
+    wasm.matches_filter_response.mockReturnValue(true);
+    wasm.parse_filter_response.mockReturnValue({
+      index: 0,
+      enabled: true,
+      filter_type: "Peak",
+      freq: 100,
+      gain: 0,
+      q: 1,
+    });
+    wasm.is_default_peq_for_device.mockReturnValue(false);
     const normalized = { filters: [], global_gain: -3 };
     wasm.normalize_peq_for_device.mockReturnValue({ peq: normalized, warnings: [] });
     wasm.build_ram_apply_packets.mockReturnValue([[1, 9]]);
@@ -535,7 +558,38 @@ describe("browser EQ writes", () => {
 
     expect(wasm.build_write_global_gain_packets).toHaveBeenCalledWith(profile.protocol, -3);
     expect(wasm.build_ram_apply_packets).toHaveBeenCalledWith(profile.protocol);
-    expect(device.sendReport).toHaveBeenCalledTimes(1);
+    expect(device.sendReport.mock.calls.length).toBeGreaterThan(1);
+  });
+
+  it("restores the previous RAM state when a volatile write fails", async () => {
+    const device = fakeHidDevice({ respondToReports: true });
+    const oneBand = { ...profile, num_bands: 1 };
+    await connectWebHid(device, oneBand);
+    wasm.build_read_global_gain_request.mockReturnValue([1]);
+    wasm.matches_global_gain_response.mockReturnValue(true);
+    wasm.parse_global_gain_response.mockReturnValue(0);
+    wasm.build_read_filter_request.mockReturnValue([1]);
+    wasm.matches_filter_response.mockReturnValue(true);
+    wasm.parse_filter_response.mockReturnValue({
+      index: 0,
+      enabled: true,
+      filter_type: "Peak",
+      freq: 100,
+      gain: 0,
+      q: 1,
+    });
+    wasm.is_default_peq_for_device.mockReturnValue(false);
+    wasm.build_write_filter_packets.mockReturnValue([[2, 2]]);
+    wasm.build_write_global_gain_packets
+      .mockImplementationOnce(() => { throw new Error("preamp write failed"); })
+      .mockReturnValue([[3, 3]]);
+    wasm.build_ram_apply_packets.mockReturnValue([[4, 4]]);
+
+    await expect(invoke("apply_eq_state", { peq: peqWithBands(1) })).rejects.toThrow(
+      "previous state restored",
+    );
+    expect(wasm.build_write_filter_packets.mock.calls.length).toBeGreaterThanOrEqual(2);
+    expect(wasm.build_ram_apply_packets).toHaveBeenCalled();
   });
 
   it("returns capability-clamp warnings on the push result instead of discarding them", async () => {
