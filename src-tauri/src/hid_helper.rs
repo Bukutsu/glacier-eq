@@ -28,6 +28,10 @@ struct IpcMessage {
     payload: IpcPayload,
 }
 
+const MAX_IPC_LINE_BYTES: usize = 1 << 20;
+const MAX_HID_WRITE_BYTES: usize = 4096;
+const MAX_HID_READ_TIMEOUT_MS: i32 = 1000;
+
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "cmd", content = "args")]
 enum IpcPayload {
@@ -299,6 +303,53 @@ fn read_responses(stdout: ChildStdout, tx: Sender<(u64, IpcResult)>) {
     }
 }
 
+fn read_bounded_line<R: BufRead>(
+    reader: &mut R,
+    max_bytes: usize,
+) -> Result<Option<Vec<u8>>, String> {
+    let mut line = Vec::new();
+    loop {
+        let available = reader
+            .fill_buf()
+            .map_err(|error| format!("Failed to read helper request: {error}"))?;
+        if available.is_empty() {
+            return Ok((!line.is_empty()).then_some(line));
+        }
+        let newline = available.iter().position(|byte| *byte == b'\n');
+        let take = newline.map(|index| index + 1).unwrap_or(available.len());
+        if line.len().saturating_add(take) > max_bytes {
+            reader.consume(take);
+            return Err("helper request exceeds maximum line size".into());
+        }
+        line.extend_from_slice(&available[..take]);
+        reader.consume(take);
+        if newline.is_some() {
+            return Ok(Some(line));
+        }
+    }
+}
+
+fn discard_line<R: BufRead>(reader: &mut R) -> Result<(), String> {
+    loop {
+        let available = reader
+            .fill_buf()
+            .map_err(|error| format!("Failed to discard helper request: {error}"))?;
+        if available.is_empty() {
+            return Ok(());
+        }
+        let take = available
+            .iter()
+            .position(|byte| *byte == b'\n')
+            .map(|index| index + 1)
+            .unwrap_or(available.len());
+        let ended = available.get(take - 1) == Some(&b'\n');
+        reader.consume(take);
+        if ended {
+            return Ok(());
+        }
+    }
+}
+
 // ── Helper server (--hid-helper process) ────────────────────────────────
 
 pub fn run_helper() -> ! {
@@ -324,18 +375,23 @@ pub fn run_helper() -> ! {
     };
     let mut open: HashMap<String, hidapi::HidDevice> = HashMap::new();
     let stdin = std::io::stdin();
-    let reader = BufReader::new(stdin.lock());
+    let mut reader = BufReader::new(stdin.lock());
 
-    for line_result in reader.lines() {
-        let line = match line_result {
-            Ok(l) => l,
-            Err(_) => break,
+    loop {
+        let line = match read_bounded_line(&mut reader, MAX_IPC_LINE_BYTES) {
+            Ok(Some(line)) => line,
+            Ok(None) => break,
+            Err(error) => {
+                eprintln!("--hid-helper: {error}");
+                let _ = discard_line(&mut reader);
+                continue;
+            }
         };
-        if line.trim().is_empty() {
+        if line.iter().all(u8::is_ascii_whitespace) {
             continue;
         }
 
-        let msg: IpcMessage = match serde_json::from_str(&line) {
+        let msg: IpcMessage = match serde_json::from_slice(&line) {
             Ok(m) => m,
             Err(e) => {
                 eprintln!("--hid-helper: bad request: {e}");
@@ -426,31 +482,41 @@ fn dispatch(
             open.remove(&path);
             IpcResult::Ok(None)
         }
-        IpcPayload::Write { path, data } => match open.get(&path) {
-            Some(dev) => match dev
-                .write(&data)
-                .map_err(|error| format!("write: {error}"))
-                .and_then(|written| ensure_complete_write(data.len(), written))
-            {
-                Ok(()) => IpcResult::Ok(None),
-                Err(error) => IpcResult::Err(error),
-            },
-            None => IpcResult::Err("device not open".into()),
-        },
-        IpcPayload::Read { path, timeout } => match open.get(&path) {
-            Some(dev) => {
-                let mut buf = vec![0u8; 1024];
-                match dev.read_timeout(&mut buf, timeout) {
-                    Ok(0) => IpcResult::Ok(Some(serde_json::Value::Array(vec![]))),
-                    Ok(n) => {
-                        buf.truncate(n);
-                        IpcResult::Ok(serde_json::to_value(&buf).ok())
-                    }
-                    Err(e) => IpcResult::Err(format!("read: {e}")),
-                }
+        IpcPayload::Write { path, data } => {
+            if data.len() > MAX_HID_WRITE_BYTES {
+                return IpcResult::Err("write exceeds maximum HID report size".into());
             }
-            None => IpcResult::Err("device not open".into()),
-        },
+            match open.get(&path) {
+                Some(dev) => match dev
+                    .write(&data)
+                    .map_err(|error| format!("write: {error}"))
+                    .and_then(|written| ensure_complete_write(data.len(), written))
+                {
+                    Ok(()) => IpcResult::Ok(None),
+                    Err(error) => IpcResult::Err(error),
+                },
+                None => IpcResult::Err("device not open".into()),
+            }
+        }
+        IpcPayload::Read { path, timeout } => {
+            if !(0..=MAX_HID_READ_TIMEOUT_MS).contains(&timeout) {
+                return IpcResult::Err("read timeout is outside the allowed range".into());
+            }
+            match open.get(&path) {
+                Some(dev) => {
+                    let mut buf = vec![0u8; 1024];
+                    match dev.read_timeout(&mut buf, timeout) {
+                        Ok(0) => IpcResult::Ok(Some(serde_json::Value::Array(vec![]))),
+                        Ok(n) => {
+                            buf.truncate(n);
+                            IpcResult::Ok(serde_json::to_value(&buf).ok())
+                        }
+                        Err(e) => IpcResult::Err(format!("read: {e}")),
+                    }
+                }
+                None => IpcResult::Err("device not open".into()),
+            }
+        }
         IpcPayload::Shutdown => IpcResult::Ok(None),
     }
 }
@@ -458,6 +524,14 @@ fn dispatch(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn bounds_helper_request_lines_before_deserialization() {
+        let mut reader = std::io::Cursor::new(b"small request\n".to_vec());
+        assert_eq!(read_bounded_line(&mut reader, 64).unwrap().unwrap(), b"small request\n");
+        let mut oversized = std::io::Cursor::new(vec![b'x'; 65]);
+        assert!(read_bounded_line(&mut oversized, 64).is_err());
+    }
 
     #[test]
     fn accepts_complete_and_padded_hid_writes() {

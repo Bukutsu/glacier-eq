@@ -121,13 +121,16 @@ fn hid_read(app: &tauri::AppHandle, path: &str, timeout: i32) -> Result<Vec<u8>,
         let mut guard = transport_state.lock().unwrap_or_else(|p| p.into_inner());
         if let Some(transport) = guard.as_mut() {
             let res = transport.read(path, timeout);
-            if res.is_err() && transport.is_dead() {
+            let transport_died = res.is_err() && transport.is_dead();
+            if transport_died {
                 // Helper missed its deadline and was killed; stop routing
                 // through it so later ops fall back to direct hidapi access.
                 *guard = None;
             }
             drop(guard);
-            if let Err(ref e) = res {
+            if transport_died {
+                handle_disconnection(app, "Device disconnected: privileged helper exited");
+            } else if let Err(ref e) = res {
                 handle_disconnection(app, e);
             }
             return res;
@@ -150,11 +153,14 @@ fn hid_write(app: &tauri::AppHandle, path: &str, data: &[u8]) -> Result<(), Stri
         let mut guard = transport_state.lock().unwrap_or_else(|p| p.into_inner());
         if let Some(transport) = guard.as_mut() {
             let res = transport.write(path, data);
-            if res.is_err() && transport.is_dead() {
+            let transport_died = res.is_err() && transport.is_dead();
+            if transport_died {
                 *guard = None;
             }
             drop(guard);
-            if let Err(ref e) = res {
+            if transport_died {
+                handle_disconnection(app, "Device disconnected: privileged helper exited");
+            } else if let Err(ref e) = res {
                 handle_disconnection(app, e);
             }
             return res;
