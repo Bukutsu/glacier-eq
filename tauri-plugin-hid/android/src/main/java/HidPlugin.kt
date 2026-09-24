@@ -60,6 +60,8 @@ class HidDevice(
     private var isReading = false
     @Volatile
     private var closed = false
+    @Volatile
+    private var resourcesReleased = false
     private var readThread: Thread? = null
     @Volatile
     private var activeReadRequest: UsbRequest? = null
@@ -286,15 +288,21 @@ class HidDevice(
                     if (activeReadRequest === request) activeReadRequest = null
                 }
                 if (readFailed && !closed) {
-                    onDisconnected(this)
-                }
-                val releaseFromReader = synchronized(connectionLock) {
-                    closed && readThread === Thread.currentThread()
-                }
-                if (releaseFromReader) {
-                    // If closeConnection was requested from the reader itself,
-                    // defer resource release until this thread has finished.
+                    // Release the claimed interface before notifying the
+                    // frontend. The callback may immediately start a reconnect;
+                    // an event that races ahead of release would leave the old
+                    // device interface claimed.
                     releaseConnectionResources()
+                    onDisconnected(this)
+                } else {
+                    val releaseFromReader = synchronized(connectionLock) {
+                        closed && readThread === Thread.currentThread()
+                    }
+                    if (releaseFromReader) {
+                        // If closeConnection was requested from the reader itself,
+                        // defer resource release until this thread has finished.
+                        releaseConnectionResources()
+                    }
                 }
                 Log.i(TAG, "Background read thread stopped")
             }
@@ -501,17 +509,25 @@ class HidDevice(
     }
 
     private fun releaseConnectionResources() {
-        synchronized(connectionLock) {
-            readThread = null
-            readQueue.clear()
-            try {
-                usbInterface?.let {
-                    deviceConnection.releaseInterface(it)
-                }
-                deviceConnection.close()
-            } catch (e: Exception) {
-                Log.e(TAG, "Error closing connection: ${e.message}")
+        val shouldRelease = synchronized(connectionLock) {
+            if (resourcesReleased) {
+                false
+            } else {
+                resourcesReleased = true
+                closed = true
+                readThread = null
+                readQueue.clear()
+                true
             }
+        }
+        if (!shouldRelease) return
+        try {
+            usbInterface?.let {
+                deviceConnection.releaseInterface(it)
+            }
+            deviceConnection.close()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error closing connection: ${e.message}")
         }
     }
 }

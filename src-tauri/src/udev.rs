@@ -15,6 +15,7 @@ use serde::Serialize;
 use std::path::PathBuf;
 #[cfg(target_os = "linux")]
 use std::{
+    fs::{File, OpenOptions},
     io::{Read, Write},
     os::fd::AsRawFd,
     os::unix::fs::{OpenOptionsExt, PermissionsExt},
@@ -22,7 +23,7 @@ use std::{
     process::{Child, Command, ExitStatus, Stdio},
     sync::{
         atomic::{AtomicBool, Ordering},
-        Arc,
+        Arc, Mutex, OnceLock,
     },
     time::{Duration, Instant},
 };
@@ -337,7 +338,47 @@ fn stage_rules() -> Result<StagedRules, String> {
 }
 
 #[cfg(target_os = "linux")]
+static UDEV_MUTATION_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+
+#[cfg(target_os = "linux")]
+struct UdevFileLock {
+    file: File,
+}
+
+#[cfg(target_os = "linux")]
+impl Drop for UdevFileLock {
+    fn drop(&mut self) {
+        let _ = fs2::FileExt::unlock(&self.file);
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn with_udev_mutation_lock<T>(operation: impl FnOnce() -> Result<T, String>) -> Result<T, String> {
+    let _process_guard = UDEV_MUTATION_LOCK
+        .get_or_init(|| Mutex::new(()))
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let lock_path = std::env::temp_dir().join("glacier-eq-udev-operation.lock");
+    let file = OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .read(true)
+        .write(true)
+        .open(&lock_path)
+        .map_err(|error| format!("Failed to open udev mutation lock: {error}"))?;
+    fs2::FileExt::lock_exclusive(&file)
+        .map_err(|error| format!("Failed to lock udev mutations: {error}"))?;
+    let _file_lock = UdevFileLock { file };
+    operation()
+}
+
+#[cfg(target_os = "linux")]
 fn install_sync(cancelled: &AtomicBool) -> Result<(), String> {
+    with_udev_mutation_lock(|| install_sync_unlocked(cancelled))
+}
+
+#[cfg(target_os = "linux")]
+fn install_sync_unlocked(cancelled: &AtomicBool) -> Result<(), String> {
     if !has_pkexec(cancelled) {
         return Err(pkexec_missing_error());
     }
@@ -375,6 +416,11 @@ fn install_sync(cancelled: &AtomicBool) -> Result<(), String> {
 
 #[cfg(target_os = "linux")]
 fn uninstall_sync(cancelled: &AtomicBool) -> Result<(), String> {
+    with_udev_mutation_lock(|| uninstall_sync_unlocked(cancelled))
+}
+
+#[cfg(target_os = "linux")]
+fn uninstall_sync_unlocked(cancelled: &AtomicBool) -> Result<(), String> {
     if std::fs::symlink_metadata(PACKAGE_DEST_PATH).is_ok()
         && std::fs::symlink_metadata(DEST_PATH).is_err()
         && std::fs::symlink_metadata(LEGACY_DEST_PATH).is_err()

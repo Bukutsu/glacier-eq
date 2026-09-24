@@ -29,6 +29,7 @@ class MockTransaction {
   };
   readonly store = {
     clear: vi.fn(() => this.clearRequest),
+    put: vi.fn(() => ({})),
   };
 
   objectStore() {

@@ -28,6 +28,7 @@ export interface OnlineDevice {
 let pendingOpen: Promise<IDBDatabase> | null = null;
 
 const META_GEN_KEY = "meta:gen";
+const META_EPOCH_KEY = "meta:cache-epoch";
 
 // One shared connection for the module's lifetime. Every caller receives this
 // same handle and must NOT close it: a close by any caller would invalidate
@@ -326,6 +327,16 @@ function generationKey(generation: number | null, legacyKey: string): string {
   return `gen:${generation}:${name}`;
 }
 
+async function liveEpoch(db: IDBDatabase): Promise<string | null> {
+  const store = db.transaction(STORE_NAME, "readonly").objectStore(STORE_NAME);
+  const raw = await idbRequest<unknown>(store.get(META_EPOCH_KEY));
+  return typeof raw === "string" && raw.length > 0 ? raw : null;
+}
+
+function newClearEpoch(): string {
+  return `clear:${Date.now()}:${Math.random().toString(36).slice(2)}`;
+}
+
 async function isDatabaseDownloaded(): Promise<boolean> {
   try {
     const db = await openDb();
@@ -354,7 +365,11 @@ export async function clearCachedDatabase(): Promise<void> {
 
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readwrite");
-    tx.objectStore(STORE_NAME).clear();
+    const store = tx.objectStore(STORE_NAME);
+    store.clear();
+    // A tombstone epoch distinguishes "never downloaded" from "cleared while
+    // a download was in flight; the generation pointer alone cannot.
+    store.put(newClearEpoch(), META_EPOCH_KEY);
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
     tx.onabort = () => reject(tx.error ?? new Error("Transaction aborted"));
@@ -447,6 +462,7 @@ async function downloadDatabaseWithDb(
   // the generation's completeness flag, in one transaction — only after every
   // chunk has landed. Cancellation, quota exhaustion, or a crash anywhere
   // before that flip destroys nothing of the previous cache.
+  const downloadEpoch = await liveEpoch(db);
   const previousGeneration = await liveGeneration(db);
   const generation = (previousGeneration ?? 0) + 1;
 
@@ -504,21 +520,31 @@ async function downloadDatabaseWithDb(
     let fenceFailure: string | null = null;
     // Chain validation requests synchronously inside onsuccess handlers —
     // the pattern that keeps a transaction active in every engine.
-    const genRequest = store.get(META_GEN_KEY);
-    genRequest.onsuccess = () => {
-      const current = genRequest.result;
-      const currentGeneration =
-        typeof current === "number" && Number.isSafeInteger(current) && current >= 1
-          ? current
-          : null;
-      if (currentGeneration !== previousGeneration) {
-        fenceFailure = currentGeneration === null
-          ? "The online database cache was cleared during the download; please download again."
-          : "The online database cache was updated by another window during the download; please download again.";
+    const epochRequest = store.get(META_EPOCH_KEY);
+    epochRequest.onsuccess = () => {
+      const rawEpoch = epochRequest.result;
+      const currentEpoch =
+        typeof rawEpoch === "string" && rawEpoch.length > 0 ? rawEpoch : null;
+      if (currentEpoch !== downloadEpoch) {
+        fenceFailure = "The online database cache was cleared during the download; please download again.";
         tx.abort();
         return;
       }
-      const keysRequest = store.getAllKeys();
+      const genRequest = store.get(META_GEN_KEY);
+      genRequest.onsuccess = () => {
+        const current = genRequest.result;
+        const currentGeneration =
+          typeof current === "number" && Number.isSafeInteger(current) && current >= 1
+            ? current
+            : null;
+        if (currentGeneration !== previousGeneration) {
+          fenceFailure = currentGeneration === null
+            ? "The online database cache was cleared during the download; please download again."
+            : "The online database cache was updated by another window during the download; please download again.";
+          tx.abort();
+          return;
+        }
+        const keysRequest = store.getAllKeys();
       keysRequest.onsuccess = () => {
         const prefix = `gen:${generation}:`;
         let hasManifest = false;
@@ -537,6 +563,7 @@ async function downloadDatabaseWithDb(
         }
         store.put(true, generationKey(generation, "meta:complete"));
         store.put(generation, META_GEN_KEY);
+      };
       };
     };
     tx.oncomplete = () => resolve();
@@ -565,7 +592,7 @@ async function downloadDatabaseWithDb(
     );
     const stale = keys.filter((key) => {
       const name = String(key);
-      if (name === META_GEN_KEY) return false;
+      if (name === META_GEN_KEY || name === META_EPOCH_KEY) return false;
       const generationMatch = /^gen:(\d+):/.exec(name);
       if (generationMatch) return Number(generationMatch[1]) < generation;
       return true;

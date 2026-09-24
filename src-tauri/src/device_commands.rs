@@ -259,14 +259,10 @@ impl DeviceIo for TauriDeviceIo<'_> {
     }
 
     fn reads_include_report_id(&self) -> bool {
-        #[cfg(target_os = "android")]
-        {
-            false
-        }
-        #[cfg(not(target_os = "android"))]
-        {
-            true
-        }
+        // UsbRequest interrupt-IN transfers retain the HID report ID just like
+        // HIDAPI and WebHID; the transport must not silently switch to an
+        // unframed matcher on Android.
+        true
     }
 }
 
@@ -483,9 +479,25 @@ pub async fn connect_device(
             }
         }
         let session_id = {
-            let state = lock_device_state(&state)?;
-            state.next_session_id.wrapping_add(1).max(1)
+            let mut state = lock_device_state(&state)?;
+            let session_id = state.next_session_id.wrapping_add(1).max(1);
+            // Reserve before opening. A reader can fail asynchronously before
+            // the connected state is published; never reuse that ID for a
+            // later attempt while its delayed event is still in flight.
+            state.next_session_id = session_id;
+            session_id
         };
+        {
+            use tauri::Emitter;
+            let _ = app_clone.emit(
+                "device-connecting",
+                serde_json::json!({
+                    "path": path_clone,
+                    "name": profile.name,
+                    "session_id": session_id,
+                }),
+            );
+        }
         try_open_device(&app_clone, &path_clone, session_id)?;
         // /dev/hidrawN nodes can be reused by a different device between the
         // enumeration above and the open, so re-check the identity of what was
@@ -536,7 +548,6 @@ pub async fn connect_device(
         }
         {
             let mut state = lock_device_state(&state)?;
-            state.next_session_id = session_id;
             state.connected = Some(ConnectedDevice {
                 path: path_clone,
                 vendor_id: device.vendor_id,
