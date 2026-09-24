@@ -64,7 +64,18 @@ impl ProfileStore {
         let dir = base.as_ref().join("profiles");
         std::fs::create_dir_all(&dir)
             .map_err(|error| format!("Failed to create {}: {error}", dir.display()))?;
-        Ok(Self { dir })
+        let store = Self { dir };
+        store.ensure_profiles_directory()?;
+        Ok(store)
+    }
+
+    fn ensure_profiles_directory(&self) -> Result<(), String> {
+        let metadata = std::fs::symlink_metadata(&self.dir)
+            .map_err(|error| format!("Failed to inspect profiles directory: {error}"))?;
+        if metadata.file_type().is_symlink() || !metadata.is_dir() {
+            return Err("Profiles path must be a real directory, not a symlink".into());
+        }
+        Ok(())
     }
 
     pub fn default_location() -> Result<Self, String> {
@@ -76,6 +87,7 @@ impl ProfileStore {
     }
 
     pub fn exists(&self, name: &str) -> Result<bool, String> {
+        self.ensure_profiles_directory()?;
         Ok(self.path(name)?.is_file())
     }
 
@@ -84,6 +96,7 @@ impl ProfileStore {
     /// warnings — without them a broken file simply vanishes from the UI
     /// with no console, log, or diagnostic anywhere.
     pub fn list_detailed(&self) -> Result<(Vec<StoredProfile>, Vec<String>), String> {
+        self.ensure_profiles_directory()?;
         let mut profiles = Vec::new();
         let mut warnings: Vec<String> = Vec::new();
         for entry in std::fs::read_dir(&self.dir)
@@ -128,6 +141,7 @@ impl ProfileStore {
     }
 
     pub fn load(&self, name: &str) -> Result<StoredProfile, String> {
+        self.ensure_profiles_directory()?;
         validate_name(name)?;
         // A malformed case-variant sibling must not shadow a valid profile:
         // walk the same variants list_detailed uses until one is readable.
@@ -141,6 +155,7 @@ impl ProfileStore {
     }
 
     pub fn save(&self, name: &str, peq: &PEQData) -> Result<(), String> {
+        self.ensure_profiles_directory()?;
         let normalized = normalize_for_storage(peq)?;
         let content = peq_to_autoeq(&normalized);
         if content.len() as u64 > MAX_PROFILE_BYTES {
@@ -193,6 +208,7 @@ impl ProfileStore {
     }
 
     pub fn delete(&self, name: &str) -> Result<(), String> {
+        self.ensure_profiles_directory()?;
         validate_name(name)?;
         let mut failure = None;
         // Remove every case-variant match: deleting one identity must not
@@ -452,6 +468,21 @@ mod tests {
         ));
         std::fs::create_dir_all(&dir).unwrap();
         dir
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn profile_store_rejects_a_symlinked_profiles_directory() {
+        let base = temporary_dir();
+        let outside = temporary_dir();
+        std::os::unix::fs::symlink(&outside, base.join("profiles")).unwrap();
+        let error = match ProfileStore::new(&base) {
+            Ok(_) => panic!("symlinked profiles directory must be rejected"),
+            Err(error) => error,
+        };
+        assert!(error.contains("symlink"));
+        std::fs::remove_dir_all(base).ok();
+        std::fs::remove_dir_all(outside).ok();
     }
 
     #[test]

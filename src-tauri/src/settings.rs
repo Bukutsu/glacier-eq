@@ -5,7 +5,7 @@ use crate::profiles::app_data_base_dir;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map as JsonMap, Value as JsonValue};
 use std::fs;
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock};
 
@@ -104,32 +104,54 @@ pub async fn get_settings(app: tauri::AppHandle) -> Result<Settings, String> {
         .map_err(|e| e.to_string())?
 }
 
+const MAX_SETTINGS_BYTES: u64 = 1 << 20;
+
 fn read_settings(path: &std::path::Path) -> Result<Settings, String> {
-    with_settings_lock(|| match fs::read_to_string(path) {
-        Ok(content) => Ok(parse_settings(&content, path)),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(Settings::default()),
-        Err(error) => Err(format!("Failed to read settings file: {error}")),
+    with_settings_lock(|| {
+        let file = match fs::File::open(path) {
+            Ok(file) => file,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                return Ok(Settings::default())
+            }
+            Err(error) => return Err(format!("Failed to open settings file: {error}")),
+        };
+        let mut bytes = Vec::new();
+        file.take(MAX_SETTINGS_BYTES + 1)
+            .read_to_end(&mut bytes)
+            .map_err(|error| format!("Failed to read settings file: {error}"))?;
+        if bytes.len() as u64 > MAX_SETTINGS_BYTES {
+            recover_oversized_settings(path)?;
+            return Ok(Settings::default());
+        }
+        let content = match String::from_utf8(bytes) {
+            Ok(content) => content,
+            Err(error) => {
+                let defaults = Settings::default();
+                quarantine_corrupt_bytes(path, &error.into_bytes())?;
+                let sanitized = serde_json::to_vec_pretty(&defaults)
+                    .map_err(|recovery_error| format!("Failed to serialize recovered settings: {recovery_error}"))?;
+                crate::fsutil::atomic_write(path, &sanitized)?;
+                return Ok(defaults);
+            }
+        };
+        parse_settings(&content, path)
     })
 }
 
-fn parse_settings(content: &str, path: &std::path::Path) -> Settings {
+fn parse_settings(content: &str, path: &std::path::Path) -> Result<Settings, String> {
     let value = match serde_json::from_str::<JsonValue>(content) {
         Ok(value) => value,
         Err(error) => {
             eprintln!("glacier-eq: settings.json is unreadable; using defaults: {error}");
             let defaults = Settings::default();
-            if let Err(recovery_error) = recover_corrupt_settings(path, content, &defaults) {
-                eprintln!("glacier-eq: failed to recover unreadable settings: {recovery_error}");
-            }
-            return defaults;
+            recover_corrupt_settings(path, content, &defaults)?;
+            return Ok(defaults);
         }
     };
     let JsonValue::Object(mut values) = value else {
         let defaults = Settings::default();
-        if let Err(recovery_error) = recover_corrupt_settings(path, content, &defaults) {
-            eprintln!("glacier-eq: failed to recover unreadable settings: {recovery_error}");
-        }
-        return defaults;
+        recover_corrupt_settings(path, content, &defaults)?;
+        return Ok(defaults);
     };
 
     let mut settings = Settings::default();
@@ -166,42 +188,48 @@ fn parse_settings(content: &str, path: &std::path::Path) -> Settings {
     }
     settings.extra = values;
     if malformed {
-        if let Err(recovery_error) = recover_corrupt_settings(path, content, &settings) {
-            eprintln!("glacier-eq: failed to recover malformed settings: {recovery_error}");
-        }
+        recover_corrupt_settings(path, content, &settings)?;
     }
-    settings
+    Ok(settings)
 }
 
-/// Preserve the corrupt bytes beside the original before replacing the
-/// primary. A single backup is retained for a settings path; repeated loads
-/// must not create an unbounded stream of identical quarantine files.
-fn quarantine_corrupt_settings(path: &std::path::Path, content: &str) -> Result<(), String> {
-    if let Some(parent) = path.parent() {
-        if let Ok(entries) = fs::read_dir(parent) {
-            if entries.flatten().any(|entry| {
-                entry
-                    .file_name()
-                    .to_string_lossy()
-                    .starts_with("settings.json.bak.")
-            }) {
-                return Ok(());
-            }
-        }
-    }
-    let stamp = std::time::SystemTime::now()
+fn next_settings_backup(path: &std::path::Path) -> PathBuf {
+    let mut suffix = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_millis();
-    let backup = path.with_file_name(format!("settings.json.bak.{stamp}"));
+    loop {
+        let candidate = path.with_file_name(format!("settings.json.bak.{suffix}"));
+        if !candidate.exists() {
+            return candidate;
+        }
+        suffix += 1;
+    }
+}
+
+fn quarantine_corrupt_bytes(path: &std::path::Path, content: &[u8]) -> Result<(), String> {
+    let backup = next_settings_backup(path);
     let mut file = fs::OpenOptions::new()
         .write(true)
         .create_new(true)
         .open(&backup)
-        .map_err(|e| e.to_string())?;
-    file.write_all(content.as_bytes())
+        .map_err(|error| format!("Failed to create settings backup: {error}"))?;
+    file.write_all(content)
         .and_then(|_| file.sync_all())
-        .map_err(|e| e.to_string())
+        .map_err(|error| format!("Failed to write settings backup: {error}"))
+}
+
+fn quarantine_corrupt_settings(path: &std::path::Path, content: &str) -> Result<(), String> {
+    quarantine_corrupt_bytes(path, content.as_bytes())
+}
+
+fn recover_oversized_settings(path: &std::path::Path) -> Result<(), String> {
+    let backup = next_settings_backup(path);
+    fs::rename(path, &backup)
+        .map_err(|error| format!("Failed to preserve oversized settings: {error}"))?;
+    let defaults = serde_json::to_vec_pretty(&Settings::default())
+        .map_err(|error| format!("Failed to serialize recovered settings: {error}"))?;
+    crate::fsutil::atomic_write(path, &defaults)
 }
 
 fn recover_corrupt_settings(
@@ -351,6 +379,28 @@ mod tests {
         assert_eq!(preserved, corrupt.as_bytes());
 
         fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn invalid_utf8_and_oversized_settings_fail_closed_with_recovery() {
+        for (name, bytes) in [
+            ("utf8", vec![0xff, 0xfe, 0xfd]),
+            ("oversized", vec![b'x'; (MAX_SETTINGS_BYTES + 1) as usize]),
+        ] {
+            let dir = std::env::temp_dir().join(format!(
+                "glacier-settings-{name}-{}",
+                std::process::id()
+            ));
+            fs::create_dir_all(&dir).unwrap();
+            let path = dir.join("settings.json");
+            fs::write(&path, bytes).unwrap();
+            let settings = read_settings(&path).expect("settings should recover to defaults");
+            assert_eq!(settings.theme, default_theme());
+            assert!(fs::read_dir(&dir).unwrap().flatten().any(|entry| {
+                entry.file_name().to_string_lossy().starts_with("settings.json.bak.")
+            }));
+            fs::remove_dir_all(dir).ok();
+        }
     }
 
     #[test]
