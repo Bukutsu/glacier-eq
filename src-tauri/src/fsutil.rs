@@ -30,19 +30,34 @@ pub(crate) fn atomic_write(path: &Path, contents: &[u8]) -> Result<(), String> {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_nanos();
+    atomic_write_with_nonce(path, contents, nonce)
+}
+
+fn atomic_write_with_nonce(path: &Path, contents: &[u8], nonce: u128) -> Result<(), String> {
     let tmp_path = path.with_file_name(format!("{ATOMIC_TEMP_PREFIX}{nonce}.tmp"));
-    let write_result = fs::OpenOptions::new()
+    let mut file = match fs::OpenOptions::new()
         .write(true)
         .create_new(true)
         .open(&tmp_path)
-        .and_then(|mut file| file.write_all(contents).and_then(|_| file.sync_all()));
-    if let Err(error) = write_result {
+    {
+        Ok(file) => file,
+        Err(error) => {
+            // In particular, do not remove an existing temp on EEXIST: it may
+            // belong to a concurrent writer that is about to rename it.
+            return Err(format!(
+                "Failed to write temporary file {}: {error}",
+                tmp_path.display()
+            ));
+        }
+    };
+    if let Err(error) = file.write_all(contents).and_then(|_| file.sync_all()) {
         let _ = fs::remove_file(&tmp_path);
         return Err(format!(
             "Failed to write temporary file {}: {error}",
             tmp_path.display()
         ));
     }
+    drop(file);
 
     // std::fs::rename replaces an existing destination on Windows
     // (MoveFileExW with MOVEFILE_REPLACE_EXISTING), so no pre-delete is
@@ -552,6 +567,22 @@ mod tests {
         ));
         fs::create_dir_all(&dir).unwrap();
         dir
+    }
+
+    #[test]
+    fn atomic_write_does_not_delete_a_colliding_temp() {
+        let dir = temporary_dir();
+        let destination = dir.join("report.txt");
+        let nonce = 1700000000000000009u128;
+        let temp = dir.join(format!("{ATOMIC_TEMP_PREFIX}{nonce}.tmp"));
+        fs::write(&temp, b"other writer").unwrap();
+
+        let error = atomic_write_with_nonce(&destination, b"new writer", nonce).unwrap_err();
+        assert!(error.contains("temporary file"));
+        assert_eq!(fs::read(&temp).unwrap(), b"other writer");
+        assert!(!destination.exists());
+
+        let _ = fs::remove_dir_all(dir);
     }
 
     #[cfg(unix)]
