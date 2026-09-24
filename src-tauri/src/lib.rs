@@ -102,7 +102,9 @@ fn is_path_allowed(app: &tauri::AppHandle, path: &str) -> bool {
 #[cfg(unix)]
 fn open_no_follow(path: &PathBuf, create: bool) -> std::io::Result<std::fs::File> {
     let mut options = std::fs::OpenOptions::new();
-    options.read(!create).custom_flags(libc::O_NOFOLLOW);
+    options
+        .read(!create)
+        .custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK);
     if create {
         options.write(true).create(true).truncate(true);
     }
@@ -323,10 +325,25 @@ async fn read_text_file(app: tauri::AppHandle, path: String) -> Result<String, S
     tauri::async_runtime::spawn_blocking(move || {
         let file = open_no_follow(&PathBuf::from(&path), false)
             .map_err(|e| format!("Failed to read file: {e}"))?;
-        // Re-validate after open (see save_text_file): refuses to read content if
-        // a component was swapped in after the pre-open check.
+        let metadata = file
+            .metadata()
+            .map_err(|error| format!("Failed to inspect file: {error}"))?;
+        if !metadata.is_file() {
+            return Err("Refused: only regular files can be read".into());
+        }
+        // Re-validate the opened descriptor, not just the pathname. This closes
+        // a parent-symlink race that could otherwise redirect the first open.
+        #[cfg(target_os = "linux")]
+        {
+            use std::os::fd::AsRawFd;
+            let descriptor_path = std::fs::read_link(format!("/proc/self/fd/{}", file.as_raw_fd()))
+                .map_err(|error| format!("Failed to identify opened file: {error}"))?;
+            let descriptor_text = descriptor_path.to_string_lossy();
+            if !is_path_allowed(&app, &descriptor_text) {
+                return Err("Refused: opened file is outside allowed directories".into());
+            }
+        }
         if !is_path_allowed(&app, &path) {
-            drop(file);
             return Err("Refused: file path is outside allowed directories".into());
         }
         read_bounded_utf8(file)
