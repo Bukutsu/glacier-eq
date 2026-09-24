@@ -228,7 +228,7 @@ export function useProfiles(
     } catch (error) {
       setStatus(
         writeCompleted
-          ? `Profile saved, but the profile list could not be refreshed: ${error}`
+          ? `Profile saved, but refreshing the profile list failed: ${error}`
           : `Failed to save profile: ${error}`,
       );
     }
@@ -277,7 +277,7 @@ export function useProfiles(
     } catch (error) {
       setStatus(
         writeCompleted
-          ? `Profile deleted, but the profile list could not be refreshed: ${error}`
+          ? `Profile deleted, but refreshing the profile list failed: ${error}`
           : `Failed to delete profile: ${error}`,
       );
     }
