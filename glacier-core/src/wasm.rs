@@ -126,13 +126,19 @@ fn unframe<'a>(protocol: &dyn EqProtocol, data: &'a [u8]) -> Result<&'a [u8], Js
     protocol.unframe_packet(data).map_err(js_err)
 }
 
+fn portable_caps() -> DeviceCapabilities {
+    let mut caps = DESKTOP_DAC_CAPS.clone();
+    caps.num_bands = crate::autoeq::MAX_FILTERS;
+    caps
+}
+
 fn device_caps_or_desktop(vendor_id: Option<u16>, product_id: Option<u16>) -> DeviceCapabilities {
     if let (Some(vid), Some(pid)) = (vendor_id, product_id) {
         get_supported_device(vid, pid)
             .map(|profile| profile.caps.clone())
-            .unwrap_or(DESKTOP_DAC_CAPS)
+            .unwrap_or_else(|_| portable_caps())
     } else {
-        DESKTOP_DAC_CAPS
+        portable_caps()
     }
 }
 
@@ -525,6 +531,18 @@ pub fn get_write_timing(protocol: String) -> Result<JsValue, JsValue> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn portable_autoeq_import_keeps_the_storage_filter_limit() {
+        assert_eq!(
+            device_caps_or_desktop(None, None).num_bands,
+            crate::autoeq::MAX_FILTERS
+        );
+        assert_eq!(
+            device_caps_or_desktop(Some(0x1234), Some(0x5678)).num_bands,
+            crate::autoeq::MAX_FILTERS
+        );
+    }
 
     #[test]
     fn eq_protocol_matches_device_protocol_names() {

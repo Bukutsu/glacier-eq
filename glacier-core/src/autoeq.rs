@@ -11,7 +11,7 @@ pub fn parse_curve_text(text: &str) -> Result<Vec<(f64, f64)>, String> {
         return Err("Curve input exceeds maximum size".into());
     }
     let mut points = Vec::new();
-    for (line_index, line) in text.lines().enumerate() {
+    for line in text.lines() {
         let line = line.trim();
         if line.is_empty() || line.starts_with('#') || line.starts_with("//") {
             continue;
@@ -19,23 +19,15 @@ pub fn parse_curve_text(text: &str) -> Result<Vec<(f64, f64)>, String> {
         let mut columns = line
             .split([',', '\t', ';', ' '])
             .filter(|column| !column.is_empty());
-        let frequency = columns
-            .next()
-            .ok_or_else(|| format!("Curve line {} is missing a frequency", line_index + 1))?
-            .parse::<f64>()
-            .map_err(|_| format!("Curve line {} has an invalid frequency", line_index + 1))?;
-        let db = columns
-            .next()
-            .ok_or_else(|| format!("Curve line {} is missing a dB value", line_index + 1))?
-            .parse::<f64>()
-            .map_err(|_| format!("Curve line {} has an invalid dB value", line_index + 1))?;
-        if !frequency.is_finite() || !db.is_finite() || !(20.0..=20_000.0).contains(&frequency) {
-            return Err(format!(
-                "Curve line {} is outside the supported range",
-                line_index + 1
-            ));
+        let Some(frequency) = columns.next().and_then(|value| value.parse::<f64>().ok()) else {
+            continue;
+        };
+        let Some(db) = columns.next().and_then(|value| value.parse::<f64>().ok()) else {
+            continue;
+        };
+        if frequency.is_finite() && db.is_finite() && (20.0..=20_000.0).contains(&frequency) {
+            points.push((frequency, db));
         }
-        points.push((frequency, db));
     }
     normalize_curve_points(points)
 }
@@ -1646,6 +1638,9 @@ pub fn run_autoeq(
         {
             return Err("AutoEQ capability ranges exceed the optimizer numeric domain".into());
         }
+        if caps.q_range.1 < 0.01 {
+            return Err("AutoEQ capability Q range is below the canonical 0.01 minimum".into());
+        }
     }
     if !matches!(
         smooth_type.to_ascii_lowercase().as_str(),
@@ -1717,7 +1712,10 @@ pub fn run_autoeq(
         }
     }
     let (cap_gain_lo, cap_gain_hi) = caps.map_or((-16.0, 16.0), |c| c.band_gain_range);
-    let (cap_q_lo, cap_q_hi) = caps.map_or((0.4, 4.0), |c| c.q_range);
+    let (cap_q_lo, cap_q_hi) = caps.map_or((0.4, 4.0), |c| (c.q_range.0.max(0.01), c.q_range.1));
+    if cap_q_lo > cap_q_hi {
+        return Err("AutoEQ Q capability range is empty".into());
+    }
     let (cap_f_lo, cap_f_hi) = caps.map_or((20.0, 20000.0), |c| {
         (
             c.freq_range.0 as f64,
@@ -2051,6 +2049,8 @@ mod tests {
         let curve = [(20.0, 0.0), (20_000.0, 0.0)];
         let mut caps = crate::device::capabilities::DESKTOP_DAC_CAPS;
         caps.q_range = (1e40, 1e40);
+        assert!(run_autoeq(&curve, &curve, 1, 1, "none", 48_000.0, Some(&caps)).is_err());
+        caps.q_range = (0.001, 0.002);
         assert!(run_autoeq(&curve, &curve, 1, 1, "none", 48_000.0, Some(&caps)).is_err());
     }
 
@@ -2455,9 +2455,9 @@ mod tests {
     }
 
     #[test]
-    fn curve_parser_rejects_malformed_rows() {
-        let error = parse_curve_text("20 0\nnot numeric\n20000 0\n").unwrap_err();
-        assert!(error.contains("line 2"));
+    fn curve_parser_skips_malformed_rows_like_the_frontend() {
+        let points = parse_curve_text("20 0\nnot numeric\n20000 0\n").unwrap();
+        assert_eq!(points, vec![(20.0, 0.0), (20000.0, 0.0)]);
     }
 
     #[test]

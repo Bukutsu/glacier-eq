@@ -31,7 +31,7 @@ impl EqProtocol for MoondropProtocol {
     }
 
     fn is_filter_packet_valid(&self, data: &[u8]) -> bool {
-        if data.len() < 34 || !matches!(data[33], 0 | 1 | 3) {
+        if data.len() < 34 || !matches!(data[33], 0..=3) {
             return false;
         }
         let raw_freq = u16::from_le_bytes([data[27], data[28]]);
@@ -192,6 +192,19 @@ mod tests {
         assert_eq!(filter.gain, -1.5);
         assert_eq!(filter.q, 1.0);
         assert_eq!(filter.filter_type, FilterType::HighShelf);
+    }
+
+    #[test]
+    fn filter_response_validity_accepts_peak_wire_code() {
+        let mut data = vec![0u8; 63];
+        data[0] = 0x80;
+        data[1] = 0x09;
+        data[4] = 0;
+        data[27..29].copy_from_slice(&1000u16.to_le_bytes());
+        data[29..31].copy_from_slice(&256u16.to_le_bytes());
+        data[31..33].copy_from_slice(&0i16.to_le_bytes());
+        data[33] = 2;
+        assert!(MoondropProtocol.is_filter_response_valid(&data, 0, 0));
     }
 
     #[test]

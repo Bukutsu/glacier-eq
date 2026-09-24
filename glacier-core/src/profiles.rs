@@ -310,10 +310,7 @@ fn is_reserved_windows_name(name: &str) -> bool {
         "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8",
         "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
     ];
-    let stem = Path::new(name)
-        .file_stem()
-        .and_then(|stem| stem.to_str())
-        .unwrap_or(name);
+    let stem = name.split('.').next().unwrap_or(name);
     RESERVED.contains(&stem.to_uppercase().as_str())
 }
 
@@ -715,6 +712,7 @@ mod tests {
         assert!(validate_name("trailing.").is_err());
         assert!(validate_name("con").is_err());
         assert!(validate_name("CON.txt").is_err());
+        assert!(validate_name("CON.log.gz").is_err());
         assert!(validate_name("lpt9").is_err());
         assert!(validate_name("com1").is_err());
     }

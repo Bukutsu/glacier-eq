@@ -116,7 +116,6 @@ impl<'a> DeviceSession<'a> {
     }
 
     pub fn pull(&mut self) -> Result<PEQData, String> {
-        self.last_pull_had_invalid_response = false;
         let protocol = self.protocol();
         match self.pull_once() {
             Ok(peq) if !protocol.is_default_state(&peq) => Ok(peq),
@@ -130,8 +129,13 @@ impl<'a> DeviceSession<'a> {
             }
             Err(first) => {
                 self.io.sleep_ms(RETRY_DELAY_MS);
-                self.pull_once()
-                    .map_err(|retry| combine_errors(first, retry))
+                match self.pull_once() {
+                    Ok(peq) if protocol.is_default_state(&peq) => Err(format!(
+                        "{first}; retry returned an unconfirmed default EQ state"
+                    )),
+                    Ok(peq) => Ok(peq),
+                    Err(retry) => Err(combine_errors(first, retry)),
+                }
             }
         }
     }
@@ -394,6 +398,7 @@ impl<'a> DeviceSession<'a> {
     }
 
     fn pull_once(&mut self) -> Result<PEQData, String> {
+        self.last_pull_had_invalid_response = false;
         self.progress("Initializing read connection...", 5.0);
         self.init()?;
         let timing = self.protocol().write_timing();
@@ -411,13 +416,16 @@ impl<'a> DeviceSession<'a> {
             self.io.sleep_ms(timing.flood_delay_ms);
         }
         self.progress("Read successful", 100.0);
+        let peq = PEQData {
+            filters,
+            global_gain,
+        };
+        validate_peq_for_capabilities(&peq, &self.profile.caps)
+            .map_err(|error| format!("Device returned invalid EQ state: {error}"))?;
         if self.last_pull_had_invalid_response {
             return Err("Device returned an invalid EQ response".into());
         }
-        Ok(PEQData {
-            filters,
-            global_gain,
-        })
+        Ok(peq)
     }
 
     fn read_filter(&mut self, index: u8) -> Result<Filter, String> {
@@ -431,6 +439,10 @@ impl<'a> DeviceSession<'a> {
         let valid = protocol.is_filter_response_valid(&data, index, nonce);
         if !valid {
             self.last_pull_had_invalid_response = true;
+            return Err(format!(
+                "Device returned an invalid EQ response: filter {} values",
+                index + 1
+            ));
         }
         protocol
             .parse_filter_response(&data)
@@ -727,6 +739,8 @@ mod tests {
         events: Vec<IoEvent>,
         read_error: Option<String>,
         read_errors: VecDeque<Option<String>>,
+        read_error_until: Option<(usize, usize, String)>,
+        read_calls: usize,
         write_calls: usize,
         failing_write_calls: VecDeque<usize>,
     }
@@ -746,14 +760,22 @@ mod tests {
         }
         fn read(&mut self, _: i32) -> Result<Vec<u8>, String> {
             self.events.push(IoEvent::Read);
+            self.read_calls += 1;
+            if let Some((first, last, error)) = &self.read_error_until {
+                if self.read_calls >= *first && self.read_calls <= *last {
+                    return Err(error.clone());
+                }
+            }
             if let Some(error) = &self.read_error {
                 return Err(error.clone());
             }
             if let Some(bytes) = self.reads.pop_front() {
                 return Ok(bytes);
             }
-            if let Some(Some(error)) = self.read_errors.pop_front() {
-                return Err(error);
+            if let Some(error) = self.read_errors.pop_front() {
+                if let Some(error) = error {
+                    return Err(error);
+                }
             }
             Ok(Vec::new())
         }
@@ -932,6 +954,44 @@ mod tests {
         // than hand back the uncorroborated default as device truth.
         let error = DeviceSession::new(&mut io, profile).pull().unwrap_err();
         assert!(!error.is_empty());
+    }
+
+    #[test]
+    fn pull_rejects_a_default_returned_after_an_initial_read_error() {
+        let profile = get_supported_device(0x3302, 0x43e8).unwrap();
+        let mut io = FakeIo::default();
+        io.reads.push_back(vec![]); // first init drain
+        io.read_error_until = Some((2, 3, "transient read".into()));
+        queue_default_pull(&mut io);
+        let error = DeviceSession::new(&mut io, profile).pull().unwrap_err();
+        assert!(error.contains("unconfirmed default"), "{error}");
+    }
+
+    #[test]
+    fn pull_clears_invalid_response_state_before_a_valid_retry() {
+        let profile = get_supported_device(0x3302, 0x43e8).unwrap();
+        let mut io = FakeIo::default();
+        io.reads.push_back(vec![]);
+        io.reads.push_back(vec![
+            READ,
+            super::super::walkplay::CMD_GLOBAL_GAIN,
+            0,
+            0,
+            0,
+            0,
+        ]);
+        let mut invalid = vec![0u8; 34];
+        invalid[0] = READ;
+        invalid[1] = super::super::walkplay::CMD_PEQ_VALUES;
+        invalid[2] = 1;
+        invalid[4] = 0;
+        invalid[29..31].copy_from_slice(&256u16.to_le_bytes());
+        invalid[31..33].copy_from_slice(&256i16.to_le_bytes());
+        invalid[33] = 2;
+        io.reads.push_back(invalid);
+        queue_pull_with_nonce_start(&mut io, -1, 2);
+        let peq = DeviceSession::new(&mut io, profile).pull().unwrap();
+        assert_eq!(peq.global_gain, -1.0);
     }
 
     #[test]
@@ -1169,7 +1229,7 @@ mod tests {
                 .iter()
                 .filter(|packet| packet.get(2) == Some(&super::super::walkplay::CMD_PEQ_VALUES))
                 .count(),
-            10
+            1
         );
         assert!(io
             .writes

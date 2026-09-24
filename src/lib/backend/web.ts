@@ -893,7 +893,9 @@ async function pullEqStateOnce(profile: SupportedDeviceInfo): Promise<PEQData> {
     await sleep(timing.flood_delay_ms || 5);
   }
 
-  return { filters, global_gain };
+  const peq = { filters, global_gain };
+  validatePulledPeqForProfile(peq, profile);
+  return peq;
 }
 
 async function pullEqState(profile: SupportedDeviceInfo): Promise<PEQData> {
