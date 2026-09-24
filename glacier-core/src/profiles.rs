@@ -52,6 +52,7 @@ pub struct ProfileStore {
     dir: PathBuf,
 }
 
+#[cfg_attr(target_arch = "wasm32", allow(dead_code))]
 struct ProfileLock {
     file: std::fs::File,
 }
