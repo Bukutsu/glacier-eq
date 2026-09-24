@@ -11,6 +11,18 @@
   "categories": ["utilities", "music", "audio"],
   "icons": [
     {
+      "src": "glacier-eq-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "glacier-eq-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
       "src": "glacier-eq.svg",
       "sizes": "any",
       "type": "image/svg+xml",

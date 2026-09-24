@@ -35,6 +35,17 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
 
+      - name: Install Linux Tauri dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libudev-dev \
+            pkg-config
+
       - name: Install wasm-pack
         uses: jetli/wasm-pack-action@0d096b08b4e5a7de8c28de67e11e945404e9eefa
         with:
@@ -61,7 +72,11 @@ jobs:
             release_version="${GITHUB_REF_NAME#v}"
             base_version="${release_version%%-*}"
             package_version="$(node -p "require('./package.json').version")"
-            cargo_version="$(sed -n 's/^version = \"\\([^\"]*\\)\"/\\1/p' src-tauri/Cargo.toml | head -1)"
+            cargo_version="$(sed -n 's/^version = "\([^"]*\)"/\1/p' src-tauri/Cargo.toml | head -1)"
+            if [[ "$release_version" == *-* && ! "$release_version" =~ ^${base_version}-(alpha|beta|rc)(\.[1-9])?$ ]]; then
+              echo "Unsupported prerelease suffix in tag." >&2
+              exit 1
+            fi
             if [ "$base_version" != "$package_version" ] || [ "$base_version" != "$cargo_version" ]; then
               echo "Tag/package/Cargo version mismatch." >&2
               exit 1
@@ -69,6 +84,8 @@ jobs:
           fi
           cargo metadata --locked --no-deps
           cargo test --workspace --locked
+          cargo fmt --all -- --check
+          cargo clippy --workspace --all-targets --locked -- -D warnings
 
       - name: Run frontend tests
         run: npm test

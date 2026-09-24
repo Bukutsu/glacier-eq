@@ -64,7 +64,7 @@ self.addEventListener("install", (event) => {
   event.waitUntil(
     (async () => {
       const manifestUrl = new URL("offline-assets.json", self.registration.scope);
-      const manifestResponse = await fetch(manifestUrl);
+      const manifestResponse = await fetch(manifestUrl, { cache: "reload" });
       if (!manifestResponse.ok) {
         throw new Error(`Failed to fetch offline asset manifest: ${manifestResponse.status}`);
       }
@@ -119,7 +119,7 @@ self.addEventListener("activate", (event) => {
       const keys = await caches.keys();
       await Promise.all(
         keys
-          .filter((key) => key !== CACHE && key !== CACHE_META_CACHE)
+          .filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE)
           .map((key) => caches.delete(key)),
       );
       await self.clients.claim();
