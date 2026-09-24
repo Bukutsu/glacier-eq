@@ -6,8 +6,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map as JsonMap, Value as JsonValue};
 use std::fs;
 use std::io::{Read, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
+
+use fs2::FileExt;
 
 fn default_theme() -> String {
     // Material You is the default on Android; everywhere else follows Auto.
@@ -92,6 +94,34 @@ fn settings_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     Ok(app_data_base_dir(app)?.join("settings.json"))
 }
 
+struct SettingsFileLock {
+    file: fs::File,
+}
+
+impl Drop for SettingsFileLock {
+    fn drop(&mut self) {
+        let _ = self.file.unlock();
+    }
+}
+
+fn with_settings_file_lock<T>(
+    path: &Path,
+    operation: impl FnOnce() -> Result<T, String>,
+) -> Result<T, String> {
+    let lock_path = path.with_file_name(".settings-operation.lock");
+    let file = fs::OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .read(true)
+        .write(true)
+        .open(&lock_path)
+        .map_err(|error| format!("Failed to open settings lock: {error}"))?;
+    file.lock_exclusive()
+        .map_err(|error| format!("Failed to lock settings: {error}"))?;
+    let _lock = SettingsFileLock { file };
+    operation()
+}
+
 #[derive(Debug)]
 struct SettingsRead {
     settings: Settings,
@@ -130,45 +160,48 @@ fn read_settings(path: &std::path::Path) -> Result<Settings, String> {
     read_settings_detailed(path).map(|loaded| loaded.settings)
 }
 
-fn read_settings_detailed(path: &std::path::Path) -> Result<SettingsRead, String> {
+fn read_settings_detailed(path: &Path) -> Result<SettingsRead, String> {
     with_settings_lock(|| {
-        let file = match fs::File::open(path) {
-            Ok(file) => file,
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+        with_settings_file_lock(path, || {
+            let file = match fs::File::open(path) {
+                Ok(file) => file,
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                    return Ok(SettingsRead {
+                        settings: Settings::default(),
+                        recovery: None,
+                    })
+                }
+                Err(error) => return Err(format!("Failed to open settings file: {error}")),
+            };
+            let mut bytes = Vec::new();
+            file.take(MAX_SETTINGS_BYTES + 1)
+                .read_to_end(&mut bytes)
+                .map_err(|error| format!("Failed to read settings file: {error}"))?;
+            if bytes.len() as u64 > MAX_SETTINGS_BYTES {
+                recover_oversized_settings(path)?;
                 return Ok(SettingsRead {
-                    settings: Settings::default(),
-                    recovery: None,
-                })
-            }
-            Err(error) => return Err(format!("Failed to open settings file: {error}")),
-        };
-        let mut bytes = Vec::new();
-        file.take(MAX_SETTINGS_BYTES + 1)
-            .read_to_end(&mut bytes)
-            .map_err(|error| format!("Failed to read settings file: {error}"))?;
-        if bytes.len() as u64 > MAX_SETTINGS_BYTES {
-            recover_oversized_settings(path)?;
-            return Ok(SettingsRead {
                 settings: Settings::default(),
                 recovery: Some("Settings file exceeded 1 MiB and was replaced with defaults; the original was preserved as a backup.".into()),
             });
-        }
-        let content = match String::from_utf8(bytes) {
-            Ok(content) => content,
-            Err(error) => {
-                let defaults = Settings::default();
-                quarantine_corrupt_bytes(path, &error.into_bytes())?;
-                let sanitized = serde_json::to_vec_pretty(&defaults).map_err(|recovery_error| {
-                    format!("Failed to serialize recovered settings: {recovery_error}")
-                })?;
-                crate::fsutil::atomic_write(path, &sanitized)?;
-                return Ok(SettingsRead {
+            }
+            let content = match String::from_utf8(bytes) {
+                Ok(content) => content,
+                Err(error) => {
+                    let defaults = Settings::default();
+                    quarantine_corrupt_bytes(path, &error.into_bytes())?;
+                    let sanitized =
+                        serde_json::to_vec_pretty(&defaults).map_err(|recovery_error| {
+                            format!("Failed to serialize recovered settings: {recovery_error}")
+                        })?;
+                    crate::fsutil::atomic_write(path, &sanitized)?;
+                    return Ok(SettingsRead {
                     settings: defaults,
                     recovery: Some("Settings contained invalid UTF-8 and were replaced with defaults; the original was preserved as a backup.".into()),
                 });
-            }
-        };
-        parse_settings(&content, path)
+                }
+            };
+            parse_settings(&content, path)
+        })
     })
 }
 
@@ -304,10 +337,12 @@ pub async fn save_settings(app: tauri::AppHandle, settings: Settings) -> Result<
     .map_err(|e| e.to_string())?
 }
 
-fn save_settings_sync(path: &std::path::Path, settings: &Settings) -> Result<(), String> {
-    let content = serde_json::to_string_pretty(settings)
-        .map_err(|error| format!("Failed to serialize settings: {error}"))?;
-    crate::fsutil::atomic_write(path, content.as_bytes())
+fn save_settings_sync(path: &Path, settings: &Settings) -> Result<(), String> {
+    with_settings_file_lock(path, || {
+        let content = serde_json::to_string_pretty(settings)
+            .map_err(|error| format!("Failed to serialize settings: {error}"))?;
+        crate::fsutil::atomic_write(path, content.as_bytes())
+    })
 }
 
 #[cfg(test)]

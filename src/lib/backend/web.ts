@@ -858,6 +858,29 @@ async function commitEqPayload(protocol: string, progressMessage: string): Promi
   }
 }
 
+async function readGlobalGain(protocol: string): Promise<{ value: number; retried: boolean }> {
+  const req = wasm().build_read_global_gain_request(protocol);
+  let response: Uint8Array | null = null;
+  let retried = false;
+  for (let retry = 0; retry < 3 && !response; retry++) {
+    if (retry > 0) {
+      // Drop late frames from the previous request before retrying this
+      // protocol command, which carries no nonce of its own.
+      reportQueue = [];
+      retried = true;
+    }
+    await sendReport(req);
+    response = await readMatchingReport(200, (data) =>
+      wasm().matches_global_gain_response(protocol, data)
+    );
+  }
+  if (!response) throw new Error("Global gain read timeout");
+  return {
+    value: wasm().parse_global_gain_response(protocol, response),
+    retried,
+  };
+}
+
 async function pullEqStateOnce(profile: SupportedDeviceInfo): Promise<PEQData> {
   const protocol = profile.protocol;
   const numBands = profile.num_bands;
@@ -865,21 +888,21 @@ async function pullEqStateOnce(profile: SupportedDeviceInfo): Promise<PEQData> {
   await sendPackets(wasm().build_init_packets(protocol));
   await sleep(50);
 
-  const req = wasm().build_read_global_gain_request(protocol);
-  let globalResponse: Uint8Array | null = null;
-  for (let retry = 0; retry < 3 && !globalResponse; retry++) {
-    if (retry > 0) {
-      // Drop late frames from the previous request before retrying this
-      // protocol command, which carries no nonce of its own.
-      reportQueue = [];
+  const firstGain = await readGlobalGain(protocol);
+  let global_gain = firstGain.value;
+  if (firstGain.retried) {
+    // The wire format has no gain nonce. Require a second independent read
+    // after a retry so a late pre-retry frame cannot become rollback truth.
+    await sleep(100);
+    reportQueue = [];
+    const secondGain = await readGlobalGain(protocol);
+    if (Math.abs(global_gain - secondGain.value) > 0.001) {
+      throw new Error(
+        `Global gain reads did not corroborate: first ${global_gain}, second ${secondGain.value}`,
+      );
     }
-    await sendReport(req);
-    globalResponse = await readMatchingReport(200, (data) =>
-      wasm().matches_global_gain_response(protocol, data)
-    );
+    global_gain = secondGain.value;
   }
-  if (!globalResponse) throw new Error("Global gain read timeout");
-  const global_gain = wasm().parse_global_gain_response(protocol, globalResponse);
 
   const filters: Filter[] = [];
   const timing = wasm().get_write_timing(protocol);

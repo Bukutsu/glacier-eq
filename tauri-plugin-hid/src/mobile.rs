@@ -35,12 +35,13 @@ impl<R: Runtime> Hid<R> {
         Ok(result.devices)
     }
 
-    pub fn open(&self, path: &str) -> crate::Result<()> {
+    pub fn open(&self, path: &str, session_id: u64) -> crate::Result<()> {
         self.0
             .run_mobile_plugin(
                 "open",
                 OpenArgs {
                     path: path.to_string(),
+                    session_id,
                 },
             )
             .map_err(Error::PluginInvoke)

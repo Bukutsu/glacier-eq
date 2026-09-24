@@ -10,6 +10,9 @@ use std::fs;
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 
+const ATOMIC_TEMP_PREFIX: &str = ".glacier-eq-atomic-";
+const PROFILE_TEMP_PREFIX: &str = ".glacier-eq-profile-";
+
 #[cfg(unix)]
 use std::os::{
     fd::AsRawFd,
@@ -27,7 +30,7 @@ pub(crate) fn atomic_write(path: &Path, contents: &[u8]) -> Result<(), String> {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_nanos();
-    let tmp_path = path.with_extension(format!("{nonce}.tmp"));
+    let tmp_path = path.with_file_name(format!("{ATOMIC_TEMP_PREFIX}{nonce}.tmp"));
     let write_result = fs::OpenOptions::new()
         .write(true)
         .create_new(true)
@@ -501,16 +504,19 @@ fn sweep_at(dir: &Path, depth: usize) {
             }
             continue;
         }
-        if path.extension().and_then(|ext| ext.to_str()) != Some("tmp") {
-            continue;
-        }
-        let Some(stem) = path.file_stem().and_then(|stem| stem.to_str()) else {
+        let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
             continue;
         };
-        // The nonce is nanoseconds since the Unix epoch (19 digits for the
-        // foreseeable future); require a long numeric tail to stay strict.
-        let tail = stem.rsplit('.').next().unwrap_or(stem);
-        if tail.len() < 18 || !tail.chars().all(|character| character.is_ascii_digit()) {
+        // Only Glacier EQ's reserved temp prefixes are eligible. Broad user
+        // directories may contain unrelated files with numeric suffixes.
+        let nonce = name
+            .strip_prefix(ATOMIC_TEMP_PREFIX)
+            .or_else(|| name.strip_prefix(PROFILE_TEMP_PREFIX))
+            .and_then(|name| name.strip_suffix(".tmp"));
+        let Some(nonce) = nonce else {
+            continue;
+        };
+        if nonce.len() < 18 || !nonce.chars().all(|character| character.is_ascii_digit()) {
             continue;
         }
         match fs::metadata(&path).and_then(|metadata| metadata.modified()) {
@@ -590,12 +596,15 @@ mod tests {
         let dir = temporary_dir();
         // Orphans from both temp-naming schemes (19-digit nanosecond nonces),
         // old enough to be crashes rather than a sibling's live writes.
-        let settings_orphan = dir.join("settings.1700000000000000000.tmp");
-        let profile_orphan = dir.join(".1700000000000000000.tmp");
+        let settings_orphan = dir.join(".glacier-eq-atomic-1700000000000000000.tmp");
+        let profile_orphan = dir.join(".glacier-eq-profile-1700000000000000000.tmp");
+        let unrelated_orphan = dir.join("User Data.1700000000000000007.tmp");
         fs::write(&settings_orphan, b"x").unwrap();
         fs::write(&profile_orphan, b"x").unwrap();
+        fs::write(&unrelated_orphan, b"user data").unwrap();
         set_stale(&settings_orphan);
         set_stale(&profile_orphan);
+        set_stale(&unrelated_orphan);
         // Files that merely end in .tmp, or whose tail is not a fresh nonce.
         fs::write(dir.join("notes.tmp"), b"x").unwrap();
         fs::write(dir.join("report.20240101.tmp"), b"x").unwrap();
@@ -605,8 +614,13 @@ mod tests {
 
         sweep_stale_temp_files(&dir);
 
-        assert!(!dir.join("settings.1700000000000000000.tmp").exists());
-        assert!(!dir.join(".1700000000000000000.tmp").exists());
+        assert!(!dir
+            .join(".glacier-eq-atomic-1700000000000000000.tmp")
+            .exists());
+        assert!(!dir
+            .join(".glacier-eq-profile-1700000000000000000.tmp")
+            .exists());
+        assert!(dir.join("User Data.1700000000000000007.tmp").exists());
         assert!(dir.join("notes.tmp").exists());
         assert!(dir.join("report.20240101.tmp").exists());
         assert!(dir.join("settings.json").exists());
@@ -619,7 +633,7 @@ mod tests {
     fn sweep_spares_a_fresh_temp_that_a_live_sibling_instance_may_own() {
         let dir = temporary_dir();
         // Created now: another instance could be between create and rename.
-        let fresh = dir.join("settings.1700000000000000001.tmp");
+        let fresh = dir.join(".glacier-eq-atomic-1700000000000000001.tmp");
         fs::write(&fresh, b"x").unwrap();
 
         sweep_stale_temp_files(&dir);
@@ -637,13 +651,13 @@ mod tests {
         let dir = temporary_dir();
         let profiles = dir.join("profiles");
         fs::create_dir_all(&profiles).unwrap();
-        // ProfileStore::save writes `.{nonce}.tmp` INSIDE profiles/, which a
-        // flat sweep of the app-data root never saw.
-        let orphan = profiles.join(".1700000000000000002.tmp");
+        // ProfileStore::save writes `.glacier-eq-profile-{nonce}.tmp` inside
+        // profiles/, which a flat sweep of the app-data root never saw.
+        let orphan = profiles.join(".glacier-eq-profile-1700000000000000002.tmp");
         fs::write(&orphan, b"x").unwrap();
         set_stale(&orphan);
         // Fresh sibling temp and a real profile must survive.
-        let fresh = profiles.join(".1700000000000000003.tmp");
+        let fresh = profiles.join(".glacier-eq-profile-1700000000000000003.tmp");
         fs::write(&fresh, b"x").unwrap();
         fs::write(profiles.join("My DAC.txt"), b"Preamp: 0.0").unwrap();
 

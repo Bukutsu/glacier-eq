@@ -24,6 +24,8 @@ pub struct EnumerateResult {
 #[serde(rename_all = "camelCase")]
 pub struct OpenArgs {
     pub path: String,
+    #[serde(default)]
+    pub session_id: u64,
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]

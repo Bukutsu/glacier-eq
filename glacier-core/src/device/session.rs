@@ -68,6 +68,7 @@ pub struct DeviceSession<'a> {
     progress: Option<&'a mut ProgressCallback<'a>>,
     next_nonce: u8,
     last_pull_had_invalid_response: bool,
+    last_read_was_retried: bool,
 }
 
 impl<'a> DeviceSession<'a> {
@@ -79,6 +80,7 @@ impl<'a> DeviceSession<'a> {
             progress: None,
             next_nonce: 0,
             last_pull_had_invalid_response: false,
+            last_read_was_retried: false,
         }
     }
 
@@ -102,6 +104,7 @@ impl<'a> DeviceSession<'a> {
             progress: Some(progress),
             next_nonce: initial_nonce,
             last_pull_had_invalid_response: false,
+            last_read_was_retried: false,
         }
     }
 
@@ -470,6 +473,28 @@ impl<'a> DeviceSession<'a> {
     }
 
     fn read_gain(&mut self) -> Result<f64, String> {
+        let first = self.read_gain_once()?;
+        if !self.last_read_was_retried {
+            return Ok(first);
+        }
+
+        // Global-gain frames do not carry a transaction nonce. If the first
+        // command needed a retry, a late response from that command can still
+        // look current after the drain. Require an independent second read and
+        // reject disagreement rather than using an unproven value as a rollback
+        // snapshot.
+        self.io.sleep_ms(RETRY_DELAY_MS);
+        self.drain();
+        let second = self.read_gain_once()?;
+        if (first - second).abs() > 0.001 {
+            return Err(format!(
+                "Global gain reads did not corroborate: first {first}, second {second}"
+            ));
+        }
+        Ok(second)
+    }
+
+    fn read_gain_once(&mut self) -> Result<f64, String> {
         let protocol = self.protocol();
         let request = protocol.read_global_gain_request();
         let data = self.send_and_read(
@@ -496,6 +521,7 @@ impl<'a> DeviceSession<'a> {
         matches: impl Fn(&[u8]) -> bool,
         quarantine_before_resend: bool,
     ) -> Result<Vec<u8>, String> {
+        self.last_read_was_retried = false;
         let per_round = self
             .protocol()
             .resend_unanswered_after()
@@ -509,6 +535,7 @@ impl<'a> DeviceSession<'a> {
                 // A late response from the previous request must not satisfy
                 // a resend of the same uncorrelated command.
                 self.drain();
+                self.last_read_was_retried = true;
             }
             self.send(request)?;
             sent_request = true;

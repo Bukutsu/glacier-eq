@@ -232,7 +232,7 @@ impl ProfileStore {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
             .as_nanos();
-        let temporary = self.dir.join(format!(".{nonce}.tmp"));
+        let temporary = self.dir.join(format!(".glacier-eq-profile-{nonce}.tmp"));
         let mut file = std::fs::OpenOptions::new()
             .write(true)
             .create_new(true)

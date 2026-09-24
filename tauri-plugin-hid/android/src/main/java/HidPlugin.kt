@@ -46,6 +46,7 @@ sealed class HidResult<out T> {
 class HidDevice(
     private val usbDevice: UsbDevice,
     private val deviceConnection: UsbDeviceConnection,
+    private val sessionId: Long,
     private val onDisconnected: (HidDevice) -> Unit
 ) {
     private var usbInEndpoint: UsbEndpoint? = null
@@ -65,6 +66,9 @@ class HidDevice(
 
     val path: String
         get() = usbDevice.deviceName
+
+    val connectionSessionId: Long
+        get() = sessionId
 
     val displayName: String
         get() = usbDevice.productName ?: usbDevice.deviceName
@@ -209,6 +213,21 @@ class HidDevice(
                         Thread.sleep(100)
                         continue
                     }
+
+                    // closeConnection may have cancelled the request just
+                    // before this thread queued it. Recheck under the same lock
+                    // and cancel the newly queued request before waiting.
+                    val stopAfterQueue = synchronized(connectionLock) {
+                        if (isReading && !closed) {
+                            false
+                        } else {
+                            try {
+                                request.cancel()
+                            } catch (_: Exception) {}
+                            true
+                        }
+                    }
+                    if (stopAfterQueue) break
 
                     val completed = deviceConnection.requestWait()
                     if (!isReading || closed) break
@@ -437,7 +456,9 @@ class HidDevice(
             closed = true
             isReading = false
             try {
-                activeReadRequest?.cancel()
+                activeReadRequest?.let { request ->
+                    request.cancel()
+                }
             } catch (_: Exception) {}
             thread = readThread
         }
@@ -458,14 +479,20 @@ class HidDevice(
                 // A wedged driver must not have its connection closed underneath
                 // the reader. Finish cleanup on a supervisor thread once the
                 // reader has actually exited.
-                Thread({
-                    try {
-                        thread.join()
-                    } catch (_: InterruptedException) {
-                        Thread.currentThread().interrupt()
+                val cleanup = Thread({
+                    var interrupted = false
+                    while (thread.isAlive) {
+                        try {
+                            thread.join(1000)
+                        } catch (_: InterruptedException) {
+                            interrupted = true
+                        }
                     }
+                    if (interrupted) Thread.currentThread().interrupt()
                     releaseConnectionResources()
-                }, "glacier-eq-hid-cleanup").start()
+                }, "glacier-eq-hid-cleanup")
+                cleanup.isDaemon = true
+                cleanup.start()
                 return
             }
         }
@@ -492,6 +519,7 @@ class HidDevice(
 @InvokeArg
 class OpenArgs {
     var path: String? = null
+    var sessionId: Long = 0
 }
 
 @InvokeArg
@@ -532,6 +560,7 @@ class HidPlugin(private val activity: Activity): Plugin(activity) {
     
     // Permission handling state
     private var pendingDevicePath: String? = null
+    private var pendingSessionId: Long = 0
     private var pendingUsbDevice: UsbDevice? = null
     private var pendingInvoke: Invoke? = null
     private var pendingPermissionToken: String? = null
@@ -571,9 +600,10 @@ class HidPlugin(private val activity: Activity): Plugin(activity) {
         }
     }
 
-    private fun disconnectedPayload(path: String, name: String): JSObject = JSObject().apply {
+    private fun disconnectedPayload(path: String, name: String, sessionId: Long): JSObject = JSObject().apply {
         put("path", path)
         put("name", name)
+        put("session_id", sessionId)
     }
 
     private fun emitDisconnected(payload: JSObject) {
@@ -607,6 +637,7 @@ class HidPlugin(private val activity: Activity): Plugin(activity) {
                                 pendingInvoke = null
                                 pendingUsbDevice = null
                                 pendingDevicePath = null
+                                pendingSessionId = 0
                                 pendingPermissionToken = null
                                 waitingInvoke
                             } else {
@@ -620,7 +651,8 @@ class HidPlugin(private val activity: Activity): Plugin(activity) {
                             detached.closeConnection()
                             val payload = disconnectedPayload(
                                 it.deviceName,
-                                it.productName ?: it.deviceName
+                                it.productName ?: it.deviceName,
+                                detached.connectionSessionId
                             )
                             emitDisconnected(payload)
                         }
@@ -653,10 +685,14 @@ class HidPlugin(private val activity: Activity): Plugin(activity) {
                         if (intent.getStringExtra(EXTRA_PERMISSION_TOKEN) != pendingPermissionToken) {
                             null
                         } else {
-                            val value = Triple(pendingInvoke, pendingDevicePath, pendingUsbDevice)
+                            val value = Pair(
+                                Triple(pendingInvoke, pendingDevicePath, pendingUsbDevice),
+                                pendingSessionId
+                            )
                             pendingInvoke = null
                             pendingUsbDevice = null
                             pendingDevicePath = null
+                            pendingSessionId = 0
                             pendingPermissionToken = null
                             value
                         }
@@ -665,9 +701,11 @@ class HidPlugin(private val activity: Activity): Plugin(activity) {
                         Log.w(TAG, "Ignoring USB permission broadcast with an invalid token")
                         return
                     }
-                    val invoke = pending.first
-                    val expectedPath = pending.second
-                    val expectedDevice = pending.third
+                    val pendingRequest = pending.first
+                    val invoke = pendingRequest.first
+                    val expectedPath = pendingRequest.second
+                    val expectedDevice = pendingRequest.third
+                    val expectedSessionId = pending.second
 
                     if (invoke == null) {
                         Log.w(TAG, "USB permission broadcast but no pending invoke")
@@ -690,7 +728,7 @@ class HidPlugin(private val activity: Activity): Plugin(activity) {
                         return
                     }
 
-                    createAndConnectDevice(expectedDevice, expectedPath, invoke)
+                    createAndConnectDevice(expectedDevice, expectedPath, expectedSessionId, invoke)
                 }
             }
         }
@@ -712,7 +750,11 @@ class HidPlugin(private val activity: Activity): Plugin(activity) {
         }
         Log.w(TAG, "HID reader stopped unexpectedly: $path")
         failedDevice.closeConnection()
-        val payload = disconnectedPayload(failedDevice.path, failedDevice.displayName)
+        val payload = disconnectedPayload(
+            failedDevice.path,
+            failedDevice.displayName,
+            failedDevice.connectionSessionId
+        )
         emitDisconnected(payload)
     }
 
@@ -765,7 +807,12 @@ class HidPlugin(private val activity: Activity): Plugin(activity) {
         }
     }
     
-    private fun createAndConnectDevice(usbDevice: UsbDevice, path: String, invoke: Invoke) {
+    private fun createAndConnectDevice(
+        usbDevice: UsbDevice,
+        path: String,
+        sessionId: Long,
+        invoke: Invoke
+    ) {
         if (destroyed) {
             invoke.reject("HID plugin is no longer active")
             return
@@ -780,7 +827,7 @@ class HidPlugin(private val activity: Activity): Plugin(activity) {
         }
         
         // Create new HidDevice
-        val hidDevice = HidDevice(usbDevice, connection) { failedDevice ->
+        val hidDevice = HidDevice(usbDevice, connection, sessionId) { failedDevice ->
             handleDeviceFailure(path, failedDevice)
         }
 
@@ -831,6 +878,7 @@ class HidPlugin(private val activity: Activity): Plugin(activity) {
             pendingInvoke = null
             pendingUsbDevice = null
             pendingDevicePath = null
+            pendingSessionId = 0
             pendingPermissionToken = null
             val waitingIo = pendingIoInvokes.toList()
             pendingIoInvokes.clear()
@@ -914,7 +962,7 @@ class HidPlugin(private val activity: Activity): Plugin(activity) {
                 // Check for permission
                 if (usbManager.hasPermission(device)) {
                     // We have permission, create and connect
-                    createAndConnectDevice(device, path, invoke)
+                    createAndConnectDevice(device, path, args.sessionId, invoke)
                 } else {
                     // No permission, request it first
                     val token = UUID.randomUUID().toString()
@@ -924,6 +972,7 @@ class HidPlugin(private val activity: Activity): Plugin(activity) {
                         } else {
                             pendingInvoke?.reject("Cancelled by subsequent connection request")
                             pendingDevicePath = path
+                            pendingSessionId = args.sessionId
                             pendingUsbDevice = device
                             pendingInvoke = invoke
                             pendingPermissionToken = token

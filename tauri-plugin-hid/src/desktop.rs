@@ -60,7 +60,7 @@ impl<R: Runtime> Hid<R> {
         Ok(devices)
     }
 
-    pub fn open(&self, path: &str) -> crate::Result<()> {
+    pub fn open(&self, path: &str, _session_id: u64) -> crate::Result<()> {
         let hid_api = self.hid_api.lock().unwrap_or_else(|p| p.into_inner());
         let mut open_devices = self.open_devices.lock().unwrap_or_else(|p| p.into_inner());
 

@@ -196,8 +196,8 @@ fn hid_close(app: &tauri::AppHandle, path: &str) -> Result<(), String> {
         .map_err(|error| error.to_string())
 }
 
-fn try_open_device(app: &tauri::AppHandle, path: &str) -> Result<(), String> {
-    match tauri_plugin_hid::hid(app).open(path) {
+fn try_open_device(app: &tauri::AppHandle, path: &str, session_id: u64) -> Result<(), String> {
+    match tauri_plugin_hid::hid(app).open(path, session_id) {
         Ok(()) => {
             #[cfg(target_os = "linux")]
             {
@@ -284,15 +284,19 @@ fn reserve_session_nonce(state: &tauri::State<'_, Mutex<DeviceState>>) -> Result
     Ok(seed)
 }
 
-async fn with_session<T: Send + 'static>(
+async fn with_session_for<T: Send + 'static>(
     app: &tauri::AppHandle,
     state: &tauri::State<'_, Mutex<DeviceState>>,
+    expected: (String, u64),
     operation: impl FnOnce(&mut DeviceSession<'_>) -> Result<T, String> + Send + 'static,
 ) -> Result<T, String> {
     let session_lock = app.state::<DeviceSessionLock>().0.clone();
     let guard = session_lock.lock_owned().await;
 
     let connected = connected_device(state)?;
+    if connected.path != expected.0 || connected.session_id != expected.1 {
+        return Err("Device session changed; operation was cancelled".into());
+    }
     let profile = registered_profile(&connected)?;
     let nonce_seed = reserve_session_nonce(state)?;
     let app_clone = app.clone();
@@ -317,6 +321,20 @@ async fn with_session<T: Send + 'static>(
     .map_err(|e| e.to_string())?
 }
 
+async fn with_session<T: Send + 'static>(
+    app: &tauri::AppHandle,
+    state: &tauri::State<'_, Mutex<DeviceState>>,
+    operation: impl FnOnce(&mut DeviceSession<'_>) -> Result<T, String> + Send + 'static,
+) -> Result<T, String> {
+    let expected = session_identity(state)?;
+    with_session_for(app, state, expected, operation).await
+}
+
+fn session_identity(state: &tauri::State<'_, Mutex<DeviceState>>) -> Result<(String, u64), String> {
+    let connected = connected_device(state)?;
+    Ok((connected.path, connected.session_id))
+}
+
 #[tauri::command]
 pub async fn get_eq_state(
     app: tauri::AppHandle,
@@ -331,11 +349,15 @@ pub async fn set_eq_state(
     state: tauri::State<'_, Mutex<DeviceState>>,
     peq: PEQData,
 ) -> Result<EqWriteOutcome, String> {
+    // Capture identity before the settings read: a reconnect can complete
+    // while settings are being loaded, and the old command must not bind to
+    // that replacement device.
+    let expected = session_identity(&state)?;
     let skip_verification = crate::settings::get_settings(app.clone())
         .await
         .unwrap_or_default()
         .skip_push_verification;
-    with_session(&app, &state, move |session| {
+    with_session_for(&app, &state, expected, move |session| {
         let (committed, warnings) = if skip_verification {
             session.unverified_push(peq)?
         } else {
@@ -449,7 +471,11 @@ pub async fn connect_device(
                     .unwrap_or_else(|p| p.into_inner()) = None;
             }
         }
-        try_open_device(&app_clone, &path_clone)?;
+        let session_id = {
+            let state = lock_device_state(&state)?;
+            state.next_session_id.wrapping_add(1).max(1)
+        };
+        try_open_device(&app_clone, &path_clone, session_id)?;
         // /dev/hidrawN nodes can be reused by a different device between the
         // enumeration above and the open, so re-check the identity of what was
         // actually opened before storing it as connected.
@@ -497,10 +523,9 @@ pub async fn connect_device(
             }
             return Err("Device changed while connecting. Scan again and reconnect.".into());
         }
-        let session_id = {
+        {
             let mut state = lock_device_state(&state)?;
-            state.next_session_id = state.next_session_id.wrapping_add(1).max(1);
-            let session_id = state.next_session_id;
+            state.next_session_id = session_id;
             state.connected = Some(ConnectedDevice {
                 path: path_clone,
                 vendor_id: device.vendor_id,
