@@ -76,6 +76,9 @@ fn interpolate_point(points: &[(f64, f64)], frequency: f64) -> f64 {
 }
 
 pub fn parse_autoeq_text(text: &str) -> Result<(PEQData, Option<String>, Vec<String>), String> {
+    // A UTF-8 BOM is metadata, not part of the first directive. Strip it before
+    // both line parsing and header-name extraction so `Preamp:` is not hidden.
+    let text = text.strip_prefix('\u{feff}').unwrap_or(text);
     // CPU-DoS guard: reject absurdly large inputs before touching them.
     if text.len() > 1 << 20 {
         return Err("AutoEQ input exceeds maximum size (1 MiB)".into());
@@ -1627,6 +1630,12 @@ pub fn run_autoeq(
         return Err("Sample rate must be between 40000 and 768000 Hz".into());
     }
     if let Some(caps) = caps {
+        if (fs as f64 - caps.dsp_sample_rate).abs() > 0.5 {
+            return Err(format!(
+                "Sample rate {fs} does not match the device DSP sample rate {}",
+                caps.dsp_sample_rate
+            ));
+        }
         crate::device::normalization::validate_capabilities(caps)?;
         if n_bands > caps.num_bands {
             return Err(format!(
@@ -2053,6 +2062,16 @@ mod tests {
     }
 
     #[test]
+    fn autoeq_rejects_device_sample_rate_mismatch() {
+        let curve = [(20.0, 0.0), (20_000.0, 0.0)];
+        let caps = crate::device::capabilities::DESKTOP_DAC_CAPS;
+        let error = run_autoeq(&curve, &curve, 2, 1, "none", 48_000.0, Some(&caps))
+            .expect_err("a device-bound fit must use the device DSP sample rate");
+        assert!(error.contains("does not match"));
+        assert!(run_autoeq(&curve, &curve, 2, 1, "none", caps.dsp_sample_rate as f32, Some(&caps)).is_ok());
+    }
+
+    #[test]
     fn autoeq_rejects_capabilities_outside_f32_range() {
         let curve = [(20.0, 0.0), (20_000.0, 0.0)];
         let mut caps = crate::device::capabilities::DESKTOP_DAC_CAPS;
@@ -2410,6 +2429,16 @@ mod tests {
         assert!(result.filters[0].enabled);
         assert!(warnings.is_empty());
         assert_eq!(name, None);
+    }
+
+    #[test]
+    fn parser_accepts_utf8_bom_before_preamp() {
+        let text = "\u{feff}Preamp: -6.5 dB\nFilter 1: ON PK Fc 100 Hz Gain 1 dB Q 1";
+        let (peq, name, warnings) = parse_autoeq_text(text).unwrap();
+        assert_eq!(peq.global_gain, -6.5);
+        assert_eq!(peq.filters.len(), 1);
+        assert_eq!(name, None);
+        assert!(warnings.is_empty());
     }
 
     #[test]
