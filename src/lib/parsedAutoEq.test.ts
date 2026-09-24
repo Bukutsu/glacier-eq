@@ -66,6 +66,20 @@ describe("parseAutoEqResult", () => {
     expect(result.peq.filters[0].filter_type).toBe("LowShelf");
   });
 
+  it("rejects conflicting DTO aliases", () => {
+    expect(() => parseAutoEqResult({
+      peq: { global_gain: 0, globalGain: -1, filters: [filter] },
+      warnings: [],
+    })).toThrow(/conflicting global gain/);
+    expect(() => parseAutoEqResult({
+      peq: {
+        global_gain: 0,
+        filters: [{ ...filter, type: "PK", filter_type: "LowShelf" }],
+      },
+      warnings: [],
+    })).toThrow(/conflicting type/);
+  });
+
   it("rejects malformed filter fields", () => {
     expect(() => parseAutoEqResult({
       peq: { global_gain: 0, filters: [{ ...filter, gain: Number.NaN }] },

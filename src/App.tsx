@@ -214,6 +214,7 @@ function App() {
   const [connected, setConnectedState] = useState(false);
   const connectedRef = useRef(false);
   const connectedPathRef = useRef<string | null>(null);
+  const connectedSessionIdRef = useRef<number | null>(null);
   const connectionGenerationRef = useRef(0);
   const handledDisconnectGenerationRef = useRef<number | null>(null);
   const setConnected = useCallback((nextConnected: boolean, path: string | null = null) => {
@@ -226,6 +227,7 @@ function App() {
     }
     connectedRef.current = nextConnected;
     connectedPathRef.current = nextPath;
+    if (!nextConnected) connectedSessionIdRef.current = null;
     setConnectedState(nextConnected);
   }, []);
   const [isReconnecting, setIsReconnecting] = useState(false);
@@ -509,11 +511,12 @@ function App() {
     peqRef,
     editorCleanPeqRef,
     capabilities,
+    isBusy,
     pushToUndoStack,
     setPeq,
     setDirty,
     noteEditorMutation,
-  }), [capabilities, pushToUndoStack, noteEditorMutation]);
+  }), [capabilities, isBusy, pushToUndoStack, noteEditorMutation]);
   const {
     profiles,
     selectedPreset,
@@ -549,21 +552,26 @@ function App() {
     });
     if (!restored) return;
     const metadata = useHistoryStore.getState().lastRestoredMetadata;
-    const restoredClean = metadata?.cleanPeq ?? editorCleanPeqRef.current;
+    const metadataProfileExists = metadata?.selectedPreset
+      ? profiles.some(
+        (profile) => profileIdentityKey(profile.name) === profileIdentityKey(metadata.selectedPreset!),
+      )
+      : false;
+    const restoredClean = metadataProfileExists
+      ? metadata?.cleanPeq ?? editorCleanPeqRef.current
+      : editorCleanPeqRef.current;
     peqRef.current = restored.peq;
     editorCleanPeqRef.current = restoredClean;
     setPeq(restored.peq);
-    if (
-      metadata?.selectedPreset
-      && profiles.some(
-        (profile) => profileIdentityKey(profile.name) === profileIdentityKey(metadata.selectedPreset!),
-      )
-    ) {
+    if (metadata?.selectedPreset && metadataProfileExists) {
       selectedPresetRef.current = metadata.selectedPreset;
       setSelectedPreset(metadata.selectedPreset);
+    } else if (metadata?.selectedPreset) {
+      selectedPresetRef.current = DEFAULT_PROFILE_NAME;
+      setSelectedPreset(DEFAULT_PROFILE_NAME);
     }
     noteEditorMutation();
-    setDirty(!peqEquals(restored.peq, restoredClean));
+    setDirty(!metadataProfileExists || !peqEquals(restored.peq, restoredClean));
   }, [capabilities, noteEditorMutation, profiles, setSelectedPreset]);
 
   const undo = useCallback(() => restoreHistory("undo"), [restoreHistory]);
@@ -680,7 +688,7 @@ function App() {
           : "No compatible DACs found",
       );
     } catch (error) {
-      if (import.meta.env.DEV) {
+      if (import.meta.env.DEV && !connectedRef.current) {
         setDevices([DEV_DUMMY_DEVICE]);
         setSelectedDevice(DEV_DUMMY_DEVICE.path);
         setStatus("Hardware scan failed; using dummy DAC for dev review");
@@ -730,13 +738,17 @@ function App() {
           manualDisconnect: manualDisconnectRef.current,
           devDummy: isDevDummyDevice(activePath ?? ""),
           alreadyHandled: handledDisconnectGenerationRef.current === connectionGeneration,
+          activeSessionId: connectedSessionIdRef.current,
         })
       ) {
         return;
       }
       if (!payload) return;
       handledDisconnectGenerationRef.current = connectionGeneration;
-      invoke("disconnect_device", { expectedPath: payload.path }).catch(() => {});
+      invoke("disconnect_device", {
+        expectedPath: payload.path,
+        expectedSessionId: payload.sessionId,
+      }).catch(() => {});
       markDeviceLost(
         { setConnected, setIsReconnecting, setLastPushedPeq, setFirmwareVersion, reportStatus },
         `Lost connection to device (unplugged): ${payload.name}`,
@@ -816,7 +828,10 @@ function App() {
           return;
         }
         try {
-          await invoke("disconnect_device", { expectedPath: selectedDevice });
+          await invoke("disconnect_device", {
+          expectedPath: selectedDevice,
+          expectedSessionId: connectedSessionIdRef.current,
+        });
         } catch (error) {
           if (!active) return;
           console.error("Failed to close disconnected device:", error);
@@ -855,9 +870,10 @@ function App() {
     } catch (error) {
       if (!isCurrentConnection()) return;
       setFirmwareVersion(null);
+      reportStatus("Warn", `Could not read DAC firmware: ${error}`, "info", "Device");
       console.error("Failed to read firmware version:", error);
     }
-  }, []);
+  }, [reportStatus]);
 
   // Poll for reconnection / hotplug when disconnected (paused when app is in background, busy, or after explicit manual disconnect)
   useEffect(() => {
@@ -915,6 +931,7 @@ function App() {
         if (!exactPathMatch && nameMatches.length > 1) {
           ambiguousReconnectRef.current = true;
           setIsReconnecting(false);
+          window.history.pushState({ modal: "device" }, "");
           setShowDeviceModal(true);
           reportStatus(
             "Warn",
@@ -930,7 +947,8 @@ function App() {
           const devName = found.profile_name || found.product_string || "DAC";
           reportStatus("Info", `Device found: ${devName}. Reconnecting...`, null, "Device", "Device found. Reconnecting...");
           try {
-            await invoke("connect_device", { path: found.path });
+            const sessionId = await invoke<number | null>("connect_device", { path: found.path });
+            connectedSessionIdRef.current = sessionId;
             if (!isCurrent()) {
               await invoke("disconnect_device", { expectedPath: found.path }).catch(() => {});
               return;
@@ -1125,7 +1143,8 @@ function App() {
         return true;
       }
 
-      await invoke("connect_device", { path: pathToConnect });
+      const sessionId = await invoke<number | null>("connect_device", { path: pathToConnect });
+      connectedSessionIdRef.current = sessionId;
       selectedDeviceRef.current = pathToConnect;
       setSelectedDevice(pathToConnect);
       setConnected(true, pathToConnect);
@@ -1229,6 +1248,7 @@ function App() {
     setIsBusy(true);
     let committedPeq: PEQData | null = null;
     let pushWarnings: string[] = [];
+    const operationContext = getAsyncContext();
     try {
       if (isDevDummyDevice(selectedDevice)) {
         setProgress({
@@ -1257,7 +1277,6 @@ function App() {
         // set_eq_state returns the PEQ actually committed (quantized to the
         // protocol), not necessarily the request, plus any capability-clamp
         // warnings from normalization.
-        const context = getAsyncContext();
         const outcome = await invoke<unknown>("set_eq_state", { peq: snapshot });
         pushWarnings = extractPushWarnings(outcome);
         committedPeq = parseStoredPeqResponse(outcome, {
@@ -1267,12 +1286,13 @@ function App() {
         await sleep(400);
         // Adopt the quantized device state into the editor only when nobody
         // edited or reconnected during the write.
-        if (!peqEquals(committedPeq, snapshot) && asyncContextEquals(context, getAsyncContext())) {
+        if (!peqEquals(committedPeq, snapshot) && asyncContextEquals(operationContext, getAsyncContext())) {
           pushToUndoStack(peqRef.current);
           setPeq(committedPeq);
           noteEditorMutation();
         }
       }
+      if (!asyncContextEquals(operationContext, getAsyncContext())) return;
       setLastPushedPeq(committedPeq ?? snapshot);
       const savedMessage = isDevDummyDevice(selectedDevice)
         ? "Dummy DAC write simulated"
@@ -1328,6 +1348,7 @@ function App() {
 
       setProgress(null);
       setIsBusy(true);
+      const operationContext = getAsyncContext();
       let applyWarnings: string[] = [];
       try {
         if (isDevDummyDevice(selectedDevice)) {
@@ -1347,6 +1368,7 @@ function App() {
           await sleep(300);
           setLastPushedPeq(applied);
         }
+        if (!asyncContextEquals(operationContext, getAsyncContext())) return;
         if (isDevDummyDevice(selectedDevice)) {
           setLastPushedPeq(data);
         }
@@ -1380,7 +1402,7 @@ function App() {
         setProgress(null);
       }
     },
-    [dirty, pushToUndoStack, selectedDevice, capabilities, reportStatus, noteEditorMutation],
+    [dirty, pushToUndoStack, selectedDevice, capabilities, reportStatus, noteEditorMutation, getAsyncContext],
   );
 
   const disconnectDevice = useCallback(async () => {
@@ -1441,6 +1463,7 @@ function App() {
   }), [capabilities, activeBandIndex, setActiveBandIndex, handleStartChange, handleFilterChangeNoPreview, snapToIso]);
 
   const reset = useCallback(async () => {
+    if (isBusy || eqOperationInFlightRef.current) return;
     if (!(await confirmDialog({
       title: "Reset EQ?",
       message: "Reset all filters to 0 dB and preamp to 0 dB?",
@@ -1453,7 +1476,7 @@ function App() {
     noteEditorMutation();
     setSelectedPreset(DEFAULT_PROFILE_NAME);
     setDirty(!peqEquals(defaultPeq, editorCleanPeqRef.current));
-  }, [pushToUndoStack, noteEditorMutation]);
+  }, [isBusy, pushToUndoStack, noteEditorMutation]);
 
   useEffect(() => {
     if (!isMobile) return;
@@ -1471,6 +1494,7 @@ function App() {
   useEffect(() => {
     const handlePopState = () => {
       reconnectEffectGenerationRef.current += 1;
+      ambiguousReconnectRef.current = false;
       setIsReconnecting(false);
       setShowDeviceModal(false);
       setShowDiagnosticsModal(false);
@@ -1582,6 +1606,7 @@ function App() {
       if (document.querySelector("dialog[open], .reconnecting-overlay")) {
         return;
       }
+      if (isBusy || eqOperationInFlightRef.current) return;
 
       const active = document.activeElement;
       const isEditingText =
@@ -1634,7 +1659,7 @@ function App() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [isBusy]);
 
   // Shared props for the mobile ToolsPanel instances; each mobile tab only
   // overrides the tab selection and per-tab extras below. Tuning-only props

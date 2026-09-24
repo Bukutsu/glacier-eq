@@ -153,6 +153,7 @@ export const DeviceView = memo(function DeviceView({
     command: string,
     args: Record<string, unknown>,
   ) => {
+    if (isBusy) return;
     const current = utilityRef.current;
     if (!current) return;
 
@@ -210,6 +211,7 @@ export const DeviceView = memo(function DeviceView({
     setUtilityField("mic_volume_db", volumeDb, "set_mic_volume", { volumeDb });
 
   const handleResetDeviceEq = async () => {
+    if (isBusy) return;
     if (!(await confirmDialog({
       title: "Reset device EQ?",
       message: "Reset all hardware EQ bands on the DAC to 0 dB?",
@@ -234,6 +236,7 @@ export const DeviceView = memo(function DeviceView({
   };
 
   const handleResetDeviceControls = async () => {
+    if (isBusy) return;
     if (!(await confirmDialog({
       title: "Reset hardware controls?",
       message: "Reset filter mode, amp mode, gain, balance, and mic volume to defaults?",
@@ -259,6 +262,7 @@ export const DeviceView = memo(function DeviceView({
   };
 
   const handleFactoryReset = async () => {
+    if (isBusy) return;
     if (!(await confirmDialog({
       title: "Factory reset DAC?",
       message: "This resets all EQ filters, volume, amplifier mode, and restores the device to factory defaults.",
@@ -302,6 +306,11 @@ export const DeviceView = memo(function DeviceView({
 
   const dspKhz = Math.round(capabilities.dsp_sample_rate / 1000);
 
+  const handleChangeDevice = async () => {
+    await onDisconnect?.();
+    onOpenConnectModal?.();
+  };
+
   if (section === "root") {
     return (
       <div className="stack-view device-stack-view">
@@ -337,7 +346,7 @@ export const DeviceView = memo(function DeviceView({
                   </button>
                 )}
                 {onOpenConnectModal && (
-                  <button type="button" className="btn filled" onClick={onOpenConnectModal}>
+                  <button type="button" className="btn filled" onClick={handleChangeDevice} disabled={isBusy}>
                     <Icon>swap_horiz</Icon>
                     <span>Change Device</span>
                   </button>

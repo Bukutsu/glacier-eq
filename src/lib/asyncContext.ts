@@ -6,6 +6,7 @@ export interface AsyncContext {
 export interface DeviceDisconnectedPayload {
   path: string;
   name: string;
+  sessionId?: number;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -22,15 +23,20 @@ export function parseDeviceDisconnectedPayload(
   expectedPath: string | null,
 ): DeviceDisconnectedPayload | null {
   if (isRecord(value)) {
-    const { path, name } = value;
+    const { path, name, session_id: sessionId } = value;
     if (
       typeof path !== "string" ||
       path.length === 0 ||
-      typeof name !== "string"
+      typeof name !== "string" ||
+      (sessionId !== undefined && (typeof sessionId !== "number" || !Number.isSafeInteger(sessionId)))
     ) {
       return null;
     }
-    return { path, name: name || path };
+    return {
+      path,
+      name: name || path,
+      ...(typeof sessionId === "number" ? { sessionId } : {}),
+    };
   }
 
   // Older emitters sent only a string. It is safe to accept that payload only
@@ -50,11 +56,16 @@ export function isHandledDeviceDisconnected(options: {
   manualDisconnect: boolean;
   devDummy: boolean;
   alreadyHandled: boolean;
+  activeSessionId?: number | null;
 }): boolean {
-  const { payload, activePath, connected, manualDisconnect, devDummy, alreadyHandled } = options;
+  const { payload, activePath, connected, manualDisconnect, devDummy, alreadyHandled, activeSessionId } = options;
   return (
     payload === null ||
     payload.path !== activePath ||
+    (payload.sessionId !== undefined
+      && activeSessionId !== null
+      && activeSessionId !== undefined
+      && payload.sessionId !== activeSessionId) ||
     manualDisconnect ||
     devDummy ||
     alreadyHandled ||

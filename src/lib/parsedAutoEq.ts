@@ -49,6 +49,9 @@ function parseFilter(value: unknown, position: number): Filter {
     throw new Error(`Invalid parsed AutoEQ result: filter ${position} must be an object`);
   }
   let filterType: FilterType;
+  if (value.filter_type !== undefined && value.type !== undefined && value.filter_type !== value.type) {
+    throw new Error(`Invalid parsed AutoEQ result: filter ${position} has conflicting type aliases`);
+  }
   try {
     filterType = parseFilterType(value.filter_type ?? value.type);
   } catch {
@@ -91,6 +94,13 @@ export function parseAutoEqResult(value: unknown): ParsedAutoEqResult {
   }
   if (!Array.isArray(value.peq.filters) || value.peq.filters.length > MAX_FILTERS) {
     throw new Error(`Invalid parsed AutoEQ result: filters must contain at most ${MAX_FILTERS} entries`);
+  }
+  if (
+    value.peq.global_gain !== undefined
+    && value.peq.globalGain !== undefined
+    && value.peq.global_gain !== value.peq.globalGain
+  ) {
+    throw new Error("Invalid parsed AutoEQ result: conflicting global gain aliases");
   }
 
   return {

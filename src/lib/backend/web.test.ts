@@ -314,6 +314,33 @@ describe("browser EQ writes", () => {
     ));
   });
 
+  it("rejects a default returned after an initial WebHID read error", async () => {
+    const device = fakeHidDevice({ respondToReports: true });
+    const oneBand = { ...profile, num_bands: 1 };
+    await connectWebHid(device, oneBand);
+    wasm.build_read_global_gain_request.mockReturnValue([1]);
+    wasm.matches_global_gain_response.mockReturnValue(true);
+    wasm.parse_global_gain_response.mockReturnValue(0);
+    wasm.build_read_filter_request
+      .mockImplementationOnce(() => {
+        throw new Error("transient read");
+      })
+      .mockReturnValue([1]);
+    wasm.matches_filter_response.mockReturnValue(true);
+    wasm.is_filter_response_valid.mockReturnValue(true);
+    wasm.parse_filter_response.mockReturnValue({
+      index: 0,
+      enabled: true,
+      filter_type: "Peak",
+      freq: 100,
+      gain: 0,
+      q: 1,
+    });
+    wasm.is_default_peq_for_device.mockReturnValue(true);
+
+    await expect(invoke("get_eq_state")).rejects.toThrow("unconfirmed default");
+  });
+
   it("resends an unanswered global-gain request before retrying the pull", async () => {
     const device = fakeHidDevice({ respondToReports: true });
     const oneBand = { ...profile, num_bands: 1 };

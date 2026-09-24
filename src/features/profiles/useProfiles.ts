@@ -22,6 +22,7 @@ export interface ProfilesEditor {
   peqRef: { current: PEQData };
   editorCleanPeqRef: { current: PEQData };
   capabilities: DeviceCapabilities;
+  isBusy: boolean;
   pushToUndoStack: (peq: PEQData) => void;
   setPeq: (peq: PEQData) => void;
   setDirty: (dirty: boolean) => void;
@@ -88,6 +89,7 @@ export function useProfiles(
 
   const applyProfile = useCallback(
     (profile: Profile) => {
+      if (editor.isBusy) return;
       const { capabilities } = editor;
       editor.pushToUndoStack(editor.peqRef.current);
       const data = normalizePeq(profile.data, { enableLoadedFilters: true, integerPreamp: capabilities.integer_preamp, capabilities });
@@ -104,6 +106,7 @@ export function useProfiles(
 
   const importPeq = useCallback(
     (data: PEQData, name: string, isSaved: boolean) => {
+      if (editor.isBusy) return;
       const { capabilities } = editor;
       editor.pushToUndoStack(editor.peqRef.current);
       const normalized = normalizePeq(data, { enableLoadedFilters: true, integerPreamp: capabilities.integer_preamp, capabilities });
@@ -135,12 +138,21 @@ export function useProfiles(
         setSelectedPreset(reconciliation.name);
       }
       if (reconciliation.missing) {
-        // The selected file was removed or renamed outside this window.
-        // Keep the editor data visible, but make the loss of its saved
-        // identity explicit instead of continuing to label it as saved.
-        setProfileSearch("");
-        setNewProfileName("");
-        editor.setDirty(true);
+        const renamed = nextProfiles.find(
+          (profile) => profileIdentityKey(profile.name) !== profileIdentityKey(DEFAULT_PROFILE_NAME)
+            && peqEquals(profile.data as unknown as PEQData, editor.peqRef.current),
+        );
+        if (renamed) {
+          selectedPresetRef.current = renamed.name;
+          setSelectedPreset(renamed.name);
+        } else {
+          // The selected file was removed or renamed outside this window.
+          // Keep the editor data visible, but make the loss of its saved
+          // identity explicit instead of continuing to label it as saved.
+          setProfileSearch("");
+          setNewProfileName("");
+          editor.setDirty(true);
+        }
       }
       return nextProfiles;
     } catch (error) {
@@ -151,6 +163,7 @@ export function useProfiles(
   }, [editor, setStatus]);
 
   const saveProfile = useCallback(async () => {
+    if (editor.isBusy) return;
     const savedPeq = editor.peqRef.current;
     const savedContext = {
       selectedPreset: selectedPresetRef.current,
@@ -206,6 +219,7 @@ export function useProfiles(
   }, [editor, profiles, loadProfiles, setStatus, runProfileMutation]);
 
   const deleteSelectedProfile = useCallback(async () => {
+    if (editor.isBusy) return;
     const deletedName = selectedPresetRef.current;
     if (deletedName === DEFAULT_PROFILE_NAME) return;
     const editorSnapshot = editor.peqRef.current;

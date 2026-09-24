@@ -466,8 +466,13 @@ function isValidProfileName(value: unknown): value is string {
   ) {
     return false;
   }
-  const finalDot = value.lastIndexOf(".");
-  const stem = (finalDot > 0 ? value.slice(0, finalDot) : value).toUpperCase();
+  const firstDot = value.indexOf(".");
+  const stem = (firstDot >= 0 ? value.slice(0, firstDot) : value)
+    .replace(/¹/g, "1")
+    .replace(/²/g, "2")
+    .replace(/³/g, "3")
+    .toUpperCase();
+  if (stem === "DEFAULT EQ") return false;
   return ![
     "CON", "PRN", "AUX", "NUL",
     "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
@@ -682,6 +687,7 @@ async function writeAndFlash(packet: number[] | Uint8Array) {
 
 async function readWalkplayUtility(cmd: number): Promise<Uint8Array> {
   for (let retry = 0; retry < 3; retry++) {
+    if (retry > 0) reportQueue = [];
     try {
       await sendReport(walkplayPacket([0x80, cmd, 0x00]));
       await sleep(25);
@@ -699,6 +705,7 @@ async function readWalkplayUtility(cmd: number): Promise<Uint8Array> {
 
 async function readWalkplayBalance(channel: number): Promise<number> {
   for (let retry = 0; retry < 3; retry++) {
+    if (retry > 0) reportQueue = [];
     try {
       await sendReport(walkplayPacket([0x80, 0x16, 0x01, channel]));
       await sleep(25);
@@ -884,13 +891,14 @@ async function pullEqStateOnce(profile: SupportedDeviceInfo): Promise<PEQData> {
       percentage: Math.round(((i + 1) / numBands) * 90),
     });
 
-    nextFilterNonce = (nextFilterNonce + 1) & 0xff;
-    if (nextFilterNonce === 0) nextFilterNonce = 1;
-    const nonce = nextFilterNonce;
-    const filterReq = wasm().build_read_filter_request(protocol, i, nonce);
     let filter: Filter | null = null;
 
     for (let retry = 0; retry < 3; retry++) {
+      if (retry > 0) reportQueue = [];
+      nextFilterNonce = (nextFilterNonce + 1) & 0xff;
+      if (nextFilterNonce === 0) nextFilterNonce = 1;
+      const nonce = nextFilterNonce;
+      const filterReq = wasm().build_read_filter_request(protocol, i, nonce);
       try {
         await sendReport(filterReq);
         const res = await readMatchingReport(250, (data) =>
@@ -921,20 +929,29 @@ async function pullEqStateOnce(profile: SupportedDeviceInfo): Promise<PEQData> {
 }
 
 async function pullEqState(profile: SupportedDeviceInfo): Promise<PEQData> {
-  let first: PEQData | null = null;
+  let firstAttemptFailed = false;
+  let firstError: unknown = null;
   try {
-    first = await pullEqStateOnce(profile);
+    const first = await pullEqStateOnce(profile);
     const { vendorId, productId } = activeProfileIds(profile);
     if (!wasm().is_default_peq_for_device(first, vendorId, productId)) return first;
-  } catch {
-    // DeviceSession::pull retries one complete read after any first-attempt error.
+  } catch (error) {
+    firstAttemptFailed = true;
+    firstError = error;
   }
 
   await sleep(100);
-  // The retry exists because a default-state read may be a transient lie;
-  // when it fails, surface its error instead of reporting the
-  // uncorroborated default as device truth (mirrors DeviceSession::pull).
-  return pullEqStateOnce(profile);
+  // A default after a failed attempt is not corroborated device state. Treat
+  // it as an error just like the native session does; otherwise a transient
+  // flat frame could become a rollback snapshot.
+  const retry = await pullEqStateOnce(profile);
+  if (firstAttemptFailed) {
+    const { vendorId, productId } = activeProfileIds(profile);
+    if (wasm().is_default_peq_for_device(retry, vendorId, productId)) {
+      throw new Error(`${errorMessage(firstError)}; retry returned an unconfirmed default EQ state`);
+    }
+  }
+  return retry;
 }
 
 function parseWalkplayFirmwareVersion(data: Uint8Array): string | null {
@@ -1022,7 +1039,8 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
       if (!peq || peq.filters.length > 32) {
         throw new Error("Profile exceeds maximum filter count (32) or contains invalid data");
       }
-      const serialized = JSON.stringify(peq);
+      const normalizedPeq = clampToStorageEnvelope(peq);
+      const serialized = JSON.stringify(normalizedPeq);
       if (serialized.length > 1_048_576) {
         throw new Error("Profile exceeds maximum size (1 MiB)");
       }
@@ -1034,7 +1052,7 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
         // mirroring ProfileStore::path, which rewrites the existing file
         // instead of renaming it to the caller's casing.
         name: idx >= 0 ? profiles[idx].name : name,
-        data: peq,
+        data: normalizedPeq,
         modified: Math.floor(Date.now() / 1000),
       };
       if (idx >= 0) {
@@ -1250,12 +1268,13 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
 
       let report: Uint8Array | null = null;
       for (let retry = 0; retry < 3 && !report; retry++) {
+        if (retry > 0) reportQueue = [];
         await sendReport([0x4b, 0x80, 0x0c, 0x00]);
         report = await readMatchingReportOnce(500, (data) =>
           data.length >= 10 && data[0] === 0x4b && data[1] === 0x80 && data[2] === 0x0c
         );
       }
-      if (!report) return null as T;
+      if (!report) throw new Error("Firmware read timeout");
       return parseWalkplayFirmwareVersion(report.slice(1)) as T;
     }
     case "get_eq_state": {

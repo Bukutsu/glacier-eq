@@ -45,6 +45,7 @@ interface UdevStatus {
   supported: boolean;
   installed: boolean;
   up_to_date: boolean;
+  package_managed: boolean;
   dest_path: string;
   has_pkexec: boolean;
 }
@@ -146,9 +147,9 @@ function UdevSection({
     const confirmed = await confirmDialog({
       title: update ? "Update USB permissions?" : "Install USB permissions?",
       message:
-        "This requires administrator access (one password prompt) to install a udev rule to " +
-        `${status?.dest_path ?? "/etc/udev/rules.d/69-glacier-eq.rules"} and reload udev. ` +
-        "It installs no background services and can be removed here anytime.",
+        "This requires administrator access (one password prompt) to install an application-owned udev rule to " +
+        "/etc/udev/rules.d/69-glacier-eq.rules and reload udev. " +
+        "It installs no background services; a distribution package rule is left untouched.",
       confirmLabel: update ? "Update" : "Install",
       cancelLabel: "Cancel",
     });
@@ -178,6 +179,11 @@ function UdevSection({
   };
 
   const handleRemove = async () => {
+    if (status?.package_managed && status.dest_path === "/usr/lib/udev/rules.d/69-glacier-eq.rules") {
+      setNote("USB permissions are managed by the installed system package; remove the package to revoke them.");
+      setStatus?.("USB permissions are package-managed.");
+      return;
+    }
     const confirmed = await confirmDialog({
       title: "Remove USB permissions?",
       message:
@@ -248,7 +254,7 @@ function UdevSection({
             <Icon>{installed && current ? "refresh" : "add_moderator"}</Icon>
             <span>{busy === "install" ? "Working…" : installed ? (current ? "Reinstall" : "Update") : "Install"}</span>
           </button>
-          {installed && (
+          {installed && !(status?.package_managed && status.dest_path === "/usr/lib/udev/rules.d/69-glacier-eq.rules") && (
             <button
               type="button"
               className="btn danger"

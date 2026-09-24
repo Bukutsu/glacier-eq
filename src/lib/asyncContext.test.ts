@@ -52,6 +52,14 @@ describe("isHandledDeviceDisconnected", () => {
     expect(isHandledDeviceDisconnected({ ...base, manualDisconnect: true })).toBe(true);
   });
 
+  it("rejects an event from a different connection session", () => {
+    expect(isHandledDeviceDisconnected({
+      ...base,
+      activeSessionId: 2,
+      payload: { path: "/dev/hidraw2", name: "Example DAC", sessionId: 1 },
+    })).toBe(true);
+  });
+
   it("handles a genuine unplug while connected", () => {
     expect(isHandledDeviceDisconnected(base)).toBe(false);
   });
