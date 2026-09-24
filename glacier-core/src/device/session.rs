@@ -772,10 +772,8 @@ mod tests {
             if let Some(bytes) = self.reads.pop_front() {
                 return Ok(bytes);
             }
-            if let Some(error) = self.read_errors.pop_front() {
-                if let Some(error) = error {
-                    return Err(error);
-                }
+            if let Some(Some(error)) = self.read_errors.pop_front() {
+                return Err(error);
             }
             Ok(Vec::new())
         }

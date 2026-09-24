@@ -7,6 +7,7 @@ use crate::device::SUPPORTED_DEVICES;
 use crate::eq::{FilterType, PEQData};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 const MAX_PROFILE_BYTES: u64 = 1024 * 1024;
 const APP_ID: &str = "com.bukutsu.glaciereq";
@@ -46,6 +47,16 @@ pub struct ProfileStore {
     dir: PathBuf,
 }
 
+struct ProfileLock {
+    path: PathBuf,
+}
+
+impl Drop for ProfileLock {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir(&self.path);
+    }
+}
+
 /// Validate and canonicalize a PEQ for the portable profile text format.
 pub fn normalize_for_storage(peq: &PEQData) -> Result<PEQData, String> {
     if peq.filters.len() > MAX_FILTERS {
@@ -78,6 +89,32 @@ impl ProfileStore {
         Ok(())
     }
 
+    fn lock_profiles(&self) -> Result<ProfileLock, String> {
+        self.ensure_profiles_directory()?;
+        let path = self.dir.join(".profile-operation.lock");
+        for _ in 0..500 {
+            match std::fs::create_dir(&path) {
+                Ok(()) => return Ok(ProfileLock { path }),
+                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
+                    // A process killed while holding the lock must not block
+                    // the store forever. Only reclaim an old lock; a live
+                    // operation is given time to finish.
+                    if let Ok(metadata) = std::fs::metadata(&path) {
+                        if let Ok(modified) = metadata.modified() {
+                            if modified.elapsed().unwrap_or_default() > Duration::from_secs(60) {
+                                let _ = std::fs::remove_dir_all(&path);
+                                continue;
+                            }
+                        }
+                    }
+                    std::thread::sleep(Duration::from_millis(10));
+                }
+                Err(error) => return Err(format!("Failed to lock profiles directory: {error}")),
+            }
+        }
+        Err("Timed out waiting for another profile operation".into())
+    }
+
     pub fn default_location() -> Result<Self, String> {
         Self::new(data_dir()?)
     }
@@ -97,6 +134,7 @@ impl ProfileStore {
     /// with no console, log, or diagnostic anywhere.
     pub fn list_detailed(&self) -> Result<(Vec<StoredProfile>, Vec<String>), String> {
         self.ensure_profiles_directory()?;
+        let _lock = self.lock_profiles()?;
         let mut profiles = Vec::new();
         let mut warnings: Vec<String> = Vec::new();
         for entry in std::fs::read_dir(&self.dir)
@@ -142,6 +180,7 @@ impl ProfileStore {
 
     pub fn load(&self, name: &str) -> Result<StoredProfile, String> {
         self.ensure_profiles_directory()?;
+        let _lock = self.lock_profiles()?;
         validate_name(name)?;
         // A malformed case-variant sibling must not shadow a valid profile:
         // walk the same variants list_detailed uses until one is readable.
@@ -156,6 +195,7 @@ impl ProfileStore {
 
     pub fn save(&self, name: &str, peq: &PEQData) -> Result<(), String> {
         self.ensure_profiles_directory()?;
+        let _lock = self.lock_profiles()?;
         let normalized = normalize_for_storage(peq)?;
         let content = peq_to_autoeq(&normalized);
         if content.len() as u64 > MAX_PROFILE_BYTES {
@@ -209,6 +249,7 @@ impl ProfileStore {
 
     pub fn delete(&self, name: &str) -> Result<(), String> {
         self.ensure_profiles_directory()?;
+        let _lock = self.lock_profiles()?;
         validate_name(name)?;
         let mut failure = None;
         // Remove every case-variant match: deleting one identity must not
