@@ -23,16 +23,21 @@ open class BuildTask : DefaultTask() {
         } else {
             listOf("npm", "bun")
         }
-        var lastException: Exception? = null
-        for (executable in candidates) {
-            try {
-                runTauriCli(executable)
-                return
-            } catch (error: Exception) {
-                lastException = error
-            }
+        val executable = candidates.firstOrNull { isRunnerAvailable(it) }
+            ?: throw GradleException("No supported JavaScript package runner found")
+        // A present runner's nonzero build exit is a real build failure. Only
+        // fall back when the executable itself cannot be found.
+        runTauriCli(executable)
+    }
+
+    private fun isRunnerAvailable(executable: String): Boolean {
+        val direct = File(executable)
+        if (direct.isFile && direct.canExecute()) return true
+        val path = System.getenv("PATH") ?: return false
+        return path.split(File.pathSeparator).any { entry ->
+            val candidate = File(entry, executable)
+            candidate.isFile && candidate.canExecute()
         }
-        throw lastException ?: GradleException("No supported JavaScript package runner found")
     }
 
     fun runTauriCli(executable: String) {

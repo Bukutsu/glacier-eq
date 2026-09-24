@@ -1,4 +1,5 @@
 const CACHE_PREFIX = "glacier-eq-v2-";
+const CACHE_SCOPE_PREFIX = `${CACHE_PREFIX}${encodeURIComponent(self.registration.scope)}-`;
 const CACHE_META_CACHE = "glacier-eq-cache-meta-v1";
 const CACHE_META_PATH = "__glacier_eq_active_cache__";
 let CACHE = "";
@@ -21,7 +22,7 @@ async function cacheNameFor(manifest) {
   const hex = Array.from(new Uint8Array(digest), (byte) =>
     byte.toString(16).padStart(2, "0"),
   ).join("");
-  return `${CACHE_PREFIX}${hex}`;
+  return `${CACHE_SCOPE_PREFIX}${hex}`;
 }
 
 async function rememberActiveCache(name) {
@@ -38,7 +39,7 @@ async function restoreActiveCache() {
         const saved = await metadata.match(cacheMetaUrl());
         if (saved) {
           const name = (await saved.text()).trim();
-          if (name.startsWith(CACHE_PREFIX)) {
+          if (name.startsWith(CACHE_SCOPE_PREFIX)) {
             CACHE = name;
             return CACHE;
           }
@@ -47,7 +48,7 @@ async function restoreActiveCache() {
         // Fall through to the single-cache migration path below.
       }
       try {
-        const candidates = (await caches.keys()).filter((key) => key.startsWith(CACHE_PREFIX));
+        const candidates = (await caches.keys()).filter((key) => key.startsWith(CACHE_SCOPE_PREFIX));
         if (candidates.length === 1) CACHE = candidates[0];
       } catch {
         CACHE = "";
@@ -119,7 +120,7 @@ self.addEventListener("activate", (event) => {
       const keys = await caches.keys();
       await Promise.all(
         keys
-          .filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE)
+          .filter((key) => key.startsWith(CACHE_SCOPE_PREFIX) && key !== CACHE)
           .map((key) => caches.delete(key)),
       );
       await self.clients.claim();

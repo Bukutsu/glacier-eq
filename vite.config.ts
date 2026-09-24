@@ -1,7 +1,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { fileURLToPath } from "node:url";
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { join, relative } from "node:path";
 
@@ -48,29 +48,25 @@ export default defineConfig(async ({ mode }) => {
     react(),
     {
       name: "offline-assets",
-      generateBundle(_, bundle) {
-        const assets = new Map<string, OfflineAsset>();
-        for (const output of Object.values(bundle)) {
-          const path = `./${output.fileName}`;
-          const source = "source" in output ? output.source : output.code;
-          assets.set(path, {
-            path,
-            hash: hashBytes(typeof source === "string" ? source : new Uint8Array(source)),
-          });
+      writeBundle(options, bundle) {
+        const outDir = options.dir ?? fileURLToPath(new URL("./dist", import.meta.url));
+        const paths = new Set<string>();
+        for (const fileName of Object.keys(bundle)) paths.add(fileName);
+        for (const asset of collectPublicAssets()) {
+          paths.add(asset.path.replace(/^\.\//, ""));
         }
-        for (const asset of collectPublicAssets()) assets.set(asset.path, asset);
-        const indexPath = "./index.html";
-        if (!assets.has(indexPath)) {
-          assets.set(indexPath, {
-            path: indexPath,
-            hash: hashBytes(readFileSync(fileURLToPath(new URL("./index.html", import.meta.url)))),
-          });
-        }
-        this.emitFile({
-          type: "asset",
-          fileName: "offline-assets.json",
-          source: JSON.stringify([...assets.values()]),
-        });
+        paths.add("index.html");
+
+        const assets = [...paths]
+          .filter((path) => path !== "offline-assets.json")
+          .sort()
+          .map((path): OfflineAsset => ({
+            path: `./${path}`,
+            // Hash the bytes actually written to dist, after all Vite/Rollup
+            // transformations and public-asset copying have completed.
+            hash: hashBytes(readFileSync(join(outDir, path))),
+          }));
+        writeFileSync(join(outDir, "offline-assets.json"), JSON.stringify(assets));
       },
     },
   ],

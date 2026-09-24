@@ -16,11 +16,12 @@
     "tauri": "tauri",
     "android:doctor": "tauri info",
     "android:init": "tauri android init --ci",
-    "android:dev": "tauri android dev",
-    "android:run": "tauri android run",
-    "android:apk": "tauri android build --debug --apk --target aarch64",
-    "android:apk:release": "tauri android build --apk --target aarch64",
-    "android:apk:split": "tauri android build --apk --split-per-abi"
+    "android:prepare": "node scripts/ensure-android-project.mjs",
+    "android:dev": "npm run android:prepare && tauri android dev",
+    "android:run": "npm run android:prepare && tauri android run",
+    "android:apk": "npm run android:prepare && tauri android build --debug --apk --target aarch64",
+    "android:apk:release": "npm run android:prepare && tauri android build --apk --target aarch64",
+    "android:apk:split": "npm run android:prepare && tauri android build --apk --split-per-abi"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",
