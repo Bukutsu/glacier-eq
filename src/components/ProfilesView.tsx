@@ -8,6 +8,7 @@ import { Modal } from "./Modal";
 import { Select } from "./Select";
 import { invoke, readText, writeText, save } from "../lib/rpc";
 import { profileIdentityKey } from "../lib/profileIdentity";
+import { decodeUtf8 } from "../lib/utf8";
 import { fuzzyMatch } from "../lib/search";
 import { DEFAULT_PROFILE_NAME } from "../lib/peq";
 import {
@@ -163,7 +164,7 @@ export const ProfilesView = memo(function ProfilesView({
 
     try {
       if (file.size > 1_048_576) throw new Error("File exceeds the 1 MiB limit");
-      const text = await file.text();
+      const text = decodeUtf8(await file.arrayBuffer());
       await parseAndLoadText(text, file.name.replace(/\.[^/.]+$/, ""), request);
     } catch (error) {
       if (request === parseRequestRef.current) {
