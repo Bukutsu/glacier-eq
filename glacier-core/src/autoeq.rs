@@ -10,19 +10,34 @@ pub fn parse_curve_text(text: &str) -> Result<Vec<(f64, f64)>, String> {
     if text.len() > 1 << 20 || text.lines().count() > 4096 {
         return Err("Curve input exceeds maximum size".into());
     }
-    let points = text.lines().filter_map(|line| {
+    let mut points = Vec::new();
+    for (line_index, line) in text.lines().enumerate() {
         let line = line.trim();
         if line.is_empty() || line.starts_with('#') || line.starts_with("//") {
-            return None;
+            continue;
         }
         let mut columns = line
             .split([',', '\t', ';', ' '])
             .filter(|column| !column.is_empty());
-        let frequency = columns.next()?.parse::<f64>().ok()?;
-        let db = columns.next()?.parse::<f64>().ok()?;
-        Some((frequency, db))
-    });
-    normalize_curve_points(points.collect())
+        let frequency = columns
+            .next()
+            .ok_or_else(|| format!("Curve line {} is missing a frequency", line_index + 1))?
+            .parse::<f64>()
+            .map_err(|_| format!("Curve line {} has an invalid frequency", line_index + 1))?;
+        let db = columns
+            .next()
+            .ok_or_else(|| format!("Curve line {} is missing a dB value", line_index + 1))?
+            .parse::<f64>()
+            .map_err(|_| format!("Curve line {} has an invalid dB value", line_index + 1))?;
+        if !frequency.is_finite() || !db.is_finite() || !(20.0..=20_000.0).contains(&frequency) {
+            return Err(format!(
+                "Curve line {} is outside the supported range",
+                line_index + 1
+            ));
+        }
+        points.push((frequency, db));
+    }
+    normalize_curve_points(points)
 }
 
 const MAX_CURVE_POINTS: usize = 100_000;
@@ -167,6 +182,14 @@ pub fn parse_autoeq_text(text: &str) -> Result<(PEQData, Option<String>, Vec<Str
                 } else {
                     parsed.freq as u16
                 };
+                if filters.contains_key(&idx) {
+                    warnings.push(format!(
+                        "Line {}: Filter index {} duplicates an earlier filter; ignoring it",
+                        line_num,
+                        idx + 1
+                    ));
+                    continue;
+                }
                 filters.insert(
                     idx,
                     Filter {
@@ -269,24 +292,50 @@ fn extract_name_from_comments(text: &str) -> Option<String> {
 }
 
 fn extract_number(s: &str) -> Option<f64> {
-    let start = s.find(|c: char| c == '-' || c == '+' || c.is_ascii_digit())?;
+    let bytes = s.as_bytes();
+    let start = s.find(|c: char| c == '-' || c == '+' || c == '.' || c.is_ascii_digit())?;
+    let mut pos = start;
+    if matches!(bytes[pos], b'-' | b'+') {
+        pos += 1;
+    }
 
-    let mut end = start;
-    let mut has_decimal = false;
-    for c in s[start..].chars() {
-        if c.is_ascii_digit() {
-            end += c.len_utf8();
-        } else if c == '.' && !has_decimal {
-            has_decimal = true;
-            end += c.len_utf8();
-        } else if (c == '-' || c == '+') && end == start {
-            end += c.len_utf8();
-        } else {
-            break;
+    let mut digits = 0usize;
+    let mut decimal = false;
+    while let Some(byte) = bytes.get(pos) {
+        match byte {
+            b'0'..=b'9' => {
+                digits += 1;
+                pos += 1;
+            }
+            b'.' if !decimal => {
+                decimal = true;
+                pos += 1;
+            }
+            _ => break,
+        }
+    }
+    if digits == 0 {
+        return Some(f64::NAN);
+    }
+
+    if matches!(bytes.get(pos), Some(b'e' | b'E')) {
+        pos += 1;
+        if matches!(bytes.get(pos), Some(b'-' | b'+')) {
+            pos += 1;
+        }
+        let exponent_start = pos;
+        while matches!(bytes.get(pos), Some(b'0'..=b'9')) {
+            pos += 1;
+        }
+        if pos == exponent_start {
+            return Some(f64::NAN);
         }
     }
 
-    s[start..end].parse().ok()
+    s[start..pos]
+        .parse()
+        .ok()
+        .map(|value: f64| if value.is_finite() { value } else { f64::NAN })
 }
 
 struct ParsedFilterLine {
@@ -313,7 +362,7 @@ fn parse_filter_line(line: &str) -> Option<ParsedFilterLine> {
         None
     } else {
         let i: usize = digits.parse().ok()?;
-        Some(i.saturating_sub(1))
+        Some(i.checked_sub(1)?)
     };
 
     let on_off = !lower.contains("off");
@@ -405,6 +454,19 @@ pub fn autoeq_token(filter_type: FilterType) -> &'static str {
     }
 }
 
+fn format_filter_number(value: f64, decimals: usize) -> String {
+    let formatted = format!("{value:.decimals$}");
+    let trimmed = formatted
+        .trim_end_matches('0')
+        .trim_end_matches('.')
+        .to_string();
+    if value != 0.0 && trimmed.parse::<f64>().is_ok_and(|parsed| parsed == 0.0) {
+        format!("{value:?}")
+    } else {
+        trimmed
+    }
+}
+
 pub fn peq_to_autoeq(peq: &PEQData) -> String {
     let mut preamp_str = format!("{:.2}", peq.global_gain)
         .trim_end_matches('0')
@@ -424,13 +486,13 @@ pub fn peq_to_autoeq(peq: &PEQData) -> String {
         let on_off = if f.enabled { "ON" } else { "OFF" };
         let type_str = autoeq_token(f.filter_type);
         lines.push(format!(
-            "Filter {}: {} {} Fc {} Hz Gain {:.2} dB Q {:.3}",
+            "Filter {}: {} {} Fc {} Hz Gain {} dB Q {}",
             i + 1,
             on_off,
             type_str,
             f.freq,
-            f.gain,
-            f.q
+            format_filter_number(f.gain, 2),
+            format_filter_number(f.q, 3)
         ));
     }
 
@@ -1574,6 +1636,16 @@ pub fn run_autoeq(
     }
     if let Some(caps) = caps {
         crate::device::normalization::validate_capabilities(caps)?;
+        if n_bands > caps.num_bands {
+            return Err(format!(
+                "Requested {n_bands} AutoEQ bands, but the device supports only {}",
+                caps.num_bands
+            ));
+        }
+        if caps.band_gain_range.1.abs() > f32::MAX as f64 || caps.q_range.1.abs() > f32::MAX as f64
+        {
+            return Err("AutoEQ capability ranges exceed the optimizer numeric domain".into());
+        }
     }
     if !matches!(
         smooth_type.to_ascii_lowercase().as_str(),
@@ -1647,8 +1719,14 @@ pub fn run_autoeq(
     let (cap_gain_lo, cap_gain_hi) = caps.map_or((-16.0, 16.0), |c| c.band_gain_range);
     let (cap_q_lo, cap_q_hi) = caps.map_or((0.4, 4.0), |c| c.q_range);
     let (cap_f_lo, cap_f_hi) = caps.map_or((20.0, 20000.0), |c| {
-        (c.freq_range.0 as f64, c.freq_range.1 as f64)
+        (
+            c.freq_range.0 as f64,
+            (c.freq_range.1 as f64).min(0.49 * fs as f64),
+        )
     });
+    if cap_f_lo > cap_f_hi {
+        return Err("AutoEQ frequency capabilities exceed the sample-rate domain".into());
+    }
     let mut f0_lim = vec![intersect(20.0, 16000.0, cap_f_lo, cap_f_hi); n_bands];
     let gain_lim = vec![intersect(-16.0, 16.0, cap_gain_lo, cap_gain_hi); n_bands];
     let mut q_lim = vec![intersect(0.4, 4.0, cap_q_lo, cap_q_hi); n_bands];
@@ -1686,12 +1764,18 @@ pub fn run_autoeq(
 
     let mut filters = Vec::with_capacity(n_bands);
     for i in 0..n_bands {
+        let freq = f0[i].round() as u16;
+        let band_gain = gain[i] as f64;
+        let q = q_vals[i] as f64;
+        if freq == 0 || !band_gain.is_finite() || !q.is_finite() || q <= 0.0 {
+            return Err("AutoEQ produced a non-finite or invalid filter".into());
+        }
         filters.push(crate::eq::Filter {
             index: i as u8,
             enabled: true,
-            freq: f0[i].round() as u16,
-            gain: gain[i] as f64,
-            q: q_vals[i] as f64,
+            freq,
+            gain: band_gain,
+            q,
             filter_type: types[i],
         });
     }
@@ -1934,6 +2018,40 @@ mod tests {
         caps.q_range = (0.5, 3.0);
         caps.freq_range = (20_000, 20);
         assert!(run_autoeq(&curve, &curve, 2, 1, "none", 48_000.0, Some(&caps)).is_err());
+    }
+
+    #[test]
+    fn autoeq_rejects_more_bands_than_the_device_supports() {
+        let curve = [(20.0, 0.0), (20_000.0, 0.0)];
+        let mut caps = crate::device::capabilities::DESKTOP_DAC_CAPS;
+        caps.num_bands = 2;
+        let error = run_autoeq(&curve, &curve, 5, 1, "none", 48_000.0, Some(&caps))
+            .expect_err("the optimizer must not generate filters the device cannot hold");
+        assert!(error.contains("bands"));
+    }
+
+    #[test]
+    fn autoeq_rejects_capabilities_above_the_sample_rate_domain() {
+        let curve = [(20.0, 0.0), (20_000.0, 0.0)];
+        let mut caps = crate::device::capabilities::DESKTOP_DAC_CAPS;
+        caps.freq_range = (30_000, 30_000);
+        caps.dsp_sample_rate = 40_000.0;
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            run_autoeq(&curve, &curve, 1, 1, "none", 40_000.0, Some(&caps))
+        }));
+        assert!(
+            result.is_ok(),
+            "invalid capability domain must return an error, not panic"
+        );
+        assert!(result.unwrap().is_err());
+    }
+
+    #[test]
+    fn autoeq_rejects_capabilities_outside_f32_range() {
+        let curve = [(20.0, 0.0), (20_000.0, 0.0)];
+        let mut caps = crate::device::capabilities::DESKTOP_DAC_CAPS;
+        caps.q_range = (1e40, 1e40);
+        assert!(run_autoeq(&curve, &curve, 1, 1, "none", 48_000.0, Some(&caps)).is_err());
     }
 
     /// Hand-derived biquad gradients must match central finite differences of
@@ -2284,6 +2402,62 @@ mod tests {
         assert!(result.filters[0].enabled);
         assert!(!result.filters[1].enabled);
         assert!(warnings.is_empty());
+    }
+
+    #[test]
+    fn parser_preserves_exponent_notation_and_rejects_zero_indexes() {
+        let (parsed, _, warnings) =
+            parse_autoeq_text("Preamp: -1e-2 dB\nFilter 1: ON PK Fc 1e3 Hz Gain -1e-2 dB Q 1e0\n")
+                .unwrap();
+        assert_eq!(parsed.global_gain, -0.01);
+        assert_eq!(parsed.filters[0].freq, 1000);
+        assert_eq!(parsed.filters[0].gain, -0.01);
+        assert_eq!(parsed.filters[0].q, 1.0);
+        assert!(warnings.is_empty());
+
+        let (parsed, _, warnings) =
+            parse_autoeq_text("Preamp: 0 dB\nFilter 0: ON PK Fc 100 Hz Gain 1 dB Q 1\n").unwrap();
+        assert!(parsed.filters.is_empty());
+        assert!(warnings
+            .iter()
+            .any(|warning| warning.contains("Failed to parse filter")));
+    }
+
+    #[test]
+    fn parser_warns_instead_of_overwriting_duplicate_indexes() {
+        let (parsed, _, warnings) = parse_autoeq_text(
+            "Preamp: 0 dB\nFilter 1: ON PK Fc 100 Hz Gain 1 dB Q 1\nFilter 1: ON PK Fc 200 Hz Gain 2 dB Q 1\n",
+        )
+        .unwrap();
+        assert_eq!(parsed.filters.len(), 1);
+        assert_eq!(parsed.filters[0].freq, 100);
+        assert!(warnings
+            .iter()
+            .any(|warning| warning.contains("duplicates")));
+    }
+
+    #[test]
+    fn tiny_filter_q_round_trips_through_text() {
+        let original = PEQData {
+            global_gain: 0.0,
+            filters: vec![Filter {
+                index: 0,
+                enabled: true,
+                filter_type: FilterType::Peak,
+                freq: 1000,
+                gain: 0.0,
+                q: 0.0004,
+            }],
+        };
+        let (parsed, _, warnings) = parse_autoeq_text(&peq_to_autoeq(&original)).unwrap();
+        assert!(warnings.is_empty());
+        assert_eq!(parsed.filters[0].q, 0.0004);
+    }
+
+    #[test]
+    fn curve_parser_rejects_malformed_rows() {
+        let error = parse_curve_text("20 0\nnot numeric\n20000 0\n").unwrap_err();
+        assert!(error.contains("line 2"));
     }
 
     #[test]
