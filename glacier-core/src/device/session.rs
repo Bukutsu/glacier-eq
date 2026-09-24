@@ -87,11 +87,20 @@ impl<'a> DeviceSession<'a> {
         profile: &'static DeviceProfile,
         progress: &'a mut ProgressCallback<'a>,
     ) -> Self {
+        Self::with_progress_and_nonce(io, profile, progress, 0)
+    }
+
+    pub fn with_progress_and_nonce(
+        io: &'a mut dyn DeviceIo,
+        profile: &'static DeviceProfile,
+        progress: &'a mut ProgressCallback<'a>,
+        initial_nonce: u8,
+    ) -> Self {
         Self {
             io,
             profile,
             progress: Some(progress),
-            next_nonce: 0,
+            next_nonce: initial_nonce,
             last_pull_had_invalid_response: false,
         }
     }

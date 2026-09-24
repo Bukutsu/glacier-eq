@@ -273,6 +273,15 @@ fn registered_profile(connected: &ConnectedDevice) -> Result<&'static DeviceProf
     })
 }
 
+fn reserve_session_nonce(
+    state: &tauri::State<'_, Mutex<DeviceState>>,
+) -> Result<u8, String> {
+    let mut guard = lock_device_state(state)?;
+    let seed = guard.next_nonce.wrapping_add(1).max(1);
+    guard.next_nonce = seed;
+    Ok(seed)
+}
+
 async fn with_session<T: Send + 'static>(
     app: &tauri::AppHandle,
     state: &tauri::State<'_, Mutex<DeviceState>>,
@@ -283,6 +292,7 @@ async fn with_session<T: Send + 'static>(
 
     let connected = connected_device(state)?;
     let profile = registered_profile(&connected)?;
+    let nonce_seed = reserve_session_nonce(state)?;
     let app_clone = app.clone();
     let path = connected.path.clone();
     tauri::async_runtime::spawn_blocking(move || {
@@ -294,10 +304,11 @@ async fn with_session<T: Send + 'static>(
         let progress_app = app_clone.clone();
         let mut progress =
             move |message: &str, percentage| emit_progress(&progress_app, message, percentage);
-        operation(&mut DeviceSession::with_progress(
+        operation(&mut DeviceSession::with_progress_and_nonce(
             &mut io,
             profile,
             &mut progress,
+            nonce_seed,
         ))
     })
     .await
