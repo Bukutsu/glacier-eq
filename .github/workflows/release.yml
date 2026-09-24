@@ -37,7 +37,7 @@ jobs:
           [[ "$RELEASE_TAG" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]
           RELEASE_VERSION="${RELEASE_TAG#v}"
           TAG_VERSION="${RELEASE_VERSION%%-*}"
-          if [[ "$RELEASE_VERSION" == *-* && ! "$RELEASE_VERSION" =~ ^${TAG_VERSION}-(alpha|beta|rc)(\.[1-9])?$ ]]; then
+          if [[ "$RELEASE_VERSION" == *-* && ! "$RELEASE_VERSION" =~ ^${TAG_VERSION}-([1-9]|alpha(\.[1-9])?|beta(\.[1-9])?|rc(\.[1-9])?)$ ]]; then
             echo "❌ Unsupported prerelease suffix"
             exit 1
           fi

@@ -112,6 +112,54 @@ describe("service worker preload", () => {
     expect(releaseCaches[0]).not.toBe(releaseCaches[1]);
   });
 
+  it("does not fall back to another scope's cache when no active cache exists", async () => {
+    const listeners: Record<string, (event: any) => void> = {};
+    const broadCache = new Map([["https://example.test/app/admin/app.js", "broad"]]);
+    const cache = {
+      match: async (request: string | URL) => broadCache.get(String(request)),
+      put: async () => undefined,
+      keys: async () => [],
+      delete: async () => true,
+    };
+    const context = {
+      self: {
+        registration: { scope: "https://example.test/app/admin/" },
+        addEventListener: (name: string, listener: (event: any) => void) => {
+          listeners[name] = listener;
+        },
+        clients: { claim: vi.fn() },
+        skipWaiting: vi.fn(),
+      },
+      location: { origin: "https://example.test" },
+      caches: {
+        open: vi.fn(async (name: string) => name.includes("cache-meta") ? {
+          match: async () => undefined,
+          put: async () => undefined,
+        } : cache),
+        keys: vi.fn(async () => ["glacier-eq-v2-https%3A%2F%2Fexample.test%2Fapp%2F"]),
+        delete: vi.fn(),
+        match: vi.fn(async () => {
+          throw new Error("global cache fallback must not be used");
+        }),
+      },
+      fetch: vi.fn(async () => ({ ok: true, clone: () => ({}) })),
+      crypto: webcrypto,
+      TextEncoder,
+      URL,
+      Response: class {},
+      Promise,
+      console,
+    };
+    vm.runInNewContext(source, context);
+    let responsePromise: Promise<unknown> | undefined;
+    listeners.fetch({
+      request: { method: "GET", url: "https://example.test/app/admin/app.js", mode: "no-cors" },
+      respondWith: (promise: Promise<unknown>) => { responsePromise = promise; },
+    });
+    await expect(responsePromise).resolves.toBeDefined();
+    expect(context.caches.match).not.toHaveBeenCalled();
+  });
+
   it("restores the active release cache after a worker restart", async () => {
     const scope = "https://example.test/app/";
     const origin = "https://example.test";

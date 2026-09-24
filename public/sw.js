@@ -30,6 +30,16 @@ async function rememberActiveCache(name) {
   await metadata.put(cacheMetaUrl(), new Response(name));
 }
 
+async function matchScopedCache(request) {
+  const names = (await caches.keys()).filter((name) => name.startsWith(CACHE_SCOPE_PREFIX));
+  for (const name of names) {
+    const cache = await caches.open(name);
+    const cached = await cache.match(request);
+    if (cached) return cached;
+  }
+  return undefined;
+}
+
 async function restoreActiveCache() {
   if (CACHE) return CACHE;
   if (!CACHE_LOOKUP) {
@@ -137,7 +147,7 @@ self.addEventListener("fetch", (event) => {
     (async () => {
       const activeCache = await restoreActiveCache();
       if (!activeCache) {
-        const cached = await caches.match(request);
+        const cached = await matchScopedCache(request);
         return cached || fetch(request);
       }
       try {
