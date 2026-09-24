@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::fs;
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
@@ -150,6 +150,31 @@ fn get_log_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
 
 static LOG_IO_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
 
+struct DiagnosticsFileLock {
+    file: fs::File,
+}
+
+impl Drop for DiagnosticsFileLock {
+    fn drop(&mut self) {
+        let _ = fs2::FileExt::unlock(&self.file);
+    }
+}
+
+fn with_diagnostics_file_lock<T>(path: &Path, operation: impl FnOnce() -> T) -> Result<T, String> {
+    let lock_path = path.with_file_name(".diagnostics-operation.lock");
+    let file = fs::OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .read(true)
+        .write(true)
+        .open(&lock_path)
+        .map_err(|error| format!("Failed to open diagnostics lock: {error}"))?;
+    fs2::FileExt::lock_exclusive(&file)
+        .map_err(|error| format!("Failed to lock diagnostics: {error}"))?;
+    let _lock = DiagnosticsFileLock { file };
+    Ok(operation())
+}
+
 fn append_to_log(app: &tauri::AppHandle, event: &DiagnosticEvent) {
     let Ok(log_path) = get_log_path(app) else {
         return;
@@ -160,32 +185,37 @@ fn append_to_log(app: &tauri::AppHandle, event: &DiagnosticEvent) {
         .get_or_init(|| Mutex::new(()))
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
-    // Rotate log file if it exceeds 5MB
-    if let Ok(meta) = fs::metadata(&log_path) {
-        if meta.len() > 5 * 1024 * 1024 {
-            let backup = log_path.with_extension("log.1");
-            if fs::rename(&log_path, &backup).is_err() && meta.len() > 20 * 1024 * 1024 {
-                // Persistent rotation failure (backup held open by a viewer
-                // or AV) must not grow the log without bound: truncate above
-                // a hard ceiling.
-                eprintln!(
-                    "diagnostics: rotating {:?} failed; truncating oversized log",
-                    log_path
-                );
-                let _ = fs::File::create(&log_path);
+    let result = with_diagnostics_file_lock(&log_path, || {
+        // Rotate log file if it exceeds 5MB
+        if let Ok(meta) = fs::metadata(&log_path) {
+            if meta.len() > 5 * 1024 * 1024 {
+                let backup = log_path.with_extension("log.1");
+                if fs::rename(&log_path, &backup).is_err() && meta.len() > 20 * 1024 * 1024 {
+                    // Persistent rotation failure (backup held open by a viewer
+                    // or AV) must not grow the log without bound: truncate above
+                    // a hard ceiling.
+                    eprintln!(
+                        "diagnostics: rotating {:?} failed; truncating oversized log",
+                        log_path
+                    );
+                    let _ = fs::File::create(&log_path);
+                }
             }
         }
-    }
-    if let Ok(mut file) = fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(&log_path)
-    {
-        let line = format!(
-            "{} [{}] [{}] {}\n",
-            event.timestamp, event.level, event.source, event.message
-        );
-        let _ = file.write_all(line.as_bytes());
+        if let Ok(mut file) = fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&log_path)
+        {
+            let line = format!(
+                "{} [{}] [{}] {}\n",
+                event.timestamp, event.level, event.source, event.message
+            );
+            let _ = file.write_all(line.as_bytes());
+        }
+    });
+    if let Err(error) = result {
+        eprintln!("diagnostics: {error}");
     }
 }
 

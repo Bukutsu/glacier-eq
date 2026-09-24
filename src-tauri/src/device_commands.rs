@@ -257,6 +257,17 @@ impl DeviceIo for TauriDeviceIo<'_> {
     fn read(&mut self, timeout_ms: i32) -> Result<Vec<u8>, String> {
         hid_read(self.app, self.path, timeout_ms)
     }
+
+    fn reads_include_report_id(&self) -> bool {
+        #[cfg(target_os = "android")]
+        {
+            false
+        }
+        #[cfg(not(target_os = "android"))]
+        {
+            true
+        }
+    }
 }
 
 fn connected_device(
