@@ -54,8 +54,17 @@ function stripLeadingBom(text: string, label: string): string {
   return stripped;
 }
 
+function parseDecimalToken(token: string): number | null {
+  const value = token.trim();
+  if (!/^[+-]?(?:(?:\d+(?:\.\d*)?)|(?:\.\d+))(?:[eE][+-]?\d+)?$/.test(value)) {
+    return null;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 export function parseMeasurementText(input: string): MeasurementPoint[] {
-  if (input.length > 1_048_576) {
+  if (new TextEncoder().encode(input).byteLength > 1_048_576) {
     throw new Error("Measurement input exceeds maximum size");
   }
   const text = stripLeadingBom(input, "Measurement input");
@@ -82,8 +91,9 @@ export function parseMeasurementText(input: string): MeasurementPoint[] {
     if (secondStart >= end) return;
     const secondEnd = tokenEnd(text, secondStart, end);
 
-    const freq = Number(text.slice(start, firstEnd));
-    const db = Number(text.slice(secondStart, secondEnd));
+    const freq = parseDecimalToken(text.slice(start, firstEnd));
+    const db = parseDecimalToken(text.slice(secondStart, secondEnd));
+    if (freq === null || db === null) return;
     if (!Number.isFinite(freq) || !Number.isFinite(db)) {
       return;
     }

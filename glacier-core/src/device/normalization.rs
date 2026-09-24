@@ -4,7 +4,7 @@
 //! Device-bound PEQ validation and normalization.
 
 use super::{get_supported_device, DeviceCapabilities, DeviceProfile, DeviceProtocol, EqProtocol};
-use crate::eq::PEQData;
+use crate::eq::{FilterType, PEQData};
 
 /// Validates and normalizes PEQ data for a device profile before a hardware write.
 /// Returns the normalized PEQ together with every capability-clamp warning, so
@@ -43,7 +43,7 @@ pub fn normalize_peq_for_capabilities(
         filter.index = index as u8;
         if filter.enabled {
             let old_gain = filter.gain;
-            let quantized = quantize_band_gain(old_gain, protocol);
+            let quantized = quantize_band_gain(old_gain, protocol, caps)?;
             if (quantized - old_gain).abs() > 0.0001 {
                 warnings.push(format!(
                     "Band {}: Rounded gain from {:.3} dB to {:.3} dB to match protocol precision",
@@ -55,7 +55,14 @@ pub fn normalize_peq_for_capabilities(
             filter.gain = quantized;
         }
     }
-    peq.global_gain = quantize_preamp(peq.global_gain, protocol);
+    let old_preamp = peq.global_gain;
+    peq.global_gain = quantize_preamp(old_preamp, protocol, caps)?;
+    if (peq.global_gain - old_preamp).abs() > 0.0001 {
+        warnings.push(format!(
+            "Rounded preamp from {:.3} dB to {:.3} dB to match protocol precision",
+            old_preamp, peq.global_gain
+        ));
+    }
     validate_peq(&peq)?;
     Ok((peq, warnings))
 }
@@ -141,6 +148,17 @@ pub(crate) fn validate_capabilities(caps: &DeviceCapabilities) -> Result<(), Str
     if caps.freq_range.0 == 0 || caps.freq_range.0 > caps.freq_range.1 {
         return Err("Device frequency range must be positive and ordered".into());
     }
+    if caps
+        .supported_filter_types
+        .iter()
+        .any(|filter_type| matches!(filter_type, FilterType::LowShelf | FilterType::HighShelf))
+    {
+        let shelf_low = caps.freq_range.0.max(40);
+        let shelf_high = caps.freq_range.1.min(10_000);
+        if shelf_low > shelf_high {
+            return Err("Device frequency range has no feasible shelf center".into());
+        }
+    }
     if !caps.q_range.0.is_finite()
         || !caps.q_range.1.is_finite()
         || caps.q_range.0 <= 0.0
@@ -159,22 +177,70 @@ fn selected_profile(vendor_id: u16, product_id: u16) -> Result<&'static DevicePr
         .ok_or_else(|| format!("No profile registered for {vendor_id:04X}:{product_id:04X}"))
 }
 
-fn quantize_band_gain(gain: f64, protocol: DeviceProtocol) -> f64 {
+fn quantize_band_gain(
+    gain: f64,
+    protocol: DeviceProtocol,
+    caps: &DeviceCapabilities,
+) -> Result<f64, String> {
     match protocol {
-        // FiiO encodes band gain in 0.1 dB units.
-        DeviceProtocol::FiioJa11 | DeviceProtocol::Fiio => (gain * 10.0).round() / 10.0,
-        DeviceProtocol::Moondrop | DeviceProtocol::Walkplay | DeviceProtocol::Unknown => gain,
+        // FiiO encodes band gain in 0.1 dB units. Select a representable value
+        // inside the declared capability envelope rather than quantizing first
+        // and accidentally exceeding the cap.
+        DeviceProtocol::FiioJa11 | DeviceProtocol::Fiio => {
+            quantize_step_within(gain, 0.1, caps.band_gain_range, "band gain")
+        }
+        DeviceProtocol::Moondrop | DeviceProtocol::Walkplay | DeviceProtocol::Unknown => Ok(gain),
     }
 }
 
-fn quantize_preamp(global_gain: f64, protocol: DeviceProtocol) -> f64 {
-    match protocol {
-        DeviceProtocol::Walkplay => global_gain.round(),
-        DeviceProtocol::Moondrop | DeviceProtocol::FiioJa11 | DeviceProtocol::Fiio => {
-            (global_gain * 10.0).round() / 10.0
-        }
-        DeviceProtocol::Unknown => global_gain,
+fn quantize_preamp(
+    global_gain: f64,
+    protocol: DeviceProtocol,
+    caps: &DeviceCapabilities,
+) -> Result<f64, String> {
+    let step = match protocol {
+        DeviceProtocol::Walkplay => 1.0,
+        DeviceProtocol::Moondrop | DeviceProtocol::FiioJa11 | DeviceProtocol::Fiio => 0.1,
+        DeviceProtocol::Unknown => return Ok(global_gain),
+    };
+    quantize_step_within(
+        global_gain,
+        step,
+        (
+            caps.global_gain_range.0 as f64,
+            caps.global_gain_range.1 as f64,
+        ),
+        "preamp gain",
+    )
+}
+
+fn quantize_step_within(
+    value: f64,
+    step: f64,
+    range: (f64, f64),
+    label: &str,
+) -> Result<f64, String> {
+    let first = (range.0 / step).ceil() as i64;
+    let last = (range.1 / step).floor() as i64;
+    if first > last {
+        return Err(format!(
+            "Device {label} range {:.3}..{:.3} dB cannot represent the protocol step",
+            range.0, range.1
+        ));
     }
+    let nearest = (value / step).round() as i64;
+    let raw_selected = nearest.clamp(first, last) as f64 * step;
+    let selected = if step < 1.0 {
+        (raw_selected * 10.0).round() / 10.0
+    } else {
+        raw_selected.round()
+    };
+    if selected < range.0 - 0.0001 || selected > range.1 + 0.0001 {
+        return Err(format!(
+            "Device {label} cannot represent the requested value"
+        ));
+    }
+    Ok(selected)
 }
 
 #[cfg(test)]
@@ -262,6 +328,55 @@ mod tests {
         assert!(warnings
             .iter()
             .any(|warning| warning.contains("protocol precision")));
+    }
+
+    #[test]
+    fn protocol_quantization_stays_inside_a_narrow_capability_range() {
+        let mut caps = get_supported_device(0x2972, 0x0102).unwrap().caps.clone();
+        caps.band_gain_range = (0.0, 0.06);
+        let (normalized, warnings) = normalize_peq_for_capabilities(
+            PEQData {
+                filters: vec![Filter {
+                    index: 0,
+                    enabled: true,
+                    freq: 1000,
+                    gain: 0.06,
+                    q: 1.0,
+                    filter_type: FilterType::Peak,
+                }],
+                global_gain: 0.0,
+            },
+            &caps,
+            DeviceProtocol::FiioJa11,
+        )
+        .unwrap();
+        assert_eq!(normalized.filters[0].gain, 0.0);
+        assert!(warnings
+            .iter()
+            .any(|warning| warning.contains("protocol precision")));
+    }
+
+    #[test]
+    fn shelf_capabilities_without_a_feasible_center_are_rejected() {
+        let mut caps = get_supported_device(0x2972, 0x0102).unwrap().caps.clone();
+        caps.freq_range = (20, 20);
+        let error = normalize_peq_for_capabilities(
+            PEQData {
+                filters: vec![Filter {
+                    index: 0,
+                    enabled: true,
+                    freq: 20,
+                    gain: 0.0,
+                    q: 1.0,
+                    filter_type: FilterType::Peak,
+                }],
+                global_gain: 0.0,
+            },
+            &caps,
+            DeviceProtocol::FiioJa11,
+        )
+        .unwrap_err();
+        assert!(error.contains("shelf center"), "{error}");
     }
 
     #[test]

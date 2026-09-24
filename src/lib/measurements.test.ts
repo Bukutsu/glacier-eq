@@ -24,6 +24,16 @@ describe("parseMeasurementText", () => {
     expect(interpolateMeasurementDb(points, 1000)).toBeCloseTo(0, 9);
   });
 
+  it("uses the native decimal grammar instead of JavaScript radix literals", () => {
+    expect(() => parseMeasurementText("0x14 0\n0x4e20 0")).toThrow();
+    expect(parseMeasurementText("20 0\n20000 0").map((p) => p.freq)).toEqual([20, 20000]);
+  });
+
+  it("enforces the UTF-8 byte limit for direct string input", () => {
+    const oversized = "20 0\n".repeat(250_000) + "é".repeat(10);
+    expect(() => parseMeasurementText(oversized)).toThrow("maximum size");
+  });
+
   it("accepts one UTF-8 BOM and rejects repeated BOM markers", () => {
     expect(parseMeasurementText("\uFEFF20 0\n20000 0").map((p) => p.freq)).toEqual([20, 20000]);
     expect(() => parseMeasurementText("\uFEFF\uFEFF20 0\n20000 0")).toThrow("multiple UTF-8 BOM");

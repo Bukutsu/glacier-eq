@@ -17,10 +17,10 @@ fn strip_leading_bom<'a>(text: &'a str, label: &str) -> Result<&'a str, String> 
 
 /// Parses frequency/dB curves using the same rules as the frontend importer.
 pub fn parse_curve_text(text: &str) -> Result<Vec<(f64, f64)>, String> {
-    let text = strip_leading_bom(text, "Curve input")?;
     if text.len() > 1 << 20 || text.split('\n').count() > 4096 {
         return Err("Curve input exceeds maximum size".into());
     }
+    let text = strip_leading_bom(text, "Curve input")?;
     let mut points = Vec::new();
     for line in text.lines() {
         let line = line.trim();
@@ -87,14 +87,14 @@ fn interpolate_point(points: &[(f64, f64)], frequency: f64) -> f64 {
 }
 
 pub fn parse_autoeq_text(text: &str) -> Result<(PEQData, Option<String>, Vec<String>), String> {
-    // A UTF-8 BOM is metadata, not part of the first directive. Strip one
-    // before both line parsing and header-name extraction; repeated markers
-    // are malformed rather than silently changing the first field.
-    let text = strip_leading_bom(text, "AutoEQ input")?;
     // CPU-DoS guard: reject absurdly large inputs before touching them.
     if text.len() > 1 << 20 {
         return Err("AutoEQ input exceeds maximum size (1 MiB)".into());
     }
+    // A UTF-8 BOM is metadata, not part of the first directive. Strip one
+    // before both line parsing and header-name extraction; repeated markers
+    // are malformed rather than silently changing the first field.
+    let text = strip_leading_bom(text, "AutoEQ input")?;
     let lines: Vec<&str> = text.lines().collect();
     if lines.len() > 4096 {
         return Err("AutoEQ input exceeds maximum line count (4096)".into());

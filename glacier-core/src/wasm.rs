@@ -1,9 +1,10 @@
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::device::capabilities::{DeviceCapabilities, EditorCapabilities};
+use crate::device::capabilities::{DeviceCapabilities, EditorCapabilities, DESKTOP_DAC_CAPS};
 use crate::device::{
-    get_supported_device, DeviceProtocol, EqProtocol, Packet, WalkplayProtocol, SUPPORTED_DEVICES,
+    get_supported_device, DeviceProfile, DeviceProtocol, EqProtocol, Packet, WalkplayProtocol,
+    SUPPORTED_DEVICES,
 };
 use crate::eq::{Filter, PEQData};
 use crate::profile_match::{matching_profile_name, ProfileCandidate};
@@ -126,18 +127,23 @@ fn unframe<'a>(protocol: &dyn EqProtocol, data: &'a [u8]) -> Result<&'a [u8], Js
     protocol.unframe_packet(data).map_err(js_err)
 }
 
-fn portable_caps() -> DeviceCapabilities {
-    crate::profiles::storage_capabilities(crate::autoeq::MAX_FILTERS)
+fn supported_profile(
+    vendor_id: Option<u16>,
+    product_id: Option<u16>,
+) -> Option<&'static DeviceProfile> {
+    match (vendor_id, product_id) {
+        (Some(vid), Some(pid)) => get_supported_device(vid, pid),
+        (Some(vid), None) => SUPPORTED_DEVICES
+            .iter()
+            .find(|profile| profile.vendor_id == vid && profile.product_id.is_none()),
+        _ => None,
+    }
 }
 
 fn device_caps_or_desktop(vendor_id: Option<u16>, product_id: Option<u16>) -> DeviceCapabilities {
-    if let (Some(vid), Some(pid)) = (vendor_id, product_id) {
-        get_supported_device(vid, pid)
-            .map(|profile| profile.caps.clone())
-            .unwrap_or_else(portable_caps)
-    } else {
-        portable_caps()
-    }
+    supported_profile(vendor_id, product_id)
+        .map(|profile| profile.caps.clone())
+        .unwrap_or_else(|| DESKTOP_DAC_CAPS.clone())
 }
 
 fn framed_packets(packets: Vec<Packet>) -> Result<JsValue, JsValue> {
@@ -183,6 +189,51 @@ fn validate_response_freqs(freqs: &[f32]) -> Result<(), JsValue> {
     {
         return Err(JsValue::from_str(
             "Response frequencies must be finite and positive",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_integer_parameter(value: f64, name: &str) -> Result<usize, JsValue> {
+    if !value.is_finite() || value < 1.0 || value.fract() != 0.0 || value > usize::MAX as f64 {
+        return Err(JsValue::from_str(&format!(
+            "{name} must be a positive integer"
+        )));
+    }
+    Ok(value as usize)
+}
+
+fn validate_global_gain_wire(protocol: &str, gain: f64) -> Result<(), JsValue> {
+    if !gain.is_finite() {
+        return Err(JsValue::from_str("Global gain must be finite"));
+    }
+    let rounded = gain.round();
+    if !(-128.0..=127.0).contains(&rounded) {
+        return Err(JsValue::from_str("Global gain is outside the wire range"));
+    }
+    let normalized = protocol.to_lowercase().replace([' ', '-', '_'], "");
+    let scale = match normalized.as_str() {
+        "fiio" => 10.0,
+        "fiioja11" => 2560.0,
+        "moondrop" => 256.0,
+        _ => return Ok(()),
+    };
+    if !(-32768.0 / scale..=32767.0 / scale).contains(&rounded) {
+        return Err(JsValue::from_str("Global gain is outside the wire range"));
+    }
+    Ok(())
+}
+
+fn validate_filter_packets_wire(
+    protocol: &dyn EqProtocol,
+    packets: &[Packet],
+) -> Result<(), JsValue> {
+    if packets
+        .first()
+        .is_some_and(|packet| !protocol.is_filter_packet_valid(&packet.payload))
+    {
+        return Err(JsValue::from_str(
+            "Filter cannot be represented by the selected protocol wire format",
         ));
     }
     Ok(())
@@ -245,6 +296,7 @@ pub fn is_default_peq_for_device(
     product_id: u16,
 ) -> Result<bool, JsValue> {
     let peq: PEQData = serde_wasm_bindgen::from_value(peq_js).map_err(js_err)?;
+    validate_peq_numeric(&peq)?;
     crate::device::is_default_peq_for_device(&peq, vendor_id, product_id).map_err(js_err)
 }
 
@@ -288,9 +340,8 @@ pub fn match_profile_name(
     let profiles: Vec<ProfileCandidateWasm> =
         serde_wasm_bindgen::from_value(profiles_js).map_err(js_err)?;
     let caps = device_caps_or_desktop(vendor_id, product_id);
-    let protocol = vendor_id
-        .zip(product_id)
-        .and_then(|(vid, pid)| get_supported_device(vid, pid).map(|profile| profile.protocol))
+    let protocol = supported_profile(vendor_id, product_id)
+        .map(|profile| profile.protocol)
         .unwrap_or(DeviceProtocol::Unknown);
 
     Ok(matching_profile_name(
@@ -369,8 +420,8 @@ pub fn snap_freq_to_iso(freq: u16) -> u16 {
 pub fn run_autoeq(
     measurement_points_js: JsValue,
     target_points_js: JsValue,
-    n_bands: usize,
-    steps: usize,
+    n_bands: f64,
+    steps: f64,
     smooth_type: String,
     fs: f32,
     vendor_id: Option<u16>,
@@ -380,6 +431,8 @@ pub fn run_autoeq(
         serde_wasm_bindgen::from_value(measurement_points_js).map_err(js_err)?;
     let target_points: Vec<(f64, f64)> =
         serde_wasm_bindgen::from_value(target_points_js).map_err(js_err)?;
+    let n_bands = validate_integer_parameter(n_bands, "n_bands")?;
+    let steps = validate_integer_parameter(steps, "steps")?;
 
     let caps = device_caps_or_desktop(vendor_id, product_id);
     let mut peq = crate::autoeq::run_autoeq(
@@ -484,13 +537,12 @@ pub fn build_write_filter_packets(
     let p = eq_protocol(&protocol)?;
     let filter: Filter = serde_wasm_bindgen::from_value(filter_js).map_err(js_err)?;
     validate_filter_numeric(&filter)?;
-    if !global_gain.is_finite() {
-        return Err(JsValue::from_str("Global gain must be finite"));
-    }
+    validate_global_gain_wire(&protocol, global_gain)?;
     validate_dsp_sample_rate(dsp_sample_rate)?;
     let packets = p
         .write_filter_packets(index, &filter, dsp_sample_rate, global_gain)
         .map_err(|err| JsValue::from_str(&err))?;
+    validate_filter_packets_wire(p, &packets)?;
     framed_packets(packets)
 }
 
@@ -500,9 +552,7 @@ pub fn build_write_global_gain_packets(
     global_gain: f64,
 ) -> Result<JsValue, JsValue> {
     let p = eq_protocol(&protocol)?;
-    if !global_gain.is_finite() {
-        return Err(JsValue::from_str("Global gain must be finite"));
-    }
+    validate_global_gain_wire(&protocol, global_gain)?;
     framed_packets(p.write_global_gain_packets(global_gain))
 }
 
@@ -557,9 +607,14 @@ pub fn build_balance_write_packets(balance: i8) -> Result<JsValue, JsValue> {
 }
 
 #[wasm_bindgen]
-pub fn build_mic_volume_write_packet(db: i8) -> Vec<u8> {
-    let payload = WalkplayProtocol::build_mic_volume_write_packet(db);
-    Packet::new(WalkplayProtocol::report_id(), payload).framed()
+pub fn build_mic_volume_write_packet(db: f64) -> Result<Vec<u8>, JsValue> {
+    if !db.is_finite() || db.fract() != 0.0 || !(-128.0..=127.0).contains(&db) {
+        return Err(JsValue::from_str(
+            "Mic volume must be an integer between -128 and 127",
+        ));
+    }
+    let payload = WalkplayProtocol::build_mic_volume_write_packet(db as i8);
+    Ok(Packet::new(WalkplayProtocol::report_id(), payload).framed())
 }
 
 #[wasm_bindgen]
@@ -591,18 +646,43 @@ mod tests {
     use super::*;
 
     #[test]
-    fn portable_autoeq_import_keeps_the_storage_filter_limit() {
-        assert_eq!(
-            device_caps_or_desktop(None, None).num_bands,
-            crate::autoeq::MAX_FILTERS
-        );
+    fn no_device_autoeq_uses_editor_capabilities() {
+        let caps = device_caps_or_desktop(None, None);
+        assert_eq!(caps.num_bands, DESKTOP_DAC_CAPS.num_bands);
+        assert_eq!(caps.global_gain_range, DESKTOP_DAC_CAPS.global_gain_range);
+        assert_eq!(caps.band_gain_range, DESKTOP_DAC_CAPS.band_gain_range);
         assert_eq!(
             device_caps_or_desktop(Some(0x1234), Some(0x5678)).num_bands,
-            crate::autoeq::MAX_FILTERS
+            DESKTOP_DAC_CAPS.num_bands
         );
-        let caps = device_caps_or_desktop(None, None);
-        assert_eq!(caps.global_gain_range, (-20, 12));
-        assert_eq!(caps.band_gain_range, (-12.0, 12.0));
+    }
+
+    #[test]
+    fn wasm_facade_rejects_coerced_integer_parameters() {
+        assert!(validate_integer_parameter(1.5, "n_bands").is_err());
+        assert!(validate_integer_parameter(f64::NAN, "steps").is_err());
+        assert!(validate_integer_parameter(-1.0, "steps").is_err());
+    }
+
+    #[test]
+    fn wasm_filter_wire_validation_rejects_unrepresentable_values() {
+        let protocol = eq_protocol("Walkplay").unwrap();
+        let packets = protocol
+            .write_filter_packets(
+                0,
+                &Filter {
+                    index: 0,
+                    enabled: true,
+                    freq: 1000,
+                    gain: 0.0,
+                    q: 0.001,
+                    filter_type: crate::eq::FilterType::Peak,
+                },
+                96_000.0,
+                0.0,
+            )
+            .unwrap();
+        assert!(validate_filter_packets_wire(protocol, &packets).is_err());
     }
 
     #[test]
