@@ -6,8 +6,8 @@ import { spawnSync } from "node:child_process";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const androidRoot = join(root, "src-tauri", "gen", "android");
 const required = [
-  join(androidRoot, "tauri.settings.gradle"),
-  join(androidRoot, "app", "tauri.build.gradle.kts"),
+  join(androidRoot, "settings.gradle"),
+  join(androidRoot, "gradlew"),
 ];
 const buildTask = join(
   androidRoot,
@@ -36,6 +36,6 @@ if (buildTaskSource !== null) writeFileSync(buildTask, buildTaskSource);
 if (result.error) throw result.error;
 if (result.status !== 0) process.exit(result.status ?? 1);
 if (!required.every((path) => existsSync(path))) {
-  console.error("Android project initialization did not produce the required Gradle scripts.");
+  console.error("Android project initialization did not produce the Gradle project entrypoints.");
   process.exit(1);
 }
