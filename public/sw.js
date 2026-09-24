@@ -8,6 +8,13 @@ function cacheMetaUrl() {
   return new URL(CACHE_META_PATH, self.registration.scope).href;
 }
 
+function manifestEntries(manifest) {
+  if (!Array.isArray(manifest)) return [];
+  return manifest
+    .map((entry) => typeof entry === "string" ? { path: entry } : entry)
+    .filter((entry) => entry && typeof entry.path === "string");
+}
+
 async function cacheNameFor(manifest) {
   const bytes = new TextEncoder().encode(JSON.stringify(manifest));
   const digest = await crypto.subtle.digest("SHA-256", bytes);
@@ -39,12 +46,17 @@ async function restoreActiveCache() {
       } catch {
         // Fall through to the single-cache migration path below.
       }
-      const candidates = (await caches.keys()).filter((key) => key.startsWith(CACHE_PREFIX));
-      if (candidates.length === 1) CACHE = candidates[0];
+      try {
+        const candidates = (await caches.keys()).filter((key) => key.startsWith(CACHE_PREFIX));
+        if (candidates.length === 1) CACHE = candidates[0];
+      } catch {
+        CACHE = "";
+      }
       return CACHE;
     })();
   }
   CACHE = await CACHE_LOOKUP;
+  if (!CACHE) CACHE_LOOKUP = undefined;
   return CACHE;
 }
 
@@ -57,15 +69,15 @@ self.addEventListener("install", (event) => {
         throw new Error(`Failed to fetch offline asset manifest: ${manifestResponse.status}`);
       }
       const manifest = await manifestResponse.json();
+      const entries = manifestEntries(manifest);
+      if (entries.length === 0) throw new Error("Offline asset manifest is empty");
       CACHE = await cacheNameFor(manifest);
       const releaseCache = await caches.open(CACHE);
 
       const wanted = [self.registration.scope, manifestUrl.href];
-      if (Array.isArray(manifest)) {
-        wanted.push(
-          ...manifest.map((file) => new URL(file, self.registration.scope).href),
-        );
-      }
+      wanted.push(
+        ...entries.map((entry) => new URL(entry.path, self.registration.scope).href),
+      );
 
       await Promise.all(
         wanted.map(async (url) => {
@@ -100,6 +112,10 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     (async () => {
       await restoreActiveCache();
+      if (!CACHE) {
+        await self.clients.claim();
+        return;
+      }
       const keys = await caches.keys();
       await Promise.all(
         keys
@@ -119,7 +135,10 @@ self.addEventListener("fetch", (event) => {
   event.respondWith(
     (async () => {
       const activeCache = await restoreActiveCache();
-      if (!activeCache) return fetch(request);
+      if (!activeCache) {
+        const cached = await caches.match(request);
+        return cached || fetch(request);
+      }
       try {
         const response = await fetch(request);
         if (response.ok) {

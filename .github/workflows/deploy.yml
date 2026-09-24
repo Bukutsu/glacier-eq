@@ -12,10 +12,10 @@ permissions:
   id-token: write
 
 concurrency:
-  # Manual dispatches must not cancel an in-flight tag deployment. Pushes
-  # still replace an older deployment of the same ref.
-  group: pages-${{ github.event_name == 'push' && github.ref || github.run_id }}
-  cancel-in-progress: true
+  # Serialize every Pages writer. A tag deployment and a manual deployment
+  # must never race for the same production environment.
+  group: pages
+  cancel-in-progress: false
 
 jobs:
   deploy:
@@ -38,7 +38,7 @@ jobs:
       - name: Install wasm-pack
         uses: jetli/wasm-pack-action@0d096b08b4e5a7de8c28de67e11e945404e9eefa
         with:
-          version: 'latest'
+          version: '0.15.0'
 
       - name: Set up Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
@@ -49,11 +49,39 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Verify deployment source
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] && [ "${GITHUB_REF}" != "refs/heads/main" ]; then
+            echo "Manual Pages deployments are restricted to main." >&2
+            exit 1
+          fi
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            release_version="${GITHUB_REF_NAME#v}"
+            base_version="${release_version%%-*}"
+            package_version="$(node -p "require('./package.json').version")"
+            cargo_version="$(sed -n 's/^version = \"\\([^\"]*\\)\"/\\1/p' src-tauri/Cargo.toml | head -1)"
+            if [ "$base_version" != "$package_version" ] || [ "$base_version" != "$cargo_version" ]; then
+              echo "Tag/package/Cargo version mismatch." >&2
+              exit 1
+            fi
+          fi
+          cargo metadata --locked --no-deps
+          cargo test --workspace --locked
+
       - name: Run frontend tests
         run: npm test
 
       - name: Build
-        run: VITE_BASE_PATH=/glacier-eq/ npm run build
+        shell: bash
+        run: |
+          set -euo pipefail
+          version_args=()
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            version_args=(VITE_APP_VERSION="${GITHUB_REF_NAME#v}")
+          fi
+          VITE_BASE_PATH=/glacier-eq/ env "${version_args[@]}" npm run build
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9

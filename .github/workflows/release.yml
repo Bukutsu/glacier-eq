@@ -89,6 +89,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     if: startsWith(github.ref, 'refs/tags/')
     timeout-minutes: 60
+    env:
+      VITE_APP_VERSION: ${{ needs.check-tag.outputs.release-version }}
+      GLACIER_EQ_RELEASE_VERSION: ${{ needs.check-tag.outputs.release-version }}
     strategy:
       fail-fast: false
       matrix:
@@ -301,6 +304,8 @@ jobs:
       # Set explicitly so the build is deterministic regardless of how setup actions mutate env.
       ANDROID_HOME: /usr/local/lib/android/sdk
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+      VITE_APP_VERSION: ${{ needs.check-tag.outputs.release-version }}
+      GLACIER_EQ_RELEASE_VERSION: ${{ needs.check-tag.outputs.release-version }}
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -324,7 +329,7 @@ jobs:
         # cargo-mobile2 (Tauri) reads ONLY `$NDK_HOME`, never scans the SDK dir,
         # so pointing NDK_HOME at the pinned NDK guarantees it is the one used.
         run: |
-          set -e
+          set -euo pipefail
           SDKMANAGER="$(command -v sdkmanager || true)"
           [ -x "$SDKMANAGER" ] || SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           [ -x "$SDKMANAGER" ] || SDKMANAGER="$(ls "$ANDROID_HOME"/cmdline-tools/*/bin/sdkmanager 2>/dev/null | head -1)"
@@ -333,7 +338,14 @@ jobs:
           fi
           echo "Using sdkmanager: $SDKMANAGER"
           yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
-          yes | "$SDKMANAGER" --install "ndk;26.1.10909125" "platforms;android-36" 2>&1 | tail -8 || true
+          set +e
+          yes | "$SDKMANAGER" --install "ndk;26.1.10909125" "platforms;android-36" 2>&1 | tail -8
+          sdk_status=${PIPESTATUS[1]}
+          set -e
+          if [ "$sdk_status" -ne 0 ]; then
+            echo "Android SDK installation failed (status $sdk_status)" >&2
+            exit "$sdk_status"
+          fi
           NDK_DIR="$ANDROID_HOME/ndk/26.1.10909125"
           test -d "$NDK_DIR" || { echo "NDK install failed: $NDK_DIR missing"; exit 1; }
           echo "NDK_HOME=$NDK_DIR" >> "$GITHUB_ENV"

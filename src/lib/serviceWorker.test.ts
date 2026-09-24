@@ -57,6 +57,61 @@ describe("service worker preload", () => {
     expect(previousCache.get("https://example.test/old.js")).toBe("old");
   });
 
+  it("changes the release cache when a public asset digest changes", async () => {
+    const opened: string[] = [];
+    const runInstall = async (hash: string) => {
+      const listeners: Record<string, ServiceWorkerListener> = {};
+      const cache = {
+        put: vi.fn(async () => undefined),
+        keys: vi.fn(async () => []),
+        delete: vi.fn(async () => true),
+      };
+      const context = {
+        self: {
+          registration: { scope: "https://example.test/app/" },
+          addEventListener: (name: string, listener: ServiceWorkerListener) => {
+            listeners[name] = listener;
+          },
+          clients: { claim: vi.fn() },
+          skipWaiting: vi.fn(),
+        },
+        caches: {
+          open: vi.fn(async (name: string) => {
+            opened.push(name);
+            return cache;
+          }),
+          keys: vi.fn(async () => []),
+          delete: vi.fn(async () => true),
+        },
+        fetch: vi.fn(async (url: string | URL) => {
+          if (String(url).endsWith("offline-assets.json")) {
+            return {
+              ok: true,
+              json: async () => [{ path: "./public.txt", hash }],
+            };
+          }
+          return { ok: true };
+        }),
+        crypto: webcrypto,
+        TextEncoder,
+        URL,
+        Response: class { constructor(public readonly body: string = "") {} },
+        Promise,
+        console,
+      };
+      vm.runInNewContext(source, context);
+      let installPromise: Promise<unknown> = Promise.resolve();
+      listeners.install!({ waitUntil: (promise) => { installPromise = promise; } });
+      await installPromise;
+    };
+
+    await runInstall("hash-a");
+    await runInstall("hash-b");
+    const releaseCaches = opened.filter((name) => name.startsWith("glacier-eq-v2-"));
+    expect(releaseCaches).toHaveLength(2);
+    expect(releaseCaches[0]).not.toBe(releaseCaches[1]);
+  });
+
   it("restores the active release cache after a worker restart", async () => {
     const scope = "https://example.test/app/";
     const origin = "https://example.test";
