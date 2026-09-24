@@ -341,7 +341,7 @@ describe("browser EQ writes", () => {
     await expect(invoke("get_eq_state")).rejects.toThrow("unconfirmed default");
   });
 
-  it("resends an unanswered global-gain request before retrying the pull", async () => {
+  it("fails closed when a global-gain read requires an uncorrelated retry", async () => {
     const device = fakeHidDevice({ respondToReports: true });
     const oneBand = { ...profile, num_bands: 1 };
     await connectWebHid(device, oneBand);
@@ -362,9 +362,9 @@ describe("browser EQ writes", () => {
     });
     wasm.is_default_peq_for_device.mockReturnValue(false);
 
-    await expect(invoke("get_eq_state")).resolves.toMatchObject({ global_gain: 0 });
+    await expect(invoke("get_eq_state")).rejects.toThrow("refusing uncorrelated state");
     expect(wasm.build_read_global_gain_request).toHaveBeenCalled();
-    expect(device.sendReport.mock.calls.length).toBeGreaterThanOrEqual(3);
+    expect(device.sendReport.mock.calls.length).toBeGreaterThanOrEqual(2);
   });
 
   it("resends a firmware request when the first response is lost", async () => {

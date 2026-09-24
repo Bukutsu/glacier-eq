@@ -290,6 +290,9 @@ interface ParsedStorage<T> {
   malformed: boolean;
 }
 
+const UNCORRELATED_GAIN_ERROR =
+  "Global gain read required retry; refusing uncorrelated state";
+
 const DEFAULT_WEB_SETTINGS: AppSettings = {
   auto_pull_on_connect: true,
   skip_push_verification: false,
@@ -891,17 +894,9 @@ async function pullEqStateOnce(profile: SupportedDeviceInfo): Promise<PEQData> {
   const firstGain = await readGlobalGain(protocol);
   let global_gain = firstGain.value;
   if (firstGain.retried) {
-    // The wire format has no gain nonce. Require a second independent read
-    // after a retry so a late pre-retry frame cannot become rollback truth.
-    await sleep(100);
-    reportQueue = [];
-    const secondGain = await readGlobalGain(protocol);
-    if (Math.abs(global_gain - secondGain.value) > 0.001) {
-      throw new Error(
-        `Global gain reads did not corroborate: first ${global_gain}, second ${secondGain.value}`,
-      );
-    }
-    global_gain = secondGain.value;
+    // The wire format has no gain nonce. A retry can accept a late response
+    // from the first command, so fail closed instead of using it as truth.
+    throw new Error(UNCORRELATED_GAIN_ERROR);
   }
 
   const filters: Filter[] = [];
@@ -961,6 +956,10 @@ async function pullEqState(profile: SupportedDeviceInfo): Promise<PEQData> {
   } catch (error) {
     firstAttemptFailed = true;
     firstError = error;
+  }
+
+  if (firstAttemptFailed && errorMessage(firstError).includes(UNCORRELATED_GAIN_ERROR)) {
+    throw firstError;
   }
 
   await sleep(100);

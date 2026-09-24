@@ -20,6 +20,8 @@ const UTILITY_READ_ATTEMPTS: usize = 25;
 const UTILITY_READ_RETRIES: usize = 3;
 const WRITE_ATTEMPTS: usize = 3;
 const RETRY_DELAY_MS: u64 = 100;
+const UNCORRELATED_GAIN_ERROR: &str =
+    "Global gain read required retry; refusing uncorrelated state";
 
 fn combine_errors(first: String, retry: String) -> String {
     if first == retry {
@@ -131,6 +133,9 @@ impl<'a> DeviceSession<'a> {
                 self.pull_once()
             }
             Err(first) => {
+                if first.contains(UNCORRELATED_GAIN_ERROR) {
+                    return Err(first);
+                }
                 self.io.sleep_ms(RETRY_DELAY_MS);
                 match self.pull_once() {
                     Ok(peq) if protocol.is_default_state(&peq) => Err(format!(
@@ -473,25 +478,14 @@ impl<'a> DeviceSession<'a> {
     }
 
     fn read_gain(&mut self) -> Result<f64, String> {
-        let first = self.read_gain_once()?;
-        if !self.last_read_was_retried {
-            return Ok(first);
+        let gain = self.read_gain_once()?;
+        if self.last_read_was_retried {
+            // Global-gain frames do not carry a transaction nonce. A retry can
+            // accept a late response from the first command, so fail closed
+            // instead of allowing it to become rollback truth.
+            return Err(UNCORRELATED_GAIN_ERROR.into());
         }
-
-        // Global-gain frames do not carry a transaction nonce. If the first
-        // command needed a retry, a late response from that command can still
-        // look current after the drain. Require an independent second read and
-        // reject disagreement rather than using an unproven value as a rollback
-        // snapshot.
-        self.io.sleep_ms(RETRY_DELAY_MS);
-        self.drain();
-        let second = self.read_gain_once()?;
-        if (first - second).abs() > 0.001 {
-            return Err(format!(
-                "Global gain reads did not corroborate: first {first}, second {second}"
-            ));
-        }
-        Ok(second)
+        Ok(gain)
     }
 
     fn read_gain_once(&mut self) -> Result<f64, String> {
