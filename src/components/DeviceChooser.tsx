@@ -80,7 +80,13 @@ export function DeviceChooser({
         <div className="device-browser-warning">WebHID requires a Chromium-based browser over HTTPS or localhost.</div>
       )}
 
-      <button type="button" className="btn" style={{ width: "100%" }} onClick={handleScanClick} disabled={isBusy}>{isBusy ? "Scanning…" : "Scan for Devices"}</button>
+      <button type="button" className="btn device-scan-btn" onClick={handleScanClick} disabled={isBusy}>{isBusy ? "Scanning…" : "Scan for Devices"}</button>
+
+      {devices.length > 0 && (
+        <p className="device-selection-hint" id="device-selection-hint">
+          Tap a DAC to select it, then tap Connect.
+        </p>
+      )}
 
       {devices.length === 0 ? (
         <div className="empty-device-state">
@@ -88,7 +94,7 @@ export function DeviceChooser({
           <span>Plug in one of the supported devices below, then scan again.</span>
         </div>
       ) : (
-        <div className="device-list" role="radiogroup" aria-label="Available DACs">
+        <div className="device-list" role="radiogroup" aria-label="Available DACs" aria-describedby="device-selection-hint">
           {devices.map((device) => {
             const name = device.profile_name || device.product_string || device.manufacturer || "Supported DAC";
             const selected = selectedDevice === device.path;
@@ -103,7 +109,7 @@ export function DeviceChooser({
                 type="button"
                 role="radio"
                 className={selected ? "device-row selected" : "device-row"}
-                title="Click to select · Double-click to connect"
+                title="Select this DAC"
                 aria-checked={selected}
                 disabled={isBusy}
                 onClick={() => {
@@ -134,6 +140,13 @@ export function DeviceChooser({
           })}
         </div>
       )}
+
+      <div className="device-connect-footer">
+        <span className="status-text" role="status" aria-live="polite">{authorizationError ?? status}</span>
+        <div className="device-actions">
+          <button type="button" className="btn filled" onClick={() => onConnect()} disabled={!selectedDevice || isBusy}>Connect</button>
+        </div>
+      </div>
 
       <details
         className="supported-list"
@@ -174,10 +187,6 @@ export function DeviceChooser({
         <a href="https://github.com/Bukutsu/glacier-eq/wiki/Troubleshooting" target="_blank" rel="noreferrer">Open connection help</a>
       </details>
 
-      <div className="device-actions">
-        <button type="button" className="btn filled" onClick={() => onConnect()} disabled={!selectedDevice || isBusy}>Connect</button>
-      </div>
-      <span className="status-text" role="status" aria-live="polite">{authorizationError ?? status}</span>
     </section>
   );
 }

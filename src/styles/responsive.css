@@ -258,6 +258,12 @@
   .eq-canvas {
     min-height: 210px;
   }
+  .eq-filter-handle {
+    z-index: var(--z-raised);
+  }
+  .eq-filter-handle.active {
+    z-index: var(--z-menu);
+  }
   .graph-legend {
     display: none;
   }
@@ -294,7 +300,7 @@
     border: 1px solid var(--line-outline);
     color: var(--text);
     cursor: pointer;
-    z-index: var(--z-raised);
+    z-index: var(--z-sticky);
     transition: background-color var(--motion-duration) var(--motion-ease), color var(--motion-duration) var(--motion-ease), border-color var(--motion-duration) var(--motion-ease);
   }
   .mobile-legend-toggle:active {
@@ -375,7 +381,7 @@
   .mobile-filter-card .freq-cell,
   .mobile-filter-card .gain-cell,
   .mobile-filter-card .q-cell {
-    grid-template-columns: minmax(0, 1fr) 112px;
+    grid-template-columns: minmax(0, 1fr) 132px;
   }
   .bands-card {
     padding: 0;
@@ -554,6 +560,27 @@
   }
   .device-actions .btn {
     width: 100%;
+    min-height: 52px;
+  }
+  .device-connect-footer {
+    position: sticky;
+    bottom: 0;
+    z-index: var(--z-raised);
+    margin: 0 -18px -18px;
+    padding: 10px 18px max(10px, var(--safe-area-bottom, 0px));
+    background: color-mix(in srgb, var(--bg) 94%, transparent);
+    border-top: 1px solid var(--line-medium);
+    backdrop-filter: blur(12px);
+  }
+  .device-connect-footer .device-actions .btn {
+    min-height: 52px;
+  }
+  .device-selection-hint {
+    margin-top: -2px;
+  }
+  .device-row {
+    min-height: 76px;
+    touch-action: manipulation;
   }
   .supported-list div {
     flex-direction: column;
@@ -1409,5 +1436,91 @@ body.is-android *,
     padding: 20px 24px;
     background: transparent;
     border: none;
+  }
+}
+
+@media (max-width: 850px), ((max-height: 540px) and (pointer: coarse)) {
+  .mobile-session-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 36px;
+    padding: 0 16px;
+    color: var(--muted);
+    background: var(--bg-dark);
+    border-bottom: 1px solid var(--line-soft);
+    font-size: var(--type-small);
+  }
+  .mobile-session-dot {
+    width: 8px;
+    height: 8px;
+    flex: 0 0 8px;
+    background: var(--comment);
+  }
+  .mobile-session-status.ok .mobile-session-dot {
+    background: var(--sync-ok);
+  }
+  .mobile-session-status.dirty .mobile-session-dot {
+    background: var(--sync-unsaved);
+  }
+  .mobile-session-status.offline .mobile-session-dot {
+    background: var(--comment);
+  }
+  .mobile-session-label {
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .mobile-session-device {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--comment);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .mobile-session-device::before {
+    content: "·";
+    margin: 0 6px;
+    color: var(--line-strong);
+  }
+
+  .mobile-workspace button,
+  .mobile-workspace select,
+  .mobile-workspace input:not([type="range"]) {
+    touch-action: manipulation;
+  }
+
+  .mobile-tab-item {
+    position: relative;
+  }
+  .mobile-tab-item::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 22%;
+    right: 22%;
+    height: 2px;
+    background: var(--cyan);
+    opacity: 0;
+  }
+  .mobile-tab-item.active::before {
+    opacity: 1;
+  }
+
+  .band-undo-toast {
+    bottom: calc(var(--tabbar-h) + var(--safe-area-bottom, 0px) + 68px);
+  }
+}
+
+@media (max-width: 380px) {
+  .mobile-filter-card .freq-cell,
+  .mobile-filter-card .gain-cell,
+  .mobile-filter-card .q-cell {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+  .mobile-filter-card .custom-number-input.band-freq-stepper,
+  .mobile-filter-card .custom-number-input.band-gain-stepper,
+  .mobile-filter-card .custom-number-input.band-q-stepper {
+    width: 100% !important;
   }
 }

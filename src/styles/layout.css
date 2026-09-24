@@ -97,6 +97,8 @@ dialog.modal-content {
   max-width: none;
   max-height: min(85vh, calc(100dvh - 32px - var(--safe-area-top, 0px) - var(--safe-area-bottom, 0px)));
   overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   padding: 0;
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
   flex-direction: column;
@@ -161,6 +163,8 @@ dialog.modal-content.wide {
   flex-direction: column;
   gap: 12px;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Confirm Dialog */
@@ -190,4 +194,35 @@ dialog.modal-content.wide {
 
 /* Latte's red is dark enough that dark on-accent text fails contrast. */
 :root[data-theme="catppuccin-latte"] .btn.confirm-danger { color: #ffffff; }
+
+@media (max-width: 850px), ((max-height: 540px) and (pointer: coarse)) {
+  dialog.modal-content,
+  dialog.modal-content.wide {
+    width: calc(100vw - 16px - var(--safe-area-left, 0px) - var(--safe-area-right, 0px));
+    max-height: calc(100dvh - 16px - var(--safe-area-top, 0px) - var(--safe-area-bottom, 0px));
+  }
+
+  .modal-header {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    padding-top: calc(14px + var(--safe-area-top, 0px));
+    background: var(--panel);
+  }
+
+  .modal-body {
+    padding-bottom: calc(16px + var(--safe-area-bottom, 0px));
+  }
+
+  dialog.modal-content,
+  dialog.modal-content * {
+    scrollbar-width: none;
+  }
+  dialog.modal-content::-webkit-scrollbar,
+  dialog.modal-content *::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+}
 

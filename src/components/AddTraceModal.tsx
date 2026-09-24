@@ -37,6 +37,7 @@ export function AddTraceModal({
   } = useOnlineDatabase(setStatus);
   const [loadedDevices, setLoadedDevices] = useState<Set<string>>(new Set());
   const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [modalError, setModalError] = useState<string | null>(null);
   const mountedRef = useRef(true);
   const loadRequestRef = useRef(0);
 
@@ -56,6 +57,7 @@ export function AddTraceModal({
   }, [searchQuery]);
 
   const handleDownload = async () => {
+    setModalError(null);
     try {
       const result = await download();
       setStatus?.(
@@ -65,11 +67,14 @@ export function AddTraceModal({
       );
     } catch (error) {
       console.error(error);
-      setStatus?.(`Could not download database: ${error}`);
+      const message = `Could not download database: ${error}`;
+      setModalError(message);
+      setStatus?.(message);
     }
   };
 
   const handleResetCache = async () => {
+    setModalError(null);
     if (await confirmDialog({
       title: "Clear database cache?",
       message: "Clear the cached measurement database (~16 MB)?",
@@ -81,13 +86,16 @@ export function AddTraceModal({
         setStatus?.("Database cache cleared.");
       } catch (error) {
         console.error(error);
-        setStatus?.(`Could not clear cache: ${error}`);
+        const message = `Could not clear cache: ${error}`;
+        setModalError(message);
+        setStatus?.(message);
       }
     }
   };
 
   const handleImportFile = async () => {
     const request = ++loadRequestRef.current;
+    setModalError(null);
     try {
       const result = await openFileDialog({
         filters: [{ name: "Frequency Response (.csv, .txt)", extensions: ["csv", "txt"] }],
@@ -107,13 +115,16 @@ export function AddTraceModal({
       onClose();
     } catch (error) {
       if (request === loadRequestRef.current && mountedRef.current) {
-        setStatus?.(`Could not import file: ${error}`);
+        const message = `Could not import file: ${error}`;
+        setModalError(message);
+        setStatus?.(message);
       }
     }
   };
 
   const handleLoadDevice = async (dev: OnlineDevice) => {
     const request = ++loadRequestRef.current;
+    setModalError(null);
     try {
       const points = await loadDevice(dev);
       if (request !== loadRequestRef.current || !mountedRef.current) return;
@@ -124,7 +135,9 @@ export function AddTraceModal({
     } catch (error) {
       if (request === loadRequestRef.current && mountedRef.current) {
         console.error(error);
-        setStatus?.(`Could not load: ${error}`);
+        const message = `Could not load ${dev.brand} ${dev.name}: ${error}`;
+        setModalError(message);
+        setStatus?.(message);
       }
     }
   };
@@ -136,6 +149,12 @@ export function AddTraceModal({
 
   return (
     <Modal title="Add Trace" onClose={onClose} className="add-trace-modal">
+        {modalError && (
+          <div className="modal-inline-error" role="alert">
+            <Icon>error</Icon>
+            <span>{modalError}</span>
+          </div>
+        )}
         <div className="add-trace-section">
           <div className="add-trace-section-title">From file</div>
           <button
@@ -185,7 +204,7 @@ export function AddTraceModal({
                           aria-label={loadedDevices.has(dev.id) ? `${dev.brand} ${dev.name} loaded` : `Load ${dev.brand} ${dev.name}`}
                           onClick={() => handleLoadDevice(dev)}
                         >
-                          {loadingDevice === dev.id ? <span>Loading...</span> : loadedDevices.has(dev.id) ? <Icon>check</Icon> : <Icon>download</Icon>}
+                          {loadingDevice === dev.id ? <span>Loading…</span> : loadedDevices.has(dev.id) ? <Icon>check</Icon> : <Icon>download</Icon>}
                         </button>
                       </div>
                     ))

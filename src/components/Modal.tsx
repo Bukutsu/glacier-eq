@@ -1,6 +1,39 @@
 import { type CSSProperties, type MouseEvent, type ReactNode, useEffect, useId, useRef } from "react";
 import { Icon } from "./Icon";
 
+export const MODAL_HISTORY_KEY = "__glacierModal";
+
+interface ModalHistoryEntry {
+  id: string;
+  onClose: () => void;
+}
+
+// Modal instances share one history stack. A system Back event removes only
+// the top entry; returning to an underlying modal's sentinel must not dismiss
+// that underlying dialog as well.
+const modalHistoryStack: ModalHistoryEntry[] = [];
+
+function modalStateWithId(id: string): Record<string, unknown> {
+  const current = window.history.state;
+  return typeof current === "object" && current !== null
+    ? { ...current, [MODAL_HISTORY_KEY]: id }
+    : { [MODAL_HISTORY_KEY]: id };
+}
+
+function handleModalPopState(event: PopStateEvent) {
+  const top = modalHistoryStack[modalHistoryStack.length - 1];
+  if (!top) return;
+  const state = event.state;
+  const activeId = typeof state === "object" && state !== null
+    ? (state as Record<string, unknown>)[MODAL_HISTORY_KEY]
+    : undefined;
+  // A cleanup already removed the top entry before calling history.back().
+  // If the state now names the next entry, that entry is still open.
+  if (activeId === top.id) return;
+  modalHistoryStack.pop();
+  top.onClose();
+}
+
 interface ModalProps {
   title: string;
   onClose: () => void;
@@ -13,17 +46,36 @@ interface ModalProps {
 export function Modal({ title, onClose, className = "", style, children, closeDisabled = false }: ModalProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
+  const modalId = `modal-${titleId}`;
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     const dialog = dialogRef.current;
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const entry: ModalHistoryEntry = { id: modalId, onClose: () => onCloseRef.current() };
+
+    modalHistoryStack.push(entry);
+    window.history.pushState(modalStateWithId(modalId), "");
+    window.addEventListener("popstate", handleModalPopState);
     if (dialog && !dialog.open) dialog.showModal();
 
     return () => {
+      window.removeEventListener("popstate", handleModalPopState);
+      const index = modalHistoryStack.lastIndexOf(entry);
+      if (index >= 0) modalHistoryStack.splice(index, 1);
+      // A close button removes the React modal first; balance the sentinel it
+      // pushed. If Android Back already removed it, the current state no
+      // longer belongs to this entry and no second history navigation occurs.
+      const state = window.history.state;
+      const activeId = typeof state === "object" && state !== null
+        ? (state as Record<string, unknown>)[MODAL_HISTORY_KEY]
+        : undefined;
+      if (activeId === modalId) window.history.back();
       if (dialog?.open) dialog.close();
       opener?.focus();
     };
-  }, []);
+  }, [modalId]);
 
   const handleBackdropClick = (event: MouseEvent<HTMLDialogElement>) => {
     if (closeDisabled || event.target !== event.currentTarget) return;

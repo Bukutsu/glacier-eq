@@ -107,17 +107,22 @@
 /* Mobile responsive layout - matches MOBILE_QUERY in src/lib/tabs.ts */
 @media (max-width: 850px), ((max-height: 540px) and (pointer: coarse)) {
   .toast-container {
-    top: calc(72px + var(--safe-area-top, 0px));
-    bottom: auto;
-    left: max(16px, var(--safe-area-left, 0px));
-    right: max(16px, var(--safe-area-right, 0px));
+    top: auto;
+    bottom: calc(var(--tabbar-h) + var(--safe-area-bottom, 0px) + 12px);
+    left: max(12px, var(--safe-area-left, 0px));
+    right: max(12px, var(--safe-area-right, 0px));
     align-items: stretch;
+    max-height: min(42dvh, 320px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    pointer-events: auto;
   }
 
   .toast-item {
     min-width: 0;
     max-width: none;
-    animation: toast-in-top var(--motion-duration) var(--motion-ease) forwards;
+    animation: toast-in-bottom var(--motion-duration) var(--motion-ease) forwards;
   }
 }
 

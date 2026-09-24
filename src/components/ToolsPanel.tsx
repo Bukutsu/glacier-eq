@@ -221,12 +221,12 @@ function CurvesTab({
           <button
             type="button"
             className="btn danger curves-clear-btn"
-            title="Clear all measurements"
-            aria-label="Clear all measurements"
+            title={`Clear ${measurements.length} saved measurement${measurements.length === 1 ? "" : "s"}`}
+            aria-label={`Clear ${measurements.length} saved measurement${measurements.length === 1 ? "" : "s"}`}
             onClick={onClearMeasurements}
           >
             <Icon>delete</Icon>
-            <span>Clear</span>
+            <span>Clear traces</span>
           </button>
         )}
       </div>

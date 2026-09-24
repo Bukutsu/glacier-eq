@@ -27,7 +27,7 @@ import {
 } from "./lib/tabs";
 import { Collapsible } from "./components/Collapsible";
 import { ConfirmDialogHost, confirmDialog } from "./components/ConfirmDialog";
-import { Modal } from "./components/Modal";
+import { Modal, MODAL_HISTORY_KEY } from "./components/Modal";
 import { UnifiedTracesList } from "./components/UnifiedTraces";
 import { SidebarDeviceSpecs } from "./components/SidebarDeviceSpecs";
 import {
@@ -356,6 +356,17 @@ function App() {
     addTarget,
     removeTarget,
   } = useTraces(showToast);
+  const clearMeasurementsWithConfirmation = useCallback(async () => {
+    const count = measurements.length;
+    if (count === 0) return;
+    const confirmed = await confirmDialog({
+      title: "Clear measurements?",
+      message: `Remove ${count} saved measurement${count === 1 ? "" : "s"}? Target curves will stay available. This cannot be undone.`,
+      confirmLabel: "Clear measurements",
+      danger: true,
+    });
+    if (confirmed) clearMeasurements();
+  }, [clearMeasurements, measurements.length]);
   const [graphViewMode, setGraphViewMode] = useState<GraphViewMode>(() =>
     readLocalStorage("glacier-graph-view-mode") === "level"
       ? "level"
@@ -933,7 +944,6 @@ function App() {
         if (!exactPathMatch && nameMatches.length > 1) {
           ambiguousReconnectRef.current = true;
           setIsReconnecting(false);
-          window.history.pushState({ modal: "device" }, "");
           setShowDeviceModal(true);
           reportStatus(
             "Warn",
@@ -1549,10 +1559,13 @@ function App() {
     return () => window.cancelAnimationFrame(frame);
   }, [activeTab, isMobile]);
 
-  // React Router owns workspace history. Keep the native popstate listener only
-  // for dismissing the existing modal overlays on Android back.
+  // React Router owns workspace history. Modal.tsx handles nested modal
+  // sentinels; this listener only cleans up route-level overlays when a Back
+  // event has already left the modal stack.
   useEffect(() => {
-    const handlePopState = () => {
+    const handlePopState = (event: PopStateEvent) => {
+      const state = event.state;
+      if (typeof state === "object" && state !== null && MODAL_HISTORY_KEY in state) return;
       reconnectEffectGenerationRef.current += 1;
       ambiguousReconnectRef.current = false;
       setIsReconnecting(false);
@@ -1580,35 +1593,23 @@ function App() {
   }, [navigate]);
 
   const handleOpenDeviceModal = useCallback(() => {
-    window.history.pushState({ modal: "device" }, "");
     setShowDeviceModal(true);
   }, []);
   const handleCloseDeviceModal = useCallback(() => {
     ambiguousReconnectRef.current = false;
     persistUiPreference(DEVICE_ONBOARDING_KEY, "true");
-    if (window.history.state?.modal === "device") {
-      window.history.back();
-    }
     setShowDeviceModal(false);
   }, [persistUiPreference]);
   const handleOpenDiagnosticsModal = useCallback(() => {
-    window.history.pushState({ modal: "diagnostics" }, "");
     setShowDiagnosticsModal(true);
   }, []);
   const handleCloseDiagnosticsModal = useCallback(() => {
-    if (window.history.state?.modal === "diagnostics") {
-      window.history.back();
-    }
     setShowDiagnosticsModal(false);
   }, []);
   const handleShowAddTrace = useCallback(() => {
-    window.history.pushState({ modal: "add-trace" }, "");
     setShowAddTrace(true);
   }, []);
   const handleCloseAddTrace = useCallback(() => {
-    if (window.history.state?.modal === "add-trace") {
-      window.history.back();
-    }
     setShowAddTrace(false);
   }, []);
   const canUndoHistory = useHistoryStore((s) => s.past.length > 0);
@@ -1833,6 +1834,16 @@ function App() {
   const mobilePageTitle = activeTab === "eq"
     ? selectedPreset
     : MOBILE_TABS.find((tab) => tab.id === activeTab)?.label ?? selectedPreset;
+  const mobileDeviceMatches = lastPushedPeq ? peqEquals(peq, lastPushedPeq) : null;
+  const mobileSessionLabel = !connected
+    ? "Offline"
+    : isBusy
+      ? "Working…"
+      : dirty || mobileDeviceMatches === false
+        ? "Unsaved changes"
+        : mobileDeviceMatches === true
+          ? "Synced with DAC"
+          : "Device state unknown";
 
   return (
     <div id="app">
@@ -1900,6 +1911,17 @@ function App() {
             </div>
           )}
           <div className="mobile-content-area">
+            {activeTab !== "eq" && (
+              <div
+                className={`mobile-session-status ${connected ? (dirty || mobileDeviceMatches === false ? "dirty" : "ok") : "offline"}`}
+                role="status"
+                aria-label={`Session status: ${mobileSessionLabel}`}
+              >
+                <span className="mobile-session-dot" aria-hidden="true" />
+                <span className="mobile-session-label">{mobileSessionLabel}</span>
+                {connected && deviceName && <span className="mobile-session-device">{deviceName}</span>}
+              </div>
+            )}
             {activeTab === "eq" && (
               <section className="left-pane">
                 {editorHint}
@@ -1928,12 +1950,12 @@ function App() {
                         <button
                           type="button"
                           className="btn danger curves-clear-btn"
-                          title="Clear all measurements"
-                          aria-label="Clear all measurements"
-                          onClick={clearMeasurements}
+                          title={`Clear ${measurements.length} saved measurement${measurements.length === 1 ? "" : "s"}`}
+                          aria-label={`Clear ${measurements.length} saved measurement${measurements.length === 1 ? "" : "s"}`}
+                          onClick={clearMeasurementsWithConfirmation}
                         >
                           <Icon>delete</Icon>
-                          <span>Clear</span>
+                          <span>Clear traces</span>
                         </button>
                       )}
                     </div>
@@ -2098,7 +2120,7 @@ function App() {
             onAddMeasurement={addMeasurement}
             onRemoveMeasurement={removeMeasurement}
             onToggleMeasurement={toggleMeasurement}
-            onClearMeasurements={clearMeasurements}
+            onClearMeasurements={clearMeasurementsWithConfirmation}
             onSelectedMeasurementChange={setSelectedMeasurementId}
             graphViewMode={graphViewMode}
             onGraphViewModeChange={setGraphViewMode}

@@ -11,6 +11,18 @@ import { Icon } from "./Icon";
 const GRAPH_FREQS = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
 const GRAPH_DBS = [-18, -12, -6, 0, 6, 12, 18];
 
+function graphDbLabels(height: number): number[] {
+  // The mobile graph is deliberately short. Seven labels collide at that
+  // size, so keep the scale readable by labeling the center and bounds only.
+  return height < 220 ? [-12, 0, 12] : GRAPH_DBS;
+}
+
+function clampHandlePosition(percent: number): string {
+  // The handle is transformed around its center. Keep the full touch target
+  // inside the graph when a band sits at the edge of the frequency/gain range.
+  return `clamp(14px, ${percent}%, calc(100% - 14px))`;
+}
+
 const DEFAULT_MOTION_MS = 160;
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const easeOutCubic = (t: number) => 1 - (1 - t) ** 3;
@@ -328,10 +340,10 @@ export const EqGraph = memo(function EqGraph({
             style={{
               "--filter-color": `var(${color})`,
               "--filter-color-rgb": `var(${rgb})`,
-              left: `${freqToX(filter.freq, 100)}%`,
-              top: `${dbToY(filter.gain, 100)}%`,
+              left: clampHandlePosition(freqToX(filter.freq, 100)),
+              top: clampHandlePosition(dbToY(filter.gain, 100)),
             } as CSSProperties}
-            aria-label={`Band ${filter.index + 1}: ${valueText}. Drag or use arrow keys to adjust frequency and gain. Use the mouse wheel for gain or Shift plus mouse wheel for Q.`}
+            aria-label={`Band ${filter.index + 1}: ${valueText}. Drag with a finger or use arrow keys to adjust frequency and gain. Use the mouse wheel for gain or Shift plus mouse wheel for Q.`}
             aria-current={activeBandIndex === filter.index ? "true" : undefined}
             title={`Band ${filter.index + 1}: ${valueText} · Wheel: gain · Shift+wheel: Q`}
             onPointerDown={(event) => {
@@ -445,12 +457,14 @@ function drawGrid(ctx: CanvasRenderingContext2D, width: number, height: number) 
     ctx.stroke();
   }
 
+  const labeledDbs = graphDbLabels(height);
   for (const db of GRAPH_DBS) {
     const y = dbToY(db, height);
     ctx.beginPath();
     ctx.moveTo(14, y);
     ctx.lineTo(width - 14, y);
     ctx.stroke();
+    if (!labeledDbs.includes(db)) continue;
     const labelY = y <= 12 ? y + 12 : y - 4;
     // Prevent drawing lowest dB label if it falls into bottom frequency label area
     if (labelY < height - 16) {

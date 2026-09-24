@@ -292,7 +292,7 @@
   border-radius: 0 !important;
   cursor: pointer;
   flex-shrink: 0;
-  transition: all 120ms ease;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, filter 120ms ease;
 }
 
 .profile-apply-btn:hover {
@@ -424,7 +424,7 @@
   color: var(--text);
   border-radius: 0 !important;
   cursor: pointer;
-  transition: all 120ms ease;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, filter 120ms ease;
 }
 
 .profile-icon-action:hover:not(:disabled) {
@@ -460,7 +460,7 @@
   font-weight: 600;
   border-radius: 0 !important;
   cursor: pointer;
-  transition: all 120ms ease;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, filter 120ms ease;
 }
 
 .profile-save-as-toggle:hover {
@@ -703,7 +703,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
-  transition: all 120ms ease;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, filter 120ms ease;
 }
 
 .transfer-actions .icon-action:hover {
@@ -2775,6 +2775,23 @@ dialog.modal-content.add-trace-modal,
   gap: 0;
 }
 
+.modal-inline-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 12px 20px 0;
+  padding: 10px 12px;
+  color: var(--red);
+  background: color-mix(in srgb, var(--red) 10%, var(--panel));
+  border: 1px solid var(--danger-outline);
+  font-size: var(--type-small);
+  line-height: 1.4;
+}
+.modal-inline-error .app-icon {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
 .add-trace-section {
   padding: 14px 20px 0;
   display: flex;
@@ -2927,5 +2944,65 @@ dialog.modal-content.add-trace-modal,
     min-width: 44px;
     width: 44px;
     height: 44px;
+  }
+  .profile-card-tools .icon-btn,
+  .profile-search-clear,
+  .profile-apply-btn {
+    min-width: 44px;
+    min-height: 48px;
+  }
+  .profile-card-tools .icon-btn {
+    width: 48px;
+    height: 48px;
+  }
+  .profile-search-clear {
+    width: 44px;
+    height: 44px;
+  }
+  .profile-apply-btn {
+    padding-inline: 14px !important;
+  }
+  .import-mode-tabs button,
+  .import-field-group input,
+  .import-flow-actions button {
+    min-height: 48px !important;
+  }
+  .import-field-group input,
+  .profile-search,
+  .curves-search-input,
+  .diag-search {
+    font-size: 16px !important;
+  }
+  .custom-number-input .stepper-btn {
+    min-width: 44px;
+    width: 44px;
+    flex: 0 0 44px;
+  }
+  .custom-select-trigger {
+    min-height: 48px;
+  }
+}
+
+@media (pointer: coarse) {
+  .profile-card-tools .icon-btn,
+  .profile-search-clear,
+  .profile-apply-btn,
+  .import-mode-tabs button,
+  .import-field-group input,
+  .import-flow-actions button,
+  .custom-select-trigger {
+    min-width: 44px;
+    min-height: 48px;
+  }
+  .custom-number-input .stepper-btn {
+    min-width: 44px;
+    width: 44px;
+    flex: 0 0 44px;
+  }
+  .profile-search,
+  .curves-search-input,
+  .import-field-group input,
+  .diag-search {
+    font-size: 16px !important;
   }
 }
