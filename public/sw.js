@@ -1,5 +1,9 @@
 const CACHE_PREFIX = "glacier-eq-v2-";
-const CACHE_SCOPE_PREFIX = `${CACHE_PREFIX}${encodeURIComponent(self.registration.scope)}-`;
+// `encodeURIComponent` leaves '-' unescaped, so a hyphen delimiter can make
+// /app/ and /app/-admin/ share a prefix. '|' is always escaped in the scope
+// component and therefore gives an unambiguous boundary.
+const CACHE_SCOPE_SEPARATOR = "|";
+const CACHE_SCOPE_PREFIX = `${CACHE_PREFIX}${encodeURIComponent(self.registration.scope)}${CACHE_SCOPE_SEPARATOR}`;
 const CACHE_META_CACHE = "glacier-eq-cache-meta-v1";
 const CACHE_META_PATH = "__glacier_eq_active_cache__";
 let CACHE = "";
@@ -32,12 +36,11 @@ async function rememberActiveCache(name) {
 
 async function matchScopedCache(request) {
   const names = (await caches.keys()).filter((name) => name.startsWith(CACHE_SCOPE_PREFIX));
-  for (const name of names) {
-    const cache = await caches.open(name);
-    const cached = await cache.match(request);
-    if (cached) return cached;
-  }
-  return undefined;
+  // Without an active release, multiple candidates are ambiguous. Fail closed
+  // to the network rather than serving an arbitrary old release.
+  if (names.length !== 1) return undefined;
+  const cache = await caches.open(names[0]);
+  return cache.match(request);
 }
 
 async function restoreActiveCache() {

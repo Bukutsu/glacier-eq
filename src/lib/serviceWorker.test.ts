@@ -114,7 +114,7 @@ describe("service worker preload", () => {
 
   it("does not fall back to another scope's cache when no active cache exists", async () => {
     const listeners: Record<string, (event: any) => void> = {};
-    const broadCache = new Map([["https://example.test/app/admin/app.js", "broad"]]);
+    const broadCache = new Map([["https://example.test/app/-admin/app.js", "broad"]]);
     const cache = {
       match: async (request: string | URL) => broadCache.get(String(request)),
       put: async () => undefined,
@@ -123,7 +123,7 @@ describe("service worker preload", () => {
     };
     const context = {
       self: {
-        registration: { scope: "https://example.test/app/admin/" },
+        registration: { scope: "https://example.test/app/" },
         addEventListener: (name: string, listener: (event: any) => void) => {
           listeners[name] = listener;
         },
@@ -136,7 +136,7 @@ describe("service worker preload", () => {
           match: async () => undefined,
           put: async () => undefined,
         } : cache),
-        keys: vi.fn(async () => ["glacier-eq-v2-https%3A%2F%2Fexample.test%2Fapp%2F"]),
+        keys: vi.fn(async () => ["glacier-eq-v2-https%3A%2F%2Fexample.test%2Fapp%2F-admin%2F|foreign"]),
         delete: vi.fn(),
         match: vi.fn(async () => {
           throw new Error("global cache fallback must not be used");
@@ -153,7 +153,7 @@ describe("service worker preload", () => {
     vm.runInNewContext(source, context);
     let responsePromise: Promise<unknown> | undefined;
     listeners.fetch({
-      request: { method: "GET", url: "https://example.test/app/admin/app.js", mode: "no-cors" },
+      request: { method: "GET", url: "https://example.test/app/-admin/app.js", mode: "no-cors" },
       respondWith: (promise: Promise<unknown>) => { responsePromise = promise; },
     });
     await expect(responsePromise).resolves.toBeDefined();
