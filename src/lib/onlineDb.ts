@@ -28,6 +28,7 @@ export interface OnlineDevice {
 let pendingOpen: Promise<IDBDatabase> | null = null;
 
 const META_GEN_KEY = "meta:gen";
+const META_NEXT_GEN_KEY = "meta:next-generation";
 const META_EPOCH_KEY = "meta:cache-epoch";
 
 // One shared connection for the module's lifetime. Every caller receives this
@@ -309,12 +310,6 @@ function readLiveRecords(
  * layout (bare `meta:*` records and device-ID curve keys). Only ever written
  * by the publish transaction of a completed download.
  */
-async function liveGeneration(db: IDBDatabase): Promise<number | null> {
-  const store = db.transaction(STORE_NAME, "readonly").objectStore(STORE_NAME);
-  const raw = await idbRequest<unknown>(store.get(META_GEN_KEY));
-  return parseGeneration(raw);
-}
-
 /**
  * Map a legacy record key into the live generation's key space: `meta:*`
  * records drop the prefix (`meta:complete` → `gen:{n}:complete`), while curve
@@ -327,10 +322,94 @@ function generationKey(generation: number | null, legacyKey: string): string {
   return `gen:${generation}:${name}`;
 }
 
-async function liveEpoch(db: IDBDatabase): Promise<string | null> {
-  const store = db.transaction(STORE_NAME, "readonly").objectStore(STORE_NAME);
-  const raw = await idbRequest<unknown>(store.get(META_EPOCH_KEY));
-  return typeof raw === "string" && raw.length > 0 ? raw : null;
+type GenerationReservation = {
+  generation: number;
+  previousGeneration: number | null;
+  epoch: string | null;
+};
+
+function reserveGeneration(db: IDBDatabase): Promise<GenerationReservation> {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    const store = tx.objectStore(STORE_NAME);
+    const generationRequest = store.get(META_GEN_KEY);
+    const nextRequest = store.get(META_NEXT_GEN_KEY);
+    const epochRequest = store.get(META_EPOCH_KEY);
+    let currentGeneration: number | null = null;
+    let nextGeneration = 1;
+    let epoch: string | null = null;
+    let remaining = 3;
+    let reservation: GenerationReservation | null = null;
+    const finish = () => {
+      remaining -= 1;
+      if (remaining !== 0) return;
+      const generation = Math.max(
+        nextGeneration,
+        (currentGeneration ?? 0) + 1,
+        1,
+      );
+      if (!Number.isSafeInteger(generation + 1)) {
+        tx.abort();
+        reject(new Error("Online database generation counter is exhausted"));
+        return;
+      }
+      store.put(generation + 1, META_NEXT_GEN_KEY);
+      reservation = { generation, previousGeneration: currentGeneration, epoch };
+    };
+    generationRequest.onsuccess = () => {
+      currentGeneration = parseGeneration(generationRequest.result);
+      finish();
+    };
+    nextRequest.onsuccess = () => {
+      const raw = nextRequest.result;
+      nextGeneration = typeof raw === "number" && Number.isSafeInteger(raw) && raw >= 1
+        ? raw
+        : 1;
+      finish();
+    };
+    epochRequest.onsuccess = () => {
+      const raw = epochRequest.result;
+      epoch = typeof raw === "string" && raw.length > 0 ? raw : null;
+      finish();
+    };
+    tx.oncomplete = () => {
+      if (reservation) resolve(reservation);
+      else reject(new Error("Could not reserve an online database generation"));
+    };
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error ?? new Error("Transaction aborted"));
+  });
+}
+
+function readLivePublication(
+  db: IDBDatabase,
+): Promise<{ generation: number | null; epoch: string | null }> {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, "readonly");
+    const store = tx.objectStore(STORE_NAME);
+    const generationRequest = store.get(META_GEN_KEY);
+    const epochRequest = store.get(META_EPOCH_KEY);
+    let generationReady = false;
+    let epochReady = false;
+    let generation: number | null = null;
+    let epoch: string | null = null;
+    const finish = () => {
+      if (generationReady && epochReady) resolve({ generation, epoch });
+    };
+    generationRequest.onsuccess = () => {
+      generation = parseGeneration(generationRequest.result);
+      generationReady = true;
+      finish();
+    };
+    epochRequest.onsuccess = () => {
+      const raw = epochRequest.result;
+      epoch = typeof raw === "string" && raw.length > 0 ? raw : null;
+      epochReady = true;
+      finish();
+    };
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error ?? new Error("Transaction aborted"));
+  });
 }
 
 function newClearEpoch(): string {
@@ -366,10 +445,33 @@ export async function clearCachedDatabase(): Promise<void> {
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readwrite");
     const store = tx.objectStore(STORE_NAME);
-    store.clear();
-    // A tombstone epoch distinguishes "never downloaded" from "cleared while
-    // a download was in flight; the generation pointer alone cannot.
-    store.put(newClearEpoch(), META_EPOCH_KEY);
+    const nextRequest = store.get(META_NEXT_GEN_KEY);
+    const generationRequest = store.get(META_GEN_KEY);
+    let nextGeneration = 1;
+    let currentGeneration: number | null = null;
+    let remaining = 2;
+    const clear = () => {
+      remaining -= 1;
+      if (remaining !== 0) return;
+      store.clear();
+      // Preserve a monotonic reservation counter across clears so an older
+      // in-flight writer cannot reuse a generation after the wipe.
+      store.put(Math.max(nextGeneration, (currentGeneration ?? 0) + 2), META_NEXT_GEN_KEY);
+      // A tombstone epoch distinguishes "never downloaded" from "cleared while
+      // a download was in flight; the generation pointer alone cannot.
+      store.put(newClearEpoch(), META_EPOCH_KEY);
+    };
+    nextRequest.onsuccess = () => {
+      const raw = nextRequest.result;
+      nextGeneration = typeof raw === "number" && Number.isSafeInteger(raw) && raw >= 1
+        ? raw
+        : 1;
+      clear();
+    };
+    generationRequest.onsuccess = () => {
+      currentGeneration = parseGeneration(generationRequest.result);
+      clear();
+    };
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
     tx.onabort = () => reject(tx.error ?? new Error("Transaction aborted"));
@@ -462,9 +564,8 @@ async function downloadDatabaseWithDb(
   // the generation's completeness flag, in one transaction — only after every
   // chunk has landed. Cancellation, quota exhaustion, or a crash anywhere
   // before that flip destroys nothing of the previous cache.
-  const downloadEpoch = await liveEpoch(db);
-  const previousGeneration = await liveGeneration(db);
-  const generation = (previousGeneration ?? 0) + 1;
+  const reservation = await reserveGeneration(db);
+  const { generation, previousGeneration, epoch: downloadEpoch } = reservation;
 
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readwrite");
@@ -592,7 +693,7 @@ async function downloadDatabaseWithDb(
     );
     const stale = keys.filter((key) => {
       const name = String(key);
-      if (name === META_GEN_KEY || name === META_EPOCH_KEY) return false;
+      if (name === META_GEN_KEY || name === META_NEXT_GEN_KEY || name === META_EPOCH_KEY) return false;
       const generationMatch = /^gen:(\d+):/.exec(name);
       if (generationMatch) return Number(generationMatch[1]) < generation;
       return true;
@@ -610,6 +711,11 @@ async function downloadDatabaseWithDb(
   } catch (cleanupError) {
     sweepFailed = true;
     console.warn("Failed to sweep superseded online database records:", cleanupError);
+  }
+
+  const { epoch: finalEpoch, generation: finalGeneration } = await readLivePublication(db);
+  if (finalEpoch !== downloadEpoch || finalGeneration !== generation) {
+    throw new Error("The online database cache changed during the final download check; please download again.");
   }
 
   onProgress(1.0);

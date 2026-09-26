@@ -30,6 +30,15 @@ class MockTransaction {
   readonly store = {
     clear: vi.fn(() => this.clearRequest),
     put: vi.fn(() => ({})),
+    get: vi.fn(() => {
+      const request = {
+        result: undefined,
+        onsuccess: null as ((event: Event) => void) | null,
+        onerror: null as ((event: Event) => void) | null,
+      };
+      queueMicrotask(() => fire(request.onsuccess));
+      return request;
+    }),
   };
 
   objectStore() {
