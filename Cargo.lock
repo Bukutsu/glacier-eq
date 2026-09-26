@@ -1167,6 +1167,7 @@ version = "0.1.2"
 dependencies = [
  "fs2",
  "hidapi",
+ "libc",
  "log",
  "proptest",
  "serde",

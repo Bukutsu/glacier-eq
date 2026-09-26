@@ -9,6 +9,12 @@ use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::Duration;
+#[cfg(unix)]
+use std::{
+    ffi::CString,
+    os::fd::{AsRawFd, FromRawFd},
+    os::unix::ffi::OsStrExt,
+};
 
 #[cfg(not(target_arch = "wasm32"))]
 use fs2::FileExt;
@@ -165,7 +171,7 @@ impl ProfileStore {
                 warnings.extend(skip(&path, &format!("invalid profile name: {error}")));
                 continue;
             }
-            let (profile, mut file_warnings) = read_profile(&path)?;
+            let (profile, mut file_warnings) = read_profile(&self.dir, &path)?;
             warnings.append(&mut file_warnings);
             if let Some(profile) = profile {
                 profiles.push(profile);
@@ -194,7 +200,7 @@ impl ProfileStore {
         // A malformed case-variant sibling must not shadow a valid profile:
         // walk the same variants list_detailed uses until one is readable.
         for path in self.case_variant_paths(name) {
-            let (profile, _) = read_profile(&path)?;
+            let (profile, _) = read_profile(&self.dir, &path)?;
             if let Some(profile) = profile {
                 return Ok(profile);
             }
@@ -300,7 +306,7 @@ impl ProfileStore {
         let variants = self.case_variant_paths(name);
         if let Some(path) = variants
             .iter()
-            .find(|path| matches!(read_profile(path), Ok((Some(_), _))))
+            .find(|path| matches!(read_profile(&self.dir, path), Ok((Some(_), _))))
         {
             return Ok(path.clone());
         }
@@ -424,13 +430,76 @@ fn skip(path: &Path, reason: &str) -> Vec<String> {
     vec![message]
 }
 
+#[cfg(unix)]
+fn open_profile_file(dir: &Path, path: &Path) -> std::io::Result<std::fs::File> {
+    let file_name = path.file_name().ok_or_else(|| {
+        std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "profile path has no file name",
+        )
+    })?;
+    let directory = std::fs::File::open(dir)?;
+    let name = CString::new(file_name.as_bytes()).map_err(|_| {
+        std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "profile name contains NUL",
+        )
+    })?;
+    // O_NOFOLLOW closes the symlink_metadata()->File::open TOCTOU window;
+    // the descriptor is then checked as a regular file by the caller.
+    let fd = unsafe {
+        libc::openat(
+            directory.as_raw_fd(),
+            name.as_ptr(),
+            libc::O_RDONLY | libc::O_NOFOLLOW | libc::O_CLOEXEC | libc::O_NONBLOCK,
+        )
+    };
+    if fd < 0 {
+        return Err(std::io::Error::last_os_error());
+    }
+    Ok(unsafe { std::fs::File::from_raw_fd(fd) })
+}
+
+#[cfg(windows)]
+fn open_profile_file(dir: &Path, path: &Path) -> std::io::Result<std::fs::File> {
+    use std::os::windows::fs::OpenOptionsExt;
+
+    const FILE_FLAG_OPEN_REPARSE_POINT: u32 = 0x0020_0000;
+    let file = std::fs::OpenOptions::new()
+        .read(true)
+        .custom_flags(FILE_FLAG_OPEN_REPARSE_POINT)
+        .open(dir.join(path.file_name().ok_or_else(|| {
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "profile path has no file name",
+            )
+        })?))?;
+    if file.metadata()?.file_type().is_symlink() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::PermissionDenied,
+            "profile file is a symbolic link",
+        ));
+    }
+    Ok(file)
+}
+
+#[cfg(not(any(unix, windows)))]
+fn open_profile_file(dir: &Path, path: &Path) -> std::io::Result<std::fs::File> {
+    std::fs::File::open(dir.join(path.file_name().ok_or_else(|| {
+        std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "profile path has no file name",
+        )
+    })?))
+}
+
 /// Reads one profile file. Every failure branch used to return a silent
 /// `Ok(None)`: the file disappeared from `list()` and the user believed the
 /// profile was deleted — permissions, non-UTF-8, oversize, and parse
 /// failures all left nothing in console, log, or diagnostics. Warnings now
 /// travel back to the caller (recorded as diagnostics by the app layer);
 /// `eprintln` covers `load()` and the CLI.
-fn read_profile(path: &Path) -> Result<(Option<StoredProfile>, Vec<String>), String> {
+fn read_profile(dir: &Path, path: &Path) -> Result<(Option<StoredProfile>, Vec<String>), String> {
     if path.extension().and_then(|ext| ext.to_str()) != Some("txt") {
         return Ok((None, Vec::new()));
     }
@@ -446,7 +515,7 @@ fn read_profile(path: &Path) -> Result<(Option<StoredProfile>, Vec<String>), Str
         // never follows links); not an unexpected data loss.
         return Ok((None, Vec::new()));
     }
-    let file = match std::fs::File::open(path) {
+    let file = match open_profile_file(dir, path) {
         Ok(file) => file,
         Err(error) => return Ok((None, skip(path, &format!("cannot be opened: {error}")))),
     };
@@ -554,6 +623,23 @@ mod tests {
         assert!(error.contains("symlink"));
         std::fs::remove_dir_all(base).ok();
         std::fs::remove_dir_all(outside).ok();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn profile_file_open_does_not_follow_a_symlink() {
+        let base = temporary_dir();
+        let profiles = base.join("profiles");
+        std::fs::create_dir_all(&profiles).unwrap();
+        let outside = base.join("outside.txt");
+        std::fs::write(&outside, "Preamp: 0 dB\n").unwrap();
+        let link = profiles.join("linked.txt");
+        std::os::unix::fs::symlink(&outside, &link).unwrap();
+
+        let result = open_profile_file(&profiles, &link);
+
+        assert!(result.is_err());
+        std::fs::remove_dir_all(base).ok();
     }
 
     #[test]
