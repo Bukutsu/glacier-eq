@@ -410,7 +410,9 @@ describe("browser EQ writes", () => {
 
     await expect(invoke("get_eq_state")).rejects.toThrow("refusing uncorrelated state");
     expect(wasm.build_read_global_gain_request).toHaveBeenCalled();
-    expect(device.sendReport.mock.calls.length).toBeGreaterThanOrEqual(2);
+    // Global-gain responses carry no nonce, so WebHID fails closed after one
+    // unanswered request instead of retrying into an uncorrelated late frame.
+    expect(device.sendReport).toHaveBeenCalledTimes(1);
   });
 
   it("resends a firmware request when the first response is lost", async () => {

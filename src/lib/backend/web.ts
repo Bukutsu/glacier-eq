@@ -894,25 +894,23 @@ async function applyRamPayload(protocol: string, peq: PEQData, initMessage: stri
 
 async function readGlobalGain(protocol: string): Promise<{ value: number; retried: boolean }> {
   const req = wasm().build_read_global_gain_request(protocol);
-  let response: Uint8Array | null = null;
-  let retried = false;
-  for (let retry = 0; retry < 3 && !response; retry++) {
-    if (retry > 0) {
-      // Drop late frames from the previous request before retrying this
-      // protocol command, which carries no nonce of its own.
-      reportQueue = [];
-      retried = true;
-    }
+  // Global-gain frames have no transaction nonce. Once this request is sent,
+  // retrying the whole pull could accept a late response from the first
+  // request, so fail closed on every transport/read failure instead.
+  try {
     await sendReport(req);
-    response = await readMatchingReport(200, (data) =>
+    const response = await readMatchingReport(200, (data) =>
       wasm().matches_global_gain_response(protocol, data)
     );
+    if (!response) throw new Error(UNCORRELATED_GAIN_ERROR);
+    return {
+      value: wasm().parse_global_gain_response(protocol, response),
+      retried: false,
+    };
+  } catch (error) {
+    if (errorMessage(error).includes(UNCORRELATED_GAIN_ERROR)) throw error;
+    throw new Error(UNCORRELATED_GAIN_ERROR);
   }
-  if (!response) throw new Error("Global gain read timeout");
-  return {
-    value: wasm().parse_global_gain_response(protocol, response),
-    retried,
-  };
 }
 
 async function pullEqStateOnce(profile: SupportedDeviceInfo): Promise<PEQData> {
@@ -921,6 +919,11 @@ async function pullEqStateOnce(profile: SupportedDeviceInfo): Promise<PEQData> {
   reportQueue = [];
   await sendPackets(wasm().build_init_packets(protocol));
   await sleep(50);
+  // Init packets can generate unsolicited frames. Quarantine them after the
+  // init settle window and immediately before issuing the nonce-less gain
+  // request, matching the native session's init drain.
+  await sleep(0);
+  reportQueue = [];
 
   const firstGain = await readGlobalGain(protocol);
   let global_gain = firstGain.value;
@@ -1021,6 +1024,27 @@ function parseWalkplayFirmwareVersion(data: Uint8Array): string | null {
 
 let webHidOperation = Promise.resolve();
 
+// Only commands that can touch the active HID transport share this queue.
+// Diagnostics, settings, profile storage, and CPU/WASM-only AutoEQ work must
+// remain available while a device transfer is stuck.
+const WEBHID_TRANSPORT_COMMANDS = new Set([
+  "connect_device",
+  "disconnect_device",
+  "get_firmware_version",
+  "get_eq_state",
+  "set_eq_state",
+  "apply_eq_state",
+  "get_dac_utility_state",
+  "set_dac_filter_mode",
+  "set_dac_work_mode",
+  "set_dac_output_gain",
+  "set_dac_balance",
+  "set_mic_volume",
+  "reset_device_eq",
+  "reset_device_controls",
+  "execute_factory_reset",
+]);
+
 function serializeWebHid<T>(operation: () => Promise<T>): Promise<T> {
   const result = webHidOperation.then(operation, operation);
   webHidOperation = result.then(() => undefined, () => undefined);
@@ -1028,7 +1052,8 @@ function serializeWebHid<T>(operation: () => Promise<T>): Promise<T> {
 }
 
 export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
-  return serializeWebHid(() => invokeWeb<T>(cmd, args));
+  const operation = () => invokeWeb<T>(cmd, args);
+  return WEBHID_TRANSPORT_COMMANDS.has(cmd) ? serializeWebHid(operation) : operation();
 }
 
 /** Diagnostics-plane commands that never call into the wasm module. */
@@ -1333,7 +1358,7 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
         if (retry > 0) reportQueue = [];
         await sendReport([0x4b, 0x80, 0x0c, 0x00]);
         report = await readMatchingReportOnce(500, (data) =>
-          data.length >= 10 && data[0] === 0x4b && data[1] === 0x80 && data[2] === 0x0c
+          data.length >= 11 && data[0] === 0x4b && data[1] === 0x80 && data[2] === 0x0c
         );
       }
       if (!report) throw new Error("Firmware read timeout");
