@@ -90,10 +90,9 @@ export function isHandledDeviceDisconnected(options: {
   return (
     payload === null ||
     payload.path !== activePath ||
-    (payload.sessionId !== undefined
-      && activeSessionId !== null
+    (activeSessionId !== null
       && activeSessionId !== undefined
-      && payload.sessionId !== activeSessionId) ||
+      && (payload.sessionId === undefined || payload.sessionId !== activeSessionId)) ||
     manualDisconnect ||
     devDummy ||
     alreadyHandled ||

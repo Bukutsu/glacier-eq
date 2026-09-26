@@ -337,6 +337,7 @@ export const ProfilesView = memo(function ProfilesView({
   };
 
   const handleCancelImport = () => {
+    if (isSubmitting) return;
     invalidateModalOperation();
     setParsed(null);
   };
@@ -633,7 +634,9 @@ export const ProfilesView = memo(function ProfilesView({
                 type="button"
                 className={!isTemporary ? "active" : ""}
                 aria-pressed={!isTemporary}
+                disabled={isSubmitting}
                 onClick={() => {
+                  if (isSubmitting) return;
                   invalidateModalOperation();
                   setIsTemporary(false);
                 }}
@@ -644,7 +647,9 @@ export const ProfilesView = memo(function ProfilesView({
                 type="button"
                 className={isTemporary ? "active" : ""}
                 aria-pressed={isTemporary}
+                disabled={isSubmitting}
                 onClick={() => {
+                  if (isSubmitting) return;
                   invalidateModalOperation();
                   setIsTemporary(true);
                 }}
@@ -661,7 +666,9 @@ export const ProfilesView = memo(function ProfilesView({
                     id="import-name"
                     type="text"
                     value={importName}
+                    disabled={isSubmitting}
                     onChange={(e) => {
+                      if (isSubmitting) return;
                       invalidateModalOperation();
                       setImportName(e.target.value);
                     }}
@@ -673,7 +680,9 @@ export const ProfilesView = memo(function ProfilesView({
                       <Select
                         id="overwrite-select"
                         value={profiles.some((p) => p.name === importName) ? importName : ""}
+                        disabled={isSubmitting}
                         onChange={(val) => {
+                          if (isSubmitting) return;
                           if (val) {
                             invalidateModalOperation();
                             setImportName(val);

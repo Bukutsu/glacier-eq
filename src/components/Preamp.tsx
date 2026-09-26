@@ -8,6 +8,7 @@ export function Preamp({
   integerMode,
   onChange,
   onStartChange,
+  disabled = false,
 }: {
   value: number;
   resetValue?: number;
@@ -15,6 +16,7 @@ export function Preamp({
   integerMode: boolean;
   onChange: (value: number) => void;
   onStartChange: () => void;
+  disabled?: boolean;
 }) {
   const [min, max] = range;
   const safeValue = Math.max(min, Math.min(max, Number.isFinite(value) ? value : 0));
@@ -40,6 +42,7 @@ export function Preamp({
             precision={precision}
             onFocus={onStartChange}
             onChange={handleValueChange}
+            disabled={disabled}
             className="preamp-value-stepper"
             aria-label="Preamp gain"
           />
@@ -54,6 +57,7 @@ export function Preamp({
         value={displayValue}
         aria-valuetext={`${displayValue >= 0 ? "+" : ""}${displayValue.toFixed(precision)} dB`}
         onStartChange={onStartChange}
+        disabled={disabled}
         onReset={resetValue === undefined ? undefined : () => handleValueChange(resetValue)}
         onChange={(event) => handleValueChange(+event.target.value)}
       />

@@ -637,13 +637,15 @@ function App() {
       e.preventDefault();
       const file = e.dataTransfer?.files[0];
       if (!file) return;
+      // A rejected extension is still a newer user action. Invalidate an
+      // older in-flight drop before validating the new one.
+      const request = ++dropRequestRef.current;
       if (!file.name.endsWith(".txt")) {
         setStatus("Only .txt AutoEQ files can be dropped here");
         return;
       }
       // Only the newest drop may land, and only onto the editor/connection
       // context it started with; anything else raced a newer user action.
-      const request = ++dropRequestRef.current;
       const context = getAsyncContext();
       try {
         if (file.size > 1_048_576) throw new Error("File exceeds the 1 MiB limit");
@@ -768,7 +770,7 @@ function App() {
         !connectedRef.current &&
         payload !== null &&
         connectingPathRef.current === payload.path &&
-        (pendingSessionId === null || payload.sessionId === undefined || payload.sessionId === pendingSessionId);
+        (pendingSessionId === null || payload.sessionId === pendingSessionId);
       if (isPendingConnection) {
         // Android can fail its reader before connect_device resolves. Fence
         // that pending attempt instead of dropping the event merely because
@@ -1114,20 +1116,36 @@ function App() {
       return false;
     }
     if (eqOperationInFlightRef.current) return false;
+    // Invalidate older async work before opening the confirmation, then capture
+    // identity/context. A disconnect/reconnect or editor edit while the dialog
+    // is open must not redirect this operation to a replacement device.
+    operationRevisionRef.current += 1;
+    const confirmationContext = getAsyncContext();
+    const confirmationPath = connectedPathRef.current;
+    const confirmationSessionId = connectedSessionIdRef.current;
+    const confirmationGeneration = connectionGenerationRef.current;
+    const confirmationTargetPath = targetPath;
+    const confirmationCapabilities = targetCapabilities;
+    const isConfirmationCurrent = () =>
+      asyncContextEquals(confirmationContext, getAsyncContext())
+      && connectionGenerationRef.current === confirmationGeneration
+      && connectedPathRef.current === confirmationPath
+      && connectedSessionIdRef.current === confirmationSessionId
+      && targetPath === confirmationTargetPath
+      && targetCapabilities === confirmationCapabilities;
     if (dirty && !(await confirmDialog({
       title: "Discard changes?",
       message: "Reading EQ from the DAC will discard your unsaved changes.",
       confirmLabel: "Discard and read",
     }))) return false;
-    operationRevisionRef.current += 1;
+    if (!isConfirmationCurrent()) return false;
     eqOperationInFlightRef.current = true;
     setProgress(null);
     setIsBusy(true);
     // A pull must not land on an editor/connection state that changed while
     // the device read or profile match ran; the undo snapshot is deferred
     // until the result is known to be current.
-    const context = getAsyncContext();
-    const isCurrentPull = () => asyncContextEquals(context, getAsyncContext());
+    const isCurrentPull = () => isConfirmationCurrent();
     try {
       let data: PEQData;
       if (isDevDummyDevice(targetPath)) {
@@ -1374,6 +1392,18 @@ function App() {
       integerPreamp: selectedCapabilities.integer_preamp,
       capabilities: selectedCapabilities,
     });
+    operationRevisionRef.current += 1;
+    const confirmationContext = getAsyncContext();
+    const confirmationPath = connectedPathRef.current;
+    const confirmationSessionId = connectedSessionIdRef.current;
+    const confirmationGeneration = connectionGenerationRef.current;
+    const confirmationCapabilities = selectedCapabilities;
+    const isConfirmationCurrent = () =>
+      asyncContextEquals(confirmationContext, getAsyncContext())
+      && connectionGenerationRef.current === confirmationGeneration
+      && connectedPathRef.current === confirmationPath
+      && connectedSessionIdRef.current === confirmationSessionId
+      && selectedCapabilities === confirmationCapabilities;
     const activeBands = snapshot.filters.filter((f) => f.enabled).length;
     const bandCount = activeBands === 1 ? "band" : "bands";
     if (!(await confirmDialog({
@@ -1382,17 +1412,16 @@ function App() {
       confirmLabel: "Write DAC",
       danger: true,
     }))) return;
-    operationRevisionRef.current += 1;
+    if (!isConfirmationCurrent()) return;
     eqOperationInFlightRef.current = true;
     const operationId = ++eqOperationIdRef.current;
     setProgress(null);
     setIsBusy(true);
     let committedPeq: PEQData | null = null;
     let pushWarnings: string[] = [];
-    const operationContext = getAsyncContext();
     const isCurrentOperation = () =>
       operationId === eqOperationIdRef.current
-      && asyncContextEquals(operationContext, getAsyncContext());
+      && isConfirmationCurrent();
     try {
       if (isDevDummyDevice(selectedDevice)) {
         setProgress({
@@ -1477,12 +1506,24 @@ function App() {
   const applyProfileToRam = useCallback(
     async (profile: Profile) => {
       if (eqOperationInFlightRef.current) return;
+      operationRevisionRef.current += 1;
+      const confirmationContext = getAsyncContext();
+      const confirmationPath = connectedPathRef.current;
+      const confirmationSessionId = connectedSessionIdRef.current;
+      const confirmationGeneration = connectionGenerationRef.current;
+      const confirmationCapabilities = capabilities;
+      const isConfirmationCurrent = () =>
+        asyncContextEquals(confirmationContext, getAsyncContext())
+        && connectionGenerationRef.current === confirmationGeneration
+        && connectedPathRef.current === confirmationPath
+        && connectedSessionIdRef.current === confirmationSessionId
+        && capabilities === confirmationCapabilities;
       if (dirty && !(await confirmDialog({
         title: "Discard changes?",
         message: "Applying this profile will discard your unsaved changes.",
         confirmLabel: "Discard and apply",
       }))) return;
-      operationRevisionRef.current += 1;
+      if (!isConfirmationCurrent()) return;
       eqOperationInFlightRef.current = true;
       const data = normalizePeq(profile.data, { enableLoadedFilters: true, integerPreamp: capabilities.integer_preamp, capabilities });
       pushToUndoStack(peqRef.current);
@@ -1497,10 +1538,14 @@ function App() {
       setProgress(null);
       setIsBusy(true);
       const operationId = ++eqOperationIdRef.current;
-      const operationContext = getAsyncContext();
       const isCurrentOperation = () =>
         operationId === eqOperationIdRef.current
-        && asyncContextEquals(operationContext, getAsyncContext());
+        && connectionGenerationRef.current === confirmationGeneration
+        && connectedPathRef.current === confirmationPath
+        && connectedSessionIdRef.current === confirmationSessionId
+        && capabilities === confirmationCapabilities
+        && getAsyncContext().connectionRevision === confirmationContext.connectionRevision
+        && getAsyncContext().operationRevision === confirmationContext.operationRevision;
       let applyWarnings: string[] = [];
       try {
         if (isDevDummyDevice(selectedDevice)) {
@@ -1706,11 +1751,12 @@ function App() {
   const canUndoHistory = useHistoryStore((s) => s.past.length > 0);
   const canRedoHistory = useHistoryStore((s) => s.future.length > 0);
   const handlePreampChange = useCallback((global_gain: number) => {
+    if (isBusy || eqOperationInFlightRef.current) return;
     const next = { ...peqRef.current, global_gain };
     setPeq(next);
     noteEditorMutation();
     setDirty(!peqEquals(next, editorCleanPeqRef.current));
-  }, [noteEditorMutation]);
+  }, [isBusy, noteEditorMutation]);
   const handleConnectDevice = useCallback(async (targetPath?: string, target?: DeviceInfo) => {
     if (await connectDevice(targetPath, target)) {
       handleCloseDeviceModal();
@@ -1873,6 +1919,7 @@ function App() {
         integerMode={capabilities.integer_preamp}
         onStartChange={handlePreampStartChange}
         onChange={handlePreampChange}
+         disabled={isBusy || eqOperationInFlightRef.current}
       />
       <Bands
         peq={peq}
@@ -2221,6 +2268,7 @@ function App() {
             onRemoveTarget={removeTarget}
             onAddTarget={addTarget}
             connected={connected}
+            isBusy={isBusy}
             isSimulated={isDevDummyDevice(selectedDevice)}
             activeTab={TOOL_TAB_BY_WORKSPACE[activeTab] ?? "Preset"}
             onOpenConnectModal={handleOpenDeviceModal}

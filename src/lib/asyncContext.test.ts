@@ -61,6 +61,10 @@ describe("isHandledDeviceDisconnected", () => {
     })).toBe(true);
   });
 
+  it("rejects a sessionless event once the active connection has a session id", () => {
+    expect(isHandledDeviceDisconnected({ ...base, activeSessionId: 2 })).toBe(true);
+  });
+
   it("handles a genuine unplug while connected", () => {
     expect(isHandledDeviceDisconnected(base)).toBe(false);
   });

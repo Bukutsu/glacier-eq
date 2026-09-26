@@ -76,6 +76,7 @@ interface ToolsPanelProps {
   onRemoveTarget?: (id: string) => void;
   onAddTarget?: (name: string, points: MeasurementTrace["points"]) => void;
   connected?: boolean;
+  isBusy?: boolean;
   isSimulated?: boolean;
   activeTab: ToolsTab;
   onOpenConnectModal?: () => void;
@@ -150,7 +151,8 @@ export const ToolsPanel = memo(function ToolsPanel(props: ToolsPanelProps) {
             <DeviceView
               key={`${props.connected ? "connected" : "offline"}:${props.deviceInfo?.path ?? "none"}`}
               connected={!!props.connected}
-              isSimulated={props.isSimulated}
+              isBusy={!!props.isBusy}
+               isSimulated={props.isSimulated}
               deviceInfo={props.deviceInfo}
               capabilities={props.capabilities}
               firmwareVersion={props.firmwareVersion}

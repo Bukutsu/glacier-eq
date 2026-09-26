@@ -64,6 +64,8 @@ export const DeviceView = memo(function DeviceView({
   const utilityRef = useRef<DeviceUtilityState | null>(null);
   const confirmedUtilityRef = useRef<DeviceUtilityState | null>(null);
   const fieldRevisionsRef = useRef<Partial<Record<keyof DeviceUtilityState, number>>>({});
+  const isBusyRef = useRef(isBusy);
+  isBusyRef.current = isBusy;
   const mountedRef = useRef(true);
   const [scheduleUtilityTask] = useState(() => createCoalescingTaskScheduler<string>());
   const [loading, setLoading] = useState(false);
@@ -153,7 +155,7 @@ export const DeviceView = memo(function DeviceView({
     command: string,
     args: Record<string, unknown>,
   ) => {
-    if (isBusy) return;
+    if (isBusyRef.current) return;
     const current = utilityRef.current;
     if (!current) return;
 
@@ -211,13 +213,14 @@ export const DeviceView = memo(function DeviceView({
     setUtilityField("mic_volume_db", volumeDb, "set_mic_volume", { volumeDb });
 
   const handleResetDeviceEq = async () => {
-    if (isBusy) return;
+    if (isBusyRef.current) return;
     if (!(await confirmDialog({
       title: "Reset device EQ?",
       message: "Reset all hardware EQ bands on the DAC to 0 dB?",
       confirmLabel: "Reset",
       danger: true,
     }))) return;
+    if (isBusyRef.current) return;
 
     scheduleUtilityTask.enqueue("reset", async (isCurrent) => {
       try {
@@ -236,13 +239,14 @@ export const DeviceView = memo(function DeviceView({
   };
 
   const handleResetDeviceControls = async () => {
-    if (isBusy) return;
+    if (isBusyRef.current) return;
     if (!(await confirmDialog({
       title: "Reset hardware controls?",
       message: "Reset filter mode, amp mode, gain, balance, and mic volume to defaults?",
       confirmLabel: "Reset",
       danger: true,
     }))) return;
+    if (isBusyRef.current) return;
 
     scheduleUtilityTask.enqueue("reset", async (isCurrent) => {
       try {
@@ -262,13 +266,14 @@ export const DeviceView = memo(function DeviceView({
   };
 
   const handleFactoryReset = async () => {
-    if (isBusy) return;
+    if (isBusyRef.current) return;
     if (!(await confirmDialog({
       title: "Factory reset DAC?",
       message: "This resets all EQ filters, volume, amplifier mode, and restores the device to factory defaults.",
       confirmLabel: "Factory Reset",
       danger: true,
     }))) return;
+    if (isBusyRef.current) return;
 
     scheduleUtilityTask.enqueue("reset", async (isCurrent) => {
       try {

@@ -13,6 +13,7 @@ interface ModalHistoryEntry {
 // the top entry; returning to an underlying modal's sentinel must not dismiss
 // that underlying dialog as well.
 const modalHistoryStack: ModalHistoryEntry[] = [];
+let modalPopstateListenerCount = 0;
 
 function modalStateWithId(id: string): Record<string, unknown> {
   const current = window.history.state;
@@ -70,13 +71,19 @@ export function Modal({ title, onClose, className = "", style, children, closeDi
 
     modalHistoryStack.push(entry);
     window.history.pushState(modalStateWithId(modalId), "");
-    window.addEventListener("popstate", handleModalPopState);
+    if (modalPopstateListenerCount === 0) {
+      window.addEventListener("popstate", handleModalPopState);
+    }
+    modalPopstateListenerCount += 1;
     if (dialog && !dialog.open) dialog.showModal();
 
     return () => {
-      window.removeEventListener("popstate", handleModalPopState);
       const index = modalHistoryStack.lastIndexOf(entry);
       if (index >= 0) modalHistoryStack.splice(index, 1);
+      modalPopstateListenerCount = Math.max(0, modalPopstateListenerCount - 1);
+      if (modalPopstateListenerCount === 0) {
+        window.removeEventListener("popstate", handleModalPopState);
+      }
       // A close button removes the React modal first; balance the sentinel it
       // pushed. If Android Back already removed it, the current state no
       // longer belongs to this entry and no second history navigation occurs.
