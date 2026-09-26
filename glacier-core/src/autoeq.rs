@@ -1575,6 +1575,39 @@ fn generate_log_spaced_freqs() -> [f32; K] {
     freqs
 }
 
+const DENSE_RESPONSE_POINTS: usize = 8192;
+
+fn max_autoeq_response(filters: &[Filter], fs: f32) -> Result<f32, String> {
+    let max_frequency = (20_000.0_f32).min(0.49 * fs);
+    if !max_frequency.is_finite() || max_frequency < 20.0 {
+        return Err("AutoEQ response range is outside the sample-rate domain".into());
+    }
+    let l0 = 20.0_f32.ln();
+    let l1 = max_frequency.ln();
+    let mut frequencies = Vec::with_capacity(DENSE_RESPONSE_POINTS);
+    for index in 0..DENSE_RESPONSE_POINTS {
+        frequencies
+            .push((l0 + (l1 - l0) * index as f32 / (DENSE_RESPONSE_POINTS - 1) as f32).exp());
+    }
+    let mut response = vec![0.0_f32; frequencies.len()];
+    for filter in filters {
+        spectrum_values(
+            filter.filter_type,
+            filter.freq as f32,
+            filter.gain as f32,
+            filter.q as f32,
+            fs,
+            &frequencies,
+            &mut response,
+        );
+    }
+    let max_gain = response.into_iter().fold(f32::NEG_INFINITY, f32::max);
+    if !max_gain.is_finite() {
+        return Err("AutoEQ response calculation produced a non-finite value".into());
+    }
+    Ok(max_gain)
+}
+
 fn interpolate_curve(
     label: &str,
     points: &[(f64, f64)],
@@ -1812,33 +1845,67 @@ pub fn run_autoeq(
         filter.index = i as u8;
     }
 
-    let mut response = [0.0f32; K];
-    for filter in &filters {
-        spectrum_values(
-            filter.filter_type,
-            filter.freq as f32,
-            filter.gain as f32,
-            filter.q as f32,
-            fs,
-            &f,
-            &mut response,
+    // The optimizer's 384-point grid is intentionally coarse. Recheck the
+    // resulting aggregate on a dense grid before publishing preamp, otherwise
+    // a narrow peak can clip after capability clamping. When a device's
+    // preamp floor cannot provide enough headroom, reduce the correction
+    // uniformly rather than returning an EQ that will clip or failing the
+    // entire AutoEQ operation.
+    let total_preamp = preamp_mean + amp.unwrap_or(0.0);
+    let preamp_for = |max_gain: f32| -> f64 {
+        let mut requested = if total_preamp + max_gain > 0.0 {
+            -(max_gain as f64)
+        } else {
+            total_preamp as f64
+        };
+        if let Some(caps) = caps {
+            if caps.integer_preamp {
+                requested = requested.round();
+            }
+            requested.clamp(
+                caps.global_gain_range.0 as f64,
+                caps.global_gain_range.1 as f64,
+            )
+        } else {
+            requested
+        }
+    };
+    let original_filters = filters.clone();
+    let mut max_gain = max_autoeq_response(&filters, fs)?;
+    let mut preamp = preamp_for(max_gain);
+    if preamp + max_gain as f64 > 1.0e-4 {
+        let mut safe_scale = 0.0_f64;
+        let mut unsafe_scale = 1.0_f64;
+        let mut safe_filters = original_filters.clone();
+        let safe_max_gain = max_autoeq_response(&safe_filters, fs)?;
+        let mut safe_preamp = preamp_for(safe_max_gain);
+
+        for _ in 0..24 {
+            let scale = (safe_scale + unsafe_scale) * 0.5;
+            let mut candidate = original_filters.clone();
+            for filter in &mut candidate {
+                filter.gain *= scale;
+            }
+            let candidate_max_gain = max_autoeq_response(&candidate, fs)?;
+            let candidate_preamp = preamp_for(candidate_max_gain);
+            if candidate_preamp + candidate_max_gain as f64 <= 1.0e-4 {
+                safe_scale = scale;
+                safe_filters = candidate;
+                safe_preamp = candidate_preamp;
+            } else {
+                unsafe_scale = scale;
+            }
+        }
+
+        filters = safe_filters;
+        max_gain = max_autoeq_response(&filters, fs)?;
+        preamp = safe_preamp;
+    }
+    if preamp + max_gain as f64 > 1.0e-4 {
+        return Err(
+            "AutoEQ could not produce a non-clipping result within the device preamp range".into(),
         );
     }
-
-    let mut max_gain = 0.0f32;
-    for &val in response.iter() {
-        if val > max_gain {
-            max_gain = val;
-        }
-    }
-
-    let total_preamp = preamp_mean + amp.unwrap_or(0.0);
-    let preamp_val = if total_preamp + max_gain > 0.0 {
-        -max_gain
-    } else {
-        total_preamp
-    };
-    let preamp = preamp_val as f64;
 
     Ok(crate::eq::PEQData {
         filters,
@@ -2313,11 +2380,24 @@ mod tests {
             assert!((-6.0..=6.0).contains(&filter.gain), "gain {}", filter.gain);
             assert!((0.5..=3.0).contains(&filter.q), "q {}", filter.q);
         }
-        // Bands must survive without clamping. The preamp may still warn: it
-        // is derived after the fact, and tightening it upward would trade
-        // away the anti-clipping guarantee for inaudible level precision.
+        // Bands must survive without clamping, and the published aggregate
+        // must remain below digital full scale within the device's preamp
+        // range.
         let warnings = peq.clamp_to_capabilities(&caps);
         assert!(warnings.iter().all(|w| !w.contains("Band")), "{warnings:?}");
+        let max_gain = max_autoeq_response(&peq.filters, caps.dsp_sample_rate as f32).unwrap();
+        assert!(peq.global_gain + max_gain as f64 <= 1.0e-4);
+    }
+
+    #[test]
+    fn caps_aware_fit_accounts_for_integer_preamp_rounding() {
+        let (measurement, target) = hump_case();
+        let mut caps = restrictive_caps();
+        caps.integer_preamp = true;
+        let peq = run_autoeq(&measurement, &target, 5, 200, "none", 48000.0, Some(&caps)).unwrap();
+        assert_eq!(peq.global_gain.fract(), 0.0);
+        let max_gain = max_autoeq_response(&peq.filters, caps.dsp_sample_rate as f32).unwrap();
+        assert!(peq.global_gain + max_gain as f64 <= 1.0e-4);
     }
 
     #[test]
