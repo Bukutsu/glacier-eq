@@ -74,7 +74,7 @@ impl<R: Runtime> Hid<R> {
         Ok(())
     }
 
-    pub fn close(&self, path: &str) -> crate::Result<()> {
+    pub fn close(&self, path: &str, _session_id: Option<u64>) -> crate::Result<()> {
         let mut open_devices = self.open_devices.lock().unwrap_or_else(|p| p.into_inner());
         open_devices.remove(path);
         Ok(())

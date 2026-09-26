@@ -34,6 +34,12 @@ private const val TAG = "HidPlugin"
 private const val MAX_QUEUED_READS = 64
 private const val READ_POLL_SLICE_MS = 100L
 
+private fun sameUsbDevice(left: UsbDevice, right: UsbDevice): Boolean =
+    left.deviceName == right.deviceName
+        && left.vendorId == right.vendorId
+        && left.productId == right.productId
+        && left.deviceId == right.deviceId
+
 sealed class HidResult<out T> {
     data class Success<T>(val data: T) : HidResult<T>()
     data class Error(val message: String, val exception: Exception? = null) : HidResult<Nothing>() {
@@ -75,7 +81,7 @@ class HidDevice(
     val displayName: String
         get() = usbDevice.productName ?: usbDevice.deviceName
 
-    fun matchesDevice(device: UsbDevice): Boolean = usbDevice == device
+    fun matchesDevice(device: UsbDevice): Boolean = sameUsbDevice(usbDevice, device)
     
     // Initialize and connect to the device
     fun initialize(): HidResult<Unit> {
@@ -484,23 +490,12 @@ class HidDevice(
                 Thread.currentThread().interrupt()
             }
             if (thread.isAlive) {
-                // A wedged driver must not have its connection closed underneath
-                // the reader. Finish cleanup on a supervisor thread once the
-                // reader has actually exited.
-                val cleanup = Thread({
-                    var interrupted = false
-                    while (thread.isAlive) {
-                        try {
-                            thread.join(1000)
-                        } catch (_: InterruptedException) {
-                            interrupted = true
-                        }
-                    }
-                    if (interrupted) Thread.currentThread().interrupt()
-                    releaseConnectionResources()
-                }, "glacier-eq-hid-cleanup")
-                cleanup.isDaemon = true
-                cleanup.start()
+                // Do not report a successful close while the interface is
+                // still claimed. Closing the connection/request is the bounded
+                // escape hatch for a wedged driver; the idempotent release
+                // guard makes the reader's eventual finally block harmless.
+                Log.w(TAG, "Reader did not exit within 1s; forcing connection release")
+                releaseConnectionResources()
                 return
             }
         }
@@ -541,6 +536,7 @@ class OpenArgs {
 @InvokeArg
 class CloseArgs {
     var path: String? = null
+    var sessionId: Long? = null
 }
 
 @InvokeArg
@@ -648,7 +644,7 @@ class HidPlugin(private val activity: Activity): Plugin(activity) {
                             ?.takeIf { current -> current.matchesDevice(it) }
                             ?.also { current -> connectedDevices.remove(it.deviceName, current) }
                         val pending = synchronized(this@HidPlugin) {
-                            if (pendingUsbDevice == it) {
+                            if (pendingUsbDevice?.let { pending -> sameUsbDevice(pending, it) } == true) {
                                 val waitingInvoke = pendingInvoke
                                 pendingInvoke = null
                                 pendingUsbDevice = null
@@ -1019,7 +1015,23 @@ class HidPlugin(private val activity: Activity): Plugin(activity) {
         }
         
         val path = args.path!!
-        val device = connectedDevices.remove(path)
+        val expectedSessionId = args.sessionId
+        val device = if (expectedSessionId != null) {
+            val current = connectedDevices[path]
+            if (current == null) {
+                null
+            } else if (current.connectionSessionId != expectedSessionId) {
+                invoke.reject("Device session changed")
+                return
+            } else if (connectedDevices.remove(path, current)) {
+                current
+            } else {
+                invoke.reject("Device session changed")
+                return
+            }
+        } else {
+            connectedDevices.remove(path)
+        }
         if (device != null) {
             if (!enqueueIo(invoke) {
                     device.closeConnection()

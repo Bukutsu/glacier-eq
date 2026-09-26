@@ -47,12 +47,13 @@ impl<R: Runtime> Hid<R> {
             .map_err(Error::PluginInvoke)
     }
 
-    pub fn close(&self, path: &str) -> crate::Result<()> {
+    pub fn close(&self, path: &str, session_id: Option<u64>) -> crate::Result<()> {
         self.0
             .run_mobile_plugin(
                 "close",
                 CloseArgs {
                     path: path.to_string(),
+                    session_id,
                 },
             )
             .map_err(Error::PluginInvoke)

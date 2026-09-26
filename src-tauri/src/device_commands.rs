@@ -70,7 +70,7 @@ fn handle_disconnection(app: &tauri::AppHandle, error: &str) {
         guard.connected.take()
     };
     if let Some(device) = disconnected {
-        let _ = hid_close(app, &device.path);
+        let _ = hid_close(app, &device.path, Some(device.session_id));
         #[cfg(target_os = "linux")]
         {
             if let Some(elevated_state) = app.try_state::<Mutex<Option<ElevatedTransport>>>() {
@@ -179,7 +179,7 @@ fn hid_write(app: &tauri::AppHandle, path: &str, data: &[u8]) -> Result<(), Stri
         })
 }
 
-fn hid_close(app: &tauri::AppHandle, path: &str) -> Result<(), String> {
+fn hid_close(app: &tauri::AppHandle, path: &str, session_id: Option<u64>) -> Result<(), String> {
     #[cfg(target_os = "linux")]
     {
         let transport_state = app.state::<Mutex<Option<ElevatedTransport>>>();
@@ -192,7 +192,7 @@ fn hid_close(app: &tauri::AppHandle, path: &str) -> Result<(), String> {
         *guard = None;
     }
     tauri_plugin_hid::hid(app)
-        .close(path)
+        .close(path, session_id)
         .map_err(|error| error.to_string())
 }
 
@@ -469,7 +469,7 @@ pub async fn connect_device(
         // blocking hid_close below (helper IPC can take seconds on Linux).
         let previous = lock_device_state(&state)?.connected.take();
         if let Some(previous) = previous {
-            let _ = hid_close(&app_clone, &previous.path);
+            let _ = hid_close(&app_clone, &previous.path, Some(previous.session_id));
             #[cfg(target_os = "linux")]
             {
                 *app_clone
@@ -507,7 +507,7 @@ pub async fn connect_device(
             .map_err(|error| {
                 // Without this the opened device stays resident with no way
                 // to disconnect (DeviceState.connected was never set).
-                let _ = hid_close(&app_clone, &path_clone);
+                let _ = hid_close(&app_clone, &path_clone, Some(session_id));
                 // A failed connect also leaves nothing connected: release the
                 // root helper like disconnect_device does instead of idling.
                 #[cfg(target_os = "linux")]
@@ -523,7 +523,7 @@ pub async fn connect_device(
             .find(|device| device.path == path_clone)
             .map_or_else(
                 || {
-                    let _ = hid_close(&app_clone, &path_clone);
+                    let _ = hid_close(&app_clone, &path_clone, Some(session_id));
                     #[cfg(target_os = "linux")]
                     {
                         *app_clone
@@ -536,7 +536,7 @@ pub async fn connect_device(
                 Ok,
             )?;
         if reopened.vendor_id != device.vendor_id || reopened.product_id != device.product_id {
-            let _ = hid_close(&app_clone, &path_clone);
+            let _ = hid_close(&app_clone, &path_clone, Some(session_id));
             #[cfg(target_os = "linux")]
             {
                 *app_clone
@@ -596,9 +596,9 @@ pub async fn disconnect_device(
         let _guard = guard;
         close_and_release(
             || {
-                close_device
-                    .as_ref()
-                    .map_or(Ok(()), |device| hid_close(&close_app, &device.path))
+                close_device.as_ref().map_or(Ok(()), |device| {
+                    hid_close(&close_app, &device.path, Some(device.session_id))
+                })
             },
             || {
                 #[cfg(target_os = "linux")]

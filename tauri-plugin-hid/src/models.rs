@@ -32,6 +32,8 @@ pub struct OpenArgs {
 #[serde(rename_all = "camelCase")]
 pub struct CloseArgs {
     pub path: String,
+    #[serde(default)]
+    pub session_id: Option<u64>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
