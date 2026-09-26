@@ -17,6 +17,7 @@ import type { DiagnosticEvent } from "../diagnostics";
 import { isDiagnosticLevel, isDiagnosticSource, sanitizeDiagnosticMessage } from "../diagnostics";
 import { readLocalStorage, writeLocalStorage } from "../safeStorage";
 import { decodeUtf8 } from "../utf8";
+import { DISCONNECT_SUPERSEDED } from "../asyncContext";
 
 // Wasm entry points are resolved lazily: ensureWasm() has already run on every
 // path that reaches them (invokeWeb awaits it before dispatching), so the
@@ -1312,13 +1313,16 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
       return activeSessionId as T;
     }
     case "disconnect_device": {
+      // Refusing to close a replacement connection is the point of the fence,
+      // but reporting it as success told the frontend it had disconnected while
+      // this context still holds the device open. Name the outcome instead.
       if (activeDevice && typeof args?.expectedPath === "string" &&
           args.expectedPath !== webHidPath(activeDevice)) {
-        return null as T;
+        throw new Error(DISCONNECT_SUPERSEDED);
       }
       if (activeDevice && args && Object.prototype.hasOwnProperty.call(args, "expectedSessionId") &&
           args.expectedSessionId !== activeSessionId) {
-        return null as T;
+        throw new Error(DISCONNECT_SUPERSEDED);
       }
       if (activeDevice) {
         detachHidEventListeners(activeDevice);

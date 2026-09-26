@@ -4,6 +4,17 @@ export interface AsyncContext {
   operationRevision: number;
 }
 
+/**
+ * Message `disconnect_device` returns when the requested close targeted a
+ * connection this process no longer owns. Mirrors `DISCONNECT_SUPERSEDED` in
+ * `src-tauri/src/device_commands.rs`; the two must stay in sync.
+ */
+export const DISCONNECT_SUPERSEDED = "Connection changed before disconnect";
+
+export function isDisconnectSuperseded(error: unknown): boolean {
+  return String(error).includes(DISCONNECT_SUPERSEDED);
+}
+
 export interface DeviceConnectingPayload {
   path: string;
   name: string;

@@ -1,9 +1,23 @@
 import { describe, expect, it } from "vitest";
 import {
   asyncContextEquals,
+  DISCONNECT_SUPERSEDED as DISCONNECT_SUPERSEDED_MESSAGE,
+  isDisconnectSuperseded,
   isHandledDeviceDisconnected,
   parseDeviceDisconnectedPayload,
 } from "./asyncContext";
+
+describe("isDisconnectSuperseded", () => {
+  it("recognizes the backend message that a disconnect closed nothing", () => {
+    expect(isDisconnectSuperseded(new Error(DISCONNECT_SUPERSEDED_MESSAGE))).toBe(true);
+    expect(isDisconnectSuperseded(DISCONNECT_SUPERSEDED_MESSAGE)).toBe(true);
+  });
+
+  it("does not swallow a real close failure", () => {
+    expect(isDisconnectSuperseded(new Error("SET_REPORT failed"))).toBe(false);
+    expect(isDisconnectSuperseded(undefined)).toBe(false);
+  });
+});
 
 describe("asyncContextEquals", () => {
   it("requires both editor and connection revisions to match", () => {

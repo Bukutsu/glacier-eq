@@ -68,6 +68,7 @@ import {
   WebHidReadTimeout,
 } from "./web";
 import { parseDiagnosticHistory } from "../diagnostics";
+import { DISCONNECT_SUPERSEDED } from "../asyncContext";
 
 const profile: SupportedDeviceInfo = {
   name: "Test DAC",
@@ -220,7 +221,10 @@ describe("browser connection cleanup", () => {
     const paths = await invoke<Array<{ path: string }>>("list_devices");
     await invoke("connect_device", { path: paths[0].path });
     await invoke("connect_device", { path: paths[1].path });
-    await invoke("disconnect_device", { expectedPath: paths[0].path });
+    // A superseded disconnect must report that it did nothing, or the caller
+    // believes it released a device this context still holds.
+    await expect(invoke("disconnect_device", { expectedPath: paths[0].path }))
+      .rejects.toThrow(DISCONNECT_SUPERSEDED);
     expect(second.close).not.toHaveBeenCalled();
     await invoke("disconnect_device", { expectedPath: paths[1].path });
     expect(second.close).toHaveBeenCalledOnce();
@@ -235,10 +239,10 @@ describe("browser connection cleanup", () => {
     const replacementSession = await invoke<number>("connect_device", { path: listed[0].path });
     expect(replacementSession).not.toBe(firstSession);
 
-    await invoke("disconnect_device", {
+    await expect(invoke("disconnect_device", {
       expectedPath: listed[0].path,
       expectedSessionId: firstSession,
-    });
+    })).rejects.toThrow(DISCONNECT_SUPERSEDED);
     expect(device.close).not.toHaveBeenCalled();
 
     await invoke("disconnect_device", {

@@ -40,6 +40,7 @@ import { isAndroidDevice, isTauri } from "./lib/platform";
 import { isDisconnectionError } from "./lib/errors";
 import {
   asyncContextEquals,
+  isDisconnectSuperseded,
   isHandledDeviceDisconnected,
   parseDeviceConnectingPayload,
   parseDeviceDisconnectedPayload,
@@ -1633,7 +1634,14 @@ function App() {
       setConnectedDeviceName("");
       setLastPushedPeq(null);
       setFirmwareVersion(null);
-      reportStatus("Error", `Disconnected, but releasing the device failed: ${error}`, "error", "UI", "Disconnected");
+      // A superseded disconnect means this process already moved on to a
+      // different connection. That is a clean outcome for the user, not the
+      // "releasing the device failed" error.
+      if (isDisconnectSuperseded(error)) {
+        reportStatus("Info", "Disconnected from device", null, "UI", "Disconnected");
+      } else {
+        reportStatus("Error", `Disconnected, but releasing the device failed: ${error}`, "error", "UI", "Disconnected");
+      }
     } finally {
       setIsBusy(false);
     }

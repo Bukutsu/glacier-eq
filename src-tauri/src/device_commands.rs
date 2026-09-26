@@ -14,6 +14,11 @@ use tauri::Manager;
 #[cfg(target_os = "linux")]
 use crate::hid_helper::ElevatedTransport;
 
+/// Reported when a disconnect targeted a connection this process no longer
+/// owns. Distinct from success, so the frontend does not report a disconnect
+/// that never happened.
+pub(crate) const DISCONNECT_SUPERSEDED: &str = "Connection changed before disconnect";
+
 #[derive(Clone, serde::Serialize)]
 struct OperationProgress {
     message: String,
@@ -576,14 +581,18 @@ pub async fn disconnect_device(
     let device = {
         let mut state = lock_device_state(&state)?;
         if let Some(current) = state.connected.as_ref() {
+            // Refusing to tear down a caller's replacement connection is the
+            // point of the fence, but reporting it as success told the frontend
+            // it had disconnected while this process still holds the device
+            // open. Name the outcome so the caller can tell the two apart.
             if expected_path
                 .as_deref()
                 .is_some_and(|expected| current.path != expected)
             {
-                return Ok(());
+                return Err(DISCONNECT_SUPERSEDED.to_string());
             }
             if expected_session_id.is_some_and(|expected| current.session_id != expected) {
-                return Ok(());
+                return Err(DISCONNECT_SUPERSEDED.to_string());
             }
         }
         state.connected.take()
