@@ -225,7 +225,7 @@ jobs:
         # bundles are collected as artifacts and published once by softprops.
         uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f
         with:
-          args: ${{ matrix.args }} --config release-config.json
+          args: ${{ matrix.args }} --config release-config.json -- --locked
           releaseAssetNamePattern: "glacier-eq_[version]_[platform]_[arch].[ext]"
 
       - name: Guard against bundled libwayland-client
@@ -483,7 +483,7 @@ jobs:
       - name: Build APK
         env:
           ANDROID_CONFIG: ${{ steps.android-version.outputs.config }}
-        run: npm run android:apk:release -- --config "$ANDROID_CONFIG"
+        run: npm exec -- tauri android build --apk --target aarch64 --config "$ANDROID_CONFIG" -- --locked
 
       - name: Collect APK artifact
         env:

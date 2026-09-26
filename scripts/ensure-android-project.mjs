@@ -28,11 +28,25 @@ const buildTask = join(
   "kotlin",
   "BuildTask.kt",
 );
+const releaseRequested = process.argv.includes("--release");
+const signingProperties = join(androidRoot, "app", "keystore.properties");
+const signingKeystore = join(androidRoot, "app", "glacier-eq.keystore");
+
+function requireReleaseSigning() {
+  if (!releaseRequested) return;
+  if (!existsSync(signingProperties) || !existsSync(signingKeystore)) {
+    console.error(
+      "Android release signing is not configured. Install the CI signing overlay and keystore before running android:apk:release.",
+    );
+    process.exit(1);
+  }
+}
 
 if (
   entrypoints.every((path) => existsSync(path))
   && generatedIncludes.every((path) => existsSync(path))
 ) {
+  requireReleaseSigning();
   process.exit(0);
 }
 
@@ -41,6 +55,10 @@ const npm = process.platform === "win32" ? "npm.cmd" : "npm";
 const result = spawnSync(npm, ["run", "android:init"], {
   cwd: root,
   stdio: "inherit",
+  env: {
+    ...process.env,
+    CI: process.env.CI === "1" ? "true" : process.env.CI,
+  },
 });
 if (buildTaskSource !== null) writeFileSync(buildTask, buildTaskSource);
 if (result.error) throw result.error;
@@ -49,3 +67,4 @@ if (!entrypoints.every((path) => existsSync(path))) {
   console.error("Android project initialization did not produce the Gradle project entrypoints.");
   process.exit(1);
 }
+requireReleaseSigning();

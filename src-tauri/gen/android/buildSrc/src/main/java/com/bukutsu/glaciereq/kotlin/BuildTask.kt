@@ -50,8 +50,14 @@ open class BuildTask : DefaultTask() {
             listOf("tauri", "android", "android-studio-script")
         };
 
+        val rootDir = File(project.projectDir, rootDirRel).absoluteFile
+        val cargoWrapper = File(
+            rootDir,
+            if (Os.isFamily(Os.FAMILY_WINDOWS)) "scripts/cargo-locked.cmd" else "scripts/cargo-locked",
+        )
         project.exec {
-            workingDir(File(project.projectDir, rootDirRel))
+            workingDir(rootDir)
+            environment("CARGO", cargoWrapper.absolutePath)
             executable(executable)
             args(args)
             if (project.logger.isEnabled(LogLevel.DEBUG)) {
