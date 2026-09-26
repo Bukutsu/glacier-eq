@@ -23,6 +23,28 @@ pub struct Packet {
     pub pad_to: Option<usize>,
 }
 
+pub(crate) fn checked_scaled_i16(value: f64, scale: f64, label: &str) -> Result<i16, String> {
+    if !value.is_finite() {
+        return Err(format!("{label} must be finite"));
+    }
+    let scaled = (value * scale).round();
+    if !scaled.is_finite() || !(-32768.0..=32767.0).contains(&scaled) {
+        return Err(format!("{label} is outside the protocol wire range"));
+    }
+    Ok(scaled as i16)
+}
+
+pub(crate) fn checked_scaled_u16(value: f64, scale: f64, label: &str) -> Result<u16, String> {
+    if !value.is_finite() {
+        return Err(format!("{label} must be finite"));
+    }
+    let scaled = (value * scale).round();
+    if !scaled.is_finite() || !(0.0..=65535.0).contains(&scaled) {
+        return Err(format!("{label} is outside the protocol wire range"));
+    }
+    Ok(scaled as u16)
+}
+
 impl Packet {
     pub fn new(report_id: u8, payload: Vec<u8>) -> Self {
         Self {
@@ -282,6 +304,8 @@ impl WalkplayProtocol {
         // pass filter in the DSP even though its UI band is disabled.
         let freq = filter.freq;
         let gain = if filter.enabled { filter.gain } else { 0.0 };
+        let gain_wire = checked_scaled_i16(gain, 256.0, "Filter gain")?;
+        let q_wire = checked_scaled_i16(filter.q, 256.0, "Filter Q")?;
         let filter_type = if !filter.enabled
             && matches!(
                 filter.filter_type,
@@ -295,7 +319,11 @@ impl WalkplayProtocol {
         let filter_type_byte: u8 = filter_type.into();
         // Global gain is embedded as an unsigned byte in every filter packet,
         // matching the Walkplay/Savitech wire format (byte 34 of the payload).
-        let gain_byte = (global_gain.round() as i8) as u8;
+        let global_wire = global_gain.round();
+        if !global_wire.is_finite() || !(-128.0..=127.0).contains(&global_wire) {
+            return Err("Global gain is outside the Walkplay wire range".into());
+        }
+        let gain_byte = (global_wire as i8) as u8;
 
         let mut packet = Vec::with_capacity(36);
         packet.extend_from_slice(&[
@@ -309,8 +337,8 @@ impl WalkplayProtocol {
         ]);
         packet.extend_from_slice(&b_arr);
         packet.extend_from_slice(&convert_to_2byte_array(freq as i32));
-        packet.extend_from_slice(&convert_to_2byte_array((filter.q * 256.0).round() as i32));
-        packet.extend_from_slice(&convert_to_2byte_array((gain * 256.0).round() as i32));
+        packet.extend_from_slice(&convert_to_2byte_array(q_wire as i32));
+        packet.extend_from_slice(&convert_to_2byte_array(gain_wire as i32));
         packet.extend_from_slice(&[filter_type_byte, gain_byte, 0x00]);
 
         Ok(packet)

@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::device::protocol::{EqProtocol, Packet};
+use crate::device::protocol::{checked_scaled_i16, checked_scaled_u16, EqProtocol, Packet};
 use crate::device::timing::WriteTiming;
 use crate::eq::filter::DEFAULT_FREQS_10_BAND;
 use crate::eq::{Filter, FilterType, PEQData};
@@ -248,6 +248,9 @@ impl EqProtocol for FiioProtocol {
         _dsp_sample_rate: f64,
         _global_gain: f64,
     ) -> Result<Vec<Packet>, String> {
+        let gain = if filter.enabled { filter.gain } else { 0.0 };
+        checked_scaled_i16(gain, 10.0, "FiiO band gain")?;
+        checked_scaled_u16(filter.q, 100.0, "FiiO filter Q")?;
         if filter.enabled {
             let quantized = (filter.gain * 10.0).round() / 10.0;
             if (quantized - filter.gain).abs() > 1e-9 {

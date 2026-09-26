@@ -166,9 +166,14 @@ fn validate_filter_numeric(filter: &Filter) -> Result<(), JsValue> {
             "Filter frequency must be greater than zero",
         ));
     }
-    if !filter.gain.is_finite() || !filter.q.is_finite() || filter.q <= 0.0 {
+    if !filter.gain.is_finite()
+        || !filter.q.is_finite()
+        || filter.q <= 0.0
+        || !(filter.gain as f32).is_finite()
+        || !(filter.q as f32).is_finite()
+    {
         return Err(JsValue::from_str(
-            "Filter gain and Q must be finite with Q greater than zero",
+            "Filter gain and Q must be finite and representable as f32 with Q greater than zero",
         ));
     }
     Ok(())
@@ -176,6 +181,11 @@ fn validate_filter_numeric(filter: &Filter) -> Result<(), JsValue> {
 
 fn validate_peq_numeric(peq: &PEQData) -> Result<(), JsValue> {
     crate::device::normalization::validate_peq(peq).map_err(js_err)?;
+    if !(peq.global_gain as f32).is_finite() {
+        return Err(JsValue::from_str(
+            "Global gain must be representable as a finite f32",
+        ));
+    }
     for filter in &peq.filters {
         validate_filter_numeric(filter)?;
     }
@@ -183,6 +193,12 @@ fn validate_peq_numeric(peq: &PEQData) -> Result<(), JsValue> {
 }
 
 fn validate_response_freqs(freqs: &[f32]) -> Result<(), JsValue> {
+    const MAX_RESPONSE_POINTS: usize = 262_144;
+    if freqs.len() > MAX_RESPONSE_POINTS {
+        return Err(JsValue::from_str(
+            "Response grid exceeds the maximum of 262144 points",
+        ));
+    }
     if freqs
         .iter()
         .any(|frequency| !frequency.is_finite() || *frequency <= 0.0)
@@ -194,13 +210,39 @@ fn validate_response_freqs(freqs: &[f32]) -> Result<(), JsValue> {
     Ok(())
 }
 
-fn validate_integer_parameter(value: f64, name: &str) -> Result<usize, JsValue> {
-    if !value.is_finite() || value < 1.0 || value.fract() != 0.0 || value > usize::MAX as f64 {
+fn validate_integer_range(value: f64, min: f64, max: f64, name: &str) -> Result<i64, JsValue> {
+    if !value.is_finite()
+        || value.fract() != 0.0
+        || value < min
+        || value > max
+        || value > 9_007_199_254_740_991.0
+    {
         return Err(JsValue::from_str(&format!(
-            "{name} must be a positive integer"
+            "{name} must be an integer between {min} and {max}"
         )));
     }
-    Ok(value as usize)
+    Ok(value as i64)
+}
+
+fn validate_integer_parameter(value: f64, name: &str) -> Result<usize, JsValue> {
+    Ok(validate_integer_range(value, 1.0, usize::MAX as f64, name)? as usize)
+}
+
+fn validate_device_id(value: f64, name: &str) -> Result<u16, JsValue> {
+    Ok(validate_integer_range(value, 0.0, u16::MAX as f64, name)? as u16)
+}
+
+fn validate_optional_device_id(value: Option<f64>, name: &str) -> Result<Option<u16>, JsValue> {
+    value.map(|id| validate_device_id(id, name)).transpose()
+}
+
+fn validate_finite_response(values: &[f32]) -> Result<(), JsValue> {
+    if values.iter().any(|value| !value.is_finite()) {
+        return Err(JsValue::from_str(
+            "Response calculation produced a non-finite f32",
+        ));
+    }
+    Ok(())
 }
 
 fn validate_global_gain_wire(protocol: &str, gain: f64) -> Result<(), JsValue> {
@@ -220,6 +262,25 @@ fn validate_global_gain_wire(protocol: &str, gain: f64) -> Result<(), JsValue> {
     };
     if !(-32768.0 / scale..=32767.0 / scale).contains(&rounded) {
         return Err(JsValue::from_str("Global gain is outside the wire range"));
+    }
+    Ok(())
+}
+
+fn validate_filter_gain_wire(protocol: &str, gain: f64) -> Result<(), JsValue> {
+    if !gain.is_finite() {
+        return Err(JsValue::from_str("Filter gain must be finite"));
+    }
+    let normalized = protocol.to_lowercase().replace([' ', '-', '_'], "");
+    let scale = match normalized.as_str() {
+        "fiio" | "fiioja11" => 10.0,
+        "moondrop" | "walkplay" => 256.0,
+        _ => return Ok(()),
+    };
+    let scaled = (gain * scale).round();
+    if !scaled.is_finite() || !(-32768.0..=32767.0).contains(&scaled) {
+        return Err(JsValue::from_str(
+            "Filter gain cannot be represented by the selected protocol wire format",
+        ));
     }
     Ok(())
 }
@@ -278,9 +339,11 @@ struct NormalizedPeq {
 #[wasm_bindgen]
 pub fn normalize_peq_for_device(
     peq_js: JsValue,
-    vendor_id: u16,
-    product_id: u16,
+    vendor_id: f64,
+    product_id: f64,
 ) -> Result<JsValue, JsValue> {
+    let vendor_id = validate_device_id(vendor_id, "vendor_id")?;
+    let product_id = validate_device_id(product_id, "product_id")?;
     let peq: PEQData = serde_wasm_bindgen::from_value(peq_js).map_err(js_err)?;
     let (peq, warnings) =
         crate::device::normalize_peq_for_device(peq, vendor_id, product_id).map_err(js_err)?;
@@ -292,9 +355,11 @@ pub fn normalize_peq_for_device(
 #[wasm_bindgen]
 pub fn is_default_peq_for_device(
     peq_js: JsValue,
-    vendor_id: u16,
-    product_id: u16,
+    vendor_id: f64,
+    product_id: f64,
 ) -> Result<bool, JsValue> {
+    let vendor_id = validate_device_id(vendor_id, "vendor_id")?;
+    let product_id = validate_device_id(product_id, "product_id")?;
     let peq: PEQData = serde_wasm_bindgen::from_value(peq_js).map_err(js_err)?;
     validate_peq_numeric(&peq)?;
     crate::device::is_default_peq_for_device(&peq, vendor_id, product_id).map_err(js_err)
@@ -303,9 +368,11 @@ pub fn is_default_peq_for_device(
 #[wasm_bindgen]
 pub fn parse_autoeq(
     text: String,
-    vendor_id: Option<u16>,
-    product_id: Option<u16>,
+    vendor_id: Option<f64>,
+    product_id: Option<f64>,
 ) -> Result<JsValue, JsValue> {
+    let vendor_id = validate_optional_device_id(vendor_id, "vendor_id")?;
+    let product_id = validate_optional_device_id(product_id, "product_id")?;
     let (mut peq, headphone_name, mut warnings) =
         crate::autoeq::parse_autoeq_text(&text).map_err(js_err)?;
 
@@ -333,9 +400,11 @@ pub fn peq_to_autoeq(peq_js: JsValue) -> Result<String, JsValue> {
 pub fn match_profile_name(
     peq_js: JsValue,
     profiles_js: JsValue,
-    vendor_id: Option<u16>,
-    product_id: Option<u16>,
+    vendor_id: Option<f64>,
+    product_id: Option<f64>,
 ) -> Result<Option<String>, JsValue> {
+    let vendor_id = validate_optional_device_id(vendor_id, "vendor_id")?;
+    let product_id = validate_optional_device_id(product_id, "product_id")?;
     let peq: PEQData = serde_wasm_bindgen::from_value(peq_js).map_err(js_err)?;
     let profiles: Vec<ProfileCandidateWasm> =
         serde_wasm_bindgen::from_value(profiles_js).map_err(js_err)?;
@@ -366,12 +435,9 @@ pub fn peq_response_values(
     validate_peq_numeric(&peq)?;
     validate_response_freqs(freqs)?;
     validate_dsp_sample_rate(dsp_sample_rate)?;
-    Ok(response_values(
-        &peq,
-        freqs,
-        include_preamp,
-        dsp_sample_rate,
-    ))
+    let response = response_values(&peq, freqs, include_preamp, dsp_sample_rate);
+    validate_finite_response(&response)?;
+    Ok(response)
 }
 
 #[wasm_bindgen]
@@ -385,12 +451,9 @@ pub fn peq_response_and_band_values(
     validate_peq_numeric(&peq)?;
     validate_response_freqs(freqs)?;
     validate_dsp_sample_rate(dsp_sample_rate)?;
-    Ok(response_values_and_bands(
-        &peq,
-        freqs,
-        include_preamp,
-        dsp_sample_rate,
-    ))
+    let response = response_values_and_bands(&peq, freqs, include_preamp, dsp_sample_rate);
+    validate_finite_response(&response)?;
+    Ok(response)
 }
 
 #[wasm_bindgen]
@@ -407,12 +470,15 @@ pub fn filter_response_values(
         filters: vec![filter],
         global_gain: 0.0,
     };
-    Ok(response_values(&peq, freqs, false, dsp_sample_rate))
+    let response = response_values(&peq, freqs, false, dsp_sample_rate);
+    validate_finite_response(&response)?;
+    Ok(response)
 }
 
 #[wasm_bindgen]
-pub fn snap_freq_to_iso(freq: u16) -> u16 {
-    crate::eq::snap_freq_to_iso(freq)
+pub fn snap_freq_to_iso(freq: f64) -> Result<u16, JsValue> {
+    let freq = validate_integer_range(freq, 0.0, 65_535.0, "frequency")?;
+    Ok(crate::eq::snap_freq_to_iso(freq as u16))
 }
 
 #[wasm_bindgen]
@@ -424,8 +490,8 @@ pub fn run_autoeq(
     steps: f64,
     smooth_type: String,
     fs: f32,
-    vendor_id: Option<u16>,
-    product_id: Option<u16>,
+    vendor_id: Option<f64>,
+    product_id: Option<f64>,
 ) -> Result<JsValue, JsValue> {
     let measurement_points: Vec<(f64, f64)> =
         serde_wasm_bindgen::from_value(measurement_points_js).map_err(js_err)?;
@@ -433,6 +499,8 @@ pub fn run_autoeq(
         serde_wasm_bindgen::from_value(target_points_js).map_err(js_err)?;
     let n_bands = validate_integer_parameter(n_bands, "n_bands")?;
     let steps = validate_integer_parameter(steps, "steps")?;
+    let vendor_id = validate_optional_device_id(vendor_id, "vendor_id")?;
+    let product_id = validate_optional_device_id(product_id, "product_id")?;
 
     let caps = device_caps_or_desktop(vendor_id, product_id);
     let mut peq = crate::autoeq::run_autoeq(
@@ -461,10 +529,12 @@ pub fn build_init_packets(protocol: String) -> Result<JsValue, JsValue> {
 #[wasm_bindgen]
 pub fn build_read_filter_request(
     protocol: String,
-    index: u8,
-    nonce: u8,
+    index: f64,
+    nonce: f64,
 ) -> Result<Vec<u8>, JsValue> {
     let p = eq_protocol(&protocol)?;
+    let index = validate_integer_range(index, 0.0, 255.0, "index")? as u8;
+    let nonce = validate_integer_range(nonce, 0.0, 255.0, "nonce")? as u8;
     Ok(p.read_filter_request(index, nonce).framed())
 }
 
@@ -472,10 +542,12 @@ pub fn build_read_filter_request(
 pub fn matches_filter_response(
     protocol: String,
     data: Vec<u8>,
-    index: u8,
-    nonce: u8,
+    index: f64,
+    nonce: f64,
 ) -> Result<bool, JsValue> {
     let p = eq_protocol(&protocol)?;
+    let index = validate_integer_range(index, 0.0, 255.0, "index")? as u8;
+    let nonce = validate_integer_range(nonce, 0.0, 255.0, "nonce")? as u8;
     let unframed = unframe(p, &data)?;
     Ok(p.matches_filter_response(unframed, index, nonce))
 }
@@ -484,10 +556,12 @@ pub fn matches_filter_response(
 pub fn is_filter_response_valid(
     protocol: String,
     data: Vec<u8>,
-    index: u8,
-    nonce: u8,
+    index: f64,
+    nonce: f64,
 ) -> Result<bool, JsValue> {
     let p = eq_protocol(&protocol)?;
+    let index = validate_integer_range(index, 0.0, 255.0, "index")? as u8;
+    let nonce = validate_integer_range(nonce, 0.0, 255.0, "nonce")? as u8;
     let unframed = unframe(p, &data)?;
     Ok(p.is_filter_response_valid(unframed, index, nonce))
 }
@@ -529,14 +603,16 @@ pub fn parse_global_gain_response(protocol: String, data: Vec<u8>) -> Result<f64
 #[wasm_bindgen]
 pub fn build_write_filter_packets(
     protocol: String,
-    index: u8,
+    index: f64,
     filter_js: JsValue,
     dsp_sample_rate: f64,
     global_gain: f64,
 ) -> Result<JsValue, JsValue> {
     let p = eq_protocol(&protocol)?;
+    let index = validate_integer_range(index, 0.0, 255.0, "index")? as u8;
     let filter: Filter = serde_wasm_bindgen::from_value(filter_js).map_err(js_err)?;
     validate_filter_numeric(&filter)?;
+    validate_filter_gain_wire(&protocol, filter.gain)?;
     validate_global_gain_wire(&protocol, global_gain)?;
     validate_dsp_sample_rate(dsp_sample_rate)?;
     let packets = p
@@ -597,7 +673,8 @@ pub fn build_gain_mode_write_packet(is_high: bool) -> Vec<u8> {
 }
 
 #[wasm_bindgen]
-pub fn build_balance_write_packets(balance: i8) -> Result<JsValue, JsValue> {
+pub fn build_balance_write_packets(balance: f64) -> Result<JsValue, JsValue> {
+    let balance = validate_integer_range(balance, -128.0, 127.0, "balance")? as i8;
     let payloads = WalkplayProtocol::build_balance_write_packets(balance);
     let packets: Vec<Vec<u8>> = payloads
         .into_iter()
