@@ -312,8 +312,14 @@ export const DeviceView = memo(function DeviceView({
   const dspKhz = Math.round(capabilities.dsp_sample_rate / 1000);
 
   const handleChangeDevice = async () => {
-    await onDisconnect?.();
-    onOpenConnectModal?.();
+    // The chooser is the point of this button, so open it even if the
+    // disconnect fails or is superseded. Otherwise a rejected teardown leaves
+    // the user on a device screen with no way forward.
+    try {
+      await onDisconnect?.();
+    } finally {
+      onOpenConnectModal?.();
+    }
   };
 
   if (section === "root") {

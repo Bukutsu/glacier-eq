@@ -113,10 +113,10 @@ export function DeviceChooser({
                 aria-checked={selected}
                 disabled={isBusy}
                 onClick={() => {
-                  if (!connected) setSelectedDevice(device.path);
+                  setSelectedDevice(device.path);
                 }}
                 onDoubleClick={() => {
-                  if (!connected) setSelectedDevice(device.path);
+                  setSelectedDevice(device.path);
                   onConnect(device.path, device);
                 }}
               >
@@ -144,7 +144,14 @@ export function DeviceChooser({
       <div className="device-connect-footer">
         <span className="status-text" role="status" aria-live="polite">{authorizationError ?? status}</span>
         <div className="device-actions">
-          <button type="button" className="btn filled" onClick={() => onConnect()} disabled={!selectedDevice || isBusy}>Connect</button>
+          <button
+            type="button"
+            className="btn filled"
+            onClick={() => onConnect()}
+            disabled={!selectedDevice || isBusy}
+          >
+            {connected ? "Switch to this device" : "Connect"}
+          </button>
         </div>
       </div>
 
