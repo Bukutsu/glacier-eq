@@ -46,20 +46,25 @@ jobs:
             libudev-dev \
             pkg-config
 
-      - name: Install wasm-pack
-        uses: jetli/wasm-pack-action@0d096b08b4e5a7de8c28de67e11e945404e9eefa
-        with:
-          version: '0.15.0'
-
       - name: Set up Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: lts/*
           cache: npm
 
+      - name: Cache Rust build outputs
+        uses: swatinem/rust-cache@f0d9c3887740aee45f6153b24b3a6b815192ec16
+        with:
+          workspaces: glacier-core|src-tauri|tauri-plugin-hid|tauri-plugin-material-you
+
       - name: Install dependencies
         run: npm ci
 
+      # wasm-pack comes from the project's own devDependency via
+      # `npm run wasm:build` below, so CI and local builds cannot drift apart on
+      # the toolchain version. A pinned third-party installer was 404ing because
+      # the upstream project moved orgs and the action does not follow that
+      # redirect.
       - name: Verify deployment source
         shell: bash
         run: |
@@ -83,13 +88,12 @@ jobs:
               exit 1
             fi
           fi
-          cargo metadata --locked --no-deps
-          cargo test --workspace --locked
-          cargo fmt --all -- --check
-          cargo clippy --workspace --all-targets --locked -- -D warnings
+          # Same entry points the release workflow runs, so the two pipelines
+          # cannot verify the same commit differently.
+          npm run verify:rust
 
-      - name: Run frontend tests
-        run: npm test
+      - name: Verify frontend
+        run: npm run verify
 
       - name: Build
         shell: bash
