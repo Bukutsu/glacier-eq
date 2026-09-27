@@ -27,7 +27,8 @@ import {
 } from "./lib/tabs";
 import { Collapsible } from "./components/Collapsible";
 import { ConfirmDialogHost, confirmDialog } from "./components/ConfirmDialog";
-import { Modal, MODAL_HISTORY_KEY } from "./components/Modal";
+import { Modal } from "./components/Modal";
+import { isBalanceNavigation, MODAL_HISTORY_KEY } from "./lib/modalHistory";
 import { UnifiedTracesList } from "./components/UnifiedTraces";
 import { SidebarDeviceSpecs } from "./components/SidebarDeviceSpecs";
 import {
@@ -1708,6 +1709,11 @@ function App() {
   // event has already left the modal stack.
   useEffect(() => {
     const handlePopState = (event: PopStateEvent) => {
+      // Closing a modal balances the sentinel it pushed, and that navigation
+      // lands on the base state, which carries no modal key. Treating it as a
+      // Back tore down every overlay, including a dialog the user had opened
+      // while the balance was still in flight.
+      if (isBalanceNavigation(event)) return;
       const state = event.state;
       if (typeof state === "object" && state !== null && MODAL_HISTORY_KEY in state) return;
       reconnectEffectGenerationRef.current += 1;

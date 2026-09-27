@@ -1,45 +1,38 @@
 import { type CSSProperties, type MouseEvent, type ReactNode, useEffect, useId, useRef } from "react";
 import { Icon } from "./Icon";
+import {
+  decideModalPopState,
+  expectBalanceNavigation,
+  isBalanceNavigation,
+  modalIdFromState,
+  modalStateWithId,
+  pushModalEntry,
+  removeModalEntry,
+  topModalEntry,
+  type ModalHistoryEntry,
+} from "../lib/modalHistory";
 
-export const MODAL_HISTORY_KEY = "__glacierModal";
+export { MODAL_HISTORY_KEY } from "../lib/modalHistory";
 
-interface ModalHistoryEntry {
-  id: string;
-  onClose: () => void;
-  canClose: () => boolean;
-}
-
-// Modal instances share one history stack. A system Back event removes only
-// the top entry; returning to an underlying modal's sentinel must not dismiss
-// that underlying dialog as well.
-const modalHistoryStack: ModalHistoryEntry[] = [];
 let modalPopstateListenerCount = 0;
 
-function modalStateWithId(id: string): Record<string, unknown> {
-  const current = window.history.state;
-  return typeof current === "object" && current !== null
-    ? { ...current, [MODAL_HISTORY_KEY]: id }
-    : { [MODAL_HISTORY_KEY]: id };
-}
-
 function handleModalPopState(event: PopStateEvent) {
-  const top = modalHistoryStack[modalHistoryStack.length - 1];
-  if (!top) return;
-  const state = event.state;
-  const activeId = typeof state === "object" && state !== null
-    ? (state as Record<string, unknown>)[MODAL_HISTORY_KEY]
-    : undefined;
-  // A cleanup already removed the top entry before calling history.back().
-  // If the state now names the next entry, that entry is still open.
-  if (activeId === top.id) return;
-  if (!top.canClose()) {
-    // The browser has already moved off the sentinel. Reinsert it so Back
-    // cannot bypass a close-disabled operation such as an in-flight save.
-    window.history.pushState(modalStateWithId(top.id), "");
-    return;
+  // Our own teardown of a previous modal navigates here too. Acting on it would
+  // dismiss whichever dialog the user opened in the meantime.
+  if (isBalanceNavigation(event)) return;
+  const top = topModalEntry();
+  if (top === undefined) return;
+  switch (decideModalPopState(event, top)) {
+    case "reinsert":
+      window.history.pushState(modalStateWithId(top.id, window.history.state), "");
+      return;
+    case "dismiss":
+      removeModalEntry(top);
+      top.onClose();
+      return;
+    case "ignore":
+      return;
   }
-  modalHistoryStack.pop();
-  top.onClose();
 }
 
 interface ModalProps {
@@ -69,8 +62,8 @@ export function Modal({ title, onClose, className = "", style, children, closeDi
       canClose: () => !closeDisabledRef.current,
     };
 
-    modalHistoryStack.push(entry);
-    window.history.pushState(modalStateWithId(modalId), "");
+    pushModalEntry(entry);
+    window.history.pushState(modalStateWithId(modalId, window.history.state), "");
     if (modalPopstateListenerCount === 0) {
       window.addEventListener("popstate", handleModalPopState);
     }
@@ -78,8 +71,7 @@ export function Modal({ title, onClose, className = "", style, children, closeDi
     if (dialog && !dialog.open) dialog.showModal();
 
     return () => {
-      const index = modalHistoryStack.lastIndexOf(entry);
-      if (index >= 0) modalHistoryStack.splice(index, 1);
+      removeModalEntry(entry);
       modalPopstateListenerCount = Math.max(0, modalPopstateListenerCount - 1);
       if (modalPopstateListenerCount === 0) {
         window.removeEventListener("popstate", handleModalPopState);
@@ -87,11 +79,12 @@ export function Modal({ title, onClose, className = "", style, children, closeDi
       // A close button removes the React modal first; balance the sentinel it
       // pushed. If Android Back already removed it, the current state no
       // longer belongs to this entry and no second history navigation occurs.
-      const state = window.history.state;
-      const activeId = typeof state === "object" && state !== null
-        ? (state as Record<string, unknown>)[MODAL_HISTORY_KEY]
-        : undefined;
-      if (activeId === modalId) window.history.back();
+      if (modalIdFromState(window.history.state) === modalId) {
+        // Mark the navigation before it is requested: it resolves after this
+        // task, possibly once another dialog has pushed its own sentinel.
+        expectBalanceNavigation();
+        window.history.back();
+      }
       if (dialog?.open) dialog.close();
       opener?.focus();
     };
