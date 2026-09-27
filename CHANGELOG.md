@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.11.0] - 2026-09-27
+
+### Added
+
+- Added a minimal offline mode that hides hardware-only controls and presents the engine's limits while no DAC is connected.
+- Added an About settings section with version, system information, and project links.
+- Added external link handling through the native platform opener in Tauri.
+
+### Changed
+
+- Changed AutoEQ to scale the correction uniformly when a DAC's preamp range cannot provide enough headroom, instead of failing the whole operation or returning a clipping result.
+- Changed release and Android builds to resolve dependencies from the committed lockfile, and made the local Android release path fail fast when signing is not configured.
+- Changed service-worker caches to be scoped to their registration so two deployments on the same origin can no longer share a release.
+
+### Fixed
+
+- Fixed dialogs failing to open: closing one dialog could immediately close the next one opened after it, which left Change Device and Diagnostics unresponsive.
+- Fixed the device chooser refusing to select a device while a connection was live, leaving the Connect button permanently disabled.
+- Fixed a disconnect reporting success while the device stayed open, which could leave the next connection attempt holding a half-released device.
+- Fixed filter gains outside the device's wire range wrapping to a wrong value instead of being rejected, and validated filter Q as unsigned where the protocol requires it.
+- Fixed WebHID global-gain reads accepting a response that arrived for an earlier, abandoned request.
+- Fixed a disconnect or detach event tearing down a replacement device that had already claimed the same path.
+- Fixed Android device teardown returning before the interface was actually released.
+- Fixed two app windows reserving the same online-database generation, and a download reporting success after the cache was cleared.
+- Fixed profile files being opened through symbolic links.
+- Fixed device and editor confirmations resuming against a different device or session after their dialog was answered.
+- Fixed device controls and profile import fields staying editable while a write to the DAC was in progress.
+- Fixed a dropped AutoEQ file being applied after a newer, rejected drop had already superseded it.
+
 ## [0.10.1] - 2026-09-18
 
 ### Fixed
