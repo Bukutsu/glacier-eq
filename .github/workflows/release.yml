@@ -210,23 +210,55 @@ jobs:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
           WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
           WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
         run: |
           set -euo pipefail
           if [[ "$RUNNER_OS" == "macOS" ]]; then
-            if [[ -n "$APPLE_CERTIFICATE" && -n "$APPLE_CERTIFICATE_PASSWORD" && -n "$APPLE_SIGNING_IDENTITY" ]]; then
-              echo "signed=true" >> "$GITHUB_OUTPUT"
-              echo "✅ macOS signing credentials found."
-            else
+            missing=()
+            [[ -n "$APPLE_CERTIFICATE" ]] || missing+=(APPLE_CERTIFICATE)
+            [[ -n "$APPLE_CERTIFICATE_PASSWORD" ]] || missing+=(APPLE_CERTIFICATE_PASSWORD)
+            [[ -n "$APPLE_SIGNING_IDENTITY" ]] || missing+=(APPLE_SIGNING_IDENTITY)
+            if (( ${#missing[@]} > 0 )); then
               echo "signed=false" >> "$GITHUB_OUTPUT"
-              echo "::warning::Apple signing credentials are unavailable; building unsigned macOS artifacts."
+              echo "notarized=false" >> "$GITHUB_OUTPUT"
+              echo "::warning title=macOS code signing::Unavailable: ${missing[*]}. Building unsigned macOS artifacts."
+              exit 0
+            fi
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+            echo "✅ macOS code signing credentials found."
+
+            # Code signing and notarization are separate: Tauri signs with the
+            # imported certificate but authenticates to Apple separately. The
+            # previous check only looked at the certificate, so a release with
+            # no Apple credentials still reported itself as signed and shipped
+            # a DMG that Gatekeeper rejects on every user's machine.
+            notary_missing=()
+            if [[ -z "$APPLE_ID" || -z "$APPLE_PASSWORD" ]]; then
+              notary_missing+=(APPLE_ID+APPLE_PASSWORD)
+            fi
+            [[ -n "$APPLE_TEAM_ID" ]] || notary_missing+=(APPLE_TEAM_ID)
+            if (( ${#notary_missing[@]} > 0 )); then
+              echo "notarized=false" >> "$GITHUB_OUTPUT"
+              echo "::warning title=macOS notarization::Signed but NOT notarized: missing ${notary_missing[*]}. Every download will show a Gatekeeper warning."
+            else
+              echo "notarized=true" >> "$GITHUB_OUTPUT"
+              echo "✅ macOS notarization credentials found."
+            fi
+            if [[ -z "$KEYCHAIN_PASSWORD" ]]; then
+              echo "::notice title=macOS keychain::KEYCHAIN_PASSWORD is unset; Tauri will generate a temporary one for the certificate import."
             fi
           elif [[ -n "$WINDOWS_CERTIFICATE" && -n "$WINDOWS_CERTIFICATE_PASSWORD" ]]; then
             echo "signed=true" >> "$GITHUB_OUTPUT"
+            echo "notarized=false" >> "$GITHUB_OUTPUT"
             echo "✅ Windows signing credentials found."
           else
             echo "signed=false" >> "$GITHUB_OUTPUT"
+            echo "notarized=false" >> "$GITHUB_OUTPUT"
             echo "::warning::Windows signing credentials are unavailable; building unsigned Windows artifacts."
           fi
 
@@ -240,6 +272,7 @@ jobs:
         with:
           args: ${{ matrix.args }} --config release-config.json -- --locked
           releaseAssetNamePattern: "glacier-eq_[version]_[platform]_[arch].[ext]"
+          retryAttempts: 1
 
       - name: Guard against bundled libwayland-client
         if: matrix.os == 'ubuntu-22.04'
@@ -272,18 +305,21 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
           WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
           WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
         with:
-          args: ${{ matrix.args }} --config release-config.json
+          args: ${{ matrix.args }} --config release-config.json -- --locked
           releaseAssetNamePattern: "glacier-eq_[version]_[platform]_[arch].[ext]"
+          retryAttempts: 1
 
       - name: Build unsigned app
         if: matrix.os != 'ubuntu-22.04' && steps.signing.outputs.signed != 'true'
         uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f
         with:
-          args: ${{ matrix.args }} --config release-config.json
+          args: ${{ matrix.args }} --config release-config.json -- --locked
           releaseAssetNamePattern: "glacier-eq_[version]_[platform]_[arch].[ext]"
+          retryAttempts: 1
 
       - name: Collect and verify release assets
         shell: bash
@@ -556,6 +592,10 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     permissions:
       contents: write
+      # OIDC token for the attestation subject, and write access to store the
+      # attestations themselves. Both are scoped to this job only.
+      id-token: write
+      attestations: write
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -598,6 +638,14 @@ jobs:
           require_glob "Android ARM64 APK" 'artifacts/*android-arm64.apk'
 
           echo "✅ All expected OS release assets are present."
+
+      # Runs after the coverage check so only a complete, verified asset set is
+      # attested. Users can then verify an installer was built from this repo at
+      # this commit with `gh attestation verify`.
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: "artifacts/*"
 
       - name: Extract release notes from CHANGELOG.md
         env:
