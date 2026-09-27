@@ -32,28 +32,25 @@ const wasm = vi.hoisted(() => ({
   get_write_timing: vi.fn(() => ({})),
 }));
 
-vi.mock("../../wasm_pkg/glacier_core", () => ({
-  default: wasm.init,
-  ...wasm,
-}));
-
 // Controllable wasm gate: the round-5 P3 finding is that invokeWeb awaited
 // ensureWasm() even for pure-JS diagnostics commands, so a failed wasm fetch
-// blanked the ToolsPanel history view. Default path delegates to the real
-// ensureWasm (which imports the mocked wasm_pkg above); setting
-// wasmGate.failure simulates the outage.
+// blanked the ToolsPanel history view. Setting wasmGate.failure simulates the
+// outage.
 const wasmGate = vi.hoisted(() => ({ failure: null as Error | null }));
 
-vi.mock("./wasm", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("./wasm")>();
-  return {
-    ...actual,
-    ensureWasm: async () => {
-      if (wasmGate.failure) throw wasmGate.failure;
-      await actual.ensureWasm();
-    },
-  };
-});
+// The suite drives the WebAssembly API through the hoisted doubles above, so
+// the loader must never reach for the compiled artifact. Delegating to the real
+// ensureWasm() made every test depend on `npm run wasm:build` having been run
+// first, which no clean checkout has: the mock target could not be resolved, so
+// a fresh clone failed on ERR_MODULE_NOT_FOUND instead of on anything in the
+// source. Stubbing both entry points keeps the suite hermetic and identical on
+// every machine.
+vi.mock("./wasm", () => ({
+  ensureWasm: async () => {
+    if (wasmGate.failure) throw wasmGate.failure;
+  },
+  getWasm: () => wasm,
+}));
 
 import {
   invoke,

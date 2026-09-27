@@ -87,25 +87,18 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      # src/wasm_pkg is a gitignored build artifact, and the web backend test
-      # suite loads it through a dynamic import. Without this step a clean
-      # checkout has no module to resolve and the tests fail on a missing
-      # import rather than on anything in the source.
+      # src/wasm_pkg is a gitignored build artifact. The test suite is hermetic
+      # and does not need it, but nothing else in this pipeline compiles the
+      # wasm32 target, and a wasm-only compile error would otherwise ship.
       - name: Build WebAssembly package
         run: npm run wasm:build
 
+      # Same entry point contributors run, so CI cannot drift from local.
       - name: Verify frontend
-        run: |
-          npm test
-          npx tsc -p tsconfig.web.json --noEmit
-          npx tsc -p tsconfig.desktop.json --noEmit
+        run: npm run verify
 
       - name: Verify Rust
-        run: |
-          cargo metadata --locked --no-deps
-          cargo test --workspace --locked
-          cargo fmt --all -- --check
-          cargo clippy --workspace --all-targets --locked -- -D warnings
+        run: npm run verify:rust
 
   desktop:
     name: Desktop build (${{ matrix.name }})
