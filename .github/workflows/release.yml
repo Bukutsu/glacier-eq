@@ -73,6 +73,13 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
 
+      # The build jobs below already cache, so without this the verify gate
+      # recompiled the whole workspace cold on every run: 182s of the 265s job.
+      - name: Cache Rust build artifacts
+        uses: swatinem/rust-cache@f0d9c3887740aee45f6153b24b3a6b815192ec16
+        with:
+          workspaces: glacier-core|src-tauri|tauri-plugin-hid|tauri-plugin-material-you
+
       - name: Install Linux Tauri dependencies
         run: |
           sudo apt-get update
@@ -102,7 +109,11 @@ jobs:
 
   desktop:
     name: Desktop build (${{ matrix.name }})
-    needs: [check-tag, verify]
+    # Deliberately not gated on `verify`: the builds already run in parallel, so
+    # waiting for a 4-minute gate only adds its duration to the critical path.
+    # `release` below requires `verify` too, so nothing is published unless the
+    # gate passed.
+    needs: [check-tag]
     runs-on: ${{ matrix.os }}
     if: startsWith(github.ref, 'refs/tags/')
     timeout-minutes: 60
@@ -312,7 +323,8 @@ jobs:
 
   android:
     name: Android APK
-    needs: [check-tag, verify]
+    # Overlaps the verify gate on purpose; see the note on `desktop`.
+    needs: [check-tag]
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-22.04
     timeout-minutes: 30
@@ -537,7 +549,9 @@ jobs:
 
   release:
     name: Create release and upload assets
-    needs: [desktop, android]
+    # The builds no longer wait on `verify`, so require it here: this is the
+    # single gate that stops a failing tag from publishing.
+    needs: [check-tag, verify, desktop, android]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     permissions:
