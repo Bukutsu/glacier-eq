@@ -567,11 +567,16 @@
     width: 100%;
     min-height: 52px;
   }
+  /* Bleeds horizontally past .device-card's 18px padding so the bar spans the
+     card edge to edge, but never vertically: this is not the card's last
+     child — .supported-list and .device-troubleshooting follow it — so a
+     negative bottom margin dragged both up 18px and the bar's raised
+     background painted over "SUPPORTED MODELS (12)". */
   .device-connect-footer {
     position: sticky;
     bottom: 0;
     z-index: var(--z-raised);
-    margin: 0 -18px -18px;
+    margin: 0 -18px;
     padding: 10px 18px max(10px, var(--safe-area-bottom, 0px));
     background: color-mix(in srgb, var(--bg) 94%, transparent);
     border-top: 1px solid var(--line-medium);
