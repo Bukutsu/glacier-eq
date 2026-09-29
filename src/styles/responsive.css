@@ -567,17 +567,18 @@
     width: 100%;
     min-height: 52px;
   }
-  /* Bleeds horizontally past .device-card's 18px padding so the bar spans the
-     card edge to edge, but never vertically: this is not the card's last
-     child — .supported-list and .device-troubleshooting follow it — so a
-     negative bottom margin dragged both up 18px and the bar's raised
-     background painted over "SUPPORTED MODELS (12)". */
+  /* Stays on the card's content column like every other child — the setup
+     steps, the scan button, the device rows, both <details>. A negative
+     horizontal margin put this bar's background, border-top and blur 18px
+     past the column on each side, so the bar read as a wider box sitting
+     across it. The Connect button lines up with the scan button because the
+     compensating padding is gone with the margin. */
   .device-connect-footer {
     position: sticky;
     bottom: 0;
     z-index: var(--z-raised);
-    margin: 0 -18px;
-    padding: 10px 18px max(10px, var(--safe-area-bottom, 0px));
+    margin: 0;
+    padding: 10px 0 max(10px, var(--safe-area-bottom, 0px));
     background: color-mix(in srgb, var(--bg) 94%, transparent);
     border-top: 1px solid var(--line-medium);
     backdrop-filter: blur(12px);
