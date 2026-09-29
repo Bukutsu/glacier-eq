@@ -70,128 +70,115 @@ export function DeviceChooser({
 
   return (
     <section className="device-card">
-      <ol className="device-setup-steps" role="list" aria-label="Connection steps">
-        <li role="listitem"><span>1</span>Plug in and power your DAC</li>
-        <li role="listitem"><span>2</span>Scan and approve access if asked</li>
-        <li role="listitem"><span>3</span>Select the DAC and connect</li>
-      </ol>
-
-      {!isTauri() && !("hid" in navigator) && (
-        <div className="device-browser-warning">WebHID requires a Chromium-based browser over HTTPS or localhost.</div>
-      )}
-
-      <button type="button" className="btn device-scan-btn" onClick={handleScanClick} disabled={isBusy}>{isBusy ? "Scanning…" : "Scan for Devices"}</button>
-
-      {devices.length > 0 && (
-        <p className="device-selection-hint" id="device-selection-hint">
-          Tap a DAC to select it, then tap Connect.
-        </p>
-      )}
-
-      {devices.length === 0 ? (
-        <div className="empty-device-state">
-          <strong>No supported DAC found</strong>
-          <span>Plug in one of the supported devices below, then scan again.</span>
+      <div className="device-chooser-content">
+        <div className="device-intro">
+          <Icon name="usb" size={22} />
+          <p>Plug in and power your DAC. Scan to find it, then approve access if asked.</p>
         </div>
-      ) : (
-        <div className="device-list" role="radiogroup" aria-label="Available DACs" aria-describedby="device-selection-hint">
-          {devices.map((device) => {
-            const name = device.profile_name || device.product_string || device.manufacturer || "Supported DAC";
-            const selected = selectedDevice === device.path;
-            const isDummy = isDevDummyDevice(device.path);
-            const support = supportedDacs.find((dac) =>
-              dac.vendor_id === device.vendor_id &&
-              (dac.product_id === null || dac.product_id === device.product_id)
-            );
-            return (
-              <button
-                key={device.path}
-                type="button"
-                role="radio"
-                className={selected ? "device-row selected" : "device-row"}
-                title="Select this DAC"
-                aria-checked={selected}
-                disabled={isBusy}
-                onClick={() => {
-                  setSelectedDevice(device.path);
-                }}
-                onDoubleClick={() => {
-                  setSelectedDevice(device.path);
-                  onConnect(device.path, device);
-                }}
-              >
-                <span className="device-row-title">
-                  {name}
-                  {isDummy && <span className="dev-device-badge">DEV</span>}
-                  {!isDummy && support && (
-                    <span className={`device-support-badge ${support.status.toLowerCase()}`}>{support.status}</span>
-                  )}
-                </span>
-                <span className="device-row-meta">
-                  VID: {formatUsbId(device.vendor_id)} &nbsp; PID: {formatUsbId(device.product_id)}
-                </span>
-                <small>
-                  {isDummy
-                    ? "Simulated device for testing without hardware"
-                    : device.product_string || device.manufacturer || "Walkplay Family DAC"}
-                </small>
-              </button>
-            );
-          })}
-        </div>
-      )}
+
+        {!isTauri() && !("hid" in navigator) && (
+          <div className="device-browser-warning">WebHID requires a Chromium-based browser over HTTPS or localhost.</div>
+        )}
+
+        <button type="button" className="btn device-scan-btn" onClick={handleScanClick} disabled={isBusy}>
+          <Icon name="search" size={18} />{isBusy ? "Scanning…" : "Scan for devices"}
+        </button>
+
+        <h3 className="device-list-heading">Available DACs <span>{devices.length}</span></h3>
+        {devices.length === 0 ? (
+          <div className="empty-device-state">
+            <strong>No supported DAC found</strong>
+            <span>Plug in one of the supported devices below, then scan again.</span>
+          </div>
+        ) : (
+          <div className="device-list" role="radiogroup" aria-label="Available DACs">
+            {devices.map((device) => {
+              const name = device.profile_name || device.product_string || device.manufacturer || "Supported DAC";
+              const selected = selectedDevice === device.path;
+              const isDummy = isDevDummyDevice(device.path);
+              const support = supportedDacs.find((dac) =>
+                dac.vendor_id === device.vendor_id &&
+                (dac.product_id === null || dac.product_id === device.product_id)
+              );
+              return (
+                <button
+                  key={device.path}
+                  type="button"
+                  role="radio"
+                  className={selected ? "device-row selected" : "device-row"}
+                  aria-checked={selected}
+                  disabled={isBusy}
+                  onClick={() => {
+                    setSelectedDevice(device.path);
+                  }}
+                  onDoubleClick={() => {
+                    setSelectedDevice(device.path);
+                    onConnect(device.path, device);
+                  }}
+                >
+                  <span className="device-row-title">
+                    <span className="device-row-name">{name}</span>
+                    {isDummy && <span className="dev-device-badge">DEV</span>}
+                    {!isDummy && support && (
+                      <span className={`device-support-badge ${support.status.toLowerCase()}`}>{support.status}</span>
+                    )}
+                  </span>
+                  <span className="device-row-description">
+                    {isDummy ? "Simulated device for testing" : device.product_string || device.manufacturer || "Walkplay Family DAC"}
+                  </span>
+                  <span className="device-row-meta">VID {formatUsbId(device.vendor_id)} · PID {formatUsbId(device.product_id)}</span>
+                  <span className="device-selection-mark" aria-hidden="true"><Icon name={selected ? "radio_button_checked" : "radio_button_unchecked"} size={20} /></span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        <details
+          className="supported-list"
+          open={supportedOpen}
+          onToggle={(e) => setSupportedOpen(e.currentTarget.open)}
+        >
+          <summary>
+            <span>Supported models ({supportedDacs.length})</span>
+            <Icon size={18} name={supportedOpen ? "expand_less" : "expand_more"} />
+          </summary>
+          <div className="supported-models">
+            {supportedDacs.map((dac) => (
+              <div className="supported-model" key={dac.name}>
+                <strong>{dac.name}</strong>
+                <span>{formatUsbId(dac.vendor_id)}:{dac.product_id == null ? "*" : formatUsbId(dac.product_id)} · {dac.status}</span>
+              </div>
+            ))}
+          </div>
+        </details>
+
+        <details className="device-troubleshooting">
+          <summary>Trouble connecting?</summary>
+          <ul>
+            <li>Replug the DAC and close other apps using it.</li>
+            {!isTauri() && <li>Use Chromium and approve the browser device prompt.</li>}
+            {isTauri()
+              ? <li>On Linux, open Settings &gt; Diagnostics to install the udev rule, then replug the DAC.</li>
+              : !isLinux()
+                ? <li>On Linux, install the udev rules, then replug the DAC.</li>
+                : null}
+          </ul>
+          {!isTauri() && isLinux() && <LinuxUdevGuide compact />}
+          <a href="https://github.com/Bukutsu/glacier-eq/wiki/Troubleshooting" target="_blank" rel="noreferrer">Open connection help</a>
+        </details>
+      </div>
 
       <div className="device-connect-footer">
-        <span className="status-text" role="status" aria-live="polite">{authorizationError ?? status}</span>
+        {(authorizationError || (status && !/^Found \d+ devices?$/.test(status))) && (
+          <span className="status-text" role="status" aria-live="polite">{authorizationError ?? status}</span>
+        )}
         <div className="device-actions">
-          <button
-            type="button"
-            className="btn filled"
-            onClick={() => onConnect()}
-            disabled={!selectedDevice || isBusy}
-          >
-            {connected ? "Switch to this device" : "Connect"}
+          <button type="button" className="btn filled" onClick={() => onConnect()} disabled={!selectedDevice || isBusy}>
+            {connected ? "Switch to this device" : "Connect to DAC"}
           </button>
         </div>
       </div>
-
-      <details
-        className="supported-list"
-        open={supportedOpen}
-        onToggle={(e) => setSupportedOpen(e.currentTarget.open)}
-        style={{ padding: "8px 12px", background: "var(--bg-dark)", border: "1px solid var(--line-soft)" }}
-      >
-        <summary style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", color: "var(--comment)", fontSize: "var(--type-caption)", fontWeight: 700, listStyle: "none" }}>
-          <span>SUPPORTED MODELS ({supportedDacs.length})</span>
-          <Icon size={16} className="text-cyan" name={supportedOpen ? "expand_less" : "expand_more"} />
-        </summary>
-        <div style={{ display: "grid", gap: "8px", marginTop: "12px" }}>
-          {supportedDacs.map((dac) => (
-            <div key={dac.name} style={{ display: "flex", justifyContent: "space-between", gap: "12px", color: "var(--text)", fontSize: "var(--type-small)" }}>
-              <strong>{dac.name}</strong>
-              <span style={{ color: "var(--text-dim, var(--cyan))", fontFamily: "var(--font-mono)", fontSize: "var(--type-caption)" }}>
-                {formatUsbId(dac.vendor_id)}:{dac.product_id == null ? "*" : formatUsbId(dac.product_id)} · <span style={{ color: dac.status === "Tested" ? "var(--green)" : "var(--yellow)" }}>{dac.status}</span>
-              </span>
-            </div>
-          ))}
-        </div>
-      </details>
-
-      <details className="device-troubleshooting">
-        <summary>Trouble connecting?</summary>
-        <ul>
-          <li>Replug the DAC and close other apps using it.</li>
-          {!isTauri() && <li>Use Chromium and approve the browser device prompt.</li>}
-          {isTauri()
-            ? <li>On Linux, open Settings &gt; Diagnostics to install the udev rule, then replug the DAC.</li>
-            : !isLinux()
-              ? <li>On Linux, install the udev rules, then replug the DAC.</li>
-              : null}
-        </ul>
-        {!isTauri() && isLinux() && <LinuxUdevGuide compact />}
-        <a href="https://github.com/Bukutsu/glacier-eq/wiki/Troubleshooting" target="_blank" rel="noreferrer">Open connection help</a>
-      </details>
-
     </section>
   );
 }

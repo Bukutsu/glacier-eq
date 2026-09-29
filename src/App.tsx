@@ -2528,6 +2528,7 @@ function App() {
       {showDeviceModal && (
         <Modal
           title="Connect DAC"
+          className="device-modal"
           onClose={handleCloseDeviceModal}
         >
           <div className="modal-body">

@@ -551,51 +551,6 @@
     grid-template-columns: 1fr;
     gap: 3px;
   }
-  /* The card adds no horizontal inset here on purpose. The viewport's own
-     scroll container, .modal-body, already provides 16px — the same 16px
-     .modal-header uses, which is what lines the title up with the content
-     below it. On desktop .device-card's base padding is 0 for the same
-     reason, so the old mobile-only 18px was the one breakpoint that pushed
-     the body 18px past the header and off the modal's left edge. */
-  .device-card { padding: 0; }
-  .device-actions {
-    justify-content: stretch;
-  }
-  .device-actions .btn {
-    width: 100%;
-    min-height: 52px;
-  }
-  /* Stays on the card's content column like every other child — the setup
-     steps, the scan button, the device rows, both <details>. A negative
-     horizontal margin put this bar's background, border-top and blur 18px
-     past the column on each side, so the bar read as a wider box sitting
-     across it. The Connect button lines up with the scan button because the
-     compensating padding is gone with the margin. */
-  .device-connect-footer {
-    position: sticky;
-    bottom: 0;
-    z-index: var(--z-raised);
-    margin: 0;
-    padding: 10px 0 max(10px, var(--safe-area-bottom, 0px));
-    background: color-mix(in srgb, var(--bg) 94%, transparent);
-    border-top: 1px solid var(--line-medium);
-    backdrop-filter: blur(12px);
-  }
-  .device-connect-footer .device-actions .btn {
-    min-height: 52px;
-  }
-  .device-selection-hint {
-    margin-top: -2px;
-  }
-  .device-row {
-    min-height: 76px;
-    touch-action: manipulation;
-  }
-  .supported-list div {
-    flex-direction: column;
-    gap: 2px;
-  }
-
   /* M3 Card and Touch Targets */
   .graph-card,
   .preamp-card,

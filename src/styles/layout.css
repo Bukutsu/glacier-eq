@@ -123,6 +123,19 @@ dialog.modal-content.wide {
   width: min(680px, 96vw);
 }
 
+/* Keep the DAC list scrollable while the connect action stays in reach. */
+dialog.modal-content.device-modal {
+  height: auto;
+  max-height: calc(100dvh - 64px);
+  overflow: hidden;
+}
+.device-modal .modal-body {
+  flex: 1;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
 .modal-header {
   display: flex;
   align-items: center;
@@ -212,6 +225,24 @@ dialog.modal-content.wide {
 
   .modal-body {
     padding-bottom: calc(16px + var(--safe-area-bottom, 0px));
+  }
+
+  dialog.modal-content.device-modal {
+    inset: auto 0 0;
+    margin: 0 auto;
+    width: calc(100vw - var(--safe-area-left, 0px) - var(--safe-area-right, 0px));
+    height: auto;
+    max-height: calc(100dvh - var(--safe-area-top, 0px) - 8px);
+    border-radius: 16px 16px 0 0;
+    border-bottom: 0;
+  }
+  .device-modal .modal-body { padding: 0; }
+  .device-modal .modal-header {
+    padding: var(--space-4);
+    padding-top: var(--space-4);
+  }
+  .device-modal .device-connect-footer {
+    padding-bottom: max(var(--space-3), var(--safe-area-bottom, 0px));
   }
 
   dialog.modal-content,
