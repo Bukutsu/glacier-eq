@@ -429,6 +429,7 @@ function App() {
 
   const pushToUndoStack = useCallback((currentPeq: PEQData) => {
     useHistoryStore.getState().pushSnapshot(currentPeq, {
+      kind: "preset",
       selectedPreset: selectedPresetRef.current,
       cleanPeq: editorCleanPeqRef.current,
     });
@@ -591,6 +592,7 @@ function App() {
       restore: history[direction],
       current: peqRef.current,
       currentMetadata: {
+        kind: "preset",
         selectedPreset: selectedPresetRef.current,
         cleanPeq: editorCleanPeqRef.current,
       },
@@ -599,24 +601,28 @@ function App() {
     });
     if (!restored) return;
     const metadata = useHistoryStore.getState().lastRestoredMetadata;
-    const metadataProfileExists = metadata?.selectedPreset
+    // Narrowed, not read through optionals: the union makes "a preset with
+    // no clean baseline" unrepresentable, so the restore path no longer needs
+    // a `??` fallback that would compute dirty against the wrong baseline.
+    const restoredPreset = metadata?.kind === "preset" ? metadata : null;
+    const metadataProfileExists = restoredPreset
       ? profiles.some(
-        (profile) => profileIdentityKey(profile.name) === profileIdentityKey(metadata.selectedPreset!),
+        (profile) => profileIdentityKey(profile.name) === profileIdentityKey(restoredPreset.selectedPreset),
       )
       : false;
     const restoredClean = normalizePeqForDevice(
-      metadataProfileExists
-        ? metadata?.cleanPeq ?? editorCleanPeqRef.current
+      metadataProfileExists && restoredPreset
+        ? restoredPreset.cleanPeq
         : editorCleanPeqRef.current,
       capabilities,
     );
     peqRef.current = restored.peq;
     editorCleanPeqRef.current = restoredClean;
     setPeq(restored.peq);
-    if (metadata?.selectedPreset && metadataProfileExists) {
-      selectedPresetRef.current = metadata.selectedPreset;
-      setSelectedPreset(metadata.selectedPreset);
-    } else if (metadata?.selectedPreset) {
+    if (restoredPreset && metadataProfileExists) {
+      selectedPresetRef.current = restoredPreset.selectedPreset;
+      setSelectedPreset(restoredPreset.selectedPreset);
+    } else if (restoredPreset) {
       selectedPresetRef.current = DEFAULT_PROFILE_NAME;
       setSelectedPreset(DEFAULT_PROFILE_NAME);
     }

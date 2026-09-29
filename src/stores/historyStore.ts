@@ -10,10 +10,18 @@ const MAX_HISTORY = 50;
 type NormalizeSnapshot = (snapshot: PEQData) => PEQData;
 const unchangedSnapshot: NormalizeSnapshot = (snapshot) => snapshot;
 
-export interface HistoryMetadata {
-  selectedPreset?: string;
-  cleanPeq?: PEQData;
-}
+/**
+ * A history snapshot's editor context. Modelled as a union rather than two
+ * independent optionals: `{ selectedPreset }` with no `cleanPeq` was
+ * constructable, storable, and propagated through undo/redo, and the restore
+ * path then fell back with `??` to the *current* baseline — so dirty was
+ * computed against the wrong one. Only the one production constructor
+ * exists and always supplies both, so the hole was latent, but nothing in
+ * the type stopped it.
+ */
+export type HistoryMetadata =
+  | { kind: "editor" }
+  | { kind: "preset"; selectedPreset: string; cleanPeq: PEQData };
 
 interface HistoryState {
   past: PEQData[];
@@ -41,10 +49,12 @@ function metadataEquals(
   left: HistoryMetadata | null | undefined,
   right: HistoryMetadata | null | undefined,
 ): boolean {
-  const leftPreset = left?.selectedPreset ?? null;
-  const rightPreset = right?.selectedPreset ?? null;
+  const leftPreset = left?.kind === "preset" ? left.selectedPreset : null;
+  const rightPreset = right?.kind === "preset" ? right.selectedPreset : null;
   if (leftPreset !== rightPreset) return false;
-  if (!left?.cleanPeq || !right?.cleanPeq) return !left?.cleanPeq && !right?.cleanPeq;
+  if (left?.kind !== "preset" || right?.kind !== "preset") {
+    return left?.kind !== "preset" && right?.kind !== "preset";
+  }
   return peqEquals(left.cleanPeq, right.cleanPeq);
 }
 
