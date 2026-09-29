@@ -316,6 +316,11 @@ interface ParsedStorage<T> {
 const UNCORRELATED_GAIN_ERROR =
   "Global gain read required retry; refusing uncorrelated state";
 
+// Mirrors glacier-core's UNVERIFIED_PUSH_WARNING. Both adapters must say it,
+// or a push with verification switched off reads as a confirmed commit.
+const UNVERIFIED_PUSH_WARNING =
+  "pushed without reading the DAC back, so its stored EQ was not verified";
+
 const DEFAULT_WEB_SETTINGS: AppSettings = {
   auto_pull_on_connect: true,
   skip_push_verification: false,
@@ -1429,7 +1434,14 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
           throw new Error(persistentPushFailureMessage(pushError, restoreError));
         }
         emitEvent("operation-progress", { message: "Write complete (unverified)", percentage: 100 });
-        return { ...peq, warnings } as T;
+        // There is no readback on this path, so the returned PEQ is the
+        // request, not a readback of what the DAC stored. Say so, exactly as
+        // DeviceSession::unverified_push does, instead of letting the UI read
+        // it as a confirmed commit.
+        return {
+          ...peq,
+          warnings: [...warnings, UNVERIFIED_PUSH_WARNING],
+        } as T;
       }
 
       let actual: PEQData;

@@ -20,6 +20,11 @@ const UTILITY_READ_ATTEMPTS: usize = 25;
 const UTILITY_READ_RETRIES: usize = 3;
 const WRITE_ATTEMPTS: usize = 3;
 const RETRY_DELAY_MS: u64 = 100;
+/// Attached to every `unverified_push` result. Without a readback the PEQ
+/// returned is what was *asked for*, not what the device stored, and the UI
+/// needs to stop reading it as a confirmed commit.
+pub const UNVERIFIED_PUSH_WARNING: &str =
+    "pushed without reading the DAC back, so its stored EQ was not verified";
 const UNCORRELATED_GAIN_ERROR: &str =
     "Global gain read required retry; refusing uncorrelated state";
 
@@ -232,8 +237,13 @@ impl<'a> DeviceSession<'a> {
 
     /// Writes persistently without a readback. Kept for the GUI's explicit
     /// skip-verification setting; CLI writes always use `persistent_push`.
+    ///
+    /// The returned PEQ is the *request*, not a readback of what the device
+    /// stored — there is none, by construction. Callers that publish this as
+    /// the device's committed state must say so, which is what the extra
+    /// warning below is for.
     pub fn unverified_push(&mut self, peq: PEQData) -> Result<(PEQData, Vec<String>), String> {
-        let (normalized, warnings) = self.normalize(peq)?;
+        let (normalized, mut warnings) = self.normalize(peq)?;
         let backup = self.pull()?;
         if self.last_pull_had_invalid_response {
             return Err("Cannot push while the device returned an invalid EQ response".into());
@@ -246,6 +256,7 @@ impl<'a> DeviceSession<'a> {
                 Err(rollback) => format!("{error}; rollback failed: {rollback}"),
             });
         }
+        warnings.push(UNVERIFIED_PUSH_WARNING.to_string());
         self.progress("Push successful", 100.0);
         Ok((normalized, warnings))
     }
@@ -1625,6 +1636,48 @@ mod tests {
         assert!(
             warnings.iter().any(|warning| warning.contains("preamp")),
             "clamp must be reported to the caller, got {warnings:?}"
+        );
+    }
+
+    #[test]
+    fn an_unverified_push_says_the_returned_state_was_not_read_back() {
+        let profile = get_supported_device(0x3302, 0x43e8).unwrap();
+        let mut io = FakeIo::default();
+        queue_pull(&mut io, 0);
+
+        // The caller publishes this PEQ as the device's committed state and
+        // clears the editor's dirty flag against it. With no readback there is
+        // nothing behind it, so the result must say so rather than let a DAC
+        // that silently dropped the write read as a confirmed commit.
+        let (_, warnings) = DeviceSession::new(&mut io, profile)
+            .unverified_push(PEQData {
+                filters: vec![],
+                global_gain: 0.0,
+            })
+            .unwrap();
+        assert!(
+            warnings.iter().any(|w| w == UNVERIFIED_PUSH_WARNING),
+            "the unverified push must carry its caveat, got {warnings:?}"
+        );
+    }
+
+    #[test]
+    fn a_verified_push_carries_no_unverified_caveat() {
+        let profile = get_supported_device(0x3302, 0x43e8).unwrap();
+        let mut io = FakeIo::default();
+        queue_pull(&mut io, -1); // snapshot
+        io.reads.push_back(vec![]); // push init drain
+        queue_pull_with_nonce_start(&mut io, -1, 11); // verification readback
+
+        let (_, warnings) = DeviceSession::new(&mut io, profile)
+            .persistent_push(test_peq())
+            .unwrap();
+        // This path really did read the device back, so its PEQ is the
+        // committed state and must stay unqualified — the caveat would
+        // train the user to ignore it on the path where it matters.
+        assert!(
+            !warnings.iter().any(|w| w == UNVERIFIED_PUSH_WARNING),
+            "a verified push must not claim it was unverified, got {warnings:?}"
         );
     }
 }

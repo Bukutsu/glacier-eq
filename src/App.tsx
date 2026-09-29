@@ -1488,14 +1488,15 @@ function App() {
         ? "Dummy DAC write simulated"
         : "Saved EQ to DAC";
       if (pushWarnings.length > 0) {
-        // The push rewrote out-of-range values: "Saved EQ to DAC" alone
-        // would hide a change to the user's EQ.
+        // The push rewrote out-of-range values, or ran with verification
+        // switched off and so never read the DAC back: "Saved EQ to DAC"
+        // alone would hide both.
         reportStatus(
           "Warn",
           `${savedMessage} — ${pushWarnings.join(" · ")}`,
           "info",
           "UI",
-          `${savedMessage} (values adjusted to device limits)`
+          `${savedMessage} (see details)`,
         );
       } else {
         reportStatus("Info", savedMessage, "success", "UI");

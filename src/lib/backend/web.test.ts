@@ -569,7 +569,12 @@ describe("browser EQ writes", () => {
 
     await expect(invoke<PEQData>("set_eq_state", { peq: requested })).resolves.toEqual({
       ...normalized,
-      warnings: [],
+      // This path never reads the DAC back, so the returned PEQ is the
+      // request. Say so, exactly as DeviceSession::unverified_push does,
+      // instead of letting the UI read it as a confirmed commit.
+      warnings: [
+        "pushed without reading the DAC back, so its stored EQ was not verified",
+      ],
     });
 
     expect(wasm.normalize_peq_for_device).toHaveBeenCalledWith(
@@ -604,6 +609,8 @@ describe("browser EQ writes", () => {
     await expect(invoke<PEQData>("set_eq_state", { peq: requested })).resolves.toMatchObject({
       global_gain: requested.global_gain,
       filters: readback.filters,
+      // A verified push returns a real readback, so it carries no
+      // "not verified" caveat — the two paths must stay distinguishable.
       warnings: [],
     });
   });
@@ -752,8 +759,12 @@ describe("browser EQ writes", () => {
     });
 
     // The old path returned the bare PEQ: the clamp silently rewrote the
-    // value and the UI's "Saved EQ to DAC" was the only signal.
-    expect(result.warnings).toEqual(clamps);
+    // value and the UI's "Saved EQ to DAC" was the only signal. This push also
+    // skipped verification, so it carries both facts.
+    expect(result.warnings).toEqual([
+      ...clamps,
+      "pushed without reading the DAC back, so its stored EQ was not verified",
+    ]);
     expect(result.global_gain).toBe(12);
   });
 });

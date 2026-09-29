@@ -25,10 +25,14 @@ struct OperationProgress {
     percentage: f32,
 }
 
-/// A completed EQ write: the committed state flattened so the response stays
-/// a valid PEQ document, plus the capability-clamp warnings from
-/// normalization — the UI must be able to tell the user their values were
-/// adjusted instead of claiming an unqualified "Saved EQ to DAC".
+/// A completed EQ write: the state flattened so the response stays a valid
+/// PEQ document, plus the capability-clamp warnings from normalization — the
+/// UI must be able to tell the user their values were adjusted instead of
+/// claiming an unqualified "Saved EQ to DAC".
+///
+/// `committed` is a readback of the device only when the write was verified.
+/// With the skip-push-verification setting it is the *requested* state, and
+/// `warnings` carries the session's UNVERIFIED_PUSH_WARNING saying so.
 #[derive(Clone, serde::Serialize)]
 pub struct EqWriteOutcome {
     #[serde(flatten)]
