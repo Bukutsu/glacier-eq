@@ -185,8 +185,8 @@
   --text-rgb: 31 35 53;
   --muted: #4f587d;
   --comment: #6f789e;
-  --cyan: #007197;
-  --cyan-rgb: 0 113 151;
+  --cyan: #00637f;
+  --cyan-rgb: 0 99 127;
   --blue: #2e7de9;
   --blue-rgb: 46 125 233;
   --green: #486a29;
@@ -507,6 +507,11 @@
   --panel-dark: rgb(var(--bg-darker-rgb) / 0.65);
   --legend-bg: color-mix(in srgb, var(--bg-dark) 85%, transparent);
   --theme-checkmark: var(--on-accent);
+  /* Chart series palette. Defined here as well as in every named theme so the
+   * token is never unresolved: index.html sets no data-theme, so before
+   * main.tsx applies one these fall through to this block, and an unresolved
+   * var() invalidates the whole declaration that used it. */
+  --navy: #7aa2f7;
   --surface-disabled: rgb(var(--text-rgb) / 0.12);
   --text-disabled: rgb(var(--text-rgb) / 0.38);
   --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, sans-serif;
@@ -642,7 +647,22 @@ select:focus-visible {
 
 .btn:hover:not(:disabled), .tools-card button:hover:not(:disabled), .diag-card button:hover:not(:disabled) { filter: brightness(1.14); }
 .btn:active:not(:disabled), .tools-card button:active:not(:disabled), .diag-card button:active:not(:disabled) { filter: brightness(1.24); }
-.btn.filled, button.save { background: var(--navy); color: #ffffff; }
+/* Filled buttons take the theme's primary accent, never --navy. --navy is a
+ * chart series colour (see MEASUREMENT_COLOR_VARS): its lightness is tuned for
+ * a thin line on a dark curve, not for a large solid block behind text. On the
+ * default dark theme it is #7aa2f7, which under a hardcoded white is 2.52:1 —
+ * the washed-out, barely-readable primary CTA. --cyan measured against --bg
+ * runs 4.26:1 to 12.53:1 across all nine themes.
+ *
+ * The foreground is --bg rather than white so it follows each theme's polarity
+ * automatically: near-black on the light accents of the dark themes, near-white
+ * on the dark accents of the light ones. */
+.btn.filled, button.save { background: var(--cyan); color: var(--bg); }
+:root[data-theme="material-you"] .btn.filled,
+:root[data-theme="material-you"] button.save {
+  background: var(--m3-primary, var(--cyan));
+  color: var(--on-accent);
+}
 :root[data-theme="material-you"] .btn.filled,
 :root[data-theme="material-you"] button.save {
   background: var(--m3-primary, var(--cyan));

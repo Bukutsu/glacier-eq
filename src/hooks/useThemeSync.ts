@@ -71,7 +71,13 @@ export function useThemeSync(theme: string): string {
     const applyTheme = async () => {
       let resolved = theme;
 
-      if (theme === "material-you" || (theme === "auto" && isAndroid)) {
+      // Material You reads the Android system palette. Gate it on Android as
+      // well as on the setting: a saved value written by an Android build (the
+      // default there) or edited by hand must not put an Android theme on a
+      // desktop or web build.
+      const wantsMaterialYou =
+        isAndroid && (theme === "material-you" || theme === "auto");
+      if (wantsMaterialYou) {
         if (!active) return;
         setResolvedTheme("material-you");
         document.documentElement.setAttribute("data-theme", "material-you");

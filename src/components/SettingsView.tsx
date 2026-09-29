@@ -14,6 +14,7 @@ import {
 } from "./SettingsPrimitives";
 import { invoke } from "../lib/rpc";
 import { isAndroidDevice, isLinux, isTauri } from "../lib/platform";
+import { themeOptions } from "../lib/theme";
 import { LinuxUdevGuide, UDEV_INSTALL_COMMAND } from "./LinuxUdevGuide";
 import type { SettingsSection } from "../lib/tabs";
 import type { AppSettings, GraphViewMode } from "../types";
@@ -28,18 +29,12 @@ export const KEYBOARD_SHORTCUTS: [string, string][] = [
   ["Ctrl/⌘ Enter", "Write EQ to DAC"],
 ];
 
-const THEME_OPTIONS: { value: AppSettings["theme"]; label: string }[] = [
-  { value: "auto", label: "Auto (System Theme)" },
-  { value: "material-you", label: "System (Material You)" },
-  { value: "tokyo-night", label: "Tokyo Night" },
-  { value: "tokyo-night-storm", label: "Tokyo Night Storm" },
-  { value: "tokyo-night-day", label: "Tokyo Night Day (Light)" },
-  { value: "nord", label: "Nord" },
-  { value: "dracula", label: "Dracula" },
-  { value: "gruvbox", label: "Gruvbox Dark" },
-  { value: "catppuccin-mocha", label: "Catppuccin Mocha" },
-  { value: "catppuccin-latte", label: "Catppuccin Latte (Light)" },
-];
+// Material You reads the Android system palette, so it is offered only there.
+// Elsewhere it was listed, accepted, and then silently ignored: useThemeSync
+// matched the value on any platform, failed to get a palette off Tauri, and
+// fell back to Tokyo Night — so the user picked a theme and got a different
+// one with no explanation.
+const THEME_OPTIONS = themeOptions(isAndroidDevice());
 
 interface UdevStatus {
   supported: boolean;
