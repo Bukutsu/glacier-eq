@@ -252,14 +252,24 @@ fn parse_settings(content: &str, path: &std::path::Path) -> Result<SettingsRead,
             }
         }
     }
+    let mut unrecognised_theme = None;
     if let Some(value) = values.remove("theme") {
-        if let Some(theme) = value.as_str().filter(|theme| is_known_theme(theme)) {
-            settings.theme = theme.to_string();
-        } else {
-            malformed = true;
+        match value.as_str() {
+            // Only a wrong *type* is corruption. A theme name this build does
+            // not offer is exactly the "newer or forked build" case `extra`
+            // exists to carry, and dropping it here both reset the user's
+            // theme and rewrote settings.json without it — permanently, since
+            // every later launch took this same branch again. The UI already
+            // falls back for a theme it cannot resolve.
+            Some(theme) if is_known_theme(theme) => settings.theme = theme.to_string(),
+            Some(_) => unrecognised_theme = Some(value),
+            None => malformed = true,
         }
     }
     settings.extra = values;
+    if let Some(theme) = unrecognised_theme {
+        settings.extra.insert("theme".into(), theme);
+    }
     if malformed {
         recover_corrupt_settings(path, content, &settings)?;
     }
@@ -324,7 +334,10 @@ fn recover_corrupt_settings(
 #[tauri::command]
 pub async fn save_settings(app: tauri::AppHandle, settings: Settings) -> Result<(), String> {
     let mut settings = settings;
-    if !is_known_theme(&settings.theme) {
+    // Fall back to the platform default only when the payload names no theme
+    // at all. An unknown name is kept verbatim in `extra` so a newer or
+    // forked build's setting survives a save made by this one.
+    if !is_known_theme(&settings.theme) && !settings.extra.contains_key("theme") {
         settings.theme = default_theme();
     }
     let path = settings_path(&app)?;
@@ -369,6 +382,61 @@ mod tests {
         assert_eq!(reencoded["nested"]["a"], serde_json::json!(true));
         // Known fields still serialize with their defaults filled in.
         assert_eq!(reencoded["auto_pull_on_connect"], serde_json::json!(true));
+    }
+
+    #[test]
+    fn an_unknown_theme_name_survives_a_read_and_is_not_treated_as_corruption() {
+        let dir = std::env::temp_dir().join(format!(
+            "glacier-settings-unknown-theme-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id(),
+        ));
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("settings.json");
+        // A newer or forked build ships a theme this one does not offer. That
+        // is the exact case `extra` exists to carry, so the name must round
+        // trip instead of being dropped and the file rewritten without it.
+        fs::write(
+            &path,
+            r#"{"theme":"solarized-light","auto_pull_on_connect":false}"#,
+        )
+        .unwrap();
+
+        let read = read_settings_detailed(&path).unwrap();
+        assert!(
+            read.recovery.is_none(),
+            "an unknown theme is not corruption, got {:?}",
+            read.recovery
+        );
+        assert_eq!(
+            read.settings.extra.get("theme"),
+            Some(&serde_json::json!("solarized-light"))
+        );
+        // The known field keeps its default; the original value is preserved
+        // verbatim for the build that understands it.
+        assert_eq!(read.settings.theme, default_theme());
+
+        // Reading again must not have rewritten anything away, and a save of
+        // what get_settings returned must write the name back out.
+        let reserialized = serde_json::from_str::<serde_json::Value>(
+            &serde_json::to_string(&read.settings).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(reserialized["theme"], serde_json::json!("solarized-light"));
+        assert_eq!(
+            reserialized["auto_pull_on_connect"],
+            serde_json::json!(false)
+        );
+
+        // A theme of the wrong *type* is still corruption.
+        fs::write(&path, r#"{"theme":7}"#).unwrap();
+        let typed = read_settings_detailed(&path).unwrap();
+        assert!(
+            typed.recovery.is_some(),
+            "a non-string theme is corruption and must be reported"
+        );
+
+        fs::remove_dir_all(dir).ok();
     }
 
     #[test]

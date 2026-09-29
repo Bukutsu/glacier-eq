@@ -383,14 +383,22 @@ export function parseWebSettings(value: unknown): ParsedStorage<AppSettings> {
       malformed = true;
     }
   }
+  const preservedThemeExtra: Record<string, unknown> = {};
   if ("theme" in value) {
-    if (typeof value.theme === "string" && KNOWN_THEMES.has(value.theme)) {
-      settings.theme = value.theme;
+    if (typeof value.theme === "string") {
+      if (KNOWN_THEMES.has(value.theme)) {
+        settings.theme = value.theme;
+      } else {
+        // Not corruption: a theme name this build does not offer is the
+        // newer-or-forked-build case, so carry it through untouched. Only a
+        // wrong type is malformed.
+        preservedThemeExtra.theme = value.theme;
+      }
     } else {
       malformed = true;
     }
   }
-  const preserved: Record<string, unknown> = { ...settings };
+  const preserved: Record<string, unknown> = { ...settings, ...preservedThemeExtra };
   const knownKeys = new Set(Object.keys(DEFAULT_WEB_SETTINGS));
   for (const [key, entry] of Object.entries(value)) {
     if (!knownKeys.has(key)) preserved[key] = entry;

@@ -867,8 +867,26 @@ describe("web settings parser", () => {
     });
   });
 
-  it("preserves unknown settings keys without flagging corruption, like desktop's serde flatten", () => {
+  it("carries an unrecognised theme name through instead of treating it as corruption", () => {
+    // A newer or forked build ships a theme this one does not offer. That is
+    // the same "newer build wrote this" case as an unknown key, and it must
+    // round trip: the parser used to strip it, mark the store malformed, and
+    // rewrite localStorage with the default theme, permanently, because every
+    // later launch took the same branch.
     const parsed = parseWebSettings({
+      theme: "solarized-light",
+      auto_pull_on_connect: false,
+    });
+
+    expect(parsed.malformed).toBe(false);
+    expect((parsed.value as Record<string, unknown>).theme).toBe("solarized-light");
+    expect(parsed.value.auto_pull_on_connect).toBe(false);
+
+    // A theme of the wrong type is still corruption.
+    expect(parseWebSettings({ theme: 7 }).malformed).toBe(true);
+  });
+
+  it("preserves unknown settings keys without flagging corruption, like desktop's serde flatten", () => {    const parsed = parseWebSettings({
       theme: "nord",
       future_setting_from_a_newer_build: { nested: [1, 2] },
     });
