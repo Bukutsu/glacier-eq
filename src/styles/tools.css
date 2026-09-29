@@ -1900,6 +1900,18 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   overflow-wrap: anywhere;
 }
 
+/* Blocks that sit directly in the settings column must share one left edge.
+   .stack-content already supplies the 16px inset; when each child also adds its
+   own inline padding they land on different edges — the About note rendered
+   flush against the others' text. Children nested inside a card still need
+   their own padding, so scope this to direct children only.
+   !important only beats the mobile override of the same specificity. */
+.stack-content > .settings-plain,
+.stack-content > .device-spec-list,
+.stack-content > .card-note {
+  padding-inline: 0 !important;
+}
+
 .device-note {
   margin: 0;
   padding: 12px 16px;
