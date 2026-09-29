@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  forwardNotifyFrom,
   loadPersistedJson,
   parseStoredActiveTargetIds,
   parseStoredMeasurements,
@@ -188,5 +189,32 @@ describe("persisted trace quarantine", () => {
       expect.objectContaining({ name: "QuotaExceededError" }),
     );
     warnSpy.mockRestore();
+  });
+});
+
+describe("notify wiring", () => {
+  it("forwards the severity through the adapter useTraces installs", () => {
+    // The helpers already passed "error" correctly, and the existing tests
+    // called them directly — bypassing the wiring. Every production call site
+    // used `(msg) => notifyRef.current?.(msg)`, a one-parameter arrow that
+    // TypeScript accepts while silently dropping the severity, so the level
+    // fell back to App's keyword classifier and these data-loss messages were
+    // still filed as Info. This drives the adapter the hook actually builds.
+    const ref: { current: Parameters<typeof forwardNotifyFrom>[0]["current"] } = {
+      current: undefined,
+    };
+    const forward = forwardNotifyFrom(ref);
+    expect(ref.current).toBeUndefined();
+    // No notifier yet: must not throw, and must not be why a call is lost.
+    expect(() => forward("early", "error")).not.toThrow();
+
+    const seen: Array<[string, string | undefined]> = [];
+    ref.current = (message, type) => {
+      seen.push([message, type]);
+    };
+    quarantineIfMalformed("glacier-user-targets", { raw: "{bad", malformed: true }, true, forward);
+    expect(seen).toHaveLength(1);
+    expect(seen[0][0]).toMatch(/backup copy/);
+    expect(seen[0][1]).toBe("error");
   });
 });

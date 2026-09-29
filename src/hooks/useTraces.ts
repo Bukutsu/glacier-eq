@@ -7,6 +7,21 @@
  */
 type NotifyFn = (message: string, type?: "info" | "error" | "success") => void;
 
+/**
+ * Builds the notifier handed to the persistence helpers.
+ *
+ * One adapter rather than nine inline arrows: a `(msg) => …` wrapper accepts
+ * the optional severity as a parameter TypeScript will not force anyone to
+ * forward, so it was silently dropped at every call site and the level fell
+ * back to App's keyword classifier — which files "Could not save … storage is
+ * full" as Info. The helpers were correct; the wiring between them and the
+ * notifier was not, and no test drove that wiring.
+ */
+export function forwardNotifyFrom(ref: { current: NotifyFn | undefined }): NotifyFn {
+  return (message, type) => ref.current?.(message, type);
+}
+
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   makeMeasurementName,
@@ -257,14 +272,15 @@ export function useTraces(notify?: NotifyFn) {
   useEffect(() => {
     notifyRef.current = notify;
   }, [notify]);
+  const forwardNotify = forwardNotifyFrom(notifyRef);
 
   useEffect(() => {
     const key = "glacier-measurements";
-    const saved = loadPersistedJson(key, (msg) => notifyRef.current?.(msg));
+    const saved = loadPersistedJson(key, forwardNotify);
     const parsed = saved.raw === null
       ? { value: [], malformed: false }
       : parseStoredMeasurements(saved.value);
-    quarantineIfMalformed(key, saved, parsed.malformed, (msg) => notifyRef.current?.(msg));
+    quarantineIfMalformed(key, saved, parsed.malformed, forwardNotify);
     setMeasurements(parsed.value);
     setMeasurementsHydrated(true);
   }, []);
@@ -274,12 +290,12 @@ export function useTraces(notify?: NotifyFn) {
     measurements,
     measurementsHydrated,
     300,
-    (msg) => notifyRef.current?.(msg),
+    forwardNotify,
   );
 
   useEffect(() => {
     const targetsKey = "glacier-user-targets";
-    const savedTargets = loadPersistedJson(targetsKey, (msg) => notifyRef.current?.(msg));
+    const savedTargets = loadPersistedJson(targetsKey, forwardNotify);
     const parsedTargets = savedTargets.raw === null
       ? { value: [], malformed: false }
       : parseStoredTargets(savedTargets.value);
@@ -287,7 +303,7 @@ export function useTraces(notify?: NotifyFn) {
       targetsKey,
       savedTargets,
       parsedTargets.malformed,
-      (msg) => notifyRef.current?.(msg),
+      forwardNotify,
     );
     setUserTargets(parsedTargets.value);
 
@@ -296,7 +312,7 @@ export function useTraces(notify?: NotifyFn) {
       ...parsedTargets.value.map((target) => target.id),
     ]);
     const activeIdsKey = "glacier-active-targets";
-    const savedActiveIds = loadPersistedJson(activeIdsKey, (msg) => notifyRef.current?.(msg));
+    const savedActiveIds = loadPersistedJson(activeIdsKey, forwardNotify);
     const parsedActiveIds = savedActiveIds.raw === null
       ? { value: [], malformed: false }
       : parseStoredActiveTargetIds(savedActiveIds.value, existingTargetIds);
@@ -304,7 +320,7 @@ export function useTraces(notify?: NotifyFn) {
       activeIdsKey,
       savedActiveIds,
       parsedActiveIds.malformed,
-      (msg) => notifyRef.current?.(msg),
+      forwardNotify,
     );
     setActiveTargetIds(
       savedActiveIds.raw === null && BUILTIN_TARGETS.length > 0
@@ -319,14 +335,14 @@ export function useTraces(notify?: NotifyFn) {
     userTargets,
     targetsHydrated,
     300,
-    (msg) => notifyRef.current?.(msg),
+    forwardNotify,
   );
   usePersistedJson(
     "glacier-active-targets",
     activeTargetIds,
     targetsHydrated,
     300,
-    (msg) => notifyRef.current?.(msg),
+    forwardNotify,
   );
 
   const addMeasurement = useCallback(

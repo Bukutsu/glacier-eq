@@ -1397,3 +1397,37 @@ describe("wasm outage isolation", () => {
     }
   });
 });
+
+describe("supported device parsing", () => {
+  it("leaves an absent tolerance absent instead of turning it into NaN", async () => {
+    // The three tolerances are optional on DeviceCapabilities and every
+    // consumer defaults them with `?? 0.15` and friends. Coercing with
+    // Number() turned "absent" into "present and NaN" — and `??` never fires
+    // on NaN, so the out-of-range band check silently stopped rejecting
+    // anything, because `x < range[0] - NaN` is false.
+    const { gain_tolerance, freq_tolerance, q_tolerance, dsp_sample_rate } = profile;
+    wasm.list_supported_devices.mockReturnValue([
+      { ...profile, gain_tolerance: undefined, freq_tolerance: undefined, q_tolerance: undefined },
+    ]);
+
+    const [entry] = await invoke<Array<{
+      gain_tolerance?: number;
+      freq_tolerance?: number;
+      q_tolerance?: number;
+      dsp_sample_rate: number;
+    }>>("list_supported_devices");
+
+    expect(entry.gain_tolerance).toBeUndefined();
+    expect(entry.freq_tolerance).toBeUndefined();
+    expect(entry.q_tolerance).toBeUndefined();
+    // The sample rate is not optional, so a broken one must drop the entry
+    // rather than reach EqGraph as NaN — `?? 96000` does not catch NaN there.
+    expect(entry.dsp_sample_rate).toBe(dsp_sample_rate);
+    expect(Number.isNaN(entry.dsp_sample_rate)).toBe(false);
+
+    wasm.list_supported_devices.mockReturnValue([
+      { ...profile, dsp_sample_rate: undefined, gain_tolerance, freq_tolerance, q_tolerance },
+    ]);
+    expect(await invoke("list_supported_devices")).toEqual([]);
+  });
+});

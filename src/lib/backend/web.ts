@@ -1130,6 +1130,14 @@ function parseSupportedDeviceInfo(value: unknown): SupportedDeviceInfo | null {
   const freqRange = pair(value.freq_range);
   const qRange = pair(value.q_range);
   if (!globalGainRange || !bandGainRange || !freqRange || !qRange) return null;
+  if (!isFiniteNumber(value.dsp_sample_rate)) return null;
+  // The three tolerances are optional on DeviceCapabilities, and the
+  // consumers default them with `?? 0.15` and friends. Coercing with Number()
+  // turned "absent" into "present and NaN" — and `??` never fires on NaN, so
+  // the out-of-range band check below silently stopped rejecting anything.
+  // Leave absent absent.
+  const optionalNumber = (raw: unknown): number | undefined =>
+    raw === undefined || raw === null ? undefined : isFiniteNumber(raw) ? raw : undefined;
   return {
     name: value.name,
     protocol: value.protocol,
@@ -1142,13 +1150,15 @@ function parseSupportedDeviceInfo(value: unknown): SupportedDeviceInfo | null {
     band_gain_range: bandGainRange,
     freq_range: freqRange,
     q_range: qRange,
-    supported_filter_types: (value.supported_filter_types as FilterType[]) ?? [],
+    supported_filter_types: Array.isArray(value.supported_filter_types)
+      ? (value.supported_filter_types as FilterType[])
+      : [],
     supports_per_band_enable: value.supports_per_band_enable,
     supports_ram_apply: value.supports_ram_apply,
-    dsp_sample_rate: Number(value.dsp_sample_rate),
-    gain_tolerance: Number(value.gain_tolerance),
-    freq_tolerance: Number(value.freq_tolerance),
-    q_tolerance: Number(value.q_tolerance),
+    dsp_sample_rate: value.dsp_sample_rate,
+    gain_tolerance: optionalNumber(value.gain_tolerance),
+    freq_tolerance: optionalNumber(value.freq_tolerance),
+    q_tolerance: optionalNumber(value.q_tolerance),
     integer_preamp: value.integer_preamp,
   };
 }

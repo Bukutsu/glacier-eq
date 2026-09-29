@@ -258,14 +258,14 @@ function App() {
       if (message === "Ready" || !message.trim()) return;
 
       // On Android, transient info/success is handled by the native toast;
-      // errors are also rendered persistently so they are not lost.
-      if (isAndroid && type !== "error") return;
-
-      // The diagnostic entry is recorded by the store's sink, so a toast
-      // raised from a module that cannot reach App — the online-DB cache
-      // recovery — is reported too. `log` is false when reportStatus already
-      // recorded this event, keeping it to one report line.
+      // errors are also rendered persistently so they are not lost. This must
+      // stay *after* addToast: the store's sink is the only path to a
+      // diagnostic event, so returning early here first dropped the report
+      // for every non-error toast on a supported platform. `log` is false
+      // when reportStatus already recorded this event, keeping it to one
+      // report line.
       useToastStore.getState().addToast(message, type, log);
+      if (isAndroid && type !== "error") return;
     },
     [isAndroid],
   );
