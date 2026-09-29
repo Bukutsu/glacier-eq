@@ -7,6 +7,7 @@
 //! back to spawning a helper process via `pkexec`. The helper runs as root
 //! and handles raw HID read/write over JSON-line IPC on stdin/stdout.
 
+use glacier_core::device::HID_READ_BUFFER_BYTES;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::ffi::CString;
@@ -508,12 +509,23 @@ fn dispatch(
             }
             match open.get(&path) {
                 Some(dev) => {
-                    let mut buf = vec![0u8; 1024];
+                    // Sized from the shared constant so this transport cannot
+                    // drift from the CLI's or the plugin's.
+                    let mut buf = vec![0u8; HID_READ_BUFFER_BYTES];
                     match dev.read_timeout(&mut buf, timeout) {
                         Ok(0) => IpcResult::Ok(Some(serde_json::Value::Array(vec![]))),
                         Ok(n) => {
                             buf.truncate(n);
-                            IpcResult::Ok(serde_json::to_value(&buf).ok())
+                            // Report a serialization failure as one. Returning
+                            // None here would reach ElevatedTransport::read as
+                            // Ok(vec![]), which the session reads as "no report
+                            // arrived in time" — a silent false timeout instead
+                            // of the real fault.
+                            let value = match serde_json::to_value(&buf) {
+                                Ok(value) => value,
+                                Err(e) => return IpcResult::Err(format!("read serialize: {e}")),
+                            };
+                            IpcResult::Ok(Some(value))
                         }
                         Err(e) => IpcResult::Err(format!("read: {e}")),
                     }

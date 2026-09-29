@@ -28,6 +28,15 @@ pub const UNVERIFIED_PUSH_WARNING: &str =
 const UNCORRELATED_GAIN_ERROR: &str =
     "Global gain read required retry; refusing uncorrelated state";
 
+/// Read buffer size for a HID transport. Every backend that talks to a device
+/// through hidapi must size its buffer here, not with a local literal: the
+/// CLI used 256 while the privileged helper and the HID plugin used 1024, so
+/// a protocol that grew a longer response would have been silently truncated
+/// on one transport and not the others. No registered profile produces a
+/// frame anywhere near this today (the largest is 40 bytes), which is exactly
+/// why the divergence could sit unnoticed.
+pub const HID_READ_BUFFER_BYTES: usize = 1024;
+
 fn combine_errors(first: String, retry: String) -> String {
     if first == retry {
         first
@@ -556,6 +565,7 @@ impl<'a> DeviceSession<'a> {
             .resend_unanswered_after()
             .unwrap_or(FILTER_READ_ATTEMPTS);
         let mut remaining = FILTER_READ_ATTEMPTS;
+        let mut first_error: Option<String> = None;
         let mut last_error = None;
         while remaining > 0 {
             // Use a fresh nonce for every retry where the protocol carries
@@ -583,12 +593,25 @@ impl<'a> DeviceSession<'a> {
                     });
                 }
                 Err(error) => {
+                    // Keep the first failure as well as the last. Every round
+                    // ends in read_matching's generic "Filter read timeout",
+                    // so keeping only the last one erased a concrete
+                    // transport error — "USB stall: transfer failed" surfaced
+                    // to the user as a bare timeout. send_and_read already
+                    // reports both for the global-gain path.
+                    if first_error.is_none() {
+                        first_error = Some(error.clone());
+                    }
                     last_error = Some(error);
                     remaining -= take;
                 }
             }
         }
-        Err(last_error.unwrap_or_else(|| "Filter read timeout".into()))
+        Err(match (first_error, last_error) {
+            (Some(first), Some(last)) => combine_errors(first, last),
+            (Some(error), None) | (None, Some(error)) => error,
+            (None, None) => "Filter read timeout".into(),
+        })
     }
 
     fn read_gain(&mut self) -> Result<f64, String> {
@@ -1253,6 +1276,41 @@ mod tests {
         queue_default_pull(&mut io);
         let error = DeviceSession::new(&mut io, profile).pull().unwrap_err();
         assert!(error.contains("uncorrelated"), "{error}");
+    }
+
+    #[test]
+    fn a_filter_read_keeps_the_transport_error_that_started_the_failure() {
+        let profile = get_supported_device(0x3302, 0x43e8).unwrap();
+        let mut io = FakeIo::default();
+        // Drain, gain, then band 1's reads. The very first band read hits a
+        // USB error; every later attempt in every round simply times out, so
+        // the last error the loop saw is the generic timeout.
+        io.reads.push_back(vec![]); // init drain
+        io.reads.push_back(vec![
+            READ,
+            super::super::walkplay::CMD_GLOBAL_GAIN,
+            0,
+            0,
+            0,
+            0,
+        ]);
+        // read_error_until counts io.read calls, and the drain + gain read
+        // already consumed the first two.
+        io.read_error_until = Some((3, 3, "USB stall: transfer failed".into()));
+
+        let error = DeviceSession::new(&mut io, profile)
+            .pull()
+            .expect_err("a band read that never answers must fail the pull");
+
+        // The user is told what actually went wrong on the wire, not just
+        // that the band read timed out. The gain path has reported both for
+        // every round since it gained combine_errors; the band path did not,
+        // so a real transport error only survived if it happened to land on
+        // the final attempt of the final round.
+        assert!(
+            error.contains("USB stall: transfer failed"),
+            "the first transport error must survive: {error}"
+        );
     }
 
     #[test]

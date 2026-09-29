@@ -6,6 +6,7 @@ use glacier_core::autoeq::{
 };
 use glacier_core::device::{
     capabilities::DESKTOP_DAC_CAPS, get_supported_device, normalize_peq_for_profile,
+    HID_READ_BUFFER_BYTES,
 };
 use glacier_core::eq::iir_math::accumulate_response_values;
 use glacier_core::profiles::ProfileStore;
@@ -706,7 +707,7 @@ impl DeviceIo for HidIo<'_> {
     }
 
     fn read(&mut self, timeout_ms: i32) -> Result<Vec<u8>, String> {
-        let mut data = [0; 256];
+        let mut data = [0; HID_READ_BUFFER_BYTES];
         let length = self
             .0
             .read_timeout(&mut data, timeout_ms)
