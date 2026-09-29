@@ -10,6 +10,36 @@ const validPoints = [
 ];
 
 describe("parsePersistedMeasurements", () => {
+  it("bounds what it will accept, like every other parser", () => {
+    // Nothing capped these two, unlike the measurement importer (4_096 lines
+    // / 100_000 points) and the online DB parser. A corrupt localStorage value
+    // could stall the main thread parsing it and then fail to re-save.
+    const trace = {
+      id: "a",
+      name: "A",
+      color: "#fff",
+      visible: true,
+      points: validPoints,
+    };
+    const hugeTrace = {
+      ...trace,
+      points: Array.from({ length: 200_000 }, (_, i) => ({ freq: 20 + i, db: 0 })),
+    };
+
+    // Rejected entries return [], which the caller reports as malformed and
+    // quarantines — the same path as any other schema damage.
+    expect(parsePersistedMeasurements([hugeTrace])).toEqual([]);
+    expect(parsePersistedTargets([hugeTrace])).toEqual([]);
+
+    const tooMany = Array.from({ length: 2_001 }, (_, i) => ({ ...trace, id: `t${i}` }));
+    expect(parsePersistedMeasurements(tooMany)).toEqual([]);
+    expect(parsePersistedTargets(tooMany)).toEqual([]);
+
+    // Just under the cap still parses, so the bound is not off by one.
+    const atCap = Array.from({ length: 2_000 }, (_, i) => ({ ...trace, id: `t${i}` }));
+    expect(parsePersistedMeasurements(atCap)).toHaveLength(2_000);
+  });
+
   it("validates every point before normalization", () => {
     const result = parsePersistedMeasurements([
       {

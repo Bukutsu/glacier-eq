@@ -93,4 +93,36 @@ describe("parseAutoEqResult", () => {
       warnings: [],
     })).toThrow(/unknown type/);
   });
+
+  it("rejects filter values outside the Rust Filter's own domain", () => {
+    // Rust's Filter is index: u8, freq: u16, and parse_filter_line refuses
+    // q <= 0 — this validator was checking only "a finite number", so a
+    // device host could hand the editor an index of 1e9, a negative
+    // frequency, or a zero Q that the sibling device validator in peq.ts
+    // rejects for the same payload.
+    const rejects = (patch: Record<string, unknown>, pattern: RegExp) =>
+      expect(() => parseAutoEqResult({
+        peq: { global_gain: 0, filters: [{ ...filter, ...patch }] },
+        headphone_name: null,
+        warnings: [],
+      })).toThrow(pattern);
+
+    rejects({ index: 256 }, /index must be an integer/);
+    rejects({ index: 1e9 }, /index must be an integer/);
+    rejects({ index: 2 ** 53 }, /index must be an integer/);
+    rejects({ freq: 0 }, /frequency must be an integer/);
+    rejects({ freq: -5 }, /frequency must be an integer/);
+    rejects({ freq: 100_000 }, /frequency must be an integer/);
+    rejects({ freq: 1000.5 }, /frequency must be an integer/);
+    rejects({ q: 0 }, /Q must be positive/);
+    rejects({ q: -1 }, /Q must be positive/);
+  });
+
+  it("bounds the headphone name like parse_autoeq bounds its input", () => {
+    expect(() => parseAutoEqResult({
+      peq: { global_gain: 0, filters: [filter] },
+      headphone_name: "x".repeat(5_000_000),
+      warnings: [],
+    })).toThrow(/headphone_name must be a string of at most/);
+  });
 });

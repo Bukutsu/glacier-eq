@@ -413,7 +413,17 @@ fn validate_name(name: &str) -> Result<(), String> {
             "Profile name contains invalid characters. Use letters, numbers, spaces, and _-@+&.()"
                 .into(),
         )
-    } else if name.eq_ignore_ascii_case(DEFAULT_PROFILE_NAME) {
+    } else if name
+        .split('.')
+        .next()
+        .is_some_and(|stem| stem.eq_ignore_ascii_case(DEFAULT_PROFILE_NAME))
+    {
+        // Compare the stem, not the whole name: a profile is stored as
+        // `<stem>.txt` and read back by its stem, so "Default EQ.txt" *is*
+        // the reserved identity wearing an extension. is_reserved_windows_name
+        // below already works this way, and the web mirror's
+        // isValidProfileName strips at the first dot too — the two backends
+        // disagreed about which stored values survive a load.
         Err("Profile name is reserved for the built-in default profile".into())
     } else if is_reserved_windows_name(name) {
         Err("Profile name is a reserved system name and cannot be used".into())
@@ -1009,6 +1019,12 @@ mod tests {
         assert!(validate_name("COM¹.txt").is_err());
         assert!(validate_name("LPT³").is_err());
         assert!(validate_name("default eq").is_err());
+        // A profile is stored as <stem>.txt and read back by its stem, so the
+        // reserved identity wears an extension too. The web mirror's
+        // isValidProfileName already rejected this; the two disagreed about
+        // which stored values survive a load.
+        assert!(validate_name("Default EQ.txt").is_err());
+        assert!(validate_name("default eq.a.b").is_err());
         assert!(validate_name("lpt9").is_err());
         assert!(validate_name("com1").is_err());
     }
