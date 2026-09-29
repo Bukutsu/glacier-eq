@@ -100,7 +100,12 @@ export function normalizePeq(
         ? typeof input.enabled === "boolean" ? input.enabled : options.enableLoadedFilters || fallback.enabled
         : false,
       filter_type: capabilities && !capabilities.supported_filter_types.includes(filterType)
-        ? capabilities.supported_filter_types[0] ?? "Peak"
+        // Clamp to something the device does support. An *empty* list is a
+        // capability the device cannot honour at all, and substituting "Peak"
+        // there rewrote every band to a type the device never advertised,
+        // with no signal — the Rust core rejects an unsupported type loudly
+        // at push time, which beats inventing one here.
+        ? capabilities.supported_filter_types[0] ?? filterType
         : filterType,
       freq: capabilities
         ? Math.round(clampToRange(numberOr(input.freq, fallback.freq), capabilities.freq_range))

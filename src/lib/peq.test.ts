@@ -130,6 +130,26 @@ describe("normalizePeq", () => {
     expect(padded.filters).toHaveLength(12);
   });
 
+  it("does not invent a filter type for a device that advertises none", () => {
+    // An empty supported_filter_types is a capability the device cannot
+    // honour at all. The old code substituted "Peak", silently rewriting
+    // every band to a type the device never advertised. Keeping the requested
+    // type lets the Rust core reject it loudly at push time instead.
+    const requested = {
+      filters: [{ index: 0, enabled: true, filter_type: "LowShelf", freq: 1000, gain: -3, q: 1.2 }],
+    };
+    const withNoTypes = normalizePeq(requested, {
+      capabilities: { ...CAPS, supported_filter_types: [] },
+    });
+    expect(withNoTypes.filters[0].filter_type).toBe("LowShelf");
+
+    // The normal clamp still applies when the device does support something.
+    const withTypes = normalizePeq(requested, {
+      capabilities: { ...CAPS, supported_filter_types: ["HighShelf"] },
+    });
+    expect(withTypes.filters[0].filter_type).toBe("HighShelf");
+  });
+
   it("clamps oversized filter lists to the 32-filter storage ceiling", () => {
     const huge = Array.from({ length: 100 }, () => ({ freq: 1000, gain: 0, q: 1 }));
     expect(normalizePeq({ filters: huge }).filters).toHaveLength(32);
