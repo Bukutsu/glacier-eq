@@ -36,7 +36,7 @@ import {
   buildDevDummyPeq,
   isDevDummyDevice,
 } from "./lib/devDevice";
-import { buildDefaultState, DEFAULT_PROFILE_NAME, extractPushWarnings, normalizePeq, parseStoredPeqResponse, peqEquals } from "./lib/peq";
+import { buildDefaultState, DEFAULT_PROFILE_NAME, extractPushWarnings, normalizePeq, normalizePeqForDevice, parseStoredPeqResponse, peqEquals } from "./lib/peq";
 import { isAndroidDevice, isTauri } from "./lib/platform";
 import { isDisconnectionError } from "./lib/errors";
 import {
@@ -578,9 +578,12 @@ function App() {
         (profile) => profileIdentityKey(profile.name) === profileIdentityKey(metadata.selectedPreset!),
       )
       : false;
-    const restoredClean = metadataProfileExists
-      ? metadata?.cleanPeq ?? editorCleanPeqRef.current
-      : editorCleanPeqRef.current;
+    const restoredClean = normalizePeqForDevice(
+      metadataProfileExists
+        ? metadata?.cleanPeq ?? editorCleanPeqRef.current
+        : editorCleanPeqRef.current,
+      capabilities,
+    );
     peqRef.current = restored.peq;
     editorCleanPeqRef.current = restoredClean;
     setPeq(restored.peq);
@@ -1054,6 +1057,12 @@ function App() {
                 pushToUndoStack(peqRef.current);
                 setPeq(constrained);
                 noteEditorMutation();
+                // Retarget the clean baseline with the editor, not just the
+                // editor: normalizePeq pads to this DAC's band count but never
+                // truncates, and peqEquals calls a length mismatch unequal, so
+                // a baseline left in the previous DAC's shape would pin the
+                // unsaved-changes flag on for the rest of the session.
+                editorCleanPeqRef.current = normalizePeqForDevice(editorCleanPeqRef.current, found);
                 setDirty(!peqEquals(constrained, editorCleanPeqRef.current));
                 reportStatus("Info", "Adjusted editor to this DAC's ranges", "info", "Device");
               }
@@ -1308,6 +1317,12 @@ function App() {
           pushToUndoStack(peqRef.current);
           setPeq(constrained);
           noteEditorMutation();
+          // Retarget the clean baseline with the editor, not just the editor:
+          // normalizePeq pads to this DAC's band count but never truncates, and
+          // peqEquals calls a length mismatch unequal, so a baseline left in the
+          // previous DAC's shape would pin the unsaved-changes flag on for the
+          // rest of the session.
+          editorCleanPeqRef.current = normalizePeqForDevice(editorCleanPeqRef.current, targetCapabilities);
           setDirty(!peqEquals(constrained, editorCleanPeqRef.current));
           reportStatus("Info", "Adjusted editor to this DAC's ranges", "info", "Device");
         }

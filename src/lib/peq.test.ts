@@ -3,8 +3,10 @@ import type { DeviceCapabilities } from "../types";
 import {
   extractPushWarnings,
   normalizePeq,
+  normalizePeqForDevice,
   parseStoredPeqResponse,
   buildDefaultState,
+  peqEquals,
   DEFAULT_FREQS_10_BAND,
 } from "./peq";
 
@@ -131,6 +133,36 @@ describe("normalizePeq", () => {
   it("clamps oversized filter lists to the 32-filter storage ceiling", () => {
     const huge = Array.from({ length: 100 }, () => ({ freq: 1000, gain: 0, q: 1 }));
     expect(normalizePeq({ filters: huge }).filters).toHaveLength(32);
+  });
+});
+
+describe("normalizePeqForDevice", () => {
+  const FIVE_BAND: DeviceCapabilities = { ...CAPS, num_bands: 5 };
+
+  it("reshapes a baseline recorded on a narrower DAC so the dirty flag can clear", () => {
+    // A pull from a 5-band DAC: the device reports 5 bands, so both the
+    // editor and the clean baseline the pull installs are 5 filters long.
+    const onFiveBand = parseStoredPeqResponse(
+      { filters: DEFAULT_FREQS_10_BAND.slice(0, 5).map((freq) => ({ freq, gain: 0, q: 1 })), global_gain: 0 },
+      { capabilities: FIVE_BAND },
+    );
+    expect(onFiveBand.filters).toHaveLength(5);
+
+    // Now retarget a 10-band DAC. normalizePeq pads but never truncates, so
+    // the editor grows to 10 bands. A baseline left at 5 would fail
+    // peqEquals on length alone and pin the unsaved-changes flag on for the
+    // rest of the session, even after every band is put back.
+    const editor = normalizePeq(onFiveBand, { capabilities: CAPS });
+    expect(editor.filters).toHaveLength(10);
+    expect(peqEquals(editor, onFiveBand)).toBe(false);
+
+    const retargetedBaseline = normalizePeqForDevice(onFiveBand, CAPS);
+    expect(peqEquals(editor, retargetedBaseline)).toBe(true);
+  });
+
+  it("is idempotent, so retargeting an already-correct baseline changes nothing", () => {
+    const baseline = normalizePeqForDevice(buildDefaultState(), CAPS);
+    expect(peqEquals(normalizePeqForDevice(baseline, CAPS), baseline)).toBe(true);
   });
 });
 

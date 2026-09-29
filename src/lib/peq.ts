@@ -128,6 +128,20 @@ export function normalizePeq(
   };
 }
 
+/**
+ * Normalizes a PEQ to one device's capabilities. Every editor retarget must
+ * run the *clean* baseline through this as well as the editor itself:
+ * normalizePeq pads to the device band count but never truncates, and
+ * peqEquals treats a length mismatch as unequal, so a baseline left in the
+ * previous device's shape can never clear the unsaved-changes flag again.
+ */
+export function normalizePeqForDevice(value: PEQData, capabilities: DeviceCapabilities): PEQData {
+  return normalizePeq(value, {
+    integerPreamp: capabilities.integer_preamp,
+    capabilities,
+  });
+}
+
 export function peqEquals(a: PEQData, b: PEQData): boolean {
   if (a.global_gain !== b.global_gain || a.filters.length !== b.filters.length) return false;
   return a.filters.every((filter, index) => {
