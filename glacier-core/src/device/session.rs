@@ -448,12 +448,40 @@ impl<'a> DeviceSession<'a> {
 
     pub fn reset_controls(&mut self) -> Result<DacUtilityState, String> {
         self.require_walkplay()?;
-        self.set_filter_mode("FAST-LL")?;
-        self.set_amp_mode(false)?;
-        self.set_gain_mode(false)?;
-        self.set_mic_volume(0)?;
-        self.set_balance(0)?;
+        // Each step below sends its register write and then immediately
+        // commits to flash, so a failure part-way through leaves the device
+        // permanently holding a half-applied reset — the modes that landed
+        // are already durable and no later step can undo them. Capture what
+        // is there now and put it back if any step fails, the way
+        // persistent_push and apply_ram roll back a failed EQ write.
+        let previous = self.utility_status()?;
+        let reset = (|| {
+            self.set_filter_mode("FAST-LL")?;
+            self.set_amp_mode(false)?;
+            self.set_gain_mode(false)?;
+            self.set_mic_volume(0)?;
+            self.set_balance(0)
+        })();
+        if let Err(error) = reset {
+            return Err(self.restore_utilities(&previous, &error));
+        }
         self.utility_status()
+    }
+
+    /// Re-applies a captured utility state after a reset failed part-way, and
+    /// names the outcome in the error the caller reports.
+    fn restore_utilities(&mut self, previous: &DacUtilityState, cause: &str) -> String {
+        let restore = (|| {
+            self.set_filter_mode(&previous.filter_mode)?;
+            self.set_amp_mode(previous.amp_mode_class_ab)?;
+            self.set_gain_mode(previous.high_gain_mode)?;
+            self.set_mic_volume(previous.mic_volume_db)?;
+            self.set_balance(previous.channel_balance)
+        })();
+        match restore {
+            Ok(()) => format!("{cause}; previous settings restored"),
+            Err(restore) => format!("{cause}; restoring the previous settings failed: {restore}"),
+        }
     }
 
     pub fn factory_reset(&mut self) -> Result<(), String> {
@@ -970,6 +998,58 @@ mod tests {
     }
 
     #[test]
+    fn a_failed_control_reset_restores_the_settings_that_already_landed() {
+        let profile = get_supported_device(0x3302, 0x43e8).unwrap();
+        let mut io = FakeIo::default();
+        // The device is on a non-default filter mode, Class-AB, high gain,
+        // mic +4 dB, balanced. Every set_* below sends its register write and
+        // then commits to flash, so a failure part-way through would leave
+        // those durable changes on the hardware with no way back.
+        queue_utility_status(&mut io, 2, 1, 1, 4, 0, 0);
+        // The snapshot's six register reads are writes 1..6. The reset's first
+        // two steps then take writes 7..10 (register write plus flash commit
+        // each). Fail every attempt of the third step's register write —
+        // send() retries three times — so the filter and amp modes are already
+        // committed to flash when the gain step gives up, and let the rollback
+        // through.
+        io.failing_write_calls.extend([11, 12, 13]);
+        queue_utility_status(&mut io, 1, 0, 0, 0, 0, 0);
+        queue_utility_status(&mut io, 2, 1, 1, 4, 0, 0);
+
+        let error = DeviceSession::new(&mut io, profile)
+            .reset_controls()
+            .expect_err("a half-applied reset must not report success");
+        assert!(
+            error.contains("previous settings restored"),
+            "the error must name the rollback: {error}"
+        );
+        // The rollback re-sent the original filter mode, so a write carrying
+        // CMD_FLASH_EQ for it is on the wire after the failure.
+        assert!(
+            io.writes
+                .iter()
+                .any(|write| write.get(2) == Some(&super::super::walkplay::CMD_FLASH_EQ)),
+            "rollback writes were not attempted"
+        );
+    }
+
+    #[test]
+    fn a_successful_control_reset_does_not_roll_back() {
+        let profile = get_supported_device(0x3302, 0x43e8).unwrap();
+        let mut io = FakeIo::default();
+        queue_utility_status(&mut io, 2, 1, 1, 4, 0, 0);
+        queue_utility_status(&mut io, 1, 0, 0, 0, 0, 0);
+
+        let state = DeviceSession::new(&mut io, profile)
+            .reset_controls()
+            .expect("a clean reset must succeed");
+        assert_eq!(state.filter_mode, "FAST-LL");
+        assert!(!state.amp_mode_class_ab);
+        assert!(!state.high_gain_mode);
+        assert_eq!(state.mic_volume_db, 0);
+    }
+
+    #[test]
     fn control_range_is_checked_before_write() {
         let profile = get_supported_device(0x3302, 0x43e8).unwrap();
         let mut io = FakeIo::default();
@@ -1058,6 +1138,33 @@ mod tests {
                 channel_balance: 0,
             }
         );
+    }
+
+    /// Queues one complete `utility_status` read: the drain terminator, the
+    /// four register reads, and both balance channels.
+    fn queue_utility_status(
+        io: &mut FakeIo,
+        filter_mode: u8,
+        amp_mode_class_ab: u8,
+        high_gain_mode: u8,
+        mic_volume: u8,
+        left: u8,
+        right: u8,
+    ) {
+        use super::super::walkplay as wp;
+        io.reads.push_back(vec![]); // drain terminator
+        io.reads
+            .push_back(vec![READ, wp::CMD_FILTER_MODE, 0, filter_mode]);
+        io.reads
+            .push_back(vec![READ, wp::CMD_AMP_MODE, 0, amp_mode_class_ab]);
+        io.reads
+            .push_back(vec![READ, wp::CMD_GAIN_MODE, 0, high_gain_mode]);
+        io.reads
+            .push_back(vec![READ, wp::CMD_MIC_VOLUME, 0, 0, mic_volume]);
+        io.reads
+            .push_back(vec![READ, wp::CMD_BALANCE, 0, 0, 0, left]);
+        io.reads
+            .push_back(vec![READ, wp::CMD_BALANCE, 0, 1, 0, right]);
     }
 
     fn queue_pull(io: &mut FakeIo, gain: i8) {
