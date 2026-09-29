@@ -208,10 +208,19 @@ impl ProfileStore {
         Err(format!("Profile not found: {name}"))
     }
 
-    pub fn save(&self, name: &str, peq: &PEQData) -> Result<(), String> {
+    /// Saves a profile and returns warnings raised *after* the write landed.
+    /// A non-empty list never means the save failed: the bytes are already
+    /// fsynced and renamed into place, so the caller must not treat it as one.
+    /// Currently the only post-write warning is a case-variant sibling that
+    /// could not be removed.
+    pub fn save_detailed(&self, name: &str, peq: &PEQData) -> Result<Vec<String>, String> {
         self.ensure_profiles_directory()?;
         let _lock = self.lock_profiles()?;
         self.save_locked(name, peq)
+    }
+
+    pub fn save(&self, name: &str, peq: &PEQData) -> Result<(), String> {
+        self.save_detailed(name, peq).map(|_| ())
     }
 
     /// Save only when the identity is still absent while holding the
@@ -223,11 +232,13 @@ impl ProfileStore {
         if !self.case_variant_paths(name).is_empty() {
             return Ok(false);
         }
-        self.save_locked(name, peq)?;
+        // A surviving case-variant sibling is a warning the CLI prints, not a
+        // reason to refuse the write.
+        self.save_locked(name, peq).map(|_| ())?;
         Ok(true)
     }
 
-    fn save_locked(&self, name: &str, peq: &PEQData) -> Result<(), String> {
+    fn save_locked(&self, name: &str, peq: &PEQData) -> Result<Vec<String>, String> {
         let normalized = normalize_for_storage(peq)?;
         let content = peq_to_autoeq(&normalized);
         if content.len() as u64 > MAX_PROFILE_BYTES {
@@ -264,19 +275,31 @@ impl ProfileStore {
             format!("Failed to save profile {}: {error}", path.display())
         })?;
         // Collapse case-variant siblings so one identity never leaves a stale
-        // shadow file behind for `list()` to show or `load()` to read.
+        // shadow file behind for `list()` to show or `load()` to read. This is
+        // hygiene, not correctness: `list()` already folds an identity to a
+        // single entry and `path()`/`load()` already resolve the same winner,
+        // so a sibling that survives is at worst a second file for an identity
+        // the user still sees once. It must not fail the save — the profile is
+        // already fsynced and renamed into place, and an Err from save means
+        // "nothing was written": the caller would keep the editor dirty,
+        // report a failure for a save that happened, and skip the list
+        // refresh, and every retry would fail identically.
+        let mut warnings = Vec::new();
         for sibling in self.case_variant_paths(name) {
             if sibling == path {
                 continue;
             }
-            std::fs::remove_file(&sibling).map_err(|error| {
-                format!(
+            if let Err(error) = std::fs::remove_file(&sibling) {
+                warnings.push(format!(
                     "Profile saved, but duplicate {} could not be removed: {error}",
                     sibling.display()
-                )
-            })?;
+                ));
+            }
         }
-        Ok(())
+        for warning in &warnings {
+            eprintln!("glacier-eq: {warning}");
+        }
+        Ok(warnings)
     }
 
     pub fn delete(&self, name: &str) -> Result<(), String> {
@@ -285,7 +308,9 @@ impl ProfileStore {
         validate_name(name)?;
         let mut failure = None;
         // Remove every case-variant match: deleting one identity must not
-        // leave a same-identity file behind for `list()` to resurrect.
+        // leave a same-identity file behind for `list()` to resurrect. Unlike
+        // the save sweep this *is* a correctness requirement — a surviving
+        // file reappears in the list — so a partial delete is still an error.
         for path in self.case_variant_paths(name) {
             match std::fs::remove_file(&path) {
                 Ok(()) => {}
@@ -770,6 +795,21 @@ mod tests {
         store.save("Daily", &peq).unwrap();
         std::fs::create_dir(store.directory().join("daily.txt")).unwrap();
 
+        // The identity resolves to the real file, so a save round-trips and
+        // reports success. An Err from save means "nothing was written", and
+        // returning one for a write that is already fsynced and renamed into
+        // place leaves the caller with a failed save for a profile that
+        // exists, an editor still marked dirty, and a list it never refreshes.
+        let replacement = PEQData {
+            filters: vec![],
+            global_gain: -3.0,
+        };
+        assert!(
+            store.save("DAILY", &replacement).is_ok(),
+            "a completed write must not be reported as a failure"
+        );
+        assert_eq!(store.load("Daily").unwrap().data, replacement);
+
         let (listed, warnings) = store.list_detailed().unwrap();
         assert_eq!(listed.len(), 1, "the real profile must still be listed");
         assert_eq!(listed[0].name, "Daily");
@@ -780,15 +820,6 @@ mod tests {
                     && warning.contains("not a regular file")),
             "the shadowing directory must be reported, got {warnings:?}"
         );
-
-        // The identity resolves to the real file, so a save round-trips
-        // instead of failing against the directory.
-        let replacement = PEQData {
-            filters: vec![],
-            global_gain: -3.0,
-        };
-        store.save("DAILY", &replacement).unwrap();
-        assert_eq!(store.load("Daily").unwrap().data, replacement);
         std::fs::remove_dir_all(base).unwrap();
     }
 

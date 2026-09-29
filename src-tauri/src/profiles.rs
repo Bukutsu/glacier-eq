@@ -104,11 +104,33 @@ pub async fn list_profiles(
 }
 
 #[tauri::command]
-pub async fn save_profile(app: tauri::AppHandle, name: String, peq: PEQData) -> Result<(), String> {
+pub async fn save_profile(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Mutex<crate::diagnostics::DiagnosticsStore>>,
+    name: String,
+    peq: PEQData,
+) -> Result<(), String> {
     // fsync + atomic rename must not run on the IPC thread.
-    tauri::async_runtime::spawn_blocking(move || store(&app)?.save(&name, &peq))
-        .await
-        .map_err(|e| e.to_string())?
+    let save_app = app.clone();
+    let warnings = tauri::async_runtime::spawn_blocking(move || {
+        let warnings = store(&save_app)?.save_detailed(&name, &peq)?;
+        Ok::<_, String>(warnings)
+    })
+    .await
+    .map_err(|e| e.to_string())??;
+    // The profile is on disk by the time these exist, so a leftover is a
+    // warning, not a save failure. Record it where the user can see it rather
+    // than returning an Err for a write that succeeded.
+    for warning in warnings {
+        crate::diagnostics::record(
+            &app,
+            state.inner(),
+            crate::diagnostics::LogLevel::Warn,
+            crate::diagnostics::LogSource::Storage,
+            warning,
+        );
+    }
+    Ok(())
 }
 
 #[tauri::command]
