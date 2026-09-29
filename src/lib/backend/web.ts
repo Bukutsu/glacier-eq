@@ -357,6 +357,10 @@ const KNOWN_THEMES = new Set([
   "catppuccin-latte",
 ]);
 
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -1089,13 +1093,81 @@ const WEBHID_TRANSPORT_COMMANDS = new Set([
   "execute_factory_reset",
 ]);
 
+/**
+ * The generated wasm binding types `list_supported_devices()` as `any`, so
+ * casting its result asserted a shape nothing had checked — and a missing
+ * number became `undefined` where a number is expected, which `capabilities.
+ * band_gain_range[0]` then turned into NaN. Parse it instead.
+ *
+ * Unreachable with the Rust serializer as it stands: EditorCapabilities
+ * matches DeviceCapabilities field for field, and the device list is
+ * compiled in, not fetched. This is here so a divergence between the Rust
+ * DTO and the TypeScript type surfaces as a rejected device rather than as a
+ * NaN filter.
+ */
+function parseSupportedDeviceInfo(value: unknown): SupportedDeviceInfo | null {
+  if (!isRecord(value)) return null;
+  const pair = (raw: unknown): [number, number] | null =>
+    Array.isArray(raw) && raw.length === 2 && isFiniteNumber(raw[0]) && isFiniteNumber(raw[1])
+      ? [raw[0], raw[1]]
+      : null;
+  if (
+    typeof value.name !== "string" ||
+    typeof value.protocol !== "string" ||
+    !isFiniteNumber(value.vendor_id) ||
+    !(value.product_id === null || isFiniteNumber(value.product_id)) ||
+    typeof value.status !== "string" ||
+    typeof value.family !== "string" ||
+    !isFiniteNumber(value.num_bands) ||
+    typeof value.supports_per_band_enable !== "boolean" ||
+    typeof value.supports_ram_apply !== "boolean" ||
+    typeof value.integer_preamp !== "boolean"
+  ) {
+    return null;
+  }
+  const globalGainRange = pair(value.global_gain_range);
+  const bandGainRange = pair(value.band_gain_range);
+  const freqRange = pair(value.freq_range);
+  const qRange = pair(value.q_range);
+  if (!globalGainRange || !bandGainRange || !freqRange || !qRange) return null;
+  return {
+    name: value.name,
+    protocol: value.protocol,
+    vendor_id: value.vendor_id,
+    product_id: value.product_id,
+    status: value.status,
+    family: value.family,
+    num_bands: value.num_bands,
+    global_gain_range: globalGainRange,
+    band_gain_range: bandGainRange,
+    freq_range: freqRange,
+    q_range: qRange,
+    supported_filter_types: (value.supported_filter_types as FilterType[]) ?? [],
+    supports_per_band_enable: value.supports_per_band_enable,
+    supports_ram_apply: value.supports_ram_apply,
+    dsp_sample_rate: Number(value.dsp_sample_rate),
+    gain_tolerance: Number(value.gain_tolerance),
+    freq_tolerance: Number(value.freq_tolerance),
+    q_tolerance: Number(value.q_tolerance),
+    integer_preamp: value.integer_preamp,
+  };
+}
+
+function listSupportedDevices(): SupportedDeviceInfo[] {
+  const raw = wasm().list_supported_devices();
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((entry: unknown) => parseSupportedDeviceInfo(entry))
+    .filter((entry): entry is SupportedDeviceInfo => entry !== null);
+}
+
 function serializeWebHid<T>(operation: () => Promise<T>): Promise<T> {
   const result = webHidOperation.then(operation, operation);
   webHidOperation = result.then(() => undefined, () => undefined);
   return result;
 }
 
-export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
+export async function invoke<T = unknown>(cmd: string, args?: any): Promise<T> {
   const operation = () => invokeWeb<T>(cmd, args);
   return WEBHID_TRANSPORT_COMMANDS.has(cmd) ? serializeWebHid(operation) : operation();
 }
@@ -1203,7 +1275,7 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
 
     // ─── AutoEQ & Utilities ──────────────────────────────────────────────────
     case "list_supported_devices": {
-      return wasm().list_supported_devices() as T;
+      return listSupportedDevices() as T;
     }
     case "parse_autoeq": {
       const vid = activeProfile?.vendor_id ?? null;
@@ -1309,7 +1381,7 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
     // ─── Device Connection / HID ──────────────────────────────────────────────
     case "list_devices": {
       const devices = await ensureWebHid().getDevices();
-      const supported = wasm().list_supported_devices() as SupportedDeviceInfo[];
+      const supported = listSupportedDevices();
       return devices.flatMap((dev) => {
         const profile = matchSupportedWebHidDevice(dev, supported);
         if (!profile) return [];
@@ -1331,7 +1403,7 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
       const requestedPath = commandField(args, "path");
       const devices = await ensureWebHid().getDevices();
       const target = devices.find((dev: HIDDevice) => webHidPath(dev) === requestedPath);
-      if (!target || !matchSupportedWebHidDevice(target, wasm().list_supported_devices() as SupportedDeviceInfo[])) {
+      if (!target || !matchSupportedWebHidDevice(target, listSupportedDevices())) {
         throw new Error("Unsupported or unavailable device. Please click 'Scan' to authorize a supported DAC.");
       }
 
@@ -1370,7 +1442,7 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
       reportResolvers = [];
       setupHidEventListeners(target);
 
-      const supported = wasm().list_supported_devices() as SupportedDeviceInfo[];
+      const supported = listSupportedDevices();
       const found = matchSupportedWebHidDevice(target, supported);
       activeProfile = {
         ...found!,
@@ -1639,8 +1711,8 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
 // Helper to trigger browser WebHID picker
 export async function requestWebHidDevice(): Promise<void> {
   await ensureWasm();
-  const supported = wasm().list_supported_devices();
-  const filters = supported.map((s: any) => ({
+  const supported = listSupportedDevices();
+  const filters = supported.map((s) => ({
     vendorId: s.vendor_id,
     productId: s.product_id || undefined,
   }));

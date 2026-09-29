@@ -1102,6 +1102,32 @@ describe("web profile parser", () => {
 });
 
 describe("WebHID device matching", () => {
+  it("drops a supported-device entry the wasm layer got wrong", async () => {
+    // The generated binding types list_supported_devices() as `any`, and it
+    // used to be cast straight to SupportedDeviceInfo[]. A missing number
+    // became undefined where a number is expected, and
+    // capabilities.band_gain_range[0] then turned into NaN — which reaches
+    // the band sliders and the graph as a NaN Hz filter.
+    const ghost = { name: "Ghost", nope: 1 };
+    wasm.list_supported_devices.mockReturnValue([ghost, profile]);
+
+    const listed = await invoke<Array<{ name: string }>>("list_supported_devices");
+
+    // One real device; the malformed entry contributes nothing.
+    expect(listed.map((entry) => entry.name)).toEqual(["Test DAC"]);
+
+    // The real entry is still fully typed: the ranges are numbers, not holes.
+    const ranges = listed[0];
+    for (const range of [
+      ranges.global_gain_range,
+      ranges.band_gain_range,
+      ranges.freq_range,
+      ranges.q_range,
+    ] as Array<[number, number]>) {
+      expect(range.every((bound) => Number.isFinite(bound))).toBe(true);
+    }
+  });
+
   it("prefers an exact PID match over a vendor fallback regardless of order", () => {
     const fallback: SupportedDeviceInfo = {
       ...profile,
