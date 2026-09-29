@@ -1297,8 +1297,12 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
       }) as T;
     }
     case "connect_device": {
+      // Use the same accessor every other command uses, so a missing path
+      // reports "Missing path argument" instead of a raw TypeError from
+      // dereferencing undefined.
+      const requestedPath = commandField(args, "path");
       const devices = await ensureWebHid().getDevices();
-      const target = devices.find((dev: any) => webHidPath(dev) === args.path);
+      const target = devices.find((dev: any) => webHidPath(dev) === requestedPath);
       if (!target || !matchSupportedWebHidDevice(target, wasm().list_supported_devices() as SupportedDeviceInfo[])) {
         throw new Error("Unsupported or unavailable device. Please click 'Scan' to authorize a supported DAC.");
       }
@@ -1542,11 +1546,17 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
     }
     case "set_dac_work_mode": {
       requireWalkplayUtilities();
+      // The generated wasm glue has no bool shim, so a non-boolean lands on an
+      // i32 parameter and is ToInt32-coerced: "yes" and {} both silently write
+      // Class-AB = OFF. set_dac_work_mode/is_class_ab is a Rust `bool`, which
+      // rejects them outright, so the two adapters must agree.
+      if (typeof args.isClassAb !== "boolean") throw new Error("Invalid amp mode");
       await writeAndFlash(wasm().build_amp_mode_write_packet(args.isClassAb));
       return null as T;
     }
     case "set_dac_output_gain": {
       requireWalkplayUtilities();
+      if (typeof args.isHighGain !== "boolean") throw new Error("Invalid gain mode");
       await writeAndFlash(wasm().build_gain_mode_write_packet(args.isHighGain));
       return null as T;
     }
@@ -1703,6 +1713,16 @@ export async function openFileDialog(options?: {
 }
 
 export async function openUrl(url: string): Promise<void> {
+  // Mirror the desktop's validate_browser_url. window.open honours a
+  // javascript: URL in this origin, so without this the two adapters disagree
+  // about which links may be opened and the web build loses the check the
+  // Tauri build enforces.
+  if (!url.startsWith("http://") && !url.startsWith("https://")) {
+    throw new Error("Refused: only http and https URLs are allowed");
+  }
+  if (/[\u0000-\u001F\u007F\s]/.test(url)) {
+    throw new Error("Refused: URL contains invalid characters");
+  }
   if (typeof window !== "undefined") {
     // Passing noopener/noreferrer in windowFeatures forces window.open to
     // return null even on success (the new context has no opener), which

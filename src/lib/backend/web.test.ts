@@ -210,6 +210,39 @@ describe("UTF-8 file decoding", () => {
 });
 
 describe("browser connection cleanup", () => {
+  it("reports a missing path as a missing argument, not a TypeError", async () => {
+    wasm.list_supported_devices.mockReturnValue([profile]);
+    // Every other command reads its arguments through commandField, which
+    // raises "Missing <name> argument". connect_device dereferenced args.path
+    // directly, so a caller with no args got
+    // "TypeError: Cannot read properties of undefined (reading 'path')" —
+    // an error the UI has no branch for.
+    await expect(invoke("connect_device")).rejects.toThrow("Missing path argument");
+  });
+
+  it("rejects a non-boolean amp or gain mode like the desktop bool parameter", async () => {
+    const device = fakeHidDevice();
+    await connectWebHid(device, { ...profile, protocol: "Walkplay" });
+    wasm.build_amp_mode_write_packet.mockReturnValue([1]);
+    wasm.build_gain_mode_write_packet.mockReturnValue([1]);
+    wasm.build_flash_eq_packet.mockReturnValue([1]);
+
+    // The generated wasm glue has no bool shim, so a non-boolean reaches the
+    // i32 parameter and is ToInt32-coerced: "yes" and {} both write
+    // Class-AB = OFF. set_dac_work_mode/is_class_ab is a Rust `bool`, which
+    // rejects them, so the adapters must agree.
+    for (const bad of ["yes", {}, 1, null, undefined]) {
+      await expect(invoke("set_dac_work_mode", { isClassAb: bad })).rejects.toThrow("Invalid amp mode");
+      await expect(invoke("set_dac_output_gain", { isHighGain: bad })).rejects.toThrow("Invalid gain mode");
+    }
+    expect(wasm.build_amp_mode_write_packet).not.toHaveBeenCalled();
+    expect(wasm.build_gain_mode_write_packet).not.toHaveBeenCalled();
+
+    // A real boolean still goes through.
+    await invoke("set_dac_work_mode", { isClassAb: true });
+    expect(wasm.build_amp_mode_write_packet).toHaveBeenCalledWith(true);
+  });
+
   it("does not close a newer device when stale cleanup names the old path", async () => {
     const first = fakeHidDevice();
     const second = fakeHidDevice();
@@ -1118,6 +1151,27 @@ describe("openUrl", () => {
     await expect(openUrl("https://example.com")).rejects.toThrow(
       /blocked opening this link/,
     );
+    globalThis.window = originalWindow;
+  });
+
+  it.each([
+    ["javascript:alert(1)"],
+    ["data:text/html,<script>alert(1)</script>"],
+    ["file:///etc/passwd"],
+    ["https://example.com/a b"],
+    ["https://example.com/a\nb"],
+    ["https://example.com/a\u0007b"],
+  ])("refuses %s the way the desktop's validate_browser_url does", async (url) => {
+    const originalWindow = globalThis.window;
+    const openMock = vi.fn(() => ({ opener: globalThis }));
+    (globalThis as unknown as { window?: unknown }).window = { open: openMock };
+
+    // The Tauri build routes open_url through validate_browser_url, which
+    // rejects every non-http(s) scheme and any control character or
+    // whitespace. window.open honours a javascript: URL in this origin, so
+    // without the same check the two adapters disagree about what may open.
+    await expect(openUrl(url)).rejects.toThrow(/^Refused: /);
+    expect(openMock).not.toHaveBeenCalled();
     globalThis.window = originalWindow;
   });
 });
