@@ -1004,6 +1004,53 @@ describe("download cache safety (generation swap)", () => {
     expect(store.clearCalls).toBe(0);
   });
 
+  it("refuses to publish when another window bumped the cache epoch", async () => {
+    const store = new MemoryStore();
+    seedLiveGenerationOne(store);
+    stubFetch("ok");
+    // Isolate the epoch fence: another window's clear bumps the epoch key
+    // without touching the generation pointer. The "cleared during the
+    // download" test above cannot do this, because a real clear also wipes
+    // meta:gen — so the generation check caught it and the epoch guard was
+    // never load-bearing on its own.
+    store.afterGet = (key) => {
+      if (key === "meta:gen") store.records.set("meta:cache-epoch", "epoch-from-another-window");
+    };
+    const download = startDownload(store);
+
+    await expect(download).rejects.toThrow(/cleared during the download/);
+
+    expect(store.records.get("meta:gen")).toBe(1);
+    expect(store.records.has("gen:2:complete")).toBe(false);
+  });
+
+  it("refuses to publish a generation whose chunks another window swept away", async () => {
+    const store = new MemoryStore();
+    seedLiveGenerationOne(store);
+    stubFetch("ok");
+    // The epoch and the generation pointer both still match, but one curve
+    // row is gone. Without the count check this published a generation
+    // marked complete whose curve was missing, so isDatabaseDownloaded()
+    // answered true while loadDeviceCurvePoints failed per device with
+    // "Curve not found in local cache".
+    let dropped = false;
+    const download = startDownload(store, (percent) => {
+      if (percent >= 0.85 && !dropped) {
+        dropped = true;
+        for (const key of [...store.records.keys()]) {
+          if (key.startsWith("gen:2:") && !key.includes("manifest") && !key.includes("frequencies")) {
+            store.records.delete(key);
+          }
+        }
+      }
+    });
+
+    await expect(download).rejects.toThrow(/cleared during the download/);
+
+    expect(store.records.has("gen:2:complete")).toBe(false);
+    expect(store.records.get("meta:gen")).toBe(1);
+  });
+
   it("spares a newer in-flight generation from another window when sweeping", async () => {
     const store = new MemoryStore();
     seedLiveGenerationOne(store);
