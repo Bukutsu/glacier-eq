@@ -36,6 +36,13 @@ interface BandsProps {
   activeBandIndex?: number | null;
   onActiveBandChange?: (index: number) => void;
   snapToIso?: boolean;
+  /**
+   * Set while a device operation is in flight. The handlers below drop the
+   * edit in that state, so the controls have to say so — a slider that
+   * looks live and quietly ignores the drag is worse than one that is
+   * visibly inert.
+   */
+  disabled?: boolean;
 }
 
 function freqToSlider(freq: number, range: [number, number]) {
@@ -92,10 +99,10 @@ function makeFreqStepper(
   };
 }
 
-export const Bands = memo(function Bands({ peq, committedPeq, capabilities, onFilterChange, onStartChange, onEndChange, activeBandIndex, onActiveBandChange, snapToIso }: BandsProps) {
+export const Bands = memo(function Bands({ peq, committedPeq, capabilities, onFilterChange, onStartChange, onEndChange, activeBandIndex, onActiveBandChange, snapToIso, disabled = false }: BandsProps) {
   const availableFilters = peq.filters.slice(0, capabilities.num_bands);
   const visibleFilters = availableFilters.filter((filter) => filter.enabled);
-  const canAddFilter = visibleFilters.length < availableFilters.length;
+  const canAddFilter = visibleFilters.length < availableFilters.length && !disabled;
   const selectedFilter = visibleFilters.find((filter) => filter.index === activeBandIndex) ?? visibleFilters[0];
   const [collapsed, setCollapsed] = useState(false);
   const bandPickerRef = useRef<HTMLDivElement>(null);
@@ -154,6 +161,7 @@ export const Bands = memo(function Bands({ peq, committedPeq, capabilities, onFi
               onEndChange={onEndChange}
               onActivate={onActiveBandChange}
               canRemove={visibleFilters.length > 1}
+              disabled={disabled}
               capabilities={capabilities}
               snapToIso={snapToIso}
             />
@@ -267,6 +275,7 @@ type BandRowProps = {
   onEndChange?: () => void;
   onActivate?: (index: number) => void;
   canRemove: boolean;
+  disabled?: boolean;
   capabilities: DeviceCapabilities;
   snapToIso?: boolean;
 };
@@ -280,6 +289,7 @@ const BandRow = memo(function BandRow({
   onEndChange,
   onActivate,
   canRemove,
+  disabled,
   capabilities,
   snapToIso,
 }: BandRowProps) {
@@ -291,12 +301,12 @@ const BandRow = memo(function BandRow({
       style={filterColorStyle(filter.index)}
     >
       <div className="band-number" aria-hidden="true">{filter.index + 1}</div>
-      <BandControls filter={filter} committedFilter={committedFilter} onChange={onChange} onStartChange={onStartChange} onEndChange={onEndChange} onActivate={onActivate} capabilities={capabilities} snapToIso={snapToIso} />
+      <BandControls filter={filter} committedFilter={committedFilter} onChange={onChange} onStartChange={onStartChange} onEndChange={onEndChange} onActivate={onActivate} disabled={disabled} capabilities={capabilities} snapToIso={snapToIso} />
       <button
         type="button"
         className="band-index"
         aria-label={`Remove band ${filter.index + 1}`}
-        disabled={!canRemove}
+        disabled={!canRemove || disabled}
         onClick={() => {
           if (!canRemove) return;
           onActivate?.(filter.index);
@@ -314,6 +324,7 @@ const BandRow = memo(function BandRow({
   previous.committedFilter === next.committedFilter &&
   previous.active === next.active &&
   previous.canRemove === next.canRemove &&
+  previous.disabled === next.disabled &&
   previous.capabilities === next.capabilities &&
   previous.snapToIso === next.snapToIso &&
   previous.onChange === next.onChange &&
@@ -329,6 +340,7 @@ type BandControlsProps = {
   onStartChange: () => void;
   onEndChange?: () => void;
   onActivate?: (index: number) => void;
+  disabled?: boolean;
   capabilities: DeviceCapabilities;
   snapToIso?: boolean;
 };
@@ -340,6 +352,7 @@ const BandControls = memo(function BandControls({
   onStartChange,
   onEndChange,
   onActivate,
+  disabled = false,
   capabilities,
   snapToIso,
 }: BandControlsProps) {
@@ -349,6 +362,7 @@ const BandControls = memo(function BandControls({
         <span className="band-field-label">Filter</span>
         <Select
           value={filter.filter_type}
+          disabled={disabled}
           options={capabilities.supported_filter_types.map((type) => ({ value: type, label: TYPE_NAMES[type] }))}
           onChange={(type) => {
             onActivate?.(filter.index);
@@ -362,6 +376,7 @@ const BandControls = memo(function BandControls({
         <div className="param-cell freq-cell">
           <Slider
             aria-label={`Band ${filter.index + 1} frequency`}
+            disabled={disabled}
             min={0}
             max={FREQ_SLIDER_STEPS}
             step={5}
@@ -393,6 +408,7 @@ const BandControls = memo(function BandControls({
             onChange={(val) => onChange(filter.index, { ...filter, freq: constrainFreq(val, capabilities.freq_range, snapToIso) })}
             onStep={makeFreqStepper(filter, capabilities.freq_range, snapToIso, onChange)}
             className="band-freq-stepper"
+            disabled={disabled}
             aria-label={`Band ${filter.index + 1} frequency value`}
           />
         </div>
@@ -401,6 +417,7 @@ const BandControls = memo(function BandControls({
         <div className="gain-cell">
           <Slider
             aria-label={`Band ${filter.index + 1} gain`}
+            disabled={disabled}
             min={capabilities.band_gain_range[0]}
             max={capabilities.band_gain_range[1]}
             step={0.01}
@@ -425,6 +442,7 @@ const BandControls = memo(function BandControls({
             onBlur={onEndChange}
             onChange={(val) => onChange(filter.index, { ...filter, gain: val })}
             className="band-gain-stepper"
+            disabled={disabled}
             aria-label={`Band ${filter.index + 1} gain value`}
           />
         </div>
@@ -433,6 +451,7 @@ const BandControls = memo(function BandControls({
         <div className="param-cell q-cell">
           <Slider
             aria-label={`Band ${filter.index + 1} Q`}
+            disabled={disabled}
             min={0}
             max={Q_SLIDER_STEPS}
             step={1}
@@ -460,6 +479,7 @@ const BandControls = memo(function BandControls({
             onBlur={onEndChange}
             onChange={(val) => onChange(filter.index, { ...filter, q: val })}
             className="band-q-stepper"
+            disabled={disabled}
             aria-label={`Band ${filter.index + 1} Q value`}
           />
         </div>
@@ -469,6 +489,7 @@ const BandControls = memo(function BandControls({
 }, (previous, next) => (
   previous.filter === next.filter &&
   previous.committedFilter === next.committedFilter &&
+  previous.disabled === next.disabled &&
   previous.capabilities === next.capabilities &&
   previous.snapToIso === next.snapToIso &&
   previous.onChange === next.onChange &&

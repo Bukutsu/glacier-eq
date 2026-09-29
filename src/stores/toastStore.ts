@@ -60,7 +60,12 @@ export const useToastStore = create<ToastStore>()((set, get) => ({
     }
 
     const { toasts } = get();
-    if (toasts.some((t) => t.message === message)) return;
+    // Dedupe on message *and* type. Matching on the text alone let an error
+    // swallow a later success that happened to read the same, and because
+    // error toasts never auto-dismiss, a permanent error kept suppressing
+    // every repeat of itself for the rest of the session — a failure that
+    // recurs on every udev auto-connect produced exactly one notification.
+    if (toasts.some((t) => t.message === message && t.type === toastType)) return;
 
     const id = Math.random().toString(36).substring(2, 9);
     const next = [...toasts, { id, message, type: toastType }];

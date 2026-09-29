@@ -60,12 +60,17 @@ export function AddTraceModal({
     setModalError(null);
     try {
       const result = await download();
+      // The modal can close while the download is in flight; its siblings
+      // below already guard on mountedRef, and without it this resolved
+      // download wrote into the shared toast store for a closed modal.
+      if (!mountedRef.current) return;
       setStatus?.(
         result.sweepFailed
           ? `Downloaded ${result.entries} curves — cleanup of old cached data failed and will retry on the next download`
           : `Downloaded ${result.entries} curves`,
       );
     } catch (error) {
+      if (!mountedRef.current) return;
       console.error(error);
       const message = `Could not download database: ${error}`;
       setModalError(message);
@@ -83,8 +88,10 @@ export function AddTraceModal({
     })) {
       try {
         await clearCache();
+        if (!mountedRef.current) return;
         setStatus?.("Database cache cleared.");
       } catch (error) {
+        if (!mountedRef.current) return;
         console.error(error);
         const message = `Could not clear cache: ${error}`;
         setModalError(message);

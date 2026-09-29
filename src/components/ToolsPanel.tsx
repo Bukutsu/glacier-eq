@@ -308,8 +308,13 @@ export function AutoEqTab({
   }, []);
 
   useEffect(() => {
+    // An in-flight optimization is keyed to the measurement and targets it
+    // was started for; changing either supersedes it. Say so, or the run
+    // vanishes behind a cleared "Optimizing EQ..." with no explanation.
+    const superseded = requestRef.current > 0;
     requestRef.current += 1;
     setIsOptimizing(false);
+    if (superseded) setStatus("EQ match cancelled — the inputs changed.");
   }, [measurements, allTargets, activeTargetIds]);
 
   useEffect(() => {

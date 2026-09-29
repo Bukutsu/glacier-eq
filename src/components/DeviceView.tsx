@@ -513,6 +513,7 @@ export const DeviceView = memo(function DeviceView({
                       <Select
                         id="utility-filter-select"
                         value={utility.filter_mode}
+                        disabled={isBusy}
                         onChange={handleSetFilter}
                         options={[
                           { value: "FAST-LL", label: "FAST-LL (Fast Roll-off, Low Latency)" },
@@ -536,6 +537,7 @@ export const DeviceView = memo(function DeviceView({
                   desc="Runs cooler and uses less power"
                   checked={utility.amp_mode_class_ab}
                   onChange={handleSetAmpMode}
+                  disabled={isBusy}
                 />
 
                 <ToggleRow
@@ -543,6 +545,7 @@ export const DeviceView = memo(function DeviceView({
                   desc="Higher output power for hard-to-drive headphones"
                   checked={utility.high_gain_mode}
                   onChange={handleSetOutputGain}
+                  disabled={isBusy}
                 />
 
                 <div className="pref-slider-item pref-slider-first">
@@ -564,6 +567,7 @@ export const DeviceView = memo(function DeviceView({
                     max={15}
                     step={1}
                     aria-label="Channel Balance"
+                    disabled={isBusy}
                     aria-valuetext={
                       utility.channel_balance === 0
                         ? "Center (0)"
@@ -589,6 +593,7 @@ export const DeviceView = memo(function DeviceView({
                     max={15}
                     step={1}
                     aria-label="Microphone Sidetone"
+                    disabled={isBusy}
                     aria-valuetext={`${utility.mic_volume_db} dB`}
                     value={utility.mic_volume_db}
                     onChange={(e) => handleSetMicVolume(Number(e.target.value))}

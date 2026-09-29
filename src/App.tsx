@@ -1150,6 +1150,12 @@ function App() {
       confirmLabel: "Discard and read",
     }))) return false;
     if (!isConfirmationCurrent()) return false;
+    // Claim the shared operation slot and stamp the pull, so a superseded
+    // pull cannot clear the busy state its replacement still holds. pushEq and
+    // applyProfileToRam both fence on this; without the fence a pull that
+    // runs as an inner step of connectDevice or the reconnect poll released
+    // busy while its caller still had a firmware read outstanding.
+    const operationId = ++eqOperationIdRef.current;
     eqOperationInFlightRef.current = true;
     setProgress(null);
     setIsBusy(true);
@@ -1227,9 +1233,11 @@ function App() {
       }
       return false;
     } finally {
-      eqOperationInFlightRef.current = false;
-      setIsBusy(false);
-      setProgress(null);
+      if (operationId === eqOperationIdRef.current) {
+        eqOperationInFlightRef.current = false;
+        setIsBusy(false);
+        setProgress(null);
+      }
     }
   }, [connected, dirty, pushToUndoStack, selectedDevice, selectedCapabilities, reportStatus, setStatus, getAsyncContext, noteEditorMutation]);
 
@@ -1837,9 +1845,22 @@ function App() {
       if (isBusy || eqOperationInFlightRef.current) return;
 
       const active = document.activeElement;
+      // A range or checkbox input is not text editing: the browser handles
+      // its own arrow keys but has no undo/redo, and counting it as an editor
+      // made Ctrl+Z / Ctrl+Y / Ctrl+Enter dead whenever a band slider or a
+      // DeviceView balance slider happened to hold focus.
+      const isTextEntry = active instanceof HTMLInputElement
+        ? (active.type === "text" ||
+          active.type === "search" ||
+          active.type === "url" ||
+          active.type === "email" ||
+          active.type === "password" ||
+          active.type === "number" ||
+          active.type === "tel")
+        : false;
       const isEditingText =
         active &&
-        (active.tagName === "INPUT" ||
+        (isTextEntry ||
           active.tagName === "TEXTAREA" ||
           active.tagName === "SELECT" ||
           (active as HTMLElement).isContentEditable);
@@ -1961,6 +1982,7 @@ function App() {
         activeBandIndex={activeBandIndex}
         onActiveBandChange={setActiveBandIndex}
         snapToIso={snapToIso}
+        disabled={isBusy || eqOperationInFlightRef.current}
       />
     </>
   );

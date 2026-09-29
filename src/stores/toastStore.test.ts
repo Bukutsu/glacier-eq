@@ -27,6 +27,21 @@ describe("toastStore", () => {
     expect(useToastStore.getState().toasts.length).toBe(1);
   });
 
+  it("does not let a message of one type swallow the same text of another", () => {
+    // An error toast never auto-dismisses, so deduping on the text alone let
+    // a permanent error suppress every later toast with the same wording —
+    // including a success, and including every repeat of a failure that
+    // recurs on its own (the udev auto-connect path).
+    useToastStore.getState().addToast("Saved EQ to DAC", "error");
+    useToastStore.getState().addToast("Saved EQ to DAC", "success");
+    const toasts = useToastStore.getState().toasts;
+    expect(toasts.map((toast) => toast.type)).toEqual(["error", "success"]);
+
+    // Same type, same text: still deduplicated.
+    useToastStore.getState().addToast("Saved EQ to DAC", "success");
+    expect(useToastStore.getState().toasts.length).toBe(2);
+  });
+
   it("removes toast by id", () => {
     useToastStore.getState().addToast("Toast to delete");
     const id = useToastStore.getState().toasts[0].id;
