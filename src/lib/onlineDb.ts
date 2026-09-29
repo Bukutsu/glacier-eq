@@ -212,12 +212,15 @@ export function openDb(): Promise<IDBDatabase> {
         // slot, or this rejected attempt would be handed to every future
         // openDb() forever.
         if (pendingOpen === shared.attempt) pendingOpen = null;
+        const message = `Curve cache recovery failed: ${detail}`;
         // Say the reset did NOT happen: the success toast below only fires
         // after a successful reopen, and the passive isDatabaseDownloaded
-        // caller swallows this rejection entirely.
-        useToastStore
-          .getState()
-          .addToast(`Curve cache recovery failed: ${detail}`, "error");
+        // caller swallows this rejection entirely. The toast is the only
+        // witness from a module that cannot reach App, and the store records
+        // it as a diagnostic event — so a cache that could not be recovered
+        // no longer leaves the user with a database that silently reports
+        // "not downloaded" and no reportable trail.
+        useToastStore.getState().addToast(message, "error");
         throw error;
       }
       // The reset actually happened — only now claim it. (Fired before the

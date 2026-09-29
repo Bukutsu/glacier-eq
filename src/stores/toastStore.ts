@@ -17,17 +17,33 @@ const MAX_TOASTS = 50;
 interface ToastStore {
   toasts: Toast[];
   status: string;
-  addToast: (message: string, type?: Toast["type"]) => void;
+  /**
+   * `log` is false when the caller has already recorded a diagnostic for this
+   * message (reportStatus does), so one user-visible event yields one report
+   * line rather than two.
+   */
+  addToast: (message: string, type?: Toast["type"], log?: boolean) => void;
   setStatus: (message: string) => void;
   removeToast: (id: string) => void;
   clearNonErrorToasts: () => void;
+  /**
+   * Records a toast as a diagnostic event. App registers the backend call on
+   * mount, so a toast raised from anywhere — including a module that has no
+   * access to App, such as the online-DB cache recovery — still leaves a
+   * reportable trail instead of only a transient notification.
+   */
+  setDiagnosticSink: (sink: ((message: string, type: Toast["type"]) => void) | null) => void;
 }
+
+// Kept outside the store state so registering a sink does not re-render every
+// toast subscriber, and so it can be read from inside addToast.
+let diagnosticSink: ((message: string, type: Toast["type"]) => void) | null = null;
 
 export const useToastStore = create<ToastStore>()((set, get) => ({
   toasts: [],
   status: "Ready",
 
-  addToast: (message, type = "info") => {
+  addToast: (message, type = "info", log = true) => {
     if (message === "Ready" || !message.trim()) return;
 
     let toastType = type;
@@ -76,6 +92,13 @@ export const useToastStore = create<ToastStore>()((set, get) => ({
         get().removeToast(id);
       }, 4000);
     }
+
+    // After the dedupe check, so a suppressed repeat does not double-report.
+    if (log) diagnosticSink?.(message, toastType);
+  },
+
+  setDiagnosticSink: (sink) => {
+    diagnosticSink = sink;
   },
 
   setStatus: (message) => {

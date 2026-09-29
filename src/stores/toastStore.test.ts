@@ -7,6 +7,32 @@ import { useToastStore } from "./toastStore";
 describe("toastStore", () => {
   beforeEach(() => {
     useToastStore.setState({ toasts: [], status: "Ready" });
+    useToastStore.getState().setDiagnosticSink(null);
+  });
+
+  it("records every toast through the registered diagnostic sink", () => {
+    const seen: Array<{ message: string; type: string }> = [];
+    useToastStore.getState().setDiagnosticSink((message, type) => {
+      seen.push({ message, type });
+    });
+
+    useToastStore.getState().addToast("Curve cache recovery failed: boom", "error");
+    expect(seen).toEqual([
+      { message: "Curve cache recovery failed: boom", type: "error" },
+    ]);
+
+    // A caller that already recorded the event (reportStatus) opts out, so one
+    // user-visible event yields one report line.
+    useToastStore.getState().addToast("Loaded EQ from DAC", "success", false);
+    expect(seen).toHaveLength(1);
+
+    // A deduplicated repeat must not report twice.
+    useToastStore.getState().addToast("Curve cache recovery failed: boom", "error");
+    expect(seen).toHaveLength(1);
+
+    useToastStore.getState().setDiagnosticSink(null);
+    useToastStore.getState().addToast("Loaded EQ from DAC", "success");
+    expect(seen).toHaveLength(1);
   });
 
   it("adds toasts and infers types", () => {

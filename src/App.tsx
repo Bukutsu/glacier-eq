@@ -252,34 +252,43 @@ function App() {
     (message: string, type: "info" | "error" | "success" = "info", log = true) => {
       if (message === "Ready" || !message.trim()) return;
 
-      // Direct notifications need a diagnostic entry. reportStatus already
-      // records its event and opts out here to avoid duplicate report lines.
-      if (log) {
-        const lowerMessage = message.toLowerCase();
-        const isError =
-          type === "error" ||
-          lowerMessage.includes("failed") ||
-          lowerMessage.includes("error") ||
-          lowerMessage.includes("unable") ||
-          lowerMessage.includes("invalid") ||
-          lowerMessage.includes("permission") ||
-          lowerMessage.includes("not allowed") ||
-          lowerMessage.includes("please enter");
-        invoke("add_diagnostic_event", {
-          level: isError ? "Error" : "Info",
-          source: "UI",
-          message: `Notification: ${message}`,
-        }).catch((err) => console.error("Failed to log diagnostic from toast:", err));
-      }
-
       // On Android, transient info/success is handled by the native toast;
       // errors are also rendered persistently so they are not lost.
       if (isAndroid && type !== "error") return;
 
-      useToastStore.getState().addToast(message, type);
+      // The diagnostic entry is recorded by the store's sink, so a toast
+      // raised from a module that cannot reach App — the online-DB cache
+      // recovery — is reported too. `log` is false when reportStatus already
+      // recorded this event, keeping it to one report line.
+      useToastStore.getState().addToast(message, type, log);
     },
     [isAndroid],
   );
+
+  // One place turns a toast into a diagnostic event, registered once so every
+  // toast is reported — including the ones raised from modules that cannot
+  // reach App. Without this the store emitted nothing structured, so a
+  // failure it was the only witness to left no reportable trail.
+  useEffect(() => {
+    useToastStore.getState().setDiagnosticSink((message, type) => {
+      const lowerMessage = message.toLowerCase();
+      const isError =
+        type === "error" ||
+        lowerMessage.includes("failed") ||
+        lowerMessage.includes("error") ||
+        lowerMessage.includes("unable") ||
+        lowerMessage.includes("invalid") ||
+        lowerMessage.includes("permission") ||
+        lowerMessage.includes("not allowed") ||
+        lowerMessage.includes("please enter");
+      invoke("add_diagnostic_event", {
+        level: isError ? "Error" : "Info",
+        source: "UI",
+        message: `Notification: ${message}`,
+      }).catch((err) => console.error("Failed to log diagnostic from toast:", err));
+    });
+    return () => useToastStore.getState().setDiagnosticSink(null);
+  }, []);
 
   const persistUiPreference = useCallback((key: string, value: string) => {
     if (!writeLocalStorage(key, value)) {
@@ -1402,10 +1411,21 @@ function App() {
         }
       }
     } catch (e) {
-      console.error("Auto-connect after udev install failed:", e);
+      // The caller (SettingsView) turns a null return into "Permissions
+      // installed. Plug in your DAC and it will connect automatically." — so
+      // swallowing this made a failed auto-connect read as a success, with no
+      // toast and, because useToastStore alone records nothing, no diagnostic
+      // anywhere for the user to report.
+      const detail = e instanceof Error ? e.message : String(e);
+      reportStatus(
+        "Error",
+        `Auto-connect after installing udev rules failed: ${detail}`,
+        "error",
+        "Device",
+      );
     }
     return null;
-  }, [connectDevice]);
+  }, [connectDevice, reportStatus]);
 
   const pushEq = useCallback(async () => {
     if (!connected) {
