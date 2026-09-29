@@ -318,6 +318,33 @@ describe("browser connection cleanup", () => {
     expect(device.close).toHaveBeenCalledOnce();
   });
 
+  it("releases the handle for a caller that has no session id to fence on", async () => {
+    // disconnect_device's expectedSessionId is an Option<u64> on the desktop:
+    // absent or null means "no session check", so the disconnect goes ahead.
+    // The web adapter must not read a present-but-null key as a mismatch and
+    // leave the HID interface claimed while reporting that the connection
+    // changed.
+    const device = fakeHidDevice();
+    wasm.list_supported_devices.mockReturnValue([profile]);
+    hidMock.devices = [device];
+    const paths = await invoke<Array<{ path: string }>>("list_devices");
+    await invoke("connect_device", { path: paths[0].path });
+
+    await invoke("disconnect_device", { expectedPath: paths[0].path, expectedSessionId: null });
+    expect(device.close).toHaveBeenCalledOnce();
+
+    // A supplied session id that does not match is still fenced off.
+    const other = fakeHidDevice();
+    hidMock.devices = [other];
+    const otherPaths = await invoke<Array<{ path: string }>>("list_devices");
+    const session = await invoke<number>("connect_device", { path: otherPaths[0].path });
+    await expect(invoke("disconnect_device", {
+      expectedPath: otherPaths[0].path,
+      expectedSessionId: session + 1,
+    })).rejects.toThrow(DISCONNECT_SUPERSEDED);
+    expect(other.close).not.toHaveBeenCalled();
+  });
+
   it("settles an in-flight close before claiming a reconnected device", async () => {
     const device = fakeHidDevice({ respondToReports: true });
     // WebHID leaves a device "closing" — opened still true — until close()

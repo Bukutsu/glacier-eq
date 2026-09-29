@@ -1351,7 +1351,12 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
           args.expectedPath !== webHidPath(activeDevice)) {
         throw new Error(DISCONNECT_SUPERSEDED);
       }
-      if (activeDevice && args && Object.prototype.hasOwnProperty.call(args, "expectedSessionId") &&
+      // Both fences must be armed by a supplied value and only by a supplied
+      // value, matching disconnect_device's Option<String>/Option<u64>
+      // arguments on the desktop: a caller that has no session id yet passes
+      // null, and hasOwnProperty would read that as a mismatched session and
+      // refuse the close while this context kept the HID interface claimed.
+      if (activeDevice && typeof args?.expectedSessionId === "number" &&
           args.expectedSessionId !== activeSessionId) {
         throw new Error(DISCONNECT_SUPERSEDED);
       }
