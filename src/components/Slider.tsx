@@ -1,5 +1,9 @@
 import React, { CSSProperties, InputHTMLAttributes } from "react";
 
+/** CSSProperties has no index signature, so a custom property cannot typecheck
+ * without a cast. Naming the shape once keeps that out of every call site. */
+type CustomProperties = CSSProperties & Record<`--${string}`, string | number>;
+
 interface SliderProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "type"> {
   onStartChange?: () => void;
   onEndChange?: () => void;
@@ -14,12 +18,12 @@ export function Slider({
   onReset,
   ...props
 }: SliderProps) {
-  const sliderStyle = {
+  const sliderStyle: CustomProperties = {
     ...style,
     // Thumb matches the band's --filter-color where present (band rows set it),
     // falling back to blue elsewhere.
     "--slider-thumb": "var(--filter-color, var(--blue))",
-  } as CSSProperties;
+  };
 
   const handlePointerDown = (e: React.PointerEvent<HTMLInputElement>) => {
     if (onStartChange) onStartChange();

@@ -54,7 +54,13 @@ if (import.meta.env.PROD) {
   }
 }
 
-ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
+// Checked rather than asserted: nothing in the type system ties this id to
+// index.html, and createRoot throws before ErrorBoundary is mounted, so a
+// desync is a bare white screen with no recovery UI.
+const rootElement = document.getElementById("root");
+if (!rootElement) throw new Error("Missing #root element");
+
+ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
     <HashRouter>
       <ErrorBoundary>

@@ -8,6 +8,11 @@ import { peqEquals } from "../lib/peq";
 import type { DeviceCapabilities, Filter, GraphViewMode, MeasurementTrace, PEQData, TargetTrace } from "../types";
 import { Icon } from "./Icon";
 
+/** CSSProperties has no index signature, so a custom property cannot typecheck
+ * without a cast. Naming the shape once keeps that out of every call site. */
+type CustomProperties = CSSProperties & Record<`--${string}`, string | number>;
+
+
 const GRAPH_FREQS = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
 const GRAPH_DBS = [-18, -12, -6, 0, 6, 12, 18];
 
@@ -275,7 +280,9 @@ export const EqGraph = memo(function EqGraph({
     const shell = shellRef.current;
     if (!shell) return;
     const handleWheel = (event: WheelEvent) => {
-      const handle = (event.target as HTMLElement | null)?.closest<HTMLElement>(".eq-filter-handle");
+      const handle = event.target instanceof Element
+        ? event.target.closest<HTMLElement>(".eq-filter-handle")
+        : null;
       if (handle) wheelHandlerRef.current(event, Number(handle.dataset.filterIndex));
     };
     shell.addEventListener("wheel", handleWheel, { passive: false });
@@ -331,18 +338,19 @@ export const EqGraph = memo(function EqGraph({
         if (!filter.enabled) return null;
         const [color, rgb] = filterColorVars(filter.index);
         const valueText = `${filter.freq} Hz, ${filter.gain >= 0 ? "+" : ""}${filter.gain.toFixed(1)} dB, Q ${filter.q.toFixed(2)}`;
+        const handleStyle: CustomProperties = {
+          "--filter-color": `var(${color})`,
+          "--filter-color-rgb": `var(${rgb})`,
+          left: clampHandlePosition(freqToX(filter.freq, 100)),
+          top: clampHandlePosition(dbToY(filter.gain, 100)),
+        };
         return (
           <button
             key={filter.index}
             type="button"
             data-filter-index={filter.index}
             className={`eq-filter-handle${activeBandIndex === filter.index ? " active" : ""}`}
-            style={{
-              "--filter-color": `var(${color})`,
-              "--filter-color-rgb": `var(${rgb})`,
-              left: clampHandlePosition(freqToX(filter.freq, 100)),
-              top: clampHandlePosition(dbToY(filter.gain, 100)),
-            } as CSSProperties}
+            style={handleStyle}
             aria-label={`Band ${filter.index + 1}: ${valueText}. Drag with a finger or use arrow keys to adjust frequency and gain. Use the mouse wheel for gain or Shift plus mouse wheel for Q.`}
             aria-current={activeBandIndex === filter.index ? "true" : undefined}
             title={`Band ${filter.index + 1}: ${valueText} · Wheel: gain · Shift+wheel: Q`}

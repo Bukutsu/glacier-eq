@@ -22,7 +22,8 @@ function handleModalPopState(event: PopStateEvent) {
   if (isBalanceNavigation(event)) return;
   const top = topModalEntry();
   if (top === undefined) return;
-  switch (decideModalPopState(event, top)) {
+  const action = decideModalPopState(event, top);
+  switch (action) {
     case "reinsert":
       window.history.pushState(modalStateWithId(top.id, window.history.state), "");
       return;
@@ -32,6 +33,13 @@ function handleModalPopState(event: PopStateEvent) {
       return;
     case "ignore":
       return;
+    default: {
+      // A new popstate action must be handled here, not silently fall through
+      // and leave the Back press doing nothing. Verified: adding a fourth
+      // member to ModalPopStateAction compiled clean before this arm existed.
+      const exhaustive: never = action;
+      throw new Error(`unhandled modal popstate action: ${exhaustive}`);
+    }
   }
 }
 

@@ -505,7 +505,9 @@ function App() {
   useEffect(() => {
     if (!showGraphPreview) return;
     const handleTapToDismiss = (e: PointerEvent) => {
-      const target = e.target as HTMLElement | null;
+      // Narrow rather than assert: this is a window-level capture-phase
+      // pointerdown whose target is unconstrained.
+      const target = e.target instanceof Element ? e.target : null;
       if (target?.closest?.("input, select, button, .control-slider, .eq-filter-handle, .mobile-graph-preview")) {
         return;
       }
@@ -1997,7 +1999,7 @@ function App() {
         (isTextEntry ||
           active.tagName === "TEXTAREA" ||
           active.tagName === "SELECT" ||
-          (active as HTMLElement).isContentEditable);
+          active instanceof HTMLElement && active.isContentEditable);
 
       const isCtrl = e.ctrlKey || e.metaKey;
       if (isCtrl) {

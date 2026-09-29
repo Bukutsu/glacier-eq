@@ -18,12 +18,16 @@ const TYPE_NAMES: Record<FilterType, string> = {
   LowPass: "Low pass",
 };
 
-function filterColorStyle(index: number) {
+/** CSSProperties has no index signature, so a custom property cannot typecheck
+ * without a cast. Naming the shape once keeps that out of every call site. */
+type CustomProperties = CSSProperties & Record<`--${string}`, string | number>;
+
+function filterColorStyle(index: number): CustomProperties {
   const [color, rgb] = filterColorVars(index);
   return {
     "--filter-color": `var(${color})`,
     "--filter-color-rgb": `var(${rgb})`,
-  } as CSSProperties;
+  };
 }
 
 interface BandsProps {

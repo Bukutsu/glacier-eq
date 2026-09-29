@@ -158,7 +158,7 @@ export function DeviceChooser({
       <details
         className="supported-list"
         open={supportedOpen}
-        onToggle={(e) => setSupportedOpen((e.target as HTMLDetailsElement).open)}
+        onToggle={(e) => setSupportedOpen(e.currentTarget.open)}
         style={{ padding: "8px 12px", background: "var(--bg-dark)", border: "1px solid var(--line-soft)" }}
       >
         <summary style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", color: "var(--comment)", fontSize: "var(--type-caption)", fontWeight: 700, listStyle: "none" }}>

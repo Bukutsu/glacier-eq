@@ -89,7 +89,12 @@ export const Header = memo(function Header({
 
   useEffect(() => {
     function handlePointerDown(event: PointerEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+      const menu = menuRef.current;
+      if (!menu) return;
+      // Narrow rather than assert: contains() needs a Node, and EventTarget is
+      // not one. A non-Node target cannot be inside the menu, so it dismisses.
+      const target = event.target instanceof Node ? event.target : null;
+      if (!target || !menu.contains(target)) {
         setMenuOpen(false);
       }
     }
