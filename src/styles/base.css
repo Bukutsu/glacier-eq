@@ -1,5 +1,13 @@
 * { box-sizing: border-box; }
 
+/* Android WebView boosts font sizes past the CSS-specified value by default,
+   which inflates text and anything sized from it (buttons, steppers, the
+   device modal) beyond the layout the stylesheets describe. Opt out. */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 :root, :root[data-theme="tokyo-night"] {
   --bg: #1a1b26;
   --bg-dark: #16161e;
