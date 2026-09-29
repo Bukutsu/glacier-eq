@@ -94,17 +94,20 @@ describe("historyStore", () => {
 
   it("keeps identical PEQ snapshots when profile metadata changes", () => {
     const before = buildDefaultState();
-    useHistoryStore.getState().pushSnapshot(before, {      kind: "preset",
+    useHistoryStore.getState().pushSnapshot(before, {
+      kind: "preset",
       selectedPreset: "Daily",
       cleanPeq: before,
     });
-    const currentMetadata = {      kind: "preset",
+    const currentMetadata = {
+      kind: "preset",
       selectedPreset: "Bright",
       cleanPeq: before,
     };
     const restored = useHistoryStore.getState().undo(before, undefined, currentMetadata);
     expect(restored).toEqual(before);
-    expect(useHistoryStore.getState().lastRestoredMetadata).toEqual({      kind: "preset",
+    expect(useHistoryStore.getState().lastRestoredMetadata).toEqual({
+      kind: "preset",
       selectedPreset: "Daily",
       cleanPeq: before,
     });
@@ -113,15 +116,18 @@ describe("historyStore", () => {
   it("restores profile selection metadata with the PEQ snapshot", () => {
     const before = buildDefaultState();
     const after = { ...before, global_gain: -3 };
-    useHistoryStore.getState().pushSnapshot(before, {      kind: "preset",
+    useHistoryStore.getState().pushSnapshot(before, {
+      kind: "preset",
       selectedPreset: "Daily",
       cleanPeq: before,
     });
-    useHistoryStore.getState().undo(after, undefined, {      kind: "preset",
+    useHistoryStore.getState().undo(after, undefined, {
+      kind: "preset",
       selectedPreset: "Other",
       cleanPeq: after,
     });
-    expect(useHistoryStore.getState().lastRestoredMetadata).toEqual({      kind: "preset",
+    expect(useHistoryStore.getState().lastRestoredMetadata).toEqual({
+      kind: "preset",
       selectedPreset: "Daily",
       cleanPeq: before,
     });

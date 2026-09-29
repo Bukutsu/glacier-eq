@@ -35,9 +35,16 @@ export async function listen<T>(event: string, callback: (event: { payload: T })
   if (!eventListeners[event]) {
     eventListeners[event] = [];
   }
-  eventListeners[event].push(callback as (event: { payload: unknown }) => void);
+  // A trampoline rather than a cast: the registry is the untrusted side, and
+  // asserting the subscriber's T onto it re-permits exactly the hole the
+  // `unknown` declaration removed. The subscriber still owns the narrowing
+  // from there, which is the one place it can legitimately happen.
+  const wrapped = (event: { payload: unknown }) => {
+    callback(event as { payload: T });
+  };
+  eventListeners[event].push(wrapped);
   return () => {
-    eventListeners[event] = eventListeners[event].filter((cb) => cb !== callback);
+    eventListeners[event] = eventListeners[event].filter((cb) => cb !== wrapped);
   };
 }
 
@@ -1190,7 +1197,7 @@ const PURE_JS_COMMANDS = new Set([
   "clear_diagnostics",
 ]);
 
-async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
+async function invokeWeb<T = unknown>(cmd: string, args?: any): Promise<T> {
   // These four commands run entirely on in-memory JS state (diagnostics
   // store, platform/device reads) and never touch wasm. Gating them behind
   // the wasm chunk made the ToolsPanel history load fail — and fall back to
