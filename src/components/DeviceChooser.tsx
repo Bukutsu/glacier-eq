@@ -163,9 +163,7 @@ export function DeviceChooser({
       >
         <summary style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", color: "var(--comment)", fontSize: "var(--type-caption)", fontWeight: 700, listStyle: "none" }}>
           <span>SUPPORTED MODELS ({supportedDacs.length})</span>
-          <Icon size={16} className="text-cyan">
-            {supportedOpen ? "expand_less" : "expand_more"}
-          </Icon>
+          <Icon size={16} className="text-cyan" name={supportedOpen ? "expand_less" : "expand_more"} />
         </summary>
         <div style={{ display: "grid", gap: "8px", marginTop: "12px" }}>
           {supportedDacs.map((dac) => (

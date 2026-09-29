@@ -177,7 +177,11 @@ function SharpCheckCircle({ size = 18, className = "" }: SvgIconProps) {
   );
 }
 
-const ICON_MAP: Record<string, ComponentType<SvgIconProps>> = {
+// Deliberately not annotated as Record<string, ...>: the annotation widens
+// the keys to string, which is exactly what let a typo through to a silent
+// `return null` in the shipped build. `satisfies` checks the values and keeps
+// the literal keys, so IconName below is the real closed set.
+const ICON_MAP = {
   add: Plus,
   remove: Minus,
   close: X,
@@ -230,22 +234,24 @@ const ICON_MAP: Record<string, ComponentType<SvgIconProps>> = {
   more_vert: MoreVertical,
   radio_button_checked: SharpRadioChecked,
   radio_button_unchecked: SharpRadioUnchecked,
-};
+} satisfies Record<string, ComponentType<SvgIconProps>>;
+
+/** The icon names this build ships. A name outside it cannot be written. */
+export type IconName = keyof typeof ICON_MAP;
 
 export const Icon = memo(function Icon({
-  children,
+  name,
   className = "",
   size = 18,
 }: {
-  children: string;
+  name: IconName;
   className?: string;
   size?: number | string;
 }) {
-  const Component = ICON_MAP[children];
-  if (!Component) {
-    if (import.meta.env.DEV) console.warn(`[Icon] missing sharp icon: "${children}"`);
-    return null;
-  }
+  // Total by construction: name is IconName, so the lookup cannot miss. A
+  // typo used to return null here, silently, with the only warning behind
+  // import.meta.env.DEV and so stripped from the production bundle.
+  const Component = ICON_MAP[name];
   return (
     <Component
       className={`app-icon sharp-icon ${className}`}

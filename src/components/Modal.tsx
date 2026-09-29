@@ -123,7 +123,7 @@ export function Modal({ title, onClose, className = "", style, children, closeDi
           disabled={closeDisabled}
           aria-label={`Close ${title}`}
         >
-          <Icon>close</Icon>
+          <Icon name="close" />
         </button>
       </div>
       {children}

@@ -59,7 +59,7 @@ export function Select<T extends string | number>({
         ))}
       </select>
       <span className="custom-select-arrow" style={{ pointerEvents: "none" }}>
-        <Icon>expand_more</Icon>
+        <Icon name="expand_more" />
       </span>
     </div>
   );

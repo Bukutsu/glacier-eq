@@ -16,7 +16,7 @@ export function ToastContainer() {
           aria-live={toast.type === "error" ? "assertive" : "polite"}
         >
           <span className="toast-icon">
-            <Icon>{toast.type === "success" ? "check_circle" : toast.type === "error" ? "error" : "info"}</Icon>
+            <Icon name={toast.type === "success" ? "check_circle" : toast.type === "error" ? "error" : "info"} />
           </span>
           <span className="toast-message">{toast.message}</span>
           <button
@@ -25,7 +25,7 @@ export function ToastContainer() {
             onClick={() => removeToast(toast.id)}
             aria-label="Close notification"
           >
-            <Icon>close</Icon>
+            <Icon name="close" />
           </button>
         </div>
       ))}

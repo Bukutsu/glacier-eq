@@ -2010,7 +2010,7 @@ function App() {
 
   const editorHint = !connected && !editorHintDismissed ? (
     <div className="editor-empty-hint" role="status">
-      <Icon>info</Icon>
+      <Icon name="info" />
       <span className="editor-empty-hint-text">
         Offline editing. Connect a DAC to read or write EQ.
       </span>
@@ -2022,7 +2022,7 @@ function App() {
           setEditorHintDismissed(true);
         }}
       >
-        <Icon>close</Icon>
+        <Icon name="close" />
       </button>
     </div>
   ) : null;
@@ -2098,7 +2098,7 @@ function App() {
                 aria-expanded={!graphCollapsed}
                 aria-label={graphCollapsed ? "Expand graph" : "Collapse graph"}
               >
-                <Icon>{graphCollapsed ? "expand_more" : "expand_less"}</Icon>
+                <Icon name={graphCollapsed ? "expand_more" : "expand_less"} />
               </button>
             </section>
           )}
@@ -2153,7 +2153,7 @@ function App() {
                   <div className="curves-tab">
                     <div className="curves-actions">
                       <button type="button" className="btn add-trace-btn" onClick={handleShowAddTrace}>
-                        <Icon>add</Icon>
+                        <Icon name="add" />
                         <span>Add Trace</span>
                       </button>
                       {measurements.length > 0 && (
@@ -2164,7 +2164,7 @@ function App() {
                           aria-label={`Clear ${measurements.length} saved measurement${measurements.length === 1 ? "" : "s"}`}
                           onClick={clearMeasurementsWithConfirmation}
                         >
-                          <Icon>delete</Icon>
+                          <Icon name="delete" />
                           <span>Clear traces</span>
                         </button>
                       )}
@@ -2251,7 +2251,7 @@ function App() {
                 onClick={() => handleSelectWorkspaceTab(id)}
               >
                 <div className="mobile-tab-icon-wrapper">
-                  <Icon>{icon}</Icon>
+                  <Icon name={icon} />
                 </div>
                 <span>{label}</span>
               </button>
@@ -2274,7 +2274,7 @@ function App() {
                     aria-current={activeTab === id ? "page" : undefined}
                     onClick={() => handleSelectWorkspaceTab(id)}
                   >
-                    <Icon>{icon}</Icon>
+                    <Icon name={icon} />
                     <span>{label}</span>
                   </button>
                 </Fragment>

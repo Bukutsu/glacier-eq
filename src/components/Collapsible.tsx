@@ -1,5 +1,5 @@
 import { type ReactNode, useId, useState } from "react";
-import { Icon } from "./Icon";
+import { Icon, type IconName } from "./Icon";
 
 export function Collapsible({
   title,
@@ -10,7 +10,7 @@ export function Collapsible({
   className = "",
 }: {
   title: ReactNode;
-  icon?: string;
+  icon?: IconName;
   children: ReactNode;
   defaultOpen?: boolean;
   compact?: boolean;
@@ -28,9 +28,9 @@ export function Collapsible({
         aria-controls={contentId}
         onClick={() => setOpen((value) => !value)}
       >
-        {icon && <Icon>{icon}</Icon>}
+        {icon && <Icon name={icon} />}
         <span className="app-collapse-title">{title}</span>
-        <Icon>{open ? "expand_less" : "expand_more"}</Icon>
+        <Icon name={open ? "expand_less" : "expand_more"} />
       </button>
       <div id={contentId} className="app-collapse-content" hidden={!open}>
         <div className="app-collapse-content-inner">{children}</div>

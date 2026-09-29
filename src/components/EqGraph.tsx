@@ -374,7 +374,7 @@ export const EqGraph = memo(function EqGraph({
           aria-label="Toggle legend"
           aria-expanded={showMobileLegend}
         >
-          <Icon>{showMobileLegend ? "close" : "legend_toggle"}</Icon>
+          <Icon name={showMobileLegend ? "close" : "legend_toggle"} />
         </button>
       )}
       {(committedPeq || targets.length > 0 || visibleMeasurements.length > 0) && (

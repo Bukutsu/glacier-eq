@@ -121,7 +121,7 @@ function UdevSection({
         <h2 className="settings-plain-title">Linux USB permissions</h2>
         <p className="settings-plain-desc" role="alert">{checkError}</p>
         <button type="button" className="btn" onClick={() => setCheckAttempt((attempt) => attempt + 1)}>
-          <Icon>refresh</Icon>
+          <Icon name="refresh" />
           <span>Retry permissions check</span>
         </button>
         <p className="settings-plain-desc">
@@ -251,7 +251,7 @@ function UdevSection({
             disabled={busy !== null || checking}
             onClick={handleInstall}
           >
-            <Icon>{installed && current ? "refresh" : "add_moderator"}</Icon>
+            <Icon name={installed && current ? "refresh" : "add_moderator"} />
             <span>{busy === "install" ? "Working…" : installed ? (current ? "Reinstall" : "Update") : "Install"}</span>
           </button>
           {installed && !(status?.package_managed && status.dest_path === "/usr/lib/udev/rules.d/69-glacier-eq.rules") && (
@@ -261,7 +261,7 @@ function UdevSection({
               disabled={busy !== null || checking}
               onClick={handleRemove}
             >
-              <Icon>delete</Icon>
+              <Icon name="delete" />
               <span>{busy === "remove" ? "Working…" : "Remove"}</span>
             </button>
           )}

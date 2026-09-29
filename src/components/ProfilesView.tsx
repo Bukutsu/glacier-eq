@@ -369,7 +369,7 @@ export const ProfilesView = memo(function ProfilesView({
               aria-label="Reload profiles"
               onClick={handleReloadProfiles}
             >
-              <Icon>refresh</Icon>
+              <Icon name="refresh" />
             </button>
             {!hideProfileFolderButton && onOpenProfilesDir && (
               <button
@@ -379,14 +379,14 @@ export const ProfilesView = memo(function ProfilesView({
                 aria-label="Open profiles folder"
                 onClick={onOpenProfilesDir}
               >
-                <Icon>folder</Icon>
+                <Icon name="folder" />
               </button>
             )}
           </div>
         </div>
 
         <div className="profile-search-wrap">
-          <Icon className="search-icon">search</Icon>
+          <Icon name="search" className="search-icon" />
           <input
             className="profile-search"
             placeholder="Search profiles…"
@@ -402,7 +402,7 @@ export const ProfilesView = memo(function ProfilesView({
               aria-label="Clear search"
               onClick={() => setProfileSearch("")}
             >
-              <Icon>close</Icon>
+              <Icon name="close" />
             </button>
           )}
         </div>
@@ -410,7 +410,7 @@ export const ProfilesView = memo(function ProfilesView({
         <div className="preset-list" role="radiogroup" aria-label="Profiles list">
           {filteredProfiles.length === 0 ? (
             <div className="empty-profiles">
-              <Icon>search_off</Icon>
+              <Icon name="search_off" />
               <span>No profiles found</span>
             </div>
           ) : (
@@ -433,9 +433,7 @@ export const ProfilesView = memo(function ProfilesView({
                   }}
                 >
                   <div className="profile-row-info">
-                    <Icon className="profile-row-indicator">
-                      {isSelected ? "radio_button_checked" : "radio_button_unchecked"}
-                    </Icon>
+                    <Icon className="profile-row-indicator" name={isSelected ? "radio_button_checked" : "radio_button_unchecked"} />
                     <span className="profile-name-text" title={profile.name}>{profile.name}</span>
                     {isSelected && <span className="profile-active-badge">Active</span>}
                   </div>
@@ -451,7 +449,7 @@ export const ProfilesView = memo(function ProfilesView({
                         onApplyProfile(profile);
                       }}
                     >
-                      <Icon>send</Icon>
+                      <Icon name="send" />
                       <span>Try</span>
                     </button>
                   )}
@@ -493,7 +491,7 @@ export const ProfilesView = memo(function ProfilesView({
                     title={saveLabel}
                     disabled={!canSave}
                   >
-                    <Icon>save</Icon>
+                    <Icon name="save" />
                     <span>{saveLabel}</span>
                   </button>
                   {saveAsOpen && (
@@ -516,7 +514,7 @@ export const ProfilesView = memo(function ProfilesView({
                       aria-label="Discard changes"
                       onClick={onReset}
                     >
-                      <Icon>restart_alt</Icon>
+                      <Icon name="restart_alt" />
                     </button>
                   )}
                 </div>
@@ -531,7 +529,7 @@ export const ProfilesView = memo(function ProfilesView({
                       onClick={onSave}
                       title="Save changes"
                     >
-                      <Icon>save</Icon>
+                      <Icon name="save" />
                       <span>Save changes</span>
                     </button>
                   )}
@@ -543,7 +541,7 @@ export const ProfilesView = memo(function ProfilesView({
                       aria-label="Discard changes"
                       onClick={onReset}
                     >
-                      <Icon>restart_alt</Icon>
+                      <Icon name="restart_alt" />
                     </button>
                   )}
                   <button
@@ -553,7 +551,7 @@ export const ProfilesView = memo(function ProfilesView({
                     aria-label="Delete profile"
                     onClick={onDelete}
                   >
-                    <Icon>delete</Icon>
+                    <Icon name="delete" />
                   </button>
                   <button
                     type="button"
@@ -564,7 +562,7 @@ export const ProfilesView = memo(function ProfilesView({
                       setSaveAsOpen(true);
                     }}
                   >
-                    <Icon>content_copy</Icon>
+                    <Icon name="content_copy" />
                     <span>Save as copy…</span>
                   </button>
                 </div>
@@ -579,7 +577,7 @@ export const ProfilesView = memo(function ProfilesView({
                   setSaveAsOpen(true);
                 }}
               >
-                <Icon>add</Icon>
+                <Icon name="add" />
                 <span>Save as new profile…</span>
               </button>
             )}
@@ -608,19 +606,19 @@ export const ProfilesView = memo(function ProfilesView({
         />
         <div className="transfer-actions">
           <button type="button" className="icon-action" onClick={handleImportFileClick}>
-            <Icon>file_upload</Icon>
+            <Icon name="file_upload" />
             <span>Import File</span>
           </button>
           <button type="button" className="icon-action" onClick={handlePaste}>
-            <Icon>content_paste</Icon>
+            <Icon name="content_paste" />
             <span>Paste</span>
           </button>
           <button type="button" className="icon-action" onClick={handleExportFile}>
-            <Icon>file_download</Icon>
+            <Icon name="file_download" />
             <span>Export File</span>
           </button>
           <button type="button" className="icon-action" onClick={handleCopy}>
-            <Icon>content_copy</Icon>
+            <Icon name="content_copy" />
             <span>Copy</span>
           </button>
         </div>
@@ -741,7 +739,7 @@ export const ProfilesView = memo(function ProfilesView({
                 disabled={isSubmitting || (!isTemporary && !importName.trim())}
                 onClick={handleConfirmImport}
               >
-                <Icon>check</Icon>
+                <Icon name="check" />
                 <span>{isTemporary ? "Apply to editor" : "Save profile"}</span>
               </button>
               <button

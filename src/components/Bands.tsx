@@ -140,12 +140,12 @@ export const Bands = memo(function Bands({ peq, committedPeq, capabilities, onFi
         aria-expanded={!collapsed}
       >
         <span className="title-text">
-          <Icon>tune</Icon>
+          <Icon name="tune" />
           <strong>FILTER BANDS</strong>
         </span>
         <span className="collapse-toggle-btn">
           {visibleFilters.length}/{availableFilters.length}
-          <Icon>{collapsed ? "expand_more" : "expand_less"}</Icon>
+          <Icon name={collapsed ? "expand_more" : "expand_less"} />
         </span>
       </button>
       <section className="bands-grid">
@@ -168,7 +168,7 @@ export const Bands = memo(function Bands({ peq, committedPeq, capabilities, onFi
           ))}
           <div className="bands-actions">
             <button type="button" className="btn" onClick={addFilter} disabled={!canAddFilter}>
-              <Icon>add</Icon>
+              <Icon name="add" />
               Add Filter
             </button>
           </div>
@@ -202,7 +202,7 @@ export const Bands = memo(function Bands({ peq, committedPeq, capabilities, onFi
               aria-label={canAddFilter ? "Add filter" : "Add filter (all bands in use)"}
               title={canAddFilter ? "Add filter" : "All filter bands are in use"}
             >
-              <Icon>add</Icon>
+              <Icon name="add" />
               <span>Add</span>
             </button>
           </div>
@@ -224,7 +224,7 @@ export const Bands = memo(function Bands({ peq, committedPeq, capabilities, onFi
                       onEndChange?.();
                     }}
                   >
-                    <Icon>restart_alt</Icon>
+                    <Icon name="restart_alt" />
                     <span>Reset</span>
                   </button>
                 )}
@@ -244,7 +244,7 @@ export const Bands = memo(function Bands({ peq, committedPeq, capabilities, onFi
                     if (next) onActiveBandChange?.(next.index);
                   }}
                 >
-                  <Icon>delete</Icon>
+                  <Icon name="delete" />
                 </button>
               </div>
             </div>
@@ -315,7 +315,7 @@ const BandRow = memo(function BandRow({
           onEndChange?.();
         }}
       >
-        <Icon>remove</Icon>
+        <Icon name="remove" />
       </button>
     </div>
   );

@@ -216,7 +216,7 @@ function CurvesTab({
     <div className="curves-tab">
       <div className="curves-actions">
         <button type="button" className="btn add-trace-btn" onClick={() => setShowAddModal(true)}>
-          <Icon>add</Icon>
+          <Icon name="add" />
           <span>Add Trace</span>
         </button>
         {measurements.length > 0 && (
@@ -227,7 +227,7 @@ function CurvesTab({
             aria-label={`Clear ${measurements.length} saved measurement${measurements.length === 1 ? "" : "s"}`}
             onClick={onClearMeasurements}
           >
-            <Icon>delete</Icon>
+            <Icon name="delete" />
             <span>Clear traces</span>
           </button>
         )}
@@ -470,14 +470,14 @@ export function AutoEqTab({
     <div className="autoeq-tab">
       {measurements.length === 0 ? (
         <div className="autoeq-empty">
-          <Icon>auto_awesome</Icon>
+          <Icon name="auto_awesome" />
           <p>Add a measurement and pick a target curve to generate an EQ.</p>
         </div>
       ) : (
         <section className="tool-card autoeq-match-card">
           <div className="tool-card-head">
             <div className="tool-card-title">
-              <Icon>auto_awesome</Icon>
+              <Icon name="auto_awesome" />
               <strong>Match to target</strong>
             </div>
           </div>
@@ -605,7 +605,7 @@ export function AutoEqTab({
               disabled={isOptimizing || !meas || !target}
               onClick={handleRunAutoEq}
             >
-              <Icon>{isOptimizing ? "hourglass_empty" : "bolt"}</Icon>
+              <Icon name={isOptimizing ? "hourglass_empty" : "bolt"} />
               <span>{isOptimizing ? "Generating EQ..." : "Generate EQ"}</span>
             </button>
           </div>
@@ -841,11 +841,11 @@ export function DiagnosticsPanel() {
           title="Copy system, device, and all log details"
           aria-live="polite"
         >
-          <Icon>{copyState === "copied" ? "check" : "content_copy"}</Icon>
+          <Icon name={copyState === "copied" ? "check" : "content_copy"} />
           <span>{copyLabel}</span>
         </button>
         <button type="button" className="danger" title="Clear logs" aria-label="Clear logs" onClick={clearLogs}>
-          <Icon>delete</Icon>
+          <Icon name="delete" />
         </button>
       </div>
 
@@ -876,7 +876,7 @@ export function DiagnosticsPanel() {
           aria-label={autoScroll ? "Auto-scroll on" : "Auto-scroll paused"}
           onClick={() => setAutoScroll((v) => !v)}
         >
-          <Icon>{autoScroll ? "vertical_align_bottom" : "lock"}</Icon>
+          <Icon name={autoScroll ? "vertical_align_bottom" : "lock"} />
         </button>
       </div>
 

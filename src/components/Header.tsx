@@ -171,7 +171,7 @@ export const Header = memo(function Header({
                 disabled={isBusy || !canUndo}
                 onClick={onUndo}
               >
-                <Icon>undo</Icon>
+                <Icon name="undo" />
                 <span className="history-btn-label">Undo</span>
               </button>
               <button
@@ -182,7 +182,7 @@ export const Header = memo(function Header({
                 disabled={isBusy || !canRedo}
                 onClick={onRedo}
               >
-                <Icon>redo</Icon>
+                <Icon name="redo" />
                 <span className="history-btn-label">Redo</span>
               </button>
             </div>
@@ -199,7 +199,7 @@ export const Header = memo(function Header({
             </>
           ) : (
             <button type="button" className="btn filled" onClick={onConnectClick} disabled={isBusy}>
-              <Icon>link</Icon>
+              <Icon name="link" />
               <span>Connect DAC</span>
             </button>
           )}
@@ -216,7 +216,7 @@ export const Header = memo(function Header({
               disabled={isBusy || !canUndo}
               onClick={onUndo}
             >
-              <Icon>undo</Icon>
+              <Icon name="undo" />
             </button>
             <button
               type="button"
@@ -226,7 +226,7 @@ export const Header = memo(function Header({
               disabled={isBusy || !canRedo}
               onClick={onRedo}
             >
-              <Icon>redo</Icon>
+              <Icon name="redo" />
             </button>
           </div>
           {connected ? (
@@ -243,7 +243,7 @@ export const Header = memo(function Header({
                   aria-expanded={menuOpen}
                   onClick={() => setMenuOpen(!menuOpen)}
                 >
-                  <Icon>more_vert</Icon>
+                  <Icon name="more_vert" />
                 </button>
                 {menuOpen && (
                   <div className="mobile-dropdown-menu" role="menu">
@@ -257,7 +257,7 @@ export const Header = memo(function Header({
                       }}
                       disabled={isBusy}
                     >
-                      <Icon>link_off</Icon>
+                      <Icon name="link_off" />
                       <span>Disconnect</span>
                     </button>
                   </div>
@@ -266,7 +266,7 @@ export const Header = memo(function Header({
             </>
           ) : (
             <button type="button" className="btn filled mobile-action-btn mobile-connect-btn" onClick={onConnectClick} disabled={isBusy}>
-              <Icon>link</Icon>
+              <Icon name="link" />
               <span>Connect DAC</span>
             </button>
           )}

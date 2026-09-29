@@ -3,7 +3,7 @@
 
 import type { ReactNode } from "react";
 import { NavLink } from "react-router";
-import { Icon } from "./Icon";
+import { Icon, type IconName } from "./Icon";
 import { Select, type SelectOption } from "./Select";
 import { openExternalLink } from "../lib/externalLinks";
 
@@ -22,7 +22,7 @@ export function StackHeader({
     <header className={`stack-topbar${backTo ? " subscreen" : ""}`}>
       {backTo ? (
         <NavLink to={backTo} className="stack-back-btn" aria-label={backLabel}>
-          <Icon>arrow_back</Icon>
+          <Icon name="arrow_back" />
         </NavLink>
       ) : null}
       <h1 className="stack-topbar-title">{title}</h1>
@@ -42,18 +42,18 @@ export function NavRow({
   desc,
 }: {
   to: string;
-  icon: string;
+  icon: IconName;
   title: string;
   desc?: string;
 }) {
   return (
     <NavLink to={to} className="stack-nav-row">
-      <Icon className="stack-row-icon">{icon}</Icon>
+      <Icon className="stack-row-icon" name={icon} />
       <div className="stack-row-content">
         <span className="stack-row-title">{title}</span>
         {desc ? <span className="stack-row-desc">{desc}</span> : null}
       </div>
-      <Icon className="stack-row-chevron">chevron_right</Icon>
+      <Icon name="chevron_right" className="stack-row-chevron" />
     </NavLink>
   );
 }
@@ -143,7 +143,7 @@ export function ActionRow({
   desc?: string;
   actionLabel: string;
   onAction: () => void;
-  icon?: string;
+  icon?: IconName;
   danger?: boolean;
   disabled?: boolean;
 }) {
@@ -160,7 +160,7 @@ export function ActionRow({
           disabled={disabled}
           onClick={onAction}
         >
-          {icon ? <Icon>{icon}</Icon> : null}
+          {icon ? <Icon name={icon} /> : null}
           <span>{actionLabel}</span>
         </button>
       </div>
@@ -175,7 +175,7 @@ export function ExternalLinkRow({
   desc,
 }: {
   href: string;
-  icon?: string;
+  icon?: IconName;
   title: string;
   desc?: string;
 }) {
@@ -192,12 +192,12 @@ export function ExternalLinkRow({
       className="stack-nav-row external-link-row"
       onClick={handleClick}
     >
-      {icon ? <Icon className="stack-row-icon">{icon}</Icon> : null}
+      {icon ? <Icon className="stack-row-icon" name={icon} /> : null}
       <div className="stack-row-content">
         <span className="stack-row-title">{title}</span>
         {desc ? <span className="stack-row-desc">{desc}</span> : null}
       </div>
-      <Icon className="stack-row-chevron">open_in_new</Icon>
+      <Icon name="open_in_new" className="stack-row-chevron" />
     </a>
   );
 }

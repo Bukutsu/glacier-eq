@@ -56,7 +56,7 @@ export function LinuxUdevGuide({ compact = false, setStatus }: LinuxUdevGuidePro
           aria-label={copied ? "Copied" : "Copy install command"}
           onClick={copyCommand}
         >
-          <Icon>{copied ? "check" : "content_copy"}</Icon>
+          <Icon name={copied ? "check" : "content_copy"} />
           <span>{copied ? "Copied" : "Copy"}</span>
         </button>
       </div>

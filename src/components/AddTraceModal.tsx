@@ -158,7 +158,7 @@ export function AddTraceModal({
     <Modal title="Add Trace" onClose={onClose} className="add-trace-modal">
         {modalError && (
           <div className="modal-inline-error" role="alert">
-            <Icon>error</Icon>
+            <Icon name="error" />
             <span>{modalError}</span>
           </div>
         )}
@@ -169,7 +169,7 @@ export function AddTraceModal({
             className="btn add-trace-file-btn"
             onClick={handleImportFile}
           >
-            <Icon>file_upload</Icon>
+            <Icon name="file_upload" />
             <span>Import file (.csv, .txt)</span>
           </button>
         </div>
@@ -211,7 +211,7 @@ export function AddTraceModal({
                           aria-label={loadedDevices.has(dev.id) ? `${dev.brand} ${dev.name} loaded` : `Load ${dev.brand} ${dev.name}`}
                           onClick={() => handleLoadDevice(dev)}
                         >
-                          {loadingDevice === dev.id ? <span>Loading…</span> : loadedDevices.has(dev.id) ? <Icon>check</Icon> : <Icon>download</Icon>}
+                          {loadingDevice === dev.id ? <span>Loading…</span> : loadedDevices.has(dev.id) ? <Icon name="check" /> : <Icon name="file_download" />}
                         </button>
                       </div>
                     ))
@@ -230,7 +230,7 @@ export function AddTraceModal({
                     title="Clear cached database (~16 MB)"
                     onClick={handleResetCache}
                   >
-                    <Icon>delete</Icon>
+                    <Icon name="delete" />
                     <span>Clear cache</span>
                   </button>
                 </div>

@@ -53,7 +53,7 @@ export const UnifiedTracesList = memo(function UnifiedTracesList({
             aria-label={`Delete ${trace.name}`}
             onClick={() => onRemoveMeasurement(trace.id)}
           >
-            <Icon>delete</Icon>
+            <Icon name="delete" />
           </button>
         </div>
       ))}
@@ -83,7 +83,7 @@ export const UnifiedTracesList = memo(function UnifiedTracesList({
                 aria-label={`Delete ${target.name}`}
                 onClick={() => onRemoveTarget(target.id)}
               >
-                <Icon>delete</Icon>
+                <Icon name="delete" />
               </button>
             ) : (
               <span className="curve-delete-spacer" aria-hidden="true" />

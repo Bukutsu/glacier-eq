@@ -352,13 +352,13 @@ export const DeviceView = memo(function DeviceView({
               <>
                 {onDisconnect && (
                   <button type="button" className="btn" onClick={onDisconnect} disabled={isBusy}>
-                    <Icon>link_off</Icon>
+                    <Icon name="link_off" />
                     <span>Disconnect</span>
                   </button>
                 )}
                 {onOpenConnectModal && (
                   <button type="button" className="btn filled" onClick={handleChangeDevice} disabled={isBusy}>
-                    <Icon>swap_horiz</Icon>
+                    <Icon name="swap_horiz" />
                     <span>Change Device</span>
                   </button>
                 )}
@@ -366,7 +366,7 @@ export const DeviceView = memo(function DeviceView({
             ) : (
               onOpenConnectModal && (
                 <button type="button" className="btn filled hero-connect-btn" onClick={onOpenConnectModal}>
-                  <Icon>usb</Icon>
+                  <Icon name="usb" />
                   <span>Connect DAC</span>
                 </button>
               )
@@ -458,12 +458,12 @@ export const DeviceView = memo(function DeviceView({
             {!connected ? (
               <section className="settings-card empty-card">
                 <div className="empty-state">
-                  <Icon size={44}>tune</Icon>
+                  <Icon name="tune" size={44} />
                   <h3>Device Not Connected</h3>
                   <p>Connect a supported DAC to adjust filter modes, amplifier mode, and channel balance.</p>
                   {onOpenConnectModal && (
                     <button type="button" className="btn filled" onClick={onOpenConnectModal}>
-                      <Icon>usb</Icon>
+                      <Icon name="usb" />
                       <span>Connect DAC</span>
                     </button>
                   )}
@@ -480,11 +480,11 @@ export const DeviceView = memo(function DeviceView({
             ) : loadError ? (
               <section className="settings-card empty-card">
                 <div className="empty-state">
-                  <Icon>error</Icon>
+                  <Icon name="error" />
                   <h3>Could Not Load Controls</h3>
                   <p>{loadError}</p>
                   <button type="button" className="btn" onClick={() => fetchState()}>
-                    <Icon>refresh</Icon>
+                    <Icon name="refresh" />
                     <span>Retry</span>
                   </button>
                 </div>
@@ -492,7 +492,7 @@ export const DeviceView = memo(function DeviceView({
             ) : !utility?.supported ? (
               <section className="settings-card empty-card">
                 <div className="empty-state">
-                  <Icon>tune</Icon>
+                  <Icon name="tune" />
                   <h3>{isSimulated ? "Simulation Mode" : "Controls Unavailable"}</h3>
                   <p>
                     {isSimulated
@@ -609,12 +609,12 @@ export const DeviceView = memo(function DeviceView({
             {!connected ? (
               <section className="settings-card empty-card">
                 <div className="empty-state">
-                  <Icon size={44}>build</Icon>
+                  <Icon name="build" size={44} />
                   <h3>Device Not Connected</h3>
                   <p>Connect a supported DAC to reset EQ, controls, or restore factory defaults.</p>
                   {onOpenConnectModal && (
                     <button type="button" className="btn filled" onClick={onOpenConnectModal}>
-                      <Icon>usb</Icon>
+                      <Icon name="usb" />
                       <span>Connect DAC</span>
                     </button>
                   )}
