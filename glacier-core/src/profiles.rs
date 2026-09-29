@@ -158,7 +158,7 @@ impl ProfileStore {
             let path = entry
                 .map_err(|error| format!("Failed to read profile entry: {error}"))?
                 .path();
-            if path.extension().and_then(|ext| ext.to_str()) != Some("txt") {
+            if !has_profile_extension(&path) {
                 continue;
             }
             // file_stem round-trip: only expose names that survive a save→load
@@ -316,27 +316,46 @@ impl ProfileStore {
         Ok(self.dir.join(format!("{name}.txt")))
     }
 
-    /// Every `*.txt` file whose stem matches `name` case-insensitively,
+    /// Every regular `*.txt` file whose stem matches `name` case-insensitively,
     /// sorted so the first entry is the deterministic winner `path()`, `save()`,
     /// and `list()` all agree on (readdir order is not stable across calls).
+    /// Directories and symlinks are excluded: a stray `daily.txt` directory
+    /// beside `Daily.txt` would otherwise become the resolved path for that
+    /// identity, and every save and delete for the profile would then fail
+    /// against the directory instead of the real file.
     fn case_variant_paths(&self, name: &str) -> Vec<PathBuf> {
         let Some(entries) = std::fs::read_dir(&self.dir).ok() else {
             return Vec::new();
         };
-        let mut paths: Vec<PathBuf> = entries
+        let mut paths = entries
             .flatten()
+            .filter(|entry| entry.file_type().is_ok_and(|kind| kind.is_file()))
             .map(|entry| entry.path())
             .filter(|path| {
-                path.extension().and_then(|ext| ext.to_str()) == Some("txt")
+                has_profile_extension(path)
                     && path
                         .file_stem()
                         .and_then(|stem| stem.to_str())
                         .is_some_and(|stem| stem.eq_ignore_ascii_case(name))
             })
-            .collect();
+            .collect::<Vec<PathBuf>>();
         paths.sort_by(|left, right| left.file_stem().cmp(&right.file_stem()));
         paths
     }
+}
+
+/// True when a directory entry carries the profile extension, matched
+/// case-insensitively. A profile's identity is its file stem and is already
+/// compared with `eq_ignore_ascii_case`, so `Studio.TXT` and `studio.txt` are
+/// the same profile — and on a case-insensitive filesystem (Windows NTFS, the
+/// default macOS APFS) or after a case-preserving restore from exFAT/FAT, that
+/// is exactly how the extension lands on disk. Matching it exactly orphaned
+/// the profile: it vanished from `list()`, `load()` missed it, and `delete()`
+/// reported success while the file stayed put.
+fn has_profile_extension(path: &Path) -> bool {
+    path.extension()
+        .and_then(|ext| ext.to_str())
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("txt"))
 }
 
 fn replace_file(temporary: &Path, destination: &Path) -> std::io::Result<()> {
@@ -500,7 +519,7 @@ fn open_profile_file(dir: &Path, path: &Path) -> std::io::Result<std::fs::File> 
 /// travel back to the caller (recorded as diagnostics by the app layer);
 /// `eprintln` covers `load()` and the CLI.
 fn read_profile(dir: &Path, path: &Path) -> Result<(Option<StoredProfile>, Vec<String>), String> {
-    if path.extension().and_then(|ext| ext.to_str()) != Some("txt") {
+    if !has_profile_extension(path) {
         return Ok((None, Vec::new()));
     }
     let path_metadata = match std::fs::symlink_metadata(path) {
@@ -511,9 +530,13 @@ fn read_profile(dir: &Path, path: &Path) -> Result<(Option<StoredProfile>, Vec<S
         Err(error) => return Err(format!("Failed to stat {}: {error}", path.display())),
     };
     if !path_metadata.file_type().is_file() {
-        // Symlinked or directory entries are rejected by design (the loader
-        // never follows links); not an unexpected data loss.
-        return Ok((None, Vec::new()));
+        // Symlinks and directories are rejected by design (the loader never
+        // follows links), but silence is not: a directory named `daily.txt`
+        // beside `Daily.txt` shadows that profile identity for save, delete,
+        // and load, and the user is the one who has to notice. Name it, so the
+        // caller can surface it as a diagnostic instead of leaving the
+        // identity silently poisoned.
+        return Ok((None, skip(path, "is not a regular file")));
     }
     let file = match open_profile_file(dir, path) {
         Ok(file) => file,
@@ -701,6 +724,71 @@ mod tests {
             "the invalid name must be reported, got {warnings:?}"
         );
 
+        std::fs::remove_dir_all(base).unwrap();
+    }
+
+    #[test]
+    fn case_variant_extension_stays_the_same_profile_identity() {
+        let base = temporary_dir();
+        let store = ProfileStore::new(&base).unwrap();
+        let peq = PEQData {
+            filters: vec![crate::Filter::enabled(0, true)],
+            global_gain: -2.0,
+        };
+        store.save("Studio", &peq).unwrap();
+        // A case-preserving restore, or a case-insensitive filesystem, can
+        // spell the extension any way it likes. The identity is the file stem,
+        // so this is still the "Studio" profile — not an invisible orphan.
+        std::fs::rename(
+            store.directory().join("Studio.txt"),
+            store.directory().join("Studio.TXT"),
+        )
+        .unwrap();
+
+        let (listed, warnings) = store.list_detailed().unwrap();
+        assert_eq!(listed.len(), 1, "a .TXT extension must not hide a profile");
+        assert_eq!(listed[0].name, "Studio");
+        assert!(warnings.is_empty(), "unexpected warnings: {warnings:?}");
+        assert_eq!(store.load("Studio").unwrap().data, peq);
+        assert!(store.exists("Studio").unwrap());
+
+        // Deleting the identity must remove the on-disk file, not report
+        // success while leaving it behind.
+        store.delete("Studio").unwrap();
+        assert!(!store.directory().join("Studio.TXT").exists());
+        std::fs::remove_dir_all(base).unwrap();
+    }
+
+    #[test]
+    fn a_directory_named_like_a_profile_is_reported_and_never_shadows_it() {
+        let base = temporary_dir();
+        let store = ProfileStore::new(&base).unwrap();
+        let peq = PEQData {
+            filters: vec![crate::Filter::enabled(0, true)],
+            global_gain: -2.0,
+        };
+        store.save("Daily", &peq).unwrap();
+        std::fs::create_dir(store.directory().join("daily.txt")).unwrap();
+
+        let (listed, warnings) = store.list_detailed().unwrap();
+        assert_eq!(listed.len(), 1, "the real profile must still be listed");
+        assert_eq!(listed[0].name, "Daily");
+        assert!(
+            warnings
+                .iter()
+                .any(|warning| warning.contains("daily.txt")
+                    && warning.contains("not a regular file")),
+            "the shadowing directory must be reported, got {warnings:?}"
+        );
+
+        // The identity resolves to the real file, so a save round-trips
+        // instead of failing against the directory.
+        let replacement = PEQData {
+            filters: vec![],
+            global_gain: -3.0,
+        };
+        store.save("DAILY", &replacement).unwrap();
+        assert_eq!(store.load("Daily").unwrap().data, replacement);
         std::fs::remove_dir_all(base).unwrap();
     }
 
