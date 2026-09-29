@@ -647,26 +647,18 @@ select:focus-visible {
 
 .btn:hover:not(:disabled), .tools-card button:hover:not(:disabled), .diag-card button:hover:not(:disabled) { filter: brightness(1.14); }
 .btn:active:not(:disabled), .tools-card button:active:not(:disabled), .diag-card button:active:not(:disabled) { filter: brightness(1.24); }
-/* Filled buttons take the theme's primary accent, never --navy. --navy is a
- * chart series colour (see MEASUREMENT_COLOR_VARS): its lightness is tuned for
- * a thin line on a dark curve, not for a large solid block behind text. On the
- * default dark theme it is #7aa2f7, which under a hardcoded white is 2.52:1 —
- * the washed-out, barely-readable primary CTA. --cyan measured against --bg
- * runs 4.26:1 to 12.53:1 across all nine themes.
+/* A filled button is a large surface with text on it, so it needs a muted
+ * fill, not a raw accent. The accent tokens here are chart/line colours —
+ * bright and high-chroma by design — and #7dcfff or #7aa2f7 as a solid slab
+ * glared against the dark UI and made the label hard to read.
  *
- * The foreground is --bg rather than white so it follows each theme's polarity
- * automatically: near-black on the light accents of the dark themes, near-white
- * on the dark accents of the light ones. */
-.btn.filled, button.save { background: var(--cyan); color: var(--bg); }
-:root[data-theme="material-you"] .btn.filled,
-:root[data-theme="material-you"] button.save {
-  background: var(--m3-primary, var(--cyan));
-  color: var(--on-accent);
-}
-:root[data-theme="material-you"] .btn.filled,
-:root[data-theme="material-you"] button.save {
-  background: var(--m3-primary, var(--cyan));
-  color: var(--on-accent);
+ * Tinting the accent into the page background gives a surface that belongs to
+ * the theme, and the theme's own text colour on top keeps the contrast right
+ * in both polarities: 4.66:1 to 9.03:1 across all nine themes, against 1.70:1
+ * to 5.51:1 for the accent-and-white pairing this replaces. */
+.btn.filled, button.save {
+  background: color-mix(in srgb, var(--cyan) 22%, var(--bg));
+  color: var(--text);
 }
 .btn.warning { background: var(--yellow); color: var(--on-accent); }
 

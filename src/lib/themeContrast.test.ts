@@ -52,6 +52,17 @@ function themeTokens(selector: string): Record<string, string> {
   return tokens;
 }
 
+/** Flatten `color-mix(in srgb, A p%, B)` the way a browser would in srgb. */
+function mix(a: string, b: string, percentA: number): string {
+  const t = percentA / 100;
+  const bytes = (hex: string) => [0, 2, 4].map((i) => parseInt(hex.slice(1 + i, 3 + i), 16));
+  const [ar, ag, ab] = bytes(a);
+  const [br, bg, bb] = bytes(b);
+  const blend = (from: number, to: number) =>
+    Math.round(from * t + to * (1 - t)).toString(16).padStart(2, "0");
+  return `#${blend(ar, br)}${blend(ag, bg)}${blend(ab, bb)}`;
+}
+
 const THEME_SELECTORS = [
   [":root, :root[data-theme=\"tokyo-night\"]", "tokyo-night"],
   [":root[data-theme=\"tokyo-night-storm\"]", "tokyo-night-storm"],
@@ -65,28 +76,51 @@ const THEME_SELECTORS = [
 ] as const;
 
 describe("filled button contrast", () => {
-  it.each(THEME_SELECTORS)("%s meets WCAG AA against its own background", (selector) => {
+  it.each(THEME_SELECTORS)("%s meets WCAG AA for the button surface", (selector) => {
     const tokens = themeTokens(selector);
     expect(tokens["--cyan"], `${selector} must define --cyan`).toBeDefined();
     expect(tokens["--bg"], `${selector} must define --bg`).toBeDefined();
+    expect(tokens["--text"], `${selector} must define --text`).toBeDefined();
 
-    // The rule is: fill = --cyan, foreground = --bg.
-    const ratio = contrast(tokens["--cyan"], tokens["--bg"]);
+    // The rule is: fill = the accent tinted into the page background at 22%,
+    // foreground = the theme's text colour.
+    const fill = mix(tokens["--cyan"], tokens["--bg"], 22);
+    const ratio = contrast(fill, tokens["--text"]);
     expect(
       ratio,
-      `${selector}: --cyan on --bg is ${ratio.toFixed(2)}:1, below the 4.5:1 AA minimum`,
+      `${selector}: button surface ${fill} under --text ${tokens["--text"]} is ` +
+        `${ratio.toFixed(2)}:1, below the 4.5:1 AA minimum`,
     ).toBeGreaterThanOrEqual(4.5);
   });
 
-  it("does not fill with a measurement curve colour or a hardcoded white", () => {
+  it("tints the fill rather than painting a raw accent", () => {
     const rule = /\.btn\.filled,\s*button\.save\s*\{([^}]*)\}/.exec(css)?.[1] ?? "";
     expect(rule, "the .btn.filled rule must exist").not.toBe("");
-    // --navy is a chart series colour: tuned for a thin line on a dark curve,
-    // not for a large solid block behind text.
-    expect(rule).not.toContain("--navy");
-    // A hardcoded white cannot follow the theme's polarity: the dark themes
-    // need a near-black foreground on their light accents.
+    // --navy and a bare --cyan are chart/line colours: bright and
+    // high-chroma by design, and wrong as a large solid block behind text.
+    expect(rule).not.toMatch(/var\(--navy\)/);
+    expect(rule).not.toMatch(/background:\s*var\(--cyan\)\s*;/);
+    expect(rule).toMatch(/color-mix\(/);
+    // A hardcoded white cannot follow the theme's polarity.
     expect(rule).not.toMatch(/#fff\b/i);
+  });
+
+  it("keeps the button readable under a live Material You palette", async () => {
+    // The Android palette is applied at runtime, not from a CSS block, so the
+    // static theme check cannot see it. Drive the real generator for both
+    // polarities: the button surface is a tint of the accent, so it has to hold
+    // against whatever the system handed us.
+    const { materialYouToCssVars } = await import("./materialYou");
+    for (const dark of [true, false]) {
+      const vars = materialYouToCssVars({ available: true, dark, palettes: {} });
+      const fill = mix(vars["--cyan"], vars["--bg"], 22);
+      const ratio = contrast(fill, vars["--text"]);
+      expect(
+        ratio,
+        `material-you (dark=${dark}): ${fill} under ${vars["--text"]} is ` +
+          `${ratio.toFixed(2)}:1, below the 4.5:1 AA minimum`,
+      ).toBeGreaterThanOrEqual(4.5);
+    }
   });
 
   it("resolves --navy even with no data-theme set", () => {
