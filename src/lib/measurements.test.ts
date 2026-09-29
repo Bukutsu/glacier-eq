@@ -30,8 +30,23 @@ describe("parseMeasurementText", () => {
   });
 
   it("enforces the UTF-8 byte limit for direct string input", () => {
-    const oversized = "20 0\n".repeat(250_000) + "é".repeat(10);
-    expect(() => parseMeasurementText(oversized)).toThrow("maximum size");
+    // Over the byte cap but UNDER the 4096-line cap, so only the pre-scan can
+    // reject this. The old fixture was "20 0\n".repeat(250_000), which tripped
+    // both caps — and both threw the same string — so this test passed with
+    // the pre-scan deleted, letting a 1.1 MB file parse.
+    const fewLongLines = `# ${"x".repeat(1_100_000)}\n20 0\n20000 0`;
+    expect(fewLongLines.split("\n")).toHaveLength(3);
+    expect(new TextEncoder().encode(fewLongLines).byteLength).toBeGreaterThan(1_048_576);
+    expect(() => parseMeasurementText(fewLongLines)).toThrow("1 MiB size limit");
+  });
+
+  it("rejects a file over the line cap while the byte cap still allows it", () => {
+    // The other half of the pair. 5_000 short lines is well under 1 MiB, so
+    // only the line-count guard can reject it — and its message must be the
+    // one the user sees, not the byte cap's.
+    const withinByteCap = "20 0\n".repeat(5_000);
+    expect(new TextEncoder().encode(withinByteCap).byteLength).toBeLessThan(1_048_576);
+    expect(() => parseMeasurementText(withinByteCap)).toThrow("exceeds maximum size");
   });
 
   it("accepts one UTF-8 BOM and rejects repeated BOM markers", () => {

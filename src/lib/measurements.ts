@@ -65,7 +65,11 @@ function parseDecimalToken(token: string): number | null {
 
 export function parseMeasurementText(input: string): MeasurementPoint[] {
   if (new TextEncoder().encode(input).byteLength > 1_048_576) {
-    throw new Error("Measurement input exceeds maximum size");
+    // Distinct from the line-count message below: the two caps guard
+    // different things, and sharing a string made the byte-limit test
+    // pass even with this pre-scan removed, because its fixture tripped
+    // the line cap as well.
+    throw new Error("Measurement input exceeds the 1 MiB size limit");
   }
   const text = stripLeadingBom(input, "Measurement input");
   const points: MeasurementPoint[] = [];

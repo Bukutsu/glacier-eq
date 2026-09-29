@@ -1238,6 +1238,16 @@ describe("storage quarantine", () => {
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("could not be replaced"));
     // The failed backup lost nothing: the original is still there.
     expect(localStorageValues.get("glacier-eq-profiles")).toBe("{not json at all");
+    // The structured event matters more than the console line: the console
+    // call is a dev-side duplicate, and the sibling success-path test above
+    // already asserts this one. Deleting addDiagnostic here left all tests
+    // green, so a user whose storage is full got no reportable trail at all.
+    const failureHistory = await invoke<unknown[]>("get_diagnostics");
+    expect(
+      parseDiagnosticHistory(failureHistory).some(
+        (event) => event.source === "Storage" && event.message.includes("could not be replaced"),
+      ),
+    ).toBe(true);
     warnSpy.mockRestore();
   });
 });
