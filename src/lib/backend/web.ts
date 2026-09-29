@@ -87,6 +87,16 @@ let activeDevice: HIDDevice | null = null;
 let activeProfile: SupportedDeviceInfo | null = null;
 let activeSessionId: number | null = null;
 let nextWebHidSessionId = 1;
+// markWebHidDisconnected cannot wait on close() — it runs on the failure path
+// of the very send that failed — but a connect_device for the same HIDDevice
+// must not be allowed to observe the stale opened === true while the close is
+// still in flight. HIDDevice.close() leaves the device "closing" until the
+// platform releases the interface, and HIDDevice.open() rejects with
+// InvalidStateError unless the device is already "closed", so a connect that
+// races the close would either claim a device our own cleanup is closing or
+// fail with an opaque error the frontend cannot interpret. Track the close
+// here and let connect_device settle it before claiming the device.
+let pendingWebHidClose: Promise<void> | null = null;
 const webHidIds = new WeakMap<HIDDevice, number>();
 let nextWebHidId = 1;
 
@@ -154,8 +164,8 @@ function detachHidEventListeners(device?: HIDDevice | null) {
 }
 
 function markWebHidDisconnected(device?: HIDDevice) {
-  const target = device || activeDevice;
   if (!activeDevice || (device && activeDevice !== device)) return;
+  const target = device || activeDevice;
   detachHidEventListeners(target);
   // Release the OS-level interface now, because no path can after
   // activeDevice is null: disconnect_device is a no-op without an active
@@ -165,8 +175,14 @@ function markWebHidDisconnected(device?: HIDDevice) {
   // handle — and the HID interface it claims — would strand for the rest of
   // the page lifetime. Mirrors handle_disconnection's hid_close on the Rust
   // side; failures are swallowed because the device may already be gone and
-  // the disconnect is reported regardless.
-  void target?.close().catch(() => {});
+  // the disconnect is reported regardless. The close is not awaited here, but
+  // it is recorded so a later connect_device can settle it before deciding
+  // the device is still open.
+  const closing = target.close().catch(() => {});
+  pendingWebHidClose = closing;
+  void closing.then(() => {
+    if (pendingWebHidClose === closing) pendingWebHidClose = null;
+  });
   // Structured identity lets listeners reject delayed events for a session
   // that has already been replaced.
   const sessionId = activeSessionId;
@@ -1290,10 +1306,25 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
         activeSessionId = null;
       }
 
+      // Settle any close still in flight from a failed send before deciding
+      // whether the device is open. Reading a stale opened === true here would
+      // skip open() and hand out a session for a device the browser is in the
+      // middle of closing.
+      if (pendingWebHidClose) {
+        const closing = pendingWebHidClose;
+        pendingWebHidClose = null;
+        await closing;
+      }
+
       // Clear the previous identity before opening a replacement. If opening
       // fails, no diagnostic or later command may observe the old profile.
       activeProfile = null;
       activeSessionId = null;
+      // A failed open must not leave a claimed device behind: with activeDevice
+      // still set, get_firmware_version would report no firmware and
+      // get_dac_utility_state would report the device as simply unsupported
+      // rather than surfacing the open failure.
+      activeDevice = null;
       if (!target.opened) {
         await target.open();
       }

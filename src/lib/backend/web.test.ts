@@ -317,6 +317,74 @@ describe("browser connection cleanup", () => {
     await invoke("disconnect_device");
     expect(device.close).toHaveBeenCalledOnce();
   });
+
+  it("settles an in-flight close before claiming a reconnected device", async () => {
+    const device = fakeHidDevice({ respondToReports: true });
+    // WebHID leaves a device "closing" — opened still true — until close()
+    // settles, and open() rejects unless the device is already "closed".
+    let releaseClose: (() => void) | null = null;
+    let pendingCloses = 0;
+    (device.close as ReturnType<typeof vi.fn>).mockImplementation(async () => {
+      if (pendingCloses++ === 0) {
+        await new Promise<void>((resolve) => { releaseClose = resolve; });
+      }
+      device.opened = false;
+    });
+    (device.open as ReturnType<typeof vi.fn>).mockImplementation(async () => {
+      device.opened = true;
+    });
+    await connectWebHid(device, { ...profile, num_bands: 1 });
+    wasm.build_read_global_gain_request.mockReturnValue([1]);
+    wasm.matches_global_gain_response.mockReturnValue(true);
+    wasm.parse_global_gain_response.mockReturnValue(0);
+    wasm.build_read_filter_request.mockReturnValue([1]);
+    wasm.matches_filter_response.mockReturnValue(true);
+    wasm.parse_filter_response.mockReturnValue({
+      index: 0,
+      enabled: true,
+      filter_type: "Peak",
+      freq: 100,
+      gain: 0,
+      q: 1,
+    });
+    localStorageValues.set("glacier-eq-settings", JSON.stringify({ skip_push_verification: true }));
+    const respond = (device.sendReport as ReturnType<typeof vi.fn>).getMockImplementation()!;
+    (device.sendReport as ReturnType<typeof vi.fn>).mockImplementation(async (reportId: number, data: Uint8Array) => {
+      if (reportId === 1 && data[0] === 2) throw new Error("transfer failed");
+      return respond(reportId, data);
+    });
+    wasm.normalize_peq_for_device.mockReturnValue({
+      peq: { filters: [], global_gain: 0 },
+      warnings: [],
+    });
+    wasm.build_write_global_gain_packets.mockReturnValue([[1, 2]]);
+
+    await expect(invoke("set_eq_state", { peq: peqWithBands(1) })).rejects.toThrow(
+      "transfer failed",
+    );
+    expect(device.close).toHaveBeenCalledOnce();
+
+    const listed = await invoke<Array<{ path: string }>>("list_devices");
+    const reconnect = invoke<number>("connect_device", { path: listed[0].path });
+    let settled = false;
+    void reconnect.then(() => { settled = true; }, () => { settled = true; });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    // The browser is still releasing the interface from the failed send. The
+    // reconnect must wait: reading the stale opened === true would skip open()
+    // and hand out a session for a device that is about to close underneath
+    // the frontend, which it has already been told is connected.
+    expect(settled).toBe(false);
+    expect(device.open).not.toHaveBeenCalled();
+
+    releaseClose!();
+    await expect(reconnect).resolves.toBeGreaterThan(0);
+    expect(device.open).toHaveBeenCalledOnce();
+    expect(device.opened).toBe(true);
+
+    // Leave no blocking close behind: a later connect_device would await it
+    // while replacing this device and hang for the rest of the file.
+    await invoke("disconnect_device", { expectedPath: listed[0].path });
+  });
 });
 
 describe("browser profile matching", () => {
