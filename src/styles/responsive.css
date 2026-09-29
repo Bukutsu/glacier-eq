@@ -551,8 +551,13 @@
     grid-template-columns: 1fr;
     gap: 3px;
   }
+  /* Sized to its content, never to the viewport: this card sits inside
+     .modal-body, which is already capped by the dialog's own max-height and
+     shares that space with the sticky header. A 100dvh min-height made the
+     card taller than the dialog, so the connect footer and everything below
+     it spilled past the modal's bottom edge and the sticky Connect button
+     floated mid-modal instead of docking to the bottom. */
   .device-card {
-    min-height: calc(100dvh - 24px - var(--safe-area-top, 0px) - var(--safe-area-bottom, 0px));
     padding: 18px;
   }
   .device-actions {
