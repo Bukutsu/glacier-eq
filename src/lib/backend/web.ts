@@ -26,23 +26,26 @@ const wasm = () => getWasm();
 
 // ─── Browser Event Bus ───────────────────────────────────────────────────────
 
-const eventListeners: { [event: string]: ((event: { payload: any }) => void)[] } = {};
+// `unknown`, not `any`: the desktop adapter already declares payload as
+// unknown, and because listen<T> lets a subscriber pick T, an `any` here let
+// a future emitter corrupt component state with no type check anywhere.
+const eventListeners: { [event: string]: ((event: { payload: unknown }) => void)[] } = {};
 
 export async function listen<T>(event: string, callback: (event: { payload: T }) => void): Promise<() => void> {
   if (!eventListeners[event]) {
     eventListeners[event] = [];
   }
-  eventListeners[event].push(callback);
+  eventListeners[event].push(callback as (event: { payload: unknown }) => void);
   return () => {
     eventListeners[event] = eventListeners[event].filter((cb) => cb !== callback);
   };
 }
 
-export async function emit(event: string, payload?: any): Promise<void> {
+export async function emit(event: string, payload?: unknown): Promise<void> {
   emitEvent(event, payload);
 }
 
-function emitEvent(event: string, payload: any) {
+function emitEvent(event: string, payload: unknown) {
   const listeners = eventListeners[event];
   if (listeners) {
     listeners.forEach((cb) => cb({ payload }));
@@ -99,6 +102,17 @@ let nextWebHidSessionId = 1;
 let pendingWebHidClose: Promise<void> | null = null;
 const webHidIds = new WeakMap<HIDDevice, number>();
 let nextWebHidId = 1;
+
+/**
+ * `manufacturerName` is a WebHID addition the DOM lib does not declare, so
+ * it is read through a narrowing helper rather than by annotating every
+ * device as `any` — which would also have discarded the parameter types of
+ * matchSupportedWebHidDevice and webHidPath.
+ */
+function webHidManufacturer(device: HIDDevice): string {
+  const value = (device as { manufacturerName?: unknown }).manufacturerName;
+  return typeof value === "string" ? value : "";
+}
 
 function webHidPath(device: HIDDevice): string {
   let id = webHidIds.get(device);
@@ -1230,7 +1244,13 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
       if (typeof args.content !== "string") {
         throw new Error("Invalid text export content");
       }
-      const filename = args.path.split("/").pop() || "profile.txt";
+      // Read through the same accessor every other command uses, so a missing
+      // path reports "Missing path argument" instead of a raw TypeError.
+      const exportPath = commandField(args, "path");
+      if (typeof exportPath !== "string") {
+        throw new Error("Invalid text export path");
+      }
+      const filename = exportPath.split("/").pop() || "profile.txt";
       const blob = new Blob([args.content], { type: "text/plain;charset=utf-8" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -1290,7 +1310,7 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
     case "list_devices": {
       const devices = await ensureWebHid().getDevices();
       const supported = wasm().list_supported_devices() as SupportedDeviceInfo[];
-      return devices.flatMap((dev: any) => {
+      return devices.flatMap((dev) => {
         const profile = matchSupportedWebHidDevice(dev, supported);
         if (!profile) return [];
         return [{
@@ -1298,7 +1318,7 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
           vendor_id: dev.vendorId,
           product_id: dev.productId,
           path: webHidPath(dev),
-          manufacturer: dev.manufacturerName || null,
+          manufacturer: webHidManufacturer(dev) || null,
           product_string: dev.productName || null,
           profile_name: profile.name,
         }];
@@ -1310,7 +1330,7 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
       // dereferencing undefined.
       const requestedPath = commandField(args, "path");
       const devices = await ensureWebHid().getDevices();
-      const target = devices.find((dev: any) => webHidPath(dev) === requestedPath);
+      const target = devices.find((dev: HIDDevice) => webHidPath(dev) === requestedPath);
       if (!target || !matchSupportedWebHidDevice(target, wasm().list_supported_devices() as SupportedDeviceInfo[])) {
         throw new Error("Unsupported or unavailable device. Please click 'Scan' to authorize a supported DAC.");
       }
@@ -1549,6 +1569,12 @@ async function invokeWeb<T = any>(cmd: string, args?: any): Promise<T> {
     }
     case "set_dac_filter_mode": {
       requireWalkplayUtilities();
+      // The four sibling Walkplay commands all validate their argument, two
+      // of them with a comment explaining the coercion hazard. The generated
+      // glue runs this value through TextEncoder.encode, so a non-string
+      // reached the device instead of being rejected — the desktop's
+      // `mode: String` refuses it.
+      if (typeof args.mode !== "string") throw new Error("Invalid filter mode");
       await writeAndFlash(wasm().build_filter_mode_write_packet(args.mode));
       return null as T;
     }

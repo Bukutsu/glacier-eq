@@ -220,6 +220,26 @@ describe("browser connection cleanup", () => {
     await expect(invoke("connect_device")).rejects.toThrow("Missing path argument");
   });
 
+  it("rejects a non-string filter mode or a missing export path", async () => {
+    const device = fakeHidDevice();
+    await connectWebHid(device, { ...profile, protocol: "Walkplay" });
+    wasm.build_filter_mode_write_packet.mockReturnValue([1]);
+    wasm.build_flash_eq_packet.mockReturnValue([1]);
+
+    // The four sibling Walkplay commands all validate; this one did not, and
+    // the generated glue runs the value through TextEncoder.encode, so a
+    // number reached the device where the desktop's `mode: String` refuses it.
+    for (const bad of [42, null, undefined, {}]) {
+      await expect(invoke("set_dac_filter_mode", { mode: bad })).rejects.toThrow("Invalid filter mode");
+    }
+    expect(wasm.build_filter_mode_write_packet).not.toHaveBeenCalled();
+    await invoke("set_dac_filter_mode", { mode: "FAST-PC" });
+    expect(wasm.build_filter_mode_write_packet).toHaveBeenCalledWith("FAST-PC");
+
+    // save_text_file dereferenced args.path the same way connect_device did.
+    await expect(invoke("save_text_file", { content: "x" })).rejects.toThrow("Missing path argument");
+  });
+
   it("rejects a non-boolean amp or gain mode like the desktop bool parameter", async () => {
     const device = fakeHidDevice();
     await connectWebHid(device, { ...profile, protocol: "Walkplay" });
