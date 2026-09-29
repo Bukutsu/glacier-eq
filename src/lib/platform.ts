@@ -1,6 +1,14 @@
+// Declared rather than cast: the Tauri runtime injects this global, so
+// re-declaring it once here lets the `in` check below narrow for real
+// instead of asserting past the type system.
+declare global {
+  interface Window {
+    __TAURI_INTERNALS__?: unknown;
+  }
+}
+
 export const isTauri = () =>
-  typeof window !== "undefined" &&
-  !!(window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
+  typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
 export const isAndroidDevice = () =>
   typeof navigator !== "undefined" &&

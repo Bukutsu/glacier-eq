@@ -101,7 +101,13 @@ export function mergeFieldsAtUnchangedRevisions<T extends object>(
   currentRevisions: Partial<Record<keyof T, number>>,
 ): T {
   let merged = current;
-  for (const field of Object.keys(incoming) as Array<keyof T>) {
+  // Filter to keys `current` actually declares. Object.keys returns whatever
+  // string keys the runtime value has, and casting that to keyof T asserted
+  // the compiler had checked a relationship between T and a value it knows
+  // nothing about — an undeclared key was then written back through
+  // setField, which types the write as keyof T.
+  const declared = (field: string): field is keyof T & string => field in current;
+  for (const field of (Object.keys(incoming) as string[]).filter(declared)) {
     if ((revisionsAtStart[field] ?? 0) === (currentRevisions[field] ?? 0)) {
       merged = setField(merged, field, incoming[field]);
     }

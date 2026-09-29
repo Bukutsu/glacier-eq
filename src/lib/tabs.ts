@@ -25,8 +25,38 @@ export const MOBILE_TABS = [
 ] as const;
 
 const MOBILE_TAB_IDS = new Set<MobileTab>(MOBILE_TABS.map(({ id }) => id));
-const DEVICE_SECTION_IDS = new Set<DeviceSection>(["overview", "controls", "maintenance"]);
-const SETTINGS_SECTION_IDS = new Set<SettingsSection>(["general", "appearance", "diagnostics", "about"]);
+// Derived from the arrays above, not re-spelled. The `satisfies` guards prove
+// every listed id is a union member, but never that every member is listed —
+// so adding a section to the union compiled clean and left a deep link to it
+// answering "root" with no error anywhere.
+const DEVICE_SECTION_IDS = new Set<DeviceSection>([
+  "root",
+  ...DEVICE_SECTIONS.map(({ id }) => id),
+]);
+const SETTINGS_SECTION_IDS = new Set<SettingsSection>([
+  "root",
+  ...SETTINGS_SECTIONS.map(({ id }) => id),
+]);
+
+// The other half of the guard `satisfies` cannot give: it proves every listed
+// id is a union member, never that every member is listed. Without this,
+// adding "diagnostics" to DeviceSection compiled clean and a deep link to it
+// answered "root" — no error, anywhere. The tuple form avoids distribution,
+// which would collapse a bare `never extends never` to never rather than true.
+type UnlistedDeviceSection = Exclude<
+  Exclude<DeviceSection, "root">,
+  (typeof DEVICE_SECTIONS)[number]["id"]
+>;
+const _deviceSectionsComplete: [UnlistedDeviceSection] extends [never] ? true : never = true;
+
+type UnlistedSettingsSection = Exclude<
+  Exclude<SettingsSection, "root">,
+  (typeof SETTINGS_SECTIONS)[number]["id"]
+>;
+const _settingsSectionsComplete: [UnlistedSettingsSection] extends [never] ? true : never = true;
+
+void _deviceSectionsComplete;
+void _settingsSectionsComplete;
 
 export interface WorkspaceRoute {
   tab: MobileTab;

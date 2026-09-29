@@ -119,13 +119,20 @@ export function getFilterTimeCurve(mode: string, length = DEFAULT_POINTS): Float
         break;
 
       case "linear":
-      default:
         if (meta.rollOff === "fast") {
           y = sinc(n) * Math.exp(-0.0032 * n * n);
         } else {
           y = sinc(0.65 * n) * Math.exp(-0.022 * n * n);
         }
         break;
+
+      default: {
+        // Not a fall-through to linear: a new phase type used to render a
+        // linear-phase impulse bit-identically to FAST-PC, with nothing to
+        // say so.
+        const exhaustive: never = meta.phaseType;
+        throw new Error(`unhandled filter phase type: ${exhaustive}`);
+      }
     }
 
     curve[i] = y;
@@ -168,8 +175,7 @@ export function getFilterFreqCurve(mode: string, length = DEFAULT_POINTS): Float
         break;
       }
 
-      case "fast":
-      default: {
+      case "fast": {
         // Brick-wall steep filter: flat up to 20 kHz, steep drop to -60 dB by 22.05 kHz
         if (f <= 20) {
           db = 0;
@@ -180,6 +186,13 @@ export function getFilterFreqCurve(mode: string, length = DEFAULT_POINTS): Float
           db = -60;
         }
         break;
+      }
+
+      default: {
+        // Not a fall-through to fast: a new roll-off used to render a
+        // brick-wall response, bit-identically to FAST, with nothing to say so.
+        const exhaustive: never = meta.rollOff;
+        throw new Error(`unhandled filter roll-off: ${exhaustive}`);
       }
     }
 
