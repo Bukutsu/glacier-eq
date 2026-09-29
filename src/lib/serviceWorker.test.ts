@@ -8,6 +8,18 @@ const source = readFileSync(new URL("../../public/sw.js", import.meta.url), "utf
 
 type ServiceWorkerListener = (event: { waitUntil(promise: Promise<unknown>): void }) => void;
 
+/**
+ * The slice of each service-worker event the handlers under test actually read.
+ * These fixtures stand in for ServiceWorkerGlobalScope, so naming the fields
+ * keeps the event literals checked instead of accepted as `any`.
+ */
+type WorkerFetchEvent = {
+  request: { method: string; url: string; mode?: string };
+  respondWith: (response: Promise<unknown>) => void;
+};
+type WorkerExtendableEvent = { waitUntil: (promise: Promise<unknown>) => void };
+type WorkerEvent = WorkerFetchEvent | WorkerExtendableEvent;
+
 describe("service worker preload", () => {
   it("keeps the previous cache when one asset fails", async () => {
     const listeners: Record<string, ServiceWorkerListener> = {};
@@ -113,7 +125,7 @@ describe("service worker preload", () => {
   });
 
   it("does not fall back to another scope's cache when no active cache exists", async () => {
-    const listeners: Record<string, (event: any) => void> = {};
+    const listeners: Record<string, (event: WorkerEvent) => void> = {};
     const broadCache = new Map([["https://example.test/app/-admin/app.js", "broad"]]);
     const cache = {
       match: async (request: string | URL) => broadCache.get(String(request)),
@@ -124,7 +136,7 @@ describe("service worker preload", () => {
     const context = {
       self: {
         registration: { scope: "https://example.test/app/" },
-        addEventListener: (name: string, listener: (event: any) => void) => {
+        addEventListener: (name: string, listener: (event: WorkerEvent) => void) => {
           listeners[name] = listener;
         },
         clients: { claim: vi.fn() },
@@ -203,11 +215,11 @@ describe("service worker preload", () => {
       json: async () => JSON.parse(body),
       text: async () => body,
     });
-    const listeners: Record<string, (event: any) => void> = {};
+    const listeners: Record<string, (event: WorkerEvent) => void> = {};
     const context = (fetchImpl: (url: string | URL) => Promise<unknown>) => ({
       self: {
         registration: { scope },
-        addEventListener: (name: string, listener: (event: any) => void) => {
+        addEventListener: (name: string, listener: (event: WorkerEvent) => void) => {
           listeners[name] = listener;
         },
         clients: { claim: vi.fn() },
@@ -224,13 +236,13 @@ describe("service worker preload", () => {
       console,
     });
 
-    const firstListeners: Record<string, (event: any) => void> = {};
+    const firstListeners: Record<string, (event: WorkerEvent) => void> = {};
     const firstContext = context(async (url) => {
       const href = String(url);
       return href.endsWith("offline-assets.json") ? response(JSON.stringify(["./app.js"])) : response("asset");
     });
-    const firstVmListeners: Record<string, (event: any) => void> = {};
-    firstVmListeners.addEventListener = (name: string, listener: (event: any) => void) => {
+    const firstVmListeners: Record<string, (event: WorkerEvent) => void> = {};
+    firstVmListeners.addEventListener = (name: string, listener: (event: WorkerEvent) => void) => {
       firstListeners[name] = listener;
     };
     vm.runInNewContext(source, { ...firstContext, self: { ...firstContext.self, addEventListener: firstVmListeners.addEventListener } });
@@ -238,13 +250,13 @@ describe("service worker preload", () => {
     firstListeners.install({ waitUntil: (promise: Promise<unknown>) => { installPromise = promise; } });
     await installPromise;
 
-    const restartedListeners: Record<string, (event: any) => void> = {};
+    const restartedListeners: Record<string, (event: WorkerEvent) => void> = {};
     const restartedContext = context(async () => { throw new Error("offline"); });
     vm.runInNewContext(source, {
       ...restartedContext,
       self: {
         ...restartedContext.self,
-        addEventListener: (name: string, listener: (event: any) => void) => {
+        addEventListener: (name: string, listener: (event: WorkerEvent) => void) => {
           restartedListeners[name] = listener;
         },
       },

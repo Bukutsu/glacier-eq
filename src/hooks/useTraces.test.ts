@@ -153,8 +153,12 @@ describe("persisted trace quarantine", () => {
 
     loadPersistedJson("glacier-user-targets", notify);
 
+    // The severity is stated by the caller, not inferred from keywords: a
+    // keyword classifier files "Could not load ..." at Info, and Info is what
+    // a user sees under the default All filter when reporting a bug.
     expect(notify).toHaveBeenCalledWith(
       expect.stringContaining("Created a backup copy"),
+      "error",
     );
   });
 
@@ -173,9 +177,11 @@ describe("persisted trace quarantine", () => {
     // copy of the data is the untouched, still-malformed original.
     expect(notify).toHaveBeenCalledWith(
       expect.stringContaining("no backup copy could be written"),
+      "error",
     );
     expect(notify).not.toHaveBeenCalledWith(
       expect.stringContaining("Created a backup copy"),
+      expect.anything(),
     );
     expect(warnSpy).toHaveBeenCalledWith(
       expect.stringContaining("Could not back up malformed saved data"),

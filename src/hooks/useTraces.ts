@@ -1,3 +1,12 @@
+/**
+ * A notification the user must be able to report. `type` is the severity the
+ * diagnostic event is filed under — stated here rather than inferred
+ * downstream, because App's keyword classifier files every one of these at
+ * Info: "Could not save ... storage is full" is data loss, and Info is what a
+ * user sees under the default All filter.
+ */
+type NotifyFn = (message: string, type?: "info" | "error" | "success") => void;
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   makeMeasurementName,
@@ -27,7 +36,7 @@ interface ParsedPersistedValue<T> {
 function quarantinePersistedJson(
   key: string,
   raw: string,
-  notify?: (message: string) => void,
+  notify?: NotifyFn,
 ) {
   // Keep the same timestamped backup convention for syntax and schema damage.
   let backedUp = false;
@@ -43,12 +52,13 @@ function quarantinePersistedJson(
     backedUp
       ? `Could not load saved data for "${key}". Created a backup copy.`
       : `Could not load saved data for "${key}", and no backup copy could be written (storage full?) — the damaged original was left in place.`,
+    "error",
   );
 }
 
 export function loadPersistedJson(
   key: string,
-  notify?: (message: string) => void,
+  notify?: NotifyFn,
 ): LoadedPersistedJson {
   const raw = readLocalStorage(key);
   if (raw === null) return { value: null, raw: null };
@@ -151,7 +161,7 @@ export function quarantineIfMalformed(
   key: string,
   loaded: LoadedPersistedJson,
   malformed: boolean,
-  notify?: (message: string) => void,
+  notify?: NotifyFn,
 ) {
   if (malformed && loaded.raw !== null) {
     quarantinePersistedJson(key, loaded.raw, notify);
@@ -161,7 +171,7 @@ export function quarantineIfMalformed(
 export function savePersistedJson(
   key: string,
   value: unknown,
-  notify?: (message: string) => void,
+  notify?: NotifyFn,
 ) {
   try {
     const result = tryWriteLocalStorage(key, JSON.stringify(value));
@@ -174,15 +184,16 @@ export function savePersistedJson(
       console.warn(`localStorage quota exceeded while saving "${key}".`);
       notify?.(
         `Could not save "${key}" — storage is full. Recent changes may be lost when the app closes.`,
+        "error",
       );
     } else {
       console.error(`Failed to save "${key}" to localStorage:`, error);
-      notify?.(`Could not save "${key}" to local storage: ${error}`);
+      notify?.(`Could not save "${key}" to local storage: ${error}`, "error");
     }
   } catch (error) {
     // JSON serialization can still fail for an unexpected caller value.
     console.error(`Failed to serialize "${key}" for localStorage:`, error);
-    notify?.(`Could not save "${key}" to local storage: ${error}`);
+    notify?.(`Could not save "${key}" to local storage: ${error}`, "error");
   }
 }
 
@@ -191,7 +202,7 @@ function usePersistedJson(
   value: unknown,
   hydrated: boolean,
   delayMs = 0,
-  notify?: (message: string) => void,
+  notify?: NotifyFn,
 ) {
   // Latest save routine, so a pagehide flush always persists current state.
   // Keep it inert until hydration has completed so an early pagehide cannot
@@ -224,7 +235,7 @@ function usePersistedJson(
   }, [delayMs]);
 }
 
-export function useTraces(notify?: (message: string) => void) {
+export function useTraces(notify?: NotifyFn) {
   const [measurements, setMeasurements] = useState<MeasurementTrace[]>([]);
   const [userTargets, setUserTargets] = useState<TargetTrace[]>([]);
   const [activeTargetIds, setActiveTargetIds] = useState<string[]>([]);

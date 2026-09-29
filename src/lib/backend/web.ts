@@ -1719,7 +1719,10 @@ export async function requestWebHidDevice(): Promise<void> {
 
   const selected = await ensureWebHid().requestDevice({ filters });
   if (selected.length > 0) {
-    console.log("WebHID device permitted by user:", selected[0]);
+    // Not a console.log: addDiagnostic is in this module and is the path a
+    // user's bug report reads, so an event the user can be asked about does
+    // not belong on stdout.
+    addDiagnostic("Info", "HID", `WebHID device permitted: ${webHidPath(selected[0])}`);
   }
 }
 
