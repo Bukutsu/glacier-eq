@@ -583,7 +583,12 @@ img {
 }
 button, input { font: inherit; }
 button { border: 0; cursor: pointer; }
-button:disabled, .btn:disabled, .tools-card button:disabled, .diag-card button:disabled, .device-actions button:disabled {
+/* The bare `button:disabled` selector would catch the stepper buttons too.
+   Those are transparent over their container's fill so the control reads as
+   one uniform field; an opaque disabled fill splits it into two tones the
+   moment a stepper reaches min or max, which is the normal state for the
+   first and last band. They keep their own opacity treatment instead. */
+button:disabled:not(.stepper-btn), .btn:disabled, .tools-card button:disabled, .diag-card button:disabled, .device-actions button:disabled {
   cursor: not-allowed;
   background: var(--surface-disabled) !important;
   color: var(--text-disabled) !important;
