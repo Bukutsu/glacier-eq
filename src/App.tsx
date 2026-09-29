@@ -71,7 +71,12 @@ import { OFFLINE_EDITOR_CAPABILITIES } from "./lib/dacSpecs";
 import { chooseReconnectDevice } from "./lib/reconnectDevice";
 import { profileIdentityKey } from "./lib/profileIdentity";
 import { readLocalStorage, writeLocalStorage } from "./lib/safeStorage";
-import { markDeviceLost } from "./features/device/deviceOperations";
+import {
+  markDeviceLost,
+  type ReportLevel,
+  type ReportSource,
+  type ReportToast,
+} from "./features/device/deviceOperations";
 import { decodeUtf8 } from "./lib/utf8";
 import { useProfiles } from "./features/profiles/useProfiles";
 import { DeviceView } from "./components/DeviceView";
@@ -304,13 +309,23 @@ function App() {
     [showToast],
   );
 
-  const reportStatus = useCallback((
-    level: "Info" | "Warn" | "Error",
-    message: string,
-    toastType: "success" | "info" | "error" | null = null,
-    source: "UI" | "Worker" | "HID" | "AutoEQ" | "Device" = "UI",
-    statusText: string = message
-  ) => {
+  // An options object, not five positional parameters: `message` and
+  // `statusText` are both `string`, so a transposed call still compiled and
+  // silently wrote the long diagnostic sentence into the status bar and the
+  // short status label into both the toast and the diagnostic record.
+  const reportStatus = useCallback(({
+    level,
+    message,
+    toastType = null,
+    source = "UI",
+    statusText = message,
+  }: {
+    level: ReportLevel;
+    message: string;
+    toastType?: ReportToast;
+    source?: ReportSource;
+    statusText?: string;
+  }) => {
     useToastStore.setState({ status: statusText });
     invoke("add_diagnostic_event", { level, source, message })
       .catch((err) => console.error("Failed to log diagnostic:", err));
@@ -946,7 +961,12 @@ function App() {
     } catch (error) {
       if (!isCurrentConnection()) return;
       setFirmwareVersion(null);
-      reportStatus("Warn", `Could not read DAC firmware: ${error}`, "info", "Device");
+      reportStatus({
+        level: "Warn",
+        message: `Could not read DAC firmware: ${error}`,
+        toastType: "info",
+        source: "Device",
+      });
       console.error("Failed to read firmware version:", error);
     }
   }, [reportStatus]);
@@ -1008,19 +1028,25 @@ function App() {
           ambiguousReconnectRef.current = true;
           setIsReconnecting(false);
           setShowDeviceModal(true);
-          reportStatus(
-            "Warn",
-            "Multiple matching DACs found; choose the device to reconnect.",
-            "info",
-            "Device",
-            "Choose a matching DAC to reconnect",
-          );
+          reportStatus({
+            level: "Warn",
+            message: "Multiple matching DACs found; choose the device to reconnect.",
+            toastType: "info",
+            source: "Device",
+            statusText: "Choose a matching DAC to reconnect",
+          });
           return;
         }
 
         if (found && isCurrent()) {
           const devName = found.profile_name || found.product_string || "DAC";
-          reportStatus("Info", `Device found: ${devName}. Reconnecting...`, null, "Device", "Device found. Reconnecting...");
+          reportStatus({
+            level: "Info",
+            message: `Device found: ${devName}. Reconnecting...`,
+            toastType: null,
+            source: "Device",
+            statusText: "Device found. Reconnecting...",
+          });
           let openedSessionId: number | null = null;
           connectingPathRef.current = found.path;
           connectingSessionIdRef.current = null;
@@ -1073,7 +1099,12 @@ function App() {
                 // unsaved-changes flag on for the rest of the session.
                 editorCleanPeqRef.current = normalizePeqForDevice(editorCleanPeqRef.current, found);
                 setDirty(!peqEquals(constrained, editorCleanPeqRef.current));
-                reportStatus("Info", "Adjusted editor to this DAC's ranges", "info", "Device");
+                reportStatus({
+                  level: "Info",
+                  message: "Adjusted editor to this DAC's ranges",
+                  toastType: "info",
+                  source: "Device",
+                });
               }
             }
             await loadFirmwareVersion(found.path, connectionGeneration);
@@ -1082,7 +1113,13 @@ function App() {
               || connectedPathRef.current !== found.path
             ) return;
             setIsReconnecting(false);
-            reportStatus("Info", `Connected to ${devName}`, "success", "Device", "Ready");
+            reportStatus({
+              level: "Info",
+              message: `Connected to ${devName}`,
+              toastType: "success",
+              source: "Device",
+              statusText: "Ready",
+            });
             return;
           } catch (err) {
             if (openedSessionId !== null) {
@@ -1098,7 +1135,13 @@ function App() {
               connectingSessionIdRef.current = null;
             }
             if (!isCurrent()) return;
-            reportStatus("Warn", `Reconnect attempt failed: ${err}. Retrying...`, null, "Device", "Reconnecting...");
+            reportStatus({
+              level: "Warn",
+              message: `Reconnect attempt failed: ${err}. Retrying...`,
+              toastType: null,
+              source: "Device",
+              statusText: "Reconnecting...",
+            });
           }
         }
       } catch (error) {
@@ -1217,14 +1260,14 @@ function App() {
       }
       setDirty(matchedProfile === "Pulled from device");
       emit("device-pull").catch((err) => console.error("Failed to emit device-pull:", err));
-      reportStatus(
-        "Info",
-        isDevDummyDevice(targetPath)
-          ? "Loaded dummy DAC EQ"
-          : "Loaded EQ from DAC",
-        "success",
-        "UI"
-      );
+      reportStatus({
+        level: "Info",
+        message: isDevDummyDevice(targetPath)
+        ? "Loaded dummy DAC EQ"
+        : "Loaded EQ from DAC",
+        toastType: "success",
+        source: "UI",
+      });
       return true;
     } catch (error) {
       // A pull that lost its editor/connection context mid-read must not
@@ -1238,7 +1281,12 @@ function App() {
           "HID",
         );
       } else {
-        reportStatus("Error", `Could not read from DAC: ${error}`, "error", "UI");
+        reportStatus({
+          level: "Error",
+          message: `Could not read from DAC: ${error}`,
+          toastType: "error",
+          source: "UI",
+        });
       }
       return false;
     } finally {
@@ -1276,7 +1324,13 @@ function App() {
         setLastPushedPeq(null);
         setConnectedDeviceName("Glacier Dummy DAC");
         lastConnectedNameRef.current = "Glacier Dummy DAC";
-        reportStatus("Info", "Connected to dummy DAC", "success", "UI", "Connected to dummy DAC");
+        reportStatus({
+          level: "Info",
+          message: "Connected to dummy DAC",
+          toastType: "success",
+          source: "UI",
+          statusText: "Connected to dummy DAC",
+        });
         await pullEq(true, pathToConnect, targetCapabilities);
         await loadFirmwareVersion(pathToConnect, connectionGenerationRef.current);
         return true;
@@ -1306,7 +1360,13 @@ function App() {
         lastConnectedNameRef.current = devName;
       }
       
-      reportStatus("Info", `Connected to device: ${devName}`, "success", "UI", "Ready");
+      reportStatus({
+        level: "Info",
+        message: `Connected to device: ${devName}`,
+        toastType: "success",
+        source: "UI",
+        statusText: "Ready",
+      });
 
       if (settings.auto_pull_on_connect) {
         const pulled = await pullEq(true, pathToConnect, targetCapabilities);
@@ -1341,7 +1401,12 @@ function App() {
           // rest of the session.
           editorCleanPeqRef.current = normalizePeqForDevice(editorCleanPeqRef.current, targetCapabilities);
           setDirty(!peqEquals(constrained, editorCleanPeqRef.current));
-          reportStatus("Info", "Adjusted editor to this DAC's ranges", "info", "Device");
+          reportStatus({
+            level: "Info",
+            message: "Adjusted editor to this DAC's ranges",
+            toastType: "info",
+            source: "Device",
+          });
         }
       }
       await loadFirmwareVersion(pathToConnect, connectionGenerationRef.current);
@@ -1368,18 +1433,29 @@ function App() {
       setConnected(false);
       setLastPushedPeq(null);
       if (!manualDisconnectRef.current && isDisconnectionError(error)) {
-        reportStatus("Error", `Could not connect (disconnected): ${error}`, "error", "UI", "Device disconnected");
+        reportStatus({
+          level: "Error",
+          message: `Could not connect (disconnected): ${error}`,
+          toastType: "error",
+          source: "UI",
+          statusText: "Device disconnected",
+        });
       } else {
         const errorMsg = String(error);
         if (errorMsg.includes("NotAllowedError") && !isTauri()) {
-          reportStatus(
-            "Error",
-            "Permission denied. On Linux this is usually the missing udev rule: open Settings > Diagnostics & Permissions for the one-time terminal command, then replug the DAC and Scan again.",
-            "error",
-            "UI"
-          );
+          reportStatus({
+            level: "Error",
+            message: "Permission denied. On Linux this is usually the missing udev rule: open Settings > Diagnostics & Permissions for the one-time terminal command, then replug the DAC and Scan again.",
+            toastType: "error",
+            source: "UI",
+          });
         } else {
-          reportStatus("Error", `Could not connect: ${error}`, "error", "UI");
+          reportStatus({
+            level: "Error",
+            message: `Could not connect: ${error}`,
+            toastType: "error",
+            source: "UI",
+          });
         }
       }
       return false;
@@ -1417,12 +1493,12 @@ function App() {
       // toast and, because useToastStore alone records nothing, no diagnostic
       // anywhere for the user to report.
       const detail = e instanceof Error ? e.message : String(e);
-      reportStatus(
-        "Error",
-        `Auto-connect after installing udev rules failed: ${detail}`,
-        "error",
-        "Device",
-      );
+      reportStatus({
+        level: "Error",
+        message: `Auto-connect after installing udev rules failed: ${detail}`,
+        toastType: "error",
+        source: "Device",
+      });
     }
     return null;
   }, [connectDevice, reportStatus]);
@@ -1519,15 +1595,20 @@ function App() {
         // The push rewrote out-of-range values, or ran with verification
         // switched off and so never read the DAC back: "Saved EQ to DAC"
         // alone would hide both.
-        reportStatus(
-          "Warn",
-          `${savedMessage} — ${pushWarnings.join(" · ")}`,
-          "info",
-          "UI",
-          `${savedMessage} (see details)`,
-        );
+        reportStatus({
+          level: "Warn",
+          message: `${savedMessage} — ${pushWarnings.join(" · ")}`,
+          toastType: "info",
+          source: "UI",
+          statusText: `${savedMessage} (see details)`,
+        });
       } else {
-        reportStatus("Info", savedMessage, "success", "UI");
+        reportStatus({
+          level: "Info",
+          message: savedMessage,
+          toastType: "success",
+          source: "UI",
+        });
       }
     } catch (error) {
       if (!isCurrentOperation()) return;
@@ -1538,7 +1619,12 @@ function App() {
           "HID",
         );
       } else {
-        reportStatus("Error", `Could not write to DAC: ${error}`, "error", "UI");
+        reportStatus({
+          level: "Error",
+          message: `Could not write to DAC: ${error}`,
+          toastType: "error",
+          source: "UI",
+        });
       }
     } finally {
       if (operationId === eqOperationIdRef.current) {
@@ -1620,15 +1706,20 @@ function App() {
           ? "Dummy DAC apply simulated"
           : `Applied ${profile.name} to DAC temporarily`;
         if (applyWarnings.length > 0) {
-          reportStatus(
-            "Warn",
-            `${appliedMessage} — ${applyWarnings.join(" · ")}`,
-            "info",
-            "UI",
-            `${appliedMessage} (values adjusted to device limits)`
-          );
+          reportStatus({
+            level: "Warn",
+            message: `${appliedMessage} — ${applyWarnings.join(" · ")}`,
+            toastType: "info",
+            source: "UI",
+            statusText: `${appliedMessage} (values adjusted to device limits)`,
+          });
         } else {
-          reportStatus("Info", appliedMessage, "success", "UI");
+          reportStatus({
+            level: "Info",
+            message: appliedMessage,
+            toastType: "success",
+            source: "UI",
+          });
         }
       } catch (error) {
         if (!isCurrentOperation()) return;
@@ -1639,7 +1730,12 @@ function App() {
             "HID",
           );
         } else {
-          reportStatus("Error", `Could not apply EQ: ${error}`, "error", "UI");
+          reportStatus({
+            level: "Error",
+            message: `Could not apply EQ: ${error}`,
+            toastType: "error",
+            source: "UI",
+          });
         }
       } finally {
         if (operationId === eqOperationIdRef.current) {
@@ -1670,7 +1766,13 @@ function App() {
       setConnectedDeviceName("");
       setLastPushedPeq(null);
       setFirmwareVersion(null);
-      reportStatus("Info", "Disconnected from device", null, "UI", "Disconnected");
+      reportStatus({
+        level: "Info",
+        message: "Disconnected from device",
+        toastType: null,
+        source: "UI",
+        statusText: "Disconnected",
+      });
     } catch (error) {
       // The backend releases local state even when closing the transport
       // fails, so the UI must not keep showing a live connection.
@@ -1683,9 +1785,21 @@ function App() {
       // different connection. That is a clean outcome for the user, not the
       // "releasing the device failed" error.
       if (isDisconnectSuperseded(error)) {
-        reportStatus("Info", "Disconnected from device", null, "UI", "Disconnected");
+        reportStatus({
+          level: "Info",
+          message: "Disconnected from device",
+          toastType: null,
+          source: "UI",
+          statusText: "Disconnected",
+        });
       } else {
-        reportStatus("Error", `Disconnected, but releasing the device failed: ${error}`, "error", "UI", "Disconnected");
+        reportStatus({
+          level: "Error",
+          message: `Disconnected, but releasing the device failed: ${error}`,
+          toastType: "error",
+          source: "UI",
+          statusText: "Disconnected",
+        });
       }
     } finally {
       setIsBusy(false);

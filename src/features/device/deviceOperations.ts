@@ -10,13 +10,13 @@ export interface DeviceLossActions {
   setIsReconnecting: (value: boolean) => void;
   setLastPushedPeq: (peq: PEQData | null) => void;
   setFirmwareVersion: (version: string | null) => void;
-  reportStatus: (
-    level: ReportLevel,
-    message: string,
-    toastType?: ReportToast,
-    source?: ReportSource,
-    statusText?: string,
-  ) => void;
+  reportStatus: (status: {
+    level: ReportLevel;
+    message: string;
+    toastType?: ReportToast;
+    source?: ReportSource;
+    statusText?: string;
+  }) => void;
 }
 
 /**
@@ -33,5 +33,11 @@ export function markDeviceLost(
   actions.setIsReconnecting(true);
   actions.setLastPushedPeq(null);
   actions.setFirmwareVersion(null);
-  actions.reportStatus("Error", message, "error", source, "Reconnecting...");
+  actions.reportStatus({
+    level: "Error",
+    message,
+    toastType: "error",
+    source,
+    statusText: "Reconnecting...",
+  });
 }
