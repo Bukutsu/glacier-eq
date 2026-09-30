@@ -31,6 +31,7 @@ import {
   resolveTargetColor,
 } from "../lib/measurements";
 import {
+  MAX_PERSISTED_TRACES,
   parsePersistedMeasurements,
   parsePersistedTargets,
 } from "../lib/persistedTraces";
@@ -88,7 +89,9 @@ export function loadPersistedJson(
 export function parseStoredMeasurements(
   value: unknown,
 ): ParsedPersistedValue<MeasurementTrace[]> {
-  if (!Array.isArray(value)) return { value: [], malformed: true };
+  if (!Array.isArray(value) || value.length > MAX_PERSISTED_TRACES) {
+    return { value: [], malformed: true };
+  }
 
   const measurements: MeasurementTrace[] = [];
   const seenIds = new Set<string>();
@@ -124,7 +127,9 @@ export function parseStoredMeasurements(
 export function parseStoredTargets(
   value: unknown,
 ): ParsedPersistedValue<TargetTrace[]> {
-  if (!Array.isArray(value)) return { value: [], malformed: true };
+  if (!Array.isArray(value) || value.length > MAX_PERSISTED_TRACES) {
+    return { value: [], malformed: true };
+  }
 
   const targets: TargetTrace[] = [];
   const seenIds = new Set<string>();

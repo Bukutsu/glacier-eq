@@ -9,7 +9,7 @@ import { normalizeMeasurementPoints } from "./measurements";
 // result. Over-cap entries are rejected, which routes them into the
 // quarantine path the caller already runs.
 const MAX_PERSISTED_POINTS = 100_000;
-const MAX_PERSISTED_TRACES = 2_000;
+export const MAX_PERSISTED_TRACES = 2_000;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
