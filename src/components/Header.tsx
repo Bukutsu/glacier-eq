@@ -1,4 +1,4 @@
-import { memo, useState, useRef, useEffect } from "react";
+import { memo, useState, useRef, useEffect, useId } from "react";
 import { Icon } from "./Icon";
 import { OperationProgress } from "../types";
 import { isTauri } from "../lib/platform";
@@ -28,6 +28,54 @@ function GithubLink() {
   );
 }
 
+function ConnectionActions({ isBusy, onDisconnect, compact = false }: {
+  isBusy: boolean;
+  onDisconnect: () => void;
+  compact?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelId = useId();
+
+  useEffect(() => {
+    if (!open) return;
+    const closeOutside = (event: PointerEvent) => {
+      if (event.target instanceof Node && !containerRef.current?.contains(event.target)) setOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setOpen(false);
+      triggerRef.current?.focus();
+    };
+    document.addEventListener("pointerdown", closeOutside);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOutside);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [open]);
+
+  return (
+    <div className="connection-actions" ref={containerRef} onBlur={(event) => {
+      if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
+    }}>
+      <button type="button" ref={triggerRef} className={compact ? "mobile-more-btn" : "btn"}
+        aria-label="Device actions" aria-expanded={open} aria-controls={panelId}
+        onClick={() => setOpen(!open)}>
+        {compact ? <Icon name="more_vert" /> : <>Device <Icon name="expand_more" /></>}
+      </button>
+      <div id={panelId} className="connection-actions-panel" hidden={!open}>
+        <button type="button" className="btn" disabled={isBusy} onClick={() => {
+          setOpen(false);
+          triggerRef.current?.focus();
+          onDisconnect();
+        }}><Icon name="link_off" /> Disconnect DAC</button>
+      </div>
+    </div>
+  );
+}
+
 interface HeaderProps {
   inert?: boolean;
   connected: boolean;
@@ -37,6 +85,7 @@ interface HeaderProps {
   profile: string;
   deviceName: string;
   profileDirty: boolean;
+  profileSaved?: boolean;
   deviceMatchesEditor: boolean | null;
   activeBands: number;
   maxBands: number;
@@ -64,6 +113,7 @@ export const Header = memo(function Header({
   profile,
   deviceName,
   profileDirty,
+  profileSaved = false,
   deviceMatchesEditor,
   activeBands,
   maxBands,
@@ -84,34 +134,6 @@ export const Header = memo(function Header({
   const isConfigPage = configPage !== undefined;
   const showDeviceEditorActions = !isConfigPage || configPage === "device";
   const pageTitle = pageTitleOverride ?? (configPage === "device" ? "Device" : configPage === "settings" ? "Settings" : profile);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handlePointerDown(event: PointerEvent) {
-      const menu = menuRef.current;
-      if (!menu) return;
-      // Narrow rather than assert: contains() needs a Node, and EventTarget is
-      // not one. A non-Node target cannot be inside the menu, so it dismisses.
-      const target = event.target instanceof Node ? event.target : null;
-      if (!target || !menu.contains(target)) {
-        setMenuOpen(false);
-      }
-    }
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape" && menuOpen) {
-        setMenuOpen(false);
-      }
-    }
-    document.addEventListener("pointerdown", handlePointerDown);
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [menuOpen]);
-
-  useEffect(() => setMenuOpen(false), [connected]);
 
   const syncClass = !connected
     ? "offline"
@@ -135,13 +157,14 @@ export const Header = memo(function Header({
         : deviceMatchesEditor === null
           ? "Device state unknown"
           : deviceMatchesEditor
-            ? "Device matches editor"
-            : "Changes not on device";
-  const profileText = profile === "Pulled from device"
-    ? "Not saved as profile"
+            ? "DAC: matches editor"
+            : "DAC: changes not written";
+  const profileText = !profileSaved
+    ? "Profile: not saved"
     : profileDirty
-      ? "Profile modified"
-      : "Profile saved";
+      ? "Profile: modified"
+      : "Profile: saved";
+  const writeClass = deviceMatchesEditor === false && !isSimulated ? "btn filled" : "btn";
 
   return (
     <header className={`app-header${compact ? " compact-mobile" : ""}`} inert={inert}>
@@ -153,11 +176,11 @@ export const Header = memo(function Header({
           </div>
           <div className="header-meta-row">
             {connected && <div className="device-name">{deviceName}</div>}
-            <span className={`sync-dot ${syncClass}`}>{syncText}</span>
+            <span className={`sync-dot ${syncClass}`} role="status" aria-live="polite">{syncText}</span>
           </div>
           {!isConfigPage && (
-            <div className="header-session-strip" aria-label="EQ session status">
-              <span className="session-hide-mobile">{profileText}</span>
+            <div className="header-session-strip" role="group" aria-label="EQ session status">
+              <span>{profileText}</span>
               <span>{activeBands}/{maxBands} bands</span>
               <span>{preampDb.toFixed(1)} dB preamp</span>
               {connected && <span className="session-hide-mobile">{supportsRamApply ? "Temporary apply available" : "Persistent writes only"}</span>}
@@ -167,7 +190,7 @@ export const Header = memo(function Header({
         {/* Desktop Toolbar */}
         <div className="toolbar desktop-toolbar">
           {!isConfigPage && (
-            <div className="history-buttons" aria-label="Edit history">
+            <div className="history-buttons" role="group" aria-label="Edit history">
               <button
                 type="button"
                 className="history-btn"
@@ -196,11 +219,11 @@ export const Header = memo(function Header({
             <>
               {showDeviceEditorActions && (
                 <>
-                  <button type="button" className="btn" title="Replace the editor with EQ read from the DAC" onClick={onPull} disabled={isBusy}>Read DAC</button>
-                  <button type="button" className={`btn${deviceMatchesEditor === false ? " warning" : ""}`} title="Store the editor EQ on the DAC" onClick={onPush} disabled={isBusy}>Write to DAC</button>
+                  <button type="button" className="btn" title="Replace the editor with EQ read from the DAC" onClick={onPull} disabled={isBusy}>Read from DAC</button>
+                  <button type="button" className={writeClass} title="Store the editor EQ on the DAC" onClick={onPush} disabled={isBusy}>Write to DAC</button>
                 </>
               )}
-              <button type="button" className="btn" onClick={onDisconnect} disabled={isBusy}>Disconnect</button>
+              <ConnectionActions isBusy={isBusy} onDisconnect={onDisconnect} />
             </>
           ) : (
             <button type="button" className="btn filled" onClick={onConnectClick} disabled={isBusy}>
@@ -212,7 +235,7 @@ export const Header = memo(function Header({
 
         {/* Mobile uses the same action hierarchy as desktop, without duplicate actions. */}
         <div className="mobile-toolbar">
-          <div className="history-buttons mobile-history-buttons" aria-label="Edit history">
+          <div className="history-buttons mobile-history-buttons" role="group" aria-label="Edit history">
             <button
               type="button"
               className="history-btn"
@@ -236,38 +259,9 @@ export const Header = memo(function Header({
           </div>
           {connected ? (
             <>
-              <button type="button" className="btn mobile-action-btn" title="Read EQ from DAC" onClick={onPull} disabled={isBusy}>Read DAC</button>
-              <button type="button" className={`btn mobile-action-btn${deviceMatchesEditor === false ? " warning" : ""}`} title="Write EQ to DAC" onClick={onPush} disabled={isBusy}>Write DAC</button>
-              <div className="mobile-menu-container" ref={menuRef}>
-                <button
-                  type="button"
-                  className="mobile-more-btn"
-                  title="More actions"
-                  aria-label="More actions"
-                  aria-haspopup="menu"
-                  aria-expanded={menuOpen}
-                  onClick={() => setMenuOpen(!menuOpen)}
-                >
-                  <Icon name="more_vert" />
-                </button>
-                {menuOpen && (
-                  <div className="mobile-dropdown-menu" role="menu">
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className="dropdown-item danger"
-                      onClick={() => {
-                        onDisconnect();
-                        setMenuOpen(false);
-                      }}
-                      disabled={isBusy}
-                    >
-                      <Icon name="link_off" />
-                      <span>Disconnect</span>
-                    </button>
-                  </div>
-                )}
-              </div>
+              <button type="button" className="btn mobile-action-btn" aria-label="Read from DAC" title="Replace the editor with EQ read from the DAC" onClick={onPull} disabled={isBusy}>Read DAC</button>
+              <button type="button" className={`${writeClass} mobile-action-btn`} aria-label="Write to DAC" title="Store the editor EQ on the DAC" onClick={onPush} disabled={isBusy}>Write DAC</button>
+              <ConnectionActions isBusy={isBusy} onDisconnect={onDisconnect} compact />
             </>
           ) : (
             <button type="button" className="btn filled mobile-action-btn mobile-connect-btn" onClick={onConnectClick} disabled={isBusy}>

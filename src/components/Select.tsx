@@ -29,6 +29,8 @@ export function Select<T extends string | number>({
     <div className={`custom-select-container ${disabled ? "disabled" : ""} ${className}`.trim()}>
       <select
         id={id}
+        name={id}
+        autoComplete="off"
         value={value}
         onChange={(e) => {
           const raw = e.target.value;

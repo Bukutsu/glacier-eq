@@ -10,10 +10,10 @@ describe("SidebarDeviceSpecs markup", () => {
         connected: false,
       }),
     );
-    expect(html).toContain("OFFLINE");
+    expect(html).toContain("Offline");
     expect(html).toContain("Offline Editor");
     expect(html).toContain("DSP");
-    expect(html).toContain("PEQ");
+    expect(html).toContain("<dt>EQ</dt>");
     expect(html).not.toContain("OFFLINE ENGINE");
     expect(html).not.toContain("Virtual DAC");
     expect(html).not.toContain("CHIP");
@@ -31,8 +31,23 @@ describe("SidebarDeviceSpecs markup", () => {
         },
       }),
     );
-    expect(html).toContain("DAC HARDWARE");
+    expect(html).toContain("Connected");
     expect(html).toContain("FiiO KA11");
-    expect(html).toContain("CHIP");
+    expect(html).toContain('class="sidebar-specs-chip"');
+    expect(html).toContain("DAC chip:");
+    expect(html).toContain("<dt>Output</dt>");
+    expect(html).toContain("<dt>Formats</dt>");
+    expect(html).toContain("sidebar-specs-row--dsp");
+  });
+
+  it("labels simulation and keeps the firmware value intact", () => {
+    const html = renderToStaticMarkup(createElement(SidebarDeviceSpecs, {
+      connected: true,
+      isSimulated: true,
+      firmwareVersion: "1.7",
+    }));
+    expect(html).toContain("Simulation");
+    expect(html).toContain("<dt>Firmware</dt><dd>v1.7</dd>");
+    expect(html).not.toContain("Connected</span>");
   });
 });

@@ -63,6 +63,12 @@
   box-sizing: border-box;
 }
 
+.profile-save-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
 .profile-card-head {
   display: flex;
   align-items: center;
@@ -82,7 +88,8 @@
   row-gap: 2px;
 }
 
-.profile-title strong {
+.profile-title h2 {
+  margin: 0;
   color: var(--text);
   font-size: 16px;
   font-weight: 700;
@@ -91,7 +98,7 @@
 }
 
 .profile-count-tag {
-  color: var(--comment);
+  color: var(--muted);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.06em;
@@ -208,9 +215,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
   min-height: 52px;
-  padding: 8px 16px;
+  padding: 0 8px 0 0;
   border-bottom: 1px solid var(--line-subtle);
   background: transparent;
   cursor: pointer;
@@ -230,16 +237,21 @@
 
 .profile-row.selected {
   background: color-mix(in srgb, var(--cyan) 10%, var(--surface-soft));
-  border-left: 3px solid var(--cyan);
-  padding-left: 13px;
+  box-shadow: inset 3px 0 var(--cyan);
 }
 
-.profile-row-info {
+.profile-row > .profile-row-info {
   display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: flex-start;
+  gap: 8px;
   min-width: 0;
+  min-height: 52px;
+  padding: 8px 12px;
   flex: 1 1 auto;
+  text-align: left;
+  color: var(--text);
+  background: transparent;
 }
 
 .profile-row-indicator {
@@ -266,15 +278,13 @@
 }
 
 .profile-active-badge {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  color: var(--cyan);
+  font-size: var(--type-caption);
+  font-weight: 500;
+  color: var(--text);
   background: color-mix(in srgb, var(--cyan) 14%, transparent);
   border: 1px solid color-mix(in srgb, var(--cyan) 30%, transparent);
   padding: 2px 6px;
   border-radius: 0 !important;
-  text-transform: uppercase;
   flex-shrink: 0;
 }
 
@@ -282,7 +292,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 36px;
+  min-height: 44px;
   padding: 0 12px;
   font-size: 12.5px;
   font-weight: 600;
@@ -321,7 +331,7 @@
 }
 
 .profile-save-field > label {
-  color: var(--comment);
+  color: var(--muted);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -483,7 +493,7 @@
 }
 
 .profile-card-foot .modified {
-  color: var(--comment);
+  color: var(--muted);
   font-size: 12px;
 }
 .settings-list label {
@@ -522,7 +532,7 @@
 }
 
 .tool-card-head strong {
-  color: var(--comment);
+  color: var(--muted);
   font-size: var(--type-caption);
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -660,7 +670,7 @@
 }
 
 .profile-action-head strong {
-  color: var(--comment);
+  color: var(--muted);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -739,9 +749,9 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 }
 
 .tools-card .curves-actions button,
-.desktop-tuning-tab .curves-actions button {
-  min-height: 36px !important;
-  height: 36px !important;
+.tuning-panel .curves-actions button {
+  min-height: 44px !important;
+  height: auto !important;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -752,7 +762,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 }
 
 .tools-card .curves-actions button .app-icon,
-.desktop-tuning-tab .curves-actions button .app-icon {
+.tuning-panel .curves-actions button .app-icon {
   font-size: 18px;
   width: 18px;
   height: 18px;}
@@ -761,20 +771,20 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 .tools-card .curves-actions .add-trace-btn {
   flex: 1;
   width: auto;
-  min-height: 36px !important;
-  height: 36px !important;
-  padding: 0 14px;
+  min-height: 44px !important;
+  height: auto !important;
+  padding: 8px 12px;
   font-size: var(--type-label);
   gap: 6px;
 }
 
 .curves-clear-btn,
 .tools-card .curves-actions .curves-clear-btn {
-  min-height: 36px !important;
-  height: 36px !important;
-  padding: 0 12px;
+  min-height: 44px !important;
+  height: auto !important;
+  padding: 8px 12px;
   font-size: var(--type-label);
-  color: var(--red);
+  color: var(--text);
   background: var(--surface-soft);
   outline: 1px solid var(--danger-outline);
   outline-offset: -1px;
@@ -784,7 +794,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 
 .curves-clear-btn:hover,
 .tools-card .curves-actions .curves-clear-btn:hover {
-  color: var(--red);
+  color: var(--text);
   outline-color: var(--danger-outline);
   background: color-mix(in srgb, var(--red) 12%, transparent);
 }
@@ -891,7 +901,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 }
 
 .curve-toggle:has(input:not(:checked)) .curve-name {
-  opacity: 0.5;
+  color: var(--muted);
 }
 
 .curve-points {
@@ -1242,25 +1252,20 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 .sidebar-specs-card {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  user-select: none;
+  gap: 12px;
 }
 
 .sidebar-specs-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 6px;
 }
 
-.sidebar-specs-eyebrow {
+.sidebar-specs-status {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: var(--type-micro);
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  gap: 8px;
+  font-size: var(--type-caption);
+  font-weight: 500;
   color: var(--muted);
 }
 
@@ -1273,67 +1278,72 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 
 .sidebar-specs-dot.connected {
   background: var(--green);
-  box-shadow: 0 0 6px rgb(var(--green-rgb, 34 197 94) / 0.5);
 }
 
 .sidebar-specs-dot.simulated {
   background: var(--yellow);
-  box-shadow: 0 0 6px rgb(var(--yellow-rgb, 234 179 8) / 0.5);
 }
 
 .sidebar-specs-dot.offline {
   background: var(--comment);
 }
 
+.sidebar-specs-identity {
+  display: grid;
+  gap: 4px;
+}
+
 .sidebar-specs-title {
-  font-size: var(--type-label);
+  font-size: 14px;
   font-weight: 600;
   color: var(--text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  line-height: 1.2;
+  overflow-wrap: anywhere;
+  line-height: 1.4;
+}
+
+.sidebar-specs-chip {
+  margin: 0;
+  font-size: var(--type-small);
+  color: var(--muted);
+  overflow-wrap: anywhere;
+  line-height: 1.4;
 }
 
 .sidebar-specs-grid {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 6px;
   margin: 0;
-  padding: 5px 0 0;
-  border-top: 1px solid var(--line-subtle);
 }
 
 .sidebar-specs-row {
   display: grid;
-  grid-template-columns: 32px 1fr;
+  grid-template-columns: 52px minmax(0, 1fr);
   align-items: baseline;
-  gap: 4px;
-  line-height: 1.3;
+  gap: 8px;
+  line-height: 1.4;
+}
+
+.sidebar-specs-row--dsp {
+  margin-top: 2px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line-soft);
 }
 
 .sidebar-specs-row dt {
-  color: var(--comment);
-  font-size: var(--type-micro);
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  color: var(--muted);
+  font-size: var(--type-caption);
+  font-weight: 400;
 }
 
 .sidebar-specs-row dd {
   margin: 0;
   color: var(--text);
   font-family: var(--font-mono);
-  font-size: var(--type-micro);
-  letter-spacing: -0.01em;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: var(--type-caption);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
   text-align: right;
-}
-
-.sidebar-specs-row dd.highlight {
-  color: var(--cyan);
 }
 
 .device-specs-panel {
@@ -1968,7 +1978,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 
 .device-status-badge.connected {
   background: color-mix(in srgb, var(--green) 16%, transparent);
-  color: var(--green);
+  color: var(--text);
   border: 1px solid color-mix(in srgb, var(--green) 30%, transparent);
 }
 .device-status-badge.connected .status-dot {
@@ -1977,7 +1987,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 
 .device-status-badge.simulated {
   background: color-mix(in srgb, var(--yellow) 16%, transparent);
-  color: var(--yellow);
+  color: var(--text);
   border: 1px solid color-mix(in srgb, var(--yellow) 30%, transparent);
 }
 .device-status-badge.simulated .status-dot {
@@ -1986,7 +1996,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 
 .device-status-badge.offline {
   background: color-mix(in srgb, var(--comment) 18%, transparent);
-  color: var(--comment);
+  color: var(--muted);
   border: 1px solid var(--line-subtle);
 }
 .device-status-badge.offline .status-dot {
@@ -2326,14 +2336,14 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   color: var(--on-accent);
 }
 
-.desktop-tuning-tab {
+.tuning-panel {
   display: flex;
   min-height: 0;
   flex-direction: column;
   gap: 12px;
 }
 
-.desktop-tuning-tab .tuning-library {
+.tuning-panel .tuning-library {
   display: flex;
   max-height: min(52vh, 360px);
   flex-direction: column;
@@ -2344,7 +2354,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   border-radius: 0;
 }
 
-.desktop-tuning-tab .tuning-library > .app-collapse-trigger {
+.tuning-panel .tuning-library > .app-collapse-trigger {
   flex: 0 0 auto;
   min-height: 40px;
   padding: 0 12px;
@@ -2355,21 +2365,21 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   transition: background var(--motion-duration) var(--motion-ease);
 }
 
-.desktop-tuning-tab .tuning-library.open > .app-collapse-trigger {
+.tuning-panel .tuning-library.open > .app-collapse-trigger {
   border-bottom: 1px solid var(--line-soft);
 }
 
-.desktop-tuning-tab .tuning-library > .app-collapse-trigger:hover {
+.tuning-panel .tuning-library > .app-collapse-trigger:hover {
   background: var(--surface-soft);
 }
 
-.desktop-tuning-tab .tuning-library > .app-collapse-trigger > .app-icon {
+.tuning-panel .tuning-library > .app-collapse-trigger > .app-icon {
   color: var(--cyan);
   font-size: 18px;
   width: 18px;
   height: 18px;}
 
-.desktop-tuning-tab .tuning-library > .app-collapse-trigger > .app-icon:last-child {
+.tuning-panel .tuning-library > .app-collapse-trigger > .app-icon:last-child {
   color: var(--comment);
   font-size: 20px;
   width: 20px;
@@ -2392,22 +2402,22 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   line-height: 1.3;
 }
 
-.desktop-tuning-tab .tuning-library .app-collapse-content-inner {
+.tuning-panel .tuning-library .app-collapse-content-inner {
   padding: 10px 12px;
   gap: 8px;
 }
 
-.desktop-tuning-tab .curve-points {
+.tuning-panel .curve-points {
   display: none;
 }
 
-.desktop-tuning-tab .tuning-library > .app-collapse-content {
+.tuning-panel .tuning-library > .app-collapse-content {
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
 
-.desktop-tuning-tab > .autoeq-tab {
+.tuning-panel > .autoeq-tab {
   padding: 0;
   flex: 0 0 auto;
 }
@@ -2422,7 +2432,30 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 }
 
 .autoeq-match-card {
-  gap: 12px;
+  gap: 16px;
+}
+
+.autoeq-match-card h2 {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--type-subtitle);
+  font-weight: 600;
+}
+
+.autoeq-add {
+  justify-content: flex-start;
+  min-height: 44px;
+}
+
+.autoeq-result:empty {
+  display: none;
+}
+
+.autoeq-result p {
+  margin: 0 0 12px;
+  color: var(--text);
+  font-size: var(--type-small);
+  line-height: 1.5;
 }
 
 .tool-card-title {
@@ -2466,7 +2499,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 .autoeq-run-btn {
   grid-column: 1 / -1;
   width: 100%;
-  min-height: 42px;
+  min-height: 44px;
   font-size: var(--type-label);
   font-weight: 600;
   gap: 8px;

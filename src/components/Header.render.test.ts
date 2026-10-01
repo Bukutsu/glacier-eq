@@ -25,6 +25,26 @@ const baseHeaderProps: Parameters<typeof Header>[0] = {
 };
 
 describe("Header markup", () => {
+  it("distinguishes an unsaved profile from unwritten DAC changes", () => {
+    const html = renderToStaticMarkup(createElement(Header, {
+      ...baseHeaderProps, connected: true, profileDirty: true, deviceMatchesEditor: false,
+    }));
+    expect(html).toContain("Profile: not saved");
+    expect(html).toContain("DAC: changes not written");
+    expect(html).toContain('class="btn filled" title="Store the editor EQ on the DAC"');
+    expect(html).not.toContain('role="menu"');
+    expect(html).toContain('aria-label="Device actions" aria-expanded="false"');
+  });
+
+  it("marks a saved, edited profile as modified rather than synced", () => {
+    const html = renderToStaticMarkup(createElement(Header, {
+      ...baseHeaderProps, connected: true, profileSaved: true, profileDirty: true,
+      deviceMatchesEditor: true,
+    }));
+    expect(html).toContain("Profile: modified");
+    expect(html).toContain("DAC: matches editor");
+  });
+
   it("renders calm Offline sync dot and omits disconnected error text when not connected", () => {
     const html = renderToStaticMarkup(
       createElement(Header, {
@@ -47,6 +67,6 @@ describe("Header markup", () => {
       }),
     );
     expect(html).toContain("FiiO KA11");
-    expect(html).toContain("Device matches editor");
+    expect(html).toContain("DAC: matches editor");
   });
 });

@@ -75,6 +75,22 @@ const THEME_SELECTORS = [
   [":root[data-theme=\"catppuccin-latte\"]", "catppuccin-latte"],
 ] as const;
 
+describe("control text contrast", () => {
+  it.each(THEME_SELECTORS)("%s keeps text readable on quiet controls", (selector) => {
+    const tokens = themeTokens(selector);
+    expect(tokens["--surface-soft"]).toBeDefined();
+    expect(tokens["--text"]).toBeDefined();
+    expect(
+      contrast(tokens["--text"], tokens["--surface-soft"]),
+      `${selector}: control labels must meet WCAG AA`,
+    ).toBeGreaterThanOrEqual(4.5);
+    expect(
+      contrast(tokens["--muted"], tokens["--surface-soft"]),
+      `${selector}: secondary labels must meet WCAG AA`,
+    ).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
 describe("filled button contrast", () => {
   it.each(THEME_SELECTORS)("%s meets WCAG AA for the button surface", (selector) => {
     const tokens = themeTokens(selector);

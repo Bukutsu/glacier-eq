@@ -9,7 +9,7 @@ import {
   useState,
   type ComponentProps,
 } from "react";
-import { useLocation, useNavigate } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import { invoke, listen, emit, sleep } from "./lib/rpc";
 import { createExternalLinkClickHandler } from "./lib/externalLinks";
 import { Bands } from "./components/Bands";
@@ -25,11 +25,9 @@ import {
   type MobileTab,
   type ToolsTab,
 } from "./lib/tabs";
-import { Collapsible } from "./components/Collapsible";
 import { ConfirmDialogHost, confirmDialog } from "./components/ConfirmDialog";
 import { Modal } from "./components/Modal";
 import { isBalanceNavigation, MODAL_HISTORY_KEY } from "./lib/modalHistory";
-import { UnifiedTracesList } from "./components/UnifiedTraces";
 import { SidebarDeviceSpecs } from "./components/SidebarDeviceSpecs";
 import {
   DEV_DUMMY_DEVICE,
@@ -106,14 +104,11 @@ const LazyProfilesView = lazy(() =>
 const LazyToolsPanel = lazy(() =>
   import("./components/ToolsPanel").then(({ ToolsPanel }) => ({ default: ToolsPanel })),
 );
-const LazyAutoEqTab = lazy(() =>
-  import("./components/ToolsPanel").then(({ AutoEqTab }) => ({ default: AutoEqTab })),
+const LazyTuningPanel = lazy(() =>
+  import("./components/ToolsPanel").then(({ TuningPanel }) => ({ default: TuningPanel })),
 );
 const LazyDiagnosticsPanel = lazy(() =>
   import("./components/ToolsPanel").then(({ DiagnosticsPanel }) => ({ default: DiagnosticsPanel })),
-);
-const LazyAddTraceModal = lazy(() =>
-  import("./components/AddTraceModal").then(({ AddTraceModal }) => ({ default: AddTraceModal })),
 );
 
 function ToolLoadingFallback() {
@@ -136,10 +131,10 @@ function ToolsPanel(props: ComponentProps<typeof LazyToolsPanel>) {
   );
 }
 
-function AutoEqTab(props: ComponentProps<typeof LazyAutoEqTab>) {
+function TuningPanel(props: ComponentProps<typeof LazyTuningPanel>) {
   return (
     <Suspense fallback={<ToolLoadingFallback />}>
-      <LazyAutoEqTab {...props} />
+      <LazyTuningPanel {...props} />
     </Suspense>
   );
 }
@@ -152,13 +147,6 @@ function DiagnosticsPanel() {
   );
 }
 
-function AddTraceModal(props: ComponentProps<typeof LazyAddTraceModal>) {
-  return (
-    <Suspense fallback={<ToolLoadingFallback />}>
-      <LazyAddTraceModal {...props} />
-    </Suspense>
-  );
-}
 
 const DEVICE_ONBOARDING_KEY = "glacier-device-onboarding-seen";
 const EDITOR_HINT_KEY = "glacier-editor-hint-dismissed";
@@ -189,7 +177,6 @@ function App() {
   const [showGraph, setShowGraph] = useState(true);
   const [showDeviceModal, setShowDeviceModal] = useState(false);
   const [showDiagnosticsModal, setShowDiagnosticsModal] = useState(false);
-  const [showAddTrace, setShowAddTrace] = useState(false);
   const mainScrollRef = useRef<HTMLElement | null>(null);
   const mobileScrollRef = useRef<HTMLElement | null>(null);
   const mobileScrollPositionsRef = useRef<Record<MobileTab, number>>({
@@ -1887,7 +1874,6 @@ function App() {
       setIsReconnecting(false);
       setShowDeviceModal(false);
       setShowDiagnosticsModal(false);
-      setShowAddTrace(false);
       mobileScrollPositionsRef.current[activeTabRef.current] = mobileScrollRef.current?.scrollTop ?? 0;
     };
 
@@ -1921,12 +1907,6 @@ function App() {
   }, []);
   const handleCloseDiagnosticsModal = useCallback(() => {
     setShowDiagnosticsModal(false);
-  }, []);
-  const handleShowAddTrace = useCallback(() => {
-    setShowAddTrace(true);
-  }, []);
-  const handleCloseAddTrace = useCallback(() => {
-    setShowAddTrace(false);
   }, []);
   const canUndoHistory = useHistoryStore((s) => s.past.length > 0);
   const canRedoHistory = useHistoryStore((s) => s.future.length > 0);
@@ -2171,14 +2151,21 @@ function App() {
     ? "Offline"
     : isBusy
       ? "Working…"
-      : dirty || mobileDeviceMatches === false
-        ? "Unsaved changes"
+      : isDevDummyDevice(selectedDevice)
+        ? "Simulation: editor only"
         : mobileDeviceMatches === true
-          ? "Synced with DAC"
-          : "Device state unknown";
+          ? "DAC matches editor"
+          : mobileDeviceMatches === false
+            ? "DAC changes not written"
+            : "DAC state unknown";
 
   return (
     <div id="app">
+      <a className="skip-link" href="#workspace-content" onClick={(event) => {
+        // HashRouter owns the URL fragment. Move focus without changing routes.
+        event.preventDefault();
+        document.getElementById("workspace-content")?.focus();
+      }}>Skip to workspace</a>
         <Header
           inert={isReconnecting ? true : undefined}
           connected={connected}
@@ -2188,6 +2175,7 @@ function App() {
           profile={selectedPreset}
           deviceName={deviceName}
           profileDirty={dirty}
+          profileSaved={profiles.some((profile) => profile.modified != null && profileIdentityKey(profile.name) === profileIdentityKey(selectedPreset))}
           deviceMatchesEditor={lastPushedPeq ? peqEquals(peq, lastPushedPeq) : null}
           activeBands={peq.filters.slice(0, maxFilterBands).filter((filter) => filter.enabled).length}
           maxBands={maxFilterBands}
@@ -2207,7 +2195,8 @@ function App() {
         />
       {isMobile ? (
         <>
-          <main ref={mobileScrollRef} className="workspace mobile-workspace" inert={isReconnecting ? true : undefined}>
+          <main id="workspace-content" tabIndex={-1} ref={mobileScrollRef} className="workspace mobile-workspace" aria-label={mobilePageTitle} inert={isReconnecting ? true : undefined}>
+          {activeTab !== "eq" && <h1 className="visually-hidden">{mobilePageTitle}</h1>}
           {showGraph && (activeTab === "eq" || activeTab === "profiles" || (activeTab === "tuning" && (measurements.some((trace) => trace.visible) || activeTargets.length > 0))) && (
             <section className={`mobile-graph-container mobile-graph-${activeTab} ${graphCollapsed ? "collapsed" : ""}`}>
               <div className="graph-card">
@@ -2271,61 +2260,25 @@ function App() {
             )}
             {activeTab === "tuning" && (
               <section className="left-pane">
-                <Collapsible title="Traces & Targets" icon="analytics" className="tuning-card">
-                  <div className="curves-tab">
-                    <div className="curves-actions">
-                      <button type="button" className="btn add-trace-btn" onClick={handleShowAddTrace}>
-                        <Icon name="add" />
-                        <span>Add Trace</span>
-                      </button>
-                      {measurements.length > 0 && (
-                        <button
-                          type="button"
-                          className="btn danger curves-clear-btn"
-                          title={`Clear ${measurements.length} saved measurement${measurements.length === 1 ? "" : "s"}`}
-                          aria-label={`Clear ${measurements.length} saved measurement${measurements.length === 1 ? "" : "s"}`}
-                          onClick={clearMeasurementsWithConfirmation}
-                        >
-                          <Icon name="delete" />
-                          <span>Clear traces</span>
-                        </button>
-                      )}
-                    </div>
-                    <UnifiedTracesList
-                      measurements={measurements}
-                      allTargets={allTargets}
-                      activeTargetIds={activeTargetIds}
-                      onToggleMeasurement={toggleMeasurement}
-                      onRemoveMeasurement={removeMeasurement}
-                      onToggleTarget={toggleTarget}
-                      onRemoveTarget={removeTarget}
-                    />
-                  </div>
-                  {showAddTrace && (
-                    <AddTraceModal
-                      onClose={handleCloseAddTrace}
-                      onAddMeasurement={addMeasurement}
-                      onAddTarget={addTarget}
-                      setStatus={setStatus}
-                    />
-                  )}
-                </Collapsible>
-
-                <Collapsible title="AutoEQ" icon="auto_awesome" className="tuning-card">
-                  <AutoEqTab
-                    measurements={measurements}
-                    allTargets={allTargets}
-                    activeTargetIds={activeTargetIds}
-                    onImportPEQ={importPeq}
-                    setStatus={setStatus}
-                    onToggleMeasurement={toggleMeasurement}
-                    onToggleTarget={toggleTarget}
-                    onSelectedMeasurementChange={setSelectedMeasurementId}
-                    maxBands={maxFilterBands}
-                    dspSampleRate={capabilities.dsp_sample_rate}
-                    getAsyncContext={getAsyncContext}
-                  />
-                </Collapsible>
+                <TuningPanel
+                  measurements={measurements}
+                  allTargets={allTargets}
+                  activeTargetIds={activeTargetIds}
+                  onImportPEQ={importPeq}
+                  setStatus={setStatus}
+                  onToggleMeasurement={toggleMeasurement}
+                  onRemoveMeasurement={removeMeasurement}
+                  onClearMeasurements={clearMeasurementsWithConfirmation}
+                  onToggleTarget={toggleTarget}
+                  onRemoveTarget={removeTarget}
+                  onAddMeasurement={addMeasurement}
+                  onAddTarget={addTarget}
+                  onSelectedMeasurementChange={setSelectedMeasurementId}
+                  maxBands={maxFilterBands}
+                  dspSampleRate={capabilities.dsp_sample_rate}
+                  getAsyncContext={getAsyncContext}
+                  onReviewEq={() => handleSelectWorkspaceTab("eq")}
+                />
               </section>
             )}
             {activeTab === "settings" && (
@@ -2365,24 +2318,28 @@ function App() {
           </div>
           <nav className="mobile-tab-bar" aria-label="Primary navigation">
             {MOBILE_TABS.map(({ id, icon, label }) => (
-              <button
+              <Link
                 key={id}
-                type="button"
+                to={workspacePath(id)}
                 className={`mobile-tab-item ${activeTab === id ? "active" : ""}`}
                 aria-current={activeTab === id ? "page" : undefined}
-                onClick={() => handleSelectWorkspaceTab(id)}
+                onClick={(event) => {
+                  if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+                  event.preventDefault();
+                  handleSelectWorkspaceTab(id);
+                }}
               >
                 <div className="mobile-tab-icon-wrapper">
                   <Icon name={icon} />
                 </div>
                 <span>{label}</span>
-              </button>
+              </Link>
             ))}
           </nav>
         </main>
       </>
       ) : (
-        <main className={`workspace desktop-workspace desktop-view-${activeTab}`} inert={isReconnecting ? true : undefined}>
+        <main className={`workspace desktop-workspace desktop-view-${activeTab}`} aria-label="Workspace" inert={isReconnecting ? true : undefined}>
           <aside className="desktop-sidebar">
             <nav className="desktop-sidebar-nav" aria-label="Primary navigation">
               {MOBILE_TABS.map(({ id, icon, label }) => (
@@ -2390,15 +2347,19 @@ function App() {
                   {id === "device" && (
                     <div className="desktop-sidebar-divider" role="separator" aria-orientation="horizontal" />
                   )}
-                  <button
-                    type="button"
+                  <Link
+                    to={workspacePath(id)}
                     className={`desktop-sidebar-item ${activeTab === id ? "active" : ""}`}
                     aria-current={activeTab === id ? "page" : undefined}
-                    onClick={() => handleSelectWorkspaceTab(id)}
+                    onClick={(event) => {
+                      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+                      event.preventDefault();
+                      handleSelectWorkspaceTab(id);
+                    }}
                   >
                     <Icon name={icon} />
                     <span>{label}</span>
-                  </button>
+                  </Link>
                 </Fragment>
               ))}
             </nav>
@@ -2411,7 +2372,9 @@ function App() {
             />
           </aside>
           <section
-            id="main-scroll-pane"
+            id={activeTab === "eq" ? "workspace-content" : "main-scroll-pane"}
+            tabIndex={-1}
+            aria-label="EQ editor"
             className="left-pane"
             ref={mainScrollRef}
           >
@@ -2429,6 +2392,7 @@ function App() {
             maxBands={maxFilterBands}
             dspSampleRate={capabilities.dsp_sample_rate}
             onImportPEQ={importPeq}
+            onReviewEq={() => handleSelectWorkspaceTab("eq")}
             onPull={pullEq}
             dirty={dirty}
             profiles={profiles}

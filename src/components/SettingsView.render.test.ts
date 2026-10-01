@@ -38,6 +38,7 @@ describe("SettingsView markup", () => {
   it("renders plain navigation without category headers on the root section", () => {
     const html = renderSettingsView();
     expect(html).toContain("settings-navigation");
+    expect(html).toContain('<h2 class="stack-topbar-title">Settings</h2>');
     expect(html).toContain("Behavior &amp; audio");
     expect(html).toContain("Diagnostics &amp; permissions");
     expect(html).toContain("About");
@@ -47,8 +48,17 @@ describe("SettingsView markup", () => {
   it("renders behavior toggles as quiet rows", () => {
     const html = renderSettingsView({ section: "general" });
     expect(html).toContain('class="stack-topbar subscreen"');
-    expect(html).toContain("Auto-pull EQ on connect");
+    expect(html).toContain("Read EQ on connection");
     expect(html).toContain("stack-card");
+  });
+
+  it("presents verification as an enabled safety setting", () => {
+    const html = renderSettingsView({ section: "general" });
+    expect(html).toMatch(/Verify EQ after writing[\s\S]*?type="checkbox"[^>]*checked=""/);
+    const skipped = renderSettingsView({
+      section: "general", settings: { ...baseSettings, skip_push_verification: true },
+    });
+    expect(skipped).toMatch(/Verify EQ after writing[\s\S]*?<input type="checkbox" class="custom-checkbox"\/>/);
   });
 
   it("renders shortcuts as a plain section without card chrome", () => {

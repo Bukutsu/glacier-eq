@@ -25,7 +25,7 @@ export function StackHeader({
           <Icon name="arrow_back" />
         </NavLink>
       ) : null}
-      <h1 className="stack-topbar-title">{title}</h1>
+      <h2 className="stack-topbar-title">{title}</h2>
       {actions ? <div className="stack-topbar-actions">{actions}</div> : null}
     </header>
   );

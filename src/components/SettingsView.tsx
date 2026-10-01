@@ -290,7 +290,7 @@ export const SettingsView = memo(function SettingsView({
             to="/settings/general"
             icon="tune"
             title="Behavior & audio"
-            desc="Auto-pull EQ, frequency snapping, and graph preview"
+            desc="Read EQ on connection, frequency snapping, and graph preview"
           />
 
           <NavRow
@@ -339,17 +339,17 @@ export const SettingsView = memo(function SettingsView({
         {section === "general" && (
           <div className="stack-card">
             <ToggleRow
-              title="Auto-pull EQ on connect"
+              title="Read EQ on connection"
               desc="Read EQ automatically when a DAC connects"
               checked={settings.auto_pull_on_connect}
               onChange={(v) => onSettingChange("auto_pull_on_connect", v)}
             />
 
             <ToggleRow
-              title="Skip push verification"
-              desc="Write faster by skipping successful-write readback; failed writes still restore the previous state"
-              checked={settings.skip_push_verification}
-              onChange={(v) => onSettingChange("skip_push_verification", v)}
+              title="Verify EQ after writing"
+              desc="Read back the DAC to check the write. Turning this off is faster, but successful writes are not checked."
+              checked={!settings.skip_push_verification}
+              onChange={(v) => onSettingChange("skip_push_verification", !v)}
             />
 
             <ToggleRow

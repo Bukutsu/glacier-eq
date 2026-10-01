@@ -193,8 +193,8 @@ html {
   --text-rgb: 31 35 53;
   --muted: #4f587d;
   --comment: #6f789e;
-  --cyan: #00637f;
-  --cyan-rgb: 0 99 127;
+  --cyan: #00566f;
+  --cyan-rgb: 0 86 111;
   --blue: #2e7de9;
   --blue-rgb: 46 125 233;
   --green: #486a29;
@@ -447,7 +447,7 @@ html {
   --panel: #eff1f5;
   --panel-rgb: 239 241 245;
   --surface: #ccd0da;
-  --surface-soft: #bcc0cc;
+  --surface-soft: #c2c6d0;
   --input-bg: var(--bg-dark);
   --input-border: var(--surface);
   --panel-border: var(--surface);
@@ -589,6 +589,18 @@ img {
   -webkit-user-drag: none;
   user-drag: none;
 }
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
 button, input { font: inherit; }
 button { border: 0; cursor: pointer; }
 /* The bare `button:disabled` selector would catch the stepper buttons too.
@@ -610,10 +622,36 @@ button.text:disabled,
   background: transparent !important;
 }
 button:focus-visible,
+a:focus-visible,
 input:focus-visible,
-select:focus-visible {
-  outline: 1px solid var(--focus-ring);
+select:focus-visible,
+[tabindex="-1"]:focus-visible {
+  outline: 2px solid var(--cyan);
   outline-offset: 2px;
+}
+
+.skip-link {
+  position: fixed;
+  top: var(--space-3);
+  left: var(--space-3);
+  z-index: var(--z-reconnect);
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg);
+  color: var(--text);
+  transform: translateY(calc(-100% - var(--space-5)));
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+.mobile-tab-item,
+.desktop-sidebar-item {
+  text-decoration: none;
+}
+
+input, select, button, a {
+  touch-action: manipulation;
 }
 
 #app {

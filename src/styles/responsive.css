@@ -328,17 +328,28 @@
   }
   .graph-view-toggle button { min-width: 0; }
   .preamp-card {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr) auto;
     height: auto;
-    min-height: 84px;
+    min-height: 76px;
     padding: 8px 12px;
-    gap: 6px;
+    gap: 0 12px;
     flex-shrink: 0 !important;
   }
   .preamp-meta {
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: baseline;
+    display: contents;
+  }
+  .preamp-meta strong {
+    grid-column: 1;
+    align-self: end;
+  }
+  .preamp-value-row {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-self: center;
+  }
+  .preamp-card > .control-slider {
+    grid-column: 1;
+    grid-row: 2;
   }
   .preamp-meta span {
     font-size: var(--type-small);
@@ -362,6 +373,10 @@
   }
   .band-number {
     display: none !important;
+  }
+  .band-picker-hint {
+    display: block;
+    padding: 6px 12px 0;
   }
   .band-picker-scroll {
     scrollbar-width: none;
@@ -921,16 +936,19 @@
     gap: 4px;
     padding: 0;
     background: transparent !important;
-    color: var(--comment);
+    color: var(--muted);
     font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.02em;
     touch-action: manipulation;
     transition: none !important;
     -webkit-tap-highlight-color: transparent !important;
-    outline: none !important;
     filter: none !important;
     user-select: none !important;
+  }
+
+  .mobile-tab-item:focus-visible {
+    outline-offset: -4px;
   }
 
   .mobile-tab-icon-wrapper {
@@ -1054,9 +1072,14 @@
     border: none !important;
   }
 
-  .tuning-card .autoeq-match-card > .tool-card-head,
-  .tuning-card .autoeq-match-card > .autoeq-description {
-    display: none !important;
+  .tuning-panel > .autoeq-tab {
+    padding: 0;
+  }
+  .tuning-panel .autoeq-match-card {
+    padding: 16px;
+  }
+  .tuning-panel .tuning-library {
+    max-height: none;
   }
 }
 
@@ -1348,10 +1371,10 @@ body.is-android *,
   .desktop-sidebar .sidebar-specs-card {
     margin-top: auto;
     margin-inline: 6px;
-    padding: 8px 8px 6px;
+    padding: 12px;
     background: var(--bg-dark);
-    border: 1px solid var(--line-soft);
-    border-radius: var(--radius-card, 0);
+    border: 0;
+    border-top: 1px solid var(--line-medium);
   }
 
   @media (max-height: 680px) {
@@ -1378,6 +1401,16 @@ body.is-android *,
 
   .desktop-workspace.desktop-view-eq > .left-pane {
     grid-column: 2 / -1;
+  }
+
+  .desktop-workspace.desktop-view-profiles,
+  .desktop-workspace.desktop-view-tuning {
+    grid-template-columns: 188px minmax(0, 1fr) minmax(340px, 40%);
+  }
+
+  .desktop-workspace.desktop-view-profiles .graph-card {
+    flex: 0 0 auto;
+    height: clamp(280px, 48dvh, 480px);
   }
 
   .desktop-workspace.desktop-view-device .left-pane,
@@ -1437,7 +1470,7 @@ body.is-android *,
   .mobile-session-device {
     min-width: 0;
     overflow: hidden;
-    color: var(--comment);
+    color: var(--muted);
     text-overflow: ellipsis;
     white-space: nowrap;
   }

@@ -46,13 +46,6 @@ export interface ProfilesViewProps {
 
 
 
-export function isProfileRowKeyboardTarget(
-  target: EventTarget | null,
-  currentTarget: EventTarget | null,
-): boolean {
-  return target === currentTarget;
-}
-
 export const ProfilesView = memo(function ProfilesView({
   peq,
   profiles,
@@ -358,7 +351,7 @@ export const ProfilesView = memo(function ProfilesView({
       <section className="profile-card">
         <div className="profile-card-head">
           <div className="profile-title">
-            <strong>Profile Library</strong>
+            <h2>Profiles</h2>
             <span className="profile-count-tag">{savedProfiles.length} saved</span>
           </div>
           <div className="profile-card-tools">
@@ -407,7 +400,7 @@ export const ProfilesView = memo(function ProfilesView({
           )}
         </div>
 
-        <div className="preset-list" role="radiogroup" aria-label="Profiles list">
+        <div className="preset-list" role="group" aria-label="Profiles list">
           {filteredProfiles.length === 0 ? (
             <div className="empty-profiles">
               <Icon name="search_off" />
@@ -420,23 +413,13 @@ export const ProfilesView = memo(function ProfilesView({
                 <div
                   key={profile.name}
                   className={`profile-row ${isSelected ? "selected" : ""}`}
-                  role="radio"
-                  aria-checked={isSelected}
-                  tabIndex={0}
-                  onClick={() => handleSelectProfile(profile)}
-                  onKeyDown={(e) => {
-                    if (!isProfileRowKeyboardTarget(e.target, e.currentTarget)) return;
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      handleSelectProfile(profile);
-                    }
-                  }}
                 >
-                  <div className="profile-row-info">
+                  <button type="button" className="profile-row-info" aria-pressed={isSelected}
+                    aria-label={`Load ${profile.name} into editor`} onClick={() => handleSelectProfile(profile)}>
                     <Icon className="profile-row-indicator" name={isSelected ? "radio_button_checked" : "radio_button_unchecked"} />
                     <span className="profile-name-text" title={profile.name}>{profile.name}</span>
-                    {isSelected && <span className="profile-active-badge">Active</span>}
-                  </div>
+                    {isSelected && <span className="profile-active-badge">In editor</span>}
+                  </button>
 
                   {onApplyProfile && (
                     <button
@@ -450,7 +433,7 @@ export const ProfilesView = memo(function ProfilesView({
                       }}
                     >
                       <Icon name="send" />
-                      <span>Try</span>
+                      <span>Try on DAC</span>
                     </button>
                   )}
                 </div>
@@ -462,7 +445,10 @@ export const ProfilesView = memo(function ProfilesView({
         {showActions && (
           <div className="profile-actions-area">
             {showSaveAs ? (
-              <>
+              <form className="profile-save-form" onSubmit={(event) => {
+                event.preventDefault();
+                if (canSave) onSave();
+              }}>
                 <div className="profile-save-field">
                   <label htmlFor="profile-save-name">
                     {selectedIsSaved ? "Save as copy" : "Profile name"}
@@ -470,6 +456,8 @@ export const ProfilesView = memo(function ProfilesView({
                   <div className="profile-name-input-wrap">
                     <input
                       id="profile-save-name"
+                      name="profile-name"
+                      autoComplete="off"
                       className="profile-search"
                       placeholder="Profile name…"
                       value={newProfileName}
@@ -485,9 +473,8 @@ export const ProfilesView = memo(function ProfilesView({
 
                 <div className="profile-management-actions">
                   <button
-                    type="button"
+                    type="submit"
                     className="save primary-save"
-                    onClick={onSave}
                     title={saveLabel}
                     disabled={!canSave}
                   >
@@ -518,7 +505,7 @@ export const ProfilesView = memo(function ProfilesView({
                     </button>
                   )}
                 </div>
-              </>
+              </form>
             ) : selectedIsSaved ? (
               <>
                 <div className="profile-management-actions">

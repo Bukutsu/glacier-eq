@@ -94,58 +94,37 @@ interface ToolsPanelProps {
   deviceSection?: DeviceSection;
   settingsSection?: SettingsSection;
   onDisconnect?: () => Promise<void>;
+  onReviewEq?: () => void;
 }
 
 export const ToolsPanel = memo(function ToolsPanel(props: ToolsPanelProps) {
   const tab = props.activeTab;
 
   return (
-    <aside className="right-rail">
+    <aside id="workspace-content" tabIndex={-1} className="right-rail" aria-label={tab === "Preset" ? "Profiles" : tab === "Tuning" ? "Tuning" : tab}>
       <section className="tools-card">
         <div className="tab-panel">
           {tab === "Preset" && <ProfilesView {...props} />}
           {tab === "Tuning" && (
-            <div className="desktop-tuning-tab">
-              <Collapsible
-                title={
-                  <span className="tuning-library-header">
-                    <span>Traces & Targets</span>
-                    <span className="tuning-count-badge">
-                      {(props.measurements?.length ?? 0) + (props.allTargets?.length ?? 0)}
-                    </span>
-                  </span>
-                }
-                icon="analytics"
-                className="tuning-library"
-              >
-                <CurvesTab
-                  measurements={props.measurements ?? []}
-                  onRemoveMeasurement={props.onRemoveMeasurement ?? (() => {})}
-                  onToggleMeasurement={props.onToggleMeasurement ?? (() => {})}
-                  onClearMeasurements={props.onClearMeasurements ?? (() => {})}
-                  allTargets={props.allTargets ?? []}
-                  activeTargetIds={props.activeTargetIds ?? []}
-                  onToggleTarget={props.onToggleTarget ?? (() => {})}
-                  onRemoveTarget={props.onRemoveTarget ?? (() => {})}
-                  onAddTarget={props.onAddTarget}
-                  onAddMeasurement={props.onAddMeasurement}
-                  setStatus={props.setStatus}
-                />
-              </Collapsible>
-              <AutoEqTab
-                measurements={props.measurements ?? []}
-                allTargets={props.allTargets ?? []}
-                activeTargetIds={props.activeTargetIds}
-                onImportPEQ={props.onImportPEQ}
-                setStatus={props.setStatus}
-                onSelectedMeasurementChange={props.onSelectedMeasurementChange}
-                onToggleMeasurement={props.onToggleMeasurement}
-                onToggleTarget={props.onToggleTarget}
-                maxBands={props.maxBands}
-                dspSampleRate={props.dspSampleRate}
-                getAsyncContext={props.getAsyncContext}
-              />
-            </div>
+            <TuningPanel
+              measurements={props.measurements ?? []}
+              allTargets={props.allTargets ?? []}
+              activeTargetIds={props.activeTargetIds ?? []}
+              onImportPEQ={props.onImportPEQ}
+              setStatus={props.setStatus}
+              onSelectedMeasurementChange={props.onSelectedMeasurementChange}
+              onRemoveMeasurement={props.onRemoveMeasurement ?? (() => {})}
+              onToggleMeasurement={props.onToggleMeasurement ?? (() => {})}
+              onClearMeasurements={props.onClearMeasurements ?? (() => {})}
+              onToggleTarget={props.onToggleTarget ?? (() => {})}
+              onRemoveTarget={props.onRemoveTarget ?? (() => {})}
+              onAddTarget={props.onAddTarget}
+              onAddMeasurement={props.onAddMeasurement}
+              maxBands={props.maxBands}
+              dspSampleRate={props.dspSampleRate}
+              getAsyncContext={props.getAsyncContext}
+              onReviewEq={props.onReviewEq}
+            />
           )}
           {tab === "Device" && (
             <DeviceView
@@ -192,9 +171,7 @@ interface CurvesTabProps {
   activeTargetIds: string[];
   onToggleTarget: (id: string) => void;
   onRemoveTarget: (id: string) => void;
-  onAddTarget?: (name: string, points: MeasurementTrace["points"]) => void;
-  onAddMeasurement?: (name: string, points: MeasurementTrace["points"]) => void;
-  setStatus?: (value: string) => void;
+  onOpenAddTrace: () => void;
 }
 
 function CurvesTab({
@@ -206,18 +183,15 @@ function CurvesTab({
   activeTargetIds,
   onToggleTarget,
   onRemoveTarget,
-  onAddTarget,
-  onAddMeasurement,
-  setStatus,
+  onOpenAddTrace,
 }: CurvesTabProps) {
-  const [showAddModal, setShowAddModal] = useState(false);
 
   return (
     <div className="curves-tab">
       <div className="curves-actions">
-        <button type="button" className="btn add-trace-btn" onClick={() => setShowAddModal(true)}>
+        <button type="button" className="btn add-trace-btn" onClick={onOpenAddTrace}>
           <Icon name="add" />
-          <span>Add Trace</span>
+          <span>Add measurement or target</span>
         </button>
         {measurements.length > 0 && (
           <button
@@ -232,6 +206,7 @@ function CurvesTab({
           </button>
         )}
       </div>
+      <p className="card-note">Checked curves are shown on the graph. Choose the EQ inputs above.</p>
       <UnifiedTracesList
         measurements={measurements}
         allTargets={allTargets}
@@ -241,14 +216,6 @@ function CurvesTab({
         onToggleTarget={onToggleTarget}
         onRemoveTarget={onRemoveTarget}
       />
-      {showAddModal && (
-        <AddTraceModal
-          onClose={() => setShowAddModal(false)}
-          onAddMeasurement={onAddMeasurement}
-          onAddTarget={onAddTarget}
-          setStatus={setStatus}
-        />
-      )}
     </div>
   );
 }
@@ -270,6 +237,39 @@ interface AutoEqTabProps {
   maxBands?: number;
   dspSampleRate?: number;
   getAsyncContext: () => AsyncContext;
+  onOpenAddTrace?: () => void;
+  onReviewEq?: () => void;
+}
+
+interface TuningPanelProps extends AutoEqTabProps {
+  onRemoveMeasurement: CurvesTabProps["onRemoveMeasurement"];
+  onClearMeasurements: CurvesTabProps["onClearMeasurements"];
+  onRemoveTarget: CurvesTabProps["onRemoveTarget"];
+  onToggleMeasurement: CurvesTabProps["onToggleMeasurement"];
+  onToggleTarget: CurvesTabProps["onToggleTarget"];
+  onAddMeasurement?: ToolsPanelProps["onAddMeasurement"];
+  onAddTarget?: ToolsPanelProps["onAddTarget"];
+}
+
+export function TuningPanel(props: TuningPanelProps) {
+  const [showAddModal, setShowAddModal] = useState(false);
+  const openAddTrace = () => setShowAddModal(true);
+  return (
+    <div className="tuning-panel">
+      <AutoEqTab {...props} onOpenAddTrace={openAddTrace} />
+      <Collapsible title="Measurements & targets" icon="analytics" defaultOpen={false} className="tuning-library">
+        <CurvesTab {...props} activeTargetIds={props.activeTargetIds ?? EMPTY_TARGET_IDS} onOpenAddTrace={openAddTrace} />
+      </Collapsible>
+      {showAddModal && (
+        <AddTraceModal
+          onClose={() => setShowAddModal(false)}
+          onAddMeasurement={props.onAddMeasurement}
+          onAddTarget={props.onAddTarget}
+          setStatus={props.setStatus}
+        />
+      )}
+    </div>
+  );
 }
 
 export function AutoEqTab({
@@ -284,6 +284,8 @@ export function AutoEqTab({
   maxBands = 10,
   dspSampleRate = 96000,
   getAsyncContext,
+  onOpenAddTrace,
+  onReviewEq,
 }: AutoEqTabProps) {
   const [nBands, setNBands] = useState<number>(Math.max(1, maxBands));
   const [steps, setSteps] = useState<number>(2000);
@@ -291,12 +293,16 @@ export function AutoEqTab({
   const [fs, setFs] = useState<number>(dspSampleRate);
   const [isOptimizing, setIsOptimizing] = useState<boolean>(false);
   const [warnings, setWarnings] = useState<string[]>([]);
+  const [resultMessage, setResultMessage] = useState<string | null>(null);
   const requestRef = useRef(0);
+  const optimizingRef = useRef(false);
   const mountedRef = useRef(true);
 
   const invalidateRequest = () => {
     requestRef.current += 1;
+    optimizingRef.current = false;
     setIsOptimizing(false);
+    setResultMessage(null);
   };
 
   useEffect(() => {
@@ -311,20 +317,24 @@ export function AutoEqTab({
     // An in-flight optimization is keyed to the measurement and targets it
     // was started for; changing either supersedes it. Say so, or the run
     // vanishes behind a cleared "Optimizing EQ..." with no explanation.
-    const superseded = requestRef.current > 0;
+    const superseded = optimizingRef.current;
     requestRef.current += 1;
+    optimizingRef.current = false;
     setIsOptimizing(false);
-    if (superseded) setStatus("EQ match cancelled — the inputs changed.");
+    setResultMessage(null);
+    if (superseded) setStatus("EQ match cancelled because the inputs changed.");
   }, [measurements, allTargets, activeTargetIds]);
 
   useEffect(() => {
     requestRef.current += 1;
+    optimizingRef.current = false;
     setIsOptimizing(false);
     setNBands((current) => Math.min(current, Math.max(1, maxBands)));
   }, [maxBands]);
 
   useEffect(() => {
     requestRef.current += 1;
+    optimizingRef.current = false;
     setIsOptimizing(false);
     setFs(dspSampleRate);
   }, [dspSampleRate]);
@@ -387,15 +397,10 @@ export function AutoEqTab({
   const handleTargetChange = (id: string) => {
     invalidateRequest();
     setLocalTargetId(id);
+    // Reveal the chosen input without hiding curves the user is comparing.
     if (!activeTargetIds.includes(id)) {
       onToggleTarget?.(id);
     }
-    // Deactivate other active targets to keep display clean
-    activeTargetIds.forEach((activeId) => {
-      if (activeId !== id) {
-        onToggleTarget?.(activeId);
-      }
-    });
   };
 
   const handleRunAutoEq = async () => {
@@ -417,8 +422,10 @@ export function AutoEqTab({
       && request === requestRef.current
       && asyncContextEquals(context, getAsyncContext());
 
+    optimizingRef.current = true;
     setIsOptimizing(true);
-    setStatus("Optimizing EQ...");
+    setResultMessage(null);
+    setStatus("Generating EQ...");
     setWarnings([]);
 
     try {
@@ -450,6 +457,7 @@ export function AutoEqTab({
         return;
       }
       setWarnings(result.warnings);
+      setResultMessage("EQ loaded into the editor. Review it before saving a profile or writing to your DAC.");
 
       if (result.warnings.length > 0) {
         setStatus(`EQ matched with ${result.warnings.length} warning${result.warnings.length === 1 ? "" : "s"}`);
@@ -462,45 +470,55 @@ export function AutoEqTab({
         console.error(err);
       }
     } finally {
-      if (mountedRef.current && request === requestRef.current) setIsOptimizing(false);
+      if (mountedRef.current && request === requestRef.current) {
+        optimizingRef.current = false;
+        setIsOptimizing(false);
+      }
     }
   };
 
   return (
     <div className="autoeq-tab">
-      {measurements.length === 0 ? (
-        <div className="autoeq-empty">
-          <Icon name="auto_awesome" />
-          <p>Add a measurement and pick a target curve to generate an EQ.</p>
-        </div>
-      ) : (
-        <section className="tool-card autoeq-match-card">
+        <form className="tool-card autoeq-match-card" aria-labelledby="autoeq-title" onSubmit={(event) => {
+          event.preventDefault();
+          if (!isOptimizing) void handleRunAutoEq();
+        }}>
           <div className="tool-card-head">
             <div className="tool-card-title">
-              <Icon name="auto_awesome" />
-              <strong>Match to target</strong>
+              <h2 id="autoeq-title">Match to target</h2>
             </div>
           </div>
           <p className="autoeq-description">
-            Match a measurement to a target curve to generate filter values.
+            Choose your headphone measurement and the sound you want. Generated EQ changes the editor, not the DAC.
           </p>
           <div className="autoeq-match-grid">
             <div className="import-field-group">
               <label htmlFor="autoeq-measurement">Measurement</label>
               <Select
                 id="autoeq-measurement"
-                value={localMeasId}
-                options={measurements.map(m => ({ value: m.id, label: m.name }))}
+                value={meas?.id ?? ""}
+                disabled={measurements.length === 0 || isOptimizing}
+                options={measurements.length > 0
+                  ? measurements.map(m => ({ value: m.id, label: m.name }))
+                  : [{ value: "", label: "Add a measurement to start" }]}
                 onChange={handleMeasChange}
               />
+              {onOpenAddTrace && (
+                <button type="button" className={`btn autoeq-add${measurements.length === 0 ? " filled" : " text"}`} onClick={onOpenAddTrace} disabled={isOptimizing}>
+                  <Icon name="add" /> Add measurement
+                </button>
+              )}
             </div>
 
             <div className="import-field-group">
-              <label htmlFor="autoeq-target">Target</label>
+              <label htmlFor="autoeq-target">Target curve</label>
               <Select
                 id="autoeq-target"
-                value={localTargetId}
-                options={allTargets.map(t => ({ value: t.id, label: t.name }))}
+                value={target?.id ?? ""}
+                disabled={allTargets.length === 0 || isOptimizing}
+                options={allTargets.length > 0
+                  ? allTargets.map(t => ({ value: t.id, label: t.name }))
+                  : [{ value: "", label: "Add a target to continue" }]}
                 onChange={handleTargetChange}
               />
             </div>
@@ -586,10 +604,11 @@ export function AutoEqTab({
           </Collapsible>
 
           <div className="autoeq-run-row">
-            <label htmlFor="autoeq-bands" className="autoeq-bands-label">Bands</label>
+            <label htmlFor="autoeq-bands" className="autoeq-bands-label">Filter bands</label>
             <NumberInput
               id="autoeq-bands"
-              aria-label="Bands"
+              aria-label="Filter bands"
+              disabled={isOptimizing}
               value={nBands}
               min={1}
               max={Math.max(1, maxBands)}
@@ -600,18 +619,25 @@ export function AutoEqTab({
               className="autoeq-bands-stepper"
             />
             <button
-              type="button"
+              type="submit"
               className="btn filled autoeq-run-btn"
               disabled={isOptimizing || !meas || !target}
-              onClick={handleRunAutoEq}
             >
               <Icon name={isOptimizing ? "hourglass_empty" : "bolt"} />
-              <span>{isOptimizing ? "Generating EQ..." : "Generate EQ"}</span>
+              <span>{isOptimizing ? "Generating EQ…" : "Generate EQ"}</span>
             </button>
           </div>
-          {!target && <p className="card-note" role="status">Add a target to continue.</p>}
-        </section>
-      )}
+          {!meas && <p className="card-note">Import a frequency-response file or find a measurement in the online database.</p>}
+          {!target && <p className="card-note">Add a target in Measurements & targets to continue.</p>}
+        </form>
+      <div className="autoeq-result" role="status" aria-live="polite" aria-atomic="true">
+        {resultMessage && (
+          <>
+            <p>{resultMessage}</p>
+            {onReviewEq && <button type="button" className="btn" onClick={onReviewEq}>Review EQ</button>}
+          </>
+        )}
+      </div>
 
       {warnings.length > 0 && (
         <div className="import-warnings-box">

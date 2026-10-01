@@ -40,75 +40,74 @@ export const DeviceSpecs = memo(function DeviceSpecs({
       ? "simulated"
       : "connected";
 
-  const eyebrow = !connected
-    ? "OFFLINE"
+  const status = !connected
+    ? "Offline"
     : isSimulated
-      ? "DEV SIMULATION"
-      : "DAC HARDWARE";
+      ? "Simulation"
+      : "Connected";
 
   const dspKhz = Math.round(capabilities.dsp_sample_rate / 1000);
   const bandGain = Math.abs(capabilities.band_gain_range[1]);
   const rootClass = className ? `sidebar-specs-card ${className}` : "sidebar-specs-card";
 
   return (
-    <div className={rootClass} aria-label="DAC specifications">
+    <div className={rootClass} role="group" aria-label="DAC specifications">
       <div className="sidebar-specs-header">
-        <span className="sidebar-specs-eyebrow">
+        <span className="sidebar-specs-status">
           <span className={`sidebar-specs-dot ${dotClass}`} aria-hidden="true" />
-          {eyebrow}
+          {status}
         </span>
       </div>
 
-      <div className="sidebar-specs-title" title={title}>
-        {title}
+      <div className="sidebar-specs-identity">
+        <div className="sidebar-specs-title">{title}</div>
+        {officialSpec && (
+          <p className="sidebar-specs-chip">
+            <span className="visually-hidden">DAC chip: </span>{officialSpec.chip}
+          </p>
+        )}
       </div>
 
       <dl className="sidebar-specs-grid">
         {officialSpec && (
           <>
             <div className="sidebar-specs-row">
-              <dt>CHIP</dt>
-              <dd className="highlight" title={officialSpec.chip}>
-                {officialSpec.chip}
-              </dd>
-            </div>
-            <div className="sidebar-specs-row">
-              <dt>OUT</dt>
+              <dt>Output</dt>
               <dd title={officialSpec.outputs}>{officialSpec.outputs}</dd>
             </div>
             {officialSpec.maxPower && (
               <div className="sidebar-specs-row">
-                <dt>PWR</dt>
+                <dt>Power</dt>
                 <dd title={officialSpec.maxPower}>{officialSpec.maxPower}</dd>
               </div>
             )}
             {officialSpec.decoding && (
               <div className="sidebar-specs-row secondary">
-                <dt>DEC</dt>
+                <dt>Formats</dt>
                 <dd title={officialSpec.decoding}>{officialSpec.decoding}</dd>
               </div>
             )}
           </>
         )}
 
-        <div className="sidebar-specs-row">
+        <div className={`sidebar-specs-row${officialSpec ? " sidebar-specs-row--dsp" : ""}`}>
           <dt>DSP</dt>
           <dd>{dspKhz} kHz</dd>
         </div>
 
         <div className="sidebar-specs-row">
-          <dt>PEQ</dt>
+          <dt>EQ</dt>
           <dd>{capabilities.num_bands} bands</dd>
         </div>
 
         <div className="sidebar-specs-row secondary">
-          <dt>GAIN</dt>
+          <dt>Gain</dt>
           <dd>±{bandGain} dB</dd>
         </div>
 
         {connected && firmwareVersion && (
           <div className="sidebar-specs-row secondary">
-            <dt>FW</dt>
+            <dt>Firmware</dt>
             <dd>v{firmwareVersion}</dd>
           </div>
         )}

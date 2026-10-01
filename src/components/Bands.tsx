@@ -210,6 +210,7 @@ export const Bands = memo(function Bands({ peq, committedPeq, capabilities, onFi
               <span>Add</span>
             </button>
           </div>
+          {visibleFilters.length > 4 && <p className="band-picker-hint">Scroll the band strip to see all {visibleFilters.length} bands.</p>}
           <div className="mobile-filter-card" style={filterColorStyle(selectedFilter.index)}>
             <div className="mobile-filter-head">
               <div className="mobile-filter-summary">
