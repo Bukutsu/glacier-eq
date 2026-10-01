@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { MeasurementPoint } from "../types";
 import { Icon } from "./Icon";
-import { fuzzyMatch } from "../lib/search";
+import { findOnlineMeasurements, ONLINE_RESULT_LIMIT } from "../lib/onlineSearch";
 import { openFileDialog } from "../lib/rpc";
 import { parseMeasurementText, identifyTraceKind } from "../lib/measurements";
 import { useOnlineDatabase, type OnlineDevice } from "../lib/onlineDb";
@@ -36,10 +36,18 @@ export function AddTraceModal({
     loadDevice,
   } = useOnlineDatabase(setStatus);
   const [loadedDevices, setLoadedDevices] = useState<Set<string>>(new Set());
-  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState(searchQuery);
   const [modalError, setModalError] = useState<string | null>(null);
   const mountedRef = useRef(true);
   const loadRequestRef = useRef(0);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const downloadButtonRef = useRef<HTMLButtonElement>(null);
+  const searchId = useId();
+
+  useEffect(() => {
+    if (downloaded) searchInputRef.current?.focus();
+    else downloadButtonRef.current?.focus();
+  }, [downloaded]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -150,12 +158,19 @@ export function AddTraceModal({
   };
 
   const query = debouncedQuery.trim().toLowerCase();
-  const displayOnlineResults = !query
-    ? []
-    : manifest.filter((dev) => fuzzyMatch(query, `${dev.brand} ${dev.name}`)).slice(0, 50);
+  const searchPending = searchQuery.trim().toLowerCase() !== query;
+  const { results, total } = useMemo(() => findOnlineMeasurements(manifest, query), [manifest, query]);
+  const searchStatus = loadingManifest ? "Loading the search index…"
+    : searchPending ? "Searching…"
+    : !query ? "Search by brand or model name."
+    : total === 0 ? "No matching measurements."
+    : total > ONLINE_RESULT_LIMIT ? `Showing ${ONLINE_RESULT_LIMIT} of ${total.toLocaleString()} matches. Narrow your search to see more.`
+    : `${total} measurement${total === 1 ? "" : "s"} found.`;
 
   return (
-    <Modal title="Add Trace" onClose={onClose} className="add-trace-modal">
+    <Modal title="Add a curve" onClose={onClose} className="add-trace-modal">
+      <div className="modal-body add-trace-body">
+        <p className="add-trace-intro">Find a headphone measurement, or import a curve from a file.</p>
         {modalError && (
           <div className="modal-inline-error" role="alert">
             <Icon name="error" />
@@ -163,91 +178,108 @@ export function AddTraceModal({
           </div>
         )}
         <div className="add-trace-section">
-          <div className="add-trace-section-title">From file</div>
-          <button
-            type="button"
-            className="btn add-trace-file-btn"
-            onClick={handleImportFile}
-          >
-            <Icon name="file_upload" />
-            <span>Import file (.csv, .txt)</span>
-          </button>
-        </div>
-
-        <div className="add-trace-section">
-            <div className="add-trace-section-title">
-              Online search
-              {downloaded && totalCount && (
-                <span className="add-trace-section-count">{totalCount} curves</span>
+          <label className="add-trace-section-title" htmlFor={searchId}>Headphone or brand</label>
+          <input
+            ref={searchInputRef}
+            id={searchId}
+            name="measurement-search"
+            type="search"
+            className="curves-search-input"
+            placeholder="For example, HD 600"
+            autoComplete="off"
+            spellCheck={false}
+            disabled={!downloaded}
+            aria-describedby={`${searchId}-status`}
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            onKeyDown={(event) => {
+              // Search inputs consume Escape to clear text. Here it closes the dialog.
+              if (event.key === "Escape") {
+                event.preventDefault();
+                event.stopPropagation();
+                onClose();
+              }
+            }}
+          />
+          {downloaded ? (
+            <>
+              <p id={`${searchId}-status`} className="add-trace-search-status" role="status" aria-live="polite" aria-atomic="true">{searchStatus}</p>
+              <section className="add-trace-online-results" aria-label="Measurement search results"
+                aria-busy={loadingManifest || searchPending} tabIndex={results.length > 0 ? 0 : undefined}>
+                {loadingManifest || searchPending ? (
+                  <div className="online-result-empty"><p>{loadingManifest ? "Loading measurements…" : "Searching measurements…"}</p></div>
+                ) : !query ? (
+                  <div className="online-result-empty">
+                    <Icon name="search" />
+                    <p>Find your headphones</p>
+                    <span>Search the measurements saved in your offline database.</span>
+                  </div>
+                ) : results.length === 0 ? (
+                  <div className="online-result-empty">
+                    <p>No measurements found</p>
+                    <span>Try a shorter name or check the spelling.</span>
+                  </div>
+                ) : (
+                  <ul className="online-result-list">
+                    {results.map((device) => {
+                      const name = `${device.brand} ${device.name}`;
+                      const added = loadedDevices.has(device.id);
+                      const adding = loadingDevice === device.id;
+                      return (
+                        <li key={device.id} className="online-result-item">
+                          <div className="online-result-info">
+                            <div className="online-result-name">{name}</div>
+                            <div className="online-result-meta">
+                              <span className="online-result-source">{device.source}</span>
+                              {device.price !== null && <span className="online-result-price">${device.price}</span>}
+                            </div>
+                          </div>
+                          <button type="button" className={`btn online-result-action${added ? " added" : ""}`}
+                            disabled={loadingDevice !== null || added}
+                            aria-label={added ? `${name} added` : `Add ${name} measurement`}
+                            onClick={() => handleLoadDevice(device)}>
+                            <Icon name={added ? "check" : adding ? "hourglass_empty" : "add"} />
+                            <span>{added ? "Added" : adding ? "Adding…" : "Add"}</span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </section>
+            </>
+          ) : (
+            <div className="add-trace-download-prompt">
+              <p id={`${searchId}-status`}>Download the measurement database once to search it offline.</p>
+              {isDownloading ? (
+                <>
+                  <progress max={1} value={downloadProgress ?? 0} aria-label="Measurement database download" />
+                  <span role="status">Downloading… {Math.round((downloadProgress ?? 0) * 100)}%</span>
+                </>
+              ) : (
+                <button ref={downloadButtonRef} type="button" className="btn filled" onClick={handleDownload}>Download database</button>
               )}
             </div>
-            {downloaded ? (
-              <>
-                <input type="text" className="curves-search-input"
-                  placeholder="Search online curves…"
-                  aria-label="Search online curves"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-                <div className="add-trace-online-results">
-                  {loadingManifest ? (
-                    <div className="online-result-empty">Loading index...</div>
-                  ) : debouncedQuery.trim() && displayOnlineResults.length === 0 ? (
-                    <div className="online-result-empty">No matches</div>
-                  ) : (
-                    displayOnlineResults.map((dev) => (
-                      <div key={dev.id} className="online-result-item">
-                        <div className="online-result-info">
-                          <div className="online-result-name">
-                            {dev.brand} {dev.name}
-                            {dev.price !== null && <span className="online-result-price">${dev.price}</span>}
-                          </div>
-                          <div className="online-result-source">{dev.source}</div>
-                        </div>
-                        <button
-                          type="button"
-                          className={`online-result-action${loadedDevices.has(dev.id) ? " added" : ""}`}
-                          disabled={loadingDevice !== null || loadedDevices.has(dev.id)}
-                          aria-label={loadedDevices.has(dev.id) ? `${dev.brand} ${dev.name} loaded` : `Load ${dev.brand} ${dev.name}`}
-                          onClick={() => handleLoadDevice(dev)}
-                        >
-                          {loadingDevice === dev.id ? <span>Loading…</span> : loadedDevices.has(dev.id) ? <Icon name="check" /> : <Icon name="file_download" />}
-                        </button>
-                      </div>
-                    ))
-                  )}
-                  {!debouncedQuery.trim() && (
-                    <div className="online-result-empty">Type to search curves</div>
-                  )}
-                </div>
-                <div className="add-trace-cache-row">
-                  <span className="add-trace-cache-status">
-                    {totalCount ? `${totalCount.toLocaleString()} curves cached` : "Database cached offline"}
-                  </span>
-                  <button
-                    type="button"
-                    className="btn add-trace-clear-cache-btn"
-                    title="Clear cached database (~16 MB)"
-                    onClick={handleResetCache}
-                  >
-                    <Icon name="delete" />
-                    <span>Clear cache</span>
-                  </button>
-                </div>
-              </>
-            ) : (
-              <div className="add-trace-download-prompt">
-                <span>Download the database to search curves offline.</span>
-                {downloadProgress !== null ? (
-                  <span>Downloading… {Math.round(downloadProgress * 100)}%</span>
-                ) : (
-                  <button type="button" className="btn" onClick={handleDownload} disabled={isDownloading}>
-                    Download database
-                  </button>
-                )}
-              </div>
-            )}
+          )}
         </div>
+        <div className="add-trace-file-row">
+          <button type="button" className="btn add-trace-file-btn" onClick={handleImportFile}>
+            <Icon name="file_upload" /> Import file
+          </button>
+          <p>Measurement or target file<br /><span>.csv or .txt</span></p>
+        </div>
+        {downloaded && (
+          <details className="add-trace-cache">
+            <summary>Offline database <span>{totalCount !== null ? `${totalCount.toLocaleString()} curves` : "Saved on this device"}</span></summary>
+            <div className="add-trace-cache-row">
+              <p className="add-trace-cache-status">Clearing the cache removes the downloaded database, not the curves you already added.</p>
+              <button type="button" className="btn add-trace-clear-cache-btn" onClick={handleResetCache} disabled={loadingDevice !== null || isDownloading}>
+                <Icon name="delete" /> Clear cache
+              </button>
+            </div>
+          </details>
+        )}
+      </div>
     </Modal>
   );
 }
