@@ -22,6 +22,7 @@ export function themeOptions(isAndroid: boolean): ThemeOption[] {
     ...(isAndroid
       ? [{ value: "material-you" as const, label: "System (Material You)" }]
       : []),
+    { value: "glacier", label: "Glacier" },
     { value: "tokyo-night", label: "Tokyo Night" },
     { value: "tokyo-night-storm", label: "Tokyo Night Storm" },
     { value: "tokyo-night-day", label: "Tokyo Night Day (Light)" },

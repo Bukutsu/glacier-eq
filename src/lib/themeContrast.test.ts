@@ -64,7 +64,8 @@ function mix(a: string, b: string, percentA: number): string {
 }
 
 const THEME_SELECTORS = [
-  [":root, :root[data-theme=\"tokyo-night\"]", "tokyo-night"],
+  [":root, :root[data-theme=\"glacier\"]", "glacier"],
+  [":root[data-theme=\"tokyo-night\"]", "tokyo-night"],
   [":root[data-theme=\"tokyo-night-storm\"]", "tokyo-night-storm"],
   [":root[data-theme=\"material-you\"]", "material-you"],
   [":root[data-theme=\"tokyo-night-day\"]", "tokyo-night-day"],

@@ -3,14 +3,14 @@
 // All ten are distinct hues; bands 9–10 use the two extra tokens instead of
 // the old cyan look-alikes so no two bands are easily confused.
 const FILTER_COLOR_VARS = [
-  ["--red", "--red-rgb", "#f7768e"],
-  ["--orange", "--orange-rgb", "#ff9e64"],
-  ["--yellow", "--yellow-rgb", "#e0af68"],
-  ["--green", "--green-rgb", "#9ece6a"],
-  ["--teal", "--teal-rgb", "#73daca"],
-  ["--cyan", "--cyan-rgb", "#7dcfff"],
-  ["--blue", "--blue-rgb", "#7aa2f7"],
-  ["--purple", "--purple-rgb", "#9d7cd8"],
+  ["--red", "--red-rgb", "#e06c75"],
+  ["--orange", "--orange-rgb", "#d19a66"],
+  ["--yellow", "--yellow-rgb", "#e5c07b"],
+  ["--green", "--green-rgb", "#8cc265"],
+  ["--teal", "--teal-rgb", "#56b6c2"],
+  ["--cyan", "--cyan-rgb", "#56c8d8"],
+  ["--blue", "--blue-rgb", "#61afef"],
+  ["--purple", "--purple-rgb", "#c678dd"],
   ["--teal2", "--teal2-rgb", "#1abc9c"],
   ["--magenta2", "--magenta2-rgb", "#ff007c"],
 ] as const;

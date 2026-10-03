@@ -8,6 +8,7 @@ import {
 import { isAndroidDevice, isTauri } from "../lib/platform";
 
 const THEME_BG_COLORS: Record<string, string> = {
+  glacier: "#181a1f",
   "material-you": "#181920",
   "tokyo-night": "#1a1b26",
   "tokyo-night-storm": "#24283b",
@@ -21,7 +22,7 @@ const THEME_BG_COLORS: Record<string, string> = {
 
 function updateThemeColorMeta(themeName: string, overrideColor?: string) {
   if (typeof document === "undefined") return;
-  const color = overrideColor ?? THEME_BG_COLORS[themeName] ?? "#1a1b26";
+  const color = overrideColor ?? THEME_BG_COLORS[themeName] ?? "#181a1f";
   let meta = document.querySelector('meta[name="theme-color"]');
   if (!meta) {
     meta = document.createElement("meta");
@@ -35,10 +36,10 @@ function getInitialTheme(theme: string): string {
   if (theme !== "auto") return theme;
   if (typeof window !== "undefined" && window.matchMedia) {
     return window.matchMedia("(prefers-color-scheme: dark)").matches
-      ? "tokyo-night"
+      ? "glacier"
       : "tokyo-night-day";
   }
-  return "tokyo-night";
+  return "glacier";
 }
 
 export function useThemeSync(theme: string): string {
@@ -87,7 +88,7 @@ export function useThemeSync(theme: string): string {
         const prefersDark = window.matchMedia(
           "(prefers-color-scheme: dark)",
         ).matches;
-        resolved = prefersDark ? "tokyo-night" : "tokyo-night-day";
+        resolved = prefersDark ? "glacier" : "tokyo-night-day";
         if (!active) return;
         setResolvedTheme(resolved);
         document.documentElement.setAttribute("data-theme", resolved);
@@ -117,7 +118,7 @@ export function useThemeSync(theme: string): string {
             console.error("Failed to query Tauri window theme:", e);
           }
         }
-        resolved = prefersDark ? "tokyo-night" : "tokyo-night-day";
+        resolved = prefersDark ? "glacier" : "tokyo-night-day";
       }
 
       if (!active) return;
