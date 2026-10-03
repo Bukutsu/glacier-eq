@@ -1296,12 +1296,15 @@ async function invokeWeb<T = unknown>(cmd: string, args?: any): Promise<T> {
       return listSupportedDevices() as T;
     }
     case "parse_autoeq": {
+      const text = commandField(args, "text");
+      if (typeof text !== "string") throw new Error("Invalid AutoEQ text");
       const vid = activeProfile?.vendor_id ?? null;
       const pid = activeProfile?.product_id ?? null;
-      return wasm().parse_autoeq(args.text, vid, pid) as T;
+      return wasm().parse_autoeq(text, vid, pid) as T;
     }
     case "peq_to_autoeq": {
-      return wasm().peq_to_autoeq(args.peq) as T;
+      const peq = commandField(args, "peq");
+      return wasm().peq_to_autoeq(peq) as T;
     }
     case "match_profile_name": {
       const peq = parseStoredPeq(commandField(args, "peq"));
@@ -1312,6 +1315,7 @@ async function invokeWeb<T = unknown>(cmd: string, args?: any): Promise<T> {
       return (wasm().match_profile_name(peq, profiles, vid, pid) ?? null) as T;
     }
     case "run_autoeq": {
+      if (!isRecord(args)) throw new Error("Missing run_autoeq arguments");
       const vid = activeProfile?.vendor_id ?? null;
       const pid = activeProfile?.product_id ?? null;
       const measurementPoints = args.measurement_points ?? args.measurementPoints;
@@ -1319,10 +1323,10 @@ async function invokeWeb<T = unknown>(cmd: string, args?: any): Promise<T> {
       return wasm().run_autoeq(
         measurementPoints,
         targetPoints,
-        args.n_bands ?? args.nBands,
-        args.steps,
-        args.smooth_type ?? args.smoothType,
-        args.fs,
+        (args.n_bands ?? args.nBands) as number,
+        args.steps as number,
+        (args.smooth_type ?? args.smoothType) as string,
+        args.fs as number,
         vid,
         pid
       ) as T;
@@ -1331,7 +1335,8 @@ async function invokeWeb<T = unknown>(cmd: string, args?: any): Promise<T> {
       // Mirror the desktop command's String serde plus tauri.ts:48-50's
       // guard: new Blob([42]) would happily stringify non-string content
       // and download a coerced file the desktop rejects outright.
-      if (typeof args.content !== "string") {
+      const content = commandField(args, "content");
+      if (typeof content !== "string") {
         throw new Error("Invalid text export content");
       }
       // Read through the same accessor every other command uses, so a missing
@@ -1341,7 +1346,7 @@ async function invokeWeb<T = unknown>(cmd: string, args?: any): Promise<T> {
         throw new Error("Invalid text export path");
       }
       const filename = exportPath.split("/").pop() || "profile.txt";
-      const blob = new Blob([args.content], { type: "text/plain;charset=utf-8" });
+      const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -1664,8 +1669,9 @@ async function invokeWeb<T = unknown>(cmd: string, args?: any): Promise<T> {
       // glue runs this value through TextEncoder.encode, so a non-string
       // reached the device instead of being rejected — the desktop's
       // `mode: String` refuses it.
-      if (typeof args.mode !== "string") throw new Error("Invalid filter mode");
-      await writeAndFlash(wasm().build_filter_mode_write_packet(args.mode));
+      const mode = commandField(args, "mode");
+      if (typeof mode !== "string") throw new Error("Invalid filter mode");
+      await writeAndFlash(wasm().build_filter_mode_write_packet(mode));
       return null as T;
     }
     case "set_dac_work_mode": {
@@ -1674,20 +1680,23 @@ async function invokeWeb<T = unknown>(cmd: string, args?: any): Promise<T> {
       // i32 parameter and is ToInt32-coerced: "yes" and {} both silently write
       // Class-AB = OFF. set_dac_work_mode/is_class_ab is a Rust `bool`, which
       // rejects them outright, so the two adapters must agree.
-      if (typeof args.isClassAb !== "boolean") throw new Error("Invalid amp mode");
-      await writeAndFlash(wasm().build_amp_mode_write_packet(args.isClassAb));
+      const isClassAb = commandField(args, "isClassAb");
+      if (typeof isClassAb !== "boolean") throw new Error("Invalid amp mode");
+      await writeAndFlash(wasm().build_amp_mode_write_packet(isClassAb));
       return null as T;
     }
     case "set_dac_output_gain": {
       requireWalkplayUtilities();
-      if (typeof args.isHighGain !== "boolean") throw new Error("Invalid gain mode");
-      await writeAndFlash(wasm().build_gain_mode_write_packet(args.isHighGain));
+      const isHighGain = commandField(args, "isHighGain");
+      if (typeof isHighGain !== "boolean") throw new Error("Invalid gain mode");
+      await writeAndFlash(wasm().build_gain_mode_write_packet(isHighGain));
       return null as T;
     }
     case "set_dac_balance": {
       requireWalkplayUtilities();
-      validateControlRange("Balance", args.balance);
-      const packets = wasm().build_balance_write_packets(args.balance);
+      const balance = commandField(args, "balance");
+      validateControlRange("Balance", balance);
+      const packets = wasm().build_balance_write_packets(balance);
       await sendPackets(packets, 20);
       const flash = wasm().build_flash_eq_packet();
       await sendReport(flash);
@@ -1695,8 +1704,9 @@ async function invokeWeb<T = unknown>(cmd: string, args?: any): Promise<T> {
     }
     case "set_mic_volume": {
       requireWalkplayUtilities();
-      validateControlRange("Mic volume", args.volumeDb);
-      await writeAndFlash(wasm().build_mic_volume_write_packet(args.volumeDb));
+      const volumeDb = commandField(args, "volumeDb");
+      validateControlRange("Mic volume", volumeDb);
+      await writeAndFlash(wasm().build_mic_volume_write_packet(volumeDb));
       return null as T;
     }
     case "reset_device_eq": {

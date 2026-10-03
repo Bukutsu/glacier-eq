@@ -238,6 +238,15 @@ describe("browser connection cleanup", () => {
 
     // save_text_file dereferenced args.path the same way connect_device did.
     await expect(invoke("save_text_file", { content: "x" })).rejects.toThrow("Missing path argument");
+    await expect(invoke("save_text_file")).rejects.toThrow("Missing content argument");
+    await expect(invoke("set_dac_filter_mode")).rejects.toThrow("Missing mode argument");
+    await expect(invoke("set_dac_work_mode")).rejects.toThrow("Missing isClassAb argument");
+    await expect(invoke("set_dac_output_gain")).rejects.toThrow("Missing isHighGain argument");
+    await expect(invoke("set_dac_balance")).rejects.toThrow("Missing balance argument");
+    await expect(invoke("set_mic_volume")).rejects.toThrow("Missing volumeDb argument");
+    await expect(invoke("parse_autoeq")).rejects.toThrow("Missing text argument");
+    await expect(invoke("peq_to_autoeq")).rejects.toThrow("Missing peq argument");
+    await expect(invoke("run_autoeq")).rejects.toThrow("Missing run_autoeq arguments");
   });
 
   it("rejects a non-boolean amp or gain mode like the desktop bool parameter", async () => {
