@@ -28,9 +28,10 @@ function GithubLink() {
   );
 }
 
-function ConnectionActions({ isBusy, onDisconnect, compact = false }: {
+function ConnectionActions({ isBusy, onDisconnect, onPull, compact = false }: {
   isBusy: boolean;
   onDisconnect: () => void;
+  onPull?: () => void;
   compact?: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -66,6 +67,11 @@ function ConnectionActions({ isBusy, onDisconnect, compact = false }: {
         {compact ? <Icon name="more_vert" /> : <>Device <Icon name="expand_more" /></>}
       </button>
       <div id={panelId} className="connection-actions-panel" hidden={!open}>
+        {onPull && <button type="button" className="btn" disabled={isBusy} onClick={() => {
+          setOpen(false);
+          triggerRef.current?.focus();
+          onPull();
+        }}><Icon name="file_download" /> Read from DAC</button>}
         <button type="button" className="btn" disabled={isBusy} onClick={() => {
           setOpen(false);
           triggerRef.current?.focus();
@@ -101,6 +107,7 @@ interface HeaderProps {
   onConnectClick?: () => void;
   configPage?: "device" | "settings";
   pageTitle?: string;
+  mobile?: boolean;
   compact?: boolean;
 }
 
@@ -129,6 +136,7 @@ export const Header = memo(function Header({
   onConnectClick,
   configPage,
   pageTitle: pageTitleOverride,
+  mobile = false,
   compact = false,
 }: HeaderProps) {
   const isConfigPage = configPage !== undefined;
@@ -165,6 +173,12 @@ export const Header = memo(function Header({
       ? "Profile: modified"
       : "Profile: saved";
   const writeClass = deviceMatchesEditor === false && !isSimulated ? "btn filled" : "btn";
+  const mobileSyncText = !connected ? "Offline editing"
+    : isBusy ? syncText
+    : isSimulated ? "Demo device, no hardware writes"
+    : deviceMatchesEditor === true ? "Saved to DAC"
+    : deviceMatchesEditor === false ? "Changes not saved to DAC"
+    : "Read the DAC to check its EQ";
 
   return (
     <header className={`app-header${compact ? " compact-mobile" : ""}`} inert={inert}>
@@ -175,10 +189,10 @@ export const Header = memo(function Header({
             <GithubLink />
           </div>
           <div className="header-meta-row">
-            {connected && <div className="device-name">{deviceName}</div>}
-            <span className={`sync-dot ${syncClass}`} role="status" aria-live="polite">{syncText}</span>
+            {connected && !mobile && <div className="device-name">{deviceName}</div>}
+            <span className={`sync-dot ${syncClass}`} role="status" aria-live="polite">{mobile ? mobileSyncText : syncText}</span>
           </div>
-          {!isConfigPage && (
+          {!isConfigPage && !mobile && (
             <div className="header-session-strip" role="group" aria-label="EQ session status">
               <span>{profileText}</span>
               <span>{activeBands}/{maxBands} bands</span>
@@ -188,7 +202,7 @@ export const Header = memo(function Header({
           )}
         </div>
         {/* Desktop Toolbar */}
-        <div className="toolbar desktop-toolbar">
+        {!mobile && <div className="toolbar desktop-toolbar">
           {!isConfigPage && (
             <div className="history-buttons" role="group" aria-label="Edit history">
               <button
@@ -231,10 +245,10 @@ export const Header = memo(function Header({
               <span>Connect DAC</span>
             </button>
           )}
-        </div>
+        </div>}
 
-        {/* Mobile uses the same action hierarchy as desktop, without duplicate actions. */}
-        <div className="mobile-toolbar">
+        {/* Keep the write action visible; less frequent device actions live in the menu. */}
+        {mobile && <div className="mobile-toolbar">
           <div className="history-buttons mobile-history-buttons" role="group" aria-label="Edit history">
             <button
               type="button"
@@ -259,9 +273,8 @@ export const Header = memo(function Header({
           </div>
           {connected ? (
             <>
-              <button type="button" className="btn mobile-action-btn" aria-label="Read from DAC" title="Replace the editor with EQ read from the DAC" onClick={onPull} disabled={isBusy}>Read DAC</button>
-              <button type="button" className={`${writeClass} mobile-action-btn`} aria-label="Write to DAC" title="Store the editor EQ on the DAC" onClick={onPush} disabled={isBusy}>Write DAC</button>
-              <ConnectionActions isBusy={isBusy} onDisconnect={onDisconnect} compact />
+              <button type="button" className={`${writeClass} mobile-action-btn`} title="Store the editor EQ on the DAC. It stays saved after unplugging." onClick={onPush} disabled={isBusy}><Icon name="save" /> Save to DAC</button>
+              <ConnectionActions isBusy={isBusy} onDisconnect={onDisconnect} onPull={onPull} compact />
             </>
           ) : (
             <button type="button" className="btn filled mobile-action-btn mobile-connect-btn" onClick={onConnectClick} disabled={isBusy}>
@@ -269,7 +282,7 @@ export const Header = memo(function Header({
               <span>Connect DAC</span>
             </button>
           )}
-        </div>
+        </div>}
       </div>
       {isBusy && (
         <div

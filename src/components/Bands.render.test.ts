@@ -13,12 +13,42 @@ function renderEditor(props: Partial<Parameters<typeof Bands>[0]> = {}) {
     onFilterChange: () => {},
     onStartChange: () => {},
     activeBandIndex: 0,
+    isMobile: true,
     ...props,
   }));
   return html.split('<section class="bands-mobile-editor">')[1];
 }
 
 describe("Band editor markup", () => {
+  it("shows all 4 controls side by side on desktop without disclosure", () => {
+    const html = renderEditor({ isMobile: false });
+    expect(html).not.toContain('<details class="band-more-settings">');
+    expect(html).toContain('class="band-field band-type-field"');
+    expect(html).toContain('aria-label="Band 1 Q"');
+  });
+
+  it("shows gain first and keeps filter type and Q in a closed disclosure on mobile", () => {
+    const html = renderEditor();
+    const gain = html.indexOf('aria-label="Band 1 gain"');
+    const frequency = html.indexOf('aria-label="Band 1 frequency"');
+    const details = html.indexOf('<details class="band-more-settings">');
+    expect(gain).toBeGreaterThan(-1);
+    expect(gain).toBeLessThan(frequency);
+    expect(frequency).toBeLessThan(details);
+    expect(html).toContain('<summary>More band settings');
+    expect(html.indexOf('class="band-field band-type-field"')).toBeGreaterThan(details);
+    expect(html.indexOf('aria-label="Band 1 Q"')).toBeGreaterThan(details);
+    expect(html).not.toContain('<details class="band-more-settings" open');
+  });
+
+  it("disables every mobile edit and reset during a device operation", () => {
+    const html = renderEditor({ disabled: true });
+    expect(html).toContain('class="mobile-filter-reset" disabled=""');
+    expect(html).toContain('aria-label="Remove band 1" disabled=""');
+    expect(html.match(/<input(?=[^>]*type="range")(?=[^>]*disabled="")[^>]*>/g)).toHaveLength(3);
+    expect(html).toMatch(/<select[^>]*disabled=""/);
+  });
+
   it("uses a labelled native select with readable filter names", () => {
     const html = renderEditor();
     expect(html).toContain('<label class="band-field band-type-field">');

@@ -47,6 +47,7 @@ interface BandsProps {
    * visibly inert.
    */
   disabled?: boolean;
+  isMobile?: boolean;
 }
 
 function freqToSlider(freq: number, range: [number, number]) {
@@ -103,7 +104,7 @@ function makeFreqStepper(
   };
 }
 
-export const Bands = memo(function Bands({ peq, committedPeq, capabilities, onFilterChange, onStartChange, onEndChange, activeBandIndex, onActiveBandChange, snapToIso, disabled = false }: BandsProps) {
+export const Bands = memo(function Bands({ peq, committedPeq, capabilities, onFilterChange, onStartChange, onEndChange, activeBandIndex, onActiveBandChange, snapToIso, disabled = false, isMobile = false }: BandsProps) {
   const availableFilters = peq.filters.slice(0, capabilities.num_bands);
   const visibleFilters = availableFilters.filter((filter) => filter.enabled);
   const canAddFilter = visibleFilters.length < availableFilters.length && !disabled;
@@ -221,6 +222,7 @@ export const Bands = memo(function Bands({ peq, committedPeq, capabilities, onFi
                   <button
                     type="button"
                     className="mobile-filter-reset"
+                    disabled={disabled}
                     aria-label={`Reset band ${selectedFilter.index + 1} to last saved values`}
                     onClick={() => {
                       const committed = committedPeq.filters[selectedFilter.index];
@@ -238,7 +240,7 @@ export const Bands = memo(function Bands({ peq, committedPeq, capabilities, onFi
                   className="band-index"
                   title={`Remove band ${selectedFilter.index + 1}`}
                   aria-label={`Remove band ${selectedFilter.index + 1}`}
-                  disabled={visibleFilters.length <= 1}
+                  disabled={disabled || visibleFilters.length <= 1}
                   onClick={() => {
                     if (visibleFilters.length <= 1) return;
                     const removedIndex = selectedFilter.index;
@@ -255,6 +257,8 @@ export const Bands = memo(function Bands({ peq, committedPeq, capabilities, onFi
             </div>
             <BandControls
               key={selectedFilter.index}
+              mobileSimple={isMobile}
+              disabled={disabled}
               filter={selectedFilter}
               committedFilter={committedPeq?.filters[selectedFilter.index]}
               onChange={onFilterChange}
@@ -339,6 +343,7 @@ const BandRow = memo(function BandRow({
 ));
 
 type BandControlsProps = {
+  mobileSimple?: boolean;
   filter: Filter;
   committedFilter?: Filter;
   onChange: (index: number, filter: Filter) => void;
@@ -351,6 +356,7 @@ type BandControlsProps = {
 };
 
 const BandControls = memo(function BandControls({
+  mobileSimple = false,
   filter,
   committedFilter,
   onChange,
@@ -361,137 +367,157 @@ const BandControls = memo(function BandControls({
   capabilities,
   snapToIso,
 }: BandControlsProps) {
-  return (
-    <>
-      <label className="band-field band-type-field">
-        <span className="band-field-label">Filter</span>
-        <Select
-          value={filter.filter_type}
+  const typeControl = (
+    <label className="band-field band-type-field">
+      <span className="band-field-label">Filter</span>
+      <Select
+        value={filter.filter_type}
+        disabled={disabled}
+        options={capabilities.supported_filter_types.map((type) => ({ value: type, label: TYPE_NAMES[type] }))}
+        onChange={(type) => {
+          onActivate?.(filter.index);
+          onStartChange();
+          onChange(filter.index, { ...filter, filter_type: type });
+          onEndChange?.();
+        }}
+      />
+    </label>
+  );
+  const qControl = (
+    <BandField label="Q" className="band-q-field">
+      <div className="param-cell q-cell">
+        <Slider
+          aria-label={`Band ${filter.index + 1} Q`}
           disabled={disabled}
-          options={capabilities.supported_filter_types.map((type) => ({ value: type, label: TYPE_NAMES[type] }))}
-          onChange={(type) => {
+          min={0}
+          max={Q_SLIDER_STEPS}
+          step={1}
+          value={qToSlider(filter.q, capabilities.q_range)}
+          aria-valuemin={capabilities.q_range[0]}
+          aria-valuemax={capabilities.q_range[1]}
+          aria-valuenow={filter.q}
+          aria-valuetext={`Q ${filter.q.toFixed(2)}`}
+          onStartChange={onStartChange}
+          onEndChange={onEndChange}
+          onReset={committedFilter ? () => onChange(filter.index, { ...filter, q: clampToRange(committedFilter.q, capabilities.q_range) }) : undefined}
+          onFocus={() => onActivate?.(filter.index)}
+          onChange={(event) => onChange(filter.index, { ...filter, q: sliderToQ(+event.target.value, capabilities.q_range) })}
+        />
+        <NumberInput
+          value={clampToRange(filter.q, capabilities.q_range)}
+          min={capabilities.q_range[0]}
+          max={capabilities.q_range[1]}
+          step={0.05}
+          precision={2}
+          onFocus={() => {
             onActivate?.(filter.index);
             onStartChange();
-            onChange(filter.index, { ...filter, filter_type: type });
-            onEndChange?.();
+          }}
+          onBlur={onEndChange}
+          onChange={(val) => onChange(filter.index, { ...filter, q: val })}
+          className="band-q-stepper"
+          disabled={disabled}
+          aria-label={`Band ${filter.index + 1} Q value`}
+        />
+      </div>
+    </BandField>
+  );
+
+  const frequencyControl = (
+    <BandField label="Frequency" unit="Hz" className="band-freq-field">
+      <div className="param-cell freq-cell">
+        <Slider
+          aria-label={`Band ${filter.index + 1} frequency`}
+          disabled={disabled}
+          min={0}
+          max={FREQ_SLIDER_STEPS}
+          step={5}
+          value={freqToSlider(filter.freq, capabilities.freq_range)}
+          aria-valuemin={capabilities.freq_range[0]}
+          aria-valuemax={capabilities.freq_range[1]}
+          aria-valuenow={filter.freq}
+          aria-valuetext={`${filter.freq} Hz`}
+          onStartChange={onStartChange}
+          onEndChange={onEndChange}
+          onReset={committedFilter ? () => onChange(filter.index, { ...filter, freq: constrainFreq(committedFilter.freq, capabilities.freq_range, snapToIso) }) : undefined}
+          onFocus={() => onActivate?.(filter.index)}
+          onChange={(event) => {
+            const raw = sliderToFreq(+event.target.value, capabilities.freq_range);
+            onChange(filter.index, { ...filter, freq: constrainFreq(raw, capabilities.freq_range, snapToIso) });
           }}
         />
-      </label>
-      <BandField label="Frequency" unit="Hz" className="band-freq-field">
-        <div className="param-cell freq-cell">
-          <Slider
-            aria-label={`Band ${filter.index + 1} frequency`}
-            disabled={disabled}
-            min={0}
-            max={FREQ_SLIDER_STEPS}
-            step={5}
-            value={freqToSlider(filter.freq, capabilities.freq_range)}
-            aria-valuemin={capabilities.freq_range[0]}
-            aria-valuemax={capabilities.freq_range[1]}
-            aria-valuenow={filter.freq}
-            aria-valuetext={`${filter.freq} Hz`}
-            onStartChange={onStartChange}
-            onEndChange={onEndChange}
-            onReset={committedFilter ? () => onChange(filter.index, { ...filter, freq: constrainFreq(committedFilter.freq, capabilities.freq_range, snapToIso) }) : undefined}
-            onFocus={() => onActivate?.(filter.index)}
-            onChange={(event) => {
-              const raw = sliderToFreq(+event.target.value, capabilities.freq_range);
-              onChange(filter.index, { ...filter, freq: constrainFreq(raw, capabilities.freq_range, snapToIso) });
-            }}
-          />
-          <NumberInput
-            value={clampToRange(filter.freq, capabilities.freq_range)}
-            min={capabilities.freq_range[0]}
-            max={capabilities.freq_range[1]}
-            step={50}
-            precision={0}
-            onFocus={() => {
-              onActivate?.(filter.index);
-              onStartChange();
-            }}
-            onBlur={onEndChange}
-            onChange={(val) => onChange(filter.index, { ...filter, freq: constrainFreq(val, capabilities.freq_range, snapToIso) })}
-            onStep={makeFreqStepper(filter, capabilities.freq_range, snapToIso, onChange)}
-            className="band-freq-stepper"
-            disabled={disabled}
-            aria-label={`Band ${filter.index + 1} frequency value`}
-          />
-        </div>
-      </BandField>
-      <BandField label="Gain" unit="dB" className="band-gain-field">
-        <div className="gain-cell">
-          <Slider
-            aria-label={`Band ${filter.index + 1} gain`}
-            disabled={disabled}
-            min={capabilities.band_gain_range[0]}
-            max={capabilities.band_gain_range[1]}
-            step={0.01}
-            value={clampToRange(filter.gain, capabilities.band_gain_range)}
-            aria-valuetext={`${filter.gain >= 0 ? "+" : ""}${filter.gain.toFixed(2)} dB`}
-            onStartChange={onStartChange}
-            onEndChange={onEndChange}
-            onReset={committedFilter ? () => onChange(filter.index, { ...filter, gain: clampToRange(committedFilter.gain, capabilities.band_gain_range) }) : undefined}
-            onFocus={() => onActivate?.(filter.index)}
-            onChange={(event) => onChange(filter.index, { ...filter, gain: +event.target.value })}
-          />
-          <NumberInput
-            value={clampToRange(filter.gain, capabilities.band_gain_range)}
-            min={capabilities.band_gain_range[0]}
-            max={capabilities.band_gain_range[1]}
-            step={0.1}
-            precision={2}
-            onFocus={() => {
-              onActivate?.(filter.index);
-              onStartChange();
-            }}
-            onBlur={onEndChange}
-            onChange={(val) => onChange(filter.index, { ...filter, gain: val })}
-            className="band-gain-stepper"
-            disabled={disabled}
-            aria-label={`Band ${filter.index + 1} gain value`}
-          />
-        </div>
-      </BandField>
-      <BandField label="Q" className="band-q-field">
-        <div className="param-cell q-cell">
-          <Slider
-            aria-label={`Band ${filter.index + 1} Q`}
-            disabled={disabled}
-            min={0}
-            max={Q_SLIDER_STEPS}
-            step={1}
-            value={qToSlider(filter.q, capabilities.q_range)}
-            aria-valuemin={capabilities.q_range[0]}
-            aria-valuemax={capabilities.q_range[1]}
-            aria-valuenow={filter.q}
-            aria-valuetext={`Q ${filter.q.toFixed(2)}`}
-            onStartChange={onStartChange}
-            onEndChange={onEndChange}
-            onReset={committedFilter ? () => onChange(filter.index, { ...filter, q: clampToRange(committedFilter.q, capabilities.q_range) }) : undefined}
-            onFocus={() => onActivate?.(filter.index)}
-            onChange={(event) => onChange(filter.index, { ...filter, q: sliderToQ(+event.target.value, capabilities.q_range) })}
-          />
-          <NumberInput
-            value={clampToRange(filter.q, capabilities.q_range)}
-            min={capabilities.q_range[0]}
-            max={capabilities.q_range[1]}
-            step={0.05}
-            precision={2}
-            onFocus={() => {
-              onActivate?.(filter.index);
-              onStartChange();
-            }}
-            onBlur={onEndChange}
-            onChange={(val) => onChange(filter.index, { ...filter, q: val })}
-            className="band-q-stepper"
-            disabled={disabled}
-            aria-label={`Band ${filter.index + 1} Q value`}
-          />
-        </div>
-      </BandField>
+        <NumberInput
+          value={clampToRange(filter.freq, capabilities.freq_range)}
+          min={capabilities.freq_range[0]}
+          max={capabilities.freq_range[1]}
+          step={50}
+          precision={0}
+          onFocus={() => {
+            onActivate?.(filter.index);
+            onStartChange();
+          }}
+          onBlur={onEndChange}
+          onChange={(val) => onChange(filter.index, { ...filter, freq: constrainFreq(val, capabilities.freq_range, snapToIso) })}
+          onStep={makeFreqStepper(filter, capabilities.freq_range, snapToIso, onChange)}
+          className="band-freq-stepper"
+          disabled={disabled}
+          aria-label={`Band ${filter.index + 1} frequency value`}
+        />
+      </div>
+    </BandField>
+  );
+  const gainControl = (
+    <BandField label="Gain" unit="dB" className="band-gain-field">
+      <div className="gain-cell">
+        <Slider
+          aria-label={`Band ${filter.index + 1} gain`}
+          disabled={disabled}
+          min={capabilities.band_gain_range[0]}
+          max={capabilities.band_gain_range[1]}
+          step={0.01}
+          value={clampToRange(filter.gain, capabilities.band_gain_range)}
+          aria-valuetext={`${filter.gain >= 0 ? "+" : ""}${filter.gain.toFixed(2)} dB`}
+          onStartChange={onStartChange}
+          onEndChange={onEndChange}
+          onReset={committedFilter ? () => onChange(filter.index, { ...filter, gain: clampToRange(committedFilter.gain, capabilities.band_gain_range) }) : undefined}
+          onFocus={() => onActivate?.(filter.index)}
+          onChange={(event) => onChange(filter.index, { ...filter, gain: +event.target.value })}
+        />
+        <NumberInput
+          value={clampToRange(filter.gain, capabilities.band_gain_range)}
+          min={capabilities.band_gain_range[0]}
+          max={capabilities.band_gain_range[1]}
+          step={0.1}
+          precision={2}
+          onFocus={() => {
+            onActivate?.(filter.index);
+            onStartChange();
+          }}
+          onBlur={onEndChange}
+          onChange={(val) => onChange(filter.index, { ...filter, gain: val })}
+          className="band-gain-stepper"
+          disabled={disabled}
+          aria-label={`Band ${filter.index + 1} gain value`}
+        />
+      </div>
+    </BandField>
+  );
+
+  return (
+    <>
+      {!mobileSimple && typeControl}
+      {mobileSimple ? <>{gainControl}{frequencyControl}</> : <>{frequencyControl}{gainControl}</>}
+      {mobileSimple ? (
+        <details className="band-more-settings">
+          <summary>More band settings<Icon name="expand_more" /></summary>
+          {typeControl}
+          {qControl}
+        </details>
+      ) : qControl}
     </>
   );
 }, (previous, next) => (
+  previous.mobileSimple === next.mobileSimple &&
   previous.filter === next.filter &&
   previous.committedFilter === next.committedFilter &&
   previous.disabled === next.disabled &&

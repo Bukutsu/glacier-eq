@@ -25,6 +25,30 @@ const baseHeaderProps: Parameters<typeof Header>[0] = {
 };
 
 describe("Header markup", () => {
+  it("keeps one primary mobile save action and puts reads in the device menu", () => {
+    const html = renderToStaticMarkup(createElement(Header, {
+      ...baseHeaderProps, mobile: true, connected: true, deviceMatchesEditor: false,
+    }));
+    expect(html).toContain("Changes not saved to DAC");
+    expect(html).toContain("Save to DAC");
+    expect(html).not.toContain("header-session-strip");
+    expect(html).not.toContain("desktop-toolbar");
+    expect(html).not.toContain("Write DAC");
+    const panel = html.split('class="connection-actions-panel" hidden=""')[1];
+    expect(panel).toContain("Read from DAC");
+    expect(panel).toContain("Disconnect DAC");
+  });
+
+  it("gives offline mobile editing a clear connect action without session stats", () => {
+    const html = renderToStaticMarkup(createElement(Header, {
+      ...baseHeaderProps, mobile: true,
+    }));
+    expect(html).toContain("Offline editing");
+    expect(html).toContain("Connect DAC");
+    expect(html).not.toContain("Profile:");
+    expect(html).not.toContain("Save to DAC");
+  });
+
   it("distinguishes an unsaved profile from unwritten DAC changes", () => {
     const html = renderToStaticMarkup(createElement(Header, {
       ...baseHeaderProps, connected: true, profileDirty: true, deviceMatchesEditor: false,

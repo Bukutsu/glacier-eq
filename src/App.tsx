@@ -1523,9 +1523,9 @@ function App() {
     const activeBands = snapshot.filters.filter((f) => f.enabled).length;
     const bandCount = activeBands === 1 ? "band" : "bands";
     if (!(await confirmDialog({
-      title: "Write to DAC?",
+      title: isMobile ? "Save to DAC?" : "Write to DAC?",
       message: `Write ${activeBands} ${bandCount} and ${snapshot.global_gain.toFixed(1)} dB preamp to the DAC? This saves the EQ to the device.`,
-      confirmLabel: "Write DAC",
+      confirmLabel: isMobile ? "Save to DAC" : "Write DAC",
       danger: true,
     }))) return;
     if (!isConfirmationCurrent()) return;
@@ -1628,7 +1628,7 @@ function App() {
         setProgress(null);
       }
     }
-  }, [connected, selectedDevice, selectedCapabilities, reportStatus, setStatus, getAsyncContext, noteEditorMutation, pushToUndoStack]);
+  }, [connected, selectedDevice, selectedCapabilities, reportStatus, setStatus, getAsyncContext, noteEditorMutation, pushToUndoStack, isMobile]);
 
   const applyProfileToRam = useCallback(
     async (profile: Profile) => {
@@ -2082,32 +2082,33 @@ function App() {
     />
   );
 
-  // Preamp + band rows are identical in the mobile EQ tab and the desktop pane.
-  const editorControls = (
-    <>
-      <Preamp
-        value={peq.global_gain}
-        resetValue={lastPushedPeq?.global_gain}
-        range={capabilities.global_gain_range}
-        integerMode={capabilities.integer_preamp}
-        onStartChange={handlePreampStartChange}
-        onChange={handlePreampChange}
-         disabled={isBusy || eqOperationInFlightRef.current}
-      />
-      <Bands
-        peq={peq}
-        committedPeq={lastPushedPeq}
-        capabilities={capabilities}
-        onFilterChange={updateFilter}
-        onStartChange={handleStartChange}
-        onEndChange={handleEndChange}
-        activeBandIndex={activeBandIndex}
-        onActiveBandChange={setActiveBandIndex}
-        snapToIso={snapToIso}
-        disabled={isBusy || eqOperationInFlightRef.current}
-      />
-    </>
+  const preampControls = (
+    <Preamp
+      value={peq.global_gain}
+      resetValue={lastPushedPeq?.global_gain}
+      range={capabilities.global_gain_range}
+      integerMode={capabilities.integer_preamp}
+      onStartChange={handlePreampStartChange}
+      onChange={handlePreampChange}
+      disabled={isBusy || eqOperationInFlightRef.current}
+    />
   );
+  const bandControls = (
+    <Bands
+      peq={peq}
+      committedPeq={lastPushedPeq}
+      capabilities={capabilities}
+      onFilterChange={updateFilter}
+      onStartChange={handleStartChange}
+      onEndChange={handleEndChange}
+      activeBandIndex={activeBandIndex}
+      onActiveBandChange={setActiveBandIndex}
+      snapToIso={snapToIso}
+      disabled={isBusy || eqOperationInFlightRef.current}
+      isMobile={isMobile}
+    />
+  );
+  const editorControls = <>{preampControls}{bandControls}</>;
 
 
   const editorHint = !connected && !editorHintDismissed ? (
@@ -2191,6 +2192,7 @@ function App() {
           onConnectClick={handleOpenDeviceModal}
           configPage={desktopConfigPage}
           pageTitle={isMobile ? mobilePageTitle : undefined}
+          mobile={isMobile}
           compact={isMobile && activeTab !== "eq"}
         />
       {isMobile ? (
@@ -2199,7 +2201,7 @@ function App() {
           {activeTab !== "eq" && <h1 className="visually-hidden">{mobilePageTitle}</h1>}
           {showGraph && (activeTab === "eq" || activeTab === "profiles" || (activeTab === "tuning" && (measurements.some((trace) => trace.visible) || activeTargets.length > 0))) && (
             <section className={`mobile-graph-container mobile-graph-${activeTab} ${graphCollapsed ? "collapsed" : ""}`}>
-              <div className="graph-card">
+              <div className="graph-card" inert={graphCollapsed ? true : undefined} aria-hidden={graphCollapsed}>
                 {graphElement(activeTab === "eq")}
               </div>
               <button
@@ -2207,8 +2209,9 @@ function App() {
                 className="graph-collapse-btn"
                 onClick={handleToggleGraphCollapsed}
                 aria-expanded={!graphCollapsed}
-                aria-label={graphCollapsed ? "Expand graph" : "Collapse graph"}
+                aria-label={graphCollapsed ? "Show sound curve" : "Hide sound curve"}
               >
+                <span>{graphCollapsed ? "Show sound curve" : "Hide sound curve"}</span>
                 <Icon name={graphCollapsed ? "expand_more" : "expand_less"} />
               </button>
             </section>
@@ -2225,6 +2228,8 @@ function App() {
               role="button"
               tabIndex={showGraphPreview ? 0 : -1}
               aria-label="Scroll back to top graph"
+              aria-hidden={!showGraphPreview}
+              inert={!showGraphPreview ? true : undefined}
             >
               <div className="graph-card" style={{ height: "100%", padding: 0, border: "none", background: "transparent" }}>
                 {graphElement(false, true)}
@@ -2246,7 +2251,11 @@ function App() {
             {activeTab === "eq" && (
               <section className="left-pane">
                 {editorHint}
-                {editorControls}
+                {bandControls}
+                <details className="mobile-preamp-details">
+                  <summary><span>Preamp</span><span>{peq.global_gain.toFixed(1)} dB <Icon name="expand_more" /></span></summary>
+                  {preampControls}
+                </details>
               </section>
             )}
             {activeTab === "profiles" && (

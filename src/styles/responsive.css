@@ -114,6 +114,9 @@
 }
 
 @media (max-width: 850px), ((max-height: 540px) and (pointer: coarse)) {
+  :root {
+    --tabbar-h: 56px;
+  }
   .app-header {
     position: sticky;
     top: 0;
@@ -142,7 +145,7 @@
     width: 100%;
   }
   .header-session-strip {
-    display: flex;
+    display: none;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -834,12 +837,14 @@
     align-items: center;
     justify-content: center;
     width: 100%;
-    min-height: 44px;
-    height: 44px;
+    min-height: 28px;
+    height: 28px;
     background: transparent;
     border: 0;
     color: var(--muted);
     cursor: pointer;
+    font-size: var(--type-caption);
+    gap: 6px;
     transition: color var(--motion-duration) var(--motion-ease);
   }
 
@@ -907,9 +912,9 @@
     bottom: 0;
     left: 0;
     right: 0;
-    height: max(76px, calc(64px + var(--safe-area-bottom, 0px)));
+    height: var(--tabbar-h, 56px);
     align-items: center;
-    padding: 4px max(6px, var(--safe-area-right, 0px)) var(--safe-area-bottom, 0px) max(6px, var(--safe-area-left, 0px));
+    padding: 2px max(6px, var(--safe-area-right, 0px)) var(--safe-area-bottom, 0px) max(6px, var(--safe-area-left, 0px));
     background: var(--bg);
     border-top: 1px solid var(--line-medium);
     z-index: var(--z-tabbar);
@@ -979,7 +984,7 @@
 
   /* Spacing to prevent overlay collision with fixed tab bar */
   .workspace.mobile-workspace {
-    padding-bottom: max(112px, calc(104px + var(--safe-area-bottom, 0px))) !important;
+    padding-bottom: calc(var(--tabbar-h, 56px) + var(--safe-area-bottom, 0px) + 16px) !important;
     display: flex;
     flex-direction: column;
   }
@@ -1143,9 +1148,9 @@ body.is-android *,
 
   /* The 230px desktop minimum otherwise wins over the mobile clamp. */
   .mobile-graph-container .graph-card {
-    height: clamp(170px, 21dvh, 196px);
+    height: clamp(100px, 16dvh, 136px);
     min-height: 0;
-    padding: 8px 8px 6px;
+    padding: 6px 8px 4px;
   }
 
   .mobile-graph-container .eq-graph-shell,
@@ -1191,8 +1196,118 @@ body.is-android *,
     touch-action: pan-x;
   }
 
+  .graph-collapse-btn {
+    gap: var(--space-2);
+    font-size: var(--type-small);
+  }
+
   .graph-collapse-btn::before {
-    inset: 8px 0;
+    content: none;
+  }
+
+  /* Put the sound adjustment ahead of the less frequent controls. */
+  .mobile-filter-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    max-width: 640px;
+    width: 100%;
+    margin-inline: auto;
+    box-sizing: border-box;
+  }
+  .mobile-filter-card .band-field {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-1);
+  }
+  .mobile-filter-card .band-field-label {
+    color: var(--text);
+    font-size: var(--type-label);
+  }
+  .band-more-settings {
+    border-top: 1px solid var(--line-soft);
+    color: var(--text);
+    font-size: var(--type-label);
+    padding-top: var(--space-1);
+  }
+  .band-more-settings summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    min-height: 44px;
+    cursor: pointer;
+    list-style: none;
+  }
+  .band-more-settings summary::-webkit-details-marker {
+    display: none;
+  }
+  .band-more-settings[open] > summary .app-icon {
+    transform: rotate(180deg);
+  }
+  .band-more-settings .band-field + .band-field {
+    margin-top: var(--space-3);
+  }
+  .band-settings-help {
+    margin: 0 0 var(--space-3);
+    color: var(--muted);
+    font-size: var(--type-small);
+    line-height: 1.5;
+  }
+  .mobile-preamp-details {
+    padding: 0 var(--space-4);
+    background: var(--panel);
+    border: 1px solid var(--line-soft);
+    border-radius: var(--radius-surface);
+    overflow: hidden;
+    max-width: 640px;
+    width: 100%;
+    margin-inline: auto;
+    box-sizing: border-box;
+  }
+  .mobile-preamp-details summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    min-height: 48px;
+    cursor: pointer;
+    list-style: none;
+    color: var(--text);
+    font-size: var(--type-label);
+  }
+  .mobile-preamp-details summary::-webkit-details-marker {
+    display: none;
+  }
+  .mobile-preamp-details[open] > summary .app-icon {
+    transform: rotate(180deg);
+  }
+  .mobile-preamp-details summary > span:last-child {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    color: var(--muted);
+  }
+  .mobile-preamp-details .preamp-card {
+    border: 0 !important;
+    padding: 0 0 var(--space-3) !important;
+    background: transparent !important;
+  }
+  .mobile-preamp-details .preamp-meta strong {
+    display: none;
+  }
+  .band-picker-hint {
+    margin: 0;
+    padding: var(--space-2) var(--space-4);
+  }
+
+  .title-stack { gap: var(--space-1); }
+  .mobile-history-buttons {
+    background: transparent;
+    outline: none;
+    padding: 0;
   }
 
   .band-undo-toast {
@@ -1201,13 +1316,42 @@ body.is-android *,
   }
 }
 
-@media (max-width: 850px) and (orientation: landscape), ((max-height: 540px) and (pointer: coarse) and (orientation: landscape)) {
-  .mobile-graph-container .graph-card {
-    height: clamp(100px, 32dvh, 150px);
+@media (max-height: 580px) {
+  .app-header {
+    padding: 6px 12px 4px !important;
   }
-
+  .mobile-tab-bar {
+    height: 46px !important;
+  }
+  .mobile-tab-item {
+    gap: 2px !important;
+    font-size: 10px !important;
+  }
+  .mobile-tab-item .app-icon {
+    width: 17px !important;
+    height: 17px !important;
+  }
+  .mobile-graph-container .graph-card {
+    height: clamp(80px, 18dvh, 100px) !important;
+  }
   .mobile-graph-tuning .graph-card {
-    height: clamp(80px, 20dvh, 120px);
+    height: clamp(65px, 15dvh, 90px) !important;
+  }
+  .editor-empty-hint {
+    padding: 6px 12px !important;
+    font-size: 13px !important;
+  }
+  .band-picker button {
+    min-height: 38px !important;
+    padding: 2px 10px !important;
+  }
+  .mobile-filter-card {
+    gap: 4px !important;
+    padding: 6px 12px !important;
+  }
+  .workspace.mobile-workspace {
+    padding-top: 4px !important;
+    padding-bottom: calc(46px + 12px) !important;
   }
 }
 
@@ -1252,13 +1396,13 @@ body.is-android *,
   }
 }
 
-@media (min-width: 961px) and (max-height: 750px) {
+@media (min-width: 851px) and (max-height: 820px) {
   .graph-card {
-    min-height: 160px !important;
-    height: 180px !important;
+    min-height: 150px !important;
+    height: clamp(150px, 24dvh, 190px) !important;
   }
   .eq-graph-shell, .eq-canvas {
-    min-height: 140px !important;
+    min-height: 130px !important;
   }
 }
 
@@ -1505,19 +1649,5 @@ body.is-android *,
 
   .band-undo-toast {
     bottom: calc(var(--tabbar-h) + var(--safe-area-bottom, 0px) + 68px);
-  }
-}
-
-@media (max-width: 380px) {
-  .mobile-filter-card .freq-cell,
-  .mobile-filter-card .gain-cell,
-  .mobile-filter-card .q-cell {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 6px;
-  }
-  .mobile-filter-card .custom-number-input.band-freq-stepper,
-  .mobile-filter-card .custom-number-input.band-gain-stepper,
-  .mobile-filter-card .custom-number-input.band-q-stepper {
-    width: 100% !important;
   }
 }
