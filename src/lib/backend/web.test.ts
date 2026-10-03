@@ -928,6 +928,13 @@ describe("web settings parser", () => {
     expect(parsed.value.theme).toBe("material-you");
   });
 
+  it("recognises the glacier theme as a known theme", () => {
+    const parsed = parseWebSettings({ theme: "glacier" });
+
+    expect(parsed.malformed).toBe(false);
+    expect(parsed.value.theme).toBe("glacier");
+  });
+
   it("falls back safely when settings are not an object", () => {
     const parsed = parseWebSettings(["skip_push_verification"]);
 

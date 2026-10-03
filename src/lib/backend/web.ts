@@ -354,6 +354,7 @@ const DEFAULT_WEB_SETTINGS: AppSettings = {
 const KNOWN_THEMES = new Set([
   "auto",
   "material-you",
+  "glacier",
   "tokyo-night",
   "tokyo-night-storm",
   "tokyo-night-day",

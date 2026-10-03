@@ -24,6 +24,7 @@ fn is_known_theme(theme: &str) -> bool {
     matches!(
         theme,
         "auto"
+            | "glacier"
             | "tokyo-night"
             | "tokyo-night-storm"
             | "tokyo-night-day"
@@ -473,6 +474,7 @@ mod tests {
     fn known_themes_match_settings_ui_options() {
         for theme in [
             "auto",
+            "glacier",
             "tokyo-night",
             "tokyo-night-storm",
             "tokyo-night-day",
