@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router";
-import { DeviceView } from "./DeviceView";
+import { DeviceView, formatChannelBalance } from "./DeviceView";
 
 vi.mock("@glacier-eq/backend", () => ({
   invoke: vi.fn(async () => {
@@ -72,5 +72,11 @@ describe("DeviceView markup", () => {
     });
     expect(html).toContain("Controls Unavailable");
     expect(html).not.toContain("device-filter-details");
+  });
+
+  it("formats channel balance with correct directional labels", () => {
+    expect(formatChannelBalance(0)).toBe("Center (0)");
+    expect(formatChannelBalance(5)).toBe("Right +5");
+    expect(formatChannelBalance(-5)).toBe("Left +5");
   });
 });

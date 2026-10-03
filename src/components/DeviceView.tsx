@@ -24,6 +24,13 @@ import {
 } from "../lib/serializedWrites";
 import type { DeviceCapabilities, DeviceInfo } from "../types";
 
+export function formatChannelBalance(balance: number): string {
+  if (balance === 0) return "Center (0)";
+  return balance > 0
+    ? `Right +${balance}`
+    : `Left +${Math.abs(balance)}`;
+}
+
 export interface DeviceViewProps {
   connected: boolean;
   isBusy?: boolean;
@@ -555,11 +562,7 @@ export const DeviceView = memo(function DeviceView({
                       <span className="stack-pref-desc">Adjust balance between left and right channels</span>
                     </div>
                     <span className="pref-value-badge">
-                      {utility.channel_balance === 0
-                        ? "Center (0)"
-                        : utility.channel_balance > 0
-                          ? `Left +${utility.channel_balance}`
-                          : `Right +${Math.abs(utility.channel_balance)}`}
+                      {formatChannelBalance(utility.channel_balance)}
                     </span>
                   </div>
                   <Slider
@@ -568,13 +571,7 @@ export const DeviceView = memo(function DeviceView({
                     step={1}
                     aria-label="Channel Balance"
                     disabled={isBusy}
-                    aria-valuetext={
-                      utility.channel_balance === 0
-                        ? "Center (0)"
-                        : utility.channel_balance > 0
-                          ? `Left +${utility.channel_balance}`
-                          : `Right +${Math.abs(utility.channel_balance)}`
-                    }
+                    aria-valuetext={formatChannelBalance(utility.channel_balance)}
                     value={utility.channel_balance}
                     onChange={(e) => handleSetBalance(Number(e.target.value))}
                   />
