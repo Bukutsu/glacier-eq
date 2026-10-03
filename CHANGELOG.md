@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.12.0] - 2026-10-03
+
+### Changed
+
+- Simplified EQ and tuning workflows, with clearer controls and improved keyboard access.
+- Redesigned the curve picker with ranked measurement search, result counts, loading feedback, and automatic search focus.
+- Redesigned the DAC connection dialog for mobile and stabilized modal scrolling, sizing, and footer placement.
+- Improved filled-button contrast, Android Material You styling, number-stepper colors, and settings alignment.
+- Added build-provenance attestations for release assets and locked dependency resolution across platform builds.
+
+### Fixed
+
+- Fixed reconnect attempts racing an unfinished WebHID close.
+- Fixed the clean EQ baseline referring to the previous DAC after switching devices.
+- Fixed partial control resets leaving changed state behind, and made unverified device writes explicit.
+- Fixed completed profile writes being reported as save failures and made profile-extension matching case-insensitive.
+- Aligned web and desktop validation, including command arguments, filter types, profile names, and data limits.
+- Preserved unknown theme settings instead of discarding them.
+- Added diagnostic trails for user-facing failures and corrected data-loss notification severity.
+- Enforced saved curve limits before restoring measurement data.
+- Prevented Android WebView font boosting from disrupting layouts.
+- Fixed stale curve-picker operations reporting results after the dialog closed.
+
 ## [0.11.0] - 2026-09-27
 
 ### Added
