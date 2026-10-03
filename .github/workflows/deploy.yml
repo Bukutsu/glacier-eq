@@ -92,6 +92,11 @@ jobs:
           # cannot verify the same commit differently.
           npm run verify:rust
 
+      # TypeScript imports declarations generated in the gitignored wasm_pkg.
+      # Build them before verification, as the release workflow does.
+      - name: Build WebAssembly package
+        run: npm run wasm:build
+
       - name: Verify frontend
         run: npm run verify
 
