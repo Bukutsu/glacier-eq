@@ -8,7 +8,7 @@
   <a href="https://github.com/Bukutsu/glacier-eq/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-GPLv3-blue.svg" alt="License"></a>
 </div>
 
-Tune how your earphones sound. Glacier EQ edits the EQ on USB DAC dongles. More bass, less harsh treble, whatever fits you. It saves on the dongle itself.
+Tune how your earphones sound. Glacier EQ edits the parametric EQ on USB DAC dongles — EPZ TP35 Pro, TRN Black Pearl, Moondrop Dawn Pro, FiiO KA/JA11, Truthear KEYX, JCally, iBasso, Fosi Audio, and more. Adjust bass, treble, whatever fits you. It saves directly on the dongle.
 
 No account, works offline.
 
@@ -18,12 +18,25 @@ No account, works offline.
 
 ## Will it work with mine?
 
-Plug your DAC in and check if it shows up in the app. Confirmed working:
+Plug your DAC in and check if it shows up in the app.
 
-- EPZ TP35 Pro
+**Tested:**
+- EPZ TP35 Pro (TP35Pro)
 - TRN Black Pearl
 
-More models work too. [See the full list](https://github.com/Bukutsu/glacier-eq/wiki/Supported-Devices).
+**Supported (untested):**
+- Moondrop Dawn Pro / Dawn Pro 2
+- FiiO JA11
+- FiiO KA series (KA5, KA13, etc.)
+- Truthear KEYX
+- JCally JM20 / JM20 Pro
+- JCally JM12
+- Fosi Audio DS2
+- iBasso DC04 Pro
+- Audiocular Aura
+- Other Savitech/Walkplay-based DAC dongles
+
+[See the full list on the wiki](https://github.com/Bukutsu/glacier-eq/wiki/Supported-Devices).
 
 ## How to use
 

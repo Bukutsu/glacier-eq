@@ -1,13 +1,13 @@
 {
   "name": "Glacier EQ",
   "short_name": "Glacier EQ",
-  "description": "Parametric EQ tool for WebHID DACs, DSP filters, and AutoEQ profile matching",
+  "description": "Free EQ software for EPZ TP35 Pro, TRN Black Pearl, Moondrop Dawn Pro, FiiO KA, Truthear KEYX, JCally, iBasso, and Fosi Audio USB DAC dongles",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#1a1b26",
-  "theme_color": "#1a1b26",
+  "background_color": "#181a1f",
+  "theme_color": "#181a1f",
   "categories": ["utilities", "music", "audio"],
   "icons": [
     {
