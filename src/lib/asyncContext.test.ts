@@ -50,6 +50,14 @@ describe("parseDeviceDisconnectedPayload", () => {
       .toBeNull();
     expect(parseDeviceDisconnectedPayload({ path: "/dev/hidraw2" }, "/dev/hidraw2"))
       .toBeNull();
+    expect(parseDeviceDisconnectedPayload(
+      { path: "/dev/hidraw2", name: "Example DAC", session_id: 0 },
+      "/dev/hidraw2",
+    )).toBeNull();
+    expect(parseDeviceDisconnectedPayload(
+      { path: "/dev/hidraw2", name: "Example DAC", session_id: -1 },
+      "/dev/hidraw2",
+    )).toBeNull();
   });
 });
 

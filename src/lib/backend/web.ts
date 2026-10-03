@@ -1320,13 +1320,35 @@ async function invokeWeb<T = unknown>(cmd: string, args?: any): Promise<T> {
       const pid = activeProfile?.product_id ?? null;
       const measurementPoints = args.measurement_points ?? args.measurementPoints;
       const targetPoints = args.target_points ?? args.targetPoints;
+      const nBands = args.n_bands ?? args.nBands;
+      const steps = args.steps;
+      const smoothType = args.smooth_type ?? args.smoothType;
+      const fs = args.fs;
+      if (!Array.isArray(measurementPoints)) {
+        throw new Error("Invalid AutoEQ measurement points");
+      }
+      if (!Array.isArray(targetPoints)) {
+        throw new Error("Invalid AutoEQ target points");
+      }
+      if (typeof nBands !== "number" || !Number.isSafeInteger(nBands) || nBands < 1) {
+        throw new Error("Invalid AutoEQ band count");
+      }
+      if (typeof steps !== "number" || !Number.isSafeInteger(steps) || steps < 1) {
+        throw new Error("Invalid AutoEQ step count");
+      }
+      if (typeof smoothType !== "string") {
+        throw new Error("Invalid AutoEQ smoothing type");
+      }
+      if (typeof fs !== "number" || !Number.isFinite(fs)) {
+        throw new Error("Invalid AutoEQ sample rate");
+      }
       return wasm().run_autoeq(
         measurementPoints,
         targetPoints,
-        (args.n_bands ?? args.nBands) as number,
-        args.steps as number,
-        (args.smooth_type ?? args.smoothType) as string,
-        args.fs as number,
+        nBands,
+        steps,
+        smoothType,
+        fs,
         vid,
         pid
       ) as T;

@@ -249,6 +249,60 @@ describe("browser connection cleanup", () => {
     await expect(invoke("run_autoeq")).rejects.toThrow("Missing run_autoeq arguments");
   });
 
+  it("rejects malformed AutoEQ WebRPC values before WebAssembly coercion", async () => {
+    const valid = {
+      measurementPoints: [[20, 0], [20_000, 0]],
+      targetPoints: [[20, 0], [20_000, 0]],
+      nBands: 1,
+      steps: 1,
+      smoothType: "none",
+      fs: 96_000,
+    };
+
+    await expect(invoke("run_autoeq", {})).rejects.toThrow("Invalid AutoEQ measurement points");
+    await expect(invoke("run_autoeq", { ...valid, targetPoints: undefined }))
+      .rejects.toThrow("Invalid AutoEQ target points");
+    for (const bad of ["1", null, {}, 1.5, 0, -1]) {
+      await expect(invoke("run_autoeq", { ...valid, nBands: bad }))
+        .rejects.toThrow("Invalid AutoEQ band count");
+      await expect(invoke("run_autoeq", { ...valid, steps: bad }))
+        .rejects.toThrow("Invalid AutoEQ step count");
+    }
+    for (const bad of ["96000", null, {}]) {
+      await expect(invoke("run_autoeq", { ...valid, fs: bad }))
+        .rejects.toThrow("Invalid AutoEQ sample rate");
+    }
+
+    // Disconnected DAC: passes null for vendor_id and product_id
+    await invoke("disconnect_device");
+    await invoke("run_autoeq", valid);
+    expect(wasm.run_autoeq).toHaveBeenCalledWith(
+      valid.measurementPoints,
+      valid.targetPoints,
+      valid.nBands,
+      valid.steps,
+      valid.smoothType,
+      valid.fs,
+      null,
+      null,
+    );
+
+    // Connected DAC: passes device profile IDs
+    const device = fakeHidDevice();
+    await connectWebHid(device, { ...profile, protocol: "Walkplay" });
+    await invoke("run_autoeq", valid);
+    expect(wasm.run_autoeq).toHaveBeenCalledWith(
+      valid.measurementPoints,
+      valid.targetPoints,
+      valid.nBands,
+      valid.steps,
+      valid.smoothType,
+      valid.fs,
+      profile.vendor_id,
+      profile.product_id,
+    );
+  });
+
   it("rejects a non-boolean amp or gain mode like the desktop bool parameter", async () => {
     const device = fakeHidDevice();
     await connectWebHid(device, { ...profile, protocol: "Walkplay" });

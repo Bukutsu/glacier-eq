@@ -47,7 +47,7 @@ export function parseDeviceDisconnectedPayload(
       typeof path !== "string" ||
       path.length === 0 ||
       typeof name !== "string" ||
-      (sessionId !== undefined && (typeof sessionId !== "number" || !Number.isSafeInteger(sessionId)))
+      (sessionId !== undefined && (typeof sessionId !== "number" || !Number.isSafeInteger(sessionId) || sessionId < 1))
     ) {
       return null;
     }
