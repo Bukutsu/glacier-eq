@@ -4,269 +4,193 @@ import { describe, expect, it, vi } from "vitest";
 import vm from "node:vm";
 import { TextEncoder } from "node:util";
 
-const source = readFileSync(new URL("../../public/sw.js", import.meta.url), "utf8");
+const source = readFileSync(
+  new URL("../../public/sw.js", import.meta.url),
+  "utf8",
+);
+const scope = "https://example.test/app/";
 
-type ServiceWorkerListener = (event: { waitUntil(promise: Promise<unknown>): void }) => void;
+type WorkerEvent =
+  | {
+      waitUntil(promise: Promise<unknown>): void;
+    }
+  | {
+      request: { method: string; url: string; mode: string };
+      respondWith(response: Promise<Response>): void;
+    };
 
-/**
- * The slice of each service-worker event the handlers under test actually read.
- * These fixtures stand in for ServiceWorkerGlobalScope, so naming the fields
- * keeps the event literals checked instead of accepted as `any`.
- */
-type WorkerFetchEvent = {
-  request: { method: string; url: string; mode?: string };
-  respondWith: (response: Promise<unknown>) => void;
-};
-type WorkerExtendableEvent = { waitUntil: (promise: Promise<unknown>) => void };
-type WorkerEvent = WorkerFetchEvent | WorkerExtendableEvent;
+function cacheStorage() {
+  const registry = new Map<string, Map<string, Response>>();
+  const entries = (name: string) => {
+    if (!registry.has(name)) registry.set(name, new Map());
+    return registry.get(name)!;
+  };
+  const key = (request: string | URL | { url: string }) =>
+    typeof request === "string" || request instanceof URL
+      ? String(request)
+      : request.url;
+  return {
+    open: async (name: string) => ({
+      put: async (
+        request: string | URL | { url: string },
+        response: Response,
+      ) => {
+        entries(name).set(key(request), response.clone());
+      },
+      match: async (request: string | URL | { url: string }) =>
+        entries(name).get(key(request))?.clone(),
+      keys: async () => [...entries(name).keys()].map((url) => ({ url })),
+      delete: async (request: string | URL | { url: string }) =>
+        entries(name).delete(key(request)),
+    }),
+    keys: async () => [...registry.keys()],
+    delete: async (name: string) => registry.delete(name),
+    match: vi.fn(async (request: string | URL | { url: string }) => {
+      for (const cache of registry.values()) {
+        const hit = cache.get(key(request));
+        if (hit) return hit.clone();
+      }
+      return undefined;
+    }),
+  };
+}
+
+function worker(
+  caches: ReturnType<typeof cacheStorage>,
+  fetch: (request: string | URL | { url: string }) => Promise<Response>,
+) {
+  const listeners: Record<string, (event: WorkerEvent) => void> = {};
+  const skipWaiting = vi.fn();
+  vm.runInNewContext(source, {
+    self: {
+      registration: { scope },
+      addEventListener: (
+        name: string,
+        listener: (event: WorkerEvent) => void,
+      ) => {
+        listeners[name] = listener;
+      },
+      clients: { claim: vi.fn() },
+      skipWaiting,
+    },
+    location: { origin: "https://example.test" },
+    caches,
+    fetch,
+    crypto: webcrypto,
+    TextEncoder,
+    URL,
+    Response,
+    Promise,
+    console,
+  });
+  return {
+    skipWaiting,
+    install: () => {
+      let pending: Promise<unknown> | undefined;
+      listeners.install({
+        waitUntil: (promise) => {
+          pending = promise;
+        },
+      });
+      expect(pending).toBeDefined();
+      return pending!;
+    },
+    fetch: (url: string) => {
+      let pending: Promise<Response> | undefined;
+      listeners.fetch({
+        request: { method: "GET", url, mode: "no-cors" },
+        respondWith: (promise) => {
+          pending = promise;
+        },
+      });
+      expect(pending).toBeDefined();
+      return pending!;
+    },
+  };
+}
+
+const manifestFetch =
+  (manifest: unknown) => async (request: string | URL | { url: string }) =>
+    String(request).endsWith("offline-assets.json")
+      ? Response.json(manifest)
+      : new Response("asset");
 
 describe("service worker preload", () => {
   it("keeps the previous cache when one asset fails", async () => {
-    const listeners: Record<string, ServiceWorkerListener> = {};
-    const nextCache = new Map<string, unknown>();
-    const previousCache = new Map([["https://example.test/old.js", "old"]]);
-    const skipWaiting = vi.fn();
-    const fetchMock = vi.fn(async (url: string | URL) => {
-      const href = String(url);
-      if (href.endsWith("missing.js")) return { ok: false, status: 503 };
-      if (href.endsWith("offline-assets.json")) {
-        return { ok: true, json: async () => ["./missing.js"] };
-      }
-      return { ok: true };
-    });
-    const context = {
-      self: {
-        registration: { scope: "https://example.test/app/" },
-        addEventListener: (name: string, listener: ServiceWorkerListener) => {
-          listeners[name] = listener;
-        },
-        clients: { claim: vi.fn() },
-        skipWaiting,
-      },
-      caches: {
-        open: vi.fn(async () => ({
-          put: async (url: string, response: unknown) => nextCache.set(url, response),
-          keys: async () => [...nextCache.keys()],
-          delete: async (url: string) => nextCache.delete(url),
-        })),
-        keys: async () => ["glacier-eq-v1", "glacier-eq-v2"],
-        delete: vi.fn(),
-      },
-      fetch: fetchMock,
-      crypto: webcrypto,
-      TextEncoder,
-      URL,
-      Promise,
-      console,
-    };
-    vm.runInNewContext(source, context);
+    const caches = cacheStorage();
+    const oldName = "glacier-eq-v2-https%3A%2F%2Fexample.test%2Fapp%2F|old";
+    const oldCache = await caches.open(oldName);
+    await oldCache.put(`${scope}old.js`, new Response("old"));
+    const metadata = await caches.open("glacier-eq-cache-meta-v1");
+    const metadataUrl = `${scope}__glacier_eq_active_cache__`;
+    await metadata.put(metadataUrl, new Response(oldName));
+    const previousNames = await caches.keys();
+    const instance = worker(caches, async (request) =>
+      String(request).endsWith("missing.js")
+        ? new Response("unavailable", { status: 503 })
+        : manifestFetch(["./missing.js"])(request),
+    );
 
-    let installPromise: Promise<unknown> = Promise.resolve();
-    listeners.install!({ waitUntil: (promise) => { installPromise = promise; } });
-
-    await expect(installPromise).rejects.toThrow("Failed to preload");
-    expect(skipWaiting).not.toHaveBeenCalled();
-    expect(previousCache.get("https://example.test/old.js")).toBe("old");
+    await expect(instance.install()).rejects.toThrow("Failed to preload");
+    expect(instance.skipWaiting).not.toHaveBeenCalled();
+    for (const name of previousNames)
+      expect(await caches.keys()).toContain(name);
+    expect(await (await oldCache.match(`${scope}old.js`))!.text()).toBe("old");
+    expect(await (await metadata.match(metadataUrl))!.text()).toBe(oldName);
   });
 
   it("changes the release cache when a public asset digest changes", async () => {
-    const opened: string[] = [];
-    const runInstall = async (hash: string) => {
-      const listeners: Record<string, ServiceWorkerListener> = {};
-      const cache = {
-        put: vi.fn(async () => undefined),
-        keys: vi.fn(async () => []),
-        delete: vi.fn(async () => true),
-      };
-      const context = {
-        self: {
-          registration: { scope: "https://example.test/app/" },
-          addEventListener: (name: string, listener: ServiceWorkerListener) => {
-            listeners[name] = listener;
-          },
-          clients: { claim: vi.fn() },
-          skipWaiting: vi.fn(),
-        },
-        caches: {
-          open: vi.fn(async (name: string) => {
-            opened.push(name);
-            return cache;
-          }),
-          keys: vi.fn(async () => []),
-          delete: vi.fn(async () => true),
-        },
-        fetch: vi.fn(async (url: string | URL) => {
-          if (String(url).endsWith("offline-assets.json")) {
-            return {
-              ok: true,
-              json: async () => [{ path: "./public.txt", hash }],
-            };
-          }
-          return { ok: true };
-        }),
-        crypto: webcrypto,
-        TextEncoder,
-        URL,
-        Response: class { constructor(public readonly body: string = "") {} },
-        Promise,
-        console,
-      };
-      vm.runInNewContext(source, context);
-      let installPromise: Promise<unknown> = Promise.resolve();
-      listeners.install!({ waitUntil: (promise) => { installPromise = promise; } });
-      await installPromise;
-    };
-
-    await runInstall("hash-a");
-    await runInstall("hash-b");
-    const releaseCaches = opened.filter((name) => name.startsWith("glacier-eq-v2-"));
+    const caches = cacheStorage();
+    for (const hash of ["hash-a", "hash-b"]) {
+      await worker(
+        caches,
+        manifestFetch([{ path: "./public.txt", hash }]),
+      ).install();
+    }
+    const releaseCaches = (await caches.keys()).filter((name) =>
+      name.startsWith("glacier-eq-v2-"),
+    );
     expect(releaseCaches).toHaveLength(2);
-    expect(releaseCaches[0]).not.toBe(releaseCaches[1]);
+    for (const name of releaseCaches) {
+      const cache = await caches.open(name);
+      expect(await (await cache.match(`${scope}public.txt`))!.text()).toBe(
+        "asset",
+      );
+    }
   });
 
   it("does not fall back to another scope's cache when no active cache exists", async () => {
-    const listeners: Record<string, (event: WorkerEvent) => void> = {};
-    const broadCache = new Map([["https://example.test/app/-admin/app.js", "broad"]]);
-    const cache = {
-      match: async (request: string | URL) => broadCache.get(String(request)),
-      put: async () => undefined,
-      keys: async () => [],
-      delete: async () => true,
-    };
-    const context = {
-      self: {
-        registration: { scope: "https://example.test/app/" },
-        addEventListener: (name: string, listener: (event: WorkerEvent) => void) => {
-          listeners[name] = listener;
-        },
-        clients: { claim: vi.fn() },
-        skipWaiting: vi.fn(),
-      },
-      location: { origin: "https://example.test" },
-      caches: {
-        open: vi.fn(async (name: string) => name.includes("cache-meta") ? {
-          match: async () => undefined,
-          put: async () => undefined,
-        } : cache),
-        keys: vi.fn(async () => ["glacier-eq-v2-https%3A%2F%2Fexample.test%2Fapp%2F-admin%2F|foreign"]),
-        delete: vi.fn(),
-        match: vi.fn(async () => {
-          throw new Error("global cache fallback must not be used");
-        }),
-      },
-      fetch: vi.fn(async () => ({ ok: true, clone: () => ({}) })),
-      crypto: webcrypto,
-      TextEncoder,
-      URL,
-      Response: class {},
-      Promise,
-      console,
-    };
-    vm.runInNewContext(source, context);
-    let responsePromise: Promise<unknown> | undefined;
-    listeners.fetch({
-      request: { method: "GET", url: "https://example.test/app/-admin/app.js", mode: "no-cors" },
-      respondWith: (promise: Promise<unknown>) => { responsePromise = promise; },
+    const caches = cacheStorage();
+    const url = "https://example.test/app/-admin/app.js";
+    const foreign = await caches.open(
+      "glacier-eq-v2-https%3A%2F%2Fexample.test%2Fapp%2F-admin%2F|foreign",
+    );
+    await foreign.put(url, new Response("foreign asset"));
+    const instance = worker(caches, async () => new Response("network asset"));
+
+    expect(await (await instance.fetch(url)).text()).toBe("network asset");
+    expect(caches.match).not.toHaveBeenCalled();
+
+    const offline = worker(caches, async () => {
+      throw new Error("network unavailable");
     });
-    await expect(responsePromise).resolves.toBeDefined();
-    expect(context.caches.match).not.toHaveBeenCalled();
+    await expect(offline.fetch(url)).rejects.toThrow("network unavailable");
   });
 
   it("restores the active release cache after a worker restart", async () => {
-    const scope = "https://example.test/app/";
-    const origin = "https://example.test";
-    const registry = new Map<string, Map<string, unknown>>();
-    const getCache = (name: string) => {
-      let entries = registry.get(name);
-      if (!entries) {
-        entries = new Map();
-        registry.set(name, entries);
-      }
-      return entries;
-    };
-    const keyFor = (value: string | URL | { url: string }) =>
-      typeof value === "string" || value instanceof URL ? String(value) : value.url;
-    const makeCache = (name: string) => ({
-      put: async (url: string | URL, response: unknown) => getCache(name).set(keyFor(url), response),
-      keys: async () => [...getCache(name).keys()].map((url) => ({ url })),
-      delete: async (url: string | URL) => getCache(name).delete(keyFor(url)),
-      match: async (url: string | URL | { url: string }) => getCache(name).get(keyFor(url)),
-    });
-    const cacheApi = {
-      open: async (name: string) => makeCache(name),
-      keys: async () => [...registry.keys()],
-      delete: async (name: string) => registry.delete(name),
-      match: async (url: string | URL) => {
-        for (const entries of registry.values()) {
-          const hit = entries.get(String(url));
-          if (hit) return hit;
-        }
-        return undefined;
-      },
-    };
-    class TestResponse {
-      constructor(private readonly body: string) {}
-      async text() { return this.body; }
-    }
-    const response = (body: string, ok = true) => ({
-      ok,
-      status: ok ? 200 : 503,
-      clone: () => response(body, ok),
-      json: async () => JSON.parse(body),
-      text: async () => body,
-    });
-    const listeners: Record<string, (event: WorkerEvent) => void> = {};
-    const context = (fetchImpl: (url: string | URL) => Promise<unknown>) => ({
-      self: {
-        registration: { scope },
-        addEventListener: (name: string, listener: (event: WorkerEvent) => void) => {
-          listeners[name] = listener;
-        },
-        clients: { claim: vi.fn() },
-        skipWaiting: vi.fn(),
-      },
-      location: { origin },
-      caches: cacheApi,
-      fetch: fetchImpl,
-      crypto: webcrypto,
-      TextEncoder,
-      URL,
-      Response: TestResponse,
-      Promise,
-      console,
-    });
+    const caches = cacheStorage();
+    await worker(caches, manifestFetch(["./app.js"])).install();
 
-    const firstListeners: Record<string, (event: WorkerEvent) => void> = {};
-    const firstContext = context(async (url) => {
-      const href = String(url);
-      return href.endsWith("offline-assets.json") ? response(JSON.stringify(["./app.js"])) : response("asset");
+    // A second release makes the single-cache migration fallback insufficient.
+    const stale = await caches.open(
+      "glacier-eq-v2-https%3A%2F%2Fexample.test%2Fapp%2F|stale",
+    );
+    await stale.put(`${scope}app.js`, new Response("stale asset"));
+    const restarted = worker(caches, async () => {
+      throw new Error("offline");
     });
-    const firstVmListeners: Record<string, (event: WorkerEvent) => void> = {};
-    firstVmListeners.addEventListener = (name: string, listener: (event: WorkerEvent) => void) => {
-      firstListeners[name] = listener;
-    };
-    vm.runInNewContext(source, { ...firstContext, self: { ...firstContext.self, addEventListener: firstVmListeners.addEventListener } });
-    let installPromise: Promise<unknown> = Promise.resolve();
-    firstListeners.install({ waitUntil: (promise: Promise<unknown>) => { installPromise = promise; } });
-    await installPromise;
-
-    const restartedListeners: Record<string, (event: WorkerEvent) => void> = {};
-    const restartedContext = context(async () => { throw new Error("offline"); });
-    vm.runInNewContext(source, {
-      ...restartedContext,
-      self: {
-        ...restartedContext.self,
-        addEventListener: (name: string, listener: (event: WorkerEvent) => void) => {
-          restartedListeners[name] = listener;
-        },
-      },
-    });
-    let responsePromise: Promise<unknown> | undefined;
-    restartedListeners.fetch({
-      request: { method: "GET", url: `${scope}app.js`, mode: "no-cors" },
-      respondWith: (promise: Promise<unknown>) => { responsePromise = promise; },
-    });
-    expect(responsePromise).toBeDefined();
-    await expect(responsePromise).resolves.toBeDefined();
+    expect(await (await restarted.fetch(`${scope}app.js`)).text()).toBe(
+      "asset",
+    );
   });
 });
