@@ -956,6 +956,20 @@
     outline-offset: -4px;
   }
 
+  .mobile-tab-item::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 22%;
+    right: 22%;
+    height: 2px;
+    background: var(--cyan);
+    opacity: 0;
+  }
+  .mobile-tab-item.active::before {
+    opacity: 1;
+  }
+
   .mobile-tab-icon-wrapper {
     display: flex;
     align-items: center;
@@ -984,6 +998,8 @@
 
   /* Spacing to prevent overlay collision with fixed tab bar */
   .workspace.mobile-workspace {
+    padding-top: 8px;
+    padding-inline: 0;
     padding-bottom: calc(var(--tabbar-h, 56px) + var(--safe-area-bottom, 0px) + 16px) !important;
     display: flex;
     flex-direction: column;
@@ -994,7 +1010,7 @@
     flex-direction: column;
     width: 100%;
     max-width: 100%;
-    overflow-x: hidden;
+    overflow: visible;
     gap: 12px;
   }
 
@@ -1002,8 +1018,8 @@
     position: fixed;
     right: max(8px, var(--safe-area-right, 0px));
     top: calc(168px + var(--safe-area-top, 0px));
-    width: min(300px, 76vw);
-    height: 132px;
+    width: min(248px, 60vw);
+    height: 112px;
     z-index: var(--z-preview);
     padding: 2px;
     background: rgb(var(--bg-dark-rgb) / 0.9);
@@ -1031,8 +1047,6 @@
   @media (orientation: landscape) {
     .mobile-graph-preview {
       top: calc(104px + var(--safe-area-top, 0px));
-      width: min(240px, 50vw);
-      height: 104px;
     }
   }
 
@@ -1045,12 +1059,14 @@
     display: none !important;
   }
 
+  /* Keep one page scroller; overflow-x: hidden creates a second vertical
+     scroller in WebView. */
   .mobile-workspace .left-pane,
   .mobile-workspace .right-rail {
     width: 100% !important;
     max-width: 100% !important;
     flex: 1;
-    overflow-x: hidden !important;
+    overflow: visible !important;
     padding-right: 0 !important;
   }
 
@@ -1086,28 +1102,8 @@
   .tuning-panel .tuning-library {
     max-height: none;
   }
-}
 
-html::-webkit-scrollbar,
-body.is-android ::-webkit-scrollbar,
-.mobile-workspace::-webkit-scrollbar,
-.mobile-workspace *::-webkit-scrollbar {
-  display: none !important;
-  width: 0 !important;
-  height: 0 !important;
-}
-html,
-body.is-android,
-body.is-android *,
-.mobile-workspace,
-.mobile-workspace * {
-  scrollbar-width: none !important;
-  -ms-overflow-style: none !important;
-}
-
-/* Mobile layout rhythm: use predictable 8dp increments and keep content
-   inside the system-safe page gutter. */
-@media (max-width: 850px), ((max-height: 540px) and (pointer: coarse)) {
+  /* Page gutter and editor controls. */
   .app-header {
     padding-inline: 16px;
   }
@@ -1116,34 +1112,12 @@ body.is-android *,
     display: none;
   }
 
-  .workspace.mobile-workspace {
-    padding-top: 8px;
-    padding-inline: 0;
-  }
-
   .mobile-workspace .left-pane {
     gap: 12px;
   }
 
-  .mobile-content-area {
-    gap: 12px;
-    overflow: visible;
-  }
-
-  /* Keep one page scroll container. A horizontal `hidden` overflow value can
-     silently create a second vertical scroller in WebView. */
-  .mobile-workspace .left-pane,
-  .mobile-workspace .right-rail {
-    overflow: visible !important;
-  }
-
   .mobile-graph-container {
     margin-bottom: 0;
-  }
-
-  .mobile-graph-preview {
-    width: min(248px, 60vw);
-    height: 112px;
   }
 
   /* The 230px desktop minimum otherwise wins over the mobile clamp. */
@@ -1314,6 +1288,23 @@ body.is-android *,
     right: max(16px, var(--safe-area-right, 0px));
     left: max(16px, var(--safe-area-left, 0px));
   }
+}
+
+html::-webkit-scrollbar,
+body.is-android ::-webkit-scrollbar,
+.mobile-workspace::-webkit-scrollbar,
+.mobile-workspace *::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+html,
+body.is-android,
+body.is-android *,
+.mobile-workspace,
+.mobile-workspace * {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
 }
 
 @media (max-height: 580px) {
@@ -1628,23 +1619,6 @@ body.is-android *,
   .mobile-workspace select,
   .mobile-workspace input:not([type="range"]) {
     touch-action: manipulation;
-  }
-
-  .mobile-tab-item {
-    position: relative;
-  }
-  .mobile-tab-item::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 22%;
-    right: 22%;
-    height: 2px;
-    background: var(--cyan);
-    opacity: 0;
-  }
-  .mobile-tab-item.active::before {
-    opacity: 1;
   }
 
   .band-undo-toast {
