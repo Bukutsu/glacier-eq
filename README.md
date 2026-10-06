@@ -8,23 +8,23 @@
   <a href="https://github.com/Bukutsu/glacier-eq/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-GPLv3-blue.svg" alt="License"></a>
 </div>
 
-Tune how your earphones sound. Glacier EQ edits the parametric EQ on USB DAC dongles — EPZ TP35 Pro, TRN Black Pearl, Moondrop Dawn Pro, FiiO KA/JA11, Truthear KEYX, JCally, iBasso, Fosi Audio, and more. Adjust bass, treble, whatever fits you. It saves directly on the dongle.
+Glacier EQ lets you change the parametric EQ on your USB DAC dongle, so you can adjust how your earphones sound and save it directly on the DAC. More bass, less treble, whatever fits you.
 
-No account, works offline.
+It supports EPZ TP35 Pro, TRN Black Pearl, Moondrop Dawn Pro, FiiO KA/JA11, Truthear KEYX, JCally, iBasso, Fosi Audio, and more. No account needed, works offline.
 
-[Try it in your browser](https://bukutsu.github.io/glacier-eq/) (Chrome or Edge) · [Download for desktop and Android](https://github.com/Bukutsu/glacier-eq/releases)
+[try it in your browser](https://bukutsu.github.io/glacier-eq/) (Chrome or Edge) · [download for desktop and Android](https://github.com/Bukutsu/glacier-eq/releases)
 
 <img src="assets/screenshot-main.png" alt="Glacier EQ showing EQ sliders and sound curve" width="900">
 
-## Will it work with mine?
+## will it work with my DAC?
 
-Plug your DAC in and check if it shows up in the app.
+plug in your DAC and check if it shows up in the app. Some devices are supported but haven't been tested yet, so check the list below.
 
-**Tested:**
+**tested:**
 - EPZ TP35 Pro (TP35Pro)
 - TRN Black Pearl
 
-**Supported (untested):**
+**supported, untested:**
 - Moondrop Dawn Pro / Dawn Pro 2
 - FiiO JA11
 - FiiO KA series (KA5, KA13, etc.)
@@ -36,21 +36,27 @@ Plug your DAC in and check if it shows up in the app.
 - Audiocular Aura
 - Other Savitech/Walkplay-based DAC dongles
 
-[See the full list on the wiki](https://github.com/Bukutsu/glacier-eq/wiki/Supported-Devices).
+[full device list on the wiki](https://github.com/Bukutsu/glacier-eq/wiki/Supported-Devices)
 
-## How to use
+## how to use it
 
-1. Plug in your DAC and open Glacier EQ.
-2. Pick your DAC, hit **Connect**, then **Pull**.
-3. Move the sliders till it sounds right, then hit **Push** to save.
+1. plug in your DAC and open Glacier EQ.
+2. pick your DAC, hit **Connect**, then **Pull** to read its EQ.
+3. adjust the sliders till it sounds right, then hit **Push** to save it on the DAC.
 
-That's it. The sound stays on your dongle, even on other devices.
+The EQ stays on the dongle, so you can plug it into another device and keep the same sound. You can also save profiles in the app if you want to switch back to an EQ you liked.
 
-Save favorites as profiles so you can switch back anytime.
+## trouble connecting?
 
-## Hardware developer CLI
+if you're on Linux, check the [setup and troubleshooting guide](https://github.com/Bukutsu/glacier-eq/wiki/Troubleshooting).
 
-The workspace CLI can inspect a connected DAC and send raw HID reports for protocol testing:
+## development
+
+if you want to build the app or work on it, see [CONTRIBUTING.md](CONTRIBUTING.md) for setup, verification, and web, desktop, and Android development commands.
+
+### hardware CLI
+
+you can also use the workspace CLI to inspect a connected DAC or send raw HID reports for protocol testing:
 
 ```sh
 cargo run -p glacier-core --bin glacier-eq-cli -- hardware list
@@ -58,20 +64,16 @@ cargo run -p glacier-core --bin glacier-eq-cli -- hardware raw \
   --device 3302:43e6 --report-id 4b --data 80 0c 00 --read-ms 250 --yes
 ```
 
-Raw writes require `--yes`; use `--read-ms 0` when no response should be read. The report ID is supplied separately and the data accepts space-, comma-, colon-, or compact hexadecimal bytes.
+Raw writes need `--yes`. Use `--read-ms 0` if you don't want to read a response. Pass the report ID separately from the data, which accepts space-, comma-, colon-, or compact hexadecimal bytes.
 
-## Problems connecting?
+## support
 
-[Linux setup and troubleshooting](https://github.com/Bukutsu/glacier-eq/wiki/Troubleshooting)
+if Glacier EQ is useful to you, give it a star or support it on [GitHub Sponsors](https://github.com/sponsors/Bukutsu) or [Ko-fi](https://ko-fi.com/bukutsu) :3
 
-## Support
+## more info
 
-If you find Glacier EQ useful, give it a star or support/sponsor on [GitHub Sponsors](https://github.com/sponsors/Bukutsu) or [Ko-fi](https://ko-fi.com/bukutsu) :3
-
-## Links
-
-- [Wiki](https://github.com/Bukutsu/glacier-eq/wiki) — device list, install options, command line tools, building from source
-- [Releases](https://github.com/Bukutsu/glacier-eq/releases) — downloads
-- [Issues](https://github.com/Bukutsu/glacier-eq/issues) — bugs and requests
+- [Wiki](https://github.com/Bukutsu/glacier-eq/wiki) for the device list, install options, command line tools, and building from source
+- [Releases](https://github.com/Bukutsu/glacier-eq/releases) for downloads
+- [Issues](https://github.com/Bukutsu/glacier-eq/issues) for bugs and requests
 
 Glacier EQ is licensed under GPL-3.0-only. See [LICENSE](LICENSE).
