@@ -18,6 +18,7 @@ import { isDiagnosticLevel, isDiagnosticSource, sanitizeDiagnosticMessage } from
 import { readLocalStorage, writeLocalStorage } from "../safeStorage";
 import { decodeUtf8 } from "../utf8";
 import { DISCONNECT_SUPERSEDED } from "../asyncContext";
+import { themeOptions } from "../theme";
 
 // Wasm entry points are resolved lazily: ensureWasm() has already run on every
 // path that reaches them (invokeWeb awaits it before dispatching), so the
@@ -350,20 +351,8 @@ const DEFAULT_WEB_SETTINGS: AppSettings = {
   floating_graph_preview: true,
 };
 
-// Must match the themes offered by the settings UI.
-const KNOWN_THEMES = new Set([
-  "auto",
-  "material-you",
-  "glacier",
-  "tokyo-night",
-  "tokyo-night-storm",
-  "tokyo-night-day",
-  "nord",
-  "dracula",
-  "gruvbox",
-  "catppuccin-mocha",
-  "catppuccin-latte",
-]);
+// Accept every UI theme, including Android themes in imported settings.
+const KNOWN_THEMES = new Set<string>(themeOptions(true).map(({ value }) => value));
 
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);

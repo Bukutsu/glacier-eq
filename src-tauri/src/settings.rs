@@ -20,21 +20,22 @@ fn default_theme() -> String {
 }
 
 /// Must match the themes offered by the settings UI (and the web parser).
+const KNOWN_THEMES: &[&str] = &[
+    "auto",
+    "glacier",
+    "tokyo-night",
+    "tokyo-night-storm",
+    "tokyo-night-day",
+    "nord",
+    "dracula",
+    "gruvbox",
+    "catppuccin-mocha",
+    "catppuccin-latte",
+    "material-you",
+];
+
 fn is_known_theme(theme: &str) -> bool {
-    matches!(
-        theme,
-        "auto"
-            | "glacier"
-            | "tokyo-night"
-            | "tokyo-night-storm"
-            | "tokyo-night-day"
-            | "nord"
-            | "dracula"
-            | "gruvbox"
-            | "catppuccin-mocha"
-            | "catppuccin-latte"
-            | "material-you"
-    )
+    KNOWN_THEMES.contains(&theme)
 }
 
 fn default_snap_to_iso_frequencies() -> bool {
@@ -472,21 +473,19 @@ mod tests {
 
     #[test]
     fn known_themes_match_settings_ui_options() {
-        for theme in [
-            "auto",
-            "glacier",
-            "tokyo-night",
-            "tokyo-night-storm",
-            "tokyo-night-day",
-            "nord",
-            "dracula",
-            "gruvbox",
-            "catppuccin-mocha",
-            "catppuccin-latte",
-            "material-you",
-        ] {
-            assert!(is_known_theme(theme));
-        }
+        // Read the actual UI options, not a second hardcoded expected list.
+        // If themeOptions stops using literal values, update this extraction.
+        let source = include_str!("../../src/lib/theme.ts");
+        let mut ui_themes: Vec<&str> = source
+            .split("value: \"")
+            .skip(1)
+            .map(|option| option.split('"').next().unwrap())
+            .collect();
+        assert!(!ui_themes.is_empty(), "could not read themeOptions values");
+        ui_themes.sort_unstable();
+        let mut native_themes = KNOWN_THEMES.to_vec();
+        native_themes.sort_unstable();
+        assert_eq!(native_themes, ui_themes, "native and UI themes differ");
         assert!(!is_known_theme("dark"));
         assert!(!is_known_theme(""));
     }

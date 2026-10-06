@@ -65,6 +65,7 @@ import {
   WebHidReadTimeout,
 } from "./web";
 import { parseDiagnosticHistory } from "../diagnostics";
+import { themeOptions } from "../theme";
 import { DISCONNECT_SUPERSEDED } from "../asyncContext";
 
 const profile: SupportedDeviceInfo = {
@@ -1365,6 +1366,14 @@ describe("storage quarantine", () => {
       ),
     ).toBe(true);
     warnSpy.mockRestore();
+  });
+});
+
+describe("theme settings parity", () => {
+  it.each(themeOptions(true))("preserves the UI theme $value in web settings", ({ value }) => {
+    const parsed = parseWebSettings({ theme: value });
+    expect(parsed.malformed).toBe(false);
+    expect(parsed.value.theme).toBe(value);
   });
 });
 
