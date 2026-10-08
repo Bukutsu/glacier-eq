@@ -146,7 +146,7 @@ export const Bands = memo(function Bands({ peq, committedPeq, capabilities, onFi
       >
         <span className="title-text">
           <Icon name="tune" />
-          <strong>FILTER BANDS</strong>
+          <strong>Filter bands</strong>
         </span>
         <span className="collapse-toggle-btn">
           {visibleFilters.length}/{availableFilters.length}
@@ -174,7 +174,7 @@ export const Bands = memo(function Bands({ peq, committedPeq, capabilities, onFi
           <div className="bands-actions">
             <button type="button" className="btn" onClick={addFilter} disabled={!canAddFilter}>
               <Icon name="add" />
-              Add Filter
+              Add filter
             </button>
           </div>
         </div>

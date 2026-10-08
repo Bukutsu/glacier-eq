@@ -11,7 +11,7 @@ describe("SidebarDeviceSpecs markup", () => {
       }),
     );
     expect(html).toContain("Offline");
-    expect(html).toContain("Offline Editor");
+    expect(html).toContain("Offline editor");
     expect(html).toContain("DSP");
     expect(html).toContain("<dt>EQ</dt>");
     expect(html).not.toContain("OFFLINE ENGINE");

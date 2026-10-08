@@ -47,7 +47,7 @@ describe("savePersistedJson", () => {
     expect(notify).toHaveBeenCalledTimes(1);
     const message = notify.mock.calls[0][0] as string;
     expect(message).toContain("glacier-measurements");
-    expect(message).toContain("storage is full");
+    expect(message).toContain("Storage is full");
   });
 
   it("surfaces unexpected write failures to the user", () => {

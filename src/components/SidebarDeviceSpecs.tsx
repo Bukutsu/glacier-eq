@@ -32,7 +32,7 @@ export const DeviceSpecs = memo(function DeviceSpecs({
 
   const title = connected || isSimulated
     ? deviceInfo?.profile_name || deviceInfo?.product_string || officialSpec?.name || "Connected DAC"
-    : "Offline Editor";
+    : "Offline editor";
 
   const dotClass = !connected
     ? "offline"

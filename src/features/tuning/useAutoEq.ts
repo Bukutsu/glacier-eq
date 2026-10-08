@@ -74,7 +74,7 @@ export function useAutoEq({
     setResultMessage(null);
     setWarnings([]);
     setErrorMessage(null);
-    if (superseded) setStatus("EQ match cancelled because the inputs changed.");
+    if (superseded) setStatus("EQ generation cancelled because the inputs changed.");
   }, [measurements, allTargets, activeTargetIds]);
 
   useEffect(() => {
@@ -177,7 +177,7 @@ export function useAutoEq({
     optimizingRef.current = true;
     setIsOptimizing(true);
     setResultMessage(null);
-    setStatus("Generating EQ...");
+    setStatus("Generating EQ…");
     setWarnings([]);
     setErrorMessage(null);
 
@@ -206,18 +206,18 @@ export function useAutoEq({
       const autoName = `${cleanMeasName} @ ${cleanTargetName}`;
       const applied = onImportPEQ(result.peq, autoName, false);
       if (!applied) {
-        const message = "EQ was not loaded because another device operation is busy. Wait for it to finish, then generate again.";
+        const message = "EQ was not loaded because a device operation is in progress. Wait for it to finish, then generate EQ again.";
         setErrorMessage(message);
         setStatus(message);
         return;
       }
       setWarnings(result.warnings);
-      setResultMessage("EQ loaded into the editor. Review it before saving a profile or writing to your DAC.");
+      setResultMessage("EQ loaded into the editor. Review it before saving a profile or writing it to the DAC.");
 
       if (result.warnings.length > 0) {
-        setStatus(`EQ matched with ${result.warnings.length} warning${result.warnings.length === 1 ? "" : "s"}`);
+        setStatus(`EQ generated with ${result.warnings.length} warning${result.warnings.length === 1 ? "" : "s"}`);
       } else {
-        setStatus("EQ matched");
+        setStatus("EQ generated");
       }
     } catch (err) {
       if (isCurrent()) {

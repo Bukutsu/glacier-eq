@@ -34,25 +34,25 @@ export function LinuxUdevGuide({ compact = false, setStatus }: LinuxUdevGuidePro
     try {
       await writeText(UDEV_INSTALL_COMMAND);
       setCopied(true);
-      setStatus?.("Install command copied — paste it in a terminal.");
+      setStatus?.("Install command copied. Paste it into a terminal.");
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      setStatus?.("Copy failed — select the command manually.");
+      setStatus?.("Copy failed. Select and copy the command manually.");
     }
   };
 
   return (
     <div className="linux-udev-guide">
       <p>
-        Linux blocks browser access to USB DACs by default. The browser can&apos;t
-        ask for admin rights, so run this once in a terminal:
+        Linux restricts browser access to USB DACs by default. The browser cannot
+        request administrator access. Run this command once in a terminal:
       </p>
       <div className="udev-command-row">
         <code>{UDEV_INSTALL_COMMAND}</code>
         <button
           type="button"
           className="btn"
-          title={copied ? "Copied!" : "Copy install command"}
+          title={copied ? "Copied" : "Copy install command"}
           aria-label={copied ? "Copied" : "Copy install command"}
           onClick={copyCommand}
         >
@@ -62,19 +62,19 @@ export function LinuxUdevGuide({ compact = false, setStatus }: LinuxUdevGuidePro
       </div>
       {!compact && (
         <p className="card-note">
-          Prefer manual steps? Save{" "}
+          To install manually, save{" "}
           <a href={UDEV_RULES_URL} target="_blank" rel="noreferrer">69-glacier-eq.rules</a>{" "}
           to <code>/etc/udev/rules.d/</code> as root, then reload udev with the two{" "}
           <code>udevadm</code> commands above.
         </p>
       )}
       <ol className="udev-steps">
-        <li>Replug the DAC.</li>
-        <li>Hit <strong>Scan for Devices</strong> and approve the browser prompt.</li>
+        <li>Disconnect and reconnect the DAC.</li>
+        <li>Select <strong>Scan for devices</strong> and approve the device access prompt.</li>
       </ol>
       <p className="card-note">
-        Still stuck? Use Chrome or Edge over HTTPS or localhost, close other apps
-        holding the DAC, and see the{" "}
+        If connection fails, use Chrome or Edge over HTTPS or localhost, close other
+        applications using the DAC, and refer to the{" "}
         <a
           href="https://github.com/Bukutsu/glacier-eq/wiki/Troubleshooting"
           target="_blank"

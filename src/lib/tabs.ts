@@ -10,9 +10,9 @@ export const DEVICE_SECTIONS = [
 ] as const satisfies ReadonlyArray<{ id: Exclude<DeviceSection, "root">; label: string; icon: string }>;
 
 export const SETTINGS_SECTIONS = [
-  { id: "general", label: "Behavior & Audio", icon: "tune" },
-  { id: "appearance", label: "Interface & Appearance", icon: "palette" },
-  { id: "diagnostics", label: "Diagnostics & Permissions", icon: "bug_report" },
+  { id: "general", label: "Behavior & audio", icon: "tune" },
+  { id: "appearance", label: "Interface & theme", icon: "palette" },
+  { id: "diagnostics", label: "Diagnostics & permissions", icon: "bug_report" },
   { id: "about", label: "About", icon: "info" },
 ] as const satisfies ReadonlyArray<{ id: Exclude<SettingsSection, "root">; label: string; icon: string }>;
 

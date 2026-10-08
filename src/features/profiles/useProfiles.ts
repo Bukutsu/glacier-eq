@@ -1,3 +1,4 @@
+import type { StatusReporter } from "../../stores/toastStore";
 import { useCallback, useRef, useState } from "react";
 import { invoke } from "../../lib/rpc";
 import { profileIdentityKey } from "../../lib/profileIdentity";
@@ -53,7 +54,7 @@ export function reconcileProfileSelection(
  */
 export function useProfiles(
   editor: ProfilesEditor,
-  setStatus: (message: string) => void,
+  setStatus: StatusReporter,
 ) {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [selectedPreset, setSelectedPreset] = useState(DEFAULT_PROFILE_NAME);
@@ -191,7 +192,7 @@ export function useProfiles(
       name === DEFAULT_PROFILE_NAME ||
       name === "Pulled from device"
     ) {
-      setStatus("Enter a profile name before saving.");
+      setStatus("Enter a profile name before saving.", "info");
       return;
     }
 

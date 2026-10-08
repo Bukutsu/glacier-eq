@@ -54,7 +54,7 @@ export function TuningPanel(props: TuningPanelProps) {
         </div>
         <h3 className="tuning-library-heading">Measurements <span>{props.measurements.length}</span></h3>
         {props.measurements.length === 0
-          ? <p className="tuning-help">No measurements added yet.</p>
+          ? <p className="tuning-help">No measurements added.</p>
           : <UnifiedTracesList {...props} allTargets={EMPTY_TARGETS} activeTargetIds={activeTargetIds} />}
         <h3 className="tuning-library-heading">Targets <span>{props.allTargets.length}</span></h3>
         {props.allTargets.length === 0
@@ -88,12 +88,12 @@ export function AutoEqTab(props: AutoEqTabProps) {
         void handleRunAutoEq();
       }}>
         <header className="tuning-heading">
-          <h2 id="tuning-title">Tune your headphones</h2>
-          <p>Build an EQ from a measurement and a target curve.</p>
+          <h2 id="tuning-title">Headphone tuning</h2>
+          <p>Generate EQ from a measurement and a target curve.</p>
         </header>
 
         <fieldset className="tuning-step" disabled={isOptimizing}>
-          <legend><span className="tuning-step-number" aria-hidden="true">1</span>Your measurement</legend>
+          <legend><span className="tuning-step-number" aria-hidden="true">1</span>Measurement</legend>
           <div className="tuning-step-body">
             {meas ? (
               <>
@@ -110,8 +110,8 @@ export function AutoEqTab(props: AutoEqTabProps) {
               <div className="tuning-start">
                 <Icon name="analytics" />
                 <div>
-                  <p>Add your headphone measurement</p>
-                  <span>Find it online or import a frequency-response file.</span>
+                  <p>Add a headphone measurement</p>
+                  <span>Search the measurement database or import a frequency-response file.</span>
                 </div>
                 {onOpenAddTrace && <button type="button" className="btn tuning-add" onClick={onOpenAddTrace}>
                   <Icon name="add" /> Add measurement
@@ -122,9 +122,9 @@ export function AutoEqTab(props: AutoEqTabProps) {
         </fieldset>
 
         <fieldset className="tuning-step" disabled={isOptimizing}>
-          <legend><span className="tuning-step-number" aria-hidden="true">2</span>Your target sound</legend>
+          <legend><span className="tuning-step-number" aria-hidden="true">2</span>Target curve</legend>
           <div className="tuning-step-body">
-            <p className="tuning-help">The response you want your headphones to match.</p>
+            <p className="tuning-help">The desired headphone frequency response.</p>
             <label className="tuning-sr-only" htmlFor="autoeq-target">Target curve</label>
             <Select id="autoeq-target" value={target?.id ?? ""}
               disabled={allTargets.length === 0 || isOptimizing}
@@ -139,12 +139,12 @@ export function AutoEqTab(props: AutoEqTabProps) {
         </fieldset>
 
         <fieldset className="tuning-step" disabled={isOptimizing}>
-          <legend><span className="tuning-step-number" aria-hidden="true">3</span>Build your EQ</legend>
+          <legend><span className="tuning-step-number" aria-hidden="true">3</span>Generate EQ</legend>
           <div className="tuning-step-body">
             <div className="tuning-band-row">
               <div>
                 <label htmlFor="autoeq-bands">Filter bands</label>
-                <p className="tuning-help">Up to {Math.max(1, maxBands)} bands for your DAC.</p>
+                <p className="tuning-help">Maximum: {Math.max(1, maxBands)} bands.</p>
               </div>
               <NumberInput id="autoeq-bands" aria-label="Filter bands" disabled={isOptimizing}
                 value={nBands} min={1} max={Math.max(1, maxBands)}
@@ -162,7 +162,7 @@ export function AutoEqTab(props: AutoEqTabProps) {
                   </button>
                 ))}
               </div>
-              <p className="tuning-help">Choose your headphone type to smooth sharp treble peaks.</p>
+              <p className="tuning-help">Select the headphone type to smooth sharp treble peaks.</p>
             </div>
             <Collapsible
               title={<span className="tuning-advanced-title">
@@ -177,20 +177,20 @@ export function AutoEqTab(props: AutoEqTabProps) {
                 <div className="tuning-advanced-field">
                   <div>
                     <label htmlFor="autoeq-steps">Optimizer steps</label>
-                    <p className="tuning-help">More steps take longer to calculate.</p>
+                    <p className="tuning-help">Additional steps increase calculation time.</p>
                   </div>
                   <Select id="autoeq-steps" value={steps} disabled={isOptimizing}
                     onChange={value => { invalidateRequest(); setSteps(value); }}
                     options={[
                       { value: 500, label: "500 (fast)" }, { value: 1000, label: "1,000" },
                       { value: 2000, label: "2,000 (standard)" }, { value: 3000, label: "3,000" },
-                      { value: 5000, label: "5,000 (precise)" },
+                      { value: 5000, label: "5,000 (extended)" },
                     ]} />
                 </div>
                 <div className="tuning-advanced-field">
                   <div>
                     <label htmlFor="autoeq-fs">Sample rate</label>
-                    <p className="tuning-help">Match your DAC’s DSP sample rate.</p>
+                    <p className="tuning-help">Use the DAC’s DSP sample rate.</p>
                   </div>
                   <Select id="autoeq-fs" value={fs} disabled={isOptimizing}
                     onChange={value => { invalidateRequest(); setFs(value); }}
@@ -206,7 +206,7 @@ export function AutoEqTab(props: AutoEqTabProps) {
               {isOptimizing ? "Generating EQ…" : "Generate EQ"}
             </button>
             <p className="tuning-help tuning-destination">
-              {!meas ? "Add a measurement to get started." : !target ? "Add a target to continue." : "Loads into the EQ editor. Your DAC stays unchanged."}
+              {!meas ? "Add a measurement to continue." : !target ? "Add a target to continue." : "Generated EQ is loaded into the editor. The DAC is not changed."}
             </p>
           </div>
         </fieldset>
@@ -215,7 +215,7 @@ export function AutoEqTab(props: AutoEqTabProps) {
         {resultMessage && (
           <div className="tuning-result-content">
             <Icon name="info" />
-            <div><strong>EQ ready to review</strong><p>{resultMessage}</p>
+            <div><strong>EQ generated</strong><p>{resultMessage}</p>
               {onReviewEq && <button type="button" className="btn" onClick={onReviewEq}>Review EQ</button>}
             </div>
           </div>
@@ -223,7 +223,7 @@ export function AutoEqTab(props: AutoEqTabProps) {
       </div>
       {errorMessage && <p className="tuning-error" role="alert">{errorMessage}</p>}
       {warnings.length > 0 && (
-        <div className="tuning-warnings"><strong>Check before applying</strong>
+        <div className="tuning-warnings"><strong>Review before applying</strong>
           <ul>{warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul>
         </div>
       )}

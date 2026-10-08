@@ -161,7 +161,7 @@ export const Header = memo(function Header({
         ? `${progress.message} · ${Math.round(progress.percentage)}%`
         : "Working"
       : isSimulated
-        ? "Simulation · editor only"
+        ? "Simulation · no hardware changes"
         : deviceMatchesEditor === null
           ? "Device state unknown"
           : deviceMatchesEditor
@@ -175,10 +175,10 @@ export const Header = memo(function Header({
   const writeClass = deviceMatchesEditor === false && !isSimulated ? "btn filled" : "btn";
   const mobileSyncText = !connected ? "Offline editing"
     : isBusy ? syncText
-    : isSimulated ? "Demo device, no hardware writes"
+    : isSimulated ? "Simulated device; no hardware changes"
     : deviceMatchesEditor === true ? "Saved to DAC"
     : deviceMatchesEditor === false ? "Changes not saved to DAC"
-    : "Read the DAC to check its EQ";
+    : "Read EQ from the DAC to check its state";
 
   return (
     <header className={`app-header${compact ? " compact-mobile" : ""}`} inert={inert}>
@@ -197,7 +197,7 @@ export const Header = memo(function Header({
               <span>{profileText}</span>
               <span>{activeBands}/{maxBands} bands</span>
               <span>{preampDb.toFixed(1)} dB preamp</span>
-              {connected && <span className="session-hide-mobile">{supportsRamApply ? "Temporary apply available" : "Persistent writes only"}</span>}
+              {connected && <span className="session-hide-mobile">{supportsRamApply ? "Temporary EQ supported" : "Persistent writes only"}</span>}
             </div>
           )}
         </div>

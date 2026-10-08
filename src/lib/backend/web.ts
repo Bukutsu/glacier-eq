@@ -885,7 +885,7 @@ async function writeEqPayload(protocol: string, peq: PEQData, initMessage: strin
   const total = peq.filters.length;
   for (let i = 0; i < total; i++) {
     emitEvent("operation-progress", {
-      message: `Writing band ${i + 1}/${total}...`,
+      message: `Writing band ${i + 1}/${total}…`,
       percentage: 15.0 + (i / total) * 60.0,
     });
 
@@ -899,7 +899,7 @@ async function writeEqPayload(protocol: string, peq: PEQData, initMessage: strin
     await sleep(timing.per_filter_ms || 80);
   }
 
-  emitEvent("operation-progress", { message: "Writing preamp...", percentage: 75 });
+  emitEvent("operation-progress", { message: "Writing preamp…", percentage: 75 });
   await sleep(timing.batch_ms || 100);
   await sendPackets(wasm().build_write_global_gain_packets(protocol, peq.global_gain));
   await sleep(timing.global_gain_ms || 50);
@@ -919,8 +919,8 @@ async function restorePersistentState(
   backup: PEQData,
   profile: SupportedDeviceInfo,
 ): Promise<void> {
-  await writeEqPayload(protocol, backup, "Restoring previous device state...");
-  await commitEqPayload(protocol, "Committing restored device state...");
+  await writeEqPayload(protocol, backup, "Restoring previous device EQ…");
+  await commitEqPayload(protocol, "Saving restored EQ to DAC…");
   const restored = await pullEqState(profile);
   validatePulledPeqForProfile(restored, profile);
   const mismatch = peqVerificationError(restored, backup, profile);
@@ -930,7 +930,7 @@ async function restorePersistentState(
 async function applyRamPayload(protocol: string, peq: PEQData, initMessage: string): Promise<void> {
   await writeEqPayload(protocol, peq, initMessage);
   const timing = wasm().get_write_timing(protocol);
-  emitEvent("operation-progress", { message: "Applying to RAM...", percentage: 85 });
+  emitEvent("operation-progress", { message: "Applying temporary EQ…", percentage: 85 });
   for (const packet of wasm().build_ram_apply_packets(protocol)) {
     await sendReport(packet);
     await sleep(timing.commit_step_ms || 100);
@@ -984,7 +984,7 @@ async function pullEqStateOnce(profile: SupportedDeviceInfo): Promise<PEQData> {
 
   for (let i = 0; i < numBands; i++) {
     emitEvent("operation-progress", {
-      message: `Reading band ${i + 1}/${numBands}...`,
+      message: `Reading band ${i + 1}/${numBands}…`,
       percentage: Math.round(((i + 1) / numBands) * 90),
     });
 
@@ -1438,7 +1438,7 @@ async function invokeWeb<T = unknown>(cmd: string, args?: any): Promise<T> {
       const devices = await ensureWebHid().getDevices();
       const target = devices.find((dev: HIDDevice) => webHidPath(dev) === requestedPath);
       if (!target || !matchSupportedWebHidDevice(target, listSupportedDevices())) {
-        throw new Error("Unsupported or unavailable device. Please click 'Scan' to authorize a supported DAC.");
+        throw new Error("Device is unsupported or unavailable. Select 'Scan for devices' to authorize a supported DAC.");
       }
 
       if (activeDevice && activeDevice !== target) {
@@ -1560,8 +1560,8 @@ async function invokeWeb<T = unknown>(cmd: string, args?: any): Promise<T> {
 
       if (skipVerification) {
         try {
-          await writeEqPayload(protocol, peq, "Initializing unverified push connection...");
-          await commitEqPayload(protocol, "Committing unverified changes to device...");
+          await writeEqPayload(protocol, peq, "Preparing unverified EQ write…");
+          await commitEqPayload(protocol, "Saving unverified EQ to DAC…");
         } catch (pushError) {
           let restoreError: unknown | null = null;
           try {
@@ -1584,8 +1584,8 @@ async function invokeWeb<T = unknown>(cmd: string, args?: any): Promise<T> {
 
       let actual: PEQData;
       try {
-        await writeEqPayload(protocol, peq, "Initializing push connection...");
-        await commitEqPayload(protocol, "Committing changes to device...");
+        await writeEqPayload(protocol, peq, "Preparing EQ write…");
+        await commitEqPayload(protocol, "Saving EQ to DAC…");
         actual = await pullEqState(profile);
         validatePulledPeqForProfile(actual, profile);
         const mismatch = peqVerificationError(actual, peq, profile);
@@ -1613,11 +1613,11 @@ async function invokeWeb<T = unknown>(cmd: string, args?: any): Promise<T> {
       const backup = await pullEqState(profile);
       validatePulledPeqForProfile(backup, profile);
       try {
-        await applyRamPayload(protocol, peq, "Initializing apply connection...");
+        await applyRamPayload(protocol, peq, "Preparing temporary EQ…");
       } catch (applyError) {
         let restoreError: unknown | null = null;
         try {
-          await applyRamPayload(protocol, backup, "Restoring previous RAM state...");
+          await applyRamPayload(protocol, backup, "Restoring previous temporary EQ…");
           const restored = await pullEqState(profile);
           validatePulledPeqForProfile(restored, profile);
           const mismatch = peqVerificationError(restored, backup, profile);
@@ -1632,7 +1632,7 @@ async function invokeWeb<T = unknown>(cmd: string, args?: any): Promise<T> {
         );
       }
 
-      emitEvent("operation-progress", { message: "Apply complete", percentage: 100 });
+      emitEvent("operation-progress", { message: "Temporary EQ applied", percentage: 100 });
       return { ...peq, warnings } as T;
     }
 

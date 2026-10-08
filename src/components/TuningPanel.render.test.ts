@@ -34,13 +34,14 @@ function render(overrides: Partial<typeof props> = {}) {
 describe("Tuning workflow", () => {
   it("guides the user through measurement, target, and generation in order", () => {
     const html = render();
-    expect(html).toContain('<h2 id="tuning-title">Tune your headphones</h2>');
-    expect(html.indexOf("Your measurement")).toBeLessThan(html.indexOf("Your target sound"));
-    expect(html.indexOf("Your target sound")).toBeLessThan(html.indexOf("Build your EQ"));
+    expect(html).toContain('<h2 id="tuning-title">Headphone tuning</h2>');
+    const steps = [...html.matchAll(/<legend>.*?<\/span>([^<]+)<\/legend>/g)]
+      .map(([, title]) => title);
+    expect(steps).toEqual(["Measurement", "Target curve", "Generate EQ"]);
     expect(html.match(/<fieldset/g)).toHaveLength(3);
-    expect(html).toContain("Add your headphone measurement");
+    expect(html).toContain("Add a headphone measurement");
     expect(html).toContain("Add measurement</button>");
-    expect(html).toContain("Find it online or import a frequency-response file.");
+    expect(html).toContain("Search the measurement database or import a frequency-response file.");
     expect(html).toContain('class="btn filled tuning-generate" disabled=""');
   });
 
@@ -53,7 +54,7 @@ describe("Tuning workflow", () => {
     expect(html).toContain("2 frequency points");
     expect(html).toContain("Add another</button>");
     expect(html).toContain('role="status" aria-live="polite"');
-    expect(html).toContain("Your DAC stays unchanged.");
+    expect(html).toContain("The DAC is not changed.");
   });
 
   it("offers a direct add action when targets are missing", () => {
@@ -85,14 +86,14 @@ describe("Tuning workflow", () => {
     const html = render({ dspSampleRate: 44100 });
     expect(html).toContain('class="app-collapse tuning-advanced"');
     expect(html).toContain("2,000 steps at 44.1 kHz");
-    expect(html).toContain("More steps take longer to calculate.");
-    expect(html).toContain("Match your DAC’s DSP sample rate.");
+    expect(html).toContain("Additional steps increase calculation time.");
+    expect(html).toContain("Use the DAC’s DSP sample rate.");
     expect(html.match(/class="tuning-advanced-field"/g)).toHaveLength(2);
   });
 
   it("respects the device band limit and DSP sample rate", () => {
     const html = render({ measurements: [measurement], maxBands: 5, dspSampleRate: 48000 });
-    expect(html).toContain("Up to 5 bands for your DAC.");
+    expect(html).toContain("Maximum: 5 bands.");
     expect(html).toContain('aria-valuemax="5" aria-valuenow="5"');
     expect(html).toMatch(/<option value="48000"[^>]* selected=""/);
   });

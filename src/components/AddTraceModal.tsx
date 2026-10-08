@@ -74,7 +74,7 @@ export function AddTraceModal({
       if (!mountedRef.current) return;
       setStatus?.(
         result.sweepFailed
-          ? `Downloaded ${result.entries} curves — cleanup of old cached data failed and will retry on the next download`
+          ? `Downloaded ${result.entries} curves. Cleanup of old cached data failed and will be retried on the next download.`
           : `Downloaded ${result.entries} curves`,
       );
     } catch (error) {
@@ -113,7 +113,7 @@ export function AddTraceModal({
     setModalError(null);
     try {
       const result = await openFileDialog({
-        filters: [{ name: "Frequency Response (.csv, .txt)", extensions: ["csv", "txt"] }],
+        filters: [{ name: "Frequency response (.csv, .txt)", extensions: ["csv", "txt"] }],
       });
       if (!result || request !== loadRequestRef.current || !mountedRef.current) return;
       const points = parseMeasurementText(result.text);
@@ -170,7 +170,7 @@ export function AddTraceModal({
   return (
     <Modal title="Add a curve" onClose={onClose} className="add-trace-modal">
       <div className="modal-body add-trace-body">
-        <p className="add-trace-intro">Find a headphone measurement, or import a curve from a file.</p>
+        <p className="add-trace-intro">Search for a headphone measurement or import a curve from a file.</p>
         {modalError && (
           <div className="modal-inline-error" role="alert">
             <Icon name="error" />
@@ -211,8 +211,8 @@ export function AddTraceModal({
                 ) : !query ? (
                   <div className="online-result-empty">
                     <Icon name="search" />
-                    <p>Find your headphones</p>
-                    <span>Search the measurements saved in your offline database.</span>
+                    <p>Search headphone measurements</p>
+                    <span>Search the measurements in the offline database.</span>
                   </div>
                 ) : results.length === 0 ? (
                   <div className="online-result-empty">
@@ -272,7 +272,7 @@ export function AddTraceModal({
           <details className="add-trace-cache">
             <summary>Offline database <span>{totalCount !== null ? `${totalCount.toLocaleString()} curves` : "Saved on this device"}</span></summary>
             <div className="add-trace-cache-row">
-              <p className="add-trace-cache-status">Clearing the cache removes the downloaded database, not the curves you already added.</p>
+              <p className="add-trace-cache-status">Clearing the cache removes the downloaded database. Added curves are retained.</p>
               <button type="button" className="btn add-trace-clear-cache-btn" onClick={handleResetCache} disabled={loadingDevice !== null || isDownloading}>
                 <Icon name="delete" /> Clear cache
               </button>

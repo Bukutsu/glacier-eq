@@ -30,7 +30,7 @@ describe("profile keyboard controls", () => {
     const html = renderToStaticMarkup(createElement(ProfilesView, props));
     expect(html).toContain('type="button" class="profile-row-info" aria-pressed="true" aria-label="Load Daily into editor"');
     expect(html).toContain("In editor");
-    expect(html).toContain("Try on DAC");
+    expect(html).toContain("Apply temporarily");
     expect(html).not.toContain('role="radio"');
     expect(html).not.toContain('role="radiogroup"');
   });

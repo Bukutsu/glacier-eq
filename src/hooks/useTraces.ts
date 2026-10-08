@@ -67,7 +67,7 @@ function quarantinePersistedJson(
   notify?.(
     backedUp
       ? `Could not load saved data for "${key}". Created a backup copy.`
-      : `Could not load saved data for "${key}", and no backup copy could be written (storage full?) — the damaged original was left in place.`,
+      : `Could not load saved data for "${key}" or create a backup. The damaged original was retained. Check available storage.`,
     "error",
   );
 }
@@ -203,7 +203,7 @@ export function savePersistedJson(
     if (quota) {
       console.warn(`localStorage quota exceeded while saving "${key}".`);
       notify?.(
-        `Could not save "${key}" — storage is full. Recent changes may be lost when the app closes.`,
+        `Could not save "${key}". Storage is full. Recent changes may be lost when the app closes.`,
         "error",
       );
     } else {

@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
+import type { StatusReporter } from "../stores/toastStore";
 import { memo, useEffect, useRef, useState } from "react";
 import { confirmDialog } from "./ConfirmDialog";
 import { Icon } from "./Icon";
@@ -35,7 +36,7 @@ export interface ProfilesViewProps {
   onReset: () => void;
   onSave: () => void;
   onDelete: () => void;
-  setStatus: (value: string) => void;
+  setStatus: StatusReporter;
   onImportPEQ: (data: PEQData, name: string, isSaved: boolean) => boolean;
   getAsyncContext: () => AsyncContext;
   runProfileMutation: ProfileMutationRunner;
@@ -151,12 +152,12 @@ export const ProfilesView = memo(function ProfilesView({
     const request = ++parseRequestRef.current;
 
     if (!file.name.endsWith(".txt")) {
-      setStatus("Only .txt AutoEQ files are supported.");
+      setStatus("Only .txt AutoEQ files are supported.", "info");
       return;
     }
 
     try {
-      if (file.size > 1_048_576) throw new Error("File exceeds the 1 MiB limit");
+      if (file.size > 1_048_576) throw new Error("File exceeds the 1 MiB limit.");
       const text = decodeUtf8(await file.arrayBuffer());
       await parseAndLoadText(text, file.name.replace(/\.[^/.]+$/, ""), request);
     } catch (error) {
@@ -276,7 +277,7 @@ export const ProfilesView = memo(function ProfilesView({
       if (temporarySnapshot) {
         const applied = onImportPEQ(parsedSnapshot.peq, nameSnapshot || "Imported EQ", false);
         if (!applied) {
-          setStatus("Import was not applied because another device operation is busy.");
+          setStatus("Import was not applied because a device operation is in progress.", "info");
           return;
         }
         setParsed(null);
@@ -286,11 +287,11 @@ export const ProfilesView = memo(function ProfilesView({
 
       const name = nameSnapshot.trim();
       if (!name) {
-        setStatus("Enter a name for the profile.");
+        setStatus("Enter a name for the profile.", "info");
         return;
       }
       if (name === DEFAULT_PROFILE_NAME) {
-        setStatus(`"${DEFAULT_PROFILE_NAME}" is reserved. Choose another name.`);
+        setStatus(`"${DEFAULT_PROFILE_NAME}" is reserved. Choose another name.`, "info");
         return;
       }
 
@@ -309,7 +310,7 @@ export const ProfilesView = memo(function ProfilesView({
 
       const applied = onImportPEQ(parsedSnapshot.peq, canonicalName, true);
       if (!applied) {
-        setStatus("Profile was saved, but the editor is busy and was not changed.");
+        setStatus("Profile was saved, but a device operation is in progress. The editor was not changed.", "info");
         return;
       }
       setParsed(null);
@@ -425,15 +426,15 @@ export const ProfilesView = memo(function ProfilesView({
                     <button
                       type="button"
                       className="profile-apply-btn"
-                      title={`Try ${profile.name} on DAC`}
-                      aria-label={`Try ${profile.name} on DAC`}
+                      title={`Apply ${profile.name} to DAC temporarily`}
+                      aria-label={`Apply ${profile.name} to DAC temporarily`}
                       onClick={(e) => {
                         e.stopPropagation();
                         onApplyProfile(profile);
                       }}
                     >
                       <Icon name="send" />
-                      <span>Try on DAC</span>
+                      <span>Apply temporarily</span>
                     </button>
                   )}
                 </div>
@@ -582,7 +583,7 @@ export const ProfilesView = memo(function ProfilesView({
 
       <section className="profile-action-group import-section">
         <div className="profile-action-head">
-          <strong>Import / Export</strong>
+          <strong>Import / export</strong>
         </div>
         <input
           className="hidden-file-input"
@@ -594,7 +595,7 @@ export const ProfilesView = memo(function ProfilesView({
         <div className="transfer-actions">
           <button type="button" className="icon-action" onClick={handleImportFileClick}>
             <Icon name="file_upload" />
-            <span>Import File</span>
+            <span>Import file</span>
           </button>
           <button type="button" className="icon-action" onClick={handlePaste}>
             <Icon name="content_paste" />
@@ -602,7 +603,7 @@ export const ProfilesView = memo(function ProfilesView({
           </button>
           <button type="button" className="icon-action" onClick={handleExportFile}>
             <Icon name="file_download" />
-            <span>Export File</span>
+            <span>Export file</span>
           </button>
           <button type="button" className="icon-action" onClick={handleCopy}>
             <Icon name="content_copy" />
@@ -612,7 +613,7 @@ export const ProfilesView = memo(function ProfilesView({
       </section>
 
       {parsed && (
-        <Modal title="Import Profile" onClose={handleCancelImport} closeDisabled={isSubmitting}>
+        <Modal title="Import profile" onClose={handleCancelImport} closeDisabled={isSubmitting}>
           <div className="modal-body">
             <div className="import-mode-tabs" role="group" aria-label="Import destination mode">
               <button
@@ -626,7 +627,7 @@ export const ProfilesView = memo(function ProfilesView({
                   setIsTemporary(false);
                 }}
               >
-                Save to Profile
+                Save profile
               </button>
               <button
                 type="button"
@@ -639,14 +640,14 @@ export const ProfilesView = memo(function ProfilesView({
                   setIsTemporary(true);
                 }}
               >
-                Try temporarily
+                Editor only
               </button>
             </div>
 
             <div className="import-flow-content">
               {!isTemporary ? (
                 <div className="import-field-group">
-                  <label htmlFor="import-name">Profile Name</label>
+                  <label htmlFor="import-name">Profile name</label>
                   <input
                     id="import-name"
                     type="text"
@@ -657,11 +658,11 @@ export const ProfilesView = memo(function ProfilesView({
                       invalidateModalOperation();
                       setImportName(e.target.value);
                     }}
-                    placeholder="Profile Name…"
+                    placeholder="Profile name…"
                   />
                   {savedProfiles.length > 0 && (
                     <div className="import-field-group" style={{ marginTop: "8px" }}>
-                      <label htmlFor="overwrite-select">Or overwrite an existing profile:</label>
+                      <label htmlFor="overwrite-select">Overwrite an existing profile</label>
                       <Select
                         id="overwrite-select"
                         value={profiles.some((p) => p.name === importName) ? importName : ""}
@@ -674,7 +675,7 @@ export const ProfilesView = memo(function ProfilesView({
                           }
                         }}
                         options={[
-                          { value: "", label: "-- Select profile --" },
+                          { value: "", label: "Select profile" },
                           ...savedProfiles.map((p) => ({ value: p.name, label: p.name })),
                         ]}
                       />
@@ -688,13 +689,13 @@ export const ProfilesView = memo(function ProfilesView({
                 </div>
               ) : (
                 <p className="import-temp-note">
-                  Applies the imported filters to your current session without saving a profile.
+                  Loads the imported filters into the EQ editor without saving a profile.
                 </p>
               )}
 
               {activeFilters.length > 0 && (
                 <div className="import-preview-section">
-                  <span>Filters preview:</span>
+                  <span>Filter preview</span>
                   <div className="import-preview-box">
                     {activeFilters.map((f: Filter, idx: number) => (
                       <div key={idx} className="preview-line">
@@ -707,7 +708,7 @@ export const ProfilesView = memo(function ProfilesView({
 
               {parsed.warnings.length > 0 && (
                 <div className="import-warnings-section">
-                  <span>Adjustments:</span>
+                  <span>Import warnings</span>
                   <div className="import-warnings-box">
                     {parsed.warnings.map((w: string, idx: number) => (
                       <div key={idx} className="warning-line">

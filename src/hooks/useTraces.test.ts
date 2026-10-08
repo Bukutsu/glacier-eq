@@ -195,7 +195,7 @@ describe("persisted trace quarantine", () => {
     // The old message announced a copy that was never written — the only
     // copy of the data is the untouched, still-malformed original.
     expect(notify).toHaveBeenCalledWith(
-      expect.stringContaining("no backup copy could be written"),
+      expect.stringContaining("or create a backup"),
       "error",
     );
     expect(notify).not.toHaveBeenCalledWith(

@@ -222,7 +222,7 @@ impl<'a> DeviceSession<'a> {
         })();
         match attempt {
             Ok(actual) => {
-                self.progress("Push successful", 100.0);
+                self.progress("Write complete", 100.0);
                 Ok((actual, warnings))
             }
             Err(error) => Err(match self.restore_and_verify(&backup) {
@@ -266,7 +266,7 @@ impl<'a> DeviceSession<'a> {
             });
         }
         warnings.push(UNVERIFIED_PUSH_WARNING.to_string());
-        self.progress("Push successful", 100.0);
+        self.progress("Write complete", 100.0);
         Ok((normalized, warnings))
     }
 
@@ -288,7 +288,7 @@ impl<'a> DeviceSession<'a> {
         if let Err(error) = attempt {
             return Err(self.rollback_ram(&backup, error));
         }
-        self.progress("Apply successful", 100.0);
+        self.progress("Temporary EQ applied", 100.0);
         Ok((normalized, warnings))
     }
 
@@ -528,10 +528,10 @@ impl<'a> DeviceSession<'a> {
         self.last_pull_had_invalid_response = false;
         self.last_pull_sent_gain_request = false;
         self.last_pull_gain_read_completed = false;
-        self.progress("Initializing read connection...", 5.0);
+        self.progress("Preparing EQ read…", 5.0);
         self.init()?;
         let timing = self.protocol().write_timing();
-        self.progress("Reading device preamp...", 10.0);
+        self.progress("Reading device preamp…", 10.0);
         self.last_pull_sent_gain_request = true;
         let global_gain = self.read_gain()?;
         self.last_pull_gain_read_completed = true;
@@ -540,13 +540,13 @@ impl<'a> DeviceSession<'a> {
         let mut filters = Vec::with_capacity(count);
         for index in 0..count {
             self.progress(
-                &format!("Reading band {}/{}...", index + 1, count),
+                &format!("Reading band {}/{}…", index + 1, count),
                 10.0 + index as f32 / count as f32 * 75.0,
             );
             filters.push(self.read_filter(index as u8)?);
             self.io.sleep_ms(timing.flood_delay_ms);
         }
-        self.progress("Read successful", 100.0);
+        self.progress("Read complete", 100.0);
         let peq = PEQData {
             filters,
             global_gain,
@@ -741,13 +741,13 @@ impl<'a> DeviceSession<'a> {
     }
 
     fn write_to_ram(&mut self, peq: &PEQData) -> Result<(), String> {
-        self.progress("Initializing push connection...", 10.0);
+        self.progress("Preparing EQ write…", 10.0);
         self.init()?;
         let protocol = self.protocol();
         let total = peq.filters.len();
         for (index, filter) in peq.filters.iter().enumerate() {
             self.progress(
-                &format!("Writing band {}/{}...", index + 1, total),
+                &format!("Writing band {}/{}…", index + 1, total),
                 15.0 + index as f32 / total as f32 * 60.0,
             );
             for packet in protocol
@@ -764,7 +764,7 @@ impl<'a> DeviceSession<'a> {
             }
             self.io.sleep_ms(protocol.write_timing().per_filter_ms);
         }
-        self.progress("Writing preamp...", 75.0);
+        self.progress("Writing preamp…", 75.0);
         self.io.sleep_ms(protocol.write_timing().batch_ms);
         for packet in protocol.write_global_gain_packets(peq.global_gain) {
             self.send(&packet)
@@ -775,7 +775,7 @@ impl<'a> DeviceSession<'a> {
     }
 
     fn commit(&mut self) -> Result<(), String> {
-        self.progress("Committing changes to device...", 80.0);
+        self.progress("Saving EQ to DAC…", 80.0);
         for packet in self.protocol().commit_packets() {
             self.send(&packet)
                 .map_err(|error| format!("Commit write failed: {error}"))?;

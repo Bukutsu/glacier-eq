@@ -1,3 +1,4 @@
+import type { StatusReporter } from "../stores/toastStore";
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
@@ -39,7 +40,7 @@ export interface DeviceViewProps {
   capabilities?: DeviceCapabilities;
   firmwareVersion?: string | null;
   section?: DeviceSection;
-  setStatus: (msg: string) => void;
+  setStatus: StatusReporter;
   onPull?: () => Promise<void | boolean>;
   onOpenConnectModal?: () => void;
   onDisconnect?: () => Promise<void>;
@@ -237,7 +238,7 @@ export const DeviceView = memo(function DeviceView({
         if (!isCurrent()) return;
         setStatus(pulled === false
           ? "Device EQ was reset, but reading it back failed. Read EQ from the DAC again before editing."
-          : "Device EQ reset to flat.");
+          : "Device EQ reset to flat.", pulled === false ? "error" : "success");
       } catch (err) {
         if (!isCurrent()) return;
         setStatus(`Could not reset device EQ: ${err}`);
@@ -249,7 +250,7 @@ export const DeviceView = memo(function DeviceView({
     if (isBusyRef.current) return;
     if (!(await confirmDialog({
       title: "Reset hardware controls?",
-      message: "Reset filter mode, amp mode, gain, balance, and mic volume to defaults?",
+      message: "Reset filter mode, amplifier mode, gain, balance, and microphone volume to defaults?",
       confirmLabel: "Reset",
       danger: true,
     }))) return;
@@ -264,7 +265,7 @@ export const DeviceView = memo(function DeviceView({
         utilityRef.current = data;
         confirmedUtilityRef.current = data;
         setUtility(data);
-        setStatus("Device controls reset to defaults.");
+        setStatus("Device controls reset to defaults.", "success");
       } catch (err) {
         if (!isCurrent()) return;
         setStatus(`Could not reset device controls: ${err}`);
@@ -276,8 +277,8 @@ export const DeviceView = memo(function DeviceView({
     if (isBusyRef.current) return;
     if (!(await confirmDialog({
       title: "Factory reset DAC?",
-      message: "This resets all EQ filters, volume, amplifier mode, and restores the device to factory defaults.",
-      confirmLabel: "Factory Reset",
+      message: "Restore the DAC to its factory defaults, including EQ filters, volume, and amplifier mode?",
+      confirmLabel: "Factory reset",
       danger: true,
     }))) return;
     if (isBusyRef.current) return;
@@ -296,7 +297,7 @@ export const DeviceView = memo(function DeviceView({
         if (!isCurrent()) return;
         setStatus(pulled === false
           ? "Device restored to factory defaults, but reading it back failed. Read EQ from the DAC again before editing."
-          : "Device restored to factory defaults.");
+          : "Device restored to factory defaults.", pulled === false ? "error" : "success");
       } catch (err) {
         if (!isCurrent()) return;
         setStatus(`Could not restore factory defaults: ${err}`);
@@ -314,7 +315,7 @@ export const DeviceView = memo(function DeviceView({
 
   const deviceTitle = connected || isSimulated
     ? deviceInfo?.profile_name || deviceInfo?.product_string || officialSpec?.name || "Connected DAC"
-    : "Offline Editor";
+    : "Offline editor";
 
   const dspKhz = Math.round(capabilities.dsp_sample_rate / 1000);
 
@@ -349,8 +350,8 @@ export const DeviceView = memo(function DeviceView({
               {connected
                 ? isSimulated
                   ? "Preview EQ without changing hardware."
-                  : "Manage your DAC’s sound and settings."
-                : "Edit EQ offline, or connect a DAC to adjust its hardware."}
+                  : "Manage DAC audio controls and settings."
+                : "Edit EQ offline or connect a DAC to adjust device settings."}
             </p>
           </div>
 
@@ -366,7 +367,7 @@ export const DeviceView = memo(function DeviceView({
                 {onOpenConnectModal && (
                   <button type="button" className="btn filled" onClick={handleChangeDevice} disabled={isBusy}>
                     <Icon name="swap_horiz" />
-                    <span>Change Device</span>
+                    <span>Change device</span>
                   </button>
                 )}
               </>
@@ -455,7 +456,7 @@ export const DeviceView = memo(function DeviceView({
               )}
             </dl>
             <p className="device-note">
-              {connected ? "Available controls depend on your DAC." : "Showing offline editor capabilities. Connect a DAC to see its hardware details."}
+              {connected ? "Available controls depend on the connected DAC." : "Offline editor capabilities are shown. Connect a DAC to view its hardware details."}
             </p>
           </>
         )}
@@ -466,7 +467,7 @@ export const DeviceView = memo(function DeviceView({
               <section className="settings-card empty-card">
                 <div className="empty-state">
                   <Icon name="tune" size={44} />
-                  <h3>Device Not Connected</h3>
+                  <h3>Device not connected</h3>
                   <p>Connect a supported DAC to adjust filter modes, amplifier mode, and channel balance.</p>
                   {onOpenConnectModal && (
                     <button type="button" className="btn filled" onClick={onOpenConnectModal}>
@@ -480,7 +481,7 @@ export const DeviceView = memo(function DeviceView({
               <section className="settings-card empty-card">
                 <div className="empty-state">
                   <div className="reconnecting-spinner" style={{ width: 32, height: 32 }} />
-                  <h3>Reading Device Settings</h3>
+                  <h3>Reading device settings</h3>
                   <p>Reading settings from the DAC…</p>
                 </div>
               </section>
@@ -488,7 +489,7 @@ export const DeviceView = memo(function DeviceView({
               <section className="settings-card empty-card">
                 <div className="empty-state">
                   <Icon name="error" />
-                  <h3>Could Not Load Controls</h3>
+                  <h3>Could not load controls</h3>
                   <p>{loadError}</p>
                   <button type="button" className="btn" onClick={() => fetchState()}>
                     <Icon name="refresh" />
@@ -500,7 +501,7 @@ export const DeviceView = memo(function DeviceView({
               <section className="settings-card empty-card">
                 <div className="empty-state">
                   <Icon name="tune" />
-                  <h3>{isSimulated ? "Simulation Mode" : "Controls Unavailable"}</h3>
+                  <h3>{isSimulated ? "Simulation mode" : "Controls unavailable"}</h3>
                   <p>
                     {isSimulated
                       ? "Hardware controls are not available on the simulated device."
@@ -512,7 +513,7 @@ export const DeviceView = memo(function DeviceView({
               <div className="stack-card">
                 <div className="stack-pref-row select-row">
                   <div className="stack-pref-info">
-                    <label className="stack-pref-title" htmlFor="utility-filter-select">Reconstruction Filter</label>
+                    <label className="stack-pref-title" htmlFor="utility-filter-select">Reconstruction filter</label>
                     <span className="stack-pref-desc">Sets digital filter roll-off and phase response</span>
                   </div>
                   <div className="stack-pref-control">
@@ -523,11 +524,11 @@ export const DeviceView = memo(function DeviceView({
                         disabled={isBusy}
                         onChange={handleSetFilter}
                         options={[
-                          { value: "FAST-LL", label: "FAST-LL (Fast Roll-off, Low Latency)" },
-                          { value: "FAST-PC", label: "FAST-PC (Fast Roll-off, Phase Compensated)" },
-                          { value: "Slow-LL", label: "Slow-LL (Slow Roll-off, Low Latency)" },
-                          { value: "Slow-PC", label: "Slow-PC (Slow Roll-off, Phase Compensated)" },
-                          { value: "NON-OS", label: "NON-OS (Non-oversampling)" },
+                          { value: "FAST-LL", label: "FAST-LL (fast roll-off, low latency)" },
+                          { value: "FAST-PC", label: "FAST-PC (fast roll-off, phase compensated)" },
+                          { value: "Slow-LL", label: "Slow-LL (slow roll-off, low latency)" },
+                          { value: "Slow-PC", label: "Slow-PC (slow roll-off, phase compensated)" },
+                          { value: "NON-OS", label: "NON-OS (non-oversampling)" },
                         ]}
                       />
                     </div>
@@ -540,7 +541,7 @@ export const DeviceView = memo(function DeviceView({
                 </details>
 
                 <ToggleRow
-                  title="Amplifier Class AB"
+                  title="Class AB amplifier"
                   desc="Runs cooler and uses less power"
                   checked={utility.amp_mode_class_ab}
                   onChange={handleSetAmpMode}
@@ -548,8 +549,8 @@ export const DeviceView = memo(function DeviceView({
                 />
 
                 <ToggleRow
-                  title="High Gain"
-                  desc="Higher output power for hard-to-drive headphones"
+                  title="High gain"
+                  desc="Higher output power for headphones that require more amplification"
                   checked={utility.high_gain_mode}
                   onChange={handleSetOutputGain}
                   disabled={isBusy}
@@ -558,7 +559,7 @@ export const DeviceView = memo(function DeviceView({
                 <div className="pref-slider-item pref-slider-first">
                   <div className="pref-slider-head">
                     <div className="stack-pref-info">
-                      <span className="stack-pref-title">Channel Balance</span>
+                      <span className="stack-pref-title">Channel balance</span>
                       <span className="stack-pref-desc">Adjust balance between left and right channels</span>
                     </div>
                     <span className="pref-value-badge">
@@ -569,7 +570,7 @@ export const DeviceView = memo(function DeviceView({
                     min={-15}
                     max={15}
                     step={1}
-                    aria-label="Channel Balance"
+                    aria-label="Channel balance"
                     disabled={isBusy}
                     aria-valuetext={formatChannelBalance(utility.channel_balance)}
                     value={utility.channel_balance}
@@ -580,8 +581,8 @@ export const DeviceView = memo(function DeviceView({
                 <div className="pref-slider-item">
                   <div className="pref-slider-head">
                     <div className="stack-pref-info">
-                      <span className="stack-pref-title">Microphone Sidetone</span>
-                      <span className="stack-pref-desc">Monitor volume for headset microphone</span>
+                      <span className="stack-pref-title">Microphone sidetone</span>
+                      <span className="stack-pref-desc">Headset microphone monitoring volume</span>
                     </div>
                     <span className="pref-value-badge">{utility.mic_volume_db} dB</span>
                   </div>
@@ -589,7 +590,7 @@ export const DeviceView = memo(function DeviceView({
                     min={-15}
                     max={15}
                     step={1}
-                    aria-label="Microphone Sidetone"
+                    aria-label="Microphone sidetone"
                     disabled={isBusy}
                     aria-valuetext={`${utility.mic_volume_db} dB`}
                     value={utility.mic_volume_db}
@@ -607,7 +608,7 @@ export const DeviceView = memo(function DeviceView({
               <section className="settings-card empty-card">
                 <div className="empty-state">
                   <Icon name="build" size={44} />
-                  <h3>Device Not Connected</h3>
+                  <h3>Device not connected</h3>
                   <p>Connect a supported DAC to reset EQ, controls, or restore factory defaults.</p>
                   {onOpenConnectModal && (
                     <button type="button" className="btn filled" onClick={onOpenConnectModal}>
@@ -620,23 +621,23 @@ export const DeviceView = memo(function DeviceView({
             ) : (
               <div className="stack-card">
                 <ActionRow
-                  title="Reset Hardware EQ"
-                  desc="Resets all EQ bands on the DAC to 0 dB flat"
+                  title="Reset device EQ"
+                  desc="Resets all EQ bands on the DAC to 0 dB"
                   actionLabel="Reset EQ"
                   onAction={handleResetDeviceEq}
                 />
 
                 <ActionRow
-                  title="Reset Hardware Controls"
+                  title="Reset device controls"
                   desc="Resets filter mode, amplifier mode, gain, and balance to defaults"
-                  actionLabel="Reset Controls"
+                  actionLabel="Reset controls"
                   onAction={handleResetDeviceControls}
                 />
 
                 <ActionRow
-                  title="Factory Reset"
+                  title="Factory reset"
                   desc="Restores the DAC to its factory defaults"
-                  actionLabel="Factory Reset"
+                  actionLabel="Factory reset"
                   danger
                   onAction={handleFactoryReset}
                 />

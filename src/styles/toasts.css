@@ -1,138 +1,122 @@
+/* Toasts share the app's lower chrome instead of floating over the controls.
+   Reserve the desktop line so quick feedback never shifts the workspace. */
+.toast-slot {
+  position: relative;
+  flex: 0 0 32px;
+  min-height: 32px;
+}
+
 .toast-container {
-  position: fixed;
-  top: 72px;
-  right: 24px;
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
   z-index: var(--z-toast);
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  pointer-events: none;
+  max-height: min(40dvh, 320px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--bg);
+  color: var(--text);
+  border-top: 1px solid var(--line-subtle);
 }
 
 .toast-item {
-  pointer-events: auto;
   display: flex;
   align-items: center;
-  gap: 12px;
-  min-width: 300px;
-  max-width: 420px;
-  padding: 12px 16px;
-  background: var(--panel);
-  color: var(--text);
-  border-radius: var(--radius-control);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-  outline: 1px solid var(--line-medium);
-  outline-offset: -1px;
-  animation: toast-in-right var(--motion-duration) var(--motion-ease) forwards;
-}
-
-.toast-item.success {
-  outline: 1px solid var(--green);
-}
-
-.toast-item.success .toast-icon {
-  color: var(--green);
-}
-
-.toast-item.error {
-  outline: 1px solid var(--red);
-}
-
-.toast-item.error .toast-icon {
-  color: var(--red);
-}
-
-.toast-item.info .toast-icon {
-  color: var(--cyan);
+  gap: var(--space-2);
+  min-height: 32px;
+  padding: 0 var(--space-4);
+  background: var(--bg);
 }
 
 .toast-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
-  flex-shrink: 0;
+  flex: 0 0 14px;
 }
+
+.toast-icon .app-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.toast-icon.success { color: var(--muted); }
+.toast-icon.error { color: var(--red); }
+.toast-icon.info { color: var(--muted); }
 
 .toast-message {
   flex: 1;
-  font-size: var(--type-label);
-  line-height: 1.4;
-  font-weight: 500;
-  word-break: break-word;
+  min-width: 0;
+  padding-block: var(--space-1);
+  font-size: var(--type-small);
+  line-height: 1.5;
+  font-weight: 400;
+  overflow-wrap: anywhere;
+}
+
+.toast-close,
+.toast-earlier {
+  flex: 0 0 auto;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0 var(--space-2);
+  color: var(--muted);
+  background: transparent;
+  border: 0;
 }
 
 .toast-close {
-  background: transparent;
-  border: none;
-  color: var(--comment);
-  padding: 10px;
-  min-width: 44px;
-  min-height: 44px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  border-radius: var(--radius-control);
-  transition: color var(--motion-duration) var(--motion-ease), background-color var(--motion-duration) var(--motion-ease);
+  display: grid;
+  place-items: center;
 }
 
-.toast-close:hover {
+.toast-close .app-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.toast-earlier {
+  font-size: var(--type-small);
+  white-space: nowrap;
+}
+
+.toast-container button:hover {
   color: var(--text);
   background: var(--surface-soft);
 }
 
-@keyframes toast-in-right {
-  from {
-    transform: translateX(120%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
+.toast-history .toast-item {
+  border-top: 1px solid var(--line-subtle);
 }
 
-@keyframes toast-in-bottom {
-  from {
-    transform: translateY(120%);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
+.toast-container button:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: -3px;
 }
 
-/* Mobile responsive layout - matches MOBILE_QUERY in src/lib/tabs.ts */
 @media (max-width: 850px), ((max-height: 540px) and (pointer: coarse)) {
+  .toast-slot {
+    flex: 0 0 0;
+    min-height: 0;
+  }
+
   .toast-container {
-    top: auto;
-    bottom: calc(var(--tabbar-h) + var(--safe-area-bottom, 0px) + 12px);
-    left: max(12px, var(--safe-area-left, 0px));
-    right: max(12px, var(--safe-area-right, 0px));
-    align-items: stretch;
-    max-height: min(42dvh, 320px);
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    -webkit-overflow-scrolling: touch;
-    pointer-events: auto;
+    position: fixed;
+    bottom: calc(var(--tabbar-h) + var(--safe-area-bottom, 0px));
   }
 
   .toast-item {
-    min-width: 0;
-    max-width: none;
-    animation: toast-in-bottom var(--motion-duration) var(--motion-ease) forwards;
+    min-height: var(--touch-md);
+    padding-inline: max(var(--space-3), var(--safe-area-left, 0px)) max(var(--space-3), var(--safe-area-right, 0px));
   }
-}
 
-@keyframes toast-in-top {
-  from {
-    transform: translateY(-100%);
-    opacity: 0;
+  .toast-close,
+  .toast-earlier {
+    min-width: var(--touch-md);
+    min-height: var(--touch-md);
   }
-  to {
-    transform: translateY(0);
-    opacity: 1;
+
+  #app:has(.toast-slot.has-toast) .workspace.mobile-workspace {
+    padding-bottom: calc(var(--tabbar-h) + var(--safe-area-bottom, 0px) + var(--touch-md) + var(--space-4)) !important;
   }
 }

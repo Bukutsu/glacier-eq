@@ -361,14 +361,14 @@ export const DacFilterVisual = memo(function DacFilterVisual({
             className={`dac-filter-tab ${domain === "time" ? "active" : ""}`}
             onClick={() => setDomain("time")}
           >
-            Impulse (Time)
+            Impulse (time)
           </button>
           <button
             type="button"
             className={`dac-filter-tab ${domain === "freq" ? "active" : ""}`}
             onClick={() => setDomain("freq")}
           >
-            Roll-off (Freq)
+            Roll-off (frequency)
           </button>
         </div>
       </div>

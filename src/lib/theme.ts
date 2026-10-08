@@ -18,19 +18,19 @@ export type ThemeOption = {
  */
 export function themeOptions(isAndroid: boolean): ThemeOption[] {
   return [
-    { value: "auto", label: "Auto (System Theme)" },
+    { value: "auto", label: "Auto (system theme)" },
     ...(isAndroid
       ? [{ value: "material-you" as const, label: "System (Material You)" }]
       : []),
     { value: "glacier", label: "Glacier" },
     { value: "tokyo-night", label: "Tokyo Night" },
     { value: "tokyo-night-storm", label: "Tokyo Night Storm" },
-    { value: "tokyo-night-day", label: "Tokyo Night Day (Light)" },
+    { value: "tokyo-night-day", label: "Tokyo Night Day (light)" },
     { value: "nord", label: "Nord" },
     { value: "dracula", label: "Dracula" },
     { value: "gruvbox", label: "Gruvbox Dark" },
     { value: "catppuccin-mocha", label: "Catppuccin Mocha" },
-    { value: "catppuccin-latte", label: "Catppuccin Latte (Light)" },
+    { value: "catppuccin-latte", label: "Catppuccin Latte (light)" },
   ];
 }
 

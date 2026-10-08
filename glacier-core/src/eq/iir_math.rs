@@ -189,7 +189,7 @@ mod tests {
         let (b0, b1, b2, a0, a1, a2) = compute_biquad_coeffs(f, sample_rate);
         assert!(
             a0 != 0.0,
-            "a0 must not be zero — would cause division by zero"
+            "a0 must not be zero. This would cause division by zero."
         );
         let coeffs = [b0, b1, b2, a0, a1, a2];
         for &c in &coeffs {

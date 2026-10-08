@@ -38,6 +38,6 @@ export function markDeviceLost(
     message,
     toastType: "error",
     source,
-    statusText: "Reconnecting...",
+    statusText: "Reconnecting…",
   });
 }

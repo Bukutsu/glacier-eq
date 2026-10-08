@@ -46,7 +46,7 @@ describe("DeviceView markup", () => {
 
   it("selects only offline specifications and hides hardware-only nav rows when not connected", () => {
     const html = renderDeviceView({ connected: false });
-    expect(html).toContain("Offline Editor");
+    expect(html).toContain("Offline editor");
     expect(html).toContain("Offline specifications");
     expect(html).not.toContain("Sound controls");
     expect(html).not.toContain("Reset &amp; maintenance");
@@ -70,7 +70,7 @@ describe("DeviceView markup", () => {
       connected: true,
       section: "controls",
     });
-    expect(html).toContain("Controls Unavailable");
+    expect(html).toContain("Controls unavailable");
     expect(html).not.toContain("device-filter-details");
   });
 

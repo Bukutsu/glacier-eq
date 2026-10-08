@@ -265,12 +265,12 @@ fn run_pkexec_script(script: &str, cancelled: &AtomicBool) -> Result<(), String>
     // report that distinctly from a script failure so the UI can say
     // "cancelled, nothing changed" instead of "failed".
     if matches!(status.code(), Some(126) | Some(127)) {
-        return Err("Authorization cancelled or failed — no changes were made.".into());
+        return Err("Authorization cancelled or failed. No changes were made.".into());
     }
     let detail = String::from_utf8_lossy(&stderr).trim().to_string();
     if detail.is_empty() {
         Err(format!(
-            "Privileged command failed with status {} — no changes may have been applied.",
+            "Privileged command failed with status {}. Changes may not have been applied.",
             status
         ))
     } else {

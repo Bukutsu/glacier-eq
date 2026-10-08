@@ -365,7 +365,7 @@ export function DiagnosticsPanel() {
           className="diag-copy-btn"
           onClick={copyToClipboard}
           disabled={copyState === "copying"}
-          title="Copy system, device, and all log details"
+          title="Copy system information, device details, and all logs"
           aria-live="polite"
         >
           <Icon name={copyState === "copied" ? "check" : "content_copy"} />
@@ -417,7 +417,7 @@ export function DiagnosticsPanel() {
       >
         {filtered.length === 0 ? (
           <div className="diag-empty">
-            {events.length === 0 ? "No logs yet." : "No matching logs."}
+            {events.length === 0 ? "No logs recorded." : "No matching logs."}
           </div>
         ) : (
           filtered.map((event, index) => (

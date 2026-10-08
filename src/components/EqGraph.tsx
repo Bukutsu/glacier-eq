@@ -395,7 +395,7 @@ export const EqGraph = memo(function EqGraph({
                   <line x1="0" y1="4" x2="24" y2="4" stroke="var(--orange)" strokeWidth="2" strokeDasharray="6,4" />
                 </svg>
               </span>
-              <span>{selectedMeasurement ? `Last pushed + ${selectedMeasurement.name}` : "Last pushed"}</span>
+              <span>{selectedMeasurement ? `Last written + ${selectedMeasurement.name}` : "Last written"}</span>
             </div>
           )}
           {targets.map((target) => (
@@ -435,7 +435,7 @@ export const EqGraph = memo(function EqGraph({
                   <line x1="0" y1="4" x2="24" y2="4" stroke="var(--blue)" strokeWidth="3" />
                 </svg>
               </span>
-              <span>EQ Curve</span>
+              <span>EQ curve</span>
             </div>
           )}
         </div>

@@ -12,7 +12,52 @@ export interface Toast {
 // Error toasts deliberately stay until dismissed, so without a cap distinct
 // error messages (device names, import failures) accumulate for the whole
 // session. Keep the newest N and let the oldest fall off.
-const MAX_TOASTS = 50;
+const MAX_ERROR_TOASTS = 50;
+const TOAST_DURATION_MS = 4000;
+const timers = new Map<string, ReturnType<typeof setTimeout>>();
+
+function cancelTimer(id: string) {
+  const timer = timers.get(id);
+  if (timer !== undefined) clearTimeout(timer);
+  timers.delete(id);
+}
+
+export type StatusReporter = (message: string, type?: Toast["type"]) => void;
+
+function resolveToastType(message: string, type: Toast["type"] = "info"): Toast["type"] {
+  let toastType = type;
+  const lowerMessage = message.toLowerCase();
+  if (
+    lowerMessage.includes("failed") ||
+    lowerMessage.includes("could not") ||
+    lowerMessage.includes("cannot") ||
+    lowerMessage.includes("error") ||
+    lowerMessage.includes("unable") ||
+    lowerMessage.includes("invalid") ||
+    lowerMessage.includes("permission") ||
+    lowerMessage.includes("not allowed") ||
+    lowerMessage.includes("please enter")
+  ) {
+    toastType = "error";
+  } else if (
+    // An explicitly-typed error must not be downgraded by a success
+    // keyword later in the message ("...saved...", "...loaded..." — the
+    // round-3 recovery toast shipped misclassified because "downloaded"
+    // contains "loaded"). Promotion to success stays available for the
+    // default info path.
+    toastType !== "error" &&
+    (lowerMessage.includes("successful") ||
+      lowerMessage.includes("synced") ||
+      lowerMessage.includes("loaded") ||
+      lowerMessage.includes("parsed") ||
+      lowerMessage.includes("deleted") ||
+      lowerMessage.includes("saved"))
+  ) {
+    toastType = "success";
+  }
+
+  return toastType;
+}
 
 interface ToastStore {
   toasts: Toast[];
@@ -23,8 +68,10 @@ interface ToastStore {
    * line rather than two.
    */
   addToast: (message: string, type?: Toast["type"], log?: boolean) => void;
-  setStatus: (message: string) => void;
+  setStatus: StatusReporter;
   removeToast: (id: string) => void;
+  pauseToast: (id: string) => void;
+  resumeToast: (id: string) => void;
   clearNonErrorToasts: () => void;
   /**
    * Records a toast as a diagnostic event. App registers the backend call on
@@ -46,34 +93,7 @@ export const useToastStore = create<ToastStore>()((set, get) => ({
   addToast: (message, type = "info", log = true) => {
     if (message === "Ready" || !message.trim()) return;
 
-    let toastType = type;
-    const lowerMessage = message.toLowerCase();
-    if (
-      lowerMessage.includes("failed") ||
-      lowerMessage.includes("error") ||
-      lowerMessage.includes("unable") ||
-      lowerMessage.includes("invalid") ||
-      lowerMessage.includes("permission") ||
-      lowerMessage.includes("not allowed") ||
-      lowerMessage.includes("please enter")
-    ) {
-      toastType = "error";
-    } else if (
-      // An explicitly-typed error must not be downgraded by a success
-      // keyword later in the message ("...saved...", "...loaded..." — the
-      // round-3 recovery toast shipped misclassified because "downloaded"
-      // contains "loaded"). Promotion to success stays available for the
-      // default info path.
-      toastType !== "error" &&
-      (lowerMessage.includes("successful") ||
-        lowerMessage.includes("synced") ||
-        lowerMessage.includes("loaded") ||
-        lowerMessage.includes("parsed") ||
-        lowerMessage.includes("deleted") ||
-        lowerMessage.includes("saved"))
-    ) {
-      toastType = "success";
-    }
+    const toastType = resolveToastType(message, type);
 
     const { toasts } = get();
     // Dedupe on message *and* type. Matching on the text alone let an error
@@ -84,14 +104,18 @@ export const useToastStore = create<ToastStore>()((set, get) => ({
     if (toasts.some((t) => t.message === message && t.type === toastType)) return;
 
     const id = Math.random().toString(36).substring(2, 9);
-    const next = [...toasts, { id, message, type: toastType }];
-    set({ toasts: next.length > MAX_TOASTS ? next.slice(next.length - MAX_TOASTS) : next });
-
-    if (toastType !== "error") {
-      setTimeout(() => {
-        get().removeToast(id);
-      }, 4000);
+    const toast = { id, message, type: toastType };
+    // Routine updates replace each other. Errors are retained independently,
+    // so a successful action cannot dismiss an unrelated failure.
+    const errors = toasts.filter(item => item.type === "error");
+    const next = toastType === "error"
+      ? [...errors, toast].slice(-MAX_ERROR_TOASTS)
+      : [...errors, toast];
+    for (const previous of toasts) {
+      if (!next.some(item => item.id === previous.id)) cancelTimer(previous.id);
     }
+    set({ toasts: next });
+    get().resumeToast(id);
 
     // After the dedupe check, so a suppressed repeat does not double-report.
     if (log) diagnosticSink?.(message, toastType);
@@ -101,16 +125,36 @@ export const useToastStore = create<ToastStore>()((set, get) => ({
     diagnosticSink = sink;
   },
 
-  setStatus: (message) => {
+  setStatus: (message, type) => {
     set({ status: message });
-    get().addToast(message);
+    if (message === "Ready" || !message.trim()) return;
+    const resolved = resolveToastType(message, type);
+    // Status changes are quiet by default. Only failures or an explicit
+    // request for a toast appear; routine actions still reach diagnostics.
+    if (type !== undefined || resolved === "error") {
+      get().addToast(message, resolved);
+    } else {
+      diagnosticSink?.(message, resolved);
+    }
   },
 
   removeToast: (id) => {
+    cancelTimer(id);
     set({ toasts: get().toasts.filter((t) => t.id !== id) });
   },
 
+  pauseToast: cancelTimer,
+
+  resumeToast: (id) => {
+    const toast = get().toasts.find(item => item.id === id);
+    if (!toast || toast.type === "error" || timers.has(id)) return;
+    timers.set(id, setTimeout(() => get().removeToast(id), TOAST_DURATION_MS));
+  },
+
   clearNonErrorToasts: () => {
+    for (const toast of get().toasts) {
+      if (toast.type !== "error") cancelTimer(toast.id);
+    }
     set({ toasts: get().toasts.filter((t) => t.type === "error") });
   },
 }));

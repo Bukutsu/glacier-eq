@@ -54,7 +54,7 @@ impl From<u8> for FilterType {
             5 => FilterType::LowPass,
             _ => {
                 log::warn!(
-                    "Unknown FilterType byte {:#04x} in device response — defaulting to Peak. \
+                    "Unknown FilterType byte {:#04x} in device response. Defaulting to Peak. \
                      Your device likely uses a different filter-type encoding; see CONTRIBUTING_DEVICES.md.",
                     value
                 );

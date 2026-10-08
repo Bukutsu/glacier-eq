@@ -120,7 +120,7 @@ function UdevSection({
           <span>Retry permissions check</span>
         </button>
         <p className="settings-plain-desc">
-          On Linux, you can install the rule manually by running this command in a terminal, then reconnecting your DAC:
+          On Linux, run this command in a terminal to install the rule manually, then reconnect the DAC:
         </p>
         <div className="udev-command-row"><code>{UDEV_INSTALL_COMMAND}</code></div>
       </section>
@@ -159,7 +159,7 @@ function UdevSection({
         if (connectedName) {
           setNote(`Permissions installed. Connected to ${connectedName}.`);
         } else {
-          setNote("Permissions installed. Plug in your DAC and it will connect automatically.");
+          setNote("Permissions installed. Connect the DAC to enable automatic connection.");
         }
       } else {
         setNote("Permissions installed.");
@@ -218,10 +218,10 @@ function UdevSection({
             {checking
               ? "Checking…"
               : !installed
-                ? "Not Installed"
+                ? "Not installed"
                 : current
                   ? "Configured"
-                  : "Update Available"}
+                  : "Update available"}
           </span>
         </span>
       </div>
@@ -311,7 +311,7 @@ export const SettingsView = memo(function SettingsView({
             to="/settings/about"
             icon="info"
             title="About"
-            desc="Version, system info, and project links"
+            desc="Version, system information, and project links"
           />
         </nav>
       </div>
@@ -347,7 +347,7 @@ export const SettingsView = memo(function SettingsView({
 
             <ToggleRow
               title="Verify EQ after writing"
-              desc="Read back the DAC to check the write. Turning this off is faster, but successful writes are not checked."
+              desc="Read EQ back from the DAC to verify the write. Disabling verification reduces write time, but leaves writes unchecked."
               checked={!settings.skip_push_verification}
               onChange={(v) => onSettingChange("skip_push_verification", !v)}
             />
@@ -381,8 +381,8 @@ export const SettingsView = memo(function SettingsView({
           <div className="stack-card">
             <SelectRow<AppSettings["theme"]>
               id="theme-select"
-              title="Color Theme"
-              desc="Choose the app color scheme"
+              title="Color theme"
+              desc="Select the app color scheme"
               value={settings.theme}
               options={THEME_OPTIONS}
               onChange={(val) => onSettingChange("theme", val)}
@@ -391,7 +391,7 @@ export const SettingsView = memo(function SettingsView({
             {graphViewMode && onGraphViewModeChange && (
               <div className="stack-pref-row">
                 <div className="stack-pref-info">
-                  <span className="stack-pref-title">Graph View Mode</span>
+                  <span className="stack-pref-title">Graph view mode</span>
                   <span className="stack-pref-desc">
                     Shape normalizes curves at 1 kHz. Level shows absolute dB output.
                   </span>
@@ -428,9 +428,9 @@ export const SettingsView = memo(function SettingsView({
             <div className="stack-card">
               {onOpenDiagnostics && (
                 <ActionRow
-                  title="Diagnostics Log"
+                  title="Diagnostics log"
                   desc="View USB traffic, connection events, and driver logs"
-                  actionLabel="View Logs"
+                  actionLabel="View logs"
                   icon="terminal"
                   onAction={onOpenDiagnostics}
                 />
@@ -498,7 +498,7 @@ export const SettingsView = memo(function SettingsView({
                   href="https://github.com/Bukutsu/glacier-eq/wiki/Troubleshooting"
                   icon="build"
                   title="Troubleshooting"
-                  desc="Permissions, connection tips, and guides"
+                  desc="Permissions, connection help, and guides"
                 />
                 <ExternalLinkRow
                   href="https://github.com/Bukutsu/glacier-eq/issues"

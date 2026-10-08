@@ -60,7 +60,7 @@ import type {
   AppSettings,
 } from "./types";
 import { ToastContainer } from "./components/Toast";
-import { useToastStore } from "./stores/toastStore";
+import { useToastStore, type StatusReporter } from "./stores/toastStore";
 import { useHistoryStore } from "./stores/historyStore";
 import { useThemeSync } from "./hooks/useThemeSync";
 import { useIsMobile } from "./hooks/useIsMobile";
@@ -80,7 +80,6 @@ import { useProfiles } from "./features/profiles/useProfiles";
 import { DeviceView } from "./components/DeviceView";
 import { SettingsView } from "./components/SettingsView";
 
-const ANDROID_TOAST_DEDUPE_MS = 2000;
 const DEFAULT_SETTINGS: AppSettings = {
   auto_pull_on_connect: true,
   skip_push_verification: false,
@@ -235,26 +234,13 @@ function App() {
   const [isBusy, setIsBusy] = useState(false);
   const [progress, setProgress] = useState<OperationProgress | null>(null);
   const status = useToastStore((s) => s.status);
-  const lastAndroidToastRef = useRef<{
-    message: string;
-    shownAt: number;
-  } | null>(null);
-
+  // One in-app notification path on every platform; Android previously also
+  // showed a native toast for the same status update.
   const showToast = useCallback(
     (message: string, type: "info" | "error" | "success" = "info", log = true) => {
-      if (message === "Ready" || !message.trim()) return;
-
-      // On Android, transient info/success is handled by the native toast;
-      // errors are also rendered persistently so they are not lost. This must
-      // stay *after* addToast: the store's sink is the only path to a
-      // diagnostic event, so returning early here first dropped the report
-      // for every non-error toast on a supported platform. `log` is false
-      // when reportStatus already recorded this event, keeping it to one
-      // report line.
       useToastStore.getState().addToast(message, type, log);
-      if (isAndroid && type !== "error") return;
     },
-    [isAndroid],
+    [],
   );
 
   // One place turns a toast into a diagnostic event, registered once so every
@@ -267,6 +253,8 @@ function App() {
       const isError =
         type === "error" ||
         lowerMessage.includes("failed") ||
+        lowerMessage.includes("could not") ||
+        lowerMessage.includes("cannot") ||
         lowerMessage.includes("error") ||
         lowerMessage.includes("unable") ||
         lowerMessage.includes("invalid") ||
@@ -276,7 +264,7 @@ function App() {
       invoke("add_diagnostic_event", {
         level: isError ? "Error" : "Info",
         source: "UI",
-        message: `Notification: ${message}`,
+        message: `Status: ${message}`,
       }).catch((err) => console.error("Failed to log diagnostic from toast:", err));
     });
     return () => useToastStore.getState().setDiagnosticSink(null);
@@ -288,12 +276,9 @@ function App() {
     }
   }, [showToast]);
 
-  const setStatus = useCallback(
-    (message: string) => {
-      useToastStore.getState().setStatus(message);
-      showToast(message);
-    },
-    [showToast],
+  const setStatus = useCallback<StatusReporter>(
+    (message, type) => useToastStore.getState().setStatus(message, type),
+    [],
   );
 
   // An options object, not five positional parameters: `message` and
@@ -341,24 +326,6 @@ function App() {
     void settingsPersistence.load();
   }, [settingsPersistence]);
 
-  // Show native Android Toast when status changes, instead of the web StatusBanner
-  useEffect(() => {
-    if (!isAndroid || status === "Ready") return;
-    const now = Date.now();
-    const lastToast = lastAndroidToastRef.current;
-    if (
-      lastToast?.message === status &&
-      now - lastToast.shownAt < ANDROID_TOAST_DEDUPE_MS
-    ) {
-      return;
-    }
-    lastAndroidToastRef.current = { message: status, shownAt: now };
-    try {
-      window.AndroidNotifier?.showToast(status);
-    } catch {
-      // Native bridge not available, fall through silently
-    }
-  }, [status, isAndroid]);
   const {
     measurements,
     allTargets,
@@ -665,7 +632,7 @@ function App() {
       // older in-flight drop before validating the new one.
       const request = ++dropRequestRef.current;
       if (!file.name.endsWith(".txt")) {
-        setStatus("Only .txt AutoEQ files can be dropped here");
+        setStatus("Only .txt AutoEQ files are supported.", "info");
         return;
       }
       // Only the newest drop may land, and only onto the editor/connection
@@ -680,7 +647,7 @@ function App() {
         const result = parseAutoEqResult(rawResult);
         const name = result.headphone_name || file.name.replace(/\.[^/.]+$/, "");
         if (!importPeq(result.peq, name, false)) {
-          setStatus("Import was not applied because another device operation is busy.");
+          setStatus("Import was not applied because a device operation is in progress.", "info");
           return;
         }
         const adjustments = result.warnings.length === 1
@@ -707,7 +674,7 @@ function App() {
 
   const scanDevices = useCallback(async () => {
     setIsBusy(true);
-    setStatus("Scanning for devices...");
+    reportStatus({ level: "Info", message: "Searching for DACs…" });
     try {
       const realDevices = await invoke<DeviceInfo[]>("list_devices");
       const list = import.meta.env.DEV
@@ -731,16 +698,17 @@ function App() {
           ? current
           : list[0]?.path ?? "";
       });
-      useToastStore.getState().setStatus(
-        list.length
+      reportStatus({
+        level: "Info",
+        message: list.length
           ? `Found ${list.length} device${list.length === 1 ? "" : "s"}`
           : "No compatible DACs found",
-      );
+      });
     } catch (error) {
       if (import.meta.env.DEV && !connectedRef.current) {
         setDevices([DEV_DUMMY_DEVICE]);
         setSelectedDevice(DEV_DUMMY_DEVICE.path);
-        setStatus("Hardware scan failed; using dummy DAC for dev review");
+        reportStatus({ level: "Warn", message: `Device search unavailable. Using the simulated DAC: ${error}` });
         return;
       }
       setStatus(`Failed to scan for devices: ${error}`);
@@ -1037,10 +1005,10 @@ function App() {
           const devName = found.profile_name || found.product_string || "DAC";
           reportStatus({
             level: "Info",
-            message: `Device found: ${devName}. Reconnecting...`,
+            message: `Device found: ${devName}. Reconnecting…`,
             toastType: null,
             source: "Device",
-            statusText: "Device found. Reconnecting...",
+            statusText: "Device found. Reconnecting…",
           });
           let openedSessionId: number | null = null;
           connectingPathRef.current = found.path;
@@ -1096,7 +1064,7 @@ function App() {
                 setDirty(!peqEquals(constrained, editorCleanPeqRef.current));
                 reportStatus({
                   level: "Info",
-                  message: "Adjusted editor to this DAC's ranges",
+                  message: "Editor adjusted to DAC limits",
                   toastType: "info",
                   source: "Device",
                 });
@@ -1111,7 +1079,6 @@ function App() {
             reportStatus({
               level: "Info",
               message: `Connected to ${devName}`,
-              toastType: "success",
               source: "Device",
               statusText: "Ready",
             });
@@ -1135,7 +1102,7 @@ function App() {
               message: `Reconnect attempt failed: ${err}. Retrying...`,
               toastType: null,
               source: "Device",
-              statusText: "Reconnecting...",
+              statusText: "Reconnecting…",
             });
           }
         }
@@ -1170,7 +1137,7 @@ function App() {
     targetCapabilities = selectedCapabilities,
   ): Promise<boolean> => {
     if (!connected && !afterConnect) {
-      setStatus("Connect a DAC before reading its EQ.");
+      setStatus("Connect a DAC before reading its EQ.", "info");
       return false;
     }
     if (eqOperationInFlightRef.current) return false;
@@ -1214,19 +1181,19 @@ function App() {
       let data: PEQData;
       if (isDevDummyDevice(targetPath)) {
         setProgress({
-          message: "Initializing read connection...",
+          message: "Preparing EQ read…",
           percentage: 5,
         });
         await sleep(200);
-        setProgress({ message: "Reading band 1/10...", percentage: 15 });
+        setProgress({ message: "Reading band 1/10…", percentage: 15 });
         await sleep(150);
-        setProgress({ message: "Reading band 4/10...", percentage: 40 });
+        setProgress({ message: "Reading band 4/10…", percentage: 40 });
         await sleep(150);
-        setProgress({ message: "Reading band 7/10...", percentage: 65 });
+        setProgress({ message: "Reading band 7/10…", percentage: 65 });
         await sleep(150);
-        setProgress({ message: "Reading band 10/10...", percentage: 85 });
+        setProgress({ message: "Reading band 10/10…", percentage: 85 });
         await sleep(150);
-        setProgress({ message: "Reading device preamp...", percentage: 90 });
+        setProgress({ message: "Reading device preamp…", percentage: 90 });
         await sleep(150);
         setProgress({ message: "Read complete", percentage: 100 });
         await sleep(400);
@@ -1258,9 +1225,8 @@ function App() {
       reportStatus({
         level: "Info",
         message: isDevDummyDevice(targetPath)
-        ? "Loaded dummy DAC EQ"
+        ? "Loaded simulated DAC EQ"
         : "Loaded EQ from DAC",
-        toastType: "success",
         source: "UI",
       });
       return true;
@@ -1321,10 +1287,9 @@ function App() {
         lastConnectedNameRef.current = "Glacier Dummy DAC";
         reportStatus({
           level: "Info",
-          message: "Connected to dummy DAC",
-          toastType: "success",
+          message: "Connected to simulated DAC",
           source: "UI",
-          statusText: "Connected to dummy DAC",
+          statusText: "Connected to simulated DAC",
         });
         await pullEq(true, pathToConnect, targetCapabilities);
         await loadFirmwareVersion(pathToConnect, connectionGenerationRef.current);
@@ -1358,7 +1323,6 @@ function App() {
       reportStatus({
         level: "Info",
         message: `Connected to device: ${devName}`,
-        toastType: "success",
         source: "UI",
         statusText: "Ready",
       });
@@ -1398,7 +1362,7 @@ function App() {
           setDirty(!peqEquals(constrained, editorCleanPeqRef.current));
           reportStatus({
             level: "Info",
-            message: "Adjusted editor to this DAC's ranges",
+            message: "Editor adjusted to DAC limits",
             toastType: "info",
             source: "Device",
           });
@@ -1440,7 +1404,7 @@ function App() {
         if (errorMsg.includes("NotAllowedError") && !isTauri()) {
           reportStatus({
             level: "Error",
-            message: "Permission denied. On Linux this is usually the missing udev rule: open Settings > Diagnostics & Permissions for the one-time terminal command, then replug the DAC and Scan again.",
+            message: "Permission denied. On Linux, a missing udev rule may prevent device access. Open Settings > Diagnostics & permissions for the installation command, then reconnect the DAC and scan again.",
             toastType: "error",
             source: "UI",
           });
@@ -1500,7 +1464,7 @@ function App() {
 
   const pushEq = useCallback(async () => {
     if (!connected) {
-      setStatus("Connect a DAC before writing EQ.");
+      setStatus("Connect a DAC before writing EQ.", "info");
       return;
     }
     if (eqOperationInFlightRef.current) return;
@@ -1525,7 +1489,7 @@ function App() {
     if (!(await confirmDialog({
       title: isMobile ? "Save to DAC?" : "Write to DAC?",
       message: `Write ${activeBands} ${bandCount} and ${snapshot.global_gain.toFixed(1)} dB preamp to the DAC? This saves the EQ to the device.`,
-      confirmLabel: isMobile ? "Save to DAC" : "Write DAC",
+      confirmLabel: isMobile ? "Save to DAC" : "Write to DAC",
       danger: true,
     }))) return;
     if (!isConfirmationCurrent()) return;
@@ -1541,24 +1505,24 @@ function App() {
     try {
       if (isDevDummyDevice(selectedDevice)) {
         setProgress({
-          message: "Initializing push connection...",
+          message: "Preparing EQ write…",
           percentage: 10,
         });
         await sleep(200);
-        setProgress({ message: "Writing band 1/10...", percentage: 20 });
+        setProgress({ message: "Writing band 1/10…", percentage: 20 });
         await sleep(150);
-        setProgress({ message: "Writing band 5/10...", percentage: 45 });
+        setProgress({ message: "Writing band 5/10…", percentage: 45 });
         await sleep(150);
-        setProgress({ message: "Writing band 10/10...", percentage: 70 });
+        setProgress({ message: "Writing band 10/10…", percentage: 70 });
         await sleep(150);
-        setProgress({ message: "Writing preamp...", percentage: 75 });
+        setProgress({ message: "Writing preamp…", percentage: 75 });
         await sleep(150);
         setProgress({
-          message: "Committing changes to device...",
+          message: "Saving EQ to DAC…",
           percentage: 80,
         });
         await sleep(200);
-        setProgress({ message: "Verifying changes...", percentage: 90 });
+        setProgress({ message: "Verifying changes…", percentage: 90 });
         await sleep(200);
         setProgress({ message: "Write complete", percentage: 100 });
         await sleep(400);
@@ -1584,7 +1548,7 @@ function App() {
       if (!isCurrentOperation()) return;
       setLastPushedPeq(committedPeq ?? snapshot);
       const savedMessage = isDevDummyDevice(selectedDevice)
-        ? "Dummy DAC write simulated"
+        ? "EQ write simulated"
         : "Saved EQ to DAC";
       if (pushWarnings.length > 0) {
         // The push rewrote out-of-range values, or ran with verification
@@ -1592,7 +1556,7 @@ function App() {
         // alone would hide both.
         reportStatus({
           level: "Warn",
-          message: `${savedMessage} — ${pushWarnings.join(" · ")}`,
+          message: `${savedMessage}. ${pushWarnings.join(" · ")}`,
           toastType: "info",
           source: "UI",
           statusText: `${savedMessage} (see details)`,
@@ -1676,9 +1640,9 @@ function App() {
       let applyWarnings: string[] = [];
       try {
         if (isDevDummyDevice(selectedDevice)) {
-          setProgress({ message: "Writing to RAM...", percentage: 60 });
+          setProgress({ message: "Applying temporary EQ…", percentage: 60 });
           await sleep(250);
-          setProgress({ message: "Apply successful", percentage: 100 });
+          setProgress({ message: "Temporary EQ applied", percentage: 100 });
           await sleep(300);
         } else {
           // apply_eq_state returns the normalized state written to RAM, plus
@@ -1698,12 +1662,12 @@ function App() {
           setLastPushedPeq(data);
         }
         const appliedMessage = isDevDummyDevice(selectedDevice)
-          ? "Dummy DAC apply simulated"
-          : `Applied ${profile.name} to DAC temporarily`;
+          ? "Temporary EQ application simulated"
+          : `Applied ${profile.name} to the DAC temporarily`;
         if (applyWarnings.length > 0) {
           reportStatus({
             level: "Warn",
-            message: `${appliedMessage} — ${applyWarnings.join(" · ")}`,
+            message: `${appliedMessage}. ${applyWarnings.join(" · ")}`,
             toastType: "info",
             source: "UI",
             statusText: `${appliedMessage} (values adjusted to device limits)`,
@@ -2209,9 +2173,9 @@ function App() {
                 className="graph-collapse-btn"
                 onClick={handleToggleGraphCollapsed}
                 aria-expanded={!graphCollapsed}
-                aria-label={graphCollapsed ? "Show sound curve" : "Hide sound curve"}
+                aria-label={graphCollapsed ? "Show frequency response graph" : "Hide frequency response graph"}
               >
-                <span>{graphCollapsed ? "Show sound curve" : "Hide sound curve"}</span>
+                <span>{graphCollapsed ? "Show frequency response graph" : "Hide frequency response graph"}</span>
                 <Icon name={graphCollapsed ? "expand_more" : "expand_less"} />
               </button>
             </section>
@@ -2227,7 +2191,7 @@ function App() {
               }}
               role="button"
               tabIndex={showGraphPreview ? 0 : -1}
-              aria-label="Scroll back to top graph"
+              aria-label="Scroll to frequency response graph"
               aria-hidden={!showGraphPreview}
               inert={!showGraphPreview ? true : undefined}
             >

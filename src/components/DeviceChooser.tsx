@@ -73,7 +73,7 @@ export function DeviceChooser({
       <div className="device-chooser-content">
         <div className="device-intro">
           <Icon name="usb" size={22} />
-          <p>Plug in and power your DAC. Scan to find it, then approve access if asked.</p>
+          <p>Connect and power on the DAC, then scan for devices. Approve access if prompted.</p>
         </div>
 
         {!isTauri() && !("hid" in navigator) && (
@@ -88,7 +88,7 @@ export function DeviceChooser({
         {devices.length === 0 ? (
           <div className="empty-device-state">
             <strong>No supported DAC found</strong>
-            <span>Plug in one of the supported devices below, then scan again.</span>
+            <span>Connect a supported device listed below, then scan again.</span>
           </div>
         ) : (
           <div className="device-list" role="radiogroup" aria-label="Available DACs">
@@ -124,7 +124,7 @@ export function DeviceChooser({
                     )}
                   </span>
                   <span className="device-row-description">
-                    {isDummy ? "Simulated device for testing" : device.product_string || device.manufacturer || "Walkplay Family DAC"}
+                    {isDummy ? "Simulated device for testing" : device.product_string || device.manufacturer || "Walkplay family DAC"}
                   </span>
                   <span className="device-row-meta">VID {formatUsbId(device.vendor_id)} · PID {formatUsbId(device.product_id)}</span>
                   <span className="device-selection-mark" aria-hidden="true"><Icon name={selected ? "radio_button_checked" : "radio_button_unchecked"} size={20} /></span>
@@ -154,14 +154,14 @@ export function DeviceChooser({
         </details>
 
         <details className="device-troubleshooting">
-          <summary>Trouble connecting?</summary>
+          <summary>Connection help</summary>
           <ul>
-            <li>Replug the DAC and close other apps using it.</li>
-            {!isTauri() && <li>Use Chromium and approve the browser device prompt.</li>}
+            <li>Disconnect and reconnect the DAC, and close other applications using it.</li>
+            {!isTauri() && <li>Use a Chromium-based browser and approve the device access prompt.</li>}
             {isTauri()
-              ? <li>On Linux, open Settings &gt; Diagnostics to install the udev rule, then replug the DAC.</li>
+              ? <li>On Linux, open Settings &gt; Diagnostics &amp; permissions to install the udev rule, then reconnect the DAC.</li>
               : !isLinux()
-                ? <li>On Linux, install the udev rules, then replug the DAC.</li>
+                ? <li>On Linux, install the udev rules, then reconnect the DAC.</li>
                 : null}
           </ul>
           {!isTauri() && isLinux() && <LinuxUdevGuide compact />}
@@ -175,7 +175,7 @@ export function DeviceChooser({
         )}
         <div className="device-actions">
           <button type="button" className="btn filled" onClick={() => onConnect()} disabled={!selectedDevice || isBusy}>
-            {connected ? "Switch to this device" : "Connect to DAC"}
+            {connected ? "Switch to this device" : "Connect DAC"}
           </button>
         </div>
       </div>
