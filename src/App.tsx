@@ -105,7 +105,7 @@ const LazyToolsPanel = lazy(() =>
   import("./components/ToolsPanel").then(({ ToolsPanel }) => ({ default: ToolsPanel })),
 );
 const LazyTuningPanel = lazy(() =>
-  import("./components/ToolsPanel").then(({ TuningPanel }) => ({ default: TuningPanel })),
+  import("./components/TuningPanel").then(({ TuningPanel }) => ({ default: TuningPanel })),
 );
 const LazyDiagnosticsPanel = lazy(() =>
   import("./components/ToolsPanel").then(({ DiagnosticsPanel }) => ({ default: DiagnosticsPanel })),

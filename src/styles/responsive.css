@@ -573,7 +573,6 @@
   .graph-card,
   .preamp-card,
   .bands-card,
-  .tuning-card,
   .diag-card {
     border-radius: var(--radius-surface) !important;
     border: 1px solid var(--line-soft) !important;
@@ -1068,39 +1067,6 @@
     flex: 1;
     overflow: visible !important;
     padding-right: 0 !important;
-  }
-
-  /* Tuning card optimizations on mobile: eliminate nested borders and horizontal overflow */
-  .tuning-card {
-    max-width: 100%;
-    overflow-x: hidden !important;
-  }
-
-  .tuning-card .curves-tab,
-  .tuning-card .trace-list {
-    max-width: 100%;
-    overflow-x: hidden;
-  }
-
-  .tuning-card .autoeq-tab {
-    padding: 0 !important;
-  }
-
-  .tuning-card .autoeq-match-card {
-    background: transparent !important;
-    outline: none !important;
-    padding: 0 !important;
-    border: none !important;
-  }
-
-  .tuning-panel > .autoeq-tab {
-    padding: 0;
-  }
-  .tuning-panel .autoeq-match-card {
-    padding: 16px;
-  }
-  .tuning-panel .tuning-library {
-    max-height: none;
   }
 
   /* Page gutter and editor controls. */

@@ -12,6 +12,7 @@ import "./styles/editor.css";
 import "./styles/tools.css";
 import "./styles/device-selection.css";
 import "./styles/responsive.css";
+import "./styles/tuning.css";
 import "./styles/toasts.css";
 
 // Detect Android platform
