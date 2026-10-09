@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.13.0] - 2026-10-09
+
+### Added
+
+- Added Glacier as the default dark theme.
+
+### Changed
+
+- Rebuilt tuning as a measurement, target, and EQ-generation workflow, with separate graph comparisons and advanced settings.
+- Simplified mobile band editing and compact-window layouts.
+- Made routine status updates quiet and integrated important feedback into the bottom edge of the interface.
+- Standardized UI wording and clarified editor-only, temporary, and saved DAC changes.
+- Replaced subjective DAC filter descriptions with technical explanations.
+- Updated README instructions and screenshots.
+
+### Fixed
+
+- Kept theme validation aligned with the themes available in settings.
+- Strengthened WebRPC argument, AutoEQ input, and disconnect-session validation.
+- Corrected channel balance slider labels.
+- Built WASM before frontend verification in the GitHub Pages workflow.
+
 ## [0.12.0] - 2026-10-03
 
 ### Changed
