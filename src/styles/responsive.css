@@ -695,6 +695,15 @@
     padding-inline: 16px;
   }
 
+  /* stack-content has no mobile padding, so inset About text directly.
+     Leave the project-link list full width; its rows already have an inset. */
+  .mobile-workspace .stack-content > .settings-plain > .settings-plain-title,
+  .mobile-workspace .stack-content > .settings-plain > .settings-plain-desc,
+  .mobile-workspace .stack-content > .device-spec-list,
+  .mobile-workspace .stack-content > .card-note {
+    padding-inline: 16px !important;
+  }
+
   .mobile-workspace .settings-plain .stack-pref-row {
     padding-inline: 0;
   }
@@ -911,7 +920,7 @@
     bottom: 0;
     left: 0;
     right: 0;
-    height: var(--tabbar-h, 56px);
+    height: calc(var(--tabbar-h, 56px) + var(--safe-area-bottom, 0px));
     align-items: center;
     padding: 2px max(6px, var(--safe-area-right, 0px)) var(--safe-area-bottom, 0px) max(6px, var(--safe-area-left, 0px));
     background: var(--bg);
@@ -1278,7 +1287,7 @@ body.is-android *,
     padding: 6px 12px 4px !important;
   }
   .mobile-tab-bar {
-    height: 46px !important;
+    height: calc(46px + var(--safe-area-bottom, 0px)) !important;
   }
   .mobile-tab-item {
     gap: 2px !important;

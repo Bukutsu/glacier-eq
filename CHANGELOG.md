@@ -17,6 +17,7 @@
 
 ### Fixed
 
+- Corrected Android system-bar spacing and mobile text insets in About settings.
 - Kept theme validation aligned with the themes available in settings.
 - Strengthened WebRPC argument, AutoEQ input, and disconnect-session validation.
 - Corrected channel balance slider labels.
