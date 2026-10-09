@@ -5,10 +5,17 @@ import org.gradle.api.GradleException
 import org.gradle.api.logging.LogLevel
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.TaskAction
+import javax.inject.Inject
+import org.gradle.process.ExecOperations
 
-open class BuildTask : DefaultTask() {
+abstract class BuildTask : DefaultTask() {
+    @get:Inject
+    abstract val execOperations: ExecOperations
+
     @Input
     var rootDirRel: String? = null
+    @Input
+    var projectDir: String? = null
     @Input
     var target: String? = null
     @Input
@@ -17,16 +24,12 @@ open class BuildTask : DefaultTask() {
     @TaskAction
     fun assemble() {
         val candidates = if (Os.isFamily(Os.FAMILY_WINDOWS)) {
-            // npm is the locked project entrypoint; Bun is only a fallback for
-            // developer machines that do not have Node/npm available.
             listOf("npm.cmd", "npm.exe", "npm", "bun", "bun.exe", "bun.cmd", "bun.bat")
         } else {
             listOf("npm", "bun")
         }
         val executable = candidates.firstOrNull { isRunnerAvailable(it) }
             ?: throw GradleException("No supported JavaScript package runner found")
-        // A present runner's nonzero build exit is a real build failure. Only
-        // fall back when the executable itself cannot be found.
         runTauriCli(executable)
     }
 
@@ -40,29 +43,30 @@ open class BuildTask : DefaultTask() {
         }
     }
 
-    fun runTauriCli(executable: String) {
+    private fun runTauriCli(executable: String) {
         val rootDirRel = rootDirRel ?: throw GradleException("rootDirRel cannot be null")
+        val projectDir = projectDir ?: throw GradleException("projectDir cannot be null")
         val target = target ?: throw GradleException("target cannot be null")
         val release = release ?: throw GradleException("release cannot be null")
-        val args = if (executable.startsWith("npm")) {
-            listOf("exec", "--", "tauri", "android", "android-studio-script")
-        } else {
-            listOf("tauri", "android", "android-studio-script")
-        };
-
-        val rootDir = File(project.projectDir, rootDirRel).absoluteFile
+        val rootDir = File(projectDir, rootDirRel).absoluteFile
         val cargoWrapper = File(
             rootDir,
             if (Os.isFamily(Os.FAMILY_WINDOWS)) "scripts/cargo-locked.cmd" else "scripts/cargo-locked",
         )
-        project.exec {
+        val args = if (executable.startsWith("npm")) {
+            listOf("exec", "--", "tauri", "android", "android-studio-script")
+        } else {
+            listOf("tauri", "android", "android-studio-script")
+        }
+
+        execOperations.exec {
             workingDir(rootDir)
             environment("CARGO", cargoWrapper.absolutePath)
             executable(executable)
             args(args)
-            if (project.logger.isEnabled(LogLevel.DEBUG)) {
+            if (logger.isEnabled(LogLevel.DEBUG)) {
                 args("-vv")
-            } else if (project.logger.isEnabled(LogLevel.INFO)) {
+            } else if (logger.isEnabled(LogLevel.INFO)) {
                 args("-v")
             }
             if (release) {

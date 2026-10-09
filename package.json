@@ -27,9 +27,9 @@
     "android:apk:split": "npm run android:prepare && tauri android build --apk --split-per-abi -- --locked"
   },
   "dependencies": {
-    "@tauri-apps/api": "^2",
-    "@tauri-apps/plugin-clipboard-manager": "^2.3.3",
-    "@tauri-apps/plugin-dialog": "^2.7.3",
+    "@tauri-apps/api": "^2.12.2",
+    "@tauri-apps/plugin-clipboard-manager": "^2.4.1",
+    "@tauri-apps/plugin-dialog": "^2.8.1",
     "lucide-react": "^1.45.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
@@ -37,7 +37,7 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2",
+    "@tauri-apps/cli": "^2.12.1",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.5",
     "@types/w3c-web-hid": "^1.0.7",
