@@ -17,7 +17,7 @@ function render(toasts: Toast[]) {
 describe("Toasts", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("renders nothing when there is no feedback", () => {
+  it("reserves the notification slot when there is no feedback", () => {
     expect(render([])).toBe('<div class="toast-slot"></div>');
   });
 

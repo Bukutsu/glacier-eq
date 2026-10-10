@@ -6,7 +6,7 @@ function ToastMessage({ toast, announce = false }: { toast: Toast; announce?: bo
   return (
     <>
       <span className={`toast-icon ${toast.type}`}>
-        <Icon name={toast.type === "success" ? "check_circle" : toast.type === "error" ? "error" : "info"} />
+        <Icon name={toast.type === "success" ? "check" : toast.type === "error" ? "error" : "info"} />
       </span>
       <span className="toast-message"
         role={announce ? (toast.type === "error" ? "alert" : "status") : undefined}
@@ -23,6 +23,7 @@ export function ToastContainer() {
   const pauseToast = useToastStore(s => s.pauseToast);
   const resumeToast = useToastStore(s => s.resumeToast);
   const [showEarlier, setShowEarlier] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);
   const historyId = useId();
@@ -41,6 +42,7 @@ export function ToastContainer() {
   useEffect(() => {
     if (toasts.length === 0) {
       setShowEarlier(false);
+      setExpanded(false);
       setHovered(false);
       setFocused(false);
     }
@@ -50,14 +52,17 @@ export function ToastContainer() {
 
   return (
     <div className="toast-slot has-toast">
-      <section className="toast-container" aria-label="Status messages"
+      <section className={`toast-container${expanded || showEarlier ? " expanded" : ""}`} aria-label="Status messages"
         onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
         onFocusCapture={() => setFocused(true)}
         onBlurCapture={event => {
           if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false);
         }}>
         <div className="toast-item">
-          <ToastMessage toast={current} announce />
+          <button type="button" className="toast-summary" aria-expanded={expanded}
+            aria-label={expanded ? "Collapse notification" : "Show full notification"} onClick={() => setExpanded(value => !value)}>
+            <ToastMessage toast={current} announce />
+          </button>
           {earlier.length > 0 && (
             <button type="button" className="toast-earlier" aria-expanded={showEarlier} aria-controls={historyId}
               aria-label={showEarlier ? "Hide earlier messages" : `Show ${earlier.length} other messages`}

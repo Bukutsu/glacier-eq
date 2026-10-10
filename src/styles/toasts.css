@@ -1,48 +1,47 @@
-/* Toasts share the app's lower chrome instead of floating over the controls.
-   Reserve the desktop line so quick feedback never shifts the workspace. */
+/* Feedback belongs to the header, not a floating toast card. */
 .toast-slot {
   position: relative;
-  flex: 0 0 32px;
-  min-height: 32px;
+  min-width: 0;
+  width: 100%;
+  height: 32px;
+  flex: 1 1 140px;
 }
 
 .toast-container {
-  position: absolute;
-  inset-inline: 0;
-  bottom: 0;
-  z-index: var(--z-toast);
-  max-height: min(40dvh, 320px);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  background: var(--bg);
-  color: var(--text);
-  border-top: 1px solid var(--line-subtle);
+  height: 100%;
+  color: var(--muted);
 }
 
 .toast-item {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-1);
   min-height: 32px;
-  padding: 0 var(--space-4);
-  background: var(--bg);
+}
+
+.toast-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 1;
+  min-width: 0;
+  min-height: 32px;
+  padding: 0;
+  text-align: left;
+  background: transparent;
+  color: inherit;
+  font-weight: 400;
 }
 
 .toast-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  flex: 0 0 14px;
+  flex: 0 0 12px;
 }
-
-.toast-icon .app-icon {
-  width: 14px;
-  height: 14px;
-}
-
-.toast-icon.success { color: var(--muted); }
+.toast-icon .app-icon,
+.toast-close .app-icon { width: 12px; height: 12px; }
 .toast-icon.error { color: var(--red); }
-.toast-icon.info { color: var(--muted); }
 
 .toast-message {
   flex: 1;
@@ -50,8 +49,12 @@
   padding-block: var(--space-1);
   font-size: var(--type-small);
   line-height: 1.5;
-  font-weight: 400;
   overflow-wrap: anywhere;
+}
+.toast-summary .toast-message {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .toast-close,
@@ -59,64 +62,43 @@
   flex: 0 0 auto;
   min-width: 32px;
   min-height: 32px;
-  padding: 0 var(--space-2);
+  padding: 0 var(--space-1);
   color: var(--muted);
   background: transparent;
   border: 0;
+  font-weight: 400;
 }
-
-.toast-close {
-  display: grid;
-  place-items: center;
-}
-
-.toast-close .app-icon {
-  width: 14px;
-  height: 14px;
-}
-
-.toast-earlier {
-  font-size: var(--type-small);
-  white-space: nowrap;
-}
-
-.toast-container button:hover {
-  color: var(--text);
-  background: var(--surface-soft);
-}
-
-.toast-history .toast-item {
-  border-top: 1px solid var(--line-subtle);
-}
-
+.toast-close { display: grid; place-items: center; }
+.toast-earlier { font-size: var(--type-caption); white-space: nowrap; }
+.toast-container button:hover { color: var(--text); }
 .toast-container button:focus-visible {
   outline: 2px solid var(--cyan);
-  outline-offset: -3px;
+  outline-offset: -2px;
 }
 
+/* Details overlay the page without changing header geometry. */
+.toast-container.expanded {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: max(100%, min(360px, 80vw));
+  height: auto;
+  max-height: 40dvh;
+  padding: var(--space-2);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--bg);
+  border: 1px solid var(--line-subtle);
+  z-index: var(--z-toast);
+}
+.toast-container.expanded .toast-message { white-space: normal; }
+.toast-history .toast-item { border-top: 1px solid var(--line-subtle); }
+
 @media (max-width: 850px), ((max-height: 540px) and (pointer: coarse)) {
-  .toast-slot {
-    flex: 0 0 0;
-    min-height: 0;
-  }
-
-  .toast-container {
-    position: fixed;
-    bottom: calc(var(--tabbar-h) + var(--safe-area-bottom, 0px));
-  }
-
-  .toast-item {
-    min-height: var(--touch-md);
-    padding-inline: max(var(--space-3), var(--safe-area-left, 0px)) max(var(--space-3), var(--safe-area-right, 0px));
-  }
-
+  .toast-summary,
   .toast-close,
-  .toast-earlier {
-    min-width: var(--touch-md);
-    min-height: var(--touch-md);
-  }
-
-  #app:has(.toast-slot.has-toast) .workspace.mobile-workspace {
-    padding-bottom: calc(var(--tabbar-h) + var(--safe-area-bottom, 0px) + var(--touch-md) + var(--space-4)) !important;
-  }
+  .toast-earlier { min-height: var(--touch-md); }
+  .toast-close,
+  .toast-earlier { min-width: var(--touch-md); }
+  .toast-slot { height: 44px; }
 }

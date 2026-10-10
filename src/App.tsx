@@ -59,7 +59,6 @@ import type {
   OperationProgress,
   AppSettings,
 } from "./types";
-import { ToastContainer } from "./components/Toast";
 import { useToastStore, type StatusReporter } from "./stores/toastStore";
 import { useHistoryStore } from "./stores/historyStore";
 import { useThemeSync } from "./hooks/useThemeSync";
@@ -2499,7 +2498,6 @@ function App() {
           </div>
         </Modal>
       )}
-      <ToastContainer />
       <ConfirmDialogHost />
     </div>
   );
