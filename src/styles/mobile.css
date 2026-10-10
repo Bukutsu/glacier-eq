@@ -1,0 +1,74 @@
+/* Mobile affordances follow the layout breakpoint, not just the primary
+   pointer type: small windows and hybrid devices need usable targets too. */
+@media (max-width: 850px), ((max-height: 540px) and (pointer: coarse)) {
+  .mobile-workspace button[data-slot="button"],
+  .modal-content button[data-slot="button"] {
+    min-width: var(--touch-md);
+    min-height: var(--touch-md);
+  }
+  .app-select-trigger,
+  .app-select-option,
+  .ui-menu-item {
+    min-height: var(--touch-md);
+    touch-action: manipulation;
+  }
+  .mobile-workspace .control-slider-input {
+    min-height: var(--touch-md);
+    --slider-thumb: var(--foreground) !important;
+  }
+  .mobile-workspace .control-slider-input::-webkit-slider-thumb {
+    background: var(--foreground) !important;
+    box-shadow: none !important;
+  }
+  .mobile-workspace .control-slider-input::-moz-range-thumb {
+    background: var(--foreground) !important;
+    box-shadow: none !important;
+  }
+  .mobile-workspace .mobile-filter-card,
+  .mobile-workspace .mobile-preamp-details {
+    background: color-mix(in srgb, var(--card) 88%, var(--foreground) 12%) !important;
+    border-color: var(--border);
+  }
+  .mobile-workspace .mobile-filter-card .custom-number-input {
+    background: var(--field-background);
+  }
+  .mobile-workspace .control-slider-input::-webkit-slider-thumb {
+    width: 20px;
+    height: 20px;
+    margin-top: -9px;
+  }
+  .mobile-workspace .control-slider-input::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+  }
+  .band-picker-scroll { touch-action: auto; }
+  .mobile-workspace .graph-collapse-btn { min-height: var(--touch-md); }
+  .mobile-tab-item { font-size: 12px; font-weight: 500; letter-spacing: 0; gap: var(--space-1); }
+  .mobile-tab-item::before { content: none; }
+  .mobile-tab-icon-wrapper {
+    width: 48px;
+    height: 28px;
+    border-radius: var(--radius-pill);
+  }
+  .mobile-tab-item.active { color: var(--foreground); }
+  .mobile-tab-item.active .mobile-tab-icon-wrapper {
+    color: var(--accent-foreground);
+    background: var(--accent);
+  }
+  .mobile-tab-item:active .mobile-tab-icon-wrapper { background: var(--accent); }
+  .mobile-tab-item:focus-visible { outline: 2px solid var(--ring); outline-offset: -4px; border-radius: var(--control-radius); }
+  .configuration-layout .configuration-navigation { padding: 0; }
+  .settings-stack-view .configuration-navigation {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-1);
+  }
+  .configuration-nav-link:active { background: var(--accent); color: var(--accent-foreground); }
+  .mobile-workspace {
+    scroll-padding-bottom: calc(var(--tabbar-h) + var(--safe-area-bottom, 0px) + var(--space-4));
+  }
+  .modal-content .modal-body { scroll-padding-block: var(--space-4); }
+  .mobile-workspace :is(button, input, a, [role="combobox"]) {
+    scroll-margin-block: var(--space-4);
+  }
+}

@@ -24,6 +24,12 @@ pub fn init<R: Runtime, C: DeserializeOwned>(
 pub struct MaterialYou<R: Runtime>(PluginHandle<R>);
 
 impl<R: Runtime> MaterialYou<R> {
+    pub fn set_system_bar_appearance(&self, appearance: SystemBarAppearance) -> crate::Result<()> {
+        self.0
+            .run_mobile_plugin("setSystemBarAppearance", appearance)
+            .map_err(crate::Error::PluginInvoke)
+    }
+
     pub fn get_dynamic_colors(&self) -> crate::Result<DynamicColors> {
         self.0
             .run_mobile_plugin::<DynamicColors>("getDynamicColors", ())

@@ -39,7 +39,7 @@ describe("Android WebView safe areas", () => {
 
   it("keeps the inset in short landscape layouts", () => {
     expect(responsive).toMatch(
-      /\.mobile-tab-bar\s*\{\s*height:\s*calc\(46px\s*\+\s*var\(--safe-area-bottom,\s*0px\)\) !important;/,
+      /\.mobile-tab-bar\s*\{\s*height:\s*calc\(56px\s*\+\s*var\(--safe-area-bottom,\s*0px\)\) !important;/,
     );
   });
 });

@@ -1,6 +1,11 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SystemBarAppearance {
+    pub dark: bool,
+}
+
 /// Material You tonal palettes read from the Android system.
 /// Each family (`accent1`, `accent2`, `accent3`, `neutral1`, `neutral2`)
 /// maps tone (0-1000) to `#RRGGBB`.

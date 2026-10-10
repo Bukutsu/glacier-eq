@@ -29,7 +29,10 @@ pub fn material_you<R: Runtime, T: Manager<R>>(manager: &T) -> &MaterialYou<R> {
 /// Initializes the plugin.
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
     Builder::new("material-you")
-        .invoke_handler(tauri::generate_handler![commands::get_dynamic_colors])
+        .invoke_handler(tauri::generate_handler![
+            commands::get_dynamic_colors,
+            commands::set_system_bar_appearance
+        ])
         .setup(|app, api| {
             #[cfg(mobile)]
             let material_you = mobile::init(app, api)?;

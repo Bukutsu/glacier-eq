@@ -307,6 +307,18 @@
           "markdownDescription": "Denies the get_dynamic_colors command without any pre-configured scope."
         },
         {
+          "description": "Enables the set_system_bar_appearance command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-set-system-bar-appearance",
+          "markdownDescription": "Enables the set_system_bar_appearance command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the set_system_bar_appearance command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-set-system-bar-appearance",
+          "markdownDescription": "Denies the set_system_bar_appearance command without any pre-configured scope."
+        },
+        {
           "description": "Default permissions for the plugin",
           "type": "string",
           "const": "default",

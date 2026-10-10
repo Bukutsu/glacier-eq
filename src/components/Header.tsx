@@ -258,7 +258,7 @@ export const Header = memo(function Header({
               <ConnectionActions isBusy={isBusy} onDisconnect={onDisconnect} onPull={onPull} compact />
             </>
           ) : (
-            <Button type="button" variant="primary" className="mobile-action-btn mobile-connect-btn" onClick={onConnectClick} disabled={isBusy}>
+            <Button type="button" variant="default" className="mobile-action-btn mobile-connect-btn" onClick={onConnectClick} disabled={isBusy}>
               <Icon name="link" />
               <span>Connect DAC</span>
             </Button>

@@ -50,6 +50,14 @@ export function useThemeSync(theme: string): string {
 
     const isAndroid = isAndroidDevice();
 
+    const syncSystemBars = () => {
+      if (!active || !isAndroid || !isTauri()) return;
+      const dark = getComputedStyle(document.documentElement).colorScheme === "dark";
+      void import("../lib/rpc")
+        .then(({ invoke }) => invoke("plugin:material-you|set_system_bar_appearance", { dark }))
+        .catch(error => console.error("Failed to sync Android system bars:", error));
+    };
+
     // Try Material You; returns true when dynamic colors were applied.
     const applyMaterialYou = async (): Promise<boolean> => {
       if (!isTauri()) return false;
@@ -59,6 +67,7 @@ export function useThemeSync(theme: string): string {
         const vars = materialYouToCssVars(colors);
         applyMaterialYouVars(vars);
         document.documentElement.style.colorScheme = colors.dark ? "dark" : "light";
+        syncSystemBars();
         updateThemeColorMeta("material-you", vars["--bg"]);
         console.info(
           `[theme] Material You applied (dark=${colors.dark} primary=${vars["--cyan"]})`,
@@ -95,6 +104,7 @@ export function useThemeSync(theme: string): string {
         setResolvedTheme(resolved);
         document.documentElement.setAttribute("data-theme", resolved);
         updateThemeColorMeta(resolved);
+        syncSystemBars();
         return;
       }
 
@@ -127,6 +137,7 @@ export function useThemeSync(theme: string): string {
       setResolvedTheme(resolved);
       document.documentElement.setAttribute("data-theme", resolved);
       updateThemeColorMeta(resolved);
+      syncSystemBars();
     };
 
     applyTheme();

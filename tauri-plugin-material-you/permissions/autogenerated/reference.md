@@ -36,4 +36,30 @@ Denies the get_dynamic_colors command without any pre-configured scope.
 
 </td>
 </tr>
+
+<tr>
+<td>
+
+`material-you:allow-set-system-bar-appearance`
+
+</td>
+<td>
+
+Enables the set_system_bar_appearance command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`material-you:deny-set-system-bar-appearance`
+
+</td>
+<td>
+
+Denies the set_system_bar_appearance command without any pre-configured scope.
+
+</td>
+</tr>
 </table>

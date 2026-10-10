@@ -10,6 +10,7 @@
     "clipboard-manager:allow-read-text",
     "clipboard-manager:allow-write-text",
     "material-you:allow-get-dynamic-colors",
+    "material-you:allow-set-system-bar-appearance",
     "hid:allow-register-listener",
     "hid:allow-remove-listener"
   ]

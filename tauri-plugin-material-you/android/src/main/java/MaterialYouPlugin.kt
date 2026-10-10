@@ -3,6 +3,9 @@ package com.bukutsu.tauri.plugin.materialyou
 import android.app.Activity
 import android.content.res.Configuration
 import android.os.Build
+import android.view.View
+import android.view.WindowInsetsController
+import app.tauri.annotation.InvokeArg
 import app.tauri.annotation.Command
 import app.tauri.annotation.TauriPlugin
 import app.tauri.plugin.Invoke
@@ -57,8 +60,41 @@ private fun androidColorId(resources: android.content.res.Resources, name: Strin
     }
 }
 
+@InvokeArg
+class SystemBarAppearanceArgs {
+    var dark: Boolean? = null
+}
+
 @TauriPlugin
 class MaterialYouPlugin(private val activity: Activity) : Plugin(activity) {
+    @Command
+    fun setSystemBarAppearance(invoke: Invoke) {
+        val dark = invoke.parseArgs(SystemBarAppearanceArgs::class.java).dark ?: run {
+            invoke.reject("System bar appearance requires a dark boolean")
+            return
+        }
+        activity.runOnUiThread {
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    val mask = WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS or
+                        WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS
+                    activity.window.insetsController?.setSystemBarsAppearance(if (dark) 0 else mask, mask)
+                } else {
+                    @Suppress("DEPRECATION")
+                    val mask = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+                    @Suppress("DEPRECATION")
+                    val current = activity.window.decorView.systemUiVisibility
+                    @Suppress("DEPRECATION")
+                    activity.window.decorView.systemUiVisibility =
+                        if (dark) current and mask.inv() else current or mask
+                }
+                invoke.resolve()
+            } catch (e: Exception) {
+                invoke.reject("Failed to set system bar appearance: ${e.message}")
+            }
+        }
+    }
+
 
     @Command
     fun getDynamicColors(invoke: Invoke) {

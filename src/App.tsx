@@ -182,6 +182,7 @@ function App() {
   const [showDiagnosticsModal, setShowDiagnosticsModal] = useState(false);
   const mainScrollRef = useRef<HTMLElement | null>(null);
   const mobileScrollRef = useRef<HTMLElement | null>(null);
+  const mobileWorkspacePathsRef = useRef<Partial<Record<MobileTab, string>>>({});
   const mobileScrollPositionsRef = useRef<Record<MobileTab, number>>({
     eq: 0,
     tuning: 0,
@@ -1853,14 +1854,15 @@ function App() {
     const currentTab = activeTabRef.current;
     const scrollEl = mobileScrollRef.current;
     if (currentTab === id) {
-      scrollEl?.scrollTo({ top: 0, behavior: "smooth" });
+      scrollEl?.scrollTo({ top: 0, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
       mobileScrollPositionsRef.current[id] = 0;
       return;
     }
 
     mobileScrollPositionsRef.current[currentTab] = scrollEl?.scrollTop ?? 0;
-    navigate(workspacePath(id));
-  }, [navigate]);
+    mobileWorkspacePathsRef.current[currentTab] = location.pathname;
+    navigate(mobileWorkspacePathsRef.current[id] ?? workspacePath(id));
+  }, [navigate, location.pathname]);
 
   const handleOpenDeviceModal = useCallback(() => {
     setShowDeviceModal(true);

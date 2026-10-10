@@ -16,6 +16,10 @@ pub fn init<R: Runtime, C: DeserializeOwned>(
 pub struct MaterialYou<R: Runtime>(PhantomData<fn() -> R>);
 
 impl<R: Runtime> MaterialYou<R> {
+    pub fn set_system_bar_appearance(&self, _appearance: SystemBarAppearance) -> crate::Result<()> {
+        Ok(())
+    }
+
     pub fn get_dynamic_colors(&self) -> crate::Result<DynamicColors> {
         Ok(DynamicColors {
             available: false,
