@@ -361,8 +361,8 @@
     min-height: 44px;
   }
   .custom-number-input.preamp-value-stepper {
-    width: 132px !important;
-    height: 44px;
+    width: 160px !important;
+    height: 48px;
   }
   .bands-section-header {
     display: none;
@@ -388,7 +388,7 @@
     display: none;
   }
   .mobile-filter-reset,
-  .mobile-filter-card .custom-select-trigger {
+  .mobile-filter-card .app-select-trigger {
     min-height: 44px;
   }
   .mobile-filter-head .band-index {
@@ -399,7 +399,10 @@
   .mobile-filter-card .freq-cell,
   .mobile-filter-card .gain-cell,
   .mobile-filter-card .q-cell {
-    grid-template-columns: minmax(0, 1fr) 132px;
+    grid-template-columns: minmax(0, 1fr) 160px;
+  }
+  .mobile-filter-card .control-slider {
+    order: 0;
   }
   .bands-card {
     padding: 0;
@@ -472,14 +475,14 @@
   }
   .gain-cell {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 132px;
+    grid-template-columns: minmax(0, 1fr) 160px;
     align-items: center;
     gap: 8px;
   }
   .freq-cell,
   .q-cell {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 132px;
+    grid-template-columns: minmax(0, 1fr) 160px;
     align-items: center;
     gap: 8px;
   }
@@ -487,14 +490,6 @@
   .custom-number-input.band-gain-stepper,
   .custom-number-input.band-q-stepper {
     width: 100% !important;
-  }
-  .custom-number-input.preamp-value-stepper .stepper-btn {
-    width: 44px;
-    flex: 0 0 44px;
-  }
-  .mobile-filter-card .custom-number-input .stepper-btn {
-    width: 28px;
-    flex: 0 0 28px;
   }
   .gain-cell input[type="range"],
   .freq-cell input[type="range"],
@@ -617,10 +612,6 @@
 
   .band-picker button {
     min-height: 48px !important;
-  }
-
-  .custom-number-input {
-    height: 44px !important;
   }
 
   /* Mobile Settings Menu Touch Friendliness */
@@ -1158,6 +1149,7 @@
   .mobile-filter-card {
     display: flex;
     flex-direction: column;
+    align-items: stretch;
     gap: var(--space-2);
     padding: var(--space-2) var(--space-3);
     max-width: 640px;
@@ -1340,7 +1332,7 @@ body.is-android *,
   .control-slider-input::-webkit-slider-thumb {
     width: 12px !important;
     height: 26px !important;
-    border-radius: 0 !important;
+    border-radius: var(--radius-pill) !important;
     margin-top: -11px !important;
     background: var(--slider-thumb, var(--blue)) !important;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4) !important;
@@ -1348,7 +1340,7 @@ body.is-android *,
   .control-slider-input::-moz-range-thumb {
     width: 12px !important;
     height: 26px !important;
-    border-radius: 0 !important;
+    border-radius: var(--radius-pill) !important;
     background: var(--slider-thumb, var(--blue)) !important;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4) !important;
   }
@@ -1415,55 +1407,66 @@ body.is-android *,
 
 @media (min-width: 851px) and ((min-height: 541px) or (pointer: fine)) {
   .desktop-sidebar {
+    display: flex;
     min-width: 0;
     min-height: 0;
-    padding: 8px 0;
+    flex-direction: column;
+    gap: var(--space-4);
+    padding: var(--space-4) var(--space-3);
+    border-right: 1px solid var(--line-soft);
+    background: var(--panel);
     overflow-y: auto;
-    overflow-x: hidden;
-    background: transparent;
     grid-column: 1;
     grid-row: 1;
-    display: flex;
-    flex-direction: column;
   }
+
+  .desktop-brand {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 40px;
+    padding: 0 var(--space-2);
+    color: var(--text);
+    text-decoration: none;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.025em;
+  }
+
+  .desktop-brand img { flex: 0 0 auto; }
 
   .desktop-sidebar-nav {
     display: flex;
     flex-direction: column;
-    gap: 2px;
-    padding: 8px 0;
+    gap: var(--space-1);
   }
 
   .desktop-sidebar-divider {
     height: 1px;
-    margin: 12px 10px 8px;
+    margin: var(--space-3) var(--space-2);
     background: var(--line-soft);
   }
 
   .desktop-sidebar-item {
     display: flex;
     min-width: 0;
-    min-height: 38px;
+    min-height: 36px;
     align-items: center;
-    gap: 9px;
-    padding: 0 10px;
-    background: transparent;
+    gap: var(--space-2);
+    padding: 0 var(--space-3);
+    border-radius: var(--control-radius);
     color: var(--muted);
-    text-align: left;
     transition: background-color var(--motion-duration) var(--motion-ease), color var(--motion-duration) var(--motion-ease);
   }
 
-  .desktop-sidebar-item:hover:not(.active) {
+  .desktop-sidebar-item:hover,
+  .desktop-sidebar-item.active {
     background: var(--surface-soft);
     color: var(--text);
   }
 
-  .desktop-sidebar-item .app-icon {
-    flex: 0 0 auto;
-    font-size: 17px;
-  width: 17px;
-  height: 17px;}
-
+  .desktop-sidebar-item.active { font-weight: 500; }
+  .desktop-sidebar-item .app-icon { width: 16px; height: 16px; }
   .desktop-sidebar-item span:last-child {
     min-width: 0;
     overflow: hidden;
@@ -1472,77 +1475,80 @@ body.is-android *,
     font-size: var(--type-label);
   }
 
-  .desktop-sidebar-item.active {
-    background: rgb(var(--cyan-rgb) / 0.12);
-    color: var(--cyan);
-    box-shadow: inset 3px 0 0 var(--cyan);
-  }
-
   .desktop-sidebar .sidebar-specs-card {
     margin-top: auto;
-    margin-inline: 6px;
-    padding: 12px;
-    background: var(--bg-dark);
+    padding: var(--space-3) var(--space-2);
+    background: transparent;
     border: 0;
-    border-top: 1px solid var(--line-medium);
+    border-top: 1px solid var(--line-soft);
   }
+
+  .desktop-sidebar .sidebar-specs-dot { border-radius: var(--radius-pill); }
 
   @media (max-height: 680px) {
-    .desktop-sidebar .sidebar-specs-row.secondary {
-      display: none;
-    }
+    .desktop-sidebar .sidebar-specs-row.secondary { display: none; }
   }
 
-  .desktop-workspace > .right-rail {
-    background: var(--panel);
-    border-left: 1px solid var(--line-soft);
-    border-right: 0;
-    padding: 8px 0;
-    grid-column: 3;
+  .desktop-content {
+    display: grid;
+    min-width: 0;
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: var(--space-5);
+    padding: var(--space-5);
+    overflow: hidden;
+  }
+
+  .desktop-content > .app-header {
+    grid-column: 1 / -1;
     grid-row: 1;
   }
 
-  .desktop-workspace > .right-rail > .tools-card {
-    background: transparent !important;
-    border: none !important;
-    padding: 8px 12px !important;
-    gap: 4px;
+  .desktop-view-profiles .desktop-content,
+  .desktop-view-tuning .desktop-content {
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 40%);
+    column-gap: var(--space-4);
   }
 
-  .desktop-workspace.desktop-view-eq > .left-pane {
-    grid-column: 2 / -1;
+  .desktop-content > .right-rail {
+    grid-column: 2;
+    grid-row: 2;
+    padding: 0;
+    border: 1px solid var(--line-soft);
+    border-radius: var(--radius-card);
+    background: var(--panel);
   }
 
-  .desktop-workspace.desktop-view-profiles,
-  .desktop-workspace.desktop-view-tuning {
-    grid-template-columns: 188px minmax(0, 1fr) minmax(340px, 40%);
+  .desktop-content > .right-rail > .tools-card {
+    background: transparent;
+    border: 0;
+    padding: var(--space-4);
   }
 
-  .desktop-workspace.desktop-view-profiles .graph-card {
+  .desktop-view-profiles .graph-card {
     flex: 0 0 auto;
     height: clamp(280px, 48dvh, 480px);
   }
 
-  .desktop-workspace.desktop-view-device .left-pane,
-  .desktop-workspace.desktop-view-settings .left-pane {
-    display: none;
-  }
+  .desktop-view-device .left-pane,
+  .desktop-view-settings .left-pane { display: none; }
 
-  .desktop-workspace.desktop-view-device > .right-rail,
-  .desktop-workspace.desktop-view-settings > .right-rail {
-    grid-column: 2 / -1;
+  .desktop-view-device .desktop-content > .right-rail,
+  .desktop-view-settings .desktop-content > .right-rail {
+    grid-column: 1 / -1;
     display: flex;
     flex-direction: column;
     align-items: center;
+    background: transparent;
+    border: 0;
   }
 
-  .desktop-workspace.desktop-view-device > .right-rail > .tools-card,
-  .desktop-workspace.desktop-view-settings > .right-rail > .tools-card {
+  .desktop-view-device .desktop-content > .right-rail > .tools-card,
+  .desktop-view-settings .desktop-content > .right-rail > .tools-card {
     width: min(100%, 1080px);
     flex: 1 1 auto;
-    padding: 20px 24px;
-    background: transparent;
-    border: none;
+    padding: var(--space-4) var(--space-5);
   }
 }
 

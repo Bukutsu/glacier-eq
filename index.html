@@ -9,7 +9,7 @@
     <link rel="icon" type="image/svg+xml" href="%BASE_URL%glacier-eq.svg" />
     <link rel="apple-touch-icon" href="%BASE_URL%glacier-eq-192.png" />
     <link rel="manifest" href="%BASE_URL%manifest.webmanifest" />
-    <meta name="theme-color" content="#181a1f" />
+    <meta name="theme-color" content="#181c20" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
     <meta
       name="description"
@@ -38,13 +38,19 @@
     <meta name="twitter:image" content="https://bukutsu.github.io/glacier-eq/screenshot-main.png" />
     <title>Glacier EQ - TP35 Pro, Moondrop, FiiO, Truthear KEYX DAC EQ Software</title>
     <style>
-      html, body, #root { height: 100%; margin: 0; background: #181a1f; }
+      html, body, #root { height: 100%; margin: 0; background: var(--bg, #181c20); }
       /* Static splash: paints immediately from this document while the JS
          bundle loads; React's first render replaces the #root content. */
-      .splash { min-height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 2rem; box-sizing: border-box; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; color: #9aa0ad; }
-      .splash h1 { color: #d4d8e0; font-size: 1.6rem; margin: 0 0 0.75rem; }
+      .splash { min-height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 2rem; box-sizing: border-box; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; color: var(--muted, #a5b0b9); }
+      .splash h1 { color: var(--text, #e5eaee); font-size: 1.6rem; margin: 0 0 0.75rem; }
       .splash p { max-width: 34rem; margin: 0.25rem 0; line-height: 1.5; font-size: 0.95rem; }
-      .splash a { color: #56c8d8; }
+      .splash a { color: var(--cyan, #adc2cf); }
+      @media (prefers-color-scheme: light) {
+        html, body, #root { background: var(--bg, #f3f5f6); }
+        .splash { color: var(--muted, #55616c); }
+        .splash h1 { color: var(--text, #263039); }
+        .splash a { color: var(--cyan, #435f70); }
+      }
       .splash-status { margin-top: 1.25rem; font-size: 0.85rem; opacity: 0.7; }
     </style>
     <script type="application/ld+json">

@@ -1,7 +1,8 @@
 .graph-card {
   flex: 1 1 auto;
   min-height: 280px;
-  padding: 16px 14px 14px;
+  padding: var(--space-4);
+  border: 1px solid var(--line-soft);
   display: flex;
   min-width: 0;
   position: relative;
@@ -20,9 +21,9 @@
   align-items: center;
   gap: 10px;
   padding: 10px 14px;
-  background: var(--bg-dark);
-  outline: 1px solid var(--accent-line-outline);
-  outline-offset: -1px;
+  background: transparent;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--control-radius);
   color: var(--muted);
   font-size: var(--type-label);
   line-height: 1.4;
@@ -133,11 +134,10 @@
   gap: 6px 12px;
   padding: 4px 12px;
   max-width: calc(100% - 24px);
-  background: var(--surface-soft);
-  border: 1px solid var(--line-outline);
-  border-radius: var(--radius-surface);
+  background: var(--panel);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--control-radius);
   pointer-events: none;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
   z-index: var(--z-sticky);
 }
 
@@ -286,11 +286,12 @@
 
 .preamp-card {
   display: grid;
-  grid-template-columns: 100px 1fr;
+  grid-template-columns: 120px minmax(0, 1fr);
   align-items: center;
-  gap: 8px;
-  padding: 0 16px;
-  min-height: 44px;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  min-height: 64px;
+  border: 1px solid var(--line-soft);
   flex-shrink: 0;
 }
 
@@ -298,7 +299,7 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: var(--space-2);
 }
 
 .preamp-card strong {
@@ -323,12 +324,7 @@
 }
 
 .custom-number-input.preamp-value-stepper {
-  width: 80px;
-  height: 24px;
-}
-.custom-number-input.preamp-value-stepper .stepper-field {
-  font-size: 11px;
-  padding: 0;
+  width: 128px;
 }
 
 .bands-card strong, .diag-head strong {
@@ -359,30 +355,33 @@
 
 .control-slider-input::-webkit-slider-runnable-track {
   height: 2px;
-  background: rgb(var(--cyan-rgb) / 0.28);
+  background: var(--surface);
   border: 0;
+  border-radius: var(--radius-pill);
 }
 
 .control-slider-input::-webkit-slider-thumb {
   appearance: none;
-  width: 8px;
-  height: 20px;
-  margin-top: -9px;
+  width: 12px;
+  height: 12px;
+  margin-top: -5px;
+  border-radius: var(--radius-pill);
   background: var(--slider-thumb, var(--blue));
   border: 0;
 }
 
 .control-slider-input::-moz-range-track {
   height: 2px;
-  background: rgb(var(--cyan-rgb) / 0.28);
+  background: var(--surface);
   border: 0;
+  border-radius: var(--radius-pill);
 }
 
 .control-slider-input::-moz-range-thumb {
-  width: 8px;
-  height: 20px;
+  width: 12px;
+  height: 12px;
   border: 0;
-  border-radius: 0;
+  border-radius: var(--radius-pill);
   background: var(--slider-thumb, var(--blue));
 }
 
@@ -486,7 +485,7 @@
   display: flex;
   flex-direction: column;
   gap: 0;
-  background: var(--panel);
+  background: transparent;
   container-type: inline-size;
 }
 
@@ -495,7 +494,7 @@
   grid-template-columns: minmax(0, 1fr) auto;
   gap: var(--space-2);
   min-width: 0;
-  padding: 0 var(--space-3);
+  padding: var(--space-3) var(--space-4);
   border-bottom: 1px solid var(--line-soft);
 }
 
@@ -517,16 +516,16 @@
 
 .band-picker button {
   flex: 0 0 auto;
-  min-width: 60px;
-  min-height: 48px;
+  min-width: 52px;
+  min-height: 44px;
   display: grid;
   place-items: center;
   gap: 1px;
   padding: var(--space-2);
   color: var(--muted);
   background: transparent;
-  border: 0;
-  border-bottom: 2px solid transparent;
+  border: 1px solid transparent;
+  border-radius: var(--control-radius);
 }
 
 .band-picker button strong {
@@ -542,7 +541,7 @@
 .band-picker button.active {
   color: var(--text);
   background: var(--surface-soft);
-  border-bottom-color: var(--filter-color, var(--cyan));
+  border-color: var(--line-medium);
 }
 
 .band-picker button:hover:not(:disabled) {
@@ -581,6 +580,7 @@
   grid-template-areas:
     "head head head head"
     "type freq gain q";
+  align-items: start;
   gap: var(--space-3) var(--space-5);
   padding: var(--space-3) var(--space-4) var(--space-4);
   background: var(--panel);
@@ -643,7 +643,7 @@
   opacity: 0.4;
 }
 
-.mobile-filter-card .custom-select-trigger {
+.mobile-filter-card .app-select-trigger {
   height: 32px;
 }
 
@@ -666,39 +666,31 @@
 .freq-cell,
 .gain-cell,
 .q-cell {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 96px;
-  align-items: center;
-  gap: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-2);
   min-width: 0;
 }
 
 .param-cell .control-slider,
 .gain-cell .control-slider {
   min-width: 0;
+  order: 1;
 }
 
 .freq-cell .custom-number-input.band-freq-stepper,
 .gain-cell .custom-number-input.band-gain-stepper,
-.q-cell .custom-number-input.band-q-stepper { width: 96px; }
-
-.custom-number-input.band-freq-stepper,
-.custom-number-input.band-gain-stepper,
-.custom-number-input.band-q-stepper {
-  height: 32px;
-}
-
-.custom-number-input.band-freq-stepper .stepper-field,
-.custom-number-input.band-gain-stepper .stepper-field,
-.custom-number-input.band-q-stepper .stepper-field {
-  font-size: var(--type-small);
-  padding: 0 2px;
-}
+.q-cell .custom-number-input.band-q-stepper { width: 100%; }
 
 .bands-container {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 0;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  flex-shrink: 0;
 }
 
 .bands-section-header {
@@ -713,6 +705,7 @@
   color: inherit;
   cursor: pointer;
   border: none;
+  border-bottom: 1px solid var(--line-soft);
   text-align: left;
   transition: background var(--motion-duration) var(--motion-ease);
 }
@@ -732,7 +725,7 @@
   font-size: var(--type-caption);
   color: var(--text);
   font-weight: 700;
-  letter-spacing: 0.05em;
+  letter-spacing: 0;
 }
 
 .bands-section-header .collapse-toggle-btn {

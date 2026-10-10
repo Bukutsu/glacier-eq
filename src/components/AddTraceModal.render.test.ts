@@ -68,7 +68,7 @@ describe("measurement search modal", () => {
 
   it("disables all result actions during a curve load", () => {
     database = { ...database, searchQuery: "hd600", manifest: [measurement], loadingDevice: "a" };
-    expect(render()).toMatch(/online-result-action[^>]*disabled=""/);
+    expect(render()).toMatch(/<button(?=[^>]*online-result-action)(?=[^>]*disabled="")[^>]*>/);
     expect(render()).toContain("Adding…");
   });
 

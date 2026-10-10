@@ -4,16 +4,8 @@ import { HashRouter } from "react-router";
 import App from "./App";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { isTauri } from "./lib/platform";
-import "./styles/tokens.css";
-import "./styles/base.css";
-import "./styles/header.css";
-import "./styles/layout.css";
-import "./styles/editor.css";
-import "./styles/tools.css";
-import "./styles/device-selection.css";
-import "./styles/responsive.css";
-import "./styles/tuning.css";
-import "./styles/toasts.css";
+import { systemThemeName } from "./lib/theme";
+import "./styles/index.css";
 
 // Detect Android platform
 const isAndroid = /android/i.test(navigator.userAgent);
@@ -27,7 +19,7 @@ if (typeof window !== "undefined" && window.matchMedia && !document.documentElem
   const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
   document.documentElement.setAttribute(
     "data-theme",
-    isAndroid ? "material-you" : isDark ? "tokyo-night" : "tokyo-night-day",
+    isAndroid ? "material-you" : systemThemeName(isDark),
   );
 }
 

@@ -1,0 +1,192 @@
+/* Shared Base UI surfaces. Portals inherit the active theme from :root. */
+.ui-popup-positioner,
+.app-select-positioner {
+  z-index: var(--z-popover);
+  isolation: isolate;
+}
+
+.ui-menu,
+.app-select-menu {
+  box-sizing: border-box;
+  min-width: 180px;
+  max-height: var(--available-height);
+  overflow-y: auto;
+  padding: var(--space-1);
+  border: 1px solid var(--line-medium);
+  border-radius: var(--radius-card);
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: var(--shadow-md);
+  outline: none;
+}
+
+.ui-menu-item,
+.app-select-option {
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--control-radius);
+  color: var(--text);
+  font: 400 var(--type-label)/1.4 var(--font-ui);
+  cursor: default;
+  outline: none;
+}
+
+.ui-menu-item[data-highlighted],
+.app-select-option[data-highlighted] {
+  background: var(--surface-soft);
+}
+
+.ui-menu-item[data-disabled],
+.app-select-option[data-disabled] {
+  color: var(--muted);
+  opacity: 0.5;
+}
+
+.ui-menu-item .app-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.app-select {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+.app-select-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-width: 0;
+  width: 100%;
+  height: var(--control-height);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--input-border);
+  border-radius: var(--control-radius);
+  background: var(--input-bg);
+  color: var(--text);
+  font: 400 var(--type-label)/1.4 var(--font-ui);
+  text-align: left;
+  cursor: pointer;
+}
+
+.app-select-trigger:hover:not(:disabled) {
+  border-color: var(--accent-line-hover);
+}
+
+.app-select-trigger:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+
+.app-select-trigger:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.app-select-value {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.app-select-arrow {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: var(--muted);
+}
+
+.app-select-arrow .app-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.app-select-menu {
+  min-width: var(--anchor-width);
+  max-width: var(--available-width);
+}
+
+.app-select-option.selected {
+  font-weight: 600;
+  background: var(--surface-soft);
+}
+
+@media (pointer: coarse) {
+  .ui-menu-item,
+  .app-select-option,
+  .app-select-trigger {
+    min-height: var(--touch-md);
+  }
+}
+
+/* One field, not three independently painted buttons. */
+.custom-number-input {
+  --number-step-size: 34px;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  min-width: 0;
+  height: 40px;
+  padding: 2px;
+  border: 1px solid var(--input-border);
+  border-radius: var(--control-radius);
+  background: var(--input-bg);
+  overflow: hidden;
+}
+
+.custom-number-input:hover:not(.disabled) { border-color: var(--line-strong); }
+.custom-number-input:focus-within:not(.disabled) {
+  border-color: var(--cyan);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--cyan) 18%, transparent);
+}
+.custom-number-input.disabled { opacity: 0.5; }
+
+.custom-number-input .stepper-btn {
+  display: inline-flex;
+  flex: 0 0 var(--number-step-size);
+  min-width: var(--number-step-size);
+  min-height: var(--number-step-size);
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--muted);
+  filter: none;
+}
+.custom-number-input .stepper-btn:disabled { opacity: 0.35; }
+.custom-number-input .stepper-btn:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--surface-soft);
+}
+.custom-number-input .stepper-field {
+  appearance: textfield;
+  box-sizing: border-box;
+  flex: 1 1 0;
+  width: 0;
+  min-width: 0;
+  height: 100%;
+  padding: 0 var(--space-1);
+  border: 0;
+  border-radius: 0;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font: 400 var(--type-label)/1 var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.custom-number-input .stepper-field:focus-visible { outline: none; }
+
+@media (max-width: 850px), (pointer: coarse) {
+  .custom-number-input {
+    --number-step-size: 44px;
+    height: 48px;
+    padding: 1px;
+  }
+  .custom-number-input .stepper-btn { height: 44px; }
+}

@@ -22,7 +22,8 @@ export function themeOptions(isAndroid: boolean): ThemeOption[] {
     ...(isAndroid
       ? [{ value: "material-you" as const, label: "System (Material You)" }]
       : []),
-    { value: "glacier", label: "Glacier" },
+    { value: "glacier", label: "Glacier (dark)" },
+    { value: "glacier-light", label: "Glacier (light)" },
     { value: "tokyo-night", label: "Tokyo Night" },
     { value: "tokyo-night-storm", label: "Tokyo Night Storm" },
     { value: "tokyo-night-day", label: "Tokyo Night Day (light)" },
@@ -32,6 +33,11 @@ export function themeOptions(isAndroid: boolean): ThemeOption[] {
     { value: "catppuccin-mocha", label: "Catppuccin Mocha" },
     { value: "catppuccin-latte", label: "Catppuccin Latte (light)" },
   ];
+}
+
+/** Auto keeps both system appearances in the Glacier palette. */
+export function systemThemeName(prefersDark: boolean): "glacier" | "glacier-light" {
+  return prefersDark ? "glacier" : "glacier-light";
 }
 
 export function cssVar(name: string, fallback = ""): string {

@@ -1,6 +1,7 @@
 import { memo } from "react";
 import type { MeasurementTrace, TargetTrace } from "../types";
 import { Icon } from "./Icon";
+import { Button } from "./ui/Button";
 
 
 interface UnifiedTracesListProps {
@@ -46,15 +47,15 @@ export const UnifiedTracesList = memo(function UnifiedTracesList({
             </span>
           </label>
           <span className="trace-type-badge trace-type-measure" aria-hidden="true" title="Measurement">M</span>
-          <button
-            type="button"
+          <Button
+            variant="ghost" size="icon"
             className="curve-delete"
             title={`Delete ${trace.name}`}
             aria-label={`Delete ${trace.name}`}
             onClick={() => onRemoveMeasurement(trace.id)}
           >
             <Icon name="delete" />
-          </button>
+          </Button>
         </div>
       ))}
       {allTargets.map((target) => {
@@ -76,15 +77,15 @@ export const UnifiedTracesList = memo(function UnifiedTracesList({
             </label>
             <span className="trace-type-badge trace-type-target" aria-hidden="true" title="Target">T</span>
             {!target.builtIn ? (
-              <button
-                type="button"
+              <Button
+                variant="ghost" size="icon"
                 className="curve-delete"
                 title={`Delete ${target.name}`}
                 aria-label={`Delete ${target.name}`}
                 onClick={() => onRemoveTarget(target.id)}
               >
                 <Icon name="delete" />
-              </button>
+              </Button>
             ) : (
               <span className="curve-delete-spacer" aria-hidden="true" />
             )}

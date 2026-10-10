@@ -6,9 +6,11 @@ import {
   materialYouToCssVars,
 } from "../lib/materialYou";
 import { isAndroidDevice, isTauri } from "../lib/platform";
+import { systemThemeName } from "../lib/theme";
 
 const THEME_BG_COLORS: Record<string, string> = {
-  glacier: "#181a1f",
+  glacier: "#181c20",
+  "glacier-light": "#f3f5f6",
   "material-you": "#181920",
   "tokyo-night": "#1a1b26",
   "tokyo-night-storm": "#24283b",
@@ -22,7 +24,7 @@ const THEME_BG_COLORS: Record<string, string> = {
 
 function updateThemeColorMeta(themeName: string, overrideColor?: string) {
   if (typeof document === "undefined") return;
-  const color = overrideColor ?? THEME_BG_COLORS[themeName] ?? "#181a1f";
+  const color = overrideColor ?? THEME_BG_COLORS[themeName] ?? "#181c20";
   let meta = document.querySelector('meta[name="theme-color"]');
   if (!meta) {
     meta = document.createElement("meta");
@@ -35,9 +37,7 @@ function updateThemeColorMeta(themeName: string, overrideColor?: string) {
 function getInitialTheme(theme: string): string {
   if (theme !== "auto") return theme;
   if (typeof window !== "undefined" && window.matchMedia) {
-    return window.matchMedia("(prefers-color-scheme: dark)").matches
-      ? "glacier"
-      : "tokyo-night-day";
+    return systemThemeName(window.matchMedia("(prefers-color-scheme: dark)").matches);
   }
   return "glacier";
 }
@@ -58,6 +58,7 @@ export function useThemeSync(theme: string): string {
         if (!active || !colors) return false;
         const vars = materialYouToCssVars(colors);
         applyMaterialYouVars(vars);
+        document.documentElement.style.colorScheme = colors.dark ? "dark" : "light";
         updateThemeColorMeta("material-you", vars["--bg"]);
         console.info(
           `[theme] Material You applied (dark=${colors.dark} primary=${vars["--cyan"]})`,
@@ -71,6 +72,7 @@ export function useThemeSync(theme: string): string {
 
     const applyTheme = async () => {
       let resolved = theme;
+      document.documentElement.style.removeProperty("color-scheme");
 
       // Material You reads the Android system palette. Gate it on Android as
       // well as on the setting: a saved value written by an Android build (the
@@ -88,7 +90,7 @@ export function useThemeSync(theme: string): string {
         const prefersDark = window.matchMedia(
           "(prefers-color-scheme: dark)",
         ).matches;
-        resolved = prefersDark ? "glacier" : "tokyo-night-day";
+        resolved = systemThemeName(prefersDark);
         if (!active) return;
         setResolvedTheme(resolved);
         document.documentElement.setAttribute("data-theme", resolved);
@@ -118,7 +120,7 @@ export function useThemeSync(theme: string): string {
             console.error("Failed to query Tauri window theme:", e);
           }
         }
-        resolved = prefersDark ? "glacier" : "tokyo-night-day";
+        resolved = systemThemeName(prefersDark);
       }
 
       if (!active) return;

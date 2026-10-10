@@ -36,7 +36,7 @@ describe("Material You is Android-only", () => {
     // A stored value is honoured on Android only; the sync layer gates it the
     // same way. If either side drifts, a platform silently falls back.
     const known = new Set([
-      "auto", "material-you", "glacier", "tokyo-night", "tokyo-night-storm",
+      "auto", "material-you", "glacier", "glacier-light", "tokyo-night", "tokyo-night-storm",
       "tokyo-night-day", "nord", "dracula", "gruvbox",
       "catppuccin-mocha", "catppuccin-latte",
     ]);

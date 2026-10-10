@@ -2123,19 +2123,14 @@ function App() {
             ? "DAC changes not written"
             : "DAC state unknown";
 
-  return (
-    <div id="app">
-      <a className="skip-link" href="#workspace-content" onClick={(event) => {
-        // HashRouter owns the URL fragment. Move focus without changing routes.
-        event.preventDefault();
-        document.getElementById("workspace-content")?.focus();
-      }}>Skip to workspace</a>
+  const workspaceHeader = (
         <Header
           inert={isReconnecting ? true : undefined}
           connected={connected}
           isSimulated={isDevDummyDevice(selectedDevice)}
           isBusy={isBusy}
           progress={progress}
+          workspaceLabel={activeTab === "eq" ? "Equalizer" : MOBILE_TABS.find((tab) => tab.id === activeTab)?.label}
           profile={selectedPreset}
           deviceName={deviceName}
           profileDirty={dirty}
@@ -2158,6 +2153,16 @@ function App() {
           mobile={isMobile}
           compact={isMobile && activeTab !== "eq"}
         />
+  );
+
+  return (
+    <div id="app">
+      <a className="skip-link" href="#workspace-content" onClick={(event) => {
+        // HashRouter owns the URL fragment. Move focus without changing routes.
+        event.preventDefault();
+        document.getElementById("workspace-content")?.focus();
+      }}>Skip to workspace</a>
+      {isMobile && workspaceHeader}
       {isMobile ? (
         <>
           <main id="workspace-content" tabIndex={-1} ref={mobileScrollRef} className="workspace mobile-workspace" aria-label={mobilePageTitle} inert={isReconnecting ? true : undefined}>
@@ -2313,6 +2318,10 @@ function App() {
       ) : (
         <main className={`workspace desktop-workspace desktop-view-${activeTab}`} aria-label="Workspace" inert={isReconnecting ? true : undefined}>
           <aside className="desktop-sidebar">
+            <Link className="desktop-brand" to={workspacePath("eq")} aria-label="Glacier EQ home">
+              <img src={`${import.meta.env.BASE_URL}glacier-eq.svg`} width={24} height={24} alt="" />
+              <span>Glacier EQ</span>
+            </Link>
             <nav className="desktop-sidebar-nav" aria-label="Primary navigation">
               {MOBILE_TABS.map(({ id, icon, label }) => (
                 <Fragment key={id}>
@@ -2343,6 +2352,8 @@ function App() {
               firmwareVersion={firmwareVersion}
             />
           </aside>
+          <div className="desktop-content">
+          {workspaceHeader}
           <section
             id={activeTab === "eq" ? "workspace-content" : "main-scroll-pane"}
             tabIndex={-1}
@@ -2416,6 +2427,7 @@ function App() {
             onDisconnect={connected ? disconnectDevice : undefined}
           />
           )}
+          </div>
         </main>
       )}
       {isReconnecting && (

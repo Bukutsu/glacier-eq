@@ -1,10 +1,20 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { Bands } from "./Bands";
 import { buildDevDummyPeq, DEV_DUMMY_DEVICE } from "../lib/devDevice";
 
+const selectOptions = vi.hoisted(() => [] as { value: string; label: string }[][]);
+vi.mock("./Select", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./Select")>();
+  return { ...actual, Select: (props: import("./Select").SelectProps<string>) => {
+    selectOptions.push(props.options);
+    return createElement(actual.Select, props);
+  }};
+});
+
 function renderEditor(props: Partial<Parameters<typeof Bands>[0]> = {}) {
+  selectOptions.length = 0;
   const peq = buildDevDummyPeq();
   const html = renderToStaticMarkup(createElement(Bands, {
     peq,
@@ -46,26 +56,28 @@ describe("Band editor markup", () => {
     expect(html).toContain('class="mobile-filter-reset" disabled=""');
     expect(html).toContain('aria-label="Remove band 1" disabled=""');
     expect(html.match(/<input(?=[^>]*type="range")(?=[^>]*disabled="")[^>]*>/g)).toHaveLength(3);
-    expect(html).toMatch(/<select[^>]*disabled=""/);
+    expect(html).toMatch(/<button(?=[^>]*role="combobox")(?=[^>]*disabled="")[^>]*>/);
   });
 
-  it("uses a labelled native select with readable filter names", () => {
+  it("uses a labelled combobox with readable filter names", () => {
     const html = renderEditor();
     expect(html).toContain('<label class="band-field band-type-field">');
-    expect(html.match(/<select /g)).toHaveLength(1);
-    expect(html).toMatch(/<option value="LowShelf"[^>]* selected="">Low shelf<\/option>/);
-    for (const name of ["Bell", "High shelf", "High pass", "Low pass"]) {
-      expect(html).toContain(`>${name}</option>`);
-    }
+    expect(html.match(/role="combobox"/g)).toHaveLength(1);
+    expect(html).toContain('class="app-select-value">Low shelf</span>');
+    expect(selectOptions.at(-1)?.map((option) => option.label)).toEqual(
+      expect.arrayContaining(["Low shelf", "Bell", "High shelf", "High pass", "Low pass"]),
+    );
     expect(html).not.toContain("type-buttons");
   });
 
   it("offers only the connected device's supported filter types", () => {
-    const html = renderEditor({
+    renderEditor({
       capabilities: { ...DEV_DUMMY_DEVICE, supported_filter_types: ["Peak", "LowShelf"] },
     });
-    expect(html.match(/<option /g)).toHaveLength(2);
-    expect(html).not.toContain(">High pass</option>");
+    expect(selectOptions.at(-1)).toEqual([
+      { value: "Peak", label: "Bell" },
+      { value: "LowShelf", label: "Low shelf" },
+    ]);
   });
 
   it("keeps values in the controls and labels their units", () => {

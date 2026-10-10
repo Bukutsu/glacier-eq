@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
 import { fileURLToPath } from "node:url";
 import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
@@ -46,6 +47,7 @@ export default defineConfig(async ({ mode }) => {
   },
   plugins: [
     react(),
+    tailwindcss(),
     {
       name: "offline-assets",
       writeBundle(options, bundle) {

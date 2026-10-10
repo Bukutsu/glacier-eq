@@ -1,11 +1,5 @@
-/* A single ordered workflow, with graph overlays kept separate from EQ inputs. */
-.tuning-panel {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  min-width: 0;
-}
-
+/* The graph is the workspace; tuning is a compact, quiet form beside it. */
+.tuning-panel,
 .tuning-match,
 .tuning-form {
   display: flex;
@@ -13,160 +7,75 @@
   min-width: 0;
 }
 
-.tuning-heading {
-  margin-bottom: var(--space-4);
-}
+.tuning-panel { gap: var(--space-5); }
+.tuning-form { gap: var(--space-5); }
 
 .tuning-heading h2 {
   margin: 0 0 var(--space-2);
   color: var(--text);
-  font-size: var(--type-title);
+  font-size: var(--type-body);
   font-weight: 600;
-  line-height: 1.2;
+  line-height: 1.4;
 }
 
 .tuning-heading p,
-.tuning-help,
-.tuning-input-meta,
-.tuning-start span {
+.tuning-help {
   margin: 0;
   color: var(--muted);
   font-size: var(--type-small);
   line-height: 1.5;
 }
 
-.tuning-step {
-  min-width: 0;
-  margin: 0;
-  padding: 0 0 var(--space-4);
-  border: 0;
-  position: relative;
-}
-
-.tuning-step:not(:last-child)::before {
-  content: "";
-  position: absolute;
-  top: var(--space-2);
-  bottom: var(--space-2);
-  left: 13px;
-  width: 1px;
-  background: var(--line-strong);
-}
-
-.tuning-step legend {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  width: 100%;
-  padding: 0;
-  color: var(--text);
-  font-size: var(--type-body);
-  font-weight: 600;
-}
-
-.tuning-step-number {
-  display: grid;
-  place-items: center;
-  flex: 0 0 28px;
-  height: 28px;
-  border: 1px solid var(--line-strong);
-  color: var(--cyan);
-  background: var(--panel);
-  font-size: var(--type-label);
-  font-variant-numeric: tabular-nums;
-}
-
-.tuning-step-body {
+.tuning-fields,
+.tuning-settings {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
   min-width: 0;
-  margin: var(--space-2) 0 0 40px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  gap: var(--space-4);
 }
 
-.tuning-step:last-child {
-  padding-bottom: 0;
+.tuning-settings {
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--line-soft);
 }
 
-.tuning-panel .custom-select-trigger {
-  height: var(--touch-md);
-  min-width: 0;
-  text-overflow: ellipsis;
-}
-
-.tuning-start {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: start;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  border: 1px dashed var(--line-strong);
-  background: var(--bg-dark);
-}
-
-.tuning-start > .app-icon {
-  color: var(--cyan);
-  margin-top: var(--space-1);
-}
-
-.tuning-start p {
-  margin: 0 0 var(--space-1);
-  color: var(--text);
-  font-size: var(--type-label);
-  font-weight: 500;
-}
-
-.tuning-start .tuning-add {
-  grid-column: 1 / -1;
-}
-
-.tuning-add {
-  min-height: var(--touch-md);
-  gap: var(--space-2);
-}
-
-.tuning-input-meta {
+.tuning-field {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
+  flex-direction: column;
+  min-width: 0;
   gap: var(--space-2);
 }
 
-.tuning-panel .tuning-inline-action {
-  min-height: 32px;
-  padding: 0 var(--space-2);
-  font-size: var(--type-small);
-  color: var(--cyan);
-}
-
+.tuning-field-heading,
 .tuning-band-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  flex-wrap: wrap;
   gap: var(--space-3);
 }
 
-.tuning-step label,
+.tuning-panel label,
+.tuning-field-heading > span,
 .tuning-smoothing > span {
-  display: block;
-  margin-bottom: var(--space-1);
   color: var(--text);
   font-size: var(--type-label);
   font-weight: 500;
 }
 
-.tuning-panel .tuning-bands {
-  width: 120px;
-  height: var(--touch-md);
-  flex: 0 0 auto;
+.tuning-field-heading > button {
+  margin-block: calc(-1 * var(--space-2));
 }
 
-.tuning-panel .tuning-bands .stepper-btn {
-  width: 36px;
-  flex: 0 0 36px;
-  height: 100%;
+.tuning-panel .app-select-trigger {
+  min-height: var(--touch-md);
+}
+
+.tuning-panel .tuning-bands {
+  width: 120px;
+  flex: 0 0 auto;
 }
 
 .tuning-smoothing {
@@ -178,109 +87,65 @@
 .tuning-segmented {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  border: 1px solid var(--line-strong);
-  background: var(--bg-dark);
+  gap: var(--space-1);
+  padding: var(--space-1);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--control-radius);
+  background: var(--input-bg);
 }
 
-.tuning-segmented button {
-  min-height: var(--touch-md);
+.tuning-segmented > button { min-width: 0; }
+
+/* Reuse the existing accessible disclosures, without nested cards or icons. */
+.tuning-panel :is(.tuning-advanced, .tuning-compare) {
   border: 0;
   border-radius: 0;
   background: transparent;
-  color: var(--muted);
-  font: inherit;
-  font-size: var(--type-label);
-  cursor: pointer;
-}
-
-.tuning-segmented button + button {
-  border-left: 1px solid var(--line-strong);
-}
-
-.tuning-segmented button:hover:not(:disabled) {
-  background: var(--surface-soft);
-  color: var(--text);
-}
-
-.tuning-segmented button.active {
-  background: var(--cyan);
-  color: var(--on-accent);
-  font-weight: 600;
-  box-shadow: inset 0 -3px 0 var(--on-accent);
-}
-
-.tuning-panel .tuning-advanced {
-  border: 0;
-  border-top: 1px solid var(--line-strong);
-  background: transparent;
   overflow: visible;
 }
 
-.tuning-panel .tuning-advanced > .app-collapse-trigger {
-  min-height: var(--touch-lg);
+.tuning-panel :is(.tuning-advanced, .tuning-compare) > .app-collapse-trigger {
+  min-height: var(--touch-md);
   padding: var(--space-2) 0;
-  color: var(--muted);
   border: 0;
   outline: none;
   background: transparent;
+  color: var(--muted);
   filter: none;
 }
 
-.tuning-panel .tuning-advanced > .app-collapse-trigger:hover:not(:disabled),
-.tuning-panel .tuning-advanced.open > .app-collapse-trigger {
-  color: var(--cyan);
+.tuning-panel :is(.tuning-advanced, .tuning-compare) > .app-collapse-trigger:hover:not(:disabled) {
+  color: var(--text);
+  background: transparent;
 }
 
-.tuning-advanced .app-collapse-title {
+.tuning-panel :is(.tuning-advanced, .tuning-compare) > .app-collapse-trigger:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+
+.tuning-panel :is(.tuning-advanced, .tuning-compare) .app-collapse-title {
+  color: inherit;
+  font-size: var(--type-label);
   font-weight: 500;
   white-space: normal;
-  overflow: visible;
 }
 
-.tuning-advanced-title {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-1) var(--space-3);
-}
-
-.tuning-advanced-summary {
-  color: var(--muted);
-  font-size: var(--type-small);
-  font-weight: 400;
-}
-
-.tuning-panel .tuning-advanced .app-collapse-content-inner {
-  padding: 0 0 var(--space-3);
+.tuning-panel :is(.tuning-advanced, .tuning-compare) .app-collapse-content-inner {
+  padding: var(--space-3) 0 0;
+  gap: var(--space-3);
 }
 
 .tuning-advanced-fields {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-  padding: var(--space-4);
-  background: var(--bg-dark);
 }
 
-.tuning-advanced-field {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 160px);
-  align-items: center;
-  gap: var(--space-3);
-}
-
-.tuning-advanced-field + .tuning-advanced-field {
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--line-subtle);
-}
-
-.tuning-generate {
-  min-height: var(--touch-lg);
-  width: 100%;
+.tuning-submit {
+  display: flex;
+  flex-direction: column;
   gap: var(--space-2);
-  font-size: var(--type-label);
-  font-weight: 600;
 }
 
 .tuning-destination {
@@ -289,16 +154,8 @@
 }
 
 .tuning-panel .tuning-compare {
-  background: var(--bg-dark);
-  border: 1px solid var(--line-strong);
-}
-
-.tuning-panel .tuning-compare > .app-collapse-trigger {
-  min-height: var(--touch-lg);
-  padding: var(--space-3);
-  color: var(--text);
-  background: transparent;
-  border: 0;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line-soft);
 }
 
 .tuning-compare-title {
@@ -315,20 +172,10 @@
   font-weight: 400;
 }
 
-.tuning-panel .tuning-compare .app-collapse-content-inner {
-  padding: 0 var(--space-3) var(--space-3);
-  gap: var(--space-3);
-}
-
 .tuning-library-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
-.tuning-library-actions .btn {
-  min-height: var(--touch-md);
-  font-size: var(--type-small);
+  align-items: center;
   gap: var(--space-2);
 }
 
@@ -339,17 +186,21 @@
   margin: var(--space-2) 0 0;
   color: var(--text);
   font-size: var(--type-label);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .tuning-panel .trace-list {
   flex: 0 0 auto;
   max-height: none;
+  border: 0;
+  background: transparent;
 }
 
 .tuning-panel .curve-item {
   grid-template-columns: minmax(0, 1fr) var(--touch-md);
   min-height: var(--touch-md);
+  border: 0;
+  background: transparent;
 }
 
 .tuning-panel .curve-toggle,
@@ -364,36 +215,26 @@
   opacity: 1;
 }
 
-.tuning-panel .curve-delete:hover {
-  color: var(--red) !important;
-}
+.tuning-panel .curve-delete:hover { color: var(--red) !important; }
+.tuning-panel .curve-points { color: var(--muted); }
+.tuning-panel .trace-type-badge { display: none; }
 
-.tuning-panel .curve-points {
-  color: var(--muted);
-}
-
-.tuning-panel .trace-type-badge {
-  display: none;
-}
-
-.tuning-result:empty {
-  display: none;
-}
+.tuning-result:empty { display: none; }
 
 .tuning-result-content {
   display: flex;
   align-items: start;
   gap: var(--space-3);
-  margin-top: var(--space-5);
+  margin-top: var(--space-4);
   padding: var(--space-4);
-  border-left: 3px solid var(--cyan);
-  background: var(--bg-dark);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--control-radius);
   color: var(--text);
   font-size: var(--type-label);
 }
 
 .tuning-result-content > .app-icon {
-  color: var(--cyan);
+  color: var(--green);
   flex-shrink: 0;
 }
 
@@ -407,39 +248,29 @@
 .tuning-error,
 .tuning-warnings {
   margin: var(--space-4) 0 0;
-  padding: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--control-radius);
   background: var(--bg-dark);
   font-size: var(--type-small);
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
 
-.tuning-error {
-  color: var(--red);
-  border-left: 3px solid var(--red);
-}
-
-.tuning-warnings {
-  color: var(--yellow);
-  border-left: 3px solid var(--yellow);
-}
-
-.tuning-warnings ul {
-  margin: var(--space-2) 0 0;
-  padding-left: var(--space-4);
-}
+.tuning-error { color: var(--red); }
+.tuning-warnings { color: var(--yellow); }
+.tuning-warnings ul { margin: var(--space-2) 0 0; padding-left: var(--space-4); }
 
 .tuning-panel .curve-delete:focus-visible {
   outline: 2px solid var(--cyan) !important;
   outline-offset: -2px;
 }
 
-.tuning-panel :is(button, select, input):focus-visible {
+.tuning-panel :is(button, input):focus-visible {
   outline: 2px solid var(--cyan);
   outline-offset: 2px;
 }
 
-.tuning-panel .tuning-sr-only {
+.tuning-sr-only {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -451,27 +282,24 @@
   border: 0;
 }
 
-@media (max-width: 850px), ((max-height: 540px) and (pointer: coarse)) {
-  .tuning-panel {
-    padding: var(--space-4);
+@media (min-width: 851px) and ((min-height: 541px) or (pointer: fine)) {
+  .desktop-view-tuning .desktop-content {
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
   }
 
-  .tuning-panel :is(button, select, input) {
-    scroll-margin-block: var(--space-5) calc(var(--tabbar-h) + var(--safe-area-bottom, 0px) + var(--space-4));
+  .desktop-view-tuning .desktop-content > .right-rail {
+    align-self: start;
+    max-height: 100%;
   }
 }
 
-@media (max-width: 400px) {
-  .tuning-step-body {
-    margin-left: 0;
+@media (max-width: 850px), ((max-height: 540px) and (pointer: coarse)) {
+  .tuning-panel { padding: var(--space-4); }
+
+  .tuning-panel :is(button, input) {
+    scroll-margin-block: var(--space-5) calc(var(--tabbar-h) + var(--safe-area-bottom, 0px) + var(--space-4));
   }
 
-  .tuning-step:not(:last-child)::before {
-    display: none;
-  }
-
-  .tuning-advanced-field {
-    grid-template-columns: minmax(0, 1fr);
-    gap: var(--space-2);
-  }
+  .tuning-panel button { min-height: var(--touch-md); }
+  .tuning-panel .tuning-bands { width: 144px; }
 }

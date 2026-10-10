@@ -7,6 +7,7 @@ import { parseMeasurementText, identifyTraceKind } from "../lib/measurements";
 import { useOnlineDatabase, type OnlineDevice } from "../lib/onlineDb";
 import { Modal } from "./Modal";
 import { confirmDialog } from "./ConfirmDialog";
+import { Button } from "./ui/Button";
 
 interface AddTraceModalProps {
   onClose: () => void;
@@ -234,13 +235,13 @@ export function AddTraceModal({
                               {device.price !== null && <span className="online-result-price">${device.price}</span>}
                             </div>
                           </div>
-                          <button type="button" className={`btn online-result-action${added ? " added" : ""}`}
+                          <Button className={`online-result-action${added ? " added" : ""}`}
                             disabled={loadingDevice !== null || added}
                             aria-label={added ? `${name} added` : `Add ${name} measurement`}
                             onClick={() => handleLoadDevice(device)}>
                             <Icon name={added ? "check" : adding ? "hourglass_empty" : "add"} />
                             <span>{added ? "Added" : adding ? "Adding…" : "Add"}</span>
-                          </button>
+                          </Button>
                         </li>
                       );
                     })}
@@ -257,15 +258,15 @@ export function AddTraceModal({
                   <span role="status">Downloading… {Math.round((downloadProgress ?? 0) * 100)}%</span>
                 </>
               ) : (
-                <button ref={downloadButtonRef} type="button" className="btn filled" onClick={handleDownload}>Download database</button>
+                <Button ref={downloadButtonRef} className="self-start min-h-11" onClick={handleDownload}>Download database</Button>
               )}
             </div>
           )}
         </div>
         <div className="add-trace-file-row">
-          <button type="button" className="btn add-trace-file-btn" onClick={handleImportFile}>
+          <Button className="add-trace-file-btn" onClick={handleImportFile}>
             <Icon name="file_upload" /> Import file
-          </button>
+          </Button>
           <p>Measurement or target file<br /><span>.csv or .txt</span></p>
         </div>
         {downloaded && (
@@ -273,9 +274,9 @@ export function AddTraceModal({
             <summary>Offline database <span>{totalCount !== null ? `${totalCount.toLocaleString()} curves` : "Saved on this device"}</span></summary>
             <div className="add-trace-cache-row">
               <p className="add-trace-cache-status">Clearing the cache removes the downloaded database. Added curves are retained.</p>
-              <button type="button" className="btn add-trace-clear-cache-btn" onClick={handleResetCache} disabled={loadingDevice !== null || isDownloading}>
+              <Button variant="ghost" className="add-trace-clear-cache-btn" onClick={handleResetCache} disabled={loadingDevice !== null || isDownloading}>
                 <Icon name="delete" /> Clear cache
-              </button>
+              </Button>
             </div>
           </details>
         )}

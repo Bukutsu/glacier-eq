@@ -1,0 +1,34 @@
+/* Keep migrated components above legacy styles without specificity wars.
+   No Tailwind preflight: the existing app and canvas own their resets. */
+@layer theme, base, legacy, components, utilities;
+
+@import "tailwindcss/theme.css" layer(theme);
+@import "./tokens.css" layer(base);
+@import "./base.css" layer(legacy);
+@import "./header.css" layer(legacy);
+@import "./layout.css" layer(legacy);
+@import "./editor.css" layer(legacy);
+@import "./tools.css" layer(legacy);
+@import "./device-selection.css" layer(legacy);
+@import "./responsive.css" layer(legacy);
+@import "./tuning.css" layer(legacy);
+@import "./toasts.css" layer(legacy);
+@import "./ui.css" layer(components);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+@theme inline {
+  --color-background: var(--bg);
+  --color-foreground: var(--text);
+  --color-muted-foreground: var(--muted);
+  --color-control: var(--surface-soft);
+  --color-control-hover: var(--surface);
+  --color-border: var(--line-medium);
+  --color-primary: var(--action-bg);
+  --color-primary-hover: var(--action-hover-bg);
+  --color-ring: var(--cyan);
+  --radius-control: var(--control-radius);
+  --font-sans: var(--font-ui);
+}
+
+/* Display utilities must not expose closed disclosure content. */
+[hidden] { display: none !important; }

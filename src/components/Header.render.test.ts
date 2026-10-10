@@ -34,9 +34,11 @@ describe("Header markup", () => {
     expect(html).not.toContain("header-session-strip");
     expect(html).not.toContain("desktop-toolbar");
     expect(html).not.toContain("Write DAC");
-    const panel = html.split('class="connection-actions-panel" hidden=""')[1];
-    expect(panel).toContain("Read from DAC");
-    expect(panel).toContain("Disconnect DAC");
+    const trigger = html.match(/<button[^>]*aria-label="Device actions"[^>]*>/)?.[0];
+    expect(trigger).toContain('aria-haspopup="menu"');
+    expect(trigger).toContain('aria-expanded="false"');
+    // Menu items are portaled only when opened; reads stay out of the toolbar.
+    expect(html).not.toContain(">Read from DAC</button>");
   });
 
   it("gives offline mobile editing a clear connect action without session stats", () => {
@@ -55,9 +57,11 @@ describe("Header markup", () => {
     }));
     expect(html).toContain("Profile: not saved");
     expect(html).toContain("DAC: changes not written");
-    expect(html).toContain('class="btn filled" title="Store the editor EQ on the DAC"');
+    const write = html.match(/<button[^>]*title="Store the editor EQ on the DAC"[^>]*>/)?.[0];
+    expect(write).toContain('data-variant="primary"');
     expect(html).not.toContain('role="menu"');
-    expect(html).toContain('aria-label="Device actions" aria-expanded="false"');
+    const menu = html.match(/<button[^>]*aria-label="Device actions"[^>]*>/)?.[0];
+    expect(menu).toContain('aria-expanded="false"');
   });
 
   it("marks a saved, edited profile as modified rather than synced", () => {

@@ -1,4 +1,6 @@
 import { useState, type ChangeEvent, type KeyboardEvent } from "react";
+import { Minus, Plus } from "lucide-react";
+import { Button } from "./ui/Button";
 
 interface NumberInputProps {
   id?: string;
@@ -134,15 +136,15 @@ export function NumberInput({
 
   return (
     <div className={`custom-number-input ${disabled ? "disabled" : ""} ${className}`}>
-      <button
-        type="button"
+      <Button
+        variant="ghost" size="icon"
         className="stepper-btn decrement"
         onClick={decrement}
         disabled={disabled || value <= min}
         aria-label={ariaLabel ? `Decrease ${ariaLabel}` : "Decrement"}
       >
-        –
-      </button>
+        <Minus aria-hidden="true" />
+      </Button>
       <input
         id={id}
         type="text"
@@ -164,15 +166,15 @@ export function NumberInput({
         disabled={disabled}
         className="stepper-field"
       />
-      <button
-        type="button"
+      <Button
+        variant="ghost" size="icon"
         className="stepper-btn increment"
         onClick={increment}
         disabled={disabled || value >= max}
         aria-label={ariaLabel ? `Increase ${ariaLabel}` : "Increment"}
       >
-        +
-      </button>
+        <Plus aria-hidden="true" />
+      </Button>
     </div>
   );
 }

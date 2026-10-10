@@ -65,6 +65,7 @@ function mix(a: string, b: string, percentA: number): string {
 
 const THEME_SELECTORS = [
   [":root, :root[data-theme=\"glacier\"]", "glacier"],
+  [":root[data-theme=\"glacier-light\"]", "glacier-light"],
   [":root[data-theme=\"tokyo-night\"]", "tokyo-night"],
   [":root[data-theme=\"tokyo-night-storm\"]", "tokyo-night-storm"],
   [":root[data-theme=\"material-you\"]", "material-you"],
@@ -89,6 +90,18 @@ describe("control text contrast", () => {
       contrast(tokens["--muted"], tokens["--surface-soft"]),
       `${selector}: secondary labels must meet WCAG AA`,
     ).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
+describe("Glacier data colors", () => {
+  it.each(THEME_SELECTORS.slice(0, 2))("%s keeps band labels and handles readable", (selector) => {
+    const tokens = themeTokens(selector);
+    for (const color of ["--red", "--orange", "--yellow", "--green", "--teal", "--cyan", "--blue", "--purple"]) {
+      expect(contrast(tokens[color], tokens["--surface-soft"]), color + " band label")
+        .toBeGreaterThanOrEqual(4.5);
+      expect(contrast(tokens[color], tokens["--on-accent"]), color + " handle label")
+        .toBeGreaterThanOrEqual(4.5);
+    }
   });
 });
 

@@ -16,9 +16,12 @@
   --touch-md: 44px;
   --touch-lg: 48px;
 
-  /* Corner language: Glacier uses sharp corners by default. */
-  --radius-card: 0;
-  --radius-pill: 0;
+  /* Shared geometry for the workspace and migrated controls. */
+  --control-radius: 6px;
+  --radius-card: 10px;
+  --radius-pill: 999px;
+  --sidebar-width: 192px;
+  --control-height: 34px;
 
   /* Shadows. */
   --shadow-sm: 0 2px 8px rgb(0 0 0 / 0.4);
@@ -26,8 +29,7 @@
   --shadow-lg: 0 8px 32px rgb(0 0 0 / 0.5);
   --shadow-overlay: 0 16px 48px rgb(0 0 0 / 0.5);
 
-  /* Stacking scale — no raw z-index literals in component stylesheets.
-     Grain sits above everything: it is pointer-transparent 4% texture. */
+  /* Stacking scale — portaled selects can also open inside dialogs. */
   --z-graph-sticky: 5;
   --z-graph-handle: 6;
   --z-sticky: 10;
@@ -39,7 +41,7 @@
   --z-toast: 1000;
   --z-modal: 2000;
   --z-reconnect: 3000;
-  --z-grain: 4000;
+  --z-popover: 2100;
 
   /* Graph + tab-bar geometry referenced by JS scroll/preview logic. */
   --graph-h-desktop: 280px;

@@ -8,65 +8,117 @@ html {
   text-size-adjust: 100%;
 }
 
-/* ── Glacier (default) ──────────────────────────────────────────────────
-   Neutral dark palette designed for an audio tool. Cool greys without the
-   purple tint of code-editor themes; teal accent reads "precision instrument."
-   Kept as both :root and [data-theme="glacier"] so it applies out of the box
-   and stays available as an explicit choice. */
+/* Glacier: graphite and ice, with muted colors reserved for plotted data.
+   The light palette uses the same hierarchy. Other named themes stay intact. */
 :root, :root[data-theme="glacier"] {
-  --bg: #181a1f;
-  --bg-dark: #131517;
-  --bg-dark-rgb: 19 21 23;
-  --bg-darker-rgb: 12 13 15;
-  --panel: #1e2126;
-  --panel-rgb: 30 33 38;
-  --surface: #3a3f4a;
-  --surface-soft: #252930;
+  color-scheme: dark;
+  --bg: #181c20;
+  --bg-dark: #15191d;
+  --panel: #20252a;
+  --surface: #3a434c;
+  --surface-soft: #2a3138;
+  --text: #e5eaee;
+  --muted: #a5b0b9;
+  --comment: #8d99a3;
+  --cyan: #adc2cf;
+  --blue: #8faabd;
+  --green: #a9b8a1;
+  --orange: #bca88f;
+  --yellow: #c5b896;
+  --red: #c2949c;
+  --purple: #b1a3bc;
+  --teal: #94b5b1;
+  --bright-cyan: #d2dfe7;
+  --magenta2: #b1a3bc;
+  --navy: #8faabd;
+  --azure: #adc2cf;
+  --sky: #8faabd;
+  --steel: #8d99a3;
+  --sea: #88a59e;
+  --teal2: #94b5b1;
+  --crimson: #c2949c;
+  --on-accent: #182026;
+  --sync-ok: #a9b8a1;
+  --sync-working: #adc2cf;
+  --sync-unsaved: #c5b896;
   --input-bg: var(--bg-dark);
   --input-border: var(--surface);
   --panel-border: var(--surface);
   --list-hover-bg: var(--surface-soft);
   --focus-border: rgb(var(--cyan-rgb) / 0.72);
   --scrollbar-color: var(--surface);
-  --text: #d4d8e0;
-  --text-rgb: 212 216 224;
-  --muted: #9aa0ad;
-  --comment: #5c6370;
-  --cyan: #56c8d8;
-  --cyan-rgb: 86 200 216;
-  --blue: #61afef;
-  --blue-rgb: 97 175 239;
-  --green: #8cc265;
-  --green-rgb: 140 194 101;
-  --orange: #d19a66;
-  --orange-rgb: 209 154 102;
-  --yellow: #e5c07b;
-  --yellow-rgb: 229 192 123;
-  --red: #e06c75;
-  --red-rgb: 224 108 117;
-  --purple: #c678dd;
-  --purple-rgb: 198 120 221;
-  --teal: #56b6c2;
-  --teal-rgb: 86 182 194;
-  --bright-cyan: #97e8f0;
-  --magenta2: #c678dd;
-  --magenta2-rgb: 198 120 221;
-  --navy: #61afef;
-  --azure: #56c8d8;
-  --sky: #56c8d8;
-  --steel: #5c6370;
-  --sea: #3e9e8e;
-  --teal2: #56b6c2;
-  --teal2-rgb: 86 182 194;
-  --crimson: #e06c75;
-  --terminal-black-rgb: 58 63 74;
-  --on-accent: #111315;
-  --sync-ok: #8cc265;
-  --sync-working: #56c8d8;
-  --sync-unsaved: #e5c07b;
+  --bg-dark-rgb: 21 25 29;
+  --panel-rgb: 32 37 42;
+  --text-rgb: 229 234 238;
+  --cyan-rgb: 173 194 207;
+  --blue-rgb: 143 170 189;
+  --green-rgb: 169 184 161;
+  --orange-rgb: 188 168 143;
+  --yellow-rgb: 197 184 150;
+  --red-rgb: 194 148 156;
+  --purple-rgb: 177 163 188;
+  --teal-rgb: 148 181 177;
+  --magenta2-rgb: 177 163 188;
+  --teal2-rgb: 148 181 177;
+  --bg-darker-rgb: 12 15 18;
+  --terminal-black-rgb: 58 67 76;
   --motion-duration-ms: 160;
   --motion-duration: calc(var(--motion-duration-ms) * 1ms);
   --motion-ease: cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+:root[data-theme="glacier-light"] {
+  color-scheme: light;
+  --bg: #f3f5f6;
+  --bg-dark: #eef1f3;
+  --panel: #ffffff;
+  --surface: #d4dce1;
+  --surface-soft: #e7ecef;
+  --text: #263039;
+  --muted: #55616c;
+  --comment: #5b6974;
+  --cyan: #435f70;
+  --blue: #486b85;
+  --green: #596f57;
+  --orange: #80613f;
+  --yellow: #756338;
+  --red: #915761;
+  --purple: #6f6184;
+  --teal: #3f7271;
+  --bright-cyan: #58778a;
+  --magenta2: #6f6184;
+  --navy: #486b85;
+  --azure: #435f70;
+  --sky: #486b85;
+  --steel: #5b6974;
+  --sea: #496e60;
+  --teal2: #3f7271;
+  --crimson: #915761;
+  --on-accent: #f7f9fa;
+  --sync-ok: #596f57;
+  --sync-working: #435f70;
+  --sync-unsaved: #756338;
+  --input-bg: var(--bg-dark);
+  --input-border: var(--surface);
+  --panel-border: var(--surface);
+  --list-hover-bg: var(--surface-soft);
+  --focus-border: rgb(var(--cyan-rgb) / 0.72);
+  --scrollbar-color: var(--surface);
+  --bg-dark-rgb: 238 241 243;
+  --panel-rgb: 255 255 255;
+  --text-rgb: 38 48 57;
+  --cyan-rgb: 67 95 112;
+  --blue-rgb: 72 107 133;
+  --green-rgb: 89 111 87;
+  --orange-rgb: 128 97 63;
+  --yellow-rgb: 117 99 56;
+  --red-rgb: 145 87 97;
+  --purple-rgb: 111 97 132;
+  --teal-rgb: 63 114 113;
+  --magenta2-rgb: 111 97 132;
+  --teal2-rgb: 63 114 113;
+  --bg-darker-rgb: 221 228 233;
+  --terminal-black-rgb: 38 48 57;
 }
 
 :root[data-theme="tokyo-night"] {
@@ -233,6 +285,7 @@ html {
 }
 
 :root[data-theme="tokyo-night-day"] {
+  color-scheme: light;
   --bg: #e1e2e7;
   --bg-dark: #d5d8e2;
   --bg-dark-rgb: 213 216 226;
@@ -498,6 +551,7 @@ html {
 }
 
 :root[data-theme="catppuccin-latte"] {
+  color-scheme: light;
   --bg: #e6e9ef;
   --bg-dark: #dce0e8;
   --bg-dark-rgb: 220 224 232;
@@ -589,9 +643,10 @@ html {
   --type-small: 12px;
   --type-caption: 11px;
   --type-micro: 10px;
-  --radius-control: 0;
-  --radius-surface: 0;
-  /* Glacier uses sharp corners as the default visual language. */
+  --radius-control: var(--control-radius);
+  --radius-surface: var(--radius-card);
+  --action-bg: color-mix(in srgb, var(--cyan) 22%, var(--bg));
+  --action-hover-bg: color-mix(in srgb, var(--cyan) 30%, var(--bg));
   font-family: var(--font-ui);
   color: var(--text);
   background: var(--bg);
@@ -615,18 +670,6 @@ body {
   -webkit-user-select: none;
 }
 
-/* Subtle film-grain noise layer over the whole app. Tuned to the app's dark,
-   technical look: fine grain, low opacity so it adds texture without haze.
-   Static and pointer-transparent, so it never blocks interaction. */
-body::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: var(--z-grain);
-  pointer-events: none;
-  opacity: 0.04;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-}
 /* Edge-to-edge Android WebView can report zero for system-bar insets. */
 body.is-android {
   --safe-area-top: max(24px, env(safe-area-inset-top, 0px));
@@ -635,11 +678,6 @@ body.is-android {
   --safe-area-right: env(safe-area-inset-right, 0px);
 }
 
-/* Android's native surfaces are flat; the desktop grain makes Monet colors
-   look dirty and shifts the sampled surface tones. */
-body.is-android::after {
-  display: none;
-}
 input, textarea, [contenteditable="true"], pre, code {
   user-select: text;
   -webkit-user-select: text;
@@ -667,7 +705,7 @@ button { border: 0; cursor: pointer; }
    one uniform field; an opaque disabled fill splits it into two tones the
    moment a stepper reaches min or max, which is the normal state for the
    first and last band. They keep their own opacity treatment instead. */
-button:disabled:not(.stepper-btn), .btn:disabled, .tools-card button:disabled, .diag-card button:disabled, .device-actions button:disabled {
+button:disabled:not(.stepper-btn):not([data-slot]):not(.app-select-trigger), .btn:disabled, .tools-card button:disabled:not([data-slot]):not(.app-select-trigger), .diag-card button:disabled:not([data-slot]), .device-actions button:disabled:not([data-slot]) {
   cursor: not-allowed;
   background: var(--surface-disabled) !important;
   color: var(--text-disabled) !important;
@@ -728,18 +766,11 @@ input, select, button, a {
   display: inline-block;
   vertical-align: middle;
   flex-shrink: 0;
-  stroke-linecap: square !important;
-  stroke-linejoin: miter !important;
-}
-
-.app-icon * {
-  stroke-linecap: square !important;
-  stroke-linejoin: miter !important;
 }
 
 
 
-.btn, .tools-card button, .diag-card button, .device-actions button {
+.btn, .tools-card button:not([data-slot]), .diag-card button:not([data-slot]), .device-actions button:not([data-slot]) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -755,8 +786,8 @@ input, select, button, a {
   transition: filter var(--motion-duration) var(--motion-ease), background var(--motion-duration) var(--motion-ease), color var(--motion-duration) var(--motion-ease), outline-color var(--motion-duration) var(--motion-ease);
 }
 
-.btn:hover:not(:disabled), .tools-card button:hover:not(:disabled), .diag-card button:hover:not(:disabled) { filter: brightness(1.14); }
-.btn:active:not(:disabled), .tools-card button:active:not(:disabled), .diag-card button:active:not(:disabled) { filter: brightness(1.24); }
+.btn:hover:not(:disabled), .tools-card button:not([data-slot]):hover:not(:disabled), .diag-card button:not([data-slot]):hover:not(:disabled) { filter: brightness(1.14); }
+.btn:active:not(:disabled), .tools-card button:not([data-slot]):active:not(:disabled), .diag-card button:not([data-slot]):active:not(:disabled) { filter: brightness(1.24); }
 /* A filled button is a large surface with text on it, so it needs a muted
  * fill, not a raw accent. The accent tokens here are chart/line colours —
  * bright and high-chroma by design — and #7dcfff or #7aa2f7 as a solid slab
@@ -773,7 +804,7 @@ input, select, button, a {
 .btn.warning { background: var(--yellow); color: var(--on-accent); }
 
 @media (pointer: coarse) {
-  .btn, .tools-card button, .diag-card button, .device-actions button {
+  .btn, .tools-card button:not([data-slot]), .diag-card button:not([data-slot]), .device-actions button:not([data-slot]) {
     min-height: 44px;
   }
 }
@@ -836,7 +867,7 @@ input, select, button, a {
   }
 }
 
-/* Unify all scrollbars under a single reusable custom design matching the sharp, technical language of Glacier EQ */
+/* Quiet scrollbars shared by the workspace and legacy views. */
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--surface) var(--bg-dark);
@@ -858,7 +889,7 @@ input, select, button, a {
 ::-webkit-scrollbar-thumb {
   background: var(--surface);
   border: 1px solid var(--line-strong);
-  border-radius: 0; /* Keep the app's sharp-corner language */
+  border-radius: var(--radius-pill);
   transition: background var(--motion-duration) var(--motion-ease);
 }
 ::-webkit-scrollbar-thumb:hover {
@@ -938,7 +969,7 @@ body::-webkit-scrollbar-thumb,
 .left-pane::-webkit-scrollbar-thumb {
   background: var(--surface);
   border: 1px solid var(--line-strong);
-  border-radius: 0 !important; /* Keep the app's sharp-corner language */
+  border-radius: var(--radius-pill);
 }
 
 body::-webkit-scrollbar-thumb:hover,

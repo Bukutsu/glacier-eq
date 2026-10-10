@@ -4,6 +4,12 @@
 import { memo, type ComponentType } from "react";
 import {
   Activity,
+  Check,
+  CheckCircle2,
+  Circle,
+  CircleDot,
+  Cpu,
+  Folder,
   AlertCircle,
   ArrowDownToLine,
   ArrowLeft,
@@ -51,132 +57,6 @@ import {
   Zap,
 } from "lucide-react";
 
-export interface SvgIconProps {
-  className?: string;
-  size?: number | string;
-  strokeWidth?: number | string;
-  strokeLinecap?: "inherit" | "round" | "butt" | "square";
-  strokeLinejoin?: "inherit" | "round" | "miter" | "bevel";
-}
-
-function SharpFolder({ size = 18, className = "" }: SvgIconProps) {
-  return (
-    <svg
-      className={`app-icon ${className}`}
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="square"
-      strokeLinejoin="miter"
-      aria-hidden="true"
-    >
-      <path d="M22 19H2V5h7l2 3h11v11z" />
-    </svg>
-  );
-}
-
-function SharpCpu({ size = 18, className = "" }: SvgIconProps) {
-  return (
-    <svg
-      className={`app-icon ${className}`}
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="square"
-      strokeLinejoin="miter"
-      aria-hidden="true"
-    >
-      <rect x="4" y="4" width="16" height="16" />
-      <rect x="9" y="9" width="6" height="6" />
-      <path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 15h3M1 9h3M1 15h3" />
-    </svg>
-  );
-}
-
-function SharpRadioChecked({ size = 18, className = "" }: SvgIconProps) {
-  return (
-    <svg
-      className={`app-icon ${className}`}
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="square"
-      strokeLinejoin="miter"
-      aria-hidden="true"
-    >
-      <rect x="3" y="3" width="18" height="18" />
-      <rect x="8" y="8" width="8" height="8" fill="currentColor" stroke="none" />
-    </svg>
-  );
-}
-
-function SharpRadioUnchecked({ size = 18, className = "" }: SvgIconProps) {
-  return (
-    <svg
-      className={`app-icon ${className}`}
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="square"
-      strokeLinejoin="miter"
-      aria-hidden="true"
-    >
-      <rect x="3" y="3" width="18" height="18" />
-    </svg>
-  );
-}
-
-function SharpCheck({ size = 18, className = "" }: SvgIconProps) {
-  return (
-    <svg
-      className={`app-icon ${className}`}
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.25"
-      strokeLinecap="square"
-      strokeLinejoin="miter"
-      aria-hidden="true"
-    >
-      <polyline points="20 6 9 17 4 12" />
-    </svg>
-  );
-}
-
-function SharpCheckCircle({ size = 18, className = "" }: SvgIconProps) {
-  return (
-    <svg
-      className={`app-icon ${className}`}
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="square"
-      strokeLinejoin="miter"
-      aria-hidden="true"
-    >
-      <rect x="2" y="2" width="20" height="20" />
-      <polyline points="17 8 10 15 7 12" strokeWidth="2.25" />
-    </svg>
-  );
-}
-
 // Deliberately not annotated as Record<string, ...>: the annotation widens
 // the keys to string, which is exactly what let a typo through to a silent
 // `return null` in the shipped build. `satisfies` checks the values and keeps
@@ -185,8 +65,8 @@ const ICON_MAP = {
   add: Plus,
   remove: Minus,
   close: X,
-  check: SharpCheck,
-  check_circle: SharpCheckCircle,
+  check: Check,
+  check_circle: CheckCircle2,
   delete: Trash2,
   refresh: RotateCw,
   restart_alt: RotateCcw,
@@ -194,8 +74,8 @@ const ICON_MAP = {
   tune: SlidersHorizontal,
   palette: Palette,
   settings: Settings,
-  memory: SharpCpu,
-  folder: SharpFolder,
+  memory: Cpu,
+  folder: Folder,
   auto_awesome: Sparkles,
   expand_more: ChevronDown,
   expand_less: ChevronUp,
@@ -232,9 +112,9 @@ const ICON_MAP = {
   undo: Undo2,
   redo: Redo2,
   more_vert: MoreVertical,
-  radio_button_checked: SharpRadioChecked,
-  radio_button_unchecked: SharpRadioUnchecked,
-} satisfies Record<string, ComponentType<SvgIconProps>>;
+  radio_button_checked: CircleDot,
+  radio_button_unchecked: Circle,
+} satisfies Record<string, ComponentType<{ size?: number | string; className?: string }>>;
 
 /** The icon names this build ships. A name outside it cannot be written. */
 export type IconName = keyof typeof ICON_MAP;
@@ -254,11 +134,9 @@ export const Icon = memo(function Icon({
   const Component = ICON_MAP[name];
   return (
     <Component
-      className={`app-icon sharp-icon ${className}`}
+      className={`app-icon ${className}`}
       size={size}
-      strokeWidth={2}
-      strokeLinecap="square"
-      strokeLinejoin="miter"
+      strokeWidth={1.75}
       aria-hidden="true"
     />
   );

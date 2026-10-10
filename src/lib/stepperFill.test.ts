@@ -31,7 +31,7 @@ describe("stepper keeps one uniform fill when a bound is reached", () => {
     "utf8",
   );
   const tools = readFileSync(
-    new URL("../styles/tools.css", import.meta.url),
+    new URL("../styles/ui.css", import.meta.url),
     "utf8",
   );
 
@@ -59,9 +59,9 @@ describe("stepper keeps one uniform fill when a bound is reached", () => {
     // Wiring: the CSS fix is only reachable if the component really sets
     // disabled at min/max. Without this the exemption would be dead code.
     // At min the decrement button is disabled, at max the increment is.
-    expect(render(0)).toMatch(/class="stepper-btn decrement"[^>]*disabled/);
-    expect(render(10)).toMatch(/class="stepper-btn increment"[^>]*disabled/);
+    expect(render(0)).toMatch(/<button(?=[^>]*stepper-btn decrement)(?=[^>]*disabled="")[^>]*>/);
+    expect(render(10)).toMatch(/<button(?=[^>]*stepper-btn increment)(?=[^>]*disabled="")[^>]*>/);
     // Mid-range neither is disabled, so nothing is exempt and nothing splits.
-    expect(render(5)).not.toMatch(/stepper-btn[^>]*disabled/);
+    expect(render(5)).not.toContain('disabled=""');
   });
 });

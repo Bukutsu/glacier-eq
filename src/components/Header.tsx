@@ -1,4 +1,6 @@
-import { memo, useState, useRef, useEffect, useId } from "react";
+import { memo } from "react";
+import { Menu } from "@base-ui/react/menu";
+import { Button } from "./ui/Button";
 import { Icon } from "./Icon";
 import { OperationProgress } from "../types";
 import { isTauri } from "../lib/platform";
@@ -34,51 +36,29 @@ function ConnectionActions({ isBusy, onDisconnect, onPull, compact = false }: {
   onPull?: () => void;
   compact?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const panelId = useId();
-
-  useEffect(() => {
-    if (!open) return;
-    const closeOutside = (event: PointerEvent) => {
-      if (event.target instanceof Node && !containerRef.current?.contains(event.target)) setOpen(false);
-    };
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      setOpen(false);
-      triggerRef.current?.focus();
-    };
-    document.addEventListener("pointerdown", closeOutside);
-    document.addEventListener("keydown", closeOnEscape);
-    return () => {
-      document.removeEventListener("pointerdown", closeOutside);
-      document.removeEventListener("keydown", closeOnEscape);
-    };
-  }, [open]);
-
   return (
-    <div className="connection-actions" ref={containerRef} onBlur={(event) => {
-      if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
-    }}>
-      <button type="button" ref={triggerRef} className={compact ? "mobile-more-btn" : "btn"}
-        aria-label="Device actions" aria-expanded={open} aria-controls={panelId}
-        onClick={() => setOpen(!open)}>
+    <Menu.Root>
+      <Menu.Trigger
+        aria-label="Device actions"
+        render={<Button size={compact ? "icon" : "default"} className={compact ? "mobile-more-btn" : ""} />}
+      >
         {compact ? <Icon name="more_vert" /> : <>Device <Icon name="expand_more" /></>}
-      </button>
-      <div id={panelId} className="connection-actions-panel" hidden={!open}>
-        {onPull && <button type="button" className="btn" disabled={isBusy} onClick={() => {
-          setOpen(false);
-          triggerRef.current?.focus();
-          onPull();
-        }}><Icon name="file_download" /> Read from DAC</button>}
-        <button type="button" className="btn" disabled={isBusy} onClick={() => {
-          setOpen(false);
-          triggerRef.current?.focus();
-          onDisconnect();
-        }}><Icon name="link_off" /> Disconnect DAC</button>
-      </div>
-    </div>
+      </Menu.Trigger>
+      <Menu.Portal>
+        <Menu.Positioner align="end" sideOffset={6} className="ui-popup-positioner">
+          <Menu.Popup className="ui-menu" aria-label="Device actions">
+            {onPull && (
+              <Menu.Item className="ui-menu-item" disabled={isBusy} onClick={onPull}>
+                <Icon name="file_download" /> Read from DAC
+              </Menu.Item>
+            )}
+            <Menu.Item className="ui-menu-item" disabled={isBusy} onClick={onDisconnect}>
+              <Icon name="link_off" /> Disconnect DAC
+            </Menu.Item>
+          </Menu.Popup>
+        </Menu.Positioner>
+      </Menu.Portal>
+    </Menu.Root>
   );
 }
 
@@ -88,6 +68,7 @@ interface HeaderProps {
   isSimulated?: boolean;
   isBusy: boolean;
   progress: OperationProgress | null;
+  workspaceLabel?: string;
   profile: string;
   deviceName: string;
   profileDirty: boolean;
@@ -117,6 +98,7 @@ export const Header = memo(function Header({
   isSimulated = false,
   isBusy,
   progress,
+  workspaceLabel,
   profile,
   deviceName,
   profileDirty,
@@ -172,7 +154,7 @@ export const Header = memo(function Header({
     : profileDirty
       ? "Profile: modified"
       : "Profile: saved";
-  const writeClass = deviceMatchesEditor === false && !isSimulated ? "btn filled" : "btn";
+  const writeVariant = deviceMatchesEditor === false && !isSimulated ? "primary" : "default";
   const mobileSyncText = !connected ? "Offline editing"
     : isBusy ? syncText
     : isSimulated ? "Simulated device; no hardware changes"
@@ -184,6 +166,7 @@ export const Header = memo(function Header({
     <header className={`app-header${compact ? " compact-mobile" : ""}`} inert={inert}>
       <div className="header-main">
         <div className="title-stack">
+          {!mobile && workspaceLabel && <div className="workspace-heading">{workspaceLabel}</div>}
           <div className="title-line">
             <h1>{pageTitle}</h1>
             <GithubLink />
@@ -205,82 +188,80 @@ export const Header = memo(function Header({
         {!mobile && <div className="toolbar desktop-toolbar">
           {!isConfigPage && (
             <div className="history-buttons" role="group" aria-label="Edit history">
-              <button
+              <Button
                 type="button"
-                className="history-btn"
+                variant="ghost" size="icon" className="history-btn"
                 title="Undo"
                 aria-label="Undo"
                 disabled={isBusy || !canUndo}
                 onClick={onUndo}
               >
                 <Icon name="undo" />
-                <span className="history-btn-label">Undo</span>
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
-                className="history-btn"
+                variant="ghost" size="icon" className="history-btn"
                 title="Redo"
                 aria-label="Redo"
                 disabled={isBusy || !canRedo}
                 onClick={onRedo}
               >
                 <Icon name="redo" />
-                <span className="history-btn-label">Redo</span>
-              </button>
+              </Button>
             </div>
           )}
           {connected ? (
             <>
               {showDeviceEditorActions && (
                 <>
-                  <button type="button" className="btn" title="Replace the editor with EQ read from the DAC" onClick={onPull} disabled={isBusy}>Read from DAC</button>
-                  <button type="button" className={writeClass} title="Store the editor EQ on the DAC" onClick={onPush} disabled={isBusy}>Write to DAC</button>
+                  <Button type="button" variant="default" title="Replace the editor with EQ read from the DAC" onClick={onPull} disabled={isBusy}>Read from DAC</Button>
+                  <Button type="button" variant={writeVariant} title="Store the editor EQ on the DAC" onClick={onPush} disabled={isBusy}>Write to DAC</Button>
                 </>
               )}
               <ConnectionActions isBusy={isBusy} onDisconnect={onDisconnect} />
             </>
           ) : (
-            <button type="button" className="btn filled" onClick={onConnectClick} disabled={isBusy}>
+            <Button type="button" variant="primary" onClick={onConnectClick} disabled={isBusy}>
               <Icon name="link" />
               <span>Connect DAC</span>
-            </button>
+            </Button>
           )}
         </div>}
 
         {/* Keep the write action visible; less frequent device actions live in the menu. */}
         {mobile && <div className="mobile-toolbar">
           <div className="history-buttons mobile-history-buttons" role="group" aria-label="Edit history">
-            <button
+            <Button
               type="button"
-              className="history-btn"
+              variant="ghost" size="icon" className="history-btn"
               title="Undo"
               aria-label="Undo"
               disabled={isBusy || !canUndo}
               onClick={onUndo}
             >
               <Icon name="undo" />
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
-              className="history-btn"
+              variant="ghost" size="icon" className="history-btn"
               title="Redo"
               aria-label="Redo"
               disabled={isBusy || !canRedo}
               onClick={onRedo}
             >
               <Icon name="redo" />
-            </button>
+            </Button>
           </div>
           {connected ? (
             <>
-              <button type="button" className={`${writeClass} mobile-action-btn`} title="Store the editor EQ on the DAC. It stays saved after unplugging." onClick={onPush} disabled={isBusy}><Icon name="save" /> Save to DAC</button>
+              <Button type="button" variant={writeVariant} className="mobile-action-btn" title="Store the editor EQ on the DAC. It stays saved after unplugging." onClick={onPush} disabled={isBusy}><Icon name="save" /> Save to DAC</Button>
               <ConnectionActions isBusy={isBusy} onDisconnect={onDisconnect} onPull={onPull} compact />
             </>
           ) : (
-            <button type="button" className="btn filled mobile-action-btn mobile-connect-btn" onClick={onConnectClick} disabled={isBusy}>
+            <Button type="button" variant="primary" className="mobile-action-btn mobile-connect-btn" onClick={onConnectClick} disabled={isBusy}>
               <Icon name="link" />
               <span>Connect DAC</span>
-            </button>
+            </Button>
           )}
         </div>}
       </div>
