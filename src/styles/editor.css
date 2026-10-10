@@ -32,7 +32,7 @@
 
 .editor-empty-hint > .app-icon {
   font-size: 18px;
-  color: var(--cyan);
+  color: var(--link-foreground);
   flex-shrink: 0;
   width: 18px;
   height: 18px;}
@@ -156,7 +156,7 @@
 }
 
 .graph-legend-item.target .graph-legend-swatch {
-  color: var(--yellow);
+  color: var(--warning-foreground);
 }
 
 .graph-legend-item.committed .graph-legend-swatch {
@@ -201,7 +201,7 @@
   gap: 8px;
   padding: 0 14px;
   background: transparent;
-  color: var(--cyan);
+  color: var(--link-foreground);
   border: 0;
   text-align: left;
 }
@@ -253,7 +253,7 @@
 }
 
 .app-collapse.compact.open > .app-collapse-trigger {
-  color: var(--cyan);
+  color: var(--link-foreground);
   border-color: var(--accent-line-medium);
 }
 
@@ -279,7 +279,7 @@
 
 .graph-view-toggle button.active {
   background: var(--surface-soft);
-  color: var(--cyan);
+  color: var(--link-foreground);
   outline: 1px solid var(--accent-line-medium);
   outline-offset: -1px;
 }
@@ -386,23 +386,23 @@
 }
 
 .control-slider-input:focus-visible::-webkit-slider-thumb {
-  outline: 2px solid var(--cyan);
+  outline: 2px solid var(--ring);
   outline-offset: 2px;
-  background: var(--cyan) !important;
+  background: var(--ring) !important;
 }
 
 .control-slider-input:focus-visible::-moz-range-thumb {
-  outline: 2px solid var(--cyan);
+  outline: 2px solid var(--ring);
   outline-offset: 2px;
-  background: var(--cyan) !important;
+  background: var(--primary) !important;
 }
 
 .control-slider-input:focus-visible::-webkit-slider-runnable-track {
-  background: rgb(var(--cyan-rgb) / 0.6);
+  background: color-mix(in srgb, var(--ring) 60%, transparent);
 }
 
 .control-slider-input:focus-visible::-moz-range-track {
-  background: rgb(var(--cyan-rgb) / 0.6);
+  background: color-mix(in srgb, var(--ring) 60%, transparent);
 }
 
 .gain-cell .control-slider { flex: 1; }
@@ -469,7 +469,7 @@
 }
 
 .band-index:hover {
-  color: var(--red);
+  color: var(--destructive-foreground);
   opacity: 1;
   transform: none;
 }
@@ -549,7 +549,7 @@
 }
 
 .band-picker button:focus-visible {
-  outline: 2px solid var(--cyan);
+  outline: 2px solid var(--ring);
   outline-offset: -2px;
 }
 
@@ -558,7 +558,7 @@
   align-items: center;
   justify-content: center;
   gap: var(--space-1);
-  color: var(--cyan);
+  color: var(--link-foreground);
 }
 
 .band-picker button.add-filter-chip span {
@@ -619,7 +619,7 @@
 }
 
 .mobile-filter-reset:hover {
-  color: var(--cyan);
+  color: var(--link-foreground);
 }
 
 .mobile-filter-head strong {
@@ -636,7 +636,7 @@
 }
 
 .mobile-filter-head .band-index:hover:not(:disabled) {
-  color: var(--red);
+  color: var(--destructive-foreground);
 }
 
 .mobile-filter-head .band-index:disabled {
@@ -718,7 +718,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  color: var(--cyan);
+  color: var(--link-foreground);
 }
 
 .bands-section-header strong {
@@ -729,7 +729,7 @@
 }
 
 .bands-section-header .collapse-toggle-btn {
-  color: var(--cyan);
+  color: var(--link-foreground);
   padding: 0;
   min-height: 32px;
   min-width: 48px;

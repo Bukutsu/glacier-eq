@@ -54,6 +54,8 @@ import type {
   DeviceInfo,
   Filter,
   GraphViewMode,
+  MeasurementTrace,
+  TargetTrace,
   PEQData,
   Profile,
   OperationProgress,
@@ -78,6 +80,9 @@ import { decodeUtf8 } from "./lib/utf8";
 import { useProfiles } from "./features/profiles/useProfiles";
 import { DeviceView } from "./components/DeviceView";
 import { SettingsView } from "./components/SettingsView";
+
+const EMPTY_MEASUREMENTS: MeasurementTrace[] = [];
+const EMPTY_TARGETS: TargetTrace[] = [];
 
 const DEFAULT_SETTINGS: AppSettings = {
   auto_pull_on_connect: true,
@@ -2029,8 +2034,7 @@ function App() {
     capabilities,
     firmwareVersion,
   };
-  // One graph element for all four render sites; the editor props (drag/
-  // wheel/keyboard editing) are only attached where the graph is editable.
+  // Shared EQ/tuning graph; editing props only attach in the EQ workspace.
   const graphElement = (withEditor: boolean, highlightActiveBand: boolean = false) => (
     <EqGraph
       peq={peq}
@@ -2044,6 +2048,10 @@ function App() {
       {...(withEditor ? graphEditorProps : {})}
     />
   );
+
+  const profilePreview = showGraph
+    ? <EqGraph peq={peq} measurements={EMPTY_MEASUREMENTS} targets={EMPTY_TARGETS} theme={resolvedTheme} viewMode={graphViewMode} />
+    : undefined;
 
   const preampControls = (
     <Preamp
@@ -2167,7 +2175,7 @@ function App() {
         <>
           <main id="workspace-content" tabIndex={-1} ref={mobileScrollRef} className="workspace mobile-workspace" aria-label={mobilePageTitle} inert={isReconnecting ? true : undefined}>
           {activeTab !== "eq" && <h1 className="visually-hidden">{mobilePageTitle}</h1>}
-          {showGraph && (activeTab === "eq" || activeTab === "profiles" || (activeTab === "tuning" && (measurements.some((trace) => trace.visible) || activeTargets.length > 0))) && (
+          {showGraph && (activeTab === "eq" || (activeTab === "tuning" && (measurements.some((trace) => trace.visible) || activeTargets.length > 0))) && (
             <section className={`mobile-graph-container mobile-graph-${activeTab} ${graphCollapsed ? "collapsed" : ""}`}>
               <div className="graph-card" inert={graphCollapsed ? true : undefined} aria-hidden={graphCollapsed}>
                 {graphElement(activeTab === "eq")}
@@ -2227,11 +2235,13 @@ function App() {
               </section>
             )}
             {activeTab === "profiles" && (
-              <section className="left-pane profiles-mobile-pane">
+              <section className="profiles-mobile-pane">
                 <ProfilesView
                   {...mobileToolsPanelProps}
                   dirty={dirty}
                   isMobile={true}
+                  preview={profilePreview}
+                  onReviewEq={() => handleSelectWorkspaceTab("eq")}
                 />
               </section>
             )}
@@ -2319,7 +2329,6 @@ function App() {
         <main className={`workspace desktop-workspace desktop-view-${activeTab}`} aria-label="Workspace" inert={isReconnecting ? true : undefined}>
           <aside className="desktop-sidebar">
             <Link className="desktop-brand" to={workspacePath("eq")} aria-label="Glacier EQ home">
-              <img src={`${import.meta.env.BASE_URL}glacier-eq.svg`} width={24} height={24} alt="" />
               <span>Glacier EQ</span>
             </Link>
             <nav className="desktop-sidebar-nav" aria-label="Primary navigation">
@@ -2354,6 +2363,7 @@ function App() {
           </aside>
           <div className="desktop-content">
           {workspaceHeader}
+          {activeTab !== "profiles" && (
           <section
             id={activeTab === "eq" ? "workspace-content" : "main-scroll-pane"}
             tabIndex={-1}
@@ -2362,13 +2372,14 @@ function App() {
             ref={mainScrollRef}
           >
             {editorHint}
-            {showGraph && (activeTab === "eq" || activeTab === "profiles" || activeTab === "tuning") && (
+            {showGraph && (activeTab === "eq" || activeTab === "tuning") && (
             <section className="graph-card">
               {graphElement(activeTab === "eq")}
             </section>
             )}
             {activeTab === "eq" && editorControls}
           </section>
+          )}
           {activeTab !== "eq" && (
           <ToolsPanel
             peq={peq}
@@ -2376,6 +2387,7 @@ function App() {
             dspSampleRate={capabilities.dsp_sample_rate}
             onImportPEQ={importPeq}
             onReviewEq={() => handleSelectWorkspaceTab("eq")}
+            profilePreview={activeTab === "profiles" ? profilePreview : undefined}
             onPull={pullEq}
             dirty={dirty}
             profiles={profiles}

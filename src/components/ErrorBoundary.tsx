@@ -34,7 +34,7 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <div role="alert" aria-live="assertive" style={{ padding: 24, background: "var(--bg)", color: "var(--text)", height: "100vh", fontFamily: "var(--font-ui)" }}>
           <h2>Application error</h2>
-          <pre style={{ color: "var(--red)" }}>{this.state.error?.toString()}</pre>
+          <pre style={{ color: "var(--destructive-foreground)" }}>{this.state.error?.toString()}</pre>
           <button
             type="button"
             onClick={() => window.location.reload()}

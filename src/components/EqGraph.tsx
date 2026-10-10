@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, Fragment, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
 import { dbToY, formatFreq, freqToX, getFreqGrid, peqResponseAndBandValues, peqResponseValues, snapFreqToIsoSync, xToFreq, yToDb } from "../lib/graph";
 import { cssVar, rgbWithAlpha } from "../lib/theme";
+import { plotTraceColor, traceDisplayColor } from "../lib/traceColor";
 import { useThemeVarsRevision } from "../lib/materialYou";
 import { interpolateMeasurementDb } from "../lib/measurements";
 import { filterColorVars } from "../lib/filterColors";
@@ -392,7 +393,7 @@ export const EqGraph = memo(function EqGraph({
               <span className="graph-legend-swatch">
                 <svg width="24" height="8" viewBox="0 0 24 8" className="graph-legend-svg">
                   <line x1="0" y1="4" x2="24" y2="4" stroke="var(--bg-dark)" strokeWidth="4" strokeDasharray="6,4" />
-                  <line x1="0" y1="4" x2="24" y2="4" stroke="var(--orange)" strokeWidth="2" strokeDasharray="6,4" />
+                  <line x1="0" y1="4" x2="24" y2="4" stroke="var(--plot-orange)" strokeWidth="2" strokeDasharray="6,4" />
                 </svg>
               </span>
               <span>{selectedMeasurement ? `Last written + ${selectedMeasurement.name}` : "Last written"}</span>
@@ -432,7 +433,7 @@ export const EqGraph = memo(function EqGraph({
             <div className="graph-legend-item eq-curve">
               <span className="graph-legend-swatch">
                 <svg width="24" height="8" viewBox="0 0 24 8" className="graph-legend-svg">
-                  <line x1="0" y1="4" x2="24" y2="4" stroke="var(--blue)" strokeWidth="3" />
+                  <line x1="0" y1="4" x2="24" y2="4" stroke="var(--plot-blue)" strokeWidth="3" />
                 </svg>
               </span>
               <span>EQ curve</span>
@@ -553,10 +554,10 @@ async function drawCurves(
     }
     ctx.lineTo(width, zero);
     ctx.closePath();
-    ctx.fillStyle = rgbWithAlpha("--blue-rgb", 0.15, "rgba(122, 162, 247, 0.15)");
+    ctx.fillStyle = rgbWithAlpha("--plot-blue-rgb", 0.15, "rgba(122, 162, 247, 0.15)");
     ctx.fill();
 
-    drawResponse(ctx, height, eqResponse, cssVar("--blue", "#7aa2f7"), 3);
+    drawResponse(ctx, height, eqResponse, cssVar("--plot-blue", "#7aa2f7"), 3);
     await drawCommittedPreview(ctx, width, height, peq, committedPeq, selectedMeasurement, viewMode, dspSampleRate, isCurrent);
     if (!isCurrent()) return;
     if (!interactiveHandles) drawFilterDots(ctx, width, height, peq);
@@ -604,7 +605,7 @@ async function drawCommittedPreview(
     ctx,
     height,
     values,
-    cssVar("--orange", "#ff9e64"),
+    cssVar("--plot-orange", "#ff9e64"),
     isCompact ? 1.5 : 2.5,
     [12, 6],
   );
@@ -655,10 +656,10 @@ function measurementResponseValues(
 
 function resolveColor(color: string): string {
   if (color.startsWith("var(")) {
-    const varName = color.slice(4, -1);
+    const varName = plotTraceColor(color).slice(4, -1);
     return cssVar(varName);
   }
-  return color;
+  return traceDisplayColor(color, cssVar("--trace-color-neutral"), Number(cssVar("--trace-color-mix", "0")));
 }
 
 function drawTrace(
@@ -722,7 +723,7 @@ function drawFilterDots(
   peq: PEQData,
   dotValues?: number[],
 ) {
-  const text = cssVar("--bg-dark", "#16161e");
+  const text = cssVar("--on-accent", "#11111b");
   const stroke = cssVar("--panel", "#16161e");
   const activeBands = peq.filters.filter((filter) => filter.enabled);
 

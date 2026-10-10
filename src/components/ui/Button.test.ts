@@ -20,8 +20,14 @@ describe("Button", () => {
   it("uses the semantic theme pairing for a primary action", () => {
     const html = renderToStaticMarkup(createElement(Button, { variant: "primary" }, "Write to DAC"));
     expect(html).toContain('data-variant="primary"');
-    expect(html).toContain("bg-primary text-foreground");
+    expect(html).toContain("bg-primary text-primary-foreground");
     expect(html).not.toContain("text-white");
+  });
+
+  it("keeps destructive actions distinct without borrowing plot colors", () => {
+    const html = renderToStaticMarkup(createElement(Button, { variant: "danger" }, "Factory reset"));
+    expect(html).toContain('data-variant="danger"');
+    expect(html).toContain("text-destructive-foreground");
   });
 
   it("retains native disabled state and accessible icon labels", () => {

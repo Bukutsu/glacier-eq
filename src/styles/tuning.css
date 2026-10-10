@@ -120,7 +120,7 @@
 }
 
 .tuning-panel :is(.tuning-advanced, .tuning-compare) > .app-collapse-trigger:focus-visible {
-  outline: 2px solid var(--cyan);
+  outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
 
@@ -215,7 +215,7 @@
   opacity: 1;
 }
 
-.tuning-panel .curve-delete:hover { color: var(--red) !important; }
+.tuning-panel .curve-delete:hover { color: var(--destructive-foreground) !important; }
 .tuning-panel .curve-points { color: var(--muted); }
 .tuning-panel .trace-type-badge { display: none; }
 
@@ -256,17 +256,17 @@
   overflow-wrap: anywhere;
 }
 
-.tuning-error { color: var(--red); }
-.tuning-warnings { color: var(--yellow); }
+.tuning-error { color: var(--destructive-foreground); }
+.tuning-warnings { color: var(--warning-foreground); }
 .tuning-warnings ul { margin: var(--space-2) 0 0; padding-left: var(--space-4); }
 
 .tuning-panel .curve-delete:focus-visible {
-  outline: 2px solid var(--cyan) !important;
+  outline: 2px solid var(--ring) !important;
   outline-offset: -2px;
 }
 
 .tuning-panel :is(button, input):focus-visible {
-  outline: 2px solid var(--cyan);
+  outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
 

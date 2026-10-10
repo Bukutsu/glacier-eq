@@ -13,19 +13,29 @@
 @import "./responsive.css" layer(legacy);
 @import "./tuning.css" layer(legacy);
 @import "./toasts.css" layer(legacy);
+@import "./colors.css" layer(components);
 @import "./ui.css" layer(components);
+@import "./profiles.css" layer(components);
+@import "./configuration.css" layer(components);
 @import "tailwindcss/utilities.css" layer(utilities);
 
 @theme inline {
-  --color-background: var(--bg);
-  --color-foreground: var(--text);
-  --color-muted-foreground: var(--muted);
-  --color-control: var(--surface-soft);
-  --color-control-hover: var(--surface);
-  --color-border: var(--line-medium);
-  --color-primary: var(--action-bg);
-  --color-primary-hover: var(--action-hover-bg);
-  --color-ring: var(--cyan);
+  --color-background: var(--background);
+  --color-field: var(--field-background);
+  --color-placeholder: var(--placeholder);
+  --color-input: var(--input);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-foreground: var(--foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-control: var(--control);
+  --color-control-hover: var(--control-hover);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-ring: var(--ring);
+  --color-destructive-foreground: var(--destructive-foreground);
   --radius-control: var(--control-radius);
   --font-sans: var(--font-ui);
 }

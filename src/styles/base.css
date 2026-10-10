@@ -723,7 +723,7 @@ a:focus-visible,
 input:focus-visible,
 select:focus-visible,
 [tabindex="-1"]:focus-visible {
-  outline: 2px solid var(--cyan);
+  outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
 
@@ -788,18 +788,11 @@ input, select, button, a {
 
 .btn:hover:not(:disabled), .tools-card button:not([data-slot]):hover:not(:disabled), .diag-card button:not([data-slot]):hover:not(:disabled) { filter: brightness(1.14); }
 .btn:active:not(:disabled), .tools-card button:not([data-slot]):active:not(:disabled), .diag-card button:not([data-slot]):active:not(:disabled) { filter: brightness(1.24); }
-/* A filled button is a large surface with text on it, so it needs a muted
- * fill, not a raw accent. The accent tokens here are chart/line colours —
- * bright and high-chroma by design — and #7dcfff or #7aa2f7 as a solid slab
- * glared against the dark UI and made the label hard to read.
- *
- * Tinting the accent into the page background gives a surface that belongs to
- * the theme, and the theme's own text colour on top keeps the contrast right
- * in both polarities: 4.66:1 to 9.03:1 across all nine themes, against 1.70:1
- * to 5.51:1 for the accent-and-white pairing this replaces. */
+/* Filled actions share a paired semantic foreground/background. Themes may
+   supply a solid action color; the default remains a quiet accent tint. */
 .btn.filled, button.save {
-  background: color-mix(in srgb, var(--cyan) 22%, var(--bg));
-  color: var(--text);
+  background: var(--primary);
+  color: var(--primary-foreground);
 }
 .btn.warning { background: var(--yellow); color: var(--on-accent); }
 
@@ -822,13 +815,13 @@ input, select, button, a {
   transition: background var(--motion-duration) var(--motion-ease), border-color var(--motion-duration) var(--motion-ease), filter var(--motion-duration) var(--motion-ease);
 }
 .custom-checkbox:hover {
-  border-color: var(--cyan);
+  border-color: var(--link-foreground);
   filter: brightness(1.12);
 }
 .custom-checkbox:checked {
   color: var(--theme-checkmark);
-  border-color: var(--cyan);
-  background-color: var(--cyan);
+  border-color: var(--link-foreground);
+  background-color: var(--link-foreground);
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 16 16' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M3.2 8.1 6.5 11.4 12.8 4.6' fill='none' stroke='currentColor' stroke-width='2.2' stroke-linecap='square' stroke-linejoin='miter'/%3E%3C/svg%3E");
   background-position: center;
   background-repeat: no-repeat;
@@ -893,10 +886,10 @@ input, select, button, a {
   transition: background var(--motion-duration) var(--motion-ease);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--cyan); /* Cyan hover highlight for premium feel */
+  background: var(--primary); /* Cyan hover highlight for premium feel */
 }
 ::-webkit-scrollbar-thumb:active {
-  background: var(--cyan);
+  background: var(--primary);
 }
 ::-webkit-scrollbar-corner {
   background: var(--bg-dark);
@@ -994,7 +987,7 @@ body::-webkit-scrollbar-thumb:active,
 .settings-list::-webkit-scrollbar-thumb:active,
 .left-pane::-webkit-scrollbar-thumb:hover,
 .left-pane::-webkit-scrollbar-thumb:active {
-  background: var(--cyan);
+  background: var(--primary);
 }
 
 body::-webkit-scrollbar-corner,

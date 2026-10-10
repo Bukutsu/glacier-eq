@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 import type { StatusReporter } from "../stores/toastStore";
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState, type ReactNode } from "react";
+import { Menu } from "@base-ui/react/menu";
+import { Button } from "./ui/Button";
+import { Input } from "./ui/Input";
 import { confirmDialog } from "./ConfirmDialog";
 import { Icon } from "./Icon";
 import { Modal } from "./Modal";
@@ -43,6 +46,8 @@ export interface ProfilesViewProps {
   dirty?: boolean;
   showActions?: boolean;
   isMobile?: boolean;
+  preview?: ReactNode;
+  onReviewEq?: () => void;
 }
 
 
@@ -69,6 +74,8 @@ export const ProfilesView = memo(function ProfilesView({
   runProfileMutation,
   dirty = false,
   showActions = true,
+  preview,
+  onReviewEq,
 }: ProfilesViewProps) {
   const [saveAsOpen, setSaveAsOpen] = useState(false);
   const [parsed, setParsed] = useState<ParsedAutoEqResult | null>(null);
@@ -93,6 +100,11 @@ export const ProfilesView = memo(function ProfilesView({
   useEffect(() => {
     setSaveAsOpen(false);
   }, [selectedPreset]);
+
+  const saveNameRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (saveAsOpen) saveNameRef.current?.focus();
+  }, [saveAsOpen]);
 
   const query = profileSearch.trim().toLowerCase();
   const filteredProfiles = profiles.filter(
@@ -347,397 +359,243 @@ export const ProfilesView = memo(function ProfilesView({
     });
   };
 
+  const beginSaveAs = () => {
+    setNewProfileName("");
+    setSaveAsOpen(true);
+  };
+  const editorState = dirty
+    ? selectedIsSaved ? "Unsaved changes" : "Unsaved EQ"
+    : selectedIsSaved ? "Saved profile" : selectedPreset === DEFAULT_PROFILE_NAME ? "Built-in EQ" : "Not saved";
+  const enabledBands = peq.filters.filter(filter => filter.enabled).length;
+
   return (
-    <div className="profiles-view-wrapper">
-      <section className="profile-card">
-        <div className="profile-card-head">
-          <div className="profile-title">
-            <h2>Profiles</h2>
-            <span className="profile-count-tag">{savedProfiles.length} saved</span>
+    <div className="profiles-workspace">
+      <section className="profiles-library" aria-labelledby="profiles-title">
+        <header className="profiles-header">
+          <div>
+            <h2 id="profiles-title">Profiles</h2>
+            <p className="profiles-note">{savedProfiles.length} saved</p>
           </div>
-          <div className="profile-card-tools">
-            <button
-              type="button"
-              className="icon-btn"
-              title="Reload profiles"
-              aria-label="Reload profiles"
-              onClick={handleReloadProfiles}
-            >
-              <Icon name="refresh" />
-            </button>
-            {!hideProfileFolderButton && onOpenProfilesDir && (
-              <button
-                type="button"
-                className="icon-btn"
-                title="Open profiles folder"
-                aria-label="Open profiles folder"
-                onClick={onOpenProfilesDir}
-              >
-                <Icon name="folder" />
-              </button>
-            )}
+          <div className="profiles-header-actions">
+            <Button onClick={handleImportFileClick}><Icon name="file_upload" /> Import profile</Button>
+            <ProfilesMenu label="Import options">
+              <Menu.Item className="ui-menu-item" onClick={handlePaste}>
+                <Icon name="content_paste" /> Paste EQ from clipboard
+              </Menu.Item>
+            </ProfilesMenu>
           </div>
-        </div>
+        </header>
 
-        <div className="profile-search-wrap">
-          <Icon name="search" className="search-icon" />
-          <input
-            className="profile-search"
-            placeholder="Search profiles…"
-            aria-label="Search profiles"
-            value={profileSearch}
-            onChange={(e) => setProfileSearch(e.target.value)}
-          />
+        <div className="profiles-search">
+          <Input type="search" className="pr-11" aria-label="Search profiles" placeholder="Search profiles…"
+            value={profileSearch} onChange={event => setProfileSearch(event.target.value)} />
           {profileSearch.length > 0 && (
-            <button
-              type="button"
-              className="profile-search-clear"
-              title="Clear search"
-              aria-label="Clear search"
-              onClick={() => setProfileSearch("")}
-            >
+            <Button variant="ghost" size="icon" className="profiles-search-clear"
+              aria-label="Clear search" onClick={() => setProfileSearch("")}>
               <Icon name="close" />
-            </button>
+            </Button>
           )}
         </div>
 
-        <div className="preset-list" role="group" aria-label="Profiles list">
-          {filteredProfiles.length === 0 ? (
-            <div className="empty-profiles">
-              <Icon name="search_off" />
-              <span>No profiles found</span>
-            </div>
-          ) : (
-            filteredProfiles.map((profile) => {
-              const isSelected = profileIdentityKey(profile.name) === selectedPresetKey;
-              return (
-                <div
-                  key={profile.name}
-                  className={`profile-row ${isSelected ? "selected" : ""}`}
-                >
-                  <button type="button" className="profile-row-info" aria-pressed={isSelected}
-                    aria-label={`Load ${profile.name} into editor`} onClick={() => handleSelectProfile(profile)}>
-                    <Icon className="profile-row-indicator" name={isSelected ? "radio_button_checked" : "radio_button_unchecked"} />
-                    <span className="profile-name-text" title={profile.name}>{profile.name}</span>
-                    {isSelected && <span className="profile-active-badge">In editor</span>}
-                  </button>
-
-                  {onApplyProfile && (
-                    <button
-                      type="button"
-                      className="profile-apply-btn"
-                      title={`Apply ${profile.name} to DAC temporarily`}
-                      aria-label={`Apply ${profile.name} to DAC temporarily`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onApplyProfile(profile);
-                      }}
-                    >
-                      <Icon name="send" />
-                      <span>Apply temporarily</span>
-                    </button>
-                  )}
-                </div>
-              );
-            })
-          )}
-        </div>
-
-        {showActions && (
-          <div className="profile-actions-area">
-            {showSaveAs ? (
-              <form className="profile-save-form" onSubmit={(event) => {
-                event.preventDefault();
-                if (canSave) onSave();
-              }}>
-                <div className="profile-save-field">
-                  <label htmlFor="profile-save-name">
-                    {selectedIsSaved ? "Save as copy" : "Profile name"}
-                  </label>
-                  <div className="profile-name-input-wrap">
-                    <input
-                      id="profile-save-name"
-                      name="profile-name"
-                      autoComplete="off"
-                      className="profile-search"
-                      placeholder="Profile name…"
-                      value={newProfileName}
-                      onChange={(e) => setNewProfileName(e.target.value)}
-                    />
-                    {!!saveName && (
-                      <span className={`profile-name-badge ${isOverwrite ? "overwrite" : "new"}`}>
-                        {isOverwrite ? "Overwrite" : "New"}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                <div className="profile-management-actions">
-                  <button
-                    type="submit"
-                    className="save primary-save"
-                    title={saveLabel}
-                    disabled={!canSave}
-                  >
-                    <Icon name="save" />
-                    <span>{saveLabel}</span>
-                  </button>
-                  {saveAsOpen && (
-                    <button
-                      type="button"
-                      className="btn"
-                      onClick={() => {
-                        setNewProfileName("");
-                        setSaveAsOpen(false);
-                      }}
-                    >
-                      <span>Cancel</span>
-                    </button>
-                  )}
-                  {dirty && (
-                    <button
-                      type="button"
-                      className="profile-icon-action"
-                      title="Discard changes"
-                      aria-label="Discard changes"
-                      onClick={onReset}
-                    >
-                      <Icon name="restart_alt" />
-                    </button>
-                  )}
-                </div>
-              </form>
-            ) : selectedIsSaved ? (
-              <>
-                <div className="profile-management-actions">
-                  {dirty && (
-                    <button
-                      type="button"
-                      className="save primary-save"
-                      onClick={onSave}
-                      title="Save changes"
-                    >
-                      <Icon name="save" />
-                      <span>Save changes</span>
-                    </button>
-                  )}
-                  {dirty && (
-                    <button
-                      type="button"
-                      className="profile-icon-action"
-                      title="Discard changes"
-                      aria-label="Discard changes"
-                      onClick={onReset}
-                    >
-                      <Icon name="restart_alt" />
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    className="profile-icon-action danger"
-                    title="Delete profile"
-                    aria-label="Delete profile"
-                    onClick={onDelete}
-                  >
-                    <Icon name="delete" />
-                  </button>
-                  <button
-                    type="button"
-                    className="profile-save-as-toggle"
-                    title="Save as copy"
-                    onClick={() => {
-                      setNewProfileName("");
-                      setSaveAsOpen(true);
-                    }}
-                  >
-                    <Icon name="content_copy" />
-                    <span>Save as copy…</span>
-                  </button>
-                </div>
-              </>
-            ) : (
-              <button
-                type="button"
-                className="profile-save-as-toggle"
-                title="Save as new profile"
-                onClick={() => {
-                  setNewProfileName("");
-                  setSaveAsOpen(true);
-                }}
-              >
-                <Icon name="add" />
-                <span>Save as new profile…</span>
-              </button>
-            )}
+        {!query && savedProfiles.length === 0 && (
+          <div className="profiles-empty">
+            <h3>No saved profiles yet</h3>
+            <p>Save your current EQ or import a profile to start your library.</p>
           </div>
         )}
-
-        <div className="profile-card-foot">
-          <small className="modified">
-            {selectedProfile?.modified != null
-              ? `Modified: ${new Date(selectedProfile.modified * 1000).toLocaleDateString()}`
-              : "Glacier data folder"}
-          </small>
+        {query && filteredProfiles.length === 0 && (
+          <div className="profiles-empty" role="status">
+            <h3>No matching profiles</h3>
+            <p>Try another name or clear the search.</p>
+            <Button variant="ghost" onClick={() => setProfileSearch("")}>Clear search</Button>
+          </div>
+        )}
+        <div className="profiles-list" role="group" aria-label="Profiles list">
+          {filteredProfiles.map(profile => {
+            const isSelected = profileIdentityKey(profile.name) === selectedPresetKey;
+            const bands = profile.data.filters.filter(filter => filter.enabled).length;
+            return (
+              <div key={profile.name} className={`profiles-item${isSelected ? " is-current" : ""}`}>
+                <Button variant="ghost" className="profiles-load" aria-pressed={isSelected}
+                  aria-label={`Load ${profile.name} into editor`} onClick={() => handleSelectProfile(profile)}>
+                  <span className="profiles-item-text">
+                    <span className="profiles-item-name" title={profile.name}>{profile.name}</span>
+                    <span className="profiles-note">{profile.modified == null ? "Built-in" : `${bands} ${bands === 1 ? "band" : "bands"}`}</span>
+                  </span>
+                  {isSelected && <span className="profiles-badge">In editor</span>}
+                </Button>
+                {onApplyProfile && (
+                  <ProfilesMenu label={`Actions for ${profile.name}`}>
+                    <Menu.Item className="ui-menu-item" aria-label={`Apply ${profile.name} to DAC temporarily`}
+                      onClick={() => onApplyProfile(profile)}>
+                      <Icon name="send" /> Apply temporarily to DAC
+                    </Menu.Item>
+                  </ProfilesMenu>
+                )}
+              </div>
+            );
+          })}
         </div>
+        <footer className="profiles-library-footer">
+          <Button variant="ghost" onClick={handleReloadProfiles}><Icon name="refresh" /> Refresh</Button>
+          {!hideProfileFolderButton && onOpenProfilesDir && (
+            <Button variant="ghost" onClick={onOpenProfilesDir}><Icon name="folder" /> Open folder</Button>
+          )}
+        </footer>
       </section>
 
-      <section className="profile-action-group import-section">
-        <div className="profile-action-head">
-          <strong>Import / export</strong>
+      <section className="profiles-editor" aria-labelledby="profiles-editor-title">
+        <header className="profiles-header">
+          <h2 id="profiles-editor-title">In the editor</h2>
+          <ProfilesMenu label="More profile actions">
+            <Menu.Item className="ui-menu-item" onClick={handleExportFile}>
+              <Icon name="file_download" /> Export EQ file
+            </Menu.Item>
+            <Menu.Item className="ui-menu-item" onClick={handleCopy}>
+              <Icon name="content_copy" /> Copy EQ to clipboard
+            </Menu.Item>
+            {onApplyProfile && selectedProfile && selectedIsSaved && (
+              <Menu.Item className="ui-menu-item" onClick={() => onApplyProfile(selectedProfile)}>
+                <Icon name="send" /> Apply saved profile to DAC temporarily
+              </Menu.Item>
+            )}
+            {showActions && dirty && (
+              <Menu.Item className="ui-menu-item" onClick={onReset}>
+                <Icon name="restart_alt" /> Discard changes
+              </Menu.Item>
+            )}
+            {showActions && selectedIsSaved && !showSaveAs && (
+              <Menu.Item className="ui-menu-item profiles-menu-danger" onClick={onDelete}>
+                <Icon name="delete" /> Delete profile
+              </Menu.Item>
+            )}
+          </ProfilesMenu>
+        </header>
+        <h3 className="profiles-editor-name" title={selectedPreset}>{selectedPreset}</h3>
+        <div className="profiles-editor-meta">
+          <span>{enabledBands} {enabledBands === 1 ? "band" : "bands"}</span>
+          <span>{peq.global_gain.toFixed(2)} dB preamp</span>
         </div>
-        <input
-          className="hidden-file-input"
-          type="file"
-          ref={fileInputRef}
-          accept=".txt"
-          onChange={handleFileChange}
-        />
-        <div className="transfer-actions">
-          <button type="button" className="icon-action" onClick={handleImportFileClick}>
-            <Icon name="file_upload" />
-            <span>Import file</span>
-          </button>
-          <button type="button" className="icon-action" onClick={handlePaste}>
-            <Icon name="content_paste" />
-            <span>Paste</span>
-          </button>
-          <button type="button" className="icon-action" onClick={handleExportFile}>
-            <Icon name="file_download" />
-            <span>Export file</span>
-          </button>
-          <button type="button" className="icon-action" onClick={handleCopy}>
-            <Icon name="content_copy" />
-            <span>Copy</span>
-          </button>
-        </div>
+        <p className="profiles-editor-state" data-modified={dirty}>{editorState}</p>
+
+        {showActions && (
+          showSaveAs ? (
+            <form className="profile-save-form" onSubmit={event => {
+              event.preventDefault();
+              if (canSave) onSave();
+            }}>
+              <label htmlFor="profile-save-name">Profile name</label>
+              <Input id="profile-save-name" ref={saveNameRef} name="profile-name" autoComplete="off"
+                placeholder="Profile name…" value={newProfileName}
+                aria-describedby={isOverwrite ? "profile-overwrite-hint" : undefined}
+                onChange={event => setNewProfileName(event.target.value)} />
+              {isOverwrite && <p id="profile-overwrite-hint" className="profiles-note profiles-warning">
+                A profile with this name already exists. Saving will replace it.
+              </p>}
+              <div className="profiles-editor-actions">
+                <Button type="submit" variant="primary" disabled={!canSave}>{saveLabel}</Button>
+                {saveAsOpen && (
+                  <Button variant="ghost" onClick={() => {
+                    setNewProfileName("");
+                    setSaveAsOpen(false);
+                  }}>Cancel</Button>
+                )}
+              </div>
+            </form>
+          ) : (
+            <div className="profiles-editor-actions">
+              {selectedIsSaved && (
+                <Button variant="primary" onClick={onSave} disabled={!canSave}>
+                  {dirty ? "Save changes" : "Profile saved"}
+                </Button>
+              )}
+              <Button variant={selectedIsSaved ? "default" : "primary"} onClick={beginSaveAs}>
+                {selectedIsSaved ? "Save as copy" : "Save as new profile"}
+              </Button>
+            </div>
+          )
+        )}
+        {onReviewEq && <Button variant="ghost" className="profiles-edit-eq" onClick={onReviewEq}>Edit EQ</Button>}
+        {preview && <div className="profiles-preview" aria-label="Current EQ preview">{preview}</div>}
+        <p className="profiles-note profiles-safety">Loading a profile changes the editor, not the DAC.</p>
+        {selectedProfile?.modified != null && (
+          <p className="profiles-note">Modified {new Date(selectedProfile.modified * 1000).toLocaleDateString()}</p>
+        )}
       </section>
+
+      <input className="hidden-file-input" type="file" ref={fileInputRef} accept=".txt" onChange={handleFileChange} />
 
       {parsed && (
-        <Modal title="Import profile" onClose={handleCancelImport} closeDisabled={isSubmitting}>
+        <Modal title="Import profile" className="profiles-import-dialog" onClose={handleCancelImport} closeDisabled={isSubmitting}>
           <div className="modal-body">
-            <div className="import-mode-tabs" role="group" aria-label="Import destination mode">
-              <button
-                type="button"
-                className={!isTemporary ? "active" : ""}
-                aria-pressed={!isTemporary}
-                disabled={isSubmitting}
+            <div className="profiles-import-modes" role="group" aria-label="Import destination mode">
+              <Button variant={!isTemporary ? "default" : "ghost"} aria-pressed={!isTemporary} disabled={isSubmitting}
                 onClick={() => {
                   if (isSubmitting) return;
                   invalidateModalOperation();
                   setIsTemporary(false);
-                }}
-              >
-                Save profile
-              </button>
-              <button
-                type="button"
-                className={isTemporary ? "active" : ""}
-                aria-pressed={isTemporary}
-                disabled={isSubmitting}
+                }}>Save profile</Button>
+              <Button variant={isTemporary ? "default" : "ghost"} aria-pressed={isTemporary} disabled={isSubmitting}
                 onClick={() => {
                   if (isSubmitting) return;
                   invalidateModalOperation();
                   setIsTemporary(true);
-                }}
-              >
-                Editor only
-              </button>
+                }}>Editor only</Button>
             </div>
+            {!isTemporary ? (
+              <div className="profiles-import-fields">
+                <label htmlFor="import-name">Profile name</label>
+                <Input id="import-name" value={importName} disabled={isSubmitting} placeholder="Profile name…"
+                  onChange={event => {
+                    if (isSubmitting) return;
+                    invalidateModalOperation();
+                    setImportName(event.target.value);
+                  }} />
+                {savedProfiles.length > 0 && (
+                  <>
+                    <label htmlFor="overwrite-select">Overwrite an existing profile</label>
+                    <Select id="overwrite-select" value={profiles.some(p => p.name === importName) ? importName : ""}
+                      disabled={isSubmitting} onChange={value => {
+                        if (isSubmitting) return;
+                        if (value) {
+                          invalidateModalOperation();
+                          setImportName(value);
+                        }
+                      }} options={[
+                        { value: "", label: "Select profile" },
+                        ...savedProfiles.map(profile => ({ value: profile.name, label: profile.name })),
+                      ]} />
+                  </>
+                )}
+                {nameExists && <p className="profiles-note profiles-warning">
+                  A profile with this name already exists. Saving will replace it.
+                </p>}
+              </div>
+            ) : <p className="profiles-note">Loads the imported filters into the EQ editor without saving a profile.</p>}
 
-            <div className="import-flow-content">
-              {!isTemporary ? (
-                <div className="import-field-group">
-                  <label htmlFor="import-name">Profile name</label>
-                  <input
-                    id="import-name"
-                    type="text"
-                    value={importName}
-                    disabled={isSubmitting}
-                    onChange={(e) => {
-                      if (isSubmitting) return;
-                      invalidateModalOperation();
-                      setImportName(e.target.value);
-                    }}
-                    placeholder="Profile name…"
-                  />
-                  {savedProfiles.length > 0 && (
-                    <div className="import-field-group" style={{ marginTop: "8px" }}>
-                      <label htmlFor="overwrite-select">Overwrite an existing profile</label>
-                      <Select
-                        id="overwrite-select"
-                        value={profiles.some((p) => p.name === importName) ? importName : ""}
-                        disabled={isSubmitting}
-                        onChange={(val) => {
-                          if (isSubmitting) return;
-                          if (val) {
-                            invalidateModalOperation();
-                            setImportName(val);
-                          }
-                        }}
-                        options={[
-                          { value: "", label: "Select profile" },
-                          ...savedProfiles.map((p) => ({ value: p.name, label: p.name })),
-                        ]}
-                      />
-                    </div>
-                  )}
-                  {nameExists && (
-                    <span className="import-overwrite-warning">
-                      A profile with this name already exists. Saving will replace it.
-                    </span>
-                  )}
+            {activeFilters.length > 0 && (
+              <section className="profiles-import-preview" aria-label="Filter preview">
+                <h3>Filter preview</h3>
+                <div className="profiles-import-filter-list">
+                  {activeFilters.map((filter, index) => (
+                    <p key={index}>
+                      Band {filter.index + 1}: {filter.filter_type} at {filter.freq} Hz,
+                      {" "}{filter.gain.toFixed(1)} dB, Q {filter.q.toFixed(2)}
+                    </p>
+                  ))}
                 </div>
-              ) : (
-                <p className="import-temp-note">
-                  Loads the imported filters into the EQ editor without saving a profile.
-                </p>
-              )}
-
-              {activeFilters.length > 0 && (
-                <div className="import-preview-section">
-                  <span>Filter preview</span>
-                  <div className="import-preview-box">
-                    {activeFilters.map((f: Filter, idx: number) => (
-                      <div key={idx} className="preview-line">
-                        Band {f.index + 1}: {f.filter_type} fc {f.freq}Hz, gain {f.gain.toFixed(1)}dB, Q {f.q.toFixed(2)}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {parsed.warnings.length > 0 && (
-                <div className="import-warnings-section">
-                  <span>Import warnings</span>
-                  <div className="import-warnings-box">
-                    {parsed.warnings.map((w: string, idx: number) => (
-                      <div key={idx} className="warning-line">
-                        • {w}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
+              </section>
+            )}
+            {parsed.warnings.length > 0 && (
+              <section className="profiles-import-warnings" aria-label="Import warnings">
+                <h3>Import warnings</h3>
+                <ul>{parsed.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul>
+              </section>
+            )}
             <div className="modal-actions">
-              <button
-                type="button"
-                className="btn filled"
-                disabled={isSubmitting || (!isTemporary && !importName.trim())}
-                onClick={handleConfirmImport}
-              >
-                <Icon name="check" />
-                <span>{isTemporary ? "Apply to editor" : "Save profile"}</span>
-              </button>
-              <button
-                type="button"
-                className="btn"
-                disabled={isSubmitting}
-                onClick={handleCancelImport}
-              >
-                <span>Cancel</span>
-              </button>
+              <Button variant="primary" disabled={isSubmitting || (!isTemporary && !importName.trim())}
+                onClick={handleConfirmImport}>{isTemporary ? "Apply to editor" : "Save profile"}</Button>
+              <Button variant="ghost" disabled={isSubmitting} onClick={handleCancelImport}>Cancel</Button>
             </div>
           </div>
         </Modal>
@@ -745,3 +603,24 @@ export const ProfilesView = memo(function ProfilesView({
     </div>
   );
 });
+
+function ProfilesMenu({ label, children }: { label: string; children: ReactNode }) {
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  return (
+    <Menu.Root>
+      <Menu.Trigger ref={triggerRef} aria-label={label} render={<Button variant="ghost" size="icon" />}>
+        <Icon name="more_vert" />
+      </Menu.Trigger>
+      <Menu.Portal>
+        <Menu.Positioner align="end" sideOffset={6} positionMethod="fixed" className="ui-popup-positioner">
+          <Menu.Popup className="ui-menu profiles-menu" aria-label={label} onClick={event => {
+            // Native dialogs must remember the trigger, not an unmounted menu item.
+            if (event.target instanceof Element && event.target.closest('[role="menuitem"]')) {
+              triggerRef.current?.focus();
+            }
+          }}>{children}</Menu.Popup>
+        </Menu.Positioner>
+      </Menu.Portal>
+    </Menu.Root>
+  );
+}

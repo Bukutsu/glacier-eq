@@ -2,6 +2,7 @@ import { memo } from "react";
 import type { MeasurementTrace, TargetTrace } from "../types";
 import { Icon } from "./Icon";
 import { Button } from "./ui/Button";
+import { traceSwatchColor } from "../lib/traceColor";
 
 
 interface UnifiedTracesListProps {
@@ -40,7 +41,7 @@ export const UnifiedTracesList = memo(function UnifiedTracesList({
               aria-label={`Measurement: ${trace.name} (${trace.points.length} points)`}
               onChange={() => onToggleMeasurement(trace.id)}
             />
-            <span className="curve-swatch" style={{ backgroundColor: trace.color }} />
+            <span className="curve-swatch" style={{ backgroundColor: traceSwatchColor(trace.color) }} />
             <span className="curve-name" title={`${trace.name} (${trace.points.length} points)`}>
               <span className="curve-label">{trace.name}</span>
               <span className="curve-points">({trace.points.length} pts)</span>
@@ -70,7 +71,7 @@ export const UnifiedTracesList = memo(function UnifiedTracesList({
                 aria-label={`Target: ${target.name}`}
                 onChange={() => onToggleTarget(target.id)}
               />
-              <span className="curve-swatch" style={{ backgroundColor: target.color }} />
+              <span className="curve-swatch" style={{ backgroundColor: traceSwatchColor(target.color) }} />
               <span className="curve-name" title={target.name}>
               <span className="curve-label">{target.name}</span>
             </span>

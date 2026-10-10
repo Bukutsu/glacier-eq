@@ -1,4 +1,4 @@
-import { memo, useState, useEffect, useRef } from "react";
+import { memo, useState, useEffect, useRef, type ReactNode } from "react";
 import { invoke, listen, writeText } from "../lib/rpc";
 import type {
   AppSettings,
@@ -90,6 +90,7 @@ interface ToolsPanelProps {
   settingsSection?: SettingsSection;
   onDisconnect?: () => Promise<void>;
   onReviewEq?: () => void;
+  profilePreview?: ReactNode;
 }
 
 export const ToolsPanel = memo(function ToolsPanel(props: ToolsPanelProps) {
@@ -99,7 +100,7 @@ export const ToolsPanel = memo(function ToolsPanel(props: ToolsPanelProps) {
     <aside id="workspace-content" tabIndex={-1} className="right-rail" aria-label={tab === "Preset" ? "Profiles" : tab === "Tuning" ? "Tuning" : tab}>
       <section className="tools-card">
         <div className="tab-panel">
-          {tab === "Preset" && <ProfilesView {...props} />}
+          {tab === "Preset" && <ProfilesView {...props} preview={props.profilePreview} />}
           {tab === "Tuning" && (
             <TuningPanel
               measurements={props.measurements ?? []}

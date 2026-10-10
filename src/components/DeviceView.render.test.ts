@@ -56,8 +56,8 @@ describe("DeviceView markup", () => {
   it("renders all navigation rows when a device is connected", () => {
     const html = renderDeviceView({ connected: true });
     expect(html).toContain("Specifications");
-    expect(html).toContain("Sound controls");
-    expect(html).toContain("Reset &amp; maintenance");
+    expect(html).toContain('href="/device/controls"');
+    expect(html).toContain('href="/device/maintenance"');
   });
 
   it("includes chip in specifications when connected", () => {

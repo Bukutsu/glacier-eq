@@ -41,7 +41,7 @@
 }
 .toast-icon .app-icon,
 .toast-close .app-icon { width: 12px; height: 12px; }
-.toast-icon.error { color: var(--red); }
+.toast-icon.error { color: var(--destructive-foreground); }
 
 .toast-message {
   flex: 1;
@@ -72,7 +72,7 @@
 .toast-earlier { font-size: var(--type-caption); white-space: nowrap; }
 .toast-container button:hover { color: var(--text); }
 .toast-container button:focus-visible {
-  outline: 2px solid var(--cyan);
+  outline: 2px solid var(--ring);
   outline-offset: -2px;
 }
 

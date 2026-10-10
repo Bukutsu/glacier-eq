@@ -59,7 +59,7 @@
 .reconnecting-card h3 {
   margin: 0;
   font-size: var(--type-title);
-  color: var(--yellow);
+  color: var(--warning-foreground);
   font-weight: 700;
 }
 
@@ -74,7 +74,7 @@
   width: 48px;
   height: 48px;
   border: 3px solid var(--bg-dark);
-  border-top-color: var(--yellow);
+  border-top-color: var(--warning-foreground);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -85,8 +85,8 @@
 
 /* Modal Dialog Styles */
 dialog.modal-content {
-  background: var(--panel);
-  border: 1px solid var(--surface);
+  background: var(--popover);
+  border: 1px solid var(--border);
   border-radius: var(--radius-card);
   box-sizing: border-box;
   color: var(--text);
@@ -201,12 +201,9 @@ dialog.modal-content.device-modal {
 }
 
 .btn.confirm-danger {
-  background: var(--red);
-  color: var(--on-accent);
+  background: var(--destructive);
+  color: var(--destructive-action-foreground);
 }
-
-/* Latte's red is dark enough that dark on-accent text fails contrast. */
-:root[data-theme="catppuccin-latte"] .btn.confirm-danger { color: #ffffff; }
 
 @media (max-width: 850px), ((max-height: 540px) and (pointer: coarse)) {
   dialog.modal-content,

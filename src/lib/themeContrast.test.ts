@@ -33,18 +33,18 @@ function contrast(a: string, b: string): number {
 }
 
 /** Every declared token value for one top-level `:root...` block. */
-function themeTokens(selector: string): Record<string, string> {
-  const match = new RegExp(`${selector.replace(/[[\]]/g, "\\$&")}\\s*\\{`).exec(css);
+function themeTokens(selector: string, source = css): Record<string, string> {
+  const match = new RegExp(`${selector.replace(/[[\]]/g, "\\$&")}\\s*\\{`).exec(source);
   if (!match) return {};
   let depth = 1;
   let i = match.index + match[0].length;
   const start = i;
-  while (i < css.length && depth > 0) {
-    if (css[i] === "{") depth += 1;
-    if (css[i] === "}") depth -= 1;
+  while (i < source.length && depth > 0) {
+    if (source[i] === "{") depth += 1;
+    if (source[i] === "}") depth -= 1;
     i += 1;
   }
-  const body = css.slice(start, i - 1);
+  const body = source.slice(start, i - 1);
   const tokens: Record<string, string> = {};
   for (const token of body.matchAll(/(--[a-z0-9-]+):\s*(#[0-9a-fA-F]{3,6})/g)) {
     tokens[token[1]] = token[2];
@@ -77,8 +77,10 @@ const THEME_SELECTORS = [
   [":root[data-theme=\"catppuccin-latte\"]", "catppuccin-latte"],
 ] as const;
 
+const FALLBACK_THEME_SELECTORS = THEME_SELECTORS.filter(([, name]) => !name.startsWith("tokyo-night"));
+
 describe("control text contrast", () => {
-  it.each(THEME_SELECTORS)("%s keeps text readable on quiet controls", (selector) => {
+  it.each(FALLBACK_THEME_SELECTORS)("%s keeps text readable on quiet controls", (selector) => {
     const tokens = themeTokens(selector);
     expect(tokens["--surface-soft"]).toBeDefined();
     expect(tokens["--text"]).toBeDefined();
@@ -106,7 +108,7 @@ describe("Glacier data colors", () => {
 });
 
 describe("filled button contrast", () => {
-  it.each(THEME_SELECTORS)("%s meets WCAG AA for the button surface", (selector) => {
+  it.each(FALLBACK_THEME_SELECTORS)("%s meets WCAG AA for the button surface", (selector) => {
     const tokens = themeTokens(selector);
     expect(tokens["--cyan"], `${selector} must define --cyan`).toBeDefined();
     expect(tokens["--bg"], `${selector} must define --bg`).toBeDefined();
@@ -123,14 +125,15 @@ describe("filled button contrast", () => {
     ).toBeGreaterThanOrEqual(4.5);
   });
 
-  it("tints the fill rather than painting a raw accent", () => {
+  it("uses semantic action colors rather than painting a chart accent", () => {
     const rule = /\.btn\.filled,\s*button\.save\s*\{([^}]*)\}/.exec(css)?.[1] ?? "";
     expect(rule, "the .btn.filled rule must exist").not.toBe("");
     // --navy and a bare --cyan are chart/line colours: bright and
     // high-chroma by design, and wrong as a large solid block behind text.
     expect(rule).not.toMatch(/var\(--navy\)/);
     expect(rule).not.toMatch(/background:\s*var\(--cyan\)\s*;/);
-    expect(rule).toMatch(/color-mix\(/);
+    expect(rule).toContain("background: var(--primary)");
+    expect(rule).toContain("color: var(--primary-foreground)");
     // A hardcoded white cannot follow the theme's polarity.
     expect(rule).not.toMatch(/#fff\b/i);
   });
@@ -159,5 +162,92 @@ describe("filled button contrast", () => {
     // whole declaration that used it, which left the CTA background unset.
     const base = themeTokens(":root");
     expect(base["--navy"], "the base :root must define --navy").toBeDefined();
+  });
+});
+
+
+const semanticCss = readFileSync(
+  fileURLToPath(new URL("../styles/colors.css", import.meta.url)), "utf8",
+);
+const TOKYO_THEMES = ["tokyo-night", "tokyo-night-storm", "tokyo-night-day"] as const;
+
+describe("T3 Code semantic color roles", () => {
+  it.each(TOKYO_THEMES)("%s keeps role pairings readable", name => {
+    const tokens = themeTokens(`:root[data-theme="${name}"]`, semanticCss);
+    const pairs = [
+      ["--foreground", "--background"],
+      ["--card-foreground", "--card"],
+      ["--popover-foreground", "--popover"],
+      ["--primary-foreground", "--primary"],
+      ["--placeholder", "--field-background"],
+      ["--accent-foreground", "--accent"],
+      ["--sidebar-foreground", "--sidebar"],
+      ["--sidebar-muted-foreground", "--sidebar"],
+      ["--accent-foreground", "--sidebar-row-selected"],
+      ["--destructive-foreground", "--card"],
+      ["--warning-foreground", "--card"],
+    ] as const;
+    for (const [foreground, background] of pairs) {
+      expect(tokens[foreground], foreground).toBeDefined();
+      expect(tokens[background], background).toBeDefined();
+      expect(contrast(tokens[foreground], tokens[background]), `${name}: ${foreground} on ${background}`)
+        .toBeGreaterThanOrEqual(4.5);
+    }
+    const controls = name === "tokyo-night-day"
+      ? [tokens["--popover"], mix(tokens["--accent"], tokens["--popover"], 50)]
+      : [32, 64].map(percent => mix(tokens["--input"], tokens["--popover"], percent));
+    for (const control of controls) {
+      expect(contrast(tokens["--foreground"], control)).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(tokens["--muted-foreground"], control)).toBeGreaterThanOrEqual(4.5);
+    }
+    const primaryHover = mix(tokens["--primary"], tokens["--card"], name === "tokyo-night-day" ? 95 : 90);
+    expect(contrast(tokens["--primary-foreground"], primaryHover)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(tokens["--ring"], tokens["--field-background"])).toBeGreaterThanOrEqual(3);
+  });
+
+  it("uses softer reference-led UI roles, not syntax cyan as the action color", () => {
+    const night = themeTokens(':root[data-theme="tokyo-night"]', semanticCss);
+    expect(night["--background"]).toBe("#20212b");
+    expect(night["--card"]).toBe("#1e1f27");
+    expect(night["--sidebar"]).toBe("#1d1e26");
+    expect(night["--primary"]).toBe("#4c5b7e");
+    expect(night["--primary-foreground"]).toBe("#ffffff");
+    expect(night["--accent"]).toBe("#2c2e3b");
+    expect(night["--primary"]).not.toBe(themeTokens(':root[data-theme="tokyo-night"]')["--cyan"]);
+  });
+
+  it("keeps runtime Material You and non-imported palettes as live semantic aliases", () => {
+    const defaults = /:root\s*\{([^}]+)\}/.exec(semanticCss)?.[1] ?? "";
+    expect(defaults).toContain("--background: var(--bg)");
+    expect(defaults).toContain("--primary: var(--action-bg)");
+    expect(defaults).toContain("--primary-foreground: var(--text)");
+    expect(defaults).toContain("--field-background: var(--input-bg)");
+    expect(defaults).toContain("--ring: var(--cyan)");
+    const interfaceRoles = semanticCss.split("/* A stable, dedicated data palette")[0];
+    expect(interfaceRoles).not.toContain(':root[data-theme="material-you"]');
+    // Default aliases do not override any live Material You chart colors.
+    expect(defaults).not.toMatch(/--(?:cyan|blue|green|red|yellow|on-accent):/);
+  });
+});
+
+describe("all named themes share the semantic action/focus system", () => {
+  it.each(FALLBACK_THEME_SELECTORS.filter(([, name]) => name !== "material-you"))("%s has an independent, readable action pairing", (selector, name) => {
+    const roles = themeTokens(`:root[data-theme="${name}"]`, semanticCss);
+    const palette = themeTokens(selector);
+    expect(roles["--primary"]).toBeDefined();
+    expect(roles["--primary-foreground"]).toBeDefined();
+    expect(roles["--ring"]).toBeDefined();
+    expect(contrast(roles["--primary"], roles["--primary-foreground"])).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(mix(roles["--primary"], palette["--panel"], 90), roles["--primary-foreground"]))
+      .toBeGreaterThanOrEqual(4.5);
+    expect(contrast(roles["--ring"], palette["--bg-dark"])).toBeGreaterThanOrEqual(3);
+  });
+
+  it("routes UI focus and status text through roles rather than plot colors", () => {
+    for (const file of ["base", "editor", "layout", "header", "tools", "responsive", "device-selection", "toasts", "tuning"]) {
+      const source = readFileSync(fileURLToPath(new URL(`../styles/${file}.css`, import.meta.url)), "utf8");
+      expect(source, file).not.toMatch(/outline:[^;{}]*var\(--cyan\)/);
+      expect(source, file).not.toMatch(/(?:^|[;{\s])color:\s*var\(--(?:red|yellow)\)/);
+    }
   });
 });

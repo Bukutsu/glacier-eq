@@ -1,15 +1,16 @@
 import { Button as ButtonPrimitive } from "@base-ui/react/button";
 
 type ButtonProps = Omit<ButtonPrimitive.Props, "className"> & {
-  variant?: "default" | "primary" | "ghost";
+  variant?: "default" | "primary" | "ghost" | "danger";
   size?: "default" | "icon";
   className?: string;
 };
 
 const variants = {
-  default: "border-border bg-control text-foreground hover:bg-control-hover",
-  primary: "border-border bg-primary text-foreground hover:bg-primary-hover",
-  ghost: "border-transparent bg-transparent text-muted-foreground hover:bg-control hover:text-foreground",
+  default: "border-input bg-control text-foreground hover:bg-control-hover",
+  primary: "border-primary bg-primary text-primary-foreground hover:bg-primary-hover",
+  danger: "border-input bg-control text-destructive-foreground hover:bg-control-hover",
+  ghost: "border-transparent bg-transparent text-muted-foreground hover:bg-accent hover:text-accent-foreground",
 };
 
 export function Button({ variant = "default", size = "default", className = "", type = "button", ...props }: ButtonProps) {

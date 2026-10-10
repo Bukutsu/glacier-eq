@@ -35,30 +35,33 @@ function renderSettingsView(props: Partial<Parameters<typeof SettingsView>[0]> =
 }
 
 describe("SettingsView markup", () => {
-  it("renders plain navigation without category headers on the root section", () => {
+  it("opens general settings with persistent navigation on the root section", () => {
     const html = renderSettingsView();
     expect(html).toContain("settings-navigation");
-    expect(html).toContain('<h2 class="stack-topbar-title">Settings</h2>');
+    expect(html).toContain('aria-current="page" href="/settings/general"');
+    expect(html).toContain("Read EQ on connection");
     expect(html).toContain("Behavior &amp; audio");
-    expect(html).toContain("Diagnostics &amp; permissions");
+    expect(html).toContain("Diagnostics");
     expect(html).toContain("About");
     expect(html).not.toContain("stack-category-header");
   });
 
   it("renders behavior toggles as quiet rows", () => {
     const html = renderSettingsView({ section: "general" });
-    expect(html).toContain('class="stack-topbar subscreen"');
+    expect(html).toContain('class="stack-topbar"');
+    expect(html).toContain("settings-navigation");
+    expect(html).not.toContain("Back to settings");
     expect(html).toContain("Read EQ on connection");
     expect(html).toContain("stack-card");
   });
 
   it("presents verification as an enabled safety setting", () => {
     const html = renderSettingsView({ section: "general" });
-    expect(html).toMatch(/Verify EQ after writing[\s\S]*?type="checkbox"[^>]*checked=""/);
+    expect(html).toMatch(/<button[^>]*role="switch"[^>]*aria-checked="true"[^>]*aria-label="Verify EQ after writing"/);
     const skipped = renderSettingsView({
       section: "general", settings: { ...baseSettings, skip_push_verification: true },
     });
-    expect(skipped).toMatch(/Verify EQ after writing[\s\S]*?<input type="checkbox" class="custom-checkbox"\/>/);
+    expect(skipped).toMatch(/<button[^>]*role="switch"[^>]*aria-checked="false"[^>]*aria-label="Verify EQ after writing"/);
   });
 
   it("renders shortcuts as a plain section without card chrome", () => {

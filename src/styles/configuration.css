@@ -1,0 +1,218 @@
+/* Shared configuration pages: persistent navigation, one readable column,
+   and quiet rows. The app and the connected DAC remain separate scopes. */
+.configuration-layout {
+  display: grid;
+  grid-template-columns: 184px minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-6);
+  width: 100%;
+  max-width: 1000px;
+  margin: 0 auto;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.configuration-navigation {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  position: sticky;
+  top: 0;
+  min-width: 0;
+}
+
+.configuration-nav-link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 38px;
+  padding: var(--space-2) var(--space-3);
+  box-sizing: border-box;
+  border-radius: var(--control-radius);
+  color: var(--muted-foreground);
+  font-size: var(--type-label);
+  text-decoration: none;
+}
+
+.configuration-nav-link .app-icon { width: 16px; height: 16px; flex-shrink: 0; }
+.configuration-nav-link:hover { color: var(--foreground); background: var(--accent); }
+.configuration-nav-link[aria-current="page"] { color: var(--accent-foreground); background: var(--accent); font-weight: 500; }
+
+.configuration-content { min-width: 0; }
+.configuration-layout .stack-topbar {
+  min-height: 0;
+  padding: 0;
+  margin: 0 0 var(--space-2);
+  background: transparent;
+  border: 0;
+}
+.configuration-layout .stack-topbar-title { font-size: var(--type-body); font-weight: 600; }
+.configuration-description {
+  margin: 0 0 var(--space-5);
+  color: var(--muted-foreground);
+  font-size: var(--type-small);
+  line-height: 1.5;
+}
+.configuration-layout .stack-content { padding: 0; gap: var(--space-5); }
+.configuration-layout .stack-card {
+  background: transparent;
+  border: 0;
+}
+.configuration-layout .stack-pref-row {
+  min-height: 76px;
+  padding: var(--space-4) 0;
+  gap: var(--space-5);
+  border-bottom: 1px solid var(--border);
+}
+.configuration-layout .stack-pref-row:last-child { border-bottom: 0; }
+.configuration-layout .stack-pref-title { font-size: var(--type-label); font-weight: 500; color: var(--foreground); }
+.configuration-layout .stack-pref-desc { line-height: 1.5; margin-top: var(--space-1); color: var(--muted-foreground); }
+.configuration-layout .stack-pref-control { gap: var(--space-2); }
+.configuration-layout .setting-select-wrapper { width: 240px; max-width: 100%; }
+.configuration-layout .graph-view-toggle {
+  display: flex;
+  width: 240px;
+  max-width: 100%;
+  gap: 2px;
+  padding: 3px;
+  box-sizing: border-box;
+  border: 1px solid var(--input);
+  border-radius: var(--control-radius);
+  background: var(--field-background);
+}
+.graph-mode-option {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 28px;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--muted-foreground);
+  font: inherit;
+  font-size: var(--type-label);
+  cursor: pointer;
+}
+.graph-mode-option:hover { color: var(--foreground); }
+.graph-mode-option[aria-pressed="true"] { background: var(--accent); color: var(--accent-foreground); font-weight: 500; }
+.graph-mode-option:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
+.configuration-layout .settings-plain-title { font-size: var(--type-label); font-weight: 600; }
+.configuration-layout .settings-plain-desc,
+.configuration-layout .card-note,
+.configuration-layout .device-note { font-size: var(--type-small); line-height: 1.5; color: var(--muted-foreground); }
+
+.configuration-layout .device-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-2) var(--space-4);
+  padding: 0 0 var(--space-5);
+  margin-bottom: var(--space-5);
+  border-bottom: 1px solid var(--border);
+}
+.configuration-layout .device-hero-body { grid-column: 1; grid-row: 1; gap: var(--space-1); }
+.configuration-layout .device-hero-title { font-size: var(--type-body); font-weight: 600; margin: 0; }
+.configuration-layout .device-hero-desc { font-size: var(--type-small); line-height: 1.5; margin: var(--space-1) 0 0; }
+.configuration-layout .device-hero-header { grid-column: 1; grid-row: 2; }
+.configuration-layout .device-hero-actions { grid-column: 2; grid-row: 1 / span 2; align-self: center; margin: 0; }
+.configuration-layout .device-spec-list { padding: 0; gap: 0; }
+.configuration-layout .device-spec-list > div { padding: var(--space-3) 0; border-bottom: 1px solid var(--border); }
+.configuration-layout .device-spec-list > div:last-child { border-bottom: 0; }
+.configuration-layout .device-spec-list dd { font-family: var(--font-ui); font-size: var(--type-label); }
+.configuration-layout .pref-slider-item { padding: var(--space-4) 0; }
+.configuration-layout .pref-slider-head { gap: var(--space-3); }
+.configuration-layout .pref-value-badge {
+  flex-shrink: 0;
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--foreground);
+  font-family: var(--font-ui);
+  font-size: var(--type-label);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.35;
+  text-align: right;
+}
+.configuration-layout .device-filter-details { margin: 0; padding: var(--space-3) 0; }
+.configuration-layout .empty-card {
+  padding: var(--space-5);
+  background: var(--card);
+  border: 1px solid var(--border);
+}
+.configuration-layout .empty-state { align-items: flex-start; text-align: left; padding: 0; }
+.configuration-layout .empty-state > .app-icon { width: 24px; height: 24px; color: var(--muted-foreground); }
+.configuration-layout .empty-state h3 { font-size: var(--type-label); font-weight: 500; }
+.configuration-layout .empty-state p { font-size: var(--type-small); }
+.configuration-layout .external-link-row { padding: var(--space-3) 0; gap: var(--space-3); }
+.configuration-layout .external-link-row .stack-row-title { font-size: var(--type-label); font-weight: 500; }
+.configuration-layout .shortcut-row { padding: var(--space-2) 0; }
+
+.ui-switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.ui-switch-track {
+  display: flex;
+  align-items: center;
+  width: 42px;
+  height: 24px;
+  padding: 2px;
+  box-sizing: border-box;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-pill);
+  background: var(--control);
+}
+.ui-switch-thumb {
+  display: block;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-pill);
+  background: var(--muted-foreground);
+  transition: transform var(--motion-duration) var(--motion-ease);
+}
+.ui-switch[data-checked] .ui-switch-track { background: var(--primary); border-color: var(--primary); }
+.ui-switch[data-checked] .ui-switch-thumb { transform: translateX(18px); background: var(--primary-foreground); }
+.ui-switch[data-disabled] { opacity: 0.45; cursor: not-allowed; }
+.ui-switch:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; border-radius: var(--control-radius); }
+@media (prefers-reduced-motion: reduce) { .ui-switch-thumb { transition: none; } }
+
+@media (min-width: 851px) and ((min-height: 541px) or (pointer: fine)) {
+  .desktop-view-device .desktop-content > .right-rail > .tools-card,
+  .desktop-view-settings .desktop-content > .right-rail > .tools-card {
+    width: 100%;
+    padding: 0;
+  }
+}
+
+@media (max-width: 1050px) {
+  .configuration-layout { grid-template-columns: 152px minmax(0, 1fr); gap: var(--space-5); }
+  .configuration-layout .select-row { flex-direction: column; align-items: stretch; gap: var(--space-3); }
+  .configuration-layout .select-row .stack-pref-control { justify-content: flex-start; }
+  .configuration-layout .setting-select-wrapper,
+  .configuration-layout .graph-view-toggle { width: 100%; }
+}
+
+@media (max-width: 850px), ((max-height: 540px) and (pointer: coarse)) {
+  .configuration-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-5);
+    padding: var(--space-4) max(var(--space-4), var(--safe-area-right, 0px)) var(--space-5) max(var(--space-4), var(--safe-area-left, 0px));
+  }
+  .configuration-navigation { position: static; flex-direction: row; flex-wrap: wrap; }
+  .configuration-nav-link { min-height: 44px; padding: var(--space-2); }
+  .configuration-layout .stack-pref-row { gap: var(--space-3); }
+  .configuration-layout button[data-slot="button"],
+  .configuration-layout .graph-mode-option { min-height: 44px; }
+  .configuration-layout .device-summary { grid-template-columns: minmax(0, 1fr); }
+  .configuration-layout .device-hero-actions { grid-column: 1; grid-row: 3; flex-wrap: wrap; }
+}

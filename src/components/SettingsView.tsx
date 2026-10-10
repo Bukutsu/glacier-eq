@@ -4,10 +4,12 @@
 import { memo, useEffect, useState } from "react";
 import { confirmDialog } from "./ConfirmDialog";
 import { Icon } from "./Icon";
+import { Button } from "./ui/Button";
+import { ConfigurationLayout } from "./ConfigurationLayout";
+import { SETTINGS_SECTIONS } from "../lib/tabs";
 import {
   ActionRow,
   ExternalLinkRow,
-  NavRow,
   SelectRow,
   StackHeader,
   ToggleRow,
@@ -115,10 +117,10 @@ function UdevSection({
       <section className="settings-plain" aria-label="Linux USB permissions">
         <h2 className="settings-plain-title">Linux USB permissions</h2>
         <p className="settings-plain-desc" role="alert">{checkError}</p>
-        <button type="button" className="btn" onClick={() => setCheckAttempt((attempt) => attempt + 1)}>
+        <Button type="button" onClick={() => setCheckAttempt((attempt) => attempt + 1)}>
           <Icon name="refresh" />
           <span>Retry permissions check</span>
-        </button>
+        </Button>
         <p className="settings-plain-desc">
           On Linux, run this command in a terminal to install the rule manually, then reconnect the DAC:
         </p>
@@ -240,25 +242,25 @@ function UdevSection({
           </span>
         </div>
         <div className="stack-pref-control">
-          <button
+          <Button
             type="button"
-            className={`btn ${installed && current ? "" : "filled"}`}
+            variant={installed && current ? "default" : "primary"}
             disabled={busy !== null || checking}
             onClick={handleInstall}
           >
             <Icon name={installed && current ? "refresh" : "add_moderator"} />
             <span>{busy === "install" ? "Working…" : installed ? (current ? "Reinstall" : "Update") : "Install"}</span>
-          </button>
+          </Button>
           {installed && !(status?.package_managed && status.dest_path === "/usr/lib/udev/rules.d/69-glacier-eq.rules") && (
-            <button
+            <Button
               type="button"
-              className="btn danger"
+              variant="danger"
               disabled={busy !== null || checking}
               onClick={handleRemove}
             >
               <Icon name="delete" />
               <span>{busy === "remove" ? "Working…" : "Remove"}</span>
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -279,64 +281,29 @@ export const SettingsView = memo(function SettingsView({
   setStatus,
   onUdevInstalled,
 }: SettingsViewProps) {
-  // Section select FIRST!
-  if (section === "root") {
-    return (
-      <div className="stack-view settings-stack-view">
-        <StackHeader title="Settings" />
+  const activeSection = section === "root" ? "general" : section;
+  const sections = SETTINGS_SECTIONS.map(item => ({
+    ...item,
+    label: item.id === "general" ? "General" : item.id === "appearance" ? "Appearance" : item.id === "diagnostics" ? "Diagnostics" : item.label,
+  }));
 
-        <nav className="stack-list settings-navigation" aria-label="Settings">
-          <NavRow
-            to="/settings/general"
-            icon="tune"
-            title="Behavior & audio"
-            desc="Read EQ on connection, frequency snapping, and graph preview"
-          />
-
-          <NavRow
-            to="/settings/appearance"
-            icon="palette"
-            title="Interface & theme"
-            desc="Color theme and graph view mode"
-          />
-
-          <NavRow
-            to="/settings/diagnostics"
-            icon="bug_report"
-            title="Diagnostics & permissions"
-            desc="Diagnostics log and Linux udev rules"
-          />
-
-          <NavRow
-            to="/settings/about"
-            icon="info"
-            title="About"
-            desc="Version, system information, and project links"
-          />
-        </nav>
-      </div>
-    );
-  }
-
-  // Subscreen with back button
   return (
-    <div className="stack-view settings-stack-view">
+    <ConfigurationLayout kind="settings" active={activeSection} sections={sections}>
       <StackHeader
         title={
-          section === "general"
+          activeSection === "general"
             ? "Behavior & audio"
-            : section === "appearance"
+            : activeSection === "appearance"
               ? "Interface & theme"
-              : section === "diagnostics"
+              : activeSection === "diagnostics"
                 ? "Diagnostics & permissions"
                 : "About"
         }
-        backTo="/settings"
-        backLabel="Back to settings"
       />
 
+      <p className="configuration-description">Settings are saved automatically on this device.</p>
       <div className="stack-content">
-        {section === "general" && (
+        {activeSection === "general" && (
           <div className="stack-card">
             <ToggleRow
               title="Read EQ on connection"
@@ -377,7 +344,7 @@ export const SettingsView = memo(function SettingsView({
           </div>
         )}
 
-        {section === "appearance" && (
+        {activeSection === "appearance" && (
           <div className="stack-card">
             <SelectRow<AppSettings["theme"]>
               id="theme-select"
@@ -389,7 +356,7 @@ export const SettingsView = memo(function SettingsView({
             />
 
             {graphViewMode && onGraphViewModeChange && (
-              <div className="stack-pref-row">
+              <div className="stack-pref-row select-row">
                 <div className="stack-pref-info">
                   <span className="stack-pref-title">Graph view mode</span>
                   <span className="stack-pref-desc">
@@ -400,7 +367,8 @@ export const SettingsView = memo(function SettingsView({
                   <div className="graph-view-toggle" role="group" aria-label="Graph view mode">
                     <button
                       type="button"
-                      className={graphViewMode === "shape" ? "active" : ""}
+                      data-slot="segmented-control"
+                      className="graph-mode-option"
                       aria-pressed={graphViewMode === "shape"}
                       onClick={() => onGraphViewModeChange("shape")}
                     >
@@ -408,7 +376,8 @@ export const SettingsView = memo(function SettingsView({
                     </button>
                     <button
                       type="button"
-                      className={graphViewMode === "level" ? "active" : ""}
+                      data-slot="segmented-control"
+                      className="graph-mode-option"
                       aria-pressed={graphViewMode === "level"}
                       onClick={() => onGraphViewModeChange("level")}
                     >
@@ -421,7 +390,7 @@ export const SettingsView = memo(function SettingsView({
           </div>
         )}
 
-        {section === "diagnostics" && (
+        {activeSection === "diagnostics" && (
           <>
             <UdevSection setStatus={setStatus} onUdevInstalled={onUdevInstalled} />
 
@@ -451,7 +420,7 @@ export const SettingsView = memo(function SettingsView({
           </>
         )}
 
-        {section === "about" && (
+        {activeSection === "about" && (
           <>
             <section className="settings-plain" aria-label="About Glacier EQ">
               <h2 className="settings-plain-title">Glacier EQ</h2>
@@ -515,6 +484,6 @@ export const SettingsView = memo(function SettingsView({
           </>
         )}
       </div>
-    </div>
+    </ConfigurationLayout>
   );
 });

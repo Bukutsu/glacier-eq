@@ -241,7 +241,7 @@
   width: 20px;
   height: 20px;}
   .dropdown-item.danger,
-  .dropdown-item.danger .app-icon { color: var(--red); }
+  .dropdown-item.danger .app-icon { color: var(--destructive-foreground); }
   .sync-dot,
   .unsaved {
     min-height: 24px;
@@ -310,9 +310,9 @@
     background: var(--surface);
   }
   .mobile-legend-toggle.active {
-    background: var(--cyan);
-    color: var(--on-accent);
-    border-color: var(--cyan);
+    background: var(--primary);
+    color: var(--primary-foreground);
+    border-color: var(--ring);
   }
   .graph-legend-item {
     min-height: 22px;
@@ -515,29 +515,6 @@
   .history-btn {
     min-height: 40px;
   }
-  .profile-card {
-    flex: none;
-    min-height: 0;
-  }
-  .preset-list {
-    height: auto;
-    max-height: 350px !important;
-  }
-  .profile-row {
-    min-height: 48px !important;
-  }
-  .profile-name-btn {
-    min-height: 48px !important;
-  }
-  .profile-apply-btn {
-    min-height: 48px !important;
-    width: auto !important;
-    padding: 0 10px !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    margin-right: 4px !important;
-  }
   .curve-toggle,
   .curve-delete {
     min-height: 48px !important;
@@ -601,7 +578,7 @@
     min-height: 44px;
     padding: 0 12px;
     background: transparent;
-    color: var(--cyan);
+    color: var(--link-foreground);
     font-weight: 700;
   }
   
@@ -724,62 +701,6 @@
     border-radius: 0 !important;
   }
 
-  /* Profiles View on Mobile: edge-to-edge, single scroll container, no trapped scrollbars, spacious touch targets */
-  .mobile-workspace .profiles-mobile-pane {
-    gap: 14px;
-    padding: 0 0 32px;
-  }
-
-  .mobile-workspace .profiles-view-wrapper {
-    gap: 14px;
-    width: 100%;
-  }
-
-  .mobile-workspace .profile-card,
-  .mobile-workspace .profile-action-group.import-section {
-    padding: 16px;
-    border-left: none !important;
-    border-right: none !important;
-    border-radius: 0 !important;
-    outline: none !important;
-    background: var(--panel);
-  }
-
-  .mobile-workspace .preset-list {
-    max-height: none !important;
-    overflow: visible !important;
-    border-left: none !important;
-    border-right: none !important;
-    border-radius: 0 !important;
-    background: var(--panel);
-  }
-
-  .mobile-workspace .profile-row {
-    min-height: 54px !important;
-    padding: 10px 16px !important;
-    border-radius: 0 !important;
-  }
-
-  .mobile-workspace .profile-name-text {
-    font-size: 15px !important;
-  }
-
-  .mobile-workspace .profile-apply-btn {
-    min-height: 38px !important;
-    padding: 0 14px !important;
-    border-radius: 0 !important;
-  }
-
-  .mobile-workspace .transfer-actions {
-    gap: 10px;
-  }
-
-  .mobile-workspace .transfer-actions .icon-action {
-    min-height: 52px !important;
-    font-size: 14px !important;
-    border-radius: 0 !important;
-  }
-
   /* Collapsible mobile graph */
   .mobile-graph-container {
     display: flex;
@@ -861,7 +782,7 @@
 
   .graph-collapse-btn:active,
   .graph-collapse-btn:hover {
-    color: var(--cyan);
+    color: var(--link-foreground);
   }
 
   .graph-collapse-btn:active::before,
@@ -962,7 +883,7 @@
     left: 22%;
     right: 22%;
     height: 2px;
-    background: var(--cyan);
+    background: var(--primary);
     opacity: 0;
   }
   .mobile-tab-item.active::before {
@@ -979,11 +900,11 @@
   }
 
   .mobile-tab-item.active {
-    color: var(--cyan);
+    color: var(--link-foreground);
   }
 
   .mobile-tab-item.active .mobile-tab-icon-wrapper {
-    color: var(--cyan);
+    color: var(--link-foreground);
   }
 
   .mobile-tab-item:active {
@@ -1423,17 +1344,18 @@ body.is-android *,
   .desktop-brand {
     display: flex;
     align-items: center;
-    gap: var(--space-2);
-    min-height: 40px;
-    padding: 0 var(--space-2);
-    color: var(--text);
+    min-height: 44px;
+    padding: 0 var(--space-3);
+    border-radius: var(--control-radius);
+    color: var(--muted-foreground);
     text-decoration: none;
-    font-size: 15px;
-    font-weight: 600;
-    letter-spacing: -0.025em;
+    font-size: var(--type-label);
+    font-weight: 500;
+    letter-spacing: -0.01em;
   }
 
-  .desktop-brand img { flex: 0 0 auto; }
+  .desktop-brand:hover { color: var(--foreground); }
+  .desktop-brand:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 
   .desktop-sidebar-nav {
     display: flex;
@@ -1505,7 +1427,6 @@ body.is-android *,
     grid-row: 1;
   }
 
-  .desktop-view-profiles .desktop-content,
   .desktop-view-tuning .desktop-content {
     grid-template-columns: minmax(0, 1fr) minmax(320px, 40%);
     column-gap: var(--space-4);
@@ -1524,11 +1445,6 @@ body.is-android *,
     background: transparent;
     border: 0;
     padding: var(--space-4);
-  }
-
-  .desktop-view-profiles .graph-card {
-    flex: 0 0 auto;
-    height: clamp(280px, 48dvh, 480px);
   }
 
   .desktop-view-device .left-pane,

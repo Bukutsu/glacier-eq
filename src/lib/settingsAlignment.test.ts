@@ -45,7 +45,7 @@ describe("settings column blocks share one left edge", () => {
       new URL("../components/SettingsView.tsx", import.meta.url),
       "utf8",
     );
-    const about = view.slice(view.indexOf('{section === "about"'));
+    const about = view.slice(view.indexOf('{activeSection === "about"'));
     expect(about).toBeTruthy();
 
     for (const cls of ["settings-plain", "device-spec-list", "card-note"]) {

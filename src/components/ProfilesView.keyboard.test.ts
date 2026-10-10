@@ -26,11 +26,13 @@ const props: Parameters<typeof ProfilesView>[0] = {
 };
 
 describe("profile keyboard controls", () => {
-  it("uses separate native buttons for loading and trying a profile", () => {
+  it("separates the native load button from the DAC actions menu", () => {
     const html = renderToStaticMarkup(createElement(ProfilesView, props));
-    expect(html).toContain('type="button" class="profile-row-info" aria-pressed="true" aria-label="Load Daily into editor"');
+    expect(html).toMatch(/<button(?=[^>]*type="button")(?=[^>]*aria-pressed="true")(?=[^>]*aria-label="Load Daily into editor")[^>]*>/);
+    expect(html).toMatch(/<button(?=[^>]*aria-label="Actions for Daily")(?=[^>]*aria-haspopup="menu")[^>]*>/);
     expect(html).toContain("In editor");
-    expect(html).toContain("Apply temporarily");
+    // DAC actions are not exposed as one-click row buttons.
+    expect(html).not.toContain("Apply temporarily</button>");
     expect(html).not.toContain('role="radio"');
     expect(html).not.toContain('role="radiogroup"');
   });
@@ -42,6 +44,6 @@ describe("profile keyboard controls", () => {
     expect(html).toContain('<form class="profile-save-form">');
     expect(html).toContain('name="profile-name"');
     expect(html).toContain('autoComplete="off"');
-    expect(html).toContain('type="submit" class="save primary-save"');
+    expect(html).toMatch(/<button(?=[^>]*type="submit")(?=[^>]*data-variant="primary")[^>]*>/);
   });
 });

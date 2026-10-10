@@ -14,8 +14,8 @@
   padding: var(--space-1);
   border: 1px solid var(--line-medium);
   border-radius: var(--radius-card);
-  background: var(--panel);
-  color: var(--text);
+  background: var(--popover);
+  color: var(--popover-foreground);
   box-shadow: var(--shadow-md);
   outline: none;
 }
@@ -36,7 +36,7 @@
 
 .ui-menu-item[data-highlighted],
 .app-select-option[data-highlighted] {
-  background: var(--surface-soft);
+  background: var(--accent);
 }
 
 .ui-menu-item[data-disabled],
@@ -79,7 +79,7 @@
 }
 
 .app-select-trigger:focus-visible {
-  outline: 2px solid var(--cyan);
+  outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
 
@@ -113,7 +113,7 @@
 
 .app-select-option.selected {
   font-weight: 600;
-  background: var(--surface-soft);
+  background: var(--accent);
 }
 
 @media (pointer: coarse) {
@@ -141,8 +141,8 @@
 
 .custom-number-input:hover:not(.disabled) { border-color: var(--line-strong); }
 .custom-number-input:focus-within:not(.disabled) {
-  border-color: var(--cyan);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--cyan) 18%, transparent);
+  border-color: var(--ring);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ring) 18%, transparent);
 }
 .custom-number-input.disabled { opacity: 0.5; }
 
@@ -161,7 +161,7 @@
 .custom-number-input .stepper-btn:disabled { opacity: 0.35; }
 .custom-number-input .stepper-btn:hover:not(:disabled) {
   color: var(--text);
-  background: var(--surface-soft);
+  background: var(--accent);
 }
 .custom-number-input .stepper-field {
   appearance: textfield;

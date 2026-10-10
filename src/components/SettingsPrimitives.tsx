@@ -1,7 +1,9 @@
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
-import type { ReactNode } from "react";
+import { useId, type ReactNode } from "react";
+import { Button } from "./ui/Button";
+import { Switch } from "./ui/Switch";
 import { NavLink } from "react-router";
 import { Icon, type IconName } from "./Icon";
 import { Select, type SelectOption } from "./Select";
@@ -71,20 +73,17 @@ export function ToggleRow({
   onChange: (checked: boolean) => void;
   disabled?: boolean;
 }) {
+  const id = useId();
+  const descriptionId = desc ? `${id}-description` : undefined;
   return (
-    <label className={`stack-pref-row interactive ${disabled ? "disabled" : ""}`}>
+    <label htmlFor={id} className={`stack-pref-row interactive ${disabled ? "disabled" : ""}`}>
       <div className="stack-pref-info">
         <span className="stack-pref-title">{title}</span>
-        {desc ? <span className="stack-pref-desc">{desc}</span> : null}
+        {desc ? <span id={descriptionId} className="stack-pref-desc">{desc}</span> : null}
       </div>
       <div className="stack-pref-control">
-        <input
-          type="checkbox"
-          className="custom-checkbox"
-          checked={checked}
-          disabled={disabled}
-          onChange={(e) => onChange(e.target.checked)}
-        />
+        <Switch id={id} label={title} descriptionId={descriptionId}
+          checked={checked} disabled={disabled} onCheckedChange={onChange} />
       </div>
     </label>
   );
@@ -154,15 +153,14 @@ export function ActionRow({
         {desc ? <span className="stack-pref-desc">{desc}</span> : null}
       </div>
       <div className="stack-pref-control">
-        <button
-          type="button"
-          className={`btn ${danger ? "danger" : ""}`}
+        <Button
+          variant={danger ? "danger" : "default"}
           disabled={disabled}
           onClick={onAction}
         >
           {icon ? <Icon name={icon} /> : null}
           <span>{actionLabel}</span>
-        </button>
+        </Button>
       </div>
     </div>
   );

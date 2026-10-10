@@ -1,0 +1,357 @@
+/* Semantic UI roles follow T3 Code; plotting colors remain independent.
+   Other themes, including live Material You, resolve through their existing palette. */
+:root {
+  --background: var(--bg);
+  --foreground: var(--text);
+  --card: var(--panel);
+  --card-foreground: var(--text);
+  --popover: var(--panel);
+  --popover-foreground: var(--text);
+  --muted-foreground: var(--muted);
+  --placeholder: var(--muted);
+  --border: var(--line-medium);
+  --input: var(--input-border);
+  --field-background: var(--input-bg);
+  --control: var(--surface-soft);
+  --control-hover: var(--surface);
+  --link-foreground: var(--foreground);
+  --primary: var(--action-bg);
+  --primary-foreground: var(--text);
+  --primary-hover: var(--action-hover-bg);
+  --accent: var(--surface-soft);
+  --accent-foreground: var(--text);
+  --ring: var(--cyan);
+  --destructive: var(--red);
+  --destructive-action-foreground: var(--on-accent);
+  --destructive-foreground: var(--red);
+  --warning-foreground: var(--yellow);
+  --trace-color-mix: 0;
+  --trace-color-neutral: var(--muted-foreground);
+  --sidebar: var(--panel);
+  --sidebar-foreground: var(--text);
+  --sidebar-muted-foreground: var(--muted);
+  --sidebar-border: var(--line-soft);
+  --sidebar-row-hover: var(--surface-soft);
+  --sidebar-row-active: var(--surface-soft);
+  --sidebar-row-selected: var(--surface-soft);
+}
+
+/* Every named palette owns its action/focus roles independently of plot colors.
+   Auto resolves to Glacier; live Material You continues to use the root aliases. */
+:root[data-theme="glacier"] {
+  --primary: #394147;
+  --primary-foreground: #e5eaee;
+  --primary-hover: color-mix(in srgb, var(--primary) 90%, var(--card));
+  --ring: #8faabd;
+}
+
+:root[data-theme="glacier-light"] {
+  --primary: #ccd4d9;
+  --primary-foreground: #263039;
+  --primary-hover: color-mix(in srgb, var(--primary) 90%, var(--card));
+  --ring: #435f70;
+}
+
+:root[data-theme="nord"] {
+  --primary: #42576b;
+  --primary-foreground: #eceff4;
+  --primary-hover: color-mix(in srgb, var(--primary) 90%, var(--card));
+  --ring: #8daabe;
+}
+
+:root[data-theme="dracula"] {
+  --primary: #574e70;
+  --primary-foreground: #f8f8f2;
+  --primary-hover: color-mix(in srgb, var(--primary) 90%, var(--card));
+  --ring: #a8a1c0;
+}
+
+:root[data-theme="gruvbox"] {
+  --primary: #4d5844;
+  --primary-foreground: #fbf1c7;
+  --primary-hover: color-mix(in srgb, var(--primary) 90%, var(--card));
+  --ring: #a9b78a;
+}
+
+:root[data-theme="catppuccin-mocha"] {
+  --primary: #5e526f;
+  --primary-foreground: #eae5f2;
+  --primary-hover: color-mix(in srgb, var(--primary) 90%, var(--card));
+  --ring: #afa4c3;
+}
+
+:root[data-theme="catppuccin-latte"] {
+  --destructive-action-foreground: #ffffff;
+  --primary: #665a7a;
+  --primary-foreground: #ffffff;
+  --primary-hover: color-mix(in srgb, var(--primary) 90%, var(--card));
+  --ring: #5c536c;
+}
+
+/* Started with T3 Code's parseVsCodeThemeFile, then softened the dark variants
+   against the supplied T3 Code screenshot: closer charcoal surfaces, neutral
+   blue-gray labels, and low-chroma actions rather than editor syntax colors.
+   T3 Code c77a7b7eebd6ea8a3a63bbcaaa7c1707fe65c86e:
+     apps/web/src/vscodeThemeImport.ts, themePalette.ts
+   tokyo-night/tokyo-night-vscode-theme 7c0f11eaef322f293621ca7befe462214b7ea468:
+     themes/tokyo-night{-storm,-light,}-color-theme.json
+   Only the roles Glacier actually uses are retained. */
+
+:root[data-theme="tokyo-night"] {
+  --panel-rgb: 30 31 39;
+  --bg-dark: var(--field-background);
+  --bg-dark-rgb: 33 34 43;
+  --text-rgb: 176 180 203;
+  --background: #20212b;
+  --foreground: #b0b4cb;
+  --card: #1e1f27;
+  --card-foreground: #b0b4cb;
+  --popover: #262832;
+  --popover-foreground: #b0b4cb;
+  --muted-foreground: #989cad;
+  --placeholder: #989cad;
+  --border: #30323d;
+  --input: #363844;
+  --field-background: #21222b;
+  --destructive-foreground: #ff6467;
+  --warning-foreground: #ffb900;
+  --primary: #4c5b7e;
+  --primary-foreground: #ffffff;
+  --accent: #2c2e3b;
+  --accent-foreground: #d2d5e0;
+  --sidebar: #1d1e26;
+  --sidebar-foreground: #b0b4cb;
+  --sidebar-muted-foreground: #989cad;
+  --sidebar-border: #30323d;
+  --sidebar-row-hover: #252731;
+  --sidebar-row-active: #2c2e3b;
+  --sidebar-row-selected: #2c2e3b;
+  --control: color-mix(in srgb, var(--input) 32%, var(--popover));
+  --control-hover: color-mix(in srgb, var(--input) 64%, var(--popover));
+  --primary-hover: color-mix(in srgb, var(--primary) 90%, var(--card));
+  /* A muted blue ring stays visible without a neon accent. */
+  --ring: #a0adc8;
+}
+
+:root[data-theme="tokyo-night-storm"] {
+  --panel-rgb: 37 40 50;
+  --bg-dark: var(--field-background);
+  --bg-dark-rgb: 40 44 54;
+  --text-rgb: 187 192 210;
+  --background: #282b35;
+  --foreground: #bbc0d2;
+  --card: #252832;
+  --card-foreground: #bbc0d2;
+  --popover: #2e323e;
+  --popover-foreground: #bbc0d2;
+  --muted-foreground: #a7acbe;
+  --placeholder: #a7acbe;
+  --border: #393e4c;
+  --input: #414756;
+  --field-background: #282c36;
+  --destructive-foreground: #ff7070;
+  --warning-foreground: #ffb900;
+  --primary: #4c5b7e;
+  --primary-foreground: #ffffff;
+  --accent: #353a48;
+  --accent-foreground: #d2d5e0;
+  --sidebar: #23262f;
+  --sidebar-foreground: #bbc0d2;
+  --sidebar-muted-foreground: #a3a8ba;
+  --sidebar-border: #393e4c;
+  --sidebar-row-hover: #2d313c;
+  --sidebar-row-active: #353a48;
+  --sidebar-row-selected: #353a48;
+  --control: color-mix(in srgb, var(--input) 32%, var(--popover));
+  --control-hover: color-mix(in srgb, var(--input) 64%, var(--popover));
+  --primary-hover: color-mix(in srgb, var(--primary) 90%, var(--card));
+  /* A muted blue ring stays visible without a neon accent. */
+  --ring: #a0adc8;
+}
+
+:root[data-theme="tokyo-night-day"] {
+  --panel-rgb: 214 216 223;
+  --background: #e6e7ed;
+  --foreground: #343b59;
+  --card: #d6d8df;
+  --card-foreground: #343b59;
+  --popover: #d6d8df;
+  --popover-foreground: #343b59;
+  /* The imported muted text clears the canvas, but not Day’s darker cards. */
+  --muted-foreground: #5b5c61;
+  --placeholder: #4a5272;
+  --border: #c1c2c7;
+  --input: #c1c2c7;
+  --field-background: #d6d8df;
+  --destructive-foreground: #c10007;
+  /* T3 tunes warning text for a lighter alert surface; bare card text needs a darker tone. */
+  --warning-foreground: #993e00;
+  --primary: #426cb3;
+  --primary-foreground: #ffffff;
+  --accent: #e6e7ed;
+  --accent-foreground: #14161a;
+  --sidebar: #d6d8df;
+  --sidebar-foreground: #363c4d;
+  --sidebar-muted-foreground: #5a5c61;
+  --sidebar-border: #c1c2c7;
+  --sidebar-row-hover: #e1e2e8;
+  --sidebar-row-active: #e6e7ed;
+  --sidebar-row-selected: #e6e7ed;
+  --control: color-mix(in srgb, var(--input) 32%, var(--popover));
+  --control-hover: color-mix(in srgb, var(--input) 64%, var(--popover));
+  /* Light outline buttons use popover/selection surfaces, not dark input overlays. */
+  --control: var(--popover);
+  --control-hover: color-mix(in srgb, var(--accent) 50%, var(--popover));
+  /* 90% falls just below AA against this card; preserve the action hue at 95%. */
+  --primary-hover: color-mix(in srgb, var(--primary) 95%, var(--card));
+  --ring: #426cb3;
+}
+
+/* Sidebar chrome and its row states have their own backgrounds and labels. */
+.desktop-sidebar {
+  --foreground: var(--sidebar-foreground);
+  --muted-foreground: var(--sidebar-muted-foreground);
+  --text: var(--sidebar-foreground);
+  --muted: var(--sidebar-muted-foreground);
+  --comment: var(--sidebar-muted-foreground);
+  background: var(--sidebar);
+  color: var(--sidebar-foreground);
+  border-color: var(--sidebar-border);
+}
+.desktop-sidebar-item:hover { background: var(--sidebar-row-hover); }
+.desktop-sidebar-item.active {
+  background: var(--sidebar-row-selected);
+  color: var(--accent-foreground);
+}
+.profiles-item.is-current { --muted: var(--accent-foreground); }
+
+/* Dark Tokyo Night data colors: distinct hues, without neon plot handles.
+   Explicit RGB companions keep canvas colors and translucent band UI in sync. */
+:root:is([data-theme="tokyo-night"], [data-theme="tokyo-night-storm"]) {
+  --trace-color-mix: 0;
+  --red: #c399a2;
+  --red-rgb: 195 153 162;
+  --orange: #c8b09a;
+  --orange-rgb: 200 176 154;
+  --yellow: #c6bd9c;
+  --yellow-rgb: 198 189 156;
+  --green: #afbeaa;
+  --green-rgb: 175 190 170;
+  --teal: #a1bbb8;
+  --teal-rgb: 161 187 184;
+  --cyan: #a6bdcf;
+  --cyan-rgb: 166 189 207;
+  --blue: #9babcb;
+  --blue-rgb: 155 171 203;
+  --purple: #b6abc8;
+  --purple-rgb: 182 171 200;
+  --bright-cyan: #c2d3dc;
+  --magenta2: #b6abc8;
+  --magenta2-rgb: 182 171 200;
+  --navy: #9babcb;
+  --azure: #a6bdcf;
+  --sky: #a6bdcf;
+  --steel: var(--muted-foreground);
+  --sea: #a1bbb8;
+  --teal2: #a1bbb8;
+  --teal2-rgb: 161 187 184;
+  --crimson: #c399a2;
+  --sync-ok: var(--green);
+  --sync-working: var(--cyan);
+  --sync-unsaved: var(--yellow);
+}
+
+/* Bridge unconverted controls and canvas backdrops to the same UI roles.
+   Runtime Material You colors remain owned by the Android palette. */
+:root:is([data-theme="tokyo-night"], [data-theme="tokyo-night-storm"], [data-theme="tokyo-night-day"]) {
+  --bg: var(--background);
+  --panel: var(--card);
+  --text: var(--foreground);
+  --muted: var(--muted-foreground);
+  --comment: var(--muted-foreground);
+  --surface: var(--input);
+  --surface-soft: var(--accent);
+  --input-bg: var(--field-background);
+  --input-border: var(--input);
+  --panel-border: var(--border);
+  --list-hover-bg: var(--accent);
+  --line: var(--border);
+  --line-subtle: var(--border);
+  --line-soft: var(--border);
+  --line-medium: var(--border);
+  --line-strong: var(--input);
+  --line-separator: var(--border);
+  --line-outline: var(--border);
+  --focus-ring: var(--ring);
+}
+
+/* A stable, dedicated data palette across themes. Keep UI accents quiet without
+   collapsing plot hues. Light surfaces need darker ink, not pastel lines. */
+:root {
+  --plot-red: #ee8794;
+  --plot-red-rgb: 238 135 148;
+  --plot-orange: #eab065;
+  --plot-orange-rgb: 234 176 101;
+  --plot-yellow: #d9d66f;
+  --plot-yellow-rgb: 217 214 111;
+  --plot-green: #82c58c;
+  --plot-green-rgb: 130 197 140;
+  --plot-teal: #4cb1aa;
+  --plot-teal-rgb: 76 177 170;
+  --plot-cyan: #77d4ef;
+  --plot-cyan-rgb: 119 212 239;
+  --plot-blue: #8498ed;
+  --plot-blue-rgb: 132 152 237;
+  --plot-purple: #bb8cde;
+  --plot-purple-rgb: 187 140 222;
+  --plot-teal2: #b8dda2;
+  --plot-teal2-rgb: 184 221 162;
+  --plot-magenta2: #e181c1;
+  --plot-magenta2-rgb: 225 129 193;
+}
+:root:is([data-theme="glacier-light"], [data-theme="tokyo-night-day"], [data-theme="catppuccin-latte"]) {
+  --plot-red: #b52e4a;
+  --plot-red-rgb: 181 46 74;
+  --plot-orange: #a85817;
+  --plot-orange-rgb: 168 88 23;
+  --plot-yellow: #84700c;
+  --plot-yellow-rgb: 132 112 12;
+  --plot-green: #347c3d;
+  --plot-green-rgb: 52 124 61;
+  --plot-teal: #16736e;
+  --plot-teal-rgb: 22 115 110;
+  --plot-cyan: #087e9c;
+  --plot-cyan-rgb: 8 126 156;
+  --plot-blue: #405cc4;
+  --plot-blue-rgb: 64 92 196;
+  --plot-purple: #8543af;
+  --plot-purple-rgb: 133 67 175;
+  --plot-teal2: #597f17;
+  --plot-teal2-rgb: 89 127 23;
+  --plot-magenta2: #b13883;
+  --plot-magenta2-rgb: 177 56 131;
+}
+@media (prefers-color-scheme: light) {
+  :root[data-theme="material-you"] {
+  --plot-red: #b52e4a;
+  --plot-red-rgb: 181 46 74;
+  --plot-orange: #a85817;
+  --plot-orange-rgb: 168 88 23;
+  --plot-yellow: #84700c;
+  --plot-yellow-rgb: 132 112 12;
+  --plot-green: #347c3d;
+  --plot-green-rgb: 52 124 61;
+  --plot-teal: #16736e;
+  --plot-teal-rgb: 22 115 110;
+  --plot-cyan: #087e9c;
+  --plot-cyan-rgb: 8 126 156;
+  --plot-blue: #405cc4;
+  --plot-blue-rgb: 64 92 196;
+  --plot-purple: #8543af;
+  --plot-purple-rgb: 133 67 175;
+  --plot-teal2: #597f17;
+  --plot-teal2-rgb: 89 127 23;
+  --plot-magenta2: #b13883;
+  --plot-magenta2-rgb: 177 56 131;
+  }
+}

@@ -6,11 +6,13 @@ import { memo, useEffect, useRef, useState } from "react";
 import { confirmDialog } from "./ConfirmDialog";
 import { DacFilterVisual } from "./DacFilterVisual";
 import { Icon } from "./Icon";
+import { Button } from "./ui/Button";
+import { ConfigurationLayout } from "./ConfigurationLayout";
+import { DEVICE_SECTIONS } from "../lib/tabs";
 import { Select } from "./Select";
 import { Slider } from "./Slider";
 import {
   ActionRow,
-  NavRow,
   StackHeader,
   ToggleRow,
 } from "./SettingsPrimitives";
@@ -330,12 +332,12 @@ export const DeviceView = memo(function DeviceView({
     }
   };
 
-  if (section === "root") {
-    return (
-      <div className="stack-view device-stack-view">
-        <StackHeader title="Device" />
+  const activeSection = section === "root" ? "overview" : section;
+  const sections = connected ? DEVICE_SECTIONS : DEVICE_SECTIONS.filter(item => item.id === "overview");
 
-        <section className="device-summary" aria-label="Device connection">
+  return (
+    <ConfigurationLayout kind="device" active={activeSection} sections={sections}>
+      <section className="device-summary" aria-label="Device connection">
           <div className="device-hero-header">
             <span className={`device-status-badge ${connected ? (isSimulated ? "simulated" : "connected") : "offline"}`}>
               <span className="status-dot" aria-hidden="true" />
@@ -359,78 +361,45 @@ export const DeviceView = memo(function DeviceView({
             {connected ? (
               <>
                 {onDisconnect && (
-                  <button type="button" className="btn" onClick={onDisconnect} disabled={isBusy}>
+                  <Button type="button" onClick={onDisconnect} disabled={isBusy}>
                     <Icon name="link_off" />
                     <span>Disconnect</span>
-                  </button>
+                  </Button>
                 )}
                 {onOpenConnectModal && (
-                  <button type="button" className="btn filled" onClick={handleChangeDevice} disabled={isBusy}>
+                  <Button type="button" variant="primary" onClick={handleChangeDevice} disabled={isBusy}>
                     <Icon name="swap_horiz" />
                     <span>Change device</span>
-                  </button>
+                  </Button>
                 )}
               </>
             ) : (
               onOpenConnectModal && (
-                <button type="button" className="btn filled hero-connect-btn" onClick={onOpenConnectModal}>
+                <Button type="button" variant="primary" onClick={onOpenConnectModal}>
                   <Icon name="usb" />
                   <span>Connect DAC</span>
-                </button>
+                </Button>
               )
             )}
           </div>
         </section>
-
-        <nav className="stack-list device-navigation" aria-label="Device settings">
-          <NavRow
-            to="/device/overview"
-            icon="memory"
-            title={connected ? "Specifications" : "Offline specifications"}
-            desc={connected ? "Chip, sample rate, EQ bands, and outputs" : "Sample rate, EQ bands, and gain limits"}
-          />
-
-          {connected && (
-            <>
-              <NavRow
-                to="/device/controls"
-                icon="tune"
-                title="Sound controls"
-                desc="Reconstruction filters, amplifier mode, gain, and balance"
-              />
-
-              <NavRow
-                to="/device/maintenance"
-                icon="build"
-                title="Reset & maintenance"
-                desc="Restore EQ or device defaults"
-              />
-            </>
-          )}
-        </nav>
-      </div>
-    );
-  }
-
-  // Real subscreen with back button
-  return (
-    <div className="stack-view device-stack-view">
       <StackHeader
         title={
-          section === "overview"
+          activeSection === "overview"
             ? connected
               ? "Specifications"
               : "Offline specifications"
-            : section === "controls"
+            : activeSection === "controls"
               ? "Sound controls"
               : "Reset & maintenance"
         }
-        backTo="/device"
-        backLabel="Back to device"
       />
 
+      {activeSection === "controls" && connected && !isSimulated && (
+        <p className="configuration-description">Changes apply directly to the connected DAC.</p>
+      )}
       <div className="stack-content">
-        {section === "overview" && (
+        {activeSection === "overview" && (
           <>
             <dl className="device-spec-list">
               {connected && (
@@ -461,7 +430,7 @@ export const DeviceView = memo(function DeviceView({
           </>
         )}
 
-        {section === "controls" && (
+        {activeSection === "controls" && (
           <>
             {!connected ? (
               <section className="settings-card empty-card">
@@ -470,10 +439,10 @@ export const DeviceView = memo(function DeviceView({
                   <h3>Device not connected</h3>
                   <p>Connect a supported DAC to adjust filter modes, amplifier mode, and channel balance.</p>
                   {onOpenConnectModal && (
-                    <button type="button" className="btn filled" onClick={onOpenConnectModal}>
+                    <Button type="button" variant="primary" onClick={onOpenConnectModal}>
                       <Icon name="usb" />
                       <span>Connect DAC</span>
-                    </button>
+                    </Button>
                   )}
                 </div>
               </section>
@@ -491,10 +460,10 @@ export const DeviceView = memo(function DeviceView({
                   <Icon name="error" />
                   <h3>Could not load controls</h3>
                   <p>{loadError}</p>
-                  <button type="button" className="btn" onClick={() => fetchState()}>
+                  <Button type="button" onClick={() => fetchState()}>
                     <Icon name="refresh" />
                     <span>Retry</span>
-                  </button>
+                  </Button>
                 </div>
               </section>
             ) : !utility?.supported ? (
@@ -602,7 +571,7 @@ export const DeviceView = memo(function DeviceView({
           </>
         )}
 
-        {section === "maintenance" && (
+        {activeSection === "maintenance" && (
           <>
             {!connected ? (
               <section className="settings-card empty-card">
@@ -611,10 +580,10 @@ export const DeviceView = memo(function DeviceView({
                   <h3>Device not connected</h3>
                   <p>Connect a supported DAC to reset EQ, controls, or restore factory defaults.</p>
                   {onOpenConnectModal && (
-                    <button type="button" className="btn filled" onClick={onOpenConnectModal}>
+                    <Button type="button" variant="primary" onClick={onOpenConnectModal}>
                       <Icon name="usb" />
                       <span>Connect DAC</span>
-                    </button>
+                    </Button>
                   )}
                 </div>
               </section>
@@ -624,6 +593,7 @@ export const DeviceView = memo(function DeviceView({
                   title="Reset device EQ"
                   desc="Resets all EQ bands on the DAC to 0 dB"
                   actionLabel="Reset EQ"
+                  disabled={isBusy}
                   onAction={handleResetDeviceEq}
                 />
 
@@ -631,6 +601,7 @@ export const DeviceView = memo(function DeviceView({
                   title="Reset device controls"
                   desc="Resets filter mode, amplifier mode, gain, and balance to defaults"
                   actionLabel="Reset controls"
+                  disabled={isBusy}
                   onAction={handleResetDeviceControls}
                 />
 
@@ -639,6 +610,7 @@ export const DeviceView = memo(function DeviceView({
                   desc="Restores the DAC to its factory defaults"
                   actionLabel="Factory reset"
                   danger
+                  disabled={isBusy}
                   onAction={handleFactoryReset}
                 />
               </div>
@@ -646,6 +618,6 @@ export const DeviceView = memo(function DeviceView({
           </>
         )}
       </div>
-    </div>
+    </ConfigurationLayout>
   );
 });

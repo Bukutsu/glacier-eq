@@ -43,459 +43,7 @@
   gap: 10px;
 }
 
-/* Profiles View */
-.profiles-view-wrapper {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.profile-card {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding: 18px 20px;
-  background: var(--panel);
-  border: 1px solid var(--line-soft);
-  border-radius: 0 !important;
-  box-sizing: border-box;
-}
-
-.profile-save-form {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
-.profile-card-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-  row-gap: 8px;
-}
-
-.profile-title {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  flex: 1 1 auto;
-  flex-wrap: wrap;
-  row-gap: 2px;
-}
-
-.profile-title h2 {
-  margin: 0;
-  color: var(--text);
-  font-size: 16px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  white-space: nowrap;
-}
-
-.profile-count-tag {
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.profile-card-tools {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.profile-card-tools .icon-btn {
-  width: 40px;
-  height: 40px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  background: transparent;
-  color: var(--comment);
-  border: none;
-  border-radius: 0 !important;
-  cursor: pointer;
-  transition: color 120ms ease, background 120ms ease;
-}
-
-.profile-card-tools .icon-btn:hover {
-  color: var(--cyan);
-  background: var(--surface-soft);
-}
-
-.profile-search-wrap {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  height: 44px;
-  padding: 0 12px;
-  background: var(--bg-dark);
-  border: 1px solid var(--line-soft);
-  border-radius: 0 !important;
-  box-sizing: border-box;
-  transition: border-color 120ms ease;
-}
-
-.profile-search-wrap:focus-within {
-  border-color: var(--cyan);
-}
-
-.profile-search-wrap .search-icon {
-  font-size: 20px;
-  color: var(--comment);
-  flex-shrink: 0;
-}
-
-.profile-search-wrap .profile-search {
-  flex: 1 1 auto;
-  min-width: 0;
-  height: 100%;
-  border: none;
-  background: transparent;
-  color: var(--text);
-  padding: 0;
-  font-size: 14px;
-  outline: none;
-}
-
-.profile-search-wrap .profile-search::placeholder {
-  color: var(--comment);
-}
-
-.profile-search-clear {
-  width: 28px;
-  height: 28px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  background: transparent;
-  border: none;
-  color: var(--comment);
-  cursor: pointer;
-  border-radius: 0 !important;
-}
-
-.profile-search-clear:hover {
-  color: var(--text);
-}
-
-.preset-list {
-  background: var(--bg-dark);
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  border: 1px solid var(--line-soft);
-  border-radius: 0 !important;
-  max-height: 320px;
-  overflow-y: auto;
-}
-
-.empty-profiles {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 24px 16px;
-  color: var(--comment);
-  font-size: 14px;
-}
-
-.profile-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  min-height: 52px;
-  padding: 0 8px 0 0;
-  border-bottom: 1px solid var(--line-subtle);
-  background: transparent;
-  cursor: pointer;
-  user-select: none;
-  border-radius: 0 !important;
-  transition: background 120ms ease;
-  outline: none;
-}
-
-.profile-row:last-child {
-  border-bottom: none;
-}
-
-.profile-row:hover {
-  background: var(--surface-soft);
-}
-
-.profile-row.selected {
-  background: color-mix(in srgb, var(--cyan) 10%, var(--surface-soft));
-  box-shadow: inset 3px 0 var(--cyan);
-}
-
-.profile-row > .profile-row-info {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 8px;
-  min-width: 0;
-  min-height: 52px;
-  padding: 8px 12px;
-  flex: 1 1 auto;
-  text-align: left;
-  color: var(--text);
-  background: transparent;
-}
-
-.profile-row-indicator {
-  font-size: 20px;
-  color: var(--comment);
-  flex-shrink: 0;
-}
-
-.profile-row.selected .profile-row-indicator {
-  color: var(--cyan);
-}
-
-.profile-name-text {
-  font-size: 14.5px;
-  font-weight: 500;
-  color: var(--text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.profile-row.selected .profile-name-text {
-  font-weight: 600;
-}
-
-.profile-active-badge {
-  font-size: var(--type-caption);
-  font-weight: 500;
-  color: var(--text);
-  background: color-mix(in srgb, var(--cyan) 14%, transparent);
-  border: 1px solid color-mix(in srgb, var(--cyan) 30%, transparent);
-  padding: 2px 6px;
-  border-radius: 0 !important;
-  flex-shrink: 0;
-}
-
-.profile-apply-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 44px;
-  padding: 0 12px;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--cyan);
-  background: var(--surface-soft);
-  border: 1px solid var(--line-soft);
-  border-radius: 0 !important;
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, filter 120ms ease;
-}
-
-.profile-apply-btn:hover {
-  background: var(--cyan);
-  color: var(--bg-dark);
-  border-color: var(--cyan);
-}
-
-.profile-apply-btn .app-icon {
-  width: 16px;
-  height: 16px;
-}
-
-.profile-actions-area {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  width: 100%;
-}
-
-.profile-save-field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  width: 100%;
-}
-
-.profile-save-field > label {
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.profile-name-input-wrap {
-  position: relative;
-  display: flex;
-  align-items: center;
-  width: 100%;
-}
-
-.profile-name-input-wrap .profile-search {
-  width: 100%;
-  height: 44px;
-  padding: 0 80px 0 14px;
-  background: var(--bg-dark);
-  border: 1px solid var(--line-soft);
-  color: var(--text);
-  font-size: 14px;
-  border-radius: 0 !important;
-  box-sizing: border-box;
-}
-
-.profile-name-input-wrap .profile-search:focus {
-  border-color: var(--cyan);
-  outline: none;
-}
-
-.profile-name-badge {
-  position: absolute;
-  right: 8px;
-  pointer-events: none;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  padding: 3px 6px;
-  border-radius: 0 !important;
-}
-
-.profile-name-badge.new {
-  color: var(--cyan);
-  background: color-mix(in srgb, var(--cyan) 15%, transparent);
-  border: 1px solid var(--cyan);
-}
-
-.profile-name-badge.overwrite {
-  color: var(--yellow);
-  background: color-mix(in srgb, var(--yellow) 15%, transparent);
-  border: 1px solid var(--yellow);
-}
-
-.profile-management-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-}
-
-.profile-management-actions .primary-save {
-  flex: 1 1 auto;
-  min-height: 44px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  background: var(--cyan);
-  color: var(--bg-dark);
-  font-weight: 700;
-  font-size: 14px;
-  border: none;
-  border-radius: 0 !important;
-  cursor: pointer;
-  transition: opacity 120ms ease;
-}
-
-.profile-management-actions .primary-save:hover:not(:disabled) {
-  opacity: 0.9;
-}
-
-.profile-management-actions .primary-save:disabled {
-  background: var(--surface-soft);
-  color: var(--comment);
-  cursor: not-allowed;
-}
-
-.profile-icon-action {
-  width: 44px;
-  height: 44px;
-  min-width: 44px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  background: var(--surface-soft);
-  border: 1px solid var(--line-soft);
-  color: var(--text);
-  border-radius: 0 !important;
-  cursor: pointer;
-  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, filter 120ms ease;
-}
-
-.profile-icon-action:hover:not(:disabled) {
-  border-color: var(--cyan);
-  color: var(--cyan);
-}
-
-.profile-icon-action.danger {
-  color: var(--red);
-}
-
-.profile-icon-action.danger:hover:not(:disabled) {
-  border-color: var(--red);
-  background: color-mix(in srgb, var(--red) 12%, var(--surface-soft));
-}
-
-.profile-icon-action:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.profile-save-as-toggle {
-  min-height: 42px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: 100%;
-  background: transparent;
-  border: 1px solid var(--line-soft);
-  color: var(--text);
-  font-size: 13.5px;
-  font-weight: 600;
-  border-radius: 0 !important;
-  cursor: pointer;
-  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, filter 120ms ease;
-}
-
-.profile-save-as-toggle:hover {
-  border-color: var(--cyan);
-  color: var(--cyan);
-}
-
-.profile-save-as-toggle span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.profile-card-foot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-top: 4px;
-}
-
-.profile-card-foot .modified {
-  color: var(--muted);
-  font-size: 12px;
-}
+/* Profile library/editor styling lives in profiles.css. */
 .settings-list label {
   color: var(--muted);
   font-size: var(--type-label);
@@ -511,8 +59,7 @@
   width: 100%;
 }
 
-.tool-card,
-.profile-action-group {
+.tool-card {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -555,12 +102,12 @@
   min-height: 28px !important;
   padding: 0 8px !important;
   background: transparent !important;
-  color: var(--cyan) !important;
+  color: var(--link-foreground) !important;
   font-size: var(--type-small);
 }
 
 .tool-link-button.danger {
-  color: var(--red) !important;
+  color: var(--destructive-foreground) !important;
 }
 
 .tool-card .setting-row {
@@ -579,153 +126,9 @@
   padding-top: 10px;
 }
 
-.profile-management-actions .primary-save {
-  width: auto;
-  min-width: max-content;
-  min-height: 44px;
-  white-space: nowrap;
-}
+button.danger { color: var(--destructive-foreground); background: transparent; outline: 1px solid var(--danger-outline); outline-offset: -1px; }
 
-.tools-card .profile-management-actions > .profile-save-as-toggle {
-  flex: 1 1 auto;
-  width: auto;
-  min-width: 0;
-  min-height: 44px;
-  white-space: nowrap;
-}
-
-/* When save/discard actions are present, the copy button keeps its own row. */
-.tools-card .profile-management-actions:has(.primary-save) > .profile-save-as-toggle {
-  flex: 0 0 100%;
-}
-
-.tools-card .profile-save-as-toggle {
-  width: 100%;
-  min-height: 36px;
-  padding: 0 12px;
-  background: var(--surface-soft);
-  color: var(--muted);
-  font-size: var(--type-label);
-  gap: 6px;
-}
-
-.profile-save-as-toggle:hover {
-  color: var(--cyan);
-  outline-color: var(--accent-line-outline);
-}
-
-.profile-save-as-toggle .app-icon {
-  font-size: 18px;
-  width: 18px;
-  height: 18px;}
-
-.profile-icon-action {
-  min-width: 44px;
-  width: 44px;
-  min-height: 44px !important;
-  padding: 0 !important;
-  background: var(--surface-soft);
-  color: var(--muted);
-  outline: 1px solid var(--line-medium);
-}
-
-.profile-icon-action:hover {
-  color: var(--cyan);
-  outline-color: var(--accent-line-outline);
-}
-
-.profile-icon-action.danger {
-  color: var(--red);
-  outline-color: var(--danger-outline);
-}
-
-.profile-icon-action:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.profile-action-head {
-  min-height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.profile-action-group.import-section {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding: 18px 20px;
-  background: var(--panel);
-  border: 1px solid var(--line-soft);
-  border-radius: 0 !important;
-  box-sizing: border-box;
-}
-
-.profile-action-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.profile-action-head strong {
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.transfer-actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  width: 100%;
-}
-
-button.danger { color: var(--red); background: transparent; outline: 1px solid var(--danger-outline); outline-offset: -1px; }
-
-.hidden-file-input {
-  display: none !important;
-}
-
-.transfer-actions .icon-action {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-width: 0;
-  min-height: 48px;
-  padding: 0 14px;
-  background: var(--surface-soft);
-  border: 1px solid var(--line-soft);
-  color: var(--text);
-  font-size: 13.5px;
-  font-weight: 600;
-  border-radius: 0 !important;
-  cursor: pointer;
-  white-space: nowrap;
-  overflow: hidden;
-  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, filter 120ms ease;
-}
-
-.transfer-actions .icon-action:hover {
-  border-color: var(--cyan);
-  color: var(--cyan);
-  background: color-mix(in srgb, var(--cyan) 8%, var(--surface-soft));
-}
-
-.transfer-actions .icon-action .app-icon {
-  font-size: 20px;
-  color: var(--comment);
-  transition: color 120ms ease;
-  width: 20px;
-  height: 20px;}
-
-.transfer-actions .icon-action:hover .app-icon {
-  color: var(--cyan);
-}
+.hidden-file-input { display: none !important; }
 
 .trace-list {
   min-height: 0;
@@ -779,7 +182,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   outline-offset: -1px;
 }
 .trace-type-badge.trace-type-target {
-  color: var(--yellow);
+  color: var(--warning-foreground);
   background: color-mix(in srgb, var(--yellow) 14%, transparent);
   outline: 1px solid color-mix(in srgb, var(--yellow) 28%, transparent);
   outline-offset: -1px;
@@ -800,7 +203,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.15);
+  box-shadow: 0 0 0 1px var(--border);
   transition: opacity var(--motion-duration) var(--motion-ease);
 }
 
@@ -871,7 +274,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 
 .curve-delete:hover {
   opacity: 1 !important;
-  color: var(--red) !important;
+  color: var(--destructive-foreground) !important;
   background: color-mix(in srgb, var(--red) 14%, transparent) !important;
 }
 
@@ -915,7 +318,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 }
 
 .shortcut-keys {
-  color: var(--cyan);
+  color: var(--link-foreground);
   font-family: var(--font-mono);
   font-size: var(--type-caption);
   white-space: nowrap;
@@ -945,8 +348,8 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   gap: 8px;
 }
 .diag-head strong { min-width: 0; color: var(--text); font-size: var(--type-label); }
-.diag-head button { width: 36px; min-height: 36px; padding: 0; background: transparent; color: var(--cyan); }
-.diag-head button.danger { color: var(--red); }
+.diag-head button { width: 36px; min-height: 36px; padding: 0; background: transparent; color: var(--link-foreground); }
+.diag-head button.danger { color: var(--destructive-foreground); }
 .diag-head .diag-copy-btn {
   width: auto;
   padding: 0 10px;
@@ -958,8 +361,8 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 }
 
 .diag-counts { display: flex; align-items: center; gap: 12px; font-size: var(--type-caption); font-family: var(--font-mono); }
-.diag-count-e { color: var(--red); }
-.diag-count-w { color: var(--yellow); }
+.diag-count-e { color: var(--destructive-foreground); }
+.diag-count-w { color: var(--warning-foreground); }
 .diag-count-i { color: var(--comment); }
 
 .diag-toolbar {
@@ -977,9 +380,9 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   white-space: nowrap;
 }
 .diag-card .diag-filter-btn:hover:not(.active) { background: var(--hover-bg); color: var(--text); }
-.diag-card .diag-filter-btn.active             { background: var(--bg-dark); color: var(--cyan); }
-.diag-card .diag-filter-btn.active.f-error     { color: var(--red); }
-.diag-card .diag-filter-btn.active.f-warn      { color: var(--yellow); }
+.diag-card .diag-filter-btn.active             { background: var(--bg-dark); color: var(--link-foreground); }
+.diag-card .diag-filter-btn.active.f-error     { color: var(--destructive-foreground); }
+.diag-card .diag-filter-btn.active.f-warn      { color: var(--warning-foreground); }
 
 .diag-search {
   width: 100%; height: 38px; border: 0;
@@ -996,7 +399,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   display: flex; align-items: center; justify-content: center;
   transition: color var(--motion-duration) var(--motion-ease), background var(--motion-duration) var(--motion-ease);
 }
-.diag-card .diag-scroll-btn.active { color: var(--cyan); }
+.diag-card .diag-scroll-btn.active { color: var(--link-foreground); }
 .diag-card .diag-scroll-btn:hover  { color: var(--text); filter: brightness(1.14); }
 
 .log-box {
@@ -1019,13 +422,13 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 }
 .log-line + .log-line { border-top: 1px solid var(--line-subtle); }
 .log-line:hover { background: var(--hover-bg); }
-.log-line.log-line-error { color: var(--red); }
-.log-line.log-line-warn  { color: var(--yellow); }
+.log-line.log-line-error { color: var(--destructive-foreground); }
+.log-line.log-line-warn  { color: var(--warning-foreground); }
 
 .log-ts     { color: var(--comment); flex-shrink: 0; font-size: var(--type-caption); white-space: nowrap; }
 .log-level  { font-size: var(--type-caption); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
-.log-line.log-line-error .log-level { color: var(--red); }
-.log-line.log-line-warn  .log-level { color: var(--yellow); }
+.log-line.log-line-error .log-level { color: var(--destructive-foreground); }
+.log-line.log-line-warn  .log-level { color: var(--warning-foreground); }
 .log-line:not(.log-line-error):not(.log-line-warn) .log-level { color: var(--comment); }
 .log-msg    { word-break: break-word; white-space: pre-wrap; color: inherit; }
 .log-details { min-width: 0; }
@@ -1044,127 +447,6 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 
 .diag-footer { font-size: var(--type-caption); color: var(--comment); padding-top: 2px; text-align: right; font-family: var(--font-ui); }
 
-
-.import-flow.tool-card {
-  padding: 10px;
-}
-
-.import-mode-tabs {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4px;
-}
-
-.import-mode-tabs button {
-  background: var(--surface-soft);
-  color: var(--muted);
-  min-height: 32px !important;
-  font-size: var(--type-small);
-  padding: 0 8px;
-  border-radius: var(--radius-control);
-  transition: background var(--motion-duration) var(--motion-ease), color var(--motion-duration) var(--motion-ease);
-}
-
-.import-mode-tabs button.active {
-  background: var(--cyan);
-  color: var(--on-accent);
-}
-
-.import-flow-content {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  font-size: var(--type-label);
-}
-
-.import-field-group {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.import-field-group label {
-  color: var(--muted);
-  font-size: var(--type-small);
-}
-
-.import-field-group input {
-  height: 36px;
-  border: 1px solid var(--line);
-  background: var(--surface-soft);
-  color: var(--text);
-  padding: 0 8px;
-  border-radius: var(--radius-control);
-}
-
-.import-overwrite-warning {
-  color: var(--yellow);
-  font-size: var(--type-caption);
-  margin-top: 2px;
-}
-
-.import-temp-info {
-  color: var(--muted);
-  font-style: italic;
-  font-size: var(--type-small);
-  background: var(--accent-bg-subtle);
-  border-left: 3px solid var(--cyan);
-  padding: 6px 10px;
-}
-
-.import-preview-section, .import-warnings-section {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.import-preview-section span, .import-warnings-section span {
-  font-weight: 700;
-  color: var(--muted);
-}
-
-.import-preview-box, .import-warnings-box {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  padding: 8px;
-  max-height: 90px;
-  overflow-y: auto;
-  border-radius: var(--radius-control);
-  font-family: var(--font-mono);
-  font-size: var(--type-caption);
-}
-
-
-
-.preview-line {
-  color: var(--text);
-  padding: 2px 0;
-}
-
-.empty-preview {
-  color: var(--comment);
-}
-
-.warning-line {
-  color: var(--yellow);
-  padding: 2px 0;
-}
-
-.import-warnings-box {
-  border-color: var(--warning-border);
-  background: var(--warning-bg);
-}
-
-.import-flow-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin-top: 4px;
-}
-
-.import-flow-actions button {
-  min-height: 36px !important;
-}
 
 .setting-row {
   display: flex;
@@ -1321,7 +603,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 
 .dac-filter-toggle {
   display: inline-flex;
-  background: var(--bg-darker, #101216);
+  background: var(--field-background);
   border: 1px solid var(--line-soft);
   border-radius: var(--radius-pill, 0);
   padding: 1px;
@@ -1346,7 +628,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 
 .dac-filter-tab.active {
   background: var(--surface-soft, rgba(255, 255, 255, 0.08));
-  color: var(--cyan);
+  color: var(--link-foreground);
 }
 
 .dac-filter-chart-wrapper {
@@ -1384,7 +666,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 }
 
 .dac-filter-hover-val {
-  color: var(--cyan);
+  color: var(--link-foreground);
   font-weight: 600;
 }
 
@@ -1412,7 +694,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   font-family: var(--font-mono);
   font-weight: 600;
   letter-spacing: 0.04em;
-  color: var(--cyan);
+  color: var(--link-foreground);
   white-space: nowrap;
 }
 
@@ -1478,7 +760,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 
 .stack-back-btn:hover {
   background: var(--surface-soft);
-  color: var(--cyan);
+  color: var(--link-foreground);
 }
 
 .stack-back-btn .app-icon {
@@ -1523,12 +805,12 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 
 .stack-nav-row:focus-visible,
 .stack-back-btn:focus-visible {
-  outline: 2px solid var(--cyan);
+  outline: 2px solid var(--ring);
   outline-offset: -2px;
 }
 
 .stack-nav-row:active {
-  background: color-mix(in srgb, var(--cyan) 10%, var(--surface-soft));
+  background: var(--accent);
 }
 
 .stack-row-icon {
@@ -1539,7 +821,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 }
 
 .stack-nav-row:hover .stack-row-icon {
-  color: var(--cyan);
+  color: var(--link-foreground);
 }
 
 .stack-row-content {
@@ -1617,7 +899,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 }
 
 .stack-pref-row.interactive:hover .stack-pref-title {
-  color: var(--cyan);
+  color: var(--link-foreground);
 }
 
 .stack-pref-info {
@@ -1681,7 +963,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 
 .settings-card-head .card-head-title .app-icon {
   font-size: 20px;
-  color: var(--cyan);
+  color: var(--link-foreground);
   width: 20px;
   height: 20px;}
 
@@ -1872,7 +1154,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 
 .device-filter-details > summary:hover { color: var(--text); }
 .device-filter-details > summary:focus-visible {
-  outline: 2px solid var(--cyan);
+  outline: 2px solid var(--ring);
   outline-offset: -2px;
 }
 
@@ -1989,7 +1271,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 }
 
 .pref-row.interactive:hover .pref-title {
-  color: var(--cyan);
+  color: var(--link-foreground);
 }
 
 .pref-info {
@@ -2062,7 +1344,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   font-family: var(--font-mono);
   font-size: 13px;
   font-weight: 600;
-  color: var(--cyan);
+  color: var(--link-foreground);
   background: var(--bg-dark);
   border: 1px solid var(--line-subtle);
   padding: 3px 8px;
@@ -2145,7 +1427,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 
 .status-pill.outdated {
   background: color-mix(in srgb, var(--yellow) 16%, transparent);
-  color: var(--yellow);
+  color: var(--warning-foreground);
   border-color: color-mix(in srgb, var(--yellow) 30%, transparent);
 }
 .status-pill.outdated .status-dot {
@@ -2154,7 +1436,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 
 .status-pill.missing {
   background: color-mix(in srgb, var(--red) 16%, transparent);
-  color: var(--red);
+  color: var(--destructive-foreground);
   border-color: color-mix(in srgb, var(--red) 30%, transparent);
 }
 .status-pill.missing .status-dot {
@@ -2259,7 +1541,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
 }
 
 .app-select-trigger:focus-visible {
-  outline: 1px solid var(--cyan);
+  outline: 1px solid var(--ring);
   outline-offset: -1px;
 }
 
@@ -2388,7 +1670,7 @@ button.danger { color: var(--red); background: transparent; outline: 1px solid v
   box-sizing: border-box;
 }
 .curves-search-input:focus {
-  border-color: var(--cyan) !important;
+  border-color: var(--ring) !important;
   outline: 1px solid var(--focus-ring);
   outline-offset: 2px;
 }
@@ -2430,7 +1712,7 @@ dialog.modal-content.add-trace-modal {
   gap: 8px;
   margin: 12px 20px 0;
   padding: 10px 12px;
-  color: var(--red);
+  color: var(--destructive-foreground);
   background: color-mix(in srgb, var(--red) 10%, var(--panel));
   border: 1px solid var(--danger-outline);
   font-size: var(--type-small);
@@ -2472,7 +1754,7 @@ dialog.modal-content.add-trace-modal {
 }
 
 .add-trace-online-results:focus-visible {
-  outline: 2px solid var(--cyan);
+  outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
 
@@ -2523,7 +1805,7 @@ dialog.modal-content.add-trace-modal {
 }
 
 .add-trace-cache summary:focus-visible {
-  outline: 2px solid var(--cyan);
+  outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
 
@@ -2570,7 +1852,7 @@ dialog.modal-content.add-trace-modal {
 
 .add-trace-download-prompt progress {
   width: 100%;
-  accent-color: var(--cyan);
+  accent-color: var(--link-foreground);
 }
 
 @media (max-width: 540px) {
@@ -2602,12 +1884,6 @@ dialog.modal-content.add-trace-modal {
 }
 
 @media (max-width: 850px), ((max-height: 540px) and (pointer: coarse)) {
-  .profile-search {
-    height: 44px;
-  }
-  .profile-save-as-toggle {
-    min-height: 44px;
-  }
   .add-trace-btn {
     min-height: 44px;
   }
@@ -2648,30 +1924,6 @@ dialog.modal-content.add-trace-modal {
     width: 44px;
     height: 44px;
   }
-  .profile-card-tools .icon-btn,
-  .profile-search-clear,
-  .profile-apply-btn {
-    min-width: 44px;
-    min-height: 48px;
-  }
-  .profile-card-tools .icon-btn {
-    width: 48px;
-    height: 48px;
-  }
-  .profile-search-clear {
-    width: 44px;
-    height: 44px;
-  }
-  .profile-apply-btn {
-    padding-inline: 14px !important;
-  }
-  .import-mode-tabs button,
-  .import-field-group input,
-  .import-flow-actions button {
-    min-height: 48px !important;
-  }
-  .import-field-group input,
-  .profile-search,
   .curves-search-input,
   .diag-search {
     font-size: 16px !important;
@@ -2687,12 +1939,6 @@ dialog.modal-content.add-trace-modal {
 }
 
 @media (pointer: coarse) {
-  .profile-card-tools .icon-btn,
-  .profile-search-clear,
-  .profile-apply-btn,
-  .import-mode-tabs button,
-  .import-field-group input,
-  .import-flow-actions button,
   .custom-select-trigger {
     min-width: 44px;
     min-height: 48px;
@@ -2702,9 +1948,7 @@ dialog.modal-content.add-trace-modal {
     width: 44px;
     flex: 0 0 44px;
   }
-  .profile-search,
   .curves-search-input,
-  .import-field-group input,
   .diag-search {
     font-size: 16px !important;
   }
