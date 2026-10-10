@@ -45,7 +45,7 @@ function ConnectionActions({ isBusy, onDisconnect, onPull, compact = false }: {
         {compact ? <Icon name="more_vert" /> : <>Device <Icon name="expand_more" /></>}
       </Menu.Trigger>
       <Menu.Portal>
-        <Menu.Positioner align="end" sideOffset={6} className="ui-popup-positioner">
+        <Menu.Positioner align="end" sideOffset={6} positionMethod="fixed" className="ui-popup-positioner">
           <Menu.Popup className="ui-menu" aria-label="Device actions">
             {onPull && (
               <Menu.Item className="ui-menu-item" disabled={isBusy} onClick={onPull}>

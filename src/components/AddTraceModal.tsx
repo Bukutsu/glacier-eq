@@ -8,6 +8,7 @@ import { useOnlineDatabase, type OnlineDevice } from "../lib/onlineDb";
 import { Modal } from "./Modal";
 import { confirmDialog } from "./ConfirmDialog";
 import { Button } from "./ui/Button";
+import { Input } from "./ui/Input";
 
 interface AddTraceModalProps {
   onClose: () => void;
@@ -180,7 +181,7 @@ export function AddTraceModal({
         )}
         <div className="add-trace-section">
           <label className="add-trace-section-title" htmlFor={searchId}>Headphone or brand</label>
-          <input
+          <Input
             ref={searchInputRef}
             id={searchId}
             name="measurement-search"

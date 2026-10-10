@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { Modal } from "./Modal";
+import { Button } from "./ui/Button";
 
 export interface ConfirmOptions {
   title: string;
@@ -30,6 +31,7 @@ export function confirmDialog(options: ConfirmOptions): Promise<boolean> {
 }
 
 export function ConfirmDialogHost() {
+  const descriptionId = useId();
   const [options, setOptions] = useState<ConfirmOptions | null>(null);
 
   useEffect(() => {
@@ -55,20 +57,19 @@ export function ConfirmDialogHost() {
   if (!options) return null;
 
   return (
-    <Modal title={options.title} onClose={() => close(false)}>
+    <Modal title={options.title} role="alertdialog" descriptionId={descriptionId} onClose={() => close(false)}>
       <div className="modal-body">
-        <p className="confirm-message">{options.message}</p>
+        <p id={descriptionId} className="confirm-message">{options.message}</p>
         <div className="confirm-actions">
-          <button type="button" className="btn" autoFocus onClick={() => close(false)}>
+          <Button autoFocus data-dialog-autofocus onClick={() => close(false)}>
             {options.cancelLabel ?? "Cancel"}
-          </button>
-          <button
-            type="button"
-            className={options.danger ? "btn confirm-danger" : "btn filled"}
+          </Button>
+          <Button
+            variant={options.danger ? "danger" : "primary"}
             onClick={() => close(true)}
           >
             {options.confirmLabel ?? "Confirm"}
-          </button>
+          </Button>
         </div>
       </div>
     </Modal>

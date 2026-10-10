@@ -17,6 +17,7 @@
 @import "./ui.css" layer(components);
 @import "./profiles.css" layer(components);
 @import "./configuration.css" layer(components);
+@import "./dialogs.css" layer(components);
 @import "tailwindcss/utilities.css" layer(utilities);
 
 @theme inline {

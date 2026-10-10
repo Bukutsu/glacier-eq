@@ -1,0 +1,85 @@
+/* Shadcn-style dialog surfaces on the native top layer. Keep the existing
+   focus trap, Android Back/history integration, and dismissal locks. */
+dialog.modal-content {
+  color: var(--popover-foreground);
+  border-color: var(--border);
+  background: var(--popover);
+  box-shadow: var(--shadow-md);
+  animation: motion-fade-in var(--motion-duration) var(--motion-ease);
+}
+dialog.modal-content::backdrop {
+  background: rgb(0 0 0 / 0.45);
+  backdrop-filter: none;
+}
+.modal-content .modal-header {
+  gap: var(--space-4);
+  padding: var(--space-5) var(--space-5) var(--space-3);
+  border-bottom: 0;
+  background: var(--popover);
+}
+.modal-content .modal-header h2 {
+  font-size: var(--type-body);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.4;
+}
+.modal-content .dialog-close { margin: -6px -6px -6px 0; }
+.modal-content .modal-body {
+  padding: var(--space-3) var(--space-5) var(--space-5);
+  gap: var(--space-4);
+}
+.modal-content .confirm-message {
+  color: var(--muted-foreground);
+  font-size: var(--type-label);
+  line-height: 1.6;
+}
+.modal-content .confirm-actions,
+.modal-content .modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+.device-modal .modal-body { padding: 0; }
+.device-modal .device-chooser-content { padding: var(--space-3) var(--space-5) var(--space-5); }
+.device-modal .device-intro { background: transparent; border: 0; padding: 0; gap: var(--space-3); }
+.device-modal .device-intro p { font-size: var(--type-label); line-height: 1.5; color: var(--muted-foreground); }
+.device-modal .device-intro > .app-icon { display: none; }
+.device-modal .device-list-heading { font-size: var(--type-label); font-weight: 500; }
+.device-modal .device-list-heading span { background: transparent; color: var(--muted-foreground); }
+.device-modal .device-row { border-radius: var(--control-radius); background: transparent; border-color: var(--border); }
+.device-modal .device-row.selected { background: var(--accent); border-color: var(--input); }
+.device-modal .device-row-name { font-size: var(--type-label); font-weight: 500; }
+.device-modal .device-row-description,
+.device-modal .device-row-meta { color: var(--muted-foreground); font-size: var(--type-small); }
+.device-modal .device-selection-mark { color: var(--foreground); }
+.device-modal .device-connect-footer {
+  padding: var(--space-4) var(--space-5);
+  background: var(--popover);
+  border-top: 1px solid var(--border);
+}
+.modal-content .supported-list,
+.modal-content .device-troubleshooting { border-color: var(--border); border-radius: var(--control-radius); }
+.modal-content .supported-list summary,
+.modal-content .device-troubleshooting summary { font-size: var(--type-label); font-weight: 500; }
+.diag-search-field { flex: 1 1 140px; min-width: 140px; }
+.modal-content .diag-head { flex-wrap: wrap; gap: var(--space-2); padding: var(--space-4); background: transparent; }
+.modal-content .diag-toolbar { flex-wrap: wrap; gap: var(--space-2); padding: var(--space-3) var(--space-4); background: transparent; }
+.ui-menu { min-width: 200px; border-color: var(--border); box-shadow: var(--shadow-sm); }
+.ui-menu-item { padding: var(--space-2); color: var(--popover-foreground); }
+.ui-menu-item[data-highlighted] { color: var(--accent-foreground); }
+.ui-menu-item:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
+@media (max-width: 850px), ((max-height: 540px) and (pointer: coarse)) {
+  .modal-content .modal-header { padding: var(--space-4); }
+  .modal-content .modal-body { padding: var(--space-3) var(--space-4) max(var(--space-4), var(--safe-area-bottom, 0px)); }
+  .modal-content button[data-slot="button"] { min-height: 44px; }
+  .modal-content .confirm-actions > button { flex: 1 1 0; }
+  .device-modal .modal-body { padding: 0; }
+  .device-modal .device-chooser-content { padding: var(--space-3) var(--space-4) var(--space-4); }
+  .device-modal .device-connect-footer { padding: var(--space-4); padding-bottom: max(var(--space-4), var(--safe-area-bottom, 0px)); }
+  .ui-menu-item { min-height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  dialog.modal-content, dialog.modal-content::backdrop { animation: none; }
+}

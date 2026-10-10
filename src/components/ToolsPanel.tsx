@@ -13,6 +13,8 @@ import type {
 import type { AsyncContext } from "../lib/asyncContext";
 import { fuzzyMatch } from "../lib/search";
 import { Icon } from "./Icon";
+import { Button } from "./ui/Button";
+import { Input } from "./ui/Input";
 import { DeviceView } from "./DeviceView";
 import { SettingsView } from "./SettingsView";
 import { ProfilesView } from "./ProfilesView";
@@ -361,7 +363,7 @@ export function DiagnosticsPanel() {
           <span className="diag-count-w" title="Warnings" aria-label={`${warnCount} warnings`}>{warnCount}W</span>
           <span className="diag-count-i" title="Info" aria-label={`${infoCount} info events`}>{infoCount}I</span>
         </div>
-        <button
+        <Button
           type="button"
           className="diag-copy-btn"
           onClick={copyToClipboard}
@@ -371,41 +373,45 @@ export function DiagnosticsPanel() {
         >
           <Icon name={copyState === "copied" ? "check" : "content_copy"} />
           <span>{copyLabel}</span>
-        </button>
-        <button type="button" className="danger" title="Clear logs" aria-label="Clear logs" onClick={clearLogs}>
+        </Button>
+        <Button type="button" variant="danger" size="icon" title="Clear logs" aria-label="Clear logs" onClick={clearLogs}>
           <Icon name="delete" />
-        </button>
+        </Button>
       </div>
 
       <div className="diag-toolbar">
         {DIAG_LEVELS.map((lvl) => (
-          <button
+          <Button
             type="button"
             key={lvl}
+            variant={levelFilter === lvl ? "default" : "ghost"}
             className={`diag-filter-btn${levelFilter === lvl ? " active" : ""}${lvl === "Error" ? " f-error" : ""}${lvl === "Warn" ? " f-warn" : ""}`}
             aria-pressed={levelFilter === lvl}
             onClick={() => setLevelFilter(lvl)}
           >
             {lvl}
-          </button>
+          </Button>
         ))}
-        <input
+        <div className="diag-search-field"><Input
           className="diag-search"
           type="search"
           placeholder="Search…"
           aria-label="Search logs"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-        />
-        <button
+        /></div>
+        <Button
           type="button"
+          variant={autoScroll ? "default" : "ghost"}
+          size="icon"
+          aria-pressed={autoScroll}
           className={`diag-scroll-btn${autoScroll ? " active" : ""}`}
           title={autoScroll ? "Auto-scroll on" : "Auto-scroll paused"}
           aria-label={autoScroll ? "Auto-scroll on" : "Auto-scroll paused"}
           onClick={() => setAutoScroll((v) => !v)}
         >
           <Icon name={autoScroll ? "vertical_align_bottom" : "lock"} />
-        </button>
+        </Button>
       </div>
 
       <div

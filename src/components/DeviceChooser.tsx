@@ -1,6 +1,7 @@
 import { invoke, requestWebHidDevice } from "../lib/rpc";
 import { useEffect, useState } from "react";
 import { Icon } from "./Icon";
+import { Button } from "./ui/Button";
 import { LinuxUdevGuide } from "./LinuxUdevGuide";
 import { isDevDummyDevice } from "../lib/devDevice";
 import { isLinux, isTauri } from "../lib/platform";
@@ -80,9 +81,9 @@ export function DeviceChooser({
           <div className="device-browser-warning">WebHID requires a Chromium-based browser over HTTPS or localhost.</div>
         )}
 
-        <button type="button" className="btn device-scan-btn" onClick={handleScanClick} disabled={isBusy}>
+        <Button className="device-scan-btn" onClick={handleScanClick} disabled={isBusy}>
           <Icon name="search" size={18} />{isBusy ? "Scanning…" : "Scan for devices"}
-        </button>
+        </Button>
 
         <h3 className="device-list-heading">Available DACs <span>{devices.length}</span></h3>
         {devices.length === 0 ? (
@@ -105,6 +106,7 @@ export function DeviceChooser({
                   key={device.path}
                   type="button"
                   role="radio"
+                  data-slot="device-option"
                   className={selected ? "device-row selected" : "device-row"}
                   aria-checked={selected}
                   disabled={isBusy}
@@ -174,9 +176,9 @@ export function DeviceChooser({
           <span className="status-text" role="status" aria-live="polite">{authorizationError ?? status}</span>
         )}
         <div className="device-actions">
-          <button type="button" className="btn filled" onClick={() => onConnect()} disabled={!selectedDevice || isBusy}>
+          <Button variant="primary" className="btn min-h-[52px]! w-full" onClick={() => onConnect()} disabled={!selectedDevice || isBusy}>
             {connected ? "Switch to this device" : "Connect DAC"}
-          </button>
+          </Button>
         </div>
       </div>
     </section>

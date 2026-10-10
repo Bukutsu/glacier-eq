@@ -1,5 +1,6 @@
 import { type CSSProperties, type MouseEvent, type ReactNode, useEffect, useId, useRef } from "react";
 import { Icon } from "./Icon";
+import { Button } from "./ui/Button";
 import {
   decideModalPopState,
   expectBalanceNavigation,
@@ -50,9 +51,11 @@ interface ModalProps {
   style?: CSSProperties;
   children: ReactNode;
   closeDisabled?: boolean;
+  descriptionId?: string;
+  role?: "dialog" | "alertdialog";
 }
 
-export function Modal({ title, onClose, className = "", style, children, closeDisabled = false }: ModalProps) {
+export function Modal({ title, onClose, className = "", style, children, closeDisabled = false, descriptionId, role }: ModalProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   const modalId = `modal-${titleId}`;
@@ -76,7 +79,12 @@ export function Modal({ title, onClose, className = "", style, children, closeDi
       window.addEventListener("popstate", handleModalPopState);
     }
     modalPopstateListenerCount += 1;
-    if (dialog && !dialog.open) dialog.showModal();
+    if (dialog && !dialog.open) {
+      dialog.showModal();
+      // React/Base UI autofocus can run before the native dialog is open.
+      // Apply the requested initial focus only after it enters the top layer.
+      dialog.querySelector<HTMLElement>("[data-dialog-autofocus]:not(:disabled)")?.focus();
+    }
 
     return () => {
       removeModalEntry(entry);
@@ -115,6 +123,8 @@ export function Modal({ title, onClose, className = "", style, children, closeDi
       className={`modal-content${className ? ` ${className}` : ""}`}
       style={style}
       aria-labelledby={titleId}
+      aria-describedby={descriptionId}
+      role={role}
       aria-modal="true"
       onCancel={(event) => {
         event.preventDefault();
@@ -124,15 +134,16 @@ export function Modal({ title, onClose, className = "", style, children, closeDi
     >
       <div className="modal-header">
         <h2 id={titleId}>{title}</h2>
-        <button
-          type="button"
-          className="modal-close-btn"
+        <Button
+          variant="ghost"
+          size="icon"
+          className="dialog-close"
           onClick={() => { if (!closeDisabled) onClose(); }}
           disabled={closeDisabled}
           aria-label={`Close ${title}`}
         >
           <Icon name="close" />
-        </button>
+        </Button>
       </div>
       {children}
     </dialog>
