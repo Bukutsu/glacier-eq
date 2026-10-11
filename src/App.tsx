@@ -1504,9 +1504,15 @@ function App() {
     setIsBusy(true);
     let committedPeq: PEQData | null = null;
     let pushWarnings: string[] = [];
+    // Device completion depends on the session, not on editor changes.
+    // An edit during the write must not hide what was saved to the DAC.
     const isCurrentOperation = () =>
       operationId === eqOperationIdRef.current
-      && isConfirmationCurrent();
+      && getAsyncContext().operationRevision === confirmationContext.operationRevision
+      && connectionGenerationRef.current === confirmationGeneration
+      && connectedPathRef.current === confirmationPath
+      && connectedSessionIdRef.current === confirmationSessionId
+      && selectedCapabilities === confirmationCapabilities;
     try {
       if (isDevDummyDevice(selectedDevice)) {
         setProgress({
@@ -1541,10 +1547,9 @@ function App() {
           integerPreamp: selectedCapabilities.integer_preamp,
           capabilities: selectedCapabilities,
         });
-        await sleep(400);
         // Adopt the quantized device state into the editor only when nobody
         // edited or reconnected during the write.
-        if (!peqEquals(committedPeq, snapshot) && isCurrentOperation()) {
+        if (!peqEquals(committedPeq, snapshot) && isCurrentOperation() && isConfirmationCurrent()) {
           pushToUndoStack(peqRef.current);
           setPeq(committedPeq);
           noteEditorMutation();
