@@ -437,7 +437,7 @@ jobs:
       - name: Verify Cargo lock is current
         run: cargo metadata --locked --no-deps
 
-      - name: Init Android project (buildSrc + signing fixes)
+      - name: Init Android project and apply the tracked Android overlay (buildSrc + signing fixes)
         run: |
           set -e
           buildtask=src-tauri/gen/android/buildSrc/src/main/java/com/bukutsu/glaciereq/kotlin/BuildTask.kt
@@ -445,14 +445,14 @@ jobs:
           cp "$buildtask" "$buildtask_backup"
           trap 'cp "$buildtask_backup" "$buildtask" 2>/dev/null || true; rm -f "$buildtask_backup"' EXIT
           rm -rf src-tauri/gen/android
-          npm run android:init
+          npm run android:prepare
           cp -R src-tauri/icons/android/. src-tauri/gen/android/app/src/main/res/
           # Preserve the tracked npm fallback after Tauri regenerates buildSrc.
           cp "$buildtask_backup" "$buildtask"
           # app/build.gradle.kts with release-keystore signing support
           cp scripts/android-app/build.gradle.kts src-tauri/gen/android/app/build.gradle.kts
           wrapper=src-tauri/gen/android/gradle/wrapper/gradle-wrapper.properties
-          checksum=bd71102213493060956ec229d946beee57158dbd89d0e62b91bca0fa2c5f3531
+          checksum=9c0f7faeeb306cb14e4279a3e084ca6b596894089a0638e68a07c945a32c9e14
           if grep -q '^distributionSha256Sum=' "$wrapper"; then
             grep -q "^distributionSha256Sum=$checksum$" "$wrapper"
           else

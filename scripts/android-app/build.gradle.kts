@@ -24,15 +24,20 @@ val hasReleaseKeystore = listOf("keyAlias", "keyPassword", "storeFile", "storePa
     .all { keystoreProperties.getProperty(it) != null }
 
 android {
-    compileSdk = 36
+    compileSdk = 37
     namespace = "com.bukutsu.glaciereq"
     defaultConfig {
         manifestPlaceholders["usesCleartextTraffic"] = "false"
         applicationId = "com.bukutsu.glaciereq"
         minSdk = 26
-        targetSdk = 36
+        targetSdk = 37
         versionCode = tauriProperties.getProperty("tauri.android.versionCode", "1").toInt()
         versionName = tauriProperties.getProperty("tauri.android.versionName", "1.0")
+    }
+    // Android Lint currently crashes while analyzing the included Tauri
+    // build.gradle.kts via apply(from=...). Frontend/Rust checks run separately.
+    lint {
+        checkReleaseBuilds = false
     }
     signingConfigs {
         if (hasReleaseKeystore) {
@@ -69,8 +74,12 @@ android {
             )
         }
     }
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
+    }
     kotlinOptions {
-        jvmTarget = "1.8"
+        jvmTarget = "11"
     }
     buildFeatures {
         buildConfig = true

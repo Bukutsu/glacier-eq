@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.14.0] - 2026-10-12
+
+### Added
+
+- Added offline editor draft recovery after an unexpected app close. Restoring a draft never connects to or writes to a DAC.
+- Added mobile theme previews and current-value summaries for Settings and Device sections.
+- Added a native Android startup handoff that waits for appearance settings, with a bounded fallback if startup cannot finish.
+
+### Changed
+
+- Made Tokyo Night the default theme on fresh installs; saved theme choices are preserved.
+- Refined mobile Settings and Device navigation with grouped rows and compact section headers.
+- Improved mobile keyboard dismissal, segmented-control touch targets, and EQ slider gesture boundaries while retaining live previews and Undo.
+
+### Fixed
+
+- Rejected malformed numeric input instead of partially parsing it, including decimal-comma values.
+- Improved Android keyboard layout, startup recovery, and external-link handling.
+- Kept browser EQ paste/import usable when clipboard access is denied.
+
 ## [0.13.0] - 2026-10-09
 
 ### Added
