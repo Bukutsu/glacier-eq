@@ -38,53 +38,6 @@
   z-index: var(--z-graph-sticky);
 }
 
-.editor-empty-hint {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
-  background: transparent;
-  border: 1px solid var(--line-soft);
-  border-radius: var(--control-radius);
-  color: var(--muted);
-  font-size: var(--type-label);
-  line-height: 1.4;
-  flex: 0 0 auto;
-}
-
-.editor-empty-hint > .app-icon {
-  font-size: 18px;
-  color: var(--link-foreground);
-  flex-shrink: 0;
-  width: 18px;
-  height: 18px;}
-
-.editor-empty-hint-text {
-  flex: 1;
-  min-width: 0;
-}
-
-.editor-empty-hint button {
-  background: transparent;
-  color: var(--comment);
-  padding: 6px;
-  min-width: 36px;
-  min-height: 36px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.editor-empty-hint button:hover {
-  color: var(--text);
-}
-
-.editor-empty-hint button .app-icon {
-  font-size: 18px;
-  width: 18px;
-  height: 18px;}
-
 .eq-graph-shell {
   position: relative;
   width: 100%;

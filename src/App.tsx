@@ -65,6 +65,7 @@ import type {
 import { useToastStore, type StatusReporter } from "./stores/toastStore";
 import { useHistoryStore } from "./stores/historyStore";
 import { useThemeSync } from "./hooks/useThemeSync";
+import { readBootTheme } from "./lib/bootTheme";
 import { useIsMobile } from "./hooks/useIsMobile";
 import { useTraces } from "./hooks/useTraces";
 import { useEditorDraft } from "./hooks/useEditorDraft";
@@ -92,7 +93,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   auto_pull_on_connect: true,
   skip_push_verification: false,
   // Material You is the default on Android; everywhere else follows Auto.
-  theme: isAndroidDevice() ? "material-you" : "auto",
+  theme: readBootTheme() ?? (isAndroidDevice() ? "material-you" : "auto"),
   snap_to_iso_frequencies: true,
   floating_graph_preview: true,
 };
@@ -119,7 +120,7 @@ const LazyDiagnosticsPanel = lazy(() =>
 );
 
 function ToolLoadingFallback() {
-  return <div className="tool-loading" aria-busy="true">Loading tools…</div>;
+  return <div aria-busy="true" aria-label="Loading workspace" />;
 }
 
 function ProfilesView(props: ComponentProps<typeof LazyProfilesView>) {
@@ -155,8 +156,6 @@ function DiagnosticsPanel() {
 }
 
 
-const DEVICE_ONBOARDING_KEY = "glacier-device-onboarding-seen";
-const EDITOR_HINT_KEY = "glacier-editor-hint-dismissed";
 const TOOL_TAB_BY_WORKSPACE: Record<MobileTab, ToolsTab | null> = {
   eq: null,
   tuning: "Tuning",
@@ -382,9 +381,6 @@ function App() {
   const connectOperationIdRef = useRef(0);
   const [lastPushedPeq, setLastPushedPeq] = useState<PEQData | null>(null);
   const [activeBandIndex, setActiveBandIndex] = useState<number | null>(null);
-  const [editorHintDismissed, setEditorHintDismissed] = useState(
-    () => readLocalStorage(EDITOR_HINT_KEY) === "true",
-  );
 
   useEffect(() => {
     persistUiPreference("glacier-graph-view-mode", graphViewMode);
@@ -706,8 +702,8 @@ function App() {
     };
   }, [importPeq, getAsyncContext]);
 
-  const scanDevices = useCallback(async () => {
-    setIsBusy(true);
+  const scanDevices = useCallback(async (blockEditor = true) => {
+    if (blockEditor) setIsBusy(true);
     reportStatus({ level: "Info", message: "Searching for DACs…" });
     try {
       const realDevices = await invoke<DeviceInfo[]>("list_devices");
@@ -747,10 +743,7 @@ function App() {
       }
       setStatus(`Failed to scan for devices: ${error}`);
     } finally {
-      setIsBusy(false);
-      if (readLocalStorage(DEVICE_ONBOARDING_KEY) !== "true") {
-        setShowDeviceModal(true);
-      }
+      if (blockEditor) setIsBusy(false);
     }
   }, []);
 
@@ -871,7 +864,8 @@ function App() {
   }, [isAndroid, reportStatus, setConnected]);
 
   useEffect(() => {
-    scanDevices();
+    // Discover devices quietly; offline editing does not depend on a scan.
+    void scanDevices(false);
   }, [scanDevices]);
 
   // Global uncaught error and promise rejection logger
@@ -1903,9 +1897,8 @@ function App() {
   }, []);
   const handleCloseDeviceModal = useCallback(() => {
     ambiguousReconnectRef.current = false;
-    persistUiPreference(DEVICE_ONBOARDING_KEY, "true");
     setShowDeviceModal(false);
-  }, [persistUiPreference]);
+  }, []);
   const handleOpenDiagnosticsModal = useCallback(() => {
     setShowDiagnosticsModal(true);
   }, []);
@@ -2134,25 +2127,6 @@ function App() {
     </section>
   ) : null;
 
-  const editorHint = !connected && !editorHintDismissed ? (
-    <div className="editor-empty-hint" role="status">
-      <Icon name="info" />
-      <span className="editor-empty-hint-text">
-        Offline editing. Connect a DAC to read or write EQ.
-      </span>
-      <button
-        type="button"
-        aria-label="Dismiss hint"
-        onClick={() => {
-          persistUiPreference(EDITOR_HINT_KEY, "true");
-          setEditorHintDismissed(true);
-        }}
-      >
-        <Icon name="close" />
-      </button>
-    </div>
-  ) : null;
-
 
   useEffect(() => {
     if (isReconnecting) {
@@ -2279,7 +2253,6 @@ function App() {
             {activeTab === "eq" && (
               <section className="left-pane">
                 {draftRecovery}
-                {editorHint}
                 {bandControls}
                 <details className="mobile-preamp-details">
                   <summary><span>Preamp</span><span>{peq.global_gain.toFixed(1)} dB <Icon name="expand_more" /></span></summary>
@@ -2425,7 +2398,6 @@ function App() {
             ref={mainScrollRef}
           >
             {draftRecovery}
-            {editorHint}
             {showGraph && (activeTab === "eq" || activeTab === "tuning") && (
             <section className="graph-card">
               {graphElement(activeTab === "eq")}

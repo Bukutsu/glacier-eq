@@ -7,6 +7,7 @@ import {
 } from "../lib/materialYou";
 import { isAndroidDevice, isTauri } from "../lib/platform";
 import { systemThemeName } from "../lib/theme";
+import { writeLocalStorage } from "../lib/safeStorage";
 
 const THEME_BG_COLORS: Record<string, string> = {
   glacier: "#181c20",
@@ -51,7 +52,17 @@ export function useThemeSync(theme: string): string {
     const isAndroid = isAndroidDevice();
 
     const syncSystemBars = () => {
-      if (!active || !isAndroid || !isTauri()) return;
+      if (!active) return;
+      const root = document.documentElement;
+      const style = getComputedStyle(root);
+      writeLocalStorage("glacier-boot-theme", JSON.stringify({
+        preference: theme,
+        theme: root.getAttribute("data-theme"),
+        background: style.getPropertyValue("--bg").trim(),
+        colorScheme: style.colorScheme,
+      }));
+      root.style.removeProperty("--boot-background");
+      if (!isAndroid || !isTauri()) return;
       const dark = getComputedStyle(document.documentElement).colorScheme === "dark";
       void import("../lib/rpc")
         .then(({ invoke }) => invoke("plugin:material-you|set_system_bar_appearance", { dark }))

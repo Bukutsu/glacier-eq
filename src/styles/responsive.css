@@ -1040,18 +1040,6 @@
     padding-inline: 8px;
   }
 
-  .editor-empty-hint {
-    gap: 12px;
-    padding: 12px 16px;
-    font-size: 14px;
-  }
-
-  .editor-empty-hint button {
-    min-width: 44px;
-    min-height: 44px;
-    margin-right: -8px;
-  }
-
   .band-picker-scroll {
     -webkit-overflow-scrolling: touch;
     touch-action: pan-x;
@@ -1215,10 +1203,6 @@ body.is-android *,
   }
   .mobile-graph-tuning .graph-card {
     height: clamp(65px, 15dvh, 90px) !important;
-  }
-  .editor-empty-hint {
-    padding: 6px 12px !important;
-    font-size: 13px !important;
   }
   .band-picker button {
     min-height: 44px !important;

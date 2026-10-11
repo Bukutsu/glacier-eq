@@ -79,7 +79,6 @@
   .app-header .title-line h1 { font-size: 18px; line-height: 1.3; }
   .app-header .header-meta-row { margin-top: 0; }
   .mobile-toolbar .mobile-connect-btn { flex: 0 0 auto; margin-left: auto; }
-  .mobile-workspace .editor-empty-hint { padding: var(--space-2) var(--space-3); font-size: var(--type-small); }
   .mobile-workspace .control-slider { position: relative; }
   .mobile-workspace .control-slider-input { touch-action: pan-y; position: relative; z-index: 1; }
   .mobile-workspace .control-slider-input::-webkit-slider-runnable-track {
