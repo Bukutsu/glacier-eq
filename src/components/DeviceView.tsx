@@ -335,9 +335,8 @@ export const DeviceView = memo(function DeviceView({
   const activeSection = section === "root" ? "overview" : section;
   const sections = connected ? DEVICE_SECTIONS : DEVICE_SECTIONS.filter(item => item.id === "overview");
 
-  return (
-    <ConfigurationLayout kind="device" active={activeSection} sections={sections}>
-      <section className="device-summary" aria-label="Device connection">
+  const deviceSummary = (
+    <section className="device-summary" aria-label="Device connection">
           <div className="device-hero-header">
             <span className={`device-status-badge ${connected ? (isSimulated ? "simulated" : "connected") : "offline"}`}>
               <span className="status-dot" aria-hidden="true" />
@@ -383,6 +382,10 @@ export const DeviceView = memo(function DeviceView({
             )}
           </div>
         </section>
+  );
+
+  return (
+    <ConfigurationLayout kind="device" active={activeSection} root={section === "root"} sections={sections} summary={deviceSummary}>
       <StackHeader
         title={
           activeSection === "overview"

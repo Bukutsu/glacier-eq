@@ -288,7 +288,7 @@ export const SettingsView = memo(function SettingsView({
   }));
 
   return (
-    <ConfigurationLayout kind="settings" active={activeSection} sections={sections}>
+    <ConfigurationLayout kind="settings" active={activeSection} root={section === "root"} sections={sections}>
       <StackHeader
         title={
           activeSection === "general"

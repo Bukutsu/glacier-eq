@@ -2144,19 +2144,6 @@ function App() {
   const mobilePageTitle = activeTab === "eq"
     ? selectedPreset
     : MOBILE_TABS.find((tab) => tab.id === activeTab)?.label ?? selectedPreset;
-  const mobileDeviceMatches = lastPushedPeq ? peqEquals(peq, lastPushedPeq) : null;
-  const mobileSessionLabel = !connected
-    ? "Offline"
-    : isBusy
-      ? "Working…"
-      : isDevDummyDevice(selectedDevice)
-        ? "Simulation: editor only"
-        : mobileDeviceMatches === true
-          ? "DAC matches editor"
-          : mobileDeviceMatches === false
-            ? "DAC changes not written"
-            : "DAC state unknown";
-
   const workspaceHeader = (
         <Header
           inert={isReconnecting ? true : undefined}
@@ -2239,17 +2226,6 @@ function App() {
             </div>
           )}
           <div className="mobile-content-area">
-            {activeTab !== "eq" && (
-              <div
-                className={`mobile-session-status ${connected ? (dirty || mobileDeviceMatches === false ? "dirty" : "ok") : "offline"}`}
-                role="status"
-                aria-label={`Session status: ${mobileSessionLabel}`}
-              >
-                <span className="mobile-session-dot" aria-hidden="true" />
-                <span className="mobile-session-label">{mobileSessionLabel}</span>
-                {connected && deviceName && <span className="mobile-session-device">{deviceName}</span>}
-              </div>
-            )}
             {activeTab === "eq" && (
               <section className="left-pane">
                 {draftRecovery}

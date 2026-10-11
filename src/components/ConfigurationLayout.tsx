@@ -1,17 +1,85 @@
-import type { ReactNode } from "react";
-import { Link } from "react-router";
+import { useEffect, useRef, type ReactNode } from "react";
+import { Link, useLocation, useNavigate } from "react-router";
 import { Icon, type IconName } from "./Icon";
+import { Button } from "./ui/Button";
+import { useIsMobile } from "../hooks/useIsMobile";
 
-type ConfigurationSection = { id: string; label: string; icon: IconName };
+type ConfigurationSection = { id: string; label: string; icon: IconName; description?: string };
 
 export function ConfigurationLayout({
-  kind, active, sections, children,
+  kind, active, root = false, sections, summary, children,
 }: {
   kind: "settings" | "device";
   active: string;
+  root?: boolean;
   sections: readonly ConfigurationSection[];
+  summary?: ReactNode;
   children: ReactNode;
 }) {
+  const mobile = useIsMobile();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const navigationRef = useRef<HTMLElement>(null);
+  const previousSection = useRef<string | null>(null);
+  const title = kind === "device" ? "Device" : "Settings";
+
+  useEffect(() => {
+    if (!mobile) return;
+    if (!root) {
+      previousSection.current = active;
+      return;
+    }
+    const section = previousSection.current;
+    if (section) {
+      navigationRef.current?.querySelector<HTMLElement>(`[data-section="${section}"]`)?.focus();
+      previousSection.current = null;
+    }
+  }, [mobile, root, active]);
+
+  if (mobile) {
+    const groups = kind === "settings" ? [sections.slice(0, 2), sections.slice(2)] : [sections];
+    return (
+      <div className={`configuration-layout configuration-mobile ${kind}-stack-view`}>
+        {root ? (
+          <>
+            <h2 className="configuration-root-title">{title}</h2>
+            {summary && <div className="configuration-content">{summary}</div>}
+            <nav ref={navigationRef} className="configuration-list" aria-label={`${title} sections`}>
+              {groups.filter(group => group.length).map((group, index) => (
+                <div className="configuration-list-group" key={index}>
+                  {group.map(section => (
+                    <Link key={section.id} to={`/${kind}/${section.id}`}
+                      state={{ configurationRoot: kind }}
+                      data-section={section.id} className="configuration-list-row">
+                      <span className="configuration-list-icon"><Icon name={section.icon} /></span>
+                      <span className="configuration-list-copy">
+                        <span className="configuration-list-title">{section.label}</span>
+                        {section.description && <span className="configuration-list-description">{section.description}</span>}
+                      </span>
+                      <Icon name="chevron_right" />
+                    </Link>
+                  ))}
+                </div>
+              ))}
+            </nav>
+          </>
+        ) : (
+          <>
+            <Button variant="ghost" className="configuration-back"
+              onClick={() => {
+                if (location.state?.configurationRoot === kind) navigate(-1);
+                else navigate(`/${kind}`, { replace: true });
+              }}
+              aria-label={`Back to ${title.toLowerCase()}`}>
+              <Icon name="arrow_back" /> {title}
+            </Button>
+            <div className="configuration-content">{children}</div>
+          </>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className={`configuration-layout ${kind}-stack-view`}>
       <nav className={`configuration-navigation ${kind}-navigation`}
@@ -24,7 +92,7 @@ export function ConfigurationLayout({
           </Link>
         ))}
       </nav>
-      <div className="configuration-content">{children}</div>
+      <div className="configuration-content">{summary}{children}</div>
     </div>
   );
 }

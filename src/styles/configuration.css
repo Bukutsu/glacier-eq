@@ -209,6 +209,57 @@
     padding: var(--space-4) max(var(--space-4), var(--safe-area-right, 0px)) var(--space-5) max(var(--space-4), var(--safe-area-left, 0px));
   }
   .configuration-navigation { position: static; flex-direction: row; flex-wrap: wrap; }
+  .configuration-mobile { gap: var(--space-4); }
+  .configuration-root-title { margin: var(--space-2) 0 var(--space-1); font-size: 24px; font-weight: 600; line-height: 1.3; }
+  .configuration-list { display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; }
+  .configuration-list-group {
+    overflow: hidden;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+  }
+  .configuration-list-row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    min-height: 80px;
+    padding: var(--space-4);
+    box-sizing: border-box;
+    color: var(--foreground);
+    text-decoration: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .configuration-list-row + .configuration-list-row::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 64px;
+    right: var(--space-4);
+    border-top: 1px solid var(--border);
+  }
+  .configuration-list-row:active { background: var(--accent); }
+  @media (hover: hover) {
+    .configuration-list-row:hover { background: var(--accent); }
+  }
+  .configuration-list-row:focus-visible { outline: 2px solid var(--ring); outline-offset: -3px; }
+  .configuration-list-icon {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    flex: 0 0 32px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: var(--foreground);
+  }
+  .configuration-list-icon .app-icon { width: 18px; height: 18px; }
+  .configuration-list-copy { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: var(--space-1); }
+  .configuration-list-title { font-size: 15px; line-height: 1.4; font-weight: 500; }
+  .configuration-list-description { color: var(--muted-foreground); font-size: var(--type-small); line-height: 1.4; }
+  .configuration-list-row > .app-icon { width: 16px; height: 16px; flex-shrink: 0; color: var(--muted-foreground); }
+  .configuration-mobile .configuration-back { justify-self: start; margin-left: calc(-1 * var(--space-3)); }
+
   .configuration-nav-link { min-height: 44px; padding: var(--space-2); }
   .configuration-layout .stack-pref-row { gap: var(--space-3); }
   .configuration-layout button[data-slot="button"],

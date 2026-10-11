@@ -1453,49 +1453,6 @@ body.is-android *,
 }
 
 @media (max-width: 850px), ((max-height: 540px) and (pointer: coarse)) {
-  .mobile-session-status {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    min-height: 36px;
-    padding: 0 16px;
-    color: var(--muted);
-    background: var(--bg-dark);
-    border-bottom: 1px solid var(--line-soft);
-    font-size: var(--type-small);
-  }
-  .mobile-session-dot {
-    width: 8px;
-    height: 8px;
-    flex: 0 0 8px;
-    background: var(--comment);
-  }
-  .mobile-session-status.ok .mobile-session-dot {
-    background: var(--sync-ok);
-  }
-  .mobile-session-status.dirty .mobile-session-dot {
-    background: var(--sync-unsaved);
-  }
-  .mobile-session-status.offline .mobile-session-dot {
-    background: var(--comment);
-  }
-  .mobile-session-label {
-    font-weight: 600;
-    white-space: nowrap;
-  }
-  .mobile-session-device {
-    min-width: 0;
-    overflow: hidden;
-    color: var(--muted);
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .mobile-session-device::before {
-    content: "·";
-    margin: 0 6px;
-    color: var(--line-strong);
-  }
-
   .mobile-workspace button,
   .mobile-workspace select,
   .mobile-workspace input:not([type="range"]) {

@@ -601,36 +601,6 @@ button.danger { color: var(--destructive-foreground); background: transparent; o
   color: var(--text);
 }
 
-.dac-filter-toggle {
-  display: inline-flex;
-  background: var(--field-background);
-  border: 1px solid var(--line-soft);
-  border-radius: var(--radius-pill, 0);
-  padding: 1px;
-  gap: 2px;
-}
-
-.dac-filter-tab {
-  background: transparent;
-  border: none;
-  color: var(--muted);
-  font-size: var(--type-micro);
-  font-weight: 600;
-  padding: 2px 8px;
-  border-radius: var(--radius-pill, 0);
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
-}
-
-.dac-filter-tab:hover {
-  color: var(--text);
-}
-
-.dac-filter-tab.active {
-  background: var(--surface-soft, rgba(255, 255, 255, 0.08));
-  color: var(--link-foreground);
-}
-
 .dac-filter-chart-wrapper {
   position: relative;
   width: 100%;

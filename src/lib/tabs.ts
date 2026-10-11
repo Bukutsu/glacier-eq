@@ -4,17 +4,17 @@ export type DeviceSection = "root" | "overview" | "controls" | "maintenance";
 export type SettingsSection = "root" | "general" | "appearance" | "diagnostics" | "about";
 
 export const DEVICE_SECTIONS = [
-  { id: "overview", label: "Overview", icon: "info" },
-  { id: "controls", label: "Controls", icon: "tune" },
-  { id: "maintenance", label: "Maintenance", icon: "build" },
-] as const satisfies ReadonlyArray<{ id: Exclude<DeviceSection, "root">; label: string; icon: string }>;
+  { id: "overview", label: "Overview", icon: "info", description: "Device specifications and EQ limits" },
+  { id: "controls", label: "Controls", icon: "tune", description: "Volume, sound modes, and filter response" },
+  { id: "maintenance", label: "Maintenance", icon: "build", description: "Device utilities and reset options" },
+] as const satisfies ReadonlyArray<{ id: Exclude<DeviceSection, "root">; label: string; icon: string; description: string }>;
 
 export const SETTINGS_SECTIONS = [
-  { id: "general", label: "Behavior & audio", icon: "tune" },
-  { id: "appearance", label: "Interface & theme", icon: "palette" },
-  { id: "diagnostics", label: "Diagnostics & permissions", icon: "bug_report" },
-  { id: "about", label: "About", icon: "info" },
-] as const satisfies ReadonlyArray<{ id: Exclude<SettingsSection, "root">; label: string; icon: string }>;
+  { id: "general", label: "Behavior & audio", icon: "tune", description: "Connection behavior and EQ editing" },
+  { id: "appearance", label: "Interface & theme", icon: "palette", description: "Theme, graph, and display preferences" },
+  { id: "diagnostics", label: "Diagnostics & permissions", icon: "bug_report", description: "Event logs and troubleshooting" },
+  { id: "about", label: "About", icon: "info", description: "App version, project, and licenses" },
+] as const satisfies ReadonlyArray<{ id: Exclude<SettingsSection, "root">; label: string; icon: string; description: string }>;
 
 export const MOBILE_TABS = [
   { id: "eq", icon: "tune", label: "EQ" },

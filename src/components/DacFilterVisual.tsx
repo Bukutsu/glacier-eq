@@ -360,15 +360,21 @@ export const DacFilterVisual = memo(function DacFilterVisual({
             type="button"
             className={`dac-filter-tab ${domain === "time" ? "active" : ""}`}
             onClick={() => setDomain("time")}
+            aria-pressed={domain === "time"}
+            aria-label="Impulse (time)"
+            title="Impulse response over time"
           >
-            Impulse (time)
+            Impulse
           </button>
           <button
             type="button"
             className={`dac-filter-tab ${domain === "freq" ? "active" : ""}`}
             onClick={() => setDomain("freq")}
+            aria-pressed={domain === "freq"}
+            aria-label="Roll-off (frequency)"
+            title="Roll-off across frequency"
           >
-            Roll-off (frequency)
+            Roll-off
           </button>
         </div>
       </div>
