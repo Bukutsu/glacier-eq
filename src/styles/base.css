@@ -1,5 +1,9 @@
 * { box-sizing: border-box; }
 
+/* WebView's tap overlay can highlight an entire clickable ancestor.
+   Use the controls' own pressed states instead; keep focus-visible rings. */
+html { -webkit-tap-highlight-color: transparent; }
+
 /* Android WebView boosts font sizes past the CSS-specified value by default,
    which inflates text and anything sized from it (buttons, steppers, the
    device modal) beyond the layout the stylesheets describe. Opt out. */
@@ -662,7 +666,7 @@ html, body, #root { height: 100%; margin: 0; }
 body {
   overflow: hidden;
   background: var(--bg);
-  -webkit-tap-highlight-color: rgb(var(--cyan-rgb) / 0.18);
+  -webkit-tap-highlight-color: transparent;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;

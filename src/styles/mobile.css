@@ -6,6 +6,13 @@
     min-width: var(--touch-md);
     min-height: var(--touch-md);
   }
+  .mobile-workspace button[data-slot="button"]:active:not(:disabled),
+  .modal-content button[data-slot="button"]:active:not(:disabled),
+  .app-select-trigger:active:not(:disabled),
+  .ui-menu-item:active:not([data-disabled]) {
+    background: var(--accent);
+    color: var(--accent-foreground);
+  }
   .app-select-trigger,
   .app-select-option,
   .ui-menu-item {

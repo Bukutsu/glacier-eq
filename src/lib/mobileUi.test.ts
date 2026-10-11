@@ -1,11 +1,19 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
+const base = readFileSync(new URL("../styles/base.css", import.meta.url), "utf8");
 const mobile = readFileSync(new URL("../styles/mobile.css", import.meta.url), "utf8");
 const app = readFileSync(new URL("../App.tsx", import.meta.url), "utf8");
 const responsive = readFileSync(new URL("../styles/responsive.css", import.meta.url), "utf8");
 
 describe("mobile navigation and touch affordances", () => {
+  it("uses custom pressed feedback instead of WebView tap overlays", () => {
+    expect(base).toContain("html { -webkit-tap-highlight-color: transparent; }");
+    expect(base).not.toContain("-webkit-tap-highlight-color: rgb(");
+    expect(base).toContain("button:focus-visible");
+    expect(mobile).toContain(':active:not(:disabled)');
+    expect(mobile).toContain("background: var(--accent)");
+  });
   it("remembers the current subsection before switching workspace tabs", () => {
     expect(app).toContain("mobileWorkspacePathsRef.current[currentTab] = location.pathname");
     expect(app).toContain("navigate(mobileWorkspacePathsRef.current[id] ?? workspacePath(id))");
