@@ -928,6 +928,12 @@ describe("peqVerificationError", () => {
 });
 
 describe("web settings parser", () => {
+  it("defaults to Tokyo Night without replacing a saved theme", () => {
+    expect(parseWebSettings({}).value.theme).toBe("tokyo-night");
+    expect(parseWebSettings({ theme: "auto" }).value.theme).toBe("auto");
+    expect(parseWebSettings({ theme: "glacier-light" }).value.theme).toBe("glacier-light");
+  });
+
   it("ignores wrong-shaped fields and never enables malformed verification skipping", () => {
     const parsed = parseWebSettings({
       auto_pull_on_connect: false,

@@ -4,7 +4,6 @@ import { HashRouter } from "react-router";
 import App from "./App";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { isTauri } from "./lib/platform";
-import { systemThemeName } from "./lib/theme";
 import "./styles/index.css";
 
 // Detect Android platform
@@ -14,14 +13,7 @@ if (isAndroid) {
   document.body.classList.add("is-android");
 }
 
-// Pre-set system theme to prevent flash on cold launch
-if (typeof window !== "undefined" && window.matchMedia && !document.documentElement.getAttribute("data-theme")) {
-  const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-  document.documentElement.setAttribute(
-    "data-theme",
-    isAndroid ? "material-you" : systemThemeName(isDark),
-  );
-}
+// index.html and boot-theme.js paint the default or cached theme before React.
 
 // Disable default browser context menus and shortcuts in production for a native feel
 if (import.meta.env.PROD) {

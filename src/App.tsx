@@ -36,7 +36,7 @@ import {
   isDevDummyDevice,
 } from "./lib/devDevice";
 import { buildDefaultState, DEFAULT_PROFILE_NAME, extractPushWarnings, normalizePeq, normalizePeqForDevice, parseStoredPeqResponse, peqEquals } from "./lib/peq";
-import { isAndroidDevice, isTauri } from "./lib/platform";
+import { isTauri } from "./lib/platform";
 import { isDisconnectionError } from "./lib/errors";
 import {
   asyncContextEquals,
@@ -93,7 +93,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   auto_pull_on_connect: true,
   skip_push_verification: false,
   // Material You is the default on Android; everywhere else follows Auto.
-  theme: readBootTheme() ?? (isAndroidDevice() ? "material-you" : "auto"),
+  theme: readBootTheme() ?? "tokyo-night",
   snap_to_iso_frequencies: true,
   floating_graph_preview: true,
 };

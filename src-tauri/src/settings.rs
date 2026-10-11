@@ -12,11 +12,7 @@ use std::sync::{Mutex, OnceLock};
 use fs2::FileExt;
 
 fn default_theme() -> String {
-    // Material You is the default on Android; everywhere else follows Auto.
-    #[cfg(target_os = "android")]
-    return "material-you".to_string();
-    #[cfg(not(target_os = "android"))]
-    return "auto".to_string();
+    "tokyo-night".to_string()
 }
 
 /// Must match the themes offered by the settings UI (and the web parser).
@@ -364,6 +360,15 @@ fn save_settings_sync(path: &Path, settings: &Settings) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn tokyo_night_is_default_without_overriding_saved_themes() {
+        assert_eq!(Settings::default().theme, "tokyo-night");
+        let missing: Settings = serde_json::from_str("{}").unwrap();
+        assert_eq!(missing.theme, "tokyo-night");
+        let saved: Settings = serde_json::from_str(r#"{"theme":"material-you"}"#).unwrap();
+        assert_eq!(saved.theme, "material-you");
+    }
 
     #[test]
     fn unknown_settings_keys_survive_a_get_save_round_trip() {

@@ -42,6 +42,9 @@ describe("minimal startup", () => {
   });
   it("uses a logo-only boot shell without onboarding or visible loading text", () => {
     const html = readFileSync(new URL("../../index.html", import.meta.url), "utf8");
+    expect(html).toContain('data-theme="tokyo-night"');
+    expect(html).toContain('content="#20212b"');
+    expect(app).toContain('theme: readBootTheme() ?? "tokyo-night"');
     expect(html).toContain('id="boot-shell"');
     expect(html).toContain('src="/src/bootstrap.ts"');
     expect(html).toContain('boot-theme.js');

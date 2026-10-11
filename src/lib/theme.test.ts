@@ -17,10 +17,12 @@ describe("Glacier system appearance", () => {
     }
   });
 
-  it("uses the same resolver before and after React mounts", () => {
+  it("keeps Auto explicit while startup uses the default or cached theme", () => {
     const main = readFileSync(new URL("../main.tsx", import.meta.url), "utf8");
     const hook = readFileSync(new URL("../hooks/useThemeSync.ts", import.meta.url), "utf8");
-    expect(main).toContain("systemThemeName(isDark)");
+    expect(main).not.toContain("systemThemeName(isDark)");
+    const html = readFileSync(new URL("../../index.html", import.meta.url), "utf8");
+    expect(html).toContain('data-theme="tokyo-night"');
     expect(hook.match(/systemThemeName\(/g)).toHaveLength(3);
     // Named Tokyo Night remains available, but is no longer the Auto fallback.
     expect(hook).not.toContain('resolved = prefersDark ? "glacier" : "tokyo-night-day"');
