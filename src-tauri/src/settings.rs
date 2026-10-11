@@ -23,6 +23,7 @@ fn default_theme() -> String {
 const KNOWN_THEMES: &[&str] = &[
     "auto",
     "glacier",
+    "glacier-light",
     "tokyo-night",
     "tokyo-night-storm",
     "tokyo-night-day",

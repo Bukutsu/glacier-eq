@@ -14,6 +14,7 @@ import { invoke, readText, writeText, save } from "../lib/rpc";
 import { profileIdentityKey } from "../lib/profileIdentity";
 import { decodeUtf8 } from "../lib/utf8";
 import { fuzzyMatch } from "../lib/search";
+import { isTauri } from "../lib/platform";
 import { DEFAULT_PROFILE_NAME } from "../lib/peq";
 import {
   parseAutoEqResult,
@@ -82,6 +83,8 @@ export const ProfilesView = memo(function ProfilesView({
   const [importName, setImportName] = useState("");
   const [isTemporary, setIsTemporary] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [manualPaste, setManualPaste] = useState<string | null>(null);
+  const [isParsingPaste, setIsParsingPaste] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const parseRequestRef = useRef(0);
@@ -189,6 +192,7 @@ export const ProfilesView = memo(function ProfilesView({
       if (request !== parseRequestRef.current) return;
       const result = parseAutoEqResult(rawResult);
       invalidateModalOperation();
+      setManualPaste(null);
       setParsed(result);
       const initialName =
         result.headphone_name || defaultNameFallback || "Imported Profile";
@@ -214,8 +218,12 @@ export const ProfilesView = memo(function ProfilesView({
       );
     } catch (err) {
       if (request === parseRequestRef.current) {
-        setStatus(`Could not read clipboard: ${err}`);
-        console.error(err);
+        if (!isTauri()) {
+          setManualPaste("");
+        } else {
+          setStatus(`Could not read clipboard: ${err}`);
+          console.error(err);
+        }
       }
     }
   };
@@ -526,6 +534,34 @@ export const ProfilesView = memo(function ProfilesView({
 
       <input className="hidden-file-input" type="file" ref={fileInputRef} accept=".txt" onChange={handleFileChange} />
 
+      {manualPaste !== null && (
+        <Modal title="Paste EQ" className="profiles-import-dialog" closeDisabled={isParsingPaste}
+          onClose={() => { parseRequestRef.current += 1; setManualPaste(null); }}>
+          <form className="modal-body" onSubmit={async event => {
+            event.preventDefault();
+            if (isParsingPaste || !manualPaste.trim()) return;
+            const request = ++parseRequestRef.current;
+            setIsParsingPaste(true);
+            try {
+              await parseAndLoadText(manualPaste, "Pasted EQ", request);
+            } finally {
+              if (mountedRef.current) setIsParsingPaste(false);
+            }
+          }}>
+            <p className="profiles-note">Your browser could not read the clipboard. Paste your AutoEQ text below to preview it.</p>
+            <label htmlFor="manual-eq-text">EQ text</label>
+            <textarea id="manual-eq-text" className="profiles-paste-text" data-dialog-autofocus
+              rows={8} maxLength={1_048_576} spellCheck={false} value={manualPaste}
+              disabled={isParsingPaste} onChange={event => setManualPaste(event.target.value)} />
+            <div className="modal-actions">
+              <Button variant="ghost" disabled={isParsingPaste} onClick={() => { parseRequestRef.current += 1; setManualPaste(null); }}>Cancel</Button>
+              <Button type="submit" variant="primary" disabled={isParsingPaste || !manualPaste.trim()}>
+                {isParsingPaste ? "Parsing…" : "Preview import"}
+              </Button>
+            </div>
+          </form>
+        </Modal>
+      )}
       {parsed && (
         <Modal title="Import profile" className="profiles-import-dialog" onClose={handleCancelImport} closeDisabled={isSubmitting}>
           <div className="modal-body">

@@ -17,8 +17,9 @@ function ToastMessage({ toast, announce = false }: { toast: Toast; announce?: bo
   );
 }
 
-export function ToastContainer() {
-  const toasts = useToastStore(s => s.toasts);
+export function ToastContainer({ errorsOnly = false }: { errorsOnly?: boolean } = {}) {
+  const allToasts = useToastStore(s => s.toasts);
+  const toasts = errorsOnly ? allToasts.filter(toast => toast.type === "error") : allToasts;
   const removeToast = useToastStore(s => s.removeToast);
   const pauseToast = useToastStore(s => s.pauseToast);
   const resumeToast = useToastStore(s => s.resumeToast);
@@ -48,10 +49,10 @@ export function ToastContainer() {
     }
   }, [toasts.length]);
 
-  if (!current) return <div className="toast-slot" />;
+  if (!current) return errorsOnly ? null : <div className="toast-slot" />;
 
   return (
-    <div className="toast-slot has-toast">
+    <div className={`toast-slot has-toast${errorsOnly ? " error-feedback" : ""}`}>
       <section className={`toast-container${expanded || showEarlier ? " expanded" : ""}`} aria-label="Status messages"
         onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
         onFocusCapture={() => setFocused(true)}

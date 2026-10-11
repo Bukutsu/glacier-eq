@@ -102,3 +102,26 @@
   .toast-earlier { min-width: var(--touch-md); }
   .toast-slot { height: 44px; }
 }
+
+/* Errors stay visible; routine success/info remains in Diagnostics. */
+#app > .error-feedback {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  bottom: calc(var(--tabbar-h, 0px) + var(--safe-area-bottom, 0px) + 16px);
+  width: auto;
+  height: auto;
+  z-index: var(--z-toast);
+}
+.error-feedback {
+  flex: 0 0 auto;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--control-radius);
+  background: var(--popover);
+  color: var(--popover-foreground);
+}
+.error-feedback .toast-summary .toast-message { white-space: normal; }
+.error-feedback .toast-container.expanded { position: static; width: 100%; padding: 0; border: 0; }
+body:has(dialog[open]) #app > .error-feedback { display: none; }
+.modal-content > .error-feedback { width: auto; height: auto; margin: 8px 16px 16px; max-height: 25dvh; overflow-y: auto; }

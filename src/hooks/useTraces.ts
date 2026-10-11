@@ -327,11 +327,8 @@ export function useTraces(notify?: NotifyFn) {
       parsedActiveIds.malformed,
       forwardNotify,
     );
-    setActiveTargetIds(
-      savedActiveIds.raw === null && BUILTIN_TARGETS.length > 0
-        ? [BUILTIN_TARGETS[0].id]
-        : parsedActiveIds.value,
-    );
+    // Fresh installs start with a clean graph; saved selections are retained.
+    setActiveTargetIds(parsedActiveIds.value);
     setTargetsHydrated(true);
   }, []);
 

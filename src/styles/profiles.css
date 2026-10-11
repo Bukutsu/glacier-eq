@@ -281,3 +281,12 @@
 @media (pointer: coarse) {
   .profiles-item > button { min-width: 44px; }
 }
+
+.profiles-paste-text {
+  width: 100%; min-width: 0; resize: vertical; max-height: 40dvh;
+  padding: 12px; border: 1px solid var(--input);
+  border-radius: var(--control-radius); color: var(--foreground);
+  background: var(--field-background); font-family: var(--font-mono);
+  font-size: 16px; line-height: 1.5;
+}
+.profiles-paste-text:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }

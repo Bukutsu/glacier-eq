@@ -6,16 +6,23 @@ import { useToastStore, type Toast } from "../stores/toastStore";
 
 vi.mock("../stores/toastStore", () => ({ useToastStore: vi.fn() }));
 
-function render(toasts: Toast[]) {
+function render(toasts: Toast[], errorsOnly = false) {
   const state = {
     toasts, removeToast: vi.fn(), pauseToast: vi.fn(), resumeToast: vi.fn(),
   };
   vi.mocked(useToastStore).mockImplementation((selector: any) => selector(state));
-  return renderToStaticMarkup(createElement(ToastContainer));
+  return renderToStaticMarkup(createElement(ToastContainer, { errorsOnly }));
 }
 
 describe("Toasts", () => {
   beforeEach(() => vi.clearAllMocks());
+
+  it("shows errors without bringing back routine notifications", () => {
+    expect(render([{ id: "info", message: "Saved", type: "success" }], true)).toBe("");
+    const html = render([{ id: "error", message: "Failed to save", type: "error" }], true);
+    expect(html).toContain("error-feedback");
+    expect(html).toContain('role="alert"');
+  });
 
   it("reserves the notification slot when there is no feedback", () => {
     expect(render([])).toBe('<div class="toast-slot"></div>');
