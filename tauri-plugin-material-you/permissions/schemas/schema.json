@@ -307,6 +307,18 @@
           "markdownDescription": "Denies the get_dynamic_colors command without any pre-configured scope."
         },
         {
+          "description": "Enables the release_startup_splash command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-release-startup-splash",
+          "markdownDescription": "Enables the release_startup_splash command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the release_startup_splash command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-release-startup-splash",
+          "markdownDescription": "Denies the release_startup_splash command without any pre-configured scope."
+        },
+        {
           "description": "Enables the set_system_bar_appearance command without any pre-configured scope.",
           "type": "string",
           "const": "allow-set-system-bar-appearance",

@@ -42,6 +42,7 @@
       html, body, #root { height: 100%; margin: 0; background: var(--boot-background, var(--bg, #20212b)); }
       #boot-shell { height: 100%; display: grid; place-items: center; }
       #boot-shell img { width: 64px; height: 64px; }
+      html.native-android-boot #boot-shell img { display: none; }
       #boot-error { height: 100%; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 24px; color: var(--text, #a5b0b9); font-family: system-ui, sans-serif; text-align: center; }
       #boot-error h1 { font-size: 18px; margin: 0; }
       #boot-error p { margin: 0; max-width: 320px; }

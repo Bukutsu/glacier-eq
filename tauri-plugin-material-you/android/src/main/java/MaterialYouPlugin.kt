@@ -68,6 +68,19 @@ class SystemBarAppearanceArgs {
 @TauriPlugin
 class MaterialYouPlugin(private val activity: Activity) : Plugin(activity) {
     @Command
+    fun releaseStartupSplash(invoke: Invoke) {
+        activity.runOnUiThread {
+            val handoff = activity as? StartupHandoff
+            if (handoff == null) {
+                invoke.reject("Activity does not support startup handoff; run android:prepare")
+                return@runOnUiThread
+            }
+            handoff.releaseStartupSplash()
+            invoke.resolve()
+        }
+    }
+
+    @Command
     fun setSystemBarAppearance(invoke: Invoke) {
         val dark = invoke.parseArgs(SystemBarAppearanceArgs::class.java).dark ?: run {
             invoke.reject("System bar appearance requires a dark boolean")

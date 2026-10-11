@@ -40,6 +40,32 @@ Denies the get_dynamic_colors command without any pre-configured scope.
 <tr>
 <td>
 
+`material-you:allow-release-startup-splash`
+
+</td>
+<td>
+
+Enables the release_startup_splash command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`material-you:deny-release-startup-splash`
+
+</td>
+<td>
+
+Denies the release_startup_splash command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `material-you:allow-set-system-bar-appearance`
 
 </td>

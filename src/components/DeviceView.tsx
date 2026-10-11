@@ -333,6 +333,8 @@ export const DeviceView = memo(function DeviceView({
   };
 
   const activeSection = section === "root" ? "overview" : section;
+  const sectionTitle = activeSection === "overview" ? (connected ? "Specifications" : "Offline specifications")
+    : activeSection === "controls" ? "Sound controls" : "Reset & maintenance";
   const sections = connected ? DEVICE_SECTIONS : DEVICE_SECTIONS.filter(item => item.id === "overview");
 
   const deviceSummary = (
@@ -385,18 +387,12 @@ export const DeviceView = memo(function DeviceView({
   );
 
   return (
-    <ConfigurationLayout kind="device" active={activeSection} root={section === "root"} sections={sections} summary={deviceSummary}>
-      <StackHeader
-        title={
-          activeSection === "overview"
-            ? connected
-              ? "Specifications"
-              : "Offline specifications"
-            : activeSection === "controls"
-              ? "Sound controls"
-              : "Reset & maintenance"
-        }
-      />
+    <ConfigurationLayout kind="device" active={activeSection} root={section === "root"} sections={sections} summary={deviceSummary}
+      sectionTitle={sectionTitle} sectionValues={{
+        overview: `${capabilities.num_bands} bands · ${dspKhz} kHz`,
+        controls: utility?.supported ? `${utility.high_gain_mode ? "High" : "Low"} gain · ${utility.filter_mode}` : undefined,
+      }}>
+      <StackHeader title={sectionTitle} />
 
       {activeSection === "controls" && connected && !isSimulated && (
         <p className="configuration-description">Changes apply directly to the connected DAC.</p>

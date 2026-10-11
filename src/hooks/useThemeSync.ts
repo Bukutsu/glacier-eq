@@ -13,9 +13,9 @@ const THEME_BG_COLORS: Record<string, string> = {
   glacier: "#181c20",
   "glacier-light": "#f3f5f6",
   "material-you": "#181920",
-  "tokyo-night": "#1a1b26",
-  "tokyo-night-storm": "#24283b",
-  "tokyo-night-day": "#e1e2e7",
+  "tokyo-night": "#20212b",
+  "tokyo-night-storm": "#282b35",
+  "tokyo-night-day": "#e6e7ed",
   nord: "#2e3440",
   dracula: "#191a21",
   gruvbox: "#282828",
@@ -43,7 +43,7 @@ function getInitialTheme(theme: string): string {
   return "glacier";
 }
 
-export function useThemeSync(theme: string): string {
+export function useThemeSync(theme: string, appearanceReady = true): string {
   const [resolvedTheme, setResolvedTheme] = useState(() => getInitialTheme(theme));
 
   useEffect(() => {
@@ -58,14 +58,22 @@ export function useThemeSync(theme: string): string {
       writeLocalStorage("glacier-boot-theme", JSON.stringify({
         preference: theme,
         theme: root.getAttribute("data-theme"),
-        background: style.getPropertyValue("--bg").trim(),
+        background: style.getPropertyValue("--background").trim() || style.getPropertyValue("--bg").trim(),
         colorScheme: style.colorScheme,
       }));
       root.style.removeProperty("--boot-background");
       if (!isAndroid || !isTauri()) return;
       const dark = getComputedStyle(document.documentElement).colorScheme === "dark";
       void import("../lib/rpc")
-        .then(({ invoke }) => invoke("plugin:material-you|set_system_bar_appearance", { dark }))
+        .then(async ({ invoke }) => {
+          try {
+            await invoke("plugin:material-you|set_system_bar_appearance", { dark });
+          } finally {
+            // React has committed the editor and essential preferences are ready.
+            // Release even if system-bar sync fails; the native deadline also fails open.
+            if (active && appearanceReady) await invoke("plugin:material-you|release_startup_splash");
+          }
+        })
         .catch(error => console.error("Failed to sync Android system bars:", error));
     };
 
@@ -200,7 +208,7 @@ export function useThemeSync(theme: string): string {
       active = false;
       cleanups.forEach((cleanup) => cleanup());
     };
-  }, [theme]);
+  }, [theme, appearanceReady]);
 
   return resolvedTheme;
 }

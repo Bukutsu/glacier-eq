@@ -1,0 +1,18 @@
+/* Native radios retain arrow-key selection and explicit checked state. */
+.theme-picker { margin: 0; padding: var(--space-4); border: 0; min-width: 0; }
+.theme-picker legend { float: left; width: 100%; padding: 0; margin-bottom: var(--space-3); font-size: var(--type-label); font-weight: 500; }
+.theme-picker-options { clear: both; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
+.theme-picker-option { position: relative; display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2); min-height: 64px; box-sizing: border-box; border: 1px solid var(--border); border-radius: var(--control-radius); cursor: pointer; }
+.theme-picker-option input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.theme-picker-option:has(input:checked) { border-color: var(--ring); background: var(--accent); }
+.theme-picker-option:has(input:focus-visible) { outline: 2px solid var(--ring); outline-offset: 2px; }
+.theme-picker-option:active { background: var(--accent); }
+.theme-picker-label { flex: 1; min-width: 0; font-size: var(--type-small); line-height: 1.4; overflow-wrap: anywhere; }
+.theme-picker-check { width: 14px; height: 14px; flex-shrink: 0; visibility: hidden; }
+.theme-picker-option:has(input:checked) .theme-picker-check { visibility: visible; }
+.theme-swatch { display: flex; flex-direction: column; justify-content: center; gap: 4px; padding: 6px; width: 34px; height: 30px; box-sizing: border-box; border: 1px solid var(--border); border-radius: 4px; flex-shrink: 0; }
+.theme-swatch > span { height: 3px; border-radius: 1px; }
+.theme-swatch > span:last-child { width: 65%; }
+.theme-swatch-system { align-items: center; background: var(--background); }
+.theme-swatch-system .app-icon { width: 18px; height: 18px; }
+@media (max-width: 360px) { .theme-picker-option { flex-wrap: wrap; } .theme-picker-label { flex-basis: calc(100% - 24px); order: 1; } }

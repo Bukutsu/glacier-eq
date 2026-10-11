@@ -7,12 +7,14 @@ import { useIsMobile } from "../hooks/useIsMobile";
 type ConfigurationSection = { id: string; label: string; icon: IconName; description?: string };
 
 export function ConfigurationLayout({
-  kind, active, root = false, sections, summary, children,
+  kind, active, root = false, sections, sectionValues, sectionTitle, summary, children,
 }: {
   kind: "settings" | "device";
   active: string;
   root?: boolean;
   sections: readonly ConfigurationSection[];
+  sectionValues?: Readonly<Record<string, string | undefined>>;
+  sectionTitle?: string;
   summary?: ReactNode;
   children: ReactNode;
 }) {
@@ -54,7 +56,9 @@ export function ConfigurationLayout({
                       <span className="configuration-list-icon"><Icon name={section.icon} /></span>
                       <span className="configuration-list-copy">
                         <span className="configuration-list-title">{section.label}</span>
-                        {section.description && <span className="configuration-list-description">{section.description}</span>}
+                        {(sectionValues?.[section.id] || section.description) && (
+                          <span className="configuration-list-description">{sectionValues?.[section.id] || section.description}</span>
+                        )}
                       </span>
                       <Icon name="chevron_right" />
                     </Link>
@@ -65,14 +69,17 @@ export function ConfigurationLayout({
           </>
         ) : (
           <>
-            <Button variant="ghost" className="configuration-back"
-              onClick={() => {
-                if (location.state?.configurationRoot === kind) navigate(-1);
-                else navigate(`/${kind}`, { replace: true });
-              }}
-              aria-label={`Back to ${title.toLowerCase()}`}>
-              <Icon name="arrow_back" /> {title}
-            </Button>
+            <header className="configuration-subsection-header">
+              <Button variant="ghost" className="configuration-back"
+                onClick={() => {
+                  if (location.state?.configurationRoot === kind) navigate(-1);
+                  else navigate(`/${kind}`, { replace: true });
+                }}
+                aria-label={`Back to ${title.toLowerCase()}`}>
+                <Icon name="arrow_back" />
+              </Button>
+              <h2>{sectionTitle ?? sections.find(section => section.id === active)?.label ?? title}</h2>
+            </header>
             <div className="configuration-content">{children}</div>
           </>
         )}

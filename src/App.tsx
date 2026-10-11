@@ -207,7 +207,8 @@ function App() {
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const theme = settings.theme;
   const snapToIso = settings.snap_to_iso_frequencies;
-  const resolvedTheme = useThemeSync(theme);
+  const [appearanceReady, setAppearanceReady] = useState(false);
+  const resolvedTheme = useThemeSync(theme, appearanceReady);
 
   const [peq, setPeq] = useState<PEQData>(buildDefaultState);
   const [devices, setDevices] = useState<DeviceInfo[]>([]);
@@ -331,7 +332,8 @@ function App() {
   }, [settingsPersistence]);
 
   useEffect(() => {
-    void settingsPersistence.load();
+    // Essential appearance only; DAC discovery and network work never hold launch.
+    void settingsPersistence.load().finally(() => setAppearanceReady(true));
   }, [settingsPersistence]);
 
   const {
@@ -2089,6 +2091,7 @@ function App() {
       range={capabilities.global_gain_range}
       integerMode={capabilities.integer_preamp}
       onStartChange={handlePreampStartChange}
+      onEndChange={handleEndChange}
       onChange={handlePreampChange}
       disabled={isBusy || eqOperationInFlightRef.current || recoveryPending}
     />

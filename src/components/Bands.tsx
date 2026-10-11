@@ -370,6 +370,12 @@ const BandControls = memo(function BandControls({
   capabilities,
   snapToIso,
 }: BandControlsProps) {
+  const gestureFilter = useRef(filter);
+  const startSliderChange = () => {
+    gestureFilter.current = filter;
+    onStartChange();
+  };
+
   const typeControl = (
     <label className="band-field band-type-field">
       <span className="band-field-label">Filter</span>
@@ -400,8 +406,9 @@ const BandControls = memo(function BandControls({
           aria-valuemax={capabilities.q_range[1]}
           aria-valuenow={filter.q}
           aria-valuetext={`Q ${filter.q.toFixed(2)}`}
-          onStartChange={onStartChange}
+          onStartChange={startSliderChange}
           onEndChange={onEndChange}
+          onCancelChange={() => onChange(filter.index, { ...filter, q: gestureFilter.current.q })}
           onReset={committedFilter ? () => onChange(filter.index, { ...filter, q: clampToRange(committedFilter.q, capabilities.q_range) }) : undefined}
           onFocus={() => onActivate?.(filter.index)}
           onChange={(event) => onChange(filter.index, { ...filter, q: sliderToQ(+event.target.value, capabilities.q_range) })}
@@ -441,8 +448,9 @@ const BandControls = memo(function BandControls({
           aria-valuemax={capabilities.freq_range[1]}
           aria-valuenow={filter.freq}
           aria-valuetext={`${filter.freq} Hz`}
-          onStartChange={onStartChange}
+          onStartChange={startSliderChange}
           onEndChange={onEndChange}
+          onCancelChange={() => onChange(filter.index, { ...filter, freq: gestureFilter.current.freq })}
           onReset={committedFilter ? () => onChange(filter.index, { ...filter, freq: constrainFreq(committedFilter.freq, capabilities.freq_range, snapToIso) }) : undefined}
           onFocus={() => onActivate?.(filter.index)}
           onChange={(event) => {
@@ -481,8 +489,9 @@ const BandControls = memo(function BandControls({
           step={0.01}
           value={clampToRange(filter.gain, capabilities.band_gain_range)}
           aria-valuetext={`${filter.gain >= 0 ? "+" : ""}${filter.gain.toFixed(2)} dB`}
-          onStartChange={onStartChange}
+          onStartChange={startSliderChange}
           onEndChange={onEndChange}
+          onCancelChange={() => onChange(filter.index, { ...filter, gain: gestureFilter.current.gain })}
           onReset={committedFilter ? () => onChange(filter.index, { ...filter, gain: clampToRange(committedFilter.gain, capabilities.band_gain_range) }) : undefined}
           onFocus={() => onActivate?.(filter.index)}
           onChange={(event) => onChange(filter.index, { ...filter, gain: +event.target.value })}

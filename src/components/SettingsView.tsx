@@ -17,6 +17,8 @@ import {
 import { invoke } from "../lib/rpc";
 import { isAndroidDevice, isLinux, isTauri } from "../lib/platform";
 import { themeOptions } from "../lib/theme";
+import { ThemePicker } from "./ThemePicker";
+import { useIsMobile } from "../hooks/useIsMobile";
 import { LinuxUdevGuide, UDEV_INSTALL_COMMAND } from "./LinuxUdevGuide";
 import type { SettingsSection } from "../lib/tabs";
 import type { AppSettings, GraphViewMode } from "../types";
@@ -281,15 +283,24 @@ export const SettingsView = memo(function SettingsView({
   setStatus,
   onUdevInstalled,
 }: SettingsViewProps) {
+  const mobile = useIsMobile();
   const activeSection = section === "root" ? "general" : section;
+  const sectionTitle = activeSection === "general" ? "General"
+    : activeSection === "appearance" ? "Appearance"
+    : activeSection === "diagnostics" ? "Diagnostics" : "About";
+  const sectionValues = {
+    general: `Auto-read ${settings.auto_pull_on_connect ? "on" : "off"} · Verification ${settings.skip_push_verification ? "off" : "on"}`,
+    appearance: THEME_OPTIONS.find(option => option.value === settings.theme)?.label,
+  };
   const sections = SETTINGS_SECTIONS.map(item => ({
     ...item,
     label: item.id === "general" ? "General" : item.id === "appearance" ? "Appearance" : item.id === "diagnostics" ? "Diagnostics" : item.label,
   }));
 
   return (
-    <ConfigurationLayout kind="settings" active={activeSection} root={section === "root"} sections={sections}>
-      <StackHeader
+    <ConfigurationLayout kind="settings" active={activeSection} root={section === "root"} sections={sections}
+      sectionValues={sectionValues} sectionTitle={sectionTitle}>
+      {!mobile && <StackHeader
         title={
           activeSection === "general"
             ? "Behavior & audio"
@@ -299,7 +310,7 @@ export const SettingsView = memo(function SettingsView({
                 ? "Diagnostics & permissions"
                 : "About"
         }
-      />
+      />}
 
       <p className="configuration-description">Settings are saved automatically on this device.</p>
       <div className="stack-content">
@@ -346,14 +357,15 @@ export const SettingsView = memo(function SettingsView({
 
         {activeSection === "appearance" && (
           <div className="stack-card">
-            <SelectRow<AppSettings["theme"]>
+            {mobile ? <ThemePicker value={settings.theme} options={THEME_OPTIONS}
+              onChange={value => onSettingChange("theme", value)} /> : <SelectRow<AppSettings["theme"]>
               id="theme-select"
               title="Color theme"
               desc="Select the app color scheme"
               value={settings.theme}
               options={THEME_OPTIONS}
               onChange={(val) => onSettingChange("theme", val)}
-            />
+            />}
 
             {graphViewMode && onGraphViewModeChange && (
               <div className="stack-pref-row select-row">

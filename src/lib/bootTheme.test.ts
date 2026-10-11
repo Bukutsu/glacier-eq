@@ -35,6 +35,19 @@ describe("boot theme", () => {
       localStorage: { getItem: () => { throw new Error("blocked"); } },
     })).not.toThrow();
   });
+  it.each([
+    ["Android", true, true], ["Android", false, false], ["Linux", true, false],
+  ])("suppresses the web logo only in native Android (%s, native=%s)", (userAgent, native, expected) => {
+    const add = vi.fn();
+    runInNewContext(script, {
+      window: native ? { __TAURI_INTERNALS__: {} } : {},
+      navigator: { userAgent },
+      localStorage: { getItem: () => null },
+      document: { documentElement: { classList: { add } } },
+    });
+    expect(add).toHaveBeenCalledTimes(expected ? 1 : 0);
+    if (expected) expect(add).toHaveBeenCalledWith("native-android-boot");
+  });
   it("uses only supported preferences as provisional settings", () => {
     let value = JSON.stringify(cache);
     vi.stubGlobal("window", { localStorage: { getItem: () => value } });

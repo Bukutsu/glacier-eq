@@ -95,10 +95,12 @@ tests; emulator and dummy-device results do not verify USB transport.
 
 - Upgrade from the previous signed release without uninstalling. Check saved
   profiles, theme, target selections, and settings. A fresh install should
-  have no target curves selected.
+  have no target curves selected. Relaunch with a saved light theme and check
+  that the editor uses it immediately, without a second logo screen.
 - Enter negative gain and preamp values with both decimal points and commas.
   Check frequency, Q, profile naming, and search with the keyboard open.
-  Invalid numeric text must not be partially parsed.
+  Invalid numeric text must not be partially parsed. A blank-area tap should
+  close the keyboard; scrolling should not. Buttons should work on the first tap.
 - Edit EQ offline, background the app, then force-stop it. Relaunch, restore
   the unfinished EQ, and check Undo. Also test Discard. Recovery must never
   automatically connect to or write to a DAC.
@@ -107,6 +109,8 @@ tests; emulator and dummy-device results do not verify USB transport.
   focus returns to its opener. Repeat after rotation.
 - Swipe vertically from a slider thumb and from the space beside it. Check
   for accidental adjustments and verify that Undo reverses any change.
+  Also release a drag outside its slider and cancel a gesture. One Undo should
+  reverse a completed drag; cancellation should restore its starting value.
   Test this on a physical phone before changing native slider gestures.
 - With a real DAC, background/resume while connected and unplug during read,
   apply, verification, and disconnect. Check that errors are visible, stale

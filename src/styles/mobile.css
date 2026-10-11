@@ -3,6 +3,9 @@
 /* Mobile affordances follow the layout breakpoint, not just the primary
    pointer type: small windows and hybrid devices need usable targets too. */
 @media (max-width: 850px), ((max-height: 540px) and (pointer: coarse)) {
+  .configuration-layout .graph-mode-option,
+  .dac-filter-toggle > .dac-filter-tab,
+  .tuning-segmented > button[data-slot="button"] { min-height: 48px; }
   .mobile-workspace button[data-slot="button"],
   .modal-content button[data-slot="button"] {
     min-width: var(--touch-md);

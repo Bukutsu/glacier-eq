@@ -1,6 +1,10 @@
 // Restore the last painted theme before the application bundle loads.
 (() => {
   try {
+    if (typeof window !== "undefined" && "__TAURI_INTERNALS__" in window
+      && typeof navigator !== "undefined" && /android/i.test(navigator.userAgent)) {
+      document.documentElement.classList.add("native-android-boot");
+    }
     const raw = localStorage.getItem("glacier-boot-theme");
     if (!raw || raw.length > 2048) return;
     const cached = JSON.parse(raw);

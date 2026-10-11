@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -32,6 +32,22 @@ const releaseRequested = process.argv.includes("--release");
 const signingProperties = join(androidRoot, "app", "keystore.properties");
 const signingKeystore = join(androidRoot, "app", "glacier-eq.keystore");
 
+function applyAndroidOverlay() {
+  const sourceRoot = join(root, "scripts", "android");
+  const mainRoot = join(androidRoot, "app", "src", "main");
+  const overlays = [
+    ["MainActivity.kt", join(mainRoot, "java", "com", "bukutsu", "glaciereq", "MainActivity.kt")],
+    ["themes.xml", join(mainRoot, "res", "values", "themes.xml")],
+    ["themes.xml", join(mainRoot, "res", "values-night", "themes.xml")],
+  ];
+  for (const [source, target] of overlays) {
+    const content = readFileSync(join(sourceRoot, source));
+    if (existsSync(target) && readFileSync(target).equals(content)) continue;
+    mkdirSync(dirname(target), { recursive: true });
+    writeFileSync(target, content);
+  }
+}
+
 function requireReleaseSigning() {
   if (!releaseRequested) return;
   if (!existsSync(signingProperties) || !existsSync(signingKeystore)) {
@@ -46,6 +62,7 @@ if (
   entrypoints.every((path) => existsSync(path))
   && generatedIncludes.every((path) => existsSync(path))
 ) {
+  applyAndroidOverlay();
   requireReleaseSigning();
   process.exit(0);
 }
@@ -67,4 +84,5 @@ if (!entrypoints.every((path) => existsSync(path))) {
   console.error("Android project initialization did not produce the Gradle project entrypoints.");
   process.exit(1);
 }
+applyAndroidOverlay();
 requireReleaseSigning();

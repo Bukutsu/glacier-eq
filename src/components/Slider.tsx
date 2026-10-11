@@ -1,4 +1,4 @@
-import React, { CSSProperties, InputHTMLAttributes } from "react";
+import React, { CSSProperties, InputHTMLAttributes, useEffect, useRef } from "react";
 
 /** CSSProperties has no index signature, so a custom property cannot typecheck
  * without a cast. Naming the shape once keeps that out of every call site. */
@@ -8,6 +8,7 @@ interface SliderProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "type"
   onStartChange?: () => void;
   onEndChange?: () => void;
   onReset?: () => void;
+  onCancelChange?: (value: number) => void;
 }
 
 export function Slider({
@@ -16,6 +17,7 @@ export function Slider({
   onStartChange,
   onEndChange,
   onReset,
+  onCancelChange,
   ...props
 }: SliderProps) {
   const min = Number(props.min ?? 0);
@@ -34,55 +36,81 @@ export function Slider({
     "--slider-thumb": "var(--filter-color, var(--blue))",
   };
 
+  const gesture = useRef<{ value: number; pointerId?: number; cleanup: () => void } | null>(null);
+  const callbacks = useRef({ onEndChange, onCancelChange });
+  callbacks.current = { onEndChange, onCancelChange };
+
+  const finish = (cancel = false) => {
+    const active = gesture.current;
+    if (!active) return;
+    gesture.current = null;
+    active.cleanup();
+    if (cancel) callbacks.current.onCancelChange?.(active.value);
+    callbacks.current.onEndChange?.();
+  };
+
+  // Window listeners observe termination only; native range/scroll routing stays native.
+  const start = (input: HTMLInputElement, pointerId?: number) => {
+    if (props.disabled || gesture.current) return;
+    const win = input.ownerDocument.defaultView;
+    const pointerEnd = (event: PointerEvent) => {
+      if (event.pointerId === gesture.current?.pointerId) finish(event.type === "pointercancel");
+    };
+    const windowBlur = () => finish();
+    gesture.current = {
+      value: Number(input.value),
+      pointerId,
+      cleanup: () => {
+        win?.removeEventListener("pointerup", pointerEnd);
+        win?.removeEventListener("pointercancel", pointerEnd);
+        win?.removeEventListener("blur", windowBlur);
+      },
+    };
+    if (pointerId !== undefined) {
+      win?.addEventListener("pointerup", pointerEnd);
+      win?.addEventListener("pointercancel", pointerEnd);
+    }
+    win?.addEventListener("blur", windowBlur);
+    onStartChange?.();
+  };
+
+  useEffect(() => () => finish(), []);
+  useEffect(() => { if (props.disabled) finish(); }, [props.disabled]);
+
   const handlePointerDown = (e: React.PointerEvent<HTMLInputElement>) => {
-    if (onStartChange) onStartChange();
-    if (props.onPointerDown) props.onPointerDown(e);
+    if (e.isPrimary !== false && e.button === 0) start(e.currentTarget, e.pointerId);
+    props.onPointerDown?.(e);
   };
-
   const handlePointerUp = (e: React.PointerEvent<HTMLInputElement>) => {
-    if (onEndChange) onEndChange();
-    if (props.onPointerUp) props.onPointerUp(e);
+    if (gesture.current?.pointerId === e.pointerId) finish();
+    props.onPointerUp?.(e);
   };
-
   const handlePointerCancel = (e: React.PointerEvent<HTMLInputElement>) => {
-    if (onEndChange) onEndChange();
-    if (props.onPointerCancel) props.onPointerCancel(e);
+    if (gesture.current?.pointerId === e.pointerId) finish(true);
+    props.onPointerCancel?.(e);
   };
-
+  const adjustmentKeys = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End"];
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (
-      !e.repeat &&
-      onStartChange &&
-      ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End"].includes(e.key)
-    ) {
-      onStartChange();
-    }
-
-    if (props.onKeyDown) {
-      props.onKeyDown(e);
-    }
+    if (adjustmentKeys.includes(e.key)) start(e.currentTarget);
+    if (e.key === "Escape") finish(true);
+    props.onKeyDown?.(e);
   };
-
   const handleKeyUp = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (
-      onEndChange &&
-      ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End"].includes(e.key)
-    ) {
-      onEndChange();
-    }
-
-    if (props.onKeyUp) {
-      props.onKeyUp(e);
-    }
+    if (adjustmentKeys.includes(e.key) && gesture.current?.pointerId === undefined) finish();
+    props.onKeyUp?.(e);
   };
-
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    finish();
+    props.onBlur?.(e);
+  };
   const handleDoubleClick = (e: React.MouseEvent<HTMLInputElement>) => {
-    if (onReset) {
-      onStartChange?.();
+    if (!props.disabled && onReset) {
+      finish();
+      start(e.currentTarget);
       onReset();
-      onEndChange?.();
+      finish();
     }
-    if (props.onDoubleClick) props.onDoubleClick(e);
+    props.onDoubleClick?.(e);
   };
 
   return (
@@ -98,6 +126,7 @@ export function Slider({
         onPointerCancel={handlePointerCancel}
         onKeyDown={handleKeyDown}
         onKeyUp={handleKeyUp}
+        onBlur={handleBlur}
         onDoubleClick={handleDoubleClick}
       />
     </div>

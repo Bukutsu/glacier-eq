@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { isAndroidDevice } from "../lib/platform";
+import { installKeyboardTapDismissal } from "../lib/keyboardTapDismissal";
 
 export function keyboardViewportHeight(layoutHeight: number, visibleHeight: number, scale: number): number | null {
   // Ignore pinch zoom and small browser/system-bar changes.
@@ -11,6 +12,7 @@ export function useAndroidKeyboardViewport() {
   useEffect(() => {
     const viewport = window.visualViewport;
     if (!isAndroidDevice() || !viewport) return;
+    const removeTapDismissal = installKeyboardTapDismissal(document);
     const root = document.documentElement;
     let frame = 0;
     const sync = () => {
@@ -32,6 +34,7 @@ export function useAndroidKeyboardViewport() {
     document.addEventListener("focusin", sync);
     return () => {
       cancelAnimationFrame(frame);
+      removeTapDismissal();
       viewport.removeEventListener("resize", sync);
       document.removeEventListener("focusin", sync);
       root.classList.remove("keyboard-open");

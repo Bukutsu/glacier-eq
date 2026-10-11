@@ -6,6 +6,14 @@ use crate::{
 };
 
 #[tauri::command]
+pub(crate) async fn release_startup_splash<R: Runtime>(
+    _app: AppHandle<R>,
+    material_you: State<'_, MaterialYou<R>>,
+) -> Result<()> {
+    material_you.release_startup_splash()
+}
+
+#[tauri::command]
 pub(crate) async fn set_system_bar_appearance<R: Runtime>(
     _app: AppHandle<R>,
     dark: bool,

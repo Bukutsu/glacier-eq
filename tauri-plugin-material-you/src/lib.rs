@@ -31,6 +31,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
     Builder::new("material-you")
         .invoke_handler(tauri::generate_handler![
             commands::get_dynamic_colors,
+            commands::release_startup_splash,
             commands::set_system_bar_appearance
         ])
         .setup(|app, api| {
