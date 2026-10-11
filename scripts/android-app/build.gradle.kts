@@ -24,13 +24,13 @@ val hasReleaseKeystore = listOf("keyAlias", "keyPassword", "storeFile", "storePa
     .all { keystoreProperties.getProperty(it) != null }
 
 android {
-    compileSdk = 37
+    compileSdk = 36
     namespace = "com.bukutsu.glaciereq"
     defaultConfig {
         manifestPlaceholders["usesCleartextTraffic"] = "false"
         applicationId = "com.bukutsu.glaciereq"
         minSdk = 26
-        targetSdk = 37
+        targetSdk = 36
         versionCode = tauriProperties.getProperty("tauri.android.versionCode", "1").toInt()
         versionName = tauriProperties.getProperty("tauri.android.versionName", "1.0")
     }
