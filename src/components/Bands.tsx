@@ -4,6 +4,7 @@ import { Icon } from "./Icon";
 import { Slider } from "./Slider";
 import { NumberInput } from "./NumberInput";
 import { Select } from "./Select";
+import { Button } from "./ui/Button";
 import { filterColorVars } from "../lib/filterColors";
 import { formatFreq, snapFreqToIsoSync } from "../lib/graph";
 import { clampToRange } from "../lib/peq";
@@ -216,11 +217,12 @@ export const Bands = memo(function Bands({ peq, committedPeq, capabilities, onFi
             <div className="mobile-filter-head">
               <div className="mobile-filter-summary">
                 <strong>Band {selectedFilter.index + 1}</strong>
+                <span className="mobile-band-context">{TYPE_NAMES[selectedFilter.filter_type]}</span>
               </div>
               <div className="mobile-filter-actions">
                 {committedPeq?.filters[selectedFilter.index] && (
-                  <button
-                    type="button"
+                  <Button
+                    variant="ghost"
                     className="mobile-filter-reset"
                     disabled={disabled}
                     aria-label={`Reset band ${selectedFilter.index + 1} to last saved values`}
@@ -233,10 +235,11 @@ export const Bands = memo(function Bands({ peq, committedPeq, capabilities, onFi
                   >
                     <Icon name="restart_alt" />
                     <span>Reset</span>
-                  </button>
+                  </Button>
                 )}
-                <button
-                  type="button"
+                <Button
+                  variant="ghost"
+                  size="icon"
                   className="band-index"
                   title={`Remove band ${selectedFilter.index + 1}`}
                   aria-label={`Remove band ${selectedFilter.index + 1}`}
@@ -252,7 +255,7 @@ export const Bands = memo(function Bands({ peq, committedPeq, capabilities, onFi
                   }}
                 >
                   <Icon name="delete" />
-                </button>
+                </Button>
               </div>
             </div>
             <BandControls

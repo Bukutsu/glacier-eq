@@ -41,6 +41,68 @@
     width: 20px;
     height: 20px;
   }
+  /* A compact instrument panel: labels and values above a long touch track. */
+  .mobile-workspace .mobile-filter-card {
+    background: var(--card) !important;
+    padding: var(--space-3) var(--space-4);
+    gap: var(--space-3);
+    border-top: 1px solid var(--border);
+    border-radius: 0;
+  }
+  .mobile-filter-summary { display: flex; align-items: baseline; gap: var(--space-2); }
+  .mobile-band-context { font-size: var(--type-small); color: var(--muted-foreground); }
+  .mobile-filter-head .band-index { width: 44px; min-height: 44px; }
+  .mobile-filter-reset { min-height: 44px; }
+  .mobile-workspace .mobile-filter-card .band-field {
+    position: relative;
+    gap: 0;
+    padding-top: 48px;
+  }
+  .mobile-workspace .mobile-filter-card .band-field-label {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+  .mobile-workspace .mobile-filter-card :is(.freq-cell, .gain-cell, .q-cell) {
+    position: static;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .mobile-workspace .mobile-filter-card .custom-number-input {
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: 152px !important;
+    min-width: 152px;
+    height: 44px;
+    background: var(--control);
+    border-color: var(--input);
+  }
+  .mobile-workspace .mobile-filter-card .stepper-field { min-width: 56px; font-size: 14px; }
+  .mobile-workspace .mobile-filter-card .control-slider { width: 100%; min-height: 44px; }
+  .mobile-workspace .mobile-filter-card .band-type-field { padding-top: 0; gap: var(--space-2); }
+  .mobile-workspace .mobile-filter-card .band-type-field .band-field-label { position: static; height: auto; }
+  .mobile-workspace .mobile-filter-card .band-type-field .app-select-trigger { min-height: 44px; }
+  .mobile-workspace .band-picker { padding: var(--space-2) var(--space-3); }
+  .mobile-workspace .band-picker button {
+    min-height: 48px;
+    min-width: 52px;
+    border: 1px solid transparent;
+    border-radius: var(--control-radius);
+    background: transparent;
+  }
+  .mobile-workspace .band-picker button.active {
+    background: var(--accent);
+    border-color: var(--input);
+    box-shadow: none;
+  }
+  .mobile-workspace .band-picker button.add-filter-chip { min-width: 64px; }
+  .mobile-workspace .mobile-preamp-details { background: var(--card) !important; }
   .band-picker-scroll { touch-action: auto; }
   .mobile-workspace .graph-collapse-btn { min-height: var(--touch-md); }
   .mobile-tab-item { font-size: 12px; font-weight: 500; letter-spacing: 0; gap: var(--space-1); }

@@ -53,8 +53,8 @@ describe("Band editor markup", () => {
 
   it("disables every mobile edit and reset during a device operation", () => {
     const html = renderEditor({ disabled: true });
-    expect(html).toContain('class="mobile-filter-reset" disabled=""');
-    expect(html).toContain('aria-label="Remove band 1" disabled=""');
+    expect(html).toMatch(/<button(?=[^>]*class="[^"]*mobile-filter-reset")(?=[^>]*disabled="")[^>]*>/);
+    expect(html).toMatch(/<button(?=[^>]*aria-label="Remove band 1")(?=[^>]*disabled="")[^>]*>/);
     expect(html.match(/<input(?=[^>]*type="range")(?=[^>]*disabled="")[^>]*>/g)).toHaveLength(3);
     expect(html).toMatch(/<button(?=[^>]*role="combobox")(?=[^>]*disabled="")[^>]*>/);
   });
@@ -95,7 +95,7 @@ describe("Band editor markup", () => {
     peq.filters = peq.filters.map((filter) => ({ ...filter, enabled: filter.index === 2 }));
     const html = renderEditor({ peq, activeBandIndex: 0 });
     expect(html).toContain('aria-pressed="true" aria-label="Band 3, 125 Hz"');
-    expect(html).toContain('aria-label="Remove band 3" disabled=""');
+    expect(html).toMatch(/<button(?=[^>]*aria-label="Remove band 3")(?=[^>]*disabled="")[^>]*>/);
   });
 
   it("keeps the capacity state readable without a redundant local undo toast", () => {
