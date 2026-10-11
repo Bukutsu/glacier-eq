@@ -249,6 +249,16 @@
     gap: var(--space-1);
   }
   .configuration-nav-link:active { background: var(--accent); color: var(--accent-foreground); }
+  /* WebView can resize only the visual viewport when the IME opens. */
+  .keyboard-open #app { height: var(--app-visible-height, 100dvh); }
+  .keyboard-open .mobile-tab-bar,
+  .keyboard-open .mobile-graph-preview { display: none; }
+  .keyboard-open .mobile-workspace { scroll-padding-bottom: var(--space-4); }
+  .keyboard-open .tuning-submit { bottom: var(--space-2); }
+  .keyboard-open dialog.modal-content {
+    inset-block: 0 calc(100dvh - var(--app-visible-height, 100dvh));
+    max-height: calc(var(--app-visible-height, 100dvh) - var(--safe-area-top, 0px) - var(--space-4));
+  }
   .mobile-workspace {
     scroll-padding-bottom: calc(var(--tabbar-h) + var(--safe-area-bottom, 0px) + var(--space-4));
   }

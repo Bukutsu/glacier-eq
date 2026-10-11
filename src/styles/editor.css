@@ -1,5 +1,25 @@
 .eq-graph-layout { display: contents; }
 
+.editor-draft-recovery {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--control-radius);
+  flex: 0 0 auto;
+}
+.editor-draft-recovery > div:first-child { flex: 1 1 220px; }
+.editor-draft-recovery strong { font-size: var(--type-label); font-weight: 600; }
+.editor-draft-recovery p {
+  margin: var(--space-1) 0 0;
+  color: var(--muted);
+  font-size: var(--type-label);
+  line-height: 1.4;
+}
+.editor-draft-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+
 .graph-card {
   flex: 1 1 auto;
   min-height: 280px;

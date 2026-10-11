@@ -1,6 +1,8 @@
 import { useState, type ChangeEvent, type KeyboardEvent } from "react";
 import { Minus, Plus } from "lucide-react";
 import { Button } from "./ui/Button";
+import { parseNumericInput } from "../lib/numericInput";
+import { useToastStore } from "../stores/toastStore";
 
 interface NumberInputProps {
   id?: string;
@@ -42,18 +44,20 @@ export function NumberInput({
   const [draft, setDraft] = useState<string | null>(null);
 
   const commit = (raw: string) => {
-    const parsed = Number.parseFloat(raw);
-    if (!Number.isNaN(parsed) && Number.isFinite(parsed)) {
+    const parsed = parseNumericInput(raw);
+    if (parsed !== null) {
       const clamped = Math.max(min, Math.min(max, parsed));
       onChange(Number(clamped.toFixed(precision)));
+    } else {
+      useToastStore.getState().setStatus("Please enter a number using a decimal point or comma.", "error");
     }
   };
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     setDraft(e.target.value);
-    const parsed = Number.parseFloat(e.target.value);
+    const parsed = parseNumericInput(e.target.value);
     // Only live-commit if the parsed number is fully within bounds without forced premature clamping
-    if (!Number.isNaN(parsed) && Number.isFinite(parsed) && parsed >= min && parsed <= max) {
+    if (parsed !== null && parsed >= min && parsed <= max) {
       onChange(Number(parsed.toFixed(precision)));
     }
   };
@@ -66,8 +70,8 @@ export function NumberInput({
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
-      if (draft !== null) commit(draft);
-      setDraft(null);
+      // Blur owns the commit, including validation and the editing boundary.
+      e.preventDefault();
       e.currentTarget.blur();
     } else if (e.key === "ArrowUp") {
       e.preventDefault();

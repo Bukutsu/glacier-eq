@@ -1,5 +1,6 @@
 import { type CSSProperties, type MouseEvent, type ReactNode, useEffect, useId, useRef } from "react";
 import { Icon } from "./Icon";
+import { ToastContainer } from "./Toast";
 import { Button } from "./ui/Button";
 import {
   decideModalPopState,
@@ -146,6 +147,7 @@ export function Modal({ title, onClose, className = "", style, children, closeDi
         </Button>
       </div>
       {children}
+      <ToastContainer errorsOnly />
     </dialog>
   );
 }

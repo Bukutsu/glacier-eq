@@ -11,6 +11,7 @@ import {
 } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { invoke, listen, emit, sleep } from "./lib/rpc";
+import { ToastContainer } from "./components/Toast";
 import { createExternalLinkClickHandler } from "./lib/externalLinks";
 import { Bands } from "./components/Bands";
 import { DeviceChooser } from "./components/DeviceChooser";
@@ -66,6 +67,9 @@ import { useHistoryStore } from "./stores/historyStore";
 import { useThemeSync } from "./hooks/useThemeSync";
 import { useIsMobile } from "./hooks/useIsMobile";
 import { useTraces } from "./hooks/useTraces";
+import { useEditorDraft } from "./hooks/useEditorDraft";
+import { useAndroidKeyboardViewport } from "./hooks/useAndroidKeyboardViewport";
+import { Button } from "./components/ui/Button";
 import { OFFLINE_EDITOR_CAPABILITIES } from "./lib/dacSpecs";
 import { chooseReconnectDevice } from "./lib/reconnectDevice";
 import { profileIdentityKey } from "./lib/profileIdentity";
@@ -513,16 +517,20 @@ function App() {
   const maxFilterBands = capabilities.num_bands;
   const supportsRamApply = capabilities.supports_ram_apply;
 
+  const { pendingDraft, draftInvalid, resolveDraft } = useEditorDraft(peq, dirty, selectedPresetRef);
+  const recoveryPending = Boolean(pendingDraft || draftInvalid);
+  useAndroidKeyboardViewport();
+
   const profilesEditor = useMemo(() => ({
     peqRef,
     editorCleanPeqRef,
     capabilities,
-    isBusy,
+    isBusy: isBusy || recoveryPending,
     pushToUndoStack,
     setPeq,
     setDirty,
     noteEditorMutation,
-  }), [capabilities, isBusy, pushToUndoStack, noteEditorMutation]);
+  }), [capabilities, isBusy, recoveryPending, pushToUndoStack, noteEditorMutation]);
   const {
     profiles,
     selectedPreset,
@@ -541,9 +549,30 @@ function App() {
     runProfileMutation,
   } = useProfiles(profilesEditor, setStatus);
 
-  useEffect(() => {
-    selectedPresetRef.current = selectedPreset;
-  }, [selectedPreset]);
+  const restoreDraft = async () => {
+    if (!pendingDraft || connected || isBusy || eqOperationInFlightRef.current) return;
+    const context = getAsyncContext();
+    if (dirty && !(await confirmDialog({
+      title: "Restore unfinished EQ?",
+      message: "Restoring the draft will replace your current editor changes. Nothing will be written to a DAC.",
+      confirmLabel: "Restore",
+    }))) return;
+    if (!asyncContextEquals(context, getAsyncContext())
+      || connectedRef.current || eqOperationInFlightRef.current) return;
+    const name = pendingDraft.name && pendingDraft.name !== DEFAULT_PROFILE_NAME
+      ? pendingDraft.name : "Recovered EQ";
+    // This explicit recovery path changes only the editor, never the DAC.
+    pushToUndoStack(peqRef.current);
+    setPeq(normalizePeq(pendingDraft.peq, { capabilities: OFFLINE_EDITOR_CAPABILITIES }));
+    setSelectedPreset(name);
+    setNewProfileName(name);
+    setProfileSearch("");
+    noteEditorMutation();
+    setDirty(true);
+    resolveDraft();
+  };
+
+  selectedPresetRef.current = selectedPreset;
 
   const restoreHistory = useCallback((direction: "undo" | "redo") => {
     const history = useHistoryStore.getState();
@@ -1939,7 +1968,7 @@ function App() {
       if (document.querySelector("dialog[open], .reconnecting-overlay")) {
         return;
       }
-      if (isBusy || eqOperationInFlightRef.current) return;
+      if (isBusy || eqOperationInFlightRef.current || recoveryPending) return;
 
       const active = document.activeElement;
       // A range or checkbox input is not text editing: the browser handles
@@ -2005,7 +2034,7 @@ function App() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isBusy]);
+  }, [isBusy, recoveryPending]);
 
   // Shared props for the mobile ToolsPanel instances; each mobile tab only
   // overrides the tab selection and per-tab extras below. Tuning-only props
@@ -2052,7 +2081,7 @@ function App() {
       viewMode={graphViewMode}
       theme={resolvedTheme}
       activeBandIndex={highlightActiveBand ? activeBandIndex : undefined}
-      {...(withEditor ? graphEditorProps : {})}
+      {...(withEditor && !recoveryPending ? graphEditorProps : {})}
     />
   );
 
@@ -2068,7 +2097,7 @@ function App() {
       integerMode={capabilities.integer_preamp}
       onStartChange={handlePreampStartChange}
       onChange={handlePreampChange}
-      disabled={isBusy || eqOperationInFlightRef.current}
+      disabled={isBusy || eqOperationInFlightRef.current || recoveryPending}
     />
   );
   const bandControls = (
@@ -2082,12 +2111,28 @@ function App() {
       activeBandIndex={activeBandIndex}
       onActiveBandChange={setActiveBandIndex}
       snapToIso={snapToIso}
-      disabled={isBusy || eqOperationInFlightRef.current}
+      disabled={isBusy || eqOperationInFlightRef.current || recoveryPending}
       isMobile={isMobile}
     />
   );
   const editorControls = <>{preampControls}{bandControls}</>;
 
+
+  const draftRecovery = pendingDraft || draftInvalid ? (
+    <section className="editor-draft-recovery" aria-label="Unfinished EQ recovery">
+      <div>
+        <strong>{draftInvalid ? "Stored draft could not be read" : "Restore unfinished EQ?"}</strong>
+        <p>{draftInvalid
+          ? "Discard this draft to resume saving unfinished edits."
+          : "Choose Restore or Discard to continue editing. Nothing will be written to a DAC."}</p>
+        {connected && !draftInvalid && <p>Disconnect the DAC before restoring.</p>}
+      </div>
+      <div className="editor-draft-actions">
+        {!draftInvalid && <Button onClick={restoreDraft} disabled={connected || isBusy}>Restore EQ</Button>}
+        <Button variant="ghost" onClick={resolveDraft} disabled={isBusy}>Discard draft</Button>
+      </div>
+    </section>
+  ) : null;
 
   const editorHint = !connected && !editorHintDismissed ? (
     <div className="editor-empty-hint" role="status">
@@ -2233,6 +2278,7 @@ function App() {
             )}
             {activeTab === "eq" && (
               <section className="left-pane">
+                {draftRecovery}
                 {editorHint}
                 {bandControls}
                 <details className="mobile-preamp-details">
@@ -2378,6 +2424,7 @@ function App() {
             className="left-pane"
             ref={mainScrollRef}
           >
+            {draftRecovery}
             {editorHint}
             {showGraph && (activeTab === "eq" || activeTab === "tuning") && (
             <section className="graph-card">
@@ -2529,6 +2576,7 @@ function App() {
           </div>
         </Modal>
       )}
+      <ToastContainer errorsOnly />
       <ConfirmDialogHost />
     </div>
   );
