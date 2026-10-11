@@ -261,7 +261,7 @@
 
 .preamp-card {
   display: grid;
-  grid-template-columns: 120px minmax(0, 1fr);
+  grid-template-columns: 160px minmax(0, 1fr);
   align-items: center;
   gap: var(--space-4);
   padding: var(--space-3) var(--space-4);

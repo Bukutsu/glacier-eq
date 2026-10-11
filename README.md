@@ -5,9 +5,9 @@
 [![Latest release](https://img.shields.io/github/v/release/Bukutsu/glacier-eq?style=flat&logo=github)](https://github.com/Bukutsu/glacier-eq/releases/latest)
 [![License](https://img.shields.io/badge/license-GPLv3-blue.svg)](https://github.com/Bukutsu/glacier-eq/blob/main/LICENSE)
 
-Adjust the parametric EQ on your USB DAC dongle and save it to the DAC. Your settings stay with it when you plug it into another device.
+Glacier EQ reads and edits the parametric EQ stored on supported USB DAC dongles. Read the current settings, make changes, then write them back to the DAC. The settings stay on the DAC when you use it with another device.
 
-Glacier EQ works offline and needs no account.
+The app works offline and needs no account.
 
 [Open the web app](https://bukutsu.github.io/glacier-eq/) (Chrome or Edge) · [Download for desktop and Android](https://github.com/Bukutsu/glacier-eq/releases)
 
@@ -16,10 +16,10 @@ Glacier EQ works offline and needs no account.
 ## Get started
 
 1. Plug in your DAC and open Glacier EQ.
-2. Select your DAC, click **Connect**, then **Pull** to read its EQ.
-3. Adjust the sliders, then click **Push** to save the EQ to your DAC.
+2. Click **Connect DAC** and select your device.
+3. Use **Read from DAC** to load its EQ, adjust the filters, then use **Write to DAC** to save your changes. On mobile, the save button is called **Save to DAC**.
 
-You can also save profiles in the app to switch back to settings you liked.
+You can save profiles in the app to switch between EQ setups.
 
 If you have trouble connecting on Linux, see the [setup and troubleshooting guide](https://github.com/Bukutsu/glacier-eq/wiki/Troubleshooting).
 
