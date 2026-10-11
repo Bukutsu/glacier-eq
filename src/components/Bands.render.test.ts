@@ -46,6 +46,8 @@ describe("Band editor markup", () => {
     expect(gain).toBeLessThan(frequency);
     expect(frequency).toBeLessThan(details);
     expect(html).toContain('<summary>More band settings');
+    expect(html).toContain("Q / bandwidth");
+    expect(html).toContain("Lower Q makes the adjustment wider.");
     expect(html.indexOf('class="band-field band-type-field"')).toBeGreaterThan(details);
     expect(html.indexOf('aria-label="Band 1 Q"')).toBeGreaterThan(details);
     expect(html).not.toContain('<details class="band-more-settings" open');

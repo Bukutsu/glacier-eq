@@ -378,6 +378,7 @@ export const ProfilesView = memo(function ProfilesView({
           </div>
           <div className="profiles-header-actions">
             <Button onClick={handleImportFileClick}><Icon name="file_upload" /> Import profile</Button>
+            <Button className="profiles-paste-mobile" variant="ghost" onClick={handlePaste}><Icon name="content_paste" /> Paste EQ</Button>
             <ProfilesMenu label="Import options">
               <Menu.Item className="ui-menu-item" onClick={handlePaste}>
                 <Icon name="content_paste" /> Paste EQ from clipboard

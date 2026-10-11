@@ -154,6 +154,10 @@ export function NumberInput({
         aria-valuenow={Number.isFinite(value) ? value : min}
         aria-valuetext={displayValue}
         inputMode={precision > 0 ? "decimal" : "numeric"}
+        enterKeyHint="done"
+        autoComplete="off"
+        autoCorrect="off"
+        spellCheck={false}
         min={min}
         max={max}
         step={step}

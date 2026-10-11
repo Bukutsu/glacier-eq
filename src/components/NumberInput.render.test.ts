@@ -7,6 +7,13 @@ const render = (props: Partial<Parameters<typeof NumberInput>[0]> = {}) =>
   renderToStaticMarkup(createElement(NumberInput, { value: 2.5, onChange: () => {}, ...props }));
 
 describe("NumberInput", () => {
+  it("offers Done and disables text correction for numeric editing", () => {
+    const html = render();
+    expect(html).toContain('enterKeyHint="done"');
+    expect(html).toContain('autoComplete="off"');
+    expect(html).toContain('autoCorrect="off"');
+    expect(html).toContain('spellCheck="false"');
+  });
   it("uses shared ghost buttons that cannot submit a surrounding form", () => {
     const html = render();
     expect(html.match(/data-slot="button"/g)).toHaveLength(2);

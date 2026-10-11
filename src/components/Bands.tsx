@@ -387,7 +387,7 @@ const BandControls = memo(function BandControls({
     </label>
   );
   const qControl = (
-    <BandField label="Q" className="band-q-field">
+    <BandField label={mobileSimple ? "Q / bandwidth" : "Q"} className="band-q-field">
       <div className="param-cell q-cell">
         <Slider
           aria-label={`Band ${filter.index + 1} Q`}
@@ -423,6 +423,7 @@ const BandControls = memo(function BandControls({
           aria-label={`Band ${filter.index + 1} Q value`}
         />
       </div>
+      {mobileSimple && <p className="band-q-help">Lower Q makes the adjustment wider.</p>}
     </BandField>
   );
 

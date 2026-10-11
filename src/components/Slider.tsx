@@ -18,7 +18,16 @@ export function Slider({
   onReset,
   ...props
 }: SliderProps) {
+  const min = Number(props.min ?? 0);
+  const max = Number(props.max ?? 100);
+  const percent = (value: number) => max > min ? Math.max(0, Math.min(100, (value - min) / (max - min) * 100)) : 0;
+  const position = percent(Number(props.value ?? props.defaultValue ?? min));
+  const hasZero = min < 0 && max > 0;
+  const origin = hasZero ? percent(0) : 0;
   const sliderStyle: CustomProperties = {
+    "--slider-fill-start": `${Math.min(origin, position)}%`,
+    "--slider-fill-end": `${Math.max(origin, position)}%`,
+    "--slider-zero": `${origin}%`,
     ...style,
     // Thumb matches the band's --filter-color where present (band rows set it),
     // falling back to blue elsewhere.
@@ -77,7 +86,8 @@ export function Slider({
   };
 
   return (
-    <div className={`control-slider ${className}`.trim()}>
+    <div className={`control-slider ${className}`.trim()} style={{ "--slider-zero": `${origin}%` } as CustomProperties}>
+      {hasZero && <span className="slider-zero-mark" aria-hidden="true" />}
       <input
         {...props}
         className="control-slider-input"

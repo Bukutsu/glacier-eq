@@ -15,6 +15,7 @@ import { fuzzyMatch } from "../lib/search";
 import { Icon } from "./Icon";
 import { Button } from "./ui/Button";
 import { Input } from "./ui/Input";
+import { Switch } from "./ui/Switch";
 import { DeviceView } from "./DeviceView";
 import { SettingsView } from "./SettingsView";
 import { ProfilesView } from "./ProfilesView";
@@ -355,15 +356,85 @@ export function DiagnosticsPanel() {
         : "Copy report";
 
   return (
-    <section className="diag-card">
+    <section className="diagnostics-view">
       <div className="diag-head">
-        <strong>Diagnostics</strong>
         <div className="diag-counts">
-          <span className="diag-count-e" title="Errors" aria-label={`${errorCount} errors`}>{errorCount}E</span>
-          <span className="diag-count-w" title="Warnings" aria-label={`${warnCount} warnings`}>{warnCount}W</span>
-          <span className="diag-count-i" title="Info" aria-label={`${infoCount} info events`}>{infoCount}I</span>
+          <span className="diag-count-e" title="Errors" aria-label={`${errorCount} errors`}>{errorCount} errors</span>
+          <span className="diag-count-w" title="Warnings" aria-label={`${warnCount} warnings`}>{warnCount} warnings</span>
+          <span className="diag-count-i" title="Info" aria-label={`${infoCount} info events`}>{infoCount} info</span>
         </div>
-        <Button
+
+      </div>
+
+      <div className="diag-toolbar">
+        <div className="diag-severity-group" role="group" aria-label="Filter by severity">
+        {DIAG_LEVELS.map((lvl) => (
+          <Button
+            type="button"
+            key={lvl}
+            variant={levelFilter === lvl ? "default" : "ghost"}
+            className={`diag-filter-btn${levelFilter === lvl ? " active" : ""}${lvl === "Error" ? " f-error" : ""}${lvl === "Warn" ? " f-warn" : ""}`}
+            aria-pressed={levelFilter === lvl}
+            onClick={() => setLevelFilter(lvl)}
+          >
+            {lvl}
+          </Button>
+        ))}
+        </div>
+
+      </div>
+        <div className="diag-search-field"><Input
+          className="diag-search"
+          type="search"
+          placeholder="Search logs…"
+          aria-label="Search logs"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        /></div>
+
+
+      <div
+        className="log-box"
+        ref={logBoxRef}
+        tabIndex={0}
+        role="log"
+        aria-label="Diagnostics event log"
+        onScroll={(event) => {
+          const box = event.currentTarget;
+          if (autoScroll && box.scrollHeight - box.scrollTop - box.clientHeight > 24) {
+            setAutoScroll(false);
+          }
+        }}
+        aria-live={autoScroll ? "polite" : "off"}
+      >
+        {filtered.length === 0 ? (
+          <div className="diag-empty">
+            {events.length === 0 ? "No logs recorded." : "No matching logs."}
+          </div>
+        ) : (
+          filtered.map((event, index) => (
+            <div
+              key={`${index}-${event.timestamp}-${event.level}-${event.message}`}
+              className={`log-line log-line-${event.level.toLowerCase()}`}
+            >
+              <div className="diag-event-meta"><span className="log-ts" title={event.timestamp}>
+                {formatDiagnosticTimestamp(event.timestamp)}
+              </span>
+              <span className="log-level">{event.level}</span></div>
+              <DiagnosticMessage message={`[${event.source}] ${event.message}`} />
+            </div>
+          ))
+        )}
+      </div>
+
+      <div className="diag-footer">
+        {!autoScroll && <Button variant="ghost" onClick={() => setAutoScroll(true)}>Jump to latest</Button>}
+        <span>{filtered.length} of {events.length} events
+        {levelFilter !== "All" && ` · ${levelFilter}`}
+        {search && ` · "${search}"`}</span>
+        <label className="diag-follow" htmlFor="diagnostics-follow">Follow log<Switch id="diagnostics-follow" label="Follow log" checked={autoScroll} onCheckedChange={setAutoScroll} /></label>
+      </div>
+      <div className="diag-report-actions">        <Button
           type="button"
           className="diag-copy-btn"
           onClick={copyToClipboard}
@@ -377,75 +448,6 @@ export function DiagnosticsPanel() {
         <Button type="button" variant="danger" size="icon" title="Clear logs" aria-label="Clear logs" onClick={clearLogs}>
           <Icon name="delete" />
         </Button>
-      </div>
-
-      <div className="diag-toolbar">
-        {DIAG_LEVELS.map((lvl) => (
-          <Button
-            type="button"
-            key={lvl}
-            variant={levelFilter === lvl ? "default" : "ghost"}
-            className={`diag-filter-btn${levelFilter === lvl ? " active" : ""}${lvl === "Error" ? " f-error" : ""}${lvl === "Warn" ? " f-warn" : ""}`}
-            aria-pressed={levelFilter === lvl}
-            onClick={() => setLevelFilter(lvl)}
-          >
-            {lvl}
-          </Button>
-        ))}
-        <div className="diag-search-field"><Input
-          className="diag-search"
-          type="search"
-          placeholder="Search…"
-          aria-label="Search logs"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        /></div>
-        <Button
-          type="button"
-          variant={autoScroll ? "default" : "ghost"}
-          size="icon"
-          aria-pressed={autoScroll}
-          className={`diag-scroll-btn${autoScroll ? " active" : ""}`}
-          title={autoScroll ? "Auto-scroll on" : "Auto-scroll paused"}
-          aria-label={autoScroll ? "Auto-scroll on" : "Auto-scroll paused"}
-          onClick={() => setAutoScroll((v) => !v)}
-        >
-          <Icon name={autoScroll ? "vertical_align_bottom" : "lock"} />
-        </Button>
-      </div>
-
-      <div
-        className="log-box"
-        ref={logBoxRef}
-        tabIndex={0}
-        role="log"
-        aria-label="Diagnostics event log"
-        aria-live="polite"
-      >
-        {filtered.length === 0 ? (
-          <div className="diag-empty">
-            {events.length === 0 ? "No logs recorded." : "No matching logs."}
-          </div>
-        ) : (
-          filtered.map((event, index) => (
-            <div
-              key={`${index}-${event.timestamp}-${event.level}-${event.message}`}
-              className={`log-line log-line-${event.level.toLowerCase()}`}
-            >
-              <span className="log-ts" title={event.timestamp}>
-                {formatDiagnosticTimestamp(event.timestamp)}
-              </span>
-              <span className="log-level">{event.level}</span>
-              <DiagnosticMessage message={`[${event.source}] ${event.message}`} />
-            </div>
-          ))
-        )}
-      </div>
-
-      <div className="diag-footer">
-        {filtered.length}/{events.length} events
-        {levelFilter !== "All" && ` · ${levelFilter}`}
-        {search && ` · "${search}"`}
       </div>
     </section>
   );

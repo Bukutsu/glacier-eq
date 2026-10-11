@@ -25,7 +25,12 @@ if (typeof window !== "undefined" && window.matchMedia && !document.documentElem
 
 // Disable default browser context menus and shortcuts in production for a native feel
 if (import.meta.env.PROD) {
-  document.addEventListener("contextmenu", (e) => e.preventDefault());
+  document.addEventListener("contextmenu", (e) => {
+    // Preserve Android's select/copy/paste menu inside editable fields.
+    const target = e.target;
+    if (target instanceof Element && target.closest('input, textarea, [contenteditable]:not([contenteditable="false"])')) return;
+    e.preventDefault();
+  });
   document.addEventListener("keydown", (e) => {
     const key = e.key.toLowerCase();
     if (

@@ -326,6 +326,7 @@ export const EqGraph = memo(function EqGraph({
   };
 
   return (
+    <div className={`eq-graph-layout${showMobileLegend ? " legend-open" : ""}`}>
     <div className="eq-graph-shell" ref={shellRef}>
       <canvas
         className="eq-canvas"
@@ -386,6 +387,7 @@ export const EqGraph = memo(function EqGraph({
           <Icon name={showMobileLegend ? "close" : "legend_toggle"} />
         </button>
       )}
+    </div>
       {(committedPeq || targets.length > 0 || visibleMeasurements.length > 0) && (
         <div className={`graph-legend ${showMobileLegend ? "mobile-open" : ""}`}>
           {committedPeq && !peqEquals(committedPeq, peq) && (

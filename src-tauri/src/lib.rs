@@ -406,14 +406,25 @@ fn open_browser_url(_url: &str) -> std::io::Result<std::process::Child> {
 }
 
 #[tauri::command]
-async fn open_url(url: String) -> Result<(), String> {
+async fn open_url(_app: tauri::AppHandle, url: String) -> Result<(), String> {
     validate_browser_url(&url)?;
-    let mut child =
-        open_browser_url(&url).map_err(|error| format!("Failed to open URL: {error}"))?;
-    tauri::async_runtime::spawn_blocking(move || {
-        let _ = child.wait();
-    });
-    Ok(())
+    #[cfg(mobile)]
+    {
+        use tauri_plugin_opener::OpenerExt;
+        return _app
+            .opener()
+            .open_url(&url, None::<&str>)
+            .map_err(|error| format!("Failed to open URL: {error}"));
+    }
+    #[cfg(not(mobile))]
+    {
+        let mut child =
+            open_browser_url(&url).map_err(|error| format!("Failed to open URL: {error}"))?;
+        tauri::async_runtime::spawn_blocking(move || {
+            let _ = child.wait();
+        });
+        Ok(())
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -424,6 +435,15 @@ pub fn run() {
         .manage(Mutex::new(DeviceState::default()))
         .manage(DeviceSessionLock::default())
         .manage(Mutex::new(DiagnosticsStore::default()));
+    #[cfg(mobile)]
+    {
+        // The frontend already intercepts links and reports opening failures.
+        builder = builder.plugin(
+            tauri_plugin_opener::Builder::new()
+                .open_js_links_on_click(false)
+                .build(),
+        );
+    }
     #[cfg(target_os = "linux")]
     {
         builder = builder.manage(Mutex::new(None::<hid_helper::ElevatedTransport>));
