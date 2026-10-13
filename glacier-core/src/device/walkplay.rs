@@ -262,7 +262,6 @@ pub fn parse_filter_packet(packet: &[u8]) -> Option<Filter> {
 // ─── Profiles ─────────────────────────────────────────────────────────────────
 
 // Exact identities only. A shared USB vendor or chipset does not establish PEQ support.
-// Model/firmware evidence and unresolved write contracts: docs/device-validation.md.
 pub const PROFILES: &[DeviceProfile] = &[
     DeviceProfile {
         name: "EPZ TP35 Pro",

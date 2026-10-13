@@ -1,21 +1,5 @@
 # Changelog
 
-## [Unreleased]
-
-### Fixed
-
-- Removed the unsupported original Dawn Pro HID PEQ assumption behind #46. The original Dawn Pro uses a different protocol from Dawn Pro 2.
-- Corrected FiiO reply framing, command matching, gain encoding, USER slots, filter count/save commands, and KA17 report ID. Reading no longer changes the active preset.
-- Corrected Dawn Pro 2's eight-band, 96 kHz coefficient packets, custom preset/latch, preamp, and separate EQ/offset saves.
-- Validate HID report IDs and payload lengths before protocol I/O on desktop, CLI, Android, and WebHID. Windows Moondrop output uses control reports rather than short interrupt writes.
-
-### Changed
-
-- Match only exact, reference-backed USB model IDs. Untested models with unresolved write contracts are read-only, including Dawn Pro 2 pending activation/preamp recovery testing.
-- Preserve the tested EPZ/TRN Walkplay save sequence and nonce correlation. Unverified models use zero in the reserved nonce field.
-- Block unverified microphone writes and control reset before any changes. Device details show the restriction reason.
-- Document protocol evidence, removed support claims, fixture provenance, and the remaining hardware checks in `docs/device-validation.md`.
-
 ## [0.14.0] - 2026-10-12
 
 ### Added
