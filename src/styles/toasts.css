@@ -1,127 +1,56 @@
-/* Feedback belongs to the header, not a floating toast card. */
-.toast-slot {
-  position: relative;
-  min-width: 0;
-  width: 100%;
-  height: 32px;
-  flex: 1 1 140px;
-}
-
-.toast-container {
-  height: 100%;
-  color: var(--muted);
-}
-
-.toast-item {
+/* One compact message near the header actions. History lives in Diagnostics. */
+.toast-feedback {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: var(--z-toast);
   display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  min-height: 32px;
+  align-items: flex-start;
+  gap: 10px;
+  width: 340px;
+  max-width: calc(100vw - 32px);
+  padding: 12px 8px 12px 14px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-card);
+  background: var(--popover);
+  color: var(--popover-foreground);
+  box-shadow: var(--shadow-sm);
+  box-sizing: border-box;
 }
-
-.toast-summary {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  flex: 1;
-  min-width: 0;
-  min-height: 32px;
-  padding: 0;
-  text-align: left;
-  background: transparent;
-  color: inherit;
-  font-weight: 400;
-}
-
-.toast-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 12px;
-}
-.toast-icon .app-icon,
-.toast-close .app-icon { width: 12px; height: 12px; }
+.toast-icon { display: flex; flex: 0 0 auto; margin-top: 3px; color: var(--muted); }
+.toast-icon .app-icon { width: 14px; height: 14px; }
 .toast-icon.error { color: var(--destructive-foreground); }
-
 .toast-message {
   flex: 1;
   min-width: 0;
-  padding-block: var(--space-1);
-  font-size: var(--type-small);
-  line-height: 1.5;
-  overflow-wrap: anywhere;
-}
-.toast-summary .toast-message {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.toast-close,
-.toast-earlier {
-  flex: 0 0 auto;
-  min-width: 32px;
-  min-height: 32px;
-  padding: 0 var(--space-1);
-  color: var(--muted);
-  background: transparent;
-  border: 0;
-  font-weight: 400;
-}
-.toast-close { display: grid; place-items: center; }
-.toast-earlier { font-size: var(--type-caption); white-space: nowrap; }
-.toast-container button:hover { color: var(--text); }
-.toast-container button:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: -2px;
-}
-
-/* Details overlay the page without changing header geometry. */
-.toast-container.expanded {
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: max(100%, min(360px, 80vw));
-  height: auto;
-  max-height: 40dvh;
-  padding: var(--space-2);
+  max-height: 30dvh;
   overflow-y: auto;
   overscroll-behavior: contain;
-  background: var(--bg);
-  border: 1px solid var(--line-subtle);
-  z-index: var(--z-toast);
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
-.toast-container.expanded .toast-message { white-space: normal; }
-.toast-history .toast-item { border-top: 1px solid var(--line-subtle); }
+.toast-dismiss { margin-top: -6px; }
+.toast-dismiss .app-icon { width: 13px; height: 13px; }
+body:has(dialog[open]) .app-header > .toast-feedback { display: none; }
+.toast-feedback.inline {
+  position: static;
+  flex: 0 0 auto;
+  width: auto;
+  max-width: none;
+  margin: 8px 16px 16px;
+  box-shadow: none;
+}
+.toast-feedback.inline .toast-message { max-height: 25dvh; }
 
 @media (max-width: 850px), ((max-height: 540px) and (pointer: coarse)) {
-  .toast-summary,
-  .toast-close,
-  .toast-earlier { min-height: var(--touch-md); }
-  .toast-close,
-  .toast-earlier { min-width: var(--touch-md); }
-  .toast-slot { height: 44px; }
+  .toast-dismiss { min-width: 44px; min-height: 44px; }
+  .app-header > .toast-feedback { right: 12px; }
+  /* Secondary mobile pages hide the app bar, but feedback must stay visible.
+     Expose only the message, without adding a toolbar or shifting the page. */
+  .app-header.compact-mobile:has(.toast-feedback) { display: block; height: 0; min-height: 0; padding: 0; border: 0; }
+  .app-header.compact-mobile:has(.toast-feedback) > .header-main { display: none; }
 }
-
-/* Errors stay visible; routine success/info remains in Diagnostics. */
-#app > .error-feedback {
-  position: fixed;
-  left: 16px;
-  right: 16px;
-  bottom: calc(var(--tabbar-h, 0px) + var(--safe-area-bottom, 0px) + 16px);
-  width: auto;
-  height: auto;
-  z-index: var(--z-toast);
-}
-.error-feedback {
-  flex: 0 0 auto;
-  padding: 8px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--control-radius);
-  background: var(--popover);
-  color: var(--popover-foreground);
-}
-.error-feedback .toast-summary .toast-message { white-space: normal; }
-.error-feedback .toast-container.expanded { position: static; width: 100%; padding: 0; border: 0; }
-body:has(dialog[open]) #app > .error-feedback { display: none; }
-.modal-content > .error-feedback { width: auto; height: auto; margin: 8px 16px 16px; max-height: 25dvh; overflow-y: auto; }

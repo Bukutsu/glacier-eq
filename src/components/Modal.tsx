@@ -147,7 +147,7 @@ export function Modal({ title, onClose, className = "", style, children, closeDi
         </Button>
       </div>
       {children}
-      <ToastContainer errorsOnly />
+      <ToastContainer errorsOnly inline />
     </dialog>
   );
 }

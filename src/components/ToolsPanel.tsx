@@ -58,9 +58,6 @@ interface ToolsPanelProps {
   setStatus: (value: string) => void;
   measurements?: MeasurementTrace[];
   onAddMeasurement?: (name: string, points: MeasurementTrace["points"]) => void;
-  onRemoveMeasurement?: (id: string) => void;
-  onToggleMeasurement?: (id: string) => void;
-  onClearMeasurements?: () => void;
   dirty?: boolean;
   showActions?: boolean;
   graphViewMode?: GraphViewMode;
@@ -70,8 +67,6 @@ interface ToolsPanelProps {
   onSelectedMeasurementChange?: (measurementId: string | null) => void;
   settings: AppSettings;
   onSettingChange: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
-  onToggleTarget?: (id: string) => void;
-  onRemoveTarget?: (id: string) => void;
   onAddTarget?: (name: string, points: MeasurementTrace["points"]) => void;
   connected?: boolean;
   isBusy?: boolean;
@@ -112,11 +107,6 @@ export const ToolsPanel = memo(function ToolsPanel(props: ToolsPanelProps) {
               onImportPEQ={props.onImportPEQ}
               setStatus={props.setStatus}
               onSelectedMeasurementChange={props.onSelectedMeasurementChange}
-              onRemoveMeasurement={props.onRemoveMeasurement ?? (() => {})}
-              onToggleMeasurement={props.onToggleMeasurement ?? (() => {})}
-              onClearMeasurements={props.onClearMeasurements ?? (() => {})}
-              onToggleTarget={props.onToggleTarget ?? (() => {})}
-              onRemoveTarget={props.onRemoveTarget ?? (() => {})}
               onAddTarget={props.onAddTarget}
               onAddMeasurement={props.onAddMeasurement}
               maxBands={props.maxBands}

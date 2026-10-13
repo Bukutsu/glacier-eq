@@ -1,24 +1,102 @@
 .eq-graph-layout { display: contents; }
 
-.editor-draft-recovery {
+.eq-curves {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  z-index: 2;
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-3);
+  gap: 2px;
+  padding: 3px;
+  max-width: calc(100% - 16px);
+  background: var(--popover);
   border: 1px solid var(--line-soft);
-  border-radius: var(--control-radius);
-  flex: 0 0 auto;
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-sm);
 }
-.editor-draft-recovery > div:first-child { flex: 1 1 220px; }
-.editor-draft-recovery strong { font-size: var(--type-label); font-weight: 600; }
-.editor-draft-recovery p {
-  margin: var(--space-1) 0 0;
+.eq-curves-trigger { color: var(--foreground); }
+.eq-curves-trigger[data-popup-open] { background: var(--accent); }
+.eq-curves-trigger > .app-icon:last-child { width: 12px; height: 12px; color: var(--muted); }
+.eq-curves-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 5px;
+  background: var(--secondary);
+  color: var(--muted-foreground);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.eq-curves > .eq-curves-add {
+  border-left: 1px solid var(--line-soft);
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+.eq-curves-popup {
+  display: flex;
+  flex-direction: column;
+  width: 300px;
+  max-width: calc(100vw - 16px);
+  max-height: var(--available-height);
+  overflow: hidden;
+  border: 1px solid var(--line-medium);
+  border-radius: var(--radius-card);
+  background: var(--popover);
+  color: var(--popover-foreground);
+  box-shadow: var(--shadow-md);
+  outline: none;
+}
+.eq-curves-popup-heading { padding: 14px 14px 10px; }
+.eq-curves-popup-heading h2 { margin: 0; font-size: 13px; font-weight: 600; }
+.eq-curves-popup-heading p { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
+.eq-curves-search { position: relative; margin: 0 10px 8px; flex: 0 0 auto; }
+.eq-curves-search > .app-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  width: 15px;
+  height: 15px;
+  transform: translateY(-50%);
   color: var(--muted);
-  font-size: var(--type-label);
-  line-height: 1.4;
+  pointer-events: none;
 }
-.editor-draft-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.eq-curves-list { min-height: 0; max-height: 240px; overflow-y: auto; padding: 0 6px 6px; overscroll-behavior: contain; }
+.eq-curves-group { min-width: 0; border: 0; margin: 0; padding: 0; }
+.eq-curves-group + .eq-curves-group { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line-soft); }
+.eq-curves-group legend { padding: 6px 8px; font-size: 11px; font-weight: 500; color: var(--muted); }
+.eq-curves-group legend span { margin-left: 4px; font-variant-numeric: tabular-nums; }
+.eq-curves-row { display: flex; align-items: center; border-radius: var(--control-radius); }
+.eq-curves-row:hover, .eq-curves-row:focus-within { background: var(--accent); }
+.eq-curves-option { display: flex; flex: 1; min-width: 0; align-items: center; gap: 8px; min-height: 36px; padding: 6px 8px; cursor: pointer; }
+.eq-curves-checkbox {
+  display: inline-flex;
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--input);
+  border-radius: 4px;
+  background: var(--field);
+}
+.eq-curves-checkbox[data-checked] { border-color: var(--primary); background: var(--primary); color: var(--primary-foreground); }
+.eq-curves-checkbox:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.eq-curves-checkbox .app-icon { display: block; width: 12px; height: 12px; }
+.eq-curves-swatch { flex: 0 0 auto; width: 6px; height: 6px; border-radius: 50%; }
+.eq-curves-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.eq-curves-delete { margin-right: 2px; }
+.eq-curves-delete .app-icon { width: 13px; height: 13px; }
+.eq-curves-empty { margin: 0; padding: 20px 8px; text-align: center; color: var(--muted); font-size: 12px; }
+.eq-curves-footer { flex: 0 0 auto; padding: 6px; border-top: 1px solid var(--line-soft); }
+.eq-curves-footer button { width: 100%; justify-content: flex-start; font-size: 12px; }
+@media (pointer: coarse), (max-width: 850px) {
+  .eq-curves-option { min-height: 44px; }
+}
+
 
 .graph-card {
   flex: 1 1 auto;

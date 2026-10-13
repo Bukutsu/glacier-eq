@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { Header } from "./Header";
+import { DraftRecovery } from "./DraftRecovery";
 
 const baseHeaderProps: Parameters<typeof Header>[0] = {
   connected: false,
@@ -25,6 +26,36 @@ const baseHeaderProps: Parameters<typeof Header>[0] = {
 };
 
 describe("Header markup", () => {
+  it.each([false, true])("keeps draft recovery in the header metadata (mobile=%s)", mobile => {
+    const html = renderToStaticMarkup(createElement(Header, {
+      ...baseHeaderProps, mobile,
+      draftRecovery: createElement(DraftRecovery, {
+        invalid: false, connected: false, isBusy: false,
+        onRestore: () => {}, onDiscard: () => {},
+      }),
+    }));
+    expect(html).toContain("Unfinished EQ");
+    expect(html).toContain('aria-label="EQ editing paused: restore or discard unfinished EQ to continue"');
+    expect(html).toContain("<strong>Editing paused</strong>");
+    expect(html).toContain('class="header-draft-trigger"');
+    expect(html).toContain('aria-expanded="false"');
+    expect(html.indexOf("Unfinished EQ")).toBeGreaterThan(html.indexOf('class="header-meta-row"'));
+    expect(html.indexOf("Unfinished EQ")).toBeLessThan(html.indexOf(mobile ? 'class="mobile-toolbar"' : 'class="toolbar desktop-toolbar"'));
+    expect(html).not.toContain("editor-draft-recovery");
+    expect(html).not.toContain("Nothing will be written to a DAC.");
+  });
+
+  it("labels unreadable drafts without offering a restore in the closed header", () => {
+    const html = renderToStaticMarkup(createElement(DraftRecovery, {
+      invalid: true, connected: false, isBusy: false,
+      onRestore: () => {}, onDiscard: () => {},
+    }));
+    expect(html).toContain("Unreadable draft");
+    expect(html).toContain('aria-label="EQ editing paused: discard the unreadable draft to continue"');
+    expect(html).toContain("<strong>Editing paused</strong>");
+    expect(html).not.toContain("Restore EQ");
+  });
+
   it("keeps one primary mobile save action and puts reads in the device menu", () => {
     const html = renderToStaticMarkup(createElement(Header, {
       ...baseHeaderProps, mobile: true, connected: true, deviceMatchesEditor: false,

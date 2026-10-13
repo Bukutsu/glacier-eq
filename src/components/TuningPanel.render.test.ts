@@ -14,11 +14,6 @@ const props: Parameters<typeof TuningPanel>[0] = {
   onImportPEQ: () => true,
   setStatus: () => {},
   getAsyncContext: () => ({ editorRevision: 0, connectionRevision: 0, operationRevision: 0 }),
-  onRemoveMeasurement: () => {},
-  onToggleMeasurement: () => {},
-  onClearMeasurements: () => {},
-  onRemoveTarget: () => {},
-  onToggleTarget: () => {},
   onAddMeasurement: () => {},
 };
 
@@ -80,14 +75,13 @@ describe("Tuning workflow", () => {
     }
   });
 
-  it("keeps advanced controls and graph comparisons behind separate disclosures", () => {
+  it("keeps advanced settings collapsed without a duplicate graph curve library", () => {
     const html = render();
     expect(html).toContain("Advanced settings");
-    expect(html).toContain("Compare curves");
-    expect(html.match(/<button(?=[^>]*class="app-collapse-trigger")(?=[^>]*aria-expanded="false")[^>]*>/g)).toHaveLength(2);
-    expect(html.match(/class="app-collapse-content" hidden=""/g)).toHaveLength(2);
-    expect(html.indexOf(">Generate EQ</button>")).toBeLessThan(html.indexOf("Compare curves"));
-    expect(html).toContain("Show curves on the graph without changing the EQ inputs.");
+    expect(html.match(/<button(?=[^>]*class="app-collapse-trigger")(?=[^>]*aria-expanded="false")[^>]*>/g)).toHaveLength(1);
+    expect(html.match(/class="app-collapse-content" hidden=""/g)).toHaveLength(1);
+    expect(html).not.toContain("Compare curves");
+    expect(html).not.toContain("trace-list");
   });
 
   it("keeps optimizer details inside advanced settings rather than the closed heading", () => {
@@ -114,20 +108,7 @@ describe("Tuning workflow", () => {
     });
     expect(html).toContain('class="app-select-value">Headphone</span>');
     expect(html).toContain('name="autoeq-measurement" value="headphone"');
-    expect(html).toContain("1 shown");
     expect(submitButton(html)).not.toContain('disabled=""');
-    expect(html).not.toContain('aria-label="Measurement: Headphone (2 points)" checked');
-    expect(html).toContain('aria-label="Target: Diffuse Field" checked=""');
   });
 
-  it("groups the curve library and only permits deleting custom targets", () => {
-    const customTarget = { ...BUILTIN_TARGETS[0], id: "custom", name: "My target", builtIn: false };
-    const html = render({ measurements: [measurement], allTargets: [BUILTIN_TARGETS[0], customTarget] });
-    expect(html).toContain('aria-label="Delete Headphone"');
-    expect(html).toContain('aria-label="Delete My target"');
-    expect(html).not.toContain(`aria-label="Delete ${BUILTIN_TARGETS[0].name}"`);
-    expect(html).toContain("Clear measurements</button>");
-    expect(html).toContain('class="tuning-library-heading">Measurements');
-    expect(html).toContain('class="tuning-library-heading">Targets');
-  });
 });

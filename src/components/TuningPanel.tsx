@@ -1,16 +1,12 @@
 import { useState } from "react";
 import { useAutoEq, type AutoEqOptions } from "../features/tuning/useAutoEq";
-import type { MeasurementTrace, TargetTrace } from "../types";
+import type { MeasurementTrace } from "../types";
 import { AddTraceModal } from "./AddTraceModal";
 import { Collapsible } from "./Collapsible";
 import { Icon } from "./Icon";
 import { NumberInput } from "./NumberInput";
 import { Select } from "./Select";
-import { UnifiedTracesList } from "./UnifiedTraces";
 import { Button } from "./ui/Button";
-
-const EMPTY_TARGETS: TargetTrace[] = [];
-const EMPTY_TARGET_IDS: string[] = [];
 
 interface AutoEqTabProps extends AutoEqOptions {
   onOpenAddTrace?: () => void;
@@ -18,11 +14,6 @@ interface AutoEqTabProps extends AutoEqOptions {
 }
 
 interface TuningPanelProps extends AutoEqTabProps {
-  onRemoveMeasurement: (id: string) => void;
-  onClearMeasurements: () => void;
-  onRemoveTarget: (id: string) => void;
-  onToggleMeasurement: (id: string) => void;
-  onToggleTarget: (id: string) => void;
   onAddMeasurement?: (name: string, points: MeasurementTrace["points"]) => void;
   onAddTarget?: (name: string, points: MeasurementTrace["points"]) => void;
 }
@@ -30,37 +21,10 @@ interface TuningPanelProps extends AutoEqTabProps {
 export function TuningPanel(props: TuningPanelProps) {
   const [showAddModal, setShowAddModal] = useState(false);
   const openAddTrace = () => setShowAddModal(true);
-  const activeTargetIds = props.activeTargetIds ?? EMPTY_TARGET_IDS;
-  const visibleCount = props.measurements.filter(trace => trace.visible).length + activeTargetIds.length;
 
   return (
     <div className="tuning-panel">
       <AutoEqTab {...props} onOpenAddTrace={openAddTrace} />
-      <Collapsible
-        title={<span className="tuning-compare-title">Compare curves <span>{visibleCount} shown</span></span>}
-        defaultOpen={false}
-        className="tuning-compare"
-      >
-        <p className="tuning-help">Show curves on the graph without changing the EQ inputs.</p>
-        <div className="tuning-library-actions">
-          <Button variant="ghost" onClick={openAddTrace}>
-            <Icon name="add" /> Add curve
-          </Button>
-          {props.measurements.length > 0 && (
-            <Button variant="ghost" className="tuning-clear" onClick={props.onClearMeasurements}>
-              Clear measurements
-            </Button>
-          )}
-        </div>
-        <h3 className="tuning-library-heading">Measurements <span>{props.measurements.length}</span></h3>
-        {props.measurements.length === 0
-          ? <p className="tuning-help">No measurements added.</p>
-          : <UnifiedTracesList {...props} allTargets={EMPTY_TARGETS} activeTargetIds={activeTargetIds} />}
-        <h3 className="tuning-library-heading">Targets <span>{props.allTargets.length}</span></h3>
-        {props.allTargets.length === 0
-          ? <p className="tuning-help">Add a target curve to generate EQ.</p>
-          : <UnifiedTracesList {...props} measurements={[]} activeTargetIds={activeTargetIds} />}
-      </Collapsible>
       {showAddModal && (
         <AddTraceModal
           onClose={() => setShowAddModal(false)}

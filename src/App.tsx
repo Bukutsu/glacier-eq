@@ -11,12 +11,13 @@ import {
 } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { invoke, listen, emit, sleep } from "./lib/rpc";
-import { ToastContainer } from "./components/Toast";
 import { createExternalLinkClickHandler } from "./lib/externalLinks";
 import { Bands } from "./components/Bands";
 import { DeviceChooser } from "./components/DeviceChooser";
 import { EqGraph } from "./components/EqGraph";
+import { EqCurves } from "./components/EqCurves";
 import { Header } from "./components/Header";
+import { DraftRecovery } from "./components/DraftRecovery";
 import { Icon } from "./components/Icon";
 import { Preamp } from "./components/Preamp";
 import {
@@ -70,7 +71,6 @@ import { useIsMobile } from "./hooks/useIsMobile";
 import { useTraces } from "./hooks/useTraces";
 import { useEditorDraft } from "./hooks/useEditorDraft";
 import { useAndroidKeyboardViewport } from "./hooks/useAndroidKeyboardViewport";
-import { Button } from "./components/ui/Button";
 import { OFFLINE_EDITOR_CAPABILITIES } from "./lib/dacSpecs";
 import { chooseReconnectDevice } from "./lib/reconnectDevice";
 import { profileIdentityKey } from "./lib/profileIdentity";
@@ -346,22 +346,10 @@ function App() {
     addMeasurement,
     removeMeasurement,
     toggleMeasurement,
-    clearMeasurements,
     toggleTarget,
     addTarget,
     removeTarget,
   } = useTraces(showToast);
-  const clearMeasurementsWithConfirmation = useCallback(async () => {
-    const count = measurements.length;
-    if (count === 0) return;
-    const confirmed = await confirmDialog({
-      title: "Clear measurements?",
-      message: `Remove ${count} saved measurement${count === 1 ? "" : "s"}? Target curves will stay available. This cannot be undone.`,
-      confirmLabel: "Clear measurements",
-      danger: true,
-    });
-    if (confirmed) clearMeasurements();
-  }, [clearMeasurements, measurements.length]);
   const [graphViewMode, setGraphViewMode] = useState<GraphViewMode>(() =>
     readLocalStorage("glacier-graph-view-mode") === "level"
       ? "level"
@@ -2114,20 +2102,14 @@ function App() {
   const editorControls = <>{preampControls}{bandControls}</>;
 
 
-  const draftRecovery = pendingDraft || draftInvalid ? (
-    <section className="editor-draft-recovery" aria-label="Unfinished EQ recovery">
-      <div>
-        <strong>{draftInvalid ? "Stored draft could not be read" : "Restore unfinished EQ?"}</strong>
-        <p>{draftInvalid
-          ? "Discard this draft to resume saving unfinished edits."
-          : "Choose Restore or Discard to continue editing. Nothing will be written to a DAC."}</p>
-        {connected && !draftInvalid && <p>Disconnect the DAC before restoring.</p>}
-      </div>
-      <div className="editor-draft-actions">
-        {!draftInvalid && <Button onClick={restoreDraft} disabled={connected || isBusy}>Restore EQ</Button>}
-        <Button variant="ghost" onClick={resolveDraft} disabled={isBusy}>Discard draft</Button>
-      </div>
-    </section>
+  const draftRecovery = recoveryPending ? (
+    <DraftRecovery
+      invalid={draftInvalid}
+      connected={connected}
+      isBusy={isBusy}
+      onRestore={restoreDraft}
+      onDiscard={resolveDraft}
+    />
   ) : null;
 
 
@@ -2136,6 +2118,21 @@ function App() {
       reconnectCancelRef.current?.focus();
     }
   }, [isReconnecting]);
+
+  const eqCurves = (
+    <EqCurves
+      measurements={measurements}
+      allTargets={allTargets}
+      activeTargetIds={activeTargetIds}
+      onToggleMeasurement={toggleMeasurement}
+      onRemoveMeasurement={removeMeasurement}
+      onToggleTarget={toggleTarget}
+      onRemoveTarget={removeTarget}
+      onAddMeasurement={addMeasurement}
+      onAddTarget={addTarget}
+      setStatus={setStatus}
+    />
+  );
 
   const desktopConfigPage = !isMobile
     ? activeTab === "device"
@@ -2175,7 +2172,8 @@ function App() {
           configPage={desktopConfigPage}
           pageTitle={isMobile ? mobilePageTitle : undefined}
           mobile={isMobile}
-          compact={isMobile && activeTab !== "eq"}
+          compact={isMobile && activeTab !== "eq" && !recoveryPending}
+          draftRecovery={draftRecovery}
         />
   );
 
@@ -2191,10 +2189,11 @@ function App() {
         <>
           <main id="workspace-content" tabIndex={-1} ref={mobileScrollRef} className="workspace mobile-workspace" aria-label={mobilePageTitle} inert={isReconnecting ? true : undefined}>
           {activeTab !== "eq" && <h1 className="visually-hidden">{mobilePageTitle}</h1>}
-          {showGraph && (activeTab === "eq" || (activeTab === "tuning" && (measurements.some((trace) => trace.visible) || activeTargets.length > 0))) && (
+          {showGraph && (activeTab === "eq" || activeTab === "tuning") && (
             <section className={`mobile-graph-container mobile-graph-${activeTab} ${graphCollapsed ? "collapsed" : ""}`}>
               <div className="graph-card" inert={graphCollapsed ? true : undefined} aria-hidden={graphCollapsed}>
                 {graphElement(activeTab === "eq")}
+                {eqCurves}
               </div>
               <button
                 type="button"
@@ -2231,7 +2230,6 @@ function App() {
           <div className="mobile-content-area">
             {activeTab === "eq" && (
               <section className="left-pane">
-                {draftRecovery}
                 {bandControls}
                 <details className="mobile-preamp-details">
                   <summary><span>Preamp</span><span>{peq.global_gain.toFixed(1)} dB <Icon name="expand_more" /></span></summary>
@@ -2258,11 +2256,6 @@ function App() {
                   activeTargetIds={activeTargetIds}
                   onImportPEQ={importPeq}
                   setStatus={setStatus}
-                  onToggleMeasurement={toggleMeasurement}
-                  onRemoveMeasurement={removeMeasurement}
-                  onClearMeasurements={clearMeasurementsWithConfirmation}
-                  onToggleTarget={toggleTarget}
-                  onRemoveTarget={removeTarget}
                   onAddMeasurement={addMeasurement}
                   onAddTarget={addTarget}
                   onSelectedMeasurementChange={setSelectedMeasurementId}
@@ -2376,10 +2369,10 @@ function App() {
             className="left-pane"
             ref={mainScrollRef}
           >
-            {draftRecovery}
             {showGraph && (activeTab === "eq" || activeTab === "tuning") && (
             <section className="graph-card">
               {graphElement(activeTab === "eq")}
+              {eqCurves}
             </section>
             )}
             {activeTab === "eq" && editorControls}
@@ -2414,16 +2407,11 @@ function App() {
             allTargets={allTargets}
             activeTargetIds={activeTargetIds}
             onAddMeasurement={addMeasurement}
-            onRemoveMeasurement={removeMeasurement}
-            onToggleMeasurement={toggleMeasurement}
-            onClearMeasurements={clearMeasurementsWithConfirmation}
             onSelectedMeasurementChange={setSelectedMeasurementId}
             graphViewMode={graphViewMode}
             onGraphViewModeChange={setGraphViewMode}
             settings={settings}
             onSettingChange={updateSetting}
-            onToggleTarget={toggleTarget}
-            onRemoveTarget={removeTarget}
             onAddTarget={addTarget}
             connected={connected}
             isBusy={isBusy}
@@ -2527,7 +2515,6 @@ function App() {
           </div>
         </Modal>
       )}
-      <ToastContainer errorsOnly />
       <ConfirmDialogHost />
     </div>
   );

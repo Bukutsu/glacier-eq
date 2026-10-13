@@ -1,7 +1,8 @@
-import { memo } from "react";
+import { memo, type ReactNode } from "react";
 import { Menu } from "@base-ui/react/menu";
 import { Button } from "./ui/Button";
 import { Icon } from "./Icon";
+import { ToastContainer } from "./Toast";
 import { OperationProgress } from "../types";
 import { isTauri } from "../lib/platform";
 import { useIsMobile } from "../hooks/useIsMobile";
@@ -90,6 +91,7 @@ interface HeaderProps {
   pageTitle?: string;
   mobile?: boolean;
   compact?: boolean;
+  draftRecovery?: ReactNode;
 }
 
 export const Header = memo(function Header({
@@ -120,6 +122,7 @@ export const Header = memo(function Header({
   pageTitle: pageTitleOverride,
   mobile = false,
   compact = false,
+  draftRecovery,
 }: HeaderProps) {
   const isConfigPage = configPage !== undefined;
   const showDeviceEditorActions = !isConfigPage || configPage === "device";
@@ -174,6 +177,7 @@ export const Header = memo(function Header({
           <div className="header-meta-row">
             {connected && !mobile && <div className="device-name">{deviceName}</div>}
             <span className={`sync-dot ${syncClass}`} role="status" aria-live="polite">{mobile ? mobileSyncText : syncText}</span>
+            {draftRecovery}
           </div>
           {!isConfigPage && !mobile && (
             <div className="header-session-strip" role="group" aria-label="EQ session status">
@@ -265,6 +269,7 @@ export const Header = memo(function Header({
           )}
         </div>}
       </div>
+      <ToastContainer errorsOnly />
       {isBusy && (
         <div
           className="header-progress-bar"

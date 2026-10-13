@@ -97,14 +97,14 @@
 .tuning-segmented > button { min-width: 0; }
 
 /* Reuse the existing accessible disclosures, without nested cards or icons. */
-.tuning-panel :is(.tuning-advanced, .tuning-compare) {
+.tuning-panel .tuning-advanced {
   border: 0;
   border-radius: 0;
   background: transparent;
   overflow: visible;
 }
 
-.tuning-panel :is(.tuning-advanced, .tuning-compare) > .app-collapse-trigger {
+.tuning-panel .tuning-advanced > .app-collapse-trigger {
   min-height: var(--touch-md);
   padding: var(--space-2) 0;
   border: 0;
@@ -114,24 +114,24 @@
   filter: none;
 }
 
-.tuning-panel :is(.tuning-advanced, .tuning-compare) > .app-collapse-trigger:hover:not(:disabled) {
+.tuning-panel .tuning-advanced > .app-collapse-trigger:hover:not(:disabled) {
   color: var(--text);
   background: transparent;
 }
 
-.tuning-panel :is(.tuning-advanced, .tuning-compare) > .app-collapse-trigger:focus-visible {
+.tuning-panel .tuning-advanced > .app-collapse-trigger:focus-visible {
   outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
 
-.tuning-panel :is(.tuning-advanced, .tuning-compare) .app-collapse-title {
+.tuning-panel .tuning-advanced .app-collapse-title {
   color: inherit;
   font-size: var(--type-label);
   font-weight: 500;
   white-space: normal;
 }
 
-.tuning-panel :is(.tuning-advanced, .tuning-compare) .app-collapse-content-inner {
+.tuning-panel .tuning-advanced .app-collapse-content-inner {
   padding: var(--space-3) 0 0;
   gap: var(--space-3);
 }
@@ -152,72 +152,6 @@
   text-align: center;
   text-wrap: balance;
 }
-
-.tuning-panel .tuning-compare {
-  padding-top: var(--space-3);
-  border-top: 1px solid var(--line-soft);
-}
-
-.tuning-compare-title {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-}
-
-.tuning-compare-title > span,
-.tuning-library-heading > span {
-  color: var(--muted);
-  font-size: var(--type-small);
-  font-weight: 400;
-}
-
-.tuning-library-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.tuning-library-heading {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin: var(--space-2) 0 0;
-  color: var(--text);
-  font-size: var(--type-label);
-  font-weight: 500;
-}
-
-.tuning-panel .trace-list {
-  flex: 0 0 auto;
-  max-height: none;
-  border: 0;
-  background: transparent;
-}
-
-.tuning-panel .curve-item {
-  grid-template-columns: minmax(0, 1fr) var(--touch-md);
-  min-height: var(--touch-md);
-  border: 0;
-  background: transparent;
-}
-
-.tuning-panel .curve-toggle,
-.tuning-panel .curve-delete {
-  min-height: var(--touch-md) !important;
-  max-height: none;
-}
-
-.tuning-panel .curve-delete {
-  min-width: var(--touch-md);
-  color: var(--muted) !important;
-  opacity: 1;
-}
-
-.tuning-panel .curve-delete:hover { color: var(--destructive-foreground) !important; }
-.tuning-panel .curve-points { color: var(--muted); }
-.tuning-panel .trace-type-badge { display: none; }
 
 .tuning-result:empty { display: none; }
 
@@ -259,11 +193,6 @@
 .tuning-error { color: var(--destructive-foreground); }
 .tuning-warnings { color: var(--warning-foreground); }
 .tuning-warnings ul { margin: var(--space-2) 0 0; padding-left: var(--space-4); }
-
-.tuning-panel .curve-delete:focus-visible {
-  outline: 2px solid var(--ring) !important;
-  outline-offset: -2px;
-}
 
 .tuning-panel :is(button, input):focus-visible {
   outline: 2px solid var(--ring);

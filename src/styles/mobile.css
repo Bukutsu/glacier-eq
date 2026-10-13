@@ -213,6 +213,10 @@
     white-space: normal;
     overflow-wrap: anywhere;
   }
+  .mobile-workspace .graph-card:has(.eq-curves) .mobile-legend-toggle {
+    top: auto;
+    bottom: 28px;
+  }
   .mobile-workspace .mobile-legend-toggle {
     background: transparent;
     border-color: transparent;
