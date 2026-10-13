@@ -375,6 +375,11 @@ impl WalkplayProtocol {
     }
 
     pub(crate) fn build_commit_packets() -> Vec<Packet> {
+        // Preserve the two-step sequence validated on EPZ/TRN hardware. The
+        // devicePEQ walkplayHidHandler at 0617f382e76629792a5933e6933e4b396a756a93
+        // ends with [1, 1, 1, 0], unlike the local/Aura [1, 1, 0] flash frame.
+        // Profiles with unresolved persistence behavior must remain read-only;
+        // substituting that sequence globally can disable EQ on tested firmware.
         vec![
             Packet::new(
                 REPORT_ID,
@@ -529,6 +534,22 @@ impl EqProtocol for WalkplayProtocol {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn ka17_dispatch_uses_its_model_protocol() {
+        let protocol = DeviceProtocol::FiioKa17;
+        assert_eq!(protocol.report_id(), 1);
+        assert_eq!(
+            protocol.read_global_gain_request().framed(),
+            crate::device::fiio::KA17_PROTOCOL
+                .read_global_gain_request()
+                .framed()
+        );
+        assert_eq!(
+            protocol.commit_packets()[0].framed(),
+            crate::device::fiio::KA17_PROTOCOL.commit_packets()[0].framed()
+        );
+    }
 
     #[test]
     fn walkplay_unframing_rejects_unexpected_report_ids() {
