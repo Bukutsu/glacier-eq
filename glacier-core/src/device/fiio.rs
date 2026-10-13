@@ -45,6 +45,11 @@ pub const FIIO_PROTOCOL: FiioProtocol = FiioProtocol {
     clamp_gain: false,
 };
 
+pub const KA17_PROTOCOL: FiioProtocol = FiioProtocol {
+    report_id: 1,
+    ..FIIO_PROTOCOL
+};
+
 fn default_state(peq: &PEQData) -> bool {
     peq.global_gain == 0.0 && peq.filters.iter().all(|f| !f.enabled || f.gain == 0.0)
 }

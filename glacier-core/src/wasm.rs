@@ -19,6 +19,9 @@ pub struct SupportedDeviceInfoWasm {
     pub product_id: Option<u16>,
     pub status: String,
     pub family: String,
+    pub write_block_reason: Option<String>,
+    pub mic_gain_block_reason: Option<String>,
+    pub read_nonce_supported: bool,
     #[serde(flatten)]
     pub capabilities: EditorCapabilities,
 }
@@ -119,6 +122,7 @@ fn eq_protocol(protocol: &str) -> Result<&'static dyn EqProtocol, JsValue> {
         "moondrop" => Ok(&crate::device::moondrop::MoondropProtocol),
         "fiioja11" => Ok(&crate::device::fiio::JA11_PROTOCOL),
         "fiio" => Ok(&crate::device::fiio::FIIO_PROTOCOL),
+        "fiioka17" => Ok(&crate::device::fiio::KA17_PROTOCOL),
         _ => Err(JsValue::from_str("Invalid protocol")),
     }
 }
@@ -321,6 +325,9 @@ pub fn list_supported_devices() -> Result<JsValue, JsValue> {
             product_id: device.product_id,
             status: device.status.to_string(),
             family: device.family.to_string(),
+            write_block_reason: device.write_block_reason.map(str::to_string),
+            mic_gain_block_reason: device.mic_gain_block_reason.map(str::to_string),
+            read_nonce_supported: device.read_nonce_supported,
             capabilities: (&device.caps).into(),
         })
         .collect();

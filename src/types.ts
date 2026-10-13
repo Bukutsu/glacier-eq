@@ -83,6 +83,8 @@ export interface DeviceInfo extends DeviceCapabilities {
   manufacturer: string | null;
   product_string: string | null;
   profile_name: string | null;
+  write_block_reason?: string | null;
+  mic_gain_block_reason?: string | null;
 }
 
 export interface SupportedDeviceInfo extends DeviceCapabilities {
@@ -92,6 +94,9 @@ export interface SupportedDeviceInfo extends DeviceCapabilities {
   product_id: number | null;
   status: string;
   family: string;
+  write_block_reason: string | null;
+  mic_gain_block_reason: string | null;
+  read_nonce_supported: boolean;
 }
 
 export interface Profile {

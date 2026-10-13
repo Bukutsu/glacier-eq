@@ -13,7 +13,9 @@ fn quantized_band_gain(gain: f64, protocol: DeviceProtocol) -> f64 {
     match protocol {
         DeviceProtocol::Walkplay => (((gain * 256.0).round() / 256.0) * 100.0).round() / 100.0,
         DeviceProtocol::Moondrop => (((gain * 256.0).round() / 256.0) * 10.0).round() / 10.0,
-        DeviceProtocol::FiioJa11 | DeviceProtocol::Fiio => (gain * 10.0).round() / 10.0,
+        DeviceProtocol::FiioJa11 | DeviceProtocol::Fiio | DeviceProtocol::FiioKa17 => {
+            (gain * 10.0).round() / 10.0
+        }
         DeviceProtocol::Unknown => gain,
     }
 }

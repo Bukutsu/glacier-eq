@@ -48,6 +48,9 @@ pub struct SupportedDeviceInfo {
     product_id: Option<u16>,
     status: &'static str,
     family: &'static str,
+    write_block_reason: Option<&'static str>,
+    mic_gain_block_reason: Option<&'static str>,
+    read_nonce_supported: bool,
     #[serde(flatten)]
     capabilities: EditorCapabilities,
 }
@@ -421,6 +424,8 @@ pub async fn list_devices(app: tauri::AppHandle) -> Result<Vec<DeviceInfo>, Stri
                     manufacturer: device.manufacturer_string.clone(),
                     product_string: device.product_string.clone(),
                     profile_name: Some(profile.name.to_string()),
+                    write_block_reason: profile.write_block_reason.map(str::to_string),
+                    mic_gain_block_reason: profile.mic_gain_block_reason.map(str::to_string),
                     capabilities: (&profile.caps).into(),
                 })
             })
@@ -441,6 +446,9 @@ pub fn list_supported_devices() -> Vec<SupportedDeviceInfo> {
             product_id: device.product_id,
             status: device.status,
             family: device.family,
+            write_block_reason: device.write_block_reason,
+            mic_gain_block_reason: device.mic_gain_block_reason,
+            read_nonce_supported: device.read_nonce_supported,
             capabilities: (&device.caps).into(),
         })
         .collect()

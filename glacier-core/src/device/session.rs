@@ -1094,7 +1094,7 @@ mod tests {
 
     #[test]
     fn non_walkplay_utility_is_rejected_before_write() {
-        let profile = get_supported_device(0x2fc6, 1).unwrap();
+        let profile = get_supported_device(0x2972, 0x0102).unwrap();
         let mut io = FakeIo::default();
         let mut session = DeviceSession::new(&mut io, profile);
         assert!(session.set_gain_mode(true).is_err());

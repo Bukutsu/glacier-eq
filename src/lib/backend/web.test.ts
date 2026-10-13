@@ -75,6 +75,9 @@ const profile: SupportedDeviceInfo = {
   product_id: 0x5678,
   status: "supported",
   family: "test",
+  write_block_reason: null,
+  mic_gain_block_reason: null,
+  read_nonce_supported: true,
   num_bands: 10,
   global_gain_range: [-16, 6],
   band_gain_range: [-10, 10],
@@ -1148,7 +1151,7 @@ describe("web profile parser", () => {
     const [profile] = parsed.value;
     expect(profile.data.global_gain).toBe(12);
     expect(profile.data.filters[0].freq).toBe(20_000);
-    expect(profile.data.filters[0].gain).toBe(-12);
+    expect(profile.data.filters[0].gain).toBe(-18);
     expect(profile.data.filters[0].q).toBe(20);
     expect(profile.data.filters[1].freq).toBe(20);
     expect(profile.data.filters[1].gain).toBe(12);

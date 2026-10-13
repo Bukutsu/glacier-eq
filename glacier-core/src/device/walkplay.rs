@@ -80,16 +80,16 @@ const fn savitech_caps(supported_filter_types: &'static [FilterType]) -> DeviceC
 
 const SAVITECH_10_BAND_CAPS: DeviceCapabilities = savitech_caps(WALKPLAY_FILTER_TYPES);
 
-const MOONDROP_10_BAND_CAPS: DeviceCapabilities = DeviceCapabilities {
-    num_bands: 10,
-    global_gain_range: (-20, 10),
-    band_gain_range: (-12.0, 12.0),
+const MOONDROP_8_BAND_CAPS: DeviceCapabilities = DeviceCapabilities {
+    num_bands: 8,
+    global_gain_range: (-128, 0),
+    band_gain_range: (-18.0, 12.0),
     freq_range: (20, 20000),
     q_range: (0.1, 10.0),
     supported_filter_types: LIMITED_FILTER_TYPES,
     supports_per_band_enable: false,
     supports_ram_apply: true,
-    dsp_sample_rate: 48000.0,
+    dsp_sample_rate: 96000.0,
     gain_tolerance: 0.15,
     freq_tolerance: 1,
     q_tolerance: 0.05,
@@ -261,6 +261,8 @@ pub fn parse_filter_packet(packet: &[u8]) -> Option<Filter> {
 
 // ─── Profiles ─────────────────────────────────────────────────────────────────
 
+// Exact identities only. A shared USB vendor or chipset does not establish PEQ support.
+// Model/firmware evidence and unresolved write contracts: docs/device-validation.md.
 pub const PROFILES: &[DeviceProfile] = &[
     DeviceProfile {
         name: "EPZ TP35 Pro",
@@ -270,6 +272,9 @@ pub const PROFILES: &[DeviceProfile] = &[
         status: "Tested",
         family: "Walkplay Family",
         caps: SAVITECH_10_BAND_CAPS,
+        write_block_reason: None,
+        mic_gain_block_reason: Some("No model-specific microphone gain capture is available"),
+        read_nonce_supported: true,
     },
     DeviceProfile {
         name: "TRN Black Pearl",
@@ -279,110 +284,104 @@ pub const PROFILES: &[DeviceProfile] = &[
         status: "Tested",
         family: "Walkplay Family",
         caps: SAVITECH_10_BAND_CAPS,
+        write_block_reason: None,
+        mic_gain_block_reason: Some("No model-specific microphone gain capture is available"),
+        read_nonce_supported: true,
     },
     DeviceProfile {
         name: "Audiocular Aura",
         protocol: DeviceProtocol::Walkplay,
         vendor_id: 0x3302,
-        product_id: None,
-        status: "Untested",
+        product_id: Some(0x43C9),
+        status: "Read-only",
         family: "Walkplay Family",
         caps: SAVITECH_10_BAND_CAPS,
+        write_block_reason: Some("EQ activation and flash-save commands need model-specific confirmation"),
+        mic_gain_block_reason: Some("No model-specific microphone gain capture is available"),
+        read_nonce_supported: false,
     },
     DeviceProfile {
-        name: "Fosi Audio DS2 / iBasso DC04 Pro",
+        name: "JCally JM20 Pro",
         protocol: DeviceProtocol::Walkplay,
-        vendor_id: 0x262A,
-        product_id: None,
-        status: "Untested",
+        vendor_id: 0x3302,
+        product_id: Some(0x43C1),
+        status: "Read-only",
         family: "Walkplay Family",
-        caps: SAVITECH_10_BAND_CAPS,
-    },
-    DeviceProfile {
-        name: "JCally JM20 / Savitech Generic",
-        protocol: DeviceProtocol::Walkplay,
-        vendor_id: 0x0661,
-        product_id: None,
-        status: "Untested",
-        family: "Walkplay Family",
-        caps: SAVITECH_10_BAND_CAPS,
-    },
-    DeviceProfile {
-        name: "JCally JM20 Pro / Alt Savitech",
-        protocol: DeviceProtocol::Walkplay,
-        vendor_id: 0x0666,
-        product_id: None,
-        status: "Untested",
-        family: "Walkplay Family",
-        caps: SAVITECH_10_BAND_CAPS,
-    },
-    DeviceProfile {
-        name: "Moondrop Dawn Pro",
-        protocol: DeviceProtocol::Moondrop,
-        vendor_id: 0x2FC6,
-        product_id: None,
-        status: "Untested",
-        family: "Moondrop / Comtrue",
-        caps: MOONDROP_10_BAND_CAPS,
+        caps: DeviceCapabilities {
+            num_bands: 8,
+            supported_filter_types: &[FilterType::Peak, FilterType::LowShelf, FilterType::LowPass, FilterType::HighPass],
+            ..SAVITECH_10_BAND_CAPS
+        },
+        write_block_reason: Some("SchemeNo11 frequency/Q compensation and save behavior need hardware confirmation"),
+        mic_gain_block_reason: Some("No model-specific microphone gain capture is available"),
+        read_nonce_supported: false,
     },
     DeviceProfile {
         name: "Moondrop Dawn Pro 2",
         protocol: DeviceProtocol::Moondrop,
         vendor_id: 0x35D8,
         product_id: Some(0x011D),
-        status: "Untested",
-        family: "Moondrop / Comtrue",
-        caps: MOONDROP_10_BAND_CAPS,
+        status: "Read-only",
+        family: "Moondrop",
+        caps: MOONDROP_8_BAND_CAPS,
+        write_block_reason: Some("Activation timing and safe preamp restoration need hardware confirmation"),
+        mic_gain_block_reason: Some("No model-specific microphone gain capture is available"),
+        read_nonce_supported: false,
     },
     DeviceProfile {
         name: "FiiO JA11",
         protocol: DeviceProtocol::FiioJa11,
         vendor_id: 0x2972,
         product_id: Some(0x0102),
-        status: "Untested",
+        status: "Read-only",
         family: "FiiO",
         caps: FIIO_5_BAND_CAPS,
+        write_block_reason: Some("Negative preamp encoding and reconnect-after-save need hardware confirmation"),
+        mic_gain_block_reason: Some("No model-specific microphone gain capture is available"),
+        read_nonce_supported: false,
     },
     DeviceProfile {
-        name: "JCally JM12",
-        protocol: DeviceProtocol::FiioJa11,
-        vendor_id: 0x31B2,
-        product_id: Some(0x0111),
-        status: "Untested",
-        family: "FiiO",
-        caps: FIIO_5_BAND_CAPS,
-    },
-    DeviceProfile {
-        name: "FiiO KA Series",
+        name: "FiiO KA15",
         protocol: DeviceProtocol::Fiio,
         vendor_id: 0x2972,
-        product_id: None,
-        status: "Untested",
+        product_id: Some(0x0104),
+        status: "Read-only",
         family: "FiiO",
         caps: FIIO_10_BAND_CAPS,
+        write_block_reason: Some("Preset activation and persistent-save behavior need model-specific confirmation"),
+        mic_gain_block_reason: Some("No model-specific microphone gain capture is available"),
+        read_nonce_supported: false,
+    },
+    DeviceProfile {
+        name: "FiiO KA17",
+        protocol: DeviceProtocol::FiioKa17,
+        vendor_id: 0x2972,
+        product_id: Some(0x0093),
+        status: "Read-only",
+        family: "FiiO",
+        caps: FIIO_10_BAND_CAPS,
+        write_block_reason: Some("Writable preset slots and persistent-save behavior need model-specific confirmation"),
+        mic_gain_block_reason: Some("No model-specific microphone gain capture is available"),
+        read_nonce_supported: false,
     },
     DeviceProfile {
         name: "Truthear KEYX",
         protocol: DeviceProtocol::Walkplay,
         vendor_id: 0x0D8C,
         product_id: Some(0x0210),
-        status: "Untested",
+        status: "Read-only",
         family: "Walkplay Family",
         caps: DeviceCapabilities {
             num_bands: 8,
             global_gain_range: (-20, 0),
-            band_gain_range: (-12.0, 12.0),
-            freq_range: (20, 20000),
-            q_range: (0.1, 10.0),
-            supported_filter_types: WALKPLAY_FILTER_TYPES,
-            supports_per_band_enable: false,
             supports_ram_apply: false,
             dsp_sample_rate: 48000.0,
             gain_tolerance: 0.1,
-            freq_tolerance: 1,
-            q_tolerance: 0.05,
-            integer_preamp: true,
+            ..SAVITECH_10_BAND_CAPS
         },
+        write_block_reason: Some("The coefficient sample rate and EQ activation/save commands need hardware confirmation"),
+        mic_gain_block_reason: Some("No model-specific microphone gain capture is available"),
+        read_nonce_supported: false,
     },
 ];
 
@@ -404,11 +403,10 @@ mod tests {
     }
 
     #[test]
-    fn walkplay_profiles_advertise_all_filter_types() {
-        for profile in PROFILES
-            .iter()
-            .filter(|profile| profile.protocol == DeviceProtocol::Walkplay)
-        {
+    fn tested_walkplay_profiles_advertise_all_filter_types() {
+        for profile in PROFILES.iter().filter(|profile| {
+            profile.protocol == DeviceProtocol::Walkplay && profile.status == "Tested"
+        }) {
             assert_eq!(
                 profile.caps.supported_filter_types,
                 FilterType::ALL,

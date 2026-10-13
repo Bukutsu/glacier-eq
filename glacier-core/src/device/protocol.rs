@@ -148,6 +148,7 @@ impl DeviceProtocol {
         match self {
             DeviceProtocol::Walkplay => &WALKPLAY_PROTOCOL,
             DeviceProtocol::Moondrop => &MOONDROP_PROTOCOL,
+            DeviceProtocol::FiioKa17 => &crate::device::fiio::KA17_PROTOCOL,
             DeviceProtocol::FiioJa11 => &crate::device::fiio::JA11_PROTOCOL,
             DeviceProtocol::Fiio => &crate::device::fiio::FIIO_PROTOCOL,
             DeviceProtocol::Unknown => {
