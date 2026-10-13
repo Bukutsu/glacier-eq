@@ -4,21 +4,29 @@
 
 ### Added
 
-- Added offline editor draft recovery after an unexpected app close. Restoring a draft never connects to or writes to a DAC.
-- Added mobile theme previews and current-value summaries for Settings and Device sections.
-- Added a native Android startup handoff that waits for appearance settings, with a bounded fallback if startup cannot finish.
+- After an unexpected close, the editor offers to restore the unfinished EQ. Restore loads it into the offline editor only; it does not connect to or write to a DAC.
+- The web app applies the saved theme before rendering and offers a retry if startup fails.
 
 ### Changed
 
-- Made Tokyo Night the default theme on fresh installs; saved theme choices are preserved.
-- Refined mobile Settings and Device navigation with grouped rows and compact section headers.
-- Improved mobile keyboard dismissal, segmented-control touch targets, and EQ slider gesture boundaries while retaining live previews and Undo.
+- Reworked most of the interface: the EQ editor, Tuning, Profiles, Device and Settings screens, plus dialogs and menus.
+- Tuning replaces numbered step cards with grouped measurement and target fields, a separate settings panel, and collapsible advanced options and curve comparisons.
+- Profiles now distinguish the saved library from the EQ in the editor. An import can be saved as a profile or loaded into the editor only.
+- Tokyo Night is now the default on fresh installs. Existing theme choices are kept.
+- Settings and Device use grouped lists and section views. Android Back returns to the previous list and restores focus.
+- The theme picker shows previews, and Settings and Device lists show the selected values.
+- Segmented controls have 48 px touch targets. Tapping empty editor space dismisses the keyboard without consuming the next tap.
+- Slider changes preview while you drag. A completed drag is one Undo step; canceling restores the previous value.
+- Android waits for appearance settings before releasing its startup screen. If initialization stalls, it continues after 8 seconds.
+- Changing the theme does not recolor EQ traces. Imported trace colors are kept.
+- Routine status messages stay quiet; errors remain visible.
 
 ### Fixed
 
-- Rejected malformed numeric input instead of partially parsing it, including decimal-comma values.
-- Improved Android keyboard layout, startup recovery, and external-link handling.
-- Kept browser EQ paste/import usable when clipboard access is denied.
+- Numeric fields accept a decimal point or comma and reject malformed input instead of accepting a numeric prefix.
+- Android resizes the editor around the keyboard, opens external links outside the app, and no longer opens the DAC chooser on launch.
+- Browser EQ paste and import remain available when clipboard access is denied.
+- A DAC write remains successful when the device rounds values during readback.
 
 ## [0.13.0] - 2026-10-09
 
