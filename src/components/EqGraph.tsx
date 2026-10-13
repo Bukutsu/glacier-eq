@@ -81,6 +81,7 @@ export const EqGraph = memo(function EqGraph({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const shellRef = useRef<HTMLDivElement>(null);
   const drawSerialRef = useRef(0);
+  const pointerGestureRef = useRef<{ x: number; y: number; q: number; freq: number; gain: number; shift: boolean; filter: Filter } | null>(null);
   const wheelGestureRef = useRef<{ index: number; filter: Filter } | null>(null);
   const wheelGestureTimerRef = useRef<number | undefined>(undefined);
   const wheelHandlerRef = useRef<(event: WheelEvent, index: number) => void>(() => {});
@@ -231,16 +232,38 @@ export const EqGraph = memo(function EqGraph({
     window.clearTimeout(wheelGestureTimerRef.current);
   }, []);
 
-  const updateFromPointer = (event: PointerEvent<HTMLButtonElement>, index: number, filter: Filter) => {
+  const updateFromPointer = (event: PointerEvent<HTMLButtonElement>, index: number) => {
     if (!event.currentTarget.hasPointerCapture(event.pointerId) || !capabilities || !onFilterChange) return;
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect?.width || !rect.height) return;
 
-    const rawFreq = Math.round(xToFreq(event.clientX - rect.left, rect.width));
+    const gesture = pointerGestureRef.current;
+    if (!gesture) return;
+    if (event.shiftKey !== gesture.shift) {
+      gesture.shift = event.shiftKey;
+      gesture.x = event.clientX;
+      gesture.y = event.clientY;
+      gesture.q = gesture.filter.q;
+      gesture.freq = gesture.filter.freq;
+      gesture.gain = gesture.filter.gain;
+      return;
+    }
+    if (event.shiftKey) {
+      // One octave of Q per 100 CSS pixels; keep frequency and gain fixed.
+      const q = Number(Math.max(capabilities.q_range[0], Math.min(capabilities.q_range[1],
+        gesture.q * 2 ** ((gesture.y - event.clientY) / 100))).toFixed(2));
+      gesture.filter = { ...gesture.filter, q };
+      onFilterChange(index, gesture.filter);
+      return;
+    }
+
+    const rawFreq = Math.round(xToFreq(freqToX(gesture.freq, rect.width) + event.clientX - gesture.x, rect.width));
     const snappedFreq = snapToIso ? snapFreqToIsoSync(rawFreq) : rawFreq;
     const freq = Math.max(capabilities.freq_range[0], Math.min(capabilities.freq_range[1], snappedFreq));
-    const gain = Number(Math.max(capabilities.band_gain_range[0], Math.min(capabilities.band_gain_range[1], yToDb(event.clientY - rect.top, rect.height))).toFixed(2));
-    onFilterChange(index, { ...filter, freq, gain });
+    const gain = Number(Math.max(capabilities.band_gain_range[0], Math.min(capabilities.band_gain_range[1],
+      yToDb(dbToY(gesture.gain, rect.height) + event.clientY - gesture.y, rect.height))).toFixed(2));
+    gesture.filter = { ...gesture.filter, freq, gain };
+    onFilterChange(index, gesture.filter);
   };
 
   const updateFromWheel = (event: WheelEvent, index: number, filter: Filter) => {
@@ -353,22 +376,24 @@ export const EqGraph = memo(function EqGraph({
             data-filter-index={filter.index}
             className={`eq-filter-handle${activeBandIndex === filter.index ? " active" : ""}`}
             style={handleStyle}
-            aria-label={`Band ${filter.index + 1}: ${valueText}. Drag with a finger or use arrow keys to adjust frequency and gain. Use the mouse wheel for gain or Shift plus mouse wheel for Q.`}
+            aria-label={`Band ${filter.index + 1}: ${valueText}. Drag or use arrow keys to adjust frequency and gain. Hold Shift and drag up or down to adjust Q. Use the mouse wheel for gain or Shift plus mouse wheel for Q.`}
             aria-current={activeBandIndex === filter.index ? "true" : undefined}
-            title={`Band ${filter.index + 1}: ${valueText} · Wheel: gain · Shift+wheel: Q`}
+            title={`Band ${filter.index + 1}: ${valueText} · Drag: frequency/gain · Shift+drag up/down: Q · Wheel: gain · Shift+wheel: Q`}
             onPointerDown={(event) => {
               if (!event.isPrimary || event.button !== 0) return;
               onActiveBandChange?.(filter.index);
               onStartChange?.();
+              pointerGestureRef.current = { x: event.clientX, y: event.clientY, q: filter.q, freq: filter.freq, gain: filter.gain, shift: event.shiftKey, filter };
               event.currentTarget.setPointerCapture(event.pointerId);
             }}
-            onPointerMove={(event) => void updateFromPointer(event, filter.index, filter)}
+            onPointerMove={(event) => void updateFromPointer(event, filter.index)}
             onPointerUp={(event) => {
               if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
             }}
             onPointerCancel={(event) => {
               if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
             }}
+            onLostPointerCapture={() => { pointerGestureRef.current = null; }}
             onKeyDown={(event) => void updateFromKeyboard(event, filter.index, filter)}
           >
             {filter.index + 1}
