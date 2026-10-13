@@ -80,16 +80,71 @@ export function matchSupportedWebHidDevice(
   device: Pick<HIDDevice, "vendorId" | "productId">,
   supportedDevices: SupportedDeviceInfo[],
 ): SupportedDeviceInfo | undefined {
-  // Mirror get_supported_device (glacier-core): an exact PID match wins over
-  // a vendor-level fallback regardless of list order, so web and desktop
-  // classify the same VID/PID identically even if the registry is reordered.
+  // Shared vendor/chipset identity is not evidence of an EQ command contract.
   return supportedDevices.find((supported) =>
     supported.vendor_id === device.vendorId &&
     supported.product_id === device.productId,
-  ) ?? supportedDevices.find((supported) =>
-    supported.vendor_id === device.vendorId &&
-    supported.product_id == null,
   );
+}
+
+interface HidReportContract {
+  report_id: number;
+  min_output_bytes: number;
+  min_input_bytes: number;
+}
+
+/** Browser descriptors already expose parsed report fields, excluding the ID. */
+export function validateWebHidReports(
+  device: Pick<HIDDevice, "collections">,
+  contract: HidReportContract,
+): void {
+  const input = new Map<number, number>();
+  const output = new Map<number, number>();
+  const visit = (collections: HIDCollectionInfo[]) => {
+    for (const collection of collections) {
+      for (const [reports, sizes] of [
+        [collection.inputReports, input],
+        [collection.outputReports, output],
+      ] as const) {
+        for (const report of reports ?? []) {
+          const id = report.reportId;
+          if (typeof id !== "number" || !Number.isInteger(id) || id < 0 || id > 255) {
+            throw new Error("Invalid HID report ID");
+          }
+          let bits = sizes.get(id) ?? 0;
+          for (const item of report.items ?? []) {
+            if (typeof item.reportSize !== "number" || typeof item.reportCount !== "number" ||
+                !Number.isSafeInteger(item.reportSize) || !Number.isSafeInteger(item.reportCount) ||
+                item.reportSize <= 0 || item.reportCount <= 0) {
+              throw new Error("Invalid HID report size/count");
+            }
+            const size = item.reportSize * item.reportCount;
+            if (!Number.isSafeInteger(size) || size <= 0 ||
+                !Number.isSafeInteger(bits + size)) {
+              throw new Error("Invalid HID report size/count");
+            }
+            bits += size;
+          }
+          sizes.set(id, bits);
+        }
+      }
+      visit(collection.children ?? []);
+    }
+  };
+  visit(device.collections);
+  for (const [direction, sizes, minimum] of [
+    ["Output", output, contract.min_output_bytes],
+    ["Input", input, contract.min_input_bytes],
+  ] as const) {
+    const bits = sizes.get(contract.report_id);
+    const id = contract.report_id.toString(16).padStart(2, "0");
+    if (bits === undefined) {
+      throw new Error(`HID collection has no ${direction} report ID 0x${id}`);
+    }
+    if (bits < minimum * 8) {
+      throw new Error(`HID ${direction} report ID 0x${id} is too short: requires ${minimum} payload bytes`);
+    }
+  }
 }
 
 // ─── WebHID Active State ──────────────────────────────────────────────────────
@@ -680,6 +735,20 @@ function connectedProfile(): SupportedDeviceInfo {
   return activeProfile;
 }
 
+function requireWritableProfile(profile = connectedProfile()): SupportedDeviceInfo {
+  if (profile.write_block_reason) {
+    throw new Error(`${profile.name} is read-only: ${profile.write_block_reason}`);
+  }
+  return profile;
+}
+
+function requireMicGainWritable(): void {
+  const profile = requireWritableProfile();
+  if (profile.mic_gain_block_reason) {
+    throw new Error(`Microphone gain writes are disabled: ${profile.mic_gain_block_reason}`);
+  }
+}
+
 function activeProfileIds(profile: SupportedDeviceInfo): { vendorId: number; productId: number } {
   if (profile.product_id === null) throw new Error("Connected device profile has no product ID");
   return { vendorId: profile.vendor_id, productId: profile.product_id };
@@ -709,7 +778,7 @@ function normalizeActivePeq(
 }
 
 function requireWalkplayUtilities(): SupportedDeviceInfo {
-  const profile = connectedProfile();
+  const profile = requireWritableProfile();
   if (profile.protocol !== "Walkplay") {
     throw new Error(`${profile.name} does not support Walkplay utility controls`);
   }
@@ -994,7 +1063,7 @@ async function pullEqStateOnce(profile: SupportedDeviceInfo): Promise<PEQData> {
       if (retry > 0) reportQueue = [];
       nextFilterNonce = (nextFilterNonce + 1) & 0xff;
       if (nextFilterNonce === 0) nextFilterNonce = 1;
-      const nonce = nextFilterNonce;
+      const nonce = profile.read_nonce_supported ? nextFilterNonce : 0;
       const filterReq = wasm().build_read_filter_request(protocol, i, nonce);
       try {
         await sendReport(filterReq);
@@ -1115,6 +1184,9 @@ function parseSupportedDeviceInfo(value: unknown): SupportedDeviceInfo | null {
     !(value.product_id === null || isFiniteNumber(value.product_id)) ||
     typeof value.status !== "string" ||
     typeof value.family !== "string" ||
+    !(value.write_block_reason === null || typeof value.write_block_reason === "string") ||
+    !(value.mic_gain_block_reason === null || typeof value.mic_gain_block_reason === "string") ||
+    typeof value.read_nonce_supported !== "boolean" ||
     !isFiniteNumber(value.num_bands) ||
     typeof value.supports_per_band_enable !== "boolean" ||
     typeof value.supports_ram_apply !== "boolean" ||
@@ -1142,6 +1214,9 @@ function parseSupportedDeviceInfo(value: unknown): SupportedDeviceInfo | null {
     product_id: value.product_id,
     status: value.status,
     family: value.family,
+    write_block_reason: value.write_block_reason,
+    mic_gain_block_reason: value.mic_gain_block_reason,
+    read_nonce_supported: value.read_nonce_supported,
     num_bands: value.num_bands,
     global_gain_range: globalGainRange,
     band_gain_range: bandGainRange,
@@ -1427,6 +1502,8 @@ async function invokeWeb<T = unknown>(cmd: string, args?: any): Promise<T> {
           manufacturer: webHidManufacturer(dev) || null,
           product_string: dev.productName || null,
           profile_name: profile.name,
+          write_block_reason: profile.write_block_reason,
+          mic_gain_block_reason: profile.mic_gain_block_reason,
         }];
       }) as T;
     }
@@ -1437,9 +1514,13 @@ async function invokeWeb<T = unknown>(cmd: string, args?: any): Promise<T> {
       const requestedPath = commandField(args, "path");
       const devices = await ensureWebHid().getDevices();
       const target = devices.find((dev: HIDDevice) => webHidPath(dev) === requestedPath);
-      if (!target || !matchSupportedWebHidDevice(target, listSupportedDevices())) {
+      const targetProfile = target && matchSupportedWebHidDevice(target, listSupportedDevices());
+      if (!target || !targetProfile) {
         throw new Error("Device is unsupported or unavailable. Select 'Scan for devices' to authorize a supported DAC.");
       }
+      // Validate before replacing the current device, opening, or sending any
+      // report. A VID/PID match can still be an unrelated HID collection.
+      validateWebHidReports(target, wasm().get_hid_report_contract(targetProfile.protocol));
 
       if (activeDevice && activeDevice !== target) {
         detachHidEventListeners(activeDevice);
@@ -1551,7 +1632,7 @@ async function invokeWeb<T = unknown>(cmd: string, args?: any): Promise<T> {
       return await pullEqState(connectedProfile()) as T;
     }
     case "set_eq_state": {
-      const profile = connectedProfile();
+      const profile = requireWritableProfile();
       const protocol = profile.protocol;
       const { peq, warnings } = normalizeActivePeq(commandField(args, "peq"), profile);
       const skipVerification = loadWebSettings().skip_push_verification;
@@ -1604,7 +1685,7 @@ async function invokeWeb<T = unknown>(cmd: string, args?: any): Promise<T> {
       return { ...actual, warnings } as T;
     }
     case "apply_eq_state": {
-      const profile = connectedProfile();
+      const profile = requireWritableProfile();
       if (!profile.supports_ram_apply) {
         throw new Error(`${profile.name} does not advertise volatile RAM apply support`);
       }
@@ -1639,6 +1720,9 @@ async function invokeWeb<T = unknown>(cmd: string, args?: any): Promise<T> {
     // ─── Walkplay Hardware controls ──────────────────────────────────────────
     case "get_dac_utility_state": {
       if (!activeDevice || !supportsWalkplayUtilities()) return unsupportedUtilityState() as T;
+      if (!connectedProfile().read_nonce_supported) {
+        throw new Error("Utility response decoding is not verified for this model");
+      }
 
       const filter = await readWalkplayUtility(CMD_FILTER_MODE);
       await sleep(25);
@@ -1715,6 +1799,7 @@ async function invokeWeb<T = unknown>(cmd: string, args?: any): Promise<T> {
     }
     case "set_mic_volume": {
       requireWalkplayUtilities();
+      requireMicGainWritable();
       const volumeDb = commandField(args, "volumeDb");
       validateControlRange("Mic volume", volumeDb);
       await writeAndFlash(wasm().build_mic_volume_write_packet(volumeDb));
@@ -1727,6 +1812,7 @@ async function invokeWeb<T = unknown>(cmd: string, args?: any): Promise<T> {
     }
     case "reset_device_controls": {
       requireWalkplayUtilities();
+      requireMicGainWritable();
       await invokeWeb("set_dac_filter_mode", { mode: "FAST-LL" });
       await invokeWeb("set_dac_work_mode", { isClassAb: false });
       await invokeWeb("set_dac_output_gain", { isHighGain: false });

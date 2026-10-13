@@ -71,7 +71,7 @@ export const DAC_OFFICIAL_SPECS: SpecEntry[] = [
   },
   {
     vendorId: 0x3302,
-    productId: null,
+    productId: 0x43c9,
     nameMatches: ["aura", "audiocular aura"],
     spec: {
       name: "Audiocular Aura",
@@ -83,54 +83,15 @@ export const DAC_OFFICIAL_SPECS: SpecEntry[] = [
     },
   },
   {
-    vendorId: 0x262a,
-    productId: null,
-    nameMatches: ["ds2", "fosi", "dc04", "ibasso"],
-    spec: {
-      name: "Fosi Audio DS2 / iBasso DC04 Pro",
-      chip: "Dual CS43131",
-      outputs: "3.5 / 4.4mm",
-      maxPower: "510mW @ 32Ω",
-      decoding: "384k / DSD256",
-      snr: "130 dB",
-    },
-  },
-  {
-    vendorId: 0x0661,
-    productId: null,
-    nameMatches: ["jm20", "jcally jm20"],
-    spec: {
-      name: "JCally JM20 / Savitech Generic",
-      chip: "CS43131",
-      outputs: "3.5mm SE",
-      maxPower: "95mW @ 32Ω",
-      decoding: "384k / DSD256",
-    },
-  },
-  {
-    vendorId: 0x0666,
-    productId: null,
+    vendorId: 0x3302,
+    productId: 0x43c1,
     nameMatches: ["jm20 pro"],
     spec: {
-      name: "JCally JM20 Pro / Alt Savitech",
+      name: "JCally JM20 Pro",
       chip: "CS43131",
       outputs: "3.5mm SE",
       maxPower: "95mW @ 32Ω",
       decoding: "384k / DSD256",
-    },
-  },
-  {
-    vendorId: 0x2fc6,
-    productId: null,
-    nameMatches: ["dawn pro", "moondrop dawn pro"],
-    spec: {
-      name: "Moondrop Dawn Pro",
-      chip: "Dual CS43131",
-      outputs: "3.5 / 4.4mm",
-      maxPower: "230mW @ 32Ω",
-      decoding: "384k / DSD256",
-      snr: "131 dB",
-      thd: "0.00014%",
     },
   },
   {
@@ -160,29 +121,6 @@ export const DAC_OFFICIAL_SPECS: SpecEntry[] = [
     },
   },
   {
-    vendorId: 0x31b2,
-    productId: 0x0111,
-    nameMatches: ["jm12", "jcally jm12"],
-    spec: {
-      name: "JCally JM12",
-      chip: "KT02H20",
-      outputs: "3.5mm SE",
-      maxPower: "30mW @ 32Ω",
-      decoding: "384k / DSD128",
-    },
-  },
-  {
-    vendorId: 0x2972,
-    productId: null,
-    nameMatches: ["ka series", "fiio ka"],
-    spec: {
-      name: "FiiO KA Series",
-      chip: "Cirrus / ESS",
-      outputs: "3.5 / 4.4mm",
-      decoding: "384k / DSD256",
-    },
-  },
-  {
     vendorId: 0x0d8c,
     productId: 0x0210,
     nameMatches: ["keyx", "truthear keyx"],
@@ -201,18 +139,10 @@ export function getOfficialDacSpec(
   productId?: number | null,
   name?: string | null,
 ): DacOfficialSpec | null {
-  if (vendorId != null) {
-    if (productId != null) {
-      const exact = DAC_OFFICIAL_SPECS.find(
-        (entry) => entry.vendorId === vendorId && entry.productId === productId,
-      );
-      if (exact) return exact.spec;
-    }
-
-    const vidMatch = DAC_OFFICIAL_SPECS.find(
-      (entry) => entry.vendorId === vendorId && (entry.productId === null || entry.productId === undefined),
-    );
-    if (vidMatch) return vidMatch.spec;
+  if (vendorId != null && productId != null) {
+    return DAC_OFFICIAL_SPECS.find(
+      (entry) => entry.vendorId === vendorId && entry.productId === productId,
+    )?.spec ?? null;
   }
 
   if (name) {

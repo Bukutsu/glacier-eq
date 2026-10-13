@@ -30,6 +30,9 @@ const wasm = vi.hoisted(() => ({
   build_factory_reset_packet: vi.fn(),
   build_flash_eq_packet: vi.fn(),
   get_write_timing: vi.fn(() => ({})),
+  get_hid_report_contract: vi.fn(() => ({
+    report_id: 0x4b, min_output_bytes: 36, min_input_bytes: 34,
+  })),
 }));
 
 // Controllable wasm gate: the round-5 P3 finding is that invokeWeb awaited
@@ -63,6 +66,7 @@ import {
   persistentPushFailureMessage,
   shouldRetryWebHidRead,
   WebHidReadTimeout,
+  validateWebHidReports,
 } from "./web";
 import { parseDiagnosticHistory } from "../diagnostics";
 import { themeOptions } from "../theme";
@@ -117,7 +121,11 @@ function fakeHidDevice(options: { respondToReports?: boolean; firmwareResponseAf
     productName: "Browser DAC",
     manufacturerName: "Test",
     opened: true,
-    collections: [],
+    collections: [{
+      usagePage: 0xff00, usage: 1, type: 1, children: [], featureReports: [],
+      inputReports: [{ reportId: 0x4b, items: [{ reportSize: 8, reportCount: 63 }] }],
+      outputReports: [{ reportId: 0x4b, items: [{ reportSize: 8, reportCount: 63 }] }],
+    }] as HIDCollectionInfo[],
     open: vi.fn(async () => undefined),
     forget: vi.fn(async () => undefined),
     close: vi.fn(async () => undefined),
@@ -1224,7 +1232,7 @@ describe("WebHID device matching", () => {
       .toBe(exact);
   });
 
-  it("falls back to a vendor-level profile when no exact PID matches", () => {
+  it("rejects a vendor-level profile when no exact PID matches", () => {
     const fallback: SupportedDeviceInfo = {
       ...profile,
       name: "Vendor Generic",
@@ -1232,8 +1240,69 @@ describe("WebHID device matching", () => {
     };
 
     expect(matchSupportedWebHidDevice({ vendorId: 0x1234, productId: 0xabcd }, [fallback]))
-      .toBe(fallback);
+      .toBeUndefined();
     expect(matchSupportedWebHidDevice({ vendorId: 0x1234, productId: 0xabcd }, [])).toBeUndefined();
+  });
+});
+
+describe("WebHID report contracts and write policy", () => {
+  const contract = { report_id: 0x4b, min_output_bytes: 36, min_input_bytes: 34 };
+
+  it("rejects missing, wrong, short, and malformed reports", () => {
+    expect(() => validateWebHidReports({ collections: [] }, contract)).toThrow("no Output");
+    const device = fakeHidDevice();
+    expect(() => validateWebHidReports(device, contract)).not.toThrow();
+    device.collections[0].outputReports[0].reportId = 1;
+    expect(() => validateWebHidReports(device, contract)).toThrow("no Output");
+    device.collections[0].outputReports[0].reportId = 0x4b;
+    device.collections[0].outputReports[0].items[0].reportCount = 35;
+    expect(() => validateWebHidReports(device, contract)).toThrow("too short");
+    device.collections[0].outputReports[0].items[0].reportCount = Number.NaN;
+    expect(() => validateWebHidReports(device, contract)).toThrow("Invalid");
+  });
+
+  it("validates before opening a wrong HID collection", async () => {
+    const device = fakeHidDevice();
+    device.collections = [];
+    device.opened = false;
+    wasm.list_supported_devices.mockReturnValue([profile]);
+    hidMock.devices = [device];
+    const listed = await invoke<Array<{ path: string }>>("list_devices");
+    await expect(invoke("connect_device", { path: listed[0].path })).rejects.toThrow("no Output");
+    expect(device.open).not.toHaveBeenCalled();
+    expect(device.sendReport).not.toHaveBeenCalled();
+  });
+
+  it("blocks every mutation on read-only profiles before sending reports", async () => {
+    const device = fakeHidDevice();
+    await connectWebHid(device, {
+      ...profile, protocol: "Walkplay", write_block_reason: "Unverified save command",
+    });
+    for (const [command, args] of [
+      ["set_eq_state", { peq: { filters: [], global_gain: 0 } }],
+      ["apply_eq_state", { peq: { filters: [], global_gain: 0 } }],
+      ["set_dac_filter_mode", { mode: "FAST-LL" }],
+      ["set_dac_work_mode", { isClassAb: false }],
+      ["set_dac_output_gain", { isHighGain: false }],
+      ["set_dac_balance", { balance: 0 }],
+      ["set_mic_volume", { volumeDb: 0 }],
+      ["reset_device_eq", {}],
+      ["reset_device_controls", {}],
+      ["execute_factory_reset", {}],
+    ] as const) {
+      await expect(invoke(command, args)).rejects.toThrow("read-only");
+    }
+    expect(device.sendReport).not.toHaveBeenCalled();
+  });
+
+  it("blocks microphone writes and control reset before any partial changes", async () => {
+    const device = fakeHidDevice();
+    await connectWebHid(device, {
+      ...profile, protocol: "Walkplay", mic_gain_block_reason: "No model capture",
+    });
+    await expect(invoke("set_mic_volume", { volumeDb: 0 })).rejects.toThrow("No model capture");
+    await expect(invoke("reset_device_controls")).rejects.toThrow("No model capture");
+    expect(device.sendReport).not.toHaveBeenCalled();
   });
 });
 

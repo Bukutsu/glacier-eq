@@ -115,16 +115,38 @@ fn response_values_and_bands(
     responses
 }
 
-fn eq_protocol(protocol: &str) -> Result<&'static dyn EqProtocol, JsValue> {
+fn device_protocol(protocol: &str) -> Result<DeviceProtocol, JsValue> {
     let normalized = protocol.to_lowercase().replace([' ', '-', '_'], "");
     match normalized.as_str() {
-        "walkplay" => Ok(&WalkplayProtocol),
-        "moondrop" => Ok(&crate::device::moondrop::MoondropProtocol),
-        "fiioja11" => Ok(&crate::device::fiio::JA11_PROTOCOL),
-        "fiio" => Ok(&crate::device::fiio::FIIO_PROTOCOL),
-        "fiioka17" => Ok(&crate::device::fiio::KA17_PROTOCOL),
+        "walkplay" => Ok(DeviceProtocol::Walkplay),
+        "moondrop" => Ok(DeviceProtocol::Moondrop),
+        "fiioja11" => Ok(DeviceProtocol::FiioJa11),
+        "fiio" => Ok(DeviceProtocol::Fiio),
+        "fiioka17" => Ok(DeviceProtocol::FiioKa17),
         _ => Err(JsValue::from_str("Invalid protocol")),
     }
+}
+
+fn eq_protocol(protocol: &str) -> Result<&'static dyn EqProtocol, JsValue> {
+    Ok(device_protocol(protocol)?.implementation())
+}
+
+#[derive(Serialize)]
+struct HidReportContractWasm {
+    report_id: u8,
+    min_output_bytes: usize,
+    min_input_bytes: usize,
+}
+
+#[wasm_bindgen]
+pub fn get_hid_report_contract(protocol: String) -> Result<JsValue, JsValue> {
+    let contract = crate::device::hid::ReportContract::for_protocol(device_protocol(&protocol)?)
+        .map_err(js_err)?;
+    to_js_value(&HidReportContractWasm {
+        report_id: contract.report_id,
+        min_output_bytes: contract.min_output_bytes,
+        min_input_bytes: contract.min_input_bytes,
+    })
 }
 
 fn unframe<'a>(protocol: &dyn EqProtocol, data: &'a [u8]) -> Result<&'a [u8], JsValue> {
@@ -259,8 +281,7 @@ fn validate_global_gain_wire(protocol: &str, gain: f64) -> Result<(), JsValue> {
     }
     let normalized = protocol.to_lowercase().replace([' ', '-', '_'], "");
     let scale = match normalized.as_str() {
-        "fiio" => 10.0,
-        "fiioja11" => 2560.0,
+        "fiio" | "fiioja11" | "fiioka17" => 10.0,
         "moondrop" => 256.0,
         _ => return Ok(()),
     };
@@ -276,7 +297,7 @@ fn validate_filter_gain_wire(protocol: &str, gain: f64) -> Result<(), JsValue> {
     }
     let normalized = protocol.to_lowercase().replace([' ', '-', '_'], "");
     let scale = match normalized.as_str() {
-        "fiio" | "fiioja11" => 10.0,
+        "fiio" | "fiioja11" | "fiioka17" => 10.0,
         "moondrop" | "walkplay" => 256.0,
         _ => return Ok(()),
     };
