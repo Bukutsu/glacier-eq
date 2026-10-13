@@ -49,15 +49,100 @@ sealed class HidResult<out T> {
     }
 }
 
+// This small Android-side parser selects an interface before starting the reader.
+// Rust validates the selected raw descriptor again with the shared core parser.
+private data class HidReportSizes(val input: Map<Int, Long>, val output: Map<Int, Long>)
+
+private fun parseReportSizes(bytes: ByteArray): HidReportSizes {
+    require(bytes.isNotEmpty()) { "Empty HID report descriptor" }
+    val input = mutableMapOf<Int, Long>()
+    val output = mutableMapOf<Int, Long>()
+    var size = 0L
+    var count = 0L
+    var id = 0
+    var collections = 0
+    var numbered = false
+    var unnumbered = false
+    val stack = mutableListOf<Triple<Long, Long, Int>>()
+    var offset = 0
+    while (offset < bytes.size) {
+        val prefix = bytes[offset++].toInt() and 0xff
+        if (prefix == 0xfe) {
+            require(bytes.size - offset >= 2) { "Truncated HID long item" }
+            val length = bytes[offset].toInt() and 0xff
+            offset += 2
+            require(bytes.size - offset >= length) { "Truncated HID long item payload" }
+            offset += length
+            continue
+        }
+        val length = if (prefix and 3 == 3) 4 else prefix and 3
+        require(bytes.size - offset >= length) { "Truncated HID short item" }
+        var value = 0L
+        for (i in 0 until length) value = value or ((bytes[offset + i].toLong() and 0xff) shl (8 * i))
+        offset += length
+        val kind = (prefix shr 2) and 3
+        val tag = prefix shr 4
+        when {
+            kind == 1 && (tag == 7 || tag == 9) -> {
+                require(length > 0) { "Missing HID report size/count" }
+                if (tag == 7) size = value else count = value
+            }
+            kind == 1 && tag == 8 -> {
+                require(length == 1 && value in 1..255) { "Invalid HID report ID" }
+                id = value.toInt()
+            }
+            kind == 1 && tag == 10 -> {
+                require(length == 0) { "Invalid HID global Push" }
+                stack.add(Triple(size, count, id))
+            }
+            kind == 1 && tag == 11 -> {
+                require(length == 0 && stack.isNotEmpty()) { "Unmatched HID global Pop" }
+                val saved = stack.removeAt(stack.lastIndex)
+                size = saved.first; count = saved.second; id = saved.third
+            }
+            kind == 0 && tag == 10 -> {
+                require(length == 1) { "Invalid HID Collection" }
+                collections++
+            }
+            kind == 0 && tag == 12 -> {
+                require(length == 0 && collections > 0) { "Unmatched HID End Collection" }
+                collections--
+            }
+            kind == 0 && (tag == 8 || tag == 9 || tag == 11) -> {
+                require(length > 0 && size > 0 && count > 0) { "Missing/zero HID report size/count" }
+                numbered = numbered || id != 0
+                unnumbered = unnumbered || id == 0
+                require(!(numbered && unnumbered)) { "Mixed numbered and unnumbered HID reports" }
+                require(size <= 0xffffffffL / count) { "HID report bit size overflow" }
+                val bits = size * count
+                if (tag != 11) {
+                    val reports = if (tag == 8) input else output
+                    val total = (reports[id] ?: 0L) + bits
+                    require(total <= 0xffffffffL) { "HID report bit size overflow" }
+                    reports[id] = total
+                }
+            }
+        }
+    }
+    require(stack.isEmpty() && collections == 0) { "Unbalanced HID globals/collections" }
+    require(input.isNotEmpty() || output.isNotEmpty()) { "HID descriptor has no Input or Output reports" }
+    return HidReportSizes(input, output)
+}
+
 class HidDevice(
     private val usbDevice: UsbDevice,
     private val deviceConnection: UsbDeviceConnection,
     private val sessionId: Long,
+    private val reportContract: OpenArgs,
     private val onDisconnected: (HidDevice) -> Unit
 ) {
     private var usbInEndpoint: UsbEndpoint? = null
     private var usbOutEndpoint: UsbEndpoint? = null
     private var usbInterface: UsbInterface? = null
+    var reportDescriptor: ByteArray = byteArrayOf()
+        private set
+    private var reportSizes: HidReportSizes? = null
+    private var inputBufferSize = 64
     
     private val readQueue = LinkedBlockingQueue<ByteArray>(MAX_QUEUED_READS)
     private val operationLock = Any()
@@ -83,64 +168,90 @@ class HidDevice(
 
     fun matchesDevice(device: UsbDevice): Boolean = sameUsbDevice(usbDevice, device)
     
+    private fun fetchReportDescriptor(intf: UsbInterface): ByteArray {
+        // Read the advertised report descriptor length from the HID descriptor.
+        // Endpoint maxPacketSize says nothing about the HID report contract.
+        val raw = deviceConnection.rawDescriptors
+        var offset = 0
+        var currentId = -1
+        var currentAlternate = -1
+        var reportLength = 0
+        while (offset < raw.size) {
+            require(raw.size - offset >= 2) { "Truncated USB descriptor" }
+            val length = raw[offset].toInt() and 0xff
+            val type = raw[offset + 1].toInt() and 0xff
+            require(length >= 2 && raw.size - offset >= length) { "Invalid USB descriptor length" }
+            if (type == 4 && length >= 9) {
+                currentId = raw[offset + 2].toInt() and 0xff
+                currentAlternate = raw[offset + 3].toInt() and 0xff
+            }
+            if (type == 0x21 && currentId == intf.id && currentAlternate == intf.alternateSetting) {
+                require(length >= 6) { "Truncated HID descriptor" }
+                val count = raw[offset + 5].toInt() and 0xff
+                require(length >= 6 + count * 3) { "Truncated HID subordinate descriptors" }
+                for (i in 0 until count) {
+                    val item = offset + 6 + i * 3
+                    if ((raw[item].toInt() and 0xff) == 0x22) {
+                        reportLength = (raw[item + 1].toInt() and 0xff) or ((raw[item + 2].toInt() and 0xff) shl 8)
+                    }
+                }
+            }
+            offset += length
+        }
+        require(reportLength in 1..4096) { "Missing or unsupported HID report descriptor length: $reportLength" }
+        val buffer = ByteArray(reportLength)
+        val received = deviceConnection.controlTransfer(0x81, 0x06, 0x2200, intf.id, buffer, buffer.size, 1000)
+        require(received == reportLength) { "HID report descriptor GET_DESCRIPTOR returned $received, expected $reportLength" }
+        return buffer
+    }
+
     // Initialize and connect to the device
     fun initialize(): HidResult<Unit> {
         try {
-            var selectedInterface: UsbInterface? = null
-            var firstHidInterface: UsbInterface? = null
+            val candidates = mutableListOf<Triple<UsbInterface, ByteArray, HidReportSizes>>()
+            val rejected = mutableListOf<String>()
             for (i in 0 until usbDevice.interfaceCount) {
                 val intf = usbDevice.getInterface(i)
-                Log.i(TAG, "Interface Index: $i, ID: ${intf.id}, Class: ${intf.interfaceClass}, Subclass: ${intf.interfaceSubclass}, Protocol: ${intf.interfaceProtocol}, Endpoints: ${intf.endpointCount}")
-                if (intf.interfaceClass == UsbConstants.USB_CLASS_HID) {
-                    var hasIn = false
-                    var hasOut = false
-                    for (j in 0 until intf.endpointCount) {
-                        val ep = intf.getEndpoint(j)
-                        if (ep.type == UsbConstants.USB_ENDPOINT_XFER_INT) {
-                            if (ep.direction == UsbConstants.USB_DIR_IN) {
-                                hasIn = true
-                            } else if (ep.direction == UsbConstants.USB_DIR_OUT) {
-                                hasOut = true
-                            }
+                if (intf.interfaceClass != UsbConstants.USB_CLASS_HID || intf.alternateSetting != 0) continue
+                try {
+                    require((0 until intf.endpointCount).any {
+                        val ep = intf.getEndpoint(it)
+                        ep.type == UsbConstants.USB_ENDPOINT_XFER_INT && ep.direction == UsbConstants.USB_DIR_IN
+                    }) { "No interrupt IN endpoint" }
+                    val descriptor = fetchReportDescriptor(intf)
+                    val sizes = parseReportSizes(descriptor)
+                    val id = reportContract.reportId
+                    if (id != null) {
+                        require(id in 0..255) { "Invalid required report ID" }
+                        require(reportContract.minOutputBytes >= 0 && reportContract.minInputBytes >= 0) { "Invalid required report length" }
+                        for ((direction, reports, minimum) in listOf(
+                            Triple("Output", sizes.output, reportContract.minOutputBytes),
+                            Triple("Input", sizes.input, reportContract.minInputBytes)
+                        )) {
+                            if (minimum == 0) continue
+                            val bits = reports[id] ?: error("No $direction report ID 0x${id.toString(16)}")
+                            require(bits >= minimum.toLong() * 8) { "$direction report ID 0x${id.toString(16)} is too short: $bits bits, requires $minimum payload bytes" }
                         }
                     }
-                    Log.i(TAG, "Interface $i is HID: hasIn=$hasIn, hasOut=$hasOut")
-                    if (firstHidInterface == null) {
-                        firstHidInterface = intf
-                    }
-                    if (hasIn && hasOut && selectedInterface == null) {
-                        selectedInterface = intf
-                    }
+                    candidates.add(Triple(intf, descriptor, sizes))
+                } catch (e: Exception) {
+                    rejected.add("interface ${intf.id}: ${e.message}")
                 }
             }
-            if (selectedInterface == null) {
-                selectedInterface = firstHidInterface
+            require(candidates.size == 1) {
+                if (candidates.isEmpty()) "No HID interface satisfies the report contract: ${rejected.joinToString("; ")}"
+                else "Multiple HID interfaces satisfy the report contract; refusing ambiguous interface selection"
             }
-            if (selectedInterface == null) {
-                for (i in 0 until usbDevice.interfaceCount) {
-                    val intf = usbDevice.getInterface(i)
-                    var hasIn = false
-                    var hasOut = false
-                    for (j in 0 until intf.endpointCount) {
-                        val ep = intf.getEndpoint(j)
-                        if (ep.type == UsbConstants.USB_ENDPOINT_XFER_INT) {
-                            if (ep.direction == UsbConstants.USB_DIR_IN) {
-                                hasIn = true
-                            } else if (ep.direction == UsbConstants.USB_DIR_OUT) {
-                                hasOut = true
-                            }
-                        }
-                    }
-                    if (hasIn && hasOut) {
-                        selectedInterface = intf
-                        break
-                    }
-                }
-            }
-            if (usbDevice.interfaceCount == 0) {
-                return HidResult.Error("Device has no interfaces")
-            }
-            val usbInterface = selectedInterface ?: usbDevice.getInterface(0)
+            val candidate = candidates.single()
+            reportDescriptor = candidate.second
+            reportSizes = candidate.third
+            // Read a complete report, even when USB splits it into smaller packets.
+            val maxInputBits = candidate.third.input.values.maxOrNull() ?: 0L
+            val numbered = candidate.third.input.keys.any { it != 0 }
+            val readSize = (maxInputBits + 7) / 8 + if (numbered) 1 else 0
+            require(readSize in 1..16384) { "Unsupported HID input report length: $readSize" }
+            inputBufferSize = readSize.toInt()
+            val usbInterface = candidate.first
             this.usbInterface = usbInterface
             
             // Log device details
@@ -195,7 +306,7 @@ class HidDevice(
 
         val thread = Thread {
             Log.i(TAG, "Background read thread started using UsbRequest")
-            val bufferSize = maxOf(endpoint.maxPacketSize, 64)
+            val bufferSize = inputBufferSize
             var readFailed = false
             try {
                 var failureCount = 0
@@ -376,6 +487,11 @@ class HidDevice(
             return HidResult.Error("Report ID is out of range: $reportId")
         }
 
+        val bits = reportSizes?.output?.get(reportId)
+            ?: return HidResult.Error("No Output report ID 0x${reportId.toString(16)} on selected HID interface")
+        if (data.size.toLong() * 8 > bits) {
+            return HidResult.Error("Output payload exceeds HID report size: ${data.size} bytes, $bits bits")
+        }
         return synchronized(operationLock) {
             synchronized(connectionLock) {
                 if (closed) {
@@ -395,12 +511,7 @@ class HidDevice(
                             } else {
                                 byteArrayOf(reportId.toByte()) + data
                             }
-                            if (interruptData.size > outEndpoint.maxPacketSize) {
-                                HidResult.Error(
-                                    "Interrupt OUT report is ${interruptData.size} bytes, " +
-                                        "but the endpoint accepts ${outEndpoint.maxPacketSize}"
-                                )
-                            } else try {
+                            try {
                                 val bytesWritten = deviceConnection.bulkTransfer(
                                     outEndpoint,
                                     interruptData,
@@ -531,6 +642,9 @@ class HidDevice(
 class OpenArgs {
     var path: String? = null
     var sessionId: Long = 0
+    var reportId: Int? = null
+    var minOutputBytes: Int = 0
+    var minInputBytes: Int = 0
 }
 
 @InvokeArg
@@ -825,53 +939,61 @@ class HidPlugin(private val activity: Activity): Plugin(activity) {
         sessionId: Long,
         invoke: Invoke
     ) {
-        if (destroyed) {
-            invoke.reject("HID plugin is no longer active")
-            return
-        }
-
-        // Open device connection
-        val connection = usbManager.openDevice(usbDevice)
-        if (connection == null) {
-            Log.e(TAG, "Failed to open connection to device: ${usbDevice.deviceName}")
-            invoke.reject("Failed to open connection to device")
-            return
-        }
-        
-        // Create new HidDevice
-        val hidDevice = HidDevice(usbDevice, connection, sessionId) { failedDevice ->
-            handleDeviceFailure(path, failedDevice)
-        }
-
-        when (val result = hidDevice.initialize()) {
-            is HidResult.Success -> {
-                Log.i(TAG, "HidDevice created successfully")
-                val installed = synchronized(this) {
-                    if (destroyed) null
-                    else connectedDevices.putIfAbsent(path, hidDevice) == null
-                }
-                if (installed == null) {
-                    hidDevice.closeConnection()
-                    invoke.reject("HID plugin is no longer active")
-                    return
-                }
-                if (installed) {
-                    when (val reading = hidDevice.startReading()) {
-                        is HidResult.Success -> invoke.resolve()
-                        is HidResult.Error -> {
-                            connectedDevices.remove(path, hidDevice)
-                            hidDevice.closeConnection()
-                            invoke.reject("Failed to start HID reader: ${reading.message}", TAG)
-                        }
-                    }
-                } else {
-                    hidDevice.closeConnection()
-                    invoke.reject("HID device is already connected")
-                }
+        // Descriptor reads may block for each interface; keep them off the UI
+        // command thread and retain the existing destroy/cancellation fence.
+        enqueueIo(invoke) {
+            if (destroyed) {
+                finishIo(invoke) { invoke.reject("HID plugin is no longer active") }
+                return@enqueueIo
             }
-            is HidResult.Error -> {
-                hidDevice.closeConnection()
-                invoke.reject("Failed to create HidDevice: ${result.message}", TAG)
+
+            // Open device connection
+            val connection = usbManager.openDevice(usbDevice)
+            if (connection == null) {
+                Log.e(TAG, "Failed to open connection to device: ${usbDevice.deviceName}")
+                finishIo(invoke) { invoke.reject("Failed to open connection to device") }
+                return@enqueueIo
+            }
+
+            // Create new HidDevice
+            val hidDevice = HidDevice(usbDevice, connection, sessionId, invoke.parseArgs(OpenArgs::class.java)) { failedDevice ->
+                handleDeviceFailure(path, failedDevice)
+            }
+
+            when (val result = hidDevice.initialize()) {
+                is HidResult.Success -> {
+                    Log.i(TAG, "HidDevice created successfully")
+                    val installed = synchronized(this) {
+                        if (destroyed) null
+                        else connectedDevices.putIfAbsent(path, hidDevice) == null
+                    }
+                    if (installed == null) {
+                        hidDevice.closeConnection()
+                        finishIo(invoke) { invoke.reject("HID plugin is no longer active") }
+                        return@enqueueIo
+                    }
+                    if (installed) {
+                        when (val reading = hidDevice.startReading()) {
+                            is HidResult.Success -> {
+                                val result = JSObject()
+                                result.put("data", JSArray(hidDevice.reportDescriptor))
+                                finishIo(invoke) { invoke.resolve(result) }
+                            }
+                            is HidResult.Error -> {
+                                connectedDevices.remove(path, hidDevice)
+                                hidDevice.closeConnection()
+                                finishIo(invoke) { invoke.reject("Failed to start HID reader: ${reading.message}", TAG) }
+                            }
+                        }
+                    } else {
+                        hidDevice.closeConnection()
+                        finishIo(invoke) { invoke.reject("HID device is already connected") }
+                    }
+                }
+                is HidResult.Error -> {
+                    hidDevice.closeConnection()
+                    finishIo(invoke) { invoke.reject("Failed to create HidDevice: ${result.message}", TAG) }
+                }
             }
         }
     }
@@ -930,6 +1052,7 @@ class HidPlugin(private val activity: Activity): Plugin(activity) {
         val deviceList = usbManager.deviceList
 
         for (dev in deviceList.values) {
+            if (!(0 until dev.interfaceCount).any { dev.getInterface(it).interfaceClass == UsbConstants.USB_CLASS_HID }) continue
             val device = JSObject()
             device.put("releaseNumber", 0)
             device.put("path", dev.deviceName)

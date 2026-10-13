@@ -7,6 +7,7 @@
 
 pub mod capabilities;
 pub mod fiio;
+pub mod hid;
 pub mod moondrop;
 pub mod normalization;
 pub mod profile;

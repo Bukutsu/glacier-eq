@@ -697,19 +697,32 @@ fn ensure_complete_hid_write(expected: usize, actual: usize) -> Result<(), Strin
 }
 
 #[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
-struct HidIo<'a>(&'a hidapi::HidDevice);
+struct HidIo<'a> {
+    device: &'a hidapi::HidDevice,
+    #[cfg(target_os = "windows")]
+    protocol: glacier_core::device::DeviceProtocol,
+}
 
 #[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
 impl DeviceIo for HidIo<'_> {
     fn write(&mut self, data: &[u8]) -> Result<(), String> {
-        let written = self.0.write(data).map_err(|error| error.to_string())?;
+        // Match the desktop transport: Moondrop needs control SET_REPORT on
+        // Windows, not the interrupt-OUT path that can return an 8-byte write.
+        #[cfg(target_os = "windows")]
+        if self.protocol == glacier_core::device::DeviceProtocol::Moondrop {
+            return self
+                .device
+                .send_output_report(data)
+                .map_err(|error| error.to_string());
+        }
+        let written = self.device.write(data).map_err(|error| error.to_string())?;
         ensure_complete_hid_write(data.len(), written)
     }
 
     fn read(&mut self, timeout_ms: i32) -> Result<Vec<u8>, String> {
         let mut data = [0; HID_READ_BUFFER_BYTES];
         let length = self
-            .0
+            .device
             .read_timeout(&mut data, timeout_ms)
             .map_err(|error| error.to_string())?;
         Ok(data[..length].to_vec())
@@ -730,10 +743,19 @@ struct FoundDevice {
 }
 
 #[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
-fn found_devices(api: &hidapi::HidApi) -> Vec<FoundDevice> {
+fn found_devices(api: &hidapi::HidApi, validate_reports: bool) -> Vec<FoundDevice> {
     api.device_list()
         .filter_map(|device| {
             let profile = get_supported_device(device.vendor_id(), device.product_id())?;
+            if validate_reports {
+                if let Ok(opened) = api.open_path(device.path()) {
+                    if let Err(error) = validate_hid_collection(&opened, profile.protocol) {
+                        eprintln!("ignored HID collection {} (interface {}, usage {:04x}:{:04x}): {error}",
+                            device.path().to_string_lossy(), device.interface_number(), device.usage_page(), device.usage());
+                        return None;
+                    }
+                }
+            }
             Some(FoundDevice {
                 path: device.path().to_owned(),
                 display_path: device.path().to_string_lossy().into_owned(),
@@ -772,12 +794,26 @@ fn select_device<'a>(
 }
 
 #[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
+fn validate_hid_collection(
+    device: &hidapi::HidDevice,
+    protocol: glacier_core::device::DeviceProtocol,
+) -> Result<(), String> {
+    let contract = glacier_core::device::hid::ReportContract::for_protocol(protocol)?;
+    let mut descriptor = vec![0; hidapi::MAX_REPORT_DESCRIPTOR_SIZE];
+    let length = device
+        .get_report_descriptor(&mut descriptor)
+        .map_err(|error| format!("HID report descriptor unavailable: {error}"))?;
+    contract.validate(&descriptor[..length]).map(|_| ())
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
 fn with_hid_device<T>(
     selector: Option<&str>,
+    validate_reports: bool,
     operation: impl FnOnce(&FoundDevice, &hidapi::HidDevice) -> Result<T, String>,
 ) -> Result<T, String> {
     let api = hidapi::HidApi::new().map_err(|error| error.to_string())?;
-    let devices = found_devices(&api);
+    let devices = found_devices(&api, validate_reports);
     let selected = select_device(&devices, selector)?;
     let device = api.open_path(&selected.path).map_err(|error| {
         let message = format!("failed to open {}: {error}", selected.display_path);
@@ -800,6 +836,11 @@ fn with_hid_device<T>(
             opened.product_id()
         ));
     }
+    if validate_reports {
+        let profile = get_supported_device(selected.vendor, selected.product)
+            .ok_or("Unsupported HID device")?;
+        validate_hid_collection(&device, profile.protocol)?;
+    }
     operation(selected, &device)
 }
 
@@ -808,7 +849,7 @@ fn open_session<T>(
     selector: Option<&str>,
     operation: impl FnOnce(&mut DeviceSession<'_>) -> Result<T, String>,
 ) -> Result<T, String> {
-    with_hid_device(selector, |selected, device| {
+    with_hid_device(selector, true, |selected, device| {
         let profile = get_supported_device(selected.vendor, selected.product).ok_or_else(|| {
             format!(
                 "No profile registered for {:04x}:{:04x}",
@@ -816,7 +857,11 @@ fn open_session<T>(
             )
         })?;
         eprintln!("device: {}", selected.name);
-        let mut io = HidIo(device);
+        let mut io = HidIo {
+            device,
+            #[cfg(target_os = "windows")]
+            protocol: profile.protocol,
+        };
         let mut progress =
             |message: &str, percentage: f32| eprintln!("{percentage:>3.0}% {message}");
         operation(&mut DeviceSession::with_progress(
@@ -836,7 +881,7 @@ fn execute_hardware(action: HardwareAction, selector: Option<&str>) -> Result<St
     if action == HardwareAction::List {
         let api = hidapi::HidApi::new().map_err(|error| error.to_string())?;
         let mut output = String::from("path,usb_id,device\n");
-        for device in found_devices(&api) {
+        for device in found_devices(&api, true) {
             output.push_str(&format!(
                 "{},{:04x}:{:04x},{}\n",
                 device.display_path, device.vendor, device.product, device.name
@@ -866,7 +911,8 @@ fn execute_hardware(action: HardwareAction, selector: Option<&str>) -> Result<St
 
 #[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
 fn execute_raw_signal(signal: RawSignal, selector: Option<&str>) -> Result<String, String> {
-    with_hid_device(selector, |selected, device| {
+    with_hid_device(selector, false, |selected, device| {
+        eprintln!("raw HID diagnostics: bypassing protocol report-contract validation; verify --device PATH selects the intended collection");
         eprintln!("device: {}", selected.name);
         let mut frame = Vec::with_capacity(signal.data.len() + 1);
         frame.push(signal.report_id);
