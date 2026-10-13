@@ -293,9 +293,11 @@ fn validate_filter_packets_wire(
     protocol: &dyn EqProtocol,
     packets: &[Packet],
 ) -> Result<(), JsValue> {
-    if packets
-        .first()
-        .is_some_and(|packet| !protocol.is_filter_packet_valid(&packet.payload))
+    // A write may include preset selection/preamp protection before the
+    // actual band packet. Validate the band, not an auxiliary command.
+    if !packets
+        .iter()
+        .any(|packet| protocol.is_filter_packet_valid(&packet.payload))
     {
         return Err(JsValue::from_str(
             "Filter cannot be represented by the selected protocol wire format",

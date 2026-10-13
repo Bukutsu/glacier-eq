@@ -998,10 +998,10 @@ mod tests {
         let mut io = FakeIo::default();
         io.reads.push_back(vec![]);
         io.reads
-            .push_back(vec![0xCC, 0x0C, 0, 0, 0x17, 2, 0, 10, END]);
+            .push_back(vec![0xBB, 0x0B, 0, 0, 0x17, 2, 0, 10, 0, 0xEE]);
         for index in 0..5u8 {
             io.reads.push_back(vec![
-                0xCC, 0x0C, 0, 0, 0x15, 8, index, 0, 10, 0x03, 0xE8, 0, 100, 0, 0, END,
+                0xBB, 0x0B, 0, 0, 0x15, 8, index, 0, 10, 0x03, 0xE8, 0, 100, 0, 0, 0xEE,
             ]);
         }
         // Requested write, rollback write, and verification pull each perform
@@ -1010,10 +1010,10 @@ mod tests {
         io.reads.push_back(vec![]);
         io.reads.push_back(vec![]);
         io.reads
-            .push_back(vec![0xCC, 0x0C, 0, 0, 0x17, 2, 0, 10, END]);
+            .push_back(vec![0xBB, 0x0B, 0, 0, 0x17, 2, 0, 10, 0, 0xEE]);
         for index in 0..5u8 {
             io.reads.push_back(vec![
-                0xCC, 0x0C, 0, 0, 0x15, 8, index, 0, 10, 0x03, 0xE8, 0, 100, 0, 0, END,
+                0xBB, 0x0B, 0, 0, 0x15, 8, index, 0, 10, 0x03, 0xE8, 0, 100, 0, 0, 0xEE,
             ]);
         }
         // Initial pull uses writes 1..6. Fail all three attempts for the
@@ -1408,10 +1408,10 @@ mod tests {
         }
         io.reads.push_back(vec![]);
         io.reads
-            .push_back(vec![0xCC, 0x0C, 0, 0, 0x17, 2, 0, 10, END]);
+            .push_back(vec![0xBB, 0x0B, 0, 0, 0x17, 2, 0, 10, 0, 0xEE]);
         for index in 0..5u8 {
             io.reads.push_back(vec![
-                0xCC, 0x0C, 0, 0, 0x15, 8, index, 0, 10, 0x03, 0xE8, 0, 100, 0, 0, END,
+                0xBB, 0x0B, 0, 0, 0x15, 8, index, 0, 10, 0x03, 0xE8, 0, 100, 0, 0, 0xEE,
             ]);
         }
 

@@ -8,56 +8,51 @@ use crate::eq::{Filter, FilterType, PEQData};
 
 const SET_1: u8 = 0xAA;
 const SET_2: u8 = 0x0A;
-const RESPONSE_1: u8 = 0xCC;
-const RESPONSE_2: u8 = 0x0C;
+const RESPONSE_1: u8 = 0xBB;
+const RESPONSE_2: u8 = 0x0B;
 const END: u8 = 0xEE;
 const FILTER_PARAMS: u8 = 0x15;
 const GLOBAL_GAIN: u8 = 0x17;
 
 #[derive(Clone, Copy)]
-enum Endian {
-    Little,
-    Big,
-}
-
-#[derive(Clone, Copy)]
 pub struct FiioProtocol {
     report_id: u8,
-    gain_scale: f64,
-    endian: Endian,
-    save_command: u8,
+    filter_count: u8,
+    user_slot: u8,
     clamp_gain: bool,
 }
 
+// Slots are the active USER presets recorded in devicePEQ's 2026-05-03 captures.
 pub const JA11_PROTOCOL: FiioProtocol = FiioProtocol {
     report_id: 2,
-    gain_scale: 2560.0,
-    endian: Endian::Little,
-    save_command: 0x18,
+    filter_count: 5,
+    user_slot: 3,
     clamp_gain: true,
 };
 
+// The existing generic FiiO profile represents KA15.
 pub const FIIO_PROTOCOL: FiioProtocol = FiioProtocol {
     report_id: 7,
-    gain_scale: 10.0,
-    endian: Endian::Big,
-    save_command: 0x19,
+    filter_count: 10,
+    user_slot: 9,
     clamp_gain: false,
 };
 
 pub const KA17_PROTOCOL: FiioProtocol = FiioProtocol {
     report_id: 1,
-    ..FIIO_PROTOCOL
+    filter_count: 10,
+    user_slot: 4,
+    clamp_gain: false,
 };
 
 fn default_state(peq: &PEQData) -> bool {
     peq.global_gain == 0.0 && peq.filters.iter().all(|f| !f.enabled || f.gain == 0.0)
 }
 
-fn unsupported_read_filter(index: u8, report_id: u8) -> Packet {
+fn read_filter_packet(index: u8, report_id: u8) -> Packet {
     Packet::new(
         report_id,
-        vec![0xBB, 0x0B, 0, 0, FILTER_PARAMS, 1, index, END],
+        vec![0xBB, 0x0B, 0, 0, FILTER_PARAMS, 1, index, 0, END],
     )
 }
 
@@ -78,14 +73,18 @@ fn filter_type_to_fiio(filter_type: FilterType) -> u8 {
 }
 
 fn matches_response(data: &[u8], command: u8, payload_len: u8) -> bool {
-    data.len() >= 6 + payload_len as usize
-        && data[..4] == [RESPONSE_1, RESPONSE_2, 0, 0]
+    let terminator = 7 + payload_len as usize;
+    data.len() > terminator
+        && data[..3] == [RESPONSE_1, RESPONSE_2, 0]
+        // Byte 3 is a response counter on KA15, not a reserved zero byte.
         && data[4] == command
         && data[5] == payload_len
+        // The byte before END is a device checksum (zero in requests).
+        && data[terminator] == END
 }
 
-fn parse_filter_response(data: &[u8]) -> Option<Filter> {
-    if data.len() < 14 {
+fn parse_filter_response(data: &[u8], filter_count: u8) -> Option<Filter> {
+    if !matches_response(data, FILTER_PARAMS, 8) || data[6] >= filter_count || data[13] > 2 {
         return None;
     }
 
@@ -163,20 +162,21 @@ fn write_filter_packet(report_id: u8, index: u8, filter: &Filter) -> Packet {
     )
 }
 
-fn write_global_gain_packet(report_id: u8, global_gain: f64, scale: f64, endian: Endian) -> Packet {
-    let value = (global_gain * scale).round() as i16;
-    let [first, second] = match endian {
-        Endian::Little => value.to_le_bytes(),
-        Endian::Big => value.to_be_bytes(),
-    };
+fn write_global_gain_packet(report_id: u8, global_gain: f64) -> Packet {
+    // devicePEQ's captured general format is signed BE tenths of a dB.
+    // JA11 negative preamp writes still require independent hardware verification.
+    let [first, second] = ((global_gain * 10.0).round() as i16).to_be_bytes();
     Packet::new(
         report_id,
         vec![SET_1, SET_2, 0, 0, GLOBAL_GAIN, 2, first, second, 0, END],
     )
 }
 
-fn save_packet(report_id: u8, command: u8) -> Packet {
-    Packet::new(report_id, vec![SET_1, SET_2, 0, 0, command, 1, 1, 0, END])
+fn preset_packet(report_id: u8, command: u8, slot: u8) -> Packet {
+    Packet::new(
+        report_id,
+        vec![SET_1, SET_2, 0, 0, command, 1, slot, 0, END],
+    )
 }
 
 impl EqProtocol for FiioProtocol {
@@ -189,19 +189,29 @@ impl EqProtocol for FiioProtocol {
     }
 
     fn init_packets(&self) -> Vec<Packet> {
+        // Pull also runs initialization. Reading a read-only device must not
+        // switch its active preset or otherwise change the audible state.
         vec![]
     }
 
     fn read_filter_request(&self, index: u8, _nonce: u8) -> Packet {
-        unsupported_read_filter(index, self.report_id)
+        read_filter_packet(index, self.report_id)
     }
 
     fn matches_filter_response(&self, data: &[u8], index: u8, _nonce: u8) -> bool {
-        matches_response(data, FILTER_PARAMS, 8) && data[6] == index
+        index < self.filter_count && matches_response(data, FILTER_PARAMS, 8) && data[6] == index
     }
 
     fn is_filter_packet_valid(&self, data: &[u8]) -> bool {
-        if data.len() < 14 || data[13] > 2 {
+        let write = data.len() >= 16
+            && data[..4] == [SET_1, SET_2, 0, 0]
+            && data[4] == FILTER_PARAMS
+            && data[5] == 8
+            && data[15] == END;
+        if !(matches_response(data, FILTER_PARAMS, 8) || write)
+            || data[6] >= self.filter_count
+            || data[13] > 2
+        {
             return false;
         }
         let raw_freq = u16::from_be_bytes([data[9], data[10]]);
@@ -220,7 +230,7 @@ impl EqProtocol for FiioProtocol {
     }
 
     fn parse_filter_response(&self, data: &[u8]) -> Option<Filter> {
-        parse_filter_response(data)
+        parse_filter_response(data, self.filter_count)
     }
 
     fn read_global_gain_request(&self) -> Packet {
@@ -239,11 +249,7 @@ impl EqProtocol for FiioProtocol {
             return None;
         }
         let bytes = [*data.get(6)?, *data.get(7)?];
-        let raw = match self.endian {
-            Endian::Little => i16::from_le_bytes(bytes),
-            Endian::Big => i16::from_be_bytes(bytes),
-        };
-        Some((raw as f64 / self.gain_scale * 10.0).round() / 10.0)
+        Some(i16::from_be_bytes(bytes) as f64 / 10.0)
     }
 
     fn write_filter_packets(
@@ -253,6 +259,9 @@ impl EqProtocol for FiioProtocol {
         _dsp_sample_rate: f64,
         _global_gain: f64,
     ) -> Result<Vec<Packet>, String> {
+        if index >= self.filter_count || filter.index != index {
+            return Err("Invalid FiiO filter index".into());
+        }
         let gain = if filter.enabled { filter.gain } else { 0.0 };
         checked_scaled_i16(gain, 10.0, "FiiO band gain")?;
         checked_scaled_u16(filter.q, 100.0, "FiiO filter Q")?;
@@ -265,7 +274,13 @@ impl EqProtocol for FiioProtocol {
                 ));
             }
         }
-        Ok(vec![write_filter_packet(self.report_id, index, filter)])
+        let mut packets = Vec::new();
+        if index == 0 {
+            packets.push(preset_packet(self.report_id, 0x16, self.user_slot));
+            packets.push(preset_packet(self.report_id, 0x18, self.filter_count));
+        }
+        packets.push(write_filter_packet(self.report_id, index, filter));
+        Ok(packets)
     }
 
     fn write_global_gain_packets(&self, global_gain: f64) -> Vec<Packet> {
@@ -274,16 +289,12 @@ impl EqProtocol for FiioProtocol {
         } else {
             global_gain
         };
-        vec![write_global_gain_packet(
-            self.report_id,
-            gain,
-            self.gain_scale,
-            self.endian,
-        )]
+        vec![write_global_gain_packet(self.report_id, gain)]
     }
 
     fn commit_packets(&self) -> Vec<Packet> {
-        vec![save_packet(self.report_id, self.save_command)]
+        // 0x18 sets the filter count; persistence is 0x19 on all three models.
+        vec![preset_packet(self.report_id, 0x19, self.user_slot)]
     }
 
     fn ram_apply_packets(&self) -> Vec<Packet> {
@@ -301,44 +312,183 @@ impl EqProtocol for FiioProtocol {
 mod tests {
     use super::*;
 
-    #[test]
-    fn ja11_parses_filter_response() {
-        let data = [
-            0xCC,
-            0x0C,
-            0,
-            0,
-            FILTER_PARAMS,
-            8,
-            3,
-            0xFF,
-            0xF1,
-            0x03,
-            0xE8,
-            0x00,
-            0x64,
-            1,
-        ];
+    struct Capture {
+        report_id: u8,
+        filters: &'static [&'static [u8]],
+        expected_filters: &'static [(u16, f64, f64, u8)],
+        gain: &'static [u8],
+        expected_gain: f64,
+        preset: &'static [u8],
+        count: &'static [u8],
+        gain_write: &'static [u8],
+        count_write: &'static [u8],
+        save: &'static [u8],
+    }
 
-        let filter = JA11_PROTOCOL.parse_filter_response(&data).unwrap();
+    const JA11_CAPTURE: Capture = include!("../../tests/fixtures/fiio/ja11.rs");
+    const KA15_CAPTURE: Capture = include!("../../tests/fixtures/fiio/ka15.rs");
+    const KA17_CAPTURE: Capture = include!("../../tests/fixtures/fiio/ka17.rs");
 
-        assert_eq!(filter.index, 3);
-        assert_eq!(filter.gain, -1.5);
-        assert_eq!(filter.freq, 1000);
-        assert_eq!(filter.q, 1.0);
-        assert_eq!(filter.filter_type, FilterType::LowShelf);
+    fn captures() -> [(FiioProtocol, &'static Capture); 3] {
+        [
+            (JA11_PROTOCOL, &JA11_CAPTURE),
+            (FIIO_PROTOCOL, &KA15_CAPTURE),
+            (KA17_PROTOCOL, &KA17_CAPTURE),
+        ]
     }
 
     #[test]
-    fn parses_invalid_filter_response_as_safe_default() {
-        let mut data = [0u8; 14];
-        data[4] = FILTER_PARAMS;
-        data[6] = 3;
+    fn parses_recorded_model_replies() {
+        for (protocol, capture) in captures() {
+            assert_eq!(protocol.report_id(), capture.report_id);
+            for (index, (data, expected)) in capture
+                .filters
+                .iter()
+                .zip(capture.expected_filters)
+                .enumerate()
+            {
+                assert!(protocol.is_filter_response_valid(data, index as u8, 0));
+                let filter = protocol.parse_filter_response(data).unwrap();
+                assert_eq!(filter.index, index as u8);
+                assert_eq!(filter.freq, expected.0);
+                assert_eq!(filter.gain, expected.1);
+                assert_eq!(filter.q, expected.2);
+                assert_eq!(filter.filter_type, filter_type_from_fiio(expected.3));
+                assert_eq!(filter.enabled, expected.1 != 0.0);
+            }
+            assert!(protocol.matches_global_gain_response(capture.gain));
+            assert_eq!(
+                protocol.parse_global_gain_response(capture.gain),
+                Some(capture.expected_gain)
+            );
+        }
+        assert_eq!(KA15_CAPTURE.filters[0][3], 0x43);
+        assert_eq!(
+            KA17_PROTOCOL.parse_global_gain_response(KA17_CAPTURE.gain),
+            Some(-0.4)
+        );
+    }
+
+    #[test]
+    fn model_init_and_save_use_captured_user_slots() {
+        for (protocol, capture) in captures() {
+            assert!(matches_response(capture.preset, 0x16, 1));
+            assert!(matches_response(capture.count, 0x18, 1));
+            assert_eq!(capture.count[6], protocol.filter_count);
+            assert_eq!(capture.count_write[4], 0x18);
+            assert_eq!(capture.count_write[6], protocol.filter_count);
+            assert!(protocol.init_packets().is_empty());
+            let filter = Filter {
+                index: 0,
+                enabled: true,
+                freq: 1000,
+                gain: 0.0,
+                q: 1.0,
+                filter_type: FilterType::Peak,
+            };
+            let writes = protocol
+                .write_filter_packets(0, &filter, 48000.0, 0.0)
+                .unwrap();
+            assert_eq!(writes[0].report_id, capture.report_id);
+            assert_eq!(writes[0].payload[4], 0x16);
+            assert_eq!(writes[0].payload[6], capture.preset[6]);
+            assert_eq!(writes[1].payload, capture.count_write);
+            assert!(protocol.is_filter_packet_valid(&writes[2].payload));
+            let commit = protocol.commit_packets();
+            assert_eq!(commit.len(), 1);
+            assert_eq!(commit[0].report_id, capture.report_id);
+            assert_eq!(commit[0].payload, capture.save);
+            assert_eq!(commit[0].payload[6], capture.preset[6]);
+            assert!(protocol.ram_apply_packets().is_empty());
+        }
+    }
+
+    #[test]
+    fn read_requests_include_checksum_placeholder() {
+        for (protocol, _) in captures() {
+            let packet = protocol.read_filter_request(3, 0);
+            assert_eq!(packet.report_id, protocol.report_id());
+            assert_eq!(packet.payload, [0xBB, 0x0B, 0, 0, 0x15, 1, 3, 0, END]);
+            assert_eq!(
+                protocol.read_global_gain_request().payload,
+                [0xBB, 0x0B, 0, 0, GLOBAL_GAIN, 0, 0, END]
+            );
+        }
+    }
+
+    #[test]
+    fn read_matchers_reject_write_echoes_and_other_commands() {
+        for (protocol, capture) in captures() {
+            let filter = Filter::enabled(3, true);
+            let filter_echo = write_filter_packet(protocol.report_id(), 3, &filter).payload;
+            assert!(!protocol.matches_filter_response(&filter_echo, 3, 0));
+            assert_eq!(protocol.parse_filter_response(&filter_echo), None);
+            assert!(!protocol.matches_global_gain_response(capture.gain_write));
+            assert_eq!(
+                protocol.parse_global_gain_response(capture.gain_write),
+                None
+            );
+            for other in [capture.preset, capture.count, capture.gain] {
+                assert!(!protocol.matches_filter_response(other, 0, 0));
+                assert_eq!(protocol.parse_filter_response(other), None);
+            }
+            for other in [capture.preset, capture.count, capture.filters[0]] {
+                assert!(!protocol.matches_global_gain_response(other));
+                assert_eq!(protocol.parse_global_gain_response(other), None);
+            }
+        }
+    }
+
+    #[test]
+    fn read_matchers_require_complete_response_frames() {
+        for (protocol, capture) in captures() {
+            let filter = capture.filters[0];
+            for length in 0..16 {
+                assert!(!protocol.matches_filter_response(&filter[..length], 0, 0));
+                assert_eq!(protocol.parse_filter_response(&filter[..length]), None);
+            }
+            for length in 0..10 {
+                assert!(!protocol.matches_global_gain_response(&capture.gain[..length]));
+                assert_eq!(
+                    protocol.parse_global_gain_response(&capture.gain[..length]),
+                    None
+                );
+            }
+            assert!(protocol.matches_filter_response(&filter[..16], 0, 0));
+            assert!(protocol.matches_global_gain_response(&capture.gain[..10]));
+            assert!(!protocol.matches_filter_response(filter, 1, 0));
+            for offset in [0, 1, 2, 4, 5, 15] {
+                let mut invalid = filter.to_vec();
+                invalid[offset] ^= 0xFF;
+                assert!(!protocol.matches_filter_response(&invalid, 0, 0));
+                assert_eq!(protocol.parse_filter_response(&invalid), None);
+            }
+            for offset in [0, 1, 2, 4, 5, 9] {
+                let mut invalid = capture.gain.to_vec();
+                invalid[offset] ^= 0xFF;
+                assert!(!protocol.matches_global_gain_response(&invalid));
+                assert_eq!(protocol.parse_global_gain_response(&invalid), None);
+            }
+            let mut invalid_index = filter.to_vec();
+            invalid_index[6] = protocol.filter_count;
+            assert!(!protocol.matches_filter_response(&invalid_index, protocol.filter_count, 0));
+            assert_eq!(protocol.parse_filter_response(&invalid_index), None);
+            let mut invalid_type = filter.to_vec();
+            invalid_type[13] = 0xFF;
+            assert!(!protocol.is_filter_packet_valid(&invalid_type));
+            assert_eq!(protocol.parse_filter_response(&invalid_type), None);
+        }
+    }
+
+    #[test]
+    fn parses_invalid_filter_parameters_as_safe_default() {
+        // Retain legacy sanitization only for a structurally valid, correlated reply.
+        let mut data = JA11_CAPTURE.filters[3].to_vec();
         data[9..11].copy_from_slice(&u16::MAX.to_be_bytes());
         data[11..13].copy_from_slice(&u16::MAX.to_be_bytes());
-
+        assert!(JA11_PROTOCOL.matches_filter_response(&data, 3, 0));
+        assert!(!JA11_PROTOCOL.is_filter_response_valid(&data, 3, 0));
         let filter = JA11_PROTOCOL.parse_filter_response(&data).unwrap();
-
         assert_eq!(filter.index, 3);
         assert_eq!(filter.freq, 250);
         assert_eq!(filter.gain, 0.0);
@@ -348,65 +498,39 @@ mod tests {
     }
 
     #[test]
-    fn read_matchers_reject_write_echoes() {
-        let filter = Filter::enabled(3, true);
-        let filter_echo = write_filter_packet(2, 3, &filter).payload;
-        let gain_echo = write_global_gain_packet(2, -1.0, 2560.0, Endian::Little).payload;
-
-        assert!(!JA11_PROTOCOL.matches_filter_response(&filter_echo, 3, 0));
-        assert!(!JA11_PROTOCOL.matches_global_gain_response(&gain_echo));
+    fn writes_captured_positive_global_gain_and_signed_negative_tenths() {
+        for (protocol, capture) in captures() {
+            let gain =
+                i16::from_be_bytes([capture.gain_write[6], capture.gain_write[7]]) as f64 / 10.0;
+            let packet = protocol.write_global_gain_packets(gain).remove(0);
+            assert_eq!(packet.report_id, capture.report_id);
+            assert_eq!(packet.payload, capture.gain_write);
+            for gain in [-12.0, -1.5, -0.4, -0.1, 0.0, 1.0, 12.0] {
+                let packet = protocol.write_global_gain_packets(gain).remove(0);
+                assert_eq!(&packet.payload[6..8], &((gain * 10.0) as i16).to_be_bytes());
+                let mut reply = capture.gain.to_vec();
+                reply[6..8].copy_from_slice(&packet.payload[6..8]);
+                assert_eq!(protocol.parse_global_gain_response(&reply), Some(gain));
+            }
+        }
+        // Explicitly distinguish signed BE*10 from the old JA11 LE*2560 encoding.
+        assert_eq!(
+            &JA11_PROTOCOL.write_global_gain_packets(-1.0)[0].payload[6..8],
+            &[0xFF, 0xF6]
+        );
     }
 
     #[test]
-    fn read_matchers_require_complete_response_frames() {
-        let filter_response = [
-            RESPONSE_1,
-            RESPONSE_2,
-            0,
-            0,
-            FILTER_PARAMS,
-            8,
-            3,
-            0,
-            0,
-            0x03,
-            0xE8,
-            0,
-            100,
-            0,
-        ];
-        let gain_response = [RESPONSE_1, RESPONSE_2, 0, 0, GLOBAL_GAIN, 2, 0, 0];
-
-        assert!(JA11_PROTOCOL.matches_filter_response(&filter_response, 3, 0));
-        assert!(!JA11_PROTOCOL.matches_filter_response(&filter_response[..13], 3, 0));
-        assert!(JA11_PROTOCOL.matches_global_gain_response(&gain_response));
-        assert!(!JA11_PROTOCOL.matches_global_gain_response(&gain_response[..7]));
-
-        let mut padded_filter = vec![0u8; 64];
-        padded_filter[..filter_response.len()].copy_from_slice(&filter_response);
-        assert!(JA11_PROTOCOL.matches_filter_response(&padded_filter, 3, 0));
-
-        let mut padded_gain = vec![0u8; 64];
-        padded_gain[..gain_response.len()].copy_from_slice(&gain_response);
-        assert!(JA11_PROTOCOL.matches_global_gain_response(&padded_gain));
-        assert_eq!(JA11_PROTOCOL.parse_global_gain_response(&[0u8; 8]), None);
-    }
-
-    #[test]
-    fn ja11_writes_global_gain_little_endian() {
-        let packet = JA11_PROTOCOL.write_global_gain_packets(1.0).remove(0);
-
-        assert_eq!(packet.report_id, 2);
-        assert_eq!(packet.payload[4], GLOBAL_GAIN);
-        assert_eq!(&packet.payload[6..8], &2560i16.to_le_bytes());
-    }
-
-    #[test]
-    fn fiio_writes_global_gain_big_endian() {
-        let packet = FIIO_PROTOCOL.write_global_gain_packets(1.0).remove(0);
-
-        assert_eq!(packet.report_id, 7);
-        assert_eq!(packet.payload[4], GLOBAL_GAIN);
-        assert_eq!(&packet.payload[6..8], &10i16.to_be_bytes());
+    fn writes_reject_invalid_band_indices() {
+        for (protocol, _) in captures() {
+            let filter = Filter::enabled(0, true);
+            assert!(protocol
+                .write_filter_packets(1, &filter, 48000.0, 0.0)
+                .is_err());
+            let filter = Filter::enabled(protocol.filter_count, true);
+            assert!(protocol
+                .write_filter_packets(protocol.filter_count, &filter, 48000.0, 0.0)
+                .is_err());
+        }
     }
 }
