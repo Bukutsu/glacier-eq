@@ -374,12 +374,6 @@ impl<'a> DeviceSession<'a> {
         if self.profile.protocol != DeviceProtocol::Walkplay {
             return Ok(DacUtilityState::default());
         }
-        // Preserve the legacy decoder only for the locally tested EPZ/TRN
-        // profiles. Other firmware has conflicting mic byte encodings; do not
-        // publish a guessed value as microphone gain.
-        if !self.profile.read_nonce_supported {
-            return Err(format!("{} utility decoding is unverified; capture this device's microphone gain response before enabling utility status", self.profile.name));
-        }
         self.drain();
         self.io.sleep_ms(30);
         let filter = self.read_utility(CMD_FILTER_MODE)?;
@@ -1089,58 +1083,35 @@ mod tests {
     }
 
     #[test]
-    fn read_only_profiles_reject_every_mutation_before_any_io() {
-        let profiles: Vec<_> = super::super::SUPPORTED_DEVICES
-            .iter()
-            .filter(|profile| profile.write_block_reason.is_some())
-            .collect();
-        assert!(!profiles.is_empty());
-        for profile in profiles {
-            for operation in 0..11 {
-                let mut io = FakeIo::default();
-                let mut session = DeviceSession::new(&mut io, profile);
-                let result = match operation {
-                    0 => session.persistent_push(test_peq()).map(|_| ()),
-                    1 => session.unverified_push(test_peq()).map(|_| ()),
-                    2 => session.apply_ram(test_peq()).map(|_| ()),
-                    3 => session.reset_eq(),
-                    4 => session.reset_controls().map(|_| ()),
-                    5 => session.factory_reset(),
-                    6 => session.set_filter_mode("FAST-LL"),
-                    7 => session.set_amp_mode(false),
-                    8 => session.set_gain_mode(false),
-                    9 => session.set_mic_volume(0),
-                    _ => session.set_balance(0),
-                };
-                let error = result.unwrap_err();
-                assert!(
-                    error.contains("read-only"),
-                    "{} operation {operation}: {error}",
-                    profile.name
-                );
-                assert!(
-                    io.events.is_empty(),
-                    "{} operation {operation} performed I/O: {:?}",
-                    profile.name,
-                    io.events
-                );
-            }
-        }
-    }
-
-    #[test]
-    fn unverified_mic_gain_blocks_mic_and_whole_control_reset_before_io() {
-        for profile in super::super::SUPPORTED_DEVICES
-            .iter()
-            .filter(|profile| profile.mic_gain_block_reason.is_some())
-        {
+    fn explicit_write_restriction_rejects_every_mutation_before_any_io() {
+        let mut profile = test_profile(get_supported_device(0x3302, 0x43e8).unwrap());
+        profile.write_block_reason = Some("Explicit test restriction");
+        let profile = Box::leak(Box::new(profile));
+        for operation in 0..11 {
             let mut io = FakeIo::default();
             let mut session = DeviceSession::new(&mut io, profile);
-            assert!(session.set_mic_volume(0).is_err());
-            assert!(session.reset_controls().is_err());
+            let result = match operation {
+                0 => session.persistent_push(test_peq()).map(|_| ()),
+                1 => session.unverified_push(test_peq()).map(|_| ()),
+                2 => session.apply_ram(test_peq()).map(|_| ()),
+                3 => session.reset_eq(),
+                4 => session.reset_controls().map(|_| ()),
+                5 => session.factory_reset(),
+                6 => session.set_filter_mode("FAST-LL"),
+                7 => session.set_amp_mode(false),
+                8 => session.set_gain_mode(false),
+                9 => session.set_mic_volume(0),
+                _ => session.set_balance(0),
+            };
+            let error = result.unwrap_err();
+            assert!(
+                error.contains("read-only"),
+                "{} operation {operation}: {error}",
+                profile.name
+            );
             assert!(
                 io.events.is_empty(),
-                "{} performed I/O: {:?}",
+                "{} operation {operation} performed I/O: {:?}",
                 profile.name,
                 io.events
             );
@@ -1148,16 +1119,33 @@ mod tests {
     }
 
     #[test]
-    fn untested_walkplay_utility_decoder_is_rejected_before_io() {
+    fn explicit_mic_restriction_blocks_mic_and_whole_control_reset_before_io() {
+        let mut profile = test_profile(get_supported_device(0x3302, 0x43e8).unwrap());
+        profile.mic_gain_block_reason = Some("Explicit test restriction");
+        let profile = Box::leak(Box::new(profile));
+        let mut io = FakeIo::default();
+        let mut session = DeviceSession::new(&mut io, profile);
+        assert!(session.set_mic_volume(0).is_err());
+        assert!(session.reset_controls().is_err());
+        assert!(
+            io.events.is_empty(),
+            "{} performed I/O: {:?}",
+            profile.name,
+            io.events
+        );
+    }
+
+    #[test]
+    fn nonce_support_does_not_restrict_walkplay_utility_controls() {
         let mut profile = test_profile(get_supported_device(0x3302, 0x43e8).unwrap());
         profile.read_nonce_supported = false;
         let profile = Box::leak(Box::new(profile));
         let mut io = FakeIo::default();
-        let error = DeviceSession::new(&mut io, profile)
+        queue_utility_status(&mut io, 1, 0, 0, 0, 0, 0);
+        let status = DeviceSession::new(&mut io, profile)
             .utility_status()
-            .unwrap_err();
-        assert!(error.contains("utility decoding is unverified"), "{error}");
-        assert!(io.events.is_empty());
+            .unwrap();
+        assert!(status.supported);
     }
 
     #[test]
@@ -1235,8 +1223,7 @@ mod tests {
 
     #[test]
     fn apply_ram_restores_the_snapshot_when_apply_fails() {
-        // Synthetic permissions exercise rollback independently of the real
-        // JA11 profile, which is read-only until persistence is established.
+        // Exercise rollback independently of the registered model policy.
         let profile = test_write_enabled_profile(get_supported_device(0x2972, 0x0102).unwrap());
         let mut io = FakeIo::default();
         io.reads.push_back(vec![]);

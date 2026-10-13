@@ -1720,9 +1720,6 @@ async function invokeWeb<T = unknown>(cmd: string, args?: any): Promise<T> {
     // ─── Walkplay Hardware controls ──────────────────────────────────────────
     case "get_dac_utility_state": {
       if (!activeDevice || !supportsWalkplayUtilities()) return unsupportedUtilityState() as T;
-      if (!connectedProfile().read_nonce_supported) {
-        throw new Error("Utility response decoding is not verified for this model");
-      }
 
       const filter = await readWalkplayUtility(CMD_FILTER_MODE);
       await sleep(25);

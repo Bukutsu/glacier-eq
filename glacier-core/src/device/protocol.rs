@@ -378,8 +378,8 @@ impl WalkplayProtocol {
         // Preserve the two-step sequence validated on EPZ/TRN hardware. The
         // devicePEQ walkplayHidHandler at 0617f382e76629792a5933e6933e4b396a756a93
         // ends with [1, 1, 1, 0], unlike the local/Aura [1, 1, 0] flash frame.
-        // Profiles with unresolved persistence behavior must remain read-only;
-        // substituting that sequence globally can disable EQ on tested firmware.
+        // Keep the tested local sequence rather than substituting a different
+        // reference sequence globally.
         vec![
             Packet::new(
                 REPORT_ID,

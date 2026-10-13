@@ -74,29 +74,16 @@ mod tests {
     }
 
     #[test]
-    fn disputed_write_contracts_are_read_only() {
-        for (vid, pid) in [
-            (0x3302, 0x43C9),
-            (0x3302, 0x43C1),
-            (0x0D8C, 0x0210),
-            (0x2972, 0x0102),
-            (0x2972, 0x0104),
-            (0x2972, 0x0093),
-            (0x35D8, 0x011D),
-        ] {
-            assert!(get_supported_device(vid, pid)
-                .unwrap()
-                .ensure_writable()
-                .is_err());
+    fn reference_backed_models_allow_writes_and_controls() {
+        for profile in SUPPORTED_DEVICES {
+            assert!(profile.ensure_writable().is_ok(), "{}", profile.name);
+            assert!(
+                profile.ensure_mic_gain_writable().is_ok(),
+                "{}",
+                profile.name
+            );
+            assert!(profile.write_block_reason.is_none());
+            assert!(profile.mic_gain_block_reason.is_none());
         }
-        for (vid, pid) in [(0x3302, 0x43E6), (0x3302, 0x43E8)] {
-            assert!(get_supported_device(vid, pid)
-                .unwrap()
-                .ensure_writable()
-                .is_ok());
-        }
-        assert!(SUPPORTED_DEVICES
-            .iter()
-            .all(|profile| profile.ensure_mic_gain_writable().is_err()));
     }
 }
