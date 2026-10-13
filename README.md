@@ -25,21 +25,19 @@ If you have trouble connecting on Linux, see the [setup and troubleshooting guid
 
 ## Supported devices
 
-Plug in your DAC and check whether it appears in the app. Some supported devices have not been tested yet.
+Device matching requires an exact USB vendor/product ID and a compatible HID report descriptor.
 
 | Status | Devices |
 | --- | --- |
-| Tested | EPZ TP35 Pro (TP35Pro), TRN Black Pearl |
-| Supported, untested | Moondrop Dawn Pro / Dawn Pro 2 |
-| Supported, untested | FiiO JA11, FiiO KA series (KA5, KA13, etc.) |
-| Supported, untested | Truthear KEYX |
-| Supported, untested | JCally JM20 / JM20 Pro, JCally JM12 |
-| Supported, untested | Fosi Audio DS2 |
-| Supported, untested | iBasso DC04 Pro |
-| Supported, untested | Audiocular Aura |
-| Supported, untested | Other Savitech/Walkplay-based DAC dongles |
+| Tested EQ reads and writes | EPZ TP35 Pro (TP35Pro), TRN Black Pearl |
+| Read-only, reference-backed reads | Moondrop Dawn Pro 2, FiiO JA11, KA15, KA17 |
+| Read-only, model-specific behavior unresolved | Audiocular Aura, JCally JM20 Pro, Truthear KEYX |
 
-See the [full device list](https://github.com/Bukutsu/glacier-eq/wiki/Supported-Devices) on the wiki.
+Read-only models reject EQ, utility, reset, and flash writes, including when verification is disabled. Microphone writes and control reset are blocked on all current models until their microphone encoding is verified.
+
+The original Dawn Pro is not the Dawn Pro 2 and is not supported. Shared vendor IDs do not establish support for other FiiO, JCally, Fosi, iBasso, or Savitech/Walkplay devices.
+
+See [device validation](docs/device-validation.md) for exact IDs, evidence, unresolved commands, and the hardware test plan.
 
 ## Development
 
