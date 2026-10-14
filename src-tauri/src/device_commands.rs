@@ -48,6 +48,7 @@ pub struct SupportedDeviceInfo {
     product_id: Option<u16>,
     status: &'static str,
     family: &'static str,
+    hardware_eq: bool,
     #[serde(flatten)]
     capabilities: EditorCapabilities,
 }
@@ -185,11 +186,7 @@ fn hid_write(app: &tauri::AppHandle, path: &str, data: &[u8]) -> Result<(), Stri
         let state = app.state::<Mutex<DeviceState>>();
         let connected = connected_device(&state)?;
         let profile = registered_profile(&connected)?;
-        if matches!(
-            profile.protocol,
-            glacier_core::device::DeviceProtocol::Moondrop
-                | glacier_core::device::DeviceProtocol::MoondropLegacy
-        ) {
+        if profile.protocol == glacier_core::device::DeviceProtocol::Moondrop {
             hid.send_output_report(path, data)
         } else {
             hid.write(path, data)
@@ -437,6 +434,7 @@ pub async fn list_devices(app: tauri::AppHandle) -> Result<Vec<DeviceInfo>, Stri
                     manufacturer: device.manufacturer_string.clone(),
                     product_string: device.product_string.clone(),
                     profile_name: Some(profile.name.to_string()),
+                    hardware_eq: profile.protocol.has_hardware_eq(),
                     capabilities: (&profile.caps).into(),
                 })
             })
@@ -457,6 +455,7 @@ pub fn list_supported_devices() -> Vec<SupportedDeviceInfo> {
             product_id: device.product_id,
             status: device.status,
             family: device.family,
+            hardware_eq: device.protocol.has_hardware_eq(),
             capabilities: (&device.caps).into(),
         })
         .collect()

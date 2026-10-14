@@ -763,11 +763,7 @@ struct HidIo<'a>(&'a hidapi::HidDevice, glacier_core::device::DeviceProtocol);
 impl DeviceIo for HidIo<'_> {
     fn write(&mut self, data: &[u8]) -> Result<(), String> {
         #[cfg(target_os = "windows")]
-        if matches!(
-            self.1,
-            glacier_core::device::DeviceProtocol::Moondrop
-                | glacier_core::device::DeviceProtocol::MoondropLegacy
-        ) {
+        if self.1 == glacier_core::device::DeviceProtocol::Moondrop {
             return self
                 .0
                 .send_output_report(data)

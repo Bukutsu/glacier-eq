@@ -30,7 +30,8 @@ Plug in your DAC and check whether it appears in the app. Some supported devices
 | Status | Devices |
 | --- | --- |
 | Tested | EPZ TP35 Pro (TP35Pro), TRN Black Pearl |
-| Supported, untested | Moondrop Dawn Pro / Dawn Pro 2 |
+| Tested, sound controls only (no hardware EQ) | Moondrop Dawn Pro |
+| Supported, untested | Moondrop Dawn Pro 2 |
 | Supported, untested | FiiO JA11, FiiO KA series (KA5, KA13, etc.) |
 | Supported, untested | Truthear KEYX |
 | Supported, untested | JCally JM20 / JM20 Pro, JCally JM12 |

@@ -48,22 +48,14 @@ mod tests {
     }
 
     #[test]
-    fn original_dawn_pro_keeps_its_preexisting_protocol_and_capabilities() {
-        use crate::device::{DeviceProtocol, EqProtocol};
+    fn original_dawn_pro_is_controls_only_and_dawn_pro_2_keeps_peq() {
+        use crate::device::DeviceProtocol;
         let original = get_supported_device(0x2FC6, 0xF06A).unwrap();
-        assert_eq!(original.protocol, DeviceProtocol::MoondropLegacy);
-        assert_eq!(original.caps.num_bands, 10);
-        assert_eq!(original.caps.dsp_sample_rate, 48000.0);
-        let read = original.protocol.read_filter_request(9, 0).framed();
-        assert_eq!(read.len(), 64);
-        assert_eq!(&read[..6], &[0x4B, 0x80, 0x09, 0x18, 0, 9]);
-        let filter = crate::eq::Filter::enabled(9, false);
-        assert!(original
-            .protocol
-            .write_filter_packets(9, &filter, 48000.0, 0.0)
-            .is_ok());
+        assert_eq!(original.protocol, DeviceProtocol::DawnPro);
+        assert!(!original.protocol.has_hardware_eq());
         let dawn2 = get_supported_device(0x35D8, 0x011D).unwrap();
         assert_eq!(dawn2.protocol, DeviceProtocol::Moondrop);
+        assert!(dawn2.protocol.has_hardware_eq());
         assert_eq!(dawn2.caps.num_bands, 8);
         assert_eq!(dawn2.caps.dsp_sample_rate, 96000.0);
     }

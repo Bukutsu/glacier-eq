@@ -190,8 +190,8 @@ fn quantize_band_gain(
             quantize_step_within(gain, 0.1, caps.band_gain_range, "band gain")
         }
         DeviceProtocol::Moondrop
-        | DeviceProtocol::MoondropLegacy
         | DeviceProtocol::Walkplay
+        | DeviceProtocol::DawnPro
         | DeviceProtocol::Unknown => Ok(gain),
     }
 }
@@ -204,11 +204,10 @@ fn quantize_preamp(
     let step = match protocol {
         DeviceProtocol::Walkplay => 1.0,
         DeviceProtocol::Moondrop
-        | DeviceProtocol::MoondropLegacy
         | DeviceProtocol::FiioJa11
         | DeviceProtocol::Fiio
         | DeviceProtocol::FiioKa17 => 0.1,
-        DeviceProtocol::Unknown => return Ok(global_gain),
+        DeviceProtocol::DawnPro | DeviceProtocol::Unknown => return Ok(global_gain),
     };
     quantize_step_within(
         global_gain,

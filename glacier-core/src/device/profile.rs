@@ -12,7 +12,8 @@ pub enum DeviceProtocol {
     // explicit command path instead of being routed through Walkplay by accident.
     Walkplay,
     Moondrop,
-    MoondropLegacy,
+    /// Original Moondrop Dawn Pro: sound controls only, no hardware EQ.
+    DawnPro,
     FiioJa11,
     Fiio,
     FiioKa17,
@@ -25,12 +26,16 @@ impl DeviceProtocol {
         match self {
             Self::Walkplay => "Walkplay",
             Self::Moondrop => "Moondrop",
-            Self::MoondropLegacy => "Moondrop Dawn Pro",
+            Self::DawnPro => "Moondrop Dawn Pro",
             Self::FiioJa11 => "FiiO JA11",
             Self::Fiio => "FiiO",
             Self::FiioKa17 => "FiiO KA17",
             Self::Unknown => "Unknown",
         }
+    }
+
+    pub fn has_hardware_eq(self) -> bool {
+        !matches!(self, Self::DawnPro | Self::Unknown)
     }
 }
 
@@ -42,6 +47,7 @@ pub struct DeviceInfo {
     pub manufacturer: Option<String>,
     pub product_string: Option<String>,
     pub profile_name: Option<String>,
+    pub hardware_eq: bool,
     #[serde(flatten)]
     pub capabilities: EditorCapabilities,
 }

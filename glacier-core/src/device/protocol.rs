@@ -148,16 +148,13 @@ impl DeviceProtocol {
         match self {
             DeviceProtocol::Walkplay => &WALKPLAY_PROTOCOL,
             DeviceProtocol::Moondrop => &MOONDROP_PROTOCOL,
-            DeviceProtocol::MoondropLegacy => {
-                &crate::device::moondrop_legacy::LegacyMoondropProtocol
-            }
             DeviceProtocol::FiioKa17 => &crate::device::fiio::KA17_PROTOCOL,
             DeviceProtocol::FiioJa11 => &crate::device::fiio::JA11_PROTOCOL,
             DeviceProtocol::Fiio => &crate::device::fiio::FIIO_PROTOCOL,
-            DeviceProtocol::Unknown => {
-                // Only real device profiles drive hardware; Unknown exists solely
-                // as a matching fallback.
-                panic!("Unknown protocol has no device implementation")
+            DeviceProtocol::DawnPro | DeviceProtocol::Unknown => {
+                // Callers check has_hardware_eq() before driving EQ; these
+                // profiles exist for matching and non-EQ controls only.
+                panic!("{} has no hardware EQ implementation", self.name())
             }
         }
     }

@@ -19,6 +19,7 @@ pub struct SupportedDeviceInfoWasm {
     pub product_id: Option<u16>,
     pub status: String,
     pub family: String,
+    pub hardware_eq: bool,
     #[serde(flatten)]
     pub capabilities: EditorCapabilities,
 }
@@ -117,7 +118,7 @@ fn device_protocol(protocol: &str) -> Result<DeviceProtocol, JsValue> {
     match normalized.as_str() {
         "walkplay" => Ok(DeviceProtocol::Walkplay),
         "moondrop" => Ok(DeviceProtocol::Moondrop),
-        "moondropdawnpro" => Ok(DeviceProtocol::MoondropLegacy),
+        "moondropdawnpro" => Ok(DeviceProtocol::DawnPro),
         "fiioja11" => Ok(DeviceProtocol::FiioJa11),
         "fiio" => Ok(DeviceProtocol::Fiio),
         "fiioka17" => Ok(DeviceProtocol::FiioKa17),
@@ -126,7 +127,14 @@ fn device_protocol(protocol: &str) -> Result<DeviceProtocol, JsValue> {
 }
 
 fn eq_protocol(protocol: &str) -> Result<&'static dyn EqProtocol, JsValue> {
-    Ok(device_protocol(protocol)?.implementation())
+    let protocol = device_protocol(protocol)?;
+    if !protocol.has_hardware_eq() {
+        return Err(JsValue::from_str(&format!(
+            "{} has no hardware EQ",
+            protocol.name()
+        )));
+    }
+    Ok(protocol.implementation())
 }
 
 fn unframe<'a>(protocol: &dyn EqProtocol, data: &'a [u8]) -> Result<&'a [u8], JsValue> {
@@ -328,6 +336,7 @@ pub fn list_supported_devices() -> Result<JsValue, JsValue> {
             product_id: device.product_id,
             status: device.status.to_string(),
             family: device.family.to_string(),
+            hardware_eq: device.protocol.has_hardware_eq(),
             capabilities: (&device.caps).into(),
         })
         .collect();

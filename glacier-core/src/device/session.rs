@@ -149,7 +149,16 @@ impl<'a> DeviceSession<'a> {
         self.profile.protocol.implementation()
     }
 
+    fn require_hardware_eq(&self) -> Result<(), String> {
+        if self.profile.protocol.has_hardware_eq() {
+            Ok(())
+        } else {
+            Err(format!("{} has no hardware EQ", self.profile.name))
+        }
+    }
+
     pub fn pull(&mut self) -> Result<PEQData, String> {
+        self.require_hardware_eq()?;
         // A complete-pull retry is only safe when the failed attempt did not
         // issue an uncorrelatable global-gain request. Clear this one-shot
         // guard before starting a new user-visible operation.
@@ -194,6 +203,7 @@ impl<'a> DeviceSession<'a> {
     /// Returns the committed PEQ plus the capability-clamp warnings, which
     /// callers must surface — the clamp rewrites the user's values.
     pub fn persistent_push(&mut self, peq: PEQData) -> Result<(PEQData, Vec<String>), String> {
+        self.require_hardware_eq()?;
         let (normalized, warnings) = self.normalize(peq)?;
         let backup = self.pull()?;
         if self.last_pull_had_invalid_response {
@@ -252,6 +262,7 @@ impl<'a> DeviceSession<'a> {
     /// the device's committed state must say so, which is what the extra
     /// warning below is for.
     pub fn unverified_push(&mut self, peq: PEQData) -> Result<(PEQData, Vec<String>), String> {
+        self.require_hardware_eq()?;
         let (normalized, mut warnings) = self.normalize(peq)?;
         let backup = self.pull()?;
         if self.last_pull_had_invalid_response {
@@ -271,6 +282,7 @@ impl<'a> DeviceSession<'a> {
     }
 
     pub fn apply_ram(&mut self, peq: PEQData) -> Result<(PEQData, Vec<String>), String> {
+        self.require_hardware_eq()?;
         validate_peq(&peq)?;
         if !self.profile.caps.supports_ram_apply {
             return Err(format!(
@@ -975,6 +987,27 @@ mod tests {
         fn sleep_ms(&mut self, ms: u64) {
             self.events.push(IoEvent::Sleep(ms));
         }
+    }
+
+    #[test]
+    fn original_dawn_pro_refuses_eq_without_touching_the_device() {
+        let profile = get_supported_device(0x2FC6, 0xF06A).unwrap();
+        let mut io = FakeIo::default();
+        let mut session = DeviceSession::new(&mut io, profile);
+        let peq = PEQData {
+            filters: vec![],
+            global_gain: 0.0,
+        };
+        for error in [
+            session.pull().unwrap_err(),
+            session.persistent_push(peq.clone()).unwrap_err(),
+            session.unverified_push(peq.clone()).unwrap_err(),
+            session.apply_ram(peq).unwrap_err(),
+        ] {
+            assert_eq!(error, "Moondrop Dawn Pro has no hardware EQ");
+        }
+        assert!(io.writes.is_empty());
+        assert_eq!(io.read_calls, 0);
     }
 
     #[test]

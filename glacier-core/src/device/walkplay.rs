@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::device::capabilities::DeviceCapabilities;
+use crate::device::capabilities::{DeviceCapabilities, DESKTOP_DAC_CAPS};
 use crate::device::profile::{DeviceProfile, DeviceProtocol};
 use crate::eq::filter::DEFAULT_FREQS_10_BAND;
 use crate::eq::iir_math::compute_biquad_coeffs;
@@ -79,22 +79,6 @@ const fn savitech_caps(supported_filter_types: &'static [FilterType]) -> DeviceC
 }
 
 const SAVITECH_10_BAND_CAPS: DeviceCapabilities = savitech_caps(WALKPLAY_FILTER_TYPES);
-
-const MOONDROP_LEGACY_CAPS: DeviceCapabilities = DeviceCapabilities {
-    num_bands: 10,
-    global_gain_range: (-20, 10),
-    band_gain_range: (-12.0, 12.0),
-    freq_range: (20, 20000),
-    q_range: (0.1, 10.0),
-    supported_filter_types: LIMITED_FILTER_TYPES,
-    supports_per_band_enable: false,
-    supports_ram_apply: true,
-    dsp_sample_rate: 48000.0,
-    gain_tolerance: 0.15,
-    freq_tolerance: 1,
-    q_tolerance: 0.05,
-    integer_preamp: false,
-};
 
 const MOONDROP_8_BAND_CAPS: DeviceCapabilities = DeviceCapabilities {
     num_bands: 8,
@@ -405,12 +389,13 @@ pub const PROFILES: &[DeviceProfile] = &[
     },
     DeviceProfile {
         name: "Moondrop Dawn Pro",
-        protocol: DeviceProtocol::MoondropLegacy,
+        protocol: DeviceProtocol::DawnPro,
         vendor_id: 0x2FC6,
         product_id: None,
         status: "Untested",
         family: "Moondrop / Comtrue",
-        caps: MOONDROP_LEGACY_CAPS,
+        // No hardware EQ; these caps only shape the offline editor.
+        caps: DESKTOP_DAC_CAPS,
     },
     DeviceProfile {
         name: "JCally JM12",
@@ -464,11 +449,10 @@ mod tests {
     }
 
     #[test]
-    fn non_walkplay_profiles_keep_the_limited_filter_set() {
-        for profile in PROFILES
-            .iter()
-            .filter(|profile| profile.protocol != DeviceProtocol::Walkplay)
-        {
+    fn non_walkplay_eq_profiles_keep_the_limited_filter_set() {
+        for profile in PROFILES.iter().filter(|profile| {
+            profile.protocol != DeviceProtocol::Walkplay && profile.protocol.has_hardware_eq()
+        }) {
             assert_eq!(
                 profile.caps.supported_filter_types, LIMITED_FILTER_TYPES,
                 "{}",
