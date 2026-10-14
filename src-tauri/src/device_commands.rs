@@ -681,6 +681,146 @@ pub async fn get_firmware_version(
     with_session(&app, &state, |session| session.firmware_version()).await
 }
 
+#[derive(serde::Serialize)]
+pub struct DawnProState {
+    filter: u8,
+    high_gain: bool,
+    led: u8,
+    volume_step: u8,
+    volume_raw: u8,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DawnProControl {
+    Filter,
+    Gain,
+    Volume,
+    Led,
+}
+
+fn read_dawn_pro_state(
+    dawn: &mut glacier_core::device::dawn_pro::DawnPro<'_>,
+) -> Result<DawnProState, String> {
+    let settings = dawn.settings()?;
+    let volume = dawn.volume()?;
+    Ok(DawnProState {
+        filter: settings.filter,
+        high_gain: settings.high_gain,
+        led: settings.led,
+        volume_step: volume.step,
+        volume_raw: volume.raw,
+    })
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+struct DawnProDeviceIo<'a> {
+    app: &'a tauri::AppHandle,
+    path: &'a str,
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+impl glacier_core::device::dawn_pro::DawnProIo for DawnProDeviceIo<'_> {
+    fn write(&mut self, report: &[u8; 8]) -> Result<(), String> {
+        // Original Dawn Pro uses report ID 0 and ordinary eight-byte writes.
+        // This deliberately bypasses the Dawn Pro 2 SET_REPORT transport.
+        tauri_plugin_hid::hid(self.app)
+            .write(self.path, report)
+            .map_err(|error| error.to_string())
+    }
+    fn get_input_report(&mut self, report: &mut [u8; 9]) -> Result<usize, String> {
+        let bytes = tauri_plugin_hid::hid(self.app)
+            .get_dawn_pro_input_report(self.path)
+            .map_err(|error| error.to_string())?;
+        if bytes.len() > report.len() {
+            return Err("Oversized Dawn Pro reply".into());
+        }
+        report[..bytes.len()].copy_from_slice(&bytes);
+        Ok(bytes.len())
+    }
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+async fn with_dawn_pro<T: Send + 'static>(
+    app: &tauri::AppHandle,
+    state: &tauri::State<'_, Mutex<DeviceState>>,
+    path: String,
+    operation: impl FnOnce(&mut glacier_core::device::dawn_pro::DawnPro<'_>) -> Result<T, String>
+        + Send
+        + 'static,
+) -> Result<T, String> {
+    let expected = session_identity(state)?;
+    if expected.0 != path {
+        return Err("Device session changed; operation was cancelled".into());
+    }
+    let session_lock = app.state::<DeviceSessionLock>().0.clone();
+    let guard = session_lock.lock_owned().await;
+    let connected = connected_device(state)?;
+    if connected.path != expected.0 || connected.session_id != expected.1 {
+        return Err("Device session changed; operation was cancelled".into());
+    }
+    if connected.vendor_id != 0x2FC6 || connected.product_id != 0xF06A {
+        return Err("These controls require the original Dawn Pro (2FC6:F06A)".into());
+    }
+    let app = app.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let _guard = guard;
+        let mut io = DawnProDeviceIo {
+            app: &app,
+            path: &path,
+        };
+        operation(&mut glacier_core::device::dawn_pro::DawnPro::new(&mut io))
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+#[cfg(any(target_os = "android", target_os = "ios"))]
+async fn with_dawn_pro<T: Send + 'static>(
+    _app: &tauri::AppHandle,
+    _state: &tauri::State<'_, Mutex<DeviceState>>,
+    _path: String,
+    _operation: impl FnOnce(&mut glacier_core::device::dawn_pro::DawnPro<'_>) -> Result<T, String>
+        + Send
+        + 'static,
+) -> Result<T, String> {
+    Err("Original Dawn Pro controls currently require the desktop app".into())
+}
+
+#[tauri::command]
+pub async fn get_dawn_pro_state(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Mutex<DeviceState>>,
+    path: String,
+) -> Result<DawnProState, String> {
+    with_dawn_pro(&app, &state, path, read_dawn_pro_state).await
+}
+
+#[tauri::command]
+pub async fn set_dawn_pro_control(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Mutex<DeviceState>>,
+    path: String,
+    control: DawnProControl,
+    value: u8,
+) -> Result<DawnProState, String> {
+    with_dawn_pro(&app, &state, path, move |dawn| {
+        match control {
+            DawnProControl::Filter => dawn.set_filter(value)?,
+            DawnProControl::Gain => {
+                if value > 1 {
+                    return Err("Dawn Pro gain must be 0 or 1".into());
+                }
+                dawn.set_gain(value == 1)?;
+            }
+            DawnProControl::Volume => dawn.set_volume(value)?,
+            DawnProControl::Led => dawn.set_led(value)?,
+        }
+        read_dawn_pro_state(dawn)
+    })
+    .await
+}
+
 #[tauri::command]
 pub async fn get_dac_utility_state(
     app: tauri::AppHandle,

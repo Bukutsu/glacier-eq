@@ -1638,6 +1638,12 @@ async function invokeWeb<T = unknown>(cmd: string, args?: any): Promise<T> {
     }
 
     // ─── Walkplay Hardware controls ──────────────────────────────────────────
+    case "get_dawn_pro_state":
+    case "set_dawn_pro_control":
+      // The hardware-verified Windows path needs Input GET_REPORT, which
+      // WebHID cannot request. Do not substitute receiveFeatureReport.
+      throw new Error("Original Dawn Pro controls require the desktop app; WebHID cannot request its input GET_REPORT.");
+
     case "get_dac_utility_state": {
       if (!activeDevice || !supportsWalkplayUtilities()) return unsupportedUtilityState() as T;
 

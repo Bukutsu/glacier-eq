@@ -74,6 +74,20 @@ describe("DeviceView markup", () => {
     expect(html).not.toContain("device-filter-details");
   });
 
+  it("routes only the exact original Dawn Pro to its own controls", () => {
+    const html = renderDeviceView({
+      connected: true, section: "controls",
+      deviceInfo: { path: "dawn", vendor_id: 0x2fc6, product_id: 0xf06a, product_name: "Dawn Pro" },
+    });
+    expect(html).toContain("Reading Dawn Pro settings");
+    expect(html).not.toContain("Controls unavailable");
+    const other = renderDeviceView({
+      connected: true, section: "controls",
+      deviceInfo: { path: "other", vendor_id: 0x2fc6, product_id: 0xffff, product_name: "Other Moondrop" },
+    });
+    expect(other).not.toContain("Reading Dawn Pro settings");
+  });
+
   it("formats channel balance with correct directional labels", () => {
     expect(formatChannelBalance(0)).toBe("Center (0)");
     expect(formatChannelBalance(5)).toBe("Right +5");

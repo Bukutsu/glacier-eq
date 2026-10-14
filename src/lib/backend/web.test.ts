@@ -203,6 +203,20 @@ function verificationPeq(): PEQData {
   };
 }
 
+describe("original Dawn Pro browser controls", () => {
+  it("does not guess Feature Reports for a native Input GET_REPORT protocol", async () => {
+    const device = fakeHidDevice();
+    hidMock.devices = [device];
+    for (const command of ["get_dawn_pro_state", "set_dawn_pro_control"]) {
+      await expect(invoke(command, { path: "dawn", control: "gain", value: 1 }))
+        .rejects.toThrow("Original Dawn Pro controls require the desktop app");
+    }
+    expect(device.sendReport).not.toHaveBeenCalled();
+    expect(device.receiveFeatureReport).not.toHaveBeenCalled();
+    expect(device.sendFeatureReport).not.toHaveBeenCalled();
+  });
+});
+
 describe("UTF-8 file decoding", () => {
   it("rejects malformed bytes instead of replacing them", () => {
     expect(() => decodeUtf8File(Uint8Array.from([0x23, 0xff]).buffer)).toThrow();

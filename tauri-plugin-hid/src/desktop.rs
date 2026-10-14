@@ -160,6 +160,32 @@ impl<R: Runtime> Hid<R> {
         })
     }
 
+    /// Input GET_REPORT for original Dawn Pro's nine-byte reply.
+    /// Abdul Mateen's Windows-tested DawnPro._read does not use ReadFile first:
+    /// https://github.com/RetR0-hex/moondrop-dawn-pro-gui/blob/69f95f669377646da1e9ba931bec9a5dc9b5d40c/moondrop/device.py
+    pub fn get_dawn_pro_input_report(&self, path: &str) -> crate::Result<Vec<u8>> {
+        let device = {
+            let open_devices = self.open_devices.lock().unwrap_or_else(|p| p.into_inner());
+            open_devices
+                .get(path)
+                .cloned()
+                .ok_or(crate::Error::HidDeviceNotFoundInOpenDevices)?
+        };
+        let device = device.lock().unwrap_or_else(|p| p.into_inner());
+        let mut report = [0; 9];
+        match device.get_input_report(&mut report) {
+            Ok(length) => Ok(report[..length].to_vec()),
+            Err(error) => {
+                // Same interrupt fallback as the reference, preserving ID 0.
+                let length = device.read_timeout(&mut report[1..], 500)?;
+                if length == 0 {
+                    return Err(error.into());
+                }
+                Ok(report[..length + 1].to_vec())
+            }
+        }
+    }
+
     pub fn read(&self, path: &str, timeout: i32) -> crate::Result<Vec<u8>> {
         let device = {
             let open_devices = self.open_devices.lock().unwrap_or_else(|p| p.into_inner());

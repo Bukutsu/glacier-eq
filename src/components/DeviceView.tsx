@@ -5,6 +5,7 @@ import type { StatusReporter } from "../stores/toastStore";
 import { memo, useEffect, useRef, useState } from "react";
 import { confirmDialog } from "./ConfirmDialog";
 import { DacFilterVisual } from "./DacFilterVisual";
+import { DawnProControls } from "./DawnProControls";
 import { Icon } from "./Icon";
 import { Button } from "./ui/Button";
 import { ConfigurationLayout } from "./ConfigurationLayout";
@@ -70,6 +71,8 @@ export const DeviceView = memo(function DeviceView({
   onOpenConnectModal,
   onDisconnect,
 }: DeviceViewProps) {
+  const dawnDevice = !isSimulated && deviceInfo?.vendor_id === 0x2fc6 &&
+    deviceInfo.product_id === 0xf06a ? deviceInfo : null;
   const [utility, setUtility] = useState<DeviceUtilityState | null>(null);
   const utilityRef = useRef<DeviceUtilityState | null>(null);
   const confirmedUtilityRef = useRef<DeviceUtilityState | null>(null);
@@ -82,7 +85,7 @@ export const DeviceView = memo(function DeviceView({
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const fetchState = async (isActive = () => true, silent = false) => {
-    if (!connected) return;
+    if (!connected || dawnDevice) return;
     if (!silent) {
       setLoading(true);
       setLoadError(null);
@@ -121,7 +124,7 @@ export const DeviceView = memo(function DeviceView({
     utilityRef.current = null;
     confirmedUtilityRef.current = null;
     fieldRevisionsRef.current = {};
-    if (!connected) {
+    if (!connected || dawnDevice) {
       setLoading(false);
       return;
     }
@@ -157,7 +160,7 @@ export const DeviceView = memo(function DeviceView({
       scheduleUtilityTask.invalidate();
       if (unlisten) unlisten();
     };
-  }, [connected, deviceInfo?.path]);
+  }, [connected, deviceInfo?.path, !!dawnDevice]);
 
   const setUtilityField = async <K extends keyof DeviceUtilityState>(
     field: K,
@@ -390,7 +393,7 @@ export const DeviceView = memo(function DeviceView({
     <ConfigurationLayout kind="device" active={activeSection} root={section === "root"} sections={sections} summary={deviceSummary}
       sectionTitle={sectionTitle} sectionValues={{
         overview: `${capabilities.num_bands} bands · ${dspKhz} kHz`,
-        controls: utility?.supported ? `${utility.high_gain_mode ? "High" : "Low"} gain · ${utility.filter_mode}` : undefined,
+        controls: dawnDevice ? "Volume · gain · filter · LED" : utility?.supported ? `${utility.high_gain_mode ? "High" : "Low"} gain · ${utility.filter_mode}` : undefined,
       }}>
       <StackHeader title={sectionTitle} />
 
@@ -445,6 +448,8 @@ export const DeviceView = memo(function DeviceView({
                   )}
                 </div>
               </section>
+            ) : dawnDevice ? (
+              <DawnProControls key={dawnDevice.path} path={dawnDevice.path} isBusy={isBusy} setStatus={setStatus} />
             ) : loading ? (
               <section className="settings-card empty-card">
                 <div className="empty-state">
