@@ -1,6 +1,12 @@
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
+// Preserved from Glacier EQ's pre-audit implementation at 18f2ddd for
+// compatibility; this old PEQ path is not confirmed on original Dawn Pro.
+// The hardware-verified original-model controls are in dawn_pro.rs, adapted
+// from Abdul Mateen's implementation:
+// https://github.com/RetR0-hex/moondrop-dawn-pro-gui/tree/69f95f669377646da1e9ba931bec9a5dc9b5d40c
+
 use crate::device::protocol::{checked_scaled_i16, checked_scaled_u16, EqProtocol, Packet};
 use crate::device::timing::WriteTiming;
 use crate::device::walkplay::compute_iir_filter;

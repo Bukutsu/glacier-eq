@@ -6,6 +6,7 @@
 //! UI-agnostic — usable from Tauri desktop/mobile apps, CLI tools, or headless services.
 
 pub mod capabilities;
+pub mod dawn_pro;
 pub mod fiio;
 pub mod moondrop;
 pub mod moondrop_legacy;

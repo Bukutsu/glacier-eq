@@ -20,6 +20,8 @@ const HELP: &str = "Glacier EQ CLI
 
 Usage:
   glacier-eq-cli devices
+  glacier-eq-cli dawn-pro status [--device PATH|2FC6:F06A]
+  glacier-eq-cli dawn-pro filter 0..4|gain low|high|volume 0..60|led 0..2 [--device SELECTOR] --yes
   glacier-eq-cli inspect [FILE|-]
   glacier-eq-cli normalize [FILE|-] [VID:PID]
   glacier-eq-cli response [FILE|-] [SAMPLE_RATE]
@@ -70,6 +72,11 @@ enum Command {
         device: Option<String>,
     },
     Profile(ProfileAction),
+    DawnPro {
+        action: DawnProAction,
+        selector: Option<String>,
+        yes: bool,
+    },
     Controls {
         action: ControlAction,
         selector: Option<String>,
@@ -108,6 +115,15 @@ enum ProfileAction {
         name: String,
         yes: bool,
     },
+}
+
+#[derive(Debug, PartialEq)]
+enum DawnProAction {
+    Status,
+    Filter(u8),
+    Gain(bool),
+    Volume(u8),
+    Led(u8),
 }
 
 #[derive(Debug, PartialEq)]
@@ -154,6 +170,7 @@ fn parse(args: Vec<String>) -> Result<Command, String> {
         Some("autoeq") => parse_autoeq_command(&args[1..]),
         Some("profile") => parse_profile(&args[1..]),
         Some("controls") => parse_controls(&args[1..]),
+        Some("dawn-pro") => parse_dawn_pro(&args[1..]),
         Some(command) => Err(format!("unknown command or extra arguments: {command}")),
     }
 }
@@ -260,6 +277,45 @@ fn parse_profile(args: &[String]) -> Result<Command, String> {
         _ => return Err("invalid profile command".into()),
     };
     Ok(Command::Profile(action))
+}
+
+fn parse_dawn_pro(args: &[String]) -> Result<Command, String> {
+    let (args, selector, yes) = common_device_options(args)?;
+    let action = match args.first().map(String::as_str) {
+        Some("status") if args.len() == 1 => DawnProAction::Status,
+        Some("filter") if args.len() == 2 => {
+            let value = number::<u8>(&args[1], "filter")?;
+            if value > 4 {
+                return Err("Dawn Pro filter must be 0..4".into());
+            }
+            DawnProAction::Filter(value)
+        }
+        Some("gain") if args.len() == 2 => DawnProAction::Gain(match args[1].as_str() {
+            "low" => false,
+            "high" => true,
+            _ => return Err("Dawn Pro gain must be low or high".into()),
+        }),
+        Some("volume") if args.len() == 2 => {
+            let value = number::<u8>(&args[1], "volume step")?;
+            if value > 60 {
+                return Err("Dawn Pro volume step must be 0..60".into());
+            }
+            DawnProAction::Volume(value)
+        }
+        Some("led") if args.len() == 2 => {
+            let value = number::<u8>(&args[1], "LED mode")?;
+            if value > 2 {
+                return Err("Dawn Pro LED mode must be 0..2".into());
+            }
+            DawnProAction::Led(value)
+        }
+        _ => return Err("invalid dawn-pro command".into()),
+    };
+    Ok(Command::DawnPro {
+        action,
+        selector,
+        yes,
+    })
 }
 
 fn parse_controls(args: &[String]) -> Result<Command, String> {
@@ -431,6 +487,9 @@ fn execute(command: Command) -> Result<String, String> {
         Command::Controls {
             action, selector, ..
         } => execute_controls(action, selector.as_deref()),
+        Command::DawnPro {
+            action, selector, ..
+        } => execute_dawn_pro(action, selector.as_deref()),
     }
 }
 
@@ -443,6 +502,7 @@ fn require_confirmation(command: &Command) -> Result<(), String> {
             ) || *yes
         }
         Command::Controls { action, yes, .. } => matches!(action, ControlAction::Status) || *yes,
+        Command::DawnPro { action, yes, .. } => matches!(action, DawnProAction::Status) || *yes,
         Command::Profile(ProfileAction::Delete { yes, .. }) => *yes,
         _ => true,
     };
@@ -925,6 +985,76 @@ fn format_hex(bytes: &[u8]) -> String {
 }
 
 #[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
+struct DawnProHidIo<'a>(&'a hidapi::HidDevice);
+
+#[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
+impl glacier_core::device::dawn_pro::DawnProIo for DawnProHidIo<'_> {
+    fn write(&mut self, report: &[u8; 8]) -> Result<(), String> {
+        let written = self.0.write(report).map_err(|error| error.to_string())?;
+        ensure_complete_hid_write(report.len(), written)
+    }
+
+    fn get_input_report(&mut self, report: &mut [u8; 9]) -> Result<usize, String> {
+        match self.0.get_input_report(report) {
+            Ok(length) => Ok(length),
+            Err(error) => {
+                // Abdul Mateen's hardware-tested DawnPro._read uses Input
+                // GET_REPORT first; ReadFile times out on the Windows device.
+                // Preserve its interrupt fallback for unsupported platforms:
+                // https://github.com/RetR0-hex/moondrop-dawn-pro-gui/blob/69f95f669377646da1e9ba931bec9a5dc9b5d40c/moondrop/device.py
+                report.fill(0);
+                let length = self
+                    .0
+                    .read_timeout(&mut report[1..], 500)
+                    .map_err(|read_error| {
+                        format!("GET_REPORT: {error}; interrupt read: {read_error}")
+                    })?;
+                if length == 0 {
+                    return Err(format!("GET_REPORT: {error}; interrupt read timed out"));
+                }
+                Ok(length + 1)
+            }
+        }
+    }
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
+fn execute_dawn_pro(action: DawnProAction, selector: Option<&str>) -> Result<String, String> {
+    use glacier_core::device::dawn_pro::{DawnPro, PRODUCT_ID, VENDOR_ID};
+    with_hid_device(selector.or(Some("2fc6:f06a")), |selected, device| {
+        if selected.vendor != VENDOR_ID || selected.product != PRODUCT_ID {
+            return Err("dawn-pro commands require the original Dawn Pro (2FC6:F06A)".into());
+        }
+        let mut io = DawnProHidIo(device);
+        let mut dawn = DawnPro::new(&mut io);
+        match action {
+            DawnProAction::Status => {
+                let settings = dawn.settings()?;
+                let volume = dawn.volume()?;
+                return Ok(format!(
+                    "filter,gain,led,volume_step,attenuation_code\n{},{},{},{},0x{:02X}\n",
+                    settings.filter,
+                    if settings.high_gain { "high" } else { "low" },
+                    settings.led,
+                    volume.step,
+                    volume.raw,
+                ));
+            }
+            DawnProAction::Filter(value) => dawn.set_filter(value)?,
+            DawnProAction::Gain(high) => dawn.set_gain(high)?,
+            DawnProAction::Volume(step) => dawn.set_volume(step)?,
+            DawnProAction::Led(value) => dawn.set_led(value)?,
+        }
+        Ok("applied and verified by readback\n".into())
+    })
+}
+
+#[cfg(any(target_os = "android", target_os = "ios", target_arch = "wasm32"))]
+fn execute_dawn_pro(_: DawnProAction, _: Option<&str>) -> Result<String, String> {
+    Err("direct Dawn Pro HID is available only on desktop".into())
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
 fn execute_controls(action: ControlAction, selector: Option<&str>) -> Result<String, String> {
     open_session(selector, |session| match action {
         ControlAction::Status => {
@@ -964,6 +1094,59 @@ fn execute_controls(_: ControlAction, _: Option<&str>) -> Result<String, String>
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn dawn_pro_status_is_read_only_and_mutations_require_confirmation() {
+        let status = parse(vec!["dawn-pro".into(), "status".into()]).unwrap();
+        assert!(require_confirmation(&status).is_ok());
+        for (setting, value) in [
+            ("gain", "low"),
+            ("filter", "4"),
+            ("volume", "45"),
+            ("led", "2"),
+        ] {
+            let mut args = vec!["dawn-pro".into(), setting.into(), value.into()];
+            assert!(require_confirmation(&parse(args.clone()).unwrap()).is_err());
+            args.push("--yes".into());
+            assert!(require_confirmation(&parse(args).unwrap()).is_ok());
+        }
+    }
+
+    #[test]
+    fn dawn_pro_invalid_settings_are_rejected_before_opening_hid() {
+        for (setting, value) in [
+            ("gain", "middle"),
+            ("filter", "5"),
+            ("volume", "61"),
+            ("led", "3"),
+        ] {
+            assert!(parse(vec![
+                "dawn-pro".into(),
+                setting.into(),
+                value.into(),
+                "--yes".into()
+            ])
+            .is_err());
+        }
+    }
+
+    #[test]
+    fn dawn_pro_preserves_explicit_device_selection() {
+        assert_eq!(
+            parse(vec![
+                "dawn-pro".into(),
+                "status".into(),
+                "--device".into(),
+                "2FC6:F06A".into()
+            ])
+            .unwrap(),
+            Command::DawnPro {
+                action: DawnProAction::Status,
+                selector: Some("2FC6:F06A".into()),
+                yes: false
+            }
+        );
+    }
 
     #[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
     #[test]
