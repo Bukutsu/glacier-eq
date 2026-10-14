@@ -125,7 +125,9 @@ dialog.modal-content.wide {
 
 /* Keep the DAC list scrollable while the connect action stays in reach. */
 dialog.modal-content.device-modal {
-  height: auto;
+  /* fit-content, not auto: a fixed dialog pinned on all sides stretches to
+     the viewport with height:auto. */
+  height: fit-content;
   max-height: calc(100dvh - 64px);
   overflow: hidden;
 }

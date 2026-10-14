@@ -143,7 +143,7 @@ export function DeviceChooser({
         >
           <summary>
             <span>Supported models ({supportedDacs.length})</span>
-            <Icon size={18} name={supportedOpen ? "expand_less" : "expand_more"} />
+            <Icon size={18} name="expand_more" className="disclosure-chevron" />
           </summary>
           <div className="supported-models">
             {supportedDacs.map((dac) => (
@@ -156,7 +156,7 @@ export function DeviceChooser({
         </details>
 
         <details className="device-troubleshooting">
-          <summary>Connection help</summary>
+          <summary>Connection help<Icon size={18} name="expand_more" className="disclosure-chevron" /></summary>
           <ul>
             <li>Disconnect and reconnect the DAC, and close other applications using it.</li>
             {!isTauri() && <li>Use a Chromium-based browser and approve the device access prompt.</li>}

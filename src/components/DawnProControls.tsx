@@ -11,7 +11,8 @@ import type { StatusReporter } from "../stores/toastStore";
 import { Button } from "./ui/Button";
 import { Select } from "./Select";
 import { Slider } from "./Slider";
-import { ToggleRow } from "./SettingsPrimitives";
+import { SegmentedRow } from "./SettingsPrimitives";
+import { Icon } from "./Icon";
 import { DacFilterVisual } from "./DacFilterVisual";
 
 export interface DawnProState {
@@ -49,11 +50,13 @@ export function DawnProControlsFields({ state, disabled, onChange }: {
       </div>
     </div>
     <details className="device-filter-details">
-      <summary>Filter response</summary>
+      <summary>Filter response<Icon name="expand_more" className="disclosure-chevron" /></summary>
       <DacFilterVisual mode={FILTERS[state.filter].mode} />
     </details>
-    <ToggleRow title="High gain" desc="Higher output power for headphones that need more amplification"
-      checked={state.high_gain} disabled={disabled} onChange={value => onChange("high_gain", value)} />
+    <SegmentedRow title="Gain" desc="High gain gives more power for headphones that need it"
+      value={state.high_gain ? "high" : "low"} disabled={disabled}
+      options={[{ value: "low", label: "Low" }, { value: "high", label: "High" }]}
+      onChange={value => onChange("high_gain", value === "high")} />
     <div className="pref-slider-item pref-slider-first">
       <div className="pref-slider-head">
         <div className="stack-pref-info">

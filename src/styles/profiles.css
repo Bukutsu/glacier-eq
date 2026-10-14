@@ -173,7 +173,7 @@
 .profiles-warning { color: var(--warning-foreground); }
 
 .profiles-editor-actions { margin-top: var(--space-4); }
-.profiles-edit-eq { margin-top: var(--space-3); }
+.profiles-edit-eq { align-self: flex-start; margin-top: var(--space-3); }
 
 .profile-save-form {
   display: flex;

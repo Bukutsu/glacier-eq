@@ -10,6 +10,7 @@ import { SETTINGS_SECTIONS } from "../lib/tabs";
 import {
   ActionRow,
   ExternalLinkRow,
+  SegmentedRow,
   SelectRow,
   StackHeader,
   ToggleRow,
@@ -368,36 +369,13 @@ export const SettingsView = memo(function SettingsView({
             />}
 
             {graphViewMode && onGraphViewModeChange && (
-              <div className="stack-pref-row select-row">
-                <div className="stack-pref-info">
-                  <span className="stack-pref-title">Graph view mode</span>
-                  <span className="stack-pref-desc">
-                    Shape normalizes curves at 1 kHz. Level shows absolute dB output.
-                  </span>
-                </div>
-                <div className="stack-pref-control">
-                  <div className="graph-view-toggle" role="group" aria-label="Graph view mode">
-                    <button
-                      type="button"
-                      data-slot="segmented-control"
-                      className="graph-mode-option"
-                      aria-pressed={graphViewMode === "shape"}
-                      onClick={() => onGraphViewModeChange("shape")}
-                    >
-                      Shape
-                    </button>
-                    <button
-                      type="button"
-                      data-slot="segmented-control"
-                      className="graph-mode-option"
-                      aria-pressed={graphViewMode === "level"}
-                      onClick={() => onGraphViewModeChange("level")}
-                    >
-                      Level
-                    </button>
-                  </div>
-                </div>
-              </div>
+              <SegmentedRow<GraphViewMode>
+                title="Graph view mode"
+                desc="Shape normalizes curves at 1 kHz. Level shows absolute dB output."
+                value={graphViewMode}
+                options={[{ value: "shape", label: "Shape" }, { value: "level", label: "Level" }]}
+                onChange={onGraphViewModeChange}
+              />
             )}
           </div>
         )}

@@ -117,8 +117,6 @@
     border-top: 1px solid var(--border);
     border-radius: 0;
   }
-  .mobile-filter-summary { display: flex; align-items: baseline; gap: var(--space-2); }
-  .mobile-band-context { font-size: var(--type-small); color: var(--muted-foreground); }
   .mobile-filter-head .band-index { width: 44px; min-height: 44px; }
   .mobile-filter-reset { min-height: 44px; }
   .mobile-workspace .mobile-filter-card .band-field {

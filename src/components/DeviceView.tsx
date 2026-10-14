@@ -14,8 +14,8 @@ import { Select } from "./Select";
 import { Slider } from "./Slider";
 import {
   ActionRow,
+  SegmentedRow,
   StackHeader,
-  ToggleRow,
 } from "./SettingsPrimitives";
 import { invokeForDevice, listen } from "../lib/rpc";
 import { DevProtocolPreview } from "./DevProtocolPreview";
@@ -524,23 +524,25 @@ export const DeviceView = memo(function DeviceView({
                 </div>
 
                 <details className="device-filter-details">
-                  <summary>Filter response</summary>
+                  <summary>Filter response<Icon name="expand_more" className="disclosure-chevron" /></summary>
                   <DacFilterVisual mode={utility.filter_mode} />
                 </details>
 
-                <ToggleRow
-                  title="Class AB amplifier"
-                  desc="Runs cooler and uses less power"
-                  checked={utility.amp_mode_class_ab}
-                  onChange={handleSetAmpMode}
+                <SegmentedRow
+                  title="Amplifier"
+                  desc="Class AB runs cooler and uses less power"
+                  value={utility.amp_mode_class_ab ? "ab" : "a"}
+                  options={[{ value: "a", label: "Class A" }, { value: "ab", label: "Class AB" }]}
+                  onChange={value => handleSetAmpMode(value === "ab")}
                   disabled={isBusy}
                 />
 
-                <ToggleRow
-                  title="High gain"
-                  desc="Higher output power for headphones that require more amplification"
-                  checked={utility.high_gain_mode}
-                  onChange={handleSetOutputGain}
+                <SegmentedRow
+                  title="Gain"
+                  desc="High gain gives more power for headphones that need it"
+                  value={utility.high_gain_mode ? "high" : "low"}
+                  options={[{ value: "low", label: "Low" }, { value: "high", label: "High" }]}
+                  onChange={value => handleSetOutputGain(value === "high")}
                   disabled={isBusy}
                 />
 

@@ -155,13 +155,14 @@ export const Header = memo(function Header({
           <div className="title-line">
             <h1>{pageTitle}</h1>
           </div>
-          {/* One status line: DAC, sync state, and (on EQ pages) the profile. */}
-          <div className="header-meta-row">
+          {/* One status line: DAC, sync state, and the profile. Device and
+              Settings show status in their own content and the sidebar. */}
+          {(mobile || !isConfigPage) && <div className="header-meta-row">
             {connected && !mobile && <div className="device-name">{deviceName}</div>}
             <span className={`sync-dot ${syncClass}`} role="status" aria-live="polite">{mobile ? mobileSyncText : syncText}</span>
             {!isConfigPage && !mobile && <span className="header-profile-state">{profileText}</span>}
             {draftRecovery}
-          </div>
+          </div>}
         </div>
         {/* Desktop toolbar; Device and Settings pages carry their own actions. */}
         {!mobile && !isConfigPage && <div className="toolbar desktop-toolbar">

@@ -1008,3 +1008,10 @@ body::-webkit-scrollbar-corner,
 }
 
 
+
+/* One disclosure style app-wide: no native triangle, a trailing chevron
+   that flips when open. */
+summary { list-style: none; cursor: pointer; }
+summary::-webkit-details-marker { display: none; }
+.disclosure-chevron { flex: 0 0 auto; color: var(--muted); transition: transform var(--motion-duration) var(--motion-ease); }
+details[open] > summary .disclosure-chevron { transform: rotate(180deg); }

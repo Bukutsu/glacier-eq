@@ -89,6 +89,43 @@ export function ToggleRow({
   );
 }
 
+/** A row with two or three named choices, for settings where "off" is unclear. */
+export function SegmentedRow<T extends string>({
+  title,
+  desc,
+  value,
+  options,
+  onChange,
+  disabled = false,
+}: {
+  title: string;
+  desc?: string;
+  value: T;
+  options: { value: T; label: string }[];
+  onChange: (value: T) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className={`stack-pref-row select-row ${disabled ? "disabled" : ""}`}>
+      <div className="stack-pref-info">
+        <span className="stack-pref-title">{title}</span>
+        {desc ? <span className="stack-pref-desc">{desc}</span> : null}
+      </div>
+      <div className="stack-pref-control">
+        <div className="graph-view-toggle" role="group" aria-label={title}>
+          {options.map(option => (
+            <button key={option.value} type="button" data-slot="segmented-control" className="graph-mode-option"
+              aria-pressed={value === option.value} disabled={disabled}
+              onClick={() => { if (value !== option.value) onChange(option.value); }}>
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function SelectRow<T extends string | number>({
   id,
   title,

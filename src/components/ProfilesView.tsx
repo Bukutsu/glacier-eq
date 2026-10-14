@@ -504,7 +504,7 @@ export const ProfilesView = memo(function ProfilesView({
             </div>
           )
         )}
-        {onReviewEq && <Button variant="ghost" className="profiles-edit-eq" onClick={onReviewEq}>Edit EQ</Button>}
+        {onReviewEq && <Button variant="default" className="profiles-edit-eq" onClick={onReviewEq}><Icon name="tune" /> Edit EQ</Button>}
         {preview && <div className="profiles-preview" aria-label="Current EQ preview">{preview}</div>}
         <p className="profiles-note profiles-safety">Loading a profile changes the editor, not the DAC.</p>
         {selectedProfile?.modified != null && (

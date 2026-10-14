@@ -272,7 +272,7 @@ export function AddTraceModal({
         </div>
         {downloaded && (
           <details className="add-trace-cache">
-            <summary>Offline database <span>{totalCount !== null ? `${totalCount.toLocaleString()} curves` : "Saved on this device"}</span></summary>
+            <summary>Offline database <span>{totalCount !== null ? `${totalCount.toLocaleString()} curves` : "Saved on this device"}</span><Icon name="expand_more" className="disclosure-chevron" /></summary>
             <div className="add-trace-cache-row">
               <p className="add-trace-cache-status">Clearing the cache removes the downloaded database. Added curves are retained.</p>
               <Button variant="ghost" className="add-trace-clear-cache-btn" onClick={handleResetCache} disabled={loadingDevice !== null || isDownloading}>
