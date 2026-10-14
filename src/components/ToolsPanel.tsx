@@ -55,6 +55,7 @@ interface ToolsPanelProps {
   onReset: () => void;
   onSave: () => void;
   onDelete: () => void;
+  onRename: (name: string) => Promise<boolean>;
   setStatus: (value: string) => void;
   measurements?: MeasurementTrace[];
   onAddMeasurement?: (name: string, points: MeasurementTrace["points"]) => void;

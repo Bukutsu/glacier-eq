@@ -42,6 +42,7 @@ export interface ProfilesViewProps {
   onReset: () => void;
   onSave: () => void;
   onDelete: () => void;
+  onRename: (name: string) => Promise<boolean>;
   setStatus: StatusReporter;
   onImportPEQ: (data: PEQData, name: string, isSaved: boolean) => boolean;
   getAsyncContext: () => AsyncContext;
@@ -71,6 +72,7 @@ export const ProfilesView = memo(function ProfilesView({
   onReset,
   onSave,
   onDelete,
+  onRename,
   setStatus,
   onImportPEQ,
   getAsyncContext,
@@ -86,6 +88,8 @@ export const ProfilesView = memo(function ProfilesView({
   const [isTemporary, setIsTemporary] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [manualPaste, setManualPaste] = useState<string | null>(null);
+  const [renameName, setRenameName] = useState<string | null>(null);
+  const [isRenaming, setIsRenaming] = useState(false);
   const [isParsingPaste, setIsParsingPaste] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -130,6 +134,11 @@ export const ProfilesView = memo(function ProfilesView({
     (p) => profileIdentityKey(p.name) === profileIdentityKey(saveName),
   );
   const canSave = showSaveAs ? !!saveName : (selectedIsSaved && dirty);
+  const renameTarget = renameName?.trim() ?? "";
+  const renameTaken = savedProfiles.some((profile) =>
+    profileIdentityKey(profile.name) === profileIdentityKey(renameTarget)
+    && profileIdentityKey(profile.name) !== selectedPresetKey);
+  const canRename = !!renameTarget && renameTarget !== selectedPreset && !renameTaken && !isRenaming;
   const saveLabel = showSaveAs
     ? isOverwrite
       ? "Overwrite profile"
@@ -442,6 +451,11 @@ export const ProfilesView = memo(function ProfilesView({
               </Menu.Item>
             )}
             {showActions && selectedIsSaved && !showSaveAs && (
+              <Menu.Item className="ui-menu-item" onClick={() => setRenameName(selectedPreset)}>
+                <Icon name="edit" /> Rename profile
+              </Menu.Item>
+            )}
+            {showActions && selectedIsSaved && !showSaveAs && (
               <Menu.Item className="ui-menu-item profiles-menu-danger" onClick={onDelete}>
                 <Icon name="delete" /> Delete profile
               </Menu.Item>
@@ -603,6 +617,36 @@ export const ProfilesView = memo(function ProfilesView({
               <Button variant="ghost" disabled={isSubmitting} onClick={handleCancelImport}>Cancel</Button>
             </div>
           </div>
+        </Modal>
+      )}
+      {renameName !== null && (
+        <Modal title="Rename profile" className="profiles-import-dialog" closeDisabled={isRenaming}
+          onClose={() => setRenameName(null)}>
+          <form className="modal-body" onSubmit={async event => {
+            event.preventDefault();
+            if (!canRename) return;
+            setIsRenaming(true);
+            try {
+              if (await onRename(renameTarget) && mountedRef.current) setRenameName(null);
+            } finally {
+              if (mountedRef.current) setIsRenaming(false);
+            }
+          }}>
+            <label htmlFor="profile-rename-name">Profile name</label>
+            <Input id="profile-rename-name" name="profile-rename" autoComplete="off" data-dialog-autofocus
+              value={renameName} disabled={isRenaming}
+              aria-describedby={renameTaken ? "profile-rename-taken" : undefined}
+              onChange={event => setRenameName(event.target.value)} />
+            {renameTaken && <p id="profile-rename-taken" className="profiles-note profiles-warning">
+              Another profile already uses this name.
+            </p>}
+            <div className="modal-actions">
+              <Button variant="ghost" disabled={isRenaming} onClick={() => setRenameName(null)}>Cancel</Button>
+              <Button type="submit" variant="primary" disabled={!canRename}>
+                {isRenaming ? "Renaming…" : "Rename"}
+              </Button>
+            </div>
+          </form>
         </Modal>
       )}
     </div>

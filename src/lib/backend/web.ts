@@ -1278,6 +1278,26 @@ async function invokeWeb<T = unknown>(cmd: string, args?: any): Promise<T> {
       saveJson("glacier-eq-profiles", profiles.filter((profile) => profileIdentityKey(profile.name) !== normalized));
       return null as T;
     }
+    case "rename_profile": {
+      const from = commandField(args, "from");
+      const to = commandField(args, "to");
+      if (!isValidProfileName(from)) throw new Error("Invalid profile name");
+      if (!isValidProfileName(to)) {
+        throw new Error("Profile name contains invalid characters. Use letters, numbers, spaces, and _-@+&.()");
+      }
+      // Mirror ProfileStore::rename: keep the data, refuse to replace a
+      // different profile, and allow case-only renames.
+      const profiles = loadWebProfiles();
+      const fromKey = profileIdentityKey(from);
+      const index = profiles.findIndex((profile) => profileIdentityKey(profile.name) === fromKey);
+      if (index < 0) throw new Error(`Profile not found: ${from}`);
+      if (profileIdentityKey(to) !== fromKey && profiles.some((profile) => profileIdentityKey(profile.name) === profileIdentityKey(to))) {
+        throw new Error(`A profile named "${to}" already exists`);
+      }
+      profiles[index] = { ...profiles[index], name: to };
+      saveJson("glacier-eq-profiles", profiles);
+      return null as T;
+    }
     case "open_profiles_dir": {
       alert("Profiles are stored in browser localStorage. You can export/import them using the Profile tools.");
       return null as T;

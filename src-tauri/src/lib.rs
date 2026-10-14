@@ -503,6 +503,7 @@ pub fn run() {
             profiles::list_profiles,
             profiles::save_profile,
             profiles::delete_profile,
+            profiles::rename_profile,
             profiles::open_profiles_dir,
             profiles::parse_autoeq,
             profiles::peq_to_autoeq,

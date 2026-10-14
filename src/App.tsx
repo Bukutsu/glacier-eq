@@ -534,6 +534,7 @@ function App() {
     reloadProfiles,
     saveProfile,
     deleteSelectedProfile,
+    renameSelectedProfile,
     openProfilesDir,
     applyProfile,
     importPeq,
@@ -2089,6 +2090,7 @@ function App() {
     onReset: reset,
     onSave: saveProfile,
     onDelete: deleteSelectedProfile,
+    onRename: renameSelectedProfile,
     setStatus,
     settings,
     onSettingChange: updateSetting,
@@ -2455,6 +2457,7 @@ function App() {
             onReset={reset}
             onSave={saveProfile}
             onDelete={deleteSelectedProfile}
+            onRename={renameSelectedProfile}
             setStatus={setStatus}
             measurements={measurements}
             allTargets={allTargets}

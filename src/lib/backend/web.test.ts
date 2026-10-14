@@ -1214,6 +1214,24 @@ describe("web profile parser", () => {
     expect(stored[0].name).toBe("Daily EQ");
     expect(stored[0].data.global_gain).toBe(-2);
   });
+
+  it("renames a profile like ProfileStore::rename", async () => {
+    await invoke("save_profile", { name: "Daily EQ", peq: { filters: [], global_gain: -1 } });
+    await invoke("save_profile", { name: "Other", peq: { filters: [], global_gain: -3 } });
+    const stored = () => JSON.parse(localStorageValues.get("glacier-eq-profiles") ?? "[]");
+    const before = stored()[0];
+
+    await invoke("rename_profile", { from: "daily eq", to: "Commute" });
+    expect(stored()[0]).toEqual({ ...before, name: "Commute" });
+
+    await invoke("rename_profile", { from: "Commute", to: "commute" });
+    expect(stored()[0].name).toBe("commute");
+
+    await expect(invoke("rename_profile", { from: "commute", to: "OTHER" })).rejects.toThrow("already exists");
+    await expect(invoke("rename_profile", { from: "Missing", to: "New" })).rejects.toThrow("not found");
+    await expect(invoke("rename_profile", { from: "commute", to: "Default EQ" })).rejects.toThrow("invalid");
+    expect(stored().map((entry: { name: string }) => entry.name)).toEqual(["commute", "Other"]);
+  });
 });
 
 describe("WebHID device matching", () => {

@@ -326,6 +326,35 @@ impl ProfileStore {
         }
     }
 
+    /// Renames a saved profile without rewriting its contents. Refuses to
+    /// replace a different profile; a case-only rename changes the spelling.
+    pub fn rename(&self, from: &str, to: &str) -> Result<(), String> {
+        self.ensure_profiles_directory()?;
+        let _lock = self.lock_profiles()?;
+        validate_name(from)?;
+        validate_name(to)?;
+        let source = self
+            .case_variant_paths(from)
+            .into_iter()
+            .find(|path| matches!(read_profile(&self.dir, path), Ok((Some(_), _))))
+            .ok_or_else(|| format!("Profile not found: {from}"))?;
+        if !from.eq_ignore_ascii_case(to) && !self.case_variant_paths(to).is_empty() {
+            return Err(format!("A profile named \"{to}\" already exists"));
+        }
+        let destination = self.dir.join(format!("{to}.txt"));
+        // Same-identity siblings would resurrect the old name, so drop them
+        // before the source moves; a case-only rename keeps them out of the way.
+        for sibling in self.case_variant_paths(from) {
+            if sibling != source {
+                std::fs::remove_file(&sibling).map_err(|error| {
+                    format!("Failed to remove duplicate {}: {error}", sibling.display())
+                })?;
+            }
+        }
+        replace_file(&source, &destination)
+            .map_err(|error| format!("Failed to rename profile {}: {error}", source.display()))
+    }
+
     fn path(&self, name: &str) -> Result<PathBuf, String> {
         validate_name(name)?;
         let variants = self.case_variant_paths(name);
@@ -871,6 +900,40 @@ mod tests {
         assert!(store.save_if_absent("Daily", &peq).unwrap());
         assert!(!store.save_if_absent("daily", &peq).unwrap());
         assert_eq!(store.list().unwrap().len(), 1);
+        std::fs::remove_dir_all(base).unwrap();
+    }
+
+    #[test]
+    fn rename_moves_a_profile_and_keeps_its_contents() {
+        let base = temporary_dir();
+        let store = ProfileStore::new(&base).unwrap();
+        let peq = PEQData {
+            filters: vec![crate::Filter::enabled(0, true)],
+            global_gain: -2.0,
+        };
+        store.save("Daily", &peq).unwrap();
+        store.save("Other", &peq).unwrap();
+
+        store.rename("daily", "Commute").unwrap();
+        assert_eq!(store.load("Commute").unwrap().data, peq);
+        assert!(store.load("Daily").is_err());
+
+        // Case-only renames change the stored spelling.
+        store.rename("Commute", "commute").unwrap();
+        let names: Vec<_> = store.list().unwrap().into_iter().map(|p| p.name).collect();
+        assert!(names.contains(&"commute".to_string()), "{names:?}");
+
+        assert!(store
+            .rename("commute", "OTHER")
+            .unwrap_err()
+            .contains("already exists"));
+        assert!(store
+            .rename("Missing", "New")
+            .unwrap_err()
+            .contains("not found"));
+        assert!(store.rename("commute", "Default EQ").is_err());
+        assert!(store.rename("commute", "../escape").is_err());
+        assert_eq!(store.list().unwrap().len(), 2);
         std::fs::remove_dir_all(base).unwrap();
     }
 

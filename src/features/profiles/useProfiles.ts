@@ -289,6 +289,41 @@ export function useProfiles(
     }
   }, [editor, loadProfiles, setStatus, runProfileMutation]);
 
+  /** Renames the selected saved profile; resolves true once the rename landed. */
+  const renameSelectedProfile = useCallback(async (requestedName: string): Promise<boolean> => {
+    if (editor.isBusy) return false;
+    const from = selectedPresetRef.current;
+    const to = requestedName.trim();
+    if (from === DEFAULT_PROFILE_NAME || !to || to === from) return false;
+
+    let writeCompleted = false;
+    try {
+      let canonicalName = to;
+      const mutation = await runProfileMutation(async () => {
+        await invoke("rename_profile", { from, to });
+        writeCompleted = true;
+        const loadedProfiles = await loadProfiles({ preserveSelection: true, throwOnError: true });
+        canonicalName = loadedProfiles.find(
+          (profile) => profileIdentityKey(profile.name) === profileIdentityKey(to),
+        )?.name ?? canonicalName;
+      });
+      // The editor keeps its EQ and unsaved state; only its saved name moves.
+      if (mutation.current && selectedPresetRef.current === from) {
+        selectedPresetRef.current = canonicalName;
+        setSelectedPreset(canonicalName);
+      }
+      setStatus("Profile renamed");
+      return true;
+    } catch (error) {
+      setStatus(
+        writeCompleted
+          ? `Profile renamed, but refreshing the profile list failed: ${error}`
+          : `Failed to rename profile: ${error}`,
+      );
+      return writeCompleted;
+    }
+  }, [editor, loadProfiles, setStatus, runProfileMutation]);
+
   const openProfilesDir = useCallback(async () => {
     try {
       await invoke("open_profiles_dir");
@@ -309,6 +344,7 @@ export function useProfiles(
     reloadProfiles,
     saveProfile,
     deleteSelectedProfile,
+    renameSelectedProfile,
     openProfilesDir,
     applyProfile,
     importPeq,

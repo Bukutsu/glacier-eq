@@ -141,6 +141,13 @@ pub async fn delete_profile(app: tauri::AppHandle, name: String) -> Result<(), S
 }
 
 #[tauri::command]
+pub async fn rename_profile(app: tauri::AppHandle, from: String, to: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || store(&app)?.rename(&from, &to))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
 pub fn open_profiles_dir(app: tauri::AppHandle) -> Result<(), String> {
     let store = store(&app)?;
     let mut child = open_dir(store.directory()).map_err(|error| {
