@@ -17,6 +17,7 @@ import { DeviceChooser } from "./components/DeviceChooser";
 import { EqGraph } from "./components/EqGraph";
 import { EqCurves } from "./components/EqCurves";
 import { Header } from "./components/Header";
+import { exportEqFile } from "./lib/exportEq";
 import { DraftRecovery } from "./components/DraftRecovery";
 import { Icon } from "./components/Icon";
 import { Preamp } from "./components/Preamp";
@@ -1971,6 +1972,8 @@ function App() {
     setStatus("Disconnected");
   }, [setConnected, setStatus]);
 
+  const handleExportEq = useCallback(() => exportEqFile(peq, selectedPreset, setStatus), [peq, selectedPreset, setStatus]);
+
   const undoRedoRef = useRef({
     undo,
     redo,
@@ -2215,6 +2218,7 @@ function App() {
           onRedo={redo}
           onPull={pullEq}
           onPush={pushEq}
+          onExportEq={handleExportEq}
           onDisconnect={disconnectDevice}
           onConnectClick={handleOpenDeviceModal}
           configPage={desktopConfigPage}

@@ -86,6 +86,7 @@ interface HeaderProps {
   onRedo: () => void;
   onPull: () => void;
   onPush: () => void;
+  onExportEq: () => void;
   onDisconnect: () => void;
   onConnectClick?: () => void;
   configPage?: "device" | "settings";
@@ -118,6 +119,7 @@ export const Header = memo(function Header({
   onRedo,
   onPull,
   onPush,
+  onExportEq,
   onDisconnect,
   onConnectClick,
   configPage,
@@ -150,7 +152,7 @@ export const Header = memo(function Header({
       : isSimulated
         ? "Simulation · no hardware changes"
         : !hardwareEq
-          ? "This DAC has no hardware EQ"
+          ? "This DAC has no hardware EQ · export the EQ to use it in a system equalizer"
           : deviceMatchesEditor === null
           ? "Device state unknown"
           : deviceMatchesEditor
@@ -169,6 +171,19 @@ export const Header = memo(function Header({
     : deviceMatchesEditor === true ? "Saved to DAC"
     : deviceMatchesEditor === false ? "Changes not saved to DAC"
     : "Read EQ from the DAC to check its state";
+
+  const exportButton = (
+    <Button
+      type="button"
+      variant="ghost" size="icon" className="history-btn"
+      title="Export EQ file"
+      aria-label="Export EQ file"
+      disabled={isBusy}
+      onClick={onExportEq}
+    >
+      <Icon name="ios_share" />
+    </Button>
+  );
 
   return (
     <header className={`app-header${compact ? " compact-mobile" : ""}`} inert={inert}>
@@ -219,6 +234,7 @@ export const Header = memo(function Header({
               </Button>
             </div>
           )}
+          {!isConfigPage && exportButton}
           {connected ? (
             <>
               {showDeviceEditorActions && hardwareEq && (
@@ -239,7 +255,7 @@ export const Header = memo(function Header({
 
         {/* Keep the write action visible; less frequent device actions live in the menu. */}
         {mobile && <div className="mobile-toolbar">
-          <div className="history-buttons mobile-history-buttons" role="group" aria-label="Edit history">
+          <div className="history-buttons mobile-history-buttons" role="group" aria-label="EQ actions">
             <Button
               type="button"
               variant="ghost" size="icon" className="history-btn"
@@ -260,6 +276,7 @@ export const Header = memo(function Header({
             >
               <Icon name="redo" />
             </Button>
+            {exportButton}
           </div>
           {connected ? (
             <>

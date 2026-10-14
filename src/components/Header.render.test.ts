@@ -23,6 +23,7 @@ const baseHeaderProps: Parameters<typeof Header>[0] = {
   onRedo: () => {},
   onPull: () => {},
   onPush: () => {},
+  onExportEq: () => {},
   onDisconnect: () => {},
 };
 
@@ -65,6 +66,16 @@ describe("Header markup", () => {
     expect(html).not.toContain("Read from DAC");
     expect(html).not.toContain("Write to DAC");
     expect(html).not.toContain("Save to DAC");
+  });
+
+  it.each([false, true])("offers EQ export on the EQ page, offline too (mobile=%s)", mobile => {
+    const html = renderToStaticMarkup(createElement(Header, { ...baseHeaderProps, mobile }));
+    expect(html).toContain('aria-label="Export EQ file"');
+  });
+
+  it("keeps EQ export off desktop settings pages", () => {
+    const html = renderToStaticMarkup(createElement(Header, { ...baseHeaderProps, configPage: "settings" }));
+    expect(html).not.toContain('aria-label="Export EQ file"');
   });
 
   it("keeps one primary mobile save action and puts reads in the device menu", () => {

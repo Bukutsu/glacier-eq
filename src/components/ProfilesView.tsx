@@ -10,7 +10,9 @@ import { confirmDialog } from "./ConfirmDialog";
 import { Icon } from "./Icon";
 import { Modal } from "./Modal";
 import { Select } from "./Select";
-import { invoke, readText, writeText, save } from "../lib/rpc";
+import { invoke, readText } from "../lib/rpc";
+import { copyEq, exportEqFile } from "../lib/exportEq";
+import { OverflowMenu } from "./OverflowMenu";
 import { profileIdentityKey } from "../lib/profileIdentity";
 import { decodeUtf8 } from "../lib/utf8";
 import { fuzzyMatch } from "../lib/search";
@@ -228,42 +230,8 @@ export const ProfilesView = memo(function ProfilesView({
     }
   };
 
-  const handleCopy = async () => {
-    try {
-      const text = await invoke<string>("peq_to_autoeq", { peq });
-      await writeText(text);
-      setStatus("Copied EQ to clipboard");
-    } catch (err) {
-      setStatus(`Failed to copy: ${err}`);
-    }
-  };
-
-  const handleExportFile = async () => {
-    try {
-      const text = await invoke<string>("peq_to_autoeq", { peq });
-      const baseName = importName || selectedPreset || "eq_profile";
-      const defaultName = `${baseName.replace(/[^a-zA-Z0-9_\-@+&.() ]/g, "")}.txt`;
-      const path = await save({
-        defaultPath: defaultName,
-        filters: [{ name: "Text Files", extensions: ["txt"] }],
-      });
-      if (!path) {
-        setStatus("Export cancelled.");
-        return;
-      }
-      const savedName = await invoke<string | null>("save_text_file", {
-        path,
-        content: text,
-      });
-      if (savedName === null) {
-        setStatus("Export cancelled.");
-        return;
-      }
-      setStatus("Exported EQ profile");
-    } catch (err) {
-      setStatus(`Failed to export: ${err}`);
-    }
-  };
+  const handleCopy = () => copyEq(peq, setStatus);
+  const handleExportFile = () => exportEqFile(peq, importName || selectedPreset, setStatus);
 
   const handleConfirmImport = async () => {
     if (!parsed || isSubmitting) return;
@@ -387,11 +355,11 @@ export const ProfilesView = memo(function ProfilesView({
           <div className="profiles-header-actions">
             <Button onClick={handleImportFileClick}><Icon name="file_upload" /> Import profile</Button>
             <Button className="profiles-paste-mobile" variant="ghost" onClick={handlePaste}><Icon name="content_paste" /> Paste EQ</Button>
-            <ProfilesMenu label="Import options">
+            <OverflowMenu className="profiles-menu" label="Import options">
               <Menu.Item className="ui-menu-item" onClick={handlePaste}>
                 <Icon name="content_paste" /> Paste EQ from clipboard
               </Menu.Item>
-            </ProfilesMenu>
+            </OverflowMenu>
           </div>
         </header>
 
@@ -434,12 +402,12 @@ export const ProfilesView = memo(function ProfilesView({
                   {isSelected && <span className="profiles-badge">In editor</span>}
                 </Button>
                 {onApplyProfile && (
-                  <ProfilesMenu label={`Actions for ${profile.name}`}>
+                  <OverflowMenu className="profiles-menu" label={`Actions for ${profile.name}`}>
                     <Menu.Item className="ui-menu-item" aria-label={`Apply ${profile.name} to DAC temporarily`}
                       onClick={() => onApplyProfile(profile)}>
                       <Icon name="send" /> Apply temporarily to DAC
                     </Menu.Item>
-                  </ProfilesMenu>
+                  </OverflowMenu>
                 )}
               </div>
             );
@@ -456,9 +424,9 @@ export const ProfilesView = memo(function ProfilesView({
       <section className="profiles-editor" aria-labelledby="profiles-editor-title">
         <header className="profiles-header">
           <h2 id="profiles-editor-title">In the editor</h2>
-          <ProfilesMenu label="More profile actions">
+          <OverflowMenu className="profiles-menu" label="More profile actions">
             <Menu.Item className="ui-menu-item" onClick={handleExportFile}>
-              <Icon name="file_download" /> Export EQ file
+              <Icon name="ios_share" /> Export EQ file
             </Menu.Item>
             <Menu.Item className="ui-menu-item" onClick={handleCopy}>
               <Icon name="content_copy" /> Copy EQ to clipboard
@@ -478,7 +446,7 @@ export const ProfilesView = memo(function ProfilesView({
                 <Icon name="delete" /> Delete profile
               </Menu.Item>
             )}
-          </ProfilesMenu>
+          </OverflowMenu>
         </header>
         <h3 className="profiles-editor-name" title={selectedPreset}>{selectedPreset}</h3>
         <div className="profiles-editor-meta">
@@ -640,24 +608,3 @@ export const ProfilesView = memo(function ProfilesView({
     </div>
   );
 });
-
-function ProfilesMenu({ label, children }: { label: string; children: ReactNode }) {
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  return (
-    <Menu.Root>
-      <Menu.Trigger ref={triggerRef} aria-label={label} render={<Button variant="ghost" size="icon" />}>
-        <Icon name="more_vert" />
-      </Menu.Trigger>
-      <Menu.Portal>
-        <Menu.Positioner align="end" sideOffset={6} positionMethod="fixed" className="ui-popup-positioner">
-          <Menu.Popup className="ui-menu profiles-menu" aria-label={label} onClick={event => {
-            // Native dialogs must remember the trigger, not an unmounted menu item.
-            if (event.target instanceof Element && event.target.closest('[role="menuitem"]')) {
-              triggerRef.current?.focus();
-            }
-          }}>{children}</Menu.Popup>
-        </Menu.Positioner>
-      </Menu.Portal>
-    </Menu.Root>
-  );
-}
