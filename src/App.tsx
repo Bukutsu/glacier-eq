@@ -503,7 +503,6 @@ function App() {
   );
   const selectedCapabilities = selectedDeviceInfo ?? OFFLINE_EDITOR_CAPABILITIES;
   const capabilities = connected ? selectedCapabilities : OFFLINE_EDITOR_CAPABILITIES;
-  const deviceName = selectedDeviceInfo?.profile_name || selectedDeviceInfo?.product_string || "Supported DAC";
   const hardwareEq = selectedDeviceInfo?.hardware_eq !== false;
   const maxFilterBands = capabilities.num_bands;
   const supportsRamApply = hardwareEq && capabilities.supports_ram_apply;
@@ -2204,7 +2203,6 @@ function App() {
           isBusy={isBusy}
           progress={progress}
           profile={selectedPreset}
-          deviceName={deviceName}
           profileDirty={dirty}
           profileSaved={profiles.some((profile) => profile.modified != null && profileIdentityKey(profile.name) === profileIdentityKey(selectedPreset))}
           deviceMatchesEditor={lastPushedPeq ? peqEquals(peq, lastPushedPeq) : null}

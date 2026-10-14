@@ -44,7 +44,6 @@ interface HeaderProps {
   isBusy: boolean;
   progress: OperationProgress | null;
   profile: string;
-  deviceName: string;
   profileDirty: boolean;
   profileSaved?: boolean;
   deviceMatchesEditor: boolean | null;
@@ -72,7 +71,6 @@ export const Header = memo(function Header({
   isBusy,
   progress,
   profile,
-  deviceName,
   profileDirty,
   profileSaved = false,
   deviceMatchesEditor,
@@ -158,7 +156,6 @@ export const Header = memo(function Header({
           {/* One status line: DAC, sync state, and the profile. Device and
               Settings show status in their own content and the sidebar. */}
           {(mobile || !isConfigPage) && <div className="header-meta-row">
-            {connected && !mobile && <div className="device-name">{deviceName}</div>}
             <span className={`sync-dot ${syncClass}`} role="status" aria-live="polite">{mobile ? mobileSyncText : syncText}</span>
             {!isConfigPage && !mobile && <span className="header-profile-state">{profileText}</span>}
             {draftRecovery}

@@ -36,15 +36,6 @@ h1 {
   flex-wrap: wrap;
 }
 
-.device-name {
-  min-width: 0;
-  color: var(--muted);
-  font-size: var(--type-small);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .sync-dot {
   display: inline-flex;
   align-items: center;

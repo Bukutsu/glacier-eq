@@ -145,10 +145,6 @@
     width: 100%;
   }
   h1 { font-size: var(--type-title); }
-  .device-name {
-    font-size: var(--type-caption);
-    color: var(--muted);
-  }
   .title-stack {
     flex: 1 1 100%;
     gap: 2px;

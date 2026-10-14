@@ -9,7 +9,6 @@ const baseHeaderProps: Parameters<typeof Header>[0] = {
   isBusy: false,
   progress: null,
   profile: "Default",
-  deviceName: "",
   profileDirty: false,
   deviceMatchesEditor: null,
   hardwareEq: true,
@@ -56,7 +55,7 @@ describe("Header markup", () => {
 
   it.each([false, true])("hides EQ read and write for a DAC without hardware EQ (mobile=%s)", mobile => {
     const html = renderToStaticMarkup(createElement(Header, {
-      ...baseHeaderProps, connected: true, deviceName: "Moondrop Dawn Pro", hardwareEq: false, mobile,
+      ...baseHeaderProps, connected: true, hardwareEq: false, mobile,
     }));
     expect(html).toContain("This DAC has no hardware EQ");
     expect(html).not.toContain("Read from DAC");
@@ -145,16 +144,11 @@ describe("Header markup", () => {
     expect(html).not.toContain("Device disconnected");
   });
 
-  it("renders connected device name and sync state when connected", () => {
+  it("shows the sync state when connected; the sidebar names the DAC", () => {
     const html = renderToStaticMarkup(
-      createElement(Header, {
-        ...baseHeaderProps,
-        connected: true,
-        deviceName: "FiiO KA11",
-        deviceMatchesEditor: true,
-      }),
+      createElement(Header, { ...baseHeaderProps, connected: true, deviceMatchesEditor: true }),
     );
-    expect(html).toContain("FiiO KA11");
     expect(html).toContain("DAC: matches editor");
+    expect(html).not.toContain("device-name");
   });
 });
