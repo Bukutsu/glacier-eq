@@ -26,13 +26,13 @@ describe("SidebarDeviceSpecs markup", () => {
         deviceInfo: {
           path: "/dev/hidraw1",
           vendor_id: 0x3302,
-          product_id: 0x43e6,
-          profile_name: "EPZ TP35 Pro",
+          product_id: 0x0001,
+          profile_name: "FiiO KA11",
         },
       }),
     );
     expect(html).toContain("Connected");
-    expect(html).toContain("EPZ TP35 Pro");
+    expect(html).toContain("FiiO KA11");
     expect(html).toContain('class="sidebar-specs-chip"');
     expect(html).toContain("DAC chip:");
     expect(html).toContain("<dt>Output</dt>");

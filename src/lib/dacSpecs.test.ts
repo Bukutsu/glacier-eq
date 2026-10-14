@@ -23,9 +23,11 @@ describe("getOfficialDacSpec", () => {
     expect(spec?.outputs).toBe("3.5 / 4.4mm");
   });
 
-  it("does not assign another model's specs to an unknown PID", () => {
-    expect(getOfficialDacSpec(0x2fc6, 0x9999, "Moondrop Dawn Pro")).toBeNull();
-    expect(getOfficialDacSpec(0x3302, 0xffff, "EPZ TP35 Pro")).toBeNull();
+  it("falls back to VID match when PID is null or generic", () => {
+    const spec = getOfficialDacSpec(0x2fc6, 0x9999);
+    expect(spec).not.toBeNull();
+    expect(spec?.name).toBe("Moondrop Dawn Pro");
+    expect(spec?.chip).toBe("Dual CS43131");
   });
 
   it("finds FiiO JA11 by VID and PID", () => {
@@ -42,18 +44,25 @@ describe("getOfficialDacSpec", () => {
     expect(spec?.name).toBe("EPZ TP35 Pro");
   });
 
-  it("does not assign generic FiiO specs from a vendor ID alone", () => {
-    expect(getOfficialDacSpec(0x2972, null)).toBeNull();
+  it("finds FiiO KA Series by VID fallback when PID is null", () => {
+    const spec = getOfficialDacSpec(0x2972, null);
+    expect(spec).not.toBeNull();
+    expect(spec?.name).toBe("FiiO KA Series");
   });
 
-  it("resolves exact models with recorded hardware specifications", () => {
+  it("resolves all supported hardware models from glacier-core", () => {
     const models = [
       { vid: 0x3302, pid: 0x43e6, expected: "EPZ TP35 Pro" },
       { vid: 0x3302, pid: 0x43e8, expected: "TRN Black Pearl" },
-      { vid: 0x3302, pid: 0x43c9, expected: "Audiocular Aura" },
-      { vid: 0x3302, pid: 0x43c1, expected: "JCally JM20 Pro" },
+      { vid: 0x3302, pid: null, expected: "Audiocular Aura" },
+      { vid: 0x262a, pid: null, expected: "Fosi Audio DS2 / iBasso DC04 Pro" },
+      { vid: 0x0661, pid: null, expected: "JCally JM20 / Savitech Generic" },
+      { vid: 0x0666, pid: null, expected: "JCally JM20 Pro / Alt Savitech" },
+      { vid: 0x2fc6, pid: null, expected: "Moondrop Dawn Pro" },
       { vid: 0x35d8, pid: 0x011d, expected: "Moondrop Dawn Pro 2" },
       { vid: 0x2972, pid: 0x0102, expected: "FiiO JA11" },
+      { vid: 0x31b2, pid: 0x0111, expected: "JCally JM12" },
+      { vid: 0x2972, pid: null, expected: "FiiO KA Series" },
       { vid: 0x0d8c, pid: 0x0210, expected: "Truthear KEYX" },
     ];
 
@@ -64,6 +73,10 @@ describe("getOfficialDacSpec", () => {
       expect(spec?.chip).toBeDefined();
       expect(spec?.outputs).toBeDefined();
     }
+  });
+
+  it("keeps the corrected JM20 Pro identity ahead of the Aura fallback", () => {
+    expect(getOfficialDacSpec(0x3302, 0x43c1)?.name).toBe("JCally JM20 Pro");
   });
 
   it("returns null for unknown devices", () => {

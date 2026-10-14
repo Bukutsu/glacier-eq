@@ -7,8 +7,8 @@
 
 pub mod capabilities;
 pub mod fiio;
-pub mod hid;
 pub mod moondrop;
+pub mod moondrop_legacy;
 pub mod normalization;
 pub mod profile;
 pub mod protocol;

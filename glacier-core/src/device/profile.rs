@@ -12,6 +12,7 @@ pub enum DeviceProtocol {
     // explicit command path instead of being routed through Walkplay by accident.
     Walkplay,
     Moondrop,
+    MoondropLegacy,
     FiioJa11,
     Fiio,
     FiioKa17,
@@ -24,6 +25,7 @@ impl DeviceProtocol {
         match self {
             Self::Walkplay => "Walkplay",
             Self::Moondrop => "Moondrop",
+            Self::MoondropLegacy => "Moondrop Dawn Pro",
             Self::FiioJa11 => "FiiO JA11",
             Self::Fiio => "FiiO",
             Self::FiioKa17 => "FiiO KA17",
@@ -40,8 +42,6 @@ pub struct DeviceInfo {
     pub manufacturer: Option<String>,
     pub product_string: Option<String>,
     pub profile_name: Option<String>,
-    pub write_block_reason: Option<String>,
-    pub mic_gain_block_reason: Option<String>,
     #[serde(flatten)]
     pub capabilities: EditorCapabilities,
 }
@@ -55,29 +55,4 @@ pub struct DeviceProfile {
     pub status: &'static str,
     pub family: &'static str,
     pub caps: DeviceCapabilities,
-    /// None only when the model's write contract is established. This gate
-    /// applies to persistent, volatile, and utility writes, including callers
-    /// that explicitly skip verification.
-    pub write_block_reason: Option<&'static str>,
-    /// Mic gain has a separate wire encoding that is not established by PEQ.
-    pub mic_gain_block_reason: Option<&'static str>,
-    /// Nonzero nonce echoes are verified only on the tested EPZ/TRN models.
-    pub read_nonce_supported: bool,
-}
-
-impl DeviceProfile {
-    pub fn ensure_writable(&self) -> Result<(), String> {
-        match self.write_block_reason {
-            Some(reason) => Err(format!("{} is read-only: {reason}", self.name)),
-            None => Ok(()),
-        }
-    }
-
-    pub fn ensure_mic_gain_writable(&self) -> Result<(), String> {
-        self.ensure_writable()?;
-        match self.mic_gain_block_reason {
-            Some(reason) => Err(format!("Microphone gain writes are disabled: {reason}")),
-            None => Ok(()),
-        }
-    }
 }

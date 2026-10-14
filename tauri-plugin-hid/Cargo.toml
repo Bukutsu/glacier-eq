@@ -15,7 +15,6 @@ name = "tauri_plugin_hid"
 path = "src/lib.rs"
 
 [dependencies]
-glacier-core = { path = "../glacier-core" }
 serde = "1"
 tauri = "2.4.0"
 thiserror = "2"

@@ -19,9 +19,6 @@ pub struct SupportedDeviceInfoWasm {
     pub product_id: Option<u16>,
     pub status: String,
     pub family: String,
-    pub write_block_reason: Option<String>,
-    pub mic_gain_block_reason: Option<String>,
-    pub read_nonce_supported: bool,
     #[serde(flatten)]
     pub capabilities: EditorCapabilities,
 }
@@ -120,6 +117,7 @@ fn device_protocol(protocol: &str) -> Result<DeviceProtocol, JsValue> {
     match normalized.as_str() {
         "walkplay" => Ok(DeviceProtocol::Walkplay),
         "moondrop" => Ok(DeviceProtocol::Moondrop),
+        "moondropdawnpro" => Ok(DeviceProtocol::MoondropLegacy),
         "fiioja11" => Ok(DeviceProtocol::FiioJa11),
         "fiio" => Ok(DeviceProtocol::Fiio),
         "fiioka17" => Ok(DeviceProtocol::FiioKa17),
@@ -129,24 +127,6 @@ fn device_protocol(protocol: &str) -> Result<DeviceProtocol, JsValue> {
 
 fn eq_protocol(protocol: &str) -> Result<&'static dyn EqProtocol, JsValue> {
     Ok(device_protocol(protocol)?.implementation())
-}
-
-#[derive(Serialize)]
-struct HidReportContractWasm {
-    report_id: u8,
-    min_output_bytes: usize,
-    min_input_bytes: usize,
-}
-
-#[wasm_bindgen]
-pub fn get_hid_report_contract(protocol: String) -> Result<JsValue, JsValue> {
-    let contract = crate::device::hid::ReportContract::for_protocol(device_protocol(&protocol)?)
-        .map_err(js_err)?;
-    to_js_value(&HidReportContractWasm {
-        report_id: contract.report_id,
-        min_output_bytes: contract.min_output_bytes,
-        min_input_bytes: contract.min_input_bytes,
-    })
 }
 
 fn unframe<'a>(protocol: &dyn EqProtocol, data: &'a [u8]) -> Result<&'a [u8], JsValue> {
@@ -282,7 +262,7 @@ fn validate_global_gain_wire(protocol: &str, gain: f64) -> Result<(), JsValue> {
     let normalized = protocol.to_lowercase().replace([' ', '-', '_'], "");
     let scale = match normalized.as_str() {
         "fiio" | "fiioja11" | "fiioka17" => 10.0,
-        "moondrop" => 256.0,
+        "moondrop" | "moondropdawnpro" => 256.0,
         _ => return Ok(()),
     };
     if !(-32768.0 / scale..=32767.0 / scale).contains(&rounded) {
@@ -298,7 +278,7 @@ fn validate_filter_gain_wire(protocol: &str, gain: f64) -> Result<(), JsValue> {
     let normalized = protocol.to_lowercase().replace([' ', '-', '_'], "");
     let scale = match normalized.as_str() {
         "fiio" | "fiioja11" | "fiioka17" => 10.0,
-        "moondrop" | "walkplay" => 256.0,
+        "moondrop" | "moondropdawnpro" | "walkplay" => 256.0,
         _ => return Ok(()),
     };
     let scaled = (gain * scale).round();
@@ -348,9 +328,6 @@ pub fn list_supported_devices() -> Result<JsValue, JsValue> {
             product_id: device.product_id,
             status: device.status.to_string(),
             family: device.family.to_string(),
-            write_block_reason: device.write_block_reason.map(str::to_string),
-            mic_gain_block_reason: device.mic_gain_block_reason.map(str::to_string),
-            read_nonce_supported: device.read_nonce_supported,
             capabilities: (&device.caps).into(),
         })
         .collect();

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::state::{ConnectedDevice, DeviceSessionLock, DeviceState};
-use glacier_core::device::hid::ReportContract;
 use glacier_core::device::{
     get_supported_device, DacUtilityState, DeviceInfo, DeviceIo, DeviceProfile, DeviceSession,
     EditorCapabilities,
@@ -49,9 +48,6 @@ pub struct SupportedDeviceInfo {
     product_id: Option<u16>,
     status: &'static str,
     family: &'static str,
-    write_block_reason: Option<&'static str>,
-    mic_gain_block_reason: Option<&'static str>,
-    read_nonce_supported: bool,
     #[serde(flatten)]
     capabilities: EditorCapabilities,
 }
@@ -189,9 +185,11 @@ fn hid_write(app: &tauri::AppHandle, path: &str, data: &[u8]) -> Result<(), Stri
         let state = app.state::<Mutex<DeviceState>>();
         let connected = connected_device(&state)?;
         let profile = registered_profile(&connected)?;
-        // Moondrop's 64-byte reports must use SET_REPORT rather than the
-        // interrupt-OUT path, which can complete with only 8 bytes (#46).
-        if profile.protocol == glacier_core::device::DeviceProtocol::Moondrop {
+        if matches!(
+            profile.protocol,
+            glacier_core::device::DeviceProtocol::Moondrop
+                | glacier_core::device::DeviceProtocol::MoondropLegacy
+        ) {
             hid.send_output_report(path, data)
         } else {
             hid.write(path, data)
@@ -223,25 +221,8 @@ fn hid_close(app: &tauri::AppHandle, path: &str, session_id: Option<u64>) -> Res
         .map_err(|error| error.to_string())
 }
 
-#[cfg(target_os = "linux")]
-fn validate_privileged_hid_contract(path: &str, contract: ReportContract) -> Result<(), String> {
-    let node = std::path::Path::new(path)
-        .file_name()
-        .and_then(|name| name.to_str())
-        .filter(|name| name.starts_with("hidraw"))
-        .ok_or("Cannot validate privileged HID path")?;
-    let descriptor = std::fs::read(format!("/sys/class/hidraw/{node}/device/report_descriptor"))
-        .map_err(|error| format!("Cannot validate privileged HID report descriptor: {error}"))?;
-    contract.validate(&descriptor).map(|_| ())
-}
-
-fn try_open_device(
-    app: &tauri::AppHandle,
-    path: &str,
-    session_id: u64,
-    contract: ReportContract,
-) -> Result<(), String> {
-    match tauri_plugin_hid::hid(app).open_with_report_contract(path, session_id, Some(contract)) {
+fn try_open_device(app: &tauri::AppHandle, path: &str, session_id: u64) -> Result<(), String> {
+    match tauri_plugin_hid::hid(app).open(path, session_id) {
         Ok(()) => {
             #[cfg(target_os = "linux")]
             {
@@ -260,20 +241,11 @@ fn try_open_device(
     }
     #[cfg(target_os = "linux")]
     {
-        // hidapi could not open hidraw, but sysfs exposes its descriptor without
-        // granting access to writes. Fail closed if it cannot be validated;
-        // the helper must never bypass the same report contract.
-        validate_privileged_hid_contract(path, contract)?;
         let state = app.state::<Mutex<Option<ElevatedTransport>>>();
         let mut guard = state.lock().unwrap_or_else(|p| p.into_inner());
         if let Some(ref mut t) = *guard {
             if !t.is_dead() {
-                t.open(path)?;
-                if let Err(error) = validate_privileged_hid_contract(path, contract) {
-                    let _ = t.close(path);
-                    return Err(error);
-                }
-                return Ok(());
+                return t.open(path);
             }
             // Dead helper: drop it and spawn a fresh one below.
             *guard = None;
@@ -284,12 +256,6 @@ fn try_open_device(
         // first; keep that invariant when adding new transport callers.
         let mut transport = ElevatedTransport::spawn()?;
         transport.open(path)?;
-        // The permission prompt can take minutes; revalidate before admitting
-        // the session, since the node/interface may have changed meanwhile.
-        if let Err(error) = validate_privileged_hid_contract(path, contract) {
-            let _ = transport.close(path);
-            return Err(error);
-        }
         guard.replace(transport);
         Ok(())
     }
@@ -464,30 +430,6 @@ pub async fn list_devices(app: tauri::AppHandle) -> Result<Vec<DeviceInfo>, Stri
             .iter()
             .filter_map(|device| {
                 let profile = get_supported_device(device.vendor_id, device.product_id)?;
-                #[cfg(not(any(target_os = "android", target_os = "ios")))]
-                {
-                    let contract = ReportContract::for_protocol(profile.protocol).ok()?;
-                    match tauri_plugin_hid::hid(&app).report_descriptor(&device.path) {
-                        Ok(descriptor) => {
-                            contract.validate(&descriptor).ok()?;
-                        }
-                        Err(_) => {
-                            // Permission failures stay discoverable; open validates
-                            // before any protocol I/O (including the root helper).
-                            #[cfg(target_os = "linux")]
-                            if let Some(node) = std::path::Path::new(&device.path)
-                                .file_name()
-                                .and_then(|name| name.to_str())
-                            {
-                                if let Ok(descriptor) = std::fs::read(format!(
-                                    "/sys/class/hidraw/{node}/device/report_descriptor"
-                                )) {
-                                    contract.validate(&descriptor).ok()?;
-                                }
-                            }
-                        }
-                    }
-                }
                 seen.insert(device.path.clone()).then(|| DeviceInfo {
                     vendor_id: device.vendor_id,
                     product_id: device.product_id,
@@ -495,8 +437,6 @@ pub async fn list_devices(app: tauri::AppHandle) -> Result<Vec<DeviceInfo>, Stri
                     manufacturer: device.manufacturer_string.clone(),
                     product_string: device.product_string.clone(),
                     profile_name: Some(profile.name.to_string()),
-                    write_block_reason: profile.write_block_reason.map(str::to_string),
-                    mic_gain_block_reason: profile.mic_gain_block_reason.map(str::to_string),
                     capabilities: (&profile.caps).into(),
                 })
             })
@@ -517,9 +457,6 @@ pub fn list_supported_devices() -> Vec<SupportedDeviceInfo> {
             product_id: device.product_id,
             status: device.status,
             family: device.family,
-            write_block_reason: device.write_block_reason,
-            mic_gain_block_reason: device.mic_gain_block_reason,
-            read_nonce_supported: device.read_nonce_supported,
             capabilities: (&device.caps).into(),
         })
         .collect()
@@ -586,12 +523,7 @@ pub async fn connect_device(
                 }),
             );
         }
-        try_open_device(
-            &app_clone,
-            &path_clone,
-            session_id,
-            ReportContract::for_protocol(profile.protocol)?,
-        )?;
+        try_open_device(&app_clone, &path_clone, session_id)?;
         // /dev/hidrawN nodes can be reused by a different device between the
         // enumeration above and the open, so re-check the identity of what was
         // actually opened before storing it as connected.

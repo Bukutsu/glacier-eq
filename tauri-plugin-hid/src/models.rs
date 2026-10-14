@@ -8,12 +8,6 @@ pub struct HidDeviceInfo {
     pub product_id: u16,
     pub serial_number: Option<String>,
     pub release_number: u16,
-    #[serde(default)]
-    pub interface_number: Option<i32>,
-    #[serde(default)]
-    pub usage_page: Option<u16>,
-    #[serde(default)]
-    pub usage: Option<u16>,
     pub manufacturer_string: Option<String>,
     pub product_string: Option<String>,
 }
@@ -32,12 +26,6 @@ pub struct OpenArgs {
     pub path: String,
     #[serde(default)]
     pub session_id: u64,
-    #[serde(default)]
-    pub report_id: Option<u8>,
-    #[serde(default)]
-    pub min_output_bytes: usize,
-    #[serde(default)]
-    pub min_input_bytes: usize,
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]

@@ -353,9 +353,7 @@ export const DeviceView = memo(function DeviceView({
               {connected
                 ? isSimulated
                   ? "Preview EQ without changing hardware."
-                  : deviceInfo?.write_block_reason
-                    ? `Read-only: ${deviceInfo.write_block_reason}`
-                    : "Manage DAC audio controls and settings."
+                  : "Manage DAC audio controls and settings."
                 : "Edit EQ offline or connect a DAC to adjust device settings."}
             </p>
           </div>
@@ -552,7 +550,7 @@ export const DeviceView = memo(function DeviceView({
                   <div className="pref-slider-head">
                     <div className="stack-pref-info">
                       <span className="stack-pref-title">Microphone sidetone</span>
-                      <span className="stack-pref-desc">{deviceInfo?.mic_gain_block_reason ?? "Headset microphone monitoring volume"}</span>
+                      <span className="stack-pref-desc">Headset microphone monitoring volume</span>
                     </div>
                     <span className="pref-value-badge">{utility.mic_volume_db} dB</span>
                   </div>
@@ -561,7 +559,7 @@ export const DeviceView = memo(function DeviceView({
                     max={15}
                     step={1}
                     aria-label="Microphone sidetone"
-                    disabled={isBusy || !!deviceInfo?.mic_gain_block_reason}
+                    disabled={isBusy}
                     aria-valuetext={`${utility.mic_volume_db} dB`}
                     value={utility.mic_volume_db}
                     onChange={(e) => handleSetMicVolume(Number(e.target.value))}
@@ -594,7 +592,7 @@ export const DeviceView = memo(function DeviceView({
                   title="Reset device EQ"
                   desc="Resets all EQ bands on the DAC to 0 dB"
                   actionLabel="Reset EQ"
-                  disabled={isBusy || !!deviceInfo?.write_block_reason}
+                  disabled={isBusy}
                   onAction={handleResetDeviceEq}
                 />
 
@@ -602,7 +600,7 @@ export const DeviceView = memo(function DeviceView({
                   title="Reset device controls"
                   desc="Resets filter mode, amplifier mode, gain, and balance to defaults"
                   actionLabel="Reset controls"
-                  disabled={isBusy || !!deviceInfo?.write_block_reason || !!deviceInfo?.mic_gain_block_reason}
+                  disabled={isBusy}
                   onAction={handleResetDeviceControls}
                 />
 
@@ -611,7 +609,7 @@ export const DeviceView = memo(function DeviceView({
                   desc="Restores the DAC to its factory defaults"
                   actionLabel="Factory reset"
                   danger
-                  disabled={isBusy || !!deviceInfo?.write_block_reason}
+                  disabled={isBusy}
                   onAction={handleFactoryReset}
                 />
               </div>

@@ -94,7 +94,6 @@ pub struct DeviceSession<'a> {
     last_pull_gain_read_completed: bool,
     gain_read_requires_correlation: bool,
     last_read_was_retried: bool,
-    uncorrelated_filter_read: bool,
 }
 
 impl<'a> DeviceSession<'a> {
@@ -110,7 +109,6 @@ impl<'a> DeviceSession<'a> {
             last_pull_gain_read_completed: false,
             gain_read_requires_correlation: false,
             last_read_was_retried: false,
-            uncorrelated_filter_read: false,
         }
     }
 
@@ -138,7 +136,6 @@ impl<'a> DeviceSession<'a> {
             last_pull_gain_read_completed: false,
             gain_read_requires_correlation: false,
             last_read_was_retried: false,
-            uncorrelated_filter_read: false,
         }
     }
 
@@ -153,12 +150,6 @@ impl<'a> DeviceSession<'a> {
     }
 
     pub fn pull(&mut self) -> Result<PEQData, String> {
-        if self.uncorrelated_filter_read {
-            return Err(
-                "Filter read timed out without nonce support; reconnect before reading again"
-                    .into(),
-            );
-        }
         // A complete-pull retry is only safe when the failed attempt did not
         // issue an uncorrelatable global-gain request. Clear this one-shot
         // guard before starting a new user-visible operation.
@@ -175,7 +166,7 @@ impl<'a> DeviceSession<'a> {
                 self.pull_once()
             }
             Err(first) => {
-                if first.contains(UNCORRELATED_GAIN_ERROR) || self.uncorrelated_filter_read {
+                if first.contains(UNCORRELATED_GAIN_ERROR) {
                     return Err(first);
                 }
                 let first_sent_gain = self.last_pull_sent_gain_request;
@@ -203,7 +194,6 @@ impl<'a> DeviceSession<'a> {
     /// Returns the committed PEQ plus the capability-clamp warnings, which
     /// callers must surface — the clamp rewrites the user's values.
     pub fn persistent_push(&mut self, peq: PEQData) -> Result<(PEQData, Vec<String>), String> {
-        self.profile.ensure_writable()?;
         let (normalized, warnings) = self.normalize(peq)?;
         let backup = self.pull()?;
         if self.last_pull_had_invalid_response {
@@ -262,7 +252,6 @@ impl<'a> DeviceSession<'a> {
     /// the device's committed state must say so, which is what the extra
     /// warning below is for.
     pub fn unverified_push(&mut self, peq: PEQData) -> Result<(PEQData, Vec<String>), String> {
-        self.profile.ensure_writable()?;
         let (normalized, mut warnings) = self.normalize(peq)?;
         let backup = self.pull()?;
         if self.last_pull_had_invalid_response {
@@ -282,7 +271,6 @@ impl<'a> DeviceSession<'a> {
     }
 
     pub fn apply_ram(&mut self, peq: PEQData) -> Result<(PEQData, Vec<String>), String> {
-        self.profile.ensure_writable()?;
         validate_peq(&peq)?;
         if !self.profile.caps.supports_ram_apply {
             return Err(format!(
@@ -454,7 +442,6 @@ impl<'a> DeviceSession<'a> {
 
     pub fn set_mic_volume(&mut self, db: i8) -> Result<(), String> {
         self.require_walkplay()?;
-        self.profile.ensure_mic_gain_writable()?;
         validate_control_range("Mic volume", db)?;
         self.write_utility(WalkplayProtocol::build_mic_volume_write_packet(db))
     }
@@ -470,7 +457,6 @@ impl<'a> DeviceSession<'a> {
     }
 
     pub fn reset_eq(&mut self) -> Result<(), String> {
-        self.profile.ensure_writable()?;
         let peq = PEQData {
             filters: (0..self.profile.caps.num_bands)
                 .map(|index| Filter::enabled(index as u8, false))
@@ -482,9 +468,6 @@ impl<'a> DeviceSession<'a> {
 
     pub fn reset_controls(&mut self) -> Result<DacUtilityState, String> {
         self.require_walkplay()?;
-        // Preflight every blocked control before taking a snapshot or applying
-        // durable mode changes. Mic encodings disagree across source firmware.
-        self.profile.ensure_mic_gain_writable()?;
         // Each step below sends its register write and then immediately
         // commits to flash, so a failure part-way through leaves the device
         // permanently holding a half-applied reset — the modes that landed
@@ -531,7 +514,6 @@ impl<'a> DeviceSession<'a> {
     }
 
     fn require_walkplay(&self) -> Result<(), String> {
-        self.profile.ensure_writable()?;
         if self.profile.protocol == DeviceProtocol::Walkplay {
             Ok(())
         } else {
@@ -579,16 +561,9 @@ impl<'a> DeviceSession<'a> {
 
     fn read_filter(&mut self, index: u8) -> Result<Filter, String> {
         let protocol = self.protocol();
-        let nonce_less_walkplay =
-            self.profile.protocol == DeviceProtocol::Walkplay && !self.profile.read_nonce_supported;
-        let per_round = if nonce_less_walkplay {
-            // A resend cannot distinguish a late reply to the previous request.
-            FILTER_READ_ATTEMPTS
-        } else {
-            protocol
-                .resend_unanswered_after()
-                .unwrap_or(FILTER_READ_ATTEMPTS)
-        };
+        let per_round = protocol
+            .resend_unanswered_after()
+            .unwrap_or(FILTER_READ_ATTEMPTS);
         let mut remaining = FILTER_READ_ATTEMPTS;
         let mut first_error: Option<String> = None;
         let mut last_error = None;
@@ -596,12 +571,8 @@ impl<'a> DeviceSession<'a> {
             // Use a fresh nonce for every retry where the protocol carries
             // one. A late response from an earlier attempt then cannot satisfy
             // the new request's correlation predicate.
-            let nonce = if nonce_less_walkplay {
-                0
-            } else {
-                self.next_nonce = self.next_nonce.wrapping_add(1).max(1);
-                self.next_nonce
-            };
+            self.next_nonce = self.next_nonce.wrapping_add(1).max(1);
+            let nonce = self.next_nonce;
             let request = protocol.read_filter_request(index, nonce);
             let take = per_round.min(remaining);
             self.send(&request)?;
@@ -633,14 +604,6 @@ impl<'a> DeviceSession<'a> {
                     }
                     last_error = Some(error);
                     remaining -= take;
-                    if nonce_less_walkplay {
-                        // Draining cannot prove that a delayed response will
-                        // never arrive. Prevent both whole-pull retries and
-                        // further reads in this session after an unanswered
-                        // index, rather than treating that reply as fresh state.
-                        self.uncorrelated_filter_read = true;
-                        self.drain();
-                    }
                 }
             }
         }
@@ -1014,198 +977,6 @@ mod tests {
         }
     }
 
-    fn test_profile(profile: &DeviceProfile) -> DeviceProfile {
-        DeviceProfile {
-            name: profile.name,
-            protocol: profile.protocol,
-            vendor_id: profile.vendor_id,
-            product_id: profile.product_id,
-            status: profile.status,
-            family: profile.family,
-            caps: profile.caps.clone(),
-            write_block_reason: profile.write_block_reason,
-            mic_gain_block_reason: profile.mic_gain_block_reason,
-            read_nonce_supported: profile.read_nonce_supported,
-        }
-    }
-
-    fn test_write_enabled_profile(profile: &DeviceProfile) -> &'static DeviceProfile {
-        let mut profile = test_profile(profile);
-        profile.write_block_reason = None;
-        profile.mic_gain_block_reason = None;
-        Box::leak(Box::new(profile))
-    }
-
-    #[test]
-    fn tested_walkplay_push_keeps_the_validated_two_step_save_sequence() {
-        let expected: &[&[u8]] = include!("../../tests/fixtures/walkplay/tested_commit.rs");
-        for product_id in [0x43e6, 0x43e8] {
-            let profile = get_supported_device(0x3302, product_id).unwrap();
-            let mut io = FakeIo::default();
-            queue_pull(&mut io, -1);
-            io.reads.push_back(vec![]); // write init drain
-            DeviceSession::new(&mut io, profile)
-                .unverified_push(test_peq())
-                .unwrap();
-            let save_reports: Vec<_> = io
-                .writes
-                .iter()
-                .filter(|report| {
-                    report.get(1) == Some(&WRITE) && matches!(report.get(2), Some(0x0A | 0x01))
-                })
-                .map(Vec::as_slice)
-                .collect();
-            assert_eq!(
-                save_reports, expected,
-                "{} save sequence changed",
-                profile.name
-            );
-        }
-    }
-
-    #[test]
-    fn tested_walkplay_reads_reject_a_stale_nonce_with_conflicting_values() {
-        for product_id in [0x43e6, 0x43e8] {
-            let profile = get_supported_device(0x3302, product_id).unwrap();
-            let mut io = FakeIo::default();
-            queue_pull(&mut io, -1);
-            let mut stale = io.reads[2].clone();
-            stale[2] = 0;
-            stale[31..33].copy_from_slice(&512i16.to_le_bytes());
-            io.reads.insert(2, stale);
-            let peq = DeviceSession::new(&mut io, profile).pull().unwrap();
-            assert_eq!(
-                peq.filters[0].gain, 1.0,
-                "{} accepted stale gain",
-                profile.name
-            );
-        }
-    }
-
-    #[test]
-    fn explicit_write_restriction_rejects_every_mutation_before_any_io() {
-        let mut profile = test_profile(get_supported_device(0x3302, 0x43e8).unwrap());
-        profile.write_block_reason = Some("Explicit test restriction");
-        let profile = Box::leak(Box::new(profile));
-        for operation in 0..11 {
-            let mut io = FakeIo::default();
-            let mut session = DeviceSession::new(&mut io, profile);
-            let result = match operation {
-                0 => session.persistent_push(test_peq()).map(|_| ()),
-                1 => session.unverified_push(test_peq()).map(|_| ()),
-                2 => session.apply_ram(test_peq()).map(|_| ()),
-                3 => session.reset_eq(),
-                4 => session.reset_controls().map(|_| ()),
-                5 => session.factory_reset(),
-                6 => session.set_filter_mode("FAST-LL"),
-                7 => session.set_amp_mode(false),
-                8 => session.set_gain_mode(false),
-                9 => session.set_mic_volume(0),
-                _ => session.set_balance(0),
-            };
-            let error = result.unwrap_err();
-            assert!(
-                error.contains("read-only"),
-                "{} operation {operation}: {error}",
-                profile.name
-            );
-            assert!(
-                io.events.is_empty(),
-                "{} operation {operation} performed I/O: {:?}",
-                profile.name,
-                io.events
-            );
-        }
-    }
-
-    #[test]
-    fn explicit_mic_restriction_blocks_mic_and_whole_control_reset_before_io() {
-        let mut profile = test_profile(get_supported_device(0x3302, 0x43e8).unwrap());
-        profile.mic_gain_block_reason = Some("Explicit test restriction");
-        let profile = Box::leak(Box::new(profile));
-        let mut io = FakeIo::default();
-        let mut session = DeviceSession::new(&mut io, profile);
-        assert!(session.set_mic_volume(0).is_err());
-        assert!(session.reset_controls().is_err());
-        assert!(
-            io.events.is_empty(),
-            "{} performed I/O: {:?}",
-            profile.name,
-            io.events
-        );
-    }
-
-    #[test]
-    fn nonce_support_does_not_restrict_walkplay_utility_controls() {
-        let mut profile = test_profile(get_supported_device(0x3302, 0x43e8).unwrap());
-        profile.read_nonce_supported = false;
-        let profile = Box::leak(Box::new(profile));
-        let mut io = FakeIo::default();
-        queue_utility_status(&mut io, 1, 0, 0, 0, 0, 0);
-        let status = DeviceSession::new(&mut io, profile)
-            .utility_status()
-            .unwrap();
-        assert!(status.supported);
-    }
-
-    #[test]
-    fn untested_walkplay_filter_reads_use_zero_nonce_and_keep_index_matching() {
-        let mut profile = test_profile(get_supported_device(0x3302, 0x43e8).unwrap());
-        profile.read_nonce_supported = false;
-        let profile = Box::leak(Box::new(profile));
-        let mut io = FakeIo::default();
-        queue_pull(&mut io, -1);
-        for packet in io
-            .reads
-            .iter_mut()
-            .filter(|packet| packet.get(1) == Some(&super::super::walkplay::CMD_PEQ_VALUES))
-        {
-            packet[2] = 0;
-        }
-        // Both a stale index and an unsupported nonce must be ignored.
-        let mut wrong_index = io.reads[2].clone();
-        wrong_index[4] = 9;
-        io.reads.insert(2, wrong_index);
-        let mut wrong_nonce = io.reads[3].clone();
-        wrong_nonce[2] = 1;
-        io.reads.insert(3, wrong_nonce);
-        let peq = DeviceSession::new(&mut io, profile).pull().unwrap();
-        assert_eq!(peq.filters.len(), 10);
-        let requests: Vec<_> = io
-            .writes
-            .iter()
-            .filter(|packet| packet.get(2) == Some(&super::super::walkplay::CMD_PEQ_VALUES))
-            .collect();
-        assert_eq!(requests.len(), 10);
-        assert!(requests.iter().all(|packet| packet[3] == 0));
-    }
-
-    #[test]
-    fn nonce_less_filter_timeout_never_resends_or_accepts_a_late_reply() {
-        let mut profile = test_profile(get_supported_device(0x3302, 0x43e8).unwrap());
-        profile.read_nonce_supported = false;
-        let profile = Box::leak(Box::new(profile));
-        let mut io = FakeIo::default();
-        queue_pull(&mut io, -1);
-        let mut late_response = io.reads[2].clone();
-        late_response[2] = 0;
-        io.reads.truncate(2);
-        io.reads.extend((0..FILTER_READ_ATTEMPTS).map(|_| vec![]));
-        io.reads.push_back(vec![]); // timeout quarantine terminator
-        io.reads.push_back(late_response);
-        let mut session = DeviceSession::new(&mut io, profile);
-        assert!(session.pull().is_err());
-        let error = session.pull().unwrap_err();
-        assert!(error.contains("reconnect"), "{error}");
-        let requests: Vec<_> = io
-            .writes
-            .iter()
-            .filter(|packet| packet.get(2) == Some(&super::super::walkplay::CMD_PEQ_VALUES))
-            .collect();
-        assert_eq!(requests.len(), 1);
-        assert_eq!(io.reads.len(), 1, "late response must not become state");
-    }
-
     #[test]
     fn invalid_mutation_writes_nothing() {
         let profile = get_supported_device(0x3302, 0x43e8).unwrap();
@@ -1223,8 +994,7 @@ mod tests {
 
     #[test]
     fn apply_ram_restores_the_snapshot_when_apply_fails() {
-        // Exercise rollback independently of the registered model policy.
-        let profile = test_write_enabled_profile(get_supported_device(0x2972, 0x0102).unwrap());
+        let profile = get_supported_device(0x2972, 0x0102).unwrap();
         let mut io = FakeIo::default();
         io.reads.push_back(vec![]);
         io.reads
@@ -1246,8 +1016,8 @@ mod tests {
                 0xBB, 0x0B, 0, 0, 0x15, 8, index, 0, 10, 0x03, 0xE8, 0, 100, 0, 0, 0xEE,
             ]);
         }
-        // Pull only reads (writes 1..6). Preset/count preparation uses writes
-        // 7..8. Fail the requested filter at 9..11, then allow rollback.
+        // Initial pull uses writes 1..6. Fail all three attempts for the
+        // requested filter at writes 9..11, then allow the rollback writes.
         io.failing_write_calls.extend([9, 10, 11]);
         let peq = PEQData {
             filters: (0..5).map(|index| Filter::enabled(index, false)).collect(),
@@ -1263,8 +1033,7 @@ mod tests {
 
     #[test]
     fn a_failed_control_reset_restores_the_settings_that_already_landed() {
-        // Hypothetical captured mic encoding; registered profiles are gated.
-        let profile = test_write_enabled_profile(get_supported_device(0x3302, 0x43e8).unwrap());
+        let profile = get_supported_device(0x3302, 0x43e8).unwrap();
         let mut io = FakeIo::default();
         // The device is on a non-default filter mode, Class-AB, high gain,
         // mic +4 dB, balanced. Every set_* below sends its register write and
@@ -1300,8 +1069,7 @@ mod tests {
 
     #[test]
     fn a_successful_control_reset_does_not_roll_back() {
-        // Hypothetical captured mic encoding; registered profiles are gated.
-        let profile = test_write_enabled_profile(get_supported_device(0x3302, 0x43e8).unwrap());
+        let profile = get_supported_device(0x3302, 0x43e8).unwrap();
         let mut io = FakeIo::default();
         queue_utility_status(&mut io, 2, 1, 1, 4, 0, 0);
         queue_utility_status(&mut io, 1, 0, 0, 0, 0, 0);
@@ -1326,7 +1094,7 @@ mod tests {
 
     #[test]
     fn non_walkplay_utility_is_rejected_before_write() {
-        let profile = get_supported_device(0x2972, 0x0102).unwrap();
+        let profile = get_supported_device(0x2fc6, 1).unwrap();
         let mut io = FakeIo::default();
         let mut session = DeviceSession::new(&mut io, profile);
         assert!(session.set_gain_mode(true).is_err());
@@ -1606,9 +1374,7 @@ mod tests {
 
     #[test]
     fn pull_rejects_late_moondrop_gain_after_complete_pull_retry() {
-        let mut profile = test_profile(get_supported_device(0x3302, 0x43e8).unwrap());
-        profile.protocol = DeviceProtocol::Moondrop;
-        let profile = Box::leak(Box::new(profile));
+        let profile = get_supported_device(0x35d8, 0x011d).unwrap();
         let mut io = FakeIo::default();
         io.reads.push_back(vec![]); // first init drain
         for _ in 0..GAIN_READ_ATTEMPTS {

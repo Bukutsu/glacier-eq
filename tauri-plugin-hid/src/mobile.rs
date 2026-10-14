@@ -36,45 +36,15 @@ impl<R: Runtime> Hid<R> {
     }
 
     pub fn open(&self, path: &str, session_id: u64) -> crate::Result<()> {
-        self.open_with_report_contract(path, session_id, None)
-    }
-
-    pub fn open_with_report_contract(
-        &self,
-        path: &str,
-        session_id: u64,
-        contract: Option<glacier_core::device::hid::ReportContract>,
-    ) -> crate::Result<()> {
-        let args = OpenArgs {
-            path: path.to_string(),
-            session_id,
-            report_id: contract.map(|c| c.report_id),
-            min_output_bytes: contract.map_or(0, |c| c.min_output_bytes),
-            min_input_bytes: contract.map_or(0, |c| c.min_input_bytes),
-        };
-        #[cfg(target_os = "android")]
-        {
-            let result = self
-                .0
-                .run_mobile_plugin::<ReadResult>("open", args)
-                .map_err(Error::PluginInvoke)?;
-            if let Some(contract) = contract {
-                let descriptor: Vec<u8> = result.data.iter().map(|byte| *byte as u8).collect();
-                if let Err(message) = contract.validate(&descriptor) {
-                    let _ = self.close(path, Some(session_id));
-                    return Err(
-                        std::io::Error::new(std::io::ErrorKind::InvalidData, message).into(),
-                    );
-                }
-            }
-            Ok(())
-        }
-        #[cfg(target_os = "ios")]
-        {
-            self.0
-                .run_mobile_plugin("open", args)
-                .map_err(Error::PluginInvoke)
-        }
+        self.0
+            .run_mobile_plugin(
+                "open",
+                OpenArgs {
+                    path: path.to_string(),
+                    session_id,
+                },
+            )
+            .map_err(Error::PluginInvoke)
     }
 
     pub fn close(&self, path: &str, session_id: Option<u64>) -> crate::Result<()> {

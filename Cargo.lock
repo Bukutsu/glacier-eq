@@ -3842,7 +3842,6 @@ dependencies = [
 name = "tauri-plugin-hid"
 version = "0.2.4"
 dependencies = [
- "glacier-core",
  "hidapi",
  "serde",
  "tauri",
