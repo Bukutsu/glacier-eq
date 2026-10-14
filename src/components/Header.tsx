@@ -6,6 +6,7 @@ import { ToastContainer } from "./Toast";
 import { OperationProgress } from "../types";
 import { isTauri } from "../lib/platform";
 import { useIsMobile } from "../hooks/useIsMobile";
+import { formatDb } from "../lib/peq";
 
 const REPO_URL = "https://github.com/Bukutsu/glacier-eq";
 
@@ -203,7 +204,7 @@ export const Header = memo(function Header({
             <div className="header-session-strip" role="group" aria-label="EQ session status">
               <span>{profileText}</span>
               <span>{activeBands}/{maxBands} bands</span>
-              <span>{preampDb.toFixed(1)} dB preamp</span>
+              <span>{formatDb(preampDb)} preamp</span>
               {connected && hardwareEq && <span className="session-hide-mobile">{supportsRamApply ? "Temporary EQ supported" : "Persistent writes only"}</span>}
             </div>
           )}

@@ -17,7 +17,7 @@ import { profileIdentityKey } from "../lib/profileIdentity";
 import { decodeUtf8 } from "../lib/utf8";
 import { fuzzyMatch } from "../lib/search";
 import { isTauri } from "../lib/platform";
-import { DEFAULT_PROFILE_NAME } from "../lib/peq";
+import { DEFAULT_PROFILE_NAME, formatDb } from "../lib/peq";
 import {
   parseAutoEqResult,
   type ParsedAutoEqResult,
@@ -383,12 +383,6 @@ export const ProfilesView = memo(function ProfilesView({
           )}
         </div>
 
-        {!query && savedProfiles.length === 0 && (
-          <div className="profiles-empty">
-            <h3>No saved profiles yet</h3>
-            <p>Save your current EQ or import a profile to start your library.</p>
-          </div>
-        )}
         {query && filteredProfiles.length === 0 && (
           <div className="profiles-empty" role="status">
             <h3>No matching profiles</h3>
@@ -422,6 +416,10 @@ export const ProfilesView = memo(function ProfilesView({
             );
           })}
         </div>
+        {/* The built-in profile is always listed, so the hint follows it. */}
+        {!query && savedProfiles.length === 0 && (
+          <p className="profiles-note profiles-empty-hint">Save your EQ or import a profile to add it here.</p>
+        )}
         <footer className="profiles-library-footer">
           <Button variant="ghost" onClick={handleReloadProfiles}><Icon name="refresh" /> Refresh</Button>
           {!hideProfileFolderButton && onOpenProfilesDir && (
@@ -465,7 +463,7 @@ export const ProfilesView = memo(function ProfilesView({
         <h3 className="profiles-editor-name" title={selectedPreset}>{selectedPreset}</h3>
         <div className="profiles-editor-meta">
           <span>{enabledBands} {enabledBands === 1 ? "band" : "bands"}</span>
-          <span>{peq.global_gain.toFixed(2)} dB preamp</span>
+          <span>{formatDb(peq.global_gain)} preamp</span>
         </div>
         <p className="profiles-editor-state" data-modified={dirty}>{editorState}</p>
 

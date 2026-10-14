@@ -3,7 +3,7 @@ import { transformWithOxc } from "vite";
 import { describe, expect, it, vi } from "vitest";
 import { asyncContextEquals } from "./asyncContext";
 import type { DeviceCapabilities } from "../types";
-import { buildDefaultState, extractPushWarnings, normalizePeq, parseStoredPeqResponse, peqEquals } from "./peq";
+import { buildDefaultState, extractPushWarnings, formatDb, normalizePeq, parseStoredPeqResponse, peqEquals } from "./peq";
 
 // Execute the actual callback without mounting the whole app or using hardware.
 const app = readFileSync(new URL("../App.tsx", import.meta.url), "utf8");
@@ -41,7 +41,7 @@ function setup() {
     }),
     noteEditorMutation: () => { editorRevision++; },
     normalizePeq, asyncContextEquals, peqEquals,
-    extractPushWarnings, parseStoredPeqResponse,
+    extractPushWarnings, parseStoredPeqResponse, formatDb,
     confirmDialog: vi.fn(async () => true),
     isDevDummyDevice: () => false, invoke, sleep,
     setPeq, setLastPushedPeq, reportStatus,

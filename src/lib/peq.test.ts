@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { DeviceCapabilities } from "../types";
 import {
+  formatDb,
   extractPushWarnings,
   normalizePeq,
   normalizePeqForDevice,
@@ -96,7 +97,7 @@ describe("normalizePeq", () => {
   });
 
   it("pads bands beyond num_bands as disabled (mirrors Rust max-band clamping)", () => {
-    const peq = normalizePeq({ filters: [{}, {}] }, {
+    const peq = normalizePeq({ filters: [{ enabled: true }, { enabled: true }] }, {
       capabilities: { ...CAPS, num_bands: 1 },
     });
     expect(peq.filters[0].enabled).toBe(true);
@@ -239,5 +240,14 @@ describe("extractPushWarnings", () => {
     expect(
       extractPushWarnings({ filters: [], global_gain: 0, warnings: ["ok", 42, null] }),
     ).toEqual(["ok"]);
+  });
+});
+
+describe("formatDb", () => {
+  it("shows one to two decimals with a unit", () => {
+    expect(formatDb(-4)).toBe("-4.0 dB");
+    expect(formatDb(-3.55)).toBe("-3.55 dB");
+    expect(formatDb(2.5)).toBe("2.5 dB");
+    expect(formatDb(-0.001)).toBe("0.0 dB");
   });
 });

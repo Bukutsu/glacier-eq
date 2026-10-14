@@ -14,7 +14,8 @@ export function buildDefaultState(): PEQData {
     global_gain: 0,
     filters: DEFAULT_FREQS_10_BAND.map((freq, index) => ({
       index,
-      enabled: index === 0,
+      // A flat EQ has no bands; the editor offers "Add band" instead.
+      enabled: false,
       filter_type: "Peak",
       freq,
       gain: 0,
@@ -59,6 +60,12 @@ function isKnownFilterType(value: unknown): boolean {
 function numberOr(raw: unknown, fallback: number): number {
   const value = Number(raw);
   return Number.isFinite(value) ? value : fallback;
+}
+
+/** Display text for a gain: "-4.0 dB", "-3.55 dB". One format app-wide. */
+export function formatDb(value: number): string {
+  const text = value.toFixed(2).replace(/0$/, "");
+  return `${text === "-0.0" ? "0.0" : text} dB`;
 }
 
 export function clampToRange(value: number, range: [number, number]): number {

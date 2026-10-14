@@ -1267,6 +1267,10 @@ body.is-android *,
   .eq-graph-shell, .eq-canvas {
     min-height: 130px !important;
   }
+  .left-pane > .graph-card .eq-graph-shell,
+  .left-pane > .graph-card .eq-canvas {
+    min-height: 100px !important;
+  }
 }
 
 @media (min-width: 769px) and (max-width: 1150px) {

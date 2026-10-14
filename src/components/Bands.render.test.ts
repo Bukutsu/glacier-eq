@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { Bands } from "./Bands";
 import { buildDevDummyPeq, DEV_DUMMY_DEVICE } from "../lib/devDevice";
+import { buildDefaultState } from "../lib/peq";
 
 const selectOptions = vi.hoisted(() => [] as { value: string; label: string }[][]);
 vi.mock("./Select", async (importOriginal) => {
@@ -92,12 +93,23 @@ describe("Band editor markup", () => {
     expect(html).toContain('aria-label="Reset band 6 to last saved values"');
   });
 
-  it("falls back to an enabled band and keeps the last band from being removed", () => {
+  it("falls back to an enabled band and lets the last band be removed", () => {
     const peq = buildDevDummyPeq();
     peq.filters = peq.filters.map((filter) => ({ ...filter, enabled: filter.index === 2 }));
     const html = renderEditor({ peq, activeBandIndex: 0 });
     expect(html).toContain('aria-pressed="true" aria-label="Band 3, 125 Hz"');
-    expect(html).toMatch(/<button(?=[^>]*aria-label="Remove band 3")(?=[^>]*disabled="")[^>]*>/);
+    expect(html).not.toMatch(/<button(?=[^>]*aria-label="Remove band 3")(?=[^>]*disabled="")[^>]*>/);
+  });
+
+  it("shows an add-band prompt for a flat EQ instead of a placeholder band", () => {
+    const html = renderToStaticMarkup(createElement(Bands, {
+      peq: buildDefaultState(), capabilities: DEV_DUMMY_DEVICE,
+      onFilterChange: () => {}, onStartChange: () => {}, activeBandIndex: 0,
+    }));
+    expect(html).not.toContain("bands-mobile-editor");
+    expect(html).toContain("No bands yet. The EQ is flat.");
+    expect(html).toContain("Add band");
+    expect(html).not.toContain("Band 1");
   });
 
   it("keeps the capacity state readable without a redundant local undo toast", () => {

@@ -95,12 +95,16 @@ h1 {
   color: var(--muted);
 }
 
+/* The chip appears and disappears with the draft, so it must not change the
+   meta row's height: keep it compact and let the margin absorb the rest. */
 .header-draft-trigger {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 28px;
-  padding: 4px 8px;
+  height: 22px;
+  margin-block: -3px;
+  padding: 0 8px;
   border: 1px solid color-mix(in srgb, var(--warning-foreground) 30%, transparent);
   border-radius: var(--control-radius);
   background: color-mix(in srgb, var(--warning-foreground) 8%, var(--background));
@@ -117,7 +121,8 @@ h1 {
 }
 .header-draft-trigger:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 @media (pointer: coarse), (max-width: 850px) {
-  .header-draft-trigger { min-height: 44px; }
+  /* A 44px touch target without growing the chip. */
+  .header-draft-trigger::after { content: ""; position: absolute; inset: -11px 0; }
 }
 
 .header-draft-popup {

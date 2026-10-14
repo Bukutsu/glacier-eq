@@ -32,14 +32,13 @@ describe("Profile library", () => {
 
   it("distinguishes a new empty library from a failed search", () => {
     const empty = render({ profiles: [{ name: DEFAULT_PROFILE_NAME, data: peq, modified: null }] });
-    expect(empty).toContain("No saved profiles yet");
-    expect(empty).toContain("Save your current EQ or import a profile");
+    expect(empty).toContain("Save your EQ or import a profile to add it here.");
     expect(empty).toContain("Built-in");
     expect(empty).not.toContain("No matching profiles");
     const missing = render({ profileSearch: "missing" });
     expect(missing).toContain("No matching profiles");
     expect(missing).toContain("Try another name or clear the search.");
-    expect(missing).not.toContain("No saved profiles yet");
+    expect(missing).not.toContain("Save your EQ or import a profile to add it here.");
   });
 
   it("retains fuzzy search and marks canonical profile names as current", () => {

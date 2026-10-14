@@ -18,9 +18,10 @@ const GRAPH_FREQS = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
 const GRAPH_DBS = [-18, -12, -6, 0, 6, 12, 18];
 
 function graphDbLabels(height: number): number[] {
-  // The mobile graph is deliberately short. Seven labels collide at that
-  // size, so keep the scale readable by labeling the center and bounds only.
-  return height < 220 ? [-12, 0, 12] : GRAPH_DBS;
+  // The ±18 dB lines sit on the plot edges, where a label cannot keep the
+  // same placement as the others. The mobile graph is deliberately short,
+  // so label only the center and the ±12 dB lines there.
+  return height < 220 ? [-12, 0, 12] : [-12, -6, 0, 6, 12];
 }
 
 function clampHandlePosition(percent: number): string {
@@ -92,6 +93,9 @@ export const EqGraph = memo(function EqGraph({
     () => measurements.filter((trace) => trace.visible),
     [measurements],
   );
+  // A legend with only the EQ curve explains nothing.
+  const hasLegend = targets.length > 0 || visibleMeasurements.length > 0
+    || (!!committedPeq && !peqEquals(committedPeq, peq));
   const selectedMeasurement = useMemo(() => {
     if (selectedMeasurementId) {
       return measurements.find((trace) => trace.id === selectedMeasurementId && trace.visible) ?? null;
@@ -136,6 +140,8 @@ export const EqGraph = memo(function EqGraph({
       capabilities?.dsp_sample_rate ?? 96000,
       () => drawSerial === drawSerialRef.current,
     );
+    // Labels go on top so the curve never runs through them.
+    if (drawSerial === drawSerialRef.current) drawDbLabels(ctx, height);
   }, [peq, committedPeq, selectedMeasurement, visibleMeasurements, targets, viewMode, theme, themeVarsRevision, editable, capabilities?.dsp_sample_rate]);
 
   const displayPeqRef = useRef(peq);
@@ -400,7 +406,7 @@ export const EqGraph = memo(function EqGraph({
           </button>
         );
       })}
-      {(committedPeq || targets.length > 0 || visibleMeasurements.length > 0) && (
+      {hasLegend && (
         <button
           type="button"
           className={`mobile-legend-toggle ${showMobileLegend ? "active" : ""}`}
@@ -413,7 +419,7 @@ export const EqGraph = memo(function EqGraph({
         </button>
       )}
     </div>
-      {(committedPeq || targets.length > 0 || visibleMeasurements.length > 0) && (
+      {hasLegend && (
         <div className={`graph-legend ${showMobileLegend ? "mobile-open" : ""}`}>
           {committedPeq && !peqEquals(committedPeq, peq) && (
             <div className="graph-legend-item committed">
@@ -493,19 +499,12 @@ function drawGrid(ctx: CanvasRenderingContext2D, width: number, height: number) 
     ctx.stroke();
   }
 
-  const labeledDbs = graphDbLabels(height);
   for (const db of GRAPH_DBS) {
     const y = dbToY(db, height);
     ctx.beginPath();
     ctx.moveTo(14, y);
     ctx.lineTo(width - 14, y);
     ctx.stroke();
-    if (!labeledDbs.includes(db)) continue;
-    const labelY = y <= 12 ? y + 12 : y - 4;
-    // Prevent drawing lowest dB label if it falls into bottom frequency label area
-    if (labelY < height - 16) {
-      ctx.fillText(`${db > 0 ? "+" : ""}${db}dB`, 14, labelY);
-    }
   }
 
   const isNarrow = width < 540;
@@ -522,6 +521,21 @@ function drawGrid(ctx: CanvasRenderingContext2D, width: number, height: number) 
     } else {
       ctx.fillText(formatFreq(freq), x + 4, height - 4);
     }
+  }
+}
+
+function drawDbLabels(ctx: CanvasRenderingContext2D, height: number) {
+  ctx.font = `500 12px ${cssVar("--font-mono", "ui-monospace")}`;
+  const panel = cssVar("--panel", "#16161e");
+  const text = cssVar("--muted", "#787c99");
+  for (const db of graphDbLabels(height)) {
+    const label = `${db > 0 ? "+" : ""}${db}dB`;
+    const y = dbToY(db, height) - 4;
+    // A solid backing keeps the label readable where the curve crosses it.
+    ctx.fillStyle = panel;
+    ctx.fillRect(12, y - 11, ctx.measureText(label).width + 4, 14);
+    ctx.fillStyle = text;
+    ctx.fillText(label, 14, y);
   }
 }
 

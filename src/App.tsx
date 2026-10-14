@@ -39,7 +39,7 @@ import {
   reconnectDevDummyDevice,
   isDevDummyDevice,
 } from "./lib/devDevice";
-import { buildDefaultState, DEFAULT_PROFILE_NAME, extractPushWarnings, normalizePeq, normalizePeqForDevice, parseStoredPeqResponse, peqEquals } from "./lib/peq";
+import { buildDefaultState, DEFAULT_PROFILE_NAME, extractPushWarnings, formatDb, normalizePeq, normalizePeqForDevice, parseStoredPeqResponse, peqEquals } from "./lib/peq";
 import { isTauri } from "./lib/platform";
 import { isDisconnectionError } from "./lib/errors";
 import {
@@ -1552,7 +1552,7 @@ function App() {
     const bandCount = activeBands === 1 ? "band" : "bands";
     if (!(await confirmDialog({
       title: isMobile ? "Save to DAC?" : "Write to DAC?",
-      message: `Write ${activeBands} ${bandCount} and ${snapshot.global_gain.toFixed(1)} dB preamp to the DAC? This saves the EQ to the device.`,
+      message: `Write ${activeBands} ${bandCount} and ${formatDb(snapshot.global_gain)} preamp to the DAC? This saves the EQ to the device.`,
       confirmLabel: isMobile ? "Save to DAC" : "Write to DAC",
       danger: true,
     }))) return;
@@ -2247,18 +2247,21 @@ function App() {
             <section className={`mobile-graph-container mobile-graph-${activeTab} ${graphCollapsed ? "collapsed" : ""}`}>
               <div className="graph-card" inert={graphCollapsed ? true : undefined} aria-hidden={graphCollapsed}>
                 {graphElement(activeTab === "eq")}
+              </div>
+              {/* Curves live under the plot so they never cover the data. */}
+              <div className="graph-toolbar">
+                <button
+                  type="button"
+                  className="graph-collapse-btn"
+                  onClick={handleToggleGraphCollapsed}
+                  aria-expanded={!graphCollapsed}
+                  aria-label={graphCollapsed ? "Show frequency response graph" : "Hide frequency response graph"}
+                >
+                  <span>{graphCollapsed ? "Show graph" : "Hide graph"}</span>
+                  <Icon name={graphCollapsed ? "expand_more" : "expand_less"} />
+                </button>
                 {eqCurves}
               </div>
-              <button
-                type="button"
-                className="graph-collapse-btn"
-                onClick={handleToggleGraphCollapsed}
-                aria-expanded={!graphCollapsed}
-                aria-label={graphCollapsed ? "Show frequency response graph" : "Hide frequency response graph"}
-              >
-                <span>{graphCollapsed ? "Show frequency response graph" : "Hide frequency response graph"}</span>
-                <Icon name={graphCollapsed ? "expand_more" : "expand_less"} />
-              </button>
             </section>
           )}
           {showGraph && activeTab === "eq" && (
@@ -2286,7 +2289,7 @@ function App() {
               <section className="left-pane">
                 {bandControls}
                 <details className="mobile-preamp-details">
-                  <summary><span>Preamp</span><span>{peq.global_gain.toFixed(1)} dB <Icon name="expand_more" /></span></summary>
+                  <summary><span>Preamp</span><span>{formatDb(peq.global_gain)} <Icon name="expand_more" /></span></summary>
                   {preampControls}
                 </details>
               </section>
@@ -2426,8 +2429,8 @@ function App() {
           >
             {showGraph && (activeTab === "eq" || activeTab === "tuning") && (
             <section className="graph-card">
+              <div className="graph-toolbar">{eqCurves}</div>
               {graphElement(activeTab === "eq")}
-              {eqCurves}
             </section>
             )}
             {activeTab === "eq" && editorControls}

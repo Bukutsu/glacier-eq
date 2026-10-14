@@ -1,19 +1,20 @@
 .eq-graph-layout { display: contents; }
 
+/* A slim row above the plot (below it on mobile) for graph controls, so
+   nothing floats over the curves. */
+.graph-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  min-height: 32px;
+  margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-2)) var(--space-1);
+}
 .eq-curves {
-  position: absolute;
-  top: var(--space-2);
-  right: var(--space-2);
-  z-index: 2;
   display: flex;
   align-items: center;
   gap: 2px;
-  padding: 3px;
-  max-width: calc(100% - 16px);
-  background: var(--popover);
-  border: 1px solid var(--line-soft);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-sm);
+  min-width: 0;
 }
 .eq-curves-trigger { color: var(--foreground); }
 .eq-curves-trigger[data-popup-open] { background: var(--accent); }
@@ -31,11 +32,7 @@
   font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
-.eq-curves > .eq-curves-add {
-  border-left: 1px solid var(--line-soft);
-  border-top-left-radius: 0;
-  border-bottom-left-radius: 0;
-}
+
 .eq-curves-popup {
   display: flex;
   flex-direction: column;
@@ -114,7 +111,12 @@
   position: sticky;
   top: 0;
   z-index: var(--z-graph-sticky);
+  /* Toolbar row above the plot. */
+  flex-direction: column;
 }
+/* The toolbar row takes its height from the plot, so the card keeps its size. */
+.left-pane > .graph-card .eq-graph-shell,
+.left-pane > .graph-card .eq-canvas { min-height: 224px; }
 
 .eq-graph-shell {
   position: relative;
@@ -177,19 +179,16 @@
 .graph-legend {
   position: absolute;
   top: 12px;
-  left: 50%;
-  transform: translateX(-50%);
+  left: var(--space-4);
   display: flex;
   flex-direction: row;
   flex-wrap: wrap;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: center;
   gap: 6px 12px;
-  padding: 4px 12px;
-  max-width: calc(100% - 24px);
-  background: var(--panel);
-  border: 1px solid var(--line-soft);
-  border-radius: var(--control-radius);
+  padding: 4px 0;
+  /* Shares the toolbar row with the Curves control on the right. */
+  max-width: calc(100% - 240px);
   pointer-events: none;
   z-index: var(--z-sticky);
 }
@@ -533,6 +532,19 @@
 .bands-grid {
   display: none;
 }
+
+.bands-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-6) var(--space-4);
+  color: var(--muted);
+  font-size: var(--type-small);
+  text-align: center;
+}
+.bands-empty p { margin: 0; }
+.bands-container.collapsed .bands-empty { display: none; }
 
 .bands-mobile-editor {
   display: flex;

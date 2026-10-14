@@ -166,7 +166,7 @@ export const Bands = memo(function Bands({ peq, committedPeq, capabilities, onFi
               onStartChange={onStartChange}
               onEndChange={onEndChange}
               onActivate={onActiveBandChange}
-              canRemove={visibleFilters.length > 1}
+              canRemove
               disabled={disabled}
               capabilities={capabilities}
               snapToIso={snapToIso}
@@ -180,6 +180,14 @@ export const Bands = memo(function Bands({ peq, committedPeq, capabilities, onFi
           </div>
         </div>
       </section>
+      {!selectedFilter && (
+        <div className="bands-empty">
+          <p>No bands yet. The EQ is flat.</p>
+          <Button variant="primary" onClick={addFilter} disabled={!canAddFilter}>
+            <Icon name="add" /> Add band
+          </Button>
+        </div>
+      )}
       {selectedFilter && (
         <section className="bands-mobile-editor">
           <div className="band-picker" role="group" aria-label="Filter bands">
@@ -243,9 +251,8 @@ export const Bands = memo(function Bands({ peq, committedPeq, capabilities, onFi
                   className="band-index"
                   title={`Remove band ${selectedFilter.index + 1}`}
                   aria-label={`Remove band ${selectedFilter.index + 1}`}
-                  disabled={disabled || visibleFilters.length <= 1}
+                  disabled={disabled}
                   onClick={() => {
-                    if (visibleFilters.length <= 1) return;
                     const removedIndex = selectedFilter.index;
                     onStartChange();
                     onFilterChange(removedIndex, { ...selectedFilter, enabled: false });
