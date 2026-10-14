@@ -80,10 +80,14 @@ describe("Profile library", () => {
     expect(render({ onApplyProfile: () => {} })).toContain('aria-label="Actions for Daily"');
   });
 
-  it("respects Android folder visibility and omits a disabled graph preference", () => {
-    const html = render({ onOpenProfilesDir: () => {}, hideProfileFolderButton: true });
-    expect(html).not.toContain("Open folder</button>");
-    expect(html).not.toContain('class="profiles-preview"');
-    expect(render({ onOpenProfilesDir: () => {} })).toContain("Open folder</button>");
+  it("shows file actions only where profiles are files, and omits a disabled graph preference", () => {
+    const web = render({});
+    expect(web).not.toContain("Refresh</button>");
+    expect(web).not.toContain("Open folder</button>");
+    expect(web).not.toContain('class="profiles-preview"');
+    const android = render({ profilesOnDisk: true });
+    expect(android).toContain("Refresh</button>");
+    expect(android).not.toContain("Open folder</button>");
+    expect(render({ profilesOnDisk: true, onOpenProfilesDir: () => {} })).toContain("Open folder</button>");
   });
 });

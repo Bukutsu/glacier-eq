@@ -38,7 +38,8 @@ export interface ProfilesViewProps {
   onApplyProfile?: (profile: Profile) => void;
   onReloadProfiles: () => void | Promise<Profile[]>;
   onOpenProfilesDir?: () => void;
-  hideProfileFolderButton?: boolean;
+  /** Profiles are files that can change outside the app (desktop, Android). */
+  profilesOnDisk?: boolean;
   onReset: () => void;
   onSave: () => void;
   onDelete: () => void;
@@ -68,7 +69,7 @@ export const ProfilesView = memo(function ProfilesView({
   onApplyProfile,
   onReloadProfiles,
   onOpenProfilesDir,
-  hideProfileFolderButton,
+  profilesOnDisk = false,
   onReset,
   onSave,
   onDelete,
@@ -420,12 +421,14 @@ export const ProfilesView = memo(function ProfilesView({
         {!query && savedProfiles.length === 0 && (
           <p className="profiles-note profiles-empty-hint">Save your EQ or import a profile to add it here.</p>
         )}
-        <footer className="profiles-library-footer">
-          <Button variant="ghost" onClick={handleReloadProfiles}><Icon name="refresh" /> Refresh</Button>
-          {!hideProfileFolderButton && onOpenProfilesDir && (
-            <Button variant="ghost" onClick={onOpenProfilesDir}><Icon name="folder" /> Open folder</Button>
-          )}
-        </footer>
+        {profilesOnDisk && (
+          <footer className="profiles-library-footer">
+            <Button variant="ghost" onClick={handleReloadProfiles}><Icon name="refresh" /> Refresh</Button>
+            {onOpenProfilesDir && (
+              <Button variant="ghost" onClick={onOpenProfilesDir}><Icon name="folder" /> Open folder</Button>
+            )}
+          </footer>
+        )}
       </section>
 
       <section className="profiles-editor" aria-labelledby="profiles-editor-title">

@@ -2085,8 +2085,8 @@ function App() {
     onSelectProfile: applyProfile,
     onApplyProfile: connected && supportsRamApply ? applyProfileToRam : undefined,
     onReloadProfiles: reloadProfiles,
-    onOpenProfilesDir: openProfilesDir,
-    hideProfileFolderButton: isAndroid,
+    onOpenProfilesDir: isTauri() && !isAndroid ? openProfilesDir : undefined,
+    profilesOnDisk: isTauri(),
     onReset: reset,
     onSave: saveProfile,
     onDelete: deleteSelectedProfile,
@@ -2454,8 +2454,8 @@ function App() {
             onSelectProfile={applyProfile}
             onApplyProfile={connected && supportsRamApply ? applyProfileToRam : undefined}
             onReloadProfiles={reloadProfiles}
-            onOpenProfilesDir={openProfilesDir}
-            hideProfileFolderButton={isAndroid}
+            onOpenProfilesDir={isTauri() && !isAndroid ? openProfilesDir : undefined}
+            profilesOnDisk={isTauri()}
             onReset={reset}
             onSave={saveProfile}
             onDelete={deleteSelectedProfile}

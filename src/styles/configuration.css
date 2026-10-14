@@ -7,10 +7,13 @@
   gap: var(--space-6);
   width: 100%;
   max-width: 1000px;
-  margin: 0 auto;
+  /* Start at the page edge like the other pages, not in a centred block. */
+  margin: 0;
   min-width: 0;
   box-sizing: border-box;
 }
+/* One section needs no navigation column. */
+.configuration-layout.single { grid-template-columns: minmax(0, 1fr); max-width: 816px; }
 
 .configuration-navigation {
   display: flex;

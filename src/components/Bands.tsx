@@ -112,6 +112,23 @@ export const Bands = memo(function Bands({ peq, committedPeq, capabilities, onFi
   const selectedFilter = visibleFilters.find((filter) => filter.index === activeBandIndex) ?? visibleFilters[0];
   const [collapsed, setCollapsed] = useState(false);
   const bandPickerRef = useRef<HTMLDivElement>(null);
+  // Fade an edge only while bands are hidden past it, instead of a hint.
+  const [moreBands, setMoreBands] = useState({ start: false, end: false });
+  const updateMoreBands = () => {
+    const picker = bandPickerRef.current;
+    if (!picker) return;
+    const start = picker.scrollLeft > 1;
+    const end = picker.scrollLeft + picker.clientWidth < picker.scrollWidth - 1;
+    setMoreBands(previous => previous.start === start && previous.end === end ? previous : { start, end });
+  };
+  useEffect(() => {
+    const picker = bandPickerRef.current;
+    if (!picker || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(updateMoreBands);
+    observer.observe(picker);
+    return () => observer.disconnect();
+  }, [selectedFilter !== undefined]);
+  useEffect(updateMoreBands, [visibleFilters.length]);
 
   useEffect(() => {
     if (!selectedFilter) return;
@@ -191,7 +208,8 @@ export const Bands = memo(function Bands({ peq, committedPeq, capabilities, onFi
       {selectedFilter && (
         <section className="bands-mobile-editor">
           <div className="band-picker" role="group" aria-label="Filter bands">
-            <div className="band-picker-scroll" ref={bandPickerRef}>
+            <div className={`band-picker-scroll${moreBands.start ? " more-start" : ""}${moreBands.end ? " more-end" : ""}`}
+              ref={bandPickerRef} onScroll={updateMoreBands}>
               {visibleFilters.map((filter) => (
                 <button
                   key={filter.index}
@@ -220,7 +238,6 @@ export const Bands = memo(function Bands({ peq, committedPeq, capabilities, onFi
               <span>Add</span>
             </button>
           </div>
-          {visibleFilters.length > 4 && <p className="band-picker-hint">Scroll the band strip to see all {visibleFilters.length} bands.</p>}
           <div className="mobile-filter-card" style={filterColorStyle(selectedFilter.index)}>
             <div className="mobile-filter-head">
               <div className="mobile-filter-summary">

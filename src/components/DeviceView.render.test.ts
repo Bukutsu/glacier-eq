@@ -29,7 +29,9 @@ describe("DeviceView markup", () => {
   it("renders a compact summary card and plain navigation on the root section", () => {
     const html = renderDeviceView();
     expect(html).toContain("device-summary");
-    expect(html).toContain("device-navigation");
+    // Offline there is only one section, so no navigation column.
+    expect(html).not.toContain("device-navigation");
+    expect(renderDeviceView({ connected: true })).toContain("device-navigation");
     expect(html).not.toContain("device-hero-card");
     expect(html).not.toContain("Device Configuration");
   });

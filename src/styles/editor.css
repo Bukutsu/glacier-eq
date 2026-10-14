@@ -563,13 +563,6 @@
   border-bottom: 1px solid var(--line-soft);
 }
 
-.band-picker-hint {
-  display: none;
-  margin: 0;
-  color: var(--muted);
-  font-size: var(--type-caption);
-}
-
 .band-picker-scroll {
   position: relative;
   display: flex;
@@ -577,7 +570,12 @@
   gap: var(--space-1);
   overflow-x: auto;
   scrollbar-width: thin;
+  --fade-start: 0px;
+  --fade-end: 0px;
+  mask-image: linear-gradient(to right, transparent, #000 var(--fade-start), #000 calc(100% - var(--fade-end)), transparent);
 }
+.band-picker-scroll.more-start { --fade-start: 24px; }
+.band-picker-scroll.more-end { --fade-end: 24px; }
 
 .band-picker button {
   flex: 0 0 auto;

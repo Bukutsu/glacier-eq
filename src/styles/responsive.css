@@ -365,10 +365,6 @@
   .band-number {
     display: none !important;
   }
-  .band-picker-hint {
-    display: block;
-    padding: 6px 12px 0;
-  }
   .band-picker-scroll {
     scrollbar-width: none;
   }
@@ -1045,9 +1041,7 @@
     align-items: stretch;
     gap: var(--space-2);
     padding: var(--space-2) var(--space-3);
-    max-width: 640px;
     width: 100%;
-    margin-inline: auto;
     box-sizing: border-box;
   }
   .mobile-filter-card .band-field {
@@ -1096,9 +1090,7 @@
     border: 1px solid var(--line-soft);
     border-radius: var(--radius-surface);
     overflow: hidden;
-    max-width: 640px;
     width: 100%;
-    margin-inline: auto;
     box-sizing: border-box;
   }
   .mobile-preamp-details summary {
@@ -1131,10 +1123,6 @@
   }
   .mobile-preamp-details .preamp-meta strong {
     display: none;
-  }
-  .band-picker-hint {
-    margin: 0;
-    padding: var(--space-2) var(--space-4);
   }
 
   .title-stack { gap: var(--space-1); }
@@ -1443,4 +1431,10 @@ body.is-android *,
   .band-undo-toast {
     bottom: calc(var(--tabbar-h) + var(--safe-area-bottom, 0px) + 68px);
   }
+}
+
+/* Tablets use the touch layout; give the graph room instead of a phone-sized strip. */
+@media (min-width: 600px) and (max-width: 850px) {
+  .mobile-graph-container .graph-card { height: clamp(180px, 24dvh, 300px); }
+  .mobile-graph-tuning .graph-card { height: clamp(160px, 22dvh, 260px); }
 }

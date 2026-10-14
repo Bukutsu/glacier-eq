@@ -50,8 +50,8 @@ interface ToolsPanelProps {
   onSelectProfile: (profile: Profile) => void;
   onApplyProfile?: (profile: Profile) => void;
   onReloadProfiles: () => void;
-  onOpenProfilesDir: () => void;
-  hideProfileFolderButton?: boolean;
+  onOpenProfilesDir?: () => void;
+  profilesOnDisk?: boolean;
   onReset: () => void;
   onSave: () => void;
   onDelete: () => void;
