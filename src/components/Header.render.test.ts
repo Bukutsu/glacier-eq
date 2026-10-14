@@ -108,16 +108,19 @@ describe("Header markup", () => {
     expect(html).toContain("DAC: changes not written");
     const write = html.match(/<button[^>]*title="Store the editor EQ on the DAC"[^>]*>/)?.[0];
     expect(write).toContain('data-variant="primary"');
-    // Disconnect lives on the Device page; desktop has no one-item menu.
+    // Disconnect is a plain header button, not a one-item menu.
     expect(html).not.toContain('aria-label="Device actions"');
+    expect(html).toContain("Disconnect</span>");
   });
 
-  it.each(["device", "settings"] as const)("keeps EQ and connection buttons off the %s page", configPage => {
+  it.each(["device", "settings"] as const)("keeps EQ and connect buttons off the %s page", configPage => {
     for (const connected of [false, true]) {
       const html = renderToStaticMarkup(createElement(Header, { ...baseHeaderProps, connected, configPage }));
       expect(html).not.toContain("Read from DAC");
       expect(html).not.toContain("Connect DAC");
       expect(html).not.toContain("Profile:");
+      // The Device page card has its own Disconnect.
+      expect(html.includes("Disconnect</span>")).toBe(connected && configPage === "settings");
     }
   });
 

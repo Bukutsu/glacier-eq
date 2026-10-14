@@ -164,8 +164,10 @@ export const Header = memo(function Header({
             {draftRecovery}
           </div>}
         </div>
-        {/* Desktop toolbar; Device and Settings pages carry their own actions. */}
-        {!mobile && !isConfigPage && <div className="toolbar desktop-toolbar">
+        {/* Desktop toolbar. EQ actions stay on EQ pages; Disconnect shows on
+            every page except Device, whose card has its own. */}
+        {!mobile && (!isConfigPage || (connected && configPage !== "device")) && <div className="toolbar desktop-toolbar">
+          {!isConfigPage && <>
           <div className="history-buttons" role="group" aria-label="Edit history">
             <Button
               type="button"
@@ -200,6 +202,13 @@ export const Header = memo(function Header({
             <Button type="button" variant="primary" onClick={onConnectClick} disabled={isBusy}>
               <Icon name="link" />
               <span>Connect DAC</span>
+            </Button>
+          )}
+          </>}
+          {connected && (
+            <Button type="button" variant="ghost" onClick={onDisconnect} disabled={isBusy}>
+              <Icon name="link_off" />
+              <span>Disconnect</span>
             </Button>
           )}
         </div>}
