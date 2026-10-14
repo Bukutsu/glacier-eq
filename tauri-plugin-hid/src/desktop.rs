@@ -20,6 +20,35 @@ fn ensure_complete_write(expected: usize, actual: usize) -> crate::Result<()> {
     }
 }
 
+fn hex_bytes(data: &[u8]) -> String {
+    data.iter()
+        .map(|byte| format!("{byte:02X}"))
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn output_report_failure(
+    error: &str,
+    data: &[u8],
+    interface: &str,
+    descriptor: Result<&[u8], String>,
+) -> String {
+    let id = data
+        .first()
+        .map_or_else(|| "missing".to_string(), |id| format!("0x{id:02X}"));
+    let descriptor = match descriptor {
+        Ok([]) => "empty".to_string(),
+        Ok(bytes) => hex_bytes(bytes),
+        Err(error) => format!("unavailable: {error}"),
+    };
+    format!(
+        "{error}; Output report ID={id}, buffer={} bytes, prefix=[{}]; \
+         HID interface={interface}; HIDAPI report descriptor=[{descriptor}]",
+        data.len(),
+        hex_bytes(&data[..data.len().min(8)]),
+    )
+}
+
 pub fn init<R: Runtime, C: DeserializeOwned>(
     _app: &AppHandle<R>,
     _api: PluginApi<R, C>,
@@ -104,8 +133,31 @@ impl<R: Runtime> Hid<R> {
                 .ok_or(crate::Error::HidDeviceNotFoundInOpenDevices)?
         };
         let device = device.lock().unwrap_or_else(|p| p.into_inner());
-        device.send_output_report(data)?;
-        Ok(())
+        device.send_output_report(data).map_err(|error| {
+            // Read-only metadata on failure, not a Feature-report fallback.
+            // Keep the attempted framing and descriptor together so report
+            // type/ID mismatches can be diagnosed without guessing commands.
+            let interface = device.get_device_info().map_or_else(
+                |error| format!("unavailable: {error}"),
+                |info| {
+                    format!(
+                        "number={}, usage_page=0x{:04X}, usage=0x{:04X}",
+                        info.interface_number(),
+                        info.usage_page(),
+                        info.usage()
+                    )
+                },
+            );
+            let mut descriptor = vec![0; hidapi::MAX_REPORT_DESCRIPTOR_SIZE];
+            let result = device
+                .get_report_descriptor(&mut descriptor)
+                .map(|length| &descriptor[..length])
+                .map_err(|error| error.to_string());
+            hidapi::HidError::HidApiError {
+                message: output_report_failure(&error.to_string(), data, &interface, result),
+            }
+            .into()
+        })
     }
 
     pub fn read(&self, path: &str, timeout: i32) -> crate::Result<Vec<u8>> {
@@ -127,6 +179,38 @@ impl<R: Runtime> Hid<R> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn failed_output_reports_include_framing_and_descriptor() {
+        let mut report = vec![0; 64];
+        report[..3].copy_from_slice(&[0x4B, 0x80, 0x23]);
+        let error = output_report_failure(
+            "HidD_SetOutputReport",
+            &report,
+            "number=0",
+            Ok(&[0x85, 0x01, 0x75, 0x08]),
+        );
+        assert!(error.contains("HidD_SetOutputReport"));
+        assert!(error.contains("Output report ID=0x4B, buffer=64 bytes"));
+        assert!(error.contains("prefix=[4B 80 23 00 00 00 00 00]"));
+        assert!(error.contains("HID interface=number=0"));
+        assert!(error.contains("HIDAPI report descriptor=[85 01 75 08]"));
+    }
+
+    #[test]
+    fn metadata_failure_preserves_the_original_output_error() {
+        let error = output_report_failure(
+            "HidD_SetOutputReport",
+            &[],
+            "unavailable",
+            Err("device disconnected".to_string()),
+        );
+        assert!(error.starts_with("HidD_SetOutputReport"));
+        assert!(error.contains("ID=missing, buffer=0 bytes"));
+        assert!(error.contains("descriptor=[unavailable: device disconnected]"));
+        assert!(output_report_failure("failure", &[0], "unknown", Ok(&[]))
+            .contains("descriptor=[empty]"));
+    }
 
     #[test]
     fn accepts_complete_and_padded_hid_writes() {
