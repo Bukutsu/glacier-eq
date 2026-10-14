@@ -459,18 +459,17 @@ button.danger { color: var(--destructive-foreground); background: transparent; o
   margin-top: 4px;
 }
 
-.sidebar-specs-card {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+.sidebar-device {
+  display: grid;
+  gap: 4px;
+  color: inherit;
+  text-decoration: none;
+  border-radius: var(--control-radius);
 }
+.sidebar-device:hover .sidebar-device-name { text-decoration: underline; }
+.sidebar-device:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 
-.sidebar-specs-header {
-  display: flex;
-  align-items: center;
-}
-
-.sidebar-specs-status {
+.sidebar-device-status {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -479,100 +478,22 @@ button.danger { color: var(--destructive-foreground); background: transparent; o
   color: var(--muted);
 }
 
-.sidebar-specs-dot {
+.sidebar-device-dot {
   width: 6px;
   height: 6px;
   flex-shrink: 0;
+  border-radius: var(--radius-pill);
 }
+.sidebar-device-dot.connected { background: var(--green); }
+.sidebar-device-dot.simulated { background: var(--yellow); }
+.sidebar-device-dot.offline { background: var(--comment); }
 
-.sidebar-specs-dot.connected {
-  background: var(--green);
-}
-
-.sidebar-specs-dot.simulated {
-  background: var(--yellow);
-}
-
-.sidebar-specs-dot.offline {
-  background: var(--comment);
-}
-
-.sidebar-specs-identity {
-  display: grid;
-  gap: 4px;
-}
-
-.sidebar-specs-title {
+.sidebar-device-name {
   font-size: 14px;
   font-weight: 600;
   color: var(--text);
   overflow-wrap: anywhere;
   line-height: 1.4;
-}
-
-.sidebar-specs-chip {
-  margin: 0;
-  font-size: var(--type-small);
-  color: var(--muted);
-  overflow-wrap: anywhere;
-  line-height: 1.4;
-}
-
-.sidebar-specs-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin: 0;
-}
-
-.sidebar-specs-row {
-  display: grid;
-  grid-template-columns: 52px minmax(0, 1fr);
-  align-items: baseline;
-  gap: 8px;
-  line-height: 1.4;
-}
-
-.sidebar-specs-row--dsp {
-  margin-top: 2px;
-  padding-top: 10px;
-  border-top: 1px solid var(--line-soft);
-}
-
-.sidebar-specs-row dt {
-  color: var(--muted);
-  font-size: var(--type-caption);
-  font-weight: 400;
-}
-
-.sidebar-specs-row dd {
-  margin: 0;
-  color: var(--text);
-  font-family: var(--font-mono);
-  font-size: var(--type-caption);
-  font-variant-numeric: tabular-nums;
-  overflow-wrap: anywhere;
-  text-align: right;
-}
-
-.device-specs-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  user-select: none;
-}
-
-.device-specs-panel .sidebar-specs-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-  gap: 6px 16px;
-  border-top: 1px solid var(--line-subtle);
-  padding-top: 8px;
-}
-
-.device-specs-panel .sidebar-specs-row {
-  grid-template-columns: 36px 1fr;
-  gap: 8px;
 }
 
 /* DAC Filter Mode Visualization (EqGraph style) */

@@ -12,10 +12,6 @@ const baseHeaderProps: Parameters<typeof Header>[0] = {
   deviceName: "",
   profileDirty: false,
   deviceMatchesEditor: null,
-  activeBands: 0,
-  maxBands: 10,
-  preampDb: 0,
-  supportsRamApply: false,
   hardwareEq: true,
   canUndo: false,
   canRedo: false,
@@ -112,9 +108,17 @@ describe("Header markup", () => {
     expect(html).toContain("DAC: changes not written");
     const write = html.match(/<button[^>]*title="Store the editor EQ on the DAC"[^>]*>/)?.[0];
     expect(write).toContain('data-variant="primary"');
-    expect(html).not.toContain('role="menu"');
-    const menu = html.match(/<button[^>]*aria-label="Device actions"[^>]*>/)?.[0];
-    expect(menu).toContain('aria-expanded="false"');
+    // Disconnect lives on the Device page; desktop has no one-item menu.
+    expect(html).not.toContain('aria-label="Device actions"');
+  });
+
+  it.each(["device", "settings"] as const)("keeps EQ and connection buttons off the %s page", configPage => {
+    for (const connected of [false, true]) {
+      const html = renderToStaticMarkup(createElement(Header, { ...baseHeaderProps, connected, configPage }));
+      expect(html).not.toContain("Read from DAC");
+      expect(html).not.toContain("Connect DAC");
+      expect(html).not.toContain("Profile:");
+    }
   });
 
   it("marks a saved, edited profile as modified rather than synced", () => {

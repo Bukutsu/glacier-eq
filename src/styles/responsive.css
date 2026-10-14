@@ -144,18 +144,6 @@
     gap: 8px;
     width: 100%;
   }
-  .header-session-strip {
-    display: none;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .header-session-strip .session-hide-mobile {
-    display: none;
-  }
-  .header-session-strip .session-hide-mobile + span::before {
-    content: none;
-  }
   h1 { font-size: var(--type-title); }
   .device-name {
     font-size: var(--type-caption);
@@ -995,10 +983,6 @@
     padding-inline: 16px;
   }
 
-  .app-header .github-link {
-    display: none;
-  }
-
   .mobile-workspace .left-pane {
     gap: 12px;
   }
@@ -1385,18 +1369,11 @@ body.is-android *,
     font-size: var(--type-label);
   }
 
-  .desktop-sidebar .sidebar-specs-card {
+  .desktop-sidebar .sidebar-device {
     margin-top: auto;
     padding: var(--space-3) var(--space-2);
-    background: transparent;
-    border: 0;
     border-top: 1px solid var(--line-soft);
-  }
-
-  .desktop-sidebar .sidebar-specs-dot { border-radius: var(--radius-pill); }
-
-  @media (max-height: 680px) {
-    .desktop-sidebar .sidebar-specs-row.secondary { display: none; }
+    border-radius: 0;
   }
 
   .desktop-content {

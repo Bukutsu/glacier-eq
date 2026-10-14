@@ -358,7 +358,7 @@ export const ProfilesView = memo(function ProfilesView({
       <section className="profiles-library" aria-labelledby="profiles-title">
         <header className="profiles-header">
           <div>
-            <h2 id="profiles-title">Profiles</h2>
+            <h2 id="profiles-title">Library</h2>
             <p className="profiles-note">{savedProfiles.length} saved</p>
           </div>
           <div className="profiles-header-actions">

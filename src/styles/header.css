@@ -16,7 +16,6 @@
 }
 
 .title-stack { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.workspace-heading { color: var(--muted); font-size: var(--type-small); line-height: 1.4; }
 .title-line { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
 
 h1 {
@@ -28,18 +27,6 @@ h1 {
   font-weight: 600;
   overflow-wrap: anywhere;
 }
-
-.github-link {
-  width: 32px;
-  height: 32px;
-  flex: 0 0 32px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--muted);
-}
-.github-link:hover { color: var(--text); }
-.github-link svg { width: 16px; height: 16px; fill: currentColor; }
 
 .header-meta-row {
   display: flex;
@@ -79,20 +66,14 @@ h1 {
 .sync-dot.simulation, .sync-dot.working { color: var(--sync-working); }
 .sync-dot.unsaved { color: var(--sync-unsaved); }
 
-.header-session-strip {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0;
-  min-width: 0;
+.header-profile-state {
   color: var(--muted);
-  font-size: var(--type-caption);
+  font-size: var(--type-small);
   line-height: 1.4;
 }
-.header-session-strip span + span::before {
+.header-profile-state::before {
   content: "·";
-  margin: 0 var(--space-2);
-  color: var(--muted);
+  margin-right: var(--space-2);
 }
 
 /* The chip appears and disappears with the draft, so it must not change the

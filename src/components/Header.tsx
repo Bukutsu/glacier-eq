@@ -4,33 +4,6 @@ import { Button } from "./ui/Button";
 import { Icon } from "./Icon";
 import { ToastContainer } from "./Toast";
 import { OperationProgress } from "../types";
-import { isTauri } from "../lib/platform";
-import { useIsMobile } from "../hooks/useIsMobile";
-import { formatDb } from "../lib/peq";
-
-const REPO_URL = "https://github.com/Bukutsu/glacier-eq";
-
-function GithubLink() {
-  const isMobile = useIsMobile();
-  // CSS also hides the link on mobile; returning null keeps it out of the
-  // keyboard tab order instead of leaving a focusable hidden element.
-  if (isTauri() || isMobile) return null;
-
-  return (
-    <a
-      className="github-link"
-      href={REPO_URL}
-      target="_blank"
-      rel="noreferrer"
-      title="GitHub repository"
-      aria-label="GitHub repository"
-    >
-      <svg viewBox="0 0 16 16" aria-hidden="true">
-        <path d="M8 0.2A7.9 7.9 0 0 0 5.5 15.6c0.4 0.1 0.5-0.2 0.5-0.4v-1.4c-2.1 0.5-2.6-0.9-2.6-0.9-0.4-0.9-0.9-1.1-0.9-1.1-0.7-0.5 0.1-0.5 0.1-0.5 0.8 0.1 1.2 0.8 1.2 0.8 0.7 1.2 1.9 0.9 2.3 0.7 0.1-0.5 0.3-0.9 0.5-1.1-1.7-0.2-3.5-0.9-3.5-3.9 0-0.9 0.3-1.6 0.8-2.1-0.1-0.2-0.4-1 0.1-2.1 0 0 0.7-0.2 2.2 0.8A7.6 7.6 0 0 1 8 4.1c0.7 0 1.3 0.1 1.9 0.3 1.5-1 2.2-0.8 2.2-0.8 0.4 1.1 0.2 1.9 0.1 2.1 0.5 0.6 0.8 1.3 0.8 2.1 0 3-1.8 3.6-3.5 3.8 0.3 0.2 0.5 0.7 0.5 1.4v2.1c0 0.2 0.1 0.5 0.5 0.4A7.9 7.9 0 0 0 8 0.2z" />
-      </svg>
-    </a>
-  );
-}
 
 function ConnectionActions({ isBusy, onDisconnect, onPull, compact = false }: {
   isBusy: boolean;
@@ -70,16 +43,11 @@ interface HeaderProps {
   isSimulated?: boolean;
   isBusy: boolean;
   progress: OperationProgress | null;
-  workspaceLabel?: string;
   profile: string;
   deviceName: string;
   profileDirty: boolean;
   profileSaved?: boolean;
   deviceMatchesEditor: boolean | null;
-  activeBands: number;
-  maxBands: number;
-  preampDb: number;
-  supportsRamApply: boolean;
   hardwareEq: boolean;
   canUndo: boolean;
   canRedo: boolean;
@@ -103,16 +71,11 @@ export const Header = memo(function Header({
   isSimulated = false,
   isBusy,
   progress,
-  workspaceLabel,
   profile,
   deviceName,
   profileDirty,
   profileSaved = false,
   deviceMatchesEditor,
-  activeBands,
-  maxBands,
-  preampDb,
-  supportsRamApply,
   hardwareEq,
   canUndo,
   canRedo,
@@ -130,7 +93,6 @@ export const Header = memo(function Header({
   draftRecovery,
 }: HeaderProps) {
   const isConfigPage = configPage !== undefined;
-  const showDeviceEditorActions = !isConfigPage || configPage === "device";
   const pageTitle = pageTitleOverride ?? (configPage === "device" ? "Device" : configPage === "settings" ? "Settings" : profile);
 
   const syncClass = !connected
@@ -190,62 +152,49 @@ export const Header = memo(function Header({
     <header className={`app-header${compact ? " compact-mobile" : ""}`} inert={inert}>
       <div className="header-main">
         <div className="title-stack">
-          {!mobile && workspaceLabel && <div className="workspace-heading">{workspaceLabel}</div>}
           <div className="title-line">
             <h1>{pageTitle}</h1>
-            <GithubLink />
           </div>
+          {/* One status line: DAC, sync state, and (on EQ pages) the profile. */}
           <div className="header-meta-row">
             {connected && !mobile && <div className="device-name">{deviceName}</div>}
             <span className={`sync-dot ${syncClass}`} role="status" aria-live="polite">{mobile ? mobileSyncText : syncText}</span>
+            {!isConfigPage && !mobile && <span className="header-profile-state">{profileText}</span>}
             {draftRecovery}
           </div>
-          {!isConfigPage && !mobile && (
-            <div className="header-session-strip" role="group" aria-label="EQ session status">
-              <span>{profileText}</span>
-              <span>{activeBands}/{maxBands} bands</span>
-              <span>{formatDb(preampDb)} preamp</span>
-              {connected && hardwareEq && <span className="session-hide-mobile">{supportsRamApply ? "Temporary EQ supported" : "Persistent writes only"}</span>}
-            </div>
-          )}
         </div>
-        {/* Desktop Toolbar */}
-        {!mobile && <div className="toolbar desktop-toolbar">
-          {!isConfigPage && (
-            <div className="history-buttons" role="group" aria-label="Edit history">
-              <Button
-                type="button"
-                variant="ghost" size="icon" className="history-btn"
-                title="Undo"
-                aria-label="Undo"
-                disabled={isBusy || !canUndo}
-                onClick={onUndo}
-              >
-                <Icon name="undo" />
-              </Button>
-              <Button
-                type="button"
-                variant="ghost" size="icon" className="history-btn"
-                title="Redo"
-                aria-label="Redo"
-                disabled={isBusy || !canRedo}
-                onClick={onRedo}
-              >
-                <Icon name="redo" />
-              </Button>
-            </div>
-          )}
-          {!isConfigPage && exportButton}
+        {/* Desktop toolbar; Device and Settings pages carry their own actions. */}
+        {!mobile && !isConfigPage && <div className="toolbar desktop-toolbar">
+          <div className="history-buttons" role="group" aria-label="Edit history">
+            <Button
+              type="button"
+              variant="ghost" size="icon" className="history-btn"
+              title="Undo"
+              aria-label="Undo"
+              disabled={isBusy || !canUndo}
+              onClick={onUndo}
+            >
+              <Icon name="undo" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost" size="icon" className="history-btn"
+              title="Redo"
+              aria-label="Redo"
+              disabled={isBusy || !canRedo}
+              onClick={onRedo}
+            >
+              <Icon name="redo" />
+            </Button>
+          </div>
+          {exportButton}
           {connected ? (
-            <>
-              {showDeviceEditorActions && hardwareEq && (
-                <>
-                  <Button type="button" variant="default" title="Replace the editor with EQ read from the DAC" onClick={onPull} disabled={isBusy}>Read from DAC</Button>
-                  <Button type="button" variant={writeVariant} title="Store the editor EQ on the DAC" onClick={onPush} disabled={isBusy}>Write to DAC</Button>
-                </>
-              )}
-              <ConnectionActions isBusy={isBusy} onDisconnect={onDisconnect} />
-            </>
+            hardwareEq && (
+              <>
+                <Button type="button" variant="default" title="Replace the editor with EQ read from the DAC" onClick={onPull} disabled={isBusy}>Read from DAC</Button>
+                <Button type="button" variant={writeVariant} title="Store the editor EQ on the DAC" onClick={onPush} disabled={isBusy}>Write to DAC</Button>
+              </>
+            )
           ) : (
             <Button type="button" variant="primary" onClick={onConnectClick} disabled={isBusy}>
               <Icon name="link" />

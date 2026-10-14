@@ -31,7 +31,7 @@ import {
 import { ConfirmDialogHost, confirmDialog } from "./components/ConfirmDialog";
 import { Modal } from "./components/Modal";
 import { isBalanceNavigation, MODAL_HISTORY_KEY } from "./lib/modalHistory";
-import { SidebarDeviceSpecs } from "./components/SidebarDeviceSpecs";
+import { SidebarDevice } from "./components/SidebarDevice";
 import {
   DEV_DUMMY_DEVICE,
   readDevDummyPeq,
@@ -2203,16 +2203,11 @@ function App() {
           isSimulated={isDevDummyDevice(selectedDevice)}
           isBusy={isBusy}
           progress={progress}
-          workspaceLabel={activeTab === "eq" ? "Equalizer" : MOBILE_TABS.find((tab) => tab.id === activeTab)?.label}
           profile={selectedPreset}
           deviceName={deviceName}
           profileDirty={dirty}
           profileSaved={profiles.some((profile) => profile.modified != null && profileIdentityKey(profile.name) === profileIdentityKey(selectedPreset))}
           deviceMatchesEditor={lastPushedPeq ? peqEquals(peq, lastPushedPeq) : null}
-          activeBands={peq.filters.slice(0, maxFilterBands).filter((filter) => filter.enabled).length}
-          maxBands={maxFilterBands}
-          preampDb={peq.global_gain}
-          supportsRamApply={supportsRamApply}
           hardwareEq={hardwareEq}
           canUndo={canUndoHistory}
           canRedo={canRedoHistory}
@@ -2224,7 +2219,7 @@ function App() {
           onDisconnect={disconnectDevice}
           onConnectClick={handleOpenDeviceModal}
           configPage={desktopConfigPage}
-          pageTitle={isMobile ? mobilePageTitle : undefined}
+          pageTitle={isMobile ? mobilePageTitle : activeTab === "profiles" ? "Profiles" : undefined}
           mobile={isMobile}
           compact={isMobile && activeTab !== "eq" && !recoveryPending}
           draftRecovery={draftRecovery}
@@ -2409,12 +2404,16 @@ function App() {
                 </Fragment>
               ))}
             </nav>
-            <SidebarDeviceSpecs
+            <SidebarDevice
               connected={connected}
               isSimulated={isDevDummyDevice(selectedDevice)}
               deviceInfo={selectedDeviceInfo}
-              capabilities={capabilities}
-              firmwareVersion={firmwareVersion}
+              to={workspacePath("device")}
+              onOpen={(event) => {
+                if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+                event.preventDefault();
+                handleSelectWorkspaceTab("device");
+              }}
             />
           </aside>
           <div className="desktop-content">
