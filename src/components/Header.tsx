@@ -79,6 +79,7 @@ interface HeaderProps {
   maxBands: number;
   preampDb: number;
   supportsRamApply: boolean;
+  hardwareEq: boolean;
   canUndo: boolean;
   canRedo: boolean;
   onUndo: () => void;
@@ -110,6 +111,7 @@ export const Header = memo(function Header({
   maxBands,
   preampDb,
   supportsRamApply,
+  hardwareEq,
   canUndo,
   canRedo,
   onUndo,
@@ -134,7 +136,7 @@ export const Header = memo(function Header({
       ? "working"
       : isSimulated
         ? "simulation"
-        : deviceMatchesEditor === null
+        : !hardwareEq || deviceMatchesEditor === null
           ? "unknown"
           : deviceMatchesEditor
             ? "ok"
@@ -147,7 +149,9 @@ export const Header = memo(function Header({
         : "Working"
       : isSimulated
         ? "Simulation · no hardware changes"
-        : deviceMatchesEditor === null
+        : !hardwareEq
+          ? "This DAC has no hardware EQ"
+          : deviceMatchesEditor === null
           ? "Device state unknown"
           : deviceMatchesEditor
             ? "DAC: matches editor"
@@ -161,6 +165,7 @@ export const Header = memo(function Header({
   const mobileSyncText = !connected ? "Offline editing"
     : isBusy ? syncText
     : isSimulated ? "Simulated device; no hardware changes"
+    : !hardwareEq ? "This DAC has no hardware EQ"
     : deviceMatchesEditor === true ? "Saved to DAC"
     : deviceMatchesEditor === false ? "Changes not saved to DAC"
     : "Read EQ from the DAC to check its state";
@@ -184,7 +189,7 @@ export const Header = memo(function Header({
               <span>{profileText}</span>
               <span>{activeBands}/{maxBands} bands</span>
               <span>{preampDb.toFixed(1)} dB preamp</span>
-              {connected && <span className="session-hide-mobile">{supportsRamApply ? "Temporary EQ supported" : "Persistent writes only"}</span>}
+              {connected && hardwareEq && <span className="session-hide-mobile">{supportsRamApply ? "Temporary EQ supported" : "Persistent writes only"}</span>}
             </div>
           )}
         </div>
@@ -216,7 +221,7 @@ export const Header = memo(function Header({
           )}
           {connected ? (
             <>
-              {showDeviceEditorActions && (
+              {showDeviceEditorActions && hardwareEq && (
                 <>
                   <Button type="button" variant="default" title="Replace the editor with EQ read from the DAC" onClick={onPull} disabled={isBusy}>Read from DAC</Button>
                   <Button type="button" variant={writeVariant} title="Store the editor EQ on the DAC" onClick={onPush} disabled={isBusy}>Write to DAC</Button>
@@ -258,8 +263,8 @@ export const Header = memo(function Header({
           </div>
           {connected ? (
             <>
-              <Button type="button" variant={writeVariant} className="mobile-action-btn" title="Store the editor EQ on the DAC. It stays saved after unplugging." onClick={onPush} disabled={isBusy}><Icon name="save" /> Save to DAC</Button>
-              <ConnectionActions isBusy={isBusy} onDisconnect={onDisconnect} onPull={onPull} compact />
+              {hardwareEq && <Button type="button" variant={writeVariant} className="mobile-action-btn" title="Store the editor EQ on the DAC. It stays saved after unplugging." onClick={onPush} disabled={isBusy}><Icon name="save" /> Save to DAC</Button>}
+              <ConnectionActions isBusy={isBusy} onDisconnect={onDisconnect} onPull={hardwareEq ? onPull : undefined} compact />
             </>
           ) : (
             <Button type="button" variant="default" className="mobile-action-btn mobile-connect-btn" onClick={onConnectClick} disabled={isBusy}>

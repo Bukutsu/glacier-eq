@@ -88,6 +88,27 @@ describe("DeviceView markup", () => {
     expect(other).not.toContain("Reading Dawn Pro settings");
   });
 
+  it("offers no EQ or Walkplay resets for a DAC without them", () => {
+    const html = renderDeviceView({
+      connected: true, section: "maintenance",
+      deviceInfo: { path: "dawn", vendor_id: 0x2fc6, product_id: 0xf06a, hardware_eq: false },
+    });
+    expect(html).not.toContain("Reset EQ");
+    expect(html).not.toContain("Reset controls");
+    expect(html).not.toContain("Factory reset");
+    expect(html).toContain("This DAC has no maintenance actions.");
+  });
+
+  it("exposes protocol selection only for a simulated DAC", () => {
+    const deviceInfo = { path: "glacier-dev://dummy-dac", vendor_id: 0x3302, product_id: 0x43e6 };
+    const preview = renderDeviceView({ connected: true, isSimulated: true,
+      deviceInfo, onPreviewChange: () => {} });
+    expect(preview).toContain("Protocol / model preview");
+    expect(preview).toContain("No hardware commands are sent");
+    const hardware = renderDeviceView({ connected: true, deviceInfo, onPreviewChange: () => {} });
+    expect(hardware).not.toContain("Protocol / model preview");
+  });
+
   it("formats channel balance with correct directional labels", () => {
     expect(formatChannelBalance(0)).toBe("Center (0)");
     expect(formatChannelBalance(5)).toBe("Right +5");

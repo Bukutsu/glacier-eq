@@ -87,6 +87,7 @@ interface ToolsPanelProps {
   deviceSection?: DeviceSection;
   settingsSection?: SettingsSection;
   onDisconnect?: () => Promise<void>;
+  onPreviewChange?: (device: DeviceInfo) => void;
   onReviewEq?: () => void;
   profilePreview?: ReactNode;
 }
@@ -129,6 +130,7 @@ export const ToolsPanel = memo(function ToolsPanel(props: ToolsPanelProps) {
               onPull={props.onPull}
               onOpenConnectModal={props.onOpenConnectModal}
               onDisconnect={props.onDisconnect}
+              onPreviewChange={props.onPreviewChange}
             />
           )}
           {tab === "Settings" && (

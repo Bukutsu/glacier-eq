@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 import { useEffect, useRef, useState } from "react";
-import { invoke } from "../lib/rpc";
+import { invokeForDevice } from "../lib/rpc";
 import {
   createCoalescingTaskScheduler, mergeFieldsAtUnchangedRevisions,
   revertFieldIfCurrent, setField,
@@ -98,7 +98,7 @@ export function DawnProControls({ path, isBusy, setStatus }: {
     setRefreshing(true);
     const before = { ...settledRevisions.current };
     try {
-      const incoming = await invoke<DawnProState>("get_dawn_pro_state", { path });
+      const incoming = await invokeForDevice<DawnProState>(path, "get_dawn_pro_state", { path });
       if (!isCurrent()) return;
       confirmed.current = incoming;
       const next = stateRef.current
@@ -133,7 +133,7 @@ export function DawnProControls({ path, isBusy, setStatus }: {
       // starts. Only this write's field is being confirmed by its readback.
       const before = { ...settledRevisions.current, [field]: revision };
       try {
-        const incoming = await invoke<DawnProState>("set_dawn_pro_control",
+        const incoming = await invokeForDevice<DawnProState>(path, "set_dawn_pro_control",
           { path, control, value: Number(value) });
         if (!isCurrent() || !stateRef.current) return;
         confirmed.current = incoming;

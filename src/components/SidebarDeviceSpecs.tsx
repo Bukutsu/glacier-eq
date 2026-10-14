@@ -90,20 +90,29 @@ export const DeviceSpecs = memo(function DeviceSpecs({
           </>
         )}
 
-        <div className={`sidebar-specs-row${officialSpec ? " sidebar-specs-row--dsp" : ""}`}>
-          <dt>DSP</dt>
-          <dd>{dspKhz} kHz</dd>
-        </div>
+        {deviceInfo?.hardware_eq === false ? (
+          <div className="sidebar-specs-row">
+            <dt>EQ</dt>
+            <dd>None</dd>
+          </div>
+        ) : (
+          <>
+            <div className={`sidebar-specs-row${officialSpec ? " sidebar-specs-row--dsp" : ""}`}>
+              <dt>DSP</dt>
+              <dd>{dspKhz} kHz</dd>
+            </div>
 
-        <div className="sidebar-specs-row">
-          <dt>EQ</dt>
-          <dd>{capabilities.num_bands} bands</dd>
-        </div>
+            <div className="sidebar-specs-row">
+              <dt>EQ</dt>
+              <dd>{capabilities.num_bands} bands</dd>
+            </div>
 
-        <div className="sidebar-specs-row secondary">
-          <dt>Gain</dt>
-          <dd>±{bandGain} dB</dd>
-        </div>
+            <div className="sidebar-specs-row secondary">
+              <dt>Gain</dt>
+              <dd>±{bandGain} dB</dd>
+            </div>
+          </>
+        )}
 
         {connected && firmwareVersion && (
           <div className="sidebar-specs-row secondary">

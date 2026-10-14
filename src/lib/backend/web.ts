@@ -1116,6 +1116,7 @@ function parseSupportedDeviceInfo(value: unknown): SupportedDeviceInfo | null {
     !(value.product_id === null || isFiniteNumber(value.product_id)) ||
     typeof value.status !== "string" ||
     typeof value.family !== "string" ||
+    typeof value.hardware_eq !== "boolean" ||
     !isFiniteNumber(value.num_bands) ||
     typeof value.supports_per_band_enable !== "boolean" ||
     typeof value.supports_ram_apply !== "boolean" ||
@@ -1143,6 +1144,7 @@ function parseSupportedDeviceInfo(value: unknown): SupportedDeviceInfo | null {
     product_id: value.product_id,
     status: value.status,
     family: value.family,
+    hardware_eq: value.hardware_eq,
     num_bands: value.num_bands,
     global_gain_range: globalGainRange,
     band_gain_range: bandGainRange,

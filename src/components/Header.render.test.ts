@@ -16,6 +16,7 @@ const baseHeaderProps: Parameters<typeof Header>[0] = {
   maxBands: 10,
   preampDb: 0,
   supportsRamApply: false,
+  hardwareEq: true,
   canUndo: false,
   canRedo: false,
   onUndo: () => {},
@@ -54,6 +55,16 @@ describe("Header markup", () => {
     expect(html).toContain('aria-label="EQ editing paused: discard the unreadable draft to continue"');
     expect(html).toContain("<strong>Editing paused</strong>");
     expect(html).not.toContain("Restore EQ");
+  });
+
+  it.each([false, true])("hides EQ read and write for a DAC without hardware EQ (mobile=%s)", mobile => {
+    const html = renderToStaticMarkup(createElement(Header, {
+      ...baseHeaderProps, connected: true, deviceName: "Moondrop Dawn Pro", hardwareEq: false, mobile,
+    }));
+    expect(html).toContain("This DAC has no hardware EQ");
+    expect(html).not.toContain("Read from DAC");
+    expect(html).not.toContain("Write to DAC");
+    expect(html).not.toContain("Save to DAC");
   });
 
   it("keeps one primary mobile save action and puts reads in the device menu", () => {

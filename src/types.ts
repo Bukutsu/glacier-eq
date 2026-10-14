@@ -83,6 +83,7 @@ export interface DeviceInfo extends DeviceCapabilities {
   manufacturer: string | null;
   product_string: string | null;
   profile_name: string | null;
+  hardware_eq: boolean;
 }
 
 export interface SupportedDeviceInfo extends DeviceCapabilities {
@@ -92,6 +93,7 @@ export interface SupportedDeviceInfo extends DeviceCapabilities {
   product_id: number | null;
   status: string;
   family: string;
+  hardware_eq: boolean;
 }
 
 export interface Profile {

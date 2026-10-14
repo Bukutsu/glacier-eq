@@ -17,7 +17,9 @@ import {
   StackHeader,
   ToggleRow,
 } from "./SettingsPrimitives";
-import { invoke, listen } from "../lib/rpc";
+import { invokeForDevice, listen } from "../lib/rpc";
+import { DevProtocolPreview } from "./DevProtocolPreview";
+import { isDevDummyDevice } from "../lib/devDevice";
 import { getOfficialDacSpec, OFFLINE_EDITOR_CAPABILITIES } from "../lib/dacSpecs";
 import type { DeviceSection } from "../lib/tabs";
 import {
@@ -47,6 +49,7 @@ export interface DeviceViewProps {
   onPull?: () => Promise<void | boolean>;
   onOpenConnectModal?: () => void;
   onDisconnect?: () => Promise<void>;
+  onPreviewChange?: (device: DeviceInfo) => void;
 }
 
 type DeviceUtilityState = {
@@ -70,8 +73,11 @@ export const DeviceView = memo(function DeviceView({
   onPull,
   onOpenConnectModal,
   onDisconnect,
+  onPreviewChange,
 }: DeviceViewProps) {
-  const dawnDevice = !isSimulated && deviceInfo?.vendor_id === 0x2fc6 &&
+  const invoke = <T,>(command: string, args?: Record<string, unknown>) =>
+    invokeForDevice<T>(deviceInfo?.path, command, args);
+  const dawnDevice = (!isSimulated || isDevDummyDevice(deviceInfo?.path ?? "")) && deviceInfo?.vendor_id === 0x2fc6 &&
     deviceInfo.product_id === 0xf06a ? deviceInfo : null;
   const [utility, setUtility] = useState<DeviceUtilityState | null>(null);
   const utilityRef = useRef<DeviceUtilityState | null>(null);
@@ -392,10 +398,13 @@ export const DeviceView = memo(function DeviceView({
   return (
     <ConfigurationLayout kind="device" active={activeSection} root={section === "root"} sections={sections} summary={deviceSummary}
       sectionTitle={sectionTitle} sectionValues={{
-        overview: `${capabilities.num_bands} bands · ${dspKhz} kHz`,
+        overview: deviceInfo?.hardware_eq === false ? "No hardware EQ" : `${capabilities.num_bands} bands · ${dspKhz} kHz`,
         controls: dawnDevice ? "Volume · gain · filter · LED" : utility?.supported ? `${utility.high_gain_mode ? "High" : "Low"} gain · ${utility.filter_mode}` : undefined,
       }}>
       <StackHeader title={sectionTitle} />
+      {isSimulated && deviceInfo && onPreviewChange && (
+        <DevProtocolPreview device={deviceInfo} disabled={isBusy} onChange={onPreviewChange} />
+      )}
 
       {activeSection === "controls" && connected && !isSimulated && (
         <p className="configuration-description">Changes apply directly to the connected DAC.</p>
@@ -407,9 +416,15 @@ export const DeviceView = memo(function DeviceView({
               {connected && (
                 <div><dt>Chip</dt><dd>{officialSpec?.chip ?? "Not reported"}</dd></div>
               )}
-              <div><dt>DSP sample rate</dt><dd>{dspKhz} kHz</dd></div>
-              <div><dt>EQ bands</dt><dd>{capabilities.num_bands}</dd></div>
-              <div><dt>Band gain</dt><dd>{capabilities.band_gain_range[0]} to {capabilities.band_gain_range[1]} dB</dd></div>
+              {deviceInfo?.hardware_eq === false ? (
+                <div><dt>Hardware EQ</dt><dd>None</dd></div>
+              ) : (
+                <>
+                  <div><dt>DSP sample rate</dt><dd>{dspKhz} kHz</dd></div>
+                  <div><dt>EQ bands</dt><dd>{capabilities.num_bands}</dd></div>
+                  <div><dt>Band gain</dt><dd>{capabilities.band_gain_range[0]} to {capabilities.band_gain_range[1]} dB</dd></div>
+                </>
+              )}
               {officialSpec?.outputs && (
                 <div><dt>Outputs</dt><dd>{officialSpec.outputs}</dd></div>
               )}
@@ -477,7 +492,7 @@ export const DeviceView = memo(function DeviceView({
                   <h3>{isSimulated ? "Simulation mode" : "Controls unavailable"}</h3>
                   <p>
                     {isSimulated
-                      ? "Hardware controls are not available on the simulated device."
+                      ? "This protocol has no additional sound controls. Select another preview model to review its controls."
                       : "This DAC supports EQ, but does not support filter or amplifier settings."}
                   </p>
                 </div>
@@ -593,30 +608,40 @@ export const DeviceView = memo(function DeviceView({
               </section>
             ) : (
               <div className="stack-card">
-                <ActionRow
-                  title="Reset device EQ"
-                  desc="Resets all EQ bands on the DAC to 0 dB"
-                  actionLabel="Reset EQ"
-                  disabled={isBusy}
-                  onAction={handleResetDeviceEq}
-                />
+                {deviceInfo?.hardware_eq !== false && (
+                  <ActionRow
+                    title="Reset device EQ"
+                    desc="Resets all EQ bands on the DAC to 0 dB"
+                    actionLabel="Reset EQ"
+                    disabled={isBusy}
+                    onAction={handleResetDeviceEq}
+                  />
+                )}
 
-                <ActionRow
-                  title="Reset device controls"
-                  desc="Resets filter mode, amplifier mode, gain, and balance to defaults"
-                  actionLabel="Reset controls"
-                  disabled={isBusy}
-                  onAction={handleResetDeviceControls}
-                />
+                {/* Control and factory resets use Walkplay commands only. */}
+                {utility?.supported && (
+                  <>
+                    <ActionRow
+                      title="Reset device controls"
+                      desc="Resets filter mode, amplifier mode, gain, and balance to defaults"
+                      actionLabel="Reset controls"
+                      disabled={isBusy}
+                      onAction={handleResetDeviceControls}
+                    />
 
-                <ActionRow
-                  title="Factory reset"
-                  desc="Restores the DAC to its factory defaults"
-                  actionLabel="Factory reset"
-                  danger
-                  disabled={isBusy}
-                  onAction={handleFactoryReset}
-                />
+                    <ActionRow
+                      title="Factory reset"
+                      desc="Restores the DAC to its factory defaults"
+                      actionLabel="Factory reset"
+                      danger
+                      disabled={isBusy}
+                      onAction={handleFactoryReset}
+                    />
+                  </>
+                )}
+                {deviceInfo?.hardware_eq === false && !utility?.supported && (
+                  <p className="configuration-description">This DAC has no maintenance actions.</p>
+                )}
               </div>
             )}
           </>

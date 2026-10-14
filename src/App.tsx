@@ -33,7 +33,9 @@ import { isBalanceNavigation, MODAL_HISTORY_KEY } from "./lib/modalHistory";
 import { SidebarDeviceSpecs } from "./components/SidebarDeviceSpecs";
 import {
   DEV_DUMMY_DEVICE,
-  buildDevDummyPeq,
+  readDevDummyPeq,
+  writeDevDummyPeq,
+  reconnectDevDummyDevice,
   isDevDummyDevice,
 } from "./lib/devDevice";
 import { buildDefaultState, DEFAULT_PROFILE_NAME, extractPushWarnings, normalizePeq, normalizePeqForDevice, parseStoredPeqResponse, peqEquals } from "./lib/peq";
@@ -212,6 +214,7 @@ function App() {
 
   const [peq, setPeq] = useState<PEQData>(buildDefaultState);
   const [devices, setDevices] = useState<DeviceInfo[]>([]);
+  const devPreviewDeviceRef = useRef(DEV_DUMMY_DEVICE);
   const [selectedDevice, setSelectedDevice] = useState("");
   const selectedDeviceRef = useRef(selectedDevice);
   selectedDeviceRef.current = selectedDevice;
@@ -500,8 +503,9 @@ function App() {
   const selectedCapabilities = selectedDeviceInfo ?? OFFLINE_EDITOR_CAPABILITIES;
   const capabilities = connected ? selectedCapabilities : OFFLINE_EDITOR_CAPABILITIES;
   const deviceName = selectedDeviceInfo?.profile_name || selectedDeviceInfo?.product_string || "Supported DAC";
+  const hardwareEq = selectedDeviceInfo?.hardware_eq !== false;
   const maxFilterBands = capabilities.num_bands;
-  const supportsRamApply = capabilities.supports_ram_apply;
+  const supportsRamApply = hardwareEq && capabilities.supports_ram_apply;
 
   const { pendingDraft, draftInvalid, resolveDraft } = useEditorDraft(peq, dirty, selectedPresetRef);
   const recoveryPending = Boolean(pendingDraft || draftInvalid);
@@ -698,7 +702,7 @@ function App() {
     try {
       const realDevices = await invoke<DeviceInfo[]>("list_devices");
       const list = import.meta.env.DEV
-        ? [...realDevices, DEV_DUMMY_DEVICE]
+        ? [...realDevices, devPreviewDeviceRef.current]
         : realDevices;
       setDevices((currentDevices) => {
         const activePath = connectedPathRef.current;
@@ -726,8 +730,8 @@ function App() {
       });
     } catch (error) {
       if (import.meta.env.DEV && !connectedRef.current) {
-        setDevices([DEV_DUMMY_DEVICE]);
-        setSelectedDevice(DEV_DUMMY_DEVICE.path);
+        setDevices([devPreviewDeviceRef.current]);
+        setSelectedDevice(devPreviewDeviceRef.current.path);
         reportStatus({ level: "Warn", message: `Device search unavailable. Using the simulated DAC: ${error}` });
         return;
       }
@@ -990,7 +994,7 @@ function App() {
         const realDevices = await invoke<DeviceInfo[]>("list_devices");
         if (!isCurrent()) return;
         const deviceList = import.meta.env.DEV
-          ? [...realDevices, DEV_DUMMY_DEVICE]
+          ? [...realDevices, devPreviewDeviceRef.current]
           : realDevices;
         setDevices(deviceList);
 
@@ -1053,7 +1057,7 @@ function App() {
             lastConnectedNameRef.current = devName;
             setLastPushedPeq(null);
             const connectionGeneration = connectionGenerationRef.current;
-            if (settings.auto_pull_on_connect) {
+            if (settings.auto_pull_on_connect && found.hardware_eq) {
               const pulled = await pullEqRef.current(true, found.path, found);
               if (!pulled && !connectedRef.current) {
                 if (openedSessionId !== null) {
@@ -1176,7 +1180,9 @@ function App() {
       && connectedSessionIdRef.current === confirmationSessionId
       && targetPath === confirmationTargetPath
       && targetCapabilities === confirmationCapabilities;
-    if (dirty && !(await confirmDialog({
+    // Preview connections confirm replacement before changing the model.
+    const replacingPreview = afterConnect && isDevDummyDevice(targetPath);
+    if (dirty && !replacingPreview && !(await confirmDialog({
       title: "Discard changes?",
       message: "Reading EQ from the DAC will discard your unsaved changes.",
       confirmLabel: "Discard and read",
@@ -1203,19 +1209,19 @@ function App() {
           percentage: 5,
         });
         await sleep(200);
-        setProgress({ message: "Reading band 1/10…", percentage: 15 });
+        setProgress({ message: `Reading band 1/${targetCapabilities.num_bands}…`, percentage: 15 });
         await sleep(150);
-        setProgress({ message: "Reading band 4/10…", percentage: 40 });
+        setProgress({ message: "Reading EQ bands…", percentage: 40 });
         await sleep(150);
-        setProgress({ message: "Reading band 7/10…", percentage: 65 });
+        setProgress({ message: "Reading filter settings…", percentage: 65 });
         await sleep(150);
-        setProgress({ message: "Reading band 10/10…", percentage: 85 });
+        setProgress({ message: `Read ${targetCapabilities.num_bands} bands`, percentage: 85 });
         await sleep(150);
         setProgress({ message: "Reading device preamp…", percentage: 90 });
         await sleep(150);
         setProgress({ message: "Read complete", percentage: 100 });
         await sleep(400);
-        data = buildDevDummyPeq();
+        data = readDevDummyPeq(targetPath);
       } else {
         data = await invoke<PEQData>("get_eq_state");
         await sleep(400);
@@ -1235,10 +1241,13 @@ function App() {
       setProfileSearch("");
       setNewProfileName("");
       noteEditorMutation();
-      if (matchedProfile !== "Pulled from device") {
+      const simulated = isDevDummyDevice(targetPath);
+      if (simulated || matchedProfile !== "Pulled from device") {
         editorCleanPeqRef.current = normalized;
       }
-      setDirty(matchedProfile === "Pulled from device");
+      // Browsing seeded previews is not an unsaved user edit. Actual edits
+      // still use the normal dirty/draft protection and switch confirmation.
+      setDirty(!simulated && matchedProfile === "Pulled from device");
       emit("device-pull").catch((err) => console.error("Failed to emit device-pull:", err));
       reportStatus({
         level: "Info",
@@ -1297,19 +1306,47 @@ function App() {
     setIsBusy(true);
     try {
       if (isDevDummyDevice(pathToConnect)) {
+        const oldPath = connectedPathRef.current;
+        const replacingEdits = dirty && (!oldPath || !isDevDummyDevice(oldPath) ||
+          devices.find((device) => device.path === oldPath)?.hardware_eq === false ||
+          !peqEquals(peqRef.current, readDevDummyPeq(oldPath)));
+        const context = getAsyncContext();
+        if (replacingEdits && !(await confirmDialog({
+          title: "Switch DAC preview?",
+          message: "Switching models replaces the editor EQ with that model's simulated EQ.",
+          confirmLabel: "Switch preview",
+        }))) return false;
+        if (!isCurrentConnect() || !asyncContextEquals(context, getAsyncContext())) return false;
+        // Switching to a preview releases the real session first. Subsequent
+        // controls are path-scoped simulations, never requests to this handle.
+        if (connectedPathRef.current && !isDevDummyDevice(connectedPathRef.current)) {
+          await invoke("disconnect_device", {
+            expectedPath: connectedPathRef.current,
+            expectedSessionId: connectedSessionIdRef.current,
+          });
+        }
+        if (!isCurrentConnect()) return false;
+        if (resolvedTarget) {
+          devPreviewDeviceRef.current = resolvedTarget;
+          setDevices(current => [...current.filter(device => !isDevDummyDevice(device.path)), resolvedTarget]);
+        }
+        reconnectDevDummyDevice(pathToConnect);
+        connectedSessionIdRef.current = null;
         selectedDeviceRef.current = pathToConnect;
         setSelectedDevice(pathToConnect);
         setConnected(true, pathToConnect);
         setLastPushedPeq(null);
-        setConnectedDeviceName("Glacier Dummy DAC");
-        lastConnectedNameRef.current = "Glacier Dummy DAC";
+        const previewName = resolvedTarget?.profile_name ?? "Glacier Dummy DAC";
+        setConnectedDeviceName(previewName);
+        lastConnectedNameRef.current = previewName;
         reportStatus({
           level: "Info",
           message: "Connected to simulated DAC",
           source: "UI",
           statusText: "Connected to simulated DAC",
         });
-        await pullEq(true, pathToConnect, targetCapabilities);
+        if (resolvedTarget?.hardware_eq !== false) await pullEq(true, pathToConnect, targetCapabilities);
+        if (!isCurrentConnect()) return false;
         await loadFirmwareVersion(pathToConnect, connectionGenerationRef.current);
         return true;
       }
@@ -1345,7 +1382,7 @@ function App() {
         statusText: "Ready",
       });
 
-      if (settings.auto_pull_on_connect) {
+      if (settings.auto_pull_on_connect && devInfo?.hardware_eq !== false) {
         const pulled = await pullEq(true, pathToConnect, targetCapabilities);
         if (!pulled && !connectedRef.current) {
           // A failed auto-pull can mark the UI disconnected while the backend
@@ -1443,13 +1480,20 @@ function App() {
       }
       if (isCurrentConnect()) setIsBusy(false);
     }
-  }, [devices, selectedDevice, pullEq, selectedDeviceInfo, selectedCapabilities, pushToUndoStack, loadFirmwareVersion, reportStatus, settings.auto_pull_on_connect, noteEditorMutation]);
+  }, [devices, selectedDevice, pullEq, selectedDeviceInfo, selectedCapabilities, pushToUndoStack, loadFirmwareVersion, reportStatus, settings.auto_pull_on_connect, noteEditorMutation, dirty, getAsyncContext]);
+
+  const handlePreviewChange = useCallback(async (device: DeviceInfo) => {
+    const currentPath = connectedPathRef.current;
+    if (isBusy || eqOperationInFlightRef.current || !currentPath ||
+      !isDevDummyDevice(currentPath) || !isDevDummyDevice(device.path)) return;
+    await connectDevice(device.path, device);
+  }, [isBusy, connectDevice]);
 
   const handleUdevInstalled = useCallback(async (): Promise<string | null> => {
     manualDisconnectRef.current = false;
     try {
       const realDevices = await invoke<DeviceInfo[]>("list_devices");
-      const list = import.meta.env.DEV ? [...realDevices, DEV_DUMMY_DEVICE] : realDevices;
+      const list = import.meta.env.DEV ? [...realDevices, devPreviewDeviceRef.current] : realDevices;
       setDevices(list);
       const target = list.find((d) => !isDevDummyDevice(d.path)) ?? list[0];
       if (target) {
@@ -1533,11 +1577,11 @@ function App() {
           percentage: 10,
         });
         await sleep(200);
-        setProgress({ message: "Writing band 1/10…", percentage: 20 });
+        setProgress({ message: `Writing band 1/${selectedCapabilities.num_bands}…`, percentage: 20 });
         await sleep(150);
-        setProgress({ message: "Writing band 5/10…", percentage: 45 });
+        setProgress({ message: "Writing EQ bands…", percentage: 45 });
         await sleep(150);
-        setProgress({ message: "Writing band 10/10…", percentage: 70 });
+        setProgress({ message: `Wrote ${selectedCapabilities.num_bands} bands`, percentage: 70 });
         await sleep(150);
         setProgress({ message: "Writing preamp…", percentage: 75 });
         await sleep(150);
@@ -1548,6 +1592,8 @@ function App() {
         await sleep(200);
         setProgress({ message: "Verifying changes…", percentage: 90 });
         await sleep(200);
+        if (!isCurrentOperation()) return;
+        committedPeq = writeDevDummyPeq(selectedDevice, snapshot);
         setProgress({ message: "Write complete", percentage: 100 });
         await sleep(400);
       } else {
@@ -1560,13 +1606,13 @@ function App() {
           integerPreamp: selectedCapabilities.integer_preamp,
           capabilities: selectedCapabilities,
         });
-        // Adopt the quantized device state into the editor only when nobody
-        // edited or reconnected during the write.
-        if (!peqEquals(committedPeq, snapshot) && isCurrentOperation() && isConfirmationCurrent()) {
-          pushToUndoStack(peqRef.current);
-          setPeq(committedPeq);
-          noteEditorMutation();
-        }
+      }
+      // Both real devices and previews may clamp a write to model limits.
+      // Adopt the committed state only if the editor/session is unchanged.
+      if (committedPeq && !peqEquals(committedPeq, snapshot) && isCurrentOperation() && isConfirmationCurrent()) {
+        pushToUndoStack(peqRef.current);
+        setPeq(committedPeq);
+        noteEditorMutation();
       }
       if (!isCurrentOperation()) return;
       setLastPushedPeq(committedPeq ?? snapshot);
@@ -1682,7 +1728,7 @@ function App() {
         }
         if (!isCurrentOperation()) return;
         if (isDevDummyDevice(selectedDevice)) {
-          setLastPushedPeq(data);
+          setLastPushedPeq(writeDevDummyPeq(selectedDevice, data, false));
         }
         const appliedMessage = isDevDummyDevice(selectedDevice)
           ? "Temporary EQ application simulated"
@@ -2052,6 +2098,7 @@ function App() {
     deviceInfo: selectedDeviceInfo,
     capabilities,
     firmwareVersion,
+    onPreviewChange: handlePreviewChange,
   };
   // Shared EQ/tuning graph; editing props only attach in the EQ workspace.
   const graphElement = (withEditor: boolean, highlightActiveBand: boolean = false) => (
@@ -2161,6 +2208,7 @@ function App() {
           maxBands={maxFilterBands}
           preampDb={peq.global_gain}
           supportsRamApply={supportsRamApply}
+          hardwareEq={hardwareEq}
           canUndo={canUndoHistory}
           canRedo={canRedoHistory}
           onUndo={undo}
@@ -2294,9 +2342,10 @@ function App() {
                   firmwareVersion={firmwareVersion}
                   section={deviceSection}
                   setStatus={setStatus}
-                  onPull={pullEq}
+                  onPull={hardwareEq ? pullEq : undefined}
                   onOpenConnectModal={handleOpenDeviceModal}
                   onDisconnect={connected ? disconnectDevice : undefined}
+                  onPreviewChange={handlePreviewChange}
                 />
               </section>
             )}
@@ -2386,7 +2435,7 @@ function App() {
             onImportPEQ={importPeq}
             onReviewEq={() => handleSelectWorkspaceTab("eq")}
             profilePreview={activeTab === "profiles" ? profilePreview : undefined}
-            onPull={pullEq}
+            onPull={hardwareEq ? pullEq : undefined}
             dirty={dirty}
             profiles={profiles}
             selectedPreset={selectedPreset}
@@ -2430,6 +2479,7 @@ function App() {
             deviceSection={deviceSection}
             settingsSection={settingsSection}
             onDisconnect={connected ? disconnectDevice : undefined}
+            onPreviewChange={handlePreviewChange}
           />
           )}
           </div>

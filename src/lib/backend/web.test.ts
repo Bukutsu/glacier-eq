@@ -75,6 +75,7 @@ const profile: SupportedDeviceInfo = {
   product_id: 0x5678,
   status: "supported",
   family: "test",
+  hardware_eq: true,
   num_bands: 10,
   global_gain_range: [-16, 6],
   band_gain_range: [-10, 10],
