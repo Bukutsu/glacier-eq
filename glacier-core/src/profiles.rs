@@ -656,15 +656,19 @@ mod tests {
     use super::*;
 
     fn temporary_dir() -> PathBuf {
+        // A clock reading alone can repeat across parallel tests; the counter
+        // keeps every directory in this process distinct.
+        static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
         let dir = std::env::temp_dir().join(format!(
-            "glacier-eq-profile-test-{}-{}",
+            "glacier-eq-profile-test-{}-{}-{}",
             std::process::id(),
+            NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
                 .as_nanos()
         ));
-        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::create_dir(&dir).unwrap();
         dir
     }
 
