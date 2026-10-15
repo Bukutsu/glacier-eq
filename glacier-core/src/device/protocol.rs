@@ -7,6 +7,20 @@ use crate::device::packet::Packet;
 use crate::device::timing::WriteTiming;
 use crate::eq::{Filter, PEQData};
 
+/// Per-model behavior that changes how the shared read/write/verify flow runs.
+#[derive(Clone, Copy, Default)]
+pub struct Quirks {
+    /// Some firmware never answers the global-gain query (JCally JM12
+    /// cross-flashed with JA11 firmware). When true, an unanswered gain read
+    /// is reported as unknown instead of failing the whole read, matching
+    /// Ircama/ja11-config's best-effort behavior.
+    pub gain_read_optional: bool,
+    /// The DAC re-enumerates on USB shortly after the save command (JA11, as
+    /// devicePEQ's `disconnectOnSave` records). Nothing may be read or written
+    /// after the save, so pushes verify the RAM state first and save last.
+    pub save_resets_device: bool,
+}
+
 pub trait EqProtocol {
     fn write_timing(&self) -> WriteTiming;
     /// Re-send an unanswered read request after this many attempts instead of
@@ -30,18 +44,8 @@ pub trait EqProtocol {
         self.matches_filter_response(data, index, nonce) && self.is_filter_packet_valid(data)
     }
     fn parse_filter_response(&self, data: &[u8]) -> Option<Filter>;
-    /// Some firmware never answers the global-gain query (JCally JM12
-    /// cross-flashed with JA11 firmware). When true, an unanswered gain read
-    /// is reported as unknown instead of failing the whole read, matching
-    /// Ircama/ja11-config's best-effort behavior.
-    fn gain_read_optional(&self) -> bool {
-        false
-    }
-    /// The DAC re-enumerates on USB shortly after the save command (JA11, as
-    /// devicePEQ's `disconnectOnSave` records). Nothing may be read or written
-    /// after the save, so pushes verify the RAM state first and save last.
-    fn save_resets_device(&self) -> bool {
-        false
+    fn quirks(&self) -> Quirks {
+        Quirks::default()
     }
     fn read_global_gain_request(&self) -> Packet;
     fn matches_global_gain_response(&self, data: &[u8]) -> bool;

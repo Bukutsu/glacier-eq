@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::device::packet::{checked_scaled_i16, checked_scaled_u16, Packet};
-use crate::device::protocol::EqProtocol;
+use crate::device::protocol::{EqProtocol, Quirks};
 use crate::device::timing::WriteTiming;
 use crate::eq::filter::DEFAULT_FREQS_10_BAND;
 use crate::eq::{Filter, FilterType, PEQData};
@@ -24,8 +24,7 @@ pub struct FiioProtocol {
     filter_count: u8,
     user_slot: u8,
     clamp_gain: bool,
-    gain_read_optional: bool,
-    save_resets_device: bool,
+    quirks: Quirks,
 }
 
 fn default_state(peq: &PEQData) -> bool {
@@ -216,12 +215,8 @@ impl EqProtocol for FiioProtocol {
         parse_filter_response(data, self.filter_count)
     }
 
-    fn gain_read_optional(&self) -> bool {
-        self.gain_read_optional
-    }
-
-    fn save_resets_device(&self) -> bool {
-        self.save_resets_device
+    fn quirks(&self) -> Quirks {
+        self.quirks
     }
 
     fn read_global_gain_request(&self) -> Packet {
@@ -326,6 +321,16 @@ mod tests {
             (FIIO_PROTOCOL, &KA15_CAPTURE),
             (KA17_PROTOCOL, &KA17_CAPTURE),
         ]
+    }
+
+    #[test]
+    fn only_ja11_has_quirks() {
+        let quirks = JA11_PROTOCOL.quirks();
+        assert!(quirks.gain_read_optional && quirks.save_resets_device);
+        for protocol in [FIIO_PROTOCOL, KA17_PROTOCOL] {
+            let quirks = protocol.quirks();
+            assert!(!quirks.gain_read_optional && !quirks.save_resets_device);
+        }
     }
 
     #[test]

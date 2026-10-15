@@ -221,7 +221,7 @@ impl<'a> DeviceSession<'a> {
         validate_peq_for_capabilities(&backup, &self.profile.caps)?;
         // A DAC that resets on save cannot be read back afterwards, so its
         // RAM state is verified first and the save is the last packet sent.
-        let save_last = self.protocol().save_resets_device();
+        let save_last = self.protocol().quirks().save_resets_device;
         let attempt: Result<PEQData, String> = (|| {
             self.write_to_ram(&normalized)
                 .map_err(|error| format!("Push write failed: {error}"))?;
@@ -275,7 +275,7 @@ impl<'a> DeviceSession<'a> {
         self.write_to_ram(backup)?;
         // The backup is still what the DAC has saved unless a save was sent;
         // re-saving would reset a save-resets device mid-verification.
-        if !self.protocol().save_resets_device() {
+        if !self.protocol().quirks().save_resets_device {
             self.commit()?;
         }
         self.io.sleep_ms(RETRY_DELAY_MS);
@@ -593,7 +593,8 @@ impl<'a> DeviceSession<'a> {
             Ok(gain) => gain,
             // Only a clean timeout qualifies; transport errors still fail.
             Err(error)
-                if self.protocol().gain_read_optional() && error == "Global gain read timeout" =>
+                if self.protocol().quirks().gain_read_optional
+                    && error == "Global gain read timeout" =>
             {
                 self.last_pull_gain_unknown = true;
                 self.progress("DAC did not report its preamp; showing 0 dB", 10.0);

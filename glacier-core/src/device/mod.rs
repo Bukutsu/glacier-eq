@@ -27,7 +27,7 @@ pub use normalization::{
 };
 pub use packet::Packet;
 pub use profile::{DeviceInfo, DeviceProfile, DeviceProtocol};
-pub use protocol::EqProtocol;
+pub use protocol::{EqProtocol, Quirks};
 pub use session::{DacUtilityState, DeviceIo, DeviceSession, HID_READ_BUFFER_BYTES};
 
 pub use timing::WriteTiming;
