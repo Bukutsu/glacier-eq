@@ -719,8 +719,8 @@ pub fn build_factory_reset_packet() -> Vec<u8> {
 #[wasm_bindgen]
 pub fn build_flash_eq_packet() -> Vec<u8> {
     let payload = vec![
-        crate::device::walkplay::WRITE,
-        crate::device::walkplay::CMD_FLASH_EQ,
+        crate::device::families::walkplay::WRITE,
+        crate::device::families::walkplay::CMD_FLASH_EQ,
         0,
     ];
     Packet::new(WalkplayProtocol::report_id(), payload).framed()

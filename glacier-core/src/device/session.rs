@@ -3,7 +3,7 @@
 
 //! Synchronous, transport-independent device operations.
 
-use super::walkplay::{
+use super::families::walkplay::{
     CMD_AMP_MODE, CMD_BALANCE, CMD_FILTER_MODE, CMD_GAIN_MODE, CMD_MIC_VOLUME, CMD_VERSION, END,
     READ, WRITE,
 };
@@ -925,7 +925,7 @@ impl<'a> DeviceSession<'a> {
     fn flash(&mut self) -> Result<(), String> {
         self.send(&Packet::new(
             WalkplayProtocol::report_id(),
-            vec![WRITE, super::walkplay::CMD_FLASH_EQ, 0],
+            vec![WRITE, super::families::walkplay::CMD_FLASH_EQ, 0],
         ))
     }
 }
@@ -1151,7 +1151,7 @@ mod tests {
         assert!(
             io.writes
                 .iter()
-                .any(|write| write.get(2) == Some(&super::super::walkplay::CMD_FLASH_EQ)),
+                .any(|write| write.get(2) == Some(&super::super::families::walkplay::CMD_FLASH_EQ)),
             "rollback writes were not attempted"
         );
     }
@@ -1274,7 +1274,7 @@ mod tests {
         left: u8,
         right: u8,
     ) {
-        use super::super::walkplay as wp;
+        use super::super::families::walkplay as wp;
         io.reads.push_back(vec![]); // drain terminator
         io.reads
             .push_back(vec![READ, wp::CMD_FILTER_MODE, 0, filter_mode]);
@@ -1298,7 +1298,7 @@ mod tests {
         io.reads.push_back(vec![]); // init drain terminator
         io.reads.push_back(vec![
             READ,
-            super::super::walkplay::CMD_GLOBAL_GAIN,
+            super::super::families::walkplay::CMD_GLOBAL_GAIN,
             0,
             0,
             gain as u8,
@@ -1307,7 +1307,7 @@ mod tests {
         for index in 0..10u8 {
             let mut packet = vec![0; 34];
             packet[0] = READ;
-            packet[1] = super::super::walkplay::CMD_PEQ_VALUES;
+            packet[1] = super::super::families::walkplay::CMD_PEQ_VALUES;
             packet[2] = nonce_start + index;
             packet[4] = index;
             packet[27..29].copy_from_slice(&(100 + index as u16).to_le_bytes());
@@ -1324,7 +1324,7 @@ mod tests {
         io.reads.push_back(vec![]); // init drain terminator
         io.reads.push_back(vec![
             READ,
-            super::super::walkplay::CMD_GLOBAL_GAIN,
+            super::super::families::walkplay::CMD_GLOBAL_GAIN,
             0,
             0,
             0,
@@ -1333,7 +1333,7 @@ mod tests {
         for index in 0..10u8 {
             let mut packet = vec![0; 34];
             packet[0] = READ;
-            packet[1] = super::super::walkplay::CMD_PEQ_VALUES;
+            packet[1] = super::super::families::walkplay::CMD_PEQ_VALUES;
             packet[2] = index + 1;
             packet[4] = index;
             packet[27..29].copy_from_slice(&(100 + index as u16).to_le_bytes());
@@ -1377,7 +1377,7 @@ mod tests {
         io.reads.push_back(vec![]); // init drain
         io.reads.push_back(vec![
             READ,
-            super::super::walkplay::CMD_GLOBAL_GAIN,
+            super::super::families::walkplay::CMD_GLOBAL_GAIN,
             0,
             0,
             0,
@@ -1409,7 +1409,7 @@ mod tests {
         io.reads.push_back(vec![]);
         io.reads.push_back(vec![
             READ,
-            super::super::walkplay::CMD_GLOBAL_GAIN,
+            super::super::families::walkplay::CMD_GLOBAL_GAIN,
             0,
             0,
             0,
@@ -1417,7 +1417,7 @@ mod tests {
         ]);
         let mut invalid = vec![0u8; 34];
         invalid[0] = READ;
-        invalid[1] = super::super::walkplay::CMD_PEQ_VALUES;
+        invalid[1] = super::super::families::walkplay::CMD_PEQ_VALUES;
         invalid[2] = 1;
         invalid[4] = 0;
         invalid[29..31].copy_from_slice(&256u16.to_le_bytes());
@@ -1451,7 +1451,7 @@ mod tests {
         io.reads.push_back(vec![]); // retry quarantine terminator
         io.reads.push_back(vec![
             READ,
-            super::super::walkplay::CMD_GLOBAL_GAIN,
+            super::super::families::walkplay::CMD_GLOBAL_GAIN,
             0,
             0,
             (-7i8) as u8,
@@ -1590,12 +1590,16 @@ mod tests {
         let gain_request = io
             .events
             .iter()
-            .position(|event| *event == IoEvent::Write(super::super::walkplay::CMD_GLOBAL_GAIN))
+            .position(|event| {
+                *event == IoEvent::Write(super::super::families::walkplay::CMD_GLOBAL_GAIN)
+            })
             .unwrap();
         let first_band_request = io
             .events
             .iter()
-            .position(|event| *event == IoEvent::Write(super::super::walkplay::CMD_PEQ_VALUES))
+            .position(|event| {
+                *event == IoEvent::Write(super::super::families::walkplay::CMD_PEQ_VALUES)
+            })
             .unwrap();
         assert!(gain_request < first_band_request);
         assert!(
@@ -1611,13 +1615,13 @@ mod tests {
 
     #[test]
     fn dropped_band_response_is_resent_and_pull_succeeds() {
-        use super::super::walkplay::CMD_PEQ_VALUES;
+        use super::super::families::walkplay::CMD_PEQ_VALUES;
         let profile = get_supported_device(0x3302, 0x43e8).unwrap();
         let mut io = FakeIo::default();
         io.reads.push_back(vec![]); // init drain terminator
         io.reads.push_back(vec![
             READ,
-            super::super::walkplay::CMD_GLOBAL_GAIN,
+            super::super::families::walkplay::CMD_GLOBAL_GAIN,
             0,
             0,
             0xFF,
@@ -1654,7 +1658,7 @@ mod tests {
 
     #[test]
     fn healthy_pull_sends_each_band_request_once() {
-        use super::super::walkplay::CMD_PEQ_VALUES;
+        use super::super::families::walkplay::CMD_PEQ_VALUES;
         let profile = get_supported_device(0x3302, 0x43e8).unwrap();
         let mut io = FakeIo::default();
         queue_pull(&mut io, -1);
@@ -1671,7 +1675,7 @@ mod tests {
 
     #[test]
     fn pull_rotates_filter_nonces_between_reads() {
-        use super::super::walkplay::CMD_PEQ_VALUES;
+        use super::super::families::walkplay::CMD_PEQ_VALUES;
         let profile = get_supported_device(0x3302, 0x43e8).unwrap();
         let mut io = FakeIo::default();
         queue_pull(&mut io, -1);
@@ -1759,7 +1763,8 @@ mod tests {
         assert_eq!(
             io.writes
                 .iter()
-                .filter(|packet| packet.get(2) == Some(&super::super::walkplay::CMD_TEMP_WRITE))
+                .filter(|packet| packet.get(2)
+                    == Some(&super::super::families::walkplay::CMD_TEMP_WRITE))
                 .count(),
             2
         );
@@ -1772,7 +1777,7 @@ mod tests {
         io.reads.push_back(vec![]); // init drain terminator
         io.reads.push_back(vec![
             READ,
-            super::super::walkplay::CMD_GLOBAL_GAIN,
+            super::super::families::walkplay::CMD_GLOBAL_GAIN,
             0,
             0,
             0xFF,
@@ -1781,7 +1786,7 @@ mod tests {
         for index in 0..10u8 {
             let mut packet = vec![0; 34];
             packet[0] = READ;
-            packet[1] = super::super::walkplay::CMD_PEQ_VALUES;
+            packet[1] = super::super::families::walkplay::CMD_PEQ_VALUES;
             packet[2] = index + 1;
             packet[4] = index;
             if index == 0 {
@@ -1802,14 +1807,17 @@ mod tests {
         assert_eq!(
             io.writes
                 .iter()
-                .filter(|packet| packet.get(2) == Some(&super::super::walkplay::CMD_PEQ_VALUES))
+                .filter(|packet| packet.get(2)
+                    == Some(&super::super::families::walkplay::CMD_PEQ_VALUES))
                 .count(),
             1
         );
         assert!(io
             .writes
             .iter()
-            .filter(|packet| packet.get(2) == Some(&super::super::walkplay::CMD_PEQ_VALUES))
+            .filter(
+                |packet| packet.get(2) == Some(&super::super::families::walkplay::CMD_PEQ_VALUES)
+            )
             .all(|packet| packet.get(1) == Some(&READ)));
     }
 

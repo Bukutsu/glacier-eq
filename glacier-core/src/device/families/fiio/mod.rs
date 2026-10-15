@@ -1,10 +1,14 @@
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::device::protocol::{checked_scaled_i16, checked_scaled_u16, EqProtocol, Packet};
+use crate::device::packet::{checked_scaled_i16, checked_scaled_u16, Packet};
+use crate::device::protocol::EqProtocol;
 use crate::device::timing::WriteTiming;
 use crate::eq::filter::DEFAULT_FREQS_10_BAND;
 use crate::eq::{Filter, FilterType, PEQData};
+
+mod models;
+pub use models::{FIIO_PROTOCOL, JA11_PROTOCOL, KA17_PROTOCOL};
 
 const SET_1: u8 = 0xAA;
 const SET_2: u8 = 0x0A;
@@ -23,35 +27,6 @@ pub struct FiioProtocol {
     gain_read_optional: bool,
     save_resets_device: bool,
 }
-
-// Slots are the active USER presets recorded in devicePEQ's 2026-05-03 captures.
-pub const JA11_PROTOCOL: FiioProtocol = FiioProtocol {
-    report_id: 2,
-    filter_count: 5,
-    user_slot: 3,
-    clamp_gain: true,
-    gain_read_optional: true,
-    save_resets_device: true,
-};
-
-// The existing generic FiiO profile represents KA15.
-pub const FIIO_PROTOCOL: FiioProtocol = FiioProtocol {
-    report_id: 7,
-    filter_count: 10,
-    user_slot: 9,
-    clamp_gain: false,
-    gain_read_optional: false,
-    save_resets_device: false,
-};
-
-pub const KA17_PROTOCOL: FiioProtocol = FiioProtocol {
-    report_id: 1,
-    filter_count: 10,
-    user_slot: 4,
-    clamp_gain: false,
-    gain_read_optional: false,
-    save_resets_device: false,
-};
 
 fn default_state(peq: &PEQData) -> bool {
     peq.global_gain == 0.0 && peq.filters.iter().all(|f| !f.enabled || f.gain == 0.0)
@@ -341,9 +316,9 @@ mod tests {
         save: &'static [u8],
     }
 
-    const JA11_CAPTURE: Capture = include!("../../tests/fixtures/fiio/ja11.rs");
-    const KA15_CAPTURE: Capture = include!("../../tests/fixtures/fiio/ka15.rs");
-    const KA17_CAPTURE: Capture = include!("../../tests/fixtures/fiio/ka17.rs");
+    const JA11_CAPTURE: Capture = include!("../../../../tests/fixtures/fiio/ja11.rs");
+    const KA15_CAPTURE: Capture = include!("../../../../tests/fixtures/fiio/ka15.rs");
+    const KA17_CAPTURE: Capture = include!("../../../../tests/fixtures/fiio/ka17.rs");
 
     fn captures() -> [(FiioProtocol, &'static Capture); 3] {
         [

@@ -95,7 +95,7 @@ describe("development DAC previews", () => {
     invokeDevDummy(device.path, "set_dawn_pro_control", { control: "filter", value: 4 });
     invokeDevDummy(device.path, "set_dawn_pro_control", { control: "gain", value: 1 });
     invokeDevDummy(device.path, "set_dawn_pro_control", { control: "led", value: 2 });
-    const source = readFileSync(new URL("../../glacier-core/src/device/dawn_pro.rs", import.meta.url), "utf8");
+    const source = readFileSync(new URL("../../glacier-core/src/device/families/dawn_pro/mod.rs", import.meta.url), "utf8");
     const codes = source.match(/const VOLUME_CODES:[^=]*= \[([\s\S]*?)\];/)![1]
       .split(",").map(code => code.trim()).filter(Boolean).map(Number);
     expect(codes).toHaveLength(61);

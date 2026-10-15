@@ -6,25 +6,28 @@
 //! UI-agnostic — usable from Tauri desktop/mobile apps, CLI tools, or headless services.
 
 pub mod capabilities;
-pub mod dawn_pro;
-pub mod fiio;
-pub mod moondrop;
+pub mod catalog;
+pub mod families;
 pub mod normalization;
+pub mod packet;
 pub mod profile;
 pub mod protocol;
+pub mod registry;
 pub mod session;
-pub mod supported;
 pub mod timing;
-pub mod walkplay;
 
 pub use capabilities::{DeviceCapabilities, EditorCapabilities};
+pub use catalog::{get_supported_device, SUPPORTED_DEVICES};
+pub use families::dawn_pro;
+pub use families::walkplay::WalkplayProtocol;
 pub(crate) use normalization::validate_peq_for_capabilities;
 pub use normalization::{
     is_default_peq_for_device, normalize_peq_for_capabilities, normalize_peq_for_device,
     normalize_peq_for_profile, validate_peq,
 };
+pub use packet::Packet;
 pub use profile::{DeviceInfo, DeviceProfile, DeviceProtocol};
-pub use protocol::{EqProtocol, Packet, WalkplayProtocol};
+pub use protocol::EqProtocol;
 pub use session::{DacUtilityState, DeviceIo, DeviceSession, HID_READ_BUFFER_BYTES};
-pub use supported::{get_supported_device, SUPPORTED_DEVICES};
+
 pub use timing::WriteTiming;

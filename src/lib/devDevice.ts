@@ -52,7 +52,7 @@ type DawnState = {
 };
 type Preview = { device: DeviceInfo; protocol: string; peq: PEQData; savedPeq: PEQData; utility: UtilityState; dawn: DawnState };
 
-// Original-Dawn volume codes credited in dawn_pro.rs, from Abdul Mateen:
+// Original-Dawn volume codes credited in families/dawn_pro/mod.rs, from Abdul Mateen:
 // https://github.com/RetR0-hex/moondrop-dawn-pro-gui/blob/69f95f669377646da1e9ba931bec9a5dc9b5d40c/moondrop/protocol.py
 const DAWN_VOLUME_CODES = [
   255, 200, 180, 170, 160, 150, 140, 130, 122, 116, 110, 106, 102, 98, 94, 90,

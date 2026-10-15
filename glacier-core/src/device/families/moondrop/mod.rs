@@ -1,9 +1,10 @@
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::device::protocol::{checked_scaled_i16, checked_scaled_u16, EqProtocol, Packet};
+use crate::device::families::walkplay::compute_iir_filter;
+use crate::device::packet::{checked_scaled_i16, checked_scaled_u16, Packet};
+use crate::device::protocol::EqProtocol;
 use crate::device::timing::WriteTiming;
-use crate::device::walkplay::compute_iir_filter;
 use crate::eq::filter::DEFAULT_FREQS_10_BAND;
 use crate::eq::{Filter, FilterType, PEQData};
 
@@ -299,7 +300,11 @@ mod tests {
     // headers and a per-band latch; prefer the newer explicit protocol tests.
     macro_rules! fixture {
         ($name:literal) => {
-            include_bytes!(concat!("../../tests/fixtures/moondrop/", $name, ".bin"))
+            include_bytes!(concat!(
+                "../../../../tests/fixtures/moondrop/",
+                $name,
+                ".bin"
+            ))
         };
     }
 
