@@ -3,22 +3,20 @@
 
 //! Synchronous, transport-independent device operations.
 
-use super::families::walkplay::{
-    CMD_AMP_MODE, CMD_BALANCE, CMD_FILTER_MODE, CMD_GAIN_MODE, CMD_MIC_VOLUME, CMD_VERSION, END,
-    READ, WRITE,
-};
+mod io;
+mod walkplay_controls;
+
+pub use io::{DeviceIo, HID_READ_BUFFER_BYTES};
+pub use walkplay_controls::DacUtilityState;
+
 use super::{
     normalize_peq_for_profile, validate_peq, validate_peq_for_capabilities, DeviceProfile,
-    DeviceProtocol, EqProtocol, Packet, WalkplayProtocol,
+    EqProtocol, Packet,
 };
 use crate::eq::{Filter, PEQData};
 
-const INIT_DRAIN_ATTEMPTS: usize = 100;
 const FILTER_READ_ATTEMPTS: usize = 60;
 const GAIN_READ_ATTEMPTS: usize = 20;
-const UTILITY_READ_ATTEMPTS: usize = 25;
-const UTILITY_READ_RETRIES: usize = 3;
-const WRITE_ATTEMPTS: usize = 3;
 const RETRY_DELAY_MS: u64 = 100;
 /// Attached to every `unverified_push` result. Without a readback the PEQ
 /// returned is what was *asked for*, not what the device stored, and the UI
@@ -32,57 +30,11 @@ pub const UNKNOWN_GAIN_WARNING: &str =
 const UNCORRELATED_GAIN_ERROR: &str =
     "Global gain read required retry; refusing uncorrelated state";
 
-/// Read buffer size for a HID transport. Every backend that talks to a device
-/// through hidapi must size its buffer here, not with a local literal: the
-/// CLI used 256 while the privileged helper and the HID plugin used 1024, so
-/// a protocol that grew a longer response would have been silently truncated
-/// on one transport and not the others. No registered profile produces a
-/// frame anywhere near this today (the largest is 40 bytes), which is exactly
-/// why the divergence could sit unnoticed.
-pub const HID_READ_BUFFER_BYTES: usize = 1024;
-
 fn combine_errors(first: String, retry: String) -> String {
     if first == retry {
         first
     } else {
         format!("{first}; retry failed: {retry}")
-    }
-}
-
-pub trait DeviceIo {
-    fn write(&mut self, data: &[u8]) -> Result<(), String>;
-    fn read(&mut self, timeout_ms: i32) -> Result<Vec<u8>, String>;
-    /// Whether `read` returns the transport report ID as byte zero. Android's
-    /// USB endpoint queue exposes payload bytes only; desktop HIDAPI and the
-    /// WebHID adapter include the report ID explicitly.
-    fn reads_include_report_id(&self) -> bool {
-        false
-    }
-    fn sleep_ms(&mut self, ms: u64) {
-        std::thread::sleep(std::time::Duration::from_millis(ms));
-    }
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
-pub struct DacUtilityState {
-    pub supported: bool,
-    pub filter_mode: String,
-    pub amp_mode_class_ab: bool,
-    pub high_gain_mode: bool,
-    pub mic_volume_db: i8,
-    pub channel_balance: i8,
-}
-
-impl Default for DacUtilityState {
-    fn default() -> Self {
-        Self {
-            supported: false,
-            filter_mode: "FAST-LL".into(),
-            amp_mode_class_ab: false,
-            high_gain_mode: false,
-            mic_volume_db: 0,
-            channel_balance: 0,
-        }
     }
 }
 
@@ -377,140 +329,6 @@ impl<'a> DeviceSession<'a> {
         Ok(())
     }
 
-    pub fn firmware_version(&mut self) -> Result<Option<String>, String> {
-        if self.profile.protocol != DeviceProtocol::Walkplay {
-            return Ok(None);
-        }
-        let mut last_err = "Firmware version read timeout".to_string();
-        for attempt in 1..=UTILITY_READ_RETRIES {
-            self.send(&Packet::new(
-                WalkplayProtocol::report_id(),
-                vec![READ, CMD_VERSION, END],
-            ))?;
-            self.io.sleep_ms(50);
-            match self.read_matching("Firmware version", 20, |data| {
-                data.len() >= 10 && data[0] == READ && data[1] == CMD_VERSION
-            }) {
-                Ok(data) => {
-                    let version: String = data
-                        .iter()
-                        .skip(3)
-                        .take(7)
-                        .take_while(|byte| byte.is_ascii_graphic())
-                        .map(|byte| *byte as char)
-                        .collect();
-                    return Ok((!version.is_empty()).then_some(version));
-                }
-                Err(err) => {
-                    last_err = err;
-                    if attempt < UTILITY_READ_RETRIES {
-                        self.drain();
-                        self.io.sleep_ms(35);
-                    }
-                }
-            }
-        }
-        Err(last_err)
-    }
-
-    pub fn utility_status(&mut self) -> Result<DacUtilityState, String> {
-        if self.profile.protocol != DeviceProtocol::Walkplay {
-            return Ok(DacUtilityState::default());
-        }
-        self.drain();
-        self.io.sleep_ms(30);
-        let filter = self.read_utility(CMD_FILTER_MODE)?;
-        self.io.sleep_ms(25);
-        let filter_mode = match filter
-            .get(3)
-            .copied()
-            .ok_or_else(|| "Filter mode response was incomplete".to_string())?
-        {
-            1 => "FAST-LL",
-            2 => "FAST-PC",
-            3 => "Slow-LL",
-            4 => "Slow-PC",
-            5 => "NON-OS",
-            value => return Err(format!("Unknown filter mode value: {value}")),
-        }
-        .to_string();
-        self.io.sleep_ms(25);
-        let amp_mode_class_ab = self
-            .read_utility(CMD_AMP_MODE)?
-            .get(3)
-            .copied()
-            .ok_or_else(|| "Amp mode response was incomplete".to_string())?
-            == 1;
-        self.io.sleep_ms(25);
-        let high_gain_mode = self
-            .read_utility(CMD_GAIN_MODE)?
-            .get(3)
-            .copied()
-            .ok_or_else(|| "Gain mode response was incomplete".to_string())?
-            == 1;
-        self.io.sleep_ms(25);
-        let mic_volume_db =
-            self.read_utility(CMD_MIC_VOLUME)?
-                .get(4)
-                .copied()
-                .ok_or_else(|| "Mic volume response was incomplete".to_string())? as i8;
-        self.io.sleep_ms(25);
-        let left = decode_attenuation(self.read_balance(0)?);
-        self.io.sleep_ms(25);
-        let right = decode_attenuation(self.read_balance(1)?);
-        Ok(DacUtilityState {
-            supported: true,
-            filter_mode,
-            amp_mode_class_ab,
-            high_gain_mode,
-            mic_volume_db,
-            channel_balance: if left > 0 {
-                left
-            } else {
-                right.saturating_neg()
-            },
-        })
-    }
-
-    pub fn set_filter_mode(&mut self, mode: &str) -> Result<(), String> {
-        self.require_walkplay()?;
-        let mode = match mode {
-            "FAST-LL" => 1,
-            "FAST-PC" => 2,
-            "Slow-LL" => 3,
-            "Slow-PC" => 4,
-            "NON-OS" => 5,
-            _ => return Err("Invalid filter mode".into()),
-        };
-        self.write_utility(WalkplayProtocol::build_filter_mode_write_packet(mode))
-    }
-
-    pub fn set_amp_mode(&mut self, class_ab: bool) -> Result<(), String> {
-        self.require_walkplay()?;
-        self.write_utility(WalkplayProtocol::build_amp_mode_write_packet(class_ab))
-    }
-
-    pub fn set_gain_mode(&mut self, high: bool) -> Result<(), String> {
-        self.require_walkplay()?;
-        self.write_utility(WalkplayProtocol::build_gain_mode_write_packet(high))
-    }
-
-    pub fn set_mic_volume(&mut self, db: i8) -> Result<(), String> {
-        self.require_walkplay()?;
-        validate_control_range("Mic volume", db)?;
-        self.write_utility(WalkplayProtocol::build_mic_volume_write_packet(db))
-    }
-
-    pub fn set_balance(&mut self, balance: i8) -> Result<(), String> {
-        self.require_walkplay()?;
-        validate_control_range("Balance", balance)?;
-        for payload in WalkplayProtocol::build_balance_write_packets(balance) {
-            self.send(&Packet::new(WalkplayProtocol::report_id(), payload))?;
-            self.io.sleep_ms(20);
-        }
-        self.flash()
-    }
-
     pub fn reset_eq(&mut self) -> Result<(), String> {
         let peq = PEQData {
             filters: (0..self.profile.caps.num_bands)
@@ -521,62 +339,8 @@ impl<'a> DeviceSession<'a> {
         self.persistent_push(peq).map(|_| ())
     }
 
-    pub fn reset_controls(&mut self) -> Result<DacUtilityState, String> {
-        self.require_walkplay()?;
-        // Each step below sends its register write and then immediately
-        // commits to flash, so a failure part-way through leaves the device
-        // permanently holding a half-applied reset — the modes that landed
-        // are already durable and no later step can undo them. Capture what
-        // is there now and put it back if any step fails, the way
-        // persistent_push and apply_ram roll back a failed EQ write.
-        let previous = self.utility_status()?;
-        let reset = (|| {
-            self.set_filter_mode("FAST-LL")?;
-            self.set_amp_mode(false)?;
-            self.set_gain_mode(false)?;
-            self.set_mic_volume(0)?;
-            self.set_balance(0)
-        })();
-        if let Err(error) = reset {
-            return Err(self.restore_utilities(&previous, &error));
-        }
-        self.utility_status()
-    }
-
-    /// Re-applies a captured utility state after a reset failed part-way, and
-    /// names the outcome in the error the caller reports.
-    fn restore_utilities(&mut self, previous: &DacUtilityState, cause: &str) -> String {
-        let restore = (|| {
-            self.set_filter_mode(&previous.filter_mode)?;
-            self.set_amp_mode(previous.amp_mode_class_ab)?;
-            self.set_gain_mode(previous.high_gain_mode)?;
-            self.set_mic_volume(previous.mic_volume_db)?;
-            self.set_balance(previous.channel_balance)
-        })();
-        match restore {
-            Ok(()) => format!("{cause}; previous settings restored"),
-            Err(restore) => format!("{cause}; restoring the previous settings failed: {restore}"),
-        }
-    }
-
-    pub fn factory_reset(&mut self) -> Result<(), String> {
-        self.require_walkplay()?;
-        self.write_utility(WalkplayProtocol::build_factory_reset_packet())
-    }
-
     fn normalize(&self, peq: PEQData) -> Result<(PEQData, Vec<String>), String> {
         normalize_peq_for_profile(peq, self.profile)
-    }
-
-    fn require_walkplay(&self) -> Result<(), String> {
-        if self.profile.protocol == DeviceProtocol::Walkplay {
-            Ok(())
-        } else {
-            Err(format!(
-                "{} does not support Walkplay utility controls",
-                self.profile.name
-            ))
-        }
     }
 
     fn pull_once(&mut self) -> Result<PEQData, String> {
@@ -758,36 +522,6 @@ impl<'a> DeviceSession<'a> {
         })
     }
 
-    fn read_matching(
-        &mut self,
-        label: &str,
-        attempts: usize,
-        matches: impl Fn(&[u8]) -> bool,
-    ) -> Result<Vec<u8>, String> {
-        let protocol = self.protocol();
-        for attempt in 1..=attempts {
-            let bytes = self
-                .io
-                .read(60)
-                .map_err(|error| format!("{label} read failed on attempt {attempt}: {error}"))?;
-            if bytes.is_empty() {
-                continue;
-            }
-            let data = if self.io.reads_include_report_id() {
-                match protocol.unframe_packet(&bytes) {
-                    Ok(data) => data,
-                    Err(_) => continue,
-                }
-            } else {
-                bytes.as_slice()
-            };
-            if matches(data) {
-                return Ok(data.to_vec());
-            }
-        }
-        Err(format!("{label} read timeout"))
-    }
-
     fn init(&mut self) -> Result<(), String> {
         for packet in self.protocol().init_packets() {
             self.send(&packet)
@@ -796,16 +530,6 @@ impl<'a> DeviceSession<'a> {
         self.io.sleep_ms(self.protocol().write_timing().init_ms);
         self.drain();
         Ok(())
-    }
-
-    fn drain(&mut self) {
-        for _ in 0..INIT_DRAIN_ATTEMPTS {
-            match self.io.read(20) {
-                Ok(bytes) if bytes.is_empty() => break,
-                Ok(_) => continue,
-                Err(_) => break,
-            }
-        }
     }
 
     fn write_to_ram(&mut self, peq: &PEQData) -> Result<(), String> {
@@ -852,100 +576,6 @@ impl<'a> DeviceSession<'a> {
         }
         Ok(())
     }
-
-    fn send(&mut self, packet: &Packet) -> Result<(), String> {
-        let framed = packet.framed();
-        let mut last = "Write failed".to_string();
-        for _ in 0..WRITE_ATTEMPTS {
-            match self.io.write(&framed) {
-                Ok(()) => return Ok(()),
-                Err(error) => {
-                    last = error;
-                    self.io.sleep_ms(50);
-                }
-            }
-        }
-        Err(last)
-    }
-
-    fn read_utility(&mut self, cmd: u8) -> Result<Vec<u8>, String> {
-        let min_len = if cmd == CMD_MIC_VOLUME { 5 } else { 4 };
-        let mut last_err = format!("Utility register {cmd} read timeout");
-        for attempt in 1..=UTILITY_READ_RETRIES {
-            self.send(&Packet::new(
-                WalkplayProtocol::report_id(),
-                WalkplayProtocol::build_utility_read_request(cmd),
-            ))?;
-            self.io.sleep_ms(30);
-            match self.read_matching("Utility register", UTILITY_READ_ATTEMPTS, |data| {
-                data.len() >= min_len && data[0] == READ && data[1] == cmd
-            }) {
-                Ok(data) => return Ok(data),
-                Err(err) => {
-                    last_err = err;
-                    if attempt < UTILITY_READ_RETRIES {
-                        self.drain();
-                        self.io.sleep_ms(35);
-                    }
-                }
-            }
-        }
-        Err(last_err)
-    }
-
-    fn read_balance(&mut self, channel: u8) -> Result<u8, String> {
-        let mut last_err = format!("Balance register {channel} read timeout");
-        for attempt in 1..=UTILITY_READ_RETRIES {
-            self.send(&Packet::new(
-                WalkplayProtocol::report_id(),
-                WalkplayProtocol::build_balance_read_request(channel),
-            ))?;
-            self.io.sleep_ms(30);
-            match self.read_matching("Balance register", UTILITY_READ_ATTEMPTS, |data| {
-                data.len() >= 6 && data[0] == READ && data[1] == CMD_BALANCE && data[3] == channel
-            }) {
-                Ok(data) => return Ok(data[5]),
-                Err(err) => {
-                    last_err = err;
-                    if attempt < UTILITY_READ_RETRIES {
-                        self.drain();
-                        self.io.sleep_ms(35);
-                    }
-                }
-            }
-        }
-        Err(last_err)
-    }
-
-    fn write_utility(&mut self, payload: Vec<u8>) -> Result<(), String> {
-        self.send(&Packet::new(WalkplayProtocol::report_id(), payload))?;
-        self.io.sleep_ms(50);
-        self.flash()
-    }
-
-    fn flash(&mut self) -> Result<(), String> {
-        self.send(&Packet::new(
-            WalkplayProtocol::report_id(),
-            vec![WRITE, super::families::walkplay::CMD_FLASH_EQ, 0],
-        ))
-    }
-}
-
-fn decode_attenuation(raw: u8) -> i8 {
-    if raw == 0 {
-        0
-    } else {
-        let val = 256i16 - (raw as i16);
-        val.clamp(-15, 15) as i8
-    }
-}
-
-fn validate_control_range(label: &str, value: i8) -> Result<(), String> {
-    if (-15..=15).contains(&value) {
-        Ok(())
-    } else {
-        Err(format!("{label} must be between -15 and 15"))
-    }
 }
 
 fn compare_peq(
@@ -985,66 +615,10 @@ fn compare_peq(
 
 #[cfg(test)]
 mod tests {
+    use super::io::fake::{FakeIo, IoEvent};
     use super::*;
+    use crate::device::families::walkplay::READ;
     use crate::device::get_supported_device;
-    use std::collections::VecDeque;
-
-    #[derive(Debug, PartialEq)]
-    enum IoEvent {
-        Write(u8),
-        Read,
-        Sleep(u64),
-    }
-
-    #[derive(Default)]
-    struct FakeIo {
-        reads: VecDeque<Vec<u8>>,
-        writes: Vec<Vec<u8>>,
-        events: Vec<IoEvent>,
-        read_error: Option<String>,
-        read_errors: VecDeque<Option<String>>,
-        read_error_until: Option<(usize, usize, String)>,
-        read_calls: usize,
-        write_calls: usize,
-        failing_write_calls: VecDeque<usize>,
-    }
-
-    impl DeviceIo for FakeIo {
-        fn write(&mut self, data: &[u8]) -> Result<(), String> {
-            self.write_calls += 1;
-            self.writes.push(data.to_vec());
-            self.events
-                .push(IoEvent::Write(data.get(2).copied().unwrap_or_default()));
-            if self.failing_write_calls.front() == Some(&self.write_calls) {
-                self.failing_write_calls.pop_front();
-                Err("simulated write failure".into())
-            } else {
-                Ok(())
-            }
-        }
-        fn read(&mut self, _: i32) -> Result<Vec<u8>, String> {
-            self.events.push(IoEvent::Read);
-            self.read_calls += 1;
-            if let Some((first, last, error)) = &self.read_error_until {
-                if self.read_calls >= *first && self.read_calls <= *last {
-                    return Err(error.clone());
-                }
-            }
-            if let Some(error) = &self.read_error {
-                return Err(error.clone());
-            }
-            if let Some(bytes) = self.reads.pop_front() {
-                return Ok(bytes);
-            }
-            if let Some(Some(error)) = self.read_errors.pop_front() {
-                return Err(error);
-            }
-            Ok(Vec::new())
-        }
-        fn sleep_ms(&mut self, ms: u64) {
-            self.events.push(IoEvent::Sleep(ms));
-        }
-    }
 
     #[test]
     fn original_dawn_pro_refuses_eq_without_touching_the_device() {
@@ -1119,176 +693,6 @@ mod tests {
             .expect_err("a failed RAM apply must report the rollback result");
         assert!(error.contains("previous RAM state restored"), "{error}");
         assert!(io.write_calls >= 15, "rollback writes were not attempted");
-    }
-
-    #[test]
-    fn a_failed_control_reset_restores_the_settings_that_already_landed() {
-        let profile = get_supported_device(0x3302, 0x43e8).unwrap();
-        let mut io = FakeIo::default();
-        // The device is on a non-default filter mode, Class-AB, high gain,
-        // mic +4 dB, balanced. Every set_* below sends its register write and
-        // then commits to flash, so a failure part-way through would leave
-        // those durable changes on the hardware with no way back.
-        queue_utility_status(&mut io, 2, 1, 1, 4, 0, 0);
-        // The snapshot's six register reads are writes 1..6. The reset's first
-        // two steps then take writes 7..10 (register write plus flash commit
-        // each). Fail every attempt of the third step's register write —
-        // send() retries three times — so the filter and amp modes are already
-        // committed to flash when the gain step gives up, and let the rollback
-        // through.
-        io.failing_write_calls.extend([11, 12, 13]);
-        queue_utility_status(&mut io, 1, 0, 0, 0, 0, 0);
-        queue_utility_status(&mut io, 2, 1, 1, 4, 0, 0);
-
-        let error = DeviceSession::new(&mut io, profile)
-            .reset_controls()
-            .expect_err("a half-applied reset must not report success");
-        assert!(
-            error.contains("previous settings restored"),
-            "the error must name the rollback: {error}"
-        );
-        // The rollback re-sent the original filter mode, so a write carrying
-        // CMD_FLASH_EQ for it is on the wire after the failure.
-        assert!(
-            io.writes
-                .iter()
-                .any(|write| write.get(2) == Some(&super::super::families::walkplay::CMD_FLASH_EQ)),
-            "rollback writes were not attempted"
-        );
-    }
-
-    #[test]
-    fn a_successful_control_reset_does_not_roll_back() {
-        let profile = get_supported_device(0x3302, 0x43e8).unwrap();
-        let mut io = FakeIo::default();
-        queue_utility_status(&mut io, 2, 1, 1, 4, 0, 0);
-        queue_utility_status(&mut io, 1, 0, 0, 0, 0, 0);
-
-        let state = DeviceSession::new(&mut io, profile)
-            .reset_controls()
-            .expect("a clean reset must succeed");
-        assert_eq!(state.filter_mode, "FAST-LL");
-        assert!(!state.amp_mode_class_ab);
-        assert!(!state.high_gain_mode);
-        assert_eq!(state.mic_volume_db, 0);
-    }
-
-    #[test]
-    fn control_range_is_checked_before_write() {
-        let profile = get_supported_device(0x3302, 0x43e8).unwrap();
-        let mut io = FakeIo::default();
-        let mut session = DeviceSession::new(&mut io, profile);
-        assert!(session.set_balance(16).is_err());
-        assert!(io.writes.is_empty());
-    }
-
-    #[test]
-    fn non_walkplay_utility_is_rejected_before_write() {
-        let profile = get_supported_device(0x2fc6, 1).unwrap();
-        let mut io = FakeIo::default();
-        let mut session = DeviceSession::new(&mut io, profile);
-        assert!(session.set_gain_mode(true).is_err());
-        assert!(io.writes.is_empty());
-    }
-
-    #[test]
-    fn utility_status_propagates_read_failure() {
-        let profile = get_supported_device(0x3302, 0x43e8).unwrap();
-        let mut io = FakeIo {
-            read_error: Some("simulated read failure".into()),
-            ..Default::default()
-        };
-        let error = DeviceSession::new(&mut io, profile)
-            .utility_status()
-            .unwrap_err();
-        assert!(error.contains("simulated read failure"));
-    }
-
-    #[test]
-    fn utility_status_succeeds_with_valid_responses() {
-        let profile = get_supported_device(0x3302, 0x43e8).unwrap();
-        let mut io = FakeIo::default();
-        io.reads.push_back(vec![]); // drain terminator
-        io.reads.push_back(vec![READ, CMD_FILTER_MODE, 1, 1]); // FAST-LL
-        io.reads.push_back(vec![READ, CMD_AMP_MODE, 1, 1]); // Class AB = true
-        io.reads.push_back(vec![READ, CMD_GAIN_MODE, 1, 0]); // High gain = false
-        io.reads.push_back(vec![READ, CMD_MIC_VOLUME, 2, 128, 5]); // Mic = 5 dB
-        io.reads.push_back(vec![READ, CMD_BALANCE, 1, 0, 0, 0]); // Balance L = 0
-        io.reads.push_back(vec![READ, CMD_BALANCE, 1, 1, 0, 0]); // Balance R = 0
-
-        let status = DeviceSession::new(&mut io, profile)
-            .utility_status()
-            .unwrap();
-        assert_eq!(
-            status,
-            DacUtilityState {
-                supported: true,
-                filter_mode: "FAST-LL".into(),
-                amp_mode_class_ab: true,
-                high_gain_mode: false,
-                mic_volume_db: 5,
-                channel_balance: 0,
-            }
-        );
-    }
-
-    #[test]
-    fn utility_status_handles_stale_packets_and_recovers() {
-        let profile = get_supported_device(0x3302, 0x43e8).unwrap();
-        let mut io = FakeIo::default();
-        io.reads.push_back(vec![]); // drain terminator
-                                    // Several stale non-matching packets before the actual filter response
-        for _ in 0..12 {
-            io.reads.push_back(vec![READ, 0x99, 0, 0]);
-        }
-        io.reads.push_back(vec![READ, CMD_FILTER_MODE, 1, 2]); // FAST-PC
-        io.reads.push_back(vec![READ, CMD_AMP_MODE, 1, 0]); // Class AB = false
-        io.reads.push_back(vec![READ, CMD_GAIN_MODE, 1, 1]); // High gain = true
-        io.reads.push_back(vec![READ, CMD_MIC_VOLUME, 2, 128, 0]); // Mic = 0 dB
-        io.reads.push_back(vec![READ, CMD_BALANCE, 1, 0, 0, 0]); // Balance L = 0
-        io.reads.push_back(vec![READ, CMD_BALANCE, 1, 1, 0, 0]); // Balance R = 0
-
-        let status = DeviceSession::new(&mut io, profile)
-            .utility_status()
-            .unwrap();
-        assert_eq!(
-            status,
-            DacUtilityState {
-                supported: true,
-                filter_mode: "FAST-PC".into(),
-                amp_mode_class_ab: false,
-                high_gain_mode: true,
-                mic_volume_db: 0,
-                channel_balance: 0,
-            }
-        );
-    }
-
-    /// Queues one complete `utility_status` read: the drain terminator, the
-    /// four register reads, and both balance channels.
-    fn queue_utility_status(
-        io: &mut FakeIo,
-        filter_mode: u8,
-        amp_mode_class_ab: u8,
-        high_gain_mode: u8,
-        mic_volume: u8,
-        left: u8,
-        right: u8,
-    ) {
-        use super::super::families::walkplay as wp;
-        io.reads.push_back(vec![]); // drain terminator
-        io.reads
-            .push_back(vec![READ, wp::CMD_FILTER_MODE, 0, filter_mode]);
-        io.reads
-            .push_back(vec![READ, wp::CMD_AMP_MODE, 0, amp_mode_class_ab]);
-        io.reads
-            .push_back(vec![READ, wp::CMD_GAIN_MODE, 0, high_gain_mode]);
-        io.reads
-            .push_back(vec![READ, wp::CMD_MIC_VOLUME, 0, 0, mic_volume]);
-        io.reads
-            .push_back(vec![READ, wp::CMD_BALANCE, 0, 0, 0, left]);
-        io.reads
-            .push_back(vec![READ, wp::CMD_BALANCE, 0, 1, 0, right]);
     }
 
     fn queue_pull(io: &mut FakeIo, gain: i8) {
