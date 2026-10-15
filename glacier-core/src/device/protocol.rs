@@ -108,6 +108,13 @@ pub trait EqProtocol {
         self.matches_filter_response(data, index, nonce) && self.is_filter_packet_valid(data)
     }
     fn parse_filter_response(&self, data: &[u8]) -> Option<Filter>;
+    /// Some firmware never answers the global-gain query (JCally JM12
+    /// cross-flashed with JA11 firmware). When true, an unanswered gain read
+    /// is reported as unknown instead of failing the whole read, matching
+    /// Ircama/ja11-config's best-effort behavior.
+    fn gain_read_optional(&self) -> bool {
+        false
+    }
     fn read_global_gain_request(&self) -> Packet;
     fn matches_global_gain_response(&self, data: &[u8]) -> bool;
     fn parse_global_gain_response(&self, data: &[u8]) -> Option<f64>;

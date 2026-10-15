@@ -20,6 +20,7 @@ pub struct FiioProtocol {
     filter_count: u8,
     user_slot: u8,
     clamp_gain: bool,
+    gain_read_optional: bool,
 }
 
 // Slots are the active USER presets recorded in devicePEQ's 2026-05-03 captures.
@@ -28,6 +29,7 @@ pub const JA11_PROTOCOL: FiioProtocol = FiioProtocol {
     filter_count: 5,
     user_slot: 3,
     clamp_gain: true,
+    gain_read_optional: true,
 };
 
 // The existing generic FiiO profile represents KA15.
@@ -36,6 +38,7 @@ pub const FIIO_PROTOCOL: FiioProtocol = FiioProtocol {
     filter_count: 10,
     user_slot: 9,
     clamp_gain: false,
+    gain_read_optional: false,
 };
 
 pub const KA17_PROTOCOL: FiioProtocol = FiioProtocol {
@@ -43,6 +46,7 @@ pub const KA17_PROTOCOL: FiioProtocol = FiioProtocol {
     filter_count: 10,
     user_slot: 4,
     clamp_gain: false,
+    gain_read_optional: false,
 };
 
 fn default_state(peq: &PEQData) -> bool {
@@ -231,6 +235,10 @@ impl EqProtocol for FiioProtocol {
 
     fn parse_filter_response(&self, data: &[u8]) -> Option<Filter> {
         parse_filter_response(data, self.filter_count)
+    }
+
+    fn gain_read_optional(&self) -> bool {
+        self.gain_read_optional
     }
 
     fn read_global_gain_request(&self) -> Packet {

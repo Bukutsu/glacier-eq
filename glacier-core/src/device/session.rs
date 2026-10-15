@@ -25,6 +25,10 @@ const RETRY_DELAY_MS: u64 = 100;
 /// needs to stop reading it as a confirmed commit.
 pub const UNVERIFIED_PUSH_WARNING: &str =
     "pushed without reading the DAC back, so its stored EQ was not verified";
+/// Attached when the DAC never answered the preamp query, so the preamp was
+/// written but neither read nor verified.
+pub const UNKNOWN_GAIN_WARNING: &str =
+    "DAC did not report its preamp; preamp was written but not verified";
 const UNCORRELATED_GAIN_ERROR: &str =
     "Global gain read required retry; refusing uncorrelated state";
 
@@ -94,6 +98,9 @@ pub struct DeviceSession<'a> {
     last_pull_gain_read_completed: bool,
     gain_read_requires_correlation: bool,
     last_read_was_retried: bool,
+    /// The last pull got no gain reply from a protocol where that is allowed;
+    /// its global_gain is a 0 dB placeholder, not device truth.
+    last_pull_gain_unknown: bool,
 }
 
 impl<'a> DeviceSession<'a> {
@@ -109,6 +116,7 @@ impl<'a> DeviceSession<'a> {
             last_pull_gain_read_completed: false,
             gain_read_requires_correlation: false,
             last_read_was_retried: false,
+            last_pull_gain_unknown: false,
         }
     }
 
@@ -136,6 +144,7 @@ impl<'a> DeviceSession<'a> {
             last_pull_gain_read_completed: false,
             gain_read_requires_correlation: false,
             last_read_was_retried: false,
+            last_pull_gain_unknown: false,
         }
     }
 
@@ -226,12 +235,23 @@ impl<'a> DeviceSession<'a> {
             }
             validate_peq_for_capabilities(&actual, &self.profile.caps)
                 .map_err(|error| format!("Push verification failed: {error}"))?;
-            compare_peq(&actual, &normalized, &self.profile.caps)
-                .map_err(|error| format!("Push verification failed: {error}"))?;
+            compare_peq(
+                &actual,
+                &normalized,
+                &self.profile.caps,
+                !self.last_pull_gain_unknown,
+            )
+            .map_err(|error| format!("Push verification failed: {error}"))?;
             Ok(actual)
         })();
         match attempt {
-            Ok(actual) => {
+            Ok(mut actual) => {
+                let mut warnings = warnings;
+                if self.last_pull_gain_unknown {
+                    // The readback has no preamp; report what was written.
+                    actual.global_gain = normalized.global_gain;
+                    warnings.push(UNKNOWN_GAIN_WARNING.to_string());
+                }
                 self.progress("Write complete", 100.0);
                 Ok((actual, warnings))
             }
@@ -251,7 +271,12 @@ impl<'a> DeviceSession<'a> {
             return Err("Device returned an invalid EQ response during restore".into());
         }
         validate_peq_for_capabilities(&actual, &self.profile.caps)?;
-        compare_peq(&actual, backup, &self.profile.caps)
+        compare_peq(
+            &actual,
+            backup,
+            &self.profile.caps,
+            !self.last_pull_gain_unknown,
+        )
     }
 
     /// Writes persistently without a readback. Kept for the GUI's explicit
@@ -311,7 +336,12 @@ impl<'a> DeviceSession<'a> {
             return Err("Device returned an invalid EQ response during RAM verification".into());
         }
         validate_peq_for_capabilities(&actual, &self.profile.caps)?;
-        compare_peq(&actual, expected, &self.profile.caps)
+        compare_peq(
+            &actual,
+            expected,
+            &self.profile.caps,
+            !self.last_pull_gain_unknown,
+        )
     }
 
     fn rollback_ram(&mut self, backup: &PEQData, apply_error: String) -> String {
@@ -540,12 +570,24 @@ impl<'a> DeviceSession<'a> {
         self.last_pull_had_invalid_response = false;
         self.last_pull_sent_gain_request = false;
         self.last_pull_gain_read_completed = false;
+        self.last_pull_gain_unknown = false;
         self.progress("Preparing EQ read…", 5.0);
         self.init()?;
         let timing = self.protocol().write_timing();
         self.progress("Reading device preamp…", 10.0);
         self.last_pull_sent_gain_request = true;
-        let global_gain = self.read_gain()?;
+        let global_gain = match self.read_gain() {
+            Ok(gain) => gain,
+            // Only a clean timeout qualifies; transport errors still fail.
+            Err(error)
+                if self.protocol().gain_read_optional() && error == "Global gain read timeout" =>
+            {
+                self.last_pull_gain_unknown = true;
+                self.progress("DAC did not report its preamp; showing 0 dB", 10.0);
+                0.0
+            }
+            Err(error) => return Err(error),
+        };
         self.last_pull_gain_read_completed = true;
         self.io.sleep_ms(timing.post_gain_read_ms);
         let count = self.profile.caps.num_bands;
@@ -896,8 +938,9 @@ fn compare_peq(
     actual: &PEQData,
     expected: &PEQData,
     caps: &super::DeviceCapabilities,
+    check_gain: bool,
 ) -> Result<(), String> {
-    if (actual.global_gain - expected.global_gain).abs() > 0.001 {
+    if check_gain && (actual.global_gain - expected.global_gain).abs() > 0.001 {
         return Err(format!(
             "Global gain mismatch: expected {}, got {}",
             expected.global_gain, actual.global_gain
@@ -1432,8 +1475,30 @@ mod tests {
     }
 
     #[test]
-    fn pull_rejects_late_fiio_gain_after_complete_pull_retry() {
+    fn ja11_pull_tolerates_an_unanswered_gain_read() {
         let profile = get_supported_device(0x2972, 0x0102).unwrap();
+        let mut io = FakeIo::default();
+        io.reads.push_back(vec![]);
+        for _ in 0..GAIN_READ_ATTEMPTS {
+            io.reads.push_back(vec![]);
+        }
+        for index in 0..5u8 {
+            io.reads.push_back(vec![
+                0xBB, 0x0B, 0, 0, 0x15, 8, index, 0, 10, 0x03, 0xE8, 0, 100, 0, 0, 0xEE,
+            ]);
+        }
+
+        let mut session = DeviceSession::new(&mut io, profile);
+        let peq = session.pull().unwrap();
+        assert_eq!(peq.global_gain, 0.0);
+        assert!(session.last_pull_gain_unknown);
+        assert_eq!(peq.filters.len(), 5);
+    }
+
+    #[test]
+    fn pull_rejects_late_fiio_gain_after_complete_pull_retry() {
+        // KA15: its gain read is mandatory, unlike JA11's.
+        let profile = get_supported_device(0x2972, 0x0104).unwrap();
         let mut io = FakeIo::default();
         io.reads.push_back(vec![]);
         for _ in 0..GAIN_READ_ATTEMPTS {
@@ -1442,7 +1507,7 @@ mod tests {
         io.reads.push_back(vec![]);
         io.reads
             .push_back(vec![0xBB, 0x0B, 0, 0, 0x17, 2, 0, 10, 0, 0xEE]);
-        for index in 0..5u8 {
+        for index in 0..10u8 {
             io.reads.push_back(vec![
                 0xBB, 0x0B, 0, 0, 0x15, 8, index, 0, 10, 0x03, 0xE8, 0, 100, 0, 0, 0xEE,
             ]);
