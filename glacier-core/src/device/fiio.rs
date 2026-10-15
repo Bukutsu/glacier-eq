@@ -23,6 +23,7 @@ pub struct FiioProtocol {
     gain_read_optional: bool,
     save_resets_device: bool,
     command_interval_ms: Option<u64>,
+    sends_filter_count: bool,
 }
 
 // Slots are the active USER presets recorded in devicePEQ's 2026-05-03 captures.
@@ -37,6 +38,11 @@ pub const JA11_PROTOCOL: FiioProtocol = FiioProtocol {
     // (Cyfine/ja11-web-control PROTOCOL.md; weekssa/OPRA-EQ-for-UAPP
     // FiioJa11Timing.kt). Faster pacing drops band reads and writes.
     command_interval_ms: Some(200),
+    // devicePEQ sends 0x18 as a filter count; Ircama/ja11-config treats it as
+    // "apply" with value 1, and Cyfine/ja11-web-control (from FiiO Control)
+    // never sends it. After saving with 18 05, a JM12 on JA11 firmware kept
+    // the EQ but stopped answering reads until FiiO Control's Reset EQ.
+    sends_filter_count: false,
 };
 
 // The existing generic FiiO profile represents KA15.
@@ -48,6 +54,7 @@ pub const FIIO_PROTOCOL: FiioProtocol = FiioProtocol {
     gain_read_optional: false,
     save_resets_device: false,
     command_interval_ms: None,
+    sends_filter_count: true,
 };
 
 pub const KA17_PROTOCOL: FiioProtocol = FiioProtocol {
@@ -58,6 +65,7 @@ pub const KA17_PROTOCOL: FiioProtocol = FiioProtocol {
     gain_read_optional: false,
     save_resets_device: false,
     command_interval_ms: None,
+    sends_filter_count: true,
 };
 
 fn default_state(peq: &PEQData) -> bool {
@@ -314,7 +322,9 @@ impl EqProtocol for FiioProtocol {
         let mut packets = Vec::new();
         if index == 0 {
             packets.push(preset_packet(self.report_id, 0x16, self.user_slot));
-            packets.push(preset_packet(self.report_id, 0x18, self.filter_count));
+            if self.sends_filter_count {
+                packets.push(preset_packet(self.report_id, 0x18, self.filter_count));
+            }
         }
         packets.push(write_filter_packet(self.report_id, index, filter));
         Ok(packets)
@@ -429,8 +439,10 @@ mod tests {
             assert_eq!(writes[0].report_id, capture.report_id);
             assert_eq!(writes[0].payload[4], 0x16);
             assert_eq!(writes[0].payload[6], capture.preset[6]);
-            assert_eq!(writes[1].payload, capture.count_write);
-            assert!(protocol.is_filter_packet_valid(&writes[2].payload));
+            if protocol.sends_filter_count {
+                assert_eq!(writes[1].payload, capture.count_write);
+            }
+            assert!(protocol.is_filter_packet_valid(&writes.last().unwrap().payload));
             let commit = protocol.commit_packets();
             assert_eq!(commit.len(), 1);
             assert_eq!(commit[0].report_id, capture.report_id);
@@ -438,6 +450,16 @@ mod tests {
             assert_eq!(commit[0].payload[6], capture.preset[6]);
             assert!(protocol.ram_apply_packets().is_empty());
         }
+    }
+
+    #[test]
+    fn ja11_band_write_selects_user_slot_without_0x18() {
+        let filter = Filter::enabled(0, true);
+        let writes = JA11_PROTOCOL
+            .write_filter_packets(0, &filter, 48000.0, 0.0)
+            .unwrap();
+        let commands: Vec<u8> = writes.iter().map(|w| w.payload[4]).collect();
+        assert_eq!(commands, [0x16, FILTER_PARAMS]);
     }
 
     #[test]
