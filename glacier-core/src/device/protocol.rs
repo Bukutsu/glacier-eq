@@ -272,6 +272,7 @@ impl WalkplayProtocol {
             batch_ms: 50,
             global_gain_ms: 20,
             init_ms: 20,
+            packet_gap_ms: 0,
         }
     }
 

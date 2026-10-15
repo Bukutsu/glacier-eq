@@ -818,7 +818,7 @@ impl<'a> DeviceSession<'a> {
                 &format!("Writing band {}/{}…", index + 1, total),
                 15.0 + index as f32 / total as f32 * 60.0,
             );
-            for packet in protocol
+            for (packet_index, packet) in protocol
                 .write_filter_packets(
                     index as u8,
                     filter,
@@ -826,7 +826,12 @@ impl<'a> DeviceSession<'a> {
                     peq.global_gain,
                 )
                 .map_err(|error| format!("Band {} write failed: {error}", index + 1))?
+                .into_iter()
+                .enumerate()
             {
+                if packet_index > 0 {
+                    self.io.sleep_ms(protocol.write_timing().packet_gap_ms);
+                }
                 self.send(&packet)
                     .map_err(|error| format!("Band {} write failed: {error}", index + 1))?;
             }
@@ -1535,6 +1540,18 @@ mod tests {
         assert!(!io.events[last_write..]
             .iter()
             .any(|event| matches!(event, IoEvent::Read)));
+        // JA11 needs ~200 ms between commands: no two writes back to back.
+        let mut since_write = None;
+        for event in &io.events {
+            match event {
+                IoEvent::Write(_) => {
+                    assert!(since_write.is_none_or(|ms| ms >= 200), "{:?}", io.events);
+                    since_write = Some(0);
+                }
+                IoEvent::Sleep(ms) => since_write = since_write.map(|total| total + ms),
+                IoEvent::Read => {}
+            }
+        }
     }
 
     #[test]

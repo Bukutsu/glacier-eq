@@ -22,6 +22,7 @@ pub struct FiioProtocol {
     clamp_gain: bool,
     gain_read_optional: bool,
     save_resets_device: bool,
+    command_interval_ms: Option<u64>,
 }
 
 // Slots are the active USER presets recorded in devicePEQ's 2026-05-03 captures.
@@ -32,6 +33,10 @@ pub const JA11_PROTOCOL: FiioProtocol = FiioProtocol {
     clamp_gain: true,
     gain_read_optional: true,
     save_resets_device: true,
+    // FiiO's JA11 configuration uses a 200 ms device command interval
+    // (Cyfine/ja11-web-control PROTOCOL.md; weekssa/OPRA-EQ-for-UAPP
+    // FiioJa11Timing.kt). Faster pacing drops band reads and writes.
+    command_interval_ms: Some(200),
 };
 
 // The existing generic FiiO profile represents KA15.
@@ -42,6 +47,7 @@ pub const FIIO_PROTOCOL: FiioProtocol = FiioProtocol {
     clamp_gain: false,
     gain_read_optional: false,
     save_resets_device: false,
+    command_interval_ms: None,
 };
 
 pub const KA17_PROTOCOL: FiioProtocol = FiioProtocol {
@@ -51,6 +57,7 @@ pub const KA17_PROTOCOL: FiioProtocol = FiioProtocol {
     clamp_gain: false,
     gain_read_optional: false,
     save_resets_device: false,
+    command_interval_ms: None,
 };
 
 fn default_state(peq: &PEQData) -> bool {
@@ -189,7 +196,21 @@ fn preset_packet(report_id: u8, command: u8, slot: u8) -> Packet {
 
 impl EqProtocol for FiioProtocol {
     fn write_timing(&self) -> WriteTiming {
-        WriteTiming::default()
+        match self.command_interval_ms {
+            None => WriteTiming::default(),
+            // init_ms also gives a freshly reopened (post-save) device time
+            // to settle before stale input is drained and the first read.
+            Some(ms) => WriteTiming {
+                per_filter_ms: ms,
+                batch_ms: ms,
+                global_gain_ms: ms,
+                commit_step_ms: ms,
+                flood_delay_ms: ms,
+                post_gain_read_ms: ms,
+                init_ms: 500,
+                packet_gap_ms: ms,
+            },
+        }
     }
 
     fn is_default_state(&self, peq: &PEQData) -> bool {

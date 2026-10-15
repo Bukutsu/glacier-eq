@@ -325,6 +325,17 @@ pub const PROFILES: &[DeviceProfile] = &[
         family: "FiiO",
         caps: FIIO_5_BAND_CAPS,
     },
+    // The same JA11 in UAC 1.0 mode; same HID protocol
+    // (Cyfine/ja11-web-control PROTOCOL.md).
+    DeviceProfile {
+        name: "FiiO JA11",
+        protocol: DeviceProtocol::FiioJa11,
+        vendor_id: 0x2972,
+        product_id: Some(0x0101),
+        status: "Untested",
+        family: "FiiO",
+        caps: FIIO_5_BAND_CAPS,
+    },
     DeviceProfile {
         name: "FiiO KA15",
         protocol: DeviceProtocol::Fiio,
