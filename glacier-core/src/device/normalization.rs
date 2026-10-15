@@ -3,7 +3,7 @@
 
 //! Device-bound PEQ validation and normalization.
 
-use super::{get_supported_device, DeviceCapabilities, DeviceProfile, DeviceProtocol, EqProtocol};
+use super::{get_supported_device, DeviceCapabilities, DeviceProfile, DeviceProtocol};
 use crate::eq::{FilterType, PEQData};
 
 /// Validates and normalizes PEQ data for a device profile before a hardware write.
@@ -74,7 +74,7 @@ pub fn is_default_peq_for_device(
     product_id: u16,
 ) -> Result<bool, String> {
     let profile = selected_profile(vendor_id, product_id)?;
-    Ok(profile.protocol.is_default_state(peq))
+    Ok(profile.protocol.implementation().is_default_state(peq))
 }
 
 pub fn validate_peq(peq: &PEQData) -> Result<(), String> {
