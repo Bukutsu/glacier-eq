@@ -21,6 +21,7 @@ pub struct FiioProtocol {
     user_slot: u8,
     clamp_gain: bool,
     gain_read_optional: bool,
+    save_resets_device: bool,
 }
 
 // Slots are the active USER presets recorded in devicePEQ's 2026-05-03 captures.
@@ -30,6 +31,7 @@ pub const JA11_PROTOCOL: FiioProtocol = FiioProtocol {
     user_slot: 3,
     clamp_gain: true,
     gain_read_optional: true,
+    save_resets_device: true,
 };
 
 // The existing generic FiiO profile represents KA15.
@@ -39,6 +41,7 @@ pub const FIIO_PROTOCOL: FiioProtocol = FiioProtocol {
     user_slot: 9,
     clamp_gain: false,
     gain_read_optional: false,
+    save_resets_device: false,
 };
 
 pub const KA17_PROTOCOL: FiioProtocol = FiioProtocol {
@@ -47,6 +50,7 @@ pub const KA17_PROTOCOL: FiioProtocol = FiioProtocol {
     user_slot: 4,
     clamp_gain: false,
     gain_read_optional: false,
+    save_resets_device: false,
 };
 
 fn default_state(peq: &PEQData) -> bool {
@@ -239,6 +243,10 @@ impl EqProtocol for FiioProtocol {
 
     fn gain_read_optional(&self) -> bool {
         self.gain_read_optional
+    }
+
+    fn save_resets_device(&self) -> bool {
+        self.save_resets_device
     }
 
     fn read_global_gain_request(&self) -> Packet {

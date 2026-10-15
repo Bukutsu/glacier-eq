@@ -219,11 +219,16 @@ impl<'a> DeviceSession<'a> {
             return Err("Cannot push while the device returned an invalid EQ response".into());
         }
         validate_peq_for_capabilities(&backup, &self.profile.caps)?;
+        // A DAC that resets on save cannot be read back afterwards, so its
+        // RAM state is verified first and the save is the last packet sent.
+        let save_last = self.protocol().save_resets_device();
         let attempt: Result<PEQData, String> = (|| {
             self.write_to_ram(&normalized)
                 .map_err(|error| format!("Push write failed: {error}"))?;
-            self.commit()
-                .map_err(|error| format!("Push commit failed: {error}"))?;
+            if !save_last {
+                self.commit()
+                    .map_err(|error| format!("Push commit failed: {error}"))?;
+            }
             self.io.sleep_ms(RETRY_DELAY_MS);
             let actual = self
                 .pull()
@@ -242,6 +247,10 @@ impl<'a> DeviceSession<'a> {
                 !self.last_pull_gain_unknown,
             )
             .map_err(|error| format!("Push verification failed: {error}"))?;
+            if save_last {
+                self.commit()
+                    .map_err(|error| format!("Push commit failed: {error}"))?;
+            }
             Ok(actual)
         })();
         match attempt {
@@ -264,7 +273,11 @@ impl<'a> DeviceSession<'a> {
 
     fn restore_and_verify(&mut self, backup: &PEQData) -> Result<(), String> {
         self.write_to_ram(backup)?;
-        self.commit()?;
+        // The backup is still what the DAC has saved unless a save was sent;
+        // re-saving would reset a save-resets device mid-verification.
+        if !self.protocol().save_resets_device() {
+            self.commit()?;
+        }
         self.io.sleep_ms(RETRY_DELAY_MS);
         let actual = self.pull()?;
         if self.last_pull_had_invalid_response {
@@ -1472,6 +1485,55 @@ mod tests {
 
         let error = DeviceSession::new(&mut io, profile).pull().unwrap_err();
         assert!(error.contains("uncorrelated"), "{error}");
+    }
+
+    #[test]
+    fn ja11_push_verifies_ram_then_saves_last() {
+        let profile = get_supported_device(0x2972, 0x0102).unwrap();
+        let mut io = FakeIo::default();
+        let queue_ja11_pull = |io: &mut FakeIo| {
+            io.reads.push_back(vec![]); // init drain
+            io.reads
+                .push_back(vec![0xBB, 0x0B, 0, 0, 0x17, 2, 0, 10, 0, 0xEE]);
+            for index in 0..5u8 {
+                io.reads.push_back(vec![
+                    0xBB, 0x0B, 0, 0, 0x15, 8, index, 0, 10, 0x03, 0xE8, 0, 100, 0, 0, 0xEE,
+                ]);
+            }
+        };
+        queue_ja11_pull(&mut io); // snapshot
+        io.reads.push_back(vec![]); // push init drain
+        queue_ja11_pull(&mut io); // RAM verification
+        let peq = PEQData {
+            filters: (0..5)
+                .map(|index| Filter {
+                    index,
+                    enabled: true,
+                    freq: 1000,
+                    gain: 1.0,
+                    q: 1.0,
+                    filter_type: crate::FilterType::Peak,
+                })
+                .collect(),
+            global_gain: 1.0,
+        };
+
+        DeviceSession::new(&mut io, profile)
+            .persistent_push(peq)
+            .unwrap();
+
+        // The DAC re-enumerates after the save: it must be the final I/O.
+        let save = [2, 0xAA, 0x0A, 0, 0, 0x19, 1, 3, 0, 0xEE];
+        assert_eq!(io.writes.last().unwrap().as_slice(), save);
+        assert_eq!(io.writes.iter().filter(|w| w[5] == 0x19).count(), 1);
+        let last_write = io
+            .events
+            .iter()
+            .rposition(|event| matches!(event, IoEvent::Write(_)))
+            .unwrap();
+        assert!(!io.events[last_write..]
+            .iter()
+            .any(|event| matches!(event, IoEvent::Read)));
     }
 
     #[test]

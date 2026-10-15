@@ -115,6 +115,12 @@ pub trait EqProtocol {
     fn gain_read_optional(&self) -> bool {
         false
     }
+    /// The DAC re-enumerates on USB shortly after the save command (JA11, as
+    /// devicePEQ's `disconnectOnSave` records). Nothing may be read or written
+    /// after the save, so pushes verify the RAM state first and save last.
+    fn save_resets_device(&self) -> bool {
+        false
+    }
     fn read_global_gain_request(&self) -> Packet;
     fn matches_global_gain_response(&self, data: &[u8]) -> bool;
     fn parse_global_gain_response(&self, data: &[u8]) -> Option<f64>;
