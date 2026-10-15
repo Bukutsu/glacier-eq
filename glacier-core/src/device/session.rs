@@ -220,7 +220,8 @@ impl<'a> DeviceSession<'a> {
         }
         validate_peq_for_capabilities(&backup, &self.profile.caps)?;
         // A DAC that resets on save cannot be read back afterwards, so its
-        // RAM state is verified first and the save is the last packet sent.
+        // RAM state is verified first and the save is the last packet sent,
+        // as jeromeof/devicePEQ and Ircama/ja11-config do for JA11.
         let save_last = self.protocol().save_resets_device();
         let attempt: Result<PEQData, String> = (|| {
             self.write_to_ram(&normalized)

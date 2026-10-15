@@ -115,9 +115,12 @@ pub trait EqProtocol {
     fn gain_read_optional(&self) -> bool {
         false
     }
-    /// The DAC re-enumerates on USB shortly after the save command (JA11, as
-    /// devicePEQ's `disconnectOnSave` records). Nothing may be read or written
-    /// after the save, so pushes verify the RAM state first and save last.
+    /// The DAC re-enumerates on USB shortly after the save command. Nothing may
+    /// be read or written after the save, so pushes verify the RAM state first
+    /// and save last. For JA11 this follows jeromeof/devicePEQ
+    /// (devicePEQ/usbDeviceConfig.js, `disconnectOnSave: true`) and
+    /// Ircama/ja11-config (ja11-config-tui.c, `save_to_flash()` sends the
+    /// save as its final packet).
     fn save_resets_device(&self) -> bool {
         false
     }
