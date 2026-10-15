@@ -269,15 +269,88 @@ fn try_open_device(app: &tauri::AppHandle, path: &str, session_id: u64) -> Resul
 struct TauriDeviceIo<'a> {
     app: &'a tauri::AppHandle,
     path: &'a str,
+    /// Consecutive empty reads not yet logged, and their total timeout.
+    idle_reads: (u32, i64),
+}
+
+/// Hex with trailing zero padding collapsed, so fixed-size HID reports stay
+/// readable in the diagnostic report.
+fn hid_hex(data: &[u8]) -> String {
+    let used = data.iter().rposition(|&byte| byte != 0).map_or(0, |i| i + 1);
+    let mut text = data[..used]
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect::<Vec<_>>()
+        .join(" ");
+    if used < data.len() {
+        text.push_str(&format!(" (+{} zero bytes)", data.len() - used));
+    }
+    text
+}
+
+impl TauriDeviceIo<'_> {
+    fn trace(&self, level: crate::diagnostics::LogLevel, message: String) {
+        crate::diagnostics::record(
+            self.app,
+            self.app
+                .state::<Mutex<crate::diagnostics::DiagnosticsStore>>()
+                .inner(),
+            level,
+            crate::diagnostics::LogSource::HID,
+            message,
+        );
+    }
+
+    fn flush_idle_reads(&mut self) {
+        let (count, ms) = std::mem::take(&mut self.idle_reads);
+        if count > 0 {
+            self.trace(
+                crate::diagnostics::LogLevel::Info,
+                format!("RX no reply x{count} ({ms} ms)"),
+            );
+        }
+    }
+}
+
+impl Drop for TauriDeviceIo<'_> {
+    fn drop(&mut self) {
+        self.flush_idle_reads();
+    }
 }
 
 impl DeviceIo for TauriDeviceIo<'_> {
     fn write(&mut self, data: &[u8]) -> Result<(), String> {
-        hid_write(self.app, self.path, data)
+        use crate::diagnostics::LogLevel;
+        self.flush_idle_reads();
+        let result = hid_write(self.app, self.path, data);
+        match &result {
+            Ok(()) => self.trace(LogLevel::Info, format!("TX {}", hid_hex(data))),
+            Err(error) => self.trace(
+                LogLevel::Error,
+                format!("TX failed {}: {error}", hid_hex(data)),
+            ),
+        }
+        result
     }
 
     fn read(&mut self, timeout_ms: i32) -> Result<Vec<u8>, String> {
-        hid_read(self.app, self.path, timeout_ms)
+        use crate::diagnostics::LogLevel;
+        let result = hid_read(self.app, self.path, timeout_ms);
+        match &result {
+            Ok(bytes) if bytes.is_empty() => {
+                self.idle_reads.0 += 1;
+                self.idle_reads.1 += i64::from(timeout_ms);
+            }
+            Ok(bytes) => {
+                self.flush_idle_reads();
+                self.trace(LogLevel::Info, format!("RX {}", hid_hex(bytes)));
+            }
+            Err(error) => {
+                self.flush_idle_reads();
+                self.trace(LogLevel::Error, format!("RX failed: {error}"));
+            }
+        }
+        result
     }
 
     fn reads_include_report_id(&self) -> bool {
@@ -335,6 +408,7 @@ async fn with_session_for<T: Send + 'static>(
         let mut io = TauriDeviceIo {
             app: &app_clone,
             path: &path,
+            idle_reads: (0, 0),
         };
         let progress_app = app_clone.clone();
         let mut progress =

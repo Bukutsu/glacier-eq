@@ -24,6 +24,8 @@ pub struct FiioProtocol {
     save_resets_device: bool,
     command_interval_ms: Option<u64>,
     sends_filter_count: bool,
+    /// Send 0x18 = 1 ("apply") after the bands and preamp, before readback.
+    apply_after_write: bool,
 }
 
 // Slots are the active USER presets recorded in devicePEQ's 2026-05-03 captures.
@@ -38,11 +40,14 @@ pub const JA11_PROTOCOL: FiioProtocol = FiioProtocol {
     // (Cyfine/ja11-web-control PROTOCOL.md; weekssa/OPRA-EQ-for-UAPP
     // FiioJa11Timing.kt). Faster pacing drops band reads and writes.
     command_interval_ms: Some(200),
-    // devicePEQ sends 0x18 as a filter count; Ircama/ja11-config treats it as
-    // "apply" with value 1, and Cyfine/ja11-web-control (from FiiO Control)
-    // never sends it. After saving with 18 05, a JM12 on JA11 firmware kept
-    // the EQ but stopped answering reads until FiiO Control's Reset EQ.
+    // devicePEQ sends 0x18 = 5 before the bands as a filter count. After
+    // saving that, a JM12 on JA11 firmware kept the EQ but stopped answering
+    // reads until FiiO Control's Reset EQ. weekssa/OPRA-EQ-for-UAPP (codec
+    // taken from FiiO Control v4.6.0, hardware-verified save and readback)
+    // and Ircama/ja11-config instead send 0x18 = 1 ("apply") after the
+    // bands and preamp, then save.
     sends_filter_count: false,
+    apply_after_write: true,
 };
 
 // The existing generic FiiO profile represents KA15.
@@ -55,6 +60,7 @@ pub const FIIO_PROTOCOL: FiioProtocol = FiioProtocol {
     save_resets_device: false,
     command_interval_ms: None,
     sends_filter_count: true,
+    apply_after_write: false,
 };
 
 pub const KA17_PROTOCOL: FiioProtocol = FiioProtocol {
@@ -66,6 +72,7 @@ pub const KA17_PROTOCOL: FiioProtocol = FiioProtocol {
     save_resets_device: false,
     command_interval_ms: None,
     sends_filter_count: true,
+    apply_after_write: false,
 };
 
 fn default_state(peq: &PEQData) -> bool {
@@ -186,8 +193,8 @@ fn write_filter_packet(report_id: u8, index: u8, filter: &Filter) -> Packet {
 }
 
 fn write_global_gain_packet(report_id: u8, global_gain: f64) -> Packet {
-    // devicePEQ's captured general format is signed BE tenths of a dB.
-    // JA11 negative preamp writes still require independent hardware verification.
+    // Signed BE tenths of a dB: devicePEQ's captures, and FiiO Control's own
+    // JA11 codec per weekssa/OPRA-EQ-for-UAPP (-3.9 dB is FF D9).
     let [first, second] = ((global_gain * 10.0).round() as i16).to_be_bytes();
     Packet::new(
         report_id,
@@ -336,7 +343,11 @@ impl EqProtocol for FiioProtocol {
         } else {
             global_gain
         };
-        vec![write_global_gain_packet(self.report_id, gain)]
+        let mut packets = vec![write_global_gain_packet(self.report_id, gain)];
+        if self.apply_after_write {
+            packets.push(preset_packet(self.report_id, 0x18, 1));
+        }
+        packets
     }
 
     fn commit_packets(&self) -> Vec<Packet> {
@@ -460,6 +471,22 @@ mod tests {
             .unwrap();
         let commands: Vec<u8> = writes.iter().map(|w| w.payload[4]).collect();
         assert_eq!(commands, [0x16, FILTER_PARAMS]);
+    }
+
+    #[test]
+    fn ja11_applies_after_preamp() {
+        let commands: Vec<Vec<u8>> = JA11_PROTOCOL
+            .write_global_gain_packets(0.8)
+            .into_iter()
+            .map(|packet| packet.payload)
+            .collect();
+        assert_eq!(
+            commands,
+            [
+                vec![SET_1, SET_2, 0, 0, GLOBAL_GAIN, 2, 0, 8, 0, END],
+                vec![SET_1, SET_2, 0, 0, 0x18, 1, 1, 0, END],
+            ]
+        );
     }
 
     #[test]

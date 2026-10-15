@@ -839,7 +839,14 @@ impl<'a> DeviceSession<'a> {
         }
         self.progress("Writing preamp…", 75.0);
         self.io.sleep_ms(protocol.write_timing().batch_ms);
-        for packet in protocol.write_global_gain_packets(peq.global_gain) {
+        for (packet_index, packet) in protocol
+            .write_global_gain_packets(peq.global_gain)
+            .into_iter()
+            .enumerate()
+        {
+            if packet_index > 0 {
+                self.io.sleep_ms(protocol.write_timing().packet_gap_ms);
+            }
             self.send(&packet)
                 .map_err(|error| format!("Global gain write failed: {error}"))?;
         }
