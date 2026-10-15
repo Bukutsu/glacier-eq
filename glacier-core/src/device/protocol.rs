@@ -8,7 +8,7 @@ use crate::device::timing::WriteTiming;
 use crate::eq::{Filter, PEQData};
 
 /// Per-model behavior that changes how the shared read/write/verify flow runs.
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, serde::Serialize)]
 pub struct Quirks {
     /// Some firmware never answers the global-gain query (JCally JM12
     /// cross-flashed with JA11 firmware). When true, an unanswered gain read

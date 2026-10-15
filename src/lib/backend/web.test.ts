@@ -30,6 +30,7 @@ const wasm = vi.hoisted(() => ({
   build_factory_reset_packet: vi.fn(),
   build_flash_eq_packet: vi.fn(),
   get_write_timing: vi.fn(() => ({})),
+  get_protocol_quirks: vi.fn(() => ({ gain_read_optional: false, save_resets_device: false })),
 }));
 
 // Controllable wasm gate: the round-5 P3 finding is that invokeWeb awaited
@@ -171,6 +172,7 @@ beforeEach(() => {
   wasm.build_ram_apply_packets.mockReturnValue([]);
   wasm.is_filter_response_valid.mockReturnValue(true);
   wasm.get_write_timing.mockReturnValue({});
+  wasm.get_protocol_quirks.mockReturnValue({ gain_read_optional: false, save_resets_device: false });
 });
 
 function peqWithBands(count: number): PEQData {
@@ -921,6 +923,105 @@ describe("browser EQ writes", () => {
       "pushed without reading the DAC back, so its stored EQ was not verified",
     ]);
     expect(result.global_gain).toBe(12);
+  });
+});
+
+describe("browser EQ writes on a DAC that resets on save", () => {
+  const JA11_SAVE = [2, 0xaa, 0x0a, 0x00, 0x00, 0x19, 0x01, 0x03, 0x00, 0xee];
+  const GAIN_REQ = [2, 0xbb, 0x0b, 0x00, 0x00, 0x17, 0x00, 0x00, 0xee];
+  const FILTER_REQ = [2, 0xbb, 0x0b, 0x00, 0x00, 0x15, 0x01, 0x00, 0xee];
+  const FILTER_WRITE = [2, 0xaa, 0x0a, 0x00, 0x00, 0x15, 0x08];
+  const GAIN_WRITE = [2, 0xaa, 0x0a, 0x00, 0x00, 0x17, 0x02];
+  const ja11: SupportedDeviceInfo = {
+    ...profile,
+    name: "FiiO JA11",
+    protocol: "FiiO JA11",
+    vendor_id: 0x2972,
+    product_id: 0x0102,
+    num_bands: 1,
+  };
+
+  async function connectJa11(protocol = ja11.protocol) {
+    const device = {
+      ...fakeHidDevice({ respondToReports: true }),
+      vendorId: ja11.vendor_id,
+      productId: ja11.product_id!,
+    } as HIDDevice;
+    await connectWebHid(device, { ...ja11, protocol });
+    const requested = peqWithBands(1);
+    wasm.get_protocol_quirks.mockImplementation((name: string) => ({
+      gain_read_optional: false,
+      save_resets_device: name === "FiiO JA11",
+    }));
+    wasm.normalize_peq_for_device.mockReturnValue({ peq: requested, warnings: [] });
+    wasm.build_read_global_gain_request.mockReturnValue(GAIN_REQ);
+    wasm.matches_global_gain_response.mockReturnValue(true);
+    wasm.build_read_filter_request.mockReturnValue(FILTER_REQ);
+    wasm.matches_filter_response.mockReturnValue(true);
+    wasm.parse_filter_response.mockReturnValue(requested.filters[0]);
+    wasm.build_write_filter_packets.mockReturnValue([FILTER_WRITE]);
+    wasm.build_write_global_gain_packets.mockReturnValue([GAIN_WRITE]);
+    wasm.build_commit_packets.mockReturnValue([JA11_SAVE]);
+    return { device, requested };
+  }
+
+  const sentReports = (device: HIDDevice) =>
+    (device.sendReport as ReturnType<typeof vi.fn>).mock.calls.map(
+      ([id, data]: [number, Uint8Array]) => [id, ...Array.from(data)],
+    );
+
+  it("verifies RAM first and sends the save packet last, with no I/O after it", async () => {
+    const { device, requested } = await connectJa11();
+    wasm.parse_global_gain_response.mockReturnValue(requested.global_gain);
+
+    await expect(invoke<PEQData>("set_eq_state", { peq: requested })).resolves.toMatchObject({
+      global_gain: requested.global_gain,
+      warnings: [],
+    });
+
+    expect(sentReports(device)).toEqual([
+      GAIN_REQ, FILTER_REQ, // backup pull
+      FILTER_WRITE, GAIN_WRITE, // RAM write
+      GAIN_REQ, FILTER_REQ, // verification pull
+      JA11_SAVE,
+    ]);
+    const lastRead = Math.max(
+      ...wasm.matches_global_gain_response.mock.invocationCallOrder,
+      ...wasm.matches_filter_response.mock.invocationCallOrder,
+      ...wasm.parse_global_gain_response.mock.invocationCallOrder,
+      ...wasm.parse_filter_response.mock.invocationCallOrder,
+    );
+    const save = (device.sendReport as ReturnType<typeof vi.fn>).mock.invocationCallOrder.at(-1)!;
+    expect(save).toBeGreaterThan(lastRead);
+  });
+
+  it("does not save, before or while restoring, when verification fails", async () => {
+    const { device, requested } = await connectJa11();
+    // backup pull, mismatching verification pull, restore verification pull
+    wasm.parse_global_gain_response
+      .mockReturnValueOnce(0)
+      .mockReturnValueOnce(-9)
+      .mockReturnValue(0);
+
+    await expect(invoke("set_eq_state", { peq: requested })).rejects.toThrow(
+      "previous state restored",
+    );
+
+    expect(sentReports(device)).not.toContainEqual(JA11_SAVE);
+  });
+
+  it("keeps the save-before-verify order on DACs without the quirk", async () => {
+    const { device, requested } = await connectJa11("OtherProtocol");
+    wasm.parse_global_gain_response.mockReturnValue(requested.global_gain);
+
+    await invoke("set_eq_state", { peq: requested });
+
+    expect(sentReports(device)).toEqual([
+      GAIN_REQ, FILTER_REQ,
+      FILTER_WRITE, GAIN_WRITE,
+      JA11_SAVE,
+      GAIN_REQ, FILTER_REQ,
+    ]);
   });
 });
 

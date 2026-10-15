@@ -915,13 +915,23 @@ async function commitEqPayload(protocol: string, progressMessage: string): Promi
   }
 }
 
+// Mirrors EqProtocol::quirks().save_resets_device: the DAC re-enumerates after
+// the save command, so nothing may be read or written after it.
+function savesResetDevice(protocol: string): boolean {
+  return (wasm().get_protocol_quirks(protocol) as { save_resets_device: boolean }).save_resets_device;
+}
+
 async function restorePersistentState(
   protocol: string,
   backup: PEQData,
   profile: SupportedDeviceInfo,
 ): Promise<void> {
   await writeEqPayload(protocol, backup, "Restoring previous device EQ…");
-  await commitEqPayload(protocol, "Saving restored EQ to DAC…");
+  // The backup is still what the DAC has saved unless a save was sent;
+  // re-saving would reset a save-resets device mid-verification.
+  if (!savesResetDevice(protocol)) {
+    await commitEqPayload(protocol, "Saving restored EQ to DAC…");
+  }
   const restored = await pullEqState(profile);
   validatePulledPeqForProfile(restored, profile);
   const mismatch = peqVerificationError(restored, backup, profile);
@@ -1605,14 +1615,18 @@ async function invokeWeb<T = unknown>(cmd: string, args?: any): Promise<T> {
         } as T;
       }
 
+      // Same order as DeviceSession::persistent_push: a DAC that resets on
+      // save is verified from RAM first and saved last.
+      const saveLast = savesResetDevice(protocol);
       let actual: PEQData;
       try {
         await writeEqPayload(protocol, peq, "Preparing EQ write…");
-        await commitEqPayload(protocol, "Saving EQ to DAC…");
+        if (!saveLast) await commitEqPayload(protocol, "Saving EQ to DAC…");
         actual = await pullEqState(profile);
         validatePulledPeqForProfile(actual, profile);
         const mismatch = peqVerificationError(actual, peq, profile);
         if (mismatch) throw new Error(mismatch);
+        if (saveLast) await commitEqPayload(protocol, "Saving EQ to DAC…");
       } catch (pushError) {
         let restoreError: unknown | null = null;
         try {

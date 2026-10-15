@@ -734,6 +734,11 @@ pub fn get_write_timing(protocol: String) -> Result<JsValue, JsValue> {
     to_js_value(&timing)
 }
 
+#[wasm_bindgen]
+pub fn get_protocol_quirks(protocol: String) -> Result<JsValue, JsValue> {
+    to_js_value(&eq_protocol(&protocol)?.quirks())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

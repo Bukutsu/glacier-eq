@@ -331,6 +331,11 @@ mod tests {
             let quirks = protocol.quirks();
             assert!(!quirks.gain_read_optional && !quirks.save_resets_device);
         }
+        // The frame web.ts must send last on JA11 (report ID 2).
+        assert_eq!(
+            JA11_PROTOCOL.commit_packets()[0].framed(),
+            [2, 0xAA, 0x0A, 0x00, 0x00, 0x19, 0x01, 0x03, 0x00, 0xEE]
+        );
     }
 
     #[test]
