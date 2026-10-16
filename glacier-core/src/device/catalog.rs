@@ -5,7 +5,7 @@
 
 use crate::device::capabilities::{DeviceCapabilities, DESKTOP_DAC_CAPS};
 use crate::device::families::{dawn_pro, fiio, moondrop, walkplay};
-use crate::device::profile::{Controls, DeviceProfile};
+use crate::device::profile::{Controls, DacSpec, DeviceProfile};
 use crate::device::protocol::Protocol;
 use crate::eq::FilterType;
 
@@ -97,6 +97,15 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
         family: "Walkplay Family",
         caps: SAVITECH_10_BAND_CAPS,
         controls: Some(Controls::Walkplay),
+        spec: Some(DacSpec {
+            name: "EPZ TP35 Pro",
+            chip: "Dual CS43198",
+            outputs: "3.5 / 4.4mm",
+            max_power: Some("262mW @ 32Ω"),
+            decoding: Some("384k / DSD256"),
+            snr: Some("125 dB"),
+            thd: Some("0.0004%"),
+        }),
     },
     DeviceProfile {
         name: "TRN Black Pearl",
@@ -107,6 +116,15 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
         family: "Walkplay Family",
         caps: SAVITECH_10_BAND_CAPS,
         controls: Some(Controls::Walkplay),
+        spec: Some(DacSpec {
+            name: "TRN Black Pearl",
+            chip: "Dual CS43131",
+            outputs: "3.5 / 4.4mm",
+            max_power: Some("250mW @ 32Ω"),
+            decoding: Some("384k / DSD256"),
+            snr: Some("125 dB"),
+            thd: Some("0.0005%"),
+        }),
     },
     DeviceProfile {
         name: "Audiocular Aura",
@@ -117,6 +135,15 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
         family: "Walkplay Family",
         caps: SAVITECH_10_BAND_CAPS,
         controls: Some(Controls::Walkplay),
+        spec: Some(DacSpec {
+            name: "Audiocular Aura",
+            chip: "Dual CS43198",
+            outputs: "3.5 / 4.4mm",
+            max_power: Some("262mW @ 32Ω"),
+            decoding: Some("384k / DSD256"),
+            snr: Some("125 dB"),
+            thd: None,
+        }),
     },
     DeviceProfile {
         name: "JCally JM20 Pro",
@@ -136,6 +163,15 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
             ..SAVITECH_10_BAND_CAPS
         },
         controls: Some(Controls::Walkplay),
+        spec: Some(DacSpec {
+            name: "JCally JM20 Pro",
+            chip: "CS43131",
+            outputs: "3.5mm SE",
+            max_power: Some("95mW @ 32Ω"),
+            decoding: Some("384k / DSD256"),
+            snr: None,
+            thd: None,
+        }),
     },
     DeviceProfile {
         name: "Moondrop Dawn Pro 2",
@@ -146,6 +182,15 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
         family: "Moondrop",
         caps: MOONDROP_8_BAND_CAPS,
         controls: None,
+        spec: Some(DacSpec {
+            name: "Moondrop Dawn Pro 2",
+            chip: "Dual CS43131",
+            outputs: "3.5 / 4.4mm",
+            max_power: Some("260mW @ 32Ω"),
+            decoding: Some("384k / DSD256"),
+            snr: Some("131 dB"),
+            thd: None,
+        }),
     },
     DeviceProfile {
         name: "FiiO JA11",
@@ -156,6 +201,15 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
         family: "FiiO",
         caps: FIIO_5_BAND_CAPS,
         controls: None,
+        spec: Some(DacSpec {
+            name: "FiiO JA11",
+            chip: "KT02H20 DSP",
+            outputs: "3.5mm SE",
+            max_power: Some("30mW @ 32Ω"),
+            decoding: Some("384k / DSD128"),
+            snr: Some("115 dB"),
+            thd: None,
+        }),
     },
     DeviceProfile {
         name: "FiiO KA15",
@@ -166,6 +220,15 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
         family: "FiiO",
         caps: FIIO_10_BAND_CAPS,
         controls: None,
+        spec: Some(DacSpec {
+            name: "FiiO KA Series",
+            chip: "Cirrus / ESS",
+            outputs: "3.5 / 4.4mm",
+            max_power: None,
+            decoding: Some("384k / DSD256"),
+            snr: None,
+            thd: None,
+        }),
     },
     DeviceProfile {
         name: "FiiO KA17",
@@ -176,6 +239,15 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
         family: "FiiO",
         caps: FIIO_10_BAND_CAPS,
         controls: None,
+        spec: Some(DacSpec {
+            name: "FiiO KA Series",
+            chip: "Cirrus / ESS",
+            outputs: "3.5 / 4.4mm",
+            max_power: None,
+            decoding: Some("384k / DSD256"),
+            snr: None,
+            thd: None,
+        }),
     },
     DeviceProfile {
         name: "Truthear KEYX",
@@ -194,6 +266,15 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
             ..SAVITECH_10_BAND_CAPS
         },
         controls: Some(Controls::Walkplay),
+        spec: Some(DacSpec {
+            name: "Truthear KEYX",
+            chip: "CM6542 Codec",
+            outputs: "3.5mm SE",
+            max_power: Some("60mW @ 32Ω"),
+            decoding: Some("384k / 32-bit"),
+            snr: None,
+            thd: None,
+        }),
     },
     DeviceProfile {
         name: "Fosi Audio DS2 / iBasso DC04 Pro",
@@ -204,6 +285,15 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
         family: "Walkplay Family",
         caps: SAVITECH_10_BAND_CAPS,
         controls: Some(Controls::Walkplay),
+        spec: Some(DacSpec {
+            name: "Fosi Audio DS2 / iBasso DC04 Pro",
+            chip: "Dual CS43131",
+            outputs: "3.5 / 4.4mm",
+            max_power: Some("510mW @ 32Ω"),
+            decoding: Some("384k / DSD256"),
+            snr: Some("130 dB"),
+            thd: None,
+        }),
     },
     DeviceProfile {
         name: "JCally JM20 / Savitech Generic",
@@ -214,6 +304,15 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
         family: "Walkplay Family",
         caps: SAVITECH_10_BAND_CAPS,
         controls: Some(Controls::Walkplay),
+        spec: Some(DacSpec {
+            name: "JCally JM20 / Savitech Generic",
+            chip: "CS43131",
+            outputs: "3.5mm SE",
+            max_power: Some("95mW @ 32Ω"),
+            decoding: Some("384k / DSD256"),
+            snr: None,
+            thd: None,
+        }),
     },
     DeviceProfile {
         name: "JCally JM20 Pro / Alt Savitech",
@@ -224,6 +323,15 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
         family: "Walkplay Family",
         caps: SAVITECH_10_BAND_CAPS,
         controls: Some(Controls::Walkplay),
+        spec: Some(DacSpec {
+            name: "JCally JM20 Pro / Alt Savitech",
+            chip: "CS43131",
+            outputs: "3.5mm SE",
+            max_power: Some("95mW @ 32Ω"),
+            decoding: Some("384k / DSD256"),
+            snr: None,
+            thd: None,
+        }),
     },
     DeviceProfile {
         name: "Moondrop Dawn Pro",
@@ -235,6 +343,15 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
         // No hardware EQ; these caps only shape the offline editor.
         caps: DESKTOP_DAC_CAPS,
         controls: Some(Controls::DawnPro),
+        spec: Some(DacSpec {
+            name: "Moondrop Dawn Pro",
+            chip: "Dual CS43131",
+            outputs: "3.5 / 4.4mm",
+            max_power: Some("230mW @ 32Ω"),
+            decoding: Some("384k / DSD256"),
+            snr: Some("131 dB"),
+            thd: Some("0.00014%"),
+        }),
     },
     // Other Comtrue PIDs match for display only: the controls protocol is
     // verified on the original 2FC6:F06A alone.
@@ -248,6 +365,15 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
         // No hardware EQ; these caps only shape the offline editor.
         caps: DESKTOP_DAC_CAPS,
         controls: None,
+        spec: Some(DacSpec {
+            name: "Moondrop Dawn Pro",
+            chip: "Dual CS43131",
+            outputs: "3.5 / 4.4mm",
+            max_power: Some("230mW @ 32Ω"),
+            decoding: Some("384k / DSD256"),
+            snr: Some("131 dB"),
+            thd: Some("0.00014%"),
+        }),
     },
     DeviceProfile {
         name: "JCally JM12",
@@ -258,6 +384,15 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
         family: "FiiO",
         caps: FIIO_5_BAND_CAPS,
         controls: None,
+        spec: Some(DacSpec {
+            name: "JCally JM12",
+            chip: "KT02H20",
+            outputs: "3.5mm SE",
+            max_power: Some("30mW @ 32Ω"),
+            decoding: Some("384k / DSD128"),
+            snr: None,
+            thd: None,
+        }),
     },
     DeviceProfile {
         name: "FiiO KA Series",
@@ -268,6 +403,15 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
         family: "FiiO",
         caps: FIIO_10_BAND_CAPS,
         controls: None,
+        spec: Some(DacSpec {
+            name: "FiiO KA Series",
+            chip: "Cirrus / ESS",
+            outputs: "3.5 / 4.4mm",
+            max_power: None,
+            decoding: Some("384k / DSD256"),
+            snr: None,
+            thd: None,
+        }),
     },
 ];
 
@@ -299,6 +443,34 @@ pub fn get_supported_device(vendor_id: u16, product_id: u16) -> Option<&'static 
 mod tests {
     use super::*;
     use crate::eq::Filter;
+
+    #[test]
+    fn official_specs_follow_the_matched_profile() {
+        let spec = get_supported_device(0x3302, 0x43e6).unwrap().spec.unwrap();
+        assert_eq!(spec.chip, "Dual CS43198");
+        assert_eq!(spec.max_power, Some("262mW @ 32Ω"));
+        let exact = get_supported_device(0x3302, 0x43c1).unwrap().spec.unwrap();
+        assert_eq!(exact.name, "JCally JM20 Pro");
+        let fallback = get_supported_device(0x3302, 0xffff).unwrap().spec.unwrap();
+        assert_eq!(fallback.name, "Audiocular Aura");
+        assert_eq!(
+            get_supported_device(0x2972, 0x0102)
+                .unwrap()
+                .spec
+                .unwrap()
+                .name,
+            "FiiO JA11"
+        );
+        for device in SUPPORTED_DEVICES {
+            if let Some(spec) = device.spec {
+                assert!(
+                    !spec.name.is_empty() && !spec.chip.is_empty() && !spec.outputs.is_empty(),
+                    "{}",
+                    device.name
+                );
+            }
+        }
+    }
 
     #[test]
     fn audit_preserves_preexisting_device_matching() {

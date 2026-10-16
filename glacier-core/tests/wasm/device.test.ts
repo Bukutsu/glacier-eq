@@ -2,7 +2,7 @@
 // Fixtures retain their devicePEQ capture provenance in tests/fixtures/fiio/.
 import { readFileSync } from "node:fs";
 import { beforeAll, describe, expect, it } from "vitest";
-import { initSync, device_operation } from "../../../src/wasm_pkg/glacier_core";
+import { initSync, device_operation, list_supported_devices } from "../../../src/wasm_pkg/glacier_core";
 
 beforeAll(() => {
   initSync({ module: readFileSync(new URL("../../../src/wasm_pkg/glacier_core_bg.wasm", import.meta.url)) });
@@ -71,6 +71,19 @@ function dac(model = "ja11", options: { missingGain?: boolean; mismatch?: boolea
 }
 
 describe("Rust session over the real wasm bridge", () => {
+  it("exports specs and control capabilities from the matched catalog entries", () => {
+    const catalog = list_supported_devices();
+    const tp35 = catalog.find((profile: any) => profile.vendor_id === 0x3302 && profile.product_id === 0x43e6);
+    expect(tp35.controls).toBe("walkplay");
+    expect(tp35.spec.chip).toBe("Dual CS43198");
+    expect(tp35.spec.maxPower).toBe("262mW @ 32Ω");
+    const dawn = catalog.find((profile: any) => profile.vendor_id === 0x2fc6 && profile.product_id === 0xf06a);
+    expect(dawn.hardware_eq).toBe(false);
+    expect(dawn.controls).toBe("dawn_pro");
+    const fallback = catalog.find((profile: any) => profile.vendor_id === 0x2fc6 && profile.product_id === null);
+    expect(fallback.controls).toBeNull();
+  });
+
   it("JA11 verifies RAM then sends report 2 AA 0A 00 00 19 01 03 00 EE as the last I/O", async () => {
     const { events, peq, run } = dac();
     const result = await run({ command: "set_eq_state", peq, skip_verification: false });

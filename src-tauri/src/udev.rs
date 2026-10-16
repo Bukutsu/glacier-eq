@@ -149,8 +149,7 @@ pub const LEGACY_DEST_PATH: &str = "/etc/udev/rules.d/99-glacier-eq.rules";
 #[cfg(target_os = "linux")]
 const EXPECTED_RULES: &str = include_str!("../../udev/69-glacier-eq.rules");
 #[cfg(target_os = "linux")]
-const EXPECTED_RULES_SHA256: &str =
-    "20deaec429a39ea7acd57ef14002664b83398c8e813e4d5005da9b1ff7f95a77";
+const EXPECTED_RULES_SHA256: &str = env!("GLACIER_UDEV_SHA256");
 
 #[derive(Debug, Clone, Serialize)]
 pub struct UdevStatus {
@@ -518,13 +517,9 @@ mod tests {
         let output = Command::new("sha256sum").arg(path).output().unwrap();
         let output = String::from_utf8(output.stdout).unwrap();
         let actual = output.split_whitespace().next().unwrap();
-        // The installer refuses a file whose hash differs. After editing the
-        // rules, update EXPECTED_RULES_SHA256, then point UDEV_RULES_COMMIT
-        // and UDEV_RULES_SHA256 in src/components/LinuxUdevGuide.tsx at the
-        // commit that ships the new file.
         assert_eq!(
             actual, EXPECTED_RULES_SHA256,
-            "udev/69-glacier-eq.rules changed; update EXPECTED_RULES_SHA256"
+            "build-time digest must match the embedded rules"
         );
     }
 

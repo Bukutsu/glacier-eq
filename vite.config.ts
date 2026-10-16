@@ -44,6 +44,9 @@ export default defineConfig(async ({ mode }) => {
   },
   define: {
     __APP_VERSION__: JSON.stringify(appVersion),
+    __UDEV_RULES_SHA256__: JSON.stringify(hashBytes(
+      readFileSync(fileURLToPath(new URL("./udev/69-glacier-eq.rules", import.meta.url))),
+    )),
   },
   plugins: [
     react(),

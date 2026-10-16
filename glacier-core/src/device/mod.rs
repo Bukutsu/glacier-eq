@@ -14,6 +14,7 @@ pub mod profile;
 pub mod protocol;
 pub mod session;
 pub mod timing;
+pub mod udev;
 
 pub use capabilities::{DeviceCapabilities, EditorCapabilities};
 pub use catalog::{get_supported_device, protocol_by_name, SUPPORTED_DEVICES};
@@ -26,7 +27,7 @@ pub use normalization::{
     normalize_peq_for_profile, validate_peq,
 };
 pub use packet::Packet;
-pub use profile::{Controls, DeviceInfo, DeviceProfile, SupportedDeviceInfo};
+pub use profile::{Controls, DacSpec, DeviceInfo, DeviceProfile, SupportedDeviceInfo};
 pub use protocol::{EqProtocol, GainEncoding, Protocol, Quirks, UNKNOWN};
 pub use session::{block_on, BlockingDeviceIo, DeviceIo, DeviceSession, HID_READ_BUFFER_BYTES};
 

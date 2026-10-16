@@ -18,7 +18,23 @@ pub enum Controls {
     DawnPro,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+/// Official published specs for display only, never protocol capabilities.
+#[derive(Debug, Clone, Copy, Serialize, PartialEq)]
+pub struct DacSpec {
+    pub name: &'static str,
+    pub chip: &'static str,
+    pub outputs: &'static str,
+    #[serde(rename = "maxPower", skip_serializing_if = "Option::is_none")]
+    pub max_power: Option<&'static str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub decoding: Option<&'static str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub snr: Option<&'static str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub thd: Option<&'static str>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct DeviceInfo {
     pub vendor_id: u16,
     pub product_id: u16,
@@ -28,6 +44,7 @@ pub struct DeviceInfo {
     pub profile_name: Option<String>,
     pub hardware_eq: bool,
     pub controls: Option<Controls>,
+    pub spec: Option<DacSpec>,
     #[serde(flatten)]
     pub capabilities: EditorCapabilities,
 }
@@ -42,6 +59,7 @@ pub struct DeviceProfile {
     pub family: &'static str,
     pub caps: DeviceCapabilities,
     pub controls: Option<Controls>,
+    pub spec: Option<DacSpec>,
 }
 
 /// A catalog entry as the UI receives it.
@@ -55,6 +73,7 @@ pub struct SupportedDeviceInfo {
     pub family: &'static str,
     pub hardware_eq: bool,
     pub controls: Option<Controls>,
+    pub spec: Option<DacSpec>,
     #[serde(flatten)]
     pub capabilities: EditorCapabilities,
 }
@@ -70,6 +89,7 @@ impl From<&DeviceProfile> for SupportedDeviceInfo {
             family: profile.family,
             hardware_eq: profile.protocol.has_hardware_eq(),
             controls: profile.controls,
+            spec: profile.spec,
             capabilities: (&profile.caps).into(),
         }
     }

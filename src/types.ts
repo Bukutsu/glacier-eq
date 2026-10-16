@@ -1,3 +1,5 @@
+import type { DacOfficialSpec } from "./lib/dacSpecs";
+
 export type FilterType = "Peak" | "LowShelf" | "HighShelf" | "HighPass" | "LowPass";
 
 export interface Filter {
@@ -88,6 +90,7 @@ export interface DeviceInfo extends DeviceCapabilities {
   profile_name: string | null;
   hardware_eq: boolean;
   controls: DeviceControls | null;
+  spec: DacOfficialSpec | null;
 }
 
 export interface SupportedDeviceInfo extends DeviceCapabilities {
@@ -99,6 +102,7 @@ export interface SupportedDeviceInfo extends DeviceCapabilities {
   family: string;
   hardware_eq: boolean;
   controls: DeviceControls | null;
+  spec: DacOfficialSpec | null;
 }
 
 export interface Profile {

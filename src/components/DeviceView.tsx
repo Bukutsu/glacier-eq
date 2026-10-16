@@ -20,7 +20,7 @@ import {
 import { invokeForDevice, listen } from "../lib/rpc";
 import { DevProtocolPreview } from "./DevProtocolPreview";
 import { isDevDummyDevice } from "../lib/devDevice";
-import { getOfficialDacSpec, OFFLINE_EDITOR_CAPABILITIES } from "../lib/dacSpecs";
+import { OFFLINE_EDITOR_CAPABILITIES } from "../lib/dacSpecs";
 import type { DeviceSection } from "../lib/tabs";
 import {
   createCoalescingTaskScheduler,
@@ -316,13 +316,7 @@ export const DeviceView = memo(function DeviceView({
     }, { supersedePending: true });
   };
 
-  const officialSpec = connected || isSimulated
-    ? getOfficialDacSpec(
-        deviceInfo?.vendor_id,
-        deviceInfo?.product_id,
-        deviceInfo?.profile_name || deviceInfo?.product_string,
-      )
-    : null;
+  const officialSpec = connected || isSimulated ? deviceInfo?.spec ?? null : null;
 
   const deviceTitle = connected || isSimulated
     ? deviceInfo?.profile_name || deviceInfo?.product_string || officialSpec?.name || "Connected DAC"

@@ -10,6 +10,7 @@ export const DEV_DUMMY_DEVICE: DeviceInfo = {
   vendor_id: 0x3302, product_id: 0x43e6, path: DEV_DUMMY_DEVICE_PATH,
   manufacturer: "Glacier", product_string: "Dev Dummy DAC", profile_name: "Glacier Dummy DAC", hardware_eq: true,
   controls: "walkplay",
+  spec: null,
   num_bands: 10, global_gain_range: [-16, 6], band_gain_range: [-10, 10],
   freq_range: [20, 20000], q_range: [0.1, 10],
   supported_filter_types: ["Peak", "HighShelf", "LowShelf", "HighPass", "LowPass"],

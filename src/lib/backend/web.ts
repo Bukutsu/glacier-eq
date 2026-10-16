@@ -699,6 +699,7 @@ const WEBHID_TRANSPORT_COMMANDS = new Set([
  */
 function parseSupportedDeviceInfo(value: unknown): SupportedDeviceInfo | null {
   if (!isRecord(value)) return null;
+  const spec = value.spec;
   const pair = (raw: unknown): [number, number] | null =>
     Array.isArray(raw) && raw.length === 2 && isFiniteNumber(raw[0]) && isFiniteNumber(raw[1])
       ? [raw[0], raw[1]]
@@ -712,6 +713,10 @@ function parseSupportedDeviceInfo(value: unknown): SupportedDeviceInfo | null {
     typeof value.family !== "string" ||
     typeof value.hardware_eq !== "boolean" ||
     !(value.controls === null || value.controls === "walkplay" || value.controls === "dawn_pro") ||
+    !(spec === null || (isRecord(spec) &&
+      ["name", "chip", "outputs"].every(key => typeof spec[key] === "string") &&
+      ["maxPower", "decoding", "snr", "thd"].every(key =>
+        spec[key] === undefined || typeof spec[key] === "string"))) ||
     !isFiniteNumber(value.num_bands) ||
     typeof value.supports_per_band_enable !== "boolean" ||
     typeof value.supports_ram_apply !== "boolean" ||
@@ -741,6 +746,7 @@ function parseSupportedDeviceInfo(value: unknown): SupportedDeviceInfo | null {
     family: value.family,
     hardware_eq: value.hardware_eq,
     controls: value.controls,
+    spec: value.spec as SupportedDeviceInfo["spec"],
     num_bands: value.num_bands,
     global_gain_range: globalGainRange,
     band_gain_range: bandGainRange,
