@@ -90,6 +90,17 @@ describe("DeviceView markup", () => {
     expect(other).not.toContain("Reading Dawn Pro settings");
   });
 
+  it.each([0x0101, 0x0102])("routes JA11 %s by catalog controls metadata", product_id => {
+    const html = renderDeviceView({
+      connected: true, section: "controls",
+      deviceInfo: { path: "ja11", vendor_id: 0x2972, product_id, controls: "ja11" },
+    });
+    expect(html).toContain("Inline microphone");
+    expect(html).toContain("Source-reviewed, not hardware-verified");
+    expect(html).not.toContain("Controls unavailable");
+    expect(html).not.toContain("Class AB amplifier");
+  });
+
   it("offers no EQ or Walkplay resets for a DAC without them", () => {
     const html = renderDeviceView({
       connected: true, section: "maintenance",

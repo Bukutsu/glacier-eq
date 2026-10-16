@@ -18,11 +18,13 @@ function capture(model: string) {
   return { filters, gain, reportId };
 }
 
-function dac(model = "ja11", options: { missingGain?: boolean; mismatch?: boolean } = {}) {
+function dac(model = "ja11", options: { missingGain?: boolean; mismatch?: boolean; saveError?: boolean; pid?: number } = {}) {
   const recorded = capture(model);
   let filters = recorded.filters.map(bytes => [...bytes]);
   let gain = [...recorded.gain];
   const events: ({ type: "write"; bytes: number[] } | { type: "read" })[] = [];
+  let now = 0;
+  const writeTimes: number[] = [];
   let pending: number[] | undefined;
   let saved = false;
   let wrote = false;
@@ -33,6 +35,7 @@ function dac(model = "ja11", options: { missingGain?: boolean; mismatch?: boolea
       if (saved && model === "ja11") throw new Error("I/O after JA11 reset");
       const packet = [...bytes];
       events.push({ type: "write", bytes: packet });
+      writeTimes.push(now);
       expect(packet[0]).toBe(recorded.reportId);
       const payload = packet.slice(1);
       if (payload[0] === 0xbb) {
@@ -44,7 +47,10 @@ function dac(model = "ja11", options: { missingGain?: boolean; mismatch?: boolea
           filters[payload[6]] = [0xbb, 0x0b, ...payload.slice(2)];
         }
         if (payload[4] === 0x17) gain = [0xbb, 0x0b, ...payload.slice(2)];
-        if (payload[4] === 0x19) saved = true;
+        if (payload[4] === 0x19) {
+          saved = true;
+          if (options.saveError) throw new Error("ambiguous save delivery");
+        }
       }
     },
     async read() {
@@ -58,7 +64,7 @@ function dac(model = "ja11", options: { missingGain?: boolean; mismatch?: boolea
       if (options.mismatch && wrote && reply[4] === 0x17) result[8] ^= 10;
       return Uint8Array.from(result);
     },
-    async sleep() { await Promise.resolve(); },
+    async sleep(ms: number) { now += ms; await Promise.resolve(); },
   };
   const peq = {
     global_gain: -1,
@@ -67,11 +73,92 @@ function dac(model = "ja11", options: { missingGain?: boolean; mismatch?: boolea
     })),
   };
   const run = (request: unknown) =>
-    device_operation(0x2972, model === "ja11" ? 0x0102 : 0x0093, io, request, () => {}, io.nonce);
-  return { events, peq, run };
+    device_operation(0x2972, options.pid ?? (model === "ja11" ? 0x0102 : model === "ka15" ? 0x0104 : 0x0093), io, request, () => {}, io.nonce);
+  return { events, peq, run, writeTimes };
 }
 
 describe("Rust session over the real wasm bridge", () => {
+  it.each([0x0101, 0x0102])("JA11 %s keeps pacing/order and treats Save as a single-shot boundary", async pid => {
+    for (const skip_verification of [false, true]) {
+      for (const saveError of [false, true]) {
+        const { events, peq, run, writeTimes } = dac("ja11", { pid, saveError });
+        const pending = run({ command: "set_eq_state", peq, skip_verification });
+        if (saveError) await expect(pending).rejects.toContain("delivery uncertain");
+        else expect(await pending).toMatchObject({ restarts: true });
+        const sets = events.filter(event => event.type === "write" && event.bytes[1] === 0xaa);
+        expect(sets.map(event => event.type === "write" && event.bytes[5])).toEqual([
+          0x16, 0x15, 0x15, 0x15, 0x15, 0x15, 0x17, 0x18, 0x19,
+        ]);
+        expect(sets.at(-2)).toEqual({ type: "write", bytes: [2, 0xaa, 0x0a, 0, 0, 0x18, 1, 1, 0, 0xee] });
+        expect(events.at(-1)).toEqual({ type: "write", bytes: [2, 0xaa, 0x0a, 0, 0, 0x19, 1, 3, 0, 0xee] });
+        expect(writeTimes[0]).toBeGreaterThanOrEqual(500);
+        for (let index = 1; index < writeTimes.length; index++) {
+          expect(writeTimes[index] - writeTimes[index - 1]).toBeGreaterThanOrEqual(200);
+        }
+      }
+    }
+  });
+
+  it.each([0x0101, 0x0102])("JA11 %s exposes controls via real WASM, with native wire fixtures", async pid => {
+    const values: Record<number, number> = { 2: 30, 0x12: 1, 0x20: 1 };
+    const writes: number[][] = [];
+    let pending: Uint8Array | undefined;
+    let corrupt = false;
+    let mismatch = false;
+    let failedCommand: number | undefined;
+    const io = {
+      nonce: 42,
+      async write(bytes: Uint8Array) {
+        await Promise.resolve();
+        const p = [...bytes];
+        writes.push(p);
+        if (p[1] === 0xbb && p[5] !== failedCommand) {
+          pending = Uint8Array.of(2, 0xbb, 0x0b, 7, 9, p[5], corrupt ? 2 : 1, values[p[5]], 0x51, 0xee, 0, 0);
+        } else if (p[1] === 0xaa && !mismatch) values[p[5]] = p[7];
+      },
+      async read() { const reply = pending; pending = undefined; return reply ?? new Uint8Array(); },
+      async sleep() { await Promise.resolve(); },
+    };
+    const run = (control: string, value?: unknown, vid = 0x2972, product = pid) =>
+      device_operation(vid, product, io, { command: "ja11_control", control, ...(value === undefined ? {} : { value }) }, () => {}, io.nonce);
+    expect(await run("volume")).toBe(30);
+    expect(await run("volume", 29)).toBe(29);
+    expect(writes.slice(-3)).toEqual([
+      [2, 0xbb, 0x0b, 0, 0, 2, 0, 0, 0xee],
+      [2, 0xaa, 0x0a, 0, 0, 2, 1, 29, 0, 0xee],
+      [2, 0xbb, 0x0b, 0, 0, 2, 0, 0, 0xee],
+    ]);
+    for (const control of ["microphone", "uac"]) {
+      const before = writes.length;
+      expect(await run(control, 0)).toBeNull();
+      expect(writes.length - before).toBe(2); // fresh read + write, no post-write read
+    }
+    expect(io.nonce).toBe(42); // controls do not consume filter nonces
+    expect(writes.every(p => [2, 0x12, 0x20].includes(p[5]))).toBe(true);
+    for (const [control, value] of [["volume", 61], ["volume", -1], ["volume", 1.5], ["volume", "30"], ["uac", 2], ["unknown", 0]]) {
+      const before = writes.length;
+      await expect(run(control as string, value)).rejects.toBeDefined();
+      expect(writes.length).toBe(before);
+    }
+    for (const product of [0x0104, 0x0093]) {
+      const before = writes.length;
+      await expect(run("volume", 20, 0x2972, product)).rejects.toContain("require a JA11");
+      expect(writes.length).toBe(before);
+    }
+    corrupt = true;
+    let before = writes.length;
+    await expect(run("volume", 10)).rejects.toContain("read timeout");
+    expect(writes.length - before).toBe(1);
+    corrupt = false;
+    failedCommand = 0x12;
+    await expect(run("microphone")).rejects.toContain("read timeout");
+    expect(await run("uac")).toBe(0); // one failed field does not block the others
+    mismatch = true;
+    before = writes.length;
+    await expect(run("volume", 28)).rejects.toContain("verification failed");
+    expect(writes.length - before).toBe(3); // no rollback/save after mismatch
+  });
+
   it.each([false, true])("retains consumed nonces across commands, including failure=%s", async failed => {
     // Walkplay carries the request nonce in response byte 2. Simulate a late
     // band-0 response from the first operation, arriving AFTER the next drain.
@@ -149,11 +236,11 @@ describe("Rust session over the real wasm bridge", () => {
     expect(bandReads).toHaveLength(10); // five backup + five RAM verification
   });
 
-  it("JA11 retains unknown-preamp warnings rather than failing an unanswered gain query", async () => {
-    const { peq, run } = dac("ja11", { missingGain: true });
-    const result = await run({ command: "set_eq_state", peq, skip_verification: false });
-    expect(result.globalGain).toBe(-1);
-    expect(result.warnings).toContain("DAC did not report its preamp; preamp was written but not verified");
+  it.each([0x0101, 0x0102])("JA11 %s fails fast on a silent preamp without mutating/re-saving", async pid => {
+    const { events, peq, run } = dac("ja11", { missingGain: true, pid });
+    await expect(run({ command: "set_eq_state", peq, skip_verification: false })).rejects.toContain("DAC is not responding");
+    const writes = events.filter(event => event.type === "write");
+    expect(writes).toEqual([{ type: "write", bytes: [2, 0xbb, 0x0b, 0, 0, 0x17, 0, 0, 0xee] }]);
   });
 
   it("never saves JA11 when RAM verification fails, including rollback", async () => {
@@ -162,11 +249,14 @@ describe("Rust session over the real wasm bridge", () => {
     expect(events.some(event => event.type === "write" && event.bytes[5] === 0x19)).toBe(false);
   });
 
-  it("KA17 saves before the verification read", async () => {
-    const { events, peq, run } = dac("ka17");
+  it.each(["ka15", "ka17"])("%s retains count-before-bands and save-before-readback", async model => {
+    const { events, peq, run } = dac(model);
     await run({ command: "set_eq_state", peq, skip_verification: false });
     const save = events.findIndex(event => event.type === "write" && event.bytes[5] === 0x19);
     expect(save).toBeGreaterThan(0);
+    const sets = events.filter(event => event.type === "write" && event.bytes[1] === 0xaa);
+    expect(sets.slice(0, 3).map(event => event.type === "write" && event.bytes[5])).toEqual([0x16, 0x18, 0x15]);
+    expect(sets).toHaveLength(14); // select + count + 10 bands + preamp + Save
     expect(events.slice(save + 1).some(event => event.type === "read")).toBe(true);
   });
 

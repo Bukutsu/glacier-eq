@@ -162,6 +162,68 @@ function peqWithBands(count: number): PEQData {
   };
 }
 
+describe("JA11 browser adapter", () => {
+  const ja11: SupportedDeviceInfo = {
+    ...profile, name: "FiiO JA11", protocol: "FiiO JA11", vendor_id: 0x2972,
+    product_id: 0x0101, controls: "ja11",
+  };
+  async function setupJa11() {
+    const device = fakeHidDevice();
+    device.vendorId = 0x2972;
+    device.productId = 0x0101;
+    await connectWebHid(device, ja11);
+    return { device, path: (await invoke<Array<{ path: string }>>("list_devices"))[0].path };
+  }
+  it("delegates controls to Rust, stripping only the routing path", async () => {
+    const { device, path } = await setupJa11();
+    wasm.device_operation.mockResolvedValue(29);
+    expect(await invoke("ja11_control", { path, control: "volume", value: 29 })).toBe(29);
+    const [vid, pid, , request] = wasm.device_operation.mock.calls.at(-1)!;
+    expect([vid, pid]).toEqual([0x2972, 0x0101]);
+    expect(request).toEqual({ command: "ja11_control", control: "volume", value: 29 });
+    expect(device.sendReport).not.toHaveBeenCalled(); // no second TS codec
+    await invoke("disconnect_device");
+  });
+  it("rejects a stale path or a non-JA11 before entering Rust", async () => {
+    const { path } = await setupJa11();
+    await expect(invoke("ja11_control", { path: "/stale", control: "volume" })).rejects.toThrow("displayed JA11");
+    expect(wasm.device_operation).not.toHaveBeenCalled();
+    await invoke("disconnect_device");
+    const device = fakeHidDevice();
+    await connectWebHid(device);
+    const otherPath = (await invoke<Array<{ path: string }>>("list_devices"))[0].path;
+    await expect(invoke("ja11_control", { path: otherPath, control: "volume" })).rejects.toThrow("displayed JA11");
+    expect(wasm.device_operation).not.toHaveBeenCalled();
+    expect(path).not.toBe(otherPath);
+    await invoke("disconnect_device");
+  });
+  it("fences a queued control if a preceding disconnect replaces its session", async () => {
+    const { path } = await setupJa11();
+    const disconnecting = invoke("disconnect_device");
+    const queued = invoke("ja11_control", { path, control: "volume", value: 10 });
+    await disconnecting;
+    await expect(queued).rejects.toThrow("session changed");
+    expect(wasm.device_operation).not.toHaveBeenCalled();
+  });
+  it("records raw HID TX/RX in browser diagnostics", async () => {
+    const { device, path } = await setupJa11();
+    await invoke("clear_diagnostics");
+    wasm.device_operation.mockImplementationOnce(async (_vid, _pid, io) => {
+      await io.write(Uint8Array.of(2, 0xbb, 0x0b, 0, 0, 2, 0, 0, 0xee));
+      const listener = vi.mocked(device.addEventListener).mock.calls.find(([event]) => event === "inputreport")![1] as
+        (event: { data: DataView; reportId: number }) => void;
+      const bytes = Uint8Array.of(0xbb, 0x0b, 0, 0, 2, 1, 30, 0, 0xee, 0, 0);
+      listener({ reportId: 2, data: new DataView(bytes.buffer) });
+      return 30;
+    });
+    expect(await invoke("ja11_control", { path, control: "volume" })).toBe(30);
+    const diagnostics = await invoke<Array<{ message: string }>>("get_diagnostics");
+    expect(diagnostics.some(log => log.message === "TX 02 bb 0b 00 00 02 00 00 ee")).toBe(true);
+    expect(diagnostics.some(log => log.message === "RX 02 bb 0b 00 00 02 01 1e 00 ee (+2 zero bytes)")).toBe(true);
+    await invoke("disconnect_device");
+  });
+});
+
 describe("original Dawn Pro browser controls", () => {
   it("does not guess Feature Reports for a native Input GET_REPORT protocol", async () => {
     const device = fakeHidDevice();
