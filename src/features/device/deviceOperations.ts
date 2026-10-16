@@ -28,15 +28,17 @@ export function markDeviceLost(
   actions: DeviceLossActions,
   message: string,
   source: ReportSource = "Device",
+  /** "Info" when the loss was expected, such as a DAC restarting to save. */
+  level: ReportLevel = "Error",
 ): void {
   actions.setConnected(false);
   actions.setIsReconnecting(true);
   actions.setLastPushedPeq(null);
   actions.setFirmwareVersion(null);
   actions.reportStatus({
-    level: "Error",
+    level,
     message,
-    toastType: "error",
+    toastType: level === "Error" ? "error" : null,
     source,
     statusText: "Reconnecting…",
   });

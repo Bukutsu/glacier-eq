@@ -199,6 +199,8 @@ function App() {
   const reconnectCancelRef = useRef<HTMLButtonElement>(null);
   const reconnectEffectGenerationRef = useRef(0);
   const manualDisconnectRef = useRef(false);
+  /** Until this time, a lost device is a DAC restarting after a save. */
+  const expectedRestartUntilRef = useRef(0);
   const ambiguousReconnectRef = useRef(false);
   const pullEqRef = useRef<(
     afterConnect?: boolean,
@@ -914,9 +916,12 @@ function App() {
           console.error("Failed to close disconnected device:", error);
         }
         if (!active) return;
+        const expected = Date.now() < expectedRestartUntilRef.current;
         markDeviceLost(
           { setConnected, setIsReconnecting, setLastPushedPeq, setFirmwareVersion, reportStatus },
-          "Lost connection to device",
+          expected ? "DAC is restarting after saving" : "Lost connection to device",
+          "Device",
+          expected ? "Info" : "Error",
         );
       } catch {
         schedulePoll();
@@ -1067,6 +1072,12 @@ function App() {
                     expectedSessionId: openedSessionId,
                   }).catch(() => {});
                 }
+                return;
+              }
+              // The read error is already reported; "Connected" after it
+              // would read as success.
+              if (!pulled) {
+                setIsReconnecting(false);
                 return;
               }
             } else {
@@ -1270,6 +1281,10 @@ function App() {
           "HID",
         );
       } else {
+        // The backend restarted a stuck DAC; its disconnect is expected.
+        if (String(error).includes("sent it a restart")) {
+          expectedRestartUntilRef.current = Date.now() + 15_000;
+        }
         reportStatus({
           level: "Error",
           message: `Could not read from DAC: ${error}`,
@@ -1562,6 +1577,7 @@ function App() {
     setIsBusy(true);
     let committedPeq: PEQData | null = null;
     let pushWarnings: string[] = [];
+    let restarts = false;
     // Device completion depends on the session, not on editor changes.
     // An edit during the write must not hide what was saved to the DAC.
     const isCurrentOperation = () =>
@@ -1603,6 +1619,8 @@ function App() {
         // warnings from normalization.
         const outcome = await invoke<unknown>("set_eq_state", { peq: snapshot });
         pushWarnings = extractPushWarnings(outcome);
+        restarts = (outcome as { restarts?: unknown } | null)?.restarts === true;
+        if (restarts) expectedRestartUntilRef.current = Date.now() + 15_000;
         committedPeq = parseStoredPeqResponse(outcome, {
           integerPreamp: selectedCapabilities.integer_preamp,
           capabilities: selectedCapabilities,
@@ -1619,7 +1637,9 @@ function App() {
       setLastPushedPeq(committedPeq ?? snapshot);
       const savedMessage = isDevDummyDevice(selectedDevice)
         ? "EQ write simulated"
-        : "Saved EQ to DAC";
+        : restarts
+          ? "Saved EQ to DAC; it is restarting and will reconnect"
+          : "Saved EQ to DAC";
       if (pushWarnings.length > 0) {
         // The push rewrote out-of-range values, or ran with verification
         // switched off and so never read the DAC back: "Saved EQ to DAC"

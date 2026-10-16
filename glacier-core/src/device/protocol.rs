@@ -108,13 +108,6 @@ pub trait EqProtocol {
         self.matches_filter_response(data, index, nonce) && self.is_filter_packet_valid(data)
     }
     fn parse_filter_response(&self, data: &[u8]) -> Option<Filter>;
-    /// Some firmware never answers the global-gain query (JCally JM12
-    /// cross-flashed with JA11 firmware). When true, an unanswered gain read
-    /// is reported as unknown instead of failing the whole read, matching
-    /// Ircama/ja11-config's best-effort behavior.
-    fn gain_read_optional(&self) -> bool {
-        false
-    }
     /// The DAC re-enumerates on USB shortly after the save command. Nothing may
     /// be read or written after the save, so pushes verify the RAM state first
     /// and save last. For JA11 this follows jeromeof/devicePEQ

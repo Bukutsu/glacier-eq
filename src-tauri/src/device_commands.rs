@@ -38,7 +38,14 @@ pub struct EqWriteOutcome {
     #[serde(flatten)]
     committed: PEQData,
     warnings: Vec<String>,
+    /// The DAC restarts to save, so the UI should expect a brief disconnect.
+    restarts: bool,
 }
+
+/// When the last stuck-DAC restart was sent; one attempt per minute keeps a
+/// DAC that stays stuck from being restarted in a loop.
+static LAST_STUCK_RESTART: Mutex<Option<std::time::Instant>> = Mutex::new(None);
+const STUCK_RESTART_INTERVAL: std::time::Duration = std::time::Duration::from_secs(60);
 
 #[derive(Clone, serde::Serialize)]
 pub struct SupportedDeviceInfo {
@@ -443,7 +450,32 @@ pub async fn get_eq_state(
     app: tauri::AppHandle,
     state: tauri::State<'_, Mutex<DeviceState>>,
 ) -> Result<PEQData, String> {
-    with_session(&app, &state, |session| session.pull()).await
+    let error = match with_session(&app, &state, |session| session.pull()).await {
+        Err(error) if error == glacier_core::device::DAC_UNRESPONSIVE_ERROR => error,
+        result => return result,
+    };
+    // A JA11 can come back from its post-save restart answering nothing.
+    // Re-saving makes it restart once more, which may clear that state.
+    let try_restart = {
+        let mut last = LAST_STUCK_RESTART
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let due = last.is_none_or(|at| at.elapsed() >= STUCK_RESTART_INTERVAL);
+        if due {
+            *last = Some(std::time::Instant::now());
+        }
+        due
+    };
+    if try_restart
+        && with_session(&app, &state, |session| session.restart_by_resave())
+            .await
+            .is_ok()
+    {
+        return Err(format!(
+            "{error}; sent it a restart, waiting for it to reconnect. If it does not, unplug and replug the DAC"
+        ));
+    }
+    Err(format!("{error}. Unplug and replug the DAC"))
 }
 
 #[tauri::command]
@@ -461,6 +493,7 @@ pub async fn set_eq_state(
         .unwrap_or_default()
         .skip_push_verification;
     with_session_for(&app, &state, expected, move |session| {
+        let restarts = session.save_restarts_device();
         let (committed, warnings) = if skip_verification {
             session.unverified_push(peq)?
         } else {
@@ -469,6 +502,7 @@ pub async fn set_eq_state(
         Ok(EqWriteOutcome {
             committed,
             warnings,
+            restarts,
         })
     })
     .await
@@ -485,6 +519,7 @@ pub async fn apply_eq_state(
         Ok(EqWriteOutcome {
             committed,
             warnings,
+            restarts: false,
         })
     })
     .await
@@ -1020,3 +1055,4 @@ mod tests {
         assert_eq!(result, Ok(()));
     }
 }
+

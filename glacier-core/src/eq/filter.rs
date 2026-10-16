@@ -142,12 +142,18 @@ impl PEQData {
 
         // Truncate if there are more filters than supported bands
         if self.filters.len() > caps.num_bands {
-            let excess = self.filters.len() - caps.num_bands;
+            // Dropping flat or disabled bands changes nothing audible.
+            let audible = self.filters[caps.num_bands..]
+                .iter()
+                .filter(|filter| filter.enabled && filter.gain != 0.0)
+                .count();
             self.filters.truncate(caps.num_bands);
-            warnings.push(format!(
-                "Truncated {} band(s) (device supports max {})",
-                excess, caps.num_bands
-            ));
+            if audible > 0 {
+                warnings.push(format!(
+                    "Dropped {} active band(s) (device supports max {})",
+                    audible, caps.num_bands
+                ));
+            }
         }
 
         // Pad with disabled filters if there are fewer filters than supported bands

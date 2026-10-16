@@ -25,6 +25,8 @@ pub use normalization::{
 };
 pub use profile::{DeviceInfo, DeviceProfile, DeviceProtocol};
 pub use protocol::{EqProtocol, Packet, WalkplayProtocol};
-pub use session::{DacUtilityState, DeviceIo, DeviceSession, HID_READ_BUFFER_BYTES};
+pub use session::{
+    DacUtilityState, DeviceIo, DeviceSession, DAC_UNRESPONSIVE_ERROR, HID_READ_BUFFER_BYTES,
+};
 pub use supported::{get_supported_device, SUPPORTED_DEVICES};
 pub use timing::WriteTiming;

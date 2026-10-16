@@ -20,7 +20,6 @@ pub struct FiioProtocol {
     filter_count: u8,
     user_slot: u8,
     clamp_gain: bool,
-    gain_read_optional: bool,
     save_resets_device: bool,
     command_interval_ms: Option<u64>,
     sends_filter_count: bool,
@@ -34,7 +33,6 @@ pub const JA11_PROTOCOL: FiioProtocol = FiioProtocol {
     filter_count: 5,
     user_slot: 3,
     clamp_gain: true,
-    gain_read_optional: true,
     save_resets_device: true,
     // FiiO's JA11 configuration uses a 200 ms device command interval
     // (Cyfine/ja11-web-control PROTOCOL.md; weekssa/OPRA-EQ-for-UAPP
@@ -56,7 +54,6 @@ pub const FIIO_PROTOCOL: FiioProtocol = FiioProtocol {
     filter_count: 10,
     user_slot: 9,
     clamp_gain: false,
-    gain_read_optional: false,
     save_resets_device: false,
     command_interval_ms: None,
     sends_filter_count: true,
@@ -68,7 +65,6 @@ pub const KA17_PROTOCOL: FiioProtocol = FiioProtocol {
     filter_count: 10,
     user_slot: 4,
     clamp_gain: false,
-    gain_read_optional: false,
     save_resets_device: false,
     command_interval_ms: None,
     sends_filter_count: true,
@@ -275,10 +271,6 @@ impl EqProtocol for FiioProtocol {
 
     fn parse_filter_response(&self, data: &[u8]) -> Option<Filter> {
         parse_filter_response(data, self.filter_count)
-    }
-
-    fn gain_read_optional(&self) -> bool {
-        self.gain_read_optional
     }
 
     fn save_resets_device(&self) -> bool {

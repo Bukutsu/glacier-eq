@@ -25,10 +25,10 @@ const RETRY_DELAY_MS: u64 = 100;
 /// needs to stop reading it as a confirmed commit.
 pub const UNVERIFIED_PUSH_WARNING: &str =
     "pushed without reading the DAC back, so its stored EQ was not verified";
-/// Attached when the DAC never answered the preamp query, so the preamp was
-/// written but neither read nor verified.
-pub const UNKNOWN_GAIN_WARNING: &str =
-    "DAC did not report its preamp; preamp was written but not verified";
+/// A save-resets DAC (JA11) that accepts writes but answers no read. A JM12
+/// on JA11 firmware sometimes comes back from its post-save restart this way;
+/// only a power cycle has been seen to clear it.
+pub const DAC_UNRESPONSIVE_ERROR: &str = "DAC is not responding";
 const UNCORRELATED_GAIN_ERROR: &str =
     "Global gain read required retry; refusing uncorrelated state";
 
@@ -98,9 +98,6 @@ pub struct DeviceSession<'a> {
     last_pull_gain_read_completed: bool,
     gain_read_requires_correlation: bool,
     last_read_was_retried: bool,
-    /// The last pull got no gain reply from a protocol where that is allowed;
-    /// its global_gain is a 0 dB placeholder, not device truth.
-    last_pull_gain_unknown: bool,
 }
 
 impl<'a> DeviceSession<'a> {
@@ -116,7 +113,6 @@ impl<'a> DeviceSession<'a> {
             last_pull_gain_read_completed: false,
             gain_read_requires_correlation: false,
             last_read_was_retried: false,
-            last_pull_gain_unknown: false,
         }
     }
 
@@ -144,7 +140,6 @@ impl<'a> DeviceSession<'a> {
             last_pull_gain_read_completed: false,
             gain_read_requires_correlation: false,
             last_read_was_retried: false,
-            last_pull_gain_unknown: false,
         }
     }
 
@@ -184,7 +179,7 @@ impl<'a> DeviceSession<'a> {
                 self.pull_once()
             }
             Err(first) => {
-                if first.contains(UNCORRELATED_GAIN_ERROR) {
+                if first.contains(UNCORRELATED_GAIN_ERROR) || first == DAC_UNRESPONSIVE_ERROR {
                     return Err(first);
                 }
                 let first_sent_gain = self.last_pull_sent_gain_request;
@@ -241,13 +236,8 @@ impl<'a> DeviceSession<'a> {
             }
             validate_peq_for_capabilities(&actual, &self.profile.caps)
                 .map_err(|error| format!("Push verification failed: {error}"))?;
-            compare_peq(
-                &actual,
-                &normalized,
-                &self.profile.caps,
-                !self.last_pull_gain_unknown,
-            )
-            .map_err(|error| format!("Push verification failed: {error}"))?;
+            compare_peq(&actual, &normalized, &self.profile.caps)
+                .map_err(|error| format!("Push verification failed: {error}"))?;
             if save_last {
                 self.commit()
                     .map_err(|error| format!("Push commit failed: {error}"))?;
@@ -255,13 +245,7 @@ impl<'a> DeviceSession<'a> {
             Ok(actual)
         })();
         match attempt {
-            Ok(mut actual) => {
-                let mut warnings = warnings;
-                if self.last_pull_gain_unknown {
-                    // The readback has no preamp; report what was written.
-                    actual.global_gain = normalized.global_gain;
-                    warnings.push(UNKNOWN_GAIN_WARNING.to_string());
-                }
+            Ok(actual) => {
                 self.progress("Write complete", 100.0);
                 Ok((actual, warnings))
             }
@@ -285,12 +269,7 @@ impl<'a> DeviceSession<'a> {
             return Err("Device returned an invalid EQ response during restore".into());
         }
         validate_peq_for_capabilities(&actual, &self.profile.caps)?;
-        compare_peq(
-            &actual,
-            backup,
-            &self.profile.caps,
-            !self.last_pull_gain_unknown,
-        )
+        compare_peq(&actual, backup, &self.profile.caps)
     }
 
     /// Writes persistently without a readback. Kept for the GUI's explicit
@@ -318,6 +297,21 @@ impl<'a> DeviceSession<'a> {
         warnings.push(UNVERIFIED_PUSH_WARNING.to_string());
         self.progress("Write complete", 100.0);
         Ok((normalized, warnings))
+    }
+
+    /// Re-sends the save so a DAC that restarts on save restarts once more.
+    /// For a DAC stuck after its post-save restart: its RAM was just loaded
+    /// from the saved EQ, so saving again keeps the stored EQ unchanged.
+    pub fn restart_by_resave(&mut self) -> Result<(), String> {
+        self.require_hardware_eq()?;
+        if !self.protocol().save_resets_device() {
+            return Err(format!("{} does not restart on save", self.profile.name));
+        }
+        self.commit()
+    }
+
+    pub fn save_restarts_device(&self) -> bool {
+        self.protocol().save_resets_device()
     }
 
     pub fn apply_ram(&mut self, peq: PEQData) -> Result<(PEQData, Vec<String>), String> {
@@ -350,12 +344,7 @@ impl<'a> DeviceSession<'a> {
             return Err("Device returned an invalid EQ response during RAM verification".into());
         }
         validate_peq_for_capabilities(&actual, &self.profile.caps)?;
-        compare_peq(
-            &actual,
-            expected,
-            &self.profile.caps,
-            !self.last_pull_gain_unknown,
-        )
+        compare_peq(&actual, expected, &self.profile.caps)
     }
 
     fn rollback_ram(&mut self, backup: &PEQData, apply_error: String) -> String {
@@ -584,7 +573,6 @@ impl<'a> DeviceSession<'a> {
         self.last_pull_had_invalid_response = false;
         self.last_pull_sent_gain_request = false;
         self.last_pull_gain_read_completed = false;
-        self.last_pull_gain_unknown = false;
         self.progress("Preparing EQ read…", 5.0);
         self.init()?;
         let timing = self.protocol().write_timing();
@@ -592,13 +580,12 @@ impl<'a> DeviceSession<'a> {
         self.last_pull_sent_gain_request = true;
         let global_gain = match self.read_gain() {
             Ok(gain) => gain,
-            // Only a clean timeout qualifies; transport errors still fail.
+            // A healthy JA11 answers within ~30 ms; silence here means the
+            // stuck state, so fail fast instead of timing out every band.
             Err(error)
-                if self.protocol().gain_read_optional() && error == "Global gain read timeout" =>
+                if self.protocol().save_resets_device() && error == "Global gain read timeout" =>
             {
-                self.last_pull_gain_unknown = true;
-                self.progress("DAC did not report its preamp; showing 0 dB", 10.0);
-                0.0
+                return Err(DAC_UNRESPONSIVE_ERROR.into())
             }
             Err(error) => return Err(error),
         };
@@ -964,9 +951,8 @@ fn compare_peq(
     actual: &PEQData,
     expected: &PEQData,
     caps: &super::DeviceCapabilities,
-    check_gain: bool,
 ) -> Result<(), String> {
-    if check_gain && (actual.global_gain - expected.global_gain).abs() > 0.001 {
+    if (actual.global_gain - expected.global_gain).abs() > 0.001 {
         return Err(format!(
             "Global gain mismatch: expected {}, got {}",
             expected.global_gain, actual.global_gain
@@ -1562,24 +1548,28 @@ mod tests {
     }
 
     #[test]
-    fn ja11_pull_tolerates_an_unanswered_gain_read() {
+    fn ja11_pull_fails_fast_when_the_dac_answers_nothing() {
         let profile = get_supported_device(0x2972, 0x0102).unwrap();
         let mut io = FakeIo::default();
-        io.reads.push_back(vec![]);
-        for _ in 0..GAIN_READ_ATTEMPTS {
-            io.reads.push_back(vec![]);
-        }
-        for index in 0..5u8 {
-            io.reads.push_back(vec![
-                0xBB, 0x0B, 0, 0, 0x15, 8, index, 0, 10, 0x03, 0xE8, 0, 100, 0, 0, 0xEE,
-            ]);
-        }
 
-        let mut session = DeviceSession::new(&mut io, profile);
-        let peq = session.pull().unwrap();
-        assert_eq!(peq.global_gain, 0.0);
-        assert!(session.last_pull_gain_unknown);
-        assert_eq!(peq.filters.len(), 5);
+        let error = DeviceSession::new(&mut io, profile).pull().unwrap_err();
+
+        assert_eq!(error, DAC_UNRESPONSIVE_ERROR);
+        // One preamp request, no band reads and no full-pull retry.
+        assert_eq!(io.writes.len(), 1);
+        assert_eq!(io.writes[0][5], 0x17);
+    }
+
+    #[test]
+    fn restart_by_resave_sends_only_the_save() {
+        let profile = get_supported_device(0x2972, 0x0102).unwrap();
+        let mut io = FakeIo::default();
+
+        DeviceSession::new(&mut io, profile)
+            .restart_by_resave()
+            .unwrap();
+
+        assert_eq!(io.writes, [vec![2, 0xAA, 0x0A, 0, 0, 0x19, 1, 3, 0, 0xEE]]);
     }
 
     #[test]
