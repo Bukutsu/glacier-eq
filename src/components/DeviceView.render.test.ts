@@ -79,7 +79,7 @@ describe("DeviceView markup", () => {
   it("routes only the exact original Dawn Pro to its own controls", () => {
     const html = renderDeviceView({
       connected: true, section: "controls",
-      deviceInfo: { path: "dawn", vendor_id: 0x2fc6, product_id: 0xf06a, product_name: "Dawn Pro" },
+      deviceInfo: { path: "dawn", vendor_id: 0x2fc6, product_id: 0xf06a, controls: "dawn_pro", product_name: "Dawn Pro" },
     });
     expect(html).toContain("Reading Dawn Pro settings");
     expect(html).not.toContain("Controls unavailable");
@@ -93,7 +93,7 @@ describe("DeviceView markup", () => {
   it("offers no EQ or Walkplay resets for a DAC without them", () => {
     const html = renderDeviceView({
       connected: true, section: "maintenance",
-      deviceInfo: { path: "dawn", vendor_id: 0x2fc6, product_id: 0xf06a, hardware_eq: false },
+      deviceInfo: { path: "dawn", vendor_id: 0x2fc6, product_id: 0xf06a, controls: "dawn_pro", hardware_eq: false },
     });
     expect(html).not.toContain("Reset EQ");
     expect(html).not.toContain("Reset controls");

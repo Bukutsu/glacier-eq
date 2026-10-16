@@ -18,6 +18,7 @@ pub mod timing;
 pub use capabilities::{DeviceCapabilities, EditorCapabilities};
 pub use catalog::{get_supported_device, protocol_by_name, SUPPORTED_DEVICES};
 pub use families::dawn_pro;
+pub use families::walkplay::DacUtilityState;
 pub use families::walkplay::WalkplayProtocol;
 pub(crate) use normalization::validate_peq_for_capabilities;
 pub use normalization::{
@@ -25,8 +26,8 @@ pub use normalization::{
     normalize_peq_for_profile, validate_peq,
 };
 pub use packet::Packet;
-pub use profile::{DeviceInfo, DeviceProfile};
+pub use profile::{Controls, DeviceInfo, DeviceProfile, SupportedDeviceInfo};
 pub use protocol::{EqProtocol, GainEncoding, Protocol, Quirks, UNKNOWN};
-pub use session::{DacUtilityState, DeviceIo, DeviceSession, HID_READ_BUFFER_BYTES};
+pub use session::{DeviceIo, DeviceSession, HID_READ_BUFFER_BYTES};
 
 pub use timing::WriteTiming;

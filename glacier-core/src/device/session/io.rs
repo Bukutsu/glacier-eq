@@ -33,7 +33,7 @@ pub trait DeviceIo {
 }
 
 impl DeviceSession<'_> {
-    pub(super) fn read_matching(
+    pub(crate) fn read_matching(
         &mut self,
         label: &str,
         attempts: usize,
@@ -63,7 +63,7 @@ impl DeviceSession<'_> {
         Err(format!("{label} read timeout"))
     }
 
-    pub(super) fn drain(&mut self) {
+    pub(crate) fn drain(&mut self) {
         for _ in 0..INIT_DRAIN_ATTEMPTS {
             match self.io.read(20) {
                 Ok(bytes) if bytes.is_empty() => break,
@@ -73,7 +73,7 @@ impl DeviceSession<'_> {
         }
     }
 
-    pub(super) fn send(&mut self, packet: &Packet) -> Result<(), String> {
+    pub(crate) fn send(&mut self, packet: &Packet) -> Result<(), String> {
         let framed = packet.framed();
         let mut last = "Write failed".to_string();
         for _ in 0..WRITE_ATTEMPTS {
@@ -90,7 +90,7 @@ impl DeviceSession<'_> {
 }
 
 #[cfg(test)]
-pub(super) mod fake {
+pub(crate) mod fake {
     use super::super::DeviceIo;
     use std::collections::VecDeque;
 

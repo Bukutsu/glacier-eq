@@ -77,6 +77,7 @@ const profile: SupportedDeviceInfo = {
   status: "supported",
   family: "test",
   hardware_eq: true,
+  controls: null,
   num_bands: 10,
   global_gain_range: [-16, 6],
   band_gain_range: [-10, 10],
@@ -240,7 +241,7 @@ describe("browser connection cleanup", () => {
 
   it("rejects a non-string filter mode or a missing export path", async () => {
     const device = fakeHidDevice();
-    await connectWebHid(device, { ...profile, protocol: "Walkplay" });
+    await connectWebHid(device, { ...profile, protocol: "Walkplay", controls: "walkplay" });
     wasm.build_filter_mode_write_packet.mockReturnValue([1]);
     wasm.build_flash_eq_packet.mockReturnValue([1]);
 
@@ -307,7 +308,7 @@ describe("browser connection cleanup", () => {
 
     // Connected DAC: passes device profile IDs
     const device = fakeHidDevice();
-    await connectWebHid(device, { ...profile, protocol: "Walkplay" });
+    await connectWebHid(device, { ...profile, protocol: "Walkplay", controls: "walkplay" });
     await invoke("run_autoeq", valid);
     expect(wasm.run_autoeq).toHaveBeenCalledWith(
       valid.measurementPoints,
@@ -323,7 +324,7 @@ describe("browser connection cleanup", () => {
 
   it("rejects a non-boolean amp or gain mode like the desktop bool parameter", async () => {
     const device = fakeHidDevice();
-    await connectWebHid(device, { ...profile, protocol: "Walkplay" });
+    await connectWebHid(device, { ...profile, protocol: "Walkplay", controls: "walkplay" });
     wasm.build_amp_mode_write_packet.mockReturnValue([1]);
     wasm.build_gain_mode_write_packet.mockReturnValue([1]);
     wasm.build_flash_eq_packet.mockReturnValue([1]);
@@ -647,7 +648,7 @@ describe("browser EQ writes", () => {
 
   it("resends a firmware request when the first response is lost", async () => {
     const device = fakeHidDevice({ firmwareResponseAfter: 2 });
-    await connectWebHid(device, { ...profile, protocol: "Walkplay" });
+    await connectWebHid(device, { ...profile, protocol: "Walkplay", controls: "walkplay" });
 
     await expect(invoke("get_firmware_version")).resolves.toBe("FW1.0");
     expect(device.sendReport).toHaveBeenCalledTimes(2);

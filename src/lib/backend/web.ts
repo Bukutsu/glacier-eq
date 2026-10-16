@@ -672,7 +672,7 @@ function walkplayPacket(payload: number[]): number[] {
 }
 
 function supportsWalkplayUtilities(): boolean {
-  return activeProfile?.protocol === "Walkplay";
+  return activeProfile?.controls === "walkplay";
 }
 
 function connectedProfile(): SupportedDeviceInfo {
@@ -711,7 +711,7 @@ function normalizeActivePeq(
 
 function requireWalkplayUtilities(): SupportedDeviceInfo {
   const profile = connectedProfile();
-  if (profile.protocol !== "Walkplay") {
+  if (profile.controls !== "walkplay") {
     throw new Error(`${profile.name} does not support Walkplay utility controls`);
   }
   return profile;
@@ -1127,6 +1127,7 @@ function parseSupportedDeviceInfo(value: unknown): SupportedDeviceInfo | null {
     typeof value.status !== "string" ||
     typeof value.family !== "string" ||
     typeof value.hardware_eq !== "boolean" ||
+    !(value.controls === null || value.controls === "walkplay" || value.controls === "dawn_pro") ||
     !isFiniteNumber(value.num_bands) ||
     typeof value.supports_per_band_enable !== "boolean" ||
     typeof value.supports_ram_apply !== "boolean" ||
@@ -1155,6 +1156,7 @@ function parseSupportedDeviceInfo(value: unknown): SupportedDeviceInfo | null {
     status: value.status,
     family: value.family,
     hardware_eq: value.hardware_eq,
+    controls: value.controls,
     num_bands: value.num_bands,
     global_gain_range: globalGainRange,
     band_gain_range: bandGainRange,
@@ -1566,7 +1568,7 @@ async function invokeWeb<T = unknown>(cmd: string, args?: any): Promise<T> {
       return null as T;
     }
     case "get_firmware_version": {
-      if (!activeDevice || activeProfile?.protocol !== "Walkplay") return null as T;
+      if (!activeDevice || activeProfile?.controls !== "walkplay") return null as T;
 
       let report: Uint8Array | null = null;
       reportQueue = [];

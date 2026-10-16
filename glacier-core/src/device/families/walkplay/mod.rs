@@ -3,9 +3,11 @@
 
 //! Walkplay protocol implementation.
 
+mod controls;
 mod iir;
 mod packets;
 
+pub use controls::DacUtilityState;
 pub use iir::compute_iir_filter;
 pub use packets::*;
 

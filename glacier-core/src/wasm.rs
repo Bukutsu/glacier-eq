@@ -1,28 +1,15 @@
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::device::capabilities::{DeviceCapabilities, EditorCapabilities, DESKTOP_DAC_CAPS};
+use crate::device::capabilities::{DeviceCapabilities, DESKTOP_DAC_CAPS};
 use crate::device::{
-    get_supported_device, protocol_by_name, DeviceProfile, EqProtocol, Packet, WalkplayProtocol,
-    SUPPORTED_DEVICES, UNKNOWN,
+    get_supported_device, protocol_by_name, DeviceProfile, EqProtocol, Packet, SupportedDeviceInfo,
+    WalkplayProtocol, SUPPORTED_DEVICES, UNKNOWN,
 };
 use crate::eq::{Filter, PEQData};
 use crate::profile_match::{matching_profile_name, ProfileCandidate};
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
-
-#[derive(Serialize, Deserialize)]
-pub struct SupportedDeviceInfoWasm {
-    pub name: String,
-    pub protocol: String,
-    pub vendor_id: u16,
-    pub product_id: Option<u16>,
-    pub status: String,
-    pub family: String,
-    pub hardware_eq: bool,
-    #[serde(flatten)]
-    pub capabilities: EditorCapabilities,
-}
 
 #[derive(Serialize, Deserialize)]
 pub struct AutoEqParseResultWasm {
@@ -301,18 +288,9 @@ fn to_js_value<T: Serialize>(value: &T) -> Result<JsValue, JsValue> {
 
 #[wasm_bindgen]
 pub fn list_supported_devices() -> Result<JsValue, JsValue> {
-    let list: Vec<SupportedDeviceInfoWasm> = SUPPORTED_DEVICES
+    let list: Vec<SupportedDeviceInfo> = SUPPORTED_DEVICES
         .iter()
-        .map(|device| SupportedDeviceInfoWasm {
-            name: device.name.to_string(),
-            protocol: device.protocol.id.to_string(),
-            vendor_id: device.vendor_id,
-            product_id: device.product_id,
-            status: device.status.to_string(),
-            family: device.family.to_string(),
-            hardware_eq: device.protocol.has_hardware_eq(),
-            capabilities: (&device.caps).into(),
-        })
+        .map(SupportedDeviceInfo::from)
         .collect();
 
     to_js_value(&list)

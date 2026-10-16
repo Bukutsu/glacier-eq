@@ -1,15 +1,16 @@
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Walkplay-only utility controls: modes, balance, mic volume, factory reset.
+//! Walkplay utility controls (`Controls::Walkplay`): firmware version, DAC
+//! filter, amp and gain mode, balance, mic volume, factory reset.
 
-use super::DeviceSession;
-use crate::device::families::walkplay;
-use crate::device::families::walkplay::{
-    CMD_AMP_MODE, CMD_BALANCE, CMD_FILTER_MODE, CMD_FLASH_EQ, CMD_GAIN_MODE, CMD_MIC_VOLUME,
-    CMD_VERSION, END, READ, WRITE,
+use super::{
+    WalkplayProtocol, CMD_AMP_MODE, CMD_BALANCE, CMD_FILTER_MODE, CMD_FLASH_EQ, CMD_GAIN_MODE,
+    CMD_MIC_VOLUME, CMD_VERSION, END, READ, WRITE,
 };
-use crate::device::{Packet, WalkplayProtocol};
+use crate::device::profile::Controls;
+use crate::device::session::DeviceSession;
+use crate::device::Packet;
 
 const UTILITY_READ_ATTEMPTS: usize = 25;
 const UTILITY_READ_RETRIES: usize = 3;
@@ -39,7 +40,7 @@ impl Default for DacUtilityState {
 
 impl DeviceSession<'_> {
     pub fn firmware_version(&mut self) -> Result<Option<String>, String> {
-        if self.profile.protocol != &walkplay::PROTOCOL {
+        if self.profile.controls != Some(Controls::Walkplay) {
             return Ok(None);
         }
         let mut last_err = "Firmware version read timeout".to_string();
@@ -75,7 +76,7 @@ impl DeviceSession<'_> {
     }
 
     pub fn utility_status(&mut self) -> Result<DacUtilityState, String> {
-        if self.profile.protocol != &walkplay::PROTOCOL {
+        if self.profile.controls != Some(Controls::Walkplay) {
             return Ok(DacUtilityState::default());
         }
         self.drain();
@@ -216,7 +217,7 @@ impl DeviceSession<'_> {
     }
 
     fn require_walkplay(&self) -> Result<(), String> {
-        if self.profile.protocol == &walkplay::PROTOCOL {
+        if self.profile.controls == Some(Controls::Walkplay) {
             Ok(())
         } else {
             Err(format!(
@@ -310,7 +311,7 @@ fn validate_control_range(label: &str, value: i8) -> Result<(), String> {
 mod tests {
     use super::*;
     use crate::device::get_supported_device;
-    use crate::device::session::io::fake::FakeIo;
+    use crate::device::session::fake::FakeIo;
 
     #[test]
     fn a_failed_control_reset_restores_the_settings_that_already_landed() {
@@ -343,7 +344,7 @@ mod tests {
         assert!(
             io.writes
                 .iter()
-                .any(|write| write.get(2) == Some(&crate::device::families::walkplay::CMD_FLASH_EQ)),
+                .any(|write| write.get(2) == Some(&super::super::CMD_FLASH_EQ)),
             "rollback writes were not attempted"
         );
     }

@@ -15,9 +15,11 @@ let counter = 0;
 function model(protocol = "Walkplay", num_bands = 10) {
   const profile: SupportedDeviceInfo = {
     ...DEV_DUMMY_DEVICE, name: "Preview test " + counter++, protocol,
-    status: "Tested", family: "test", num_bands, product_id: null,
+    status: "Tested", family: "test", num_bands,
     vendor_id: protocol === "Moondrop Dawn Pro" ? 0x2fc6 : 0x3302,
+    product_id: protocol === "Moondrop Dawn Pro" ? 0xf06a : null,
     hardware_eq: protocol !== "Moondrop Dawn Pro",
+    controls: protocol === "Walkplay" ? "walkplay" : protocol === "Moondrop Dawn Pro" ? "dawn_pro" : null,
     integer_preamp: false,
   };
   return buildDevPreviewDevice(profile);
@@ -153,7 +155,11 @@ describe("development DAC previews", () => {
     expect(backend.invoke).not.toHaveBeenCalled();
   });
 
-  it("rejects unknown protocols instead of silently using Walkplay", () => {
-    expect(() => model("Unknown")).toThrow("Unknown preview protocol");
+  it("previews a new protocol without inheriting Walkplay controls", () => {
+    const device = model("New protocol");
+    expect(readDevDummyPeq(device.path).filters).toHaveLength(device.num_bands);
+    expect(invokeDevDummy(device.path, "get_dac_utility_state")).toMatchObject({ supported: false });
+    expect(() => invokeDevDummy(device.path, "set_dac_work_mode", { isClassAb: true }))
+      .toThrow("does not expose Walkplay controls");
   });
 });

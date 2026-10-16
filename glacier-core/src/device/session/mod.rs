@@ -4,10 +4,10 @@
 //! Synchronous, transport-independent device operations.
 
 mod io;
-mod walkplay_controls;
 
+#[cfg(test)]
+pub(crate) use io::fake;
 pub use io::{DeviceIo, HID_READ_BUFFER_BYTES};
-pub use walkplay_controls::DacUtilityState;
 
 use super::{
     normalize_peq_for_profile, validate_peq, validate_peq_for_capabilities, DeviceProfile,
@@ -41,8 +41,8 @@ fn combine_errors(first: String, retry: String) -> String {
 pub(crate) type ProgressCallback<'a> = dyn FnMut(&str, f32) + 'a;
 
 pub struct DeviceSession<'a> {
-    io: &'a mut dyn DeviceIo,
-    profile: &'static DeviceProfile,
+    pub(crate) io: &'a mut dyn DeviceIo,
+    pub(crate) profile: &'static DeviceProfile,
     progress: Option<&'a mut ProgressCallback<'a>>,
     next_nonce: u8,
     last_pull_had_invalid_response: bool,
@@ -57,7 +57,7 @@ pub struct DeviceSession<'a> {
 
 impl<'a> DeviceSession<'a> {
     #[cfg(test)]
-    fn new(io: &'a mut dyn DeviceIo, profile: &'static DeviceProfile) -> Self {
+    pub(crate) fn new(io: &'a mut dyn DeviceIo, profile: &'static DeviceProfile) -> Self {
         Self {
             io,
             profile,

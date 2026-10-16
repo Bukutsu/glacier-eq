@@ -3,8 +3,8 @@
 
 use crate::state::{ConnectedDevice, DeviceSessionLock, DeviceState};
 use glacier_core::device::{
-    get_supported_device, DacUtilityState, DeviceInfo, DeviceIo, DeviceProfile, DeviceSession,
-    EditorCapabilities,
+    get_supported_device, Controls, DacUtilityState, DeviceInfo, DeviceIo, DeviceProfile,
+    DeviceSession, SupportedDeviceInfo,
 };
 use glacier_core::eq::PEQData;
 use std::collections::HashSet;
@@ -38,19 +38,6 @@ pub struct EqWriteOutcome {
     #[serde(flatten)]
     committed: PEQData,
     warnings: Vec<String>,
-}
-
-#[derive(Clone, serde::Serialize)]
-pub struct SupportedDeviceInfo {
-    name: &'static str,
-    protocol: &'static str,
-    vendor_id: u16,
-    product_id: Option<u16>,
-    status: &'static str,
-    family: &'static str,
-    hardware_eq: bool,
-    #[serde(flatten)]
-    capabilities: EditorCapabilities,
 }
 
 fn lock_device_state<'a, 'r>(
@@ -435,6 +422,7 @@ pub async fn list_devices(app: tauri::AppHandle) -> Result<Vec<DeviceInfo>, Stri
                     product_string: device.product_string.clone(),
                     profile_name: Some(profile.name.to_string()),
                     hardware_eq: profile.protocol.has_hardware_eq(),
+                    controls: profile.controls,
                     capabilities: (&profile.caps).into(),
                 })
             })
@@ -448,16 +436,7 @@ pub async fn list_devices(app: tauri::AppHandle) -> Result<Vec<DeviceInfo>, Stri
 pub fn list_supported_devices() -> Vec<SupportedDeviceInfo> {
     glacier_core::device::SUPPORTED_DEVICES
         .iter()
-        .map(|device| SupportedDeviceInfo {
-            name: device.name,
-            protocol: device.protocol.id,
-            vendor_id: device.vendor_id,
-            product_id: device.product_id,
-            status: device.status,
-            family: device.family,
-            hardware_eq: device.protocol.has_hardware_eq(),
-            capabilities: (&device.caps).into(),
-        })
+        .map(SupportedDeviceInfo::from)
         .collect()
 }
 
@@ -758,7 +737,7 @@ async fn with_dawn_pro<T: Send + 'static>(
     if connected.path != expected.0 || connected.session_id != expected.1 {
         return Err("Device session changed; operation was cancelled".into());
     }
-    if connected.vendor_id != 0x2FC6 || connected.product_id != 0xF06A {
+    if registered_profile(&connected)?.controls != Some(Controls::DawnPro) {
         return Err("These controls require the original Dawn Pro (2FC6:F06A)".into());
     }
     let app = app.clone();

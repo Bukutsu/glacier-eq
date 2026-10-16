@@ -5,7 +5,7 @@
 
 use crate::device::capabilities::{DeviceCapabilities, DESKTOP_DAC_CAPS};
 use crate::device::families::{dawn_pro, fiio, moondrop, walkplay};
-use crate::device::profile::DeviceProfile;
+use crate::device::profile::{Controls, DeviceProfile};
 use crate::device::protocol::Protocol;
 use crate::eq::FilterType;
 
@@ -96,6 +96,7 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
         status: "Tested",
         family: "Walkplay Family",
         caps: SAVITECH_10_BAND_CAPS,
+        controls: Some(Controls::Walkplay),
     },
     DeviceProfile {
         name: "TRN Black Pearl",
@@ -105,6 +106,7 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
         status: "Tested",
         family: "Walkplay Family",
         caps: SAVITECH_10_BAND_CAPS,
+        controls: Some(Controls::Walkplay),
     },
     DeviceProfile {
         name: "Audiocular Aura",
@@ -114,6 +116,7 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
         status: "Untested",
         family: "Walkplay Family",
         caps: SAVITECH_10_BAND_CAPS,
+        controls: Some(Controls::Walkplay),
     },
     DeviceProfile {
         name: "JCally JM20 Pro",
@@ -132,6 +135,7 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
             ],
             ..SAVITECH_10_BAND_CAPS
         },
+        controls: Some(Controls::Walkplay),
     },
     DeviceProfile {
         name: "Moondrop Dawn Pro 2",
@@ -141,6 +145,7 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
         status: "Untested",
         family: "Moondrop",
         caps: MOONDROP_8_BAND_CAPS,
+        controls: None,
     },
     DeviceProfile {
         name: "FiiO JA11",
@@ -150,6 +155,7 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
         status: "Untested",
         family: "FiiO",
         caps: FIIO_5_BAND_CAPS,
+        controls: None,
     },
     DeviceProfile {
         name: "FiiO KA15",
@@ -159,6 +165,7 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
         status: "Untested",
         family: "FiiO",
         caps: FIIO_10_BAND_CAPS,
+        controls: None,
     },
     DeviceProfile {
         name: "FiiO KA17",
@@ -168,6 +175,7 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
         status: "Untested",
         family: "FiiO",
         caps: FIIO_10_BAND_CAPS,
+        controls: None,
     },
     DeviceProfile {
         name: "Truthear KEYX",
@@ -185,6 +193,7 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
             gain_tolerance: 0.1,
             ..SAVITECH_10_BAND_CAPS
         },
+        controls: Some(Controls::Walkplay),
     },
     DeviceProfile {
         name: "Fosi Audio DS2 / iBasso DC04 Pro",
@@ -194,6 +203,7 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
         status: "Untested",
         family: "Walkplay Family",
         caps: SAVITECH_10_BAND_CAPS,
+        controls: Some(Controls::Walkplay),
     },
     DeviceProfile {
         name: "JCally JM20 / Savitech Generic",
@@ -203,6 +213,7 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
         status: "Untested",
         family: "Walkplay Family",
         caps: SAVITECH_10_BAND_CAPS,
+        controls: Some(Controls::Walkplay),
     },
     DeviceProfile {
         name: "JCally JM20 Pro / Alt Savitech",
@@ -212,7 +223,21 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
         status: "Untested",
         family: "Walkplay Family",
         caps: SAVITECH_10_BAND_CAPS,
+        controls: Some(Controls::Walkplay),
     },
+    DeviceProfile {
+        name: "Moondrop Dawn Pro",
+        protocol: &dawn_pro::PROTOCOL,
+        vendor_id: dawn_pro::VENDOR_ID,
+        product_id: Some(dawn_pro::PRODUCT_ID),
+        status: "Untested",
+        family: "Moondrop / Comtrue",
+        // No hardware EQ; these caps only shape the offline editor.
+        caps: DESKTOP_DAC_CAPS,
+        controls: Some(Controls::DawnPro),
+    },
+    // Other Comtrue PIDs match for display only: the controls protocol is
+    // verified on the original 2FC6:F06A alone.
     DeviceProfile {
         name: "Moondrop Dawn Pro",
         protocol: &dawn_pro::PROTOCOL,
@@ -222,6 +247,7 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
         family: "Moondrop / Comtrue",
         // No hardware EQ; these caps only shape the offline editor.
         caps: DESKTOP_DAC_CAPS,
+        controls: None,
     },
     DeviceProfile {
         name: "JCally JM12",
@@ -231,6 +257,7 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
         status: "Untested",
         family: "FiiO",
         caps: FIIO_5_BAND_CAPS,
+        controls: None,
     },
     DeviceProfile {
         name: "FiiO KA Series",
@@ -240,6 +267,7 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
         status: "Untested",
         family: "FiiO",
         caps: FIIO_10_BAND_CAPS,
+        controls: None,
     },
 ];
 
@@ -325,7 +353,6 @@ mod tests {
     fn catalog_entries_do_not_shadow_each_other() {
         for (i, a) in SUPPORTED_DEVICES.iter().enumerate() {
             for b in &SUPPORTED_DEVICES[i + 1..] {
-                assert_ne!(a.name, b.name, "duplicate profile name");
                 assert!(
                     a.vendor_id != b.vendor_id || a.product_id != b.product_id,
                     "{} and {} claim the same VID/PID match",

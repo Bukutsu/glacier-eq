@@ -77,8 +77,8 @@ export const DeviceView = memo(function DeviceView({
 }: DeviceViewProps) {
   const invoke = <T,>(command: string, args?: Record<string, unknown>) =>
     invokeForDevice<T>(deviceInfo?.path, command, args);
-  const dawnDevice = (!isSimulated || isDevDummyDevice(deviceInfo?.path ?? "")) && deviceInfo?.vendor_id === 0x2fc6 &&
-    deviceInfo.product_id === 0xf06a ? deviceInfo : null;
+  const dawnDevice = (!isSimulated || isDevDummyDevice(deviceInfo?.path ?? "")) &&
+    deviceInfo?.controls === "dawn_pro" ? deviceInfo : null;
   const [utility, setUtility] = useState<DeviceUtilityState | null>(null);
   const utilityRef = useRef<DeviceUtilityState | null>(null);
   const confirmedUtilityRef = useRef<DeviceUtilityState | null>(null);
