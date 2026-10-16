@@ -101,7 +101,7 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
 
     fn require_hardware_eq(&self) -> Result<(), String> {
         if self.profile.protocol.has_hardware_eq() {
-            Ok(())
+            super::normalization::validate_capabilities(&self.profile.caps)
         } else {
             Err(format!("{} has no hardware EQ", self.profile.name))
         }
@@ -337,6 +337,7 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
     }
 
     pub async fn reset_eq(&mut self) -> Result<(), String> {
+        self.require_hardware_eq()?;
         let peq = PEQData {
             filters: (0..self.profile.caps.num_bands)
                 .map(|index| Filter::enabled(index as u8, false))

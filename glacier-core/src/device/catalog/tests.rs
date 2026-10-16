@@ -163,6 +163,8 @@ fn every_catalog_profile_meets_the_shared_flow_contract() {
         };
         let name = device.name;
         let caps = &device.caps;
+        crate::device::normalization::validate_capabilities(caps)
+            .unwrap_or_else(|error| panic!("{name}: {error}"));
         let encoding = protocol.gain_encoding();
         assert!(
             encoding.band_units_per_db > 0.0
@@ -182,7 +184,8 @@ fn every_catalog_profile_meets_the_shared_flow_contract() {
             assert!(!writes.is_empty(), "{name}: no preamp write for {gain} dB");
             packets.extend(writes);
         }
-        for index in 0..caps.num_bands as u8 {
+        for index in 0..caps.num_bands {
+            let index = u8::try_from(index).unwrap();
             packets.push(protocol.read_filter_request(index, 1));
             for &filter_type in caps.supported_filter_types {
                 // 4 kHz: shelves near 1 kHz already overflow Walkplay's

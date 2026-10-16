@@ -137,8 +137,19 @@ pub(crate) fn validate_peq_for_capabilities(
 }
 
 pub(crate) fn validate_capabilities(caps: &DeviceCapabilities) -> Result<(), String> {
-    if caps.num_bands == 0 {
-        return Err("Device must support at least one band".into());
+    if caps.num_bands == 0 || caps.num_bands > u8::MAX as usize + 1 {
+        return Err("Device band count must be between 1 and 256 (8-bit band indices)".into());
+    }
+    if caps.supported_filter_types.is_empty() {
+        return Err("Device must support at least one filter type".into());
+    }
+    if !caps.gain_tolerance.is_finite()
+        || caps.gain_tolerance < 0.0
+        || !caps.q_tolerance.is_finite()
+        || caps.q_tolerance < 0.0
+        || caps.freq_tolerance < 0
+    {
+        return Err("Device comparison tolerances must be finite and nonnegative".into());
     }
     if caps.global_gain_range.0 > caps.global_gain_range.1 {
         return Err("Device global gain range is invalid".into());
@@ -403,6 +414,18 @@ mod tests {
         ] {
             assert!(normalize_peq_for_device(peq, 0x2972, 0x0102).is_err());
         }
+    }
+
+    #[test]
+    fn capability_validation_accepts_full_u8_index_space_and_exact_comparisons() {
+        let caps = super::super::capabilities::DeviceCapabilities {
+            num_bands: 256,
+            gain_tolerance: 0.0,
+            freq_tolerance: 0,
+            q_tolerance: 0.0,
+            ..super::super::capabilities::DESKTOP_DAC_CAPS
+        };
+        assert!(validate_capabilities(&caps).is_ok());
     }
 
     #[test]

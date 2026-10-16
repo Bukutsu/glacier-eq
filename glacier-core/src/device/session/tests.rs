@@ -30,6 +30,51 @@ fn original_dawn_pro_refuses_eq_without_touching_the_device() {
 }
 
 #[test]
+fn invalid_catalog_capabilities_fail_before_io_or_reset_allocation() {
+    let base = get_supported_device(0x3302, 0x43e6).unwrap();
+    let invalid: &[fn(&mut super::super::DeviceCapabilities)] = &[
+        |caps| caps.num_bands = 0,
+        |caps| caps.num_bands = 257,
+        |caps| caps.num_bands = usize::MAX,
+        |caps| caps.supported_filter_types = &[],
+        |caps| caps.gain_tolerance = f64::NAN,
+        |caps| caps.gain_tolerance = f64::INFINITY,
+        |caps| caps.gain_tolerance = -0.1,
+        |caps| caps.q_tolerance = f64::NAN,
+        |caps| caps.q_tolerance = -0.1,
+        |caps| caps.freq_tolerance = -1,
+        |caps| caps.q_range = (2.0, 1.0),
+        |caps| caps.dsp_sample_rate = f64::NAN,
+    ];
+    for mutate in invalid {
+        let mut caps = base.caps.clone();
+        mutate(&mut caps);
+        // Session profiles are static in production; leak only this test fixture.
+        let profile = Box::leak(Box::new(DeviceProfile {
+            name: base.name,
+            protocol: base.protocol,
+            vendor_id: base.vendor_id,
+            product_id: base.product_id,
+            status: base.status,
+            family: base.family,
+            caps,
+            controls: base.controls,
+            spec: base.spec,
+        }));
+        let mut io = FakeIo::default();
+        block_on(async {
+            let mut session = DeviceSession::new(&mut io, profile);
+            assert!(session.pull().await.unwrap_err().starts_with("Device"));
+            assert!(session.reset_eq().await.unwrap_err().starts_with("Device"));
+        });
+        assert!(
+            io.events.is_empty(),
+            "invalid metadata must not touch the DAC"
+        );
+    }
+}
+
+#[test]
 fn invalid_mutation_writes_nothing() {
     crate::device::session::block_on(async {
         let profile = get_supported_device(0x3302, 0x43e8).unwrap();
