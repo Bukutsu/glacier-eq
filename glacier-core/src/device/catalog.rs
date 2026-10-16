@@ -92,6 +92,8 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
         protocol: &walkplay::PROTOCOL,
         vendor_id: 0x3302,
         product_id: Some(0x43E6),
+        // User reconfirmed basic read/write on shared-session build 133a829.
+        // Reconnect persistence and utility controls were not part of that confirmation.
         status: "Tested",
         family: "Walkplay Family",
         caps: SAVITECH_10_BAND_CAPS,
