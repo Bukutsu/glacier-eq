@@ -1693,10 +1693,16 @@ async function invokeWeb<T = unknown>(cmd: string, args?: any): Promise<T> {
       if (value === undefined || value === current) return current as T;
       await sendReport([2, 0xaa, 0x0a, 0, 0, command, 1, value, 0, 0xee]);
       await sleep(200);
-      if (args.control !== "volume") return null as T;
-      const actual = await read();
-      if (actual !== value) throw new Error("JA11 volume verification failed");
-      return actual as T;
+      // Same single delayed readback as native: 200 ms command spacing,
+      // one request and at most 20 x 60 ms receives. Never replay the write.
+      try {
+        const actual = await read();
+        if (actual === value) return actual as T;
+        if (args.control === "volume") throw new Error("JA11 volume verification failed");
+      } catch (error) {
+        if (args.control === "volume") throw error;
+      }
+      return null as T;
     }
 
     case "get_dawn_pro_state":

@@ -4,8 +4,15 @@
 //! JA11 state controls, deliberately separate from PEQ and its save command.
 //! Protocol evidence (not copied implementation):
 //! https://github.com/Cyfine/ja11-web-control/tree/4d4eb83df6fcdf9e20b52e1bdf59a77f463b2c30
+//! Credit: Cyfine's protocol.js requestValuePacket/setDeviceVolumePacket/
+//! parseInputReport establish command 0x02, a one-byte 0..60 output level,
+//! and payload byte 6 (report ID excluded). This is not PEQ preamp or dB.
+//! PROTOCOL.md "Live verification" reports volume 60 -> 59 -> 60 readback
+//! on firmware 2.20. Our stricter frame/range checks and fresh pre-read are
+//! local safety measures; power-cycle persistence is not claimed.
 //! PROTOCOL.md, protocol.js and app.js: volume 0..60; mic/UAC 0/1;
-//! mic was observed restarting firmware 2.20. UAC also requires reconnect.
+//! mic was observed restarting firmware 2.20; mic/UAC can alter USB interfaces.
+//! That does not establish a restart on every write. We attempt live readback.
 //! Compared with (PEQ-only Ircama; conflicting UAC enum in ParkWardRR):
 //! https://github.com/Ircama/ja11-config/tree/affddff6c9808c33ce8b35b0b9759ff0d7f6e405
 //! https://github.com/ParkWardRR/fiio-ja11-jcally-jm12-moondropkt02-kt02h20-dac-amp-control/tree/c59b923dc46a4666af2e7ae4b898256c5d92a293

@@ -1,6 +1,21 @@
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
+//! FiiO protocol credits (independent implementation from protocol evidence):
+//! - jeromeof/devicePEQ: FiiO packet fixtures and active USER preset slots.
+//!   https://github.com/jeromeof/devicePEQ
+//! - weekssa/OPRA-EQ-for-UAPP: docs/FIIO_JA11_PROTOCOL_NOTES.md and
+//!   domain/kt02h20/FiioJa11Protocol.kt / FiioJa11Timing.kt, for signed
+//!   big-endian tenths-dB gain, JA11 Apply/Save ordering and pacing.
+//!   https://github.com/weekssa/OPRA-EQ-for-UAPP
+//! - Ircama/ja11-config: JA11 Apply after data and Save as the final command.
+//!   https://github.com/Ircama/ja11-config
+//! - Cyfine/ja11-web-control: JA11 pacing and state-control protocol;
+//!   exact state-control source revision is credited in the JA11 codec.
+//!   https://github.com/Cyfine/ja11-web-control
+//!
+//! Sources differ on some fields; only the specific evidence above is used.
+
 use crate::device::protocol::{checked_scaled_i16, checked_scaled_u16, EqProtocol, Packet};
 use crate::device::timing::WriteTiming;
 use crate::eq::filter::DEFAULT_FREQS_10_BAND;
@@ -38,9 +53,10 @@ pub const JA11_PROTOCOL: FiioProtocol = FiioProtocol {
     // (Cyfine/ja11-web-control PROTOCOL.md; weekssa/OPRA-EQ-for-UAPP
     // FiioJa11Timing.kt). Faster pacing drops band reads and writes.
     command_interval_ms: Some(200),
-    // devicePEQ sends 0x18 = 5 before the bands as a filter count. After
-    // saving that, a JM12 on JA11 firmware kept the EQ but stopped answering
-    // reads until FiiO Control's Reset EQ. weekssa/OPRA-EQ-for-UAPP (codec
+    // devicePEQ sends 0x18 = 5 before the bands as a filter count.
+    // We follow the JA11-specific references instead; earlier intermittent
+    // silence on a flashed JM12 did not establish 0x18 as its cause.
+    // weekssa/OPRA-EQ-for-UAPP (codec
     // taken from FiiO Control v4.6.0, hardware-verified save and readback)
     // and Ircama/ja11-config instead send 0x18 = 1 ("apply") after the
     // bands and preamp, then save.

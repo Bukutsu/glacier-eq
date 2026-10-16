@@ -227,17 +227,36 @@ describe("JA11 browser controls", () => {
     const listed = await invoke<Array<{ path: string }>>("list_devices");
     return { device, path: listed[0].path, values, corrupt: () => { malformed = true; } };
   }
-  it("reads controls independently, verifies volume, sends no PEQ save, and uses explicit restart results", async () => {
+  it("reads controls independently, verifies all live controls, and sends no PEQ save", async () => {
     const { device, path } = await setup();
     for (const control of ["volume", "microphone", "uac"]) {
       expect(await invoke("ja11_control", { path, control })).toBe(control === "volume" ? 30 : 1);
     }
     expect(await invoke("ja11_control", { path, control: "volume", value: 29 })).toBe(29);
-    expect(await invoke("ja11_control", { path, control: "microphone", value: 0 })).toBeNull();
-    expect(await invoke("ja11_control", { path, control: "uac", value: 0 })).toBeNull();
+    expect(await invoke("ja11_control", { path, control: "microphone", value: 0 })).toBe(0);
+    expect(await invoke("ja11_control", { path, control: "uac", value: 0 })).toBe(0);
     const packets = vi.mocked(device.sendReport).mock.calls.map(([, data]) => [...new Uint8Array(data as ArrayBuffer)]);
     expect(packets).toContainEqual([0xaa, 0x0a, 0, 0, 2, 1, 29, 0, 0xee]);
     expect(packets.every(packet => [2, 18, 32].includes(packet[4]))).toBe(true);
+    expect(packets.filter(packet => packet[0] === 0xaa)).toHaveLength(3);
+    await invoke("disconnect_device");
+  });
+  it.each(["microphone", "uac"])("keeps uncertain %s readback recoverable without save or mutation retry", async control => {
+    const { device, path } = await setup();
+    const original = vi.mocked(device.sendReport).getMockImplementation()!;
+    let mutated = false;
+    vi.mocked(device.sendReport).mockImplementation(async (id, packet) => {
+      const data = new Uint8Array(packet as ArrayBuffer);
+      if (data[0] === 0xaa) { mutated = true; return; } // delivery accepted, value stays old
+      return original(id, packet);
+    });
+    expect(await invoke("ja11_control", { path, control, value: 0 })).toBeNull();
+    expect(mutated).toBe(true);
+    const packets = vi.mocked(device.sendReport).mock.calls.map(([, data]) => new Uint8Array(data as ArrayBuffer));
+    expect(packets).toHaveLength(3);
+    expect(packets.filter(packet => packet[0] === 0xaa)).toHaveLength(1);
+    expect(packets.every(packet => packet[4] === (control === "microphone" ? 18 : 32))).toBe(true);
+    expect(await invoke("ja11_control", { path, control })).toBe(1); // explicit safe refresh
     await invoke("disconnect_device");
   });
   it("rejects invalid values and stale paths before any transport access", async () => {

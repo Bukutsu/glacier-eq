@@ -24,6 +24,38 @@ function model(protocol = "Walkplay", num_bands = 10) {
 }
 
 describe("development DAC previews", () => {
+
+  it("reads and applies JA11 preview controls locally, preserving them on refresh", async () => {
+    const device = model("FiiO JA11", 5);
+    for (const [control, initial, target] of [["microphone", 1, 0], ["uac", 1, 0], ["volume", 30, 24]] as const) {
+      await expect(invokeForDevice(device.path, "ja11_control", { control })).resolves.toBe(initial);
+      await expect(invokeForDevice(device.path, "ja11_control", { control, value: target })).resolves.toBe(target);
+      await expect(invokeForDevice(device.path, "ja11_control", { control })).resolves.toBe(target);
+    }
+    expect(backend.invoke).not.toHaveBeenCalled();
+  });
+
+  it("isolates JA11 preview state and resets controls on reconnect", () => {
+    const first = model("FiiO JA11", 5), second = model("FiiO JA11", 5);
+    invokeDevDummy(first.path, "ja11_control", { control: "volume", value: 12 });
+    expect(invokeDevDummy(second.path, "ja11_control", { control: "volume" })).toBe(30);
+    reconnectDevDummyDevice(first.path);
+    expect(invokeDevDummy(first.path, "ja11_control", { control: "volume" })).toBe(30);
+    invokeDevDummy(first.path, "ja11_control", { control: "microphone", value: 0 });
+    invokeDevDummy(first.path, "reset_device_controls");
+    expect(invokeDevDummy(first.path, "ja11_control", { control: "microphone" })).toBe(1);
+  });
+
+  it("rejects unsupported JA11 preview commands and invalid values without touching hardware", async () => {
+    const device = model("FiiO JA11", 5);
+    for (const [control, value] of [["volume", 61], ["volume", -1], ["volume", 1.5], ["uac", 2], ["microphone", 2], ["unknown", 0]]) {
+      await expect(invokeForDevice(device.path, "ja11_control", { control, value })).rejects.toThrow();
+    }
+    expect(invokeDevDummy(device.path, "ja11_control", { control: "volume" })).toBe(30);
+    await expect(invokeForDevice(model("FiiO KA17").path, "ja11_control", { control: "volume" })).rejects.toThrow("JA11 preview");
+    expect(backend.invoke).not.toHaveBeenCalled();
+  });
+
   it.each(["Walkplay", "Moondrop", "Moondrop Dawn Pro", "FiiO", "FiiO JA11", "FiiO KA17"])(
     "builds a selectable, virtual %s model using registry capabilities", protocol => {
       const device = model(protocol, protocol === "Moondrop" ? 8 : 10);

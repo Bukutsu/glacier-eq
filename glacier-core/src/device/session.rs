@@ -182,7 +182,7 @@ impl<'a> DeviceSession<'a> {
         super::ja11::parse(control, &data)
     }
 
-    /// None means sent, but restart prevents immediate verification.
+    /// None means the single write was sent, but readback did not verify it.
     pub fn set_ja11_control(&mut self, control: &str, value: u8) -> Result<Option<u8>, String> {
         self.require_ja11()?;
         let packet = super::ja11::write(control, value)?;
@@ -191,19 +191,22 @@ impl<'a> DeviceSession<'a> {
         if current == value {
             return Ok(Some(current));
         }
-        // Do not retry a possibly restarting command.
+        // Never retry a mutation, save PEQ, or synthesize a restart.
         self.io.write(&packet.framed())?;
+        // Cyfine app.js writeAndVerify uses its 200 ms command interval.
+        // One read request, bounded by 20 x 60 ms receive attempts, also tests
+        // mic/UAC on the same live connection. No polling/replayed writes.
         self.io.sleep_ms(200);
-        if control != "volume" {
-            return Ok(None);
+        match self.ja11_control(control) {
+            Ok(actual) if actual == value => Ok(Some(actual)),
+            result if control == "volume" => Err(match result {
+                Ok(actual) => {
+                    format!("JA11 volume verification failed: expected {value}, read {actual}")
+                }
+                Err(error) => error,
+            }),
+            _ => Ok(None),
         }
-        let actual = self.ja11_control(control)?;
-        if actual != value {
-            return Err(format!(
-                "JA11 volume verification failed: expected {value}, read {actual}"
-            ));
-        }
-        Ok(Some(actual))
     }
 
     pub fn pull(&mut self) -> Result<PEQData, String> {
@@ -1090,7 +1093,7 @@ mod tests {
     }
 
     #[test]
-    fn ja11_controls_read_before_write_verify_volume_and_never_save() {
+    fn ja11_controls_read_before_write_verify_all_controls_and_never_save() {
         let profile = get_supported_device(0x2972, 0x0102).unwrap();
         let reply = |cmd, value| vec![0xbb, 0x0b, 0, 0, cmd, 1, value, 0, 0xee];
         let mut io = FakeIo::default();
@@ -1118,15 +1121,83 @@ mod tests {
         for control in ["microphone", "uac"] {
             let cmd = super::super::ja11::command(control).unwrap().0;
             let mut io = FakeIo::default();
-            io.reads.extend([vec![], reply(cmd, 1)]);
+            io.reads
+                .extend([vec![], reply(cmd, 1), vec![], reply(cmd, 0)]);
             assert_eq!(
                 DeviceSession::new(&mut io, profile)
                     .set_ja11_control(control, 0)
                     .unwrap(),
-                None
+                Some(0)
             );
-            assert_eq!(io.writes.len(), 2); // read, write; no save or post-restart read
+            assert_eq!(io.writes.len(), 3); // read, single mutation, read; no save
+            assert_eq!(io.writes.iter().filter(|p| p[1] == 0xaa).count(), 1);
+            assert!(io.writes.iter().all(|p| p[5] == cmd));
         }
+    }
+
+    #[test]
+    fn ja11_uncertain_controls_allow_explicit_read_recovery_without_replay() {
+        let reply = |cmd, value| vec![0xbb, 0x0b, 0, 0, cmd, 1, value, 0, 0xee];
+        let profile = get_supported_device(0x2972, 0x0102).unwrap();
+        for control in ["microphone", "uac"] {
+            let cmd = super::super::ja11::command(control).unwrap().0;
+            // Missing, mismatched and transport-error readback all stay unverified.
+            for outcome in ["timeout", "mismatch", "disconnect", "write-error"] {
+                let mut io = FakeIo::default();
+                io.reads.extend([vec![], reply(cmd, 1)]);
+                if outcome == "mismatch" {
+                    io.reads.extend([vec![], reply(cmd, 1)]);
+                } else if outcome == "disconnect" {
+                    io.read_error_until = Some((3, 4, "USB disconnected".into()));
+                } else if outcome == "write-error" {
+                    io.failing_write_calls.push_back(2);
+                }
+                let result = DeviceSession::new(&mut io, profile).set_ja11_control(control, 0);
+                if outcome == "write-error" {
+                    assert!(result.is_err());
+                } else {
+                    assert_eq!(result.unwrap(), None);
+                }
+                assert_eq!(io.writes.iter().filter(|p| p[1] == 0xaa).count(), 1);
+                assert!(io.writes.iter().all(|p| p[5] == cmd));
+                io.read_error_until = None;
+                io.reads.extend([vec![], reply(cmd, 0)]);
+                assert_eq!(
+                    DeviceSession::new(&mut io, profile)
+                        .ja11_control(control)
+                        .unwrap(),
+                    0
+                );
+                assert_eq!(io.writes.iter().filter(|p| p[1] == 0xaa).count(), 1);
+            }
+        }
+    }
+
+    #[test]
+    fn ja11_volume_requires_matching_readback_and_skips_already_current_writes() {
+        let profile = get_supported_device(0x2972, 0x0102).unwrap();
+        let reply = |value| vec![0xbb, 0x0b, 0, 0, 2, 1, value, 0, 0xee];
+        for actual in [None, Some(28)] {
+            let mut io = FakeIo::default();
+            io.reads.extend([vec![], reply(30)]);
+            if let Some(value) = actual {
+                io.reads.extend([vec![], reply(value)]);
+            }
+            assert!(DeviceSession::new(&mut io, profile)
+                .set_ja11_control("volume", 29)
+                .is_err());
+            assert_eq!(io.writes.len(), 3);
+            assert_eq!(io.writes.iter().filter(|p| p[1] == 0xaa).count(), 1);
+        }
+        let mut io = FakeIo::default();
+        io.reads.extend([vec![], reply(30)]);
+        assert_eq!(
+            DeviceSession::new(&mut io, profile)
+                .set_ja11_control("volume", 30)
+                .unwrap(),
+            Some(30)
+        );
+        assert_eq!(io.writes.len(), 1);
     }
 
     #[test]
