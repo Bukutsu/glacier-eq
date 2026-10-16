@@ -10,12 +10,15 @@ import { Select } from "./Select";
 export function DevProtocolPreview({ device, disabled, onChange }: {
   device: DeviceInfo; disabled: boolean; onChange: (device: DeviceInfo) => void;
 }) {
-  const [choices, setChoices] = useState<{ device: DeviceInfo; protocol: string }[]>([]);
+  const [choices, setChoices] = useState<{ device: DeviceInfo; label: string }[]>([]);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     let active = true;
     invoke<SupportedDeviceInfo[]>("list_supported_devices").then(profiles => {
-      const choices = profiles.map(profile => ({ device: buildDevPreviewDevice(profile), protocol: profile.protocol }));
+      const choices = profiles.map(profile => ({
+        device: buildDevPreviewDevice(profile),
+        label: `${profile.protocol} — ${profile.name}${profile.product_id === null ? " (vendor fallback)" : ""}`,
+      }));
       if (active) setChoices(choices);
     }).catch(error => { if (active) setError(String(error)); });
     return () => { active = false; };
@@ -31,7 +34,7 @@ export function DevProtocolPreview({ device, disabled, onChange }: {
           options={[
             { value: DEV_DUMMY_DEVICE.path, label: "Walkplay — Default dummy DAC" },
             ...choices.map(choice => ({ value: choice.device.path,
-              label: `${choice.protocol} — ${choice.device.profile_name}` })),
+              label: choice.label })),
           ]}
           onChange={path => {
             const selected = path === DEV_DUMMY_DEVICE.path ? DEV_DUMMY_DEVICE

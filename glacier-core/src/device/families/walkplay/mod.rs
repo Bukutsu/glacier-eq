@@ -235,7 +235,6 @@ impl EqProtocol for WalkplayProtocol {
             band_step_db: None,
             band_readback_per_db: 100.0,
             // The preamp is a whole-dB signed byte.
-            preamp_units_per_db: 1.0,
             preamp_step_db: 1.0,
         }
     }

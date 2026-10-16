@@ -14,7 +14,7 @@
     "build:desktop": "tsc -p tsconfig.desktop.json && vite build --mode desktop",
     "test": "vitest run",
     "test:wasm": "npm run wasm:build && vitest run --config vitest.wasm.config.ts",
-    "verify": "npm test && npm run typecheck",
+    "verify": "npm test && npm run typecheck && npm run test:wasm",
     "typecheck": "tsc -p tsconfig.web.json --noEmit && tsc -p tsconfig.desktop.json --noEmit",
     "verify:rust": "cargo metadata --locked --no-deps --format-version 1 > /dev/null && cargo fmt --all -- --check && cargo clippy --workspace --all-targets --locked -- -D warnings && cargo test --workspace --locked",
     "tauri": "tauri",

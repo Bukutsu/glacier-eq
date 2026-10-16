@@ -86,7 +86,6 @@ impl EqProtocol for MoondropProtocol {
             band_units_per_db: 256.0,
             band_step_db: None,
             band_readback_per_db: 10.0,
-            preamp_units_per_db: 256.0,
             preamp_step_db: 0.1,
         }
     }

@@ -12,7 +12,7 @@ vi.mock("@glacier-eq/backend", () => backend);
 afterEach(() => { vi.unstubAllEnvs(); vi.clearAllMocks(); });
 
 let counter = 0;
-function model(protocol = "Walkplay", num_bands = 10) {
+function model(protocol = "Walkplay", num_bands = 10, overrides: Partial<SupportedDeviceInfo> = {}) {
   const profile: SupportedDeviceInfo = {
     ...DEV_DUMMY_DEVICE, name: "Preview test " + counter++, protocol,
     status: "Tested", family: "test", num_bands,
@@ -21,6 +21,7 @@ function model(protocol = "Walkplay", num_bands = 10) {
     hardware_eq: protocol !== "Moondrop Dawn Pro",
     controls: protocol === "Walkplay" ? "walkplay" : protocol === "Moondrop Dawn Pro" ? "dawn_pro" : null,
     integer_preamp: false,
+    ...overrides,
   };
   return buildDevPreviewDevice(profile);
 }
@@ -153,6 +154,15 @@ describe("development DAC previews", () => {
     expect(isDevDummyDevice(DEV_DUMMY_DEVICE.path)).toBe(false);
     await expect(invokeForDevice(DEV_DUMMY_DEVICE.path, "reset_device_eq")).rejects.toThrow("development DAC preview");
     expect(backend.invoke).not.toHaveBeenCalled();
+  });
+
+  it("keeps same-name exact and vendor-fallback previews separate", () => {
+    const exact = model("Moondrop Dawn Pro", 10, { name: "Same name", product_id: 0xf06a, controls: "dawn_pro" });
+    const fallback = model("Moondrop Dawn Pro", 10, { name: "Same name", product_id: null, controls: null });
+    expect(exact.path).not.toBe(fallback.path);
+    expect(invokeDevDummy(exact.path, "get_dawn_pro_state")).toMatchObject({ high_gain: false });
+    expect(() => invokeDevDummy(fallback.path, "get_dawn_pro_state"))
+      .toThrow("These controls require an original-Dawn preview");
   });
 
   it("previews a new protocol without inheriting Walkplay controls", () => {

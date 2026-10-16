@@ -66,8 +66,8 @@ pub struct Quirks {
     pub set_report_writes: bool,
 }
 
-/// How a protocol stores gain on the wire. Normalization, profile matching,
-/// and the wasm boundary read this instead of matching on protocol names.
+/// How a protocol stores gain on the wire. Normalization and profile matching
+/// read this instead of matching on protocol names.
 #[derive(Clone, Copy, Debug)]
 pub struct GainEncoding {
     /// Wire integer units per dB of band gain (256 = 1/256 dB steps).
@@ -78,8 +78,6 @@ pub struct GainEncoding {
     /// Resolution of a parsed band gain (100 = 0.01 dB). Profile matching
     /// rounds to it to predict what a readback will report.
     pub band_readback_per_db: f64,
-    /// Wire integer units per dB of preamp.
-    pub preamp_units_per_db: f64,
     /// Grid requested preamps snap to.
     pub preamp_step_db: f64,
 }

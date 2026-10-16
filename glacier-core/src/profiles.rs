@@ -115,19 +115,24 @@ impl ProfileStore {
             .write(true)
             .open(&path)
             .map_err(|error| format!("Failed to open profiles lock: {error}"))?;
-        for _ in 0..500 {
-            #[cfg(not(target_arch = "wasm32"))]
-            match file.try_lock_exclusive() {
-                Ok(()) => return Ok(ProfileLock { file }),
-                Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
-                    std::thread::sleep(Duration::from_millis(10));
+        #[cfg(target_arch = "wasm32")]
+        return Ok(ProfileLock { file });
+
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            for _ in 0..500 {
+                match file.try_lock_exclusive() {
+                    Ok(()) => return Ok(ProfileLock { file }),
+                    Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                        std::thread::sleep(Duration::from_millis(10));
+                    }
+                    Err(error) => {
+                        return Err(format!("Failed to lock profiles directory: {error}"))
+                    }
                 }
-                Err(error) => return Err(format!("Failed to lock profiles directory: {error}")),
             }
-            #[cfg(target_arch = "wasm32")]
-            return Ok(ProfileLock { file });
+            Err("Timed out waiting for another profile operation".into())
         }
-        Err("Timed out waiting for another profile operation".into())
     }
 
     pub fn default_location() -> Result<Self, String> {

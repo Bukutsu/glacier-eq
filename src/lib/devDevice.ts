@@ -77,7 +77,9 @@ const previews = new Map<string, Preview>();
 
 export function buildDevPreviewDevice(profile: SupportedDeviceInfo): DeviceInfo {
   if (!import.meta.env.DEV) throw new Error("DAC previews are available only in development builds");
-  const path = DEV_DUMMY_DEVICE_PATH + "/" + encodeURIComponent(profile.name);
+  const path = DEV_DUMMY_DEVICE_PATH + "/" + encodeURIComponent(profile.name)
+    + "/" + profile.vendor_id.toString(16)
+    + ":" + (profile.product_id?.toString(16) ?? "*");
   const existing = previews.get(path);
   if (existing) return existing.device;
   const { name, protocol: _protocol, product_id, status: _status, family: _family, ...capabilities } = profile;

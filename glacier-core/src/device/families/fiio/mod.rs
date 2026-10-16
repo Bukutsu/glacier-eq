@@ -171,7 +171,6 @@ impl EqProtocol for FiioProtocol {
             band_units_per_db: 10.0,
             band_step_db: Some(0.1),
             band_readback_per_db: 10.0,
-            preamp_units_per_db: 10.0,
             preamp_step_db: 0.1,
         }
     }
