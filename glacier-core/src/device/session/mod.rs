@@ -3,7 +3,9 @@
 
 //! One asynchronous read/write/verify flow for native HID and WebHID transports.
 
+mod command;
 mod io;
+pub use command::{DeviceCommand, DeviceOutcome, EqWriteOutcome};
 
 #[cfg(test)]
 pub(crate) use io::fake;

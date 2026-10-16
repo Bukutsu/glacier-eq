@@ -10,27 +10,7 @@ const wasm = vi.hoisted(() => ({
   is_default_peq_for_device: vi.fn(),
   match_profile_name: vi.fn(),
   run_autoeq: vi.fn(),
-  build_init_packets: vi.fn(() => []),
-  build_read_filter_request: vi.fn(),
-  matches_filter_response: vi.fn(),
-  is_filter_response_valid: vi.fn(() => true),
-  parse_filter_response: vi.fn(),
-  build_read_global_gain_request: vi.fn(),
-  matches_global_gain_response: vi.fn(),
-  parse_global_gain_response: vi.fn(),
-  build_write_filter_packets: vi.fn(() => []),
-  build_write_global_gain_packets: vi.fn(() => []),
-  build_commit_packets: vi.fn(() => []),
-  build_ram_apply_packets: vi.fn(() => []),
-  build_filter_mode_write_packet: vi.fn(),
-  build_amp_mode_write_packet: vi.fn(),
-  build_gain_mode_write_packet: vi.fn(),
-  build_balance_write_packets: vi.fn(),
-  build_mic_volume_write_packet: vi.fn(),
-  build_factory_reset_packet: vi.fn(),
-  build_flash_eq_packet: vi.fn(),
-  get_write_timing: vi.fn(() => ({})),
-  get_protocol_quirks: vi.fn(() => ({ gain_read_optional: false, save_resets_device: false })),
+  device_operation: vi.fn(async (..._args: any[]) => null as unknown),
 }));
 
 // Controllable wasm gate: the round-5 P3 finding is that invokeWeb awaited
@@ -58,12 +38,8 @@ import {
   decodeUtf8File,
   matchSupportedWebHidDevice,
   openUrl,
-  peqVerificationError,
   parseWebProfiles,
   parseWebSettings,
-  persistentPushFailureMessage,
-  shouldRetryWebHidRead,
-  WebHidReadTimeout,
 } from "./web";
 import { parseDiagnosticHistory } from "../diagnostics";
 import { themeOptions } from "../theme";
@@ -166,14 +142,7 @@ beforeEach(() => {
   });
   wasm.normalize_peq_for_device.mockImplementation((peq) => ({ peq, warnings: [] }));
   wasm.is_default_peq_for_device.mockReturnValue(false);
-  wasm.build_init_packets.mockReturnValue([]);
-  wasm.build_write_filter_packets.mockReturnValue([]);
-  wasm.build_write_global_gain_packets.mockReturnValue([]);
-  wasm.build_commit_packets.mockReturnValue([]);
-  wasm.build_ram_apply_packets.mockReturnValue([]);
-  wasm.is_filter_response_valid.mockReturnValue(true);
-  wasm.get_write_timing.mockReturnValue({});
-  wasm.get_protocol_quirks.mockReturnValue({ gain_read_optional: false, save_resets_device: false });
+  wasm.device_operation.mockReset().mockResolvedValue(null);
 });
 
 function peqWithBands(count: number): PEQData {
@@ -187,23 +156,6 @@ function peqWithBands(count: number): PEQData {
       gain: index,
       q: 0.7,
     })),
-  };
-}
-
-const VERIFICATION_CAPS = {
-  supports_per_band_enable: true,
-  gain_tolerance: 0.15,
-  freq_tolerance: 1,
-  q_tolerance: 0.05,
-};
-
-function verificationPeq(): PEQData {
-  return {
-    global_gain: -1,
-    filters: [
-      { index: 0, enabled: true, filter_type: "LowShelf", freq: 100, gain: 1, q: 0.7 },
-      { index: 1, enabled: false, filter_type: "Peak", freq: 1000, gain: 0, q: 1 },
-    ],
   };
 }
 
@@ -239,30 +191,9 @@ describe("browser connection cleanup", () => {
     await expect(invoke("connect_device")).rejects.toThrow("Missing path argument");
   });
 
-  it("rejects a non-string filter mode or a missing export path", async () => {
-    const device = fakeHidDevice();
-    await connectWebHid(device, { ...profile, protocol: "Walkplay", controls: "walkplay" });
-    wasm.build_filter_mode_write_packet.mockReturnValue([1]);
-    wasm.build_flash_eq_packet.mockReturnValue([1]);
-
-    // The four sibling Walkplay commands all validate; this one did not, and
-    // the generated glue runs the value through TextEncoder.encode, so a
-    // number reached the device where the desktop's `mode: String` refuses it.
-    for (const bad of [42, null, undefined, {}]) {
-      await expect(invoke("set_dac_filter_mode", { mode: bad })).rejects.toThrow("Invalid filter mode");
-    }
-    expect(wasm.build_filter_mode_write_packet).not.toHaveBeenCalled();
-    await invoke("set_dac_filter_mode", { mode: "FAST-PC" });
-    expect(wasm.build_filter_mode_write_packet).toHaveBeenCalledWith("FAST-PC");
-
-    // save_text_file dereferenced args.path the same way connect_device did.
+  it("rejects missing export and CPU-only arguments", async () => {
     await expect(invoke("save_text_file", { content: "x" })).rejects.toThrow("Missing path argument");
     await expect(invoke("save_text_file")).rejects.toThrow("Missing content argument");
-    await expect(invoke("set_dac_filter_mode")).rejects.toThrow("Missing mode argument");
-    await expect(invoke("set_dac_work_mode")).rejects.toThrow("Missing isClassAb argument");
-    await expect(invoke("set_dac_output_gain")).rejects.toThrow("Missing isHighGain argument");
-    await expect(invoke("set_dac_balance")).rejects.toThrow("Missing balance argument");
-    await expect(invoke("set_mic_volume")).rejects.toThrow("Missing volumeDb argument");
     await expect(invoke("parse_autoeq")).rejects.toThrow("Missing text argument");
     await expect(invoke("peq_to_autoeq")).rejects.toThrow("Missing peq argument");
     await expect(invoke("run_autoeq")).rejects.toThrow("Missing run_autoeq arguments");
@@ -320,29 +251,6 @@ describe("browser connection cleanup", () => {
       profile.vendor_id,
       profile.product_id,
     );
-  });
-
-  it("rejects a non-boolean amp or gain mode like the desktop bool parameter", async () => {
-    const device = fakeHidDevice();
-    await connectWebHid(device, { ...profile, protocol: "Walkplay", controls: "walkplay" });
-    wasm.build_amp_mode_write_packet.mockReturnValue([1]);
-    wasm.build_gain_mode_write_packet.mockReturnValue([1]);
-    wasm.build_flash_eq_packet.mockReturnValue([1]);
-
-    // The generated wasm glue has no bool shim, so a non-boolean reaches the
-    // i32 parameter and is ToInt32-coerced: "yes" and {} both write
-    // Class-AB = OFF. set_dac_work_mode/is_class_ab is a Rust `bool`, which
-    // rejects them, so the adapters must agree.
-    for (const bad of ["yes", {}, 1, null, undefined]) {
-      await expect(invoke("set_dac_work_mode", { isClassAb: bad })).rejects.toThrow("Invalid amp mode");
-      await expect(invoke("set_dac_output_gain", { isHighGain: bad })).rejects.toThrow("Invalid gain mode");
-    }
-    expect(wasm.build_amp_mode_write_packet).not.toHaveBeenCalled();
-    expect(wasm.build_gain_mode_write_packet).not.toHaveBeenCalled();
-
-    // A real boolean still goes through.
-    await invoke("set_dac_work_mode", { isClassAb: true });
-    expect(wasm.build_amp_mode_write_packet).toHaveBeenCalledWith(true);
   });
 
   it("does not close a newer device when stale cleanup names the old path", async () => {
@@ -414,19 +322,6 @@ describe("browser connection cleanup", () => {
   it("closes the WebHID handle when a send failure disconnects a present device", async () => {
     const device = fakeHidDevice({ respondToReports: true });
     await connectWebHid(device, { ...profile, num_bands: 1 });
-    wasm.build_read_global_gain_request.mockReturnValue([1]);
-    wasm.matches_global_gain_response.mockReturnValue(true);
-    wasm.parse_global_gain_response.mockReturnValue(0);
-    wasm.build_read_filter_request.mockReturnValue([1]);
-    wasm.matches_filter_response.mockReturnValue(true);
-    wasm.parse_filter_response.mockReturnValue({
-      index: 0,
-      enabled: true,
-      filter_type: "Peak",
-      freq: 100,
-      gain: 0,
-      q: 1,
-    });
     localStorageValues.set("glacier-eq-settings", JSON.stringify({ skip_push_verification: true }));
     // Transient send failure while the device is still enumerated (e.g. a USB
     // glitch that recovers): the session ends, but the OS interface must be
@@ -436,11 +331,9 @@ describe("browser connection cleanup", () => {
       if (reportId === 1 && data[0] === 2) throw new Error("transfer failed");
       return respond(reportId, data);
     });
-    wasm.normalize_peq_for_device.mockReturnValue({
-      peq: { filters: [], global_gain: 0 },
-      warnings: [],
+    wasm.device_operation.mockImplementationOnce(async (_vid, _pid, io) => {
+      await io.write(Uint8Array.of(1, 2));
     });
-    wasm.build_write_global_gain_packets.mockReturnValue([[1, 2]]);
 
     await expect(invoke("set_eq_state", { peq: peqWithBands(1) })).rejects.toThrow(
       "transfer failed",
@@ -496,30 +389,15 @@ describe("browser connection cleanup", () => {
       device.opened = true;
     });
     await connectWebHid(device, { ...profile, num_bands: 1 });
-    wasm.build_read_global_gain_request.mockReturnValue([1]);
-    wasm.matches_global_gain_response.mockReturnValue(true);
-    wasm.parse_global_gain_response.mockReturnValue(0);
-    wasm.build_read_filter_request.mockReturnValue([1]);
-    wasm.matches_filter_response.mockReturnValue(true);
-    wasm.parse_filter_response.mockReturnValue({
-      index: 0,
-      enabled: true,
-      filter_type: "Peak",
-      freq: 100,
-      gain: 0,
-      q: 1,
-    });
     localStorageValues.set("glacier-eq-settings", JSON.stringify({ skip_push_verification: true }));
     const respond = (device.sendReport as ReturnType<typeof vi.fn>).getMockImplementation()!;
     (device.sendReport as ReturnType<typeof vi.fn>).mockImplementation(async (reportId: number, data: Uint8Array) => {
       if (reportId === 1 && data[0] === 2) throw new Error("transfer failed");
       return respond(reportId, data);
     });
-    wasm.normalize_peq_for_device.mockReturnValue({
-      peq: { filters: [], global_gain: 0 },
-      warnings: [],
+    wasm.device_operation.mockImplementationOnce(async (_vid, _pid, io) => {
+      await io.write(Uint8Array.of(1, 2));
     });
-    wasm.build_write_global_gain_packets.mockReturnValue([[1, 2]]);
 
     await expect(invoke("set_eq_state", { peq: peqWithBands(1) })).rejects.toThrow(
       "transfer failed",
@@ -549,6 +427,49 @@ describe("browser connection cleanup", () => {
   });
 });
 
+describe("shared-session transport adapter", () => {
+  it("passes the connected PID, command, settings and nonce to Rust", async () => {
+    const device = fakeHidDevice();
+    await connectWebHid(device, { ...profile, product_id: null });
+    localStorageValues.set("glacier-eq-settings", JSON.stringify({ skip_push_verification: true }));
+    wasm.device_operation.mockResolvedValueOnce({ globalGain: -2, filters: [], warnings: ["verified in Rust"] });
+    const peq = peqWithBands(1);
+    await expect(invoke("set_eq_state", { peq })).resolves.toEqual({
+      globalGain: -2, filters: [], warnings: ["verified in Rust"],
+    });
+    const [vid, pid, io, request, progress, nonce] = wasm.device_operation.mock.calls.at(-1)!;
+    expect([vid, pid]).toEqual([device.vendorId, device.productId]);
+    expect(request).toEqual({ command: "set_eq_state", peq, skip_verification: true });
+    expect(typeof progress).toBe("function");
+    expect(nonce).toBeGreaterThan(0);
+    expect(typeof io.write).toBe("function");
+    expect(typeof io.read).toBe("function");
+    expect(typeof io.sleep).toBe("function");
+  });
+
+  it("turns a WebHID timeout into empty bytes, as DeviceIo requires", async () => {
+    const device = fakeHidDevice();
+    await connectWebHid(device);
+    wasm.device_operation.mockImplementationOnce(async (_vid, _pid, io) => {
+      const bytes = await io.read(1);
+      expect(bytes).toEqual(new Uint8Array());
+      return null;
+    });
+    await invoke("get_eq_state");
+  });
+
+  it("hands framed input reports to Rust without parsing protocol bytes", async () => {
+    const device = fakeHidDevice({ respondToReports: true });
+    await connectWebHid(device);
+    wasm.device_operation.mockImplementationOnce(async (_vid, _pid, io) => {
+      await io.write(Uint8Array.of(2, 0xbb, 0x0b));
+      expect(await io.read(1)).toEqual(Uint8Array.of(1, 1, 2, 3));
+    });
+    await invoke("get_eq_state");
+    expect(device.sendReport).toHaveBeenCalledWith(2, Uint8Array.of(0xbb, 0x0b));
+  });
+});
+
 describe("browser profile matching", () => {
   it("returns null when WASM has no matching profile", async () => {
     wasm.match_profile_name.mockReturnValue(undefined);
@@ -559,511 +480,6 @@ describe("browser profile matching", () => {
     wasm.match_profile_name.mockReturnValue("Saved profile");
     await expect(invoke("match_profile_name", { peq: peqWithBands(1) }))
       .resolves.toBe("Saved profile");
-  });
-});
-
-describe("browser EQ writes", () => {
-  it("rotates filter nonces across complete reads", async () => {
-    const device = fakeHidDevice({ respondToReports: true });
-    await connectWebHid(device);
-    wasm.build_read_global_gain_request.mockReturnValue([1]);
-    wasm.matches_global_gain_response.mockReturnValue(true);
-    wasm.parse_global_gain_response.mockReturnValue(0);
-    wasm.build_read_filter_request.mockReturnValue([1]);
-    wasm.matches_filter_response.mockReturnValue(true);
-    wasm.parse_filter_response.mockReturnValue({
-      index: 0,
-      enabled: true,
-      filter_type: "Peak",
-      freq: 100,
-      gain: 0,
-      q: 1,
-    });
-    wasm.is_default_peq_for_device.mockReturnValue(false);
-
-    await invoke("get_eq_state");
-    await invoke("get_eq_state");
-
-    const nonces = wasm.build_read_filter_request.mock.calls.map((call) => call[2]);
-    expect(nonces).toHaveLength(20);
-    for (let index = 1; index < nonces.length; index++) {
-      expect(nonces[index]).toBe(nonces[index - 1] + 1);
-    }
-  });
-
-  it("rejects a default returned after an initial WebHID read error", async () => {
-    const device = fakeHidDevice({ respondToReports: true });
-    const oneBand = { ...profile, num_bands: 1 };
-    await connectWebHid(device, oneBand);
-    wasm.build_read_global_gain_request.mockReturnValue([1]);
-    wasm.matches_global_gain_response.mockReturnValue(true);
-    wasm.parse_global_gain_response.mockReturnValue(0);
-    wasm.build_read_filter_request
-      .mockImplementationOnce(() => {
-        throw new Error("transient read");
-      })
-      .mockReturnValue([1]);
-    wasm.matches_filter_response.mockReturnValue(true);
-    wasm.is_filter_response_valid.mockReturnValue(true);
-    wasm.parse_filter_response.mockReturnValue({
-      index: 0,
-      enabled: true,
-      filter_type: "Peak",
-      freq: 100,
-      gain: 0,
-      q: 1,
-    });
-    wasm.is_default_peq_for_device.mockReturnValue(true);
-
-    await expect(invoke("get_eq_state")).rejects.toThrow("unconfirmed default");
-  });
-
-  it("fails closed when a global-gain read requires an uncorrelated retry", async () => {
-    const device = fakeHidDevice({ respondToReports: true });
-    const oneBand = { ...profile, num_bands: 1 };
-    await connectWebHid(device, oneBand);
-    wasm.build_read_global_gain_request.mockReturnValue([1]);
-    wasm.matches_global_gain_response
-      .mockReturnValueOnce(false)
-      .mockReturnValue(true);
-    wasm.parse_global_gain_response.mockReturnValue(0);
-    wasm.build_read_filter_request.mockReturnValue([1]);
-    wasm.matches_filter_response.mockReturnValue(true);
-    wasm.parse_filter_response.mockReturnValue({
-      index: 0,
-      enabled: true,
-      filter_type: "Peak",
-      freq: 100,
-      gain: 0,
-      q: 1,
-    });
-    wasm.is_default_peq_for_device.mockReturnValue(false);
-
-    await expect(invoke("get_eq_state")).rejects.toThrow("refusing uncorrelated state");
-    expect(wasm.build_read_global_gain_request).toHaveBeenCalled();
-    // Global-gain responses carry no nonce, so WebHID fails closed after one
-    // unanswered request instead of retrying into an uncorrelated late frame.
-    expect(device.sendReport).toHaveBeenCalledTimes(1);
-  });
-
-  it("resends a firmware request when the first response is lost", async () => {
-    const device = fakeHidDevice({ firmwareResponseAfter: 2 });
-    await connectWebHid(device, { ...profile, protocol: "Walkplay", controls: "walkplay" });
-
-    await expect(invoke("get_firmware_version")).resolves.toBe("FW1.0");
-    expect(device.sendReport).toHaveBeenCalledTimes(2);
-  });
-
-  it("rejects an invalid matching filter response before parsing or rollback", async () => {
-    const device = fakeHidDevice({ respondToReports: true });
-    const oneBand = { ...profile, num_bands: 1 };
-    await connectWebHid(device, oneBand);
-    wasm.build_read_global_gain_request.mockReturnValue([1]);
-    wasm.matches_global_gain_response.mockReturnValue(true);
-    wasm.parse_global_gain_response.mockReturnValue(0);
-    wasm.build_read_filter_request.mockReturnValue([1]);
-    wasm.matches_filter_response.mockReturnValue(true);
-    wasm.is_filter_response_valid.mockReturnValue(false);
-    wasm.parse_filter_response.mockReturnValue({
-      index: 0,
-      enabled: true,
-      filter_type: "Peak",
-      freq: 100,
-      gain: 0,
-      q: 1,
-    });
-    wasm.is_default_peq_for_device.mockReturnValue(false);
-
-    await expect(invoke("get_eq_state")).rejects.toThrow("Failed to read band 1");
-    expect(wasm.parse_filter_response).not.toHaveBeenCalled();
-  });
-
-  it("normalizes a persistent write before sending and returns the normalized PEQ", async () => {
-    const device = fakeHidDevice({ respondToReports: true });
-    const oneBand = { ...profile, num_bands: 1 };
-    await connectWebHid(device, oneBand);
-    wasm.build_read_global_gain_request.mockReturnValue([1]);
-    wasm.matches_global_gain_response.mockReturnValue(true);
-    wasm.parse_global_gain_response.mockReturnValue(0);
-    wasm.build_read_filter_request.mockReturnValue([1]);
-    wasm.matches_filter_response.mockReturnValue(true);
-    wasm.parse_filter_response.mockReturnValue({
-      index: 0,
-      enabled: true,
-      filter_type: "Peak",
-      freq: 100,
-      gain: 0,
-      q: 1,
-    });
-    wasm.is_default_peq_for_device.mockReturnValue(false);
-    localStorageValues.set("glacier-eq-settings", JSON.stringify({ skip_push_verification: true }));
-    const requested = peqWithBands(1);
-    const normalized = { filters: [], global_gain: -4 };
-    wasm.normalize_peq_for_device.mockReturnValue({ peq: normalized, warnings: [] });
-    wasm.build_write_global_gain_packets.mockReturnValue([[1, 2]]);
-
-    await expect(invoke<PEQData>("set_eq_state", { peq: requested })).resolves.toEqual({
-      ...normalized,
-      // This path never reads the DAC back, so the returned PEQ is the
-      // request. Say so, exactly as DeviceSession::unverified_push does,
-      // instead of letting the UI read it as a confirmed commit.
-      warnings: [
-        "pushed without reading the DAC back, so its stored EQ was not verified",
-      ],
-    });
-
-    expect(wasm.normalize_peq_for_device).toHaveBeenCalledWith(
-      requested,
-      profile.vendor_id,
-      profile.product_id,
-    );
-    expect(wasm.build_write_global_gain_packets).toHaveBeenCalledWith(oneBand.protocol, -4);
-    expect(device.sendReport.mock.calls.length).toBeGreaterThan(1);
-  });
-
-  it("returns the verified readback after a persistent write", async () => {
-    const device = fakeHidDevice({ respondToReports: true });
-    await connectWebHid(device);
-    const requested = peqWithBands(10);
-    const readback = {
-      ...requested,
-      filters: requested.filters.map((filter) => ({ ...filter, gain: filter.gain - 0.1 })),
-    };
-    wasm.normalize_peq_for_device.mockReturnValue({ peq: requested, warnings: [] });
-    wasm.build_read_global_gain_request.mockReturnValue([1]);
-    wasm.matches_global_gain_response.mockReturnValue(true);
-    wasm.parse_global_gain_response.mockReturnValue(requested.global_gain);
-    wasm.build_read_filter_request.mockReturnValue([1]);
-    wasm.matches_filter_response.mockReturnValue(true);
-    let readCount = 0;
-    wasm.parse_filter_response.mockImplementation(
-      () => readback.filters[readCount++ % readback.filters.length],
-    );
-    wasm.is_default_peq_for_device.mockReturnValue(false);
-
-    await expect(invoke<PEQData>("set_eq_state", { peq: requested })).resolves.toMatchObject({
-      global_gain: requested.global_gain,
-      filters: readback.filters,
-      // A verified push returns a real readback, so it carries no
-      // "not verified" caveat — the two paths must stay distinguishable.
-      warnings: [],
-    });
-  });
-
-  it("uses the connected PID when writing through a vendor fallback", async () => {
-    const device = fakeHidDevice({ respondToReports: true });
-    await connectWebHid(device, { ...profile, product_id: null });
-    const requested = peqWithBands(10);
-    wasm.normalize_peq_for_device.mockReturnValue({ peq: requested, warnings: [] });
-    wasm.build_read_global_gain_request.mockReturnValue([1]);
-    wasm.matches_global_gain_response.mockReturnValue(true);
-    wasm.parse_global_gain_response.mockReturnValue(requested.global_gain);
-    wasm.build_read_filter_request.mockReturnValue([1]);
-    wasm.matches_filter_response.mockReturnValue(true);
-    let readCount = 0;
-    wasm.parse_filter_response.mockImplementation(
-      () => requested.filters[readCount++ % requested.filters.length],
-    );
-    wasm.is_default_peq_for_device.mockReturnValue(false);
-    await expect(invoke("set_eq_state", { peq: requested })).resolves.toMatchObject({
-      global_gain: requested.global_gain,
-    });
-    expect(wasm.normalize_peq_for_device).toHaveBeenCalledWith(
-      requested, device.vendorId, device.productId,
-    );
-  });
-
-  it("rejects an out-of-capability backup before writing", async () => {
-    const device = fakeHidDevice({ respondToReports: true });
-    await connectWebHid(device);
-    const requested = peqWithBands(10);
-    const invalid = {
-      ...requested,
-      filters: requested.filters.map((filter) => ({ ...filter, gain: 100 })),
-    };
-    wasm.normalize_peq_for_device.mockReturnValue({ peq: requested, warnings: [] });
-    wasm.build_read_global_gain_request.mockReturnValue([1]);
-    wasm.matches_global_gain_response.mockReturnValue(true);
-    wasm.parse_global_gain_response.mockReturnValue(requested.global_gain);
-    wasm.build_read_filter_request.mockReturnValue([1]);
-    wasm.matches_filter_response.mockReturnValue(true);
-    wasm.parse_filter_response.mockReturnValue(invalid.filters[0]);
-    wasm.is_default_peq_for_device.mockReturnValue(false);
-    wasm.build_write_global_gain_packets.mockReturnValue([[1, 2]]);
-
-    await expect(invoke("set_eq_state", { peq: requested })).rejects.toThrow(
-      "outside device capabilities",
-    );
-    expect(wasm.build_write_global_gain_packets).not.toHaveBeenCalled();
-  });
-
-  it.each([
-    { filters: [], global_gain: Number.NaN },
-    { filters: [{ index: 0 }], global_gain: 0 },
-  ])("rejects malformed persistent input before sending packets", async (peq) => {
-    const device = fakeHidDevice();
-    await connectWebHid(device);
-
-    await expect(invoke("set_eq_state", { peq })).rejects.toThrow("Invalid PEQ data");
-
-    expect(wasm.normalize_peq_for_device).not.toHaveBeenCalled();
-    expect(device.sendReport).not.toHaveBeenCalled();
-  });
-
-  it("rejects volatile apply when the active device does not support it", async () => {
-    const device = fakeHidDevice();
-    await connectWebHid(device, { ...profile, supports_ram_apply: false });
-
-    await expect(invoke("apply_eq_state", { peq: peqWithBands(1) })).rejects.toThrow(
-      "does not advertise volatile RAM apply support",
-    );
-
-    expect(wasm.normalize_peq_for_device).not.toHaveBeenCalled();
-    expect(wasm.build_ram_apply_packets).not.toHaveBeenCalled();
-    expect(device.sendReport).not.toHaveBeenCalled();
-  });
-
-  it("normalizes volatile apply before sending and returns the normalized PEQ", async () => {
-    const device = fakeHidDevice({ respondToReports: true });
-    const oneBand = { ...profile, num_bands: 1 };
-    await connectWebHid(device, oneBand);
-    wasm.build_read_global_gain_request.mockReturnValue([1]);
-    wasm.matches_global_gain_response.mockReturnValue(true);
-    wasm.parse_global_gain_response.mockReturnValue(0);
-    wasm.build_read_filter_request.mockReturnValue([1]);
-    wasm.matches_filter_response.mockReturnValue(true);
-    wasm.parse_filter_response.mockReturnValue({
-      index: 0,
-      enabled: true,
-      filter_type: "Peak",
-      freq: 100,
-      gain: 0,
-      q: 1,
-    });
-    wasm.is_default_peq_for_device.mockReturnValue(false);
-    const normalized = { filters: [], global_gain: -3 };
-    wasm.normalize_peq_for_device.mockReturnValue({ peq: normalized, warnings: [] });
-    wasm.build_ram_apply_packets.mockReturnValue([[1, 9]]);
-
-    await expect(invoke<PEQData>("apply_eq_state", { peq: peqWithBands(1) })).resolves.toEqual({
-      ...normalized,
-      warnings: [],
-    });
-
-    expect(wasm.build_write_global_gain_packets).toHaveBeenCalledWith(profile.protocol, -3);
-    expect(wasm.build_ram_apply_packets).toHaveBeenCalledWith(profile.protocol);
-    expect(device.sendReport.mock.calls.length).toBeGreaterThan(1);
-  });
-
-  it("restores the previous RAM state when a volatile write fails", async () => {
-    const device = fakeHidDevice({ respondToReports: true });
-    const oneBand = { ...profile, num_bands: 1 };
-    await connectWebHid(device, oneBand);
-    wasm.build_read_global_gain_request.mockReturnValue([1]);
-    wasm.matches_global_gain_response.mockReturnValue(true);
-    wasm.parse_global_gain_response.mockReturnValue(0);
-    wasm.build_read_filter_request.mockReturnValue([1]);
-    wasm.matches_filter_response.mockReturnValue(true);
-    wasm.parse_filter_response.mockReturnValue({
-      index: 0,
-      enabled: true,
-      filter_type: "Peak",
-      freq: 100,
-      gain: 0,
-      q: 1,
-    });
-    wasm.is_default_peq_for_device.mockReturnValue(false);
-    wasm.build_write_filter_packets.mockReturnValue([[2, 2]]);
-    wasm.build_write_global_gain_packets
-      .mockImplementationOnce(() => { throw new Error("preamp write failed"); })
-      .mockReturnValue([[3, 3]]);
-    wasm.build_ram_apply_packets.mockReturnValue([[4, 4]]);
-
-    await expect(invoke("apply_eq_state", { peq: peqWithBands(1) })).rejects.toThrow(
-      "previous state restored",
-    );
-    expect(wasm.build_write_filter_packets.mock.calls.length).toBeGreaterThanOrEqual(2);
-    expect(wasm.build_ram_apply_packets).toHaveBeenCalled();
-  });
-
-  it("returns capability-clamp warnings on the push result instead of discarding them", async () => {
-    const device = fakeHidDevice({ respondToReports: true });
-    const oneBand = { ...profile, num_bands: 1 };
-    await connectWebHid(device, oneBand);
-    wasm.build_read_global_gain_request.mockReturnValue([1]);
-    wasm.matches_global_gain_response.mockReturnValue(true);
-    wasm.parse_global_gain_response.mockReturnValue(0);
-    wasm.build_read_filter_request.mockReturnValue([1]);
-    wasm.matches_filter_response.mockReturnValue(true);
-    wasm.parse_filter_response.mockReturnValue({
-      index: 0,
-      enabled: true,
-      filter_type: "Peak",
-      freq: 100,
-      gain: 0,
-      q: 1,
-    });
-    wasm.is_default_peq_for_device.mockReturnValue(false);
-    localStorageValues.set("glacier-eq-settings", JSON.stringify({ skip_push_verification: true }));
-    const clamps = ["Clamped preamp gain from 20.0 dB to 12.0 dB"];
-    wasm.normalize_peq_for_device.mockReturnValue({
-      peq: { filters: [], global_gain: 12 },
-      warnings: clamps,
-    });
-    wasm.build_write_global_gain_packets.mockReturnValue([[1, 2]]);
-
-    const result = await invoke<{ global_gain: number; warnings?: string[] }>("set_eq_state", {
-      peq: peqWithBands(1),
-    });
-
-    // The old path returned the bare PEQ: the clamp silently rewrote the
-    // value and the UI's "Saved EQ to DAC" was the only signal. This push also
-    // skipped verification, so it carries both facts.
-    expect(result.warnings).toEqual([
-      ...clamps,
-      "pushed without reading the DAC back, so its stored EQ was not verified",
-    ]);
-    expect(result.global_gain).toBe(12);
-  });
-});
-
-describe("browser EQ writes on a DAC that resets on save", () => {
-  const JA11_SAVE = [2, 0xaa, 0x0a, 0x00, 0x00, 0x19, 0x01, 0x03, 0x00, 0xee];
-  const GAIN_REQ = [2, 0xbb, 0x0b, 0x00, 0x00, 0x17, 0x00, 0x00, 0xee];
-  const FILTER_REQ = [2, 0xbb, 0x0b, 0x00, 0x00, 0x15, 0x01, 0x00, 0xee];
-  const FILTER_WRITE = [2, 0xaa, 0x0a, 0x00, 0x00, 0x15, 0x08];
-  const GAIN_WRITE = [2, 0xaa, 0x0a, 0x00, 0x00, 0x17, 0x02];
-  const ja11: SupportedDeviceInfo = {
-    ...profile,
-    name: "FiiO JA11",
-    protocol: "FiiO JA11",
-    vendor_id: 0x2972,
-    product_id: 0x0102,
-    num_bands: 1,
-  };
-
-  async function connectJa11(protocol = ja11.protocol) {
-    const device = {
-      ...fakeHidDevice({ respondToReports: true }),
-      vendorId: ja11.vendor_id,
-      productId: ja11.product_id!,
-    } as HIDDevice;
-    await connectWebHid(device, { ...ja11, protocol });
-    const requested = peqWithBands(1);
-    wasm.get_protocol_quirks.mockImplementation((name: string) => ({
-      gain_read_optional: false,
-      save_resets_device: name === "FiiO JA11",
-    }));
-    wasm.normalize_peq_for_device.mockReturnValue({ peq: requested, warnings: [] });
-    wasm.build_read_global_gain_request.mockReturnValue(GAIN_REQ);
-    wasm.matches_global_gain_response.mockReturnValue(true);
-    wasm.build_read_filter_request.mockReturnValue(FILTER_REQ);
-    wasm.matches_filter_response.mockReturnValue(true);
-    wasm.parse_filter_response.mockReturnValue(requested.filters[0]);
-    wasm.build_write_filter_packets.mockReturnValue([FILTER_WRITE]);
-    wasm.build_write_global_gain_packets.mockReturnValue([GAIN_WRITE]);
-    wasm.build_commit_packets.mockReturnValue([JA11_SAVE]);
-    return { device, requested };
-  }
-
-  const sentReports = (device: HIDDevice) =>
-    (device.sendReport as ReturnType<typeof vi.fn>).mock.calls.map(
-      ([id, data]: [number, Uint8Array]) => [id, ...Array.from(data)],
-    );
-
-  it("verifies RAM first and sends the save packet last, with no I/O after it", async () => {
-    const { device, requested } = await connectJa11();
-    wasm.parse_global_gain_response.mockReturnValue(requested.global_gain);
-
-    await expect(invoke<PEQData>("set_eq_state", { peq: requested })).resolves.toMatchObject({
-      global_gain: requested.global_gain,
-      warnings: [],
-    });
-
-    expect(sentReports(device)).toEqual([
-      GAIN_REQ, FILTER_REQ, // backup pull
-      FILTER_WRITE, GAIN_WRITE, // RAM write
-      GAIN_REQ, FILTER_REQ, // verification pull
-      JA11_SAVE,
-    ]);
-    const lastRead = Math.max(
-      ...wasm.matches_global_gain_response.mock.invocationCallOrder,
-      ...wasm.matches_filter_response.mock.invocationCallOrder,
-      ...wasm.parse_global_gain_response.mock.invocationCallOrder,
-      ...wasm.parse_filter_response.mock.invocationCallOrder,
-    );
-    const save = (device.sendReport as ReturnType<typeof vi.fn>).mock.invocationCallOrder.at(-1)!;
-    expect(save).toBeGreaterThan(lastRead);
-  });
-
-  it("does not save, before or while restoring, when verification fails", async () => {
-    const { device, requested } = await connectJa11();
-    // backup pull, mismatching verification pull, restore verification pull
-    wasm.parse_global_gain_response
-      .mockReturnValueOnce(0)
-      .mockReturnValueOnce(-9)
-      .mockReturnValue(0);
-
-    await expect(invoke("set_eq_state", { peq: requested })).rejects.toThrow(
-      "previous state restored",
-    );
-
-    expect(sentReports(device)).not.toContainEqual(JA11_SAVE);
-  });
-
-  it("keeps the save-before-verify order on DACs without the quirk", async () => {
-    const { device, requested } = await connectJa11("OtherProtocol");
-    wasm.parse_global_gain_response.mockReturnValue(requested.global_gain);
-
-    await invoke("set_eq_state", { peq: requested });
-
-    expect(sentReports(device)).toEqual([
-      GAIN_REQ, FILTER_REQ,
-      FILTER_WRITE, GAIN_WRITE,
-      JA11_SAVE,
-      GAIN_REQ, FILTER_REQ,
-    ]);
-  });
-});
-
-describe("peqVerificationError", () => {
-  it("accepts protocol readback within the capability tolerances", () => {
-    const actual = verificationPeq();
-    actual.filters[0] = { ...actual.filters[0], freq: 101, gain: 1.149, q: 0.749 };
-
-    expect(peqVerificationError(actual, verificationPeq(), VERIFICATION_CAPS)).toBeNull();
-  });
-
-  it("treats a disabled band's expected gain as zero", () => {
-    const expected = verificationPeq();
-    expected.filters[1].gain = 8;
-
-    expect(peqVerificationError(verificationPeq(), expected, VERIFICATION_CAPS)).toBeNull();
-  });
-
-  it.each([
-    ["global gain", (peq: PEQData) => { peq.global_gain = -0.9; }],
-    ["filter count", (peq: PEQData) => { peq.filters.pop(); }],
-    ["enabled state", (peq: PEQData) => { peq.filters[0].enabled = false; }],
-    ["filter type", (peq: PEQData) => { peq.filters[0].filter_type = "Peak"; }],
-    ["frequency", (peq: PEQData) => { peq.filters[0].freq = 102; }],
-    ["gain", (peq: PEQData) => { peq.filters[0].gain = 1.16; }],
-    ["Q", (peq: PEQData) => { peq.filters[0].q = 0.76; }],
-  ])("rejects a %s mismatch", (_field, mutate) => {
-    const actual = verificationPeq();
-    mutate(actual);
-
-    expect(peqVerificationError(actual, verificationPeq(), VERIFICATION_CAPS)).not.toBeNull();
-  });
-
-  it("ignores enabled readback when the protocol represents disable as zero gain", () => {
-    const actual = verificationPeq();
-    actual.filters[1].enabled = true;
-
-    expect(peqVerificationError(actual, verificationPeq(), {
-      ...VERIFICATION_CAPS,
-      supports_per_band_enable: false,
-    })).toBeNull();
   });
 });
 
@@ -1389,34 +805,6 @@ describe("WebHID device matching", () => {
     expect(matchSupportedWebHidDevice({ vendorId: 0x1234, productId: 0xabcd }, [fallback]))
       .toBe(fallback);
     expect(matchSupportedWebHidDevice({ vendorId: 0x1234, productId: 0xabcd }, [])).toBeUndefined();
-  });
-});
-
-describe("WebHID report retry classification", () => {
-  it("retries its own timeout while connected", () => {
-    expect(shouldRetryWebHidRead(new WebHidReadTimeout(), true)).toBe(true);
-  });
-
-  it("does not retry timeouts after disconnection", () => {
-    expect(shouldRetryWebHidRead(new WebHidReadTimeout(), false)).toBe(false);
-  });
-
-  it("does not swallow transport failures", () => {
-    expect(shouldRetryWebHidRead(new Error("sendReport failed"), true)).toBe(false);
-  });
-});
-
-describe("persistentPushFailureMessage", () => {
-  it("reports a successful restore", () => {
-    expect(persistentPushFailureMessage(new Error("write failed"), null)).toBe(
-      "Persistent push failed: write failed; previous state restored",
-    );
-  });
-
-  it("reports a failed restore", () => {
-    expect(persistentPushFailureMessage("commit failed", new Error("device disconnected"))).toBe(
-      "Persistent push failed: commit failed; restore failed: device disconnected",
-    );
   });
 });
 

@@ -3,13 +3,14 @@
 
 use crate::device::capabilities::{DeviceCapabilities, DESKTOP_DAC_CAPS};
 use crate::device::{
-    get_supported_device, protocol_by_name, DeviceProfile, EqProtocol, Packet, SupportedDeviceInfo,
-    WalkplayProtocol, SUPPORTED_DEVICES, UNKNOWN,
+    get_supported_device, DeviceProfile, SupportedDeviceInfo, SUPPORTED_DEVICES, UNKNOWN,
 };
 use crate::eq::{Filter, PEQData};
 use crate::profile_match::{matching_profile_name, ProfileCandidate};
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
+mod device;
+pub use device::device_operation;
 
 #[derive(Serialize, Deserialize)]
 pub struct AutoEqParseResultWasm {
@@ -100,18 +101,6 @@ fn response_values_and_bands(
     responses
 }
 
-fn eq_protocol(protocol: &str) -> Result<&'static dyn EqProtocol, JsValue> {
-    let protocol =
-        protocol_by_name(protocol).ok_or_else(|| JsValue::from_str("Invalid protocol"))?;
-    protocol
-        .eq
-        .ok_or_else(|| JsValue::from_str(&format!("{} has no hardware EQ", protocol.id)))
-}
-
-fn unframe<'a>(protocol: &dyn EqProtocol, data: &'a [u8]) -> Result<&'a [u8], JsValue> {
-    protocol.unframe_packet(data).map_err(js_err)
-}
-
 fn supported_profile(
     vendor_id: Option<u16>,
     product_id: Option<u16>,
@@ -129,11 +118,6 @@ fn device_caps_or_desktop(vendor_id: Option<u16>, product_id: Option<u16>) -> De
     supported_profile(vendor_id, product_id)
         .map(|profile| profile.caps.clone())
         .unwrap_or_else(|| DESKTOP_DAC_CAPS.clone())
-}
-
-fn framed_packets(packets: Vec<Packet>) -> Result<JsValue, JsValue> {
-    let framed: Vec<Vec<u8>> = packets.iter().map(|pkt| pkt.framed()).collect();
-    to_js_value(&framed)
 }
 
 fn validate_dsp_sample_rate(sample_rate: f64) -> Result<(), JsValue> {
@@ -225,52 +209,6 @@ fn validate_finite_response(values: &[f32]) -> Result<(), JsValue> {
     if values.iter().any(|value| !value.is_finite()) {
         return Err(JsValue::from_str(
             "Response calculation produced a non-finite f32",
-        ));
-    }
-    Ok(())
-}
-
-fn validate_global_gain_wire(protocol: &dyn EqProtocol, gain: f64) -> Result<(), JsValue> {
-    if !gain.is_finite() {
-        return Err(JsValue::from_str("Global gain must be finite"));
-    }
-    let rounded = gain.round();
-    if !(-128.0..=127.0).contains(&rounded) {
-        return Err(JsValue::from_str("Global gain is outside the wire range"));
-    }
-    let scale = protocol.gain_encoding().preamp_units_per_db;
-    if !(-32768.0 / scale..=32767.0 / scale).contains(&rounded) {
-        return Err(JsValue::from_str("Global gain is outside the wire range"));
-    }
-    Ok(())
-}
-
-fn validate_filter_gain_wire(protocol: &dyn EqProtocol, gain: f64) -> Result<(), JsValue> {
-    if !gain.is_finite() {
-        return Err(JsValue::from_str("Filter gain must be finite"));
-    }
-    let scale = protocol.gain_encoding().band_units_per_db;
-    let scaled = (gain * scale).round();
-    if !scaled.is_finite() || !(-32768.0..=32767.0).contains(&scaled) {
-        return Err(JsValue::from_str(
-            "Filter gain cannot be represented by the selected protocol wire format",
-        ));
-    }
-    Ok(())
-}
-
-fn validate_filter_packets_wire(
-    protocol: &dyn EqProtocol,
-    packets: &[Packet],
-) -> Result<(), JsValue> {
-    // A write may include preset selection/preamp protection before the
-    // actual band packet. Validate the band, not an auxiliary command.
-    if !packets
-        .iter()
-        .any(|packet| protocol.is_filter_packet_valid(&packet.payload))
-    {
-        return Err(JsValue::from_str(
-            "Filter cannot be represented by the selected protocol wire format",
         ));
     }
     Ok(())
@@ -486,264 +424,4 @@ pub fn run_autoeq(
 
     let result = AutoEqRunResultWasm { peq, warnings };
     to_js_value(&result)
-}
-
-#[wasm_bindgen]
-pub fn build_init_packets(protocol: String) -> Result<JsValue, JsValue> {
-    let p = eq_protocol(&protocol)?;
-    framed_packets(p.init_packets())
-}
-
-#[wasm_bindgen]
-pub fn build_read_filter_request(
-    protocol: String,
-    index: f64,
-    nonce: f64,
-) -> Result<Vec<u8>, JsValue> {
-    let p = eq_protocol(&protocol)?;
-    let index = validate_integer_range(index, 0.0, 255.0, "index")? as u8;
-    let nonce = validate_integer_range(nonce, 0.0, 255.0, "nonce")? as u8;
-    Ok(p.read_filter_request(index, nonce).framed())
-}
-
-#[wasm_bindgen]
-pub fn matches_filter_response(
-    protocol: String,
-    data: Vec<u8>,
-    index: f64,
-    nonce: f64,
-) -> Result<bool, JsValue> {
-    let p = eq_protocol(&protocol)?;
-    let index = validate_integer_range(index, 0.0, 255.0, "index")? as u8;
-    let nonce = validate_integer_range(nonce, 0.0, 255.0, "nonce")? as u8;
-    let unframed = unframe(p, &data)?;
-    Ok(p.matches_filter_response(unframed, index, nonce))
-}
-
-#[wasm_bindgen]
-pub fn is_filter_response_valid(
-    protocol: String,
-    data: Vec<u8>,
-    index: f64,
-    nonce: f64,
-) -> Result<bool, JsValue> {
-    let p = eq_protocol(&protocol)?;
-    let index = validate_integer_range(index, 0.0, 255.0, "index")? as u8;
-    let nonce = validate_integer_range(nonce, 0.0, 255.0, "nonce")? as u8;
-    let unframed = unframe(p, &data)?;
-    Ok(p.is_filter_response_valid(unframed, index, nonce))
-}
-
-#[wasm_bindgen]
-pub fn parse_filter_response(protocol: String, data: Vec<u8>) -> Result<JsValue, JsValue> {
-    let p = eq_protocol(&protocol)?;
-    let unframed = unframe(p, &data)?;
-    if !p.is_filter_packet_valid(unframed) {
-        return Err(JsValue::from_str("Invalid filter response"));
-    }
-    let filter = p
-        .parse_filter_response(unframed)
-        .ok_or_else(|| JsValue::from_str("Parse failed"))?;
-    to_js_value(&filter)
-}
-
-#[wasm_bindgen]
-pub fn build_read_global_gain_request(protocol: String) -> Result<Vec<u8>, JsValue> {
-    let p = eq_protocol(&protocol)?;
-    Ok(p.read_global_gain_request().framed())
-}
-
-#[wasm_bindgen]
-pub fn matches_global_gain_response(protocol: String, data: Vec<u8>) -> Result<bool, JsValue> {
-    let p = eq_protocol(&protocol)?;
-    let unframed = unframe(p, &data)?;
-    Ok(p.matches_global_gain_response(unframed))
-}
-
-#[wasm_bindgen]
-pub fn parse_global_gain_response(protocol: String, data: Vec<u8>) -> Result<f64, JsValue> {
-    let p = eq_protocol(&protocol)?;
-    let unframed = unframe(p, &data)?;
-    p.parse_global_gain_response(unframed)
-        .ok_or_else(|| JsValue::from_str("Parse failed"))
-}
-
-#[wasm_bindgen]
-pub fn build_write_filter_packets(
-    protocol: String,
-    index: f64,
-    filter_js: JsValue,
-    dsp_sample_rate: f64,
-    global_gain: f64,
-) -> Result<JsValue, JsValue> {
-    let p = eq_protocol(&protocol)?;
-    let index = validate_integer_range(index, 0.0, 255.0, "index")? as u8;
-    let filter: Filter = serde_wasm_bindgen::from_value(filter_js).map_err(js_err)?;
-    validate_filter_numeric(&filter)?;
-    validate_filter_gain_wire(p, filter.gain)?;
-    validate_global_gain_wire(p, global_gain)?;
-    validate_dsp_sample_rate(dsp_sample_rate)?;
-    let packets = p
-        .write_filter_packets(index, &filter, dsp_sample_rate, global_gain)
-        .map_err(|err| JsValue::from_str(&err))?;
-    validate_filter_packets_wire(p, &packets)?;
-    framed_packets(packets)
-}
-
-#[wasm_bindgen]
-pub fn build_write_global_gain_packets(
-    protocol: String,
-    global_gain: f64,
-) -> Result<JsValue, JsValue> {
-    let p = eq_protocol(&protocol)?;
-    validate_global_gain_wire(p, global_gain)?;
-    framed_packets(p.write_global_gain_packets(global_gain))
-}
-
-#[wasm_bindgen]
-pub fn build_commit_packets(protocol: String) -> Result<JsValue, JsValue> {
-    let p = eq_protocol(&protocol)?;
-    framed_packets(p.commit_packets())
-}
-
-#[wasm_bindgen]
-pub fn build_ram_apply_packets(protocol: String) -> Result<JsValue, JsValue> {
-    let p = eq_protocol(&protocol)?;
-    framed_packets(p.ram_apply_packets())
-}
-
-// ─── Walkplay specific utility command packet builders ───────────────────────────
-
-#[wasm_bindgen]
-pub fn build_filter_mode_write_packet(mode: String) -> Result<Vec<u8>, JsValue> {
-    let r = match mode.as_str() {
-        "FAST-LL" => 1,
-        "FAST-PC" => 2,
-        "Slow-LL" => 3,
-        "Slow-PC" => 4,
-        "NON-OS" => 5,
-        _ => return Err(JsValue::from_str("Invalid filter mode")),
-    };
-    let payload = WalkplayProtocol::build_filter_mode_write_packet(r);
-    Ok(Packet::new(WalkplayProtocol::report_id(), payload).framed())
-}
-
-#[wasm_bindgen]
-pub fn build_amp_mode_write_packet(is_class_ab: bool) -> Vec<u8> {
-    let payload = WalkplayProtocol::build_amp_mode_write_packet(is_class_ab);
-    Packet::new(WalkplayProtocol::report_id(), payload).framed()
-}
-
-#[wasm_bindgen]
-pub fn build_gain_mode_write_packet(is_high: bool) -> Vec<u8> {
-    let payload = WalkplayProtocol::build_gain_mode_write_packet(is_high);
-    Packet::new(WalkplayProtocol::report_id(), payload).framed()
-}
-
-#[wasm_bindgen]
-pub fn build_balance_write_packets(balance: f64) -> Result<JsValue, JsValue> {
-    let balance = validate_integer_range(balance, -128.0, 127.0, "balance")? as i8;
-    let payloads = WalkplayProtocol::build_balance_write_packets(balance);
-    let packets: Vec<Vec<u8>> = payloads
-        .into_iter()
-        .map(|payload| Packet::new(WalkplayProtocol::report_id(), payload).framed())
-        .collect();
-    to_js_value(&packets)
-}
-
-#[wasm_bindgen]
-pub fn build_mic_volume_write_packet(db: f64) -> Result<Vec<u8>, JsValue> {
-    if !db.is_finite() || db.fract() != 0.0 || !(-128.0..=127.0).contains(&db) {
-        return Err(JsValue::from_str(
-            "Mic volume must be an integer between -128 and 127",
-        ));
-    }
-    let payload = WalkplayProtocol::build_mic_volume_write_packet(db as i8);
-    Ok(Packet::new(WalkplayProtocol::report_id(), payload).framed())
-}
-
-#[wasm_bindgen]
-pub fn build_factory_reset_packet() -> Vec<u8> {
-    let payload = WalkplayProtocol::build_factory_reset_packet();
-    Packet::new(WalkplayProtocol::report_id(), payload).framed()
-}
-
-#[wasm_bindgen]
-pub fn build_flash_eq_packet() -> Vec<u8> {
-    let payload = vec![
-        crate::device::families::walkplay::WRITE,
-        crate::device::families::walkplay::CMD_FLASH_EQ,
-        0,
-    ];
-    Packet::new(WalkplayProtocol::report_id(), payload).framed()
-}
-
-#[wasm_bindgen]
-pub fn get_write_timing(protocol: String) -> Result<JsValue, JsValue> {
-    let p = eq_protocol(&protocol)?;
-    let timing = p.write_timing();
-
-    to_js_value(&timing)
-}
-
-#[wasm_bindgen]
-pub fn get_protocol_quirks(protocol: String) -> Result<JsValue, JsValue> {
-    to_js_value(&eq_protocol(&protocol)?.quirks())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn no_device_autoeq_uses_editor_capabilities() {
-        let caps = device_caps_or_desktop(None, None);
-        assert_eq!(caps.num_bands, DESKTOP_DAC_CAPS.num_bands);
-        assert_eq!(caps.global_gain_range, DESKTOP_DAC_CAPS.global_gain_range);
-        assert_eq!(caps.band_gain_range, DESKTOP_DAC_CAPS.band_gain_range);
-        assert_eq!(
-            device_caps_or_desktop(Some(0x1234), Some(0x5678)).num_bands,
-            DESKTOP_DAC_CAPS.num_bands
-        );
-    }
-
-    #[test]
-    fn wasm_facade_rejects_coerced_integer_parameters() {
-        assert!(validate_integer_parameter(1.5, "n_bands").is_err());
-        assert!(validate_integer_parameter(f64::NAN, "steps").is_err());
-        assert!(validate_integer_parameter(-1.0, "steps").is_err());
-    }
-
-    #[test]
-    fn wasm_filter_wire_validation_rejects_unrepresentable_values() {
-        let protocol = eq_protocol("Walkplay").unwrap();
-        let packets = protocol
-            .write_filter_packets(
-                0,
-                &Filter {
-                    index: 0,
-                    enabled: true,
-                    freq: 1000,
-                    gain: 0.0,
-                    q: 0.001,
-                    filter_type: crate::eq::FilterType::Peak,
-                },
-                96_000.0,
-                0.0,
-            )
-            .unwrap();
-        assert!(validate_filter_packets_wire(protocol, &packets).is_err());
-    }
-
-    #[test]
-    fn eq_protocol_matches_device_protocol_names() {
-        assert!(eq_protocol("Walkplay").is_ok());
-        assert!(eq_protocol("Moondrop").is_ok());
-        assert!(eq_protocol("FiiO JA11").is_ok());
-        assert!(eq_protocol("fiioja11").is_ok());
-        assert!(eq_protocol("fiio ja11").is_ok());
-        assert!(eq_protocol("FiiO").is_ok());
-        assert!(eq_protocol("fiio").is_ok());
-        assert!(eq_protocol("Unknown").is_err());
-    }
 }
