@@ -243,7 +243,7 @@ fn validate_finite_response(values: &[f32]) -> Result<(), JsValue> {
     Ok(())
 }
 
-fn validate_global_gain_wire(protocol: &str, gain: f64) -> Result<(), JsValue> {
+fn validate_global_gain_wire(protocol: &dyn EqProtocol, gain: f64) -> Result<(), JsValue> {
     if !gain.is_finite() {
         return Err(JsValue::from_str("Global gain must be finite"));
     }
@@ -251,28 +251,18 @@ fn validate_global_gain_wire(protocol: &str, gain: f64) -> Result<(), JsValue> {
     if !(-128.0..=127.0).contains(&rounded) {
         return Err(JsValue::from_str("Global gain is outside the wire range"));
     }
-    let normalized = protocol.to_lowercase().replace([' ', '-', '_'], "");
-    let scale = match normalized.as_str() {
-        "fiio" | "fiioja11" | "fiioka17" => 10.0,
-        "moondrop" | "moondropdawnpro" => 256.0,
-        _ => return Ok(()),
-    };
+    let scale = protocol.gain_encoding().preamp_units_per_db;
     if !(-32768.0 / scale..=32767.0 / scale).contains(&rounded) {
         return Err(JsValue::from_str("Global gain is outside the wire range"));
     }
     Ok(())
 }
 
-fn validate_filter_gain_wire(protocol: &str, gain: f64) -> Result<(), JsValue> {
+fn validate_filter_gain_wire(protocol: &dyn EqProtocol, gain: f64) -> Result<(), JsValue> {
     if !gain.is_finite() {
         return Err(JsValue::from_str("Filter gain must be finite"));
     }
-    let normalized = protocol.to_lowercase().replace([' ', '-', '_'], "");
-    let scale = match normalized.as_str() {
-        "fiio" | "fiioja11" | "fiioka17" => 10.0,
-        "moondrop" | "moondropdawnpro" | "walkplay" => 256.0,
-        _ => return Ok(()),
-    };
+    let scale = protocol.gain_encoding().band_units_per_db;
     let scaled = (gain * scale).round();
     if !scaled.is_finite() || !(-32768.0..=32767.0).contains(&scaled) {
         return Err(JsValue::from_str(
@@ -612,8 +602,8 @@ pub fn build_write_filter_packets(
     let index = validate_integer_range(index, 0.0, 255.0, "index")? as u8;
     let filter: Filter = serde_wasm_bindgen::from_value(filter_js).map_err(js_err)?;
     validate_filter_numeric(&filter)?;
-    validate_filter_gain_wire(&protocol, filter.gain)?;
-    validate_global_gain_wire(&protocol, global_gain)?;
+    validate_filter_gain_wire(p, filter.gain)?;
+    validate_global_gain_wire(p, global_gain)?;
     validate_dsp_sample_rate(dsp_sample_rate)?;
     let packets = p
         .write_filter_packets(index, &filter, dsp_sample_rate, global_gain)
@@ -628,7 +618,7 @@ pub fn build_write_global_gain_packets(
     global_gain: f64,
 ) -> Result<JsValue, JsValue> {
     let p = eq_protocol(&protocol)?;
-    validate_global_gain_wire(&protocol, global_gain)?;
+    validate_global_gain_wire(p, global_gain)?;
     framed_packets(p.write_global_gain_packets(global_gain))
 }
 

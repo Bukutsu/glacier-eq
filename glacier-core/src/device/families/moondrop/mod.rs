@@ -3,7 +3,7 @@
 
 use crate::device::families::walkplay::compute_iir_filter;
 use crate::device::packet::{checked_scaled_i16, checked_scaled_u16, Packet};
-use crate::device::protocol::EqProtocol;
+use crate::device::protocol::{EqProtocol, GainEncoding};
 use crate::device::timing::WriteTiming;
 use crate::eq::filter::DEFAULT_FREQS_10_BAND;
 use crate::eq::{Filter, FilterType, PEQData};
@@ -76,6 +76,16 @@ fn coefficient_bytes(filter: &Filter, gain: f64) -> Result<[u8; 20], String> {
 }
 
 impl EqProtocol for MoondropProtocol {
+    fn gain_encoding(&self) -> GainEncoding {
+        GainEncoding {
+            band_units_per_db: 256.0,
+            band_step_db: None,
+            band_readback_per_db: 10.0,
+            preamp_units_per_db: 256.0,
+            preamp_step_db: 0.1,
+        }
+    }
+
     fn write_timing(&self) -> WriteTiming {
         WriteTiming {
             // The session delays between bands, not between each packet in a

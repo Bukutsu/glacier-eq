@@ -9,15 +9,14 @@ pub struct ProfileCandidate<'a> {
     pub data: &'a PEQData,
 }
 
+/// The band gain a readback would report after writing `gain`.
 fn quantized_band_gain(gain: f64, protocol: DeviceProtocol) -> f64 {
-    match protocol {
-        DeviceProtocol::Walkplay => (((gain * 256.0).round() / 256.0) * 100.0).round() / 100.0,
-        DeviceProtocol::Moondrop => (((gain * 256.0).round() / 256.0) * 10.0).round() / 10.0,
-        DeviceProtocol::FiioJa11 | DeviceProtocol::Fiio | DeviceProtocol::FiioKa17 => {
-            (gain * 10.0).round() / 10.0
-        }
-        DeviceProtocol::DawnPro | DeviceProtocol::Unknown => gain,
-    }
+    let Some(protocol) = protocol.eq_protocol() else {
+        return gain;
+    };
+    let encoding = protocol.gain_encoding();
+    let wire = (gain * encoding.band_units_per_db).round() / encoding.band_units_per_db;
+    (wire * encoding.band_readback_per_db).round() / encoding.band_readback_per_db
 }
 
 fn active_filters<'a>(

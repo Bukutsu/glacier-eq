@@ -21,7 +21,26 @@ pub struct Quirks {
     pub save_resets_device: bool,
 }
 
+/// How a protocol stores gain on the wire. Normalization, profile matching,
+/// and the wasm boundary read this instead of matching on protocol names.
+#[derive(Clone, Copy, Debug)]
+pub struct GainEncoding {
+    /// Wire integer units per dB of band gain (256 = 1/256 dB steps).
+    pub band_units_per_db: f64,
+    /// Grid the band encoder requires; requested gains snap to it first.
+    /// `None` when the encoder rounds any value itself.
+    pub band_step_db: Option<f64>,
+    /// Resolution of a parsed band gain (100 = 0.01 dB). Profile matching
+    /// rounds to it to predict what a readback will report.
+    pub band_readback_per_db: f64,
+    /// Wire integer units per dB of preamp.
+    pub preamp_units_per_db: f64,
+    /// Grid requested preamps snap to.
+    pub preamp_step_db: f64,
+}
+
 pub trait EqProtocol {
+    fn gain_encoding(&self) -> GainEncoding;
     fn write_timing(&self) -> WriteTiming;
     /// Re-send an unanswered read request after this many attempts instead of
     /// only re-reading. `None` preserves send-once behavior. A dropped request

@@ -10,7 +10,7 @@ pub use iir::compute_iir_filter;
 pub use packets::*;
 
 use crate::device::packet::{checked_scaled_i16, Packet};
-use crate::device::protocol::EqProtocol;
+use crate::device::protocol::{EqProtocol, GainEncoding};
 use crate::device::timing::WriteTiming;
 use crate::eq::{Filter, PEQData};
 
@@ -222,6 +222,17 @@ impl WalkplayProtocol {
 }
 
 impl EqProtocol for WalkplayProtocol {
+    fn gain_encoding(&self) -> GainEncoding {
+        GainEncoding {
+            band_units_per_db: 256.0,
+            band_step_db: None,
+            band_readback_per_db: 100.0,
+            // The preamp is a whole-dB signed byte.
+            preamp_units_per_db: 1.0,
+            preamp_step_db: 1.0,
+        }
+    }
+
     fn write_timing(&self) -> WriteTiming {
         Self::write_timing()
     }

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::device::packet::{checked_scaled_i16, checked_scaled_u16, Packet};
-use crate::device::protocol::{EqProtocol, Quirks};
+use crate::device::protocol::{EqProtocol, GainEncoding, Quirks};
 use crate::device::timing::WriteTiming;
 use crate::eq::filter::DEFAULT_FREQS_10_BAND;
 use crate::eq::{Filter, FilterType, PEQData};
@@ -162,6 +162,18 @@ fn preset_packet(report_id: u8, command: u8, slot: u8) -> Packet {
 }
 
 impl EqProtocol for FiioProtocol {
+    fn gain_encoding(&self) -> GainEncoding {
+        // Signed big-endian tenths of a dB. The band encoder rejects values
+        // off that grid, so normalization snaps to it first.
+        GainEncoding {
+            band_units_per_db: 10.0,
+            band_step_db: Some(0.1),
+            band_readback_per_db: 10.0,
+            preamp_units_per_db: 10.0,
+            preamp_step_db: 0.1,
+        }
+    }
+
     fn write_timing(&self) -> WriteTiming {
         WriteTiming::default()
     }

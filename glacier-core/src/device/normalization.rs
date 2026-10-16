@@ -182,17 +182,14 @@ fn quantize_band_gain(
     protocol: DeviceProtocol,
     caps: &DeviceCapabilities,
 ) -> Result<f64, String> {
-    match protocol {
-        // FiiO encodes band gain in 0.1 dB units. Select a representable value
-        // inside the declared capability envelope rather than quantizing first
-        // and accidentally exceeding the cap.
-        DeviceProtocol::FiioJa11 | DeviceProtocol::Fiio | DeviceProtocol::FiioKa17 => {
-            quantize_step_within(gain, 0.1, caps.band_gain_range, "band gain")
-        }
-        DeviceProtocol::Moondrop
-        | DeviceProtocol::Walkplay
-        | DeviceProtocol::DawnPro
-        | DeviceProtocol::Unknown => Ok(gain),
+    // Select a representable value inside the declared capability envelope
+    // rather than quantizing first and accidentally exceeding the cap.
+    match protocol
+        .eq_protocol()
+        .and_then(|protocol| protocol.gain_encoding().band_step_db)
+    {
+        Some(step) => quantize_step_within(gain, step, caps.band_gain_range, "band gain"),
+        None => Ok(gain),
     }
 }
 
@@ -201,14 +198,10 @@ fn quantize_preamp(
     protocol: DeviceProtocol,
     caps: &DeviceCapabilities,
 ) -> Result<f64, String> {
-    let step = match protocol {
-        DeviceProtocol::Walkplay => 1.0,
-        DeviceProtocol::Moondrop
-        | DeviceProtocol::FiioJa11
-        | DeviceProtocol::Fiio
-        | DeviceProtocol::FiioKa17 => 0.1,
-        DeviceProtocol::DawnPro | DeviceProtocol::Unknown => return Ok(global_gain),
+    let Some(protocol) = protocol.eq_protocol() else {
+        return Ok(global_gain);
     };
+    let step = protocol.gain_encoding().preamp_step_db;
     quantize_step_within(
         global_gain,
         step,
