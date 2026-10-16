@@ -28,6 +28,6 @@ pub use normalization::{
 pub use packet::Packet;
 pub use profile::{Controls, DeviceInfo, DeviceProfile, SupportedDeviceInfo};
 pub use protocol::{EqProtocol, GainEncoding, Protocol, Quirks, UNKNOWN};
-pub use session::{DeviceIo, DeviceSession, HID_READ_BUFFER_BYTES};
+pub use session::{block_on, BlockingDeviceIo, DeviceIo, DeviceSession, HID_READ_BUFFER_BYTES};
 
 pub use timing::WriteTiming;

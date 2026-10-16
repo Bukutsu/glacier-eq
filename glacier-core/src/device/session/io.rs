@@ -18,22 +18,20 @@ const WRITE_ATTEMPTS: usize = 3;
 /// why the divergence could sit unnoticed.
 pub const HID_READ_BUFFER_BYTES: usize = 1024;
 
+/// Minimal asynchronous transport used by the session. Reads return an empty
+/// vector on timeout, not an error. Transport errors fail the operation.
+#[allow(async_fn_in_trait)]
 pub trait DeviceIo {
-    fn write(&mut self, data: &[u8]) -> Result<(), String>;
-    fn read(&mut self, timeout_ms: i32) -> Result<Vec<u8>, String>;
-    /// Whether `read` returns the transport report ID as byte zero. Android's
-    /// USB endpoint queue exposes payload bytes only; desktop HIDAPI and the
-    /// WebHID adapter include the report ID explicitly.
+    async fn write(&mut self, data: &[u8]) -> Result<(), String>;
+    async fn read(&mut self, timeout_ms: i32) -> Result<Vec<u8>, String>;
     fn reads_include_report_id(&self) -> bool {
         false
     }
-    fn sleep_ms(&mut self, ms: u64) {
-        std::thread::sleep(std::time::Duration::from_millis(ms));
-    }
+    async fn sleep_ms(&mut self, ms: u64);
 }
 
-impl DeviceSession<'_> {
-    pub(crate) fn read_matching(
+impl<I: DeviceIo> DeviceSession<'_, I> {
+    pub(crate) async fn read_matching(
         &mut self,
         label: &str,
         attempts: usize,
@@ -41,10 +39,10 @@ impl DeviceSession<'_> {
     ) -> Result<Vec<u8>, String> {
         let protocol = self.protocol();
         for attempt in 1..=attempts {
-            let bytes = self
-                .io
-                .read(60)
-                .map_err(|error| format!("{label} read failed on attempt {attempt}: {error}"))?;
+            let bytes =
+                self.io.read(60).await.map_err(|error| {
+                    format!("{label} read failed on attempt {attempt}: {error}")
+                })?;
             if bytes.is_empty() {
                 continue;
             }
@@ -63,9 +61,9 @@ impl DeviceSession<'_> {
         Err(format!("{label} read timeout"))
     }
 
-    pub(crate) fn drain(&mut self) {
+    pub(crate) async fn drain(&mut self) {
         for _ in 0..INIT_DRAIN_ATTEMPTS {
-            match self.io.read(20) {
+            match self.io.read(20).await {
                 Ok(bytes) if bytes.is_empty() => break,
                 Ok(_) => continue,
                 Err(_) => break,
@@ -73,15 +71,15 @@ impl DeviceSession<'_> {
         }
     }
 
-    pub(crate) fn send(&mut self, packet: &Packet) -> Result<(), String> {
+    pub(crate) async fn send(&mut self, packet: &Packet) -> Result<(), String> {
         let framed = packet.framed();
         let mut last = "Write failed".to_string();
         for _ in 0..WRITE_ATTEMPTS {
-            match self.io.write(&framed) {
+            match self.io.write(&framed).await {
                 Ok(()) => return Ok(()),
                 Err(error) => {
                     last = error;
-                    self.io.sleep_ms(50);
+                    self.io.sleep_ms(50).await;
                 }
             }
         }
@@ -91,7 +89,7 @@ impl DeviceSession<'_> {
 
 #[cfg(test)]
 pub(crate) mod fake {
-    use super::super::DeviceIo;
+    use super::super::BlockingDeviceIo;
     use std::collections::VecDeque;
 
     #[derive(Debug, PartialEq)]
@@ -114,7 +112,7 @@ pub(crate) mod fake {
         pub(crate) failing_write_calls: VecDeque<usize>,
     }
 
-    impl DeviceIo for FakeIo {
+    impl BlockingDeviceIo for FakeIo {
         fn write(&mut self, data: &[u8]) -> Result<(), String> {
             self.write_calls += 1;
             self.writes.push(data.to_vec());

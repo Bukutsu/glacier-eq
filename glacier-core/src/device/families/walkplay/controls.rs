@@ -9,7 +9,7 @@ use super::{
     CMD_MIC_VOLUME, CMD_VERSION, END, READ, WRITE,
 };
 use crate::device::profile::Controls;
-use crate::device::session::DeviceSession;
+use crate::device::session::{DeviceIo, DeviceSession};
 use crate::device::Packet;
 
 const UTILITY_READ_ATTEMPTS: usize = 25;
@@ -38,8 +38,8 @@ impl Default for DacUtilityState {
     }
 }
 
-impl DeviceSession<'_> {
-    pub fn firmware_version(&mut self) -> Result<Option<String>, String> {
+impl<I: DeviceIo> DeviceSession<'_, I> {
+    pub async fn firmware_version(&mut self) -> Result<Option<String>, String> {
         if self.profile.controls != Some(Controls::Walkplay) {
             return Ok(None);
         }
@@ -48,11 +48,15 @@ impl DeviceSession<'_> {
             self.send(&Packet::new(
                 WalkplayProtocol::report_id(),
                 vec![READ, CMD_VERSION, END],
-            ))?;
-            self.io.sleep_ms(50);
-            match self.read_matching("Firmware version", 20, |data| {
-                data.len() >= 10 && data[0] == READ && data[1] == CMD_VERSION
-            }) {
+            ))
+            .await?;
+            self.io.sleep_ms(50).await;
+            match self
+                .read_matching("Firmware version", 20, |data| {
+                    data.len() >= 10 && data[0] == READ && data[1] == CMD_VERSION
+                })
+                .await
+            {
                 Ok(data) => {
                     let version: String = data
                         .iter()
@@ -66,8 +70,8 @@ impl DeviceSession<'_> {
                 Err(err) => {
                     last_err = err;
                     if attempt < UTILITY_READ_RETRIES {
-                        self.drain();
-                        self.io.sleep_ms(35);
+                        self.drain().await;
+                        self.io.sleep_ms(35).await;
                     }
                 }
             }
@@ -75,14 +79,14 @@ impl DeviceSession<'_> {
         Err(last_err)
     }
 
-    pub fn utility_status(&mut self) -> Result<DacUtilityState, String> {
+    pub async fn utility_status(&mut self) -> Result<DacUtilityState, String> {
         if self.profile.controls != Some(Controls::Walkplay) {
             return Ok(DacUtilityState::default());
         }
-        self.drain();
-        self.io.sleep_ms(30);
-        let filter = self.read_utility(CMD_FILTER_MODE)?;
-        self.io.sleep_ms(25);
+        self.drain().await;
+        self.io.sleep_ms(30).await;
+        let filter = self.read_utility(CMD_FILTER_MODE).await?;
+        self.io.sleep_ms(25).await;
         let filter_mode = match filter
             .get(3)
             .copied()
@@ -96,30 +100,33 @@ impl DeviceSession<'_> {
             value => return Err(format!("Unknown filter mode value: {value}")),
         }
         .to_string();
-        self.io.sleep_ms(25);
+        self.io.sleep_ms(25).await;
         let amp_mode_class_ab = self
-            .read_utility(CMD_AMP_MODE)?
+            .read_utility(CMD_AMP_MODE)
+            .await?
             .get(3)
             .copied()
             .ok_or_else(|| "Amp mode response was incomplete".to_string())?
             == 1;
-        self.io.sleep_ms(25);
+        self.io.sleep_ms(25).await;
         let high_gain_mode = self
-            .read_utility(CMD_GAIN_MODE)?
+            .read_utility(CMD_GAIN_MODE)
+            .await?
             .get(3)
             .copied()
             .ok_or_else(|| "Gain mode response was incomplete".to_string())?
             == 1;
-        self.io.sleep_ms(25);
+        self.io.sleep_ms(25).await;
         let mic_volume_db =
-            self.read_utility(CMD_MIC_VOLUME)?
+            self.read_utility(CMD_MIC_VOLUME)
+                .await?
                 .get(4)
                 .copied()
                 .ok_or_else(|| "Mic volume response was incomplete".to_string())? as i8;
-        self.io.sleep_ms(25);
-        let left = decode_attenuation(self.read_balance(0)?);
-        self.io.sleep_ms(25);
-        let right = decode_attenuation(self.read_balance(1)?);
+        self.io.sleep_ms(25).await;
+        let left = decode_attenuation(self.read_balance(0).await?);
+        self.io.sleep_ms(25).await;
+        let right = decode_attenuation(self.read_balance(1).await?);
         Ok(DacUtilityState {
             supported: true,
             filter_mode,
@@ -134,7 +141,7 @@ impl DeviceSession<'_> {
         })
     }
 
-    pub fn set_filter_mode(&mut self, mode: &str) -> Result<(), String> {
+    pub async fn set_filter_mode(&mut self, mode: &str) -> Result<(), String> {
         self.require_walkplay()?;
         let mode = match mode {
             "FAST-LL" => 1,
@@ -145,35 +152,40 @@ impl DeviceSession<'_> {
             _ => return Err("Invalid filter mode".into()),
         };
         self.write_utility(WalkplayProtocol::build_filter_mode_write_packet(mode))
+            .await
     }
 
-    pub fn set_amp_mode(&mut self, class_ab: bool) -> Result<(), String> {
+    pub async fn set_amp_mode(&mut self, class_ab: bool) -> Result<(), String> {
         self.require_walkplay()?;
         self.write_utility(WalkplayProtocol::build_amp_mode_write_packet(class_ab))
+            .await
     }
 
-    pub fn set_gain_mode(&mut self, high: bool) -> Result<(), String> {
+    pub async fn set_gain_mode(&mut self, high: bool) -> Result<(), String> {
         self.require_walkplay()?;
         self.write_utility(WalkplayProtocol::build_gain_mode_write_packet(high))
+            .await
     }
 
-    pub fn set_mic_volume(&mut self, db: i8) -> Result<(), String> {
+    pub async fn set_mic_volume(&mut self, db: i8) -> Result<(), String> {
         self.require_walkplay()?;
         validate_control_range("Mic volume", db)?;
         self.write_utility(WalkplayProtocol::build_mic_volume_write_packet(db))
+            .await
     }
 
-    pub fn set_balance(&mut self, balance: i8) -> Result<(), String> {
+    pub async fn set_balance(&mut self, balance: i8) -> Result<(), String> {
         self.require_walkplay()?;
         validate_control_range("Balance", balance)?;
         for payload in WalkplayProtocol::build_balance_write_packets(balance) {
-            self.send(&Packet::new(WalkplayProtocol::report_id(), payload))?;
-            self.io.sleep_ms(20);
+            self.send(&Packet::new(WalkplayProtocol::report_id(), payload))
+                .await?;
+            self.io.sleep_ms(20).await;
         }
-        self.flash()
+        self.flash().await
     }
 
-    pub fn reset_controls(&mut self) -> Result<DacUtilityState, String> {
+    pub async fn reset_controls(&mut self) -> Result<DacUtilityState, String> {
         self.require_walkplay()?;
         // Each step below sends its register write and then immediately
         // commits to flash, so a failure part-way through leaves the device
@@ -181,39 +193,42 @@ impl DeviceSession<'_> {
         // are already durable and no later step can undo them. Capture what
         // is there now and put it back if any step fails, the way
         // persistent_push and apply_ram roll back a failed EQ write.
-        let previous = self.utility_status()?;
-        let reset = (|| {
-            self.set_filter_mode("FAST-LL")?;
-            self.set_amp_mode(false)?;
-            self.set_gain_mode(false)?;
-            self.set_mic_volume(0)?;
-            self.set_balance(0)
-        })();
+        let previous = self.utility_status().await?;
+        let reset = (async {
+            self.set_filter_mode("FAST-LL").await?;
+            self.set_amp_mode(false).await?;
+            self.set_gain_mode(false).await?;
+            self.set_mic_volume(0).await?;
+            self.set_balance(0).await
+        })
+        .await;
         if let Err(error) = reset {
-            return Err(self.restore_utilities(&previous, &error));
+            return Err(self.restore_utilities(&previous, &error).await);
         }
-        self.utility_status()
+        self.utility_status().await
     }
 
     /// Re-applies a captured utility state after a reset failed part-way, and
     /// names the outcome in the error the caller reports.
-    fn restore_utilities(&mut self, previous: &DacUtilityState, cause: &str) -> String {
-        let restore = (|| {
-            self.set_filter_mode(&previous.filter_mode)?;
-            self.set_amp_mode(previous.amp_mode_class_ab)?;
-            self.set_gain_mode(previous.high_gain_mode)?;
-            self.set_mic_volume(previous.mic_volume_db)?;
-            self.set_balance(previous.channel_balance)
-        })();
+    async fn restore_utilities(&mut self, previous: &DacUtilityState, cause: &str) -> String {
+        let restore = (async {
+            self.set_filter_mode(&previous.filter_mode).await?;
+            self.set_amp_mode(previous.amp_mode_class_ab).await?;
+            self.set_gain_mode(previous.high_gain_mode).await?;
+            self.set_mic_volume(previous.mic_volume_db).await?;
+            self.set_balance(previous.channel_balance).await
+        })
+        .await;
         match restore {
             Ok(()) => format!("{cause}; previous settings restored"),
             Err(restore) => format!("{cause}; restoring the previous settings failed: {restore}"),
         }
     }
 
-    pub fn factory_reset(&mut self) -> Result<(), String> {
+    pub async fn factory_reset(&mut self) -> Result<(), String> {
         self.require_walkplay()?;
         self.write_utility(WalkplayProtocol::build_factory_reset_packet())
+            .await
     }
 
     fn require_walkplay(&self) -> Result<(), String> {
@@ -227,24 +242,28 @@ impl DeviceSession<'_> {
         }
     }
 
-    fn read_utility(&mut self, cmd: u8) -> Result<Vec<u8>, String> {
+    async fn read_utility(&mut self, cmd: u8) -> Result<Vec<u8>, String> {
         let min_len = if cmd == CMD_MIC_VOLUME { 5 } else { 4 };
         let mut last_err = format!("Utility register {cmd} read timeout");
         for attempt in 1..=UTILITY_READ_RETRIES {
             self.send(&Packet::new(
                 WalkplayProtocol::report_id(),
                 WalkplayProtocol::build_utility_read_request(cmd),
-            ))?;
-            self.io.sleep_ms(30);
-            match self.read_matching("Utility register", UTILITY_READ_ATTEMPTS, |data| {
-                data.len() >= min_len && data[0] == READ && data[1] == cmd
-            }) {
+            ))
+            .await?;
+            self.io.sleep_ms(30).await;
+            match self
+                .read_matching("Utility register", UTILITY_READ_ATTEMPTS, |data| {
+                    data.len() >= min_len && data[0] == READ && data[1] == cmd
+                })
+                .await
+            {
                 Ok(data) => return Ok(data),
                 Err(err) => {
                     last_err = err;
                     if attempt < UTILITY_READ_RETRIES {
-                        self.drain();
-                        self.io.sleep_ms(35);
+                        self.drain().await;
+                        self.io.sleep_ms(35).await;
                     }
                 }
             }
@@ -252,23 +271,30 @@ impl DeviceSession<'_> {
         Err(last_err)
     }
 
-    fn read_balance(&mut self, channel: u8) -> Result<u8, String> {
+    async fn read_balance(&mut self, channel: u8) -> Result<u8, String> {
         let mut last_err = format!("Balance register {channel} read timeout");
         for attempt in 1..=UTILITY_READ_RETRIES {
             self.send(&Packet::new(
                 WalkplayProtocol::report_id(),
                 WalkplayProtocol::build_balance_read_request(channel),
-            ))?;
-            self.io.sleep_ms(30);
-            match self.read_matching("Balance register", UTILITY_READ_ATTEMPTS, |data| {
-                data.len() >= 6 && data[0] == READ && data[1] == CMD_BALANCE && data[3] == channel
-            }) {
+            ))
+            .await?;
+            self.io.sleep_ms(30).await;
+            match self
+                .read_matching("Balance register", UTILITY_READ_ATTEMPTS, |data| {
+                    data.len() >= 6
+                        && data[0] == READ
+                        && data[1] == CMD_BALANCE
+                        && data[3] == channel
+                })
+                .await
+            {
                 Ok(data) => return Ok(data[5]),
                 Err(err) => {
                     last_err = err;
                     if attempt < UTILITY_READ_RETRIES {
-                        self.drain();
-                        self.io.sleep_ms(35);
+                        self.drain().await;
+                        self.io.sleep_ms(35).await;
                     }
                 }
             }
@@ -276,17 +302,19 @@ impl DeviceSession<'_> {
         Err(last_err)
     }
 
-    fn write_utility(&mut self, payload: Vec<u8>) -> Result<(), String> {
-        self.send(&Packet::new(WalkplayProtocol::report_id(), payload))?;
-        self.io.sleep_ms(50);
-        self.flash()
+    async fn write_utility(&mut self, payload: Vec<u8>) -> Result<(), String> {
+        self.send(&Packet::new(WalkplayProtocol::report_id(), payload))
+            .await?;
+        self.io.sleep_ms(50).await;
+        self.flash().await
     }
 
-    fn flash(&mut self) -> Result<(), String> {
+    async fn flash(&mut self) -> Result<(), String> {
         self.send(&Packet::new(
             WalkplayProtocol::report_id(),
             vec![WRITE, CMD_FLASH_EQ, 0],
         ))
+        .await
     }
 }
 
@@ -315,145 +343,164 @@ mod tests {
 
     #[test]
     fn a_failed_control_reset_restores_the_settings_that_already_landed() {
-        let profile = get_supported_device(0x3302, 0x43e8).unwrap();
-        let mut io = FakeIo::default();
-        // The device is on a non-default filter mode, Class-AB, high gain,
-        // mic +4 dB, balanced. Every set_* below sends its register write and
-        // then commits to flash, so a failure part-way through would leave
-        // those durable changes on the hardware with no way back.
-        queue_utility_status(&mut io, 2, 1, 1, 4, 0, 0);
-        // The snapshot's six register reads are writes 1..6. The reset's first
-        // two steps then take writes 7..10 (register write plus flash commit
-        // each). Fail every attempt of the third step's register write —
-        // send() retries three times — so the filter and amp modes are already
-        // committed to flash when the gain step gives up, and let the rollback
-        // through.
-        io.failing_write_calls.extend([11, 12, 13]);
-        queue_utility_status(&mut io, 1, 0, 0, 0, 0, 0);
-        queue_utility_status(&mut io, 2, 1, 1, 4, 0, 0);
+        crate::device::session::block_on(async {
+            let profile = get_supported_device(0x3302, 0x43e8).unwrap();
+            let mut io = FakeIo::default();
+            // The device is on a non-default filter mode, Class-AB, high gain,
+            // mic +4 dB, balanced. Every set_* below sends its register write and
+            // then commits to flash, so a failure part-way through would leave
+            // those durable changes on the hardware with no way back.
+            queue_utility_status(&mut io, 2, 1, 1, 4, 0, 0);
+            // The snapshot's six register reads are writes 1..6. The reset's first
+            // two steps then take writes 7..10 (register write plus flash commit
+            // each). Fail every attempt of the third step's register write —
+            // send() retries three times — so the filter and amp modes are already
+            // committed to flash when the gain step gives up, and let the rollback
+            // through.
+            io.failing_write_calls.extend([11, 12, 13]);
+            queue_utility_status(&mut io, 1, 0, 0, 0, 0, 0);
+            queue_utility_status(&mut io, 2, 1, 1, 4, 0, 0);
 
-        let error = DeviceSession::new(&mut io, profile)
-            .reset_controls()
-            .expect_err("a half-applied reset must not report success");
-        assert!(
-            error.contains("previous settings restored"),
-            "the error must name the rollback: {error}"
-        );
-        // The rollback re-sent the original filter mode, so a write carrying
-        // CMD_FLASH_EQ for it is on the wire after the failure.
-        assert!(
-            io.writes
-                .iter()
-                .any(|write| write.get(2) == Some(&super::super::CMD_FLASH_EQ)),
-            "rollback writes were not attempted"
-        );
+            let error = DeviceSession::new(&mut io, profile)
+                .reset_controls()
+                .await
+                .expect_err("a half-applied reset must not report success");
+            assert!(
+                error.contains("previous settings restored"),
+                "the error must name the rollback: {error}"
+            );
+            // The rollback re-sent the original filter mode, so a write carrying
+            // CMD_FLASH_EQ for it is on the wire after the failure.
+            assert!(
+                io.writes
+                    .iter()
+                    .any(|write| write.get(2) == Some(&super::super::CMD_FLASH_EQ)),
+                "rollback writes were not attempted"
+            );
+        });
     }
 
     #[test]
     fn a_successful_control_reset_does_not_roll_back() {
-        let profile = get_supported_device(0x3302, 0x43e8).unwrap();
-        let mut io = FakeIo::default();
-        queue_utility_status(&mut io, 2, 1, 1, 4, 0, 0);
-        queue_utility_status(&mut io, 1, 0, 0, 0, 0, 0);
+        crate::device::session::block_on(async {
+            let profile = get_supported_device(0x3302, 0x43e8).unwrap();
+            let mut io = FakeIo::default();
+            queue_utility_status(&mut io, 2, 1, 1, 4, 0, 0);
+            queue_utility_status(&mut io, 1, 0, 0, 0, 0, 0);
 
-        let state = DeviceSession::new(&mut io, profile)
-            .reset_controls()
-            .expect("a clean reset must succeed");
-        assert_eq!(state.filter_mode, "FAST-LL");
-        assert!(!state.amp_mode_class_ab);
-        assert!(!state.high_gain_mode);
-        assert_eq!(state.mic_volume_db, 0);
+            let state = DeviceSession::new(&mut io, profile)
+                .reset_controls()
+                .await
+                .expect("a clean reset must succeed");
+            assert_eq!(state.filter_mode, "FAST-LL");
+            assert!(!state.amp_mode_class_ab);
+            assert!(!state.high_gain_mode);
+            assert_eq!(state.mic_volume_db, 0);
+        });
     }
 
     #[test]
     fn control_range_is_checked_before_write() {
-        let profile = get_supported_device(0x3302, 0x43e8).unwrap();
-        let mut io = FakeIo::default();
-        let mut session = DeviceSession::new(&mut io, profile);
-        assert!(session.set_balance(16).is_err());
-        assert!(io.writes.is_empty());
+        crate::device::session::block_on(async {
+            let profile = get_supported_device(0x3302, 0x43e8).unwrap();
+            let mut io = FakeIo::default();
+            let mut session = DeviceSession::new(&mut io, profile);
+            assert!(session.set_balance(16).await.is_err());
+            assert!(io.writes.is_empty());
+        });
     }
 
     #[test]
     fn non_walkplay_utility_is_rejected_before_write() {
-        let profile = get_supported_device(0x2fc6, 1).unwrap();
-        let mut io = FakeIo::default();
-        let mut session = DeviceSession::new(&mut io, profile);
-        assert!(session.set_gain_mode(true).is_err());
-        assert!(io.writes.is_empty());
+        crate::device::session::block_on(async {
+            let profile = get_supported_device(0x2fc6, 1).unwrap();
+            let mut io = FakeIo::default();
+            let mut session = DeviceSession::new(&mut io, profile);
+            assert!(session.set_gain_mode(true).await.is_err());
+            assert!(io.writes.is_empty());
+        });
     }
 
     #[test]
     fn utility_status_propagates_read_failure() {
-        let profile = get_supported_device(0x3302, 0x43e8).unwrap();
-        let mut io = FakeIo {
-            read_error: Some("simulated read failure".into()),
-            ..Default::default()
-        };
-        let error = DeviceSession::new(&mut io, profile)
-            .utility_status()
-            .unwrap_err();
-        assert!(error.contains("simulated read failure"));
+        crate::device::session::block_on(async {
+            let profile = get_supported_device(0x3302, 0x43e8).unwrap();
+            let mut io = FakeIo {
+                read_error: Some("simulated read failure".into()),
+                ..Default::default()
+            };
+            let error = DeviceSession::new(&mut io, profile)
+                .utility_status()
+                .await
+                .unwrap_err();
+            assert!(error.contains("simulated read failure"));
+        });
     }
 
     #[test]
     fn utility_status_succeeds_with_valid_responses() {
-        let profile = get_supported_device(0x3302, 0x43e8).unwrap();
-        let mut io = FakeIo::default();
-        io.reads.push_back(vec![]); // drain terminator
-        io.reads.push_back(vec![READ, CMD_FILTER_MODE, 1, 1]); // FAST-LL
-        io.reads.push_back(vec![READ, CMD_AMP_MODE, 1, 1]); // Class AB = true
-        io.reads.push_back(vec![READ, CMD_GAIN_MODE, 1, 0]); // High gain = false
-        io.reads.push_back(vec![READ, CMD_MIC_VOLUME, 2, 128, 5]); // Mic = 5 dB
-        io.reads.push_back(vec![READ, CMD_BALANCE, 1, 0, 0, 0]); // Balance L = 0
-        io.reads.push_back(vec![READ, CMD_BALANCE, 1, 1, 0, 0]); // Balance R = 0
+        crate::device::session::block_on(async {
+            let profile = get_supported_device(0x3302, 0x43e8).unwrap();
+            let mut io = FakeIo::default();
+            io.reads.push_back(vec![]); // drain terminator
+            io.reads.push_back(vec![READ, CMD_FILTER_MODE, 1, 1]); // FAST-LL
+            io.reads.push_back(vec![READ, CMD_AMP_MODE, 1, 1]); // Class AB = true
+            io.reads.push_back(vec![READ, CMD_GAIN_MODE, 1, 0]); // High gain = false
+            io.reads.push_back(vec![READ, CMD_MIC_VOLUME, 2, 128, 5]); // Mic = 5 dB
+            io.reads.push_back(vec![READ, CMD_BALANCE, 1, 0, 0, 0]); // Balance L = 0
+            io.reads.push_back(vec![READ, CMD_BALANCE, 1, 1, 0, 0]); // Balance R = 0
 
-        let status = DeviceSession::new(&mut io, profile)
-            .utility_status()
-            .unwrap();
-        assert_eq!(
-            status,
-            DacUtilityState {
-                supported: true,
-                filter_mode: "FAST-LL".into(),
-                amp_mode_class_ab: true,
-                high_gain_mode: false,
-                mic_volume_db: 5,
-                channel_balance: 0,
-            }
-        );
+            let status = DeviceSession::new(&mut io, profile)
+                .utility_status()
+                .await
+                .unwrap();
+            assert_eq!(
+                status,
+                DacUtilityState {
+                    supported: true,
+                    filter_mode: "FAST-LL".into(),
+                    amp_mode_class_ab: true,
+                    high_gain_mode: false,
+                    mic_volume_db: 5,
+                    channel_balance: 0,
+                }
+            );
+        });
     }
 
     #[test]
     fn utility_status_handles_stale_packets_and_recovers() {
-        let profile = get_supported_device(0x3302, 0x43e8).unwrap();
-        let mut io = FakeIo::default();
-        io.reads.push_back(vec![]); // drain terminator
-                                    // Several stale non-matching packets before the actual filter response
-        for _ in 0..12 {
-            io.reads.push_back(vec![READ, 0x99, 0, 0]);
-        }
-        io.reads.push_back(vec![READ, CMD_FILTER_MODE, 1, 2]); // FAST-PC
-        io.reads.push_back(vec![READ, CMD_AMP_MODE, 1, 0]); // Class AB = false
-        io.reads.push_back(vec![READ, CMD_GAIN_MODE, 1, 1]); // High gain = true
-        io.reads.push_back(vec![READ, CMD_MIC_VOLUME, 2, 128, 0]); // Mic = 0 dB
-        io.reads.push_back(vec![READ, CMD_BALANCE, 1, 0, 0, 0]); // Balance L = 0
-        io.reads.push_back(vec![READ, CMD_BALANCE, 1, 1, 0, 0]); // Balance R = 0
-
-        let status = DeviceSession::new(&mut io, profile)
-            .utility_status()
-            .unwrap();
-        assert_eq!(
-            status,
-            DacUtilityState {
-                supported: true,
-                filter_mode: "FAST-PC".into(),
-                amp_mode_class_ab: false,
-                high_gain_mode: true,
-                mic_volume_db: 0,
-                channel_balance: 0,
+        crate::device::session::block_on(async {
+            let profile = get_supported_device(0x3302, 0x43e8).unwrap();
+            let mut io = FakeIo::default();
+            io.reads.push_back(vec![]); // drain terminator
+                                        // Several stale non-matching packets before the actual filter response
+            for _ in 0..12 {
+                io.reads.push_back(vec![READ, 0x99, 0, 0]);
             }
-        );
+            io.reads.push_back(vec![READ, CMD_FILTER_MODE, 1, 2]); // FAST-PC
+            io.reads.push_back(vec![READ, CMD_AMP_MODE, 1, 0]); // Class AB = false
+            io.reads.push_back(vec![READ, CMD_GAIN_MODE, 1, 1]); // High gain = true
+            io.reads.push_back(vec![READ, CMD_MIC_VOLUME, 2, 128, 0]); // Mic = 0 dB
+            io.reads.push_back(vec![READ, CMD_BALANCE, 1, 0, 0, 0]); // Balance L = 0
+            io.reads.push_back(vec![READ, CMD_BALANCE, 1, 1, 0, 0]); // Balance R = 0
+
+            let status = DeviceSession::new(&mut io, profile)
+                .utility_status()
+                .await
+                .unwrap();
+            assert_eq!(
+                status,
+                DacUtilityState {
+                    supported: true,
+                    filter_mode: "FAST-PC".into(),
+                    amp_mode_class_ab: false,
+                    high_gain_mode: true,
+                    mic_volume_db: 0,
+                    channel_balance: 0,
+                }
+            );
+        });
     }
 
     /// Queues one complete `utility_status` read: the drain terminator, the

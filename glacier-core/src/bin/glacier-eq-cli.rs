@@ -8,11 +8,11 @@ use glacier_core::device::{
     capabilities::DESKTOP_DAC_CAPS, get_supported_device, normalize_peq_for_profile,
     HID_READ_BUFFER_BYTES,
 };
+#[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
+use glacier_core::device::{BlockingDeviceIo as DeviceIo, DeviceSession};
 use glacier_core::eq::iir_math::accumulate_response_values;
 use glacier_core::profiles::ProfileStore;
 use glacier_core::{DeviceCapabilities, PEQData, SUPPORTED_DEVICES};
-#[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
-use glacier_core::{DeviceIo, DeviceSession};
 use std::io::Read;
 use std::process::ExitCode;
 
@@ -914,20 +914,22 @@ fn execute_hardware(action: HardwareAction, selector: Option<&str>) -> Result<St
         return Ok(output);
     }
     open_session(selector, |session| match action {
-        HardwareAction::Pull => session.pull().map(|peq| peq_to_autoeq(&peq)),
+        HardwareAction::Pull => {
+            glacier_core::device::block_on(session.pull()).map(|peq| peq_to_autoeq(&peq))
+        }
         HardwareAction::Push(file) => {
             let (peq, _, warnings) = read_peq(&file)?;
             for warning in warnings {
                 eprintln!("warning: {warning}");
             }
-            session.persistent_push(peq).map(|_| String::new())
+            glacier_core::device::block_on(session.persistent_push(peq)).map(|_| String::new())
         }
         HardwareAction::Apply(file) => {
             let (peq, _, warnings) = read_peq(&file)?;
             for warning in warnings {
                 eprintln!("warning: {warning}");
             }
-            session.apply_ram(peq).map(|_| String::new())
+            glacier_core::device::block_on(session.apply_ram(peq)).map(|_| String::new())
         }
         HardwareAction::List | HardwareAction::Raw(_) => unreachable!(),
     })
@@ -1054,7 +1056,7 @@ fn execute_dawn_pro(_: DawnProAction, _: Option<&str>) -> Result<String, String>
 fn execute_controls(action: ControlAction, selector: Option<&str>) -> Result<String, String> {
     open_session(selector, |session| match action {
         ControlAction::Status => {
-            let status = session.utility_status()?;
+            let status = glacier_core::device::block_on(session.utility_status())?;
             Ok(format!(
                 "supported,filter_mode,amp_mode,gain_mode,mic_db,balance\n{},{},{},{},{},{}\n",
                 status.supported,
@@ -1065,16 +1067,30 @@ fn execute_controls(action: ControlAction, selector: Option<&str>) -> Result<Str
                 status.channel_balance
             ))
         }
-        ControlAction::Filter(mode) => session.set_filter_mode(&mode).map(|_| String::new()),
-        ControlAction::Amp(ab) => session.set_amp_mode(ab).map(|_| String::new()),
-        ControlAction::Gain(high) => session.set_gain_mode(high).map(|_| String::new()),
-        ControlAction::Balance(value) => session.set_balance(value).map(|_| String::new()),
-        ControlAction::Mic(value) => session.set_mic_volume(value).map(|_| String::new()),
-        ControlAction::Reset(kind) if kind == "eq" => session.reset_eq().map(|_| String::new()),
-        ControlAction::Reset(kind) if kind == "controls" => {
-            session.reset_controls().map(|_| String::new())
+        ControlAction::Filter(mode) => {
+            glacier_core::device::block_on(session.set_filter_mode(&mode)).map(|_| String::new())
         }
-        ControlAction::Reset(_) => session.factory_reset().map(|_| String::new()),
+        ControlAction::Amp(ab) => {
+            glacier_core::device::block_on(session.set_amp_mode(ab)).map(|_| String::new())
+        }
+        ControlAction::Gain(high) => {
+            glacier_core::device::block_on(session.set_gain_mode(high)).map(|_| String::new())
+        }
+        ControlAction::Balance(value) => {
+            glacier_core::device::block_on(session.set_balance(value)).map(|_| String::new())
+        }
+        ControlAction::Mic(value) => {
+            glacier_core::device::block_on(session.set_mic_volume(value)).map(|_| String::new())
+        }
+        ControlAction::Reset(kind) if kind == "eq" => {
+            glacier_core::device::block_on(session.reset_eq()).map(|_| String::new())
+        }
+        ControlAction::Reset(kind) if kind == "controls" => {
+            glacier_core::device::block_on(session.reset_controls()).map(|_| String::new())
+        }
+        ControlAction::Reset(_) => {
+            glacier_core::device::block_on(session.factory_reset()).map(|_| String::new())
+        }
     })
 }
 

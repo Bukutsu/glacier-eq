@@ -3,8 +3,8 @@
 
 use crate::state::{ConnectedDevice, DeviceSessionLock, DeviceState};
 use glacier_core::device::{
-    get_supported_device, Controls, DacUtilityState, DeviceInfo, DeviceIo, DeviceProfile,
-    DeviceSession, SupportedDeviceInfo,
+    get_supported_device, BlockingDeviceIo as DeviceIo, Controls, DacUtilityState, DeviceInfo,
+    DeviceProfile, DeviceSession, SupportedDeviceInfo,
 };
 use glacier_core::eq::PEQData;
 use std::collections::HashSet;
@@ -356,7 +356,10 @@ pub async fn get_eq_state(
     app: tauri::AppHandle,
     state: tauri::State<'_, Mutex<DeviceState>>,
 ) -> Result<PEQData, String> {
-    with_session(&app, &state, |session| session.pull()).await
+    with_session(&app, &state, |session| {
+        glacier_core::device::block_on(session.pull())
+    })
+    .await
 }
 
 #[tauri::command]
@@ -375,9 +378,9 @@ pub async fn set_eq_state(
         .skip_push_verification;
     with_session_for(&app, &state, expected, move |session| {
         let (committed, warnings) = if skip_verification {
-            session.unverified_push(peq)?
+            glacier_core::device::block_on(session.unverified_push(peq))?
         } else {
-            session.persistent_push(peq)?
+            glacier_core::device::block_on(session.persistent_push(peq))?
         };
         Ok(EqWriteOutcome {
             committed,
@@ -394,7 +397,7 @@ pub async fn apply_eq_state(
     peq: PEQData,
 ) -> Result<EqWriteOutcome, String> {
     with_session(&app, &state, |session| {
-        let (committed, warnings) = session.apply_ram(peq)?;
+        let (committed, warnings) = glacier_core::device::block_on(session.apply_ram(peq))?;
         Ok(EqWriteOutcome {
             committed,
             warnings,
@@ -656,7 +659,10 @@ pub async fn get_firmware_version(
     if lock_device_state(&state)?.connected.is_none() {
         return Ok(None);
     }
-    with_session(&app, &state, |session| session.firmware_version()).await
+    with_session(&app, &state, |session| {
+        glacier_core::device::block_on(session.firmware_version())
+    })
+    .await
 }
 
 #[derive(serde::Serialize)]
@@ -807,7 +813,10 @@ pub async fn get_dac_utility_state(
     if lock_device_state(&state)?.connected.is_none() {
         return Ok(DacUtilityState::default());
     }
-    with_session(&app, &state, |session| session.utility_status()).await
+    with_session(&app, &state, |session| {
+        glacier_core::device::block_on(session.utility_status())
+    })
+    .await
 }
 
 #[tauri::command]
@@ -816,7 +825,10 @@ pub async fn set_dac_filter_mode(
     state: tauri::State<'_, Mutex<DeviceState>>,
     mode: String,
 ) -> Result<(), String> {
-    with_session(&app, &state, move |session| session.set_filter_mode(&mode)).await
+    with_session(&app, &state, move |session| {
+        glacier_core::device::block_on(session.set_filter_mode(&mode))
+    })
+    .await
 }
 
 #[tauri::command]
@@ -826,7 +838,7 @@ pub async fn set_dac_work_mode(
     is_class_ab: bool,
 ) -> Result<(), String> {
     with_session(&app, &state, move |session| {
-        session.set_amp_mode(is_class_ab)
+        glacier_core::device::block_on(session.set_amp_mode(is_class_ab))
     })
     .await
 }
@@ -838,7 +850,7 @@ pub async fn set_dac_output_gain(
     is_high_gain: bool,
 ) -> Result<(), String> {
     with_session(&app, &state, move |session| {
-        session.set_gain_mode(is_high_gain)
+        glacier_core::device::block_on(session.set_gain_mode(is_high_gain))
     })
     .await
 }
@@ -849,7 +861,10 @@ pub async fn set_dac_balance(
     state: tauri::State<'_, Mutex<DeviceState>>,
     balance: i8,
 ) -> Result<(), String> {
-    with_session(&app, &state, move |session| session.set_balance(balance)).await
+    with_session(&app, &state, move |session| {
+        glacier_core::device::block_on(session.set_balance(balance))
+    })
+    .await
 }
 
 #[tauri::command]
@@ -859,7 +874,7 @@ pub async fn set_mic_volume(
     volume_db: i8,
 ) -> Result<(), String> {
     with_session(&app, &state, move |session| {
-        session.set_mic_volume(volume_db)
+        glacier_core::device::block_on(session.set_mic_volume(volume_db))
     })
     .await
 }
@@ -869,7 +884,10 @@ pub async fn reset_device_eq(
     app: tauri::AppHandle,
     state: tauri::State<'_, Mutex<DeviceState>>,
 ) -> Result<(), String> {
-    with_session(&app, &state, |session| session.reset_eq()).await
+    with_session(&app, &state, |session| {
+        glacier_core::device::block_on(session.reset_eq())
+    })
+    .await
 }
 
 #[tauri::command]
@@ -877,7 +895,10 @@ pub async fn reset_device_controls(
     app: tauri::AppHandle,
     state: tauri::State<'_, Mutex<DeviceState>>,
 ) -> Result<DacUtilityState, String> {
-    with_session(&app, &state, |session| session.reset_controls()).await
+    with_session(&app, &state, |session| {
+        glacier_core::device::block_on(session.reset_controls())
+    })
+    .await
 }
 
 #[tauri::command]
@@ -885,7 +906,10 @@ pub async fn execute_factory_reset(
     app: tauri::AppHandle,
     state: tauri::State<'_, Mutex<DeviceState>>,
 ) -> Result<(), String> {
-    with_session(&app, &state, |session| session.factory_reset()).await
+    with_session(&app, &state, |session| {
+        glacier_core::device::block_on(session.factory_reset())
+    })
+    .await
 }
 
 #[cfg(test)]
