@@ -6,6 +6,7 @@ import { memo, useEffect, useRef, useState } from "react";
 import { confirmDialog } from "./ConfirmDialog";
 import { DacFilterVisual } from "./DacFilterVisual";
 import { DawnProControls } from "./DawnProControls";
+import { Ja11Controls } from "./Ja11Controls";
 import { Icon } from "./Icon";
 import { Button } from "./ui/Button";
 import { ConfigurationLayout } from "./ConfigurationLayout";
@@ -20,7 +21,7 @@ import {
 import { invokeForDevice, listen } from "../lib/rpc";
 import { DevProtocolPreview } from "./DevProtocolPreview";
 import { isDevDummyDevice } from "../lib/devDevice";
-import { getOfficialDacSpec, OFFLINE_EDITOR_CAPABILITIES } from "../lib/dacSpecs";
+import { OFFLINE_EDITOR_CAPABILITIES } from "../lib/dacSpecs";
 import type { DeviceSection } from "../lib/tabs";
 import {
   createCoalescingTaskScheduler,
@@ -50,6 +51,8 @@ export interface DeviceViewProps {
   onOpenConnectModal?: () => void;
   onDisconnect?: () => Promise<void>;
   onPreviewChange?: (device: DeviceInfo) => void;
+  /** Called before a write that may make the DAC briefly drop off USB. */
+  onExpectedDisconnect?: () => void;
 }
 
 type DeviceUtilityState = {
@@ -74,11 +77,14 @@ export const DeviceView = memo(function DeviceView({
   onOpenConnectModal,
   onDisconnect,
   onPreviewChange,
+  onExpectedDisconnect,
 }: DeviceViewProps) {
   const invoke = <T,>(command: string, args?: Record<string, unknown>) =>
     invokeForDevice<T>(deviceInfo?.path, command, args);
-  const dawnDevice = (!isSimulated || isDevDummyDevice(deviceInfo?.path ?? "")) && deviceInfo?.vendor_id === 0x2fc6 &&
-    deviceInfo.product_id === 0xf06a ? deviceInfo : null;
+  const dawnDevice = (!isSimulated || isDevDummyDevice(deviceInfo?.path ?? "")) &&
+    deviceInfo?.controls === "dawn_pro" ? deviceInfo : null;
+  const ja11Device = (!isSimulated || isDevDummyDevice(deviceInfo?.path ?? "")) &&
+    deviceInfo?.controls === "ja11" ? deviceInfo : null;
   const [utility, setUtility] = useState<DeviceUtilityState | null>(null);
   const utilityRef = useRef<DeviceUtilityState | null>(null);
   const confirmedUtilityRef = useRef<DeviceUtilityState | null>(null);
@@ -91,7 +97,7 @@ export const DeviceView = memo(function DeviceView({
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const fetchState = async (isActive = () => true, silent = false) => {
-    if (!connected || dawnDevice) return;
+    if (!connected || dawnDevice || ja11Device) return;
     if (!silent) {
       setLoading(true);
       setLoadError(null);
@@ -130,7 +136,7 @@ export const DeviceView = memo(function DeviceView({
     utilityRef.current = null;
     confirmedUtilityRef.current = null;
     fieldRevisionsRef.current = {};
-    if (!connected || dawnDevice) {
+    if (!connected || dawnDevice || ja11Device) {
       setLoading(false);
       return;
     }
@@ -166,7 +172,7 @@ export const DeviceView = memo(function DeviceView({
       scheduleUtilityTask.invalidate();
       if (unlisten) unlisten();
     };
-  }, [connected, deviceInfo?.path, !!dawnDevice]);
+  }, [connected, deviceInfo?.path, !!dawnDevice, !!ja11Device]);
 
   const setUtilityField = async <K extends keyof DeviceUtilityState>(
     field: K,
@@ -316,13 +322,7 @@ export const DeviceView = memo(function DeviceView({
     }, { supersedePending: true });
   };
 
-  const officialSpec = connected || isSimulated
-    ? getOfficialDacSpec(
-        deviceInfo?.vendor_id,
-        deviceInfo?.product_id,
-        deviceInfo?.profile_name || deviceInfo?.product_string,
-      )
-    : null;
+  const officialSpec = connected || isSimulated ? deviceInfo?.spec ?? null : null;
 
   const deviceTitle = connected || isSimulated
     ? deviceInfo?.profile_name || deviceInfo?.product_string || officialSpec?.name || "Connected DAC"
@@ -399,7 +399,7 @@ export const DeviceView = memo(function DeviceView({
     <ConfigurationLayout kind="device" active={activeSection} root={section === "root"} sections={sections} summary={deviceSummary}
       sectionTitle={sectionTitle} sectionValues={{
         overview: deviceInfo?.hardware_eq === false ? "No hardware EQ" : `${capabilities.num_bands} bands · ${dspKhz} kHz`,
-        controls: dawnDevice ? "Volume · gain · filter · LED" : utility?.supported ? `${utility.high_gain_mode ? "High" : "Low"} gain · ${utility.filter_mode}` : undefined,
+        controls: ja11Device ? "Microphone · USB audio · volume" : dawnDevice ? "Volume · gain · filter · LED" : utility?.supported ? `${utility.high_gain_mode ? "High" : "Low"} gain · ${utility.filter_mode}` : undefined,
       }}>
       <StackHeader title={sectionTitle} />
       {isSimulated && deviceInfo && onPreviewChange && (
@@ -408,6 +408,9 @@ export const DeviceView = memo(function DeviceView({
 
       {activeSection === "controls" && connected && !isSimulated && (
         <p className="configuration-description">Changes apply directly to the connected DAC.</p>
+      )}
+      {activeSection === "controls" && connected && isSimulated && ja11Device && (
+        <p className="configuration-description">Simulated controls: changes update mock values immediately. No USB commands are sent. Reconnecting resets these mock controls.</p>
       )}
       <div className="stack-content">
         {activeSection === "overview" && (
@@ -463,6 +466,8 @@ export const DeviceView = memo(function DeviceView({
                   )}
                 </div>
               </section>
+            ) : ja11Device ? (
+              <Ja11Controls key={ja11Device.path} path={ja11Device.path} isBusy={isBusy} setStatus={setStatus} onExpectedDisconnect={onExpectedDisconnect} />
             ) : dawnDevice ? (
               <DawnProControls key={dawnDevice.path} path={dawnDevice.path} isBusy={isBusy} setStatus={setStatus} />
             ) : loading ? (

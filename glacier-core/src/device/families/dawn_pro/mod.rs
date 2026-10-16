@@ -42,6 +42,14 @@ This project is not affiliated with or endorsed by MOONDROP. "MOONDROP" and
 
 */
 
+use crate::device::protocol::Protocol;
+
+/// No hardware EQ: the original Dawn Pro has sound controls only.
+pub static PROTOCOL: Protocol = Protocol {
+    id: "Moondrop Dawn Pro",
+    eq: None,
+};
+
 pub const VENDOR_ID: u16 = 0x2FC6;
 pub const PRODUCT_ID: u16 = 0xF06A;
 pub const OUTPUT_LEN: usize = 8;

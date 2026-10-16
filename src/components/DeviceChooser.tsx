@@ -147,7 +147,7 @@ export function DeviceChooser({
           </summary>
           <div className="supported-models">
             {supportedDacs.map((dac) => (
-              <div className="supported-model" key={dac.name}>
+              <div className="supported-model" key={`${dac.name}:${dac.vendor_id}:${dac.product_id ?? "*"}`}>
                 <strong>{dac.name}</strong>
                 <span>{formatUsbId(dac.vendor_id)}:{dac.product_id == null ? "*" : formatUsbId(dac.product_id)} · {dac.status}</span>
               </div>

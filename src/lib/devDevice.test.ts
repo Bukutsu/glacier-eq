@@ -12,18 +12,53 @@ vi.mock("@glacier-eq/backend", () => backend);
 afterEach(() => { vi.unstubAllEnvs(); vi.clearAllMocks(); });
 
 let counter = 0;
-function model(protocol = "Walkplay", num_bands = 10) {
+function model(protocol = "Walkplay", num_bands = 10, overrides: Partial<SupportedDeviceInfo> = {}) {
   const profile: SupportedDeviceInfo = {
     ...DEV_DUMMY_DEVICE, name: "Preview test " + counter++, protocol,
-    status: "Tested", family: "test", num_bands, product_id: null,
+    status: "Tested", family: "test", num_bands,
     vendor_id: protocol === "Moondrop Dawn Pro" ? 0x2fc6 : 0x3302,
+    product_id: protocol === "Moondrop Dawn Pro" ? 0xf06a : null,
     hardware_eq: protocol !== "Moondrop Dawn Pro",
+    controls: protocol === "Walkplay" ? "walkplay" : protocol === "Moondrop Dawn Pro" ? "dawn_pro" : null,
     integer_preamp: false,
+    ...overrides,
   };
   return buildDevPreviewDevice(profile);
 }
 
 describe("development DAC previews", () => {
+
+  it("reads and applies JA11 preview controls locally, preserving them on refresh", async () => {
+    const device = model("FiiO JA11", 5, { controls: "ja11" });
+    for (const [control, initial, target] of [["microphone", 1, 0], ["uac", 1, 0], ["volume", 30, 24]] as const) {
+      await expect(invokeForDevice(device.path, "ja11_control", { control })).resolves.toBe(initial);
+      await expect(invokeForDevice(device.path, "ja11_control", { control, value: target })).resolves.toBe(target);
+      await expect(invokeForDevice(device.path, "ja11_control", { control })).resolves.toBe(target);
+    }
+    expect(backend.invoke).not.toHaveBeenCalled();
+  });
+
+  it("isolates JA11 preview state and resets controls on reconnect", () => {
+    const first = model("FiiO JA11", 5, { controls: "ja11" }), second = model("FiiO JA11", 5, { controls: "ja11" });
+    invokeDevDummy(first.path, "ja11_control", { control: "volume", value: 12 });
+    expect(invokeDevDummy(second.path, "ja11_control", { control: "volume" })).toBe(30);
+    reconnectDevDummyDevice(first.path);
+    expect(invokeDevDummy(first.path, "ja11_control", { control: "volume" })).toBe(30);
+    invokeDevDummy(first.path, "ja11_control", { control: "microphone", value: 0 });
+    invokeDevDummy(first.path, "reset_device_controls");
+    expect(invokeDevDummy(first.path, "ja11_control", { control: "microphone" })).toBe(1);
+  });
+
+  it("rejects unsupported JA11 preview commands and invalid values without touching hardware", async () => {
+    const device = model("FiiO JA11", 5, { controls: "ja11" });
+    for (const [control, value] of [["volume", 61], ["volume", -1], ["volume", 1.5], ["uac", 2], ["microphone", 2], ["unknown", 0]]) {
+      await expect(invokeForDevice(device.path, "ja11_control", { control, value })).rejects.toThrow();
+    }
+    expect(invokeDevDummy(device.path, "ja11_control", { control: "volume" })).toBe(30);
+    await expect(invokeForDevice(model("FiiO KA17").path, "ja11_control", { control: "volume" })).rejects.toThrow("JA11 preview");
+    expect(backend.invoke).not.toHaveBeenCalled();
+  });
+
   it.each(["Walkplay", "Moondrop", "Moondrop Dawn Pro", "FiiO", "FiiO JA11", "FiiO KA17"])(
     "builds a selectable, virtual %s model using registry capabilities", protocol => {
       const device = model(protocol, protocol === "Moondrop" ? 8 : 10);
@@ -95,7 +130,7 @@ describe("development DAC previews", () => {
     invokeDevDummy(device.path, "set_dawn_pro_control", { control: "filter", value: 4 });
     invokeDevDummy(device.path, "set_dawn_pro_control", { control: "gain", value: 1 });
     invokeDevDummy(device.path, "set_dawn_pro_control", { control: "led", value: 2 });
-    const source = readFileSync(new URL("../../glacier-core/src/device/dawn_pro.rs", import.meta.url), "utf8");
+    const source = readFileSync(new URL("../../glacier-core/src/device/families/dawn_pro/mod.rs", import.meta.url), "utf8");
     const codes = source.match(/const VOLUME_CODES:[^=]*= \[([\s\S]*?)\];/)![1]
       .split(",").map(code => code.trim()).filter(Boolean).map(Number);
     expect(codes).toHaveLength(61);
@@ -153,7 +188,20 @@ describe("development DAC previews", () => {
     expect(backend.invoke).not.toHaveBeenCalled();
   });
 
-  it("rejects unknown protocols instead of silently using Walkplay", () => {
-    expect(() => model("Unknown")).toThrow("Unknown preview protocol");
+  it("keeps same-name exact and vendor-fallback previews separate", () => {
+    const exact = model("Moondrop Dawn Pro", 10, { name: "Same name", product_id: 0xf06a, controls: "dawn_pro" });
+    const fallback = model("Moondrop Dawn Pro", 10, { name: "Same name", product_id: null, controls: null });
+    expect(exact.path).not.toBe(fallback.path);
+    expect(invokeDevDummy(exact.path, "get_dawn_pro_state")).toMatchObject({ high_gain: false });
+    expect(() => invokeDevDummy(fallback.path, "get_dawn_pro_state"))
+      .toThrow("These controls require an original-Dawn preview");
+  });
+
+  it("previews a new protocol without inheriting Walkplay controls", () => {
+    const device = model("New protocol");
+    expect(readDevDummyPeq(device.path).filters).toHaveLength(device.num_bands);
+    expect(invokeDevDummy(device.path, "get_dac_utility_state")).toMatchObject({ supported: false });
+    expect(() => invokeDevDummy(device.path, "set_dac_work_mode", { isClassAb: true }))
+      .toThrow("does not expose Walkplay controls");
   });
 });

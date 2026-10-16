@@ -9,6 +9,8 @@ const DEV_DUMMY_DEVICE_PATH = "glacier-dev://dummy-dac";
 export const DEV_DUMMY_DEVICE: DeviceInfo = {
   vendor_id: 0x3302, product_id: 0x43e6, path: DEV_DUMMY_DEVICE_PATH,
   manufacturer: "Glacier", product_string: "Dev Dummy DAC", profile_name: "Glacier Dummy DAC", hardware_eq: true,
+  controls: "walkplay",
+  spec: null,
   num_bands: 10, global_gain_range: [-16, 6], band_gain_range: [-10, 10],
   freq_range: [20, 20000], q_range: [0.1, 10],
   supported_filter_types: ["Peak", "HighShelf", "LowShelf", "HighPass", "LowPass"],
@@ -50,9 +52,10 @@ type UtilityState = {
 type DawnState = {
   filter: number; high_gain: boolean; led: number; volume_step: number; volume_raw: number;
 };
-type Preview = { device: DeviceInfo; protocol: string; peq: PEQData; savedPeq: PEQData; utility: UtilityState; dawn: DawnState };
+type Ja11State = { microphone: number; uac: number; volume: number };
+type Preview = { ja11: Ja11State; device: DeviceInfo; peq: PEQData; savedPeq: PEQData; utility: UtilityState; dawn: DawnState };
 
-// Original-Dawn volume codes credited in dawn_pro.rs, from Abdul Mateen:
+// Original-Dawn volume codes credited in families/dawn_pro/mod.rs, from Abdul Mateen:
 // https://github.com/RetR0-hex/moondrop-dawn-pro-gui/blob/69f95f669377646da1e9ba931bec9a5dc9b5d40c/moondrop/protocol.py
 const DAWN_VOLUME_CODES = [
   255, 200, 180, 170, 160, 150, 140, 130, 122, 116, 110, 106, 102, 98, 94, 90,
@@ -61,12 +64,14 @@ const DAWN_VOLUME_CODES = [
   16, 14, 12, 10, 8, 6, 4, 2, 0,
 ];
 
-function newPreview(device: DeviceInfo, protocol: string): Preview {
+function newPreview(device: DeviceInfo): Preview {
   const peq = normalizePeqForDevice(buildDevDummyPeq(device), device);
   return {
-    device, protocol, peq, savedPeq: structuredClone(peq),
-    utility: { supported: protocol === "Walkplay", filter_mode: "FAST-LL",
+    device, peq, savedPeq: structuredClone(peq),
+    utility: { supported: device.controls === "walkplay", filter_mode: "FAST-LL",
       amp_mode_class_ab: false, high_gain_mode: false, mic_volume_db: 0, channel_balance: 0 },
+    // Synthetic preview defaults, not values read from hardware.
+    ja11: { microphone: 1, uac: 1, volume: 30 },
     dawn: { filter: 2, high_gain: false, led: 0, volume_step: 45, volume_raw: 30 },
   };
 }
@@ -75,25 +80,24 @@ const previews = new Map<string, Preview>();
 
 export function buildDevPreviewDevice(profile: SupportedDeviceInfo): DeviceInfo {
   if (!import.meta.env.DEV) throw new Error("DAC previews are available only in development builds");
-  if (!["Walkplay", "Moondrop", "Moondrop Dawn Pro", "FiiO", "FiiO JA11", "FiiO KA17"].includes(profile.protocol)) {
-    throw new Error(`Unknown preview protocol: ${profile.protocol}`);
-  }
-  const path = DEV_DUMMY_DEVICE_PATH + "/" + encodeURIComponent(profile.name);
+  const path = DEV_DUMMY_DEVICE_PATH + "/" + encodeURIComponent(profile.name)
+    + "/" + profile.vendor_id.toString(16)
+    + ":" + (profile.product_id?.toString(16) ?? "*");
   const existing = previews.get(path);
   if (existing) return existing.device;
-  const { name, protocol, product_id, status: _status, family: _family, ...capabilities } = profile;
+  const { name, protocol: _protocol, product_id, status: _status, family: _family, ...capabilities } = profile;
   const device: DeviceInfo = {
-    ...capabilities, product_id: product_id ?? (protocol === "Moondrop Dawn Pro" ? 0xf06a : 0),
+    ...capabilities, product_id: product_id ?? 0,
     path, manufacturer: "Glacier preview", product_string: name, profile_name: name,
   };
-  previews.set(path, newPreview(device, protocol));
+  previews.set(path, newPreview(device));
   return device;
 }
 
 function previewFor(path: string): Preview {
   if (!isDevDummyDevice(path)) throw new Error("Not a development DAC preview");
   if (path === DEV_DUMMY_DEVICE_PATH && !previews.has(path)) {
-    previews.set(path, newPreview(DEV_DUMMY_DEVICE, "Walkplay"));
+    previews.set(path, newPreview(DEV_DUMMY_DEVICE));
   }
   const preview = previews.get(path);
   if (!preview) throw new Error("Unknown DAC preview");
@@ -103,6 +107,8 @@ function previewFor(path: string): Preview {
 export function reconnectDevDummyDevice(path: string): void {
   const preview = previewFor(path);
   preview.peq = structuredClone(preview.savedPeq);
+  // JA11 control writes last only for this simulated connection.
+  preview.ja11 = newPreview(preview.device).ja11;
 }
 
 function eqPreviewFor(path: string): Preview {
@@ -143,10 +149,19 @@ export function invokeDevDummy<T>(path: string, command: string, args: Record<st
     if (!preview.utility.supported) throw new Error("This protocol does not expose Walkplay controls");
   };
   switch (command) {
+    case "ja11_control": {
+      if (preview.device.controls !== "ja11") throw new Error("These controls require a JA11 preview");
+      const control = args.control;
+      if (control !== "microphone" && control !== "uac" && control !== "volume") {
+        throw new Error("Unknown JA11 control");
+      }
+      if (args.value !== undefined) preview.ja11[control] = integer(args.value, 0, control === "volume" ? 60 : 1);
+      return preview.ja11[control] as T;
+    }
     case "get_dac_utility_state": return structuredClone(preview.utility) as T;
     case "get_dawn_pro_state":
     case "set_dawn_pro_control": {
-      if (preview.protocol !== "Moondrop Dawn Pro") throw new Error("These controls require an original-Dawn preview");
+      if (preview.device.controls !== "dawn_pro") throw new Error("These controls require an original-Dawn preview");
       if (command === "set_dawn_pro_control") {
         switch (args.control) {
           case "filter": preview.dawn.filter = integer(args.value, 0, 4); break;
@@ -183,9 +198,10 @@ export function invokeDevDummy<T>(path: string, command: string, args: Record<st
       break;
     }
     case "reset_device_controls": {
-      const defaults = newPreview(preview.device, preview.protocol);
+      const defaults = newPreview(preview.device);
       preview.utility = defaults.utility;
       preview.dawn = defaults.dawn;
+      preview.ja11 = defaults.ja11;
       break;
     }
     case "execute_factory_reset": {

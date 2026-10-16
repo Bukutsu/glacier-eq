@@ -49,6 +49,31 @@ fn output_report_failure(
     )
 }
 
+/// Keep the attempted framing and descriptor together so report type/ID
+/// mismatches can be diagnosed without guessing commands.
+fn describe_write_failure(device: &hidapi::HidDevice, error: &str, data: &[u8]) -> crate::Error {
+    let interface = device.get_device_info().map_or_else(
+        |error| format!("unavailable: {error}"),
+        |info| {
+            format!(
+                "number={}, usage_page=0x{:04X}, usage=0x{:04X}",
+                info.interface_number(),
+                info.usage_page(),
+                info.usage()
+            )
+        },
+    );
+    let mut descriptor = vec![0; hidapi::MAX_REPORT_DESCRIPTOR_SIZE];
+    let result = device
+        .get_report_descriptor(&mut descriptor)
+        .map(|length| &descriptor[..length])
+        .map_err(|error| error.to_string());
+    hidapi::HidError::HidApiError {
+        message: output_report_failure(error, data, &interface, result),
+    }
+    .into()
+}
+
 pub fn init<R: Runtime, C: DeserializeOwned>(
     _app: &AppHandle<R>,
     _api: PluginApi<R, C>,
@@ -119,7 +144,12 @@ impl<R: Runtime> Hid<R> {
         };
 
         let device = device.lock().unwrap_or_else(|p| p.into_inner());
-        let written = device.write(data)?;
+        // Windows WriteFile returns 0x57 when the report ID or length does not
+        // match the opened interface; attach the descriptor so a remote tester
+        // can send back enough to diagnose it.
+        let written = device
+            .write(data)
+            .map_err(|error| describe_write_failure(&device, &error.to_string(), data))?;
         ensure_complete_write(data.len(), written)
     }
 
@@ -133,31 +163,10 @@ impl<R: Runtime> Hid<R> {
                 .ok_or(crate::Error::HidDeviceNotFoundInOpenDevices)?
         };
         let device = device.lock().unwrap_or_else(|p| p.into_inner());
-        device.send_output_report(data).map_err(|error| {
-            // Read-only metadata on failure, not a Feature-report fallback.
-            // Keep the attempted framing and descriptor together so report
-            // type/ID mismatches can be diagnosed without guessing commands.
-            let interface = device.get_device_info().map_or_else(
-                |error| format!("unavailable: {error}"),
-                |info| {
-                    format!(
-                        "number={}, usage_page=0x{:04X}, usage=0x{:04X}",
-                        info.interface_number(),
-                        info.usage_page(),
-                        info.usage()
-                    )
-                },
-            );
-            let mut descriptor = vec![0; hidapi::MAX_REPORT_DESCRIPTOR_SIZE];
-            let result = device
-                .get_report_descriptor(&mut descriptor)
-                .map(|length| &descriptor[..length])
-                .map_err(|error| error.to_string());
-            hidapi::HidError::HidApiError {
-                message: output_report_failure(&error.to_string(), data, &interface, result),
-            }
-            .into()
-        })
+        // Read-only metadata on failure, not a Feature-report fallback.
+        device
+            .send_output_report(data)
+            .map_err(|error| describe_write_failure(&device, &error.to_string(), data))
     }
 
     /// Input GET_REPORT for original Dawn Pro's nine-byte reply.

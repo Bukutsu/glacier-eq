@@ -1,10 +1,32 @@
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::device::protocol::{checked_scaled_i16, checked_scaled_u16, EqProtocol, Packet};
+//! FiiO protocol credits (independent implementation from protocol evidence):
+//! - jeromeof/devicePEQ: FiiO packet fixtures and active USER preset slots.
+//!   https://github.com/jeromeof/devicePEQ
+//! - weekssa/OPRA-EQ-for-UAPP: docs/FIIO_JA11_PROTOCOL_NOTES.md and
+//!   domain/kt02h20/FiioJa11Protocol.kt / FiioJa11Timing.kt, for signed
+//!   big-endian tenths-dB gain, JA11 Apply/Save ordering and pacing.
+//!   https://github.com/weekssa/OPRA-EQ-for-UAPP
+//! - Ircama/ja11-config: JA11 Apply after data and Save as the final command.
+//!   https://github.com/Ircama/ja11-config
+//! - Cyfine/ja11-web-control: JA11 pacing and state-control protocol;
+//!   exact state-control source revision is credited in the JA11 codec.
+//!   https://github.com/Cyfine/ja11-web-control
+//!
+//! Sources differ on some fields; only the specific evidence above is used.
+
+use crate::device::packet::{checked_scaled_i16, checked_scaled_u16, Packet};
+use crate::device::protocol::{EqProtocol, GainEncoding, Quirks};
 use crate::device::timing::WriteTiming;
 use crate::eq::filter::DEFAULT_FREQS_10_BAND;
 use crate::eq::{Filter, FilterType, PEQData};
+
+pub mod ja11;
+mod models;
+pub use models::{JA11, KA17, KA_SERIES};
+#[cfg(test)]
+use models::{JA11_EQ, KA17_EQ, KA_SERIES_EQ};
 
 const SET_1: u8 = 0xAA;
 const SET_2: u8 = 0x0A;
@@ -20,30 +42,11 @@ pub struct FiioProtocol {
     filter_count: u8,
     user_slot: u8,
     clamp_gain: bool,
+    command_interval_ms: Option<u64>,
+    sends_filter_count: bool,
+    apply_after_write: bool,
+    quirks: Quirks,
 }
-
-// Slots are the active USER presets recorded in devicePEQ's 2026-05-03 captures.
-pub const JA11_PROTOCOL: FiioProtocol = FiioProtocol {
-    report_id: 2,
-    filter_count: 5,
-    user_slot: 3,
-    clamp_gain: true,
-};
-
-// The existing generic FiiO profile represents KA15.
-pub const FIIO_PROTOCOL: FiioProtocol = FiioProtocol {
-    report_id: 7,
-    filter_count: 10,
-    user_slot: 9,
-    clamp_gain: false,
-};
-
-pub const KA17_PROTOCOL: FiioProtocol = FiioProtocol {
-    report_id: 1,
-    filter_count: 10,
-    user_slot: 4,
-    clamp_gain: false,
-};
 
 fn default_state(peq: &PEQData) -> bool {
     peq.global_gain == 0.0 && peq.filters.iter().all(|f| !f.enabled || f.gain == 0.0)
@@ -163,8 +166,8 @@ fn write_filter_packet(report_id: u8, index: u8, filter: &Filter) -> Packet {
 }
 
 fn write_global_gain_packet(report_id: u8, global_gain: f64) -> Packet {
-    // devicePEQ's captured general format is signed BE tenths of a dB.
-    // JA11 negative preamp writes still require independent hardware verification.
+    // Signed BE tenths of a dB: devicePEQ captures and FiiO Control's JA11
+    // codec per weekssa/OPRA-EQ-for-UAPP (-3.9 dB is FF D9).
     let [first, second] = ((global_gain * 10.0).round() as i16).to_be_bytes();
     Packet::new(
         report_id,
@@ -180,8 +183,33 @@ fn preset_packet(report_id: u8, command: u8, slot: u8) -> Packet {
 }
 
 impl EqProtocol for FiioProtocol {
+    fn gain_encoding(&self) -> GainEncoding {
+        // Signed big-endian tenths of a dB. The band encoder rejects values
+        // off that grid, so normalization snaps to it first.
+        GainEncoding {
+            band_units_per_db: 10.0,
+            band_step_db: Some(0.1),
+            band_readback_per_db: 10.0,
+            preamp_step_db: 0.1,
+        }
+    }
+
     fn write_timing(&self) -> WriteTiming {
-        WriteTiming::default()
+        match self.command_interval_ms {
+            None => WriteTiming::default(),
+            // Cyfine/ja11-web-control PROTOCOL.md and weekssa/OPRA-EQ-for-UAPP
+            // FiioJa11Timing.kt: 200 ms commands, 500 ms initial settle.
+            Some(ms) => WriteTiming {
+                per_filter_ms: ms,
+                batch_ms: ms,
+                global_gain_ms: ms,
+                commit_step_ms: ms,
+                flood_delay_ms: ms,
+                post_gain_read_ms: ms,
+                init_ms: 500,
+                packet_gap_ms: ms,
+            },
+        }
     }
 
     fn is_default_state(&self, peq: &PEQData) -> bool {
@@ -233,6 +261,10 @@ impl EqProtocol for FiioProtocol {
         parse_filter_response(data, self.filter_count)
     }
 
+    fn quirks(&self) -> Quirks {
+        self.quirks
+    }
+
     fn read_global_gain_request(&self) -> Packet {
         Packet::new(
             self.report_id,
@@ -277,7 +309,9 @@ impl EqProtocol for FiioProtocol {
         let mut packets = Vec::new();
         if index == 0 {
             packets.push(preset_packet(self.report_id, 0x16, self.user_slot));
-            packets.push(preset_packet(self.report_id, 0x18, self.filter_count));
+            if self.sends_filter_count {
+                packets.push(preset_packet(self.report_id, 0x18, self.filter_count));
+            }
         }
         packets.push(write_filter_packet(self.report_id, index, filter));
         Ok(packets)
@@ -289,11 +323,16 @@ impl EqProtocol for FiioProtocol {
         } else {
             global_gain
         };
-        vec![write_global_gain_packet(self.report_id, gain)]
+        let mut packets = vec![write_global_gain_packet(self.report_id, gain)];
+        if self.apply_after_write {
+            packets.push(preset_packet(self.report_id, 0x18, 1));
+        }
+        packets
     }
 
     fn commit_packets(&self) -> Vec<Packet> {
-        // 0x18 sets the filter count; persistence is 0x19 on all three models.
+        // Persistence is 0x19 on all three models. JA11 uses 0x18 = 1 Apply
+        // after preamp, never a count before bands (FiiO Control / Ircama).
         vec![preset_packet(self.report_id, 0x19, self.user_slot)]
     }
 
@@ -325,16 +364,43 @@ mod tests {
         save: &'static [u8],
     }
 
-    const JA11_CAPTURE: Capture = include!("../../tests/fixtures/fiio/ja11.rs");
-    const KA15_CAPTURE: Capture = include!("../../tests/fixtures/fiio/ka15.rs");
-    const KA17_CAPTURE: Capture = include!("../../tests/fixtures/fiio/ka17.rs");
+    const JA11_CAPTURE: Capture = include!("../../../../tests/fixtures/fiio/ja11.rs");
+    const KA15_CAPTURE: Capture = include!("../../../../tests/fixtures/fiio/ka15.rs");
+    const KA17_CAPTURE: Capture = include!("../../../../tests/fixtures/fiio/ka17.rs");
 
     fn captures() -> [(FiioProtocol, &'static Capture); 3] {
         [
-            (JA11_PROTOCOL, &JA11_CAPTURE),
-            (FIIO_PROTOCOL, &KA15_CAPTURE),
-            (KA17_PROTOCOL, &KA17_CAPTURE),
+            (JA11_EQ, &JA11_CAPTURE),
+            (KA_SERIES_EQ, &KA15_CAPTURE),
+            (KA17_EQ, &KA17_CAPTURE),
         ]
+    }
+
+    #[test]
+    fn model_protocols_wrap_their_model_constants() {
+        for (protocol, id, report_id) in [
+            (&JA11, "FiiO JA11", 2),
+            (&KA_SERIES, "FiiO", 7),
+            (&KA17, "FiiO KA17", 1),
+        ] {
+            assert_eq!(protocol.id, id);
+            assert_eq!(protocol.eq.unwrap().report_id(), report_id, "{id}");
+        }
+    }
+
+    #[test]
+    fn only_ja11_has_quirks() {
+        let quirks = JA11_EQ.quirks();
+        assert!(quirks.save_resets_device);
+        for protocol in [KA_SERIES_EQ, KA17_EQ] {
+            let quirks = protocol.quirks();
+            assert!(!quirks.save_resets_device);
+        }
+        // The frame web.ts must send last on JA11 (report ID 2).
+        assert_eq!(
+            JA11_EQ.commit_packets()[0].framed(),
+            [2, 0xAA, 0x0A, 0x00, 0x00, 0x19, 0x01, 0x03, 0x00, 0xEE]
+        );
     }
 
     #[test]
@@ -364,7 +430,7 @@ mod tests {
         }
         assert_eq!(KA15_CAPTURE.filters[0][3], 0x43);
         assert_eq!(
-            KA17_PROTOCOL.parse_global_gain_response(KA17_CAPTURE.gain),
+            KA17_EQ.parse_global_gain_response(KA17_CAPTURE.gain),
             Some(-0.4)
         );
     }
@@ -392,8 +458,10 @@ mod tests {
             assert_eq!(writes[0].report_id, capture.report_id);
             assert_eq!(writes[0].payload[4], 0x16);
             assert_eq!(writes[0].payload[6], capture.preset[6]);
-            assert_eq!(writes[1].payload, capture.count_write);
-            assert!(protocol.is_filter_packet_valid(&writes[2].payload));
+            if protocol.sends_filter_count {
+                assert_eq!(writes[1].payload, capture.count_write);
+            }
+            assert!(protocol.is_filter_packet_valid(&writes.last().unwrap().payload));
             let commit = protocol.commit_packets();
             assert_eq!(commit.len(), 1);
             assert_eq!(commit[0].report_id, capture.report_id);
@@ -486,9 +554,9 @@ mod tests {
         let mut data = JA11_CAPTURE.filters[3].to_vec();
         data[9..11].copy_from_slice(&u16::MAX.to_be_bytes());
         data[11..13].copy_from_slice(&u16::MAX.to_be_bytes());
-        assert!(JA11_PROTOCOL.matches_filter_response(&data, 3, 0));
-        assert!(!JA11_PROTOCOL.is_filter_response_valid(&data, 3, 0));
-        let filter = JA11_PROTOCOL.parse_filter_response(&data).unwrap();
+        assert!(JA11_EQ.matches_filter_response(&data, 3, 0));
+        assert!(!JA11_EQ.is_filter_response_valid(&data, 3, 0));
+        let filter = JA11_EQ.parse_filter_response(&data).unwrap();
         assert_eq!(filter.index, 3);
         assert_eq!(filter.freq, 250);
         assert_eq!(filter.gain, 0.0);
@@ -515,7 +583,7 @@ mod tests {
         }
         // Explicitly distinguish signed BE*10 from the old JA11 LE*2560 encoding.
         assert_eq!(
-            &JA11_PROTOCOL.write_global_gain_packets(-1.0)[0].payload[6..8],
+            &JA11_EQ.write_global_gain_packets(-1.0)[0].payload[6..8],
             &[0xFF, 0xF6]
         );
     }

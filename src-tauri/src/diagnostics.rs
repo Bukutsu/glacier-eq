@@ -303,7 +303,7 @@ pub fn get_diagnostic_context(
         device_id: connected
             .as_ref()
             .map(|device| format!("{:04X}:{:04X}", device.vendor_id, device.product_id)),
-        protocol: profile.map(|profile| profile.protocol.name()),
+        protocol: profile.map(|profile| profile.protocol.id),
         transport,
     }
 }

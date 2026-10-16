@@ -491,6 +491,7 @@ pub fn run() {
             device_commands::apply_eq_state,
             device_commands::get_dac_utility_state,
             device_commands::get_dawn_pro_state,
+            device_commands::ja11_control,
             device_commands::set_dawn_pro_control,
             device_commands::set_dac_filter_mode,
             device_commands::set_dac_work_mode,

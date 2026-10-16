@@ -80,6 +80,8 @@ import { profileIdentityKey } from "./lib/profileIdentity";
 import { readLocalStorage, writeLocalStorage } from "./lib/safeStorage";
 import {
   markDeviceLost,
+  isJa11Device,
+  quietLossReport,
   type ReportLevel,
   type ReportSource,
   type ReportToast,
@@ -199,6 +201,10 @@ function App() {
   const reconnectCancelRef = useRef<HTMLButtonElement>(null);
   const reconnectEffectGenerationRef = useRef(0);
   const manualDisconnectRef = useRef(false);
+  /** Short window for a restart-causing save or JA11 control write. */
+  const expectedRestartUntilRef = useRef(0);
+  // True while a JA11 is the connected device: its drops are recovered quietly.
+  const quietReconnectRef = useRef(false);
   const ambiguousReconnectRef = useRef(false);
   const pullEqRef = useRef<(
     afterConnect?: boolean,
@@ -318,6 +324,10 @@ function App() {
       showToast(message, toastType, false);
     }
   }, [showToast]);
+
+  const reportLoss = useCallback((status: Parameters<typeof reportStatus>[0]) => {
+    reportStatus(quietReconnectRef.current ? quietLossReport(status) : status);
+  }, [reportStatus]);
 
   const [settingsPersistence] = useState(() => createSettingsPersistence({
     defaults: DEFAULT_SETTINGS,
@@ -501,6 +511,10 @@ function App() {
     () => devices.find((device) => device.path === selectedDevice),
     [devices, selectedDevice],
   );
+  // Latch the device kind while connected; the device may vanish from the list
+  // once it drops, but the reconnect that follows must stay quiet.
+  if (connected) quietReconnectRef.current = !isDevDummyDevice(selectedDevice) && isJa11Device(selectedDeviceInfo);
+  const showReconnectOverlay = isReconnecting && !quietReconnectRef.current;
   const selectedCapabilities = selectedDeviceInfo ?? OFFLINE_EDITOR_CAPABILITIES;
   const capabilities = connected ? selectedCapabilities : OFFLINE_EDITOR_CAPABILITIES;
   const hardwareEq = selectedDeviceInfo?.hardware_eq !== false;
@@ -762,6 +776,9 @@ function App() {
     };
 
     addListener<OperationProgress>("operation-progress", (event) => {
+      if (event.payload.message.includes("(restart expected)")) {
+        expectedRestartUntilRef.current = Date.now() + 15_000;
+      }
       setProgress(event.payload);
     });
 
@@ -799,7 +816,7 @@ function App() {
           expectedSessionId: payload.sessionId,
         }).catch(() => {});
         markDeviceLost(
-          { setConnected, setIsReconnecting, setLastPushedPeq, setFirmwareVersion, reportStatus },
+          { setConnected, setIsReconnecting, setLastPushedPeq, setFirmwareVersion, reportStatus: reportLoss },
           `Lost connection while connecting to device: ${payload.name}`,
         );
         setIsBusy(false);
@@ -824,9 +841,12 @@ function App() {
         expectedPath: payload.path,
         expectedSessionId: payload.sessionId,
       }).catch(() => {});
+      const expected = Date.now() < expectedRestartUntilRef.current;
       markDeviceLost(
-        { setConnected, setIsReconnecting, setLastPushedPeq, setFirmwareVersion, reportStatus },
-        `Lost connection to device (unplugged): ${payload.name}`,
+        { setConnected, setIsReconnecting, setLastPushedPeq, setFirmwareVersion, reportStatus: reportLoss },
+        expected ? "DAC is restarting; waiting to reconnect" : `Lost connection to device (unplugged): ${payload.name}`,
+        "Device",
+        expected ? "Info" : "Error",
       );
     };
 
@@ -914,9 +934,12 @@ function App() {
           console.error("Failed to close disconnected device:", error);
         }
         if (!active) return;
+        const expected = Date.now() < expectedRestartUntilRef.current;
         markDeviceLost(
-          { setConnected, setIsReconnecting, setLastPushedPeq, setFirmwareVersion, reportStatus },
-          "Lost connection to device",
+          { setConnected, setIsReconnecting, setLastPushedPeq, setFirmwareVersion, reportStatus: reportLoss },
+          expected ? "DAC is restarting; waiting to reconnect" : "Lost connection to device",
+          "Device",
+          expected ? "Info" : "Error",
         );
       } catch {
         schedulePoll();
@@ -1067,6 +1090,12 @@ function App() {
                     expectedSessionId: openedSessionId,
                   }).catch(() => {});
                 }
+                return;
+              }
+              // The read error is already reported; "Connected" after it
+              // would read as success.
+              if (!pulled) {
+                setIsReconnecting(false);
                 return;
               }
             } else {
@@ -1265,7 +1294,7 @@ function App() {
       if (!isCurrentPull()) return false;
       if (!manualDisconnectRef.current && isDisconnectionError(error)) {
         markDeviceLost(
-          { setConnected, setIsReconnecting, setLastPushedPeq, setFirmwareVersion, reportStatus },
+          { setConnected, setIsReconnecting, setLastPushedPeq, setFirmwareVersion, reportStatus: reportLoss },
           `Could not read from DAC (disconnected): ${error}`,
           "HID",
         );
@@ -1483,6 +1512,12 @@ function App() {
     }
   }, [devices, selectedDevice, pullEq, selectedDeviceInfo, selectedCapabilities, pushToUndoStack, loadFirmwareVersion, reportStatus, settings.auto_pull_on_connect, noteEditorMutation, dirty, getAsyncContext]);
 
+  // A JA11 setting write may make the DAC drop off USB briefly. Treat the next
+  // 15 s of loss as expected, like a save restart.
+  const handleExpectedDisconnect = useCallback(() => {
+    expectedRestartUntilRef.current = Date.now() + 15_000;
+  }, []);
+
   const handlePreviewChange = useCallback(async (device: DeviceInfo) => {
     const currentPath = connectedPathRef.current;
     if (isBusy || eqOperationInFlightRef.current || !currentPath ||
@@ -1562,6 +1597,7 @@ function App() {
     setIsBusy(true);
     let committedPeq: PEQData | null = null;
     let pushWarnings: string[] = [];
+    let restarts = false;
     // Device completion depends on the session, not on editor changes.
     // An edit during the write must not hide what was saved to the DAC.
     const isCurrentOperation = () =>
@@ -1603,6 +1639,8 @@ function App() {
         // warnings from normalization.
         const outcome = await invoke<unknown>("set_eq_state", { peq: snapshot });
         pushWarnings = extractPushWarnings(outcome);
+        restarts = (outcome as { restarts?: unknown } | null)?.restarts === true;
+        if (restarts && isCurrentOperation()) expectedRestartUntilRef.current = Date.now() + 15_000;
         committedPeq = parseStoredPeqResponse(outcome, {
           integerPreamp: selectedCapabilities.integer_preamp,
           capabilities: selectedCapabilities,
@@ -1619,7 +1657,9 @@ function App() {
       setLastPushedPeq(committedPeq ?? snapshot);
       const savedMessage = isDevDummyDevice(selectedDevice)
         ? "EQ write simulated"
-        : "Saved EQ to DAC";
+        : restarts
+          ? "Saved EQ to DAC; restart expected, waiting to reconnect"
+          : "Saved EQ to DAC";
       if (pushWarnings.length > 0) {
         // The push rewrote out-of-range values, or ran with verification
         // switched off and so never read the DAC back: "Saved EQ to DAC"
@@ -1643,7 +1683,7 @@ function App() {
       if (!isCurrentOperation()) return;
       if (!manualDisconnectRef.current && !isDevDummyDevice(selectedDevice) && isDisconnectionError(error)) {
         markDeviceLost(
-          { setConnected, setIsReconnecting, setLastPushedPeq, setFirmwareVersion, reportStatus },
+          { setConnected, setIsReconnecting, setLastPushedPeq, setFirmwareVersion, reportStatus: reportLoss },
           `Could not write to DAC (disconnected): ${error}`,
           "HID",
         );
@@ -1754,7 +1794,7 @@ function App() {
         if (!isCurrentOperation()) return;
         if (!manualDisconnectRef.current && !isDevDummyDevice(selectedDevice) && isDisconnectionError(error)) {
           markDeviceLost(
-            { setConnected, setIsReconnecting, setLastPushedPeq, setFirmwareVersion, reportStatus },
+            { setConnected, setIsReconnecting, setLastPushedPeq, setFirmwareVersion, reportStatus: reportLoss },
             `Could not apply EQ (disconnected): ${error}`,
             "HID",
           );
@@ -2103,6 +2143,7 @@ function App() {
     capabilities,
     firmwareVersion,
     onPreviewChange: handlePreviewChange,
+    onExpectedDisconnect: handleExpectedDisconnect,
   };
   // Shared EQ/tuning graph; editing props only attach in the EQ workspace.
   const graphElement = (withEditor: boolean, highlightActiveBand: boolean = false) => (
@@ -2165,10 +2206,10 @@ function App() {
 
 
   useEffect(() => {
-    if (isReconnecting) {
+    if (showReconnectOverlay) {
       reconnectCancelRef.current?.focus();
     }
-  }, [isReconnecting]);
+  }, [showReconnectOverlay]);
 
   const eqCurves = (
     <EqCurves
@@ -2197,7 +2238,7 @@ function App() {
     : MOBILE_TABS.find((tab) => tab.id === activeTab)?.label ?? selectedPreset;
   const workspaceHeader = (
         <Header
-          inert={isReconnecting ? true : undefined}
+          inert={showReconnectOverlay ? true : undefined}
           connected={connected}
           isSimulated={isDevDummyDevice(selectedDevice)}
           isBusy={isBusy}
@@ -2234,7 +2275,7 @@ function App() {
       {isMobile && workspaceHeader}
       {isMobile ? (
         <>
-          <main id="workspace-content" tabIndex={-1} ref={mobileScrollRef} className="workspace mobile-workspace" aria-label={mobilePageTitle} inert={isReconnecting ? true : undefined}>
+          <main id="workspace-content" tabIndex={-1} ref={mobileScrollRef} className="workspace mobile-workspace" aria-label={mobilePageTitle} inert={showReconnectOverlay ? true : undefined}>
           {activeTab !== "eq" && <h1 className="visually-hidden">{mobilePageTitle}</h1>}
           {showGraph && (activeTab === "eq" || activeTab === "tuning") && (
             <section className={`mobile-graph-container mobile-graph-${activeTab} ${graphCollapsed ? "collapsed" : ""}`}>
@@ -2348,6 +2389,7 @@ function App() {
                   onOpenConnectModal={handleOpenDeviceModal}
                   onDisconnect={connected ? disconnectDevice : undefined}
                   onPreviewChange={handlePreviewChange}
+                  onExpectedDisconnect={handleExpectedDisconnect}
                 />
               </section>
             )}
@@ -2375,7 +2417,7 @@ function App() {
         </main>
       </>
       ) : (
-        <main className={`workspace desktop-workspace desktop-view-${activeTab}`} aria-label="Workspace" inert={isReconnecting ? true : undefined}>
+        <main className={`workspace desktop-workspace desktop-view-${activeTab}`} aria-label="Workspace" inert={showReconnectOverlay ? true : undefined}>
           <aside className="desktop-sidebar">
             <Link className="desktop-brand" to={workspacePath("eq")} aria-label="Glacier EQ home">
               <span>Glacier EQ</span>
@@ -2487,17 +2529,18 @@ function App() {
             settingsSection={settingsSection}
             onDisconnect={connected ? disconnectDevice : undefined}
             onPreviewChange={handlePreviewChange}
+            onExpectedDisconnect={handleExpectedDisconnect}
           />
           )}
           </div>
         </main>
       )}
-      {isReconnecting && (
+      {showReconnectOverlay && (
         <div
           className="reconnecting-overlay"
           role="alertdialog"
           aria-modal="true"
-          aria-label="Connection lost"
+          aria-label={Date.now() < expectedRestartUntilRef.current ? "Reconnecting" : "Connection lost"}
           onKeyDown={(e) => {
             if (e.key === "Tab") {
               e.preventDefault();
@@ -2510,7 +2553,7 @@ function App() {
         >
           <div className="reconnecting-card">
             <div className="reconnecting-spinner"></div>
-            <h3>Connection lost</h3>
+            <h3>{Date.now() < expectedRestartUntilRef.current ? "DAC is restarting" : "Connection lost"}</h3>
             <p>
               Reconnecting to <strong>{connectedDeviceName}</strong>...
             </p>

@@ -1,3 +1,5 @@
+import type { DacOfficialSpec } from "./lib/dacSpecs";
+
 export type FilterType = "Peak" | "LowShelf" | "HighShelf" | "HighPass" | "LowPass";
 
 export interface Filter {
@@ -76,6 +78,9 @@ export interface DeviceCapabilities {
   integer_preamp: boolean;
 }
 
+/** Device controls beyond EQ; each set has its own commands and panel. */
+export type DeviceControls = "walkplay" | "dawn_pro" | "ja11";
+
 export interface DeviceInfo extends DeviceCapabilities {
   vendor_id: number;
   product_id: number;
@@ -84,6 +89,8 @@ export interface DeviceInfo extends DeviceCapabilities {
   product_string: string | null;
   profile_name: string | null;
   hardware_eq: boolean;
+  controls: DeviceControls | null;
+  spec: DacOfficialSpec | null;
 }
 
 export interface SupportedDeviceInfo extends DeviceCapabilities {
@@ -94,6 +101,8 @@ export interface SupportedDeviceInfo extends DeviceCapabilities {
   status: string;
   family: string;
   hardware_eq: boolean;
+  controls: DeviceControls | null;
+  spec: DacOfficialSpec | null;
 }
 
 export interface Profile {

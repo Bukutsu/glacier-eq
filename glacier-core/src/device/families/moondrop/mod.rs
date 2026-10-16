@@ -1,9 +1,10 @@
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::device::protocol::{checked_scaled_i16, checked_scaled_u16, EqProtocol, Packet};
+use crate::device::families::walkplay::compute_iir_filter;
+use crate::device::packet::{checked_scaled_i16, checked_scaled_u16, Packet};
+use crate::device::protocol::{EqProtocol, GainEncoding, Protocol, Quirks};
 use crate::device::timing::WriteTiming;
-use crate::device::walkplay::compute_iir_filter;
 use crate::eq::filter::DEFAULT_FREQS_10_BAND;
 use crate::eq::{Filter, FilterType, PEQData};
 
@@ -12,6 +13,11 @@ use crate::eq::{Filter, FilterType, PEQData};
 const BAND_COUNT: u8 = 8;
 const DSP_SAMPLE_RATE: f64 = 96_000.0;
 const CUSTOM_EQ_SELECT: u8 = 7;
+
+pub static PROTOCOL: Protocol = Protocol {
+    id: "Moondrop",
+    eq: Some(&MoondropProtocol),
+};
 
 pub struct MoondropProtocol;
 
@@ -75,6 +81,15 @@ fn coefficient_bytes(filter: &Filter, gain: f64) -> Result<[u8; 20], String> {
 }
 
 impl EqProtocol for MoondropProtocol {
+    fn gain_encoding(&self) -> GainEncoding {
+        GainEncoding {
+            band_units_per_db: 256.0,
+            band_step_db: None,
+            band_readback_per_db: 10.0,
+            preamp_step_db: 0.1,
+        }
+    }
+
     fn write_timing(&self) -> WriteTiming {
         WriteTiming {
             // The session delays between bands, not between each packet in a
@@ -87,6 +102,7 @@ impl EqProtocol for MoondropProtocol {
             flood_delay_ms: 50,
             post_gain_read_ms: 50,
             init_ms: 50,
+            packet_gap_ms: 0,
         }
     }
 
@@ -273,6 +289,13 @@ impl EqProtocol for MoondropProtocol {
         vec![]
     }
 
+    fn quirks(&self) -> Quirks {
+        Quirks {
+            set_report_writes: true,
+            ..Quirks::default()
+        }
+    }
+
     fn report_id(&self) -> u8 {
         0x4B
     }
@@ -299,7 +322,11 @@ mod tests {
     // headers and a per-band latch; prefer the newer explicit protocol tests.
     macro_rules! fixture {
         ($name:literal) => {
-            include_bytes!(concat!("../../tests/fixtures/moondrop/", $name, ".bin"))
+            include_bytes!(concat!(
+                "../../../../tests/fixtures/moondrop/",
+                $name,
+                ".bin"
+            ))
         };
     }
 

@@ -1356,12 +1356,14 @@ version = "0.1.2"
 dependencies = [
  "fs2",
  "hidapi",
+ "js-sys",
  "libc",
  "log",
  "proptest",
  "serde",
  "serde-wasm-bindgen",
  "wasm-bindgen",
+ "wasm-bindgen-futures",
 ]
 
 [[package]]

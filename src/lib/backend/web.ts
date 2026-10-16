@@ -4,7 +4,6 @@
 
 import type {
   AppSettings,
-  DeviceCapabilities,
   Filter,
   FilterType,
   PEQData,
@@ -61,6 +60,7 @@ function emitEvent(event: string, payload: unknown) {
 }
 
 let webHidDisconnectListenerInstalled = false;
+const webHidDisconnectEpochs = new WeakMap<HIDDevice, number>();
 
 function ensureWebHid(): HID {
   const hid = navigator.hid;
@@ -69,7 +69,9 @@ function ensureWebHid(): HID {
   }
   if (!webHidDisconnectListenerInstalled) {
     hid.addEventListener("disconnect", (event: any) => {
-      markWebHidDisconnected(event.device);
+      const device: HIDDevice = event.device;
+      webHidDisconnectEpochs.set(device, (webHidDisconnectEpochs.get(device) ?? 0) + 1);
+      markWebHidDisconnected(device);
     });
     webHidDisconnectListenerInstalled = true;
   }
@@ -232,6 +234,7 @@ function setupHidEventListeners(device: HIDDevice) {
     const framed = new Uint8Array(bytes.length + 1);
     framed[0] = event.reportId;
     framed.set(bytes, 1);
+    addDiagnostic("Info", "HID", `RX ${hidHex(framed)}`);
 
     if (reportResolvers.length > 0) {
       const resolver = reportResolvers.shift();
@@ -248,12 +251,21 @@ function setupHidEventListeners(device: HIDDevice) {
   device.addEventListener("inputreport", listener);
 }
 
+function hidHex(bytes: number[] | Uint8Array): string {
+  let used = bytes.length;
+  while (used > 0 && bytes[used - 1] === 0) used--;
+  const hex = Array.from(bytes.slice(0, used), byte => byte.toString(16).padStart(2, "0")).join(" ");
+  return hex + (used < bytes.length ? ` (+${bytes.length - used} zero bytes)` : "");
+}
+
 async function sendReport(packet: number[] | Uint8Array): Promise<void> {
   const device = activeDevice;
   if (!device) throw new Error("No device connected");
   try {
     await device.sendReport(packet[0], new Uint8Array(packet.slice(1)));
+    addDiagnostic("Info", "HID", `TX ${hidHex(packet)}`);
   } catch (error) {
+    addDiagnostic("Error", "HID", `TX failed ${hidHex(packet)}: ${error}`);
     markWebHidDisconnected(device);
     throw error;
   }
@@ -264,10 +276,6 @@ export class WebHidReadTimeout extends Error {
     super("Timeout reading from device");
     this.name = "WebHidReadTimeout";
   }
-}
-
-export function shouldRetryWebHidRead(error: unknown, connected: boolean): boolean {
-  return connected && error instanceof WebHidReadTimeout;
 }
 
 async function readReport(timeoutMs: number): Promise<Uint8Array> {
@@ -289,59 +297,12 @@ async function readReport(timeoutMs: number): Promise<Uint8Array> {
   });
 }
 
-async function readMatchingReport(
-  timeoutMs: number,
-  matches: (report: Uint8Array) => boolean,
-): Promise<Uint8Array | null> {
-  for (let attempt = 0; attempt < 20; attempt++) {
-    if (!activeDevice) throw new Error("Device disconnected");
-    try {
-      const report = await readReport(timeoutMs);
-      if (!activeDevice) throw new Error("Device disconnected");
-      if (matches(report)) return report;
-    } catch (error) {
-      if (!shouldRetryWebHidRead(error, activeDevice !== null)) throw error;
-    }
-  }
-  return null;
-}
-
-async function readMatchingReportOnce(
-  timeoutMs: number,
-  matches: (report: Uint8Array) => boolean,
-): Promise<Uint8Array | null> {
-  if (!activeDevice) throw new Error("Device disconnected");
-  try {
-    const report = await readReport(timeoutMs);
-    if (!activeDevice) throw new Error("Device disconnected");
-    return matches(report) ? report : null;
-  } catch (error) {
-    if (shouldRetryWebHidRead(error, activeDevice !== null)) return null;
-    throw error;
-  }
-}
-
-async function sendPackets(packets: (number[] | Uint8Array)[], delayMs = 0): Promise<void> {
-  for (const packet of packets) {
-    await sendReport(packet);
-    if (delayMs > 0) await sleep(delayMs);
-  }
-}
-
 export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 interface ParsedStorage<T> {
   value: T;
   malformed: boolean;
 }
-
-const UNCORRELATED_GAIN_ERROR =
-  "Global gain read required retry; refusing uncorrelated state";
-
-// Mirrors glacier-core's UNVERIFIED_PUSH_WARNING. Both adapters must say it,
-// or a push with verification switched off reads as a confirmed commit.
-const UNVERIFIED_PUSH_WARNING =
-  "pushed without reading the DAC back, so its stored EQ was not verified";
 
 const DEFAULT_WEB_SETTINGS: AppSettings = {
   auto_pull_on_connect: true,
@@ -662,408 +623,57 @@ function loadWebProfiles(): Profile[] {
   return loadValidatedStorage("glacier-eq-profiles", [], parseWebProfiles);
 }
 
-const CMD_FILTER_MODE = 17;
-const CMD_AMP_MODE = 29;
-const CMD_GAIN_MODE = 25;
-const CMD_MIC_VOLUME = 2;
-
-function walkplayPacket(payload: number[]): number[] {
-  return [0x4b, ...payload];
-}
-
-function supportsWalkplayUtilities(): boolean {
-  return activeProfile?.protocol === "Walkplay";
-}
-
-function connectedProfile(): SupportedDeviceInfo {
-  if (!activeProfile) throw new Error("No device connected");
-  return activeProfile;
-}
-
-function activeProfileIds(profile: SupportedDeviceInfo): { vendorId: number; productId: number } {
-  const productId = profile.product_id ?? activeDevice?.productId;
-  if (productId === undefined) throw new Error("No device is connected");
-  return { vendorId: profile.vendor_id, productId };
-}
-
-interface NormalizedPeqOutcome {
-  peq: unknown;
-  warnings?: unknown;
-}
-
-function normalizeActivePeq(
-  value: unknown,
-  profile: SupportedDeviceInfo,
-): { peq: PEQData; warnings: string[] } {
-  const peq = parseStoredPeq(value);
-  if (!peq) throw new Error("Invalid PEQ data");
-  const { vendorId, productId } = activeProfileIds(profile);
-  const outcome = wasm().normalize_peq_for_device(peq, vendorId, productId) as NormalizedPeqOutcome;
-  const normalized = parseStoredPeq(outcome?.peq);
-  if (!normalized) throw new Error("Device normalization returned invalid PEQ data");
-  // Clamp warnings must survive to the invoke result: they are the only
-  // signal that the push rewrote out-of-range values.
-  const warnings = Array.isArray(outcome.warnings)
-    ? outcome.warnings.filter((warning): warning is string => typeof warning === "string")
-    : [];
-  return { peq: normalized, warnings };
-}
-
-function requireWalkplayUtilities(): SupportedDeviceInfo {
-  const profile = connectedProfile();
-  if (profile.protocol !== "Walkplay") {
-    throw new Error(`${profile.name} does not support Walkplay utility controls`);
-  }
-  return profile;
-}
-
-function validateControlRange(label: string, value: unknown): asserts value is number {
-  if (typeof value !== "number" || !Number.isInteger(value) || value < -15 || value > 15) {
-    throw new Error(`${label} must be between -15 and 15`);
-  }
-}
-
-function unsupportedUtilityState() {
-  return {
-    supported: false,
-    filter_mode: "FAST-LL",
-    amp_mode_class_ab: false,
-    high_gain_mode: false,
-    mic_volume_db: 0,
-    channel_balance: 0,
+// The only browser-specific part of a device operation is transporting bytes.
+// Pin the connection identity so a pending command cannot migrate to a replacement.
+async function runDeviceOperation<T>(command: string, args?: unknown): Promise<T> {
+  const device = activeDevice;
+  const sessionId = activeSessionId;
+  if (!device || !activeProfile) throw new Error("No device connected");
+  const requireSession = () => {
+    if (activeDevice !== device || activeSessionId !== sessionId) {
+      throw new Error("Device disconnected or session changed");
+    }
   };
-}
-
-async function writeAndFlash(packet: number[] | Uint8Array) {
-  await sendReport(packet);
-  await sleep(50);
-  await sendReport(wasm().build_flash_eq_packet());
-}
-
-async function readWalkplayUtility(cmd: number): Promise<Uint8Array> {
-  reportQueue = [];
-  for (let retry = 0; retry < 3; retry++) {
-    if (retry > 0) reportQueue = [];
-    try {
-      await sendReport(walkplayPacket([0x80, cmd, 0x00]));
-      await sleep(25);
-      const report = await readMatchingReport(100, (data) =>
-        data.length >= (cmd === CMD_MIC_VOLUME ? 6 : 5) && data[0] === 0x4b && data[1] === 0x80 && data[2] === cmd
-      );
-      if (report) return report;
-    } catch (error) {
-      if (!activeDevice) throw error;
-    }
-    await sleep(40);
-  }
-  throw new Error(`Timeout reading device utility ${cmd}`);
-}
-
-async function readWalkplayBalance(channel: number): Promise<number> {
-  reportQueue = [];
-  for (let retry = 0; retry < 3; retry++) {
-    if (retry > 0) reportQueue = [];
-    try {
-      await sendReport(walkplayPacket([0x80, 0x16, 0x01, channel]));
-      await sleep(25);
-      const report = await readMatchingReport(100, (data) =>
-        data.length >= 7 && data[0] === 0x4b && data[1] === 0x80 && data[2] === 0x16 && data[4] === channel
-      );
-      if (report) return report[6];
-    } catch (error) {
-      if (!activeDevice) throw error;
-    }
-    await sleep(40);
-  }
-  throw new Error(`Timeout reading channel ${channel} balance`);
-}
-
-function disabledFilter(index: number): Filter {
-  return {
-    index,
-    enabled: false,
-    filter_type: "Peak",
-    freq: 1000,
-    gain: 0,
-    q: 1,
-  };
-}
-
-function validatePulledPeqForProfile(peq: PEQData, profile: SupportedDeviceInfo): void {
-  const globalTolerance = 0.001;
-  if (
-    peq.global_gain < profile.global_gain_range[0] - globalTolerance ||
-    peq.global_gain > profile.global_gain_range[1] + globalTolerance
-  ) {
-    throw new Error(`Pulled preamp ${peq.global_gain} dB is outside the device range`);
-  }
-  if (peq.filters.length > profile.num_bands) {
-    throw new Error("Pulled EQ has too many bands for the device");
-  }
-  for (const filter of peq.filters) {
-    const gainTolerance = profile.gain_tolerance ?? 0.15;
-    const freqTolerance = profile.freq_tolerance ?? 1;
-    const qTolerance = profile.q_tolerance ?? 0.05;
-    if (
-      filter.index < 0 ||
-      filter.index >= profile.num_bands ||
-      !profile.supported_filter_types.includes(filter.filter_type) ||
-      filter.freq < profile.freq_range[0] - freqTolerance ||
-      filter.freq > profile.freq_range[1] + freqTolerance ||
-      filter.gain < profile.band_gain_range[0] - gainTolerance ||
-      filter.gain > profile.band_gain_range[1] + gainTolerance ||
-      filter.q < profile.q_range[0] - qTolerance ||
-      filter.q > profile.q_range[1] + qTolerance
-    ) {
-      throw new Error(`Pulled band ${filter.index + 1} is outside device capabilities`);
-    }
-  }
-}
-
-export function peqVerificationError(
-  actual: PEQData,
-  expected: PEQData,
-  capabilities: Pick<
-    DeviceCapabilities,
-    "supports_per_band_enable" | "gain_tolerance" | "freq_tolerance" | "q_tolerance"
-  >,
-): string | null {
-  if (Math.abs(actual.global_gain - expected.global_gain) > 0.001) {
-    return `Global gain mismatch: expected ${expected.global_gain}, got ${actual.global_gain}`;
-  }
-  if (actual.filters.length !== expected.filters.length) {
-    return `Filter count mismatch: expected ${expected.filters.length}, got ${actual.filters.length}`;
-  }
-
-  const gainTolerance = capabilities.gain_tolerance ?? 0.15;
-  const freqTolerance = capabilities.freq_tolerance ?? 1;
-  const qTolerance = capabilities.q_tolerance ?? 0.05;
-  for (let index = 0; index < expected.filters.length; index++) {
-    const actualFilter = actual.filters[index];
-    const expectedFilter = expected.filters[index];
-    const expectedGain = expectedFilter.enabled ? expectedFilter.gain : 0;
-    const metadataMismatch = expectedFilter.enabled && (
-      Math.abs(actualFilter.freq - expectedFilter.freq) > freqTolerance ||
-      Math.abs(actualFilter.q - expectedFilter.q) > qTolerance ||
-      actualFilter.filter_type !== expectedFilter.filter_type
-    );
-    if (
-      Math.abs(actualFilter.gain - expectedGain) > gainTolerance ||
-      metadataMismatch ||
-      (capabilities.supports_per_band_enable && actualFilter.enabled !== expectedFilter.enabled)
-    ) {
-      return `Band ${expectedFilter.index + 1} mismatch`;
-    }
-  }
-  return null;
-}
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
-export function persistentPushFailureMessage(pushError: unknown, restoreError: unknown | null): string {
-  const push = errorMessage(pushError);
-  return restoreError === null
-    ? `Persistent push failed: ${push}; previous state restored`
-    : `Persistent push failed: ${push}; restore failed: ${errorMessage(restoreError)}`;
-}
-
-function resetPeq(numBands: number): PEQData {
-  return {
-    global_gain: 0,
-    filters: Array.from({ length: numBands }, (_, index) => disabledFilter(index)),
-  };
-}
-
-async function writeEqPayload(protocol: string, peq: PEQData, initMessage: string) {
-  const timing = wasm().get_write_timing(protocol);
-
-  emitEvent("operation-progress", { message: initMessage, percentage: 10 });
-  await sendPackets(wasm().build_init_packets(protocol));
-  await sleep(50);
-
-  const total = peq.filters.length;
-  for (let i = 0; i < total; i++) {
-    emitEvent("operation-progress", {
-      message: `Writing band ${i + 1}/${total}…`,
-      percentage: 15.0 + (i / total) * 60.0,
-    });
-
-    await sendPackets(wasm().build_write_filter_packets(
-      protocol,
-      i,
-      peq.filters[i],
-      connectedProfile().dsp_sample_rate || 96000.0,
-      peq.global_gain,
-    ));
-    await sleep(timing.per_filter_ms || 80);
-  }
-
-  emitEvent("operation-progress", { message: "Writing preamp…", percentage: 75 });
-  await sleep(timing.batch_ms || 100);
-  await sendPackets(wasm().build_write_global_gain_packets(protocol, peq.global_gain));
-  await sleep(timing.global_gain_ms || 50);
-}
-
-async function commitEqPayload(protocol: string, progressMessage: string): Promise<void> {
-  const timing = wasm().get_write_timing(protocol);
-  emitEvent("operation-progress", { message: progressMessage, percentage: 80 });
-  for (const packet of wasm().build_commit_packets(protocol)) {
-    await sendReport(packet);
-    await sleep(timing.commit_step_ms || 100);
-  }
-}
-
-async function restorePersistentState(
-  protocol: string,
-  backup: PEQData,
-  profile: SupportedDeviceInfo,
-): Promise<void> {
-  await writeEqPayload(protocol, backup, "Restoring previous device EQ…");
-  await commitEqPayload(protocol, "Saving restored EQ to DAC…");
-  const restored = await pullEqState(profile);
-  validatePulledPeqForProfile(restored, profile);
-  const mismatch = peqVerificationError(restored, backup, profile);
-  if (mismatch) throw new Error(mismatch);
-}
-
-async function applyRamPayload(protocol: string, peq: PEQData, initMessage: string): Promise<void> {
-  await writeEqPayload(protocol, peq, initMessage);
-  const timing = wasm().get_write_timing(protocol);
-  emitEvent("operation-progress", { message: "Applying temporary EQ…", percentage: 85 });
-  for (const packet of wasm().build_ram_apply_packets(protocol)) {
-    await sendReport(packet);
-    await sleep(timing.commit_step_ms || 100);
-  }
-}
-
-async function readGlobalGain(protocol: string): Promise<{ value: number; retried: boolean }> {
-  const req = wasm().build_read_global_gain_request(protocol);
-  // Global-gain frames have no transaction nonce. Once this request is sent,
-  // retrying the whole pull could accept a late response from the first
-  // request, so fail closed on every transport/read failure instead.
-  try {
-    await sendReport(req);
-    const response = await readMatchingReport(200, (data) =>
-      wasm().matches_global_gain_response(protocol, data)
-    );
-    if (!response) throw new Error(UNCORRELATED_GAIN_ERROR);
-    return {
-      value: wasm().parse_global_gain_response(protocol, response),
-      retried: false,
-    };
-  } catch (error) {
-    if (errorMessage(error).includes(UNCORRELATED_GAIN_ERROR)) throw error;
-    throw new Error(UNCORRELATED_GAIN_ERROR);
-  }
-}
-
-async function pullEqStateOnce(profile: SupportedDeviceInfo): Promise<PEQData> {
-  const protocol = profile.protocol;
-  const numBands = profile.num_bands;
-  reportQueue = [];
-  await sendPackets(wasm().build_init_packets(protocol));
-  await sleep(50);
-  // Init packets can generate unsolicited frames. Quarantine them after the
-  // init settle window and immediately before issuing the nonce-less gain
-  // request, matching the native session's init drain.
-  await sleep(0);
-  reportQueue = [];
-
-  const firstGain = await readGlobalGain(protocol);
-  let global_gain = firstGain.value;
-  if (firstGain.retried) {
-    // The wire format has no gain nonce. A retry can accept a late response
-    // from the first command, so fail closed instead of using it as truth.
-    throw new Error(UNCORRELATED_GAIN_ERROR);
-  }
-
-  const filters: Filter[] = [];
-  const timing = wasm().get_write_timing(protocol);
-  await sleep(timing.post_gain_read_ms || 0);
-
-  for (let i = 0; i < numBands; i++) {
-    emitEvent("operation-progress", {
-      message: `Reading band ${i + 1}/${numBands}…`,
-      percentage: Math.round(((i + 1) / numBands) * 90),
-    });
-
-    let filter: Filter | null = null;
-
-    for (let retry = 0; retry < 3; retry++) {
-      if (retry > 0) reportQueue = [];
-      nextFilterNonce = (nextFilterNonce + 1) & 0xff;
-      if (nextFilterNonce === 0) nextFilterNonce = 1;
-      const nonce = nextFilterNonce;
-      const filterReq = wasm().build_read_filter_request(protocol, i, nonce);
+  const io = {
+    nonce: nextFilterNonce,
+    async write(bytes: Uint8Array) {
+      requireSession();
+      await sendReport(bytes);
+      requireSession();
+    },
+    async read(timeoutMs: number) {
+      requireSession();
       try {
-        await sendReport(filterReq);
-        const res = await readMatchingReport(250, (data) =>
-          wasm().matches_filter_response(protocol, data, i, nonce)
-        );
-        if (res) {
-          if (!wasm().is_filter_response_valid(protocol, res, i, nonce)) {
-            throw new Error(`Invalid band ${i + 1} response values`);
-          }
-          filter = parseStoredFilter(wasm().parse_filter_response(protocol, res));
-          if (!filter) throw new Error(`Invalid band ${i + 1} response`);
-          break;
-        }
+        const bytes = await readReport(timeoutMs);
+        requireSession();
+        return bytes;
       } catch (error) {
-        if (!activeDevice) throw error;
-        console.warn(`Retry ${retry + 1} reading band ${i} failed:`, error);
+        requireSession();
+        if (error instanceof WebHidReadTimeout) return new Uint8Array();
+        throw error;
       }
-    }
-
-    if (!filter) throw new Error(`Failed to read band ${i + 1}`);
-    filters.push(filter);
-    await sleep(timing.flood_delay_ms || 5);
-  }
-
-  const peq = { filters, global_gain };
-  validatePulledPeqForProfile(peq, profile);
-  return peq;
-}
-
-async function pullEqState(profile: SupportedDeviceInfo): Promise<PEQData> {
-  let firstAttemptFailed = false;
-  let firstError: unknown = null;
+    },
+    sleep,
+  };
+  const request = {
+    ...(isRecord(args) ? args : {}),
+    command,
+    ...(command === "set_eq_state"
+      ? { skip_verification: loadWebSettings().skip_push_verification }
+      : {}),
+  };
   try {
-    const first = await pullEqStateOnce(profile);
-    const { vendorId, productId } = activeProfileIds(profile);
-    if (!wasm().is_default_peq_for_device(first, vendorId, productId)) return first;
-  } catch (error) {
-    firstAttemptFailed = true;
-    firstError = error;
+    return await wasm().device_operation(
+      device.vendorId, device.productId, io, request,
+      (message: string, percentage: number) =>
+        emitEvent("operation-progress", { message, percentage }),
+      io.nonce,
+    ) as T;
+  } finally {
+    // Rust publishes the last nonce it consumed on success and failure.
+    // Keep allocation continuous without inspecting protocol packets here.
+    nextFilterNonce = io.nonce;
   }
-
-  if (firstAttemptFailed && errorMessage(firstError).includes(UNCORRELATED_GAIN_ERROR)) {
-    throw firstError;
-  }
-
-  await sleep(100);
-  // A default after a failed attempt is not corroborated device state. Treat
-  // it as an error just like the native session does; otherwise a transient
-  // flat frame could become a rollback snapshot.
-  const retry = await pullEqStateOnce(profile);
-  if (firstAttemptFailed) {
-    const { vendorId, productId } = activeProfileIds(profile);
-    if (wasm().is_default_peq_for_device(retry, vendorId, productId)) {
-      throw new Error(`${errorMessage(firstError)}; retry returned an unconfirmed default EQ state`);
-    }
-  }
-  return retry;
-}
-
-function parseWalkplayFirmwareVersion(data: Uint8Array): string | null {
-  const bytes = Array.from(data.slice(3, 10));
-  let version = "";
-  for (const byte of bytes) {
-    if (byte < 0x21 || byte > 0x7e) break;
-    version += String.fromCharCode(byte);
-  }
-  return version || null;
 }
 
 // ─── Tauri Command Mock Routing ──────────────────────────────────────────────
@@ -1081,6 +691,7 @@ const WEBHID_TRANSPORT_COMMANDS = new Set([
   "set_eq_state",
   "apply_eq_state",
   "get_dac_utility_state",
+  "ja11_control",
   "set_dac_filter_mode",
   "set_dac_work_mode",
   "set_dac_output_gain",
@@ -1105,6 +716,7 @@ const WEBHID_TRANSPORT_COMMANDS = new Set([
  */
 function parseSupportedDeviceInfo(value: unknown): SupportedDeviceInfo | null {
   if (!isRecord(value)) return null;
+  const spec = value.spec;
   const pair = (raw: unknown): [number, number] | null =>
     Array.isArray(raw) && raw.length === 2 && isFiniteNumber(raw[0]) && isFiniteNumber(raw[1])
       ? [raw[0], raw[1]]
@@ -1117,6 +729,11 @@ function parseSupportedDeviceInfo(value: unknown): SupportedDeviceInfo | null {
     typeof value.status !== "string" ||
     typeof value.family !== "string" ||
     typeof value.hardware_eq !== "boolean" ||
+    !(value.controls === null || value.controls === "walkplay" || value.controls === "dawn_pro" || value.controls === "ja11") ||
+    !(spec === null || (isRecord(spec) &&
+      ["name", "chip", "outputs"].every(key => typeof spec[key] === "string") &&
+      ["maxPower", "decoding", "snr", "thd"].every(key =>
+        spec[key] === undefined || typeof spec[key] === "string"))) ||
     !isFiniteNumber(value.num_bands) ||
     typeof value.supports_per_band_enable !== "boolean" ||
     typeof value.supports_ram_apply !== "boolean" ||
@@ -1145,6 +762,8 @@ function parseSupportedDeviceInfo(value: unknown): SupportedDeviceInfo | null {
     status: value.status,
     family: value.family,
     hardware_eq: value.hardware_eq,
+    controls: value.controls,
+    spec: value.spec as SupportedDeviceInfo["spec"],
     num_bands: value.num_bands,
     global_gain_range: globalGainRange,
     band_gain_range: bandGainRange,
@@ -1178,7 +797,12 @@ function serializeWebHid<T>(operation: () => Promise<T>): Promise<T> {
 }
 
 export async function invoke<T = unknown>(cmd: string, args?: any): Promise<T> {
-  const operation = () => invokeWeb<T>(cmd, args);
+  const expectedSession = activeSessionId;
+  const operation = () => {
+    if (cmd === "ja11_control" && expectedSession !== activeSessionId)
+      throw new Error("Device session changed; operation was cancelled");
+    return invokeWeb<T>(cmd, args);
+  };
   return WEBHID_TRANSPORT_COMMANDS.has(cmd) ? serializeWebHid(operation) : operation();
 }
 
@@ -1464,6 +1088,7 @@ async function invokeWeb<T = unknown>(cmd: string, args?: any): Promise<T> {
         throw new Error("Device is unsupported or unavailable. Select 'Scan for devices' to authorize a supported DAC.");
       }
 
+      const disconnectEpoch = webHidDisconnectEpochs.get(target);
       if (activeDevice && activeDevice !== target) {
         detachHidEventListeners(activeDevice);
         try { await activeDevice.close(); } catch {}
@@ -1493,6 +1118,12 @@ async function invokeWeb<T = unknown>(cmd: string, args?: any): Promise<T> {
       activeDevice = null;
       if (!target.opened) {
         await target.open();
+      }
+      if (webHidDisconnectEpochs.get(target) !== disconnectEpoch) {
+        // The global disconnect handler cannot clear an identity that has not
+        // been installed yet. Fence a disconnect that raced open() explicitly.
+        try { await target.close(); } catch {}
+        throw new Error("Device disconnected while connecting. Reconnect the DAC and try again.");
       }
       activeDevice = target;
       reportQueue = [];
@@ -1555,219 +1186,32 @@ async function invokeWeb<T = unknown>(cmd: string, args?: any): Promise<T> {
       }
       return null as T;
     }
-    case "get_firmware_version": {
-      if (!activeDevice || activeProfile?.protocol !== "Walkplay") return null as T;
-
-      let report: Uint8Array | null = null;
-      reportQueue = [];
-      for (let retry = 0; retry < 3 && !report; retry++) {
-        if (retry > 0) reportQueue = [];
-        await sendReport([0x4b, 0x80, 0x0c, 0x00]);
-        report = await readMatchingReportOnce(500, (data) =>
-          data.length >= 11 && data[0] === 0x4b && data[1] === 0x80 && data[2] === 0x0c
-        );
+    case "get_firmware_version":
+    case "get_eq_state":
+    case "set_eq_state":
+    case "apply_eq_state":
+    case "get_dac_utility_state":
+      return await runDeviceOperation<T>(cmd, args);
+    case "ja11_control": {
+      if (!activeDevice || activeProfile?.controls !== "ja11" || args?.path !== webHidPath(activeDevice)) {
+        throw new Error("These controls require the displayed JA11");
       }
-      if (!report) throw new Error("Firmware read timeout");
-      return parseWalkplayFirmwareVersion(report.slice(1)) as T;
+      const { path: _path, ...request } = args;
+      return await runDeviceOperation<T>(cmd, request);
     }
-    case "get_eq_state": {
-      return await pullEqState(connectedProfile()) as T;
-    }
-    case "set_eq_state": {
-      const profile = connectedProfile();
-      const protocol = profile.protocol;
-      const { peq, warnings } = normalizeActivePeq(commandField(args, "peq"), profile);
-      const skipVerification = loadWebSettings().skip_push_verification;
-      const backup = await pullEqState(profile);
-      validatePulledPeqForProfile(backup, profile);
-
-      if (skipVerification) {
-        try {
-          await writeEqPayload(protocol, peq, "Preparing unverified EQ write…");
-          await commitEqPayload(protocol, "Saving unverified EQ to DAC…");
-        } catch (pushError) {
-          let restoreError: unknown | null = null;
-          try {
-            await restorePersistentState(protocol, backup, profile);
-          } catch (error) {
-            restoreError = error;
-          }
-          throw new Error(persistentPushFailureMessage(pushError, restoreError));
-        }
-        emitEvent("operation-progress", { message: "Write complete (unverified)", percentage: 100 });
-        // There is no readback on this path, so the returned PEQ is the
-        // request, not a readback of what the DAC stored. Say so, exactly as
-        // DeviceSession::unverified_push does, instead of letting the UI read
-        // it as a confirmed commit.
-        return {
-          ...peq,
-          warnings: [...warnings, UNVERIFIED_PUSH_WARNING],
-        } as T;
-      }
-
-      let actual: PEQData;
-      try {
-        await writeEqPayload(protocol, peq, "Preparing EQ write…");
-        await commitEqPayload(protocol, "Saving EQ to DAC…");
-        actual = await pullEqState(profile);
-        validatePulledPeqForProfile(actual, profile);
-        const mismatch = peqVerificationError(actual, peq, profile);
-        if (mismatch) throw new Error(mismatch);
-      } catch (pushError) {
-        let restoreError: unknown | null = null;
-        try {
-          await restorePersistentState(protocol, backup, profile);
-        } catch (error) {
-          restoreError = error;
-        }
-        throw new Error(persistentPushFailureMessage(pushError, restoreError));
-      }
-
-      emitEvent("operation-progress", { message: "Write complete", percentage: 100 });
-      return { ...actual, warnings } as T;
-    }
-    case "apply_eq_state": {
-      const profile = connectedProfile();
-      if (!profile.supports_ram_apply) {
-        throw new Error(`${profile.name} does not advertise volatile RAM apply support`);
-      }
-      const protocol = profile.protocol;
-      const { peq, warnings } = normalizeActivePeq(commandField(args, "peq"), profile);
-      const backup = await pullEqState(profile);
-      validatePulledPeqForProfile(backup, profile);
-      try {
-        await applyRamPayload(protocol, peq, "Preparing temporary EQ…");
-      } catch (applyError) {
-        let restoreError: unknown | null = null;
-        try {
-          await applyRamPayload(protocol, backup, "Restoring previous temporary EQ…");
-          const restored = await pullEqState(profile);
-          validatePulledPeqForProfile(restored, profile);
-          const mismatch = peqVerificationError(restored, backup, profile);
-          if (mismatch) throw new Error(mismatch);
-        } catch (error) {
-          restoreError = error;
-        }
-        throw new Error(
-          restoreError === null
-            ? `RAM apply failed: ${errorMessage(applyError)}; previous state restored`
-            : `RAM apply failed: ${errorMessage(applyError)}; restore failed: ${errorMessage(restoreError)}`,
-        );
-      }
-
-      emitEvent("operation-progress", { message: "Temporary EQ applied", percentage: 100 });
-      return { ...peq, warnings } as T;
-    }
-
-    // ─── Walkplay Hardware controls ──────────────────────────────────────────
+    case "set_dac_filter_mode":
+    case "set_dac_work_mode":
+    case "set_dac_output_gain":
+    case "set_dac_balance":
+    case "set_mic_volume":
+    case "reset_device_eq":
+    case "reset_device_controls":
+    case "execute_factory_reset":
+      return await runDeviceOperation<T>(cmd, args);
     case "get_dawn_pro_state":
     case "set_dawn_pro_control":
-      // The hardware-verified Windows path needs Input GET_REPORT, which
-      // WebHID cannot request. Do not substitute receiveFeatureReport.
+      // WebHID has no Input GET_REPORT. A Feature Report is not a substitute.
       throw new Error("Original Dawn Pro controls require the desktop app; WebHID cannot request its input GET_REPORT.");
-
-    case "get_dac_utility_state": {
-      if (!activeDevice || !supportsWalkplayUtilities()) return unsupportedUtilityState() as T;
-
-      const filter = await readWalkplayUtility(CMD_FILTER_MODE);
-      await sleep(25);
-      const amp = await readWalkplayUtility(CMD_AMP_MODE);
-      await sleep(25);
-      const gain = await readWalkplayUtility(CMD_GAIN_MODE);
-      await sleep(25);
-      const mic = await readWalkplayUtility(CMD_MIC_VOLUME);
-      await sleep(25);
-      const leftRaw = await readWalkplayBalance(0);
-      await sleep(25);
-      const rightRaw = await readWalkplayBalance(1);
-      const left = leftRaw > 0 ? Math.min(256 - leftRaw, 15) : 0;
-      const right = rightRaw > 0 ? Math.min(256 - rightRaw, 15) : 0;
-      const filterMode = {
-        1: "FAST-LL",
-        2: "FAST-PC",
-        3: "Slow-LL",
-        4: "Slow-PC",
-        5: "NON-OS",
-      }[filter[4]];
-      if (!filterMode || amp[4] === undefined || gain[4] === undefined || mic[5] === undefined) {
-        throw new Error("Device utility response was incomplete");
-      }
-
-      return {
-        supported: true,
-        filter_mode: filterMode,
-        amp_mode_class_ab: amp[4] === 1,
-        high_gain_mode: gain[4] === 1,
-        mic_volume_db: mic[5] << 24 >> 24,
-        channel_balance: left > 0 ? left : right > 0 ? -right : 0,
-      } as T;
-    }
-    case "set_dac_filter_mode": {
-      requireWalkplayUtilities();
-      // The four sibling Walkplay commands all validate their argument, two
-      // of them with a comment explaining the coercion hazard. The generated
-      // glue runs this value through TextEncoder.encode, so a non-string
-      // reached the device instead of being rejected — the desktop's
-      // `mode: String` refuses it.
-      const mode = commandField(args, "mode");
-      if (typeof mode !== "string") throw new Error("Invalid filter mode");
-      await writeAndFlash(wasm().build_filter_mode_write_packet(mode));
-      return null as T;
-    }
-    case "set_dac_work_mode": {
-      requireWalkplayUtilities();
-      // The generated wasm glue has no bool shim, so a non-boolean lands on an
-      // i32 parameter and is ToInt32-coerced: "yes" and {} both silently write
-      // Class-AB = OFF. set_dac_work_mode/is_class_ab is a Rust `bool`, which
-      // rejects them outright, so the two adapters must agree.
-      const isClassAb = commandField(args, "isClassAb");
-      if (typeof isClassAb !== "boolean") throw new Error("Invalid amp mode");
-      await writeAndFlash(wasm().build_amp_mode_write_packet(isClassAb));
-      return null as T;
-    }
-    case "set_dac_output_gain": {
-      requireWalkplayUtilities();
-      const isHighGain = commandField(args, "isHighGain");
-      if (typeof isHighGain !== "boolean") throw new Error("Invalid gain mode");
-      await writeAndFlash(wasm().build_gain_mode_write_packet(isHighGain));
-      return null as T;
-    }
-    case "set_dac_balance": {
-      requireWalkplayUtilities();
-      const balance = commandField(args, "balance");
-      validateControlRange("Balance", balance);
-      const packets = wasm().build_balance_write_packets(balance);
-      await sendPackets(packets, 20);
-      const flash = wasm().build_flash_eq_packet();
-      await sendReport(flash);
-      return null as T;
-    }
-    case "set_mic_volume": {
-      requireWalkplayUtilities();
-      const volumeDb = commandField(args, "volumeDb");
-      validateControlRange("Mic volume", volumeDb);
-      await writeAndFlash(wasm().build_mic_volume_write_packet(volumeDb));
-      return null as T;
-    }
-    case "reset_device_eq": {
-      const peq = resetPeq(activeProfile?.num_bands ?? 10);
-      await invokeWeb("set_eq_state", { peq });
-      return null as T;
-    }
-    case "reset_device_controls": {
-      requireWalkplayUtilities();
-      await invokeWeb("set_dac_filter_mode", { mode: "FAST-LL" });
-      await invokeWeb("set_dac_work_mode", { isClassAb: false });
-      await invokeWeb("set_dac_output_gain", { isHighGain: false });
-      await invokeWeb("set_mic_volume", { volumeDb: 0 });
-      await invokeWeb("set_dac_balance", { balance: 0 });
-      return invokeWeb<T>("get_dac_utility_state");
-    }
-    case "execute_factory_reset": {
-      requireWalkplayUtilities();
-      await writeAndFlash(wasm().build_factory_reset_packet());
-      return null as T;
-    }
 
     default:
       // Match Tauri's unknown-command rejection: returning null would let
@@ -1782,7 +1226,7 @@ export async function requestWebHidDevice(): Promise<void> {
   const supported = listSupportedDevices();
   const filters = supported.map((s) => ({
     vendorId: s.vendor_id,
-    productId: s.product_id || undefined,
+    productId: s.product_id ?? undefined,
   }));
 
   const selected = await ensureWebHid().requestDevice({ filters });

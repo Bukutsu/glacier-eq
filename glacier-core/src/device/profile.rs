@@ -4,42 +4,39 @@
 //! `DeviceProfile` — static identity and capability metadata for a USB DAC model.
 
 use crate::device::capabilities::{DeviceCapabilities, EditorCapabilities};
+use crate::device::protocol::Protocol;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DeviceProtocol {
-    // Keep protocol identity in profiles so the next hardware family gets an
-    // explicit command path instead of being routed through Walkplay by accident.
+/// Device controls beyond EQ. Each set has its own commands and UI panel.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Controls {
+    /// Walkplay utility registers: firmware version, DAC filter, amp and gain
+    /// mode, balance, mic volume, factory reset.
     Walkplay,
-    Moondrop,
-    /// Original Moondrop Dawn Pro: sound controls only, no hardware EQ.
+    /// Original Dawn Pro (2FC6:F06A): volume, gain, filter, LED.
     DawnPro,
-    FiioJa11,
-    Fiio,
-    FiioKa17,
-    /// Matching fallback for unrecognized devices; never drives hardware.
-    Unknown,
+    /// JA11 microphone, USB audio mode and output volume (source-reviewed only).
+    Ja11,
 }
 
-impl DeviceProtocol {
-    pub fn name(self) -> &'static str {
-        match self {
-            Self::Walkplay => "Walkplay",
-            Self::Moondrop => "Moondrop",
-            Self::DawnPro => "Moondrop Dawn Pro",
-            Self::FiioJa11 => "FiiO JA11",
-            Self::Fiio => "FiiO",
-            Self::FiioKa17 => "FiiO KA17",
-            Self::Unknown => "Unknown",
-        }
-    }
-
-    pub fn has_hardware_eq(self) -> bool {
-        !matches!(self, Self::DawnPro | Self::Unknown)
-    }
+/// Official published specs for display only, never protocol capabilities.
+#[derive(Debug, Clone, Copy, Serialize, PartialEq)]
+pub struct DacSpec {
+    pub name: &'static str,
+    pub chip: &'static str,
+    pub outputs: &'static str,
+    #[serde(rename = "maxPower", skip_serializing_if = "Option::is_none")]
+    pub max_power: Option<&'static str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub decoding: Option<&'static str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub snr: Option<&'static str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub thd: Option<&'static str>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct DeviceInfo {
     pub vendor_id: u16,
     pub product_id: u16,
@@ -48,6 +45,8 @@ pub struct DeviceInfo {
     pub product_string: Option<String>,
     pub profile_name: Option<String>,
     pub hardware_eq: bool,
+    pub controls: Option<Controls>,
+    pub spec: Option<DacSpec>,
     #[serde(flatten)]
     pub capabilities: EditorCapabilities,
 }
@@ -55,10 +54,45 @@ pub struct DeviceInfo {
 /// Static identity and capability metadata for a supported USB DAC model.
 pub struct DeviceProfile {
     pub name: &'static str,
-    pub protocol: DeviceProtocol,
+    pub protocol: &'static Protocol,
     pub vendor_id: u16,
     pub product_id: Option<u16>,
     pub status: &'static str,
     pub family: &'static str,
     pub caps: DeviceCapabilities,
+    pub controls: Option<Controls>,
+    pub spec: Option<DacSpec>,
+}
+
+/// A catalog entry as the UI receives it.
+#[derive(Debug, Clone, Serialize)]
+pub struct SupportedDeviceInfo {
+    pub name: &'static str,
+    pub protocol: &'static str,
+    pub vendor_id: u16,
+    pub product_id: Option<u16>,
+    pub status: &'static str,
+    pub family: &'static str,
+    pub hardware_eq: bool,
+    pub controls: Option<Controls>,
+    pub spec: Option<DacSpec>,
+    #[serde(flatten)]
+    pub capabilities: EditorCapabilities,
+}
+
+impl From<&DeviceProfile> for SupportedDeviceInfo {
+    fn from(profile: &DeviceProfile) -> Self {
+        Self {
+            name: profile.name,
+            protocol: profile.protocol.id,
+            vendor_id: profile.vendor_id,
+            product_id: profile.product_id,
+            status: profile.status,
+            family: profile.family,
+            hardware_eq: profile.protocol.has_hardware_eq(),
+            controls: profile.controls,
+            spec: profile.spec,
+            capabilities: (&profile.caps).into(),
+        }
+    }
 }

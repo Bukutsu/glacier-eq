@@ -3,6 +3,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router";
 import { DeviceView, formatChannelBalance } from "./DeviceView";
+import { buildDevPreviewDevice, DEV_DUMMY_DEVICE } from "../lib/devDevice";
 
 vi.mock("@glacier-eq/backend", () => ({
   invoke: vi.fn(async () => {
@@ -26,6 +27,24 @@ function renderDeviceView(props: Partial<Parameters<typeof DeviceView>[0]> = {})
 }
 
 describe("DeviceView markup", () => {
+  it("shows interactive JA11 controls for a virtual model, not an arbitrary simulation", () => {
+    const deviceInfo = buildDevPreviewDevice({
+      ...DEV_DUMMY_DEVICE, name: "JA11 simulation render", protocol: "FiiO JA11",
+      vendor_id: 0x2972, product_id: 0x0102, num_bands: 5,
+      status: "Tested", family: "FiiO", controls: "ja11",
+    });
+    const html = renderDeviceView({ connected: true, isSimulated: true,
+      section: "controls", deviceInfo });
+    expect(html).toContain("Inline microphone");
+    expect(html).toContain("USB audio mode");
+    expect(html).toContain('type="range"');
+    expect(html).toContain("update mock values immediately");
+    expect(html).not.toContain("Changes apply directly to the connected DAC");
+    const fake = renderDeviceView({ connected: true, isSimulated: true,
+      section: "controls", deviceInfo: { ...deviceInfo, path: "/physical-ja11" } });
+    expect(fake).not.toContain('id="ja11-volume"');
+  });
+
   it("renders a compact summary card and plain navigation on the root section", () => {
     const html = renderDeviceView();
     expect(html).toContain("device-summary");
@@ -79,7 +98,7 @@ describe("DeviceView markup", () => {
   it("routes only the exact original Dawn Pro to its own controls", () => {
     const html = renderDeviceView({
       connected: true, section: "controls",
-      deviceInfo: { path: "dawn", vendor_id: 0x2fc6, product_id: 0xf06a, product_name: "Dawn Pro" },
+      deviceInfo: { path: "dawn", vendor_id: 0x2fc6, product_id: 0xf06a, controls: "dawn_pro", product_name: "Dawn Pro" },
     });
     expect(html).toContain("Reading Dawn Pro settings");
     expect(html).not.toContain("Controls unavailable");
@@ -90,10 +109,21 @@ describe("DeviceView markup", () => {
     expect(other).not.toContain("Reading Dawn Pro settings");
   });
 
+  it.each([0x0101, 0x0102])("routes JA11 %s by catalog controls metadata", product_id => {
+    const html = renderDeviceView({
+      connected: true, section: "controls",
+      deviceInfo: { path: "ja11", vendor_id: 0x2972, product_id, controls: "ja11" },
+    });
+    expect(html).toContain("Inline microphone");
+    expect(html).toContain("Source-reviewed, not hardware-verified");
+    expect(html).not.toContain("Controls unavailable");
+    expect(html).not.toContain("Class AB amplifier");
+  });
+
   it("offers no EQ or Walkplay resets for a DAC without them", () => {
     const html = renderDeviceView({
       connected: true, section: "maintenance",
-      deviceInfo: { path: "dawn", vendor_id: 0x2fc6, product_id: 0xf06a, hardware_eq: false },
+      deviceInfo: { path: "dawn", vendor_id: 0x2fc6, product_id: 0xf06a, controls: "dawn_pro", hardware_eq: false },
     });
     expect(html).not.toContain("Reset EQ");
     expect(html).not.toContain("Reset controls");

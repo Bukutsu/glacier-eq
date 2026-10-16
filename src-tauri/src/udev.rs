@@ -149,8 +149,7 @@ pub const LEGACY_DEST_PATH: &str = "/etc/udev/rules.d/99-glacier-eq.rules";
 #[cfg(target_os = "linux")]
 const EXPECTED_RULES: &str = include_str!("../../udev/69-glacier-eq.rules");
 #[cfg(target_os = "linux")]
-const EXPECTED_RULES_SHA256: &str =
-    "20deaec429a39ea7acd57ef14002664b83398c8e813e4d5005da9b1ff7f95a77";
+const EXPECTED_RULES_SHA256: &str = env!("GLACIER_UDEV_SHA256");
 
 #[derive(Debug, Clone, Serialize)]
 pub struct UdevStatus {
@@ -511,6 +510,43 @@ pub async fn uninstall_udev_rules() -> Result<(), String> {
 #[cfg(all(test, target_os = "linux"))]
 mod tests {
     use super::*;
+
+    #[test]
+    fn shipped_rules_match_the_pinned_hash() {
+        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../udev/69-glacier-eq.rules");
+        let output = Command::new("sha256sum").arg(path).output().unwrap();
+        let output = String::from_utf8(output.stdout).unwrap();
+        let actual = output.split_whitespace().next().unwrap();
+        assert_eq!(
+            actual, EXPECTED_RULES_SHA256,
+            "build-time digest must match the embedded rules"
+        );
+    }
+
+    #[test]
+    fn shipped_rules_grant_every_catalog_device() {
+        let attr = |line: &str, name: &str| -> Option<String> {
+            let value = line.split(&format!("ATTRS{{{name}}}==\"")).nth(1)?;
+            Some(value.split('"').next()?.to_lowercase())
+        };
+        let rules: Vec<(String, Option<String>)> = EXPECTED_RULES
+            .lines()
+            .filter(|line| !line.trim_start().starts_with('#'))
+            .filter_map(|line| Some((attr(line, "idVendor")?, attr(line, "idProduct"))))
+            .collect();
+        for device in glacier_core::SUPPORTED_DEVICES {
+            let vendor = format!("{:04x}", device.vendor_id);
+            let product = device.product_id.map(|id| format!("{id:04x}"));
+            assert!(
+                rules
+                    .iter()
+                    .any(|(v, p)| *v == vendor && (p.is_none() || *p == product)),
+                "{} ({vendor}:{}) has no rule in udev/69-glacier-eq.rules",
+                device.name,
+                product.as_deref().unwrap_or("any PID")
+            );
+        }
+    }
 
     #[test]
     fn bounded_command_preserves_status_and_stderr() {

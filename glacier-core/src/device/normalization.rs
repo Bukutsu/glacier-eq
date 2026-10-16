@@ -3,7 +3,7 @@
 
 //! Device-bound PEQ validation and normalization.
 
-use super::{get_supported_device, DeviceCapabilities, DeviceProfile, DeviceProtocol, EqProtocol};
+use super::{get_supported_device, DeviceCapabilities, DeviceProfile, Protocol};
 use crate::eq::{FilterType, PEQData};
 
 /// Validates and normalizes PEQ data for a device profile before a hardware write.
@@ -32,7 +32,7 @@ pub fn normalize_peq_for_device(
 pub fn normalize_peq_for_capabilities(
     mut peq: PEQData,
     caps: &DeviceCapabilities,
-    protocol: DeviceProtocol,
+    protocol: &Protocol,
 ) -> Result<(PEQData, Vec<String>), String> {
     validate_capabilities(caps)?;
     validate_peq(&peq)?;
@@ -74,7 +74,11 @@ pub fn is_default_peq_for_device(
     product_id: u16,
 ) -> Result<bool, String> {
     let profile = selected_profile(vendor_id, product_id)?;
-    Ok(profile.protocol.is_default_state(peq))
+    let eq = profile
+        .protocol
+        .eq
+        .ok_or_else(|| format!("{} has no hardware EQ", profile.name))?;
+    Ok(eq.is_default_state(peq))
 }
 
 pub fn validate_peq(peq: &PEQData) -> Result<(), String> {
@@ -133,8 +137,19 @@ pub(crate) fn validate_peq_for_capabilities(
 }
 
 pub(crate) fn validate_capabilities(caps: &DeviceCapabilities) -> Result<(), String> {
-    if caps.num_bands == 0 {
-        return Err("Device must support at least one band".into());
+    if caps.num_bands == 0 || caps.num_bands > u8::MAX as usize + 1 {
+        return Err("Device band count must be between 1 and 256 (8-bit band indices)".into());
+    }
+    if caps.supported_filter_types.is_empty() {
+        return Err("Device must support at least one filter type".into());
+    }
+    if !caps.gain_tolerance.is_finite()
+        || caps.gain_tolerance < 0.0
+        || !caps.q_tolerance.is_finite()
+        || caps.q_tolerance < 0.0
+        || caps.freq_tolerance < 0
+    {
+        return Err("Device comparison tolerances must be finite and nonnegative".into());
     }
     if caps.global_gain_range.0 > caps.global_gain_range.1 {
         return Err("Device global gain range is invalid".into());
@@ -179,36 +194,29 @@ fn selected_profile(vendor_id: u16, product_id: u16) -> Result<&'static DevicePr
 
 fn quantize_band_gain(
     gain: f64,
-    protocol: DeviceProtocol,
+    protocol: &Protocol,
     caps: &DeviceCapabilities,
 ) -> Result<f64, String> {
-    match protocol {
-        // FiiO encodes band gain in 0.1 dB units. Select a representable value
-        // inside the declared capability envelope rather than quantizing first
-        // and accidentally exceeding the cap.
-        DeviceProtocol::FiioJa11 | DeviceProtocol::Fiio | DeviceProtocol::FiioKa17 => {
-            quantize_step_within(gain, 0.1, caps.band_gain_range, "band gain")
-        }
-        DeviceProtocol::Moondrop
-        | DeviceProtocol::Walkplay
-        | DeviceProtocol::DawnPro
-        | DeviceProtocol::Unknown => Ok(gain),
+    // Select a representable value inside the declared capability envelope
+    // rather than quantizing first and accidentally exceeding the cap.
+    match protocol
+        .eq
+        .and_then(|protocol| protocol.gain_encoding().band_step_db)
+    {
+        Some(step) => quantize_step_within(gain, step, caps.band_gain_range, "band gain"),
+        None => Ok(gain),
     }
 }
 
 fn quantize_preamp(
     global_gain: f64,
-    protocol: DeviceProtocol,
+    protocol: &Protocol,
     caps: &DeviceCapabilities,
 ) -> Result<f64, String> {
-    let step = match protocol {
-        DeviceProtocol::Walkplay => 1.0,
-        DeviceProtocol::Moondrop
-        | DeviceProtocol::FiioJa11
-        | DeviceProtocol::Fiio
-        | DeviceProtocol::FiioKa17 => 0.1,
-        DeviceProtocol::DawnPro | DeviceProtocol::Unknown => return Ok(global_gain),
+    let Some(protocol) = protocol.eq else {
+        return Ok(global_gain);
     };
+    let step = protocol.gain_encoding().preamp_step_db;
     quantize_step_within(
         global_gain,
         step,
@@ -353,7 +361,7 @@ mod tests {
                 global_gain: 0.0,
             },
             &caps,
-            DeviceProtocol::FiioJa11,
+            &crate::device::families::fiio::JA11,
         )
         .unwrap();
         assert_eq!(normalized.filters[0].gain, 0.0);
@@ -379,7 +387,7 @@ mod tests {
                 global_gain: 0.0,
             },
             &caps,
-            DeviceProtocol::FiioJa11,
+            &crate::device::families::fiio::JA11,
         )
         .unwrap_err();
         assert!(error.contains("shelf center"), "{error}");
@@ -409,6 +417,18 @@ mod tests {
     }
 
     #[test]
+    fn capability_validation_accepts_full_u8_index_space_and_exact_comparisons() {
+        let caps = super::super::capabilities::DeviceCapabilities {
+            num_bands: 256,
+            gain_tolerance: 0.0,
+            freq_tolerance: 0,
+            q_tolerance: 0.0,
+            ..super::super::capabilities::DESKTOP_DAC_CAPS
+        };
+        assert!(validate_capabilities(&caps).is_ok());
+    }
+
+    #[test]
     fn normalization_rejects_invalid_capability_ranges() {
         let peq = PEQData {
             filters: vec![filter()],
@@ -417,12 +437,12 @@ mod tests {
         let mut caps = crate::device::capabilities::DESKTOP_DAC_CAPS;
         caps.q_range = (3.0, 0.5);
         assert!(
-            normalize_peq_for_capabilities(peq.clone(), &caps, DeviceProtocol::Unknown).is_err()
+            normalize_peq_for_capabilities(peq.clone(), &caps, &crate::device::UNKNOWN).is_err()
         );
 
         caps.q_range = (0.5, 3.0);
         caps.freq_range = (20_000, 20);
-        assert!(normalize_peq_for_capabilities(peq, &caps, DeviceProtocol::Unknown).is_err());
+        assert!(normalize_peq_for_capabilities(peq, &caps, &crate::device::UNKNOWN).is_err());
     }
 
     #[test]

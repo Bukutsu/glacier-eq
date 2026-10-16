@@ -35,6 +35,7 @@ function setup() {
     connectionGenerationRef, connectedPathRef, connectedSessionIdRef,
     eqOperationInFlightRef: { current: false }, eqOperationIdRef: { current: 0 },
     manualDisconnectRef: { current: false },
+    expectedRestartUntilRef: { current: 0 },
     getAsyncContext: () => ({
       editorRevision, connectionRevision: connectionGenerationRef.current,
       operationRevision: operationRevisionRef.current,
@@ -55,6 +56,16 @@ function setup() {
 }
 
 describe("push completion", () => {
+  it("reports a JA11 save restart without claiming post-restart verification", async () => {
+    const t = setup();
+    t.invoke.mockResolvedValue({ ...t.committed, warnings: [], restarts: true });
+    await t.push();
+    expect(t.scope.expectedRestartUntilRef.current).toBeGreaterThan(Date.now());
+    expect(t.reportStatus).toHaveBeenCalledWith(expect.objectContaining({
+      level: "Info", message: "Saved EQ to DAC; restart expected, waiting to reconnect",
+    }));
+  });
+
   it("adopts rounded readback and records success despite its own editor revision change", async () => {
     const t = setup();
     await t.push();
@@ -90,6 +101,7 @@ describe("push completion", () => {
     expect(t.setPeq).not.toHaveBeenCalled();
     expect(t.setLastPushedPeq).not.toHaveBeenCalled();
     expect(t.reportStatus).not.toHaveBeenCalled();
+    expect(t.scope.expectedRestartUntilRef.current).toBe(0);
   });
 
   it("reports write failures even when the editor changed during the write", async () => {
