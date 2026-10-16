@@ -513,6 +513,47 @@ mod tests {
     use super::*;
 
     #[test]
+    fn shipped_rules_match_the_pinned_hash() {
+        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../udev/69-glacier-eq.rules");
+        let output = Command::new("sha256sum").arg(path).output().unwrap();
+        let output = String::from_utf8(output.stdout).unwrap();
+        let actual = output.split_whitespace().next().unwrap();
+        // The installer refuses a file whose hash differs. After editing the
+        // rules, update EXPECTED_RULES_SHA256, then point UDEV_RULES_COMMIT
+        // and UDEV_RULES_SHA256 in src/components/LinuxUdevGuide.tsx at the
+        // commit that ships the new file.
+        assert_eq!(
+            actual, EXPECTED_RULES_SHA256,
+            "udev/69-glacier-eq.rules changed; update EXPECTED_RULES_SHA256"
+        );
+    }
+
+    #[test]
+    fn shipped_rules_grant_every_catalog_device() {
+        let attr = |line: &str, name: &str| -> Option<String> {
+            let value = line.split(&format!("ATTRS{{{name}}}==\"")).nth(1)?;
+            Some(value.split('"').next()?.to_lowercase())
+        };
+        let rules: Vec<(String, Option<String>)> = EXPECTED_RULES
+            .lines()
+            .filter(|line| !line.trim_start().starts_with('#'))
+            .filter_map(|line| Some((attr(line, "idVendor")?, attr(line, "idProduct"))))
+            .collect();
+        for device in glacier_core::SUPPORTED_DEVICES {
+            let vendor = format!("{:04x}", device.vendor_id);
+            let product = device.product_id.map(|id| format!("{id:04x}"));
+            assert!(
+                rules
+                    .iter()
+                    .any(|(v, p)| *v == vendor && (p.is_none() || *p == product)),
+                "{} ({vendor}:{}) has no rule in udev/69-glacier-eq.rules",
+                device.name,
+                product.as_deref().unwrap_or("any PID")
+            );
+        }
+    }
+
+    #[test]
     fn bounded_command_preserves_status_and_stderr() {
         let (status, stderr) = run_bounded(
             Command::new("sh").args(["-c", "printf 'script failed' >&2; exit 42"]),

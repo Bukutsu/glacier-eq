@@ -49,6 +49,80 @@ impl DeviceProtocol {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::device::SUPPORTED_DEVICES;
+    use crate::eq::Filter;
+
+    /// The contract session/ and wasm.rs rely on, checked for every catalog
+    /// profile with hardware EQ, so a new DAC or protocol is covered by
+    /// adding its catalog entry.
+    #[test]
+    fn every_catalog_profile_meets_the_shared_flow_contract() {
+        for device in SUPPORTED_DEVICES {
+            let Some(protocol) = device.protocol.eq_protocol() else {
+                continue;
+            };
+            let name = device.name;
+            let caps = &device.caps;
+            let encoding = protocol.gain_encoding();
+            assert!(
+                encoding.band_units_per_db > 0.0
+                    && encoding.band_readback_per_db > 0.0
+                    && encoding.preamp_units_per_db > 0.0
+                    && encoding.preamp_step_db > 0.0
+                    && encoding.band_step_db.is_none_or(|step| step > 0.0),
+                "{name}: gain encoding needs positive scales"
+            );
+
+            let mut packets = protocol.init_packets();
+            packets.extend(protocol.commit_packets());
+            packets.extend(protocol.ram_apply_packets());
+            packets.push(protocol.read_global_gain_request());
+            let (low, high) = caps.global_gain_range;
+            for gain in [low, 0, high] {
+                let writes = protocol.write_global_gain_packets(gain.into());
+                assert!(!writes.is_empty(), "{name}: no preamp write for {gain} dB");
+                packets.extend(writes);
+            }
+            for index in 0..caps.num_bands as u8 {
+                packets.push(protocol.read_filter_request(index, 1));
+                for &filter_type in caps.supported_filter_types {
+                    // 4 kHz: shelves near 1 kHz already overflow Walkplay's
+                    // ±2.0 coefficient range at 96 kHz; the encoder rejects them.
+                    let filter = Filter {
+                        index,
+                        enabled: true,
+                        freq: 4000,
+                        gain: 1.0,
+                        q: 1.0,
+                        filter_type,
+                    };
+                    let writes = protocol
+                        .write_filter_packets(index, &filter, caps.dsp_sample_rate, 0.0)
+                        .unwrap_or_else(|error| {
+                            panic!("{name}: band {index} {filter_type:?}: {error}")
+                        });
+                    // wasm.rs rejects a band write unless one packet passes this.
+                    assert!(
+                        writes
+                            .iter()
+                            .any(|packet| protocol.is_filter_packet_valid(&packet.payload)),
+                        "{name}: band {index} {filter_type:?} write is not a valid filter packet"
+                    );
+                    packets.extend(writes);
+                }
+            }
+
+            for packet in &packets {
+                assert_eq!(packet.report_id, protocol.report_id(), "{name}: {packet:?}");
+                let framed = packet.framed();
+                assert_eq!(
+                    protocol.unframe_packet(&framed),
+                    Ok(&framed[1..]),
+                    "{name}: {packet:?}"
+                );
+            }
+        }
+    }
 
     #[test]
     fn ka17_dispatch_uses_its_model_protocol() {
