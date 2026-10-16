@@ -7,6 +7,7 @@ use crate::device::timing::WriteTiming;
 use crate::eq::filter::DEFAULT_FREQS_10_BAND;
 use crate::eq::{Filter, FilterType, PEQData};
 
+pub mod ja11;
 mod models;
 pub use models::{JA11, KA17, KA_SERIES};
 #[cfg(test)]
@@ -26,6 +27,9 @@ pub struct FiioProtocol {
     filter_count: u8,
     user_slot: u8,
     clamp_gain: bool,
+    command_interval_ms: Option<u64>,
+    sends_filter_count: bool,
+    apply_after_write: bool,
     quirks: Quirks,
 }
 
@@ -147,8 +151,8 @@ fn write_filter_packet(report_id: u8, index: u8, filter: &Filter) -> Packet {
 }
 
 fn write_global_gain_packet(report_id: u8, global_gain: f64) -> Packet {
-    // devicePEQ's captured general format is signed BE tenths of a dB.
-    // JA11 negative preamp writes still require independent hardware verification.
+    // Signed BE tenths of a dB: devicePEQ captures and FiiO Control's JA11
+    // codec per weekssa/OPRA-EQ-for-UAPP (-3.9 dB is FF D9).
     let [first, second] = ((global_gain * 10.0).round() as i16).to_be_bytes();
     Packet::new(
         report_id,
@@ -176,7 +180,21 @@ impl EqProtocol for FiioProtocol {
     }
 
     fn write_timing(&self) -> WriteTiming {
-        WriteTiming::default()
+        match self.command_interval_ms {
+            None => WriteTiming::default(),
+            // Cyfine/ja11-web-control PROTOCOL.md and weekssa/OPRA-EQ-for-UAPP
+            // FiioJa11Timing.kt: 200 ms commands, 500 ms initial settle.
+            Some(ms) => WriteTiming {
+                per_filter_ms: ms,
+                batch_ms: ms,
+                global_gain_ms: ms,
+                commit_step_ms: ms,
+                flood_delay_ms: ms,
+                post_gain_read_ms: ms,
+                init_ms: 500,
+                packet_gap_ms: ms,
+            },
+        }
     }
 
     fn is_default_state(&self, peq: &PEQData) -> bool {
@@ -276,7 +294,9 @@ impl EqProtocol for FiioProtocol {
         let mut packets = Vec::new();
         if index == 0 {
             packets.push(preset_packet(self.report_id, 0x16, self.user_slot));
-            packets.push(preset_packet(self.report_id, 0x18, self.filter_count));
+            if self.sends_filter_count {
+                packets.push(preset_packet(self.report_id, 0x18, self.filter_count));
+            }
         }
         packets.push(write_filter_packet(self.report_id, index, filter));
         Ok(packets)
@@ -288,11 +308,16 @@ impl EqProtocol for FiioProtocol {
         } else {
             global_gain
         };
-        vec![write_global_gain_packet(self.report_id, gain)]
+        let mut packets = vec![write_global_gain_packet(self.report_id, gain)];
+        if self.apply_after_write {
+            packets.push(preset_packet(self.report_id, 0x18, 1));
+        }
+        packets
     }
 
     fn commit_packets(&self) -> Vec<Packet> {
-        // 0x18 sets the filter count; persistence is 0x19 on all three models.
+        // Persistence is 0x19 on all three models. JA11 uses 0x18 = 1 Apply
+        // after preamp, never a count before bands (FiiO Control / Ircama).
         vec![preset_packet(self.report_id, 0x19, self.user_slot)]
     }
 
@@ -351,10 +376,10 @@ mod tests {
     #[test]
     fn only_ja11_has_quirks() {
         let quirks = JA11_EQ.quirks();
-        assert!(quirks.gain_read_optional && quirks.save_resets_device);
+        assert!(quirks.save_resets_device);
         for protocol in [KA_SERIES_EQ, KA17_EQ] {
             let quirks = protocol.quirks();
-            assert!(!quirks.gain_read_optional && !quirks.save_resets_device);
+            assert!(!quirks.save_resets_device);
         }
         // The frame web.ts must send last on JA11 (report ID 2).
         assert_eq!(
@@ -418,8 +443,10 @@ mod tests {
             assert_eq!(writes[0].report_id, capture.report_id);
             assert_eq!(writes[0].payload[4], 0x16);
             assert_eq!(writes[0].payload[6], capture.preset[6]);
-            assert_eq!(writes[1].payload, capture.count_write);
-            assert!(protocol.is_filter_packet_valid(&writes[2].payload));
+            if protocol.sends_filter_count {
+                assert_eq!(writes[1].payload, capture.count_write);
+            }
+            assert!(protocol.is_filter_packet_valid(&writes.last().unwrap().payload));
             let commit = protocol.commit_packets();
             assert_eq!(commit.len(), 1);
             assert_eq!(commit[0].report_id, capture.report_id);

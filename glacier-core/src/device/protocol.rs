@@ -51,11 +51,6 @@ impl std::fmt::Debug for Protocol {
 /// Per-model behavior that changes how the shared read/write/verify flow runs.
 #[derive(Clone, Copy, Default, serde::Serialize)]
 pub struct Quirks {
-    /// Some firmware never answers the global-gain query (JCally JM12
-    /// cross-flashed with JA11 firmware). When true, an unanswered gain read
-    /// is reported as unknown instead of failing the whole read, matching
-    /// Ircama/ja11-config's best-effort behavior.
-    pub gain_read_optional: bool,
     /// The DAC re-enumerates on USB shortly after the save command (JA11, as
     /// devicePEQ's `disconnectOnSave` records). Nothing may be read or written
     /// after the save, so pushes verify the RAM state first and save last.

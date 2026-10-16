@@ -10,8 +10,13 @@ pub(super) const JA11_EQ: FiioProtocol = FiioProtocol {
     filter_count: 5,
     user_slot: 3,
     clamp_gain: true,
+    command_interval_ms: Some(200),
+    // 0x18 = 5 before bands caused a stuck-read state on JM12/JA11 firmware.
+    // FiiO Control (weekssa/OPRA-EQ-for-UAPP) and Ircama/ja11-config instead
+    // send 0x18 = 1 after bands and preamp, then save last.
+    sends_filter_count: false,
+    apply_after_write: true,
     quirks: Quirks {
-        gain_read_optional: true,
         save_resets_device: true,
         set_report_writes: false,
     },
@@ -23,8 +28,10 @@ pub(super) const KA_SERIES_EQ: FiioProtocol = FiioProtocol {
     filter_count: 10,
     user_slot: 9,
     clamp_gain: false,
+    command_interval_ms: None,
+    sends_filter_count: true,
+    apply_after_write: false,
     quirks: Quirks {
-        gain_read_optional: false,
         save_resets_device: false,
         set_report_writes: false,
     },
@@ -35,8 +42,10 @@ pub(super) const KA17_EQ: FiioProtocol = FiioProtocol {
     filter_count: 10,
     user_slot: 4,
     clamp_gain: false,
+    command_interval_ms: None,
+    sends_filter_count: true,
+    apply_after_write: false,
     quirks: Quirks {
-        gain_read_optional: false,
         save_resets_device: false,
         set_report_writes: false,
     },

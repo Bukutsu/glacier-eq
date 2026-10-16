@@ -5,6 +5,7 @@
 
 mod command;
 mod io;
+mod ja11;
 pub use command::{DeviceCommand, DeviceOutcome, EqWriteOutcome};
 
 #[cfg(test)]
@@ -27,10 +28,8 @@ const RETRY_DELAY_MS: u64 = 100;
 /// needs to stop reading it as a confirmed commit.
 pub const UNVERIFIED_PUSH_WARNING: &str =
     "pushed without reading the DAC back, so its stored EQ was not verified";
-/// Attached when the DAC never answered the preamp query, so the preamp was
-/// written but neither read nor verified.
-pub const UNKNOWN_GAIN_WARNING: &str =
-    "DAC did not report its preamp; preamp was written but not verified";
+/// JA11 failed its required preamp read; do not continue into band timeouts.
+pub const DAC_UNRESPONSIVE_ERROR: &str = "DAC is not responding. Unplug and replug the DAC";
 const UNCORRELATED_GAIN_ERROR: &str =
     "Global gain read required retry; refusing uncorrelated state";
 
@@ -54,9 +53,8 @@ pub struct DeviceSession<'a, I: DeviceIo = BlockingIo<'a>> {
     last_pull_gain_read_completed: bool,
     gain_read_requires_correlation: bool,
     last_read_was_retried: bool,
-    /// The last pull got no gain reply from a protocol where that is allowed;
-    /// its global_gain is a 0 dB placeholder, not device truth.
-    last_pull_gain_unknown: bool,
+    /// A restart-causing write may have landed; no more I/O in this transaction.
+    restart_attempted: bool,
 }
 
 impl<'a, I: DeviceIo> DeviceSession<'a, I> {
@@ -76,7 +74,7 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
             last_pull_gain_read_completed: false,
             gain_read_requires_correlation: false,
             last_read_was_retried: false,
-            last_pull_gain_unknown: false,
+            restart_attempted: false,
         }
     }
 
@@ -99,7 +97,20 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
             .expect("EQ operations check require_hardware_eq first")
     }
 
+    fn require_open_transaction(&self) -> Result<(), String> {
+        if self.restart_attempted {
+            Err("DAC restart write attempted; reconnect before further operations".into())
+        } else {
+            Ok(())
+        }
+    }
+
+    pub fn save_restarts_device(&self) -> bool {
+        self.profile.protocol.quirks().save_resets_device
+    }
+
     fn require_hardware_eq(&self) -> Result<(), String> {
+        self.require_open_transaction()?;
         if self.profile.protocol.has_hardware_eq() {
             super::normalization::validate_capabilities(&self.profile.caps)
         } else {
@@ -125,7 +136,7 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
                 self.pull_once().await
             }
             Err(first) => {
-                if first.contains(UNCORRELATED_GAIN_ERROR) {
+                if first.contains(UNCORRELATED_GAIN_ERROR) || first == DAC_UNRESPONSIVE_ERROR {
                     return Err(first);
                 }
                 let first_sent_gain = self.last_pull_sent_gain_request;
@@ -165,6 +176,8 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
         validate_peq_for_capabilities(&backup, &self.profile.caps)?;
         // A DAC that resets on save cannot be read back afterwards, so its
         // RAM state is verified first and the save is the last packet sent.
+        // JA11 ordering follows jeromeof/devicePEQ (disconnectOnSave) and
+        // Ircama/ja11-config (save_to_flash sends the final packet).
         let save_last = self.protocol().quirks().save_resets_device;
         let attempt: Result<PEQData, String> = (async {
             self.write_to_ram(&normalized)
@@ -187,13 +200,8 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
             }
             validate_peq_for_capabilities(&actual, &self.profile.caps)
                 .map_err(|error| format!("Push verification failed: {error}"))?;
-            compare_peq(
-                &actual,
-                &normalized,
-                &self.profile.caps,
-                !self.last_pull_gain_unknown,
-            )
-            .map_err(|error| format!("Push verification failed: {error}"))?;
+            compare_peq(&actual, &normalized, &self.profile.caps)
+                .map_err(|error| format!("Push verification failed: {error}"))?;
             if save_last {
                 self.commit()
                     .await
@@ -203,16 +211,12 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
         })
         .await;
         match attempt {
-            Ok(mut actual) => {
-                let mut warnings = warnings;
-                if self.last_pull_gain_unknown {
-                    // The readback has no preamp; report what was written.
-                    actual.global_gain = normalized.global_gain;
-                    warnings.push(UNKNOWN_GAIN_WARNING.to_string());
-                }
+            Ok(actual) => {
                 self.progress("Write complete", 100.0);
                 Ok((actual, warnings))
             }
+            // Delivery may have succeeded even when the transport returned an error.
+            Err(error) if self.restart_attempted => Err(error),
             Err(error) => Err(match self.restore_and_verify(&backup).await {
                 Ok(()) => format!("{error}; previous state restored"),
                 Err(rollback) => format!("{error}; rollback failed: {rollback}"),
@@ -233,12 +237,7 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
             return Err("Device returned an invalid EQ response during restore".into());
         }
         validate_peq_for_capabilities(&actual, &self.profile.caps)?;
-        compare_peq(
-            &actual,
-            backup,
-            &self.profile.caps,
-            !self.last_pull_gain_unknown,
-        )
+        compare_peq(&actual, backup, &self.profile.caps)
     }
 
     /// Writes persistently without a readback. Kept for the GUI's explicit
@@ -265,6 +264,9 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
         })
         .await;
         if let Err(error) = attempt {
+            if self.restart_attempted {
+                return Err(error);
+            }
             return Err(match self.restore_and_verify(&backup).await {
                 Ok(()) => format!("{error}; previous state restored"),
                 Err(rollback) => format!("{error}; rollback failed: {rollback}"),
@@ -305,12 +307,7 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
             return Err("Device returned an invalid EQ response during RAM verification".into());
         }
         validate_peq_for_capabilities(&actual, &self.profile.caps)?;
-        compare_peq(
-            &actual,
-            expected,
-            &self.profile.caps,
-            !self.last_pull_gain_unknown,
-        )
+        compare_peq(&actual, expected, &self.profile.caps)
     }
 
     async fn rollback_ram(&mut self, backup: &PEQData, apply_error: String) -> String {
@@ -355,7 +352,6 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
         self.last_pull_had_invalid_response = false;
         self.last_pull_sent_gain_request = false;
         self.last_pull_gain_read_completed = false;
-        self.last_pull_gain_unknown = false;
         self.progress("Preparing EQ read…", 5.0);
         self.init().await?;
         let timing = self.protocol().write_timing();
@@ -363,14 +359,9 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
         self.last_pull_sent_gain_request = true;
         let global_gain = match self.read_gain().await {
             Ok(gain) => gain,
-            // Only a clean timeout qualifies; transport errors still fail.
-            Err(error)
-                if self.protocol().quirks().gain_read_optional
-                    && error == "Global gain read timeout" =>
-            {
-                self.last_pull_gain_unknown = true;
-                self.progress("DAC did not report its preamp; showing 0 dB", 10.0);
-                0.0
+            // Silence on JA11 is not an unknown/zero preamp. Fail before bands.
+            Err(error) if self.save_restarts_device() && error == "Global gain read timeout" => {
+                return Err(DAC_UNRESPONSIVE_ERROR.into());
             }
             Err(error) => return Err(error),
         };
@@ -558,7 +549,7 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
                 &format!("Writing band {}/{}…", index + 1, total),
                 15.0 + index as f32 / total as f32 * 60.0,
             );
-            for packet in protocol
+            for (packet_index, packet) in protocol
                 .write_filter_packets(
                     index as u8,
                     filter,
@@ -566,7 +557,14 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
                     peq.global_gain,
                 )
                 .map_err(|error| format!("Band {} write failed: {error}", index + 1))?
+                .into_iter()
+                .enumerate()
             {
+                if packet_index > 0 {
+                    self.io
+                        .sleep_ms(protocol.write_timing().packet_gap_ms)
+                        .await;
+                }
                 self.send(&packet)
                     .await
                     .map_err(|error| format!("Band {} write failed: {error}", index + 1))?;
@@ -577,7 +575,16 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
         }
         self.progress("Writing preamp…", 75.0);
         self.io.sleep_ms(protocol.write_timing().batch_ms).await;
-        for packet in protocol.write_global_gain_packets(peq.global_gain) {
+        for (packet_index, packet) in protocol
+            .write_global_gain_packets(peq.global_gain)
+            .into_iter()
+            .enumerate()
+        {
+            if packet_index > 0 {
+                self.io
+                    .sleep_ms(protocol.write_timing().packet_gap_ms)
+                    .await;
+            }
             self.send(&packet)
                 .await
                 .map_err(|error| format!("Global gain write failed: {error}"))?;
@@ -589,11 +596,28 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
     }
 
     async fn commit(&mut self) -> Result<(), String> {
-        self.progress("Saving EQ to DAC…", 80.0);
+        self.progress(
+            if self.save_restarts_device() {
+                "Saving EQ to DAC (restart expected)…"
+            } else {
+                "Saving EQ to DAC…"
+            },
+            80.0,
+        );
         for packet in self.protocol().commit_packets() {
-            self.send(&packet)
-                .await
-                .map_err(|error| format!("Commit write failed: {error}"))?;
+            if self.save_restarts_device() {
+                // Save is single-shot: an error is ambiguous delivery, not permission
+                // to resend or roll back against a DAC that may be restarting.
+                self.require_open_transaction()?;
+                self.restart_attempted = true;
+                self.io.write(&packet.framed()).await.map_err(|error| {
+                    format!("Save delivery uncertain; reconnect and read the DAC: {error}")
+                })?;
+            } else {
+                self.send(&packet)
+                    .await
+                    .map_err(|error| format!("Commit write failed: {error}"))?;
+            }
             self.io
                 .sleep_ms(self.protocol().write_timing().commit_step_ms)
                 .await;
@@ -606,9 +630,8 @@ fn compare_peq(
     actual: &PEQData,
     expected: &PEQData,
     caps: &super::DeviceCapabilities,
-    check_gain: bool,
 ) -> Result<(), String> {
-    if check_gain && (actual.global_gain - expected.global_gain).abs() > 0.001 {
+    if (actual.global_gain - expected.global_gain).abs() > 0.001 {
         return Err(format!(
             "Global gain mismatch: expected {}, got {}",
             expected.global_gain, actual.global_gain
@@ -637,5 +660,7 @@ fn compare_peq(
     Ok(())
 }
 
+#[cfg(test)]
+mod ja11_tests;
 #[cfg(test)]
 mod tests;

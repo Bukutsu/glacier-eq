@@ -37,6 +37,7 @@ impl<I: DeviceIo> DeviceSession<'_, I> {
         attempts: usize,
         matches: impl Fn(&[u8]) -> bool,
     ) -> Result<Vec<u8>, String> {
+        self.require_open_transaction()?;
         let protocol = self.protocol();
         for attempt in 1..=attempts {
             let bytes =
@@ -72,6 +73,7 @@ impl<I: DeviceIo> DeviceSession<'_, I> {
     }
 
     pub(crate) async fn send(&mut self, packet: &Packet) -> Result<(), String> {
+        self.require_open_transaction()?;
         let framed = packet.framed();
         let mut last = "Write failed".to_string();
         for _ in 0..WRITE_ATTEMPTS {
@@ -79,7 +81,9 @@ impl<I: DeviceIo> DeviceSession<'_, I> {
                 Ok(()) => return Ok(()),
                 Err(error) => {
                     last = error;
-                    self.io.sleep_ms(50).await;
+                    self.io
+                        .sleep_ms(50.max(self.protocol().write_timing().packet_gap_ms))
+                        .await;
                 }
             }
         }

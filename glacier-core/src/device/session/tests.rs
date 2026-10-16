@@ -414,32 +414,25 @@ fn ja11_push_verifies_ram_then_saves_last() {
 }
 
 #[test]
-fn ja11_pull_tolerates_an_unanswered_gain_read() {
-    crate::device::session::block_on(async {
-        let profile = get_supported_device(0x2972, 0x0102).unwrap();
-        let mut io = FakeIo::default();
-        io.reads.push_back(vec![]);
-        for _ in 0..GAIN_READ_ATTEMPTS {
-            io.reads.push_back(vec![]);
+fn ja11_pull_requires_healthy_gain_and_fails_before_bands() {
+    block_on(async {
+        for pid in [0x0101, 0x0102] {
+            let profile = get_supported_device(0x2972, pid).unwrap();
+            let mut io = FakeIo::default();
+            let error = DeviceSession::new(&mut io, profile)
+                .pull()
+                .await
+                .unwrap_err();
+            assert_eq!(error, DAC_UNRESPONSIVE_ERROR);
+            assert_eq!(io.writes, [vec![2, 0xbb, 0x0b, 0, 0, 0x17, 0, 0, 0xee]]);
         }
-        for index in 0..5u8 {
-            io.reads.push_back(vec![
-                0xBB, 0x0B, 0, 0, 0x15, 8, index, 0, 10, 0x03, 0xE8, 0, 100, 0, 0, 0xEE,
-            ]);
-        }
-
-        let mut session = DeviceSession::new(&mut io, profile);
-        let peq = session.pull().await.unwrap();
-        assert_eq!(peq.global_gain, 0.0);
-        assert!(session.last_pull_gain_unknown);
-        assert_eq!(peq.filters.len(), 5);
     });
 }
 
 #[test]
 fn pull_rejects_late_fiio_gain_after_complete_pull_retry() {
     crate::device::session::block_on(async {
-        // KA15: its gain read is mandatory, unlike JA11's.
+        // KA15 also requires a healthy gain read.
         let profile = get_supported_device(0x2972, 0x0104).unwrap();
         let mut io = FakeIo::default();
         io.reads.push_back(vec![]);

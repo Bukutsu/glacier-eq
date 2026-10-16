@@ -15,6 +15,8 @@ pub struct WriteTiming {
     pub post_gain_read_ms: u64,
     /// Settle delay after sending init packets, before draining stale input.
     pub init_ms: u64,
+    /// Delay between packets belonging to one band/preamp write.
+    pub packet_gap_ms: u64,
 }
 
 impl Default for WriteTiming {
@@ -27,6 +29,7 @@ impl Default for WriteTiming {
             flood_delay_ms: 5,
             post_gain_read_ms: 0,
             init_ms: 50,
+            packet_gap_ms: 0,
         }
     }
 }

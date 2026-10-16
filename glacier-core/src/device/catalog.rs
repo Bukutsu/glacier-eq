@@ -199,7 +199,27 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
         status: "Untested",
         family: "FiiO",
         caps: FIIO_5_BAND_CAPS,
-        controls: None,
+        controls: Some(Controls::Ja11),
+        spec: Some(DacSpec {
+            name: "FiiO JA11",
+            chip: "KT02H20 DSP",
+            outputs: "3.5mm SE",
+            max_power: Some("30mW @ 32Ω"),
+            decoding: Some("384k / DSD128"),
+            snr: Some("115 dB"),
+            thd: None,
+        }),
+    },
+    // UAC 1.0 mode, same HID protocol (Cyfine/ja11-web-control).
+    DeviceProfile {
+        name: "FiiO JA11",
+        protocol: &fiio::JA11,
+        vendor_id: 0x2972,
+        product_id: Some(0x0101),
+        status: "Untested",
+        family: "FiiO",
+        caps: FIIO_5_BAND_CAPS,
+        controls: Some(Controls::Ja11),
         spec: Some(DacSpec {
             name: "FiiO JA11",
             chip: "KT02H20 DSP",

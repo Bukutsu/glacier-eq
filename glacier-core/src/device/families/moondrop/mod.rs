@@ -102,6 +102,7 @@ impl EqProtocol for MoondropProtocol {
             flood_delay_ms: 50,
             post_gain_read_ms: 50,
             init_ms: 50,
+            packet_gap_ms: 0,
         }
     }
 

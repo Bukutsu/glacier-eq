@@ -16,6 +16,8 @@ pub enum Controls {
     Walkplay,
     /// Original Dawn Pro (2FC6:F06A): volume, gain, filter, LED.
     DawnPro,
+    /// JA11 microphone, USB audio mode and output volume (source-reviewed only).
+    Ja11,
 }
 
 /// Official published specs for display only, never protocol capabilities.

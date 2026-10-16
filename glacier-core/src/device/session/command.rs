@@ -21,6 +21,8 @@ pub enum DeviceCommand {
     },
     #[serde(rename = "apply_eq_state")]
     Apply { peq: PEQData },
+    #[serde(rename = "ja11_control")]
+    Ja11Control { control: String, value: Option<u8> },
     #[serde(rename = "get_firmware_version")]
     Firmware,
     #[serde(rename = "get_dac_utility_state")]
@@ -57,6 +59,7 @@ pub struct EqWriteOutcome {
     #[serde(flatten)]
     pub committed: PEQData,
     pub warnings: Vec<String>,
+    pub restarts: bool,
 }
 
 #[derive(Serialize)]
@@ -65,6 +68,7 @@ pub enum DeviceOutcome {
     Peq(PEQData),
     Write(EqWriteOutcome),
     Firmware(Option<String>),
+    Control(Option<u8>),
     Utility(DacUtilityState),
     Unit,
 }
@@ -86,6 +90,7 @@ impl<I: DeviceIo> DeviceSession<'_, I> {
                 DeviceOutcome::Write(EqWriteOutcome {
                     committed,
                     warnings,
+                    restarts: self.save_restarts_device(),
                 })
             }
             Apply { peq } => {
@@ -93,8 +98,13 @@ impl<I: DeviceIo> DeviceSession<'_, I> {
                 DeviceOutcome::Write(EqWriteOutcome {
                     committed,
                     warnings,
+                    restarts: false,
                 })
             }
+            Ja11Control { control, value } => DeviceOutcome::Control(match value {
+                Some(value) => self.set_ja11_control(&control, value).await?,
+                None => Some(self.ja11_control(&control).await?),
+            }),
             Firmware => DeviceOutcome::Firmware(self.firmware_version().await?),
             UtilityStatus => DeviceOutcome::Utility(self.utility_status().await?),
             ResetControls => DeviceOutcome::Utility(self.reset_controls().await?),
