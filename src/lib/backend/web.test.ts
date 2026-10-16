@@ -204,6 +204,64 @@ function verificationPeq(): PEQData {
   };
 }
 
+describe("JA11 browser controls", () => {
+  const ja11 = { ...profile, name: "FiiO JA11", protocol: "FiiO JA11", vendor_id: 0x2972, product_id: 0x0102 };
+  async function setup() {
+    const device = fakeHidDevice();
+    device.vendorId = 0x2972;
+    device.productId = 0x0102;
+    await connectWebHid(device, ja11);
+    const calls = vi.mocked(device.addEventListener).mock.calls;
+    const listener = calls.find(([name]) => name === "inputreport")![1] as unknown as
+      (event: { reportId: number; data: DataView }) => void;
+    const values: Record<number, number> = { 2: 30, 18: 1, 32: 1 };
+    let malformed = false;
+    vi.mocked(device.sendReport).mockImplementation(async (_id, packet) => {
+      const data = new Uint8Array(packet as ArrayBuffer);
+      if (data[0] === 0xaa) values[data[4]] = data[6];
+      else {
+        const reply = Uint8Array.from([0xbb, 0x0b, 0, 0, data[4], malformed ? 2 : 1, values[data[4]], 0, 0xee]);
+        listener({ reportId: 2, data: new DataView(reply.buffer) });
+      }
+    });
+    const listed = await invoke<Array<{ path: string }>>("list_devices");
+    return { device, path: listed[0].path, values, corrupt: () => { malformed = true; } };
+  }
+  it("reads controls independently, verifies volume, sends no PEQ save, and uses explicit restart results", async () => {
+    const { device, path } = await setup();
+    for (const control of ["volume", "microphone", "uac"]) {
+      expect(await invoke("ja11_control", { path, control })).toBe(control === "volume" ? 30 : 1);
+    }
+    expect(await invoke("ja11_control", { path, control: "volume", value: 29 })).toBe(29);
+    expect(await invoke("ja11_control", { path, control: "microphone", value: 0 })).toBeNull();
+    expect(await invoke("ja11_control", { path, control: "uac", value: 0 })).toBeNull();
+    const packets = vi.mocked(device.sendReport).mock.calls.map(([, data]) => [...new Uint8Array(data as ArrayBuffer)]);
+    expect(packets).toContainEqual([0xaa, 0x0a, 0, 0, 2, 1, 29, 0, 0xee]);
+    expect(packets.every(packet => [2, 18, 32].includes(packet[4]))).toBe(true);
+    await invoke("disconnect_device");
+  });
+  it("rejects invalid values and stale paths before any transport access", async () => {
+    const { device, path } = await setup();
+    vi.mocked(device.sendReport).mockClear();
+    for (const [control, value] of [["volume", 61], ["volume", 1.5], ["microphone", 2], ["uac", -1]]) {
+      await expect(invoke("ja11_control", { path, control, value })).rejects.toThrow("must be");
+    }
+    await expect(invoke("ja11_control", { path: "/stale", control: "volume", value: 10 })).rejects.toThrow("displayed JA11");
+    expect(device.sendReport).not.toHaveBeenCalled();
+    await invoke("disconnect_device");
+  });
+  it("never writes a value following a malformed pre-read", async () => {
+    const { device, path, corrupt } = await setup();
+    corrupt();
+    vi.mocked(device.sendReport).mockClear();
+    await expect(invoke("ja11_control", { path, control: "volume", value: 10 })).rejects.toThrow("Invalid or missing");
+    const packets = vi.mocked(device.sendReport).mock.calls.map(([, data]) => new Uint8Array(data as ArrayBuffer));
+    expect(packets).toHaveLength(1);
+    expect(packets[0][0]).toBe(0xbb);
+    await invoke("disconnect_device");
+  });
+});
+
 describe("original Dawn Pro browser controls", () => {
   it("does not guess Feature Reports for a native Input GET_REPORT protocol", async () => {
     const device = fakeHidDevice();

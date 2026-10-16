@@ -8,6 +8,7 @@
 pub mod capabilities;
 pub mod dawn_pro;
 pub mod fiio;
+pub mod ja11;
 pub mod moondrop;
 pub mod normalization;
 pub mod profile;

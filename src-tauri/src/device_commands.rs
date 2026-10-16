@@ -283,7 +283,10 @@ struct TauriDeviceIo<'a> {
 /// Hex with trailing zero padding collapsed, so fixed-size HID reports stay
 /// readable in the diagnostic report.
 fn hid_hex(data: &[u8]) -> String {
-    let used = data.iter().rposition(|&byte| byte != 0).map_or(0, |i| i + 1);
+    let used = data
+        .iter()
+        .rposition(|&byte| byte != 0)
+        .map_or(0, |i| i + 1);
     let mut text = data[..used]
         .iter()
         .map(|byte| format!("{byte:02x}"))
@@ -930,6 +933,25 @@ pub async fn set_dawn_pro_control(
 }
 
 #[tauri::command]
+pub async fn ja11_control(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Mutex<DeviceState>>,
+    path: String,
+    control: String,
+    value: Option<u8>,
+) -> Result<Option<u8>, String> {
+    let expected = session_identity(&state)?;
+    if expected.0 != path {
+        return Err("Device session changed; operation was cancelled".into());
+    }
+    with_session_for(&app, &state, expected, move |session| match value {
+        Some(value) => session.set_ja11_control(&control, value),
+        None => session.ja11_control(&control).map(Some),
+    })
+    .await
+}
+
+#[tauri::command]
 pub async fn get_dac_utility_state(
     app: tauri::AppHandle,
     state: tauri::State<'_, Mutex<DeviceState>>,
@@ -1055,4 +1077,3 @@ mod tests {
         assert_eq!(result, Ok(()));
     }
 }
-

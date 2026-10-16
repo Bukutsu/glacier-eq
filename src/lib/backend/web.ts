@@ -1081,6 +1081,7 @@ const WEBHID_TRANSPORT_COMMANDS = new Set([
   "set_eq_state",
   "apply_eq_state",
   "get_dac_utility_state",
+  "ja11_control",
   "set_dac_filter_mode",
   "set_dac_work_mode",
   "set_dac_output_gain",
@@ -1178,7 +1179,12 @@ function serializeWebHid<T>(operation: () => Promise<T>): Promise<T> {
 }
 
 export async function invoke<T = unknown>(cmd: string, args?: any): Promise<T> {
-  const operation = () => invokeWeb<T>(cmd, args);
+  const expectedSession = activeSessionId;
+  const operation = () => {
+    if (cmd === "ja11_control" && expectedSession !== activeSessionId)
+      throw new Error("Device session changed; operation was cancelled");
+    return invokeWeb<T>(cmd, args);
+  };
   return WEBHID_TRANSPORT_COMMANDS.has(cmd) ? serializeWebHid(operation) : operation();
 }
 
@@ -1660,6 +1666,39 @@ async function invokeWeb<T = unknown>(cmd: string, args?: any): Promise<T> {
     }
 
     // ─── Walkplay Hardware controls ──────────────────────────────────────────
+    // Same packet fixtures and FOSS provenance as glacier-core/src/device/ja11.rs.
+    // WebHID state controls share the existing transport queue; no PEQ save.
+    case "ja11_control": {
+      if (!activeDevice || connectedProfile().protocol !== "FiiO JA11" ||
+          args?.path !== webHidPath(activeDevice))
+        throw new Error("These controls require the displayed JA11");
+      const controls: Record<string, [number, number]> = { volume: [2, 60], microphone: [18, 1], uac: [32, 1] };
+      const spec = controls[args?.control];
+      if (!spec) throw new Error("Unknown JA11 control");
+      const [command, max] = spec;
+      const value = args?.value;
+      if (value !== undefined && (!Number.isInteger(value) || value < 0 || value > max))
+        throw new Error(`JA11 ${args.control} must be 0..${max}`);
+      const read = async () => {
+        reportQueue = [];
+        await sendReport([2, 0xbb, 0x0b, 0, 0, command, 0, 0, 0xee]);
+        await sleep(200);
+        const reply = await readMatchingReport(60, data =>
+          data.length >= 10 && data[0] === 2 && data[1] === 0xbb && data[2] === 0x0b &&
+          data[5] === command && data[6] === 1 && data[7] <= max && data[9] === 0xee);
+        if (!reply) throw new Error(`Invalid or missing JA11 ${args.control} response`);
+        return reply[7];
+      };
+      const current = await read();
+      if (value === undefined || value === current) return current as T;
+      await sendReport([2, 0xaa, 0x0a, 0, 0, command, 1, value, 0, 0xee]);
+      await sleep(200);
+      if (args.control !== "volume") return null as T;
+      const actual = await read();
+      if (actual !== value) throw new Error("JA11 volume verification failed");
+      return actual as T;
+    }
+
     case "get_dawn_pro_state":
     case "set_dawn_pro_control":
       // The hardware-verified Windows path needs Input GET_REPORT, which

@@ -161,6 +161,51 @@ impl<'a> DeviceSession<'a> {
         }
     }
 
+    fn require_ja11(&self) -> Result<(), String> {
+        if self.profile.protocol == DeviceProtocol::FiioJa11 {
+            Ok(())
+        } else {
+            Err("These controls require a JA11".into())
+        }
+    }
+
+    pub fn ja11_control(&mut self, control: &str) -> Result<u8, String> {
+        self.require_ja11()?;
+        let request = super::ja11::request(control)?;
+        self.drain();
+        // No retries: a late uncorrelated reply must not confirm a new read.
+        self.send(&request)?;
+        self.io.sleep_ms(200);
+        let data = self.read_matching("JA11 control", 20, |data| {
+            super::ja11::parse(control, data).is_ok()
+        })?;
+        super::ja11::parse(control, &data)
+    }
+
+    /// None means sent, but restart prevents immediate verification.
+    pub fn set_ja11_control(&mut self, control: &str, value: u8) -> Result<Option<u8>, String> {
+        self.require_ja11()?;
+        let packet = super::ja11::write(control, value)?;
+        // Require a valid current read before any write; no fallback defaults.
+        let current = self.ja11_control(control)?;
+        if current == value {
+            return Ok(Some(current));
+        }
+        // Do not retry a possibly restarting command.
+        self.io.write(&packet.framed())?;
+        self.io.sleep_ms(200);
+        if control != "volume" {
+            return Ok(None);
+        }
+        let actual = self.ja11_control(control)?;
+        if actual != value {
+            return Err(format!(
+                "JA11 volume verification failed: expected {value}, read {actual}"
+            ));
+        }
+        Ok(Some(actual))
+    }
+
     pub fn pull(&mut self) -> Result<PEQData, String> {
         self.require_hardware_eq()?;
         // A complete-pull retry is only safe when the failed attempt did not
@@ -1042,6 +1087,67 @@ mod tests {
         fn sleep_ms(&mut self, ms: u64) {
             self.events.push(IoEvent::Sleep(ms));
         }
+    }
+
+    #[test]
+    fn ja11_controls_read_before_write_verify_volume_and_never_save() {
+        let profile = get_supported_device(0x2972, 0x0102).unwrap();
+        let reply = |cmd, value| vec![0xbb, 0x0b, 0, 0, cmd, 1, value, 0, 0xee];
+        let mut io = FakeIo::default();
+        io.reads
+            .extend([vec![], reply(2, 30), vec![], reply(2, 29)]);
+        assert_eq!(
+            DeviceSession::new(&mut io, profile)
+                .set_ja11_control("volume", 29)
+                .unwrap(),
+            Some(29)
+        );
+        assert_eq!(
+            io.writes.iter().map(|p| p[5]).collect::<Vec<_>>(),
+            [2, 2, 2]
+        );
+        assert_eq!(io.writes[1], vec![2, 0xaa, 0x0a, 0, 0, 2, 1, 29, 0, 0xee]);
+        assert!(
+            io.events
+                .iter()
+                .filter(|e| **e == IoEvent::Sleep(200))
+                .count()
+                >= 3
+        );
+
+        for control in ["microphone", "uac"] {
+            let cmd = super::super::ja11::command(control).unwrap().0;
+            let mut io = FakeIo::default();
+            io.reads.extend([vec![], reply(cmd, 1)]);
+            assert_eq!(
+                DeviceSession::new(&mut io, profile)
+                    .set_ja11_control(control, 0)
+                    .unwrap(),
+                None
+            );
+            assert_eq!(io.writes.len(), 2); // read, write; no save or post-restart read
+        }
+    }
+
+    #[test]
+    fn ja11_controls_reject_failed_reads_bad_ranges_and_other_devices() {
+        let profile = get_supported_device(0x2972, 0x0102).unwrap();
+        let mut io = FakeIo::default();
+        assert!(DeviceSession::new(&mut io, profile)
+            .set_ja11_control("volume", 61)
+            .is_err());
+        assert!(io.writes.is_empty());
+        assert!(DeviceSession::new(&mut io, profile)
+            .set_ja11_control("volume", 30)
+            .is_err());
+        assert_eq!(io.writes.len(), 1); // failed pre-read, no mutation
+        assert_eq!(io.writes[0][1], 0xbb);
+        let other = get_supported_device(0x2972, 0x0104).unwrap();
+        let before = io.writes.len();
+        assert!(DeviceSession::new(&mut io, other)
+            .ja11_control("volume")
+            .is_err());
+        assert_eq!(io.writes.len(), before);
     }
 
     #[test]
