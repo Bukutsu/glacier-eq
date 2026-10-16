@@ -52,7 +52,8 @@ type UtilityState = {
 type DawnState = {
   filter: number; high_gain: boolean; led: number; volume_step: number; volume_raw: number;
 };
-type Preview = { device: DeviceInfo; peq: PEQData; savedPeq: PEQData; utility: UtilityState; dawn: DawnState };
+type Ja11State = { microphone: number; uac: number; volume: number };
+type Preview = { ja11: Ja11State; device: DeviceInfo; peq: PEQData; savedPeq: PEQData; utility: UtilityState; dawn: DawnState };
 
 // Original-Dawn volume codes credited in families/dawn_pro/mod.rs, from Abdul Mateen:
 // https://github.com/RetR0-hex/moondrop-dawn-pro-gui/blob/69f95f669377646da1e9ba931bec9a5dc9b5d40c/moondrop/protocol.py
@@ -69,6 +70,8 @@ function newPreview(device: DeviceInfo): Preview {
     device, peq, savedPeq: structuredClone(peq),
     utility: { supported: device.controls === "walkplay", filter_mode: "FAST-LL",
       amp_mode_class_ab: false, high_gain_mode: false, mic_volume_db: 0, channel_balance: 0 },
+    // Synthetic preview defaults, not values read from hardware.
+    ja11: { microphone: 1, uac: 1, volume: 30 },
     dawn: { filter: 2, high_gain: false, led: 0, volume_step: 45, volume_raw: 30 },
   };
 }
@@ -104,6 +107,8 @@ function previewFor(path: string): Preview {
 export function reconnectDevDummyDevice(path: string): void {
   const preview = previewFor(path);
   preview.peq = structuredClone(preview.savedPeq);
+  // JA11 control writes last only for this simulated connection.
+  preview.ja11 = newPreview(preview.device).ja11;
 }
 
 function eqPreviewFor(path: string): Preview {
@@ -144,6 +149,15 @@ export function invokeDevDummy<T>(path: string, command: string, args: Record<st
     if (!preview.utility.supported) throw new Error("This protocol does not expose Walkplay controls");
   };
   switch (command) {
+    case "ja11_control": {
+      if (preview.device.controls !== "ja11") throw new Error("These controls require a JA11 preview");
+      const control = args.control;
+      if (control !== "microphone" && control !== "uac" && control !== "volume") {
+        throw new Error("Unknown JA11 control");
+      }
+      if (args.value !== undefined) preview.ja11[control] = integer(args.value, 0, control === "volume" ? 60 : 1);
+      return preview.ja11[control] as T;
+    }
     case "get_dac_utility_state": return structuredClone(preview.utility) as T;
     case "get_dawn_pro_state":
     case "set_dawn_pro_control": {
@@ -187,6 +201,7 @@ export function invokeDevDummy<T>(path: string, command: string, args: Record<st
       const defaults = newPreview(preview.device);
       preview.utility = defaults.utility;
       preview.dawn = defaults.dawn;
+      preview.ja11 = defaults.ja11;
       break;
     }
     case "execute_factory_reset": {

@@ -29,7 +29,7 @@ vi.mock("react", async original => ({
     }
   },
 }));
-vi.mock("../lib/rpc", () => ({ invokeForDevice: vi.fn() }));
+vi.mock("../lib/rpc", () => ({ invoke: vi.fn().mockResolvedValue(null), invokeForDevice: vi.fn() }));
 vi.mock("./ConfirmDialog", () => ({ confirmDialog: vi.fn() }));
 
 import { invokeForDevice } from "../lib/rpc";
@@ -43,7 +43,7 @@ function nodes(value: any): ReactElement<any>[] {
   return [value, ...nodes(value.props.children)];
 }
 function setup() {
-  const props = { path: "/ja11", isBusy: false, setStatus: vi.fn() };
+  const props = { path: "/ja11", isBusy: false, setStatus: vi.fn(), onExpectedDisconnect: vi.fn() };
   const render = () => {
     hooks.cursor = 0;
     const tree = Ja11Controls(props);
@@ -51,7 +51,21 @@ function setup() {
     effects.forEach(effect => effect());
     return nodes(tree);
   };
-  const field = (key: string) => render().find(node => node.props.id === `ja11-${key}`)!;
+  // Normalizes the Switch (microphone), segmented row (uac) and Slider (volume)
+  // to value/disabled/onChange so tests describe behavior, not markup.
+  const field = (key: string) => {
+    const tree = render();
+    if (key === "microphone") {
+      const node = tree.find(node => node.props.id === "ja11-microphone")!;
+      return { props: { value: node.props.checked ? "1" : "0", disabled: node.props.disabled,
+        onChange: (value: string) => node.props.onCheckedChange(value === "1") } };
+    }
+    if (key === "uac") {
+      const node = tree.find(node => node.props.title === "USB audio mode")!;
+      return { props: { value: node.props.value, disabled: node.props.disabled, onChange: node.props.onChange } };
+    }
+    return tree.find(node => node.props.id === "ja11-volume")!;
+  };
   const apply = (index: number) => render().filter(node => node.props.children === "Apply")[index].props;
   return { props, render, field, apply };
 }
@@ -72,7 +86,6 @@ describe("JA11 control handlers", () => {
     });
     const s = setup();
     s.render(); await flush();
-    expect(s.field("microphone").props.value).toBe("");
     expect(s.field("microphone").props.disabled).toBe(true);
     expect(s.field("uac").props.value).toBe("1");
     expect(s.field("uac").props.disabled).toBe(false);
@@ -81,68 +94,102 @@ describe("JA11 control handlers", () => {
     expect(vi.mocked(invokeForDevice).mock.calls.every(call => call[2]?.value === undefined)).toBe(true);
   });
 
-  it("requires explicit Apply and confirmation; cancel sends nothing", async () => {
-    const s = setup(); s.render(); await flush();
-    vi.mocked(invokeForDevice).mockClear();
-    s.field("volume").props.onChange({ target: { value: "29" } });
-    expect(invokeForDevice).not.toHaveBeenCalled();
-    vi.mocked(confirmDialog).mockResolvedValueOnce(false);
-    s.apply(2).onClick(); await flush();
-    expect(confirmDialog).toHaveBeenCalledWith(expect.objectContaining({ confirmLabel: "Apply" }));
-    expect(invokeForDevice).not.toHaveBeenCalled();
-    s.apply(2).onClick(); await flush();
-    expect(invokeForDevice).toHaveBeenCalledWith("/ja11", "ja11_control", { path: "/ja11", control: "volume", value: 29 });
-    expect(s.field("volume").props.value).toBe(29);
-  });
+  const writes = () => vi.mocked(invokeForDevice).mock.calls.filter(call => call[2]?.value !== undefined).map(call => call[2]);
+  const pause = async () => { await vi.advanceTimersByTimeAsync(400); await flush(); };
 
-  it("clears every field after an unverified restart write and does not replay", async () => {
-    const s = setup(); s.render(); await flush();
-    s.field("uac").props.onChange("0");
-    vi.mocked(invokeForDevice).mockClear().mockResolvedValueOnce(null);
-    s.apply(1).onClick(); await flush();
-    expect(s.props.setStatus).toHaveBeenCalledWith("JA11 setting sent. Reconnect the DAC to verify it.");
-    for (const key of ["microphone", "uac", "volume"]) {
-      expect(s.field(key).props.disabled).toBe(true);
-    }
-    s.apply(1).onClick(); await flush();
-    expect(invokeForDevice).toHaveBeenCalledTimes(1);
-    expect(s.render().some(node => node.props.role === "status")).toBe(true);
-  });
-
-  it("does not claim rollback on a write error; only the affected field becomes unknown", async () => {
-    const s = setup(); s.render(); await flush();
-    s.field("volume").props.onChange({ target: { value: "29" } });
-    vi.mocked(invokeForDevice).mockRejectedValueOnce(new Error("uncertain delivery"));
-    s.apply(2).onClick(); await flush();
-    expect(s.field("volume").props.value).toBe("");
-    expect(s.field("volume").props.disabled).toBe(true);
-    expect(s.field("microphone").props.value).toBe("1");
-    expect(s.props.setStatus).toHaveBeenCalledWith(expect.stringContaining("Could not verify"));
-  });
-
-  it("requires reconnect after an ambiguous microphone write error", async () => {
-    const s = setup(); s.render(); await flush();
-    s.field("microphone").props.onChange("0");
-    vi.mocked(invokeForDevice).mockRejectedValueOnce(new Error("USB reset during write"));
-    s.apply(0).onClick(); await flush();
-    for (const key of ["microphone", "uac", "volume"]) expect(s.field(key).props.disabled).toBe(true);
-    expect(s.props.setStatus).toHaveBeenCalledWith(expect.stringContaining("Reconnect the DAC"));
-  });
-
-  it("cancels a confirmed write if busy or path changes while the dialog is open", async () => {
-    for (const change of ["busy", "path"]) {
+  it("applies microphone and USB mode immediately, verified, without locking other fields", async () => {
+    for (const key of ["microphone", "uac"]) {
       hooks.slots = [];
       const s = setup(); s.render(); await flush();
-      s.field("volume").props.onChange({ target: { value: "29" } });
-      let resolve!: (value: boolean) => void;
-      vi.mocked(confirmDialog).mockReturnValueOnce(new Promise(r => { resolve = r; }));
-      s.apply(2).onClick();
-      if (change === "busy") s.props.isBusy = true;
-      else s.props.path = "/replacement";
-      s.render();
       vi.mocked(invokeForDevice).mockClear();
-      resolve(true); await flush();
-      expect(invokeForDevice).not.toHaveBeenCalledWith("/ja11", "ja11_control", expect.objectContaining({ value: 29 }));
+      s.field(key).props.onChange("0"); await flush();
+      expect(confirmDialog).not.toHaveBeenCalled();
+      expect(writes()).toEqual([{ path: "/ja11", control: key, value: 0 }]);
+      expect(s.field(key).props.value).toBe("0");
+      for (const k of ["microphone", "uac", "volume"]) expect(s.field(k).props.disabled).toBe(false);
+      expect(vi.mocked(invokeForDevice)).toHaveBeenCalledTimes(1);
     }
+  });
+
+  it("marks a possible USB drop as expected only for writes, before sending", async () => {
+    const s = setup(); s.render(); await flush();
+    expect(s.props.onExpectedDisconnect).not.toHaveBeenCalled();
+    vi.mocked(invokeForDevice).mockClear();
+    s.field("microphone").props.onChange("0");
+    await flush();
+    expect(s.props.onExpectedDisconnect).toHaveBeenCalledOnce();
+    expect(vi.mocked(s.props.onExpectedDisconnect).mock.invocationCallOrder[0])
+      .toBeLessThan(vi.mocked(invokeForDevice).mock.invocationCallOrder[0]);
+  });
+
+  it("moves the slider immediately but sends only the latest volume after a pause", async () => {
+    vi.useFakeTimers();
+    try {
+      const s = setup(); s.render(); await flush();
+      vi.mocked(invokeForDevice).mockClear();
+      s.field("volume").props.onChange({ target: { value: "31" } });
+      expect(s.field("volume").props.value).toBe(31);
+      s.field("volume").props.onChange({ target: { value: "32" } });
+      expect(writes()).toEqual([]);
+      await pause();
+      expect(writes()).toEqual([{ path: "/ja11", control: "volume", value: 32 }]);
+      expect(s.field("volume").props.value).toBe(32);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("confirms only a large volume increase and restores the old value on cancel", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.mocked(confirmDialog).mockResolvedValueOnce(false);
+      const s = setup(); s.render(); await flush();
+      vi.mocked(invokeForDevice).mockClear();
+      s.field("volume").props.onChange({ target: { value: "50" } });
+      await pause();
+      expect(confirmDialog).toHaveBeenCalledOnce();
+      expect(writes()).toEqual([]);
+      expect(s.field("volume").props.value).toBe(30);
+      s.field("volume").props.onChange({ target: { value: "40" } });
+      await pause();
+      expect(confirmDialog).toHaveBeenCalledOnce();
+      expect(writes()).toEqual([{ path: "/ja11", control: "volume", value: 40 }]);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("leaves only an unverified field unknown and permits read-only refresh", async () => {
+    const s = setup(); s.render(); await flush();
+    vi.mocked(invokeForDevice).mockClear().mockResolvedValueOnce(null);
+    s.field("uac").props.onChange("0"); await flush();
+    expect(s.props.setStatus).toHaveBeenCalledWith(expect.stringContaining("Sent 0, not verified"));
+    expect(s.field("uac").props.disabled).toBe(true);
+    for (const key of ["microphone", "volume"]) expect(s.field(key).props.disabled).toBe(false);
+    const refresh = s.render().find(node => node.props["aria-label"] === "Refresh settings")!;
+    vi.mocked(invokeForDevice).mockClear();
+    refresh.props.onClick(); await flush();
+    expect(s.field("uac").props.disabled).toBe(false);
+    expect(vi.mocked(invokeForDevice).mock.calls).toHaveLength(3);
+    expect(vi.mocked(invokeForDevice).mock.calls.every(call => call[2]?.value === undefined)).toBe(true);
+  });
+
+  it("does not claim rollback or retry on a write error", async () => {
+    const s = setup(); s.render(); await flush();
+    vi.mocked(invokeForDevice).mockClear().mockRejectedValueOnce(new Error("USB reset during write"));
+    s.field("microphone").props.onChange("0"); await flush();
+    expect(writes()).toHaveLength(1);
+    expect(s.field("microphone").props.disabled).toBe(true);
+    expect(s.field("uac").props.disabled).toBe(false);
+    expect(s.props.setStatus).toHaveBeenCalledWith(expect.stringContaining("outcome unknown"));
+  });
+
+  it("drops a pending volume write when the path changes", async () => {
+    vi.useFakeTimers();
+    try {
+      const s = setup(); s.render(); await flush();
+      s.field("volume").props.onChange({ target: { value: "40" } });
+      vi.mocked(invokeForDevice).mockClear();
+      s.props.path = "/replacement";
+      s.render();
+      await pause();
+      expect(writes()).toEqual([]);
+    } finally { vi.useRealTimers(); }
   });
 });

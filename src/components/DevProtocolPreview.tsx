@@ -15,7 +15,10 @@ export function DevProtocolPreview({ device, disabled, onChange }: {
   useEffect(() => {
     let active = true;
     invoke<SupportedDeviceInfo[]>("list_supported_devices").then(profiles => {
-      const choices = profiles.map(profile => ({
+      // Alternate USB IDs (e.g. JA11 UAC 1.0/2.0) share one simulated model.
+      const unique = profiles.filter((profile, index) =>
+        profiles.findIndex(other => other.name === profile.name && other.protocol === profile.protocol) === index);
+      const choices = unique.map(profile => ({
         device: buildDevPreviewDevice(profile),
         label: `${profile.protocol} — ${profile.name}${profile.product_id === null ? " (vendor fallback)" : ""}`,
       }));

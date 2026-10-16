@@ -126,7 +126,7 @@ fn reply(cmd: u8, value: u8) -> Vec<u8> {
 }
 
 #[test]
-fn controls_fresh_read_volume_verification_and_restart_results() {
+fn controls_fresh_read_and_live_verification_without_save_or_restart() {
     block_on(async {
         for pid in [0x0101, 0x0102] {
             let profile = get_supported_device(0x2972, pid).unwrap();
@@ -150,23 +150,55 @@ fn controls_fresh_read_volume_verification_and_restart_results() {
             );
             assert_pacing(&io);
             for (control, cmd) in [("microphone", 0x12), ("uac", 0x20)] {
-                for write_error in [false, true] {
+                for outcome in [
+                    "verified",
+                    "timeout",
+                    "mismatch",
+                    "disconnect",
+                    "write-error",
+                ] {
                     let mut io = FakeIo::default();
                     io.reads.extend([vec![], reply(cmd, 1)]);
-                    if write_error {
-                        io.failing_write_calls.push_back(2);
+                    match outcome {
+                        "verified" => io.reads.extend([vec![], reply(cmd, 0)]),
+                        "mismatch" => io.reads.extend([vec![], reply(cmd, 1)]),
+                        "disconnect" => {
+                            io.read_error_until = Some((3, 4, "USB disconnected".into()))
+                        }
+                        "write-error" => io.failing_write_calls.push_back(2),
+                        _ => {}
                     }
-                    let mut session = DeviceSession::new(&mut io, profile);
-                    let result = session.set_ja11_control(control, 0).await;
-                    if write_error {
+                    let result = DeviceSession::new(&mut io, profile)
+                        .set_ja11_control(control, 0)
+                        .await;
+                    if outcome == "write-error" {
                         assert!(result.is_err());
                     } else {
-                        assert_eq!(result.unwrap(), None);
+                        assert_eq!(
+                            result.unwrap(),
+                            if outcome == "verified" { Some(0) } else { None }
+                        );
                     }
-                    assert!(session.ja11_control(control).await.is_err());
-                    assert_eq!(io.writes.len(), 2);
+                    assert_eq!(
+                        io.writes.len(),
+                        if outcome == "write-error" { 2 } else { 3 }
+                    );
+                    assert_eq!(io.writes.iter().filter(|p| p[1] == 0xaa).count(), 1);
+                    assert!(io.writes.iter().all(|p| p[5] == cmd));
                     assert_eq!(io.writes[1], vec![2, 0xaa, 0x0a, 0, 0, cmd, 1, 0, 0, 0xee]);
                     assert_pacing(&io);
+                    // An explicit recovery read on a live connection is allowed;
+                    // unlike PEQ Save, a control does not consume the transaction.
+                    io.read_error_until = None;
+                    io.reads.extend([vec![], reply(cmd, 0)]);
+                    assert_eq!(
+                        DeviceSession::new(&mut io, profile)
+                            .ja11_control(control)
+                            .await
+                            .unwrap(),
+                        0
+                    );
+                    assert_eq!(io.writes.iter().filter(|p| p[1] == 0xaa).count(), 1);
                 }
             }
         }

@@ -34,7 +34,7 @@ impl<I: DeviceIo> DeviceSession<'_, I> {
         ja11::parse(control, &data)
     }
 
-    /// None means sent only; reconnect and read to verify microphone/UAC.
+    /// None means the single write was sent, but readback did not verify it.
     pub async fn set_ja11_control(
         &mut self,
         control: &str,
@@ -47,22 +47,23 @@ impl<I: DeviceIo> DeviceSession<'_, I> {
         if current == value {
             return Ok(Some(current));
         }
-        if control != "volume" {
-            // An error may still mean delivered. No retries or post-write I/O.
-            self.progress("Sending JA11 setting (restart expected)…", 80.0);
-            self.restart_attempted = true;
-        }
+        // Mic/UAC may change USB interfaces, but are not PEQ Save. Do not mark
+        // this transaction as restarted without observing a disconnect, and
+        // never retry the mutation or synthesize a save/restart command.
         self.io.write(&packet.framed()).await?;
+        // Cyfine writeAndVerify uses a 200 ms command interval. Keep the shared
+        // read's existing 500 ms settle as well, then one request with bounded
+        // 20 x 60 ms receives on the same live transport. No read-request retry.
         self.io.sleep_ms(200).await;
-        if control != "volume" {
-            return Ok(None);
+        match self.ja11_control(control).await {
+            Ok(actual) if actual == value => Ok(Some(actual)),
+            result if control == "volume" => Err(match result {
+                Ok(actual) => {
+                    format!("JA11 volume verification failed: expected {value}, read {actual}")
+                }
+                Err(error) => error,
+            }),
+            _ => Ok(None),
         }
-        let actual = self.ja11_control(control).await?;
-        if actual != value {
-            return Err(format!(
-                "JA11 volume verification failed: expected {value}, read {actual}"
-            ));
-        }
-        Ok(Some(actual))
     }
 }

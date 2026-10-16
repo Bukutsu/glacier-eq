@@ -1,33 +1,53 @@
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 import { useEffect, useRef, useState } from "react";
-import { invokeForDevice } from "../lib/rpc";
+import { invoke, invokeForDevice } from "../lib/rpc";
+import { isDevDummyDevice } from "../lib/devDevice";
 import { confirmDialog } from "./ConfirmDialog";
 import { Button } from "./ui/Button";
-import { Select } from "./Select";
+import { Icon } from "./Icon";
+import { SegmentedRow } from "./SettingsPrimitives";
+import { Switch } from "./ui/Switch";
+import { Slider } from "./Slider";
 import type { StatusReporter } from "../stores/toastStore";
 
+// Credits: Cyfine/ja11-web-control app.js updateVolumeDraft/applyDeviceVolume
+// keeps adjustments local until Apply, then verifies the device readback:
+// https://github.com/Cyfine/ja11-web-control/blob/4d4eb83df6fcdf9e20b52e1bdf59a77f463b2c30/app.js#L544-L575
+// Glacier's UI applies selections immediately and debounces slider writes;
+// it retains Cyfine's extra confirmation for increases above 10 steps.
+// Wire format/source provenance lives in the Rust JA11 control codec.
 export const JA11_CONTROLS = [
-  { key: "microphone", title: "Inline microphone", max: 1, options: [{ value: "0", label: "Off" }, { value: "1", label: "On" }] },
-  { key: "uac", title: "USB audio mode", max: 1, options: [{ value: "0", label: "UAC 1.0" }, { value: "1", label: "UAC 2.0" }] },
-  { key: "volume", title: "Output volume", max: 60, options: null },
+  { key: "microphone", max: 1 },
+  { key: "uac", max: 1 },
+  { key: "volume", max: 60 },
 ] as const;
 
+// Diagnostic failures must not affect hardware operations or trigger retries.
+function diagnostic(control: string, target: number, outcome: string) {
+  void invoke("add_diagnostic_event", {
+    level: "Info", source: "Device", message: `JA11 ${control} target=${target}: ${outcome}`,
+  }).catch(() => {});
+}
+
 type Field = { value: number | null; draft: number | null; error: string | null };
-export function Ja11Controls({ path, isBusy, setStatus }: {
+export function Ja11Controls({ path, isBusy, setStatus, onExpectedDisconnect }: {
   path: string; isBusy: boolean; setStatus: StatusReporter;
+  /** Lets the app treat a brief USB drop after a write as expected, not an error. */
+  onExpectedDisconnect?: () => void;
 }) {
+  const simulated = isDevDummyDevice(path);
   const [fields, setFields] = useState<Record<string, Field>>({});
   const [working, setWorking] = useState(false);
-  const [restart, setRestart] = useState(false);
+  const [scheduled, setScheduled] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const generation = useRef(0);
   const blocked = useRef(isBusy);
   blocked.current = isBusy;
   const running = useRef(false);
-  const needsReconnect = useRef(false);
 
   const refresh = async (token = generation.current) => {
-    if (running.current || blocked.current || needsReconnect.current) return;
+    if (running.current || blocked.current) return;
     running.current = true;
     setWorking(true);
     for (const { key } of JA11_CONTROLS) {
@@ -49,95 +69,137 @@ export function Ja11Controls({ path, isBusy, setStatus }: {
   useEffect(() => {
     const token = ++generation.current;
     setFields({});
-    needsReconnect.current = false;
     running.current = false;
-    setRestart(false);
     void refresh(token);
-    return () => { ++generation.current; };
+    return () => {
+      ++generation.current;
+      if (timer.current !== null) clearTimeout(timer.current);
+      timer.current = null;
+    };
   }, [path]);
 
-  const apply = async (key: string) => {
+  const apply = async (key: string, target: number) => {
     const field = fields[key];
-    if (blocked.current || running.current || needsReconnect.current || field?.value == null ||
-        field.draft == null || field.draft === field.value) return;
+    if (blocked.current || running.current || field?.value == null || target === field.value) return;
     const token = generation.current;
-    const target = field.draft;
     running.current = true;
     setWorking(true);
     try {
-      const confirmed = await confirmDialog({
-        title: key === "volume" ? "Change output volume?" : "Change JA11 setting?",
-        message: key === "volume"
-          ? `Set output volume to ${target}/60? Lower your system volume before increasing it.`
-          : "This change may restart and disconnect the JA11. Reconnect it to verify the setting.",
-        confirmLabel: "Apply",
-      });
-      if (!confirmed || token !== generation.current || blocked.current) return;
+      // Preserve hearing-safety confirmation for a large increase, not every step.
+      if (key === "volume" && target > field.value + 10) {
+        const confirmed = await confirmDialog({
+          title: "Increase output volume?",
+          message: `Increase output volume from ${field.value} to ${target}/60? Lower your system volume first.`,
+          confirmLabel: "Increase volume",
+        });
+        if (token !== generation.current) return;
+        if (!confirmed) {
+          setFields(old => ({ ...old, [key]: { ...old[key], draft: old[key].value } }));
+          return;
+        }
+      }
+      if (token !== generation.current || blocked.current) return;
+      onExpectedDisconnect?.();
+      diagnostic(key, target, "sending once");
       const actual = await invokeForDevice<number | null>(path, "ja11_control", { path, control: key, value: target });
+      diagnostic(key, target, actual === null
+        ? "sent-unverified: readback timeout, disconnect, or mismatch"
+        : "verified by readback");
       if (token !== generation.current) return;
       if (actual === null) {
-        needsReconnect.current = true;
-        setRestart(true);
-        setFields({});
-        setStatus("JA11 setting sent. Reconnect the DAC to verify it.");
+        const message = `Sent ${target}, not verified (readback missing or different). Refresh settings to check; reconnect only if the device disconnected.`;
+        setFields(old => ({ ...old, [key]: { value: null, draft: target, error: message } }));
+        setStatus(`JA11 ${key}: ${message}`);
       } else {
         setFields(old => ({ ...old, [key]: { value: actual, draft: actual, error: null } }));
+        // Keep successful background updates quiet; field state shows completion.
       }
     } catch (error) {
+      diagnostic(key, target, `outcome unknown: ${error}`);
       if (token === generation.current) {
         // A transport error can happen after delivery. Never claim rollback.
-        const unknown = { value: null, draft: null, error: String(error) };
-        if (key !== "volume") {
-          // Delivery can fail after the DAC accepted a restart-causing write.
-          needsReconnect.current = true;
-          setRestart(true);
-          setFields({ [key]: unknown });
-        } else {
-          setFields(old => ({ ...old, [key]: unknown }));
-        }
-        setStatus(`Could not verify JA11 setting: ${error}${key === "volume" ? "" : ". Reconnect the DAC before making more changes."}`);
+        setFields(old => ({ ...old, [key]: { value: null, draft: target, error: `Outcome unknown for target ${target}: ${error}. Refresh settings to check.` } }));
+        setStatus(`Could not verify JA11 ${key}; outcome unknown. Refresh settings to check: ${error}`);
       }
     } finally {
       if (token === generation.current) { running.current = false; setWorking(false); }
     }
   };
 
+  const change = (key: string, target: number) => {
+    const control = JA11_CONTROLS.find(control => control.key === key);
+    if (!control || blocked.current || running.current || fields[key]?.value == null ||
+        !Number.isInteger(target) || target < 0 || target > control.max) return;
+    if (timer.current !== null) clearTimeout(timer.current);
+    setFields(old => ({ ...old, [key]: { ...old[key], draft: target, error: null } }));
+    if (key === "volume") {
+      setScheduled(true);
+      // Only the latest slider position is sent after the user pauses.
+      timer.current = setTimeout(() => {
+        timer.current = null;
+        setScheduled(false);
+        void apply(key, target);
+      }, 350);
+    } else {
+      void apply(key, target);
+    }
+  };
+
+  const row = (key: "microphone" | "volume") => {
+    const field = fields[key];
+    const unknown = field?.value == null;
+    const disabled = isBusy || working || unknown || (scheduled && key !== "volume");
+    const pending = !unknown && field.draft !== field.value;
+    return { field, unknown, disabled, pending };
+  };
+  const mic = row("microphone"), volume = row("volume");
+  const uac = fields.uac, uacDisabled = isBusy || working || scheduled || uac?.value == null;
+  const mutedState = (unknown: boolean, pending: boolean) => unknown ? "Not loaded" : pending ? "Applying…" : null;
+
   return <>
-    <div className="stack-card">
-      {JA11_CONTROLS.map(control => {
-        const field = fields[control.key];
-        const disabled = isBusy || working || restart || field?.value == null;
-        return <div className="stack-pref-row select-row" key={control.key}>
-          <div className="stack-pref-info">
-            <label className="stack-pref-title" htmlFor={`ja11-${control.key}`}>{control.title}</label>
-            <span className="stack-pref-desc">{control.key === "volume"
-              ? "Device output level, 0–60. Apply explicitly; lower system volume first."
-              : "May restart the DAC. Reconnect after applying."}</span>
-            {field?.error && <span role="alert">{field.error}</span>}
-          </div>
-          <div className="stack-pref-control setting-select-wrapper">
-            {control.options ? <Select id={`ja11-${control.key}`}
-              value={field?.draft == null ? "" : String(field.draft)} disabled={disabled}
-              options={[{ value: "", label: "Not loaded", disabled: true }, ...control.options]} onChange={value => setFields(old => ({
-                ...old, [control.key]: { ...old[control.key], draft: Number(value) },
-              }))} />
-              : <input id="ja11-volume" type="number" min={0} max={60} step={1}
-                aria-label="Output volume" value={field?.draft ?? ""} disabled={disabled}
-                onChange={event => {
-                  const value = event.target.value === "" ? null : Number(event.target.value);
-                  setFields(old => ({ ...old, volume: { ...old.volume, draft: value } }));
-                }} />}
-            <Button type="button" disabled={disabled || field?.draft == null ||
-              !Number.isInteger(field.draft) || field.draft < 0 || field.draft > control.max ||
-              field.draft === field.value} onClick={() => void apply(control.key)}>Apply</Button>
-          </div>
-        </div>;
-      })}
+    <div className="flex items-center justify-between gap-2 px-1 text-xs text-muted-foreground">
+      <span>{simulated ? "Simulated JA11 · mock values, no USB commands" : "Changes apply immediately"}</span>
+      <Button type="button" variant="ghost" size="icon" title="Refresh settings" aria-label="Refresh settings"
+        aria-busy={working} disabled={isBusy || working || scheduled} onClick={() => void refresh()}>
+        <Icon name="refresh" />
+      </Button>
     </div>
-    {restart && <p role="status">Setting sent, not yet verified. Reconnect the JA11 before making more changes.</p>}
-    <p className="stack-pref-desc">Source-reviewed, not hardware-verified. These controls do not save PEQ. Persistence after unplugging has not been verified.</p>
-    <Button type="button" disabled={isBusy || working || restart} onClick={() => void refresh()}>
-      {working ? "Reading or updating settings…" : "Refresh settings"}
-    </Button>
+    <div className="stack-card">
+      <div className="stack-pref-row">
+        <div className="stack-pref-info">
+          <label className="stack-pref-title" htmlFor="ja11-microphone">Inline microphone</label>
+          {mic.field?.error
+            ? <span role="alert" className="stack-pref-desc text-destructive-foreground">{mic.field.error}</span>
+            : <span className="stack-pref-desc">May briefly disconnect</span>}
+        </div>
+        <div className="stack-pref-control flex items-center gap-3">
+          <span role="status" className="text-xs text-muted-foreground">{mutedState(mic.unknown, mic.pending)}</span>
+          <Switch id="ja11-microphone" label="Inline microphone" checked={mic.field?.draft === 1}
+            disabled={mic.disabled} onCheckedChange={on => change("microphone", on ? 1 : 0)} />
+        </div>
+      </div>
+      <SegmentedRow title="USB audio mode"
+        desc={uac?.error ?? (uac?.value != null && uac.draft !== uac.value ? "Applying…" : uac?.value == null ? "Not loaded" : "May briefly disconnect")}
+        value={uac?.draft == null ? "" : String(uac.draft)} disabled={uacDisabled}
+        options={[{ value: "0", label: "UAC 1.0" }, { value: "1", label: "UAC 2.0" }]}
+        onChange={value => change("uac", Number(value))} />
+      <div className="stack-pref-row select-row">
+        <div className="stack-pref-info">
+          <label className="stack-pref-title" htmlFor="ja11-volume">Output volume</label>
+          {volume.field?.error
+            ? <span role="alert" className="stack-pref-desc text-destructive-foreground">{volume.field.error}</span>
+            : <span className="stack-pref-desc">{mutedState(volume.unknown, volume.pending) ?? "Device output level"}</span>}
+        </div>
+        <div className="stack-pref-control flex items-center gap-3" style={{ minWidth: "min(220px, 40vw)" }}>
+          <Slider id="ja11-volume" min={0} max={60} step={1} aria-label="Output volume"
+            value={volume.field?.draft ?? 0} disabled={volume.disabled}
+            aria-valuetext={volume.field?.draft == null ? "Not loaded" : `${volume.field.draft} out of 60`}
+            onChange={event => change("volume", Number(event.target.value))} />
+          <output htmlFor="ja11-volume" className="w-14 text-right text-xs tabular-nums text-muted-foreground">
+            {volume.field?.draft == null ? "Not loaded" : `${volume.field.draft} / 60`}</output>
+        </div>
+      </div>
+    </div>
+    <p className="px-1 text-xs text-muted-foreground">Source-reviewed, not hardware-verified. These controls do not save PEQ. Persistence after unplugging has not been verified.</p>
   </>;
 }

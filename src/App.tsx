@@ -1500,6 +1500,12 @@ function App() {
     }
   }, [devices, selectedDevice, pullEq, selectedDeviceInfo, selectedCapabilities, pushToUndoStack, loadFirmwareVersion, reportStatus, settings.auto_pull_on_connect, noteEditorMutation, dirty, getAsyncContext]);
 
+  // A JA11 setting write may make the DAC drop off USB briefly. Treat the next
+  // 15 s of loss as expected, like a save restart.
+  const handleExpectedDisconnect = useCallback(() => {
+    expectedRestartUntilRef.current = Date.now() + 15_000;
+  }, []);
+
   const handlePreviewChange = useCallback(async (device: DeviceInfo) => {
     const currentPath = connectedPathRef.current;
     if (isBusy || eqOperationInFlightRef.current || !currentPath ||
@@ -2125,6 +2131,7 @@ function App() {
     capabilities,
     firmwareVersion,
     onPreviewChange: handlePreviewChange,
+    onExpectedDisconnect: handleExpectedDisconnect,
   };
   // Shared EQ/tuning graph; editing props only attach in the EQ workspace.
   const graphElement = (withEditor: boolean, highlightActiveBand: boolean = false) => (
@@ -2370,6 +2377,7 @@ function App() {
                   onOpenConnectModal={handleOpenDeviceModal}
                   onDisconnect={connected ? disconnectDevice : undefined}
                   onPreviewChange={handlePreviewChange}
+                  onExpectedDisconnect={handleExpectedDisconnect}
                 />
               </section>
             )}
@@ -2509,6 +2517,7 @@ function App() {
             settingsSection={settingsSection}
             onDisconnect={connected ? disconnectDevice : undefined}
             onPreviewChange={handlePreviewChange}
+            onExpectedDisconnect={handleExpectedDisconnect}
           />
           )}
           </div>
@@ -2519,7 +2528,7 @@ function App() {
           className="reconnecting-overlay"
           role="alertdialog"
           aria-modal="true"
-          aria-label="Connection lost"
+          aria-label={Date.now() < expectedRestartUntilRef.current ? "Reconnecting" : "Connection lost"}
           onKeyDown={(e) => {
             if (e.key === "Tab") {
               e.preventDefault();
@@ -2532,7 +2541,7 @@ function App() {
         >
           <div className="reconnecting-card">
             <div className="reconnecting-spinner"></div>
-            <h3>Connection lost</h3>
+            <h3>{Date.now() < expectedRestartUntilRef.current ? "DAC is restarting" : "Connection lost"}</h3>
             <p>
               Reconnecting to <strong>{connectedDeviceName}</strong>...
             </p>

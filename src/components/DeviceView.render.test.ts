@@ -3,6 +3,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router";
 import { DeviceView, formatChannelBalance } from "./DeviceView";
+import { buildDevPreviewDevice, DEV_DUMMY_DEVICE } from "../lib/devDevice";
 
 vi.mock("@glacier-eq/backend", () => ({
   invoke: vi.fn(async () => {
@@ -26,6 +27,24 @@ function renderDeviceView(props: Partial<Parameters<typeof DeviceView>[0]> = {})
 }
 
 describe("DeviceView markup", () => {
+  it("shows interactive JA11 controls for a virtual model, not an arbitrary simulation", () => {
+    const deviceInfo = buildDevPreviewDevice({
+      ...DEV_DUMMY_DEVICE, name: "JA11 simulation render", protocol: "FiiO JA11",
+      vendor_id: 0x2972, product_id: 0x0102, num_bands: 5,
+      status: "Tested", family: "FiiO", controls: "ja11",
+    });
+    const html = renderDeviceView({ connected: true, isSimulated: true,
+      section: "controls", deviceInfo });
+    expect(html).toContain("Inline microphone");
+    expect(html).toContain("USB audio mode");
+    expect(html).toContain('type="range"');
+    expect(html).toContain("update mock values immediately");
+    expect(html).not.toContain("Changes apply directly to the connected DAC");
+    const fake = renderDeviceView({ connected: true, isSimulated: true,
+      section: "controls", deviceInfo: { ...deviceInfo, path: "/physical-ja11" } });
+    expect(fake).not.toContain('id="ja11-volume"');
+  });
+
   it("renders a compact summary card and plain navigation on the root section", () => {
     const html = renderDeviceView();
     expect(html).toContain("device-summary");

@@ -51,6 +51,8 @@ export interface DeviceViewProps {
   onOpenConnectModal?: () => void;
   onDisconnect?: () => Promise<void>;
   onPreviewChange?: (device: DeviceInfo) => void;
+  /** Called before a write that may make the DAC briefly drop off USB. */
+  onExpectedDisconnect?: () => void;
 }
 
 type DeviceUtilityState = {
@@ -75,12 +77,14 @@ export const DeviceView = memo(function DeviceView({
   onOpenConnectModal,
   onDisconnect,
   onPreviewChange,
+  onExpectedDisconnect,
 }: DeviceViewProps) {
   const invoke = <T,>(command: string, args?: Record<string, unknown>) =>
     invokeForDevice<T>(deviceInfo?.path, command, args);
   const dawnDevice = (!isSimulated || isDevDummyDevice(deviceInfo?.path ?? "")) &&
     deviceInfo?.controls === "dawn_pro" ? deviceInfo : null;
-  const ja11Device = !isSimulated && deviceInfo?.controls === "ja11" ? deviceInfo : null;
+  const ja11Device = (!isSimulated || isDevDummyDevice(deviceInfo?.path ?? "")) &&
+    deviceInfo?.controls === "ja11" ? deviceInfo : null;
   const [utility, setUtility] = useState<DeviceUtilityState | null>(null);
   const utilityRef = useRef<DeviceUtilityState | null>(null);
   const confirmedUtilityRef = useRef<DeviceUtilityState | null>(null);
@@ -405,6 +409,9 @@ export const DeviceView = memo(function DeviceView({
       {activeSection === "controls" && connected && !isSimulated && (
         <p className="configuration-description">Changes apply directly to the connected DAC.</p>
       )}
+      {activeSection === "controls" && connected && isSimulated && ja11Device && (
+        <p className="configuration-description">Simulated controls: changes update mock values immediately. No USB commands are sent. Reconnecting resets these mock controls.</p>
+      )}
       <div className="stack-content">
         {activeSection === "overview" && (
           <>
@@ -460,7 +467,7 @@ export const DeviceView = memo(function DeviceView({
                 </div>
               </section>
             ) : ja11Device ? (
-              <Ja11Controls key={ja11Device.path} path={ja11Device.path} isBusy={isBusy} setStatus={setStatus} />
+              <Ja11Controls key={ja11Device.path} path={ja11Device.path} isBusy={isBusy} setStatus={setStatus} onExpectedDisconnect={onExpectedDisconnect} />
             ) : dawnDevice ? (
               <DawnProControls key={dawnDevice.path} path={dawnDevice.path} isBusy={isBusy} setStatus={setStatus} />
             ) : loading ? (

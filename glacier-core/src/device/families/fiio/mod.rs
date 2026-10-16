@@ -1,6 +1,21 @@
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
+//! FiiO protocol credits (independent implementation from protocol evidence):
+//! - jeromeof/devicePEQ: FiiO packet fixtures and active USER preset slots.
+//!   https://github.com/jeromeof/devicePEQ
+//! - weekssa/OPRA-EQ-for-UAPP: docs/FIIO_JA11_PROTOCOL_NOTES.md and
+//!   domain/kt02h20/FiioJa11Protocol.kt / FiioJa11Timing.kt, for signed
+//!   big-endian tenths-dB gain, JA11 Apply/Save ordering and pacing.
+//!   https://github.com/weekssa/OPRA-EQ-for-UAPP
+//! - Ircama/ja11-config: JA11 Apply after data and Save as the final command.
+//!   https://github.com/Ircama/ja11-config
+//! - Cyfine/ja11-web-control: JA11 pacing and state-control protocol;
+//!   exact state-control source revision is credited in the JA11 codec.
+//!   https://github.com/Cyfine/ja11-web-control
+//!
+//! Sources differ on some fields; only the specific evidence above is used.
+
 use crate::device::packet::{checked_scaled_i16, checked_scaled_u16, Packet};
 use crate::device::protocol::{EqProtocol, GainEncoding, Quirks};
 use crate::device::timing::WriteTiming;
