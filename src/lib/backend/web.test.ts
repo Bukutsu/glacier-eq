@@ -37,6 +37,7 @@ import {
   invoke,
   decodeUtf8File,
   matchSupportedWebHidDevice,
+  requestWebHidDevice,
   openUrl,
   parseWebProfiles,
   parseWebSettings,
@@ -83,6 +84,7 @@ const hidMock = {
     hidListeners.set(event, listener);
   }),
   getDevices: vi.fn(async () => hidMock.devices),
+  requestDevice: vi.fn(async (_options: unknown) => [] as HIDDevice[]),
 };
 
 function fakeHidDevice(options: { respondToReports?: boolean; firmwareResponseAfter?: number } = {}): HIDDevice {
@@ -425,6 +427,42 @@ describe("browser connection cleanup", () => {
     // Leave no blocking close behind: a later connect_device would await it
     // while replacing this device and hang for the rest of the file.
     await invoke("disconnect_device", { expectedPath: listed[0].path });
+  });
+});
+
+describe("connection edge cases", () => {
+  it("does not widen product ID zero into a vendor-wide authorization filter", async () => {
+    wasm.list_supported_devices.mockReturnValue([
+      { ...profile, product_id: 0 },
+      { ...profile, vendor_id: 0x9999, product_id: null },
+    ]);
+    await requestWebHidDevice();
+    expect(hidMock.requestDevice).toHaveBeenCalledWith({ filters: [
+      { vendorId: profile.vendor_id, productId: 0 },
+      { vendorId: 0x9999, productId: undefined },
+    ] });
+  });
+
+  it("does not publish a connection when unplugged during open", async () => {
+    const device = fakeHidDevice();
+    device.opened = false;
+    device.open = vi.fn(async () => {
+      device.opened = true;
+      hidListeners.get("disconnect")!({ device });
+      await Promise.resolve();
+    });
+    wasm.list_supported_devices.mockReturnValue([profile]);
+    hidMock.devices = [device];
+    const [listed] = await invoke<Array<{ path: string }>>("list_devices");
+    await expect(invoke("connect_device", { path: listed.path }))
+      .rejects.toThrow("Device disconnected while connecting");
+    expect(device.close).toHaveBeenCalledOnce();
+    await expect(invoke("get_eq_state")).rejects.toThrow("No device connected");
+
+    // An old disconnect epoch must not poison a subsequent explicit reconnect.
+    device.open = vi.fn(async () => { device.opened = true; });
+    await expect(invoke("connect_device", { path: listed.path })).resolves.toBeGreaterThan(0);
+    await invoke("disconnect_device");
   });
 });
 

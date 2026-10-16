@@ -60,6 +60,7 @@ function emitEvent(event: string, payload: unknown) {
 }
 
 let webHidDisconnectListenerInstalled = false;
+const webHidDisconnectEpochs = new WeakMap<HIDDevice, number>();
 
 function ensureWebHid(): HID {
   const hid = navigator.hid;
@@ -68,7 +69,9 @@ function ensureWebHid(): HID {
   }
   if (!webHidDisconnectListenerInstalled) {
     hid.addEventListener("disconnect", (event: any) => {
-      markWebHidDisconnected(event.device);
+      const device: HIDDevice = event.device;
+      webHidDisconnectEpochs.set(device, (webHidDisconnectEpochs.get(device) ?? 0) + 1);
+      markWebHidDisconnected(device);
     });
     webHidDisconnectListenerInstalled = true;
   }
@@ -1069,6 +1072,7 @@ async function invokeWeb<T = unknown>(cmd: string, args?: any): Promise<T> {
         throw new Error("Device is unsupported or unavailable. Select 'Scan for devices' to authorize a supported DAC.");
       }
 
+      const disconnectEpoch = webHidDisconnectEpochs.get(target);
       if (activeDevice && activeDevice !== target) {
         detachHidEventListeners(activeDevice);
         try { await activeDevice.close(); } catch {}
@@ -1098,6 +1102,12 @@ async function invokeWeb<T = unknown>(cmd: string, args?: any): Promise<T> {
       activeDevice = null;
       if (!target.opened) {
         await target.open();
+      }
+      if (webHidDisconnectEpochs.get(target) !== disconnectEpoch) {
+        // The global disconnect handler cannot clear an identity that has not
+        // been installed yet. Fence a disconnect that raced open() explicitly.
+        try { await target.close(); } catch {}
+        throw new Error("Device disconnected while connecting. Reconnect the DAC and try again.");
       }
       activeDevice = target;
       reportQueue = [];
@@ -1192,7 +1202,7 @@ export async function requestWebHidDevice(): Promise<void> {
   const supported = listSupportedDevices();
   const filters = supported.map((s) => ({
     vendorId: s.vendor_id,
-    productId: s.product_id || undefined,
+    productId: s.product_id ?? undefined,
   }));
 
   const selected = await ensureWebHid().requestDevice({ filters });
