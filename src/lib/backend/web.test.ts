@@ -429,6 +429,22 @@ describe("browser connection cleanup", () => {
 });
 
 describe("shared-session transport adapter", () => {
+  it.each([false, true])("retains Rust's consumed nonce when failure is %s", async failed => {
+    await connectWebHid(fakeHidDevice());
+    wasm.device_operation.mockImplementationOnce(async (_vid, _pid, io) => {
+      io.nonce = 79;
+      if (failed) throw new Error("read failed after retries");
+      return { globalGain: 1, filters: [] };
+    });
+    const first = invoke("get_eq_state");
+    if (failed) await expect(first).rejects.toThrow("read failed after retries");
+    else await first;
+    await invoke("get_eq_state");
+    const [, , io, , , seed] = wasm.device_operation.mock.calls.at(-1)!;
+    expect(seed).toBe(79);
+    expect(io.nonce).toBe(79);
+  });
+
   it("passes the connected PID, command, settings and nonce to Rust", async () => {
     const device = fakeHidDevice();
     await connectWebHid(device, { ...profile, product_id: null });

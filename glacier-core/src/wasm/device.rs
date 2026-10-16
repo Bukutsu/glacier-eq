@@ -68,6 +68,10 @@ impl DeviceIo for WebTransport {
     }
 }
 
+/// Executes a command through the shared session. The JS transport supplies
+/// async write/read/sleep methods and a writable nonce property. On success or
+/// device failure, nonce receives the last consumed filter nonce; use it as the
+/// next operation's initial_nonce, including after a rejected Promise.
 #[wasm_bindgen]
 pub async fn device_operation(
     vendor_id: f64,
@@ -88,7 +92,20 @@ pub async fn device_operation(
         // transaction after writes have already landed.
         let _ = progress.call2(&JsValue::NULL, &message.into(), &percentage.into());
     };
+    let nonce_state: &JsValue = io.as_ref();
+    let nonce_state = nonce_state.clone();
     let mut session = DeviceSession::from_io(WebTransport(io), profile, Some(&mut callback), nonce);
-    let outcome = session.execute(request).await.map_err(js_err)?;
-    to_js_value(&outcome)
+    let outcome = session.execute(request).await;
+    // Publish correlation state even when the operation fails after sending
+    // requests. Reusing a consumed nonce could accept a late, stale response.
+    if !js_sys::Reflect::set(
+        &nonce_state,
+        &"nonce".into(),
+        &session.filter_nonce().into(),
+    )? {
+        return Err(js_err(
+            "WebHID transport must have a writable nonce property",
+        ));
+    }
+    to_js_value(&outcome.map_err(js_err)?)
 }

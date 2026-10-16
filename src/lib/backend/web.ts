@@ -622,6 +622,7 @@ async function runDeviceOperation<T>(command: string, args?: unknown): Promise<T
     }
   };
   const io = {
+    nonce: nextFilterNonce,
     async write(bytes: Uint8Array) {
       requireSession();
       await sendReport(bytes);
@@ -648,16 +649,18 @@ async function runDeviceOperation<T>(command: string, args?: unknown): Promise<T
       ? { skip_verification: loadWebSettings().skip_push_verification }
       : {}),
   };
-  // The native backend also reserves one seed per command. The session rotates
-  // filter nonces within the command; adapters never inspect packet contents.
-  nextFilterNonce = (nextFilterNonce + 1) & 0xff;
-  if (nextFilterNonce === 0) nextFilterNonce = 1;
-  return await wasm().device_operation(
-    device.vendorId, device.productId, io, request,
-    (message: string, percentage: number) =>
-      emitEvent("operation-progress", { message, percentage }),
-    nextFilterNonce,
-  ) as T;
+  try {
+    return await wasm().device_operation(
+      device.vendorId, device.productId, io, request,
+      (message: string, percentage: number) =>
+        emitEvent("operation-progress", { message, percentage }),
+      io.nonce,
+    ) as T;
+  } finally {
+    // Rust publishes the last nonce it consumed on success and failure.
+    // Keep allocation continuous without inspecting protocol packets here.
+    nextFilterNonce = io.nonce;
+  }
 }
 
 // ─── Tauri Command Mock Routing ──────────────────────────────────────────────

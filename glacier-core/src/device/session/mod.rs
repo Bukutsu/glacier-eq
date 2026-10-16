@@ -80,6 +80,12 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
         }
     }
 
+    /// Last allocated filter nonce, including failed requests and retries.
+    /// A short-lived adapter must retain this as the next session's seed.
+    pub fn filter_nonce(&self) -> u8 {
+        self.next_nonce
+    }
+
     fn progress(&mut self, message: &str, percentage: f32) {
         if let Some(callback) = &mut self.progress {
             callback(message, percentage);

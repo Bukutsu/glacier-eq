@@ -27,6 +27,7 @@ function dac(model = "ja11", options: { missingGain?: boolean; mismatch?: boolea
   let saved = false;
   let wrote = false;
   const io = {
+    nonce: 1,
     async write(bytes: Uint8Array) {
       await Promise.resolve(); // Exercise a genuinely asynchronous transport.
       if (saved && model === "ja11") throw new Error("I/O after JA11 reset");
@@ -66,11 +67,63 @@ function dac(model = "ja11", options: { missingGain?: boolean; mismatch?: boolea
     })),
   };
   const run = (request: unknown) =>
-    device_operation(0x2972, model === "ja11" ? 0x0102 : 0x0093, io, request, () => {}, 1);
+    device_operation(0x2972, model === "ja11" ? 0x0102 : 0x0093, io, request, () => {}, io.nonce);
   return { events, peq, run };
 }
 
 describe("Rust session over the real wasm bridge", () => {
+  it.each([false, true])("retains consumed nonces across commands, including failure=%s", async failed => {
+    // Walkplay carries the request nonce in response byte 2. Simulate a late
+    // band-0 response from the first operation, arriving AFTER the next drain.
+    const requests: number[] = [];
+    let phase = 0;
+    let stale: Uint8Array | undefined;
+    const pending: Uint8Array[] = [];
+    const response = (request: Uint8Array, freq: number) => {
+      const bytes = new Uint8Array(35);
+      bytes.set([0x4b, 0x80, 0x09, request[3], 0, request[5]]);
+      const view = new DataView(bytes.buffer);
+      view.setUint16(28, freq, true);
+      view.setUint16(30, 256, true);
+      view.setInt16(32, 256, true);
+      bytes[34] = 2;
+      return bytes;
+    };
+    const io = {
+      nonce: 1,
+      async write(request: Uint8Array) {
+        if (request[2] === 0x09) {
+          requests.push(request[3]);
+          if (phase === 0 && request[5] === 0) {
+            stale = response(request, 777);
+            // Force a full-pull retry before success, or fail both attempts.
+            if (failed || requests.length === 1) throw new Error("transient read request failure");
+          }
+          if (phase === 1 && stale) {
+            pending.push(stale);
+            stale = undefined;
+          }
+          pending.push(response(request, 1000));
+        } else if (request[2] === 0x03) {
+          pending.push(Uint8Array.of(0x4b, 0x80, 0x03, 0, 0, 1, 0));
+        }
+      },
+      async read() { return pending.shift() ?? new Uint8Array(); },
+      async sleep() { await Promise.resolve(); },
+    };
+    const run = () => device_operation(0x3302, 0x43e6, io, { command: "get_eq_state" }, () => {}, io.nonce);
+    if (failed) await expect(run()).rejects.toContain("transient read request failure");
+    else await expect(run()).resolves.toMatchObject({ globalGain: 1 });
+    const lastNonce = requests.at(-1)!;
+    expect(io.nonce).toBe(lastNonce);
+    const previousRequests = requests.length;
+    phase = 1;
+    const result = await run();
+    expect(requests[previousRequests]).toBe(lastNonce + 1);
+    expect(result.filters[0].freq).toBe(1000); // Not the stale 777 Hz response.
+    expect(io.nonce).toBe(requests.at(-1));
+  });
+
   it("exports specs and control capabilities from the matched catalog entries", () => {
     const catalog = list_supported_devices();
     const tp35 = catalog.find((profile: any) => profile.vendor_id === 0x3302 && profile.product_id === 0x43e6);
