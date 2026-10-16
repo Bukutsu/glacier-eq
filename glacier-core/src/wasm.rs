@@ -3,8 +3,8 @@
 
 use crate::device::capabilities::{DeviceCapabilities, EditorCapabilities, DESKTOP_DAC_CAPS};
 use crate::device::{
-    get_supported_device, DeviceProfile, DeviceProtocol, EqProtocol, Packet, WalkplayProtocol,
-    SUPPORTED_DEVICES,
+    get_supported_device, protocol_by_name, DeviceProfile, DeviceProtocol, EqProtocol, Packet,
+    WalkplayProtocol, SUPPORTED_DEVICES,
 };
 use crate::eq::{Filter, PEQData};
 use crate::profile_match::{matching_profile_name, ProfileCandidate};
@@ -113,28 +113,12 @@ fn response_values_and_bands(
     responses
 }
 
-fn device_protocol(protocol: &str) -> Result<DeviceProtocol, JsValue> {
-    let normalized = protocol.to_lowercase().replace([' ', '-', '_'], "");
-    match normalized.as_str() {
-        "walkplay" => Ok(DeviceProtocol::Walkplay),
-        "moondrop" => Ok(DeviceProtocol::Moondrop),
-        "moondropdawnpro" => Ok(DeviceProtocol::DawnPro),
-        "fiioja11" => Ok(DeviceProtocol::FiioJa11),
-        "fiio" => Ok(DeviceProtocol::Fiio),
-        "fiioka17" => Ok(DeviceProtocol::FiioKa17),
-        _ => Err(JsValue::from_str("Invalid protocol")),
-    }
-}
-
 fn eq_protocol(protocol: &str) -> Result<&'static dyn EqProtocol, JsValue> {
-    let protocol = device_protocol(protocol)?;
-    if !protocol.has_hardware_eq() {
-        return Err(JsValue::from_str(&format!(
-            "{} has no hardware EQ",
-            protocol.name()
-        )));
-    }
-    Ok(protocol.implementation())
+    let protocol =
+        protocol_by_name(protocol).ok_or_else(|| JsValue::from_str("Invalid protocol"))?;
+    protocol
+        .eq_protocol()
+        .ok_or_else(|| JsValue::from_str(&format!("{} has no hardware EQ", protocol.name())))
 }
 
 fn unframe<'a>(protocol: &dyn EqProtocol, data: &'a [u8]) -> Result<&'a [u8], JsValue> {

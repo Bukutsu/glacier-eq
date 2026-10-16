@@ -241,6 +241,17 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
     },
 ];
 
+/// Finds a catalog protocol by its `DeviceProtocol::name()`, ignoring case,
+/// spaces, `-` and `_`. Only protocols with a catalog entry resolve.
+pub fn protocol_by_name(name: &str) -> Option<DeviceProtocol> {
+    let key = |name: &str| name.to_lowercase().replace([' ', '-', '_'], "");
+    let wanted = key(name);
+    SUPPORTED_DEVICES
+        .iter()
+        .map(|device| device.protocol)
+        .find(|protocol| key(protocol.name()) == wanted)
+}
+
 pub fn get_supported_device(vendor_id: u16, product_id: u16) -> Option<&'static DeviceProfile> {
     // Exact PID matches win over vendor fallbacks regardless of slice order,
     // so a future fallback entry cannot shadow an exact profile.
@@ -292,6 +303,35 @@ mod tests {
         assert!(dawn2.protocol.has_hardware_eq());
         assert_eq!(dawn2.caps.num_bands, 8);
         assert_eq!(dawn2.caps.dsp_sample_rate, 96000.0);
+    }
+
+    #[test]
+    fn every_catalog_protocol_resolves_by_its_name() {
+        for device in SUPPORTED_DEVICES {
+            let name = device.protocol.name();
+            assert_eq!(protocol_by_name(name), Some(device.protocol), "{name}");
+            assert_eq!(
+                protocol_by_name(&name.to_uppercase().replace(' ', "_")),
+                Some(device.protocol),
+                "{name}"
+            );
+        }
+        assert_eq!(protocol_by_name("Unknown"), None);
+    }
+
+    #[test]
+    fn catalog_entries_do_not_shadow_each_other() {
+        for (i, a) in SUPPORTED_DEVICES.iter().enumerate() {
+            for b in &SUPPORTED_DEVICES[i + 1..] {
+                assert_ne!(a.name, b.name, "duplicate profile name");
+                assert!(
+                    a.vendor_id != b.vendor_id || a.product_id != b.product_id,
+                    "{} and {} claim the same VID/PID match",
+                    a.name,
+                    b.name
+                );
+            }
+        }
     }
 
     #[test]

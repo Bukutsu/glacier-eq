@@ -22,6 +22,8 @@ pub enum DeviceProtocol {
 }
 
 impl DeviceProtocol {
+    /// Stable identifier: serialized to the UI and parsed back by the wasm
+    /// boundary (`catalog::protocol_by_name`). Renaming one breaks both.
     pub fn name(self) -> &'static str {
         match self {
             Self::Walkplay => "Walkplay",
@@ -32,10 +34,6 @@ impl DeviceProtocol {
             Self::FiioKa17 => "FiiO KA17",
             Self::Unknown => "Unknown",
         }
-    }
-
-    pub fn has_hardware_eq(self) -> bool {
-        !matches!(self, Self::DawnPro | Self::Unknown)
     }
 }
 

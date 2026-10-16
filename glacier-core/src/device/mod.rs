@@ -17,7 +17,7 @@ pub mod session;
 pub mod timing;
 
 pub use capabilities::{DeviceCapabilities, EditorCapabilities};
-pub use catalog::{get_supported_device, SUPPORTED_DEVICES};
+pub use catalog::{get_supported_device, protocol_by_name, SUPPORTED_DEVICES};
 pub use families::dawn_pro;
 pub use families::walkplay::WalkplayProtocol;
 pub(crate) use normalization::validate_peq_for_capabilities;

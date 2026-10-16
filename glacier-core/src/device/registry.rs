@@ -11,19 +11,31 @@ static WALKPLAY_PROTOCOL: WalkplayProtocol = WalkplayProtocol;
 static MOONDROP_PROTOCOL: MoondropProtocol = MoondropProtocol;
 
 impl DeviceProtocol {
-    pub(crate) fn implementation(&self) -> &'static dyn EqProtocol {
+    /// The EQ implementation, or `None` for profiles that exist only for
+    /// device matching or non-EQ controls. This match is the one place a new
+    /// protocol is wired in.
+    pub(crate) fn eq_protocol(self) -> Option<&'static dyn EqProtocol> {
         match self {
-            DeviceProtocol::Walkplay => &WALKPLAY_PROTOCOL,
-            DeviceProtocol::Moondrop => &MOONDROP_PROTOCOL,
-            DeviceProtocol::FiioKa17 => &fiio::KA17_PROTOCOL,
-            DeviceProtocol::FiioJa11 => &fiio::JA11_PROTOCOL,
-            DeviceProtocol::Fiio => &fiio::FIIO_PROTOCOL,
-            DeviceProtocol::DawnPro | DeviceProtocol::Unknown => {
-                // Callers check has_hardware_eq() before driving EQ; these
-                // profiles exist for matching and non-EQ controls only.
-                panic!("{} has no hardware EQ implementation", self.name())
-            }
+            DeviceProtocol::Walkplay => Some(&WALKPLAY_PROTOCOL),
+            DeviceProtocol::Moondrop => Some(&MOONDROP_PROTOCOL),
+            DeviceProtocol::FiioKa17 => Some(&fiio::KA17_PROTOCOL),
+            DeviceProtocol::FiioJa11 => Some(&fiio::JA11_PROTOCOL),
+            DeviceProtocol::Fiio => Some(&fiio::FIIO_PROTOCOL),
+            DeviceProtocol::DawnPro | DeviceProtocol::Unknown => None,
         }
+    }
+
+    pub fn has_hardware_eq(self) -> bool {
+        self.eq_protocol().is_some()
+    }
+
+    /// # Panics
+    ///
+    /// For protocols without hardware EQ. Callers check `has_hardware_eq()`
+    /// before driving EQ.
+    pub(crate) fn implementation(&self) -> &'static dyn EqProtocol {
+        self.eq_protocol()
+            .unwrap_or_else(|| panic!("{} has no hardware EQ implementation", self.name()))
     }
 }
 
