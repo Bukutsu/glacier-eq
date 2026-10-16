@@ -19,6 +19,18 @@ export interface DeviceLossActions {
   }) => void;
 }
 
+/** The JA11 restarts after a PEQ save or a setting write and comes back on its own. */
+export const isJa11Device = (device?: { controls?: string | null } | null): boolean =>
+  device?.controls === "ja11";
+
+/**
+ * Report a JA11 drop as routine: logged, with no error toast. The original
+ * message stays in diagnostics so a real fault can still be diagnosed.
+ */
+export function quietLossReport<T extends { level: ReportLevel; message: string; toastType?: ReportToast; statusText?: string }>(status: T): T {
+  return { ...status, level: "Info", message: `Recovering quietly: ${status.message}`, toastType: null, statusText: "Reconnecting…" };
+}
+
 /**
  * Shared disconnect quartet + reconnect status. Every device-loss path
  * (event listener, HID poll, pull/push/apply failures) funnels through here
