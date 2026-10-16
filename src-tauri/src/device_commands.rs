@@ -186,7 +186,7 @@ fn hid_write(app: &tauri::AppHandle, path: &str, data: &[u8]) -> Result<(), Stri
         let state = app.state::<Mutex<DeviceState>>();
         let connected = connected_device(&state)?;
         let profile = registered_profile(&connected)?;
-        if profile.protocol == glacier_core::device::DeviceProtocol::Moondrop {
+        if profile.protocol.quirks().set_report_writes {
             hid.send_output_report(path, data)
         } else {
             hid.write(path, data)

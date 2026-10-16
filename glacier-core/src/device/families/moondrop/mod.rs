@@ -3,7 +3,7 @@
 
 use crate::device::families::walkplay::compute_iir_filter;
 use crate::device::packet::{checked_scaled_i16, checked_scaled_u16, Packet};
-use crate::device::protocol::{EqProtocol, GainEncoding};
+use crate::device::protocol::{EqProtocol, GainEncoding, Quirks};
 use crate::device::timing::WriteTiming;
 use crate::eq::filter::DEFAULT_FREQS_10_BAND;
 use crate::eq::{Filter, FilterType, PEQData};
@@ -282,6 +282,13 @@ impl EqProtocol for MoondropProtocol {
     fn ram_apply_packets(&self) -> Vec<Packet> {
         // Band 7 already latches all coefficients; flash saves are commit-only.
         vec![]
+    }
+
+    fn quirks(&self) -> Quirks {
+        Quirks {
+            set_report_writes: true,
+            ..Quirks::default()
+        }
     }
 
     fn report_id(&self) -> u8 {

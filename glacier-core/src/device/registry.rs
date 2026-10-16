@@ -5,7 +5,7 @@
 
 use crate::device::families::{fiio, moondrop::MoondropProtocol, walkplay::WalkplayProtocol};
 use crate::device::profile::DeviceProtocol;
-use crate::device::protocol::EqProtocol;
+use crate::device::protocol::{EqProtocol, Quirks};
 
 static WALKPLAY_PROTOCOL: WalkplayProtocol = WalkplayProtocol;
 static MOONDROP_PROTOCOL: MoondropProtocol = MoondropProtocol;
@@ -27,6 +27,13 @@ impl DeviceProtocol {
 
     pub fn has_hardware_eq(self) -> bool {
         self.eq_protocol().is_some()
+    }
+
+    /// Default (no quirks) for protocols without hardware EQ.
+    pub fn quirks(self) -> Quirks {
+        self.eq_protocol()
+            .map(|protocol| protocol.quirks())
+            .unwrap_or_default()
     }
 
     /// # Panics
@@ -71,6 +78,18 @@ mod tests {
                 .resend_unanswered_after(),
             None
         );
+    }
+
+    #[test]
+    fn only_moondrop_writes_with_set_report() {
+        for device in crate::device::SUPPORTED_DEVICES {
+            assert_eq!(
+                device.protocol.quirks().set_report_writes,
+                device.protocol == DeviceProtocol::Moondrop,
+                "{}",
+                device.name
+            );
+        }
     }
 
     #[test]

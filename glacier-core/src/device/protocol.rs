@@ -19,6 +19,10 @@ pub struct Quirks {
     /// devicePEQ's `disconnectOnSave` records). Nothing may be read or written
     /// after the save, so pushes verify the RAM state first and save last.
     pub save_resets_device: bool,
+    /// Writes go out as HID SET_REPORT (hidapi `send_output_report`) rather
+    /// than interrupt-OUT writes. Only Windows distinguishes the two; the
+    /// Moondrop Dawn Pro 2 needs SET_REPORT there.
+    pub set_report_writes: bool,
 }
 
 /// How a protocol stores gain on the wire. Normalization, profile matching,

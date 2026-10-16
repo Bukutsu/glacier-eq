@@ -13,6 +13,7 @@ pub const JA11_PROTOCOL: FiioProtocol = FiioProtocol {
     quirks: Quirks {
         gain_read_optional: true,
         save_resets_device: true,
+        set_report_writes: false,
     },
 };
 
@@ -25,6 +26,7 @@ pub const FIIO_PROTOCOL: FiioProtocol = FiioProtocol {
     quirks: Quirks {
         gain_read_optional: false,
         save_resets_device: false,
+        set_report_writes: false,
     },
 };
 
@@ -36,5 +38,6 @@ pub const KA17_PROTOCOL: FiioProtocol = FiioProtocol {
     quirks: Quirks {
         gain_read_optional: false,
         save_resets_device: false,
+        set_report_writes: false,
     },
 };
