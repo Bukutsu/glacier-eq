@@ -293,11 +293,22 @@ fn registered_profile(connected: &ConnectedDevice) -> Result<&'static DeviceProf
     })
 }
 
-fn reserve_session_nonce(state: &tauri::State<'_, Mutex<DeviceState>>) -> Result<u8, String> {
-    let mut guard = lock_device_state(state)?;
-    let seed = guard.next_nonce.wrapping_add(1).max(1);
-    guard.next_nonce = seed;
-    Ok(seed)
+// Caller holds DeviceSessionLock across this entire transaction. The small
+// state mutex must not remain locked during I/O (disconnect handling uses it).
+fn run_session<T>(
+    state: &Mutex<DeviceState>,
+    io: &mut dyn DeviceIo,
+    profile: &'static DeviceProfile,
+    progress: &mut dyn FnMut(&str, f32),
+    operation: impl FnOnce(&mut DeviceSession<'_>) -> Result<T, String>,
+) -> Result<T, String> {
+    let seed = state.lock().unwrap_or_else(|p| p.into_inner()).next_nonce;
+    let mut session = DeviceSession::with_progress_and_nonce(io, profile, progress, seed);
+    let result = operation(&mut session);
+    // Retain every allocated nonce, including retries and failed commands,
+    // before releasing DeviceSessionLock to the next operation.
+    state.lock().unwrap_or_else(|p| p.into_inner()).next_nonce = session.filter_nonce();
+    result
 }
 
 async fn with_session_for<T: Send + 'static>(
@@ -314,7 +325,6 @@ async fn with_session_for<T: Send + 'static>(
         return Err("Device session changed; operation was cancelled".into());
     }
     let profile = registered_profile(&connected)?;
-    let nonce_seed = reserve_session_nonce(state)?;
     let app_clone = app.clone();
     let path = connected.path.clone();
     tauri::async_runtime::spawn_blocking(move || {
@@ -326,12 +336,13 @@ async fn with_session_for<T: Send + 'static>(
         let progress_app = app_clone.clone();
         let mut progress =
             move |message: &str, percentage| emit_progress(&progress_app, message, percentage);
-        operation(&mut DeviceSession::with_progress_and_nonce(
+        run_session(
+            &app_clone.state::<Mutex<DeviceState>>(),
             &mut io,
             profile,
             &mut progress,
-            nonce_seed,
-        ))
+            operation,
+        )
     })
     .await
     .map_err(|e| e.to_string())?
@@ -917,6 +928,73 @@ pub async fn execute_factory_reset(
 mod tests {
     use super::close_and_release;
     use std::cell::Cell;
+
+    #[test]
+    fn native_sessions_retain_consumed_nonces_on_success_and_failure() {
+        use super::*;
+        use glacier_core::device::block_on;
+
+        #[derive(Default)]
+        struct Io {
+            pending: Option<Vec<u8>>,
+            nonces: Vec<u8>,
+            fail_band_one: bool,
+        }
+        impl DeviceIo for Io {
+            fn write(&mut self, framed: &[u8]) -> Result<(), String> {
+                let data = &framed[1..];
+                match data[1] {
+                    3 => self.pending = Some(vec![0x80, 3, 0, 0, 1, 0]),
+                    9 => {
+                        self.nonces.push(data[2]);
+                        if self.fail_band_one && data[4] == 1 {
+                            return Err("simulated filter request failure".into());
+                        }
+                        let mut response = vec![0; 34];
+                        response[..5].copy_from_slice(&[0x80, 9, data[2], 0, data[4]]);
+                        response[27..29].copy_from_slice(&1000u16.to_le_bytes());
+                        response[29..31].copy_from_slice(&256u16.to_le_bytes());
+                        response[31..33].copy_from_slice(&256i16.to_le_bytes());
+                        response[33] = 2;
+                        self.pending = Some(response);
+                    }
+                    _ => {}
+                }
+                Ok(())
+            }
+            fn read(&mut self, _: i32) -> Result<Vec<u8>, String> {
+                Ok(self.pending.take().unwrap_or_default())
+            }
+            fn sleep_ms(&mut self, _: u64) {}
+        }
+
+        let profile = get_supported_device(0x3302, 0x43e6).unwrap();
+        for failed in [false, true] {
+            let state = Mutex::new(DeviceState {
+                next_nonce: 254,
+                ..Default::default()
+            });
+            let mut io = Io {
+                fail_band_one: failed,
+                ..Default::default()
+            };
+            let result = run_session(&state, &mut io, profile, &mut |_, _| {}, |session| {
+                block_on(session.pull())
+            });
+            assert_eq!(result.is_err(), failed);
+            let consumed = *io.nonces.last().unwrap();
+            assert_eq!(state.lock().unwrap().next_nonce, consumed);
+            assert!(!io.nonces.contains(&0));
+            let previous = io.nonces.len();
+            io.fail_band_one = false;
+            run_session(&state, &mut io, profile, &mut |_, _| {}, |session| {
+                block_on(session.pull())
+            })
+            .unwrap();
+            assert_eq!(io.nonces[previous], consumed.wrapping_add(1).max(1));
+            assert_eq!(state.lock().unwrap().next_nonce, *io.nonces.last().unwrap());
+        }
+    }
 
     #[test]
     fn failed_close_still_releases_transport_and_reports_error() {
