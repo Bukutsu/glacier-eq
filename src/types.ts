@@ -79,7 +79,7 @@ export interface DeviceCapabilities {
 }
 
 /** Device controls beyond EQ; each set has its own commands and panel. */
-export type DeviceControls = "walkplay" | "dawn_pro";
+export type DeviceControls = "walkplay" | "dawn_pro" | "ja11";
 
 export interface DeviceInfo extends DeviceCapabilities {
   vendor_id: number;

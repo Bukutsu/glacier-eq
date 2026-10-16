@@ -3,8 +3,8 @@
 
 use crate::state::{ConnectedDevice, DeviceSessionLock, DeviceState};
 use glacier_core::device::{
-    get_supported_device, BlockingDeviceIo as DeviceIo, Controls, DacUtilityState, DeviceInfo,
-    DeviceProfile, DeviceSession, SupportedDeviceInfo,
+    get_supported_device, session::EqWriteOutcome, BlockingDeviceIo as DeviceIo, Controls,
+    DacUtilityState, DeviceInfo, DeviceProfile, DeviceSession, SupportedDeviceInfo,
 };
 use glacier_core::eq::PEQData;
 use std::collections::HashSet;
@@ -23,21 +23,6 @@ pub(crate) const DISCONNECT_SUPERSEDED: &str = "Connection changed before discon
 struct OperationProgress {
     message: String,
     percentage: f32,
-}
-
-/// A completed EQ write: the state flattened so the response stays a valid
-/// PEQ document, plus the capability-clamp warnings from normalization — the
-/// UI must be able to tell the user their values were adjusted instead of
-/// claiming an unqualified "Saved EQ to DAC".
-///
-/// `committed` is a readback of the device only when the write was verified.
-/// With the skip-push-verification setting it is the *requested* state, and
-/// `warnings` carries the session's UNVERIFIED_PUSH_WARNING saying so.
-#[derive(Clone, serde::Serialize)]
-pub struct EqWriteOutcome {
-    #[serde(flatten)]
-    committed: PEQData,
-    warnings: Vec<String>,
 }
 
 fn lock_device_state<'a, 'r>(
@@ -256,15 +241,91 @@ fn try_open_device(app: &tauri::AppHandle, path: &str, session_id: u64) -> Resul
 struct TauriDeviceIo<'a> {
     app: &'a tauri::AppHandle,
     path: &'a str,
+    /// Consecutive empty reads not yet logged, and their total timeout.
+    idle_reads: (u32, i64),
+}
+
+/// Hex with trailing zero padding collapsed, so fixed-size HID reports stay
+/// readable in the diagnostic report.
+fn hid_hex(data: &[u8]) -> String {
+    let used = data
+        .iter()
+        .rposition(|&byte| byte != 0)
+        .map_or(0, |i| i + 1);
+    let mut text = data[..used]
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect::<Vec<_>>()
+        .join(" ");
+    if used < data.len() {
+        text.push_str(&format!(" (+{} zero bytes)", data.len() - used));
+    }
+    text
+}
+
+impl TauriDeviceIo<'_> {
+    fn trace(&self, level: crate::diagnostics::LogLevel, message: String) {
+        crate::diagnostics::record(
+            self.app,
+            self.app
+                .state::<Mutex<crate::diagnostics::DiagnosticsStore>>()
+                .inner(),
+            level,
+            crate::diagnostics::LogSource::HID,
+            message,
+        );
+    }
+
+    fn flush_idle_reads(&mut self) {
+        let (count, ms) = std::mem::take(&mut self.idle_reads);
+        if count > 0 {
+            self.trace(
+                crate::diagnostics::LogLevel::Info,
+                format!("RX no reply x{count} ({ms} ms)"),
+            );
+        }
+    }
+}
+
+impl Drop for TauriDeviceIo<'_> {
+    fn drop(&mut self) {
+        self.flush_idle_reads();
+    }
 }
 
 impl DeviceIo for TauriDeviceIo<'_> {
     fn write(&mut self, data: &[u8]) -> Result<(), String> {
-        hid_write(self.app, self.path, data)
+        use crate::diagnostics::LogLevel;
+        self.flush_idle_reads();
+        let result = hid_write(self.app, self.path, data);
+        match &result {
+            Ok(()) => self.trace(LogLevel::Info, format!("TX {}", hid_hex(data))),
+            Err(error) => self.trace(
+                LogLevel::Error,
+                format!("TX failed {}: {error}", hid_hex(data)),
+            ),
+        }
+        result
     }
 
     fn read(&mut self, timeout_ms: i32) -> Result<Vec<u8>, String> {
-        hid_read(self.app, self.path, timeout_ms)
+        use crate::diagnostics::LogLevel;
+        let result = hid_read(self.app, self.path, timeout_ms);
+        match &result {
+            Ok(bytes) if bytes.is_empty() => {
+                self.idle_reads.0 += 1;
+                self.idle_reads.1 += i64::from(timeout_ms);
+            }
+            Ok(bytes) => {
+                self.flush_idle_reads();
+                self.trace(LogLevel::Info, format!("RX {}", hid_hex(bytes)));
+            }
+            Err(error) => {
+                self.flush_idle_reads();
+                self.trace(LogLevel::Error, format!("RX failed: {error}"));
+            }
+        }
+        result
     }
 
     fn reads_include_report_id(&self) -> bool {
@@ -332,6 +393,7 @@ async fn with_session_for<T: Send + 'static>(
         let mut io = TauriDeviceIo {
             app: &app_clone,
             path: &path,
+            idle_reads: (0, 0),
         };
         let progress_app = app_clone.clone();
         let mut progress =
@@ -396,6 +458,7 @@ pub async fn set_eq_state(
         Ok(EqWriteOutcome {
             committed,
             warnings,
+            restarts: session.save_restarts_device(),
         })
     })
     .await
@@ -412,6 +475,7 @@ pub async fn apply_eq_state(
         Ok(EqWriteOutcome {
             committed,
             warnings,
+            restarts: false,
         })
     })
     .await
@@ -818,6 +882,29 @@ pub async fn set_dawn_pro_control(
 }
 
 #[tauri::command]
+pub async fn ja11_control(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Mutex<DeviceState>>,
+    path: String,
+    control: String,
+    value: Option<u8>,
+) -> Result<Option<u8>, String> {
+    let expected = session_identity(&state)?;
+    if expected.0 != path {
+        return Err("Device session changed; operation was cancelled".into());
+    }
+    with_session_for(&app, &state, expected, move |session| {
+        glacier_core::device::block_on(async {
+            match value {
+                Some(value) => session.set_ja11_control(&control, value).await,
+                None => session.ja11_control(&control).await.map(Some),
+            }
+        })
+    })
+    .await
+}
+
+#[tauri::command]
 pub async fn get_dac_utility_state(
     app: tauri::AppHandle,
     state: tauri::State<'_, Mutex<DeviceState>>,
@@ -928,6 +1015,71 @@ pub async fn execute_factory_reset(
 mod tests {
     use super::close_and_release;
     use std::cell::Cell;
+
+    #[test]
+    fn hid_hex_keeps_wire_bytes_and_collapses_only_trailing_padding() {
+        assert_eq!(
+            super::hid_hex(&[2, 0xbb, 0, 0xee, 0, 0]),
+            "02 bb 00 ee (+2 zero bytes)"
+        );
+        assert_eq!(super::hid_hex(&[]), "");
+        assert_eq!(super::hid_hex(&[0; 3]), " (+3 zero bytes)");
+    }
+
+    #[test]
+    fn native_ja11_controls_use_shared_read_write_verify_flow() {
+        use super::*;
+        use glacier_core::device::block_on;
+        #[derive(Default)]
+        struct Io {
+            pending: Option<Vec<u8>>,
+            value: u8,
+            writes: Vec<Vec<u8>>,
+        }
+        impl DeviceIo for Io {
+            fn write(&mut self, bytes: &[u8]) -> Result<(), String> {
+                self.writes.push(bytes.to_vec());
+                if bytes[1] == 0xbb {
+                    self.pending = Some(vec![2, 0xbb, 0x0b, 0, 0, 2, 1, self.value, 0, 0xee]);
+                } else {
+                    self.value = bytes[7];
+                }
+                Ok(())
+            }
+            fn read(&mut self, _: i32) -> Result<Vec<u8>, String> {
+                Ok(self.pending.take().unwrap_or_default())
+            }
+            fn reads_include_report_id(&self) -> bool {
+                true
+            }
+            fn sleep_ms(&mut self, _: u64) {}
+        }
+        for pid in [0x0101, 0x0102] {
+            let profile = get_supported_device(0x2972, pid).unwrap();
+            let state = Mutex::new(DeviceState {
+                next_nonce: 137,
+                ..Default::default()
+            });
+            let mut io = Io {
+                value: 30,
+                ..Default::default()
+            };
+            let result = run_session(&state, &mut io, profile, &mut |_, _| {}, |session| {
+                block_on(session.set_ja11_control("volume", 29))
+            })
+            .unwrap();
+            assert_eq!(result, Some(29));
+            assert_eq!(
+                io.writes,
+                [
+                    vec![2, 0xbb, 0x0b, 0, 0, 2, 0, 0, 0xee],
+                    vec![2, 0xaa, 0x0a, 0, 0, 2, 1, 29, 0, 0xee],
+                    vec![2, 0xbb, 0x0b, 0, 0, 2, 0, 0, 0xee],
+                ]
+            );
+            assert_eq!(state.lock().unwrap().next_nonce, 137);
+        }
+    }
 
     #[test]
     fn native_sessions_retain_consumed_nonces_on_success_and_failure() {

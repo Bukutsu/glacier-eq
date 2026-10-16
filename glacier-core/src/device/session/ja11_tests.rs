@@ -90,7 +90,6 @@ fn ja11_order_timing_signed_gain_and_save_boundary_on_both_pids() {
                         .await
                         .unwrap_err()
                         .contains("restart write attempted"));
-                    drop(session);
                     assert_eq!(io.writes.len(), save_call);
                     let sets: Vec<_> = io.writes.iter().filter(|p| p[1] == 0xaa).collect();
                     assert_eq!(
@@ -165,7 +164,6 @@ fn controls_fresh_read_volume_verification_and_restart_results() {
                         assert_eq!(result.unwrap(), None);
                     }
                     assert!(session.ja11_control(control).await.is_err());
-                    drop(session);
                     assert_eq!(io.writes.len(), 2);
                     assert_eq!(io.writes[1], vec![2, 0xaa, 0x0a, 0, 0, cmd, 1, 0, 0, 0xee]);
                     assert_pacing(&io);

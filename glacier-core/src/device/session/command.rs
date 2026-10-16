@@ -54,6 +54,9 @@ pub enum DeviceCommand {
     FactoryReset,
 }
 
+/// Verified writes return the readback; skipped verification returns the request
+/// and an explicit warning. A restart-causing Save is verified in RAM beforehand,
+/// not across reboot. Both native and WASM publish this same response shape.
 #[derive(Serialize)]
 pub struct EqWriteOutcome {
     #[serde(flatten)]

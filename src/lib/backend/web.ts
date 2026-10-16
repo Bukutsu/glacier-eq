@@ -234,6 +234,7 @@ function setupHidEventListeners(device: HIDDevice) {
     const framed = new Uint8Array(bytes.length + 1);
     framed[0] = event.reportId;
     framed.set(bytes, 1);
+    addDiagnostic("Info", "HID", `RX ${hidHex(framed)}`);
 
     if (reportResolvers.length > 0) {
       const resolver = reportResolvers.shift();
@@ -250,12 +251,21 @@ function setupHidEventListeners(device: HIDDevice) {
   device.addEventListener("inputreport", listener);
 }
 
+function hidHex(bytes: number[] | Uint8Array): string {
+  let used = bytes.length;
+  while (used > 0 && bytes[used - 1] === 0) used--;
+  const hex = Array.from(bytes.slice(0, used), byte => byte.toString(16).padStart(2, "0")).join(" ");
+  return hex + (used < bytes.length ? ` (+${bytes.length - used} zero bytes)` : "");
+}
+
 async function sendReport(packet: number[] | Uint8Array): Promise<void> {
   const device = activeDevice;
   if (!device) throw new Error("No device connected");
   try {
     await device.sendReport(packet[0], new Uint8Array(packet.slice(1)));
+    addDiagnostic("Info", "HID", `TX ${hidHex(packet)}`);
   } catch (error) {
+    addDiagnostic("Error", "HID", `TX failed ${hidHex(packet)}: ${error}`);
     markWebHidDisconnected(device);
     throw error;
   }
@@ -681,6 +691,7 @@ const WEBHID_TRANSPORT_COMMANDS = new Set([
   "set_eq_state",
   "apply_eq_state",
   "get_dac_utility_state",
+  "ja11_control",
   "set_dac_filter_mode",
   "set_dac_work_mode",
   "set_dac_output_gain",
@@ -718,7 +729,7 @@ function parseSupportedDeviceInfo(value: unknown): SupportedDeviceInfo | null {
     typeof value.status !== "string" ||
     typeof value.family !== "string" ||
     typeof value.hardware_eq !== "boolean" ||
-    !(value.controls === null || value.controls === "walkplay" || value.controls === "dawn_pro") ||
+    !(value.controls === null || value.controls === "walkplay" || value.controls === "dawn_pro" || value.controls === "ja11") ||
     !(spec === null || (isRecord(spec) &&
       ["name", "chip", "outputs"].every(key => typeof spec[key] === "string") &&
       ["maxPower", "decoding", "snr", "thd"].every(key =>
@@ -786,7 +797,12 @@ function serializeWebHid<T>(operation: () => Promise<T>): Promise<T> {
 }
 
 export async function invoke<T = unknown>(cmd: string, args?: any): Promise<T> {
-  const operation = () => invokeWeb<T>(cmd, args);
+  const expectedSession = activeSessionId;
+  const operation = () => {
+    if (cmd === "ja11_control" && expectedSession !== activeSessionId)
+      throw new Error("Device session changed; operation was cancelled");
+    return invokeWeb<T>(cmd, args);
+  };
   return WEBHID_TRANSPORT_COMMANDS.has(cmd) ? serializeWebHid(operation) : operation();
 }
 
@@ -1175,6 +1191,14 @@ async function invokeWeb<T = unknown>(cmd: string, args?: any): Promise<T> {
     case "set_eq_state":
     case "apply_eq_state":
     case "get_dac_utility_state":
+      return await runDeviceOperation<T>(cmd, args);
+    case "ja11_control": {
+      if (!activeDevice || activeProfile?.controls !== "ja11" || args?.path !== webHidPath(activeDevice)) {
+        throw new Error("These controls require the displayed JA11");
+      }
+      const { path: _path, ...request } = args;
+      return await runDeviceOperation<T>(cmd, request);
+    }
     case "set_dac_filter_mode":
     case "set_dac_work_mode":
     case "set_dac_output_gain":

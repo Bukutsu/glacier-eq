@@ -199,6 +199,8 @@ function App() {
   const reconnectCancelRef = useRef<HTMLButtonElement>(null);
   const reconnectEffectGenerationRef = useRef(0);
   const manualDisconnectRef = useRef(false);
+  /** Short window for a restart-causing save or JA11 control write. */
+  const expectedRestartUntilRef = useRef(0);
   const ambiguousReconnectRef = useRef(false);
   const pullEqRef = useRef<(
     afterConnect?: boolean,
@@ -762,6 +764,9 @@ function App() {
     };
 
     addListener<OperationProgress>("operation-progress", (event) => {
+      if (event.payload.message.includes("(restart expected)")) {
+        expectedRestartUntilRef.current = Date.now() + 15_000;
+      }
       setProgress(event.payload);
     });
 
@@ -824,9 +829,12 @@ function App() {
         expectedPath: payload.path,
         expectedSessionId: payload.sessionId,
       }).catch(() => {});
+      const expected = Date.now() < expectedRestartUntilRef.current;
       markDeviceLost(
         { setConnected, setIsReconnecting, setLastPushedPeq, setFirmwareVersion, reportStatus },
-        `Lost connection to device (unplugged): ${payload.name}`,
+        expected ? "DAC is restarting; waiting to reconnect" : `Lost connection to device (unplugged): ${payload.name}`,
+        "Device",
+        expected ? "Info" : "Error",
       );
     };
 
@@ -914,9 +922,12 @@ function App() {
           console.error("Failed to close disconnected device:", error);
         }
         if (!active) return;
+        const expected = Date.now() < expectedRestartUntilRef.current;
         markDeviceLost(
           { setConnected, setIsReconnecting, setLastPushedPeq, setFirmwareVersion, reportStatus },
-          "Lost connection to device",
+          expected ? "DAC is restarting; waiting to reconnect" : "Lost connection to device",
+          "Device",
+          expected ? "Info" : "Error",
         );
       } catch {
         schedulePoll();
@@ -1067,6 +1078,12 @@ function App() {
                     expectedSessionId: openedSessionId,
                   }).catch(() => {});
                 }
+                return;
+              }
+              // The read error is already reported; "Connected" after it
+              // would read as success.
+              if (!pulled) {
+                setIsReconnecting(false);
                 return;
               }
             } else {
@@ -1562,6 +1579,7 @@ function App() {
     setIsBusy(true);
     let committedPeq: PEQData | null = null;
     let pushWarnings: string[] = [];
+    let restarts = false;
     // Device completion depends on the session, not on editor changes.
     // An edit during the write must not hide what was saved to the DAC.
     const isCurrentOperation = () =>
@@ -1603,6 +1621,8 @@ function App() {
         // warnings from normalization.
         const outcome = await invoke<unknown>("set_eq_state", { peq: snapshot });
         pushWarnings = extractPushWarnings(outcome);
+        restarts = (outcome as { restarts?: unknown } | null)?.restarts === true;
+        if (restarts && isCurrentOperation()) expectedRestartUntilRef.current = Date.now() + 15_000;
         committedPeq = parseStoredPeqResponse(outcome, {
           integerPreamp: selectedCapabilities.integer_preamp,
           capabilities: selectedCapabilities,
@@ -1619,7 +1639,9 @@ function App() {
       setLastPushedPeq(committedPeq ?? snapshot);
       const savedMessage = isDevDummyDevice(selectedDevice)
         ? "EQ write simulated"
-        : "Saved EQ to DAC";
+        : restarts
+          ? "Saved EQ to DAC; restart expected, waiting to reconnect"
+          : "Saved EQ to DAC";
       if (pushWarnings.length > 0) {
         // The push rewrote out-of-range values, or ran with verification
         // switched off and so never read the DAC back: "Saved EQ to DAC"
