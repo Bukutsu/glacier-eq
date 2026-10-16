@@ -22,8 +22,8 @@ pub mod wasm;
 pub use device::{
     get_supported_device, is_default_peq_for_device, normalize_peq_for_capabilities,
     normalize_peq_for_device, normalize_peq_for_profile, validate_peq, DacUtilityState,
-    DeviceCapabilities, DeviceInfo, DeviceIo, DeviceProfile, DeviceProtocol, DeviceSession,
-    EqProtocol, Packet, WalkplayProtocol, SUPPORTED_DEVICES,
+    DeviceCapabilities, DeviceInfo, DeviceIo, DeviceProfile, DeviceSession, EqProtocol, Packet,
+    Protocol, WalkplayProtocol, SUPPORTED_DEVICES,
 };
 pub use eq::constants::*;
 pub use eq::{snap_freq_to_iso, Filter, FilterType, PEQData};

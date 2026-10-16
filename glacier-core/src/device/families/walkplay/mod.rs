@@ -10,9 +10,14 @@ pub use iir::compute_iir_filter;
 pub use packets::*;
 
 use crate::device::packet::{checked_scaled_i16, Packet};
-use crate::device::protocol::{EqProtocol, GainEncoding};
+use crate::device::protocol::{EqProtocol, GainEncoding, Protocol};
 use crate::device::timing::WriteTiming;
 use crate::eq::{Filter, PEQData};
+
+pub static PROTOCOL: Protocol = Protocol {
+    id: "Walkplay",
+    eq: Some(&WalkplayProtocol),
+};
 
 /// Walkplay protocol — all methods are associated functions, no instance state.
 pub struct WalkplayProtocol;

@@ -3,7 +3,7 @@
 
 //! Device-bound PEQ validation and normalization.
 
-use super::{get_supported_device, DeviceCapabilities, DeviceProfile, DeviceProtocol};
+use super::{get_supported_device, DeviceCapabilities, DeviceProfile, Protocol};
 use crate::eq::{FilterType, PEQData};
 
 /// Validates and normalizes PEQ data for a device profile before a hardware write.
@@ -32,7 +32,7 @@ pub fn normalize_peq_for_device(
 pub fn normalize_peq_for_capabilities(
     mut peq: PEQData,
     caps: &DeviceCapabilities,
-    protocol: DeviceProtocol,
+    protocol: &Protocol,
 ) -> Result<(PEQData, Vec<String>), String> {
     validate_capabilities(caps)?;
     validate_peq(&peq)?;
@@ -74,7 +74,11 @@ pub fn is_default_peq_for_device(
     product_id: u16,
 ) -> Result<bool, String> {
     let profile = selected_profile(vendor_id, product_id)?;
-    Ok(profile.protocol.implementation().is_default_state(peq))
+    let eq = profile
+        .protocol
+        .eq
+        .ok_or_else(|| format!("{} has no hardware EQ", profile.name))?;
+    Ok(eq.is_default_state(peq))
 }
 
 pub fn validate_peq(peq: &PEQData) -> Result<(), String> {
@@ -179,13 +183,13 @@ fn selected_profile(vendor_id: u16, product_id: u16) -> Result<&'static DevicePr
 
 fn quantize_band_gain(
     gain: f64,
-    protocol: DeviceProtocol,
+    protocol: &Protocol,
     caps: &DeviceCapabilities,
 ) -> Result<f64, String> {
     // Select a representable value inside the declared capability envelope
     // rather than quantizing first and accidentally exceeding the cap.
     match protocol
-        .eq_protocol()
+        .eq
         .and_then(|protocol| protocol.gain_encoding().band_step_db)
     {
         Some(step) => quantize_step_within(gain, step, caps.band_gain_range, "band gain"),
@@ -195,10 +199,10 @@ fn quantize_band_gain(
 
 fn quantize_preamp(
     global_gain: f64,
-    protocol: DeviceProtocol,
+    protocol: &Protocol,
     caps: &DeviceCapabilities,
 ) -> Result<f64, String> {
-    let Some(protocol) = protocol.eq_protocol() else {
+    let Some(protocol) = protocol.eq else {
         return Ok(global_gain);
     };
     let step = protocol.gain_encoding().preamp_step_db;
@@ -346,7 +350,7 @@ mod tests {
                 global_gain: 0.0,
             },
             &caps,
-            DeviceProtocol::FiioJa11,
+            &crate::device::families::fiio::JA11,
         )
         .unwrap();
         assert_eq!(normalized.filters[0].gain, 0.0);
@@ -372,7 +376,7 @@ mod tests {
                 global_gain: 0.0,
             },
             &caps,
-            DeviceProtocol::FiioJa11,
+            &crate::device::families::fiio::JA11,
         )
         .unwrap_err();
         assert!(error.contains("shelf center"), "{error}");
@@ -410,12 +414,12 @@ mod tests {
         let mut caps = crate::device::capabilities::DESKTOP_DAC_CAPS;
         caps.q_range = (3.0, 0.5);
         assert!(
-            normalize_peq_for_capabilities(peq.clone(), &caps, DeviceProtocol::Unknown).is_err()
+            normalize_peq_for_capabilities(peq.clone(), &caps, &crate::device::UNKNOWN).is_err()
         );
 
         caps.q_range = (0.5, 3.0);
         caps.freq_range = (20_000, 20);
-        assert!(normalize_peq_for_capabilities(peq, &caps, DeviceProtocol::Unknown).is_err());
+        assert!(normalize_peq_for_capabilities(peq, &caps, &crate::device::UNKNOWN).is_err());
     }
 
     #[test]

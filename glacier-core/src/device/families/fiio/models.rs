@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use super::FiioProtocol;
-use crate::device::protocol::Quirks;
+use crate::device::protocol::{Protocol, Quirks};
 
 // Slots are the active USER presets recorded in devicePEQ's 2026-05-03 captures.
-pub const JA11_PROTOCOL: FiioProtocol = FiioProtocol {
+pub(super) const JA11_EQ: FiioProtocol = FiioProtocol {
     report_id: 2,
     filter_count: 5,
     user_slot: 3,
@@ -17,8 +17,8 @@ pub const JA11_PROTOCOL: FiioProtocol = FiioProtocol {
     },
 };
 
-// The existing generic FiiO profile represents KA15.
-pub const FIIO_PROTOCOL: FiioProtocol = FiioProtocol {
+// The generic "FiiO" protocol represents KA15 and the KA-series fallback.
+pub(super) const KA_SERIES_EQ: FiioProtocol = FiioProtocol {
     report_id: 7,
     filter_count: 10,
     user_slot: 9,
@@ -30,7 +30,7 @@ pub const FIIO_PROTOCOL: FiioProtocol = FiioProtocol {
     },
 };
 
-pub const KA17_PROTOCOL: FiioProtocol = FiioProtocol {
+pub(super) const KA17_EQ: FiioProtocol = FiioProtocol {
     report_id: 1,
     filter_count: 10,
     user_slot: 4,
@@ -40,4 +40,19 @@ pub const KA17_PROTOCOL: FiioProtocol = FiioProtocol {
         save_resets_device: false,
         set_report_writes: false,
     },
+};
+
+pub static JA11: Protocol = Protocol {
+    id: "FiiO JA11",
+    eq: Some(&JA11_EQ),
+};
+
+pub static KA_SERIES: Protocol = Protocol {
+    id: "FiiO",
+    eq: Some(&KA_SERIES_EQ),
+};
+
+pub static KA17: Protocol = Protocol {
+    id: "FiiO KA17",
+    eq: Some(&KA17_EQ),
 };

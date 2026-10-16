@@ -1,11 +1,52 @@
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! The `EqProtocol` trait every hardware-EQ family implements.
+//! What a protocol family is: a stable name plus, when the hardware has
+//! one, the `EqProtocol` that reads and writes its EQ.
 
 use crate::device::packet::Packet;
 use crate::device::timing::WriteTiming;
 use crate::eq::{Filter, PEQData};
+
+/// A protocol family as the rest of the app sees it. Each family exports
+/// one static per wire variant; catalog entries point at it.
+pub struct Protocol {
+    /// Stable identifier sent to the UI and diagnostics ("FiiO JA11").
+    pub id: &'static str,
+    /// `None` for hardware without EQ (controls only, or unrecognized).
+    pub eq: Option<&'static dyn EqProtocol>,
+}
+
+/// Matching fallback for unrecognized devices; never drives hardware.
+pub static UNKNOWN: Protocol = Protocol {
+    id: "Unknown",
+    eq: None,
+};
+
+impl Protocol {
+    pub fn has_hardware_eq(&self) -> bool {
+        self.eq.is_some()
+    }
+
+    /// Default (no quirks) for protocols without hardware EQ.
+    pub fn quirks(&self) -> Quirks {
+        self.eq.map(|eq| eq.quirks()).unwrap_or_default()
+    }
+}
+
+impl PartialEq for Protocol {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl Eq for Protocol {}
+
+impl std::fmt::Debug for Protocol {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.id)
+    }
+}
 
 /// Per-model behavior that changes how the shared read/write/verify flow runs.
 #[derive(Clone, Copy, Default, serde::Serialize)]
@@ -43,7 +84,7 @@ pub struct GainEncoding {
     pub preamp_step_db: f64,
 }
 
-pub trait EqProtocol {
+pub trait EqProtocol: Sync {
     fn gain_encoding(&self) -> GainEncoding;
     fn write_timing(&self) -> WriteTiming;
     /// Re-send an unanswered read request after this many attempts instead of

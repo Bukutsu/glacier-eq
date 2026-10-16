@@ -4,7 +4,9 @@
 //! Static catalog of supported USB DACs.
 
 use crate::device::capabilities::{DeviceCapabilities, DESKTOP_DAC_CAPS};
-use crate::device::profile::{DeviceProfile, DeviceProtocol};
+use crate::device::families::{dawn_pro, fiio, moondrop, walkplay};
+use crate::device::profile::DeviceProfile;
+use crate::device::protocol::Protocol;
 use crate::eq::FilterType;
 
 // Walkplay's PEQ register uses the complete five-value filter enum. Keep the
@@ -88,7 +90,7 @@ const FIIO_10_BAND_CAPS: DeviceCapabilities = DeviceCapabilities {
 pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
     DeviceProfile {
         name: "EPZ TP35 Pro",
-        protocol: DeviceProtocol::Walkplay,
+        protocol: &walkplay::PROTOCOL,
         vendor_id: 0x3302,
         product_id: Some(0x43E6),
         status: "Tested",
@@ -97,7 +99,7 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
     },
     DeviceProfile {
         name: "TRN Black Pearl",
-        protocol: DeviceProtocol::Walkplay,
+        protocol: &walkplay::PROTOCOL,
         vendor_id: 0x3302,
         product_id: Some(0x43E8),
         status: "Tested",
@@ -106,7 +108,7 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
     },
     DeviceProfile {
         name: "Audiocular Aura",
-        protocol: DeviceProtocol::Walkplay,
+        protocol: &walkplay::PROTOCOL,
         vendor_id: 0x3302,
         product_id: None,
         status: "Untested",
@@ -115,7 +117,7 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
     },
     DeviceProfile {
         name: "JCally JM20 Pro",
-        protocol: DeviceProtocol::Walkplay,
+        protocol: &walkplay::PROTOCOL,
         vendor_id: 0x3302,
         product_id: Some(0x43C1),
         status: "Untested",
@@ -133,7 +135,7 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
     },
     DeviceProfile {
         name: "Moondrop Dawn Pro 2",
-        protocol: DeviceProtocol::Moondrop,
+        protocol: &moondrop::PROTOCOL,
         vendor_id: 0x35D8,
         product_id: Some(0x011D),
         status: "Untested",
@@ -142,7 +144,7 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
     },
     DeviceProfile {
         name: "FiiO JA11",
-        protocol: DeviceProtocol::FiioJa11,
+        protocol: &fiio::JA11,
         vendor_id: 0x2972,
         product_id: Some(0x0102),
         status: "Untested",
@@ -151,7 +153,7 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
     },
     DeviceProfile {
         name: "FiiO KA15",
-        protocol: DeviceProtocol::Fiio,
+        protocol: &fiio::KA_SERIES,
         vendor_id: 0x2972,
         product_id: Some(0x0104),
         status: "Untested",
@@ -160,7 +162,7 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
     },
     DeviceProfile {
         name: "FiiO KA17",
-        protocol: DeviceProtocol::FiioKa17,
+        protocol: &fiio::KA17,
         vendor_id: 0x2972,
         product_id: Some(0x0093),
         status: "Untested",
@@ -169,7 +171,7 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
     },
     DeviceProfile {
         name: "Truthear KEYX",
-        protocol: DeviceProtocol::Walkplay,
+        protocol: &walkplay::PROTOCOL,
         vendor_id: 0x0D8C,
         product_id: Some(0x0210),
         status: "Untested",
@@ -186,7 +188,7 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
     },
     DeviceProfile {
         name: "Fosi Audio DS2 / iBasso DC04 Pro",
-        protocol: DeviceProtocol::Walkplay,
+        protocol: &walkplay::PROTOCOL,
         vendor_id: 0x262A,
         product_id: None,
         status: "Untested",
@@ -195,7 +197,7 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
     },
     DeviceProfile {
         name: "JCally JM20 / Savitech Generic",
-        protocol: DeviceProtocol::Walkplay,
+        protocol: &walkplay::PROTOCOL,
         vendor_id: 0x0661,
         product_id: None,
         status: "Untested",
@@ -204,7 +206,7 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
     },
     DeviceProfile {
         name: "JCally JM20 Pro / Alt Savitech",
-        protocol: DeviceProtocol::Walkplay,
+        protocol: &walkplay::PROTOCOL,
         vendor_id: 0x0666,
         product_id: None,
         status: "Untested",
@@ -213,7 +215,7 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
     },
     DeviceProfile {
         name: "Moondrop Dawn Pro",
-        protocol: DeviceProtocol::DawnPro,
+        protocol: &dawn_pro::PROTOCOL,
         vendor_id: 0x2FC6,
         product_id: None,
         status: "Untested",
@@ -223,7 +225,7 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
     },
     DeviceProfile {
         name: "JCally JM12",
-        protocol: DeviceProtocol::FiioJa11,
+        protocol: &fiio::JA11,
         vendor_id: 0x31B2,
         product_id: Some(0x0111),
         status: "Untested",
@@ -232,7 +234,7 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
     },
     DeviceProfile {
         name: "FiiO KA Series",
-        protocol: DeviceProtocol::Fiio,
+        protocol: &fiio::KA_SERIES,
         vendor_id: 0x2972,
         product_id: None,
         status: "Untested",
@@ -241,15 +243,15 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
     },
 ];
 
-/// Finds a catalog protocol by its `DeviceProtocol::name()`, ignoring case,
-/// spaces, `-` and `_`. Only protocols with a catalog entry resolve.
-pub fn protocol_by_name(name: &str) -> Option<DeviceProtocol> {
+/// Finds a catalog protocol by its `Protocol::id`, ignoring case, spaces,
+/// `-` and `_`. Only protocols with a catalog entry resolve.
+pub fn protocol_by_name(name: &str) -> Option<&'static Protocol> {
     let key = |name: &str| name.to_lowercase().replace([' ', '-', '_'], "");
     let wanted = key(name);
     SUPPORTED_DEVICES
         .iter()
         .map(|device| device.protocol)
-        .find(|protocol| key(protocol.name()) == wanted)
+        .find(|protocol| key(protocol.id) == wanted)
 }
 
 pub fn get_supported_device(vendor_id: u16, product_id: u16) -> Option<&'static DeviceProfile> {
@@ -268,6 +270,7 @@ pub fn get_supported_device(vendor_id: u16, product_id: u16) -> Option<&'static 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::eq::Filter;
 
     #[test]
     fn audit_preserves_preexisting_device_matching() {
@@ -294,12 +297,11 @@ mod tests {
 
     #[test]
     fn original_dawn_pro_is_controls_only_and_dawn_pro_2_keeps_peq() {
-        use crate::device::DeviceProtocol;
         let original = get_supported_device(0x2FC6, 0xF06A).unwrap();
-        assert_eq!(original.protocol, DeviceProtocol::DawnPro);
+        assert_eq!(original.protocol, &dawn_pro::PROTOCOL);
         assert!(!original.protocol.has_hardware_eq());
         let dawn2 = get_supported_device(0x35D8, 0x011D).unwrap();
-        assert_eq!(dawn2.protocol, DeviceProtocol::Moondrop);
+        assert_eq!(dawn2.protocol, &moondrop::PROTOCOL);
         assert!(dawn2.protocol.has_hardware_eq());
         assert_eq!(dawn2.caps.num_bands, 8);
         assert_eq!(dawn2.caps.dsp_sample_rate, 96000.0);
@@ -308,7 +310,7 @@ mod tests {
     #[test]
     fn every_catalog_protocol_resolves_by_its_name() {
         for device in SUPPORTED_DEVICES {
-            let name = device.protocol.name();
+            let name = device.protocol.id;
             assert_eq!(protocol_by_name(name), Some(device.protocol), "{name}");
             assert_eq!(
                 protocol_by_name(&name.to_uppercase().replace(' ', "_")),
@@ -350,9 +352,10 @@ mod tests {
 
     #[test]
     fn tested_walkplay_profiles_advertise_all_filter_types() {
-        for profile in SUPPORTED_DEVICES.iter().filter(|profile| {
-            profile.protocol == DeviceProtocol::Walkplay && profile.status == "Tested"
-        }) {
+        for profile in SUPPORTED_DEVICES
+            .iter()
+            .filter(|profile| profile.protocol == &walkplay::PROTOCOL && profile.status == "Tested")
+        {
             assert_eq!(
                 profile.caps.supported_filter_types,
                 FilterType::ALL,
@@ -365,12 +368,117 @@ mod tests {
     #[test]
     fn non_walkplay_eq_profiles_keep_the_limited_filter_set() {
         for profile in SUPPORTED_DEVICES.iter().filter(|profile| {
-            profile.protocol != DeviceProtocol::Walkplay && profile.protocol.has_hardware_eq()
+            profile.protocol != &walkplay::PROTOCOL && profile.protocol.has_hardware_eq()
         }) {
             assert_eq!(
                 profile.caps.supported_filter_types, LIMITED_FILTER_TYPES,
                 "{}",
                 profile.name
+            );
+        }
+    }
+
+    /// The contract session/ and wasm.rs rely on, checked for every catalog
+    /// profile with hardware EQ, so a new DAC or protocol is covered by
+    /// adding its catalog entry.
+    #[test]
+    fn every_catalog_profile_meets_the_shared_flow_contract() {
+        for device in SUPPORTED_DEVICES {
+            let Some(protocol) = device.protocol.eq else {
+                continue;
+            };
+            let name = device.name;
+            let caps = &device.caps;
+            let encoding = protocol.gain_encoding();
+            assert!(
+                encoding.band_units_per_db > 0.0
+                    && encoding.band_readback_per_db > 0.0
+                    && encoding.preamp_units_per_db > 0.0
+                    && encoding.preamp_step_db > 0.0
+                    && encoding.band_step_db.is_none_or(|step| step > 0.0),
+                "{name}: gain encoding needs positive scales"
+            );
+
+            let mut packets = protocol.init_packets();
+            packets.extend(protocol.commit_packets());
+            packets.extend(protocol.ram_apply_packets());
+            packets.push(protocol.read_global_gain_request());
+            let (low, high) = caps.global_gain_range;
+            for gain in [low, 0, high] {
+                let writes = protocol.write_global_gain_packets(gain.into());
+                assert!(!writes.is_empty(), "{name}: no preamp write for {gain} dB");
+                packets.extend(writes);
+            }
+            for index in 0..caps.num_bands as u8 {
+                packets.push(protocol.read_filter_request(index, 1));
+                for &filter_type in caps.supported_filter_types {
+                    // 4 kHz: shelves near 1 kHz already overflow Walkplay's
+                    // ±2.0 coefficient range at 96 kHz; the encoder rejects them.
+                    let filter = Filter {
+                        index,
+                        enabled: true,
+                        freq: 4000,
+                        gain: 1.0,
+                        q: 1.0,
+                        filter_type,
+                    };
+                    let writes = protocol
+                        .write_filter_packets(index, &filter, caps.dsp_sample_rate, 0.0)
+                        .unwrap_or_else(|error| {
+                            panic!("{name}: band {index} {filter_type:?}: {error}")
+                        });
+                    // wasm.rs rejects a band write unless one packet passes this.
+                    assert!(
+                        writes
+                            .iter()
+                            .any(|packet| protocol.is_filter_packet_valid(&packet.payload)),
+                        "{name}: band {index} {filter_type:?} write is not a valid filter packet"
+                    );
+                    packets.extend(writes);
+                }
+            }
+
+            for packet in &packets {
+                assert_eq!(packet.report_id, protocol.report_id(), "{name}: {packet:?}");
+                let framed = packet.framed();
+                assert_eq!(
+                    protocol.unframe_packet(&framed),
+                    Ok(&framed[1..]),
+                    "{name}: {packet:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn walkplay_resends_unanswered_reads_and_moondrop_does_not() {
+        let resend = |protocol: &Protocol| protocol.eq.unwrap().resend_unanswered_after();
+        assert_eq!(resend(&walkplay::PROTOCOL), Some(15));
+        assert_eq!(resend(&moondrop::PROTOCOL), None);
+    }
+
+    #[test]
+    fn only_moondrop_writes_with_set_report() {
+        for device in SUPPORTED_DEVICES {
+            assert_eq!(
+                device.protocol.quirks().set_report_writes,
+                device.protocol == &moondrop::PROTOCOL,
+                "{}",
+                device.name
+            );
+        }
+    }
+
+    #[test]
+    fn only_dawn_pro_and_unknown_lack_hardware_eq() {
+        assert!(!dawn_pro::PROTOCOL.has_hardware_eq());
+        assert!(!crate::device::protocol::UNKNOWN.has_hardware_eq());
+        for device in SUPPORTED_DEVICES {
+            assert_eq!(
+                device.protocol.has_hardware_eq(),
+                device.protocol != &dawn_pro::PROTOCOL,
+                "{}",
+                device.name
             );
         }
     }

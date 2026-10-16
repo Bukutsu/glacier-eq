@@ -4,38 +4,8 @@
 //! `DeviceProfile` — static identity and capability metadata for a USB DAC model.
 
 use crate::device::capabilities::{DeviceCapabilities, EditorCapabilities};
+use crate::device::protocol::Protocol;
 use serde::{Deserialize, Serialize};
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DeviceProtocol {
-    // Keep protocol identity in profiles so the next hardware family gets an
-    // explicit command path instead of being routed through Walkplay by accident.
-    Walkplay,
-    Moondrop,
-    /// Original Moondrop Dawn Pro: sound controls only, no hardware EQ.
-    DawnPro,
-    FiioJa11,
-    Fiio,
-    FiioKa17,
-    /// Matching fallback for unrecognized devices; never drives hardware.
-    Unknown,
-}
-
-impl DeviceProtocol {
-    /// Stable identifier: serialized to the UI and parsed back by the wasm
-    /// boundary (`catalog::protocol_by_name`). Renaming one breaks both.
-    pub fn name(self) -> &'static str {
-        match self {
-            Self::Walkplay => "Walkplay",
-            Self::Moondrop => "Moondrop",
-            Self::DawnPro => "Moondrop Dawn Pro",
-            Self::FiioJa11 => "FiiO JA11",
-            Self::Fiio => "FiiO",
-            Self::FiioKa17 => "FiiO KA17",
-            Self::Unknown => "Unknown",
-        }
-    }
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct DeviceInfo {
@@ -53,7 +23,7 @@ pub struct DeviceInfo {
 /// Static identity and capability metadata for a supported USB DAC model.
 pub struct DeviceProfile {
     pub name: &'static str,
-    pub protocol: DeviceProtocol,
+    pub protocol: &'static Protocol,
     pub vendor_id: u16,
     pub product_id: Option<u16>,
     pub status: &'static str,

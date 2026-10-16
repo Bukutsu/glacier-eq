@@ -450,7 +450,7 @@ pub fn list_supported_devices() -> Vec<SupportedDeviceInfo> {
         .iter()
         .map(|device| SupportedDeviceInfo {
             name: device.name,
-            protocol: device.protocol.name(),
+            protocol: device.protocol.id,
             vendor_id: device.vendor_id,
             product_id: device.product_id,
             status: device.status,

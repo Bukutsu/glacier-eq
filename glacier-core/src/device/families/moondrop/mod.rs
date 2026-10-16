@@ -3,7 +3,7 @@
 
 use crate::device::families::walkplay::compute_iir_filter;
 use crate::device::packet::{checked_scaled_i16, checked_scaled_u16, Packet};
-use crate::device::protocol::{EqProtocol, GainEncoding, Quirks};
+use crate::device::protocol::{EqProtocol, GainEncoding, Protocol, Quirks};
 use crate::device::timing::WriteTiming;
 use crate::eq::filter::DEFAULT_FREQS_10_BAND;
 use crate::eq::{Filter, FilterType, PEQData};
@@ -13,6 +13,11 @@ use crate::eq::{Filter, FilterType, PEQData};
 const BAND_COUNT: u8 = 8;
 const DSP_SAMPLE_RATE: f64 = 96_000.0;
 const CUSTOM_EQ_SELECT: u8 = 7;
+
+pub static PROTOCOL: Protocol = Protocol {
+    id: "Moondrop",
+    eq: Some(&MoondropProtocol),
+};
 
 pub struct MoondropProtocol;
 

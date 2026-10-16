@@ -12,7 +12,6 @@ pub mod normalization;
 pub mod packet;
 pub mod profile;
 pub mod protocol;
-pub mod registry;
 pub mod session;
 pub mod timing;
 
@@ -26,8 +25,8 @@ pub use normalization::{
     normalize_peq_for_profile, validate_peq,
 };
 pub use packet::Packet;
-pub use profile::{DeviceInfo, DeviceProfile, DeviceProtocol};
-pub use protocol::{EqProtocol, GainEncoding, Quirks};
+pub use profile::{DeviceInfo, DeviceProfile};
+pub use protocol::{EqProtocol, GainEncoding, Protocol, Quirks, UNKNOWN};
 pub use session::{DacUtilityState, DeviceIo, DeviceSession, HID_READ_BUFFER_BYTES};
 
 pub use timing::WriteTiming;

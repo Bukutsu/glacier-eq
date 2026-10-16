@@ -559,10 +559,7 @@ fn supported_devices() -> String {
         );
         output.push_str(&format!(
             "{id},{},{},{},{}\n",
-            device.caps.num_bands,
-            device.protocol.name(),
-            device.status,
-            device.name
+            device.caps.num_bands, device.protocol.id, device.status, device.name
         ));
     }
     output
@@ -757,7 +754,10 @@ fn ensure_complete_hid_write(expected: usize, actual: usize) -> Result<(), Strin
 }
 
 #[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
-struct HidIo<'a>(&'a hidapi::HidDevice, glacier_core::device::DeviceProtocol);
+struct HidIo<'a>(
+    &'a hidapi::HidDevice,
+    &'static glacier_core::device::Protocol,
+);
 
 #[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
 impl DeviceIo for HidIo<'_> {

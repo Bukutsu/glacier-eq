@@ -8,7 +8,9 @@ use crate::eq::filter::DEFAULT_FREQS_10_BAND;
 use crate::eq::{Filter, FilterType, PEQData};
 
 mod models;
-pub use models::{FIIO_PROTOCOL, JA11_PROTOCOL, KA17_PROTOCOL};
+pub use models::{JA11, KA17, KA_SERIES};
+#[cfg(test)]
+use models::{JA11_EQ, KA17_EQ, KA_SERIES_EQ};
 
 const SET_1: u8 = 0xAA;
 const SET_2: u8 = 0x0A;
@@ -329,23 +331,35 @@ mod tests {
 
     fn captures() -> [(FiioProtocol, &'static Capture); 3] {
         [
-            (JA11_PROTOCOL, &JA11_CAPTURE),
-            (FIIO_PROTOCOL, &KA15_CAPTURE),
-            (KA17_PROTOCOL, &KA17_CAPTURE),
+            (JA11_EQ, &JA11_CAPTURE),
+            (KA_SERIES_EQ, &KA15_CAPTURE),
+            (KA17_EQ, &KA17_CAPTURE),
         ]
     }
 
     #[test]
+    fn model_protocols_wrap_their_model_constants() {
+        for (protocol, id, report_id) in [
+            (&JA11, "FiiO JA11", 2),
+            (&KA_SERIES, "FiiO", 7),
+            (&KA17, "FiiO KA17", 1),
+        ] {
+            assert_eq!(protocol.id, id);
+            assert_eq!(protocol.eq.unwrap().report_id(), report_id, "{id}");
+        }
+    }
+
+    #[test]
     fn only_ja11_has_quirks() {
-        let quirks = JA11_PROTOCOL.quirks();
+        let quirks = JA11_EQ.quirks();
         assert!(quirks.gain_read_optional && quirks.save_resets_device);
-        for protocol in [FIIO_PROTOCOL, KA17_PROTOCOL] {
+        for protocol in [KA_SERIES_EQ, KA17_EQ] {
             let quirks = protocol.quirks();
             assert!(!quirks.gain_read_optional && !quirks.save_resets_device);
         }
         // The frame web.ts must send last on JA11 (report ID 2).
         assert_eq!(
-            JA11_PROTOCOL.commit_packets()[0].framed(),
+            JA11_EQ.commit_packets()[0].framed(),
             [2, 0xAA, 0x0A, 0x00, 0x00, 0x19, 0x01, 0x03, 0x00, 0xEE]
         );
     }
@@ -377,7 +391,7 @@ mod tests {
         }
         assert_eq!(KA15_CAPTURE.filters[0][3], 0x43);
         assert_eq!(
-            KA17_PROTOCOL.parse_global_gain_response(KA17_CAPTURE.gain),
+            KA17_EQ.parse_global_gain_response(KA17_CAPTURE.gain),
             Some(-0.4)
         );
     }
@@ -499,9 +513,9 @@ mod tests {
         let mut data = JA11_CAPTURE.filters[3].to_vec();
         data[9..11].copy_from_slice(&u16::MAX.to_be_bytes());
         data[11..13].copy_from_slice(&u16::MAX.to_be_bytes());
-        assert!(JA11_PROTOCOL.matches_filter_response(&data, 3, 0));
-        assert!(!JA11_PROTOCOL.is_filter_response_valid(&data, 3, 0));
-        let filter = JA11_PROTOCOL.parse_filter_response(&data).unwrap();
+        assert!(JA11_EQ.matches_filter_response(&data, 3, 0));
+        assert!(!JA11_EQ.is_filter_response_valid(&data, 3, 0));
+        let filter = JA11_EQ.parse_filter_response(&data).unwrap();
         assert_eq!(filter.index, 3);
         assert_eq!(filter.freq, 250);
         assert_eq!(filter.gain, 0.0);
@@ -528,7 +542,7 @@ mod tests {
         }
         // Explicitly distinguish signed BE*10 from the old JA11 LE*2560 encoding.
         assert_eq!(
-            &JA11_PROTOCOL.write_global_gain_packets(-1.0)[0].payload[6..8],
+            &JA11_EQ.write_global_gain_packets(-1.0)[0].payload[6..8],
             &[0xFF, 0xF6]
         );
     }

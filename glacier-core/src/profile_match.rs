@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::device::{normalize_peq_for_capabilities, DeviceCapabilities, DeviceProtocol};
+use crate::device::{normalize_peq_for_capabilities, DeviceCapabilities, Protocol};
 use crate::eq::{Filter, PEQData};
 
 pub struct ProfileCandidate<'a> {
@@ -10,8 +10,8 @@ pub struct ProfileCandidate<'a> {
 }
 
 /// The band gain a readback would report after writing `gain`.
-fn quantized_band_gain(gain: f64, protocol: DeviceProtocol) -> f64 {
-    let Some(protocol) = protocol.eq_protocol() else {
+fn quantized_band_gain(gain: f64, protocol: &Protocol) -> f64 {
+    let Some(protocol) = protocol.eq else {
         return gain;
     };
     let encoding = protocol.gain_encoding();
@@ -22,7 +22,7 @@ fn quantized_band_gain(gain: f64, protocol: DeviceProtocol) -> f64 {
 fn active_filters<'a>(
     peq: &'a PEQData,
     caps: &DeviceCapabilities,
-    protocol: DeviceProtocol,
+    protocol: &Protocol,
 ) -> Vec<&'a Filter> {
     let mut filters: Vec<&Filter> = peq
         .filters
@@ -56,7 +56,7 @@ fn peq_matches_profile(
     current: &PEQData,
     profile: &PEQData,
     caps: &DeviceCapabilities,
-    protocol: DeviceProtocol,
+    protocol: &Protocol,
 ) -> bool {
     let Ok((current, _warnings)) = normalize_peq_for_capabilities(current.clone(), caps, protocol)
     else {
@@ -81,7 +81,7 @@ pub fn matching_profile_name<'a>(
     current: &PEQData,
     profiles: impl IntoIterator<Item = ProfileCandidate<'a>>,
     caps: &DeviceCapabilities,
-    protocol: DeviceProtocol,
+    protocol: &Protocol,
 ) -> Option<String> {
     profiles
         .into_iter()
@@ -93,6 +93,7 @@ pub fn matching_profile_name<'a>(
 mod tests {
     use super::*;
     use crate::device::capabilities::DESKTOP_DAC_CAPS;
+    use crate::device::families::{fiio, moondrop, walkplay};
     use crate::eq::Filter;
 
     #[test]
@@ -118,17 +119,17 @@ mod tests {
             &current,
             &saved,
             &DESKTOP_DAC_CAPS,
-            DeviceProtocol::Walkplay,
+            &walkplay::PROTOCOL,
         ));
     }
 
     #[test]
     fn substep_band_gains_match_inactive_device_readback() {
         for (protocol, gain) in [
-            (DeviceProtocol::Moondrop, 0.04),
-            (DeviceProtocol::FiioJa11, 0.04),
-            (DeviceProtocol::Fiio, 0.04),
-            (DeviceProtocol::Walkplay, 0.004),
+            (&moondrop::PROTOCOL, 0.04),
+            (&fiio::JA11, 0.04),
+            (&fiio::KA_SERIES, 0.04),
+            (&walkplay::PROTOCOL, 0.004),
         ] {
             let mut filter = Filter::enabled(0, true);
             filter.gain = gain;
@@ -157,7 +158,7 @@ mod tests {
                 &PEQData::default(),
                 &saved,
                 &DESKTOP_DAC_CAPS,
-                DeviceProtocol::Unknown,
+                &crate::device::UNKNOWN,
             ));
         }
     }
@@ -174,18 +175,15 @@ mod tests {
             global_gain: -3.3,
         };
 
-        let (normalized, _warnings) = normalize_peq_for_capabilities(
-            saved.clone(),
-            &DESKTOP_DAC_CAPS,
-            DeviceProtocol::Moondrop,
-        )
-        .unwrap();
+        let (normalized, _warnings) =
+            normalize_peq_for_capabilities(saved.clone(), &DESKTOP_DAC_CAPS, &moondrop::PROTOCOL)
+                .unwrap();
         assert_eq!(normalized.global_gain, -3.3);
         assert!(peq_matches_profile(
             &pulled,
             &saved,
             &DESKTOP_DAC_CAPS,
-            DeviceProtocol::Moondrop,
+            &moondrop::PROTOCOL,
         ));
     }
 }

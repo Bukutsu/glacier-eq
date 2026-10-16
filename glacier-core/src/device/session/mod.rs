@@ -107,7 +107,10 @@ impl<'a> DeviceSession<'a> {
     }
 
     fn protocol(&self) -> &'static dyn EqProtocol {
-        self.profile.protocol.implementation()
+        self.profile
+            .protocol
+            .eq
+            .expect("EQ operations check require_hardware_eq first")
     }
 
     fn require_hardware_eq(&self) -> Result<(), String> {
@@ -1011,7 +1014,8 @@ mod tests {
             io.events[gain_request + 1..first_band_request].contains(&IoEvent::Sleep(
                 profile
                     .protocol
-                    .implementation()
+                    .eq
+                    .unwrap()
                     .write_timing()
                     .post_gain_read_ms
             ))

@@ -3,7 +3,7 @@
 
 use crate::state::DeviceState;
 use glacier_core::device::{
-    capabilities::DESKTOP_DAC_CAPS, get_supported_device, DeviceCapabilities, DeviceProtocol,
+    capabilities::DESKTOP_DAC_CAPS, get_supported_device, DeviceCapabilities, Protocol, UNKNOWN,
 };
 use glacier_core::eq::PEQData;
 use glacier_core::profile_match::{matching_profile_name, ProfileCandidate};
@@ -35,18 +35,18 @@ fn store(app: &tauri::AppHandle) -> Result<ProfileStore, String> {
 
 fn match_target_for_connected(
     connected: Option<&crate::state::ConnectedDevice>,
-) -> (DeviceCapabilities, DeviceProtocol) {
+) -> (DeviceCapabilities, &'static Protocol) {
     let Some(connected) = connected else {
-        return (DESKTOP_DAC_CAPS, DeviceProtocol::Unknown);
+        return (DESKTOP_DAC_CAPS, &UNKNOWN);
     };
     get_supported_device(connected.vendor_id, connected.product_id)
         .map(|profile| (profile.caps.clone(), profile.protocol))
-        .unwrap_or((DESKTOP_DAC_CAPS, DeviceProtocol::Unknown))
+        .unwrap_or((DESKTOP_DAC_CAPS, &UNKNOWN))
 }
 
 fn connected_match_target(
     state: &tauri::State<'_, Mutex<DeviceState>>,
-) -> Result<(DeviceCapabilities, DeviceProtocol), String> {
+) -> Result<(DeviceCapabilities, &'static Protocol), String> {
     let guard = state.lock().unwrap_or_else(|p| p.into_inner());
     Ok(match_target_for_connected(guard.connected.as_ref()))
 }
@@ -271,7 +271,7 @@ mod tests {
     fn match_target_uses_unknown_protocol_when_disconnected_or_unsupported() {
         let (caps, protocol) = match_target_for_connected(None);
         assert!(!caps.integer_preamp);
-        assert_eq!(protocol, DeviceProtocol::Unknown);
+        assert_eq!(protocol, &UNKNOWN);
 
         let unsupported = ConnectedDevice {
             path: "/dev/hidraw0".to_string(),
@@ -282,6 +282,6 @@ mod tests {
         };
         let (caps, protocol) = match_target_for_connected(Some(&unsupported));
         assert!(!caps.integer_preamp);
-        assert_eq!(protocol, DeviceProtocol::Unknown);
+        assert_eq!(protocol, &UNKNOWN);
     }
 }

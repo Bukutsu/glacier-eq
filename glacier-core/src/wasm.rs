@@ -3,8 +3,8 @@
 
 use crate::device::capabilities::{DeviceCapabilities, EditorCapabilities, DESKTOP_DAC_CAPS};
 use crate::device::{
-    get_supported_device, protocol_by_name, DeviceProfile, DeviceProtocol, EqProtocol, Packet,
-    WalkplayProtocol, SUPPORTED_DEVICES,
+    get_supported_device, protocol_by_name, DeviceProfile, EqProtocol, Packet, WalkplayProtocol,
+    SUPPORTED_DEVICES, UNKNOWN,
 };
 use crate::eq::{Filter, PEQData};
 use crate::profile_match::{matching_profile_name, ProfileCandidate};
@@ -117,8 +117,8 @@ fn eq_protocol(protocol: &str) -> Result<&'static dyn EqProtocol, JsValue> {
     let protocol =
         protocol_by_name(protocol).ok_or_else(|| JsValue::from_str("Invalid protocol"))?;
     protocol
-        .eq_protocol()
-        .ok_or_else(|| JsValue::from_str(&format!("{} has no hardware EQ", protocol.name())))
+        .eq
+        .ok_or_else(|| JsValue::from_str(&format!("{} has no hardware EQ", protocol.id)))
 }
 
 fn unframe<'a>(protocol: &dyn EqProtocol, data: &'a [u8]) -> Result<&'a [u8], JsValue> {
@@ -305,7 +305,7 @@ pub fn list_supported_devices() -> Result<JsValue, JsValue> {
         .iter()
         .map(|device| SupportedDeviceInfoWasm {
             name: device.name.to_string(),
-            protocol: device.protocol.name().to_string(),
+            protocol: device.protocol.id.to_string(),
             vendor_id: device.vendor_id,
             product_id: device.product_id,
             status: device.status.to_string(),
@@ -401,7 +401,7 @@ pub fn match_profile_name(
     let caps = device_caps_or_desktop(vendor_id, product_id);
     let protocol = supported_profile(vendor_id, product_id)
         .map(|profile| profile.protocol)
-        .unwrap_or(DeviceProtocol::Unknown);
+        .unwrap_or(&UNKNOWN);
 
     Ok(matching_profile_name(
         &peq,

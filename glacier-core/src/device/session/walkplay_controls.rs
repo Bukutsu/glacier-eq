@@ -4,11 +4,12 @@
 //! Walkplay-only utility controls: modes, balance, mic volume, factory reset.
 
 use super::DeviceSession;
+use crate::device::families::walkplay;
 use crate::device::families::walkplay::{
     CMD_AMP_MODE, CMD_BALANCE, CMD_FILTER_MODE, CMD_FLASH_EQ, CMD_GAIN_MODE, CMD_MIC_VOLUME,
     CMD_VERSION, END, READ, WRITE,
 };
-use crate::device::{DeviceProtocol, Packet, WalkplayProtocol};
+use crate::device::{Packet, WalkplayProtocol};
 
 const UTILITY_READ_ATTEMPTS: usize = 25;
 const UTILITY_READ_RETRIES: usize = 3;
@@ -38,7 +39,7 @@ impl Default for DacUtilityState {
 
 impl DeviceSession<'_> {
     pub fn firmware_version(&mut self) -> Result<Option<String>, String> {
-        if self.profile.protocol != DeviceProtocol::Walkplay {
+        if self.profile.protocol != &walkplay::PROTOCOL {
             return Ok(None);
         }
         let mut last_err = "Firmware version read timeout".to_string();
@@ -74,7 +75,7 @@ impl DeviceSession<'_> {
     }
 
     pub fn utility_status(&mut self) -> Result<DacUtilityState, String> {
-        if self.profile.protocol != DeviceProtocol::Walkplay {
+        if self.profile.protocol != &walkplay::PROTOCOL {
             return Ok(DacUtilityState::default());
         }
         self.drain();
@@ -215,7 +216,7 @@ impl DeviceSession<'_> {
     }
 
     fn require_walkplay(&self) -> Result<(), String> {
-        if self.profile.protocol == DeviceProtocol::Walkplay {
+        if self.profile.protocol == &walkplay::PROTOCOL {
             Ok(())
         } else {
             Err(format!(
