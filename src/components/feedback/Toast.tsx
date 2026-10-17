@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Icon } from "@/components/ui/Icon";
 import { Button } from "@/components/ui/Button";
-import { useToastStore, toastDuration } from "@/stores/toastStore";
+import { useToastStore } from "@/stores/toastStore";
 
 export function ToastContainer({
   errorsOnly = false,
@@ -47,15 +47,6 @@ export function ToastContainer({
           setFocused(false);
       }}
     >
-      <span
-        key={current.id + "-timer"}
-        className="toast-timer"
-        aria-hidden="true"
-        style={{
-          animationDuration: `${toastDuration(current.type)}ms`,
-          animationPlayState: paused ? "paused" : "running",
-        }}
-      />
       <span className={`toast-icon ${current.type}`}>
         <Icon
           name={

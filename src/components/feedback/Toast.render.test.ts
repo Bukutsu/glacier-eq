@@ -86,8 +86,8 @@ describe("Toast feedback", () => {
     );
     expect(html).toContain('class="toast-feedback inline"');
     expect(html).toContain('data-type="error"');
-    expect(html).toContain('class="toast-timer"');
-    expect(html).toContain("animation-duration:8000ms");
+    expect(html).not.toContain("toast-timer");
+    expect(html).not.toContain("animation-duration");
     expect(html).toContain('role="alert" aria-atomic="true"');
     expect(html).toContain("Failed to save");
   });

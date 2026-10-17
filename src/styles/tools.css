@@ -1328,53 +1328,6 @@ button.danger { color: var(--destructive-foreground); background: transparent; o
   border-radius: 0 !important;
 }
 
-/* Udev Status Pill - Sharp */
-.status-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 2px 6px;
-  border-radius: 0 !important;
-  font-size: var(--type-micro);
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  border: 1px solid transparent;
-}
-
-.status-pill .status-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 0 !important;
-}
-
-.status-pill.installed {
-  background: color-mix(in srgb, var(--green) 16%, transparent);
-  color: var(--green);
-  border-color: color-mix(in srgb, var(--green) 30%, transparent);
-}
-.status-pill.installed .status-dot {
-  background: var(--green);
-}
-
-.status-pill.outdated {
-  background: color-mix(in srgb, var(--yellow) 16%, transparent);
-  color: var(--warning-foreground);
-  border-color: color-mix(in srgb, var(--yellow) 30%, transparent);
-}
-.status-pill.outdated .status-dot {
-  background: var(--yellow);
-}
-
-.status-pill.missing {
-  background: color-mix(in srgb, var(--red) 16%, transparent);
-  color: var(--destructive-foreground);
-  border-color: color-mix(in srgb, var(--red) 30%, transparent);
-}
-.status-pill.missing .status-dot {
-  background: var(--red);
-}
-
 .device-utility {
   min-height: 0;
 }

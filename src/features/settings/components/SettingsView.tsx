@@ -5,6 +5,7 @@ import { memo, useEffect, useState } from "react";
 import { confirmDialog } from "@/components/ui/ConfirmDialog";
 import { Icon } from "@/components/ui/Icon";
 import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
 import { ConfigurationLayout } from "@/components/layout/ConfigurationLayout";
 import { SETTINGS_SECTIONS } from "@/lib/tabs";
 import {
@@ -238,20 +239,15 @@ function UdevSection({
     <section className="settings-plain" aria-label="Linux USB permissions">
       <div className="settings-plain-head">
         <h2 className="settings-plain-title">Linux USB permissions</h2>
-        <span
-          className={`status-pill ${installed ? (current ? "installed" : "outdated") : "missing"}`}
-        >
-          <span className="status-dot" aria-hidden="true" />
-          <span>
-            {checking
-              ? "Checking…"
-              : !installed
-                ? "Not installed"
-                : current
-                  ? "Configured"
-                  : "Update available"}
-          </span>
-        </span>
+        <Badge role="status">
+          {checking
+            ? "Checking…"
+            : !installed
+              ? "Not installed"
+              : current
+                ? "Configured"
+                : "Update available"}
+        </Badge>
       </div>
 
       <p className="settings-plain-desc">
@@ -396,7 +392,7 @@ export const SettingsView = memo(function SettingsView({
 
             <ToggleRow
               title="Verify EQ after writing"
-              desc="Checks that the DAC received the EQ by reading it back. On JA11, this happens before the save restarts the DAC, not after reconnecting. Turning this off skips optional checks; required safety checks still run."
+              desc="Read back the EQ settings to check they were applied correctly. Required safety checks always run."
               checked={!settings.skip_push_verification}
               onChange={(v) => onSettingChange("skip_push_verification", !v)}
             />
