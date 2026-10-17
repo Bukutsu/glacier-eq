@@ -15,7 +15,7 @@ import { Select } from "@/components/ui/Select";
 import { Slider } from "@/components/ui/Slider";
 import { SegmentedRow } from "@/components/ui/SettingsPrimitives";
 import { Icon } from "@/components/ui/Icon";
-import { DacFilterVisual } from "./DacFilterVisual";
+import { FilterResponse } from "./DacFilterVisual";
 
 export interface DawnProState {
   filter: number;
@@ -68,13 +68,7 @@ export function DawnProControlsFields({
           />
         </div>
       </div>
-      <details className="device-filter-details">
-        <summary>
-          Filter response
-          <Icon name="expand_more" className="disclosure-chevron" />
-        </summary>
-        <DacFilterVisual mode={FILTERS[state.filter].mode} />
-      </details>
+      <FilterResponse mode={FILTERS[state.filter].mode} />
       <SegmentedRow
         title="Gain"
         desc="High gain gives more power for headphones that need it"

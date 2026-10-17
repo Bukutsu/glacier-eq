@@ -17,4 +17,14 @@ describe("filter response domain switch", () => {
     expect(html).toContain(">Roll-off</button>");
     expect(html.match(/type="button"/g)).toHaveLength(2);
   });
+
+  it("draws an SVG, not a canvas that WebKit leaves blank after the panel reopens", () => {
+    const html = renderToStaticMarkup(
+      createElement(DacFilterVisual, { mode: "FAST-LL" }),
+    );
+    expect(html).not.toContain("<canvas");
+    expect(html).toContain('<svg class="dac-filter-svg"');
+    expect(html).toContain('role="img"');
+    expect(html).toContain("dac-filter-line");
+  });
 });

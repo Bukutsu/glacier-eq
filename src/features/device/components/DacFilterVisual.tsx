@@ -1,9 +1,8 @@
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
-import { memo, useCallback, useEffect, useRef, useState } from "react";
-import { cssVar, rgbWithAlpha } from "@/features/settings/lib/theme";
-import { useThemeVarsRevision } from "@/features/settings/hooks/useThemeVarsRevision";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { Icon } from "@/components/ui/Icon";
 import {
   getFilterModeMeta,
   getFilterTimeCurve,
@@ -19,371 +18,140 @@ type ViewDomain = "time" | "freq";
 const ANIM_DURATION_MS = 160;
 const easeOutCubic = (t: number) => 1 - (1 - t) ** 3;
 
+const HEIGHT = 136;
+const PAD = { left: 40, right: 14, top: 14, bottom: 22 };
+const PLOT_H = HEIGHT - PAD.top - PAD.bottom;
+const DEFAULT_WIDTH = 320;
+
+const TIME_Y = [-0.5, 1.1] as const;
+const FREQ_Y = [-60, 0] as const;
+const TIME_Y_TICKS = [1.0, 0.5, 0.0, -0.5];
+const FREQ_Y_TICKS = [0, -12, -24, -36, -48, -60];
+const TIME_X_TICKS = [-0.6, -0.3, 0.0, 0.3, 0.6];
+const FREQ_X_TICKS = [10, 14, 18, 20, 22, 24];
+
+const getTarget = (mode: string, domain: ViewDomain) =>
+  domain === "time"
+    ? getFilterTimeCurve(mode, DEFAULT_POINTS)
+    : getFilterFreqCurve(mode, DEFAULT_POINTS);
+
+/** The collapsible "Filter response" row shared by the device screens. */
+export function FilterResponse({ mode }: { mode: string }) {
+  return (
+    <details className="device-filter-details">
+      <summary>
+        Filter response
+        <Icon name="expand_more" className="disclosure-chevron" />
+      </summary>
+      <DacFilterVisual mode={mode} />
+    </details>
+  );
+}
+
+/**
+ * Follows `target`, easing from the curve on screen to the new one. Returns
+ * the target at once for reduced motion and on the first render.
+ */
+function useEasedCurve(target: Float32Array): Float32Array {
+  const [curve, setCurve] = useState(target);
+  const shownRef = useRef(target);
+  shownRef.current = curve;
+
+  useEffect(() => {
+    if (shownRef.current === target) return;
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+      setCurve(target);
+      return;
+    }
+    const from = shownRef.current;
+    const start = performance.now();
+    let frame = 0;
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / ANIM_DURATION_MS);
+      setCurve(t < 1 ? lerpCurve(from, target, easeOutCubic(t)) : target);
+      if (t < 1) frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [target]);
+
+  return curve;
+}
+
+function useElementWidth(ref: React.RefObject<HTMLElement | null>): number {
+  const [width, setWidth] = useState(DEFAULT_WIDTH);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => {
+      if (el.clientWidth > 0) setWidth(el.clientWidth);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [ref]);
+  return width;
+}
+
 export const DacFilterVisual = memo(function DacFilterVisual({
   mode,
 }: {
   mode: string;
 }) {
   const [domain, setDomain] = useState<ViewDomain>("time");
-  const [hoverInfo, setHoverInfo] = useState<{
-    xLabel: string;
-    yLabel: string;
-  } | null>(null);
-
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [hover, setHover] = useState<number | null>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const width = useElementWidth(wrapperRef);
 
   const meta = getFilterModeMeta(mode);
+  const target = useMemo(() => getTarget(mode, domain), [mode, domain]);
+  const curve = useEasedCurve(target);
 
-  // Animation state refs
-  const targetCurveRef = useRef<Float32Array>(
-    getFilterTimeCurve(mode, DEFAULT_POINTS),
+  const isTime = domain === "time";
+  const [yMin, yMax] = isTime ? TIME_Y : FREQ_Y;
+  const [xMin, xMax] = isTime ? TIME_RANGE_MS : FREQ_RANGE_KHZ;
+  const plotW = width - PAD.left - PAD.right;
+  const valToY = (v: number) =>
+    PAD.top + PLOT_H * (1 - (v - yMin) / (yMax - yMin));
+  const xAt = (fraction: number) => PAD.left + plotW * fraction;
+  const tickX = (v: number) => xAt((v - xMin) / (xMax - xMin));
+
+  const last = curve.length - 1;
+  const points = Array.from(
+    curve,
+    (v, i) => `${xAt(i / last).toFixed(1)},${valToY(v).toFixed(1)}`,
   );
-  const displayCurveRef = useRef<Float32Array>(
-    getFilterTimeCurve(mode, DEFAULT_POINTS),
-  );
-  const fromCurveRef = useRef<Float32Array>(
-    getFilterTimeCurve(mode, DEFAULT_POINTS),
-  );
-  const animStartTimeRef = useRef(0);
-  const animRafRef = useRef(0);
-  const isAnimatingRef = useRef(false);
-  const hoverFractionRef = useRef<number | null>(null);
+  const line = `M${points.join("L")}`;
+  const baseY = valToY(isTime ? 0 : -60);
+  const area = `${line}L${xAt(1).toFixed(1)},${baseY.toFixed(1)}L${xAt(0).toFixed(1)},${baseY.toFixed(1)}Z`;
 
-  const getTarget = useCallback((m: string, d: ViewDomain) => {
-    return d === "time"
-      ? getFilterTimeCurve(m, DEFAULT_POINTS)
-      : getFilterFreqCurve(m, DEFAULT_POINTS);
-  }, []);
-
-  // Repaint when theme CSS vars change outside React (Material You apply).
-  const themeVarsRevision = useThemeVarsRevision();
-
-  const draw = useCallback(
-    (curve: Float32Array) => {
-      const canvas = canvasRef.current;
-      const container = containerRef.current;
-      if (!canvas || !container) return;
-
-      const width = container.clientWidth || 320;
-      const height = 136;
-      const dpr = window.devicePixelRatio || 1;
-
-      const canvasWidth = Math.floor(width * dpr);
-      const canvasHeight = Math.floor(height * dpr);
-      if (canvas.width !== canvasWidth || canvas.height !== canvasHeight) {
-        canvas.width = canvasWidth;
-        canvas.height = canvasHeight;
-      }
-
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, width, height);
-
-      // Fill background matching EqGraph
-      const panelBg = cssVar("--panel", "#16161e");
-      ctx.fillStyle = panelBg;
-      ctx.fillRect(0, 0, width, height);
-
-      const padLeft = 40;
-      const padRight = 14;
-      const padTop = 14;
-      const padBottom = 22;
-
-      const plotW = width - padLeft - padRight;
-      const plotH = height - padTop - padBottom;
-
-      const isTime = domain === "time";
-
-      // Value to Y coordinate
-      const valToY = (val: number) => {
-        if (isTime) {
-          // Time domain range: [-0.5, 1.1]
-          const norm = (val - -0.5) / (1.1 - -0.5);
-          return padTop + plotH * (1 - norm);
-        } else {
-          // Freq domain range: [-60, 0] dB
-          const norm = (val - -60) / (0 - -60);
-          return padTop + plotH * (1 - norm);
+  const hoverIndex =
+    hover === null ? null : Math.round(Math.min(1, Math.max(0, hover)) * last);
+  const hoverValue = hoverIndex === null ? 0 : curve[hoverIndex];
+  const hoverX = hover === null ? 0 : xAt(Math.min(1, Math.max(0, hover)));
+  let hoverLabel: { x: string; y: string } | null = null;
+  if (hover !== null && hoverIndex !== null) {
+    const position = xMin + hover * (xMax - xMin);
+    hoverLabel = isTime
+      ? {
+          x: `${position > 0 ? "+" : ""}${position.toFixed(2)} ms`,
+          y: `${hoverValue > 0 ? "+" : ""}${hoverValue.toFixed(2)}`,
         }
-      };
+      : {
+          x: `${position.toFixed(1)} kHz`,
+          y: `${hoverValue.toFixed(1)} dB`,
+        };
+  }
 
-      const mono = cssVar("--font-mono", "ui-monospace");
-      const gridColor = cssVar("--canvas-grid", "rgba(65, 72, 104, 0.22)");
-      const mutedColor = cssVar("--muted", "#787c99");
-      const curveColor = cssVar("--cyan", "#7dcfff");
-
-      // ── 1. Draw Grid and Axes (matches EqGraph style) ─────────────────────────
-      ctx.save();
-      ctx.strokeStyle = gridColor;
-      ctx.lineWidth = 1;
-      ctx.font = `500 10px ${mono}`;
-      ctx.fillStyle = mutedColor;
-      ctx.textAlign = "right";
-      ctx.textBaseline = "middle";
-
-      const yTicks = isTime
-        ? [1.0, 0.5, 0.0, -0.5]
-        : [0, -12, -24, -36, -48, -60];
-      for (const yVal of yTicks) {
-        const y = valToY(yVal);
-        ctx.beginPath();
-        if (yVal === 0) {
-          ctx.strokeStyle = cssVar("--line-soft", "rgba(255, 255, 255, 0.15)");
-        } else {
-          ctx.strokeStyle = gridColor;
-        }
-        ctx.moveTo(padLeft, y);
-        ctx.lineTo(padLeft + plotW, y);
-        ctx.stroke();
-
-        const label = isTime
-          ? `${yVal > 0 ? "+" : ""}${yVal.toFixed(1)}`
-          : `${yVal}dB`;
-        ctx.fillText(label, padLeft - 6, y);
-      }
-
-      ctx.strokeStyle = gridColor;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "top";
-
-      if (isTime) {
-        const [startMs, endMs] = TIME_RANGE_MS;
-        const xTicks = [-0.6, -0.3, 0.0, 0.3, 0.6];
-        for (const tVal of xTicks) {
-          const xNorm = (tVal - startMs) / (endMs - startMs);
-          const x = padLeft + plotW * xNorm;
-
-          ctx.beginPath();
-          if (tVal === 0.0) {
-            ctx.strokeStyle = cssVar(
-              "--line-soft",
-              "rgba(255, 255, 255, 0.15)",
-            );
-          } else {
-            ctx.strokeStyle = gridColor;
-          }
-          ctx.moveTo(x, padTop);
-          ctx.lineTo(x, padTop + plotH);
-          ctx.stroke();
-
-          const label = `${tVal > 0 ? "+" : ""}${tVal.toFixed(1)}ms`;
-          ctx.fillText(label, x, padTop + plotH + 4);
-        }
-      } else {
-        const [startKhz, endKhz] = FREQ_RANGE_KHZ;
-        const xTicks = [10, 14, 18, 20, 22, 24];
-        for (const fVal of xTicks) {
-          const xNorm = (fVal - startKhz) / (endKhz - startKhz);
-          const x = padLeft + plotW * xNorm;
-
-          ctx.beginPath();
-          ctx.moveTo(x, padTop);
-          ctx.lineTo(x, padTop + plotH);
-          ctx.stroke();
-
-          ctx.fillText(`${fVal}k`, x, padTop + plotH + 4);
-        }
-      }
-      ctx.restore();
-
-      // ── 2. Draw Area Fill & Clean Trace (No Glow) ────────────────────────────
-      const numPoints = curve.length;
-      if (numPoints > 1) {
-        const baseY = valToY(isTime ? 0 : -60);
-
-        // Area fill
-        ctx.save();
-        ctx.beginPath();
-        for (let i = 0; i < numPoints; i++) {
-          const x = padLeft + plotW * (i / (numPoints - 1));
-          const y = valToY(curve[i]);
-          if (i === 0) ctx.moveTo(x, y);
-          else ctx.lineTo(x, y);
-        }
-        ctx.lineTo(padLeft + plotW, baseY);
-        ctx.lineTo(padLeft, baseY);
-        ctx.closePath();
-
-        const fillColor = rgbWithAlpha("--cyan-rgb", 0.1, "#7dcfff");
-        ctx.fillStyle = fillColor;
-        ctx.fill();
-        ctx.restore();
-
-        // Clean trace line
-        ctx.save();
-        ctx.beginPath();
-        for (let i = 0; i < numPoints; i++) {
-          const x = padLeft + plotW * (i / (numPoints - 1));
-          const y = valToY(curve[i]);
-          if (i === 0) ctx.moveTo(x, y);
-          else ctx.lineTo(x, y);
-        }
-        ctx.strokeStyle = curveColor;
-        ctx.lineWidth = 1.75;
-        ctx.lineCap = "round";
-        ctx.lineJoin = "round";
-        ctx.stroke();
-        ctx.restore();
-
-        // Center impulse marker in time mode (matches EqGraph filter dot style)
-        if (isTime) {
-          const centerIdx = Math.floor(numPoints / 2);
-          const centerX = padLeft + plotW * 0.5;
-          const centerY = valToY(curve[centerIdx]);
-
-          ctx.beginPath();
-          ctx.arc(centerX, centerY, 3.5, 0, Math.PI * 2);
-          ctx.fillStyle = curveColor;
-          ctx.fill();
-          ctx.lineWidth = 1.5;
-          ctx.strokeStyle = panelBg;
-          ctx.stroke();
-        }
-      }
-
-      // ── 3. Hover Crosshair Cursor ─────────────────────────────────────────────
-      if (hoverFractionRef.current !== null) {
-        const frac = hoverFractionRef.current;
-        const hoverX = padLeft + plotW * frac;
-        const sampleIdx = Math.min(
-          numPoints - 1,
-          Math.max(0, Math.round(frac * (numPoints - 1))),
-        );
-        const hoverY = valToY(curve[sampleIdx]);
-
-        ctx.save();
-        ctx.strokeStyle = cssVar("--line-soft", "rgba(255, 255, 255, 0.2)");
-        ctx.lineWidth = 1;
-        ctx.setLineDash([2, 2]);
-
-        ctx.beginPath();
-        ctx.moveTo(hoverX, padTop);
-        ctx.lineTo(hoverX, padTop + plotH);
-        ctx.stroke();
-
-        ctx.beginPath();
-        ctx.arc(hoverX, hoverY, 3, 0, Math.PI * 2);
-        ctx.fillStyle = curveColor;
-        ctx.fill();
-        ctx.restore();
-      }
-    },
-    [domain, themeVarsRevision],
-  );
-
-  // Smooth animation loop when curve changes (mode switch or domain switch)
-  const animateTo = useCallback(
-    (nextCurve: Float32Array) => {
-      targetCurveRef.current = nextCurve;
-      fromCurveRef.current = displayCurveRef.current;
-      animStartTimeRef.current = performance.now();
-      isAnimatingRef.current = true;
-
-      if (animRafRef.current) {
-        cancelAnimationFrame(animRafRef.current);
-      }
-
-      const tick = (now: number) => {
-        const elapsed = now - animStartTimeRef.current;
-        const t = Math.min(1, elapsed / ANIM_DURATION_MS);
-        const eased = easeOutCubic(t);
-
-        const interpolated = lerpCurve(
-          fromCurveRef.current,
-          targetCurveRef.current,
-          eased,
-        );
-        displayCurveRef.current = interpolated;
-        draw(interpolated);
-
-        if (t < 1) {
-          animRafRef.current = requestAnimationFrame(tick);
-        } else {
-          isAnimatingRef.current = false;
-          displayCurveRef.current = targetCurveRef.current;
-          draw(targetCurveRef.current);
-        }
-      };
-
-      animRafRef.current = requestAnimationFrame(tick);
-    },
-    [draw],
-  );
-
-  useEffect(() => {
-    const target = getTarget(mode, domain);
-    animateTo(target);
-
-    return () => {
-      if (animRafRef.current) cancelAnimationFrame(animRafRef.current);
-    };
-  }, [mode, domain, getTarget, animateTo]);
-
-  // Handle pointer hover / touch over the canvas
-  const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    const container = containerRef.current;
-    if (!canvas || !container) return;
-
-    const rect = canvas.getBoundingClientRect();
-    const width = container.clientWidth || 320;
-    const padLeft = 40;
-    const padRight = 14;
-    const plotW = width - padLeft - padRight;
-
-    const clientX = e.clientX - rect.left;
-    const clampedX = Math.max(padLeft, Math.min(padLeft + plotW, clientX));
-    const fraction = (clampedX - padLeft) / plotW;
-    hoverFractionRef.current = fraction;
-
-    const curve = displayCurveRef.current;
-    const numPoints = curve.length;
-    const idx = Math.min(
-      numPoints - 1,
-      Math.max(0, Math.round(fraction * (numPoints - 1))),
+  const onPointerMove = (event: React.PointerEvent<SVGSVGElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = Math.max(
+      PAD.left,
+      Math.min(PAD.left + plotW, event.clientX - rect.left),
     );
-    const val = curve[idx];
-
-    if (domain === "time") {
-      const [startMs, endMs] = TIME_RANGE_MS;
-      const t = startMs + fraction * (endMs - startMs);
-      setHoverInfo({
-        xLabel: `${t > 0 ? "+" : ""}${t.toFixed(2)} ms`,
-        yLabel: `${val > 0 ? "+" : ""}${val.toFixed(2)}`,
-      });
-    } else {
-      const [startKhz, endKhz] = FREQ_RANGE_KHZ;
-      const f = startKhz + fraction * (endKhz - startKhz);
-      setHoverInfo({
-        xLabel: `${f.toFixed(1)} kHz`,
-        yLabel: `${val.toFixed(1)} dB`,
-      });
-    }
-
-    draw(displayCurveRef.current);
+    setHover((x - PAD.left) / plotW);
   };
-
-  const handlePointerLeave = () => {
-    hoverFractionRef.current = null;
-    setHoverInfo(null);
-    draw(displayCurveRef.current);
-  };
-
-  // ResizeObserver to smoothly resize canvas
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-
-    const ro = new ResizeObserver(() => {
-      draw(displayCurveRef.current);
-    });
-    ro.observe(el);
-
-    return () => ro.disconnect();
-  }, [draw]);
 
   return (
     <div className="dac-filter-card" aria-label={`Filter mode: ${mode}`}>
@@ -417,17 +185,83 @@ export const DacFilterVisual = memo(function DacFilterVisual({
         </div>
       </div>
 
-      <div className="dac-filter-chart-wrapper" ref={containerRef}>
-        <canvas
-          ref={canvasRef}
-          className="dac-filter-canvas"
-          onPointerMove={handlePointerMove}
-          onPointerLeave={handlePointerLeave}
-        />
-        {hoverInfo && (
+      <div className="dac-filter-chart-wrapper" ref={wrapperRef}>
+        <svg
+          className="dac-filter-svg"
+          width={width}
+          height={HEIGHT}
+          role="img"
+          aria-label={`${meta.name}: ${isTime ? "impulse response" : "roll-off"}`}
+          onPointerMove={onPointerMove}
+          onPointerLeave={() => setHover(null)}
+        >
+          {(isTime ? TIME_Y_TICKS : FREQ_Y_TICKS).map((v) => (
+            <g key={`y${v}`}>
+              <line
+                className={v === 0 ? "dac-filter-axis" : "dac-filter-grid"}
+                x1={PAD.left}
+                x2={PAD.left + plotW}
+                y1={valToY(v)}
+                y2={valToY(v)}
+              />
+              <text
+                className="dac-filter-label"
+                x={PAD.left - 6}
+                y={valToY(v)}
+                textAnchor="end"
+                dominantBaseline="middle"
+              >
+                {isTime ? `${v > 0 ? "+" : ""}${v.toFixed(1)}` : `${v}dB`}
+              </text>
+            </g>
+          ))}
+          {(isTime ? TIME_X_TICKS : FREQ_X_TICKS).map((v) => (
+            <g key={`x${v}`}>
+              <line
+                className={
+                  isTime && v === 0 ? "dac-filter-axis" : "dac-filter-grid"
+                }
+                x1={tickX(v)}
+                x2={tickX(v)}
+                y1={PAD.top}
+                y2={PAD.top + PLOT_H}
+              />
+              <text
+                className="dac-filter-label"
+                x={tickX(v)}
+                y={PAD.top + PLOT_H + 12}
+                textAnchor="middle"
+              >
+                {isTime ? `${v > 0 ? "+" : ""}${v.toFixed(1)}ms` : `${v}k`}
+              </text>
+            </g>
+          ))}
+          <path className="dac-filter-area" d={area} />
+          <path className="dac-filter-line" d={line} />
+          {isTime && (
+            <circle
+              className="dac-filter-dot"
+              cx={xAt(0.5)}
+              cy={valToY(curve[Math.floor(curve.length / 2)])}
+              r={3.5}
+            />
+          )}
+          {hoverIndex !== null && (
+            <g className="dac-filter-cursor">
+              <line
+                x1={hoverX}
+                x2={hoverX}
+                y1={PAD.top}
+                y2={PAD.top + PLOT_H}
+              />
+              <circle cx={hoverX} cy={valToY(hoverValue)} r={3} />
+            </g>
+          )}
+        </svg>
+        {hoverLabel && (
           <div className="dac-filter-hover-pill">
-            <span>{hoverInfo.xLabel}</span>
-            <span className="dac-filter-hover-val">{hoverInfo.yLabel}</span>
+            <span>{hoverLabel.x}</span>
+            <span className="dac-filter-hover-val">{hoverLabel.y}</span>
           </div>
         )}
       </div>

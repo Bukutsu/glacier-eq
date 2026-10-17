@@ -533,11 +533,49 @@ button.danger { color: var(--destructive-foreground); background: transparent; o
   touch-action: none;
 }
 
-.dac-filter-canvas {
-  width: 100%;
-  height: 100%;
+/* Drawn as SVG: a canvas painted while its <details> was closed stayed
+   blank in WebKit after reopening. Colours follow the theme through CSS. */
+.dac-filter-svg {
   display: block;
   cursor: crosshair;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+}
+.dac-filter-grid {
+  stroke: var(--canvas-grid, rgba(65, 72, 104, 0.22));
+  stroke-width: 1;
+}
+.dac-filter-axis {
+  stroke: var(--line-soft, rgba(255, 255, 255, 0.15));
+  stroke-width: 1;
+}
+.dac-filter-label {
+  fill: var(--muted, #787c99);
+}
+.dac-filter-area {
+  fill: var(--cyan, #7dcfff);
+  fill-opacity: 0.1;
+}
+.dac-filter-line {
+  fill: none;
+  stroke: var(--cyan, #7dcfff);
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.dac-filter-dot {
+  fill: var(--cyan, #7dcfff);
+  stroke: var(--panel, #16161e);
+  stroke-width: 1.5;
+}
+.dac-filter-cursor line {
+  stroke: var(--line-soft, rgba(255, 255, 255, 0.2));
+  stroke-dasharray: 2 2;
+}
+.dac-filter-cursor circle {
+  fill: var(--cyan, #7dcfff);
 }
 
 .dac-filter-hover-pill {

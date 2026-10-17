@@ -4,7 +4,7 @@ import type { StatusReporter } from "@/stores/toastStore";
 
 import { memo, useEffect, useRef, useState } from "react";
 import { confirmDialog } from "@/components/ui/ConfirmDialog";
-import { DacFilterVisual } from "./DacFilterVisual";
+import { FilterResponse } from "./DacFilterVisual";
 import { DawnProControls } from "./DawnProControls";
 import { Ja11Controls } from "./Ja11Controls";
 import { Icon } from "@/components/ui/Icon";
@@ -693,13 +693,7 @@ export const DeviceView = memo(function DeviceView({
                   </div>
                 </div>
 
-                <details className="device-filter-details">
-                  <summary>
-                    Filter response
-                    <Icon name="expand_more" className="disclosure-chevron" />
-                  </summary>
-                  <DacFilterVisual mode={utility.filter_mode} />
-                </details>
+                <FilterResponse mode={utility.filter_mode} />
 
                 <SegmentedRow
                   title="Amplifier"
