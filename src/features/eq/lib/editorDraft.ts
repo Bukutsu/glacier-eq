@@ -1,11 +1,24 @@
 import type { PEQData } from "@/types";
-import { parseStoredPeqResponse } from "./peq";
+import { parseStoredPeqResponse, peqEquals } from "./peq";
 
 export const EDITOR_DRAFT_KEY = "glacier-editor-draft";
 export interface EditorDraft {
   version: 1;
   name: string;
   peq: PEQData;
+}
+
+/**
+ * Whether the editor holds work worth recovering: it is unsaved and differs
+ * from the EQ it was loaded from. An unmodified read from the DAC is unsaved
+ * as a profile, but the DAC still has it.
+ */
+export function hasUnfinishedEdits(
+  dirty: boolean,
+  peq: PEQData,
+  loaded: PEQData,
+): boolean {
+  return dirty && !peqEquals(peq, loaded);
 }
 
 /** Stored drafts are untrusted input. Validate without clamping their data. */

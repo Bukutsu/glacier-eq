@@ -33,6 +33,20 @@ describe("device read lifecycle", () => {
     expect(context.setIsBusy).toHaveBeenLastCalledWith(false);
   });
 
+  it("keeps an unmatched read dirty but takes it as the clean baseline", async () => {
+    const context = operationFixture();
+    const peq = context.peqRef.current;
+    context.invoke.mockResolvedValueOnce(peq).mockResolvedValueOnce(null);
+    expect(await createPullEq(context)()).toBe(true);
+    expect(context.setSelectedPreset).toHaveBeenCalledWith(
+      "Pulled from device",
+    );
+    expect(context.setDirty).toHaveBeenCalledWith(true);
+    expect(context.editorCleanPeqRef.current).toEqual(
+      context.setPeq.mock.calls[0][0],
+    );
+  });
+
   it("discards a read completed after the device session was replaced", async () => {
     const context = operationFixture();
     let finish!: (value: unknown) => void;

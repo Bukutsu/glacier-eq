@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseEditorDraft } from "./editorDraft";
+import { hasUnfinishedEdits, parseEditorDraft } from "./editorDraft";
 import { buildDefaultState } from "./peq";
 
 const draft = () => ({ version: 1, name: "My EQ", peq: buildDefaultState() });
@@ -56,5 +56,26 @@ describe("editor draft validation", () => {
     const value = draft();
     mutate(value);
     expect(() => parseEditorDraft(JSON.stringify(value))).toThrow();
+  });
+});
+
+describe("unfinished edits", () => {
+  it("treats an unsaved EQ that equals what was loaded as nothing to recover", () => {
+    const loaded = buildDefaultState();
+    expect(hasUnfinishedEdits(true, structuredClone(loaded), loaded)).toBe(
+      false,
+    );
+  });
+  it("recovers an unsaved EQ that differs from what was loaded", () => {
+    const loaded = buildDefaultState();
+    const edited = structuredClone(loaded);
+    edited.filters[0].gain = 2;
+    expect(hasUnfinishedEdits(true, edited, loaded)).toBe(true);
+  });
+  it("never recovers a saved EQ", () => {
+    const loaded = buildDefaultState();
+    const edited = structuredClone(loaded);
+    edited.global_gain = -2;
+    expect(hasUnfinishedEdits(false, edited, loaded)).toBe(false);
   });
 });

@@ -22,6 +22,7 @@ import { type StatusReporter } from "@/stores/toastStore";
 import { useHistoryStore } from "@/features/eq/stores/historyStore";
 
 import { useEditorDraft } from "@/features/eq/hooks/useEditorDraft";
+import { hasUnfinishedEdits } from "@/features/eq/lib/editorDraft";
 
 import { OFFLINE_EDITOR_CAPABILITIES } from "@/features/device/lib/dacSpecs";
 
@@ -94,7 +95,7 @@ export function useEqEditor(
 
   const { pendingDraft, draftInvalid, resolveDraft } = useEditorDraft(
     peq,
-    dirty,
+    hasUnfinishedEdits(dirty, peq, editorCleanPeqRef.current),
     selectedPresetRef,
   );
 

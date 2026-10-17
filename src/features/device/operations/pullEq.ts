@@ -204,9 +204,11 @@ export function createPullEq(context: PullEqContext) {
       setNewProfileName("");
       noteEditorMutation();
       const simulated = isDevDummyDevice(targetPath);
-      if (simulated || matchedProfile !== "Pulled from device") {
-        editorCleanPeqRef.current = normalized;
-      }
+      // The read EQ is the baseline whether or not a saved profile matches it.
+      // An unmatched one stays dirty so it can be saved as a profile and a
+      // profile switch asks first, but it is not unfinished work: the DAC
+      // still holds it, so it must not be kept as a recovery draft.
+      editorCleanPeqRef.current = normalized;
       // Browsing seeded previews is not an unsaved user edit. Actual edits
       // still use the normal dirty/draft protection and switch confirmation.
       setDirty(!simulated && matchedProfile === "Pulled from device");
