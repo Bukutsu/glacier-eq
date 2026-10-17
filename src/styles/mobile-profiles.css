@@ -1,0 +1,67 @@
+/* Fresh mobile library; isolated from the desktop profile view. */
+.mobile-profile-pane { min-width: 0; }
+.mobile-profile-library {
+  display: grid;
+  gap: var(--space-5);
+  padding: var(--space-4);
+  min-width: 0;
+}
+.mobile-profile-library h2,
+.mobile-profile-library h3,
+.mobile-profile-library p { margin: 0; }
+.mobile-profile-library button[data-slot="button"] { min-height: 44px; }
+.mobile-profile-library button[data-slot="button"][aria-haspopup="menu"] { min-width: 44px; }
+.mobile-profile-editor { padding: var(--space-4); min-width: 0; }
+.mobile-profile-section-heading,
+.mobile-profile-library-heading,
+.mobile-profile-library-tools,
+.mobile-profile-row-heading,
+.mobile-profile-row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.mobile-profile-eyebrow { font-size: var(--type-small); color: var(--muted-foreground); }
+.mobile-profile-library .mobile-profile-editor-name {
+  margin: var(--space-3) 0 var(--space-1);
+  font-size: 20px;
+  line-height: 1.35;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.mobile-profile-description { font-size: var(--type-small); line-height: 1.5; color: var(--muted-foreground); }
+.mobile-profile-editor > .mobile-profile-description + .mobile-profile-description { margin-top: var(--space-2); }
+.mobile-profile-editor-actions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 44px; gap: var(--space-2); margin-top: var(--space-4); }
+.mobile-profile-editor-actions > button { min-width: 0; padding-inline: 8px; }
+.mobile-profile-editor .app-collapse { margin: var(--space-4) 0 0; border: 0; border-top: 1px solid var(--border); border-radius: 0; }
+.mobile-profile-editor .app-collapse-trigger { min-height: 44px; padding-inline: 0; background: transparent; border: 0; color: var(--muted-foreground); font-size: var(--type-small); font-weight: 500; }
+.mobile-profile-preview { min-width: 0; overflow: hidden; }
+.mobile-profile-library-heading { flex-wrap: wrap; margin-bottom: var(--space-3); }
+.mobile-profile-library-heading h2 { font-size: var(--type-body); font-weight: 600; line-height: 1.5; }
+.mobile-profile-library-tools { justify-content: flex-end; gap: var(--space-1); }
+.mobile-profile-search { position: relative; display: flex; align-items: center; margin-bottom: var(--space-3); }
+.mobile-profile-search > .app-icon { position: absolute; left: 12px; width: 16px; pointer-events: none; color: var(--muted-foreground); }
+.mobile-profile-search input { font-size: 16px; }
+.mobile-profile-search input::-webkit-search-cancel-button { display: none; }
+.mobile-profile-search button { position: absolute; right: 0; }
+.mobile-profile-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+.mobile-profile-row { min-width: 0; padding: var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-card); }
+.mobile-profile-row.is-current { background: var(--surface-soft); }
+.mobile-profile-row-heading { align-items: flex-start; }
+.mobile-profile-row-heading h3 { min-width: 0; font-size: var(--type-label); font-weight: 600; line-height: 1.5; overflow-wrap: anywhere; }
+.mobile-profile-row-heading h3 .app-icon { display: inline-block; width: 14px; height: 14px; margin-right: 6px; vertical-align: -2px; color: var(--muted-foreground); }
+.mobile-profile-row > .mobile-profile-description { margin-top: var(--space-1); }
+.mobile-profile-row-actions { margin-top: var(--space-3); }
+.mobile-profile-row-actions > button:first-child { flex: 1; }
+.mobile-profile-empty { display: grid; justify-items: center; gap: var(--space-2); padding: var(--space-5) var(--space-3); text-align: center; }
+.mobile-profile-empty > .app-icon { color: var(--muted-foreground); }
+.mobile-profile-empty h3 { font-size: var(--type-body); }
+.mobile-profile-empty p,
+.mobile-profile-library-hint { font-size: var(--type-small); line-height: 1.5; color: var(--muted-foreground); }
+.mobile-profile-library .mobile-profile-library-hint { margin-top: var(--space-4); }
+.mobile-profile-name-dialog form { display: grid; gap: var(--space-3); padding: var(--space-4); }
+.mobile-profile-name-dialog label { font-size: var(--type-label); font-weight: 500; }
+.mobile-profile-name-dialog input { font-size: 16px; }
+.mobile-profile-dialog-actions { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-2); }
+.mobile-profile-name-dialog button[data-slot="button"] { min-height: 44px; }

@@ -9,6 +9,8 @@ import { DawnProControls } from "./DawnProControls";
 import { Ja11Controls } from "./Ja11Controls";
 import { Icon } from "@/components/ui/Icon";
 import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
+import { Card } from "@/components/ui/Card";
 import { ConfigurationLayout } from "@/components/layout/ConfigurationLayout";
 import { DEVICE_SECTIONS } from "@/lib/tabs";
 import { Select } from "@/components/ui/Select";
@@ -30,6 +32,7 @@ import {
   setField,
 } from "@/lib/serializedWrites";
 import type { DeviceCapabilities, DeviceInfo } from "@/types";
+import type { DeviceMaintenanceRunner } from "@/features/device/operations/runDeviceMaintenance";
 
 export function formatChannelBalance(balance: number): string {
   if (balance === 0) return "Center (0)";
@@ -53,6 +56,7 @@ export interface DeviceViewProps {
   onExpectedDisconnect?: (restart?: boolean) => void | Promise<void>;
   onReadFailure?: (path: string, error: unknown) => Promise<boolean>;
   onResetEq?: () => Promise<void>;
+  runMaintenance?: DeviceMaintenanceRunner;
 }
 
 type DeviceUtilityState = {
@@ -80,6 +84,7 @@ export const DeviceView = memo(function DeviceView({
   onExpectedDisconnect,
   onReadFailure,
   onResetEq,
+  runMaintenance,
 }: DeviceViewProps) {
   const invoke = <T,>(command: string, args?: Record<string, unknown>) =>
     invokeForDevice<T>(deviceInfo?.path, command, args);
@@ -255,86 +260,80 @@ export const DeviceView = memo(function DeviceView({
   const handleSetMicVolume = (volumeDb: number) =>
     setUtilityField("mic_volume_db", volumeDb, "set_mic_volume", { volumeDb });
 
-  const handleResetDeviceControls = async () => {
-    if (isBusyRef.current) return;
-    if (
-      !(await confirmDialog({
-        title: "Reset hardware controls?",
-        message:
-          "Reset filter mode, amplifier mode, gain, balance, and microphone volume to defaults?",
-        confirmLabel: "Reset",
-        danger: true,
-      }))
-    )
-      return;
-    if (isBusyRef.current) return;
+  const handleUtilityReset = async (factory: boolean) => {
+    if (isBusyRef.current || !runMaintenance) return;
+    let readAfterReset: (() => boolean) | undefined;
+    await runMaintenance(async (sessionIsCurrent) => {
+      const active = () => mountedRef.current && sessionIsCurrent();
+      if (
+        !(await confirmDialog({
+          title: factory ? "Factory reset DAC?" : "Reset hardware controls?",
+          message: factory
+            ? "Restore the DAC's EQ and hardware controls to defaults?"
+            : "Reset filter mode, amplifier mode, gain, balance, and microphone volume to defaults?",
+          confirmLabel: factory ? "Factory reset" : "Reset",
+          danger: true,
+        })) ||
+        !active()
+      )
+        return;
 
-    scheduleUtilityTask.enqueue(
-      "reset",
-      async (isCurrent) => {
-        try {
-          await invoke("reset_device_controls");
+      scheduleUtilityTask.enqueue(
+        "reset",
+        async (taskIsCurrent) => {
+          const isCurrent = () => active() && taskIsCurrent();
+          // A reset queued behind a control write may outlive its connection.
           if (!isCurrent()) return;
-          const data = await invoke<DeviceUtilityState>(
-            "get_dac_utility_state",
-          );
-          if (!isCurrent()) return;
-          utilityRef.current = data;
-          confirmedUtilityRef.current = data;
-          setUtility(data);
-          setStatus("Device controls reset to defaults.", "success");
-        } catch (err) {
-          if (!isCurrent()) return;
-          setStatus(`Could not reset device controls: ${err}`);
-        }
-      },
-      { supersedePending: true },
-    );
-  };
-
-  const handleFactoryReset = async () => {
-    if (isBusyRef.current) return;
-    if (
-      !(await confirmDialog({
-        title: "Factory reset DAC?",
-        message:
-          "Restore the DAC to its factory defaults, including EQ filters, volume, and amplifier mode?",
-        confirmLabel: "Factory reset",
-        danger: true,
-      }))
-    )
-      return;
-    if (isBusyRef.current) return;
-
-    scheduleUtilityTask.enqueue(
-      "reset",
-      async (isCurrent) => {
-        try {
-          await invoke("execute_factory_reset");
-          if (!isCurrent()) return;
-          const data = await invoke<DeviceUtilityState>(
-            "get_dac_utility_state",
-          );
-          if (!isCurrent()) return;
-          utilityRef.current = data;
-          confirmedUtilityRef.current = data;
-          setUtility(data);
-          if (!isCurrent()) return;
-          const pulled = await onPull?.();
-          if (!isCurrent()) return;
+          try {
+            const resetState = await invoke<DeviceUtilityState | undefined>(
+              factory ? "execute_factory_reset" : "reset_device_controls",
+            );
+            if (!isCurrent()) return;
+            const data =
+              resetState ??
+              (await invoke<DeviceUtilityState>("get_dac_utility_state"));
+            if (!isCurrent()) return;
+            utilityRef.current = data;
+            confirmedUtilityRef.current = data;
+            setUtility(data);
+            if (factory) {
+              readAfterReset = active;
+            } else {
+              setStatus("Device controls reset to defaults.", "success");
+            }
+          } catch (err) {
+            if (!isCurrent()) return;
+            setStatus(
+              factory
+                ? `Could not restore factory defaults: ${err}`
+                : `Could not reset device controls: ${err}`,
+            );
+          }
+        },
+        { supersedePending: true },
+      );
+      await scheduleUtilityTask.whenIdle();
+    });
+    // The EQ reader claims the same operation slot. Start it only after the
+    // maintenance runner releases that slot, and never for a replaced session.
+    if (readAfterReset?.()) {
+      try {
+        const pulled = await onPull?.();
+        if (!readAfterReset()) return;
+        setStatus(
+          pulled === false
+            ? "Device restored to factory defaults, but reading it back failed. Read EQ from the DAC again before editing."
+            : "Device restored to factory defaults.",
+          pulled === false ? "error" : "success",
+        );
+      } catch (error) {
+        if (readAfterReset())
           setStatus(
-            pulled === false
-              ? "Device restored to factory defaults, but reading it back failed. Read EQ from the DAC again before editing."
-              : "Device restored to factory defaults.",
-            pulled === false ? "error" : "success",
+            `Device restored to factory defaults, but reading EQ failed: ${error}`,
+            "error",
           );
-        } catch (err) {
-          if (!isCurrent()) return;
-          setStatus(`Could not restore factory defaults: ${err}`);
-        }
-      },
-      { supersedePending: true },
-    );
+      }
+    }
   };
 
   const officialSpec =
@@ -375,25 +374,27 @@ export const DeviceView = memo(function DeviceView({
     : DEVICE_SECTIONS.filter((item) => item.id === "overview");
 
   const deviceSummary = (
-    <section className="device-summary" aria-label="Device connection">
-      <div className="device-hero-header">
-        <span
-          className={`device-status-badge ${connected ? (isSimulated ? "simulated" : "connected") : "offline"}`}
-        >
-          <span className="status-dot" aria-hidden="true" />
-          <span>
-            {connected ? (isSimulated ? "Simulation" : "Connected") : "Offline"}
-          </span>
-        </span>
-      </div>
-
+    <Card className="device-summary" aria-label="Device connection">
       <div className="device-hero-body">
-        <h2 className="device-hero-title">{deviceTitle}</h2>
+        <div className="device-hero-heading">
+          <h2 className="device-hero-title">{deviceTitle}</h2>
+          <Badge className="gap-1.5">
+            <span
+              className={`size-1.5 shrink-0 rounded-full ${connected ? (isSimulated ? "bg-[var(--yellow)]" : "bg-[var(--green)]") : "bg-muted-foreground"}`}
+              aria-hidden="true"
+            />
+            {connected ? (isSimulated ? "Simulation" : "Connected") : "Offline"}
+          </Badge>
+        </div>
         <p className="device-hero-desc">
           {connected
-            ? isSimulated
-              ? "Preview EQ without changing hardware."
-              : "Manage DAC audio controls and settings."
+            ? deviceInfo?.hardware_eq === false
+              ? dawnDevice
+                ? "Sound controls are supported. This model has no hardware EQ, so EQ Read/Write actions are unavailable."
+                : "This DAC has no hardware EQ, so EQ Read/Write actions are unavailable."
+              : isSimulated
+                ? "Preview EQ without changing hardware."
+                : "Manage DAC audio controls and settings."
             : "Edit EQ offline or connect a DAC to adjust device settings."}
         </p>
       </div>
@@ -402,7 +403,12 @@ export const DeviceView = memo(function DeviceView({
         {connected ? (
           <>
             {onDisconnect && (
-              <Button type="button" onClick={onDisconnect} disabled={isBusy}>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={onDisconnect}
+                disabled={isBusy}
+              >
                 <Icon name="link_off" />
                 <span>Disconnect</span>
               </Button>
@@ -410,7 +416,7 @@ export const DeviceView = memo(function DeviceView({
             {onOpenConnectModal && (
               <Button
                 type="button"
-                variant="primary"
+                variant="default"
                 onClick={handleChangeDevice}
                 disabled={isBusy}
               >
@@ -432,7 +438,7 @@ export const DeviceView = memo(function DeviceView({
           )
         )}
       </div>
-    </section>
+    </Card>
   );
 
   return (
@@ -817,8 +823,8 @@ export const DeviceView = memo(function DeviceView({
                       title="Reset device controls"
                       desc="Resets filter mode, amplifier mode, gain, and balance to defaults"
                       actionLabel="Reset controls"
-                      disabled={isBusy}
-                      onAction={handleResetDeviceControls}
+                      disabled={isBusy || !runMaintenance}
+                      onAction={() => handleUtilityReset(false)}
                     />
 
                     <ActionRow
@@ -826,8 +832,8 @@ export const DeviceView = memo(function DeviceView({
                       desc="Restores the DAC to its factory defaults"
                       actionLabel="Factory reset"
                       danger
-                      disabled={isBusy}
-                      onAction={handleFactoryReset}
+                      disabled={isBusy || !runMaintenance}
+                      onAction={() => handleUtilityReset(true)}
                     />
                   </>
                 )}

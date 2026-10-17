@@ -47,6 +47,29 @@ describe("mobile navigation and touch affordances", () => {
     expect(mobile).toContain(".ui-menu-item");
     expect(mobile).toContain(".graph-collapse-btn");
   });
+  it("shows mobile recovery in the workspace without forcing the full header open", () => {
+    expect(app).toMatch(
+      /const draftRecovery\s*=\s*!isMobile && recoveryPending/,
+    );
+    expect(app).toContain("<MobileDraftRecovery");
+    expect(app).toContain(
+      'compact={isMobile && activeTab !== "eq" && !isBusy}',
+    );
+  });
+  it("pins the graph for expanded band settings without covering short screens or the keyboard", () => {
+    expect(mobile).toContain("@media (min-height: 600px)");
+    expect(mobile).toContain(":root:not(.keyboard-open)");
+    expect(mobile).toContain(
+      ":has(.band-more-settings[open]) .mobile-graph-eq:not(.collapsed)",
+    );
+    expect(mobile).toContain("position: sticky;");
+    expect(mobile).toContain("scroll-padding-top: clamp(");
+  });
+  it("keeps mobile graph dots display-only while retaining desktop editing", () => {
+    expect(app).toContain(
+      "withEditor && !isMobile && !recoveryPending ? graphEditorProps : {}",
+    );
+  });
   it("allows vertical page scrolling from the horizontal band picker", () => {
     expect(mobile).toContain(".band-picker-scroll { touch-action: auto; }");
   });

@@ -88,12 +88,24 @@ describe("Header markup", () => {
           mobile,
         }),
       );
+      expect(html).toContain('class="header-eq-note" role="note"');
       expect(html).toContain("This DAC has no hardware EQ");
+      expect(html).toContain("EQ Read/Write actions are");
+      expect(html).toContain("edit and export EQ");
       expect(html).not.toContain("Read from DAC");
       expect(html).not.toContain("Write to DAC");
       expect(html).not.toContain("Save to DAC");
     },
   );
+
+  it("does not show the hardware limitation while offline or with an EQ-capable DAC", () => {
+    for (const connected of [false, true]) {
+      const html = renderToStaticMarkup(
+        createElement(Header, { ...baseHeaderProps, connected }),
+      );
+      expect(html).not.toContain('class="header-eq-note"');
+    }
+  });
 
   it.each([false, true])(
     "offers EQ export on the EQ page, offline too (mobile=%s)",

@@ -86,6 +86,61 @@
   background: var(--surface-soft);
 }
 
+/* The built-in default is a recovery tool rather than an editable profile.
+   Give it a quiet, persistent identity and keep its two useful actions visible. */
+.profiles-default {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-color: var(--line-medium);
+  background: transparent;
+}
+
+.profiles-default.is-current {
+  background: var(--surface-soft);
+}
+
+.profiles-default-summary,
+.profiles-default-heading,
+.profiles-default-actions {
+  display: flex;
+  align-items: center;
+}
+
+.profiles-default-summary {
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.profiles-default-heading {
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.profiles-default-icon {
+  display: inline-flex;
+  flex: 0 0 34px;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--control-radius);
+  background: var(--surface);
+  color: var(--muted-foreground);
+}
+
+.profiles-default-icon .app-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.profiles-default-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
 .profiles-item .profiles-load {
   flex: 1 1 auto;
   justify-content: flex-start;
@@ -250,6 +305,21 @@
 .profiles-import-warnings ul { margin: 0; padding-left: var(--space-4); }
 
 @media (min-width: 851px) and ((min-height: 541px) or (pointer: fine)) {
+  .profiles-default {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-3);
+    padding: var(--space-2) var(--space-3);
+  }
+  .profiles-default-summary { flex: 1 1 220px; }
+  .profiles-default-icon {
+    flex-basis: 18px;
+    height: 18px;
+    border: 0;
+    background: transparent;
+  }
+  .profiles-default-actions { margin-left: auto; }
   .desktop-view-profiles .desktop-content { grid-template-columns: minmax(0, 1fr); }
   .desktop-view-profiles .desktop-content > .right-rail {
     grid-column: 1 / -1;

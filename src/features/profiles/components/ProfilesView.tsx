@@ -4,6 +4,7 @@
 import type { StatusReporter } from "@/stores/toastStore";
 import { memo, useEffect, useRef, useState, type ReactNode } from "react";
 import { Menu } from "@base-ui/react/menu";
+import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { confirmDialog } from "@/components/ui/ConfirmDialog";
@@ -14,6 +15,7 @@ import { invoke, readText } from "@/lib/rpc";
 import { copyEq, exportEqFile } from "@/features/eq/lib/exportEq";
 import { OverflowMenu } from "@/components/ui/OverflowMenu";
 import { profileIdentityKey } from "@/features/profiles/lib/profileIdentity";
+import { loadProfile } from "@/features/profiles/lib/loadProfile";
 import { decodeUtf8 } from "@/lib/utf8";
 import { fuzzyMatch } from "@/lib/search";
 import { isTauri } from "@/lib/platform";
@@ -152,21 +154,15 @@ export const ProfilesView = memo(function ProfilesView({
       ? "Save changes"
       : "Profile saved";
 
-  const handleSelectProfile = async (profile: Profile) => {
-    if (profileIdentityKey(selectedPreset) === profileIdentityKey(profile.name))
-      return;
-    if (
-      dirty &&
-      !(await confirmDialog({
-        title: "Discard changes?",
-        message: "Loading this profile will discard your unsaved changes.",
-        confirmLabel: "Discard and load",
-      }))
-    ) {
-      return;
-    }
-    onSelectProfile(profile);
-  };
+  const handleSelectProfile = (profile: Profile) =>
+    loadProfile({
+      profile,
+      selectedPreset,
+      dirty,
+      getAsyncContext,
+      confirm: confirmDialog,
+      onSelectProfile,
+    });
 
   const invalidateModalOperation = () => {
     modalContextRef.current += 1;
@@ -383,7 +379,7 @@ export const ProfilesView = memo(function ProfilesView({
     : selectedIsSaved
       ? "Saved profile"
       : selectedPreset === DEFAULT_PROFILE_NAME
-        ? "Built-in EQ"
+        ? "Read-only built-in"
         : "Not saved";
   const enabledBands = peq.filters.filter((filter) => filter.enabled).length;
 
@@ -449,9 +445,75 @@ export const ProfilesView = memo(function ProfilesView({
           {filteredProfiles.map((profile) => {
             const isSelected =
               profileIdentityKey(profile.name) === selectedPresetKey;
+            const isDefault =
+              profileIdentityKey(profile.name) ===
+              profileIdentityKey(DEFAULT_PROFILE_NAME);
             const bands = profile.data.filters.filter(
               (filter) => filter.enabled,
             ).length;
+
+            if (isDefault) {
+              return (
+                <article
+                  key={profile.name}
+                  className={`profiles-item profiles-default${isSelected ? " is-current" : ""}`}
+                  aria-label="Default EQ profile"
+                >
+                  <div className="profiles-default-summary">
+                    <span className="profiles-default-icon" aria-hidden="true">
+                      <Icon name="lock" />
+                    </span>
+                    <span className="profiles-item-text">
+                      <span className="profiles-default-heading">
+                        <span
+                          className="profiles-item-name"
+                          title={profile.name}
+                        >
+                          {profile.name}
+                        </span>
+                        <Badge>Read-only</Badge>
+                        {isSelected && !dirty && (
+                          <span className="profiles-badge">In editor</span>
+                        )}
+                      </span>
+                      <span className="profiles-note">
+                        A flat profile you can always return to.
+                      </span>
+                    </span>
+                  </div>
+                  {(!isSelected || dirty || onApplyProfile) && (
+                    <div className="profiles-default-actions">
+                      {(!isSelected || dirty) && (
+                        <Button
+                          variant="default"
+                          aria-label="Load Default EQ into editor"
+                          onClick={() => void handleSelectProfile(profile)}
+                        >
+                          <Icon
+                            name={
+                              isSelected
+                                ? "restart_alt"
+                                : "vertical_align_bottom"
+                            }
+                          />
+                          {isSelected ? "Restore default" : "Load in editor"}
+                        </Button>
+                      )}
+                      {onApplyProfile && (
+                        <Button
+                          variant="ghost"
+                          aria-label="Apply Default EQ to DAC temporarily"
+                          onClick={() => onApplyProfile(profile)}
+                        >
+                          <Icon name="send" /> Apply to DAC
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </article>
+              );
+            }
+
             return (
               <div
                 key={profile.name}
@@ -469,9 +531,7 @@ export const ProfilesView = memo(function ProfilesView({
                       {profile.name}
                     </span>
                     <span className="profiles-note">
-                      {profile.modified == null
-                        ? "Built-in"
-                        : `${bands} ${bands === 1 ? "band" : "bands"}`}
+                      {bands} {bands === 1 ? "band" : "bands"}
                     </span>
                   </span>
                   {isSelected && (

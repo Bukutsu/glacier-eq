@@ -7,6 +7,7 @@ import { createReadRecovery } from "@/features/device/operations/recoverDeviceRe
 import { createPullEq } from "@/features/device/operations/pullEq";
 import { createExpectedRestart } from "@/features/device/operations/handleExpectedDisconnect";
 import { createResetDeviceEq } from "@/features/device/operations/resetDeviceEq";
+import { createDeviceMaintenanceRunner } from "@/features/device/operations/runDeviceMaintenance";
 import { createPushEq } from "@/features/device/operations/pushEq";
 import { createApplyProfileToRam } from "@/features/device/operations/applyProfileToRam";
 import { useCallback, useEffect } from "react";
@@ -502,6 +503,21 @@ export function useDeviceSession(
     [reportStatus, reportLoss, setConnected],
   );
 
+  const runDeviceMaintenance = useMemo(
+    () =>
+      createDeviceMaintenanceRunner({
+        connectedRef,
+        connectedPathRef,
+        connectedSessionIdRef,
+        connectionGenerationRef,
+        eqOperationInFlightRef,
+        eqOperationIdRef,
+        setMaintenancePending,
+        isBusy,
+      }),
+    [isBusy],
+  );
+
   const resetDeviceEq = useMemo(
     () =>
       createResetDeviceEq({
@@ -741,6 +757,7 @@ export function useDeviceSession(
     connectDevice,
     handleExpectedDisconnect,
     resetDeviceEq,
+    runDeviceMaintenance,
     handlePreviewChange,
     handleUdevInstalled,
     pushEq,

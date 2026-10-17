@@ -11,6 +11,7 @@ import type {
 } from "@/types";
 import type { AsyncContext } from "@/lib/asyncContext";
 import { DeviceView } from "@/features/device/components/DeviceView";
+import type { DeviceMaintenanceRunner } from "@/features/device/operations/runDeviceMaintenance";
 import { SettingsView } from "@/features/settings/components/SettingsView";
 import { ProfilesView } from "@/features/profiles/components/ProfilesView";
 import { TuningPanel } from "@/features/tuning/components/TuningPanel";
@@ -79,6 +80,7 @@ interface ToolsPanelProps {
   onExpectedDisconnect?: (restart?: boolean) => void | Promise<void>;
   onReadFailure?: (path: string, error: unknown) => Promise<boolean>;
   onResetEq?: () => Promise<void>;
+  runMaintenance?: DeviceMaintenanceRunner;
   onReviewEq?: () => void;
   profilePreview?: ReactNode;
 }
@@ -134,6 +136,7 @@ export const ToolsPanel = memo(function ToolsPanel(props: ToolsPanelProps) {
               onExpectedDisconnect={props.onExpectedDisconnect}
               onReadFailure={props.onReadFailure}
               onResetEq={props.onResetEq}
+              runMaintenance={props.runMaintenance}
             />
           )}
           {tab === "Settings" && (

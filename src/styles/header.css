@@ -57,6 +57,18 @@ h1 {
 .sync-dot.simulation, .sync-dot.working { color: var(--sync-working); }
 .sync-dot.unsaved { color: var(--sync-unsaved); }
 
+.header-eq-note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  max-width: 680px;
+  margin: var(--space-3) 0 0;
+  color: var(--muted-foreground);
+  font-size: var(--type-small);
+  line-height: 1.5;
+}
+.header-eq-note .app-icon { flex: 0 0 16px; margin-top: 2px; }
+
 .header-profile-state {
   color: var(--muted);
   font-size: var(--type-small);

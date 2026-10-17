@@ -74,6 +74,9 @@ describe("DeviceView markup", () => {
   it("renders a compact summary card and plain navigation on the root section", () => {
     const html = renderDeviceView();
     expect(html).toContain("device-summary");
+    expect(html).toContain('data-slot="card"');
+    expect(html).toContain('data-slot="badge"');
+    expect(html).not.toContain("device-status-badge");
     // Offline there is only one section, so no navigation column.
     expect(html).not.toContain("device-navigation");
     expect(renderDeviceView({ connected: true })).toContain(
@@ -164,11 +167,15 @@ describe("DeviceView markup", () => {
         path: "dawn",
         vendor_id: 0x2fc6,
         product_id: 0xf06a,
+        hardware_eq: false,
         controls: "dawn_pro",
         product_string: "Dawn Pro",
       },
     });
     expect(html).toContain("Reading Dawn Pro settings");
+    expect(html).toContain("Sound controls are supported.");
+    expect(html).toContain("This model has no hardware EQ");
+    expect(html).toContain("EQ Read/Write actions are unavailable.");
     expect(html).not.toContain("Controls unavailable");
     const other = renderDeviceView({
       connected: true,

@@ -50,6 +50,61 @@ The device lifecycle has one owner:
 
 Preserve session, generation, and operation checks across awaits. The shared lock must still reject overlapping writes and maintenance actions. Reconnection may reopen and read; it must never replay a mutation. Offline edits and draft recovery must never write to hardware.
 
+## Editor baselines and profile loading
+
+A dirty EQ is not necessarily unfinished work. An unmatched DAC read stays
+dirty so it can be saved as a profile, but the read EQ is also its clean
+baseline. `hasUnfinishedEdits` decides whether the current EQ differs from
+that baseline before `useEditorDraft` persists a recovery record.
+
+Keep `editorCleanPeqRef` in the same normalized device shape as the editor.
+Profile loads adopt their loaded EQ as the baseline. Ordinary edits, Undo,
+Redo, and generic editor reset have their own history/baseline rules.
+
+Default EQ is an immutable library entry, not a locked editor. Loading or
+restoring it uses `features/profiles/lib/loadProfile.ts` and the ordinary
+profile-selection callback. It confirms dirty replacement once and rejects
+results after the async context changes. Do not route profile restore through
+the generic editor reset.
+
+Utility resets reserve the shared operation slot through
+`features/device/operations/runDeviceMaintenance.ts` before confirmation.
+`DeviceView` also checks component lifetime and scheduler generation before
+queued work starts and after I/O. A factory reset releases its maintenance
+slot before the EQ reader claims its own slot.
+
+## Shared visuals and feedback
+
+`FilterResponse` and `DacFilterVisual` render the hardware reconstruction
+filter as SVG. They are separate from the editable EQ graph. Keep the
+disclosure, resize observer, theme colours, and reduced-motion behavior
+together; rendering a hidden canvas caused blank output after reopening in
+WebKit.
+
+Use the shared `Badge` for quiet status labels. Toasts retain pause-on-hover
+and focus behavior and auto-dismiss, without a countdown bar. Diagnostics
+retain detailed events when routine recovery does not show a toast.
+
+On compact layouts, EQ sections are full-width flat panels with hairline
+dividers. Their controls use the page gutter. Mobile graph dots are display-only;
+desktop retains graph editing. Expanding More band settings pins the visible EQ
+graph while the controls scroll on screens at least 600 px tall. This uses the
+details element's open state, suppresses the duplicate floating preview, and
+releases the sticky graph when the on-screen keyboard opens. Collapsed graphs
+stay collapsed. Short screens retain the existing floating-preview behavior.
+Mobile draft recovery is a separate in-workspace notice with direct Restore and
+Discard actions; it does not force the full header open on other tabs.
+Desktop keeps its header recovery popover. The graph toolbar keeps Curves
+and add together on the left and show/hide on the right, with 44 px targets.
+The default-profile row is compact on desktop. Mobile uses the independent
+`features/profiles/components/MobileProfilesView.tsx`: current-editor card,
+collapsed response preview, searchable library, explicit load buttons, and
+overflow actions. It shares profile operations, not the desktop view or its
+layout selectors. Keep mobile controls at least 44 px and test at 320 px with
+long names. AutoEQ import validates the parser's wrapped response through
+`features/profiles/lib/profileImport.ts` and retains clamp warnings.
+Only the current profile uses a filled selection background.
+
 ## Adding UI
 
 **A reusable control:** add it to `components/ui/`, using the existing controls before introducing another implementation. Test keyboard behavior and accessible names.

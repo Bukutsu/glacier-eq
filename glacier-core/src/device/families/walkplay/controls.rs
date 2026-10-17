@@ -198,24 +198,30 @@ impl<I: DeviceIo> DeviceSession<'_, I> {
         // there now and put it back, the way persistent_push and apply_ram
         // roll back a failed EQ write.
         let previous = self.utility_status().await?;
-        let reset = self.apply_utilities(&DacUtilityState::factory()).await;
-        if let Err(error) = reset {
-            return Err(self.restore_utilities(&previous, &error).await);
+        match self
+            .apply_and_verify_utilities(&DacUtilityState::factory())
+            .await
+        {
+            Ok(state) => Ok(state),
+            Err(error) => Err(self.restore_utilities(&previous, &error).await),
         }
-        self.utility_status().await
     }
 
     /// Re-applies a captured utility state after a reset failed part-way, and
     /// names the outcome in the error the caller reports.
     async fn restore_utilities(&mut self, previous: &DacUtilityState, cause: &str) -> String {
-        match self.apply_utilities(previous).await {
-            Ok(()) => format!("{cause}; previous settings restored"),
+        match self.apply_and_verify_utilities(previous).await {
+            Ok(_) => format!("{cause}; previous settings restored"),
             Err(restore) => format!("{cause}; restoring the previous settings failed: {restore}"),
         }
     }
 
-    /// Writes all five settings 16 ms apart, then commits once.
-    async fn apply_utilities(&mut self, state: &DacUtilityState) -> Result<(), String> {
+    /// Writes all five settings 16 ms apart, commits once, then verifies.
+    /// A successful transport write does not prove the DAC accepted a report.
+    async fn apply_and_verify_utilities(
+        &mut self,
+        state: &DacUtilityState,
+    ) -> Result<DacUtilityState, String> {
         self.stage_filter_mode(&state.filter_mode).await?;
         self.stage(WalkplayProtocol::build_amp_mode_write_packet(
             state.amp_mode_class_ab,
@@ -230,7 +236,14 @@ impl<I: DeviceIo> DeviceSession<'_, I> {
         ))
         .await?;
         self.stage_balance(state.channel_balance).await?;
-        self.commit_controls().await
+        self.commit_controls().await?;
+        let actual = self.utility_status().await?;
+        if actual != *state {
+            return Err(format!(
+                "Control verification failed: expected {state:?}, got {actual:?}"
+            ));
+        }
+        Ok(actual)
     }
 
     /// The official app's RESET: a flat EQ, then `01 17 00`, which restores
@@ -242,7 +255,9 @@ impl<I: DeviceIo> DeviceSession<'_, I> {
         self.stage(WalkplayProtocol::build_restore_defaults_packet())
             .await?;
         self.io.sleep_ms(FLASH_SETTLE_MS).await;
-        self.apply_utilities(&DacUtilityState::factory()).await
+        self.apply_and_verify_utilities(&DacUtilityState::factory())
+            .await
+            .map(|_| ())
     }
 
     fn require_walkplay(&self) -> Result<(), String> {

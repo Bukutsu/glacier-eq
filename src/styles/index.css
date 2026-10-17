@@ -16,6 +16,7 @@
 @import "./colors.css" layer(components);
 @import "./ui.css" layer(components);
 @import "./profiles.css" layer(components);
+@import "./mobile-profiles.css" layer(components);
 @import "./configuration.css" layer(components);
 @import "./theme-picker.css" layer(components);
 @import "./dialogs.css" layer(components);

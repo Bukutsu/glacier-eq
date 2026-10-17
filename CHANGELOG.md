@@ -1,5 +1,51 @@
 # Changelog
 
+## [Unreleased]
+
+### Thanks
+
+A huge thank-you to **AkariYui** for sticking with us through repeated JA11
+and Dawn Pro tests. The time spent trying builds, reporting problems, and
+checking the next fix has helped us work through issues we could not verify
+on our own hardware. Thank you for keeping at it with us!
+
+### Added
+
+- JA11 microphone, USB audio mode, and hardware-volume controls, with readback and confirmation for large volume changes.
+- Session-tagged HID diagnostics and timestamped CLI HID tracing through `GLACIER_TRACE`.
+- A warning for AutoEQ fits with five or fewer bands, while keeping generation available.
+- A read-only Default EQ card with direct load/restore actions and a temporary DAC apply action where supported.
+- A rebuilt mobile Profiles screen with shared shadcn-style controls, a current-EQ card, searchable library, collapsed preview, and touch-sized load, save, import, and management actions.
+- A compact device connection card with a shared status badge and quieter connection actions.
+- Direct Restore and Discard actions in the mobile draft-recovery notice, without forcing the full header open.
+- A pinned EQ graph while More band settings is expanded on taller mobile screens. The graph releases for the on-screen keyboard, and mobile filter dots remain display-only.
+- A visible explanation when a connected DAC has no hardware EQ, with clearer original Dawn Pro sound-control support and a reason for the missing EQ Read/Write actions.
+
+### Changed
+
+- Organized the frontend by feature, with workspace composition in `src/app/`, shared UI controls, and directly tested device-operation factories.
+- AutoEQ searches filter layouts for one to five bands; devices with six or more bands keep the previous fitting path.
+- JA11 saves verify RAM before the final Save report, then wait for restart and reopen the connection. Background read recovery stays quiet and never replays writes.
+- Walkplay writes use a 16 ms interval. Control changes stage their register writes before one flash commit and a 250 ms settling wait. These timings were checked on EPZ TP35 Pro hardware.
+- Walkplay EQ verification rewrites once on a value mismatch before rollback. Resent global-gain reads require an agreeing independent read.
+- Mobile EQ sections use flat, full-width panels. Graph controls group Curves and add on the left, with show/hide on the right.
+- Toasts and the Linux permissions badge use quieter styling. Verification settings explain that required safety checks always run.
+
+### Fixed
+
+- Corrected JA11 signed preamp encoding and support for its two USB audio mode product IDs.
+- Recognized additional Windows disconnection errors and retired old handles after an expected JA11 restart.
+- Walkplay control reset no longer commits between individual register writes, which caused later writes to be dropped during flash settling.
+- Replaced the DAC filter-response canvas with SVG to avoid a blank graph after closing and reopening its disclosure in WebKit.
+- An unmodified DAC read is no longer saved as an unfinished editor draft.
+- Walkplay control reset and final factory-reset control writes now verify every setting before reporting success. Control rollback verifies the captured state before claiming it was restored.
+- Restore default uses ordinary profile loading after one confirmation and adopts the loaded EQ as its clean baseline.
+- Control and factory resets reserve the shared operation slot before confirmation and cancel queued work when its device session is replaced.
+
+See [Release readiness](docs/release-readiness.md) for validation results and
+platform limits. These entries describe the current source tree, including
+pending UI changes; they are not a published release.
+
 ## [0.14.0] - 2026-10-12
 
 ### Added

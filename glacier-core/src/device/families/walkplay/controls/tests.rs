@@ -27,6 +27,7 @@ fn a_failed_control_reset_restores_the_settings_that_already_landed() {
         // filter and amp modes have already changed when the reset gives up,
         // and let the rollback through.
         io.failing_write_calls.extend([9, 10, 11]);
+        queue_utility_status(&mut io, 2, 0, 1, 4, 0, 0); // verified rollback
 
         let error = DeviceSession::new(&mut io, profile)
             .reset_controls()
@@ -99,6 +100,112 @@ fn a_control_reset_commits_once_and_waits_for_the_flash_before_reading() {
         // Register writes are one HID interval apart.
         assert!(io.events.contains(&IoEvent::Sleep(HID_INTERVAL_MS)));
     });
+}
+
+#[test]
+fn a_silently_dropped_reset_write_is_detected_and_previous_settings_verified() {
+    crate::device::session::block_on(async {
+        let profile = get_supported_device(0x3302, 0x43e8).unwrap();
+        let mut io = FakeIo::default();
+        queue_utility_status(&mut io, 2, 0, 1, 4, 0, 0);
+        // The reset gain write was lost even though the transport accepted it.
+        queue_utility_status(&mut io, 1, 1, 1, 0, 0, 0);
+        queue_utility_status(&mut io, 2, 0, 1, 4, 0, 0);
+        let error = DeviceSession::new(&mut io, profile)
+            .reset_controls()
+            .await
+            .unwrap_err();
+        assert!(error.contains("Control verification failed"), "{error}");
+        assert!(error.contains("previous settings restored"), "{error}");
+        assert_eq!(register_writes(&io, CMD_FLASH_EQ), 2);
+    });
+}
+
+#[test]
+fn a_silently_dropped_rollback_write_is_not_reported_as_restored() {
+    crate::device::session::block_on(async {
+        let profile = get_supported_device(0x3302, 0x43e8).unwrap();
+        let mut io = FakeIo::default();
+        queue_utility_status(&mut io, 2, 0, 1, 4, 0, 0);
+        queue_utility_status(&mut io, 1, 1, 1, 0, 0, 0);
+        // The original filter mode did not return during rollback.
+        queue_utility_status(&mut io, 1, 0, 1, 4, 0, 0);
+        let error = DeviceSession::new(&mut io, profile)
+            .reset_controls()
+            .await
+            .unwrap_err();
+        assert!(
+            error.contains("restoring the previous settings failed"),
+            "{error}"
+        );
+        assert!(!error.contains("previous settings restored"), "{error}");
+    });
+}
+
+#[test]
+fn reset_verification_checks_every_control_field() {
+    crate::device::session::block_on(async {
+        let profile = get_supported_device(0x3302, 0x43e8).unwrap();
+        for (filter, amp, gain, mic, left, right) in [
+            (2, 1, 0, 0, 0, 0),
+            (1, 0, 0, 0, 0, 0),
+            (1, 1, 1, 0, 0, 0),
+            (1, 1, 0, 4, 0, 0),
+            (1, 1, 0, 0, 255, 0),
+            (1, 1, 0, 0, 0, 255),
+        ] {
+            let mut io = FakeIo::default();
+            queue_utility_status(&mut io, 2, 0, 1, 4, 0, 0);
+            queue_utility_status(&mut io, filter, amp, gain, mic, left, right);
+            queue_utility_status(&mut io, 2, 0, 1, 4, 0, 0);
+            let error = DeviceSession::new(&mut io, profile)
+                .reset_controls()
+                .await
+                .unwrap_err();
+            assert!(error.contains("Control verification failed"), "{error}");
+        }
+    });
+}
+
+#[test]
+fn factory_reset_verifies_its_final_control_writes() {
+    crate::device::session::block_on(async {
+        let profile = get_supported_device(0x3302, 0x43e8).unwrap();
+        for gain_mode in [0, 1] {
+            let mut io = FakeIo::default();
+            queue_reset_eq_read(&mut io, -1, 1); // snapshot
+            io.reads.push_back(vec![]); // write init drain
+            queue_reset_eq_read(&mut io, 0, 11); // verify flat EQ
+            queue_reset_eq_read(&mut io, 0, 21); // corroborate default state
+            queue_utility_status(&mut io, 1, 1, gain_mode, 0, 0, 0);
+            let result = DeviceSession::new(&mut io, profile).factory_reset().await;
+            if gain_mode == 0 {
+                result.expect("matching controls complete the reset");
+            } else {
+                let error = result.expect_err("a dropped gain write must fail factory reset");
+                assert!(error.contains("Control verification failed"), "{error}");
+            }
+        }
+    });
+}
+
+fn queue_reset_eq_read(io: &mut FakeIo, gain: i8, nonce_start: u8) {
+    use crate::device::families::walkplay as wp;
+    io.reads.push_back(vec![]);
+    io.reads
+        .push_back(vec![READ, wp::CMD_GLOBAL_GAIN, 0, 0, gain as u8, 0]);
+    for index in 0..10 {
+        let filter = crate::eq::Filter::enabled(index, false);
+        let mut packet = vec![0; 34];
+        packet[0] = READ;
+        packet[1] = wp::CMD_PEQ_VALUES;
+        packet[2] = nonce_start + index;
+        packet[4] = index;
+        packet[27..29].copy_from_slice(&filter.freq.to_le_bytes());
+        packet[29..31].copy_from_slice(&((filter.q * 256.0).round() as u16).to_le_bytes());
+        packet[33] = filter.filter_type.into();
+        io.reads.push_back(packet);
+    }
 }
 
 #[test]

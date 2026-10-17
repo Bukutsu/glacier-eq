@@ -26,6 +26,7 @@ import { EqCurves } from "@/features/eq/components/EqCurves";
 import { Header } from "@/app/components/Header";
 import { exportEqFile } from "@/features/eq/lib/exportEq";
 import { DraftRecovery } from "@/features/eq/components/DraftRecovery";
+import { MobileDraftRecovery } from "@/features/eq/components/MobileDraftRecovery";
 import { Icon } from "@/components/ui/Icon";
 import { Preamp } from "@/features/eq/components/Preamp";
 import {
@@ -74,9 +75,9 @@ declare global {
   }
 }
 
-const LazyProfilesView = lazy(() =>
-  import("@/features/profiles/components/ProfilesView").then(
-    ({ ProfilesView }) => ({ default: ProfilesView }),
+const LazyMobileProfilesView = lazy(() =>
+  import("@/features/profiles/components/MobileProfilesView").then(
+    ({ MobileProfilesView }) => ({ default: MobileProfilesView }),
   ),
 );
 const LazyToolsPanel = lazy(() =>
@@ -99,10 +100,12 @@ function ToolLoadingFallback() {
   return <div aria-busy="true" aria-label="Loading workspace" />;
 }
 
-function ProfilesView(props: ComponentProps<typeof LazyProfilesView>) {
+function MobileProfilesView(
+  props: ComponentProps<typeof LazyMobileProfilesView>,
+) {
   return (
     <Suspense fallback={<ToolLoadingFallback />}>
-      <LazyProfilesView {...props} />
+      <LazyMobileProfilesView {...props} />
     </Suspense>
   );
 }
@@ -281,6 +284,7 @@ function App() {
     connectDevice,
     handleExpectedDisconnect,
     resetDeviceEq,
+    runDeviceMaintenance,
     handlePreviewChange,
     handleUdevInstalled,
     pushEq,
@@ -560,7 +564,7 @@ function App() {
       viewMode={graphViewMode}
       theme={resolvedTheme}
       activeBandIndex={highlightActiveBand ? activeBandIndex : undefined}
-      {...(withEditor && !recoveryPending ? graphEditorProps : {})}
+      {...(withEditor && !isMobile && !recoveryPending ? graphEditorProps : {})}
     />
   );
 
@@ -610,15 +614,16 @@ function App() {
     </>
   );
 
-  const draftRecovery = recoveryPending ? (
-    <DraftRecovery
-      invalid={draftInvalid}
-      connected={connected}
-      isBusy={isBusy}
-      onRestore={restoreDraft}
-      onDiscard={resolveDraft}
-    />
-  ) : null;
+  const draftRecovery =
+    !isMobile && recoveryPending ? (
+      <DraftRecovery
+        invalid={draftInvalid}
+        connected={connected}
+        isBusy={isBusy}
+        onRestore={restoreDraft}
+        onDiscard={resolveDraft}
+      />
+    ) : null;
 
   useEffect(() => {
     if (showReconnectOverlay) {
@@ -690,7 +695,7 @@ function App() {
             : undefined
       }
       mobile={isMobile}
-      compact={isMobile && activeTab !== "eq" && !recoveryPending && !isBusy}
+      compact={isMobile && activeTab !== "eq" && !isBusy}
       draftRecovery={draftRecovery}
     />
   );
@@ -722,6 +727,15 @@ function App() {
           >
             {activeTab !== "eq" && (
               <h1 className="visually-hidden">{mobilePageTitle}</h1>
+            )}
+            {recoveryPending && (
+              <MobileDraftRecovery
+                invalid={draftInvalid}
+                connected={connected}
+                isBusy={isBusy}
+                onRestore={restoreDraft}
+                onDiscard={resolveDraft}
+              />
             )}
             {showGraph && (activeTab === "eq" || activeTab === "tuning") && (
               <section
@@ -800,11 +814,11 @@ function App() {
                 </section>
               )}
               {activeTab === "profiles" && (
-                <section className="profiles-mobile-pane">
-                  <ProfilesView
+                <section className="mobile-profile-pane">
+                  <MobileProfilesView
                     {...mobileToolsPanelProps}
                     dirty={dirty}
-                    isMobile={true}
+                    isBusy={isBusy || recoveryPending}
                     preview={profilePreview}
                     onReviewEq={() => handleSelectWorkspaceTab("eq")}
                   />
@@ -863,6 +877,7 @@ function App() {
                     onExpectedDisconnect={handleExpectedDisconnect}
                     onReadFailure={recoverDeviceRead}
                     onResetEq={resetDeviceEq}
+                    runMaintenance={runDeviceMaintenance}
                   />
                 </section>
               )}
@@ -1050,6 +1065,7 @@ function App() {
                 onExpectedDisconnect={handleExpectedDisconnect}
                 onReadFailure={recoverDeviceRead}
                 onResetEq={resetDeviceEq}
+                runMaintenance={runDeviceMaintenance}
               />
             )}
           </div>

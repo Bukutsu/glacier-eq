@@ -27,6 +27,18 @@ builds every platform, and publishes the assets. Add a matching `## [X.Y.Z]`
 section to `CHANGELOG.md` first; the workflow extracts it for the release notes
 and falls back to a placeholder if it is missing.
 
+Before tagging:
+- Resolve confirmed release findings and record remaining hardware/platform gaps.
+- Run both verification commands and both frontend builds.
+- Test the signed Android upgrade separately from a fresh install.
+- Move the relevant Unreleased notes into the versioned changelog section.
+- Check the working tree after verification. Build tooling can update the
+  PKGBUILD fallback version; do not include that generated change accidentally.
+
+Source tests, browser checks, and physical device checks are separate evidence.
+A successful dummy-DAC run does not establish USB reliability. Record the DAC,
+firmware when known, platform, and operation for physical tests.
+
 ## Development setup
 
 Install Node.js LTS, npm, and Rust stable. Use `npm ci` to install the locked
@@ -114,7 +126,9 @@ tests; emulator and dummy-device results do not verify USB transport.
   Test this on a physical phone before changing native slider gestures.
 - With a real DAC, background/resume while connected and unplug during read,
   apply, verification, and disconnect. Check that errors are visible, stale
-  results do not replace the editor, and writes are not automatically retried.
+  results do not replace the editor, and reconnection never replays a write.
+  The Walkplay core can rewrite once within the same transaction after a
+  verified EQ mismatch; this is separate from reconnect recovery.
 
 ## UI changes
 
@@ -141,6 +155,25 @@ When adding a theme, run both verification commands. Web settings validation
 uses the UI theme list directly. Tests check web parsing for every UI option
 and compare native validation with the actual UI list; a theme must survive
 saving and loading on both runtimes.
+
+## Device and editor regressions
+
+See [Device workflows](docs/device-workflows.md) for protocol boundaries.
+
+- Exercise silently dropped reports, not just transport errors. Reset success
+  and rollback-restored messages must be backed by matching readback.
+- While a reset confirmation is open, replace or disconnect the device.
+  Confirming must not write to the replacement. Repeated clicks must not queue
+  another reset; maintenance owns the shared operation slot before confirmation.
+- Read an unmatched DAC EQ, close and reopen without editing, and check that
+  no unfinished draft appears. Edit it, reopen, and check that recovery is
+  offered. Restoring must never connect or write.
+- Load Default EQ, edit it, then Restore default. One confirmation should
+  reload the built-in and adopt its clean baseline. Undo should recover the edit.
+- Open and close Filter response repeatedly in WebKit as well as Chromium.
+  Check both graph domains, resize, theme changes, and reduced motion.
+- In the CLI, use `GLACIER_TRACE=1` for HID TX/RX logs. Keep command output and
+  diagnostic stderr separate, and review logs before sharing.
 
 ## Code style
 

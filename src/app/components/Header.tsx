@@ -376,6 +376,16 @@ export const Header = memo(function Header({
           </div>
         )}
       </div>
+      {connected && !hardwareEq && !isConfigPage && (
+        <p className="header-eq-note" role="note">
+          <Icon name="info" />
+          <span>
+            This DAC has no hardware EQ, so EQ Read/Write actions are
+            unavailable. You can still edit and export EQ for a system
+            equalizer.
+          </span>
+        </p>
+      )}
       <ToastContainer errorsOnly />
       {isBusy && (
         <div

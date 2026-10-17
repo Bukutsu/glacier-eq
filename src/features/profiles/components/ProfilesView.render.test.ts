@@ -61,7 +61,9 @@ describe("Profile library", () => {
       profiles: [{ name: DEFAULT_PROFILE_NAME, data: peq, modified: null }],
     });
     expect(empty).toContain("Save your EQ or import a profile to add it here.");
-    expect(empty).toContain("Built-in");
+    expect(empty).toContain('aria-label="Default EQ profile"');
+    expect(empty).toContain("Read-only");
+    expect(empty).toContain("A flat profile you can always return to.");
     expect(empty).not.toContain("No matching profiles");
     const missing = render({ profileSearch: "missing" });
     expect(missing).toContain("No matching profiles");
@@ -111,6 +113,31 @@ describe("Profile library", () => {
     expect(hidden).not.toContain('class="profile-save-form"');
     expect(hidden).not.toContain("Save changes</button>");
     expect(hidden).not.toContain("Save as copy</button>");
+  });
+
+  it("makes the default profile easy to load or apply without making it editable", () => {
+    const defaultProfile = {
+      name: DEFAULT_PROFILE_NAME,
+      data: peq,
+      modified: null,
+    };
+    const available = render({
+      profiles: [defaultProfile],
+      selectedPreset: "Daily",
+      onApplyProfile: () => {},
+    });
+    expect(available).toContain("Load in editor</button>");
+    expect(available).toContain("Apply to DAC</button>");
+    expect(available).not.toContain(
+      `aria-label="Actions for ${DEFAULT_PROFILE_NAME}"`,
+    );
+
+    const changed = render({
+      profiles: [defaultProfile],
+      selectedPreset: DEFAULT_PROFILE_NAME,
+      dirty: true,
+    });
+    expect(changed).toContain("Restore default</button>");
   });
 
   it("only offers per-profile DAC menus when the caller supplies that capability", () => {

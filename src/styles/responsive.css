@@ -979,6 +979,43 @@
     gap: 12px;
   }
 
+  /* Editor sections are flat full-width panels divided by hairlines. Cards
+     with rounded corners met the screen edge and looked cut off, and insetting
+     them took 32px from controls that are already tight. The preamp's own
+     inset is dropped so every section lines up. */
+  .mobile-workspace .mobile-graph-container > .graph-card,
+  .mobile-workspace .bands-container,
+  .mobile-workspace .mobile-filter-card,
+  .mobile-workspace .mobile-preamp-details {
+    border-radius: 0 !important;
+    border-inline: 0 !important;
+  }
+
+  /* Graph controls under the plot: Curves and add on the left, show/hide on
+     the right, each a full touch target on the page gutter. */
+  .mobile-workspace .graph-toolbar {
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 0;
+    margin: 0;
+    padding: 0 4px;
+  }
+  .mobile-workspace .graph-toolbar > .eq-curves {
+    order: 0;
+    flex: none;
+  }
+  .mobile-workspace .graph-toolbar > .graph-collapse-btn {
+    order: 1;
+    width: auto;
+    flex: none;
+    margin-left: auto;
+    padding-inline: 12px;
+    color: var(--muted-foreground);
+  }
+  .mobile-workspace .graph-toolbar .graph-collapse-btn::before {
+    content: none;
+  }
+
   .mobile-graph-container {
     margin-bottom: 0;
   }
