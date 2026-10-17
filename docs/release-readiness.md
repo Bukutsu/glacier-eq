@@ -3,8 +3,10 @@
 This is a source-review snapshot, not a claim that a release has been tested
 on every platform. It covers the changes after the frontend reorganization
 and the profile/mobile UI work in v0.15.0. Release manifests and lockfiles
-are synchronized at 0.15.0. CI builds a draft release; publishing waits for
-the signed Android upgrade and package smoke checks.
+are synchronized at 0.15.0. The
+[v0.15.0 release](https://github.com/Bukutsu/glacier-eq/releases/tag/v0.15.0)
+was published after the CI package and signed Android upgrade gates below
+passed. Later releases still start as drafts until those checks pass.
 
 ## Review fixes
 
@@ -28,13 +30,13 @@ Restore default flow closes after one confirmation and leaves no draft.
 
 After these fixes:
 
-| Check | Result |
-| --- | --- |
-| Frontend tests | 781 passed |
-| Real-WASM tests | 17 passed |
-| Rust workspace tests | 283 passed, including 211 core tests |
-| Web, desktop, and test typechecks | Passed |
-| Rust formatting and clippy | Passed |
+| Check                             | Result                               |
+| --------------------------------- | ------------------------------------ |
+| Frontend tests                    | 781 passed                           |
+| Real-WASM tests                   | 17 passed                            |
+| Rust workspace tests              | 283 passed, including 211 core tests |
+| Web, desktop, and test typechecks | Passed                               |
+| Rust formatting and clippy        | Passed                               |
 
 Both frontend production builds passed after the fixes, with a Vite advisory
 about the main JavaScript chunk exceeding 500 kB. Builds are not native runtime
@@ -49,6 +51,38 @@ The responsive review measured Profiles at 320, 390, 720, 850, 851, and
 controls had 44 px touch targets. These were Chromium browser checks;
 coarse-pointer landscape and native mobile WebView checks remain separate.
 
+## v0.15.0 package and emulator checks
+
+The [release workflow](https://github.com/Bukutsu/glacier-eq/actions/runs/39065737785)
+passed source verification and all platform builds. All eight expected assets
+were present. Their downloaded sizes and SHA-256 digests matched GitHub, and
+each attestation verified against the release workflow, tag, and source commit
+`57cbee12a399307e0aee65ba299b8ee68fedb436`.
+The [web deployment](https://github.com/Bukutsu/glacier-eq/actions/runs/39065737752)
+also passed.
+
+The signed ARM64 APK upgraded the published v0.14.0 app with `adb install -r`,
+without uninstalling. The signing certificate matched, the version code advanced
+from 140050 to 150050, and a saved profile and the Nord theme survived.
+
+An Android 37 emulator with ARM64 translation exercised profile loading,
+display-only graph dots, graph visibility with expanded band settings, the
+numeric keyboard and Android Back dismissal, landscape navigation, and
+force-stop draft recovery. Restoring the draft retained the edited 0.10 dB
+gain rather than the saved profile's 0 dB. This used a read-only AVD overlay;
+it did not modify the user's base emulator or test physical USB access.
+
+The final production browser check found no Profiles overflow at the six
+widths above. Profiles passed the scoped WCAG 2 A/AA automated checks. The
+settled save dialog had no automated violations; its one incomplete
+description-text contrast check was manually checked at 5.37:1. These are
+scoped checks, not a full accessibility audit.
+
+Linux package inspection confirmed DEB version 0.15.0/amd64 and an x86-64
+AppImage executable requiring GLIBC symbols up to 2.34. The current Linux host
+resolved its shared libraries. This is not a runtime compatibility test on
+every distribution.
+
 ## Hardware and platform gaps
 
 - Windows reconnect/runtime behavior and other desktop DACs were not retested
@@ -60,9 +94,10 @@ coarse-pointer landscape and native mobile WebView checks remain separate.
   remains unresolved.
 - The new reset-verification checks have source-level fault-injection coverage,
   not a fresh physical-device validation.
-- Signed Android upgrade, background/force-stop recovery, keyboard, gestures,
-  USB detach, and rotation need the physical/emulator checklist in
-  [Contributing](../CONTRIBUTING.md#android).
+- The emulator checks above do not replace physical Android testing.
+  Backgrounding, system gestures, USB detach, and device-specific keyboard,
+  rotation, and lifecycle behavior still need the
+  [Android checklist](../CONTRIBUTING.md#android).
 - Linux binaries depend on the build host's libraries. A local AppImage does
   not establish an older-distribution compatibility baseline.
 
