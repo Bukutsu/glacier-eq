@@ -3,8 +3,10 @@
     "target": "ES2020",
     "useDefineForClassFields": true,
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "types": ["vite/client", "w3c-web-hid"],
     "module": "ESNext",
     "paths": {
+      "@/*": ["./src/*"],
       "@glacier-eq/backend": ["./src/lib/backend/tauri.ts"]
     },
     "skipLibCheck": true,
@@ -12,6 +14,7 @@
     /* Bundler mode */
     "moduleResolution": "bundler",
     "isolatedModules": true,
+    "verbatimModuleSyntax": true,
     "noEmit": true,
     "jsx": "react-jsx",
 
@@ -22,5 +25,5 @@
     "noFallthroughCasesInSwitch": true
   },
   "include": ["src"],
-  "exclude": ["src/**/*.test.ts"]
+  "exclude": ["src/**/*.test.ts", "src/**/*.test-support.ts"]
 }

@@ -23,7 +23,10 @@ const modalHistoryStack: ModalHistoryEntry[] = [];
 const balanceEvents = new WeakSet<object>();
 let pendingBalanceNavigations = 0;
 
-export function modalStateWithId(id: string, current: unknown): Record<string, unknown> {
+export function modalStateWithId(
+  id: string,
+  current: unknown,
+): Record<string, unknown> {
   return typeof current === "object" && current !== null
     ? { ...(current as Record<string, unknown>), [MODAL_HISTORY_KEY]: id }
     : { [MODAL_HISTORY_KEY]: id };
@@ -87,7 +90,8 @@ export function decideModalPopState(
   if (top === undefined) return "ignore";
   // The browser is already sitting on this dialog's own sentinel, so the
   // navigation that produced it was not a Back aimed past the stack.
-  if (modalIdFromState((event as { state?: unknown }).state) === top.id) return "ignore";
+  if (modalIdFromState((event as { state?: unknown }).state) === top.id)
+    return "ignore";
   // The browser has already moved off the sentinel. Reinsert it so Back
   // cannot bypass a close-disabled operation such as an in-flight save.
   if (!top.canClose()) return "reinsert";

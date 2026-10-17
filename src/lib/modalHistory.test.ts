@@ -27,7 +27,8 @@ function entry(id: string, canClose = true): ModalHistoryEntry {
 function appLevelDecision(event: PopStateEvent): "ignore" | "teardown" {
   if (isBalanceNavigation(event)) return "ignore";
   const state = event.state;
-  if (typeof state === "object" && state !== null && MODAL_HISTORY_KEY in state) return "ignore";
+  if (typeof state === "object" && state !== null && MODAL_HISTORY_KEY in state)
+    return "ignore";
   return "teardown";
 }
 
@@ -37,7 +38,9 @@ beforeEach(() => {
 
 describe("modalStateWithId", () => {
   it("preserves the router's own state keys", () => {
-    expect(modalStateWithId("modal-1", { usr: { key: "default" }, idx: 3 })).toEqual({
+    expect(
+      modalStateWithId("modal-1", { usr: { key: "default" }, idx: 3 }),
+    ).toEqual({
       usr: { key: "default" },
       idx: 3,
       [MODAL_HISTORY_KEY]: "modal-1",
@@ -45,7 +48,9 @@ describe("modalStateWithId", () => {
   });
 
   it("tolerates a missing or non-object history state", () => {
-    expect(modalStateWithId("modal-1", null)).toEqual({ [MODAL_HISTORY_KEY]: "modal-1" });
+    expect(modalStateWithId("modal-1", null)).toEqual({
+      [MODAL_HISTORY_KEY]: "modal-1",
+    });
     expect(modalIdFromState(null)).toBeUndefined();
     expect(modalIdFromState({ [MODAL_HISTORY_KEY]: 7 })).toBeUndefined();
   });
@@ -72,18 +77,24 @@ describe("isBalanceNavigation", () => {
 describe("decideModalPopState", () => {
   it("ignores a Back that lands on the top modal's own sentinel", () => {
     const top = entry("modal-1");
-    expect(decideModalPopState(popState(modalStateWithId("modal-1", null)), top)).toBe("ignore");
+    expect(
+      decideModalPopState(popState(modalStateWithId("modal-1", null)), top),
+    ).toBe("ignore");
   });
 
   it("dismisses the top modal when Back lands on the one beneath it", () => {
     // Nested stack: Back past modal-2 lands on modal-1's sentinel. Only the
     // top dialog may close; modal-1 stays open underneath.
     const top = entry("modal-2");
-    expect(decideModalPopState(popState(modalStateWithId("modal-1", null)), top)).toBe("dismiss");
+    expect(
+      decideModalPopState(popState(modalStateWithId("modal-1", null)), top),
+    ).toBe("dismiss");
   });
 
   it("reinserts the sentinel while the operation cannot be closed", () => {
-    expect(decideModalPopState(popState({}), entry("modal-1", false))).toBe("reinsert");
+    expect(decideModalPopState(popState({}), entry("modal-1", false))).toBe(
+      "reinsert",
+    );
   });
 
   it("dismisses a user Back that left the stack", () => {

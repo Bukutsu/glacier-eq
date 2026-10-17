@@ -118,6 +118,9 @@ tests; emulator and dummy-device results do not verify USB transport.
 
 ## UI changes
 
+See [Frontend structure](docs/frontend.md) for file ownership, state boundaries,
+and where to add components, settings, and device controls.
+
 Compact layout applies to narrow desktop windows too, not just phones.
 JavaScript uses `MOBILE_QUERY` in `src/lib/tabs.ts`; matching CSS queries must
 stay in sync with it. Keep viewport width/height separate from pointer type:
@@ -141,6 +144,6 @@ saving and loading on both runtimes.
 
 ## Code style
 
-- TypeScript: use strict mode and avoid `any` where practical.
+- TypeScript: use strict mode, type-only imports, and `unknown` at external boundaries. Run `npm run format` for frontend formatting; `npm run typecheck` also checks tests.
 - CSS: use sharp corners (`border-radius: 0`). Add rounded corners only when the platform requires them, such as `pointer: coarse` thumb controls.
 - Rust: follow the existing patterns in the crate being changed.

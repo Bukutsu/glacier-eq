@@ -32,9 +32,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 export function asyncContextEquals(a: AsyncContext, b: AsyncContext): boolean {
-  return a.editorRevision === b.editorRevision &&
+  return (
+    a.editorRevision === b.editorRevision &&
     a.connectionRevision === b.connectionRevision &&
-    a.operationRevision === b.operationRevision;
+    a.operationRevision === b.operationRevision
+  );
 }
 
 export function parseDeviceDisconnectedPayload(
@@ -47,7 +49,10 @@ export function parseDeviceDisconnectedPayload(
       typeof path !== "string" ||
       path.length === 0 ||
       typeof name !== "string" ||
-      (sessionId !== undefined && (typeof sessionId !== "number" || !Number.isSafeInteger(sessionId) || sessionId < 1))
+      (sessionId !== undefined &&
+        (typeof sessionId !== "number" ||
+          !Number.isSafeInteger(sessionId) ||
+          sessionId < 1))
     ) {
       return null;
     }
@@ -61,7 +66,11 @@ export function parseDeviceDisconnectedPayload(
   // Older emitters sent only a string. It is safe to accept that payload only
   // when it identifies the active path. A display name cannot identify a
   // connection and may arrive after another device has connected.
-  if (typeof value === "string" && expectedPath !== null && value === expectedPath) {
+  if (
+    typeof value === "string" &&
+    expectedPath !== null &&
+    value === expectedPath
+  ) {
     return { path: value, name: value };
   }
 
@@ -97,13 +106,22 @@ export function isHandledDeviceDisconnected(options: {
   alreadyHandled: boolean;
   activeSessionId?: number | null;
 }): boolean {
-  const { payload, activePath, connected, manualDisconnect, devDummy, alreadyHandled, activeSessionId } = options;
+  const {
+    payload,
+    activePath,
+    connected,
+    manualDisconnect,
+    devDummy,
+    alreadyHandled,
+    activeSessionId,
+  } = options;
   return (
     payload === null ||
     payload.path !== activePath ||
-    (activeSessionId !== null
-      && activeSessionId !== undefined
-      && (payload.sessionId === undefined || payload.sessionId !== activeSessionId)) ||
+    (activeSessionId !== null &&
+      activeSessionId !== undefined &&
+      (payload.sessionId === undefined ||
+        payload.sessionId !== activeSessionId)) ||
     manualDisconnect ||
     devDummy ||
     alreadyHandled ||

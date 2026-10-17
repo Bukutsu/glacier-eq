@@ -1,10 +1,17 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { readLocalStorage, tryWriteLocalStorage, writeLocalStorage } from "./safeStorage";
+import {
+  readLocalStorage,
+  tryWriteLocalStorage,
+  writeLocalStorage,
+} from "./safeStorage";
 
 const original = globalThis.localStorage;
 
 afterEach(() => {
-  Object.defineProperty(globalThis, "localStorage", { configurable: true, value: original });
+  Object.defineProperty(globalThis, "localStorage", {
+    configurable: true,
+    value: original,
+  });
   vi.restoreAllMocks();
 });
 
@@ -13,8 +20,12 @@ describe("safe local storage", () => {
     Object.defineProperty(globalThis, "localStorage", {
       configurable: true,
       value: {
-        getItem: vi.fn(() => { throw new Error("denied"); }),
-        setItem: vi.fn(() => { throw new Error("denied"); }),
+        getItem: vi.fn(() => {
+          throw new Error("denied");
+        }),
+        setItem: vi.fn(() => {
+          throw new Error("denied");
+        }),
       },
     });
     expect(readLocalStorage("setting")).toBeNull();
@@ -23,7 +34,10 @@ describe("safe local storage", () => {
 
   it("delegates successful reads and writes", () => {
     const store = { getItem: vi.fn(() => "value"), setItem: vi.fn() };
-    Object.defineProperty(globalThis, "localStorage", { configurable: true, value: store });
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      value: store,
+    });
     expect(readLocalStorage("setting")).toBe("value");
     expect(writeLocalStorage("setting", "next")).toBe(true);
     expect(store.setItem).toHaveBeenCalledWith("setting", "next");
@@ -37,7 +51,9 @@ describe("safe local storage", () => {
     // preference will not survive a restart.
     Object.defineProperty(globalThis, "localStorage", {
       configurable: true,
-      get() { throw new Error("SecurityError: storage is disabled"); },
+      get() {
+        throw new Error("SecurityError: storage is disabled");
+      },
     });
 
     expect(readLocalStorage("setting")).toBeNull();

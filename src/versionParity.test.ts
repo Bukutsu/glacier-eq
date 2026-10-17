@@ -24,7 +24,8 @@ function packageTomlVersion(): string {
 }
 
 describe("version parity", () => {
-  const expected = JSON.parse(readFileSync("package.json", "utf8")).version as string;
+  const expected = JSON.parse(readFileSync("package.json", "utf8"))
+    .version as string;
 
   it("package.json declares a version", () => {
     expect(expected).toMatch(/^\d+\.\d+\.\d+/);

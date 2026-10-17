@@ -1,10 +1,10 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { HashRouter } from "react-router";
-import App from "./App";
-import { ErrorBoundary } from "./components/ErrorBoundary";
-import { isTauri } from "./lib/platform";
-import "./styles/index.css";
+import App from "@/app/App";
+import { ErrorBoundary } from "@/components/feedback/ErrorBoundary";
+import { isTauri } from "@/lib/platform";
+import "@/styles/index.css";
 
 // Detect Android platform
 const isAndroid = /android/i.test(navigator.userAgent);
@@ -20,7 +20,13 @@ if (import.meta.env.PROD) {
   document.addEventListener("contextmenu", (e) => {
     // Preserve Android's select/copy/paste menu inside editable fields.
     const target = e.target;
-    if (target instanceof Element && target.closest('input, textarea, [contenteditable]:not([contenteditable="false"])')) return;
+    if (
+      target instanceof Element &&
+      target.closest(
+        'input, textarea, [contenteditable]:not([contenteditable="false"])',
+      )
+    )
+      return;
     e.preventDefault();
   });
   document.addEventListener("keydown", (e) => {
@@ -39,7 +45,9 @@ if (import.meta.env.PROD) {
     window.addEventListener("load", () => {
       navigator.serviceWorker
         .register(`${import.meta.env.BASE_URL}sw.js`)
-        .catch((error) => console.error("Failed to register service worker:", error));
+        .catch((error) =>
+          console.error("Failed to register service worker:", error),
+        );
     });
   }
 }
@@ -57,5 +65,5 @@ ReactDOM.createRoot(rootElement).render(
         <App />
       </ErrorBoundary>
     </HashRouter>
-  </React.StrictMode>
+  </React.StrictMode>,
 );

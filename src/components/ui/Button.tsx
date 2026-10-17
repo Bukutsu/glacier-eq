@@ -8,12 +8,21 @@ type ButtonProps = Omit<ButtonPrimitive.Props, "className"> & {
 
 const variants = {
   default: "border-input bg-control text-foreground hover:bg-control-hover",
-  primary: "border-primary bg-primary text-primary-foreground hover:bg-primary-hover",
-  danger: "border-input bg-control text-destructive-foreground hover:bg-control-hover",
-  ghost: "border-transparent bg-transparent text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+  primary:
+    "border-primary bg-primary text-primary-foreground hover:bg-primary-hover",
+  danger:
+    "border-input bg-control text-destructive-foreground hover:bg-control-hover",
+  ghost:
+    "border-transparent bg-transparent text-muted-foreground hover:bg-accent hover:text-accent-foreground",
 };
 
-export function Button({ variant = "default", size = "default", className = "", type = "button", ...props }: ButtonProps) {
+export function Button({
+  variant = "default",
+  size = "default",
+  className = "",
+  type = "button",
+  ...props
+}: ButtonProps) {
   return (
     <ButtonPrimitive
       type={type}
@@ -24,7 +33,9 @@ export function Button({ variant = "default", size = "default", className = "", 
         "transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
         "disabled:cursor-not-allowed disabled:opacity-45 motion-reduce:transition-none",
         "[&_svg]:size-4 [&_svg]:shrink-0",
-        size === "icon" ? "size-[34px] p-0 pointer-coarse:size-11" : "h-[34px] px-3 pointer-coarse:min-h-11",
+        size === "icon"
+          ? "size-[34px] p-0 pointer-coarse:size-11"
+          : "h-[34px] px-3 pointer-coarse:min-h-11",
         variants[variant],
         className,
       ].join(" ")}

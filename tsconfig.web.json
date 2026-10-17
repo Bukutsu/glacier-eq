@@ -2,6 +2,7 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "paths": {
+      "@/*": ["./src/*"],
       "@glacier-eq/backend": ["./src/lib/backend/web.ts"]
     }
   }

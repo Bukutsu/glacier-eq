@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 import { openUrl } from "./rpc";
-import { useToastStore } from "../stores/toastStore";
+import { useToastStore } from "@/stores/toastStore";
 
 /**
  * Opens a link and reports failures where the user can see them. Both

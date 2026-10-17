@@ -9,15 +9,19 @@ import type {
   PEQData,
   Profile,
   SupportedDeviceInfo,
-} from "../../types";
+} from "@/types";
 import { ensureWasm, getWasm } from "./wasm";
-import { profileIdentityKey } from "../profileIdentity";
-import type { DiagnosticEvent } from "../diagnostics";
-import { isDiagnosticLevel, isDiagnosticSource, sanitizeDiagnosticMessage } from "../diagnostics";
-import { readLocalStorage, writeLocalStorage } from "../safeStorage";
-import { decodeUtf8 } from "../utf8";
-import { DISCONNECT_SUPERSEDED } from "../asyncContext";
-import { themeOptions } from "../theme";
+import { profileIdentityKey } from "@/features/profiles/lib/profileIdentity";
+import type { DiagnosticEvent } from "@/features/diagnostics/lib/diagnostics";
+import {
+  isDiagnosticLevel,
+  isDiagnosticSource,
+  sanitizeDiagnosticMessage,
+} from "@/features/diagnostics/lib/diagnostics";
+import { readLocalStorage, writeLocalStorage } from "@/lib/safeStorage";
+import { decodeUtf8 } from "@/lib/utf8";
+import { DISCONNECT_SUPERSEDED } from "@/lib/asyncContext";
+import { themeOptions } from "@/features/settings/lib/theme";
 
 // Wasm entry points are resolved lazily: ensureWasm() has already run on every
 // path that reaches them (invokeWeb awaits it before dispatching), so the
@@ -29,9 +33,14 @@ const wasm = () => getWasm();
 // `unknown`, not `any`: the desktop adapter already declares payload as
 // unknown, and because listen<T> lets a subscriber pick T, an `any` here let
 // a future emitter corrupt component state with no type check anywhere.
-const eventListeners: { [event: string]: ((event: { payload: unknown }) => void)[] } = {};
+const eventListeners: {
+  [event: string]: ((event: { payload: unknown }) => void)[];
+} = {};
 
-export async function listen<T>(event: string, callback: (event: { payload: T }) => void): Promise<() => void> {
+export async function listen<T>(
+  event: string,
+  callback: (event: { payload: T }) => void,
+): Promise<() => void> {
   if (!eventListeners[event]) {
     eventListeners[event] = [];
   }
@@ -44,7 +53,9 @@ export async function listen<T>(event: string, callback: (event: { payload: T })
   };
   eventListeners[event].push(wrapped);
   return () => {
-    eventListeners[event] = eventListeners[event].filter((cb) => cb !== wrapped);
+    eventListeners[event] = eventListeners[event].filter(
+      (cb) => cb !== wrapped,
+    );
   };
 }
 
@@ -65,12 +76,17 @@ const webHidDisconnectEpochs = new WeakMap<HIDDevice, number>();
 function ensureWebHid(): HID {
   const hid = navigator.hid;
   if (!hid) {
-    throw new Error("WebHID is not available. Use a Chromium-based browser over HTTPS or localhost.");
+    throw new Error(
+      "WebHID is not available. Use a Chromium-based browser over HTTPS or localhost.",
+    );
   }
   if (!webHidDisconnectListenerInstalled) {
-    hid.addEventListener("disconnect", (event: any) => {
+    hid.addEventListener("disconnect", (event: HIDConnectionEvent) => {
       const device: HIDDevice = event.device;
-      webHidDisconnectEpochs.set(device, (webHidDisconnectEpochs.get(device) ?? 0) + 1);
+      webHidDisconnectEpochs.set(
+        device,
+        (webHidDisconnectEpochs.get(device) ?? 0) + 1,
+      );
       markWebHidDisconnected(device);
     });
     webHidDisconnectListenerInstalled = true;
@@ -85,12 +101,16 @@ export function matchSupportedWebHidDevice(
   // Mirror get_supported_device (glacier-core): an exact PID match wins over
   // a vendor-level fallback regardless of list order, so web and desktop
   // classify the same VID/PID identically even if the registry is reordered.
-  return supportedDevices.find((supported) =>
-    supported.vendor_id === device.vendorId &&
-    supported.product_id === device.productId,
-  ) ?? supportedDevices.find((supported) =>
-    supported.vendor_id === device.vendorId &&
-    supported.product_id == null,
+  return (
+    supportedDevices.find(
+      (supported) =>
+        supported.vendor_id === device.vendorId &&
+        supported.product_id === device.productId,
+    ) ??
+    supportedDevices.find(
+      (supported) =>
+        supported.vendor_id === device.vendorId && supported.product_id == null,
+    )
   );
 }
 
@@ -176,7 +196,10 @@ let reportQueue: Uint8Array[] = [];
 let reportResolvers: ((report: Uint8Array) => void)[] = [];
 let nextFilterNonce = 0;
 
-const inputReportListeners = new Map<HIDDevice, (event: any) => void>();
+const inputReportListeners = new Map<
+  HIDDevice,
+  (event: HIDInputReportEvent) => void
+>();
 
 function detachHidEventListeners(device?: HIDDevice | null) {
   if (!device) return;
@@ -229,8 +252,12 @@ function markWebHidDisconnected(device?: HIDDevice) {
 function setupHidEventListeners(device: HIDDevice) {
   detachHidEventListeners(device);
 
-  const listener = (event: any) => {
-    const bytes = new Uint8Array(event.data.buffer, event.data.byteOffset, event.data.byteLength);
+  const listener = (event: HIDInputReportEvent) => {
+    const bytes = new Uint8Array(
+      event.data.buffer,
+      event.data.byteOffset,
+      event.data.byteLength,
+    );
     const framed = new Uint8Array(bytes.length + 1);
     framed[0] = event.reportId;
     framed.set(bytes, 1);
@@ -254,8 +281,12 @@ function setupHidEventListeners(device: HIDDevice) {
 function hidHex(bytes: number[] | Uint8Array): string {
   let used = bytes.length;
   while (used > 0 && bytes[used - 1] === 0) used--;
-  const hex = Array.from(bytes.slice(0, used), byte => byte.toString(16).padStart(2, "0")).join(" ");
-  return hex + (used < bytes.length ? ` (+${bytes.length - used} zero bytes)` : "");
+  const hex = Array.from(bytes.slice(0, used), (byte) =>
+    byte.toString(16).padStart(2, "0"),
+  ).join(" ");
+  return (
+    hex + (used < bytes.length ? ` (+${bytes.length - used} zero bytes)` : "")
+  );
 }
 
 async function sendReport(packet: number[] | Uint8Array): Promise<void> {
@@ -297,7 +328,8 @@ async function readReport(timeoutMs: number): Promise<Uint8Array> {
   });
 }
 
-export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+export const sleep = (ms: number) =>
+  new Promise((resolve) => setTimeout(resolve, ms));
 
 interface ParsedStorage<T> {
   value: T;
@@ -313,7 +345,9 @@ const DEFAULT_WEB_SETTINGS: AppSettings = {
 };
 
 // Accept every UI theme, including Android themes in imported settings.
-const KNOWN_THEMES = new Set<string>(themeOptions(true).map(({ value }) => value));
+const KNOWN_THEMES = new Set<string>(
+  themeOptions(true).map(({ value }) => value),
+);
 
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
@@ -323,7 +357,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function hasOnlyKeys(value: Record<string, unknown>, keys: readonly string[]): boolean {
+function hasOnlyKeys(
+  value: Record<string, unknown>,
+  keys: readonly string[],
+): boolean {
   const known = new Set(keys);
   return Object.keys(value).every((key) => known.has(key));
 }
@@ -374,7 +411,10 @@ export function parseWebSettings(value: unknown): ParsedStorage<AppSettings> {
       malformed = true;
     }
   }
-  const preserved: Record<string, unknown> = { ...settings, ...preservedThemeExtra };
+  const preserved: Record<string, unknown> = {
+    ...settings,
+    ...preservedThemeExtra,
+  };
   const knownKeys = new Set(Object.keys(DEFAULT_WEB_SETTINGS));
   for (const [key, entry] of Object.entries(value)) {
     if (!knownKeys.has(key)) preserved[key] = entry;
@@ -410,13 +450,24 @@ function parseFilterType(value: unknown): FilterType | null {
 }
 
 function parseStoredFilter(value: unknown): Filter | null {
-  if (!isRecord(value) || !hasOnlyKeys(value, [
-    "index", "enabled", "type", "filter_type", "freq", "gain", "q",
-  ])) {
+  if (
+    !isRecord(value) ||
+    !hasOnlyKeys(value, [
+      "index",
+      "enabled",
+      "type",
+      "filter_type",
+      "freq",
+      "gain",
+      "q",
+    ])
+  ) {
     return null;
   }
   const filterType = parseFilterType(value.filter_type ?? value.type);
-  const aliasesConflict = value.filter_type !== undefined && value.type !== undefined &&
+  const aliasesConflict =
+    value.filter_type !== undefined &&
+    value.type !== undefined &&
     parseFilterType(value.filter_type) !== parseFilterType(value.type);
   if (
     !Number.isInteger(value.index) ||
@@ -449,14 +500,23 @@ function parseStoredFilter(value: unknown): Filter | null {
 }
 
 function parseStoredPeq(value: unknown): PEQData | null {
-  if (!isRecord(value) || !hasOnlyKeys(value, ["filters", "globalGain", "global_gain"])) {
+  if (
+    !isRecord(value) ||
+    !hasOnlyKeys(value, ["filters", "globalGain", "global_gain"])
+  ) {
     return null;
   }
   if (!Array.isArray(value.filters) || value.filters.length > 32) return null;
   const globalGain = value.global_gain ?? value.globalGain;
-  const aliasesConflict = value.global_gain !== undefined && value.globalGain !== undefined &&
+  const aliasesConflict =
+    value.global_gain !== undefined &&
+    value.globalGain !== undefined &&
     value.global_gain !== value.globalGain;
-  if (typeof globalGain !== "number" || !Number.isFinite(globalGain) || aliasesConflict) {
+  if (
+    typeof globalGain !== "number" ||
+    !Number.isFinite(globalGain) ||
+    aliasesConflict
+  ) {
     return null;
   }
   const filters: Filter[] = [];
@@ -470,14 +530,19 @@ function parseStoredPeq(value: unknown): PEQData | null {
 
 function isValidProfileName(value: unknown): value is string {
   // Match Rust's 128-byte UTF-8 limit rather than JS UTF-16 units.
-  const utf8Bytes = typeof value === "string" ? new TextEncoder().encode(value).length : 0;
+  const utf8Bytes =
+    typeof value === "string" ? new TextEncoder().encode(value).length : 0;
   if (
     typeof value !== "string" ||
     value.length === 0 ||
     utf8Bytes > 128 ||
     value.trim() !== value ||
     value.endsWith(".") ||
-    ![...value].every((character) => /[\p{Alphabetic}\p{N}]/u.test(character) || " _-@+&.()".includes(character))
+    ![...value].every(
+      (character) =>
+        /[\p{Alphabetic}\p{N}]/u.test(character) ||
+        " _-@+&.()".includes(character),
+    )
   ) {
     return false;
   }
@@ -489,22 +554,45 @@ function isValidProfileName(value: unknown): value is string {
     .toUpperCase();
   if (stem === "DEFAULT EQ") return false;
   return ![
-    "CON", "PRN", "AUX", "NUL",
-    "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
-    "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+    "CON",
+    "PRN",
+    "AUX",
+    "NUL",
+    "COM1",
+    "COM2",
+    "COM3",
+    "COM4",
+    "COM5",
+    "COM6",
+    "COM7",
+    "COM8",
+    "COM9",
+    "LPT1",
+    "LPT2",
+    "LPT3",
+    "LPT4",
+    "LPT5",
+    "LPT6",
+    "LPT7",
+    "LPT8",
+    "LPT9",
   ].includes(stem);
 }
 
 function parseStoredProfile(value: unknown): Profile | null {
-  if (!isRecord(value) || !hasOnlyKeys(value, ["name", "data", "modified"])) return null;
+  if (!isRecord(value) || !hasOnlyKeys(value, ["name", "data", "modified"]))
+    return null;
   if (!isValidProfileName(value.name)) return null;
   const data = parseStoredPeq(value.data);
   const modified = value.modified;
   if (
     !data ||
-    !(modified === null || (
-      typeof modified === "number" && Number.isSafeInteger(modified) && modified >= 0
-    ))
+    !(
+      modified === null ||
+      (typeof modified === "number" &&
+        Number.isSafeInteger(modified) &&
+        modified >= 0)
+    )
   ) {
     return null;
   }
@@ -523,7 +611,10 @@ const STORAGE_ENVELOPE = {
   q: [0.1, 20],
 } as const;
 
-function clampToEnvelope(value: number, [min, max]: readonly [number, number]): number {
+function clampToEnvelope(
+  value: number,
+  [min, max]: readonly [number, number],
+): number {
   return Math.max(min, Math.min(max, value));
 }
 
@@ -616,7 +707,11 @@ function loadValidatedStorage<T>(
 }
 
 function loadWebSettings(): AppSettings {
-  return loadValidatedStorage("glacier-eq-settings", DEFAULT_WEB_SETTINGS, parseWebSettings);
+  return loadValidatedStorage(
+    "glacier-eq-settings",
+    DEFAULT_WEB_SETTINGS,
+    parseWebSettings,
+  );
 }
 
 function loadWebProfiles(): Profile[] {
@@ -625,7 +720,10 @@ function loadWebProfiles(): Profile[] {
 
 // The only browser-specific part of a device operation is transporting bytes.
 // Pin the connection identity so a pending command cannot migrate to a replacement.
-async function runDeviceOperation<T>(command: string, args?: unknown): Promise<T> {
+async function runDeviceOperation<T>(
+  command: string,
+  args?: unknown,
+): Promise<T> {
   const device = activeDevice;
   const sessionId = activeSessionId;
   if (!device || !activeProfile) throw new Error("No device connected");
@@ -663,12 +761,15 @@ async function runDeviceOperation<T>(command: string, args?: unknown): Promise<T
       : {}),
   };
   try {
-    return await wasm().device_operation(
-      device.vendorId, device.productId, io, request,
+    return (await wasm().device_operation(
+      device.vendorId,
+      device.productId,
+      io,
+      request,
       (message: string, percentage: number) =>
         emitEvent("operation-progress", { message, percentage }),
       io.nonce,
-    ) as T;
+    )) as T;
   } finally {
     // Rust publishes the last nonce it consumed on success and failure.
     // Keep allocation continuous without inspecting protocol packets here.
@@ -718,7 +819,10 @@ function parseSupportedDeviceInfo(value: unknown): SupportedDeviceInfo | null {
   if (!isRecord(value)) return null;
   const spec = value.spec;
   const pair = (raw: unknown): [number, number] | null =>
-    Array.isArray(raw) && raw.length === 2 && isFiniteNumber(raw[0]) && isFiniteNumber(raw[1])
+    Array.isArray(raw) &&
+    raw.length === 2 &&
+    isFiniteNumber(raw[0]) &&
+    isFiniteNumber(raw[1])
       ? [raw[0], raw[1]]
       : null;
   if (
@@ -729,11 +833,22 @@ function parseSupportedDeviceInfo(value: unknown): SupportedDeviceInfo | null {
     typeof value.status !== "string" ||
     typeof value.family !== "string" ||
     typeof value.hardware_eq !== "boolean" ||
-    !(value.controls === null || value.controls === "walkplay" || value.controls === "dawn_pro" || value.controls === "ja11") ||
-    !(spec === null || (isRecord(spec) &&
-      ["name", "chip", "outputs"].every(key => typeof spec[key] === "string") &&
-      ["maxPower", "decoding", "snr", "thd"].every(key =>
-        spec[key] === undefined || typeof spec[key] === "string"))) ||
+    !(
+      value.controls === null ||
+      value.controls === "walkplay" ||
+      value.controls === "dawn_pro" ||
+      value.controls === "ja11"
+    ) ||
+    !(
+      spec === null ||
+      (isRecord(spec) &&
+        ["name", "chip", "outputs"].every(
+          (key) => typeof spec[key] === "string",
+        ) &&
+        ["maxPower", "decoding", "snr", "thd"].every(
+          (key) => spec[key] === undefined || typeof spec[key] === "string",
+        ))
+    ) ||
     !isFiniteNumber(value.num_bands) ||
     typeof value.supports_per_band_enable !== "boolean" ||
     typeof value.supports_ram_apply !== "boolean" ||
@@ -753,7 +868,11 @@ function parseSupportedDeviceInfo(value: unknown): SupportedDeviceInfo | null {
   // the out-of-range band check below silently stopped rejecting anything.
   // Leave absent absent.
   const optionalNumber = (raw: unknown): number | undefined =>
-    raw === undefined || raw === null ? undefined : isFiniteNumber(raw) ? raw : undefined;
+    raw === undefined || raw === null
+      ? undefined
+      : isFiniteNumber(raw)
+        ? raw
+        : undefined;
   return {
     name: value.name,
     protocol: value.protocol,
@@ -792,18 +911,26 @@ function listSupportedDevices(): SupportedDeviceInfo[] {
 
 function serializeWebHid<T>(operation: () => Promise<T>): Promise<T> {
   const result = webHidOperation.then(operation, operation);
-  webHidOperation = result.then(() => undefined, () => undefined);
+  webHidOperation = result.then(
+    () => undefined,
+    () => undefined,
+  );
   return result;
 }
 
-export async function invoke<T = unknown>(cmd: string, args?: any): Promise<T> {
+export async function invoke<T = unknown>(
+  cmd: string,
+  args?: unknown,
+): Promise<T> {
   const expectedSession = activeSessionId;
   const operation = () => {
     if (cmd === "ja11_control" && expectedSession !== activeSessionId)
       throw new Error("Device session changed; operation was cancelled");
     return invokeWeb<T>(cmd, args);
   };
-  return WEBHID_TRANSPORT_COMMANDS.has(cmd) ? serializeWebHid(operation) : operation();
+  return WEBHID_TRANSPORT_COMMANDS.has(cmd)
+    ? serializeWebHid(operation)
+    : operation();
 }
 
 /** Diagnostics-plane commands that never call into the wasm module. */
@@ -814,7 +941,7 @@ const PURE_JS_COMMANDS = new Set([
   "clear_diagnostics",
 ]);
 
-async function invokeWeb<T = unknown>(cmd: string, args?: any): Promise<T> {
+async function invokeWeb<T = unknown>(cmd: string, args?: unknown): Promise<T> {
   // These four commands run entirely on in-memory JS state (diagnostics
   // store, platform/device reads) and never touch wasm. Gating them behind
   // the wasm chunk made the ToolsPanel history load fail — and fall back to
@@ -834,7 +961,10 @@ async function invokeWeb<T = unknown>(cmd: string, args?: any): Promise<T> {
     cmd !== "add_diagnostic_event"
   ) {
     const serialized = JSON.stringify(args || {});
-    const summary = serialized.length > 200 ? `${serialized.slice(0, 200)}…(${serialized.length} bytes)` : serialized;
+    const summary =
+      serialized.length > 200
+        ? `${serialized.slice(0, 200)}…(${serialized.length} bytes)`
+        : serialized;
     addDiagnostic("Info", "UI", `WebRPC invoke("${cmd}", ${summary})`);
   }
 
@@ -865,7 +995,9 @@ async function invokeWeb<T = unknown>(cmd: string, args?: any): Promise<T> {
       }
       const peq = parseStoredPeq(commandField(args, "peq"));
       if (!peq || peq.filters.length > 32) {
-        throw new Error("Profile exceeds maximum filter count (32) or contains invalid data");
+        throw new Error(
+          "Profile exceeds maximum filter count (32) or contains invalid data",
+        );
       }
       const normalizedPeq = clampToStorageEnvelope(peq);
       const serialized = JSON.stringify(normalizedPeq);
@@ -874,7 +1006,9 @@ async function invokeWeb<T = unknown>(cmd: string, args?: any): Promise<T> {
       }
       const profiles = loadWebProfiles();
       const normalizedName = profileIdentityKey(name);
-      const idx = profiles.findIndex((profile) => profileIdentityKey(profile.name) === normalizedName);
+      const idx = profiles.findIndex(
+        (profile) => profileIdentityKey(profile.name) === normalizedName,
+      );
       const newProfile: Profile = {
         // Overwrites keep the stored spelling (case-only saves included),
         // mirroring ProfileStore::path, which rewrites the existing file
@@ -899,7 +1033,12 @@ async function invokeWeb<T = unknown>(cmd: string, args?: any): Promise<T> {
       // (eq_ignore_ascii_case) so a delete for "daily" removes a stored
       // "Daily" exactly like the desktop backend — and nothing else does.
       const normalized = profileIdentityKey(name);
-      saveJson("glacier-eq-profiles", profiles.filter((profile) => profileIdentityKey(profile.name) !== normalized));
+      saveJson(
+        "glacier-eq-profiles",
+        profiles.filter(
+          (profile) => profileIdentityKey(profile.name) !== normalized,
+        ),
+      );
       return null as T;
     }
     case "rename_profile": {
@@ -907,15 +1046,25 @@ async function invokeWeb<T = unknown>(cmd: string, args?: any): Promise<T> {
       const to = commandField(args, "to");
       if (!isValidProfileName(from)) throw new Error("Invalid profile name");
       if (!isValidProfileName(to)) {
-        throw new Error("Profile name contains invalid characters. Use letters, numbers, spaces, and _-@+&.()");
+        throw new Error(
+          "Profile name contains invalid characters. Use letters, numbers, spaces, and _-@+&.()",
+        );
       }
       // Mirror ProfileStore::rename: keep the data, refuse to replace a
       // different profile, and allow case-only renames.
       const profiles = loadWebProfiles();
       const fromKey = profileIdentityKey(from);
-      const index = profiles.findIndex((profile) => profileIdentityKey(profile.name) === fromKey);
+      const index = profiles.findIndex(
+        (profile) => profileIdentityKey(profile.name) === fromKey,
+      );
       if (index < 0) throw new Error(`Profile not found: ${from}`);
-      if (profileIdentityKey(to) !== fromKey && profiles.some((profile) => profileIdentityKey(profile.name) === profileIdentityKey(to))) {
+      if (
+        profileIdentityKey(to) !== fromKey &&
+        profiles.some(
+          (profile) =>
+            profileIdentityKey(profile.name) === profileIdentityKey(to),
+        )
+      ) {
         throw new Error(`A profile named "${to}" already exists`);
       }
       profiles[index] = { ...profiles[index], name: to };
@@ -923,7 +1072,9 @@ async function invokeWeb<T = unknown>(cmd: string, args?: any): Promise<T> {
       return null as T;
     }
     case "open_profiles_dir": {
-      alert("Profiles are stored in browser localStorage. You can export/import them using the Profile tools.");
+      alert(
+        "Profiles are stored in browser localStorage. You can export/import them using the Profile tools.",
+      );
       return null as T;
     }
 
@@ -954,7 +1105,8 @@ async function invokeWeb<T = unknown>(cmd: string, args?: any): Promise<T> {
       if (!isRecord(args)) throw new Error("Missing run_autoeq arguments");
       const vid = activeProfile?.vendor_id ?? null;
       const pid = activeProfile?.product_id ?? null;
-      const measurementPoints = args.measurement_points ?? args.measurementPoints;
+      const measurementPoints =
+        args.measurement_points ?? args.measurementPoints;
       const targetPoints = args.target_points ?? args.targetPoints;
       const nBands = args.n_bands ?? args.nBands;
       const steps = args.steps;
@@ -966,10 +1118,18 @@ async function invokeWeb<T = unknown>(cmd: string, args?: any): Promise<T> {
       if (!Array.isArray(targetPoints)) {
         throw new Error("Invalid AutoEQ target points");
       }
-      if (typeof nBands !== "number" || !Number.isSafeInteger(nBands) || nBands < 1) {
+      if (
+        typeof nBands !== "number" ||
+        !Number.isSafeInteger(nBands) ||
+        nBands < 1
+      ) {
         throw new Error("Invalid AutoEQ band count");
       }
-      if (typeof steps !== "number" || !Number.isSafeInteger(steps) || steps < 1) {
+      if (
+        typeof steps !== "number" ||
+        !Number.isSafeInteger(steps) ||
+        steps < 1
+      ) {
         throw new Error("Invalid AutoEQ step count");
       }
       if (typeof smoothType !== "string") {
@@ -986,7 +1146,7 @@ async function invokeWeb<T = unknown>(cmd: string, args?: any): Promise<T> {
         smoothType,
         fs,
         vid,
-        pid
+        pid,
       ) as T;
     }
     case "save_text_file": {
@@ -1066,15 +1226,17 @@ async function invokeWeb<T = unknown>(cmd: string, args?: any): Promise<T> {
       return devices.flatMap((dev) => {
         const profile = matchSupportedWebHidDevice(dev, supported);
         if (!profile) return [];
-        return [{
-          ...profile,
-          vendor_id: dev.vendorId,
-          product_id: dev.productId,
-          path: webHidPath(dev),
-          manufacturer: webHidManufacturer(dev) || null,
-          product_string: dev.productName || null,
-          profile_name: profile.name,
-        }];
+        return [
+          {
+            ...profile,
+            vendor_id: dev.vendorId,
+            product_id: dev.productId,
+            path: webHidPath(dev),
+            manufacturer: webHidManufacturer(dev) || null,
+            product_string: dev.productName || null,
+            profile_name: profile.name,
+          },
+        ];
       }) as T;
     }
     case "connect_device": {
@@ -1083,15 +1245,24 @@ async function invokeWeb<T = unknown>(cmd: string, args?: any): Promise<T> {
       // dereferencing undefined.
       const requestedPath = commandField(args, "path");
       const devices = await ensureWebHid().getDevices();
-      const target = devices.find((dev: HIDDevice) => webHidPath(dev) === requestedPath);
-      if (!target || !matchSupportedWebHidDevice(target, listSupportedDevices())) {
-        throw new Error("Device is unsupported or unavailable. Select 'Scan for devices' to authorize a supported DAC.");
+      const target = devices.find(
+        (dev: HIDDevice) => webHidPath(dev) === requestedPath,
+      );
+      if (
+        !target ||
+        !matchSupportedWebHidDevice(target, listSupportedDevices())
+      ) {
+        throw new Error(
+          "Device is unsupported or unavailable. Select 'Scan for devices' to authorize a supported DAC.",
+        );
       }
 
       const disconnectEpoch = webHidDisconnectEpochs.get(target);
       if (activeDevice && activeDevice !== target) {
         detachHidEventListeners(activeDevice);
-        try { await activeDevice.close(); } catch {}
+        try {
+          await activeDevice.close();
+        } catch {}
         activeDevice = null;
         activeProfile = null;
         activeSessionId = null;
@@ -1122,8 +1293,12 @@ async function invokeWeb<T = unknown>(cmd: string, args?: any): Promise<T> {
       if (webHidDisconnectEpochs.get(target) !== disconnectEpoch) {
         // The global disconnect handler cannot clear an identity that has not
         // been installed yet. Fence a disconnect that raced open() explicitly.
-        try { await target.close(); } catch {}
-        throw new Error("Device disconnected while connecting. Reconnect the DAC and try again.");
+        try {
+          await target.close();
+        } catch {}
+        throw new Error(
+          "Device disconnected while connecting. Reconnect the DAC and try again.",
+        );
       }
       activeDevice = target;
       reportQueue = [];
@@ -1144,8 +1319,15 @@ async function invokeWeb<T = unknown>(cmd: string, args?: any): Promise<T> {
       // Refusing to close a replacement connection is the point of the fence,
       // but reporting it as success told the frontend it had disconnected while
       // this context still holds the device open. Name the outcome instead.
-      if (activeDevice && typeof args?.expectedPath === "string" &&
-          args.expectedPath !== webHidPath(activeDevice)) {
+      const expectedPath = isRecord(args) ? args.expectedPath : undefined;
+      const expectedSessionId = isRecord(args)
+        ? args.expectedSessionId
+        : undefined;
+      if (
+        activeDevice &&
+        typeof expectedPath === "string" &&
+        expectedPath !== webHidPath(activeDevice)
+      ) {
         throw new Error(DISCONNECT_SUPERSEDED);
       }
       // Both fences must be armed by a supplied value and only by a supplied
@@ -1153,8 +1335,11 @@ async function invokeWeb<T = unknown>(cmd: string, args?: any): Promise<T> {
       // arguments on the desktop: a caller that has no session id yet passes
       // null, and hasOwnProperty would read that as a mismatched session and
       // refuse the close while this context kept the HID interface claimed.
-      if (activeDevice && typeof args?.expectedSessionId === "number" &&
-          args.expectedSessionId !== activeSessionId) {
+      if (
+        activeDevice &&
+        typeof expectedSessionId === "number" &&
+        expectedSessionId !== activeSessionId
+      ) {
         throw new Error(DISCONNECT_SUPERSEDED);
       }
       if (activeDevice) {
@@ -1193,7 +1378,12 @@ async function invokeWeb<T = unknown>(cmd: string, args?: any): Promise<T> {
     case "get_dac_utility_state":
       return await runDeviceOperation<T>(cmd, args);
     case "ja11_control": {
-      if (!activeDevice || activeProfile?.controls !== "ja11" || args?.path !== webHidPath(activeDevice)) {
+      if (
+        !isRecord(args) ||
+        !activeDevice ||
+        activeProfile?.controls !== "ja11" ||
+        args.path !== webHidPath(activeDevice)
+      ) {
         throw new Error("These controls require the displayed JA11");
       }
       const { path: _path, ...request } = args;
@@ -1211,7 +1401,9 @@ async function invokeWeb<T = unknown>(cmd: string, args?: any): Promise<T> {
     case "get_dawn_pro_state":
     case "set_dawn_pro_control":
       // WebHID has no Input GET_REPORT. A Feature Report is not a substitute.
-      throw new Error("Original Dawn Pro controls require the desktop app; WebHID cannot request its input GET_REPORT.");
+      throw new Error(
+        "Original Dawn Pro controls require the desktop app; WebHID cannot request its input GET_REPORT.",
+      );
 
     default:
       // Match Tauri's unknown-command rejection: returning null would let
@@ -1234,7 +1426,11 @@ export async function requestWebHidDevice(): Promise<void> {
     // Not a console.log: addDiagnostic is in this module and is the path a
     // user's bug report reads, so an event the user can be asked about does
     // not belong on stdout.
-    addDiagnostic("Info", "HID", `WebHID device permitted: ${webHidPath(selected[0])}`);
+    addDiagnostic(
+      "Info",
+      "HID",
+      `WebHID device permitted: ${webHidPath(selected[0])}`,
+    );
   }
 }
 
@@ -1251,7 +1447,9 @@ interface FileDialogOptions {
   filters?: { name: string; extensions: string[] }[];
 }
 
-export async function save(options?: FileDialogOptions): Promise<string | null> {
+export async function save(
+  options?: FileDialogOptions,
+): Promise<string | null> {
   return options?.defaultPath || "profile.txt";
 }
 
@@ -1358,4 +1556,3 @@ export async function openUrl(url: string): Promise<void> {
     opened.opener = null;
   }
 }
-

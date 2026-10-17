@@ -1,0 +1,337 @@
+import { describe, it, expect } from "vitest";
+import type { DeviceCapabilities } from "@/types";
+import {
+  formatDb,
+  extractPushWarnings,
+  normalizePeq,
+  normalizePeqForDevice,
+  parseStoredPeqResponse,
+  buildDefaultState,
+  peqEquals,
+  DEFAULT_FREQS_10_BAND,
+} from "./peq";
+
+const CAPS: DeviceCapabilities = {
+  num_bands: 10,
+  global_gain_range: [-10, 10],
+  band_gain_range: [-12, 12],
+  freq_range: [20, 20000],
+  q_range: [0.1, 10],
+  supported_filter_types: ["Peak", "LowShelf"],
+  supports_per_band_enable: true,
+  supports_ram_apply: false,
+  dsp_sample_rate: 48000,
+  integer_preamp: false,
+};
+
+describe("normalizePeq", () => {
+  it("returns a 10-band default state for empty input", () => {
+    const peq = normalizePeq({});
+    expect(peq.filters.length).toBe(10);
+    expect(peq.global_gain).toBe(0);
+    // no input filters were supplied, so all bands are left disabled
+    expect(peq.filters.every((f) => !f.enabled)).toBe(true);
+    expect(peq.filters.map((f) => f.filter_type)).toEqual(
+      Array.from({ length: 10 }, () => "Peak"),
+    );
+    expect(peq.filters.map((f) => f.freq)).toEqual(DEFAULT_FREQS_10_BAND);
+  });
+
+  it("normalizes filter type aliases (filter_type and type)", () => {
+    expect(
+      normalizePeq({ filters: [{ filter_type: "LS" }] }).filters[0].filter_type,
+    ).toBe("LowShelf");
+    expect(
+      normalizePeq({ filters: [{ type: "LowShelf" }] }).filters[0].filter_type,
+    ).toBe("LowShelf");
+    expect(
+      normalizePeq({ filters: [{ filter_type: "highshelf" }] }).filters[0]
+        .filter_type,
+    ).toBe("HighShelf");
+    expect(
+      normalizePeq({ filters: [{ type: "HPF" }] }).filters[0].filter_type,
+    ).toBe("HighPass");
+    expect(
+      normalizePeq({ filters: [{ type: "lpf" }] }).filters[0].filter_type,
+    ).toBe("LowPass");
+    expect(
+      normalizePeq({ filters: [{ filter_type: "PK" }] }).filters[0].filter_type,
+    ).toBe("Peak");
+    // unknown type falls back to Peak
+    expect(
+      normalizePeq({ filters: [{ filter_type: "bogus" }] }).filters[0]
+        .filter_type,
+    ).toBe("Peak");
+  });
+
+  it("accepts both global_gain and globalGain aliases", () => {
+    expect(normalizePeq({ global_gain: -3 }).global_gain).toBe(-3);
+    expect(normalizePeq({ globalGain: -3 }).global_gain).toBe(-3);
+  });
+
+  it("rounds preamp to an integer when integerPreamp is set", () => {
+    expect(
+      normalizePeq({ global_gain: 1.5 }, { integerPreamp: true }).global_gain,
+    ).toBe(2);
+    expect(
+      normalizePeq({ global_gain: 1.4 }, { integerPreamp: true }).global_gain,
+    ).toBe(1);
+    expect(
+      normalizePeq({ global_gain: -1.6 }, { integerPreamp: true }).global_gain,
+    ).toBe(-2);
+    expect(
+      normalizePeq({ global_gain: -1.4 }, { integerPreamp: true }).global_gain,
+    ).toBe(-1);
+    // without integerPreamp the fractional value is preserved
+    expect(normalizePeq({ global_gain: 1.5 }).global_gain).toBe(1.5);
+  });
+
+  it("clamps values to device capabilities", () => {
+    const peq = normalizePeq(
+      {
+        filters: [{ freq: 5, gain: 100, q: 0.01, filter_type: "HighPass" }],
+      },
+      { capabilities: CAPS },
+    );
+    const f = peq.filters[0];
+    expect(f.freq).toBe(20); // clamped to range and rounded
+    expect(f.gain).toBe(12); // band_gain_range upper bound
+    expect(f.q).toBe(0.1); // q_range lower bound
+    // HighPass is not supported -> mapped to supported_filter_types[0]
+    expect(f.filter_type).toBe("Peak");
+  });
+
+  it("rounds clamped frequencies to integers", () => {
+    const peq = normalizePeq(
+      { filters: [{ freq: 80.6 }] },
+      { capabilities: CAPS },
+    );
+    expect(peq.filters[0].freq).toBe(81);
+  });
+
+  it("clamps global gain to the capability range", () => {
+    const peq = normalizePeq({ global_gain: 99 }, { capabilities: CAPS });
+    expect(peq.global_gain).toBe(10);
+    const low = normalizePeq({ global_gain: -99 }, { capabilities: CAPS });
+    expect(low.global_gain).toBe(-10);
+  });
+
+  it("pads bands beyond num_bands as disabled (mirrors Rust max-band clamping)", () => {
+    const peq = normalizePeq(
+      { filters: [{ enabled: true }, { enabled: true }] },
+      {
+        capabilities: { ...CAPS, num_bands: 1 },
+      },
+    );
+    expect(peq.filters[0].enabled).toBe(true);
+    expect(peq.filters.slice(1).every((f) => !f.enabled)).toBe(true);
+  });
+
+  it("enables loaded filters only when requested for non-first bands", () => {
+    // band 3 has no explicit enabled flag; default fallback is disabled
+    expect(normalizePeq({ filters: [{}, {}, {}, {}] }).filters[3].enabled).toBe(
+      false,
+    );
+    expect(
+      normalizePeq({ filters: [{}, {}, {}, {}] }, { enableLoadedFilters: true })
+        .filters[3].enabled,
+    ).toBe(true);
+  });
+
+  it("keeps stored bands beyond the 10 defaults and pads up to num_bands", () => {
+    const stored = Array.from({ length: 24 }, (_, index) => ({
+      freq: 20 * (index + 1),
+      gain: 1,
+      q: 1,
+    }));
+    // A 24-band profile must survive load intact — the 10-band defaults are
+    // a floor, not a template that truncates stored data.
+    expect(
+      normalizePeq({ filters: stored, global_gain: -3 }).filters,
+    ).toHaveLength(24);
+    expect(
+      normalizePeq({ filters: stored, global_gain: -3 }).filters[23].freq,
+    ).toBe(480);
+
+    // And devices with more bands than the defaults get a full-size state.
+    const padded = normalizePeq(
+      { filters: [{ freq: 31 }] },
+      {
+        capabilities: { ...CAPS, num_bands: 12 },
+      },
+    );
+    expect(padded.filters).toHaveLength(12);
+  });
+
+  it("does not invent a filter type for a device that advertises none", () => {
+    // An empty supported_filter_types is a capability the device cannot
+    // honour at all. The old code substituted "Peak", silently rewriting
+    // every band to a type the device never advertised. Keeping the requested
+    // type lets the Rust core reject it loudly at push time instead.
+    const requested = {
+      filters: [
+        {
+          index: 0,
+          enabled: true,
+          filter_type: "LowShelf",
+          freq: 1000,
+          gain: -3,
+          q: 1.2,
+        },
+      ],
+    };
+    const withNoTypes = normalizePeq(requested, {
+      capabilities: { ...CAPS, supported_filter_types: [] },
+    });
+    expect(withNoTypes.filters[0].filter_type).toBe("LowShelf");
+
+    // The normal clamp still applies when the device does support something.
+    const withTypes = normalizePeq(requested, {
+      capabilities: { ...CAPS, supported_filter_types: ["HighShelf"] },
+    });
+    expect(withTypes.filters[0].filter_type).toBe("HighShelf");
+  });
+
+  it("clamps oversized filter lists to the 32-filter storage ceiling", () => {
+    const huge = Array.from({ length: 100 }, () => ({
+      freq: 1000,
+      gain: 0,
+      q: 1,
+    }));
+    expect(normalizePeq({ filters: huge }).filters).toHaveLength(32);
+  });
+});
+
+describe("normalizePeqForDevice", () => {
+  const FIVE_BAND: DeviceCapabilities = { ...CAPS, num_bands: 5 };
+
+  it("reshapes a baseline recorded on a narrower DAC so the dirty flag can clear", () => {
+    // A pull from a 5-band DAC: the device reports 5 bands, so both the
+    // editor and the clean baseline the pull installs are 5 filters long.
+    const onFiveBand = parseStoredPeqResponse(
+      {
+        filters: DEFAULT_FREQS_10_BAND.slice(0, 5).map((freq) => ({
+          freq,
+          gain: 0,
+          q: 1,
+        })),
+        global_gain: 0,
+      },
+      { capabilities: FIVE_BAND },
+    );
+    expect(onFiveBand.filters).toHaveLength(5);
+
+    // Now retarget a 10-band DAC. normalizePeq pads but never truncates, so
+    // the editor grows to 10 bands. A baseline left at 5 would fail
+    // peqEquals on length alone and pin the unsaved-changes flag on for the
+    // rest of the session, even after every band is put back.
+    const editor = normalizePeq(onFiveBand, { capabilities: CAPS });
+    expect(editor.filters).toHaveLength(10);
+    expect(peqEquals(editor, onFiveBand)).toBe(false);
+
+    const retargetedBaseline = normalizePeqForDevice(onFiveBand, CAPS);
+    expect(peqEquals(editor, retargetedBaseline)).toBe(true);
+  });
+
+  it("is idempotent, so retargeting an already-correct baseline changes nothing", () => {
+    const baseline = normalizePeqForDevice(buildDefaultState(), CAPS);
+    expect(peqEquals(normalizePeqForDevice(baseline, CAPS), baseline)).toBe(
+      true,
+    );
+  });
+});
+
+describe("parseStoredPeqResponse", () => {
+  it("accepts a well-formed device state and normalizes it", () => {
+    const parsed = parseStoredPeqResponse(
+      {
+        filters: [{ freq: 1000, gain: -3, q: 1 }],
+        global_gain: 0,
+      },
+      { capabilities: CAPS },
+    );
+    expect(parsed.global_gain).toBe(0);
+    expect(parsed.filters[0].freq).toBe(1000);
+  });
+
+  it("accepts the camelCase globalGain spelling", () => {
+    const parsed = parseStoredPeqResponse({
+      filters: [],
+      globalGain: -2,
+    });
+    expect(parsed.global_gain).toBe(-2);
+  });
+
+  it.each([
+    ["null", null],
+    ["missing filters", { global_gain: 0 }],
+    ["non-numeric gain", { filters: [], global_gain: "0" }],
+    [
+      "non-positive q",
+      { filters: [{ freq: 100, gain: 0, q: 0 }], global_gain: 0 },
+    ],
+    [
+      "non-positive freq",
+      { filters: [{ freq: 0, gain: 0, q: 1 }], global_gain: 0 },
+    ],
+    [
+      "infinite freq",
+      { filters: [{ freq: Infinity, gain: 0, q: 1 }], global_gain: 0 },
+    ],
+    [
+      "fractional freq",
+      { filters: [{ freq: 100.5, gain: 0, q: 1 }], global_gain: 0 },
+    ],
+    [
+      "invalid enabled",
+      {
+        filters: [{ enabled: "yes", freq: 100, gain: 0, q: 1 }],
+        global_gain: 0,
+      },
+    ],
+    [
+      "unknown filter type",
+      {
+        filters: [{ filter_type: "bogus", freq: 100, gain: 0, q: 1 }],
+        global_gain: 0,
+      },
+    ],
+  ])("rejects %s", (_label, value) => {
+    expect(() => parseStoredPeqResponse(value)).toThrow("invalid EQ state");
+  });
+});
+
+describe("extractPushWarnings", () => {
+  it("reads the clamp warnings off a push response", () => {
+    const warnings = ["Clamped preamp gain from 20.0 dB to 12.0 dB"];
+    expect(
+      extractPushWarnings({ filters: [], global_gain: 12, warnings }),
+    ).toEqual(warnings);
+  });
+
+  it("returns nothing for a clean push or a response without warnings", () => {
+    expect(extractPushWarnings({ filters: [], global_gain: 0 })).toEqual([]);
+    expect(extractPushWarnings(null)).toEqual([]);
+    expect(extractPushWarnings(undefined)).toEqual([]);
+    // A push that already succeeded must not be failed by garbage here.
+    expect(
+      extractPushWarnings({ filters: [], global_gain: 0, warnings: "oops" }),
+    ).toEqual([]);
+    expect(
+      extractPushWarnings({
+        filters: [],
+        global_gain: 0,
+        warnings: ["ok", 42, null],
+      }),
+    ).toEqual(["ok"]);
+  });
+});
+
+describe("formatDb", () => {
+  it("shows one to two decimals with a unit", () => {
+    expect(formatDb(-4)).toBe("-4.0 dB");
+    expect(formatDb(-3.55)).toBe("-3.55 dB");
+    expect(formatDb(2.5)).toBe("2.5 dB");
+    expect(formatDb(-0.001)).toBe("0.0 dB");
+  });
+});

@@ -1,20 +1,66 @@
 export type ToolsTab = "Preset" | "Tuning" | "Device" | "Settings";
 export type MobileTab = "eq" | "profiles" | "tuning" | "device" | "settings";
 export type DeviceSection = "root" | "overview" | "controls" | "maintenance";
-export type SettingsSection = "root" | "general" | "appearance" | "diagnostics" | "about";
+export type SettingsSection =
+  "root" | "general" | "appearance" | "diagnostics" | "about";
 
 export const DEVICE_SECTIONS = [
-  { id: "overview", label: "Overview", icon: "info", description: "Device specifications and EQ limits" },
-  { id: "controls", label: "Controls", icon: "tune", description: "Volume, sound modes, and filter response" },
-  { id: "maintenance", label: "Maintenance", icon: "build", description: "Device utilities and reset options" },
-] as const satisfies ReadonlyArray<{ id: Exclude<DeviceSection, "root">; label: string; icon: string; description: string }>;
+  {
+    id: "overview",
+    label: "Overview",
+    icon: "info",
+    description: "Device specifications and EQ limits",
+  },
+  {
+    id: "controls",
+    label: "Controls",
+    icon: "tune",
+    description: "Volume, sound modes, and filter response",
+  },
+  {
+    id: "maintenance",
+    label: "Maintenance",
+    icon: "build",
+    description: "Device utilities and reset options",
+  },
+] as const satisfies ReadonlyArray<{
+  id: Exclude<DeviceSection, "root">;
+  label: string;
+  icon: string;
+  description: string;
+}>;
 
 export const SETTINGS_SECTIONS = [
-  { id: "general", label: "Behavior & audio", icon: "tune", description: "Connection behavior and EQ editing" },
-  { id: "appearance", label: "Interface & theme", icon: "palette", description: "Theme, graph, and display preferences" },
-  { id: "diagnostics", label: "Diagnostics & permissions", icon: "bug_report", description: "Event logs and troubleshooting" },
-  { id: "about", label: "About", icon: "info", description: "App version, project, and licenses" },
-] as const satisfies ReadonlyArray<{ id: Exclude<SettingsSection, "root">; label: string; icon: string; description: string }>;
+  {
+    id: "general",
+    label: "Behavior & audio",
+    icon: "tune",
+    description: "Connection behavior and EQ editing",
+  },
+  {
+    id: "appearance",
+    label: "Interface & theme",
+    icon: "palette",
+    description: "Theme, graph, and display preferences",
+  },
+  {
+    id: "diagnostics",
+    label: "Diagnostics & permissions",
+    icon: "bug_report",
+    description: "Event logs and troubleshooting",
+  },
+  {
+    id: "about",
+    label: "About",
+    icon: "info",
+    description: "App version, project, and licenses",
+  },
+] as const satisfies ReadonlyArray<{
+  id: Exclude<SettingsSection, "root">;
+  label: string;
+  icon: string;
+  description: string;
+}>;
 
 export const MOBILE_TABS = [
   { id: "eq", icon: "tune", label: "EQ" },
@@ -47,13 +93,17 @@ type UnlistedDeviceSection = Exclude<
   Exclude<DeviceSection, "root">,
   (typeof DEVICE_SECTIONS)[number]["id"]
 >;
-const _deviceSectionsComplete: [UnlistedDeviceSection] extends [never] ? true : never = true;
+const _deviceSectionsComplete: [UnlistedDeviceSection] extends [never]
+  ? true
+  : never = true;
 
 type UnlistedSettingsSection = Exclude<
   Exclude<SettingsSection, "root">,
   (typeof SETTINGS_SECTIONS)[number]["id"]
 >;
-const _settingsSectionsComplete: [UnlistedSettingsSection] extends [never] ? true : never = true;
+const _settingsSectionsComplete: [UnlistedSettingsSection] extends [never]
+  ? true
+  : never = true;
 
 void _deviceSectionsComplete;
 void _settingsSectionsComplete;
@@ -76,21 +126,34 @@ export function parseWorkspacePath(pathname: string): WorkspaceRoute {
       settingsSection: "about",
     };
   }
-  const activeTab = MOBILE_TAB_IDS.has(tab as MobileTab) ? tab as MobileTab : "eq";
+  const activeTab = MOBILE_TAB_IDS.has(tab as MobileTab)
+    ? (tab as MobileTab)
+    : "eq";
 
   return {
     tab: activeTab,
-    deviceSection: activeTab === "device" && section && DEVICE_SECTION_IDS.has(section as DeviceSection)
-      ? section as DeviceSection
-      : "root",
-    settingsSection: activeTab === "settings" && section && SETTINGS_SECTION_IDS.has(section as SettingsSection)
-      ? section as SettingsSection
-      : "root",
+    deviceSection:
+      activeTab === "device" &&
+      section &&
+      DEVICE_SECTION_IDS.has(section as DeviceSection)
+        ? (section as DeviceSection)
+        : "root",
+    settingsSection:
+      activeTab === "settings" &&
+      section &&
+      SETTINGS_SECTION_IDS.has(section as SettingsSection)
+        ? (section as SettingsSection)
+        : "root",
   };
 }
 
-export function workspacePath(tab: MobileTab, section?: DeviceSection | SettingsSection): string {
-  if (tab === "device" && section && section !== "root") return `/device/${section}`;
-  if (tab === "settings" && section && section !== "root") return `/settings/${section}`;
+export function workspacePath(
+  tab: MobileTab,
+  section?: DeviceSection | SettingsSection,
+): string {
+  if (tab === "device" && section && section !== "root")
+    return `/device/${section}`;
+  if (tab === "settings" && section && section !== "root")
+    return `/settings/${section}`;
   return `/${tab}`;
 }

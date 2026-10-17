@@ -9,6 +9,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
+      "@": fileURLToPath(new URL("./src", import.meta.url)),
       "@glacier-eq/backend": fileURLToPath(new URL("./src/lib/backend/tauri.ts", import.meta.url)),
     },
   },

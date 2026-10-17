@@ -24,7 +24,8 @@ export function tryWriteLocalStorage(
 ): { ok: boolean; error?: unknown } {
   try {
     const store = storage();
-    if (!store) return { ok: false, error: new Error("localStorage is unavailable") };
+    if (!store)
+      return { ok: false, error: new Error("localStorage is unavailable") };
     store.setItem(key, value);
     return { ok: true };
   } catch (error) {

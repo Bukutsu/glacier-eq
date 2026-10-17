@@ -1,6 +1,7 @@
-import type { DacOfficialSpec } from "./lib/dacSpecs";
+import type { DacOfficialSpec } from "@/features/device/lib/dacSpecs";
 
-export type FilterType = "Peak" | "LowShelf" | "HighShelf" | "HighPass" | "LowPass";
+export type FilterType =
+  "Peak" | "LowShelf" | "HighShelf" | "HighPass" | "LowPass";
 
 export interface Filter {
   index: number;

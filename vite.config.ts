@@ -39,6 +39,7 @@ export default defineConfig(async ({ mode }) => {
   return {
   resolve: {
     alias: {
+      "@": fileURLToPath(new URL("./src", import.meta.url)),
       "@glacier-eq/backend": backend,
     },
   },

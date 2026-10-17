@@ -106,7 +106,8 @@ export function mergeFieldsAtUnchangedRevisions<T extends object>(
   // the compiler had checked a relationship between T and a value it knows
   // nothing about — an undeclared key was then written back through
   // setField, which types the write as keyof T.
-  const declared = (field: string): field is keyof T & string => field in current;
+  const declared = (field: string): field is keyof T & string =>
+    field in current;
   for (const field of (Object.keys(incoming) as string[]).filter(declared)) {
     if ((revisionsAtStart[field] ?? 0) === (currentRevisions[field] ?? 0)) {
       merged = setField(merged, field, incoming[field]);

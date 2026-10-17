@@ -2,9 +2,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { createExternalLinkClickHandler, openExternalLink } from "./externalLinks";
+import {
+  createExternalLinkClickHandler,
+  openExternalLink,
+} from "./externalLinks";
 import { openUrl } from "./rpc";
-import { useToastStore } from "../stores/toastStore";
+import { useToastStore } from "@/stores/toastStore";
 
 vi.mock("./rpc", () => ({
   openUrl: vi.fn().mockResolvedValue(undefined),
@@ -25,11 +28,15 @@ function fakeClick(options: {
   const anchor =
     options.href === null
       ? null
-      : { getAttribute: (key: string) => (key === "href" ? options.href : null) };
+      : {
+          getAttribute: (key: string) => (key === "href" ? options.href : null),
+        };
   const preventDefault = vi.fn();
   const event = {
     defaultPrevented: options.defaultPrevented ?? false,
-    target: { closest: (selector: string) => (selector === "a" ? anchor : null) },
+    target: {
+      closest: (selector: string) => (selector === "a" ? anchor : null),
+    },
     preventDefault,
   } as unknown as MouseEvent;
   return { event, preventDefault };
@@ -63,7 +70,9 @@ describe("createExternalLinkClickHandler", () => {
 
   it("opens plain http anchors that have no own handler", () => {
     const handler = createExternalLinkClickHandler();
-    const { event, preventDefault } = fakeClick({ href: "https://example.com/docs" });
+    const { event, preventDefault } = fakeClick({
+      href: "https://example.com/docs",
+    });
 
     handler(event);
 

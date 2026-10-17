@@ -8,7 +8,8 @@ export function showBootError(error: unknown) {
   const heading = document.createElement("h1");
   heading.textContent = "Glacier EQ could not start";
   const message = document.createElement("p");
-  message.textContent = "Try reopening the app. Your saved profiles have not been changed.";
+  message.textContent =
+    "Try reopening the app. Your saved profiles have not been changed.";
   const retry = document.createElement("button");
   retry.type = "button";
   retry.textContent = "Retry";

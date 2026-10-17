@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { PEQData, SupportedDeviceInfo } from "../types";
+import type { PEQData, SupportedDeviceInfo } from "@/types";
 
 const wasm = vi.hoisted(() => ({
   init: vi.fn(async () => undefined),
@@ -42,9 +42,9 @@ import {
   parseWebProfiles,
   parseWebSettings,
 } from "./web";
-import { parseDiagnosticHistory } from "../diagnostics";
-import { themeOptions } from "../theme";
-import { DISCONNECT_SUPERSEDED } from "../asyncContext";
+import { parseDiagnosticHistory } from "@/features/diagnostics/lib/diagnostics";
+import { themeOptions } from "@/features/settings/lib/theme";
+import { DISCONNECT_SUPERSEDED } from "@/lib/asyncContext";
 
 const profile: SupportedDeviceInfo = {
   name: "Test DAC",
@@ -61,7 +61,13 @@ const profile: SupportedDeviceInfo = {
   band_gain_range: [-10, 10],
   freq_range: [20, 20_000],
   q_range: [0.1, 20],
-  supported_filter_types: ["Peak", "LowShelf", "HighShelf", "HighPass", "LowPass"],
+  supported_filter_types: [
+    "Peak",
+    "LowShelf",
+    "HighShelf",
+    "HighPass",
+    "LowPass",
+  ],
   supports_per_band_enable: true,
   supports_ram_apply: true,
   dsp_sample_rate: 96_000,
@@ -74,21 +80,33 @@ const profile: SupportedDeviceInfo = {
 const localStorageValues = new Map<string, string>();
 const localStorageMock = {
   getItem: vi.fn((key: string) => localStorageValues.get(key) ?? null),
-  setItem: vi.fn((key: string, value: string) => localStorageValues.set(key, value)),
+  setItem: vi.fn((key: string, value: string) =>
+    localStorageValues.set(key, value),
+  ),
 };
 
-const hidListeners = new Map<string, (event: { device: HIDDevice }) => void>();
+const hidListeners = new Map<
+  string,
+  (event: { device: FakeHidDevice }) => void
+>();
 const hidMock = {
-  devices: [] as HIDDevice[],
-  addEventListener: vi.fn((event: string, listener: (event: { device: HIDDevice }) => void) => {
-    hidListeners.set(event, listener);
-  }),
+  devices: [] as FakeHidDevice[],
+  addEventListener: vi.fn(
+    (event: string, listener: (event: { device: FakeHidDevice }) => void) => {
+      hidListeners.set(event, listener);
+    },
+  ),
   getDevices: vi.fn(async () => hidMock.devices),
-  requestDevice: vi.fn(async (_options: unknown) => [] as HIDDevice[]),
+  requestDevice: vi.fn(async (_options: unknown) => [] as FakeHidDevice[]),
 };
 
-function fakeHidDevice(options: { respondToReports?: boolean; firmwareResponseAfter?: number } = {}): HIDDevice {
-  let inputReportListener: ((event: { data: DataView; reportId: number }) => void) | null = null;
+type FakeHidDevice = ReturnType<typeof fakeHidDevice>;
+type InputReport = { data: DataView; reportId: number };
+
+function fakeHidDevice(
+  options: { respondToReports?: boolean; firmwareResponseAfter?: number } = {},
+) {
+  let inputReportListener: ((event: InputReport) => void) | null = null;
   let sendCount = 0;
   return {
     vendorId: profile.vendor_id,
@@ -102,29 +120,44 @@ function fakeHidDevice(options: { respondToReports?: boolean; firmwareResponseAf
     close: vi.fn(async () => undefined),
     receiveFeatureReport: vi.fn(),
     sendFeatureReport: vi.fn(),
-    sendReport: vi.fn(async () => {
+    sendReport: vi.fn(async (_reportId: number, _data: Uint8Array) => {
       sendCount += 1;
       if (options.respondToReports && inputReportListener) {
         const bytes = Uint8Array.of(1, 2, 3);
         inputReportListener({ data: new DataView(bytes.buffer), reportId: 1 });
       }
       if (options.firmwareResponseAfter === sendCount && inputReportListener) {
-        const bytes = Uint8Array.of(0x80, 0x0c, 0, ...Array.from("FW1.0", (char) => char.charCodeAt(0)), 0, 0);
-        inputReportListener({ data: new DataView(bytes.buffer), reportId: 0x4b });
+        const bytes = Uint8Array.of(
+          0x80,
+          0x0c,
+          0,
+          ...Array.from("FW1.0", (char) => char.charCodeAt(0)),
+          0,
+          0,
+        );
+        inputReportListener({
+          data: new DataView(bytes.buffer),
+          reportId: 0x4b,
+        });
       }
     }),
-    addEventListener: vi.fn((event: string, listener: EventListenerOrEventListenerObject) => {
-      if (event === "inputreport" && typeof listener === "function") {
-        inputReportListener = listener as (event: { data: DataView; reportId: number }) => void;
-      }
-    }),
+    addEventListener: vi.fn(
+      (event: string, listener: (event: InputReport) => void) => {
+        if (event === "inputreport" && typeof listener === "function") {
+          inputReportListener = listener;
+        }
+      },
+    ),
     removeEventListener: vi.fn(),
     dispatchEvent: vi.fn(),
     oninputreport: null,
   };
 }
 
-async function connectWebHid(device: HIDDevice, deviceProfile = profile): Promise<void> {
+async function connectWebHid(
+  device: FakeHidDevice,
+  deviceProfile = profile,
+): Promise<void> {
   wasm.list_supported_devices.mockReturnValue([deviceProfile]);
   hidMock.devices = [device];
   const listed = await invoke<Array<{ path: string }>>("list_devices");
@@ -143,7 +176,10 @@ beforeEach(() => {
     configurable: true,
     value: localStorageMock,
   });
-  wasm.normalize_peq_for_device.mockImplementation((peq) => ({ peq, warnings: [] }));
+  wasm.normalize_peq_for_device.mockImplementation((peq) => ({
+    peq,
+    warnings: [],
+  }));
   wasm.is_default_peq_for_device.mockReturnValue(false);
   wasm.device_operation.mockReset().mockResolvedValue(null);
 });
@@ -164,35 +200,53 @@ function peqWithBands(count: number): PEQData {
 
 describe("JA11 browser adapter", () => {
   const ja11: SupportedDeviceInfo = {
-    ...profile, name: "FiiO JA11", protocol: "FiiO JA11", vendor_id: 0x2972,
-    product_id: 0x0101, controls: "ja11",
+    ...profile,
+    name: "FiiO JA11",
+    protocol: "FiiO JA11",
+    vendor_id: 0x2972,
+    product_id: 0x0101,
+    controls: "ja11",
   };
   async function setupJa11() {
     const device = fakeHidDevice();
     device.vendorId = 0x2972;
     device.productId = 0x0101;
     await connectWebHid(device, ja11);
-    return { device, path: (await invoke<Array<{ path: string }>>("list_devices"))[0].path };
+    return {
+      device,
+      path: (await invoke<Array<{ path: string }>>("list_devices"))[0].path,
+    };
   }
   it("delegates controls to Rust, stripping only the routing path", async () => {
     const { device, path } = await setupJa11();
     wasm.device_operation.mockResolvedValue(29);
-    expect(await invoke("ja11_control", { path, control: "volume", value: 29 })).toBe(29);
+    expect(
+      await invoke("ja11_control", { path, control: "volume", value: 29 }),
+    ).toBe(29);
     const [vid, pid, , request] = wasm.device_operation.mock.calls.at(-1)!;
     expect([vid, pid]).toEqual([0x2972, 0x0101]);
-    expect(request).toEqual({ command: "ja11_control", control: "volume", value: 29 });
+    expect(request).toEqual({
+      command: "ja11_control",
+      control: "volume",
+      value: 29,
+    });
     expect(device.sendReport).not.toHaveBeenCalled(); // no second TS codec
     await invoke("disconnect_device");
   });
   it("rejects a stale path or a non-JA11 before entering Rust", async () => {
     const { path } = await setupJa11();
-    await expect(invoke("ja11_control", { path: "/stale", control: "volume" })).rejects.toThrow("displayed JA11");
+    await expect(
+      invoke("ja11_control", { path: "/stale", control: "volume" }),
+    ).rejects.toThrow("displayed JA11");
     expect(wasm.device_operation).not.toHaveBeenCalled();
     await invoke("disconnect_device");
     const device = fakeHidDevice();
     await connectWebHid(device);
-    const otherPath = (await invoke<Array<{ path: string }>>("list_devices"))[0].path;
-    await expect(invoke("ja11_control", { path: otherPath, control: "volume" })).rejects.toThrow("displayed JA11");
+    const otherPath = (await invoke<Array<{ path: string }>>("list_devices"))[0]
+      .path;
+    await expect(
+      invoke("ja11_control", { path: otherPath, control: "volume" }),
+    ).rejects.toThrow("displayed JA11");
     expect(wasm.device_operation).not.toHaveBeenCalled();
     expect(path).not.toBe(otherPath);
     await invoke("disconnect_device");
@@ -200,7 +254,11 @@ describe("JA11 browser adapter", () => {
   it("fences a queued control if a preceding disconnect replaces its session", async () => {
     const { path } = await setupJa11();
     const disconnecting = invoke("disconnect_device");
-    const queued = invoke("ja11_control", { path, control: "volume", value: 10 });
+    const queued = invoke("ja11_control", {
+      path,
+      control: "volume",
+      value: 10,
+    });
     await disconnecting;
     await expect(queued).rejects.toThrow("session changed");
     expect(wasm.device_operation).not.toHaveBeenCalled();
@@ -210,16 +268,30 @@ describe("JA11 browser adapter", () => {
     await invoke("clear_diagnostics");
     wasm.device_operation.mockImplementationOnce(async (_vid, _pid, io) => {
       await io.write(Uint8Array.of(2, 0xbb, 0x0b, 0, 0, 2, 0, 0, 0xee));
-      const listener = vi.mocked(device.addEventListener).mock.calls.find(([event]) => event === "inputreport")![1] as
-        (event: { data: DataView; reportId: number }) => void;
+      const listener = vi
+        .mocked(device.addEventListener)
+        .mock.calls.find(([event]) => event === "inputreport")![1] as (event: {
+        data: DataView;
+        reportId: number;
+      }) => void;
       const bytes = Uint8Array.of(0xbb, 0x0b, 0, 0, 2, 1, 30, 0, 0xee, 0, 0);
       listener({ reportId: 2, data: new DataView(bytes.buffer) });
       return 30;
     });
     expect(await invoke("ja11_control", { path, control: "volume" })).toBe(30);
-    const diagnostics = await invoke<Array<{ message: string }>>("get_diagnostics");
-    expect(diagnostics.some(log => log.message === "TX 02 bb 0b 00 00 02 00 00 ee")).toBe(true);
-    expect(diagnostics.some(log => log.message === "RX 02 bb 0b 00 00 02 01 1e 00 ee (+2 zero bytes)")).toBe(true);
+    const diagnostics =
+      await invoke<Array<{ message: string }>>("get_diagnostics");
+    expect(
+      diagnostics.some(
+        (log) => log.message === "TX 02 bb 0b 00 00 02 00 00 ee",
+      ),
+    ).toBe(true);
+    expect(
+      diagnostics.some(
+        (log) =>
+          log.message === "RX 02 bb 0b 00 00 02 01 1e 00 ee (+2 zero bytes)",
+      ),
+    ).toBe(true);
     await invoke("disconnect_device");
   });
 });
@@ -229,8 +301,9 @@ describe("original Dawn Pro browser controls", () => {
     const device = fakeHidDevice();
     hidMock.devices = [device];
     for (const command of ["get_dawn_pro_state", "set_dawn_pro_control"]) {
-      await expect(invoke(command, { path: "dawn", control: "gain", value: 1 }))
-        .rejects.toThrow("Original Dawn Pro controls require the desktop app");
+      await expect(
+        invoke(command, { path: "dawn", control: "gain", value: 1 }),
+      ).rejects.toThrow("Original Dawn Pro controls require the desktop app");
     }
     expect(device.sendReport).not.toHaveBeenCalled();
     expect(device.receiveFeatureReport).not.toHaveBeenCalled();
@@ -240,7 +313,9 @@ describe("original Dawn Pro browser controls", () => {
 
 describe("UTF-8 file decoding", () => {
   it("rejects malformed bytes instead of replacing them", () => {
-    expect(() => decodeUtf8File(Uint8Array.from([0x23, 0xff]).buffer)).toThrow();
+    expect(() =>
+      decodeUtf8File(Uint8Array.from([0x23, 0xff]).buffer),
+    ).toThrow();
     expect(decodeUtf8File(Uint8Array.from([0x68, 0x69]).buffer)).toBe("hi");
   });
 });
@@ -253,39 +328,63 @@ describe("browser connection cleanup", () => {
     // directly, so a caller with no args got
     // "TypeError: Cannot read properties of undefined (reading 'path')" —
     // an error the UI has no branch for.
-    await expect(invoke("connect_device")).rejects.toThrow("Missing path argument");
+    await expect(invoke("connect_device")).rejects.toThrow(
+      "Missing path argument",
+    );
   });
 
   it("rejects missing export and CPU-only arguments", async () => {
-    await expect(invoke("save_text_file", { content: "x" })).rejects.toThrow("Missing path argument");
-    await expect(invoke("save_text_file")).rejects.toThrow("Missing content argument");
-    await expect(invoke("parse_autoeq")).rejects.toThrow("Missing text argument");
-    await expect(invoke("peq_to_autoeq")).rejects.toThrow("Missing peq argument");
-    await expect(invoke("run_autoeq")).rejects.toThrow("Missing run_autoeq arguments");
+    await expect(invoke("save_text_file", { content: "x" })).rejects.toThrow(
+      "Missing path argument",
+    );
+    await expect(invoke("save_text_file")).rejects.toThrow(
+      "Missing content argument",
+    );
+    await expect(invoke("parse_autoeq")).rejects.toThrow(
+      "Missing text argument",
+    );
+    await expect(invoke("peq_to_autoeq")).rejects.toThrow(
+      "Missing peq argument",
+    );
+    await expect(invoke("run_autoeq")).rejects.toThrow(
+      "Missing run_autoeq arguments",
+    );
   });
 
   it("rejects malformed AutoEQ WebRPC values before WebAssembly coercion", async () => {
     const valid = {
-      measurementPoints: [[20, 0], [20_000, 0]],
-      targetPoints: [[20, 0], [20_000, 0]],
+      measurementPoints: [
+        [20, 0],
+        [20_000, 0],
+      ],
+      targetPoints: [
+        [20, 0],
+        [20_000, 0],
+      ],
       nBands: 1,
       steps: 1,
       smoothType: "none",
       fs: 96_000,
     };
 
-    await expect(invoke("run_autoeq", {})).rejects.toThrow("Invalid AutoEQ measurement points");
-    await expect(invoke("run_autoeq", { ...valid, targetPoints: undefined }))
-      .rejects.toThrow("Invalid AutoEQ target points");
+    await expect(invoke("run_autoeq", {})).rejects.toThrow(
+      "Invalid AutoEQ measurement points",
+    );
+    await expect(
+      invoke("run_autoeq", { ...valid, targetPoints: undefined }),
+    ).rejects.toThrow("Invalid AutoEQ target points");
     for (const bad of ["1", null, {}, 1.5, 0, -1]) {
-      await expect(invoke("run_autoeq", { ...valid, nBands: bad }))
-        .rejects.toThrow("Invalid AutoEQ band count");
-      await expect(invoke("run_autoeq", { ...valid, steps: bad }))
-        .rejects.toThrow("Invalid AutoEQ step count");
+      await expect(
+        invoke("run_autoeq", { ...valid, nBands: bad }),
+      ).rejects.toThrow("Invalid AutoEQ band count");
+      await expect(
+        invoke("run_autoeq", { ...valid, steps: bad }),
+      ).rejects.toThrow("Invalid AutoEQ step count");
     }
     for (const bad of ["96000", null, {}]) {
-      await expect(invoke("run_autoeq", { ...valid, fs: bad }))
-        .rejects.toThrow("Invalid AutoEQ sample rate");
+      await expect(invoke("run_autoeq", { ...valid, fs: bad })).rejects.toThrow(
+        "Invalid AutoEQ sample rate",
+      );
     }
 
     // Disconnected DAC: passes null for vendor_id and product_id
@@ -304,7 +403,11 @@ describe("browser connection cleanup", () => {
 
     // Connected DAC: passes device profile IDs
     const device = fakeHidDevice();
-    await connectWebHid(device, { ...profile, protocol: "Walkplay", controls: "walkplay" });
+    await connectWebHid(device, {
+      ...profile,
+      protocol: "Walkplay",
+      controls: "walkplay",
+    });
     await invoke("run_autoeq", valid);
     expect(wasm.run_autoeq).toHaveBeenCalledWith(
       valid.measurementPoints,
@@ -328,8 +431,9 @@ describe("browser connection cleanup", () => {
     await invoke("connect_device", { path: paths[1].path });
     // A superseded disconnect must report that it did nothing, or the caller
     // believes it released a device this context still holds.
-    await expect(invoke("disconnect_device", { expectedPath: paths[0].path }))
-      .rejects.toThrow(DISCONNECT_SUPERSEDED);
+    await expect(
+      invoke("disconnect_device", { expectedPath: paths[0].path }),
+    ).rejects.toThrow(DISCONNECT_SUPERSEDED);
     expect(second.close).not.toHaveBeenCalled();
     await invoke("disconnect_device", { expectedPath: paths[1].path });
     expect(second.close).toHaveBeenCalledOnce();
@@ -340,14 +444,20 @@ describe("browser connection cleanup", () => {
     wasm.list_supported_devices.mockReturnValue([profile]);
     hidMock.devices = [device];
     const listed = await invoke<Array<{ path: string }>>("list_devices");
-    const firstSession = await invoke<number>("connect_device", { path: listed[0].path });
-    const replacementSession = await invoke<number>("connect_device", { path: listed[0].path });
+    const firstSession = await invoke<number>("connect_device", {
+      path: listed[0].path,
+    });
+    const replacementSession = await invoke<number>("connect_device", {
+      path: listed[0].path,
+    });
     expect(replacementSession).not.toBe(firstSession);
 
-    await expect(invoke("disconnect_device", {
-      expectedPath: listed[0].path,
-      expectedSessionId: firstSession,
-    })).rejects.toThrow(DISCONNECT_SUPERSEDED);
+    await expect(
+      invoke("disconnect_device", {
+        expectedPath: listed[0].path,
+        expectedSessionId: firstSession,
+      }),
+    ).rejects.toThrow(DISCONNECT_SUPERSEDED);
     expect(device.close).not.toHaveBeenCalled();
 
     await invoke("disconnect_device", {
@@ -359,7 +469,7 @@ describe("browser connection cleanup", () => {
 
   it("releases local state and reports a transport close failure", async () => {
     const device = fakeHidDevice();
-    (device.close as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error("busy"));
+    device.close.mockRejectedValueOnce(new Error("busy"));
     wasm.list_supported_devices.mockReturnValue([profile]);
     hidMock.devices = [device];
     const paths = await invoke<Array<{ path: string }>>("list_devices");
@@ -375,34 +485,43 @@ describe("browser connection cleanup", () => {
     const first = fakeHidDevice();
     const second = fakeHidDevice();
     second.opened = false;
-    (second.open as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error("open failed"));
+    (second.open as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new Error("open failed"),
+    );
     wasm.list_supported_devices.mockReturnValue([profile]);
     hidMock.devices = [first, second];
     const paths = await invoke<Array<{ path: string }>>("list_devices");
     await invoke("connect_device", { path: paths[0].path });
-    await expect(invoke("connect_device", { path: paths[1].path })).rejects.toThrow("open failed");
+    await expect(
+      invoke("connect_device", { path: paths[1].path }),
+    ).rejects.toThrow("open failed");
     await expect(invoke("get_eq_state")).rejects.toThrow("No device connected");
   });
 
   it("closes the WebHID handle when a send failure disconnects a present device", async () => {
     const device = fakeHidDevice({ respondToReports: true });
     await connectWebHid(device, { ...profile, num_bands: 1 });
-    localStorageValues.set("glacier-eq-settings", JSON.stringify({ skip_push_verification: true }));
+    localStorageValues.set(
+      "glacier-eq-settings",
+      JSON.stringify({ skip_push_verification: true }),
+    );
     // Transient send failure while the device is still enumerated (e.g. a USB
     // glitch that recovers): the session ends, but the OS interface must be
     // released — afterwards nothing can close this handle again.
-    const respond = (device.sendReport as ReturnType<typeof vi.fn>).getMockImplementation()!;
-    (device.sendReport as ReturnType<typeof vi.fn>).mockImplementation(async (reportId: number, data: Uint8Array) => {
-      if (reportId === 1 && data[0] === 2) throw new Error("transfer failed");
-      return respond(reportId, data);
-    });
+    const respond = device.sendReport.getMockImplementation()!;
+    device.sendReport.mockImplementation(
+      async (reportId: number, data: Uint8Array) => {
+        if (reportId === 1 && data[0] === 2) throw new Error("transfer failed");
+        return respond(reportId, data);
+      },
+    );
     wasm.device_operation.mockImplementationOnce(async (_vid, _pid, io) => {
       await io.write(Uint8Array.of(1, 2));
     });
 
-    await expect(invoke("set_eq_state", { peq: peqWithBands(1) })).rejects.toThrow(
-      "transfer failed",
-    );
+    await expect(
+      invoke("set_eq_state", { peq: peqWithBands(1) }),
+    ).rejects.toThrow("transfer failed");
 
     expect(device.close).toHaveBeenCalledOnce();
     // A later disconnect is a no-op (activeDevice already null) — it must not
@@ -423,18 +542,25 @@ describe("browser connection cleanup", () => {
     const paths = await invoke<Array<{ path: string }>>("list_devices");
     await invoke("connect_device", { path: paths[0].path });
 
-    await invoke("disconnect_device", { expectedPath: paths[0].path, expectedSessionId: null });
+    await invoke("disconnect_device", {
+      expectedPath: paths[0].path,
+      expectedSessionId: null,
+    });
     expect(device.close).toHaveBeenCalledOnce();
 
     // A supplied session id that does not match is still fenced off.
     const other = fakeHidDevice();
     hidMock.devices = [other];
     const otherPaths = await invoke<Array<{ path: string }>>("list_devices");
-    const session = await invoke<number>("connect_device", { path: otherPaths[0].path });
-    await expect(invoke("disconnect_device", {
-      expectedPath: otherPaths[0].path,
-      expectedSessionId: session + 1,
-    })).rejects.toThrow(DISCONNECT_SUPERSEDED);
+    const session = await invoke<number>("connect_device", {
+      path: otherPaths[0].path,
+    });
+    await expect(
+      invoke("disconnect_device", {
+        expectedPath: otherPaths[0].path,
+        expectedSessionId: session + 1,
+      }),
+    ).rejects.toThrow(DISCONNECT_SUPERSEDED);
     expect(other.close).not.toHaveBeenCalled();
   });
 
@@ -444,35 +570,51 @@ describe("browser connection cleanup", () => {
     // settles, and open() rejects unless the device is already "closed".
     let releaseClose: (() => void) | null = null;
     let pendingCloses = 0;
-    (device.close as ReturnType<typeof vi.fn>).mockImplementation(async () => {
+    device.close.mockImplementation(async () => {
       if (pendingCloses++ === 0) {
-        await new Promise<void>((resolve) => { releaseClose = resolve; });
+        await new Promise<void>((resolve) => {
+          releaseClose = resolve;
+        });
       }
       device.opened = false;
     });
-    (device.open as ReturnType<typeof vi.fn>).mockImplementation(async () => {
+    device.open.mockImplementation(async () => {
       device.opened = true;
     });
     await connectWebHid(device, { ...profile, num_bands: 1 });
-    localStorageValues.set("glacier-eq-settings", JSON.stringify({ skip_push_verification: true }));
-    const respond = (device.sendReport as ReturnType<typeof vi.fn>).getMockImplementation()!;
-    (device.sendReport as ReturnType<typeof vi.fn>).mockImplementation(async (reportId: number, data: Uint8Array) => {
-      if (reportId === 1 && data[0] === 2) throw new Error("transfer failed");
-      return respond(reportId, data);
-    });
+    localStorageValues.set(
+      "glacier-eq-settings",
+      JSON.stringify({ skip_push_verification: true }),
+    );
+    const respond = device.sendReport.getMockImplementation()!;
+    device.sendReport.mockImplementation(
+      async (reportId: number, data: Uint8Array) => {
+        if (reportId === 1 && data[0] === 2) throw new Error("transfer failed");
+        return respond(reportId, data);
+      },
+    );
     wasm.device_operation.mockImplementationOnce(async (_vid, _pid, io) => {
       await io.write(Uint8Array.of(1, 2));
     });
 
-    await expect(invoke("set_eq_state", { peq: peqWithBands(1) })).rejects.toThrow(
-      "transfer failed",
-    );
+    await expect(
+      invoke("set_eq_state", { peq: peqWithBands(1) }),
+    ).rejects.toThrow("transfer failed");
     expect(device.close).toHaveBeenCalledOnce();
 
     const listed = await invoke<Array<{ path: string }>>("list_devices");
-    const reconnect = invoke<number>("connect_device", { path: listed[0].path });
+    const reconnect = invoke<number>("connect_device", {
+      path: listed[0].path,
+    });
     let settled = false;
-    void reconnect.then(() => { settled = true; }, () => { settled = true; });
+    void reconnect.then(
+      () => {
+        settled = true;
+      },
+      () => {
+        settled = true;
+      },
+    );
     await new Promise((resolve) => setTimeout(resolve, 0));
     // The browser is still releasing the interface from the failed send. The
     // reconnect must wait: reading the stale opened === true would skip open()
@@ -499,10 +641,12 @@ describe("connection edge cases", () => {
       { ...profile, vendor_id: 0x9999, product_id: null },
     ]);
     await requestWebHidDevice();
-    expect(hidMock.requestDevice).toHaveBeenCalledWith({ filters: [
-      { vendorId: profile.vendor_id, productId: 0 },
-      { vendorId: 0x9999, productId: undefined },
-    ] });
+    expect(hidMock.requestDevice).toHaveBeenCalledWith({
+      filters: [
+        { vendorId: profile.vendor_id, productId: 0 },
+        { vendorId: 0x9999, productId: undefined },
+      ],
+    });
   });
 
   it("does not publish a connection when unplugged during open", async () => {
@@ -516,47 +660,70 @@ describe("connection edge cases", () => {
     wasm.list_supported_devices.mockReturnValue([profile]);
     hidMock.devices = [device];
     const [listed] = await invoke<Array<{ path: string }>>("list_devices");
-    await expect(invoke("connect_device", { path: listed.path }))
-      .rejects.toThrow("Device disconnected while connecting");
+    await expect(
+      invoke("connect_device", { path: listed.path }),
+    ).rejects.toThrow("Device disconnected while connecting");
     expect(device.close).toHaveBeenCalledOnce();
     await expect(invoke("get_eq_state")).rejects.toThrow("No device connected");
 
     // An old disconnect epoch must not poison a subsequent explicit reconnect.
-    device.open = vi.fn(async () => { device.opened = true; });
-    await expect(invoke("connect_device", { path: listed.path })).resolves.toBeGreaterThan(0);
+    device.open = vi.fn(async () => {
+      device.opened = true;
+    });
+    await expect(
+      invoke("connect_device", { path: listed.path }),
+    ).resolves.toBeGreaterThan(0);
     await invoke("disconnect_device");
   });
 });
 
 describe("shared-session transport adapter", () => {
-  it.each([false, true])("retains Rust's consumed nonce when failure is %s", async failed => {
-    await connectWebHid(fakeHidDevice());
-    wasm.device_operation.mockImplementationOnce(async (_vid, _pid, io) => {
-      io.nonce = 79;
-      if (failed) throw new Error("read failed after retries");
-      return { globalGain: 1, filters: [] };
-    });
-    const first = invoke("get_eq_state");
-    if (failed) await expect(first).rejects.toThrow("read failed after retries");
-    else await first;
-    await invoke("get_eq_state");
-    const [, , io, , , seed] = wasm.device_operation.mock.calls.at(-1)!;
-    expect(seed).toBe(79);
-    expect(io.nonce).toBe(79);
-  });
+  it.each([false, true])(
+    "retains Rust's consumed nonce when failure is %s",
+    async (failed) => {
+      await connectWebHid(fakeHidDevice());
+      wasm.device_operation.mockImplementationOnce(async (_vid, _pid, io) => {
+        io.nonce = 79;
+        if (failed) throw new Error("read failed after retries");
+        return { globalGain: 1, filters: [] };
+      });
+      const first = invoke("get_eq_state");
+      if (failed)
+        await expect(first).rejects.toThrow("read failed after retries");
+      else await first;
+      await invoke("get_eq_state");
+      const [, , io, , , seed] = wasm.device_operation.mock.calls.at(-1)!;
+      expect(seed).toBe(79);
+      expect(io.nonce).toBe(79);
+    },
+  );
 
   it("passes the connected PID, command, settings and nonce to Rust", async () => {
     const device = fakeHidDevice();
     await connectWebHid(device, { ...profile, product_id: null });
-    localStorageValues.set("glacier-eq-settings", JSON.stringify({ skip_push_verification: true }));
-    wasm.device_operation.mockResolvedValueOnce({ globalGain: -2, filters: [], warnings: ["verified in Rust"] });
+    localStorageValues.set(
+      "glacier-eq-settings",
+      JSON.stringify({ skip_push_verification: true }),
+    );
+    wasm.device_operation.mockResolvedValueOnce({
+      globalGain: -2,
+      filters: [],
+      warnings: ["verified in Rust"],
+    });
     const peq = peqWithBands(1);
     await expect(invoke("set_eq_state", { peq })).resolves.toEqual({
-      globalGain: -2, filters: [], warnings: ["verified in Rust"],
+      globalGain: -2,
+      filters: [],
+      warnings: ["verified in Rust"],
     });
-    const [vid, pid, io, request, progress, nonce] = wasm.device_operation.mock.calls.at(-1)!;
+    const [vid, pid, io, request, progress, nonce] =
+      wasm.device_operation.mock.calls.at(-1)!;
     expect([vid, pid]).toEqual([device.vendorId, device.productId]);
-    expect(request).toEqual({ command: "set_eq_state", peq, skip_verification: true });
+    expect(request).toEqual({
+      command: "set_eq_state",
+      peq,
+      skip_verification: true,
+    });
     expect(typeof progress).toBe("function");
     expect(nonce).toBeGreaterThan(0);
     expect(typeof io.write).toBe("function");
@@ -583,20 +750,26 @@ describe("shared-session transport adapter", () => {
       expect(await io.read(1)).toEqual(Uint8Array.of(1, 1, 2, 3));
     });
     await invoke("get_eq_state");
-    expect(device.sendReport).toHaveBeenCalledWith(2, Uint8Array.of(0xbb, 0x0b));
+    expect(device.sendReport).toHaveBeenCalledWith(
+      2,
+      Uint8Array.of(0xbb, 0x0b),
+    );
   });
 });
 
 describe("browser profile matching", () => {
   it("returns null when WASM has no matching profile", async () => {
     wasm.match_profile_name.mockReturnValue(undefined);
-    await expect(invoke("match_profile_name", { peq: peqWithBands(1) })).resolves.toBeNull();
+    await expect(
+      invoke("match_profile_name", { peq: peqWithBands(1) }),
+    ).resolves.toBeNull();
   });
 
   it("preserves a matching profile name", async () => {
     wasm.match_profile_name.mockReturnValue("Saved profile");
-    await expect(invoke("match_profile_name", { peq: peqWithBands(1) }))
-      .resolves.toBe("Saved profile");
+    await expect(
+      invoke("match_profile_name", { peq: peqWithBands(1) }),
+    ).resolves.toBe("Saved profile");
   });
 });
 
@@ -604,7 +777,9 @@ describe("web settings parser", () => {
   it("defaults to Tokyo Night without replacing a saved theme", () => {
     expect(parseWebSettings({}).value.theme).toBe("tokyo-night");
     expect(parseWebSettings({ theme: "auto" }).value.theme).toBe("auto");
-    expect(parseWebSettings({ theme: "glacier-light" }).value.theme).toBe("glacier-light");
+    expect(parseWebSettings({ theme: "glacier-light" }).value.theme).toBe(
+      "glacier-light",
+    );
   });
 
   it("ignores wrong-shaped fields and never enables malformed verification skipping", () => {
@@ -642,14 +817,15 @@ describe("web settings parser", () => {
     });
 
     expect(parsed.malformed).toBe(false);
-    expect((parsed.value as Record<string, unknown>).theme).toBe("solarized-light");
+    expect(parsed.value.theme).toBe("solarized-light");
     expect(parsed.value.auto_pull_on_connect).toBe(false);
 
     // A theme of the wrong type is still corruption.
     expect(parseWebSettings({ theme: 7 }).malformed).toBe(true);
   });
 
-  it("preserves unknown settings keys without flagging corruption, like desktop's serde flatten", () => {    const parsed = parseWebSettings({
+  it("preserves unknown settings keys without flagging corruption, like desktop's serde flatten", () => {
+    const parsed = parseWebSettings({
       theme: "nord",
       future_setting_from_a_newer_build: { nested: [1, 2] },
     });
@@ -711,7 +887,9 @@ describe("web settings parser", () => {
       "glacier-eq-settings",
       JSON.stringify({ theme: "dracula", future_setting: 42 }),
     );
-    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const warnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
 
     const loaded = await invoke<Record<string, unknown>>("get_settings");
     expect(loaded.future_setting).toBe(42);
@@ -748,16 +926,25 @@ describe("web profile parser", () => {
     const parsed = parseWebProfiles([validProfile]);
 
     expect(parsed.malformed).toBe(false);
-    expect(parsed.value).toEqual([{
-      name: "Desk EQ",
-      modified: 123,
-      data: {
-        global_gain: -2,
-        filters: [
-          { index: 0, enabled: true, filter_type: "LowShelf", freq: 80, gain: -1.5, q: 0.7 },
-        ],
+    expect(parsed.value).toEqual([
+      {
+        name: "Desk EQ",
+        modified: 123,
+        data: {
+          global_gain: -2,
+          filters: [
+            {
+              index: 0,
+              enabled: true,
+              filter_type: "LowShelf",
+              freq: 80,
+              gain: -1.5,
+              q: 0.7,
+            },
+          ],
+        },
       },
-    }]);
+    ]);
   });
 
   it("retains valid entries while rejecting malformed profiles", () => {
@@ -769,8 +956,16 @@ describe("web profile parser", () => {
         filters: [{ ...validProfile.data.filters[0], gain: "loud" }],
       },
     };
-    const malformedModified = { ...validProfile, name: "No Date", modified: "today" };
-    const parsed = parseWebProfiles([malformedFilter, validProfile, malformedModified]);
+    const malformedModified = {
+      ...validProfile,
+      name: "No Date",
+      modified: "today",
+    };
+    const parsed = parseWebProfiles([
+      malformedFilter,
+      validProfile,
+      malformedModified,
+    ]);
 
     expect(parsed.malformed).toBe(true);
     expect(parsed.value.map((profile) => profile.name)).toEqual(["Desk EQ"]);
@@ -788,7 +983,10 @@ describe("web profile parser", () => {
       },
     };
 
-    expect(parseWebProfiles([oversized])).toEqual({ value: [], malformed: true });
+    expect(parseWebProfiles([oversized])).toEqual({
+      value: [],
+      malformed: true,
+    });
   });
 
   it("rejects a wrong-shaped profile collection", () => {
@@ -802,17 +1000,36 @@ describe("web profile parser", () => {
     // read_profile (profiles.rs) clamps every load to the storage envelope;
     // the web load path must clamp identically so a hand-edited or legacy
     // localStorage profile cannot smuggle out-of-envelope values past load.
-    localStorageValues.set("glacier-eq-profiles", JSON.stringify([{
-      name: "Wild",
-      modified: 1,
-      data: {
-        global_gain: 99,
-        filters: [
-          { index: 0, enabled: true, type: "PK", freq: 60_000, gain: -99, q: 50 },
-          { index: 1, enabled: true, type: "PK", freq: 5, gain: 99, q: 0.05 },
-        ],
-      },
-    }]));
+    localStorageValues.set(
+      "glacier-eq-profiles",
+      JSON.stringify([
+        {
+          name: "Wild",
+          modified: 1,
+          data: {
+            global_gain: 99,
+            filters: [
+              {
+                index: 0,
+                enabled: true,
+                type: "PK",
+                freq: 60_000,
+                gain: -99,
+                q: 50,
+              },
+              {
+                index: 1,
+                enabled: true,
+                type: "PK",
+                freq: 5,
+                gain: 99,
+                q: 0.05,
+              },
+            ],
+          },
+        },
+      ]),
+    );
 
     const parsed = parseWebProfiles(
       JSON.parse(localStorageValues.get("glacier-eq-profiles") ?? "[]"),
@@ -832,17 +1049,30 @@ describe("web profile parser", () => {
     // Devanagari vowel signs are Alphabetic but not \p{L}; Rust's
     // char::is_alphanumeric accepts them, so the web validator must too.
     const name = "का profile";
-    await invoke("save_profile", { name, peq: { filters: [], global_gain: 0 } });
+    await invoke("save_profile", {
+      name,
+      peq: { filters: [], global_gain: 0 },
+    });
 
-    const stored = JSON.parse(localStorageValues.get("glacier-eq-profiles") ?? "[]");
+    const stored = JSON.parse(
+      localStorageValues.get("glacier-eq-profiles") ?? "[]",
+    );
     expect(stored.map((entry: { name: string }) => entry.name)).toEqual([name]);
   });
 
   it("keeps the stored name on a case-only save, like ProfileStore::path", async () => {
-    await invoke("save_profile", { name: "Daily EQ", peq: { filters: [], global_gain: -1 } });
-    await invoke("save_profile", { name: "daily eq", peq: { filters: [], global_gain: -2 } });
+    await invoke("save_profile", {
+      name: "Daily EQ",
+      peq: { filters: [], global_gain: -1 },
+    });
+    await invoke("save_profile", {
+      name: "daily eq",
+      peq: { filters: [], global_gain: -2 },
+    });
 
-    const stored = JSON.parse(localStorageValues.get("glacier-eq-profiles") ?? "[]");
+    const stored = JSON.parse(
+      localStorageValues.get("glacier-eq-profiles") ?? "[]",
+    );
     expect(stored).toHaveLength(1);
     // The data is replaced, but the stored identity keeps its original casing
     // — the desktop store rewrites the existing file rather than renaming it.
@@ -851,9 +1081,16 @@ describe("web profile parser", () => {
   });
 
   it("renames a profile like ProfileStore::rename", async () => {
-    await invoke("save_profile", { name: "Daily EQ", peq: { filters: [], global_gain: -1 } });
-    await invoke("save_profile", { name: "Other", peq: { filters: [], global_gain: -3 } });
-    const stored = () => JSON.parse(localStorageValues.get("glacier-eq-profiles") ?? "[]");
+    await invoke("save_profile", {
+      name: "Daily EQ",
+      peq: { filters: [], global_gain: -1 },
+    });
+    await invoke("save_profile", {
+      name: "Other",
+      peq: { filters: [], global_gain: -3 },
+    });
+    const stored = () =>
+      JSON.parse(localStorageValues.get("glacier-eq-profiles") ?? "[]");
     const before = stored()[0];
 
     await invoke("rename_profile", { from: "daily eq", to: "Commute" });
@@ -862,10 +1099,19 @@ describe("web profile parser", () => {
     await invoke("rename_profile", { from: "Commute", to: "commute" });
     expect(stored()[0].name).toBe("commute");
 
-    await expect(invoke("rename_profile", { from: "commute", to: "OTHER" })).rejects.toThrow("already exists");
-    await expect(invoke("rename_profile", { from: "Missing", to: "New" })).rejects.toThrow("not found");
-    await expect(invoke("rename_profile", { from: "commute", to: "Default EQ" })).rejects.toThrow("invalid");
-    expect(stored().map((entry: { name: string }) => entry.name)).toEqual(["commute", "Other"]);
+    await expect(
+      invoke("rename_profile", { from: "commute", to: "OTHER" }),
+    ).rejects.toThrow("already exists");
+    await expect(
+      invoke("rename_profile", { from: "Missing", to: "New" }),
+    ).rejects.toThrow("not found");
+    await expect(
+      invoke("rename_profile", { from: "commute", to: "Default EQ" }),
+    ).rejects.toThrow("invalid");
+    expect(stored().map((entry: { name: string }) => entry.name)).toEqual([
+      "commute",
+      "Other",
+    ]);
   });
 });
 
@@ -879,7 +1125,9 @@ describe("WebHID device matching", () => {
     const ghost = { name: "Ghost", nope: 1 };
     wasm.list_supported_devices.mockReturnValue([ghost, profile]);
 
-    const listed = await invoke<Array<{ name: string }>>("list_supported_devices");
+    const listed = await invoke<SupportedDeviceInfo[]>(
+      "list_supported_devices",
+    );
 
     // One real device; the malformed entry contributes nothing.
     expect(listed.map((entry) => entry.name)).toEqual(["Test DAC"]);
@@ -906,10 +1154,18 @@ describe("WebHID device matching", () => {
 
     // Fallback listed first must not shadow the exact profile,
     // mirroring get_supported_device in glacier-core.
-    expect(matchSupportedWebHidDevice({ vendorId: 0x1234, productId: 0x5678 }, [fallback, exact]))
-      .toBe(exact);
-    expect(matchSupportedWebHidDevice({ vendorId: 0x1234, productId: 0x5678 }, [exact, fallback]))
-      .toBe(exact);
+    expect(
+      matchSupportedWebHidDevice({ vendorId: 0x1234, productId: 0x5678 }, [
+        fallback,
+        exact,
+      ]),
+    ).toBe(exact);
+    expect(
+      matchSupportedWebHidDevice({ vendorId: 0x1234, productId: 0x5678 }, [
+        exact,
+        fallback,
+      ]),
+    ).toBe(exact);
   });
 
   it("falls back to a vendor-level profile when no exact PID matches", () => {
@@ -919,9 +1175,14 @@ describe("WebHID device matching", () => {
       product_id: null,
     };
 
-    expect(matchSupportedWebHidDevice({ vendorId: 0x1234, productId: 0xabcd }, [fallback]))
-      .toBe(fallback);
-    expect(matchSupportedWebHidDevice({ vendorId: 0x1234, productId: 0xabcd }, [])).toBeUndefined();
+    expect(
+      matchSupportedWebHidDevice({ vendorId: 0x1234, productId: 0xabcd }, [
+        fallback,
+      ]),
+    ).toBe(fallback);
+    expect(
+      matchSupportedWebHidDevice({ vendorId: 0x1234, productId: 0xabcd }, []),
+    ).toBeUndefined();
   });
 });
 
@@ -965,25 +1226,32 @@ describe("openUrl", () => {
     ["https://example.com/a b"],
     ["https://example.com/a\nb"],
     ["https://example.com/a\u0007b"],
-  ])("refuses %s the way the desktop's validate_browser_url does", async (url) => {
-    const originalWindow = globalThis.window;
-    const openMock = vi.fn(() => ({ opener: globalThis }));
-    (globalThis as unknown as { window?: unknown }).window = { open: openMock };
+  ])(
+    "refuses %s the way the desktop's validate_browser_url does",
+    async (url) => {
+      const originalWindow = globalThis.window;
+      const openMock = vi.fn(() => ({ opener: globalThis }));
+      (globalThis as unknown as { window?: unknown }).window = {
+        open: openMock,
+      };
 
-    // The Tauri build routes open_url through validate_browser_url, which
-    // rejects every non-http(s) scheme and any control character or
-    // whitespace. window.open honours a javascript: URL in this origin, so
-    // without the same check the two adapters disagree about what may open.
-    await expect(openUrl(url)).rejects.toThrow(/^Refused: /);
-    expect(openMock).not.toHaveBeenCalled();
-    globalThis.window = originalWindow;
-  });
+      // The Tauri build routes open_url through validate_browser_url, which
+      // rejects every non-http(s) scheme and any control character or
+      // whitespace. window.open honours a javascript: URL in this origin, so
+      // without the same check the two adapters disagree about what may open.
+      await expect(openUrl(url)).rejects.toThrow(/^Refused: /);
+      expect(openMock).not.toHaveBeenCalled();
+      globalThis.window = originalWindow;
+    },
+  );
 });
 
 describe("storage quarantine", () => {
   it("signals when malformed saved settings are quarantined and where the backup went", async () => {
     localStorageValues.set("glacier-eq-settings", "{not json at all");
-    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const warnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
 
     await invoke("get_settings");
 
@@ -995,7 +1263,9 @@ describe("storage quarantine", () => {
     );
     expect(backup?.[1]).toBe("{not json at all");
     // The live key holds the safe fallback now, not the garbage.
-    expect(() => JSON.parse(localStorageValues.get("glacier-eq-settings") ?? "")).not.toThrow();
+    expect(() =>
+      JSON.parse(localStorageValues.get("glacier-eq-settings") ?? ""),
+    ).not.toThrow();
     // The diagnostic the fix emits must survive the parser contract:
     // source "Storage" is in the DiagnosticEvent union, so both the live
     // event consumer and get_diagnostics history keep working afterwards.
@@ -1003,7 +1273,8 @@ describe("storage quarantine", () => {
     const events = parseDiagnosticHistory(history);
     expect(
       events.some(
-        (event) => event.source === "Storage" && event.message.includes("backed up"),
+        (event) =>
+          event.source === "Storage" && event.message.includes("backed up"),
       ),
     ).toBe(true);
     warnSpy.mockRestore();
@@ -1011,7 +1282,9 @@ describe("storage quarantine", () => {
 
   it("signals when the quarantine backup itself cannot be written", async () => {
     localStorageValues.set("glacier-eq-profiles", "{not json at all");
-    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const warnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
     localStorageMock.setItem.mockImplementationOnce(() => {
       throw new DOMException("Quota exceeded", "QuotaExceededError");
     });
@@ -1021,9 +1294,13 @@ describe("storage quarantine", () => {
     // Without this signal the malformed original silently stays behind and
     // every later load re-quarantines and fails the same way, with defaults
     // mysteriously winning over "saved" data.
-    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("could not be replaced"));
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("could not be replaced"),
+    );
     // The failed backup lost nothing: the original is still there.
-    expect(localStorageValues.get("glacier-eq-profiles")).toBe("{not json at all");
+    expect(localStorageValues.get("glacier-eq-profiles")).toBe(
+      "{not json at all",
+    );
     // The structured event matters more than the console line: the console
     // call is a dev-side duplicate, and the sibling success-path test above
     // already asserts this one. Deleting addDiagnostic here left all tests
@@ -1031,7 +1308,9 @@ describe("storage quarantine", () => {
     const failureHistory = await invoke<unknown[]>("get_diagnostics");
     expect(
       parseDiagnosticHistory(failureHistory).some(
-        (event) => event.source === "Storage" && event.message.includes("could not be replaced"),
+        (event) =>
+          event.source === "Storage" &&
+          event.message.includes("could not be replaced"),
       ),
     ).toBe(true);
     warnSpy.mockRestore();
@@ -1039,11 +1318,14 @@ describe("storage quarantine", () => {
 });
 
 describe("theme settings parity", () => {
-  it.each(themeOptions(true))("preserves the UI theme $value in web settings", ({ value }) => {
-    const parsed = parseWebSettings({ theme: value });
-    expect(parsed.malformed).toBe(false);
-    expect(parsed.value.theme).toBe(value);
-  });
+  it.each(themeOptions(true))(
+    "preserves the UI theme $value in web settings",
+    ({ value }) => {
+      const parsed = parseWebSettings({ theme: value });
+      expect(parsed.malformed).toBe(false);
+      expect(parsed.value.theme).toBe(value);
+    },
+  );
 });
 
 describe("add_diagnostic_event command boundary", () => {
@@ -1053,13 +1335,25 @@ describe("add_diagnostic_event command boundary", () => {
     // An invalid event reaching the store would later make
     // parseDiagnosticHistory throw and blank the whole history view.
     await expect(
-      invoke("add_diagnostic_event", { level: "Info", source: "Bogus", message: "x" }),
+      invoke("add_diagnostic_event", {
+        level: "Info",
+        source: "Bogus",
+        message: "x",
+      }),
     ).rejects.toThrow("Invalid diagnostic event payload");
     await expect(
-      invoke("add_diagnostic_event", { level: "Severe", source: "UI", message: "x" }),
+      invoke("add_diagnostic_event", {
+        level: "Severe",
+        source: "UI",
+        message: "x",
+      }),
     ).rejects.toThrow("Invalid diagnostic event payload");
     await expect(
-      invoke("add_diagnostic_event", { level: "Info", source: "UI", message: 42 }),
+      invoke("add_diagnostic_event", {
+        level: "Info",
+        source: "UI",
+        message: 42,
+      }),
     ).rejects.toThrow("Invalid diagnostic event payload");
 
     expect((await invoke<unknown[]>("get_diagnostics")).length).toBe(before);
@@ -1118,7 +1412,10 @@ describe("save_text_file command boundary", () => {
       invoke("save_text_file", { path: "export/profile.txt", content: 42 }),
     ).rejects.toThrow("Invalid text export content");
     await expect(
-      invoke("save_text_file", { path: "export/profile.txt", content: { a: 1 } }),
+      invoke("save_text_file", {
+        path: "export/profile.txt",
+        content: { a: 1 },
+      }),
     ).rejects.toThrow("Invalid text export content");
     await expect(
       invoke("save_text_file", { path: "export/profile.txt", content: ["x"] }),
@@ -1153,17 +1450,25 @@ describe("supported device parsing", () => {
     // Number() turned "absent" into "present and NaN" — and `??` never fires
     // on NaN, so the out-of-range band check silently stopped rejecting
     // anything, because `x < range[0] - NaN` is false.
-    const { gain_tolerance, freq_tolerance, q_tolerance, dsp_sample_rate } = profile;
+    const { gain_tolerance, freq_tolerance, q_tolerance, dsp_sample_rate } =
+      profile;
     wasm.list_supported_devices.mockReturnValue([
-      { ...profile, gain_tolerance: undefined, freq_tolerance: undefined, q_tolerance: undefined },
+      {
+        ...profile,
+        gain_tolerance: undefined,
+        freq_tolerance: undefined,
+        q_tolerance: undefined,
+      },
     ]);
 
-    const [entry] = await invoke<Array<{
-      gain_tolerance?: number;
-      freq_tolerance?: number;
-      q_tolerance?: number;
-      dsp_sample_rate: number;
-    }>>("list_supported_devices");
+    const [entry] = await invoke<
+      Array<{
+        gain_tolerance?: number;
+        freq_tolerance?: number;
+        q_tolerance?: number;
+        dsp_sample_rate: number;
+      }>
+    >("list_supported_devices");
 
     expect(entry.gain_tolerance).toBeUndefined();
     expect(entry.freq_tolerance).toBeUndefined();
@@ -1174,7 +1479,13 @@ describe("supported device parsing", () => {
     expect(Number.isNaN(entry.dsp_sample_rate)).toBe(false);
 
     wasm.list_supported_devices.mockReturnValue([
-      { ...profile, dsp_sample_rate: undefined, gain_tolerance, freq_tolerance, q_tolerance },
+      {
+        ...profile,
+        dsp_sample_rate: undefined,
+        gain_tolerance,
+        freq_tolerance,
+        q_tolerance,
+      },
     ]);
     expect(await invoke("list_supported_devices")).toEqual([]);
   });

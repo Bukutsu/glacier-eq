@@ -58,17 +58,22 @@ describe("revertFieldIfCurrent", () => {
   const optimistic = { filter: "new", gain: true };
 
   it("reverts only the failed field at the current revision", () => {
-    expect(revertFieldIfCurrent(optimistic, confirmed, "filter", 2, 2))
-      .toEqual({ filter: "old", gain: true });
+    expect(revertFieldIfCurrent(optimistic, confirmed, "filter", 2, 2)).toEqual(
+      { filter: "old", gain: true },
+    );
   });
 
   it("keeps a newer edit to the same field", () => {
-    expect(revertFieldIfCurrent(optimistic, confirmed, "filter", 1, 2))
-      .toBe(optimistic);
+    expect(revertFieldIfCurrent(optimistic, confirmed, "filter", 1, 2)).toBe(
+      optimistic,
+    );
   });
 
   it("applies optimistic fields without changing the input", () => {
-    expect(setField(confirmed, "gain", true)).toEqual({ filter: "old", gain: true });
+    expect(setField(confirmed, "gain", true)).toEqual({
+      filter: "old",
+      gain: true,
+    });
     expect(confirmed.gain).toBe(false);
   });
 });

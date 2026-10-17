@@ -5,7 +5,9 @@ import { Button } from "./Button";
 
 describe("Button", () => {
   it("defaults to a button that cannot submit a surrounding form", () => {
-    const html = renderToStaticMarkup(createElement(Button, null, "Connect DAC"));
+    const html = renderToStaticMarkup(
+      createElement(Button, null, "Connect DAC"),
+    );
     expect(html).toContain('type="button"');
     expect(html).toContain('data-slot="button"');
     expect(html).toContain('data-variant="default"');
@@ -13,27 +15,38 @@ describe("Button", () => {
   });
 
   it("preserves submit behavior when explicitly requested", () => {
-    const html = renderToStaticMarkup(createElement(Button, { type: "submit" }, "Save"));
+    const html = renderToStaticMarkup(
+      createElement(Button, { type: "submit" }, "Save"),
+    );
     expect(html).toContain('type="submit"');
   });
 
   it("uses the semantic theme pairing for a primary action", () => {
-    const html = renderToStaticMarkup(createElement(Button, { variant: "primary" }, "Write to DAC"));
+    const html = renderToStaticMarkup(
+      createElement(Button, { variant: "primary" }, "Write to DAC"),
+    );
     expect(html).toContain('data-variant="primary"');
     expect(html).toContain("bg-primary text-primary-foreground");
     expect(html).not.toContain("text-white");
   });
 
   it("keeps destructive actions distinct without borrowing plot colors", () => {
-    const html = renderToStaticMarkup(createElement(Button, { variant: "danger" }, "Factory reset"));
+    const html = renderToStaticMarkup(
+      createElement(Button, { variant: "danger" }, "Factory reset"),
+    );
     expect(html).toContain('data-variant="danger"');
     expect(html).toContain("text-destructive-foreground");
   });
 
   it("retains native disabled state and accessible icon labels", () => {
-    const html = renderToStaticMarkup(createElement(Button, {
-      variant: "ghost", size: "icon", disabled: true, "aria-label": "Undo",
-    }));
+    const html = renderToStaticMarkup(
+      createElement(Button, {
+        variant: "ghost",
+        size: "icon",
+        disabled: true,
+        "aria-label": "Undo",
+      }),
+    );
     expect(html).toContain('disabled=""');
     expect(html).toContain('aria-label="Undo"');
     expect(html).toContain('data-variant="ghost"');

@@ -7,13 +7,21 @@ import { useToastStore } from "./toastStore";
 describe("toastStore", () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    useToastStore.getState().toasts.forEach(toast => useToastStore.getState().removeToast(toast.id));
+    useToastStore
+      .getState()
+      .toasts.forEach((toast) =>
+        useToastStore.getState().removeToast(toast.id),
+      );
     useToastStore.setState({ toasts: [], status: "Ready" });
     useToastStore.getState().setDiagnosticSink(null);
   });
 
   afterEach(() => {
-    useToastStore.getState().toasts.forEach(toast => useToastStore.getState().removeToast(toast.id));
+    useToastStore
+      .getState()
+      .toasts.forEach((toast) =>
+        useToastStore.getState().removeToast(toast.id),
+      );
     vi.useRealTimers();
   });
 
@@ -23,7 +31,9 @@ describe("toastStore", () => {
       seen.push({ message, type });
     });
 
-    useToastStore.getState().addToast("Curve cache recovery failed: boom", "error");
+    useToastStore
+      .getState()
+      .addToast("Curve cache recovery failed: boom", "error");
     expect(seen).toEqual([
       { message: "Curve cache recovery failed: boom", type: "error" },
     ]);
@@ -34,7 +44,9 @@ describe("toastStore", () => {
     expect(seen).toHaveLength(1);
 
     // A deduplicated repeat must not report twice.
-    useToastStore.getState().addToast("Curve cache recovery failed: boom", "error");
+    useToastStore
+      .getState()
+      .addToast("Curve cache recovery failed: boom", "error");
     expect(seen).toHaveLength(1);
 
     useToastStore.getState().setDiagnosticSink(null);
@@ -80,9 +92,9 @@ describe("toastStore", () => {
     add("First update");
     add("Second update");
     add("Profile saved");
-    expect(useToastStore.getState().toasts.map(toast => toast.message)).toEqual([
-      "Could not save settings", "Profile saved",
-    ]);
+    expect(
+      useToastStore.getState().toasts.map((toast) => toast.message),
+    ).toEqual(["Could not save settings", "Profile saved"]);
     expect(sink).toHaveBeenCalledTimes(4);
     expect(vi.getTimerCount()).toBe(2);
   });
@@ -91,7 +103,9 @@ describe("toastStore", () => {
     useToastStore.getState().addToast("Save failed", "error");
     useToastStore.getState().addToast("Profile saved");
     vi.advanceTimersByTime(4000);
-    expect(useToastStore.getState().toasts.map(toast => toast.type)).toEqual(["error"]);
+    expect(useToastStore.getState().toasts.map((toast) => toast.type)).toEqual([
+      "error",
+    ]);
     vi.advanceTimersByTime(4000);
     expect(useToastStore.getState().toasts).toHaveLength(0);
   });
@@ -138,7 +152,10 @@ describe("toastStore", () => {
     expect(useToastStore.getState().toasts).toHaveLength(1);
     vi.advanceTimersByTime(1);
     expect(useToastStore.getState().toasts).toHaveLength(0);
-    expect(sink).toHaveBeenCalledExactlyOnceWith("Could not read from DAC", "error");
+    expect(sink).toHaveBeenCalledExactlyOnceWith(
+      "Could not read from DAC",
+      "error",
+    );
     expect(vi.getTimerCount()).toBe(0);
   });
 
@@ -162,13 +179,20 @@ describe("toastStore", () => {
     const sink = vi.fn();
     useToastStore.getState().setDiagnosticSink(sink);
     for (const message of [
-      "Generating EQ…", "EQ generated", "Profile saved", "Profile deleted",
-      "Copied EQ to clipboard", "Export cancelled.", "Loaded measurement: Headphone",
+      "Generating EQ…",
+      "EQ generated",
+      "Profile saved",
+      "Profile deleted",
+      "Copied EQ to clipboard",
+      "Export cancelled.",
+      "Loaded measurement: Headphone",
     ]) {
       useToastStore.getState().setStatus(message);
     }
     expect(useToastStore.getState().toasts).toHaveLength(0);
-    expect(useToastStore.getState().status).toBe("Loaded measurement: Headphone");
+    expect(useToastStore.getState().status).toBe(
+      "Loaded measurement: Headphone",
+    );
     expect(sink).toHaveBeenCalledTimes(7);
     expect(vi.getTimerCount()).toBe(0);
   });
@@ -177,12 +201,19 @@ describe("toastStore", () => {
     useToastStore.getState().setStatus("Could not save profile");
     expect(useToastStore.getState().toasts[0].type).toBe("error");
     useToastStore.getState().setStatus("Saved EQ to DAC", "success");
-    expect(useToastStore.getState().toasts.map(toast => toast.type)).toEqual(["error", "success"]);
+    expect(useToastStore.getState().toasts.map((toast) => toast.type)).toEqual([
+      "error",
+      "success",
+    ]);
   });
 
   it("keeps validation guidance visible when requested explicitly", () => {
-    useToastStore.getState().setStatus("Enter a profile name before saving.", "info");
-    expect(useToastStore.getState().toasts[0].message).toBe("Enter a profile name before saving.");
+    useToastStore
+      .getState()
+      .setStatus("Enter a profile name before saving.", "info");
+    expect(useToastStore.getState().toasts[0].message).toBe(
+      "Enter a profile name before saving.",
+    );
   });
 
   it("removes toast by id", () => {

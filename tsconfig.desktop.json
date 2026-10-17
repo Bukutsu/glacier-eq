@@ -2,6 +2,7 @@
   "extends": "./tsconfig.json",
   "exclude": [
     "src/**/*.test.ts",
+    "src/**/*.test-support.ts",
     "src/lib/backend/web.ts",
     "src/lib/backend/web.test.ts",
     "src/lib/backend/wasm.ts"

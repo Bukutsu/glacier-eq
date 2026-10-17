@@ -1,7 +1,8 @@
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
-export type CommandArgs = Record<string, unknown> | number[] | ArrayBuffer | Uint8Array;
+export type CommandArgs =
+  Record<string, unknown> | number[] | ArrayBuffer | Uint8Array;
 
 type FileDialogOptions = {
   defaultPath?: string;
@@ -23,9 +24,13 @@ export async function emit(event: string, payload?: unknown): Promise<void> {
   return tauriEmit(event, payload);
 }
 
-export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+export const sleep = (ms: number) =>
+  new Promise((resolve) => setTimeout(resolve, ms));
 
-export async function invoke<T = unknown>(cmd: string, args?: CommandArgs): Promise<T> {
+export async function invoke<T = unknown>(
+  cmd: string,
+  args?: CommandArgs,
+): Promise<T> {
   const { invoke: tauriInvoke } = await import("@tauri-apps/api/core");
   if (cmd === "save_text_file") {
     const dialogRequest = parseSaveTextDialogRequest(args);
@@ -39,10 +44,18 @@ export async function invoke<T = unknown>(cmd: string, args?: CommandArgs): Prom
 function parseSaveTextDialogRequest(
   args: unknown,
 ): { content: string; defaultName: string } | null {
-  if (typeof args !== "object" || args === null || !("path" in args) || !("content" in args)) {
+  if (
+    typeof args !== "object" ||
+    args === null ||
+    !("path" in args) ||
+    !("content" in args)
+  ) {
     return null;
   }
-  if (typeof args.path !== "string" || !args.path.startsWith(SAVE_TEXT_DIALOG_TOKEN)) {
+  if (
+    typeof args.path !== "string" ||
+    !args.path.startsWith(SAVE_TEXT_DIALOG_TOKEN)
+  ) {
     return null;
   }
   if (typeof args.content !== "string") {
@@ -63,21 +76,27 @@ export async function requestWebHidDevice(): Promise<void> {
 }
 
 export async function readText(): Promise<string> {
-  const { readText: tauriReadText } = await import("@tauri-apps/plugin-clipboard-manager");
+  const { readText: tauriReadText } =
+    await import("@tauri-apps/plugin-clipboard-manager");
   return tauriReadText();
 }
 
 export async function writeText(text: string): Promise<void> {
-  const { writeText: tauriWriteText } = await import("@tauri-apps/plugin-clipboard-manager");
+  const { writeText: tauriWriteText } =
+    await import("@tauri-apps/plugin-clipboard-manager");
   return tauriWriteText(text);
 }
 
-export async function save(options?: FileDialogOptions): Promise<string | null> {
+export async function save(
+  options?: FileDialogOptions,
+): Promise<string | null> {
   const defaultName = options?.defaultPath || "profile.txt";
   return `${SAVE_TEXT_DIALOG_TOKEN}${encodeURIComponent(defaultName)}`;
 }
 
-function parseOpenedTextFile(value: unknown): { text: string; name: string } | null {
+function parseOpenedTextFile(
+  value: unknown,
+): { text: string; name: string } | null {
   if (value === null) return null;
   if (
     typeof value !== "object" ||
@@ -100,5 +119,3 @@ export async function openFileDialog(_options?: {
 export async function openUrl(url: string): Promise<void> {
   return invoke("open_url", { url });
 }
-
-

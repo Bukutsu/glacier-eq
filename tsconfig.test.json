@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.web.json",
+  "compilerOptions": {
+    "types": ["node", "vitest/globals", "vite/client", "w3c-web-hid"],
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "lib": ["ES2023", "DOM", "DOM.Iterable"]
+  },
+  "include": ["src", "glacier-core/tests/wasm/**/*.ts"],
+  "exclude": []
+}

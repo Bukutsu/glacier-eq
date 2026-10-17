@@ -481,7 +481,7 @@ mod tests {
     fn known_themes_match_settings_ui_options() {
         // Read the actual UI options, not a second hardcoded expected list.
         // If themeOptions stops using literal values, update this extraction.
-        let source = include_str!("../../src/lib/theme.ts");
+        let source = include_str!("../../src/features/settings/lib/theme.ts");
         let mut ui_themes: Vec<&str> = source
             .split("value: \"")
             .skip(1)
