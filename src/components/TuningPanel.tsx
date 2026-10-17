@@ -111,6 +111,12 @@ export function AutoEqTab(props: AutoEqTabProps) {
               onChange={value => { invalidateRequest(); setNBands(value); }}
               className="tuning-bands" />
           </div>
+          {nBands <= 5 && (
+            <div id="tuning-band-warning" className="tuning-warnings" role="note">
+              <strong>Limited-band AutoEQ</strong>
+              <p>With five or fewer bands, AutoEQ may produce a poor fit or large, opposing corrections. Review the predicted response and filter gains before writing to the DAC.</p>
+            </div>
+          )}
           <div className="tuning-smoothing">
             <span id="tuning-smoothing-label">Treble smoothing</span>
             <div className="tuning-segmented" role="group" aria-labelledby="tuning-smoothing-label">
@@ -153,7 +159,7 @@ export function AutoEqTab(props: AutoEqTabProps) {
 
         <div className="tuning-submit">
           <Button type="submit" variant="primary" className="tuning-generate w-full min-h-11"
-            aria-describedby="tuning-destination" disabled={isOptimizing || !meas || !target}>
+            aria-describedby={nBands <= 5 ? "tuning-destination tuning-band-warning" : "tuning-destination"} disabled={isOptimizing || !meas || !target}>
             {isOptimizing && <Icon name="hourglass_empty" />}
             {isOptimizing ? "Generating EQ…" : "Generate EQ"}
           </Button>

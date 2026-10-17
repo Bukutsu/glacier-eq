@@ -1657,6 +1657,15 @@ const AUTOEQ_FILTER_TYPES: &[FilterType] = &[
     FilterType::HighShelf,
 ];
 
+struct FittedEq {
+    types: Vec<FilterType>,
+    f0: Vec<f32>,
+    gain: Vec<f32>,
+    q_vals: Vec<f32>,
+    amp: Option<f32>,
+    loss: f32,
+}
+
 pub fn run_autoeq(
     measurement_points: &[(f64, f64)],
     target_points: &[(f64, f64)],
@@ -1747,17 +1756,6 @@ pub fn run_autoeq(
         types[1] = FilterType::HighShelf;
     }
 
-    let mut f0 = vec![1000.0; n_bands];
-    for n in 0..n_bands {
-        if types[n] == crate::eq::FilterType::LowShelf {
-            f0[n] = 80.0;
-        } else if types[n] == crate::eq::FilterType::HighShelf {
-            f0[n] = 10000.0;
-        }
-    }
-    let mut gain = vec![0.0; n_bands];
-    let mut q_vals = vec![1.0; n_bands];
-
     // Intersect the generic optimizer bounds with the device ranges. When a
     // device range does not overlap the default, the device range wins: the
     // result must always be something the DAC can reproduce.
@@ -1787,40 +1785,96 @@ pub fn run_autoeq(
     if cap_f_lo > cap_f_hi {
         return Err("AutoEQ frequency capabilities exceed the sample-rate domain".into());
     }
-    let mut f0_lim = vec![intersect(20.0, 16000.0, cap_f_lo, cap_f_hi); n_bands];
-    let gain_lim = vec![intersect(-16.0, 16.0, cap_gain_lo, cap_gain_hi); n_bands];
-    let mut q_lim = vec![intersect(0.4, 4.0, cap_q_lo, cap_q_hi); n_bands];
 
-    for n in 0..n_bands {
-        if types[n] == crate::eq::FilterType::LowShelf {
-            f0_lim[n] = intersect(20.0, 500.0, cap_f_lo, cap_f_hi);
-            q_lim[n] = intersect(0.4, 3.0, cap_q_lo, cap_q_hi);
-        } else if types[n] == crate::eq::FilterType::HighShelf {
-            f0_lim[n] = intersect(3000.0, 20000.0, cap_f_lo, cap_f_hi);
-            q_lim[n] = intersect(0.4, 3.0, cap_q_lo, cap_q_hi);
+    // Upstream AutoEq explicitly supports five filters: one low shelf + four
+    // peaks, with its 5+5 legacy export fitting a second stage to the residual.
+    // Compare layouts instead of reserving two scarce bands for shelves.
+    // Reference (protocol/data independent; no copied optimizer code):
+    // https://github.com/jaakkopasanen/AutoEq/blob/7ae0f56d53074872b028649617a22bbb4232feb7/autoeq/constants.py#L115-L134
+    // Upstream defaults shelf Q to 0.4..0.7 to avoid resonant shelves:
+    // https://github.com/jaakkopasanen/AutoEq/blob/7ae0f56d53074872b028649617a22bbb4232feb7/autoeq/constants.py#L54-L55
+    let low_band = n_bands <= 5;
+    let fit_layout = |types: Vec<FilterType>| {
+        let mut f0_lim = vec![intersect(20.0, 16000.0, cap_f_lo, cap_f_hi); n_bands];
+        let gain_lim = vec![intersect(-16.0, 16.0, cap_gain_lo, cap_gain_hi); n_bands];
+        let mut q_lim = vec![intersect(0.4, 4.0, cap_q_lo, cap_q_hi); n_bands];
+        for n in 0..n_bands {
+            match types[n] {
+                FilterType::LowShelf => {
+                    f0_lim[n] = intersect(20.0, 500.0, cap_f_lo, cap_f_hi);
+                    q_lim[n] = intersect(0.4, if low_band { 0.7 } else { 3.0 }, cap_q_lo, cap_q_hi);
+                }
+                FilterType::HighShelf => {
+                    f0_lim[n] = intersect(3000.0, 20000.0, cap_f_lo, cap_f_hi);
+                    q_lim[n] = intersect(0.4, if low_band { 0.7 } else { 3.0 }, cap_q_lo, cap_q_hi);
+                }
+                _ => {}
+            }
+        }
+        let mut f0 = vec![1000.0; n_bands];
+        let mut gain = vec![0.0; n_bands];
+        let mut q_vals = vec![1.0; n_bands];
+        let mut amp = Some(0.0);
+        let loss = run_autoeq_optimization(
+            steps,
+            &types,
+            &mut f0,
+            &mut gain,
+            &mut q_vals,
+            &mut amp,
+            &f0_lim,
+            &gain_lim,
+            &q_lim,
+            n_bands,
+            &f,
+            &r,
+            fs,
+        );
+        FittedEq {
+            types,
+            f0,
+            gain,
+            q_vals,
+            amp,
+            loss,
+        }
+    };
+    let mut best = fit_layout(types.clone());
+    if low_band && supports(FilterType::Peak) {
+        let mut layouts = vec![types];
+        for shelf in [
+            Some(FilterType::LowShelf),
+            Some(FilterType::HighShelf),
+            None,
+        ] {
+            if shelf.is_some_and(|kind| !supports(kind)) {
+                continue;
+            }
+            let mut candidate = vec![FilterType::Peak; n_bands];
+            if let Some(kind) = shelf {
+                candidate[0] = kind;
+            }
+            if layouts.contains(&candidate) {
+                continue;
+            }
+            layouts.push(candidate.clone());
+            let fitted = fit_layout(candidate);
+            if fitted.loss.is_finite() && (!best.loss.is_finite() || fitted.loss < best.loss) {
+                best = fitted;
+            }
         }
     }
-
-    let mut amp = Some(0.0);
-
-    let best_loss = run_autoeq_optimization(
-        steps,
-        &types,
-        &mut f0,
-        &mut gain,
-        &mut q_vals,
-        &mut amp,
-        &f0_lim,
-        &gain_lim,
-        &q_lim,
-        n_bands,
-        &f,
-        &r,
-        fs,
-    );
-    if !best_loss.is_finite() {
+    if !best.loss.is_finite() {
         return Err("AutoEQ optimization produced a non-finite loss".into());
     }
+    let FittedEq {
+        types,
+        f0,
+        gain,
+        q_vals,
+        amp,
+        ..
+    } = best;
 
     let mut filters = Vec::with_capacity(n_bands);
     for i in 0..n_bands {
@@ -2315,6 +2369,168 @@ mod tests {
             freq_tolerance: 1,
             q_tolerance: 0.05,
             integer_preamp: false,
+        }
+    }
+
+    type TestBand = (FilterType, f32, f32, f32);
+
+    fn low_band_cases() -> Vec<(&'static str, Vec<TestBand>)> {
+        vec![
+            (
+                "bass_and_mids",
+                vec![
+                    (FilterType::LowShelf, 100.0, 6.0, 0.7),
+                    (FilterType::Peak, 650.0, -5.0, 1.0),
+                    (FilterType::Peak, 2500.0, 4.0, 1.0),
+                    (FilterType::HighShelf, 8000.0, -3.0, 0.7),
+                ],
+            ),
+            (
+                "treble_transition",
+                vec![
+                    (FilterType::LowShelf, 100.0, 4.0, 0.7),
+                    (FilterType::Peak, 3500.0, 8.0, 1.0),
+                    (FilterType::HighShelf, 10000.0, -8.0, 0.7),
+                ],
+            ),
+            (
+                "separated_peaks",
+                vec![
+                    (FilterType::Peak, 80.0, 5.0, 1.0),
+                    (FilterType::Peak, 350.0, -4.0, 1.0),
+                    (FilterType::Peak, 1400.0, 4.0, 1.0),
+                    (FilterType::Peak, 5000.0, -6.0, 1.0),
+                ],
+            ),
+        ]
+    }
+
+    fn shape_mse(peq: &PEQData, f: &[f32; K], target: &[f32; K], fs: f32) -> f32 {
+        let mut actual = [0.0; K];
+        for filter in &peq.filters {
+            spectrum_values(
+                filter.filter_type,
+                filter.freq as f32,
+                filter.gain as f32,
+                filter.q as f32,
+                fs,
+                f,
+                &mut actual,
+            );
+        }
+        // Headroom is a separate safety invariant, not a tonal-fit error.
+        let offset = actual.iter().zip(target).map(|(a, t)| a - t).sum::<f32>() / K as f32;
+        actual
+            .iter()
+            .zip(target)
+            .map(|(a, t)| (a - t - offset).powi(2))
+            .sum::<f32>()
+            / K as f32
+    }
+
+    #[test]
+    fn low_band_fit_quality() {
+        let fs = 48000.0;
+        let f = generate_log_spaced_freqs();
+        for (name, bands) in low_band_cases() {
+            let mut desired = [0.0; K];
+            for (kind, freq, gain, q) in bands {
+                spectrum_values(kind, freq, gain, q, fs, &f, &mut desired);
+            }
+            let measurement: Vec<_> = f.iter().map(|&freq| (freq as f64, 0.0)).collect();
+            let target: Vec<_> = f
+                .iter()
+                .zip(desired)
+                .map(|(&freq, db)| (freq as f64, db as f64))
+                .collect();
+            for n in [3, 5] {
+                let peq = run_autoeq(&measurement, &target, n, 1000, "none", fs, None).unwrap();
+                let mse = shape_mse(&peq, &f, &desired, fs);
+                // Captured before changing allocation/shelf Q at 1000 steps:
+                // bass/mids: 0.261 / 0.00649, treble: 0.0553 / 0.0556,
+                // separated peaks: 1.5835 / 0.5174 (three / five bands).
+                // Layout search is not guaranteed to beat every old fit. It
+                // must keep broad fits useful and fix wasted-band examples.
+                let limit = match (name, n) {
+                    ("bass_and_mids", 3) => 0.35,
+                    ("bass_and_mids", 5) => 0.05,
+                    ("treble_transition", _) => 0.05,
+                    ("separated_peaks", 3) => 0.85,
+                    ("separated_peaks", 5) => 0.01,
+                    _ => unreachable!(),
+                };
+                assert!(mse < limit, "{name}, {n} bands: MSE {mse}");
+                assert_eq!(peq.filters.len(), n);
+                assert!(
+                    peq.global_gain + max_autoeq_response(&peq.filters, fs).unwrap() as f64 <= 1e-4
+                );
+                for filter in &peq.filters {
+                    if filter.filter_type != FilterType::Peak {
+                        assert!(filter.q <= 0.7001, "{name}: resonant shelf {filter:?}");
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn low_band_layout_search_respects_device_types_bounds_and_is_deterministic() {
+        let (measurement, target) = hump_case();
+        for profile in [
+            crate::device::get_supported_device(0x2972, 0x0102).unwrap(),
+            crate::device::get_supported_device(0x2972, 0x0101).unwrap(),
+        ] {
+            for n in 1..=5 {
+                let caps = &profile.caps;
+                let fs = caps.dsp_sample_rate as f32;
+                let peq =
+                    run_autoeq(&measurement, &target, n, 200, "none", fs, Some(caps)).unwrap();
+                let again =
+                    run_autoeq(&measurement, &target, n, 200, "none", fs, Some(caps)).unwrap();
+                assert_eq!(peq, again);
+                assert_eq!(peq.filters.len(), n);
+                for filter in &peq.filters {
+                    assert!(caps.supported_filter_types.contains(&filter.filter_type));
+                    assert!(
+                        (caps.band_gain_range.0..=caps.band_gain_range.1).contains(&filter.gain)
+                    );
+                    assert!((caps.q_range.0..=caps.q_range.1).contains(&filter.q));
+                    assert!((caps.freq_range.0..=caps.freq_range.1).contains(&filter.freq));
+                }
+                assert!(
+                    peq.global_gain + max_autoeq_response(&peq.filters, fs).unwrap() as f64 <= 1e-4
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn larger_band_counts_keep_the_existing_two_shelf_layout() {
+        let (measurement, target) = hump_case();
+        for n in [6, 10] {
+            let peq = run_autoeq(&measurement, &target, n, 200, "none", 48000.0, None).unwrap();
+            assert_eq!(peq.filters.len(), n);
+            assert_eq!(
+                peq.filters
+                    .iter()
+                    .filter(|f| f.filter_type == FilterType::LowShelf)
+                    .count(),
+                1
+            );
+            assert_eq!(
+                peq.filters
+                    .iter()
+                    .filter(|f| f.filter_type == FilterType::HighShelf)
+                    .count(),
+                1
+            );
+            assert_eq!(
+                peq.filters
+                    .iter()
+                    .filter(|f| f.filter_type == FilterType::Peak)
+                    .count(),
+                n - 2
+            );
         }
     }
 

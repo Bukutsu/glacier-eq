@@ -94,6 +94,20 @@ describe("Tuning workflow", () => {
     expect(html).toContain('name="autoeq-fs" value="44100"');
   });
 
+  it.each([1, 5])("warns about limited-band AutoEQ at %i bands without blocking generation", maxBands => {
+    const html = render({ measurements: [measurement], maxBands });
+    expect(html).toContain("Limited-band AutoEQ");
+    expect(html).toContain("large, opposing corrections");
+    expect(html).toContain('id="tuning-band-warning"');
+    expect(submitButton(html)).toContain('aria-describedby="tuning-destination tuning-band-warning"');
+    expect(submitButton(html)).not.toContain('disabled=""');
+  });
+
+  it("does not warn for higher band counts", () => {
+    expect(render({ maxBands: 6 })).not.toContain("Limited-band AutoEQ");
+    expect(render({ maxBands: 10 })).not.toContain("Limited-band AutoEQ");
+  });
+
   it("respects the device band limit and DSP sample rate", () => {
     const html = render({ measurements: [measurement], maxBands: 5, dspSampleRate: 48000 });
     expect(html).toContain("Up to 5 bands");
