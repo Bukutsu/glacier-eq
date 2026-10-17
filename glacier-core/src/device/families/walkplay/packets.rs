@@ -21,7 +21,12 @@ pub const CMD_AMP_MODE: u8 = 29;
 pub const CMD_GAIN_MODE: u8 = 25;
 pub const CMD_MIC_VOLUME: u8 = 2;
 pub const CMD_BALANCE: u8 = 22;
-pub const CMD_FACTORY_RESET: u8 = 23;
+/// `01 17 00`: restores the filter, amp mode and balance to the DAC's defaults
+/// and reloads the stored EQ. The official app sends it in every reset and commit.
+pub const CMD_RESTORE_DEFAULTS: u8 = 23;
+
+/// The DAC's HID polling interval. The official WalkPlay app paces every report by it.
+pub const HID_INTERVAL_MS: u64 = 16;
 
 pub const READ: u8 = 0x80;
 pub const WRITE: u8 = 0x01;

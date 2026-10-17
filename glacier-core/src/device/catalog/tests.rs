@@ -229,7 +229,7 @@ fn every_catalog_profile_meets_the_shared_flow_contract() {
 #[test]
 fn walkplay_resends_unanswered_reads_and_moondrop_does_not() {
     let resend = |protocol: &Protocol| protocol.eq.unwrap().resend_unanswered_after();
-    assert_eq!(resend(&walkplay::PROTOCOL), Some(15));
+    assert_eq!(resend(&walkplay::PROTOCOL), Some(5));
     assert_eq!(resend(&moondrop::PROTOCOL), None);
 }
 

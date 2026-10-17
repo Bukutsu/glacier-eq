@@ -5,25 +5,28 @@ use super::*;
 use crate::device::get_supported_device;
 use crate::device::session::fake::FakeIo;
 
+/// The wire writes that set a register: [report id, WRITE, register, ...].
+fn register_writes(io: &FakeIo, register: u8) -> usize {
+    io.writes
+        .iter()
+        .filter(|write| write.get(1) == Some(&WRITE) && write.get(2) == Some(&register))
+        .count()
+}
+
 #[test]
 fn a_failed_control_reset_restores_the_settings_that_already_landed() {
     crate::device::session::block_on(async {
         let profile = get_supported_device(0x3302, 0x43e8).unwrap();
         let mut io = FakeIo::default();
-        // The device is on a non-default filter mode, Class-AB, high gain,
-        // mic +4 dB, balanced. Every set_* below sends its register write and
-        // then commits to flash, so a failure part-way through would leave
-        // those durable changes on the hardware with no way back.
-        queue_utility_status(&mut io, 2, 1, 1, 4, 0, 0);
-        // The snapshot's six register reads are writes 1..6. The reset's first
-        // two steps then take writes 7..10 (register write plus flash commit
-        // each). Fail every attempt of the third step's register write —
-        // send() retries three times — so the filter and amp modes are already
-        // committed to flash when the gain step gives up, and let the rollback
-        // through.
-        io.failing_write_calls.extend([11, 12, 13]);
-        queue_utility_status(&mut io, 1, 0, 0, 0, 0, 0);
-        queue_utility_status(&mut io, 2, 1, 1, 4, 0, 0);
+        // The device is on a non-default filter mode, Class-H, high gain,
+        // mic +4 dB, balanced.
+        queue_utility_status(&mut io, 2, 0, 1, 4, 0, 0);
+        // The snapshot's six register reads are writes 1..6. The reset then
+        // writes the filter (7) and amp mode (8), so its gain write is call 9.
+        // Fail every attempt of it — send() retries three times — so the
+        // filter and amp modes have already changed when the reset gives up,
+        // and let the rollback through.
+        io.failing_write_calls.extend([9, 10, 11]);
 
         let error = DeviceSession::new(&mut io, profile)
             .reset_controls()
@@ -33,14 +36,13 @@ fn a_failed_control_reset_restores_the_settings_that_already_landed() {
             error.contains("previous settings restored"),
             "the error must name the rollback: {error}"
         );
-        // The rollback re-sent the original filter mode, so a write carrying
-        // CMD_FLASH_EQ for it is on the wire after the failure.
-        assert!(
-            io.writes
-                .iter()
-                .any(|write| write.get(2) == Some(&super::super::CMD_FLASH_EQ)),
-            "rollback writes were not attempted"
-        );
+        // The rollback wrote the original filter mode back (FAST-PC = 2) and
+        // committed once. Nothing was committed before the failure.
+        assert!(io
+            .writes
+            .iter()
+            .any(|write| { write.get(2) == Some(&CMD_FILTER_MODE) && write.get(4) == Some(&2) }));
+        assert_eq!(register_writes(&io, CMD_FLASH_EQ), 1);
     });
 }
 
@@ -49,17 +51,53 @@ fn a_successful_control_reset_does_not_roll_back() {
     crate::device::session::block_on(async {
         let profile = get_supported_device(0x3302, 0x43e8).unwrap();
         let mut io = FakeIo::default();
-        queue_utility_status(&mut io, 2, 1, 1, 4, 0, 0);
-        queue_utility_status(&mut io, 1, 0, 0, 0, 0, 0);
+        queue_utility_status(&mut io, 2, 0, 1, 4, 0, 0);
+        queue_utility_status(&mut io, 1, 1, 0, 0, 0, 0);
 
         let state = DeviceSession::new(&mut io, profile)
             .reset_controls()
             .await
             .expect("a clean reset must succeed");
         assert_eq!(state.filter_mode, "FAST-LL");
-        assert!(!state.amp_mode_class_ab);
+        assert!(state.amp_mode_class_ab);
         assert!(!state.high_gain_mode);
         assert_eq!(state.mic_volume_db, 0);
+    });
+}
+
+#[test]
+fn a_control_reset_commits_once_and_waits_for_the_flash_before_reading() {
+    crate::device::session::block_on(async {
+        use crate::device::session::fake::IoEvent;
+        let profile = get_supported_device(0x3302, 0x43e8).unwrap();
+        let mut io = FakeIo::default();
+        queue_utility_status(&mut io, 2, 0, 1, 4, 0, 0);
+        queue_utility_status(&mut io, 1, 1, 0, 0, 0, 0);
+
+        DeviceSession::new(&mut io, profile)
+            .reset_controls()
+            .await
+            .unwrap();
+
+        // The DAC drops writes sent within 50 ms of a flash commit and
+        // answers no read for about 200 ms, so a commit between registers
+        // (or an immediate status read) silently loses the reset.
+        assert_eq!(register_writes(&io, CMD_FLASH_EQ), 1);
+        let flash = io
+            .events
+            .iter()
+            .position(|event| *event == IoEvent::Write(CMD_FLASH_EQ))
+            .unwrap();
+        assert_eq!(io.events[flash + 1], IoEvent::Sleep(FLASH_SETTLE_MS));
+        // The commit is the last register write; only reads follow it.
+        let last_write = io
+            .writes
+            .iter()
+            .rposition(|write| write.get(1) == Some(&WRITE))
+            .unwrap();
+        assert_eq!(io.writes[last_write].get(2), Some(&CMD_FLASH_EQ));
+        // Register writes are one HID interval apart.
+        assert!(io.events.contains(&IoEvent::Sleep(HID_INTERVAL_MS)));
     });
 }
 

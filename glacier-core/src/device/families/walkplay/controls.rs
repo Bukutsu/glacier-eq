@@ -6,7 +6,7 @@
 
 use super::{
     WalkplayProtocol, CMD_AMP_MODE, CMD_BALANCE, CMD_FILTER_MODE, CMD_FLASH_EQ, CMD_GAIN_MODE,
-    CMD_MIC_VOLUME, CMD_VERSION, END, READ, WRITE,
+    CMD_MIC_VOLUME, CMD_VERSION, END, HID_INTERVAL_MS, READ, WRITE,
 };
 use crate::device::profile::Controls;
 use crate::device::session::{DeviceIo, DeviceSession};
@@ -14,6 +14,10 @@ use crate::device::Packet;
 
 const UTILITY_READ_ATTEMPTS: usize = 25;
 const UTILITY_READ_RETRIES: usize = 3;
+/// After a flash commit the DAC ignores writes for about 100 ms and reads for
+/// about 200 ms (measured on an EPZ TP35 Pro: a write 50 ms after the commit
+/// was dropped, one 100 ms after it landed). Nothing may be sent sooner.
+const FLASH_SETTLE_MS: u64 = 250;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct DacUtilityState {
@@ -23,6 +27,23 @@ pub struct DacUtilityState {
     pub high_gain_mode: bool,
     pub mic_volume_db: i8,
     pub channel_balance: i8,
+}
+
+impl DacUtilityState {
+    /// What the DAC returns to when its own restore command (`01 17 00`, sent
+    /// by the official app's RESET) runs: FAST-LL, Class-AB, centred balance.
+    /// That command leaves gain mode and mic volume alone, so they are the
+    /// documented low gain and 0 dB.
+    fn factory() -> Self {
+        Self {
+            supported: true,
+            filter_mode: "FAST-LL".into(),
+            amp_mode_class_ab: true,
+            high_gain_mode: false,
+            mic_volume_db: 0,
+            channel_balance: 0,
+        }
+    }
 }
 
 impl Default for DacUtilityState {
@@ -84,9 +105,7 @@ impl<I: DeviceIo> DeviceSession<'_, I> {
             return Ok(DacUtilityState::default());
         }
         self.drain().await;
-        self.io.sleep_ms(30).await;
         let filter = self.read_utility(CMD_FILTER_MODE).await?;
-        self.io.sleep_ms(25).await;
         let filter_mode = match filter
             .get(3)
             .copied()
@@ -100,7 +119,6 @@ impl<I: DeviceIo> DeviceSession<'_, I> {
             value => return Err(format!("Unknown filter mode value: {value}")),
         }
         .to_string();
-        self.io.sleep_ms(25).await;
         let amp_mode_class_ab = self
             .read_utility(CMD_AMP_MODE)
             .await?
@@ -108,7 +126,6 @@ impl<I: DeviceIo> DeviceSession<'_, I> {
             .copied()
             .ok_or_else(|| "Amp mode response was incomplete".to_string())?
             == 1;
-        self.io.sleep_ms(25).await;
         let high_gain_mode = self
             .read_utility(CMD_GAIN_MODE)
             .await?
@@ -116,16 +133,13 @@ impl<I: DeviceIo> DeviceSession<'_, I> {
             .copied()
             .ok_or_else(|| "Gain mode response was incomplete".to_string())?
             == 1;
-        self.io.sleep_ms(25).await;
         let mic_volume_db =
             self.read_utility(CMD_MIC_VOLUME)
                 .await?
                 .get(4)
                 .copied()
                 .ok_or_else(|| "Mic volume response was incomplete".to_string())? as i8;
-        self.io.sleep_ms(25).await;
         let left = decode_attenuation(self.read_balance(0).await?);
-        self.io.sleep_ms(25).await;
         let right = decode_attenuation(self.read_balance(1).await?);
         Ok(DacUtilityState {
             supported: true,
@@ -143,65 +157,48 @@ impl<I: DeviceIo> DeviceSession<'_, I> {
 
     pub async fn set_filter_mode(&mut self, mode: &str) -> Result<(), String> {
         self.require_walkplay()?;
-        let mode = match mode {
-            "FAST-LL" => 1,
-            "FAST-PC" => 2,
-            "Slow-LL" => 3,
-            "Slow-PC" => 4,
-            "NON-OS" => 5,
-            _ => return Err("Invalid filter mode".into()),
-        };
-        self.write_utility(WalkplayProtocol::build_filter_mode_write_packet(mode))
-            .await
+        self.stage_filter_mode(mode).await?;
+        self.commit_controls().await
     }
 
     pub async fn set_amp_mode(&mut self, class_ab: bool) -> Result<(), String> {
         self.require_walkplay()?;
-        self.write_utility(WalkplayProtocol::build_amp_mode_write_packet(class_ab))
-            .await
+        self.stage(WalkplayProtocol::build_amp_mode_write_packet(class_ab))
+            .await?;
+        self.commit_controls().await
     }
 
     pub async fn set_gain_mode(&mut self, high: bool) -> Result<(), String> {
         self.require_walkplay()?;
-        self.write_utility(WalkplayProtocol::build_gain_mode_write_packet(high))
-            .await
+        self.stage(WalkplayProtocol::build_gain_mode_write_packet(high))
+            .await?;
+        self.commit_controls().await
     }
 
     pub async fn set_mic_volume(&mut self, db: i8) -> Result<(), String> {
         self.require_walkplay()?;
         validate_control_range("Mic volume", db)?;
-        self.write_utility(WalkplayProtocol::build_mic_volume_write_packet(db))
-            .await
+        self.stage(WalkplayProtocol::build_mic_volume_write_packet(db))
+            .await?;
+        self.commit_controls().await
     }
 
     pub async fn set_balance(&mut self, balance: i8) -> Result<(), String> {
         self.require_walkplay()?;
-        validate_control_range("Balance", balance)?;
-        for payload in WalkplayProtocol::build_balance_write_packets(balance) {
-            self.send(&Packet::new(WalkplayProtocol::report_id(), payload))
-                .await?;
-            self.io.sleep_ms(20).await;
-        }
-        self.flash().await
+        self.stage_balance(balance).await?;
+        self.commit_controls().await
     }
 
     pub async fn reset_controls(&mut self) -> Result<DacUtilityState, String> {
         self.require_walkplay()?;
-        // Each step below sends its register write and then immediately
-        // commits to flash, so a failure part-way through leaves the device
-        // permanently holding a half-applied reset — the modes that landed
-        // are already durable and no later step can undo them. Capture what
-        // is there now and put it back if any step fails, the way
-        // persistent_push and apply_ram roll back a failed EQ write.
+        // Every register is written first and one flash commit follows. A
+        // commit between registers makes the DAC drop the next write, which
+        // is how a reset used to leave most settings unchanged. A failure
+        // part-way still leaves earlier registers changed, so capture what is
+        // there now and put it back, the way persistent_push and apply_ram
+        // roll back a failed EQ write.
         let previous = self.utility_status().await?;
-        let reset = (async {
-            self.set_filter_mode("FAST-LL").await?;
-            self.set_amp_mode(false).await?;
-            self.set_gain_mode(false).await?;
-            self.set_mic_volume(0).await?;
-            self.set_balance(0).await
-        })
-        .await;
+        let reset = self.apply_utilities(&DacUtilityState::factory()).await;
         if let Err(error) = reset {
             return Err(self.restore_utilities(&previous, &error).await);
         }
@@ -211,24 +208,41 @@ impl<I: DeviceIo> DeviceSession<'_, I> {
     /// Re-applies a captured utility state after a reset failed part-way, and
     /// names the outcome in the error the caller reports.
     async fn restore_utilities(&mut self, previous: &DacUtilityState, cause: &str) -> String {
-        let restore = (async {
-            self.set_filter_mode(&previous.filter_mode).await?;
-            self.set_amp_mode(previous.amp_mode_class_ab).await?;
-            self.set_gain_mode(previous.high_gain_mode).await?;
-            self.set_mic_volume(previous.mic_volume_db).await?;
-            self.set_balance(previous.channel_balance).await
-        })
-        .await;
-        match restore {
+        match self.apply_utilities(previous).await {
             Ok(()) => format!("{cause}; previous settings restored"),
             Err(restore) => format!("{cause}; restoring the previous settings failed: {restore}"),
         }
     }
 
+    /// Writes all five settings 16 ms apart, then commits once.
+    async fn apply_utilities(&mut self, state: &DacUtilityState) -> Result<(), String> {
+        self.stage_filter_mode(&state.filter_mode).await?;
+        self.stage(WalkplayProtocol::build_amp_mode_write_packet(
+            state.amp_mode_class_ab,
+        ))
+        .await?;
+        self.stage(WalkplayProtocol::build_gain_mode_write_packet(
+            state.high_gain_mode,
+        ))
+        .await?;
+        self.stage(WalkplayProtocol::build_mic_volume_write_packet(
+            state.mic_volume_db,
+        ))
+        .await?;
+        self.stage_balance(state.channel_balance).await?;
+        self.commit_controls().await
+    }
+
+    /// The official app's RESET: a flat EQ, then `01 17 00`, which restores
+    /// the filter, amp mode and balance to the DAC's defaults. That command
+    /// leaves gain mode and mic volume alone, so those are written too.
     pub async fn factory_reset(&mut self) -> Result<(), String> {
         self.require_walkplay()?;
-        self.write_utility(WalkplayProtocol::build_factory_reset_packet())
-            .await
+        self.reset_eq().await?;
+        self.stage(WalkplayProtocol::build_restore_defaults_packet())
+            .await?;
+        self.io.sleep_ms(FLASH_SETTLE_MS).await;
+        self.apply_utilities(&DacUtilityState::factory()).await
     }
 
     fn require_walkplay(&self) -> Result<(), String> {
@@ -251,7 +265,6 @@ impl<I: DeviceIo> DeviceSession<'_, I> {
                 WalkplayProtocol::build_utility_read_request(cmd),
             ))
             .await?;
-            self.io.sleep_ms(30).await;
             match self
                 .read_matching("Utility register", UTILITY_READ_ATTEMPTS, |data| {
                     data.len() >= min_len && data[0] == READ && data[1] == cmd
@@ -279,7 +292,6 @@ impl<I: DeviceIo> DeviceSession<'_, I> {
                 WalkplayProtocol::build_balance_read_request(channel),
             ))
             .await?;
-            self.io.sleep_ms(30).await;
             match self
                 .read_matching("Balance register", UTILITY_READ_ATTEMPTS, |data| {
                     data.len() >= 6
@@ -302,19 +314,46 @@ impl<I: DeviceIo> DeviceSession<'_, I> {
         Err(last_err)
     }
 
-    async fn write_utility(&mut self, payload: Vec<u8>) -> Result<(), String> {
+    /// Sends one register write and waits one HID interval, like the official
+    /// app. It does not commit: the caller commits after the last write.
+    async fn stage(&mut self, payload: Vec<u8>) -> Result<(), String> {
         self.send(&Packet::new(WalkplayProtocol::report_id(), payload))
             .await?;
-        self.io.sleep_ms(50).await;
-        self.flash().await
+        self.io.sleep_ms(HID_INTERVAL_MS).await;
+        Ok(())
     }
 
-    async fn flash(&mut self) -> Result<(), String> {
+    async fn stage_filter_mode(&mut self, mode: &str) -> Result<(), String> {
+        let mode = match mode {
+            "FAST-LL" => 1,
+            "FAST-PC" => 2,
+            "Slow-LL" => 3,
+            "Slow-PC" => 4,
+            "NON-OS" => 5,
+            _ => return Err("Invalid filter mode".into()),
+        };
+        self.stage(WalkplayProtocol::build_filter_mode_write_packet(mode))
+            .await
+    }
+
+    async fn stage_balance(&mut self, balance: i8) -> Result<(), String> {
+        validate_control_range("Balance", balance)?;
+        for payload in WalkplayProtocol::build_balance_write_packets(balance) {
+            self.stage(payload).await?;
+        }
+        Ok(())
+    }
+
+    /// Persists the staged writes. The DAC then ignores everything for
+    /// `FLASH_SETTLE_MS`, so the next request must wait.
+    async fn commit_controls(&mut self) -> Result<(), String> {
         self.send(&Packet::new(
             WalkplayProtocol::report_id(),
             vec![WRITE, CMD_FLASH_EQ, 0],
         ))
-        .await
+        .await?;
+        self.io.sleep_ms(FLASH_SETTLE_MS).await;
+        Ok(())
     }
 }
 

@@ -29,14 +29,21 @@ impl WalkplayProtocol {
         REPORT_ID
     }
 
+    /// Pacing measured on an EPZ TP35 Pro and compared with the official
+    /// WalkPlay web app (capture 2026-10-18): the app sends every report 16 ms
+    /// apart, one HID polling interval, and never sleeps between a request
+    /// and its answer (replies arrive after 13-16 ms). Writes spaced 4-40 ms
+    /// dropped the same ~1% of bands, so the extra delay bought nothing.
+    /// The flash commit is the exception: the DAC ignores writes for about
+    /// 100 ms and reads for about 200 ms after it.
     pub(crate) fn write_timing() -> WriteTiming {
         WriteTiming {
             commit_step_ms: 200,
-            flood_delay_ms: 15,
-            post_gain_read_ms: 20,
-            per_filter_ms: 40,
-            batch_ms: 50,
-            global_gain_ms: 20,
+            flood_delay_ms: 0,
+            post_gain_read_ms: 0,
+            per_filter_ms: HID_INTERVAL_MS,
+            batch_ms: HID_INTERVAL_MS,
+            global_gain_ms: HID_INTERVAL_MS,
             init_ms: 20,
             packet_gap_ms: 0,
         }
@@ -190,7 +197,7 @@ impl WalkplayProtocol {
     }
 
     pub fn build_balance_read_request(channel: u8) -> Vec<u8> {
-        vec![READ, CMD_BALANCE, 1, channel]
+        vec![READ, CMD_BALANCE, 2, channel]
     }
 
     pub fn build_filter_mode_write_packet(mode: u8) -> Vec<u8> {
@@ -209,8 +216,8 @@ impl WalkplayProtocol {
         vec![WRITE, CMD_MIC_VOLUME, 2, 128, db as u8]
     }
 
-    pub fn build_factory_reset_packet() -> Vec<u8> {
-        vec![WRITE, CMD_FACTORY_RESET, 0]
+    pub fn build_restore_defaults_packet() -> Vec<u8> {
+        vec![WRITE, CMD_RESTORE_DEFAULTS, 0]
     }
 
     pub fn build_balance_write_packets(balance: i8) -> Vec<Vec<u8>> {
@@ -246,8 +253,10 @@ impl EqProtocol for WalkplayProtocol {
 
     fn resend_unanswered_after(&self) -> Option<usize> {
         // TP35 Pro hardware drops about one band/gain request per ten pulls;
-        // a resend recovers in one round instead of failing the phase.
-        Some(15)
+        // a resend recovers in one round instead of failing the phase. An
+        // answered request takes 13-16 ms, so five 60 ms reads (300 ms) is
+        // ample before the request is sent again.
+        Some(5)
     }
 
     fn is_default_state(&self, peq: &PEQData) -> bool {
@@ -496,17 +505,17 @@ mod tests {
         // readback compare, pulls are byte-identical across repeats.
         let timing = WalkplayProtocol::write_timing();
         assert_eq!(timing.commit_step_ms, 200);
-        assert_eq!(timing.flood_delay_ms, 15);
-        assert_eq!(timing.post_gain_read_ms, 20);
-        assert_eq!(timing.per_filter_ms, 40);
-        assert_eq!(timing.batch_ms, 50);
-        assert_eq!(timing.global_gain_ms, 20);
+        assert_eq!(timing.flood_delay_ms, 0);
+        assert_eq!(timing.post_gain_read_ms, 0);
+        assert_eq!(timing.per_filter_ms, 16);
+        assert_eq!(timing.batch_ms, 16);
+        assert_eq!(timing.global_gain_ms, 16);
         assert_eq!(timing.init_ms, 20);
     }
 
     #[test]
     fn walkplay_resends_unanswered_reads() {
-        assert_eq!(WalkplayProtocol.resend_unanswered_after(), Some(15));
+        assert_eq!(WalkplayProtocol.resend_unanswered_after(), Some(5));
     }
 
     #[test]

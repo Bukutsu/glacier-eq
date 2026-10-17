@@ -179,37 +179,19 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
         // JA11 ordering follows jeromeof/devicePEQ (disconnectOnSave) and
         // Ircama/ja11-config (save_to_flash sends the final packet).
         let save_last = self.protocol().quirks().save_resets_device;
-        let attempt: Result<PEQData, String> = (async {
-            self.write_to_ram(&normalized)
-                .await
-                .map_err(|error| format!("Push write failed: {error}"))?;
-            if !save_last {
-                self.commit()
-                    .await
-                    .map_err(|error| format!("Push commit failed: {error}"))?;
+        let mut attempt = self.push_attempt(&normalized, save_last).await;
+        // A DAC that silently drops about 1% of reports (the ones that resend
+        // unanswered reads) loses a band or the preamp write in roughly one
+        // push in ten. The official app never reads back, so it never sees
+        // that. A write is idempotent: rewrite once before rolling back.
+        let drops_reports = self.protocol().resend_unanswered_after().is_some();
+        if drops_reports && !self.restart_attempted {
+            if let Err(error) = &attempt {
+                if error.starts_with("Push verification failed") && error.contains("mismatch") {
+                    attempt = self.push_attempt(&normalized, save_last).await;
+                }
             }
-            self.io.sleep_ms(RETRY_DELAY_MS).await;
-            let actual = self
-                .pull()
-                .await
-                .map_err(|error| format!("Push verification failed: {error}"))?;
-            if self.last_pull_had_invalid_response {
-                return Err(
-                    "Push verification failed: device returned an invalid EQ response".into(),
-                );
-            }
-            validate_peq_for_capabilities(&actual, &self.profile.caps)
-                .map_err(|error| format!("Push verification failed: {error}"))?;
-            compare_peq(&actual, &normalized, &self.profile.caps)
-                .map_err(|error| format!("Push verification failed: {error}"))?;
-            if save_last {
-                self.commit()
-                    .await
-                    .map_err(|error| format!("Push commit failed: {error}"))?;
-            }
-            Ok(actual)
-        })
-        .await;
+        }
         match attempt {
             Ok(actual) => {
                 self.progress("Write complete", 100.0);
@@ -222,6 +204,40 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
                 Err(rollback) => format!("{error}; rollback failed: {rollback}"),
             }),
         }
+    }
+
+    /// One write, commit and readback comparison of an already-normalized EQ.
+    async fn push_attempt(
+        &mut self,
+        normalized: &PEQData,
+        save_last: bool,
+    ) -> Result<PEQData, String> {
+        self.write_to_ram(normalized)
+            .await
+            .map_err(|error| format!("Push write failed: {error}"))?;
+        if !save_last {
+            self.commit()
+                .await
+                .map_err(|error| format!("Push commit failed: {error}"))?;
+        }
+        self.io.sleep_ms(RETRY_DELAY_MS).await;
+        let actual = self
+            .pull()
+            .await
+            .map_err(|error| format!("Push verification failed: {error}"))?;
+        if self.last_pull_had_invalid_response {
+            return Err("Push verification failed: device returned an invalid EQ response".into());
+        }
+        validate_peq_for_capabilities(&actual, &self.profile.caps)
+            .map_err(|error| format!("Push verification failed: {error}"))?;
+        compare_peq(&actual, normalized, &self.profile.caps)
+            .map_err(|error| format!("Push verification failed: {error}"))?;
+        if save_last {
+            self.commit()
+                .await
+                .map_err(|error| format!("Push commit failed: {error}"))?;
+        }
+        Ok(actual)
     }
 
     async fn restore_and_verify(&mut self, backup: &PEQData) -> Result<(), String> {
@@ -454,11 +470,22 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
 
     async fn read_gain(&mut self) -> Result<f64, String> {
         let gain = self.read_gain_once().await?;
-        if self.last_read_was_retried || self.gain_read_requires_correlation {
-            // Global-gain frames do not carry a transaction nonce. A retry can
-            // accept a late response from the first command, so fail closed
-            // instead of allowing it to become rollback truth.
+        if self.gain_read_requires_correlation {
             return Err(UNCORRELATED_GAIN_ERROR.into());
+        }
+        if self.last_read_was_retried {
+            // Global-gain frames do not carry a transaction nonce, so the
+            // answer to a resend cannot be told from a late answer to the
+            // dropped first request. Nothing writes during a read, so two
+            // independent reads that agree describe the same state; one that
+            // needs another resend, or disagrees, still fails closed instead
+            // of becoming rollback truth.
+            let confirmed = self.read_gain_once().await.map_err(|error| {
+                format!("{UNCORRELATED_GAIN_ERROR}; confirmation read failed: {error}")
+            })?;
+            if self.last_read_was_retried || confirmed != gain {
+                return Err(UNCORRELATED_GAIN_ERROR.into());
+            }
         }
         Ok(gain)
     }

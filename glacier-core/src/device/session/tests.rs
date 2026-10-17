@@ -148,6 +148,10 @@ fn queue_pull_with_nonce_start(io: &mut FakeIo, gain: i8, nonce_start: u8) {
         gain as u8,
         0,
     ]);
+    queue_bands(io, nonce_start);
+}
+
+fn queue_bands(io: &mut FakeIo, nonce_start: u8) {
     for index in 0..10u8 {
         let mut packet = vec![0; 34];
         packet[0] = READ;
@@ -304,24 +308,67 @@ fn pull_preserves_a_concrete_read_error_across_retry() {
     });
 }
 
+fn queue_gain(io: &mut FakeIo, gain: i8) {
+    io.reads.push_back(vec![
+        READ,
+        super::super::families::walkplay::CMD_GLOBAL_GAIN,
+        0,
+        0,
+        gain as u8,
+        0,
+    ]);
+}
+
+/// A gain request the DAC drops: a silent round, then the resend's quarantine.
+fn queue_dropped_gain_request(io: &mut FakeIo) {
+    for _ in 0..5 {
+        io.reads.push_back(vec![]);
+    }
+    io.reads.push_back(vec![]); // retry quarantine terminator
+}
+
 #[test]
-fn pull_rejects_gain_retry_as_uncorrelated_state() {
+fn pull_accepts_a_resent_gain_read_that_an_independent_read_confirms() {
     crate::device::session::block_on(async {
         let profile = get_supported_device(0x3302, 0x43e8).unwrap();
         let mut io = FakeIo::default();
         io.reads.push_back(vec![]); // init drain terminator
-        for _ in 0..15 {
-            io.reads.push_back(vec![]); // first gain round is unanswered
-        }
-        io.reads.push_back(vec![]); // retry quarantine terminator
-        io.reads.push_back(vec![
-            READ,
-            super::super::families::walkplay::CMD_GLOBAL_GAIN,
-            0,
-            0,
-            (-7i8) as u8,
-            0,
-        ]);
+        queue_dropped_gain_request(&mut io);
+        queue_gain(&mut io, -7); // answer to the resend
+        queue_gain(&mut io, -7); // independent confirmation
+        queue_bands(&mut io, 1);
+        let peq = DeviceSession::new(&mut io, profile).pull().await.unwrap();
+        assert_eq!(peq.global_gain, -7.0);
+    });
+}
+
+#[test]
+fn pull_rejects_a_resent_gain_read_that_the_confirmation_contradicts() {
+    crate::device::session::block_on(async {
+        let profile = get_supported_device(0x3302, 0x43e8).unwrap();
+        let mut io = FakeIo::default();
+        io.reads.push_back(vec![]); // init drain terminator
+        queue_dropped_gain_request(&mut io);
+        queue_gain(&mut io, -7);
+        queue_gain(&mut io, -6); // the first answer may have been stale
+        let error = DeviceSession::new(&mut io, profile)
+            .pull()
+            .await
+            .unwrap_err();
+        assert!(error.contains("uncorrelated"), "{error}");
+    });
+}
+
+#[test]
+fn pull_rejects_a_gain_confirmation_that_needs_another_resend() {
+    crate::device::session::block_on(async {
+        let profile = get_supported_device(0x3302, 0x43e8).unwrap();
+        let mut io = FakeIo::default();
+        io.reads.push_back(vec![]); // init drain terminator
+        queue_dropped_gain_request(&mut io);
+        queue_gain(&mut io, -7);
+        queue_dropped_gain_request(&mut io); // the confirmation is dropped too
+        queue_gain(&mut io, -7);
         let error = DeviceSession::new(&mut io, profile)
             .pull()
             .await
@@ -511,7 +558,7 @@ fn dropped_band_response_is_resent_and_pull_succeeds() {
         // The DAC drops the first band-0 request: a full round of attempts
         // goes unanswered, then the resent request (with a fresh nonce) is
         // answered.
-        for _ in 0..15 {
+        for _ in 0..5 {
             io.reads.push_back(vec![]);
         }
         for index in 0..10u8 {
@@ -640,20 +687,21 @@ fn commit_failure_rolls_back_and_verifies_backup() {
 }
 
 #[test]
-fn verification_mismatch_rolls_back_and_verifies_backup() {
+fn a_dropped_write_is_rewritten_once_before_anything_is_rolled_back() {
     crate::device::session::block_on(async {
         let profile = get_supported_device(0x3302, 0x43e8).unwrap();
         let mut io = FakeIo::default();
         queue_pull(&mut io, -1); // snapshot
         io.reads.push_back(vec![]); // push init drain
-        queue_pull_with_nonce_start(&mut io, -2, 11); // mismatching readback
-        io.reads.push_back(vec![]); // rollback init drain
-        queue_pull_with_nonce_start(&mut io, -1, 21); // rollback readback
-        let error = DeviceSession::new(&mut io, profile)
+        queue_pull_with_nonce_start(&mut io, -2, 11); // the preamp write was dropped
+        io.reads.push_back(vec![]); // rewrite init drain
+        queue_pull_with_nonce_start(&mut io, -1, 21); // the rewrite landed
+        let (actual, _) = DeviceSession::new(&mut io, profile)
             .persistent_push(test_peq())
             .await
-            .unwrap_err();
-        assert!(error.contains("previous state restored"));
+            .expect("one dropped report must not fail the write");
+        assert_eq!(actual.global_gain, -1.0);
+        // Written and committed twice, never rolled back (a rollback would be a third).
         assert_eq!(
             io.writes
                 .iter()
@@ -661,6 +709,34 @@ fn verification_mismatch_rolls_back_and_verifies_backup() {
                     == Some(&super::super::families::walkplay::CMD_TEMP_WRITE))
                 .count(),
             2
+        );
+    });
+}
+
+#[test]
+fn verification_mismatch_rolls_back_after_the_rewrite_also_fails() {
+    crate::device::session::block_on(async {
+        let profile = get_supported_device(0x3302, 0x43e8).unwrap();
+        let mut io = FakeIo::default();
+        queue_pull(&mut io, -1); // snapshot
+        io.reads.push_back(vec![]); // push init drain
+        queue_pull_with_nonce_start(&mut io, -2, 11); // mismatching readback
+        io.reads.push_back(vec![]); // rewrite init drain
+        queue_pull_with_nonce_start(&mut io, -2, 21); // still mismatching
+        io.reads.push_back(vec![]); // rollback init drain
+        queue_pull_with_nonce_start(&mut io, -1, 31); // rollback readback
+        let error = DeviceSession::new(&mut io, profile)
+            .persistent_push(test_peq())
+            .await
+            .unwrap_err();
+        assert!(error.contains("previous state restored"), "{error}");
+        assert_eq!(
+            io.writes
+                .iter()
+                .filter(|packet| packet.get(2)
+                    == Some(&super::super::families::walkplay::CMD_TEMP_WRITE))
+                .count(),
+            3
         );
     });
 }
