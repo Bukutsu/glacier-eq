@@ -23,14 +23,22 @@ Thanks for contributing to Glacier EQ.
 Releases are tag-driven: push a `vX.Y.Z` tag and the `Release` workflow verifies
 the tag against `package.json`, `src-tauri/Cargo.toml`, and
 `src-tauri/tauri.conf.json`, runs `npm run verify` plus `npm run verify:rust`,
-builds every platform, and publishes the assets. Add a matching `## [X.Y.Z]`
-section to `CHANGELOG.md` first; the workflow extracts it for the release notes
-and falls back to a placeholder if it is missing.
+builds every platform, and uploads the assets to a draft release. Add a matching
+`## [X.Y.Z]` section to `CHANGELOG.md` first; the workflow extracts it for the
+release notes and falls back to a placeholder if it is missing.
+
+Before publishing the draft, check the completed workflow and required assets,
+verify APK signing, and test upgrading from the previous signed Android release
+without uninstalling. Confirm profiles and settings survive. Record emulator
+and physical-device checks separately, then publish the draft with:
+
+```sh
+gh release edit vX.Y.Z --draft=false
+```
 
 Before tagging:
 - Resolve confirmed release findings and record remaining hardware/platform gaps.
 - Run both verification commands and both frontend builds.
-- Test the signed Android upgrade separately from a fresh install.
 - Move the relevant Unreleased notes into the versioned changelog section.
 - Check the working tree after verification. Build tooling can update the
   PKGBUILD fallback version; do not include that generated change accidentally.

@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-10-18
+
 ### Thanks
 
 A huge thank-you to **AkariYui** for sticking with us through repeated JA11
@@ -42,9 +44,15 @@ on our own hardware. Thank you for keeping at it with us!
 - Restore default uses ordinary profile loading after one confirmation and adopts the loaded EQ as its clean baseline.
 - Control and factory resets reserve the shared operation slot before confirmation and cancel queued work when its device session is replaced.
 
+### Known limitations
+
+- TP35 microphone readback can differ by 1 dB. Control persistence after a physical power cycle is not established.
+- The new reset-verification checks have fault-injection coverage but have not been physically retested.
+- Windows/macOS device behavior and Android USB/lifecycle behavior still need physical-device checks.
+- Local Linux builds do not establish compatibility with older distributions.
+
 See [Release readiness](docs/release-readiness.md) for validation results and
-platform limits. These entries describe the current source tree, including
-pending UI changes; they are not a published release.
+the remaining hardware and platform limits.
 
 ## [0.14.0] - 2026-10-12
 

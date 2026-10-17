@@ -2,7 +2,9 @@
 
 This is a source-review snapshot, not a claim that a release has been tested
 on every platform. It covers the changes after the frontend reorganization
-and the pending profile/mobile UI work. Version manifests still read 0.14.0.
+and the profile/mobile UI work in v0.15.0. Release manifests and lockfiles
+are synchronized at 0.15.0. CI builds a draft release; publishing waits for
+the signed Android upgrade and package smoke checks.
 
 ## Review fixes
 
@@ -64,14 +66,20 @@ coarse-pointer landscape and native mobile WebView checks remain separate.
 - Linux binaries depend on the build host's libraries. A local AppImage does
   not establish an older-distribution compatibility baseline.
 
-## Before tagging
+## Release gates
 
-1. Finish the platform and hardware checks required for the intended assets.
-2. Run `npm run verify`, `npm run verify:rust`, `npm run build:web`, and
+1. Run `npm run verify`, `npm run verify:rust`, `npm run build:web`, and
    `npm run build:desktop` on the final source.
-3. Review and commit the intended changes. Do not include an incidental
+2. Review and commit the intended changes. Do not include an incidental
    generated PKGBUILD version update.
-4. Move the Unreleased notes into the chosen version section and synchronize
-   `package.json`, `src-tauri/Cargo.toml`, and `src-tauri/tauri.conf.json`.
-5. Publish only after reviewing the final diff and release notes. Wiki changes
-   live in their own Git repository and need a separate push.
+3. Move the Unreleased notes into the chosen version section and synchronize
+   `package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`, and
+   the npm/Cargo lockfiles.
+4. Push the release tag. CI verifies source, builds every platform, checks
+   asset coverage, attests the packages, and creates a draft release.
+5. Verify APK signing and upgrade from the previous signed release without
+   uninstalling. Record settings/profile retention and emulator versus
+   physical-device coverage.
+6. Publish only after the required checks pass and the remaining platform
+   limits are recorded. Wiki changes live in their own Git repository and
+   need a separate push.
