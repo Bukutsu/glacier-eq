@@ -44,6 +44,7 @@ Usage:
 
 FILE defaults to stdin only for inspect/normalize/response. Mutations require --yes.
 If --device is omitted, exactly one supported HID device must be attached.
+Set GLACIER_TRACE=1 to print every HID report with a timestamp to stderr.
 The raw command writes one HID report (report ID plus payload) and prints received
 input reports as hex. Use --read-ms 0 to send without reading a response.
 AutoEQ and pulled profiles go to stdout; diagnostics go to stderr.
@@ -775,6 +776,7 @@ impl DeviceIo for HidIo<'_> {
         }
         #[cfg(not(target_os = "windows"))]
         let _ = self.1;
+        trace("TX", data);
         let written = self.0.write(data).map_err(|error| error.to_string())?;
         ensure_complete_hid_write(data.len(), written)
     }
@@ -785,12 +787,34 @@ impl DeviceIo for HidIo<'_> {
             .0
             .read_timeout(&mut data, timeout_ms)
             .map_err(|error| error.to_string())?;
+        if length > 0 {
+            trace("RX", &data[..length]);
+        }
         Ok(data[..length].to_vec())
     }
 
     fn reads_include_report_id(&self) -> bool {
         true
     }
+}
+
+fn trace(direction: &str, data: &[u8]) {
+    use std::sync::OnceLock;
+    use std::time::Instant;
+    static START: OnceLock<Instant> = OnceLock::new();
+    if std::env::var_os("GLACIER_TRACE").is_none() {
+        return;
+    }
+    let ms = START.get_or_init(Instant::now).elapsed().as_millis();
+    let end = data
+        .iter()
+        .rposition(|byte| *byte != 0)
+        .map_or(0, |i| i + 1);
+    let hex: Vec<String> = data[..end.max(3.min(data.len()))]
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect();
+    eprintln!("{ms:>6} {direction} {}", hex.join(" "));
 }
 
 #[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
