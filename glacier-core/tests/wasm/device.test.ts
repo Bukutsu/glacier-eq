@@ -130,8 +130,8 @@ describe("Rust session over the real wasm bridge", () => {
     ]);
     for (const control of ["microphone", "uac"]) {
       const before = writes.length;
-      expect(await run(control, 0)).toBeNull();
-      expect(writes.length - before).toBe(2); // fresh read + write, no post-write read
+      expect(await run(control, 0)).toBe(0);
+      expect(writes.length - before).toBe(3); // fresh read + write + live verification
     }
     expect(io.nonce).toBe(42); // controls do not consume filter nonces
     expect(writes.every(p => [2, 0x12, 0x20].includes(p[5]))).toBe(true);
