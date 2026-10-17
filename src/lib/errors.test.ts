@@ -23,6 +23,15 @@ describe("isDisconnectionErrorForPlatform", () => {
     expect(isDisconnectionErrorForPlatform("device failed: os error 5", false)).toBe(true);
   });
 
+  it("recognizes the tester's Windows HIDAPI device-not-connected errors", () => {
+    for (const message of [
+      "HidApi Error: ReadFile: (0x0000048F) The device is not connected.",
+      "HidApi Error: WriteFile: (0x0000048F)",
+      "The device is not connected.",
+    ]) expect(isDisconnectionErrorForPlatform(message, true)).toBe(true);
+    expect(isDisconnectionErrorForPlatform("WriteFile: (0x00000005) Access is denied.", true)).toBe(false);
+  });
+
   it("keeps platform-independent disconnect classifications", () => {
     expect(isDisconnectionErrorForPlatform("No such device", true)).toBe(true);
     expect(isDisconnectionErrorForPlatform("No such device", false)).toBe(true);

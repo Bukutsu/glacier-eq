@@ -61,10 +61,7 @@ describe("toastStore", () => {
   });
 
   it("does not let a message of one type swallow the same text of another", () => {
-    // An error toast never auto-dismisses, so deduping on the text alone let
-    // a permanent error suppress every later toast with the same wording —
-    // including a success, and including every repeat of a failure that
-    // recurs on its own (the udev auto-connect path).
+    // An existing error must not swallow explicitly successful feedback.
     useToastStore.getState().addToast("Saved EQ to DAC", "error");
     useToastStore.getState().addToast("Saved EQ to DAC", "success");
     const toasts = useToastStore.getState().toasts;
@@ -87,17 +84,19 @@ describe("toastStore", () => {
       "Could not save settings", "Profile saved",
     ]);
     expect(sink).toHaveBeenCalledTimes(4);
-    expect(vi.getTimerCount()).toBe(1);
+    expect(vi.getTimerCount()).toBe(2);
   });
 
-  it("dismisses routine feedback, but never expires an error", () => {
+  it("dismisses routine feedback at four seconds and errors at eight seconds", () => {
     useToastStore.getState().addToast("Save failed", "error");
     useToastStore.getState().addToast("Profile saved");
     vi.advanceTimersByTime(4000);
     expect(useToastStore.getState().toasts.map(toast => toast.type)).toEqual(["error"]);
+    vi.advanceTimersByTime(4000);
+    expect(useToastStore.getState().toasts).toHaveLength(0);
   });
 
-  it("pauses dismissal and gives the reader four seconds after leaving", () => {
+  it("pauses dismissal and resumes the remaining time after leaving", () => {
     useToastStore.getState().addToast("Profile saved");
     const { id } = useToastStore.getState().toasts[0];
     vi.advanceTimersByTime(3000);
@@ -107,7 +106,7 @@ describe("toastStore", () => {
     useToastStore.getState().resumeToast(id);
     useToastStore.getState().resumeToast(id);
     expect(vi.getTimerCount()).toBe(1);
-    vi.advanceTimersByTime(3999);
+    vi.advanceTimersByTime(999);
     expect(useToastStore.getState().toasts).toHaveLength(1);
     vi.advanceTimersByTime(1);
     expect(useToastStore.getState().toasts).toHaveLength(0);
@@ -120,8 +119,27 @@ describe("toastStore", () => {
     useToastStore.getState().addToast("Save failed", "error");
     useToastStore.getState().addToast("Another update");
     useToastStore.getState().clearNonErrorToasts();
-    expect(vi.getTimerCount()).toBe(0);
+    expect(vi.getTimerCount()).toBe(1);
     expect(useToastStore.getState().toasts).toHaveLength(1);
+  });
+
+  it("pauses error expiry too and keeps its diagnostic after dismissal", () => {
+    const sink = vi.fn();
+    useToastStore.getState().setDiagnosticSink(sink);
+    useToastStore.getState().addToast("Could not read from DAC");
+    const { id } = useToastStore.getState().toasts[0];
+    vi.advanceTimersByTime(6000);
+    useToastStore.getState().pauseToast(id);
+    useToastStore.getState().pauseToast(id);
+    vi.advanceTimersByTime(20000);
+    expect(useToastStore.getState().toasts).toHaveLength(1);
+    useToastStore.getState().resumeToast(id);
+    vi.advanceTimersByTime(1999);
+    expect(useToastStore.getState().toasts).toHaveLength(1);
+    vi.advanceTimersByTime(1);
+    expect(useToastStore.getState().toasts).toHaveLength(0);
+    expect(sink).toHaveBeenCalledExactlyOnceWith("Could not read from DAC", "error");
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it("recognizes plain-language failures before success words", () => {
@@ -175,7 +193,7 @@ describe("toastStore", () => {
   });
 
   it("caps accumulated error toasts at the newest 50", () => {
-    // Errors never auto-expire, so distinct messages would pile up forever.
+    // A burst of distinct errors must stay bounded even before expiry.
     for (let i = 0; i < 60; i++) {
       useToastStore.getState().addToast(`Failed operation ${i}`);
     }

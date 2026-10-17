@@ -36,6 +36,8 @@ function setup() {
     eqOperationInFlightRef: { current: false }, eqOperationIdRef: { current: 0 },
     manualDisconnectRef: { current: false },
     expectedRestartUntilRef: { current: 0 },
+    handleExpectedDisconnect: vi.fn(async () => {}),
+    recoverDeviceRead: vi.fn(async (_path: string, _error: unknown) => false),
     getAsyncContext: () => ({
       editorRevision, connectionRevision: connectionGenerationRef.current,
       operationRevision: operationRevisionRef.current,
@@ -61,6 +63,7 @@ describe("push completion", () => {
     t.invoke.mockResolvedValue({ ...t.committed, warnings: [], restarts: true });
     await t.push();
     expect(t.scope.expectedRestartUntilRef.current).toBeGreaterThan(Date.now());
+    expect(t.scope.handleExpectedDisconnect).toHaveBeenCalledExactlyOnceWith(true);
     expect(t.reportStatus).toHaveBeenCalledWith(expect.objectContaining({
       level: "Info", message: "Saved EQ to DAC; restart expected, waiting to reconnect",
     }));

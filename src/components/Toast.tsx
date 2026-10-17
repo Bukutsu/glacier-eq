@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Icon } from "./Icon";
 import { Button } from "./ui/Button";
-import { useToastStore } from "../stores/toastStore";
+import { useToastStore, toastDuration } from "../stores/toastStore";
 
 export function ToastContainer({ errorsOnly = false, inline = false }: {
   errorsOnly?: boolean;
@@ -28,12 +28,14 @@ export function ToastContainer({ errorsOnly = false, inline = false }: {
   if (!current) return null;
 
   return (
-    <section className={`toast-feedback${inline ? " inline" : ""}`} aria-label="Status message"
+    <section className={`toast-feedback${inline ? " inline" : ""}`} data-type={current.type} aria-label="Status message"
       onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
       onFocusCapture={() => setFocused(true)}
       onBlurCapture={event => {
         if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false);
       }}>
+      <span key={current.id + "-timer"} className="toast-timer" aria-hidden="true"
+        style={{ animationDuration: `${toastDuration(current.type)}ms`, animationPlayState: paused ? "paused" : "running" }} />
       <span className={`toast-icon ${current.type}`}>
         <Icon name={current.type === "success" ? "check" : current.type === "error" ? "error" : "info"} />
       </span>

@@ -81,6 +81,22 @@ describe("DeviceView markup", () => {
     expect(html).toContain('href="/device/maintenance"');
   });
 
+  it("shows the USB manufacturer and product string a device reports", () => {
+    const deviceInfo = { path: "/hid", vendor_id: 0x2972, product_id: 0x0102,
+      manufacturer: "Acme Audio", product_string: "Reported Name" };
+    const real = renderDeviceView({ connected: true, section: "overview", deviceInfo });
+    expect(real).toContain("USB manufacturer");
+    expect(real).toContain("Acme Audio");
+    expect(real).toContain("USB product");
+    expect(real).toContain("Reported Name");
+    // Previews show the same rows (with their own made-up values) so the layout can be reviewed without a DAC.
+    const preview = renderDeviceView({ connected: true, isSimulated: true, section: "overview", deviceInfo });
+    expect(preview).toContain("USB product");
+    const unnamed = renderDeviceView({ connected: true, section: "overview",
+      deviceInfo: { ...deviceInfo, manufacturer: null, product_string: null } });
+    expect(unnamed).not.toContain("USB product");
+  });
+
   it("includes chip in specifications when connected", () => {
     const html = renderDeviceView({ connected: true, section: "overview" });
     expect(html).toContain("Chip");
@@ -115,7 +131,7 @@ describe("DeviceView markup", () => {
       deviceInfo: { path: "ja11", vendor_id: 0x2972, product_id, controls: "ja11" },
     });
     expect(html).toContain("Inline microphone");
-    expect(html).toContain("Source-reviewed, not hardware-verified");
+    expect(html).not.toContain("Source-reviewed, not hardware-verified");
     expect(html).not.toContain("Controls unavailable");
     expect(html).not.toContain("Class AB amplifier");
   });

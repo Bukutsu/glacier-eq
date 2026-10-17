@@ -32,6 +32,33 @@ fn queue_pull(io: &mut FakeIo) {
     }
 }
 
+/// The DAC after a reset: preamp 0 dB and the default flat bands.
+fn queue_flat_pull(io: &mut FakeIo) {
+    io.reads.push_back(vec![]); // settle/drain
+    io.reads
+        .push_back(vec![0xbb, 0x0b, 0, 0, 0x17, 2, 0, 0, 0, 0xee]);
+    for (index, freq) in [31u16, 62, 125, 250, 500].into_iter().enumerate() {
+        io.reads.push_back(vec![
+            0xbb,
+            0x0b,
+            0,
+            0,
+            0x15,
+            8,
+            index as u8,
+            0,
+            0,
+            (freq >> 8) as u8,
+            freq as u8,
+            0,
+            100,
+            0,
+            0, // check byte (ignored)
+            0xee,
+        ]);
+    }
+}
+
 fn assert_pacing(io: &FakeIo) {
     let mut since_write: Option<u64> = None;
     assert_eq!(io.events.first(), Some(&IoEvent::Sleep(500)));
@@ -121,6 +148,33 @@ fn ja11_order_timing_signed_gain_and_save_boundary_on_both_pids() {
     });
 }
 
+#[test]
+fn reset_eq_saves_last_reports_restart_and_never_reads_after_the_save() {
+    block_on(async {
+        let profile = get_supported_device(0x2972, 0x0102).unwrap();
+        let mut io = FakeIo::default();
+        queue_pull(&mut io); // snapshot of the current EQ
+        io.reads.push_back(vec![]); // write init drain
+        queue_flat_pull(&mut io); // RAM verification reads the flat EQ back
+        queue_flat_pull(&mut io); // and again immediately before the save, as on hardware
+        let mut session = DeviceSession::new(&mut io, profile);
+        match session.execute(DeviceCommand::ResetEq).await.unwrap() {
+            DeviceOutcome::Restarts(restarts) => assert!(restarts),
+            _ => panic!("wrong outcome"),
+        }
+        let save = io.writes.last().unwrap();
+        assert_eq!(save.as_slice(), [2, 0xaa, 0x0a, 0, 0, 0x19, 1, 3, 0, 0xee]);
+        let last_write = io
+            .events
+            .iter()
+            .rposition(|e| matches!(e, IoEvent::Write(_)))
+            .unwrap();
+        assert!(!io.events[last_write + 1..]
+            .iter()
+            .any(|e| matches!(e, IoEvent::Read | IoEvent::Write(_))));
+    });
+}
+
 fn reply(cmd: u8, value: u8) -> Vec<u8> {
     vec![0xbb, 0x0b, 0, 0, cmd, 1, value, 0, 0xee]
 }
@@ -171,7 +225,7 @@ fn controls_fresh_read_and_live_verification_without_save_or_restart() {
                     let result = DeviceSession::new(&mut io, profile)
                         .set_ja11_control(control, 0)
                         .await;
-                    if outcome == "write-error" {
+                    if outcome == "write-error" || outcome == "disconnect" {
                         assert!(result.is_err());
                     } else {
                         assert_eq!(

@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { ToastContainer } from "./Toast";
 import { useToastStore, type Toast } from "../stores/toastStore";
 
-vi.mock("../stores/toastStore", () => ({ useToastStore: vi.fn() }));
+vi.mock("../stores/toastStore", async original => ({ ...await original<typeof import("../stores/toastStore")>(), useToastStore: vi.fn() }));
 
 function render(toasts: Toast[], errorsOnly = false, inline = false) {
   const state = { toasts, removeToast: vi.fn(), pauseToast: vi.fn(), resumeToast: vi.fn() };
@@ -59,6 +59,9 @@ describe("Toast feedback", () => {
   it("keeps feedback inside dialogs instead of behind the backdrop", () => {
     const html = render([{ id: "error", message: "Failed to save", type: "error" }], true, true);
     expect(html).toContain('class="toast-feedback inline"');
+    expect(html).toContain('data-type="error"');
+    expect(html).toContain('class="toast-timer"');
+    expect(html).toContain('animation-duration:8000ms');
     expect(html).toContain('role="alert" aria-atomic="true"');
     expect(html).toContain("Failed to save");
   });

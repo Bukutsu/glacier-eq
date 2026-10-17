@@ -52,7 +52,9 @@ export interface DeviceViewProps {
   onDisconnect?: () => Promise<void>;
   onPreviewChange?: (device: DeviceInfo) => void;
   /** Called before a write that may make the DAC briefly drop off USB. */
-  onExpectedDisconnect?: () => void;
+  onExpectedDisconnect?: (restart?: boolean) => void | Promise<void>;
+  onReadFailure?: (path: string, error: unknown) => Promise<boolean>;
+  onResetEq?: () => Promise<void>;
 }
 
 type DeviceUtilityState = {
@@ -78,6 +80,8 @@ export const DeviceView = memo(function DeviceView({
   onDisconnect,
   onPreviewChange,
   onExpectedDisconnect,
+  onReadFailure,
+  onResetEq,
 }: DeviceViewProps) {
   const invoke = <T,>(command: string, args?: Record<string, unknown>) =>
     invokeForDevice<T>(deviceInfo?.path, command, args);
@@ -236,32 +240,6 @@ export const DeviceView = memo(function DeviceView({
 
   const handleSetMicVolume = (volumeDb: number) =>
     setUtilityField("mic_volume_db", volumeDb, "set_mic_volume", { volumeDb });
-
-  const handleResetDeviceEq = async () => {
-    if (isBusyRef.current) return;
-    if (!(await confirmDialog({
-      title: "Reset device EQ?",
-      message: "Reset all hardware EQ bands on the DAC to 0 dB?",
-      confirmLabel: "Reset",
-      danger: true,
-    }))) return;
-    if (isBusyRef.current) return;
-
-    scheduleUtilityTask.enqueue("reset", async (isCurrent) => {
-      try {
-        await invoke("reset_device_eq");
-        if (!isCurrent()) return;
-        const pulled = await onPull?.();
-        if (!isCurrent()) return;
-        setStatus(pulled === false
-          ? "Device EQ was reset, but reading it back failed. Read EQ from the DAC again before editing."
-          : "Device EQ reset to flat.", pulled === false ? "error" : "success");
-      } catch (err) {
-        if (!isCurrent()) return;
-        setStatus(`Could not reset device EQ: ${err}`);
-      }
-    }, { supersedePending: true });
-  };
 
   const handleResetDeviceControls = async () => {
     if (isBusyRef.current) return;
@@ -440,6 +418,13 @@ export const DeviceView = memo(function DeviceView({
               {connected && firmwareVersion && (
                 <div><dt>Firmware</dt><dd>{firmwareVersion}</dd></div>
               )}
+              {/* What the device reports about itself, so a re-flashed unit is identifiable. */}
+              {connected && deviceInfo?.manufacturer && (
+                <div><dt>USB manufacturer</dt><dd>{deviceInfo.manufacturer}</dd></div>
+              )}
+              {connected && deviceInfo?.product_string && (
+                <div><dt>USB product</dt><dd>{deviceInfo.product_string}</dd></div>
+              )}
               {connected && deviceInfo && (
                 <div><dt>USB ID</dt><dd>{deviceInfo.vendor_id.toString(16).padStart(4, "0")}:{deviceInfo.product_id.toString(16).padStart(4, "0")}</dd></div>
               )}
@@ -467,7 +452,7 @@ export const DeviceView = memo(function DeviceView({
                 </div>
               </section>
             ) : ja11Device ? (
-              <Ja11Controls key={ja11Device.path} path={ja11Device.path} isBusy={isBusy} setStatus={setStatus} onExpectedDisconnect={onExpectedDisconnect} />
+              <Ja11Controls key={ja11Device.path} path={ja11Device.path} isBusy={isBusy} setStatus={setStatus} onExpectedDisconnect={onExpectedDisconnect} onReadFailure={onReadFailure} />
             ) : dawnDevice ? (
               <DawnProControls key={dawnDevice.path} path={dawnDevice.path} isBusy={isBusy} setStatus={setStatus} />
             ) : loading ? (
@@ -619,9 +604,9 @@ export const DeviceView = memo(function DeviceView({
                   <ActionRow
                     title="Reset device EQ"
                     desc="Resets all EQ bands on the DAC to 0 dB"
-                    actionLabel="Reset EQ"
-                    disabled={isBusy}
-                    onAction={handleResetDeviceEq}
+                    actionLabel={isBusy ? "Please wait…" : "Reset EQ"}
+                    disabled={isBusy || !onResetEq}
+                    onAction={() => void onResetEq?.()}
                   />
                 )}
 

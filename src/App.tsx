@@ -10,7 +10,7 @@ import {
   type ComponentProps,
 } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
-import { invoke, listen, emit, sleep } from "./lib/rpc";
+import { invoke, invokeForDevice, listen, emit, sleep } from "./lib/rpc";
 import { createExternalLinkClickHandler } from "./lib/externalLinks";
 import { Bands } from "./components/Bands";
 import { DeviceChooser } from "./components/DeviceChooser";
@@ -67,6 +67,8 @@ import type {
   AppSettings,
 } from "./types";
 import { useToastStore, type StatusReporter } from "./stores/toastStore";
+import { useDebugStore } from "./stores/debugStore";
+import { DebugEqBanner } from "./components/DebugEqBanner";
 import { useHistoryStore } from "./stores/historyStore";
 import { useThemeSync } from "./hooks/useThemeSync";
 import { readBootTheme } from "./lib/bootTheme";
@@ -82,6 +84,9 @@ import {
   markDeviceLost,
   isJa11Device,
   quietLossReport,
+  isJa11ReadTimeout,
+  claimReadRecovery,
+  resetEqOutcome,
   type ReportLevel,
   type ReportSource,
   type ReportToast,
@@ -205,6 +210,7 @@ function App() {
   const expectedRestartUntilRef = useRef(0);
   // True while a JA11 is the connected device: its drops are recovered quietly.
   const quietReconnectRef = useRef(false);
+  const readRecoveryRef = useRef({ silentUsed: false, inFlight: null as number | null });
   const ambiguousReconnectRef = useRef(false);
   const pullEqRef = useRef<(
     afterConnect?: boolean,
@@ -250,7 +256,11 @@ function App() {
   const [isReconnecting, setIsReconnecting] = useState(false);
   const [connectedDeviceName, setConnectedDeviceName] = useState("");
   const [firmwareVersion, setFirmwareVersion] = useState<string | null>(null);
-  const [isBusy, setIsBusy] = useState(false);
+  const [operationBusy, setIsBusy] = useState(false);
+  const [restartPending, setRestartPending] = useState(false);
+  const restartWaitIdRef = useRef(0);
+  const [maintenancePending, setMaintenancePending] = useState(false);
+  const isBusy = operationBusy || restartPending || maintenancePending;
   const [progress, setProgress] = useState<OperationProgress | null>(null);
   const status = useToastStore((s) => s.status);
   // One in-app notification path on every platform; Android previously also
@@ -1183,6 +1193,39 @@ function App() {
     };
   }, [connected, connectedDeviceName, selectedDevice, isBusy, loadFirmwareVersion, pushToUndoStack, noteEditorMutation, reportStatus, setConnected, settings.auto_pull_on_connect]);
 
+  // Close stale handles even if the same USB path has reappeared.
+  // One silent-read reopen per explicit connection; never replay mutations.
+  const recoverDeviceRead = useCallback(async (path: string, error: unknown): Promise<boolean> => {
+    if (manualDisconnectRef.current || !connectedRef.current ||
+        connectedPathRef.current !== path || isDevDummyDevice(path)) return false;
+    const disconnected = isDisconnectionError(error);
+    const silent = quietReconnectRef.current && isJa11ReadTimeout(error);
+    const sessionId = connectedSessionIdRef.current;
+    if (sessionId === null) return false;
+    const claim = claimReadRecovery(readRecoveryRef.current, sessionId, disconnected, silent);
+    if (claim !== "reopen") return claim === "pending";
+    const generation = connectionGenerationRef.current;
+    reportStatus({
+      level: "Info", source: "HID",
+      message: `Closing device session ${sessionId} for ${disconnected ? "disconnect" : "one-shot silent-read recovery"}: ${error}`,
+    });
+    try {
+      await invoke("disconnect_device", { expectedPath: path, expectedSessionId: sessionId });
+      if (manualDisconnectRef.current || generation !== connectionGenerationRef.current ||
+          connectedSessionIdRef.current !== sessionId) return true;
+      markDeviceLost(
+        { setConnected, setIsReconnecting, setLastPushedPeq, setFirmwareVersion, reportStatus: reportLoss },
+        `Reopening device after read failure: ${error}`, "HID",
+      );
+      return true;
+    } catch (closeError) {
+      reportStatus({ level: "Error", source: "HID", message: `Could not close device session ${sessionId}: ${closeError}` });
+      return false;
+    } finally {
+      if (readRecoveryRef.current.inFlight === sessionId) readRecoveryRef.current.inFlight = null;
+    }
+  }, [reportStatus, reportLoss, setConnected]);
+
   const pullEq = useCallback(async (
     afterConnect = false,
     targetPath = selectedDevice,
@@ -1212,7 +1255,7 @@ function App() {
       && targetCapabilities === confirmationCapabilities;
     // Preview connections confirm replacement before changing the model.
     const replacingPreview = afterConnect && isDevDummyDevice(targetPath);
-    if (dirty && !replacingPreview && !(await confirmDialog({
+    if (dirty && !replacingPreview && !useDebugStore.getState().autoDiscardEq && !(await confirmDialog({
       title: "Discard changes?",
       message: "Reading EQ from the DAC will discard your unsaved changes.",
       confirmLabel: "Discard and read",
@@ -1292,6 +1335,8 @@ function App() {
       // report against newer state or clear a connection made after it
       // started; only a current pull may act on its failure.
       if (!isCurrentPull()) return false;
+      if (await recoverDeviceRead(targetPath, error)) return false;
+      if (!isCurrentPull()) return false;
       if (!manualDisconnectRef.current && isDisconnectionError(error)) {
         markDeviceLost(
           { setConnected, setIsReconnecting, setLastPushedPeq, setFirmwareVersion, reportStatus: reportLoss },
@@ -1314,14 +1359,18 @@ function App() {
         setProgress(null);
       }
     }
-  }, [connected, dirty, pushToUndoStack, selectedDevice, selectedCapabilities, reportStatus, setStatus, getAsyncContext, noteEditorMutation]);
+  }, [connected, dirty, pushToUndoStack, selectedDevice, selectedCapabilities, reportStatus, setStatus, getAsyncContext, noteEditorMutation, recoverDeviceRead]);
 
   useEffect(() => {
     pullEqRef.current = pullEq;
   }, [pullEq]);
 
   const connectDevice = useCallback(async (targetPath?: string, targetInfo?: DeviceInfo): Promise<boolean> => {
+    // A manual connect supersedes an in-flight automatic reconnect immediately,
+    // before React's effect cleanup or another native open can run.
+    reconnectEffectGenerationRef.current += 1;
     manualDisconnectRef.current = false;
+    readRecoveryRef.current.silentUsed = false;
     ambiguousReconnectRef.current = false;
     const pathToConnect = targetPath || selectedDevice;
     if (!pathToConnect) return false;
@@ -1514,9 +1563,82 @@ function App() {
 
   // A JA11 setting write may make the DAC drop off USB briefly. Treat the next
   // 15 s of loss as expected, like a save restart.
-  const handleExpectedDisconnect = useCallback(() => {
+  const handleExpectedDisconnect = useCallback(async (restart = false) => {
     expectedRestartUntilRef.current = Date.now() + 15_000;
-  }, []);
+    if (!restart) return; // A control write may restart; Save is known to do so.
+    const path = connectedPathRef.current;
+    const sessionId = connectedSessionIdRef.current;
+    const generation = connectionGenerationRef.current;
+    if (!path || sessionId === null) return;
+    const ticket = ++restartWaitIdRef.current;
+    setRestartPending(true);
+    try {
+      // Tester traces show Save re-enumerating about 1.7–2 s later. Do not
+      // issue queries in that gap. Then retire the old handle even if polling
+      // missed the brief disappearance and Windows reused the same USB path.
+      await sleep(2200);
+      if (manualDisconnectRef.current || generation !== connectionGenerationRef.current ||
+          connectedSessionIdRef.current !== sessionId) return;
+      await invoke("disconnect_device", { expectedPath: path, expectedSessionId: sessionId });
+      if (generation !== connectionGenerationRef.current) return;
+      markDeviceLost(
+        { setConnected, setIsReconnecting, setLastPushedPeq, setFirmwareVersion, reportStatus: reportLoss },
+        "DAC save completed; reopening after expected restart", "HID", "Info",
+      );
+    } catch (error) {
+      reportStatus({ level: "Error", source: "HID", message: `Could not retire restarting device session: ${error}` });
+    } finally {
+      if (ticket === restartWaitIdRef.current) setRestartPending(false);
+    }
+  }, [reportStatus, reportLoss, setConnected]);
+
+  const resetDeviceEq = useCallback(async () => {
+    if (isBusy || eqOperationInFlightRef.current || !connectedRef.current) return;
+    const path = connectedPathRef.current;
+    if (!path) return;
+    // Claim synchronously, including while confirmation is open. A second
+    // click cannot queue another destructive reset before React re-renders.
+    const operationId = ++eqOperationIdRef.current;
+    eqOperationInFlightRef.current = true;
+    setMaintenancePending(true);
+    const generation = connectionGenerationRef.current;
+    const session = connectedSessionIdRef.current;
+    const isCurrent = () => generation === connectionGenerationRef.current
+      && session === connectedSessionIdRef.current && connectedPathRef.current === path;
+    try {
+      if (!(await confirmDialog({
+        title: "Reset device EQ?",
+        message: "Reset all hardware EQ bands on the DAC to 0 dB?",
+        confirmLabel: "Reset", danger: true,
+      })) || !isCurrent()) return;
+      setProgress({ message: "Resetting device EQ…", percentage: 0 });
+      const restarts = (await invokeForDevice<boolean | undefined>(path, "reset_device_eq")) === true;
+      if (!isCurrent()) return;
+      if (restarts) {
+        const outcome = resetEqOutcome(true, undefined);
+        setStatus(outcome.message, outcome.type);
+        setProgress({ message: "Waiting for DAC restart…", percentage: 100 });
+        await handleExpectedDisconnect(true);
+      } else {
+        // pullEq claims its own operation slot; maintenancePending continues
+        // to disable the rest of the UI through read-back.
+        eqOperationInFlightRef.current = false;
+        const pulled = await pullEq();
+        if (!isCurrent()) return;
+        const outcome = resetEqOutcome(false, pulled);
+        setStatus(outcome.message, outcome.type);
+      }
+    } catch (error) {
+      if (!isCurrent()) return;
+      if (!(await recoverDeviceRead(path, error)) && isCurrent()) {
+        setStatus(`Could not reset device EQ: ${error}`, "error");
+      }
+    } finally {
+      if (operationId === eqOperationIdRef.current) eqOperationInFlightRef.current = false;
+      setMaintenancePending(false);
+      setProgress(null);
+    }
+  }, [isBusy, setStatus, pullEq, handleExpectedDisconnect, recoverDeviceRead]);
 
   const handlePreviewChange = useCallback(async (device: DeviceInfo) => {
     const currentPath = connectedPathRef.current;
@@ -1679,7 +1801,10 @@ function App() {
           source: "UI",
         });
       }
+      if (restarts) await handleExpectedDisconnect(true);
     } catch (error) {
+      if (!isCurrentOperation()) return;
+      if (await recoverDeviceRead(selectedDevice, error)) return;
       if (!isCurrentOperation()) return;
       if (!manualDisconnectRef.current && !isDevDummyDevice(selectedDevice) && isDisconnectionError(error)) {
         markDeviceLost(
@@ -1702,7 +1827,7 @@ function App() {
         setProgress(null);
       }
     }
-  }, [connected, selectedDevice, selectedCapabilities, reportStatus, setStatus, getAsyncContext, noteEditorMutation, pushToUndoStack, isMobile]);
+  }, [connected, selectedDevice, selectedCapabilities, reportStatus, setStatus, getAsyncContext, noteEditorMutation, pushToUndoStack, isMobile, handleExpectedDisconnect, recoverDeviceRead]);
 
   const applyProfileToRam = useCallback(
     async (profile: Profile) => {
@@ -1792,6 +1917,8 @@ function App() {
         }
       } catch (error) {
         if (!isCurrentOperation()) return;
+        if (await recoverDeviceRead(selectedDevice, error)) return;
+        if (!isCurrentOperation()) return;
         if (!manualDisconnectRef.current && !isDevDummyDevice(selectedDevice) && isDisconnectionError(error)) {
           markDeviceLost(
             { setConnected, setIsReconnecting, setLastPushedPeq, setFirmwareVersion, reportStatus: reportLoss },
@@ -1814,7 +1941,7 @@ function App() {
         }
       }
     },
-    [dirty, pushToUndoStack, selectedDevice, capabilities, reportStatus, noteEditorMutation, getAsyncContext],
+    [dirty, pushToUndoStack, selectedDevice, capabilities, reportStatus, noteEditorMutation, getAsyncContext, recoverDeviceRead],
   );
 
   const disconnectDevice = useCallback(async () => {
@@ -2260,7 +2387,7 @@ function App() {
           configPage={desktopConfigPage}
           pageTitle={isMobile ? mobilePageTitle : activeTab === "profiles" ? "Profiles" : undefined}
           mobile={isMobile}
-          compact={isMobile && activeTab !== "eq" && !recoveryPending}
+          compact={isMobile && activeTab !== "eq" && !recoveryPending && !isBusy}
           draftRecovery={draftRecovery}
         />
   );
@@ -2272,6 +2399,7 @@ function App() {
         event.preventDefault();
         document.getElementById("workspace-content")?.focus();
       }}>Skip to workspace</a>
+      <DebugEqBanner />
       {isMobile && workspaceHeader}
       {isMobile ? (
         <>
@@ -2389,7 +2517,7 @@ function App() {
                   onOpenConnectModal={handleOpenDeviceModal}
                   onDisconnect={connected ? disconnectDevice : undefined}
                   onPreviewChange={handlePreviewChange}
-                  onExpectedDisconnect={handleExpectedDisconnect}
+                  onExpectedDisconnect={handleExpectedDisconnect} onReadFailure={recoverDeviceRead} onResetEq={resetDeviceEq}
                 />
               </section>
             )}
@@ -2529,7 +2657,7 @@ function App() {
             settingsSection={settingsSection}
             onDisconnect={connected ? disconnectDevice : undefined}
             onPreviewChange={handlePreviewChange}
-            onExpectedDisconnect={handleExpectedDisconnect}
+            onExpectedDisconnect={handleExpectedDisconnect} onReadFailure={recoverDeviceRead} onResetEq={resetDeviceEq}
           />
           )}
           </div>

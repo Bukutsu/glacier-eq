@@ -16,6 +16,8 @@ import { Icon } from "./Icon";
 import { Button } from "./ui/Button";
 import { Input } from "./ui/Input";
 import { Switch } from "./ui/Switch";
+import { ToggleRow } from "./SettingsPrimitives";
+import { useDebugStore } from "../stores/debugStore";
 import { DeviceView } from "./DeviceView";
 import { SettingsView } from "./SettingsView";
 import { ProfilesView } from "./ProfilesView";
@@ -89,7 +91,9 @@ interface ToolsPanelProps {
   settingsSection?: SettingsSection;
   onDisconnect?: () => Promise<void>;
   onPreviewChange?: (device: DeviceInfo) => void;
-  onExpectedDisconnect?: () => void;
+  onExpectedDisconnect?: (restart?: boolean) => void | Promise<void>;
+  onReadFailure?: (path: string, error: unknown) => Promise<boolean>;
+  onResetEq?: () => Promise<void>;
   onReviewEq?: () => void;
   profilePreview?: ReactNode;
 }
@@ -134,6 +138,8 @@ export const ToolsPanel = memo(function ToolsPanel(props: ToolsPanelProps) {
               onDisconnect={props.onDisconnect}
               onPreviewChange={props.onPreviewChange}
               onExpectedDisconnect={props.onExpectedDisconnect}
+              onReadFailure={props.onReadFailure}
+              onResetEq={props.onResetEq}
             />
           )}
           {tab === "Settings" && (
@@ -180,6 +186,8 @@ function DiagnosticMessage({ message }: { message: string }) {
 }
 
 export function DiagnosticsPanel() {
+  const autoDiscardEq = useDebugStore(s => s.autoDiscardEq);
+  const setAutoDiscardEq = useDebugStore(s => s.setAutoDiscardEq);
   const [events, setEvents] = useState<DiagnosticEvent[]>([]);
   const [levelFilter, setLevelFilter] = useState<DiagLevel>("All");
   const [search, setSearch] = useState("");
@@ -352,6 +360,12 @@ export function DiagnosticsPanel() {
 
   return (
     <section className="diagnostics-view">
+      <details className="debug-eq-options">
+        <summary>Advanced / debug</summary>
+        <ToggleRow title="Auto-discard EQ edits"
+          desc="Skip confirmation when reading EQ from the DAC, including after reconnecting. Unsaved edits will be replaced. Off when the app restarts."
+          checked={autoDiscardEq} onChange={setAutoDiscardEq} />
+      </details>
       <div className="diag-head">
         <div className="diag-counts">
           <span className="diag-count-e" title="Errors" aria-label={`${errorCount} errors`}>{errorCount} errors</span>

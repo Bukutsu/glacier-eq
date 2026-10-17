@@ -1851,3 +1851,27 @@ dialog.modal-content.add-trace-modal {
     font-size: 16px !important;
   }
 }
+
+/* Session-only destructive testing mode: visible on every workspace page. */
+.debug-eq-banner {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  border-bottom: 2px solid var(--warning-border);
+  background: var(--popover);
+  color: var(--warning-foreground);
+  box-shadow: inset 4px 0 var(--warning-foreground);
+}
+.debug-eq-banner > .app-icon { flex-shrink: 0; }
+.debug-eq-banner > div { flex: 1; min-width: 0; }
+.debug-eq-banner strong { font-size: 14px; }
+.debug-eq-banner p { margin: 3px 0 0; font-size: 12px; color: var(--popover-foreground); }
+.debug-eq-options { border: 1px solid var(--line-soft); border-radius: var(--radius-card); }
+.debug-eq-options summary { padding: 12px 16px; cursor: pointer; font-weight: 600; }
+@media (max-width: 600px) {
+  .debug-eq-banner { flex-wrap: wrap; padding: 10px 14px; }
+  .debug-eq-banner > div { flex-basis: calc(100% - 32px); }
+  .debug-eq-banner > button { margin-left: 30px; }
+}

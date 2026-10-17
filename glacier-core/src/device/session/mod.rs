@@ -333,7 +333,10 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
         Ok(())
     }
 
-    pub async fn reset_eq(&mut self) -> Result<(), String> {
+    /// Writes a flat EQ and saves it. Returns whether the DAC restarts after the
+    /// save (the JA11 does), so callers wait for the reconnect instead of
+    /// reading the EQ back from a device that is rebooting.
+    pub async fn reset_eq(&mut self) -> Result<bool, String> {
         self.require_hardware_eq()?;
         let peq = PEQData {
             filters: (0..self.profile.caps.num_bands)
@@ -341,7 +344,8 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
                 .collect(),
             global_gain: 0.0,
         };
-        self.persistent_push(peq).await.map(|_| ())
+        self.persistent_push(peq).await?;
+        Ok(self.save_restarts_device())
     }
 
     fn normalize(&self, peq: PEQData) -> Result<(PEQData, Vec<String>), String> {

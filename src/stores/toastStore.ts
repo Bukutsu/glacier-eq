@@ -9,12 +9,12 @@ export interface Toast {
   type: "info" | "error" | "success";
 }
 
-// Error toasts deliberately stay until dismissed, so without a cap distinct
-// error messages (device names, import failures) accumulate for the whole
-// session. Keep the newest N and let the oldest fall off.
+// Bound bursts of distinct failures; history remains in Diagnostics.
 const MAX_ERROR_TOASTS = 50;
-const TOAST_DURATION_MS = 4000;
+export const toastDuration = (type: Toast["type"]) => type === "error" ? 8000 : 4000;
 const timers = new Map<string, ReturnType<typeof setTimeout>>();
+const remaining = new Map<string, number>();
+const deadlines = new Map<string, number>();
 
 function cancelTimer(id: string) {
   const timer = timers.get(id);
@@ -96,11 +96,7 @@ export const useToastStore = create<ToastStore>()((set, get) => ({
     const toastType = resolveToastType(message, type);
 
     const { toasts } = get();
-    // Dedupe on message *and* type. Matching on the text alone let an error
-    // swallow a later success that happened to read the same, and because
-    // error toasts never auto-dismiss, a permanent error kept suppressing
-    // every repeat of itself for the rest of the session — a failure that
-    // recurs on every udev auto-connect produced exactly one notification.
+    // Dedupe on message and type while the notification is visible.
     if (toasts.some((t) => t.message === message && t.type === toastType)) return;
 
     const id = Math.random().toString(36).substring(2, 9);
@@ -112,7 +108,7 @@ export const useToastStore = create<ToastStore>()((set, get) => ({
       ? [...errors, toast].slice(-MAX_ERROR_TOASTS)
       : [...errors, toast];
     for (const previous of toasts) {
-      if (!next.some(item => item.id === previous.id)) cancelTimer(previous.id);
+      if (!next.some(item => item.id === previous.id)) get().removeToast(previous.id);
     }
     set({ toasts: next });
     get().resumeToast(id);
@@ -140,20 +136,29 @@ export const useToastStore = create<ToastStore>()((set, get) => ({
 
   removeToast: (id) => {
     cancelTimer(id);
+    remaining.delete(id);
+    deadlines.delete(id);
     set({ toasts: get().toasts.filter((t) => t.id !== id) });
   },
 
-  pauseToast: cancelTimer,
+  pauseToast: (id) => {
+    const deadline = deadlines.get(id);
+    if (deadline !== undefined) remaining.set(id, Math.max(0, deadline - Date.now()));
+    deadlines.delete(id);
+    cancelTimer(id);
+  },
 
   resumeToast: (id) => {
     const toast = get().toasts.find(item => item.id === id);
-    if (!toast || toast.type === "error" || timers.has(id)) return;
-    timers.set(id, setTimeout(() => get().removeToast(id), TOAST_DURATION_MS));
+    if (!toast || timers.has(id)) return;
+    const ms = remaining.get(id) ?? toastDuration(toast.type);
+    deadlines.set(id, Date.now() + ms);
+    timers.set(id, setTimeout(() => get().removeToast(id), ms));
   },
 
   clearNonErrorToasts: () => {
     for (const toast of get().toasts) {
-      if (toast.type !== "error") cancelTimer(toast.id);
+      if (toast.type !== "error") get().removeToast(toast.id);
     }
     set({ toasts: get().toasts.filter((t) => t.type === "error") });
   },

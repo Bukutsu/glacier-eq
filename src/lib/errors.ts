@@ -15,6 +15,8 @@ const DISCONNECT_NEEDLES = [
   "no supported dac connected",
   "device is closed",
   "device closed",
+  "device is not connected",
+  "0x0000048f",
 ];
 
 export function isWindowsPlatform(platformName?: string): boolean {

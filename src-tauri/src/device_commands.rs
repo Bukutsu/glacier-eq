@@ -241,6 +241,7 @@ fn try_open_device(app: &tauri::AppHandle, path: &str, session_id: u64) -> Resul
 struct TauriDeviceIo<'a> {
     app: &'a tauri::AppHandle,
     path: &'a str,
+    session_id: u64,
     /// Consecutive empty reads not yet logged, and their total timeout.
     idle_reads: (u32, i64),
 }
@@ -272,7 +273,7 @@ impl TauriDeviceIo<'_> {
                 .inner(),
             level,
             crate::diagnostics::LogSource::HID,
-            message,
+            format!("session={} {message}", self.session_id),
         );
     }
 
@@ -393,6 +394,7 @@ async fn with_session_for<T: Send + 'static>(
         let mut io = TauriDeviceIo {
             app: &app_clone,
             path: &path,
+            session_id: connected.session_id,
             idle_reads: (0, 0),
         };
         let progress_app = app_clone.clone();
@@ -982,7 +984,7 @@ pub async fn set_mic_volume(
 pub async fn reset_device_eq(
     app: tauri::AppHandle,
     state: tauri::State<'_, Mutex<DeviceState>>,
-) -> Result<(), String> {
+) -> Result<bool, String> {
     with_session(&app, &state, |session| {
         glacier_core::device::block_on(session.reset_eq())
     })

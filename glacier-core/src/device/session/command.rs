@@ -72,6 +72,8 @@ pub enum DeviceOutcome {
     Write(EqWriteOutcome),
     Firmware(Option<String>),
     Control(Option<u8>),
+    /// Whether the DAC restarts after the command (see `reset_eq`).
+    Restarts(bool),
     Utility(DacUtilityState),
     Unit,
 }
@@ -131,10 +133,7 @@ impl<I: DeviceIo> DeviceSession<'_, I> {
                 self.set_mic_volume(db).await?;
                 DeviceOutcome::Unit
             }
-            ResetEq => {
-                self.reset_eq().await?;
-                DeviceOutcome::Unit
-            }
+            ResetEq => DeviceOutcome::Restarts(self.reset_eq().await?),
             FactoryReset => {
                 self.factory_reset().await?;
                 DeviceOutcome::Unit

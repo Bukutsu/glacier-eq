@@ -63,6 +63,7 @@ impl<I: DeviceIo> DeviceSession<'_, I> {
                 }
                 Err(error) => error,
             }),
+            Err(error) if crate::error::is_disconnection(&error) => Err(error),
             _ => Ok(None),
         }
     }

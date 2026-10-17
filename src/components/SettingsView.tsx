@@ -326,7 +326,7 @@ export const SettingsView = memo(function SettingsView({
 
             <ToggleRow
               title="Verify EQ after writing"
-              desc="Read EQ back from the DAC to verify the write. Disabling verification reduces write time, but leaves writes unchecked."
+              desc="Checks that the DAC received the EQ by reading it back. On JA11, this happens before the save restarts the DAC, not after reconnecting. Turning this off skips optional checks; required safety checks still run."
               checked={!settings.skip_push_verification}
               onChange={(v) => onSettingChange("skip_push_verification", !v)}
             />

@@ -162,6 +162,13 @@ export function DawnProControls({ path, isBusy, setStatus }: {
   };
 
   return <>
+    <div className="flex items-center justify-between gap-2 px-1 text-xs text-muted-foreground">
+      <span>{refreshing ? "Reading settings…" : "Changes apply immediately"}</span>
+      <Button type="button" variant="ghost" size="icon" title="Refresh settings" aria-label="Refresh settings"
+        aria-busy={refreshing} disabled={isBusy || refreshing} onClick={refresh}>
+        <Icon name="refresh" />
+      </Button>
+    </div>
     {!state && <section className="settings-card empty-card">
       <div className="empty-state">
         <h3>{error ? "Could not load Dawn Pro controls" : "Reading Dawn Pro settings"}</h3>
@@ -170,8 +177,5 @@ export function DawnProControls({ path, isBusy, setStatus }: {
     </section>}
     {state && <DawnProControlsFields state={state} disabled={isBusy || refreshing} onChange={change} />}
     {state && error && <p role="alert">{error}</p>}
-    <Button type="button" disabled={isBusy || refreshing} onClick={refresh}>
-      {refreshing ? "Reading settings…" : "Refresh settings"}
-    </Button>
   </>;
 }

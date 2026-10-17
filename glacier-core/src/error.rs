@@ -21,6 +21,8 @@ const DISCONNECT_NEEDLES: &[&str] = &[
     "no supported dac connected",
     "device is closed",
     "device closed",
+    "device is not connected",
+    "0x0000048f",
 ];
 
 /// On Windows errno 5 is ERROR_ACCESS_DENIED (permissions/locked device), not a
@@ -49,6 +51,10 @@ mod tests {
         assert!(is_disconnection("Device closed: /dev/bus/usb/001/002"));
         assert!(is_disconnection("HidError: device disconnected"));
         assert!(is_disconnection("No such device (os error 19)"));
+        assert!(is_disconnection(
+            "ReadFile: (0x0000048F) The device is not connected."
+        ));
+        assert!(is_disconnection("WriteFile: (0x0000048F)"));
         assert!(!is_disconnection("Checksum verification failed"));
         assert!(!is_disconnection("Invalid frequency range"));
     }

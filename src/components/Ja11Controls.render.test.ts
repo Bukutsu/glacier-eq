@@ -22,7 +22,7 @@ describe("JA11 controls", () => {
     expect(html).toContain("Changes apply immediately");
     expect(html).toContain('aria-label="Refresh settings"');
     expect(html).not.toContain(">Apply<");
-    expect(html).toContain("Persistence after unplugging has not been verified");
-    expect(html).toContain("Source-reviewed, not hardware-verified");
+    expect(html).not.toContain("Persistence after unplugging has not been verified");
+    expect(html).not.toContain("Source-reviewed, not hardware-verified");
   });
 });

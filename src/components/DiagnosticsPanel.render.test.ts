@@ -14,5 +14,8 @@ describe("diagnostics viewer", () => {
     expect(html).toContain("Copy report");
     expect(html).toContain("0 errors");
     expect(html).toContain("No logs recorded.");
+    expect(html).toContain("Advanced / debug");
+    expect(html).toContain("Auto-discard EQ edits");
+    expect(html).toContain("Off when the app restarts.");
   });
 });

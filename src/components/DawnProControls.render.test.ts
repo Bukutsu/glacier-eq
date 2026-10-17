@@ -1,7 +1,7 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { DawnProControlsFields } from "./DawnProControls";
+import { DawnProControls, DawnProControlsFields } from "./DawnProControls";
 
 vi.mock("@glacier-eq/backend", () => ({ invoke: vi.fn() }));
 
@@ -10,6 +10,14 @@ const render = (disabled = false, incoming = state) => renderToStaticMarkup(crea
   DawnProControlsFields, { state: incoming, disabled, onChange: () => {} }));
 
 describe("Original Dawn Pro controls", () => {
+  it("offers a compact refresh button even before the initial read succeeds", () => {
+    const html = renderToStaticMarkup(createElement(DawnProControls, {
+      path: "/dawn", isBusy: false, setStatus: () => {},
+    }));
+    expect(html).toContain('aria-label="Refresh settings"');
+    expect(html).toContain('title="Refresh settings"');
+    expect(html).toContain('data-variant="ghost"');
+  });
   it("shows only its confirmed controls, not Walkplay controls", () => {
     const html = render();
     for (const label of ["Reconstruction filter", "High gain", "DAC volume", "Indicator LED"]) {
