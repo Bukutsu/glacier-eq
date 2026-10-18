@@ -129,7 +129,12 @@ fn main() {
         let seed = if holdout { case + 100 } else { case };
         let target = fixture(seed, &frequencies);
         let mean = target.iter().map(|p| p.1).sum::<f64>() / target.len() as f64;
-        let treble = target.partition_point(|p| p.0 < 18500.0);
+        let treble = target
+            .iter()
+            .enumerate()
+            .min_by(|(_, a), (_, b)| (a.0 - 18500.0).abs().total_cmp(&(b.0 - 18500.0).abs()))
+            .unwrap()
+            .0;
         let reference: Vec<_> = target
             .iter()
             .enumerate()
@@ -149,8 +154,8 @@ fn main() {
             ("desktop5", None, 5),
             ("desktop10", None, 10),
             ("fiio", Some((0x2972, 0x0102)), 5),
-            ("walkplay", Some((0x35d8, 0x011d)), 5),
-            ("moondrop", Some((0x3302, 0x43e6)), 5),
+            ("walkplay", Some((0x3302, 0x43e6)), 5),
+            ("moondrop", Some((0x35d8, 0x011d)), 5),
         ] {
             let profile = id.map(|(vid, pid)| get_supported_device(vid, pid).unwrap());
             let caps = profile.map_or(&DESKTOP_DAC_CAPS, |p| &p.caps);
