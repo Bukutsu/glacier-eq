@@ -349,6 +349,24 @@ jobs:
           echo "✅ Assets collected for ${{ matrix.name }}:"
           find release-assets -maxdepth 1 -type f -print | sort
 
+      # The release exe is self-contained (frontend embedded, no resources or
+      # sidecars), so zipping it alone gives a portable build. WebView2 must
+      # already be installed on the target machine (default on Windows 10/11).
+      - name: Package Windows portable build
+        if: matrix.name == 'windows-x64'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $exe = 'target/release/glacier-eq.exe'
+          if (-not (Test-Path $exe)) { throw "Missing $exe" }
+          $dir = 'portable/Glacier-EQ'
+          New-Item -ItemType Directory -Force $dir | Out-Null
+          Copy-Item $exe "$dir/Glacier-EQ.exe"
+          Copy-Item LICENSE $dir
+          $zip = "release-assets/glacier-eq_v${{ needs.check-tag.outputs.release-version }}_windows-x64-portable.zip"
+          Compress-Archive -Path $dir -DestinationPath $zip
+          Get-Item $zip
+
       - name: Upload artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
@@ -630,6 +648,7 @@ jobs:
           require_glob "Linux AppImage" 'artifacts/*.AppImage'
           require_glob "Windows MSI" 'artifacts/*.msi'
           require_glob "Windows EXE" 'artifacts/*.exe'
+          require_glob "Windows portable ZIP" 'artifacts/*windows-x64-portable.zip'
           require_glob "macOS Apple Silicon DMG" 'artifacts/*aarch64*.dmg'
           if ! compgen -G 'artifacts/*x64*.dmg' >/dev/null && ! compgen -G 'artifacts/*x86_64*.dmg' >/dev/null; then
             echo "❌ Missing required release asset: macOS Intel DMG"
