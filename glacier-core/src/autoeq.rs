@@ -1280,7 +1280,8 @@ pub fn run_autoeq_with_target(
 
     // Upstream AutoEq explicitly supports five filters: one low shelf + four
     // peaks, with its 5+5 legacy export fitting a second stage to the residual.
-    // Compare layouts instead of reserving two scarce bands for shelves.
+    // Compare layouts at every band count instead of reserving two bands for
+    // shelves even when the correction is better represented by interior peaks.
     // Reference (protocol/data independent; no copied optimizer code):
     // https://github.com/jaakkopasanen/AutoEq/blob/7ae0f56d53074872b028649617a22bbb4232feb7/autoeq/constants.py#L115-L134
     // Upstream defaults shelf Q to 0.4..0.7 to avoid resonant shelves:
@@ -1350,7 +1351,7 @@ pub fn run_autoeq_with_target(
         Ok((peq, loss))
     };
     let mut best = fit_layout(types.clone());
-    if (low_band || best.is_err()) && supports(FilterType::Peak) {
+    if supports(FilterType::Peak) {
         let mut layouts = vec![types];
         for shelf in [
             Some(FilterType::LowShelf),
@@ -1815,33 +1816,39 @@ mod tests {
     }
 
     #[test]
-    fn larger_band_counts_keep_the_existing_two_shelf_layout() {
-        let (measurement, target) = hump_case();
-        for n in [6, 10] {
-            let peq = run_autoeq(&measurement, &target, n, 200, "none", 48000.0, None).unwrap();
-            assert_eq!(peq.filters.len(), n);
-            assert_eq!(
-                peq.filters
-                    .iter()
-                    .filter(|f| f.filter_type == FilterType::LowShelf)
-                    .count(),
-                1
-            );
-            assert_eq!(
-                peq.filters
-                    .iter()
-                    .filter(|f| f.filter_type == FilterType::HighShelf)
-                    .count(),
-                1
-            );
-            assert_eq!(
-                peq.filters
-                    .iter()
-                    .filter(|f| f.filter_type == FilterType::Peak)
-                    .count(),
-                n - 2
-            );
+    fn larger_band_counts_can_use_all_bands_for_interior_peaks() {
+        let fs = 48000.0;
+        let f = generate_log_spaced_freqs();
+        let mut desired = [0.0; K];
+        for (frequency, gain) in [
+            (80.0, 5.0),
+            (220.0, -5.0),
+            (600.0, 4.0),
+            (1500.0, -4.0),
+            (3600.0, 5.0),
+            (7500.0, -5.0),
+        ] {
+            spectrum_values(FilterType::Peak, frequency, gain, 3.0, fs, &f, &mut desired);
         }
+        let measurement: Vec<_> = f.iter().map(|&freq| (freq as f64, 0.0)).collect();
+        let target: Vec<_> = f
+            .iter()
+            .zip(desired)
+            .map(|(&freq, db)| (freq as f64, db as f64))
+            .collect();
+        let peq = run_autoeq(&measurement, &target, 6, 0, "none", fs, None).unwrap();
+        assert_eq!(peq.filters.len(), 6);
+        assert!(peq
+            .filters
+            .iter()
+            .all(|b| b.filter_type == FilterType::Peak));
+        let mse = shape_mse(&peq, &f, &desired, fs);
+        assert!(mse < 0.01, "six interior peaks: MSE {mse}");
+        assert_eq!(
+            peq,
+            run_autoeq(&measurement, &target, 6, 0, "none", fs, None).unwrap()
+        );
+        assert!(peq.global_gain + max_autoeq_response(&peq.filters, fs).unwrap() as f64 <= 1e-4);
     }
 
     type CurvePoints = Vec<(f64, f64)>;
