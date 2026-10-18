@@ -1,7 +1,7 @@
 /* Library first, with the current editor and a small read-only EQ preview. */
 .profiles-workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1.4fr) minmax(300px, 1fr);
   align-items: start;
   gap: var(--space-5);
   width: 100%;
@@ -27,6 +27,12 @@
   margin-bottom: var(--space-4);
 }
 
+.profiles-heading {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
 .profiles-header h2 {
   margin: 0;
   color: var(--text);
@@ -36,8 +42,9 @@
 }
 
 .profiles-header-actions,
-.profiles-library-footer,
-.profiles-editor-actions {
+.profiles-footer-actions,
+.profiles-editor-actions,
+.profiles-editor-tools {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -52,7 +59,14 @@
   line-height: 1.5;
 }
 
-.profiles-search { position: relative; }
+.profiles-search { position: relative; display: flex; align-items: center; }
+.profiles-search > .app-icon {
+  position: absolute;
+  left: 12px;
+  width: 16px;
+  color: var(--muted-foreground);
+  pointer-events: none;
+}
 .profiles-search input::-webkit-search-cancel-button { appearance: none; }
 
 .profiles-search-clear {
@@ -61,132 +75,121 @@
   right: 5px;
 }
 
+/* A plain list: rows are separated by space, not borders. Every action a
+   row offers is always visible, in a muted tone until hovered. */
 .profiles-list {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: 2px;
   min-width: 0;
-  max-height: 400px;
+  max-height: 440px;
   overflow-y: auto;
-  margin: var(--space-3) -4px 0;
-  padding: var(--space-1);
+  margin: var(--space-3) calc(-1 * var(--space-2)) 0;
+  padding: 0 var(--space-2);
+  list-style: none;
 }
 
 .profiles-item {
+  position: relative;
   display: flex;
   flex-shrink: 0;
   align-items: center;
+  gap: var(--space-2);
   min-width: 0;
-  border: 1px solid transparent;
+  padding-right: var(--space-1);
   border-radius: var(--control-radius);
+  transition: background-color 120ms;
 }
 
-.profiles-item.is-current {
-  border-color: var(--line-medium);
-  background: var(--surface-soft);
+.profiles-item:hover { background: var(--accent); }
+.profiles-item.is-current { background: var(--surface-soft); }
+
+/* A thin bar marks the profile in the editor without another bordered box. */
+.profiles-item.is-current::before {
+  content: "";
+  position: absolute;
+  top: 10px;
+  bottom: 10px;
+  left: 0;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--primary);
 }
 
-/* The built-in default is a recovery tool rather than an editable profile.
-   Give it a quiet, persistent identity and keep its two useful actions visible. */
-.profiles-default {
-  flex-direction: column;
-  align-items: stretch;
-  gap: var(--space-3);
-  padding: var(--space-3);
-  border-color: var(--line-medium);
-  background: transparent;
-}
-
-.profiles-default.is-current {
-  background: var(--surface-soft);
-}
-
-.profiles-default-summary,
-.profiles-default-heading,
-.profiles-default-actions {
+.profiles-load {
   display: flex;
-  align-items: center;
-}
-
-.profiles-default-summary {
-  gap: var(--space-3);
-  min-width: 0;
-}
-
-.profiles-default-heading {
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
-.profiles-default-icon {
-  display: inline-flex;
-  flex: 0 0 34px;
-  align-items: center;
-  justify-content: center;
-  height: 34px;
-  border: 1px solid var(--line-soft);
-  border-radius: var(--control-radius);
-  background: var(--surface);
-  color: var(--muted-foreground);
-}
-
-.profiles-default-icon .app-icon {
-  width: 18px;
-  height: 18px;
-}
-
-.profiles-default-actions {
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: var(--space-2);
-}
-
-.profiles-item .profiles-load {
   flex: 1 1 auto;
-  justify-content: flex-start;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
   min-width: 0;
-  min-height: 56px;
+  min-height: 52px;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: var(--control-radius);
+  background: transparent;
+  color: inherit;
+  font: inherit;
   text-align: left;
+  cursor: pointer;
 }
 
-/* One row, one hover surface: the load button and the row action sit inside
-   it. The action stays out of the way until the row is hovered or focused,
-   and is always shown where there is no hover. */
-.profiles-item:not(.is-current, .profiles-default):hover { background: var(--accent); }
-.profiles-item .profiles-load:hover { background: transparent; }
-.profiles-row-action { margin-right: var(--space-1); opacity: 0; }
-.profiles-item:is(:hover, :focus-within, .is-current) .profiles-row-action { opacity: 1; }
-@media (hover: none) { .profiles-row-action { opacity: 1; } }
-
-.profiles-item-text {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: var(--space-1);
-  min-width: 0;
+.profiles-load:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
 }
 
 .profiles-item-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
   color: var(--text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: var(--type-label);
   font-weight: 500;
 }
 
-.profiles-badge {
+.profiles-item-name .app-icon { flex: none; color: var(--muted-foreground); }
+
+.profiles-item-meta {
+  max-width: 100%;
+  overflow: hidden;
   color: var(--muted);
   font-size: var(--type-small);
-  font-weight: 400;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.profiles-badge {
+  flex: none;
+  color: var(--muted);
+  font-size: var(--type-small);
+  white-space: nowrap;
+}
+.profiles-badge[data-modified="true"] { color: var(--warning-foreground); }
+
+.profiles-row-actions { display: flex; flex: none; gap: 2px; }
+.profiles-row-actions [data-slot="button"] { color: var(--muted-foreground); opacity: 0.7; }
+.profiles-item:is(:hover, :focus-within) .profiles-row-actions [data-slot="button"] { opacity: 1; }
+.profiles-row-actions [data-slot="button"]:hover { color: var(--foreground); }
+.profiles-row-actions .profiles-delete:hover { color: var(--destructive-foreground); }
+.ui-menu-item.profiles-menu-danger { color: var(--destructive-foreground); }
+
 .profiles-library-footer {
+  display: flex;
+  align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-2);
   margin-top: var(--space-4);
   padding-top: var(--space-3);
   border-top: 1px solid var(--line-soft);
 }
+
+.profiles-empty-hint { margin-top: var(--space-3); }
 
 .profiles-empty {
   display: flex;
@@ -209,35 +212,33 @@
   line-height: 1.5;
 }
 
-.profiles-editor-name {
+.profiles-editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.profiles-eyebrow {
   margin: 0;
+  color: var(--muted);
+  font-size: var(--type-small);
+  font-weight: 500;
+}
+
+.profiles-warning { color: var(--warning-foreground); }
+
+.profiles-editor-name {
+  margin: 0 0 var(--space-1);
   color: var(--text);
-  font-size: var(--type-body);
+  font-size: 18px;
   font-weight: 600;
-  line-height: 1.4;
+  line-height: 1.35;
   overflow-wrap: anywhere;
 }
 
-.profiles-editor-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2) var(--space-4);
-  margin-top: var(--space-2);
-  color: var(--muted);
-  font-size: var(--type-small);
-}
-
-.profiles-editor-state {
-  margin: var(--space-2) 0 0;
-  color: var(--muted);
-  font-size: var(--type-small);
-}
-
-.profiles-editor-state[data-modified="true"],
-.profiles-warning { color: var(--warning-foreground); }
-
 .profiles-editor-actions { margin-top: var(--space-4); }
-.profiles-edit-eq { align-self: flex-start; margin-top: var(--space-3); }
 
 .profile-save-form {
   display: flex;
@@ -258,7 +259,7 @@
 .profiles-preview {
   display: flex;
   min-width: 0;
-  height: 220px;
+  height: 200px;
   margin-top: var(--space-4);
   padding-top: var(--space-4);
   border-top: 1px solid var(--line-soft);
@@ -266,9 +267,10 @@
 }
 
 .profiles-preview :is(.eq-graph-shell, .eq-canvas) { min-height: 0; }
-.profiles-safety { margin: var(--space-4) 0 var(--space-2); }
-.profiles-menu { max-width: calc(100vw - 32px); }
-.profiles-menu .profiles-menu-danger { color: var(--destructive-foreground); }
+.profiles-editor-tools {
+  gap: var(--space-1);
+  margin: var(--space-3) calc(-1 * var(--space-2)) 0;
+}
 
 .profiles-import-dialog .modal-body { gap: var(--space-4); }
 
@@ -314,21 +316,6 @@
 .profiles-import-warnings ul { margin: 0; padding-left: var(--space-4); }
 
 @media (min-width: 851px) and ((min-height: 541px) or (pointer: fine)) {
-  .profiles-default {
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--space-2) var(--space-3);
-    padding: var(--space-2) var(--space-3);
-  }
-  .profiles-default-summary { flex: 1 1 220px; }
-  .profiles-default-icon {
-    flex-basis: 18px;
-    height: 18px;
-    border: 0;
-    background: transparent;
-  }
-  .profiles-default-actions { margin-left: auto; }
   .desktop-view-profiles .desktop-content { grid-template-columns: minmax(0, 1fr); }
   .desktop-view-profiles .desktop-content > .right-rail {
     grid-column: 1 / -1;
@@ -357,8 +344,8 @@
   .profiles-search-clear { top: 0; right: 0; }
 }
 
-@media (pointer: coarse) {
-  .profiles-item > button { min-width: 44px; }
+@media (hover: none) {
+  .profiles-row-actions [data-slot="button"] { opacity: 1; }
 }
 
 .profiles-paste-text {

@@ -260,63 +260,71 @@ export function useProfiles(editor: ProfilesEditor, setStatus: StatusReporter) {
     }
   }, [editor, profiles, loadProfiles, setStatus, runProfileMutation]);
 
-  const deleteSelectedProfile = useCallback(async () => {
-    if (editor.isBusy) return;
-    const deletedName = selectedPresetRef.current;
-    if (deletedName === DEFAULT_PROFILE_NAME) return;
-    const editorSnapshot = editor.peqRef.current;
-    const deletedContext = {
-      profileSearch: profileSearchRef.current,
-      newProfileName: newProfileNameRef.current,
-    };
-    if (
-      !(await confirmDialog({
-        title: "Delete profile?",
-        message: `Delete profile "${deletedName}"? This cannot be undone.`,
-        confirmLabel: "Delete",
-        danger: true,
-      }))
-    )
-      return;
+  /** Deletes any saved profile; the editor falls back to Default EQ only
+   *  when the deleted profile is the one it holds. */
+  const deleteProfile = useCallback(
+    async (deletedName: string) => {
+      if (editor.isBusy) return;
+      const deletedKey = profileIdentityKey(deletedName);
+      if (deletedKey === profileIdentityKey(DEFAULT_PROFILE_NAME)) return;
+      const wasSelected =
+        profileIdentityKey(selectedPresetRef.current) === deletedKey;
+      const selectedSnapshot = selectedPresetRef.current;
+      const editorSnapshot = editor.peqRef.current;
+      const deletedContext = {
+        profileSearch: profileSearchRef.current,
+        newProfileName: newProfileNameRef.current,
+      };
+      if (
+        !(await confirmDialog({
+          title: "Delete profile?",
+          message: `Delete profile "${deletedName}"? This cannot be undone.`,
+          confirmLabel: "Delete",
+          danger: true,
+        }))
+      )
+        return;
 
-    let writeCompleted = false;
-    try {
-      const mutation = await runProfileMutation(async () => {
-        await invoke("delete_profile", { name: deletedName });
-        writeCompleted = true;
-        await loadProfiles({ preserveSelection: true, throwOnError: true });
-      });
-      const contextStillCurrent =
-        mutation.current &&
-        selectedPresetRef.current === deletedName &&
-        peqEquals(editor.peqRef.current, editorSnapshot) &&
-        profileSearchRef.current === deletedContext.profileSearch &&
-        newProfileNameRef.current === deletedContext.newProfileName;
-      if (contextStillCurrent) {
-        editor.pushToUndoStack(editorSnapshot);
-        setSelectedPreset(DEFAULT_PROFILE_NAME);
-        setProfileSearch("");
-        setNewProfileName("");
-        const defaultPeq = buildDefaultState();
-        editor.setPeq(defaultPeq);
-        editor.editorCleanPeqRef.current = defaultPeq;
-        editor.setDirty(false);
+      let writeCompleted = false;
+      try {
+        const mutation = await runProfileMutation(async () => {
+          await invoke("delete_profile", { name: deletedName });
+          writeCompleted = true;
+          await loadProfiles({ preserveSelection: true, throwOnError: true });
+        });
+        const contextStillCurrent =
+          wasSelected &&
+          mutation.current &&
+          selectedPresetRef.current === selectedSnapshot &&
+          peqEquals(editor.peqRef.current, editorSnapshot) &&
+          profileSearchRef.current === deletedContext.profileSearch &&
+          newProfileNameRef.current === deletedContext.newProfileName;
+        if (contextStillCurrent) {
+          editor.pushToUndoStack(editorSnapshot);
+          setSelectedPreset(DEFAULT_PROFILE_NAME);
+          setProfileSearch("");
+          setNewProfileName("");
+          const defaultPeq = buildDefaultState();
+          editor.setPeq(defaultPeq);
+          editor.editorCleanPeqRef.current = defaultPeq;
+          editor.setDirty(false);
+        }
+        setStatus("Profile deleted");
+      } catch (error) {
+        setStatus(
+          writeCompleted
+            ? `Profile deleted, but refreshing the profile list failed: ${error}`
+            : `Failed to delete profile: ${error}`,
+        );
       }
-      setStatus("Profile deleted");
-    } catch (error) {
-      setStatus(
-        writeCompleted
-          ? `Profile deleted, but refreshing the profile list failed: ${error}`
-          : `Failed to delete profile: ${error}`,
-      );
-    }
-  }, [editor, loadProfiles, setStatus, runProfileMutation]);
+    },
+    [editor, loadProfiles, setStatus, runProfileMutation],
+  );
 
-  /** Renames the selected saved profile; resolves true once the rename landed. */
-  const renameSelectedProfile = useCallback(
-    async (requestedName: string): Promise<boolean> => {
+  /** Renames a saved profile; resolves true once the rename landed. */
+  const renameProfile = useCallback(
+    async (from: string, requestedName: string): Promise<boolean> => {
       if (editor.isBusy) return false;
-      const from = selectedPresetRef.current;
       const to = requestedName.trim();
       if (from === DEFAULT_PROFILE_NAME || !to || to === from) return false;
 
@@ -337,7 +345,11 @@ export function useProfiles(editor: ProfilesEditor, setStatus: StatusReporter) {
             )?.name ?? canonicalName;
         });
         // The editor keeps its EQ and unsaved state; only its saved name moves.
-        if (mutation.current && selectedPresetRef.current === from) {
+        if (
+          mutation.current &&
+          profileIdentityKey(selectedPresetRef.current) ===
+            profileIdentityKey(from)
+        ) {
           selectedPresetRef.current = canonicalName;
           setSelectedPreset(canonicalName);
         }
@@ -374,8 +386,8 @@ export function useProfiles(editor: ProfilesEditor, setStatus: StatusReporter) {
     loadProfiles,
     reloadProfiles,
     saveProfile,
-    deleteSelectedProfile,
-    renameSelectedProfile,
+    deleteProfile,
+    renameProfile,
     openProfilesDir,
     applyProfile,
     importPeq,

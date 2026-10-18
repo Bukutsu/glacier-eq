@@ -261,8 +261,8 @@ function App() {
     setNewProfileName,
     reloadProfiles,
     saveProfile,
-    deleteSelectedProfile,
-    renameSelectedProfile,
+    deleteProfile,
+    renameProfile,
     openProfilesDir,
     applyProfile,
     importPeq,
@@ -553,8 +553,8 @@ function App() {
     profilesOnDisk: isTauri(),
     onReset: reset,
     onSave: saveProfile,
-    onDelete: deleteSelectedProfile,
-    onRename: renameSelectedProfile,
+    onDelete: deleteProfile,
+    onRename: renameProfile,
     setStatus,
     settings,
     onSettingChange: updateSetting,
@@ -1057,8 +1057,8 @@ function App() {
                 profilesOnDisk={isTauri()}
                 onReset={reset}
                 onSave={saveProfile}
-                onDelete={deleteSelectedProfile}
-                onRename={renameSelectedProfile}
+                onDelete={deleteProfile}
+                onRename={renameProfile}
                 setStatus={setStatus}
                 measurements={measurements}
                 allTargets={allTargets}

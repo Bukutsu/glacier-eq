@@ -36,8 +36,8 @@ export interface MobileProfilesViewProps {
   onApplyProfile?: (profile: Profile) => void;
   onImportPEQ: (data: PEQData, name: string, isSaved: boolean) => boolean;
   onSave: () => void | Promise<void>;
-  onDelete: () => void | Promise<void>;
-  onRename: (name: string) => Promise<boolean>;
+  onDelete: (name: string) => void | Promise<void>;
+  onRename: (from: string, to: string) => Promise<boolean>;
   onReloadProfiles: () => void;
   onOpenProfilesDir?: () => void;
   getAsyncContext: () => AsyncContext;
@@ -118,12 +118,12 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
     }
   }
 
-  function openNameDialog(mode: "save" | "rename") {
+  function openNameDialog(mode: "save" | "rename", profile = selectedPreset) {
     if (disabled) return;
     if (mode === "save")
       setNewProfileName(saved && dirty ? selectedPreset : "");
-    else setRename(selectedPreset);
-    setDialog({ mode, context: getAsyncContext(), profile: selectedPreset });
+    else setRename(profile);
+    setDialog({ mode, context: getAsyncContext(), profile });
   }
 
   async function importFile() {
@@ -196,40 +196,16 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
               Edit EQ
             </Button>
           )}
-          <OverflowMenu label="Editor profile actions">
-            <Menu.Item
-              className="ui-menu-item"
-              disabled={disabled}
-              onClick={() =>
-                void runAction(() =>
-                  exportEqFile(peq, selectedPreset, setStatus),
-                )
-              }
-            >
-              <Icon name="file_download" />
-              Export EQ
-            </Menu.Item>
-            {saved && (
-              <>
-                <Menu.Item
-                  className="ui-menu-item"
-                  disabled={disabled}
-                  onClick={() => openNameDialog("rename")}
-                >
-                  <Icon name="edit" />
-                  Rename saved profile
-                </Menu.Item>
-                <Menu.Item
-                  className="ui-menu-item"
-                  disabled={disabled}
-                  onClick={() => void runAction(onDelete)}
-                >
-                  <Icon name="delete" />
-                  Delete saved profile
-                </Menu.Item>
-              </>
-            )}
-          </OverflowMenu>
+          <Button
+            size="icon"
+            aria-label="Export EQ"
+            disabled={disabled}
+            onClick={() =>
+              void runAction(() => exportEqFile(peq, selectedPreset, setStatus))
+            }
+          >
+            <Icon name="file_download" />
+          </Button>
         </div>
         {preview && (
           <Collapsible title="EQ preview" defaultOpen={false} compact>
@@ -386,6 +362,28 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
                         Apply temporarily to DAC
                       </Menu.Item>
                     )}
+                    {!isDefault && (
+                      <>
+                        <Menu.Item
+                          className="ui-menu-item"
+                          disabled={disabled}
+                          onClick={() => openNameDialog("rename", profile.name)}
+                        >
+                          <Icon name="edit" />
+                          Rename
+                        </Menu.Item>
+                        <Menu.Item
+                          className="ui-menu-item profiles-menu-danger"
+                          disabled={disabled}
+                          onClick={() =>
+                            void runAction(() => onDelete(profile.name))
+                          }
+                        >
+                          <Icon name="delete" />
+                          Delete
+                        </Menu.Item>
+                      </>
+                    )}
                   </OverflowMenu>
                 </div>
               </li>
@@ -422,8 +420,9 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
               event.preventDefault();
               if (disabled) return;
               if (
-                !asyncContextEquals(dialog.context, getAsyncContext()) ||
-                dialog.profile !== selectedPreset
+                dialog.mode === "save" &&
+                (!asyncContextEquals(dialog.context, getAsyncContext()) ||
+                  dialog.profile !== selectedPreset)
               ) {
                 setStatus(
                   "The editor changed. Close this dialog and try again.",
@@ -435,7 +434,7 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
                   const saving = onSave();
                   setDialog(null);
                   await saving;
-                } else if (await onRename(rename.trim())) {
+                } else if (await onRename(dialog.profile, rename.trim())) {
                   if (mounted.current) setDialog(null);
                 }
               });

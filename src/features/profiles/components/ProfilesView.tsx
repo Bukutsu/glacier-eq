@@ -3,7 +3,6 @@
 
 import type { StatusReporter } from "@/stores/toastStore";
 import { memo, useEffect, useRef, useState, type ReactNode } from "react";
-import { Menu } from "@base-ui/react/menu";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -13,7 +12,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Select } from "@/components/ui/Select";
 import { invoke, readText } from "@/lib/rpc";
 import { copyEq, exportEqFile } from "@/features/eq/lib/exportEq";
-import { OverflowMenu } from "@/components/ui/OverflowMenu";
+import { Tooltip } from "@/components/ui/Tooltip";
 import { profileIdentityKey } from "@/features/profiles/lib/profileIdentity";
 import { loadProfile } from "@/features/profiles/lib/loadProfile";
 import { decodeUtf8 } from "@/lib/utf8";
@@ -44,8 +43,8 @@ export interface ProfilesViewProps {
   profilesOnDisk?: boolean;
   onReset: () => void;
   onSave: () => void;
-  onDelete: () => void;
-  onRename: (name: string) => Promise<boolean>;
+  onDelete: (name: string) => void | Promise<void>;
+  onRename: (from: string, to: string) => Promise<boolean>;
   setStatus: StatusReporter;
   onImportPEQ: (data: PEQData, name: string, isSaved: boolean) => boolean;
   getAsyncContext: () => AsyncContext;
@@ -89,7 +88,9 @@ export const ProfilesView = memo(function ProfilesView({
   const [isTemporary, setIsTemporary] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [manualPaste, setManualPaste] = useState<string | null>(null);
-  const [renameName, setRenameName] = useState<string | null>(null);
+  const [rename, setRename] = useState<{ from: string; name: string } | null>(
+    null,
+  );
   const [isRenaming, setIsRenaming] = useState(false);
   const [isParsingPaste, setIsParsingPaste] = useState(false);
 
@@ -121,9 +122,6 @@ export const ProfilesView = memo(function ProfilesView({
     (p) => !query || fuzzyMatch(query, p.name),
   );
   const selectedPresetKey = profileIdentityKey(selectedPreset);
-  const selectedProfile = profiles.find(
-    (profile) => profileIdentityKey(profile.name) === selectedPresetKey,
-  );
   const savedProfiles = profiles.filter((p) => p.modified != null);
   const selectedIsSaved = savedProfiles.some(
     (profile) => profileIdentityKey(profile.name) === selectedPresetKey,
@@ -135,15 +133,19 @@ export const ProfilesView = memo(function ProfilesView({
     (p) => profileIdentityKey(p.name) === profileIdentityKey(saveName),
   );
   const canSave = showSaveAs ? !!saveName : selectedIsSaved && dirty;
-  const renameTarget = renameName?.trim() ?? "";
-  const renameTaken = savedProfiles.some(
-    (profile) =>
-      profileIdentityKey(profile.name) === profileIdentityKey(renameTarget) &&
-      profileIdentityKey(profile.name) !== selectedPresetKey,
-  );
+  const renameTarget = rename?.name.trim() ?? "";
+  const renameTaken =
+    rename !== null &&
+    savedProfiles.some(
+      (profile) =>
+        profileIdentityKey(profile.name) === profileIdentityKey(renameTarget) &&
+        profileIdentityKey(profile.name) !== profileIdentityKey(rename.from),
+    );
   const canRename =
     !!renameTarget &&
-    renameTarget !== selectedPreset &&
+    renameTarget !== rename?.from &&
+    profileIdentityKey(renameTarget) !==
+      profileIdentityKey(DEFAULT_PROFILE_NAME) &&
     !renameTaken &&
     !isRenaming;
   const saveLabel = showSaveAs
@@ -372,14 +374,16 @@ export const ProfilesView = memo(function ProfilesView({
     setNewProfileName("");
     setSaveAsOpen(true);
   };
+  const isBuiltIn =
+    selectedPresetKey === profileIdentityKey(DEFAULT_PROFILE_NAME);
   const editorState = dirty
     ? selectedIsSaved
       ? "Unsaved changes"
-      : "Unsaved EQ"
+      : "Not saved"
     : selectedIsSaved
-      ? "Saved profile"
-      : selectedPreset === DEFAULT_PROFILE_NAME
-        ? "Read-only built-in"
+      ? "Saved"
+      : isBuiltIn
+        ? "Built-in"
         : "Not saved";
   const enabledBands = peq.filters.filter((filter) => filter.enabled).length;
 
@@ -387,33 +391,25 @@ export const ProfilesView = memo(function ProfilesView({
     <div className="profiles-workspace">
       <section className="profiles-library" aria-labelledby="profiles-title">
         <header className="profiles-header">
-          <div>
+          <div className="profiles-heading">
             <h2 id="profiles-title">Library</h2>
-            <p className="profiles-note">{savedProfiles.length} saved</p>
+            <span className="profiles-note">{savedProfiles.length} saved</span>
           </div>
           <div className="profiles-header-actions">
+            <Button variant="ghost" onClick={handlePaste}>
+              <Icon name="content_paste" /> Paste
+            </Button>
             <Button onClick={handleImportFileClick}>
-              <Icon name="file_upload" /> Import profile
+              <Icon name="file_upload" /> Import
             </Button>
-            <Button
-              className="profiles-paste-mobile"
-              variant="ghost"
-              onClick={handlePaste}
-            >
-              <Icon name="content_paste" /> Paste EQ
-            </Button>
-            <OverflowMenu className="profiles-menu" label="Import options">
-              <Menu.Item className="ui-menu-item" onClick={handlePaste}>
-                <Icon name="content_paste" /> Paste EQ from clipboard
-              </Menu.Item>
-            </OverflowMenu>
           </div>
         </header>
 
         <div className="profiles-search">
+          <Icon name="search" />
           <Input
             type="search"
-            className="pr-11"
+            className="pl-9 pr-11"
             aria-label="Search profiles"
             placeholder="Search profiles…"
             value={profileSearch}
@@ -441,7 +437,7 @@ export const ProfilesView = memo(function ProfilesView({
             </Button>
           </div>
         )}
-        <div className="profiles-list" role="group" aria-label="Profiles list">
+        <ul className="profiles-list" aria-label="Profiles list">
           {filteredProfiles.map((profile) => {
             const isSelected =
               profileIdentityKey(profile.name) === selectedPresetKey;
@@ -451,171 +447,140 @@ export const ProfilesView = memo(function ProfilesView({
             const bands = profile.data.filters.filter(
               (filter) => filter.enabled,
             ).length;
-
-            if (isDefault) {
-              return (
-                <article
-                  key={profile.name}
-                  className={`profiles-item profiles-default${isSelected ? " is-current" : ""}`}
-                  aria-label="Default EQ profile"
-                >
-                  <div className="profiles-default-summary">
-                    <span className="profiles-default-icon" aria-hidden="true">
-                      <Icon name="lock" />
-                    </span>
-                    <span className="profiles-item-text">
-                      <span className="profiles-default-heading">
-                        <span
-                          className="profiles-item-name"
-                          title={profile.name}
-                        >
-                          {profile.name}
-                        </span>
-                        <Badge>Read-only</Badge>
-                        {isSelected && !dirty && (
-                          <span className="profiles-badge">In editor</span>
-                        )}
-                      </span>
-                      <span className="profiles-note">
-                        A flat profile you can always return to.
-                      </span>
-                    </span>
-                  </div>
-                  {(!isSelected || dirty) && (
-                    <div className="profiles-default-actions">
-                      <Button
-                        variant="default"
-                        aria-label="Load Default EQ into editor"
-                        onClick={() => void handleSelectProfile(profile)}
-                      >
-                        <Icon
-                          name={
-                            isSelected ? "restart_alt" : "vertical_align_bottom"
-                          }
-                        />
-                        {isSelected ? "Restore default" : "Load in editor"}
-                      </Button>
-                    </div>
-                  )}
-                </article>
-              );
-            }
+            const meta = isDefault
+              ? "Flat · read-only"
+              : [
+                  `${bands} ${bands === 1 ? "band" : "bands"}`,
+                  `${formatDb(profile.data.global_gain ?? 0)} preamp`,
+                  profile.modified != null &&
+                    new Date(profile.modified * 1000).toLocaleDateString(),
+                ]
+                  .filter(Boolean)
+                  .join(" · ");
+            const loadLabel =
+              isSelected && dirty
+                ? `Revert to saved ${profile.name}`
+                : `Load ${profile.name} into editor`;
 
             return (
-              <div
+              <li
                 key={profile.name}
                 className={`profiles-item${isSelected ? " is-current" : ""}`}
               >
-                <Button
-                  variant="ghost"
+                <button
+                  type="button"
+                  data-slot="profile-load"
                   className="profiles-load"
                   aria-pressed={isSelected}
-                  aria-label={`Load ${profile.name} into editor`}
-                  onClick={() => handleSelectProfile(profile)}
+                  aria-label={loadLabel}
+                  title={isSelected && dirty ? "Revert to saved" : undefined}
+                  onClick={() => void handleSelectProfile(profile)}
                 >
-                  <span className="profiles-item-text">
-                    <span className="profiles-item-name" title={profile.name}>
-                      {profile.name}
-                    </span>
-                    <span className="profiles-note">
-                      {bands} {bands === 1 ? "band" : "bands"}
-                    </span>
+                  <span className="profiles-item-name" title={profile.name}>
+                    {isDefault && <Icon name="lock" size={14} />}
+                    {profile.name}
                   </span>
-                  {isSelected && (
-                    <span className="profiles-badge">In editor</span>
-                  )}
-                </Button>
-                {onApplyProfile && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="profiles-row-action"
-                    title={`Apply ${profile.name} to DAC temporarily`}
-                    aria-label={`Apply ${profile.name} to DAC temporarily`}
-                    onClick={() => onApplyProfile(profile)}
-                  >
-                    <Icon name="send" />
-                  </Button>
+                  <span className="profiles-item-meta">{meta}</span>
+                </button>
+                {isSelected && (
+                  <span className="profiles-badge" data-modified={dirty}>
+                    {dirty ? "Edited" : "In editor"}
+                  </span>
                 )}
-              </div>
+                <div className="profiles-row-actions">
+                  {onApplyProfile && !isDefault && (
+                    <Tooltip label="Apply to DAC (until restart)">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Apply ${profile.name} to DAC temporarily`}
+                        onClick={() => onApplyProfile(profile)}
+                      >
+                        <Icon name="send" />
+                      </Button>
+                    </Tooltip>
+                  )}
+                  {showActions && !isDefault && (
+                    <>
+                      <Tooltip label="Rename">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label={`Rename ${profile.name}`}
+                          onClick={() =>
+                            setRename({
+                              from: profile.name,
+                              name: profile.name,
+                            })
+                          }
+                        >
+                          <Icon name="edit" />
+                        </Button>
+                      </Tooltip>
+                      <Tooltip label="Delete">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="profiles-delete"
+                          aria-label={`Delete ${profile.name}`}
+                          onClick={() => void onDelete(profile.name)}
+                        >
+                          <Icon name="delete" />
+                        </Button>
+                      </Tooltip>
+                    </>
+                  )}
+                </div>
+              </li>
             );
           })}
-        </div>
+        </ul>
         {/* The built-in profile is always listed, so the hint follows it. */}
         {!query && savedProfiles.length === 0 && (
           <p className="profiles-note profiles-empty-hint">
             Save your EQ or import a profile to add it here.
           </p>
         )}
-        {profilesOnDisk && (
-          <footer className="profiles-library-footer">
-            <Button variant="ghost" onClick={handleReloadProfiles}>
-              <Icon name="refresh" /> Refresh
-            </Button>
-            {onOpenProfilesDir && (
-              <Button variant="ghost" onClick={onOpenProfilesDir}>
-                <Icon name="folder" /> Open folder
+        <footer className="profiles-library-footer">
+          <p className="profiles-note">
+            Loading a profile changes the editor, not the DAC.
+          </p>
+          {profilesOnDisk && (
+            <div className="profiles-footer-actions">
+              <Button variant="ghost" onClick={handleReloadProfiles}>
+                <Icon name="refresh" /> Refresh
               </Button>
-            )}
-          </footer>
-        )}
+              {onOpenProfilesDir && (
+                <Button variant="ghost" onClick={onOpenProfilesDir}>
+                  <Icon name="folder" /> Open folder
+                </Button>
+              )}
+            </div>
+          )}
+        </footer>
       </section>
 
       <section
         className="profiles-editor"
         aria-labelledby="profiles-editor-title"
       >
-        <header className="profiles-header">
-          <h2 id="profiles-editor-title">In the editor</h2>
-          <OverflowMenu className="profiles-menu" label="More profile actions">
-            <Menu.Item className="ui-menu-item" onClick={handleExportFile}>
-              <Icon name="ios_share" /> Export EQ file
-            </Menu.Item>
-            <Menu.Item className="ui-menu-item" onClick={handleCopy}>
-              <Icon name="content_copy" /> Copy EQ to clipboard
-            </Menu.Item>
-            {onApplyProfile && selectedProfile && selectedIsSaved && (
-              <Menu.Item
-                className="ui-menu-item"
-                onClick={() => onApplyProfile(selectedProfile)}
-              >
-                <Icon name="send" /> Apply saved profile to DAC temporarily
-              </Menu.Item>
-            )}
-            {showActions && dirty && (
-              <Menu.Item className="ui-menu-item" onClick={onReset}>
-                <Icon name="restart_alt" /> Discard changes
-              </Menu.Item>
-            )}
-            {showActions && selectedIsSaved && !showSaveAs && (
-              <Menu.Item
-                className="ui-menu-item"
-                onClick={() => setRenameName(selectedPreset)}
-              >
-                <Icon name="edit" /> Rename profile
-              </Menu.Item>
-            )}
-            {showActions && selectedIsSaved && !showSaveAs && (
-              <Menu.Item
-                className="ui-menu-item profiles-menu-danger"
-                onClick={onDelete}
-              >
-                <Icon name="delete" /> Delete profile
-              </Menu.Item>
-            )}
-          </OverflowMenu>
+        <header className="profiles-editor-header">
+          <h2 id="profiles-editor-title" className="profiles-eyebrow">
+            In the editor
+          </h2>
+          <Badge
+            className="data-[modified=true]:border-[color-mix(in_srgb,var(--warning-foreground)_40%,transparent)] data-[modified=true]:text-[var(--warning-foreground)]"
+            data-modified={dirty || (!selectedIsSaved && !isBuiltIn)}
+          >
+            {editorState}
+          </Badge>
         </header>
         <h3 className="profiles-editor-name" title={selectedPreset}>
           {selectedPreset}
         </h3>
-        <div className="profiles-editor-meta">
-          <span>
-            {enabledBands} {enabledBands === 1 ? "band" : "bands"}
-          </span>
-          <span>{formatDb(peq.global_gain)} preamp</span>
-        </div>
-        <p className="profiles-editor-state" data-modified={dirty}>
-          {editorState}
+        <p className="profiles-note">
+          {enabledBands} {enabledBands === 1 ? "band" : "bands"} ·{" "}
+          {formatDb(peq.global_gain)} preamp
         </p>
 
         {showActions &&
@@ -664,6 +629,11 @@ export const ProfilesView = memo(function ProfilesView({
                     Cancel
                   </Button>
                 )}
+                {!saveAsOpen && dirty && (
+                  <Button variant="ghost" onClick={onReset}>
+                    Discard changes
+                  </Button>
+                )}
               </div>
             </form>
           ) : (
@@ -679,31 +649,31 @@ export const ProfilesView = memo(function ProfilesView({
               >
                 {selectedIsSaved ? "Save as copy" : "Save as new profile"}
               </Button>
+              {dirty && (
+                <Button variant="ghost" onClick={onReset}>
+                  Discard changes
+                </Button>
+              )}
             </div>
           ))}
-        {onReviewEq && (
-          <Button
-            variant="default"
-            className="profiles-edit-eq"
-            onClick={onReviewEq}
-          >
-            <Icon name="tune" /> Edit EQ
-          </Button>
-        )}
         {preview && (
           <div className="profiles-preview" aria-label="Current EQ preview">
             {preview}
           </div>
         )}
-        <p className="profiles-note profiles-safety">
-          Loading a profile changes the editor, not the DAC.
-        </p>
-        {selectedProfile?.modified != null && (
-          <p className="profiles-note">
-            Modified{" "}
-            {new Date(selectedProfile.modified * 1000).toLocaleDateString()}
-          </p>
-        )}
+        <div className="profiles-editor-tools">
+          {onReviewEq && (
+            <Button variant="ghost" onClick={onReviewEq}>
+              <Icon name="tune" /> Edit EQ
+            </Button>
+          )}
+          <Button variant="ghost" onClick={handleExportFile}>
+            <Icon name="ios_share" /> Export
+          </Button>
+          <Button variant="ghost" onClick={handleCopy}>
+            <Icon name="content_copy" /> Copy
+          </Button>
+        </div>
       </section>
 
       <input
@@ -921,12 +891,12 @@ export const ProfilesView = memo(function ProfilesView({
           </div>
         </Modal>
       )}
-      {renameName !== null && (
+      {rename !== null && (
         <Modal
           title="Rename profile"
           className="profiles-import-dialog"
           closeDisabled={isRenaming}
-          onClose={() => setRenameName(null)}
+          onClose={() => setRename(null)}
         >
           <form
             className="modal-body"
@@ -935,8 +905,11 @@ export const ProfilesView = memo(function ProfilesView({
               if (!canRename) return;
               setIsRenaming(true);
               try {
-                if ((await onRename(renameTarget)) && mountedRef.current)
-                  setRenameName(null);
+                if (
+                  (await onRename(rename.from, renameTarget)) &&
+                  mountedRef.current
+                )
+                  setRename(null);
               } finally {
                 if (mountedRef.current) setIsRenaming(false);
               }
@@ -948,12 +921,14 @@ export const ProfilesView = memo(function ProfilesView({
               name="profile-rename"
               autoComplete="off"
               data-dialog-autofocus
-              value={renameName}
+              value={rename.name}
               disabled={isRenaming}
               aria-describedby={
                 renameTaken ? "profile-rename-taken" : undefined
               }
-              onChange={(event) => setRenameName(event.target.value)}
+              onChange={(event) =>
+                setRename({ from: rename.from, name: event.target.value })
+              }
             />
             {renameTaken && (
               <p
@@ -967,7 +942,7 @@ export const ProfilesView = memo(function ProfilesView({
               <Button
                 variant="ghost"
                 disabled={isRenaming}
-                onClick={() => setRenameName(null)}
+                onClick={() => setRename(null)}
               >
                 Cancel
               </Button>

@@ -39,8 +39,8 @@ interface ToolsPanelProps {
   profilesOnDisk?: boolean;
   onReset: () => void;
   onSave: () => void;
-  onDelete: () => void;
-  onRename: (name: string) => Promise<boolean>;
+  onDelete: (name: string) => void | Promise<void>;
+  onRename: (from: string, to: string) => Promise<boolean>;
   setStatus: (value: string) => void;
   measurements?: MeasurementTrace[];
   onAddMeasurement?: (name: string, points: MeasurementTrace["points"]) => void;

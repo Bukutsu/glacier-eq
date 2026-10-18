@@ -61,9 +61,8 @@ describe("Profile library", () => {
       profiles: [{ name: DEFAULT_PROFILE_NAME, data: peq, modified: null }],
     });
     expect(empty).toContain("Save your EQ or import a profile to add it here.");
-    expect(empty).toContain('aria-label="Default EQ profile"');
-    expect(empty).toContain("Read-only");
-    expect(empty).toContain("A flat profile you can always return to.");
+    expect(empty).toContain('aria-label="Load Default EQ into editor"');
+    expect(empty).toContain("Flat · read-only");
     expect(empty).not.toContain("No matching profiles");
     const missing = render({ profileSearch: "missing" });
     expect(missing).toContain("No matching profiles");
@@ -82,13 +81,16 @@ describe("Profile library", () => {
 
   it("shows a disabled saved state until the current profile changes", () => {
     const clean = render();
-    expect(clean).toContain("Saved profile");
+    expect(clean).toContain(">Saved</span>");
     expect(clean).toMatch(
       /<button(?=[^>]*disabled="")[^>]*>Profile saved<\/button>/,
     );
     const dirty = render({ dirty: true });
     expect(dirty).toContain("Unsaved changes");
     expect(dirty).toContain("Save changes</button>");
+    expect(dirty).toContain("Discard changes</button>");
+    expect(dirty).toContain('aria-label="Revert to saved Daily"');
+    expect(dirty).toContain("Edited</span>");
   });
 
   it("offers a named save form for unsaved EQ and warns on canonical collisions", () => {
@@ -97,7 +99,7 @@ describe("Profile library", () => {
       selectedPreset: "Imported EQ",
       newProfileName: "daily",
     });
-    expect(html).toContain("Unsaved EQ");
+    expect(html).toContain("Not saved");
     expect(html).toContain('name="profile-name"');
     expect(html).toContain("Overwrite profile</button>");
     expect(html).toContain("A profile with this name already exists.");
@@ -126,18 +128,40 @@ describe("Profile library", () => {
       selectedPreset: "Daily",
       onApplyProfile: () => {},
     });
-    expect(available).toContain("Load in editor</button>");
-    expect(available).not.toContain("Apply to DAC");
-    expect(available).not.toContain(
-      `aria-label="Apply ${DEFAULT_PROFILE_NAME} to DAC temporarily"`,
+    expect(available).toContain(
+      `aria-label="Load ${DEFAULT_PROFILE_NAME} into editor"`,
     );
+    for (const action of ["Apply", "Rename", "Delete"])
+      expect(available).not.toContain(
+        action === "Apply"
+          ? `aria-label="Apply ${DEFAULT_PROFILE_NAME} to DAC temporarily"`
+          : `aria-label="${action} ${DEFAULT_PROFILE_NAME}"`,
+      );
 
     const changed = render({
       profiles: [defaultProfile],
       selectedPreset: DEFAULT_PROFILE_NAME,
       dirty: true,
     });
-    expect(changed).toContain("Restore default</button>");
+    expect(changed).toContain(
+      `aria-label="Revert to saved ${DEFAULT_PROFILE_NAME}"`,
+    );
+  });
+
+  it("offers rename and delete on every saved row, not only the loaded one", () => {
+    const html = render({
+      profiles: [
+        { name: "Daily", data: peq, modified: 1 },
+        { name: "Vocal", data: peq, modified: 1 },
+      ],
+      selectedPreset: "Daily",
+    });
+    for (const name of ["Daily", "Vocal"]) {
+      expect(html).toContain(`aria-label="Rename ${name}"`);
+      expect(html).toContain(`aria-label="Delete ${name}"`);
+    }
+    const hidden = render({ showActions: false });
+    expect(hidden).not.toContain('aria-label="Delete Daily"');
   });
 
   it("only offers a per-profile DAC apply button when the caller supplies that capability", () => {
