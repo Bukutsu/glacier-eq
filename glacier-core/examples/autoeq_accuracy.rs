@@ -45,7 +45,8 @@ fn fixture(seed: u64, frequencies: &[f64]) -> Vec<(f64, f64)> {
         };
         let gain = 12.0 * random(&mut rng) - 6.0;
         let q = if kind == FilterType::Peak {
-            0.5 * 7.0_f64.powf(random(&mut rng))
+            // A quarter of cases contain narrow resonances beyond legacy Q=4.
+            0.5 * (if seed % 4 == 3 { 24.0_f64 } else { 7.0_f64 }).powf(random(&mut rng))
         } else {
             0.7
         };
