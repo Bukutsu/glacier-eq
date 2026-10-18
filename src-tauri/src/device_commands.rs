@@ -521,7 +521,7 @@ pub async fn list_devices(app: tauri::AppHandle) -> Result<Vec<DeviceInfo>, Stri
                     hardware_eq: profile.protocol.has_hardware_eq(),
                     controls: profile.controls,
                     spec: profile.spec,
-                    capabilities: (&profile.caps).into(),
+                    capabilities: profile.into(),
                 })
             })
             .collect())

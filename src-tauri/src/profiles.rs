@@ -242,7 +242,7 @@ pub async fn run_autoeq(
         let (caps, protocol) = match_target_for_connected(guard.connected.as_ref());
         (identity, caps, protocol)
     };
-    let peq = tauri::async_runtime::spawn_blocking(move || {
+    let (peq, warnings) = tauri::async_runtime::spawn_blocking(move || {
         glacier_core::autoeq::run_autoeq_with_target(
             &measurement_points,
             &target_points,
@@ -252,6 +252,12 @@ pub async fn run_autoeq(
             fs,
             glacier_core::autoeq::AutoEqTarget::device(&caps, protocol),
         )
+        .map(|mut peq| {
+            // Preserve the editor's padded shape using the original target,
+            // never the capabilities of a device connected mid-fit.
+            let warnings = peq.clamp_to_capabilities(&caps);
+            (peq, warnings)
+        })
     })
     .await
     .map_err(|error| format!("AutoEQ worker failed: {error}"))??;
@@ -266,10 +272,7 @@ pub async fn run_autoeq(
             "DAC changed while AutoEQ was running; run AutoEQ again for the current target".into(),
         );
     }
-    Ok(AutoEqRunResult {
-        peq,
-        warnings: Vec::new(),
-    })
+    Ok(AutoEqRunResult { peq, warnings })
 }
 
 #[cfg(test)]

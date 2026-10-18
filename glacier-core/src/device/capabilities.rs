@@ -28,6 +28,8 @@ pub struct DeviceCapabilities {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
 pub struct EditorCapabilities {
     pub num_bands: usize,
+    #[serde(default)]
+    pub response_model: crate::eq::iir_math::EqResponseModel,
     pub global_gain_range: [i8; 2],
     pub band_gain_range: [f64; 2],
     pub freq_range: [u16; 2],
@@ -46,6 +48,7 @@ impl From<&DeviceCapabilities> for EditorCapabilities {
     fn from(caps: &DeviceCapabilities) -> Self {
         Self {
             num_bands: caps.num_bands,
+            response_model: crate::eq::iir_math::EqResponseModel::CanonicalQ,
             global_gain_range: caps.global_gain_range.into(),
             band_gain_range: caps.band_gain_range.into(),
             freq_range: caps.freq_range.into(),
@@ -89,6 +92,31 @@ pub const DESKTOP_DAC_CAPS: DeviceCapabilities = DeviceCapabilities {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn response_model_comes_from_protocol_not_capability_limits() {
+        use crate::device::get_supported_device;
+        use crate::eq::iir_math::EqResponseModel;
+        let profile = get_supported_device(0x35d8, 0x011d).unwrap();
+        assert_eq!(
+            EditorCapabilities::from(profile).response_model,
+            EqResponseModel::MoondropShelfSlope
+        );
+        assert_eq!(
+            crate::device::SupportedDeviceInfo::from(profile)
+                .capabilities
+                .response_model,
+            EqResponseModel::MoondropShelfSlope
+        );
+        assert_eq!(
+            EditorCapabilities::from(&profile.caps).response_model,
+            EqResponseModel::CanonicalQ
+        );
+        assert_eq!(
+            EditorCapabilities::from(&DESKTOP_DAC_CAPS).response_model,
+            EqResponseModel::CanonicalQ
+        );
+    }
 
     #[test]
     fn editor_capabilities_use_typescript_filter_names() {

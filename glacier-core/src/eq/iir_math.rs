@@ -7,7 +7,7 @@ use crate::eq::{Filter, FilterType};
 use std::f64::consts::TAU;
 
 /// Meaning of the Q field in the device's coefficient designer.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum EqResponseModel {
     /// RBJ Q-factor for peaks, shelves and pass filters.
     #[default]

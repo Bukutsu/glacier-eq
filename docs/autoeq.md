@@ -74,6 +74,11 @@ safety also accounts for its Q8 wire value, which can differ from the editor's
 
 Before accepting a layout, AutoEQ builds its band packets. This catches
 fixed-point coefficient limits before a user tries to push the result.
+Device discovery also exposes `response_model` to the editor. Graph and
+measurement-overlay calculations use that convention, so Moondrop shelf slope
+is not accidentally displayed as canonical Q. Graphs remain a floating-point
+preview; the core uses encoded coefficients for final scoring and safety.
+
 FiiO firmware computes coefficients internally, so its response uses the
 canonical designer after parameter quantization. Its internal coefficient
 precision is unknown. None of these models guarantees analog output or
@@ -117,9 +122,8 @@ candidate to the same CPU when comparing on a mixed-core machine.
 In the development fixture on a Ryzen AI 7 350, pinned to CPU 0 with three
 interleaved rounds of nine samples, the ten-band path fell from about 15.9 ms
 to 6.6 ms and five-band fitting from 17.1 ms to 4.5 ms. Shape RMSE improved
-slightly in both fixtures. The 32-band stress case was about 3% slower (48.5 ms versus 47.2 ms), with
-lower shape error. The short-budget capabilities-only catalog batch was about
+slightly in both fixtures. The 32-band stress case was about 3% slower
+(48.5 ms versus 47.2 ms), with lower shape error. The short-budget capabilities-only catalog batch was about
 14% slower. The protocol-aware catalog batch took about 92 ms and adds work the
 old path did not do, so it has no equivalent old benchmark. The rewrite is not
-a speedup for every workload. These synthetic measurements are
-not a listening test or a substitute for hardware verification.
+a speedup for every workload. These synthetic measurements are not a listening test or a substitute for hardware verification.

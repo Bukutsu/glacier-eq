@@ -215,6 +215,9 @@ describe("Rust session over the real wasm bridge", () => {
     const catalog = list_supported_devices();
     const tp35 = catalog.find((profile: any) => profile.vendor_id === 0x3302 && profile.product_id === 0x43e6);
     expect(tp35.controls).toBe("walkplay");
+    expect(tp35.response_model).toBe("CanonicalQ");
+    const moondrop = catalog.find((profile: any) => profile.vendor_id === 0x35d8 && profile.product_id === 0x011d);
+    expect(moondrop.response_model).toBe("MoondropShelfSlope");
     expect(tp35.global_gain_range).toEqual([-16, 16]);
     expect(tp35.band_gain_range).toEqual([-16, 16]);
     expect(tp35.spec.chip).toBe("Dual CS43198");

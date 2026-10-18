@@ -80,6 +80,14 @@ pub struct SupportedDeviceInfo {
     pub capabilities: EditorCapabilities,
 }
 
+impl From<&DeviceProfile> for EditorCapabilities {
+    fn from(profile: &DeviceProfile) -> Self {
+        let mut caps = Self::from(&profile.caps);
+        caps.response_model = profile.protocol.eq.map_or_default(|eq| eq.response_model());
+        caps
+    }
+}
+
 impl From<&DeviceProfile> for SupportedDeviceInfo {
     fn from(profile: &DeviceProfile) -> Self {
         Self {
@@ -92,7 +100,7 @@ impl From<&DeviceProfile> for SupportedDeviceInfo {
             hardware_eq: profile.protocol.has_hardware_eq(),
             controls: profile.controls,
             spec: profile.spec,
-            capabilities: (&profile.caps).into(),
+            capabilities: profile.into(),
         }
     }
 }
