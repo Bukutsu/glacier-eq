@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::device::families::walkplay::compute_iir_filter;
+use crate::device::families::walkplay::{compute_iir_filter, decode_q30_biquad};
 use crate::device::packet::{checked_scaled_i16, checked_scaled_u16, Packet};
 use crate::device::protocol::{EqProtocol, GainEncoding, Protocol, Quirks};
 use crate::device::timing::WriteTiming;
@@ -67,6 +67,28 @@ fn coefficient_bytes(filter: &Filter, gain: f64) -> Result<[u8; 20], String> {
 }
 
 impl EqProtocol for MoondropProtocol {
+    fn realized_biquad(
+        &self,
+        filter: &Filter,
+        sample_rate: f64,
+    ) -> Result<(f64, f64, f64, f64, f64, f64), String> {
+        if sample_rate != DSP_SAMPLE_RATE {
+            return Err("DAWN PRO 2 coefficients require a 96000 Hz DSP rate".into());
+        }
+        // Disabled bands use a firmware bypass code, not their zero wire coefficients.
+        if !filter.enabled {
+            return Ok((1.0, 0.0, 0.0, 1.0, 0.0, 0.0));
+        }
+        self.response_model()
+            .validate_parameters(filter.filter_type, filter.gain, filter.q)?;
+        Ok(decode_q30_biquad(&coefficient_bytes(filter, filter.gain)?))
+    }
+
+    fn realized_preamp(&self, requested: f64) -> f64 {
+        // The advertised 0.1 dB grid does not align with the signed Q8 wire grid.
+        (requested * 256.0).round() / 256.0
+    }
+
     fn q_step(&self) -> Option<f64> {
         Some(1.0 / 256.0)
     }
@@ -400,6 +422,85 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn realized_biquad_matches_exact_packet_coefficients() {
+        for filter_type in [
+            FilterType::Peak,
+            FilterType::LowShelf,
+            FilterType::HighShelf,
+        ] {
+            let filter = Filter {
+                filter_type,
+                freq: 20,
+                gain: if filter_type == FilterType::HighShelf {
+                    -6.0
+                } else {
+                    6.09765625
+                },
+                q: 0.5,
+                ..reference_filter()
+            };
+            let packets = MoondropProtocol
+                .write_filter_packets(2, &filter, DSP_SAMPLE_RATE, -6.1)
+                .unwrap();
+            let (b0, b1, b2, a0, a1, a2) = MoondropProtocol
+                .realized_biquad(&filter, DSP_SAMPLE_RATE)
+                .unwrap();
+            assert_eq!(a0, 1.0);
+            for (value, bytes) in [b0, b1, b2, -a1, -a2]
+                .into_iter()
+                .zip(packets[0].payload[7..27].chunks_exact(4))
+            {
+                assert_eq!(
+                    value * (1u64 << 30) as f64,
+                    i32::from_le_bytes(bytes.try_into().unwrap()) as f64
+                );
+            }
+            if filter_type == FilterType::LowShelf {
+                let dc_db = 20.0 * ((b0 + b1 + b2) / (1.0 + a1 + a2)).abs().log10();
+                assert!((dc_db - 6.10416694).abs() < 1e-8);
+                let actual_preamp = MoondropProtocol.realized_preamp(-6.1);
+                assert_eq!(actual_preamp, -6.1015625);
+                assert!((dc_db + actual_preamp - 0.00260444).abs() < 1e-8);
+            }
+            let mut disabled = filter;
+            disabled.enabled = false;
+            assert_eq!(
+                MoondropProtocol
+                    .realized_biquad(&disabled, DSP_SAMPLE_RATE)
+                    .unwrap(),
+                (1.0, 0.0, 0.0, 1.0, 0.0, 0.0)
+            );
+        }
+    }
+
+    #[test]
+    fn realized_preamp_matches_q8_packet() {
+        for requested in [-128.0, -18.0, -6.1, -3.5, -0.1, 0.0] {
+            let packets = MoondropProtocol.write_global_gain_packets(requested);
+            let wire = i16::from_le_bytes(packets[0].payload[3..5].try_into().unwrap());
+            assert_eq!(
+                MoondropProtocol.realized_preamp(requested),
+                wire as f64 / 256.0
+            );
+        }
+    }
+
+    #[test]
+    fn realized_biquad_rejects_wrong_rate_and_invalid_slope() {
+        let filter = reference_filter();
+        assert!(MoondropProtocol.realized_biquad(&filter, 48000.0).is_err());
+        let invalid = Filter {
+            filter_type: FilterType::LowShelf,
+            gain: 12.0,
+            q: 10.0,
+            ..filter
+        };
+        assert!(MoondropProtocol
+            .realized_biquad(&invalid, DSP_SAMPLE_RATE)
+            .is_err());
     }
 
     #[test]

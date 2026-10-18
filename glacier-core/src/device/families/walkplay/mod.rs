@@ -9,6 +9,7 @@ mod packets;
 
 pub use controls::DacUtilityState;
 pub use iir::compute_iir_filter;
+pub(crate) use iir::decode_q30_biquad;
 pub use packets::*;
 
 use crate::device::packet::{checked_scaled_i16, Packet};
@@ -240,6 +241,28 @@ impl WalkplayProtocol {
 }
 
 impl EqProtocol for WalkplayProtocol {
+    fn realized_biquad(
+        &self,
+        filter: &Filter,
+        sample_rate: f64,
+    ) -> Result<(f64, f64, f64, f64, f64, f64), String> {
+        if !filter.enabled {
+            return Ok((1.0, 0.0, 0.0, 1.0, 0.0, 0.0));
+        }
+        self.response_model()
+            .validate_parameters(filter.filter_type, filter.gain, filter.q)?;
+        if !sample_rate.is_finite() || sample_rate < 41.0 {
+            return Err("DSP sample rate must be finite and at least 41 Hz".into());
+        }
+        Ok(decode_q30_biquad(&compute_iir_filter(
+            filter.filter_type,
+            filter.freq as f64,
+            filter.gain,
+            filter.q,
+            sample_rate,
+        )?))
+    }
+
     fn q_step(&self) -> Option<f64> {
         Some(1.0 / 256.0)
     }
@@ -353,6 +376,56 @@ mod tests {
             gain,
             q,
         }
+    }
+
+    #[test]
+    fn realized_biquad_matches_exact_packet_coefficients() {
+        for filter_type in [
+            FilterType::Peak,
+            FilterType::LowShelf,
+            FilterType::HighShelf,
+            FilterType::HighPass,
+            FilterType::LowPass,
+        ] {
+            for sample_rate in [48000.0, 96000.0, 192000.0] {
+                let filter = Filter {
+                    filter_type,
+                    gain: if filter_type == FilterType::HighShelf {
+                        -6.0
+                    } else {
+                        6.09765625
+                    },
+                    ..make_filter(2, 20, 6.09765625, 0.5)
+                };
+                let packets = WalkplayProtocol
+                    .write_filter_packets(2, &filter, sample_rate, -7.0)
+                    .unwrap();
+                let (b0, b1, b2, a0, a1, a2) = WalkplayProtocol
+                    .realized_biquad(&filter, sample_rate)
+                    .unwrap();
+                assert_eq!(a0, 1.0);
+                for (value, bytes) in [b0, b1, b2, -a1, -a2]
+                    .into_iter()
+                    .zip(packets[0].payload[7..27].chunks_exact(4))
+                {
+                    assert_eq!(
+                        value * (1u64 << 30) as f64,
+                        i32::from_le_bytes(bytes.try_into().unwrap()) as f64
+                    );
+                }
+                let mut disabled = filter;
+                disabled.enabled = false;
+                assert_eq!(
+                    WalkplayProtocol
+                        .realized_biquad(&disabled, sample_rate)
+                        .unwrap(),
+                    (1.0, 0.0, 0.0, 1.0, 0.0, 0.0)
+                );
+            }
+        }
+        let filter = make_filter(0, 12000, 12.0, 0.1);
+        assert!(WalkplayProtocol.realized_biquad(&filter, 48000.0).is_err());
+        assert!(WalkplayProtocol.realized_biquad(&filter, f64::NAN).is_err());
     }
 
     #[test]

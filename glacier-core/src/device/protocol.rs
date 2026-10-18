@@ -6,7 +6,7 @@
 
 use crate::device::packet::Packet;
 use crate::device::timing::WriteTiming;
-use crate::eq::iir_math::EqResponseModel;
+use crate::eq::iir_math::{compute_biquad_coeffs_for_model, EqResponseModel};
 use crate::eq::{Filter, PEQData};
 
 /// A protocol family as the rest of the app sees it. Each family exports
@@ -84,6 +84,37 @@ pub trait EqProtocol: Sync {
     fn response_model(&self) -> EqResponseModel {
         EqResponseModel::CanonicalQ
     }
+    /// Realized `(b0, b1, b2, a0, a1, a2)` after protocol coefficient encoding.
+    /// The default is the ideal designer: FiiO firmware coefficient precision
+    /// is unknown. Host-coefficient protocols override it with their wire values.
+    /// This models the biquad, not unknown firmware arithmetic or analog stages.
+    fn realized_biquad(
+        &self,
+        filter: &Filter,
+        sample_rate: f64,
+    ) -> Result<(f64, f64, f64, f64, f64, f64), String> {
+        if !filter.enabled {
+            return Ok((1.0, 0.0, 0.0, 1.0, 0.0, 0.0));
+        }
+        let model = self.response_model();
+        model.validate_parameters(filter.filter_type, filter.gain, filter.q)?;
+        if !sample_rate.is_finite() || sample_rate < 41.0 {
+            return Err("DSP sample rate must be finite and at least 41 Hz".into());
+        }
+        Ok(compute_biquad_coeffs_for_model(
+            filter.filter_type,
+            filter.freq as f64,
+            filter.gain,
+            filter.q,
+            sample_rate,
+            model,
+        ))
+    }
+    /// Realized preamp after wire encoding. The caller first snaps the request
+    /// to the advertised preamp grid; most protocols encode that value exactly.
+    fn realized_preamp(&self, requested: f64) -> f64 {
+        requested
+    }
     /// Writable Q/shelf-slope grid, not the rounded readback resolution.
     /// Gain and preamp grids are described by `gain_encoding`.
     fn q_step(&self) -> Option<f64> {
@@ -143,4 +174,41 @@ pub trait EqProtocol: Sync {
     }
 
     fn report_id(&self) -> u8;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::device::families::fiio;
+    use crate::eq::iir_math::compute_biquad_coeffs;
+    use crate::eq::FilterType;
+
+    #[test]
+    fn realized_defaults_use_ideal_designer_and_identity_preamp() {
+        let filter = Filter {
+            index: 0,
+            enabled: true,
+            filter_type: FilterType::LowShelf,
+            freq: 20,
+            gain: 6.0,
+            q: 0.5,
+        };
+        for protocol in [&fiio::JA11, &fiio::KA17, &fiio::KA_SERIES] {
+            let eq = protocol.eq.unwrap();
+            assert_eq!(
+                eq.realized_biquad(&filter, 96000.0).unwrap(),
+                compute_biquad_coeffs(&filter, 96000.0)
+            );
+            assert_eq!(eq.realized_preamp(-6.1), -6.1);
+            let mut invalid = filter.clone();
+            invalid.q = 0.0;
+            assert!(eq.realized_biquad(&invalid, 96000.0).is_err());
+            assert!(eq.realized_biquad(&filter, f64::NAN).is_err());
+            invalid.enabled = false;
+            assert_eq!(
+                eq.realized_biquad(&invalid, 96000.0).unwrap(),
+                (1.0, 0.0, 0.0, 1.0, 0.0, 0.0)
+            );
+        }
+    }
 }

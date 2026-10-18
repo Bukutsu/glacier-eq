@@ -8,6 +8,16 @@ use crate::eq::{Filter, FilterType};
 
 const QUANTIZER_SCALE: f64 = 1_073_741_824.0;
 
+/// Decode the shared signed little-endian Q30 wire format. Feedback terms on
+/// the wire are negated; return the usual normalized biquad denominator.
+pub(crate) fn decode_q30_biquad(bytes: &[u8; 20]) -> (f64, f64, f64, f64, f64, f64) {
+    let mut values = [0.0; 5];
+    for (value, chunk) in values.iter_mut().zip(bytes.chunks_exact(4)) {
+        *value = i32::from_le_bytes(chunk.try_into().unwrap()) as f64 / QUANTIZER_SCALE;
+    }
+    (values[0], values[1], values[2], 1.0, -values[3], -values[4])
+}
+
 /// Quantizes one normalized coefficient to the device's 2^30 fixed-point
 /// format. Fails instead of clamping: coefficients outside ±(2^31 − 1)/2^30
 /// cannot be represented by the hardware, and a silently clamped value loads
