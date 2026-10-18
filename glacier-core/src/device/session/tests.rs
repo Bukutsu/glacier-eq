@@ -907,7 +907,11 @@ fn push_surfaces_capability_clamp_warnings_instead_of_discarding_them() {
             .await
             .unwrap();
 
-        assert_eq!(committed.global_gain, 6.0, "value must be clamped");
+        assert_eq!(
+            committed.global_gain,
+            f64::from(profile.caps.global_gain_range.1),
+            "value must be clamped"
+        );
         assert!(
             warnings.iter().any(|warning| warning.contains("preamp")),
             "clamp must be reported to the caller, got {warnings:?}"

@@ -1075,8 +1075,8 @@ mod tests {
         // both sides must stay in lockstep or the platforms disagree about
         // which stored values survive a load.
         let caps = storage_capabilities(10);
-        assert_eq!(caps.global_gain_range, (-128, 12));
-        assert_eq!(caps.band_gain_range, (-18.0, 12.0));
+        assert_eq!(caps.global_gain_range, (-128, 16));
+        assert_eq!(caps.band_gain_range, (-18.0, 16.0));
         assert_eq!(caps.freq_range, (20, 20000));
         assert_eq!(caps.q_range, (0.1, 20.0));
     }

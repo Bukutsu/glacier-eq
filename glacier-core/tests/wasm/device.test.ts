@@ -215,6 +215,8 @@ describe("Rust session over the real wasm bridge", () => {
     const catalog = list_supported_devices();
     const tp35 = catalog.find((profile: any) => profile.vendor_id === 0x3302 && profile.product_id === 0x43e6);
     expect(tp35.controls).toBe("walkplay");
+    expect(tp35.global_gain_range).toEqual([-16, 16]);
+    expect(tp35.band_gain_range).toEqual([-16, 16]);
     expect(tp35.spec.chip).toBe("Dual CS43198");
     expect(tp35.spec.maxPower).toBe("262mW @ 32Ω");
     const dawn = catalog.find((profile: any) => profile.vendor_id === 0x2fc6 && profile.product_id === 0xf06a);

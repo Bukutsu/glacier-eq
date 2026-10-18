@@ -82,6 +82,36 @@ An unanswered global-preamp request may be resent, but its reply has no nonce.
 An additional independent read must agree before that value is trusted.
 Contradiction or another resend during confirmation fails closed.
 
+## Walkplay gain range
+
+Generic Walkplay profiles use −16 to +16 dB for band gain and overall gain
+to give AutoEQ more room. This is an editing policy, not a firmware limit.
+The official [EPZ app](https://peq.epzsz.com/#/epz/index) uses ±12 dB. Its EQ bundle
+(`js/chunk-296c5a20.62e239e4.js`) sets `gainRange: [-12, 12]` for both the
+band sliders and the overall-gain slider.
+
+On the connected EPZ TP35 Pro (`3302:43e6`), RAM writes of −12 and +12 dB
+were independently read back for both preamp and one peak band. The other
+bands stayed unchanged. Output was muted during the test; the original EQ
+and mute state were restored, and a separate read matched the EQ backup.
+No flash save was sent.
+
+A wider RAM-only probe bypassed the app's capability clamp. Preamp readback
+matched −128, −64, −32, −24, −16, −13, +13, +16, +24, +32, +64 and +127 dB.
+A peak band at 1 kHz, Q 0.75 read back −128, −64, −32, −24, −16, −13, +13,
++16, +24 and +32 dB, with the raw coefficient bytes matching the writes.
+The encoder rejected +64 and +127 dB at that frequency and Q because the
+coefficients exceeded the DSP's ±2.0 fixed-point range. Those rejected filters
+were not sent. The original EQ was restored and read back after the probe.
+
+Thus ±12 dB is the official app's editing range, not a demonstrated firmware
+limit. Register and coefficient readback do not measure the analog output:
+these tests cannot establish the DSP's effective gain range, clipping,
+saturation or signal quality. The ±16 dB editing range keeps coefficient
+representability checks: some frequency, Q and gain combinations still cannot
+be encoded. The KEYX retains its separate −20 to 0 dB preamp and ±12 dB band
+limits. Other Walkplay devices were not tested.
+
 ## Walkplay live apply
 
 Temporary apply is the first commit step alone: `01 0a 04 00 00 ff ff`. It

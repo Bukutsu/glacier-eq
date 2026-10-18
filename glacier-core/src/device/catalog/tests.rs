@@ -119,6 +119,52 @@ fn savitech_vendor_fallbacks_match_any_pid() {
 }
 
 #[test]
+fn generic_walkplay_gain_ranges_allow_sixteen_db() {
+    // KEYX has its own 48 kHz capability override; do not replace its preamp range.
+    let keyx = get_supported_device(0x0d8c, 0x0210).unwrap();
+    assert_eq!(keyx.caps.global_gain_range, (-20, 0));
+    assert_eq!(keyx.caps.band_gain_range, (-12.0, 12.0));
+    for profile in SUPPORTED_DEVICES
+        .iter()
+        .filter(|profile| profile.protocol == &walkplay::PROTOCOL && profile.name != keyx.name)
+    {
+        assert_eq!(
+            profile.caps.global_gain_range,
+            (-16, 16),
+            "{}",
+            profile.name
+        );
+        assert_eq!(
+            profile.caps.band_gain_range,
+            (-16.0, 16.0),
+            "{}",
+            profile.name
+        );
+        for gain in [-17.0_f64, -16.0, -13.0, 13.0, 16.0, 17.0] {
+            let peq = crate::eq::PEQData {
+                global_gain: gain,
+                filters: (0..profile.caps.num_bands)
+                    .map(|index| Filter {
+                        index: index as u8,
+                        enabled: true,
+                        freq: 1000,
+                        gain,
+                        q: 0.75,
+                        filter_type: FilterType::Peak,
+                    })
+                    .collect(),
+            };
+            let (normalized, warnings) =
+                super::super::normalize_peq_for_profile(peq, profile).unwrap();
+            let expected = gain.clamp(-16.0, 16.0);
+            assert_eq!(normalized.global_gain, expected, "{}", profile.name);
+            assert!(normalized.filters.iter().all(|band| band.gain == expected));
+            assert_eq!(warnings.is_empty(), gain == expected, "{}", profile.name);
+        }
+    }
+}
+
+#[test]
 fn tested_walkplay_profiles_advertise_all_filter_types() {
     for profile in SUPPORTED_DEVICES
         .iter()

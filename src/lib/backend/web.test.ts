@@ -1037,12 +1037,12 @@ describe("web profile parser", () => {
     );
     expect(parsed.malformed).toBe(false);
     const [profile] = parsed.value;
-    expect(profile.data.global_gain).toBe(12);
+    expect(profile.data.global_gain).toBe(16);
     expect(profile.data.filters[0].freq).toBe(20_000);
     expect(profile.data.filters[0].gain).toBe(-18);
     expect(profile.data.filters[0].q).toBe(20);
     expect(profile.data.filters[1].freq).toBe(20);
-    expect(profile.data.filters[1].gain).toBe(12);
+    expect(profile.data.filters[1].gain).toBe(16);
     expect(profile.data.filters[1].q).toBeCloseTo(0.1);
   });
 

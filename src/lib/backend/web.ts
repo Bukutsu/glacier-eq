@@ -607,8 +607,8 @@ function parseStoredProfile(value: unknown): Profile | null {
 // reads clamp to the envelope; clamping to the connected device happens later
 // against its live capabilities.
 const STORAGE_ENVELOPE = {
-  globalGain: [-128, 12],
-  bandGain: [-18, 12],
+  globalGain: [-128, 16],
+  bandGain: [-18, 16],
   freq: [20, 20_000],
   q: [0.1, 20],
 } as const;

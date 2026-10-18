@@ -21,8 +21,12 @@ const LIMITED_FILTER_TYPES: &[FilterType] = &[
 const fn savitech_caps(supported_filter_types: &'static [FilterType]) -> DeviceCapabilities {
     DeviceCapabilities {
         num_bands: 10,
-        global_gain_range: (-16, 6),
-        band_gain_range: (-10.0, 10.0),
+        // Editing policy, not a firmware limit: ±16 dB gives AutoEQ more room
+        // than the official app's ±12. TP35 Pro RAM gain/coefficient readback
+        // confirmed ±16; coefficient representability is checked separately.
+        // See docs/device-workflows.md for the hardware probe and its limits.
+        global_gain_range: (-16, 16),
+        band_gain_range: (-16.0, 16.0),
         freq_range: (20, 20000),
         q_range: (0.1, 10.0),
         supported_filter_types,
