@@ -2,10 +2,14 @@
 # Source: https://github.com/Bukutsu/glacier-eq
 
 pkgname=glacier-eq-git
-# VCS package: pkgver() below replaces this fallback with the exact checkout revision.
-# makepkg writes that value back into this file, so build with scripts/makepkg-local
-# (a copy) to keep the tracked file unchanged.
-pkgver=0
+# VCS package: the version comes from the checkout at parse time. A pkgver()
+# function would make makepkg rewrite this tracked file on every build.
+pkgver=$(
+  cd "${startdir:-$PWD}"
+  { git describe --long --abbrev=7 2>/dev/null ||
+    printf 'r%s-g%s' "$(git rev-list --count HEAD)" "$(git rev-parse --short=7 HEAD)"
+  } | sed 's/\([^-]*-g\)/r\1/;s/-/./g'
+)
 pkgrel=1
 pkgdesc="Cross-platform parametric EQ editor for USB DACs. Runs offline and works directly with the hardware, on desktop and Android."
 arch=('x86_64' 'aarch64')
@@ -50,15 +54,7 @@ conflicts=('glacier-eq')
 source=()
 sha256sums=()
 
-_origin="${GLACIER_SRC:-$PWD}"
-
-pkgver() {
-  cd "$_origin"
-  ( set -o pipefail
-    git describe --long --abbrev=7 2>/dev/null | sed 's/\([^-]*-g\)/r\1/;s/-/./g' ||
-    printf "r%s.%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short=7 HEAD)"
-  )
-}
+_origin="${startdir:-$PWD}"
 
 prepare() {
   cd "$_origin"

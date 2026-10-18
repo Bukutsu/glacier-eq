@@ -109,8 +109,7 @@ every distribution.
 
 1. Run `npm run verify`, `npm run verify:rust`, `npm run build:web`, and
    `npm run build:desktop` on the final source.
-2. Review and commit the intended changes. Do not include an incidental
-   generated PKGBUILD version update.
+2. Review and commit the intended changes.
 3. Move the Unreleased notes into the chosen version section and synchronize
    `package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`, and
    the npm/Cargo lockfiles.
