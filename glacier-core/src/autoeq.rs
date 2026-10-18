@@ -1056,6 +1056,74 @@ fn initialize_bands(
     Ok(())
 }
 
+/// Give a redundant or misplaced peak one deterministic relocation. Frequency
+/// and Q derivatives vanish at zero gain, so more local steps cannot reliably
+/// recover a band left in the wrong part of the spectrum.
+fn reseed_peak(
+    bands: &mut [optimizer::Band],
+    f: &[f32; K],
+    r: &[f32; K],
+    fs: f32,
+    target: AutoEqTarget<'_>,
+    cos: &[f64],
+) -> Result<bool, String> {
+    let mut residual = *r;
+    for band in bands.iter() {
+        crate::eq::iir_math::accumulate_response_values_cos_for_model(
+            band.kind,
+            band.frequency,
+            -band.gain,
+            band.q,
+            fs as f64,
+            target.model(),
+            cos,
+            &mut residual,
+        )?;
+    }
+    let mut replacement = None;
+    let mut least_removal_loss = f32::INFINITY;
+    let mut remainder = [0.0; K];
+    for (i, band) in bands.iter().enumerate() {
+        if band.kind != FilterType::Peak {
+            continue;
+        }
+        let mut removed = residual;
+        crate::eq::iir_math::accumulate_response_values_cos_for_model(
+            band.kind,
+            band.frequency,
+            band.gain,
+            band.q,
+            fs as f64,
+            target.model(),
+            cos,
+            &mut removed,
+        )?;
+        center_mean(&mut removed);
+        let loss = removed.iter().map(|v| v * v).sum::<f32>() / K as f32;
+        if loss < least_removal_loss {
+            least_removal_loss = loss;
+            replacement = Some(i);
+            remainder = removed;
+        }
+    }
+    let Some(i) = replacement else {
+        return Ok(false);
+    };
+    let band = &mut bands[i];
+    let p = init_pk(
+        &remainder,
+        f,
+        fs,
+        band.frequency_bounds,
+        band.gain_bounds,
+        band.q_bounds,
+    );
+    band.frequency = p.f0 as f64;
+    band.gain = p.gain as f64;
+    band.q = p.q as f64;
+    Ok(true)
+}
+
 fn generate_log_spaced_freqs() -> [f32; K] {
     let f0 = 20.0_f32;
     let f1 = 20000.0_f32;
@@ -1287,49 +1355,7 @@ pub fn run_autoeq_with_target(
     // Upstream defaults shelf Q to 0.4..0.7 to avoid resonant shelves:
     // https://github.com/jaakkopasanen/AutoEq/blob/7ae0f56d53074872b028649617a22bbb4232feb7/autoeq/constants.py#L54-L55
     let low_band = n_bands <= 5;
-    let fit_layout = |types: Vec<FilterType>| -> Result<(PEQData, f32), String> {
-        let mut f0_lim = vec![intersect(20.0, 16000.0, cap_f_lo, cap_f_hi); n_bands];
-        let gain_lim = vec![intersect(-16.0, 16.0, cap_gain_lo, cap_gain_hi); n_bands];
-        let mut q_lim = vec![intersect(0.4, 4.0, cap_q_lo, cap_q_hi); n_bands];
-        for n in 0..n_bands {
-            match types[n] {
-                FilterType::LowShelf => {
-                    f0_lim[n] = intersect(20.0, 500.0, cap_f_lo, cap_f_hi);
-                    q_lim[n] = intersect(0.4, if low_band { 0.7 } else { 3.0 }, cap_q_lo, cap_q_hi);
-                }
-                FilterType::HighShelf => {
-                    f0_lim[n] = intersect(3000.0, 20000.0, cap_f_lo, cap_f_hi);
-                    q_lim[n] = intersect(0.4, if low_band { 0.7 } else { 3.0 }, cap_q_lo, cap_q_hi);
-                }
-                _ => {}
-            }
-        }
-        if target.model() == crate::eq::iir_math::EqResponseModel::MoondropShelfSlope {
-            for (kind, lim) in types.iter().zip(&mut q_lim) {
-                if *kind != FilterType::Peak {
-                    lim.hi = lim.hi.min(1.0);
-                    if lim.lo > lim.hi {
-                        return Err("Device has no feasible non-resonant shelf slope".into());
-                    }
-                }
-            }
-        }
-        let mut bands: Vec<_> = (0..n_bands)
-            .map(|i| optimizer::Band {
-                kind: types[i],
-                frequency: 1000.0,
-                gain: 0.0,
-                q: 1.0,
-                frequency_bounds: f0_lim[i],
-                gain_bounds: gain_lim[i],
-                q_bounds: q_lim[i],
-            })
-            .collect();
-        initialize_bands(&mut bands, &f, &r, fs, target, &cos)?;
-        let fit = optimizer::fit(&mut bands, steps, &f, &r, fs as f64, target.model());
-        if !(fit.loss as f32).is_finite() {
-            return Err("AutoEQ optimization produced a non-finite loss".into());
-        }
+    let finish = |bands: &[optimizer::Band], level: f64| -> Result<(PEQData, f32), String> {
         let mut filters: Vec<_> = bands
             .iter()
             .enumerate()
@@ -1346,10 +1372,59 @@ pub fn run_autoeq_with_target(
         for (i, filter) in filters.iter_mut().enumerate() {
             filter.index = i as u8;
         }
-        let peq = target.finalize(filters, fs as f64, preamp_mean as f64 + fit.level, &safety)?;
+        let peq = target.finalize(filters, fs as f64, preamp_mean as f64 + level, &safety)?;
         let loss = device::shape_loss(&peq.filters, fs as f64, target, &cos, &r)?;
         Ok((peq, loss))
     };
+    let fit_layout =
+        |types: Vec<FilterType>| -> Result<(PEQData, f32, Vec<optimizer::Band>), String> {
+            let mut f0_lim = vec![intersect(20.0, 16000.0, cap_f_lo, cap_f_hi); n_bands];
+            let gain_lim = vec![intersect(-16.0, 16.0, cap_gain_lo, cap_gain_hi); n_bands];
+            let mut q_lim = vec![intersect(0.4, 4.0, cap_q_lo, cap_q_hi); n_bands];
+            for n in 0..n_bands {
+                match types[n] {
+                    FilterType::LowShelf => {
+                        f0_lim[n] = intersect(20.0, 500.0, cap_f_lo, cap_f_hi);
+                        q_lim[n] =
+                            intersect(0.4, if low_band { 0.7 } else { 3.0 }, cap_q_lo, cap_q_hi);
+                    }
+                    FilterType::HighShelf => {
+                        f0_lim[n] = intersect(3000.0, 20000.0, cap_f_lo, cap_f_hi);
+                        q_lim[n] =
+                            intersect(0.4, if low_band { 0.7 } else { 3.0 }, cap_q_lo, cap_q_hi);
+                    }
+                    _ => {}
+                }
+            }
+            if target.model() == crate::eq::iir_math::EqResponseModel::MoondropShelfSlope {
+                for (kind, lim) in types.iter().zip(&mut q_lim) {
+                    if *kind != FilterType::Peak {
+                        lim.hi = lim.hi.min(1.0);
+                        if lim.lo > lim.hi {
+                            return Err("Device has no feasible non-resonant shelf slope".into());
+                        }
+                    }
+                }
+            }
+            let mut bands: Vec<_> = (0..n_bands)
+                .map(|i| optimizer::Band {
+                    kind: types[i],
+                    frequency: 1000.0,
+                    gain: 0.0,
+                    q: 1.0,
+                    frequency_bounds: f0_lim[i],
+                    gain_bounds: gain_lim[i],
+                    q_bounds: q_lim[i],
+                })
+                .collect();
+            initialize_bands(&mut bands, &f, &r, fs, target, &cos)?;
+            let fit = optimizer::fit(&mut bands, steps, &f, &r, fs as f64, target.model());
+            if !(fit.loss as f32).is_finite() {
+                return Err("AutoEQ optimization produced a non-finite loss".into());
+            }
+            let (peq, loss) = finish(&bands, fit.level)?;
+            Ok((peq, loss, bands))
+        };
     let mut best = fit_layout(types.clone());
     if supports(FilterType::Peak) {
         let mut layouts = vec![types];
@@ -1370,17 +1445,26 @@ pub fn run_autoeq_with_target(
             }
             layouts.push(candidate.clone());
             let fitted = fit_layout(candidate);
-            if let Ok((_, loss)) = &fitted {
+            if let Ok((_, loss, _)) = &fitted {
                 if best
                     .as_ref()
-                    .map_or(true, |(_, best_loss)| loss < best_loss)
+                    .map_or(true, |(_, best_loss, _)| loss < best_loss)
                 {
                     best = fitted;
                 }
             }
         }
     }
-    best.map(|(peq, _)| peq)
+    let (peq, loss, mut bands) = best?;
+    if reseed_peak(&mut bands, &f, &r, fs, target, &cos)? {
+        let fit = optimizer::fit(&mut bands, steps, &f, &r, fs as f64, target.model());
+        if let Ok((candidate, candidate_loss)) = finish(&bands, fit.level) {
+            if candidate_loss < loss {
+                return Ok(candidate);
+            }
+        }
+    }
+    Ok(peq)
 }
 
 fn validate_curve(label: &str, points: &[(f64, f64)]) -> Result<(), String> {
@@ -1813,6 +1897,65 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn residual_reseeding_recovers_a_zero_gain_band_in_the_wrong_region() {
+        let fs = 48000.0;
+        let f = generate_log_spaced_freqs();
+        let cos: Vec<_> = f
+            .iter()
+            .map(|&v| (std::f64::consts::TAU * v as f64 / fs as f64).cos())
+            .collect();
+        let mut desired = [0.0; K];
+        spectrum_values(FilterType::Peak, 400.0, 6.0, 2.0, fs, &f, &mut desired);
+        spectrum_values(FilterType::Peak, 2400.0, -5.0, 3.0, fs, &f, &mut desired);
+        let mut bands: Vec<_> = [6.0, 0.0]
+            .into_iter()
+            .map(|gain| optimizer::Band {
+                kind: FilterType::Peak,
+                frequency: 400.0,
+                gain,
+                q: 2.0,
+                frequency_bounds: Lim {
+                    lo: 20.0,
+                    hi: 16000.0,
+                },
+                gain_bounds: Lim {
+                    lo: -16.0,
+                    hi: 16.0,
+                },
+                q_bounds: Lim { lo: 0.4, hi: 4.0 },
+            })
+            .collect();
+        let before = optimizer::fit(
+            &mut bands,
+            1,
+            &f,
+            &desired,
+            fs as f64,
+            crate::eq::iir_math::EqResponseModel::CanonicalQ,
+        )
+        .loss;
+        assert!(reseed_peak(
+            &mut bands,
+            &f,
+            &desired,
+            fs,
+            AutoEqTarget::capabilities(None),
+            &cos
+        )
+        .unwrap());
+        let after = optimizer::fit(
+            &mut bands,
+            80,
+            &f,
+            &desired,
+            fs as f64,
+            crate::eq::iir_math::EqResponseModel::CanonicalQ,
+        )
+        .loss;
+        assert!(after < before * 0.01, "reseed MSE {before} -> {after}");
     }
 
     #[test]
