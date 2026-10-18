@@ -88,22 +88,11 @@ export function AutoEqTab(props: AutoEqTabProps) {
         <fieldset className="tuning-fields" disabled={isOptimizing}>
           <legend className="tuning-sr-only">EQ inputs</legend>
           <div className="tuning-field">
-            <div className="tuning-field-heading">
-              {meas ? (
-                <label htmlFor="autoeq-measurement">Measurement</label>
-              ) : (
-                <span>Measurement</span>
-              )}
-              {meas && onOpenAddTrace && (
-                <Button
-                  variant="ghost"
-                  disabled={isOptimizing}
-                  onClick={onOpenAddTrace}
-                >
-                  <Icon name="add" /> Add another
-                </Button>
-              )}
-            </div>
+            {meas ? (
+              <label htmlFor="autoeq-measurement">Measurement</label>
+            ) : (
+              <span className="tuning-field-label">Measurement</span>
+            )}
             {meas ? (
               <Select
                 id="autoeq-measurement"
@@ -116,20 +105,9 @@ export function AutoEqTab(props: AutoEqTabProps) {
                 disabled={isOptimizing}
               />
             ) : (
-              <>
-                {onOpenAddTrace && (
-                  <Button
-                    disabled={isOptimizing}
-                    className="w-full min-h-11"
-                    onClick={onOpenAddTrace}
-                  >
-                    <Icon name="add" /> Add measurement
-                  </Button>
-                )}
-                <p className="tuning-help">
-                  Search the database or import a frequency-response file.
-                </p>
-              </>
+              <p className="tuning-help">
+                Search the database or import a frequency-response file.
+              </p>
             )}
           </div>
 
@@ -146,12 +124,16 @@ export function AutoEqTab(props: AutoEqTabProps) {
               }
               onChange={handleTargetChange}
             />
-            {!target && onOpenAddTrace && (
-              <Button disabled={isOptimizing} onClick={onOpenAddTrace}>
-                <Icon name="add" /> Add target
-              </Button>
-            )}
           </div>
+          {onOpenAddTrace && (
+            <Button
+              className="w-full min-h-11"
+              disabled={isOptimizing}
+              onClick={onOpenAddTrace}
+            >
+              <Icon name="add" /> Add measurement or target
+            </Button>
+          )}
         </fieldset>
 
         <fieldset className="tuning-settings" disabled={isOptimizing}>

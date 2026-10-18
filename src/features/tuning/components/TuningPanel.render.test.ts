@@ -59,7 +59,7 @@ describe("Tuning workflow", () => {
       html.indexOf(">Generate EQ</button>"),
     );
     expect(html).not.toContain("tuning-step-number");
-    expect(html).toContain("Add measurement</button>");
+    expect(html).toContain("Add measurement or target</button>");
     expect(html).toContain(
       "Search the database or import a frequency-response file.",
     );
@@ -78,16 +78,24 @@ describe("Tuning workflow", () => {
     expect(html).toContain('for="autoeq-measurement">Measurement</label>');
     expect(html).toContain('class="app-select-value">Headphone</span>');
     expect(html).toContain('name="autoeq-measurement" value="headphone"');
-    expect(html).toContain("Add another</button>");
+    expect(html).toContain("Add measurement or target</button>");
+    expect(html).not.toContain("Add another");
+    const inputs =
+      html.match(/<fieldset class="tuning-fields"[\s\S]*?<\/fieldset>/)?.[0] ??
+      "";
+    expect(inputs.match(/data-slot="button"/g)).toHaveLength(1);
+    expect(inputs.indexOf("Add measurement or target")).toBeGreaterThan(
+      inputs.indexOf('name="autoeq-target"'),
+    );
     expect(html).toContain('role="status" aria-live="polite"');
     expect(html).toContain('aria-describedby="tuning-destination"');
     expect(html).toContain("Loads EQ into the editor, not the DAC.");
   });
 
-  it("offers a direct add action when targets are missing", () => {
+  it("keeps the shared add action available when targets are missing", () => {
     const html = render({ measurements: [measurement], allTargets: [] });
     expect(html).toContain("Add a target to continue");
-    expect(html).toContain("Add target</button>");
+    expect(html).toContain("Add measurement or target</button>");
     expect(submitButton(html)).toContain('disabled=""');
   });
 
