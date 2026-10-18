@@ -1455,7 +1455,26 @@ pub fn run_autoeq_with_target(
             }
         }
     }
-    let (peq, loss, mut bands) = best?;
+    let (mut peq, mut loss, mut bands) = best?;
+    // Preserve the broad fit as an incumbent, then let peaks use the DAC's
+    // full Q range during refinement. The legacy Q=4 ceiling cannot reproduce
+    // narrow resonances even when the hardware can.
+    let mut wider_q = false;
+    for band in &mut bands {
+        if band.kind == FilterType::Peak && cap_q_hi as f32 > band.q_bounds.hi {
+            wider_q |= band.q >= band.q_bounds.hi as f64 * (1.0 - 1e-6);
+            band.q_bounds.hi = cap_q_hi as f32;
+        }
+    }
+    if wider_q {
+        let fit = optimizer::fit(&mut bands, steps, &f, &r, fs as f64, target.model());
+        if let Ok((candidate, candidate_loss)) = finish(&bands, fit.level) {
+            if candidate_loss < loss {
+                peq = candidate;
+                loss = candidate_loss;
+            }
+        }
+    }
     if reseed_peak(&mut bands, &f, &r, fs, target, &cos)? {
         let fit = optimizer::fit(&mut bands, steps, &f, &r, fs as f64, target.model());
         if let Ok((candidate, candidate_loss)) = finish(&bands, fit.level) {
@@ -1897,6 +1916,27 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn device_peak_refinement_can_recover_resonances_above_legacy_q_limit() {
+        let fs = 96000.0;
+        let f = generate_log_spaced_freqs();
+        let mut desired = [0.0; K];
+        spectrum_values(FilterType::Peak, 1200.0, -6.0, 8.0, fs, &f, &mut desired);
+        let measurement: Vec<_> = f.iter().map(|&freq| (freq as f64, 0.0)).collect();
+        let target: Vec<_> = f
+            .iter()
+            .zip(desired)
+            .map(|(&freq, db)| (freq as f64, db as f64))
+            .collect();
+        let caps = crate::device::capabilities::DESKTOP_DAC_CAPS;
+        let peq = run_autoeq(&measurement, &target, 1, 0, "none", fs, Some(&caps)).unwrap();
+        let mse = shape_mse(&peq, &f, &desired, fs);
+        assert!(mse < 0.0001, "narrow resonance: MSE {mse}");
+        assert_eq!(peq.filters[0].filter_type, FilterType::Peak);
+        assert!(peq.filters[0].q > 7.0 && peq.filters[0].q <= caps.q_range.1);
+        assert!(peq.global_gain + max_autoeq_response(&peq.filters, fs).unwrap() as f64 <= 1e-4);
     }
 
     #[test]
