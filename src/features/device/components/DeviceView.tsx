@@ -703,7 +703,7 @@ export const DeviceView = memo(function DeviceView({
 
                 <SegmentedRow
                   title="Amplifier"
-                  desc="Output stage: Class H or Class AB"
+                  desc="Class AB is the default. Class H draws less power from your device, so it saves battery, but is slightly less powerful."
                   value={utility.amp_mode_class_ab ? "ab" : "h"}
                   options={[
                     { value: "h", label: "Class H" },
