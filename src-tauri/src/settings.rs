@@ -53,6 +53,9 @@ pub struct Settings {
     pub auto_pull_on_connect: bool,
     #[serde(default)]
     pub skip_push_verification: bool,
+    /// Opt-in: write every EQ edit straight to the DAC's RAM (nothing is saved).
+    #[serde(default)]
+    pub live_apply: bool,
     #[serde(default = "default_theme")]
     pub theme: String,
     #[serde(default = "default_snap_to_iso_frequencies")]
@@ -71,6 +74,7 @@ impl Default for Settings {
         Self {
             auto_pull_on_connect: true,
             skip_push_verification: false,
+            live_apply: false,
             theme: default_theme(),
             snap_to_iso_frequencies: default_snap_to_iso_frequencies(),
             floating_graph_preview: default_floating_graph_preview(),
@@ -234,6 +238,7 @@ fn parse_settings(content: &str, path: &std::path::Path) -> Result<SettingsRead,
             "skip_push_verification",
             &mut settings.skip_push_verification,
         ),
+        ("live_apply", &mut settings.live_apply),
         (
             "snap_to_iso_frequencies",
             &mut settings.snap_to_iso_frequencies,
@@ -474,6 +479,23 @@ mod tests {
         assert!(!repeated.auto_pull_on_connect);
         assert_eq!(repeated.theme, "dracula");
 
+        fs::remove_dir_all(dir).ok();
+    }
+
+    #[test]
+    fn live_apply_is_off_by_default_and_read_when_set() {
+        assert!(!Settings::default().live_apply);
+        let dir = std::env::temp_dir().join(format!(
+            "glacier-settings-live-apply-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id(),
+        ));
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("settings.json");
+        fs::write(&path, r#"{"live_apply":true}"#).unwrap();
+        assert!(read_settings(&path).unwrap().live_apply);
+        fs::write(&path, r#"{"live_apply":"yes"}"#).unwrap();
+        assert!(!read_settings(&path).unwrap().live_apply);
         fs::remove_dir_all(dir).ok();
     }
 

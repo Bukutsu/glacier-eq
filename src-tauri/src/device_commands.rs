@@ -484,6 +484,23 @@ pub async fn apply_eq_state(
 }
 
 #[tauri::command]
+pub async fn live_apply_eq_state(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Mutex<DeviceState>>,
+    peq: PEQData,
+) -> Result<EqWriteOutcome, String> {
+    with_session(&app, &state, |session| {
+        let (committed, warnings) = glacier_core::device::block_on(session.live_apply(peq))?;
+        Ok(EqWriteOutcome {
+            committed,
+            warnings,
+            restarts: false,
+        })
+    })
+    .await
+}
+
+#[tauri::command]
 pub async fn list_devices(app: tauri::AppHandle) -> Result<Vec<DeviceInfo>, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let devices = tauri_plugin_hid::hid(&app)

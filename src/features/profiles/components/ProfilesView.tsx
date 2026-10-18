@@ -481,33 +481,20 @@ export const ProfilesView = memo(function ProfilesView({
                       </span>
                     </span>
                   </div>
-                  {(!isSelected || dirty || onApplyProfile) && (
+                  {(!isSelected || dirty) && (
                     <div className="profiles-default-actions">
-                      {(!isSelected || dirty) && (
-                        <Button
-                          variant="default"
-                          aria-label="Load Default EQ into editor"
-                          onClick={() => void handleSelectProfile(profile)}
-                        >
-                          <Icon
-                            name={
-                              isSelected
-                                ? "restart_alt"
-                                : "vertical_align_bottom"
-                            }
-                          />
-                          {isSelected ? "Restore default" : "Load in editor"}
-                        </Button>
-                      )}
-                      {onApplyProfile && (
-                        <Button
-                          variant="ghost"
-                          aria-label="Apply Default EQ to DAC temporarily"
-                          onClick={() => onApplyProfile(profile)}
-                        >
-                          <Icon name="send" /> Apply to DAC
-                        </Button>
-                      )}
+                      <Button
+                        variant="default"
+                        aria-label="Load Default EQ into editor"
+                        onClick={() => void handleSelectProfile(profile)}
+                      >
+                        <Icon
+                          name={
+                            isSelected ? "restart_alt" : "vertical_align_bottom"
+                          }
+                        />
+                        {isSelected ? "Restore default" : "Load in editor"}
+                      </Button>
                     </div>
                   )}
                 </article>
@@ -539,18 +526,16 @@ export const ProfilesView = memo(function ProfilesView({
                   )}
                 </Button>
                 {onApplyProfile && (
-                  <OverflowMenu
-                    className="profiles-menu"
-                    label={`Actions for ${profile.name}`}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="profiles-row-action"
+                    title={`Apply ${profile.name} to DAC temporarily`}
+                    aria-label={`Apply ${profile.name} to DAC temporarily`}
+                    onClick={() => onApplyProfile(profile)}
                   >
-                    <Menu.Item
-                      className="ui-menu-item"
-                      aria-label={`Apply ${profile.name} to DAC temporarily`}
-                      onClick={() => onApplyProfile(profile)}
-                    >
-                      <Icon name="send" /> Apply temporarily to DAC
-                    </Menu.Item>
-                  </OverflowMenu>
+                    <Icon name="send" />
+                  </Button>
                 )}
               </div>
             );

@@ -75,6 +75,7 @@ interface ToolsPanelProps {
   firmwareVersion?: string | null;
   deviceSection?: DeviceSection;
   settingsSection?: SettingsSection;
+  liveApplySupported?: boolean;
   onDisconnect?: () => Promise<void>;
   onPreviewChange?: (device: DeviceInfo) => void;
   onExpectedDisconnect?: (restart?: boolean) => void | Promise<void>;
@@ -151,6 +152,7 @@ export const ToolsPanel = memo(function ToolsPanel(props: ToolsPanelProps) {
               onShowGraphChange={props.onShowGraphChange}
               setStatus={props.setStatus}
               onUdevInstalled={props.onUdevInstalled}
+              liveApplySupported={props.liveApplySupported}
             />
           )}
         </div>

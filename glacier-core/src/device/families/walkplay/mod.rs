@@ -188,8 +188,11 @@ impl WalkplayProtocol {
         ]
     }
 
+    // Loads the written bands into the DSP without saving them: the first commit
+    // step alone. The official web app's audition path ends here, and only its
+    // Save sends the flash write.
     pub(crate) fn build_ram_apply_packets() -> Vec<Packet> {
-        Self::build_commit_packets()
+        Self::build_commit_packets().into_iter().take(1).collect()
     }
 
     pub fn build_utility_read_request(cmd: u8) -> Vec<u8> {
@@ -496,7 +499,7 @@ mod tests {
                 END
             ]
         );
-        assert_eq!(packets[1].payload, vec![WRITE, CMD_FLASH_EQ, END]);
+        assert_eq!(packets.len(), 1, "temp apply must not save to flash");
     }
 
     #[test]

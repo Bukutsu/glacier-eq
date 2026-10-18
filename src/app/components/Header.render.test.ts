@@ -23,6 +23,30 @@ const baseHeaderProps: Parameters<typeof Header>[0] = {
 };
 
 describe("Header markup", () => {
+  it("quietly notes live apply on EQ pages only while it is on", () => {
+    const live = { ...baseHeaderProps, connected: true, liveApply: true };
+    const render = (props: Parameters<typeof Header>[0]) =>
+      renderToStaticMarkup(createElement(Header, props));
+    expect(render(live)).toContain("Live apply");
+    expect(render({ ...live, liveApply: false })).not.toContain("Live apply");
+    expect(render({ ...live, connected: false })).not.toContain("Live apply");
+    expect(render({ ...live, configPage: "settings" })).not.toContain(
+      "Live apply",
+    );
+  });
+
+  it.each([false, true])(
+    "drops the write button while live apply saves for you (mobile=%s)",
+    (mobile) => {
+      const props = { ...baseHeaderProps, connected: true, mobile };
+      const render = (liveApply: boolean) =>
+        renderToStaticMarkup(createElement(Header, { ...props, liveApply }));
+      expect(render(false)).toMatch(/Write to DAC|Save to DAC/);
+      expect(render(true)).not.toMatch(/Write to DAC|Save to DAC/);
+      if (!mobile) expect(render(true)).toContain("Read from DAC");
+    },
+  );
+
   it.each([false, true])(
     "keeps draft recovery in the header metadata (mobile=%s)",
     (mobile) => {

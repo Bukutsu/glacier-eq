@@ -30,6 +30,7 @@ Usage:
   glacier-eq-cli hardware pull [--device PATH|VID:PID]
   glacier-eq-cli hardware push FILE [--device SELECTOR] --yes
   glacier-eq-cli hardware apply FILE [--device SELECTOR] --yes
+  glacier-eq-cli hardware live FILE... [--device SELECTOR] --yes
   glacier-eq-cli hardware raw --device SELECTOR --report-id HEX --data HEX [--read-ms N] [--count N] [--delay-ms N] --yes
   glacier-eq-cli autoeq MEASUREMENT TARGET [--bands N] [--steps N]
       [--smooth none|ie|oe] [--sample-rate HZ] [--device VID:PID]
@@ -93,6 +94,8 @@ enum HardwareAction {
     Pull,
     Push(String),
     Apply(String),
+    /// RAM-only writes without a backup read, in order, on one connection.
+    Live(Vec<String>),
     Raw(RawSignal),
 }
 
@@ -186,6 +189,7 @@ fn parse_hardware(args: &[String]) -> Result<Command, String> {
         Some("pull") if args.len() == 1 => HardwareAction::Pull,
         Some("push") if args.len() == 2 => HardwareAction::Push(args.remove(1)),
         Some("apply") if args.len() == 2 => HardwareAction::Apply(args.remove(1)),
+        Some("live") if args.len() >= 2 => HardwareAction::Live(args.split_off(1)),
         Some("raw") => HardwareAction::Raw(parse_raw_signal(&args[1..])?),
         _ => return Err("invalid hardware command".into()),
     };
@@ -503,7 +507,10 @@ fn require_confirmation(command: &Command) -> Result<(), String> {
         Command::Hardware { action, yes, .. } => {
             !matches!(
                 action,
-                HardwareAction::Push(_) | HardwareAction::Apply(_) | HardwareAction::Raw(_)
+                HardwareAction::Push(_)
+                    | HardwareAction::Apply(_)
+                    | HardwareAction::Live(_)
+                    | HardwareAction::Raw(_)
             ) || *yes
         }
         Command::Controls { action, yes, .. } => matches!(action, ControlAction::Status) || *yes,
@@ -958,6 +965,16 @@ fn execute_hardware(action: HardwareAction, selector: Option<&str>) -> Result<St
                 eprintln!("warning: {warning}");
             }
             glacier_core::device::block_on(session.apply_ram(peq)).map(|_| String::new())
+        }
+        HardwareAction::Live(files) => {
+            for file in files {
+                let (peq, _, warnings) = read_peq(&file)?;
+                for warning in warnings {
+                    eprintln!("warning: {warning}");
+                }
+                glacier_core::device::block_on(session.live_apply(peq))?;
+            }
+            Ok(String::new())
         }
         HardwareAction::List | HardwareAction::Raw(_) => unreachable!(),
     })

@@ -36,17 +36,15 @@ const props: Parameters<typeof ProfilesView>[0] = {
 };
 
 describe("profile keyboard controls", () => {
-  it("separates the native load button from the DAC actions menu", () => {
+  it("separates the native load button from the DAC apply button", () => {
     const html = renderToStaticMarkup(createElement(ProfilesView, props));
     expect(html).toMatch(
       /<button(?=[^>]*type="button")(?=[^>]*aria-pressed="true")(?=[^>]*aria-label="Load Daily into editor")[^>]*>/,
     );
     expect(html).toMatch(
-      /<button(?=[^>]*aria-label="Actions for Daily")(?=[^>]*aria-haspopup="menu")[^>]*>/,
+      /<button(?=[^>]*type="button")(?=[^>]*aria-label="Apply Daily to DAC temporarily")[^>]*>/,
     );
     expect(html).toContain("In editor");
-    // DAC actions are not exposed as one-click row buttons.
-    expect(html).not.toContain("Apply temporarily</button>");
     expect(html).not.toContain('role="radio"');
     expect(html).not.toContain('role="radiogroup"');
   });

@@ -68,6 +68,8 @@ export interface SettingsViewProps {
   onShowGraphChange?: (show: boolean) => void;
   setStatus?: (value: string) => void;
   onUdevInstalled?: () => Promise<string | null>;
+  /** The connected DAC can take temporary EQ writes (live apply). */
+  liveApplySupported?: boolean;
 }
 
 function UdevSection({
@@ -326,6 +328,7 @@ export const SettingsView = memo(function SettingsView({
   onShowGraphChange,
   setStatus,
   onUdevInstalled,
+  liveApplySupported,
 }: SettingsViewProps) {
   const mobile = useIsMobile();
   const activeSection = section === "root" ? "general" : section;
@@ -395,6 +398,18 @@ export const SettingsView = memo(function SettingsView({
               desc="Read back the EQ settings to check they were applied correctly. Required safety checks always run."
               checked={!settings.skip_push_verification}
               onChange={(v) => onSettingChange("skip_push_verification", !v)}
+            />
+
+            <ToggleRow
+              title="Live apply"
+              desc={
+                liveApplySupported
+                  ? "Apply each EQ edit to the DAC as you make it and save it once you pause, so there is no Write to DAC step. Saving rewrites the DAC's flash after each pause."
+                  : "Hear EQ edits on the DAC as you make them. Needs a connected DAC that supports it (EPZ TP35 Pro)."
+              }
+              checked={settings.live_apply}
+              disabled={!liveApplySupported}
+              onChange={(v) => onSettingChange("live_apply", v)}
             />
 
             <ToggleRow

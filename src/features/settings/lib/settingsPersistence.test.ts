@@ -5,6 +5,7 @@ import type { AppSettings } from "@/types";
 const DEFAULTS: AppSettings = {
   auto_pull_on_connect: true,
   skip_push_verification: false,
+  live_apply: false,
   theme: "auto",
   snap_to_iso_frequencies: true,
   floating_graph_preview: true,
@@ -13,6 +14,7 @@ const DEFAULTS: AppSettings = {
 const STORED: AppSettings = {
   auto_pull_on_connect: false,
   skip_push_verification: true,
+  live_apply: true,
   theme: "dark",
   snap_to_iso_frequencies: false,
   floating_graph_preview: false,

@@ -21,6 +21,8 @@ pub enum DeviceCommand {
     },
     #[serde(rename = "apply_eq_state")]
     Apply { peq: PEQData },
+    #[serde(rename = "live_apply_eq_state")]
+    LiveApply { peq: PEQData },
     #[serde(rename = "ja11_control")]
     Ja11Control { control: String, value: Option<u8> },
     #[serde(rename = "get_firmware_version")]
@@ -100,6 +102,14 @@ impl<I: DeviceIo> DeviceSession<'_, I> {
             }
             Apply { peq } => {
                 let (committed, warnings) = self.apply_ram(peq).await?;
+                DeviceOutcome::Write(EqWriteOutcome {
+                    committed,
+                    warnings,
+                    restarts: false,
+                })
+            }
+            LiveApply { peq } => {
+                let (committed, warnings) = self.live_apply(peq).await?;
                 DeviceOutcome::Write(EqWriteOutcome {
                     committed,
                     warnings,

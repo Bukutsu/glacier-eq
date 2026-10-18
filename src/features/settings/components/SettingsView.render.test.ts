@@ -15,6 +15,7 @@ vi.mock("@glacier-eq/backend", () => ({
 const baseSettings: AppSettings = {
   auto_pull_on_connect: true,
   skip_push_verification: false,
+  live_apply: false,
   theme: "auto",
   snap_to_iso_frequencies: true,
   floating_graph_preview: true,
@@ -68,6 +69,20 @@ describe("SettingsView markup", () => {
     });
     expect(skipped).toMatch(
       /<button[^>]*role="switch"[^>]*aria-checked="false"[^>]*aria-label="Verify EQ after writing"/,
+    );
+  });
+
+  it("shows live apply always, but only lets a supporting DAC use it", () => {
+    const hidden = renderSettingsView({ section: "general" });
+    expect(hidden).toMatch(
+      /stack-pref-row interactive disabled"><div class="stack-pref-info"><span class="stack-pref-title">Live apply/,
+    );
+    const shown = renderSettingsView({
+      section: "general",
+      liveApplySupported: true,
+    });
+    expect(shown).toMatch(
+      /<button[^>]*role="switch"[^>]*aria-checked="false"[^>]*aria-label="Live apply"/,
     );
   });
 

@@ -316,6 +316,38 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
         Ok((normalized, warnings))
     }
 
+    /// Applies an EQ to the DAC's RAM only, for live editing. Unlike
+    /// `apply_ram` it neither reads a backup first nor rolls back: nothing is
+    /// saved, so a failed write leaves the stored EQ intact and the next edit
+    /// rewrites every band.
+    pub async fn live_apply(&mut self, peq: PEQData) -> Result<(PEQData, Vec<String>), String> {
+        self.require_hardware_eq()?;
+        validate_peq(&peq)?;
+        if !self.profile.caps.supports_ram_apply {
+            return Err(format!(
+                "{} does not advertise volatile RAM apply support",
+                self.profile.name
+            ));
+        }
+        let (normalized, warnings) = self.normalize(peq)?;
+        // Live edits fire constantly; a progress bar for each would flicker.
+        let progress = self.progress.take();
+        let written = self.write_ram_live(&normalized).await;
+        self.progress = progress;
+        written?;
+        Ok((normalized, warnings))
+    }
+
+    async fn write_ram_live(&mut self, peq: &PEQData) -> Result<(), String> {
+        self.write_to_ram(peq).await?;
+        // No settle wait: it exists for the flash commit, and the official app's
+        // live path sends the next edit right behind the apply.
+        for packet in self.protocol().ram_apply_packets() {
+            self.send(&packet).await?;
+        }
+        Ok(())
+    }
+
     async fn verify_ram_state(&mut self, expected: &PEQData) -> Result<(), String> {
         self.io.sleep_ms(RETRY_DELAY_MS).await;
         let actual = self.pull().await?;

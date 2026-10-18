@@ -489,6 +489,7 @@ pub fn run() {
             device_commands::get_eq_state,
             device_commands::set_eq_state,
             device_commands::apply_eq_state,
+            device_commands::live_apply_eq_state,
             device_commands::get_dac_utility_state,
             device_commands::get_dawn_pro_state,
             device_commands::ja11_control,

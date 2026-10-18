@@ -115,7 +115,7 @@ describe("Profile library", () => {
     expect(hidden).not.toContain("Save as copy</button>");
   });
 
-  it("makes the default profile easy to load or apply without making it editable", () => {
+  it("makes the default profile easy to load without making it editable", () => {
     const defaultProfile = {
       name: DEFAULT_PROFILE_NAME,
       data: peq,
@@ -127,9 +127,9 @@ describe("Profile library", () => {
       onApplyProfile: () => {},
     });
     expect(available).toContain("Load in editor</button>");
-    expect(available).toContain("Apply to DAC</button>");
+    expect(available).not.toContain("Apply to DAC");
     expect(available).not.toContain(
-      `aria-label="Actions for ${DEFAULT_PROFILE_NAME}"`,
+      `aria-label="Apply ${DEFAULT_PROFILE_NAME} to DAC temporarily"`,
     );
 
     const changed = render({
@@ -140,10 +140,12 @@ describe("Profile library", () => {
     expect(changed).toContain("Restore default</button>");
   });
 
-  it("only offers per-profile DAC menus when the caller supplies that capability", () => {
-    expect(render()).not.toContain('aria-label="Actions for Daily"');
+  it("only offers a per-profile DAC apply button when the caller supplies that capability", () => {
+    expect(render()).not.toContain(
+      'aria-label="Apply Daily to DAC temporarily"',
+    );
     expect(render({ onApplyProfile: () => {} })).toContain(
-      'aria-label="Actions for Daily"',
+      'aria-label="Apply Daily to DAC temporarily"',
     );
   });
 

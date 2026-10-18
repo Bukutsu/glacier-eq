@@ -339,6 +339,7 @@ interface ParsedStorage<T> {
 const DEFAULT_WEB_SETTINGS: AppSettings = {
   auto_pull_on_connect: true,
   skip_push_verification: false,
+  live_apply: false,
   theme: "tokyo-night",
   snap_to_iso_frequencies: true,
   floating_graph_preview: true,
@@ -385,6 +386,7 @@ export function parseWebSettings(value: unknown): ParsedStorage<AppSettings> {
   const booleanFields = [
     "auto_pull_on_connect",
     "skip_push_verification",
+    "live_apply",
     "snap_to_iso_frequencies",
     "floating_graph_preview",
   ] as const;
@@ -791,6 +793,7 @@ const WEBHID_TRANSPORT_COMMANDS = new Set([
   "get_eq_state",
   "set_eq_state",
   "apply_eq_state",
+  "live_apply_eq_state",
   "get_dac_utility_state",
   "ja11_control",
   "set_dac_filter_mode",
@@ -1375,6 +1378,7 @@ async function invokeWeb<T = unknown>(cmd: string, args?: unknown): Promise<T> {
     case "get_eq_state":
     case "set_eq_state":
     case "apply_eq_state":
+    case "live_apply_eq_state":
     case "get_dac_utility_state":
       return await runDeviceOperation<T>(cmd, args);
     case "ja11_control": {

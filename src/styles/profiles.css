@@ -149,6 +149,15 @@
   text-align: left;
 }
 
+/* One row, one hover surface: the load button and the row action sit inside
+   it. The action stays out of the way until the row is hovered or focused,
+   and is always shown where there is no hover. */
+.profiles-item:not(.is-current, .profiles-default):hover { background: var(--accent); }
+.profiles-item .profiles-load:hover { background: transparent; }
+.profiles-row-action { margin-right: var(--space-1); opacity: 0; }
+.profiles-item:is(:hover, :focus-within, .is-current) .profiles-row-action { opacity: 1; }
+@media (hover: none) { .profiles-row-action { opacity: 1; } }
+
 .profiles-item-text {
   display: flex;
   flex: 1;

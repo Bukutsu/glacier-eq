@@ -83,6 +83,8 @@ interface HeaderProps {
   onRedo: () => void;
   onPull: () => void;
   onPush: () => void;
+  /** Live apply is on and working for the connected DAC. */
+  liveApply?: boolean;
   onExportEq: () => void;
   onDisconnect: () => void;
   onConnectClick?: () => void;
@@ -110,6 +112,7 @@ export const Header = memo(function Header({
   onRedo,
   onPull,
   onPush,
+  liveApply = false,
   onExportEq,
   onDisconnect,
   onConnectClick,
@@ -128,6 +131,8 @@ export const Header = memo(function Header({
         ? "Settings"
         : profile);
 
+  // With live apply the app saves in the background, so there is no write step.
+  const liveSaves = liveApply && connected && hardwareEq && !isSimulated;
   const syncClass = !connected
     ? "offline"
     : isBusy
@@ -153,7 +158,9 @@ export const Header = memo(function Header({
             ? "Device state unknown"
             : deviceMatchesEditor
               ? "DAC: matches editor"
-              : "DAC: changes not written";
+              : liveSaves
+                ? "DAC: live · saves when you pause"
+                : "DAC: changes not written";
   const profileText = !profileSaved
     ? "Profile: not saved"
     : profileDirty
@@ -172,7 +179,9 @@ export const Header = memo(function Header({
           : deviceMatchesEditor === true
             ? "Saved to DAC"
             : deviceMatchesEditor === false
-              ? "Changes not saved to DAC"
+              ? liveSaves
+                ? "Saves to DAC when you pause"
+                : "Changes not saved to DAC"
               : "Read EQ from the DAC to check its state";
 
   const exportButton = (
@@ -211,6 +220,14 @@ export const Header = memo(function Header({
               >
                 {mobile ? mobileSyncText : syncText}
               </span>
+              {liveApply && connected && hardwareEq && !isConfigPage && (
+                <span
+                  className="header-profile-state"
+                  title="EQ edits are sent to the DAC as you make them and saved when you pause."
+                >
+                  Live apply
+                </span>
+              )}
               {!isConfigPage && !mobile && (
                 <span className="header-profile-state">{profileText}</span>
               )}
@@ -268,15 +285,17 @@ export const Header = memo(function Header({
                         >
                           Read from DAC
                         </Button>
-                        <Button
-                          type="button"
-                          variant={writeVariant}
-                          title="Store the editor EQ on the DAC"
-                          onClick={onPush}
-                          disabled={isBusy}
-                        >
-                          Write to DAC
-                        </Button>
+                        {!liveSaves && (
+                          <Button
+                            type="button"
+                            variant={writeVariant}
+                            title="Store the editor EQ on the DAC"
+                            onClick={onPush}
+                            disabled={isBusy}
+                          >
+                            Write to DAC
+                          </Button>
+                        )}
                       </>
                     )
                   ) : (
@@ -342,7 +361,7 @@ export const Header = memo(function Header({
             </div>
             {connected ? (
               <>
-                {hardwareEq && (
+                {hardwareEq && !liveSaves && (
                   <Button
                     type="button"
                     variant={writeVariant}

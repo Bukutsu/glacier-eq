@@ -134,6 +134,76 @@ fn apply_ram_restores_the_snapshot_when_apply_fails() {
     });
 }
 
+#[test]
+fn walkplay_live_apply_writes_ram_without_reading_or_saving() {
+    crate::device::session::block_on(async {
+        let profile = get_supported_device(0x3302, 0x43e6).unwrap();
+        let mut io = FakeIo::default();
+        let mut progress_calls = 0;
+        let mut progress = |_: &str, _: f32| progress_calls += 1;
+        let (applied, _) =
+            DeviceSession::with_progress_and_nonce(&mut io, profile, &mut progress, 1)
+                .live_apply(test_peq())
+                .await
+                .unwrap();
+        assert_eq!(applied.filters.len(), 10);
+        assert_eq!(
+            progress_calls, 0,
+            "live edits must not drive the progress bar"
+        );
+
+        let commands: Vec<[u8; 2]> = io.writes.iter().map(|w| [w[1], w[2]]).collect();
+        // Version read to open the transaction, 10 bands, preamp, then temp apply.
+        assert_eq!(commands.first(), Some(&[READ, 0x0C]));
+        assert_eq!(commands.iter().filter(|c| c[1] == 0x09).count(), 10);
+        assert_eq!(commands.last().map(|c| c[0]), Some(0x01));
+        assert_eq!(io.writes.last().unwrap()[2], 0x0A, "ends with temp apply");
+        assert!(
+            io.writes.iter().all(|w| !(w[1] == 0x01 && w[2] == 0x01)),
+            "a live apply must never send the flash save"
+        );
+        assert!(
+            io.writes.iter().all(|w| w[1] != READ || w[2] == 0x0C),
+            "a live apply reads nothing back but the version"
+        );
+    });
+}
+
+#[test]
+fn confirmed_walkplay_devices_live_apply_without_saving() {
+    let walkplay: Vec<_> = crate::device::SUPPORTED_DEVICES
+        .iter()
+        .filter(|device| device.protocol.id == "Walkplay")
+        .collect();
+    assert!(walkplay.len() > 1);
+    for device in walkplay {
+        // Vendor 262A (Fosi / iBasso) is not confirmed as the same protocol.
+        assert_eq!(
+            device.caps.supports_ram_apply,
+            device.vendor_id != 0x262A,
+            "{}",
+            device.name
+        );
+        let packets = device.protocol.eq.unwrap().ram_apply_packets();
+        assert_eq!(packets.len(), 1, "{}: temp apply only", device.name);
+    }
+}
+
+#[test]
+fn live_apply_refuses_a_device_without_ram_apply() {
+    crate::device::session::block_on(async {
+        // FiiO KA15: a hardware EQ without temporary apply.
+        let profile = get_supported_device(0x2972, 0x0104).unwrap();
+        let mut io = FakeIo::default();
+        let error = DeviceSession::new(&mut io, profile)
+            .live_apply(test_peq())
+            .await
+            .unwrap_err();
+        assert!(error.contains("RAM apply"), "{error}");
+        assert!(io.writes.is_empty());
+    });
+}
+
 fn queue_pull(io: &mut FakeIo, gain: i8) {
     queue_pull_with_nonce_start(io, gain, 1);
 }

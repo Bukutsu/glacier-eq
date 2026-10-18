@@ -14,6 +14,7 @@ import type { StatusReporter } from "@/stores/toastStore";
 const DEFAULT_SETTINGS: AppSettings = {
   auto_pull_on_connect: true,
   skip_push_verification: false,
+  live_apply: false,
   // Material You is the default on Android; everywhere else follows Auto.
   theme: readBootTheme() ?? "tokyo-night",
   snap_to_iso_frequencies: true,

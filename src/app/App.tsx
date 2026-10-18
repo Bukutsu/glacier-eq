@@ -2,6 +2,7 @@ import { useDeviceState } from "@/features/device/hooks/useDeviceState";
 import { useEqEditor } from "@/features/eq/hooks/useEqEditor";
 import { useGraphPreview } from "@/features/eq/hooks/useGraphPreview";
 import { useDeviceSession } from "@/features/device/hooks/useDeviceSession";
+import { useLiveApply } from "@/features/device/hooks/useLiveApply";
 import { useAppSettings } from "@/features/settings/hooks/useAppSettings";
 import { useAppFeedback } from "@/app/hooks/useAppFeedback";
 import { useEditorShortcuts } from "@/features/eq/hooks/useEditorShortcuts";
@@ -310,6 +311,26 @@ function App() {
     eqOperationInFlightRef,
     recoveryPending,
   });
+  const liveApplySupported = connected && supportsRamApply;
+  // Compared with the DAC's stored EQ, not the loaded profile, so loading a
+  // profile counts as a change. `dirty` only covers a DAC that was never read.
+  const unsavedOnDac = lastPushedPeq ? !peqEquals(peq, lastPushedPeq) : dirty;
+  useLiveApply({
+    active: liveApplySupported && settings.live_apply,
+    peq,
+    unsaved: unsavedOnDac,
+    lastPushedPeq,
+    capabilities,
+    busyRef: eqOperationInFlightRef,
+    save: () => pushEq({ quiet: true }),
+    reportError: (message) =>
+      reportStatus({
+        level: "Error",
+        message,
+        toastType: "error",
+        source: "UI",
+      }),
+  });
 
   const {
     measurements,
@@ -543,6 +564,7 @@ function App() {
     getAsyncContext,
     runProfileMutation,
     onUdevInstalled: handleUdevInstalled,
+    liveApplySupported,
     deviceInfo: selectedDeviceInfo,
     capabilities,
     firmwareVersion,
@@ -683,6 +705,7 @@ function App() {
       onRedo={redo}
       onPull={pullEq}
       onPush={pushEq}
+      liveApply={liveApplySupported && settings.live_apply}
       onExportEq={handleExportEq}
       onDisconnect={disconnectDevice}
       onConnectClick={handleOpenDeviceModal}
@@ -855,6 +878,7 @@ function App() {
                     onShowGraphChange={setShowGraph}
                     setStatus={setStatus}
                     onUdevInstalled={handleUdevInstalled}
+                    liveApplySupported={liveApplySupported}
                   />
                 </section>
               )}
@@ -1055,6 +1079,7 @@ function App() {
                 getAsyncContext={getAsyncContext}
                 runProfileMutation={runProfileMutation}
                 onUdevInstalled={handleUdevInstalled}
+                liveApplySupported={liveApplySupported}
                 deviceInfo={selectedDeviceInfo}
                 capabilities={capabilities}
                 firmwareVersion={firmwareVersion}

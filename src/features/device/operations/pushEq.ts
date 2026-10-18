@@ -97,9 +97,12 @@ export function createPushEq(context: PushEqContext) {
     sleep,
     confirmDialog,
   } = context;
-  return async () => {
+  // `quiet` is the background save of live apply: no confirmation, no busy
+  // overlay, no success toast, so the editor stays usable while it saves.
+  return async (options: { quiet?: boolean } = {}) => {
+    const quiet = options.quiet === true;
     if (!connected) {
-      setStatus("Connect a DAC before writing EQ.", "info");
+      if (!quiet) setStatus("Connect a DAC before writing EQ.", "info");
       return;
     }
     if (eqOperationInFlightRef.current) return;
@@ -122,6 +125,7 @@ export function createPushEq(context: PushEqContext) {
     const activeBands = snapshot.filters.filter((f) => f.enabled).length;
     const bandCount = activeBands === 1 ? "band" : "bands";
     if (
+      !quiet &&
       !(await confirmDialog({
         title: isMobile ? "Save to DAC?" : "Write to DAC?",
         message: `Write ${activeBands} ${bandCount} and ${formatDb(snapshot.global_gain)} preamp to the DAC? This saves the EQ to the device.`,
@@ -133,8 +137,10 @@ export function createPushEq(context: PushEqContext) {
     if (!isConfirmationCurrent()) return;
     eqOperationInFlightRef.current = true;
     const operationId = ++eqOperationIdRef.current;
-    setProgress(null);
-    setIsBusy(true);
+    if (!quiet) {
+      setProgress(null);
+      setIsBusy(true);
+    }
     let committedPeq: PEQData | null = null;
     let pushWarnings: string[] = [];
     let restarts = false;
@@ -223,7 +229,7 @@ export function createPushEq(context: PushEqContext) {
         reportStatus({
           level: "Warn",
           message: `${savedMessage}. ${pushWarnings.join(" · ")}`,
-          toastType: "info",
+          toastType: quiet ? null : "info",
           source: "UI",
           statusText: `${savedMessage} (see details)`,
         });
@@ -231,7 +237,7 @@ export function createPushEq(context: PushEqContext) {
         reportStatus({
           level: "Info",
           message: savedMessage,
-          toastType: "success",
+          toastType: quiet ? null : "success",
           source: "UI",
         });
       }
@@ -267,7 +273,7 @@ export function createPushEq(context: PushEqContext) {
     } finally {
       if (operationId === eqOperationIdRef.current) {
         eqOperationInFlightRef.current = false;
-        setIsBusy(false);
+        if (!quiet) setIsBusy(false);
         setProgress(null);
       }
     }

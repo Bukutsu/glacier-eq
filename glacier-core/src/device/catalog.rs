@@ -27,7 +27,12 @@ const fn savitech_caps(supported_filter_types: &'static [FilterType]) -> DeviceC
         q_range: (0.1, 10.0),
         supported_filter_types,
         supports_per_band_enable: false,
-        supports_ram_apply: false,
+        // Temp apply (RAM only, no flash save) is one packet for the Walkplay
+        // family. The vendor web tools (peq.epzsz.com and peq.szwalkplay.com,
+        // whose capture is in devicePEQ) send it on every edit and send the
+        // flash save only on Save; devicePEQ drives these vendor IDs with one
+        // shared handler. Confirmed on hardware here for the EPZ TP35 Pro only.
+        supports_ram_apply: true,
         dsp_sample_rate: 96000.0,
         gain_tolerance: 0.15,
         freq_tolerance: 1,
@@ -281,7 +286,6 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
             num_bands: 8,
             global_gain_range: (-20, 0),
             band_gain_range: (-12.0, 12.0),
-            supports_ram_apply: false,
             dsp_sample_rate: 48000.0,
             gain_tolerance: 0.1,
             ..SAVITECH_10_BAND_CAPS
@@ -304,7 +308,12 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
         product_id: None,
         status: "Untested",
         family: "Walkplay Family",
-        caps: SAVITECH_10_BAND_CAPS,
+        // Vendor 262A is in neither devicePEQ's Walkplay vendor list nor the
+        // vendor web tools, so nothing confirms it takes the temp apply.
+        caps: DeviceCapabilities {
+            supports_ram_apply: false,
+            ..SAVITECH_10_BAND_CAPS
+        },
         controls: Some(Controls::Walkplay),
         spec: Some(DacSpec {
             name: "Fosi Audio DS2 / iBasso DC04 Pro",
