@@ -39,6 +39,7 @@ export const DEV_DUMMY_DEVICE: DeviceInfo = {
   supports_per_band_enable: false,
   supports_ram_apply: false,
   dsp_sample_rate: 96000,
+  response_model: "CanonicalQ",
   integer_preamp: true,
 };
 

@@ -1,6 +1,8 @@
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
+import { parseResponseModel } from "@/features/device/lib/responseModel";
+
 export type CommandArgs =
   Record<string, unknown> | number[] | ArrayBuffer | Uint8Array;
 
@@ -38,7 +40,16 @@ export async function invoke<T = unknown>(
       return tauriInvoke<T>("save_text_file_dialog", dialogRequest);
     }
   }
-  return tauriInvoke<T>(cmd, args);
+  const result = await tauriInvoke<T>(cmd, args);
+  if (cmd === "list_devices" || cmd === "list_supported_devices") {
+    if (!Array.isArray(result)) throw new Error("Invalid device metadata");
+    for (const entry of result) {
+      if (typeof entry !== "object" || entry === null)
+        throw new Error("Invalid device metadata");
+      parseResponseModel(entry.response_model);
+    }
+  }
+  return result;
 }
 
 function parseSaveTextDialogRequest(

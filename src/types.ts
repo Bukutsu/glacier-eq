@@ -63,6 +63,8 @@ export interface TargetTrace {
 
 export type GraphViewMode = "shape" | "level";
 
+export type ResponseModel = "CanonicalQ" | "MoondropShelfSlope";
+
 export interface DeviceCapabilities {
   num_bands: number;
   global_gain_range: [number, number];
@@ -73,6 +75,7 @@ export interface DeviceCapabilities {
   supports_per_band_enable: boolean;
   supports_ram_apply: boolean;
   dsp_sample_rate: number;
+  response_model?: ResponseModel;
   gain_tolerance?: number;
   freq_tolerance?: number;
   q_tolerance?: number;

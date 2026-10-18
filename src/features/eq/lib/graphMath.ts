@@ -1,4 +1,4 @@
-import type { Filter, PEQData } from "@/types";
+import type { Filter, PEQData, ResponseModel } from "@/types";
 
 const TAU = 2 * Math.PI;
 const ISO_FREQUENCIES = [
@@ -15,7 +15,21 @@ const IDENTITY_COEFFICIENTS: BiquadCoefficients = [1, 0, 0, 1, 0, 0];
 function computeBiquadCoefficients(
   filter: Filter,
   dspSampleRate: number,
+  responseModel: ResponseModel,
 ): BiquadCoefficients {
+  const shelfSlope =
+    responseModel === "MoondropShelfSlope" &&
+    (filter.filter_type === "LowShelf" || filter.filter_type === "HighShelf");
+  if (
+    shelfSlope &&
+    (!Number.isFinite(filter.gain) ||
+      !Number.isFinite(filter.q) ||
+      filter.q <= 0)
+  ) {
+    throw new Error(
+      "Invalid Moondrop shelf slope: gain and S must be finite, and S must be positive",
+    );
+  }
   if (
     !Number.isFinite(dspSampleRate) ||
     dspSampleRate < 41 ||
@@ -34,7 +48,14 @@ function computeBiquadCoefficients(
   const omega = (frequency * TAU) / dspSampleRate;
   const sin = Math.sin(omega);
   const cos = Math.cos(omega);
-  const alpha = sin / (2 * q);
+  let alpha = sin / (2 * q);
+  if (shelfSlope) {
+    const radicand = (a + 1 / a) * (1 / filter.q - 1) + 2;
+    if (!Number.isFinite(radicand) || radicand <= 0) {
+      throw new Error("Invalid Moondrop shelf slope: reduce S for this gain");
+    }
+    alpha = (sin / 2) * Math.sqrt(radicand);
+  }
 
   switch (filter.filter_type) {
     case "Peak":
@@ -106,21 +127,26 @@ function magnitudeCoefficients([
   a2,
 ]: BiquadCoefficients): MagnitudeCoefficients {
   return [
-    (b0 - b2) ** 2 + b1 ** 2,
-    2 * b1 * (b0 + b2),
-    4 * b0 * b2,
-    (a0 - a2) ** 2 + a1 ** 2,
-    2 * a1 * (a0 + a2),
-    4 * a0 * a2,
+    b0 + b1 + b2,
+    -2 * (b0 + b2),
+    b0 - b2,
+    a0 + a1 + a2,
+    -2 * (a0 + a2),
+    a0 - a2,
   ];
 }
 
 function evaluateMagnitudeDb(
-  [c0b, c1b, c2b, c0a, c1a, c2a]: MagnitudeCoefficients,
-  cos: number,
+  [br0, br1, bi, ar0, ar1, ai]: MagnitudeCoefficients,
+  phi: number,
+  sin: number,
 ): number {
-  const numerator = c0b + cos * (c1b + c2b * cos);
-  const denominator = c0a + cos * (c1a + c2a * cos);
+  // Rotated real/imaginary sum of squares avoids catastrophic cancellation
+  // in the expanded quadratic near DC. phi = sin(omega / 2)^2.
+  const br = br0 + br1 * phi;
+  const ar = ar0 + ar1 * phi;
+  const numerator = br * br + (bi * sin) ** 2;
+  const denominator = ar * ar + (ai * sin) ** 2;
 
   if (numerator > 0 && denominator > 0) {
     return 10 * Math.log10(numerator / denominator);
@@ -131,73 +157,68 @@ function evaluateMagnitudeDb(
   return 0;
 }
 
-function responseCosines(
-  freqs: Float32Array,
-  dspSampleRate: number,
-  out?: Float64Array,
-): Float64Array {
-  const cosines =
-    out !== undefined && out.length === freqs.length
-      ? out
-      : new Float64Array(freqs.length);
-  if (!Number.isFinite(dspSampleRate) || dspSampleRate <= 0) {
-    cosines.fill(0);
-    return cosines;
-  }
+// Internal phase scratch is fully overwritten before use and never returned.
+// Each point stores sin(omega / 2)^2 and sin(omega), for stable evaluation.
+let phaseScratch: Float64Array | null = null;
 
+function takePhases(freqs: Float32Array, dspSampleRate: number): Float64Array {
+  if (phaseScratch?.length !== 2 * freqs.length)
+    phaseScratch = new Float64Array(2 * freqs.length);
+  if (!Number.isFinite(dspSampleRate) || dspSampleRate <= 0) {
+    phaseScratch.fill(0);
+    return phaseScratch;
+  }
   const factor = TAU / dspSampleRate;
   for (let index = 0; index < freqs.length; index++) {
-    cosines[index] = Math.cos(freqs[index] * factor);
+    const omega = freqs[index] * factor;
+    phaseScratch[2 * index] = Math.sin(omega / 2) ** 2;
+    phaseScratch[2 * index + 1] = Math.sin(omega);
   }
-  return cosines;
-}
-
-// Internal cosine scratch: fully overwritten on every call and never
-// returned, so no caller-visible contract changes. One buffer is enough —
-// all three entry points refill it completely before reading.
-let cosineScratch: Float64Array | null = null;
-
-function takeCosines(freqs: Float32Array, dspSampleRate: number): Float64Array {
-  cosineScratch = responseCosines(
-    freqs,
-    dspSampleRate,
-    cosineScratch ?? undefined,
-  );
-  return cosineScratch;
+  return phaseScratch;
 }
 
 // Split by destination so the per-point loop has no offset branch: simpler
 // bodies vectorize better and the aggregate-only path skips band stores.
 function accumulateAggregateResponse(
   filter: Filter,
-  cosines: Float64Array,
+  phases: Float64Array,
   dspSampleRate: number,
+  responseModel: ResponseModel,
   response: Float32Array,
 ): void {
   if (!Number.isFinite(dspSampleRate) || dspSampleRate <= 0) return;
 
   const coefficients = magnitudeCoefficients(
-    computeBiquadCoefficients(filter, dspSampleRate),
+    computeBiquadCoefficients(filter, dspSampleRate, responseModel),
   );
-  for (let index = 0; index < cosines.length; index++) {
-    response[index] += evaluateMagnitudeDb(coefficients, cosines[index]);
+  for (let index = 0; index < phases.length / 2; index++) {
+    response[index] += evaluateMagnitudeDb(
+      coefficients,
+      phases[2 * index],
+      phases[2 * index + 1],
+    );
   }
 }
 
 function accumulateBandResponse(
   filter: Filter,
-  cosines: Float64Array,
+  phases: Float64Array,
   dspSampleRate: number,
+  responseModel: ResponseModel,
   response: Float32Array,
   bandOffset: number,
 ): void {
   if (!Number.isFinite(dspSampleRate) || dspSampleRate <= 0) return;
 
   const coefficients = magnitudeCoefficients(
-    computeBiquadCoefficients(filter, dspSampleRate),
+    computeBiquadCoefficients(filter, dspSampleRate, responseModel),
   );
-  for (let index = 0; index < cosines.length; index++) {
-    const value = evaluateMagnitudeDb(coefficients, cosines[index]);
+  for (let index = 0; index < phases.length / 2; index++) {
+    const value = evaluateMagnitudeDb(
+      coefficients,
+      phases[2 * index],
+      phases[2 * index + 1],
+    );
     response[bandOffset + index] = value;
     response[index] += value;
   }
@@ -207,15 +228,20 @@ export function filterResponseValues(
   filter: Filter,
   freqs: Float32Array,
   dspSampleRate: number,
+  responseModel: ResponseModel = "CanonicalQ",
 ): Float32Array {
   const response = new Float32Array(freqs.length);
   if (filter.enabled) {
-    const cosines = takeCosines(freqs, dspSampleRate);
+    const phases = takePhases(freqs, dspSampleRate);
     const coefficients = magnitudeCoefficients(
-      computeBiquadCoefficients(filter, dspSampleRate),
+      computeBiquadCoefficients(filter, dspSampleRate, responseModel),
     );
     for (let index = 0; index < freqs.length; index++) {
-      response[index] = evaluateMagnitudeDb(coefficients, cosines[index]);
+      response[index] = evaluateMagnitudeDb(
+        coefficients,
+        phases[2 * index],
+        phases[2 * index + 1],
+      );
     }
   }
   return response;
@@ -226,14 +252,21 @@ export function peqResponseValues(
   freqs: Float32Array,
   includePreamp: boolean,
   dspSampleRate: number,
+  responseModel: ResponseModel = "CanonicalQ",
 ): Float32Array {
   const response = new Float32Array(freqs.length);
   if (includePreamp) response.fill(peq.global_gain);
 
   const enabledFilters = peq.filters.filter((filter) => filter.enabled);
-  const cosines = takeCosines(freqs, dspSampleRate);
+  const phases = takePhases(freqs, dspSampleRate);
   for (const filter of enabledFilters) {
-    accumulateAggregateResponse(filter, cosines, dspSampleRate, response);
+    accumulateAggregateResponse(
+      filter,
+      phases,
+      dspSampleRate,
+      responseModel,
+      response,
+    );
   }
   return response;
 }
@@ -243,18 +276,20 @@ export function peqResponseAndBandValues(
   freqs: Float32Array,
   includePreamp: boolean,
   dspSampleRate: number,
+  responseModel: ResponseModel = "CanonicalQ",
 ): Float32Array {
   const enabledFilters = peq.filters.filter((filter) => filter.enabled);
   const stride = freqs.length;
   const response = new Float32Array((enabledFilters.length + 1) * stride);
   if (includePreamp) response.subarray(0, stride).fill(peq.global_gain);
 
-  const cosines = takeCosines(freqs, dspSampleRate);
+  const phases = takePhases(freqs, dspSampleRate);
   enabledFilters.forEach((filter, bandIndex) => {
     accumulateBandResponse(
       filter,
-      cosines,
+      phases,
       dspSampleRate,
+      responseModel,
       response,
       (bandIndex + 1) * stride,
     );

@@ -50,6 +50,13 @@ function model(
 }
 
 describe("development DAC previews", () => {
+  it("preserves the protocol response model when cloning a preview device", () => {
+    const device = model("fixture", 10, {
+      response_model: "MoondropShelfSlope",
+    });
+    expect(device.response_model).toBe("MoondropShelfSlope");
+  });
+
   it("reads and applies JA11 preview controls locally, preserving them on refresh", async () => {
     const device = model("FiiO JA11", 5, { controls: "ja11" });
     for (const [control, initial, target] of [

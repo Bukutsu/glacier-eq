@@ -23,6 +23,7 @@ export const OFFLINE_EDITOR_CAPABILITIES: DeviceCapabilities = {
   supports_per_band_enable: true,
   supports_ram_apply: false,
   dsp_sample_rate: 96000,
+  response_model: "CanonicalQ",
   gain_tolerance: 0.15,
   freq_tolerance: 1,
   q_tolerance: 0.05,

@@ -32,6 +32,7 @@ import { filterColorVars } from "@/features/eq/lib/filterColors";
 import { peqEquals } from "@/features/eq/lib/peq";
 import type {
   DeviceCapabilities,
+  ResponseModel,
   Filter,
   GraphViewMode,
   MeasurementTrace,
@@ -189,6 +190,7 @@ export const EqGraph = memo(function EqGraph({
         viewMode,
         editable,
         capabilities?.dsp_sample_rate ?? 96000,
+        capabilities?.response_model ?? "CanonicalQ",
         () => drawSerial === drawSerialRef.current,
       );
       // Labels go on top so the curve never runs through them.
@@ -205,6 +207,7 @@ export const EqGraph = memo(function EqGraph({
       themeVarsRevision,
       editable,
       capabilities?.dsp_sample_rate,
+      capabilities?.response_model,
     ],
   );
 
@@ -838,15 +841,17 @@ async function drawCurves(
   viewMode: GraphViewMode,
   interactiveHandles: boolean,
   dspSampleRate: number,
+  responseModel: ResponseModel,
   isCurrent: () => boolean,
 ) {
   const freqs = getFreqGrid(width);
-  const offset = await shapeOffset(peq, viewMode, dspSampleRate);
+  const offset = await shapeOffset(peq, viewMode, dspSampleRate, responseModel);
   const combinedResponse = await peqResponseAndBandValues(
     peq,
     freqs,
     viewMode === "level",
     dspSampleRate,
+    responseModel,
   );
   const enabledFilters = peq.filters.filter((filter) => filter.enabled);
   const eqResponse = new Float32Array(freqs.length);
@@ -905,6 +910,7 @@ async function drawCurves(
       selectedMeasurement,
       viewMode,
       dspSampleRate,
+      responseModel,
       isCurrent,
     );
     if (!isCurrent()) return;
@@ -932,6 +938,7 @@ async function drawCurves(
     selectedMeasurement,
     viewMode,
     dspSampleRate,
+    responseModel,
     isCurrent,
   );
   if (!interactiveHandles)
@@ -943,6 +950,7 @@ async function drawCurves(
       selectedMeasurement,
       viewMode,
       dspSampleRate,
+      responseModel,
       isCurrent,
     );
 }
@@ -956,6 +964,7 @@ async function drawCommittedPreview(
   selectedMeasurement: MeasurementTrace | null,
   viewMode: GraphViewMode,
   dspSampleRate: number,
+  responseModel: ResponseModel,
   isCurrent: () => boolean,
 ) {
   if (!committedPeq || peqEquals(committedPeq, peq)) {
@@ -969,6 +978,7 @@ async function drawCommittedPreview(
     viewMode,
     selectedMeasurement,
     dspSampleRate,
+    responseModel,
   );
   if (!isCurrent()) return;
   const isCompact = width < 520;
@@ -996,10 +1006,17 @@ async function combinedResponseAt(
   freq: number,
   viewMode: GraphViewMode,
   dspSampleRate: number,
+  responseModel: ResponseModel,
 ): Promise<number> {
   return (
     (
-      await peqResponseValues(peq, [freq], viewMode === "level", dspSampleRate)
+      await peqResponseValues(
+        peq,
+        [freq],
+        viewMode === "level",
+        dspSampleRate,
+        responseModel,
+      )
     )[0] ?? 0
   );
 }
@@ -1009,9 +1026,16 @@ async function shapeOffset(
   peq: PEQData,
   viewMode: GraphViewMode,
   dspSampleRate: number,
+  responseModel: ResponseModel,
 ): Promise<number> {
   return viewMode === "shape"
-    ? -(await combinedResponseAt(peq, 1000, "shape", dspSampleRate))
+    ? -(await combinedResponseAt(
+        peq,
+        1000,
+        "shape",
+        dspSampleRate,
+        responseModel,
+      ))
     : 0;
 }
 
@@ -1021,15 +1045,17 @@ async function responseValues(
   viewMode: GraphViewMode,
   measurement?: MeasurementTrace | null,
   dspSampleRate = 96000,
+  responseModel: ResponseModel = "CanonicalQ",
 ): Promise<Float32Array> {
   // The 1 kHz normalization applies to the EQ curve itself, so it must also
   // apply when no measurement traces are drawn.
-  const offset = await shapeOffset(peq, viewMode, dspSampleRate);
+  const offset = await shapeOffset(peq, viewMode, dspSampleRate, responseModel);
   const eqValues = await peqResponseValues(
     peq,
     freqs,
     viewMode === "level",
     dspSampleRate,
+    responseModel,
   );
   const result = new Float32Array(freqs.length);
   for (let index = 0; index < freqs.length; index++) {
@@ -1168,6 +1194,7 @@ async function drawFilterDotsWithMeasurement(
   selectedMeasurement: MeasurementTrace | null,
   viewMode: GraphViewMode,
   dspSampleRate: number,
+  responseModel: ResponseModel,
   isCurrent: () => boolean,
 ) {
   if (!selectedMeasurement) {
@@ -1177,12 +1204,18 @@ async function drawFilterDotsWithMeasurement(
 
   const activeBands = peq.filters.filter((filter) => filter.enabled);
   const freqs = activeBands.map((filter) => filter.freq);
-  const measurementOffset = await shapeOffset(peq, viewMode, dspSampleRate);
+  const measurementOffset = await shapeOffset(
+    peq,
+    viewMode,
+    dspSampleRate,
+    responseModel,
+  );
   const eqValues = await peqResponseValues(
     peq,
     freqs,
     viewMode === "level",
     dspSampleRate,
+    responseModel,
   );
   if (!isCurrent()) return;
   const dotValues = freqs.map(

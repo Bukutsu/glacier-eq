@@ -578,6 +578,7 @@ function App() {
     highlightActiveBand: boolean = false,
   ) => (
     <EqGraph
+      capabilities={capabilities}
       peq={peq}
       committedPeq={lastPushedPeq}
       selectedMeasurementId={selectedMeasurementId}
@@ -592,6 +593,7 @@ function App() {
 
   const profilePreview = showGraph ? (
     <EqGraph
+      capabilities={capabilities}
       peq={peq}
       measurements={EMPTY_MEASUREMENTS}
       targets={EMPTY_TARGETS}

@@ -7,6 +7,13 @@ import {
   snapFreqToIso,
 } from "./graphMath";
 
+import {
+  fittedMoondropShelf,
+  shelfFreqs,
+  slopeShelfDb,
+  canonicalShelfDb,
+} from "./graphMath.test-support";
+
 const freqs = new Float32Array([20, 100, 1000, 10_000, 20_000]);
 
 function filter(index: number, filterType: Filter["filter_type"]): Filter {
@@ -80,6 +87,89 @@ describe("graph math", () => {
         5,
       );
     }
+  });
+
+  it("matches the fitted Moondrop shelf and keeps canonical fallback unchanged", () => {
+    const slope = filterResponseValues(
+      fittedMoondropShelf,
+      shelfFreqs,
+      96_000,
+      "MoondropShelfSlope",
+    );
+    const canonical = filterResponseValues(
+      fittedMoondropShelf,
+      shelfFreqs,
+      96_000,
+    );
+    shelfFreqs.forEach((_, i) => {
+      expect(slope[i]).toBeCloseTo(slopeShelfDb[i], 5);
+      expect(canonical[i]).toBeCloseTo(canonicalShelfDb[i], 5);
+    });
+    const highShelf = filterResponseValues(
+      { ...fittedMoondropShelf, filter_type: "HighShelf" },
+      shelfFreqs,
+      96_000,
+      "MoondropShelfSlope",
+    );
+    highShelf.forEach((db, i) =>
+      expect(db).toBeCloseTo(fittedMoondropShelf.gain - slope[i], 5),
+    );
+    const cut = filterResponseValues(
+      { ...fittedMoondropShelf, gain: -fittedMoondropShelf.gain },
+      shelfFreqs,
+      96_000,
+      "MoondropShelfSlope",
+    );
+    cut.forEach((db, i) => expect(db).toBeCloseTo(-slope[i], 5));
+  });
+
+  it("changes only shelves for the Moondrop model", () => {
+    for (const kind of ["Peak", "HighPass", "LowPass"] as const) {
+      const band = filter(0, kind);
+      expect(
+        filterResponseValues(band, freqs, 96_000, "MoondropShelfSlope"),
+      ).toEqual(filterResponseValues(band, freqs, 96_000, "CanonicalQ"));
+    }
+  });
+
+  it.each([0, -1, NaN, Infinity, 20])(
+    "rejects invalid shelf slope %s instead of drawing identity",
+    (q) => {
+      const band = { ...fittedMoondropShelf, q };
+      const peq = { filters: [band], global_gain: 0 };
+      expect(() =>
+        filterResponseValues(band, freqs, 96_000, "MoondropShelfSlope"),
+      ).toThrow("Invalid Moondrop shelf slope");
+      expect(() =>
+        peqResponseValues(peq, freqs, false, 96_000, "MoondropShelfSlope"),
+      ).toThrow("Invalid Moondrop shelf slope");
+      expect(() =>
+        peqResponseAndBandValues(
+          peq,
+          freqs,
+          false,
+          96_000,
+          "MoondropShelfSlope",
+        ),
+      ).toThrow("Invalid Moondrop shelf slope");
+      expect(
+        filterResponseValues(
+          { ...band, enabled: false },
+          freqs,
+          96_000,
+          "MoondropShelfSlope",
+        ),
+      ).toEqual(new Float32Array(freqs.length));
+    },
+  );
+
+  it("evaluates narrow near-DC canonical filters without expanded-quadratic cancellation", () => {
+    // RBJ peak magnitude equals its gain at the center, even at low frequency
+    // and high Q where the old expanded quadratic lost precision.
+    const band = { ...filter(0, "Peak"), freq: 20, q: 100, gain: 12 };
+    expect(
+      filterResponseValues(band, new Float32Array([20]), 192_000)[0],
+    ).toBeCloseTo(12, 5);
   });
 
   it("snaps to the nearest ISO frequency and keeps the first tie", () => {

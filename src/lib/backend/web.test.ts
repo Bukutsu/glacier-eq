@@ -1445,6 +1445,39 @@ describe("wasm outage isolation", () => {
 });
 
 describe("supported device parsing", () => {
+  it.each(["CanonicalQ", "MoondropShelfSlope"] as const)(
+    "preserves %s through supported metadata and discovered device cloning",
+    async (response_model) => {
+      wasm.list_supported_devices.mockReturnValue([
+        { ...profile, response_model },
+      ]);
+      hidMock.devices = [fakeHidDevice()];
+      expect(
+        (await invoke<SupportedDeviceInfo[]>("list_supported_devices"))[0]
+          .response_model,
+      ).toBe(response_model);
+      expect(
+        (await invoke<SupportedDeviceInfo[]>("list_devices"))[0].response_model,
+      ).toBe(response_model);
+    },
+  );
+
+  it("defaults older metadata to canonical and rejects an invalid present model", async () => {
+    wasm.list_supported_devices.mockReturnValue([{ ...profile }]);
+    expect(
+      (await invoke<SupportedDeviceInfo[]>("list_supported_devices"))[0]
+        .response_model,
+    ).toBe("CanonicalQ");
+    hidMock.devices = [fakeHidDevice()];
+    for (const response_model of [null, "moondrop", "", 0, {}]) {
+      wasm.list_supported_devices.mockReturnValue([
+        { ...profile, response_model },
+      ]);
+      expect(await invoke("list_supported_devices")).toEqual([]);
+      expect(await invoke("list_devices")).toEqual([]);
+    }
+  });
+
   it("leaves an absent tolerance absent instead of turning it into NaN", async () => {
     // The three tolerances are optional on DeviceCapabilities and every
     // consumer defaults them with `?? 0.15` and friends. Coercing with

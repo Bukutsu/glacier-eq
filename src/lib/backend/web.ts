@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
+import { parseResponseModel } from "@/features/device/lib/responseModel";
 import type {
   AppSettings,
   Filter,
@@ -865,6 +866,12 @@ function parseSupportedDeviceInfo(value: unknown): SupportedDeviceInfo | null {
   const qRange = pair(value.q_range);
   if (!globalGainRange || !bandGainRange || !freqRange || !qRange) return null;
   if (!isFiniteNumber(value.dsp_sample_rate)) return null;
+  let responseModel: SupportedDeviceInfo["response_model"];
+  try {
+    responseModel = parseResponseModel(value.response_model);
+  } catch {
+    return null;
+  }
   // The three tolerances are optional on DeviceCapabilities, and the
   // consumers default them with `?? 0.15` and friends. Coercing with Number()
   // turned "absent" into "present and NaN" — and `??` never fires on NaN, so
@@ -897,6 +904,7 @@ function parseSupportedDeviceInfo(value: unknown): SupportedDeviceInfo | null {
     supports_per_band_enable: value.supports_per_band_enable,
     supports_ram_apply: value.supports_ram_apply,
     dsp_sample_rate: value.dsp_sample_rate,
+    response_model: responseModel,
     gain_tolerance: optionalNumber(value.gain_tolerance),
     freq_tolerance: optionalNumber(value.freq_tolerance),
     q_tolerance: optionalNumber(value.q_tolerance),
