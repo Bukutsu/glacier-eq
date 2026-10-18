@@ -218,6 +218,7 @@ pub fn accumulate_response_values_cos(
 /// Accumulate a device-model response using precomputed cosines. Validate
 /// slope shelves before touching the output so invalid candidates cannot look
 /// like flat filters. Canonical parameter sanitization remains unchanged.
+#[allow(clippy::too_many_arguments)]
 pub fn accumulate_response_values_cos_for_model(
     filter_type: FilterType,
     frequency: f64,

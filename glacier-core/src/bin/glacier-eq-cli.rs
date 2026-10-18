@@ -1,9 +1,7 @@
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
-use glacier_core::autoeq::{
-    autoeq_token, parse_autoeq_text, parse_curve_text, peq_to_autoeq, run_autoeq,
-};
+use glacier_core::autoeq::{autoeq_token, parse_autoeq_text, parse_curve_text, peq_to_autoeq};
 use glacier_core::device::{
     capabilities::DESKTOP_DAC_CAPS, get_supported_device, normalize_peq_for_profile,
     HID_READ_BUFFER_BYTES,
@@ -12,7 +10,7 @@ use glacier_core::device::{
 use glacier_core::device::{BlockingDeviceIo as DeviceIo, DeviceSession};
 use glacier_core::eq::iir_math::accumulate_response_values;
 use glacier_core::profiles::ProfileStore;
-use glacier_core::{DeviceCapabilities, PEQData, SUPPORTED_DEVICES};
+use glacier_core::{PEQData, SUPPORTED_DEVICES};
 use std::io::Read;
 use std::process::ExitCode;
 
@@ -645,13 +643,6 @@ fn parse_usb_id(id: &str) -> Result<(u16, u16), String> {
     ))
 }
 
-fn capabilities_for(id: &str) -> Result<&'static DeviceCapabilities, String> {
-    let (vendor, product) = parse_usb_id(id)?;
-    get_supported_device(vendor, product)
-        .map(|device| &device.caps)
-        .ok_or_else(|| format!("unsupported USB device {id}"))
-}
-
 fn response(path: &str, sample_rate: f64) -> Result<String, String> {
     if !(40_000.0..=768_000.0).contains(&sample_rate) || !sample_rate.is_finite() {
         return Err("sample rate must be between 40000 and 768000 Hz".into());
@@ -697,21 +688,26 @@ fn autoeq(
     }
     let measurement = parse_curve_text(&read_text(measurement)?)?;
     let target = parse_curve_text(&read_text(target)?)?;
-    let caps = device.map(capabilities_for).transpose()?;
-    let mut peq = run_autoeq(
+    let profile = device
+        .map(|id| {
+            let (vendor, product) = parse_usb_id(id)?;
+            get_supported_device(vendor, product)
+                .ok_or_else(|| format!("unsupported USB device {id}"))
+        })
+        .transpose()?;
+    let target_device = profile.map_or(
+        glacier_core::autoeq::AutoEqTarget::capabilities(None),
+        |p| glacier_core::autoeq::AutoEqTarget::device(&p.caps, p.protocol),
+    );
+    let peq = glacier_core::autoeq::run_autoeq_with_target(
         &measurement,
         &target,
         bands,
         steps,
         smooth,
         sample_rate,
-        caps,
+        target_device,
     )?;
-    if let Some(caps) = caps {
-        for warning in peq.clamp_to_capabilities(caps) {
-            eprintln!("warning: {warning}");
-        }
-    }
     Ok(peq_to_autoeq(&peq))
 }
 

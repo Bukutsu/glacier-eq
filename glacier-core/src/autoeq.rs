@@ -506,35 +506,19 @@ pub fn peq_to_autoeq(peq: &PEQData) -> String {
     lines.join("\n")
 }
 
+mod device;
+mod optimizer;
+#[cfg(test)]
+mod target_tests;
+
+pub use device::AutoEqTarget;
+
+/// A least-squares iteration is much more work than the old gradient step.
+/// Bound interactive latency; convergence usually stops before this ceiling.
+pub const MAX_OPTIMIZATION_STEPS: usize = 80;
+
 const K: usize = 384;
 const MAX_N: usize = MAX_FILTERS;
-
-#[derive(Clone, Copy, Debug)]
-struct Biquad {
-    pub b0: f32,
-    pub b1: f32,
-    pub b2: f32,
-    pub a0: f32,
-    pub a1: f32,
-    pub a2: f32,
-
-    pub db0_da: f32,
-    pub db0_dalpha: f32,
-    pub db0_dcos: f32,
-    pub db1_da: f32,
-    pub db1_dcos: f32,
-    pub db2_da: f32,
-    pub db2_dalpha: f32,
-    pub db2_dcos: f32,
-    pub da0_da: f32,
-    pub da0_dalpha: f32,
-    pub da0_dcos: f32,
-    pub da1_da: f32,
-    pub da1_dcos: f32,
-    pub da2_da: f32,
-    pub da2_dalpha: f32,
-    pub da2_dcos: f32,
-}
 
 #[derive(Clone, Copy, Debug)]
 struct InitFilter {
@@ -594,126 +578,6 @@ const OE_SMOOTH: Smooth = Smooth {
     bias_f3: 20000.0,
     clip_f: 17000.0,
 };
-
-fn pk(a_val: f32, cos_w: f32, alpha: f32) -> Biquad {
-    let r_a = 1.0 / a_val;
-    Biquad {
-        b0: a_val * alpha + 1.0,
-        db0_da: alpha,
-        db0_dalpha: a_val,
-        db0_dcos: 0.0,
-
-        b1: -2.0 * cos_w,
-        db1_da: 0.0,
-        db1_dcos: -2.0,
-
-        b2: -a_val * alpha + 1.0,
-        db2_da: -alpha,
-        db2_dalpha: -a_val,
-        db2_dcos: 0.0,
-
-        a0: (a_val + alpha) * r_a,
-        da0_da: -alpha * r_a * r_a,
-        da0_dalpha: r_a,
-        da0_dcos: 0.0,
-
-        a1: -2.0 * cos_w,
-        da1_da: 0.0,
-        da1_dcos: -2.0,
-
-        a2: (a_val - alpha) * r_a,
-        da2_da: alpha * r_a * r_a,
-        da2_dalpha: -r_a,
-        da2_dcos: 0.0,
-    }
-}
-
-fn lsc(a_val: f32, cos_w: f32, alpha: f32) -> Biquad {
-    let p1 = a_val + 1.0;
-    let m1 = a_val - 1.0;
-    let sqrt_a = a_val.sqrt();
-    let k_val = 2.0 * sqrt_a * alpha;
-    let dk_da = alpha / sqrt_a;
-    let dk_dalpha = 2.0 * sqrt_a;
-
-    Biquad {
-        b0: a_val * (-cos_w * m1 + k_val + p1),
-        db0_da: a_val * dk_da - a_val * cos_w + a_val - cos_w * m1 + k_val + p1,
-        db0_dalpha: a_val * dk_dalpha,
-        db0_dcos: -a_val * m1,
-
-        b1: 2.0 * a_val * (-cos_w * p1 + m1),
-        db1_da: -2.0 * a_val * cos_w + 2.0 * a_val - 2.0 * cos_w * p1 + 2.0 * m1,
-        db1_dcos: -2.0 * a_val * p1,
-
-        b2: a_val * (-cos_w * m1 - k_val + p1),
-        db2_da: -a_val * dk_da - a_val * cos_w + a_val - cos_w * m1 - k_val + p1,
-        db2_dalpha: -a_val * dk_dalpha,
-        db2_dcos: -a_val * m1,
-
-        a0: cos_w * m1 + k_val + p1,
-        da0_da: dk_da + cos_w + 1.0,
-        da0_dalpha: dk_dalpha,
-        da0_dcos: m1,
-
-        a1: -2.0 * cos_w * p1 - 2.0 * m1,
-        da1_da: -2.0 * cos_w - 2.0,
-        da1_dcos: -2.0 * p1,
-
-        a2: cos_w * m1 - k_val + p1,
-        da2_da: -dk_da + cos_w + 1.0,
-        da2_dalpha: -dk_dalpha,
-        da2_dcos: m1,
-    }
-}
-
-fn hsc(a_val: f32, cos_w: f32, alpha: f32) -> Biquad {
-    let p1 = a_val + 1.0;
-    let m1 = a_val - 1.0;
-    let sqrt_a = a_val.sqrt();
-    let k_val = 2.0 * sqrt_a * alpha;
-    let dk_da = alpha / sqrt_a;
-    let dk_dalpha = 2.0 * sqrt_a;
-
-    Biquad {
-        b0: a_val * (cos_w * m1 + k_val + p1),
-        db0_da: a_val * dk_da + a_val * cos_w + a_val + cos_w * m1 + k_val + p1,
-        db0_dalpha: a_val * dk_dalpha,
-        db0_dcos: a_val * m1,
-
-        b1: -2.0 * a_val * (cos_w * p1 + m1),
-        db1_da: -2.0 * a_val * cos_w - 2.0 * a_val - 2.0 * cos_w * p1 - 2.0 * m1,
-        db1_dcos: -2.0 * a_val * p1,
-
-        b2: a_val * (cos_w * m1 - k_val + p1),
-        db2_da: -a_val * dk_da + a_val * cos_w + a_val + cos_w * m1 - k_val + p1,
-        db2_dalpha: -a_val * dk_dalpha,
-        db2_dcos: a_val * m1,
-
-        a0: -cos_w * m1 + k_val + p1,
-        da0_da: dk_da - cos_w + 1.0,
-        da0_dalpha: dk_dalpha,
-        da0_dcos: -m1,
-
-        a1: -2.0 * cos_w * p1 + 2.0 * m1,
-        da1_da: 2.0 - 2.0 * cos_w,
-        da1_dcos: -2.0 * p1,
-
-        a2: -cos_w * m1 - k_val + p1,
-        da2_da: -dk_da - cos_w + 1.0,
-        da2_dalpha: -dk_dalpha,
-        da2_dcos: -m1,
-    }
-}
-
-fn biquad_fn(filter_type: FilterType, a_val: f32, cos_w: f32, alpha: f32) -> Biquad {
-    match filter_type {
-        FilterType::Peak => pk(a_val, cos_w, alpha),
-        FilterType::LowShelf => lsc(a_val, cos_w, alpha),
-        FilterType::HighShelf => hsc(a_val, cos_w, alpha),
-        _ => pk(a_val, cos_w, alpha),
-    }
-}
 
 fn spectrum_values(
     filter_type: FilterType,
@@ -1012,367 +876,6 @@ fn init_hsc(
     InitFilter { f0, gain, q }
 }
 
-struct Consts<'a> {
-    types: &'a [FilterType],
-    phi: &'a [f32; K],
-    r: &'a [f32; K],
-    fs: f32,
-    n_bands: usize,
-    opt_amp: bool,
-}
-
-fn w_from_n(n: usize) -> usize {
-    3 * n + 1
-}
-
-fn q_to_bw(q: f32) -> f32 {
-    let ln2 = std::f32::consts::LN_2;
-    2.0 / ln2 * ((0.5 / q).asinh())
-}
-
-fn bw_to_q(bw: f32) -> f32 {
-    let ln2 = std::f32::consts::LN_2;
-    0.5 / ((0.5 * ln2 * bw).sinh())
-}
-
-fn grad(
-    c: &Consts,
-    x: &[f32],
-    g: &mut [f32],
-    dy_dw0: &mut [[f32; K]; MAX_N],
-    dy_dgain: &mut [[f32; K]; MAX_N],
-    dy_dbw: &mut [[f32; K]; MAX_N],
-) -> f32 {
-    let n_bands = c.n_bands;
-    let r_k = 1.0 / K as f32;
-
-    let mut w0_v = [0.0; MAX_N];
-    let mut pred = [0.0; K];
-
-    let (x_lf, x_rest) = x.split_at(n_bands);
-    let (x_gain, x_rest) = x_rest.split_at(n_bands);
-    let (x_bw, x_amp) = x_rest.split_at(n_bands);
-
-    let pred_init = if c.opt_amp {
-        (x_amp[0] * std::f32::consts::LN_10 / 10.0).exp()
-    } else {
-        1.0
-    };
-
-    pred.fill(pred_init);
-
-    for n in 0..n_bands {
-        let f0 = x_lf[n].exp().min(0.49 * c.fs);
-        let gain = x_gain[n];
-        let bw = x_bw[n];
-
-        let a_val = (gain * std::f32::consts::LN_10 / 40.0).exp();
-        let w0 = 2.0 * std::f32::consts::PI / c.fs * f0;
-        let cos_w = w0.cos();
-        let sin_w = w0.sin();
-        let kq = (0.5 * std::f32::consts::LN_2 * bw).sinh();
-        let alpha = sin_w * kq;
-
-        w0_v[n] = w0;
-
-        let s = biquad_fn(c.types[n], a_val, cos_w, alpha);
-
-        let da_dgain = a_val * std::f32::consts::LN_10 / 40.0;
-        let dalpha_dw0 = cos_w * kq;
-        let dalpha_dbw =
-            sin_w * (0.5 * std::f32::consts::LN_2 * bw).cosh() * 0.5 * std::f32::consts::LN_2;
-        let dcos_dw0 = -sin_w;
-
-        let b_x0 = (s.b0 + s.b1 + s.b2).powi(2);
-        let b_x1 = -4.0 * (s.b0 * s.b1 + 4.0 * s.b0 * s.b2 + s.b1 * s.b2);
-        let b_x2 = 16.0 * s.b0 * s.b2;
-        let a_x0 = (s.a0 + s.a1 + s.a2).powi(2);
-        let a_x1 = -4.0 * (s.a0 * s.a1 + 4.0 * s.a0 * s.a2 + s.a1 * s.a2);
-        let a_x2 = 16.0 * s.a0 * s.a2;
-
-        let ba = s.b0 + s.b1 + s.b2;
-        let aa = s.a0 + s.a1 + s.a2;
-
-        // The six per-point derivative numerators share the form
-        // D(phi) = c0 - phi*c1 + phi^2*c2, so the coefficient-weighted sums the
-        // chain rule needs collapse to three quadratics with band-constant
-        // coefficients instead of six separately evaluated polynomials.
-        let b_da_c0 = ba * (s.db0_da + s.db1_da + s.db2_da);
-        let b_da_c1 = 2.0
-            * (s.db0_da * (s.b1 + 4.0 * s.b2)
-                + s.db1_da * (s.b0 + s.b2)
-                + s.db2_da * (4.0 * s.b0 + s.b1));
-        let b_da_c2 = 8.0 * (s.db0_da * s.b2 + s.db2_da * s.b0);
-
-        let b_al_c0 = ba * (s.db0_dalpha + s.db2_dalpha);
-        let b_al_c1 =
-            2.0 * (s.db0_dalpha * (s.b1 + 4.0 * s.b2) + s.db2_dalpha * (4.0 * s.b0 + s.b1));
-        let b_al_c2 = 8.0 * (s.db0_dalpha * s.b2 + s.db2_dalpha * s.b0);
-
-        let b_co_c0 = ba * (s.db0_dcos + s.db1_dcos + s.db2_dcos);
-        let b_co_c1 = 2.0
-            * (s.db0_dcos * (s.b1 + 4.0 * s.b2)
-                + s.db1_dcos * (s.b0 + s.b2)
-                + s.db2_dcos * (4.0 * s.b0 + s.b1));
-        let b_co_c2 = 8.0 * (s.db0_dcos * s.b2 + s.db2_dcos * s.b0);
-
-        let a_da_c0 = aa * (s.da0_da + s.da1_da + s.da2_da);
-        let a_da_c1 = 2.0
-            * (s.da0_da * (s.a1 + 4.0 * s.a2)
-                + s.da1_da * (s.a0 + s.a2)
-                + s.da2_da * (4.0 * s.a0 + s.a1));
-        let a_da_c2 = 8.0 * (s.da0_da * s.a2 + s.da2_da * s.a0);
-
-        let a_al_c0 = aa * (s.da0_dalpha + s.da2_dalpha);
-        let a_al_c1 =
-            2.0 * (s.da0_dalpha * (s.a1 + 4.0 * s.a2) + s.da2_dalpha * (4.0 * s.a0 + s.a1));
-        let a_al_c2 = 8.0 * (s.da0_dalpha * s.a2 + s.da2_dalpha * s.a0);
-
-        let a_co_c0 = aa * (s.da0_dcos + s.da1_dcos + s.da2_dcos);
-        let a_co_c1 = 2.0
-            * (s.da0_dcos * (s.a1 + 4.0 * s.a2)
-                + s.da1_dcos * (s.a0 + s.a2)
-                + s.da2_dcos * (4.0 * s.a0 + s.a1));
-        let a_co_c2 = 8.0 * (s.da0_dcos * s.a2 + s.da2_dcos * s.a0);
-
-        for k in 0..K {
-            let phi_k = c.phi[k];
-
-            let b_poly = b_x0 + phi_k * (b_x1 + phi_k * b_x2);
-            let a_poly = a_x0 + phi_k * (a_x1 + phi_k * a_x2);
-
-            let ratio = if a_poly > 1e-30 { b_poly / a_poly } else { 1.0 };
-            pred[k] *= ratio;
-
-            let phi2 = phi_k * phi_k;
-            let bm = 20.0 / std::f32::consts::LN_10 / b_poly;
-            let am = -20.0 / std::f32::consts::LN_10 / a_poly;
-
-            let dy_da_local = bm * (b_da_c0 + phi2 * b_da_c2 - phi_k * b_da_c1)
-                + am * (a_da_c0 + phi2 * a_da_c2 - phi_k * a_da_c1);
-            let dy_dalpha_local = bm * (b_al_c0 + phi2 * b_al_c2 - phi_k * b_al_c1)
-                + am * (a_al_c0 + phi2 * a_al_c2 - phi_k * a_al_c1);
-            let dy_dcos_local = bm * (b_co_c0 + phi2 * b_co_c2 - phi_k * b_co_c1)
-                + am * (a_co_c0 + phi2 * a_co_c2 - phi_k * a_co_c1);
-
-            dy_dw0[n][k] = dy_dalpha_local * dalpha_dw0 + dy_dcos_local * dcos_dw0;
-            dy_dgain[n][k] = dy_da_local * da_dgain;
-            dy_dbw[n][k] = dy_dalpha_local * dalpha_dbw;
-        }
-    }
-
-    // Ratios stay within physical EQ bounds (worst case ~1e+-17 for 10 stacked
-    // +-16 dB bands), so one clamp per K after the band loop preserves the old
-    // per-band-K clamp bit-wise while removing ~6.9M min/max ops per fit.
-    for pred_k in pred.iter_mut() {
-        *pred_k = pred_k.clamp(1e-30, 1e30);
-    }
-
-    let mut loss = 0.0;
-    let mut dl_dy = [0.0; K];
-    let mut dl_dy_sum = 0.0;
-
-    for k in 0..K {
-        let d = pred[k].ln() * (10.0 / std::f32::consts::LN_10) - c.r[k];
-        loss += d.powi(2);
-        dl_dy[k] = 2.0 * d;
-        dl_dy_sum += dl_dy[k];
-    }
-
-    loss *= r_k;
-
-    let (g_lf, g_rest) = g.split_at_mut(n_bands);
-    let (g_gain, g_rest) = g_rest.split_at_mut(n_bands);
-    let (g_bw, g_amp) = g_rest.split_at_mut(n_bands);
-
-    g_amp[0] = if c.opt_amp { dl_dy_sum * r_k } else { 0.0 };
-
-    for n in 0..n_bands {
-        let mut glf = 0.0;
-        let mut ggain = 0.0;
-        let mut gbw = 0.0;
-
-        for k in 0..K {
-            glf += dl_dy[k] * dy_dw0[n][k];
-            ggain += dl_dy[k] * dy_dgain[n][k];
-            gbw += dl_dy[k] * dy_dbw[n][k];
-        }
-
-        g_lf[n] = glf * r_k * w0_v[n];
-        g_gain[n] = ggain * r_k;
-        g_bw[n] = gbw * r_k;
-    }
-
-    loss
-}
-
-struct AdaBelief {
-    m: Vec<f32>,
-    s: Vec<f32>,
-    b1: f32,
-    b2: f32,
-    b1t: f32,
-    b2t: f32,
-    eps: f32,
-    eps_root: f32,
-    lr: f32,
-    n_bands: usize,
-}
-
-impl AdaBelief {
-    fn new(n_bands: usize) -> Self {
-        let size = w_from_n(n_bands);
-        Self {
-            m: vec![0.0; size],
-            s: vec![0.0; size],
-            b1: 0.9,
-            b2: 0.99,
-            b1t: 0.9,
-            b2t: 0.99,
-            eps: 1e-12,
-            eps_root: 1e-8,
-            lr: 3e-2,
-            n_bands,
-        }
-    }
-
-    fn step(&mut self, x: &mut [f32], g: &[f32]) {
-        let size = w_from_n(self.n_bands);
-        for w in 0..size {
-            self.m[w] = self.b1 * self.m[w] + (1.0 - self.b1) * g[w];
-            self.s[w] = self.b2 * self.s[w] + (1.0 - self.b2) * (g[w] - self.m[w]).powi(2);
-
-            let m_hat = self.m[w] / (1.0 - self.b1t);
-            let s_hat = self.s[w] / (1.0 - self.b2t);
-
-            let den_exact = (s_hat + self.eps_root).sqrt() + self.eps;
-
-            x[w] -= self.lr * m_hat / den_exact;
-        }
-
-        self.b1t *= self.b1;
-        self.b2t *= self.b2;
-    }
-}
-
-#[allow(clippy::too_many_arguments)]
-fn fit(
-    steps: usize,
-    types: &[FilterType],
-    f0: &mut [f32],
-    gain: &mut [f32],
-    q_vals: &mut [f32],
-    amp: &mut Option<f32>,
-    f0_lim: &[Lim],
-    gain_lim: &[Lim],
-    q_lim: &[Lim],
-    n_bands: usize,
-    f: &[f32; K],
-    r: &[f32; K],
-    fs: f32,
-) -> f32 {
-    let mut lf_lim = [Lim { lo: 0.0, hi: 0.0 }; MAX_N];
-    let mut bw_lim = [Lim { lo: 0.0, hi: 0.0 }; MAX_N];
-
-    let max_f0 = 0.49 * fs;
-    for n in 0..n_bands {
-        lf_lim[n] = Lim {
-            lo: f0_lim[n].lo.ln(),
-            hi: f0_lim[n].hi.min(max_f0).ln(),
-        };
-        bw_lim[n] = Lim {
-            lo: q_to_bw(q_lim[n].hi),
-            hi: q_to_bw(q_lim[n].lo),
-        };
-    }
-
-    let mut phi = [0.0; K];
-    for k in 0..K {
-        phi[k] = (std::f32::consts::PI / fs * f[k]).sin().powi(2);
-    }
-
-    let size = w_from_n(n_bands);
-    let mut x = vec![0.0; size];
-
-    {
-        let (x_lf, x_rest) = x.split_at_mut(n_bands);
-        let (x_gain, x_rest) = x_rest.split_at_mut(n_bands);
-        let (x_bw, x_amp) = x_rest.split_at_mut(n_bands);
-
-        for n in 0..n_bands {
-            x_lf[n] = f0[n].min(max_f0).ln();
-            x_gain[n] = gain[n];
-            x_bw[n] = q_to_bw(q_vals[n]);
-        }
-        if let Some(a) = amp {
-            x_amp[0] = *a;
-        }
-    }
-
-    let mut g = vec![0.0; size];
-    let mut best = x.clone();
-    let mut dy_dw0 = [[0.0; K]; MAX_N];
-    let mut dy_dgain = [[0.0; K]; MAX_N];
-    let mut dy_dbw = [[0.0; K]; MAX_N];
-
-    let c = Consts {
-        types,
-        phi: &phi,
-        r,
-        fs,
-        n_bands,
-        opt_amp: amp.is_some(),
-    };
-
-    let mut best_loss = grad(&c, &x, &mut g, &mut dy_dw0, &mut dy_dgain, &mut dy_dbw);
-
-    let mut opt = AdaBelief::new(n_bands);
-
-    for step in 0..steps {
-        opt.lr = 0.03 * 0.5 * (1.0 + ((step as f32) / (steps as f32) * std::f32::consts::PI).cos());
-        let loss = grad(&c, &x, &mut g, &mut dy_dw0, &mut dy_dgain, &mut dy_dbw);
-
-        opt.step(&mut x, &g);
-
-        let (x_lf, x_rest) = x.split_at_mut(n_bands);
-        let (x_gain, x_rest) = x_rest.split_at_mut(n_bands);
-        let (x_bw, _) = x_rest.split_at_mut(n_bands);
-
-        for n in 0..n_bands {
-            if limit(&mut x_lf[n], lf_lim[n]) {
-                opt.m[n] = 0.0;
-            }
-            if limit(&mut x_gain[n], gain_lim[n]) {
-                opt.m[n_bands + n] = 0.0;
-            }
-            if limit(&mut x_bw[n], bw_lim[n]) {
-                opt.m[2 * n_bands + n] = 0.0;
-            }
-        }
-
-        if loss.is_finite() && loss < best_loss {
-            best_loss = loss;
-            best.copy_from_slice(&x);
-        }
-    }
-
-    let (best_lf, best_rest) = best.split_at(n_bands);
-    let (best_gain, best_rest) = best_rest.split_at(n_bands);
-    let (best_bw, best_amp) = best_rest.split_at(n_bands);
-
-    for n in 0..n_bands {
-        f0[n] = best_lf[n].exp().min(0.49 * fs);
-        gain[n] = best_gain[n];
-        q_vals[n] = bw_to_q(best_bw[n]);
-    }
-
-    if let Some(a) = amp {
-        *a = best_amp[0];
-    }
-
-    best_loss
-}
-
 fn search_freq(f: &[f32; K], val: f32) -> usize {
     let mut idx = 0;
     let mut best = 1e9_f32;
@@ -1513,52 +1016,44 @@ fn preprocess(
     Ok(mean)
 }
 
-#[allow(clippy::too_many_arguments)]
-fn run_autoeq_optimization(
-    steps: usize,
-    types: &[FilterType],
-    f0: &mut [f32],
-    gain: &mut [f32],
-    q_vals: &mut [f32],
-    amp: &mut Option<f32>,
-    f0_lim: &[Lim],
-    gain_lim: &[Lim],
-    q_lim: &[Lim],
-    n_bands: usize,
+fn initialize_bands(
+    bands: &mut [optimizer::Band],
     f: &[f32; K],
-    r: &[f32; K],
+    residual: &[f32; K],
     fs: f32,
-) -> f32 {
-    let mut r_init = *r;
-
-    for n in 0..n_bands {
-        let type_val = types[n];
-        let init_fn = match type_val {
-            FilterType::Peak => init_pk,
+    target: AutoEqTarget<'_>,
+    cos: &[f64],
+) -> Result<(), String> {
+    let mut remainder = *residual;
+    for band in bands {
+        let initialize = match band.kind {
             FilterType::LowShelf => init_lsc,
             FilterType::HighShelf => init_hsc,
             _ => init_pk,
         };
-
-        let p = init_fn(&r_init, f, fs, f0_lim[n], gain_lim[n], q_lim[n]);
-        let mut w = [0.0; K];
-        spectrum_values(type_val, p.f0, -p.gain, p.q, fs, f, &mut w);
-        for k in 0..K {
-            r_init[k] += w[k];
-        }
-
-        f0[n] = p.f0;
-        gain[n] = p.gain;
-        q_vals[n] = p.q;
+        let p = initialize(
+            &remainder,
+            f,
+            fs,
+            band.frequency_bounds,
+            band.gain_bounds,
+            band.q_bounds,
+        );
+        band.frequency = p.f0 as f64;
+        band.gain = p.gain as f64;
+        band.q = p.q as f64;
+        crate::eq::iir_math::accumulate_response_values_cos_for_model(
+            band.kind,
+            band.frequency,
+            -band.gain,
+            band.q,
+            fs as f64,
+            target.model(),
+            cos,
+            &mut remainder,
+        )?;
     }
-
-    if let Some(a) = amp {
-        *a = 0.0;
-    }
-
-    fit(
-        steps, types, f0, gain, q_vals, amp, f0_lim, gain_lim, q_lim, n_bands, f, r, fs,
-    )
+    Ok(())
 }
 
 fn generate_log_spaced_freqs() -> [f32; K] {
@@ -1575,37 +1070,15 @@ fn generate_log_spaced_freqs() -> [f32; K] {
     freqs
 }
 
-const DENSE_RESPONSE_POINTS: usize = 8192;
-
+#[cfg(test)]
 fn max_autoeq_response(filters: &[Filter], fs: f32) -> Result<f32, String> {
-    let max_frequency = (20_000.0_f32).min(0.49 * fs);
-    if !max_frequency.is_finite() || max_frequency < 20.0 {
-        return Err("AutoEQ response range is outside the sample-rate domain".into());
-    }
-    let l0 = 20.0_f32.ln();
-    let l1 = max_frequency.ln();
-    let mut frequencies = Vec::with_capacity(DENSE_RESPONSE_POINTS);
-    for index in 0..DENSE_RESPONSE_POINTS {
-        frequencies
-            .push((l0 + (l1 - l0) * index as f32 / (DENSE_RESPONSE_POINTS - 1) as f32).exp());
-    }
-    let mut response = vec![0.0_f32; frequencies.len()];
-    for filter in filters {
-        spectrum_values(
-            filter.filter_type,
-            filter.freq as f32,
-            filter.gain as f32,
-            filter.q as f32,
-            fs,
-            &frequencies,
-            &mut response,
-        );
-    }
-    let max_gain = response.into_iter().fold(f32::NEG_INFINITY, f32::max);
-    if !max_gain.is_finite() {
-        return Err("AutoEQ response calculation produced a non-finite value".into());
-    }
-    Ok(max_gain)
+    device::SafetyGrid::new(fs as f64)
+        .peak(
+            filters,
+            fs as f64,
+            crate::eq::iir_math::EqResponseModel::CanonicalQ,
+        )
+        .map(|v| v as f32)
 }
 
 fn interpolate_curve(
@@ -1657,15 +1130,6 @@ const AUTOEQ_FILTER_TYPES: &[FilterType] = &[
     FilterType::HighShelf,
 ];
 
-struct FittedEq {
-    types: Vec<FilterType>,
-    f0: Vec<f32>,
-    gain: Vec<f32>,
-    q_vals: Vec<f32>,
-    amp: Option<f32>,
-    loss: f32,
-}
-
 pub fn run_autoeq(
     measurement_points: &[(f64, f64)],
     target_points: &[(f64, f64)],
@@ -1675,6 +1139,29 @@ pub fn run_autoeq(
     fs: f32,
     caps: Option<&crate::device::DeviceCapabilities>,
 ) -> Result<crate::eq::PEQData, String> {
+    run_autoeq_with_target(
+        measurement_points,
+        target_points,
+        n_bands,
+        steps,
+        smooth_type,
+        fs,
+        AutoEqTarget::capabilities(caps),
+    )
+}
+
+/// Fit, realize, and score against one immutable DAC target. Unlike the
+/// capabilities-only API, this includes protocol precision and DSP semantics.
+pub fn run_autoeq_with_target(
+    measurement_points: &[(f64, f64)],
+    target_points: &[(f64, f64)],
+    n_bands: usize,
+    steps: usize,
+    smooth_type: &str,
+    fs: f32,
+    target: AutoEqTarget<'_>,
+) -> Result<crate::eq::PEQData, String> {
+    let caps = target.caps;
     if n_bands == 0 || n_bands > MAX_N {
         return Err("Number of bands must be between 1 and 32".to_string());
     }
@@ -1720,7 +1207,11 @@ pub fn run_autoeq(
         return Err("Smoothing must be none, ie, or oe".into());
     }
 
-    let steps = if steps == 0 { 3000 } else { steps.min(5000) };
+    let steps = if steps == 0 {
+        MAX_OPTIMIZATION_STEPS
+    } else {
+        steps.min(MAX_OPTIMIZATION_STEPS)
+    };
 
     let f = generate_log_spaced_freqs();
     let src = interpolate_curve("Measurement", measurement_points, &f)?;
@@ -1734,6 +1225,11 @@ pub fn run_autoeq(
 
     let mut r = [0.0; K];
     let preamp_mean = preprocess(&f, &dst, &src, &mut r, smooth, true)?;
+    let safety = device::SafetyGrid::new(fs as f64);
+    let cos: Vec<_> = f
+        .iter()
+        .map(|&frequency| (std::f64::consts::TAU * frequency as f64 / fs as f64).cos())
+        .collect();
 
     // Work inside the device's feasible set: every filter type selected by the
     // optimizer must be advertised by the DAC. The optimizer has analytic
@@ -1762,7 +1258,7 @@ pub fn run_autoeq(
     fn intersect(lo: f32, hi: f32, clo: f64, chi: f64) -> Lim {
         let lo = lo.max(clo as f32);
         let hi = hi.min(chi as f32);
-        if lo < hi {
+        if lo <= hi {
             Lim { lo, hi }
         } else {
             Lim {
@@ -1778,8 +1274,8 @@ pub fn run_autoeq(
     }
     let (cap_f_lo, cap_f_hi) = caps.map_or((20.0, 20000.0), |c| {
         (
-            c.freq_range.0 as f64,
-            (c.freq_range.1 as f64).min(0.49 * fs as f64),
+            (c.freq_range.0 as f64).max(20.0),
+            (c.freq_range.1 as f64).min((0.49 * fs as f64).floor()),
         )
     });
     if cap_f_lo > cap_f_hi {
@@ -1794,7 +1290,7 @@ pub fn run_autoeq(
     // Upstream defaults shelf Q to 0.4..0.7 to avoid resonant shelves:
     // https://github.com/jaakkopasanen/AutoEq/blob/7ae0f56d53074872b028649617a22bbb4232feb7/autoeq/constants.py#L54-L55
     let low_band = n_bands <= 5;
-    let fit_layout = |types: Vec<FilterType>| {
+    let fit_layout = |types: Vec<FilterType>| -> Result<(PEQData, f32), String> {
         let mut f0_lim = vec![intersect(20.0, 16000.0, cap_f_lo, cap_f_hi); n_bands];
         let gain_lim = vec![intersect(-16.0, 16.0, cap_gain_lo, cap_gain_hi); n_bands];
         let mut q_lim = vec![intersect(0.4, 4.0, cap_q_lo, cap_q_hi); n_bands];
@@ -1811,33 +1307,51 @@ pub fn run_autoeq(
                 _ => {}
             }
         }
-        let mut f0 = vec![1000.0; n_bands];
-        let mut gain = vec![0.0; n_bands];
-        let mut q_vals = vec![1.0; n_bands];
-        let mut amp = Some(0.0);
-        let loss = run_autoeq_optimization(
-            steps,
-            &types,
-            &mut f0,
-            &mut gain,
-            &mut q_vals,
-            &mut amp,
-            &f0_lim,
-            &gain_lim,
-            &q_lim,
-            n_bands,
-            &f,
-            &r,
-            fs,
-        );
-        FittedEq {
-            types,
-            f0,
-            gain,
-            q_vals,
-            amp,
-            loss,
+        if target.model() == crate::eq::iir_math::EqResponseModel::MoondropShelfSlope {
+            for (kind, lim) in types.iter().zip(&mut q_lim) {
+                if *kind != FilterType::Peak {
+                    lim.hi = lim.hi.min(1.0);
+                    if lim.lo > lim.hi {
+                        return Err("Device has no feasible non-resonant shelf slope".into());
+                    }
+                }
+            }
         }
+        let mut bands: Vec<_> = (0..n_bands)
+            .map(|i| optimizer::Band {
+                kind: types[i],
+                frequency: 1000.0,
+                gain: 0.0,
+                q: 1.0,
+                frequency_bounds: f0_lim[i],
+                gain_bounds: gain_lim[i],
+                q_bounds: q_lim[i],
+            })
+            .collect();
+        initialize_bands(&mut bands, &f, &r, fs, target, &cos)?;
+        let fit = optimizer::fit(&mut bands, steps, &f, &r, fs as f64, target.model());
+        if !(fit.loss as f32).is_finite() {
+            return Err("AutoEQ optimization produced a non-finite loss".into());
+        }
+        let mut filters: Vec<_> = bands
+            .iter()
+            .enumerate()
+            .map(|(i, band)| Filter {
+                index: i as u8,
+                enabled: true,
+                freq: band.frequency.round() as u16,
+                gain: band.gain,
+                q: band.q,
+                filter_type: band.kind,
+            })
+            .collect();
+        filters.sort_by_key(|f| f.freq);
+        for (i, filter) in filters.iter_mut().enumerate() {
+            filter.index = i as u8;
+        }
+        let peq = target.finalize(filters, fs as f64, preamp_mean as f64 + fit.level, &safety)?;
+        let loss = device::shape_loss(&peq.filters, fs as f64, target.model(), &cos, &r)?;
+        Ok((peq, loss))
     };
     let mut best = fit_layout(types.clone());
     if low_band && supports(FilterType::Peak) {
@@ -1859,112 +1373,17 @@ pub fn run_autoeq(
             }
             layouts.push(candidate.clone());
             let fitted = fit_layout(candidate);
-            if fitted.loss.is_finite() && (!best.loss.is_finite() || fitted.loss < best.loss) {
-                best = fitted;
+            if let Ok((_, loss)) = &fitted {
+                if best
+                    .as_ref()
+                    .map_or(true, |(_, best_loss)| loss < best_loss)
+                {
+                    best = fitted;
+                }
             }
         }
     }
-    if !best.loss.is_finite() {
-        return Err("AutoEQ optimization produced a non-finite loss".into());
-    }
-    let FittedEq {
-        types,
-        f0,
-        gain,
-        q_vals,
-        amp,
-        ..
-    } = best;
-
-    let mut filters = Vec::with_capacity(n_bands);
-    for i in 0..n_bands {
-        let freq = f0[i].round() as u16;
-        let band_gain = gain[i] as f64;
-        let q = q_vals[i] as f64;
-        if freq == 0 || !band_gain.is_finite() || !q.is_finite() || q <= 0.0 {
-            return Err("AutoEQ produced a non-finite or invalid filter".into());
-        }
-        filters.push(crate::eq::Filter {
-            index: i as u8,
-            enabled: true,
-            freq,
-            gain: band_gain,
-            q,
-            filter_type: types[i],
-        });
-    }
-
-    filters.sort_by_key(|f| f.freq);
-    for (i, filter) in filters.iter_mut().enumerate() {
-        filter.index = i as u8;
-    }
-
-    // The optimizer's 384-point grid is intentionally coarse. Recheck the
-    // resulting aggregate on a dense grid before publishing preamp, otherwise
-    // a narrow peak can clip after capability clamping. When a device's
-    // preamp floor cannot provide enough headroom, reduce the correction
-    // uniformly rather than returning an EQ that will clip or failing the
-    // entire AutoEQ operation.
-    let total_preamp = preamp_mean + amp.unwrap_or(0.0);
-    let preamp_for = |max_gain: f32| -> f64 {
-        let mut requested = if total_preamp + max_gain > 0.0 {
-            -(max_gain as f64)
-        } else {
-            total_preamp as f64
-        };
-        if let Some(caps) = caps {
-            if caps.integer_preamp {
-                requested = requested.round();
-            }
-            requested.clamp(
-                caps.global_gain_range.0 as f64,
-                caps.global_gain_range.1 as f64,
-            )
-        } else {
-            requested
-        }
-    };
-    let original_filters = filters.clone();
-    let mut max_gain = max_autoeq_response(&filters, fs)?;
-    let mut preamp = preamp_for(max_gain);
-    if preamp + max_gain as f64 > 1.0e-4 {
-        let mut safe_scale = 0.0_f64;
-        let mut unsafe_scale = 1.0_f64;
-        let mut safe_filters = original_filters.clone();
-        let safe_max_gain = max_autoeq_response(&safe_filters, fs)?;
-        let mut safe_preamp = preamp_for(safe_max_gain);
-
-        for _ in 0..24 {
-            let scale = (safe_scale + unsafe_scale) * 0.5;
-            let mut candidate = original_filters.clone();
-            for filter in &mut candidate {
-                filter.gain *= scale;
-            }
-            let candidate_max_gain = max_autoeq_response(&candidate, fs)?;
-            let candidate_preamp = preamp_for(candidate_max_gain);
-            if candidate_preamp + candidate_max_gain as f64 <= 1.0e-4 {
-                safe_scale = scale;
-                safe_filters = candidate;
-                safe_preamp = candidate_preamp;
-            } else {
-                unsafe_scale = scale;
-            }
-        }
-
-        filters = safe_filters;
-        max_gain = max_autoeq_response(&filters, fs)?;
-        preamp = safe_preamp;
-    }
-    if preamp + max_gain as f64 > 1.0e-4 {
-        return Err(
-            "AutoEQ could not produce a non-clipping result within the device preamp range".into(),
-        );
-    }
-
-    Ok(crate::eq::PEQData {
-        filters,
-        global_gain: preamp,
-    })
+    best.map(|(peq, _)| peq)
 }
 
 fn validate_curve(label: &str, points: &[(f64, f64)]) -> Result<(), String> {
@@ -2237,111 +1656,6 @@ mod tests {
         caps.q_range = (0.4, 4.0);
         caps.band_gain_range = (-151.0, 10.0);
         assert!(run_autoeq(&curve, &curve, 1, 1, "none", 48_000.0, Some(&caps)).is_err());
-    }
-
-    /// Hand-derived biquad gradients must match central finite differences of
-    /// an independent f64 reference loss built on the canonical forward model.
-    /// Covers all three coefficient branches (Peak, LowShelf, HighShelf).
-    #[test]
-    fn analytic_gradients_match_finite_differences() {
-        use crate::eq::FilterType;
-        let n_bands = 3;
-        let types = [
-            FilterType::Peak,
-            FilterType::LowShelf,
-            FilterType::HighShelf,
-        ];
-        let fs = 96_000.0_f32;
-        let f = generate_log_spaced_freqs();
-        let mut phi = [0.0; K];
-        for k in 0..K {
-            phi[k] = (std::f32::consts::PI / fs * f[k]).sin().powi(2);
-        }
-        let mut r = [0.0; K];
-        for k in 0..K {
-            let t = (f[k] / 1000.0).ln();
-            r[k] = 3.0 * (2.0 * t).sin() - 2.0 * (t - 1.0).tanh() + 1.0;
-        }
-        let c = Consts {
-            types: &types,
-            phi: &phi,
-            r: &r,
-            fs,
-            n_bands,
-            opt_amp: true,
-        };
-        let size = w_from_n(n_bands);
-        let mut x = vec![0.0; size];
-        x[0] = 200.0_f32.ln();
-        x[1] = 80.0_f32.ln();
-        x[2] = 10_000.0_f32.ln();
-        x[3] = 2.0;
-        x[4] = -1.0;
-        x[5] = 1.5;
-        x[6] = q_to_bw(1.0);
-        x[7] = q_to_bw(0.7);
-        x[8] = q_to_bw(0.7);
-        x[9] = 0.1;
-
-        let mut g = vec![0.0; size];
-        let buf = || [[0.0; K]; MAX_N];
-        let analytic_loss = grad(&c, &x, &mut g, &mut buf(), &mut buf(), &mut buf());
-
-        // Independent reference: same loss through iir_math, in f64.
-        let reference_loss = |x: &[f32]| -> f64 {
-            let mut total = vec![0.0f64; K];
-            total.fill(x[3 * n_bands] as f64);
-            for n in 0..n_bands {
-                let f0 = (x[n].exp().min(0.49 * fs)) as f64;
-                let gain = x[n_bands + n] as f64;
-                let q = bw_to_q(x[2 * n_bands + n]) as f64;
-                let mut resp = vec![0.0f32; K];
-                crate::eq::iir_math::accumulate_response_values(
-                    types[n], f0, gain, q, fs as f64, &f, &mut resp,
-                );
-                for k in 0..K {
-                    total[k] += resp[k] as f64;
-                }
-            }
-            let mut loss = 0.0;
-            for k in 0..K {
-                let d = total[k] - r[k] as f64;
-                loss += d * d;
-            }
-            loss / K as f64
-        };
-
-        let ref_loss = reference_loss(&x);
-        println!("loss analytic={analytic_loss} reference={ref_loss}");
-        // Human scale: 0.05 MSE over 384 points ≈ 0.01 dB per point,
-        // far below audibility (~0.1 dB) but above f32 evaluation noise.
-        assert!(
-            (analytic_loss as f64 - ref_loss).abs() <= 0.05,
-            "forward model mismatch"
-        );
-
-        let eps = 1e-4;
-        let mut failures = 0;
-        for w in 0..size {
-            let mut xp = x.clone();
-            xp[w] += eps;
-            let mut xm = x.clone();
-            xm[w] -= eps;
-            let numeric = (reference_loss(&xp) - reference_loss(&xm)) / (2.0 * eps as f64);
-            // AdaBelief only needs roughly-correct descent directions; 10%
-            // guards against gross derivative bugs, not f32 dust.
-            let tolerance = 0.10 * (1.0 + numeric.abs()) + 1e-2;
-            let ok = (g[w] as f64 - numeric).abs() <= tolerance;
-            if !ok {
-                failures += 1;
-            }
-            println!(
-                "param {w}: analytic={} numeric={numeric:.6} {}",
-                g[w],
-                if ok { "ok" } else { "MISMATCH" }
-            );
-        }
-        assert!(failures == 0, "{failures} gradient mismatches");
     }
 
     static PEAK_ONLY_TYPES: &[crate::eq::FilterType] = &[crate::eq::FilterType::Peak];

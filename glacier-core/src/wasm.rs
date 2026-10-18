@@ -226,14 +226,15 @@ pub fn run_autoeq(
     let product_id = validate_optional_device_id(product_id, "product_id")?;
 
     let caps = device_caps_or_desktop(vendor_id, product_id);
-    let mut peq = crate::autoeq::run_autoeq(
+    let protocol = supported_profile(vendor_id, product_id).map_or(&UNKNOWN, |p| p.protocol);
+    let mut peq = crate::autoeq::run_autoeq_with_target(
         &measurement_points,
         &target_points,
         n_bands,
         steps,
         &smooth_type,
         fs,
-        Some(&caps),
+        crate::autoeq::AutoEqTarget::device(&caps, protocol),
     )
     .map_err(js_err)?;
 

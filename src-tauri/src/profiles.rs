@@ -233,22 +233,43 @@ pub async fn run_autoeq(
     // CPU-bound optimization: run off the async workers so progress events and
     // other IPC keep flowing while it crunches. The connected DAC's limits
     // shape the optimization itself, so the fit never depends on clamping.
-    let (caps, _) = connected_match_target(&state)?;
-    let mut peq = tauri::async_runtime::spawn_blocking(move || {
-        glacier_core::autoeq::run_autoeq(
+    let (identity, caps, protocol) = {
+        let guard = state.lock().unwrap_or_else(|p| p.into_inner());
+        let identity = guard
+            .connected
+            .as_ref()
+            .map(|d| (d.vendor_id, d.product_id, d.session_id));
+        let (caps, protocol) = match_target_for_connected(guard.connected.as_ref());
+        (identity, caps, protocol)
+    };
+    let peq = tauri::async_runtime::spawn_blocking(move || {
+        glacier_core::autoeq::run_autoeq_with_target(
             &measurement_points,
             &target_points,
             n_bands,
             steps,
             &smooth_type,
             fs,
-            Some(&caps),
+            glacier_core::autoeq::AutoEqTarget::device(&caps, protocol),
         )
     })
     .await
     .map_err(|error| format!("AutoEQ worker failed: {error}"))??;
-    let warnings = peq.clamp_to_capabilities(&connected_match_target(&state)?.0);
-    Ok(AutoEqRunResult { peq, warnings })
+    let current = state
+        .lock()
+        .unwrap_or_else(|p| p.into_inner())
+        .connected
+        .as_ref()
+        .map(|d| (d.vendor_id, d.product_id, d.session_id));
+    if current != identity {
+        return Err(
+            "DAC changed while AutoEQ was running; run AutoEQ again for the current target".into(),
+        );
+    }
+    Ok(AutoEqRunResult {
+        peq,
+        warnings: Vec::new(),
+    })
 }
 
 #[cfg(test)]
