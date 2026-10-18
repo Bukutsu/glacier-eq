@@ -1073,11 +1073,7 @@ fn generate_log_spaced_freqs() -> [f32; K] {
 #[cfg(test)]
 fn max_autoeq_response(filters: &[Filter], fs: f32) -> Result<f32, String> {
     device::SafetyGrid::new(fs as f64)
-        .peak(
-            filters,
-            fs as f64,
-            crate::eq::iir_math::EqResponseModel::CanonicalQ,
-        )
+        .peak(filters, fs as f64, AutoEqTarget::capabilities(None))
         .map(|v| v as f32)
 }
 
@@ -1350,11 +1346,11 @@ pub fn run_autoeq_with_target(
             filter.index = i as u8;
         }
         let peq = target.finalize(filters, fs as f64, preamp_mean as f64 + fit.level, &safety)?;
-        let loss = device::shape_loss(&peq.filters, fs as f64, target.model(), &cos, &r)?;
+        let loss = device::shape_loss(&peq.filters, fs as f64, target, &cos, &r)?;
         Ok((peq, loss))
     };
     let mut best = fit_layout(types.clone());
-    if low_band && supports(FilterType::Peak) {
+    if (low_band || best.is_err()) && supports(FilterType::Peak) {
         let mut layouts = vec![types];
         for shelf in [
             Some(FilterType::LowShelf),

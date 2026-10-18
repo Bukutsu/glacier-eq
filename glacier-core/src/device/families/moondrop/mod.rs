@@ -451,11 +451,11 @@ mod tests {
             assert_eq!(a0, 1.0);
             for (value, bytes) in [b0, b1, b2, -a1, -a2]
                 .into_iter()
-                .zip(packets[0].payload[7..27].chunks_exact(4))
+                .zip(packets[0].payload[7..27].as_chunks::<4>().0.iter())
             {
                 assert_eq!(
                     value * (1u64 << 30) as f64,
-                    i32::from_le_bytes(bytes.try_into().unwrap()) as f64
+                    i32::from_le_bytes(*bytes) as f64
                 );
             }
             if filter_type == FilterType::LowShelf {

@@ -12,8 +12,8 @@ const QUANTIZER_SCALE: f64 = 1_073_741_824.0;
 /// the wire are negated; return the usual normalized biquad denominator.
 pub(crate) fn decode_q30_biquad(bytes: &[u8; 20]) -> (f64, f64, f64, f64, f64, f64) {
     let mut values = [0.0; 5];
-    for (value, chunk) in values.iter_mut().zip(bytes.chunks_exact(4)) {
-        *value = i32::from_le_bytes(chunk.try_into().unwrap()) as f64 / QUANTIZER_SCALE;
+    for (value, chunk) in values.iter_mut().zip(bytes.as_chunks::<4>().0.iter()) {
+        *value = i32::from_le_bytes(*chunk) as f64 / QUANTIZER_SCALE;
     }
     (values[0], values[1], values[2], 1.0, -values[3], -values[4])
 }

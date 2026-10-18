@@ -1,15 +1,16 @@
-//! Deterministic end-to-end AutoEQ benchmark, including headroom validation.
+//! End-to-end AutoEQ benchmark; compilation and quality scoring are not timed.
 //! cargo run --release -p glacier-core --example autoeq_probe -- app 9
-//! Modes: app | init | fit5 | wide | smooth | max | profiles
-//! Each timed sample returns a complete, usable PEQ; compilation is not timed.
+//! Modes: app | init | fit5 | wide | smooth | max | profiles | caps-profiles
+//! "profiles" exercises actual protocol models, grids and packet preflight.
+//! "caps-profiles" keeps the older capability-only catalog workload for comparison.
 
 use std::hint::black_box;
 use std::time::Instant;
 
-use glacier_core::autoeq::run_autoeq;
+use glacier_core::autoeq::{run_autoeq, run_autoeq_with_target, AutoEqTarget};
 use glacier_core::device::capabilities::DESKTOP_DAC_CAPS;
-use glacier_core::device::{DeviceCapabilities, SUPPORTED_DEVICES};
-use glacier_core::eq::{iir_math::accumulate_response_values, PEQData};
+use glacier_core::device::{EqProtocol, SUPPORTED_DEVICES};
+use glacier_core::eq::{iir_math::compute_biquad_coeffs, PEQData};
 
 fn measurement_curve() -> Vec<(f64, f64)> {
     [
@@ -20,35 +21,40 @@ fn measurement_curve() -> Vec<(f64, f64)> {
     .collect()
 }
 
-fn shape_rmse(peq: &PEQData, caps: &DeviceCapabilities) -> f64 {
-    let f: Vec<f32> = (0..1024)
-        .map(|i| (20.0_f64 * 1000.0_f64.powf(i as f64 / 1023.0)) as f32)
-        .collect();
+fn shape_rmse(peq: &PEQData, fs: f64, protocol: Option<&dyn EqProtocol>) -> f64 {
     let measurement = measurement_curve();
-    let mut response = vec![0.0; f.len()];
-    for band in &peq.filters {
-        accumulate_response_values(
-            band.filter_type,
-            band.freq as f64,
-            band.gain,
-            band.q,
-            caps.dsp_sample_rate,
-            &f,
-            &mut response,
-        );
-    }
-    let errors: Vec<f64> = f
+    let coefficients: Vec<_> = peq
+        .filters
         .iter()
-        .zip(response)
-        .map(|(&freq, db)| {
-            let freq = freq as f64;
+        .map(|band| {
+            protocol.map_or_else(
+                || compute_biquad_coeffs(band, fs),
+                |p| p.realized_biquad(band, fs).unwrap(),
+            )
+        })
+        .collect();
+    let errors: Vec<f64> = (0..1024)
+        .map(|i| {
+            let freq = 20.0 * 1000.0_f64.powf(i as f64 / 1023.0);
+            let omega = std::f64::consts::TAU * freq / fs;
+            let response: f64 = coefficients
+                .iter()
+                .map(|&(b0, b1, b2, a0, a1, a2)| {
+                    let real_b = b0 + b1 * omega.cos() + b2 * (2.0 * omega).cos();
+                    let imag_b = -b1 * omega.sin() - b2 * (2.0 * omega).sin();
+                    let real_a = a0 + a1 * omega.cos() + a2 * (2.0 * omega).cos();
+                    let imag_a = -a1 * omega.sin() - a2 * (2.0 * omega).sin();
+                    10.0 * ((real_b * real_b + imag_b * imag_b)
+                        / (real_a * real_a + imag_a * imag_a))
+                        .log10()
+                })
+                .sum();
             let i = measurement
                 .partition_point(|&(x, _)| x < freq)
                 .clamp(1, measurement.len() - 1);
             let (f0, y0) = measurement[i - 1];
             let (f1, y1) = measurement[i];
-            let t = (freq / f0).ln() / (f1 / f0).ln();
-            db as f64 + y0 + t * (y1 - y0)
+            response + y0 + (freq / f0).ln() / (f1 / f0).ln() * (y1 - y0)
         })
         .collect();
     let mean = errors.iter().sum::<f64>() / errors.len() as f64;
@@ -77,43 +83,66 @@ fn main() {
             caps.num_bands = 32;
             (32, 2000, "none")
         }
-        "profiles" => (5, 200, "none"),
+        "profiles" | "caps-profiles" => (5, 200, "none"),
         _ => panic!("unknown mode: {mode}"),
     };
     let measurement = measurement_curve();
     let target = [(20.0, 0.0), (20000.0, 0.0)];
-    let one = || {
-        if mode == "profiles" {
-            let mut last = None;
-            for profile in SUPPORTED_DEVICES
+    let one = || -> Vec<(PEQData, f64, Option<&dyn EqProtocol>)> {
+        if matches!(mode, "profiles" | "caps-profiles") {
+            SUPPORTED_DEVICES
                 .iter()
                 .filter(|p| p.protocol.has_hardware_eq())
-            {
-                last = Some(
-                    run_autoeq(
-                        &measurement,
-                        &target,
-                        5.min(profile.caps.num_bands),
-                        steps,
-                        smooth,
-                        profile.caps.dsp_sample_rate as f32,
-                        Some(&profile.caps),
+                .map(|profile| {
+                    let caps = &profile.caps;
+                    let peq = if mode == "profiles" {
+                        run_autoeq_with_target(
+                            &measurement,
+                            &target,
+                            5.min(caps.num_bands),
+                            steps,
+                            smooth,
+                            caps.dsp_sample_rate as f32,
+                            AutoEqTarget::device(caps, profile.protocol),
+                        )
+                    } else {
+                        run_autoeq(
+                            &measurement,
+                            &target,
+                            5.min(caps.num_bands),
+                            steps,
+                            smooth,
+                            caps.dsp_sample_rate as f32,
+                            Some(caps),
+                        )
+                    }
+                    .unwrap_or_else(|e| panic!("{}: {e}", profile.name));
+                    (
+                        peq,
+                        caps.dsp_sample_rate,
+                        if mode == "profiles" {
+                            profile.protocol.eq
+                        } else {
+                            None
+                        },
                     )
-                    .unwrap_or_else(|e| panic!("{}: {e}", profile.name)),
-                );
-            }
-            last.unwrap()
+                })
+                .collect()
         } else {
-            run_autoeq(
-                &measurement,
-                &target,
-                bands,
-                steps,
-                smooth,
-                caps.dsp_sample_rate as f32,
-                Some(&caps),
-            )
-            .unwrap()
+            vec![(
+                run_autoeq(
+                    &measurement,
+                    &target,
+                    bands,
+                    steps,
+                    smooth,
+                    caps.dsp_sample_rate as f32,
+                    Some(&caps),
+                )
+                .unwrap(),
+                caps.dsp_sample_rate,
+                None,
+            )]
         }
     };
     for _ in 0..2 {
@@ -131,12 +160,14 @@ fn main() {
         .collect::<Vec<_>>()
         .join(",");
     times.sort_by(f64::total_cmp);
-    let peq = one();
-    println!(
-        "{mode}\tmedian_ms={:.3}\tmin_ms={:.3}\tmax_ms={:.3}\tshape_rmse_db={:.6}\tsamples={raw}",
-        times[times.len() / 2],
-        times[0],
-        times[times.len() - 1],
-        shape_rmse(&peq, &caps),
-    );
+    let results = one();
+    // Catalog quality is the mean of per-device shape RMSEs, each evaluated at
+    // that device's own DSP rate and realized model; never reuse desktop caps.
+    let quality = results
+        .iter()
+        .map(|(peq, fs, p)| shape_rmse(peq, *fs, *p))
+        .sum::<f64>()
+        / results.len() as f64;
+    println!("{mode}\tmedian_ms={:.3}\tmin_ms={:.3}\tmax_ms={:.3}\tshape_rmse_db={quality:.6}\tsamples={raw}",
+        times[times.len()/2],times[0],times[times.len()-1]);
 }

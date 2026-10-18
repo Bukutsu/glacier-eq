@@ -1,7 +1,10 @@
 //! Device realization and headroom policy, separate from the numerical solver.
 
 use crate::device::{DeviceCapabilities, EqProtocol, Protocol};
-use crate::eq::iir_math::{accumulate_response_values_cos_for_model, EqResponseModel};
+use crate::eq::iir_math::{
+    biquad_mag_squared_coeffs, compute_biquad_coeffs_for_model, eval_biquad_mag_squared_db,
+    EqResponseModel,
+};
 use crate::eq::{Filter, PEQData};
 
 /// The limits and wire format of the target. Capabilities-only callers keep a
@@ -73,7 +76,16 @@ impl<'a> AutoEqTarget<'a> {
         if let Some(step) = step {
             value = ((value / step) + 1e-10).floor() * step;
         }
-        (value >= range.0 && value + peak <= 1e-7).then_some(value)
+        let encoded = |value| self.protocol.map_or(value, |p| p.realized_preamp(value));
+        if encoded(value) + peak > 1e-7 {
+            // Some devices accept tenths in the editor but store preamp in Q8.
+            // One more advertised step covers that wire rounding, provided it
+            // still lies inside the declared envelope.
+            if let Some(step) = step {
+                value = ((value / step).round() - 1.0) * step;
+            }
+        }
+        (value >= range.0 && encoded(value) + peak <= 1e-7).then_some(value)
     }
 
     fn preflight(self, peq: &PEQData, fs: f64) -> Result<(), String> {
@@ -100,7 +112,7 @@ impl<'a> AutoEqTarget<'a> {
                 filter.gain *= scale;
             }
             self.realize(&mut filters, fs)?;
-            let peak = grid.peak(&filters, fs, self.model())?;
+            let peak = grid.peak(&filters, fs, self)?;
             let global_gain = self
                 .preamp(peak, level)
                 .ok_or("Device preamp range cannot provide AutoEQ headroom")?;
@@ -165,78 +177,47 @@ impl SafetyGrid {
         Self { cos }
     }
 
-    fn values(
-        &self,
-        filters: &[Filter],
-        fs: f64,
-        model: EqResponseModel,
-    ) -> Result<Vec<f32>, String> {
-        let mut response = vec![0.0; self.cos.len()];
-        for filter in filters.iter().filter(|f| f.enabled) {
-            accumulate_response_values_cos_for_model(
-                filter.filter_type,
-                filter.freq as f64,
-                filter.gain,
-                filter.q,
-                fs,
-                model,
-                &self.cos,
-                &mut response,
-            )?;
-        }
-        if response.iter().any(|v| !v.is_finite()) {
-            return Err("AutoEQ response produced non-finite values".into());
-        }
-        Ok(response)
-    }
-
     pub(super) fn peak(
         &self,
         filters: &[Filter],
         fs: f64,
-        model: EqResponseModel,
+        target: AutoEqTarget<'_>,
     ) -> Result<f64, String> {
-        let response = self.values(filters, fs, model)?;
-        let mut peak = response.iter().copied().fold(f32::NEG_INFINITY, f32::max) as f64;
+        let coefficients = response_coefficients(filters, fs, target)?;
+        let at = |cos| -> f64 {
+            coefficients
+                .iter()
+                .map(|&c| eval_biquad_mag_squared_db(c, cos) as f64)
+                .sum()
+        };
+        let response: Vec<_> = self.cos.iter().map(|&cos| at(cos)).collect();
+        if response.iter().any(|v| !v.is_finite()) {
+            return Err("AutoEQ response produced non-finite values".into());
+        }
+        let mut peak = response.iter().copied().fold(f64::NEG_INFINITY, f64::max);
         // Refine every sampled local maximum in cosine space. This catches
         // narrow peaks between grid points without making all fits use a huge
         // evaluation grid. Include the exact DC/Nyquist values above.
-        let at = |cos: f64| -> Result<f64, String> {
-            let mut value = [0.0];
-            for filter in filters.iter().filter(|f| f.enabled) {
-                accumulate_response_values_cos_for_model(
-                    filter.filter_type,
-                    filter.freq as f64,
-                    filter.gain,
-                    filter.q,
-                    fs,
-                    model,
-                    &[cos],
-                    &mut value,
-                )?;
-            }
-            Ok(value[0] as f64)
-        };
         for i in 1..response.len() - 1 {
             if response[i] > response[i - 1] && response[i] >= response[i + 1] {
                 let (mut a, mut b) = (self.cos[i + 1], self.cos[i - 1]);
                 let ratio = 0.618_033_988_749_894_9;
                 let mut c = b - ratio * (b - a);
                 let mut d = a + ratio * (b - a);
-                let (mut fc, mut fd) = (at(c)?, at(d)?);
+                let (mut fc, mut fd) = (at(c), at(d));
                 for _ in 0..24 {
                     if fc > fd {
                         b = d;
                         d = c;
                         fd = fc;
                         c = b - ratio * (b - a);
-                        fc = at(c)?;
+                        fc = at(c);
                     } else {
                         a = c;
                         c = d;
                         fc = fd;
                         d = a + ratio * (b - a);
-                        fd = at(d)?;
+                        fd = at(d);
                     }
                 }
                 peak = peak.max(fc).max(fd);
@@ -251,37 +232,73 @@ impl SafetyGrid {
 pub(super) fn shape_loss(
     filters: &[Filter],
     fs: f64,
-    model: EqResponseModel,
+    target: AutoEqTarget<'_>,
     cos: &[f64],
     desired: &[f32],
 ) -> Result<f32, String> {
-    let mut response = vec![0.0; cos.len()];
-    for filter in filters {
-        accumulate_response_values_cos_for_model(
-            filter.filter_type,
-            filter.freq as f64,
-            filter.gain,
-            filter.q,
-            fs,
-            model,
-            cos,
-            &mut response,
-        )?;
-    }
+    let coefficients = response_coefficients(filters, fs, target)?;
+    let response: Vec<f64> = cos
+        .iter()
+        .map(|&cos| {
+            coefficients
+                .iter()
+                .map(|&c| eval_biquad_mag_squared_db(c, cos) as f64)
+                .sum()
+        })
+        .collect();
     let mean = response
         .iter()
         .zip(desired)
-        .map(|(a, b)| *a as f64 - *b as f64)
+        .map(|(a, b)| *a - *b as f64)
         .sum::<f64>()
         / response.len() as f64;
     let loss = response
         .iter()
         .zip(desired)
-        .map(|(a, b)| (*a as f64 - *b as f64 - mean).powi(2))
+        .map(|(a, b)| (*a - *b as f64 - mean).powi(2))
         .sum::<f64>()
         / response.len() as f64;
     if !loss.is_finite() {
         return Err("AutoEQ realized loss is non-finite".into());
     }
     Ok(loss as f32)
+}
+
+// Prepare the actual encoded cascade once, then reuse it for the dense grid,
+// local peak refinement, and delivered-layout scoring.
+type MagnitudeCoefficients = (f64, f64, f64, f64, f64, f64);
+
+fn response_coefficients(
+    filters: &[Filter],
+    fs: f64,
+    target: AutoEqTarget<'_>,
+) -> Result<Vec<MagnitudeCoefficients>, String> {
+    filters
+        .iter()
+        .filter(|f| f.enabled)
+        .map(|filter| {
+            let c = if let Some(protocol) = target.protocol {
+                protocol.realized_biquad(filter, fs)?
+            } else {
+                compute_biquad_coeffs_for_model(
+                    filter.filter_type,
+                    filter.freq as f64,
+                    filter.gain,
+                    filter.q,
+                    fs,
+                    target.model(),
+                )
+            };
+            let (b0, b1, b2, a0, a1, a2) = c;
+            if [b0, b1, b2, a0, a1, a2].iter().any(|v| !v.is_finite())
+                || a0 <= 0.0
+                || (a2 / a0).abs() >= 1.0
+                || 1.0 + a1 / a0 + a2 / a0 <= 0.0
+                || 1.0 - a1 / a0 + a2 / a0 <= 0.0
+            {
+                return Err("AutoEQ encoded biquad is non-finite or unstable".into());
+            }
+            Ok(biquad_mag_squared_coeffs(c))
+        })
+        .collect()
 }

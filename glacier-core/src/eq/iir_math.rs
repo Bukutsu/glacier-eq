@@ -247,7 +247,7 @@ pub fn accumulate_response_values_cos_for_model(
 }
 
 #[inline]
-fn biquad_mag_squared_coeffs(
+pub(crate) fn biquad_mag_squared_coeffs(
     (b0, b1, b2, a0, a1, a2): (f64, f64, f64, f64, f64, f64),
 ) -> (f64, f64, f64, f64, f64, f64) {
     // Multiply H(z)'s numerator and denominator by z: each becomes
@@ -257,7 +257,7 @@ fn biquad_mag_squared_coeffs(
 }
 
 #[inline]
-fn eval_biquad_mag_squared_db(
+pub(crate) fn eval_biquad_mag_squared_db(
     (sum_b, b1, diff_b, sum_a, a1, diff_a): (f64, f64, f64, f64, f64, f64),
     cos_w: f64,
 ) -> f32 {
