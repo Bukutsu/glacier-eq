@@ -39,7 +39,7 @@ Usage:
   glacier-eq-cli profile save NAME FILE [--yes]
   glacier-eq-cli profile delete NAME --yes
   glacier-eq-cli controls status [--device SELECTOR]
-  glacier-eq-cli controls filter MODE|amp a|ab|gain low|high [--device SELECTOR] --yes
+  glacier-eq-cli controls filter MODE|amp h|ab|gain low|high [--device SELECTOR] --yes
   glacier-eq-cli controls balance -15..15|mic -15..15 [--device SELECTOR] --yes
   glacier-eq-cli controls reset eq|controls|factory [--device SELECTOR] --yes
 
@@ -332,9 +332,9 @@ fn parse_controls(args: &[String]) -> Result<Command, String> {
         Some("status") if args.len() == 1 => ControlAction::Status,
         Some("filter") if args.len() == 2 => ControlAction::Filter(args.remove(1)),
         Some("amp") if args.len() == 2 => ControlAction::Amp(match args[1].as_str() {
-            "a" | "class-a" => false,
+            "h" | "class-h" => false,
             "ab" | "class-ab" => true,
-            _ => return Err("amp mode must be a or ab".into()),
+            _ => return Err("amp mode must be h or ab".into()),
         }),
         Some("gain") if args.len() == 2 => ControlAction::Gain(match args[1].as_str() {
             "low" => false,
@@ -1106,7 +1106,7 @@ fn execute_controls(action: ControlAction, selector: Option<&str>) -> Result<Str
                 "supported,filter_mode,amp_mode,gain_mode,mic_db,balance\n{},{},{},{},{},{}\n",
                 status.supported,
                 status.filter_mode,
-                if status.amp_mode_class_ab { "ab" } else { "a" },
+                if status.amp_mode_class_ab { "ab" } else { "h" },
                 if status.high_gain_mode { "high" } else { "low" },
                 status.mic_volume_db,
                 status.channel_balance

@@ -703,10 +703,10 @@ export const DeviceView = memo(function DeviceView({
 
                 <SegmentedRow
                   title="Amplifier"
-                  desc="Class AB runs cooler and uses less power"
-                  value={utility.amp_mode_class_ab ? "ab" : "a"}
+                  desc="Output stage: Class H or Class AB"
+                  value={utility.amp_mode_class_ab ? "ab" : "h"}
                   options={[
-                    { value: "a", label: "Class A" },
+                    { value: "h", label: "Class H" },
                     { value: "ab", label: "Class AB" },
                   ]}
                   onChange={(value) => handleSetAmpMode(value === "ab")}
