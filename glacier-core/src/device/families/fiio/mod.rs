@@ -183,6 +183,10 @@ fn preset_packet(report_id: u8, command: u8, slot: u8) -> Packet {
 }
 
 impl EqProtocol for FiioProtocol {
+    fn q_step(&self) -> Option<f64> {
+        Some(0.01)
+    }
+
     fn gain_encoding(&self) -> GainEncoding {
         // Signed big-endian tenths of a dB. The band encoder rejects values
         // off that grid, so normalization snaps to it first.
@@ -350,6 +354,17 @@ impl EqProtocol for FiioProtocol {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn exposes_canonical_model_and_writable_q_grid() {
+        for protocol in [JA11_EQ, KA17_EQ, KA_SERIES_EQ] {
+            assert_eq!(
+                protocol.response_model(),
+                crate::eq::iir_math::EqResponseModel::CanonicalQ
+            );
+            assert_eq!(protocol.q_step(), Some(0.01));
+        }
+    }
 
     struct Capture {
         report_id: u8,

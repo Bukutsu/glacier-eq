@@ -6,6 +6,7 @@ use crate::device::packet::{checked_scaled_i16, checked_scaled_u16, Packet};
 use crate::device::protocol::{EqProtocol, GainEncoding, Protocol, Quirks};
 use crate::device::timing::WriteTiming;
 use crate::eq::filter::DEFAULT_FREQS_10_BAND;
+use crate::eq::iir_math::{compute_biquad_coeffs_for_model, EqResponseModel};
 use crate::eq::{Filter, FilterType, PEQData};
 
 // DAWN PRO 2 (35D8:011D), referenced against dawnpro2-studio
@@ -31,9 +32,8 @@ fn enable_all_bands() -> Packet {
     command(0x01, 0x0A, &[0, 0, 0xFF, 0xFF])
 }
 
-// DAWN PRO 2 uses shelf slope in the Q field. The shared Walkplay
-// coefficient designer interprets shelf Q differently, so retain this device's
-// RBJ shelf equations from the pinned reference rather than changing Walkplay.
+// DAWN PRO 2 uses shelf slope in the Q field. Share that designer with
+// response evaluation; keep the device's signed Q30 rounding here.
 fn coefficient_bytes(filter: &Filter, gain: f64) -> Result<[u8; 20], String> {
     if filter.filter_type == FilterType::Peak {
         return compute_iir_filter(
@@ -44,30 +44,16 @@ fn coefficient_bytes(filter: &Filter, gain: f64) -> Result<[u8; 20], String> {
             DSP_SAMPLE_RATE,
         );
     }
-    let amp = 10f64.powf(gain / 40.0);
-    let omega = 2.0 * std::f64::consts::PI * filter.freq as f64 / DSP_SAMPLE_RATE;
-    let c = omega.cos();
-    let alpha = omega.sin() / 2.0 * ((amp + 1.0 / amp) * (1.0 / filter.q - 1.0) + 2.0).sqrt();
-    let sq = 2.0 * amp.sqrt() * alpha;
-    let (b0, b1, b2, a0, a1, a2) = if filter.filter_type == FilterType::LowShelf {
-        (
-            amp * (amp + 1.0 - (amp - 1.0) * c + sq),
-            2.0 * amp * (amp - 1.0 - (amp + 1.0) * c),
-            amp * (amp + 1.0 - (amp - 1.0) * c - sq),
-            amp + 1.0 + (amp - 1.0) * c + sq,
-            -2.0 * (amp - 1.0 + (amp + 1.0) * c),
-            amp + 1.0 + (amp - 1.0) * c - sq,
-        )
-    } else {
-        (
-            amp * (amp + 1.0 + (amp - 1.0) * c + sq),
-            -2.0 * amp * (amp - 1.0 + (amp + 1.0) * c),
-            amp * (amp + 1.0 + (amp - 1.0) * c - sq),
-            amp + 1.0 - (amp - 1.0) * c + sq,
-            2.0 * (amp - 1.0 - (amp + 1.0) * c),
-            amp + 1.0 - (amp - 1.0) * c - sq,
-        )
-    };
+    let model = EqResponseModel::MoondropShelfSlope;
+    model.validate_parameters(filter.filter_type, gain, filter.q)?;
+    let (b0, b1, b2, a0, a1, a2) = compute_biquad_coeffs_for_model(
+        filter.filter_type,
+        filter.freq as f64,
+        gain,
+        filter.q,
+        DSP_SAMPLE_RATE,
+        model,
+    );
     let mut bytes = [0; 20];
     for (index, value) in [b0, b1, b2, a1, a2].into_iter().enumerate() {
         let rounded = (value / a0 * (1u64 << 30) as f64 + 0.5).floor();
@@ -81,6 +67,14 @@ fn coefficient_bytes(filter: &Filter, gain: f64) -> Result<[u8; 20], String> {
 }
 
 impl EqProtocol for MoondropProtocol {
+    fn q_step(&self) -> Option<f64> {
+        Some(1.0 / 256.0)
+    }
+
+    fn response_model(&self) -> EqResponseModel {
+        EqResponseModel::MoondropShelfSlope
+    }
+
     fn gain_encoding(&self) -> GainEncoding {
         GainEncoding {
             band_units_per_db: 256.0,
@@ -341,6 +335,82 @@ mod tests {
         }
     }
 
+    // Independent shelf equations retained from the original writer.
+    fn reference_shelf_coefficients(filter: &Filter, gain: f64) -> (f64, f64, f64, f64, f64, f64) {
+        let amp = 10f64.powf(gain / 40.0);
+        let omega = 2.0 * std::f64::consts::PI * filter.freq as f64 / DSP_SAMPLE_RATE;
+        let c = omega.cos();
+        let alpha = omega.sin() / 2.0 * ((amp + 1.0 / amp) * (1.0 / filter.q - 1.0) + 2.0).sqrt();
+        let sq = 2.0 * amp.sqrt() * alpha;
+        let (b0, b1, b2, a0, a1, a2) = if filter.filter_type == FilterType::LowShelf {
+            (
+                amp * (amp + 1.0 - (amp - 1.0) * c + sq),
+                2.0 * amp * (amp - 1.0 - (amp + 1.0) * c),
+                amp * (amp + 1.0 - (amp - 1.0) * c - sq),
+                amp + 1.0 + (amp - 1.0) * c + sq,
+                -2.0 * (amp - 1.0 + (amp + 1.0) * c),
+                amp + 1.0 + (amp - 1.0) * c - sq,
+            )
+        } else {
+            (
+                amp * (amp + 1.0 + (amp - 1.0) * c + sq),
+                -2.0 * amp * (amp - 1.0 + (amp + 1.0) * c),
+                amp * (amp + 1.0 + (amp - 1.0) * c - sq),
+                amp + 1.0 - (amp - 1.0) * c + sq,
+                2.0 * (amp - 1.0 - (amp + 1.0) * c),
+                amp + 1.0 - (amp - 1.0) * c - sq,
+            )
+        };
+        (b0, b1, b2, a0, a1, a2)
+    }
+
+    #[test]
+    fn shelf_model_matches_original_writer_at_valid_slopes() {
+        for filter_type in [FilterType::LowShelf, FilterType::HighShelf] {
+            for freq in [20, 1000, 20000] {
+                for gain in [-18.0, -3.0, 0.0, 3.0, 12.0] {
+                    for q in [0.1, 0.75, 1.0, 1.1] {
+                        let filter = Filter {
+                            filter_type,
+                            freq,
+                            gain,
+                            q,
+                            ..reference_filter()
+                        };
+                        let expected = reference_shelf_coefficients(&filter, gain);
+                        let actual = compute_biquad_coeffs_for_model(
+                            filter_type,
+                            freq as f64,
+                            gain,
+                            q,
+                            DSP_SAMPLE_RATE,
+                            EqResponseModel::MoondropShelfSlope,
+                        );
+                        for (actual, expected) in
+                            [actual.0, actual.1, actual.2, actual.3, actual.4, actual.5]
+                                .into_iter()
+                                .zip([
+                                    expected.0, expected.1, expected.2, expected.3, expected.4,
+                                    expected.5,
+                                ])
+                        {
+                            assert!((actual - expected).abs() < 1e-12);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn exposes_shelf_model_and_writable_q_grid() {
+        assert_eq!(
+            MoondropProtocol.response_model(),
+            EqResponseModel::MoondropShelfSlope
+        );
+        assert_eq!(MoondropProtocol.q_step(), Some(1.0 / 256.0));
+    }
+
     #[test]
     fn band_frames_match_reference_coefficients_and_official_offsets() {
         let cases: [(FilterType, &[u8; 64]); 3] = [
@@ -475,7 +545,8 @@ mod tests {
         filter.q = 10.0; // shelf slope produces a negative square-root argument
         assert!(MoondropProtocol
             .write_filter_packets(0, &filter, DSP_SAMPLE_RATE, 0.0)
-            .is_err());
+            .unwrap_err()
+            .contains("shelf slope"));
     }
 
     #[test]

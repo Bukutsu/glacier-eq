@@ -6,6 +6,7 @@
 
 use crate::device::packet::Packet;
 use crate::device::timing::WriteTiming;
+use crate::eq::iir_math::EqResponseModel;
 use crate::eq::{Filter, PEQData};
 
 /// A protocol family as the rest of the app sees it. Each family exports
@@ -79,6 +80,15 @@ pub struct GainEncoding {
 
 pub trait EqProtocol: Sync {
     fn gain_encoding(&self) -> GainEncoding;
+    /// Coefficient convention used by the DAC, independent of wire precision.
+    fn response_model(&self) -> EqResponseModel {
+        EqResponseModel::CanonicalQ
+    }
+    /// Writable Q/shelf-slope grid, not the rounded readback resolution.
+    /// Gain and preamp grids are described by `gain_encoding`.
+    fn q_step(&self) -> Option<f64> {
+        None
+    }
     fn write_timing(&self) -> WriteTiming;
     /// Re-send an unanswered read request after this many attempts instead of
     /// only re-reading. `None` preserves send-once behavior. A dropped request

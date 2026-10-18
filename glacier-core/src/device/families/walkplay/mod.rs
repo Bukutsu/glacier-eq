@@ -240,6 +240,10 @@ impl WalkplayProtocol {
 }
 
 impl EqProtocol for WalkplayProtocol {
+    fn q_step(&self) -> Option<f64> {
+        Some(1.0 / 256.0)
+    }
+
     fn gain_encoding(&self) -> GainEncoding {
         GainEncoding {
             band_units_per_db: 256.0,
@@ -349,6 +353,15 @@ mod tests {
             gain,
             q,
         }
+    }
+
+    #[test]
+    fn exposes_canonical_model_and_writable_q_grid() {
+        assert_eq!(
+            WalkplayProtocol.response_model(),
+            crate::eq::iir_math::EqResponseModel::CanonicalQ
+        );
+        assert_eq!(WalkplayProtocol.q_step(), Some(1.0 / 256.0));
     }
 
     #[test]
