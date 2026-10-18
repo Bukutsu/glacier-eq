@@ -22,6 +22,9 @@ before opening. Queued work must still match the session and component lifetime.
 
 ## JA11 and JA11-protocol devices
 
+JA11 is listed as tested, on JA11 firmware, from community tester reports. Stock
+JM12 firmware and other variants are not covered by those reports.
+
 JA11 USB audio modes use `2972:0101` and `2972:0102`. Stock JCally JM12 has
 a separate catalog entry; a JM12 with JA11 firmware must be identified by the
 USB identity it actually exposes.
@@ -78,6 +81,22 @@ promise an all-or-nothing restore of EQ and controls.
 An unanswered global-preamp request may be resent, but its reply has no nonce.
 An additional independent read must agree before that value is trusted.
 Contradiction or another resend during confirmation fails closed.
+
+## Walkplay live apply
+
+Temporary apply is the first commit step alone: `01 0a 04 00 00 ff ff`. It
+loads the written bands without the flash save (`01 01 00`). The vendor's web
+tools send it on every edit and send the flash save only on Save; devicePEQ's
+capture of peq.szwalkplay.com (an EPZ TP13, scheme 11) shows the same pattern.
+devicePEQ drives vendor IDs `0661`, `0666`, `0d8c` and `3302` with one
+handler, so every Walkplay catalog entry on those IDs has temporary apply. Fosi
+and iBasso (`262a`) appear in neither source and stay off.
+
+With Live apply on, the app writes all bands, the preamp and the temp apply
+about 100 ms after an edit, without a backup read, verification or rollback,
+then saves once edits have paused for 3 seconds. A failed live write leaves the
+stored EQ untouched. Only the EPZ TP35 Pro was checked on hardware; whether the
+temporary EQ is dropped by a physical power cycle was not tested here.
 
 ## Hardware evidence and limits
 

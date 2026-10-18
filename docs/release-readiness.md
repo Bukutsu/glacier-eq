@@ -90,6 +90,10 @@ every distribution.
 - The Walkplay timing/reset measurements apply to EPZ TP35 Pro on Linux.
   Other devices need their own checks.
 - TP35 control persistence after a physical power cycle is not established.
+- Walkplay live apply was checked on the EPZ TP35 Pro only. Other Walkplay
+  DACs are enabled from the vendor tools' packets and devicePEQ's shared
+  handler, and Fosi / iBasso is excluded. Whether a power cycle drops a
+  temporary EQ was not tested.
 - TP35 microphone readback differs by 1 dB for some values; the discrepancy
   remains unresolved.
 - The new reset-verification checks have source-level fault-injection coverage,

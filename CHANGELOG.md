@@ -9,6 +9,7 @@
 
 ### Changed
 
+- FiiO JA11 is now listed as tested (both USB audio mode IDs), from community tester reports on JA11 firmware. JM12 and the KA series stay untested.
 - The Walkplay temporary apply now sends only the RAM load. It used to send the flash save as well, so Walkplay was kept off the temporary-apply list. Every Walkplay DAC except the Fosi / iBasso entry is now on it, so Profiles can apply temporarily there too.
 
 ## [0.15.0] - 2026-10-18

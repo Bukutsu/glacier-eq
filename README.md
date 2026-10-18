@@ -25,6 +25,11 @@ Loading a profile changes the editor, not the DAC. Use **Write to DAC**
 (**Save to DAC** on mobile) to save the editor's EQ to the device.
 Compatible DACs also offer a temporary apply action without saving to flash.
 
+On Walkplay DACs, turn on **Live apply** in Settings > General to hear edits
+as you make them. Each edit goes to the DAC about a tenth of a second later,
+and the app saves to the DAC once you pause, so the Write button is hidden
+while it is on. It is off by default.
+
 **Default EQ** is a read-only, flat built-in profile. Load it as a starting
 point or to prepare a flat EQ to send to the DAC. You can edit the loaded EQ,
 but save those changes under a new profile name. The filled profile row marks
@@ -67,10 +72,10 @@ Plug in your DAC and check whether it appears in the app. Some supported devices
 
 | Status | Devices |
 | --- | --- |
-| Tested | EPZ TP35 Pro (TP35Pro), TRN Black Pearl |
+| Tested | EPZ TP35 Pro (TP35Pro), TRN Black Pearl, FiiO JA11 |
 | Tested, sound controls only (no hardware EQ) | Moondrop Dawn Pro |
 | Supported, untested | Moondrop Dawn Pro 2 |
-| Supported, untested | FiiO JA11, FiiO KA series (KA5, KA13, etc.) |
+| Supported, untested | FiiO KA series (KA5, KA13, etc.) |
 | Supported, untested | Truthear KEYX |
 | Supported, untested | JCally JM20 / JM20 Pro, JCally JM12 |
 | Supported, untested | Fosi Audio DS2 |
@@ -82,8 +87,13 @@ See the [full device list](https://github.com/Bukutsu/glacier-eq/wiki/Supported-
 
 Recent Walkplay transfer timing and control-reset changes were checked on a
 physical EPZ TP35 Pro on Linux. That does not verify other Walkplay devices or
-Windows runtime behavior. JA11-firmware tester reports do not establish
-coverage of every original JA11 or stock JM12 firmware variant.
+Windows runtime behavior. JA11 was tested by community testers on JA11
+firmware; that does not establish coverage of every original JA11 or stock
+JM12 firmware variant.
+
+Live apply is on for every Walkplay DAC above except Fosi and iBasso. It uses
+the same temporary-apply packet the vendor's web tools send, and was checked
+on a physical EPZ TP35 Pro only.
 
 ## Development
 
