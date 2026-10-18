@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Run makepkg on a copy of PKGBUILD. makepkg rewrites pkgver in the PKGBUILD it
+# runs from, which would dirty the tracked file. The build itself still happens
+# in this checkout, and the package lands in the repository root.
+set -euo pipefail
+root=$(git -C "$(dirname "$0")" rev-parse --show-toplevel)
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+cp "$root/PKGBUILD" "$tmp/PKGBUILD"
+cd "$tmp"
+GLACIER_SRC=$root PKGDEST=$root makepkg "$@"

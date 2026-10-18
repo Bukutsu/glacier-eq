@@ -3,6 +3,8 @@
 
 pkgname=glacier-eq-git
 # VCS package: pkgver() below replaces this fallback with the exact checkout revision.
+# makepkg writes that value back into this file, so build with scripts/makepkg-local
+# (a copy) to keep the tracked file unchanged.
 pkgver=0
 pkgrel=1
 pkgdesc="Cross-platform parametric EQ editor for USB DACs. Runs offline and works directly with the hardware, on desktop and Android."
@@ -48,7 +50,7 @@ conflicts=('glacier-eq')
 source=()
 sha256sums=()
 
-_origin="${PWD}"
+_origin="${GLACIER_SRC:-$PWD}"
 
 pkgver() {
   cd "$_origin"

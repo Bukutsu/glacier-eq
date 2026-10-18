@@ -40,8 +40,9 @@ Before tagging:
 - Resolve confirmed release findings and record remaining hardware/platform gaps.
 - Run both verification commands and both frontend builds.
 - Move the relevant Unreleased notes into the versioned changelog section.
-- Check the working tree after verification. Build tooling can update the
-  PKGBUILD fallback version; do not include that generated change accidentally.
+- Check the working tree after verification. `makepkg` rewrites `pkgver` in the
+  PKGBUILD it runs from; use `scripts/makepkg-local` to build the Arch package
+  without touching the tracked file, and do not commit that change by accident.
 
 Source tests, browser checks, and physical device checks are separate evidence.
 A successful dummy-DAC run does not establish USB reliability. Record the DAC,
