@@ -68,20 +68,26 @@ If you have trouble connecting on Linux, see the [setup and troubleshooting guid
 
 ## Supported devices
 
-Plug in your DAC and check whether it appears in the app. Some supported devices have not been tested yet.
+Find your brand below. Plug in your DAC and check that it appears in the app.
 
-| Status | Devices |
-| --- | --- |
-| Tested | EPZ TP35 Pro (TP35Pro), TRN Black Pearl, FiiO JA11 |
-| Tested, sound controls only (no hardware EQ) | Moondrop Dawn Pro |
-| Supported, untested | Moondrop Dawn Pro 2 |
-| Supported, untested | FiiO KA series (KA5, KA13, etc.) |
-| Supported, untested | Truthear KEYX |
-| Supported, untested | JCally JM20 / JM20 Pro, JCally JM12 |
-| Supported, untested | Fosi Audio DS2 |
-| Supported, untested | iBasso DC04 Pro |
-| Supported, untested | Audiocular Aura |
-| Supported, untested | Other Savitech/Walkplay-based DAC dongles |
+| Brand | Model | Status |
+| --- | --- | --- |
+| Audiocular | Aura | Untested |
+| EPZ | TP35 Pro (TP35Pro) | **Tested** |
+| FiiO | JA11 | **Tested** |
+| | KA series (KA5, KA13, etc.) | Untested |
+| Fosi Audio | DS2 | Untested |
+| iBasso | DC04 Pro | Untested |
+| JCally | JM12 | Untested |
+| | JM20 / JM20 Pro | Untested |
+| Moondrop | Dawn Pro | **Tested**, sound controls only (no hardware EQ) |
+| | Dawn Pro 2 | Untested |
+| TRN | Black Pearl | **Tested** |
+| Truthear | KEYX | Untested |
+
+**Untested** means the app supports the device, but nobody has confirmed it on real hardware yet. It may work. If you try one, please [tell us how it went](https://github.com/Bukutsu/glacier-eq/issues).
+
+Not listed? Other Savitech/Walkplay-based DAC dongles may also work. Plug yours in and see.
 
 See the [full device list](https://github.com/Bukutsu/glacier-eq/wiki/Supported-Devices) on the wiki.
 
