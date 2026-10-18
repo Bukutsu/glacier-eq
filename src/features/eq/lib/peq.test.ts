@@ -9,6 +9,8 @@ import {
   buildDefaultState,
   peqEquals,
   DEFAULT_FREQS_10_BAND,
+  defaultBandFreq,
+  bandForAdd,
 } from "./peq";
 
 const CAPS: DeviceCapabilities = {
@@ -23,6 +25,53 @@ const CAPS: DeviceCapabilities = {
   dsp_sample_rate: 48000,
   integer_preamp: false,
 };
+
+describe("defaultBandFreq", () => {
+  it("spreads 5- and 8-band devices across the audible range", () => {
+    const five = [0, 1, 2, 3, 4].map((i) => defaultBandFreq(i, 5));
+    const eight = [0, 1, 2, 3, 4, 5, 6, 7].map((i) => defaultBandFreq(i, 8));
+    expect(five).toEqual([63, 250, 1000, 4000, 12500]);
+    expect(eight[0]).toBe(31);
+    expect(eight[7]).toBe(16000);
+    expect([...eight].sort((a, b) => a - b)).toEqual(eight);
+  });
+
+  it("keeps the 10-band defaults for 10 bands and 1 kHz past the end", () => {
+    expect(defaultBandFreq(0, 10)).toBe(31);
+    expect(defaultBandFreq(9, 10)).toBe(16000);
+    expect(defaultBandFreq(12, 10)).toBe(1000);
+  });
+});
+
+describe("bandForAdd", () => {
+  const caps = { num_bands: 5, freq_range: [20, 20000] as [number, number] };
+  const flat = {
+    index: 4,
+    enabled: false,
+    filter_type: "Peak" as const,
+    freq: 500,
+    gain: 0,
+    q: 1,
+  };
+
+  it("moves an untuned band to the device's starting frequency", () => {
+    expect(bandForAdd(flat, caps)).toEqual({
+      ...flat,
+      enabled: true,
+      freq: 12500,
+    });
+  });
+
+  it("keeps the settings of a band that has gain", () => {
+    const tuned = { ...flat, gain: 3, freq: 700 };
+    expect(bandForAdd(tuned, caps)).toEqual({ ...tuned, enabled: true });
+  });
+
+  it("clamps the starting frequency to the device range", () => {
+    const narrow = { num_bands: 5, freq_range: [20, 8000] as [number, number] };
+    expect(bandForAdd(flat, narrow).freq).toBe(8000);
+  });
+});
 
 describe("normalizePeq", () => {
   it("returns a 10-band default state for empty input", () => {

@@ -14,7 +14,7 @@ import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
 import { filterColorVars } from "@/features/eq/lib/filterColors";
 import { formatFreq, snapFreqToIsoSync } from "@/features/eq/lib/graph";
-import { clampToRange } from "@/features/eq/lib/peq";
+import { bandForAdd, clampToRange } from "@/features/eq/lib/peq";
 
 const FREQ_SLIDER_STEPS = 1000;
 const Q_SLIDER_STEPS = 1000;
@@ -101,9 +101,37 @@ function constrainFreq(
   );
 }
 
-/** Steps frequency along the (optionally ISO-snapped) grid with guaranteed
- *  progress: snapping can cancel a plain ±step at an ISO center
- *  (1000 + 50 → snap → 1000), so advance until the snapped value moves. */
+// Frequency steps are ratios, like the log slider and graph: 1/12 octave for
+// a step, 1/3 octave for a large step. A fixed ±50 Hz was more than an octave
+// at 20 Hz and invisible at 10 kHz.
+const FREQ_STEP_RATIO = 2 ** (1 / 12);
+const FREQ_LARGE_STEP_RATIO = 2 ** (1 / 3);
+
+/** The frequency one step from `freq`, or `freq` itself at the range edge.
+ *  Guarantees progress: rounding (20 Hz × 1.06 → 21) or ISO snapping can
+ *  cancel a small step, so advance until the constrained value moves. */
+export function nextFreq(
+  freq: number,
+  direction: 1 | -1,
+  largeStep: boolean,
+  range: [number, number],
+  snapToIso: boolean | undefined,
+): number {
+  const ratio = largeStep ? FREQ_LARGE_STEP_RATIO : FREQ_STEP_RATIO;
+  const current = snapToIso ? snapFreqToIsoSync(freq) : freq;
+  let candidate = freq;
+  let next = current;
+  for (let guard = 0; guard < 400 && next === current; guard++) {
+    candidate =
+      direction > 0
+        ? Math.max(candidate + 1, Math.round(candidate * ratio))
+        : Math.min(candidate - 1, Math.round(candidate / ratio));
+    next = constrainFreq(candidate, range, snapToIso);
+    if (candidate < range[0] || candidate > range[1]) break;
+  }
+  return next;
+}
+
 function makeFreqStepper(
   filter: Filter,
   range: [number, number],
@@ -111,22 +139,9 @@ function makeFreqStepper(
   onChange: (index: number, filter: Filter) => void,
 ) {
   return (direction: 1 | -1, largeStep: boolean) => {
-    const stepSize = largeStep ? 500 : 50;
-    const current = snapToIso ? snapFreqToIsoSync(filter.freq) : filter.freq;
-    let candidate = filter.freq + direction * stepSize;
-    let snapped = constrainFreq(candidate, range, snapToIso);
-    let guard = 0;
-    while (
-      snapped === current &&
-      candidate >= range[0] &&
-      candidate <= range[1] &&
-      guard++ < 400
-    ) {
-      candidate += direction * stepSize;
-      snapped = constrainFreq(candidate, range, snapToIso);
-    }
-    if (snapped !== filter.freq) {
-      onChange(filter.index, { ...filter, freq: snapped });
+    const freq = nextFreq(filter.freq, direction, largeStep, range, snapToIso);
+    if (freq !== filter.freq) {
+      onChange(filter.index, { ...filter, freq });
     }
   };
 }
@@ -197,7 +212,7 @@ export const Bands = memo(function Bands({
     if (!next) return;
     onActiveBandChange?.(next.index);
     onStartChange();
-    onFilterChange(next.index, { ...next, enabled: true });
+    onFilterChange(next.index, bandForAdd(next, capabilities));
     onEndChange?.();
   };
 
@@ -252,6 +267,12 @@ export const Bands = memo(function Bands({
       {!selectedFilter && (
         <div className="bands-empty">
           <p>No bands yet. The EQ is flat.</p>
+          <p className="bands-limits">
+            Up to {capabilities.num_bands} bands:{" "}
+            {capabilities.supported_filter_types
+              .map((type) => TYPE_NAMES[type])
+              .join(", ")}
+          </p>
           <Button
             variant="primary"
             onClick={addFilter}
@@ -637,7 +658,8 @@ const BandControls = memo(
             onChange={(val) =>
               onChange(filter.index, {
                 ...filter,
-                freq: constrainFreq(val, capabilities.freq_range, snapToIso),
+                // Typed values are exact; only dragging and stepping snap.
+                freq: constrainFreq(val, capabilities.freq_range, false),
               })
             }
             onStep={makeFreqStepper(

@@ -4,6 +4,38 @@ export const DEFAULT_FREQS_10_BAND = [
   31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000,
 ];
 
+// Starting frequencies for devices with fewer than 10 bands, spread over the
+// audible range so filling every slot covers it (ISO 1/3-octave centers).
+const SPREAD_FREQS: Partial<Record<number, readonly number[]>> = {
+  5: [63, 250, 1000, 4000, 12500],
+  8: [31, 80, 200, 500, 1250, 3150, 8000, 16000],
+};
+
+/** Starting frequency for band `index` on a device with `numBands` bands. */
+export function defaultBandFreq(index: number, numBands: number): number {
+  const freqs = SPREAD_FREQS[numBands] ?? DEFAULT_FREQS_10_BAND;
+  return freqs[index] ?? 1000;
+}
+
+/**
+ * The filter to store when a user adds band `filter`. A band the user has
+ * not tuned (0 dB gain) gets the device's spread starting frequency; a band
+ * with real settings keeps them.
+ */
+export function bandForAdd(
+  filter: PEQData["filters"][number],
+  capabilities: Pick<DeviceCapabilities, "num_bands" | "freq_range">,
+): PEQData["filters"][number] {
+  const freq =
+    filter.gain === 0
+      ? clampToRange(
+          defaultBandFreq(filter.index, capabilities.num_bands),
+          capabilities.freq_range,
+        )
+      : filter.freq;
+  return { ...filter, enabled: true, freq };
+}
+
 // Name of the synthetic "reset to flat" profile shown first in the library.
 export const DEFAULT_PROFILE_NAME = "Default EQ";
 

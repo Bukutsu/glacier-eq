@@ -1,7 +1,7 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { Bands } from "./Bands";
+import { Bands, nextFreq } from "./Bands";
 import {
   buildDevDummyPeq,
   DEV_DUMMY_DEVICE,
@@ -40,6 +40,38 @@ function renderEditor(props: Partial<Parameters<typeof Bands>[0]> = {}) {
   );
   return html.split('<section class="bands-mobile-editor">')[1];
 }
+
+describe("nextFreq", () => {
+  const range: [number, number] = [20, 20000];
+
+  it("steps by a ratio, so small at 20 Hz and visible at 10 kHz", () => {
+    expect(nextFreq(20, 1, false, range, false)).toBe(21);
+    expect(nextFreq(10000, 1, false, range, false)).toBe(10595);
+    expect(nextFreq(1000, 1, true, range, false)).toBe(1260);
+    expect(nextFreq(1000, -1, false, range, false)).toBe(944);
+  });
+
+  it("always makes progress at low frequencies", () => {
+    let freq = 20;
+    for (let i = 0; i < 5; i++) {
+      const next = nextFreq(freq, 1, false, range, false);
+      expect(next).toBeGreaterThan(freq);
+      freq = next;
+    }
+  });
+
+  it("moves to the next ISO center when snapping", () => {
+    expect(nextFreq(1000, 1, false, range, true)).toBe(1250);
+    expect(nextFreq(1000, -1, false, range, true)).toBe(800);
+  });
+
+  it("stays put at the range edges", () => {
+    expect(nextFreq(20000, 1, false, range, false)).toBe(20000);
+    expect(nextFreq(20, -1, false, range, false)).toBe(20);
+    expect(nextFreq(20000, 1, true, range, true)).toBe(20000);
+    expect(nextFreq(20, -1, true, range, true)).toBe(20);
+  });
+});
 
 describe("Band editor markup", () => {
   it("shows all 4 controls side by side on desktop without disclosure", () => {
@@ -148,6 +180,10 @@ describe("Band editor markup", () => {
     );
     expect(html).not.toContain("bands-mobile-editor");
     expect(html).toContain("No bands yet. The EQ is flat.");
+    expect(html).toMatch(
+      new RegExp(`Up to ${DEV_DUMMY_DEVICE.num_bands} bands:(?:<!-- -->)? `),
+    );
+    expect(html).toContain("Bell");
     expect(html).toContain("Add band");
     expect(html).not.toContain("Band 1");
   });

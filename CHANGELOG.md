@@ -9,6 +9,10 @@
 
 ### Changed
 
+- Adding a band on a 5- or 8-band DAC now starts it at a frequency spread across the audible range (for example 63 Hz to 12.5 kHz on 5 bands) instead of the 10-band bass-heavy list. A band you have already tuned keeps its settings.
+- A frequency typed into the band's number box is kept exactly. ISO snapping now applies only to dragging and the arrow steps, so typing 3500 no longer becomes 3150.
+- The frequency box steps by ratio (1/12 octave, or 1/3 octave for large steps) instead of a fixed 50/500 Hz, so steps are usable at both 20 Hz and 10 kHz.
+- The empty EQ editor now says how many bands the current DAC has and which filter types it supports.
 - FiiO JA11 is now listed as tested (both USB audio mode IDs), from community tester reports on JA11 firmware. JM12 and the KA series stay untested.
 - The Walkplay temporary apply now sends only the RAM load. It used to send the flash save as well, so Walkplay was kept off the temporary-apply list. Every Walkplay DAC except the Fosi / iBasso entry is now on it, so Profiles can apply temporarily there too.
 
