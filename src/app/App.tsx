@@ -347,7 +347,9 @@ function App() {
     addMeasurement,
     removeMeasurement,
     toggleMeasurement,
+    selectMeasurementOnly,
     toggleTarget,
+    selectTargetOnly,
     addTarget,
     removeTarget,
   } = useTraces(showToast);
@@ -874,6 +876,8 @@ function App() {
                     onAddMeasurement={addMeasurement}
                     onAddTarget={addTarget}
                     onSelectedMeasurementChange={setSelectedMeasurementId}
+                    onSelectMeasurementOnly={selectMeasurementOnly}
+                    onSelectTargetOnly={selectTargetOnly}
                     maxBands={maxFilterBands}
                     dspSampleRate={capabilities.dsp_sample_rate}
                     getAsyncContext={getAsyncContext}
@@ -1082,6 +1086,8 @@ function App() {
                 activeTargetIds={activeTargetIds}
                 onAddMeasurement={addMeasurement}
                 onSelectedMeasurementChange={setSelectedMeasurementId}
+                onSelectMeasurementOnly={selectMeasurementOnly}
+                onSelectTargetOnly={selectTargetOnly}
                 graphViewMode={graphViewMode}
                 onGraphViewModeChange={setGraphViewMode}
                 settings={settings}

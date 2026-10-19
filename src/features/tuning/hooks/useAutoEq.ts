@@ -18,6 +18,13 @@ export interface AutoEqOptions {
   onSelectedMeasurementChange?: (measurementId: string | null) => void;
   onToggleMeasurement?: (id: string) => void;
   onToggleTarget?: (id: string) => void;
+  /**
+   * Make one measurement the graph's only visible curve, and one target the
+   * only active one. The tuning panel passes these so its dropdowns own the
+   * graph view; without them the hook falls back to plain toggling.
+   */
+  onSelectMeasurementOnly?: (id: string) => void;
+  onSelectTargetOnly?: (id: string) => void;
   maxBands?: number;
   dspSampleRate?: number;
   getAsyncContext: () => AsyncContext;
@@ -32,6 +39,8 @@ export function useAutoEq({
   onSelectedMeasurementChange,
   onToggleMeasurement,
   onToggleTarget,
+  onSelectMeasurementOnly,
+  onSelectTargetOnly,
   maxBands = 10,
   dspSampleRate = 96000,
   getAsyncContext,
@@ -100,6 +109,26 @@ export function useAutoEq({
   const [localMeasId, setLocalMeasId] = useState<string>("");
   const [localTargetId, setLocalTargetId] = useState<string>("");
 
+  const applyMeasurementSelection = (id: string) => {
+    setLocalMeasId(id);
+    if (onSelectMeasurementOnly) {
+      onSelectMeasurementOnly(id);
+    } else if (!measurements.some((m) => m.id === id && m.visible)) {
+      // Without an exclusive selection callback, fall back to revealing the
+      // chosen input (same as the target side).
+      onToggleMeasurement?.(id);
+    }
+  };
+
+  const applyTargetSelection = (id: string) => {
+    setLocalTargetId(id);
+    if (onSelectTargetOnly) {
+      onSelectTargetOnly(id);
+    } else if (!activeTargetIds.includes(id)) {
+      onToggleTarget?.(id);
+    }
+  };
+
   // Sync default measurement selection
   useEffect(() => {
     if (localMeasId && measurements.some((m) => m.id === localMeasId)) {
@@ -107,13 +136,16 @@ export function useAutoEq({
     }
     const visible = measurements.find((m) => m.visible);
     if (visible) {
-      setLocalMeasId(visible.id);
+      // Adopt one default as the graph's measurement so its dropdown, the
+      // graph, and the Generate EQ input agree from the start.
+      if (onSelectMeasurementOnly) onSelectMeasurementOnly(visible.id);
+      else setLocalMeasId(visible.id);
     } else if (measurements.length > 0) {
       setLocalMeasId(measurements[0].id);
     } else {
       setLocalMeasId("");
     }
-  }, [measurements, localMeasId]);
+  }, [measurements, localMeasId, onSelectMeasurementOnly]);
 
   // Sync default target selection
   useEffect(() => {
@@ -122,13 +154,17 @@ export function useAutoEq({
     }
     const active = allTargets.find((t) => activeTargetIds.includes(t.id));
     if (active) {
-      setLocalTargetId(active.id);
+      // Same adoption as the measurement side: the tuning panel's target is
+      // the graph's target unless the user overrides it from the curve
+      // manager.
+      if (onSelectTargetOnly) onSelectTargetOnly(active.id);
+      else setLocalTargetId(active.id);
     } else if (allTargets.length > 0) {
       setLocalTargetId(allTargets[0].id);
     } else {
       setLocalTargetId("");
     }
-  }, [allTargets, activeTargetIds, localTargetId]);
+  }, [allTargets, activeTargetIds, localTargetId, onSelectTargetOnly]);
 
   // Sync selected measurement to parent for graph highlighting
   useEffect(() => {
@@ -148,24 +184,18 @@ export function useAutoEq({
     null;
 
   const handleMeasChange = (id: string) => {
+    const current = measurements.find((m) => m.id === localMeasId);
+    if (id === localMeasId && current?.visible) return;
     invalidateRequest();
-    setLocalMeasId(id);
-    const m = measurements.find((x) => x.id === id);
-    if (m) {
-      if (!m.visible) {
-        onToggleMeasurement?.(id);
-      }
-      onSelectedMeasurementChange?.(id);
-    }
+    applyMeasurementSelection(id);
   };
 
   const handleTargetChange = (id: string) => {
+    // Bail out when the dropdown already shows this target, so re-picking it
+    // cannot invalidate a result or re-hide curves the user turned back on.
+    if (id === localTargetId && activeTargetIds.includes(id)) return;
     invalidateRequest();
-    setLocalTargetId(id);
-    // Reveal the chosen input without hiding curves the user is comparing.
-    if (!activeTargetIds.includes(id)) {
-      onToggleTarget?.(id);
-    }
+    applyTargetSelection(id);
   };
 
   const handleRunAutoEq = async () => {

@@ -12,6 +12,7 @@
 
 - Adding a band on a 5- or 8-band DAC now starts it at a frequency spread across the audible range (for example 63 Hz to 12.5 kHz on 5 bands) instead of the 10-band bass-heavy list. A band you have already tuned keeps its settings.
 - A frequency typed into the band's number box is kept exactly. ISO snapping now applies only to dragging and the arrow steps, so typing 3500 no longer becomes 3150.
+- The Tuning tab's graph now follows its AutoEQ dropdowns: choosing a measurement or target makes it the only curve shown, so switching inputs leaves the measurement and target pair instead of piling up curves. The graph's Curves menu still turns any other curve back on.
 - The frequency box steps by ratio (1/12 octave, or 1/3 octave for large steps) instead of a fixed 50/500 Hz, so steps are usable at both 20 Hz and 10 kHz.
 - The Profiles tab is quieter and shows more: every saved profile has its own rename and delete buttons (and apply-to-DAC when connected), so you no longer load a profile first to manage it. The editor card shows Save, Discard, Export, and Copy directly instead of behind a menu.
 - The empty EQ editor now says how many bands the current DAC has and which filter types it supports.

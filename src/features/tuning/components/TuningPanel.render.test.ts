@@ -177,7 +177,9 @@ describe("Tuning workflow", () => {
     expect(html).toContain('name="autoeq-fs" value="48000"');
   });
 
-  it("keeps selected EQ inputs independent from graph visibility", () => {
+  it("keeps the selected measurement usable even when its curve is not shown", () => {
+    // The graph follows the AutoEQ dropdown and the curve manager overrides
+    // it; hiding a measurement never blocks it as the optimization input.
     const html = render({
       measurements: [{ ...measurement, visible: false }],
       activeTargetIds: [BUILTIN_TARGETS[1].id],

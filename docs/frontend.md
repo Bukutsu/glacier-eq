@@ -103,6 +103,10 @@ overflow actions. It shares profile operations, not the desktop view or its
 layout selectors. Keep mobile controls at least 44 px and test at 320 px with
 long names. AutoEQ import validates the parser's wrapped response through
 `features/profiles/lib/profileImport.ts` and retains clamp warnings.
+The Tuning tab's AutoEQ dropdowns own its graph view: picking a measurement or
+target makes it the only curve shown, through the exclusive selection handlers
+in `useTraces`. The Curves menu remains the manual override and is not
+re-applied when the dropdown selection itself did not change.
 Only the current profile uses a filled selection background.
 
 ## Adding UI

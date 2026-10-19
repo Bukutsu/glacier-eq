@@ -53,6 +53,8 @@ interface ToolsPanelProps {
   allTargets?: TargetTrace[];
   activeTargetIds?: string[];
   onSelectedMeasurementChange?: (measurementId: string | null) => void;
+  onSelectMeasurementOnly?: (measurementId: string) => void;
+  onSelectTargetOnly?: (targetId: string) => void;
   settings: AppSettings;
   onSettingChange: <K extends keyof AppSettings>(
     key: K,
@@ -120,6 +122,8 @@ export const ToolsPanel = memo(function ToolsPanel(props: ToolsPanelProps) {
               onImportPEQ={props.onImportPEQ}
               setStatus={props.setStatus}
               onSelectedMeasurementChange={props.onSelectedMeasurementChange}
+              onSelectMeasurementOnly={props.onSelectMeasurementOnly}
+              onSelectTargetOnly={props.onSelectTargetOnly}
               onAddTarget={props.onAddTarget}
               onAddMeasurement={props.onAddMeasurement}
               maxBands={props.maxBands}

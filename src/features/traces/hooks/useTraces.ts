@@ -408,6 +408,24 @@ export function useTraces(notify?: NotifyFn) {
     );
   }, []);
 
+  /**
+   * Adopt one measurement as the graph's only visible one. The tuning panel
+   * calls this when its measurement dropdown changes, so the graph follows
+   * the AutoEQ input instead of piling up every measurement that was ever
+   * selected. The curve manager remains the explicit way back to overlays.
+   */
+  const selectMeasurementOnly = useCallback((id: string) => {
+    setSelectedMeasurementId(id);
+    setMeasurements((current) =>
+      current.every((trace) => trace.visible === (trace.id === id))
+        ? current
+        : current.map((trace) => ({
+            ...trace,
+            visible: trace.id === id,
+          })),
+    );
+  }, []);
+
   const clearMeasurements = useCallback(() => {
     setMeasurements([]);
   }, []);
@@ -417,6 +435,13 @@ export function useTraces(notify?: NotifyFn) {
       current.includes(id)
         ? current.filter((targetId) => targetId !== id)
         : [...current, id],
+    );
+  }, []);
+
+  /** Counterpart to selectMeasurementOnly for the target dropdown. */
+  const selectTargetOnly = useCallback((id: string) => {
+    setActiveTargetIds((current) =>
+      current.length === 1 && current[0] === id ? current : [id],
     );
   }, []);
 
@@ -455,8 +480,10 @@ export function useTraces(notify?: NotifyFn) {
     addMeasurement,
     removeMeasurement,
     toggleMeasurement,
+    selectMeasurementOnly,
     clearMeasurements,
     toggleTarget,
+    selectTargetOnly,
     addTarget,
     removeTarget,
   };
