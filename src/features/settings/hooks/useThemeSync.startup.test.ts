@@ -17,7 +17,10 @@ vi.mock("@/lib/platform", () => ({
   isTauri: () => true,
 }));
 vi.mock("@/lib/rpc", () => ({ invoke: mocks.invoke }));
-vi.mock("@/lib/safeStorage", () => ({ writeLocalStorage: mocks.write }));
+vi.mock("@/lib/safeStorage", () => ({
+  readLocalStorage: () => null,
+  writeLocalStorage: mocks.write,
+}));
 vi.mock("@/features/settings/lib/materialYou", () => ({
   applyMaterialYouVars: vi.fn(),
   clearMaterialYouVars: vi.fn(),

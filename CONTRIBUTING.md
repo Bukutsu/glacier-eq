@@ -48,7 +48,7 @@ firmware when known, platform, and operation for physical tests.
 
 ## Development setup
 
-Install Node.js LTS, npm, and Rust stable. Use `npm ci` to install the locked
+Install Node.js LTS (22.18+ on 22.x, or 24.11+), npm, and Rust stable. Use `npm ci` to install the locked
 JavaScript dependencies, including the project's `wasm-pack`.
 
 For Linux native development and workspace Rust checks, install the packages
@@ -140,7 +140,8 @@ tests; emulator and dummy-device results do not verify USB transport.
 ## UI changes
 
 See [Frontend structure](docs/frontend.md) for file ownership, state boundaries,
-and where to add components, settings, and device controls.
+and where to add components, settings, and device controls. New UI text needs
+translation entries; see [Localization](docs/localization.md).
 
 Compact layout applies to narrow desktop windows too, not just phones.
 JavaScript uses `MOBILE_QUERY` in `src/lib/tabs.ts`; matching CSS queries must

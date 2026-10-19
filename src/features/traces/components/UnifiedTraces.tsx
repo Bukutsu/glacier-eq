@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { memo } from "react";
 import type { MeasurementTrace, TargetTrace } from "@/types";
 import { Icon } from "@/components/ui/Icon";
@@ -23,15 +24,12 @@ export const UnifiedTracesList = memo(function UnifiedTracesList({
   onToggleTarget,
   onRemoveTarget,
 }: UnifiedTracesListProps) {
+  const { t } = useTranslation("library");
   const isEmpty = measurements.length === 0 && allTargets.length === 0;
 
   return (
     <div className="trace-list">
-      {isEmpty && (
-        <div className="curve-empty">
-          No curves loaded. Add a measurement or target.
-        </div>
-      )}
+      {isEmpty && <div className="curve-empty">{t("unifiedTraces.empty")}</div>}
       {measurements.map((trace) => (
         <div className="curve-item" key={trace.id}>
           <label className="curve-toggle">
@@ -39,7 +37,10 @@ export const UnifiedTracesList = memo(function UnifiedTracesList({
               type="checkbox"
               className="custom-checkbox"
               checked={trace.visible}
-              aria-label={`Measurement: ${trace.name} (${trace.points.length} points)`}
+              aria-label={t("unifiedTraces.measurementLabel", {
+                name: trace.name,
+                count: trace.points.length,
+              })}
               onChange={() => onToggleMeasurement(trace.id)}
             />
             <span
@@ -48,25 +49,30 @@ export const UnifiedTracesList = memo(function UnifiedTracesList({
             />
             <span
               className="curve-name"
-              title={`${trace.name} (${trace.points.length} points)`}
+              title={t("unifiedTraces.pointTitle", {
+                name: trace.name,
+                count: trace.points.length,
+              })}
             >
               <span className="curve-label">{trace.name}</span>
-              <span className="curve-points">({trace.points.length} pts)</span>
+              <span className="curve-points">
+                {t("unifiedTraces.points", { count: trace.points.length })}
+              </span>
             </span>
           </label>
           <span
             className="trace-type-badge trace-type-measure"
             aria-hidden="true"
-            title="Measurement"
+            title={t("unifiedTraces.measurement")}
           >
-            M
+            {t("unifiedTraces.measurementBadge")}
           </span>
           <Button
             variant="ghost"
             size="icon"
             className="curve-delete"
-            title={`Delete ${trace.name}`}
-            aria-label={`Delete ${trace.name}`}
+            title={t("unifiedTraces.delete", { name: trace.name })}
+            aria-label={t("unifiedTraces.delete", { name: trace.name })}
             onClick={() => onRemoveMeasurement(trace.id)}
           >
             <Icon name="delete" />
@@ -82,7 +88,7 @@ export const UnifiedTracesList = memo(function UnifiedTracesList({
                 type="checkbox"
                 className="custom-checkbox"
                 checked={active}
-                aria-label={`Target: ${target.name}`}
+                aria-label={t("unifiedTraces.target", { name: target.name })}
                 onChange={() => onToggleTarget(target.id)}
               />
               <span
@@ -96,17 +102,17 @@ export const UnifiedTracesList = memo(function UnifiedTracesList({
             <span
               className="trace-type-badge trace-type-target"
               aria-hidden="true"
-              title="Target"
+              title={t("unifiedTraces.targetTooltip")}
             >
-              T
+              {t("unifiedTraces.targetBadge")}
             </span>
             {!target.builtIn ? (
               <Button
                 variant="ghost"
                 size="icon"
                 className="curve-delete"
-                title={`Delete ${target.name}`}
-                aria-label={`Delete ${target.name}`}
+                title={t("unifiedTraces.delete", { name: target.name })}
+                aria-label={t("unifiedTraces.delete", { name: target.name })}
                 onClick={() => onRemoveTarget(target.id)}
               >
                 <Icon name="delete" />

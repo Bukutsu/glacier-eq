@@ -1,3 +1,5 @@
+import "@/lib/i18n";
+import { useTranslation } from "react-i18next";
 import { useEffect, useRef, type ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { Icon, type IconName } from "@/components/ui/Icon";
@@ -30,12 +32,14 @@ export function ConfigurationLayout({
   summary?: ReactNode;
   children: ReactNode;
 }) {
+  const { t } = useTranslation("shell");
   const mobile = useIsMobile();
   const location = useLocation();
   const navigate = useNavigate();
   const navigationRef = useRef<HTMLElement>(null);
   const previousSection = useRef<string | null>(null);
-  const title = kind === "device" ? "Device" : "Settings";
+  const title =
+    kind === "device" ? t("navigation.device") : t("navigation.settings");
 
   useEffect(() => {
     if (!mobile) return;
@@ -68,7 +72,11 @@ export function ConfigurationLayout({
             <nav
               ref={navigationRef}
               className="configuration-list"
-              aria-label={`${title} sections`}
+              aria-label={t(
+                kind === "device"
+                  ? "navigation.deviceSections"
+                  : "navigation.settingsSections",
+              )}
             >
               {groups
                 .filter((group) => group.length)
@@ -114,7 +122,11 @@ export function ConfigurationLayout({
                   if (location.state?.configurationRoot === kind) navigate(-1);
                   else navigate(`/${kind}`, { replace: true });
                 }}
-                aria-label={`Back to ${title.toLowerCase()}`}
+                aria-label={t(
+                  kind === "device"
+                    ? "navigation.backToDevice"
+                    : "navigation.backToSettings",
+                )}
               >
                 <Icon name="arrow_back" />
               </Button>
@@ -139,7 +151,11 @@ export function ConfigurationLayout({
       {!single && (
         <nav
           className={`configuration-navigation ${kind}-navigation`}
-          aria-label={kind === "device" ? "Device settings" : "Settings"}
+          aria-label={
+            kind === "device"
+              ? t("navigation.deviceSettings")
+              : t("navigation.settings")
+          }
         >
           {sections.map((section) => (
             <Link

@@ -1,3 +1,4 @@
+import { i18n } from "@/lib/i18n";
 import type { invoke } from "@/lib/rpc";
 
 import { isDevDummyDevice } from "@/features/device/lib/devDevice";
@@ -93,7 +94,9 @@ export function createReadRecovery(context: ReadRecoveryContext) {
           setFirmwareVersion,
           reportStatus: reportLoss,
         },
-        `Reopening device after read failure: ${error}`,
+        i18n.t("device:recoverDeviceRead.reopeningDeviceAfterReadFailure", {
+          error: error,
+        }),
         "HID",
       );
       return true;

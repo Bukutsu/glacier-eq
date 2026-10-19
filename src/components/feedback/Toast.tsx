@@ -1,3 +1,5 @@
+import "@/lib/i18n";
+import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 import { Icon } from "@/components/ui/Icon";
 import { Button } from "@/components/ui/Button";
@@ -10,6 +12,7 @@ export function ToastContainer({
   errorsOnly?: boolean;
   inline?: boolean;
 }) {
+  const { t } = useTranslation("shell");
   const allToasts = useToastStore((s) => s.toasts);
   const removeToast = useToastStore((s) => s.removeToast);
   const pauseToast = useToastStore((s) => s.pauseToast);
@@ -38,7 +41,7 @@ export function ToastContainer({
     <section
       className={`toast-feedback${inline ? " inline" : ""}`}
       data-type={current.type}
-      aria-label="Status message"
+      aria-label={t("feedback.status")}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onFocusCapture={() => setFocused(true)}
@@ -70,8 +73,8 @@ export function ToastContainer({
         variant="ghost"
         size="icon"
         className="toast-dismiss"
-        aria-label="Dismiss message"
-        title="Dismiss message"
+        aria-label={t("feedback.dismiss")}
+        title={t("feedback.dismiss")}
         onClick={() => removeToast(current.id)}
       >
         <Icon name="close" />

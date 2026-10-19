@@ -1,3 +1,5 @@
+import "@/lib/i18n";
+import { useTranslation } from "react-i18next";
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { invoke } from "@/lib/rpc";
 
@@ -31,40 +33,45 @@ export class ErrorBoundary extends Component<Props, State> {
 
   public render() {
     if (this.state.hasError) {
-      return (
-        <div
-          role="alert"
-          aria-live="assertive"
-          style={{
-            padding: 24,
-            background: "var(--bg)",
-            color: "var(--text)",
-            height: "100vh",
-            fontFamily: "var(--font-ui)",
-          }}
-        >
-          <h2>Application error</h2>
-          <pre style={{ color: "var(--destructive-foreground)" }}>
-            {this.state.error?.toString()}
-          </pre>
-          <button
-            type="button"
-            onClick={() => window.location.reload()}
-            style={{
-              padding: "8px 16px",
-              background: "var(--surface-soft)",
-              color: "var(--text)",
-              border: "none",
-              borderRadius: "var(--radius-control)",
-              cursor: "pointer",
-            }}
-          >
-            Reload app
-          </button>
-        </div>
-      );
+      return <ErrorFallback error={this.state.error} />;
     }
 
     return this.props.children;
   }
+}
+
+function ErrorFallback({ error }: { error: Error | null }) {
+  const { t } = useTranslation("shell");
+  return (
+    <div
+      role="alert"
+      aria-live="assertive"
+      style={{
+        padding: 24,
+        background: "var(--bg)",
+        color: "var(--text)",
+        height: "100vh",
+        fontFamily: "var(--font-ui)",
+      }}
+    >
+      <h2>{t("feedback.applicationError")}</h2>
+      <pre style={{ color: "var(--destructive-foreground)" }}>
+        {error?.toString()}
+      </pre>
+      <button
+        type="button"
+        onClick={() => window.location.reload()}
+        style={{
+          padding: "8px 16px",
+          background: "var(--surface-soft)",
+          color: "var(--text)",
+          border: "none",
+          borderRadius: "var(--radius-control)",
+          cursor: "pointer",
+        }}
+      >
+        {t("actions.reload")}
+      </button>
+    </div>
+  );
 }

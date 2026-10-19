@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { invoke } from "@/lib/rpc";
+import { i18n } from "@/lib/i18n";
 
 import { createSettingsPersistence } from "@/features/settings/lib/settingsPersistence";
 
@@ -41,8 +42,12 @@ export function useAppSettings(showToast: StatusReporter) {
       onError: (operation, error) =>
         showToast(
           operation === "save"
-            ? `Could not save settings. Your changes may be lost when you restart: ${error}`
-            : `Could not load settings. Changes will not be saved until loading succeeds: ${error}`,
+            ? i18n.t("settings:persistence.saveFailed", {
+                error: String(error),
+              })
+            : i18n.t("settings:persistence.loadFailed", {
+                error: String(error),
+              }),
           "error",
         ),
     }),

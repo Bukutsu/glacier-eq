@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 import { memo, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { LanguageSetting } from "./LanguageSetting";
 import { confirmDialog } from "@/components/ui/ConfirmDialog";
 import { Icon } from "@/components/ui/Icon";
 import { Button } from "@/components/ui/Button";
@@ -28,22 +30,11 @@ import {
 import type { SettingsSection } from "@/lib/tabs";
 import type { AppSettings, GraphViewMode } from "@/types";
 
-export const KEYBOARD_SHORTCUTS: [string, string][] = [
-  ["Ctrl/⌘ Z", "Undo"],
-  ["Ctrl/⌘ Shift Z", "Redo"],
-  ["Ctrl/⌘ Y", "Redo"],
-  ["Ctrl/⌘ S", "Save profile"],
-  ["Ctrl/⌘ R", "Read EQ from DAC"],
-  ["Ctrl/⌘ Shift R", "Reset EQ"],
-  ["Ctrl/⌘ Enter", "Write EQ to DAC"],
-];
-
 // Material You reads the Android system palette, so it is offered only there.
 // Elsewhere it was listed, accepted, and then silently ignored: useThemeSync
 // matched the value on any platform, failed to get a palette off Tauri, and
 // fell back to Tokyo Night — so the user picked a theme and got a different
 // one with no explanation.
-const THEME_OPTIONS = themeOptions(isAndroidDevice());
 
 interface UdevStatus {
   supported: boolean;
@@ -79,6 +70,7 @@ function UdevSection({
   setStatus?: (value: string) => void;
   onUdevInstalled?: () => Promise<string | null>;
 }) {
+  const { t } = useTranslation("settings");
   const [status, setUdevStatus] = useState<UdevStatus | null>(null);
   const [checking, setChecking] = useState(true);
   const [checkError, setCheckError] = useState<string | null>(null);
@@ -105,20 +97,20 @@ function UdevSection({
       })
       .catch((error: unknown) => {
         if (!cancelled) {
-          setCheckError(`Could not check USB permissions: ${error}`);
+          setCheckError(t("permissions.checkFailed", { error: String(error) }));
           setChecking(false);
         }
       });
     return () => {
       cancelled = true;
     };
-  }, [checkAttempt]);
+  }, [checkAttempt, t]);
 
   if (!isTauri()) {
     if (!isLinux()) return null;
     return (
-      <section className="settings-plain" aria-label="Linux USB permissions">
-        <h2 className="settings-plain-title">Linux USB permissions</h2>
+      <section className="settings-plain" aria-label={t("permissions.title")}>
+        <h2 className="settings-plain-title">{t("permissions.title")}</h2>
         <LinuxUdevGuide setStatus={setStatus} />
       </section>
     );
@@ -126,8 +118,8 @@ function UdevSection({
 
   if (checkError !== null) {
     return (
-      <section className="settings-plain" aria-label="Linux USB permissions">
-        <h2 className="settings-plain-title">Linux USB permissions</h2>
+      <section className="settings-plain" aria-label={t("permissions.title")}>
+        <h2 className="settings-plain-title">{t("permissions.title")}</h2>
         <p className="settings-plain-desc" role="alert">
           {checkError}
         </p>
@@ -136,12 +128,9 @@ function UdevSection({
           onClick={() => setCheckAttempt((attempt) => attempt + 1)}
         >
           <Icon name="refresh" />
-          <span>Retry permissions check</span>
+          <span>{t("permissions.retry")}</span>
         </Button>
-        <p className="settings-plain-desc">
-          On Linux, run this command in a terminal to install the rule manually,
-          then reconnect the DAC:
-        </p>
+        <p className="settings-plain-desc">{t("permissions.manualHelp")}</p>
         <div className="udev-command-row">
           <code>{UDEV_INSTALL_COMMAND}</code>
         </div>
@@ -162,34 +151,31 @@ function UdevSection({
   const handleInstall = async () => {
     const update = status?.installed === true;
     const confirmed = await confirmDialog({
-      title: update ? "Update USB permissions?" : "Install USB permissions?",
-      message:
-        "This requires administrator access (one password prompt) to install an application-owned udev rule to " +
-        "/etc/udev/rules.d/69-glacier-eq.rules and reload udev. " +
-        "It installs no background services; a distribution package rule is left untouched.",
-      confirmLabel: update ? "Update" : "Install",
-      cancelLabel: "Cancel",
+      title: update
+        ? t("permissions.updateTitle")
+        : t("permissions.installTitle"),
+      message: t("permissions.installExplanation"),
+      confirmLabel: update ? t("common.update") : t("common.install"),
+      cancelLabel: t("common.cancel"),
     });
     if (!confirmed) return;
     setBusy("install");
-    setNote("Installing permissions and detecting DAC…");
+    setNote(t("permissions.installing"));
     try {
       await invoke("install_udev_rules");
       await refresh();
       if (onUdevInstalled) {
         const connectedName = await onUdevInstalled();
         if (connectedName) {
-          setNote(`Permissions installed. Connected to ${connectedName}.`);
+          setNote(t("permissions.connected", { name: connectedName }));
         } else {
-          setNote(
-            "Permissions installed. Connect the DAC to enable automatic connection.",
-          );
+          setNote(t("permissions.installedConnect"));
         }
       } else {
-        setNote("Permissions installed.");
+        setNote(t("permissions.installed"));
       }
     } catch (err) {
-      const msg = `Failed to install udev rules: ${err}`;
+      const msg = t("permissions.installFailed", { error: String(err) });
       setNote(msg);
       setStatus?.(msg);
     } finally {
@@ -202,19 +188,17 @@ function UdevSection({
       status?.package_managed &&
       status.dest_path === "/usr/lib/udev/rules.d/69-glacier-eq.rules"
     ) {
-      setNote(
-        "USB permissions are managed by the installed system package; remove the package to revoke them.",
-      );
-      setStatus?.("USB permissions are package-managed.");
+      setNote(t("permissions.packageManagedHelp"));
+      setStatus?.(t("permissions.packageManaged"));
       return;
     }
     const confirmed = await confirmDialog({
-      title: "Remove USB permissions?",
-      message:
-        `This deletes ${status?.dest_path ?? "/etc/udev/rules.d/69-glacier-eq.rules"}. ` +
-        "You may need root permissions to access your DAC over USB until rules are reinstalled.",
-      confirmLabel: "Remove",
-      cancelLabel: "Cancel",
+      title: t("permissions.removeTitle"),
+      message: t("permissions.removeExplanation", {
+        path: status?.dest_path ?? "/etc/udev/rules.d/69-glacier-eq.rules",
+      }),
+      confirmLabel: t("common.remove"),
+      cancelLabel: t("common.cancel"),
       danger: true,
     });
     if (!confirmed) return;
@@ -223,10 +207,10 @@ function UdevSection({
     try {
       await invoke("uninstall_udev_rules");
       await refresh();
-      setNote("USB permissions removed.");
-      setStatus?.("USB permissions removed.");
+      setNote(t("permissions.removed"));
+      setStatus?.(t("permissions.removed"));
     } catch (err) {
-      const msg = `Failed to remove udev rules: ${err}`;
+      const msg = t("permissions.removeFailed", { error: String(err) });
       setNote(msg);
       setStatus?.(msg);
     } finally {
@@ -238,36 +222,33 @@ function UdevSection({
   const current = status?.up_to_date === true;
 
   return (
-    <section className="settings-plain" aria-label="Linux USB permissions">
+    <section className="settings-plain" aria-label={t("permissions.title")}>
       <div className="settings-plain-head">
-        <h2 className="settings-plain-title">Linux USB permissions</h2>
+        <h2 className="settings-plain-title">{t("permissions.title")}</h2>
         <Badge role="status">
           {checking
-            ? "Checking…"
+            ? t("common.checking")
             : !installed
-              ? "Not installed"
+              ? t("permissions.notInstalled")
               : current
-                ? "Configured"
-                : "Update available"}
+                ? t("permissions.configured")
+                : t("permissions.updateAvailable")}
         </Badge>
       </div>
 
-      <p className="settings-plain-desc">
-        Linux restricts raw USB access by default. Installing a udev rule lets
-        you access supported DACs without running Glacier EQ as root.
-      </p>
+      <p className="settings-plain-desc">{t("permissions.description")}</p>
 
       <div className="stack-pref-row">
         <div className="stack-pref-info">
           <span className="stack-pref-title">
             {installed
               ? current
-                ? "Permissions active"
-                : "Rule update available"
-              : "Install udev rule"}
+                ? t("permissions.active")
+                : t("permissions.ruleUpdate")
+              : t("permissions.installRule")}
           </span>
           <span className="stack-pref-desc">
-            Target:{" "}
+            {t("permissions.target")}{" "}
             <code>
               {status?.dest_path ?? "/etc/udev/rules.d/69-glacier-eq.rules"}
             </code>
@@ -283,12 +264,12 @@ function UdevSection({
             <Icon name={installed && current ? "refresh" : "add_moderator"} />
             <span>
               {busy === "install"
-                ? "Working…"
+                ? t("common.working")
                 : installed
                   ? current
-                    ? "Reinstall"
-                    : "Update"
-                  : "Install"}
+                    ? t("common.reinstall")
+                    : t("common.update")
+                  : t("common.install")}
             </span>
           </Button>
           {installed &&
@@ -303,7 +284,9 @@ function UdevSection({
                 onClick={handleRemove}
               >
                 <Icon name="delete" />
-                <span>{busy === "remove" ? "Working…" : "Remove"}</span>
+                <span>
+                  {busy === "remove" ? t("common.working") : t("common.remove")}
+                </span>
               </Button>
             )}
         </div>
@@ -330,18 +313,36 @@ export const SettingsView = memo(function SettingsView({
   onUdevInstalled,
   liveApplySupported,
 }: SettingsViewProps) {
+  const { t } = useTranslation("settings");
+  const KEYBOARD_SHORTCUTS: [string, string][] = [
+    ["Ctrl/⌘ Z", t("shortcuts.undo")],
+    ["Ctrl/⌘ Shift Z", t("shortcuts.redo")],
+    ["Ctrl/⌘ Y", t("shortcuts.redo")],
+    ["Ctrl/⌘ S", t("shortcuts.saveProfile")],
+    ["Ctrl/⌘ R", t("shortcuts.read")],
+    ["Ctrl/⌘ Shift R", t("shortcuts.reset")],
+    ["Ctrl/⌘ Enter", t("shortcuts.write")],
+  ];
   const mobile = useIsMobile();
+  const THEME_OPTIONS = themeOptions(isAndroidDevice());
   const activeSection = section === "root" ? "general" : section;
   const sectionTitle =
     activeSection === "general"
-      ? "General"
+      ? t("sections.general")
       : activeSection === "appearance"
-        ? "Appearance"
+        ? t("sections.appearance")
         : activeSection === "diagnostics"
-          ? "Diagnostics"
-          : "About";
+          ? t("sections.diagnostics")
+          : t("sections.about");
   const sectionValues = {
-    general: `Auto-read ${settings.auto_pull_on_connect ? "on" : "off"} · Verification ${settings.skip_push_verification ? "off" : "on"}`,
+    general: t("general.summary", {
+      autoRead: settings.auto_pull_on_connect
+        ? t("common.on")
+        : t("common.off"),
+      verification: settings.skip_push_verification
+        ? t("common.off")
+        : t("common.on"),
+    }),
     appearance: THEME_OPTIONS.find((option) => option.value === settings.theme)
       ?.label,
   };
@@ -349,11 +350,11 @@ export const SettingsView = memo(function SettingsView({
     ...item,
     label:
       item.id === "general"
-        ? "General"
+        ? t("sections.general")
         : item.id === "appearance"
-          ? "Appearance"
+          ? t("sections.appearance")
           : item.id === "diagnostics"
-            ? "Diagnostics"
+            ? t("sections.diagnostics")
             : item.label,
   }));
 
@@ -370,42 +371,41 @@ export const SettingsView = memo(function SettingsView({
         <StackHeader
           title={
             activeSection === "general"
-              ? "Behavior & audio"
+              ? t("sections.generalTitle")
               : activeSection === "appearance"
-                ? "Interface & theme"
+                ? t("sections.appearanceTitle")
                 : activeSection === "diagnostics"
-                  ? "Diagnostics & permissions"
-                  : "About"
+                  ? t("sections.diagnosticsTitle")
+                  : t("sections.about")
           }
         />
       )}
 
-      <p className="configuration-description">
-        Settings are saved automatically on this device.
-      </p>
+      <p className="configuration-description">{t("savedAutomatically")}</p>
       <div className="stack-content">
         {activeSection === "general" && (
           <div className="stack-card">
+            <LanguageSetting setStatus={setStatus} />
             <ToggleRow
-              title="Read EQ on connection"
-              desc="Read EQ automatically when a DAC connects"
+              title={t("general.autoRead")}
+              desc={t("general.autoReadDescription")}
               checked={settings.auto_pull_on_connect}
               onChange={(v) => onSettingChange("auto_pull_on_connect", v)}
             />
 
             <ToggleRow
-              title="Verify EQ after writing"
-              desc="Read back the EQ settings to check they were applied correctly. Required safety checks always run."
+              title={t("general.verify")}
+              desc={t("general.verifyDescription")}
               checked={!settings.skip_push_verification}
               onChange={(v) => onSettingChange("skip_push_verification", !v)}
             />
 
             <ToggleRow
-              title="Live apply"
+              title={t("general.liveApply")}
               desc={
                 liveApplySupported
-                  ? "Apply each EQ edit to the DAC as you make it and save it once you pause, so there is no Write to DAC step. Saving rewrites the DAC's flash after each pause."
-                  : "Hear EQ edits on the DAC as you make them. Needs a connected DAC that supports it (EPZ TP35 Pro)."
+                  ? t("general.liveApplyDescription")
+                  : t("general.liveApplyUnavailable")
               }
               checked={settings.live_apply}
               disabled={!liveApplySupported}
@@ -413,23 +413,23 @@ export const SettingsView = memo(function SettingsView({
             />
 
             <ToggleRow
-              title="Snap frequency to ISO steps"
-              desc="Snap frequency sliders and handles to standard 1/3-octave ISO steps"
+              title={t("general.snapFrequency")}
+              desc={t("general.snapFrequencyDescription")}
               checked={settings.snap_to_iso_frequencies}
               onChange={(v) => onSettingChange("snap_to_iso_frequencies", v)}
             />
 
             <ToggleRow
-              title="Floating graph preview"
-              desc="Show a small graph preview when scrolling past filter bands"
+              title={t("general.floatingGraph")}
+              desc={t("general.floatingGraphDescription")}
               checked={settings.floating_graph_preview ?? true}
               onChange={(v) => onSettingChange("floating_graph_preview", v)}
             />
 
             {onShowGraphChange !== undefined && (
               <ToggleRow
-                title="Show frequency response graph"
-                desc="Show the frequency response graph above controls"
+                title={t("general.showGraph")}
+                desc={t("general.showGraphDescription")}
                 checked={!!showGraph}
                 onChange={onShowGraphChange}
               />
@@ -448,8 +448,8 @@ export const SettingsView = memo(function SettingsView({
             ) : (
               <SelectRow<AppSettings["theme"]>
                 id="theme-select"
-                title="Color theme"
-                desc="Select the app color scheme"
+                title={t("appearance.colorTheme")}
+                desc={t("appearance.colorThemeDescription")}
                 value={settings.theme}
                 options={THEME_OPTIONS}
                 onChange={(val) => onSettingChange("theme", val)}
@@ -458,12 +458,12 @@ export const SettingsView = memo(function SettingsView({
 
             {graphViewMode && onGraphViewModeChange && (
               <SegmentedRow<GraphViewMode>
-                title="Graph view mode"
-                desc="Shape normalizes curves at 1 kHz. Level shows absolute dB output."
+                title={t("appearance.graphMode")}
+                desc={t("appearance.graphModeDescription")}
                 value={graphViewMode}
                 options={[
-                  { value: "shape", label: "Shape" },
-                  { value: "level", label: "Level" },
+                  { value: "shape", label: t("appearance.shape") },
+                  { value: "level", label: t("appearance.level") },
                 ]}
                 onChange={onGraphViewModeChange}
               />
@@ -481,9 +481,9 @@ export const SettingsView = memo(function SettingsView({
             <div className="stack-card">
               {onOpenDiagnostics && (
                 <ActionRow
-                  title="Diagnostics log"
-                  desc="View USB traffic, connection events, and driver logs"
-                  actionLabel="View logs"
+                  title={t("diagnostics.log")}
+                  desc={t("diagnostics.logDescription")}
+                  actionLabel={t("diagnostics.viewLog")}
                   icon="terminal"
                   onAction={onOpenDiagnostics}
                 />
@@ -492,9 +492,9 @@ export const SettingsView = memo(function SettingsView({
 
             <section
               className="shortcuts-card settings-plain"
-              aria-label="Keyboard shortcuts"
+              aria-label={t("shortcuts.title")}
             >
-              <h2 className="settings-plain-title">Keyboard shortcuts</h2>
+              <h2 className="settings-plain-title">{t("shortcuts.title")}</h2>
               <div className="shortcut-list">
                 {KEYBOARD_SHORTCUTS.map(([keys, action]) => (
                   <div className="shortcut-row" key={keys}>
@@ -509,16 +509,14 @@ export const SettingsView = memo(function SettingsView({
 
         {activeSection === "about" && (
           <>
-            <section className="settings-plain" aria-label="About Glacier EQ">
+            <section className="settings-plain" aria-label={t("about.title")}>
               <h2 className="settings-plain-title">Glacier EQ</h2>
-              <p className="settings-plain-desc">
-                Parametric equalizer and hardware DSP controller for USB DACs.
-              </p>
+              <p className="settings-plain-desc">{t("about.description")}</p>
             </section>
 
             <dl className="device-spec-list">
               <div>
-                <dt>Version</dt>
+                <dt>{t("about.version")}</dt>
                 <dd>
                   v
                   {typeof __APP_VERSION__ !== "undefined"
@@ -527,60 +525,56 @@ export const SettingsView = memo(function SettingsView({
                 </dd>
               </div>
               <div>
-                <dt>Platform</dt>
+                <dt>{t("about.platform")}</dt>
                 <dd>
                   {isTauri()
                     ? isAndroidDevice()
-                      ? "Android (USB HID)"
-                      : "Desktop (Tauri)"
-                    : "Web (WebHID)"}
+                      ? t("about.android")
+                      : t("about.desktop")
+                    : t("about.web")}
                 </dd>
               </div>
               <div>
-                <dt>Hardware target</dt>
+                <dt>{t("about.hardware")}</dt>
                 <dd>Savitech SA9312L DSP</dd>
               </div>
               <div>
-                <dt>License</dt>
+                <dt>{t("about.license")}</dt>
                 <dd>GPL-3.0-only</dd>
               </div>
             </dl>
 
-            <section className="settings-plain" aria-label="Project links">
-              <h2 className="settings-plain-title">Project links</h2>
+            <section className="settings-plain" aria-label={t("about.links")}>
+              <h2 className="settings-plain-title">{t("about.links")}</h2>
               <div className="stack-list">
                 <ExternalLinkRow
                   href="https://github.com/Bukutsu/glacier-eq"
                   icon="code"
-                  title="Source code"
-                  desc="GitHub repository and releases"
+                  title={t("about.source")}
+                  desc={t("about.sourceDescription")}
                 />
                 <ExternalLinkRow
                   href="https://github.com/Bukutsu/glacier-eq/wiki/Supported-Devices"
                   icon="memory"
-                  title="Supported devices"
-                  desc="Hardware compatibility and DAC profiles"
+                  title={t("about.devices")}
+                  desc={t("about.devicesDescription")}
                 />
                 <ExternalLinkRow
                   href="https://github.com/Bukutsu/glacier-eq/wiki/Troubleshooting"
                   icon="build"
-                  title="Troubleshooting"
-                  desc="Permissions, connection help, and guides"
+                  title={t("about.troubleshooting")}
+                  desc={t("about.troubleshootingDescription")}
                 />
                 <ExternalLinkRow
                   href="https://github.com/Bukutsu/glacier-eq/issues"
                   icon="bug_report"
-                  title="Report an issue"
-                  desc="Bug reports and feature requests"
+                  title={t("about.reportIssue")}
+                  desc={t("about.reportIssueDescription")}
                 />
               </div>
             </section>
 
-            <p className="card-note">
-              Glacier EQ communicates directly with supported USB DACs over HID.
-              Parametric EQ settings are saved into device flash memory with no
-              background battery drain.
-            </p>
+            <p className="card-note">{t("about.howItWorks")}</p>
           </>
         )}
       </div>

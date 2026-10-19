@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { MeasurementPoint } from "@/types";
 import { Icon } from "@/components/ui/Icon";
@@ -30,6 +31,7 @@ export function AddTraceModal({
   onAddTarget,
   setStatus,
 }: AddTraceModalProps) {
+  const { t } = useTranslation("library");
   const {
     downloaded,
     downloadProgress,
@@ -46,7 +48,16 @@ export function AddTraceModal({
   } = useOnlineDatabase(setStatus);
   const [loadedDevices, setLoadedDevices] = useState<Set<string>>(new Set());
   const [debouncedQuery, setDebouncedQuery] = useState(searchQuery);
-  const [modalError, setModalError] = useState<string | null>(null);
+  const [modalError, setModalError] = useState<{
+    key:
+      | "addTraceModal.couldNotDownloadDatabase"
+      | "addTraceModal.couldNotClearCache"
+      | "addTraceModal.couldNotImportFile"
+      | "addTraceModal.couldNotLoad";
+    error: unknown;
+    name?: string;
+    name2?: string;
+  } | null>(null);
   const mountedRef = useRef(true);
   const loadRequestRef = useRef(0);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -83,14 +94,18 @@ export function AddTraceModal({
       if (!mountedRef.current) return;
       setStatus?.(
         result.sweepFailed
-          ? `Downloaded ${result.entries} curves. Cleanup of old cached data failed and will be retried on the next download.`
-          : `Downloaded ${result.entries} curves`,
+          ? t("addTraceModal.downloadedCleanupFailed", {
+              count: result.entries,
+            })
+          : t("addTraceModal.downloaded", { count: result.entries }),
       );
     } catch (error) {
       if (!mountedRef.current) return;
       console.error(error);
-      const message = `Could not download database: ${error}`;
-      setModalError(message);
+      const message = t("addTraceModal.couldNotDownloadDatabase", {
+        error: error,
+      });
+      setModalError({ key: "addTraceModal.couldNotDownloadDatabase", error });
       setStatus?.(message);
     }
   };
@@ -99,21 +114,21 @@ export function AddTraceModal({
     setModalError(null);
     if (
       await confirmDialog({
-        title: "Clear database cache?",
-        message: "Clear the cached measurement database (~16 MB)?",
-        confirmLabel: "Clear cache",
+        title: t("addTraceModal.clearDatabaseCache"),
+        message: t("addTraceModal.clearCacheMessage"),
+        confirmLabel: t("addTraceModal.clearCache"),
         danger: true,
       })
     ) {
       try {
         await clearCache();
         if (!mountedRef.current) return;
-        setStatus?.("Database cache cleared.");
+        setStatus?.(t("addTraceModal.databaseCacheCleared"));
       } catch (error) {
         if (!mountedRef.current) return;
         console.error(error);
-        const message = `Could not clear cache: ${error}`;
-        setModalError(message);
+        const message = t("addTraceModal.couldNotClearCache", { error: error });
+        setModalError({ key: "addTraceModal.couldNotClearCache", error });
         setStatus?.(message);
       }
     }
@@ -126,7 +141,7 @@ export function AddTraceModal({
       const result = await openFileDialog({
         filters: [
           {
-            name: "Frequency response (.csv, .txt)",
+            name: t("addTraceModal.frequencyResponseCsvTxt"),
             extensions: ["csv", "txt"],
           },
         ],
@@ -139,16 +154,26 @@ export function AddTraceModal({
 
       if (kind === "target") {
         (onAddTarget ?? onAddMeasurement)?.(label, points);
-        setStatus?.(`Loaded target: ${label} (${points.length} points)`);
+        setStatus?.(
+          t("addTraceModal.loadedTarget", {
+            count: points.length,
+            name: label,
+          }),
+        );
       } else {
         onAddMeasurement?.(label, points);
-        setStatus?.(`Loaded measurement: ${label} (${points.length} points)`);
+        setStatus?.(
+          t("addTraceModal.loadedMeasurement", {
+            count: points.length,
+            name: label,
+          }),
+        );
       }
       onClose();
     } catch (error) {
       if (request === loadRequestRef.current && mountedRef.current) {
-        const message = `Could not import file: ${error}`;
-        setModalError(message);
+        const message = t("addTraceModal.couldNotImportFile", { error: error });
+        setModalError({ key: "addTraceModal.couldNotImportFile", error });
         setStatus?.(message);
       }
     }
@@ -163,12 +188,23 @@ export function AddTraceModal({
       onAddMeasurement?.(`${dev.brand} ${dev.name} (${dev.source})`, points);
       setLoadedDevices((prev) => new Set(prev).add(dev.id));
       onClose();
-      setStatus?.(`Loaded: ${dev.brand} ${dev.name}`);
+      setStatus?.(
+        t("addTraceModal.loaded", { name: dev.brand, name2: dev.name }),
+      );
     } catch (error) {
       if (request === loadRequestRef.current && mountedRef.current) {
         console.error(error);
-        const message = `Could not load ${dev.brand} ${dev.name}: ${error}`;
-        setModalError(message);
+        const message = t("addTraceModal.couldNotLoad", {
+          name: dev.brand,
+          name2: dev.name,
+          error: error,
+        });
+        setModalError({
+          key: "addTraceModal.couldNotLoad",
+          error,
+          name: dev.brand,
+          name2: dev.name,
+        });
         setStatus?.(message);
       }
     }
@@ -181,32 +217,43 @@ export function AddTraceModal({
     [manifest, query],
   );
   const searchStatus = loadingManifest
-    ? "Loading the search index…"
+    ? t("addTraceModal.loadingIndex")
     : searchPending
-      ? "Searching…"
+      ? t("addTraceModal.searching")
       : !query
-        ? "Search by brand or model name."
+        ? t("addTraceModal.searchByBrandOrModelName")
         : total === 0
-          ? "No matching measurements."
+          ? t("addTraceModal.noMatchingMeasurements")
           : total > ONLINE_RESULT_LIMIT
-            ? `Showing ${ONLINE_RESULT_LIMIT} of ${total.toLocaleString()} matches. Narrow your search to see more.`
-            : `${total} measurement${total === 1 ? "" : "s"} found.`;
+            ? t("addTraceModal.limitedMatches", {
+                shown: ONLINE_RESULT_LIMIT,
+                total: total.toLocaleString(),
+              })
+            : t("addTraceModal.matchesFound", { count: total });
 
   return (
-    <Modal title="Add a curve" onClose={onClose} className="add-trace-modal">
+    <Modal
+      title={t("addTraceModal.addACurve")}
+      onClose={onClose}
+      className="add-trace-modal"
+    >
       <div className="modal-body add-trace-body">
-        <p className="add-trace-intro">
-          Search for a headphone measurement or import a curve from a file.
-        </p>
+        <p className="add-trace-intro">{t("addTraceModal.description")}</p>
         {modalError && (
           <div className="modal-inline-error" role="alert">
             <Icon name="error" />
-            <span>{modalError}</span>
+            <span>
+              {t(modalError.key, {
+                error: modalError.error,
+                name: modalError.name,
+                name2: modalError.name2,
+              })}
+            </span>
           </div>
         )}
         <div className="add-trace-section">
           <label className="add-trace-section-title" htmlFor={searchId}>
-            Headphone or brand
+            {t("addTraceModal.headphoneOrBrand")}
           </label>
           <Input
             ref={searchInputRef}
@@ -214,7 +261,7 @@ export function AddTraceModal({
             name="measurement-search"
             type="search"
             className="curves-search-input"
-            placeholder="For example, HD 600"
+            placeholder={t("addTraceModal.searchPlaceholder")}
             autoComplete="off"
             spellCheck={false}
             disabled={!downloaded}
@@ -243,7 +290,7 @@ export function AddTraceModal({
               </p>
               <section
                 className="add-trace-online-results"
-                aria-label="Measurement search results"
+                aria-label={t("addTraceModal.measurementSearchResults")}
                 aria-busy={loadingManifest || searchPending}
                 tabIndex={results.length > 0 ? 0 : undefined}
               >
@@ -251,22 +298,20 @@ export function AddTraceModal({
                   <div className="online-result-empty">
                     <p>
                       {loadingManifest
-                        ? "Loading measurements…"
-                        : "Searching measurements…"}
+                        ? t("addTraceModal.loadingMeasurements")
+                        : t("addTraceModal.searchingMeasurements")}
                     </p>
                   </div>
                 ) : !query ? (
                   <div className="online-result-empty">
                     <Icon name="search" />
-                    <p>Search headphone measurements</p>
-                    <span>
-                      Search the measurements in the offline database.
-                    </span>
+                    <p>{t("addTraceModal.searchHeadphoneMeasurements")}</p>
+                    <span>{t("addTraceModal.searchHelp")}</span>
                   </div>
                 ) : results.length === 0 ? (
                   <div className="online-result-empty">
-                    <p>No measurements found</p>
-                    <span>Try a shorter name or check the spelling.</span>
+                    <p>{t("addTraceModal.noMeasurementsFound")}</p>
+                    <span>{t("addTraceModal.noMatchesHint")}</span>
                   </div>
                 ) : (
                   <ul className="online-result-list">
@@ -294,8 +339,10 @@ export function AddTraceModal({
                             disabled={loadingDevice !== null || added}
                             aria-label={
                               added
-                                ? `${name} added`
-                                : `Add ${name} measurement`
+                                ? t("addTraceModal.added", { name: name })
+                                : t("addTraceModal.addMeasurement", {
+                                    name: name,
+                                  })
                             }
                             onClick={() => handleLoadDevice(device)}
                           >
@@ -309,7 +356,11 @@ export function AddTraceModal({
                               }
                             />
                             <span>
-                              {added ? "Added" : adding ? "Adding…" : "Add"}
+                              {added
+                                ? t("addTraceModal.addedButton")
+                                : adding
+                                  ? t("addTraceModal.adding")
+                                  : t("addTraceModal.add")}
                             </span>
                           </Button>
                         </li>
@@ -321,18 +372,18 @@ export function AddTraceModal({
             </>
           ) : (
             <div className="add-trace-download-prompt">
-              <p id={`${searchId}-status`}>
-                Download the measurement database once to search it offline.
-              </p>
+              <p id={`${searchId}-status`}>{t("addTraceModal.downloadHelp")}</p>
               {isDownloading ? (
                 <>
                   <progress
                     max={1}
                     value={downloadProgress ?? 0}
-                    aria-label="Measurement database download"
+                    aria-label={t("addTraceModal.measurementDatabaseDownload")}
                   />
                   <span role="status">
-                    Downloading… {Math.round((downloadProgress ?? 0) * 100)}%
+                    {t("addTraceModal.downloadProgress", {
+                      percent: Math.round((downloadProgress ?? 0) * 100),
+                    })}
                   </span>
                 </>
               ) : (
@@ -341,7 +392,7 @@ export function AddTraceModal({
                   className="self-start min-h-11"
                   onClick={handleDownload}
                 >
-                  Download database
+                  {t("addTraceModal.downloadDatabase")}
                 </Button>
               )}
             </div>
@@ -349,29 +400,28 @@ export function AddTraceModal({
         </div>
         <div className="add-trace-file-row">
           <Button className="add-trace-file-btn" onClick={handleImportFile}>
-            <Icon name="file_upload" /> Import file
+            <Icon name="file_upload" /> {t("addTraceModal.importFile")}
           </Button>
           <p>
-            Measurement or target file
+            {t("addTraceModal.measurementOrTargetFile")}
             <br />
-            <span>.csv or .txt</span>
+            <span>{t("addTraceModal.csvOrTxt")}</span>
           </p>
         </div>
         {downloaded && (
           <details className="add-trace-cache">
             <summary>
-              Offline database{" "}
+              {t("addTraceModal.offlineDatabase")}{" "}
               <span>
                 {totalCount !== null
-                  ? `${totalCount.toLocaleString()} curves`
-                  : "Saved on this device"}
+                  ? t("addTraceModal.curveCount", { count: totalCount })
+                  : t("addTraceModal.savedOnThisDevice")}
               </span>
               <Icon name="expand_more" className="disclosure-chevron" />
             </summary>
             <div className="add-trace-cache-row">
               <p className="add-trace-cache-status">
-                Clearing the cache removes the downloaded database. Added curves
-                are retained.
+                {t("addTraceModal.clearCacheHelp")}
               </p>
               <Button
                 variant="ghost"
@@ -379,7 +429,7 @@ export function AddTraceModal({
                 onClick={handleResetCache}
                 disabled={loadingDevice !== null || isDownloading}
               >
-                <Icon name="delete" /> Clear cache
+                <Icon name="delete" /> {t("addTraceModal.clearCache")}
               </Button>
             </div>
           </details>

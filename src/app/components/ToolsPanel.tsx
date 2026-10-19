@@ -1,3 +1,5 @@
+import "@/lib/i18n";
+import { useTranslation } from "react-i18next";
 import { memo, type ReactNode } from "react";
 import type {
   AppSettings,
@@ -87,6 +89,7 @@ interface ToolsPanelProps {
 }
 
 export const ToolsPanel = memo(function ToolsPanel(props: ToolsPanelProps) {
+  const { t } = useTranslation("shell");
   const tab = props.activeTab;
 
   return (
@@ -95,7 +98,13 @@ export const ToolsPanel = memo(function ToolsPanel(props: ToolsPanelProps) {
       tabIndex={-1}
       className="right-rail"
       aria-label={
-        tab === "Preset" ? "Profiles" : tab === "Tuning" ? "Tuning" : tab
+        tab === "Preset"
+          ? t("navigation.profiles")
+          : tab === "Tuning"
+            ? t("navigation.tuning")
+            : tab === "Device"
+              ? t("navigation.device")
+              : t("navigation.settings")
       }
     >
       <section className="tools-card">

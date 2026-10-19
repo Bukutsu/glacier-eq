@@ -1,3 +1,4 @@
+import { i18n } from "@/lib/i18n";
 import type { MeasurementPoint, MeasurementTrace, TargetTrace } from "@/types";
 
 const MEASUREMENT_COLOR_VARS = [
@@ -36,7 +37,7 @@ export function makeMeasurementName(
   return makeUniqueName(
     baseName,
     existing.map((trace) => trace.name),
-    "Measurement",
+    i18n.t("library:measurements.measurement"),
   );
 }
 
@@ -47,7 +48,7 @@ export function makeTargetName(
   return makeUniqueName(
     baseName,
     existing.map((target) => target.name),
-    "Target",
+    i18n.t("library:measurements.target"),
   );
 }
 
@@ -81,7 +82,11 @@ function stripLeadingBom(text: string, label: string): string {
   if (!text.startsWith("\uFEFF")) return text;
   const stripped = text.slice(1);
   if (stripped.startsWith("\uFEFF")) {
-    throw new Error(`${label} contains multiple UTF-8 BOM markers`);
+    throw new Error(
+      i18n.t("library:measurements.containsMultipleUTF8BOMMarkers", {
+        name: label,
+      }),
+    );
   }
   return stripped;
 }
@@ -101,9 +106,12 @@ export function parseMeasurementText(input: string): MeasurementPoint[] {
     // different things, and sharing a string made the byte-limit test
     // pass even with this pre-scan removed, because its fixture tripped
     // the line cap as well.
-    throw new Error("Measurement input exceeds the 1 MiB size limit");
+    throw new Error(i18n.t("library:measurements.inputTooLarge"));
   }
-  const text = stripLeadingBom(input, "Measurement input");
+  const text = stripLeadingBom(
+    input,
+    i18n.t("library:measurements.measurementInput"),
+  );
   const points: MeasurementPoint[] = [];
   let lineCount = 0;
   let lineStart = 0;
@@ -159,14 +167,14 @@ export function parseMeasurementText(input: string): MeasurementPoint[] {
   }
 
   if (lineCount > 4096) {
-    throw new Error("Measurement input exceeds maximum size");
+    throw new Error(i18n.t("library:measurements.tooManyValues"));
   }
 
   if (points.length > 100_000) {
-    throw new Error("Measurement input exceeds maximum point count.");
+    throw new Error(i18n.t("library:measurements.tooManyPoints"));
   }
   if (points.length < 2) {
-    throw new Error("Need at least 2 valid frequency,dB points.");
+    throw new Error(i18n.t("library:measurements.tooFewPoints"));
   }
 
   return normalizeParsedInPlace(points);
@@ -198,17 +206,13 @@ function normalizeParsedInPlace(
 
   const referenceDb = interpolateMeasurementDb(points, 1000);
   if (!Number.isFinite(referenceDb)) {
-    throw new Error(
-      "Measurement normalization produced a non-finite reference",
-    );
+    throw new Error(i18n.t("library:measurements.invalidReference"));
   }
 
   for (const point of points) {
     point.db -= referenceDb;
     if (!Number.isFinite(point.db)) {
-      throw new Error(
-        "Measurement normalization produced a non-finite dB value",
-      );
+      throw new Error(i18n.t("library:measurements.invalidDb"));
     }
   }
   return points;
@@ -235,17 +239,13 @@ export function normalizeMeasurementPoints(
 
   const referenceDb = interpolateMeasurementDb(sorted, 1000);
   if (!Number.isFinite(referenceDb)) {
-    throw new Error(
-      "Measurement normalization produced a non-finite reference",
-    );
+    throw new Error(i18n.t("library:measurements.invalidReference"));
   }
 
   return sorted.map((point) => {
     const db = point.db - referenceDb;
     if (!Number.isFinite(db)) {
-      throw new Error(
-        "Measurement normalization produced a non-finite dB value",
-      );
+      throw new Error(i18n.t("library:measurements.invalidDb"));
     }
     return { freq: point.freq, db };
   });

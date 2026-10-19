@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import {
   memo,
   useCallback,
@@ -58,6 +59,7 @@ function graphDbLabels(height: number): number[] {
 function clampHandlePosition(percent: number): string {
   // The handle is transformed around its center. Keep the full touch target
   // inside the graph when a band sits at the edge of the frequency/gain range.
+  // eslint-disable-next-line i18next/no-literal-string -- CSS expression, not UI text.
   return `clamp(14px, ${percent}%, calc(100% - 14px))`;
 }
 
@@ -110,6 +112,7 @@ export const EqGraph = memo(function EqGraph({
   snapToIso?: boolean;
 }) {
   const [showMobileLegend, setShowMobileLegend] = useState(false);
+  const { t } = useTranslation("editor");
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const shellRef = useRef<HTMLDivElement>(null);
   const drawSerialRef = useRef(0);
@@ -542,12 +545,9 @@ export const EqGraph = memo(function EqGraph({
           className="eq-canvas"
           ref={canvasRef}
           role="img"
-          aria-label="Equalizer frequency response graph displaying live parametric filter curves, measurements, and targets"
+          aria-label={t("graph.description")}
         >
-          <p>
-            Interactive frequency response graph displaying active parametric EQ
-            filters and measurements.
-          </p>
+          <p>{t("graph.description")}</p>
         </canvas>
         {editable &&
           capabilities &&
@@ -568,11 +568,17 @@ export const EqGraph = memo(function EqGraph({
                 data-filter-index={filter.index}
                 className={`eq-filter-handle${activeBandIndex === filter.index ? " active" : ""}`}
                 style={handleStyle}
-                aria-label={`Band ${filter.index + 1}: ${valueText}. Drag or use arrow keys to adjust frequency and gain. Hold Shift and drag up or down to adjust Q. Use the mouse wheel for gain or Shift plus mouse wheel for Q.`}
+                aria-label={t("graph.bandHelp", {
+                  number: filter.index + 1,
+                  value: valueText,
+                })}
                 aria-current={
                   activeBandIndex === filter.index ? "true" : undefined
                 }
-                title={`Band ${filter.index + 1}: ${valueText} · Drag: frequency/gain · Shift+drag up/down: Q · Wheel: gain · Shift+wheel: Q`}
+                title={t("graph.bandTooltip", {
+                  number: filter.index + 1,
+                  value: valueText,
+                })}
                 onPointerDown={(event) => {
                   if (!event.isPrimary || event.button !== 0) return;
                   onActiveBandChange?.(filter.index);
@@ -615,8 +621,8 @@ export const EqGraph = memo(function EqGraph({
             type="button"
             className={`mobile-legend-toggle ${showMobileLegend ? "active" : ""}`}
             onClick={() => setShowMobileLegend(!showMobileLegend)}
-            title="Toggle legend"
-            aria-label="Toggle legend"
+            title={t("graph.toggleLegend")}
+            aria-label={t("graph.toggleLegend")}
             aria-expanded={showMobileLegend}
           >
             <Icon name={showMobileLegend ? "close" : "legend_toggle"} />
@@ -658,8 +664,10 @@ export const EqGraph = memo(function EqGraph({
               </span>
               <span>
                 {selectedMeasurement
-                  ? `Last written + ${selectedMeasurement.name}`
-                  : "Last written"}
+                  ? t("graph.lastWrittenMeasurement", {
+                      name: selectedMeasurement.name,
+                    })
+                  : t("graph.lastWritten")}
               </span>
             </div>
           )}
@@ -707,7 +715,7 @@ export const EqGraph = memo(function EqGraph({
                     />
                   </svg>
                 </span>
-                <span>{trace.name} (EQ applied)</span>
+                <span>{t("graph.eqApplied", { name: trace.name })}</span>
               </div>
               <div className="graph-legend-item raw">
                 <span className="graph-legend-swatch">
@@ -728,7 +736,9 @@ export const EqGraph = memo(function EqGraph({
                     />
                   </svg>
                 </span>
-                <span className="raw-label">{trace.name} (raw)</span>
+                <span className="raw-label">
+                  {t("graph.raw", { name: trace.name })}
+                </span>
               </div>
             </Fragment>
           ))}
@@ -751,7 +761,7 @@ export const EqGraph = memo(function EqGraph({
                   />
                 </svg>
               </span>
-              <span>EQ curve</span>
+              <span>{t("graph.eqCurve")}</span>
             </div>
           )}
         </div>
@@ -1125,6 +1135,7 @@ function withAlpha(color: string, alpha: number): string {
   const red = Number.parseInt(normalized.slice(0, 2), 16);
   const green = Number.parseInt(normalized.slice(2, 4), 16);
   const blue = Number.parseInt(normalized.slice(4, 6), 16);
+  // eslint-disable-next-line i18next/no-literal-string -- CSS color, not UI text.
   return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
 }
 

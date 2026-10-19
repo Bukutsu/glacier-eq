@@ -1,3 +1,4 @@
+import { i18n } from "@/lib/i18n";
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
@@ -16,9 +17,9 @@ export async function copyEq(
 ): Promise<void> {
   try {
     await writeText(await autoEqText(peq));
-    setStatus("Copied EQ to clipboard");
+    setStatus(i18n.t("editor:export.copied"));
   } catch (err) {
-    setStatus(`Failed to copy: ${err}`);
+    setStatus(i18n.t("editor:export.copyFailed", { error: String(err) }));
   }
 }
 
@@ -32,10 +33,12 @@ export async function exportEqFile(
     const defaultName = `${(baseName || "eq_profile").replace(/[^a-zA-Z0-9_\-@+&.() ]/g, "")}.txt`;
     const path = await save({
       defaultPath: defaultName,
-      filters: [{ name: "Text Files", extensions: ["txt"] }],
+      filters: [
+        { name: i18n.t("editor:export.textFiles"), extensions: ["txt"] },
+      ],
     });
     if (!path) {
-      setStatus("Export cancelled.");
+      setStatus(i18n.t("editor:export.cancelled"));
       return;
     }
     const savedName = await invoke<string | null>("save_text_file", {
@@ -43,11 +46,11 @@ export async function exportEqFile(
       content: text,
     });
     if (savedName === null) {
-      setStatus("Export cancelled.");
+      setStatus(i18n.t("editor:export.cancelled"));
       return;
     }
-    setStatus("Exported EQ profile");
+    setStatus(i18n.t("editor:export.success"));
   } catch (err) {
-    setStatus(`Failed to export: ${err}`);
+    setStatus(i18n.t("editor:export.failed", { error: String(err) }));
   }
 }

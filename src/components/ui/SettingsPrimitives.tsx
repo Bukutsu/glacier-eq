@@ -1,3 +1,5 @@
+import "@/lib/i18n";
+import { useTranslation } from "react-i18next";
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
@@ -12,7 +14,7 @@ import { openExternalLink } from "@/lib/externalLinks";
 export function StackHeader({
   title,
   backTo,
-  backLabel = "Back",
+  backLabel,
   actions,
 }: {
   title: string;
@@ -20,10 +22,15 @@ export function StackHeader({
   backLabel?: string;
   actions?: ReactNode;
 }) {
+  const { t } = useTranslation("shell");
   return (
     <header className={`stack-topbar${backTo ? " subscreen" : ""}`}>
       {backTo ? (
-        <NavLink to={backTo} className="stack-back-btn" aria-label={backLabel}>
+        <NavLink
+          to={backTo}
+          className="stack-back-btn"
+          aria-label={backLabel ?? t("actions.back")}
+        >
           <Icon name="arrow_back" />
         </NavLink>
       ) : null}

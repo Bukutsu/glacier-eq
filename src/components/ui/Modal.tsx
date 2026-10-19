@@ -1,3 +1,5 @@
+import "@/lib/i18n";
+import { useTranslation } from "react-i18next";
 import {
   type CSSProperties,
   type MouseEvent,
@@ -76,6 +78,7 @@ export function Modal({
   descriptionId,
   role,
 }: ModalProps) {
+  const { t } = useTranslation("shell");
   const dialogRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   const modalId = `modal-${titleId}`;
@@ -172,7 +175,7 @@ export function Modal({
             if (!closeDisabled) onClose();
           }}
           disabled={closeDisabled}
-          aria-label={`Close ${title}`}
+          aria-label={t("actions.close", { title })}
         >
           <Icon name="close" />
         </Button>

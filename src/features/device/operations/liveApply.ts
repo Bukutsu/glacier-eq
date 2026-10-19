@@ -1,3 +1,4 @@
+import { i18n } from "@/lib/i18n";
 import type { invoke } from "@/lib/rpc";
 import { isDisconnectionError } from "@/lib/errors";
 import { normalizePeq } from "@/features/eq/lib/peq";
@@ -81,7 +82,9 @@ export function createLiveApplier(context: LiveApplyContext) {
     } catch (error) {
       // A lost device is reported by the connection monitor.
       if (!isDisconnectionError(error)) {
-        reportError(`Live apply failed: ${error}`);
+        reportError(
+          i18n.t("device:liveApply.liveApplyFailed", { error: error }),
+        );
       }
     } finally {
       running = false;

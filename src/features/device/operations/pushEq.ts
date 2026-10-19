@@ -1,3 +1,4 @@
+import { i18n } from "@/lib/i18n";
 import type { invoke, sleep } from "@/lib/rpc";
 import type { confirmDialog } from "@/components/ui/ConfirmDialog";
 import {
@@ -102,7 +103,7 @@ export function createPushEq(context: PushEqContext) {
   return async (options: { quiet?: boolean } = {}) => {
     const quiet = options.quiet === true;
     if (!connected) {
-      if (!quiet) setStatus("Connect a DAC before writing EQ.", "info");
+      if (!quiet) setStatus(i18n.t("device:pushEq.connectionRequired"), "info");
       return;
     }
     if (eqOperationInFlightRef.current) return;
@@ -123,13 +124,19 @@ export function createPushEq(context: PushEqContext) {
       connectedSessionIdRef.current === confirmationSessionId &&
       selectedCapabilities === confirmationCapabilities;
     const activeBands = snapshot.filters.filter((f) => f.enabled).length;
-    const bandCount = activeBands === 1 ? "band" : "bands";
     if (
       !quiet &&
       !(await confirmDialog({
-        title: isMobile ? "Save to DAC?" : "Write to DAC?",
-        message: `Write ${activeBands} ${bandCount} and ${formatDb(snapshot.global_gain)} preamp to the DAC? This saves the EQ to the device.`,
-        confirmLabel: isMobile ? "Save to DAC" : "Write to DAC",
+        title: isMobile
+          ? i18n.t("device:pushEq.saveTitle")
+          : i18n.t("device:pushEq.writeTitle"),
+        message: i18n.t("device:pushEq.confirmWrite", {
+          count: activeBands,
+          preamp: formatDb(snapshot.global_gain),
+        }),
+        confirmLabel: isMobile
+          ? i18n.t("device:pushEq.saveAction")
+          : i18n.t("device:pushEq.writeAction"),
         danger: true,
       }))
     )
@@ -157,34 +164,50 @@ export function createPushEq(context: PushEqContext) {
     try {
       if (isDevDummyDevice(selectedDevice)) {
         setProgress({
-          message: "Preparing EQ write…",
+          message: i18n.t("device:pushEq.preparingEqWrite"),
           percentage: 10,
         });
         await sleep(200);
         setProgress({
-          message: `Writing band 1/${selectedCapabilities.num_bands}…`,
+          message: i18n.t("device:pushEq.writingBand", {
+            num_bands: selectedCapabilities.num_bands,
+          }),
           percentage: 20,
         });
         await sleep(150);
-        setProgress({ message: "Writing EQ bands…", percentage: 45 });
+        setProgress({
+          message: i18n.t("device:pushEq.writingEqBands"),
+          percentage: 45,
+        });
         await sleep(150);
         setProgress({
-          message: `Wrote ${selectedCapabilities.num_bands} bands`,
+          message: i18n.t("device:pushEq.wroteBands", {
+            count: selectedCapabilities.num_bands,
+          }),
           percentage: 70,
         });
         await sleep(150);
-        setProgress({ message: "Writing preamp…", percentage: 75 });
+        setProgress({
+          message: i18n.t("device:pushEq.writingPreamp"),
+          percentage: 75,
+        });
         await sleep(150);
         setProgress({
-          message: "Saving EQ to DAC…",
+          message: i18n.t("device:pushEq.savingEqToDac"),
           percentage: 80,
         });
         await sleep(200);
-        setProgress({ message: "Verifying changes…", percentage: 90 });
+        setProgress({
+          message: i18n.t("device:pushEq.verifyingChanges"),
+          percentage: 90,
+        });
         await sleep(200);
         if (!isCurrentOperation()) return;
         committedPeq = writeDevDummyPeq(selectedDevice, snapshot);
-        setProgress({ message: "Write complete", percentage: 100 });
+        setProgress({
+          message: i18n.t("device:pushEq.writeComplete"),
+          percentage: 100,
+        });
         await sleep(400);
       } else {
         // set_eq_state returns the PEQ actually committed (quantized to the
@@ -218,20 +241,25 @@ export function createPushEq(context: PushEqContext) {
       if (!isCurrentOperation()) return;
       setLastPushedPeq(committedPeq ?? snapshot);
       const savedMessage = isDevDummyDevice(selectedDevice)
-        ? "EQ write simulated"
+        ? i18n.t("device:pushEq.eqWriteSimulated")
         : restarts
-          ? "Saved EQ to DAC; restart expected, waiting to reconnect"
-          : "Saved EQ to DAC";
+          ? i18n.t("device:pushEq.savedRestarting")
+          : i18n.t("device:pushEq.savedEqToDac");
       if (pushWarnings.length > 0) {
         // The push rewrote out-of-range values, or ran with verification
         // switched off and so never read the DAC back: "Saved EQ to DAC"
         // alone would hide both.
         reportStatus({
           level: "Warn",
-          message: `${savedMessage}. ${pushWarnings.join(" · ")}`,
+          message: i18n.t("device:pushEq.completionWarnings", {
+            message: savedMessage,
+            warnings: pushWarnings.join(" · "),
+          }),
           toastType: quiet ? null : "info",
           source: "UI",
-          statusText: `${savedMessage} (see details)`,
+          statusText: i18n.t("device:pushEq.seeDetails", {
+            savedMessage: savedMessage,
+          }),
         });
       } else {
         reportStatus({
@@ -259,13 +287,15 @@ export function createPushEq(context: PushEqContext) {
             setFirmwareVersion,
             reportStatus: reportLoss,
           },
-          `Could not write to DAC (disconnected): ${error}`,
+          i18n.t("device:pushEq.writeDisconnected", {
+            error: error,
+          }),
           "HID",
         );
       } else {
         reportStatus({
           level: "Error",
-          message: `Could not write to DAC: ${error}`,
+          message: i18n.t("device:pushEq.writeFailed", { error: error }),
           toastType: "error",
           source: "UI",
         });

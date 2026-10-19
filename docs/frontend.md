@@ -107,6 +107,9 @@ Only the current profile uses a filled selection background.
 
 ## Adding UI
 
+All new user-facing text needs a catalog entry. See [Localization](localization.md)
+for translation hooks, language catalogs, and the checks run by verification.
+
 **A reusable control:** add it to `components/ui/`, using the existing controls before introducing another implementation. Test keyboard behavior and accessible names.
 
 **A feature panel:** put the component, state hook, helpers, and tests under its feature. Wire navigation or workspace placement in `app/`. Avoid putting feature-specific state back into `App`.

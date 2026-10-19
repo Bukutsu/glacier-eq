@@ -1,3 +1,5 @@
+import "@/lib/i18n";
+import { useTranslation } from "react-i18next";
 import { memo, type ReactNode } from "react";
 import { Menu } from "@base-ui/react/menu";
 import { Button } from "@/components/ui/Button";
@@ -16,10 +18,11 @@ function ConnectionActions({
   onPull?: () => void;
   compact?: boolean;
 }) {
+  const { t } = useTranslation("shell");
   return (
     <Menu.Root>
       <Menu.Trigger
-        aria-label="Device actions"
+        aria-label={t("header.deviceActions")}
         render={
           <Button
             size={compact ? "icon" : "default"}
@@ -31,7 +34,7 @@ function ConnectionActions({
           <Icon name="more_vert" />
         ) : (
           <>
-            Device <Icon name="expand_more" />
+            {t("navigation.device")} <Icon name="expand_more" />
           </>
         )}
       </Menu.Trigger>
@@ -42,14 +45,17 @@ function ConnectionActions({
           positionMethod="fixed"
           className="ui-popup-positioner"
         >
-          <Menu.Popup className="ui-menu" aria-label="Device actions">
+          <Menu.Popup
+            className="ui-menu"
+            aria-label={t("header.deviceActions")}
+          >
             {onPull && (
               <Menu.Item
                 className="ui-menu-item"
                 disabled={isBusy}
                 onClick={onPull}
               >
-                <Icon name="file_download" /> Read from DAC
+                <Icon name="file_download" /> {t("header.read")}
               </Menu.Item>
             )}
             <Menu.Item
@@ -57,7 +63,7 @@ function ConnectionActions({
               disabled={isBusy}
               onClick={onDisconnect}
             >
-              <Icon name="link_off" /> Disconnect DAC
+              <Icon name="link_off" /> {t("header.disconnectDac")}
             </Menu.Item>
           </Menu.Popup>
         </Menu.Positioner>
@@ -122,13 +128,14 @@ export const Header = memo(function Header({
   compact = false,
   draftRecovery,
 }: HeaderProps) {
+  const { t } = useTranslation("shell");
   const isConfigPage = configPage !== undefined;
   const pageTitle =
     pageTitleOverride ??
     (configPage === "device"
-      ? "Device"
+      ? t("navigation.device")
       : configPage === "settings"
-        ? "Settings"
+        ? t("navigation.settings")
         : profile);
 
   // With live apply the app saves in the background, so there is no write step.
@@ -145,44 +152,47 @@ export const Header = memo(function Header({
             ? "ok"
             : "unsaved";
   const syncText = !connected
-    ? "Offline"
+    ? t("header.offline")
     : isBusy
       ? progress
-        ? `${progress.message} · ${Math.round(progress.percentage)}%`
-        : "Working"
+        ? t("header.progress", {
+            message: progress.message,
+            percentage: Math.round(progress.percentage),
+          })
+        : t("header.working")
       : isSimulated
-        ? "Simulation · no hardware changes"
+        ? t("header.simulation")
         : !hardwareEq
-          ? "This DAC has no hardware EQ · export the EQ to use it in a system equalizer"
+          ? t("header.noHardwareExport")
           : deviceMatchesEditor === null
-            ? "Device state unknown"
+            ? t("header.unknown")
             : deviceMatchesEditor
-              ? "DAC: matches editor"
+              ? t("header.matches")
               : liveSaves
-                ? "DAC: live · saves when you pause"
-                : "DAC: changes not written";
+                ? t("header.live")
+                : t("header.unwritten");
   const profileText = !profileSaved
-    ? "Profile: not saved"
+    ? t("header.profileUnsaved")
     : profileDirty
-      ? "Profile: modified"
-      : "Profile: saved";
+      ? t("header.profileModified")
+      : t("header.profileSaved");
   const writeVariant =
     deviceMatchesEditor === false && !isSimulated ? "primary" : "default";
   const mobileSyncText = !connected
-    ? "Offline editing"
+    ? t("header.offlineEditing")
     : isBusy
       ? syncText
       : isSimulated
-        ? "Simulated device; no hardware changes"
+        ? t("header.simulatedDevice")
         : !hardwareEq
-          ? "This DAC has no hardware EQ"
+          ? t("header.noHardware")
           : deviceMatchesEditor === true
-            ? "Saved to DAC"
+            ? t("header.saved")
             : deviceMatchesEditor === false
               ? liveSaves
-                ? "Saves to DAC when you pause"
-                : "Changes not saved to DAC"
-              : "Read EQ from the DAC to check its state";
+                ? t("header.saveOnPause")
+                : t("header.notSaved")
+              : t("header.readToCheck");
 
   const exportButton = (
     <Button
@@ -190,8 +200,8 @@ export const Header = memo(function Header({
       variant="ghost"
       size="icon"
       className="history-btn"
-      title="Export EQ file"
-      aria-label="Export EQ file"
+      title={t("header.export")}
+      aria-label={t("header.export")}
       disabled={isBusy}
       onClick={onExportEq}
     >
@@ -223,9 +233,9 @@ export const Header = memo(function Header({
               {liveApply && connected && hardwareEq && !isConfigPage && (
                 <span
                   className="header-profile-state"
-                  title="EQ edits are sent to the DAC as you make them and saved when you pause."
+                  title={t("header.liveApplyHelp")}
                 >
-                  Live apply
+                  {t("header.liveApply")}
                 </span>
               )}
               {!isConfigPage && !mobile && (
@@ -245,15 +255,15 @@ export const Header = memo(function Header({
                   <div
                     className="history-buttons"
                     role="group"
-                    aria-label="Edit history"
+                    aria-label={t("header.editHistory")}
                   >
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
                       className="history-btn"
-                      title="Undo"
-                      aria-label="Undo"
+                      title={t("actions.undo")}
+                      aria-label={t("actions.undo")}
                       disabled={isBusy || !canUndo}
                       onClick={onUndo}
                     >
@@ -264,8 +274,8 @@ export const Header = memo(function Header({
                       variant="ghost"
                       size="icon"
                       className="history-btn"
-                      title="Redo"
-                      aria-label="Redo"
+                      title={t("actions.redo")}
+                      aria-label={t("actions.redo")}
                       disabled={isBusy || !canRedo}
                       onClick={onRedo}
                     >
@@ -279,21 +289,21 @@ export const Header = memo(function Header({
                         <Button
                           type="button"
                           variant="default"
-                          title="Replace the editor with EQ read from the DAC"
+                          title={t("header.readHelp")}
                           onClick={onPull}
                           disabled={isBusy}
                         >
-                          Read from DAC
+                          {t("header.read")}
                         </Button>
                         {!liveSaves && (
                           <Button
                             type="button"
                             variant={writeVariant}
-                            title="Store the editor EQ on the DAC"
+                            title={t("header.writeHelp")}
                             onClick={onPush}
                             disabled={isBusy}
                           >
-                            Write to DAC
+                            {t("header.write")}
                           </Button>
                         )}
                       </>
@@ -306,7 +316,7 @@ export const Header = memo(function Header({
                       disabled={isBusy}
                     >
                       <Icon name="link" />
-                      <span>Connect DAC</span>
+                      <span>{t("actions.connect")}</span>
                     </Button>
                   )}
                 </>
@@ -319,7 +329,7 @@ export const Header = memo(function Header({
                   disabled={isBusy}
                 >
                   <Icon name="link_off" />
-                  <span>Disconnect</span>
+                  <span>{t("actions.disconnect")}</span>
                 </Button>
               )}
             </div>
@@ -331,15 +341,15 @@ export const Header = memo(function Header({
             <div
               className="history-buttons mobile-history-buttons"
               role="group"
-              aria-label="EQ actions"
+              aria-label={t("header.eqActions")}
             >
               <Button
                 type="button"
                 variant="ghost"
                 size="icon"
                 className="history-btn"
-                title="Undo"
-                aria-label="Undo"
+                title={t("actions.undo")}
+                aria-label={t("actions.undo")}
                 disabled={isBusy || !canUndo}
                 onClick={onUndo}
               >
@@ -350,8 +360,8 @@ export const Header = memo(function Header({
                 variant="ghost"
                 size="icon"
                 className="history-btn"
-                title="Redo"
-                aria-label="Redo"
+                title={t("actions.redo")}
+                aria-label={t("actions.redo")}
                 disabled={isBusy || !canRedo}
                 onClick={onRedo}
               >
@@ -366,11 +376,11 @@ export const Header = memo(function Header({
                     type="button"
                     variant={writeVariant}
                     className="mobile-action-btn"
-                    title="Store the editor EQ on the DAC. It stays saved after unplugging."
+                    title={t("header.saveHelp")}
                     onClick={onPush}
                     disabled={isBusy}
                   >
-                    <Icon name="save" /> Save to DAC
+                    <Icon name="save" /> {t("header.save")}
                   </Button>
                 )}
                 <ConnectionActions
@@ -389,7 +399,7 @@ export const Header = memo(function Header({
                 disabled={isBusy}
               >
                 <Icon name="link" />
-                <span>Connect DAC</span>
+                <span>{t("actions.connect")}</span>
               </Button>
             )}
           </div>
@@ -398,11 +408,7 @@ export const Header = memo(function Header({
       {connected && !hardwareEq && !isConfigPage && (
         <p className="header-eq-note" role="note">
           <Icon name="info" />
-          <span>
-            This DAC has no hardware EQ, so EQ Read/Write actions are
-            unavailable. You can still edit and export EQ for a system
-            equalizer.
-          </span>
+          <span>{t("header.noHardwareNote")}</span>
         </p>
       )}
       <ToastContainer errorsOnly />
@@ -411,7 +417,7 @@ export const Header = memo(function Header({
           className="header-progress-bar"
           role="progressbar"
           aria-label={
-            progress ? progress.message : "Device operation in progress"
+            progress ? progress.message : t("header.operationProgress")
           }
           aria-valuemin={0}
           aria-valuemax={100}

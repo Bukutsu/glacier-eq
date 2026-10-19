@@ -1,3 +1,5 @@
+import "@/lib/i18n";
+import { useTranslation } from "react-i18next";
 import { useCallback, useEffect } from "react";
 
 import { invoke } from "@/lib/rpc";
@@ -11,6 +13,7 @@ import type { StatusReport } from "@/features/diagnostics/types";
 import type { RefObject } from "react";
 
 export function useAppFeedback(quietReconnectRef: RefObject<boolean>) {
+  const { t } = useTranslation("shell");
   const status = useToastStore((s) => s.status);
 
   // One in-app notification path on every platform; Android previously also
@@ -58,13 +61,10 @@ export function useAppFeedback(quietReconnectRef: RefObject<boolean>) {
   const persistUiPreference = useCallback(
     (key: string, value: string) => {
       if (!writeLocalStorage(key, value)) {
-        showToast(
-          "This browser could not save the preference; it may not persist after restart.",
-          "error",
-        );
+        showToast(t("feedback.preferenceNotSaved"), "error");
       }
     },
-    [showToast],
+    [showToast, t],
   );
 
   const setStatus = useCallback<StatusReporter>(

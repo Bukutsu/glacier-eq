@@ -10,11 +10,11 @@
     "dev:desktop": "vite --mode desktop",
     "wasm:build": "cross-env RUSTFLAGS= wasm-pack build glacier-core --target web --out-dir ../src/wasm_pkg --locked",
     "build": "npm run build:web",
-    "build:web": "npm run wasm:build && tsc -p tsconfig.web.json && vite build --mode web",
-    "build:desktop": "tsc -p tsconfig.desktop.json && vite build --mode desktop",
+    "build:web": "npm run check:locales && npm run wasm:build && tsc -p tsconfig.web.json && vite build --mode web",
+    "build:desktop": "npm run check:locales && tsc -p tsconfig.desktop.json && vite build --mode desktop",
     "test": "vitest run",
     "test:wasm": "npm run wasm:build && vitest run --config vitest.wasm.config.ts",
-    "verify": "npm run format:check && npm test && npm run typecheck && npm run test:wasm",
+    "verify": "npm run format:check && npm run check:locales && npm test && npm run typecheck && npm run test:wasm",
     "format": "prettier --write \"src/**/*.{ts,tsx}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx}\"",
     "typecheck": "tsc -p tsconfig.web.json --noEmit && tsc -p tsconfig.desktop.json --noEmit && npm run typecheck:tests",
@@ -28,20 +28,27 @@
     "android:run": "npm run android:prepare && tauri android run",
     "android:apk": "npm run android:prepare && tauri android build --debug --apk --target aarch64 -- --locked",
     "android:apk:release": "npm run android:prepare -- --release && tauri android build --apk --target aarch64 -- --locked",
-    "android:apk:split": "npm run android:prepare && tauri android build --apk --split-per-abi -- --locked"
+    "android:apk:split": "npm run android:prepare && tauri android build --apk --split-per-abi -- --locked",
+    "check:locales": "node --test scripts/localization.test.mjs && npm run lint:locales && i18next-cli extract --ci --dry-run && i18next-cli status && node scripts/check-locales.mjs",
+    "lint:locales": "eslint src && i18next-cli lint",
+    "locales:extract": "i18next-cli extract",
+    "locales:status": "i18next-cli status"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
     "@tauri-apps/api": "^2.12.2",
     "@tauri-apps/plugin-clipboard-manager": "^2.4.1",
     "@tauri-apps/plugin-dialog": "^2.8.1",
+    "i18next": "^26.5.2",
     "lucide-react": "^1.45.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
+    "react-i18next": "^17.1.0",
     "react-router": "^7.18.3",
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@babel/eslint-parser": "^8.0.7",
     "@tailwindcss/vite": "^4.3.3",
     "@tauri-apps/cli": "^2.12.1",
     "@types/node": "^24.19.2",
@@ -50,11 +57,17 @@
     "@types/w3c-web-hid": "^1.0.7",
     "@vitejs/plugin-react": "^6.1.1",
     "cross-env": "^10.1.0",
+    "eslint": "^10.13.0",
+    "eslint-plugin-i18next": "^6.1.5",
+    "i18next-cli": "^1.77.0",
     "prettier": "^3.9.10",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
     "vite": "^8.2.2",
     "vitest": "^4.1.11",
     "wasm-pack": "^0.15.0"
+  },
+  "engines": {
+    "node": "^22.18.0 || >=24.11.0"
   }
 }

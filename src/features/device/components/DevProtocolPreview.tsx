@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
@@ -19,8 +20,10 @@ export function DevProtocolPreview({
   disabled: boolean;
   onChange: (device: DeviceInfo) => void;
 }) {
+  const { t } = useTranslation("device");
+
   const [choices, setChoices] = useState<
-    { device: DeviceInfo; label: string }[]
+    { device: DeviceInfo; protocol: string; vendorFallback: boolean }[]
   >([]);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
@@ -38,7 +41,8 @@ export function DevProtocolPreview({
         );
         const choices = unique.map((profile) => ({
           device: buildDevPreviewDevice(profile),
-          label: `${profile.protocol} — ${profile.name}${profile.product_id === null ? " (vendor fallback)" : ""}`,
+          protocol: profile.protocol,
+          vendorFallback: profile.product_id === null,
         }));
         if (active) setChoices(choices);
       })
@@ -54,10 +58,10 @@ export function DevProtocolPreview({
       <div className="stack-pref-row select-row">
         <div className="stack-pref-info">
           <label className="stack-pref-title" htmlFor="dev-preview-model">
-            Protocol / model preview
+            {t("devProtocolPreview.protocolModelPreview")}
           </label>
           <span className="stack-pref-desc">
-            Simulated settings and EQ only. No hardware commands are sent.
+            {t("devProtocolPreview.description")}
           </span>
         </div>
         <div className="stack-pref-control setting-select-wrapper">
@@ -68,11 +72,19 @@ export function DevProtocolPreview({
             options={[
               {
                 value: DEV_DUMMY_DEVICE.path,
-                label: "Walkplay — Default dummy DAC",
+                label: t("devProtocolPreview.walkplayDefaultDummyDac"),
               },
               ...choices.map((choice) => ({
                 value: choice.device.path,
-                label: choice.label,
+                label: t(
+                  choice.vendorFallback
+                    ? "devProtocolPreview.vendorFallbackModel"
+                    : "devProtocolPreview.model",
+                  {
+                    protocol: choice.protocol,
+                    name: choice.device.profile_name,
+                  },
+                ),
               })),
             ]}
             onChange={(path) => {
@@ -81,17 +93,21 @@ export function DevProtocolPreview({
                   ? DEV_DUMMY_DEVICE
                   : choices.find((choice) => choice.device.path === path)
                       ?.device;
-              if (!selected) throw new Error("Unknown DAC preview");
+              if (!selected)
+                throw new Error(t("devProtocolPreview.unknownDacPreview"));
               onChange(selected);
             }}
           />
         </div>
       </div>
       <p className="configuration-description">
-        Previewing {device.profile_name} ·{" "}
         {device.hardware_eq
-          ? `${device.num_bands} bands · ${device.dsp_sample_rate / 1000} kHz`
-          : "no hardware EQ"}
+          ? t("devProtocolPreview.previewEq", {
+              name: device.profile_name,
+              count: device.num_bands,
+              rate: device.dsp_sample_rate / 1000,
+            })
+          : t("devProtocolPreview.previewNoEq", { name: device.profile_name })}
       </p>
       {error && <p role="alert">{error}</p>}
     </section>

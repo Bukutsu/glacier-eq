@@ -1,0 +1,143 @@
+{
+  "navigation": {
+    "device": "Appareil",
+    "settings": "Paramètres",
+    "profiles": "Profils",
+    "primary": "Navigation principale",
+    "diagnostics": "Diagnostic",
+    "tuning": "Réglage",
+    "deviceSettings": "Paramètres de l’appareil",
+    "deviceSections": "Rubriques de l’appareil",
+    "settingsSections": "Rubriques des paramètres",
+    "backToDevice": "Retour à l’appareil",
+    "backToSettings": "Retour aux paramètres"
+  },
+  "header": {
+    "deviceActions": "Actions de l’appareil",
+    "read": "Lire depuis le DAC",
+    "disconnectDac": "Déconnecter le DAC",
+    "offline": "Hors ligne",
+    "working": "En cours",
+    "simulation": "Simulation · aucune modification matérielle",
+    "noHardwareExport": "Ce DAC n’a pas d’égaliseur matériel · exportez l’égalisation pour l’utiliser dans un égaliseur système",
+    "unknown": "État de l’appareil inconnu",
+    "matches": "DAC : identique à l’éditeur",
+    "live": "DAC : direct · enregistrement à la pause",
+    "unwritten": "DAC : modifications non écrites",
+    "profileUnsaved": "Profil : non enregistré",
+    "profileModified": "Profil : modifié",
+    "profileSaved": "Profil : enregistré",
+    "offlineEditing": "Édition hors ligne",
+    "simulatedDevice": "Appareil simulé ; aucune modification matérielle",
+    "noHardware": "Ce DAC n’a pas d’égaliseur matériel",
+    "saved": "Enregistré sur le DAC",
+    "saveOnPause": "Enregistre sur le DAC à la pause",
+    "notSaved": "Modifications non enregistrées sur le DAC",
+    "readToCheck": "Lisez l’égalisation du DAC pour vérifier son état",
+    "export": "Exporter le fichier d’égalisation",
+    "liveApplyHelp": "Les modifications d’égalisation sont envoyées au DAC à mesure que vous les effectuez et enregistrées lorsque vous faites une pause.",
+    "liveApply": "Application en direct",
+    "editHistory": "Historique des modifications",
+    "readHelp": "Remplacer le contenu de l’éditeur par l’égalisation lue depuis le DAC",
+    "writeHelp": "Enregistrer l’égalisation de l’éditeur sur le DAC",
+    "write": "Écrire sur le DAC",
+    "eqActions": "Actions d’égalisation",
+    "saveHelp": "Enregistrer l’égalisation de l’éditeur sur le DAC. Elle reste enregistrée après débranchement.",
+    "save": "Enregistrer sur le DAC",
+    "noHardwareNote": "Ce DAC n’a pas d’égaliseur matériel ; les actions de lecture et d’écriture d’égalisation sont donc indisponibles. Vous pouvez toujours modifier et exporter l’égalisation pour un égaliseur système.",
+    "operationProgress": "Opération en cours sur l’appareil",
+    "progress": "{{message}} · {{percentage}}%"
+  },
+  "actions": {
+    "undo": "Annuler",
+    "redo": "Rétablir",
+    "connect": "Connecter le DAC",
+    "disconnect": "Déconnecter",
+    "cancel": "Annuler",
+    "confirm": "Confirmer",
+    "back": "Retour",
+    "close": "Fermer {{title}}",
+    "reload": "Recharger l’application"
+  },
+  "workspace": {
+    "loading": "Chargement de l’espace de travail",
+    "skip": "Aller à l’espace de travail",
+    "preamp": "Préampli",
+    "label": "Espace de travail",
+    "home": "Accueil de Glacier EQ",
+    "editor": "Éditeur d’égalisation"
+  },
+  "connection": {
+    "disconnected": "Déconnecté",
+    "reconnecting": "Reconnexion",
+    "lost": "Connexion perdue",
+    "restarting": "Le DAC redémarre",
+    "cancel": "Annuler la reconnexion",
+    "reconnectingTo": "Reconnexion à <strong>{{name}}</strong>…"
+  },
+  "graph": {
+    "showResponse": "Afficher le graphique de réponse en fréquence",
+    "hideResponse": "Masquer le graphique de réponse en fréquence",
+    "show": "Afficher le graphique",
+    "hide": "Masquer le graphique",
+    "scroll": "Aller au graphique de réponse en fréquence"
+  },
+  "feedback": {
+    "preferenceNotSaved": "Ce navigateur n’a pas pu enregistrer la préférence ; elle risque de ne pas être conservée après un redémarrage.",
+    "status": "Message d’état",
+    "dismiss": "Fermer le message",
+    "applicationError": "Erreur de l’application"
+  },
+  "number": {
+    "invalid": "Saisissez un nombre avec un point ou une virgule comme séparateur décimal.",
+    "decrement": "Décrémenter",
+    "increment": "Incrémenter",
+    "decrease": "Diminuer {{label}}",
+    "increase": "Augmenter {{label}}"
+  },
+  "sections": {
+    "overview": {
+      "label": "Vue d’ensemble",
+      "description": "Caractéristiques de l’appareil et limites d’égalisation"
+    },
+    "controls": {
+      "label": "Commandes",
+      "description": "Volume, modes sonores et réponse du filtre"
+    },
+    "maintenance": {
+      "label": "Maintenance",
+      "description": "Utilitaires de l’appareil et options de réinitialisation"
+    },
+    "general": {
+      "label": "Comportement et audio",
+      "description": "Comportement de connexion et édition de l’égalisation"
+    },
+    "appearance": {
+      "label": "Interface et thème",
+      "description": "Thème, graphique et préférences d’affichage"
+    },
+    "diagnostics": {
+      "label": "Diagnostic et autorisations",
+      "description": "Journaux d’événements et dépannage"
+    },
+    "about": {
+      "label": "À propos",
+      "description": "Version de l’application, projet et licences"
+    },
+    "eq": {
+      "label": "Égalisation"
+    },
+    "tuning": {
+      "label": "Réglage"
+    },
+    "profiles": {
+      "label": "Profils"
+    },
+    "device": {
+      "label": "Appareil"
+    },
+    "settings": {
+      "label": "Paramètres"
+    }
+  }
+}

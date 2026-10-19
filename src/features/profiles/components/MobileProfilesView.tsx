@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Menu } from "@base-ui/react/menu";
 import { Badge } from "@/components/ui/Badge";
@@ -47,6 +48,7 @@ export interface MobileProfilesViewProps {
 }
 
 export function MobileProfilesView(props: MobileProfilesViewProps) {
+  const { t } = useTranslation("library");
   const {
     peq,
     profiles,
@@ -111,7 +113,8 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
     try {
       await action();
     } catch (error) {
-      if (mounted.current) setStatus(`Profile action failed: ${error}`);
+      if (mounted.current)
+        setStatus(t("mobileProfilesView.actionFailed", { error: error }));
     } finally {
       actionPending.current = false;
       if (mounted.current) setPending(false);
@@ -131,7 +134,9 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
     const current = () =>
       mounted.current && asyncContextEquals(context, getAsyncContext());
     const file = await openFileDialog({
-      filters: [{ name: "AutoEQ text", extensions: ["txt"] }],
+      filters: [
+        { name: t("mobileProfilesView.autoEQText"), extensions: ["txt"] },
+      ],
     });
     if (!file || !current()) return;
     const imported = parseProfileImport(
@@ -142,45 +147,53 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
     if (
       dirty &&
       !(await confirmDialog({
-        title: "Discard changes?",
-        message: "Importing EQ will replace your unsaved editor changes.",
-        confirmLabel: "Discard and import",
+        title: t("mobileProfilesView.discardChanges"),
+        message: t(
+          "mobileProfilesView.importingEQWillReplaceYourUnsavedEditorChanges",
+        ),
+        confirmLabel: t("mobileProfilesView.discardAndImport"),
       }))
     )
       return;
     if (!current()) return;
     if (onImportPEQ(imported.data, imported.name, false))
       setStatus(
-        [
-          "EQ imported into the editor. Save it to keep it in your library.",
-          ...imported.warnings,
-        ].join(" "),
+        [t("mobileProfilesView.importSucceeded"), ...imported.warnings].join(
+          " ",
+        ),
       );
   }
 
   return (
     <div className="mobile-profile-library" aria-busy={disabled}>
-      <Card className="mobile-profile-editor" aria-label="Current editor EQ">
+      <Card
+        className="mobile-profile-editor"
+        aria-label={t("mobileProfilesView.currentEditorEQ")}
+      >
         <div className="mobile-profile-section-heading">
-          <span className="mobile-profile-eyebrow">In the editor</span>
+          <span className="mobile-profile-eyebrow">
+            {t("mobileProfilesView.inTheEditor")}
+          </span>
           <Badge>
             {dirty
-              ? "Unsaved changes"
+              ? t("mobileProfilesView.unsavedChanges")
               : builtIn
-                ? "Built-in"
+                ? t("mobileProfilesView.builtIn")
                 : saved
-                  ? "Saved"
-                  : "Not saved"}
+                  ? t("mobileProfilesView.saved")
+                  : t("mobileProfilesView.notSaved")}
           </Badge>
         </div>
         <h2 className="mobile-profile-editor-name">{selectedPreset}</h2>
         <p className="mobile-profile-description">
-          {activeBands} {activeBands === 1 ? "active band" : "active bands"} ·{" "}
-          {formatDb(peq.global_gain)} preamp
+          {t("mobileProfilesView.activeBands", {
+            count: activeBands,
+            preamp: formatDb(peq.global_gain),
+          })}
         </p>
         {builtIn && (
           <p className="mobile-profile-description">
-            The built-in profile is read-only. Save your edits under a new name.
+            {t("mobileProfilesView.builtInHelp")}
           </p>
         )}
         <div className="mobile-profile-editor-actions">
@@ -189,16 +202,18 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
             disabled={disabled}
             onClick={() => openNameDialog("save")}
           >
-            {saved && dirty ? "Save changes" : "Save as…"}
+            {saved && dirty
+              ? t("mobileProfilesView.saveChanges")
+              : t("mobileProfilesView.saveAs")}
           </Button>
           {onReviewEq && (
             <Button disabled={disabled} onClick={onReviewEq}>
-              Edit EQ
+              {t("mobileProfilesView.editEQ")}
             </Button>
           )}
           <Button
             size="icon"
-            aria-label="Export EQ"
+            aria-label={t("mobileProfilesView.exportEQ")}
             disabled={disabled}
             onClick={() =>
               void runAction(() => exportEqFile(peq, selectedPreset, setStatus))
@@ -208,7 +223,11 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
           </Button>
         </div>
         {preview && (
-          <Collapsible title="EQ preview" defaultOpen={false} compact>
+          <Collapsible
+            title={t("mobileProfilesView.eqPreview")}
+            defaultOpen={false}
+            compact
+          >
             <div className="mobile-profile-preview">{preview}</div>
           </Collapsible>
         )}
@@ -217,9 +236,11 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
       <section aria-labelledby="mobile-profile-library-title">
         <div className="mobile-profile-library-heading">
           <div>
-            <h2 id="mobile-profile-library-title">Your library</h2>
+            <h2 id="mobile-profile-library-title">
+              {t("mobileProfilesView.yourLibrary")}
+            </h2>
             <p className="mobile-profile-description">
-              {savedCount} saved {savedCount === 1 ? "profile" : "profiles"}
+              {t("mobileProfilesView.savedCount", { count: savedCount })}
             </p>
           </div>
           <div className="mobile-profile-library-tools">
@@ -228,16 +249,16 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
               onClick={() => void runAction(importFile)}
             >
               <Icon name="file_upload" />
-              Import
+              {t("mobileProfilesView.import")}
             </Button>
-            <OverflowMenu label="Library actions">
+            <OverflowMenu label={t("mobileProfilesView.libraryActions")}>
               <Menu.Item
                 className="ui-menu-item"
                 disabled={disabled}
                 onClick={() => void runAction(onReloadProfiles)}
               >
                 <Icon name="refresh" />
-                Refresh profiles
+                {t("mobileProfilesView.refreshProfiles")}
               </Menu.Item>
               {onOpenProfilesDir && (
                 <Menu.Item
@@ -246,7 +267,7 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
                   onClick={() => void runAction(onOpenProfilesDir)}
                 >
                   <Icon name="folder" />
-                  Open profiles folder
+                  {t("mobileProfilesView.openProfilesFolder")}
                 </Menu.Item>
               )}
             </OverflowMenu>
@@ -255,9 +276,9 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
         <div className="mobile-profile-search">
           <Icon name="search" />
           <Input
-            aria-label="Search profiles"
+            aria-label={t("mobileProfilesView.searchProfiles")}
             className="pl-9 pr-11 text-base"
-            placeholder="Search profiles…"
+            placeholder={t("mobileProfilesView.searchPlaceholder")}
             value={profileSearch}
             onChange={(event) => setProfileSearch(event.target.value)}
             type="search"
@@ -266,7 +287,7 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
             <Button
               variant="ghost"
               size="icon"
-              aria-label="Clear profile search"
+              aria-label={t("mobileProfilesView.clearProfileSearch")}
               onClick={() => setProfileSearch("")}
             >
               <Icon name="close" />
@@ -274,7 +295,10 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
           )}
         </div>
 
-        <ul className="mobile-profile-list" aria-label="Saved profiles">
+        <ul
+          className="mobile-profile-list"
+          aria-label={t("mobileProfilesView.savedProfiles")}
+        >
           {visible.map((profile) => {
             const isDefault =
               profileIdentityKey(profile.name) ===
@@ -298,12 +322,15 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
                     {isDefault && <Icon name="lock" />}
                     {profile.name}
                   </h3>
-                  {current && <Badge>In editor</Badge>}
+                  {current && <Badge>{t("mobileProfilesView.inEditor")}</Badge>}
                 </div>
                 <p className="mobile-profile-description">
                   {isDefault
-                    ? "A flat starting point. Always available."
-                    : `${bands} ${bands === 1 ? "band" : "bands"} · ${formatDb(data.global_gain)} preamp`}
+                    ? t("mobileProfilesView.flatProfileDescription")
+                    : t("mobileProfilesView.bandSummary", {
+                        count: bands,
+                        preamp: formatDb(data.global_gain),
+                      })}
                 </p>
                 <div className="mobile-profile-row-actions">
                   <Button
@@ -326,18 +353,22 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
                     {current && !dirty ? (
                       <>
                         <Icon name="check" />
-                        Loaded
+                        {t("mobileProfilesView.loaded")}
                       </>
                     ) : current ? (
                       <>
                         <Icon name="restart_alt" />
-                        Restore
+                        {t("mobileProfilesView.restore")}
                       </>
                     ) : (
-                      "Load into editor"
+                      t("mobileProfilesView.loadIntoEditor")
                     )}
                   </Button>
-                  <OverflowMenu label={`Actions for ${profile.name}`}>
+                  <OverflowMenu
+                    label={t("mobileProfilesView.actionsFor", {
+                      name: profile.name,
+                    })}
+                  >
                     <Menu.Item
                       className="ui-menu-item"
                       disabled={disabled}
@@ -348,7 +379,7 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
                       }
                     >
                       <Icon name="file_download" />
-                      Export EQ
+                      {t("mobileProfilesView.exportEQ")}
                     </Menu.Item>
                     {onApplyProfile && (
                       <Menu.Item
@@ -359,7 +390,7 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
                         }
                       >
                         <Icon name="usb" />
-                        Apply temporarily to DAC
+                        {t("mobileProfilesView.applyTemporarilyToDAC")}
                       </Menu.Item>
                     )}
                     {!isDefault && (
@@ -370,7 +401,7 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
                           onClick={() => openNameDialog("rename", profile.name)}
                         >
                           <Icon name="edit" />
-                          Rename
+                          {t("mobileProfilesView.rename")}
                         </Menu.Item>
                         <Menu.Item
                           className="ui-menu-item profiles-menu-danger"
@@ -380,7 +411,7 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
                           }
                         >
                           <Icon name="delete" />
-                          Delete
+                          {t("mobileProfilesView.delete")}
                         </Menu.Item>
                       </>
                     )}
@@ -393,15 +424,16 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
         {visible.length === 0 && (
           <div className="mobile-profile-empty" role="status">
             <Icon name="search_off" />
-            <h3>No matching profiles</h3>
-            <p>Try another name or clear your search.</p>
-            <Button onClick={() => setProfileSearch("")}>Clear search</Button>
+            <h3>{t("mobileProfilesView.noMatchingProfiles")}</h3>
+            <p>{t("mobileProfilesView.tryAnotherNameOrClearYourSearch")}</p>
+            <Button onClick={() => setProfileSearch("")}>
+              {t("mobileProfilesView.clearSearch")}
+            </Button>
           </div>
         )}
         {!query && savedCount === 0 && (
           <p className="mobile-profile-library-hint">
-            Save the EQ in your editor or import an AutoEQ text file to start
-            your library.
+            {t("mobileProfilesView.emptyLibraryHint")}
           </p>
         )}
       </section>
@@ -409,7 +441,9 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
       {dialog && (
         <Modal
           title={
-            dialog.mode === "save" ? "Save EQ as profile" : "Rename profile"
+            dialog.mode === "save"
+              ? t("mobileProfilesView.saveEQAsProfile")
+              : t("mobileProfilesView.renameProfile")
           }
           onClose={() => setDialog(null)}
           closeDisabled={pending}
@@ -424,9 +458,7 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
                 (!asyncContextEquals(dialog.context, getAsyncContext()) ||
                   dialog.profile !== selectedPreset)
               ) {
-                setStatus(
-                  "The editor changed. Close this dialog and try again.",
-                );
+                setStatus(t("mobileProfilesView.editorChanged"));
                 return;
               }
               void runAction(async () => {
@@ -440,7 +472,9 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
               });
             }}
           >
-            <label htmlFor="mobile-profile-name">Profile name</label>
+            <label htmlFor="mobile-profile-name">
+              {t("mobileProfilesView.profileName")}
+            </label>
             <Input
               id="mobile-profile-name"
               data-dialog-autofocus
@@ -451,17 +485,17 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
                   ? setNewProfileName(event.target.value)
                   : setRename(event.target.value)
               }
-              placeholder="e.g. Evening listening"
+              placeholder={t("mobileProfilesView.namePlaceholder")}
               disabled={disabled}
             />
             <p className="mobile-profile-description">
               {dialog.mode === "save"
-                ? "Saves the current editor EQ to your library. Nothing is written to your DAC."
-                : "Changes the saved name, not the EQ in your editor."}
+                ? t("mobileProfilesView.saveHelp")
+                : t("mobileProfilesView.renameHelp")}
             </p>
             <div className="mobile-profile-dialog-actions">
               <Button disabled={pending} onClick={() => setDialog(null)}>
-                Cancel
+                {t("mobileProfilesView.cancel")}
               </Button>
               <Button
                 variant="primary"
@@ -474,7 +508,9 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
                   ) === profileIdentityKey(DEFAULT_PROFILE_NAME)
                 }
               >
-                {dialog.mode === "save" ? "Save profile" : "Rename"}
+                {dialog.mode === "save"
+                  ? t("mobileProfilesView.saveProfile")
+                  : t("mobileProfilesView.rename")}
               </Button>
             </div>
           </form>

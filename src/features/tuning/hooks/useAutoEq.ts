@@ -1,3 +1,5 @@
+import { i18n } from "@/lib/i18n";
+import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@/lib/rpc";
 import { asyncContextEquals, type AsyncContext } from "@/lib/asyncContext";
@@ -34,14 +36,17 @@ export function useAutoEq({
   dspSampleRate = 96000,
   getAsyncContext,
 }: AutoEqOptions) {
+  const { t } = useTranslation("library");
   const [nBands, setNBands] = useState<number>(Math.max(1, maxBands));
   const [steps, setSteps] = useState<number>(2000);
   const [smoothType, setSmoothType] = useState<string>("IE");
   const [fs, setFs] = useState<number>(dspSampleRate);
   const [isOptimizing, setIsOptimizing] = useState<boolean>(false);
   const [warnings, setWarnings] = useState<string[]>([]);
-  const [resultMessage, setResultMessage] = useState<string | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [hasResult, setHasResult] = useState(false);
+  const [failure, setFailure] = useState<
+    { kind: "busy" } | { kind: "generation"; error: unknown } | null
+  >(null);
   const requestRef = useRef(0);
   const optimizingRef = useRef(false);
   const mountedRef = useRef(true);
@@ -50,9 +55,9 @@ export function useAutoEq({
     requestRef.current += 1;
     optimizingRef.current = false;
     setIsOptimizing(false);
-    setResultMessage(null);
+    setHasResult(false);
     setWarnings([]);
-    setErrorMessage(null);
+    setFailure(null);
   };
 
   useEffect(() => {
@@ -71,11 +76,10 @@ export function useAutoEq({
     requestRef.current += 1;
     optimizingRef.current = false;
     setIsOptimizing(false);
-    setResultMessage(null);
+    setHasResult(false);
     setWarnings([]);
-    setErrorMessage(null);
-    if (superseded)
-      setStatus("EQ generation cancelled because the inputs changed.");
+    setFailure(null);
+    if (superseded) setStatus(i18n.t("library:autoEq.inputsChanged"));
   }, [measurements, allTargets, activeTargetIds]);
 
   useEffect(() => {
@@ -186,10 +190,10 @@ export function useAutoEq({
 
     optimizingRef.current = true;
     setIsOptimizing(true);
-    setResultMessage(null);
-    setStatus("Generating EQ…");
+    setHasResult(false);
+    setStatus(i18n.t("library:autoEq.generatingEQ"));
     setWarnings([]);
-    setErrorMessage(null);
+    setFailure(null);
 
     try {
       const rawResult = await invoke<unknown>("run_autoeq", {
@@ -217,28 +221,29 @@ export function useAutoEq({
       const autoName = `${cleanMeasName} @ ${cleanTargetName}`;
       const applied = onImportPEQ(result.peq, autoName, false);
       if (!applied) {
-        const message =
-          "EQ was not loaded because a device operation is in progress. Wait for it to finish, then generate EQ again.";
-        setErrorMessage(message);
+        const message = i18n.t("library:autoEq.editorBusy");
+        setFailure({ kind: "busy" });
         setStatus(message);
         return;
       }
       setWarnings(result.warnings);
-      setResultMessage(
-        "EQ loaded into the editor. Review it before saving a profile or writing it to the DAC.",
-      );
+      setHasResult(true);
 
       if (result.warnings.length > 0) {
         setStatus(
-          `EQ generated with ${result.warnings.length} warning${result.warnings.length === 1 ? "" : "s"}`,
+          i18n.t("library:autoEq.generatedWarnings", {
+            count: result.warnings.length,
+          }),
         );
       } else {
-        setStatus("EQ generated");
+        setStatus(i18n.t("library:autoEq.generated"));
       }
     } catch (err) {
       if (isCurrent()) {
-        const message = `Could not generate EQ: ${err}`;
-        setErrorMessage(message);
+        const message = i18n.t("library:autoEq.couldNotGenerateEQ", {
+          error: err,
+        });
+        setFailure({ kind: "generation", error: err });
         setStatus(message);
         console.error(err);
       }
@@ -261,8 +266,12 @@ export function useAutoEq({
     setFs,
     isOptimizing,
     warnings,
-    resultMessage,
-    errorMessage,
+    resultMessage: hasResult ? t("autoEq.reviewResult") : null,
+    errorMessage: failure
+      ? failure.kind === "busy"
+        ? t("autoEq.editorBusy")
+        : t("autoEq.couldNotGenerateEQ", { error: failure.error })
+      : null,
     meas,
     target,
     invalidateRequest,

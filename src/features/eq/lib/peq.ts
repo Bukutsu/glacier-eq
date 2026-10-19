@@ -1,3 +1,4 @@
+import { i18n } from "@/lib/i18n";
 import type { DeviceCapabilities, FilterType, PEQData } from "@/types";
 
 export const DEFAULT_FREQS_10_BAND = [
@@ -271,7 +272,7 @@ export function parseStoredPeqResponse(
     value === null ||
     !Array.isArray((value as { filters?: unknown }).filters)
   ) {
-    throw new Error("Device returned an invalid EQ state");
+    throw new Error(i18n.t("editor:validation.invalidEq"));
   }
   const raw = value as {
     filters: unknown[];
@@ -288,11 +289,11 @@ export function parseStoredPeqResponse(
     typeof globalGain !== "number" ||
     !Number.isFinite(globalGain)
   ) {
-    throw new Error("Device returned an invalid EQ state");
+    throw new Error(i18n.t("editor:validation.invalidEq"));
   }
   for (const filter of raw.filters) {
     if (typeof filter !== "object" || filter === null) {
-      throw new Error("Device returned an invalid EQ state");
+      throw new Error(i18n.t("editor:validation.invalidEq"));
     }
     const f = filter as Record<string, unknown>;
     const hasIndex = "index" in f;
@@ -326,7 +327,7 @@ export function parseStoredPeqResponse(
       f.freq <= 0 ||
       f.freq > 65_535
     ) {
-      throw new Error("Device returned an invalid EQ state");
+      throw new Error(i18n.t("editor:validation.invalidEq"));
     }
   }
   return normalizePeq(value, options);

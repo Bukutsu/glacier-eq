@@ -1,3 +1,4 @@
+import { i18n } from "@/lib/i18n";
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
@@ -13,62 +14,118 @@ export interface FilterModeMeta {
 
 export const DAC_FILTER_METAS: Record<string, FilterModeMeta> = {
   "FAST-LL": {
-    name: "Fast roll-off, low latency",
-    tag: "Minimum phase · fast",
-    badge: "No pre-ringing",
-    sound: "Minimum phase",
-    description: "Fast roll-off with minimum phase and no pre-ringing.",
+    get name() {
+      return i18n.t("device:dacFilterModes.fastRollOffLowLatency");
+    },
+    get tag() {
+      return i18n.t("device:dacFilterModes.minimumPhaseFast");
+    },
+    get badge() {
+      return i18n.t("device:dacFilterModes.noPreRinging");
+    },
+    get sound() {
+      return i18n.t("device:dacFilterModes.minimumPhase");
+    },
+    get description() {
+      return i18n.t("device:dacFilterModes.fastMinimumDescription");
+    },
     phaseType: "minimum",
     rollOff: "fast",
   },
   "FAST-PC": {
-    name: "Fast roll-off, phase compensated",
-    tag: "Linear phase · fast",
-    badge: "Symmetric",
-    sound: "Linear phase",
-    description:
-      "Fast roll-off with linear phase and a symmetric impulse response.",
+    get name() {
+      return i18n.t("device:dacFilterModes.fastRollOffPhaseCompensated");
+    },
+    get tag() {
+      return i18n.t("device:dacFilterModes.linearPhaseFast");
+    },
+    get badge() {
+      return i18n.t("device:dacFilterModes.symmetric");
+    },
+    get sound() {
+      return i18n.t("device:dacFilterModes.linearPhase");
+    },
+    get description() {
+      return i18n.t("device:dacFilterModes.fastLinearDescription");
+    },
     phaseType: "linear",
     rollOff: "fast",
   },
   "Slow-LL": {
-    name: "Slow roll-off, low latency",
-    tag: "Minimum phase · slow",
-    badge: "Gentle slope",
-    sound: "Minimum phase",
-    description: "Slow roll-off with minimum phase and no pre-ringing.",
+    get name() {
+      return i18n.t("device:dacFilterModes.slowRollOffLowLatency");
+    },
+    get tag() {
+      return i18n.t("device:dacFilterModes.minimumPhaseSlow");
+    },
+    get badge() {
+      return i18n.t("device:dacFilterModes.gentleSlope");
+    },
+    get sound() {
+      return i18n.t("device:dacFilterModes.minimumPhase");
+    },
+    get description() {
+      return i18n.t("device:dacFilterModes.slowMinimumDescription");
+    },
     phaseType: "minimum",
     rollOff: "slow",
   },
   "Slow-PC": {
-    name: "Slow roll-off, phase compensated",
-    tag: "Linear phase · slow",
-    badge: "Soft treble",
-    sound: "Linear phase",
-    description:
-      "Slow roll-off with linear phase and a symmetric impulse response.",
+    get name() {
+      return i18n.t("device:dacFilterModes.slowRollOffPhaseCompensated");
+    },
+    get tag() {
+      return i18n.t("device:dacFilterModes.linearPhaseSlow");
+    },
+    get badge() {
+      return i18n.t("device:dacFilterModes.softTreble");
+    },
+    get sound() {
+      return i18n.t("device:dacFilterModes.linearPhase");
+    },
+    get description() {
+      return i18n.t("device:dacFilterModes.slowLinearDescription");
+    },
     phaseType: "linear",
     rollOff: "slow",
   },
   "NON-OS": {
-    name: "Non-oversampling (NOS)",
-    tag: "Direct conversion",
-    badge: "Zero ringing",
-    sound: "Direct NOS",
-    description:
-      "Bypasses digital interpolation, with a gradual reduction in high-frequency output.",
+    get name() {
+      return i18n.t("device:dacFilterModes.nonOversamplingNos");
+    },
+    get tag() {
+      return i18n.t("device:dacFilterModes.directConversion");
+    },
+    get badge() {
+      return i18n.t("device:dacFilterModes.zeroRinging");
+    },
+    get sound() {
+      return i18n.t("device:dacFilterModes.directNos");
+    },
+    get description() {
+      return i18n.t("device:dacFilterModes.nosDescription");
+    },
     phaseType: "nos",
     rollOff: "none",
   },
 };
 
 export const DEFAULT_FILTER_META: FilterModeMeta = {
-  name: "Standard interpolation",
-  tag: "Reconstruction filter",
-  badge: "Standard",
-  sound: "Default",
-  description:
-    "Standard digital filter applied by the hardware to convert samples to analog.",
+  get name() {
+    return i18n.t("device:dacFilterModes.standardInterpolation");
+  },
+  get tag() {
+    return i18n.t("device:dacFilterModes.reconstructionFilter");
+  },
+  get badge() {
+    return i18n.t("device:dacFilterModes.standard");
+  },
+  get sound() {
+    return i18n.t("device:dacFilterModes.default");
+  },
+  get description() {
+    return i18n.t("device:dacFilterModes.defaultDescription");
+  },
   phaseType: "linear",
   rollOff: "fast",
 };

@@ -1,3 +1,4 @@
+import { i18n } from "@/lib/i18n";
 import { useDeviceEvents } from "./useDeviceEvents";
 import { useDevicePolling } from "./useDevicePolling";
 import type { DeviceSessionOptions } from "./deviceSessionTypes";
@@ -138,7 +139,9 @@ export function useDeviceSession(
         setFirmwareVersion(null);
         reportStatus({
           level: "Warn",
-          message: `Could not read DAC firmware: ${error}`,
+          message: i18n.t("device:useDeviceSession.firmwareReadFailed", {
+            error: String(error),
+          }),
           toastType: "info",
           source: "Device",
         });
@@ -267,10 +270,11 @@ export function useDeviceSession(
           if (
             replacingEdits &&
             !(await confirmDialog({
-              title: "Switch DAC preview?",
-              message:
-                "Switching models replaces the editor EQ with that model's simulated EQ.",
-              confirmLabel: "Switch preview",
+              title: i18n.t("device:useDeviceSession.switchDacPreview"),
+              message: i18n.t(
+                "device:useDeviceSession.switchPreviewConfirmation",
+              ),
+              confirmLabel: i18n.t("device:useDeviceSession.switchPreview"),
             }))
           )
             return false;
@@ -310,9 +314,11 @@ export function useDeviceSession(
           lastConnectedNameRef.current = previewName;
           reportStatus({
             level: "Info",
-            message: "Connected to simulated DAC",
+            message: i18n.t("device:useDeviceSession.connectedToSimulatedDac"),
             source: "UI",
-            statusText: "Connected to simulated DAC",
+            statusText: i18n.t(
+              "device:useDeviceSession.connectedToSimulatedDac",
+            ),
           });
           if (resolvedTarget?.hardware_eq !== false)
             await pullEq(true, pathToConnect, targetCapabilities);
@@ -352,9 +358,11 @@ export function useDeviceSession(
 
         reportStatus({
           level: "Info",
-          message: `Connected to device: ${devName}`,
+          message: i18n.t("device:useDeviceSession.connectedToDevice", {
+            devName: devName,
+          }),
           source: "UI",
-          statusText: "Ready",
+          statusText: i18n.t("device:useDeviceSession.ready"),
         });
 
         if (settings.auto_pull_on_connect && devInfo?.hardware_eq !== false) {
@@ -395,7 +403,9 @@ export function useDeviceSession(
             setDirty(!peqEquals(constrained, editorCleanPeqRef.current));
             reportStatus({
               level: "Info",
-              message: "Editor adjusted to DAC limits",
+              message: i18n.t(
+                "device:useDeviceSession.editorAdjustedToDacLimits",
+              ),
               toastType: "info",
               source: "Device",
             });
@@ -430,25 +440,31 @@ export function useDeviceSession(
         if (!manualDisconnectRef.current && isDisconnectionError(error)) {
           reportStatus({
             level: "Error",
-            message: `Could not connect (disconnected): ${error}`,
+            message: i18n.t(
+              "device:useDeviceSession.couldNotConnectDisconnected",
+              {
+                error: error,
+              },
+            ),
             toastType: "error",
             source: "UI",
-            statusText: "Device disconnected",
+            statusText: i18n.t("device:useDeviceSession.deviceDisconnected"),
           });
         } else {
           const errorMsg = String(error);
           if (errorMsg.includes("NotAllowedError") && !isTauri()) {
             reportStatus({
               level: "Error",
-              message:
-                "Permission denied. On Linux, a missing udev rule may prevent device access. Open Settings > Diagnostics & permissions for the installation command, then reconnect the DAC and scan again.",
+              message: i18n.t("device:useDeviceSession.permissionDenied"),
               toastType: "error",
               source: "UI",
             });
           } else {
             reportStatus({
               level: "Error",
-              message: `Could not connect: ${error}`,
+              message: i18n.t("device:useDeviceSession.couldNotConnect", {
+                error: error,
+              }),
               toastType: "error",
               source: "UI",
             });
@@ -585,7 +601,9 @@ export function useDeviceSession(
       const detail = e instanceof Error ? e.message : String(e);
       reportStatus({
         level: "Error",
-        message: `Auto-connect after installing udev rules failed: ${detail}`,
+        message: i18n.t("device:useDeviceSession.udevAutoConnectFailed", {
+          error: detail,
+        }),
         toastType: "error",
         source: "Device",
       });
@@ -712,10 +730,10 @@ export function useDeviceSession(
       setFirmwareVersion(null);
       reportStatus({
         level: "Info",
-        message: "Disconnected from device",
+        message: i18n.t("device:useDeviceSession.disconnectedFromDevice"),
         toastType: null,
         source: "UI",
-        statusText: "Disconnected",
+        statusText: i18n.t("device:useDeviceSession.disconnected"),
       });
     } catch (error) {
       // The backend releases local state even when closing the transport
@@ -731,18 +749,20 @@ export function useDeviceSession(
       if (isDisconnectSuperseded(error)) {
         reportStatus({
           level: "Info",
-          message: "Disconnected from device",
+          message: i18n.t("device:useDeviceSession.disconnectedFromDevice"),
           toastType: null,
           source: "UI",
-          statusText: "Disconnected",
+          statusText: i18n.t("device:useDeviceSession.disconnected"),
         });
       } else {
         reportStatus({
           level: "Error",
-          message: `Disconnected, but releasing the device failed: ${error}`,
+          message: i18n.t("device:useDeviceSession.disconnectReleaseFailed", {
+            error: error,
+          }),
           toastType: "error",
           source: "UI",
-          statusText: "Disconnected",
+          statusText: i18n.t("device:useDeviceSession.disconnected"),
         });
       }
     } finally {

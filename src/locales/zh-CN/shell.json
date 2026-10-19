@@ -1,0 +1,143 @@
+{
+  "navigation": {
+    "device": "设备",
+    "settings": "设置",
+    "profiles": "配置",
+    "primary": "主导航",
+    "diagnostics": "诊断",
+    "tuning": "调音",
+    "deviceSettings": "设备设置",
+    "deviceSections": "设备分区",
+    "settingsSections": "设置分区",
+    "backToDevice": "返回设备",
+    "backToSettings": "返回设置"
+  },
+  "header": {
+    "deviceActions": "设备操作",
+    "read": "从 DAC 读取",
+    "disconnectDac": "断开 DAC",
+    "offline": "离线",
+    "working": "处理中",
+    "simulation": "模拟 · 不会更改硬件",
+    "noHardwareExport": "此 DAC 无硬件 EQ · 请导出 EQ 以在系统均衡器中使用",
+    "unknown": "设备状态未知",
+    "matches": "DAC：与编辑器一致",
+    "live": "DAC：实时应用 · 停止编辑后保存",
+    "unwritten": "DAC：更改尚未写入",
+    "profileUnsaved": "配置：未保存",
+    "profileModified": "配置：已修改",
+    "profileSaved": "配置：已保存",
+    "offlineEditing": "离线编辑",
+    "simulatedDevice": "模拟设备；不会更改硬件",
+    "noHardware": "此 DAC 无硬件 EQ",
+    "saved": "已保存至 DAC",
+    "saveOnPause": "停止编辑后保存至 DAC",
+    "notSaved": "更改尚未保存至 DAC",
+    "readToCheck": "从 DAC 读取 EQ 以检查其状态",
+    "export": "导出 EQ 文件",
+    "liveApplyHelp": "编辑 EQ 时，更改会实时发送至 DAC，并在停止编辑后保存。",
+    "liveApply": "实时应用",
+    "editHistory": "编辑历史",
+    "readHelp": "用从 DAC 读取的 EQ 替换编辑器内容",
+    "writeHelp": "将编辑器中的 EQ 存储至 DAC",
+    "write": "写入 DAC",
+    "eqActions": "EQ 操作",
+    "saveHelp": "将编辑器中的 EQ 存储至 DAC。拔出设备后仍会保留。",
+    "save": "保存至 DAC",
+    "noHardwareNote": "此 DAC 无硬件 EQ，无法读取或写入 EQ。您仍可编辑并导出 EQ，以在系统均衡器中使用。",
+    "operationProgress": "设备操作进行中",
+    "progress": "{{message}} · {{percentage}}%"
+  },
+  "actions": {
+    "undo": "撤销",
+    "redo": "重做",
+    "connect": "连接 DAC",
+    "disconnect": "断开连接",
+    "cancel": "取消",
+    "confirm": "确认",
+    "back": "返回",
+    "close": "关闭{{title}}",
+    "reload": "重新加载应用"
+  },
+  "workspace": {
+    "loading": "正在加载工作区",
+    "skip": "跳转至工作区",
+    "preamp": "前级增益",
+    "label": "工作区",
+    "home": "Glacier EQ 主页",
+    "editor": "EQ 编辑器"
+  },
+  "connection": {
+    "disconnected": "已断开",
+    "reconnecting": "正在重新连接",
+    "lost": "连接已丢失",
+    "restarting": "DAC 正在重启",
+    "cancel": "取消重新连接",
+    "reconnectingTo": "正在重新连接 <strong>{{name}}</strong>…"
+  },
+  "graph": {
+    "showResponse": "显示频率响应图",
+    "hideResponse": "隐藏频率响应图",
+    "show": "显示图表",
+    "hide": "隐藏图表",
+    "scroll": "滚动至频率响应图"
+  },
+  "feedback": {
+    "preferenceNotSaved": "此浏览器无法保存偏好设置；重启后可能不会保留。",
+    "status": "状态消息",
+    "dismiss": "关闭消息",
+    "applicationError": "应用错误"
+  },
+  "number": {
+    "invalid": "请输入数字，小数分隔符可使用点或逗号。",
+    "decrement": "递减",
+    "increment": "递增",
+    "decrease": "减小{{label}}",
+    "increase": "增大{{label}}"
+  },
+  "sections": {
+    "overview": {
+      "label": "概览",
+      "description": "设备规格与 EQ 限制"
+    },
+    "controls": {
+      "label": "控制",
+      "description": "音量、声音模式与滤波器响应"
+    },
+    "maintenance": {
+      "label": "维护",
+      "description": "设备工具与重置选项"
+    },
+    "general": {
+      "label": "行为与音频",
+      "description": "连接行为与 EQ 编辑"
+    },
+    "appearance": {
+      "label": "界面与主题",
+      "description": "主题、图表与显示偏好"
+    },
+    "diagnostics": {
+      "label": "诊断与权限",
+      "description": "事件日志与故障排查"
+    },
+    "about": {
+      "label": "关于",
+      "description": "应用版本、项目与许可证"
+    },
+    "eq": {
+      "label": "EQ"
+    },
+    "tuning": {
+      "label": "调音"
+    },
+    "profiles": {
+      "label": "配置"
+    },
+    "device": {
+      "label": "设备"
+    },
+    "settings": {
+      "label": "设置"
+    }
+  }
+}

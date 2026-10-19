@@ -1,3 +1,4 @@
+import { i18n } from "@/lib/i18n";
 import type { confirmDialog } from "@/components/ui/ConfirmDialog";
 import { asyncContextEquals, type AsyncContext } from "@/lib/asyncContext";
 import type { Profile } from "@/types";
@@ -28,9 +29,9 @@ export async function loadProfile({
   if (
     dirty &&
     !(await confirm({
-      title: "Discard changes?",
-      message: "Loading this profile will discard your unsaved changes.",
-      confirmLabel: "Discard and load",
+      title: i18n.t("library:loadProfile.discardChanges"),
+      message: i18n.t("library:loadProfile.discardMessage"),
+      confirmLabel: i18n.t("library:loadProfile.discardAndLoad"),
     }))
   )
     return;

@@ -1,0 +1,143 @@
+{
+  "navigation": {
+    "device": "Device",
+    "settings": "Settings",
+    "profiles": "Profiles",
+    "primary": "Primary navigation",
+    "diagnostics": "Diagnostics",
+    "tuning": "Tuning",
+    "deviceSettings": "Device settings",
+    "deviceSections": "Device sections",
+    "settingsSections": "Settings sections",
+    "backToDevice": "Back to device",
+    "backToSettings": "Back to settings"
+  },
+  "header": {
+    "deviceActions": "Device actions",
+    "read": "Read from DAC",
+    "disconnectDac": "Disconnect DAC",
+    "offline": "Offline",
+    "working": "Working",
+    "simulation": "Simulation · no hardware changes",
+    "noHardwareExport": "This DAC has no hardware EQ · export the EQ to use it in a system equalizer",
+    "unknown": "Device state unknown",
+    "matches": "DAC: matches editor",
+    "live": "DAC: live · saves when you pause",
+    "unwritten": "DAC: changes not written",
+    "profileUnsaved": "Profile: not saved",
+    "profileModified": "Profile: modified",
+    "profileSaved": "Profile: saved",
+    "offlineEditing": "Offline editing",
+    "simulatedDevice": "Simulated device; no hardware changes",
+    "noHardware": "This DAC has no hardware EQ",
+    "saved": "Saved to DAC",
+    "saveOnPause": "Saves to DAC when you pause",
+    "notSaved": "Changes not saved to DAC",
+    "readToCheck": "Read EQ from the DAC to check its state",
+    "export": "Export EQ file",
+    "liveApplyHelp": "EQ edits are sent to the DAC as you make them and saved when you pause.",
+    "liveApply": "Live apply",
+    "editHistory": "Edit history",
+    "readHelp": "Replace the editor with EQ read from the DAC",
+    "writeHelp": "Store the editor EQ on the DAC",
+    "write": "Write to DAC",
+    "eqActions": "EQ actions",
+    "saveHelp": "Store the editor EQ on the DAC. It stays saved after unplugging.",
+    "save": "Save to DAC",
+    "noHardwareNote": "This DAC has no hardware EQ, so EQ Read/Write actions are unavailable. You can still edit and export EQ for a system equalizer.",
+    "operationProgress": "Device operation in progress",
+    "progress": "{{message}} · {{percentage}}%"
+  },
+  "actions": {
+    "undo": "Undo",
+    "redo": "Redo",
+    "connect": "Connect DAC",
+    "disconnect": "Disconnect",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "back": "Back",
+    "close": "Close {{title}}",
+    "reload": "Reload app"
+  },
+  "workspace": {
+    "loading": "Loading workspace",
+    "skip": "Skip to workspace",
+    "preamp": "Preamp",
+    "label": "Workspace",
+    "home": "Glacier EQ home",
+    "editor": "EQ editor"
+  },
+  "connection": {
+    "disconnected": "Disconnected",
+    "reconnecting": "Reconnecting",
+    "lost": "Connection lost",
+    "restarting": "DAC is restarting",
+    "cancel": "Cancel reconnection",
+    "reconnectingTo": "Reconnecting to <strong>{{name}}</strong>..."
+  },
+  "graph": {
+    "showResponse": "Show frequency response graph",
+    "hideResponse": "Hide frequency response graph",
+    "show": "Show graph",
+    "hide": "Hide graph",
+    "scroll": "Scroll to frequency response graph"
+  },
+  "feedback": {
+    "preferenceNotSaved": "This browser could not save the preference; it may not persist after restart.",
+    "status": "Status message",
+    "dismiss": "Dismiss message",
+    "applicationError": "Application error"
+  },
+  "number": {
+    "invalid": "Please enter a number using a decimal point or comma.",
+    "decrement": "Decrement",
+    "increment": "Increment",
+    "decrease": "Decrease {{label}}",
+    "increase": "Increase {{label}}"
+  },
+  "sections": {
+    "overview": {
+      "label": "Overview",
+      "description": "Device specifications and EQ limits"
+    },
+    "controls": {
+      "label": "Controls",
+      "description": "Volume, sound modes, and filter response"
+    },
+    "maintenance": {
+      "label": "Maintenance",
+      "description": "Device utilities and reset options"
+    },
+    "general": {
+      "label": "Behavior & audio",
+      "description": "Connection behavior and EQ editing"
+    },
+    "appearance": {
+      "label": "Interface & theme",
+      "description": "Theme, graph, and display preferences"
+    },
+    "diagnostics": {
+      "label": "Diagnostics & permissions",
+      "description": "Event logs and troubleshooting"
+    },
+    "about": {
+      "label": "About",
+      "description": "App version, project, and licenses"
+    },
+    "eq": {
+      "label": "EQ"
+    },
+    "tuning": {
+      "label": "Tuning"
+    },
+    "profiles": {
+      "label": "Profiles"
+    },
+    "device": {
+      "label": "Device"
+    },
+    "settings": {
+      "label": "Settings"
+    }
+  }
+}

@@ -1,3 +1,4 @@
+import { i18n } from "@/lib/i18n";
 export const DIAGNOSTIC_LEVELS = ["Info", "Warn", "Error"] as const;
 export type DiagnosticLevel = (typeof DIAGNOSTIC_LEVELS)[number];
 
@@ -157,20 +158,30 @@ export function formatDiagnosticReport(
     : context.platform;
   const device = context.device_name
     ? `${context.device_name}${context.device_id ? ` (${context.device_id})` : ""}`
-    : "Not connected";
+    : i18n.t("editor:diagnostics.report.notConnected");
   const details = [
-    "Glacier EQ diagnostic report",
-    `Generated: ${generatedAt.toISOString()}`,
-    `App: ${context.app_version}`,
-    `Runtime: ${context.runtime}`,
-    `Platform: ${platform}`,
-    `Device: ${device}`,
+    i18n.t("editor:diagnostics.report.title"),
+    i18n.t("editor:diagnostics.report.generated", {
+      value: generatedAt.toISOString(),
+    }),
+    i18n.t("editor:diagnostics.report.app", { value: context.app_version }),
+    i18n.t("editor:diagnostics.report.runtime", { value: context.runtime }),
+    i18n.t("editor:diagnostics.report.platform", { value: platform }),
+    i18n.t("editor:diagnostics.report.device", { value: device }),
   ];
-  if (context.protocol) details.push(`Protocol: ${context.protocol}`);
-  if (context.transport) details.push(`Transport: ${context.transport}`);
+  if (context.protocol)
+    details.push(
+      i18n.t("editor:diagnostics.report.protocol", { value: context.protocol }),
+    );
+  if (context.transport)
+    details.push(
+      i18n.t("editor:diagnostics.report.transport", {
+        value: context.transport,
+      }),
+    );
   details.push(
     "",
-    `Events (${events.length}):`,
+    i18n.t("editor:diagnostics.report.events", { count: events.length }),
     "----------------------------------------",
   );
 

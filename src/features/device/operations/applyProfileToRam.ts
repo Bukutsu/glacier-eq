@@ -1,3 +1,4 @@
+import { i18n } from "@/lib/i18n";
 import type { invoke, sleep } from "@/lib/rpc";
 import type { confirmDialog } from "@/components/ui/ConfirmDialog";
 import {
@@ -112,9 +113,9 @@ export function createApplyProfileToRam(context: ApplyProfileToRamContext) {
     if (
       dirty &&
       !(await confirmDialog({
-        title: "Discard changes?",
-        message: "Applying this profile will discard your unsaved changes.",
-        confirmLabel: "Discard and apply",
+        title: i18n.t("device:applyProfileToRam.discardChanges"),
+        message: i18n.t("device:applyProfileToRam.discardConfirmation"),
+        confirmLabel: i18n.t("device:applyProfileToRam.discardAndApply"),
       }))
     )
       return;
@@ -150,9 +151,15 @@ export function createApplyProfileToRam(context: ApplyProfileToRamContext) {
     let applyWarnings: string[] = [];
     try {
       if (isDevDummyDevice(selectedDevice)) {
-        setProgress({ message: "Applying temporary EQ…", percentage: 60 });
+        setProgress({
+          message: i18n.t("device:applyProfileToRam.applyingTemporaryEq"),
+          percentage: 60,
+        });
         await sleep(250);
-        setProgress({ message: "Temporary EQ applied", percentage: 100 });
+        setProgress({
+          message: i18n.t("device:applyProfileToRam.temporaryEqApplied"),
+          percentage: 100,
+        });
         await sleep(300);
       } else {
         // apply_eq_state returns the normalized state written to RAM, plus
@@ -172,15 +179,23 @@ export function createApplyProfileToRam(context: ApplyProfileToRamContext) {
         setLastPushedPeq(writeDevDummyPeq(selectedDevice, data, false));
       }
       const appliedMessage = isDevDummyDevice(selectedDevice)
-        ? "Temporary EQ application simulated"
-        : `Applied ${profile.name} to the DAC temporarily`;
+        ? i18n.t("device:applyProfileToRam.simulated")
+        : i18n.t("device:applyProfileToRam.appliedProfile", {
+            name: profile.name,
+          });
       if (applyWarnings.length > 0) {
         reportStatus({
           level: "Warn",
-          message: `${appliedMessage}. ${applyWarnings.join(" · ")}`,
+          message: i18n.t("device:applyProfileToRam.completionWarnings", {
+            message: appliedMessage,
+            warnings: applyWarnings.join(" · "),
+          }),
           toastType: "info",
           source: "UI",
-          statusText: `${appliedMessage} (values adjusted to device limits)`,
+          statusText: i18n.t(
+            "device:applyProfileToRam.valuesAdjustedToDeviceLimits",
+            { appliedMessage: appliedMessage },
+          ),
         });
       } else {
         reportStatus({
@@ -207,13 +222,17 @@ export function createApplyProfileToRam(context: ApplyProfileToRamContext) {
             setFirmwareVersion,
             reportStatus: reportLoss,
           },
-          `Could not apply EQ (disconnected): ${error}`,
+          i18n.t("device:applyProfileToRam.applyDisconnected", {
+            error: error,
+          }),
           "HID",
         );
       } else {
         reportStatus({
           level: "Error",
-          message: `Could not apply EQ: ${error}`,
+          message: i18n.t("device:applyProfileToRam.applyFailed", {
+            error: error,
+          }),
           toastType: "error",
           source: "UI",
         });

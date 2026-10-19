@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Popover } from "@base-ui/react/popover";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
@@ -17,25 +18,20 @@ export function DraftRecovery({
   onRestore,
   onDiscard,
 }: DraftRecoveryProps) {
+  const { t } = useTranslation("editor");
   return (
     <Popover.Root>
       <Popover.Trigger
         className="header-draft-trigger"
         aria-label={
-          invalid
-            ? "EQ editing paused: discard the unreadable draft to continue"
-            : "EQ editing paused: restore or discard unfinished EQ to continue"
+          invalid ? t("draft.pausedUnreadable") : t("draft.pausedUnfinished")
         }
-        title={
-          invalid
-            ? "Discard the unreadable draft to continue editing"
-            : "Restore or discard your unfinished EQ to continue editing"
-        }
+        title={invalid ? t("draft.discardHint") : t("draft.restoreHint")}
       >
         <Icon name="lock" />
-        <strong>Editing paused</strong>
+        <strong>{t("draft.paused")}</strong>
         <span aria-hidden="true">·</span>
-        <span>{invalid ? "Unreadable draft" : "Unfinished EQ"}</span>
+        <span>{invalid ? t("draft.unreadable") : t("draft.unfinished")}</span>
         <Icon name="expand_more" />
       </Popover.Trigger>
       <Popover.Portal>
@@ -48,28 +44,24 @@ export function DraftRecovery({
         >
           <Popover.Popup className="header-draft-popup">
             <Popover.Title>
-              {invalid
-                ? "Stored draft could not be read"
-                : "Restore unfinished EQ?"}
+              {invalid ? t("draft.unreadableTitle") : t("draft.restoreTitle")}
             </Popover.Title>
             <Popover.Description>
               {invalid
-                ? "EQ editing is paused. Discard this unreadable draft to continue editing and saving unfinished edits."
-                : "EQ editing is paused to protect your unfinished work. Restore or discard the draft to continue. Nothing will be written to a DAC."}
+                ? t("draft.unreadableDescription")
+                : t("draft.description")}
             </Popover.Description>
             {connected && !invalid && (
-              <p className="header-draft-hint">
-                Disconnect the DAC before restoring.
-              </p>
+              <p className="header-draft-hint">{t("draft.disconnect")}</p>
             )}
             <div className="header-draft-actions">
               {!invalid && (
                 <Button onClick={onRestore} disabled={connected || isBusy}>
-                  Restore EQ
+                  {t("draft.restore")}
                 </Button>
               )}
               <Button variant="ghost" onClick={onDiscard} disabled={isBusy}>
-                Discard draft
+                {t("draft.discard")}
               </Button>
             </div>
           </Popover.Popup>

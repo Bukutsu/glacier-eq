@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import {
   useAutoEq,
@@ -41,6 +42,7 @@ export function TuningPanel(props: TuningPanelProps) {
 }
 
 export function AutoEqTab(props: AutoEqTabProps) {
+  const { t } = useTranslation("library");
   const {
     measurements,
     allTargets,
@@ -81,17 +83,23 @@ export function AutoEqTab(props: AutoEqTabProps) {
         }}
       >
         <header className="tuning-heading">
-          <h2 id="tuning-title">Headphone tuning</h2>
-          <p>Match a measurement to a target curve.</p>
+          <h2 id="tuning-title">{t("tuningPanel.headphoneTuning")}</h2>
+          <p>{t("tuningPanel.description")}</p>
         </header>
 
         <fieldset className="tuning-fields" disabled={isOptimizing}>
-          <legend className="tuning-sr-only">EQ inputs</legend>
+          <legend className="tuning-sr-only">
+            {t("tuningPanel.inputsLegend")}
+          </legend>
           <div className="tuning-field">
             {meas ? (
-              <label htmlFor="autoeq-measurement">Measurement</label>
+              <label htmlFor="autoeq-measurement">
+                {t("tuningPanel.measurement")}
+              </label>
             ) : (
-              <span className="tuning-field-label">Measurement</span>
+              <span className="tuning-field-label">
+                {t("tuningPanel.measurement")}
+              </span>
             )}
             {meas ? (
               <Select
@@ -105,14 +113,14 @@ export function AutoEqTab(props: AutoEqTabProps) {
                 disabled={isOptimizing}
               />
             ) : (
-              <p className="tuning-help">
-                Search the database or import a frequency-response file.
-              </p>
+              <p className="tuning-help">{t("tuningPanel.measurementHelp")}</p>
             )}
           </div>
 
           <div className="tuning-field">
-            <label htmlFor="autoeq-target">Target curve</label>
+            <label htmlFor="autoeq-target">
+              {t("tuningPanel.targetCurve")}
+            </label>
             <Select
               id="autoeq-target"
               value={target?.id ?? ""}
@@ -120,7 +128,12 @@ export function AutoEqTab(props: AutoEqTabProps) {
               options={
                 allTargets.length > 0
                   ? allTargets.map((t) => ({ value: t.id, label: t.name }))
-                  : [{ value: "", label: "Add a target to continue" }]
+                  : [
+                      {
+                        value: "",
+                        label: t("tuningPanel.addATargetToContinue"),
+                      },
+                    ]
               }
               onChange={handleTargetChange}
             />
@@ -131,21 +144,27 @@ export function AutoEqTab(props: AutoEqTabProps) {
               disabled={isOptimizing}
               onClick={onOpenAddTrace}
             >
-              <Icon name="add" /> Add measurement or target
+              <Icon name="add" /> {t("tuningPanel.addMeasurementOrTarget")}
             </Button>
           )}
         </fieldset>
 
         <fieldset className="tuning-settings" disabled={isOptimizing}>
-          <legend className="tuning-sr-only">EQ settings</legend>
+          <legend className="tuning-sr-only">
+            {t("tuningPanel.settingsLegend")}
+          </legend>
           <div className="tuning-band-row">
             <div>
-              <label htmlFor="autoeq-bands">Filter bands</label>
-              <p className="tuning-help">Up to {Math.max(1, maxBands)} bands</p>
+              <label htmlFor="autoeq-bands">
+                {t("tuningPanel.filterBands")}
+              </label>
+              <p className="tuning-help">
+                {t("tuningPanel.bandLimit", { count: Math.max(1, maxBands) })}
+              </p>
             </div>
             <NumberInput
               id="autoeq-bands"
-              aria-label="Filter bands"
+              aria-label={t("tuningPanel.filterBands")}
               disabled={isOptimizing}
               value={nBands}
               min={1}
@@ -163,25 +182,23 @@ export function AutoEqTab(props: AutoEqTabProps) {
               className="tuning-warnings"
               role="note"
             >
-              <strong>Limited-band AutoEQ</strong>
-              <p>
-                With five or fewer bands, AutoEQ may produce a poor fit or
-                large, opposing corrections. Review the predicted response and
-                filter gains before writing to the DAC.
-              </p>
+              <strong>{t("tuningPanel.limitedBandAutoEQ")}</strong>
+              <p>{t("tuningPanel.limitedBandsWarning")}</p>
             </div>
           )}
           <div className="tuning-smoothing">
-            <span id="tuning-smoothing-label">Treble smoothing</span>
+            <span id="tuning-smoothing-label">
+              {t("tuningPanel.trebleSmoothing")}
+            </span>
             <div
               className="tuning-segmented"
               role="group"
               aria-labelledby="tuning-smoothing-label"
             >
               {[
-                { value: "IE", label: "In-ear" },
-                { value: "OE", label: "Over-ear" },
-                { value: "None", label: "Off" },
+                { value: "IE", label: t("tuningPanel.inEar") },
+                { value: "OE", label: t("tuningPanel.overEar") },
+                { value: "None", label: t("tuningPanel.off") },
               ].map((option) => (
                 <Button
                   key={option.value}
@@ -199,13 +216,15 @@ export function AutoEqTab(props: AutoEqTabProps) {
             </div>
           </div>
           <Collapsible
-            title="Advanced settings"
+            title={t("tuningPanel.advancedSettings")}
             defaultOpen={false}
             className="tuning-advanced"
           >
             <div className="tuning-advanced-fields">
               <div className="tuning-field">
-                <label htmlFor="autoeq-steps">Optimizer steps</label>
+                <label htmlFor="autoeq-steps">
+                  {t("tuningPanel.optimizerSteps")}
+                </label>
                 <Select
                   id="autoeq-steps"
                   value={steps}
@@ -215,19 +234,17 @@ export function AutoEqTab(props: AutoEqTabProps) {
                     setSteps(value);
                   }}
                   options={[
-                    { value: 500, label: "500 (fast)" },
-                    { value: 1000, label: "1,000" },
-                    { value: 2000, label: "2,000 (standard)" },
-                    { value: 3000, label: "3,000" },
-                    { value: 5000, label: "5,000 (extended)" },
+                    { value: 500, label: t("tuningPanel.fastSteps") },
+                    { value: 1000, label: t("tuningPanel.thousandSteps") },
+                    { value: 2000, label: t("tuningPanel.standardSteps") },
+                    { value: 3000, label: t("tuningPanel.threeThousandSteps") },
+                    { value: 5000, label: t("tuningPanel.extendedSteps") },
                   ]}
                 />
-                <p className="tuning-help">
-                  More steps take longer to calculate.
-                </p>
+                <p className="tuning-help">{t("tuningPanel.stepsHelp")}</p>
               </div>
               <div className="tuning-field">
-                <label htmlFor="autoeq-fs">Sample rate</label>
+                <label htmlFor="autoeq-fs">{t("tuningPanel.sampleRate")}</label>
                 <Select
                   id="autoeq-fs"
                   value={fs}
@@ -237,12 +254,12 @@ export function AutoEqTab(props: AutoEqTabProps) {
                     setFs(value);
                   }}
                   options={[
-                    { value: 44100, label: "44.1 kHz" },
-                    { value: 48000, label: "48 kHz" },
-                    { value: 96000, label: "96 kHz" },
+                    { value: 44100, label: t("tuningPanel.sampleRate44100") },
+                    { value: 48000, label: t("tuningPanel.sampleRate48000") },
+                    { value: 96000, label: t("tuningPanel.sampleRate96000") },
                   ]}
                 />
-                <p className="tuning-help">Use the DAC's DSP sample rate.</p>
+                <p className="tuning-help">{t("tuningPanel.sampleRateHelp")}</p>
               </div>
             </div>
           </Collapsible>
@@ -261,14 +278,16 @@ export function AutoEqTab(props: AutoEqTabProps) {
             disabled={isOptimizing || !meas || !target}
           >
             {isOptimizing && <Icon name="hourglass_empty" />}
-            {isOptimizing ? "Generating EQ…" : "Generate EQ"}
+            {isOptimizing
+              ? t("tuningPanel.generatingEQ")
+              : t("tuningPanel.generateEQ")}
           </Button>
           <p id="tuning-destination" className="tuning-help tuning-destination">
             {!meas
-              ? "Add a measurement to generate EQ."
+              ? t("tuningPanel.needsMeasurement")
               : !target
-                ? "Add a target to generate EQ."
-                : "Loads EQ into the editor, not the DAC."}
+                ? t("tuningPanel.needsTarget")
+                : t("tuningPanel.destinationHelp")}
           </p>
         </div>
       </form>
@@ -282,9 +301,13 @@ export function AutoEqTab(props: AutoEqTabProps) {
           <div className="tuning-result-content">
             <Icon name="check" />
             <div>
-              <strong>EQ generated</strong>
+              <strong>{t("tuningPanel.generated")}</strong>
               <p>{resultMessage}</p>
-              {onReviewEq && <Button onClick={onReviewEq}>Review EQ</Button>}
+              {onReviewEq && (
+                <Button onClick={onReviewEq}>
+                  {t("tuningPanel.reviewEQ")}
+                </Button>
+              )}
             </div>
           </div>
         )}
@@ -296,7 +319,7 @@ export function AutoEqTab(props: AutoEqTabProps) {
       )}
       {warnings.length > 0 && (
         <div className="tuning-warnings">
-          <strong>Review before applying</strong>
+          <strong>{t("tuningPanel.reviewBeforeApplying")}</strong>
           <ul>
             {warnings.map((warning, index) => (
               <li key={index}>{warning}</li>

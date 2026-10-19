@@ -1,7 +1,20 @@
 import { describe, expect, it, vi } from "vitest";
 import type { ReactElement } from "react";
+import { i18n } from "@/lib/i18n";
+import type { Namespace } from "i18next";
 import { EqGraph } from "./EqGraph";
 import type { DeviceCapabilities, Filter } from "@/types";
+
+// These tests call components directly with mocked React hooks. Keep real
+// catalog lookup without requiring a React render for useTranslation.
+vi.mock("react-i18next", async (original) => ({
+  ...(await original<typeof import("react-i18next")>()),
+  useTranslation: (namespace: Namespace) => ({
+    t: i18n.getFixedT(null, namespace),
+    i18n,
+    ready: true,
+  }),
+}));
 
 vi.mock("react", async (original) => ({
   ...(await original<typeof import("react")>()),

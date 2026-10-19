@@ -1,3 +1,5 @@
+import "@/lib/i18n";
+import { useTranslation } from "react-i18next";
 import { useEffect, useId, useState } from "react";
 import { Modal } from "./Modal";
 import { Button } from "./Button";
@@ -31,6 +33,7 @@ export function confirmDialog(options: ConfirmOptions): Promise<boolean> {
 }
 
 export function ConfirmDialogHost() {
+  const { t } = useTranslation("shell");
   const descriptionId = useId();
   const [options, setOptions] = useState<ConfirmOptions | null>(null);
 
@@ -69,13 +72,13 @@ export function ConfirmDialogHost() {
         </p>
         <div className="confirm-actions">
           <Button autoFocus data-dialog-autofocus onClick={() => close(false)}>
-            {options.cancelLabel ?? "Cancel"}
+            {options.cancelLabel ?? t("actions.cancel")}
           </Button>
           <Button
             variant={options.danger ? "danger" : "primary"}
             onClick={() => close(true)}
           >
-            {options.confirmLabel ?? "Confirm"}
+            {options.confirmLabel ?? t("actions.confirm")}
           </Button>
         </div>
       </div>

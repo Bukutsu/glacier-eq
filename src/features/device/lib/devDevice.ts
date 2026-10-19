@@ -1,3 +1,4 @@
+import { i18n } from "@/lib/i18n";
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
@@ -153,7 +154,7 @@ export function buildDevPreviewDevice(
   profile: SupportedDeviceInfo,
 ): DeviceInfo {
   if (!import.meta.env.DEV)
-    throw new Error("DAC previews are available only in development builds");
+    throw new Error(i18n.t("device:devDevice.developmentOnly"));
   const path =
     DEV_DUMMY_DEVICE_PATH +
     "/" +
@@ -185,12 +186,13 @@ export function buildDevPreviewDevice(
 }
 
 function previewFor(path: string): Preview {
-  if (!isDevDummyDevice(path)) throw new Error("Not a development DAC preview");
+  if (!isDevDummyDevice(path))
+    throw new Error(i18n.t("device:devDevice.invalidPreview"));
   if (path === DEV_DUMMY_DEVICE_PATH && !previews.has(path)) {
     previews.set(path, newPreview(DEV_DUMMY_DEVICE));
   }
   const preview = previews.get(path);
-  if (!preview) throw new Error("Unknown DAC preview");
+  if (!preview) throw new Error(i18n.t("device:devDevice.unknownDacPreview"));
   return preview;
 }
 
@@ -204,7 +206,11 @@ export function reconnectDevDummyDevice(path: string): void {
 function eqPreviewFor(path: string): Preview {
   const preview = previewFor(path);
   if (!preview.device.hardware_eq)
-    throw new Error(`${preview.device.profile_name} has no hardware EQ`);
+    throw new Error(
+      i18n.t("device:devDevice.noHardwareEq", {
+        profile_name: preview.device.profile_name,
+      }),
+    );
   return preview;
 }
 
@@ -232,12 +238,18 @@ function integer(value: unknown, min: number, max: number): number {
     value < min ||
     value > max
   ) {
-    throw new Error(`Expected an integer from ${min} to ${max}`);
+    throw new Error(
+      i18n.t("device:devDevice.integerRequired", {
+        min: min,
+        max: max,
+      }),
+    );
   }
   return value;
 }
 function boolean(value: unknown): boolean {
-  if (typeof value !== "boolean") throw new Error("Expected a boolean");
+  if (typeof value !== "boolean")
+    throw new Error(i18n.t("device:devDevice.booleanRequired"));
   return value;
 }
 
@@ -251,19 +263,19 @@ export function invokeDevDummy<T>(
   const preview = previewFor(path);
   const requireWalkplay = () => {
     if (!preview.utility.supported)
-      throw new Error("This protocol does not expose Walkplay controls");
+      throw new Error(i18n.t("device:devDevice.walkplayControlsRequired"));
   };
   switch (command) {
     case "ja11_control": {
       if (preview.device.controls !== "ja11")
-        throw new Error("These controls require a JA11 preview");
+        throw new Error(i18n.t("device:devDevice.ja11Required"));
       const control = args.control;
       if (
         control !== "microphone" &&
         control !== "uac" &&
         control !== "volume"
       ) {
-        throw new Error("Unknown JA11 control");
+        throw new Error(i18n.t("device:devDevice.unknownJa11Control"));
       }
       if (args.value !== undefined)
         preview.ja11[control] = integer(
@@ -278,7 +290,7 @@ export function invokeDevDummy<T>(
     case "get_dawn_pro_state":
     case "set_dawn_pro_control": {
       if (preview.device.controls !== "dawn_pro")
-        throw new Error("These controls require an original-Dawn preview");
+        throw new Error(i18n.t("device:devDevice.dawnRequired"));
       if (command === "set_dawn_pro_control") {
         switch (args.control) {
           case "filter":
@@ -297,7 +309,7 @@ export function invokeDevDummy<T>(
             break;
           }
           default:
-            throw new Error("Unknown Dawn Pro control");
+            throw new Error(i18n.t("device:devDevice.unknownDawnProControl"));
         }
       }
       return structuredClone(preview.dawn) as T;
@@ -309,7 +321,7 @@ export function invokeDevDummy<T>(
           String(args.mode),
         )
       ) {
-        throw new Error("Unknown reconstruction filter");
+        throw new Error(i18n.t("device:devDevice.unknownReconstructionFilter"));
       }
       preview.utility.filter_mode = String(args.mode);
       break;
@@ -352,7 +364,11 @@ export function invokeDevDummy<T>(
       break;
     }
     default:
-      throw new Error(`Command is not implemented for DAC preview: ${command}`);
+      throw new Error(
+        i18n.t("device:devDevice.unsupportedCommand", {
+          command: command,
+        }),
+      );
   }
   return undefined as T;
 }

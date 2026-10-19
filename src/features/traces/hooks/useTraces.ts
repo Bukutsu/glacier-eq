@@ -1,3 +1,4 @@
+import { i18n } from "@/lib/i18n";
 /**
  * A notification the user must be able to report. `type` is the severity the
  * diagnostic event is filed under — stated here rather than inferred
@@ -66,8 +67,12 @@ function quarantinePersistedJson(key: string, raw: string, notify?: NotifyFn) {
   }
   notify?.(
     backedUp
-      ? `Could not load saved data for "${key}". Created a backup copy.`
-      : `Could not load saved data for "${key}" or create a backup. The damaged original was retained. Check available storage.`,
+      ? i18n.t("library:traces.backupCreated", {
+          key: key,
+        })
+      : i18n.t("library:traces.backupFailed", {
+          key: key,
+        }),
     "error",
   );
 }
@@ -212,17 +217,31 @@ export function savePersistedJson(
     if (quota) {
       console.warn(`localStorage quota exceeded while saving "${key}".`);
       notify?.(
-        `Could not save "${key}". Storage is full. Recent changes may be lost when the app closes.`,
+        i18n.t("library:traces.storageFull", {
+          key: key,
+        }),
         "error",
       );
     } else {
       console.error(`Failed to save "${key}" to localStorage:`, error);
-      notify?.(`Could not save "${key}" to local storage: ${error}`, "error");
+      notify?.(
+        i18n.t("library:traces.saveFailed", {
+          key: key,
+          error: error,
+        }),
+        "error",
+      );
     }
   } catch (error) {
     // JSON serialization can still fail for an unexpected caller value.
     console.error(`Failed to serialize "${key}" for localStorage:`, error);
-    notify?.(`Could not save "${key}" to local storage: ${error}`, "error");
+    notify?.(
+      i18n.t("library:traces.saveFailed", {
+        key: key,
+        error: error,
+      }),
+      "error",
+    );
   }
 }
 

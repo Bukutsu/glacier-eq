@@ -1,3 +1,5 @@
+import { i18n } from "@/lib/i18n";
+
 export type ToolsTab = "Preset" | "Tuning" | "Device" | "Settings";
 export type MobileTab = "eq" | "profiles" | "tuning" | "device" | "settings";
 export type DeviceSection = "root" | "overview" | "controls" | "maintenance";
@@ -7,21 +9,33 @@ export type SettingsSection =
 export const DEVICE_SECTIONS = [
   {
     id: "overview",
-    label: "Overview",
+    get label() {
+      return i18n.t("shell:sections.overview.label");
+    },
     icon: "info",
-    description: "Device specifications and EQ limits",
+    get description() {
+      return i18n.t("shell:sections.overview.description");
+    },
   },
   {
     id: "controls",
-    label: "Controls",
+    get label() {
+      return i18n.t("shell:sections.controls.label");
+    },
     icon: "tune",
-    description: "Volume, sound modes, and filter response",
+    get description() {
+      return i18n.t("shell:sections.controls.description");
+    },
   },
   {
     id: "maintenance",
-    label: "Maintenance",
+    get label() {
+      return i18n.t("shell:sections.maintenance.label");
+    },
     icon: "build",
-    description: "Device utilities and reset options",
+    get description() {
+      return i18n.t("shell:sections.maintenance.description");
+    },
   },
 ] as const satisfies ReadonlyArray<{
   id: Exclude<DeviceSection, "root">;
@@ -33,27 +47,43 @@ export const DEVICE_SECTIONS = [
 export const SETTINGS_SECTIONS = [
   {
     id: "general",
-    label: "Behavior & audio",
+    get label() {
+      return i18n.t("shell:sections.general.label");
+    },
     icon: "tune",
-    description: "Connection behavior and EQ editing",
+    get description() {
+      return i18n.t("shell:sections.general.description");
+    },
   },
   {
     id: "appearance",
-    label: "Interface & theme",
+    get label() {
+      return i18n.t("shell:sections.appearance.label");
+    },
     icon: "palette",
-    description: "Theme, graph, and display preferences",
+    get description() {
+      return i18n.t("shell:sections.appearance.description");
+    },
   },
   {
     id: "diagnostics",
-    label: "Diagnostics & permissions",
+    get label() {
+      return i18n.t("shell:sections.diagnostics.label");
+    },
     icon: "bug_report",
-    description: "Event logs and troubleshooting",
+    get description() {
+      return i18n.t("shell:sections.diagnostics.description");
+    },
   },
   {
     id: "about",
-    label: "About",
+    get label() {
+      return i18n.t("shell:sections.about.label");
+    },
     icon: "info",
-    description: "App version, project, and licenses",
+    get description() {
+      return i18n.t("shell:sections.about.description");
+    },
   },
 ] as const satisfies ReadonlyArray<{
   id: Exclude<SettingsSection, "root">;
@@ -63,11 +93,41 @@ export const SETTINGS_SECTIONS = [
 }>;
 
 export const MOBILE_TABS = [
-  { id: "eq", icon: "tune", label: "EQ" },
-  { id: "tuning", icon: "auto_awesome", label: "Tuning" },
-  { id: "profiles", icon: "folder", label: "Profiles" },
-  { id: "device", icon: "memory", label: "Device" },
-  { id: "settings", icon: "settings", label: "Settings" },
+  {
+    id: "eq",
+    icon: "tune",
+    get label() {
+      return i18n.t("shell:sections.eq.label");
+    },
+  },
+  {
+    id: "tuning",
+    icon: "auto_awesome",
+    get label() {
+      return i18n.t("shell:sections.tuning.label");
+    },
+  },
+  {
+    id: "profiles",
+    icon: "folder",
+    get label() {
+      return i18n.t("shell:sections.profiles.label");
+    },
+  },
+  {
+    id: "device",
+    icon: "memory",
+    get label() {
+      return i18n.t("shell:sections.device.label");
+    },
+  },
+  {
+    id: "settings",
+    icon: "settings",
+    get label() {
+      return i18n.t("shell:sections.settings.label");
+    },
+  },
 ] as const;
 
 const MOBILE_TAB_IDS = new Set<MobileTab>(MOBILE_TABS.map(({ id }) => id));

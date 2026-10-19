@@ -1,3 +1,4 @@
+import { i18n } from "@/lib/i18n";
 import { parseStoredPeqResponse } from "@/features/eq/lib/peq";
 
 export function parseProfileImport(value: unknown, fileName: string) {
@@ -13,7 +14,9 @@ export function parseProfileImport(value: unknown, fileName: string) {
     !("headphone_name" in value) ||
     (value.headphone_name !== null && typeof value.headphone_name !== "string")
   )
-    throw new Error("Invalid AutoEQ import response");
+    throw new Error(
+      i18n.t("library:profileImport.invalidAutoEQImportResponse"),
+    );
   return {
     data: parseStoredPeqResponse(value.peq),
     name: value.headphone_name?.trim() || fileName.replace(/\.[^/.]+$/, ""),

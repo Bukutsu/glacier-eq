@@ -1,3 +1,5 @@
+import "@/lib/i18n";
+import { useTranslation } from "react-i18next";
 import { useState, type ChangeEvent, type KeyboardEvent } from "react";
 import { Minus, Plus } from "lucide-react";
 import { Button } from "./Button";
@@ -38,6 +40,7 @@ export function NumberInput({
   onBlur,
   "aria-label": ariaLabel,
 }: NumberInputProps) {
+  const { t } = useTranslation("shell");
   // Draft keeps the raw string while typing (e.g. "1." for an in-progress
   // decimal) so the field isn't reformatted on every keystroke; the value is
   // parsed/clamped and committed on blur or Enter.
@@ -49,12 +52,7 @@ export function NumberInput({
       const clamped = Math.max(min, Math.min(max, parsed));
       onChange(Number(clamped.toFixed(precision)));
     } else {
-      useToastStore
-        .getState()
-        .setStatus(
-          "Please enter a number using a decimal point or comma.",
-          "error",
-        );
+      useToastStore.getState().setStatus(t("number.invalid"), "error");
     }
   };
 
@@ -153,7 +151,11 @@ export function NumberInput({
         className="stepper-btn decrement"
         onClick={decrement}
         disabled={disabled || value <= min}
-        aria-label={ariaLabel ? `Decrease ${ariaLabel}` : "Decrement"}
+        aria-label={
+          ariaLabel
+            ? t("number.decrease", { label: ariaLabel })
+            : t("number.decrement")
+        }
       >
         <Minus aria-hidden="true" />
       </Button>
@@ -188,7 +190,11 @@ export function NumberInput({
         className="stepper-btn increment"
         onClick={increment}
         disabled={disabled || value >= max}
-        aria-label={ariaLabel ? `Increase ${ariaLabel}` : "Increment"}
+        aria-label={
+          ariaLabel
+            ? t("number.increase", { label: ariaLabel })
+            : t("number.increment")
+        }
       >
         <Plus aria-hidden="true" />
       </Button>

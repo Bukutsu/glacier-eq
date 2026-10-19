@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useId } from "react";
 import type { AppSettings } from "@/types";
 import type { ThemeOption } from "@/features/settings/lib/theme";
@@ -28,10 +29,11 @@ export function ThemePicker({
   options: readonly ThemeOption[];
   onChange: (value: AppSettings["theme"]) => void;
 }) {
+  const { t } = useTranslation("settings");
   const name = useId();
   return (
     <fieldset className="theme-picker">
-      <legend>Color theme</legend>
+      <legend>{t("appearance.colorTheme")}</legend>
       <div className="theme-picker-options">
         {options.map((option) => {
           const palette =

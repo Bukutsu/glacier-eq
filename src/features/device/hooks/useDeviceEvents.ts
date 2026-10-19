@@ -1,3 +1,5 @@
+import { i18n } from "@/lib/i18n";
+import { localizeDeviceProgress } from "../lib/deviceProgress";
 import { useEffect } from "react";
 import { invoke, listen } from "@/lib/rpc";
 
@@ -66,7 +68,10 @@ export function useDeviceEvents(
       if (event.payload.message.includes("(restart expected)")) {
         expectedRestartUntilRef.current = Date.now() + 15_000;
       }
-      setProgress(event.payload);
+      setProgress({
+        ...event.payload,
+        message: localizeDeviceProgress(event.payload.message),
+      });
     });
 
     const handleDeviceConnecting = (event: { payload: unknown }) => {
@@ -110,7 +115,12 @@ export function useDeviceEvents(
             setFirmwareVersion,
             reportStatus: reportLoss,
           },
-          `Lost connection while connecting to device: ${payload.name}`,
+          i18n.t(
+            "device:useDeviceEvents.lostConnectionWhileConnectingToDevice",
+            {
+              name: payload.name,
+            },
+          ),
         );
         setIsBusy(false);
         return;
@@ -145,8 +155,10 @@ export function useDeviceEvents(
           reportStatus: reportLoss,
         },
         expected
-          ? "DAC is restarting; waiting to reconnect"
-          : `Lost connection to device (unplugged): ${payload.name}`,
+          ? i18n.t("device:useDeviceEvents.dacIsRestartingWaitingToReconnect")
+          : i18n.t("device:useDeviceEvents.lostConnectionToDeviceUnplugged", {
+              name: payload.name,
+            }),
         "Device",
         expected ? "Info" : "Error",
       );

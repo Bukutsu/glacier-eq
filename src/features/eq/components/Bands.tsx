@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import {
   memo,
   type CSSProperties,
@@ -18,13 +19,13 @@ import { bandForAdd, clampToRange } from "@/features/eq/lib/peq";
 
 const FREQ_SLIDER_STEPS = 1000;
 const Q_SLIDER_STEPS = 1000;
-const TYPE_NAMES: Record<FilterType, string> = {
-  Peak: "Bell",
-  HighShelf: "High shelf",
-  LowShelf: "Low shelf",
-  HighPass: "High pass",
-  LowPass: "Low pass",
-};
+const TYPE_NAMES = {
+  Peak: "bands.types.Peak",
+  HighShelf: "bands.types.HighShelf",
+  LowShelf: "bands.types.LowShelf",
+  HighPass: "bands.types.HighPass",
+  LowPass: "bands.types.LowPass",
+} as const satisfies Record<FilterType, string>;
 
 /** CSSProperties has no index signature, so a custom property cannot typecheck
  * without a cast. Naming the shape once keeps that out of every call site. */
@@ -159,6 +160,7 @@ export const Bands = memo(function Bands({
   disabled = false,
   isMobile = false,
 }: BandsProps) {
+  const { t } = useTranslation("editor");
   const availableFilters = peq.filters.slice(0, capabilities.num_bands);
   const visibleFilters = availableFilters.filter((filter) => filter.enabled);
   const canAddFilter =
@@ -226,7 +228,7 @@ export const Bands = memo(function Bands({
       >
         <span className="title-text">
           <Icon name="tune" />
-          <strong>Filter bands</strong>
+          <strong>{t("bands.title")}</strong>
         </span>
         <span className="collapse-toggle-btn">
           {visibleFilters.length}/{availableFilters.length}
@@ -259,32 +261,38 @@ export const Bands = memo(function Bands({
               disabled={!canAddFilter}
             >
               <Icon name="add" />
-              Add filter
+              {t("bands.addFilter")}
             </button>
           </div>
         </div>
       </section>
       {!selectedFilter && (
         <div className="bands-empty">
-          <p>No bands yet. The EQ is flat.</p>
+          <p>{t("bands.empty")}</p>
           <p className="bands-limits">
-            Up to {capabilities.num_bands} bands:{" "}
-            {capabilities.supported_filter_types
-              .map((type) => TYPE_NAMES[type])
-              .join(", ")}
+            {t("bands.limit", {
+              count: capabilities.num_bands,
+              types: capabilities.supported_filter_types
+                .map((type) => t(TYPE_NAMES[type]))
+                .join(", "),
+            })}
           </p>
           <Button
             variant="primary"
             onClick={addFilter}
             disabled={!canAddFilter}
           >
-            <Icon name="add" /> Add band
+            <Icon name="add" /> {t("bands.addBand")}
           </Button>
         </div>
       )}
       {selectedFilter && (
         <section className="bands-mobile-editor">
-          <div className="band-picker" role="group" aria-label="Filter bands">
+          <div
+            className="band-picker"
+            role="group"
+            aria-label={t("bands.title")}
+          >
             <div
               className={`band-picker-scroll${moreBands.start ? " more-start" : ""}${moreBands.end ? " more-end" : ""}`}
               ref={bandPickerRef}
@@ -300,7 +308,10 @@ export const Bands = memo(function Bands({
                     filter.index === selectedFilter.index ? "active" : ""
                   }
                   aria-pressed={filter.index === selectedFilter.index}
-                  aria-label={`Band ${filter.index + 1}, ${filter.freq} Hz`}
+                  aria-label={t("bands.bandFrequency", {
+                    number: filter.index + 1,
+                    frequency: filter.freq,
+                  })}
                   onClick={() => onActiveBandChange?.(filter.index)}
                 >
                   <strong>{filter.index + 1}</strong>
@@ -314,14 +325,12 @@ export const Bands = memo(function Bands({
               onClick={addFilter}
               disabled={!canAddFilter}
               aria-label={
-                canAddFilter ? "Add filter" : "Add filter (all bands in use)"
+                canAddFilter ? t("bands.addFilter") : t("bands.addUnavailable")
               }
-              title={
-                canAddFilter ? "Add filter" : "All filter bands are in use"
-              }
+              title={canAddFilter ? t("bands.addFilter") : t("bands.allUsed")}
             >
               <Icon name="add" />
-              <span>Add</span>
+              <span>{t("bands.add")}</span>
             </button>
           </div>
           <div
@@ -330,9 +339,11 @@ export const Bands = memo(function Bands({
           >
             <div className="mobile-filter-head">
               <div className="mobile-filter-summary">
-                <strong>Band {selectedFilter.index + 1}</strong>
+                <strong>
+                  {t("bands.band", { number: selectedFilter.index + 1 })}
+                </strong>
                 <span className="mobile-band-context">
-                  {TYPE_NAMES[selectedFilter.filter_type]}
+                  {t(TYPE_NAMES[selectedFilter.filter_type])}
                 </span>
               </div>
               <div className="mobile-filter-actions">
@@ -341,7 +352,9 @@ export const Bands = memo(function Bands({
                     variant="ghost"
                     className="mobile-filter-reset"
                     disabled={disabled}
-                    aria-label={`Reset band ${selectedFilter.index + 1} to last saved values`}
+                    aria-label={t("bands.resetBand", {
+                      number: selectedFilter.index + 1,
+                    })}
                     onClick={() => {
                       const committed =
                         committedPeq.filters[selectedFilter.index];
@@ -355,15 +368,19 @@ export const Bands = memo(function Bands({
                     }}
                   >
                     <Icon name="restart_alt" />
-                    <span>Reset</span>
+                    <span>{t("bands.reset")}</span>
                   </Button>
                 )}
                 <Button
                   variant="ghost"
                   size="icon"
                   className="band-index"
-                  title={`Remove band ${selectedFilter.index + 1}`}
-                  aria-label={`Remove band ${selectedFilter.index + 1}`}
+                  title={t("bands.removeBand", {
+                    number: selectedFilter.index + 1,
+                  })}
+                  aria-label={t("bands.removeBand", {
+                    number: selectedFilter.index + 1,
+                  })}
                   disabled={disabled}
                   onClick={() => {
                     const removedIndex = selectedFilter.index;
@@ -431,11 +448,12 @@ const BandRow = memo(
     capabilities,
     snapToIso,
   }: BandRowProps) {
+    const { t } = useTranslation("editor");
     return (
       <div
         className={`band-row ${filter.enabled ? "" : "muted"} ${active ? "active" : ""}`}
         role="group"
-        aria-label={`Band ${filter.index + 1}`}
+        aria-label={t("bands.band", { number: filter.index + 1 })}
         style={filterColorStyle(filter.index)}
       >
         <div className="band-number" aria-hidden="true">
@@ -455,7 +473,7 @@ const BandRow = memo(
         <button
           type="button"
           className="band-index"
-          aria-label={`Remove band ${filter.index + 1}`}
+          aria-label={t("bands.removeBand", { number: filter.index + 1 })}
           disabled={!canRemove || disabled}
           onClick={() => {
             if (!canRemove) return;
@@ -510,6 +528,7 @@ const BandControls = memo(
     capabilities,
     snapToIso,
   }: BandControlsProps) {
+    const { t } = useTranslation("editor");
     const gestureFilter = useRef(filter);
     const startSliderChange = () => {
       gestureFilter.current = filter;
@@ -518,13 +537,13 @@ const BandControls = memo(
 
     const typeControl = (
       <label className="band-field band-type-field">
-        <span className="band-field-label">Filter</span>
+        <span className="band-field-label">{t("bands.filter")}</span>
         <Select
           value={filter.filter_type}
           disabled={disabled}
           options={capabilities.supported_filter_types.map((type) => ({
             value: type,
-            label: TYPE_NAMES[type],
+            label: t(TYPE_NAMES[type]),
           }))}
           onChange={(type) => {
             onActivate?.(filter.index);
@@ -537,12 +556,12 @@ const BandControls = memo(
     );
     const qControl = (
       <BandField
-        label={mobileSimple ? "Q / bandwidth" : "Q"}
+        label={mobileSimple ? t("bands.bandwidth") : "Q"}
         className="band-q-field"
       >
         <div className="param-cell q-cell">
           <Slider
-            aria-label={`Band ${filter.index + 1} Q`}
+            aria-label={t("bands.q", { number: filter.index + 1 })}
             disabled={disabled}
             min={0}
             max={Q_SLIDER_STEPS}
@@ -588,20 +607,22 @@ const BandControls = memo(
             onChange={(val) => onChange(filter.index, { ...filter, q: val })}
             className="band-q-stepper"
             disabled={disabled}
-            aria-label={`Band ${filter.index + 1} Q value`}
+            aria-label={t("bands.qValue", { number: filter.index + 1 })}
           />
         </div>
-        {mobileSimple && (
-          <p className="band-q-help">Lower Q makes the adjustment wider.</p>
-        )}
+        {mobileSimple && <p className="band-q-help">{t("bands.qHelp")}</p>}
       </BandField>
     );
 
     const frequencyControl = (
-      <BandField label="Frequency" unit="Hz" className="band-freq-field">
+      <BandField
+        label={t("bands.frequency")}
+        unit="Hz"
+        className="band-freq-field"
+      >
         <div className="param-cell freq-cell">
           <Slider
-            aria-label={`Band ${filter.index + 1} frequency`}
+            aria-label={t("bands.frequencyLabel", { number: filter.index + 1 })}
             disabled={disabled}
             min={0}
             max={FREQ_SLIDER_STEPS}
@@ -670,16 +691,16 @@ const BandControls = memo(
             )}
             className="band-freq-stepper"
             disabled={disabled}
-            aria-label={`Band ${filter.index + 1} frequency value`}
+            aria-label={t("bands.frequencyValue", { number: filter.index + 1 })}
           />
         </div>
       </BandField>
     );
     const gainControl = (
-      <BandField label="Gain" unit="dB" className="band-gain-field">
+      <BandField label={t("bands.gain")} unit="dB" className="band-gain-field">
         <div className="gain-cell">
           <Slider
-            aria-label={`Band ${filter.index + 1} gain`}
+            aria-label={t("bands.gainLabel", { number: filter.index + 1 })}
             disabled={disabled}
             min={capabilities.band_gain_range[0]}
             max={capabilities.band_gain_range[1]}
@@ -725,7 +746,7 @@ const BandControls = memo(
             onChange={(val) => onChange(filter.index, { ...filter, gain: val })}
             className="band-gain-stepper"
             disabled={disabled}
-            aria-label={`Band ${filter.index + 1} gain value`}
+            aria-label={t("bands.gainValue", { number: filter.index + 1 })}
           />
         </div>
       </BandField>
@@ -748,7 +769,7 @@ const BandControls = memo(
         {mobileSimple ? (
           <details className="band-more-settings">
             <summary>
-              More band settings
+              {t("bands.more")}
               <Icon name="expand_more" />
             </summary>
             {typeControl}

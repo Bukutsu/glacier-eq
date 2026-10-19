@@ -1,3 +1,4 @@
+import { i18n } from "@/lib/i18n";
 import type { AppSettings } from "@/types";
 
 export type ThemeOption = {
@@ -18,20 +19,37 @@ export type ThemeOption = {
  */
 export function themeOptions(isAndroid: boolean): ThemeOption[] {
   return [
-    { value: "auto", label: "Auto (system theme)" },
+    { value: "auto", label: i18n.t("settings:themes.autoSystemTheme") },
     ...(isAndroid
-      ? [{ value: "material-you" as const, label: "System (Material You)" }]
+      ? [
+          {
+            value: "material-you" as const,
+            label: i18n.t("settings:themes.systemMaterialYou"),
+          },
+        ]
       : []),
-    { value: "glacier", label: "Glacier (dark)" },
-    { value: "glacier-light", label: "Glacier (light)" },
-    { value: "tokyo-night", label: "Tokyo Night" },
-    { value: "tokyo-night-storm", label: "Tokyo Night Storm" },
-    { value: "tokyo-night-day", label: "Tokyo Night Day (light)" },
-    { value: "nord", label: "Nord" },
-    { value: "dracula", label: "Dracula" },
-    { value: "gruvbox", label: "Gruvbox Dark" },
-    { value: "catppuccin-mocha", label: "Catppuccin Mocha" },
-    { value: "catppuccin-latte", label: "Catppuccin Latte (light)" },
+    { value: "glacier", label: i18n.t("settings:themes.glacierDark") },
+    { value: "glacier-light", label: i18n.t("settings:themes.glacierLight") },
+    { value: "tokyo-night", label: i18n.t("settings:themes.tokyoNight") },
+    {
+      value: "tokyo-night-storm",
+      label: i18n.t("settings:themes.tokyoNightStorm"),
+    },
+    {
+      value: "tokyo-night-day",
+      label: i18n.t("settings:themes.tokyoNightDayLight"),
+    },
+    { value: "nord", label: i18n.t("settings:themes.nord") },
+    { value: "dracula", label: i18n.t("settings:themes.dracula") },
+    { value: "gruvbox", label: i18n.t("settings:themes.gruvboxDark") },
+    {
+      value: "catppuccin-mocha",
+      label: i18n.t("settings:themes.catppuccinMocha"),
+    },
+    {
+      value: "catppuccin-latte",
+      label: i18n.t("settings:themes.catppuccinLatteLight"),
+    },
   ];
 }
 

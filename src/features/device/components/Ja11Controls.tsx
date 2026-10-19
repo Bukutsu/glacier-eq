@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 import { useEffect, useRef, useState } from "react";
@@ -58,6 +59,14 @@ export function Ja11Controls({
   onExpectedDisconnect?: (restart?: boolean) => void | Promise<void>;
   onReadFailure?: (path: string, error: unknown) => Promise<boolean>;
 }) {
+  const { t } = useTranslation("device");
+
+  const controlLabel = (key: string) =>
+    key === "microphone"
+      ? t("ja11Controls.inlineMicrophone")
+      : key === "uac"
+        ? t("ja11Controls.usbAudioMode")
+        : t("ja11Controls.outputVolume");
   const simulated = isDevDummyDevice(path);
   const [fields, setFields] = useState<Record<string, Field>>({});
   const [working, setWorking] = useState(false);
@@ -179,9 +188,12 @@ export function Ja11Controls({
       // Preserve hearing-safety confirmation for a large increase, not every step.
       if (key === "volume" && target > field.value + 10) {
         const confirmed = await confirmDialog({
-          title: "Increase output volume?",
-          message: `Increase output volume from ${field.value} to ${target}/60? Lower your system volume first.`,
-          confirmLabel: "Increase volume",
+          title: t("ja11Controls.increaseOutputVolume"),
+          message: t("ja11Controls.increaseVolumeConfirmation", {
+            value: field.value,
+            target: target,
+          }),
+          confirmLabel: t("ja11Controls.increaseVolume"),
         });
         if (token !== generation.current) return;
         if (!confirmed) {
@@ -209,12 +221,17 @@ export function Ja11Controls({
       );
       if (token !== generation.current) return;
       if (actual === null) {
-        const message = `Sent ${target}, not verified (readback missing or different). Refresh settings to check; reconnect only if the device disconnected.`;
+        const message = t("ja11Controls.unverifiedWrite", { target: target });
         setFields((old) => ({
           ...old,
           [key]: { value: null, draft: target, error: message },
         }));
-        setStatus(`JA11 ${key}: ${message}`);
+        setStatus(
+          t("ja11Controls.controlStatus", {
+            key: controlLabel(key),
+            message: message,
+          }),
+        );
       } else {
         setFields((old) => ({
           ...old,
@@ -235,11 +252,17 @@ export function Ja11Controls({
           [key]: {
             value: null,
             draft: target,
-            error: `Outcome unknown for target ${target}: ${error}. Refresh settings to check.`,
+            error: t("ja11Controls.unknownOutcome", {
+              target: target,
+              error: error,
+            }),
           },
         }));
         setStatus(
-          `Could not verify JA11 ${key}; outcome unknown. Refresh settings to check: ${error}`,
+          t("ja11Controls.verificationFailed", {
+            key: controlLabel(key),
+            error: error,
+          }),
         );
       }
     } finally {
@@ -298,22 +321,26 @@ export function Ja11Controls({
   const uac = fields.uac,
     uacDisabled = isBusy || working || uac?.value == null;
   const mutedState = (unknown: boolean, pending: boolean) =>
-    unknown ? "Not loaded" : pending ? "Applying…" : null;
+    unknown
+      ? t("ja11Controls.notLoaded")
+      : pending
+        ? t("ja11Controls.applying")
+        : null;
 
   return (
     <>
       <div className="flex items-center justify-between gap-2 px-1 text-xs text-muted-foreground">
         <span>
           {simulated
-            ? "Simulated JA11 · mock values, no USB commands"
-            : "Changes apply immediately"}
+            ? t("ja11Controls.simulationDescription")
+            : t("ja11Controls.changesApplyImmediately")}
         </span>
         <Button
           type="button"
           variant="ghost"
           size="icon"
-          title="Refresh settings"
-          aria-label="Refresh settings"
+          title={t("ja11Controls.refreshSettings")}
+          aria-label={t("ja11Controls.refreshSettings")}
           aria-busy={working}
           disabled={isBusy || working}
           onClick={() => void refresh()}
@@ -325,7 +352,7 @@ export function Ja11Controls({
         <div className="stack-pref-row">
           <div className="stack-pref-info">
             <label className="stack-pref-title" htmlFor="ja11-microphone">
-              Inline microphone
+              {t("ja11Controls.inlineMicrophone")}
             </label>
             {mic.field?.error ? (
               <span
@@ -335,7 +362,9 @@ export function Ja11Controls({
                 {mic.field.error}
               </span>
             ) : (
-              <span className="stack-pref-desc">May briefly disconnect</span>
+              <span className="stack-pref-desc">
+                {t("ja11Controls.mayBrieflyDisconnect")}
+              </span>
             )}
           </div>
           <div className="stack-pref-control flex items-center gap-3">
@@ -344,7 +373,7 @@ export function Ja11Controls({
             </span>
             <Switch
               id="ja11-microphone"
-              label="Inline microphone"
+              label={t("ja11Controls.inlineMicrophone")}
               checked={mic.field?.draft === 1}
               disabled={mic.disabled}
               onCheckedChange={(on) => change("microphone", on ? 1 : 0)}
@@ -352,14 +381,14 @@ export function Ja11Controls({
           </div>
         </div>
         <SegmentedRow
-          title="USB audio mode"
+          title={t("ja11Controls.usbAudioMode")}
           desc={
             uac?.error ??
             (uac?.value != null && uac.draft !== uac.value
-              ? "Applying…"
+              ? t("ja11Controls.applying")
               : uac?.value == null
-                ? "Not loaded"
-                : "May briefly disconnect")
+                ? t("ja11Controls.notLoaded")
+                : t("ja11Controls.mayBrieflyDisconnect"))
           }
           value={uac?.draft == null ? "" : String(uac.draft)}
           disabled={uacDisabled}
@@ -372,7 +401,7 @@ export function Ja11Controls({
         <div className="stack-pref-row select-row">
           <div className="stack-pref-info">
             <label className="stack-pref-title" htmlFor="ja11-volume">
-              Output volume
+              {t("ja11Controls.outputVolume")}
             </label>
             {volume.field?.error ? (
               <span
@@ -384,7 +413,7 @@ export function Ja11Controls({
             ) : (
               <span className="stack-pref-desc">
                 {mutedState(volume.unknown, volume.pending && working) ??
-                  "Device output level"}
+                  t("ja11Controls.deviceOutputLevel")}
               </span>
             )}
           </div>
@@ -397,13 +426,13 @@ export function Ja11Controls({
               min={0}
               max={60}
               step={1}
-              aria-label="Output volume"
+              aria-label={t("ja11Controls.outputVolume")}
               value={volume.field?.draft ?? 0}
               disabled={volume.disabled}
               aria-valuetext={
                 volume.field?.draft == null
-                  ? "Not loaded"
-                  : `${volume.field.draft} out of 60`
+                  ? t("ja11Controls.notLoaded")
+                  : t("ja11Controls.volumeValue", { draft: volume.field.draft })
               }
               onChange={(event) => change("volume", Number(event.target.value))}
               onEndChange={releaseVolume}
@@ -414,7 +443,7 @@ export function Ja11Controls({
               className="w-14 text-right text-xs tabular-nums text-muted-foreground"
             >
               {volume.field?.draft == null
-                ? "Not loaded"
+                ? t("ja11Controls.notLoaded")
                 : `${volume.field.draft} / 60`}
             </output>
           </div>

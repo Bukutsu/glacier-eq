@@ -1,3 +1,4 @@
+import { Trans, useTranslation } from "react-i18next";
 import { useId } from "react";
 import { Link } from "react-router";
 import { Button } from "@/components/ui/Button";
@@ -19,6 +20,7 @@ export function MobileDraftRecovery({
   onRestore,
   onDiscard,
 }: MobileDraftRecoveryProps) {
+  const { t } = useTranslation("editor");
   const titleId = useId();
   return (
     <Card className="m-4 shrink-0 p-4" aria-labelledby={titleId}>
@@ -26,25 +28,27 @@ export function MobileDraftRecovery({
         <div className="flex items-center gap-2">
           <Icon name={invalid ? "error" : "restart_alt"} />
           <h2 id={titleId} className="m-0 text-sm font-semibold">
-            {invalid ? "Unreadable draft" : "Unfinished EQ"}
+            {invalid ? t("draft.unreadable") : t("draft.unfinished")}
           </h2>
         </div>
         <p className="mb-0 mt-2 text-xs leading-relaxed text-muted-foreground">
-          {invalid
-            ? "Discard this draft to resume editing. Your current EQ stays unchanged."
-            : "Restore your draft or discard it to resume editing. Nothing is written to your DAC."}
+          {invalid ? t("draft.mobileUnreadable") : t("draft.mobileDescription")}
         </p>
       </div>
       {connected && !invalid && (
         <p className="mb-0 mt-2 text-xs leading-relaxed text-muted-foreground">
-          Disconnect your DAC in{" "}
-          <Link
-            className="text-foreground underline underline-offset-2"
-            to="/device"
-          >
-            Device
-          </Link>{" "}
-          before restoring.
+          <Trans
+            t={t}
+            i18nKey="draft.disconnectInDevice"
+            components={{
+              device: (
+                <Link
+                  className="text-foreground underline underline-offset-2"
+                  to="/device"
+                />
+              ),
+            }}
+          />
         </p>
       )}
       <div
@@ -57,11 +61,11 @@ export function MobileDraftRecovery({
             disabled={connected || isBusy}
             onClick={onRestore}
           >
-            Restore EQ
+            {t("draft.restore")}
           </Button>
         )}
         <Button className="min-h-11" disabled={isBusy} onClick={onDiscard}>
-          Discard draft
+          {t("draft.discard")}
         </Button>
       </div>
     </Card>

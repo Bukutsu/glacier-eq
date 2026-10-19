@@ -1,3 +1,4 @@
+import { i18n } from "@/lib/i18n";
 import type { PEQData } from "@/types";
 
 import type {
@@ -69,7 +70,7 @@ export function quietLossReport<
     level: "Info",
     message: `Recovering quietly: ${status.message}`,
     toastType: null,
-    statusText: "Reconnecting…",
+    statusText: i18n.t("device:deviceOperations.reconnecting"),
   };
 }
 
@@ -84,18 +85,19 @@ export function resetEqOutcome(
 ): { message: string; type: "success" | "error" } {
   if (restarts) {
     return {
-      message:
-        "Device EQ reset to flat. The DAC is restarting; its EQ reloads when it reconnects.",
+      message: i18n.t("device:deviceOperations.resetRestarting"),
       type: "success",
     };
   }
   return pulled === false
     ? {
-        message:
-          "Device EQ was reset, but reading it back failed. Read EQ from the DAC again before editing.",
+        message: i18n.t("device:deviceOperations.resetReadbackFailed"),
         type: "error",
       }
-    : { message: "Device EQ reset to flat.", type: "success" };
+    : {
+        message: i18n.t("device:deviceOperations.resetComplete"),
+        type: "success",
+      };
 }
 
 /**
@@ -119,6 +121,6 @@ export function markDeviceLost(
     message,
     toastType: level === "Error" ? "error" : null,
     source,
-    statusText: "Reconnecting…",
+    statusText: i18n.t("device:deviceOperations.reconnecting"),
   });
 }

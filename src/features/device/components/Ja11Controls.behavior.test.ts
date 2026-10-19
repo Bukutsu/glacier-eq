@@ -1,11 +1,24 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ReactElement } from "react";
+import { i18n } from "@/lib/i18n";
+import type { Namespace } from "i18next";
 
 const hooks = vi.hoisted(() => ({
   slots: [] as any[],
   cursor: 0,
   effects: [] as (() => void | (() => void))[],
 }));
+// These tests call components directly with mocked React hooks. Keep real
+// catalog lookup without requiring a React render for useTranslation.
+vi.mock("react-i18next", async (original) => ({
+  ...(await original<typeof import("react-i18next")>()),
+  useTranslation: (namespace: Namespace) => ({
+    t: i18n.getFixedT(null, namespace),
+    i18n,
+    ready: true,
+  }),
+}));
+
 vi.mock("react", async (original) => ({
   ...(await original<typeof import("react")>()),
   useState: (initial: unknown) => {

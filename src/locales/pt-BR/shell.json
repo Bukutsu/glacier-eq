@@ -1,0 +1,143 @@
+{
+  "navigation": {
+    "device": "Dispositivo",
+    "settings": "Configurações",
+    "profiles": "Perfis",
+    "primary": "Navegação principal",
+    "diagnostics": "Diagnóstico",
+    "tuning": "Ajuste",
+    "deviceSettings": "Configurações do dispositivo",
+    "deviceSections": "Seções do dispositivo",
+    "settingsSections": "Seções de configurações",
+    "backToDevice": "Voltar ao dispositivo",
+    "backToSettings": "Voltar às configurações"
+  },
+  "header": {
+    "deviceActions": "Ações do dispositivo",
+    "read": "Ler do DAC",
+    "disconnectDac": "Desconectar DAC",
+    "offline": "Offline",
+    "working": "Em andamento",
+    "simulation": "Simulação · sem alterações no hardware",
+    "noHardwareExport": "Este DAC não tem EQ no hardware · exporte o EQ para usá-lo em um equalizador do sistema",
+    "unknown": "Estado do dispositivo desconhecido",
+    "matches": "DAC: igual ao editor",
+    "live": "DAC: em tempo real · salva ao pausar",
+    "unwritten": "DAC: alterações não gravadas",
+    "profileUnsaved": "Perfil: não salvo",
+    "profileModified": "Perfil: modificado",
+    "profileSaved": "Perfil: salvo",
+    "offlineEditing": "Edição offline",
+    "simulatedDevice": "Dispositivo simulado; sem alterações no hardware",
+    "noHardware": "Este DAC não tem EQ no hardware",
+    "saved": "Salvo no DAC",
+    "saveOnPause": "Salva no DAC ao pausar",
+    "notSaved": "Alterações não salvas no DAC",
+    "readToCheck": "Leia o EQ do DAC para verificar seu estado",
+    "export": "Exportar arquivo de EQ",
+    "liveApplyHelp": "As alterações de EQ são enviadas ao DAC conforme você edita e salvas quando você pausa.",
+    "liveApply": "Aplicar em tempo real",
+    "editHistory": "Histórico de edição",
+    "readHelp": "Substituir o conteúdo do editor pelo EQ lido do DAC",
+    "writeHelp": "Armazenar o EQ do editor no DAC",
+    "write": "Gravar no DAC",
+    "eqActions": "Ações de EQ",
+    "saveHelp": "Armazenar o EQ do editor no DAC. Ele permanece salvo após desconectar.",
+    "save": "Salvar no DAC",
+    "noHardwareNote": "Este DAC não tem EQ no hardware, por isso as ações de leitura/gravação de EQ não estão disponíveis. Você ainda pode editar e exportar o EQ para um equalizador do sistema.",
+    "operationProgress": "Operação do dispositivo em andamento",
+    "progress": "{{message}} · {{percentage}}%"
+  },
+  "actions": {
+    "undo": "Desfazer",
+    "redo": "Refazer",
+    "connect": "Conectar DAC",
+    "disconnect": "Desconectar",
+    "cancel": "Cancelar",
+    "confirm": "Confirmar",
+    "back": "Voltar",
+    "close": "Fechar {{title}}",
+    "reload": "Recarregar aplicativo"
+  },
+  "workspace": {
+    "loading": "Carregando área de trabalho",
+    "skip": "Ir para a área de trabalho",
+    "preamp": "Pré-amplificação",
+    "label": "Área de trabalho",
+    "home": "Início do Glacier EQ",
+    "editor": "Editor de EQ"
+  },
+  "connection": {
+    "disconnected": "Desconectado",
+    "reconnecting": "Reconectando",
+    "lost": "Conexão perdida",
+    "restarting": "O DAC está reiniciando",
+    "cancel": "Cancelar reconexão",
+    "reconnectingTo": "Reconectando a <strong>{{name}}</strong>..."
+  },
+  "graph": {
+    "showResponse": "Mostrar gráfico de resposta em frequência",
+    "hideResponse": "Ocultar gráfico de resposta em frequência",
+    "show": "Mostrar gráfico",
+    "hide": "Ocultar gráfico",
+    "scroll": "Rolar até o gráfico de resposta em frequência"
+  },
+  "feedback": {
+    "preferenceNotSaved": "Este navegador não conseguiu salvar a preferência; ela pode não ser mantida após reiniciar.",
+    "status": "Mensagem de status",
+    "dismiss": "Dispensar mensagem",
+    "applicationError": "Erro do aplicativo"
+  },
+  "number": {
+    "invalid": "Insira um número usando ponto ou vírgula decimal.",
+    "decrement": "Diminuir",
+    "increment": "Aumentar",
+    "decrease": "Diminuir {{label}}",
+    "increase": "Aumentar {{label}}"
+  },
+  "sections": {
+    "overview": {
+      "label": "Visão geral",
+      "description": "Especificações do dispositivo e limites de EQ"
+    },
+    "controls": {
+      "label": "Controles",
+      "description": "Volume, modos de som e resposta do filtro"
+    },
+    "maintenance": {
+      "label": "Manutenção",
+      "description": "Utilitários do dispositivo e opções de redefinição"
+    },
+    "general": {
+      "label": "Comportamento e áudio",
+      "description": "Comportamento de conexão e edição de EQ"
+    },
+    "appearance": {
+      "label": "Interface e tema",
+      "description": "Preferências de tema, gráfico e exibição"
+    },
+    "diagnostics": {
+      "label": "Diagnóstico e permissões",
+      "description": "Registros de eventos e solução de problemas"
+    },
+    "about": {
+      "label": "Sobre",
+      "description": "Versão do aplicativo, projeto e licenças"
+    },
+    "eq": {
+      "label": "EQ"
+    },
+    "tuning": {
+      "label": "Ajuste"
+    },
+    "profiles": {
+      "label": "Perfis"
+    },
+    "device": {
+      "label": "Dispositivo"
+    },
+    "settings": {
+      "label": "Configurações"
+    }
+  }
+}

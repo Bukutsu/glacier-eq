@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
@@ -26,12 +27,28 @@ export interface DawnProState {
 }
 
 const FILTERS = [
-  { value: "0", label: "Fast roll-off, low latency", mode: "FAST-LL" },
-  { value: "1", label: "Fast roll-off, phase compensated", mode: "FAST-PC" },
-  { value: "2", label: "Slow roll-off, low latency", mode: "Slow-LL" },
-  { value: "3", label: "Slow roll-off, phase compensated", mode: "Slow-PC" },
-  { value: "4", label: "Non-oversampling", mode: "NON-OS" },
-];
+  {
+    value: "0",
+    label: "dawnProControls.fastRollOffLowLatency",
+    mode: "FAST-LL",
+  },
+  {
+    value: "1",
+    label: "dawnProControls.fastRollOffPhaseCompensated",
+    mode: "FAST-PC",
+  },
+  {
+    value: "2",
+    label: "dawnProControls.slowRollOffLowLatency",
+    mode: "Slow-LL",
+  },
+  {
+    value: "3",
+    label: "dawnProControls.slowRollOffPhaseCompensated",
+    mode: "Slow-PC",
+  },
+  { value: "4", label: "dawnProControls.nonOversampling", mode: "NON-OS" },
+] as const;
 
 // Control values are from Abdul Mateen's hardware-tested original-Dawn code:
 // https://github.com/RetR0-hex/moondrop-dawn-pro-gui/blob/69f95f669377646da1e9ba931bec9a5dc9b5d40c/moondrop/protocol.py
@@ -47,15 +64,17 @@ export function DawnProControlsFields({
     value: number | boolean,
   ) => void;
 }) {
+  const { t } = useTranslation("device");
+
   return (
     <div className="stack-card">
       <div className="stack-pref-row select-row">
         <div className="stack-pref-info">
           <label className="stack-pref-title" htmlFor="dawn-filter">
-            Reconstruction filter
+            {t("dawnProControls.reconstructionFilter")}
           </label>
           <span className="stack-pref-desc">
-            Sets digital filter roll-off and phase response
+            {t("dawnProControls.filterDescription")}
           </span>
         </div>
         <div className="stack-pref-control setting-select-wrapper">
@@ -63,20 +82,23 @@ export function DawnProControlsFields({
             id="dawn-filter"
             value={String(state.filter)}
             disabled={disabled}
-            options={FILTERS}
+            options={FILTERS.map((filter) => ({
+              ...filter,
+              label: t(filter.label),
+            }))}
             onChange={(value) => onChange("filter", Number(value))}
           />
         </div>
       </div>
       <FilterResponse mode={FILTERS[state.filter].mode} />
       <SegmentedRow
-        title="Gain"
-        desc="High gain gives more power for headphones that need it"
+        title={t("dawnProControls.gain")}
+        desc={t("dawnProControls.gainDescription")}
         value={state.high_gain ? "high" : "low"}
         disabled={disabled}
         options={[
-          { value: "low", label: "Low" },
-          { value: "high", label: "High" },
+          { value: "low", label: t("dawnProControls.low") },
+          { value: "high", label: t("dawnProControls.high") },
         ]}
         onChange={(value) => onChange("high_gain", value === "high")}
       />
@@ -84,11 +106,10 @@ export function DawnProControlsFields({
         <div className="pref-slider-head">
           <div className="stack-pref-info">
             <label className="stack-pref-title" htmlFor="dawn-volume">
-              DAC volume
+              {t("dawnProControls.dacVolume")}
             </label>
             <span className="stack-pref-desc">
-              Hardware volume, separate from Windows volume. Step 60 is full
-              output.
+              {t("dawnProControls.volumeDescription")}
             </span>
           </div>
           <span className="pref-value-badge">{state.volume_step}/60</span>
@@ -99,25 +120,28 @@ export function DawnProControlsFields({
           max={60}
           step={1}
           disabled={disabled}
-          aria-label="DAC volume"
-          aria-valuetext={`Step ${state.volume_step} of 60`}
+          aria-label={t("dawnProControls.dacVolume")}
+          aria-valuetext={t("dawnProControls.volumeStep", {
+            volume_step: state.volume_step,
+          })}
           value={state.volume_step}
           onChange={(event) =>
             onChange("volume_step", Number(event.target.value))
           }
         />
         <p className="stack-pref-desc">
-          Last read attenuation code: 0x
-          {state.volume_raw.toString(16).padStart(2, "0").toUpperCase()}
+          {t("dawnProControls.attenuationCode", {
+            code: state.volume_raw.toString(16).padStart(2, "0").toUpperCase(),
+          })}
         </p>
       </div>
       <div className="stack-pref-row select-row">
         <div className="stack-pref-info">
           <label className="stack-pref-title" htmlFor="dawn-led">
-            Indicator LED
+            {t("dawnProControls.indicatorLed")}
           </label>
           <span className="stack-pref-desc">
-            Changes the DAC's indicator light
+            {t("dawnProControls.ledDescription")}
           </span>
         </div>
         <div className="stack-pref-control setting-select-wrapper">
@@ -127,9 +151,9 @@ export function DawnProControlsFields({
             disabled={disabled}
             onChange={(value) => onChange("led", Number(value))}
             options={[
-              { value: "0", label: "On" },
-              { value: "1", label: "Temporarily off" },
-              { value: "2", label: "Off" },
+              { value: "0", label: t("dawnProControls.on") },
+              { value: "1", label: t("dawnProControls.temporarilyOff") },
+              { value: "2", label: t("dawnProControls.off") },
             ]}
           />
         </div>
@@ -147,6 +171,8 @@ export function DawnProControls({
   isBusy: boolean;
   setStatus: StatusReporter;
 }) {
+  const { t } = useTranslation("device");
+
   const [state, setState] = useState<DawnProState | null>(null);
   const stateRef = useRef<DawnProState | null>(null);
   const confirmed = useRef<DawnProState | null>(null);
@@ -248,7 +274,11 @@ export function DawnProControls({
           setState(next);
         }
         setError(String(error));
-        setStatus(`Could not update or verify Dawn Pro setting: ${error}`);
+        setStatus(
+          t("dawnProControls.updateFailed", {
+            error: error,
+          }),
+        );
       }
     });
   };
@@ -257,14 +287,16 @@ export function DawnProControls({
     <>
       <div className="flex items-center justify-between gap-2 px-1 text-xs text-muted-foreground">
         <span>
-          {refreshing ? "Reading settings…" : "Changes apply immediately"}
+          {refreshing
+            ? t("dawnProControls.readingSettings")
+            : t("dawnProControls.changesApplyImmediately")}
         </span>
         <Button
           type="button"
           variant="ghost"
           size="icon"
-          title="Refresh settings"
-          aria-label="Refresh settings"
+          title={t("dawnProControls.refreshSettings")}
+          aria-label={t("dawnProControls.refreshSettings")}
           aria-busy={refreshing}
           disabled={isBusy || refreshing}
           onClick={refresh}
@@ -277,12 +309,10 @@ export function DawnProControls({
           <div className="empty-state">
             <h3>
               {error
-                ? "Could not load Dawn Pro controls"
-                : "Reading Dawn Pro settings"}
+                ? t("dawnProControls.couldNotLoadDawnProControls")
+                : t("dawnProControls.readingDawnProSettings")}
             </h3>
-            <p>
-              {error ?? "Reading volume, gain, filter and LED from the DAC…"}
-            </p>
+            <p>{error ?? t("dawnProControls.loadingDescription")}</p>
           </div>
         </section>
       )}

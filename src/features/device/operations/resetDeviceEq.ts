@@ -1,3 +1,4 @@
+import { i18n } from "@/lib/i18n";
 import type { invokeForDevice } from "@/lib/rpc";
 import type { confirmDialog } from "@/components/ui/ConfirmDialog";
 
@@ -69,15 +70,18 @@ export function createResetDeviceEq(context: ResetDeviceEqContext) {
     try {
       if (
         !(await confirmDialog({
-          title: "Reset device EQ?",
-          message: "Reset all hardware EQ bands on the DAC to 0 dB?",
-          confirmLabel: "Reset",
+          title: i18n.t("device:resetDeviceEq.resetDeviceEq"),
+          message: i18n.t("device:resetDeviceEq.confirmation"),
+          confirmLabel: i18n.t("device:resetDeviceEq.reset"),
           danger: true,
         })) ||
         !isCurrent()
       )
         return;
-      setProgress({ message: "Resetting device EQ…", percentage: 0 });
+      setProgress({
+        message: i18n.t("device:resetDeviceEq.resettingDeviceEq"),
+        percentage: 0,
+      });
       const restarts =
         (await invokeForDevice<boolean | undefined>(
           path,
@@ -87,7 +91,10 @@ export function createResetDeviceEq(context: ResetDeviceEqContext) {
       if (restarts) {
         const outcome = resetEqOutcome(true, undefined);
         setStatus(outcome.message, outcome.type);
-        setProgress({ message: "Waiting for DAC restart…", percentage: 100 });
+        setProgress({
+          message: i18n.t("device:resetDeviceEq.waitingForDacRestart"),
+          percentage: 100,
+        });
         await handleExpectedDisconnect(true);
       } else {
         // pullEq claims its own operation slot; maintenancePending continues
@@ -101,7 +108,12 @@ export function createResetDeviceEq(context: ResetDeviceEqContext) {
     } catch (error) {
       if (!isCurrent()) return;
       if (!(await recoverDeviceRead(path, error)) && isCurrent()) {
-        setStatus(`Could not reset device EQ: ${error}`, "error");
+        setStatus(
+          i18n.t("device:resetDeviceEq.resetFailed", {
+            error: error,
+          }),
+          "error",
+        );
       }
     } finally {
       if (operationId === eqOperationIdRef.current)

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
@@ -82,6 +83,7 @@ export const ProfilesView = memo(function ProfilesView({
   preview,
   onReviewEq,
 }: ProfilesViewProps) {
+  const { t } = useTranslation("library");
   const [saveAsOpen, setSaveAsOpen] = useState(false);
   const [parsed, setParsed] = useState<ParsedAutoEqResult | null>(null);
   const [importName, setImportName] = useState("");
@@ -150,11 +152,11 @@ export const ProfilesView = memo(function ProfilesView({
     !isRenaming;
   const saveLabel = showSaveAs
     ? isOverwrite
-      ? "Overwrite profile"
-      : "Save profile"
+      ? t("profilesView.overwriteProfile")
+      : t("profilesView.saveProfile")
     : dirty
-      ? "Save changes"
-      : "Profile saved";
+      ? t("profilesView.saveChanges")
+      : t("profilesView.profileSaved");
 
   const handleSelectProfile = (profile: Profile) =>
     loadProfile({
@@ -182,18 +184,18 @@ export const ProfilesView = memo(function ProfilesView({
     const request = ++parseRequestRef.current;
 
     if (!file.name.endsWith(".txt")) {
-      setStatus("Only .txt AutoEQ files are supported.", "info");
+      setStatus(t("profilesView.unsupportedFileType"), "info");
       return;
     }
 
     try {
       if (file.size > 1_048_576)
-        throw new Error("File exceeds the 1 MiB limit.");
+        throw new Error(t("profilesView.fileTooLarge"));
       const text = decodeUtf8(await file.arrayBuffer());
       await parseAndLoadText(text, file.name.replace(/\.[^/.]+$/, ""), request);
     } catch (error) {
       if (request === parseRequestRef.current) {
-        setStatus(`Failed to import: ${error}`);
+        setStatus(t("profilesView.failedToImport", { error: error }));
       }
     }
   };
@@ -211,13 +213,15 @@ export const ProfilesView = memo(function ProfilesView({
       setManualPaste(null);
       setParsed(result);
       const initialName =
-        result.headphone_name || defaultNameFallback || "Imported Profile";
+        result.headphone_name ||
+        defaultNameFallback ||
+        t("profilesView.importedProfile");
       setImportName(initialName);
       setIsTemporary(false);
-      setStatus("Parsed AutoEQ profile");
+      setStatus(t("profilesView.parsedAutoEQProfile"));
     } catch (error) {
       if (request === parseRequestRef.current) {
-        setStatus(`Failed to import: ${error}`);
+        setStatus(t("profilesView.failedToImport", { error: error }));
       }
     }
   };
@@ -226,10 +230,12 @@ export const ProfilesView = memo(function ProfilesView({
     const request = ++parseRequestRef.current;
     try {
       const text = await readText();
-      if (!text.trim()) throw new Error("Clipboard is empty.");
+      if (!text.trim()) throw new Error(t("profilesView.clipboardIsEmpty"));
       await parseAndLoadText(
         text,
-        `Pasted ${new Date().toLocaleDateString()}`,
+        t("profilesView.pasted", {
+          date: new Date().toLocaleDateString(),
+        }),
         request,
       );
     } catch (err) {
@@ -237,7 +243,7 @@ export const ProfilesView = memo(function ProfilesView({
         if (!isTauri()) {
           setManualPaste("");
         } else {
-          setStatus(`Could not read clipboard: ${err}`);
+          setStatus(t("profilesView.couldNotReadClipboard", { error: err }));
           console.error(err);
         }
       }
@@ -267,9 +273,11 @@ export const ProfilesView = memo(function ProfilesView({
       if (
         nameExists &&
         !(await confirmDialog({
-          title: "Overwrite profile?",
-          message: `A profile named "${nameSnapshot.trim()}" already exists. Overwrite it?`,
-          confirmLabel: "Overwrite",
+          title: t("profilesView.overwriteTitle"),
+          message: t("profilesView.overwriteMessage", {
+            name: nameSnapshot.trim(),
+          }),
+          confirmLabel: t("profilesView.overwrite"),
           danger: true,
         }))
       ) {
@@ -280,29 +288,28 @@ export const ProfilesView = memo(function ProfilesView({
       if (temporarySnapshot) {
         const applied = onImportPEQ(
           parsedSnapshot.peq,
-          nameSnapshot || "Imported EQ",
+          nameSnapshot || t("profilesView.importedEQ"),
           false,
         );
         if (!applied) {
-          setStatus(
-            "Import was not applied because a device operation is in progress.",
-            "info",
-          );
+          setStatus(t("profilesView.importEditorBusy"), "info");
           return;
         }
         setParsed(null);
-        setStatus("Applied to editor without saving");
+        setStatus(t("profilesView.appliedToEditorWithoutSaving"));
         return;
       }
 
       const name = nameSnapshot.trim();
       if (!name) {
-        setStatus("Enter a name for the profile.", "info");
+        setStatus(t("profilesView.enterANameForTheProfile"), "info");
         return;
       }
       if (name === DEFAULT_PROFILE_NAME) {
         setStatus(
-          `"${DEFAULT_PROFILE_NAME}" is reserved. Choose another name.`,
+          t("profilesView.reservedName", {
+            name: DEFAULT_PROFILE_NAME,
+          }),
           "info",
         );
         return;
@@ -327,20 +334,19 @@ export const ProfilesView = memo(function ProfilesView({
 
       const applied = onImportPEQ(parsedSnapshot.peq, canonicalName, true);
       if (!applied) {
-        setStatus(
-          "Profile was saved, but a device operation is in progress. The editor was not changed.",
-          "info",
-        );
+        setStatus(t("profilesView.savedEditorBusy"), "info");
         return;
       }
       setParsed(null);
-      setStatus(`Profile "${canonicalName}" saved`);
+      setStatus(t("profilesView.profileSavedNamed", { name: canonicalName }));
     } catch (err) {
       if (isCurrent()) {
         setStatus(
           writeCompleted
-            ? `Profile was saved, but the profile list could not be refreshed: ${err}`
-            : `Failed to save profile: ${err}`,
+            ? t("profilesView.savedRefreshFailed", {
+                error: err,
+              })
+            : t("profilesView.failedToSaveProfile", { error: err }),
         );
       }
     } finally {
@@ -366,7 +372,7 @@ export const ProfilesView = memo(function ProfilesView({
     : [];
   const handleReloadProfiles = () => {
     void Promise.resolve(onReloadProfiles()).catch((error) => {
-      setStatus(`Failed to refresh profiles: ${error}`);
+      setStatus(t("profilesView.failedToRefreshProfiles", { error: error }));
     });
   };
 
@@ -378,13 +384,13 @@ export const ProfilesView = memo(function ProfilesView({
     selectedPresetKey === profileIdentityKey(DEFAULT_PROFILE_NAME);
   const editorState = dirty
     ? selectedIsSaved
-      ? "Unsaved changes"
-      : "Not saved"
+      ? t("profilesView.unsavedChanges")
+      : t("profilesView.notSaved")
     : selectedIsSaved
-      ? "Saved"
+      ? t("profilesView.saved")
       : isBuiltIn
-        ? "Built-in"
-        : "Not saved";
+        ? t("profilesView.builtIn")
+        : t("profilesView.notSaved");
   const enabledBands = peq.filters.filter((filter) => filter.enabled).length;
 
   return (
@@ -392,15 +398,17 @@ export const ProfilesView = memo(function ProfilesView({
       <section className="profiles-library" aria-labelledby="profiles-title">
         <header className="profiles-header">
           <div className="profiles-heading">
-            <h2 id="profiles-title">Library</h2>
-            <span className="profiles-note">{savedProfiles.length} saved</span>
+            <h2 id="profiles-title">{t("profilesView.library")}</h2>
+            <span className="profiles-note">
+              {t("profilesView.savedCount", { count: savedProfiles.length })}
+            </span>
           </div>
           <div className="profiles-header-actions">
             <Button variant="ghost" onClick={handlePaste}>
-              <Icon name="content_paste" /> Paste
+              <Icon name="content_paste" /> {t("profilesView.paste")}
             </Button>
             <Button onClick={handleImportFileClick}>
-              <Icon name="file_upload" /> Import
+              <Icon name="file_upload" /> {t("profilesView.import")}
             </Button>
           </div>
         </header>
@@ -410,8 +418,8 @@ export const ProfilesView = memo(function ProfilesView({
           <Input
             type="search"
             className="pl-9 pr-11"
-            aria-label="Search profiles"
-            placeholder="Search profiles…"
+            aria-label={t("profilesView.searchProfiles")}
+            placeholder={t("profilesView.searchPlaceholder")}
             value={profileSearch}
             onChange={(event) => setProfileSearch(event.target.value)}
           />
@@ -420,7 +428,7 @@ export const ProfilesView = memo(function ProfilesView({
               variant="ghost"
               size="icon"
               className="profiles-search-clear"
-              aria-label="Clear search"
+              aria-label={t("profilesView.clearSearch")}
               onClick={() => setProfileSearch("")}
             >
               <Icon name="close" />
@@ -430,14 +438,17 @@ export const ProfilesView = memo(function ProfilesView({
 
         {query && filteredProfiles.length === 0 && (
           <div className="profiles-empty" role="status">
-            <h3>No matching profiles</h3>
-            <p>Try another name or clear the search.</p>
+            <h3>{t("profilesView.noMatchingProfiles")}</h3>
+            <p>{t("profilesView.noMatchesHint")}</p>
             <Button variant="ghost" onClick={() => setProfileSearch("")}>
-              Clear search
+              {t("profilesView.clearSearch")}
             </Button>
           </div>
         )}
-        <ul className="profiles-list" aria-label="Profiles list">
+        <ul
+          className="profiles-list"
+          aria-label={t("profilesView.profilesList")}
+        >
           {filteredProfiles.map((profile) => {
             const isSelected =
               profileIdentityKey(profile.name) === selectedPresetKey;
@@ -448,10 +459,12 @@ export const ProfilesView = memo(function ProfilesView({
               (filter) => filter.enabled,
             ).length;
             const meta = isDefault
-              ? "Flat · read-only"
+              ? t("profilesView.flatReadOnly")
               : [
-                  `${bands} ${bands === 1 ? "band" : "bands"}`,
-                  `${formatDb(profile.data.global_gain ?? 0)} preamp`,
+                  t("profilesView.bandCount", { count: bands }),
+                  t("profilesView.preamp", {
+                    gain: formatDb(profile.data.global_gain ?? 0),
+                  }),
                   profile.modified != null &&
                     new Date(profile.modified * 1000).toLocaleDateString(),
                 ]
@@ -459,8 +472,8 @@ export const ProfilesView = memo(function ProfilesView({
                   .join(" · ");
             const loadLabel =
               isSelected && dirty
-                ? `Revert to saved ${profile.name}`
-                : `Load ${profile.name} into editor`;
+                ? t("profilesView.revertToSaved", { name: profile.name })
+                : t("profilesView.loadIntoEditor", { name: profile.name });
 
             return (
               <li
@@ -473,7 +486,11 @@ export const ProfilesView = memo(function ProfilesView({
                   className="profiles-load"
                   aria-pressed={isSelected}
                   aria-label={loadLabel}
-                  title={isSelected && dirty ? "Revert to saved" : undefined}
+                  title={
+                    isSelected && dirty
+                      ? t("profilesView.revertTooltip")
+                      : undefined
+                  }
                   onClick={() => void handleSelectProfile(profile)}
                 >
                   <span className="profiles-item-name" title={profile.name}>
@@ -484,16 +501,20 @@ export const ProfilesView = memo(function ProfilesView({
                 </button>
                 {isSelected && (
                   <span className="profiles-badge" data-modified={dirty}>
-                    {dirty ? "Edited" : "In editor"}
+                    {dirty
+                      ? t("profilesView.edited")
+                      : t("profilesView.inEditor")}
                   </span>
                 )}
                 <div className="profiles-row-actions">
                   {onApplyProfile && !isDefault && (
-                    <Tooltip label="Apply to DAC (until restart)">
+                    <Tooltip label={t("profilesView.applyToDACUntilRestart")}>
                       <Button
                         variant="ghost"
                         size="icon"
-                        aria-label={`Apply ${profile.name} to DAC temporarily`}
+                        aria-label={t("profilesView.applyToDACTemporarily", {
+                          name: profile.name,
+                        })}
                         onClick={() => onApplyProfile(profile)}
                       >
                         <Icon name="send" />
@@ -502,11 +523,13 @@ export const ProfilesView = memo(function ProfilesView({
                   )}
                   {showActions && !isDefault && (
                     <>
-                      <Tooltip label="Rename">
+                      <Tooltip label={t("profilesView.rename")}>
                         <Button
                           variant="ghost"
                           size="icon"
-                          aria-label={`Rename ${profile.name}`}
+                          aria-label={t("profilesView.renameLabel", {
+                            name: profile.name,
+                          })}
                           onClick={() =>
                             setRename({
                               from: profile.name,
@@ -517,12 +540,14 @@ export const ProfilesView = memo(function ProfilesView({
                           <Icon name="edit" />
                         </Button>
                       </Tooltip>
-                      <Tooltip label="Delete">
+                      <Tooltip label={t("profilesView.delete")}>
                         <Button
                           variant="ghost"
                           size="icon"
                           className="profiles-delete"
-                          aria-label={`Delete ${profile.name}`}
+                          aria-label={t("profilesView.deleteLabel", {
+                            name: profile.name,
+                          })}
                           onClick={() => void onDelete(profile.name)}
                         >
                           <Icon name="delete" />
@@ -538,21 +563,19 @@ export const ProfilesView = memo(function ProfilesView({
         {/* The built-in profile is always listed, so the hint follows it. */}
         {!query && savedProfiles.length === 0 && (
           <p className="profiles-note profiles-empty-hint">
-            Save your EQ or import a profile to add it here.
+            {t("profilesView.emptyLibraryHint")}
           </p>
         )}
         <footer className="profiles-library-footer">
-          <p className="profiles-note">
-            Loading a profile changes the editor, not the DAC.
-          </p>
+          <p className="profiles-note">{t("profilesView.loadHelp")}</p>
           {profilesOnDisk && (
             <div className="profiles-footer-actions">
               <Button variant="ghost" onClick={handleReloadProfiles}>
-                <Icon name="refresh" /> Refresh
+                <Icon name="refresh" /> {t("profilesView.refresh")}
               </Button>
               {onOpenProfilesDir && (
                 <Button variant="ghost" onClick={onOpenProfilesDir}>
-                  <Icon name="folder" /> Open folder
+                  <Icon name="folder" /> {t("profilesView.openFolder")}
                 </Button>
               )}
             </div>
@@ -566,7 +589,7 @@ export const ProfilesView = memo(function ProfilesView({
       >
         <header className="profiles-editor-header">
           <h2 id="profiles-editor-title" className="profiles-eyebrow">
-            In the editor
+            {t("profilesView.inTheEditor")}
           </h2>
           <Badge
             className="data-[modified=true]:border-[color-mix(in_srgb,var(--warning-foreground)_40%,transparent)] data-[modified=true]:text-[var(--warning-foreground)]"
@@ -579,8 +602,10 @@ export const ProfilesView = memo(function ProfilesView({
           {selectedPreset}
         </h3>
         <p className="profiles-note">
-          {enabledBands} {enabledBands === 1 ? "band" : "bands"} ·{" "}
-          {formatDb(peq.global_gain)} preamp
+          {t("profilesView.bandSummary", {
+            count: enabledBands,
+            preamp: formatDb(peq.global_gain),
+          })}
         </p>
 
         {showActions &&
@@ -592,13 +617,15 @@ export const ProfilesView = memo(function ProfilesView({
                 if (canSave) onSave();
               }}
             >
-              <label htmlFor="profile-save-name">Profile name</label>
+              <label htmlFor="profile-save-name">
+                {t("profilesView.profileName")}
+              </label>
               <Input
                 id="profile-save-name"
                 ref={saveNameRef}
                 name="profile-name"
                 autoComplete="off"
-                placeholder="Profile name…"
+                placeholder={t("profilesView.namePlaceholder")}
                 value={newProfileName}
                 aria-describedby={
                   isOverwrite ? "profile-overwrite-hint" : undefined
@@ -610,8 +637,7 @@ export const ProfilesView = memo(function ProfilesView({
                   id="profile-overwrite-hint"
                   className="profiles-note profiles-warning"
                 >
-                  A profile with this name already exists. Saving will replace
-                  it.
+                  {t("profilesView.overwriteWarning")}
                 </p>
               )}
               <div className="profiles-editor-actions">
@@ -626,12 +652,12 @@ export const ProfilesView = memo(function ProfilesView({
                       setSaveAsOpen(false);
                     }}
                   >
-                    Cancel
+                    {t("profilesView.cancel")}
                   </Button>
                 )}
                 {!saveAsOpen && dirty && (
                   <Button variant="ghost" onClick={onReset}>
-                    Discard changes
+                    {t("profilesView.discardChanges")}
                   </Button>
                 )}
               </div>
@@ -640,38 +666,45 @@ export const ProfilesView = memo(function ProfilesView({
             <div className="profiles-editor-actions">
               {selectedIsSaved && (
                 <Button variant="primary" onClick={onSave} disabled={!canSave}>
-                  {dirty ? "Save changes" : "Profile saved"}
+                  {dirty
+                    ? t("profilesView.saveChanges")
+                    : t("profilesView.profileSaved")}
                 </Button>
               )}
               <Button
                 variant={selectedIsSaved ? "default" : "primary"}
                 onClick={beginSaveAs}
               >
-                {selectedIsSaved ? "Save as copy" : "Save as new profile"}
+                {selectedIsSaved
+                  ? t("profilesView.saveAsCopy")
+                  : t("profilesView.saveAsNewProfile")}
               </Button>
               {dirty && (
                 <Button variant="ghost" onClick={onReset}>
-                  Discard changes
+                  {t("profilesView.discardChanges")}
                 </Button>
               )}
             </div>
           ))}
         {preview && (
-          <div className="profiles-preview" aria-label="Current EQ preview">
+          <div
+            className="profiles-preview"
+            aria-label={t("profilesView.currentEQPreview")}
+          >
             {preview}
           </div>
         )}
         <div className="profiles-editor-tools">
           {onReviewEq && (
             <Button variant="ghost" onClick={onReviewEq}>
-              <Icon name="tune" /> Edit EQ
+              <Icon name="tune" /> {t("profilesView.editEQ")}
             </Button>
           )}
           <Button variant="ghost" onClick={handleExportFile}>
-            <Icon name="ios_share" /> Export
+            <Icon name="ios_share" /> {t("profilesView.export")}
           </Button>
           <Button variant="ghost" onClick={handleCopy}>
-            <Icon name="content_copy" /> Copy
+            <Icon name="content_copy" /> {t("profilesView.copy")}
           </Button>
         </div>
       </section>
@@ -686,7 +719,7 @@ export const ProfilesView = memo(function ProfilesView({
 
       {manualPaste !== null && (
         <Modal
-          title="Paste EQ"
+          title={t("profilesView.pasteEQ")}
           className="profiles-import-dialog"
           closeDisabled={isParsingPaste}
           onClose={() => {
@@ -702,17 +735,18 @@ export const ProfilesView = memo(function ProfilesView({
               const request = ++parseRequestRef.current;
               setIsParsingPaste(true);
               try {
-                await parseAndLoadText(manualPaste, "Pasted EQ", request);
+                await parseAndLoadText(
+                  manualPaste,
+                  t("profilesView.pastedEQ"),
+                  request,
+                );
               } finally {
                 if (mountedRef.current) setIsParsingPaste(false);
               }
             }}
           >
-            <p className="profiles-note">
-              Your browser could not read the clipboard. Paste your AutoEQ text
-              below to preview it.
-            </p>
-            <label htmlFor="manual-eq-text">EQ text</label>
+            <p className="profiles-note">{t("profilesView.pasteHelp")}</p>
+            <label htmlFor="manual-eq-text">{t("profilesView.eqText")}</label>
             <textarea
               id="manual-eq-text"
               className="profiles-paste-text"
@@ -733,14 +767,16 @@ export const ProfilesView = memo(function ProfilesView({
                   setManualPaste(null);
                 }}
               >
-                Cancel
+                {t("profilesView.cancel")}
               </Button>
               <Button
                 type="submit"
                 variant="primary"
                 disabled={isParsingPaste || !manualPaste.trim()}
               >
-                {isParsingPaste ? "Parsing…" : "Preview import"}
+                {isParsingPaste
+                  ? t("profilesView.parsing")
+                  : t("profilesView.previewImport")}
               </Button>
             </div>
           </form>
@@ -748,7 +784,7 @@ export const ProfilesView = memo(function ProfilesView({
       )}
       {parsed && (
         <Modal
-          title="Import profile"
+          title={t("profilesView.importProfile")}
           className="profiles-import-dialog"
           onClose={handleCancelImport}
           closeDisabled={isSubmitting}
@@ -757,7 +793,7 @@ export const ProfilesView = memo(function ProfilesView({
             <div
               className="profiles-import-modes"
               role="group"
-              aria-label="Import destination mode"
+              aria-label={t("profilesView.importDestinationMode")}
             >
               <Button
                 variant={!isTemporary ? "default" : "ghost"}
@@ -769,7 +805,7 @@ export const ProfilesView = memo(function ProfilesView({
                   setIsTemporary(false);
                 }}
               >
-                Save profile
+                {t("profilesView.saveProfile")}
               </Button>
               <Button
                 variant={isTemporary ? "default" : "ghost"}
@@ -781,17 +817,19 @@ export const ProfilesView = memo(function ProfilesView({
                   setIsTemporary(true);
                 }}
               >
-                Editor only
+                {t("profilesView.editorOnly")}
               </Button>
             </div>
             {!isTemporary ? (
               <div className="profiles-import-fields">
-                <label htmlFor="import-name">Profile name</label>
+                <label htmlFor="import-name">
+                  {t("profilesView.profileName")}
+                </label>
                 <Input
                   id="import-name"
                   value={importName}
                   disabled={isSubmitting}
-                  placeholder="Profile name…"
+                  placeholder={t("profilesView.namePlaceholder")}
                   onChange={(event) => {
                     if (isSubmitting) return;
                     invalidateModalOperation();
@@ -801,7 +839,7 @@ export const ProfilesView = memo(function ProfilesView({
                 {savedProfiles.length > 0 && (
                   <>
                     <label htmlFor="overwrite-select">
-                      Overwrite an existing profile
+                      {t("profilesView.overwriteAnExistingProfile")}
                     </label>
                     <Select
                       id="overwrite-select"
@@ -819,7 +857,7 @@ export const ProfilesView = memo(function ProfilesView({
                         }
                       }}
                       options={[
-                        { value: "", label: "Select profile" },
+                        { value: "", label: t("profilesView.selectProfile") },
                         ...savedProfiles.map((profile) => ({
                           value: profile.name,
                           label: profile.name,
@@ -830,30 +868,32 @@ export const ProfilesView = memo(function ProfilesView({
                 )}
                 {nameExists && (
                   <p className="profiles-note profiles-warning">
-                    A profile with this name already exists. Saving will replace
-                    it.
+                    {t("profilesView.overwriteWarning")}
                   </p>
                 )}
               </div>
             ) : (
               <p className="profiles-note">
-                Loads the imported filters into the EQ editor without saving a
-                profile.
+                {t("profilesView.temporaryImportHelp")}
               </p>
             )}
 
             {activeFilters.length > 0 && (
               <section
                 className="profiles-import-preview"
-                aria-label="Filter preview"
+                aria-label={t("profilesView.filterPreview")}
               >
-                <h3>Filter preview</h3>
+                <h3>{t("profilesView.filterPreview")}</h3>
                 <div className="profiles-import-filter-list">
                   {activeFilters.map((filter, index) => (
                     <p key={index}>
-                      Band {filter.index + 1}: {filter.filter_type} at{" "}
-                      {filter.freq} Hz, {filter.gain.toFixed(1)} dB, Q{" "}
-                      {filter.q.toFixed(2)}
+                      {t("profilesView.filterSummary", {
+                        band: filter.index + 1,
+                        type: filter.filter_type,
+                        frequency: filter.freq,
+                        gain: filter.gain.toFixed(1),
+                        q: filter.q.toFixed(2),
+                      })}
                     </p>
                   ))}
                 </div>
@@ -862,9 +902,9 @@ export const ProfilesView = memo(function ProfilesView({
             {parsed.warnings.length > 0 && (
               <section
                 className="profiles-import-warnings"
-                aria-label="Import warnings"
+                aria-label={t("profilesView.importWarnings")}
               >
-                <h3>Import warnings</h3>
+                <h3>{t("profilesView.importWarnings")}</h3>
                 <ul>
                   {parsed.warnings.map((warning, index) => (
                     <li key={index}>{warning}</li>
@@ -878,14 +918,16 @@ export const ProfilesView = memo(function ProfilesView({
                 disabled={isSubmitting || (!isTemporary && !importName.trim())}
                 onClick={handleConfirmImport}
               >
-                {isTemporary ? "Apply to editor" : "Save profile"}
+                {isTemporary
+                  ? t("profilesView.applyToEditor")
+                  : t("profilesView.saveProfile")}
               </Button>
               <Button
                 variant="ghost"
                 disabled={isSubmitting}
                 onClick={handleCancelImport}
               >
-                Cancel
+                {t("profilesView.cancel")}
               </Button>
             </div>
           </div>
@@ -893,7 +935,7 @@ export const ProfilesView = memo(function ProfilesView({
       )}
       {rename !== null && (
         <Modal
-          title="Rename profile"
+          title={t("profilesView.renameProfile")}
           className="profiles-import-dialog"
           closeDisabled={isRenaming}
           onClose={() => setRename(null)}
@@ -915,7 +957,9 @@ export const ProfilesView = memo(function ProfilesView({
               }
             }}
           >
-            <label htmlFor="profile-rename-name">Profile name</label>
+            <label htmlFor="profile-rename-name">
+              {t("profilesView.profileName")}
+            </label>
             <Input
               id="profile-rename-name"
               name="profile-rename"
@@ -935,7 +979,7 @@ export const ProfilesView = memo(function ProfilesView({
                 id="profile-rename-taken"
                 className="profiles-note profiles-warning"
               >
-                Another profile already uses this name.
+                {t("profilesView.nameTaken")}
               </p>
             )}
             <div className="modal-actions">
@@ -944,10 +988,12 @@ export const ProfilesView = memo(function ProfilesView({
                 disabled={isRenaming}
                 onClick={() => setRename(null)}
               >
-                Cancel
+                {t("profilesView.cancel")}
               </Button>
               <Button type="submit" variant="primary" disabled={!canRename}>
-                {isRenaming ? "Renaming…" : "Rename"}
+                {isRenaming
+                  ? t("profilesView.renaming")
+                  : t("profilesView.rename")}
               </Button>
             </div>
           </form>

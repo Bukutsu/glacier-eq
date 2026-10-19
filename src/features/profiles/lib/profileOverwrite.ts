@@ -1,3 +1,4 @@
+import { i18n } from "@/lib/i18n";
 import type { StoredPEQData } from "@/types";
 
 export function profileOverwriteMessage(
@@ -7,7 +8,12 @@ export function profileOverwriteMessage(
 ): string {
   const removed = original.filters.length - replacement.filters.length;
   if (removed > 0) {
-    return `The saved profile "${name}" has ${original.filters.length} bands, but the editor has ${replacement.filters.length}. Overwriting will permanently remove ${removed} bands. Save as a copy to retain the original profile, or confirm the overwrite.`;
+    return i18n.t("library:profileOverwrite.bandLossMessage", {
+      name: name,
+      originalCount: original.filters.length,
+      replacementCount: replacement.filters.length,
+      count: removed,
+    });
   }
-  return `A profile named "${name}" already exists. Overwrite it?`;
+  return i18n.t("library:profileOverwrite.overwriteMessage", { name: name });
 }

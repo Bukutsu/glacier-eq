@@ -1,3 +1,4 @@
+import { Trans, useTranslation } from "react-i18next";
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
@@ -18,6 +19,7 @@ export const UDEV_RULES_URL = new URL(
 
 const quote = (value: string) => "'" + value.replace(/'/g, "'\\''") + "'";
 
+/* eslint-disable i18next/no-literal-string -- Shell commands must not be translated. */
 export function udevInstallCommand(url: string | null): string {
   // A desktop bundle's tauri:// asset URL is not fetchable by terminal curl.
   // Its manual fallback stages the bundled bytes directly, even when offline.
@@ -35,6 +37,8 @@ export function udevInstallCommand(url: string | null): string {
   );
 }
 
+/* eslint-enable i18next/no-literal-string */
+
 export const UDEV_INSTALL_COMMAND = udevInstallCommand(
   isTauri() ? null : UDEV_RULES_URL,
 );
@@ -48,67 +52,91 @@ export function LinuxUdevGuide({
   compact = false,
   setStatus,
 }: LinuxUdevGuideProps) {
+  const { t } = useTranslation("device");
+
   const [copied, setCopied] = useState(false);
 
   const copyCommand = async () => {
     try {
       await writeText(UDEV_INSTALL_COMMAND);
       setCopied(true);
-      setStatus?.("Install command copied. Paste it into a terminal.");
+      setStatus?.(t("linuxUdevGuide.copyComplete"));
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      setStatus?.("Copy failed. Select and copy the command manually.");
+      setStatus?.(t("linuxUdevGuide.copyFailed"));
     }
   };
 
   return (
     <div className="linux-udev-guide">
-      <p>
-        Linux restricts browser access to USB DACs by default. The browser
-        cannot request administrator access. Run this command once in a
-        terminal:
-      </p>
+      <p>{t("linuxUdevGuide.introduction")}</p>
       <div className="udev-command-row">
         <code>{UDEV_INSTALL_COMMAND}</code>
         <button
           type="button"
           className="btn"
-          title={copied ? "Copied" : "Copy install command"}
-          aria-label={copied ? "Copied" : "Copy install command"}
+          title={
+            copied
+              ? t("linuxUdevGuide.copied")
+              : t("linuxUdevGuide.copyInstallCommand")
+          }
+          aria-label={
+            copied
+              ? t("linuxUdevGuide.copied")
+              : t("linuxUdevGuide.copyInstallCommand")
+          }
           onClick={copyCommand}
         >
           <Icon name={copied ? "check" : "content_copy"} />
-          <span>{copied ? "Copied" : "Copy"}</span>
+          <span>
+            {copied ? t("linuxUdevGuide.copied") : t("linuxUdevGuide.copy")}
+          </span>
         </button>
       </div>
       {!compact && (
         <p className="card-note">
-          To install manually, save{" "}
-          <a href={UDEV_RULES_URL} target="_blank" rel="noreferrer">
-            69-glacier-eq.rules
-          </a>{" "}
-          to <code>/etc/udev/rules.d/</code> as root, then reload udev with the
-          two <code>udevadm</code> commands above.
+          <Trans
+            t={t}
+            i18nKey="linuxUdevGuide.manualInstall"
+            values={{
+              filename: "69-glacier-eq.rules",
+              directory: "/etc/udev/rules.d/",
+              command: "udevadm",
+            }}
+            components={{
+              rules: (
+                <a href={UDEV_RULES_URL} target="_blank" rel="noreferrer" />
+              ),
+              directory: <code />,
+              command: <code />,
+            }}
+          />
         </p>
       )}
       <ol className="udev-steps">
-        <li>Disconnect and reconnect the DAC.</li>
+        <li>{t("linuxUdevGuide.disconnectAndReconnectTheDac")}</li>
         <li>
-          Select <strong>Scan for devices</strong> and approve the device access
-          prompt.
+          <Trans
+            t={t}
+            i18nKey="linuxUdevGuide.scanInstruction"
+            components={{ scan: <strong /> }}
+          />
         </li>
       </ol>
       <p className="card-note">
-        If connection fails, use Chrome or Edge over HTTPS or localhost, close
-        other applications using the DAC, and refer to the{" "}
-        <a
-          href="https://github.com/Bukutsu/glacier-eq/wiki/Troubleshooting"
-          target="_blank"
-          rel="noreferrer"
-        >
-          troubleshooting guide
-        </a>
-        .
+        <Trans
+          t={t}
+          i18nKey="linuxUdevGuide.connectionHelp"
+          components={{
+            guide: (
+              <a
+                href="https://github.com/Bukutsu/glacier-eq/wiki/Troubleshooting"
+                target="_blank"
+                rel="noreferrer"
+              />
+            ),
+          }}
+        />
       </p>
     </div>
   );

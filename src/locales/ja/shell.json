@@ -1,0 +1,143 @@
+{
+  "navigation": {
+    "device": "デバイス",
+    "settings": "設定",
+    "profiles": "プロファイル",
+    "primary": "メインナビゲーション",
+    "diagnostics": "診断",
+    "tuning": "チューニング",
+    "deviceSettings": "デバイス設定",
+    "deviceSections": "デバイスのセクション",
+    "settingsSections": "設定のセクション",
+    "backToDevice": "デバイスに戻る",
+    "backToSettings": "設定に戻る"
+  },
+  "header": {
+    "deviceActions": "デバイス操作",
+    "read": "DACから読み込む",
+    "disconnectDac": "DACを切断",
+    "offline": "オフライン",
+    "working": "処理中",
+    "simulation": "シミュレーション · 実機への変更なし",
+    "noHardwareExport": "このDACにはハードウェアEQがありません · EQをエクスポートしてシステムのイコライザーで使用できます",
+    "unknown": "デバイスの状態が不明",
+    "matches": "DAC: エディターと一致",
+    "live": "DAC: リアルタイム適用 · 操作を止めると保存",
+    "unwritten": "DAC: 変更は未書き込み",
+    "profileUnsaved": "プロファイル: 未保存",
+    "profileModified": "プロファイル: 変更あり",
+    "profileSaved": "プロファイル: 保存済み",
+    "offlineEditing": "オフライン編集",
+    "simulatedDevice": "シミュレーションデバイス。実機への変更はありません",
+    "noHardware": "このDACにはハードウェアEQがありません",
+    "saved": "DACに保存済み",
+    "saveOnPause": "操作を止めるとDACに保存",
+    "notSaved": "変更はDACに未保存",
+    "readToCheck": "DACからEQを読み込んで状態を確認してください",
+    "export": "EQファイルをエクスポート",
+    "liveApplyHelp": "EQの変更をその都度DACに送り、操作を止めると保存します。",
+    "liveApply": "リアルタイム適用",
+    "editHistory": "編集履歴",
+    "readHelp": "エディターのEQをDACから読み込んだEQに置き換えます",
+    "writeHelp": "エディターのEQをDACに保存します",
+    "write": "DACに書き込む",
+    "eqActions": "EQ操作",
+    "saveHelp": "エディターのEQをDACに保存します。取り外しても保存内容は維持されます。",
+    "save": "DACに保存",
+    "noHardwareNote": "このDACにはハードウェアEQがないため、EQの読み込みと書き込みはできません。EQの編集や、システムのイコライザー用のエクスポートは可能です。",
+    "operationProgress": "デバイス操作中",
+    "progress": "{{message}} · {{percentage}}%"
+  },
+  "actions": {
+    "undo": "元に戻す",
+    "redo": "やり直す",
+    "connect": "DACを接続",
+    "disconnect": "切断",
+    "cancel": "キャンセル",
+    "confirm": "確認",
+    "back": "戻る",
+    "close": "{{title}}を閉じる",
+    "reload": "アプリを再読み込み"
+  },
+  "workspace": {
+    "loading": "ワークスペースを読み込み中",
+    "skip": "ワークスペースへ移動",
+    "preamp": "プリアンプ",
+    "label": "ワークスペース",
+    "home": "Glacier EQ ホーム",
+    "editor": "EQエディター"
+  },
+  "connection": {
+    "disconnected": "未接続",
+    "reconnecting": "再接続中",
+    "lost": "接続が切れました",
+    "restarting": "DACを再起動中",
+    "cancel": "再接続をキャンセル",
+    "reconnectingTo": "<strong>{{name}}</strong>に再接続中..."
+  },
+  "graph": {
+    "showResponse": "周波数特性グラフを表示",
+    "hideResponse": "周波数特性グラフを非表示",
+    "show": "グラフを表示",
+    "hide": "グラフを非表示",
+    "scroll": "周波数特性グラフまでスクロール"
+  },
+  "feedback": {
+    "preferenceNotSaved": "このブラウザーでは設定を保存できませんでした。再起動後に維持されない可能性があります。",
+    "status": "状態メッセージ",
+    "dismiss": "メッセージを閉じる",
+    "applicationError": "アプリケーションエラー"
+  },
+  "number": {
+    "invalid": "小数点にピリオドまたはカンマを使って数値を入力してください。",
+    "decrement": "減らす",
+    "increment": "増やす",
+    "decrease": "{{label}}を減らす",
+    "increase": "{{label}}を増やす"
+  },
+  "sections": {
+    "overview": {
+      "label": "概要",
+      "description": "デバイス仕様とEQの制限"
+    },
+    "controls": {
+      "label": "音声コントロール",
+      "description": "音量、サウンドモード、フィルター特性"
+    },
+    "maintenance": {
+      "label": "メンテナンス",
+      "description": "デバイスのユーティリティとリセット"
+    },
+    "general": {
+      "label": "動作とオーディオ",
+      "description": "接続時の動作とEQ編集"
+    },
+    "appearance": {
+      "label": "画面とテーマ",
+      "description": "テーマ、グラフ、表示の設定"
+    },
+    "diagnostics": {
+      "label": "診断と権限",
+      "description": "イベントログとトラブルシューティング"
+    },
+    "about": {
+      "label": "このアプリについて",
+      "description": "アプリのバージョン、プロジェクト、ライセンス"
+    },
+    "eq": {
+      "label": "EQ"
+    },
+    "tuning": {
+      "label": "チューニング"
+    },
+    "profiles": {
+      "label": "プロファイル"
+    },
+    "device": {
+      "label": "デバイス"
+    },
+    "settings": {
+      "label": "設定"
+    }
+  }
+}

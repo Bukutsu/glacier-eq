@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useRef } from "react";
 import { Slider } from "@/components/ui/Slider";
 import { NumberInput } from "@/components/ui/NumberInput";
@@ -21,6 +22,7 @@ export function Preamp({
   onEndChange?: () => void;
   disabled?: boolean;
 }) {
+  const { t } = useTranslation("editor");
   const [min, max] = range;
   const safeValue = Math.max(
     min,
@@ -44,7 +46,7 @@ export function Preamp({
   return (
     <section className="preamp-card">
       <div className="preamp-meta">
-        <strong>Preamp</strong>
+        <strong>{t("preamp.title")}</strong>
         <div className="preamp-value-row">
           <NumberInput
             value={displayValue}
@@ -57,13 +59,13 @@ export function Preamp({
             onChange={handleValueChange}
             disabled={disabled}
             className="preamp-value-stepper"
-            aria-label="Preamp gain"
+            aria-label={t("preamp.gain")}
           />
           <span className="preamp-unit">dB</span>
         </div>
       </div>
       <Slider
-        aria-label="Preamp gain"
+        aria-label={t("preamp.gain")}
         min={min}
         max={max}
         step={step}

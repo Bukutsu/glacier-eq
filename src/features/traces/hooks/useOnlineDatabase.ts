@@ -1,3 +1,4 @@
+import { i18n } from "@/lib/i18n";
 import { useEffect, useRef, useState } from "react";
 import {
   isDatabaseDownloaded,
@@ -51,7 +52,11 @@ export function useOnlineDatabase(setStatus?: (value: string) => void) {
       .catch((error) => {
         if (!active) return;
         console.error("Failed to load online manifest:", error);
-        setStatus?.(`Failed to load online search manifest: ${error}`);
+        setStatus?.(
+          i18n.t("library:onlineDatabase.failedToLoadOnlineSearchManifest", {
+            error: error,
+          }),
+        );
       })
       .finally(() => {
         if (active) setLoadingManifest(false);

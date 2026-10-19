@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
@@ -37,10 +38,12 @@ const getTarget = (mode: string, domain: ViewDomain) =>
 
 /** The collapsible "Filter response" row shared by the device screens. */
 export function FilterResponse({ mode }: { mode: string }) {
+  const { t } = useTranslation("device");
+
   return (
     <details className="device-filter-details">
       <summary>
-        Filter response
+        {t("dacFilterVisual.filterResponse")}
         <Icon name="expand_more" className="disclosure-chevron" />
       </summary>
       <DacFilterVisual mode={mode} />
@@ -99,6 +102,8 @@ export const DacFilterVisual = memo(function DacFilterVisual({
 }: {
   mode: string;
 }) {
+  const { t } = useTranslation("device");
+
   const [domain, setDomain] = useState<ViewDomain>("time");
   const [hover, setHover] = useState<number | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -154,33 +159,36 @@ export const DacFilterVisual = memo(function DacFilterVisual({
   };
 
   return (
-    <div className="dac-filter-card" aria-label={`Filter mode: ${mode}`}>
+    <div
+      className="dac-filter-card"
+      aria-label={t("dacFilterVisual.filterMode", { mode: mode })}
+    >
       <div className="dac-filter-header">
         <span className="dac-filter-title">{meta.name}</span>
         <div
           className="dac-filter-toggle"
           role="group"
-          aria-label="Graph domain"
+          aria-label={t("dacFilterVisual.graphDomain")}
         >
           <button
             type="button"
             className={`dac-filter-tab ${domain === "time" ? "active" : ""}`}
             onClick={() => setDomain("time")}
             aria-pressed={domain === "time"}
-            aria-label="Impulse (time)"
-            title="Impulse response over time"
+            aria-label={t("dacFilterVisual.impulseTime")}
+            title={t("dacFilterVisual.impulseResponseOverTime")}
           >
-            Impulse
+            {t("dacFilterVisual.impulse")}
           </button>
           <button
             type="button"
             className={`dac-filter-tab ${domain === "freq" ? "active" : ""}`}
             onClick={() => setDomain("freq")}
             aria-pressed={domain === "freq"}
-            aria-label="Roll-off (frequency)"
-            title="Roll-off across frequency"
+            aria-label={t("dacFilterVisual.rollOffFrequency")}
+            title={t("dacFilterVisual.rollOffAcrossFrequency")}
           >
-            Roll-off
+            {t("dacFilterVisual.rollOff")}
           </button>
         </div>
       </div>
@@ -191,7 +199,12 @@ export const DacFilterVisual = memo(function DacFilterVisual({
           width={width}
           height={HEIGHT}
           role="img"
-          aria-label={`${meta.name}: ${isTime ? "impulse response" : "roll-off"}`}
+          aria-label={t(
+            isTime
+              ? "dacFilterVisual.impulseLabel"
+              : "dacFilterVisual.rollOffLabel",
+            { name: meta.name },
+          )}
           onPointerMove={onPointerMove}
           onPointerLeave={() => setHover(null)}
         >

@@ -1,3 +1,4 @@
+import { i18n } from "@/lib/i18n";
 import { useEffect, useRef, useState, type RefObject } from "react";
 import type { PEQData } from "@/types";
 import {
@@ -37,10 +38,7 @@ export function useEditorDraft(
         warned.current = true;
         useToastStore
           .getState()
-          .setStatus(
-            "Could not recover the unfinished EQ. Its stored draft has been kept.",
-            "error",
-          );
+          .setStatus(i18n.t("editor:draft.recoverFailed"), "error");
       }
       return;
     }
@@ -56,10 +54,7 @@ export function useEditorDraft(
         warned.current = true;
         useToastStore
           .getState()
-          .setStatus(
-            "Could not save the unfinished EQ for recovery. Save a profile before closing the app.",
-            "error",
-          );
+          .setStatus(i18n.t("editor:draft.saveFailed"), "error");
       }
     } else {
       lastSaved.current = value;

@@ -1,0 +1,34 @@
+{
+  "en": {
+    "name": "English",
+    "direction": "ltr"
+  },
+  "th": {
+    "name": "ไทย",
+    "direction": "ltr"
+  },
+  "zh-CN": {
+    "name": "简体中文",
+    "direction": "ltr"
+  },
+  "es": {
+    "name": "Español",
+    "direction": "ltr"
+  },
+  "ja": {
+    "name": "日本語",
+    "direction": "ltr"
+  },
+  "de": {
+    "name": "Deutsch",
+    "direction": "ltr"
+  },
+  "fr": {
+    "name": "Français",
+    "direction": "ltr"
+  },
+  "pt-BR": {
+    "name": "Português (Brasil)",
+    "direction": "ltr"
+  }
+}

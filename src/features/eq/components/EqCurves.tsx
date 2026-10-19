@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useRef, useState, type ComponentProps } from "react";
 import { Checkbox } from "@base-ui/react/checkbox";
 import { Popover } from "@base-ui/react/popover";
@@ -19,10 +20,12 @@ export function EqCurvesList({
   query,
   ...props
 }: EqCurvesProps & { query: string }) {
+  const { t } = useTranslation("editor");
   const search = query.trim().toLocaleLowerCase();
   const groups = [
     {
-      label: "Measurements",
+      label: t("curves.measurements"),
+      kind: "measurement" as const,
       curves: props.measurements.map((trace) => ({
         ...trace,
         checked: trace.visible,
@@ -32,7 +35,8 @@ export function EqCurvesList({
       })),
     },
     {
-      label: "Targets",
+      label: t("curves.targets"),
+      kind: "target" as const,
       curves: props.allTargets.map((target) => ({
         ...target,
         checked: props.activeTargetIds.includes(target.id),
@@ -52,7 +56,7 @@ export function EqCurvesList({
     <div className="eq-curves-list">
       {groups.every((group) => group.curves.length === 0) ? (
         <p className="eq-curves-empty">
-          {search ? "No matching curves." : "No curves added yet."}
+          {search ? t("curves.noMatch") : t("curves.empty")}
         </p>
       ) : (
         groups.map(
@@ -73,7 +77,12 @@ export function EqCurvesList({
                         className="eq-curves-checkbox"
                         checked={curve.checked}
                         onCheckedChange={curve.onToggle}
-                        aria-label={`${group.label === "Measurements" ? "Measurement" : "Target"}: ${curve.name}`}
+                        aria-label={t(
+                          group.kind === "measurement"
+                            ? "curves.measurementName"
+                            : "curves.targetName",
+                          { name: curve.name },
+                        )}
                       >
                         <Checkbox.Indicator>
                           <Icon name="check" />
@@ -94,8 +103,8 @@ export function EqCurvesList({
                         variant="ghost"
                         size="icon"
                         className="eq-curves-delete"
-                        aria-label={`Delete ${curve.name}`}
-                        title={`Delete ${curve.name}`}
+                        aria-label={t("curves.delete", { name: curve.name })}
+                        title={t("curves.delete", { name: curve.name })}
                         onClick={curve.onRemove}
                       >
                         <Icon name="delete" />
@@ -112,6 +121,7 @@ export function EqCurvesList({
 }
 
 export function EqCurves(props: EqCurvesProps) {
+  const { t } = useTranslation("editor");
   const [showAddModal, setShowAddModal] = useState(false);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -127,7 +137,7 @@ export function EqCurves(props: EqCurvesProps) {
   };
 
   return (
-    <section className="eq-curves" aria-label="Measurement and target curves">
+    <section className="eq-curves" aria-label={t("curves.section")}>
       <Popover.Root
         open={open}
         onOpenChange={(nextOpen) => {
@@ -139,10 +149,10 @@ export function EqCurves(props: EqCurvesProps) {
           render={<Button variant="ghost" className="eq-curves-trigger" />}
         >
           <Icon name="tune" />
-          Curves
+          {t("curves.title")}
           <span
             className="eq-curves-count"
-            aria-label={`${visibleCount} curves shown`}
+            aria-label={t("curves.shown", { count: visibleCount })}
           >
             {visibleCount}
           </span>
@@ -158,9 +168,9 @@ export function EqCurves(props: EqCurvesProps) {
           >
             <Popover.Popup className="eq-curves-popup" initialFocus={searchRef}>
               <div className="eq-curves-popup-heading">
-                <Popover.Title>Graph curves</Popover.Title>
+                <Popover.Title>{t("curves.graphTitle")}</Popover.Title>
                 <Popover.Description>
-                  Select curves to show on the graph.
+                  {t("curves.description")}
                 </Popover.Description>
               </div>
               <div className="eq-curves-search">
@@ -168,8 +178,8 @@ export function EqCurves(props: EqCurvesProps) {
                 <Input
                   ref={searchRef}
                   style={{ paddingLeft: 32 }}
-                  aria-label="Search curves"
-                  placeholder="Search curves…"
+                  aria-label={t("curves.search")}
+                  placeholder={t("curves.searchPlaceholder")}
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                 />
@@ -177,7 +187,7 @@ export function EqCurves(props: EqCurvesProps) {
               <EqCurvesList {...props} query={query} />
               <div className="eq-curves-footer">
                 <Button variant="ghost" onClick={addCurve}>
-                  <Icon name="add" /> Add measurement or target
+                  <Icon name="add" /> {t("curves.add")}
                 </Button>
               </div>
             </Popover.Popup>
@@ -188,8 +198,8 @@ export function EqCurves(props: EqCurvesProps) {
         variant="ghost"
         size="icon"
         className="eq-curves-add"
-        aria-label="Add measurement or target"
-        title="Add measurement or target"
+        aria-label={t("curves.add")}
+        title={t("curves.add")}
         onClick={addCurve}
       >
         <Icon name="add" />

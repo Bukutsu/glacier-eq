@@ -1,3 +1,4 @@
+import { i18n } from "@/lib/i18n";
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
@@ -68,7 +69,9 @@ function requestOpenDb(slot: {
     // The request keeps running after onblocked. Keep this rejected attempt
     // shared until its late success or error so retries do not pile up.
     request.onblocked = () =>
-      rejectOnce(new Error("Database locked by another window"));
+      rejectOnce(
+        new Error(i18n.t("library:onlineDb.databaseLockedByAnotherWindow")),
+      );
     request.onsuccess = () => {
       const db = request.result;
       // Identity-guarded for the same reason as onerror: a late success
@@ -156,13 +159,18 @@ export function deleteDatabase(): Promise<void> {
     request.onblocked = () => {
       if (settled) return;
       settled = true;
-      reject(new Error("Database locked by another window"));
+      reject(
+        new Error(i18n.t("library:onlineDb.databaseLockedByAnotherWindow")),
+      );
     };
     request.onsuccess = resolveOnce;
     request.onerror = () => {
       if (settled) return;
       settled = true;
-      reject(request.error ?? new Error("Failed to delete database"));
+      reject(
+        request.error ??
+          new Error(i18n.t("library:onlineDb.failedToDeleteDatabase")),
+      );
     };
   });
 }
@@ -218,7 +226,9 @@ export function openDb(): Promise<IDBDatabase> {
         // slot, or this rejected attempt would be handed to every future
         // openDb() forever.
         if (pendingOpen === shared.attempt) pendingOpen = null;
-        const message = `Curve cache recovery failed: ${detail}`;
+        const message = i18n.t("library:onlineDb.curveCacheRecoveryFailed", {
+          detail: detail,
+        });
         // Say the reset did NOT happen: the success toast below only fires
         // after a successful reopen, and the passive isDatabaseDownloaded
         // caller swallows this rejection entirely. The toast is the only
@@ -234,16 +244,15 @@ export function openDb(): Promise<IDBDatabase> {
       // user believing their cache had been cleared when it had not.)
       useToastStore
         .getState()
-        .addToast(
-          "The curve cache database was incompatible and has been reset. Curves will download again as needed.",
-          "info",
-        );
+        .addToast(i18n.t("library:onlineDb.cacheReset"), "info");
     }
     if (epoch !== connectionEpoch) {
       // deleteDatabase() ran while this open request was in flight; this
       // handle belongs to the pre-delete database.
       db.close();
-      throw new Error("Online database cache was deleted while opening");
+      throw new Error(
+        i18n.t("library:onlineDb.onlineDatabaseCacheWasDeletedWhileOpening"),
+      );
     }
     if (sharedDb && sharedDb !== db) {
       // A concurrent attempt already published the shared handle.
@@ -310,7 +319,10 @@ function readLiveRecords(
         };
       });
     };
-    tx.onabort = () => reject(tx.error ?? new Error("Transaction aborted"));
+    tx.onabort = () =>
+      reject(
+        tx.error ?? new Error(i18n.t("library:onlineDb.transactionAborted")),
+      );
   });
 }
 
@@ -361,7 +373,13 @@ function reserveGeneration(db: IDBDatabase): Promise<GenerationReservation> {
       );
       if (!Number.isSafeInteger(generation + 1)) {
         tx.abort();
-        reject(new Error("Online database generation counter is exhausted"));
+        reject(
+          new Error(
+            i18n.t(
+              "library:onlineDb.onlineDatabaseGenerationCounterIsExhausted",
+            ),
+          ),
+        );
         return;
       }
       store.put(generation + 1, META_NEXT_GEN_KEY);
@@ -390,10 +408,20 @@ function reserveGeneration(db: IDBDatabase): Promise<GenerationReservation> {
     };
     tx.oncomplete = () => {
       if (reservation) resolve(reservation);
-      else reject(new Error("Could not reserve an online database generation"));
+      else
+        reject(
+          new Error(
+            i18n.t(
+              "library:onlineDb.couldNotReserveAnOnlineDatabaseGeneration",
+            ),
+          ),
+        );
     };
     tx.onerror = () => reject(tx.error);
-    tx.onabort = () => reject(tx.error ?? new Error("Transaction aborted"));
+    tx.onabort = () =>
+      reject(
+        tx.error ?? new Error(i18n.t("library:onlineDb.transactionAborted")),
+      );
   });
 }
 
@@ -424,7 +452,10 @@ function readLivePublication(
       finish();
     };
     tx.onerror = () => reject(tx.error);
-    tx.onabort = () => reject(tx.error ?? new Error("Transaction aborted"));
+    tx.onabort = () =>
+      reject(
+        tx.error ?? new Error(i18n.t("library:onlineDb.transactionAborted")),
+      );
   });
 }
 
@@ -494,7 +525,10 @@ export async function clearCachedDatabase(): Promise<void> {
     };
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
-    tx.onabort = () => reject(tx.error ?? new Error("Transaction aborted"));
+    tx.onabort = () =>
+      reject(
+        tx.error ?? new Error(i18n.t("library:onlineDb.transactionAborted")),
+      );
   });
 }
 
@@ -603,7 +637,10 @@ async function downloadDatabaseWithDb(
     tx.onerror = () => reject(tx.error);
     // Aborts (quota exceeded, private-mode eviction) fire only onabort; without
     // this the awaited promise never settles and the UI hangs.
-    tx.onabort = () => reject(tx.error ?? new Error("Transaction aborted"));
+    tx.onabort = () =>
+      reject(
+        tx.error ?? new Error(i18n.t("library:onlineDb.transactionAborted")),
+      );
   });
 
   // Batch insert curves in chunks of 400 to prevent IPC buffer choke and allow GC
@@ -613,7 +650,7 @@ async function downloadDatabaseWithDb(
 
   for (let i = 0; i < totalEntries; i += chunkSize) {
     if (signal?.aborted) {
-      throw new Error("Download cancelled");
+      throw new Error(i18n.t("library:onlineDb.downloadCancelled"));
     }
     const chunk = entries.slice(i, i + chunkSize);
     await new Promise<void>((resolve, reject) => {
@@ -626,7 +663,10 @@ async function downloadDatabaseWithDb(
       tx.onerror = () => reject(tx.error);
       // Aborts fire only onabort; without this the awaited promise never
       // settles and the UI hangs.
-      tx.onabort = () => reject(tx.error ?? new Error("Transaction aborted"));
+      tx.onabort = () =>
+        reject(
+          tx.error ?? new Error(i18n.t("library:onlineDb.transactionAborted")),
+        );
     });
 
     onProgress(0.85 + (i / totalEntries) * 0.14);
@@ -654,8 +694,7 @@ async function downloadDatabaseWithDb(
       const currentEpoch =
         typeof rawEpoch === "string" && rawEpoch.length > 0 ? rawEpoch : null;
       if (currentEpoch !== downloadEpoch) {
-        fenceFailure =
-          "The online database cache was cleared during the download; please download again.";
+        fenceFailure = i18n.t("library:onlineDb.cacheClearedDuringDownload");
         tx.abort();
         return;
       }
@@ -671,8 +710,8 @@ async function downloadDatabaseWithDb(
         if (currentGeneration !== previousGeneration) {
           fenceFailure =
             currentGeneration === null
-              ? "The online database cache was cleared during the download; please download again."
-              : "The online database cache was updated by another window during the download; please download again.";
+              ? i18n.t("library:onlineDb.cacheClearedDuringDownload")
+              : i18n.t("library:onlineDb.cacheUpdatedDuringDownload");
           tx.abort();
           return;
         }
@@ -691,8 +730,9 @@ async function downloadDatabaseWithDb(
             else if (name.startsWith(prefix)) curveCount += 1;
           }
           if (!hasManifest || !hasFrequencies || curveCount < totalEntries) {
-            fenceFailure =
-              "The online database cache was cleared during the download; please download again.";
+            fenceFailure = i18n.t(
+              "library:onlineDb.cacheClearedDuringDownload",
+            );
             tx.abort();
             return;
           }
@@ -709,7 +749,8 @@ async function downloadDatabaseWithDb(
       reject(
         fenceFailure !== null
           ? new Error(fenceFailure)
-          : (tx.error ?? new Error("Transaction aborted")),
+          : (tx.error ??
+              new Error(i18n.t("library:onlineDb.transactionAborted"))),
       );
   });
 
@@ -747,7 +788,11 @@ async function downloadDatabaseWithDb(
         for (const key of stale) store.delete(key);
         tx.oncomplete = () => resolve();
         tx.onerror = () => reject(tx.error);
-        tx.onabort = () => reject(tx.error ?? new Error("Transaction aborted"));
+        tx.onabort = () =>
+          reject(
+            tx.error ??
+              new Error(i18n.t("library:onlineDb.transactionAborted")),
+          );
       });
     }
   } catch (cleanupError) {
@@ -761,9 +806,7 @@ async function downloadDatabaseWithDb(
   const { epoch: finalEpoch, generation: finalGeneration } =
     await readLivePublication(db);
   if (finalEpoch !== downloadEpoch || finalGeneration !== generation) {
-    throw new Error(
-      "The online database cache changed during the final download check; please download again.",
-    );
+    throw new Error(i18n.t("library:onlineDb.cacheChangedAfterDownload"));
   }
 
   onProgress(1.0);
@@ -784,12 +827,18 @@ export async function fetchJson(
 ): Promise<unknown> {
   const response = await fetch(url, { signal });
   if (!response.ok) {
-    throw new Error(`Failed to fetch database: ${response.statusText}`);
+    throw new Error(
+      i18n.t("library:onlineDb.failedToFetchDatabase", {
+        status: response.statusText,
+      }),
+    );
   }
 
   const totalBytes = parseContentLength(response.headers.get("content-length"));
   if (totalBytes !== null && totalBytes > MAX_DATABASE_BYTES) {
-    throw new Error("Online database response is too large");
+    throw new Error(
+      i18n.t("library:onlineDb.onlineDatabaseResponseIsTooLarge"),
+    );
   }
   let loadedBytes = 0;
 
@@ -805,7 +854,9 @@ export async function fetchJson(
         loadedBytes += value.length;
         if (loadedBytes > MAX_DATABASE_BYTES) {
           await reader.cancel();
-          throw new Error("Online database response is too large");
+          throw new Error(
+            i18n.t("library:onlineDb.onlineDatabaseResponseIsTooLarge"),
+          );
         }
         if (onProgress && totalBytes !== null && totalBytes > 0) {
           onProgress(Math.min(0.99, loadedBytes / totalBytes));
@@ -818,12 +869,16 @@ export async function fetchJson(
     // Whole-body reads are safe only when the server supplies a bounded length.
     if (totalBytes === null) {
       throw new Error(
-        "Online database response requires a valid Content-Length",
+        i18n.t(
+          "library:onlineDb.onlineDatabaseResponseRequiresAValidContentLength",
+        ),
       );
     }
     text = await response.text();
     if (new TextEncoder().encode(text).byteLength > MAX_DATABASE_BYTES) {
-      throw new Error("Online database response is too large");
+      throw new Error(
+        i18n.t("library:onlineDb.onlineDatabaseResponseIsTooLarge"),
+      );
     }
   }
 
@@ -841,9 +896,7 @@ export async function fetchManifest(): Promise<OnlineDevice[]> {
     generationKey(generation, "meta:manifest"),
   ]);
   if (cached === undefined) {
-    throw new Error(
-      "Search manifest not cached. Please download the database.",
-    );
+    throw new Error(i18n.t("library:onlineDb.manifestMissing"));
   }
   const data = parseOnlineManifest(cached);
 
@@ -891,9 +944,7 @@ export async function loadDeviceCurvePoints(
   // Cache contents came from a third-party source and may have been written
   // by an older app version, so validate both records on every read.
   if (cachedFrequencies === undefined || cachedValues === undefined) {
-    throw new Error(
-      "Curve not found in local cache. Please download the database.",
-    );
+    throw new Error(i18n.t("library:onlineDb.curveMissing"));
   }
 
   const frequencies = parseOnlineFrequencies(cachedFrequencies);

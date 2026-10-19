@@ -1,3 +1,4 @@
+import { i18n } from "@/lib/i18n";
 const MAX_DEVICE_COUNT = 100_000;
 const MAX_DEVICE_ID_LENGTH = 1_024;
 const MAX_FREQUENCY_COUNT = 100_000;
@@ -22,7 +23,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function invalid(section: string, reason: string): never {
-  throw new Error(`Invalid online database ${section}: ${reason}`);
+  throw new Error(
+    i18n.t("library:onlineDbParsers.invalidOnlineDatabase", {
+      section: section,
+      reason: reason,
+    }),
+  );
 }
 
 function validateDeviceId(id: string, section: string): void {
@@ -31,7 +37,12 @@ function validateDeviceId(id: string, section: string): void {
     id.length > MAX_DEVICE_ID_LENGTH ||
     id.startsWith("meta:")
   ) {
-    invalid(section, `unusable device ID ${JSON.stringify(id)}`);
+    invalid(
+      section,
+      i18n.t("library:onlineDbParsers.unusableDeviceID", {
+        id: JSON.stringify(id),
+      }),
+    );
   }
   const separator = id.indexOf("::");
   if (
@@ -42,21 +53,28 @@ function validateDeviceId(id: string, section: string): void {
   ) {
     invalid(
       section,
-      `device ID ${JSON.stringify(id)} must contain a source and name`,
+      i18n.t("library:onlineDbParsers.deviceIDMustContainASourceAndName", {
+        id: JSON.stringify(id),
+      }),
     );
   }
 }
 
 export function parseOnlineManifest(value: unknown): OnlineManifest {
   if (!isRecord(value) || !isRecord(value.iems)) {
-    invalid("manifest", "expected an object with an iems record");
+    invalid(
+      "manifest",
+      i18n.t("library:onlineDbParsers.expectedAnObjectWithAnIemsRecord"),
+    );
   }
 
   const entries = Object.entries(value.iems);
   if (entries.length === 0 || entries.length > MAX_DEVICE_COUNT) {
     invalid(
       "manifest",
-      `iems must contain between 1 and ${MAX_DEVICE_COUNT} devices`,
+      i18n.t("library:onlineDbParsers.iemsMustContainBetween1AndDevices", {
+        limit: MAX_DEVICE_COUNT,
+      }),
     );
   }
 
@@ -66,7 +84,9 @@ export function parseOnlineManifest(value: unknown): OnlineManifest {
     if (!isRecord(details)) {
       invalid(
         "manifest",
-        `details for ${JSON.stringify(id)} must be an object`,
+        i18n.t("library:onlineDbParsers.detailsForMustBeAnObject", {
+          id: JSON.stringify(id),
+        }),
       );
     }
     if (
@@ -75,7 +95,9 @@ export function parseOnlineManifest(value: unknown): OnlineManifest {
     ) {
       invalid(
         "manifest",
-        `price for ${JSON.stringify(id)} must be finite or null`,
+        i18n.t("library:onlineDbParsers.priceForMustBeFiniteOrNull", {
+          id: JSON.stringify(id),
+        }),
       );
     }
     validatedEntries.push([id, { price: details.price }]);
@@ -86,12 +108,18 @@ export function parseOnlineManifest(value: unknown): OnlineManifest {
 
 export function parseOnlineFrequencies(value: unknown): number[] {
   if (!Array.isArray(value)) {
-    invalid("curves", "frequencies must be an array");
+    invalid(
+      "curves",
+      i18n.t("library:onlineDbParsers.frequenciesMustBeAnArray"),
+    );
   }
   if (value.length < 2 || value.length > MAX_FREQUENCY_COUNT) {
     invalid(
       "curves",
-      `frequencies must contain between 2 and ${MAX_FREQUENCY_COUNT} values`,
+      i18n.t(
+        "library:onlineDbParsers.frequenciesMustContainBetween2AndValues",
+        { limit: MAX_FREQUENCY_COUNT },
+      ),
     );
   }
 
@@ -106,11 +134,17 @@ export function parseOnlineFrequencies(value: unknown): number[] {
     ) {
       invalid(
         "curves",
-        `frequencies must be finite and within ${MIN_FREQUENCY}-${MAX_FREQUENCY} Hz`,
+        i18n.t("library:onlineDbParsers.frequenciesMustBeFiniteAndWithinHz", {
+          min: MIN_FREQUENCY,
+          max: MAX_FREQUENCY,
+        }),
       );
     }
     if (frequency <= previous) {
-      invalid("curves", "frequencies must be strictly increasing");
+      invalid(
+        "curves",
+        i18n.t("library:onlineDbParsers.frequenciesMustBeStrictlyIncreasing"),
+      );
     }
     frequencies.push(frequency);
     previous = frequency;
@@ -130,19 +164,37 @@ export function parseOnlineCurveValues(
   expectedLength: number,
   deviceId?: string,
 ): number[] {
-  const label = deviceId ? `curve ${JSON.stringify(deviceId)}` : "cached curve";
+  const label = deviceId
+    ? i18n.t("library:onlineDbParsers.curve", {
+        id: JSON.stringify(deviceId),
+      })
+    : i18n.t("library:onlineDbParsers.cachedCurve");
   if (!Array.isArray(value) || value.length !== expectedLength) {
-    invalid("curves", `${label} must contain ${expectedLength} values`);
+    invalid(
+      "curves",
+      i18n.t("library:onlineDbParsers.mustContainValues", {
+        name: label,
+        expectedLength: expectedLength,
+      }),
+    );
   }
   if (!isFiniteNumberArray(value)) {
-    invalid("curves", `${label} must contain only finite numbers`);
+    invalid(
+      "curves",
+      i18n.t("library:onlineDbParsers.mustContainOnlyFiniteNumbers", {
+        name: label,
+      }),
+    );
   }
   return value;
 }
 
 export function parseOnlineCurves(value: unknown): OnlineCurves {
   if (!isRecord(value) || !isRecord(value.meta) || !isRecord(value.curves)) {
-    invalid("curves", "expected meta and curves records");
+    invalid(
+      "curves",
+      i18n.t("library:onlineDbParsers.expectedMetaAndCurvesRecords"),
+    );
   }
 
   const frequencies = parseOnlineFrequencies(value.meta.frequencies);
@@ -150,7 +202,9 @@ export function parseOnlineCurves(value: unknown): OnlineCurves {
   if (entries.length === 0 || entries.length > MAX_DEVICE_COUNT) {
     invalid(
       "curves",
-      `curves must contain between 1 and ${MAX_DEVICE_COUNT} devices`,
+      i18n.t("library:onlineDbParsers.curvesMustContainBetween1AndDevices", {
+        limit: MAX_DEVICE_COUNT,
+      }),
     );
   }
 
@@ -158,7 +212,12 @@ export function parseOnlineCurves(value: unknown): OnlineCurves {
   for (const [id, curve] of entries) {
     validateDeviceId(id, "curves");
     if (!isRecord(curve)) {
-      invalid("curves", `curve ${JSON.stringify(id)} must be an object`);
+      invalid(
+        "curves",
+        i18n.t("library:onlineDbParsers.curveMustBeAnObject", {
+          id: JSON.stringify(id),
+        }),
+      );
     }
     validatedEntries.push([
       id,

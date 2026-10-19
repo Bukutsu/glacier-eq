@@ -1,3 +1,4 @@
+import { i18n } from "@/lib/i18n";
 import { useEffect } from "react";
 import { invoke } from "@/lib/rpc";
 
@@ -106,8 +107,10 @@ export function useDevicePolling(
             reportStatus: reportLoss,
           },
           expected
-            ? "DAC is restarting; waiting to reconnect"
-            : "Lost connection to device",
+            ? i18n.t(
+                "device:useDevicePolling.dacIsRestartingWaitingToReconnect",
+              )
+            : i18n.t("device:useDevicePolling.lostConnectionToDevice"),
           "Device",
           expected ? "Info" : "Error",
         );
@@ -189,11 +192,12 @@ export function useDevicePolling(
           setShowDeviceModal(true);
           reportStatus({
             level: "Warn",
-            message:
-              "Multiple matching DACs found; choose the device to reconnect.",
+            message: i18n.t("device:useDevicePolling.multipleMatches"),
             toastType: "info",
             source: "Device",
-            statusText: "Choose a matching DAC to reconnect",
+            statusText: i18n.t(
+              "device:useDevicePolling.chooseAMatchingDacToReconnect",
+            ),
           });
           return;
         }
@@ -202,10 +206,12 @@ export function useDevicePolling(
           const devName = found.profile_name || found.product_string || "DAC";
           reportStatus({
             level: "Info",
-            message: `Device found: ${devName}. Reconnecting…`,
+            message: i18n.t("device:useDevicePolling.reconnectingDevice", {
+              devName: devName,
+            }),
             toastType: null,
             source: "Device",
-            statusText: "Device found. Reconnecting…",
+            statusText: i18n.t("device:useDevicePolling.reconnectingStatus"),
           });
           let openedSessionId: number | null = null;
           connectingPathRef.current = found.path;
@@ -272,7 +278,9 @@ export function useDevicePolling(
                 setDirty(!peqEquals(constrained, editorCleanPeqRef.current));
                 reportStatus({
                   level: "Info",
-                  message: "Editor adjusted to DAC limits",
+                  message: i18n.t(
+                    "device:useDevicePolling.editorAdjustedToDacLimits",
+                  ),
                   toastType: "info",
                   source: "Device",
                 });
@@ -287,9 +295,11 @@ export function useDevicePolling(
             setIsReconnecting(false);
             reportStatus({
               level: "Info",
-              message: `Connected to ${devName}`,
+              message: i18n.t("device:useDevicePolling.connectedTo", {
+                devName: devName,
+              }),
               source: "Device",
-              statusText: "Ready",
+              statusText: i18n.t("device:useDevicePolling.ready"),
             });
             return;
           } catch (err) {
@@ -308,10 +318,15 @@ export function useDevicePolling(
             if (!isCurrent()) return;
             reportStatus({
               level: "Warn",
-              message: `Reconnect attempt failed: ${err}. Retrying...`,
+              message: i18n.t(
+                "device:useDevicePolling.reconnectAttemptFailedRetrying",
+                {
+                  err: err,
+                },
+              ),
               toastType: null,
               source: "Device",
-              statusText: "Reconnecting…",
+              statusText: i18n.t("device:useDevicePolling.reconnecting"),
             });
           }
         }

@@ -1,3 +1,4 @@
+import { i18n } from "@/lib/i18n";
 import type { Filter, FilterType, PEQData } from "@/types";
 
 const MAX_FILTERS = 32;
@@ -37,14 +38,20 @@ function parseFilterType(value: unknown): FilterType {
       return "LowPass";
     default:
       throw new Error(
-        "Invalid parsed AutoEQ result: filter has an unknown type",
+        i18n.t(
+          "library:parsedAutoEq.invalidParsedAutoEQResultFilterHasAnUnknownType",
+        ),
       );
   }
 }
 
 function finiteNumber(value: unknown, field: string): number {
   if (typeof value !== "number" || !Number.isFinite(value)) {
-    throw new Error(`Invalid parsed AutoEQ result: ${field} must be finite`);
+    throw new Error(
+      i18n.t("library:parsedAutoEq.invalidParsedAutoEQResultMustBeFinite", {
+        field: field,
+      }),
+    );
   }
   return value;
 }
@@ -52,7 +59,10 @@ function finiteNumber(value: unknown, field: string): number {
 function parseFilter(value: unknown, position: number): Filter {
   if (!isRecord(value)) {
     throw new Error(
-      `Invalid parsed AutoEQ result: filter ${position} must be an object`,
+      i18n.t(
+        "library:parsedAutoEq.invalidParsedAutoEQResultFilterMustBeAnObject",
+        { position: position },
+      ),
     );
   }
   let filterType: FilterType;
@@ -62,22 +72,34 @@ function parseFilter(value: unknown, position: number): Filter {
     value.filter_type !== value.type
   ) {
     throw new Error(
-      `Invalid parsed AutoEQ result: filter ${position} has conflicting type aliases`,
+      i18n.t(
+        "library:parsedAutoEq.invalidParsedAutoEQResultFilterHasConflictingTypeAliases",
+        { position: position },
+      ),
     );
   }
   try {
     filterType = parseFilterType(value.filter_type ?? value.type);
   } catch {
     throw new Error(
-      `Invalid parsed AutoEQ result: filter ${position} has an unknown type`,
+      i18n.t(
+        "library:parsedAutoEq.invalidParsedAutoEQResultFilterHasAnUnknownType2",
+        { position: position },
+      ),
     );
   }
   if (typeof value.enabled !== "boolean") {
     throw new Error(
-      `Invalid parsed AutoEQ result: filter ${position} enabled must be boolean`,
+      i18n.t(
+        "library:parsedAutoEq.invalidParsedAutoEQResultFilterEnabledMustBeBoolean",
+        { position: position },
+      ),
     );
   }
-  const index = finiteNumber(value.index, `filter ${position} index`);
+  const index = finiteNumber(
+    value.index,
+    i18n.t("library:parsedAutoEq.filterIndex", { position: position }),
+  );
   // This validator claims to be checking a Rust `Filter`, whose fields are
   // index: u8 and freq: u16 and whose q parse rejects anything non-positive
   // (autoeq.rs) and refuses to serialise (peq_to_autoeq). Checking only
@@ -85,19 +107,34 @@ function parseFilter(value: unknown, position: number): Filter {
   // where the sibling device validator in peq.ts rejects the same values.
   if (!Number.isInteger(index) || index < 0 || index > 255) {
     throw new Error(
-      `Invalid parsed AutoEQ result: filter ${position} index must be an integer in 0..=255`,
+      i18n.t(
+        "library:parsedAutoEq.invalidParsedAutoEQResultFilterIndexMustBeAn",
+        { position: position },
+      ),
     );
   }
-  const freq = finiteNumber(value.freq, `filter ${position} frequency`);
+  const freq = finiteNumber(
+    value.freq,
+    i18n.t("library:parsedAutoEq.filterFrequency", { position: position }),
+  );
   if (!Number.isInteger(freq) || freq <= 0 || freq > 65_535) {
     throw new Error(
-      `Invalid parsed AutoEQ result: filter ${position} frequency must be an integer in 1..=65535`,
+      i18n.t(
+        "library:parsedAutoEq.invalidParsedAutoEQResultFilterFrequencyMustBeAn",
+        { position: position },
+      ),
     );
   }
-  const q = finiteNumber(value.q, `filter ${position} Q`);
+  const q = finiteNumber(
+    value.q,
+    i18n.t("library:parsedAutoEq.filterQ", { position: position }),
+  );
   if (q <= 0) {
     throw new Error(
-      `Invalid parsed AutoEQ result: filter ${position} Q must be positive`,
+      i18n.t(
+        "library:parsedAutoEq.invalidParsedAutoEQResultFilterQMustBePositive",
+        { position: position },
+      ),
     );
   }
 
@@ -106,14 +143,21 @@ function parseFilter(value: unknown, position: number): Filter {
     enabled: value.enabled,
     filter_type: filterType,
     freq,
-    gain: finiteNumber(value.gain, `filter ${position} gain`),
+    gain: finiteNumber(
+      value.gain,
+      i18n.t("library:parsedAutoEq.filterGain", { position: position }),
+    ),
     q,
   };
 }
 
 export function parseAutoEqResult(value: unknown): ParsedAutoEqResult {
   if (!isRecord(value) || !isRecord(value.peq)) {
-    throw new Error("Invalid parsed AutoEQ result: expected a peq object");
+    throw new Error(
+      i18n.t(
+        "library:parsedAutoEq.invalidParsedAutoEQResultExpectedAPeqObject",
+      ),
+    );
   }
   if (
     value.headphone_name !== undefined &&
@@ -122,17 +166,25 @@ export function parseAutoEqResult(value: unknown): ParsedAutoEqResult {
       value.headphone_name.length > MAX_HEADPHONE_NAME)
   ) {
     throw new Error(
-      `Invalid parsed AutoEQ result: headphone_name must be a string of at most ${MAX_HEADPHONE_NAME} characters, or null`,
+      i18n.t(
+        "library:parsedAutoEq.invalidParsedAutoEQResultHeadphoneNameMustBeA",
+        { limit: MAX_HEADPHONE_NAME },
+      ),
     );
   }
   if (!Array.isArray(value.warnings) || value.warnings.length > MAX_WARNINGS) {
     throw new Error(
-      `Invalid parsed AutoEQ result: warnings must contain at most ${MAX_WARNINGS} entries`,
+      i18n.t(
+        "library:parsedAutoEq.invalidParsedAutoEQResultWarningsMustContainAtMost",
+        { limit: MAX_WARNINGS },
+      ),
     );
   }
   if (!value.warnings.every((warning) => typeof warning === "string")) {
     throw new Error(
-      "Invalid parsed AutoEQ result: warnings must contain strings",
+      i18n.t(
+        "library:parsedAutoEq.invalidParsedAutoEQResultWarningsMustContainStrings",
+      ),
     );
   }
   if (
@@ -140,7 +192,10 @@ export function parseAutoEqResult(value: unknown): ParsedAutoEqResult {
     value.peq.filters.length > MAX_FILTERS
   ) {
     throw new Error(
-      `Invalid parsed AutoEQ result: filters must contain at most ${MAX_FILTERS} entries`,
+      i18n.t(
+        "library:parsedAutoEq.invalidParsedAutoEQResultFiltersMustContainAtMost",
+        { limit: MAX_FILTERS },
+      ),
     );
   }
   if (
@@ -149,7 +204,9 @@ export function parseAutoEqResult(value: unknown): ParsedAutoEqResult {
     value.peq.global_gain !== value.peq.globalGain
   ) {
     throw new Error(
-      "Invalid parsed AutoEQ result: conflicting global gain aliases",
+      i18n.t(
+        "library:parsedAutoEq.invalidParsedAutoEQResultConflictingGlobalGainAliases",
+      ),
     );
   }
 
@@ -157,7 +214,7 @@ export function parseAutoEqResult(value: unknown): ParsedAutoEqResult {
     peq: {
       global_gain: finiteNumber(
         value.peq.global_gain ?? value.peq.globalGain,
-        "global gain",
+        i18n.t("library:parsedAutoEq.globalGain"),
       ),
       filters: value.peq.filters.map(parseFilter),
     },

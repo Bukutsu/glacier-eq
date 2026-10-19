@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { invoke, requestWebHidDevice } from "@/lib/rpc";
 import { useEffect, useState } from "react";
 import { Icon } from "@/components/ui/Icon";
@@ -36,6 +37,14 @@ export function DeviceChooser({
   isBusy,
   connected,
 }: DeviceChooserProps) {
+  const { t } = useTranslation("device");
+
+  const supportLabel = (status: string) =>
+    status === "Tested"
+      ? t("deviceChooser.tested")
+      : status === "Untested"
+        ? t("deviceChooser.untested")
+        : status;
   const [supportedDacs, setSupportedDacs] = useState<SupportedDeviceInfo[]>([]);
   const [supportedOpen, setSupportedOpen] = useState(false);
   const [authorizationError, setAuthorizationError] = useState<string | null>(
@@ -62,15 +71,17 @@ export function DeviceChooser({
           await onScan();
         } catch (scanError) {
           setAuthorizationError(
-            `Device authorization cancelled; refresh failed: ${scanError}`,
+            t("deviceChooser.authorizationRefreshFailed", {
+              scanError: scanError,
+            }),
           );
           return;
         }
       }
       setAuthorizationError(
         cancelled
-          ? "Device authorization cancelled. Previously authorized devices were rescanned."
-          : `Device authorization failed: ${err}. Check browser permissions and try again.`,
+          ? t("deviceChooser.authorizationCancelled")
+          : t("deviceChooser.authorizationFailed", { err: err }),
       );
     }
   };
@@ -80,15 +91,12 @@ export function DeviceChooser({
       <div className="device-chooser-content">
         <div className="device-intro">
           <Icon name="usb" size={22} />
-          <p>
-            Connect and power on the DAC, then scan for devices. Approve access
-            if prompted.
-          </p>
+          <p>{t("deviceChooser.introduction")}</p>
         </div>
 
         {!isTauri() && !("hid" in navigator) && (
           <div className="device-browser-warning">
-            WebHID requires a Chromium-based browser over HTTPS or localhost.
+            {t("deviceChooser.browserRequirement")}
           </div>
         )}
 
@@ -98,31 +106,31 @@ export function DeviceChooser({
           disabled={isBusy}
         >
           <Icon name="search" size={18} />
-          {isBusy ? "Scanning…" : "Scan for devices"}
+          {isBusy
+            ? t("deviceChooser.scanning")
+            : t("deviceChooser.scanForDevices")}
         </Button>
 
         <h3 className="device-list-heading">
-          Available DACs <span>{devices.length}</span>
+          {t("deviceChooser.availableDacs")} <span>{devices.length}</span>
         </h3>
         {devices.length === 0 ? (
           <div className="empty-device-state">
-            <strong>No supported DAC found</strong>
-            <span>
-              Connect a supported device listed below, then scan again.
-            </span>
+            <strong>{t("deviceChooser.noSupportedDacFound")}</strong>
+            <span>{t("deviceChooser.emptyDescription")}</span>
           </div>
         ) : (
           <div
             className="device-list"
             role="radiogroup"
-            aria-label="Available DACs"
+            aria-label={t("deviceChooser.availableDacs")}
           >
             {devices.map((device) => {
               const name =
                 device.profile_name ||
                 device.product_string ||
                 device.manufacturer ||
-                "Supported DAC";
+                t("deviceChooser.supportedDac");
               const selected = selectedDevice === device.path;
               const isDummy = isDevDummyDevice(device.path);
               const support = supportedDacs.find(
@@ -150,21 +158,25 @@ export function DeviceChooser({
                 >
                   <span className="device-row-title">
                     <span className="device-row-name">{name}</span>
-                    {isDummy && <span className="dev-device-badge">DEV</span>}
+                    {isDummy && (
+                      <span className="dev-device-badge">
+                        {t("deviceChooser.devBadge")}
+                      </span>
+                    )}
                     {!isDummy && support && (
                       <span
                         className={`device-support-badge ${support.status.toLowerCase()}`}
                       >
-                        {support.status}
+                        {supportLabel(support.status)}
                       </span>
                     )}
                   </span>
                   <span className="device-row-description">
                     {isDummy
-                      ? "Simulated device for testing"
+                      ? t("deviceChooser.simulatedDeviceForTesting")
                       : device.product_string ||
                         device.manufacturer ||
-                        "Walkplay family DAC"}
+                        t("deviceChooser.walkplayFamilyDac")}
                   </span>
                   <span className="device-row-meta">
                     VID {formatUsbId(device.vendor_id)} · PID{" "}
@@ -192,7 +204,11 @@ export function DeviceChooser({
           onToggle={(e) => setSupportedOpen(e.currentTarget.open)}
         >
           <summary>
-            <span>Supported models ({supportedDacs.length})</span>
+            <span>
+              {t("deviceChooser.supportedModels", {
+                modelCount: supportedDacs.length,
+              })}
+            </span>
             <Icon size={18} name="expand_more" className="disclosure-chevron" />
           </summary>
           <div className="supported-models">
@@ -205,7 +221,7 @@ export function DeviceChooser({
                 <span>
                   {formatUsbId(dac.vendor_id)}:
                   {dac.product_id == null ? "*" : formatUsbId(dac.product_id)} ·{" "}
-                  {dac.status}
+                  {supportLabel(dac.status)}
                 </span>
               </div>
             ))}
@@ -214,27 +230,16 @@ export function DeviceChooser({
 
         <details className="device-troubleshooting">
           <summary>
-            Connection help
+            {t("deviceChooser.connectionHelp")}
             <Icon size={18} name="expand_more" className="disclosure-chevron" />
           </summary>
           <ul>
-            <li>
-              Disconnect and reconnect the DAC, and close other applications
-              using it.
-            </li>
-            {!isTauri() && (
-              <li>
-                Use a Chromium-based browser and approve the device access
-                prompt.
-              </li>
-            )}
+            <li>{t("deviceChooser.reconnectHelp")}</li>
+            {!isTauri() && <li>{t("deviceChooser.browserHelp")}</li>}
             {isTauri() ? (
-              <li>
-                On Linux, open Settings &gt; Diagnostics &amp; permissions to
-                install the udev rule, then reconnect the DAC.
-              </li>
+              <li>{t("deviceChooser.linuxSettingsHelp")}</li>
             ) : !isLinux() ? (
-              <li>On Linux, install the udev rules, then reconnect the DAC.</li>
+              <li>{t("deviceChooser.linuxHelp")}</li>
             ) : null}
           </ul>
           {!isTauri() && isLinux() && <LinuxUdevGuide compact />}
@@ -243,14 +248,16 @@ export function DeviceChooser({
             target="_blank"
             rel="noreferrer"
           >
-            Open connection help
+            {t("deviceChooser.openConnectionHelp")}
           </a>
         </details>
       </div>
 
       <div className="device-connect-footer">
         {(authorizationError ||
-          (status && !/^Found \d+ devices?$/.test(status))) && (
+          (status &&
+            status !==
+              t("scanDevices.foundDevices", { count: devices.length }))) && (
           <span className="status-text" role="status" aria-live="polite">
             {authorizationError ?? status}
           </span>
@@ -262,7 +269,9 @@ export function DeviceChooser({
             onClick={() => onConnect()}
             disabled={!selectedDevice || isBusy}
           >
-            {connected ? "Switch to this device" : "Connect DAC"}
+            {connected
+              ? t("deviceChooser.switchToThisDevice")
+              : t("deviceChooser.connectDac")}
           </Button>
         </div>
       </div>

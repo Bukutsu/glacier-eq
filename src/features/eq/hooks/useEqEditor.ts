@@ -1,3 +1,4 @@
+import { i18n } from "@/lib/i18n";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { invoke } from "@/lib/rpc";
@@ -147,10 +148,9 @@ export function useEqEditor(
     if (
       dirty &&
       !(await confirmDialog({
-        title: "Restore unfinished EQ?",
-        message:
-          "Restoring the draft will replace your current editor changes. Nothing will be written to a DAC.",
-        confirmLabel: "Restore",
+        title: i18n.t("editor:draft.restoreTitle"),
+        message: i18n.t("editor:draft.replaceConfirmation"),
+        confirmLabel: i18n.t("editor:draft.confirmRestore"),
       }))
     )
       return;
@@ -163,7 +163,7 @@ export function useEqEditor(
     const name =
       pendingDraft.name && pendingDraft.name !== DEFAULT_PROFILE_NAME
         ? pendingDraft.name
-        : "Recovered EQ";
+        : i18n.t("editor:draft.recovered");
     // This explicit recovery path changes only the editor, never the DAC.
     pushToUndoStack(peqRef.current);
     setPeq(
@@ -275,7 +275,7 @@ export function useEqEditor(
       // older in-flight drop before validating the new one.
       const request = ++dropRequestRef.current;
       if (!file.name.endsWith(".txt")) {
-        setStatus("Only .txt AutoEQ files are supported.", "info");
+        setStatus(i18n.t("editor:import.onlyText"), "info");
         return;
       }
       // Only the newest drop may land, and only onto the editor/connection
@@ -283,7 +283,7 @@ export function useEqEditor(
       const context = getAsyncContext();
       try {
         if (file.size > 1_048_576)
-          throw new Error("File exceeds the 1 MiB limit");
+          throw new Error(i18n.t("editor:import.tooLarge"));
         const text = decodeUtf8(await file.arrayBuffer());
         if (
           request !== dropRequestRef.current ||
@@ -300,24 +300,20 @@ export function useEqEditor(
         const name =
           result.headphone_name || file.name.replace(/\.[^/.]+$/, "");
         if (!importPeq(result.peq, name, false)) {
-          setStatus(
-            "Import was not applied because a device operation is in progress.",
-            "info",
-          );
+          setStatus(i18n.t("editor:import.busy"), "info");
           return;
         }
-        const adjustments =
-          result.warnings.length === 1
-            ? "1 adjustment"
-            : `${result.warnings.length} adjustments`;
         setStatus(
           result.warnings.length > 0
-            ? `Imported "${name}" with ${adjustments}`
-            : `Imported "${name}"`,
+            ? i18n.t("editor:import.adjusted", {
+                name,
+                count: result.warnings.length,
+              })
+            : i18n.t("editor:import.success", { name }),
         );
       } catch (err) {
         if (request === dropRequestRef.current) {
-          setStatus(`Failed to import dropped file: ${err}`);
+          setStatus(i18n.t("editor:import.failed", { error: String(err) }));
         }
       }
     };
@@ -370,9 +366,9 @@ export function useEqEditor(
     if (isBusy || eqOperationInFlightRef.current) return;
     if (
       !(await confirmDialog({
-        title: "Reset EQ?",
-        message: "Reset all filters to 0 dB and preamp to 0 dB?",
-        confirmLabel: "Reset",
+        title: i18n.t("editor:reset.title"),
+        message: i18n.t("editor:reset.description"),
+        confirmLabel: i18n.t("editor:reset.confirm"),
         danger: true,
       }))
     )

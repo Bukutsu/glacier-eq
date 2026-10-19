@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState, useEffect, useRef } from "react";
 import { invoke, listen, writeText } from "@/lib/rpc";
 import { fuzzyMatch } from "@/lib/search";
@@ -44,6 +45,7 @@ function DiagnosticMessage({ message }: { message: string }) {
 }
 
 export function DiagnosticsPanel() {
+  const { t } = useTranslation("editor");
   const autoDiscardEq = useDebugStore((s) => s.autoDiscardEq);
   const setAutoDiscardEq = useDebugStore((s) => s.setAutoDiscardEq);
   const [events, setEvents] = useState<DiagnosticEvent[]>([]);
@@ -218,20 +220,20 @@ export function DiagnosticsPanel() {
 
   const copyLabel =
     copyState === "copying"
-      ? "Copying…"
+      ? t("diagnostics.copying")
       : copyState === "copied"
-        ? "Report copied"
+        ? t("diagnostics.copied")
         : copyState === "failed"
-          ? "Copy failed"
-          : "Copy report";
+          ? t("diagnostics.copyFailed")
+          : t("diagnostics.copy");
 
   return (
     <section className="diagnostics-view">
       <details className="debug-eq-options">
-        <summary>Advanced / debug</summary>
+        <summary>{t("diagnostics.advanced")}</summary>
         <ToggleRow
-          title="Auto-discard EQ edits"
-          desc="Skip confirmation when reading EQ from the DAC, including after reconnecting. Unsaved edits will be replaced. Off when the app restarts."
+          title={t("diagnostics.autoDiscard")}
+          desc={t("diagnostics.autoDiscardDescription")}
           checked={autoDiscardEq}
           onChange={setAutoDiscardEq}
         />
@@ -240,24 +242,24 @@ export function DiagnosticsPanel() {
         <div className="diag-counts">
           <span
             className="diag-count-e"
-            title="Errors"
-            aria-label={`${errorCount} errors`}
+            title={t("diagnostics.errorsTitle")}
+            aria-label={t("diagnostics.errors", { count: errorCount })}
           >
-            {errorCount} errors
+            {t("diagnostics.errors", { count: errorCount })}
           </span>
           <span
             className="diag-count-w"
-            title="Warnings"
-            aria-label={`${warnCount} warnings`}
+            title={t("diagnostics.warningsTitle")}
+            aria-label={t("diagnostics.warnings", { count: warnCount })}
           >
-            {warnCount} warnings
+            {t("diagnostics.warnings", { count: warnCount })}
           </span>
           <span
             className="diag-count-i"
-            title="Info"
-            aria-label={`${infoCount} info events`}
+            title={t("diagnostics.infoTitle")}
+            aria-label={t("diagnostics.infoEvents", { count: infoCount })}
           >
-            {infoCount} info
+            {t("diagnostics.infoEvents", { count: infoCount })}
           </span>
         </div>
       </div>
@@ -266,7 +268,7 @@ export function DiagnosticsPanel() {
         <div
           className="diag-severity-group"
           role="group"
-          aria-label="Filter by severity"
+          aria-label={t("diagnostics.severity")}
         >
           {DIAG_LEVELS.map((lvl) => (
             <Button
@@ -277,7 +279,7 @@ export function DiagnosticsPanel() {
               aria-pressed={levelFilter === lvl}
               onClick={() => setLevelFilter(lvl)}
             >
-              {lvl}
+              {t(`diagnostics.levels.${lvl}`)}
             </Button>
           ))}
         </div>
@@ -286,8 +288,8 @@ export function DiagnosticsPanel() {
         <Input
           className="diag-search"
           type="search"
-          placeholder="Search logs…"
-          aria-label="Search logs"
+          placeholder={t("diagnostics.searchPlaceholder")}
+          aria-label={t("diagnostics.search")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -298,7 +300,7 @@ export function DiagnosticsPanel() {
         ref={logBoxRef}
         tabIndex={0}
         role="log"
-        aria-label="Diagnostics event log"
+        aria-label={t("diagnostics.log")}
         onScroll={(event) => {
           const box = event.currentTarget;
           if (
@@ -312,7 +314,9 @@ export function DiagnosticsPanel() {
       >
         {filtered.length === 0 ? (
           <div className="diag-empty">
-            {events.length === 0 ? "No logs recorded." : "No matching logs."}
+            {events.length === 0
+              ? t("diagnostics.empty")
+              : t("diagnostics.noMatch")}
           </div>
         ) : (
           filtered.map((event, index) => (
@@ -337,19 +341,24 @@ export function DiagnosticsPanel() {
       <div className="diag-footer">
         {!autoScroll && (
           <Button variant="ghost" onClick={() => setAutoScroll(true)}>
-            Jump to latest
+            {t("diagnostics.jumpLatest")}
           </Button>
         )}
         <span>
-          {filtered.length} of {events.length} events
-          {levelFilter !== "All" && ` · ${levelFilter}`}
+          {t("diagnostics.eventCount", {
+            shown: filtered.length,
+            count: events.length,
+          })}
+          {levelFilter !== "All" &&
+            ` · ${t(`diagnostics.levels.${levelFilter}`)}`}
+          {/* eslint-disable-next-line i18next/no-literal-string -- Separator and quoted user input only. */}
           {search && ` · "${search}"`}
         </span>
         <label className="diag-follow" htmlFor="diagnostics-follow">
-          Follow log
+          {t("diagnostics.follow")}
           <Switch
             id="diagnostics-follow"
-            label="Follow log"
+            label={t("diagnostics.follow")}
             checked={autoScroll}
             onCheckedChange={setAutoScroll}
           />
@@ -362,7 +371,7 @@ export function DiagnosticsPanel() {
           className="diag-copy-btn"
           onClick={copyToClipboard}
           disabled={copyState === "copying"}
-          title="Copy system information, device details, and all logs"
+          title={t("diagnostics.copyDescription")}
           aria-live="polite"
         >
           <Icon name={copyState === "copied" ? "check" : "content_copy"} />
@@ -372,8 +381,8 @@ export function DiagnosticsPanel() {
           type="button"
           variant="danger"
           size="icon"
-          title="Clear logs"
-          aria-label="Clear logs"
+          title={t("diagnostics.clear")}
+          aria-label={t("diagnostics.clear")}
           onClick={clearLogs}
         >
           <Icon name="delete" />

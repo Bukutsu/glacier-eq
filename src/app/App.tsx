@@ -1,3 +1,5 @@
+import "@/lib/i18n";
+import { Trans, useTranslation } from "react-i18next";
 import { useDeviceState } from "@/features/device/hooks/useDeviceState";
 import { useEqEditor } from "@/features/eq/hooks/useEqEditor";
 import { useGraphPreview } from "@/features/eq/hooks/useGraphPreview";
@@ -98,7 +100,8 @@ const LazyDiagnosticsPanel = lazy(() =>
 );
 
 function ToolLoadingFallback() {
-  return <div aria-busy="true" aria-label="Loading workspace" />;
+  const { t } = useTranslation("shell");
+  return <div aria-busy="true" aria-label={t("workspace.loading")} />;
 }
 
 function MobileProfilesView(
@@ -144,6 +147,7 @@ const TOOL_TAB_BY_WORKSPACE: Record<MobileTab, ToolsTab | null> = {
 };
 
 function App() {
+  const { t } = useTranslation("shell");
   const location = useLocation();
 
   const navigate = useNavigate();
@@ -370,6 +374,7 @@ function App() {
   // Global uncaught error and promise rejection logger
   useEffect(() => {
     const handleError = (event: ErrorEvent) => {
+      // eslint-disable-next-line i18next/no-literal-string -- Raw diagnostics stay language-independent.
       const msg = `Uncaught error: ${event.message} at ${event.filename}:${event.lineno}:${event.colno}`;
       invoke("add_diagnostic_event", {
         level: "Error",
@@ -382,6 +387,7 @@ function App() {
         event.reason instanceof Error
           ? event.reason.message
           : String(event.reason);
+      // eslint-disable-next-line i18next/no-literal-string -- Raw diagnostics stay language-independent.
       const msg = `Unhandled rejection: ${reasonStr}`;
       invoke("add_diagnostic_event", {
         level: "Error",
@@ -524,8 +530,8 @@ function App() {
     setIsReconnecting(false);
     setLastPushedPeq(null);
     setShowDeviceModal(true);
-    setStatus("Disconnected");
-  }, [setConnected, setStatus]);
+    setStatus(t("connection.disconnected"));
+  }, [setConnected, setStatus, t]);
 
   const handleExportEq = useCallback(
     () => exportEqFile(peq, selectedPreset, setStatus),
@@ -716,7 +722,7 @@ function App() {
         isMobile
           ? mobilePageTitle
           : activeTab === "profiles"
-            ? "Profiles"
+            ? t("navigation.profiles")
             : undefined
       }
       mobile={isMobile}
@@ -736,7 +742,7 @@ function App() {
           document.getElementById("workspace-content")?.focus();
         }}
       >
-        Skip to workspace
+        {t("workspace.skip")}
       </a>
       <DebugEqBanner />
       {isMobile && workspaceHeader}
@@ -782,11 +788,13 @@ function App() {
                     aria-expanded={!graphCollapsed}
                     aria-label={
                       graphCollapsed
-                        ? "Show frequency response graph"
-                        : "Hide frequency response graph"
+                        ? t("graph.showResponse")
+                        : t("graph.hideResponse")
                     }
                   >
-                    <span>{graphCollapsed ? "Show graph" : "Hide graph"}</span>
+                    <span>
+                      {graphCollapsed ? t("graph.show") : t("graph.hide")}
+                    </span>
                     <Icon
                       name={graphCollapsed ? "expand_more" : "expand_less"}
                     />
@@ -806,7 +814,7 @@ function App() {
                 }}
                 role="button"
                 tabIndex={showGraphPreview ? 0 : -1}
-                aria-label="Scroll to frequency response graph"
+                aria-label={t("graph.scroll")}
                 aria-hidden={!showGraphPreview}
                 inert={!showGraphPreview ? true : undefined}
               >
@@ -829,7 +837,7 @@ function App() {
                   {bandControls}
                   <details className="mobile-preamp-details">
                     <summary>
-                      <span>Preamp</span>
+                      <span>{t("workspace.preamp")}</span>
                       <span>
                         {formatDb(peq.global_gain)} <Icon name="expand_more" />
                       </span>
@@ -908,7 +916,10 @@ function App() {
                 </section>
               )}
             </div>
-            <nav className="mobile-tab-bar" aria-label="Primary navigation">
+            <nav
+              className="mobile-tab-bar"
+              aria-label={t("navigation.primary")}
+            >
               {MOBILE_TABS.map(({ id, icon, label }) => (
                 <Link
                   key={id}
@@ -940,20 +951,20 @@ function App() {
       ) : (
         <main
           className={`workspace desktop-workspace desktop-view-${activeTab}`}
-          aria-label="Workspace"
+          aria-label={t("workspace.label")}
           inert={showReconnectOverlay ? true : undefined}
         >
           <aside className="desktop-sidebar">
             <Link
               className="desktop-brand"
               to={workspacePath("eq")}
-              aria-label="Glacier EQ home"
+              aria-label={t("workspace.home")}
             >
               <span>Glacier EQ</span>
             </Link>
             <nav
               className="desktop-sidebar-nav"
-              aria-label="Primary navigation"
+              aria-label={t("navigation.primary")}
             >
               {MOBILE_TABS.map(({ id, icon, label }) => (
                 <Fragment key={id}>
@@ -1014,7 +1025,7 @@ function App() {
                   activeTab === "eq" ? "workspace-content" : "main-scroll-pane"
                 }
                 tabIndex={-1}
-                aria-label="EQ editor"
+                aria-label={t("workspace.editor")}
                 className="left-pane"
                 ref={mainScrollRef}
               >
@@ -1105,8 +1116,8 @@ function App() {
           aria-modal="true"
           aria-label={
             Date.now() < expectedRestartUntilRef.current
-              ? "Reconnecting"
-              : "Connection lost"
+              ? t("connection.reconnecting")
+              : t("connection.lost")
           }
           onKeyDown={(e) => {
             if (e.key === "Tab") {
@@ -1122,11 +1133,16 @@ function App() {
             <div className="reconnecting-spinner"></div>
             <h3>
               {Date.now() < expectedRestartUntilRef.current
-                ? "DAC is restarting"
-                : "Connection lost"}
+                ? t("connection.restarting")
+                : t("connection.lost")}
             </h3>
             <p>
-              Reconnecting to <strong>{connectedDeviceName}</strong>...
+              <Trans
+                t={t}
+                i18nKey="connection.reconnectingTo"
+                values={{ name: connectedDeviceName }}
+                components={{ strong: <strong /> }}
+              />
             </p>
             <button
               type="button"
@@ -1144,14 +1160,14 @@ function App() {
                 fontWeight: 600,
               }}
             >
-              Cancel reconnection
+              {t("connection.cancel")}
             </button>
           </div>
         </div>
       )}
       {showDeviceModal && (
         <Modal
-          title="Connect DAC"
+          title={t("actions.connect")}
           className="device-modal"
           onClose={handleCloseDeviceModal}
         >
@@ -1171,7 +1187,7 @@ function App() {
       )}
       {showDiagnosticsModal && (
         <Modal
-          title="Diagnostics"
+          title={t("navigation.diagnostics")}
           className="wide"
           onClose={handleCloseDiagnosticsModal}
           style={{

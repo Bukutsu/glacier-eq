@@ -1,3 +1,4 @@
+import { i18n } from "@/lib/i18n";
 import type { invoke, emit, sleep } from "@/lib/rpc";
 import type { confirmDialog } from "@/components/ui/ConfirmDialog";
 import {
@@ -106,7 +107,7 @@ export function createPullEq(context: PullEqContext) {
     targetCapabilities = selectedCapabilities,
   ): Promise<boolean> => {
     if (!connected && !afterConnect) {
-      setStatus("Connect a DAC before reading its EQ.", "info");
+      setStatus(i18n.t("device:pullEq.connectionRequired"), "info");
       return false;
     }
     if (eqOperationInFlightRef.current) return false;
@@ -134,9 +135,9 @@ export function createPullEq(context: PullEqContext) {
       !replacingPreview &&
       !useDebugStore.getState().autoDiscardEq &&
       !(await confirmDialog({
-        title: "Discard changes?",
-        message: "Reading EQ from the DAC will discard your unsaved changes.",
-        confirmLabel: "Discard and read",
+        title: i18n.t("device:pullEq.discardChanges"),
+        message: i18n.t("device:pullEq.discardConfirmation"),
+        confirmLabel: i18n.t("device:pullEq.discardAndRead"),
       }))
     )
       return false;
@@ -158,27 +159,43 @@ export function createPullEq(context: PullEqContext) {
       let data: PEQData;
       if (isDevDummyDevice(targetPath)) {
         setProgress({
-          message: "Preparing EQ read…",
+          message: i18n.t("device:pullEq.preparingEqRead"),
           percentage: 5,
         });
         await sleep(200);
         setProgress({
-          message: `Reading band 1/${targetCapabilities.num_bands}…`,
+          message: i18n.t("device:pullEq.readingBand", {
+            num_bands: targetCapabilities.num_bands,
+          }),
           percentage: 15,
         });
         await sleep(150);
-        setProgress({ message: "Reading EQ bands…", percentage: 40 });
-        await sleep(150);
-        setProgress({ message: "Reading filter settings…", percentage: 65 });
+        setProgress({
+          message: i18n.t("device:pullEq.readingEqBands"),
+          percentage: 40,
+        });
         await sleep(150);
         setProgress({
-          message: `Read ${targetCapabilities.num_bands} bands`,
+          message: i18n.t("device:pullEq.readingFilterSettings"),
+          percentage: 65,
+        });
+        await sleep(150);
+        setProgress({
+          message: i18n.t("device:pullEq.readBands", {
+            count: targetCapabilities.num_bands,
+          }),
           percentage: 85,
         });
         await sleep(150);
-        setProgress({ message: "Reading device preamp…", percentage: 90 });
+        setProgress({
+          message: i18n.t("device:pullEq.readingDevicePreamp"),
+          percentage: 90,
+        });
         await sleep(150);
-        setProgress({ message: "Read complete", percentage: 100 });
+        setProgress({
+          message: i18n.t("device:pullEq.readComplete"),
+          percentage: 100,
+        });
         await sleep(400);
         data = readDevDummyPeq(targetPath);
       } else {
@@ -218,8 +235,8 @@ export function createPullEq(context: PullEqContext) {
       reportStatus({
         level: "Info",
         message: isDevDummyDevice(targetPath)
-          ? "Loaded simulated DAC EQ"
-          : "Loaded EQ from DAC",
+          ? i18n.t("device:pullEq.loadedSimulatedDacEq")
+          : i18n.t("device:pullEq.loadedEqFromDac"),
         source: "UI",
       });
       return true;
@@ -239,13 +256,17 @@ export function createPullEq(context: PullEqContext) {
             setFirmwareVersion,
             reportStatus: reportLoss,
           },
-          `Could not read from DAC (disconnected): ${error}`,
+          i18n.t("device:pullEq.readDisconnected", {
+            error: error,
+          }),
           "HID",
         );
       } else {
         reportStatus({
           level: "Error",
-          message: `Could not read from DAC: ${error}`,
+          message: i18n.t("device:pullEq.readFailed", {
+            error: error,
+          }),
           toastType: "error",
           source: "UI",
         });

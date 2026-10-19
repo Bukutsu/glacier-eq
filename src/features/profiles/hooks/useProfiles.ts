@@ -1,3 +1,4 @@
+import { i18n } from "@/lib/i18n";
 import type { StatusReporter } from "@/stores/toastStore";
 import { useCallback, useRef, useState } from "react";
 import { invoke } from "@/lib/rpc";
@@ -179,7 +180,9 @@ export function useProfiles(editor: ProfilesEditor, setStatus: StatusReporter) {
       } catch (error) {
         if (generation !== profileLoadGenerationRef.current) return [];
         if (options?.throwOnError) throw error;
-        setStatus(`Failed to load profiles: ${error}`);
+        setStatus(
+          i18n.t("library:profiles.failedToLoadProfiles", { error: error }),
+        );
         return [];
       }
     },
@@ -206,7 +209,10 @@ export function useProfiles(editor: ProfilesEditor, setStatus: StatusReporter) {
       name === DEFAULT_PROFILE_NAME ||
       name === "Pulled from device"
     ) {
-      setStatus("Enter a profile name before saving.", "info");
+      setStatus(
+        i18n.t("library:profiles.enterAProfileNameBeforeSaving"),
+        "info",
+      );
       return;
     }
 
@@ -216,9 +222,9 @@ export function useProfiles(editor: ProfilesEditor, setStatus: StatusReporter) {
     if (
       existing &&
       !(await confirmDialog({
-        title: "Overwrite profile?",
+        title: i18n.t("library:profiles.overwriteProfile"),
         message: profileOverwriteMessage(name, existing.data, savedPeq),
-        confirmLabel: "Overwrite",
+        confirmLabel: i18n.t("library:profiles.overwrite"),
         danger: true,
       }))
     )
@@ -250,12 +256,12 @@ export function useProfiles(editor: ProfilesEditor, setStatus: StatusReporter) {
         editor.editorCleanPeqRef.current = savedPeq;
         editor.setDirty(false);
       }
-      setStatus("Profile saved");
+      setStatus(i18n.t("library:profiles.profileSaved"));
     } catch (error) {
       setStatus(
         writeCompleted
-          ? `Profile saved, but refreshing the profile list failed: ${error}`
-          : `Failed to save profile: ${error}`,
+          ? i18n.t("library:profiles.savedRefreshFailed", { error: error })
+          : i18n.t("library:profiles.failedToSaveProfile", { error: error }),
       );
     }
   }, [editor, profiles, loadProfiles, setStatus, runProfileMutation]);
@@ -277,9 +283,11 @@ export function useProfiles(editor: ProfilesEditor, setStatus: StatusReporter) {
       };
       if (
         !(await confirmDialog({
-          title: "Delete profile?",
-          message: `Delete profile "${deletedName}"? This cannot be undone.`,
-          confirmLabel: "Delete",
+          title: i18n.t("library:profiles.deleteProfile"),
+          message: i18n.t("library:profiles.deleteMessage", {
+            name: deletedName,
+          }),
+          confirmLabel: i18n.t("library:profiles.delete"),
           danger: true,
         }))
       )
@@ -309,12 +317,14 @@ export function useProfiles(editor: ProfilesEditor, setStatus: StatusReporter) {
           editor.editorCleanPeqRef.current = defaultPeq;
           editor.setDirty(false);
         }
-        setStatus("Profile deleted");
+        setStatus(i18n.t("library:profiles.profileDeleted"));
       } catch (error) {
         setStatus(
           writeCompleted
-            ? `Profile deleted, but refreshing the profile list failed: ${error}`
-            : `Failed to delete profile: ${error}`,
+            ? i18n.t("library:profiles.deletedRefreshFailed", { error: error })
+            : i18n.t("library:profiles.failedToDeleteProfile", {
+                error: error,
+              }),
         );
       }
     },
@@ -353,13 +363,15 @@ export function useProfiles(editor: ProfilesEditor, setStatus: StatusReporter) {
           selectedPresetRef.current = canonicalName;
           setSelectedPreset(canonicalName);
         }
-        setStatus("Profile renamed");
+        setStatus(i18n.t("library:profiles.profileRenamed"));
         return true;
       } catch (error) {
         setStatus(
           writeCompleted
-            ? `Profile renamed, but refreshing the profile list failed: ${error}`
-            : `Failed to rename profile: ${error}`,
+            ? i18n.t("library:profiles.renamedRefreshFailed", { error: error })
+            : i18n.t("library:profiles.failedToRenameProfile", {
+                error: error,
+              }),
         );
         return writeCompleted;
       }
@@ -371,7 +383,9 @@ export function useProfiles(editor: ProfilesEditor, setStatus: StatusReporter) {
     try {
       await invoke("open_profiles_dir");
     } catch (error) {
-      setStatus(`Failed to open profiles folder: ${error}`);
+      setStatus(
+        i18n.t("library:profiles.failedToOpenProfilesFolder", { error: error }),
+      );
     }
   }, [setStatus]);
 
