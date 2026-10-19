@@ -6,7 +6,7 @@ Edit the parametric EQ stored on your USB DAC dongle. Your settings stay on the 
 
 <img src="assets/screenshot-main.png" alt="Glacier EQ showing EQ sliders and sound curve" width="900">
 
-Glacier EQ works offline and needs no account. Desktop builds with automatic updates check GitHub once at launch; nothing else is sent.
+Glacier EQ works offline and needs no account.
 
 ## Check your DAC
 
@@ -28,7 +28,7 @@ Other Savitech- or Walkplay-based DAC dongles may work. See the [full device lis
 ## Use it
 
 1. Choose **Connect DAC** and select your device.
-2. Choose **Read from DAC**, or use **Tuning** to generate EQ from a headphone measurement and target curve.
+2. Choose **Read from DAC**, or use **Tuning** to generate EQ from a headphone measurement and target curve. AutoEQ optimizes the result for your DAC's filter capabilities.
 3. Adjust the filters and choose **Write to DAC** (**Save to DAC** on mobile).
 
 Loading a profile only changes the editor. Write it to the DAC to save it. Compatible DACs also let you try an EQ temporarily without saving.
