@@ -46,6 +46,9 @@ makedepends=(
   'wget'
   'xdotool'
 )
+# makepkg's -flto turns the C objects of ring (pulled in by the updater's TLS)
+# into LTO bitcode that rust-lld cannot link.
+options=('!lto')
 provides=('glacier-eq')
 conflicts=('glacier-eq')
 
