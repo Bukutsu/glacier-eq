@@ -130,5 +130,34 @@
   "persistence": {
     "saveFailed": "Impossible d’enregistrer les paramètres. Vos modifications risquent d’être perdues au redémarrage : {{error}}",
     "loadFailed": "Impossible de charger les paramètres. Les modifications ne seront pas enregistrées tant que le chargement n’aura pas réussi : {{error}}"
+  },
+  "updates": {
+    "restartTitle": "Redémarrer pour mettre à jour ?",
+    "restartExplanation": "Glacier EQ va se fermer puis se rouvrir en version {{version}}. Écrivez ou enregistrez d'abord les modifications d'EQ en cours, car les modifications non enregistrées sont perdues.",
+    "restart": "Redémarrer pour mettre à jour",
+    "unsupported": {
+      "systemPackage": "Cette copie a été installée depuis un paquet système (.deb ou .rpm). Mettez-la à jour avec votre gestionnaire de paquets.",
+      "mobile": "Les mises à jour Android arrivent sous forme de nouvel APK. Installez la dernière version depuis GitHub.",
+      "unpackaged": "Cette copie ne peut pas se mettre à jour toute seule (portable, de développement ou compilée par une distribution). Téléchargez plutôt une version plus récente."
+    },
+    "check": "Rechercher des mises à jour",
+    "checking": "Vérification des versions GitHub…",
+    "upToDate": "Vous avez la dernière version ({{version}}).",
+    "checkAgain": "Vérifier à nouveau",
+    "available": "La version {{version}} est disponible.",
+    "download": "Télécharger la mise à jour",
+    "downloading": "Téléchargement de {{version}}…",
+    "downloadingPercent": "Téléchargement de {{version}}… {{percent}} %",
+    "ready": "La version {{version}} est téléchargée et prête à être installée.",
+    "restarting": "Installation de {{version}} puis redémarrage…",
+    "failed": "Échec de la mise à jour : {{error}}",
+    "retry": "Réessayer",
+    "idle": "Version installée : {{version}}.",
+    "badgeAvailable": "Mise à jour disponible",
+    "badgeUnsupported": "Indisponible",
+    "title": "Mises à jour du logiciel",
+    "notes": "Nouveautés",
+    "privacy": "Glacier EQ consulte les versions GitHub une fois au lancement. Les téléchargements sont vérifiés avec la clé de signature de Glacier EQ avant l'installation.",
+    "availableToast": "Glacier EQ {{version}} est disponible. Ouvrez Réglages > À propos pour mettre à jour."
   }
 }

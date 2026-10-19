@@ -105,6 +105,33 @@ every distribution.
 - Linux binaries depend on the build host's libraries. A local AppImage does
   not establish an older-distribution compatibility baseline.
 
+## In-app updates
+
+Installed apps poll
+`https://github.com/Bukutsu/glacier-eq/releases/latest/download/latest.json`.
+The release workflow builds it (`scripts/make-update-manifest.mjs`) from the
+signed AppImage, NSIS, MSI, and macOS `.app.tar.gz` assets and uploads it with
+the rest. GitHub's `latest` URL skips drafts and prereleases, so apps see an
+update only when you publish the draft of a stable tag.
+
+Only builds that know how they were packaged can update
+(`src-tauri/src/updater.rs`): AppImage, NSIS, MSI, and macOS. The updater
+plugin is not even registered on `.deb`/`.rpm`, the portable zip, PKGBUILD,
+development, or Android builds.
+
+One-time setup. The public key is already in `tauri.conf.json`; the matching
+private key must be in the repository secrets or the release workflow stops
+at its first job:
+
+```sh
+npx tauri signer generate -w ~/.tauri/glacier-eq.key   # only to rotate the key
+gh secret set TAURI_SIGNING_PRIVATE_KEY < ~/.tauri/glacier-eq.key
+gh secret set TAURI_SIGNING_PRIVATE_KEY_PASSWORD
+```
+
+Losing the private key means installed apps can never update again: they
+trust only the baked-in public key. Rotating it needs a manual reinstall.
+
 ## Release gates
 
 1. Run `npm run verify`, `npm run verify:rust`, `npm run build:web`, and

@@ -130,5 +130,34 @@
   "persistence": {
     "saveFailed": "Não foi possível salvar as configurações. Suas alterações podem ser perdidas ao reiniciar: {{error}}",
     "loadFailed": "Não foi possível carregar as configurações. As alterações não serão salvas até que o carregamento seja concluído: {{error}}"
+  },
+  "updates": {
+    "restartTitle": "Reiniciar para atualizar?",
+    "restartExplanation": "O Glacier EQ vai fechar e reabrir na versão {{version}}. Grave ou salve antes as alterações de EQ abertas, pois alterações não salvas serão perdidas.",
+    "restart": "Reiniciar para atualizar",
+    "unsupported": {
+      "systemPackage": "Esta cópia foi instalada a partir de um pacote do sistema (.deb ou .rpm). Atualize-a com o gerenciador de pacotes.",
+      "mobile": "As atualizações do Android vêm como um novo APK. Instale a versão mais recente do GitHub.",
+      "unpackaged": "Esta cópia não consegue se atualizar sozinha (portátil, de desenvolvimento ou compilada por uma distribuição). Baixe uma versão mais recente."
+    },
+    "check": "Verificar atualizações",
+    "checking": "Verificando as versões do GitHub…",
+    "upToDate": "Você está com a versão mais recente ({{version}}).",
+    "checkAgain": "Verificar novamente",
+    "available": "A versão {{version}} está disponível.",
+    "download": "Baixar atualização",
+    "downloading": "Baixando {{version}}…",
+    "downloadingPercent": "Baixando {{version}}… {{percent}}%",
+    "ready": "A versão {{version}} foi baixada e está pronta para instalar.",
+    "restarting": "Instalando {{version}} e reiniciando…",
+    "failed": "Falha na atualização: {{error}}",
+    "retry": "Tentar novamente",
+    "idle": "Versão instalada: {{version}}.",
+    "badgeAvailable": "Atualização disponível",
+    "badgeUnsupported": "Indisponível",
+    "title": "Atualizações do software",
+    "notes": "Novidades",
+    "privacy": "O Glacier EQ consulta as versões do GitHub uma vez ao iniciar. Os downloads são verificados com a chave de assinatura do Glacier EQ antes de serem instalados.",
+    "availableToast": "O Glacier EQ {{version}} está disponível. Abra Configurações > Sobre para atualizar."
   }
 }

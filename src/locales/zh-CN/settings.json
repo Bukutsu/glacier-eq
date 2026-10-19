@@ -130,5 +130,34 @@
   "persistence": {
     "saveFailed": "无法保存设置。重启后您的更改可能丢失：{{error}}",
     "loadFailed": "无法加载设置。在加载成功前，更改不会被保存：{{error}}"
+  },
+  "updates": {
+    "restartTitle": "重启以更新？",
+    "restartExplanation": "Glacier EQ 将关闭并以 {{version}} 版本重新打开。请先写入或保存尚未处理的 EQ 更改，未保存的编辑会丢失。",
+    "restart": "重启以更新",
+    "unsupported": {
+      "systemPackage": "此副本是通过系统软件包（.deb 或 .rpm）安装的。请使用包管理器更新。",
+      "mobile": "Android 更新以新的 APK 形式发布。请从 GitHub 安装最新版本。",
+      "unpackaged": "此副本无法自行更新（便携版、开发版或发行版自行构建的版本）。请改为下载较新的版本。"
+    },
+    "check": "检查更新",
+    "checking": "正在检查 GitHub 发布版本…",
+    "upToDate": "已是最新版本（{{version}}）。",
+    "checkAgain": "重新检查",
+    "available": "有可用的 {{version}} 版本。",
+    "download": "下载更新",
+    "downloading": "正在下载 {{version}}…",
+    "downloadingPercent": "正在下载 {{version}}… {{percent}}%",
+    "ready": "{{version}} 版本已下载，可以安装。",
+    "restarting": "正在安装 {{version}} 并重启…",
+    "failed": "更新失败：{{error}}",
+    "retry": "重试",
+    "idle": "已安装版本：{{version}}。",
+    "badgeAvailable": "有可用更新",
+    "badgeUnsupported": "不可用",
+    "title": "软件更新",
+    "notes": "更新内容",
+    "privacy": "Glacier EQ 每次启动时检查一次 GitHub 发布版本。下载的文件会在安装前用 Glacier EQ 的签名密钥验证。",
+    "availableToast": "Glacier EQ {{version}} 已推出。请打开 设置 > 关于 进行更新。"
   }
 }

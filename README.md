@@ -7,7 +7,7 @@
 
 Glacier EQ reads and edits the parametric EQ stored on supported USB DAC dongles. Read the current settings, make changes, then write them back to the DAC. The settings stay on the DAC when you use it with another device.
 
-The app works offline and needs no account.
+The app works offline and needs no account. Desktop builds that can update themselves (AppImage, Windows installer, macOS) check GitHub for a new release once at launch; nothing else is sent.
 
 [Open the web app](https://bukutsu.github.io/glacier-eq/) (Chrome or Edge) · [Download for desktop and Android](https://github.com/Bukutsu/glacier-eq/releases)
 

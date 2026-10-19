@@ -130,5 +130,34 @@
   "persistence": {
     "saveFailed": "Einstellungen konnten nicht gespeichert werden. Deine Änderungen gehen beim Neustart möglicherweise verloren: {{error}}",
     "loadFailed": "Einstellungen konnten nicht geladen werden. Änderungen werden erst gespeichert, wenn das Laden gelingt: {{error}}"
+  },
+  "updates": {
+    "restartTitle": "Zum Aktualisieren neu starten?",
+    "restartExplanation": "Glacier EQ wird geschlossen und mit Version {{version}} neu geöffnet. Schreibe oder speichere offene EQ-Änderungen vorher, nicht gespeicherte Änderungen gehen verloren.",
+    "restart": "Neu starten und aktualisieren",
+    "unsupported": {
+      "systemPackage": "Diese Kopie wurde aus einem Systempaket (.deb oder .rpm) installiert. Aktualisiere sie mit deiner Paketverwaltung.",
+      "mobile": "Android-Updates kommen als neue APK. Installiere die neueste Version von GitHub.",
+      "unpackaged": "Diese Kopie kann sich nicht selbst aktualisieren (portabel, Entwicklungs- oder Distributions-Build). Lade stattdessen eine neuere Version herunter."
+    },
+    "check": "Nach Updates suchen",
+    "checking": "GitHub-Releases werden geprüft…",
+    "upToDate": "Du hast die neueste Version ({{version}}).",
+    "checkAgain": "Erneut prüfen",
+    "available": "Version {{version}} ist verfügbar.",
+    "download": "Update herunterladen",
+    "downloading": "{{version}} wird heruntergeladen…",
+    "downloadingPercent": "{{version}} wird heruntergeladen… {{percent}} %",
+    "ready": "Version {{version}} ist heruntergeladen und bereit zur Installation.",
+    "restarting": "{{version}} wird installiert, danach Neustart…",
+    "failed": "Update fehlgeschlagen: {{error}}",
+    "retry": "Erneut versuchen",
+    "idle": "Installierte Version: {{version}}.",
+    "badgeAvailable": "Update verfügbar",
+    "badgeUnsupported": "Nicht verfügbar",
+    "title": "Software-Updates",
+    "notes": "Neuerungen",
+    "privacy": "Glacier EQ prüft GitHub-Releases einmal beim Start. Downloads werden vor der Installation mit dem Signaturschlüssel von Glacier EQ überprüft.",
+    "availableToast": "Glacier EQ {{version}} ist verfügbar. Öffne Einstellungen > Über, um zu aktualisieren."
   }
 }

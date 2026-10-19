@@ -6,6 +6,7 @@ import { useGraphPreview } from "@/features/eq/hooks/useGraphPreview";
 import { useDeviceSession } from "@/features/device/hooks/useDeviceSession";
 import { useLiveApply } from "@/features/device/hooks/useLiveApply";
 import { useAppSettings } from "@/features/settings/hooks/useAppSettings";
+import { useAppUpdate } from "@/features/settings/hooks/useAppUpdate";
 import { useAppFeedback } from "@/app/hooks/useAppFeedback";
 import { useEditorShortcuts } from "@/features/eq/hooks/useEditorShortcuts";
 import {
@@ -360,6 +361,11 @@ function App() {
   }, [graphViewMode, persistUiPreference]);
 
   useAndroidKeyboardViewport();
+
+  // Supported desktop builds look for a newer release once per launch.
+  useEffect(() => {
+    void useAppUpdate.getState().checkOnLaunch();
+  }, []);
 
   // Open external links in default browser instead of dropping them in Tauri webviews
   useEffect(() => {

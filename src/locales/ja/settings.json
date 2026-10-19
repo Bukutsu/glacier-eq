@@ -130,5 +130,34 @@
   "persistence": {
     "saveFailed": "設定を保存できませんでした。再起動時に変更が失われる可能性があります: {{error}}",
     "loadFailed": "設定を読み込めませんでした。読み込みに成功するまで変更は保存されません: {{error}}"
+  },
+  "updates": {
+    "restartTitle": "再起動して更新しますか？",
+    "restartExplanation": "Glacier EQ を終了し、バージョン {{version}} で再び開きます。開いている EQ の変更は先にDACへ書き込むか保存してください。保存していない編集は失われます。",
+    "restart": "再起動して更新",
+    "unsupported": {
+      "systemPackage": "このコピーはシステムパッケージ（.deb または .rpm）からインストールされています。パッケージマネージャーで更新してください。",
+      "mobile": "Android の更新は新しい APK として配布されます。GitHub から最新リリースをインストールしてください。",
+      "unpackaged": "このコピー（ポータブル版、開発版、ディストリビューション版）は自分自身を更新できません。新しいリリースをダウンロードしてください。"
+    },
+    "check": "更新を確認",
+    "checking": "GitHub のリリースを確認しています…",
+    "upToDate": "最新バージョン（{{version}}）です。",
+    "checkAgain": "再確認",
+    "available": "バージョン {{version}} が利用できます。",
+    "download": "更新をダウンロード",
+    "downloading": "{{version}} をダウンロードしています…",
+    "downloadingPercent": "{{version}} をダウンロードしています… {{percent}}%",
+    "ready": "バージョン {{version}} をダウンロードしました。インストールできます。",
+    "restarting": "{{version}} をインストールして再起動しています…",
+    "failed": "更新に失敗しました: {{error}}",
+    "retry": "再試行",
+    "idle": "インストール済みバージョン: {{version}}",
+    "badgeAvailable": "更新あり",
+    "badgeUnsupported": "利用不可",
+    "title": "ソフトウェア更新",
+    "notes": "新機能",
+    "privacy": "Glacier EQ は起動時に一度だけ GitHub のリリースを確認します。ダウンロードしたファイルは、インストール前に Glacier EQ の署名鍵で検証されます。",
+    "availableToast": "Glacier EQ {{version}} が利用できます。設定 > このアプリについて から更新してください。"
   }
 }

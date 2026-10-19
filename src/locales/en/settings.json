@@ -130,5 +130,34 @@
   "persistence": {
     "saveFailed": "Could not save settings. Your changes may be lost when you restart: {{error}}",
     "loadFailed": "Could not load settings. Changes will not be saved until loading succeeds: {{error}}"
+  },
+  "updates": {
+    "restartTitle": "Restart to update?",
+    "restartExplanation": "Glacier EQ will close and reopen on version {{version}}. Write or save any open EQ changes first, because unsaved edits are lost.",
+    "restart": "Restart to update",
+    "unsupported": {
+      "systemPackage": "This copy was installed from a system package (.deb or .rpm). Update it with your package manager.",
+      "mobile": "Android updates come as a new APK. Install the latest release from GitHub.",
+      "unpackaged": "This copy can't update itself (portable, development, or distribution-built). Download a newer release instead."
+    },
+    "check": "Check for updates",
+    "checking": "Checking GitHub releases…",
+    "upToDate": "You have the latest version ({{version}}).",
+    "checkAgain": "Check again",
+    "available": "Version {{version}} is available.",
+    "download": "Download update",
+    "downloading": "Downloading {{version}}…",
+    "downloadingPercent": "Downloading {{version}}… {{percent}}%",
+    "ready": "Version {{version}} is downloaded and ready to install.",
+    "restarting": "Installing {{version}} and restarting…",
+    "failed": "Update failed: {{error}}",
+    "retry": "Try again",
+    "idle": "Installed version: {{version}}.",
+    "badgeAvailable": "Update available",
+    "badgeUnsupported": "Not available",
+    "title": "Software updates",
+    "notes": "What's new",
+    "privacy": "Glacier EQ checks GitHub releases once at launch. Downloads are verified against Glacier EQ's signing key before they install.",
+    "availableToast": "Glacier EQ {{version}} is available. Open Settings > About to update."
   }
 }

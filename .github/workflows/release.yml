@@ -28,6 +28,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
+      - name: Require updater signing key
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          # Without the key every desktop build fails late, after compiling.
+          # Installed apps accept updates only if signed by the matching key.
+          if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ] || [ -z "$TAURI_SIGNING_PRIVATE_KEY_PASSWORD" ]; then
+            echo "❌ Set the TAURI_SIGNING_PRIVATE_KEY and TAURI_SIGNING_PRIVATE_KEY_PASSWORD repository secrets (see docs/release-readiness.md)."
+            exit 1
+          fi
+
       - name: Verify tag matches Cargo.toml version
         id: version
         env:
@@ -136,14 +149,18 @@ jobs:
             required-assets: "windows-x64"
           - name: macos-apple-silicon
             os: macos-latest
-            args: "--target aarch64-apple-darwin --bundles dmg"
+            # `app` is bundled alongside the DMG so Tauri also writes the
+            # updater's .app.tar.gz; a DMG-only build produces none.
+            args: "--target aarch64-apple-darwin --bundles app,dmg"
             rust-targets: "aarch64-apple-darwin"
             required-assets: "macos-apple-silicon"
+            updater-arch: "aarch64"
           - name: macos-intel
             os: macos-latest
-            args: "--target x86_64-apple-darwin --bundles dmg"
+            args: "--target x86_64-apple-darwin --bundles app,dmg"
             rust-targets: "x86_64-apple-darwin"
             required-assets: "macos-intel"
+            updater-arch: "x86_64"
 
     steps:
       - name: Checkout
@@ -200,7 +217,9 @@ jobs:
           RELEASE_VERSION: ${{ needs.check-tag.outputs.release-version }}
         run: |
           set -euo pipefail
-          printf '{"version":"%s"}\n' "$RELEASE_VERSION" > release-config.json
+          # createUpdaterArtifacts lives here, not in tauri.conf.json, so local
+          # and test builds do not need the updater signing key.
+          printf '{"version":"%s","bundle":{"createUpdaterArtifacts":true}}\n' "$RELEASE_VERSION" > release-config.json
 
       - name: Check release signing credentials
         id: signing
@@ -269,6 +288,9 @@ jobs:
         # release published by the `release` job below. It only builds here;
         # bundles are collected as artifacts and published once by softprops.
         uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           args: ${{ matrix.args }} --config release-config.json -- --locked
           releaseAssetNamePattern: "glacier-eq_[version]_[platform]_[arch].[ext]"
@@ -308,6 +330,8 @@ jobs:
           KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
           WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
           WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           args: ${{ matrix.args }} --config release-config.json -- --locked
           releaseAssetNamePattern: "glacier-eq_[version]_[platform]_[arch].[ext]"
@@ -316,6 +340,9 @@ jobs:
       - name: Build unsigned app
         if: matrix.os != 'ubuntu-22.04' && steps.signing.outputs.signed != 'true'
         uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           args: ${{ matrix.args }} --config release-config.json -- --locked
           releaseAssetNamePattern: "glacier-eq_[version]_[platform]_[arch].[ext]"
@@ -339,6 +366,20 @@ jobs:
             -o -name '*.nsis.zip' \
             -o -name '*.sig' \) \
             -exec cp '{}' release-assets/ \;
+
+          # Both macOS jobs emit an arch-less Glacier-EQ.app.tar.gz; give each a
+          # unique name before the artifacts are merged. The signature covers
+          # the bytes, not the name, so the .sig only needs the same rename.
+          if [ -n "${{ matrix.updater-arch }}" ]; then
+            archive=release-assets/Glacier-EQ.app.tar.gz
+            if [ ! -f "$archive" ] || [ ! -f "$archive.sig" ]; then
+              echo "❌ Missing signed updater archive: $archive(.sig)"
+              exit 1
+            fi
+            renamed="release-assets/glacier-eq_v${{ needs.check-tag.outputs.release-version }}_macos-${{ matrix.updater-arch }}.app.tar.gz"
+            mv "$archive" "$renamed"
+            mv "$archive.sig" "$renamed.sig"
+          fi
 
           if ! find release-assets -maxdepth 1 -type f | grep -q .; then
             echo "❌ No Tauri bundle assets were produced for ${{ matrix.name }}."
@@ -655,6 +696,11 @@ jobs:
             exit 1
           fi
           require_glob "Android ARM64 APK" 'artifacts/*android-arm64.apk'
+          # The in-app updater only installs signed payloads.
+          require_glob "Linux AppImage signature" 'artifacts/*.AppImage.sig'
+          require_glob "Windows NSIS signature" 'artifacts/*-setup.exe.sig'
+          require_glob "Windows MSI signature" 'artifacts/*.msi.sig'
+          require_glob "macOS updater archives" 'artifacts/*macos-*.app.tar.gz.sig'
 
           echo "✅ All expected OS release assets are present."
 
@@ -682,6 +728,17 @@ jobs:
           if [ ! -s RELEASE_NOTES.md ]; then
             echo "Automated Glacier EQ build. See assets below for installers." > RELEASE_NOTES.md
           fi
+
+      # latest.json is what installed apps poll at
+      # releases/latest/download/latest.json. A draft release is invisible to
+      # that URL, so apps pick the update up the moment the draft is published
+      # (and never for prereleases, which `latest` skips).
+      - name: Generate updater manifest
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_VERSION: ${{ needs.check-tag.outputs.release-version }}
+          REPO: ${{ github.repository }}
+        run: node scripts/make-update-manifest.mjs artifacts "$RELEASE_VERSION" "$RELEASE_TAG" "$REPO" RELEASE_NOTES.md
 
       - name: Create release and upload verified assets
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64

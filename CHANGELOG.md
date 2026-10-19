@@ -4,6 +4,7 @@
 
 ### Added
 
+- In-app updates (Settings > About > Software updates). Glacier EQ checks the latest GitHub release once at launch, shows a toast when a newer one exists, and downloads it with a progress bar; you choose when to restart. Downloads are verified against Glacier EQ's update signing key before they install. Works on the AppImage, Windows installer (NSIS and MSI), and macOS builds. Distro `.deb`/`.rpm` packages, the Windows portable zip, Arch/PKGBUILD and development builds, and Android show the card greyed out with the reason; the web app does not show it.
 - Opt-in live apply for Walkplay DACs (Settings > General): each EQ edit goes to the DAC's RAM about 100 ms after you make it, and is saved once you pause, so the Write to DAC button is hidden. This is the same temp-apply the official EPZ web app uses to audition an EQ. The vendor's own web tools use the same packets across Walkplay schemes. Confirmed on hardware on the EPZ TP35 Pro only; the Fosi / iBasso entry is left off because nothing confirms it uses this protocol.
 - `glacier-eq-cli hardware live FILE...` applies one or more EQ files to the DAC's RAM in order, without a backup read or a flash save.
 

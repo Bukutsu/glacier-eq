@@ -1024,6 +1024,58 @@ button.danger { color: var(--destructive-foreground); background: transparent; o
   padding: 8px 0 0;
 }
 
+/* About > Software updates. Reuses the quiet stack-card row; only the icon,
+   progress, release notes, and the greyed-out state are new. */
+.update-row {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+.update-row .stack-pref-info { flex: 1 1 220px; }
+.update-icon { flex: 0 0 auto; color: var(--muted); }
+.update-card[data-phase="available"] .update-icon,
+.update-card[data-phase="ready"] .update-icon,
+.update-card[data-phase="downloading"] .update-icon {
+  color: var(--ring);
+}
+.update-card[data-phase="error"] .update-icon { color: var(--destructive-foreground); }
+.update-title { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.update-progress {
+  appearance: none;
+  display: block;
+  width: calc(100% - 32px);
+  height: 3px;
+  margin: 0 16px 14px;
+  border: 0;
+  background: var(--surface-soft);
+  accent-color: var(--ring);
+}
+.update-progress::-webkit-progress-bar { background: var(--surface-soft); }
+.update-progress::-webkit-progress-value { background: var(--ring); transition: width var(--motion-duration) var(--motion-ease); }
+.update-progress::-moz-progress-bar { background: var(--ring); }
+.update-notes { margin: 0; padding: 0 16px 14px; font-size: var(--type-small); color: var(--muted); }
+.update-notes summary { cursor: pointer; width: fit-content; }
+.update-notes pre {
+  margin: 8px 0 0;
+  max-height: 220px;
+  overflow: auto;
+  padding: 10px 12px;
+  background: var(--bg-dark);
+  border: 1px solid var(--line-soft);
+  font: inherit;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--text);
+}
+/* Not available on this build: same layout, visibly inert. The reason text
+   stays legible; only the chrome recedes. */
+.update-card[aria-disabled="true"] {
+  border-style: dashed;
+  background: transparent;
+}
+.update-card[aria-disabled="true"] .update-title { color: var(--muted); }
+.update-card[aria-disabled="true"] .stack-pref-control { opacity: 0.6; }
+
 .device-spec-list {
   margin: 0;
   padding: 0 16px;

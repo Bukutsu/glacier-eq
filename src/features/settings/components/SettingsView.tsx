@@ -22,6 +22,7 @@ import { invoke } from "@/lib/rpc";
 import { isAndroidDevice, isLinux, isTauri } from "@/lib/platform";
 import { themeOptions } from "@/features/settings/lib/theme";
 import { ThemePicker } from "./ThemePicker";
+import { UpdateSection } from "./UpdateSection";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import {
   LinuxUdevGuide,
@@ -513,6 +514,8 @@ export const SettingsView = memo(function SettingsView({
               <h2 className="settings-plain-title">Glacier EQ</h2>
               <p className="settings-plain-desc">{t("about.description")}</p>
             </section>
+
+            {isTauri() && <UpdateSection />}
 
             <dl className="device-spec-list">
               <div>

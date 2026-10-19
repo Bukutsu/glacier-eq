@@ -25,6 +25,7 @@ mod profiles;
 mod settings;
 mod state;
 mod udev;
+mod updater;
 
 use tauri::Manager;
 
@@ -455,6 +456,12 @@ pub fn run() {
         .plugin(tauri_plugin_material_you::init())
         .plugin(tauri_plugin_clipboard_manager::init());
 
+    // Registered only on builds that can replace themselves; see updater.rs.
+    #[cfg(not(mobile))]
+    if updater::support().supported {
+        builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
+    }
+
     #[cfg(not(mobile))]
     {
         builder = builder.plugin(
@@ -521,6 +528,8 @@ pub fn run() {
             udev::get_udev_status,
             udev::install_udev_rules,
             udev::uninstall_udev_rules,
+            updater::get_update_support,
+            updater::restart_app,
             open_text_file_dialog,
             save_text_file_dialog,
             read_text_file,
