@@ -36,17 +36,29 @@ const withSyntheticDefault = (raw: Profile[]): Profile[] => [
   ...raw,
 ];
 
+/**
+ * Matches the editor's profile name against a freshly loaded library.
+ * `previous` is the library before this load: a name that was never in it
+ * (a generated, imported, recovered or DAC-read EQ) is not a lost profile,
+ * so it keeps its name instead of turning into "Default EQ".
+ */
 export function reconcileProfileSelection(
   profiles: Profile[],
   selected: string,
+  previous: Profile[],
 ): { name: string; missing: boolean } {
+  const key = profileIdentityKey(selected);
   const match = profiles.find(
-    (profile) =>
-      profileIdentityKey(profile.name) === profileIdentityKey(selected),
+    (profile) => profileIdentityKey(profile.name) === key,
   );
+  if (match) return { name: match.name, missing: false };
+  const wasSaved = previous.some(
+    (profile) => profileIdentityKey(profile.name) === key,
+  );
+  if (!wasSaved) return { name: selected, missing: false };
   return {
-    name: match?.name ?? DEFAULT_PROFILE_NAME,
-    missing: !match && selected !== DEFAULT_PROFILE_NAME,
+    name: DEFAULT_PROFILE_NAME,
+    missing: selected !== DEFAULT_PROFILE_NAME,
   };
 }
 
@@ -56,6 +68,8 @@ export function reconcileProfileSelection(
  */
 export function useProfiles(editor: ProfilesEditor, setStatus: StatusReporter) {
   const [profiles, setProfiles] = useState<Profile[]>([]);
+  const profilesRef = useRef(profiles);
+  profilesRef.current = profiles;
   const [selectedPreset, setSelectedPreset] = useState(DEFAULT_PROFILE_NAME);
   const selectedPresetRef = useRef(selectedPreset);
   selectedPresetRef.current = selectedPreset;
@@ -100,6 +114,9 @@ export function useProfiles(editor: ProfilesEditor, setStatus: StatusReporter) {
         capabilities,
       });
       editor.setPeq(data);
+      // Set now, not on the next render, so "Use on DAC" can save this EQ
+      // straight after loading it.
+      editor.peqRef.current = data;
       setSelectedPreset(profile.name);
       setProfileSearch("");
       setNewProfileName("");
@@ -143,11 +160,14 @@ export function useProfiles(editor: ProfilesEditor, setStatus: StatusReporter) {
         const loadedProfiles = await invoke<Profile[]>("list_profiles");
         if (generation !== profileLoadGenerationRef.current) return [];
         const nextProfiles = withSyntheticDefault(loadedProfiles);
+        const previousProfiles = profilesRef.current;
+        profilesRef.current = nextProfiles;
         setProfiles(nextProfiles);
         if (!options?.preserveSelection) {
           const reconciliation = reconcileProfileSelection(
             nextProfiles,
             selectedPresetRef.current,
+            previousProfiles,
           );
           if (reconciliation.name !== selectedPresetRef.current) {
             selectedPresetRef.current = reconciliation.name;

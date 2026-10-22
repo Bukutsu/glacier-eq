@@ -81,6 +81,8 @@ interface HeaderProps {
   profile: string;
   profileDirty: boolean;
   profileSaved?: boolean;
+  /** A saved profile or Default EQ changed in the editor. */
+  profileEdited?: boolean;
   deviceMatchesEditor: boolean | null;
   hardwareEq: boolean;
   canUndo: boolean;
@@ -110,6 +112,7 @@ export const Header = memo(function Header({
   profile,
   profileDirty,
   profileSaved = false,
+  profileEdited = false,
   deviceMatchesEditor,
   hardwareEq,
   canUndo,
@@ -218,6 +221,9 @@ export const Header = memo(function Header({
         <div className="title-stack">
           <div className="title-line">
             <h1>{pageTitle}</h1>
+            {mobile && !isConfigPage && profileEdited && (
+              <span className="title-edited">{t("header.edited")}</span>
+            )}
           </div>
           {/* One status line: DAC, sync state, and the profile. Device and
               Settings show status in their own content and the sidebar. */}

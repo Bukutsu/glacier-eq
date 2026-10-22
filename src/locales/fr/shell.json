@@ -46,7 +46,8 @@
     "save": "Enregistrer sur le DAC",
     "noHardwareNote": "Ce DAC n’a pas d’égaliseur matériel ; les actions de lecture et d’écriture d’égalisation sont donc indisponibles. Vous pouvez toujours modifier et exporter l’égalisation pour un égaliseur système.",
     "operationProgress": "Opération en cours sur l’appareil",
-    "progress": "{{message}} · {{percentage}}%"
+    "progress": "{{message}} · {{percentage}}%",
+    "edited": "Modifié"
   },
   "actions": {
     "undo": "Annuler",
@@ -80,7 +81,8 @@
     "hideResponse": "Masquer le graphique de réponse en fréquence",
     "show": "Afficher le graphique",
     "hide": "Masquer le graphique",
-    "scroll": "Aller au graphique de réponse en fréquence"
+    "scroll": "Aller au graphique de réponse en fréquence",
+    "legend": "Légende des courbes"
   },
   "feedback": {
     "preferenceNotSaved": "Ce navigateur n’a pas pu enregistrer la préférence ; elle risque de ne pas être conservée après un redémarrage.",
@@ -139,5 +141,8 @@
     "settings": {
       "label": "Paramètres"
     }
+  },
+  "compare": {
+    "failed": "Échec de la bascule A/B : {{error}}"
   }
 }

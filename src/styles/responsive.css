@@ -273,31 +273,6 @@
     pointer-events: auto;
     gap: 8px;
   }
-  .mobile-legend-toggle {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    width: 44px;
-    height: 44px;
-    border-radius: var(--radius-control);
-    background: var(--surface-soft);
-    border: 1px solid var(--line-outline);
-    color: var(--text);
-    cursor: pointer;
-    z-index: var(--z-sticky);
-    transition: background-color var(--motion-duration) var(--motion-ease), color var(--motion-duration) var(--motion-ease), border-color var(--motion-duration) var(--motion-ease);
-  }
-  .mobile-legend-toggle:active {
-    background: var(--surface);
-  }
-  .mobile-legend-toggle.active {
-    background: var(--primary);
-    color: var(--primary-foreground);
-    border-color: var(--ring);
-  }
   .graph-legend-item {
     min-height: 22px;
     max-width: 100%;
@@ -904,6 +879,10 @@
     display: flex;
     flex-direction: column;
   }
+  /* Room for the save bar that sits above the tab bar. */
+  .workspace.mobile-workspace.has-save-bar {
+    padding-bottom: calc(var(--tabbar-h, 56px) + var(--safe-area-bottom, 0px) + 76px) !important;
+  }
 
   .mobile-content-area {
     display: flex;
@@ -954,8 +933,7 @@
   .mobile-graph-preview .eq-canvas {
     min-height: 100%;
   }
-  .mobile-graph-preview .graph-legend,
-  .mobile-graph-preview .mobile-legend-toggle {
+  .mobile-graph-preview .graph-legend {
     display: none !important;
   }
 
@@ -1087,30 +1065,6 @@
     color: var(--text);
     font-size: var(--type-label);
   }
-  .band-more-settings {
-    border-top: 1px solid var(--line-soft);
-    color: var(--text);
-    font-size: var(--type-label);
-    padding-top: var(--space-1);
-  }
-  .band-more-settings summary {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-2);
-    min-height: 44px;
-    cursor: pointer;
-    list-style: none;
-  }
-  .band-more-settings summary::-webkit-details-marker {
-    display: none;
-  }
-  .band-more-settings[open] > summary .app-icon {
-    transform: rotate(180deg);
-  }
-  .band-more-settings .band-field + .band-field {
-    margin-top: var(--space-3);
-  }
   .band-settings-help {
     margin: 0 0 var(--space-3);
     color: var(--muted);
@@ -1220,6 +1174,9 @@ body.is-android *,
   .workspace.mobile-workspace {
     padding-top: 4px !important;
     padding-bottom: calc(56px + var(--safe-area-bottom, 0px) + 16px) !important;
+  }
+  .workspace.mobile-workspace.has-save-bar {
+    padding-bottom: calc(56px + var(--safe-area-bottom, 0px) + 76px) !important;
   }
 }
 

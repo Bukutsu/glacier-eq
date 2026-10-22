@@ -57,7 +57,8 @@
     "namePlaceholder": "p. ex. Écoute du soir",
     "saveHelp": "Enregistre l’égalisation actuelle de l’éditeur dans votre bibliothèque. Rien n’est écrit sur votre DAC.",
     "renameHelp": "Modifie le nom enregistré, pas l’égalisation de votre éditeur.",
-    "eqPreview": "Aperçu de l’égalisation"
+    "eqPreview": "Aperçu de l’égalisation",
+    "useOnDac": "Utiliser sur le DAC"
   },
   "profilesView": {
     "overwriteProfile": "Écraser le profil",

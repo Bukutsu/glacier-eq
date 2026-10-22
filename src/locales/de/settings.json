@@ -158,6 +158,7 @@
     "title": "Software-Updates",
     "notes": "Neuerungen",
     "privacy": "Glacier EQ prüft GitHub-Releases einmal beim Start. Downloads werden vor der Installation mit dem Signaturschlüssel von Glacier EQ überprüft.",
-    "availableToast": "Glacier EQ {{version}} ist verfügbar. Öffne Einstellungen > Über, um zu aktualisieren."
+    "availableToast": "Glacier EQ {{version}} ist verfügbar. Öffne Einstellungen > Über, um zu aktualisieren.",
+    "getLatestApk": "Neueste APK laden"
   }
 }

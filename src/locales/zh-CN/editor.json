@@ -22,7 +22,9 @@
     "saveFailed": "无法保存未完成的 EQ 以供恢复。关闭应用前请保存为配置。",
     "replaceConfirmation": "恢复草稿将替换编辑器中的当前更改。不会向 DAC 写入任何内容。",
     "confirmRestore": "恢复",
-    "recovered": "已恢复的 EQ"
+    "recovered": "已恢复的 EQ",
+    "restoredNotice": "已恢复未完成的 EQ。没有写入 DAC。",
+    "keep": "保留"
   },
   "preamp": {
     "title": "前级增益",
@@ -56,16 +58,13 @@
     "addFilter": "添加滤波器",
     "empty": "尚无频段。EQ 为平直响应。",
     "addBand": "添加频段",
-    "addUnavailable": "添加滤波器（所有频段均已使用）",
-    "allUsed": "所有滤波频段均已使用",
     "add": "添加",
     "reset": "重置",
     "filter": "滤波器",
+    "typeLabel": "频段 {{number}} 的滤波器类型",
     "bandwidth": "Q / 带宽",
-    "qHelp": "Q 值越低，调整范围越宽。",
     "frequency": "频率",
     "gain": "增益",
-    "more": "更多频段设置",
     "types": {
       "Peak": "钟形",
       "HighShelf": "高架",
@@ -87,7 +86,6 @@
   },
   "graph": {
     "description": "均衡器频率响应图，显示实时参数滤波曲线、测量曲线与目标曲线",
-    "toggleLegend": "切换图例",
     "lastWritten": "上次写入",
     "eqCurve": "EQ 曲线",
     "lastWrittenMeasurement": "上次写入 + {{name}}",

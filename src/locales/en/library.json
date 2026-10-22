@@ -54,7 +54,8 @@
     "namePlaceholder": "e.g. Evening listening",
     "saveHelp": "Saves the current editor EQ to your library. Nothing is written to your DAC.",
     "renameHelp": "Changes the saved name, not the EQ in your editor.",
-    "eqPreview": "EQ preview"
+    "eqPreview": "EQ preview",
+    "useOnDac": "Use on DAC"
   },
   "profilesView": {
     "overwriteProfile": "Overwrite profile",

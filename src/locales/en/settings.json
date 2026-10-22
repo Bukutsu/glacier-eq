@@ -158,6 +158,7 @@
     "title": "Software updates",
     "notes": "What's new",
     "privacy": "Glacier EQ checks GitHub releases once at launch. Downloads are verified against Glacier EQ's signing key before they install.",
-    "availableToast": "Glacier EQ {{version}} is available. Open Settings > About to update."
+    "availableToast": "Glacier EQ {{version}} is available. Open Settings > About to update.",
+    "getLatestApk": "Get latest APK"
   }
 }

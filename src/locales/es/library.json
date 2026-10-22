@@ -57,7 +57,8 @@
     "eqPreview": "Vista previa de EQ",
     "activeBands_many": "{{count}} bandas activas · preamplificación {{preamp}}",
     "savedCount_many": "{{count}} perfiles guardados",
-    "bandSummary_many": "{{count}} bandas · preamplificación {{preamp}}"
+    "bandSummary_many": "{{count}} bandas · preamplificación {{preamp}}",
+    "useOnDac": "Usar en el DAC"
   },
   "profilesView": {
     "overwriteProfile": "Sobrescribir perfil",

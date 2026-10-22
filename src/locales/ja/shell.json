@@ -46,7 +46,8 @@
     "save": "DACに保存",
     "noHardwareNote": "このDACにはハードウェアEQがないため、EQの読み込みと書き込みはできません。EQの編集や、システムのイコライザー用のエクスポートは可能です。",
     "operationProgress": "デバイス操作中",
-    "progress": "{{message}} · {{percentage}}%"
+    "progress": "{{message}} · {{percentage}}%",
+    "edited": "編集済み"
   },
   "actions": {
     "undo": "元に戻す",
@@ -80,7 +81,8 @@
     "hideResponse": "周波数特性グラフを非表示",
     "show": "グラフを表示",
     "hide": "グラフを非表示",
-    "scroll": "周波数特性グラフまでスクロール"
+    "scroll": "周波数特性グラフまでスクロール",
+    "legend": "曲線の凡例"
   },
   "feedback": {
     "preferenceNotSaved": "このブラウザーでは設定を保存できませんでした。再起動後に維持されない可能性があります。",
@@ -139,5 +141,8 @@
     "settings": {
       "label": "設定"
     }
+  },
+  "compare": {
+    "failed": "A/B の切り替えに失敗しました: {{error}}"
   }
 }

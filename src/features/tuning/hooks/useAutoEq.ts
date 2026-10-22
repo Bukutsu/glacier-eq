@@ -160,7 +160,10 @@ export function useAutoEq({
       if (onSelectTargetOnly) onSelectTargetOnly(active.id);
       else setLocalTargetId(active.id);
     } else if (allTargets.length > 0) {
-      setLocalTargetId(allTargets[0].id);
+      // The dropdown shows a target even when none is on the graph. Draw it
+      // too: a result cannot be judged without the curve it aimed for.
+      if (onSelectTargetOnly) onSelectTargetOnly(allTargets[0].id);
+      else setLocalTargetId(allTargets[0].id);
     } else {
       setLocalTargetId("");
     }

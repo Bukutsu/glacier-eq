@@ -38,6 +38,13 @@ export function formatFreq(freq: number): string {
   return freq >= 1000 ? `${freq / 1000}k` : `${freq}`;
 }
 
+/** A short label for narrow chips: 4379 → "4.4k", 12500 → "13k". */
+export function formatFreqShort(freq: number): string {
+  if (freq < 1000) return String(Math.round(freq));
+  if (freq < 10000) return `${Number((freq / 1000).toFixed(1))}k`;
+  return `${Math.round(freq / 1000)}k`;
+}
+
 let cachedWidth = -1;
 let cachedFreqGrid: Float32Array | null = null;
 

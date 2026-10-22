@@ -394,5 +394,10 @@
     "savingRestarting": "EQ wird auf DAC gespeichert (Neustart erwartet)…",
     "readingBand": "Band {{index}}/{{total}} wird gelesen…",
     "writingBand": "Band {{index}}/{{total}} wird geschrieben…"
+  },
+  "compareHold": {
+    "hold": "Gedrückt halten, um ohne EQ zu hören",
+    "off": "EQ aus",
+    "label": "A/B"
   }
 }

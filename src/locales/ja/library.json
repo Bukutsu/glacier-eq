@@ -51,7 +51,8 @@
     "namePlaceholder": "例: 夜のリスニング",
     "saveHelp": "エディターの現在のEQをライブラリに保存します。DACには何も書き込みません。",
     "renameHelp": "保存済みの名前を変更します。エディターのEQは変わりません。",
-    "eqPreview": "EQプレビュー"
+    "eqPreview": "EQプレビュー",
+    "useOnDac": "DAC で使う"
   },
   "profilesView": {
     "overwriteProfile": "プロファイルを上書き",

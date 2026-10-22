@@ -51,7 +51,8 @@
     "namePlaceholder": "เช่น ฟังเพลงยามเย็น",
     "saveHelp": "บันทึก EQ ปัจจุบันในตัวแก้ไขลงคลัง จะไม่มีการเขียนข้อมูลลง DAC",
     "renameHelp": "เปลี่ยนชื่อที่บันทึกไว้ ไม่เปลี่ยน EQ ในตัวแก้ไข",
-    "eqPreview": "ตัวอย่าง EQ"
+    "eqPreview": "ตัวอย่าง EQ",
+    "useOnDac": "ใช้กับ DAC"
   },
   "profilesView": {
     "overwriteProfile": "เขียนทับโปรไฟล์",

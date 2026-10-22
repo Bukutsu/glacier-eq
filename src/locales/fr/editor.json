@@ -22,7 +22,9 @@
     "saveFailed": "Impossible d’enregistrer l’égalisation inachevée pour sa récupération. Enregistrez un profil avant de fermer l’application.",
     "replaceConfirmation": "La restauration du brouillon remplacera vos modifications actuelles dans l’éditeur. Rien ne sera écrit sur un DAC.",
     "confirmRestore": "Restaurer",
-    "recovered": "Égalisation récupérée"
+    "recovered": "Égalisation récupérée",
+    "restoredNotice": "Votre EQ inachevé a été restauré. Rien n’a été écrit sur le DAC.",
+    "keep": "Conserver"
   },
   "preamp": {
     "title": "Préampli",
@@ -58,16 +60,13 @@
     "addFilter": "Ajouter un filtre",
     "empty": "Aucune bande pour le moment. L’égalisation est plate.",
     "addBand": "Ajouter une bande",
-    "addUnavailable": "Ajouter un filtre (toutes les bandes sont utilisées)",
-    "allUsed": "Toutes les bandes de filtrage sont utilisées",
     "add": "Ajouter",
     "reset": "Réinitialiser",
     "filter": "Filtre",
+    "typeLabel": "Type de filtre de la bande {{number}}",
     "bandwidth": "Q / largeur de bande",
-    "qHelp": "Un Q plus faible élargit la correction.",
     "frequency": "Fréquence",
     "gain": "Gain",
-    "more": "Autres paramètres de bande",
     "types": {
       "Peak": "Cloche",
       "HighShelf": "Plateau aigu",
@@ -91,7 +90,6 @@
   },
   "graph": {
     "description": "Graphique de réponse en fréquence de l’égaliseur affichant en direct les courbes des filtres paramétriques, les mesures et les cibles",
-    "toggleLegend": "Afficher ou masquer la légende",
     "lastWritten": "Dernière écriture",
     "eqCurve": "Courbe d’égalisation",
     "lastWrittenMeasurement": "Dernière écriture + {{name}}",

@@ -11,6 +11,10 @@ import {
   useAppUpdate,
   type UpdateState,
 } from "@/features/settings/hooks/useAppUpdate";
+import { openExternalLink } from "@/lib/externalLinks";
+
+const LATEST_RELEASE_URL =
+  "https://github.com/Bukutsu/glacier-eq/releases/latest";
 
 const currentVersion = () =>
   typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "";
@@ -69,7 +73,9 @@ export function UpdateCard({
   const { t } = useTranslation("settings");
   if (state.phase === "unknown") return null;
 
-  const unsupported = state.phase === "unsupported";
+  // Android cannot replace itself, but the newest APK is one tap away.
+  const apkLink = state.phase === "unsupported" && state.reason === "mobile";
+  const unsupported = state.phase === "unsupported" && !apkLink;
   const busy =
     state.phase === "checking" ||
     state.phase === "downloading" ||
@@ -90,12 +96,19 @@ export function UpdateCard({
           : state.reason === "mobile"
             ? t("updates.unsupported.mobile")
             : t("updates.unsupported.unpackaged");
-      action = {
-        label: t("updates.check"),
-        icon: "refresh",
-        primary: false,
-        run: () => {},
-      };
+      action = apkLink
+        ? {
+            label: t("updates.getLatestApk"),
+            icon: "open_in_new",
+            primary: false,
+            run: () => void openExternalLink(LATEST_RELEASE_URL),
+          }
+        : {
+            label: t("updates.check"),
+            icon: "refresh",
+            primary: false,
+            run: () => {},
+          };
       break;
     case "checking":
       description = t("updates.checking");
@@ -244,7 +257,9 @@ export function UpdateCard({
           </details>
         )}
       </div>
-      {!unsupported && <p className="card-note">{t("updates.privacy")}</p>}
+      {state.phase !== "unsupported" && (
+        <p className="card-note">{t("updates.privacy")}</p>
+      )}
     </>
   );
 }

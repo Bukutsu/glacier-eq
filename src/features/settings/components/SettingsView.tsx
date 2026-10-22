@@ -382,7 +382,9 @@ export const SettingsView = memo(function SettingsView({
         />
       )}
 
-      <p className="configuration-description">{t("savedAutomatically")}</p>
+      {(activeSection === "general" || activeSection === "appearance") && (
+        <p className="configuration-description">{t("savedAutomatically")}</p>
+      )}
       <div className="stack-content">
         {activeSection === "general" && (
           <div className="stack-card">

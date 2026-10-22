@@ -46,7 +46,8 @@
     "save": "Guardar en el DAC",
     "noHardwareNote": "Este DAC no tiene EQ por hardware, por lo que las acciones de lectura y escritura de EQ no están disponibles. Puedes seguir editando y exportando la EQ para un ecualizador del sistema.",
     "operationProgress": "Operación del dispositivo en curso",
-    "progress": "{{message}} · {{percentage}}%"
+    "progress": "{{message}} · {{percentage}}%",
+    "edited": "Editado"
   },
   "actions": {
     "undo": "Deshacer",
@@ -80,7 +81,8 @@
     "hideResponse": "Ocultar gráfico de respuesta en frecuencia",
     "show": "Mostrar gráfico",
     "hide": "Ocultar gráfico",
-    "scroll": "Ir al gráfico de respuesta en frecuencia"
+    "scroll": "Ir al gráfico de respuesta en frecuencia",
+    "legend": "Leyenda de curvas"
   },
   "feedback": {
     "preferenceNotSaved": "Este navegador no ha podido guardar la preferencia; puede que no se conserve tras reiniciar.",
@@ -139,5 +141,8 @@
     "settings": {
       "label": "Ajustes"
     }
+  },
+  "compare": {
+    "failed": "No se pudo cambiar A/B: {{error}}"
   }
 }

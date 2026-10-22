@@ -36,7 +36,8 @@ export function createScanDevices(context: ScanDevicesContext) {
     setStatus,
     invoke,
   } = context;
-  return async (blockEditor = true) => {
+  /** Resolves to the devices found, or an empty list when the scan fails. */
+  return async (blockEditor = true): Promise<DeviceInfo[]> => {
     if (blockEditor) setIsBusy(true);
     reportStatus({
       level: "Info",
@@ -77,6 +78,7 @@ export function createScanDevices(context: ScanDevicesContext) {
           ? i18n.t("device:scanDevices.foundDevices", { count: list.length })
           : i18n.t("device:scanDevices.noCompatibleDacsFound"),
       });
+      return list;
     } catch (error) {
       if (includeSimulated && !connectedRef.current) {
         setDevices([devPreviewDeviceRef.current]);
@@ -87,9 +89,10 @@ export function createScanDevices(context: ScanDevicesContext) {
             error: error,
           }),
         });
-        return;
+        return [devPreviewDeviceRef.current];
       }
       setStatus(i18n.t("device:scanDevices.scanFailed", { error: error }));
+      return [];
     } finally {
       if (blockEditor) setIsBusy(false);
     }

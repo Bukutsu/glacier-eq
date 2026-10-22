@@ -22,7 +22,9 @@
     "saveFailed": "Could not save the unfinished EQ for recovery. Save a profile before closing the app.",
     "replaceConfirmation": "Restoring the draft will replace your current editor changes. Nothing will be written to a DAC.",
     "confirmRestore": "Restore",
-    "recovered": "Recovered EQ"
+    "recovered": "Recovered EQ",
+    "restoredNotice": "Restored your unfinished EQ. Nothing was written to your DAC.",
+    "keep": "Keep"
   },
   "preamp": {
     "title": "Preamp",
@@ -57,16 +59,13 @@
     "addFilter": "Add filter",
     "empty": "No bands yet. The EQ is flat.",
     "addBand": "Add band",
-    "addUnavailable": "Add filter (all bands in use)",
-    "allUsed": "All filter bands are in use",
     "add": "Add",
     "reset": "Reset",
     "filter": "Filter",
+    "typeLabel": "Band {{number}} filter type",
     "bandwidth": "Q / bandwidth",
-    "qHelp": "Lower Q makes the adjustment wider.",
     "frequency": "Frequency",
     "gain": "Gain",
-    "more": "More band settings",
     "types": {
       "Peak": "Bell",
       "HighShelf": "High shelf",
@@ -89,7 +88,6 @@
   },
   "graph": {
     "description": "Equalizer frequency response graph displaying live parametric filter curves, measurements, and targets",
-    "toggleLegend": "Toggle legend",
     "lastWritten": "Last written",
     "eqCurve": "EQ curve",
     "lastWrittenMeasurement": "Last written + {{name}}",

@@ -46,7 +46,8 @@
     "save": "Save to DAC",
     "noHardwareNote": "This DAC has no hardware EQ, so EQ Read/Write actions are unavailable. You can still edit and export EQ for a system equalizer.",
     "operationProgress": "Device operation in progress",
-    "progress": "{{message}} · {{percentage}}%"
+    "progress": "{{message}} · {{percentage}}%",
+    "edited": "Edited"
   },
   "actions": {
     "undo": "Undo",
@@ -80,7 +81,8 @@
     "hideResponse": "Hide frequency response graph",
     "show": "Show graph",
     "hide": "Hide graph",
-    "scroll": "Scroll to frequency response graph"
+    "scroll": "Scroll to frequency response graph",
+    "legend": "Curve legend"
   },
   "feedback": {
     "preferenceNotSaved": "This browser could not save the preference; it may not persist after restart.",
@@ -139,5 +141,8 @@
     "settings": {
       "label": "Settings"
     }
+  },
+  "compare": {
+    "failed": "A/B switch failed: {{error}}"
   }
 }

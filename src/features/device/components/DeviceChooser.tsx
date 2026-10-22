@@ -10,7 +10,7 @@ import type { DeviceInfo, SupportedDeviceInfo } from "@/types";
 
 interface DeviceChooserProps {
   devices: DeviceInfo[];
-  onScan: () => void | Promise<void>;
+  onScan: () => Promise<DeviceInfo[]>;
   onConnect: (
     targetPath?: string,
     target?: DeviceInfo,
@@ -61,7 +61,12 @@ export function DeviceChooser({
     setAuthorizationError(null);
     try {
       if (!isTauri()) await requestWebHidDevice();
-      await onScan();
+      const found = (await onScan()).filter(
+        (device) => !isDevDummyDevice(device.path),
+      );
+      // One DAC and nothing to choose: connect it, saving a second tap.
+      if (!connected && found.length === 1)
+        await onConnect(found[0].path, found[0]);
     } catch (err) {
       const cancelled = (err as { name?: string })?.name === "AbortError";
       if (cancelled) {

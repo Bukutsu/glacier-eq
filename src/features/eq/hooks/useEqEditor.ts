@@ -141,9 +141,10 @@ export function useEqEditor(
     runProfileMutation,
   } = useProfiles(profilesEditor, setStatus);
 
-  const restoreDraft = async () => {
+  /** Resolves true when the draft is now in the editor. */
+  const restoreDraft = async (): Promise<boolean> => {
     if (!pendingDraft || connected || isBusy || eqOperationInFlightRef.current)
-      return;
+      return false;
     const context = getAsyncContext();
     if (
       dirty &&
@@ -153,13 +154,13 @@ export function useEqEditor(
         confirmLabel: i18n.t("editor:draft.confirmRestore"),
       }))
     )
-      return;
+      return false;
     if (
       !asyncContextEquals(context, getAsyncContext()) ||
       connectedRef.current ||
       eqOperationInFlightRef.current
     )
-      return;
+      return false;
     const name =
       pendingDraft.name && pendingDraft.name !== DEFAULT_PROFILE_NAME
         ? pendingDraft.name
@@ -177,6 +178,19 @@ export function useEqEditor(
     noteEditorMutation();
     setDirty(true);
     resolveDraft();
+    return true;
+  };
+
+  /** Drops a restored draft: the editor goes back to a fresh Default EQ. */
+  const discardRestoredDraft = () => {
+    if (isBusy || eqOperationInFlightRef.current) return;
+    pushToUndoStack(peqRef.current);
+    const fresh = buildDefaultState();
+    setPeq(fresh);
+    noteEditorMutation();
+    setSelectedPreset(DEFAULT_PROFILE_NAME);
+    setNewProfileName("");
+    setDirty(!peqEquals(fresh, editorCleanPeqRef.current));
   };
 
   selectedPresetRef.current = selectedPreset;
@@ -432,6 +446,7 @@ export function useEqEditor(
     importPeq,
     runProfileMutation,
     restoreDraft,
+    discardRestoredDraft,
     undo,
     redo,
     getAsyncContext,

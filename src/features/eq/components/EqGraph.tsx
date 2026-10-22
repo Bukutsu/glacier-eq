@@ -6,7 +6,6 @@ import {
   useMemo,
   useRef,
   Fragment,
-  useState,
   type CSSProperties,
   type KeyboardEvent,
   type PointerEvent,
@@ -40,7 +39,6 @@ import type {
   PEQData,
   TargetTrace,
 } from "@/types";
-import { Icon } from "@/components/ui/Icon";
 
 /** CSSProperties has no index signature, so a custom property cannot typecheck
  * without a cast. Naming the shape once keeps that out of every call site. */
@@ -62,6 +60,28 @@ function clampHandlePosition(percent: number): string {
   // eslint-disable-next-line i18next/no-literal-string -- CSS expression, not UI text.
   return `clamp(14px, ${percent}%, calc(100% - 14px))`;
 }
+
+/** Which single-band response curves to draw under the combined EQ. */
+export type BandCurves = "all" | "active" | "none";
+
+type FilterDot = { index: number; x: number; y: number };
+
+/** A legend with only the EQ curve explains nothing. */
+export function graphHasLegend(
+  peq: PEQData,
+  committedPeq: PEQData | null | undefined,
+  measurements: MeasurementTrace[],
+  targets: TargetTrace[],
+): boolean {
+  return (
+    targets.length > 0 ||
+    measurements.some((trace) => trace.visible) ||
+    (!!committedPeq && !peqEquals(committedPeq, peq))
+  );
+}
+
+// A finger covers about 9 mm; accept taps that land near, not only on, a dot.
+const DOT_TAP_RADIUS = 24;
 
 const DEFAULT_MOTION_MS = 160;
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
@@ -96,6 +116,9 @@ export const EqGraph = memo(function EqGraph({
   onStartChange,
   onFilterChange,
   snapToIso,
+  bandCurves = "all",
+  onBandTap,
+  legendOpen,
 }: {
   peq: PEQData;
   committedPeq?: PEQData | null;
@@ -110,8 +133,14 @@ export const EqGraph = memo(function EqGraph({
   onStartChange?: () => void;
   onFilterChange?: (index: number, filter: Filter) => void;
   snapToIso?: boolean;
+  bandCurves?: BandCurves;
+  /** Selects the band whose drawn dot is nearest a tap (display-only graphs). */
+  onBandTap?: (index: number) => void;
+  /** Opens the compact mobile legend; its toggle lives in the graph toolbar. */
+  legendOpen?: boolean;
 }) {
-  const [showMobileLegend, setShowMobileLegend] = useState(false);
+  const showMobileLegend = legendOpen ?? false;
+  const dotsRef = useRef<FilterDot[]>([]);
   const { t } = useTranslation("editor");
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const shellRef = useRef<HTMLDivElement>(null);
@@ -141,11 +170,7 @@ export const EqGraph = memo(function EqGraph({
     () => measurements.filter((trace) => trace.visible),
     [measurements],
   );
-  // A legend with only the EQ curve explains nothing.
-  const hasLegend =
-    targets.length > 0 ||
-    visibleMeasurements.length > 0 ||
-    (!!committedPeq && !peqEquals(committedPeq, peq));
+  const hasLegend = graphHasLegend(peq, committedPeq, measurements, targets);
   const selectedMeasurement = useMemo(() => {
     if (selectedMeasurementId) {
       return (
@@ -181,7 +206,7 @@ export const EqGraph = memo(function EqGraph({
       drawBackground(ctx, width, height);
       drawGrid(ctx, width, height);
       const drawSerial = ++drawSerialRef.current;
-      await drawCurves(
+      const dots = await drawCurves(
         ctx,
         width,
         height,
@@ -194,10 +219,16 @@ export const EqGraph = memo(function EqGraph({
         editable,
         capabilities?.dsp_sample_rate ?? 96000,
         capabilities?.response_model ?? "CanonicalQ",
+        bandCurves,
+        activeBandIndex ?? null,
         () => drawSerial === drawSerialRef.current,
       );
-      // Labels go on top so the curve never runs through them.
-      if (drawSerial === drawSerialRef.current) drawDbLabels(ctx, height);
+      if (drawSerial !== drawSerialRef.current) return;
+      // Labels go over the curves so a curve never runs through them, and
+      // band dots go over the labels so a label never hides a band.
+      drawDbLabels(ctx, height);
+      paintFilterDots(ctx, dots, activeBandIndex ?? null);
+      dotsRef.current = dots;
     },
     [
       peq,
@@ -211,8 +242,27 @@ export const EqGraph = memo(function EqGraph({
       editable,
       capabilities?.dsp_sample_rate,
       capabilities?.response_model,
+      bandCurves,
+      activeBandIndex,
     ],
   );
+
+  const handleCanvasClick = (event: { clientX: number; clientY: number }) => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!onBandTap || !rect) return;
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    let nearest: FilterDot | null = null;
+    let nearestDistance = DOT_TAP_RADIUS;
+    for (const dot of dotsRef.current) {
+      const distance = Math.hypot(dot.x - x, dot.y - y);
+      if (distance <= nearestDistance) {
+        nearest = dot;
+        nearestDistance = distance;
+      }
+    }
+    if (nearest) onBandTap(nearest.index);
+  };
 
   const displayPeqRef = useRef(peq);
   const targetPeqRef = useRef(peq);
@@ -540,7 +590,12 @@ export const EqGraph = memo(function EqGraph({
 
   return (
     <div className={`eq-graph-layout${showMobileLegend ? " legend-open" : ""}`}>
-      <div className="eq-graph-shell" ref={shellRef}>
+      {/* The canvas ignores pointers, so taps land on its shell. */}
+      <div
+        className="eq-graph-shell"
+        ref={shellRef}
+        onClick={onBandTap ? handleCanvasClick : undefined}
+      >
         <canvas
           className="eq-canvas"
           ref={canvasRef}
@@ -616,18 +671,6 @@ export const EqGraph = memo(function EqGraph({
               </button>
             );
           })}
-        {hasLegend && (
-          <button
-            type="button"
-            className={`mobile-legend-toggle ${showMobileLegend ? "active" : ""}`}
-            onClick={() => setShowMobileLegend(!showMobileLegend)}
-            title={t("graph.toggleLegend")}
-            aria-label={t("graph.toggleLegend")}
-            aria-expanded={showMobileLegend}
-          >
-            <Icon name={showMobileLegend ? "close" : "legend_toggle"} />
-          </button>
-        )}
       </div>
       {hasLegend && (
         <div
@@ -852,8 +895,10 @@ async function drawCurves(
   interactiveHandles: boolean,
   dspSampleRate: number,
   responseModel: ResponseModel,
+  bandCurves: BandCurves,
+  activeBandIndex: number | null,
   isCurrent: () => boolean,
-) {
+): Promise<FilterDot[]> {
   const freqs = getFreqGrid(width);
   const offset = await shapeOffset(peq, viewMode, dspSampleRate, responseModel);
   const combinedResponse = await peqResponseAndBandValues(
@@ -873,16 +918,21 @@ async function drawCurves(
     const start = (index + 1) * freqs.length;
     return combinedResponse.subarray(start, start + freqs.length);
   });
-  if (!isCurrent()) return;
+  if (!isCurrent()) return [];
 
   bandResponses.forEach((response, i) => {
-    const [, rgbToken, fallback] = filterColorVars(enabledFilters[i].index);
+    const index = enabledFilters[i].index;
+    if (bandCurves === "none") return;
+    if (bandCurves === "active" && index !== activeBandIndex) return;
+    const [, rgbToken, fallback] = filterColorVars(index);
+    // A lone band curve is the one being edited, so it can be stronger.
+    const alpha = bandCurves === "active" ? 0.6 : 0.22;
     drawResponse(
       ctx,
       height,
       response,
-      rgbWithAlpha(rgbToken, 0.22, fallback),
-      1,
+      rgbWithAlpha(rgbToken, alpha, fallback),
+      bandCurves === "active" ? 1.5 : 1,
     );
   });
 
@@ -923,12 +973,11 @@ async function drawCurves(
       responseModel,
       isCurrent,
     );
-    if (!isCurrent()) return;
-    if (!interactiveHandles) drawFilterDots(ctx, width, height, peq);
-    return;
+    if (!isCurrent() || interactiveHandles) return [];
+    return filterDotPositions(width, height, peq);
   }
 
-  if (!isCurrent()) return;
+  if (!isCurrent()) return [];
   measurements.forEach((trace) => {
     // eqResponse already carries the shape offset from responseValues.
     drawResponse(
@@ -951,18 +1000,16 @@ async function drawCurves(
     responseModel,
     isCurrent,
   );
-  if (!interactiveHandles)
-    await drawFilterDotsWithMeasurement(
-      ctx,
-      width,
-      height,
-      peq,
-      selectedMeasurement,
-      viewMode,
-      dspSampleRate,
-      responseModel,
-      isCurrent,
-    );
+  if (interactiveHandles) return [];
+  return filterDotPositionsWithMeasurement(
+    width,
+    height,
+    peq,
+    selectedMeasurement,
+    viewMode,
+    dspSampleRate,
+    responseModel,
+  );
 }
 
 async function drawCommittedPreview(
@@ -1160,45 +1207,65 @@ function drawResponse(
   ctx.setLineDash([]);
 }
 
-function drawFilterDots(
-  ctx: CanvasRenderingContext2D,
+function filterDotPositions(
   width: number,
   height: number,
   peq: PEQData,
   dotValues?: number[],
+): FilterDot[] {
+  return peq.filters
+    .filter((filter) => filter.enabled)
+    .map((filter, index) => ({
+      index: filter.index,
+      x: freqToX(filter.freq, width),
+      y: dbToY(dotValues?.[index] ?? filter.gain, height),
+    }));
+}
+
+function paintFilterDots(
+  ctx: CanvasRenderingContext2D,
+  dots: FilterDot[],
+  activeBandIndex: number | null,
 ) {
   const text = cssVar("--on-accent", "#11111b");
   const stroke = cssVar("--panel", "#16161e");
-  const activeBands = peq.filters.filter((filter) => filter.enabled);
+  const ring = cssVar("--foreground", "#c0caf5");
+  // Paint the selected band last so a neighbour never covers it.
+  const ordered = [...dots].sort(
+    (a, b) =>
+      Number(a.index === activeBandIndex) - Number(b.index === activeBandIndex),
+  );
 
-  activeBands.forEach((filter, index) => {
-    const x = freqToX(filter.freq, width);
-    const dotDb = dotValues?.[index] ?? filter.gain;
-    const y = dbToY(dotDb, height);
-    const [token, , fallback] = filterColorVars(filter.index);
-    const color = cssVar(token, fallback);
+  for (const { index, x, y } of ordered) {
+    const active = index === activeBandIndex;
+    const [token, , fallback] = filterColorVars(index);
 
     ctx.beginPath();
-    ctx.arc(x, y, 6, 0, Math.PI * 2);
-    ctx.fillStyle = color;
+    ctx.arc(x, y, active ? 8 : 6, 0, Math.PI * 2);
+    ctx.fillStyle = cssVar(token, fallback);
     ctx.fill();
     ctx.lineWidth = 2;
     ctx.strokeStyle = stroke;
     ctx.stroke();
+    if (active) {
+      ctx.beginPath();
+      ctx.arc(x, y, 11, 0, Math.PI * 2);
+      ctx.strokeStyle = ring;
+      ctx.stroke();
+    }
 
     ctx.fillStyle = text;
-    ctx.font = `10px ${cssVar("--font-mono", "ui-monospace")}`;
+    ctx.font = `${active ? 11 : 10}px ${cssVar("--font-mono", "ui-monospace")}`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(String(filter.index + 1), x, y + 0.5);
-  });
+    ctx.fillText(String(index + 1), x, y + 0.5);
+  }
 
   ctx.textAlign = "start";
   ctx.textBaseline = "alphabetic";
 }
 
-async function drawFilterDotsWithMeasurement(
-  ctx: CanvasRenderingContext2D,
+async function filterDotPositionsWithMeasurement(
   width: number,
   height: number,
   peq: PEQData,
@@ -1206,12 +1273,8 @@ async function drawFilterDotsWithMeasurement(
   viewMode: GraphViewMode,
   dspSampleRate: number,
   responseModel: ResponseModel,
-  isCurrent: () => boolean,
-) {
-  if (!selectedMeasurement) {
-    drawFilterDots(ctx, width, height, peq);
-    return;
-  }
+): Promise<FilterDot[]> {
+  if (!selectedMeasurement) return filterDotPositions(width, height, peq);
 
   const activeBands = peq.filters.filter((filter) => filter.enabled);
   const freqs = activeBands.map((filter) => filter.freq);
@@ -1228,12 +1291,11 @@ async function drawFilterDotsWithMeasurement(
     dspSampleRate,
     responseModel,
   );
-  if (!isCurrent()) return;
   const dotValues = freqs.map(
     (freq, index) =>
       (eqValues[index] ?? 0) +
       interpolateMeasurementDb(selectedMeasurement.points, freq) +
       measurementOffset,
   );
-  drawFilterDots(ctx, width, height, peq, dotValues);
+  return filterDotPositions(width, height, peq, dotValues);
 }

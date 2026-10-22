@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   useAutoEq,
   type AutoEqOptions,
@@ -70,6 +70,20 @@ export function AutoEqTab(props: AutoEqTabProps) {
     handleTargetChange,
     handleRunAutoEq,
   } = useAutoEq(props);
+  const resultRef = useRef<HTMLDivElement>(null);
+
+  // On a phone the result lands below the sticky Generate button; bring the
+  // next step into view instead of leaving it off-screen.
+  useEffect(() => {
+    if (!resultMessage) return;
+    const reduced = window.matchMedia?.(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    resultRef.current?.scrollIntoView?.({
+      block: "center",
+      behavior: reduced ? "auto" : "smooth",
+    });
+  }, [resultMessage]);
 
   return (
     <div className="tuning-match">
@@ -292,6 +306,7 @@ export function AutoEqTab(props: AutoEqTabProps) {
         </div>
       </form>
       <div
+        ref={resultRef}
         className="tuning-result"
         role="status"
         aria-live="polite"

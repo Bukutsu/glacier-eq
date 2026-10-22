@@ -388,5 +388,10 @@
     "savingRestarting": "กำลังบันทึก EQ ลง DAC (คาดว่าจะเริ่มต้นใหม่)…",
     "readingBand": "กำลังอ่านแบนด์ {{index}}/{{total}}…",
     "writingBand": "กำลังเขียนแบนด์ {{index}}/{{total}}…"
+  },
+  "compareHold": {
+    "hold": "กดค้างไว้เพื่อฟังแบบไม่มี EQ",
+    "off": "ปิด EQ",
+    "label": "A/B"
   }
 }

@@ -14,7 +14,7 @@ import { NumberInput } from "@/components/ui/NumberInput";
 import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
 import { filterColorVars } from "@/features/eq/lib/filterColors";
-import { formatFreq, snapFreqToIsoSync } from "@/features/eq/lib/graph";
+import { formatFreqShort, snapFreqToIsoSync } from "@/features/eq/lib/graph";
 import { bandForAdd, clampToRange } from "@/features/eq/lib/peq";
 
 const FREQ_SLIDER_STEPS = 1000;
@@ -163,8 +163,8 @@ export const Bands = memo(function Bands({
   const { t } = useTranslation("editor");
   const availableFilters = peq.filters.slice(0, capabilities.num_bands);
   const visibleFilters = availableFilters.filter((filter) => filter.enabled);
-  const canAddFilter =
-    visibleFilters.length < availableFilters.length && !disabled;
+  const bandsFull = visibleFilters.length >= availableFilters.length;
+  const canAddFilter = !bandsFull && !disabled;
   const selectedFilter =
     visibleFilters.find((filter) => filter.index === activeBandIndex) ??
     visibleFilters[0];
@@ -315,23 +315,24 @@ export const Bands = memo(function Bands({
                   onClick={() => onActiveBandChange?.(filter.index)}
                 >
                   <strong>{filter.index + 1}</strong>
-                  <span>{formatFreq(filter.freq)}</span>
+                  <span>{formatFreqShort(filter.freq)}</span>
                 </button>
               ))}
             </div>
-            <button
-              type="button"
-              className={`add-filter-chip${canAddFilter ? "" : " at-limit"}`}
-              onClick={addFilter}
-              disabled={!canAddFilter}
-              aria-label={
-                canAddFilter ? t("bands.addFilter") : t("bands.addUnavailable")
-              }
-              title={canAddFilter ? t("bands.addFilter") : t("bands.allUsed")}
-            >
-              <Icon name="add" />
-              <span>{t("bands.add")}</span>
-            </button>
+            {/* Hidden once every band is in use: a dead button only takes room. */}
+            {!bandsFull && (
+              <button
+                type="button"
+                className="add-filter-chip"
+                onClick={addFilter}
+                disabled={!canAddFilter}
+                aria-label={t("bands.addFilter")}
+                title={t("bands.addFilter")}
+              >
+                <Icon name="add" />
+                <span>{t("bands.add")}</span>
+              </button>
+            )}
           </div>
           <div
             className="mobile-filter-card"
@@ -342,9 +343,31 @@ export const Bands = memo(function Bands({
                 <strong>
                   {t("bands.band", { number: selectedFilter.index + 1 })}
                 </strong>
-                <span className="mobile-band-context">
-                  {t(TYPE_NAMES[selectedFilter.filter_type])}
-                </span>
+                {isMobile ? (
+                  <Select
+                    className="mobile-band-type"
+                    aria-label={t("bands.typeLabel", {
+                      number: selectedFilter.index + 1,
+                    })}
+                    value={selectedFilter.filter_type}
+                    disabled={disabled}
+                    options={capabilities.supported_filter_types.map(
+                      (type) => ({ value: type, label: t(TYPE_NAMES[type]) }),
+                    )}
+                    onChange={(type) => {
+                      onStartChange();
+                      onFilterChange(selectedFilter.index, {
+                        ...selectedFilter,
+                        filter_type: type,
+                      });
+                      onEndChange?.();
+                    }}
+                  />
+                ) : (
+                  <span className="mobile-band-context">
+                    {t(TYPE_NAMES[selectedFilter.filter_type])}
+                  </span>
+                )}
               </div>
               <div className="mobile-filter-actions">
                 {committedPeq?.filters[selectedFilter.index] && (
@@ -610,7 +633,6 @@ const BandControls = memo(
             aria-label={t("bands.qValue", { number: filter.index + 1 })}
           />
         </div>
-        {mobileSimple && <p className="band-q-help">{t("bands.qHelp")}</p>}
       </BandField>
     );
 
@@ -704,7 +726,8 @@ const BandControls = memo(
             disabled={disabled}
             min={capabilities.band_gain_range[0]}
             max={capabilities.band_gain_range[1]}
-            step={0.01}
+            // A drag lands on 0.1 dB; finer values come from typing.
+            step={0.1}
             value={clampToRange(filter.gain, capabilities.band_gain_range)}
             aria-valuetext={`${filter.gain >= 0 ? "+" : ""}${filter.gain.toFixed(2)} dB`}
             onStartChange={startSliderChange}
@@ -729,7 +752,10 @@ const BandControls = memo(
             }
             onFocus={() => onActivate?.(filter.index)}
             onChange={(event) =>
-              onChange(filter.index, { ...filter, gain: +event.target.value })
+              onChange(filter.index, {
+                ...filter,
+                gain: Math.round(+event.target.value * 10) / 10,
+              })
             }
           />
           <NumberInput
@@ -766,18 +792,7 @@ const BandControls = memo(
             {gainControl}
           </>
         )}
-        {mobileSimple ? (
-          <details className="band-more-settings">
-            <summary>
-              {t("bands.more")}
-              <Icon name="expand_more" />
-            </summary>
-            {typeControl}
-            {qControl}
-          </details>
-        ) : (
-          qControl
-        )}
+        {qControl}
       </>
     );
   },

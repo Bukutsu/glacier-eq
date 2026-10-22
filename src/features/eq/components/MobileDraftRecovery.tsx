@@ -71,3 +71,30 @@ export function MobileDraftRecovery({
     </Card>
   );
 }
+
+interface DraftRestoredNoticeProps {
+  isBusy: boolean;
+  onKeep: () => void;
+  onDiscard: () => void;
+}
+
+/** Shown after the app put an unfinished EQ back into the editor by itself. */
+export function DraftRestoredNotice({
+  isBusy,
+  onKeep,
+  onDiscard,
+}: DraftRestoredNoticeProps) {
+  const { t } = useTranslation("editor");
+  return (
+    <div className="draft-restored-notice" role="status">
+      <Icon name="restart_alt" />
+      <p>{t("draft.restoredNotice")}</p>
+      <Button variant="ghost" disabled={isBusy} onClick={onDiscard}>
+        {t("draft.discard")}
+      </Button>
+      <Button disabled={isBusy} onClick={onKeep}>
+        {t("draft.keep")}
+      </Button>
+    </div>
+  );
+}

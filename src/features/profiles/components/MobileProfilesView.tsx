@@ -35,6 +35,8 @@ export interface MobileProfilesViewProps {
   setNewProfileName: (value: string) => void;
   onSelectProfile: (profile: Profile) => void;
   onApplyProfile?: (profile: Profile) => void;
+  /** Loads the profile and saves it to the connected DAC. */
+  onUseOnDac?: (profile: Profile) => Promise<void>;
   onImportPEQ: (data: PEQData, name: string, isSaved: boolean) => boolean;
   onSave: () => void | Promise<void>;
   onDelete: (name: string) => void | Promise<void>;
@@ -61,6 +63,7 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
     setNewProfileName,
     onSelectProfile,
     onApplyProfile,
+    onUseOnDac,
     onImportPEQ,
     onSave,
     onDelete,
@@ -333,6 +336,16 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
                       })}
                 </p>
                 <div className="mobile-profile-row-actions">
+                  {onUseOnDac && (
+                    <Button
+                      variant="primary"
+                      disabled={disabled}
+                      onClick={() => void runAction(() => onUseOnDac(profile))}
+                    >
+                      <Icon name="save" />
+                      {t("mobileProfilesView.useOnDac")}
+                    </Button>
+                  )}
                   <Button
                     disabled={disabled || (current && !dirty)}
                     onClick={() =>

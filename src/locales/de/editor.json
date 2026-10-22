@@ -22,7 +22,9 @@
     "saveFailed": "Der unfertige EQ konnte nicht zur Wiederherstellung gespeichert werden. Speichere ein Profil, bevor du die App schließt.",
     "replaceConfirmation": "Das Wiederherstellen des Entwurfs ersetzt deine aktuellen Änderungen im Editor. Es wird nichts auf einen DAC geschrieben.",
     "confirmRestore": "Wiederherstellen",
-    "recovered": "Wiederhergestellter EQ"
+    "recovered": "Wiederhergestellter EQ",
+    "restoredNotice": "Dein unfertiger EQ wurde wiederhergestellt. Auf den DAC wurde nichts geschrieben.",
+    "keep": "Behalten"
   },
   "preamp": {
     "title": "Vorverstärkung",
@@ -57,16 +59,13 @@
     "addFilter": "Filter hinzufügen",
     "empty": "Noch keine Bänder. Der EQ ist neutral.",
     "addBand": "Band hinzufügen",
-    "addUnavailable": "Filter hinzufügen (alle Bänder belegt)",
-    "allUsed": "Alle Filterbänder sind belegt",
     "add": "Hinzufügen",
     "reset": "Zurücksetzen",
     "filter": "Filter",
+    "typeLabel": "Filtertyp von Band {{number}}",
     "bandwidth": "Q / Bandbreite",
-    "qHelp": "Ein kleinerer Q-Wert verbreitert die Anpassung.",
     "frequency": "Frequenz",
     "gain": "Verstärkung",
-    "more": "Weitere Bandeinstellungen",
     "types": {
       "Peak": "Glockenfilter",
       "HighShelf": "Höhen-Shelving",
@@ -89,7 +88,6 @@
   },
   "graph": {
     "description": "Frequenzgang des Equalizers mit aktuellen parametrischen Filterkurven, Messungen und Zielkurven",
-    "toggleLegend": "Legende ein-/ausblenden",
     "lastWritten": "Zuletzt geschrieben",
     "eqCurve": "EQ-Kurve",
     "lastWrittenMeasurement": "Zuletzt geschrieben + {{name}}",

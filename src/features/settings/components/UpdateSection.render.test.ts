@@ -29,6 +29,14 @@ describe("UpdateSection", () => {
     expect(html).not.toContain("signing key");
   });
 
+  it("links Android to the latest APK instead of a dead button", () => {
+    const html = render({ phase: "unsupported", reason: "mobile" });
+    expect(html).not.toContain('aria-disabled="true"');
+    expect(html).toContain("Get latest APK");
+    expect(html).not.toMatch(/<button[^>]*\sdisabled=""/);
+    expect(html).not.toContain("signing key");
+  });
+
   it("offers the download with release notes when a build is newer", () => {
     const html = render({
       phase: "available",

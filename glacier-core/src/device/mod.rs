@@ -5,6 +5,7 @@
 //!
 //! UI-agnostic — usable from Tauri desktop/mobile apps, CLI tools, or headless services.
 
+pub mod android_usb;
 pub mod capabilities;
 pub mod catalog;
 pub mod families;

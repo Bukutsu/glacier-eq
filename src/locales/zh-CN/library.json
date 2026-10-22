@@ -51,7 +51,8 @@
     "namePlaceholder": "例如：夜间聆听",
     "saveHelp": "将当前编辑器 EQ 保存至配置库。不会向 DAC 写入任何内容。",
     "renameHelp": "更改已保存的名称，不会更改编辑器中的 EQ。",
-    "eqPreview": "EQ 预览"
+    "eqPreview": "EQ 预览",
+    "useOnDac": "用于 DAC"
   },
   "profilesView": {
     "overwriteProfile": "覆盖配置",

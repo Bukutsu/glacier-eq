@@ -111,6 +111,19 @@ describe("AutoEQ selection owns the graph curves", () => {
     );
   });
 
+  it("draws the dropdown's default target when no target is active", () => {
+    const spies = selectionSpies();
+    run({
+      allTargets: BUILTIN_TARGETS,
+      activeTargetIds: [],
+      ...spies,
+    });
+
+    expect(spies.onSelectTargetOnly).toHaveBeenCalledWith(
+      BUILTIN_TARGETS[0].id,
+    );
+  });
+
   it("selecting a measurement makes it the only visible curve", () => {
     const spies = selectionSpies();
     const handlers = run({

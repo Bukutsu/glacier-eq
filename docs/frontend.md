@@ -86,16 +86,28 @@ and focus behavior and auto-dismiss, without a countdown bar. Diagnostics
 retain detailed events when routine recovery does not show a toast.
 
 On compact layouts, EQ sections are full-width flat panels with hairline
-dividers. Their controls use the page gutter. Mobile graph dots are display-only;
-desktop retains graph editing. Expanding More band settings pins the visible EQ
-graph while the controls scroll on screens at least 600 px tall. This uses the
-details element's open state, suppresses the duplicate floating preview, and
-releases the sticky graph when the on-screen keyboard opens. Collapsed graphs
-stay collapsed. Short screens retain the existing floating-preview behavior.
-Mobile draft recovery is a separate in-workspace notice with direct Restore and
-Discard actions; it does not force the full header open on other tabs.
-Desktop keeps its header recovery popover. The graph toolbar keeps Curves
-and add together on the left and show/hide on the right, with 44 px targets.
+dividers. Their controls use the page gutter. Mobile graph dots cannot be
+dragged; a tap near one selects that band (`onBandTap`), the selected dot is
+ringed, and only its single-band curve is drawn. Desktop retains graph editing.
+The mobile band card always shows Gain, Frequency and Q, with the filter type
+in its header. On screens at least 700 px tall the EQ graph and the band chips
+stay pinned while the controls scroll; App.tsx measures the graph into
+`--mobile-graph-height` for the chips' offset. The pin suppresses the duplicate
+floating preview and releases when the on-screen keyboard opens. Collapsed
+graphs stay collapsed. Short screens retain the floating-preview behavior.
+Mobile restores a readable draft by itself and shows `DraftRestoredNotice`
+with Keep and Discard; an unreadable draft, or one that cannot load (a DAC is
+connected), keeps the full in-workspace recovery card. Desktop keeps its
+header recovery popover. The graph toolbar keeps Curves and add together on
+the left; the legend button, the A/B hold button and show/hide sit on the
+right, with 44 px targets. Under 420 px wide show/hide keeps only its icon.
+Phones have four tabs: Device's root page is the top of the Settings tab, and
+`/device` redirects to `/settings` there; device subsections keep their
+routes. When the DAC lacks the editor's EQ, tabs without the header show a
+save bar above the tab bar.
+A/B uses `features/device/operations/compareBypass.ts`: it writes the EQ with
+every filter off to RAM, then restores what the DAC played (the editor under
+live apply, otherwise the stored EQ). It is hidden when that is unknown.
 The default-profile row is compact on desktop. Mobile uses the independent
 `features/profiles/components/MobileProfilesView.tsx`: current-editor card,
 collapsed response preview, searchable library, explicit load buttons, and

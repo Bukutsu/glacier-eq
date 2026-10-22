@@ -46,7 +46,8 @@
     "save": "Auf DAC speichern",
     "noHardwareNote": "Dieser DAC hat keinen Hardware-EQ, daher sind die EQ-Lese- und Schreibaktionen nicht verfügbar. Du kannst weiterhin EQs für einen System-Equalizer bearbeiten und exportieren.",
     "operationProgress": "Geräteaktion läuft",
-    "progress": "{{message}} · {{percentage}}%"
+    "progress": "{{message}} · {{percentage}}%",
+    "edited": "Bearbeitet"
   },
   "actions": {
     "undo": "Rückgängig",
@@ -80,7 +81,8 @@
     "hideResponse": "Frequenzgang ausblenden",
     "show": "Diagramm anzeigen",
     "hide": "Diagramm ausblenden",
-    "scroll": "Zum Frequenzgang scrollen"
+    "scroll": "Zum Frequenzgang scrollen",
+    "legend": "Kurvenlegende"
   },
   "feedback": {
     "preferenceNotSaved": "Dieser Browser konnte die Einstellung nicht speichern; sie bleibt nach einem Neustart möglicherweise nicht erhalten.",
@@ -139,5 +141,8 @@
     "settings": {
       "label": "Einstellungen"
     }
+  },
+  "compare": {
+    "failed": "A/B-Umschaltung fehlgeschlagen: {{error}}"
   }
 }

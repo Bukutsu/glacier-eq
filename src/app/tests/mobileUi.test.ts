@@ -32,7 +32,7 @@ describe("mobile navigation and touch affordances", () => {
     expect(app).toContain(
       "navigate(mobileWorkspacePathsRef.current[id] ?? workspacePath(id))",
     );
-    expect(app).toContain("[navigate, location.pathname]");
+    expect(app).toContain("[navigate, location.pathname, isMobile]");
   });
   it("honors reduced motion when retapping the current tab", () => {
     expect(app).toMatch(
@@ -56,19 +56,38 @@ describe("mobile navigation and touch affordances", () => {
       'compact={isMobile && activeTab !== "eq" && !isBusy}',
     );
   });
-  it("pins the graph for expanded band settings without covering short screens or the keyboard", () => {
-    expect(mobile).toContain("@media (min-height: 600px)");
+  it("pins the graph and band chips on tall screens without covering the keyboard", () => {
+    expect(mobile).toContain("@media (min-height: 700px)");
     expect(mobile).toContain(":root:not(.keyboard-open)");
     expect(mobile).toContain(
-      ":has(.band-more-settings[open]) .mobile-graph-eq:not(.collapsed)",
+      ":has(.bands-mobile-editor) .mobile-graph-eq:not(.collapsed)",
     );
     expect(mobile).toContain("position: sticky;");
-    expect(mobile).toContain("scroll-padding-top: clamp(");
+    expect(mobile).toContain("top: var(--mobile-graph-height, 215px);");
+    expect(app).toContain('"--mobile-graph-height"');
   });
   it("keeps mobile graph dots display-only while retaining desktop editing", () => {
     expect(app).toContain(
       "withEditor && !isMobile && !recoveryPending ? graphEditorProps : {}",
     );
+    expect(app).toContain("? setActiveBandIndex");
+  });
+  it("shows Device at the top of the Settings tab on phones", () => {
+    expect(app).toContain(
+      'const MOBILE_BAR_TABS = MOBILE_TABS.filter(({ id }) => id !== "device")',
+    );
+    expect(app).toContain(
+      '<Navigate to={workspacePath("settings")} replace />',
+    );
+  });
+  it("keeps the save bar above the tab bar and out of the keyboard's way", () => {
+    expect(mobile).toContain(
+      "bottom: calc(var(--tabbar-h, 56px) + var(--safe-area-bottom, 0px));",
+    );
+    expect(mobile).toContain(
+      ".keyboard-open .mobile-save-bar { display: none; }",
+    );
+    expect(responsive).toContain(".workspace.mobile-workspace.has-save-bar");
   });
   it("allows vertical page scrolling from the horizontal band picker", () => {
     expect(mobile).toContain(".band-picker-scroll { touch-action: auto; }");

@@ -31,7 +31,9 @@ Other Savitech- or Walkplay-based DAC dongles may work. See the [full device lis
 2. Choose **Read from DAC**, or use **Tuning** to generate EQ from a headphone measurement and target curve. AutoEQ optimizes the result for your DAC's filter capabilities.
 3. Adjust the filters and choose **Write to DAC** (**Save to DAC** on mobile).
 
-Loading a profile only changes the editor. Write it to the DAC to save it. Compatible DACs also let you try an EQ temporarily without saving.
+Loading a profile only changes the editor. Write it to the DAC to save it, or use **Use on DAC** on mobile to do both. Compatible DACs also let you try an EQ temporarily without saving, and hold **A/B** to hear the DAC without EQ.
+
+On Android, plugging in a supported DAC offers to open Glacier EQ.
 
 Linux connection issues? See the [setup and troubleshooting guide](https://github.com/Bukutsu/glacier-eq/wiki/Troubleshooting).
 

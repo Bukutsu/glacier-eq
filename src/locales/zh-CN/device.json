@@ -388,5 +388,10 @@
     "savingRestarting": "正在将 EQ 保存至 DAC（预计会重启）…",
     "readingBand": "正在读取频段 {{index}}/{{total}}…",
     "writingBand": "正在写入频段 {{index}}/{{total}}…"
+  },
+  "compareHold": {
+    "hold": "按住以收听无 EQ 的声音",
+    "off": "EQ 关闭",
+    "label": "A/B"
   }
 }

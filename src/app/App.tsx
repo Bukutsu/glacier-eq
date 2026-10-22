@@ -20,38 +20,58 @@ import {
   useState,
   type ComponentProps,
 } from "react";
-import { Link, useLocation, useNavigate } from "react-router";
+import { Link, Navigate, useLocation, useNavigate } from "react-router";
 import { invoke } from "@/lib/rpc";
 import { createExternalLinkClickHandler } from "@/lib/externalLinks";
 import { Bands } from "@/features/eq/components/Bands";
 import { DeviceChooser } from "@/features/device/components/DeviceChooser";
-import { EqGraph } from "@/features/eq/components/EqGraph";
+import { EqGraph, graphHasLegend } from "@/features/eq/components/EqGraph";
 import { EqCurves } from "@/features/eq/components/EqCurves";
 import { Header } from "@/app/components/Header";
 import { exportEqFile } from "@/features/eq/lib/exportEq";
 import { DraftRecovery } from "@/features/eq/components/DraftRecovery";
-import { MobileDraftRecovery } from "@/features/eq/components/MobileDraftRecovery";
+import {
+  DraftRestoredNotice,
+  MobileDraftRecovery,
+} from "@/features/eq/components/MobileDraftRecovery";
+import { CompareHoldButton } from "@/features/device/components/CompareHoldButton";
+import { createBypassCompare } from "@/features/device/operations/compareBypass";
+import { loadProfile } from "@/features/profiles/lib/loadProfile";
+import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { Preamp } from "@/features/eq/components/Preamp";
 import {
   MOBILE_TABS,
   parseWorkspacePath,
   workspacePath,
+  type DeviceSection,
   type MobileTab,
   type ToolsTab,
 } from "@/lib/tabs";
-import { ConfirmDialogHost } from "@/components/ui/ConfirmDialog";
+import {
+  ConfirmDialogHost,
+  confirmDialog,
+} from "@/components/ui/ConfirmDialog";
 import { Modal } from "@/components/ui/Modal";
 import { isBalanceNavigation, MODAL_HISTORY_KEY } from "@/lib/modalHistory";
 import { SidebarDevice } from "@/features/device/components/SidebarDevice";
-import { isDevDummyDevice } from "@/features/device/lib/devDevice";
-import { formatDb, peqEquals } from "@/features/eq/lib/peq";
+import {
+  isDevDummyDevice,
+  writeDevDummyPeq,
+} from "@/features/device/lib/devDevice";
+import {
+  DEFAULT_PROFILE_NAME,
+  formatDb,
+  peqEquals,
+} from "@/features/eq/lib/peq";
 import { isTauri } from "@/lib/platform";
 
 import type {
   DeviceInfo,
   GraphViewMode,
   MeasurementTrace,
+  PEQData,
+  Profile,
   TargetTrace,
 } from "@/types";
 
@@ -139,6 +159,11 @@ function DiagnosticsPanel() {
   );
 }
 
+// Phones get four tabs: Device lives at the top of Settings.
+const MOBILE_BAR_TABS = MOBILE_TABS.filter(({ id }) => id !== "device");
+const mobileBarTab = (tab: MobileTab): MobileTab =>
+  tab === "device" ? "settings" : tab;
+
 const TOOL_TAB_BY_WORKSPACE: Record<MobileTab, ToolsTab | null> = {
   eq: null,
   tuning: "Tuning",
@@ -181,9 +206,18 @@ function App() {
 
   const [showDiagnosticsModal, setShowDiagnosticsModal] = useState(false);
 
+  const [legendOpen, setLegendOpen] = useState(false);
+
+  // Set when the app put an unfinished EQ back by itself (mobile only).
+  const [draftRestored, setDraftRestored] = useState(false);
+  const [autoRestoreDone, setAutoRestoreDone] = useState(false);
+  const autoRestoreTriedRef = useRef(false);
+
   const mainScrollRef = useRef<HTMLElement | null>(null);
 
   const mobileScrollRef = useRef<HTMLElement | null>(null);
+
+  const mobileGraphRef = useRef<HTMLElement | null>(null);
 
   const mobileWorkspacePathsRef = useRef<Partial<Record<MobileTab, string>>>(
     {},
@@ -249,6 +283,7 @@ function App() {
   const editor = useEqEditor(device, preview, feedback.setStatus);
   const {
     peq,
+    peqRef,
     dirty,
     activeBandIndex,
     setActiveBandIndex,
@@ -256,6 +291,7 @@ function App() {
     handleEndChange,
     handlePreampStartChange,
     draftInvalid,
+    pendingDraft,
     resolveDraft,
     recoveryPending,
     profiles,
@@ -273,6 +309,7 @@ function App() {
     importPeq,
     runProfileMutation,
     restoreDraft,
+    discardRestoredDraft,
     undo,
     redo,
     getAsyncContext,
@@ -317,11 +354,18 @@ function App() {
     recoveryPending,
   });
   const liveApplySupported = connected && supportsRamApply;
+  const liveApplyActive = liveApplySupported && settings.live_apply;
+  const isSimulated = isDevDummyDevice(selectedDevice);
+  // With live apply the app saves in the background, so there is no write step.
+  const liveSaves = liveApplyActive && hardwareEq && !isSimulated;
   // Compared with the DAC's stored EQ, not the loaded profile, so loading a
   // profile counts as a change. `dirty` only covers a DAC that was never read.
   const unsavedOnDac = lastPushedPeq ? !peqEquals(peq, lastPushedPeq) : dirty;
+  const deviceMatchesEditor = lastPushedPeq
+    ? peqEquals(peq, lastPushedPeq)
+    : null;
   useLiveApply({
-    active: liveApplySupported && settings.live_apply,
+    active: liveApplyActive,
     peq,
     unsaved: unsavedOnDac,
     lastPushedPeq,
@@ -336,6 +380,84 @@ function App() {
         source: "UI",
       }),
   });
+
+  // Phones put an unfinished EQ back without asking; a notice offers Discard.
+  // An unreadable draft, or one that cannot load now, keeps the full card.
+  useEffect(() => {
+    if (
+      !isMobile ||
+      autoRestoreTriedRef.current ||
+      !pendingDraft ||
+      draftInvalid
+    )
+      return;
+    autoRestoreTriedRef.current = true;
+    void restoreDraft().then((restored) => {
+      setDraftRestored(restored);
+      setAutoRestoreDone(true);
+    });
+  }, [isMobile, pendingDraft, draftInvalid]);
+
+  useEffect(() => {
+    if (draftRestored && (!dirty || connected)) setDraftRestored(false);
+  }, [draftRestored, dirty, connected]);
+
+  // The band picker pins under the pinned graph, so it needs that height.
+  useEffect(() => {
+    const graph = mobileGraphRef.current;
+    const workspace = mobileScrollRef.current;
+    if (!graph || !workspace || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => {
+      /* eslint-disable i18next/no-literal-string -- CSS property, not UI text. */
+      workspace.style.setProperty(
+        "--mobile-graph-height",
+        `${graph.offsetHeight}px`,
+      );
+      /* eslint-enable i18next/no-literal-string */
+    });
+    observer.observe(graph);
+    return () => observer.disconnect();
+  }, [isMobile, activeTab, showGraph]);
+
+  // A/B needs to know what the DAC plays: the editor under live apply, the
+  // stored EQ otherwise. Without either it would guess, so it is hidden.
+  const comparePlaying: PEQData | null = liveApplyActive ? peq : lastPushedPeq;
+  const canCompare =
+    connected && hardwareEq && supportsRamApply && comparePlaying !== null;
+  const compareStateRef = useRef({
+    playing: comparePlaying,
+    capabilities,
+    busy: false,
+    path: selectedDevice,
+  });
+  compareStateRef.current = {
+    playing: comparePlaying,
+    capabilities,
+    busy: isBusy || eqOperationInFlightRef.current,
+    path: selectedDevice,
+  };
+  const bypassCompare = useMemo(
+    () =>
+      createBypassCompare({
+        apply: async (next) => {
+          const { path } = compareStateRef.current;
+          if (isDevDummyDevice(path)) writeDevDummyPeq(path, next, false);
+          else await invoke("live_apply_eq_state", { peq: next });
+        },
+        getState: () => {
+          const { playing, capabilities, busy } = compareStateRef.current;
+          return { playing: playing ?? peqRef.current, capabilities, busy };
+        },
+        reportError: (error) =>
+          reportStatus({
+            level: "Error",
+            message: t("compare.failed", { error: String(error) }),
+            toastType: "error",
+            source: "UI",
+          }),
+      }),
+    [reportStatus, t],
+  );
 
   const {
     measurements,
@@ -477,7 +599,10 @@ function App() {
 
   const handleSelectWorkspaceTab = useCallback(
     (id: MobileTab) => {
-      const currentTab = activeTabRef.current;
+      // On phones Device is part of the Settings tab, so they share a place.
+      const currentTab = isMobile
+        ? mobileBarTab(activeTabRef.current)
+        : activeTabRef.current;
       const scrollEl = mobileScrollRef.current;
       if (currentTab === id) {
         scrollEl?.scrollTo({
@@ -487,15 +612,16 @@ function App() {
             ? "auto"
             : "smooth",
         });
-        mobileScrollPositionsRef.current[id] = 0;
+        mobileScrollPositionsRef.current[activeTabRef.current] = 0;
         return;
       }
 
-      mobileScrollPositionsRef.current[currentTab] = scrollEl?.scrollTop ?? 0;
+      mobileScrollPositionsRef.current[activeTabRef.current] =
+        scrollEl?.scrollTop ?? 0;
       mobileWorkspacePathsRef.current[currentTab] = location.pathname;
       navigate(mobileWorkspacePathsRef.current[id] ?? workspacePath(id));
     },
-    [navigate, location.pathname],
+    [navigate, location.pathname, isMobile],
   );
 
   const handleOpenDeviceModal = useCallback(() => {
@@ -587,10 +713,26 @@ function App() {
   };
 
   // Shared EQ/tuning graph; editing props only attach in the EQ workspace.
-  const graphElement = (
-    withEditor: boolean,
-    highlightActiveBand: boolean = false,
-  ) => (
+  // The band the mobile editor shows; Bands falls back to the first one.
+  const editorBands = peq.filters
+    .slice(0, capabilities.num_bands)
+    .filter((filter) => filter.enabled);
+  const shownBandIndex =
+    editorBands.find((filter) => filter.index === activeBandIndex)?.index ??
+    editorBands[0]?.index ??
+    null;
+
+  // Phones draw only the edited band's own curve (none while tuning), and a
+  // tap near a dot selects that band. Desktop keeps every curve and drags.
+  const graphElement = ({
+    withEditor = false,
+    focusBand = false,
+    legend,
+  }: {
+    withEditor?: boolean;
+    focusBand?: boolean;
+    legend?: boolean;
+  } = {}) => (
     <EqGraph
       capabilities={capabilities}
       peq={peq}
@@ -600,10 +742,42 @@ function App() {
       targets={activeTargets}
       viewMode={graphViewMode}
       theme={resolvedTheme}
-      activeBandIndex={highlightActiveBand ? activeBandIndex : undefined}
+      activeBandIndex={focusBand ? shownBandIndex : undefined}
+      bandCurves={isMobile ? (focusBand ? "active" : "none") : "all"}
+      onBandTap={
+        isMobile && focusBand && withEditor && !recoveryPending
+          ? setActiveBandIndex
+          : undefined
+      }
+      legendOpen={legend}
       {...(withEditor && !isMobile && !recoveryPending ? graphEditorProps : {})}
     />
   );
+  const showLegendToggle = graphHasLegend(
+    peq,
+    lastPushedPeq,
+    measurements,
+    activeTargets,
+  );
+
+  const handleUseProfileOnDac = async (profile: Profile) => {
+    let loaded =
+      !dirty &&
+      profileIdentityKey(selectedPreset) === profileIdentityKey(profile.name);
+    await loadProfile({
+      profile,
+      selectedPreset,
+      dirty,
+      getAsyncContext,
+      confirm: confirmDialog,
+      onSelectProfile: (next) => {
+        applyProfile(next);
+        loaded = true;
+      },
+    });
+    // applyProfile updates the editor ref at once, so this saves the profile.
+    if (loaded) await pushEq();
+  };
 
   const profilePreview = showGraph ? (
     <EqGraph
@@ -698,6 +872,39 @@ function App() {
       : (MOBILE_TABS.find((tab) => tab.id === activeTab)?.label ??
         selectedPreset);
 
+  // Other tabs hide the header, so the unsaved state and Save follow there.
+  const showSaveBar =
+    isMobile &&
+    activeTab !== "eq" &&
+    connected &&
+    !isBusy &&
+    hardwareEq &&
+    !liveSaves &&
+    deviceMatchesEditor === false &&
+    !recoveryPending;
+
+  const deviceView = (section: DeviceSection) => (
+    <DeviceView
+      key={`${connected ? "connected" : "offline"}:${selectedDevice}`}
+      connected={connected}
+      isBusy={isBusy}
+      isSimulated={isSimulated}
+      deviceInfo={selectedDeviceInfo}
+      capabilities={capabilities}
+      firmwareVersion={firmwareVersion}
+      section={section}
+      setStatus={setStatus}
+      onPull={hardwareEq ? pullEq : undefined}
+      onOpenConnectModal={handleOpenDeviceModal}
+      onDisconnect={connected ? disconnectDevice : undefined}
+      onPreviewChange={handlePreviewChange}
+      onExpectedDisconnect={handleExpectedDisconnect}
+      onReadFailure={recoverDeviceRead}
+      onResetEq={resetDeviceEq}
+      runMaintenance={runDeviceMaintenance}
+    />
+  );
+
   const workspaceHeader = (
     <Header
       inert={showReconnectOverlay ? true : undefined}
@@ -713,7 +920,18 @@ function App() {
           profileIdentityKey(profile.name) ===
             profileIdentityKey(selectedPreset),
       )}
-      deviceMatchesEditor={lastPushedPeq ? peqEquals(peq, lastPushedPeq) : null}
+      deviceMatchesEditor={deviceMatchesEditor}
+      profileEdited={
+        dirty &&
+        profiles.some(
+          (profile) =>
+            (profile.modified != null ||
+              profileIdentityKey(profile.name) ===
+                profileIdentityKey(DEFAULT_PROFILE_NAME)) &&
+            profileIdentityKey(profile.name) ===
+              profileIdentityKey(selectedPreset),
+        )
+      }
       hardwareEq={hardwareEq}
       canUndo={canUndoHistory}
       canRedo={canRedoHistory}
@@ -760,14 +978,14 @@ function App() {
             id="workspace-content"
             tabIndex={-1}
             ref={mobileScrollRef}
-            className="workspace mobile-workspace"
+            className={`workspace mobile-workspace${showSaveBar ? " has-save-bar" : ""}`}
             aria-label={mobilePageTitle}
             inert={showReconnectOverlay ? true : undefined}
           >
             {activeTab !== "eq" && (
               <h1 className="visually-hidden">{mobilePageTitle}</h1>
             )}
-            {recoveryPending && (
+            {recoveryPending && (draftInvalid || autoRestoreDone) && (
               <MobileDraftRecovery
                 invalid={draftInvalid}
                 connected={connected}
@@ -776,8 +994,19 @@ function App() {
                 onDiscard={resolveDraft}
               />
             )}
+            {draftRestored && (
+              <DraftRestoredNotice
+                isBusy={isBusy}
+                onKeep={() => setDraftRestored(false)}
+                onDiscard={() => {
+                  discardRestoredDraft();
+                  setDraftRestored(false);
+                }}
+              />
+            )}
             {showGraph && (activeTab === "eq" || activeTab === "tuning") && (
               <section
+                ref={mobileGraphRef}
                 className={`mobile-graph-container mobile-graph-${activeTab} ${graphCollapsed ? "collapsed" : ""}`}
               >
                 <div
@@ -785,10 +1014,37 @@ function App() {
                   inert={graphCollapsed ? true : undefined}
                   aria-hidden={graphCollapsed}
                 >
-                  {graphElement(activeTab === "eq")}
+                  {graphElement({
+                    withEditor: activeTab === "eq",
+                    focusBand: activeTab === "eq",
+                    legend: legendOpen,
+                  })}
                 </div>
                 {/* Curves live under the plot so they never cover the data. */}
                 <div className="graph-toolbar">
+                  {((showLegendToggle && !graphCollapsed) || canCompare) && (
+                    <div className="graph-toolbar-actions">
+                      {showLegendToggle && !graphCollapsed && (
+                        <button
+                          type="button"
+                          className={`graph-legend-btn${legendOpen ? " active" : ""}`}
+                          aria-pressed={legendOpen}
+                          aria-label={t("graph.legend")}
+                          title={t("graph.legend")}
+                          onClick={() => setLegendOpen((open) => !open)}
+                        >
+                          <Icon name="legend_toggle" />
+                        </button>
+                      )}
+                      {canCompare && (
+                        <CompareHoldButton
+                          disabled={isBusy}
+                          onStart={() => void bypassCompare.start()}
+                          onEnd={() => void bypassCompare.end()}
+                        />
+                      )}
+                    </div>
+                  )}
                   <button
                     type="button"
                     className="graph-collapse-btn"
@@ -835,7 +1091,7 @@ function App() {
                     background: "transparent",
                   }}
                 >
-                  {graphElement(false, true)}
+                  {graphElement({ focusBand: true, legend: false })}
                 </div>
               </div>
             )}
@@ -862,6 +1118,11 @@ function App() {
                     isBusy={isBusy || recoveryPending}
                     preview={profilePreview}
                     onReviewEq={() => handleSelectWorkspaceTab("eq")}
+                    onUseOnDac={
+                      connected && hardwareEq
+                        ? handleUseProfileOnDac
+                        : undefined
+                    }
                   />
                 </section>
               )}
@@ -885,6 +1146,9 @@ function App() {
                   />
                 </section>
               )}
+              {activeTab === "settings" && settingsSection === "root" && (
+                <section className="left-pane">{deviceView("root")}</section>
+              )}
               {activeTab === "settings" && (
                 <section className="left-pane">
                   <SettingsView
@@ -902,40 +1166,41 @@ function App() {
                   />
                 </section>
               )}
-              {activeTab === "device" && (
+              {/* Device's root page is the top of the Settings tab. */}
+              {activeTab === "device" && deviceSection === "root" && (
+                <Navigate to={workspacePath("settings")} replace />
+              )}
+              {activeTab === "device" && deviceSection !== "root" && (
                 <section className="left-pane">
-                  <DeviceView
-                    key={`${connected ? "connected" : "offline"}:${selectedDevice}`}
-                    connected={connected}
-                    isBusy={isBusy}
-                    isSimulated={isDevDummyDevice(selectedDevice)}
-                    deviceInfo={selectedDeviceInfo}
-                    capabilities={capabilities}
-                    firmwareVersion={firmwareVersion}
-                    section={deviceSection}
-                    setStatus={setStatus}
-                    onPull={hardwareEq ? pullEq : undefined}
-                    onOpenConnectModal={handleOpenDeviceModal}
-                    onDisconnect={connected ? disconnectDevice : undefined}
-                    onPreviewChange={handlePreviewChange}
-                    onExpectedDisconnect={handleExpectedDisconnect}
-                    onReadFailure={recoverDeviceRead}
-                    onResetEq={resetDeviceEq}
-                    runMaintenance={runDeviceMaintenance}
-                  />
+                  {deviceView(deviceSection)}
                 </section>
               )}
             </div>
+            {showSaveBar && (
+              <div className="mobile-save-bar" role="status">
+                <span>{t("header.notSaved")}</span>
+                <Button
+                  variant="primary"
+                  disabled={isBusy}
+                  title={t("header.saveHelp")}
+                  onClick={() => void pushEq()}
+                >
+                  <Icon name="save" /> {t("header.save")}
+                </Button>
+              </div>
+            )}
             <nav
               className="mobile-tab-bar"
               aria-label={t("navigation.primary")}
             >
-              {MOBILE_TABS.map(({ id, icon, label }) => (
+              {MOBILE_BAR_TABS.map(({ id, icon, label }) => (
                 <Link
                   key={id}
                   to={workspacePath(id)}
-                  className={`mobile-tab-item ${activeTab === id ? "active" : ""}`}
-                  aria-current={activeTab === id ? "page" : undefined}
+                  className={`mobile-tab-item ${mobileBarTab(activeTab) === id ? "active" : ""}`}
+                  aria-current={
+                    mobileBarTab(activeTab) === id ? "page" : undefined
+                  }
                   onClick={(event) => {
                     if (
                       event.button !== 0 ||
@@ -1042,8 +1307,17 @@ function App() {
                 {showGraph &&
                   (activeTab === "eq" || activeTab === "tuning") && (
                     <section className="graph-card">
-                      <div className="graph-toolbar">{eqCurves}</div>
-                      {graphElement(activeTab === "eq")}
+                      <div className="graph-toolbar">
+                        {canCompare && activeTab === "eq" && (
+                          <CompareHoldButton
+                            disabled={isBusy}
+                            onStart={() => void bypassCompare.start()}
+                            onEnd={() => void bypassCompare.end()}
+                          />
+                        )}
+                        {eqCurves}
+                      </div>
+                      {graphElement({ withEditor: activeTab === "eq" })}
                     </section>
                   )}
                 {activeTab === "eq" && editorControls}

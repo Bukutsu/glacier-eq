@@ -22,7 +22,9 @@
     "saveFailed": "Não foi possível salvar o EQ inacabado para recuperação. Salve um perfil antes de fechar o aplicativo.",
     "replaceConfirmation": "Restaurar o rascunho substituirá suas alterações atuais no editor. Nada será gravado em um DAC.",
     "confirmRestore": "Restaurar",
-    "recovered": "EQ recuperado"
+    "recovered": "EQ recuperado",
+    "restoredNotice": "Seu EQ inacabado foi restaurado. Nada foi gravado no DAC.",
+    "keep": "Manter"
   },
   "preamp": {
     "title": "Pré-amplificação",
@@ -58,16 +60,13 @@
     "addFilter": "Adicionar filtro",
     "empty": "Nenhuma banda ainda. O EQ está plano.",
     "addBand": "Adicionar banda",
-    "addUnavailable": "Adicionar filtro (todas as bandas em uso)",
-    "allUsed": "Todas as bandas de filtro estão em uso",
     "add": "Adicionar",
     "reset": "Redefinir",
     "filter": "Filtro",
+    "typeLabel": "Tipo de filtro da banda {{number}}",
     "bandwidth": "Q / largura de banda",
-    "qHelp": "Um Q menor amplia a faixa do ajuste.",
     "frequency": "Frequência",
     "gain": "Ganho",
-    "more": "Mais configurações de banda",
     "types": {
       "Peak": "Pico",
       "HighShelf": "Prateleira de agudos",
@@ -91,7 +90,6 @@
   },
   "graph": {
     "description": "Gráfico de resposta em frequência do equalizador com curvas de filtros paramétricos em tempo real, medições e alvos",
-    "toggleLegend": "Alternar legenda",
     "lastWritten": "Última gravação",
     "eqCurve": "Curva de EQ",
     "lastWrittenMeasurement": "Última gravação + {{name}}",

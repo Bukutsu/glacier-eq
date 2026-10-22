@@ -388,5 +388,10 @@
     "savingRestarting": "DACにEQを保存中（再起動予定）…",
     "readingBand": "バンド{{index}}/{{total}}を読み込み中…",
     "writingBand": "バンド{{index}}/{{total}}を書き込み中…"
+  },
+  "compareHold": {
+    "hold": "長押しで EQ なしの音を聴く",
+    "off": "EQ オフ",
+    "label": "A/B"
   }
 }

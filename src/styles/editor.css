@@ -232,9 +232,48 @@
   display: block;
 }
 
-.mobile-legend-toggle {
-  display: none;
+/* Hold-to-compare and legend controls sit in the graph toolbar, off the plot. */
+.graph-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
 }
+.graph-legend-btn,
+.compare-hold-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0 var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--control-radius);
+  background: transparent;
+  color: var(--muted-foreground);
+  font: inherit;
+  font-size: var(--type-small);
+  font-weight: 600;
+  cursor: pointer;
+}
+.graph-legend-btn.active { background: var(--accent); color: var(--foreground); }
+.compare-hold-btn {
+  border-color: var(--input);
+  background: var(--control);
+  color: var(--foreground);
+  /* A long press must not select text or open the context menu. */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: none;
+}
+.compare-hold-btn.active {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+.graph-legend-btn:focus-visible,
+.compare-hold-btn:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.compare-hold-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
 .app-collapse {
   min-width: 0;
@@ -628,14 +667,6 @@
   font-size: var(--type-label);
 }
 
-.band-picker button.add-filter-chip.at-limit:disabled {
-  background: transparent !important;
-  color: var(--comment) !important;
-  opacity: 1 !important;
-  outline: 1px solid var(--line-medium);
-  outline-offset: -1px;
-  border-radius: var(--radius-control);
-}
 
 .mobile-filter-card {
   display: grid;

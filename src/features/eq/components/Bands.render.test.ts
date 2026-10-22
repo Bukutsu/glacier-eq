@@ -81,22 +81,27 @@ describe("Band editor markup", () => {
     expect(html).toContain('aria-label="Band 1 Q"');
   });
 
-  it("shows gain first and keeps filter type and Q in a closed disclosure on mobile", () => {
+  it("shows gain, frequency and Q on mobile, with the filter type in the band header", () => {
     const html = renderEditor();
+    const type = html.indexOf('aria-label="Band 1 filter type"');
     const gain = html.indexOf('aria-label="Band 1 gain"');
     const frequency = html.indexOf('aria-label="Band 1 frequency"');
-    const details = html.indexOf('<details class="band-more-settings">');
-    expect(gain).toBeGreaterThan(-1);
+    const q = html.indexOf('aria-label="Band 1 Q"');
+    expect(type).toBeGreaterThan(-1);
+    expect(type).toBeLessThan(gain);
     expect(gain).toBeLessThan(frequency);
-    expect(frequency).toBeLessThan(details);
-    expect(html).toContain("<summary>More band settings");
+    expect(frequency).toBeLessThan(q);
     expect(html).toContain("Q / bandwidth");
-    expect(html).toContain("Lower Q makes the adjustment wider.");
-    expect(html.indexOf('class="band-field band-type-field"')).toBeGreaterThan(
-      details,
-    );
-    expect(html.indexOf('aria-label="Band 1 Q"')).toBeGreaterThan(details);
-    expect(html).not.toContain('<details class="band-more-settings" open');
+    expect(html).not.toContain("<details");
+    expect(html).not.toContain('class="band-field band-type-field"');
+  });
+
+  it("labels band chips with short frequencies", () => {
+    const peq = buildDevDummyPeq();
+    peq.filters[1] = { ...peq.filters[1], freq: 4379 };
+    const html = renderEditor({ peq });
+    expect(html).toContain("<span>4.4k</span>");
+    expect(html).not.toContain("4.379k");
   });
 
   it("disables every mobile edit and reset during a device operation", () => {
@@ -116,7 +121,7 @@ describe("Band editor markup", () => {
   });
 
   it("uses a labelled combobox with readable filter names", () => {
-    const html = renderEditor();
+    const html = renderEditor({ isMobile: false });
     expect(html).toContain('<label class="band-field band-type-field">');
     expect(html.match(/role="combobox"/g)).toHaveLength(1);
     expect(html).toContain('class="app-select-value">Low shelf</span>');
@@ -192,9 +197,8 @@ describe("Band editor markup", () => {
     const peq = buildDevDummyPeq();
     peq.filters = peq.filters.map((filter) => ({ ...filter, enabled: true }));
     const html = renderEditor({ peq, activeBandIndex: 0 });
-    expect(html).toContain('class="add-filter-chip at-limit"');
-    expect(html).toContain('aria-label="Add filter (all bands in use)"');
-    expect(html).toContain('title="All filter bands are in use"');
+    expect(html).not.toContain("add-filter-chip");
     expect(html).not.toContain("band-undo-toast");
+    expect(renderEditor()).toContain('class="add-filter-chip"');
   });
 });

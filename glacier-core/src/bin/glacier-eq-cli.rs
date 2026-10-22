@@ -19,6 +19,7 @@ const HELP: &str = "Glacier EQ CLI
 Usage:
   glacier-eq-cli devices
   glacier-eq-cli udev-rules
+  glacier-eq-cli android-usb-filter
   glacier-eq-cli dawn-pro status [--device PATH|2FC6:F06A]
   glacier-eq-cli dawn-pro filter 0..4|gain low|high|volume 0..60|led 0..2 [--device SELECTOR] --yes
   glacier-eq-cli inspect [FILE|-]
@@ -56,6 +57,7 @@ enum Command {
     Help,
     Devices,
     UdevRules,
+    AndroidUsbFilter,
     Inspect(String),
     Normalize(String, Option<String>),
     Response(String, f64),
@@ -159,6 +161,7 @@ fn parse(args: Vec<String>) -> Result<Command, String> {
         None | Some("help" | "--help" | "-h") => Ok(Command::Help),
         Some("devices") if args.len() == 1 => Ok(Command::Devices),
         Some("udev-rules") if args.len() == 1 => Ok(Command::UdevRules),
+        Some("android-usb-filter") if args.len() == 1 => Ok(Command::AndroidUsbFilter),
         Some("inspect") if args.len() <= 2 => Ok(Command::Inspect(
             args.get(1).cloned().unwrap_or_else(|| "-".into()),
         )),
@@ -467,6 +470,7 @@ fn execute(command: Command) -> Result<String, String> {
         Command::Help => Ok(HELP.into()),
         Command::Devices => Ok(supported_devices()),
         Command::UdevRules => Ok(glacier_core::device::udev::rules()),
+        Command::AndroidUsbFilter => Ok(glacier_core::device::android_usb::usb_device_filter()),
         Command::Inspect(path) => inspect(&path),
         Command::Normalize(path, device) => normalize(&path, device.as_deref()),
         Command::Response(path, sample_rate) => response(&path, sample_rate),

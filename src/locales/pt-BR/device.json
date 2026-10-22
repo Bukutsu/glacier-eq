@@ -400,5 +400,10 @@
     "savingRestarting": "Salvando EQ no DAC (reinicialização esperada)…",
     "readingBand": "Lendo banda {{index}}/{{total}}…",
     "writingBand": "Gravando banda {{index}}/{{total}}…"
+  },
+  "compareHold": {
+    "hold": "Segure para ouvir sem EQ",
+    "off": "EQ desligado",
+    "label": "A/B"
   }
 }

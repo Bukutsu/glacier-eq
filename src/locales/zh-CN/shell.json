@@ -46,7 +46,8 @@
     "save": "保存至 DAC",
     "noHardwareNote": "此 DAC 无硬件 EQ，无法读取或写入 EQ。您仍可编辑并导出 EQ，以在系统均衡器中使用。",
     "operationProgress": "设备操作进行中",
-    "progress": "{{message}} · {{percentage}}%"
+    "progress": "{{message}} · {{percentage}}%",
+    "edited": "已编辑"
   },
   "actions": {
     "undo": "撤销",
@@ -80,7 +81,8 @@
     "hideResponse": "隐藏频率响应图",
     "show": "显示图表",
     "hide": "隐藏图表",
-    "scroll": "滚动至频率响应图"
+    "scroll": "滚动至频率响应图",
+    "legend": "曲线图例"
   },
   "feedback": {
     "preferenceNotSaved": "此浏览器无法保存偏好设置；重启后可能不会保留。",
@@ -139,5 +141,8 @@
     "settings": {
       "label": "设置"
     }
+  },
+  "compare": {
+    "failed": "A/B 切换失败：{{error}}"
   }
 }

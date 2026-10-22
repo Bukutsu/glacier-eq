@@ -22,7 +22,9 @@
     "saveFailed": "復元用に編集途中のEQを保存できませんでした。アプリを閉じる前にプロファイルを保存してください。",
     "replaceConfirmation": "下書きを復元すると、エディターの現在の変更が置き換わります。DACには何も書き込みません。",
     "confirmRestore": "復元",
-    "recovered": "復元したEQ"
+    "recovered": "復元したEQ",
+    "restoredNotice": "未完成の EQ を復元しました。DAC には何も書き込んでいません。",
+    "keep": "保持"
   },
   "preamp": {
     "title": "プリアンプ",
@@ -56,16 +58,13 @@
     "addFilter": "フィルターを追加",
     "empty": "バンドはまだありません。EQはフラットです。",
     "addBand": "バンドを追加",
-    "addUnavailable": "フィルターを追加（すべてのバンドを使用中）",
-    "allUsed": "すべてのフィルターバンドを使用中です",
     "add": "追加",
     "reset": "リセット",
     "filter": "フィルター",
+    "typeLabel": "バンド {{number}} のフィルタータイプ",
     "bandwidth": "Q / 帯域幅",
-    "qHelp": "Qを下げると調整の幅が広がります。",
     "frequency": "周波数",
     "gain": "ゲイン",
-    "more": "バンドの詳細設定",
     "types": {
       "Peak": "ベル",
       "HighShelf": "ハイシェルフ",
@@ -87,7 +86,6 @@
   },
   "graph": {
     "description": "パラメトリックフィルターの曲線、測定データ、ターゲットをリアルタイム表示するイコライザー周波数特性グラフ",
-    "toggleLegend": "凡例の表示を切り替え",
     "lastWritten": "最後に書き込んだEQ",
     "eqCurve": "EQ曲線",
     "lastWrittenMeasurement": "最後に書き込んだEQ + {{name}}",

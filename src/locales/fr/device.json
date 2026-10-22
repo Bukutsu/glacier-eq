@@ -400,5 +400,10 @@
     "savingRestarting": "Enregistrement de l’égalisation sur le DAC (redémarrage prévu)…",
     "readingBand": "Lecture de la bande {{index}}/{{total}}…",
     "writingBand": "Écriture de la bande {{index}}/{{total}}…"
+  },
+  "compareHold": {
+    "hold": "Maintenir pour écouter sans EQ",
+    "off": "EQ désactivé",
+    "label": "A/B"
   }
 }

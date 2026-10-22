@@ -7,6 +7,11 @@
 - In-app updates (Settings > About > Software updates). Glacier EQ checks the latest GitHub release once at launch, shows a toast when a newer one exists, and downloads it with a progress bar; you choose when to restart. Downloads are verified against Glacier EQ's update signing key before they install. Works on the AppImage, Windows installer (NSIS and MSI), and macOS builds. Distro `.deb`/`.rpm` packages, the Windows portable zip, Arch/PKGBUILD and development builds, and Android show the card greyed out with the reason; the web app does not show it.
 - Opt-in live apply for Walkplay DACs (Settings > General): each EQ edit goes to the DAC's RAM about 100 ms after you make it, and is saved once you pause, so the Write to DAC button is hidden. This is the same temp-apply the official EPZ web app uses to audition an EQ. The vendor's own web tools use the same packets across Walkplay schemes. Confirmed on hardware on the EPZ TP35 Pro only; the Fosi / iBasso entry is left off because nothing confirms it uses this protocol.
 - `glacier-eq-cli hardware live FILE...` applies one or more EQ files to the DAC's RAM in order, without a backup read or a flash save.
+- Android: plugging in a supported DAC offers to open Glacier EQ, which then has permission for that DAC and connects. The device list comes from the catalog (`glacier-eq-cli android-usb-filter`).
+- A/B button in the graph toolbar on DACs that take temporary EQ: hold it to hear the DAC without its filters, release to hear the EQ again. Flash is never written.
+- Mobile Profiles: **Use on DAC** loads a profile and saves it to the connected DAC in one step.
+- Mobile: when the DAC does not have the editor's EQ, a bar above the tab bar says so and offers **Save to DAC** on the Tuning, Profiles and Settings tabs.
+- Mobile: tap near a dot on the graph to edit that band. The band being edited has a ringed dot and is the only single-band curve drawn.
 
 ### Changed
 
@@ -18,6 +23,16 @@
 - The Profiles tab is quieter and shows more: every saved profile has its own rename and delete buttons (and apply-to-DAC when connected), so you no longer load a profile first to manage it. The editor card shows Save, Discard, Export, and Copy directly instead of behind a menu.
 - The empty EQ editor now says how many bands the current DAC has and which filter types it supports.
 - FiiO JA11 is now listed as tested (both USB audio mode IDs), from community tester reports on JA11 firmware. JM12 and the KA series stay untested.
+- Mobile band editor: Gain, Frequency and Q are always shown; the filter type is chosen beside the band number. "More band settings" is gone. The graph and band chips stay pinned on tall screens while the controls scroll.
+- Mobile: the band chips use short frequencies (4.4k), and the Add chip disappears once every band is in use.
+- Mobile: the Device tab is now the top of the Settings tab, leaving four tabs.
+- Mobile: an unfinished EQ from the last session is restored automatically, with a notice to keep or discard it. An unreadable draft still asks first.
+- Mobile: the graph's legend button moved from the plot into the graph toolbar, and band dots are drawn above the dB labels so a label never hides a band.
+- The header title no longer changes to "Default EQ" when the app regains focus while a generated, imported, recovered or DAC-read EQ is open. A saved profile or Default EQ with changes is marked **Edited** on mobile.
+- Dragging a gain slider lands on 0.1 dB steps; the number box still takes exact values.
+- The Tuning tab draws the target shown in its dropdown even when no target was active, and scrolls to the result after **Generate EQ**.
+- Scanning in Connect DAC connects at once when it finds exactly one DAC.
+- Android: Settings > About links to the latest APK instead of showing a disabled update button.
 - The Walkplay temporary apply now sends only the RAM load. It used to send the flash save as well, so Walkplay was kept off the temporary-apply list. Every Walkplay DAC except the Fosi / iBasso entry is now on it, so Profiles can apply temporarily there too.
 
 ## [0.15.0] - 2026-10-18

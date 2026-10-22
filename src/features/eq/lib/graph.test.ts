@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   filterResponseValues,
+  formatFreqShort,
   peqResponseValues,
   peqResponseAndBandValues,
 } from "./graph";
@@ -58,5 +59,16 @@ describe("async graph wrappers", () => {
         "MoondropShelfSlope",
       ),
     ).rejects.toThrow("Invalid Moondrop shelf slope");
+  });
+});
+
+describe("formatFreqShort", () => {
+  it("keeps chip labels to a few characters", () => {
+    expect(formatFreqShort(62)).toBe("62");
+    expect(formatFreqShort(1000)).toBe("1k");
+    expect(formatFreqShort(1551)).toBe("1.6k");
+    expect(formatFreqShort(4379)).toBe("4.4k");
+    expect(formatFreqShort(12500)).toBe("13k");
+    expect(formatFreqShort(20000)).toBe("20k");
   });
 });

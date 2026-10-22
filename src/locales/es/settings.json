@@ -158,6 +158,7 @@
     "title": "Actualizaciones de software",
     "notes": "Novedades",
     "privacy": "Glacier EQ consulta las versiones de GitHub una vez al iniciar. Las descargas se verifican con la clave de firma de Glacier EQ antes de instalarse.",
-    "availableToast": "Glacier EQ {{version}} está disponible. Abre Ajustes > Acerca de para actualizar."
+    "availableToast": "Glacier EQ {{version}} está disponible. Abre Ajustes > Acerca de para actualizar.",
+    "getLatestApk": "Obtener el APK más reciente"
   }
 }
