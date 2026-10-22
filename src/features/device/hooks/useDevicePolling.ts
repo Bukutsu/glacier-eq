@@ -1,5 +1,5 @@
 import { i18n } from "@/lib/i18n";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { invoke } from "@/lib/rpc";
 
 import { isDevDummyDevice } from "@/features/device/lib/devDevice";
@@ -62,6 +62,54 @@ export function useDevicePolling(
   } = editor;
   const { isAndroid, settings, reportStatus, reportLoss, setShowDeviceModal } =
     options;
+  const [attachedDevice, setAttachedDevice] = useState<{ path: string } | null>(
+    null,
+  );
+
+  useEffect(() => {
+    if (connected) setAttachedDevice(null);
+  }, [connected]);
+
+  useEffect(() => {
+    if (!isTauri() || !isAndroid) return;
+    let active = true;
+    let unregister: (() => void) | undefined;
+    import("@tauri-apps/api/core")
+      .then(({ addPluginListener }) =>
+        addPluginListener<unknown>("hid", "device-attached", (payload) => {
+          if (!active || connectedRef.current || connectingPathRef.current)
+            return;
+          if (
+            typeof payload !== "object" ||
+            payload === null ||
+            !("path" in payload) ||
+            typeof payload.path !== "string" ||
+            !payload.path
+          )
+            return;
+          // A new approved attachment is a new user action, unlike a routine
+          // poll. It may resume connection after an explicit disconnect.
+          manualDisconnectRef.current = false;
+          ambiguousReconnectRef.current = false;
+          setAttachedDevice({ path: payload.path });
+        }),
+      )
+      .then((listener) => {
+        const stop = () => {
+          void listener.unregister().catch(() => {});
+        };
+        if (active) unregister = stop;
+        else stop();
+      })
+      .catch((error) =>
+        console.error("Failed to listen for Android USB attachments:", error),
+      );
+    return () => {
+      active = false;
+      unregister?.();
+    };
+  }, [isAndroid]);
+
   useEffect(() => {
     if (
       !isTauri() ||
@@ -132,7 +180,7 @@ export function useDevicePolling(
       connected ||
       manualDisconnectRef.current ||
       ambiguousReconnectRef.current ||
-      isDevDummyDevice(selectedDevice) ||
+      (!attachedDevice && isDevDummyDevice(selectedDevice)) ||
       isBusy
     )
       return;
@@ -169,8 +217,10 @@ export function useDevicePolling(
           : realDevices;
         setDevices(deviceList);
 
-        const targetName = connectedDeviceName || lastConnectedNameRef.current;
-        const targetPath = selectedDevice;
+        const targetName = attachedDevice
+          ? ""
+          : connectedDeviceName || lastConnectedNameRef.current;
+        const targetPath = attachedDevice?.path ?? selectedDevice;
         const exactPathMatch = targetPath
           ? realDevices.find((device) => device.path === targetPath)
           : undefined;
@@ -181,11 +231,11 @@ export function useDevicePolling(
                 device.product_string === targetName,
             )
           : [];
-        const found = chooseReconnectDevice(
-          realDevices,
-          targetPath,
-          targetName,
-        );
+        // An approved attach intent targets that USB device, never an unrelated
+        // DAC that happens to remain on a hub.
+        const found = attachedDevice
+          ? exactPathMatch
+          : chooseReconnectDevice(realDevices, targetPath, targetName);
         if (!exactPathMatch && nameMatches.length > 1) {
           ambiguousReconnectRef.current = true;
           setIsReconnecting(false);
@@ -354,6 +404,7 @@ export function useDevicePolling(
       document.removeEventListener("visibilitychange", handleVisibility);
     };
   }, [
+    attachedDevice,
     connected,
     connectedDeviceName,
     selectedDevice,

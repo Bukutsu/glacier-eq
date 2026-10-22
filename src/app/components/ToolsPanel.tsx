@@ -66,6 +66,7 @@ interface ToolsPanelProps {
   isSimulated?: boolean;
   activeTab: ToolsTab;
   onOpenConnectModal?: () => void;
+  onChooseDevice?: () => void;
   onOpenDiagnostics?: () => void;
   showGraph?: boolean;
   onShowGraphChange?: (show: boolean) => void;
@@ -145,6 +146,7 @@ export const ToolsPanel = memo(function ToolsPanel(props: ToolsPanelProps) {
               setStatus={props.setStatus}
               onPull={props.onPull}
               onOpenConnectModal={props.onOpenConnectModal}
+              onChooseDevice={props.onChooseDevice}
               onDisconnect={props.onDisconnect}
               onPreviewChange={props.onPreviewChange}
               onExpectedDisconnect={props.onExpectedDisconnect}

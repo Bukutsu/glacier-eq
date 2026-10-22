@@ -4,9 +4,11 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.hardware.usb.UsbConstants
 import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbDeviceConnection
@@ -546,6 +548,11 @@ class ReadArgs {
 }
 
 @InvokeArg
+class OpenOnAttachArgs {
+    var enabled: Boolean = false
+}
+
+@InvokeArg
 class WriteArgs {
     var path: String? = null
     var reportId: Int = 0
@@ -580,6 +587,21 @@ class HidPlugin(private val activity: Activity): Plugin(activity) {
     init {
         registerUsbPermissionReceiver()
         registerUsbDetachReceiver()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        if (destroyed || intent.action != UsbManager.ACTION_USB_DEVICE_ATTACHED) return
+        val attached = (if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            intent.getParcelableExtra(UsbManager.EXTRA_DEVICE, UsbDevice::class.java)
+        } else {
+            @Suppress("DEPRECATION")
+            intent.getParcelableExtra(UsbManager.EXTRA_DEVICE) as? UsbDevice
+        }) ?: return
+        // Treat the intent only as a hint. The device must still be present and
+        // Android must already have granted access through its launch dialog.
+        val current = usbManager.deviceList[attached.deviceName] ?: return
+        if (!sameUsbDevice(current, attached) || !usbManager.hasPermission(current)) return
+        triggerObject("device-attached", JSObject().apply { put("path", current.deviceName) })
     }
 
     private fun enqueueIo(invoke: Invoke, operation: () -> Unit): Boolean {
@@ -920,6 +942,39 @@ class HidPlugin(private val activity: Activity): Plugin(activity) {
         val devices = connectedDevices.values.toList()
         connectedDevices.clear()
         devices.forEach { it.closeConnection() }
+    }
+
+    // The host manifest declares this alias, disabled, holding the
+    // USB_DEVICE_ATTACHED filter. Enabling it is the opt-in for Android's
+    // "open Glacier EQ?" prompt on plug-in; the package manager stores it.
+    private fun attachLauncher() =
+        ComponentName(activity.packageName, "${activity.packageName}.UsbAttachLauncher")
+
+    @Command
+    fun getOpenOnAttach(invoke: Invoke) {
+        try {
+            val state = activity.packageManager.getComponentEnabledSetting(attachLauncher())
+            invoke.resolve(JSObject().apply {
+                put("enabled", state == PackageManager.COMPONENT_ENABLED_STATE_ENABLED)
+            })
+        } catch (e: IllegalArgumentException) {
+            invoke.reject("USB attach launcher is not declared in the app manifest")
+        }
+    }
+
+    @Command
+    fun setOpenOnAttach(invoke: Invoke) {
+        val args = invoke.parseArgs(OpenOnAttachArgs::class.java)
+        val state = if (args.enabled) PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+            else PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+        try {
+            activity.packageManager.setComponentEnabledSetting(
+                attachLauncher(), state, PackageManager.DONT_KILL_APP
+            )
+            invoke.resolve()
+        } catch (e: IllegalArgumentException) {
+            invoke.reject("USB attach launcher is not declared in the app manifest")
+        }
     }
 
     @Command

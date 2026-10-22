@@ -86,6 +86,23 @@ describe("SettingsView markup", () => {
     );
   });
 
+  it("offers plug-in launch only in the Android app, off until Android answers", () => {
+    expect(renderSettingsView({ section: "general" })).not.toContain(
+      "Open when a DAC is plugged in",
+    );
+    vi.stubGlobal("window", { __TAURI_INTERNALS__: {} });
+    vi.stubGlobal("navigator", {
+      userAgent: "Mozilla/5.0 (Linux; Android 15)",
+    });
+    try {
+      expect(renderSettingsView({ section: "general" })).toMatch(
+        /<button[^>]*role="switch"[^>]*aria-checked="false"[^>]*aria-label="Open when a DAC is plugged in"/,
+      );
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("renders shortcuts as a plain section without card chrome", () => {
     const html = renderSettingsView({ section: "diagnostics" });
     expect(html).toContain("shortcuts-card");

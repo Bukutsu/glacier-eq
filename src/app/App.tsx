@@ -321,6 +321,7 @@ function App() {
     handlePreampChange,
   } = editor;
   const {
+    connectPrimary,
     scanDevices,
     recoverDeviceRead,
     pullEq,
@@ -895,7 +896,8 @@ function App() {
       section={section}
       setStatus={setStatus}
       onPull={hardwareEq ? pullEq : undefined}
-      onOpenConnectModal={handleOpenDeviceModal}
+      onOpenConnectModal={connectPrimary}
+      onChooseDevice={handleOpenDeviceModal}
       onDisconnect={connected ? disconnectDevice : undefined}
       onPreviewChange={handlePreviewChange}
       onExpectedDisconnect={handleExpectedDisconnect}
@@ -942,7 +944,7 @@ function App() {
       liveApply={liveApplySupported && settings.live_apply}
       onExportEq={handleExportEq}
       onDisconnect={disconnectDevice}
-      onConnectClick={handleOpenDeviceModal}
+      onConnectClick={connectPrimary}
       configPage={desktopConfigPage}
       pageTitle={
         isMobile
@@ -1371,7 +1373,8 @@ function App() {
                 isBusy={isBusy}
                 isSimulated={isDevDummyDevice(selectedDevice)}
                 activeTab={TOOL_TAB_BY_WORKSPACE[activeTab] ?? "Preset"}
-                onOpenConnectModal={handleOpenDeviceModal}
+                onOpenConnectModal={connectPrimary}
+                onChooseDevice={handleOpenDeviceModal}
                 onOpenDiagnostics={handleOpenDiagnosticsModal}
                 showGraph={showGraph}
                 onShowGraphChange={setShowGraph}

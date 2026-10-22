@@ -2,7 +2,8 @@ import { i18n } from "@/lib/i18n";
 import { useDeviceEvents } from "./useDeviceEvents";
 import { useDevicePolling } from "./useDevicePolling";
 import type { DeviceSessionOptions } from "./deviceSessionTypes";
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
+import { createConnectPrimary } from "../operations/connectPrimary";
 import { createScanDevices } from "@/features/device/operations/scanDevices";
 import { createReadRecovery } from "@/features/device/operations/recoverDeviceRead";
 import { createPullEq } from "@/features/device/operations/pullEq";
@@ -13,7 +14,13 @@ import { createPushEq } from "@/features/device/operations/pushEq";
 import { createApplyProfileToRam } from "@/features/device/operations/applyProfileToRam";
 import { useCallback, useEffect } from "react";
 
-import { invoke, invokeForDevice, emit, sleep } from "@/lib/rpc";
+import {
+  invoke,
+  invokeForDevice,
+  emit,
+  sleep,
+  requestWebHidDevice,
+} from "@/lib/rpc";
 
 import { confirmDialog } from "@/components/ui/ConfirmDialog";
 
@@ -495,6 +502,43 @@ export function useDeviceSession(
     ],
   );
 
+  // Keep the command stable across renders so repeated taps cannot start a
+  // second scan while React is updating the busy state.
+  const primaryContextRef = useRef({ isBusy, connectDevice });
+  primaryContextRef.current = { isBusy, connectDevice };
+  const connectPrimary = useMemo(
+    () =>
+      createConnectPrimary({
+        canStart: () =>
+          !primaryContextRef.current.isBusy &&
+          !connectedRef.current &&
+          !connectingPathRef.current &&
+          !eqOperationInFlightRef.current,
+        setBusy: setIsBusy,
+        pauseReconnect: () => {
+          reconnectEffectGenerationRef.current += 1;
+          ambiguousReconnectRef.current = true;
+        },
+        authorize: async () => {
+          if (!isTauri()) await requestWebHidDevice();
+        },
+        scan: () => scanDevices(false),
+        connect: (path, target) =>
+          primaryContextRef.current.connectDevice(path, target),
+        showChooser: () => options.setShowDeviceModal(true),
+        reportError: (error) =>
+          reportStatus({
+            level: "Error",
+            message: i18n.t("device:deviceChooser.authorizationFailed", {
+              err: String(error),
+            }),
+            toastType: "error",
+            source: "Device",
+          }),
+      }),
+    [scanDevices, reportStatus, options.setShowDeviceModal],
+  );
+
   // A JA11 setting write may make the DAC drop off USB briefly. Treat the next
   // 15 s of loss as expected, like a save restart.
   const handleExpectedDisconnect = useMemo(
@@ -770,6 +814,7 @@ export function useDeviceSession(
     }
   }, [selectedDevice, reportStatus]);
   return {
+    connectPrimary,
     scanDevices,
     loadFirmwareVersion,
     recoverDeviceRead,

@@ -33,7 +33,7 @@ Other Savitech- or Walkplay-based DAC dongles may work. See the [full device lis
 
 Loading a profile only changes the editor. Write it to the DAC to save it, or use **Use on DAC** on mobile to do both. Compatible DACs also let you try an EQ temporarily without saving, and hold **A/B** to hear the DAC without EQ.
 
-On Android, plugging in a supported DAC offers to open Glacier EQ.
+On Android, you can turn on **Open when a DAC is plugged in** (Settings > General) so plugging in a supported DAC offers to open Glacier EQ.
 
 Linux connection issues? See the [setup and troubleshooting guide](https://github.com/Bukutsu/glacier-eq/wiki/Troubleshooting).
 

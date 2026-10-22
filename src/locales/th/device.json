@@ -101,6 +101,7 @@
     "connectDac": "เชื่อมต่อ DAC",
     "disconnect": "ตัดการเชื่อมต่อ",
     "changeDevice": "เปลี่ยนอุปกรณ์",
+    "connectionOptions": "ตัวเลือกการเชื่อมต่อ",
     "deviceConnection": "การเชื่อมต่ออุปกรณ์",
     "chip": "ชิป",
     "notReported": "ไม่ได้รายงาน",

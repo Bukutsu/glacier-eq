@@ -22,16 +22,24 @@
                 <!-- AndroidTV support -->
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
             </intent-filter>
-            <!-- Plugging in a supported DAC offers to open Glacier EQ, which
-                 then has permission for that DAC. The list comes from
-                 glacier-eq-cli android-usb-filter. -->
+        </activity>
+
+        <!-- Opt-in (Settings > General): plugging in a supported DAC offers to
+             open Glacier EQ, which then has permission for that DAC. Disabled
+             until the user turns it on; HidPlugin toggles this component.
+             The list comes from glacier-eq-cli android-usb-filter. -->
+        <activity-alias
+            android:name=".UsbAttachLauncher"
+            android:targetActivity=".MainActivity"
+            android:enabled="false"
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
             </intent-filter>
             <meta-data
                 android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"
                 android:resource="@xml/usb_device_filter" />
-        </activity>
+        </activity-alias>
 
         <provider
           android:name="androidx.core.content.FileProvider"

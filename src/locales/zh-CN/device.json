@@ -101,6 +101,7 @@
     "connectDac": "连接 DAC",
     "disconnect": "断开连接",
     "changeDevice": "更换设备",
+    "connectionOptions": "连接选项",
     "deviceConnection": "设备连接",
     "chip": "芯片",
     "notReported": "未报告",

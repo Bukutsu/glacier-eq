@@ -57,10 +57,19 @@ mod tests {
     }
 
     #[test]
-    fn manifest_opens_the_app_for_listed_dacs() {
+    fn manifest_opens_the_app_for_listed_dacs_only_when_opted_in() {
         let manifest =
             include_str!("../../../src-tauri/gen/android/app/src/main/AndroidManifest.xml");
-        assert!(manifest.contains("android.hardware.usb.action.USB_DEVICE_ATTACHED"));
-        assert!(manifest.contains("@xml/usb_device_filter"));
+        // HidPlugin enables this alias by name; it must ship disabled.
+        let alias = manifest
+            .split("<activity-alias")
+            .nth(1)
+            .and_then(|rest| rest.split("</activity-alias>").next())
+            .expect("USB attach alias");
+        assert!(alias.contains("android:name=\".UsbAttachLauncher\""));
+        assert!(alias.contains("android:enabled=\"false\""));
+        assert!(alias.contains("android.hardware.usb.action.USB_DEVICE_ATTACHED"));
+        assert!(alias.contains("@xml/usb_device_filter"));
+        assert_eq!(manifest.matches("USB_DEVICE_ATTACHED\" />").count(), 1);
     }
 }

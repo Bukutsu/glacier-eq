@@ -536,6 +536,8 @@ pub fn run() {
             device_commands::connect_device,
             device_commands::get_firmware_version,
             device_commands::disconnect_device,
+            device_commands::get_open_on_attach,
+            device_commands::set_open_on_attach,
             settings::get_settings,
             settings::save_settings,
             udev::get_udev_status,

@@ -46,6 +46,21 @@ The device lifecycle has one owner:
 - `useDevicePolling.ts` handles desktop detach detection and automatic reconnection.
 - `features/device/operations/` contains read, save, reset, restart, and read-recovery workflows.
 
+The primary Connect DAC action uses `operations/connectPrimary.ts`: authorize
+WebHID when needed, scan, then connect directly if exactly one real DAC is
+present. Zero devices, multiple devices, or a failed connection open the
+chooser. Development previews never become automatic connection targets.
+The command pauses automatic reconnect and rejects repeated taps while it
+runs. On Android, plug-in launch is opt-in: the USB attach filter sits on the
+`.UsbAttachLauncher` activity alias, which ships disabled. The General setting
+(`OpenOnAttachSetting`) switches it through the HID plugin's
+`getOpenOnAttach`/`setOpenOnAttach`; Android stores the choice, so it is not
+in `AppSettings`. When on, the HID plugin forwards an approved USB attach intent to
+`useDevicePolling` even when the activity is already running. The event resumes
+discovery after a manual disconnect and targets only the attached USB path;
+it never switches an existing connection. Cold launches use normal discovery. Explicit device switching stays under the closed Connection options
+disclosure in the device summary and opens the chooser directly.
+
 `features/eq/hooks/useEqEditor.ts` owns editor changes, clean/dirty state, profile integration, and undo/draft handling. Device completion and editor completion have different guards: a saved DAC write may succeed even if the editor changed while it ran.
 
 Preserve session, generation, and operation checks across awaits. The shared lock must still reject overlapping writes and maintenance actions. Reconnection may reopen and read; it must never replay a mutation. Offline edits and draft recovery must never write to hardware.

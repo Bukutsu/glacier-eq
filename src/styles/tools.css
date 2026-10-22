@@ -944,6 +944,19 @@ button.danger { color: var(--destructive-foreground); background: transparent; o
   flex: 0 1 auto;
 }
 
+
+/* Connection management stays available without competing with DAC controls. */
+.device-connection-options summary {
+  cursor: pointer;
+  color: var(--muted-foreground);
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--type-label);
+}
+.device-connection-options[open] summary { margin-bottom: 8px; }
+
 .device-stack-view .device-navigation {
   padding: 8px 0;
 }

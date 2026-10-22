@@ -54,6 +54,7 @@ export interface DeviceViewProps {
   setStatus: StatusReporter;
   onPull?: () => Promise<void | boolean>;
   onOpenConnectModal?: () => void;
+  onChooseDevice?: () => void;
   onDisconnect?: () => Promise<void>;
   onPreviewChange?: (device: DeviceInfo) => void;
   /** Called before a write that may make the DAC briefly drop off USB. */
@@ -83,6 +84,7 @@ export const DeviceView = memo(function DeviceView({
   setStatus,
   onPull,
   onOpenConnectModal,
+  onChooseDevice,
   onDisconnect,
   onPreviewChange,
   onExpectedDisconnect,
@@ -368,7 +370,7 @@ export const DeviceView = memo(function DeviceView({
     try {
       await onDisconnect?.();
     } finally {
-      onOpenConnectModal?.();
+      (onChooseDevice ?? onOpenConnectModal)?.();
     }
   };
 
@@ -420,7 +422,15 @@ export const DeviceView = memo(function DeviceView({
 
       <div className="device-hero-actions">
         {connected ? (
-          <>
+          <details className="device-connection-options">
+            <summary>
+              {t("deviceView.connectionOptions")}
+              <Icon
+                name="expand_more"
+                size={18}
+                className="disclosure-chevron"
+              />
+            </summary>
             {onDisconnect && (
               <Button
                 type="button"
@@ -443,13 +453,14 @@ export const DeviceView = memo(function DeviceView({
                 <span>{t("deviceView.changeDevice")}</span>
               </Button>
             )}
-          </>
+          </details>
         ) : (
           onOpenConnectModal && (
             <Button
               type="button"
               variant="primary"
               onClick={onOpenConnectModal}
+              disabled={isBusy}
             >
               <Icon name="usb" />
               <span>{t("deviceView.connectDac")}</span>

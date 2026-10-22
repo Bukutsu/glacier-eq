@@ -103,6 +103,7 @@
     "connectDac": "Connecter le DAC",
     "disconnect": "Déconnecter",
     "changeDevice": "Changer d’appareil",
+    "connectionOptions": "Options de connexion",
     "deviceConnection": "Connexion de l’appareil",
     "chip": "Puce",
     "notReported": "Non communiqué",

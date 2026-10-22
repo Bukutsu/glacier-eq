@@ -80,6 +80,21 @@ impl<R: Runtime> Hid<R> {
         Ok(data)
     }
 
+    /// Whether plugging in a listed DAC offers to open the app (Android).
+    pub fn open_on_attach(&self) -> crate::Result<bool> {
+        let result = self
+            .0
+            .run_mobile_plugin::<OpenOnAttach>("getOpenOnAttach", ())
+            .map_err(Error::PluginInvoke)?;
+        Ok(result.enabled)
+    }
+
+    pub fn set_open_on_attach(&self, enabled: bool) -> crate::Result<()> {
+        self.0
+            .run_mobile_plugin("setOpenOnAttach", OpenOnAttach { enabled })
+            .map_err(Error::PluginInvoke)
+    }
+
     pub fn write(&self, path: &str, data: &[u8]) -> crate::Result<()> {
         // HIDAPI includes the report ID as the first byte. Keep it separate so
         // Android can frame control and interrupt transfers correctly.

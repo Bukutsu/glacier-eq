@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/SettingsPrimitives";
 import { invoke } from "@/lib/rpc";
 import { isAndroidDevice, isLinux, isTauri } from "@/lib/platform";
+import { OpenOnAttachSetting } from "./OpenOnAttachSetting";
 import { themeOptions } from "@/features/settings/lib/theme";
 import { ThemePicker } from "./ThemePicker";
 import { UpdateSection } from "./UpdateSection";
@@ -395,6 +396,10 @@ export const SettingsView = memo(function SettingsView({
               checked={settings.auto_pull_on_connect}
               onChange={(v) => onSettingChange("auto_pull_on_connect", v)}
             />
+
+            {isTauri() && isAndroidDevice() && (
+              <OpenOnAttachSetting setStatus={setStatus} />
+            )}
 
             <ToggleRow
               title={t("general.verify")}

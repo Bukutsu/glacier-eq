@@ -7,7 +7,7 @@
 - In-app updates (Settings > About > Software updates). Glacier EQ checks the latest GitHub release once at launch, shows a toast when a newer one exists, and downloads it with a progress bar; you choose when to restart. Downloads are verified against Glacier EQ's update signing key before they install. Works on the AppImage, Windows installer (NSIS and MSI), and macOS builds. Distro `.deb`/`.rpm` packages, the Windows portable zip, Arch/PKGBUILD and development builds, and Android show the card greyed out with the reason; the web app does not show it.
 - Opt-in live apply for Walkplay DACs (Settings > General): each EQ edit goes to the DAC's RAM about 100 ms after you make it, and is saved once you pause, so the Write to DAC button is hidden. This is the same temp-apply the official EPZ web app uses to audition an EQ. The vendor's own web tools use the same packets across Walkplay schemes. Confirmed on hardware on the EPZ TP35 Pro only; the Fosi / iBasso entry is left off because nothing confirms it uses this protocol.
 - `glacier-eq-cli hardware live FILE...` applies one or more EQ files to the DAC's RAM in order, without a backup read or a flash save.
-- Android: plugging in a supported DAC offers to open Glacier EQ, which then has permission for that DAC and connects. The device list comes from the catalog (`glacier-eq-cli android-usb-filter`).
+- Android, opt-in (Settings > General > **Open when a DAC is plugged in**, off by default): plugging in a supported DAC offers to open Glacier EQ, which then has permission for that DAC and connects. Ticking **Always** in Android's prompt skips the prompt next time. An approved attachment also resumes connection after a manual disconnect when the app is already running; it never switches away from an active DAC. The device list comes from the catalog (`glacier-eq-cli android-usb-filter`).
 - A/B button in the graph toolbar on DACs that take temporary EQ: hold it to hear the DAC without its filters, release to hear the EQ again. Flash is never written.
 - Mobile Profiles: **Use on DAC** loads a profile and saves it to the connected DAC in one step.
 - Mobile: when the DAC does not have the editor's EQ, a bar above the tab bar says so and offers **Save to DAC** on the Tuning, Profiles and Settings tabs.
@@ -15,6 +15,7 @@
 
 ### Changed
 
+- **Connect DAC** now scans and connects directly when one DAC is present, without opening the device picker first. The picker remains available when several DACs are present or connection fails. Disconnect and Change device are tucked under **Connection options** in the device summary.
 - The Linux AppImage works better with AppImage managers such as Gear Lever and Shelly. It now carries its version (`X-AppImage-Version`) and a `Music` menu category in its desktop entry, embeds GitHub update information and AppStream metadata, and each release ships a matching `.AppImage.zsync` file so these tools can tell when a newer release exists.
 - Adding a band on a 5- or 8-band DAC now starts it at a frequency spread across the audible range (for example 63 Hz to 12.5 kHz on 5 bands) instead of the 10-band bass-heavy list. A band you have already tuned keeps its settings.
 - A frequency typed into the band's number box is kept exactly. ISO snapping now applies only to dragging and the arrow steps, so typing 3500 no longer becomes 3150.

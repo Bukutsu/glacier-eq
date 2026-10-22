@@ -86,6 +86,22 @@ describe("DeviceView markup", () => {
     expect(html).not.toContain("Device Configuration");
   });
 
+  it("keeps connection management in a closed disclosure when connected", () => {
+    const html = renderDeviceView({
+      connected: true,
+      onDisconnect: async () => {},
+      onOpenConnectModal: () => {},
+      onChooseDevice: () => {},
+    });
+    expect(html).toContain('<details class="device-connection-options">');
+    expect(html).toContain("Connection options");
+    expect(html).toContain("Change device");
+    expect(html).not.toContain('class="device-connection-options" open');
+    const offline = renderDeviceView({ onOpenConnectModal: () => {} });
+    expect(offline).toContain("Connect DAC");
+    expect(offline).not.toContain("device-connection-options");
+  });
+
   it("renders specifications as a definition list instead of tiles", () => {
     const html = renderDeviceView({ section: "overview" });
     expect(html).toContain("device-spec-list");

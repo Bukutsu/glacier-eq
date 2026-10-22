@@ -57,6 +57,12 @@ pub struct WriteArgs {
     pub data: Vec<i8>, // report payload, excluding the report ID
 }
 
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OpenOnAttach {
+    pub enabled: bool,
+}
+
 #[cfg(any(mobile, test))]
 pub(crate) fn split_report(data: &[u8]) -> (u8, &[u8]) {
     let report_id = data.first().copied().unwrap_or(0);

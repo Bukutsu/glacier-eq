@@ -190,6 +190,33 @@ fn hid_close(app: &tauri::AppHandle, path: &str, session_id: Option<u64>) -> Res
         .map_err(|error| error.to_string())
 }
 
+/// Android opt-in: offer to open the app when a supported DAC is plugged in.
+#[tauri::command]
+pub async fn get_open_on_attach(app: tauri::AppHandle) -> Result<bool, String> {
+    #[cfg(target_os = "android")]
+    return tauri_plugin_hid::hid(&app)
+        .open_on_attach()
+        .map_err(|error| error.to_string());
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = app;
+        Err("Opening on USB plug-in is only available on Android.".into())
+    }
+}
+
+#[tauri::command]
+pub async fn set_open_on_attach(app: tauri::AppHandle, enabled: bool) -> Result<(), String> {
+    #[cfg(target_os = "android")]
+    return tauri_plugin_hid::hid(&app)
+        .set_open_on_attach(enabled)
+        .map_err(|error| error.to_string());
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = (app, enabled);
+        Err("Opening on USB plug-in is only available on Android.".into())
+    }
+}
+
 fn try_open_device(app: &tauri::AppHandle, path: &str, session_id: u64) -> Result<(), String> {
     match tauri_plugin_hid::hid(app).open(path, session_id) {
         Ok(()) => {

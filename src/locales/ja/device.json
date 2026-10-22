@@ -101,6 +101,7 @@
     "connectDac": "DACを接続",
     "disconnect": "切断",
     "changeDevice": "デバイスを変更",
+    "connectionOptions": "接続オプション",
     "deviceConnection": "デバイスの接続",
     "chip": "チップ",
     "notReported": "情報なし",
