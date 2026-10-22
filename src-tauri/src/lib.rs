@@ -432,7 +432,20 @@ async fn open_url(_app: tauri::AppHandle, url: String) -> Result<(), String> {
 pub fn run() {
     #[cfg(not(mobile))]
     let window_state_flags = StateFlags::SIZE | StateFlags::POSITION | StateFlags::MAXIMIZED;
-    let mut builder = tauri::Builder::default()
+    let mut builder = tauri::Builder::default();
+    // Must be registered first. A second copy would fight the first over the
+    // HID device and the settings file, so focus the running window instead.
+    #[cfg(not(mobile))]
+    {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.unminimize();
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+        }));
+    }
+    builder = builder
         .manage(Mutex::new(DeviceState::default()))
         .manage(DeviceSessionLock::default())
         .manage(Mutex::new(DiagnosticsStore::default()));
