@@ -5,7 +5,7 @@ import {
   readDevDummyPeq,
   isDevDummyDevice,
 } from "@/features/device/lib/devDevice";
-import { normalizePeq } from "@/features/eq/lib/peq";
+import { normalizePeq, peqEquals } from "@/features/eq/lib/peq";
 
 import { isDisconnectionError } from "@/lib/errors";
 import { asyncContextEquals } from "@/lib/asyncContext";
@@ -105,6 +105,8 @@ export function createPullEq(context: PullEqContext) {
     afterConnect = false,
     targetPath = selectedDevice,
     targetCapabilities = selectedCapabilities,
+    /** Reconnecting a DAC: never replace edits, only record the DAC's EQ. */
+    keepEdits = false,
   ): Promise<boolean> => {
     if (!connected && !afterConnect) {
       setStatus(i18n.t("device:pullEq.connectionRequired"), "info");
@@ -132,6 +134,7 @@ export function createPullEq(context: PullEqContext) {
     const replacingPreview = afterConnect && isDevDummyDevice(targetPath);
     if (
       dirty &&
+      !keepEdits &&
       !replacingPreview &&
       !useDebugStore.getState().autoDiscardEq &&
       !(await confirmDialog({
@@ -207,6 +210,12 @@ export function createPullEq(context: PullEqContext) {
         integerPreamp: targetCapabilities.integer_preamp,
         capabilities: targetCapabilities,
       });
+      if (keepEdits && (dirty || peqEquals(normalized, peqRef.current))) {
+        // Leave the editor as the user left it. Recording the DAC's EQ lets
+        // the header say whether the DAC still matches the editor.
+        setLastPushedPeq(normalized);
+        return true;
+      }
       const matchedProfile = await resolvePulledProfile(
         normalized,
         (peq) => invoke<string | null>("match_profile_name", { peq }),

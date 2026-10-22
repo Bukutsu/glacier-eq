@@ -23,6 +23,21 @@ const baseHeaderProps: Parameters<typeof Header>[0] = {
 };
 
 describe("Header markup", () => {
+  it.each([false, true])(
+    "says the DAC is reconnecting instead of offline (mobile=%s)",
+    (mobile) => {
+      const html = renderToStaticMarkup(
+        createElement(Header, {
+          ...baseHeaderProps,
+          mobile,
+          reconnecting: true,
+        }),
+      );
+      expect(html).toContain("Reconnecting");
+      expect(html).not.toMatch(/Offline/);
+    },
+  );
+
   it("quietly notes live apply on EQ pages only while it is on", () => {
     const live = { ...baseHeaderProps, connected: true, liveApply: true };
     const render = (props: Parameters<typeof Header>[0]) =>

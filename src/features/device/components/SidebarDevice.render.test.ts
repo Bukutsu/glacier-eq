@@ -44,4 +44,11 @@ describe("SidebarDevice markup", () => {
       render({ connected: false, isSimulated: true, deviceInfo }),
     ).toContain("No DAC connected");
   });
+
+  it("keeps naming an unplugged DAC while it reconnects", () => {
+    const html = render({ reconnecting: true, reconnectingName: "TP35 Pro" });
+    expect(html).toContain("Reconnecting…");
+    expect(html).toContain("TP35 Pro");
+    expect(html).toContain("sidebar-device-dot reconnecting");
+  });
 });

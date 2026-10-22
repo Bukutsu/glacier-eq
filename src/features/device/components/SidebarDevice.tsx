@@ -8,6 +8,9 @@ import type { DeviceInfo } from "@/types";
 
 export interface SidebarDeviceProps {
   connected: boolean;
+  /** Waiting for an unplugged DAC to come back. */
+  reconnecting?: boolean;
+  reconnectingName?: string;
   isSimulated?: boolean;
   deviceInfo?: DeviceInfo;
   to: string;
@@ -17,6 +20,8 @@ export interface SidebarDeviceProps {
 /** Connection status at the foot of the sidebar; details live on the Device page. */
 export const SidebarDevice = memo(function SidebarDevice({
   connected,
+  reconnecting = false,
+  reconnectingName = "",
   isSimulated = false,
   deviceInfo,
   to,
@@ -28,12 +33,16 @@ export const SidebarDevice = memo(function SidebarDevice({
     ? deviceInfo?.profile_name ||
       deviceInfo?.product_string ||
       t("sidebarDevice.connectedDac")
-    : t("sidebarDevice.noDacConnected");
-  const [dot, status] = !connected
-    ? ["offline", t("sidebarDevice.offline")]
-    : isSimulated
-      ? ["simulated", t("sidebarDevice.simulation")]
-      : ["connected", t("sidebarDevice.connected")];
+    : reconnecting && reconnectingName
+      ? reconnectingName
+      : t("sidebarDevice.noDacConnected");
+  const [dot, status] = reconnecting
+    ? ["reconnecting", t("deviceOperations.reconnecting")]
+    : !connected
+      ? ["offline", t("sidebarDevice.offline")]
+      : isSimulated
+        ? ["simulated", t("sidebarDevice.simulation")]
+        : ["connected", t("sidebarDevice.connected")];
 
   return (
     <Link

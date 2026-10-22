@@ -69,12 +69,7 @@
     "editor": "EQ 编辑器"
   },
   "connection": {
-    "disconnected": "已断开",
-    "reconnecting": "正在重新连接",
-    "lost": "连接已丢失",
-    "restarting": "DAC 正在重启",
-    "cancel": "取消重新连接",
-    "reconnectingTo": "正在重新连接 <strong>{{name}}</strong>…"
+    "reconnecting": "正在重新连接"
   },
   "graph": {
     "showResponse": "显示频率响应图",

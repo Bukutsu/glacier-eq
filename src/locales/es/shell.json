@@ -69,12 +69,7 @@
     "editor": "Editor de EQ"
   },
   "connection": {
-    "disconnected": "Desconectado",
-    "reconnecting": "Reconectando",
-    "lost": "Conexión perdida",
-    "restarting": "El DAC se está reiniciando",
-    "cancel": "Cancelar reconexión",
-    "reconnectingTo": "Reconectando con <strong>{{name}}</strong>..."
+    "reconnecting": "Reconectando"
   },
   "graph": {
     "showResponse": "Mostrar gráfico de respuesta en frecuencia",

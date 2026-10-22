@@ -69,12 +69,7 @@
     "editor": "ตัวแก้ไข EQ"
   },
   "connection": {
-    "disconnected": "ตัดการเชื่อมต่อแล้ว",
-    "reconnecting": "กำลังเชื่อมต่อใหม่",
-    "lost": "การเชื่อมต่อขาดหาย",
-    "restarting": "DAC กำลังเริ่มต้นใหม่",
-    "cancel": "ยกเลิกการเชื่อมต่อใหม่",
-    "reconnectingTo": "กำลังเชื่อมต่อกับ <strong>{{name}}</strong> ใหม่..."
+    "reconnecting": "กำลังเชื่อมต่อใหม่"
   },
   "graph": {
     "showResponse": "แสดงกราฟการตอบสนองความถี่",

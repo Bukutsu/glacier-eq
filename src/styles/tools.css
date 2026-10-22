@@ -487,6 +487,13 @@ button.danger { color: var(--destructive-foreground); background: transparent; o
 .sidebar-device-dot.connected { background: var(--green); }
 .sidebar-device-dot.simulated { background: var(--yellow); }
 .sidebar-device-dot.offline { background: var(--comment); }
+.sidebar-device-dot.reconnecting {
+  background: var(--sync-working);
+  animation: sidebar-device-pulse 1.2s ease-in-out infinite;
+}
+@keyframes sidebar-device-pulse {
+  50% { opacity: 0.3; }
+}
 
 .sidebar-device-name {
   font-size: 14px;

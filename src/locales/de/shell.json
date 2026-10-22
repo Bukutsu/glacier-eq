@@ -69,12 +69,7 @@
     "editor": "EQ-Editor"
   },
   "connection": {
-    "disconnected": "Getrennt",
-    "reconnecting": "Verbindung wird wiederhergestellt",
-    "lost": "Verbindung verloren",
-    "restarting": "DAC startet neu",
-    "cancel": "Wiederverbindung abbrechen",
-    "reconnectingTo": "Verbindung zu <strong>{{name}}</strong> wird wiederhergestellt..."
+    "reconnecting": "Verbindung wird wiederhergestellt"
   },
   "graph": {
     "showResponse": "Frequenzgang anzeigen",

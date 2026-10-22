@@ -1,5 +1,5 @@
 import "@/lib/i18n";
-import { Trans, useTranslation } from "react-i18next";
+import { useTranslation } from "react-i18next";
 import { useDeviceState } from "@/features/device/hooks/useDeviceState";
 import { useEqEditor } from "@/features/eq/hooks/useEqEditor";
 import { useGraphPreview } from "@/features/eq/hooks/useGraphPreview";
@@ -231,31 +231,23 @@ function App() {
     settings: 0,
   });
 
-  const reconnectCancelRef = useRef<HTMLButtonElement>(null);
-
   const device = useDeviceState();
   const {
     reconnectEffectGenerationRef,
-    manualDisconnectRef,
-    expectedRestartUntilRef,
     ambiguousReconnectRef,
-    lastConnectedNameRef,
     devices,
     selectedDevice,
     setSelectedDevice,
     connected,
-    setConnected,
     setIsReconnecting,
     connectedDeviceName,
-    setConnectedDeviceName,
     firmwareVersion,
     isBusy,
     progress,
     eqOperationInFlightRef,
     lastPushedPeq,
-    setLastPushedPeq,
     selectedDeviceInfo,
-    showReconnectOverlay,
+    reconnecting,
     capabilities,
     hardwareEq,
     maxFilterBands,
@@ -655,19 +647,6 @@ function App() {
     setGraphCollapsed((v) => !v);
   }, []);
 
-  const handleCancelReconnection = useCallback(() => {
-    manualDisconnectRef.current = true;
-    ambiguousReconnectRef.current = false;
-    reconnectEffectGenerationRef.current += 1;
-    setConnectedDeviceName("");
-    lastConnectedNameRef.current = "";
-    setConnected(false);
-    setIsReconnecting(false);
-    setLastPushedPeq(null);
-    setShowDeviceModal(true);
-    setStatus(t("connection.disconnected"));
-  }, [setConnected, setStatus, t]);
-
   const handleExportEq = useCallback(
     () => exportEqFile(peq, selectedPreset, setStatus),
     [peq, selectedPreset, setStatus],
@@ -838,12 +817,6 @@ function App() {
       />
     ) : null;
 
-  useEffect(() => {
-    if (showReconnectOverlay) {
-      reconnectCancelRef.current?.focus();
-    }
-  }, [showReconnectOverlay]);
-
   const eqCurves = (
     <EqCurves
       measurements={measurements}
@@ -909,8 +882,8 @@ function App() {
 
   const workspaceHeader = (
     <Header
-      inert={showReconnectOverlay ? true : undefined}
       connected={connected}
+      reconnecting={reconnecting}
       isSimulated={isDevDummyDevice(selectedDevice)}
       isBusy={isBusy}
       progress={progress}
@@ -982,7 +955,6 @@ function App() {
             ref={mobileScrollRef}
             className={`workspace mobile-workspace${showSaveBar ? " has-save-bar" : ""}`}
             aria-label={mobilePageTitle}
-            inert={showReconnectOverlay ? true : undefined}
           >
             {activeTab !== "eq" && (
               <h1 className="visually-hidden">{mobilePageTitle}</h1>
@@ -1229,7 +1201,6 @@ function App() {
         <main
           className={`workspace desktop-workspace desktop-view-${activeTab}`}
           aria-label={t("workspace.label")}
-          inert={showReconnectOverlay ? true : undefined}
         >
           <aside className="desktop-sidebar">
             <Link
@@ -1277,6 +1248,8 @@ function App() {
             </nav>
             <SidebarDevice
               connected={connected}
+              reconnecting={reconnecting}
+              reconnectingName={connectedDeviceName}
               isSimulated={isDevDummyDevice(selectedDevice)}
               deviceInfo={selectedDeviceInfo}
               to={workspacePath("device")}
@@ -1397,62 +1370,6 @@ function App() {
             )}
           </div>
         </main>
-      )}
-      {showReconnectOverlay && (
-        <div
-          className="reconnecting-overlay"
-          role="alertdialog"
-          aria-modal="true"
-          aria-label={
-            Date.now() < expectedRestartUntilRef.current
-              ? t("connection.reconnecting")
-              : t("connection.lost")
-          }
-          onKeyDown={(e) => {
-            if (e.key === "Tab") {
-              e.preventDefault();
-              reconnectCancelRef.current?.focus();
-            } else if (e.key === "Escape") {
-              e.preventDefault();
-              handleCancelReconnection();
-            }
-          }}
-        >
-          <div className="reconnecting-card">
-            <div className="reconnecting-spinner"></div>
-            <h3>
-              {Date.now() < expectedRestartUntilRef.current
-                ? t("connection.restarting")
-                : t("connection.lost")}
-            </h3>
-            <p>
-              <Trans
-                t={t}
-                i18nKey="connection.reconnectingTo"
-                values={{ name: connectedDeviceName }}
-                components={{ strong: <strong /> }}
-              />
-            </p>
-            <button
-              type="button"
-              ref={reconnectCancelRef}
-              className="btn"
-              autoFocus
-              onClick={handleCancelReconnection}
-              style={{
-                marginTop: "8px",
-                padding: "8px 16px",
-                cursor: "pointer",
-                background: "var(--surface-soft)",
-                border: "1px solid var(--line-soft)",
-                color: "var(--text)",
-                fontWeight: 600,
-              }}
-            >
-              {t("connection.cancel")}
-            </button>
-          </div>
-        </div>
       )}
       {showDeviceModal && (
         <Modal

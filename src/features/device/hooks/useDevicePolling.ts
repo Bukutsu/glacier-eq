@@ -146,6 +146,9 @@ export function useDevicePolling(
         }
         if (!active) return;
         const expected = Date.now() < expectedRestartUntilRef.current;
+        // This poll only runs while the DAC is idle, so a missing device is a
+        // plain unplug. The sidebar and header show it reconnecting; an error
+        // toast would make a routine replug look like a fault.
         markDeviceLost(
           {
             setConnected,
@@ -160,7 +163,7 @@ export function useDevicePolling(
               )
             : i18n.t("device:useDevicePolling.lostConnectionToDevice"),
           "Device",
-          expected ? "Info" : "Error",
+          "Info",
         );
       } catch {
         schedulePoll();
@@ -291,7 +294,12 @@ export function useDevicePolling(
             setLastPushedPeq(null);
             const connectionGeneration = connectionGenerationRef.current;
             if (settings.auto_pull_on_connect && found.hardware_eq) {
-              const pulled = await pullEqRef.current(true, found.path, found);
+              const pulled = await pullEqRef.current(
+                true,
+                found.path,
+                found,
+                true,
+              );
               if (!pulled && !connectedRef.current) {
                 if (openedSessionId !== null) {
                   await invoke("disconnect_device", {
@@ -386,7 +394,7 @@ export function useDevicePolling(
         polling = false;
       }
 
-      schedulePoll(1200);
+      schedulePoll(800);
     };
 
     const handleVisibility = () => {

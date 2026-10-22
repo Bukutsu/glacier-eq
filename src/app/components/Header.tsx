@@ -73,8 +73,9 @@ function ConnectionActions({
 }
 
 interface HeaderProps {
-  inert?: boolean;
   connected: boolean;
+  /** The DAC was unplugged and the app is waiting for it to come back. */
+  reconnecting?: boolean;
   isSimulated?: boolean;
   isBusy: boolean;
   progress: OperationProgress | null;
@@ -104,8 +105,8 @@ interface HeaderProps {
 }
 
 export const Header = memo(function Header({
-  inert,
   connected,
+  reconnecting = false,
   isSimulated = false,
   isBusy,
   progress,
@@ -143,37 +144,41 @@ export const Header = memo(function Header({
 
   // With live apply the app saves in the background, so there is no write step.
   const liveSaves = liveApply && connected && hardwareEq && !isSimulated;
-  const syncClass = !connected
-    ? "offline"
-    : isBusy
-      ? "working"
-      : isSimulated
-        ? "simulation"
-        : !hardwareEq || deviceMatchesEditor === null
-          ? "unknown"
-          : deviceMatchesEditor
-            ? "ok"
-            : "unsaved";
-  const syncText = !connected
-    ? t("header.offline")
-    : isBusy
-      ? progress
-        ? t("header.progress", {
-            message: progress.message,
-            percentage: Math.round(progress.percentage),
-          })
-        : t("header.working")
-      : isSimulated
-        ? t("header.simulation")
-        : !hardwareEq
-          ? t("header.noHardwareExport")
-          : deviceMatchesEditor === null
-            ? t("header.unknown")
+  const syncClass = reconnecting
+    ? "working"
+    : !connected
+      ? "offline"
+      : isBusy
+        ? "working"
+        : isSimulated
+          ? "simulation"
+          : !hardwareEq || deviceMatchesEditor === null
+            ? "unknown"
             : deviceMatchesEditor
-              ? t("header.matches")
-              : liveSaves
-                ? t("header.live")
-                : t("header.unwritten");
+              ? "ok"
+              : "unsaved";
+  const syncText = reconnecting
+    ? t("connection.reconnecting")
+    : !connected
+      ? t("header.offline")
+      : isBusy
+        ? progress
+          ? t("header.progress", {
+              message: progress.message,
+              percentage: Math.round(progress.percentage),
+            })
+          : t("header.working")
+        : isSimulated
+          ? t("header.simulation")
+          : !hardwareEq
+            ? t("header.noHardwareExport")
+            : deviceMatchesEditor === null
+              ? t("header.unknown")
+              : deviceMatchesEditor
+                ? t("header.matches")
+                : liveSaves
+                  ? t("header.live")
+                  : t("header.unwritten");
   const profileText = !profileSaved
     ? t("header.profileUnsaved")
     : profileDirty
@@ -181,21 +186,23 @@ export const Header = memo(function Header({
       : t("header.profileSaved");
   const writeVariant =
     deviceMatchesEditor === false && !isSimulated ? "primary" : "default";
-  const mobileSyncText = !connected
-    ? t("header.offlineEditing")
-    : isBusy
-      ? syncText
-      : isSimulated
-        ? t("header.simulatedDevice")
-        : !hardwareEq
-          ? t("header.noHardware")
-          : deviceMatchesEditor === true
-            ? t("header.saved")
-            : deviceMatchesEditor === false
-              ? liveSaves
-                ? t("header.saveOnPause")
-                : t("header.notSaved")
-              : t("header.readToCheck");
+  const mobileSyncText = reconnecting
+    ? t("connection.reconnecting")
+    : !connected
+      ? t("header.offlineEditing")
+      : isBusy
+        ? syncText
+        : isSimulated
+          ? t("header.simulatedDevice")
+          : !hardwareEq
+            ? t("header.noHardware")
+            : deviceMatchesEditor === true
+              ? t("header.saved")
+              : deviceMatchesEditor === false
+                ? liveSaves
+                  ? t("header.saveOnPause")
+                  : t("header.notSaved")
+                : t("header.readToCheck");
 
   const exportButton = (
     <Button
@@ -213,10 +220,7 @@ export const Header = memo(function Header({
   );
 
   return (
-    <header
-      className={`app-header${compact ? " compact-mobile" : ""}`}
-      inert={inert}
-    >
+    <header className={`app-header${compact ? " compact-mobile" : ""}`}>
       <div className="header-main">
         <div className="title-stack">
           <div className="title-line">

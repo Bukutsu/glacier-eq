@@ -518,6 +518,8 @@ export function useDeviceSession(
         pauseReconnect: () => {
           reconnectEffectGenerationRef.current += 1;
           ambiguousReconnectRef.current = true;
+          // The user took over; stop showing an automatic reconnect.
+          setIsReconnecting(false);
         },
         authorize: async () => {
           if (!isTauri()) await requestWebHidDevice();

@@ -92,6 +92,48 @@ describe("device read lifecycle", () => {
   });
 });
 
+describe("reconnect read", () => {
+  const changed = (context: ReturnType<typeof operationFixture>) => ({
+    ...context.peqRef.current,
+    global_gain: context.peqRef.current.global_gain - 1,
+  });
+
+  it("keeps unsaved edits without asking and records the DAC's EQ", async () => {
+    const context = { ...operationFixture(), dirty: true };
+    const dac = changed(context);
+    context.invoke.mockResolvedValueOnce(dac);
+    const pull = createPullEq(context);
+    expect(await pull(true, undefined, undefined, true)).toBe(true);
+    expect(context.confirmDialog).not.toHaveBeenCalled();
+    expect(context.setPeq).not.toHaveBeenCalled();
+    expect(context.pushToUndoStack).not.toHaveBeenCalled();
+    expect(context.setLastPushedPeq).toHaveBeenLastCalledWith(dac);
+    expect(context.eqOperationInFlightRef.current).toBe(false);
+  });
+
+  it("leaves a clean editor alone when the DAC still matches it", async () => {
+    const context = operationFixture();
+    context.invoke.mockResolvedValueOnce(context.peqRef.current);
+    expect(await createPullEq(context)(true, undefined, undefined, true)).toBe(
+      true,
+    );
+    expect(context.setPeq).not.toHaveBeenCalled();
+    expect(context.setLastPushedPeq).toHaveBeenLastCalledWith(
+      context.peqRef.current,
+    );
+  });
+
+  it("loads a DAC EQ that changed elsewhere into a clean editor", async () => {
+    const context = operationFixture();
+    const dac = changed(context);
+    context.invoke.mockResolvedValueOnce(dac).mockResolvedValueOnce(null);
+    expect(await createPullEq(context)(true, undefined, undefined, true)).toBe(
+      true,
+    );
+    expect(context.setPeq).toHaveBeenCalledWith(dac);
+  });
+});
+
 describe("debug discard confirmation", () => {
   it("keeps the discard confirmation on by default", async () => {
     const t = setup();

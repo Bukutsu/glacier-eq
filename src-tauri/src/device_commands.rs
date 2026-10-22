@@ -217,8 +217,35 @@ pub async fn set_open_on_attach(app: tauri::AppHandle, enabled: bool) -> Result<
     }
 }
 
+/// On Linux a replugged DAC's hidraw node can be listed before udev grants the
+/// seat user access, so a reconnect can briefly see "permission denied". Retry
+/// for that window before asking for elevated access.
+const PERMISSION_SETTLE_RETRIES: u32 = if cfg!(target_os = "linux") { 4 } else { 0 };
+const PERMISSION_SETTLE_DELAY: std::time::Duration = std::time::Duration::from_millis(150);
+
+fn open_hid_device(app: &tauri::AppHandle, path: &str, session_id: u64) -> Result<(), String> {
+    let mut attempt = 0;
+    loop {
+        match tauri_plugin_hid::hid(app).open(path, session_id) {
+            Ok(()) => return Ok(()),
+            Err(e) => {
+                let msg = e.to_string();
+                if attempt == PERMISSION_SETTLE_RETRIES || !is_permission_denied(&msg) {
+                    return Err(msg);
+                }
+            }
+        }
+        attempt += 1;
+        std::thread::sleep(PERMISSION_SETTLE_DELAY);
+    }
+}
+
+fn is_permission_denied(message: &str) -> bool {
+    message.to_lowercase().contains("permission denied")
+}
+
 fn try_open_device(app: &tauri::AppHandle, path: &str, session_id: u64) -> Result<(), String> {
-    match tauri_plugin_hid::hid(app).open(path, session_id) {
+    match open_hid_device(app, path, session_id) {
         Ok(()) => {
             #[cfg(target_os = "linux")]
             {
@@ -228,9 +255,8 @@ fn try_open_device(app: &tauri::AppHandle, path: &str, session_id: u64) -> Resul
             }
             return Ok(());
         }
-        Err(e) => {
-            let msg = e.to_string();
-            if !msg.to_lowercase().contains("permission denied") {
+        Err(msg) => {
+            if !is_permission_denied(&msg) {
                 return Err(msg);
             }
         }

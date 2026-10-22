@@ -39,6 +39,7 @@ export function useDeviceState() {
       afterConnect?: boolean,
       targetPath?: string,
       targetCapabilities?: DeviceCapabilities,
+      keepEdits?: boolean,
     ) => Promise<boolean>
   >(async () => false);
 
@@ -126,14 +127,22 @@ export function useDeviceState() {
     quietReconnectRef.current =
       !isDevDummyDevice(selectedDevice) && isJa11Device(selectedDeviceInfo);
 
-  const showReconnectOverlay = isReconnecting && !quietReconnectRef.current;
+  // Latch the last connected DAC so an unplug that is waiting to reconnect
+  // keeps the editor on that DAC's limits instead of flipping to offline ones.
+  const lastDeviceInfoRef = useRef<DeviceInfo | undefined>(undefined);
+  if (connected && selectedDeviceInfo)
+    lastDeviceInfoRef.current = selectedDeviceInfo;
+
+  const reconnecting = isReconnecting && !connected;
 
   const selectedCapabilities =
     selectedDeviceInfo ?? OFFLINE_EDITOR_CAPABILITIES;
 
   const capabilities = connected
     ? selectedCapabilities
-    : OFFLINE_EDITOR_CAPABILITIES;
+    : reconnecting && lastDeviceInfoRef.current
+      ? lastDeviceInfoRef.current
+      : OFFLINE_EDITOR_CAPABILITIES;
 
   const hardwareEq = selectedDeviceInfo?.hardware_eq !== false;
 
@@ -188,7 +197,7 @@ export function useDeviceState() {
     lastPushedPeq,
     setLastPushedPeq,
     selectedDeviceInfo,
-    showReconnectOverlay,
+    reconnecting,
     selectedCapabilities,
     capabilities,
     hardwareEq,

@@ -40,7 +40,6 @@
   --z-menu: 110;
   --z-toast: 1000;
   --z-modal: 2000;
-  --z-reconnect: 3000;
   --z-popover: 2100;
 
   /* Graph + tab-bar geometry referenced by JS scroll/preview logic. */

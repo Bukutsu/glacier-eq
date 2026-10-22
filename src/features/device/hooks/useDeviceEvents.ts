@@ -41,6 +41,7 @@ export function useDeviceEvents(
     setProgress,
     connectOperationIdRef,
     setLastPushedPeq,
+    eqOperationInFlightRef,
   } = device;
   const { isAndroid, reportStatus, reportLoss } = options;
   useEffect(() => {
@@ -146,6 +147,9 @@ export function useDeviceEvents(
         expectedSessionId: payload.sessionId,
       }).catch(() => {});
       const expected = Date.now() < expectedRestartUntilRef.current;
+      // Unplugging an idle DAC is routine and recovers by itself. Keep the
+      // error toast for a loss that interrupts an EQ read or write.
+      const routine = expected || !eqOperationInFlightRef.current;
       markDeviceLost(
         {
           setConnected,
@@ -160,7 +164,7 @@ export function useDeviceEvents(
               name: payload.name,
             }),
         "Device",
-        expected ? "Info" : "Error",
+        routine ? "Info" : "Error",
       );
     };
 

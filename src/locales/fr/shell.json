@@ -69,12 +69,7 @@
     "editor": "Éditeur d’égalisation"
   },
   "connection": {
-    "disconnected": "Déconnecté",
-    "reconnecting": "Reconnexion",
-    "lost": "Connexion perdue",
-    "restarting": "Le DAC redémarre",
-    "cancel": "Annuler la reconnexion",
-    "reconnectingTo": "Reconnexion à <strong>{{name}}</strong>…"
+    "reconnecting": "Reconnexion"
   },
   "graph": {
     "showResponse": "Afficher le graphique de réponse en fréquence",
