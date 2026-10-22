@@ -38,7 +38,15 @@
   },
   "bundle": {
     "active": true,
+    "category": "Music",
     "targets": ["deb", "rpm"],
+    "linux": {
+      "appimage": {
+        "files": {
+          "usr/share/metainfo/com.bukutsu.glaciereq.metainfo.xml": "../desktop/com.bukutsu.glaciereq.metainfo.xml"
+        }
+      }
+    },
     "android": {
       "minSdkVersion": 26
     },

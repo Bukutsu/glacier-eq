@@ -10,6 +10,7 @@
 
 ### Changed
 
+- The Linux AppImage works better with AppImage managers such as Gear Lever and Shelly. It now carries its version (`X-AppImage-Version`) and a `Music` menu category in its desktop entry, embeds GitHub update information and AppStream metadata, and each release ships a matching `.AppImage.zsync` file so these tools can tell when a newer release exists.
 - Adding a band on a 5- or 8-band DAC now starts it at a frequency spread across the audible range (for example 63 Hz to 12.5 kHz on 5 bands) instead of the 10-band bass-heavy list. A band you have already tuned keeps its settings.
 - A frequency typed into the band's number box is kept exactly. ISO snapping now applies only to dragging and the arrow steps, so typing 3500 no longer becomes 3150.
 - The Tuning tab's graph now follows its AutoEQ dropdowns: choosing a measurement or target makes it the only curve shown, so switching inputs leaves the measurement and target pair instead of piling up curves. The graph's Curves menu still turns any other curve back on.

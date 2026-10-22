@@ -170,13 +170,17 @@ jobs:
         if: matrix.os == 'ubuntu-22.04'
         run: |
           sudo apt-get update
+          # zsync provides zsyncmake, which writes the AppImage's .zsync file;
+          # appstream provides appstreamcli, which validates its metainfo.
           sudo apt-get install -y --no-install-recommends \
             libwebkit2gtk-4.1-dev \
             libayatana-appindicator3-dev \
             librsvg2-dev \
             patchelf \
             libudev-dev \
-            pkg-config
+            pkg-config \
+            zsync \
+            appstream
 
       - name: Seed modern linuxdeploy (excludes stale libwayland-client)
         if: matrix.os == 'ubuntu-22.04'
@@ -291,12 +295,22 @@ jobs:
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # Read by linuxdeploy-plugin-appimage (appimagetool). LDAI_VERSION is
+          # written to the desktop file as X-AppImage-Version. The update string
+          # is embedded in the AppImage's .upd_info section; the file name must
+          # match the GitHub release asset <name>.zsync made by "Generate
+          # AppImage zsync file". Gear Lever and appimageupdatetool read it.
+          LDAI_VERSION: ${{ needs.check-tag.outputs.release-version }}
+          # appimagetool wants <desktop name>.appdata.xml; ours is named after
+          # its AppStream id, so it checks the tree itself in "Verify AppImage".
+          LDAI_NO_APPSTREAM: "1"
+          LDAI_UPDATE_INFORMATION: "gh-releases-zsync|${{ github.repository_owner }}|${{ github.event.repository.name }}|latest|Glacier-EQ_*_amd64.AppImage.zsync"
         with:
           args: ${{ matrix.args }} --config release-config.json -- --locked
           releaseAssetNamePattern: "glacier-eq_[version]_[platform]_[arch].[ext]"
           retryAttempts: 1
 
-      - name: Guard against bundled libwayland-client
+      - name: Verify AppImage contents and metadata
         if: matrix.os == 'ubuntu-22.04'
         run: |
           set -euo pipefail
@@ -310,12 +324,30 @@ jobs:
           chmod +x "$workdir/app.AppImage"
           (cd "$workdir" && ./app.AppImage --appimage-extract >/dev/null)
           found=$(find "$workdir/squashfs-root" -name 'libwayland-client.so*' -print -quit)
-          rm -rf "$workdir"
           if [ -n "$found" ]; then
             echo "❌ Error: $(basename "$appimage") bundles $found (shadows host Mesa and causes white screen)"
             exit 1
           fi
           echo "✅ Verified: $(basename "$appimage") does not bundle libwayland-client"
+
+          # Gear Lever and Shelly read the version from the desktop entry, and
+          # Gear Lever reads update info from the .upd_info ELF section.
+          desktop=$(find "$workdir/squashfs-root" -maxdepth 1 -name '*.desktop' -print -quit)
+          if ! grep -qx "X-AppImage-Version=$GLACIER_EQ_RELEASE_VERSION" "$desktop"; then
+            echo "❌ $(basename "$desktop") lacks X-AppImage-Version=$GLACIER_EQ_RELEASE_VERSION"
+            cat "$desktop"
+            exit 1
+          fi
+          if ! readelf --string-dump=.upd_info --wide "$appimage" | grep -qF "gh-releases-zsync|"; then
+            echo "❌ $(basename "$appimage") has no embedded update information (.upd_info)"
+            exit 1
+          fi
+          # AppStream metainfo for software centers and AppImage catalogs. It
+          # must exist and agree with the desktop file.
+          test -f "$workdir/squashfs-root/usr/share/metainfo/com.bukutsu.glaciereq.metainfo.xml"
+          appstreamcli validate-tree --no-net "$workdir/squashfs-root"
+          rm -rf "$workdir"
+          echo "✅ Verified: X-AppImage-Version, update information, and AppStream metainfo"
 
       - name: Build signed app
         if: matrix.os != 'ubuntu-22.04' && steps.signing.outputs.signed == 'true'
@@ -389,6 +421,25 @@ jobs:
 
           echo "✅ Assets collected for ${{ matrix.name }}:"
           find release-assets -maxdepth 1 -type f -print | sort
+
+      # Gear Lever's embedded gh-releases-zsync update info points at this file,
+      # and it compares its SHA-1 header with the installed AppImage. Made here
+      # rather than by appimagetool so it is deterministic and sits beside the
+      # AppImage. -u is the relative download URL (the AppImage's own name).
+      - name: Generate AppImage zsync file
+        if: matrix.name == 'linux-x64'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd release-assets
+          appimage=$(find . -maxdepth 1 -name '*.AppImage' -printf '%f\n')
+          if [ "$(printf '%s\n' "$appimage" | grep -c .)" -ne 1 ]; then
+            echo "❌ Expected exactly one AppImage, found: $appimage"
+            exit 1
+          fi
+          zsyncmake -u "$appimage" -o "$appimage.zsync" "$appimage"
+          grep -a -m1 '^SHA-1: ' "$appimage.zsync"
+          echo "✅ Generated $appimage.zsync"
 
       # The release exe is self-contained (frontend embedded, no resources or
       # sidecars), so zipping it alone gives a portable build. WebView2 must
@@ -687,6 +738,7 @@ jobs:
           require_glob "Linux DEB" 'artifacts/*.deb'
           require_glob "Linux RPM" 'artifacts/*.rpm'
           require_glob "Linux AppImage" 'artifacts/*.AppImage'
+          require_glob "Linux AppImage zsync" 'artifacts/*.AppImage.zsync'
           require_glob "Windows MSI" 'artifacts/*.msi'
           require_glob "Windows EXE" 'artifacts/*.exe'
           require_glob "Windows portable ZIP" 'artifacts/*windows-x64-portable.zip'

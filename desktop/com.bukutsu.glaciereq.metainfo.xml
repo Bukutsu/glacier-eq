@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- AppStream metadata for the AppImage, copied into usr/share/metainfo by
+     bundle.linux.appimage.files in src-tauri/tauri.conf.json. The AppImage's
+     desktop file is named after the product (Glacier-EQ.desktop), so the
+     launchable below must match that, not desktop/glacier-eq.desktop. -->
+<component type="desktop-application">
+  <id>com.bukutsu.glaciereq</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-only</project_license>
+  <name>Glacier EQ</name>
+  <developer id="io.github.bukutsu">
+    <name>Bukutsu</name>
+  </developer>
+  <summary>Parametric EQ editor for USB DACs</summary>
+  <description>
+    <p>Edit the parametric EQ stored on your USB DAC dongle. Your settings stay on the DAC when you use it with another device.</p>
+    <p>Glacier EQ works offline and needs no account.</p>
+  </description>
+  <launchable type="desktop-id">Glacier-EQ.desktop</launchable>
+  <provides>
+    <binary>glacier-eq</binary>
+  </provides>
+  <url type="homepage">https://github.com/Bukutsu/glacier-eq</url>
+  <url type="bugtracker">https://github.com/Bukutsu/glacier-eq/issues</url>
+  <screenshots>
+    <screenshot type="default">
+      <caption>EQ sliders and sound curve</caption>
+      <image type="source" width="1910" height="1002">https://raw.githubusercontent.com/Bukutsu/glacier-eq/main/assets/screenshot-main.png</image>
+    </screenshot>
+  </screenshots>
+  <content_rating type="oars-1.1" />
+</component>
