@@ -10,6 +10,11 @@ import {
   DEV_DUMMY_DEVICE,
 } from "@/features/device/lib/devDevice";
 
+const mobileState = vi.hoisted(() => ({ value: false }));
+vi.mock("@/hooks/useIsMobile", () => ({
+  useIsMobile: () => mobileState.value,
+}));
+
 vi.mock("@glacier-eq/backend", () => ({
   invoke: vi.fn(async () => {
     throw new Error("not connected");
@@ -86,7 +91,21 @@ describe("DeviceView markup", () => {
     expect(html).not.toContain("Device Configuration");
   });
 
-  it("keeps connection management in a closed disclosure when connected", () => {
+  it("shows connection actions inline on desktop when connected", () => {
+    const html = renderDeviceView({
+      connected: true,
+      onDisconnect: async () => {},
+      onOpenConnectModal: () => {},
+      onChooseDevice: () => {},
+    });
+    expect(html).toContain("device-connection-actions");
+    expect(html).not.toContain("<details");
+    expect(html).toContain("Disconnect");
+    expect(html).toContain("Change device");
+  });
+
+  it("keeps connection management in a closed disclosure on mobile", () => {
+    mobileState.value = true;
     const html = renderDeviceView({
       connected: true,
       onDisconnect: async () => {},
@@ -100,6 +119,7 @@ describe("DeviceView markup", () => {
     const offline = renderDeviceView({ onOpenConnectModal: () => {} });
     expect(offline).toContain("Connect DAC");
     expect(offline).not.toContain("device-connection-options");
+    mobileState.value = false;
   });
 
   it("renders specifications as a definition list instead of tiles", () => {

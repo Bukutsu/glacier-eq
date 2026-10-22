@@ -964,6 +964,9 @@ button.danger { color: var(--destructive-foreground); background: transparent; o
 }
 .device-connection-options[open] summary { margin-bottom: 8px; }
 
+/* Desktop has room: show the actions inline instead of a disclosure. */
+.device-connection-actions { display: flex; align-items: center; gap: 8px; }
+
 .device-stack-view .device-navigation {
   padding: 8px 0;
 }

@@ -21,6 +21,7 @@ const boundary = vi.hoisted(() => ({
   invoke: vi.fn(),
   confirm: vi.fn(),
 }));
+vi.mock("@/hooks/useIsMobile", () => ({ useIsMobile: () => false }));
 vi.mock("react", async () => ({
   ...(await vi.importActual("react")),
   useState: (initial: unknown) => {

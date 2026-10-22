@@ -10,6 +10,7 @@ import { FilterResponse } from "./DacFilterVisual";
 import { DawnProControls } from "./DawnProControls";
 import { Ja11Controls } from "./Ja11Controls";
 import { Icon } from "@/components/ui/Icon";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
@@ -93,6 +94,7 @@ export const DeviceView = memo(function DeviceView({
   runMaintenance,
 }: DeviceViewProps) {
   const { t } = useTranslation("device");
+  const mobile = useIsMobile();
 
   const invoke = <T,>(command: string, args?: Record<string, unknown>) =>
     invokeForDevice<T>(deviceInfo?.path, command, args);
@@ -387,6 +389,33 @@ export const DeviceView = memo(function DeviceView({
     ? DEVICE_SECTIONS
     : DEVICE_SECTIONS.filter((item) => item.id === "overview");
 
+  const connectionActions = (
+    <>
+      {onDisconnect && (
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={onDisconnect}
+          disabled={isBusy}
+        >
+          <Icon name="link_off" />
+          <span>{t("deviceView.disconnect")}</span>
+        </Button>
+      )}
+      {onOpenConnectModal && (
+        <Button
+          type="button"
+          variant="default"
+          onClick={handleChangeDevice}
+          disabled={isBusy}
+        >
+          <Icon name="swap_horiz" />
+          <span>{t("deviceView.changeDevice")}</span>
+        </Button>
+      )}
+    </>
+  );
+
   const deviceSummary = (
     <Card
       className="device-summary"
@@ -422,38 +451,21 @@ export const DeviceView = memo(function DeviceView({
 
       <div className="device-hero-actions">
         {connected ? (
-          <details className="device-connection-options">
-            <summary>
-              {t("deviceView.connectionOptions")}
-              <Icon
-                name="expand_more"
-                size={18}
-                className="disclosure-chevron"
-              />
-            </summary>
-            {onDisconnect && (
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={onDisconnect}
-                disabled={isBusy}
-              >
-                <Icon name="link_off" />
-                <span>{t("deviceView.disconnect")}</span>
-              </Button>
-            )}
-            {onOpenConnectModal && (
-              <Button
-                type="button"
-                variant="default"
-                onClick={handleChangeDevice}
-                disabled={isBusy}
-              >
-                <Icon name="swap_horiz" />
-                <span>{t("deviceView.changeDevice")}</span>
-              </Button>
-            )}
-          </details>
+          mobile ? (
+            <details className="device-connection-options">
+              <summary>
+                {t("deviceView.connectionOptions")}
+                <Icon
+                  name="expand_more"
+                  size={18}
+                  className="disclosure-chevron"
+                />
+              </summary>
+              {connectionActions}
+            </details>
+          ) : (
+            <div className="device-connection-actions">{connectionActions}</div>
+          )
         ) : (
           onOpenConnectModal && (
             <Button
