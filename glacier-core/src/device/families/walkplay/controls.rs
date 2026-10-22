@@ -89,7 +89,7 @@ impl<I: DeviceIo> DeviceSession<'_, I> {
                     return Ok((!version.is_empty()).then_some(version));
                 }
                 Err(err) => {
-                    last_err = err;
+                    last_err = err.into();
                     if attempt < UTILITY_READ_RETRIES {
                         self.drain().await;
                         self.io.sleep_ms(35).await;
@@ -288,7 +288,7 @@ impl<I: DeviceIo> DeviceSession<'_, I> {
             {
                 Ok(data) => return Ok(data),
                 Err(err) => {
-                    last_err = err;
+                    last_err = err.into();
                     if attempt < UTILITY_READ_RETRIES {
                         self.drain().await;
                         self.io.sleep_ms(35).await;
@@ -318,7 +318,7 @@ impl<I: DeviceIo> DeviceSession<'_, I> {
             {
                 Ok(data) => return Ok(data[5]),
                 Err(err) => {
-                    last_err = err;
+                    last_err = err.into();
                     if attempt < UTILITY_READ_RETRIES {
                         self.drain().await;
                         self.io.sleep_ms(35).await;

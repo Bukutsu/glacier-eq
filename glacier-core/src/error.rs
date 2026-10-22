@@ -58,4 +58,26 @@ mod tests {
         assert!(!is_disconnection("Checksum verification failed"));
         assert!(!is_disconnection("Invalid frequency range"));
     }
+
+    /// The frontend classifies errors it receives as text (web backend,
+    /// command rejections) with its own copy of this list.
+    #[test]
+    fn needles_match_the_frontend_copy() {
+        let source = include_str!("../../src/lib/errors.ts");
+        let list = source
+            .split("DISCONNECT_NEEDLES = [")
+            .nth(1)
+            .and_then(|rest| rest.split("];").next())
+            .expect("could not find DISCONNECT_NEEDLES in src/lib/errors.ts");
+        let frontend: Vec<&str> = list.split('"').skip(1).step_by(2).collect();
+        assert_eq!(frontend, DISCONNECT_NEEDLES, "Rust and TS needles differ");
+        assert!(
+            source.contains("lower.includes(\"os error 5\")"),
+            "TS lost the platform-specific os error 5 rule"
+        );
+        assert_eq!(
+            PLATFORM_DISCONNECT_NEEDLES.contains(&"os error 5"),
+            !cfg!(target_os = "windows")
+        );
+    }
 }

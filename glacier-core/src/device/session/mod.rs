@@ -33,11 +33,73 @@ pub const DAC_UNRESPONSIVE_ERROR: &str = "DAC is not responding. Unplug and repl
 const UNCORRELATED_GAIN_ERROR: &str =
     "Global gain read required retry; refusing uncorrelated state";
 
-fn combine_errors(first: String, retry: String) -> String {
-    if first == retry {
+/// What a session failure means to the retry and rollback policy. Policy
+/// matches on the kind, never on message text, so rewording a message cannot
+/// silently change behavior.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum FaultKind {
+    /// Every read in the round timed out without a reply.
+    ReadTimeout,
+    /// A global-gain read that could not be told apart from a late reply.
+    UncorrelatedGain,
+    /// JA11 stayed silent on its required preamp read.
+    DacUnresponsive,
+    /// The readback of a push differs from what was written.
+    VerifyMismatch,
+    Other,
+}
+
+/// A session error: policy kind plus the user-facing message. Public session
+/// operations return the message as `String`.
+#[derive(Debug, Clone)]
+pub(crate) struct Fault {
+    kind: FaultKind,
+    message: String,
+}
+
+impl Fault {
+    pub(crate) fn new(kind: FaultKind, message: impl Into<String>) -> Self {
+        Self {
+            kind,
+            message: message.into(),
+        }
+    }
+}
+
+impl From<String> for Fault {
+    fn from(message: String) -> Self {
+        Self::new(FaultKind::Other, message)
+    }
+}
+
+impl From<&str> for Fault {
+    fn from(message: &str) -> Self {
+        Self::new(FaultKind::Other, message)
+    }
+}
+
+impl From<Fault> for String {
+    fn from(fault: Fault) -> Self {
+        fault.message
+    }
+}
+
+impl std::fmt::Display for Fault {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.message)
+    }
+}
+
+/// Identical failures collapse to one (keeping their kind); different ones
+/// are joined into an `Other`.
+fn combine_errors(first: Fault, retry: Fault) -> Fault {
+    if first.message == retry.message {
         first
     } else {
-        format!("{first}; retry failed: {retry}")
+        Fault::new(
+            FaultKind::Other,
+            format!("{}; retry failed: {}", first.message, retry.message),
+        )
     }
 }
 
@@ -119,6 +181,10 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
     }
 
     pub async fn pull(&mut self) -> Result<PEQData, String> {
+        Ok(self.pull_checked().await?)
+    }
+
+    async fn pull_checked(&mut self) -> Result<PEQData, Fault> {
         self.require_hardware_eq()?;
         // A complete-pull retry is only safe when the failed attempt did not
         // issue an uncorrelatable global-gain request. Clear this one-shot
@@ -136,7 +202,10 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
                 self.pull_once().await
             }
             Err(first) => {
-                if first.contains(UNCORRELATED_GAIN_ERROR) || first == DAC_UNRESPONSIVE_ERROR {
+                if matches!(
+                    first.kind,
+                    FaultKind::UncorrelatedGain | FaultKind::DacUnresponsive
+                ) {
                     return Err(first);
                 }
                 let first_sent_gain = self.last_pull_sent_gain_request;
@@ -150,9 +219,9 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
                 let retry = self.pull_once().await;
                 self.gain_read_requires_correlation = false;
                 match retry {
-                    Ok(peq) if protocol.is_default_state(&peq) => Err(format!(
+                    Ok(peq) if protocol.is_default_state(&peq) => Err(Fault::from(format!(
                         "{first}; retry returned an unconfirmed default EQ state"
-                    )),
+                    ))),
                     Ok(peq) => Ok(peq),
                     Err(retry) => Err(combine_errors(first, retry)),
                 }
@@ -187,7 +256,7 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
         let drops_reports = self.protocol().resend_unanswered_after().is_some();
         if drops_reports && !self.restart_attempted {
             if let Err(error) = &attempt {
-                if error.starts_with("Push verification failed") && error.contains("mismatch") {
+                if error.kind == FaultKind::VerifyMismatch {
                     attempt = self.push_attempt(&normalized, save_last).await;
                 }
             }
@@ -198,7 +267,7 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
                 Ok((actual, warnings))
             }
             // Delivery may have succeeded even when the transport returned an error.
-            Err(error) if self.restart_attempted => Err(error),
+            Err(error) if self.restart_attempted => Err(error.into()),
             Err(error) => Err(match self.restore_and_verify(&backup).await {
                 Ok(()) => format!("{error}; previous state restored"),
                 Err(rollback) => format!("{error}; rollback failed: {rollback}"),
@@ -211,7 +280,7 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
         &mut self,
         normalized: &PEQData,
         save_last: bool,
-    ) -> Result<PEQData, String> {
+    ) -> Result<PEQData, Fault> {
         self.write_to_ram(normalized)
             .await
             .map_err(|error| format!("Push write failed: {error}"))?;
@@ -230,8 +299,12 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
         }
         validate_peq_for_capabilities(&actual, &self.profile.caps)
             .map_err(|error| format!("Push verification failed: {error}"))?;
-        compare_peq(&actual, normalized, &self.profile.caps)
-            .map_err(|error| format!("Push verification failed: {error}"))?;
+        compare_peq(&actual, normalized, &self.profile.caps).map_err(|error| {
+            Fault::new(
+                FaultKind::VerifyMismatch,
+                format!("Push verification failed: {error}"),
+            )
+        })?;
         if save_last {
             self.commit()
                 .await
@@ -400,7 +473,7 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
         normalize_peq_for_profile(peq, self.profile)
     }
 
-    async fn pull_once(&mut self) -> Result<PEQData, String> {
+    async fn pull_once(&mut self) -> Result<PEQData, Fault> {
         self.last_pull_had_invalid_response = false;
         self.last_pull_sent_gain_request = false;
         self.last_pull_gain_read_completed = false;
@@ -412,8 +485,11 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
         let global_gain = match self.read_gain().await {
             Ok(gain) => gain,
             // Silence on JA11 is not an unknown/zero preamp. Fail before bands.
-            Err(error) if self.save_restarts_device() && error == "Global gain read timeout" => {
-                return Err(DAC_UNRESPONSIVE_ERROR.into());
+            Err(error) if self.save_restarts_device() && error.kind == FaultKind::ReadTimeout => {
+                return Err(Fault::new(
+                    FaultKind::DacUnresponsive,
+                    DAC_UNRESPONSIVE_ERROR,
+                ));
             }
             Err(error) => return Err(error),
         };
@@ -442,13 +518,13 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
         Ok(peq)
     }
 
-    async fn read_filter(&mut self, index: u8) -> Result<Filter, String> {
+    async fn read_filter(&mut self, index: u8) -> Result<Filter, Fault> {
         let protocol = self.protocol();
         let per_round = protocol
             .resend_unanswered_after()
             .unwrap_or(FILTER_READ_ATTEMPTS);
         let mut remaining = FILTER_READ_ATTEMPTS;
-        let mut first_error: Option<String> = None;
+        let mut first_error: Option<Fault> = None;
         let mut last_error = None;
         while remaining > 0 {
             // Use a fresh nonce for every retry where the protocol carries
@@ -472,10 +548,11 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
                         return Err(format!(
                             "Device returned an invalid EQ response: filter {} values",
                             index + 1
-                        ));
+                        )
+                        .into());
                     }
                     return protocol.parse_filter_response(&data).ok_or_else(|| {
-                        format!("Filter {} response could not be parsed", index + 1)
+                        Fault::from(format!("Filter {} response could not be parsed", index + 1))
                     });
                 }
                 Err(error) => {
@@ -496,14 +573,23 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
         Err(match (first_error, last_error) {
             (Some(first), Some(last)) => combine_errors(first, last),
             (Some(error), None) | (None, Some(error)) => error,
-            (None, None) => "Filter read timeout".into(),
+            (None, None) => Fault::new(FaultKind::ReadTimeout, "Filter read timeout"),
         })
     }
 
-    async fn read_gain(&mut self) -> Result<f64, String> {
+    async fn read_gain(&mut self) -> Result<f64, Fault> {
+        let uncorrelated = |detail: Option<String>| {
+            Fault::new(
+                FaultKind::UncorrelatedGain,
+                match detail {
+                    Some(detail) => format!("{UNCORRELATED_GAIN_ERROR}; {detail}"),
+                    None => UNCORRELATED_GAIN_ERROR.to_string(),
+                },
+            )
+        };
         let gain = self.read_gain_once().await?;
         if self.gain_read_requires_correlation {
-            return Err(UNCORRELATED_GAIN_ERROR.into());
+            return Err(uncorrelated(None));
         }
         if self.last_read_was_retried {
             // Global-gain frames do not carry a transaction nonce, so the
@@ -513,16 +599,16 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
             // needs another resend, or disagrees, still fails closed instead
             // of becoming rollback truth.
             let confirmed = self.read_gain_once().await.map_err(|error| {
-                format!("{UNCORRELATED_GAIN_ERROR}; confirmation read failed: {error}")
+                uncorrelated(Some(format!("confirmation read failed: {error}")))
             })?;
             if self.last_read_was_retried || confirmed != gain {
-                return Err(UNCORRELATED_GAIN_ERROR.into());
+                return Err(uncorrelated(None));
             }
         }
         Ok(gain)
     }
 
-    async fn read_gain_once(&mut self) -> Result<f64, String> {
+    async fn read_gain_once(&mut self) -> Result<f64, Fault> {
         let protocol = self.protocol();
         let request = protocol.read_global_gain_request();
         let data = self
@@ -550,7 +636,7 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
         settle_ms: u64,
         matches: impl Fn(&[u8]) -> bool,
         quarantine_before_resend: bool,
-    ) -> Result<Vec<u8>, String> {
+    ) -> Result<Vec<u8>, Fault> {
         self.last_read_was_retried = false;
         let per_round = self
             .protocol()
@@ -585,7 +671,7 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
         Err(match (first_err, last_err) {
             (Some(first), Some(last)) => combine_errors(first, last),
             (Some(error), None) | (None, Some(error)) => error,
-            (None, None) => format!("{label} read timeout"),
+            (None, None) => Fault::new(FaultKind::ReadTimeout, format!("{label} read timeout")),
         })
     }
 

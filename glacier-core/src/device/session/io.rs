@@ -3,7 +3,7 @@
 
 //! HID transport seam: the `DeviceIo` trait and the session's send/drain/read helpers.
 
-use super::DeviceSession;
+use super::{DeviceSession, Fault, FaultKind};
 use crate::device::Packet;
 
 const INIT_DRAIN_ATTEMPTS: usize = 100;
@@ -36,14 +36,13 @@ impl<I: DeviceIo> DeviceSession<'_, I> {
         label: &str,
         attempts: usize,
         matches: impl Fn(&[u8]) -> bool,
-    ) -> Result<Vec<u8>, String> {
+    ) -> Result<Vec<u8>, Fault> {
         self.require_open_transaction()?;
         let protocol = self.protocol();
         for attempt in 1..=attempts {
-            let bytes =
-                self.io.read(60).await.map_err(|error| {
-                    format!("{label} read failed on attempt {attempt}: {error}")
-                })?;
+            let bytes = self.io.read(60).await.map_err(|error| {
+                Fault::from(format!("{label} read failed on attempt {attempt}: {error}"))
+            })?;
             if bytes.is_empty() {
                 continue;
             }
@@ -59,7 +58,10 @@ impl<I: DeviceIo> DeviceSession<'_, I> {
                 return Ok(data.to_vec());
             }
         }
-        Err(format!("{label} read timeout"))
+        Err(Fault::new(
+            FaultKind::ReadTimeout,
+            format!("{label} read timeout"),
+        ))
     }
 
     pub(crate) async fn drain(&mut self) {
