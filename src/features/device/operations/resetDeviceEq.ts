@@ -1,4 +1,5 @@
 import { i18n } from "@/lib/i18n";
+import { melodySlotArgs } from "@/features/device/lib/melodySlot";
 import type { invokeForDevice } from "@/lib/rpc";
 import type { confirmDialog } from "@/components/ui/ConfirmDialog";
 
@@ -71,7 +72,12 @@ export function createResetDeviceEq(context: ResetDeviceEqContext) {
       if (
         !(await confirmDialog({
           title: i18n.t("device:resetDeviceEq.resetDeviceEq"),
-          message: i18n.t("device:resetDeviceEq.confirmation"),
+          message:
+            "melody_slot" in melodySlotArgs(path)
+              ? i18n.t("device:melodyControls.resetConfirmation", {
+                  slot: Number(melodySlotArgs(path).melody_slot) - 159,
+                })
+              : i18n.t("device:resetDeviceEq.confirmation"),
           confirmLabel: i18n.t("device:resetDeviceEq.reset"),
           danger: true,
         })) ||
@@ -86,6 +92,7 @@ export function createResetDeviceEq(context: ResetDeviceEqContext) {
         (await invokeForDevice<boolean | undefined>(
           path,
           "reset_device_eq",
+          melodySlotArgs(path),
         )) === true;
       if (!isCurrent()) return;
       if (restarts) {

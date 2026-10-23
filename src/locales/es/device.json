@@ -140,6 +140,7 @@
     "noHardwareEq": "Sin EQ por hardware",
     "volumeGainFilterLed": "Volumen · ganancia · filtro · LED",
     "microphoneUsbAudioVolume": "Micrófono · audio USB · volumen",
+    "eqPresetSummary": "Preset de EQ",
     "bandSummary_one": "{{count}} banda · {{rate}} kHz",
     "bandSummary_other": "{{count}} bandas · {{rate}} kHz",
     "highGainSummary": "Ganancia alta · {{mode}}",
@@ -213,6 +214,35 @@
     "simulationDescription": "JA11 simulado · valores de prueba, sin comandos USB",
     "volumeValue": "{{draft}} de 60"
   },
+  "melodyControls": {
+    "eqPreset": "Preset de EQ",
+    "refreshSettings": "Actualizar ajustes",
+    "changesApplyImmediately": "Los cambios se aplican de inmediato",
+    "simulationDescription": "SNOWSKY simulado · valores de prueba, sin comandos USB",
+    "presets": {
+      "jazz": "Jazz",
+      "pop": "Pop",
+      "rock": "Rock",
+      "dance": "Dance",
+      "rb": "R&B",
+      "classic": "Clásica",
+      "hiphop": "Hip-hop",
+      "user1": "Usuario 1",
+      "user2": "Usuario 2",
+      "user3": "Usuario 3",
+      "off": "EQ desactivado"
+    },
+    "unknownPreset": "Elige un preset",
+    "presetDescription": "Cambia la reproducción al instante; no modifica el editor. El dispositivo no informa de su preset actual de forma fiable.",
+    "destination": "Destino de escritura",
+    "destinationDescription": "Escribir en DAC y Restablecer EQ usan esta ranura. Elegir el destino no cambia la reproducción.",
+    "slotName": "Nombre de ranura",
+    "nameDescription": "De 1 a 8 letras o dígitos (A–Z, 0–9). Se guarda en el DAC.",
+    "rename": "Renombrar",
+    "resetSlot": "Restablecer Usuario {{slot}} a plano",
+    "operationFailed": "Error de operación en SNOWSKY: {{error}}",
+    "resetConfirmation": "¿Reemplazar Usuario {{slot}} por diez bandas planas y preamplificación a cero? Las demás ranuras se conservan."
+  },
   "linuxUdevGuide": {
     "copy": "Copiar",
     "copied": "Copiado",
@@ -274,6 +304,7 @@
     "booleanRequired": "Se esperaba un booleano",
     "walkplayControlsRequired": "Este protocolo no expone controles de Walkplay",
     "ja11Required": "Estos controles requieren una vista previa de JA11",
+    "melodyRequired": "Estos controles requieren una vista previa de SNOWSKY",
     "dawnRequired": "Estos controles requieren una vista previa del Dawn original",
     "unsupportedCommand": "Comando no implementado para la vista previa de DAC: {{command}}"
   },

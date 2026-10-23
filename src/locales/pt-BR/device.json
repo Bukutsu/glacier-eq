@@ -140,6 +140,7 @@
     "noHardwareEq": "Sem EQ no hardware",
     "volumeGainFilterLed": "Volume · ganho · filtro · LED",
     "microphoneUsbAudioVolume": "Microfone · áudio USB · volume",
+    "eqPresetSummary": "Predefinição de EQ",
     "bandSummary_one": "{{count}} banda · {{rate}} kHz",
     "bandSummary_other": "{{count}} bandas · {{rate}} kHz",
     "highGainSummary": "Ganho alto · {{mode}}",
@@ -213,6 +214,35 @@
     "simulationDescription": "JA11 simulado · valores simulados, sem comandos USB",
     "volumeValue": "{{draft}} de 60"
   },
+  "melodyControls": {
+    "eqPreset": "Predefinição de EQ",
+    "refreshSettings": "Atualizar configurações",
+    "changesApplyImmediately": "As alterações são aplicadas imediatamente",
+    "simulationDescription": "SNOWSKY simulado · valores simulados, sem comandos USB",
+    "presets": {
+      "jazz": "Jazz",
+      "pop": "Pop",
+      "rock": "Rock",
+      "dance": "Dance",
+      "rb": "R&B",
+      "classic": "Clássico",
+      "hiphop": "Hip-hop",
+      "user1": "Usuário 1",
+      "user2": "Usuário 2",
+      "user3": "Usuário 3",
+      "off": "EQ desligado"
+    },
+    "unknownPreset": "Escolha uma predefinição",
+    "presetDescription": "Muda a reprodução imediatamente sem alterar o editor. O dispositivo não informa a predefinição atual de forma confiável.",
+    "destination": "Destino da gravação",
+    "destinationDescription": "Gravar no DAC e Redefinir EQ usam este slot. Escolher o destino não muda a reprodução.",
+    "slotName": "Nome do slot",
+    "nameDescription": "1 a 8 letras ou dígitos (A–Z, 0–9). Salvo no DAC.",
+    "rename": "Renomear",
+    "resetSlot": "Redefinir Usuário {{slot}} para plano",
+    "operationFailed": "Falha na operação do SNOWSKY: {{error}}",
+    "resetConfirmation": "Substituir Usuário {{slot}} por dez bandas planas e pré-amplificação zero? Os outros slots são mantidos."
+  },
   "linuxUdevGuide": {
     "copy": "Copiar",
     "copied": "Copiado",
@@ -274,6 +304,7 @@
     "booleanRequired": "Esperado um valor booleano",
     "walkplayControlsRequired": "Este protocolo não expõe controles Walkplay",
     "ja11Required": "Estes controles requerem uma prévia JA11",
+    "melodyRequired": "Estes controles requerem uma prévia do SNOWSKY",
     "dawnRequired": "Estes controles requerem uma prévia do Dawn original",
     "unsupportedCommand": "Comando não implementado para a prévia de DAC: {{command}}"
   },

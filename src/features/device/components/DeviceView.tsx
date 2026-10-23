@@ -9,6 +9,7 @@ import { confirmDialog } from "@/components/ui/ConfirmDialog";
 import { FilterResponse } from "./DacFilterVisual";
 import { DawnProControls } from "./DawnProControls";
 import { Ja11Controls } from "./Ja11Controls";
+import { MelodyControls } from "./MelodyControls";
 import { Icon } from "@/components/ui/Icon";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { Button } from "@/components/ui/Button";
@@ -62,6 +63,7 @@ export interface DeviceViewProps {
   onExpectedDisconnect?: (restart?: boolean) => void | Promise<void>;
   onReadFailure?: (path: string, error: unknown) => Promise<boolean>;
   onResetEq?: () => Promise<void>;
+  onHardwareEqChanged?: () => void;
   runMaintenance?: DeviceMaintenanceRunner;
 }
 
@@ -91,6 +93,7 @@ export const DeviceView = memo(function DeviceView({
   onExpectedDisconnect,
   onReadFailure,
   onResetEq,
+  onHardwareEqChanged,
   runMaintenance,
 }: DeviceViewProps) {
   const { t } = useTranslation("device");
@@ -106,6 +109,11 @@ export const DeviceView = memo(function DeviceView({
   const ja11Device =
     (!isSimulated || isDevDummyDevice(deviceInfo?.path ?? "")) &&
     deviceInfo?.controls === "ja11"
+      ? deviceInfo
+      : null;
+  const melodyDevice =
+    (!isSimulated || isDevDummyDevice(deviceInfo?.path ?? "")) &&
+    deviceInfo?.controls === "melody"
       ? deviceInfo
       : null;
   const [utility, setUtility] = useState<DeviceUtilityState | null>(null);
@@ -124,7 +132,7 @@ export const DeviceView = memo(function DeviceView({
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const fetchState = async (isActive = () => true, silent = false) => {
-    if (!connected || dawnDevice || ja11Device) return;
+    if (!connected || dawnDevice || ja11Device || melodyDevice) return;
     if (!silent) {
       setLoading(true);
       setLoadError(null);
@@ -163,7 +171,7 @@ export const DeviceView = memo(function DeviceView({
     utilityRef.current = null;
     confirmedUtilityRef.current = null;
     fieldRevisionsRef.current = {};
-    if (!connected || dawnDevice || ja11Device) {
+    if (!connected || dawnDevice || ja11Device || melodyDevice) {
       setLoading(false);
       return;
     }
@@ -201,7 +209,7 @@ export const DeviceView = memo(function DeviceView({
       scheduleUtilityTask.invalidate();
       if (unlisten) unlisten();
     };
-  }, [connected, deviceInfo?.path, !!dawnDevice, !!ja11Device]);
+  }, [connected, deviceInfo?.path, !!dawnDevice, !!ja11Device, !!melodyDevice]);
 
   const setUtilityField = async <K extends keyof DeviceUtilityState>(
     field: K,
@@ -501,16 +509,18 @@ export const DeviceView = memo(function DeviceView({
               }),
         controls: ja11Device
           ? t("deviceView.microphoneUsbAudioVolume")
-          : dawnDevice
-            ? t("deviceView.volumeGainFilterLed")
-            : utility?.supported
-              ? t(
-                  utility.high_gain_mode
-                    ? "deviceView.highGainSummary"
-                    : "deviceView.lowGainSummary",
-                  { mode: utility.filter_mode },
-                )
-              : undefined,
+          : melodyDevice
+            ? t("deviceView.eqPresetSummary")
+            : dawnDevice
+              ? t("deviceView.volumeGainFilterLed")
+              : utility?.supported
+                ? t(
+                    utility.high_gain_mode
+                      ? "deviceView.highGainSummary"
+                      : "deviceView.lowGainSummary",
+                    { mode: utility.filter_mode },
+                  )
+                : undefined,
       }}
     >
       <StackHeader title={sectionTitle} />
@@ -530,7 +540,7 @@ export const DeviceView = memo(function DeviceView({
       {activeSection === "controls" &&
         connected &&
         isSimulated &&
-        ja11Device && (
+        (ja11Device || melodyDevice) && (
           <p className="configuration-description">
             {t("deviceView.simulatedControlsDescription")}
           </p>
@@ -654,6 +664,17 @@ export const DeviceView = memo(function DeviceView({
                 setStatus={setStatus}
                 onExpectedDisconnect={onExpectedDisconnect}
                 onReadFailure={onReadFailure}
+              />
+            ) : melodyDevice ? (
+              <MelodyControls
+                key={melodyDevice.path}
+                path={melodyDevice.path}
+                isBusy={isBusy}
+                setStatus={setStatus}
+                onReadFailure={onReadFailure}
+                onHardwareEqChanged={onHardwareEqChanged}
+                runMaintenance={runMaintenance}
+                onResetEq={onResetEq}
               />
             ) : dawnDevice ? (
               <DawnProControls

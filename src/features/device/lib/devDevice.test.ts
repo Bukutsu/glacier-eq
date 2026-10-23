@@ -11,6 +11,7 @@ import {
   reconnectDevDummyDevice,
 } from "./devDevice";
 import { invokeForDevice } from "@/lib/rpc";
+import { setMelodySlot } from "./melodySlot";
 
 const backend = vi.hoisted(() => ({
   invoke: vi.fn(async () => "native result"),
@@ -50,6 +51,41 @@ function model(
 }
 
 describe("development DAC previews", () => {
+  it("stores Melody names and EQ separately in each USER slot", async () => {
+    const device = model("SNOWSKY Melody", 10, { controls: "melody" });
+    const original = readDevDummyPeq(device.path);
+    setMelodySlot(device.path, 161);
+    const modified = { ...original, global_gain: -7 };
+    writeDevDummyPeq(device.path, modified);
+    expect(invokeDevDummy(device.path, "melody_control")).toBe(161);
+    expect(
+      invokeDevDummy(device.path, "melody_name", {
+        slot: 161,
+        name: "TeaPro2",
+      }),
+    ).toBe("TEAPRO2");
+    expect(invokeDevDummy(device.path, "melody_name", { slot: 160 })).toBe(
+      "USER1",
+    );
+    await expect(
+      invokeForDevice(device.path, "melody_name", {
+        slot: 161,
+        name: "TOO LONG!",
+      }),
+    ).rejects.toThrow();
+    invokeDevDummy(device.path, "melody_control", { value: 160 });
+    expect(readDevDummyPeq(device.path).global_gain).toBe(original.global_gain);
+    invokeDevDummy(device.path, "reset_device_eq", { melody_slot: 161 });
+    expect(readDevDummyPeq(device.path).global_gain).toBe(0);
+    invokeDevDummy(device.path, "melody_control", { value: 160 });
+    expect(readDevDummyPeq(device.path).global_gain).toBe(original.global_gain);
+    reconnectDevDummyDevice(device.path);
+    expect(invokeDevDummy(device.path, "melody_name", { slot: 161 })).toBe(
+      "TEAPRO2",
+    );
+    expect(backend.invoke).not.toHaveBeenCalled();
+  });
+
   it("preserves the protocol response model when cloning a preview device", () => {
     const device = model("fixture", 10, {
       response_model: "MoondropShelfSlope",
@@ -102,6 +138,28 @@ describe("development DAC previews", () => {
     expect(
       invokeDevDummy(first.path, "ja11_control", { control: "microphone" }),
     ).toBe(1);
+  });
+
+  it("selects Melody presets locally, resets them on reconnect, and rejects unknown ids", async () => {
+    const device = model("SNOWSKY Melody", 10, { controls: "melody" });
+    await expect(
+      invokeForDevice(device.path, "melody_control", {}),
+    ).resolves.toBe(160);
+    await expect(
+      invokeForDevice(device.path, "melody_control", { value: 240 }),
+    ).resolves.toBe(240);
+    for (const value of [7, 241, -1, 1.5]) {
+      await expect(
+        invokeForDevice(device.path, "melody_control", { value }),
+      ).rejects.toThrow();
+    }
+    expect(invokeDevDummy(device.path, "melody_control")).toBe(240);
+    reconnectDevDummyDevice(device.path);
+    expect(invokeDevDummy(device.path, "melody_control")).toBe(160);
+    await expect(
+      invokeForDevice(model("FiiO KA17").path, "melody_control", {}),
+    ).rejects.toThrow("SNOWSKY preview");
+    expect(backend.invoke).not.toHaveBeenCalled();
   });
 
   it("rejects unsupported JA11 preview commands and invalid values without touching hardware", async () => {

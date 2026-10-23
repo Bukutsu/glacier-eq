@@ -876,6 +876,7 @@ function App() {
       onExpectedDisconnect={handleExpectedDisconnect}
       onReadFailure={recoverDeviceRead}
       onResetEq={resetDeviceEq}
+      onHardwareEqChanged={() => device.setLastPushedPeq(null)}
       runMaintenance={runDeviceMaintenance}
     />
   );
@@ -1363,6 +1364,7 @@ function App() {
                 onExpectedDisconnect={handleExpectedDisconnect}
                 onReadFailure={recoverDeviceRead}
                 onResetEq={resetDeviceEq}
+                onHardwareEqChanged={() => device.setLastPushedPeq(null)}
                 runMaintenance={runDeviceMaintenance}
               />
             )}

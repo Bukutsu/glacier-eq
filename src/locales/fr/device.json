@@ -140,6 +140,7 @@
     "noHardwareEq": "Sans égaliseur matériel",
     "volumeGainFilterLed": "Volume · gain · filtre · LED",
     "microphoneUsbAudioVolume": "Microphone · audio USB · volume",
+    "eqPresetSummary": "Préréglage d’égalisation",
     "bandSummary_one": "{{count}} bande · {{rate}} kHz",
     "bandSummary_other": "{{count}} bandes · {{rate}} kHz",
     "bandSummary_many": "{{count}} bandes · {{rate}} kHz",
@@ -213,6 +214,35 @@
     "simulationDescription": "JA11 simulé · valeurs fictives, aucune commande USB",
     "volumeValue": "{{draft}} sur 60"
   },
+  "melodyControls": {
+    "eqPreset": "Préréglage d’égalisation",
+    "refreshSettings": "Actualiser les paramètres",
+    "changesApplyImmediately": "Les modifications s’appliquent immédiatement",
+    "simulationDescription": "SNOWSKY simulée · valeurs fictives, aucune commande USB",
+    "presets": {
+      "jazz": "Jazz",
+      "pop": "Pop",
+      "rock": "Rock",
+      "dance": "Dance",
+      "rb": "R&B",
+      "classic": "Classique",
+      "hiphop": "Hip-hop",
+      "user1": "Utilisateur 1",
+      "user2": "Utilisateur 2",
+      "user3": "Utilisateur 3",
+      "off": "Égalisation désactivée"
+    },
+    "unknownPreset": "Choisir un préréglage",
+    "presetDescription": "Change immédiatement la lecture sans modifier l’éditeur. L’appareil ne signale pas son préréglage actuel de façon fiable.",
+    "destination": "Destination d’écriture",
+    "destinationDescription": "Écrire sur le DAC et Réinitialiser l’EQ utilisent cet emplacement. Ce choix ne change pas la lecture.",
+    "slotName": "Nom de l’emplacement",
+    "nameDescription": "1 à 8 lettres ou chiffres (A–Z, 0–9). Enregistré sur le DAC.",
+    "rename": "Renommer",
+    "resetSlot": "Remettre Utilisateur {{slot}} à plat",
+    "operationFailed": "Échec de l’opération SNOWSKY : {{error}}",
+    "resetConfirmation": "Remplacer Utilisateur {{slot}} par dix bandes plates et un préampli à zéro ? Les autres emplacements sont conservés."
+  },
   "linuxUdevGuide": {
     "copy": "Copier",
     "copied": "Copié",
@@ -274,6 +304,7 @@
     "booleanRequired": "Un booléen est attendu",
     "walkplayControlsRequired": "Ce protocole n’expose pas les commandes Walkplay",
     "ja11Required": "Ces commandes nécessitent un aperçu JA11",
+    "melodyRequired": "Ces commandes nécessitent un aperçu SNOWSKY",
     "dawnRequired": "Ces commandes nécessitent un aperçu original-Dawn",
     "unsupportedCommand": "Commande non implémentée pour l’aperçu du DAC : {{command}}"
   },

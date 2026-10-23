@@ -1,4 +1,5 @@
 import { createPushEq } from "@/features/device/operations/pushEq";
+import { setMelodySlot } from "@/features/device/lib/melodySlot";
 import {
   operationFixture,
   mockInvoke,
@@ -9,14 +10,14 @@ import { describe, expect, it, vi } from "vitest";
 import type { DeviceCapabilities } from "@/types";
 import { buildDefaultState } from "@/features/eq/lib/peq";
 
-function setup() {
+function setup(path = "/dev/test") {
   const editor = buildDefaultState();
   editor.global_gain = -3.33;
   const committed = { ...editor, global_gain: -3.3 };
   let editorRevision = 0;
   const operationRevisionRef = { current: 0 };
   const connectionGenerationRef = { current: 1 };
-  const connectedPathRef = { current: "/dev/test" };
+  const connectedPathRef = { current: path };
   const connectedSessionIdRef = { current: 1 };
   const setPeq = vi.fn();
   const setLastPushedPeq = vi.fn();
@@ -26,7 +27,7 @@ function setup() {
   const scope = {
     ...operationFixture(),
     connected: true,
-    selectedDevice: "/dev/test",
+    selectedDevice: path,
     selectedCapabilities: {
       num_bands: 10,
       global_gain_range: [-10, 10],
@@ -88,6 +89,16 @@ function setup() {
 }
 
 describe("push completion", () => {
+  it("sends the chosen Melody destination with the editor write", async () => {
+    const t = setup("/melody-push");
+    setMelodySlot("/melody-push", 162);
+    await t.push();
+    expect(t.invoke).toHaveBeenCalledWith(
+      "set_eq_state",
+      expect.objectContaining({ melody_slot: 162 }),
+    );
+  });
+
   it("reports a JA11 save restart without claiming post-restart verification", async () => {
     const t = setup();
     t.invoke.mockResolvedValue({

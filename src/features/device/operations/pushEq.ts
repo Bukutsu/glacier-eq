@@ -1,4 +1,5 @@
 import { i18n } from "@/lib/i18n";
+import { melodySlotArgs } from "@/features/device/lib/melodySlot";
 import type { invoke, sleep } from "@/lib/rpc";
 import type { confirmDialog } from "@/components/ui/ConfirmDialog";
 import {
@@ -215,6 +216,7 @@ export function createPushEq(context: PushEqContext) {
         // warnings from normalization.
         const outcome = await invoke<unknown>("set_eq_state", {
           peq: snapshot,
+          ...melodySlotArgs(selectedDevice),
         });
         pushWarnings = extractPushWarnings(outcome);
         restarts =

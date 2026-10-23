@@ -139,6 +139,7 @@
     "noHardwareEq": "No hardware EQ",
     "volumeGainFilterLed": "Volume · gain · filter · LED",
     "microphoneUsbAudioVolume": "Microphone · USB audio · volume",
+    "eqPresetSummary": "EQ preset",
     "bandSummary_one": "{{count}} band · {{rate}} kHz",
     "bandSummary_other": "{{count}} bands · {{rate}} kHz",
     "highGainSummary": "High gain · {{mode}}",
@@ -211,6 +212,35 @@
     "simulationDescription": "Simulated JA11 · mock values, no USB commands",
     "volumeValue": "{{draft}} out of 60"
   },
+  "melodyControls": {
+    "eqPreset": "EQ preset",
+    "refreshSettings": "Refresh settings",
+    "changesApplyImmediately": "Changes apply immediately",
+    "simulationDescription": "Simulated SNOWSKY · mock values, no USB commands",
+    "presets": {
+      "jazz": "Jazz",
+      "pop": "Pop",
+      "rock": "Rock",
+      "dance": "Dance",
+      "rb": "R&B",
+      "classic": "Classic",
+      "hiphop": "Hip-hop",
+      "user1": "User 1",
+      "user2": "User 2",
+      "user3": "User 3",
+      "off": "EQ off"
+    },
+    "unknownPreset": "Choose a preset",
+    "presetDescription": "Switches playback immediately; keeps your editor unchanged. The device cannot reliably report its current preset.",
+    "destination": "Write destination",
+    "destinationDescription": "Write to DAC and Reset EQ use this slot. Choosing a destination does not change playback.",
+    "slotName": "Slot name",
+    "nameDescription": "1–8 letters or digits (A–Z, 0–9). Stored on the DAC.",
+    "rename": "Rename",
+    "resetSlot": "Reset User {{slot}} to flat",
+    "operationFailed": "SNOWSKY operation failed: {{error}}",
+    "resetConfirmation": "Replace User {{slot}} with ten flat bands and zero preamp? Other slots are kept."
+  },
   "linuxUdevGuide": {
     "copy": "Copy",
     "copied": "Copied",
@@ -272,6 +302,7 @@
     "booleanRequired": "Expected a boolean",
     "walkplayControlsRequired": "This protocol does not expose Walkplay controls",
     "ja11Required": "These controls require a JA11 preview",
+    "melodyRequired": "These controls require a SNOWSKY preview",
     "dawnRequired": "These controls require an original-Dawn preview",
     "unsupportedCommand": "Command is not implemented for DAC preview: {{command}}"
   },

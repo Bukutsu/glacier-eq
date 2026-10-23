@@ -138,6 +138,7 @@
     "noHardwareEq": "无硬件 EQ",
     "volumeGainFilterLed": "音量 · 增益 · 滤波器 · LED",
     "microphoneUsbAudioVolume": "麦克风 · USB 音频 · 音量",
+    "eqPresetSummary": "EQ 预设",
     "bandSummary_other": "{{count}} 个频段 · {{rate}} kHz",
     "highGainSummary": "高增益 · {{mode}}",
     "lowGainSummary": "低增益 · {{mode}}",
@@ -209,6 +210,35 @@
     "simulationDescription": "模拟 JA11 · 使用模拟值，不发送 USB 命令",
     "volumeValue": "{{draft}} / 60"
   },
+  "melodyControls": {
+    "eqPreset": "EQ 预设",
+    "refreshSettings": "刷新设置",
+    "changesApplyImmediately": "更改立即生效",
+    "simulationDescription": "模拟 SNOWSKY · 使用模拟值，不发送 USB 命令",
+    "presets": {
+      "jazz": "爵士",
+      "pop": "流行",
+      "rock": "摇滚",
+      "dance": "舞曲",
+      "rb": "R&B",
+      "classic": "古典",
+      "hiphop": "嘻哈",
+      "user1": "用户 1",
+      "user2": "用户 2",
+      "user3": "用户 3",
+      "off": "EQ 关闭"
+    },
+    "unknownPreset": "选择预设",
+    "presetDescription": "立即切换播放，不修改编辑器。设备无法可靠报告当前预设。",
+    "destination": "写入目标",
+    "destinationDescription": "写入 DAC 和重置 EQ 使用此槽位。选择目标不会改变播放。",
+    "slotName": "槽位名称",
+    "nameDescription": "1–8 个字母或数字（A–Z、0–9），保存在 DAC 上。",
+    "rename": "重命名",
+    "resetSlot": "将用户 {{slot}} 重置为平直",
+    "operationFailed": "SNOWSKY 操作失败：{{error}}",
+    "resetConfirmation": "将用户 {{slot}} 替换为十个平直频段和零前置增益？其他槽位保持不变。"
+  },
   "linuxUdevGuide": {
     "copy": "复制",
     "copied": "已复制",
@@ -270,6 +300,7 @@
     "booleanRequired": "需要布尔值",
     "walkplayControlsRequired": "此协议不提供 Walkplay 控制项",
     "ja11Required": "这些控制项需要 JA11 预览",
+    "melodyRequired": "这些控制项需要 SNOWSKY 预览",
     "dawnRequired": "这些控制项需要原版 Dawn 预览",
     "unsupportedCommand": "DAC 预览未实现此命令：{{command}}"
   },

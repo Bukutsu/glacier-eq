@@ -1,4 +1,5 @@
 import { createResetDeviceEq } from "@/features/device/operations/resetDeviceEq";
+import { setMelodySlot } from "@/features/device/lib/melodySlot";
 import {
   operationFixture,
   mockInvokeForDevice,
@@ -15,6 +16,23 @@ function setup() {
   return { scope, reset };
 }
 describe("Reset EQ lifecycle", () => {
+  it("confirms and resets only the chosen Melody slot", async () => {
+    const t = setup();
+    t.scope.connectedPathRef.current = "/melody-reset";
+    setMelodySlot("/melody-reset", 161);
+    await t.reset();
+    expect(t.scope.confirmDialog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: expect.stringContaining("User 2"),
+      }),
+    );
+    expect(t.scope.invokeForDevice).toHaveBeenCalledWith(
+      "/melody-reset",
+      "reset_device_eq",
+      { melody_slot: 161 },
+    );
+  });
+
   it("claims the operation before confirmation, rejecting repeated clicks", async () => {
     const t = setup();
     let confirm!: (answer: boolean) => void;
@@ -34,6 +52,7 @@ describe("Reset EQ lifecycle", () => {
     expect(t.scope.invokeForDevice).toHaveBeenCalledExactlyOnceWith(
       "/ja11",
       "reset_device_eq",
+      {},
     );
   });
 

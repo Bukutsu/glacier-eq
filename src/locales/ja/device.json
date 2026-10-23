@@ -138,6 +138,7 @@
     "noHardwareEq": "ハードウェアEQなし",
     "volumeGainFilterLed": "音量 · ゲイン · フィルター · LED",
     "microphoneUsbAudioVolume": "マイク · USBオーディオ · 音量",
+    "eqPresetSummary": "EQプリセット",
     "bandSummary_other": "{{count}}バンド · {{rate}} kHz",
     "highGainSummary": "高ゲイン · {{mode}}",
     "lowGainSummary": "低ゲイン · {{mode}}",
@@ -209,6 +210,35 @@
     "simulationDescription": "JA11シミュレーション · 模擬値のみ、USBコマンドなし",
     "volumeValue": "{{draft}} / 60"
   },
+  "melodyControls": {
+    "eqPreset": "EQプリセット",
+    "refreshSettings": "設定を再読み込み",
+    "changesApplyImmediately": "変更はすぐに反映されます",
+    "simulationDescription": "SNOWSKYシミュレーション · 模擬値のみ、USBコマンドなし",
+    "presets": {
+      "jazz": "Jazz",
+      "pop": "Pop",
+      "rock": "Rock",
+      "dance": "Dance",
+      "rb": "R&B",
+      "classic": "Classic",
+      "hiphop": "Hip-hop",
+      "user1": "User 1",
+      "user2": "User 2",
+      "user3": "User 3",
+      "off": "EQオフ"
+    },
+    "unknownPreset": "プリセットを選択",
+    "presetDescription": "再生をすぐに切り替えます。エディターは変更しません。機器は現在のプリセットを正確に報告できません。",
+    "destination": "書き込み先",
+    "destinationDescription": "DACへの書き込みとEQリセットはこのスロットを使います。選択だけでは再生は変わりません。",
+    "slotName": "スロット名",
+    "nameDescription": "英字・数字1～8文字（A–Z、0–9）。DACに保存されます。",
+    "rename": "名前を変更",
+    "resetSlot": "User {{slot}}をフラットにリセット",
+    "operationFailed": "SNOWSKYの操作に失敗しました: {{error}}",
+    "resetConfirmation": "User {{slot}}を10個のフラットなバンドと0 dBのプリアンプに置き換えますか？他のスロットは変更しません。"
+  },
   "linuxUdevGuide": {
     "copy": "コピー",
     "copied": "コピー済み",
@@ -270,6 +300,7 @@
     "booleanRequired": "真偽値が必要です",
     "walkplayControlsRequired": "このプロトコルではWalkplayコントロールを利用できません",
     "ja11Required": "このコントロールにはJA11のプレビューが必要です",
+    "melodyRequired": "このコントロールにはSNOWSKYのプレビューが必要です",
     "dawnRequired": "このコントロールには初代Dawnのプレビューが必要です",
     "unsupportedCommand": "DACプレビューで未実装のコマンドです: {{command}}"
   },

@@ -139,6 +139,7 @@
     "noHardwareEq": "Kein Hardware-EQ",
     "volumeGainFilterLed": "Lautstärke · Verstärkung · Filter · LED",
     "microphoneUsbAudioVolume": "Mikrofon · USB-Audio · Lautstärke",
+    "eqPresetSummary": "EQ-Preset",
     "bandSummary_one": "{{count}} Band · {{rate}} kHz",
     "bandSummary_other": "{{count}} Bänder · {{rate}} kHz",
     "highGainSummary": "Hohe Verstärkung · {{mode}}",
@@ -211,6 +212,35 @@
     "simulationDescription": "Simulierter JA11 · Testwerte, keine USB-Befehle",
     "volumeValue": "{{draft}} von 60"
   },
+  "melodyControls": {
+    "eqPreset": "EQ-Preset",
+    "refreshSettings": "Einstellungen aktualisieren",
+    "changesApplyImmediately": "Änderungen gelten sofort",
+    "simulationDescription": "Simulierte SNOWSKY · Testwerte, keine USB-Befehle",
+    "presets": {
+      "jazz": "Jazz",
+      "pop": "Pop",
+      "rock": "Rock",
+      "dance": "Dance",
+      "rb": "R&B",
+      "classic": "Klassik",
+      "hiphop": "Hip-Hop",
+      "user1": "Benutzer 1",
+      "user2": "Benutzer 2",
+      "user3": "Benutzer 3",
+      "off": "EQ aus"
+    },
+    "unknownPreset": "Preset wählen",
+    "presetDescription": "Wechselt sofort die Wiedergabe; der Editor bleibt unverändert. Das Gerät meldet sein aktuelles Preset nicht zuverlässig.",
+    "destination": "Speicherziel",
+    "destinationDescription": "Auf DAC schreiben und EQ zurücksetzen nutzen diesen Slot. Die Auswahl ändert die Wiedergabe nicht.",
+    "slotName": "Slot-Name",
+    "nameDescription": "1–8 Buchstaben oder Ziffern (A–Z, 0–9). Auf dem DAC gespeichert.",
+    "rename": "Umbenennen",
+    "resetSlot": "Benutzer {{slot}} auf neutral setzen",
+    "operationFailed": "SNOWSKY-Aktion fehlgeschlagen: {{error}}",
+    "resetConfirmation": "Benutzer {{slot}} durch zehn neutrale Bänder und 0 dB Vorverstärkung ersetzen? Andere Slots bleiben erhalten."
+  },
   "linuxUdevGuide": {
     "copy": "Kopieren",
     "copied": "Kopiert",
@@ -272,6 +302,7 @@
     "booleanRequired": "Boolescher Wert erwartet",
     "walkplayControlsRequired": "Dieses Protokoll stellt keine Walkplay-Bedienelemente bereit",
     "ja11Required": "Diese Bedienelemente erfordern eine JA11-Vorschau",
+    "melodyRequired": "Diese Bedienelemente erfordern eine SNOWSKY-SNOWSKY-Vorschau",
     "dawnRequired": "Diese Bedienelemente erfordern eine Vorschau des ursprünglichen Dawn",
     "unsupportedCommand": "Befehl für die DAC-Vorschau nicht implementiert: {{command}}"
   },

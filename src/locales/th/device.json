@@ -138,6 +138,7 @@
     "noHardwareEq": "ไม่มี EQ ในฮาร์ดแวร์",
     "volumeGainFilterLed": "ระดับเสียง · เกน · ฟิลเตอร์ · LED",
     "microphoneUsbAudioVolume": "ไมโครโฟน · เสียง USB · ระดับเสียง",
+    "eqPresetSummary": "พรีเซ็ต EQ",
     "bandSummary_other": "{{count}} แบนด์ · {{rate}} kHz",
     "highGainSummary": "เกนสูง · {{mode}}",
     "lowGainSummary": "เกนต่ำ · {{mode}}",
@@ -209,6 +210,35 @@
     "simulationDescription": "JA11 จำลอง · ค่าจำลอง ไม่มีคำสั่ง USB",
     "volumeValue": "{{draft}} จาก 60"
   },
+  "melodyControls": {
+    "eqPreset": "พรีเซ็ต EQ",
+    "refreshSettings": "อ่านการตั้งค่าใหม่",
+    "changesApplyImmediately": "การเปลี่ยนแปลงมีผลทันที",
+    "simulationDescription": "SNOWSKY จำลอง · ค่าจำลอง ไม่มีคำสั่ง USB",
+    "presets": {
+      "jazz": "Jazz",
+      "pop": "Pop",
+      "rock": "Rock",
+      "dance": "Dance",
+      "rb": "R&B",
+      "classic": "Classic",
+      "hiphop": "Hip-hop",
+      "user1": "User 1",
+      "user2": "User 2",
+      "user3": "User 3",
+      "off": "ปิด EQ"
+    },
+    "unknownPreset": "เลือกพรีเซ็ต",
+    "presetDescription": "เปลี่ยนเสียงที่เล่นทันที โดยไม่เปลี่ยนตัวแก้ไข อุปกรณ์ไม่สามารถรายงานพรีเซ็ตปัจจุบันได้อย่างน่าเชื่อถือ",
+    "destination": "ช่องที่จะบันทึก",
+    "destinationDescription": "เขียนลง DAC และรีเซ็ต EQ จะใช้ช่องนี้ การเลือกช่องไม่เปลี่ยนเสียงที่เล่น",
+    "slotName": "ชื่อช่อง",
+    "nameDescription": "ตัวอักษรหรือตัวเลข 1–8 ตัว (A–Z, 0–9) บันทึกไว้ใน DAC",
+    "rename": "เปลี่ยนชื่อ",
+    "resetSlot": "รีเซ็ต User {{slot}} เป็นค่าเรียบ",
+    "operationFailed": "การทำงานของ SNOWSKY ล้มเหลว: {{error}}",
+    "resetConfirmation": "แทนที่ User {{slot}} ด้วยแบนด์เรียบสิบแบนด์และพรีแอมป์ศูนย์หรือไม่? ช่องอื่นจะไม่เปลี่ยน"
+  },
   "linuxUdevGuide": {
     "copy": "คัดลอก",
     "copied": "คัดลอกแล้ว",
@@ -270,6 +300,7 @@
     "booleanRequired": "ต้องเป็นค่าบูลีน",
     "walkplayControlsRequired": "โพรโทคอลนี้ไม่มีส่วนควบคุม Walkplay",
     "ja11Required": "ส่วนควบคุมเหล่านี้ต้องใช้ตัวอย่าง JA11",
+    "melodyRequired": "ส่วนควบคุมเหล่านี้ต้องใช้ตัวอย่าง SNOWSKY",
     "dawnRequired": "ส่วนควบคุมเหล่านี้ต้องใช้ตัวอย่าง Dawn รุ่นดั้งเดิม",
     "unsupportedCommand": "ตัวอย่าง DAC ยังไม่รองรับคำสั่ง: {{command}}"
   },

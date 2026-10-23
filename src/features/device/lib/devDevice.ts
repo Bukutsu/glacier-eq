@@ -8,6 +8,8 @@ import type {
   PEQData,
   SupportedDeviceInfo,
 } from "@/types";
+import { MELODY_PRESET_VALUES } from "./melodyPresets";
+import { getMelodySlot } from "./melodySlot";
 import {
   DEFAULT_FREQS_10_BAND,
   normalizePeqForDevice,
@@ -106,6 +108,11 @@ type DawnState = {
 type Ja11State = { microphone: number; uac: number; volume: number };
 type Preview = {
   ja11: Ja11State;
+  melody: {
+    preset: number;
+    names: Record<number, string>;
+    banks: Record<number, PEQData>;
+  };
   device: DeviceInfo;
   peq: PEQData;
   savedPeq: PEQData;
@@ -138,6 +145,13 @@ function newPreview(device: DeviceInfo): Preview {
     },
     // Synthetic preview defaults, not values read from hardware.
     ja11: { microphone: 1, uac: 1, volume: 30 },
+    melody: {
+      preset: 160,
+      names: { 160: "USER1", 161: "USER2", 162: "USER3" },
+      banks: Object.fromEntries(
+        [160, 161, 162].map((slot) => [slot, structuredClone(peq)]),
+      ),
+    },
     dawn: {
       filter: 2,
       high_gain: false,
@@ -201,6 +215,10 @@ export function reconnectDevDummyDevice(path: string): void {
   preview.peq = structuredClone(preview.savedPeq);
   // JA11 control writes last only for this simulated connection.
   preview.ja11 = newPreview(preview.device).ja11;
+  if (preview.device.controls === "melody") {
+    preview.melody.preset = 160;
+    preview.peq = structuredClone(preview.melody.banks[160]);
+  }
 }
 
 function eqPreviewFor(path: string): Preview {
@@ -224,10 +242,20 @@ export function writeDevDummyPeq(
   save = true,
 ): PEQData {
   const preview = eqPreviewFor(path);
+  if (preview.device.controls === "melody" && save) {
+    const slot = getMelodySlot(path);
+    preview.melody.preset = slot;
+  }
   const incoming = structuredClone(peq);
   incoming.filters = incoming.filters.slice(0, preview.device.num_bands);
   preview.peq = normalizePeqForDevice(incoming, preview.device);
-  if (save) preview.savedPeq = structuredClone(preview.peq);
+  if (save) {
+    preview.savedPeq = structuredClone(preview.peq);
+    if (preview.device.controls === "melody")
+      preview.melody.banks[preview.melody.preset] = structuredClone(
+        preview.peq,
+      );
+  }
   return readDevDummyPeq(path);
 }
 
@@ -284,6 +312,37 @@ export function invokeDevDummy<T>(
           control === "volume" ? 60 : 1,
         );
       return preview.ja11[control] as T;
+    }
+    case "melody_control": {
+      if (preview.device.controls !== "melody")
+        throw new Error(i18n.t("device:devDevice.melodyRequired"));
+      if (args.value !== undefined) {
+        const preset = integer(args.value, 0, 240);
+        if (!MELODY_PRESET_VALUES.includes(preset))
+          throw new Error(i18n.t("device:devDevice.melodyRequired"));
+        preview.melody.banks[preview.melody.preset] = structuredClone(
+          preview.peq,
+        );
+        preview.melody.preset = preset;
+        preview.peq = structuredClone(
+          preview.melody.banks[preset] ?? buildDevDummyPeq(preview.device),
+        );
+      }
+      return preview.melody.preset as T;
+    }
+    case "melody_name": {
+      if (preview.device.controls !== "melody")
+        throw new Error(i18n.t("device:devDevice.melodyRequired"));
+      const slot = integer(args.slot, 160, 162);
+      if (args.name !== undefined) {
+        if (
+          typeof args.name !== "string" ||
+          !/^[a-z0-9]{1,8}$/i.test(args.name)
+        )
+          throw new Error("Melody names need 1–8 ASCII letters or digits");
+        preview.melody.names[slot] = args.name.toUpperCase();
+      }
+      return preview.melody.names[slot] as T;
     }
     case "get_dac_utility_state":
       return structuredClone(preview.utility) as T;
@@ -343,6 +402,13 @@ export function invokeDevDummy<T>(
       preview.utility.channel_balance = integer(args.balance, -15, 15);
       break;
     case "reset_device_eq": {
+      if (preview.device.controls === "melody") {
+        const slot =
+          args.melody_slot === undefined
+            ? getMelodySlot(path)
+            : integer(args.melody_slot, 160, 162);
+        invokeDevDummy(path, "melody_control", { value: slot });
+      }
       const flat = readDevDummyPeq(path);
       flat.global_gain = 0;
       flat.filters.forEach((filter) => {
@@ -356,6 +422,7 @@ export function invokeDevDummy<T>(
       preview.utility = defaults.utility;
       preview.dawn = defaults.dawn;
       preview.ja11 = defaults.ja11;
+      preview.melody = defaults.melody;
       break;
     }
     case "execute_factory_reset": {
