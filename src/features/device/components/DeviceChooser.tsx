@@ -248,7 +248,7 @@ export function DeviceChooser({
               <li>{t("deviceChooser.linuxHelp")}</li>
             ) : null}
           </ul>
-          {!isTauri() && isLinux() && <LinuxUdevGuide compact />}
+          {!isTauri() && isLinux() && <LinuxUdevGuide />}
           <a
             href="https://github.com/Bukutsu/glacier-eq/wiki/Troubleshooting"
             target="_blank"

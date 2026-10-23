@@ -216,12 +216,13 @@
     "copied": "Copied",
     "copyInstallCommand": "Copy install command",
     "disconnectAndReconnectTheDac": "Disconnect and reconnect the DAC.",
-    "manualInstall": "To install manually, save <rules>{{filename}}</rules> to <directory>{{directory}}</directory> as root, then reload udev with the two <command>{{command}}</command> commands above.",
     "scanInstruction": "Select <scan>Scan for devices</scan> and approve the device access prompt.",
     "connectionHelp": "If connection fails, use Chrome or Edge over HTTPS or localhost, close other applications using the DAC, and refer to the <guide>troubleshooting guide</guide>.",
     "copyComplete": "Install command copied. Paste it into a terminal.",
     "copyFailed": "Copy failed. Select and copy the command manually.",
-    "introduction": "Linux restricts browser access to USB DACs by default. The browser cannot request administrator access. Run this command once in a terminal:"
+    "introduction": "Save {{filename}}, then open a terminal in the folder where you saved it and run:",
+    "saveRules": "Save rules file",
+    "saveFailed": "Could not save the rules file. Try again."
   },
   "dacFilterModes": {
     "fastRollOffLowLatency": "Fast roll-off, low latency",

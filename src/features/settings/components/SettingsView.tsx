@@ -26,10 +26,7 @@ import { themeOptions } from "@/features/settings/lib/theme";
 import { ThemePicker } from "./ThemePicker";
 import { UpdateSection } from "./UpdateSection";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import {
-  LinuxUdevGuide,
-  UDEV_INSTALL_COMMAND,
-} from "@/features/device/components/LinuxUdevGuide";
+import { LinuxUdevGuide } from "@/features/device/components/LinuxUdevGuide";
 import type { SettingsSection } from "@/lib/tabs";
 import type { AppSettings, GraphViewMode } from "@/types";
 
@@ -131,10 +128,7 @@ function UdevSection({
           <Icon name="refresh" />
           <span>{t("permissions.retry")}</span>
         </Button>
-        <p className="settings-plain-desc">{t("permissions.manualHelp")}</p>
-        <div className="udev-command-row">
-          <code>{UDEV_INSTALL_COMMAND}</code>
-        </div>
+        <LinuxUdevGuide setStatus={setStatus} />
       </section>
     );
   }

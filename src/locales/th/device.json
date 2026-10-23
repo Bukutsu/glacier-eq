@@ -214,12 +214,13 @@
     "copied": "คัดลอกแล้ว",
     "copyInstallCommand": "คัดลอกคำสั่งติดตั้ง",
     "disconnectAndReconnectTheDac": "ถอดแล้วเชื่อมต่อ DAC ใหม่",
-    "manualInstall": "หากต้องการติดตั้งด้วยตนเอง ให้บันทึก <rules>{{filename}}</rules> ไว้ที่ <directory>{{directory}}</directory> ด้วยสิทธิ์ root จากนั้นโหลด udev ใหม่ด้วยคำสั่ง <command>{{command}}</command> สองคำสั่งด้านบน",
     "scanInstruction": "เลือก <scan>ค้นหาอุปกรณ์</scan> และอนุญาตคำขอเข้าถึงอุปกรณ์",
     "connectionHelp": "หากเชื่อมต่อไม่สำเร็จ ให้ใช้ Chrome หรือ Edge ผ่าน HTTPS หรือ localhost ปิดแอปพลิเคชันอื่นที่ใช้ DAC และดู <guide>คู่มือแก้ไขปัญหา</guide>",
     "copyComplete": "คัดลอกคำสั่งติดตั้งแล้ว วางลงในเทอร์มินัล",
     "copyFailed": "คัดลอกไม่สำเร็จ เลือกและคัดลอกคำสั่งด้วยตนเอง",
-    "introduction": "Linux จำกัดการเข้าถึง USB DAC ของเบราว์เซอร์ตามค่าเริ่มต้น เบราว์เซอร์ไม่สามารถขอสิทธิ์ผู้ดูแลระบบได้ ให้รันคำสั่งนี้ในเทอร์มินัลหนึ่งครั้ง:"
+    "introduction": "บันทึกไฟล์ในชื่อ {{filename}} จากนั้นเปิดเทอร์มินัลในโฟลเดอร์ที่บันทึกไฟล์แล้วรัน:",
+    "saveRules": "บันทึกไฟล์กฎ",
+    "saveFailed": "บันทึกไฟล์กฎไม่ได้ โปรดลองอีกครั้ง"
   },
   "dacFilterModes": {
     "fastRollOffLowLatency": "ลดทอนชัน ความหน่วงต่ำ",

@@ -214,12 +214,13 @@
     "copied": "已复制",
     "copyInstallCommand": "复制安装命令",
     "disconnectAndReconnectTheDac": "断开并重新连接 DAC。",
-    "manualInstall": "如需手动安装，请以 root 身份将 <rules>{{filename}}</rules> 保存至 <directory>{{directory}}</directory>，然后使用上方两条 <command>{{command}}</command> 命令重新加载 udev。",
     "scanInstruction": "选择<scan>扫描设备</scan>，并在提示时允许访问设备。",
     "connectionHelp": "如果连接失败，请使用 Chrome 或 Edge，通过 HTTPS 或 localhost 访问，关闭其他正在使用 DAC 的应用，并参阅<guide>故障排查指南</guide>。",
     "copyComplete": "安装命令已复制。请将其粘贴至终端。",
     "copyFailed": "复制失败。请手动选中并复制命令。",
-    "introduction": "Linux 默认限制浏览器访问 USB DAC。浏览器无法请求管理员权限。请运行一次以下终端命令："
+    "introduction": "以 {{filename}} 为名保存文件，然后在保存文件的文件夹中打开终端并运行：",
+    "saveRules": "保存规则文件",
+    "saveFailed": "无法保存规则文件，请重试。"
   },
   "dacFilterModes": {
     "fastRollOffLowLatency": "快速滚降，低延迟",

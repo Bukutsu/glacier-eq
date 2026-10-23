@@ -216,12 +216,13 @@
     "copied": "Kopiert",
     "copyInstallCommand": "Installationsbefehl kopieren",
     "disconnectAndReconnectTheDac": "Trenne den DAC und verbinde ihn erneut.",
-    "manualInstall": "Speichere zur manuellen Installation <rules>{{filename}}</rules> als root unter <directory>{{directory}}</directory>. Lade danach udev mit den beiden obigen <command>{{command}}</command>-Befehlen neu.",
     "scanInstruction": "Wähle <scan>Nach Geräten suchen</scan> und bestätige die Anfrage zum Gerätezugriff.",
     "connectionHelp": "Falls die Verbindung fehlschlägt, verwende Chrome oder Edge über HTTPS oder localhost, schließe andere Anwendungen, die den DAC verwenden, und lies die <guide>Anleitung zur Fehlerbehebung</guide>.",
     "copyComplete": "Installationsbefehl kopiert. Füge ihn in ein Terminal ein.",
     "copyFailed": "Kopieren fehlgeschlagen. Wähle den Befehl aus und kopiere ihn manuell.",
-    "introduction": "Linux schränkt den Browserzugriff auf USB-DACs standardmäßig ein. Der Browser kann keine Administratorrechte anfordern. Führe diesen Befehl einmal in einem Terminal aus:"
+    "introduction": "Speichere die Datei als {{filename}}. Öffne dann ein Terminal im selben Ordner und führe diese Befehle aus:",
+    "saveRules": "Regeldatei speichern",
+    "saveFailed": "Die Regeldatei konnte nicht gespeichert werden. Versuche es erneut."
   },
   "dacFilterModes": {
     "fastRollOffLowLatency": "Steile Flanke, geringe Latenz",

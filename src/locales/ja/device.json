@@ -214,12 +214,13 @@
     "copied": "コピー済み",
     "copyInstallCommand": "インストールコマンドをコピー",
     "disconnectAndReconnectTheDac": "DACを接続し直してください。",
-    "manualInstall": "手動でインストールするには、root権限で<rules>{{filename}}</rules>を<directory>{{directory}}</directory>に保存し、上記の2つの<command>{{command}}</command>コマンドでudevを再読み込みしてください。",
     "scanInstruction": "<scan>デバイスを検索</scan>を選択し、デバイスへのアクセスを許可してください。",
     "connectionHelp": "接続できない場合は、HTTPSまたはlocalhost上でChromeやEdgeを使い、DACを使用している他のアプリケーションを閉じて、<guide>トラブルシューティングガイド</guide>を参照してください。",
     "copyComplete": "インストールコマンドをコピーしました。ターミナルに貼り付けてください。",
     "copyFailed": "コピーに失敗しました。コマンドを選択して手動でコピーしてください。",
-    "introduction": "Linuxでは標準でブラウザーからUSB DACへのアクセスが制限されています。ブラウザーは管理者権限を要求できません。次のコマンドをターミナルで一度実行してください:"
+    "introduction": "{{filename}}という名前で保存し、保存先フォルダーでターミナルを開いて次のコマンドを実行してください:",
+    "saveRules": "ルールファイルを保存",
+    "saveFailed": "ルールファイルを保存できませんでした。再試行してください。"
   },
   "dacFilterModes": {
     "fastRollOffLowLatency": "急峻なロールオフ、低遅延",

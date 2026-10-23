@@ -270,10 +270,9 @@ fn text_default_name(requested: Option<&str>) -> String {
         .and_then(|value| value.to_str())
         .filter(|value| !value.is_empty())
         .unwrap_or("profile.txt");
-    if Path::new(name)
-        .extension()
-        .is_some_and(|extension| extension.eq_ignore_ascii_case("txt"))
-    {
+    if Path::new(name).extension().is_some_and(|extension| {
+        extension.eq_ignore_ascii_case("txt") || extension.eq_ignore_ascii_case("rules")
+    }) {
         name.to_string()
     } else {
         format!("{name}.txt")
@@ -312,12 +311,17 @@ async fn save_text_file_dialog(
         return Err("Refused: content exceeds the 1 MiB limit".into());
     }
     let default_name = text_default_name(default_name.as_deref());
+    let (filter_name, extensions) = if default_name.to_ascii_lowercase().ends_with(".rules") {
+        ("udev rules", &["rules"])
+    } else {
+        ("Text files", &["txt"])
+    };
     let dialog_app = app.clone();
     let selected = tauri::async_runtime::spawn_blocking(move || {
         dialog_app
             .dialog()
             .file()
-            .add_filter("Text files", &["txt"])
+            .add_filter(filter_name, extensions)
             .set_file_name(default_name)
             .blocking_save_file()
     })
@@ -588,10 +592,15 @@ mod tests {
     }
 
     #[test]
-    fn save_default_name_is_a_text_file_name_only() {
+    fn save_default_name_accepts_text_and_rules_only() {
         assert_eq!(text_default_name(Some("eq_profile.txt")), "eq_profile.txt");
         assert_eq!(text_default_name(Some("../outside.csv")), "outside.csv.txt");
         assert_eq!(text_default_name(None), "profile.txt");
+        assert_eq!(
+            text_default_name(Some("69-glacier-eq.rules")),
+            "69-glacier-eq.rules"
+        );
+        assert_eq!(text_default_name(Some("TEST.RULES")), "TEST.RULES");
     }
 
     #[test]
