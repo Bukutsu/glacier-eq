@@ -4,6 +4,8 @@
 
 ### Added
 
+- Searchable device catalog at `#/supported-devices`, backed by the device registry in each web build. It groups USB variants, shows test status and EQ capability, filters by status, and keeps search terms in shareable URLs. The wiki links to the catalog instead of maintaining a separate device inventory.
+
 - Thirty additional FiiO, SNOWSKY, JadeAudio, and Nano HID model profiles, reviewed against FiiO Control Web. New profiles check the reported band count and select their User 1 destination before the rollback snapshot. Tiny A also has names and playback/destination controls. KA15, KA17, and Melody expose high-pass and low-pass filters. All new profiles remain Untested, with temporary/live apply disabled. The vendor-wide KA fallback is removed. Serial-only desktop models and unconfirmed USB modes are not treated as supported. See `docs/fiio-support.md` for the model list and limits.
 
 - SNOWSKY Melody (`2972:0126`) has its own profile instead of the generic FiiO KA fallback. EQ uses User 1–3 (ids 160–162) and whole-dB preamp, avoiding the -9.9 → -9.0 dB verification failure in the supplied capture. Device controls offer playback presets, a write destination, stored User-slot names, and a confirmed reset-to-flat for the chosen slot. Stale preset replies are not shown as confirmed state; writes and rollback target the same slot. Based on FiiO Control Web and Contour's published hardware findings, with shared desktop/WebHID code. Glacier writes are not yet confirmed on hardware.

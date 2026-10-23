@@ -10,20 +10,18 @@ Glacier EQ works offline and needs no account.
 
 ## Check your DAC
 
-**Tested for hardware EQ:** EPZ TP35 Pro, FiiO JA11, TRN Black Pearl.
+[Search supported devices](https://bukutsu.github.io/glacier-eq/#/supported-devices)
+to find your model and its test status. The catalog comes from the same device
+registry as the deployed web app, so it updates with each web build. You can
+search by model, family, chip, or USB ID and filter by test status.
 
-**Tested, sound controls only:** Moondrop Dawn Pro. It has no hardware EQ, but you can export EQ for a system equalizer.
+EQ support and extra controls are listed separately. An untested profile still
+needs confirmation on real hardware, and a model entry does not guarantee every
+firmware or USB mode works. See [FiiO protocol notes](docs/fiio-support.md) for
+transport limits and source evidence.
 
-**Supported, not yet tested:**
-- Audiocular Aura
-- FiiO KA series (KA5, KA13, etc.)
-- Fosi Audio DS2
-- iBasso DC04 Pro
-- JCally JM12, JM20, and JM20 Pro
-- Moondrop Dawn Pro 2
-- Truthear KEYX
-
-Other Savitech- or Walkplay-based DAC dongles may work. See the [full device list](https://github.com/Bukutsu/glacier-eq/wiki/Supported-Devices). If you try an untested device, [tell us how it went](https://github.com/Bukutsu/glacier-eq/issues).
+If you try an untested device,
+[tell us how it went](https://github.com/Bukutsu/glacier-eq/issues).
 
 ## Use it
 

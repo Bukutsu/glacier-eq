@@ -1,5 +1,8 @@
 import { ErrorNotice } from "@/components/feedback/ErrorNotice";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router";
+import { openExternalLink } from "@/lib/externalLinks";
+import { groupDeviceProfiles } from "../lib/deviceCatalog";
 import { invoke, requestWebHidDevice } from "@/lib/rpc";
 import { useEffect, useState } from "react";
 import { Icon } from "@/components/ui/Icon";
@@ -54,7 +57,11 @@ export function DeviceChooser({
 
   useEffect(() => {
     invoke<SupportedDeviceInfo[]>("list_supported_devices")
-      .then(setSupportedDacs)
+      .then((profiles) =>
+        setSupportedDacs(
+          groupDeviceProfiles(profiles).map((model) => model.profile),
+        ),
+      )
       .catch(() => setSupportedDacs([]));
   }, []);
 
@@ -217,6 +224,23 @@ export function DeviceChooser({
             </span>
             <Icon size={18} name="expand_more" className="disclosure-chevron" />
           </summary>
+          <p>
+            <Link
+              to="/supported-devices"
+              target="_blank"
+              rel="noreferrer"
+              onClick={(event) => {
+                if (isTauri()) {
+                  event.preventDefault();
+                  void openExternalLink(
+                    "https://bukutsu.github.io/glacier-eq/#/supported-devices",
+                  );
+                }
+              }}
+            >
+              {t("catalog.browse")}
+            </Link>
+          </p>
           <div className="supported-models">
             {supportedDacs.map((dac) => (
               <div
@@ -225,9 +249,11 @@ export function DeviceChooser({
               >
                 <strong>{dac.name}</strong>
                 <span>
-                  {formatUsbId(dac.vendor_id)}:
-                  {dac.product_id == null ? "*" : formatUsbId(dac.product_id)} ·{" "}
-                  {supportLabel(dac.status)}
+                  {formatUsbId(dac.vendor_id)}
+                  {dac.product_id == null && dac.usb_product_names?.length
+                    ? ` · ${t("deviceChooser.usbNameMatch", { name: dac.usb_product_names[0] })}`
+                    : `:${dac.product_id == null ? "*" : formatUsbId(dac.product_id)}`}{" "}
+                  · {supportLabel(dac.status)}
                 </span>
               </div>
             ))}

@@ -1,7 +1,8 @@
 import "@/lib/i18n";
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { HashRouter } from "react-router";
+import { HashRouter, Route, Routes } from "react-router";
+import { SupportedDevicesPage } from "@/features/device/components/SupportedDevicesPage";
 import App from "@/app/App";
 import { ErrorBoundary } from "@/components/feedback/ErrorBoundary";
 import { isTauri } from "@/lib/platform";
@@ -19,6 +20,7 @@ if (isAndroid) {
 // Disable default browser context menus and shortcuts in production for a native feel
 if (import.meta.env.PROD) {
   document.addEventListener("contextmenu", (e) => {
+    if (window.location.hash.startsWith("#/supported-devices")) return;
     // Preserve Android's select/copy/paste menu inside editable fields.
     const target = e.target;
     if (
@@ -31,6 +33,7 @@ if (import.meta.env.PROD) {
     e.preventDefault();
   });
   document.addEventListener("keydown", (e) => {
+    if (window.location.hash.startsWith("#/supported-devices")) return;
     const key = e.key.toLowerCase();
     if (
       key === "f5" ||
@@ -63,7 +66,10 @@ ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
     <HashRouter>
       <ErrorBoundary>
-        <App />
+        <Routes>
+          <Route path="/supported-devices" element={<SupportedDevicesPage />} />
+          <Route path="*" element={<App />} />
+        </Routes>
       </ErrorBoundary>
     </HashRouter>
   </React.StrictMode>,
