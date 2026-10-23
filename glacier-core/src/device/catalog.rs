@@ -85,7 +85,7 @@ const FIIO_10_BAND_CAPS: DeviceCapabilities = DeviceCapabilities {
     band_gain_range: (-12.0, 12.0),
     freq_range: (20, 20000),
     q_range: (0.1, 10.0),
-    supported_filter_types: LIMITED_FILTER_TYPES,
+    supported_filter_types: FilterType::ALL,
     supports_per_band_enable: false,
     supports_ram_apply: false,
     dsp_sample_rate: 48000.0,
@@ -95,7 +95,552 @@ const FIIO_10_BAND_CAPS: DeviceCapabilities = DeviceCapabilities {
     integer_preamp: false,
 };
 
+// Official FiiO Control Web allows -24..+12 dB for SNOWSKY Melody bands and
+// preamp. Bands stop at -18 dB, the floor of Glacier's profile storage envelope.
+// The preamp is whole dB on the wire (the firmware drops the fraction).
+const MELODY_CAPS: DeviceCapabilities = DeviceCapabilities {
+    global_gain_range: (-24, 12),
+    band_gain_range: (-18.0, 12.0),
+    integer_preamp: true,
+    ..FIIO_10_BAND_CAPS
+};
+
+// Source-reviewed HID profiles: fixed bank sizes are checked before any write.
+// Display specs are omitted unless verified separately from protocol behavior.
+const fn fiio_caps(bands: usize, min_gain: i8, pass_filters: bool) -> DeviceCapabilities {
+    DeviceCapabilities {
+        num_bands: bands,
+        global_gain_range: (min_gain, 12),
+        band_gain_range: (
+            if min_gain < -18 {
+                -18.0
+            } else {
+                min_gain as f64
+            },
+            12.0,
+        ),
+        supported_filter_types: if pass_filters {
+            FilterType::ALL
+        } else {
+            LIMITED_FILTER_TYPES
+        },
+        supports_ram_apply: false,
+        ..FIIO_10_BAND_CAPS
+    }
+}
+
+const MAGE_CAPS: DeviceCapabilities = DeviceCapabilities {
+    supported_filter_types: &[
+        FilterType::Peak,
+        FilterType::LowShelf,
+        FilterType::HighPass,
+        FilterType::LowPass,
+    ],
+    ..fiio_caps(10, -24, true)
+};
+
+const fn fiio_hid_profile(
+    name: &'static str,
+    protocol: &'static crate::device::Protocol,
+    vendor_id: u16,
+    product_id: Option<u16>,
+    caps: DeviceCapabilities,
+    controls: Option<Controls>,
+) -> DeviceProfile {
+    DeviceProfile {
+        name,
+        protocol,
+        vendor_id,
+        product_id,
+        status: "Untested",
+        family: "FiiO",
+        caps,
+        controls,
+        spec: None,
+    }
+}
+
 pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
+    fiio_hid_profile(
+        "FIIO BTR13",
+        &fiio::registry::BTR13,
+        0x2972,
+        None,
+        fiio_caps(10, -12, true),
+        None,
+    ),
+    fiio_hid_profile(
+        "FIIO BTR13",
+        &fiio::registry::BTR13,
+        0xa12,
+        None,
+        fiio_caps(10, -12, true),
+        None,
+    ),
+    fiio_hid_profile(
+        "FIIO BTR15",
+        &fiio::registry::BTR15,
+        0x2972,
+        None,
+        fiio_caps(10, -12, false),
+        None,
+    ),
+    fiio_hid_profile(
+        "FIIO BTR15",
+        &fiio::registry::BTR15,
+        0xa12,
+        None,
+        fiio_caps(10, -12, false),
+        None,
+    ),
+    fiio_hid_profile(
+        "FIIO BTR17",
+        &fiio::registry::BTR17,
+        0x2972,
+        Some(0x88),
+        fiio_caps(10, -24, false),
+        None,
+    ),
+    fiio_hid_profile(
+        "FIIO BTR17",
+        &fiio::registry::BTR17,
+        0xa12,
+        None,
+        fiio_caps(10, -24, false),
+        None,
+    ),
+    fiio_hid_profile(
+        "FIIO BTR19",
+        &fiio::registry::BTR19,
+        0x2972,
+        None,
+        fiio_caps(10, -24, true),
+        None,
+    ),
+    fiio_hid_profile(
+        "FIIO BTR19",
+        &fiio::registry::BTR19,
+        0xa12,
+        None,
+        fiio_caps(10, -24, true),
+        None,
+    ),
+    fiio_hid_profile(
+        "FIIO BTR25",
+        &fiio::registry::BTR25,
+        0x2972,
+        None,
+        fiio_caps(10, -24, true),
+        None,
+    ),
+    fiio_hid_profile(
+        "FIIO BTR25",
+        &fiio::registry::BTR25,
+        0xa12,
+        None,
+        fiio_caps(10, -24, true),
+        None,
+    ),
+    fiio_hid_profile(
+        "FIIO QX13",
+        &fiio::registry::QX13,
+        0x2972,
+        Some(0x128),
+        fiio_caps(10, -24, true),
+        None,
+    ),
+    fiio_hid_profile(
+        "FIIO QX13",
+        &fiio::registry::QX13,
+        0xa12,
+        None,
+        fiio_caps(10, -24, true),
+        None,
+    ),
+    fiio_hid_profile(
+        "FIIO QX11",
+        &fiio::registry::QX11,
+        0x2972,
+        Some(0x130),
+        fiio_caps(10, -24, true),
+        None,
+    ),
+    fiio_hid_profile(
+        "FIIO QX11",
+        &fiio::registry::QX11,
+        0xa12,
+        None,
+        fiio_caps(10, -24, true),
+        None,
+    ),
+    fiio_hid_profile(
+        "FIIO FX17",
+        &fiio::registry::FX17,
+        0x2972,
+        None,
+        fiio_caps(10, -24, true),
+        None,
+    ),
+    fiio_hid_profile(
+        "FIIO FX17",
+        &fiio::registry::FX17,
+        0xa12,
+        None,
+        fiio_caps(10, -24, true),
+        None,
+    ),
+    fiio_hid_profile(
+        "FIIO FX25",
+        &fiio::registry::FX25,
+        0x2972,
+        None,
+        fiio_caps(10, -12, false),
+        None,
+    ),
+    fiio_hid_profile(
+        "FIIO FX25",
+        &fiio::registry::FX25,
+        0xa12,
+        None,
+        fiio_caps(10, -12, false),
+        None,
+    ),
+    fiio_hid_profile(
+        "FIIO FP3",
+        &fiio::registry::FP3,
+        0x2972,
+        None,
+        fiio_caps(10, -24, false),
+        None,
+    ),
+    fiio_hid_profile(
+        "FIIO FP3",
+        &fiio::registry::FP3,
+        0xa12,
+        None,
+        fiio_caps(10, -24, false),
+        None,
+    ),
+    fiio_hid_profile(
+        "FIIO LS-TC2",
+        &fiio::registry::LS_TC2,
+        0x2972,
+        None,
+        fiio_caps(5, -12, false),
+        None,
+    ),
+    fiio_hid_profile(
+        "FIIO LS-TC2",
+        &fiio::registry::LS_TC2,
+        0xa12,
+        None,
+        fiio_caps(5, -12, false),
+        None,
+    ),
+    fiio_hid_profile(
+        "JadeAudio JIEZI",
+        &fiio::registry::JIEZI,
+        0x2972,
+        None,
+        fiio_caps(5, -12, true),
+        None,
+    ),
+    fiio_hid_profile(
+        "JadeAudio JIEZI",
+        &fiio::registry::JIEZI,
+        0xa12,
+        None,
+        fiio_caps(5, -12, true),
+        None,
+    ),
+    fiio_hid_profile(
+        "JadeAudio Trustblu",
+        &fiio::registry::TRUSTBLU,
+        0x2972,
+        None,
+        fiio_caps(10, -12, true),
+        None,
+    ),
+    fiio_hid_profile(
+        "JadeAudio Trustblu",
+        &fiio::registry::TRUSTBLU,
+        0xa12,
+        None,
+        fiio_caps(10, -12, true),
+        None,
+    ),
+    fiio_hid_profile(
+        "FIIO K13 R2R",
+        &fiio::registry::K13_R2R,
+        0x2972,
+        Some(0x120),
+        fiio_caps(10, -24, true),
+        None,
+    ),
+    fiio_hid_profile(
+        "FIIO K13 R2R",
+        &fiio::registry::K13_R2R,
+        0xa12,
+        None,
+        fiio_caps(10, -24, true),
+        None,
+    ),
+    fiio_hid_profile(
+        "FIIO K13",
+        &fiio::registry::K13,
+        0x2972,
+        None,
+        fiio_caps(10, -24, true),
+        None,
+    ),
+    fiio_hid_profile(
+        "FIIO K13",
+        &fiio::registry::K13,
+        0xa12,
+        None,
+        fiio_caps(10, -24, true),
+        None,
+    ),
+    fiio_hid_profile(
+        "FIIO BR15 R2R",
+        &fiio::registry::BR15_R2R,
+        0x2972,
+        None,
+        fiio_caps(10, -24, true),
+        None,
+    ),
+    fiio_hid_profile(
+        "FIIO BR15 R2R",
+        &fiio::registry::BR15_R2R,
+        0xa12,
+        None,
+        fiio_caps(10, -24, true),
+        None,
+    ),
+    fiio_hid_profile(
+        "SNOWSKY TINY A",
+        &fiio::registry::TINY_A,
+        0x2972,
+        Some(0x147),
+        fiio_caps(10, -12, true),
+        Some(Controls::Melody),
+    ),
+    fiio_hid_profile(
+        "SNOWSKY TINY A",
+        &fiio::registry::TINY_A,
+        0xa12,
+        None,
+        fiio_caps(10, -12, true),
+        Some(Controls::Melody),
+    ),
+    fiio_hid_profile(
+        "SNOWSKY TINY B",
+        &fiio::registry::TINY_B,
+        0x2972,
+        None,
+        fiio_caps(5, -12, true),
+        None,
+    ),
+    fiio_hid_profile(
+        "SNOWSKY TINY B",
+        &fiio::registry::TINY_B,
+        0xa12,
+        None,
+        fiio_caps(5, -12, true),
+        None,
+    ),
+    fiio_hid_profile(
+        "RETRO NANO",
+        &fiio::registry::RETRO_NANO,
+        0x2972,
+        None,
+        fiio_caps(10, -12, true),
+        None,
+    ),
+    fiio_hid_profile(
+        "RETRO NANO",
+        &fiio::registry::RETRO_NANO,
+        0xa12,
+        None,
+        fiio_caps(10, -12, true),
+        None,
+    ),
+    fiio_hid_profile(
+        "OAK NANO",
+        &fiio::registry::OAK_NANO,
+        0x2972,
+        Some(0x4016),
+        fiio_caps(8, -24, false),
+        None,
+    ),
+    fiio_hid_profile(
+        "OAK NANO",
+        &fiio::registry::OAK_NANO,
+        0xa12,
+        None,
+        fiio_caps(8, -24, false),
+        None,
+    ),
+    fiio_hid_profile(
+        "FIIO FG3",
+        &fiio::registry::FG3,
+        0x2972,
+        None,
+        fiio_caps(10, -12, true),
+        None,
+    ),
+    fiio_hid_profile(
+        "FIIO FG3",
+        &fiio::registry::FG3,
+        0xa12,
+        None,
+        fiio_caps(10, -12, true),
+        None,
+    ),
+    fiio_hid_profile(
+        "FIIO JD1 GAMING",
+        &fiio::registry::JD1_GAMING,
+        0x2972,
+        None,
+        fiio_caps(10, -12, true),
+        None,
+    ),
+    fiio_hid_profile(
+        "FIIO JD1 GAMING",
+        &fiio::registry::JD1_GAMING,
+        0xa12,
+        None,
+        fiio_caps(10, -12, true),
+        None,
+    ),
+    fiio_hid_profile(
+        "FIIO KG13",
+        &fiio::registry::KG13,
+        0x2972,
+        None,
+        fiio_caps(10, -12, true),
+        None,
+    ),
+    fiio_hid_profile(
+        "FIIO KG13",
+        &fiio::registry::KG13,
+        0xa12,
+        None,
+        fiio_caps(10, -12, true),
+        None,
+    ),
+    fiio_hid_profile(
+        "JadeAudio JK13",
+        &fiio::registry::JK13,
+        0x2972,
+        None,
+        fiio_caps(10, -24, true),
+        None,
+    ),
+    fiio_hid_profile(
+        "JadeAudio JK13",
+        &fiio::registry::JK13,
+        0xa12,
+        None,
+        fiio_caps(10, -24, true),
+        None,
+    ),
+    fiio_hid_profile(
+        "FIIO WARMER NANO",
+        &fiio::registry::WARMER_NANO,
+        0x2972,
+        None,
+        fiio_caps(10, -24, true),
+        None,
+    ),
+    fiio_hid_profile(
+        "FIIO WARMER NANO",
+        &fiio::registry::WARMER_NANO,
+        0xa12,
+        None,
+        fiio_caps(10, -24, true),
+        None,
+    ),
+    fiio_hid_profile(
+        "FIIO GAME ENGINE",
+        &fiio::registry::GAME_ENGINE,
+        0x2972,
+        None,
+        fiio_caps(10, -24, true),
+        None,
+    ),
+    fiio_hid_profile(
+        "FIIO GAME ENGINE",
+        &fiio::registry::GAME_ENGINE,
+        0xa12,
+        None,
+        fiio_caps(10, -24, true),
+        None,
+    ),
+    fiio_hid_profile(
+        "SNOWSKY MAGE",
+        &fiio::registry::MAGE,
+        0x2972,
+        None,
+        MAGE_CAPS,
+        None,
+    ),
+    fiio_hid_profile(
+        "SNOWSKY MAGE",
+        &fiio::registry::MAGE,
+        0xa12,
+        None,
+        MAGE_CAPS,
+        None,
+    ),
+    fiio_hid_profile(
+        "FIIO BT11",
+        &fiio::registry::BT11,
+        0x2972,
+        Some(0x4032),
+        fiio_caps(10, -12, true),
+        None,
+    ),
+    fiio_hid_profile(
+        "FIIO BT11",
+        &fiio::registry::BT11,
+        0xa12,
+        None,
+        fiio_caps(10, -12, true),
+        None,
+    ),
+    fiio_hid_profile(
+        "FIIO Air Link",
+        &fiio::registry::AIR_LINK,
+        0x2972,
+        Some(0x4033),
+        fiio_caps(10, -12, true),
+        None,
+    ),
+    fiio_hid_profile(
+        "FIIO Air Link",
+        &fiio::registry::AIR_LINK,
+        0xa12,
+        None,
+        fiio_caps(10, -12, true),
+        None,
+    ),
+    fiio_hid_profile(
+        "FIIO AIR AMP",
+        &fiio::registry::AIR_AMP,
+        0x2972,
+        None,
+        fiio_caps(10, -24, true),
+        None,
+    ),
+    fiio_hid_profile(
+        "FIIO AIR AMP",
+        &fiio::registry::AIR_AMP,
+        0xa12,
+        None,
+        fiio_caps(10, -24, true),
+        None,
+    ),
     DeviceProfile {
         name: "EPZ TP35 Pro",
         protocol: &walkplay::PROTOCOL,
@@ -258,6 +803,26 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
             decoding: Some("384k / DSD256"),
             snr: None,
             thd: None,
+        }),
+    },
+    DeviceProfile {
+        name: "SNOWSKY Melody",
+        protocol: &fiio::MELODY,
+        vendor_id: 0x2972,
+        product_id: Some(0x0126),
+        // A user's capture shows reads work; EQ writes are untested on hardware.
+        status: "Untested",
+        family: "FiiO",
+        caps: MELODY_CAPS,
+        controls: Some(Controls::Melody),
+        spec: Some(DacSpec {
+            name: "SNOWSKY Melody",
+            chip: "CS43131",
+            outputs: "3.5 / 4.4mm",
+            max_power: Some("250mW @ 32Ω (4.4mm)"),
+            decoding: Some("384k / DSD256"),
+            snr: Some("127 dB (4.4mm)"),
+            thd: Some("0.0003% (4.4mm)"),
         }),
     },
     DeviceProfile {
@@ -428,25 +993,6 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
             thd: None,
         }),
     },
-    DeviceProfile {
-        name: "FiiO KA Series",
-        protocol: &fiio::KA_SERIES,
-        vendor_id: 0x2972,
-        product_id: None,
-        status: "Untested",
-        family: "FiiO",
-        caps: FIIO_10_BAND_CAPS,
-        controls: None,
-        spec: Some(DacSpec {
-            name: "FiiO KA Series",
-            chip: "Cirrus / ESS",
-            outputs: "3.5 / 4.4mm",
-            max_power: None,
-            decoding: Some("384k / DSD256"),
-            snr: None,
-            thd: None,
-        }),
-    },
 ];
 
 pub fn get_supported_device(vendor_id: u16, product_id: u16) -> Option<&'static DeviceProfile> {
@@ -456,11 +1002,41 @@ pub fn get_supported_device(vendor_id: u16, product_id: u16) -> Option<&'static 
         .iter()
         .find(|device| device.vendor_id == vendor_id && device.product_id == Some(product_id))
         .or_else(|| {
-            SUPPORTED_DEVICES
-                .iter()
-                .find(|device| device.vendor_id == vendor_id && device.product_id.is_none())
+            SUPPORTED_DEVICES.iter().find(|device| {
+                device.vendor_id == vendor_id
+                    && device.product_id.is_none()
+                    && fiio::registry::product_names(device.name).is_empty()
+            })
         })
 }
 
+/// Match an enumerated device, including an exact USB product-name route when
+/// a vendor's public tool does not publish its PID. Never use a vendor-only
+/// FiiO fallback or a substring match.
+pub fn get_supported_device_with_name(
+    vendor_id: u16,
+    product_id: u16,
+    product_name: Option<&str>,
+) -> Option<&'static DeviceProfile> {
+    let exact = SUPPORTED_DEVICES
+        .iter()
+        .find(|p| p.vendor_id == vendor_id && p.product_id == Some(product_id));
+    exact
+        .or_else(|| {
+            product_name.and_then(|name| {
+                SUPPORTED_DEVICES.iter().find(|p| {
+                    p.vendor_id == vendor_id
+                        && fiio::registry::mode_matches(p.name, product_id)
+                        && fiio::registry::product_names(p.name)
+                            .iter()
+                            .any(|candidate| candidate.eq_ignore_ascii_case(name.trim()))
+                })
+            })
+        })
+        .or_else(|| get_supported_device(vendor_id, product_id))
+}
+
+#[cfg(test)]
+mod fiio_tests;
 #[cfg(test)]
 mod tests;

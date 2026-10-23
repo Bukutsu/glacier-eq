@@ -18,6 +18,8 @@ pub enum Controls {
     DawnPro,
     /// JA11 microphone, USB audio mode and output volume (source-reviewed only).
     Ja11,
+    /// SNOWSKY Melody active EQ preset and firmware version (FiiO Control Web).
+    Melody,
 }
 
 /// Official published specs for display only, never protocol capabilities.
@@ -68,6 +70,10 @@ pub struct DeviceProfile {
 #[derive(Debug, Clone, Serialize)]
 pub struct SupportedDeviceInfo {
     pub name: &'static str,
+    /// Empty for numeric-only entries; otherwise an exact (case-insensitive)
+    /// USB product descriptor is needed when the PID has not been recorded.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub usb_product_names: Vec<&'static str>,
     pub protocol: &'static str,
     pub vendor_id: u16,
     pub product_id: Option<u16>,
@@ -92,6 +98,8 @@ impl From<&DeviceProfile> for SupportedDeviceInfo {
     fn from(profile: &DeviceProfile) -> Self {
         Self {
             name: profile.name,
+            usb_product_names: crate::device::families::fiio::registry::product_names(profile.name)
+                .to_vec(),
             protocol: profile.protocol.id,
             vendor_id: profile.vendor_id,
             product_id: profile.product_id,

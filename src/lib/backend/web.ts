@@ -96,7 +96,7 @@ function ensureWebHid(): HID {
 }
 
 export function matchSupportedWebHidDevice(
-  device: Pick<HIDDevice, "vendorId" | "productId">,
+  device: Pick<HIDDevice, "vendorId" | "productId"> & { productName?: string },
   supportedDevices: SupportedDeviceInfo[],
 ): SupportedDeviceInfo | undefined {
   // Mirror get_supported_device (glacier-core): an exact PID match wins over
@@ -110,7 +110,20 @@ export function matchSupportedWebHidDevice(
     ) ??
     supportedDevices.find(
       (supported) =>
-        supported.vendor_id === device.vendorId && supported.product_id == null,
+        supported.vendor_id === device.vendorId &&
+        (supported.name !== "FIIO QX11" || device.productId === 0x0130) &&
+        (supported.name !== "FIIO BT11" || device.productId === 0x4032) &&
+        (supported.name !== "FIIO Air Link" || device.productId === 0x4033) &&
+        supported.usb_product_names?.some(
+          (name) =>
+            name.toLowerCase() === device.productName?.trim().toLowerCase(),
+        ),
+    ) ??
+    supportedDevices.find(
+      (supported) =>
+        supported.vendor_id === device.vendorId &&
+        supported.product_id == null &&
+        !supported.usb_product_names?.length,
     )
   );
 }
@@ -756,6 +769,7 @@ async function runDeviceOperation<T>(
     },
     sleep,
   };
+  Object.assign(io, { productName: device.productName });
   const request = {
     ...(isRecord(args) ? args : {}),
     command,
@@ -797,6 +811,8 @@ const WEBHID_TRANSPORT_COMMANDS = new Set([
   "live_apply_eq_state",
   "get_dac_utility_state",
   "ja11_control",
+  "melody_control",
+  "melody_name",
   "set_dac_filter_mode",
   "set_dac_work_mode",
   "set_dac_output_gain",
@@ -830,6 +846,11 @@ function parseSupportedDeviceInfo(value: unknown): SupportedDeviceInfo | null {
       ? [raw[0], raw[1]]
       : null;
   if (
+    (value.usb_product_names !== undefined &&
+      (!Array.isArray(value.usb_product_names) ||
+        value.usb_product_names.some(
+          (name) => typeof name !== "string" || !name.trim(),
+        ))) ||
     typeof value.name !== "string" ||
     typeof value.protocol !== "string" ||
     !isFiniteNumber(value.vendor_id) ||
@@ -841,7 +862,8 @@ function parseSupportedDeviceInfo(value: unknown): SupportedDeviceInfo | null {
       value.controls === null ||
       value.controls === "walkplay" ||
       value.controls === "dawn_pro" ||
-      value.controls === "ja11"
+      value.controls === "ja11" ||
+      value.controls === "melody"
     ) ||
     !(
       spec === null ||
@@ -885,6 +907,13 @@ function parseSupportedDeviceInfo(value: unknown): SupportedDeviceInfo | null {
         : undefined;
   return {
     name: value.name,
+    ...(Array.isArray(value.usb_product_names)
+      ? {
+          usb_product_names: value.usb_product_names.filter(
+            (name): name is string => typeof name === "string",
+          ),
+        }
+      : {}),
     protocol: value.protocol,
     vendor_id: value.vendor_id,
     product_id: value.product_id,
@@ -935,7 +964,12 @@ export async function invoke<T = unknown>(
 ): Promise<T> {
   const expectedSession = activeSessionId;
   const operation = () => {
-    if (cmd === "ja11_control" && expectedSession !== activeSessionId)
+    if (
+      (cmd === "ja11_control" ||
+        cmd === "melody_control" ||
+        cmd === "melody_name") &&
+      expectedSession !== activeSessionId
+    )
       throw new Error("Device session changed; operation was cancelled");
     return invokeWeb<T>(cmd, args);
   };
@@ -1098,7 +1132,12 @@ async function invokeWeb<T = unknown>(cmd: string, args?: unknown): Promise<T> {
       if (typeof text !== "string") throw new Error("Invalid AutoEQ text");
       const vid = activeProfile?.vendor_id ?? null;
       const pid = activeProfile?.product_id ?? null;
-      return wasm().parse_autoeq(text, vid, pid) as T;
+      return wasm().parse_autoeq(
+        text,
+        vid,
+        pid,
+        activeDevice?.productName,
+      ) as T;
     }
     case "peq_to_autoeq": {
       const peq = commandField(args, "peq");
@@ -1110,7 +1149,13 @@ async function invokeWeb<T = unknown>(cmd: string, args?: unknown): Promise<T> {
       const profiles = loadWebProfiles();
       const vid = activeProfile?.vendor_id ?? null;
       const pid = activeProfile?.product_id ?? null;
-      return (wasm().match_profile_name(peq, profiles, vid, pid) ?? null) as T;
+      return (wasm().match_profile_name(
+        peq,
+        profiles,
+        vid,
+        pid,
+        activeDevice?.productName,
+      ) ?? null) as T;
     }
     case "run_autoeq": {
       if (!isRecord(args)) throw new Error("Missing run_autoeq arguments");
@@ -1158,6 +1203,7 @@ async function invokeWeb<T = unknown>(cmd: string, args?: unknown): Promise<T> {
         fs,
         vid,
         pid,
+        activeDevice?.productName,
       ) as T;
     }
     case "save_text_file": {
@@ -1397,6 +1443,19 @@ async function invokeWeb<T = unknown>(cmd: string, args?: unknown): Promise<T> {
         args.path !== webHidPath(activeDevice)
       ) {
         throw new Error("These controls require the displayed JA11");
+      }
+      const { path: _path, ...request } = args;
+      return await runDeviceOperation<T>(cmd, request);
+    }
+    case "melody_control":
+    case "melody_name": {
+      if (
+        !isRecord(args) ||
+        !activeDevice ||
+        activeProfile?.controls !== "melody" ||
+        args.path !== webHidPath(activeDevice)
+      ) {
+        throw new Error("These controls require the displayed SNOWSKY Melody");
       }
       const { path: _path, ...request } = args;
       return await runDeviceOperation<T>(cmd, request);

@@ -18,6 +18,7 @@ pub enum DeviceCommand {
     Push {
         peq: PEQData,
         skip_verification: bool,
+        melody_slot: Option<u8>,
     },
     #[serde(rename = "apply_eq_state")]
     Apply { peq: PEQData },
@@ -25,6 +26,10 @@ pub enum DeviceCommand {
     LiveApply { peq: PEQData },
     #[serde(rename = "ja11_control")]
     Ja11Control { control: String, value: Option<u8> },
+    #[serde(rename = "melody_control")]
+    MelodyControl { value: Option<u8> },
+    #[serde(rename = "melody_name")]
+    MelodyName { slot: u8, name: Option<String> },
     #[serde(rename = "get_firmware_version")]
     Firmware,
     #[serde(rename = "get_dac_utility_state")]
@@ -49,7 +54,7 @@ pub enum DeviceCommand {
         db: i8,
     },
     #[serde(rename = "reset_device_eq")]
-    ResetEq,
+    ResetEq { melody_slot: Option<u8> },
     #[serde(rename = "reset_device_controls")]
     ResetControls,
     #[serde(rename = "execute_factory_reset")]
@@ -74,6 +79,7 @@ pub enum DeviceOutcome {
     Write(EqWriteOutcome),
     Firmware(Option<String>),
     Control(Option<u8>),
+    Name(String),
     /// Whether the DAC restarts after the command (see `reset_eq`).
     Restarts(bool),
     Utility(DacUtilityState),
@@ -88,7 +94,11 @@ impl<I: DeviceIo> DeviceSession<'_, I> {
             Push {
                 peq,
                 skip_verification,
+                melody_slot,
             } => {
+                if let Some(slot) = melody_slot {
+                    self.set_melody_write_slot(slot)?;
+                }
                 let (committed, warnings) = if skip_verification {
                     self.unverified_push(peq).await?
                 } else {
@@ -120,6 +130,18 @@ impl<I: DeviceIo> DeviceSession<'_, I> {
                 Some(value) => self.set_ja11_control(&control, value).await?,
                 None => Some(self.ja11_control(&control).await?),
             }),
+            // Unsolicited preset replies can be stale even when the id is valid.
+            MelodyControl { value } => {
+                self.require_melody()?;
+                DeviceOutcome::Control(match value {
+                    Some(value) => Some(self.set_melody_preset(value).await?),
+                    None => None,
+                })
+            }
+            MelodyName { slot, name } => DeviceOutcome::Name(match name {
+                Some(name) => self.set_melody_name(slot, &name).await?,
+                None => self.melody_name(slot).await?,
+            }),
             Firmware => DeviceOutcome::Firmware(self.firmware_version().await?),
             UtilityStatus => DeviceOutcome::Utility(self.utility_status().await?),
             ResetControls => DeviceOutcome::Utility(self.reset_controls().await?),
@@ -143,7 +165,12 @@ impl<I: DeviceIo> DeviceSession<'_, I> {
                 self.set_mic_volume(db).await?;
                 DeviceOutcome::Unit
             }
-            ResetEq => DeviceOutcome::Restarts(self.reset_eq().await?),
+            ResetEq { melody_slot } => {
+                if let Some(slot) = melody_slot {
+                    self.set_melody_write_slot(slot)?;
+                }
+                DeviceOutcome::Restarts(self.reset_eq().await?)
+            }
             FactoryReset => {
                 self.factory_reset().await?;
                 DeviceOutcome::Unit

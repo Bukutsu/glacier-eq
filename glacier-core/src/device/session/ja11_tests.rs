@@ -98,6 +98,7 @@ fn ja11_order_timing_signed_gain_and_save_boundary_on_both_pids() {
                         .execute(DeviceCommand::Push {
                             peq: peq(),
                             skip_verification,
+                            melody_slot: None,
                         })
                         .await;
                     if save_error {
@@ -158,7 +159,11 @@ fn reset_eq_saves_last_reports_restart_and_never_reads_after_the_save() {
         queue_flat_pull(&mut io); // RAM verification reads the flat EQ back
         queue_flat_pull(&mut io); // and again immediately before the save, as on hardware
         let mut session = DeviceSession::new(&mut io, profile);
-        match session.execute(DeviceCommand::ResetEq).await.unwrap() {
+        match session
+            .execute(DeviceCommand::ResetEq { melody_slot: None })
+            .await
+            .unwrap()
+        {
             DeviceOutcome::Restarts(restarts) => assert!(restarts),
             _ => panic!("wrong outcome"),
         }

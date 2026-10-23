@@ -83,7 +83,7 @@ export interface DeviceCapabilities {
 }
 
 /** Device controls beyond EQ; each set has its own commands and panel. */
-export type DeviceControls = "walkplay" | "dawn_pro" | "ja11";
+export type DeviceControls = "walkplay" | "dawn_pro" | "ja11" | "melody";
 
 export interface DeviceInfo extends DeviceCapabilities {
   vendor_id: number;
@@ -98,6 +98,7 @@ export interface DeviceInfo extends DeviceCapabilities {
 }
 
 export interface SupportedDeviceInfo extends DeviceCapabilities {
+  usb_product_names?: string[];
   name: string;
   protocol: string;
   vendor_id: number;

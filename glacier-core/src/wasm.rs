@@ -9,6 +9,17 @@ use crate::eq::{Filter, PEQData};
 use crate::profile_match::{matching_profile_name, ProfileCandidate};
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
+fn web_profile(
+    vid: Option<u16>,
+    pid: Option<u16>,
+    name: Option<&str>,
+) -> Option<&'static crate::device::DeviceProfile> {
+    match (vid, pid) {
+        (Some(vid), Some(pid)) => crate::device::get_supported_device_with_name(vid, pid, name),
+        _ => supported_profile(vid, pid),
+    }
+}
+
 mod device;
 pub use device::device_operation;
 
@@ -93,14 +104,19 @@ pub fn parse_autoeq(
     text: String,
     vendor_id: Option<f64>,
     product_id: Option<f64>,
+    product_name: Option<String>,
 ) -> Result<JsValue, JsValue> {
     let vendor_id = validate_optional_device_id(vendor_id, "vendor_id")?;
     let product_id = validate_optional_device_id(product_id, "product_id")?;
     let (mut peq, headphone_name, mut warnings) =
         crate::autoeq::parse_autoeq_text(&text).map_err(js_err)?;
 
-    let mut clamp_warnings =
-        peq.clamp_to_capabilities(&device_caps_or_desktop(vendor_id, product_id));
+    let mut clamp_warnings = peq.clamp_to_capabilities(
+        &web_profile(vendor_id, product_id, product_name.as_deref())
+            .map_or(crate::device::capabilities::DESKTOP_DAC_CAPS, |p| {
+                p.caps.clone()
+            }),
+    );
     warnings.append(&mut clamp_warnings);
 
     let result = AutoEqParseResultWasm {
@@ -125,16 +141,18 @@ pub fn match_profile_name(
     profiles_js: JsValue,
     vendor_id: Option<f64>,
     product_id: Option<f64>,
+    product_name: Option<String>,
 ) -> Result<Option<String>, JsValue> {
     let vendor_id = validate_optional_device_id(vendor_id, "vendor_id")?;
     let product_id = validate_optional_device_id(product_id, "product_id")?;
     let peq: PEQData = serde_wasm_bindgen::from_value(peq_js).map_err(js_err)?;
     let profiles: Vec<ProfileCandidateWasm> =
         serde_wasm_bindgen::from_value(profiles_js).map_err(js_err)?;
-    let caps = device_caps_or_desktop(vendor_id, product_id);
-    let protocol = supported_profile(vendor_id, product_id)
-        .map(|profile| profile.protocol)
-        .unwrap_or(&UNKNOWN);
+    let profile = web_profile(vendor_id, product_id, product_name.as_deref());
+    let caps = profile.map_or(crate::device::capabilities::DESKTOP_DAC_CAPS, |p| {
+        p.caps.clone()
+    });
+    let protocol = profile.map(|profile| profile.protocol).unwrap_or(&UNKNOWN);
 
     Ok(matching_profile_name(
         &peq,
@@ -215,6 +233,7 @@ pub fn run_autoeq(
     fs: f32,
     vendor_id: Option<f64>,
     product_id: Option<f64>,
+    product_name: Option<String>,
 ) -> Result<JsValue, JsValue> {
     let measurement_points: Vec<(f64, f64)> =
         serde_wasm_bindgen::from_value(measurement_points_js).map_err(js_err)?;
@@ -225,8 +244,11 @@ pub fn run_autoeq(
     let vendor_id = validate_optional_device_id(vendor_id, "vendor_id")?;
     let product_id = validate_optional_device_id(product_id, "product_id")?;
 
-    let caps = device_caps_or_desktop(vendor_id, product_id);
-    let protocol = supported_profile(vendor_id, product_id).map_or(&UNKNOWN, |p| p.protocol);
+    let profile = web_profile(vendor_id, product_id, product_name.as_deref());
+    let caps = profile.map_or(crate::device::capabilities::DESKTOP_DAC_CAPS, |p| {
+        p.caps.clone()
+    });
+    let protocol = profile.map_or(&UNKNOWN, |p| p.protocol);
     let mut peq = crate::autoeq::run_autoeq_with_target(
         &measurement_points,
         &target_points,

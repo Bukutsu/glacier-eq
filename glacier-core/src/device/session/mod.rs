@@ -6,6 +6,7 @@
 mod command;
 mod io;
 mod ja11;
+mod melody;
 pub use command::{DeviceCommand, DeviceOutcome, EqWriteOutcome};
 
 #[cfg(test)]
@@ -38,7 +39,8 @@ const UNCORRELATED_GAIN_ERROR: &str =
 /// silently change behavior.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum FaultKind {
-    /// Every read in the round timed out without a reply.
+    /// No acceptable reply arrived; the message distinguishes silence from
+    /// replies rejected by the frame/command matcher.
     ReadTimeout,
     /// A global-gain read that could not be told apart from a late reply.
     UncorrelatedGain,
@@ -110,6 +112,7 @@ pub struct DeviceSession<'a, I: DeviceIo = BlockingIo<'a>> {
     pub(crate) profile: &'static DeviceProfile,
     progress: Option<&'a mut ProgressCallback<'a>>,
     next_nonce: u8,
+    melody_write_slot: u8,
     last_pull_had_invalid_response: bool,
     last_pull_sent_gain_request: bool,
     last_pull_gain_read_completed: bool,
@@ -131,6 +134,7 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
             profile,
             progress,
             next_nonce: initial_nonce,
+            melody_write_slot: 160,
             last_pull_had_invalid_response: false,
             last_pull_sent_gain_request: false,
             last_pull_gain_read_completed: false,
@@ -238,6 +242,8 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
     ) -> Result<(PEQData, Vec<String>), String> {
         self.require_hardware_eq()?;
         let (normalized, warnings) = self.normalize(peq)?;
+        // Snapshot the destination, not whichever bank happened to be playing.
+        self.prepare_write_destination().await?;
         let backup = self.pull().await?;
         if self.last_pull_had_invalid_response {
             return Err("Cannot push while the device returned an invalid EQ response".into());
@@ -342,6 +348,7 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
     ) -> Result<(PEQData, Vec<String>), String> {
         self.require_hardware_eq()?;
         let (normalized, mut warnings) = self.normalize(peq)?;
+        self.prepare_write_destination().await?;
         let backup = self.pull().await?;
         if self.last_pull_had_invalid_response {
             return Err("Cannot push while the device returned an invalid EQ response".into());
@@ -480,6 +487,7 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
         self.progress("Preparing EQ read…", 5.0);
         self.init().await?;
         let timing = self.protocol().write_timing();
+        self.check_filter_count().await?;
         self.progress("Reading device preamp…", 10.0);
         self.last_pull_sent_gain_request = true;
         let global_gain = match self.read_gain().await {
@@ -575,6 +583,101 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
             (Some(error), None) | (None, Some(error)) => error,
             (None, None) => Fault::new(FaultKind::ReadTimeout, "Filter read timeout"),
         })
+    }
+
+    async fn check_filter_count(&mut self) -> Result<(), Fault> {
+        if let Some(request) = self.protocol().read_filter_count_request() {
+            let protocol = self.protocol();
+            let data = self
+                .send_and_read(
+                    "Band count",
+                    &request,
+                    20,
+                    0,
+                    |data| protocol.parse_filter_count_response(data).is_some(),
+                    false,
+                )
+                .await?;
+            let actual = protocol
+                .parse_filter_count_response(&data)
+                .ok_or("Invalid band count")?;
+            if actual != self.profile.caps.num_bands {
+                return Err(format!("{} reports {actual} EQ bands; this profile requires {}. No EQ was written; please report the firmware and a diagnostic capture.",
+                    self.profile.name, self.profile.caps.num_bands).into());
+            }
+        }
+        Ok(())
+    }
+
+    /// Select before the snapshot, so rollback restores the bank we overwrite.
+    async fn prepare_write_destination(&mut self) -> Result<(), String> {
+        if self.profile.controls == Some(super::profile::Controls::Melody) {
+            self.check_filter_count().await?;
+            self.set_melody_preset(self.melody_write_slot).await?;
+        } else if let Some(slot) = self.protocol().write_target_preset() {
+            use super::families::fiio;
+            self.drain().await;
+            self.check_filter_count().await?;
+            let report_id = self.protocol().report_id();
+            // The official QX13 adapter requires EQ already enabled; the BTR15
+            // adapter enables it implicitly. Keep BTR19/25 writes off when
+            // their standard EQ switch is off too. Do not silently change that
+            // separate setting or report a successful EQ that is still bypassed.
+            if ["FIIO QX13", "FIIO BTR15", "FIIO BTR19", "FIIO BTR25"]
+                .contains(&self.profile.protocol.id)
+            {
+                self.drain().await;
+                let request = Packet::new(report_id, vec![0xbb, 0x0b, 0, 0, 0x1a, 0, 0, 0xee]);
+                let data = self
+                    .send_and_read(
+                        "EQ switch",
+                        &request,
+                        20,
+                        0,
+                        |data| fiio::parse_eq_switch_response(data).is_some(),
+                        false,
+                    )
+                    .await?;
+                if fiio::parse_eq_switch_response(&data) != Some(true) {
+                    return Err(
+                        "EQ is disabled. Enable EQ in FiiO Control before writing with Glacier."
+                            .into(),
+                    );
+                }
+            }
+            self.drain().await;
+            self.io
+                .write(&fiio::preset_packet(report_id, 0x16, slot).framed())
+                .await?;
+            self.io
+                .sleep_ms(self.protocol().write_timing().packet_gap_ms)
+                .await;
+            self.verify_fiio_write_target(slot).await?;
+        }
+        Ok(())
+    }
+
+    async fn verify_fiio_write_target(&mut self, slot: u8) -> Result<(), String> {
+        use super::families::fiio;
+        self.drain().await;
+        let request = Packet::new(
+            self.protocol().report_id(),
+            vec![0xbb, 0x0b, 0, 0, 0x16, 0, 0, 0xee],
+        );
+        let data = self
+            .send_and_read(
+                "User bank",
+                &request,
+                20,
+                0,
+                |data| fiio::parse_preset_response(data).is_some(),
+                false,
+            )
+            .await?;
+        if fiio::parse_preset_response(&data) != Some(slot) {
+            return Err(format!("User bank verification failed: expected {slot}"));
+        }
+        Ok(())
     }
 
     async fn read_gain(&mut self) -> Result<f64, Fault> {
@@ -714,9 +817,19 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
                         .sleep_ms(protocol.write_timing().packet_gap_ms)
                         .await;
                 }
-                self.send(&packet)
-                    .await
-                    .map_err(|error| format!("Band {} write failed: {error}", index + 1))?;
+                if self.profile.controls == Some(super::profile::Controls::Melody)
+                    && packet.payload.get(4) == Some(&0x16)
+                {
+                    self.set_melody_preset(self.melody_write_slot).await?;
+                } else if protocol.write_target_preset().is_some()
+                    && packet.payload.get(4) == Some(&0x16)
+                {
+                    // Already selected and verified before the destination snapshot.
+                } else {
+                    self.send(&packet)
+                        .await
+                        .map_err(|error| format!("Band {} write failed: {error}", index + 1))?;
+                }
             }
             self.io
                 .sleep_ms(protocol.write_timing().per_filter_ms)
@@ -753,6 +866,32 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
             },
             80.0,
         );
+        if self.profile.controls == Some(super::profile::Controls::Melody) {
+            // SAVE has a short acknowledgement, not a normal command echo.
+            // The following read drains it first; SAVE is not replayed.
+            let packet = super::families::fiio::melody::save_request(self.melody_write_slot)?;
+            self.io.write(&packet.framed()).await?;
+            self.io
+                .sleep_ms(self.protocol().write_timing().commit_step_ms)
+                .await;
+            let actual = self.melody_preset().await?;
+            if actual != self.melody_write_slot {
+                return Err(format!(
+                    "Melody save selected {actual}, expected {}",
+                    self.melody_write_slot
+                ));
+            }
+            return Ok(());
+        }
+        if let Some(slot) = self.protocol().write_target_preset() {
+            for packet in self.protocol().commit_packets() {
+                self.io.write(&packet.framed()).await?;
+                self.io
+                    .sleep_ms(self.protocol().write_timing().commit_step_ms)
+                    .await;
+            }
+            return self.verify_fiio_write_target(slot).await;
+        }
         for packet in self.protocol().commit_packets() {
             if self.save_restarts_device() {
                 // Save is single-shot: an error is ambiguous delivery, not permission
@@ -810,6 +949,10 @@ fn compare_peq(
 }
 
 #[cfg(test)]
+mod fiio_tests;
+#[cfg(test)]
 mod ja11_tests;
+#[cfg(test)]
+mod melody_tests;
 #[cfg(test)]
 mod tests;

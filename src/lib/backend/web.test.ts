@@ -198,6 +198,68 @@ function peqWithBands(count: number): PEQData {
   };
 }
 
+describe("SNOWSKY Melody browser adapter", () => {
+  const melody: SupportedDeviceInfo = {
+    ...profile,
+    name: "SNOWSKY Melody",
+    protocol: "SNOWSKY Melody",
+    vendor_id: 0x2972,
+    product_id: 0x0126,
+    controls: "melody",
+  };
+  it("delegates the preset to Rust, stripping only the routing path", async () => {
+    const device = fakeHidDevice();
+    device.vendorId = 0x2972;
+    device.productId = 0x0126;
+    await connectWebHid(device, melody);
+    const path = (await invoke<Array<{ path: string }>>("list_devices"))[0]
+      .path;
+    wasm.device_operation.mockResolvedValue(161);
+    expect(await invoke("melody_control", { path, value: 161 })).toBe(161);
+    const [vid, pid, , request] = wasm.device_operation.mock.calls.at(-1)!;
+    expect([vid, pid]).toEqual([0x2972, 0x0126]);
+    expect(request).toEqual({ command: "melody_control", value: 161 });
+    await expect(invoke("melody_control", { path: "/stale" })).rejects.toThrow(
+      "displayed SNOWSKY Melody",
+    );
+    expect(device.sendReport).not.toHaveBeenCalled();
+    await invoke("disconnect_device");
+  });
+  it("routes names and cancels a queued rename after disconnect", async () => {
+    const device = fakeHidDevice();
+    device.vendorId = 0x2972;
+    device.productId = 0x0126;
+    await connectWebHid(device, melody);
+    const path = (await invoke<Array<{ path: string }>>("list_devices"))[0]
+      .path;
+    wasm.device_operation.mockResolvedValue("TEAPRO2");
+    expect(
+      await invoke("melody_name", { path, slot: 161, name: "TeaPro2" }),
+    ).toBe("TEAPRO2");
+    expect(wasm.device_operation.mock.calls.at(-1)![3]).toEqual({
+      command: "melody_name",
+      slot: 161,
+      name: "TeaPro2",
+    });
+    wasm.device_operation.mockClear();
+    const closing = invoke("disconnect_device");
+    const queued = invoke("melody_name", { path, slot: 161, name: "LATE" });
+    await closing;
+    await expect(queued).rejects.toThrow("session changed");
+    expect(wasm.device_operation).not.toHaveBeenCalled();
+  });
+  it("rejects other devices before entering Rust", async () => {
+    await connectWebHid(fakeHidDevice());
+    const path = (await invoke<Array<{ path: string }>>("list_devices"))[0]
+      .path;
+    await expect(invoke("melody_control", { path })).rejects.toThrow(
+      "displayed SNOWSKY Melody",
+    );
+    expect(wasm.device_operation).not.toHaveBeenCalled();
+    await invoke("disconnect_device");
+  });
+});
+
 describe("JA11 browser adapter", () => {
   const ja11: SupportedDeviceInfo = {
     ...profile,
@@ -399,6 +461,7 @@ describe("browser connection cleanup", () => {
       valid.fs,
       null,
       null,
+      undefined,
     );
 
     // Connected DAC: passes device profile IDs
@@ -418,6 +481,7 @@ describe("browser connection cleanup", () => {
       valid.fs,
       profile.vendor_id,
       profile.product_id,
+      device.productName,
     );
   });
 
@@ -1117,6 +1181,87 @@ describe("web profile parser", () => {
 });
 
 describe("WebHID device matching", () => {
+  it("requires an exact named route instead of treating a missing PID as a vendor fallback", () => {
+    const named: SupportedDeviceInfo = {
+      ...profile,
+      name: "FIIO BTR13",
+      vendor_id: 0x0a12,
+      product_id: null,
+      usb_product_names: ["FIIO BTR13"],
+    };
+    expect(
+      matchSupportedWebHidDevice(
+        { vendorId: 0x0a12, productId: 0xffff, productName: " fiio btr13 " },
+        [named],
+      ),
+    ).toBe(named);
+    for (const productName of ["FIIO BTR13 plus", "Some headset", undefined]) {
+      expect(
+        matchSupportedWebHidDevice(
+          { vendorId: 0x0a12, productId: 0xffff, productName },
+          [named],
+        ),
+      ).toBeUndefined();
+    }
+    for (const [name, pid] of [
+      ["FIIO QX11", 0x0130],
+      ["FIIO BT11", 0x4032],
+      ["FIIO Air Link", 0x4033],
+    ] as const) {
+      const mode = { ...named, name, usb_product_names: [name] };
+      expect(
+        matchSupportedWebHidDevice(
+          { vendorId: 0x0a12, productId: pid, productName: name },
+          [mode],
+        ),
+      ).toBe(mode);
+      expect(
+        matchSupportedWebHidDevice(
+          { vendorId: 0x0a12, productId: 0xffff, productName: name },
+          [mode],
+        ),
+      ).toBeUndefined();
+    }
+  });
+
+  it("retains named identity through connection, the Rust transport, and AutoEQ", async () => {
+    const device = fakeHidDevice();
+    device.vendorId = 0x0a12;
+    device.productId = 0xffff;
+    device.productName = "FIIO DSP Audio";
+    await connectWebHid(device, {
+      ...profile,
+      name: "FIIO LS-TC2",
+      vendor_id: 0x0a12,
+      product_id: null,
+      usb_product_names: ["FIIO LS-TC2", "FIIO DSP Audio"],
+      num_bands: 5,
+    });
+    await invoke("get_eq_state");
+    expect(wasm.device_operation.mock.calls.at(-1)?.[2]).toMatchObject({
+      productName: "FIIO DSP Audio",
+    });
+    await invoke("parse_autoeq", { text: "Preamp: -1 dB" });
+    expect(wasm.parse_autoeq).toHaveBeenCalledWith(
+      "Preamp: -1 dB",
+      0x0a12,
+      0xffff,
+      "FIIO DSP Audio",
+    );
+  });
+
+  it("rejects malformed product-name metadata rather than enabling a vendor fallback", async () => {
+    wasm.list_supported_devices.mockReturnValue([
+      { ...profile, usb_product_names: [1] },
+      { ...profile, usb_product_names: "FIIO BTR13" },
+      { ...profile, usb_product_names: [""] },
+      profile,
+    ]);
+    expect(await invoke("list_supported_devices")).toEqual([
+      { ...profile, response_model: "CanonicalQ" },
+    ]);
+  });
+
   it("drops a supported-device entry the wasm layer got wrong", async () => {
     // The generated binding types list_supported_devices() as `any`, and it
     // used to be cast straight to SupportedDeviceInfo[]. A missing number

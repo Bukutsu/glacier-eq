@@ -61,8 +61,10 @@ impl Default for DacUtilityState {
 
 impl<I: DeviceIo> DeviceSession<'_, I> {
     pub async fn firmware_version(&mut self) -> Result<Option<String>, String> {
-        if self.profile.controls != Some(Controls::Walkplay) {
-            return Ok(None);
+        match self.profile.controls {
+            Some(Controls::Walkplay) => {}
+            Some(Controls::Melody) => return self.melody_firmware().await,
+            _ => return Ok(None),
         }
         let mut last_err = "Firmware version read timeout".to_string();
         for attempt in 1..=UTILITY_READ_RETRIES {

@@ -15,10 +15,8 @@ fn no_device_autoeq_uses_editor_capabilities() {
         supported_profile(Some(0x2972), Some(0x0102)).unwrap().name,
         "FiiO JA11"
     );
-    assert_eq!(
-        supported_profile(Some(0x2972), None).unwrap().name,
-        "FiiO KA Series"
-    );
+    assert!(supported_profile(Some(0x2972), None).is_none());
+    assert!(supported_profile(Some(0x0a12), None).is_none());
     assert!(supported_profile(None, Some(0x0102)).is_none());
 }
 

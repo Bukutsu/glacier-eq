@@ -50,6 +50,93 @@ Implementation references include
 [ja11-web-control](https://github.com/Cyfine/ja11-web-control).
 Matching source citations remain beside the protocol and UI implementation.
 
+## Other FiiO models
+
+See [FiiO support](fiio-support.md) for the model-specific HID routes, write
+banks, expected band counts, serial-only models, and evidence limits. New HID
+profiles select their write bank before the rollback snapshot. Unknown FiiO
+products no longer fall through to the generic KA protocol.
+
+## SNOWSKY Melody and Tiny A
+
+The Melody (`2972:0126`) uses FiiO HID report ID 7 with ten bands. Its
+profile remains **Untested** in Glacier: the supplied diagnostic capture
+establishes USB identity, EQ reads and accepted request framing, but not a
+successful persistent write with this implementation.
+
+Sources:
+- [FiiO Control Web](https://fiiocontrol.fiio.com/), bundle
+  `static/js/index-7hb30NUo.js`, plus the supplied Melody capture.
+- [Contour's Melody protocol findings](https://github.com/Chronosauros/contour/blob/81cd09dbad630c4237355334a9b4a86d2e1a1f63/research/protocol/PROTOCOL.md#L216-L248)
+  and [name-field captures](https://github.com/Chronosauros/contour/blob/81cd09dbad630c4237355334a9b4a86d2e1a1f63/research/snowsky-names-types-2026-10-14/FINDINGS.md).
+  Contour reports testing on the owner's Melody and Tiny A; these are external
+  findings, not Glacier hardware validation. The implementation here is
+  independently written from those protocol findings.
+- [snowsky-peq-loader's reset-to-flat](https://github.com/uvish/snowsky-peq-loader/blob/06869427f7fb706c25944cfcf89d9275c993e616/fiiopeq.py#L250-L259).
+
+### Playback and write destination are separate
+
+Factory presets are 0–6 (Jazz, Pop, Rock, Dance, R&B, Classic, Hip-hop);
+USER1–3 are 160–162, and EQ off is 240. The Device controls can select any of
+these for playback. A selection is sent once and verified immediately; it
+does not edit or save bands, or overwrite the editor.
+
+The write destination defaults to User 1. Selecting another destination is a
+local choice and does not change playback. Both **Write to DAC** and
+**Reset EQ** use that destination, select it before taking the backup, and
+leave it playing. On failure, rollback restores that destination's backup,
+not the previously playing slot. Native and WebHID requests carry
+`melody_slot` explicitly; other devices reject this argument.
+
+Every write contains ten bands; normalization supplies neutral bands for a
+shorter profile. Glacier does not send a band-count write. SAVE (`0x19`) uses
+the destination id and is not retried on transport failure. Its short
+acknowledgement is drained before checking the preset, then normal EQ
+verification follows. Skip-verification still checks the selected slot but
+does not verify the saved bands.
+
+### Stale preset replies
+
+Contour reports that `0x16` replies become stale after band or preamp traffic,
+even when the returned byte happens to be a valid preset id. Glacier only
+uses the query immediately after selection or SAVE. An unsolicited
+`melody_control` read returns null without USB traffic. The UI initially says
+**Choose a preset** rather than guessing, and clears its confirmed selection
+after other EQ operations. Switching playback invalidates the app's stored
+EQ comparison without discarding editor changes.
+
+Names can be refreshed without changing playback. Glacier does not scan
+inactive slots in the background: reading their EQ requires selecting them,
+which would change the sound.
+
+### USER names and reset
+
+Command `0x30` reads and renames USER slots:
+- Read payload: the slot id `a0`–`a2`, not an index 0–2.
+- Reply payload: slot id plus eight name bytes, NUL padded.
+- Write payload: slot id plus 1–8 ASCII letters or digits, uppercased,
+  without padding. A single write is followed by a slot-correlated readback.
+
+Reset writes ten flat bands with zero preamp through the normal verified
+EQ operation, after confirmation naming the destination. Other slots and
+their names are left alone. It does not send the unconfirmed `0x1b` reset
+opcode or a factory-reset command.
+
+### Limits and remaining uncertainty
+
+The official web app allows -24 to +12 dB for bands and preamp; Contour
+configures -12 to +12 dB. That disagreement is unresolved. Glacier retains
+the official preamp envelope, with bands stopping at -18 dB (the profile
+storage floor); this is not a claim that the lower values were measured on
+hardware. Preamp snaps to whole dB because the supplied capture reads a
+-9.9 dB write back as -9.0 dB. Existing Q tolerance covers Contour's reported
+3.00 → 3.01 readback.
+
+Firmware version uses `0x0b`, joining reply bytes with dots. The official app
+sends sequence numbers and CRC-8; the capture shows the Melody accepts
+Glacier's zero placeholders. LED, balance, DAC-filter and factory-reset
+commands remain unavailable without Melody-specific evidence.
+
 ## Walkplay controls and resets
 
 On the tested EPZ TP35 Pro, reports are paced 16 ms apart. Control writes

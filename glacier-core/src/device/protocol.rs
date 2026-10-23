@@ -130,6 +130,18 @@ pub trait EqProtocol: Sync {
     }
     fn is_default_state(&self, peq: &PEQData) -> bool;
     fn init_packets(&self) -> Vec<Packet>;
+    /// Some source-reviewed models must confirm their fixed bank size before
+    /// a snapshot or write. A different firmware must fail, not truncate a bank.
+    /// A fixed user bank must be selected before taking the rollback snapshot.
+    fn write_target_preset(&self) -> Option<u8> {
+        None
+    }
+    fn read_filter_count_request(&self) -> Option<Packet> {
+        None
+    }
+    fn parse_filter_count_response(&self, _data: &[u8]) -> Option<usize> {
+        None
+    }
     fn read_filter_request(&self, index: u8, nonce: u8) -> Packet;
     fn matches_filter_response(&self, data: &[u8], index: u8, nonce: u8) -> bool;
     /// Checks payload validity independently of command/index/nonce correlation.

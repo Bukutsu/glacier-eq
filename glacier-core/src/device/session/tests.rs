@@ -7,6 +7,34 @@ use crate::device::families::walkplay::READ;
 use crate::device::get_supported_device;
 
 #[test]
+fn read_timeout_distinguishes_silence_from_rejected_replies_with_bounded_context() {
+    block_on(async {
+        let profile = get_supported_device(0x2972, 0x0126).unwrap();
+        let mut io = FakeIo::default();
+        io.reads.extend([vec![], vec![0xbb; 1024], vec![]]);
+        let mut session = DeviceSession::new(&mut io, profile);
+        let fault = session
+            .read_matching("Global gain", 3, |_| false)
+            .await
+            .unwrap_err();
+        assert_eq!(fault.kind, FaultKind::ReadTimeout);
+        let error: String = fault.into();
+        assert!(error.contains("Global gain read timeout"));
+        assert!(error.contains("SNOWSKY Melody"));
+        assert!(error.contains("received 1 unmatched replies"));
+        assert!(error.contains("2 empty polls"));
+        assert!(error.contains("last RX [1024 bytes]: bb bb"));
+        assert!(error.len() < 300, "{error}");
+        let fault = session
+            .read_matching("Global gain", 3, |_| false)
+            .await
+            .unwrap_err();
+        let error: String = fault.into();
+        assert_eq!(error, "Global gain read timeout");
+    });
+}
+
+#[test]
 fn original_dawn_pro_refuses_eq_without_touching_the_device() {
     crate::device::session::block_on(async {
         let profile = get_supported_device(0x2FC6, 0xF06A).unwrap();

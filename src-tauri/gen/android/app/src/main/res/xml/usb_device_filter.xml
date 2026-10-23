@@ -5,6 +5,7 @@
 <resources>
     <usb-device vendor-id="1633" /> <!-- 0661:* -->
     <usb-device vendor-id="1638" /> <!-- 0666:* -->
+    <usb-device vendor-id="2578" /> <!-- 0a12:* -->
     <usb-device vendor-id="3468" product-id="528" /> <!-- 0d8c:0210 -->
     <usb-device vendor-id="9770" /> <!-- 262a:* -->
     <usb-device vendor-id="10610" /> <!-- 2972:* -->

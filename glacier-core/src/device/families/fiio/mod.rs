@@ -14,6 +14,10 @@
 //!   exact state-control source revision is credited in the JA11 codec.
 //!   https://github.com/Cyfine/ja11-web-control
 //!
+//! - FiiO Control Web (https://fiiocontrol.fiio.com/, bundle index-7hb30NUo.js):
+//!   SNOWSKY Melody preset ids, command codes and byte layout; a live
+//!   Melody capture shows what the hardware accepts (zero sequence/checksum).
+//!
 //! Sources differ on some fields; only the specific evidence above is used.
 
 use crate::device::packet::{checked_scaled_i16, checked_scaled_u16, Packet};
@@ -23,10 +27,12 @@ use crate::eq::filter::DEFAULT_FREQS_10_BAND;
 use crate::eq::{Filter, FilterType, PEQData};
 
 pub mod ja11;
+pub mod melody;
 mod models;
-pub use models::{JA11, KA17, KA_SERIES};
+pub mod registry;
+pub use models::{JA11, KA17, KA_SERIES, MELODY};
 #[cfg(test)]
-use models::{JA11_EQ, KA17_EQ, KA_SERIES_EQ};
+use models::{JA11_EQ, KA17_EQ, KA_SERIES_EQ, MELODY_EQ};
 
 const SET_1: u8 = 0xAA;
 const SET_2: u8 = 0x0A;
@@ -40,7 +46,10 @@ const GLOBAL_GAIN: u8 = 0x17;
 pub struct FiioProtocol {
     report_id: u8,
     filter_count: u8,
+    verify_filter_count: bool,
     user_slot: u8,
+    /// Grid requested preamps snap to; 0.1 dB except where firmware keeps whole dB.
+    preamp_step_db: f64,
     clamp_gain: bool,
     command_interval_ms: Option<u64>,
     sends_filter_count: bool,
@@ -49,7 +58,12 @@ pub struct FiioProtocol {
 }
 
 fn default_state(peq: &PEQData) -> bool {
-    peq.global_gain == 0.0 && peq.filters.iter().all(|f| !f.enabled || f.gain == 0.0)
+    peq.global_gain == 0.0
+        && peq.filters.iter().all(|f| {
+            !f.enabled
+                || (f.gain == 0.0
+                    && !matches!(f.filter_type, FilterType::HighPass | FilterType::LowPass))
+        })
 }
 
 fn read_filter_packet(index: u8, report_id: u8) -> Packet {
@@ -63,6 +77,8 @@ fn filter_type_from_fiio(code: u8) -> FilterType {
     match code {
         1 => FilterType::LowShelf,
         2 => FilterType::HighShelf,
+        4 => FilterType::LowPass,
+        5 => FilterType::HighPass,
         _ => FilterType::Peak,
     }
 }
@@ -71,23 +87,37 @@ fn filter_type_to_fiio(filter_type: FilterType) -> u8 {
     match filter_type {
         FilterType::LowShelf => 1,
         FilterType::HighShelf => 2,
-        _ => 0,
+        FilterType::LowPass => 4,
+        FilterType::HighPass => 5,
+        FilterType::Peak => 0,
     }
 }
 
 fn matches_response(data: &[u8], command: u8, payload_len: u8) -> bool {
     let terminator = 7 + payload_len as usize;
     data.len() > terminator
-        && data[..3] == [RESPONSE_1, RESPONSE_2, 0]
-        // Byte 3 is a response counter on KA15, not a reserved zero byte.
+        && data[..2] == [RESPONSE_1, RESPONSE_2]
+        // Bytes 2..4 are the firmware's 16-bit response counter, not zeros.
+        // sakana2.txt crosses 00 ff -> 01 00 without a USB disconnect.
         && data[4] == command
         && data[5] == payload_len
         // The byte before END is a device checksum (zero in requests).
         && data[terminator] == END
 }
 
+pub(crate) fn parse_eq_switch_response(data: &[u8]) -> Option<bool> {
+    matches_response(data, 0x1a, 1).then(|| data[6] != 0)
+}
+
+pub(crate) fn parse_preset_response(data: &[u8]) -> Option<u8> {
+    matches_response(data, 0x16, 1).then(|| data[6])
+}
+
 fn parse_filter_response(data: &[u8], filter_count: u8) -> Option<Filter> {
-    if !matches_response(data, FILTER_PARAMS, 8) || data[6] >= filter_count || data[13] > 2 {
+    if !matches_response(data, FILTER_PARAMS, 8)
+        || data[6] >= filter_count
+        || !matches!(data[13], 0..=2 | 4 | 5)
+    {
         return None;
     }
 
@@ -118,7 +148,7 @@ fn parse_filter_response(data: &[u8], filter_count: u8) -> Option<Filter> {
             gain_raw as f64 / 10.0,
             q,
             filter_type_from_fiio(data[13]),
-            gain_raw != 0,
+            gain_raw != 0 || matches!(data[13], 4 | 5),
         )
     };
 
@@ -158,7 +188,11 @@ fn write_filter_packet(report_id: u8, index: u8, filter: &Filter) -> Packet {
             freq_l,
             q_h,
             q_l,
-            filter_type_to_fiio(filter.filter_type),
+            filter_type_to_fiio(if filter.enabled {
+                filter.filter_type
+            } else {
+                FilterType::Peak
+            }),
             0,
             END,
         ],
@@ -175,7 +209,7 @@ fn write_global_gain_packet(report_id: u8, global_gain: f64) -> Packet {
     )
 }
 
-fn preset_packet(report_id: u8, command: u8, slot: u8) -> Packet {
+pub(crate) fn preset_packet(report_id: u8, command: u8, slot: u8) -> Packet {
     Packet::new(
         report_id,
         vec![SET_1, SET_2, 0, 0, command, 1, slot, 0, END],
@@ -194,7 +228,7 @@ impl EqProtocol for FiioProtocol {
             band_units_per_db: 10.0,
             band_step_db: Some(0.1),
             band_readback_per_db: 10.0,
-            preamp_step_db: 0.1,
+            preamp_step_db: self.preamp_step_db,
         }
     }
 
@@ -226,6 +260,16 @@ impl EqProtocol for FiioProtocol {
         vec![]
     }
 
+    fn write_target_preset(&self) -> Option<u8> {
+        self.verify_filter_count.then_some(self.user_slot)
+    }
+    fn read_filter_count_request(&self) -> Option<Packet> {
+        self.verify_filter_count
+            .then(|| Packet::new(self.report_id, vec![0xbb, 0x0b, 0, 0, 0x18, 0, 0, END]))
+    }
+    fn parse_filter_count_response(&self, data: &[u8]) -> Option<usize> {
+        matches_response(data, 0x18, 1).then(|| data[6] as usize)
+    }
     fn read_filter_request(&self, index: u8, _nonce: u8) -> Packet {
         read_filter_packet(index, self.report_id)
     }
@@ -242,7 +286,7 @@ impl EqProtocol for FiioProtocol {
             && data[15] == END;
         if !(matches_response(data, FILTER_PARAMS, 8) || write)
             || data[6] >= self.filter_count
-            || data[13] > 2
+            || !matches!(data[13], 0..=2 | 4 | 5)
         {
             return false;
         }
@@ -349,6 +393,19 @@ impl EqProtocol for FiioProtocol {
     fn report_id(&self) -> u8 {
         self.report_id
     }
+}
+
+#[cfg(test)]
+mod registry_tests;
+
+#[cfg(test)]
+pub(crate) mod sakana2 {
+    include!("../../../../tests/fixtures/fiio/melody_sakana2.rs");
+}
+
+#[cfg(test)]
+pub(crate) mod sakana3 {
+    include!("../../../../tests/fixtures/fiio/melody_sakana3.rs");
 }
 
 #[cfg(test)]
@@ -540,13 +597,13 @@ mod tests {
             assert!(protocol.matches_filter_response(&filter[..16], 0, 0));
             assert!(protocol.matches_global_gain_response(&capture.gain[..10]));
             assert!(!protocol.matches_filter_response(filter, 1, 0));
-            for offset in [0, 1, 2, 4, 5, 15] {
+            for offset in [0, 1, 4, 5, 15] {
                 let mut invalid = filter.to_vec();
                 invalid[offset] ^= 0xFF;
                 assert!(!protocol.matches_filter_response(&invalid, 0, 0));
                 assert_eq!(protocol.parse_filter_response(&invalid), None);
             }
-            for offset in [0, 1, 2, 4, 5, 9] {
+            for offset in [0, 1, 4, 5, 9] {
                 let mut invalid = capture.gain.to_vec();
                 invalid[offset] ^= 0xFF;
                 assert!(!protocol.matches_global_gain_response(&invalid));
@@ -615,5 +672,185 @@ mod tests {
                 .write_filter_packets(protocol.filter_count, &filter, 48000.0, 0.0)
                 .is_err());
         }
+    }
+
+    // Frames below were captured from a SNOWSKY Melody (2972:0126) by Glacier's
+    // WebHID diagnostics. The leading report ID 7 is stripped; replies end at END.
+    fn hex(frame: &str) -> Vec<u8> {
+        frame
+            .split_whitespace()
+            .map(|byte| u8::from_str_radix(byte, 16).unwrap())
+            .collect()
+    }
+
+    const MELODY_READS: [(&str, u16, f64, f64, u8); 10] = [
+        (
+            "bb 0b 00 11 15 08 00 00 30 00 25 00 3c 01 b6 ee",
+            37,
+            4.8,
+            0.60,
+            1,
+        ),
+        (
+            "bb 0b 00 12 15 08 01 ff fc 00 69 00 be 00 65 ee",
+            105,
+            -0.4,
+            1.90,
+            0,
+        ),
+        (
+            "bb 0b 00 13 15 08 02 ff eb 00 c8 00 50 00 24 ee",
+            200,
+            -2.1,
+            0.80,
+            0,
+        ),
+        (
+            "bb 0b 00 14 15 08 03 00 0b 02 aa 00 78 00 f2 ee",
+            682,
+            1.1,
+            1.20,
+            0,
+        ),
+        (
+            "bb 0b 00 15 15 08 04 ff e3 07 3b 00 5a 00 95 ee",
+            1851,
+            -2.9,
+            0.90,
+            0,
+        ),
+        (
+            "bb 0b 00 16 15 08 05 ff f5 08 83 00 b4 00 12 ee",
+            2179,
+            -1.1,
+            1.80,
+            0,
+        ),
+        (
+            "bb 0b 00 17 15 08 06 00 24 0d 29 00 c8 00 6c ee",
+            3369,
+            3.6,
+            2.00,
+            0,
+        ),
+        (
+            "bb 0b 00 18 15 08 07 ff f5 13 40 01 c5 00 c2 ee",
+            4928,
+            -1.1,
+            4.53,
+            0,
+        ),
+        (
+            "bb 0b 00 19 15 08 08 00 35 17 d6 00 64 00 02 ee",
+            6102,
+            5.3,
+            1.00,
+            0,
+        ),
+        (
+            "bb 0b 00 1a 15 08 09 ff e1 25 3e 00 3c 02 d6 ee",
+            9534,
+            -3.1,
+            0.60,
+            2,
+        ),
+    ];
+
+    #[test]
+    fn melody_accepts_live_replies_across_the_16_bit_counter_rollover() {
+        for (data, index, freq) in [
+            (sakana2::FILTER_BEFORE, 3, 250),
+            (sakana2::FILTER_AFTER, 6, 2000),
+        ] {
+            assert!(MELODY_EQ.matches_filter_response(data, index, 0));
+            assert_eq!(MELODY_EQ.parse_filter_response(data).unwrap().freq, freq);
+        }
+        assert_eq!(
+            MELODY_EQ.parse_global_gain_response(sakana2::GAIN),
+            Some(0.0)
+        );
+        // Both bytes belong to firmware, not the request's correlation nonce.
+        for (protocol, capture) in captures() {
+            for counter in [0x00ff_u16, 0x0100, 0x1234, 0xffff, 0x0000] {
+                let mut gain = capture.gain.to_vec();
+                gain[2..4].copy_from_slice(&counter.to_be_bytes());
+                assert_eq!(
+                    protocol.parse_global_gain_response(&gain),
+                    Some(capture.expected_gain)
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn melody_reads_match_live_capture() {
+        for (index, (frame, freq, gain, q, kind)) in MELODY_READS.iter().enumerate() {
+            let data = hex(frame);
+            assert!(
+                MELODY_EQ.is_filter_response_valid(&data, index as u8, 0),
+                "{index}"
+            );
+            let filter = MELODY_EQ.parse_filter_response(&data).unwrap();
+            assert_eq!(
+                (filter.freq, filter.gain, filter.q, filter.filter_type),
+                (*freq, *gain, *q, filter_type_from_fiio(*kind)),
+                "{index}"
+            );
+        }
+        let gain = hex("bb 0b 00 10 17 02 00 00 ba ee");
+        assert_eq!(MELODY_EQ.parse_global_gain_response(&gain), Some(0.0));
+    }
+
+    #[test]
+    fn melody_writes_reproduce_live_capture_frames() {
+        // Band writes sent by Glacier to the Melody (tenths dB, centi-Q).
+        let writes = [
+            "aa 0a 00 00 15 08 00 00 0d 00 14 00 2a 00 00 ee",
+            "aa 0a 00 00 15 08 03 ff f2 01 dd 00 7d 01 00 ee",
+            "aa 0a 00 00 15 08 07 00 09 1f a2 01 2c 02 00 ee",
+            "aa 0a 00 00 15 08 09 ff bb 33 5b 00 a0 00 00 ee",
+        ];
+        for frame in writes {
+            let data = hex(frame);
+            assert!(MELODY_EQ.is_filter_packet_valid(&data));
+            let filter = Filter {
+                index: data[6],
+                enabled: true,
+                freq: u16::from_be_bytes([data[9], data[10]]),
+                gain: i16::from_be_bytes([data[7], data[8]]) as f64 / 10.0,
+                q: u16::from_be_bytes([data[11], data[12]]) as f64 / 100.0,
+                filter_type: filter_type_from_fiio(data[13]),
+            };
+            let packet = MELODY_EQ
+                .write_filter_packets(filter.index, &filter, 48000.0, 0.0)
+                .unwrap()
+                .pop()
+                .unwrap();
+            assert_eq!(packet.report_id, 7);
+            assert_eq!(packet.payload, data);
+        }
+    }
+
+    #[test]
+    fn melody_uses_official_user_slot_and_whole_db_preamp() {
+        // FiiO Control Web: USER1 = 160 (0xA0); select, write bands, save.
+        let filter = Filter::enabled(0, true);
+        let first = MELODY_EQ
+            .write_filter_packets(0, &filter, 48000.0, 0.0)
+            .unwrap();
+        assert_eq!(first.len(), 2, "no band-count write before the first band");
+        assert_eq!(first[0].payload, hex("aa 0a 00 00 16 01 a0 00 ee"));
+        assert_eq!(
+            MELODY_EQ.commit_packets()[0].payload,
+            hex("aa 0a 00 00 19 01 a0 00 ee")
+        );
+        assert_eq!(
+            MELODY_EQ.write_global_gain_packets(-10.0)[0].payload,
+            hex("aa 0a 00 00 17 02 ff 9c 00 ee")
+        );
+        // The Melody read -9.9 dB back as -9.0 dB, so the grid is whole dB.
+        assert_eq!(MELODY_EQ.gain_encoding().preamp_step_db, 1.0);
+        assert_eq!(MELODY.id, "SNOWSKY Melody");
+        assert!(!MELODY_EQ.quirks().save_resets_device);
     }
 }

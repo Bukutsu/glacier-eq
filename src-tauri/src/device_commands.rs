@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::state::{ConnectedDevice, DeviceSessionLock, DeviceState};
+#[cfg(test)]
+use glacier_core::device::get_supported_device;
 use glacier_core::device::{
-    get_supported_device, session::EqWriteOutcome, BlockingDeviceIo as DeviceIo, Controls,
-    DacUtilityState, DeviceInfo, DeviceProfile, DeviceSession, SupportedDeviceInfo,
+    get_supported_device_with_name, session::EqWriteOutcome, BlockingDeviceIo as DeviceIo,
+    Controls, DacUtilityState, DeviceInfo, DeviceProfile, DeviceSession, SupportedDeviceInfo,
 };
 use glacier_core::eq::PEQData;
 use std::collections::HashSet;
@@ -400,7 +402,12 @@ fn connected_device(
 }
 
 fn registered_profile(connected: &ConnectedDevice) -> Result<&'static DeviceProfile, String> {
-    get_supported_device(connected.vendor_id, connected.product_id).ok_or_else(|| {
+    get_supported_device_with_name(
+        connected.vendor_id,
+        connected.product_id,
+        Some(&connected.profile_name),
+    )
+    .ok_or_else(|| {
         format!(
             "No profile registered for {:04X}:{:04X}",
             connected.vendor_id, connected.product_id
@@ -490,11 +497,12 @@ pub async fn get_eq_state(
     .await
 }
 
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn set_eq_state(
     app: tauri::AppHandle,
     state: tauri::State<'_, Mutex<DeviceState>>,
     peq: PEQData,
+    melody_slot: Option<u8>,
 ) -> Result<EqWriteOutcome, String> {
     // Capture identity before the settings read: a reconnect can complete
     // while settings are being loaded, and the old command must not bind to
@@ -505,6 +513,9 @@ pub async fn set_eq_state(
         .unwrap_or_default()
         .skip_push_verification;
     with_session_for(&app, &state, expected, move |session| {
+        if let Some(slot) = melody_slot {
+            session.set_melody_write_slot(slot)?;
+        }
         let (committed, warnings) = if skip_verification {
             glacier_core::device::block_on(session.unverified_push(peq))?
         } else {
@@ -563,7 +574,11 @@ pub async fn list_devices(app: tauri::AppHandle) -> Result<Vec<DeviceInfo>, Stri
         Ok(devices
             .iter()
             .filter_map(|device| {
-                let profile = get_supported_device(device.vendor_id, device.product_id)?;
+                let profile = get_supported_device_with_name(
+                    device.vendor_id,
+                    device.product_id,
+                    device.product_string.as_deref(),
+                )?;
                 seen.insert(device.path.clone()).then(|| DeviceInfo {
                     vendor_id: device.vendor_id,
                     product_id: device.product_id,
@@ -612,13 +627,17 @@ pub async fn connect_device(
             .iter()
             .find(|device| device.path == path_clone)
             .ok_or_else(|| "Device disappeared. Scan again and reconnect.".to_string())?;
-        let profile =
-            get_supported_device(device.vendor_id, device.product_id).ok_or_else(|| {
-                format!(
-                    "Unsupported HID device {:04X}:{:04X}",
-                    device.vendor_id, device.product_id
-                )
-            })?;
+        let profile = get_supported_device_with_name(
+            device.vendor_id,
+            device.product_id,
+            device.product_string.as_deref(),
+        )
+        .ok_or_else(|| {
+            format!(
+                "Unsupported HID device {:04X}:{:04X}",
+                device.vendor_id, device.product_id
+            )
+        })?;
         // Bind outside the if-let so the state lock guard drops before the
         // blocking hid_close below (helper IPC can take seconds on Linux).
         let previous = lock_device_state(&state)?.connected.take();
@@ -689,7 +708,16 @@ pub async fn connect_device(
                 },
                 Ok,
             )?;
-        if reopened.vendor_id != device.vendor_id || reopened.product_id != device.product_id {
+        if reopened.vendor_id != device.vendor_id
+            || reopened.product_id != device.product_id
+            || get_supported_device_with_name(
+                reopened.vendor_id,
+                reopened.product_id,
+                reopened.product_string.as_deref(),
+            )
+            .map(|p| p.name)
+                != Some(profile.name)
+        {
             let _ = hid_close(&app_clone, &path_clone, Some(session_id));
             #[cfg(target_os = "linux")]
             {
@@ -977,6 +1005,54 @@ pub async fn ja11_control(
 }
 
 #[tauri::command]
+pub async fn melody_control(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Mutex<DeviceState>>,
+    path: String,
+    value: Option<u8>,
+) -> Result<Option<u8>, String> {
+    let expected = session_identity(&state)?;
+    if expected.0 != path {
+        return Err("Device session changed; operation was cancelled".into());
+    }
+    with_session_for(&app, &state, expected, move |session| {
+        glacier_core::device::block_on(async {
+            match value {
+                Some(value) => session.set_melody_preset(value).await.map(Some),
+                None => {
+                    session.require_melody()?;
+                    Ok(None)
+                }
+            }
+        })
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn melody_name(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Mutex<DeviceState>>,
+    path: String,
+    slot: u8,
+    name: Option<String>,
+) -> Result<String, String> {
+    let expected = session_identity(&state)?;
+    if expected.0 != path {
+        return Err("Device session changed; operation was cancelled".into());
+    }
+    with_session_for(&app, &state, expected, move |session| {
+        glacier_core::device::block_on(async {
+            match name {
+                Some(name) => session.set_melody_name(slot, &name).await,
+                None => session.melody_name(slot).await,
+            }
+        })
+    })
+    .await
+}
+
+#[tauri::command]
 pub async fn get_dac_utility_state(
     app: tauri::AppHandle,
     state: tauri::State<'_, Mutex<DeviceState>>,
@@ -1050,12 +1126,16 @@ pub async fn set_mic_volume(
     .await
 }
 
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn reset_device_eq(
     app: tauri::AppHandle,
     state: tauri::State<'_, Mutex<DeviceState>>,
+    melody_slot: Option<u8>,
 ) -> Result<bool, String> {
-    with_session(&app, &state, |session| {
+    with_session(&app, &state, move |session| {
+        if let Some(slot) = melody_slot {
+            session.set_melody_write_slot(slot)?;
+        }
         glacier_core::device::block_on(session.reset_eq())
     })
     .await

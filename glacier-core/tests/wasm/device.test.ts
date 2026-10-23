@@ -18,7 +18,7 @@ function capture(model: string) {
   return { filters, gain, reportId };
 }
 
-function dac(model = "ja11", options: { missingGain?: boolean; mismatch?: boolean; saveError?: boolean; pid?: number } = {}) {
+function dac(model = "ja11", options: { missingGain?: boolean; mismatch?: boolean; saveError?: boolean; pid?: number; vendor?: number; productName?: string; count?: number; responseCounter?: number } = {}) {
   const recorded = capture(model);
   let filters = recorded.filters.map(bytes => [...bytes]);
   let gain = [...recorded.gain];
@@ -27,9 +27,12 @@ function dac(model = "ja11", options: { missingGain?: boolean; mismatch?: boolea
   const writeTimes: number[] = [];
   let pending: number[] | undefined;
   let saved = false;
+  let preset = 160;
   let wrote = false;
+  let responseCounter = options.responseCounter;
   const io = {
     nonce: 1,
+    productName: options.productName,
     async write(bytes: Uint8Array) {
       await Promise.resolve(); // Exercise a genuinely asynchronous transport.
       if (saved && model === "ja11") throw new Error("I/O after JA11 reset");
@@ -41,7 +44,12 @@ function dac(model = "ja11", options: { missingGain?: boolean; mismatch?: boolea
       if (payload[0] === 0xbb) {
         if (payload[4] === 0x17 && !options.missingGain) pending = gain;
         if (payload[4] === 0x15) pending = filters[payload[6]];
+        const reply = (cmd: number, p: number[]) => [0xbb, 0x0b, 0, 0x35, cmd, p.length, ...p, 0x51, 0xee];
+        if (payload[4] === 0x18) pending = reply(0x18, [options.count ?? filters.length]);
+        if (payload[4] === 0x16) pending = reply(0x16, [preset]);
+        if (payload[4] === 0x1a) pending = reply(0x1a, [1]);
       } else if (payload[0] === 0xaa) {
+        if (payload[4] === 0x16) preset = payload[6];
         if (payload[4] === 0x15) {
           wrote = true;
           filters[payload[6]] = [0xbb, 0x0b, ...payload.slice(2)];
@@ -61,6 +69,11 @@ function dac(model = "ja11", options: { missingGain?: boolean; mismatch?: boolea
       pending = undefined;
       if (!reply) return new Uint8Array();
       const result = [recorded.reportId, ...reply];
+      if (responseCounter !== undefined) {
+        result[3] = responseCounter >> 8;
+        result[4] = responseCounter & 0xff;
+        responseCounter = (responseCounter + 1) & 0xffff;
+      }
       if (options.mismatch && wrote && reply[4] === 0x17) result[8] ^= 10;
       return Uint8Array.from(result);
     },
@@ -73,11 +86,31 @@ function dac(model = "ja11", options: { missingGain?: boolean; mismatch?: boolea
     })),
   };
   const run = (request: unknown) =>
-    device_operation(0x2972, options.pid ?? (model === "ja11" ? 0x0102 : model === "ka15" ? 0x0104 : 0x0093), io, request, () => {}, io.nonce);
+    device_operation(options.vendor ?? 0x2972, options.pid ?? (model === "ja11" ? 0x0102 : model === "ka15" ? 0x0104 : 0x0093), io, request, () => {}, io.nonce);
   return { events, peq, run, writeTimes };
 }
 
 describe("Rust session over the real wasm bridge", () => {
+  it("routes an exact named model through real WASM on an unknown PID, without a vendor fallback", async () => {
+    const d = dac("ka15", {vendor: 0x0a12, pid: 0xffff, productName: "FIIO BTR13"});
+    expect(await d.run({command:"get_eq_state"})).toMatchObject({filters: expect.any(Array)});
+    await d.run({command:"reset_device_eq"});
+    const sets = d.events.filter(e => e.type === "write" && e.bytes[1] === 0xaa);
+    expect(sets.filter(e => e.type === "write" && e.bytes[5] === 0x16)).toHaveLength(1);
+    expect(sets.filter(e => e.type === "write" && e.bytes[5] === 0x19)).toHaveLength(1);
+    expect(sets.every(e => e.type === "write" && e.bytes[5] !== 0x18)).toBe(true);
+    expect(sets.at(-1)).toEqual({type:"write", bytes:[7,0xaa,0x0a,0,0,0x19,1,7,0,0xee]});
+    const unknown = dac("ka15", {vendor:0x0a12,pid:0xffff,productName:"Some headset"});
+    await expect(unknown.run({command:"reset_device_eq"})).rejects.toContain("No profile registered");
+    expect(unknown.events).toEqual([]);
+  });
+
+  it("fails closed before any write when a named model reports a different band count", async () => {
+    const d = dac("ka15", {pid:0xffff,productName:"FIIO BTR13",count:5});
+    await expect(d.run({command:"reset_device_eq"})).rejects.toContain("reports 5 EQ bands");
+    expect(d.events.filter(e => e.type === "write").every(e => e.type === "write" && e.bytes[1] === 0xbb)).toBe(true);
+  });
+
   it.each([0x0101, 0x0102])("JA11 %s keeps pacing/order and treats Save as a single-shot boundary", async pid => {
     for (const skip_verification of [false, true]) {
       for (const saveError of [false, true]) {
@@ -276,5 +309,83 @@ describe("Rust session over the real wasm bridge", () => {
       await expect(run(request)).rejects.toBeDefined();
       expect(events).toEqual([]);
     }
+  });
+});
+
+function sakana2Reply(name: string) {
+  const file = name === "NAME_STALE_END" ? "melody_sakana3.rs" : "melody_sakana2.rs";
+  const source = readFileSync(new URL("../fixtures/fiio/" + file, import.meta.url), "utf8");
+  const declaration = source.split("pub const " + name + ":")[1].split("];")[0];
+  const bytes = declaration.split("= &[")[1].split(",").map(s => s.trim()).filter(Boolean).map(Number);
+  return Uint8Array.from([7, ...bytes]);
+}
+
+describe("sakana2 Melody regressions over the real WASM bridge", () => {
+  it.each([["FIRMWARE_STALE", "NAME"], ["FIRMWARE_SHORT", "NAME_STALE_END"]])("reads %s, padded name %s, and preset replies with a nonzero counter high byte", async (firmware, nameFixture) => {
+    const writes: number[][] = [];
+    let pending = new Uint8Array();
+    const io = {
+      async write(bytes: Uint8Array) {
+        await Promise.resolve();
+        writes.push([...bytes]);
+        if (bytes[1] === 0xaa) {
+          expect(bytes[5]).toBe(0x16);
+          return;
+        }
+        const name = ({0x0b: firmware, 0x30: nameFixture, 0x16: "PRESET"} as Record<number,string>)[bytes[5]];
+        if (!name) throw new Error("Unexpected request");
+        pending = sakana2Reply(name);
+      },
+      async read() {await Promise.resolve(); const reply=pending; pending=new Uint8Array(); return reply;},
+      async sleep() {},
+    };
+    const run=(request:unknown)=>device_operation(0x2972,0x0126,io,request,()=>{},1);
+    expect(await run({command:"get_firmware_version"})).toBe("1.2.0");
+    expect(await run({command:"melody_name",slot:160})).toBe("FD15");
+    expect(await run({command:"melody_control",value:160})).toBe(160);
+    expect(writes).toHaveLength(4); // Three reads and one single-shot selection.
+    expect(writes.filter(w=>w[1]===0xaa)).toHaveLength(1);
+  });
+
+  it.each([0x00f8,0xfff8,0x012c])("verifies a Melody push and subsequent read across counter %s",async responseCounter=>{
+    const {run,peq,events}=dac("ka15",{pid:0x0126,responseCounter});
+    expect(await run({command:"set_eq_state",peq,skip_verification:false})).toMatchObject({globalGain:-1});
+    expect(await run({command:"get_eq_state"})).toMatchObject({globalGain:-1});
+    const mutations=events.filter(e=>e.type==="write"&&e.bytes[1]===0xaa);
+    expect(mutations.filter(e=>e.type==="write"&&e.bytes[5]===0x19)).toHaveLength(1);
+    expect(mutations.some(e=>e.type==="write"&&e.bytes[5]===0x18)).toBe(false);
+  });
+});
+
+describe("Melody names over the real wasm bridge", () => {
+  it("writes an unpadded uppercase name, checks the slot, and treats unsolicited presets as unknown", async () => {
+    let name = "USER2";
+    let pending = new Uint8Array();
+    const writes: number[][] = [];
+    const io = {
+      async write(data: Uint8Array) {
+        await Promise.resolve();
+        writes.push([...data]);
+        const p = [...data].slice(1);
+        if (p[4] !== 0x30) throw new Error("Unexpected command");
+        if (p[0] === 0xaa) name = String.fromCharCode(...p.slice(7, 6 + p[5]));
+        else {
+          const field = [...name].map(c => c.charCodeAt(0));
+          while (field.length < 8) field.push(0);
+          pending = Uint8Array.from([7, 0xbb, 0x0b, 0, 0, 0x30, 9, p[6], ...field, 0, 0xee]);
+        }
+      },
+      async read() { const r = pending; pending = new Uint8Array(); return r; },
+      async sleep() {},
+    };
+    const run = (request: unknown) => device_operation(0x2972, 0x0126, io, request, () => {}, 1);
+    expect(await run({command: "melody_control"})).toBeNull();
+    expect(writes).toHaveLength(0);
+    expect(await run({command: "melody_name", slot: 161, name: "TeaPro2"})).toBe("TEAPRO2");
+    expect(writes[0]).toEqual([7,0xaa,0x0a,0,0,0x30,8,161,84,69,65,80,82,79,50,0,0xee]);
+    expect(writes.filter(w => w[1] === 0xaa)).toHaveLength(1);
+    await expect(run({command:"melody_name",slot:9,name:"ABC"})).rejects.toContain("USER slot");
+    await expect(run({command:"reset_device_eq",melody_slot:240})).rejects.toContain("USER slot");
+    expect(writes.filter(w => w[1] === 0xaa)).toHaveLength(1);
   });
 });

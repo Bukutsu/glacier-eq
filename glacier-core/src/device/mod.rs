@@ -18,7 +18,7 @@ pub mod timing;
 pub mod udev;
 
 pub use capabilities::{DeviceCapabilities, EditorCapabilities};
-pub use catalog::{get_supported_device, SUPPORTED_DEVICES};
+pub use catalog::{get_supported_device, get_supported_device_with_name, SUPPORTED_DEVICES};
 pub use families::dawn_pro;
 pub use families::walkplay::DacUtilityState;
 pub use families::walkplay::WalkplayProtocol;

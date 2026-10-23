@@ -3,7 +3,6 @@
 
 use crate::profiles::app_data_base_dir;
 use crate::state::DeviceState;
-use glacier_core::device::get_supported_device;
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::fs;
@@ -266,9 +265,13 @@ pub fn get_diagnostic_context(
         .unwrap_or_else(|poisoned| poisoned.into_inner())
         .connected
         .clone();
-    let profile = connected
-        .as_ref()
-        .and_then(|device| get_supported_device(device.vendor_id, device.product_id));
+    let profile = connected.as_ref().and_then(|device| {
+        glacier_core::device::get_supported_device_with_name(
+            device.vendor_id,
+            device.product_id,
+            Some(&device.profile_name),
+        )
+    });
 
     #[cfg(target_os = "linux")]
     let transport = connected.as_ref().map(|_| {

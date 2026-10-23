@@ -4,7 +4,7 @@
 //! WebHID's three asynchronous primitives, adapted to the shared Rust session.
 
 use super::{js_err, to_js_value, validate_device_id};
-use crate::device::get_supported_device;
+use crate::device::get_supported_device_with_name;
 use crate::device::session::{DeviceCommand, DeviceIo, DeviceSession};
 use js_sys::{Function, Promise, Uint8Array};
 use wasm_bindgen::prelude::*;
@@ -84,7 +84,9 @@ pub async fn device_operation(
     let vendor_id = validate_device_id(vendor_id, "vendor_id")?;
     let product_id = validate_device_id(product_id, "product_id")?;
     let nonce = super::validate_integer_range(initial_nonce, 0.0, 255.0, "nonce")? as u8;
-    let profile = get_supported_device(vendor_id, product_id)
+    // Product identity comes from the bound WebHID handle, not command policy.
+    let product_name = js_sys::Reflect::get(io.as_ref(), &"productName".into())?.as_string();
+    let profile = get_supported_device_with_name(vendor_id, product_id, product_name.as_deref())
         .ok_or_else(|| js_err("No profile registered for connected device"))?;
     let request: DeviceCommand = serde_wasm_bindgen::from_value(request).map_err(js_err)?;
     let mut callback = |message: &str, percentage: f32| {

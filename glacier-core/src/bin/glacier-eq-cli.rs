@@ -837,7 +837,11 @@ struct FoundDevice {
 fn found_devices(api: &hidapi::HidApi) -> Vec<FoundDevice> {
     api.device_list()
         .filter_map(|device| {
-            let profile = get_supported_device(device.vendor_id(), device.product_id())?;
+            let profile = glacier_core::device::get_supported_device_with_name(
+                device.vendor_id(),
+                device.product_id(),
+                device.product_string(),
+            )?;
             Some(FoundDevice {
                 path: device.path().to_owned(),
                 display_path: device.path().to_string_lossy().into_owned(),
@@ -904,6 +908,14 @@ fn with_hid_device<T>(
             opened.product_id()
         ));
     }
+    let reopened = glacier_core::device::get_supported_device_with_name(
+        opened.vendor_id(),
+        opened.product_id(),
+        opened.product_string(),
+    );
+    if reopened.map(|profile| profile.name) != Some(selected.name) {
+        return Err("USB product identity changed while opening; rescan and retry".into());
+    }
     operation(selected, &device)
 }
 
@@ -913,7 +925,12 @@ fn open_session<T>(
     operation: impl FnOnce(&mut DeviceSession<'_>) -> Result<T, String>,
 ) -> Result<T, String> {
     with_hid_device(selector, |selected, device| {
-        let profile = get_supported_device(selected.vendor, selected.product).ok_or_else(|| {
+        let profile = glacier_core::device::get_supported_device_with_name(
+            selected.vendor,
+            selected.product,
+            Some(selected.name),
+        )
+        .ok_or_else(|| {
             format!(
                 "No profile registered for {:04x}:{:04x}",
                 selected.vendor, selected.product

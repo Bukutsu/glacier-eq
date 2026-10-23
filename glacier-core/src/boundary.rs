@@ -4,6 +4,7 @@
 //! Plain binding computations and input checks, independent of wasm or JS.
 //! Kept host-buildable so numeric-boundary tests run in cargo test --lib.
 
+#[cfg(test)]
 use crate::device::capabilities::{DeviceCapabilities, DESKTOP_DAC_CAPS};
 use crate::device::{get_supported_device, DeviceProfile, SUPPORTED_DEVICES};
 use crate::eq::{Filter, PEQData};
@@ -84,13 +85,16 @@ pub(crate) fn supported_profile(
 ) -> Option<&'static DeviceProfile> {
     match (vendor_id, product_id) {
         (Some(vid), Some(pid)) => get_supported_device(vid, pid),
-        (Some(vid), None) => SUPPORTED_DEVICES
-            .iter()
-            .find(|profile| profile.vendor_id == vid && profile.product_id.is_none()),
+        (Some(vid), None) => SUPPORTED_DEVICES.iter().find(|profile| {
+            profile.vendor_id == vid
+                && profile.product_id.is_none()
+                && crate::device::families::fiio::registry::product_names(profile.name).is_empty()
+        }),
         _ => None,
     }
 }
 
+#[cfg(test)]
 pub(crate) fn device_caps_or_desktop(
     vendor_id: Option<u16>,
     product_id: Option<u16>,

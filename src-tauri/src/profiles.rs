@@ -3,7 +3,8 @@
 
 use crate::state::DeviceState;
 use glacier_core::device::{
-    capabilities::DESKTOP_DAC_CAPS, get_supported_device, DeviceCapabilities, Protocol, UNKNOWN,
+    capabilities::DESKTOP_DAC_CAPS, get_supported_device_with_name, DeviceCapabilities, Protocol,
+    UNKNOWN,
 };
 use glacier_core::eq::PEQData;
 use glacier_core::profile_match::{matching_profile_name, ProfileCandidate};
@@ -39,9 +40,13 @@ fn match_target_for_connected(
     let Some(connected) = connected else {
         return (DESKTOP_DAC_CAPS, &UNKNOWN);
     };
-    get_supported_device(connected.vendor_id, connected.product_id)
-        .map(|profile| (profile.caps.clone(), profile.protocol))
-        .unwrap_or((DESKTOP_DAC_CAPS, &UNKNOWN))
+    get_supported_device_with_name(
+        connected.vendor_id,
+        connected.product_id,
+        Some(&connected.profile_name),
+    )
+    .map(|profile| (profile.caps.clone(), profile.protocol))
+    .unwrap_or((DESKTOP_DAC_CAPS, &UNKNOWN))
 }
 
 fn connected_match_target(

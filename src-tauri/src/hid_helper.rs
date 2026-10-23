@@ -459,8 +459,12 @@ fn dispatch(
             // supported DAC.
             let expected = api.device_list().find_map(|info| {
                 (info.path() == cpath.as_c_str()).then(|| {
-                    glacier_core::device::get_supported_device(info.vendor_id(), info.product_id())
-                        .map(|_| (info.vendor_id(), info.product_id()))
+                    glacier_core::device::get_supported_device_with_name(
+                        info.vendor_id(),
+                        info.product_id(),
+                        info.product_string(),
+                    )
+                    .map(|_| (info.vendor_id(), info.product_id()))
                 })
             });
             let Some(Some((vendor_id, product_id))) = expected else {

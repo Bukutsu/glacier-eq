@@ -39,6 +39,9 @@ impl<I: DeviceIo> DeviceSession<'_, I> {
     ) -> Result<Vec<u8>, Fault> {
         self.require_open_transaction()?;
         let protocol = self.protocol();
+        let mut received = 0;
+        let mut invalid_frames = 0;
+        let mut last_rejected = None;
         for attempt in 1..=attempts {
             let bytes = self.io.read(60).await.map_err(|error| {
                 Fault::from(format!("{label} read failed on attempt {attempt}: {error}"))
@@ -46,10 +49,15 @@ impl<I: DeviceIo> DeviceSession<'_, I> {
             if bytes.is_empty() {
                 continue;
             }
+            received += 1;
             let data = if self.io.reads_include_report_id() {
                 match protocol.unframe_packet(&bytes) {
                     Ok(data) => data,
-                    Err(_) => continue,
+                    Err(_) => {
+                        invalid_frames += 1;
+                        last_rejected = Some(bytes);
+                        continue;
+                    }
                 }
             } else {
                 bytes.as_slice()
@@ -57,11 +65,24 @@ impl<I: DeviceIo> DeviceSession<'_, I> {
             if matches(data) {
                 return Ok(data.to_vec());
             }
+            last_rejected = Some(bytes);
         }
-        Err(Fault::new(
-            FaultKind::ReadTimeout,
-            format!("{label} read timeout"),
-        ))
+        let mut message = format!("{label} read timeout");
+        // A rejected reply is not USB silence. Surface this bounded summary in
+        // the existing operation error/log, without adding per-poll log spam.
+        if let Some(bytes) = last_rejected {
+            let hex = bytes
+                .iter()
+                .take(24)
+                .map(|b| format!("{b:02x}"))
+                .collect::<Vec<_>>()
+                .join(" ");
+            message.push_str(&format!(
+                " ({}; received {received} unmatched replies, {invalid_frames} invalid HID frames, {} empty polls; last RX [{} bytes]: {hex})",
+                self.profile.protocol.id, attempts - received, bytes.len()
+            ));
+        }
+        Err(Fault::new(FaultKind::ReadTimeout, message))
     }
 
     pub(crate) async fn drain(&mut self) {

@@ -41,7 +41,6 @@ fn audit_preserves_preexisting_device_matching() {
         (0x0661, 0x1234, "JCally JM20 / Savitech Generic"),
         (0x0666, 0x1234, "JCally JM20 Pro / Alt Savitech"),
         (0x31B2, 0x0111, "JCally JM12"),
-        (0x2972, 0xFFFF, "FiiO KA Series"),
         (0x3302, 0xFFFF, "Audiocular Aura"),
     ] {
         assert_eq!(get_supported_device(vid, pid).unwrap().name, name);
@@ -95,7 +94,16 @@ fn catalog_entries_do_not_shadow_each_other() {
     for (i, a) in SUPPORTED_DEVICES.iter().enumerate() {
         for b in &SUPPORTED_DEVICES[i + 1..] {
             assert!(
-                a.vendor_id != b.vendor_id || a.product_id != b.product_id,
+                a.vendor_id != b.vendor_id
+                    || a.product_id != b.product_id
+                    || (a.product_id.is_none()
+                        && !fiio::registry::product_names(a.name).is_empty()
+                        && !fiio::registry::product_names(b.name).is_empty()
+                        && !fiio::registry::product_names(a.name).iter().any(|name| {
+                            fiio::registry::product_names(b.name)
+                                .iter()
+                                .any(|other| name.eq_ignore_ascii_case(other))
+                        })),
                 "{} and {} claim the same VID/PID match",
                 a.name,
                 b.name
@@ -180,16 +188,11 @@ fn tested_walkplay_profiles_advertise_all_filter_types() {
 }
 
 #[test]
-fn non_walkplay_eq_profiles_keep_the_limited_filter_set() {
-    for profile in SUPPORTED_DEVICES.iter().filter(|profile| {
-        [
-            &moondrop::PROTOCOL,
-            &fiio::JA11,
-            &fiio::KA_SERIES,
-            &fiio::KA17,
-        ]
-        .contains(&profile.protocol)
-    }) {
+fn limited_models_keep_their_official_filter_set() {
+    for profile in SUPPORTED_DEVICES
+        .iter()
+        .filter(|profile| [&moondrop::PROTOCOL, &fiio::JA11].contains(&profile.protocol))
+    {
         assert_eq!(
             profile.caps.supported_filter_types, LIMITED_FILTER_TYPES,
             "{}",
@@ -287,9 +290,26 @@ fn existing_family_transport_quirks() {
         &fiio::JA11,
         &fiio::KA_SERIES,
         &fiio::KA17,
+        &fiio::MELODY,
     ] {
         assert!(!protocol.quirks().set_report_writes);
     }
     assert!(!dawn_pro::PROTOCOL.has_hardware_eq());
     assert!(!crate::device::UNKNOWN.has_hardware_eq());
+}
+
+#[test]
+fn snowsky_melody_has_its_own_profile_and_whole_db_preamp() {
+    let melody = get_supported_device(0x2972, 0x0126).unwrap();
+    assert_eq!(melody.name, "SNOWSKY Melody");
+    assert_eq!(melody.protocol, &fiio::MELODY);
+    assert_eq!(melody.caps.num_bands, 10);
+    assert_eq!(melody.caps.global_gain_range, (-24, 12));
+    // A live Melody wrote -9.9 dB and read -9.0 dB back, failing push verification.
+    let peq = crate::eq::PEQData {
+        filters: (0..10).map(|index| Filter::enabled(index, true)).collect(),
+        global_gain: -9.9,
+    };
+    let (normalized, _) = crate::device::normalize_peq_for_profile(peq, melody).unwrap();
+    assert_eq!(normalized.global_gain, -10.0);
 }
