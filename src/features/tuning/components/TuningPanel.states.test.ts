@@ -45,7 +45,6 @@ const props: Parameters<typeof AutoEqTab>[0] = {
     connectionRevision: 0,
     operationRevision: 0,
   }),
-  onReviewEq: () => {},
 };
 const render = () => renderToStaticMarkup(createElement(AutoEqTab, props));
 beforeEach(() => {
@@ -65,17 +64,11 @@ describe("Tuning feedback", () => {
     expect(html).not.toContain(">Generate EQ</button>");
   });
 
-  it("announces success and offers a direct route to review the editor", () => {
-    state.overrides = {
-      resultMessage:
-        "EQ loaded into the editor. Review before writing to the DAC.",
-    };
+  it("shows no persistent success panel after generation", () => {
     const html = render();
-    expect(html).toContain(
-      'role="status" aria-live="polite" aria-atomic="true"',
-    );
-    expect(html).toContain("<strong>EQ generated</strong>");
-    expect(html).toContain("Review EQ</button>");
+    expect(html).not.toContain("EQ generated");
+    expect(html).not.toContain("Review EQ");
+    expect(html).not.toContain("tuning-result");
     expect(html).not.toContain('role="alert"');
   });
 
@@ -93,9 +86,8 @@ describe("Tuning feedback", () => {
     expect(html).not.toContain("Review EQ</button>");
   });
 
-  it("keeps warnings beside the result rather than hiding them in advanced settings", () => {
+  it("keeps warnings visible rather than hiding them in advanced settings", () => {
     state.overrides = {
-      resultMessage: "EQ loaded.",
       warnings: ["Check the low-frequency boost."],
     };
     const html = render();

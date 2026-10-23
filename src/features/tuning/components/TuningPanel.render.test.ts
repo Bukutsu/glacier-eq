@@ -87,7 +87,6 @@ describe("Tuning workflow", () => {
     expect(inputs.indexOf("Add measurement or target")).toBeGreaterThan(
       inputs.indexOf('name="autoeq-target"'),
     );
-    expect(html).toContain('role="status" aria-live="polite"');
     expect(html).toContain('aria-describedby="tuning-destination"');
     expect(html).toContain("Loads EQ into the editor, not the DAC.");
   });

@@ -198,7 +198,6 @@
     "sampleRate": "Abtastrate",
     "generatingEQ": "EQ wird erzeugt…",
     "generateEQ": "EQ erzeugen",
-    "reviewEQ": "EQ prüfen",
     "reviewBeforeApplying": "Vor dem Anwenden prüfen",
     "bandLimit_one": "Bis zu {{count}} Band",
     "bandLimit_other": "Bis zu {{count}} Bänder",
@@ -221,8 +220,7 @@
     "sampleRateHelp": "Verwende die DSP-Abtastrate des DAC.",
     "needsMeasurement": "Füge eine Messung hinzu, um EQ zu erzeugen.",
     "needsTarget": "Füge eine Zielkurve hinzu, um EQ zu erzeugen.",
-    "destinationHelp": "Lädt EQ in den Editor, nicht auf den DAC.",
-    "generated": "EQ erzeugt"
+    "destinationHelp": "Lädt EQ in den Editor, nicht auf den DAC."
   },
   "autoEq": {
     "generatingEQ": "EQ wird erzeugt…",
@@ -231,7 +229,6 @@
     "generatedWarnings_other": "EQ mit {{count}} Warnungen erzeugt",
     "inputsChanged": "EQ-Erzeugung abgebrochen, da sich die Eingaben geändert haben.",
     "editorBusy": "EQ wurde nicht geladen, da eine Geräteaktion läuft. Warte, bis sie abgeschlossen ist, und erzeuge den EQ erneut.",
-    "reviewResult": "EQ in den Editor geladen. Prüfe ihn, bevor du ein Profil speicherst oder ihn auf den DAC schreibst.",
     "generated": "EQ erzeugt"
   },
   "parsedAutoEq": {

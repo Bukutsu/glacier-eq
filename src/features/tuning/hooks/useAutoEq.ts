@@ -52,7 +52,6 @@ export function useAutoEq({
   const [fs, setFs] = useState<number>(dspSampleRate);
   const [isOptimizing, setIsOptimizing] = useState<boolean>(false);
   const [warnings, setWarnings] = useState<string[]>([]);
-  const [hasResult, setHasResult] = useState(false);
   const [failure, setFailure] = useState<
     { kind: "busy" } | { kind: "generation"; error: unknown } | null
   >(null);
@@ -64,7 +63,6 @@ export function useAutoEq({
     requestRef.current += 1;
     optimizingRef.current = false;
     setIsOptimizing(false);
-    setHasResult(false);
     setWarnings([]);
     setFailure(null);
   };
@@ -85,7 +83,6 @@ export function useAutoEq({
     requestRef.current += 1;
     optimizingRef.current = false;
     setIsOptimizing(false);
-    setHasResult(false);
     setWarnings([]);
     setFailure(null);
     if (superseded) setStatus(i18n.t("library:autoEq.inputsChanged"));
@@ -223,7 +220,6 @@ export function useAutoEq({
 
     optimizingRef.current = true;
     setIsOptimizing(true);
-    setHasResult(false);
     setStatus(i18n.t("library:autoEq.generatingEQ"));
     setWarnings([]);
     setFailure(null);
@@ -260,7 +256,6 @@ export function useAutoEq({
         return;
       }
       setWarnings(result.warnings);
-      setHasResult(true);
 
       if (result.warnings.length > 0) {
         setStatus(
@@ -299,7 +294,6 @@ export function useAutoEq({
     setFs,
     isOptimizing,
     warnings,
-    resultMessage: hasResult ? t("autoEq.reviewResult") : null,
     errorMessage: failure
       ? failure.kind === "busy"
         ? t("autoEq.editorBusy")

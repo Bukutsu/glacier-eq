@@ -205,7 +205,6 @@
     "sampleRate": "Fréquence d’échantillonnage",
     "generatingEQ": "Génération de l’égalisation…",
     "generateEQ": "Générer l’égalisation",
-    "reviewEQ": "Examiner l’égalisation",
     "reviewBeforeApplying": "Examiner avant d’appliquer",
     "bandLimit_one": "Jusqu’à {{count}} bande",
     "bandLimit_other": "Jusqu’à {{count}} bandes",
@@ -229,8 +228,7 @@
     "sampleRateHelp": "Utilisez la fréquence d’échantillonnage du DSP du DAC.",
     "needsMeasurement": "Ajoutez une mesure pour générer l’égalisation.",
     "needsTarget": "Ajoutez une cible pour générer l’égalisation.",
-    "destinationHelp": "Charge l’égalisation dans l’éditeur, pas sur le DAC.",
-    "generated": "Égalisation générée"
+    "destinationHelp": "Charge l’égalisation dans l’éditeur, pas sur le DAC."
   },
   "autoEq": {
     "generatingEQ": "Génération de l’égalisation…",
@@ -240,7 +238,6 @@
     "generatedWarnings_many": "Égalisation générée avec {{count}} avertissements",
     "inputsChanged": "Génération de l’égalisation annulée car les données d’entrée ont changé.",
     "editorBusy": "L’égalisation n’a pas été chargée car une opération est en cours sur l’appareil. Attendez sa fin, puis générez à nouveau l’égalisation.",
-    "reviewResult": "Égalisation chargée dans l’éditeur. Examinez-la avant d’enregistrer un profil ou de l’écrire sur le DAC.",
     "generated": "Égalisation générée"
   },
   "parsedAutoEq": {

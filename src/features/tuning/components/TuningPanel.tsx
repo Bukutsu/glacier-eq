@@ -1,6 +1,6 @@
 import { ErrorNotice } from "@/components/feedback/ErrorNotice";
 import { useTranslation } from "react-i18next";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import {
   useAutoEq,
   type AutoEqOptions,
@@ -15,7 +15,6 @@ import { Button } from "@/components/ui/Button";
 
 interface AutoEqTabProps extends AutoEqOptions {
   onOpenAddTrace?: () => void;
-  onReviewEq?: () => void;
 }
 
 interface TuningPanelProps extends AutoEqTabProps {
@@ -44,13 +43,7 @@ export function TuningPanel(props: TuningPanelProps) {
 
 export function AutoEqTab(props: AutoEqTabProps) {
   const { t } = useTranslation("library");
-  const {
-    measurements,
-    allTargets,
-    maxBands = 10,
-    onOpenAddTrace,
-    onReviewEq,
-  } = props;
+  const { measurements, allTargets, maxBands = 10, onOpenAddTrace } = props;
   const {
     nBands,
     setNBands,
@@ -62,7 +55,6 @@ export function AutoEqTab(props: AutoEqTabProps) {
     setFs,
     isOptimizing,
     warnings,
-    resultMessage,
     errorMessage,
     meas,
     target,
@@ -71,21 +63,6 @@ export function AutoEqTab(props: AutoEqTabProps) {
     handleTargetChange,
     handleRunAutoEq,
   } = useAutoEq(props);
-  const resultRef = useRef<HTMLDivElement>(null);
-
-  // On a phone the result lands below the sticky Generate button; bring the
-  // next step into view instead of leaving it off-screen.
-  useEffect(() => {
-    if (!resultMessage) return;
-    const reduced = window.matchMedia?.(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
-    resultRef.current?.scrollIntoView?.({
-      block: "center",
-      behavior: reduced ? "auto" : "smooth",
-    });
-  }, [resultMessage]);
-
   return (
     <div className="tuning-match">
       <form
@@ -306,28 +283,6 @@ export function AutoEqTab(props: AutoEqTabProps) {
           </p>
         </div>
       </form>
-      <div
-        ref={resultRef}
-        className="tuning-result"
-        role="status"
-        aria-live="polite"
-        aria-atomic="true"
-      >
-        {resultMessage && (
-          <div className="tuning-result-content">
-            <Icon name="check" />
-            <div>
-              <strong>{t("tuningPanel.generated")}</strong>
-              <p>{resultMessage}</p>
-              {onReviewEq && (
-                <Button onClick={onReviewEq}>
-                  {t("tuningPanel.reviewEQ")}
-                </Button>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
       {errorMessage && (
         <ErrorNotice className="mt-4">{errorMessage}</ErrorNotice>
       )}

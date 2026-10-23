@@ -191,7 +191,6 @@
     "sampleRate": "采样率",
     "generatingEQ": "正在生成 EQ…",
     "generateEQ": "生成 EQ",
-    "reviewEQ": "检查 EQ",
     "reviewBeforeApplying": "应用前检查",
     "bandLimit_other": "最多 {{count}} 个频段",
     "inEar": "入耳式",
@@ -213,8 +212,7 @@
     "sampleRateHelp": "请使用 DAC 的 DSP 采样率。",
     "needsMeasurement": "添加测量曲线以生成 EQ。",
     "needsTarget": "添加目标曲线以生成 EQ。",
-    "destinationHelp": "将 EQ 加载至编辑器，而非 DAC。",
-    "generated": "EQ 已生成"
+    "destinationHelp": "将 EQ 加载至编辑器，而非 DAC。"
   },
   "autoEq": {
     "generatingEQ": "正在生成 EQ…",
@@ -222,7 +220,6 @@
     "generatedWarnings_other": "EQ 已生成，有 {{count}} 条警告",
     "inputsChanged": "输入已更改，EQ 生成已取消。",
     "editorBusy": "设备操作正在进行，未加载 EQ。请等待操作完成后重新生成 EQ。",
-    "reviewResult": "EQ 已加载至编辑器。保存为配置或写入 DAC 前，请先检查。",
     "generated": "EQ 已生成"
   },
   "parsedAutoEq": {

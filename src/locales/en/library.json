@@ -198,7 +198,6 @@
     "sampleRate": "Sample rate",
     "generatingEQ": "Generating EQ…",
     "generateEQ": "Generate EQ",
-    "reviewEQ": "Review EQ",
     "reviewBeforeApplying": "Review before applying",
     "bandLimit_one": "Up to {{count}} band",
     "bandLimit_other": "Up to {{count}} bands",
@@ -221,8 +220,7 @@
     "sampleRateHelp": "Use the DAC's DSP sample rate.",
     "needsMeasurement": "Add a measurement to generate EQ.",
     "needsTarget": "Add a target to generate EQ.",
-    "destinationHelp": "Loads EQ into the editor, not the DAC.",
-    "generated": "EQ generated"
+    "destinationHelp": "Loads EQ into the editor, not the DAC."
   },
   "autoEq": {
     "generatingEQ": "Generating EQ…",
@@ -231,7 +229,6 @@
     "generatedWarnings_other": "EQ generated with {{count}} warnings",
     "inputsChanged": "EQ generation cancelled because the inputs changed.",
     "editorBusy": "EQ was not loaded because a device operation is in progress. Wait for it to finish, then generate EQ again.",
-    "reviewResult": "EQ loaded into the editor. Review it before saving a profile or writing it to the DAC.",
     "generated": "EQ generated"
   },
   "parsedAutoEq": {

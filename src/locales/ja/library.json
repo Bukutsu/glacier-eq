@@ -191,7 +191,6 @@
     "sampleRate": "サンプルレート",
     "generatingEQ": "EQを生成中…",
     "generateEQ": "EQを生成",
-    "reviewEQ": "EQを確認",
     "reviewBeforeApplying": "適用前に確認",
     "bandLimit_other": "最大{{count}}バンド",
     "inEar": "インイヤー",
@@ -213,8 +212,7 @@
     "sampleRateHelp": "DACのDSPサンプルレートを使用してください。",
     "needsMeasurement": "EQを生成するには測定データを追加してください。",
     "needsTarget": "EQを生成するにはターゲットを追加してください。",
-    "destinationHelp": "EQをエディターに読み込みます。DACには適用しません。",
-    "generated": "EQを生成しました"
+    "destinationHelp": "EQをエディターに読み込みます。DACには適用しません。"
   },
   "autoEq": {
     "generatingEQ": "EQを生成中…",
@@ -222,7 +220,6 @@
     "generatedWarnings_other": "{{count}}件の警告とともにEQを生成しました",
     "inputsChanged": "入力データが変更されたため、EQの生成をキャンセルしました。",
     "editorBusy": "デバイス操作中のため、EQを読み込みませんでした。操作が完了してから、もう一度EQを生成してください。",
-    "reviewResult": "EQをエディターに読み込みました。プロファイルの保存やDACへの書き込みの前に内容を確認してください。",
     "generated": "EQを生成しました"
   },
   "parsedAutoEq": {

@@ -87,7 +87,6 @@ interface ToolsPanelProps {
   onReadFailure?: (path: string, error: unknown) => Promise<boolean>;
   onResetEq?: () => Promise<void>;
   runMaintenance?: DeviceMaintenanceRunner;
-  onReviewEq?: () => void;
   profilePreview?: ReactNode;
 }
 
@@ -130,7 +129,6 @@ export const ToolsPanel = memo(function ToolsPanel(props: ToolsPanelProps) {
               maxBands={props.maxBands}
               dspSampleRate={props.dspSampleRate}
               getAsyncContext={props.getAsyncContext}
-              onReviewEq={props.onReviewEq}
             />
           )}
           {tab === "Device" && (

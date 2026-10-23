@@ -191,7 +191,6 @@
     "sampleRate": "อัตราสุ่มสัญญาณ",
     "generatingEQ": "กำลังสร้าง EQ…",
     "generateEQ": "สร้าง EQ",
-    "reviewEQ": "ตรวจทาน EQ",
     "reviewBeforeApplying": "ตรวจทานก่อนปรับใช้",
     "bandLimit_other": "สูงสุด {{count}} แบนด์",
     "inEar": "หูฟังสอดหู",
@@ -213,8 +212,7 @@
     "sampleRateHelp": "ใช้อัตราสุ่มสัญญาณ DSP ของ DAC",
     "needsMeasurement": "เพิ่มผลการวัดเพื่อสร้าง EQ",
     "needsTarget": "เพิ่มเป้าหมายเพื่อสร้าง EQ",
-    "destinationHelp": "โหลด EQ ลงตัวแก้ไข ไม่ใช่ DAC",
-    "generated": "สร้าง EQ แล้ว"
+    "destinationHelp": "โหลด EQ ลงตัวแก้ไข ไม่ใช่ DAC"
   },
   "autoEq": {
     "generatingEQ": "กำลังสร้าง EQ…",
@@ -222,7 +220,6 @@
     "generatedWarnings_other": "สร้าง EQ พร้อมคำเตือน {{count}} รายการ",
     "inputsChanged": "ยกเลิกการสร้าง EQ เนื่องจากข้อมูลนำเข้าเปลี่ยนแปลง",
     "editorBusy": "ไม่ได้โหลด EQ เนื่องจากกำลังดำเนินการกับอุปกรณ์ รอให้เสร็จแล้วสร้าง EQ อีกครั้ง",
-    "reviewResult": "โหลด EQ ลงตัวแก้ไขแล้ว ตรวจทานก่อนบันทึกโปรไฟล์หรือเขียนลง DAC",
     "generated": "สร้าง EQ แล้ว"
   },
   "parsedAutoEq": {

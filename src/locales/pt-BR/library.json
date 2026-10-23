@@ -205,7 +205,6 @@
     "sampleRate": "Taxa de amostragem",
     "generatingEQ": "Gerando EQ…",
     "generateEQ": "Gerar EQ",
-    "reviewEQ": "Revisar EQ",
     "reviewBeforeApplying": "Revise antes de aplicar",
     "bandLimit_one": "Até {{count}} banda",
     "bandLimit_other": "Até {{count}} bandas",
@@ -229,7 +228,6 @@
     "needsMeasurement": "Adicione uma medição para gerar EQ.",
     "needsTarget": "Adicione um alvo para gerar EQ.",
     "destinationHelp": "Carrega o EQ no editor, não no DAC.",
-    "generated": "EQ gerado",
     "bandLimit_many": "Até {{count}} bandas"
   },
   "autoEq": {
@@ -239,7 +237,6 @@
     "generatedWarnings_other": "EQ gerado com {{count}} avisos",
     "inputsChanged": "Geração de EQ cancelada porque as entradas mudaram.",
     "editorBusy": "O EQ não foi carregado porque uma operação do dispositivo está em andamento. Aguarde sua conclusão e gere o EQ novamente.",
-    "reviewResult": "EQ carregado no editor. Revise-o antes de salvar um perfil ou gravá-lo no DAC.",
     "generated": "EQ gerado",
     "generatedWarnings_many": "EQ gerado com {{count}} avisos"
   },

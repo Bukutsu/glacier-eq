@@ -1116,7 +1116,6 @@ function App() {
                     maxBands={maxFilterBands}
                     dspSampleRate={capabilities.dsp_sample_rate}
                     getAsyncContext={getAsyncContext}
-                    onReviewEq={() => handleSelectWorkspaceTab("eq")}
                   />
                 </section>
               )}
@@ -1304,7 +1303,6 @@ function App() {
                 maxBands={maxFilterBands}
                 dspSampleRate={capabilities.dsp_sample_rate}
                 onImportPEQ={importPeq}
-                onReviewEq={() => handleSelectWorkspaceTab("eq")}
                 profilePreview={
                   activeTab === "profiles" ? profilePreview : undefined
                 }
