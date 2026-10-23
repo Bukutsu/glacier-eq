@@ -56,6 +56,21 @@ describe("Profile library", () => {
     );
   });
 
+  it("lists each saved profile's own preamp from either storage naming", () => {
+    // Desktop profile files arrive as globalGain; web storage uses global_gain.
+    const html = render({
+      selectedPreset: "Other",
+      peq,
+      profiles: [
+        { name: "Desktop", data: { filters: [], globalGain: -8 }, modified: 1 },
+        { name: "Web", data: { filters: [], global_gain: -9.5 }, modified: 1 },
+      ],
+    });
+    expect(html).toContain("-8.0 dB preamp");
+    expect(html).toContain("-9.5 dB preamp");
+    expect(html).not.toContain("0.0 dB preamp");
+  });
+
   it("distinguishes a new empty library from a failed search", () => {
     const empty = render({
       profiles: [{ name: DEFAULT_PROFILE_NAME, data: peq, modified: null }],

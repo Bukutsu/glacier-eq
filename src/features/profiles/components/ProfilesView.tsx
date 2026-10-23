@@ -19,7 +19,11 @@ import { loadProfile } from "@/features/profiles/lib/loadProfile";
 import { decodeUtf8 } from "@/lib/utf8";
 import { fuzzyMatch } from "@/lib/search";
 import { isTauri } from "@/lib/platform";
-import { DEFAULT_PROFILE_NAME, formatDb } from "@/features/eq/lib/peq";
+import {
+  DEFAULT_PROFILE_NAME,
+  formatDb,
+  normalizePeq,
+} from "@/features/eq/lib/peq";
 import {
   parseAutoEqResult,
   type ParsedAutoEqResult,
@@ -463,7 +467,8 @@ export const ProfilesView = memo(function ProfilesView({
               : [
                   t("profilesView.bandCount", { count: bands }),
                   t("profilesView.preamp", {
-                    gain: formatDb(profile.data.global_gain ?? 0),
+                    // The desktop DTO names this globalGain; normalizePeq reads both.
+                    gain: formatDb(normalizePeq(profile.data).global_gain),
                   }),
                   profile.modified != null &&
                     new Date(profile.modified * 1000).toLocaleDateString(),
