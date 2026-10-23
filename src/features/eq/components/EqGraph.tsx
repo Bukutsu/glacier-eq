@@ -153,6 +153,11 @@ export const EqGraph = memo(function EqGraph({
     gain: number;
     shift: boolean;
     filter: Filter;
+    startX: number;
+    startY: number;
+    /** Press-and-release without travelling this far only selects the band. */
+    threshold: number;
+    dragging: boolean;
   } | null>(null);
   const wheelGestureRef = useRef<{ index: number; filter: Filter } | null>(
     null,
@@ -402,6 +407,17 @@ export const EqGraph = memo(function EqGraph({
 
     const gesture = pointerGestureRef.current;
     if (!gesture) return;
+    if (!gesture.dragging) {
+      // A short click selects the band and leaves it (and the DAC) alone.
+      // The history snapshot is taken only once a real drag begins.
+      const travelled = Math.hypot(
+        event.clientX - gesture.startX,
+        event.clientY - gesture.startY,
+      );
+      if (travelled < gesture.threshold) return;
+      gesture.dragging = true;
+      onStartChange?.();
+    }
     if (event.shiftKey !== gesture.shift) {
       gesture.shift = event.shiftKey;
       gesture.x = event.clientX;
@@ -637,8 +653,11 @@ export const EqGraph = memo(function EqGraph({
                 onPointerDown={(event) => {
                   if (!event.isPrimary || event.button !== 0) return;
                   onActiveBandChange?.(filter.index);
-                  onStartChange?.();
                   pointerGestureRef.current = {
+                    startX: event.clientX,
+                    startY: event.clientY,
+                    threshold: event.pointerType === "mouse" ? 4 : 8,
+                    dragging: false,
                     x: event.clientX,
                     y: event.clientY,
                     q: filter.q,

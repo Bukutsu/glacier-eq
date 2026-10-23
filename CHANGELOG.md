@@ -15,6 +15,7 @@
 
 ### Changed
 
+- Clicking a filter dot on the graph now only selects that band. The filter moves (and the change is written to a DAC with live apply) only after the pointer travels a few pixels, so a slightly shaky click no longer nudges the band or adds an undo step.
 - Unplugging and replugging a DAC while the app is open no longer blocks the window or shows an error. The sidebar and header say it is reconnecting, the editor keeps that DAC's limits, and on return unsaved edits are kept without asking. On Linux, a brief permission gap right after replug no longer triggers a password prompt.
 - **Connect DAC** now scans and connects directly when one DAC is present, without opening the device picker first. The picker remains available when several DACs are present or connection fails. Disconnect and Change device are tucked under **Connection options** in the device summary.
 - The Linux AppImage works better with AppImage managers such as Gear Lever and Shelly. It now carries its version (`X-AppImage-Version`) and a `Music` menu category in its desktop entry, embeds GitHub update information and AppStream metadata, and each release ships a matching `.AppImage.zsync` file so these tools can tell when a newer release exists.

@@ -40,6 +40,7 @@ function setup() {
   };
   const change = vi.fn();
   const start = vi.fn();
+  const active = vi.fn();
   const root = (EqGraph as unknown as (props: unknown) => ReactElement<any>)({
     peq: { global_gain: 0, filters: [filter] },
     measurements: [],
@@ -51,7 +52,7 @@ function setup() {
       band_gain_range: [-12, 12],
       q_range: [0.1, 20],
     } as DeviceCapabilities,
-    onActiveBandChange: vi.fn(),
+    onActiveBandChange: active,
     onStartChange: start,
     onFilterChange: change,
   });
@@ -72,17 +73,65 @@ function setup() {
       captured = false;
     },
   };
-  const pointer = (y: number, shiftKey = true) => ({
+  const pointer = (y: number, shiftKey = true, pointerType = "mouse") => ({
     currentTarget: target,
     pointerId: 1,
     isPrimary: true,
+    pointerType,
     button: 0,
     clientX: 400,
     clientY: y,
     shiftKey,
   });
-  return { handle, pointer, filter, change, start };
+  return { handle, pointer, filter, change, start, active };
 }
+
+describe("EqGraph dot clicks", () => {
+  it("selects the band on a short click without editing, snapshotting, or touching the DAC", () => {
+    const s = setup();
+    s.handle.onPointerDown(s.pointer(150, false));
+    expect(s.active).toHaveBeenCalledExactlyOnceWith(0);
+    s.handle.onPointerMove({ ...s.pointer(152, false), clientX: 402 });
+    s.handle.onPointerUp(s.pointer(152, false));
+    s.handle.onLostPointerCapture();
+    expect(s.change).not.toHaveBeenCalled();
+    expect(s.start).not.toHaveBeenCalled();
+  });
+  it("tolerates small jitter in both directions, with a larger allowance for touch", () => {
+    const mouse = setup();
+    mouse.handle.onPointerDown(mouse.pointer(150, false));
+    mouse.handle.onPointerMove({ ...mouse.pointer(153, false), clientX: 402 });
+    expect(mouse.change).not.toHaveBeenCalled();
+    const touch = setup();
+    touch.handle.onPointerDown(touch.pointer(150, false, "touch"));
+    touch.handle.onPointerMove({
+      ...touch.pointer(156, false, "touch"),
+      clientX: 405,
+    });
+    expect(touch.change).not.toHaveBeenCalled();
+    touch.handle.onPointerMove({
+      ...touch.pointer(160, false, "touch"),
+      clientX: 405,
+    });
+    expect(touch.change).toHaveBeenCalledTimes(1);
+  });
+  it("starts one undoable drag after the pointer travels past the threshold", () => {
+    const s = setup();
+    s.handle.onPointerDown(s.pointer(150, false));
+    s.handle.onPointerMove(s.pointer(146, false));
+    expect(s.change).toHaveBeenCalledTimes(1);
+    expect(s.start).toHaveBeenCalledTimes(1);
+    s.handle.onPointerMove(s.pointer(120, false));
+    expect(s.start).toHaveBeenCalledTimes(1);
+  });
+  it("keeps a click that returns to its start as a selection", () => {
+    const s = setup();
+    s.handle.onPointerDown(s.pointer(150, false));
+    s.handle.onPointerMove(s.pointer(151, false));
+    s.handle.onPointerMove(s.pointer(150, false));
+    expect(s.change).not.toHaveBeenCalled();
+  });
+});
 
 describe("EqGraph Shift-drag", () => {
   it("adjusts Q from the drag origin and keeps frequency and gain fixed", () => {
