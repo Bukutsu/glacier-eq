@@ -1,3 +1,4 @@
+import { ErrorNotice } from "@/components/feedback/ErrorNotice";
 import { useTranslation } from "react-i18next";
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
@@ -304,17 +305,23 @@ export function DawnProControls({
           <Icon name="refresh" />
         </Button>
       </div>
-      {!state && (
-        <section className="settings-card empty-card">
-          <div className="empty-state">
-            <h3>
-              {error
-                ? t("dawnProControls.couldNotLoadDawnProControls")
-                : t("dawnProControls.readingDawnProSettings")}
-            </h3>
-            <p>{error ?? t("dawnProControls.loadingDescription")}</p>
-          </div>
-        </section>
+      {!state && error ? (
+        <ErrorNotice title={t("dawnProControls.couldNotLoadDawnProControls")}>
+          {error}
+        </ErrorNotice>
+      ) : (
+        !state && (
+          <section className="settings-card empty-card">
+            <div className="empty-state">
+              <h3>
+                {error
+                  ? t("dawnProControls.couldNotLoadDawnProControls")
+                  : t("dawnProControls.readingDawnProSettings")}
+              </h3>
+              <p>{error ?? t("dawnProControls.loadingDescription")}</p>
+            </div>
+          </section>
+        )
       )}
       {state && (
         <DawnProControlsFields
@@ -323,7 +330,7 @@ export function DawnProControls({
           onChange={change}
         />
       )}
-      {state && error && <p role="alert">{error}</p>}
+      {state && error && <ErrorNotice>{error}</ErrorNotice>}
     </>
   );
 }

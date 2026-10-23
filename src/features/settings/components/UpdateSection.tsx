@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
+import { ErrorNotice } from "@/components/feedback/ErrorNotice";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/Badge";
@@ -219,12 +220,13 @@ export function UpdateCard({
               {t("updates.title")}
               {badge !== null && <Badge>{badge}</Badge>}
             </span>
-            <span
-              className="stack-pref-desc"
-              role={state.phase === "error" ? "alert" : "status"}
-            >
-              {description}
-            </span>
+            {state.phase === "error" ? (
+              <ErrorNotice>{description}</ErrorNotice>
+            ) : (
+              <span className="stack-pref-desc" role="status">
+                {description}
+              </span>
+            )}
           </div>
           <div className="stack-pref-control">
             <Button

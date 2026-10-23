@@ -1,42 +1,35 @@
-/* One compact message near the header actions. History lives in Diagnostics. */
+/* A single quiet notice. Full history remains available in Diagnostics. */
 .toast-feedback {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
   z-index: var(--z-toast);
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) 28px;
+  align-items: start;
+  gap: 8px;
   width: 360px;
-  max-width: calc(100vw - 32px);
-  padding: 12px 10px 12px 14px;
-  border: 1px solid var(--line-soft);
-  border-radius: var(--radius-card);
+  max-width: calc(100vw - 24px);
+  padding: 10px 8px 10px 12px;
   background: var(--popover);
   color: var(--popover-foreground);
-  box-shadow: 0 4px 12px rgb(0 0 0 / 12%);
-  box-sizing: border-box;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 8%);
 }
-.toast-icon { display: flex; flex: 0 0 auto; margin-top: 3px; color: var(--muted-foreground); }
-.toast-icon .app-icon { width: 14px; height: 14px; }
-.toast-icon.error { color: var(--destructive-foreground); }
 .toast-message {
-  flex: 1;
-  min-width: 0;
-  max-height: 30dvh;
+  grid-column: 2;
+  grid-row: 1;
+  max-height: min(160px, 25dvh);
   overflow-y: auto;
   overscroll-behavior: contain;
-  margin: 0;
   color: var(--popover-foreground);
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.5;
-  overflow-wrap: anywhere;
-  white-space: pre-wrap;
+  user-select: text;
 }
-.toast-dismiss { margin-top: -6px; }
-.toast-dismiss .app-icon { width: 13px; height: 13px; }
+.toast-dismiss { grid-column: 3; grid-row: 1; width: 28px; height: 28px; margin-top: -4px; }
+.toast-dismiss .app-icon { width: 14px; height: 14px; }
 body:has(dialog[open]) .app-header > .toast-feedback { display: none; }
-.toast-feedback.inline {
+.toast-feedback.toast-inline {
   position: relative;
   flex: 0 0 auto;
   width: auto;
@@ -44,13 +37,14 @@ body:has(dialog[open]) .app-header > .toast-feedback { display: none; }
   margin: 8px 16px 16px;
   box-shadow: none;
 }
-.toast-feedback.inline .toast-message { max-height: 25dvh; }
+/* A dialog's persistent error already says this; do not repeat it as a toast. */
+dialog:has(.error-notice) .toast-feedback.toast-inline { display: none; }
 
 @media (max-width: 850px), ((max-height: 540px) and (pointer: coarse)) {
-  .toast-dismiss { min-width: 44px; min-height: 44px; }
+  .toast-feedback { grid-template-columns: 16px minmax(0, 1fr) 44px; }
+  .toast-dismiss { width: 44px; height: 44px; margin-top: -8px; }
   .app-header > .toast-feedback { right: 12px; }
-  /* Secondary mobile pages hide the app bar, but feedback must stay visible.
-     Expose only the message, without adding a toolbar or shifting the page. */
+  /* Preserve feedback when mobile pages hide the toolbar, without a layout shift. */
   .app-header.compact-mobile:has(.toast-feedback) { display: block; height: 0; min-height: 0; padding: 0; border: 0; }
   .app-header.compact-mobile:has(.toast-feedback) > .header-main { display: none; }
 }

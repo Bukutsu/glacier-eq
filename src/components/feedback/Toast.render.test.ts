@@ -13,8 +13,6 @@ function render(toasts: Toast[], errorsOnly = false, inline = false) {
   const state = {
     toasts,
     removeToast: vi.fn(),
-    pauseToast: vi.fn(),
-    resumeToast: vi.fn(),
   };
   vi.mocked(useToastStore).mockImplementation((selector: any) =>
     selector(state),
@@ -40,7 +38,8 @@ describe("Toast feedback", () => {
       [{ id: "error", message: "Failed to save", type: "error" }],
       true,
     );
-    expect(html).toContain('role="alert" aria-atomic="true"');
+    expect(html).toContain('role="alert"');
+    expect(html).toContain('aria-atomic="true"');
     expect(html).toContain("Failed to save");
   });
 
@@ -50,9 +49,10 @@ describe("Toast feedback", () => {
       { id: "new", message: "Could not save settings", type: "error" },
       { id: "info", message: "Profile saved", type: "success" },
     ]);
-    expect(html).toContain(
-      'role="alert" aria-atomic="true">Could not save settings',
-    );
+    expect(html).toContain('role="alert"');
+    expect(html).toContain('aria-atomic="true"');
+    expect(html).toContain('data-slot="alert-description"');
+    expect(html).toContain("Could not save settings");
     expect(html.match(/role="alert"/g)).toHaveLength(1);
     expect(html).not.toContain("Old failure");
     expect(html).not.toContain("Profile saved");
@@ -65,7 +65,8 @@ describe("Toast feedback", () => {
     const html = render([
       { id: "saved", message: "Profile saved", type: "success" },
     ]);
-    expect(html).toContain('role="status" aria-atomic="true"');
+    expect(html).toContain('role="status"');
+    expect(html).toContain('aria-atomic="true"');
     expect(html).not.toContain('role="alert"');
   });
 
@@ -84,11 +85,12 @@ describe("Toast feedback", () => {
       true,
       true,
     );
-    expect(html).toContain('class="toast-feedback inline"');
+    expect(html).toContain('class="ui-alert toast-feedback toast-inline"');
     expect(html).toContain('data-type="error"');
     expect(html).not.toContain("toast-timer");
     expect(html).not.toContain("animation-duration");
-    expect(html).toContain('role="alert" aria-atomic="true"');
+    expect(html).toContain('role="alert"');
+    expect(html).toContain('aria-atomic="true"');
     expect(html).toContain("Failed to save");
   });
 });

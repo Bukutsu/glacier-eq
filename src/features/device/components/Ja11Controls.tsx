@@ -1,3 +1,4 @@
+import { ErrorNotice } from "@/components/feedback/ErrorNotice";
 import { useTranslation } from "react-i18next";
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
@@ -355,12 +356,7 @@ export function Ja11Controls({
               {t("ja11Controls.inlineMicrophone")}
             </label>
             {mic.field?.error ? (
-              <span
-                role="alert"
-                className="stack-pref-desc text-destructive-foreground"
-              >
-                {mic.field.error}
-              </span>
+              <ErrorNotice>{mic.field.error}</ErrorNotice>
             ) : (
               <span className="stack-pref-desc">
                 {t("ja11Controls.mayBrieflyDisconnect")}
@@ -404,12 +400,7 @@ export function Ja11Controls({
               {t("ja11Controls.outputVolume")}
             </label>
             {volume.field?.error ? (
-              <span
-                role="alert"
-                className="stack-pref-desc text-destructive-foreground"
-              >
-                {volume.field.error}
-              </span>
+              <ErrorNotice>{volume.field.error}</ErrorNotice>
             ) : (
               <span className="stack-pref-desc">
                 {mutedState(volume.unknown, volume.pending && working) ??

@@ -1,8 +1,8 @@
 import "@/lib/i18n";
 import { useTranslation } from "react-i18next";
-import { useEffect, useState } from "react";
 import { Icon } from "@/components/ui/Icon";
 import { Button } from "@/components/ui/Button";
+import { Alert, AlertDescription } from "@/components/ui/Alert";
 import { useToastStore } from "@/stores/toastStore";
 
 export function ToastContainer({
@@ -15,70 +15,45 @@ export function ToastContainer({
   const { t } = useTranslation("shell");
   const allToasts = useToastStore((s) => s.toasts);
   const removeToast = useToastStore((s) => s.removeToast);
-  const pauseToast = useToastStore((s) => s.pauseToast);
-  const resumeToast = useToastStore((s) => s.resumeToast);
-  const [hovered, setHovered] = useState(false);
-  const [focused, setFocused] = useState(false);
   const toasts = errorsOnly
     ? allToasts.filter((toast) => toast.type === "error")
     : allToasts;
-  // Routine feedback must not cover an unresolved failure.
   const current =
     [...toasts].reverse().find((toast) => toast.type === "error") ??
     toasts[toasts.length - 1];
-  const paused = hovered || focused;
-
-  useEffect(() => {
-    if (!current) return;
-    if (paused) pauseToast(current.id);
-    else resumeToast(current.id);
-    return () => resumeToast(current.id);
-  }, [current?.id, paused, pauseToast, resumeToast]);
-
   if (!current) return null;
-
   return (
-    <section
-      className={`toast-feedback${inline ? " inline" : ""}`}
+    <Alert
+      className={`toast-feedback${inline ? " toast-inline" : ""}`}
+      variant={current.type === "error" ? "destructive" : "default"}
       data-type={current.type}
       aria-label={t("feedback.status")}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      onFocusCapture={() => setFocused(true)}
-      onBlurCapture={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget))
-          setFocused(false);
-      }}
+      role={current.type === "error" ? "alert" : "status"}
+      aria-atomic="true"
+      key={current.id}
     >
-      <span className={`toast-icon ${current.type}`}>
-        <Icon
-          name={
-            current.type === "success"
+      <Icon
+        name={
+          current.type === "error"
+            ? "error"
+            : current.type === "success"
               ? "check"
-              : current.type === "error"
-                ? "error"
-                : "info"
-          }
-        />
-      </span>
-      <p
-        className="toast-message"
-        role={current.type === "error" ? "alert" : "status"}
-        aria-atomic="true"
-        key={current.id}
-      >
+              : "info"
+        }
+      />
+      <AlertDescription className="toast-message">
         {current.message}
-      </p>
+      </AlertDescription>
       <Button
         variant="ghost"
         size="icon"
-        className="toast-dismiss"
+        className="toast-dismiss size-7! max-[850px]:size-11! pointer-coarse:size-11!"
         aria-label={t("feedback.dismiss")}
         title={t("feedback.dismiss")}
         onClick={() => removeToast(current.id)}
       >
         <Icon name="close" />
       </Button>
-    </section>
+    </Alert>
   );
 }

@@ -9,13 +9,9 @@ export interface Toast {
   type: "info" | "error" | "success";
 }
 
-// Bound bursts of distinct failures; history remains in Diagnostics.
-const MAX_ERROR_TOASTS = 50;
 export const toastDuration = (type: Toast["type"]) =>
-  type === "error" ? 8000 : 4000;
+  type === "error" ? 6000 : 4000;
 const timers = new Map<string, ReturnType<typeof setTimeout>>();
-const remaining = new Map<string, number>();
-const deadlines = new Map<string, number>();
 
 function cancelTimer(id: string) {
   const timer = timers.get(id);
@@ -74,8 +70,6 @@ interface ToastStore {
   addToast: (message: string, type?: Toast["type"], log?: boolean) => void;
   setStatus: StatusReporter;
   removeToast: (id: string) => void;
-  pauseToast: (id: string) => void;
-  resumeToast: (id: string) => void;
   clearNonErrorToasts: () => void;
   /**
    * Records a toast as a diagnostic event. App registers the backend call on
@@ -111,17 +105,20 @@ export const useToastStore = create<ToastStore>()((set, get) => ({
     const toast = { id, message, type: toastType };
     // Routine updates replace each other. Errors are retained independently,
     // so a successful action cannot dismiss an unrelated failure.
-    const errors = toasts.filter((item) => item.type === "error");
+    // Only the newest error is retained; older errors cannot resurface.
     const next =
       toastType === "error"
-        ? [...errors, toast].slice(-MAX_ERROR_TOASTS)
-        : [...errors, toast];
+        ? [toast]
+        : [...toasts.filter((item) => item.type === "error"), toast];
     for (const previous of toasts) {
       if (!next.some((item) => item.id === previous.id))
         get().removeToast(previous.id);
     }
     set({ toasts: next });
-    get().resumeToast(id);
+    timers.set(
+      id,
+      setTimeout(() => get().removeToast(id), toastDuration(toastType)),
+    );
 
     // After the dedupe check, so a suppressed repeat does not double-report.
     if (log) diagnosticSink?.(message, toastType);
@@ -146,28 +143,7 @@ export const useToastStore = create<ToastStore>()((set, get) => ({
 
   removeToast: (id) => {
     cancelTimer(id);
-    remaining.delete(id);
-    deadlines.delete(id);
     set({ toasts: get().toasts.filter((t) => t.id !== id) });
-  },
-
-  pauseToast: (id) => {
-    const deadline = deadlines.get(id);
-    if (deadline !== undefined)
-      remaining.set(id, Math.max(0, deadline - Date.now()));
-    deadlines.delete(id);
-    cancelTimer(id);
-  },
-
-  resumeToast: (id) => {
-    const toast = get().toasts.find((item) => item.id === id);
-    if (!toast || timers.has(id)) return;
-    const ms = remaining.get(id) ?? toastDuration(toast.type);
-    deadlines.set(id, Date.now() + ms);
-    timers.set(
-      id,
-      setTimeout(() => get().removeToast(id), ms),
-    );
   },
 
   clearNonErrorToasts: () => {

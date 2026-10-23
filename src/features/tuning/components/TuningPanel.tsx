@@ -1,3 +1,4 @@
+import { ErrorNotice } from "@/components/feedback/ErrorNotice";
 import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -328,9 +329,7 @@ export function AutoEqTab(props: AutoEqTabProps) {
         )}
       </div>
       {errorMessage && (
-        <p className="tuning-error" role="alert">
-          {errorMessage}
-        </p>
+        <ErrorNotice className="mt-4">{errorMessage}</ErrorNotice>
       )}
       {warnings.length > 0 && (
         <div className="tuning-warnings">

@@ -1,3 +1,4 @@
+import { ErrorNotice } from "@/components/feedback/ErrorNotice";
 import { useTranslation } from "react-i18next";
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
@@ -109,7 +110,7 @@ export function DevProtocolPreview({
             })
           : t("devProtocolPreview.previewNoEq", { name: device.profile_name })}
       </p>
-      {error && <p role="alert">{error}</p>}
+      {error && <ErrorNotice>{error}</ErrorNotice>}
     </section>
   );
 }

@@ -12,9 +12,10 @@
 @import "./device-selection.css" layer(legacy);
 @import "./responsive.css" layer(legacy);
 @import "./tuning.css" layer(legacy);
-@import "./toasts.css" layer(legacy);
 @import "./colors.css" layer(components);
 @import "./ui.css" layer(components);
+@import "./alerts.css" layer(components);
+@import "./toasts.css" layer(components);
 @import "./profiles.css" layer(components);
 @import "./mobile-profiles.css" layer(components);
 @import "./configuration.css" layer(components);

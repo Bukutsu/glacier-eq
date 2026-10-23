@@ -85,9 +85,10 @@ describe("Tuning feedback", () => {
         "Could not generate EQ. Import another measurement and try again.",
     };
     const html = render();
-    expect(html).toContain(
-      '<p class="tuning-error" role="alert">Could not generate EQ.',
-    );
+    expect(html).toContain('data-slot="alert"');
+    expect(html).toContain('role="alert"');
+    expect(html).toContain("error-notice");
+    expect(html).toContain("Could not generate EQ.");
     expect(html).not.toContain("<strong>EQ generated</strong>");
     expect(html).not.toContain("Review EQ</button>");
   });

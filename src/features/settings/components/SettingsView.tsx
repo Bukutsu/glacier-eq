@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
+import { ErrorNotice } from "@/components/feedback/ErrorNotice";
 import { memo, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { LanguageSetting } from "./LanguageSetting";
@@ -122,9 +123,7 @@ function UdevSection({
     return (
       <section className="settings-plain" aria-label={t("permissions.title")}>
         <h2 className="settings-plain-title">{t("permissions.title")}</h2>
-        <p className="settings-plain-desc" role="alert">
-          {checkError}
-        </p>
+        <ErrorNotice>{checkError}</ErrorNotice>
         <Button
           type="button"
           onClick={() => setCheckAttempt((attempt) => attempt + 1)}

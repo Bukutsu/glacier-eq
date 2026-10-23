@@ -1,3 +1,4 @@
+import { ErrorNotice } from "@/components/feedback/ErrorNotice";
 import { useTranslation } from "react-i18next";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { MeasurementPoint } from "@/types";
@@ -240,16 +241,13 @@ export function AddTraceModal({
       <div className="modal-body add-trace-body">
         <p className="add-trace-intro">{t("addTraceModal.description")}</p>
         {modalError && (
-          <div className="modal-inline-error" role="alert">
-            <Icon name="error" />
-            <span>
-              {t(modalError.key, {
-                error: modalError.error,
-                name: modalError.name,
-                name2: modalError.name2,
-              })}
-            </span>
-          </div>
+          <ErrorNotice>
+            {t(modalError.key, {
+              error: modalError.error,
+              name: modalError.name,
+              name2: modalError.name2,
+            })}
+          </ErrorNotice>
         )}
         <div className="add-trace-section">
           <label className="add-trace-section-title" htmlFor={searchId}>

@@ -148,33 +148,6 @@
   text-wrap: balance;
 }
 
-.tuning-result:empty { display: none; }
-
-.tuning-result-content {
-  display: flex;
-  align-items: start;
-  gap: var(--space-3);
-  margin-top: var(--space-4);
-  padding: var(--space-4);
-  border: 1px solid var(--line-soft);
-  border-radius: var(--control-radius);
-  color: var(--text);
-  font-size: var(--type-label);
-}
-
-.tuning-result-content > .app-icon {
-  color: var(--green);
-  flex-shrink: 0;
-}
-
-.tuning-result-content p {
-  margin: var(--space-2) 0 var(--space-3);
-  color: var(--muted);
-  font-size: var(--type-small);
-  line-height: 1.5;
-}
-
-.tuning-error,
 .tuning-warnings {
   margin: var(--space-4) 0 0;
   padding: var(--space-4);
@@ -185,7 +158,6 @@
   overflow-wrap: anywhere;
 }
 
-.tuning-error { color: var(--destructive-foreground); }
 .tuning-warnings { color: var(--warning-foreground); }
 .tuning-warnings ul { margin: var(--space-2) 0 0; padding-left: var(--space-4); }
 

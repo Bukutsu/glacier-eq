@@ -1,3 +1,4 @@
+import { ErrorNotice } from "@/components/feedback/ErrorNotice";
 import { useTranslation } from "react-i18next";
 import { invoke, requestWebHidDevice } from "@/lib/rpc";
 import { useEffect, useState } from "react";
@@ -262,11 +263,14 @@ export function DeviceChooser({
         {(authorizationError ||
           (status &&
             status !==
-              t("scanDevices.foundDevices", { count: devices.length }))) && (
-          <span className="status-text" role="status" aria-live="polite">
-            {authorizationError ?? status}
-          </span>
-        )}
+              t("scanDevices.foundDevices", { count: devices.length }))) &&
+          (authorizationError ? (
+            <ErrorNotice>{authorizationError}</ErrorNotice>
+          ) : (
+            <span className="status-text" role="status" aria-live="polite">
+              {status}
+            </span>
+          ))}
         <div className="device-actions">
           <Button
             variant="primary"
