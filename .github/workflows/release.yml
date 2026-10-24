@@ -118,12 +118,14 @@ jobs:
         run: |
           set -euo pipefail
           challenge=$(mktemp)
-          trap 'rm -f "$challenge" "$challenge.sig"' EXIT
+          signature="$challenge.minisig"
+          trap 'rm -f "$challenge" "$challenge.sig" "$signature"' EXIT
           printf 'Glacier EQ updater key check\n' > "$challenge"
-          npx tauri signer sign "$challenge"
+          npx tauri signer sign "$challenge" >/dev/null
+          base64 --decode "$challenge.sig" > "$signature"
           public_key=$(node -e 'process.stdout.write(JSON.parse(require("node:fs").readFileSync("src-tauri/tauri.conf.json", "utf8")).plugins.updater.pubkey)')
           public_key=$(printf '%s' "$public_key" | base64 --decode | tail -n 1)
-          minisign -Vm "$challenge" -x "$challenge.sig" -P "$public_key"
+          minisign -Vm "$challenge" -x "$signature" -P "$public_key"
 
       # src/wasm_pkg is a gitignored build artifact. The test suite is hermetic
       # and does not need it, but nothing else in this pipeline compiles the
