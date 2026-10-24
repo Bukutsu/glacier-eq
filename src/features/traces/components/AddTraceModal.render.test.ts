@@ -75,14 +75,39 @@ describe("measurement search modal", () => {
     expect(html).toContain('role="status" aria-live="polite"');
   });
 
+  it("labels the measurement owner filter", () => {
+    const html = render();
+    expect(html).toContain("Measurement owner");
+    expect(html).toContain("All owners");
+  });
+
+  it("uses the app-styled searchable owner combobox", () => {
+    const html = render();
+    expect(html).toContain('role="combobox"');
+    expect(html).toContain('class="app-select-trigger"');
+    expect(html).toContain("All owners");
+  });
+
   it("uses a native result list and clearly named Add buttons", () => {
     database = { ...database, searchQuery: "hd600", manifest: [measurement] };
     const html = render();
     expect(html).toContain("1 measurement found.");
     expect(html).toContain('<ul class="online-result-list"><li');
     expect(html).toContain('aria-label="Add Sennheiser HD 600 measurement"');
-    expect(html).toContain("Test source");
+    expect(html).toContain("Measurement owner:</span> Test source");
     expect(html).toContain("Add</span>");
+  });
+
+  it("matches database sources in the main search and labels the result owner", () => {
+    database = {
+      ...database,
+      searchQuery: "test source",
+      manifest: [measurement],
+    };
+    const html = render();
+    expect(html).toContain("1 measurement found.");
+    expect(html).toContain("Sennheiser HD 600");
+    expect(html).toContain("Measurement owner:</span> Test source");
   });
 
   it("shows how to recover from a search with no matches", () => {

@@ -277,6 +277,10 @@
     "globalGain": "gain global"
   },
   "addTraceModal": {
+    "measurementOwner": "Source de mesure",
+    "allOwners": "Toutes les sources",
+    "searchOwnerPlaceholder": "Rechercher une source…",
+    "noOwnerMatches": "Aucune source correspondante.",
     "couldNotDownloadDatabase": "Impossible de télécharger la base de données : {{error}}",
     "clearDatabaseCache": "Vider le cache de la base de données ?",
     "clearCache": "Vider le cache",

@@ -259,6 +259,10 @@
     "globalGain": "全体ゲイン"
   },
   "addTraceModal": {
+    "measurementOwner": "測定元",
+    "allOwners": "すべての測定元",
+    "searchOwnerPlaceholder": "測定元を検索…",
+    "noOwnerMatches": "一致する測定元がありません。",
     "couldNotDownloadDatabase": "データベースをダウンロードできませんでした: {{error}}",
     "clearDatabaseCache": "データベースのキャッシュを削除しますか？",
     "clearCache": "キャッシュを削除",

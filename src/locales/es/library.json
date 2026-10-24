@@ -277,6 +277,10 @@
     "globalGain": "Ganancia global"
   },
   "addTraceModal": {
+    "measurementOwner": "Responsable de la medición",
+    "allOwners": "Todos los responsables",
+    "searchOwnerPlaceholder": "Buscar responsables…",
+    "noOwnerMatches": "No hay responsables coincidentes.",
     "couldNotDownloadDatabase": "No se ha podido descargar la base de datos: {{error}}",
     "clearDatabaseCache": "¿Borrar caché de la base de datos?",
     "clearCache": "Borrar caché",

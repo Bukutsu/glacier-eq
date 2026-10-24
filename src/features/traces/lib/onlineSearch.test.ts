@@ -2,8 +2,12 @@ import { describe, expect, it } from "vitest";
 import type { OnlineDevice } from "./onlineDb";
 import { findOnlineMeasurements, ONLINE_RESULT_LIMIT } from "./onlineSearch";
 
-function device(id: string, name: string): OnlineDevice {
-  return { id, brand: "", name, source: "Test source", price: null };
+function device(
+  id: string,
+  name: string,
+  source = "Test source",
+): OnlineDevice {
+  return { id, brand: "", name, source, price: null };
 }
 
 describe("online measurement search", () => {
@@ -11,6 +15,7 @@ describe("online measurement search", () => {
     expect(findOnlineMeasurements([device("a", "HD 600")], "  ")).toEqual({
       results: [],
       total: 0,
+      owners: ["Test source"],
     });
   });
 
@@ -27,6 +32,38 @@ describe("online measurement search", () => {
       "scattered",
     ]);
     expect(found.total).toBe(3);
+  });
+
+  it("filters measurements by owner/source before matching the model", () => {
+    const autoEq = device("auto", "HD 600", "AutoEq");
+    const reviewer = device("review", "HD 600", "Reviewer");
+    const unrelated = device("other", "AirPods Pro", "Other");
+    expect(
+      findOnlineMeasurements(
+        [autoEq, reviewer, unrelated],
+        "hd600",
+        "Reviewer",
+      ),
+    ).toEqual({
+      results: [reviewer],
+      total: 1,
+      owners: ["AutoEq", "Reviewer"],
+    });
+    expect(findOnlineMeasurements([autoEq], "hd600", "Reviewer")).toEqual({
+      results: [],
+      total: 0,
+      owners: ["AutoEq"],
+    });
+  });
+
+  it("matches owners as well as models in the database search", () => {
+    const reviewer = device("review", "HD 600", "Reviewer");
+    const autoEq = device("auto", "HD 600", "AutoEq");
+    expect(findOnlineMeasurements([reviewer, autoEq], "Reviewer")).toEqual({
+      results: [reviewer],
+      total: 1,
+      owners: ["Reviewer"],
+    });
   });
 
   it("preserves spaced model-number matching and multiple query tokens", () => {
@@ -47,6 +84,7 @@ describe("online measurement search", () => {
     const found = findOnlineMeasurements(devices, "headphone");
     expect(found.total).toBe(70);
     expect(found.results).toEqual(devices.slice(0, ONLINE_RESULT_LIMIT));
+    expect(found.owners).toEqual(["Test source"]);
   });
 
   it("still promotes late literal matches when the fuzzy bucket is full", () => {

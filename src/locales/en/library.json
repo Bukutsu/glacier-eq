@@ -268,6 +268,10 @@
     "globalGain": "global gain"
   },
   "addTraceModal": {
+    "measurementOwner": "Measurement owner",
+    "allOwners": "All owners",
+    "searchOwnerPlaceholder": "Search owners…",
+    "noOwnerMatches": "No matching owners.",
     "couldNotDownloadDatabase": "Could not download database: {{error}}",
     "clearDatabaseCache": "Clear database cache?",
     "clearCache": "Clear cache",

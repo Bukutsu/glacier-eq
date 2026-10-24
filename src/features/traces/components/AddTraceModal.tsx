@@ -1,6 +1,14 @@
 import { ErrorNotice } from "@/components/feedback/ErrorNotice";
 import { useTranslation } from "react-i18next";
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { Combobox } from "@base-ui/react/combobox";
 import type { MeasurementPoint } from "@/types";
 import { Icon } from "@/components/ui/Icon";
 import {
@@ -18,6 +26,11 @@ import { Modal } from "@/components/ui/Modal";
 import { confirmDialog } from "@/components/ui/ConfirmDialog";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+
+interface OwnerOption {
+  value: string;
+  label: string;
+}
 
 interface AddTraceModalProps {
   onClose: () => void;
@@ -52,6 +65,7 @@ export function AddTraceModal({
   } = useOnlineDatabase(setStatus);
   const [loadedDevices, setLoadedDevices] = useState<Set<string>>(new Set());
   const [debouncedQuery, setDebouncedQuery] = useState(searchQuery);
+  const [selectedOwner, setSelectedOwner] = useState("");
   const [modalError, setModalError] = useState<{
     key:
       | "addTraceModal.couldNotDownloadDatabase"
@@ -66,7 +80,14 @@ export function AddTraceModal({
   const loadRequestRef = useRef(0);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const downloadButtonRef = useRef<HTMLButtonElement>(null);
+  const ownerPortalContainerRef = useRef<HTMLElement | null>(null);
+  const ownerTriggerRef = useCallback((trigger: HTMLButtonElement | null) => {
+    ownerPortalContainerRef.current = trigger
+      ? (trigger.closest("dialog") ?? trigger.ownerDocument.body)
+      : null;
+  }, []);
   const searchId = useId();
+  const ownerId = useId();
 
   useEffect(() => {
     if (downloaded) searchInputRef.current?.focus();
@@ -127,6 +148,7 @@ export function AddTraceModal({
       try {
         await clearCache();
         if (!mountedRef.current) return;
+        setSelectedOwner("");
         setStatus?.(t("addTraceModal.databaseCacheCleared"));
       } catch (error) {
         if (!mountedRef.current) return;
@@ -218,10 +240,24 @@ export function AddTraceModal({
 
   const query = debouncedQuery.trim().toLowerCase();
   const searchPending = searchQuery.trim().toLowerCase() !== query;
-  const { results, total } = useMemo(
-    () => findOnlineMeasurements(manifest, query),
-    [manifest, query],
+  const { results, total, owners } = useMemo(
+    () => findOnlineMeasurements(manifest, query, selectedOwner || undefined),
+    [manifest, query, selectedOwner],
   );
+  const ownerOptions = useMemo<OwnerOption[]>(
+    () => [
+      { value: "", label: t("addTraceModal.allOwners") },
+      ...owners.map((owner) => ({ value: owner, label: owner })),
+    ],
+    [owners, t],
+  );
+  const selectedOwnerOption =
+    ownerOptions.find((owner) => owner.value === selectedOwner) ??
+    ownerOptions[0];
+
+  useEffect(() => {
+    if (selectedOwner && !owners.includes(selectedOwner)) setSelectedOwner("");
+  }, [owners, selectedOwner]);
   const searchStatus = loadingManifest
     ? t("addTraceModal.loadingIndex")
     : searchPending
@@ -284,6 +320,74 @@ export function AddTraceModal({
               }
             }}
           />
+          {downloaded && (
+            <div className="add-trace-owner">
+              <label className="add-trace-section-title" htmlFor={ownerId}>
+                {t("addTraceModal.measurementOwner")}
+              </label>
+              <Combobox.Root<OwnerOption>
+                items={ownerOptions}
+                value={selectedOwnerOption}
+                disabled={loadingManifest || owners.length === 0}
+                filter={(owner, search) =>
+                  owner.label
+                    .toLowerCase()
+                    .includes(search.trim().toLowerCase())
+                }
+                isItemEqualToValue={(a, b) => a.value === b.value}
+                onValueChange={(owner) => {
+                  if (owner) setSelectedOwner(owner.value);
+                }}
+              >
+                <Combobox.Trigger
+                  id={ownerId}
+                  className="app-select-trigger"
+                  ref={ownerTriggerRef}
+                >
+                  <span className="app-select-value">
+                    <Combobox.Value />
+                  </span>
+                  <span className="app-select-arrow">
+                    <Icon name="expand_more" />
+                  </span>
+                </Combobox.Trigger>
+                <Combobox.Portal container={ownerPortalContainerRef}>
+                  <Combobox.Positioner
+                    className="app-select-positioner"
+                    positionMethod="fixed"
+                    align="start"
+                    sideOffset={4}
+                  >
+                    <Combobox.Popup className="app-select-menu add-trace-owner-menu">
+                      <Combobox.Input
+                        className="add-trace-owner-search"
+                        aria-label={t("addTraceModal.measurementOwner")}
+                        placeholder={t("addTraceModal.searchOwnerPlaceholder")}
+                      />
+                      <Combobox.Empty className="add-trace-owner-empty">
+                        {t("addTraceModal.noOwnerMatches")}
+                      </Combobox.Empty>
+                      <Combobox.List className="add-trace-owner-list">
+                        {(owner: OwnerOption) => (
+                          <Combobox.Item
+                            key={owner.value}
+                            value={owner}
+                            className={({ selected }) =>
+                              selected
+                                ? "app-select-option selected"
+                                : "app-select-option"
+                            }
+                          >
+                            {owner.label}
+                          </Combobox.Item>
+                        )}
+                      </Combobox.List>
+                    </Combobox.Popup>
+                  </Combobox.Positioner>
+                </Combobox.Portal>
+              </Combobox.Root>
+            </div>
+          )}
           {downloaded ? (
             <>
               <p
@@ -332,6 +436,9 @@ export function AddTraceModal({
                             <div className="online-result-name">{name}</div>
                             <div className="online-result-meta">
                               <span className="online-result-source">
+                                <span className="online-result-owner-label">
+                                  {t("addTraceModal.measurementOwner")}:
+                                </span>{" "}
                                 {device.source}
                               </span>
                               {device.price !== null && (

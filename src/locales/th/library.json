@@ -259,6 +259,10 @@
     "globalGain": "เกนรวม"
   },
   "addTraceModal": {
+    "measurementOwner": "แหล่งที่มาของการวัด",
+    "allOwners": "ทุกแหล่งที่มา",
+    "searchOwnerPlaceholder": "ค้นหาเจ้าของ…",
+    "noOwnerMatches": "ไม่พบเจ้าของที่ตรงกัน",
     "couldNotDownloadDatabase": "ไม่สามารถดาวน์โหลดฐานข้อมูล: {{error}}",
     "clearDatabaseCache": "ล้างแคชฐานข้อมูลหรือไม่?",
     "clearCache": "ล้างแคช",

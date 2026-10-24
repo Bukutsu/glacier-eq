@@ -259,6 +259,10 @@
     "globalGain": "全局增益"
   },
   "addTraceModal": {
+    "measurementOwner": "测量来源",
+    "allOwners": "所有来源",
+    "searchOwnerPlaceholder": "搜索测量者…",
+    "noOwnerMatches": "没有匹配的测量者。",
     "couldNotDownloadDatabase": "无法下载数据库：{{error}}",
     "clearDatabaseCache": "清除数据库缓存？",
     "clearCache": "清除缓存",

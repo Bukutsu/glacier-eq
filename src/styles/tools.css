@@ -1536,11 +1536,12 @@ button.danger { color: var(--destructive-foreground); background: transparent; o
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px;
-  min-height: 68px;
-  gap: 16px;
-  border-bottom: 1px solid var(--line-soft);
+  padding: 8px 10px;
+  min-height: 64px;
+  gap: 12px;
+  border-bottom: 1px solid var(--line-subtle);
   text-align: left;
+  transition: background var(--motion-duration) var(--motion-ease);
 }
 
 .online-result-item:last-child {
@@ -1549,7 +1550,7 @@ button.danger { color: var(--destructive-foreground); background: transparent; o
 
 .online-result-item:hover,
 .online-result-item:focus-within {
-  background: var(--surface-soft);
+  background: var(--hover-bg);
 }
 
 .online-result-info {
@@ -1576,6 +1577,11 @@ button.danger { color: var(--destructive-foreground); background: transparent; o
   line-height: 1.4;
   color: var(--muted);
   overflow-wrap: anywhere;
+}
+
+.online-result-owner-label {
+  color: var(--text);
+  font-weight: 500;
 }
 
 .add-trace-modal .online-result-action {
@@ -1663,6 +1669,20 @@ dialog.modal-content.add-trace-modal {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-card);
+  background: var(--popover);
+}
+
+.add-trace-owner {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.add-trace-owner .app-select-trigger {
+  width: 100%;
 }
 
 .add-trace-section-title {
@@ -1687,6 +1707,7 @@ dialog.modal-content.add-trace-modal {
   scroll-padding-block: 8px;
   background: var(--bg-dark);
   border: 1px solid var(--line-soft);
+  border-radius: var(--radius-card);
 }
 
 .add-trace-online-results:focus-visible {
@@ -1698,8 +1719,10 @@ dialog.modal-content.add-trace-modal {
   display: flex;
   align-items: center;
   gap: 16px;
-  padding-top: 16px;
-  border-top: 1px solid var(--line-soft);
+  padding: 12px 14px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-card);
+  background: var(--popover);
 }
 
 .add-trace-modal .add-trace-file-btn {
@@ -1803,9 +1826,12 @@ dialog.modal-content.add-trace-modal {
     padding: 16px;
     gap: 12px;
   }
+  .add-trace-section {
+    padding: 12px;
+  }
   .online-result-item {
-    padding: 10px;
-    gap: 12px;
+    padding: 8px;
+    gap: 10px;
   }
   .add-trace-file-row,
   .add-trace-cache-row {

@@ -268,6 +268,10 @@
     "globalGain": "Globale Verstärkung"
   },
   "addTraceModal": {
+    "measurementOwner": "Messquelle",
+    "allOwners": "Alle Quellen",
+    "searchOwnerPlaceholder": "Quellen suchen…",
+    "noOwnerMatches": "Keine passenden Quellen.",
     "couldNotDownloadDatabase": "Datenbank konnte nicht heruntergeladen werden: {{error}}",
     "clearDatabaseCache": "Datenbankcache leeren?",
     "clearCache": "Cache leeren",
