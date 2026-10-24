@@ -175,6 +175,33 @@ fn hid_write(app: &tauri::AppHandle, path: &str, data: &[u8]) -> Result<(), Stri
     })
 }
 
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+fn hid_dawn_pro_input_report(app: &tauri::AppHandle, path: &str) -> Result<Vec<u8>, String> {
+    ensure_connected(app)?;
+    #[cfg(target_os = "linux")]
+    {
+        let transport_state = app.state::<Mutex<Option<ElevatedTransport>>>();
+        let mut guard = transport_state.lock().unwrap_or_else(|p| p.into_inner());
+        if let Some(transport) = guard.as_mut() {
+            let result = transport.dawn_pro_input_report(path);
+            let transport_died = result.is_err() && transport.is_dead();
+            if transport_died {
+                *guard = None;
+            }
+            drop(guard);
+            if transport_died {
+                handle_disconnection(app, "Device disconnected: privileged helper exited");
+            } else if let Err(ref error) = result {
+                handle_disconnection(app, error);
+            }
+            return result;
+        }
+    }
+    tauri_plugin_hid::hid(app)
+        .get_dawn_pro_input_report(path)
+        .map_err(|error| error.to_string())
+}
+
 fn hid_close(app: &tauri::AppHandle, path: &str, session_id: Option<u64>) -> Result<(), String> {
     #[cfg(target_os = "linux")]
     {
@@ -897,15 +924,11 @@ struct DawnProDeviceIo<'a> {
 impl glacier_core::device::dawn_pro::DawnProIo for DawnProDeviceIo<'_> {
     fn write(&mut self, report: &[u8; 8]) -> Result<(), String> {
         // Original Dawn Pro uses report ID 0 and ordinary eight-byte writes.
-        // This deliberately bypasses the Dawn Pro 2 SET_REPORT transport.
-        tauri_plugin_hid::hid(self.app)
-            .write(self.path, report)
-            .map_err(|error| error.to_string())
+        // The common router preserves the privileged-helper fallback.
+        hid_write(self.app, self.path, report)
     }
     fn get_input_report(&mut self, report: &mut [u8; 9]) -> Result<usize, String> {
-        let bytes = tauri_plugin_hid::hid(self.app)
-            .get_dawn_pro_input_report(self.path)
-            .map_err(|error| error.to_string())?;
+        let bytes = hid_dawn_pro_input_report(self.app, self.path)?;
         if bytes.len() > report.len() {
             return Err("Oversized Dawn Pro reply".into());
         }
@@ -1102,7 +1125,7 @@ pub async fn set_dac_filter_mode(
     app: tauri::AppHandle,
     state: tauri::State<'_, Mutex<DeviceState>>,
     mode: String,
-) -> Result<(), String> {
+) -> Result<DacUtilityState, String> {
     with_session(&app, &state, move |session| {
         glacier_core::device::block_on(session.set_filter_mode(&mode))
     })
@@ -1114,7 +1137,7 @@ pub async fn set_dac_work_mode(
     app: tauri::AppHandle,
     state: tauri::State<'_, Mutex<DeviceState>>,
     is_class_ab: bool,
-) -> Result<(), String> {
+) -> Result<DacUtilityState, String> {
     with_session(&app, &state, move |session| {
         glacier_core::device::block_on(session.set_amp_mode(is_class_ab))
     })
@@ -1126,7 +1149,7 @@ pub async fn set_dac_output_gain(
     app: tauri::AppHandle,
     state: tauri::State<'_, Mutex<DeviceState>>,
     is_high_gain: bool,
-) -> Result<(), String> {
+) -> Result<DacUtilityState, String> {
     with_session(&app, &state, move |session| {
         glacier_core::device::block_on(session.set_gain_mode(is_high_gain))
     })
@@ -1138,7 +1161,7 @@ pub async fn set_dac_balance(
     app: tauri::AppHandle,
     state: tauri::State<'_, Mutex<DeviceState>>,
     balance: i8,
-) -> Result<(), String> {
+) -> Result<DacUtilityState, String> {
     with_session(&app, &state, move |session| {
         glacier_core::device::block_on(session.set_balance(balance))
     })
@@ -1150,7 +1173,7 @@ pub async fn set_mic_volume(
     app: tauri::AppHandle,
     state: tauri::State<'_, Mutex<DeviceState>>,
     volume_db: i8,
-) -> Result<(), String> {
+) -> Result<DacUtilityState, String> {
     with_session(&app, &state, move |session| {
         glacier_core::device::block_on(session.set_mic_volume(volume_db))
     })

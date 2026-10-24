@@ -59,6 +59,75 @@ impl Default for DacUtilityState {
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum UtilityField {
+    FilterMode,
+    AmpMode,
+    GainMode,
+    MicVolume,
+    Balance,
+    All,
+}
+
+enum UtilityChange {
+    FilterMode(String),
+    AmpMode(bool),
+    GainMode(bool),
+    MicVolume(i8),
+    Balance(i8),
+}
+
+impl UtilityChange {
+    fn field(&self) -> UtilityField {
+        match self {
+            Self::FilterMode(_) => UtilityField::FilterMode,
+            Self::AmpMode(_) => UtilityField::AmpMode,
+            Self::GainMode(_) => UtilityField::GainMode,
+            Self::MicVolume(_) => UtilityField::MicVolume,
+            Self::Balance(_) => UtilityField::Balance,
+        }
+    }
+
+    fn apply_to(&self, state: &mut DacUtilityState) {
+        match self {
+            Self::FilterMode(value) => state.filter_mode.clone_from(value),
+            Self::AmpMode(value) => state.amp_mode_class_ab = *value,
+            Self::GainMode(value) => state.high_gain_mode = *value,
+            Self::MicVolume(value) => state.mic_volume_db = *value,
+            Self::Balance(value) => state.channel_balance = *value,
+        }
+    }
+}
+
+fn filter_mode_value(mode: &str) -> Result<u8, String> {
+    match mode {
+        "FAST-LL" => Ok(1),
+        "FAST-PC" => Ok(2),
+        "Slow-LL" => Ok(3),
+        "Slow-PC" => Ok(4),
+        "NON-OS" => Ok(5),
+        _ => Err("Invalid filter mode".into()),
+    }
+}
+
+fn utility_state_matches(
+    expected: &DacUtilityState,
+    actual: &DacUtilityState,
+    changed: UtilityField,
+) -> bool {
+    let mic_volume_matches = if matches!(changed, UtilityField::MicVolume | UtilityField::All) {
+        expected.mic_volume_db == actual.mic_volume_db
+    } else {
+        (i16::from(expected.mic_volume_db) - i16::from(actual.mic_volume_db)).abs() <= 1
+    };
+    expected.supported == actual.supported
+        && expected.filter_mode == actual.filter_mode
+        && expected.amp_mode_class_ab == actual.amp_mode_class_ab
+        && expected.high_gain_mode == actual.high_gain_mode
+        && mic_volume_matches
+        && expected.channel_balance == actual.channel_balance
+}
+
 impl<I: DeviceIo> DeviceSession<'_, I> {
     pub async fn firmware_version(&mut self) -> Result<Option<String>, String> {
         match self.profile.controls {
@@ -157,38 +226,74 @@ impl<I: DeviceIo> DeviceSession<'_, I> {
         })
     }
 
-    pub async fn set_filter_mode(&mut self, mode: &str) -> Result<(), String> {
+    pub async fn set_filter_mode(&mut self, mode: &str) -> Result<DacUtilityState, String> {
         self.require_walkplay()?;
-        self.stage_filter_mode(mode).await?;
-        self.commit_controls().await
+        filter_mode_value(mode)?;
+        self.mutate_utility(UtilityChange::FilterMode(mode.to_string()))
+            .await
     }
 
-    pub async fn set_amp_mode(&mut self, class_ab: bool) -> Result<(), String> {
+    pub async fn set_amp_mode(&mut self, class_ab: bool) -> Result<DacUtilityState, String> {
         self.require_walkplay()?;
-        self.stage(WalkplayProtocol::build_amp_mode_write_packet(class_ab))
-            .await?;
-        self.commit_controls().await
+        self.mutate_utility(UtilityChange::AmpMode(class_ab)).await
     }
 
-    pub async fn set_gain_mode(&mut self, high: bool) -> Result<(), String> {
+    pub async fn set_gain_mode(&mut self, high: bool) -> Result<DacUtilityState, String> {
         self.require_walkplay()?;
-        self.stage(WalkplayProtocol::build_gain_mode_write_packet(high))
-            .await?;
-        self.commit_controls().await
+        self.mutate_utility(UtilityChange::GainMode(high)).await
     }
 
-    pub async fn set_mic_volume(&mut self, db: i8) -> Result<(), String> {
+    pub async fn set_mic_volume(&mut self, db: i8) -> Result<DacUtilityState, String> {
         self.require_walkplay()?;
         validate_control_range("Mic volume", db)?;
-        self.stage(WalkplayProtocol::build_mic_volume_write_packet(db))
-            .await?;
-        self.commit_controls().await
+        self.mutate_utility(UtilityChange::MicVolume(db)).await
     }
 
-    pub async fn set_balance(&mut self, balance: i8) -> Result<(), String> {
+    pub async fn set_balance(&mut self, balance: i8) -> Result<DacUtilityState, String> {
         self.require_walkplay()?;
-        self.stage_balance(balance).await?;
-        self.commit_controls().await
+        validate_control_range("Balance", balance)?;
+        self.mutate_utility(UtilityChange::Balance(balance)).await
+    }
+
+    async fn mutate_utility(&mut self, change: UtilityChange) -> Result<DacUtilityState, String> {
+        let field = change.field();
+        let previous = self.utility_status().await?;
+        let mut expected = previous.clone();
+        change.apply_to(&mut expected);
+
+        let staged = match &change {
+            UtilityChange::FilterMode(mode) => self.stage_filter_mode(mode).await,
+            UtilityChange::AmpMode(value) => {
+                self.stage(WalkplayProtocol::build_amp_mode_write_packet(*value))
+                    .await
+            }
+            UtilityChange::GainMode(value) => {
+                self.stage(WalkplayProtocol::build_gain_mode_write_packet(*value))
+                    .await
+            }
+            UtilityChange::MicVolume(value) => {
+                self.stage(WalkplayProtocol::build_mic_volume_write_packet(*value))
+                    .await
+            }
+            UtilityChange::Balance(value) => self.stage_balance(*value).await,
+        };
+        if let Err(error) = staged {
+            return Err(self.restore_utilities(&previous, &error, field).await);
+        }
+        if let Err(error) = self.commit_controls().await {
+            return Err(self.restore_utilities(&previous, &error, field).await);
+        }
+
+        let actual = match self.utility_status().await {
+            Ok(actual) => actual,
+            Err(error) => return Err(self.restore_utilities(&previous, &error, field).await),
+        };
+        if !utility_state_matches(&expected, &actual, field) {
+            let error =
+                format!("Control verification failed: expected {expected:?}, got {actual:?}");
+            return Err(self.restore_utilities(&previous, &error, field).await);
+        }
+        Ok(actual)
     }
 
     pub async fn reset_controls(&mut self) -> Result<DacUtilityState, String> {
@@ -205,14 +310,21 @@ impl<I: DeviceIo> DeviceSession<'_, I> {
             .await
         {
             Ok(state) => Ok(state),
-            Err(error) => Err(self.restore_utilities(&previous, &error).await),
+            Err(error) => Err(self
+                .restore_utilities(&previous, &error, UtilityField::All)
+                .await),
         }
     }
 
     /// Re-applies a captured utility state after a reset failed part-way, and
     /// names the outcome in the error the caller reports.
-    async fn restore_utilities(&mut self, previous: &DacUtilityState, cause: &str) -> String {
-        match self.apply_and_verify_utilities(previous).await {
+    async fn restore_utilities(
+        &mut self,
+        previous: &DacUtilityState,
+        cause: &str,
+        changed: UtilityField,
+    ) -> String {
+        match self.apply_and_verify_utilities_for(previous, changed).await {
             Ok(_) => format!("{cause}; previous settings restored"),
             Err(restore) => format!("{cause}; restoring the previous settings failed: {restore}"),
         }
@@ -223,6 +335,15 @@ impl<I: DeviceIo> DeviceSession<'_, I> {
     async fn apply_and_verify_utilities(
         &mut self,
         state: &DacUtilityState,
+    ) -> Result<DacUtilityState, String> {
+        self.apply_and_verify_utilities_for(state, UtilityField::All)
+            .await
+    }
+
+    async fn apply_and_verify_utilities_for(
+        &mut self,
+        state: &DacUtilityState,
+        changed: UtilityField,
     ) -> Result<DacUtilityState, String> {
         self.stage_filter_mode(&state.filter_mode).await?;
         self.stage(WalkplayProtocol::build_amp_mode_write_packet(
@@ -240,7 +361,7 @@ impl<I: DeviceIo> DeviceSession<'_, I> {
         self.stage_balance(state.channel_balance).await?;
         self.commit_controls().await?;
         let actual = self.utility_status().await?;
-        if actual != *state {
+        if !utility_state_matches(state, &actual, changed) {
             return Err(format!(
                 "Control verification failed: expected {state:?}, got {actual:?}"
             ));
@@ -341,15 +462,8 @@ impl<I: DeviceIo> DeviceSession<'_, I> {
     }
 
     async fn stage_filter_mode(&mut self, mode: &str) -> Result<(), String> {
-        let mode = match mode {
-            "FAST-LL" => 1,
-            "FAST-PC" => 2,
-            "Slow-LL" => 3,
-            "Slow-PC" => 4,
-            "NON-OS" => 5,
-            _ => return Err("Invalid filter mode".into()),
-        };
-        self.stage(WalkplayProtocol::build_filter_mode_write_packet(mode))
+        let value = filter_mode_value(mode)?;
+        self.stage(WalkplayProtocol::build_filter_mode_write_packet(value))
             .await
     }
 

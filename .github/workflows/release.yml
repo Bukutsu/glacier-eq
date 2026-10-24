@@ -776,9 +776,39 @@ jobs:
 
           echo "✅ All expected OS release assets are present."
 
-      # Runs after the coverage check so only a complete, verified asset set is
-      # attested. Users can then verify an installer was built from this repo at
-      # this commit with `gh attestation verify`.
+      - name: Install minisign
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends minisign
+
+      - name: Verify updater asset signatures
+        shell: bash
+        run: |
+          set -euo pipefail
+          public_key=$(node -e 'process.stdout.write(JSON.parse(require("node:fs").readFileSync("src-tauri/tauri.conf.json", "utf8")).plugins.updater.pubkey)')
+          public_key=$(printf '%s' "$public_key" | base64 --decode | tail -n 1)
+          decoded_signature=$(mktemp)
+          trap 'rm -f "$decoded_signature"' EXIT
+          shopt -s nullglob
+          signatures=(artifacts/*.sig)
+          if (( ${#signatures[@]} == 0 )); then
+            echo "No updater signatures were downloaded" >&2
+            exit 1
+          fi
+          for signature in "${signatures[@]}"; do
+            asset="${signature%.sig}"
+            if [[ ! -f "$asset" ]]; then
+              echo "Signature has no matching asset: $signature" >&2
+              exit 1
+            fi
+            base64 --decode "$signature" > "$decoded_signature"
+            minisign -Vm "$asset" -x "$decoded_signature" -P "$public_key"
+          done
+
+      # Runs after coverage and signature verification so only a complete,
+      # cryptographically verified asset set is attested. Users can then verify
+      # an installer was built from this repo at this commit with
+      # `gh attestation verify`.
       - name: Attest build provenance
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:

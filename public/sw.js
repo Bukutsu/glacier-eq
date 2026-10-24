@@ -6,11 +6,19 @@ const CACHE_SCOPE_SEPARATOR = "|";
 const CACHE_SCOPE_PREFIX = `${CACHE_PREFIX}${encodeURIComponent(self.registration.scope)}${CACHE_SCOPE_SEPARATOR}`;
 const CACHE_META_CACHE = "glacier-eq-cache-meta-v1";
 const CACHE_META_PATH = "__glacier_eq_active_cache__";
+const CACHE_PENDING_PATH = "__glacier_eq_pending_cache__";
+const BUILD_ASSET_SET_ID = "__GLACIER_EQ_BUILD_ASSET_SET_ID__";
 let CACHE = "";
 let CACHE_LOOKUP;
+let PRECACHE_CACHE_NAME = "";
+let PRECACHED_URLS = new Set();
 
-function cacheMetaUrl() {
-  return new URL(CACHE_META_PATH, self.registration.scope).href;
+function cacheMetaUrl(path = CACHE_META_PATH) {
+  return new URL(path, self.registration.scope).href;
+}
+
+function pendingMetaUrl(buildId = BUILD_ASSET_SET_ID) {
+  return cacheMetaUrl(`${CACHE_PENDING_PATH}/${buildId}`);
 }
 
 function manifestEntries(manifest) {
@@ -21,7 +29,10 @@ function manifestEntries(manifest) {
 }
 
 async function cacheNameFor(manifest) {
-  const bytes = new TextEncoder().encode(JSON.stringify(manifest));
+  const bytes = new TextEncoder().encode(JSON.stringify({
+    assetSet: BUILD_ASSET_SET_ID,
+    manifest,
+  }));
   const digest = await crypto.subtle.digest("SHA-256", bytes);
   const hex = Array.from(new Uint8Array(digest), (byte) =>
     byte.toString(16).padStart(2, "0"),
@@ -34,34 +45,130 @@ async function rememberActiveCache(name) {
   await metadata.put(cacheMetaUrl(), new Response(name));
 }
 
-async function matchScopedCache(request) {
-  const names = (await caches.keys()).filter((name) => name.startsWith(CACHE_SCOPE_PREFIX));
-  // Without an active release, multiple candidates are ambiguous. Fail closed
-  // to the network rather than serving an arbitrary old release.
-  if (names.length !== 1) return undefined;
-  const cache = await caches.open(names[0]);
-  return cache.match(request);
+function pendingRecord(name, complete) {
+  return JSON.stringify({
+    buildId: BUILD_ASSET_SET_ID,
+    name,
+    complete,
+  });
+}
+
+async function rememberPendingCache(metadata, url, name, complete) {
+  await metadata.put(
+    url,
+    new Response(pendingRecord(name, complete)),
+  );
+}
+
+async function removePendingIfUnchanged(metadata, url, expected) {
+  const current = await metadata.match(url);
+  if (current && await current.text() === expected) {
+    await metadata.delete(url);
+  }
+}
+
+async function readPendingRecord(metadata, request) {
+  const response = await metadata.match(request);
+  if (!response) return null;
+  const raw = await response.text();
+  try {
+    const record = JSON.parse(raw);
+    if (
+      record &&
+      typeof record.buildId === "string" &&
+      typeof record.name === "string" &&
+      typeof record.complete === "boolean"
+    ) {
+      return { raw, ...record };
+    }
+  } catch {
+    // An unreadable marker is not permission to discard any release cache.
+  }
+  return { raw, invalid: true };
+}
+
+async function pendingCacheNames(metadata, cacheNames) {
+  const keep = new Set();
+  const pendingPrefix = cacheMetaUrl(`${CACHE_PENDING_PATH}/`);
+  for (const request of await metadata.keys()) {
+    const isCurrentFormat = request.url.startsWith(pendingPrefix);
+    const isLegacyFormat = request.url === cacheMetaUrl(CACHE_PENDING_PATH);
+    if (!isCurrentFormat && !isLegacyFormat) continue;
+
+    const record = await readPendingRecord(metadata, request);
+    if (isLegacyFormat && record) {
+      // The previous worker stored the cache name as plain text.
+      const legacy = record.invalid ? record.raw.trim() : record.name;
+      if (
+        legacy.startsWith(CACHE_SCOPE_PREFIX) &&
+        cacheNames.includes(legacy)
+      ) {
+        keep.add(legacy);
+      } else if (record.invalid) {
+        // An unreadable marker cannot identify which cache was being written.
+        for (const name of cacheNames) keep.add(name);
+      }
+    } else if (
+      record &&
+      !record.invalid &&
+      record.name.startsWith(CACHE_SCOPE_PREFIX) &&
+      cacheNames.includes(record.name)
+    ) {
+      keep.add(record.name);
+    } else if (record?.invalid) {
+      // Fail closed: an unreadable current-format marker may refer to any
+      // scoped cache, so none is safe to prune or use as an unmarked fallback.
+      for (const name of cacheNames) keep.add(name);
+    }
+  }
+  return keep;
+}
+
+async function stagedCacheIsComplete(name) {
+  const names = await caches.keys();
+  if (!names.includes(name)) return false;
+
+  const cache = await caches.open(name);
+  const manifestUrl = new URL("offline-assets.json", self.registration.scope).href;
+  const root = await cache.match(self.registration.scope);
+  const manifestResponse = await cache.match(manifestUrl);
+  if (!root || !manifestResponse) return false;
+  try {
+    return manifestEntries(await manifestResponse.json()).length > 0;
+  } catch {
+    return false;
+  }
 }
 
 async function restoreActiveCache() {
-  if (CACHE) return CACHE;
+  if (CACHE) {
+    const names = await caches.keys();
+    if (names.includes(CACHE)) return CACHE;
+    CACHE = "";
+  }
   if (!CACHE_LOOKUP) {
     CACHE_LOOKUP = (async () => {
       try {
         const metadata = await caches.open(CACHE_META_CACHE);
+        const names = (await caches.keys()).filter((key) =>
+          key.startsWith(CACHE_SCOPE_PREFIX),
+        );
         const saved = await metadata.match(cacheMetaUrl());
         if (saved) {
           const name = (await saved.text()).trim();
-          if (name.startsWith(CACHE_SCOPE_PREFIX)) {
+          if (
+            name.startsWith(CACHE_SCOPE_PREFIX) &&
+            names.includes(name)
+          ) {
             CACHE = name;
             return CACHE;
           }
         }
-      } catch {
-        // Fall through to the single-cache migration path below.
-      }
-      try {
-        const candidates = (await caches.keys()).filter((key) => key.startsWith(CACHE_SCOPE_PREFIX));
+
+        const pending = await pendingCacheNames(metadata, names);
+        const candidates = names.filter((name) => !pending.has(name));
+        // Without a trustworthy active identity, do not select an arbitrary
+        // cache or one that may still be under construction.
         if (candidates.length === 1) CACHE = candidates[0];
       } catch {
         CACHE = "";
@@ -72,6 +179,81 @@ async function restoreActiveCache() {
   CACHE = await CACHE_LOOKUP;
   if (!CACHE) CACHE_LOOKUP = undefined;
   return CACHE;
+}
+
+async function matchScopedCache(request) {
+  const names = (await caches.keys()).filter((name) =>
+    name.startsWith(CACHE_SCOPE_PREFIX),
+  );
+  const metadata = await caches.open(CACHE_META_CACHE);
+  const pending = await pendingCacheNames(metadata, names);
+  const candidates = names.filter((name) => !pending.has(name));
+  // Without an active release, multiple candidates are ambiguous. Never
+  // serve a cache that may still be under construction.
+  if (candidates.length !== 1) return undefined;
+  const cache = await caches.open(candidates[0]);
+  return cache.match(request);
+}
+
+async function activatePendingCache() {
+  const metadata = await caches.open(CACHE_META_CACHE);
+  const request = pendingMetaUrl();
+  const pending = await readPendingRecord(metadata, request);
+  if (!pending) {
+    await restoreActiveCache();
+    if (CACHE) await rememberActiveCache(CACHE);
+    return false;
+  }
+  if (
+    pending.invalid ||
+    pending.buildId !== BUILD_ASSET_SET_ID ||
+    !pending.complete ||
+    !pending.name.startsWith(CACHE_SCOPE_PREFIX) ||
+    !(await stagedCacheIsComplete(pending.name))
+  ) {
+    await restoreActiveCache();
+    return false;
+  }
+
+  CACHE = pending.name;
+  CACHE_LOOKUP = Promise.resolve(CACHE);
+  await rememberActiveCache(CACHE);
+  await removePendingIfUnchanged(metadata, request, pending.raw);
+  return true;
+}
+
+async function pruneInactiveCaches() {
+  // List caches before pending markers. Installs write their marker before
+  // creating a cache, so a cache created after this snapshot cannot be pruned.
+  const names = (await caches.keys()).filter((name) =>
+    name.startsWith(CACHE_SCOPE_PREFIX),
+  );
+  const metadata = await caches.open(CACHE_META_CACHE);
+  const pending = await pendingCacheNames(metadata, names);
+  const keep = new Set([CACHE, ...pending]);
+  await Promise.all(
+    names
+      .filter((name) => !keep.has(name))
+      .map((name) => caches.delete(name)),
+  );
+}
+
+async function precachedUrls(cacheName, cache) {
+  if (PRECACHE_CACHE_NAME === cacheName) return PRECACHED_URLS;
+  const manifestUrl = new URL("offline-assets.json", self.registration.scope).href;
+  const response = await cache.match(manifestUrl);
+  const entries = response
+    ? manifestEntries(await response.json())
+    : [];
+  PRECACHED_URLS = new Set([
+    self.registration.scope,
+    manifestUrl,
+    ...entries.map((entry) =>
+      new URL(entry.path, self.registration.scope).href,
+    ),
+  ]);
+  PRECACHE_CACHE_NAME = cacheName;
+  return PRECACHED_URLS;
 }
 
 self.addEventListener("install", (event) => {
@@ -85,28 +267,31 @@ self.addEventListener("install", (event) => {
       const manifest = await manifestResponse.json();
       const entries = manifestEntries(manifest);
       if (entries.length === 0) throw new Error("Offline asset manifest is empty");
-      CACHE = await cacheNameFor(manifest);
-      const releaseCache = await caches.open(CACHE);
+      const releaseName = await cacheNameFor(manifest);
+      const metadata = await caches.open(CACHE_META_CACHE);
+      const markerUrl = pendingMetaUrl();
+      const installingRecord = pendingRecord(releaseName, false);
+      await metadata.put(markerUrl, new Response(installingRecord));
 
-      const wanted = [self.registration.scope, manifestUrl.href];
-      wanted.push(
-        ...entries.map((entry) => new URL(entry.path, self.registration.scope).href),
-      );
+      try {
+        const releaseCache = await caches.open(releaseName);
+        const wanted = [self.registration.scope, manifestUrl.href];
+        wanted.push(
+          ...entries.map((entry) =>
+            new URL(entry.path, self.registration.scope).href,
+          ),
+        );
 
-      await Promise.all(
-        wanted.map(async (url) => {
-          const response = await fetch(url, { cache: "reload" });
-          if (!response.ok) {
-            throw new Error(`Failed to preload ${url}: ${response.status}`);
-          }
-          await releaseCache.put(url, response);
-        }),
-      );
+        await Promise.all(
+          wanted.map(async (url) => {
+            const response = await fetch(url, { cache: "reload" });
+            if (!response.ok) {
+              throw new Error(`Failed to preload ${url}: ${response.status}`);
+            }
+            await releaseCache.put(url, response);
+          }),
+        );
 
-      // Prune entries from previous deploys (old hashed assets, ad-hoc runtime
-      // responses) so the cache stays bounded per release. Only do this with a
-      // fresh manifest; a failed install never changes the remembered identity.
-      if (Array.isArray(manifest)) {
         const keep = new Set(wanted);
         const keys = await releaseCache.keys();
         await Promise.all(
@@ -114,28 +299,30 @@ self.addEventListener("install", (event) => {
             .filter((request) => !keep.has(request.url))
             .map((request) => releaseCache.delete(request)),
         );
+
+        await rememberPendingCache(metadata, markerUrl, releaseName, true);
+      } catch (error) {
+        try {
+          await caches.delete(releaseName);
+          await removePendingIfUnchanged(
+            metadata,
+            markerUrl,
+            installingRecord,
+          );
+        } catch {
+          // A leftover install marker protects any cache still being written.
+        }
+        throw error;
       }
-      // This is the commit point for the release identity. Restarting a worker
-      // can recover it without relying on process-global JavaScript state.
-      await rememberActiveCache(CACHE);
-    })().then(() => self.skipWaiting()),
+    })(),
   );
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     (async () => {
-      await restoreActiveCache();
-      if (!CACHE) {
-        await self.clients.claim();
-        return;
-      }
-      const keys = await caches.keys();
-      await Promise.all(
-        keys
-          .filter((key) => key.startsWith(CACHE_SCOPE_PREFIX) && key !== CACHE)
-          .map((key) => caches.delete(key)),
-      );
+      const promoted = await activatePendingCache();
+      if (promoted) await pruneInactiveCaches();
       await self.clients.claim();
     })(),
   );
@@ -162,12 +349,23 @@ self.addEventListener("fetch", (event) => {
             .catch(() => {});
           return response;
         }
-        // A transient server error (e.g. during a Pages redeploy) shouldn't
-        // fail a navigation that the warm cache could still serve.
-        if (!response.ok && request.mode === "navigate") {
-          const cache = await caches.open(activeCache);
-          const cached = await cache.match(request) || await cache.match(self.registration.scope);
-          if (cached) return cached;
+        const cache = await caches.open(activeCache);
+        const cached = await cache.match(request);
+        if (
+          cached &&
+          (
+            request.destination === "script" ||
+            request.destination === "style" ||
+            (await precachedUrls(activeCache, cache)).has(url.href)
+          )
+        ) {
+          return cached;
+        }
+        if (request.mode === "navigate") {
+          const navigation =
+            cached ||
+            await cache.match(self.registration.scope);
+          if (navigation) return navigation;
         }
         return response;
       } catch {

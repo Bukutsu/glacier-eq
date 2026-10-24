@@ -36,10 +36,24 @@ const MAX_HID_READ_TIMEOUT_MS: i32 = 1000;
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "cmd", content = "args")]
 enum IpcPayload {
-    Open { path: String },
-    Close { path: String },
-    Write { path: String, data: Vec<u8> },
-    Read { path: String, timeout: i32 },
+    Open {
+        path: String,
+    },
+    Close {
+        path: String,
+    },
+    Write {
+        path: String,
+        data: Vec<u8>,
+    },
+    Read {
+        path: String,
+        timeout: i32,
+    },
+    #[cfg(target_os = "linux")]
+    DawnProInputReport {
+        path: String,
+    },
     Shutdown,
 }
 
@@ -77,6 +91,8 @@ pub struct ElevatedTransport {
 /// upstream; writes on a healthy device take milliseconds. A helper wedged on
 /// suspended USB I/O must not hold the transport mutex forever.
 const RESPONSE_TIMEOUT: Duration = Duration::from_secs(10);
+/// The first Open can wait for an interactive polkit prompt.
+const AUTH_RESPONSE_TIMEOUT: Duration = Duration::from_secs(120);
 /// Bound cleanup to roughly half a second even when a privileged helper ignores
 /// EOF and cannot be killed by the unprivileged parent.
 const REAP_ATTEMPTS: usize = 50;
@@ -128,6 +144,11 @@ impl ElevatedTransport {
         if self.dead {
             return Err("IPC helper is unresponsive".to_string());
         }
+        let timeout = if self.next_id == 1 && matches!(&payload, IpcPayload::Open { .. }) {
+            AUTH_RESPONSE_TIMEOUT
+        } else {
+            RESPONSE_TIMEOUT
+        };
         let id = self.next_id;
         self.next_id += 1;
 
@@ -148,7 +169,7 @@ impl ElevatedTransport {
         }
 
         loop {
-            match self.responses.recv_timeout(RESPONSE_TIMEOUT) {
+            match self.responses.recv_timeout(timeout) {
                 Ok((resp_id, resp)) if resp_id == id => return Ok(resp),
                 Ok(_) => continue, // stale response from an abandoned request
                 Err(RecvTimeoutError::Timeout) => {
@@ -157,9 +178,17 @@ impl ElevatedTransport {
                     return Err("IPC timeout: privileged helper is unresponsive".to_string());
                 }
                 Err(RecvTimeoutError::Disconnected) => {
+                    let error = self
+                        .child
+                        .as_mut()
+                        .and_then(wait_for_child_exit)
+                        .as_ref()
+                        .and_then(authorization_exit_error)
+                        .map(str::to_string)
+                        .unwrap_or_else(|| "IPC read: EOF".to_string());
                     self.dead = true;
                     self.cleanup();
-                    return Err("IPC read: EOF".to_string());
+                    return Err(error);
                 }
             }
         }
@@ -201,6 +230,17 @@ impl ElevatedTransport {
                 None => Ok(vec![]),
             },
             IpcResult::Err(e) => Err(e),
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    pub fn dawn_pro_input_report(&mut self, path: &str) -> Result<Vec<u8>, String> {
+        match self.round_trip(IpcPayload::DawnProInputReport { path: path.into() })? {
+            IpcResult::Ok(Some(data)) => {
+                serde_json::from_value(data).map_err(|e| format!("IPC deser Dawn Pro report: {e}"))
+            }
+            IpcResult::Ok(None) => Err("IPC Dawn Pro report is empty".into()),
+            IpcResult::Err(error) => Err(error),
         }
     }
 
@@ -260,6 +300,25 @@ pub(crate) fn kill_process_group(pid: u32) {
 
 #[cfg(not(unix))]
 pub(crate) fn kill_process_group(_pid: u32) {}
+
+fn wait_for_child_exit(child: &mut Child) -> Option<std::process::ExitStatus> {
+    for attempt in 0..REAP_ATTEMPTS {
+        match child.try_wait() {
+            Ok(Some(status)) => return Some(status),
+            Ok(None) => {}
+            Err(_) => return None,
+        }
+        if attempt + 1 < REAP_ATTEMPTS {
+            thread::sleep(REAP_POLL_INTERVAL);
+        }
+    }
+    None
+}
+
+fn authorization_exit_error(status: &std::process::ExitStatus) -> Option<&'static str> {
+    matches!(status.code(), Some(126) | Some(127))
+        .then_some("Authorization cancelled or failed. No device access was granted.")
+}
 
 fn reap_in_background(mut child: Child) -> thread::JoinHandle<()> {
     thread::spawn(move || {
@@ -423,6 +482,35 @@ pub fn run_helper() -> ! {
     std::process::exit(0);
 }
 
+#[cfg(target_os = "linux")]
+fn read_dawn_pro_input_report(device: &hidapi::HidDevice) -> Result<Vec<u8>, String> {
+    let mut report = [0u8; 9];
+    match device.get_input_report(&mut report) {
+        Ok(length) if length <= report.len() => Ok(report[..length].to_vec()),
+        Ok(length) => Err(format!(
+            "Oversized Dawn Pro reply: expected at most {} bytes, got {length}",
+            report.len()
+        )),
+        Err(error) => {
+            let length = device
+                .read_timeout(&mut report[1..], 500)
+                .map_err(|read_error| {
+                    format!("Dawn Pro report: {error}; interrupt read: {read_error}")
+                })?;
+            if length == 0 {
+                return Err(error.to_string());
+            }
+            if length >= report.len() {
+                return Err(format!(
+                    "Oversized Dawn Pro interrupt reply: expected at most {} bytes, got {length}",
+                    report.len() - 1
+                ));
+            }
+            Ok(report[..length + 1].to_vec())
+        }
+    }
+}
+
 fn ensure_complete_write(expected: usize, actual: usize) -> Result<(), String> {
     // Windows pads short payloads to the device's output report length and
     // reports the padded length. Only a result shorter than our payload is a
@@ -537,6 +625,17 @@ fn dispatch(
                 None => IpcResult::Err("device not open".into()),
             }
         }
+        #[cfg(target_os = "linux")]
+        IpcPayload::DawnProInputReport { path } => match open.get(&path) {
+            Some(device) => match read_dawn_pro_input_report(device) {
+                Ok(bytes) => match serde_json::to_value(bytes) {
+                    Ok(value) => IpcResult::Ok(Some(value)),
+                    Err(error) => IpcResult::Err(format!("Dawn Pro report serialize: {error}")),
+                },
+                Err(error) => IpcResult::Err(error),
+            },
+            None => IpcResult::Err("device not open".into()),
+        },
         IpcPayload::Shutdown => IpcResult::Ok(None),
     }
 }
@@ -544,6 +643,28 @@ fn dispatch(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn first_open_uses_the_interactive_authorization_deadline() {
+        assert_eq!(AUTH_RESPONSE_TIMEOUT, Duration::from_secs(120));
+        assert_eq!(RESPONSE_TIMEOUT, Duration::from_secs(10));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn maps_pkexec_authorization_exit_codes_to_a_clear_error() {
+        use std::os::unix::process::ExitStatusExt;
+
+        for code in [126, 127] {
+            let status = std::process::ExitStatus::from_raw(code << 8);
+            assert_eq!(
+                authorization_exit_error(&status),
+                Some("Authorization cancelled or failed. No device access was granted."),
+            );
+        }
+        let other = std::process::ExitStatus::from_raw(1 << 8);
+        assert_eq!(authorization_exit_error(&other), None);
+    }
 
     #[test]
     fn bounds_helper_request_lines_before_deserialization() {

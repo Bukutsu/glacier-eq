@@ -979,16 +979,13 @@ export async function invoke<T = unknown>(
   const expectedSession = activeSessionId;
   const operation = () => {
     if (
-      (cmd === "ja11_control" ||
-        cmd === "melody_control" ||
-        cmd === "melody_name" ||
-        cmd === "set_user_eq_bank" ||
-        cmd === "set_eq_state" ||
-        cmd === "apply_eq_state" ||
-        cmd === "live_apply_eq_state") &&
+      WEBHID_TRANSPORT_COMMANDS.has(cmd) &&
+      cmd !== "connect_device" &&
+      cmd !== "disconnect_device" &&
       expectedSession !== activeSessionId
-    )
+    ) {
       throw new Error("Device session changed; operation was cancelled");
+    }
     return invokeWeb<T>(cmd, args);
   };
   return WEBHID_TRANSPORT_COMMANDS.has(cmd)

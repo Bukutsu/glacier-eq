@@ -51,16 +51,16 @@ mod tests {
     fn shipped_filter_is_current() {
         assert_eq!(
             super::usb_device_filter(),
-            include_str!("../../../src-tauri/gen/android/app/src/main/res/xml/usb_device_filter.xml"),
-            "regenerate with cargo run -p glacier-core --bin glacier-eq-cli -- android-usb-filter > src-tauri/gen/android/app/src/main/res/xml/usb_device_filter.xml"
+            include_str!("../../../scripts/android/usb_device_filter.xml"),
+            "regenerate with cargo run -p glacier-core --bin glacier-eq-cli -- android-usb-filter > scripts/android/usb_device_filter.xml"
         );
     }
 
     #[test]
     fn manifest_opens_the_app_for_listed_dacs_only_when_opted_in() {
-        let manifest =
-            include_str!("../../../src-tauri/gen/android/app/src/main/AndroidManifest.xml");
-        // HidPlugin enables this alias by name; it must ship disabled.
+        let manifest = include_str!("../../../scripts/android/usb-attach-launcher.xml");
+        // The release overlay must restore this alias after Tauri regenerates
+        // its manifest; HidPlugin enables it by name and it must ship disabled.
         let alias = manifest
             .split("<activity-alias")
             .nth(1)

@@ -234,10 +234,24 @@ export const DeviceView = memo(function DeviceView({
     scheduleUtilityTask.enqueue(field, async (isCurrent) => {
       if (!isCurrent()) return;
       try {
-        await invoke(command, args);
+        const actual = await invoke<DeviceUtilityState>(command, args);
+        if (
+          !actual ||
+          typeof actual !== "object" ||
+          typeof actual[field] !== typeof value
+        ) {
+          throw new Error("Device returned an invalid utility readback.");
+        }
+        const observed = actual[field];
         const confirmed = confirmedUtilityRef.current;
         if (confirmed && isCurrent()) {
-          confirmedUtilityRef.current = setField(confirmed, field, value);
+          confirmedUtilityRef.current = setField(confirmed, field, observed);
+          const latest = utilityRef.current;
+          if (latest && fieldRevisionsRef.current[field] === revision) {
+            const corrected = setField(latest, field, observed);
+            utilityRef.current = corrected;
+            if (mountedRef.current) setUtility(corrected);
+          }
         }
       } catch (err) {
         if (!isCurrent()) return;

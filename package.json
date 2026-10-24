@@ -14,7 +14,7 @@
     "build:desktop": "npm run check:locales && tsc -p tsconfig.desktop.json && vite build --mode desktop",
     "test": "vitest run",
     "test:wasm": "npm run wasm:build && vitest run --config vitest.wasm.config.ts",
-    "test:scripts": "node --test scripts/make-update-manifest.test.mjs",
+    "test:scripts": "node --test scripts/make-update-manifest.test.mjs scripts/offlineAssets.test.mjs scripts/android/ensure-android-project.test.mjs",
     "verify": "npm run format:check && npm run check:locales && npm test && npm run test:scripts && npm run typecheck && npm run test:wasm",
     "format": "prettier --write \"src/**/*.{ts,tsx}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx}\"",

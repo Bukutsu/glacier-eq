@@ -36,6 +36,15 @@ test("ignores unsigned and unrelated assets", () => {
   assert.equal(Object.keys(manifest.platforms).length, TARGETS.length);
 });
 
+test("fails when a selected asset has an empty signature", () => {
+  const signatures = signed(names);
+  signatures.set(names[0], " \n\t");
+  assert.throws(
+    () => buildManifest(input(signatures)),
+    /linux-x86_64-appimage: signature .* is empty/,
+  );
+});
+
 test("fails when a platform has no signed asset", () => {
   assert.throws(
     () => buildManifest(input(signed(names.filter((n) => !n.endsWith(".msi"))))),

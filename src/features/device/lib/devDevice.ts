@@ -400,24 +400,24 @@ export function invokeDevDummy<T>(
         throw new Error(i18n.t("device:devDevice.unknownReconstructionFilter"));
       }
       preview.utility.filter_mode = String(args.mode);
-      break;
+      return structuredClone(preview.utility) as T;
     }
     case "set_dac_work_mode":
       requireWalkplay();
       preview.utility.amp_mode_class_ab = boolean(args.isClassAb);
-      break;
+      return structuredClone(preview.utility) as T;
     case "set_dac_output_gain":
       requireWalkplay();
       preview.utility.high_gain_mode = boolean(args.isHighGain);
-      break;
+      return structuredClone(preview.utility) as T;
     case "set_mic_volume":
       requireWalkplay();
       preview.utility.mic_volume_db = integer(args.volumeDb, -15, 15);
-      break;
+      return structuredClone(preview.utility) as T;
     case "set_dac_balance":
       requireWalkplay();
       preview.utility.channel_balance = integer(args.balance, -15, 15);
-      break;
+      return structuredClone(preview.utility) as T;
     case "reset_device_eq": {
       if (preview.device.controls === "melody") {
         const slot =

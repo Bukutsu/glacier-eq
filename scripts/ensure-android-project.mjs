@@ -39,6 +39,7 @@ function applyAndroidOverlay() {
     ["MainActivity.kt", join(mainRoot, "java", "com", "bukutsu", "glaciereq", "MainActivity.kt")],
     ["themes.xml", join(mainRoot, "res", "values", "themes.xml")],
     ["themes.xml", join(mainRoot, "res", "values-night", "themes.xml")],
+    ["usb_device_filter.xml", join(mainRoot, "res", "xml", "usb_device_filter.xml")],
   ];
   for (const [source, target] of overlays) {
     const content = readFileSync(join(sourceRoot, source));
@@ -46,6 +47,46 @@ function applyAndroidOverlay() {
     mkdirSync(dirname(target), { recursive: true });
     writeFileSync(target, content);
   }
+
+  const manifestPath = join(mainRoot, "AndroidManifest.xml");
+  const manifest = readFileSync(manifestPath, "utf8");
+  const aliasPath = join(sourceRoot, "usb-attach-launcher.xml");
+  const aliasMarker = 'android:name=".UsbAttachLauncher"';
+  let updatedManifest = manifest;
+  if (!updatedManifest.includes(aliasMarker)) {
+    if (!updatedManifest.includes('android:name=".MainActivity"')) {
+      throw new Error("Generated Android manifest is missing .MainActivity");
+    }
+    const closingTag = "</application>";
+    const insertionPoint = updatedManifest.lastIndexOf(closingTag);
+    if (
+      insertionPoint < 0 ||
+      updatedManifest.indexOf(closingTag) !== insertionPoint
+    ) {
+      throw new Error("Generated Android manifest has no unique application element");
+    }
+    const alias = readFileSync(aliasPath, "utf8");
+    updatedManifest =
+      updatedManifest.slice(0, insertionPoint) +
+      alias +
+      updatedManifest.slice(insertionPoint);
+  }
+  const alias = updatedManifest
+    .split("<activity-alias")
+    .slice(1)
+    .map((part) => part.split("</activity-alias>")[0])
+    .find((part) => part.includes(aliasMarker));
+  if (
+    !alias ||
+    !alias.includes('android:targetActivity=".MainActivity"') ||
+    !alias.includes('android:enabled="false"') ||
+    !alias.includes("android.hardware.usb.action.USB_DEVICE_ATTACHED") ||
+    !alias.includes('android:resource="@xml/usb_device_filter"') ||
+    !existsSync(join(mainRoot, "res", "xml", "usb_device_filter.xml"))
+  ) {
+    throw new Error("USB attach launcher overlay is incomplete");
+  }
+  if (updatedManifest !== manifest) writeFileSync(manifestPath, updatedManifest);
 }
 
 function requireReleaseSigning() {

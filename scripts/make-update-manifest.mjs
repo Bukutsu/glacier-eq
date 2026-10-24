@@ -36,8 +36,12 @@ export function buildManifest({ signatures, version, tag, repo, notes, pubDate }
       );
     }
     const [name] = matches;
+    const signature = signatures.get(name)?.trim();
+    if (!signature) {
+      throw new Error(`updater target ${key}: signature for ${name} is empty`);
+    }
     platforms[key] = {
-      signature: signatures.get(name),
+      signature,
       url: `https://github.com/${repo}/releases/download/${tag}/${encodeURIComponent(name)}`,
     };
   }

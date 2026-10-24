@@ -234,7 +234,9 @@ impl ProfileStore {
         validate_name(name)?;
         self.ensure_profiles_directory()?;
         let _lock = self.lock_profiles()?;
-        if !self.case_variant_paths(name).is_empty() {
+        if !self.case_variant_paths(name).is_empty()
+            || path_entry_exists(&self.dir.join(format!("{name}.txt")))?
+        {
             return Ok(false);
         }
         // A surviving case-variant sibling is a warning the CLI prints, not a
@@ -249,7 +251,13 @@ impl ProfileStore {
         if content.len() as u64 > MAX_PROFILE_BYTES {
             return Err("Profile exceeds maximum size (1 MiB)".into());
         }
+        let variants = self.case_variant_paths(name);
         let path = self.path(name)?;
+        if variants.is_empty() && path_entry_exists(&path)? {
+            return Err(format!(
+                "A different profile already occupies this filesystem name: {name}"
+            ));
+        }
         let nonce = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
@@ -343,10 +351,12 @@ impl ProfileStore {
             .into_iter()
             .find(|path| matches!(read_profile(&self.dir, path), Ok((Some(_), _))))
             .ok_or_else(|| format!("Profile not found: {from}"))?;
-        if !from.eq_ignore_ascii_case(to) && !self.case_variant_paths(to).is_empty() {
+        let destination = self.dir.join(format!("{to}.txt"));
+        if !from.eq_ignore_ascii_case(to)
+            && (!self.case_variant_paths(to).is_empty() || path_entry_exists(&destination)?)
+        {
             return Err(format!("A profile named \"{to}\" already exists"));
         }
-        let destination = self.dir.join(format!("{to}.txt"));
         // Same-identity siblings would resurrect the old name, so drop them
         // before the source moves; a case-only rename keeps them out of the way.
         for sibling in self.case_variant_paths(from) {
@@ -400,6 +410,17 @@ impl ProfileStore {
             .collect::<Vec<PathBuf>>();
         paths.sort_by(|left, right| left.file_stem().cmp(&right.file_stem()));
         paths
+    }
+}
+
+fn path_entry_exists(path: &Path) -> Result<bool, String> {
+    match std::fs::symlink_metadata(path) {
+        Ok(_) => Ok(true),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
+        Err(error) => Err(format!(
+            "Failed to inspect profile path {}: {error}",
+            path.display()
+        )),
     }
 }
 
@@ -905,6 +926,44 @@ mod tests {
         assert!(store.save_if_absent("Daily", &peq).unwrap());
         assert!(!store.save_if_absent("daily", &peq).unwrap());
         assert_eq!(store.list().unwrap().len(), 1);
+        std::fs::remove_dir_all(base).unwrap();
+    }
+
+    #[test]
+    fn filesystem_casefold_collisions_never_replace_another_profile() {
+        let base = temporary_dir();
+        let store = ProfileStore::new(&base).unwrap();
+        let existing = PEQData {
+            filters: vec![crate::Filter::enabled(0, true)],
+            global_gain: -1.0,
+        };
+        let other = PEQData {
+            filters: vec![crate::Filter::enabled(1, true)],
+            global_gain: -2.0,
+        };
+        let replacement = PEQData {
+            filters: vec![],
+            global_gain: -6.0,
+        };
+        store.save("Édition", &existing).unwrap();
+
+        // APFS/NTFS default volumes resolve these spellings to the same entry;
+        // case-sensitive test volumes should not impose that behavior.
+        if !store.directory().join("édition.txt").exists() {
+            std::fs::remove_dir_all(base).unwrap();
+            return;
+        }
+
+        store.save("Other", &other).unwrap();
+        assert!(!store.save_if_absent("édition", &replacement).unwrap());
+        assert!(store.save("édition", &replacement).is_err());
+        assert!(store
+            .rename("Other", "édition")
+            .unwrap_err()
+            .contains("already exists"));
+        assert_eq!(store.load("Édition").unwrap().data, existing);
+        assert_eq!(store.load("Other").unwrap().data, other);
+
         std::fs::remove_dir_all(base).unwrap();
     }
 

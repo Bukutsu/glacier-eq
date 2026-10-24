@@ -462,6 +462,7 @@ fn sweep_export_dir(dir: &Path) {
         };
         let Some(nonce) = name
             .strip_prefix(EXPORT_TEMP_PREFIX)
+            .or_else(|| name.strip_prefix(ATOMIC_TEMP_PREFIX))
             .and_then(|name| name.strip_suffix(".tmp"))
         else {
             continue;
@@ -469,10 +470,10 @@ fn sweep_export_dir(dir: &Path) {
         if nonce.len() < 18 || !nonce.chars().all(|character| character.is_ascii_digit()) {
             continue;
         }
-        // The prefix is reserved for Glacier EQ and the directory is recorded
-        // by the exporter itself. Do not require the in-file marker: a crash
-        // can truncate it before the temp is renamed, leaving a recoverable
-        // orphan with the same reserved name.
+        // The prefixes are reserved for Glacier EQ and the directory is
+        // recorded by an app write. Do not require the export marker: a crash
+        // can truncate it before rename, and dialog saves use atomic_write's
+        // separate prefix.
         match fs::metadata(&path).and_then(|metadata| metadata.modified()) {
             Ok(modified) if modified.elapsed().unwrap_or_default() < STALE_TEMP_AGE => {}
             Ok(_) => {
@@ -714,7 +715,12 @@ mod tests {
         let orphan = external.join(format!("{EXPORT_TEMP_PREFIX}1700000000000000004.tmp"));
         fs::write(&orphan, EXPORT_TEMP_MARKER).unwrap();
         set_stale(&orphan);
+        let dialog_orphan = external.join(format!("{ATOMIC_TEMP_PREFIX}1700000000000000008.tmp"));
+        fs::write(&dialog_orphan, b"dialog temp").unwrap();
+        set_stale(&dialog_orphan);
         let fresh = external.join(format!("{EXPORT_TEMP_PREFIX}1700000000000000005.tmp"));
+        let dialog_fresh = external.join(format!("{ATOMIC_TEMP_PREFIX}1700000000000000009.tmp"));
+        fs::write(&dialog_fresh, b"live dialog temp").unwrap();
         fs::write(&fresh, EXPORT_TEMP_MARKER).unwrap();
         let unmarked = external.join(format!("{EXPORT_TEMP_PREFIX}1700000000000000006.tmp"));
         fs::write(&unmarked, b"user file").unwrap();
@@ -728,9 +734,17 @@ mod tests {
 
         assert!(
             !orphan.exists(),
-            "a stale temp in a recorded dir must be swept"
+            "a stale export temp in a recorded dir must be swept"
+        );
+        assert!(
+            !dialog_orphan.exists(),
+            "a stale dialog-save temp in a recorded dir must be swept"
         );
         assert!(fresh.exists(), "a fresh temp may be a sibling's live write");
+        assert!(
+            dialog_fresh.exists(),
+            "a fresh dialog temp must be preserved"
+        );
         assert!(
             !unmarked.exists(),
             "a stale reserved export orphan must be swept"

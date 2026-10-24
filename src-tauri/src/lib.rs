@@ -184,16 +184,43 @@ fn read_bounded_utf8(reader: impl std::io::Read) -> Result<String, String> {
     String::from_utf8(bytes).map_err(|e| format!("Failed to decode file as UTF-8: {e}"))
 }
 
+#[cfg(unix)]
+fn open_selected_path(path: &Path) -> std::io::Result<std::fs::File> {
+    let mut options = std::fs::OpenOptions::new();
+    options.read(true).custom_flags(libc::O_NONBLOCK);
+    options.open(path)
+}
+
+#[cfg(not(unix))]
+fn open_selected_path(path: &Path) -> std::io::Result<std::fs::File> {
+    std::fs::File::open(path)
+}
+
+fn open_selected_text(path: &Path) -> Result<std::fs::File, String> {
+    // The user explicitly chose this path in the native file picker, so follow
+    // a selected symlink. Keep nonblocking open and the regular-file check to
+    // avoid hanging on FIFOs or reading device nodes.
+    let file = open_selected_path(path).map_err(|error| format!("Failed to read file: {error}"))?;
+    let metadata = file
+        .metadata()
+        .map_err(|error| format!("Failed to inspect file: {error}"))?;
+    if !metadata.is_file() {
+        return Err("Refused: only regular files can be read".into());
+    }
+    Ok(file)
+}
+
 fn read_selected_text(app: &tauri::AppHandle, path: FilePath) -> Result<String, String> {
     let file = match path {
-        FilePath::Path(path) => open_no_follow(&path, false),
+        FilePath::Path(path) => open_selected_text(&path),
         path @ FilePath::Url(_) => {
             let mut options = OpenOptions::new();
             options.read(true);
-            app.fs().open(path, options)
+            app.fs()
+                .open(path, options)
+                .map_err(|error| format!("Failed to read file: {error}"))
         }
-    }
-    .map_err(|error| format!("Failed to read file: {error}"))?;
+    }?;
     read_bounded_utf8(file)
 }
 
@@ -570,6 +597,29 @@ pub fn run() {
 mod tests {
     use super::*;
     use std::io::Cursor;
+
+    #[cfg(unix)]
+    #[test]
+    fn selected_symlink_opens_its_regular_target() {
+        use std::os::unix::fs::symlink;
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!("glacier-selected-symlink-{nonce}"));
+        std::fs::create_dir(&dir).unwrap();
+        let target = dir.join("profile.txt");
+        let selected = dir.join("selected.txt");
+        std::fs::write(&target, "selected profile").unwrap();
+        symlink(&target, &selected).unwrap();
+
+        let file = open_selected_text(&selected).unwrap();
+        assert_eq!(read_bounded_utf8(file).unwrap(), "selected profile");
+
+        std::fs::remove_dir_all(dir).unwrap();
+    }
 
     #[test]
     fn bounded_text_reader_accepts_utf8_within_limit() {

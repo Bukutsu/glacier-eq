@@ -199,6 +199,59 @@ function peqWithBands(count: number): PEQData {
   };
 }
 
+describe("WebHID queue session fence", () => {
+  it("rejects previously unfenced mutations after a replacement session connects", async () => {
+    const current = fakeHidDevice();
+    await connectWebHid(current);
+    const currentPath = (
+      await invoke<Array<{ path: string }>>("list_devices")
+    )[0].path;
+
+    const replacement = fakeHidDevice();
+    replacement.opened = false;
+    let releaseOpen = () => {};
+    let notifyOpenStarted = () => {};
+    const openStarted = new Promise<void>((resolve) => {
+      notifyOpenStarted = resolve;
+    });
+    replacement.open = vi.fn(async () => {
+      notifyOpenStarted();
+      await new Promise<void>((resolve) => {
+        releaseOpen = resolve;
+      });
+    });
+    hidMock.devices = [current, replacement];
+    const devices = await invoke<Array<{ path: string }>>("list_devices");
+    const replacementPath = devices.find(
+      (device) => device.path !== currentPath,
+    )!.path;
+    const mutations: [string, Record<string, unknown>][] = [
+      ["set_dac_filter_mode", { mode: "NON-OS" }],
+      ["set_dac_work_mode", { isClassAb: true }],
+      ["set_dac_output_gain", { isHighGain: true }],
+      ["set_dac_balance", { balance: 0 }],
+      ["set_mic_volume", { volumeDb: 0 }],
+      ["reset_device_eq", {}],
+      ["reset_device_controls", {}],
+      ["execute_factory_reset", {}],
+    ];
+
+    wasm.device_operation.mockClear();
+    const connecting = invoke("connect_device", { path: replacementPath });
+    const queued = Promise.all(
+      mutations.map(async ([command, args]) => {
+        await expect(invoke(command, args)).rejects.toThrow("session changed");
+      }),
+    );
+    await openStarted;
+    releaseOpen();
+    await connecting;
+    await queued;
+    expect(wasm.device_operation).not.toHaveBeenCalled();
+    await invoke("disconnect_device");
+  });
+});
+
 describe("SNOWSKY Melody browser adapter", () => {
   const melody: SupportedDeviceInfo = {
     ...profile,

@@ -15,11 +15,18 @@ type WorkerEvent =
       waitUntil(promise: Promise<unknown>): void;
     }
   | {
-      request: { method: string; url: string; mode: string };
+      request: {
+        method: string;
+        url: string;
+        mode: string;
+        destination: string;
+      };
       respondWith(response: Promise<Response>): void;
     };
 
-function cacheStorage() {
+function cacheStorage(
+  beforePut?: (cacheName: string, key: string) => Promise<void>,
+) {
   const registry = new Map<string, Map<string, Response>>();
   const entries = (name: string) => {
     if (!registry.has(name)) registry.set(name, new Map());
@@ -35,7 +42,9 @@ function cacheStorage() {
         request: string | URL | { url: string },
         response: Response,
       ) => {
-        entries(name).set(key(request), response.clone());
+        const requestKey = key(request);
+        await beforePut?.(name, requestKey);
+        entries(name).set(requestKey, response.clone());
       },
       match: async (request: string | URL | { url: string }) =>
         entries(name).get(key(request))?.clone(),
@@ -58,10 +67,16 @@ function cacheStorage() {
 function worker(
   caches: ReturnType<typeof cacheStorage>,
   fetch: (request: string | URL | { url: string }) => Promise<Response>,
+  buildId = "test-build",
 ) {
   const listeners: Record<string, (event: WorkerEvent) => void> = {};
   const skipWaiting = vi.fn();
-  vm.runInNewContext(source, {
+  const claim = vi.fn();
+  const workerSource = source.replace(
+    '"__GLACIER_EQ_BUILD_ASSET_SET_ID__"',
+    JSON.stringify(buildId),
+  );
+  vm.runInNewContext(workerSource, {
     self: {
       registration: { scope },
       addEventListener: (
@@ -70,7 +85,7 @@ function worker(
       ) => {
         listeners[name] = listener;
       },
-      clients: { claim: vi.fn() },
+      clients: { claim },
       skipWaiting,
     },
     location: { origin: "https://example.test" },
@@ -85,6 +100,7 @@ function worker(
   });
   return {
     skipWaiting,
+    claim,
     install: () => {
       let pending: Promise<unknown> | undefined;
       listeners.install({
@@ -95,10 +111,20 @@ function worker(
       expect(pending).toBeDefined();
       return pending!;
     },
-    fetch: (url: string) => {
+    activate: () => {
+      let pending: Promise<unknown> | undefined;
+      listeners.activate({
+        waitUntil: (promise) => {
+          pending = promise;
+        },
+      });
+      expect(pending).toBeDefined();
+      return pending!;
+    },
+    fetch: (url: string, mode = "no-cors", destination = "") => {
       let pending: Promise<Response> | undefined;
       listeners.fetch({
-        request: { method: "GET", url, mode: "no-cors" },
+        request: { method: "GET", url, mode, destination },
         respondWith: (promise) => {
           pending = promise;
         },
@@ -139,6 +165,194 @@ describe("service worker preload", () => {
     expect(await (await metadata.match(metadataUrl))!.text()).toBe(oldName);
   });
 
+  it("keeps the active release until a staged update activates", async () => {
+    const caches = cacheStorage();
+    const v1 = worker(caches, manifestFetch(["./lazy-v1.js"]), "v1");
+    await v1.install();
+    await v1.activate();
+    expect(v1.skipWaiting).not.toHaveBeenCalled();
+
+    const metadata = await caches.open("glacier-eq-cache-meta-v1");
+    const activeUrl = scope + "__glacier_eq_active_cache__";
+    const pendingUrl = (buildId: string) =>
+      scope + `__glacier_eq_pending_cache__/${buildId}`;
+    const v1Name = await (await metadata.match(activeUrl))!.text();
+    expect(await metadata.match(pendingUrl("v1"))).toBeUndefined();
+
+    const v2 = worker(caches, manifestFetch(["./lazy-v2.js"]), "v2");
+    await v2.install();
+    expect(v2.skipWaiting).not.toHaveBeenCalled();
+    const v2Record = await (await metadata.match(pendingUrl("v2")))!.json();
+    const v2Name = v2Record.name as string;
+    expect(v2Name).not.toBe(v1Name);
+    expect(await (await metadata.match(activeUrl))!.text()).toBe(v1Name);
+    expect(await caches.keys()).toContain(v1Name);
+    expect(await caches.keys()).toContain(v2Name);
+
+    const oldController = worker(caches, async (request) => {
+      const url =
+        typeof request === "string" || request instanceof URL
+          ? String(request)
+          : request.url;
+      return url.endsWith("lazy-v1.js")
+        ? new Response("removed by deploy", { status: 404 })
+        : new Response("current asset");
+    });
+    const staleChunk = await oldController.fetch(
+      scope + "lazy-v1.js",
+      "cors",
+      "script",
+    );
+    expect(await staleChunk.text()).toBe("asset");
+
+    // Activation can restart in a fresh worker context; the staged identity
+    // survives that restart and becomes active only at the activation boundary.
+    const restartedV2 = worker(caches, async () => new Response("asset"), "v2");
+    await restartedV2.activate();
+    expect(await (await metadata.match(activeUrl))!.text()).toBe(v2Name);
+    expect(await metadata.match(pendingUrl("v2"))).toBeUndefined();
+    expect(await caches.keys()).not.toContain(v1Name);
+    expect(await caches.keys()).toContain(v2Name);
+    expect(restartedV2.claim).toHaveBeenCalledOnce();
+  });
+
+  it("keeps an overlapping install intact while the waiting worker activates", async () => {
+    const activeUrl = scope + "__glacier_eq_active_cache__";
+    let pauseActiveWrite = false;
+    let releaseActiveWrite = () => {};
+    let notifyActiveWrite = () => {};
+    const activeWriteReached = new Promise<void>((resolve) => {
+      notifyActiveWrite = resolve;
+    });
+    const activeWriteGate = new Promise<void>((resolve) => {
+      releaseActiveWrite = resolve;
+    });
+    const caches = cacheStorage(async (cacheName, key) => {
+      if (
+        pauseActiveWrite &&
+        cacheName === "glacier-eq-cache-meta-v1" &&
+        key === activeUrl
+      ) {
+        pauseActiveWrite = false;
+        notifyActiveWrite();
+        await activeWriteGate;
+      }
+    });
+    const metadata = await caches.open("glacier-eq-cache-meta-v1");
+    const pendingUrl = (buildId: string) =>
+      scope + `__glacier_eq_pending_cache__/${buildId}`;
+
+    const v1 = worker(caches, manifestFetch(["./lazy-v1.js"]), "v1");
+    await v1.install();
+    await v1.activate();
+    const v1Name = await (await metadata.match(activeUrl))!.text();
+
+    const v2 = worker(caches, manifestFetch(["./lazy-v2.js"]), "v2");
+    await v2.install();
+    const v2Name = (await (await metadata.match(pendingUrl("v2")))!.json())
+      .name as string;
+
+    pauseActiveWrite = true;
+    const activatingV2 = v2.activate();
+    await activeWriteReached;
+
+    const v3 = worker(caches, manifestFetch(["./lazy-v3.js"]), "v3");
+    await v3.install();
+    const v3Name = (await (await metadata.match(pendingUrl("v3")))!.json())
+      .name as string;
+
+    releaseActiveWrite();
+    await activatingV2;
+    expect(await caches.keys()).toContain(v2Name);
+    expect(await caches.keys()).toContain(v3Name);
+    expect(await metadata.match(pendingUrl("v3"))).toBeDefined();
+
+    const restartedV3 = worker(caches, async () => new Response("asset"), "v3");
+    await restartedV3.activate();
+    expect(await (await metadata.match(activeUrl))!.text()).toBe(v3Name);
+    expect(await metadata.match(pendingUrl("v3"))).toBeUndefined();
+    expect(await caches.keys()).toContain(v3Name);
+    expect(await caches.keys()).not.toContain(v1Name);
+    expect(await caches.keys()).not.toContain(v2Name);
+  });
+
+  it("keeps the active cache when a pending marker names a missing cache", async () => {
+    const caches = cacheStorage();
+    const metadata = await caches.open("glacier-eq-cache-meta-v1");
+    const activeUrl = scope + "__glacier_eq_active_cache__";
+    const pendingUrl = scope + "__glacier_eq_pending_cache__/v2";
+    const v1 = worker(caches, manifestFetch(["./lazy-v1.js"]), "v1");
+    await v1.install();
+    await v1.activate();
+    const v1Name = await (await metadata.match(activeUrl))!.text();
+
+    const missingName =
+      "glacier-eq-v2-https%3A%2F%2Fexample.test%2Fapp%2F|missing";
+    await metadata.put(
+      pendingUrl,
+      Response.json({ buildId: "v2", name: missingName, complete: true }),
+    );
+    const v2 = worker(caches, manifestFetch(["./lazy-v2.js"]), "v2");
+    await v2.activate();
+
+    expect(await (await metadata.match(activeUrl))!.text()).toBe(v1Name);
+    expect(await caches.keys()).toContain(v1Name);
+    expect(await caches.keys()).not.toContain(missingName);
+    expect(await metadata.match(pendingUrl)).toBeDefined();
+  });
+
+  it("falls back to cached script, style, and precached WASM on HTTP errors", async () => {
+    const caches = cacheStorage();
+    const manifest = ["./lazy.js", "./late.css", "./module.wasm"];
+    let unavailable = false;
+    const fetcher = async (request: string | URL | { url: string }) => {
+      const url =
+        typeof request === "string" || request instanceof URL
+          ? String(request)
+          : request.url;
+      if (url.endsWith("offline-assets.json")) return Response.json(manifest);
+      if (unavailable) return new Response("not found", { status: 404 });
+      return new Response(`cached:${url}`);
+    };
+    const instance = worker(caches, fetcher, "fetch-fallback");
+    await instance.install();
+    await instance.activate();
+    unavailable = true;
+
+    for (const [path, destination] of [
+      ["lazy.js", "script"],
+      ["late.css", "style"],
+      ["module.wasm", ""],
+    ] as const) {
+      const response = await instance.fetch(scope + path, "cors", destination);
+      expect(response.status).toBe(200);
+      expect(await response.text()).toBe(`cached:${scope}${path}`);
+    }
+
+    const uncached = await instance.fetch(scope + "uncached.json", "cors");
+    expect(uncached.status).toBe(404);
+    expect(await uncached.text()).toBe("not found");
+
+    const navigation = await instance.fetch(
+      scope + "nested/route",
+      "navigate",
+      "document",
+    );
+    expect(navigation.status).toBe(200);
+    expect(await navigation.text()).toBe(`cached:${scope}`);
+
+    unavailable = false;
+    const offline = worker(
+      caches,
+      async () => {
+        throw new Error("offline");
+      },
+      "offline-fallback",
+    );
+    const cachedWasm = await offline.fetch(scope + "module.wasm", "cors");
+    expect(await cachedWasm.text()).toBe(`cached:${scope}module.wasm`);
+  });
+
   it("changes the release cache when a public asset digest changes", async () => {
     const caches = cacheStorage();
     for (const hash of ["hash-a", "hash-b"]) {
@@ -157,6 +371,50 @@ describe("service worker preload", () => {
         "asset",
       );
     }
+  });
+
+  it("fails closed when a pending marker is unreadable", async () => {
+    const caches = cacheStorage();
+    const pendingName =
+      "glacier-eq-v2-https%3A%2F%2Fexample.test%2Fapp%2F|unknown";
+    const pendingCache = await caches.open(pendingName);
+    await pendingCache.put(`${scope}partial.js`, new Response("partial"));
+    const metadata = await caches.open("glacier-eq-cache-meta-v1");
+    await metadata.put(
+      `${scope}__glacier_eq_pending_cache__/broken`,
+      new Response("{"),
+    );
+    const instance = worker(caches, async () => {
+      throw new Error("network unavailable");
+    });
+
+    await expect(instance.fetch(`${scope}partial.js`)).rejects.toThrow(
+      "network unavailable",
+    );
+  });
+
+  it("does not fall back to a cache protected by an incomplete install marker", async () => {
+    const caches = cacheStorage();
+    const pendingName =
+      "glacier-eq-v2-https%3A%2F%2Fexample.test%2Fapp%2F|pending";
+    const pendingCache = await caches.open(pendingName);
+    await pendingCache.put(`${scope}partial.js`, new Response("partial"));
+    const metadata = await caches.open("glacier-eq-cache-meta-v1");
+    await metadata.put(
+      `${scope}__glacier_eq_pending_cache__/installing`,
+      Response.json({
+        buildId: "installing",
+        name: pendingName,
+        complete: false,
+      }),
+    );
+    const instance = worker(caches, async () => {
+      throw new Error("network unavailable");
+    });
+
+    await expect(instance.fetch(`${scope}partial.js`)).rejects.toThrow(
+      "network unavailable",
+    );
   });
 
   it("does not fall back to another scope's cache when no active cache exists", async () => {
@@ -179,7 +437,9 @@ describe("service worker preload", () => {
 
   it("restores the active release cache after a worker restart", async () => {
     const caches = cacheStorage();
-    await worker(caches, manifestFetch(["./app.js"])).install();
+    const first = worker(caches, manifestFetch(["./app.js"]), "first");
+    await first.install();
+    await first.activate();
 
     // A second release makes the single-cache migration fallback insufficient.
     const stale = await caches.open(

@@ -209,6 +209,69 @@ fn queue_reset_eq_read(io: &mut FakeIo, gain: i8, nonce_start: u8) {
 }
 
 #[test]
+fn a_utility_setter_confirms_readback_before_reporting_success() {
+    crate::device::session::block_on(async {
+        let profile = get_supported_device(0x3302, 0x43e8).unwrap();
+        let mut io = FakeIo::default();
+        queue_utility_status(&mut io, 1, 1, 0, 4, 0, 0);
+        // The filter change lands. Unrelated mic readback can drift by one dB
+        // on this family, so it must not turn a verified filter write into a
+        // false failure.
+        queue_utility_status(&mut io, 2, 1, 0, 5, 0, 0);
+
+        let actual = DeviceSession::new(&mut io, profile)
+            .set_filter_mode("FAST-PC")
+            .await
+            .expect("the readback confirms the requested filter");
+
+        assert_eq!(actual.filter_mode, "FAST-PC");
+        assert_eq!(actual.mic_volume_db, 5);
+        assert_eq!(register_writes(&io, CMD_FILTER_MODE), 1);
+        assert_eq!(register_writes(&io, CMD_FLASH_EQ), 1);
+    });
+}
+
+#[test]
+fn a_silently_dropped_utility_setter_is_rolled_back_and_rejected() {
+    crate::device::session::block_on(async {
+        let profile = get_supported_device(0x3302, 0x43e8).unwrap();
+        let mut io = FakeIo::default();
+        queue_utility_status(&mut io, 1, 1, 0, 4, 0, 0); // before
+        queue_utility_status(&mut io, 1, 1, 0, 4, 0, 0); // write was dropped
+        queue_utility_status(&mut io, 1, 1, 0, 4, 0, 0); // rollback verified
+
+        let error = DeviceSession::new(&mut io, profile)
+            .set_filter_mode("FAST-PC")
+            .await
+            .expect_err("a dropped control write must not report success");
+
+        assert!(error.contains("Control verification failed"), "{error}");
+        assert!(error.contains("previous settings restored"), "{error}");
+        assert_eq!(register_writes(&io, CMD_FILTER_MODE), 2);
+        assert_eq!(register_writes(&io, CMD_FLASH_EQ), 2);
+    });
+}
+
+#[test]
+fn a_one_db_mic_volume_difference_is_not_accepted_as_the_requested_value() {
+    crate::device::session::block_on(async {
+        let profile = get_supported_device(0x3302, 0x43e8).unwrap();
+        let mut io = FakeIo::default();
+        queue_utility_status(&mut io, 1, 1, 0, 4, 0, 0); // before
+        queue_utility_status(&mut io, 1, 1, 0, 4, 0, 0); // requested +1 did not land
+        queue_utility_status(&mut io, 1, 1, 0, 4, 0, 0); // rollback verified
+
+        let error = DeviceSession::new(&mut io, profile)
+            .set_mic_volume(5)
+            .await
+            .expect_err("the requested mic value must be checked exactly");
+
+        assert!(error.contains("Control verification failed"), "{error}");
+        assert!(error.contains("previous settings restored"), "{error}");
+    });
+}
+
+#[test]
 fn control_range_is_checked_before_write() {
     crate::device::session::block_on(async {
         let profile = get_supported_device(0x3302, 0x43e8).unwrap();

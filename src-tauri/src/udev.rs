@@ -12,7 +12,7 @@
 
 use serde::Serialize;
 #[cfg(target_os = "linux")]
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 #[cfg(target_os = "linux")]
 use std::{
     fs::{File, OpenOptions},
@@ -352,18 +352,52 @@ impl Drop for UdevFileLock {
 }
 
 #[cfg(target_os = "linux")]
+fn open_udev_lock_file(path: &Path) -> std::io::Result<File> {
+    fn open_readonly(path: &Path) -> std::io::Result<File> {
+        let mut options = OpenOptions::new();
+        options.read(true).custom_flags(libc::O_NOFOLLOW);
+        let file = options.open(path)?;
+        if !file.metadata()?.is_file() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "udev lock path is not a regular file",
+            ));
+        }
+        Ok(file)
+    }
+
+    match open_readonly(path) {
+        Ok(file) => Ok(file),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            let mut options = OpenOptions::new();
+            options
+                .create_new(true)
+                .read(true)
+                .write(true)
+                .mode(0o644)
+                .custom_flags(libc::O_NOFOLLOW);
+            match options.open(path) {
+                Ok(file) => {
+                    file.set_permissions(std::fs::Permissions::from_mode(0o644))?;
+                    drop(file);
+                }
+                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
+                Err(error) => return Err(error),
+            }
+            open_readonly(path)
+        }
+        Err(error) => Err(error),
+    }
+}
+
+#[cfg(target_os = "linux")]
 fn with_udev_mutation_lock<T>(operation: impl FnOnce() -> Result<T, String>) -> Result<T, String> {
     let _process_guard = UDEV_MUTATION_LOCK
         .get_or_init(|| Mutex::new(()))
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
     let lock_path = std::env::temp_dir().join("glacier-eq-udev-operation.lock");
-    let file = OpenOptions::new()
-        .create(true)
-        .truncate(false)
-        .read(true)
-        .write(true)
-        .open(&lock_path)
+    let file = open_udev_lock_file(&lock_path)
         .map_err(|error| format!("Failed to open udev mutation lock: {error}"))?;
     fs2::FileExt::lock_exclusive(&file)
         .map_err(|error| format!("Failed to lock udev mutations: {error}"))?;
@@ -510,6 +544,36 @@ pub async fn uninstall_udev_rules() -> Result<(), String> {
 #[cfg(all(test, target_os = "linux"))]
 mod tests {
     use super::*;
+
+    #[test]
+    fn udev_mutation_lock_is_shared_readable_and_exclusive() {
+        let dir = std::env::temp_dir().join(format!(
+            "glacier-eq-udev-lock-test-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir(&dir).unwrap();
+        let path = dir.join("lock");
+        let first = open_udev_lock_file(&path).unwrap();
+        assert_eq!(
+            first.metadata().unwrap().permissions().mode() & 0o777,
+            0o644,
+        );
+        fs2::FileExt::lock_exclusive(&first).unwrap();
+
+        // Other users can open the shared lock read-only; flock does not need
+        // write access to serialize the system-wide udev operation.
+        let second = OpenOptions::new().read(true).open(&path).unwrap();
+        assert!(fs2::FileExt::try_lock_exclusive(&second).is_err());
+        fs2::FileExt::unlock(&first).unwrap();
+        fs2::FileExt::lock_exclusive(&second).unwrap();
+        fs2::FileExt::unlock(&second).unwrap();
+
+        std::fs::remove_dir_all(dir).unwrap();
+    }
 
     #[test]
     fn shipped_rules_match_the_pinned_hash() {

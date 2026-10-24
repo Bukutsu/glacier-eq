@@ -159,26 +159,11 @@ impl<I: DeviceIo> DeviceSession<'_, I> {
             Firmware => DeviceOutcome::Firmware(self.firmware_version().await?),
             UtilityStatus => DeviceOutcome::Utility(self.utility_status().await?),
             ResetControls => DeviceOutcome::Utility(self.reset_controls().await?),
-            FilterMode { mode } => {
-                self.set_filter_mode(&mode).await?;
-                DeviceOutcome::Unit
-            }
-            AmpMode { class_ab } => {
-                self.set_amp_mode(class_ab).await?;
-                DeviceOutcome::Unit
-            }
-            GainMode { high } => {
-                self.set_gain_mode(high).await?;
-                DeviceOutcome::Unit
-            }
-            Balance { balance } => {
-                self.set_balance(balance).await?;
-                DeviceOutcome::Unit
-            }
-            MicVolume { db } => {
-                self.set_mic_volume(db).await?;
-                DeviceOutcome::Unit
-            }
+            FilterMode { mode } => DeviceOutcome::Utility(self.set_filter_mode(&mode).await?),
+            AmpMode { class_ab } => DeviceOutcome::Utility(self.set_amp_mode(class_ab).await?),
+            GainMode { high } => DeviceOutcome::Utility(self.set_gain_mode(high).await?),
+            Balance { balance } => DeviceOutcome::Utility(self.set_balance(balance).await?),
+            MicVolume { db } => DeviceOutcome::Utility(self.set_mic_volume(db).await?),
             ResetEq {
                 melody_slot,
                 fiio_slot,

@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { join, relative } from "node:path";
+import { stampServiceWorker } from "./scripts/offlineAssets.mjs";
 
 type OfflineAsset = { path: string; hash: string };
 
@@ -61,7 +62,7 @@ export default defineConfig(async ({ mode }) => {
         paths.add("index.html");
 
         const assets = [...paths]
-          .filter((path) => path !== "offline-assets.json")
+          .filter((path) => path !== "offline-assets.json" && path !== "sw.js")
           .sort()
           .map((path): OfflineAsset => ({
             path: `./${path}`,
@@ -69,7 +70,24 @@ export default defineConfig(async ({ mode }) => {
             // transformations and public-asset copying have completed.
             hash: hashBytes(readFileSync(join(outDir, path))),
           }));
-        writeFileSync(join(outDir, "offline-assets.json"), JSON.stringify(assets));
+
+        // The worker script itself must change whenever the precached asset set
+        // changes, or browsers will keep the old worker and its old manifest.
+        // The identity is derived without sw.js to avoid a circular digest.
+        const workerPath = join(outDir, "sw.js");
+        const worker = stampServiceWorker(readFileSync(workerPath, "utf8"), assets);
+        writeFileSync(workerPath, worker.source);
+
+        const manifest = [
+          ...assets,
+          { path: "./sw.js", hash: hashBytes(worker.source) },
+        ].sort((left, right) =>
+          left.path < right.path ? -1 : left.path > right.path ? 1 : 0,
+        );
+        writeFileSync(
+          join(outDir, "offline-assets.json"),
+          JSON.stringify(manifest),
+        );
       },
     },
   ],

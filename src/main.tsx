@@ -6,6 +6,7 @@ import { SupportedDevicesPage } from "@/features/device/components/SupportedDevi
 import App from "@/app/App";
 import { ErrorBoundary } from "@/components/feedback/ErrorBoundary";
 import { isTauri } from "@/lib/platform";
+import { runWhenDocumentLoaded } from "@/lib/runWhenDocumentLoaded";
 import "@/styles/index.css";
 
 // Detect Android platform
@@ -46,13 +47,17 @@ if (import.meta.env.PROD) {
   // Tauri serves the app from tauri.localhost, where service workers are
   // unsupported. Register only for the hosted web/PWA build.
   if ("serviceWorker" in navigator && !isTauri()) {
-    window.addEventListener("load", () => {
-      navigator.serviceWorker
-        .register(`${import.meta.env.BASE_URL}sw.js`)
-        .catch((error) =>
-          console.error("Failed to register service worker:", error),
-        );
-    });
+    runWhenDocumentLoaded(
+      document.readyState,
+      (callback) => window.addEventListener("load", callback, { once: true }),
+      () => {
+        navigator.serviceWorker
+          .register(`${import.meta.env.BASE_URL}sw.js`)
+          .catch((error) =>
+            console.error("Failed to register service worker:", error),
+          );
+      },
+    );
   }
 }
 
