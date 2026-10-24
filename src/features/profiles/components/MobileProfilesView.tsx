@@ -47,6 +47,14 @@ export interface MobileProfilesViewProps {
   setStatus: (message: string) => void;
   onReviewEq?: () => void;
   preview?: ReactNode;
+  dacBanks?: ReactNode;
+  dacEditor?: {
+    status: string;
+    unsaved: boolean;
+    slot?: number | null;
+    bankNumber?: number;
+  };
+  onSaveEditorToDacBank?: (slot: number) => Promise<boolean>;
 }
 
 export function MobileProfilesView(props: MobileProfilesViewProps) {
@@ -74,6 +82,9 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
     setStatus,
     onReviewEq,
     preview,
+    dacBanks,
+    dacEditor,
+    onSaveEditorToDacBank,
   } = props;
   const [pending, setPending] = useState(false);
   const [dialog, setDialog] = useState<{
@@ -178,13 +189,14 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
             {t("mobileProfilesView.inTheEditor")}
           </span>
           <Badge>
-            {dirty
-              ? t("mobileProfilesView.unsavedChanges")
-              : builtIn
-                ? t("mobileProfilesView.builtIn")
-                : saved
-                  ? t("mobileProfilesView.saved")
-                  : t("mobileProfilesView.notSaved")}
+            {dacEditor?.status ??
+              (dirty
+                ? t("mobileProfilesView.unsavedChanges")
+                : builtIn
+                  ? t("mobileProfilesView.builtIn")
+                  : saved
+                    ? t("mobileProfilesView.saved")
+                    : t("mobileProfilesView.notSaved"))}
           </Badge>
         </div>
         <h2 className="mobile-profile-editor-name">{selectedPreset}</h2>
@@ -199,9 +211,28 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
             {t("mobileProfilesView.builtInHelp")}
           </p>
         )}
+        {dacEditor?.slot != null &&
+          dacEditor.unsaved &&
+          onSaveEditorToDacBank && (
+            <Button
+              className="mobile-profile-dac-save"
+              variant="primary"
+              disabled={disabled}
+              onClick={() =>
+                void runAction(() =>
+                  onSaveEditorToDacBank(dacEditor.slot as number),
+                )
+              }
+            >
+              <Icon name="save" />
+              {t("profilesView.writeToUser", {
+                number: dacEditor.bankNumber ?? dacEditor.slot - 159,
+              })}
+            </Button>
+          )}
         <div className="mobile-profile-editor-actions">
           <Button
-            variant="primary"
+            variant={dacEditor?.unsaved ? "default" : "primary"}
             disabled={disabled}
             onClick={() => openNameDialog("save")}
           >
@@ -298,6 +329,17 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
           )}
         </div>
 
+        {dacBanks}
+        {dacBanks && (
+          <>
+            <h3 className="profiles-local-heading">
+              {t("mobileProfilesView.localProfiles")}
+            </h3>
+            <p className="mobile-profile-description">
+              {t("mobileProfilesView.localProfilesHelp")}
+            </p>
+          </>
+        )}
         <ul
           className="mobile-profile-list"
           aria-label={t("mobileProfilesView.savedProfiles")}
@@ -336,14 +378,19 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
                       })}
                 </p>
                 <div className="mobile-profile-row-actions">
-                  {onUseOnDac && (
+                  {onUseOnDac && !isDefault && (
                     <Button
-                      variant="primary"
+                      variant={dacEditor?.unsaved ? "default" : "primary"}
                       disabled={disabled}
                       onClick={() => void runAction(() => onUseOnDac(profile))}
                     >
                       <Icon name="save" />
-                      {t("mobileProfilesView.useOnDac")}
+                      {dacEditor?.slot != null
+                        ? t("profilesView.writeToUser", {
+                            number:
+                              dacEditor.bankNumber ?? dacEditor.slot - 159,
+                          })
+                        : t("profilesView.saveToDac")}
                     </Button>
                   )}
                   <Button
@@ -353,7 +400,7 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
                         loadProfile({
                           profile,
                           selectedPreset,
-                          dirty,
+                          dirty: dirty || Boolean(dacEditor?.unsaved),
                           getAsyncContext,
                           confirm: confirmDialog,
                           onSelectProfile: (next) => {

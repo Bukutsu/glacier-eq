@@ -108,9 +108,6 @@
   "devProtocolPreview": {
     "protocolModelPreview": "プロトコル / モデルのプレビュー",
     "walkplayDefaultDummyDac": "Walkplay — 標準ダミーDAC",
-    "unknownDacPreview": "不明なDACのプレビュー",
-    "model": "{{protocol}} — {{name}}",
-    "vendorFallbackModel": "{{protocol}} — {{name}}（ベンダー汎用設定）",
     "previewEq_other": "{{name}}をプレビュー中 · {{count}}バンド · {{rate}} kHz",
     "previewNoEq": "{{name}}をプレビュー中 · ハードウェアEQなし",
     "description": "設定とEQのシミュレーションのみです。実機へのコマンドは送信されません。"
@@ -259,14 +256,14 @@
     },
     "unknownPreset": "プリセットを選択",
     "presetDescription": "再生をすぐに切り替えます。エディターは変更しません。機器は現在のプリセットを正確に報告できません。",
-    "destination": "書き込み先",
-    "destinationDescription": "DACへの書き込みとEQリセットはこのスロットを使います。選択だけでは再生は変わりません。",
     "slotName": "スロット名",
     "nameDescription": "英字・数字1～8文字（A–Z、0–9）。DACに保存されます。",
     "rename": "名前を変更",
     "resetSlot": "User {{slot}}をフラットにリセット",
     "operationFailed": "SNOWSKYの操作に失敗しました: {{error}}",
-    "resetConfirmation": "User {{slot}}を10個のフラットなバンドと0 dBのプリアンプに置き換えますか？他のスロットは変更しません。"
+    "resetConfirmation": "User {{slot}}を{{bands}}個のフラットなバンドと0 dBのプリアンプに置き換えますか？他のスロットは変更しません。",
+    "bankToManage": "管理するバンク",
+    "bankToManageDescription": "名前変更またはリセットするバンクを選択します。EQはプロファイルまたはエディターから保存できます。"
   },
   "linuxUdevGuide": {
     "copy": "コピー",
@@ -428,7 +425,11 @@
     "writingBand": "バンド1/{{num_bands}}を書き込み中…",
     "savedRestarting": "DACにEQを保存しました。再起動が予定されているため、再接続を待っています",
     "writeFailed": "DACに書き込めませんでした: {{error}}",
-    "writeDisconnected": "DACに書き込めませんでした（切断されました）: {{error}}"
+    "writeDisconnected": "DACに書き込めませんでした（切断されました）: {{error}}",
+    "confirmWriteToMelodyBank_one": "{{count}} バンドとプリアンプ {{preamp}} を User {{bank}} に保存しますか？この DAC バンクは上書きされます。",
+    "confirmWriteToMelodyBank_other": "{{count}} バンドとプリアンプ {{preamp}} を User {{bank}} に保存しますか？この DAC バンクは上書きされます。",
+    "writeMelodyBankTitle": "User {{bank}} に保存しますか？",
+    "writeMelodyBankAction": "User {{bank}} に保存"
   },
   "applyProfileToRam": {
     "discardChanges": "変更を破棄しますか？",
@@ -455,5 +456,38 @@
     "hold": "長押しで EQ なしの音を聴く",
     "off": "EQ オフ",
     "label": "A/B"
+  },
+  "melodySave": {
+    "title": "DACに保存",
+    "bank": "ユーザーバンク",
+    "userBank": "ユーザー {{number}}",
+    "userBankNamed": "ユーザー {{number}} · {{name}}",
+    "effect": "保存すると、このバンクのEQを上書きして再生を開始します。他のバンクは変更されません。バンクの選択だけでは何も変更されません。",
+    "retry": "再試行",
+    "loading": "バンク名を読み込み中…",
+    "cancel": "キャンセル",
+    "save": "保存して有効化",
+    "busy": "デバイスは使用中です。現在の操作が完了してから再試行してください。"
+  },
+  "melodyBanks": {
+    "title": "このDAC上",
+    "instructions": "Userバンクを開いて編集します。DACに保存すると本体に保存され、Glacierに保存すると別のローカルプロファイルになります。",
+    "openLabel": "User {{number}} を開く",
+    "storedOnDac": "DACに保存済み",
+    "editing": "編集中",
+    "live": "ライブプレビュー（実験的）",
+    "liveDescription": "変更をDACで試聴できますが、自動では保存されません。必要なときにUserバンクへ保存してください。",
+    "chooseFirst": "ライブ編集の前にDACバンクを選択してください。",
+    "saveFailed": "現在のバンクを保存できませんでした。ライブ適用を停止し、バンクは切り替えていません。",
+    "discardTitle": "DACへの未保存の変更",
+    "discardMessage": "User {{number}} への変更は保存されていません。バンクを切り替えると破棄されます。",
+    "discardAction": "変更を破棄",
+    "discardAndSwitch": "破棄して User {{number}} を開く",
+    "editorName": "ユーザー {{number}}",
+    "saved": "DACに保存済み",
+    "unsaved": "未保存の変更",
+    "renameLabel": "User {{number}} の名前を変更",
+    "cancelRename": "名前変更をキャンセル",
+    "saveEditorLabel": "現在のEQを User {{number}} に保存"
   }
 }

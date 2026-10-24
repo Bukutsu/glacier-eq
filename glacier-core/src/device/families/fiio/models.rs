@@ -10,6 +10,7 @@ pub(super) const JA11_EQ: FiioProtocol = FiioProtocol {
     filter_count: 5,
     verify_filter_count: false,
     user_slot: 3,
+    user_slots: &[],
     preamp_step_db: 0.1,
     clamp_gain: true,
     command_interval_ms: Some(200),
@@ -25,11 +26,18 @@ pub(super) const JA11_EQ: FiioProtocol = FiioProtocol {
 };
 
 // The generic "FiiO" protocol represents KA15 and the KA-series fallback.
+// KA15's three custom EQ banks use the IDs below. The model's three User EQs
+// are documented by FiiO; IDs are cross-checked against devicePEQ
+// (jeromeof/devicePEQ 0617f382) and Contour (Chronosauros/contour 81cd09db):
+// https://www.fiio.com/newsinfo/957512.html
+// https://github.com/jeromeof/devicePEQ
+// https://github.com/Chronosauros/contour
 pub(super) const KA_SERIES_EQ: FiioProtocol = FiioProtocol {
     report_id: 7,
     filter_count: 10,
     verify_filter_count: false,
     user_slot: 9,
+    user_slots: &[7, 8, 9],
     preamp_step_db: 0.1,
     clamp_gain: false,
     command_interval_ms: None,
@@ -46,6 +54,11 @@ pub(super) const KA17_EQ: FiioProtocol = FiioProtocol {
     filter_count: 10,
     verify_filter_count: false,
     user_slot: 4,
+    // FiiO Control's KA17 menu exposes USER1/2/3 at IDs 4/8/9.
+    // Source credit: devicePEQ (jeromeof/devicePEQ) 0617f382 and
+    // Contour (Chronosauros/contour) 81cd09db; official PEQ guide:
+    // https://fiio-file.fiio.net/70%E4%B8%8A%E4%BC%A0%E7%9A%84%E6%96%87%E4%BB%B6/PEQ%20Settings%20Instructions%20for%20FiiO%20Portable%20DAC%26AMP.pdf
+    user_slots: &[4, 8, 9],
     preamp_step_db: 0.1,
     clamp_gain: false,
     command_interval_ms: None,
@@ -66,6 +79,7 @@ pub(super) const MELODY_EQ: FiioProtocol = FiioProtocol {
     filter_count: 10,
     verify_filter_count: false,
     user_slot: 160,
+    user_slots: &[160, 161, 162],
     preamp_step_db: 1.0,
     clamp_gain: false,
     command_interval_ms: None,

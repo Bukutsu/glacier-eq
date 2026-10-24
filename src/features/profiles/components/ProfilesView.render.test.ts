@@ -37,6 +37,21 @@ const render = (overrides: Partial<ProfilesViewProps> = {}) =>
   renderToStaticMarkup(createElement(ProfilesView, { ...props, ...overrides }));
 
 describe("Profile library", () => {
+  it("keeps fixed DAC banks inside the library above local profiles even during search", () => {
+    const html = render({
+      dacBanks: createElement(
+        "section",
+        { "data-testid": "fixed-dac-banks" },
+        "User 1, User 2, User 3",
+      ),
+      profileSearch: "no matching local files",
+    });
+    const banks = html.indexOf('data-testid="fixed-dac-banks"');
+    expect(banks).toBeGreaterThan(html.indexOf('class="profiles-library"'));
+    expect(banks).toBeLessThan(html.indexOf('class="profiles-list"'));
+    expect(html.match(/data-testid="fixed-dac-banks"/g)).toHaveLength(1);
+  });
+
   it("puts the library before current-editor actions and the read-only preview", () => {
     const html = render({
       preview: createElement("div", { "data-testid": "preview" }),
@@ -199,5 +214,24 @@ describe("Profile library", () => {
     expect(
       render({ profilesOnDisk: true, onOpenProfilesDir: () => {} }),
     ).toContain("Open folder</button>");
+  });
+});
+
+describe("desktop profile and DAC actions", () => {
+  it("names the active bank as the destination and offers a clear editor save", () => {
+    const html = render({
+      dacEditor: { status: "Unsaved changes", unsaved: true, slot: 160 },
+      onSaveEditorToDacBank: async () => true,
+      onUseOnDac: async () => {},
+    });
+    expect(html).toContain('aria-label="Save Daily to User 1"');
+    expect(html).toContain(">Save to User 1</button>");
+    expect(html).not.toContain("Read from DAC");
+  });
+
+  it("offers a bank picker action when no DAC bank is selected", () => {
+    const html = render({ onUseOnDac: async () => {} });
+    expect(html).toContain('aria-label="Save Daily to DAC"');
+    expect(html).not.toContain("Save to User 1</button>");
   });
 });

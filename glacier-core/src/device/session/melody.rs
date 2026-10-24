@@ -42,11 +42,22 @@ impl<I: DeviceIo> DeviceSession<'_, I> {
         Err(last)
     }
 
+    /// Live writes must never guess which hardware bank to edit.
+    pub fn set_live_melody_slot(&mut self, slot: Option<u8>) -> Result<(), String> {
+        if self.profile.controls == Some(Controls::Melody) && slot.is_none() {
+            return Err("Melody live editing requires an explicit USER bank".into());
+        }
+        if let Some(slot) = slot {
+            self.set_melody_write_slot(slot)?;
+        }
+        Ok(())
+    }
+
     /// Per-operation destination. Ordinary reads never select a bank.
     pub fn set_melody_write_slot(&mut self, slot: u8) -> Result<(), String> {
         self.require_melody()?;
         melody::require_user_slot(slot)?;
-        self.melody_write_slot = slot;
+        self.melody_write_slot = Some(slot);
         Ok(())
     }
 

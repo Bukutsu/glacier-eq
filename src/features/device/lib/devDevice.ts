@@ -9,7 +9,7 @@ import type {
   SupportedDeviceInfo,
 } from "@/types";
 import { MELODY_PRESET_VALUES } from "./melodyPresets";
-import { getMelodySlot } from "./melodySlot";
+import { getMelodySlot, getUserEqSlot } from "./melodySlot";
 import {
   DEFAULT_FREQS_10_BAND,
   normalizePeqForDevice,
@@ -27,6 +27,7 @@ export const DEV_DUMMY_DEVICE: DeviceInfo = {
   hardware_eq: true,
   controls: "walkplay",
   spec: null,
+  user_eq_slots: [],
   num_bands: 10,
   global_gain_range: [-16, 16],
   band_gain_range: [-16, 16],
@@ -146,10 +147,10 @@ function newPreview(device: DeviceInfo): Preview {
     // Synthetic preview defaults, not values read from hardware.
     ja11: { microphone: 1, uac: 1, volume: 30 },
     melody: {
-      preset: 160,
+      preset: device.user_eq_slots[0] ?? 160,
       names: { 160: "USER1", 161: "USER2", 162: "USER3" },
       banks: Object.fromEntries(
-        [160, 161, 162].map((slot) => [slot, structuredClone(peq)]),
+        device.user_eq_slots.map((slot) => [slot, structuredClone(peq)]),
       ),
     },
     dawn: {
@@ -215,9 +216,10 @@ export function reconnectDevDummyDevice(path: string): void {
   preview.peq = structuredClone(preview.savedPeq);
   // JA11 control writes last only for this simulated connection.
   preview.ja11 = newPreview(preview.device).ja11;
-  if (preview.device.controls === "melody") {
-    preview.melody.preset = 160;
-    preview.peq = structuredClone(preview.melody.banks[160]);
+  if (preview.device.user_eq_slots.length) {
+    const slot = preview.device.user_eq_slots[0];
+    preview.melody.preset = slot;
+    preview.peq = structuredClone(preview.melody.banks[slot]);
   }
 }
 
@@ -240,10 +242,14 @@ export function writeDevDummyPeq(
   path: string,
   peq: PEQData,
   save = true,
+  destinationSlot?: number,
 ): PEQData {
   const preview = eqPreviewFor(path);
-  if (preview.device.controls === "melody" && save) {
-    const slot = getMelodySlot(path);
+  if (preview.device.user_eq_slots.length && save) {
+    const slot =
+      destinationSlot ?? getUserEqSlot(path) ?? preview.device.user_eq_slots[0];
+    if (!preview.device.user_eq_slots.includes(slot))
+      throw new Error("Invalid user EQ bank for this preview");
     preview.melody.preset = slot;
   }
   const incoming = structuredClone(peq);
@@ -251,7 +257,7 @@ export function writeDevDummyPeq(
   preview.peq = normalizePeqForDevice(incoming, preview.device);
   if (save) {
     preview.savedPeq = structuredClone(preview.peq);
-    if (preview.device.controls === "melody")
+    if (preview.device.user_eq_slots.length)
       preview.melody.banks[preview.melody.preset] = structuredClone(
         preview.peq,
       );
@@ -329,6 +335,17 @@ export function invokeDevDummy<T>(
         );
       }
       return preview.melody.preset as T;
+    }
+    case "set_user_eq_bank": {
+      const slot = integer(args.slot, 0, 255);
+      if (
+        preview.device.controls === "melody" ||
+        !preview.device.user_eq_slots.includes(slot)
+      )
+        throw new Error("Invalid user EQ bank for this preview");
+      preview.melody.preset = slot;
+      preview.peq = structuredClone(preview.melody.banks[slot]);
+      return slot as T;
     }
     case "melody_name": {
       if (preview.device.controls !== "melody")
@@ -408,6 +425,13 @@ export function invokeDevDummy<T>(
             ? getMelodySlot(path)
             : integer(args.melody_slot, 160, 162);
         invokeDevDummy(path, "melody_control", { value: slot });
+      }
+      if (args.fiio_slot !== undefined) {
+        const slot = integer(args.fiio_slot, 0, 255);
+        if (!preview.device.user_eq_slots.includes(slot))
+          throw new Error("Invalid user EQ bank for this preview");
+        preview.melody.preset = slot;
+        preview.peq = structuredClone(preview.melody.banks[slot]);
       }
       const flat = readDevDummyPeq(path);
       flat.global_gain = 0;

@@ -360,3 +360,56 @@ fn melody_push_and_reset_target_only_the_chosen_slot_and_rollback_its_backup() {
         }
     });
 }
+
+#[test]
+fn experimental_melody_live_writes_only_the_explicit_bank_without_save() {
+    block_on(async {
+        let mut io = MelodyIo::new(false);
+        let requested = {
+            let mut session = DeviceSession::new(&mut io, melody());
+            session.pull().await.unwrap()
+        };
+        io.writes.clear();
+        let untouched = io.banks[&162].clone();
+        let other = io.banks[&160].clone();
+        let mut peq = requested;
+        peq.filters[0].gain = 4.0;
+        {
+            let mut session = DeviceSession::new(&mut io, melody());
+            let result = session
+                .execute(DeviceCommand::LiveApply {
+                    peq,
+                    melody_slot: Some(161),
+                })
+                .await;
+            if !melody().caps.supports_ram_apply {
+                assert!(result.err().unwrap().contains("does not advertise"));
+                assert!(io.writes.is_empty());
+                return;
+            }
+            assert!(result.is_ok());
+        }
+        assert_eq!(io.active, 161);
+        assert_eq!(io.banks[&162], untouched);
+        assert_eq!(io.banks[&160], other);
+        assert!(!io.writes.iter().any(|p| p[5] == 0x19));
+        assert_eq!(
+            io.writes
+                .iter()
+                .filter(|p| p[1] == 0xaa && p[5] == 0x15)
+                .count(),
+            10
+        );
+    });
+}
+
+#[test]
+fn melody_live_rejects_missing_or_invalid_bank_before_io() {
+    block_on(async {
+        let mut io = MelodyIo::new(false);
+        let mut session = DeviceSession::new(&mut io, melody());
+        assert!(session.set_live_melody_slot(None).is_err());
+        assert!(session.set_live_melody_slot(Some(9)).is_err());
+        assert!(io.writes.is_empty());
+    });
+}

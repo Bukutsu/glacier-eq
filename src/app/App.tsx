@@ -1,3 +1,9 @@
+import { MelodyBanks } from "@/features/device/components/MelodyBanks";
+import { useMelodyWorkspace } from "@/features/device/hooks/useMelodyWorkspace";
+import {
+  MelodySaveDialog,
+  useMelodySaveDialog,
+} from "@/features/device/components/MelodySaveDialog";
 import "@/lib/i18n";
 import { useTranslation } from "react-i18next";
 import { useDeviceState } from "@/features/device/hooks/useDeviceState";
@@ -174,6 +180,7 @@ const TOOL_TAB_BY_WORKSPACE: Record<MobileTab, ToolsTab | null> = {
 
 function App() {
   const { t } = useTranslation("shell");
+  const { t: libraryT } = useTranslation("library");
   const location = useLocation();
 
   const navigate = useNavigate();
@@ -203,6 +210,8 @@ function App() {
   const [showGraph, setShowGraph] = useState(true);
 
   const [showDeviceModal, setShowDeviceModal] = useState(false);
+  const [bankSwitching, setBankSwitching] = useState(false);
+  const editingMelodyBank = useRef<number | null>(null);
 
   const [showDiagnosticsModal, setShowDiagnosticsModal] = useState(false);
 
@@ -242,7 +251,7 @@ function App() {
     setIsReconnecting,
     connectedDeviceName,
     firmwareVersion,
-    isBusy,
+    isBusy: deviceBusy,
     progress,
     eqOperationInFlightRef,
     lastPushedPeq,
@@ -253,6 +262,7 @@ function App() {
     maxFilterBands,
     supportsRamApply,
   } = device;
+  const isBusy = deviceBusy || bankSwitching;
   const feedback = useAppFeedback(device.quietReconnectRef);
   const {
     status,
@@ -312,6 +322,9 @@ function App() {
     canRedoHistory,
     handlePreampChange,
   } = editor;
+  const melodySave = useMelodySaveDialog(
+    `${connected}:${device.connectedPathRef.current}:${device.connectedSessionIdRef.current}:${selectedDeviceInfo?.profile_name ?? ""}`,
+  );
   const {
     connectPrimary,
     scanDevices,
@@ -319,7 +332,7 @@ function App() {
     pullEq,
     connectDevice,
     handleExpectedDisconnect,
-    resetDeviceEq,
+    resetDeviceEq: resetDeviceEqRaw,
     runDeviceMaintenance,
     handlePreviewChange,
     handleUdevInstalled,
@@ -327,6 +340,13 @@ function App() {
     applyProfileToRam,
     disconnectDevice,
   } = useDeviceSession(device, editor, {
+    chooseUserBank: (request) =>
+      editingMelodyBank.current !== null
+        ? Promise.resolve({
+            slot: editingMelodyBank.current,
+            confirmed: false,
+          })
+        : melodySave.choose(request),
     settings,
     isMobile,
     isAndroid,
@@ -335,21 +355,59 @@ function App() {
     setStatus,
     setShowDeviceModal,
   });
+  const melodyWorkspace = useMelodyWorkspace({
+    device,
+    editor,
+    push: pushEq,
+    runMaintenance: runDeviceMaintenance,
+    setStatus,
+    onSwitchingChange: setBankSwitching,
+    editingBank: editingMelodyBank,
+  });
+  const pushEqToDac = async () => {
+    if (melodyWorkspace.available) await melodyWorkspace.pauseLiveForWrite();
+    await pushEq();
+  };
+  const resetDeviceEq = async () => {
+    if (melodyWorkspace.available && melodyWorkspace.bank === null) {
+      setStatus(t("melodyBanks.chooseFirst", { ns: "device" }), "info");
+      return;
+    }
+    if (
+      melodyWorkspace.available &&
+      !(await melodyWorkspace.beforeExternalChange())
+    )
+      return;
+    await resetDeviceEqRaw();
+  };
+  const dacBanks = melodyWorkspace.available ? (
+    <MelodyBanks
+      path={selectedDevice}
+      workspace={melodyWorkspace}
+      isBusy={isBusy}
+      runMaintenance={runDeviceMaintenance}
+      onSaveEditor={melodyWorkspace.saveEditorToBank}
+      slots={selectedDeviceInfo?.user_eq_slots ?? []}
+      isMelody={selectedDeviceInfo?.controls === "melody"}
+    />
+  ) : undefined;
   useEditorShortcuts({
     undo,
     redo,
     saveProfile,
     reset,
     pullEq,
-    pushEq,
+    pushEq: pushEqToDac,
     isBusy,
     eqOperationInFlightRef,
     recoveryPending,
   });
-  const liveApplySupported = connected && supportsRamApply;
+  const liveApplySupported =
+    connected && supportsRamApply && !melodyWorkspace.experimental;
   const liveApplyActive = liveApplySupported && settings.live_apply;
   const isSimulated = isDevDummyDevice(selectedDevice);
-  // With live apply the app saves in the background, so there is no write step.
+  // Other models autosave through live apply. Melody only previews to RAM;
+  // its persistent User-bank write remains an explicit action.
   const liveSaves = liveApplyActive && hardwareEq && !isSimulated;
   // Compared with the DAC's stored EQ, not the loaded profile, so loading a
   // profile counts as a change. `dirty` only covers a DAC that was never read.
@@ -359,6 +417,7 @@ function App() {
     : null;
   useLiveApply({
     active: liveApplyActive,
+    scopeKey: `${connected}:${device.connectedPathRef.current}:${device.connectedSessionIdRef.current}`,
     peq,
     unsaved: unsavedOnDac,
     lastPushedPeq,
@@ -416,7 +475,11 @@ function App() {
   // stored EQ otherwise. Without either it would guess, so it is hidden.
   const comparePlaying: PEQData | null = liveApplyActive ? peq : lastPushedPeq;
   const canCompare =
-    connected && hardwareEq && supportsRamApply && comparePlaying !== null;
+    connected &&
+    hardwareEq &&
+    supportsRamApply &&
+    !melodyWorkspace.experimental &&
+    comparePlaying !== null;
   const compareStateRef = useRef({
     playing: comparePlaying,
     capabilities,
@@ -667,7 +730,9 @@ function App() {
     setNewProfileName,
     onSelectProfile: applyProfile,
     onApplyProfile:
-      connected && supportsRamApply ? applyProfileToRam : undefined,
+      connected && supportsRamApply && !melodyWorkspace.experimental
+        ? applyProfileToRam
+        : undefined,
     onReloadProfiles: reloadProfiles,
     onOpenProfilesDir: isTauri() && !isAndroid ? openProfilesDir : undefined,
     profilesOnDisk: isTauri(),
@@ -741,22 +806,24 @@ function App() {
   );
 
   const handleUseProfileOnDac = async (profile: Profile) => {
-    let loaded =
-      !dirty &&
+    const alreadySelected =
       profileIdentityKey(selectedPreset) === profileIdentityKey(profile.name);
-    await loadProfile({
-      profile,
-      selectedPreset,
-      dirty,
-      getAsyncContext,
-      confirm: confirmDialog,
-      onSelectProfile: (next) => {
-        applyProfile(next);
-        loaded = true;
-      },
-    });
-    // applyProfile updates the editor ref at once, so this saves the profile.
-    if (loaded) await pushEq();
+    let loaded = alreadySelected && !dirty;
+    if (!loaded) {
+      await loadProfile({
+        profile,
+        selectedPreset,
+        dirty: dirty || Boolean(melodyWorkspace.editorState?.unsaved),
+        getAsyncContext,
+        confirm: confirmDialog,
+        onSelectProfile: (next) => {
+          applyProfile(next);
+          loaded = true;
+        },
+      });
+    }
+    // applyProfile updates the editor ref before the write starts.
+    if (loaded) await pushEqToDac();
   };
 
   const profilePreview = showGraph ? (
@@ -846,6 +913,15 @@ function App() {
       : (MOBILE_TABS.find((tab) => tab.id === activeTab)?.label ??
         selectedPreset);
 
+  const melodySaveLabel =
+    melodyWorkspace.bank === null
+      ? undefined
+      : libraryT("profilesView.writeToUser", {
+          number:
+            (selectedDeviceInfo?.user_eq_slots.indexOf(melodyWorkspace.bank) ??
+              -1) + 1,
+        });
+
   // Other tabs hide the header, so the unsaved state and Save follow there.
   const showSaveBar =
     isMobile &&
@@ -875,8 +951,14 @@ function App() {
       onPreviewChange={handlePreviewChange}
       onExpectedDisconnect={handleExpectedDisconnect}
       onReadFailure={recoverDeviceRead}
-      onResetEq={resetDeviceEq}
-      onHardwareEqChanged={() => device.setLastPushedPeq(null)}
+      onResetEq={
+        melodyWorkspace.available && melodyWorkspace.bank === null
+          ? undefined
+          : resetDeviceEq
+      }
+      resetSlot={melodyWorkspace.bank ?? undefined}
+      onHardwareEqChanged={melodyWorkspace.invalidate}
+      onBeforePresetChange={melodyWorkspace.beforeExternalChange}
       runMaintenance={runDeviceMaintenance}
     />
   );
@@ -914,8 +996,10 @@ function App() {
       onUndo={undo}
       onRedo={redo}
       onPull={pullEq}
-      onPush={pushEq}
-      liveApply={liveApplySupported && settings.live_apply}
+      onPush={pushEqToDac}
+      saveLabel={melodySaveLabel}
+      liveApply={liveApplyActive || melodyWorkspace.active}
+      liveApplySaves={liveApplyActive}
       onExportEq={handleExportEq}
       onDisconnect={disconnectDevice}
       onConnectClick={connectPrimary}
@@ -1089,6 +1173,9 @@ function App() {
                 <section className="mobile-profile-pane">
                   <MobileProfilesView
                     {...mobileToolsPanelProps}
+                    dacBanks={dacBanks}
+                    dacEditor={melodyWorkspace.editorState}
+                    onSaveEditorToDacBank={melodyWorkspace.saveEditorToBank}
                     dirty={dirty}
                     isBusy={isBusy || recoveryPending}
                     preview={profilePreview}
@@ -1104,6 +1191,7 @@ function App() {
               {activeTab === "tuning" && (
                 <section className="left-pane">
                   <TuningPanel
+                    liveApply={liveApplyActive || melodyWorkspace.active}
                     measurements={measurements}
                     allTargets={allTargets}
                     activeTargetIds={activeTargetIds}
@@ -1157,9 +1245,9 @@ function App() {
                   variant="primary"
                   disabled={isBusy}
                   title={t("header.saveHelp")}
-                  onClick={() => void pushEq()}
+                  onClick={() => void pushEqToDac()}
                 >
-                  <Icon name="save" /> {t("header.save")}
+                  <Icon name="save" /> {melodySaveLabel ?? t("header.save")}
                 </Button>
               </div>
             )}
@@ -1304,10 +1392,14 @@ function App() {
                 maxBands={maxFilterBands}
                 dspSampleRate={capabilities.dsp_sample_rate}
                 onImportPEQ={importPeq}
+                dacBanks={dacBanks}
+                dacEditor={melodyWorkspace.editorState}
+                onSaveEditorToDacBank={melodyWorkspace.saveEditorToBank}
+                liveApply={liveApplyActive || melodyWorkspace.active}
                 profilePreview={
                   activeTab === "profiles" ? profilePreview : undefined
                 }
-                onPull={hardwareEq ? pullEq : undefined}
+                onPull={connected && hardwareEq ? pullEq : undefined}
                 dirty={dirty}
                 profiles={profiles}
                 selectedPreset={selectedPreset}
@@ -1317,7 +1409,12 @@ function App() {
                 setNewProfileName={setNewProfileName}
                 onSelectProfile={applyProfile}
                 onApplyProfile={
-                  connected && supportsRamApply ? applyProfileToRam : undefined
+                  connected && supportsRamApply && !melodyWorkspace.experimental
+                    ? applyProfileToRam
+                    : undefined
+                }
+                onUseOnDac={
+                  connected && hardwareEq ? handleUseProfileOnDac : undefined
                 }
                 onReloadProfiles={reloadProfiles}
                 onOpenProfilesDir={
@@ -1363,13 +1460,26 @@ function App() {
                 onPreviewChange={handlePreviewChange}
                 onExpectedDisconnect={handleExpectedDisconnect}
                 onReadFailure={recoverDeviceRead}
-                onResetEq={resetDeviceEq}
-                onHardwareEqChanged={() => device.setLastPushedPeq(null)}
+                onResetEq={
+                  melodyWorkspace.available && melodyWorkspace.bank === null
+                    ? undefined
+                    : resetDeviceEq
+                }
+                resetSlot={melodyWorkspace.bank ?? undefined}
+                onHardwareEqChanged={melodyWorkspace.invalidate}
+                onBeforePresetChange={melodyWorkspace.beforeExternalChange}
                 runMaintenance={runDeviceMaintenance}
               />
             )}
           </div>
         </main>
+      )}
+      {melodySave.request && (
+        <MelodySaveDialog
+          request={melodySave.request}
+          runMaintenance={runDeviceMaintenance}
+          onFinish={melodySave.finish}
+        />
       )}
       {showDeviceModal && (
         <Modal

@@ -382,16 +382,18 @@ export function useTraces(notify?: NotifyFn) {
 
   const addMeasurement = useCallback(
     (name: string, points: MeasurementTrace["points"]) => {
+      const id = `${Date.now()}-${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)}`;
       setMeasurements((current) => [
         ...current,
         {
-          id: `${Date.now()}-${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)}`,
+          id,
           name: makeMeasurementName(name, current),
           color: nextMeasurementColor(current),
           visible: true,
           points: normalizeMeasurementPoints(points),
         },
       ]);
+      return id;
     },
     [],
   );
@@ -459,6 +461,7 @@ export function useTraces(notify?: NotifyFn) {
         },
       ]);
       setActiveTargetIds((activeIds) => [...activeIds, id]);
+      return id;
     },
     [],
   );

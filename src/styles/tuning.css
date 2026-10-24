@@ -1,4 +1,4 @@
-/* The graph is the workspace; tuning is a compact, quiet form beside it. */
+/* Quiet field groups, using the shared Base UI / shadcn-style controls. */
 .tuning-panel,
 .tuning-match,
 .tuning-form {
@@ -7,21 +7,20 @@
   min-width: 0;
 }
 
-.tuning-panel { gap: var(--space-5); }
-.tuning-form { gap: var(--space-5); }
+.tuning-form { gap: var(--space-4); }
 
 .tuning-heading h2 {
-  margin: 0 0 var(--space-2);
-  color: var(--text);
+  margin: 0 0 var(--space-1);
+  color: var(--foreground);
   font-size: var(--type-body);
-  font-weight: 600;
-  line-height: 1.4;
+  font-weight: 500;
+  line-height: 1.5;
 }
 
 .tuning-heading p,
 .tuning-help {
   margin: 0;
-  color: var(--muted);
+  color: var(--muted-foreground);
   font-size: var(--type-small);
   line-height: 1.5;
 }
@@ -38,8 +37,9 @@
 }
 
 .tuning-settings {
-  padding-top: var(--space-5);
+  padding-top: var(--space-4);
   border-top: 1px solid var(--line-soft);
+  gap: var(--space-2);
 }
 
 .tuning-field {
@@ -49,49 +49,44 @@
   gap: var(--space-2);
 }
 
+.tuning-field-heading,
 .tuning-band-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
+  min-width: 0;
 }
 
 .tuning-panel label,
-.tuning-field-label,
-.tuning-smoothing > span {
-  color: var(--text);
+.tuning-field-label {
+  color: var(--foreground);
   font-size: var(--type-label);
   font-weight: 500;
+  line-height: 1.5;
 }
 
-.tuning-panel .app-select-trigger {
-  min-height: var(--touch-md);
+.tuning-field-heading > :is(label, span) { min-width: 0; }
+
+.tuning-panel .tuning-field-action {
+  height: auto;
+  min-height: 28px;
+  max-width: 65%;
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--type-small);
+  line-height: 1.4;
+  white-space: normal;
+  text-align: end;
 }
+
+.tuning-panel .tuning-field-action svg { width: 14px; height: 14px; }
 
 .tuning-panel .tuning-bands {
-  width: 120px;
+  width: 112px;
   flex: 0 0 auto;
 }
 
-.tuning-smoothing {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.tuning-segmented {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-1);
-  padding: var(--space-1);
-  border: 1px solid var(--line-soft);
-  border-radius: var(--control-radius);
-  background: var(--input-bg);
-}
-
-.tuning-segmented > button { min-width: 0; }
-
-/* Reuse the existing accessible disclosures, without nested cards or icons. */
+/* One disclosure instead of an always-visible bank of secondary controls. */
 .tuning-panel .tuning-advanced {
   border: 0;
   border-radius: 0;
@@ -100,35 +95,29 @@
 }
 
 .tuning-panel .tuning-advanced > .app-collapse-trigger {
-  min-height: var(--touch-md);
+  min-height: 34px;
   padding: var(--space-2) 0;
   border: 0;
   outline: none;
   background: transparent;
-  color: var(--muted);
+  color: var(--muted-foreground);
   filter: none;
 }
 
 .tuning-panel .tuning-advanced > .app-collapse-trigger:hover:not(:disabled) {
-  color: var(--text);
+  color: var(--foreground);
   background: transparent;
-}
-
-.tuning-panel .tuning-advanced > .app-collapse-trigger:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
 }
 
 .tuning-panel .tuning-advanced .app-collapse-title {
   color: inherit;
-  font-size: var(--type-label);
-  font-weight: 500;
+  font-size: var(--type-small);
+  font-weight: 400;
   white-space: normal;
 }
 
 .tuning-panel .tuning-advanced .app-collapse-content-inner {
-  padding: var(--space-3) 0 0;
-  gap: var(--space-3);
+  padding: var(--space-3) 0;
 }
 
 .tuning-advanced-fields {
@@ -143,22 +132,22 @@
   gap: var(--space-2);
 }
 
-.tuning-destination {
-  text-align: center;
-  text-wrap: balance;
-}
+.tuning-destination { text-wrap: pretty; }
 
 .tuning-warnings {
-  margin: var(--space-4) 0 0;
-  padding: var(--space-4);
+  margin: var(--space-3) 0 0;
+  padding: var(--space-3);
+  border: 1px solid var(--line-soft);
   border-radius: var(--control-radius);
-  background: var(--bg-dark);
+  background: transparent;
+  color: var(--muted-foreground);
   font-size: var(--type-small);
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
 
-.tuning-warnings { color: var(--warning-foreground); }
+.tuning-warnings strong { color: var(--foreground); font-weight: 500; }
+.tuning-warnings p { margin: var(--space-1) 0 0; }
 .tuning-warnings ul { margin: var(--space-2) 0 0; padding-left: var(--space-4); }
 
 .tuning-panel :is(button, input):focus-visible {
@@ -180,9 +169,8 @@
 
 @media (min-width: 851px) and ((min-height: 541px) or (pointer: fine)) {
   .desktop-view-tuning .desktop-content {
-    grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 340px);
   }
-
   .desktop-view-tuning .desktop-content > .right-rail {
     align-self: start;
     max-height: 100%;
@@ -191,11 +179,12 @@
 
 @media (max-width: 850px), ((max-height: 540px) and (pointer: coarse)) {
   .tuning-panel { padding: var(--space-4); }
-
+  .tuning-panel .tuning-bands { width: 144px; }
   .tuning-panel :is(button, input) {
     scroll-margin-block: var(--space-5) calc(var(--tabbar-h) + var(--safe-area-bottom, 0px) + var(--space-4));
   }
+}
 
+@media (pointer: coarse) {
   .tuning-panel button { min-height: var(--touch-md); }
-  .tuning-panel .tuning-bands { width: 144px; }
 }

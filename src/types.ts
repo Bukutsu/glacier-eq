@@ -95,6 +95,7 @@ export interface DeviceInfo extends DeviceCapabilities {
   hardware_eq: boolean;
   controls: DeviceControls | null;
   spec: DacOfficialSpec | null;
+  user_eq_slots: number[];
 }
 
 export interface SupportedDeviceInfo extends DeviceCapabilities {
@@ -108,6 +109,7 @@ export interface SupportedDeviceInfo extends DeviceCapabilities {
   hardware_eq: boolean;
   controls: DeviceControls | null;
   spec: DacOfficialSpec | null;
+  user_eq_slots: number[];
 }
 
 export interface Profile {

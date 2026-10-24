@@ -4,7 +4,13 @@
 //! Model-specific USB HID routes from FiiO Control Web, index-7hb30NUo.js,
 //! checked 2026-10-23: mne (transport), Ov (report), $R (presets), pv (gain),
 //! Ff/q8e (EQ commands), KBe (pacing). No serial model uses these routes.
-//! Known bank sizes follow devicePEQ 0617f382 and Contour 81cd09db.
+//! Known bank sizes follow devicePEQ
+//! (https://github.com/jeromeof/devicePEQ, 0617f382) and Contour
+//! (https://github.com/Chronosauros/contour, 81cd09db). Official BTR menus
+//! independently confirm BTR13/BTR15's 3 User EQs and BTR17's 10:
+//! https://www.fiio.com/newsinfo/952147.html
+//! https://www.fiio.com/newsinfo/877125.html
+//! https://www.fiio.com/newsinfo/977138.html
 //! Uncaptured/newer models are enabled only for the nominal ten-band layout.
 //! A mandatory read-only count check rejects other layouts before EQ writes.
 //! New models are source-reviewed, NOT tested in Glacier on hardware.
@@ -15,11 +21,21 @@ use super::FiioProtocol;
 use crate::device::protocol::{Protocol, Quirks};
 
 const fn hid(count: u8, slot: u8, interval: u64) -> FiioProtocol {
+    hid_with_user_slots(count, slot, interval, &[])
+}
+
+const fn hid_with_user_slots(
+    count: u8,
+    slot: u8,
+    interval: u64,
+    user_slots: &'static [u8],
+) -> FiioProtocol {
     FiioProtocol {
         report_id: 7,
         filter_count: count,
         verify_filter_count: true,
         user_slot: slot,
+        user_slots,
         preamp_step_db: 0.1,
         clamp_gain: false,
         command_interval_ms: Some(interval),
@@ -34,17 +50,22 @@ const fn hid(count: u8, slot: u8, interval: u64) -> FiioProtocol {
 
 pub static BTR13: Protocol = Protocol {
     id: "FIIO BTR13",
-    eq: Some(&hid(10, 7, 100)),
+    eq: Some(&hid_with_user_slots(10, 7, 100, &[7, 8, 9])),
 };
 
 pub static BTR15: Protocol = Protocol {
     id: "FIIO BTR15",
-    eq: Some(&hid(10, 7, 1000)),
+    eq: Some(&hid_with_user_slots(10, 7, 1000, &[7, 8, 9])),
 };
 
 pub static BTR17: Protocol = Protocol {
     id: "FIIO BTR17",
-    eq: Some(&hid(10, 160, 100)),
+    eq: Some(&hid_with_user_slots(
+        10,
+        160,
+        100,
+        &[160, 161, 162, 163, 164, 165, 166, 167, 168, 169],
+    )),
 };
 
 pub static BTR19: Protocol = Protocol {
@@ -112,9 +133,11 @@ pub static BR15_R2R: Protocol = Protocol {
     eq: Some(&hid(10, 160, 200)),
 };
 
+// Preserve the existing Tiny A Melody-style bank/name controls. Layout credit:
+// jeromeof/devicePEQ 0617f382 and Chronosauros/contour 81cd09db (links above).
 pub static TINY_A: Protocol = Protocol {
     id: "SNOWSKY TINY A",
-    eq: Some(&hid(10, 160, 100)),
+    eq: Some(&hid_with_user_slots(10, 160, 100, &[160, 161, 162])),
 };
 
 pub static TINY_B: Protocol = Protocol {

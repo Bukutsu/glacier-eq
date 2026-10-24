@@ -108,9 +108,6 @@
   "devProtocolPreview": {
     "protocolModelPreview": "ตัวอย่างโพรโทคอล / รุ่น",
     "walkplayDefaultDummyDac": "Walkplay — DAC จำลองเริ่มต้น",
-    "unknownDacPreview": "ตัวอย่าง DAC ที่ไม่รู้จัก",
-    "model": "{{protocol}} — {{name}}",
-    "vendorFallbackModel": "{{protocol}} — {{name}} (ใช้ข้อมูลผู้ผลิตแทน)",
     "previewEq_other": "ตัวอย่าง {{name}} · {{count}} แบนด์ · {{rate}} kHz",
     "previewNoEq": "ตัวอย่าง {{name}} · ไม่มี EQ ในฮาร์ดแวร์",
     "description": "จำลองเฉพาะการตั้งค่าและ EQ ไม่ส่งคำสั่งไปยังฮาร์ดแวร์"
@@ -259,14 +256,14 @@
     },
     "unknownPreset": "เลือกพรีเซ็ต",
     "presetDescription": "เปลี่ยนเสียงที่เล่นทันที โดยไม่เปลี่ยนตัวแก้ไข อุปกรณ์ไม่สามารถรายงานพรีเซ็ตปัจจุบันได้อย่างน่าเชื่อถือ",
-    "destination": "ช่องที่จะบันทึก",
-    "destinationDescription": "เขียนลง DAC และรีเซ็ต EQ จะใช้ช่องนี้ การเลือกช่องไม่เปลี่ยนเสียงที่เล่น",
     "slotName": "ชื่อช่อง",
     "nameDescription": "ตัวอักษรหรือตัวเลข 1–8 ตัว (A–Z, 0–9) บันทึกไว้ใน DAC",
     "rename": "เปลี่ยนชื่อ",
     "resetSlot": "รีเซ็ต User {{slot}} เป็นค่าเรียบ",
     "operationFailed": "การทำงานของ SNOWSKY ล้มเหลว: {{error}}",
-    "resetConfirmation": "แทนที่ User {{slot}} ด้วยแบนด์เรียบสิบแบนด์และพรีแอมป์ศูนย์หรือไม่? ช่องอื่นจะไม่เปลี่ยน"
+    "resetConfirmation": "แทนที่ User {{slot}} ด้วยแบนด์เรียบ {{bands}} แบนด์และพรีแอมป์ศูนย์หรือไม่? ช่องอื่นจะไม่เปลี่ยน",
+    "bankToManage": "ช่องที่ต้องการจัดการ",
+    "bankToManageDescription": "เลือกช่องเพื่อเปลี่ยนชื่อหรือรีเซ็ต บันทึก EQ ลงช่องได้จากโปรไฟล์หรือตัวแก้ไข"
   },
   "linuxUdevGuide": {
     "copy": "คัดลอก",
@@ -428,7 +425,11 @@
     "writingBand": "กำลังเขียนแบนด์ 1/{{num_bands}}…",
     "savedRestarting": "บันทึก EQ ลง DAC แล้ว คาดว่าอุปกรณ์จะเริ่มต้นใหม่ กำลังรอเชื่อมต่อใหม่",
     "writeFailed": "ไม่สามารถเขียนลง DAC: {{error}}",
-    "writeDisconnected": "ไม่สามารถเขียนลง DAC (ขาดการเชื่อมต่อ): {{error}}"
+    "writeDisconnected": "ไม่สามารถเขียนลง DAC (ขาดการเชื่อมต่อ): {{error}}",
+    "confirmWriteToMelodyBank_one": "บันทึก {{count}} แบนด์และปรีแอมป์ {{preamp}} ไปยัง User {{bank}} หรือไม่? ช่อง DAC นี้จะถูกเขียนทับ",
+    "confirmWriteToMelodyBank_other": "บันทึก {{count}} แบนด์และปรีแอมป์ {{preamp}} ไปยัง User {{bank}} หรือไม่? ช่อง DAC นี้จะถูกเขียนทับ",
+    "writeMelodyBankTitle": "บันทึกไปยัง User {{bank}} หรือไม่?",
+    "writeMelodyBankAction": "บันทึกไปยัง User {{bank}}"
   },
   "applyProfileToRam": {
     "discardChanges": "ทิ้งการเปลี่ยนแปลงหรือไม่?",
@@ -455,5 +456,38 @@
     "hold": "กดค้างไว้เพื่อฟังแบบไม่มี EQ",
     "off": "ปิด EQ",
     "label": "A/B"
+  },
+  "melodySave": {
+    "title": "บันทึกลง DAC",
+    "bank": "ช่องผู้ใช้",
+    "userBank": "ผู้ใช้ {{number}}",
+    "userBankNamed": "ผู้ใช้ {{number}} · {{name}}",
+    "effect": "การบันทึกจะแทนที่ EQ ในช่องนี้และเริ่มเล่นช่องนี้ ช่องอื่นจะไม่เปลี่ยนแปลง การเลือกช่องเพียงอย่างเดียวจะไม่เปลี่ยนอะไร",
+    "retry": "ลองอีกครั้ง",
+    "loading": "กำลังอ่านชื่อช่อง…",
+    "cancel": "ยกเลิก",
+    "save": "บันทึกและเปิดใช้",
+    "busy": "อุปกรณ์กำลังทำงาน รอให้การทำงานเสร็จแล้วลองอีกครั้ง"
+  },
+  "melodyBanks": {
+    "title": "ใน DAC นี้",
+    "instructions": "เปิดช่อง User เพื่อแก้ไข บันทึกการเปลี่ยนแปลงลง DAC เมื่อพร้อม ส่วนโปรไฟล์ใน Glacier จะเก็บแยกต่างหาก",
+    "openLabel": "เปิด User {{number}}",
+    "storedOnDac": "เก็บไว้ใน DAC",
+    "editing": "กำลังแก้ไข",
+    "live": "ฟังตัวอย่างแบบทันที (ทดลอง)",
+    "liveDescription": "ฟังการแก้ไขผ่าน DAC ได้โดยจะไม่บันทึกอัตโนมัติ บันทึกไปยังช่อง User เมื่อต้องการเก็บไว้",
+    "chooseFirst": "เลือกช่องใน DAC ก่อนเริ่มแก้ไขแบบทันที",
+    "saveFailed": "บันทึกช่องปัจจุบันไม่สำเร็จ หยุดการใช้การแก้ไขทันทีไว้ และยังไม่ได้สลับช่อง",
+    "discardTitle": "การเปลี่ยนแปลงใน DAC ที่ยังไม่บันทึก",
+    "discardMessage": "การเปลี่ยนแปลงใน User {{number}} ยังไม่ได้บันทึก การสลับช่องจะทิ้งการเปลี่ยนแปลงเหล่านี้",
+    "discardAction": "ทิ้งการเปลี่ยนแปลง",
+    "discardAndSwitch": "ทิ้งแล้วเปิด User {{number}}",
+    "editorName": "ผู้ใช้ {{number}}",
+    "saved": "บันทึกลง DAC แล้ว",
+    "unsaved": "การเปลี่ยนแปลงยังไม่ได้บันทึก",
+    "renameLabel": "เปลี่ยนชื่อ User {{number}}",
+    "cancelRename": "ยกเลิกการเปลี่ยนชื่อ",
+    "saveEditorLabel": "บันทึก EQ ปัจจุบันไปยัง User {{number}}"
   }
 }

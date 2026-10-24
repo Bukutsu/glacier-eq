@@ -55,7 +55,9 @@
     "saveHelp": "Saves the current editor EQ to your library. Nothing is written to your DAC.",
     "renameHelp": "Changes the saved name, not the EQ in your editor.",
     "eqPreview": "EQ preview",
-    "useOnDac": "Use on DAC"
+    "useOnDac": "Use on DAC",
+    "localProfiles": "Saved in Glacier",
+    "localProfilesHelp": "Load a profile into the editor, then save it to a User bank when you want it on the DAC."
   },
   "profilesView": {
     "overwriteProfile": "Overwrite profile",
@@ -143,13 +145,21 @@
     "deleteLabel": "Delete {{name}}",
     "emptyLibraryHint": "Save your EQ or import a profile to add it here.",
     "loadHelp": "Loading a profile changes the editor, not the DAC.",
+    "loadHelpMelody": "Loading a local profile changes the editor. Save to a User bank to store it on this DAC.",
     "namePlaceholder": "Profile name…",
     "overwriteWarning": "A profile with this name already exists. Saving will replace it.",
     "pasteHelp": "Your browser could not read the clipboard. Paste your AutoEQ text below to preview it.",
     "eqText": "EQ text",
     "temporaryImportHelp": "Loads the imported filters into the EQ editor without saving a profile.",
     "nameTaken": "Another profile already uses this name.",
-    "parsing": "Parsing…"
+    "parsing": "Parsing…",
+    "saveToDac": "Save to DAC…",
+    "saveProfileToDac": "Save {{name}} to DAC",
+    "saveProfileToUser": "Save {{name}} to User {{number}}",
+    "writeToUser": "Save to User {{number}}",
+    "readFromDac": "Read from DAC",
+    "liveLoadHelp": "Loading a profile changes the playing EQ and saves it after a pause.",
+    "localProfiles": "Saved in Glacier"
   },
   "profiles": {
     "failedToLoadProfiles": "Failed to load profiles: {{error}}",
@@ -188,7 +198,10 @@
     "measurement": "Measurement",
     "targetCurve": "Target curve",
     "addATargetToContinue": "Add a target to continue",
-    "addMeasurementOrTarget": "Add measurement or target",
+    "addMeasurement": "Add measurement",
+    "importTarget": "Import target",
+    "importingTarget": "Importing target…",
+    "targetSelected": "{{name}} selected as target.",
     "filterBands": "Filter bands",
     "limitedBandAutoEQ": "Limited-band AutoEQ",
     "trebleSmoothing": "Treble smoothing",
@@ -220,7 +233,8 @@
     "sampleRateHelp": "Use the DAC's DSP sample rate.",
     "needsMeasurement": "Add a measurement to generate EQ.",
     "needsTarget": "Add a target to generate EQ.",
-    "destinationHelp": "Loads EQ into the editor, not the DAC."
+    "destinationHelp": "Loads EQ into the editor, not the DAC.",
+    "liveDestinationHelp": "Applies EQ to the playing bank and saves it after a pause."
   },
   "autoEq": {
     "generatingEQ": "Generating EQ…",

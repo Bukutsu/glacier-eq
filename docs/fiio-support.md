@@ -2,8 +2,10 @@
 
 This expansion is unreleased. New profiles are source-reviewed and tested with
 synthetic transports, not confirmed on physical devices in Glacier. JA11 keeps
-its existing Tested status. External hardware reports do not make a Glacier
-profile Tested.
+its existing Tested status. SNOWSKY Melody is also marked Tested based on the
+user's confirmation of the standard persistent EQ workflow on hardware; its
+experimental RAM-only live preview still needs separate validation. Reports
+from other apps do not make a Glacier profile Tested.
 
 ## Coverage
 
@@ -23,7 +25,7 @@ The newer/beta models especially need real captures to confirm their bank sizes.
 | FiiO JA11 | 5 | User 1 (3) | 2972:0101 / 0102; Tested |
 | FiiO KA15 | 10 | User 3 (9), existing behavior | 2972:0104; Untested |
 | FiiO KA17 | 10 | User 1 (4) | 2972:0093; Untested |
-| SNOWSKY Melody | 10 | User 1–3 (160–162), selectable | 2972:0126; Untested |
+| SNOWSKY Melody | 10 | User 1–3 (160–162), selectable | 2972:0126; Tested |
 | FIIO BTR13 | 10 | User 1 (7) | exact USB product name; Untested |
 | FIIO BTR15 | 10 | User 1 (7) | exact USB product name; Untested |
 | FIIO BTR17 | 10 | User 1 (160) | 2972:0088; exact USB product name; Untested |
@@ -71,6 +73,32 @@ Tiny A expects **ten bands**, despite devicePEQ's five-band entry. Contour
 reports ten on a physical Tiny A, PID `0147`, firmware 1.10. The mandatory
 count check rejects a different firmware layout.
 
+## Selectable User banks
+
+The Profiles view separates fixed **On this DAC** banks from profiles **Saved in
+Glacier**. Bank controls are available for these source-reviewed layouts:
+
+| Model | User banks | Protocol IDs |
+| --- | ---: | --- |
+| BTR13, BTR15, KA15 | 3 | 7, 8, 9 |
+| KA17 | 3 | 4, 8, 9 |
+| BTR17 | 10 | 160–169 |
+| Melody, Tiny A | 3 | 160–162 |
+
+Opening a bank selects it on the DAC and reads its EQ into the editor. Saving
+the editor confirms the destination, selects and verifies that bank before the
+backup, then saves and checks the result. A failed write restores the same bank
+when possible. These are synthetic-test guarantees, not proof of persistence or
+bank isolation on physical hardware.
+
+Only Melody and Tiny A expose stored names and rename controls. Other models use
+fixed User N labels. QX13 and other models without a confirmed multi-bank path
+keep their existing single-destination write behavior; third-party slot counts
+alone do not enable a bank picker. No bank is linked to a Glacier profile by name.
+
+Mapping references are credited beside the implementation in
+`glacier-core/src/device/families/fiio/models.rs` and `registry.rs`.
+
 ## What the new profiles do
 
 - Read EQ, normalize edits for the selected model, save to its User 1 bank, and
@@ -88,11 +116,30 @@ count check rejects a different firmware layout.
 - Keep temporary EQ, A/B, and live apply off on the new profiles until hardware
   confirms their volatile-write behavior.
 
-Melody and Tiny A also offer playback presets, a selectable User 1–3 write
-destination, and stored User-slot names. The destination is a local choice
-until a write/reset selects it. Changing the playback preset changes the DAC
+Melody and Tiny A also offer playback presets and stored User-slot names.
+Saving EQ opens a named User 1–3 bank picker; selecting a bank does not write
+or switch playback until **Save and activate**. Local profiles remain separate
+from hardware banks. Device controls keep playback selection, rename, and reset. Changing the playback preset changes the DAC
 immediately. Arbitrary preset queries can be stale, so the UI only confirms a
 preset after an explicit selection. See [device workflows](device-workflows.md).
+
+### Experimental Melody live editing
+
+Hardware-test builds compiled with `GLACIER_EXPERIMENTAL_MELODY_LIVE=1`
+advertise RAM apply for Melody only (not Tiny A or the other unverified
+profiles). Normal builds leave it disabled. Unset the variable for releases.
+
+In the test build, live apply defaults on, but remains disarmed until the user
+selects and reads a User bank. Preview requests carry that bank explicitly,
+select and verify it, then write bands and preamp without SAVE. Changes remain
+unsaved until an explicit Save to User N action. Switching banks drains outstanding
+previews and asks before discarding unsaved edits; errors pause live editing.
+Reconnects require selecting a bank again.
+
+Packet tests verify routing and absence of SAVE in preview traffic. They do
+not prove audible preview or persistence on hardware; those are the purpose
+of this test build. A/B and generic temporary-profile apply remain unavailable
+for Melody during this experiment.
 
 ### Filters and limits
 
@@ -168,8 +215,10 @@ Reviewed 2026-10-23:
   `glacier-core/tests/fixtures/fiio/melody_sakana{2,3}.rs`. Codec and native/WASM
   session tests cover these layouts and counter rollover. EQ and preset
   replies still require their normal terminator; the firmware exception is
-  limited to the read-only version command. Persistence and bank isolation
-  still need hardware checks, so the profile remains Untested.
+  limited to the read-only version command. The user confirmed the standard
+  persistent EQ workflow on hardware, so Melody is marked Tested. Experimental
+  RAM-only live preview, persistence after reconnect, and bank isolation still
+  need their own explicit checks.
 
 The implementation follows published packet findings. It does not copy the
 official app or reference drivers into Glacier.

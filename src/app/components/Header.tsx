@@ -92,8 +92,12 @@ interface HeaderProps {
   onRedo: () => void;
   onPull: () => void;
   onPush: () => void;
-  /** Live apply is on and working for the connected DAC. */
+  /** Optional bank-specific label for the write action. */
+  saveLabel?: string;
+  /** Live RAM apply or preview is active. */
   liveApply?: boolean;
+  /** Live apply persists to DAC flash, not just RAM. Defaults to liveApply. */
+  liveApplySaves?: boolean;
   onExportEq: () => void;
   onDisconnect: () => void;
   onConnectClick?: () => void;
@@ -122,7 +126,9 @@ export const Header = memo(function Header({
   onRedo,
   onPull,
   onPush,
+  saveLabel,
   liveApply = false,
+  liveApplySaves = liveApply,
   onExportEq,
   onDisconnect,
   onConnectClick,
@@ -143,7 +149,7 @@ export const Header = memo(function Header({
         : profile);
 
   // With live apply the app saves in the background, so there is no write step.
-  const liveSaves = liveApply && connected && hardwareEq && !isSimulated;
+  const liveSaves = liveApplySaves && connected && hardwareEq && !isSimulated;
   const syncClass = reconnecting
     ? "working"
     : !connected
@@ -309,11 +315,11 @@ export const Header = memo(function Header({
                           <Button
                             type="button"
                             variant={writeVariant}
-                            title={t("header.writeHelp")}
+                            title={saveLabel ?? t("header.writeHelp")}
                             onClick={onPush}
                             disabled={isBusy}
                           >
-                            {t("header.write")}
+                            {saveLabel ?? t("header.write")}
                           </Button>
                         )}
                       </>
@@ -386,11 +392,11 @@ export const Header = memo(function Header({
                     type="button"
                     variant={writeVariant}
                     className="mobile-action-btn"
-                    title={t("header.saveHelp")}
+                    title={saveLabel ?? t("header.saveHelp")}
                     onClick={onPush}
                     disabled={isBusy}
                   >
-                    <Icon name="save" /> {t("header.save")}
+                    <Icon name="save" /> {saveLabel ?? t("header.save")}
                   </Button>
                 )}
                 <ConnectionActions

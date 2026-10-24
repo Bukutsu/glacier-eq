@@ -1,5 +1,10 @@
 import { i18n } from "@/lib/i18n";
-import { melodySlotArgs } from "@/features/device/lib/melodySlot";
+import {
+  melodySlotArgs,
+  setUserEqSlot,
+  userEqSlotArgs,
+} from "@/features/device/lib/melodySlot";
+import type { ChooseUserBank } from "@/features/device/lib/melodySlot";
 import type { invoke, sleep } from "@/lib/rpc";
 import type { confirmDialog } from "@/components/ui/ConfirmDialog";
 import {
@@ -44,6 +49,7 @@ export type PushEqContext = Pick<
   | "eqOperationIdRef"
   | "setLastPushedPeq"
   | "selectedCapabilities"
+  | "selectedDeviceInfo"
   | "capabilities"
 > &
   Pick<
@@ -63,6 +69,7 @@ export type PushEqContext = Pick<
     invoke: typeof invoke;
     sleep: typeof sleep;
     confirmDialog: typeof confirmDialog;
+    chooseUserBank?: ChooseUserBank;
   };
 
 export function createPushEq(context: PushEqContext) {
@@ -101,7 +108,14 @@ export function createPushEq(context: PushEqContext) {
   } = context;
   // `quiet` is the background save of live apply: no confirmation, no busy
   // overlay, no success toast, so the editor stays usable while it saves.
-  return async (options: { quiet?: boolean } = {}) => {
+  return async (
+    options: {
+      quiet?: boolean;
+      onSaved?: () => void;
+      melodySlot?: number;
+      fiioSlot?: number;
+    } = {},
+  ) => {
     const quiet = options.quiet === true;
     if (!connected) {
       if (!quiet) setStatus(i18n.t("device:pushEq.connectionRequired"), "info");
@@ -125,24 +139,84 @@ export function createPushEq(context: PushEqContext) {
       connectedSessionIdRef.current === confirmationSessionId &&
       selectedCapabilities === confirmationCapabilities;
     const activeBands = snapshot.filters.filter((f) => f.enabled).length;
+    // Capture the destination before any async UI. Never read a mutable
+    // global bank selection later, halfway through a confirmed write.
+    const slots = context.selectedDeviceInfo?.user_eq_slots ?? [];
+    const isMelody = context.selectedDeviceInfo?.controls === "melody";
+    let bankArgs: Record<string, number> =
+      options.fiioSlot !== undefined
+        ? { fiio_slot: options.fiioSlot }
+        : options.melodySlot !== undefined
+          ? { melody_slot: options.melodySlot }
+          : isMelody
+            ? melodySlotArgs(selectedDevice)
+            : userEqSlotArgs(selectedDevice);
+    let destinationSlot = bankArgs.fiio_slot ?? bankArgs.melody_slot;
+    let destinationConfirmed = false;
     if (
       !quiet &&
+      context.chooseUserBank &&
+      options.fiioSlot === undefined &&
+      options.melodySlot === undefined
+    ) {
+      const choice = await context.chooseUserBank({
+        path: selectedDevice,
+        count: activeBands,
+        preamp: formatDb(snapshot.global_gain),
+        slots,
+        isMelody,
+      });
+      if (choice === null || !isConfirmationCurrent()) return;
+      setUserEqSlot(selectedDevice, choice.slot, slots);
+      bankArgs = isMelody
+        ? { melody_slot: choice.slot }
+        : { fiio_slot: choice.slot };
+      destinationSlot = choice.slot;
+      destinationConfirmed = choice.confirmed;
+    }
+    const bankIndex =
+      destinationSlot === undefined ? -1 : slots.indexOf(destinationSlot);
+    const bankNumber = bankIndex < 0 ? undefined : bankIndex + 1;
+    const targetSlot = isMelody
+      ? (bankNumber ??
+        (destinationSlot !== undefined ? destinationSlot - 159 : undefined))
+      : bankNumber;
+    if (
+      !quiet &&
+      !destinationConfirmed &&
       !(await confirmDialog({
-        title: isMobile
-          ? i18n.t("device:pushEq.saveTitle")
-          : i18n.t("device:pushEq.writeTitle"),
-        message: i18n.t("device:pushEq.confirmWrite", {
-          count: activeBands,
-          preamp: formatDb(snapshot.global_gain),
-        }),
-        confirmLabel: isMobile
-          ? i18n.t("device:pushEq.saveAction")
-          : i18n.t("device:pushEq.writeAction"),
+        title:
+          targetSlot !== undefined
+            ? i18n.t("device:pushEq.writeMelodyBankTitle", {
+                bank: targetSlot,
+              })
+            : isMobile
+              ? i18n.t("device:pushEq.saveTitle")
+              : i18n.t("device:pushEq.writeTitle"),
+        message:
+          targetSlot !== undefined
+            ? i18n.t("device:pushEq.confirmWriteToMelodyBank", {
+                bank: targetSlot,
+                count: activeBands,
+                preamp: formatDb(snapshot.global_gain),
+              })
+            : i18n.t("device:pushEq.confirmWrite", {
+                count: activeBands,
+                preamp: formatDb(snapshot.global_gain),
+              }),
+        confirmLabel:
+          targetSlot !== undefined
+            ? i18n.t("device:pushEq.writeMelodyBankAction", {
+                bank: targetSlot,
+              })
+            : isMobile
+              ? i18n.t("device:pushEq.saveAction")
+              : i18n.t("device:pushEq.writeAction"),
         danger: true,
       }))
     )
       return;
-    if (!isConfirmationCurrent()) return;
+    if (!isConfirmationCurrent() || eqOperationInFlightRef.current) return;
     eqOperationInFlightRef.current = true;
     const operationId = ++eqOperationIdRef.current;
     if (!quiet) {
@@ -204,7 +278,12 @@ export function createPushEq(context: PushEqContext) {
         });
         await sleep(200);
         if (!isCurrentOperation()) return;
-        committedPeq = writeDevDummyPeq(selectedDevice, snapshot);
+        committedPeq = writeDevDummyPeq(
+          selectedDevice,
+          snapshot,
+          true,
+          destinationSlot,
+        );
         setProgress({
           message: i18n.t("device:pushEq.writeComplete"),
           percentage: 100,
@@ -214,9 +293,13 @@ export function createPushEq(context: PushEqContext) {
         // set_eq_state returns the PEQ actually committed (quantized to the
         // protocol), not necessarily the request, plus any capability-clamp
         // warnings from normalization.
+        setProgress({
+          message: i18n.t("device:pushEq.preparingEqWrite"),
+          percentage: 5,
+        });
         const outcome = await invoke<unknown>("set_eq_state", {
           peq: snapshot,
-          ...melodySlotArgs(selectedDevice),
+          ...bankArgs,
         });
         pushWarnings = extractPushWarnings(outcome);
         restarts =
@@ -271,6 +354,7 @@ export function createPushEq(context: PushEqContext) {
           source: "UI",
         });
       }
+      options.onSaved?.();
       if (restarts) await handleExpectedDisconnect(true);
     } catch (error) {
       if (!isCurrentOperation()) return;

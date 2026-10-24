@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useTraces } from "./useTraces";
-import type { MeasurementTrace } from "@/types";
+import type { MeasurementTrace, TargetTrace } from "@/types";
 
 // Drive the hook's render/effect boundary without a DOM dependency.
 const hooks = vi.hoisted(() => ({
@@ -68,6 +68,23 @@ describe("exclusive curve selection", () => {
       addEventListener: () => {},
       removeEventListener: () => {},
     });
+  });
+
+  it("returns added curve IDs so Tuning can select the exact new input", () => {
+    const result = run();
+    const measurementId = result.addMeasurement("Headphone", points);
+    const targetId = result.addTarget("Custom", points);
+    expect(
+      committedState<MeasurementTrace[]>(0).find((m) => m.id === measurementId)
+        ?.name,
+    ).toBe("Headphone");
+    expect(
+      committedState<TargetTrace[]>(1).find((t) => t.id === targetId)?.name,
+    ).toBe("Custom");
+    result.selectMeasurementOnly(measurementId);
+    result.selectTargetOnly(targetId);
+    expect(committedState<string[]>(2)).toEqual([targetId]);
+    expect(committedState<string | null>(5)).toBe(measurementId);
   });
 
   it("makes one measurement visible and hides the others", () => {

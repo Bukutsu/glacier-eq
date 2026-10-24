@@ -583,6 +583,7 @@ export function useDeviceSession(
   const resetDeviceEq = useMemo(
     () =>
       createResetDeviceEq({
+        selectedDeviceInfo,
         connectedRef,
         connectedPathRef,
         connectedSessionIdRef,
@@ -599,7 +600,14 @@ export function useDeviceSession(
         invokeForDevice,
         confirmDialog,
       }),
-    [isBusy, setStatus, pullEq, handleExpectedDisconnect, recoverDeviceRead],
+    [
+      isBusy,
+      setStatus,
+      pullEq,
+      handleExpectedDisconnect,
+      recoverDeviceRead,
+      selectedDeviceInfo,
+    ],
   );
 
   const handlePreviewChange = useCallback(
@@ -660,6 +668,11 @@ export function useDeviceSession(
   const pushEq = useMemo(
     () =>
       createPushEq({
+        chooseUserBank:
+          (selectedDeviceInfo?.user_eq_slots.length ?? 0) > 1
+            ? options.chooseUserBank
+            : undefined,
+        selectedDeviceInfo,
         manualDisconnectRef,
         expectedRestartUntilRef,
         selectedDevice,
@@ -705,6 +718,8 @@ export function useDeviceSession(
       isMobile,
       handleExpectedDisconnect,
       recoverDeviceRead,
+      selectedDeviceInfo,
+      options.chooseUserBank,
     ],
   );
 

@@ -63,7 +63,9 @@ export interface DeviceViewProps {
   onExpectedDisconnect?: (restart?: boolean) => void | Promise<void>;
   onReadFailure?: (path: string, error: unknown) => Promise<boolean>;
   onResetEq?: () => Promise<void>;
+  resetSlot?: number;
   onHardwareEqChanged?: () => void;
+  onBeforePresetChange?: () => Promise<boolean>;
   runMaintenance?: DeviceMaintenanceRunner;
 }
 
@@ -93,7 +95,9 @@ export const DeviceView = memo(function DeviceView({
   onExpectedDisconnect,
   onReadFailure,
   onResetEq,
+  resetSlot,
   onHardwareEqChanged,
+  onBeforePresetChange,
   runMaintenance,
 }: DeviceViewProps) {
   const { t } = useTranslation("device");
@@ -673,8 +677,10 @@ export const DeviceView = memo(function DeviceView({
                 setStatus={setStatus}
                 onReadFailure={onReadFailure}
                 onHardwareEqChanged={onHardwareEqChanged}
+                onBeforePresetChange={onBeforePresetChange}
                 runMaintenance={runMaintenance}
                 onResetEq={onResetEq}
+                resetSlot={resetSlot}
               />
             ) : dawnDevice ? (
               <DawnProControls

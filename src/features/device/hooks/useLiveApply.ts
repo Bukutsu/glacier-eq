@@ -15,6 +15,8 @@ interface UseLiveApplyOptions extends Omit<LiveApplyState, "busy"> {
   /** Changes whenever the DAC's stored EQ is written or read. */
   lastPushedPeq: PEQData | null;
   save: () => Promise<void>;
+  scopeKey?: string;
+  invoke?: typeof invoke;
   reportError: (message: string) => void;
 }
 
@@ -26,16 +28,22 @@ export function useLiveApply(options: UseLiveApplyOptions) {
   const applier = useMemo(
     () =>
       createLiveApplier({
-        invoke,
+        invoke: (command, args) =>
+          (latest.current.invoke ?? invoke)(command, args),
         getState: () => ({
           ...latest.current,
-          busy: latest.current.busyRef.current,
+          autoSave: latest.current.autoSave ?? true,
+          busy:
+            latest.current.busyRef.current ||
+            latest.current.scopeKey !== options.scopeKey,
         }),
         save: () => latest.current.save(),
         reportError: (message) => latest.current.reportError(message),
       }),
-    [],
+    [options.scopeKey],
   );
+
+  useEffect(() => () => applier.stop(), [applier]);
 
   useEffect(() => {
     if (!active) {
@@ -47,4 +55,5 @@ export function useLiveApply(options: UseLiveApplyOptions) {
   }, [applier, active, peq, unsaved]);
 
   useEffect(() => applier.markSynced(), [applier, lastPushedPeq]);
+  return applier;
 }

@@ -108,9 +108,6 @@
   "devProtocolPreview": {
     "protocolModelPreview": "Protocol / model preview",
     "walkplayDefaultDummyDac": "Walkplay — Default dummy DAC",
-    "unknownDacPreview": "Unknown DAC preview",
-    "model": "{{protocol}} — {{name}}",
-    "vendorFallbackModel": "{{protocol}} — {{name}} (vendor fallback)",
     "previewEq_one": "Previewing {{name}} · {{count}} band · {{rate}} kHz",
     "previewEq_other": "Previewing {{name}} · {{count}} bands · {{rate}} kHz",
     "previewNoEq": "Previewing {{name}} · no hardware EQ",
@@ -261,14 +258,14 @@
     },
     "unknownPreset": "Choose a preset",
     "presetDescription": "Switches playback immediately; keeps your editor unchanged. The device cannot reliably report its current preset.",
-    "destination": "Write destination",
-    "destinationDescription": "Write to DAC and Reset EQ use this slot. Choosing a destination does not change playback.",
     "slotName": "Slot name",
     "nameDescription": "1–8 letters or digits (A–Z, 0–9). Stored on the DAC.",
     "rename": "Rename",
     "resetSlot": "Reset User {{slot}} to flat",
     "operationFailed": "SNOWSKY operation failed: {{error}}",
-    "resetConfirmation": "Replace User {{slot}} with ten flat bands and zero preamp? Other slots are kept."
+    "resetConfirmation": "Replace User {{slot}} with {{bands}} flat bands and zero preamp? Other slots are kept.",
+    "bankToManage": "Bank to manage",
+    "bankToManageDescription": "Choose a bank to rename or reset. Save EQ to a bank from Profiles or the editor."
   },
   "linuxUdevGuide": {
     "copy": "Copy",
@@ -434,7 +431,11 @@
     "writingBand": "Writing band 1/{{num_bands}}…",
     "savedRestarting": "Saved EQ to DAC; restart expected, waiting to reconnect",
     "writeFailed": "Could not write to DAC: {{error}}",
-    "writeDisconnected": "Could not write to DAC (disconnected): {{error}}"
+    "writeDisconnected": "Could not write to DAC (disconnected): {{error}}",
+    "confirmWriteToMelodyBank_one": "Save {{count}} band and {{preamp}} preamp to User {{bank}}? This overwrites that DAC bank.",
+    "confirmWriteToMelodyBank_other": "Save {{count}} bands and {{preamp}} preamp to User {{bank}}? This overwrites that DAC bank.",
+    "writeMelodyBankTitle": "Save to User {{bank}}?",
+    "writeMelodyBankAction": "Save to User {{bank}}"
   },
   "applyProfileToRam": {
     "discardChanges": "Discard changes?",
@@ -461,5 +462,38 @@
     "hold": "Hold to hear without EQ",
     "off": "EQ off",
     "label": "A/B"
+  },
+  "melodySave": {
+    "title": "Save to DAC",
+    "bank": "User bank",
+    "userBank": "User {{number}}",
+    "userBankNamed": "User {{number}} · {{name}}",
+    "effect": "Saving replaces this bank’s EQ and starts playing it. Other banks are unchanged. Choosing a bank alone changes nothing.",
+    "retry": "Retry",
+    "loading": "Reading bank names…",
+    "cancel": "Cancel",
+    "save": "Save and activate",
+    "busy": "The device is busy. Wait for the current operation to finish, then retry."
+  },
+  "melodyBanks": {
+    "title": "On this DAC",
+    "instructions": "Open a User bank to edit it. Save changes to store them on the DAC; saving to Glacier keeps a separate local profile.",
+    "openLabel": "Open User {{number}}",
+    "storedOnDac": "Stored on DAC",
+    "editing": "Editing",
+    "live": "Live preview (experimental)",
+    "liveDescription": "Preview edits on the DAC. They are not saved automatically. Save them to a User bank when ready.",
+    "chooseFirst": "Choose a DAC bank before live editing.",
+    "saveFailed": "Could not save the current bank. Live apply is paused; the bank was not switched.",
+    "discardTitle": "Unsaved DAC changes",
+    "discardMessage": "Changes to User {{number}} have not been saved. Switching banks will discard them.",
+    "discardAction": "Discard changes",
+    "discardAndSwitch": "Discard and open User {{number}}",
+    "editorName": "User {{number}}",
+    "saved": "Saved on DAC",
+    "unsaved": "Unsaved changes",
+    "renameLabel": "Rename User {{number}}",
+    "cancelRename": "Cancel rename",
+    "saveEditorLabel": "Save current EQ to User {{number}}"
   }
 }

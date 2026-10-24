@@ -99,6 +99,8 @@ const FIIO_10_BAND_CAPS: DeviceCapabilities = DeviceCapabilities {
 // preamp. Bands stop at -18 dB, the floor of Glacier's profile storage envelope.
 // The preamp is whole dB on the wire (the firmware drops the fraction).
 const MELODY_CAPS: DeviceCapabilities = DeviceCapabilities {
+    // Hardware-test builds only. Unset this environment variable for releases.
+    supports_ram_apply: option_env!("GLACIER_EXPERIMENTAL_MELODY_LIVE").is_some(),
     global_gain_range: (-24, 12),
     band_gain_range: (-18.0, 12.0),
     integer_preamp: true,
@@ -810,8 +812,9 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
         protocol: &fiio::MELODY,
         vendor_id: 0x2972,
         product_id: Some(0x0126),
-        // A user's capture shows reads work; EQ writes are untested on hardware.
-        status: "Untested",
+        // The user confirmed the standard persistent EQ workflow on hardware.
+        // Experimental RAM-only live apply still needs separate validation.
+        status: "Tested",
         family: "FiiO",
         caps: MELODY_CAPS,
         controls: Some(Controls::Melody),

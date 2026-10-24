@@ -813,6 +813,7 @@ const WEBHID_TRANSPORT_COMMANDS = new Set([
   "ja11_control",
   "melody_control",
   "melody_name",
+  "set_user_eq_bank",
   "set_dac_filter_mode",
   "set_dac_work_mode",
   "set_dac_output_gain",
@@ -858,6 +859,16 @@ function parseSupportedDeviceInfo(value: unknown): SupportedDeviceInfo | null {
     typeof value.status !== "string" ||
     typeof value.family !== "string" ||
     typeof value.hardware_eq !== "boolean" ||
+    (value.user_eq_slots !== undefined &&
+      (!Array.isArray(value.user_eq_slots) ||
+        value.user_eq_slots.some(
+          (slot) =>
+            !isFiniteNumber(slot) ||
+            !Number.isInteger(slot) ||
+            slot < 0 ||
+            slot > 255,
+        ) ||
+        new Set(value.user_eq_slots).size !== value.user_eq_slots.length)) ||
     !(
       value.controls === null ||
       value.controls === "walkplay" ||
@@ -922,6 +933,9 @@ function parseSupportedDeviceInfo(value: unknown): SupportedDeviceInfo | null {
     hardware_eq: value.hardware_eq,
     controls: value.controls,
     spec: value.spec as SupportedDeviceInfo["spec"],
+    user_eq_slots: Array.isArray(value.user_eq_slots)
+      ? (value.user_eq_slots as number[])
+      : [],
     num_bands: value.num_bands,
     global_gain_range: globalGainRange,
     band_gain_range: bandGainRange,
@@ -967,7 +981,11 @@ export async function invoke<T = unknown>(
     if (
       (cmd === "ja11_control" ||
         cmd === "melody_control" ||
-        cmd === "melody_name") &&
+        cmd === "melody_name" ||
+        cmd === "set_user_eq_bank" ||
+        cmd === "set_eq_state" ||
+        cmd === "apply_eq_state" ||
+        cmd === "live_apply_eq_state") &&
       expectedSession !== activeSessionId
     )
       throw new Error("Device session changed; operation was cancelled");
@@ -1443,6 +1461,19 @@ async function invokeWeb<T = unknown>(cmd: string, args?: unknown): Promise<T> {
         args.path !== webHidPath(activeDevice)
       ) {
         throw new Error("These controls require the displayed JA11");
+      }
+      const { path: _path, ...request } = args;
+      return await runDeviceOperation<T>(cmd, request);
+    }
+    case "set_user_eq_bank": {
+      if (
+        !isRecord(args) ||
+        !activeDevice ||
+        !activeProfile ||
+        activeProfile.controls === "melody" ||
+        args.path !== webHidPath(activeDevice)
+      ) {
+        throw new Error("These banks require the displayed FiiO device");
       }
       const { path: _path, ...request } = args;
       return await runDeviceOperation<T>(cmd, request);

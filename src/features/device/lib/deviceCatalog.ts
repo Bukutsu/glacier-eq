@@ -16,7 +16,10 @@ export function groupDeviceProfiles(
     else models.set(key, { profile, variants: [profile] });
   }
   return [...models.values()].sort((a, b) =>
-    a.profile.name.localeCompare(b.profile.name),
+    a.profile.name.localeCompare(b.profile.name, undefined, {
+      numeric: true,
+      sensitivity: "base",
+    }),
   );
 }
 

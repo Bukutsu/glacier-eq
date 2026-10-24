@@ -52,7 +52,9 @@
     "saveHelp": "บันทึก EQ ปัจจุบันในตัวแก้ไขลงคลัง จะไม่มีการเขียนข้อมูลลง DAC",
     "renameHelp": "เปลี่ยนชื่อที่บันทึกไว้ ไม่เปลี่ยน EQ ในตัวแก้ไข",
     "eqPreview": "ตัวอย่าง EQ",
-    "useOnDac": "ใช้กับ DAC"
+    "useOnDac": "ใช้กับ DAC",
+    "localProfiles": "บันทึกใน Glacier",
+    "localProfilesHelp": "โหลดโปรไฟล์ลงในตัวแก้ไข แล้วบันทึกไปยังช่อง User เมื่อต้องการใช้กับ DAC"
   },
   "profilesView": {
     "overwriteProfile": "เขียนทับโปรไฟล์",
@@ -137,13 +139,21 @@
     "deleteLabel": "ลบ {{name}}",
     "emptyLibraryHint": "บันทึก EQ หรือนำเข้าโปรไฟล์เพื่อเพิ่มลงที่นี่",
     "loadHelp": "การโหลดโปรไฟล์จะเปลี่ยนตัวแก้ไข ไม่ใช่ DAC",
+    "loadHelpMelody": "การโหลดโปรไฟล์ในเครื่องจะเปลี่ยนตัวแก้ไข กดบันทึกไปยังช่อง User เพื่อเก็บไว้ใน DAC นี้",
     "namePlaceholder": "ชื่อโปรไฟล์…",
     "overwriteWarning": "มีโปรไฟล์ชื่อนี้อยู่แล้ว การบันทึกจะแทนที่โปรไฟล์นั้น",
     "pasteHelp": "เบราว์เซอร์ไม่สามารถอ่านคลิปบอร์ดได้ วางข้อความ AutoEQ ของคุณด้านล่างเพื่อดูตัวอย่าง",
     "eqText": "ข้อความ EQ",
     "temporaryImportHelp": "โหลดฟิลเตอร์ที่นำเข้าลงตัวแก้ไข EQ โดยไม่บันทึกโปรไฟล์",
     "nameTaken": "มีโปรไฟล์อื่นใช้ชื่อนี้แล้ว",
-    "parsing": "กำลังแยกวิเคราะห์…"
+    "parsing": "กำลังแยกวิเคราะห์…",
+    "saveToDac": "บันทึกลง DAC…",
+    "saveProfileToDac": "บันทึก {{name}} ลง DAC",
+    "saveProfileToUser": "บันทึก {{name}} ไปยัง User {{number}}",
+    "writeToUser": "บันทึกไปยัง User {{number}}",
+    "readFromDac": "อ่านจาก DAC",
+    "liveLoadHelp": "การโหลดโปรไฟล์จะเปลี่ยน EQ ที่กำลังเล่น และบันทึกเมื่อหยุดแก้ไข",
+    "localProfiles": "บันทึกใน Glacier"
   },
   "profiles": {
     "failedToLoadProfiles": "โหลดโปรไฟล์ไม่สำเร็จ: {{error}}",
@@ -181,7 +191,10 @@
     "measurement": "ผลการวัด",
     "targetCurve": "เส้นโค้งเป้าหมาย",
     "addATargetToContinue": "เพิ่มเป้าหมายเพื่อดำเนินการต่อ",
-    "addMeasurementOrTarget": "เพิ่มผลการวัดหรือเป้าหมาย",
+    "addMeasurement": "เพิ่มการวัด",
+    "importTarget": "นำเข้าเป้าหมาย",
+    "importingTarget": "กำลังนำเข้าเป้าหมาย…",
+    "targetSelected": "เลือก {{name}} เป็นเป้าหมายแล้ว",
     "filterBands": "แบนด์ฟิลเตอร์",
     "limitedBandAutoEQ": "AutoEQ แบบจำกัดแบนด์",
     "trebleSmoothing": "การปรับเสียงแหลมให้เรียบ",
@@ -212,7 +225,8 @@
     "sampleRateHelp": "ใช้อัตราสุ่มสัญญาณ DSP ของ DAC",
     "needsMeasurement": "เพิ่มผลการวัดเพื่อสร้าง EQ",
     "needsTarget": "เพิ่มเป้าหมายเพื่อสร้าง EQ",
-    "destinationHelp": "โหลด EQ ลงตัวแก้ไข ไม่ใช่ DAC"
+    "destinationHelp": "โหลด EQ ลงตัวแก้ไข ไม่ใช่ DAC",
+    "liveDestinationHelp": "ใช้ EQ กับช่องที่กำลังเล่น และบันทึกเมื่อหยุดแก้ไข"
   },
   "autoEq": {
     "generatingEQ": "กำลังสร้าง EQ…",

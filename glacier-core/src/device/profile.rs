@@ -49,6 +49,8 @@ pub struct DeviceInfo {
     pub hardware_eq: bool,
     pub controls: Option<Controls>,
     pub spec: Option<DacSpec>,
+    /// Exact protocol preset IDs for writable user EQ banks.
+    pub user_eq_slots: Vec<u8>,
     #[serde(flatten)]
     pub capabilities: EditorCapabilities,
 }
@@ -82,6 +84,8 @@ pub struct SupportedDeviceInfo {
     pub hardware_eq: bool,
     pub controls: Option<Controls>,
     pub spec: Option<DacSpec>,
+    /// Exact protocol preset IDs for writable user EQ banks.
+    pub user_eq_slots: Vec<u8>,
     #[serde(flatten)]
     pub capabilities: EditorCapabilities,
 }
@@ -108,6 +112,7 @@ impl From<&DeviceProfile> for SupportedDeviceInfo {
             hardware_eq: profile.protocol.has_hardware_eq(),
             controls: profile.controls,
             spec: profile.spec,
+            user_eq_slots: profile.protocol.user_eq_slots().to_vec(),
             capabilities: profile.into(),
         }
     }

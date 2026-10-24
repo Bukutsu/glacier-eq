@@ -36,6 +36,7 @@ interface ToolsPanelProps {
   setNewProfileName: (value: string) => void;
   onSelectProfile: (profile: Profile) => void;
   onApplyProfile?: (profile: Profile) => void;
+  onUseOnDac?: (profile: Profile) => Promise<void>;
   onReloadProfiles: () => void;
   onOpenProfilesDir?: () => void;
   profilesOnDisk?: boolean;
@@ -45,7 +46,10 @@ interface ToolsPanelProps {
   onRename: (from: string, to: string) => Promise<boolean>;
   setStatus: (value: string) => void;
   measurements?: MeasurementTrace[];
-  onAddMeasurement?: (name: string, points: MeasurementTrace["points"]) => void;
+  onAddMeasurement?: (
+    name: string,
+    points: MeasurementTrace["points"],
+  ) => string;
   dirty?: boolean;
   showActions?: boolean;
   graphViewMode?: GraphViewMode;
@@ -60,7 +64,7 @@ interface ToolsPanelProps {
     key: K,
     value: AppSettings[K],
   ) => void;
-  onAddTarget?: (name: string, points: MeasurementTrace["points"]) => void;
+  onAddTarget?: (name: string, points: MeasurementTrace["points"]) => string;
   connected?: boolean;
   isBusy?: boolean;
   isSimulated?: boolean;
@@ -86,9 +90,15 @@ interface ToolsPanelProps {
   onExpectedDisconnect?: (restart?: boolean) => void | Promise<void>;
   onReadFailure?: (path: string, error: unknown) => Promise<boolean>;
   onResetEq?: () => Promise<void>;
+  resetSlot?: number;
   onHardwareEqChanged?: () => void;
   runMaintenance?: DeviceMaintenanceRunner;
   profilePreview?: ReactNode;
+  dacBanks?: ReactNode;
+  dacEditor?: { status: string; unsaved: boolean; slot?: number | null };
+  onSaveEditorToDacBank?: (slot: number) => Promise<boolean>;
+  liveApply?: boolean;
+  onBeforePresetChange?: () => Promise<boolean>;
 }
 
 export const ToolsPanel = memo(function ToolsPanel(props: ToolsPanelProps) {
@@ -117,6 +127,7 @@ export const ToolsPanel = memo(function ToolsPanel(props: ToolsPanelProps) {
           )}
           {tab === "Tuning" && (
             <TuningPanel
+              liveApply={props.liveApply}
               measurements={props.measurements ?? []}
               allTargets={props.allTargets ?? []}
               activeTargetIds={props.activeTargetIds ?? []}
@@ -151,7 +162,9 @@ export const ToolsPanel = memo(function ToolsPanel(props: ToolsPanelProps) {
               onExpectedDisconnect={props.onExpectedDisconnect}
               onReadFailure={props.onReadFailure}
               onResetEq={props.onResetEq}
+              resetSlot={props.resetSlot}
               onHardwareEqChanged={props.onHardwareEqChanged}
+              onBeforePresetChange={props.onBeforePresetChange}
               runMaintenance={props.runMaintenance}
             />
           )}

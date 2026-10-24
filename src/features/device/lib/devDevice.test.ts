@@ -46,6 +46,9 @@ function model(
           : null,
     integer_preamp: false,
     ...overrides,
+    user_eq_slots:
+      overrides.user_eq_slots ??
+      (overrides.controls === "melody" ? [160, 161, 162] : []),
   };
   return buildDevPreviewDevice(profile);
 }

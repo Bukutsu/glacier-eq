@@ -12,7 +12,7 @@ const melody: SupportedDeviceInfo = {
   name: "SNOWSKY Melody",
   protocol: "FiiO Melody",
   family: "FiiO",
-  status: "Untested",
+  status: "Tested",
   vendor_id: 0x2972,
   product_id: 0x0126,
   spec: { name: "Melody", chip: "CS43131", outputs: "3.5 / 4.4mm" },
@@ -23,6 +23,7 @@ const named: SupportedDeviceInfo = {
   protocol: "FIIO LS-TC2",
   product_id: null,
   usb_product_names: ["FIIO DSP Audio"],
+  status: "Untested",
 };
 const tested: SupportedDeviceInfo = {
   ...melody,
@@ -44,11 +45,20 @@ const models = groupDeviceProfiles([
 ]);
 
 describe("build-backed device catalog", () => {
+  it("sorts model numbers naturally and ignores brand capitalization", () => {
+    const names = ["FIIO K13", "FiiO KA17", "FIIO K3", "fiio K9", "FIIO K11"];
+    expect(
+      groupDeviceProfiles(names.map((name) => ({ ...melody, name }))).map(
+        (m) => m.profile.name,
+      ),
+    ).toEqual(["FIIO K3", "fiio K9", "FIIO K11", "FIIO K13", "FiiO KA17"]);
+  });
+
   it("groups USB variants without losing identities or source status", () => {
     expect(models).toHaveLength(3);
     const model = models.find((m) => m.profile.name === "SNOWSKY Melody")!;
     expect(model.variants).toHaveLength(2);
-    expect(model.profile.status).toBe("Untested");
+    expect(model.profile.status).toBe("Tested");
     expect(model.variants.map((v) => v.vendor_id)).toEqual([0x2972, 0x0a12]);
     expect(
       groupDeviceProfiles([
@@ -80,9 +90,9 @@ describe("build-backed device catalog", () => {
   it("combines status and search without changing registration status", () => {
     expect(
       filterDeviceModels(models, "", "Tested").map((m) => m.profile.name),
-    ).toEqual(["FiiO JA11"]);
-    expect(filterDeviceModels(models, "melody", "Tested")).toEqual([]);
-    expect(filterDeviceModels(models, "melody", "Untested")).toHaveLength(1);
+    ).toEqual(["FiiO JA11", "SNOWSKY Melody"]);
+    expect(filterDeviceModels(models, "melody", "Tested")).toHaveLength(1);
+    expect(filterDeviceModels(models, "melody", "Untested")).toEqual([]);
     expect(filterDeviceModels(models, "  ", "")).toHaveLength(3);
     expect(usbId(0xa12)).toBe("0A12");
   });

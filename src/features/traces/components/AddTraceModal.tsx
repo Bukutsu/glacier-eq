@@ -21,6 +21,8 @@ import { Input } from "@/components/ui/Input";
 
 interface AddTraceModalProps {
   onClose: () => void;
+  /** Explicit intent from Tuning; the curve manager keeps auto-detection. */
+  importKind?: "measurement";
   onAddMeasurement?: (name: string, points: MeasurementPoint[]) => void;
   onAddTarget?: (name: string, points: MeasurementPoint[]) => void;
   setStatus?: (value: string) => void;
@@ -28,6 +30,7 @@ interface AddTraceModalProps {
 
 export function AddTraceModal({
   onClose,
+  importKind,
   onAddMeasurement,
   onAddTarget,
   setStatus,
@@ -151,7 +154,9 @@ export function AddTraceModal({
         return;
       const points = parseMeasurementText(result.text);
       const label = result.name.replace(/\.[^/.]+$/, "");
-      const kind = identifyTraceKind(result.name, result.text, points.length);
+      const kind =
+        importKind ??
+        identifyTraceKind(result.name, result.text, points.length);
 
       if (kind === "target") {
         (onAddTarget ?? onAddMeasurement)?.(label, points);
@@ -234,7 +239,11 @@ export function AddTraceModal({
 
   return (
     <Modal
-      title={t("addTraceModal.addACurve")}
+      title={
+        importKind
+          ? t("tuningPanel.addMeasurement")
+          : t("addTraceModal.addACurve")
+      }
       onClose={onClose}
       className="add-trace-modal"
     >
@@ -401,7 +410,9 @@ export function AddTraceModal({
             <Icon name="file_upload" /> {t("addTraceModal.importFile")}
           </Button>
           <p>
-            {t("addTraceModal.measurementOrTargetFile")}
+            {importKind
+              ? t("tuningPanel.measurement")
+              : t("addTraceModal.measurementOrTargetFile")}
             <br />
             <span>{t("addTraceModal.csvOrTxt")}</span>
           </p>

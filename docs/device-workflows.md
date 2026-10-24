@@ -65,6 +65,7 @@ establishes USB identity, EQ reads and accepted request framing, but not a
 successful persistent write with this implementation.
 
 Sources:
+
 - [FiiO Control Web](https://fiiocontrol.fiio.com/), bundle
   `static/js/index-7hb30NUo.js`, plus the supplied Melody capture.
 - [Contour's Melody protocol findings](https://github.com/Chronosauros/contour/blob/81cd09dbad630c4237355334a9b4a86d2e1a1f63/research/protocol/PROTOCOL.md#L216-L248)
@@ -81,12 +82,27 @@ USER1–3 are 160–162, and EQ off is 240. The Device controls can select any o
 these for playback. A selection is sent once and verified immediately; it
 does not edit or save bands, or overwrite the editor.
 
-The write destination defaults to User 1. Selecting another destination is a
-local choice and does not change playback. Both **Write to DAC** and
-**Reset EQ** use that destination, select it before taking the backup, and
-leave it playing. On failure, rollback restores that destination's backup,
-not the previously playing slot. Native and WebHID requests carry
-`melody_slot` explicitly; other devices reject this argument.
+Profiles keeps the three User banks under **On this DAC**, separate from
+profiles under **Saved in Glacier**. Selecting a User bank activates it and
+loads its EQ into the editor. Edits can preview on the DAC, but Melody never
+saves them to flash automatically. The editor shows **Save to User N** when
+there are changes; switching away asks before discarding them. Saving a profile
+in Glacier creates a separate local copy.
+
+Profiles saved in Glacier appear below the three fixed DAC banks and are local
+files. Loading one changes the editor and may preview it on the active bank;
+it does not write it to flash. Use **Save to User N** to keep the EQ on the DAC.
+A local profile's **Save to DAC** action writes that profile to the active bank,
+or asks which bank to use if none is open. The header's **Write to DAC** remains
+a shortcut for saving the current editor, and **Read from DAC** reads the
+playing EQ.
+
+Device controls now handle playback presets and resetting the explicitly
+selected User bank. Bank selection and renaming live in the Profiles list.
+Writes and resets select the destination before taking the backup. On failure,
+rollback restores that destination's backup, not the previously playing slot.
+Native and WebHID requests carry `melody_slot` explicitly; other devices
+reject this argument.
 
 Every write contains ten bands; normalization supplies neutral bands for a
 shorter profile. Glacier does not send a band-count write. SAVE (`0x19`) uses
@@ -112,6 +128,7 @@ which would change the sound.
 ### USER names and reset
 
 Command `0x30` reads and renames USER slots:
+
 - Read payload: the slot id `a0`–`a2`, not an index 0–2.
 - Reply payload: slot id plus eight name bytes, NUL padded.
 - Write payload: slot id plus 1–8 ASCII letters or digits, uppercased,
@@ -144,15 +161,15 @@ stage every register, then send one flash commit and wait 250 ms. A commit
 after each register caused subsequent reports to be ignored during flash
 settling.
 
-| Setting | Payload |
-| --- | --- |
-| Reconstruction filter | `01 11 01 MODE` |
-| Amplifier mode | `01 1d 01 VALUE` |
-| Gain mode | `01 19 01 VALUE` |
-| Microphone volume | `01 02 02 80 VALUE` |
-| Balance | Two `01 16 04 …` reports |
-| Flash commit | `01 01 00` |
-| Restore defaults/reload | `01 17 00` |
+| Setting                 | Payload                  |
+| ----------------------- | ------------------------ |
+| Reconstruction filter   | `01 11 01 MODE`          |
+| Amplifier mode          | `01 1d 01 VALUE`         |
+| Gain mode               | `01 19 01 VALUE`         |
+| Microphone volume       | `01 02 02 80 VALUE`      |
+| Balance                 | Two `01 16 04 …` reports |
+| Flash commit            | `01 01 00`               |
+| Restore defaults/reload | `01 17 00`               |
 
 The report ID is `4b`, separate from the payload. `01 17 00` restores filter,
 amplifier mode, and balance and reloads saved EQ; it is not a complete factory

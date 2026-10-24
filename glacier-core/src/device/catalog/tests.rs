@@ -302,6 +302,7 @@ fn existing_family_transport_quirks() {
 fn snowsky_melody_has_its_own_profile_and_whole_db_preamp() {
     let melody = get_supported_device(0x2972, 0x0126).unwrap();
     assert_eq!(melody.name, "SNOWSKY Melody");
+    assert_eq!(melody.status, "Tested");
     assert_eq!(melody.protocol, &fiio::MELODY);
     assert_eq!(melody.caps.num_bands, 10);
     assert_eq!(melody.caps.global_gain_range, (-24, 12));

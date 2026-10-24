@@ -58,7 +58,9 @@
     "activeBands_many": "{{count}} bandas ativas · pré-amplificação de {{preamp}}",
     "savedCount_many": "{{count}} perfis salvos",
     "bandSummary_many": "{{count}} bandas · pré-amplificação de {{preamp}}",
-    "useOnDac": "Usar no DAC"
+    "useOnDac": "Usar no DAC",
+    "localProfiles": "Salvos no Glacier",
+    "localProfilesHelp": "Carregue um perfil no editor e salve-o em um banco User quando quiser usá-lo no DAC."
   },
   "profilesView": {
     "overwriteProfile": "Sobrescrever perfil",
@@ -146,6 +148,7 @@
     "deleteLabel": "Excluir {{name}}",
     "emptyLibraryHint": "Salve seu EQ ou importe um perfil para adicioná-lo aqui.",
     "loadHelp": "Carregar um perfil altera o editor, não o DAC.",
+    "loadHelpMelody": "Carregar um perfil local altera o editor. Salve-o em um banco User para guardá-lo neste DAC.",
     "namePlaceholder": "Nome do perfil…",
     "overwriteWarning": "Já existe um perfil com este nome. Salvar o substituirá.",
     "pasteHelp": "Seu navegador não conseguiu ler a área de transferência. Cole seu texto AutoEQ abaixo para ver uma prévia.",
@@ -155,7 +158,14 @@
     "parsing": "Analisando…",
     "savedCount_many": "{{count}} salvos",
     "bandCount_many": "{{count}} bandas",
-    "bandSummary_many": "{{count}} bandas · pré-amplificação de {{preamp}}"
+    "bandSummary_many": "{{count}} bandas · pré-amplificação de {{preamp}}",
+    "saveToDac": "Salvar no DAC…",
+    "saveProfileToDac": "Salvar {{name}} no DAC",
+    "saveProfileToUser": "Salvar {{name}} no User {{number}}",
+    "writeToUser": "Salvar no User {{number}}",
+    "readFromDac": "Ler do DAC",
+    "liveLoadHelp": "Carregar um perfil altera o EQ em reprodução e o salva após uma pausa.",
+    "localProfiles": "Salvos no Glacier"
   },
   "profiles": {
     "failedToLoadProfiles": "Falha ao carregar perfis: {{error}}",
@@ -195,7 +205,10 @@
     "measurement": "Medição",
     "targetCurve": "Curva-alvo",
     "addATargetToContinue": "Adicione um alvo para continuar",
-    "addMeasurementOrTarget": "Adicionar medição ou alvo",
+    "addMeasurement": "Adicionar medição",
+    "importTarget": "Importar alvo",
+    "importingTarget": "Importando alvo…",
+    "targetSelected": "{{name}} selecionado como alvo.",
     "filterBands": "Bandas de filtro",
     "limitedBandAutoEQ": "AutoEQ com bandas limitadas",
     "trebleSmoothing": "Suavização de agudos",
@@ -228,7 +241,8 @@
     "needsMeasurement": "Adicione uma medição para gerar EQ.",
     "needsTarget": "Adicione um alvo para gerar EQ.",
     "destinationHelp": "Carrega o EQ no editor, não no DAC.",
-    "bandLimit_many": "Até {{count}} bandas"
+    "bandLimit_many": "Até {{count}} bandas",
+    "liveDestinationHelp": "Aplica o EQ ao banco ativo e o salva após uma pausa."
   },
   "autoEq": {
     "generatingEQ": "Gerando EQ…",

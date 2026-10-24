@@ -1,6 +1,8 @@
 import { ErrorNotice } from "@/components/feedback/ErrorNotice";
 import { useTranslation } from "react-i18next";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { openFileDialog } from "@/lib/rpc";
+import { parseMeasurementText } from "@/features/traces/lib/measurements";
 import {
   useAutoEq,
   type AutoEqOptions,
@@ -14,36 +16,43 @@ import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
 
 interface AutoEqTabProps extends AutoEqOptions {
-  onOpenAddTrace?: () => void;
+  liveApply?: boolean;
+  onAddMeasurement?: (
+    name: string,
+    points: MeasurementTrace["points"],
+  ) => string;
+  onAddTarget?: (name: string, points: MeasurementTrace["points"]) => string;
 }
 
-interface TuningPanelProps extends AutoEqTabProps {
-  onAddMeasurement?: (name: string, points: MeasurementTrace["points"]) => void;
-  onAddTarget?: (name: string, points: MeasurementTrace["points"]) => void;
-}
-
-export function TuningPanel(props: TuningPanelProps) {
-  const [showAddModal, setShowAddModal] = useState(false);
-  const openAddTrace = () => setShowAddModal(true);
-
+export function TuningPanel(props: AutoEqTabProps) {
   return (
     <div className="tuning-panel">
-      <AutoEqTab {...props} onOpenAddTrace={openAddTrace} />
-      {showAddModal && (
-        <AddTraceModal
-          onClose={() => setShowAddModal(false)}
-          onAddMeasurement={props.onAddMeasurement}
-          onAddTarget={props.onAddTarget}
-          setStatus={props.setStatus}
-        />
-      )}
+      <AutoEqTab {...props} />
     </div>
   );
 }
 
 export function AutoEqTab(props: AutoEqTabProps) {
   const { t } = useTranslation("library");
-  const { measurements, allTargets, maxBands = 10, onOpenAddTrace } = props;
+  const { measurements, allTargets, maxBands = 10, onAddMeasurement } = props;
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [importingTarget, setImportingTarget] = useState(false);
+  const [importError, setImportError] = useState<unknown>(null);
+  const focusAfterImport = useRef<string | null>(null);
+  const mounted = useRef(true);
+  const importing = useRef(false);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+  useEffect(() => {
+    if (!showAddModal && focusAfterImport.current) {
+      document.getElementById(focusAfterImport.current)?.focus();
+      focusAfterImport.current = null;
+    }
+  });
   const {
     nBands,
     setNBands,
@@ -63,6 +72,35 @@ export function AutoEqTab(props: AutoEqTabProps) {
     handleTargetChange,
     handleRunAutoEq,
   } = useAutoEq(props);
+  const importTarget = async () => {
+    if (!props.onAddTarget || importing.current) return;
+    importing.current = true;
+    setImportingTarget(true);
+    setImportError(null);
+    try {
+      const file = await openFileDialog({
+        filters: [
+          {
+            name: t("addTraceModal.frequencyResponseCsvTxt"),
+            extensions: ["csv", "txt"],
+          },
+        ],
+      });
+      if (!file || !mounted.current) return;
+      const points = parseMeasurementText(file.text);
+      const name = file.name.replace(/\.[^/.]+$/, "");
+      const id = props.onAddTarget(name, points);
+      handleTargetChange(id);
+      focusAfterImport.current = "autoeq-target";
+      props.setStatus(t("tuningPanel.targetSelected", { name }));
+    } catch (error) {
+      if (mounted.current) setImportError(error);
+    } finally {
+      importing.current = false;
+      if (mounted.current) setImportingTarget(false);
+    }
+  };
+
   return (
     <div className="tuning-match">
       <form
@@ -79,20 +117,38 @@ export function AutoEqTab(props: AutoEqTabProps) {
           <p>{t("tuningPanel.description")}</p>
         </header>
 
-        <fieldset className="tuning-fields" disabled={isOptimizing}>
+        <fieldset
+          className="tuning-fields"
+          disabled={isOptimizing || importingTarget}
+        >
           <legend className="tuning-sr-only">
             {t("tuningPanel.inputsLegend")}
           </legend>
           <div className="tuning-field">
-            {meas ? (
-              <label htmlFor="autoeq-measurement">
-                {t("tuningPanel.measurement")}
-              </label>
-            ) : (
-              <span className="tuning-field-label">
-                {t("tuningPanel.measurement")}
-              </span>
-            )}
+            <div className="tuning-field-heading">
+              {meas ? (
+                <label htmlFor="autoeq-measurement">
+                  {t("tuningPanel.measurement")}
+                </label>
+              ) : (
+                <span className="tuning-field-label">
+                  {t("tuningPanel.measurement")}
+                </span>
+              )}
+              {props.onAddMeasurement && (
+                <Button
+                  variant="ghost"
+                  className="tuning-field-action"
+                  disabled={isOptimizing || importingTarget}
+                  onClick={() => {
+                    setImportError(null);
+                    setShowAddModal(true);
+                  }}
+                >
+                  <Icon name="add" /> {t("tuningPanel.addMeasurement")}
+                </Button>
+              )}
+            </div>
             {meas ? (
               <Select
                 id="autoeq-measurement"
@@ -102,7 +158,7 @@ export function AutoEqTab(props: AutoEqTabProps) {
                   label: m.name,
                 }))}
                 onChange={handleMeasChange}
-                disabled={isOptimizing}
+                disabled={isOptimizing || importingTarget}
               />
             ) : (
               <p className="tuning-help">{t("tuningPanel.measurementHelp")}</p>
@@ -110,9 +166,26 @@ export function AutoEqTab(props: AutoEqTabProps) {
           </div>
 
           <div className="tuning-field">
-            <label htmlFor="autoeq-target">
-              {t("tuningPanel.targetCurve")}
-            </label>
+            <div className="tuning-field-heading">
+              <label htmlFor="autoeq-target">
+                {t("tuningPanel.targetCurve")}
+              </label>
+              {props.onAddTarget && (
+                <Button
+                  variant="ghost"
+                  className="tuning-field-action"
+                  disabled={isOptimizing || importingTarget}
+                  onClick={importTarget}
+                >
+                  <Icon
+                    name={importingTarget ? "hourglass_empty" : "file_upload"}
+                  />
+                  {importingTarget
+                    ? t("tuningPanel.importingTarget")
+                    : t("tuningPanel.importTarget")}
+                </Button>
+              )}
+            </div>
             <Select
               id="autoeq-target"
               value={target?.id ?? ""}
@@ -129,19 +202,19 @@ export function AutoEqTab(props: AutoEqTabProps) {
               }
               onChange={handleTargetChange}
             />
+
+            {importError != null && (
+              <ErrorNotice>
+                {t("addTraceModal.couldNotImportFile", { error: importError })}
+              </ErrorNotice>
+            )}
           </div>
-          {onOpenAddTrace && (
-            <Button
-              className="w-full min-h-11"
-              disabled={isOptimizing}
-              onClick={onOpenAddTrace}
-            >
-              <Icon name="add" /> {t("tuningPanel.addMeasurementOrTarget")}
-            </Button>
-          )}
         </fieldset>
 
-        <fieldset className="tuning-settings" disabled={isOptimizing}>
+        <fieldset
+          className="tuning-settings"
+          disabled={isOptimizing || importingTarget}
+        >
           <legend className="tuning-sr-only">
             {t("tuningPanel.settingsLegend")}
           </legend>
@@ -157,7 +230,7 @@ export function AutoEqTab(props: AutoEqTabProps) {
             <NumberInput
               id="autoeq-bands"
               aria-label={t("tuningPanel.filterBands")}
-              disabled={isOptimizing}
+              disabled={isOptimizing || importingTarget}
               value={nBands}
               min={1}
               max={Math.max(1, maxBands)}
@@ -178,35 +251,6 @@ export function AutoEqTab(props: AutoEqTabProps) {
               <p>{t("tuningPanel.limitedBandsWarning")}</p>
             </div>
           )}
-          <div className="tuning-smoothing">
-            <span id="tuning-smoothing-label">
-              {t("tuningPanel.trebleSmoothing")}
-            </span>
-            <div
-              className="tuning-segmented"
-              role="group"
-              aria-labelledby="tuning-smoothing-label"
-            >
-              {[
-                { value: "IE", label: t("tuningPanel.inEar") },
-                { value: "OE", label: t("tuningPanel.overEar") },
-                { value: "None", label: t("tuningPanel.off") },
-              ].map((option) => (
-                <Button
-                  key={option.value}
-                  aria-pressed={smoothType === option.value}
-                  variant={smoothType === option.value ? "default" : "ghost"}
-                  disabled={isOptimizing}
-                  onClick={() => {
-                    invalidateRequest();
-                    setSmoothType(option.value);
-                  }}
-                >
-                  {option.label}
-                </Button>
-              ))}
-            </div>
-          </div>
           <Collapsible
             title={t("tuningPanel.advancedSettings")}
             defaultOpen={false}
@@ -214,13 +258,32 @@ export function AutoEqTab(props: AutoEqTabProps) {
           >
             <div className="tuning-advanced-fields">
               <div className="tuning-field">
+                <label htmlFor="autoeq-smoothing">
+                  {t("tuningPanel.trebleSmoothing")}
+                </label>
+                <Select
+                  id="autoeq-smoothing"
+                  value={smoothType}
+                  disabled={isOptimizing || importingTarget}
+                  onChange={(value) => {
+                    invalidateRequest();
+                    setSmoothType(value);
+                  }}
+                  options={[
+                    { value: "IE", label: t("tuningPanel.inEar") },
+                    { value: "OE", label: t("tuningPanel.overEar") },
+                    { value: "None", label: t("tuningPanel.off") },
+                  ]}
+                />
+              </div>
+              <div className="tuning-field">
                 <label htmlFor="autoeq-steps">
                   {t("tuningPanel.optimizerSteps")}
                 </label>
                 <Select
                   id="autoeq-steps"
                   value={steps}
-                  disabled={isOptimizing}
+                  disabled={isOptimizing || importingTarget}
                   onChange={(value) => {
                     invalidateRequest();
                     setSteps(value);
@@ -240,7 +303,7 @@ export function AutoEqTab(props: AutoEqTabProps) {
                 <Select
                   id="autoeq-fs"
                   value={fs}
-                  disabled={isOptimizing}
+                  disabled={isOptimizing || importingTarget}
                   onChange={(value) => {
                     invalidateRequest();
                     setFs(value);
@@ -261,13 +324,13 @@ export function AutoEqTab(props: AutoEqTabProps) {
           <Button
             type="submit"
             variant="primary"
-            className="tuning-generate w-full min-h-11"
+            className="tuning-generate w-full"
             aria-describedby={
               nBands <= 5
                 ? "tuning-destination tuning-band-warning"
                 : "tuning-destination"
             }
-            disabled={isOptimizing || !meas || !target}
+            disabled={isOptimizing || importingTarget || !meas || !target}
           >
             {isOptimizing && <Icon name="hourglass_empty" />}
             {isOptimizing
@@ -279,10 +342,24 @@ export function AutoEqTab(props: AutoEqTabProps) {
               ? t("tuningPanel.needsMeasurement")
               : !target
                 ? t("tuningPanel.needsTarget")
-                : t("tuningPanel.destinationHelp")}
+                : props.liveApply
+                  ? t("tuningPanel.liveDestinationHelp")
+                  : t("tuningPanel.destinationHelp")}
           </p>
         </div>
       </form>
+      {showAddModal && onAddMeasurement && (
+        <AddTraceModal
+          importKind="measurement"
+          onClose={() => setShowAddModal(false)}
+          onAddMeasurement={(name, points) => {
+            const id = onAddMeasurement(name, points);
+            handleMeasChange(id);
+            focusAfterImport.current = "autoeq-measurement";
+          }}
+          setStatus={props.setStatus}
+        />
+      )}
       {errorMessage && (
         <ErrorNotice className="mt-4">{errorMessage}</ErrorNotice>
       )}

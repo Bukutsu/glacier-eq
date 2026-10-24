@@ -7,7 +7,7 @@ import {
 
 import { describe, expect, it, vi } from "vitest";
 
-import type { DeviceCapabilities } from "@/types";
+import type { DeviceCapabilities, DeviceInfo } from "@/types";
 import { buildDefaultState } from "@/features/eq/lib/peq";
 
 function setup(path = "/dev/test") {
@@ -28,6 +28,11 @@ function setup(path = "/dev/test") {
     ...operationFixture(),
     connected: true,
     selectedDevice: path,
+    selectedDeviceInfo: {
+      controls: "melody",
+      profile_name: "SNOWSKY Melody",
+      user_eq_slots: [160, 161, 162],
+    } as DeviceInfo,
     selectedCapabilities: {
       num_bands: 10,
       global_gain_range: [-10, 10],
@@ -176,5 +181,125 @@ describe("push completion", () => {
       expect.objectContaining({ level: "Error" }),
     );
     expect(t.scope.eqOperationInFlightRef.current).toBe(false);
+  });
+});
+
+describe("user-bank confirmation", () => {
+  it("selects and saves a non-Melody FiiO bank by its protocol slot", async () => {
+    const { scope, invoke } = setup("/btr13-picker");
+    scope.selectedDeviceInfo = {
+      controls: null,
+      profile_name: "FIIO BTR13",
+      user_eq_slots: [7, 8, 9],
+    } as DeviceInfo;
+    const chooseUserBank = vi.fn(async () => ({
+      slot: 8,
+      confirmed: true,
+    }));
+    await createPushEq({ ...scope, chooseUserBank })();
+    expect(chooseUserBank).toHaveBeenCalledWith({
+      path: "/btr13-picker",
+      count: 0,
+      preamp: "-3.33 dB",
+      slots: [7, 8, 9],
+      isMelody: false,
+    });
+    expect(invoke).toHaveBeenCalledWith(
+      "set_eq_state",
+      expect.objectContaining({ fiio_slot: 8 }),
+    );
+  });
+
+  it("writes directly to an explicit User bank and confirms that target", async () => {
+    const { scope, invoke } = setup("/melody-explicit-slot");
+    const chooseUserBank = vi.fn(async () => ({
+      slot: 160,
+      confirmed: false,
+    }));
+    await createPushEq({ ...scope, chooseUserBank })({ melodySlot: 162 });
+    expect(chooseUserBank).not.toHaveBeenCalled();
+    expect(scope.confirmDialog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: expect.stringContaining("User 3"),
+      }),
+    );
+    expect(invoke).toHaveBeenCalledWith(
+      "set_eq_state",
+      expect.objectContaining({ melody_slot: 162 }),
+    );
+  });
+
+  it("saves to the explicitly confirmed bank without a second generic confirmation", async () => {
+    const { scope, invoke } = setup("/melody-picker");
+    const chooseUserBank = vi.fn(async () => ({
+      slot: 162,
+      confirmed: true,
+    }));
+    await createPushEq({ ...scope, chooseUserBank })();
+    expect(chooseUserBank).toHaveBeenCalledWith({
+      path: "/melody-picker",
+      count: 0,
+      preamp: "-3.33 dB",
+      slots: [160, 161, 162],
+      isMelody: true,
+    });
+    expect(scope.confirmDialog).not.toHaveBeenCalled();
+    expect(invoke).toHaveBeenCalledWith(
+      "set_eq_state",
+      expect.objectContaining({ melody_slot: 162 }),
+    );
+  });
+
+  it("confirms the active bank even when the caller selects it automatically", async () => {
+    const { scope, invoke } = setup("/melody-active");
+    await createPushEq({
+      ...scope,
+      chooseUserBank: async () => ({ slot: 160, confirmed: false }),
+    })();
+    expect(scope.confirmDialog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: expect.stringContaining("User 1"),
+        confirmLabel: expect.stringContaining("User 1"),
+        message: expect.stringContaining("User 1"),
+      }),
+    );
+    expect(invoke).toHaveBeenCalledWith(
+      "set_eq_state",
+      expect.objectContaining({ melody_slot: 160 }),
+    );
+  });
+
+  it("does not select a bank or write when cancelled", async () => {
+    const { scope, invoke } = setup("/melody-cancel");
+    setMelodySlot("/melody-cancel", 160);
+    await createPushEq({ ...scope, chooseUserBank: async () => null })();
+    expect(invoke).not.toHaveBeenCalled();
+    expect(scope.setIsBusy).not.toHaveBeenCalled();
+  });
+
+  it("rejects a bank confirmation from before reconnect", async () => {
+    const { scope, invoke } = setup("/melody-reconnect");
+    await createPushEq({
+      ...scope,
+      chooseUserBank: async () => {
+        scope.connectionGenerationRef.current++;
+        return { slot: 161, confirmed: true };
+      },
+    })();
+    expect(invoke).not.toHaveBeenCalled();
+  });
+
+  it("keeps the confirmed EQ snapshot even if the bank default changes later", async () => {
+    const { scope, invoke } = setup("/melody-snapshot");
+    scope.confirmDialog.mockImplementation(async () => {
+      setMelodySlot("/melody-snapshot", 162);
+      return true;
+    });
+    setMelodySlot("/melody-snapshot", 161);
+    await createPushEq(scope)();
+    expect(invoke).toHaveBeenCalledWith(
+      "set_eq_state",
+      expect.objectContaining({ melody_slot: 161 }),
+    );
   });
 });

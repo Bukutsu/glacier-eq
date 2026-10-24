@@ -33,6 +33,10 @@ impl Protocol {
     pub fn quirks(&self) -> Quirks {
         self.eq.map(|eq| eq.quirks()).unwrap_or_default()
     }
+
+    pub fn user_eq_slots(&self) -> &'static [u8] {
+        self.eq.map_or(&[], |eq| eq.user_eq_slots())
+    }
 }
 
 impl PartialEq for Protocol {
@@ -135,6 +139,11 @@ pub trait EqProtocol: Sync {
     /// A fixed user bank must be selected before taking the rollback snapshot.
     fn write_target_preset(&self) -> Option<u8> {
         None
+    }
+    /// Exact preset IDs of editable on-device EQ banks, if the protocol
+    /// exposes them. Display labels are assigned by catalog order, not names.
+    fn user_eq_slots(&self) -> &'static [u8] {
+        &[]
     }
     fn read_filter_count_request(&self) -> Option<Packet> {
         None

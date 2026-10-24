@@ -63,6 +63,25 @@ describe("Header markup", () => {
   );
 
   it.each([false, true])(
+    "keeps the explicit write action for RAM-only live preview (mobile=%s)",
+    (mobile) => {
+      const html = renderToStaticMarkup(
+        createElement(Header, {
+          ...baseHeaderProps,
+          connected: true,
+          mobile,
+          liveApply: true,
+          liveApplySaves: false,
+          saveLabel: "Save to User 1",
+        }),
+      );
+      expect(html).toContain("Live apply");
+      expect(html).toContain("Save to User 1");
+      expect(html).not.toContain("Write to DAC");
+    },
+  );
+
+  it.each([false, true])(
     "keeps draft recovery in the header metadata (mobile=%s)",
     (mobile) => {
       const html = renderToStaticMarkup(

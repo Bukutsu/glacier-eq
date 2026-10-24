@@ -108,9 +108,6 @@
   "devProtocolPreview": {
     "protocolModelPreview": "协议 / 型号预览",
     "walkplayDefaultDummyDac": "Walkplay — 默认模拟 DAC",
-    "unknownDacPreview": "未知 DAC 预览",
-    "model": "{{protocol}} — {{name}}",
-    "vendorFallbackModel": "{{protocol}} — {{name}}（厂商回退）",
     "previewEq_other": "正在预览 {{name}} · {{count}} 个频段 · {{rate}} kHz",
     "previewNoEq": "正在预览 {{name}} · 无硬件 EQ",
     "description": "仅模拟设置与 EQ。不会发送硬件命令。"
@@ -259,14 +256,14 @@
     },
     "unknownPreset": "选择预设",
     "presetDescription": "立即切换播放，不修改编辑器。设备无法可靠报告当前预设。",
-    "destination": "写入目标",
-    "destinationDescription": "写入 DAC 和重置 EQ 使用此槽位。选择目标不会改变播放。",
     "slotName": "槽位名称",
     "nameDescription": "1–8 个字母或数字（A–Z、0–9），保存在 DAC 上。",
     "rename": "重命名",
     "resetSlot": "将用户 {{slot}} 重置为平直",
     "operationFailed": "SNOWSKY 操作失败：{{error}}",
-    "resetConfirmation": "将用户 {{slot}} 替换为十个平直频段和零前置增益？其他槽位保持不变。"
+    "resetConfirmation": "将用户 {{slot}} 替换为{{bands}} 个平直频段和零前置增益？其他槽位保持不变。",
+    "bankToManage": "管理槽位",
+    "bankToManageDescription": "选择要重命名或重置的槽位。从配置或编辑器保存 EQ。"
   },
   "linuxUdevGuide": {
     "copy": "复制",
@@ -428,7 +425,11 @@
     "writingBand": "正在写入频段 1/{{num_bands}}…",
     "savedRestarting": "已将 EQ 保存至 DAC；预计会重启，正在等待重新连接",
     "writeFailed": "无法写入 DAC：{{error}}",
-    "writeDisconnected": "无法写入 DAC（已断开）：{{error}}"
+    "writeDisconnected": "无法写入 DAC（已断开）：{{error}}",
+    "confirmWriteToMelodyBank_one": "将 {{count}} 段和 {{preamp}} 前级保存到 User {{bank}}？此 DAC 槽位将被覆盖。",
+    "confirmWriteToMelodyBank_other": "将 {{count}} 段和 {{preamp}} 前级保存到 User {{bank}}？此 DAC 槽位将被覆盖。",
+    "writeMelodyBankTitle": "保存到 User {{bank}}？",
+    "writeMelodyBankAction": "保存到 User {{bank}}"
   },
   "applyProfileToRam": {
     "discardChanges": "丢弃更改？",
@@ -455,5 +456,38 @@
     "hold": "按住以收听无 EQ 的声音",
     "off": "EQ 关闭",
     "label": "A/B"
+  },
+  "melodySave": {
+    "title": "保存到 DAC",
+    "bank": "用户槽位",
+    "userBank": "用户 {{number}}",
+    "userBankNamed": "用户 {{number}} · {{name}}",
+    "effect": "保存将覆盖此槽位的 EQ 并开始播放。其他槽位保持不变。仅选择槽位不会进行任何更改。",
+    "retry": "重试",
+    "loading": "正在读取槽位名称…",
+    "cancel": "取消",
+    "save": "保存并启用",
+    "busy": "设备正忙。请等待当前操作完成后重试。"
+  },
+  "melodyBanks": {
+    "title": "此 DAC 上",
+    "instructions": "打开 User 槽位即可编辑。保存到 DAC 会写入设备；保存在 Glacier 则是单独的本地配置。",
+    "openLabel": "打开 User {{number}}",
+    "storedOnDac": "存储在 DAC 上",
+    "editing": "编辑中",
+    "live": "实时试听（实验性）",
+    "liveDescription": "可以通过 DAC 试听修改，但不会自动保存。准备好后将更改保存到 User 槽位。",
+    "chooseFirst": "实时编辑前请先选择 DAC 槽位。",
+    "saveFailed": "无法保存当前槽位。实时应用已暂停，槽位未切换。",
+    "discardTitle": "DAC 上有未保存的更改",
+    "discardMessage": "User {{number}} 的更改尚未保存。切换槽位会丢弃这些更改。",
+    "discardAction": "丢弃更改",
+    "discardAndSwitch": "丢弃并打开 User {{number}}",
+    "editorName": "用户 {{number}}",
+    "saved": "已保存到 DAC",
+    "unsaved": "有未保存的更改",
+    "renameLabel": "重命名 User {{number}}",
+    "cancelRename": "取消重命名",
+    "saveEditorLabel": "将当前 EQ 保存到 User {{number}}"
   }
 }

@@ -42,6 +42,8 @@ export interface ProfilesViewProps {
   setNewProfileName: (value: string) => void;
   onSelectProfile: (profile: Profile) => void;
   onApplyProfile?: (profile: Profile) => void;
+  onUseOnDac?: (profile: Profile) => Promise<void>;
+  isBusy?: boolean;
   onReloadProfiles: () => void | Promise<Profile[]>;
   onOpenProfilesDir?: () => void;
   /** Profiles are files that can change outside the app (desktop, Android). */
@@ -58,6 +60,15 @@ export interface ProfilesViewProps {
   showActions?: boolean;
   isMobile?: boolean;
   preview?: ReactNode;
+  dacBanks?: ReactNode;
+  dacEditor?: {
+    status: string;
+    unsaved: boolean;
+    slot?: number | null;
+    bankNumber?: number;
+  };
+  onSaveEditorToDacBank?: (slot: number) => Promise<boolean>;
+  liveApply?: boolean;
   onReviewEq?: () => void;
 }
 
@@ -71,6 +82,8 @@ export const ProfilesView = memo(function ProfilesView({
   setNewProfileName,
   onSelectProfile,
   onApplyProfile,
+  onUseOnDac,
+  isBusy = false,
   onReloadProfiles,
   onOpenProfilesDir,
   profilesOnDisk = false,
@@ -85,6 +98,10 @@ export const ProfilesView = memo(function ProfilesView({
   dirty = false,
   showActions = true,
   preview,
+  dacBanks,
+  dacEditor,
+  onSaveEditorToDacBank,
+  liveApply = false,
   onReviewEq,
 }: ProfilesViewProps) {
   const { t } = useTranslation("library");
@@ -166,7 +183,7 @@ export const ProfilesView = memo(function ProfilesView({
     loadProfile({
       profile,
       selectedPreset,
-      dirty,
+      dirty: dirty || Boolean(dacEditor?.unsaved),
       getAsyncContext,
       confirm: confirmDialog,
       onSelectProfile,
@@ -386,15 +403,17 @@ export const ProfilesView = memo(function ProfilesView({
   };
   const isBuiltIn =
     selectedPresetKey === profileIdentityKey(DEFAULT_PROFILE_NAME);
-  const editorState = dirty
-    ? selectedIsSaved
-      ? t("profilesView.unsavedChanges")
-      : t("profilesView.notSaved")
-    : selectedIsSaved
-      ? t("profilesView.saved")
-      : isBuiltIn
-        ? t("profilesView.builtIn")
-        : t("profilesView.notSaved");
+  const editorState =
+    dacEditor?.status ??
+    (dirty
+      ? selectedIsSaved
+        ? t("profilesView.unsavedChanges")
+        : t("profilesView.notSaved")
+      : selectedIsSaved
+        ? t("profilesView.saved")
+        : isBuiltIn
+          ? t("profilesView.builtIn")
+          : t("profilesView.notSaved"));
   const enabledBands = peq.filters.filter((filter) => filter.enabled).length;
 
   return (
@@ -440,6 +459,12 @@ export const ProfilesView = memo(function ProfilesView({
           )}
         </div>
 
+        {dacBanks}
+        {dacBanks && (
+          <h3 className="profiles-local-heading">
+            {t("profilesView.localProfiles")}
+          </h3>
+        )}
         {query && filteredProfiles.length === 0 && (
           <div className="profiles-empty" role="status">
             <h3>{t("profilesView.noMatchingProfiles")}</h3>
@@ -512,6 +537,38 @@ export const ProfilesView = memo(function ProfilesView({
                   </span>
                 )}
                 <div className="profiles-row-actions">
+                  {onUseOnDac && !isDefault && (
+                    <Tooltip
+                      label={
+                        dacEditor?.slot != null
+                          ? t("profilesView.writeToUser", {
+                              number:
+                                dacEditor.bankNumber ?? dacEditor.slot - 159,
+                            })
+                          : t("profilesView.saveToDac")
+                      }
+                    >
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        disabled={isBusy}
+                        aria-label={
+                          dacEditor?.slot != null
+                            ? t("profilesView.saveProfileToUser", {
+                                name: profile.name,
+                                number:
+                                  dacEditor.bankNumber ?? dacEditor.slot - 159,
+                              })
+                            : t("profilesView.saveProfileToDac", {
+                                name: profile.name,
+                              })
+                        }
+                        onClick={() => void onUseOnDac(profile)}
+                      >
+                        <Icon name="save" />
+                      </Button>
+                    </Tooltip>
+                  )}
                   {onApplyProfile && !isDefault && (
                     <Tooltip label={t("profilesView.applyToDACUntilRestart")}>
                       <Button
@@ -572,7 +629,13 @@ export const ProfilesView = memo(function ProfilesView({
           </p>
         )}
         <footer className="profiles-library-footer">
-          <p className="profiles-note">{t("profilesView.loadHelp")}</p>
+          <p className="profiles-note">
+            {dacBanks
+              ? t("profilesView.loadHelpMelody")
+              : liveApply
+                ? t("profilesView.liveLoadHelp")
+                : t("profilesView.loadHelp")}
+          </p>
           {profilesOnDisk && (
             <div className="profiles-footer-actions">
               <Button variant="ghost" onClick={handleReloadProfiles}>
@@ -598,7 +661,11 @@ export const ProfilesView = memo(function ProfilesView({
           </h2>
           <Badge
             className="data-[modified=true]:border-[color-mix(in_srgb,var(--warning-foreground)_40%,transparent)] data-[modified=true]:text-[var(--warning-foreground)]"
-            data-modified={dirty || (!selectedIsSaved && !isBuiltIn)}
+            data-modified={
+              dacEditor
+                ? dacEditor.unsaved
+                : dirty || (!selectedIsSaved && !isBuiltIn)
+            }
           >
             {editorState}
           </Badge>
@@ -612,6 +679,26 @@ export const ProfilesView = memo(function ProfilesView({
             preamp: formatDb(peq.global_gain),
           })}
         </p>
+
+        {showActions &&
+          dacEditor?.slot != null &&
+          dacEditor.unsaved &&
+          onSaveEditorToDacBank && (
+            <div className="profiles-editor-actions profiles-dac-save">
+              <Button
+                variant="primary"
+                disabled={isBusy}
+                onClick={() =>
+                  void onSaveEditorToDacBank(dacEditor.slot as number)
+                }
+              >
+                <Icon name="save" />
+                {t("profilesView.writeToUser", {
+                  number: dacEditor.bankNumber ?? dacEditor.slot - 159,
+                })}
+              </Button>
+            </div>
+          )}
 
         {showActions &&
           (showSaveAs ? (
@@ -646,7 +733,11 @@ export const ProfilesView = memo(function ProfilesView({
                 </p>
               )}
               <div className="profiles-editor-actions">
-                <Button type="submit" variant="primary" disabled={!canSave}>
+                <Button
+                  type="submit"
+                  variant={dacEditor?.unsaved ? "default" : "primary"}
+                  disabled={!canSave}
+                >
                   {saveLabel}
                 </Button>
                 {saveAsOpen && (
@@ -670,7 +761,11 @@ export const ProfilesView = memo(function ProfilesView({
           ) : (
             <div className="profiles-editor-actions">
               {selectedIsSaved && (
-                <Button variant="primary" onClick={onSave} disabled={!canSave}>
+                <Button
+                  variant={dacEditor?.unsaved ? "default" : "primary"}
+                  onClick={onSave}
+                  disabled={!canSave}
+                >
                   {dirty
                     ? t("profilesView.saveChanges")
                     : t("profilesView.profileSaved")}

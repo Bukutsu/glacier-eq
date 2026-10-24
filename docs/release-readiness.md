@@ -2,11 +2,15 @@
 
 This is a source-review snapshot, not a claim that a release has been tested
 on every platform. It covers the changes after the frontend reorganization
-and the profile/mobile UI work in v0.15.0. Release manifests and lockfiles
-are synchronized at 0.15.0. The
+and the profile/mobile UI work after v0.15.0. The release candidate is
+version 0.16.0. The
 [v0.15.0 release](https://github.com/Bukutsu/glacier-eq/releases/tag/v0.15.0)
 was published after the CI package and signed Android upgrade gates below
-passed. Later releases still start as drafts until those checks pass.
+passed. The v0.15.0 assets predate in-app updater support: they contain no
+`latest.json` feed or updater signatures, so users must manually install the
+first release that includes the updater. Subsequent supported builds can update
+from the in-app feed. Later releases still start as drafts until those checks
+pass.
 
 ## Review fixes
 
@@ -121,7 +125,8 @@ development, or Android builds.
 
 One-time setup. The public key is already in `tauri.conf.json`; the matching
 private key must be in the repository secrets or the release workflow stops
-at its first job:
+at its first job. CI now signs a temporary file and verifies it against the
+embedded public key before building release assets:
 
 ```sh
 npx tauri signer generate -w ~/.tauri/glacier-eq.key   # only to rotate the key

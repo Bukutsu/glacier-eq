@@ -518,6 +518,7 @@ pub fn run() {
             device_commands::get_dawn_pro_state,
             device_commands::ja11_control,
             device_commands::melody_control,
+            device_commands::set_user_eq_bank,
             device_commands::melody_name,
             device_commands::set_dawn_pro_control,
             device_commands::set_dac_filter_mode,

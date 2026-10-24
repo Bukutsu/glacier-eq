@@ -108,9 +108,6 @@
   "devProtocolPreview": {
     "protocolModelPreview": "Prévia de protocolo / modelo",
     "walkplayDefaultDummyDac": "Walkplay — DAC simulado padrão",
-    "unknownDacPreview": "Prévia de DAC desconhecido",
-    "model": "{{protocol}} — {{name}}",
-    "vendorFallbackModel": "{{protocol}} — {{name}} (alternativa do fabricante)",
     "previewEq_one": "Prévia de {{name}} · {{count}} banda · {{rate}} kHz",
     "previewEq_other": "Prévia de {{name}} · {{count}} bandas · {{rate}} kHz",
     "previewNoEq": "Prévia de {{name}} · sem EQ no hardware",
@@ -263,14 +260,14 @@
     },
     "unknownPreset": "Escolha uma predefinição",
     "presetDescription": "Muda a reprodução imediatamente sem alterar o editor. O dispositivo não informa a predefinição atual de forma confiável.",
-    "destination": "Destino da gravação",
-    "destinationDescription": "Gravar no DAC e Redefinir EQ usam este slot. Escolher o destino não muda a reprodução.",
     "slotName": "Nome do slot",
     "nameDescription": "1 a 8 letras ou dígitos (A–Z, 0–9). Salvo no DAC.",
     "rename": "Renomear",
     "resetSlot": "Redefinir Usuário {{slot}} para plano",
     "operationFailed": "Falha na operação do SNOWSKY: {{error}}",
-    "resetConfirmation": "Substituir Usuário {{slot}} por dez bandas planas e pré-amplificação zero? Os outros slots são mantidos."
+    "resetConfirmation": "Substituir Usuário {{slot}} por {{bands}} bandas planas e pré-amplificação zero? Os outros slots são mantidos.",
+    "bankToManage": "Banco a gerenciar",
+    "bankToManageDescription": "Escolha um banco para renomear ou redefinir. Salve o EQ pelos Perfis ou pelo editor."
   },
   "linuxUdevGuide": {
     "copy": "Copiar",
@@ -440,7 +437,12 @@
     "writeFailed": "Não foi possível gravar no DAC: {{error}}",
     "writeDisconnected": "Não foi possível gravar no DAC (desconectado): {{error}}",
     "confirmWrite_many": "Gravar {{count}} bandas e pré-amplificação de {{preamp}} no DAC? Isso salva o EQ no dispositivo.",
-    "wroteBands_many": "{{count}} bandas gravadas"
+    "wroteBands_many": "{{count}} bandas gravadas",
+    "confirmWriteToMelodyBank_one": "Salvar {{count}} banda e pré-amplificador {{preamp}} no User {{bank}}? Esse banco do DAC será substituído.",
+    "confirmWriteToMelodyBank_other": "Salvar {{count}} bandas e pré-amplificador {{preamp}} no User {{bank}}? Esse banco do DAC será substituído.",
+    "confirmWriteToMelodyBank_many": "Salvar {{count}} bandas e pré-amplificador {{preamp}} no User {{bank}}? Esse banco do DAC será substituído.",
+    "writeMelodyBankTitle": "Salvar no User {{bank}}?",
+    "writeMelodyBankAction": "Salvar no User {{bank}}"
   },
   "applyProfileToRam": {
     "discardChanges": "Descartar alterações?",
@@ -467,5 +469,38 @@
     "hold": "Segure para ouvir sem EQ",
     "off": "EQ desligado",
     "label": "A/B"
+  },
+  "melodySave": {
+    "title": "Salvar no DAC",
+    "bank": "Banco do usuário",
+    "userBank": "Usuário {{number}}",
+    "userBankNamed": "Usuário {{number}} · {{name}}",
+    "effect": "Salvar substitui o EQ deste banco e o ativa. Os outros bancos não mudam. Apenas selecionar um banco não altera nada.",
+    "retry": "Tentar novamente",
+    "loading": "Lendo nomes dos bancos…",
+    "cancel": "Cancelar",
+    "save": "Salvar e ativar",
+    "busy": "O dispositivo está ocupado. Aguarde a operação terminar e tente novamente."
+  },
+  "melodyBanks": {
+    "title": "Neste DAC",
+    "instructions": "Abra um banco User para editá-lo. Salve as alterações no DAC; salvar no Glacier mantém um perfil local separado.",
+    "openLabel": "Abrir User {{number}}",
+    "storedOnDac": "Salvo no DAC",
+    "editing": "Editando",
+    "live": "Prévia ao vivo (experimental)",
+    "liveDescription": "Ouça as alterações no DAC, mas elas não são salvas automaticamente. Salve-as em um banco User quando quiser mantê-las.",
+    "chooseFirst": "Escolha um banco do DAC antes de editar ao vivo.",
+    "saveFailed": "Não foi possível salvar o banco atual. A aplicação ao vivo foi pausada; o banco não foi trocado.",
+    "discardTitle": "Alterações do DAC não salvas",
+    "discardMessage": "As alterações no User {{number}} não foram salvas. Trocar de banco vai descartá-las.",
+    "discardAction": "Descartar alterações",
+    "discardAndSwitch": "Descartar e abrir User {{number}}",
+    "editorName": "Usuário {{number}}",
+    "saved": "Salvo no DAC",
+    "unsaved": "Alterações não salvas",
+    "renameLabel": "Renomear User {{number}}",
+    "cancelRename": "Cancelar renomeação",
+    "saveEditorLabel": "Salvar EQ atual no User {{number}}"
   }
 }

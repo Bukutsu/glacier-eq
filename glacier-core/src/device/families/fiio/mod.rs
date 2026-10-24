@@ -48,6 +48,7 @@ pub struct FiioProtocol {
     filter_count: u8,
     verify_filter_count: bool,
     user_slot: u8,
+    user_slots: &'static [u8],
     /// Grid requested preamps snap to; 0.1 dB except where firmware keeps whole dB.
     preamp_step_db: f64,
     clamp_gain: bool,
@@ -263,6 +264,11 @@ impl EqProtocol for FiioProtocol {
     fn write_target_preset(&self) -> Option<u8> {
         self.verify_filter_count.then_some(self.user_slot)
     }
+
+    fn user_eq_slots(&self) -> &'static [u8] {
+        self.user_slots
+    }
+
     fn read_filter_count_request(&self) -> Option<Packet> {
         self.verify_filter_count
             .then(|| Packet::new(self.report_id, vec![0xbb, 0x0b, 0, 0, 0x18, 0, 0, END]))

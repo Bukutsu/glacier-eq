@@ -55,7 +55,9 @@
     "saveHelp": "Speichert den aktuellen EQ aus dem Editor in deiner Bibliothek. Es wird nichts auf deinen DAC geschrieben.",
     "renameHelp": "Ändert den gespeicherten Namen, nicht den EQ in deinem Editor.",
     "eqPreview": "EQ-Vorschau",
-    "useOnDac": "Auf DAC verwenden"
+    "useOnDac": "Auf DAC verwenden",
+    "localProfiles": "In Glacier gespeichert",
+    "localProfilesHelp": "Lade ein Profil in den Editor und speichere es in einer User-Bank, wenn du es auf dem DAC verwenden möchtest."
   },
   "profilesView": {
     "overwriteProfile": "Profil überschreiben",
@@ -143,13 +145,21 @@
     "deleteLabel": "{{name}} löschen",
     "emptyLibraryHint": "Speichere deinen EQ oder importiere ein Profil, um es hier hinzuzufügen.",
     "loadHelp": "Das Laden eines Profils ändert den Editor, nicht den DAC.",
+    "loadHelpMelody": "Ein lokales Profil wird im Editor geladen. Speichere es in einer User-Bank, um es auf diesem DAC abzulegen.",
     "namePlaceholder": "Profilname…",
     "overwriteWarning": "Ein Profil mit diesem Namen existiert bereits. Beim Speichern wird es ersetzt.",
     "pasteHelp": "Dein Browser konnte die Zwischenablage nicht lesen. Füge deinen AutoEQ-Text unten ein, um eine Vorschau zu sehen.",
     "eqText": "EQ-Text",
     "temporaryImportHelp": "Lädt die importierten Filter in den EQ-Editor, ohne ein Profil zu speichern.",
     "nameTaken": "Ein anderes Profil verwendet bereits diesen Namen.",
-    "parsing": "Wird eingelesen…"
+    "parsing": "Wird eingelesen…",
+    "saveToDac": "Auf DAC speichern…",
+    "saveProfileToDac": "{{name}} auf DAC speichern",
+    "saveProfileToUser": "{{name}} in User {{number}} speichern",
+    "writeToUser": "In User {{number}} speichern",
+    "readFromDac": "Vom DAC lesen",
+    "liveLoadHelp": "Ein geladenes Profil ändert den abgespielten EQ und wird nach einer Pause gespeichert.",
+    "localProfiles": "In Glacier gespeichert"
   },
   "profiles": {
     "failedToLoadProfiles": "Profile konnten nicht geladen werden: {{error}}",
@@ -188,7 +198,10 @@
     "measurement": "Messung",
     "targetCurve": "Zielkurve",
     "addATargetToContinue": "Zielkurve hinzufügen, um fortzufahren",
-    "addMeasurementOrTarget": "Messung oder Zielkurve hinzufügen",
+    "addMeasurement": "Messung hinzufügen",
+    "importTarget": "Zielkurve importieren",
+    "importingTarget": "Zielkurve wird importiert…",
+    "targetSelected": "{{name}} als Zielkurve ausgewählt.",
     "filterBands": "Filterbänder",
     "limitedBandAutoEQ": "AutoEQ mit begrenzter Bandanzahl",
     "trebleSmoothing": "Höhenglättung",
@@ -220,7 +233,8 @@
     "sampleRateHelp": "Verwende die DSP-Abtastrate des DAC.",
     "needsMeasurement": "Füge eine Messung hinzu, um EQ zu erzeugen.",
     "needsTarget": "Füge eine Zielkurve hinzu, um EQ zu erzeugen.",
-    "destinationHelp": "Lädt EQ in den Editor, nicht auf den DAC."
+    "destinationHelp": "Lädt EQ in den Editor, nicht auf den DAC.",
+    "liveDestinationHelp": "Wendet EQ auf die aktive Bank an und speichert ihn nach einer Pause."
   },
   "autoEq": {
     "generatingEQ": "EQ wird erzeugt…",

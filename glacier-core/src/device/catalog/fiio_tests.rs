@@ -122,3 +122,32 @@ fn fiio_filters_and_user_banks_follow_the_model_not_just_the_vendor() {
         assert_eq!(p.status, "Untested");
     }
 }
+
+#[test]
+fn user_bank_metadata_is_exact_and_unknown_layouts_remain_hidden() {
+    for (name, slots) in [
+        ("FIIO BTR13", &[7, 8, 9][..]),
+        ("FIIO BTR15", &[7, 8, 9][..]),
+        (
+            "FIIO BTR17",
+            &[160, 161, 162, 163, 164, 165, 166, 167, 168, 169][..],
+        ),
+        ("FiiO KA15", &[7, 8, 9][..]),
+        ("FiiO KA17", &[4, 8, 9][..]),
+        ("SNOWSKY Melody", &[160, 161, 162][..]),
+    ] {
+        let profile = SUPPORTED_DEVICES.iter().find(|p| p.name == name).unwrap();
+        let metadata = crate::device::SupportedDeviceInfo::from(profile);
+        assert_eq!(metadata.user_eq_slots, slots, "{name}");
+    }
+    for name in [
+        "FIIO QX13",
+        "FIIO QX11",
+        "FIIO BTR19",
+        "FIIO BTR25",
+        "FiiO JA11",
+    ] {
+        let profile = SUPPORTED_DEVICES.iter().find(|p| p.name == name).unwrap();
+        assert!(profile.protocol.user_eq_slots().is_empty(), "{name}");
+    }
+}

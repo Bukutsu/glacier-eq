@@ -108,9 +108,6 @@
   "devProtocolPreview": {
     "protocolModelPreview": "Protokoll- / Modellvorschau",
     "walkplayDefaultDummyDac": "Walkplay — Standard-Test-DAC",
-    "unknownDacPreview": "Vorschau eines unbekannten DAC",
-    "model": "{{protocol}} — {{name}}",
-    "vendorFallbackModel": "{{protocol}} — {{name}} (Hersteller-Ersatzmodell)",
     "previewEq_one": "Vorschau von {{name}} · {{count}} Band · {{rate}} kHz",
     "previewEq_other": "Vorschau von {{name}} · {{count}} Bänder · {{rate}} kHz",
     "previewNoEq": "Vorschau von {{name}} · kein Hardware-EQ",
@@ -261,14 +258,14 @@
     },
     "unknownPreset": "Preset wählen",
     "presetDescription": "Wechselt sofort die Wiedergabe; der Editor bleibt unverändert. Das Gerät meldet sein aktuelles Preset nicht zuverlässig.",
-    "destination": "Speicherziel",
-    "destinationDescription": "Auf DAC schreiben und EQ zurücksetzen nutzen diesen Slot. Die Auswahl ändert die Wiedergabe nicht.",
     "slotName": "Slot-Name",
     "nameDescription": "1–8 Buchstaben oder Ziffern (A–Z, 0–9). Auf dem DAC gespeichert.",
     "rename": "Umbenennen",
     "resetSlot": "Benutzer {{slot}} auf neutral setzen",
     "operationFailed": "SNOWSKY-Aktion fehlgeschlagen: {{error}}",
-    "resetConfirmation": "Benutzer {{slot}} durch zehn neutrale Bänder und 0 dB Vorverstärkung ersetzen? Andere Slots bleiben erhalten."
+    "resetConfirmation": "Benutzer {{slot}} durch {{bands}} neutrale Bänder und 0 dB Vorverstärkung ersetzen? Andere Slots bleiben erhalten.",
+    "bankToManage": "Bank verwalten",
+    "bankToManageDescription": "Bank zum Umbenennen oder Zurücksetzen wählen. EQ über Profile oder den Editor speichern."
   },
   "linuxUdevGuide": {
     "copy": "Kopieren",
@@ -434,7 +431,11 @@
     "writingBand": "Band 1/{{num_bands}} wird geschrieben…",
     "savedRestarting": "EQ auf DAC gespeichert; Neustart erwartet, auf Wiederverbindung wird gewartet",
     "writeFailed": "Schreiben auf DAC fehlgeschlagen: {{error}}",
-    "writeDisconnected": "Schreiben auf DAC fehlgeschlagen (getrennt): {{error}}"
+    "writeDisconnected": "Schreiben auf DAC fehlgeschlagen (getrennt): {{error}}",
+    "confirmWriteToMelodyBank_one": "{{count}} Band und {{preamp}} Preamp in User {{bank}} speichern? Dieser DAC-Speicherplatz wird überschrieben.",
+    "confirmWriteToMelodyBank_other": "{{count}} Bänder und {{preamp}} Preamp in User {{bank}} speichern? Dieser DAC-Speicherplatz wird überschrieben.",
+    "writeMelodyBankTitle": "In User {{bank}} speichern?",
+    "writeMelodyBankAction": "In User {{bank}} speichern"
   },
   "applyProfileToRam": {
     "discardChanges": "Änderungen verwerfen?",
@@ -461,5 +462,38 @@
     "hold": "Gedrückt halten, um ohne EQ zu hören",
     "off": "EQ aus",
     "label": "A/B"
+  },
+  "melodySave": {
+    "title": "Auf DAC speichern",
+    "bank": "Benutzerbank",
+    "userBank": "Benutzer {{number}}",
+    "userBankNamed": "Benutzer {{number}} · {{name}}",
+    "effect": "Speichern ersetzt den EQ dieser Bank und aktiviert sie. Andere Banken bleiben unverändert. Die Auswahl allein ändert nichts.",
+    "retry": "Erneut versuchen",
+    "loading": "Banknamen werden gelesen…",
+    "cancel": "Abbrechen",
+    "save": "Speichern und aktivieren",
+    "busy": "Das Gerät ist beschäftigt. Warten Sie auf den Abschluss und versuchen Sie es erneut."
+  },
+  "melodyBanks": {
+    "title": "Auf diesem DAC",
+    "instructions": "Öffne eine User-Bank zum Bearbeiten. Speichere Änderungen auf dem DAC; in Glacier bleibt ein separates lokales Profil.",
+    "openLabel": "User {{number}} öffnen",
+    "storedOnDac": "Auf DAC gespeichert",
+    "editing": "In Bearbeitung",
+    "live": "Live-Vorschau (experimentell)",
+    "liveDescription": "Änderungen werden zur Vorschau an den DAC gesendet, aber nicht automatisch gespeichert. Speichere sie in einer User-Bank, wenn du fertig bist.",
+    "chooseFirst": "Wähle vor der Live-Bearbeitung eine DAC-Bank.",
+    "saveFailed": "Aktuelle Bank konnte nicht gespeichert werden. Live-Anwendung pausiert; Bank nicht gewechselt.",
+    "discardTitle": "Ungespeicherte DAC-Änderungen",
+    "discardMessage": "Änderungen an User {{number}} wurden nicht gespeichert. Beim Wechsel werden sie verworfen.",
+    "discardAction": "Änderungen verwerfen",
+    "discardAndSwitch": "Verwerfen und User {{number}} öffnen",
+    "editorName": "Benutzer {{number}}",
+    "saved": "Auf DAC gespeichert",
+    "unsaved": "Ungespeicherte Änderungen",
+    "renameLabel": "User {{number}} umbenennen",
+    "cancelRename": "Umbenennen abbrechen",
+    "saveEditorLabel": "Aktuellen EQ in User {{number}} speichern"
   }
 }

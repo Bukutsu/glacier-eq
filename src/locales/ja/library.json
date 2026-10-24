@@ -52,7 +52,9 @@
     "saveHelp": "エディターの現在のEQをライブラリに保存します。DACには何も書き込みません。",
     "renameHelp": "保存済みの名前を変更します。エディターのEQは変わりません。",
     "eqPreview": "EQプレビュー",
-    "useOnDac": "DAC で使う"
+    "useOnDac": "DAC で使う",
+    "localProfiles": "Glacier に保存",
+    "localProfilesHelp": "プロファイルをエディターに読み込み、DACで使う場合はUserバンクに保存します。"
   },
   "profilesView": {
     "overwriteProfile": "プロファイルを上書き",
@@ -137,13 +139,21 @@
     "deleteLabel": "{{name}}を削除",
     "emptyLibraryHint": "EQを保存するか、プロファイルをインポートするとここに追加されます。",
     "loadHelp": "プロファイルの読み込みはエディターを変更します。DACは変更されません。",
+    "loadHelpMelody": "ローカルプロファイルを読み込むとエディターが変わります。このDACに保存するにはUserバンクに保存してください。",
     "namePlaceholder": "プロファイル名…",
     "overwriteWarning": "同じ名前のプロファイルが既に存在します。保存すると置き換わります。",
     "pasteHelp": "ブラウザーからクリップボードを読み取れませんでした。下にAutoEQテキストを貼り付けるとプレビューできます。",
     "eqText": "EQテキスト",
     "temporaryImportHelp": "プロファイルを保存せずに、インポートしたフィルターをEQエディターに読み込みます。",
     "nameTaken": "この名前は別のプロファイルで使用されています。",
-    "parsing": "解析中…"
+    "parsing": "解析中…",
+    "saveToDac": "DACに保存…",
+    "saveProfileToDac": "{{name}} をDACに保存",
+    "saveProfileToUser": "{{name}} を User {{number}} に保存",
+    "writeToUser": "User {{number}} に保存",
+    "readFromDac": "DACから読み込む",
+    "liveLoadHelp": "プロファイルを読み込むと再生中のEQが変わり、操作を止めると保存されます。",
+    "localProfiles": "Glacier に保存"
   },
   "profiles": {
     "failedToLoadProfiles": "プロファイルの読み込みに失敗しました: {{error}}",
@@ -181,7 +191,10 @@
     "measurement": "測定データ",
     "targetCurve": "ターゲット曲線",
     "addATargetToContinue": "続行するにはターゲットを追加してください",
-    "addMeasurementOrTarget": "測定データまたはターゲットを追加",
+    "addMeasurement": "測定を追加",
+    "importTarget": "ターゲットをインポート",
+    "importingTarget": "ターゲットをインポート中…",
+    "targetSelected": "{{name}} をターゲットに選択しました。",
     "filterBands": "フィルターバンド",
     "limitedBandAutoEQ": "少数バンドのAutoEQ",
     "trebleSmoothing": "高域のスムージング",
@@ -212,7 +225,8 @@
     "sampleRateHelp": "DACのDSPサンプルレートを使用してください。",
     "needsMeasurement": "EQを生成するには測定データを追加してください。",
     "needsTarget": "EQを生成するにはターゲットを追加してください。",
-    "destinationHelp": "EQをエディターに読み込みます。DACには適用しません。"
+    "destinationHelp": "EQをエディターに読み込みます。DACには適用しません。",
+    "liveDestinationHelp": "再生中のバンクにEQを適用し、操作を止めると保存します。"
   },
   "autoEq": {
     "generatingEQ": "EQを生成中…",

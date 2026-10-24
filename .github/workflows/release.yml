@@ -102,10 +102,28 @@ jobs:
             librsvg2-dev \
             patchelf \
             libudev-dev \
-            pkg-config
+            pkg-config \
+            minisign
 
       - name: Install frontend dependencies
         run: npm ci
+
+      # A present but mismatched private key would make every update signature
+      # unusable by installed apps. Sign a throwaway challenge and verify it
+      # against the public key baked into the app before building release assets.
+      - name: Verify updater signing key matches the embedded public key
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          challenge=$(mktemp)
+          trap 'rm -f "$challenge" "$challenge.sig"' EXIT
+          printf 'Glacier EQ updater key check\n' > "$challenge"
+          npx tauri signer sign "$challenge"
+          public_key=$(node -e 'process.stdout.write(JSON.parse(require("node:fs").readFileSync("src-tauri/tauri.conf.json", "utf8")).plugins.updater.pubkey)')
+          public_key=$(printf '%s' "$public_key" | base64 --decode | tail -n 1)
+          minisign -Vm "$challenge" -x "$challenge.sig" -P "$public_key"
 
       # src/wasm_pkg is a gitignored build artifact. The test suite is hermetic
       # and does not need it, but nothing else in this pipeline compiles the

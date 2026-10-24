@@ -19,17 +19,23 @@ pub enum DeviceCommand {
         peq: PEQData,
         skip_verification: bool,
         melody_slot: Option<u8>,
+        fiio_slot: Option<u8>,
     },
     #[serde(rename = "apply_eq_state")]
     Apply { peq: PEQData },
     #[serde(rename = "live_apply_eq_state")]
-    LiveApply { peq: PEQData },
+    LiveApply {
+        peq: PEQData,
+        melody_slot: Option<u8>,
+    },
     #[serde(rename = "ja11_control")]
     Ja11Control { control: String, value: Option<u8> },
     #[serde(rename = "melody_control")]
     MelodyControl { value: Option<u8> },
     #[serde(rename = "melody_name")]
     MelodyName { slot: u8, name: Option<String> },
+    #[serde(rename = "set_user_eq_bank")]
+    UserEqBank { slot: u8 },
     #[serde(rename = "get_firmware_version")]
     Firmware,
     #[serde(rename = "get_dac_utility_state")]
@@ -54,7 +60,10 @@ pub enum DeviceCommand {
         db: i8,
     },
     #[serde(rename = "reset_device_eq")]
-    ResetEq { melody_slot: Option<u8> },
+    ResetEq {
+        melody_slot: Option<u8>,
+        fiio_slot: Option<u8>,
+    },
     #[serde(rename = "reset_device_controls")]
     ResetControls,
     #[serde(rename = "execute_factory_reset")]
@@ -95,8 +104,11 @@ impl<I: DeviceIo> DeviceSession<'_, I> {
                 peq,
                 skip_verification,
                 melody_slot,
+                fiio_slot,
             } => {
-                if let Some(slot) = melody_slot {
+                if let Some(slot) = fiio_slot {
+                    self.set_fiio_write_slot(slot)?;
+                } else if let Some(slot) = melody_slot {
                     self.set_melody_write_slot(slot)?;
                 }
                 let (committed, warnings) = if skip_verification {
@@ -118,7 +130,8 @@ impl<I: DeviceIo> DeviceSession<'_, I> {
                     restarts: false,
                 })
             }
-            LiveApply { peq } => {
+            LiveApply { peq, melody_slot } => {
+                self.set_live_melody_slot(melody_slot)?;
                 let (committed, warnings) = self.live_apply(peq).await?;
                 DeviceOutcome::Write(EqWriteOutcome {
                     committed,
@@ -142,6 +155,7 @@ impl<I: DeviceIo> DeviceSession<'_, I> {
                 Some(name) => self.set_melody_name(slot, &name).await?,
                 None => self.melody_name(slot).await?,
             }),
+            UserEqBank { slot } => DeviceOutcome::Control(Some(self.set_user_eq_bank(slot).await?)),
             Firmware => DeviceOutcome::Firmware(self.firmware_version().await?),
             UtilityStatus => DeviceOutcome::Utility(self.utility_status().await?),
             ResetControls => DeviceOutcome::Utility(self.reset_controls().await?),
@@ -165,8 +179,13 @@ impl<I: DeviceIo> DeviceSession<'_, I> {
                 self.set_mic_volume(db).await?;
                 DeviceOutcome::Unit
             }
-            ResetEq { melody_slot } => {
-                if let Some(slot) = melody_slot {
+            ResetEq {
+                melody_slot,
+                fiio_slot,
+            } => {
+                if let Some(slot) = fiio_slot {
+                    self.set_fiio_write_slot(slot)?;
+                } else if let Some(slot) = melody_slot {
                     self.set_melody_write_slot(slot)?;
                 }
                 DeviceOutcome::Restarts(self.reset_eq().await?)

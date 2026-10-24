@@ -1408,7 +1408,7 @@ dependencies = [
 
 [[package]]
 name = "glacier-eq"
-version = "0.15.0"
+version = "0.16.0"
 dependencies = [
  "fs2",
  "glacier-core",

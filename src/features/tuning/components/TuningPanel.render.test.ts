@@ -21,7 +21,8 @@ const props: Parameters<typeof TuningPanel>[0] = {
     connectionRevision: 0,
     operationRevision: 0,
   }),
-  onAddMeasurement: () => {},
+  onAddMeasurement: () => "new-measurement",
+  onAddTarget: () => "new-target",
 };
 
 const measurement: MeasurementTrace = {
@@ -59,7 +60,7 @@ describe("Tuning workflow", () => {
       html.indexOf(">Generate EQ</button>"),
     );
     expect(html).not.toContain("tuning-step-number");
-    expect(html).toContain("Add measurement or target</button>");
+    expect(html).toContain("Add measurement</button>");
     expect(html).toContain(
       "Search the database or import a frequency-response file.",
     );
@@ -78,47 +79,37 @@ describe("Tuning workflow", () => {
     expect(html).toContain('for="autoeq-measurement">Measurement</label>');
     expect(html).toContain('class="app-select-value">Headphone</span>');
     expect(html).toContain('name="autoeq-measurement" value="headphone"');
-    expect(html).toContain("Add measurement or target</button>");
-    expect(html).not.toContain("Add another");
+    expect(html).toContain("Add measurement</button>");
+    expect(html).toContain("Import target</button>");
+    expect(html).not.toContain("Add measurement or target");
     const inputs =
       html.match(/<fieldset class="tuning-fields"[\s\S]*?<\/fieldset>/)?.[0] ??
       "";
-    expect(inputs.match(/data-slot="button"/g)).toHaveLength(1);
-    expect(inputs.indexOf("Add measurement or target")).toBeGreaterThan(
+    expect(inputs.match(/data-slot="button"/g)).toHaveLength(2);
+    expect(inputs.indexOf("Import target")).toBeLessThan(
       inputs.indexOf('name="autoeq-target"'),
     );
     expect(html).toContain('aria-describedby="tuning-destination"');
     expect(html).toContain("Loads EQ into the editor, not the DAC.");
   });
 
-  it("keeps the shared add action available when targets are missing", () => {
+  it("keeps the separate add actions available when targets are missing", () => {
     const html = render({ measurements: [measurement], allTargets: [] });
     expect(html).toContain("Add a target to continue");
-    expect(html).toContain("Add measurement or target</button>");
+    expect(html).toContain("Add measurement</button>");
     expect(submitButton(html)).toContain('disabled=""');
   });
 
-  it("keeps smoothing choices visible with an explicit pressed state", () => {
+  it("puts smoothing in a labelled select inside the collapsed advanced settings", () => {
     const html = render();
-    expect(html).toContain(
-      'role="group" aria-labelledby="tuning-smoothing-label"',
+    const advanced = html.slice(html.indexOf('class="app-collapse-content"'));
+    expect(advanced).toContain(
+      'for="autoeq-smoothing">Treble smoothing</label>',
     );
-    for (const [label, pressed] of [
-      ["In-ear", true],
-      ["Over-ear", false],
-      ["Off", false],
-    ]) {
-      const button = html.match(
-        new RegExp(
-          '<button[^>]*aria-pressed="' +
-            pressed +
-            '"[^>]*>' +
-            label +
-            "</button>",
-        ),
-      );
-      expect(button, String(label)).not.toBeNull();
-    }
+    expect(advanced).toContain('name="autoeq-smoothing" value="IE"');
+    expect(advanced).toContain('class="app-select-value">In-ear</span>');
+    expect(html).not.toContain("aria-pressed");
+    expect(html).not.toContain("tuning-segmented");
   });
 
   it("keeps advanced settings collapsed without a duplicate graph curve library", () => {

@@ -59,7 +59,11 @@
   line-height: 1.5;
 }
 
-.profiles-search { position: relative; display: flex; align-items: center; }
+.profiles-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
 .profiles-search > .app-icon {
   position: absolute;
   left: 12px;
@@ -67,7 +71,9 @@
   color: var(--muted-foreground);
   pointer-events: none;
 }
-.profiles-search input::-webkit-search-cancel-button { appearance: none; }
+.profiles-search input::-webkit-search-cancel-button {
+  appearance: none;
+}
 
 .profiles-search-clear {
   position: absolute;
@@ -101,8 +107,12 @@
   transition: background-color 120ms;
 }
 
-.profiles-item:hover { background: var(--accent); }
-.profiles-item.is-current { background: var(--surface-soft); }
+.profiles-item:hover {
+  background: var(--accent);
+}
+.profiles-item.is-current {
+  background: var(--surface-soft);
+}
 
 /* A thin bar marks the profile in the editor without another bordered box. */
 .profiles-item.is-current::before {
@@ -152,7 +162,10 @@
   font-weight: 500;
 }
 
-.profiles-item-name .app-icon { flex: none; color: var(--muted-foreground); }
+.profiles-item-name .app-icon {
+  flex: none;
+  color: var(--muted-foreground);
+}
 
 .profiles-item-meta {
   max-width: 100%;
@@ -169,14 +182,33 @@
   font-size: var(--type-small);
   white-space: nowrap;
 }
-.profiles-badge[data-modified="true"] { color: var(--warning-foreground); }
+.profiles-badge[data-modified="true"] {
+  color: var(--warning-foreground);
+}
 
-.profiles-row-actions { display: flex; flex: none; gap: 2px; }
-.profiles-row-actions [data-slot="button"] { color: var(--muted-foreground); opacity: 0.7; }
-.profiles-item:is(:hover, :focus-within) .profiles-row-actions [data-slot="button"] { opacity: 1; }
-.profiles-row-actions [data-slot="button"]:hover { color: var(--foreground); }
-.profiles-row-actions .profiles-delete:hover { color: var(--destructive-foreground); }
-.ui-menu-item.profiles-menu-danger { color: var(--destructive-foreground); }
+.profiles-row-actions {
+  display: flex;
+  flex: none;
+  gap: 2px;
+}
+.profiles-row-actions [data-slot="button"] {
+  color: var(--muted-foreground);
+  opacity: 0.7;
+}
+.profiles-item:is(:hover, :focus-within)
+  .profiles-row-actions
+  [data-slot="button"] {
+  opacity: 1;
+}
+.profiles-row-actions [data-slot="button"]:hover {
+  color: var(--foreground);
+}
+.profiles-row-actions .profiles-delete:hover {
+  color: var(--destructive-foreground);
+}
+.ui-menu-item.profiles-menu-danger {
+  color: var(--destructive-foreground);
+}
 
 .profiles-library-footer {
   display: flex;
@@ -189,7 +221,9 @@
   border-top: 1px solid var(--line-soft);
 }
 
-.profiles-empty-hint { margin-top: var(--space-3); }
+.profiles-empty-hint {
+  margin-top: var(--space-3);
+}
 
 .profiles-empty {
   display: flex;
@@ -227,7 +261,9 @@
   font-weight: 500;
 }
 
-.profiles-warning { color: var(--warning-foreground); }
+.profiles-warning {
+  color: var(--warning-foreground);
+}
 
 .profiles-editor-name {
   margin: 0 0 var(--space-1);
@@ -238,7 +274,9 @@
   overflow-wrap: anywhere;
 }
 
-.profiles-editor-actions { margin-top: var(--space-4); }
+.profiles-editor-actions {
+  margin-top: var(--space-4);
+}
 
 .profile-save-form {
   display: flex;
@@ -254,7 +292,9 @@
   font-weight: 500;
 }
 
-.profile-save-form .profiles-editor-actions { margin-top: var(--space-1); }
+.profile-save-form .profiles-editor-actions {
+  margin-top: var(--space-1);
+}
 
 .profiles-preview {
   display: flex;
@@ -266,13 +306,17 @@
   box-sizing: border-box;
 }
 
-.profiles-preview :is(.eq-graph-shell, .eq-canvas) { min-height: 0; }
+.profiles-preview :is(.eq-graph-shell, .eq-canvas) {
+  min-height: 0;
+}
 .profiles-editor-tools {
   gap: var(--space-1);
   margin: var(--space-3) calc(-1 * var(--space-2)) 0;
 }
 
-.profiles-import-dialog .modal-body { gap: var(--space-4); }
+.profiles-import-dialog .modal-body {
+  gap: var(--space-4);
+}
 
 .profiles-import-modes {
   display: grid;
@@ -290,7 +334,9 @@
   gap: var(--space-2);
 }
 
-.profiles-import-fields label:not(:first-child) { margin-top: var(--space-2); }
+.profiles-import-fields label:not(:first-child) {
+  margin-top: var(--space-2);
+}
 
 .profiles-import-preview h3,
 .profiles-import-warnings h3 {
@@ -312,11 +358,18 @@
   line-height: 1.5;
 }
 
-.profiles-import-warnings { color: var(--warning-foreground); }
-.profiles-import-warnings ul { margin: 0; padding-left: var(--space-4); }
+.profiles-import-warnings {
+  color: var(--warning-foreground);
+}
+.profiles-import-warnings ul {
+  margin: 0;
+  padding-left: var(--space-4);
+}
 
 @media (min-width: 851px) and ((min-height: 541px) or (pointer: fine)) {
-  .desktop-view-profiles .desktop-content { grid-template-columns: minmax(0, 1fr); }
+  .desktop-view-profiles .desktop-content {
+    grid-template-columns: minmax(0, 1fr);
+  }
   .desktop-view-profiles .desktop-content > .right-rail {
     grid-column: 1 / -1;
     background: transparent;
@@ -326,33 +379,114 @@
     padding: 0;
     background: transparent;
   }
-  .desktop-view-profiles .tab-panel { padding-right: 0; }
+  .desktop-view-profiles .tab-panel {
+    padding-right: 0;
+  }
 }
 
 @media (max-width: 1000px) {
-  .profiles-workspace { grid-template-columns: minmax(0, 1fr); }
+  .profiles-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 @media (max-width: 850px), ((max-height: 540px) and (pointer: coarse)) {
   .mobile-workspace .profiles-mobile-pane {
     box-sizing: border-box;
-    padding: var(--space-4) max(var(--space-3), var(--safe-area-right, 0px)) var(--space-5) max(var(--space-3), var(--safe-area-left, 0px));
+    padding: var(--space-4) max(var(--space-3), var(--safe-area-right, 0px))
+      var(--space-5) max(var(--space-3), var(--safe-area-left, 0px));
   }
-  .profiles-library, .profiles-editor { padding: var(--space-4); }
-  .profiles-list { max-height: 320px; }
-  .profiles-workspace button, .profiles-import-dialog button { min-width: 44px; min-height: 44px; }
-  .profiles-search-clear { top: 0; right: 0; }
+  .profiles-library,
+  .profiles-editor {
+    padding: var(--space-4);
+  }
+  .profiles-list {
+    max-height: 320px;
+  }
+  .profiles-workspace button,
+  .profiles-import-dialog button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .profiles-search-clear {
+    top: 0;
+    right: 0;
+  }
 }
 
 @media (hover: none) {
-  .profiles-row-actions [data-slot="button"] { opacity: 1; }
+  .profiles-row-actions [data-slot="button"] {
+    opacity: 1;
+  }
 }
 
 .profiles-paste-text {
-  width: 100%; min-width: 0; resize: vertical; max-height: 40dvh;
-  padding: 12px; border: 1px solid var(--input);
-  border-radius: var(--control-radius); color: var(--foreground);
-  background: var(--field-background); font-family: var(--font-mono);
-  font-size: 16px; line-height: 1.5;
+  width: 100%;
+  min-width: 0;
+  resize: vertical;
+  max-height: 40dvh;
+  padding: 12px;
+  border: 1px solid var(--input);
+  border-radius: var(--control-radius);
+  color: var(--foreground);
+  background: var(--field-background);
+  font-family: var(--font-mono);
+  font-size: 16px;
+  line-height: 1.5;
 }
-.profiles-paste-text:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.profiles-paste-text:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* Fixed hardware rows lead the library; only local files can be removed. */
+.profiles-dac-banks {
+  min-width: 0;
+  margin-top: var(--space-3);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--line-soft);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.profiles-dac-banks :is(h3, p) {
+  margin: 0;
+}
+.melody-banks-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.melody-banks-heading > div {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.profiles-dac-banks .melody-bank-editing {
+  border-color: color-mix(in srgb, var(--primary) 40%, transparent);
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
+  color: var(--primary);
+}
+.profiles-local-heading {
+  margin: var(--space-4) 0 var(--space-1);
+  color: var(--muted);
+  font-size: var(--type-small);
+  font-weight: 500;
+}
+.melody-bank-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0 calc(-1 * var(--space-2));
+  padding: 0 var(--space-2);
+  list-style: none;
+}
+.profiles-dac-banks .melody-bank {
+  min-width: 0;
+}
+.profiles-dac-banks .profiles-load:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

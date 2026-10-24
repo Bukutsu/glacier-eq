@@ -16,6 +16,7 @@ export function makeDeviceInfo(
     hardware_eq: true,
     controls: null,
     spec: null,
+    user_eq_slots: [],
     ...overrides,
   };
 }

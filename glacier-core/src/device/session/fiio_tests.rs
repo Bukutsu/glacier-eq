@@ -8,6 +8,7 @@ use crate::device::{get_supported_device, get_supported_device_with_name, SUPPOR
 use std::collections::{BTreeMap, VecDeque};
 
 struct HidIo {
+    report_id: u8,
     active: u8,
     count: usize,
     banks: BTreeMap<u8, Vec<Vec<u8>>>,
@@ -21,12 +22,15 @@ struct HidIo {
 }
 impl HidIo {
     fn new(profile: &DeviceProfile) -> Self {
-        let slot = profile.protocol.eq.unwrap().write_target_preset().unwrap();
+        let protocol = profile.protocol.eq.unwrap();
+        let slot = protocol.write_target_preset().unwrap_or(7);
         let count = profile.caps.num_bands;
         Self {
+            report_id: protocol.report_id(),
             active: slot + 1,
             count,
             banks: (slot..=slot + 1)
+                .chain(protocol.user_eq_slots().iter().copied())
                 .map(|slot| {
                     (
                         slot,
@@ -49,7 +53,7 @@ impl HidIo {
 impl BlockingDeviceIo for HidIo {
     fn write(&mut self, data: &[u8]) -> Result<(), String> {
         self.writes.push(data.to_vec());
-        assert_eq!(data[0], 7);
+        assert_eq!(data[0], self.report_id);
         let cmd = data[5];
         let p = &data[7..7 + data[6] as usize];
         if data[1] == 0xaa {
@@ -64,6 +68,7 @@ impl BlockingDeviceIo for HidIo {
                 }
                 0x15 => self.banks.get_mut(&self.active).unwrap()[p[0] as usize] = p.to_vec(),
                 0x17 => {}
+                0x18 => assert_eq!(p[0] as usize, self.count),
                 0x19 => {
                     assert_eq!(p[0], self.active);
                     self.replies.push_back(vec![0, 0xee]);
@@ -202,6 +207,73 @@ fn a_failed_or_wrong_destination_never_writes_eq_or_replays_the_selection() {
                 .unwrap_err();
             assert_eq!(io.writes.iter().filter(|p| p[1] == 0xaa).count(), 1);
             assert_eq!(io.writes.iter().find(|p| p[1] == 0xaa).unwrap()[5], 0x16);
+        }
+    });
+}
+
+#[test]
+fn editable_user_banks_are_selected_verified_and_saved_independently() {
+    block_on(async {
+        for profile in SUPPORTED_DEVICES.iter().filter(|p| {
+            p.controls != Some(super::super::profile::Controls::Melody)
+                && !p.protocol.user_eq_slots().is_empty()
+        }) {
+            for &slot in profile.protocol.user_eq_slots() {
+                for corrupt in [false, true] {
+                    let mut io = HidIo::new(profile);
+                    let before = io.banks.clone();
+                    io.corrupt_save = corrupt;
+                    let mut session = DeviceSession::new(&mut io, profile);
+                    session.set_user_eq_bank(slot).await.unwrap();
+                    session.set_fiio_write_slot(slot).unwrap();
+                    let result = session.reset_eq().await;
+                    if corrupt {
+                        assert!(result.unwrap_err().contains("previous state restored"));
+                        assert_eq!(io.banks, before, "{} bank {slot}", profile.name);
+                    } else {
+                        result.unwrap();
+                        assert!(io.banks[&slot].iter().all(|band| band[1..3] == [0, 0]));
+                        for (&other, bands) in &before {
+                            if other != slot {
+                                assert_eq!(
+                                    &io.banks[&other], bands,
+                                    "{} bank {other}",
+                                    profile.name
+                                );
+                            }
+                        }
+                    }
+                    assert!(io
+                        .writes
+                        .iter()
+                        .filter(|p| p[1] == 0xaa && [0x16, 0x19].contains(&p[5]))
+                        .all(|p| p[7] == slot));
+                }
+            }
+        }
+    });
+}
+
+#[test]
+fn invalid_user_banks_fail_without_io_and_wrong_selection_never_writes_eq() {
+    block_on(async {
+        for profile in SUPPORTED_DEVICES.iter().filter(|p| {
+            !p.protocol.user_eq_slots().is_empty()
+                && p.controls != Some(super::super::profile::Controls::Melody)
+        }) {
+            let mut io = HidIo::new(profile);
+            {
+                let mut session = DeviceSession::new(&mut io, profile);
+                assert!(session.set_fiio_write_slot(255).is_err());
+                assert!(session.set_user_eq_bank(255).await.is_err());
+            }
+            assert!(io.writes.is_empty());
+            io.wrong_slot = true;
+            let slot = profile.protocol.user_eq_slots()[0];
+            let mut session = DeviceSession::new(&mut io, profile);
+            session.set_fiio_write_slot(slot).unwrap();
+            assert!(session.reset_eq().await.is_err());
+            assert!(io.writes.iter().all(|p| p[1] != 0xaa || p[5] == 0x16));
         }
     });
 }

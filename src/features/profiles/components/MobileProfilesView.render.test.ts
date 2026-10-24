@@ -50,6 +50,23 @@ function render(overrides: Partial<MobileProfilesViewProps> = {}) {
 }
 
 describe("fresh mobile Profiles screen", () => {
+  it("keeps fixed DAC banks inside the library above local profiles even during search", () => {
+    const html = render({
+      dacBanks: createElement(
+        "section",
+        { "data-testid": "fixed-dac-banks" },
+        "User 1, User 2, User 3",
+      ),
+      profileSearch: "no matching local files",
+    });
+    const banks = html.indexOf('data-testid="fixed-dac-banks"');
+    expect(banks).toBeGreaterThan(
+      html.indexOf('id="mobile-profile-library-title"'),
+    );
+    expect(banks).toBeLessThan(html.indexOf('class="mobile-profile-list"'));
+    expect(html.match(/data-testid="fixed-dac-banks"/g)).toHaveLength(1);
+  });
+
   it("puts the editor first and uses shared card, badge, button and input controls", () => {
     const html = render();
     for (const slot of ["card", "badge", "button", "input"])
@@ -127,5 +144,22 @@ describe("fresh mobile Profiles screen", () => {
     });
     expect(html).toContain("&lt;script&gt;");
     expect(html).not.toContain("<script>");
+  });
+});
+
+describe("mobile profile and DAC actions", () => {
+  it("shows the active User bank as the save destination", () => {
+    const html = render({
+      dacEditor: { status: "Unsaved changes", unsaved: true, slot: 160 },
+      onSaveEditorToDacBank: async () => true,
+      onUseOnDac: async () => {},
+    });
+    expect(html).toContain("Save to User 1");
+    expect(html).not.toContain("Read from DAC");
+  });
+
+  it("asks the user to choose a bank when no bank is open", () => {
+    const html = render({ onUseOnDac: async () => {} });
+    expect(html).toContain("Save to DAC…");
   });
 });

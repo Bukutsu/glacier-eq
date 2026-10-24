@@ -58,7 +58,9 @@
     "saveHelp": "Enregistre l’égalisation actuelle de l’éditeur dans votre bibliothèque. Rien n’est écrit sur votre DAC.",
     "renameHelp": "Modifie le nom enregistré, pas l’égalisation de votre éditeur.",
     "eqPreview": "Aperçu de l’égalisation",
-    "useOnDac": "Utiliser sur le DAC"
+    "useOnDac": "Utiliser sur le DAC",
+    "localProfiles": "Enregistrés dans Glacier",
+    "localProfilesHelp": "Chargez un profil dans l’éditeur, puis enregistrez-le dans une banque User pour le garder sur le DAC."
   },
   "profilesView": {
     "overwriteProfile": "Écraser le profil",
@@ -149,13 +151,21 @@
     "deleteLabel": "Supprimer {{name}}",
     "emptyLibraryHint": "Enregistrez votre égalisation ou importez un profil pour l’ajouter ici.",
     "loadHelp": "Charger un profil modifie l’éditeur, pas le DAC.",
+    "loadHelpMelody": "Charger un profil local modifie l’éditeur. Enregistrez-le dans une banque User pour le conserver sur ce DAC.",
     "namePlaceholder": "Nom du profil…",
     "overwriteWarning": "Un profil portant ce nom existe déjà. L’enregistrement le remplacera.",
     "pasteHelp": "Votre navigateur n’a pas pu lire le presse-papiers. Collez votre texte AutoEQ ci-dessous pour en voir un aperçu.",
     "eqText": "Texte d’égalisation",
     "temporaryImportHelp": "Charge les filtres importés dans l’éditeur d’égalisation sans enregistrer de profil.",
     "nameTaken": "Un autre profil utilise déjà ce nom.",
-    "parsing": "Analyse…"
+    "parsing": "Analyse…",
+    "saveToDac": "Enregistrer sur le DAC…",
+    "saveProfileToDac": "Enregistrer {{name}} sur le DAC",
+    "saveProfileToUser": "Enregistrer {{name}} dans User {{number}}",
+    "writeToUser": "Enregistrer dans User {{number}}",
+    "readFromDac": "Lire depuis le DAC",
+    "liveLoadHelp": "Charger un profil modifie l’EQ en lecture et l’enregistre après une pause.",
+    "localProfiles": "Enregistrés dans Glacier"
   },
   "profiles": {
     "failedToLoadProfiles": "Échec du chargement des profils : {{error}}",
@@ -195,7 +205,10 @@
     "measurement": "Mesure",
     "targetCurve": "Courbe cible",
     "addATargetToContinue": "Ajoutez une cible pour continuer",
-    "addMeasurementOrTarget": "Ajouter une mesure ou une cible",
+    "addMeasurement": "Ajouter une mesure",
+    "importTarget": "Importer une cible",
+    "importingTarget": "Importation de la cible…",
+    "targetSelected": "{{name}} sélectionnée comme cible.",
     "filterBands": "Bandes de filtrage",
     "limitedBandAutoEQ": "AutoEQ à nombre de bandes limité",
     "trebleSmoothing": "Lissage des aigus",
@@ -228,7 +241,8 @@
     "sampleRateHelp": "Utilisez la fréquence d’échantillonnage du DSP du DAC.",
     "needsMeasurement": "Ajoutez une mesure pour générer l’égalisation.",
     "needsTarget": "Ajoutez une cible pour générer l’égalisation.",
-    "destinationHelp": "Charge l’égalisation dans l’éditeur, pas sur le DAC."
+    "destinationHelp": "Charge l’égalisation dans l’éditeur, pas sur le DAC.",
+    "liveDestinationHelp": "Applique l’EQ à la banque active et l’enregistre après une pause."
   },
   "autoEq": {
     "generatingEQ": "Génération de l’égalisation…",

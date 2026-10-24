@@ -118,6 +118,15 @@ describe("createLiveApplier", () => {
     expect(save).toHaveBeenCalledTimes(1);
   });
 
+  it("can preview edits without saving them automatically", async () => {
+    const { applier, invoke, save } = setup({ autoSave: false });
+    applier.schedule();
+    await vi.advanceTimersByTimeAsync(LIVE_APPLY_DELAY_MS);
+    expect(invoke).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(LIVE_SAVE_DELAY_MS * 2);
+    expect(save).not.toHaveBeenCalled();
+  });
+
   it("does not save an EQ that already matches the DAC", async () => {
     const { applier, save, state } = setup();
     applier.schedule();
@@ -169,5 +178,36 @@ describe("createLiveApplier", () => {
     applier.schedule();
     await vi.advanceTimersByTimeAsync(LIVE_APPLY_DELAY_MS);
     expect(reportError).toHaveBeenCalledTimes(1);
+  });
+  it("drains an in-flight preview without resurrecting its old bank's save timer", async () => {
+    const { applier, invoke, save } = setup();
+    let release!: () => void;
+    invoke.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          release = () => resolve({});
+        }),
+    );
+    applier.schedule();
+    await vi.advanceTimersByTimeAsync(LIVE_APPLY_DELAY_MS);
+    let drained = false;
+    const pending = applier.pause().then(() => {
+      drained = true;
+    });
+    expect(drained).toBe(false);
+    release();
+    await pending;
+    await vi.advanceTimersByTimeAsync(LIVE_SAVE_DELAY_MS * 2);
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  it("contains failed autosaves instead of producing an unhandled rejection", async () => {
+    const { applier, save, reportError } = setup();
+    save.mockRejectedValueOnce(new Error("verify failed"));
+    applier.schedule();
+    await vi.advanceTimersByTimeAsync(LIVE_APPLY_DELAY_MS + LIVE_SAVE_DELAY_MS);
+    expect(reportError).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(LIVE_SAVE_DELAY_MS * 2);
+    expect(save).toHaveBeenCalledOnce();
   });
 });

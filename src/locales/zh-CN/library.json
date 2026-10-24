@@ -52,7 +52,9 @@
     "saveHelp": "将当前编辑器 EQ 保存至配置库。不会向 DAC 写入任何内容。",
     "renameHelp": "更改已保存的名称，不会更改编辑器中的 EQ。",
     "eqPreview": "EQ 预览",
-    "useOnDac": "用于 DAC"
+    "useOnDac": "用于 DAC",
+    "localProfiles": "保存在 Glacier",
+    "localProfilesHelp": "点击本地配置可载入编辑器；需要写入 DAC 时，再保存到 User 槽位。"
   },
   "profilesView": {
     "overwriteProfile": "覆盖配置",
@@ -137,13 +139,21 @@
     "deleteLabel": "删除 {{name}}",
     "emptyLibraryHint": "保存 EQ 或导入配置，即可将其添加至此处。",
     "loadHelp": "加载配置只会更改编辑器，不会更改 DAC。",
+    "loadHelpMelody": "加载本地配置会更改编辑器。保存到 User 槽位后，才会写入此 DAC。",
     "namePlaceholder": "配置名称…",
     "overwriteWarning": "已存在同名配置。保存将替换该配置。",
     "pasteHelp": "浏览器无法读取剪贴板。请在下方粘贴 AutoEQ 文本以预览。",
     "eqText": "EQ 文本",
     "temporaryImportHelp": "将导入的滤波器加载至 EQ 编辑器，不保存为配置。",
     "nameTaken": "其他配置已使用此名称。",
-    "parsing": "正在解析…"
+    "parsing": "正在解析…",
+    "saveToDac": "保存到 DAC…",
+    "saveProfileToDac": "将 {{name}} 保存到 DAC",
+    "saveProfileToUser": "将 {{name}} 保存到 User {{number}}",
+    "writeToUser": "保存到 User {{number}}",
+    "readFromDac": "从 DAC 读取",
+    "liveLoadHelp": "加载配置会更改正在播放的 EQ，并在暂停编辑后保存。",
+    "localProfiles": "保存在 Glacier"
   },
   "profiles": {
     "failedToLoadProfiles": "加载配置失败：{{error}}",
@@ -181,7 +191,10 @@
     "measurement": "测量曲线",
     "targetCurve": "目标曲线",
     "addATargetToContinue": "添加目标曲线以继续",
-    "addMeasurementOrTarget": "添加测量或目标曲线",
+    "addMeasurement": "添加测量",
+    "importTarget": "导入目标",
+    "importingTarget": "正在导入目标…",
+    "targetSelected": "已选择 {{name}} 作为目标。",
     "filterBands": "滤波频段",
     "limitedBandAutoEQ": "有限频段 AutoEQ",
     "trebleSmoothing": "高频平滑",
@@ -212,7 +225,8 @@
     "sampleRateHelp": "请使用 DAC 的 DSP 采样率。",
     "needsMeasurement": "添加测量曲线以生成 EQ。",
     "needsTarget": "添加目标曲线以生成 EQ。",
-    "destinationHelp": "将 EQ 加载至编辑器，而非 DAC。"
+    "destinationHelp": "将 EQ 加载至编辑器，而非 DAC。",
+    "liveDestinationHelp": "将 EQ 应用于正在播放的槽位，并在暂停编辑后保存。"
   },
   "autoEq": {
     "generatingEQ": "正在生成 EQ…",

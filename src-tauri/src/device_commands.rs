@@ -503,6 +503,7 @@ pub async fn set_eq_state(
     state: tauri::State<'_, Mutex<DeviceState>>,
     peq: PEQData,
     melody_slot: Option<u8>,
+    fiio_slot: Option<u8>,
 ) -> Result<EqWriteOutcome, String> {
     // Capture identity before the settings read: a reconnect can complete
     // while settings are being loaded, and the old command must not bind to
@@ -513,7 +514,9 @@ pub async fn set_eq_state(
         .unwrap_or_default()
         .skip_push_verification;
     with_session_for(&app, &state, expected, move |session| {
-        if let Some(slot) = melody_slot {
+        if let Some(slot) = fiio_slot {
+            session.set_fiio_write_slot(slot)?;
+        } else if let Some(slot) = melody_slot {
             session.set_melody_write_slot(slot)?;
         }
         let (committed, warnings) = if skip_verification {
@@ -547,13 +550,23 @@ pub async fn apply_eq_state(
     .await
 }
 
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub async fn live_apply_eq_state(
     app: tauri::AppHandle,
     state: tauri::State<'_, Mutex<DeviceState>>,
     peq: PEQData,
+    melody_slot: Option<u8>,
+    expected_path: Option<String>,
+    expected_session_id: Option<u64>,
 ) -> Result<EqWriteOutcome, String> {
-    with_session(&app, &state, |session| {
+    let expected = session_identity(&state)?;
+    if melody_slot.is_some()
+        && (expected_path.as_ref() != Some(&expected.0) || expected_session_id != Some(expected.1))
+    {
+        return Err("Device session changed; operation was cancelled".into());
+    }
+    with_session_for(&app, &state, expected, move |session| {
+        session.set_live_melody_slot(melody_slot)?;
         let (committed, warnings) = glacier_core::device::block_on(session.live_apply(peq))?;
         Ok(EqWriteOutcome {
             committed,
@@ -589,6 +602,7 @@ pub async fn list_devices(app: tauri::AppHandle) -> Result<Vec<DeviceInfo>, Stri
                     hardware_eq: profile.protocol.has_hardware_eq(),
                     controls: profile.controls,
                     spec: profile.spec,
+                    user_eq_slots: profile.protocol.user_eq_slots().to_vec(),
                     capabilities: profile.into(),
                 })
             })
@@ -1030,6 +1044,23 @@ pub async fn melody_control(
 }
 
 #[tauri::command]
+pub async fn set_user_eq_bank(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Mutex<DeviceState>>,
+    path: String,
+    slot: u8,
+) -> Result<u8, String> {
+    let expected = session_identity(&state)?;
+    if expected.0 != path {
+        return Err("Device session changed; operation was cancelled".into());
+    }
+    with_session_for(&app, &state, expected, move |session| {
+        glacier_core::device::block_on(session.set_user_eq_bank(slot))
+    })
+    .await
+}
+
+#[tauri::command]
 pub async fn melody_name(
     app: tauri::AppHandle,
     state: tauri::State<'_, Mutex<DeviceState>>,
@@ -1131,9 +1162,12 @@ pub async fn reset_device_eq(
     app: tauri::AppHandle,
     state: tauri::State<'_, Mutex<DeviceState>>,
     melody_slot: Option<u8>,
+    fiio_slot: Option<u8>,
 ) -> Result<bool, String> {
     with_session(&app, &state, move |session| {
-        if let Some(slot) = melody_slot {
+        if let Some(slot) = fiio_slot {
+            session.set_fiio_write_slot(slot)?;
+        } else if let Some(slot) = melody_slot {
             session.set_melody_write_slot(slot)?;
         }
         glacier_core::device::block_on(session.reset_eq())

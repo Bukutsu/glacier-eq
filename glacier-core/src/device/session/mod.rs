@@ -112,7 +112,8 @@ pub struct DeviceSession<'a, I: DeviceIo = BlockingIo<'a>> {
     pub(crate) profile: &'static DeviceProfile,
     progress: Option<&'a mut ProgressCallback<'a>>,
     next_nonce: u8,
-    melody_write_slot: u8,
+    melody_write_slot: Option<u8>,
+    fiio_write_slot: Option<u8>,
     last_pull_had_invalid_response: bool,
     last_pull_sent_gain_request: bool,
     last_pull_gain_read_completed: bool,
@@ -134,7 +135,8 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
             profile,
             progress,
             next_nonce: initial_nonce,
-            melody_write_slot: 160,
+            melody_write_slot: None,
+            fiio_write_slot: None,
             last_pull_had_invalid_response: false,
             last_pull_sent_gain_request: false,
             last_pull_gain_read_completed: false,
@@ -182,6 +184,46 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
         } else {
             Err(format!("{} has no hardware EQ", self.profile.name))
         }
+    }
+
+    /// Override the exact target bank for a persistent FiiO write or reset.
+    pub fn set_fiio_write_slot(&mut self, slot: u8) -> Result<(), String> {
+        self.require_hardware_eq()?;
+        if !self.protocol().user_eq_slots().contains(&slot) {
+            return Err(format!(
+                "User EQ bank {slot} is not writable on {}",
+                self.profile.name
+            ));
+        }
+        if self.profile.controls == Some(super::profile::Controls::Melody) {
+            self.set_melody_write_slot(slot)
+        } else {
+            self.fiio_write_slot = Some(slot);
+            Ok(())
+        }
+    }
+
+    /// Select and verify an editable FiiO user bank before reading it.
+    pub async fn set_user_eq_bank(&mut self, slot: u8) -> Result<u8, String> {
+        self.require_hardware_eq()?;
+        if self.profile.controls == Some(super::profile::Controls::Melody) {
+            return Err("Use the Melody preset control for its User banks".into());
+        }
+        if !self.protocol().user_eq_slots().contains(&slot) {
+            return Err(format!(
+                "User EQ bank {slot} is not available on {}",
+                self.profile.name
+            ));
+        }
+        self.check_filter_count().await?;
+        self.drain().await;
+        let packet = super::families::fiio::preset_packet(self.protocol().report_id(), 0x16, slot);
+        self.io.write(&packet.framed()).await?;
+        self.io
+            .sleep_ms(self.protocol().write_timing().packet_gap_ms)
+            .await;
+        self.verify_fiio_write_target(slot).await?;
+        Ok(slot)
     }
 
     pub async fn pull(&mut self) -> Result<PEQData, String> {
@@ -320,6 +362,10 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
     }
 
     async fn restore_and_verify(&mut self, backup: &PEQData) -> Result<(), String> {
+        if self.fiio_write_slot.is_some() {
+            // Never restore into an uncertain or externally changed bank.
+            self.prepare_write_destination().await?;
+        }
         self.write_to_ram(backup).await?;
         // The backup is still what the DAC has saved unless a save was sent;
         // re-saving would reset a save-resets device mid-verification.
@@ -375,6 +421,9 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
 
     pub async fn apply_ram(&mut self, peq: PEQData) -> Result<(PEQData, Vec<String>), String> {
         self.require_hardware_eq()?;
+        if self.profile.controls == Some(super::profile::Controls::Melody) {
+            return Err("Melody temporary EQ requires bank-specific live editing".into());
+        }
         validate_peq(&peq)?;
         if !self.profile.caps.supports_ram_apply {
             return Err(format!(
@@ -410,6 +459,14 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
             ));
         }
         let (normalized, warnings) = self.normalize(peq)?;
+        // Melody edits must target and verify an explicit USER bank. Never
+        // infer a destination from an arbitrary (potentially stale) query.
+        if self.profile.controls == Some(super::profile::Controls::Melody) {
+            if self.melody_write_slot.is_none() {
+                return Err("Melody live editing requires an explicit USER bank".into());
+            }
+            self.prepare_write_destination().await?;
+        }
         // Live edits fire constantly; a progress bar for each would flicker.
         let progress = self.progress.take();
         let written = self.write_ram_live(&normalized).await;
@@ -613,8 +670,12 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
     async fn prepare_write_destination(&mut self) -> Result<(), String> {
         if self.profile.controls == Some(super::profile::Controls::Melody) {
             self.check_filter_count().await?;
-            self.set_melody_preset(self.melody_write_slot).await?;
-        } else if let Some(slot) = self.protocol().write_target_preset() {
+            self.set_melody_preset(self.melody_write_slot.unwrap_or(160))
+                .await?;
+        } else if let Some(slot) = self
+            .fiio_write_slot
+            .or_else(|| self.protocol().write_target_preset())
+        {
             use super::families::fiio;
             self.drain().await;
             self.check_filter_count().await?;
@@ -820,8 +881,10 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
                 if self.profile.controls == Some(super::profile::Controls::Melody)
                     && packet.payload.get(4) == Some(&0x16)
                 {
-                    self.set_melody_preset(self.melody_write_slot).await?;
-                } else if protocol.write_target_preset().is_some()
+                    self.set_melody_preset(self.melody_write_slot.unwrap_or(160))
+                        .await?;
+                } else if (self.fiio_write_slot.is_some()
+                    || protocol.write_target_preset().is_some())
                     && packet.payload.get(4) == Some(&0x16)
                 {
                     // Already selected and verified before the destination snapshot.
@@ -869,22 +932,37 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
         if self.profile.controls == Some(super::profile::Controls::Melody) {
             // SAVE has a short acknowledgement, not a normal command echo.
             // The following read drains it first; SAVE is not replayed.
-            let packet = super::families::fiio::melody::save_request(self.melody_write_slot)?;
+            let packet =
+                super::families::fiio::melody::save_request(self.melody_write_slot.unwrap_or(160))?;
             self.io.write(&packet.framed()).await?;
             self.io
                 .sleep_ms(self.protocol().write_timing().commit_step_ms)
                 .await;
             let actual = self.melody_preset().await?;
-            if actual != self.melody_write_slot {
+            if actual != self.melody_write_slot.unwrap_or(160) {
                 return Err(format!(
                     "Melody save selected {actual}, expected {}",
-                    self.melody_write_slot
+                    self.melody_write_slot.unwrap_or(160)
                 ));
             }
             return Ok(());
         }
-        if let Some(slot) = self.protocol().write_target_preset() {
-            for packet in self.protocol().commit_packets() {
+        if let Some(slot) = self
+            .fiio_write_slot
+            .or_else(|| self.protocol().write_target_preset())
+        {
+            let dynamic_target = self.fiio_write_slot.is_some();
+            let mut packets = self.protocol().commit_packets();
+            if dynamic_target {
+                for packet in &mut packets {
+                    if packet.payload.get(4) == Some(&0x19) && packet.payload.len() > 6 {
+                        packet.payload[6] = slot;
+                    } else {
+                        return Err("FiiO user-bank save packet is not recognized".into());
+                    }
+                }
+            }
+            for packet in packets {
                 self.io.write(&packet.framed()).await?;
                 self.io
                     .sleep_ms(self.protocol().write_timing().commit_step_ms)

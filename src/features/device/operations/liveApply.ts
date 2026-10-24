@@ -20,6 +20,8 @@ export interface LiveApplyState {
   /** A save, read or other EQ operation owns the device right now. */
   busy: boolean;
   capabilities: DeviceCapabilities;
+  /** Save previewed edits automatically after the pause. Defaults to true. */
+  autoSave?: boolean;
 }
 
 export interface LiveApplyContext {
@@ -40,6 +42,13 @@ export function createLiveApplier(context: LiveApplyContext) {
   let saveTimer: ReturnType<typeof setTimeout> | undefined;
   let running = false;
   let again = false;
+  let saving = false;
+  let generation = 0;
+  const idleWaiters: (() => void)[] = [];
+  function resolveIdle() {
+    if (!running && !saving)
+      idleWaiters.splice(0).forEach((resolve) => resolve());
+  }
   // The DAC's RAM holds an EQ other than the stored one, so a return to the
   // stored EQ must be sent too.
   let diverged = false;
@@ -55,6 +64,7 @@ export function createLiveApplier(context: LiveApplyContext) {
   }
 
   async function flush() {
+    const token = generation;
     applyTimer = undefined;
     if (running) {
       again = true;
@@ -63,6 +73,7 @@ export function createLiveApplier(context: LiveApplyContext) {
     running = true;
     try {
       do {
+        if (token !== generation) return;
         again = false;
         const state = getState();
         if (state.busy) {
@@ -76,31 +87,45 @@ export function createLiveApplier(context: LiveApplyContext) {
           capabilities: state.capabilities,
         });
         await invoke("live_apply_eq_state", { peq });
+        if (token !== generation) return;
         diverged = state.unsaved;
-        if (diverged) scheduleSave(LIVE_SAVE_DELAY_MS);
+        if (diverged && state.autoSave !== false)
+          scheduleSave(LIVE_SAVE_DELAY_MS);
       } while (again);
     } catch (error) {
       // A lost device is reported by the connection monitor.
-      if (!isDisconnectionError(error)) {
+      if (token === generation && !isDisconnectionError(error)) {
+        clearTimeout(saveTimer);
         reportError(
           i18n.t("device:liveApply.liveApplyFailed", { error: error }),
         );
       }
     } finally {
       running = false;
+      if (again && token !== generation) scheduleApply(0);
+      resolveIdle();
     }
   }
 
   async function saveNow() {
     saveTimer = undefined;
-    if (running || getState().busy) {
+    const state = getState();
+    if (state.autoSave === false || !state.unsaved) return;
+    if (running || state.busy) {
       scheduleSave(LIVE_BUSY_RETRY_MS);
       return;
     }
-    if (!getState().unsaved) return;
     // The save reports its own failure. Without a new edit nothing retries,
     // so a failing DAC is not written to in a loop.
-    await save();
+    saving = true;
+    try {
+      await save();
+    } catch (error) {
+      reportError(i18n.t("device:liveApply.liveApplyFailed", { error }));
+    } finally {
+      saving = false;
+      resolveIdle();
+    }
   }
 
   return {
@@ -114,8 +139,16 @@ export function createLiveApplier(context: LiveApplyContext) {
       clearTimeout(applyTimer);
       applyTimer = undefined;
     },
+    /** Stop queued work and wait for any USB preview/save already in flight. */
+    async pause() {
+      this.stop();
+      if (running || saving)
+        await new Promise<void>((resolve) => idleWaiters.push(resolve));
+    },
     /** Live apply was switched off or the device went away. */
     stop() {
+      generation++;
+      again = false;
       clearTimeout(applyTimer);
       clearTimeout(saveTimer);
       applyTimer = saveTimer = undefined;

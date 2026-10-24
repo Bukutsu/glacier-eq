@@ -1,5 +1,9 @@
 import { i18n } from "@/lib/i18n";
-import { melodySlotArgs } from "@/features/device/lib/melodySlot";
+import {
+  melodySlotArgs,
+  userEqSlotArgs,
+  getUserEqSlot,
+} from "@/features/device/lib/melodySlot";
 import type { invokeForDevice } from "@/lib/rpc";
 import type { confirmDialog } from "@/components/ui/ConfirmDialog";
 
@@ -21,18 +25,19 @@ export type ResetDeviceEqContext = Pick<
   | "setProgress"
   | "eqOperationInFlightRef"
   | "eqOperationIdRef"
-> & {
-  setStatus: StatusReporter;
-  recoverDeviceRead: (path: string, error: unknown) => Promise<boolean>;
-  handleExpectedDisconnect: (restart?: boolean) => Promise<void>;
-  pullEq: (
-    afterConnect?: boolean,
-    targetPath?: string,
-    targetCapabilities?: DeviceCapabilities,
-  ) => Promise<boolean>;
-  invokeForDevice: typeof invokeForDevice;
-  confirmDialog: typeof confirmDialog;
-};
+> &
+  Partial<Pick<DeviceState, "selectedDeviceInfo">> & {
+    setStatus: StatusReporter;
+    recoverDeviceRead: (path: string, error: unknown) => Promise<boolean>;
+    handleExpectedDisconnect: (restart?: boolean) => Promise<void>;
+    pullEq: (
+      afterConnect?: boolean,
+      targetPath?: string,
+      targetCapabilities?: DeviceCapabilities,
+    ) => Promise<boolean>;
+    invokeForDevice: typeof invokeForDevice;
+    confirmDialog: typeof confirmDialog;
+  };
 
 export function createResetDeviceEq(context: ResetDeviceEqContext) {
   const {
@@ -62,6 +67,13 @@ export function createResetDeviceEq(context: ResetDeviceEqContext) {
     const operationId = ++eqOperationIdRef.current;
     eqOperationInFlightRef.current = true;
     setMaintenancePending(true);
+    const slots = context.selectedDeviceInfo?.user_eq_slots ?? [];
+    const slot = getUserEqSlot(path);
+    const bankNumber = slot === undefined ? 0 : slots.indexOf(slot) + 1;
+    const bankArgs =
+      slots.length && context.selectedDeviceInfo?.controls !== "melody"
+        ? userEqSlotArgs(path)
+        : melodySlotArgs(path);
     const generation = connectionGenerationRef.current;
     const session = connectedSessionIdRef.current;
     const isCurrent = () =>
@@ -73,9 +85,10 @@ export function createResetDeviceEq(context: ResetDeviceEqContext) {
         !(await confirmDialog({
           title: i18n.t("device:resetDeviceEq.resetDeviceEq"),
           message:
-            "melody_slot" in melodySlotArgs(path)
+            bankNumber > 0 || "melody_slot" in bankArgs
               ? i18n.t("device:melodyControls.resetConfirmation", {
-                  slot: Number(melodySlotArgs(path).melody_slot) - 159,
+                  slot: bankNumber || Number(bankArgs.melody_slot) - 159,
+                  bands: context.selectedDeviceInfo?.num_bands ?? 10,
                 })
               : i18n.t("device:resetDeviceEq.confirmation"),
           confirmLabel: i18n.t("device:resetDeviceEq.reset"),
@@ -92,7 +105,7 @@ export function createResetDeviceEq(context: ResetDeviceEqContext) {
         (await invokeForDevice<boolean | undefined>(
           path,
           "reset_device_eq",
-          melodySlotArgs(path),
+          bankArgs,
         )) === true;
       if (!isCurrent()) return;
       if (restarts) {
