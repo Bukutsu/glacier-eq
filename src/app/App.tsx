@@ -128,7 +128,11 @@ const LazyDiagnosticsPanel = lazy(() =>
 
 function ToolLoadingFallback() {
   const { t } = useTranslation("shell");
-  return <div aria-busy="true" aria-label={t("workspace.loading")} />;
+  return (
+    <div role="status" aria-busy="true">
+      {t("workspace.loading")}
+    </div>
+  );
 }
 
 function MobileProfilesView(
@@ -706,6 +710,24 @@ function App() {
     [connectDevice, handleCloseDeviceModal],
   );
 
+  const handleConnectSimulated = useCallback(() => {
+    if (
+      !import.meta.env.DEV ||
+      connected ||
+      isBusy ||
+      device.eqOperationInFlightRef.current
+    )
+      return;
+    const preview = device.devPreviewDeviceRef.current;
+    void handleConnectDevice(preview.path, preview);
+  }, [
+    connected,
+    isBusy,
+    device.eqOperationInFlightRef,
+    device.devPreviewDeviceRef,
+    handleConnectDevice,
+  ]);
+
   const handleToggleGraphCollapsed = useCallback(() => {
     setGraphCollapsed((v) => !v);
   }, []);
@@ -947,6 +969,9 @@ function App() {
       onPull={hardwareEq ? pullEq : undefined}
       onOpenConnectModal={connectPrimary}
       onChooseDevice={handleOpenDeviceModal}
+      onConnectSimulated={
+        import.meta.env.DEV ? handleConnectSimulated : undefined
+      }
       onDisconnect={connected ? disconnectDevice : undefined}
       onPreviewChange={handlePreviewChange}
       onExpectedDisconnect={handleExpectedDisconnect}
@@ -1444,6 +1469,9 @@ function App() {
                 activeTab={TOOL_TAB_BY_WORKSPACE[activeTab] ?? "Preset"}
                 onOpenConnectModal={connectPrimary}
                 onChooseDevice={handleOpenDeviceModal}
+                onConnectSimulated={
+                  import.meta.env.DEV ? handleConnectSimulated : undefined
+                }
                 onOpenDiagnostics={handleOpenDiagnosticsModal}
                 showGraph={showGraph}
                 onShowGraphChange={setShowGraph}

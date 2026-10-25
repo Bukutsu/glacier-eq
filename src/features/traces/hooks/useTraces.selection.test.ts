@@ -7,6 +7,7 @@ const hooks = vi.hoisted(() => ({
   states: [] as unknown[],
   refs: [] as { current: unknown }[],
   effects: [] as (() => void)[],
+  effectDeps: [] as (unknown[] | undefined)[],
   stateIndex: 0,
   refIndex: 0,
 }));
@@ -30,8 +31,9 @@ vi.mock("react", async () => ({
     const index = hooks.refIndex++;
     return (hooks.refs[index] ??= { current: initial });
   },
-  useEffect: (effect: () => void) => {
+  useEffect: (effect: () => void, deps?: unknown[]) => {
     hooks.effects.push(effect);
+    hooks.effectDeps.push(deps);
   },
   // No dispatcher outside a render: recompute instead of memoizing.
   useMemo: (factory: () => unknown) => factory(),
@@ -43,13 +45,14 @@ const points = [
   { freq: 1000, db: 0 },
 ];
 
-function run() {
+function run(notify?: Parameters<typeof useTraces>[0]) {
   hooks.stateIndex = 0;
   hooks.refIndex = 0;
   hooks.effects.length = 0;
+  hooks.effectDeps.length = 0;
   // The mocked react hooks make this safe: no scheduler is involved.
   // eslint-disable-next-line react-hooks/rules-of-hooks -- test harness
-  const result = useTraces();
+  const result = useTraces(notify);
   hooks.effects.forEach((effect) => effect());
   return result;
 }
@@ -67,7 +70,28 @@ describe("exclusive curve selection", () => {
       localStorage: { getItem: () => null, setItem: () => {} },
       addEventListener: () => {},
       removeEventListener: () => {},
+      setTimeout: vi.fn(() => 1),
+      clearTimeout: vi.fn(),
     });
+  });
+
+  it("keeps persistence callbacks stable across unrelated renders but uses the latest notifier", () => {
+    const first = vi.fn();
+    const second = vi.fn();
+    run(first);
+    const before = hooks.effectDeps.filter((deps) => deps?.length === 5);
+    expect(before).toHaveLength(3);
+    run(second);
+    const after = hooks.effectDeps.filter((deps) => deps?.length === 5);
+    expect(after).toHaveLength(3);
+    for (let i = 0; i < before.length; i++)
+      expect(after[i]?.[4]).toBe(before[i]?.[4]);
+    const notify = before[0]?.[4] as NonNullable<
+      Parameters<typeof useTraces>[0]
+    >;
+    notify("Storage is full", "error");
+    expect(first).not.toHaveBeenCalled();
+    expect(second).toHaveBeenCalledExactlyOnceWith("Storage is full", "error");
   });
 
   it("returns added curve IDs so Tuning can select the exact new input", () => {

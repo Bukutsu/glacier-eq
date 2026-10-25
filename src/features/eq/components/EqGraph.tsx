@@ -153,6 +153,7 @@ export const EqGraph = memo(function EqGraph({
     gain: number;
     shift: boolean;
     filter: Filter;
+    originalFilter: Filter;
     startX: number;
     startY: number;
     /** Press-and-release without travelling this far only selects the band. */
@@ -665,6 +666,7 @@ export const EqGraph = memo(function EqGraph({
                     gain: filter.gain,
                     shift: event.shiftKey,
                     filter,
+                    originalFilter: filter,
                   };
                   event.currentTarget.setPointerCapture(event.pointerId);
                 }}
@@ -676,6 +678,10 @@ export const EqGraph = memo(function EqGraph({
                     event.currentTarget.releasePointerCapture(event.pointerId);
                 }}
                 onPointerCancel={(event) => {
+                  const gesture = pointerGestureRef.current;
+                  pointerGestureRef.current = null;
+                  if (gesture?.dragging)
+                    onFilterChange?.(filter.index, gesture.originalFilter);
                   if (event.currentTarget.hasPointerCapture(event.pointerId))
                     event.currentTarget.releasePointerCapture(event.pointerId);
                 }}

@@ -307,7 +307,7 @@ export function useTraces(notify?: NotifyFn) {
   useEffect(() => {
     notifyRef.current = notify;
   }, [notify]);
-  const forwardNotify = forwardNotifyFrom(notifyRef);
+  const [forwardNotify] = useState(() => forwardNotifyFrom(notifyRef));
 
   useEffect(() => {
     const key = "glacier-measurements";

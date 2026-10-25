@@ -16,6 +16,8 @@ import {
   ONLINE_RESULT_LIMIT,
 } from "@/features/traces/lib/onlineSearch";
 import { openFileDialog } from "@/lib/rpc";
+import { readTextFile } from "@/lib/textFile";
+import { FileImportButton } from "@/components/ui/FileImportButton";
 import {
   parseMeasurementText,
   identifyTraceKind,
@@ -160,18 +162,20 @@ export function AddTraceModal({
     }
   };
 
-  const handleImportFile = async () => {
+  const handleImportFile = async (selectedFile?: File) => {
     const request = ++loadRequestRef.current;
     setModalError(null);
     try {
-      const result = await openFileDialog({
-        filters: [
-          {
-            name: t("addTraceModal.frequencyResponseCsvTxt"),
-            extensions: ["csv", "txt"],
-          },
-        ],
-      });
+      const result = selectedFile
+        ? await readTextFile(selectedFile)
+        : await openFileDialog({
+            filters: [
+              {
+                name: t("addTraceModal.frequencyResponseCsvTxt"),
+                extensions: ["csv", "txt"],
+              },
+            ],
+          });
       if (!result || request !== loadRequestRef.current || !mountedRef.current)
         return;
       const points = parseMeasurementText(result.text);
@@ -513,9 +517,12 @@ export function AddTraceModal({
           )}
         </div>
         <div className="add-trace-file-row">
-          <Button className="add-trace-file-btn" onClick={handleImportFile}>
-            <Icon name="file_upload" /> {t("addTraceModal.importFile")}
-          </Button>
+          <FileImportButton
+            className="add-trace-file-btn"
+            label={t("addTraceModal.importFile")}
+            accept=".csv,.txt"
+            onImport={(file) => void handleImportFile(file)}
+          />
           <p>
             {importKind
               ? t("tuningPanel.measurement")

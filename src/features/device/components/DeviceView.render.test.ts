@@ -44,6 +44,15 @@ function renderDeviceView(
 }
 
 describe("DeviceView markup", () => {
+  it("offers an explicit simulator connection only while disconnected", () => {
+    expect(renderDeviceView({ onConnectSimulated: () => {} })).toContain(
+      "Connect simulated DAC",
+    );
+    expect(
+      renderDeviceView({ connected: true, onConnectSimulated: () => {} }),
+    ).not.toContain("Connect simulated DAC");
+    expect(renderDeviceView()).not.toContain("Connect simulated DAC");
+  });
   it("shows interactive JA11 controls for a virtual model, not an arbitrary simulation", () => {
     const deviceInfo = buildDevPreviewDevice({
       ...DEV_DUMMY_DEVICE,

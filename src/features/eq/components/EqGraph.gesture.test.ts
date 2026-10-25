@@ -133,6 +133,30 @@ describe("EqGraph dot clicks", () => {
   });
 });
 
+describe("EqGraph cancellation", () => {
+  it("restores the original filter after several moves, including a mode switch", () => {
+    const s = setup();
+    s.handle.onPointerDown(s.pointer(150, false));
+    s.handle.onPointerMove(s.pointer(120, false));
+    s.handle.onPointerMove(s.pointer(100));
+    s.handle.onPointerMove(s.pointer(0));
+    expect(s.change.mock.lastCall?.[1]).not.toEqual(s.filter);
+    s.handle.onPointerCancel(s.pointer(0));
+    expect(s.change).toHaveBeenLastCalledWith(0, s.filter);
+    s.handle.onLostPointerCapture();
+    s.change.mockClear();
+    s.handle.onPointerMove(s.pointer(50));
+    expect(s.change).not.toHaveBeenCalled();
+    expect(s.start).toHaveBeenCalledTimes(1);
+  });
+  it("does not mutate a cancelled click", () => {
+    const s = setup();
+    s.handle.onPointerDown(s.pointer(150));
+    s.handle.onPointerCancel(s.pointer(150));
+    expect(s.change).not.toHaveBeenCalled();
+  });
+});
+
 describe("EqGraph Shift-drag", () => {
   it("adjusts Q from the drag origin and keeps frequency and gain fixed", () => {
     const s = setup();

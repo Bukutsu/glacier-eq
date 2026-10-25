@@ -11,11 +11,17 @@ export interface Toast {
 
 export const toastDuration = (type: Toast["type"]) =>
   type === "error" ? 6000 : 4000;
-const timers = new Map<string, ReturnType<typeof setTimeout>>();
+interface ToastTimer {
+  remaining: number;
+  startedAt: number;
+  handle: ReturnType<typeof setTimeout> | null;
+  pauses: Set<string>;
+}
+const timers = new Map<string, ToastTimer>();
 
 function cancelTimer(id: string) {
   const timer = timers.get(id);
-  if (timer !== undefined) clearTimeout(timer);
+  if (timer?.handle != null) clearTimeout(timer.handle);
   timers.delete(id);
 }
 
@@ -70,6 +76,8 @@ interface ToastStore {
   addToast: (message: string, type?: Toast["type"], log?: boolean) => void;
   setStatus: StatusReporter;
   removeToast: (id: string) => void;
+  pauseToast: (id: string, owner: string) => void;
+  resumeToast: (id: string, owner: string) => void;
   clearNonErrorToasts: () => void;
   /**
    * Records a toast as a diagnostic event. App registers the backend call on
@@ -115,10 +123,12 @@ export const useToastStore = create<ToastStore>()((set, get) => ({
         get().removeToast(previous.id);
     }
     set({ toasts: next });
-    timers.set(
-      id,
-      setTimeout(() => get().removeToast(id), toastDuration(toastType)),
-    );
+    timers.set(id, {
+      remaining: toastDuration(toastType),
+      startedAt: Date.now(),
+      handle: setTimeout(() => get().removeToast(id), toastDuration(toastType)),
+      pauses: new Set(),
+    });
 
     // After the dedupe check, so a suppressed repeat does not double-report.
     if (log) diagnosticSink?.(message, toastType);
@@ -139,6 +149,27 @@ export const useToastStore = create<ToastStore>()((set, get) => ({
     } else {
       diagnosticSink?.(message, resolved);
     }
+  },
+
+  pauseToast: (id, owner) => {
+    const timer = timers.get(id);
+    if (!timer || timer.pauses.has(owner)) return;
+    if (timer.handle !== null) {
+      clearTimeout(timer.handle);
+      timer.handle = null;
+      timer.remaining = Math.max(
+        0,
+        timer.remaining - (Date.now() - timer.startedAt),
+      );
+    }
+    timer.pauses.add(owner);
+  },
+
+  resumeToast: (id, owner) => {
+    const timer = timers.get(id);
+    if (!timer || !timer.pauses.delete(owner) || timer.pauses.size > 0) return;
+    timer.startedAt = Date.now();
+    timer.handle = setTimeout(() => get().removeToast(id), timer.remaining);
   },
 
   removeToast: (id) => {

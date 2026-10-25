@@ -35,7 +35,6 @@ vi.mock("./wasm", () => ({
 
 import {
   invoke,
-  decodeUtf8File,
   matchSupportedWebHidDevice,
   requestWebHidDevice,
   openUrl,
@@ -424,15 +423,6 @@ describe("original Dawn Pro browser controls", () => {
     expect(device.sendReport).not.toHaveBeenCalled();
     expect(device.receiveFeatureReport).not.toHaveBeenCalled();
     expect(device.sendFeatureReport).not.toHaveBeenCalled();
-  });
-});
-
-describe("UTF-8 file decoding", () => {
-  it("rejects malformed bytes instead of replacing them", () => {
-    expect(() =>
-      decodeUtf8File(Uint8Array.from([0x23, 0xff]).buffer),
-    ).toThrow();
-    expect(decodeUtf8File(Uint8Array.from([0x68, 0x69]).buffer)).toBe("hi");
   });
 });
 

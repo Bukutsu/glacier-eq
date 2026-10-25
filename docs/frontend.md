@@ -135,6 +135,16 @@ target makes it the only curve shown, through the exclusive selection handlers
 in `useTraces`. The Curves menu remains the manual override and is not
 re-applied when the dropdown selection itself did not change.
 Only the current profile uses a filled selection background.
+Profile row actions include the profile heading in their accessible name.
+Compact Profiles also offers Copy for the editor and Paste EQ under Library
+actions; pasting only replaces the editor after the ordinary dirty-state
+confirmation.
+
+Web file imports use `FileImportButton` with persistent, named file inputs,
+so browser uploads do not depend on an open OS picker. `readTextFile` owns the
+shared byte limit and strict UTF-8 decoding. Native hosts keep the native
+picker. Capture async context before reading a selected file and discard
+stale completions. Lazy panels show a visible loading status until ready.
 
 ## Adding UI
 

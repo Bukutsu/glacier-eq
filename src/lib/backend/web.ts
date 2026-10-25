@@ -20,7 +20,6 @@ import {
   sanitizeDiagnosticMessage,
 } from "@/features/diagnostics/lib/diagnostics";
 import { readLocalStorage, writeLocalStorage } from "@/lib/safeStorage";
-import { decodeUtf8 } from "@/lib/utf8";
 import { DISCONNECT_SUPERSEDED } from "@/lib/asyncContext";
 import { themeOptions } from "@/features/settings/lib/theme";
 
@@ -1552,82 +1551,10 @@ export async function save(
   return options?.defaultPath || "profile.txt";
 }
 
-export function decodeUtf8File(bytes: ArrayBuffer): string {
-  return decodeUtf8(bytes);
-}
-
-export async function openFileDialog(options?: {
+export async function openFileDialog(_options?: {
   filters?: { name: string; extensions: string[] }[];
 }): Promise<{ text: string; name: string } | null> {
-  // Browser fallback: create a hidden file input
-  return new Promise((resolve, reject) => {
-    const input = document.createElement("input");
-    input.type = "file";
-    if (options?.filters) {
-      input.accept = options.filters
-        .flatMap((f) => f.extensions)
-        .map((e) => "." + e)
-        .join(",");
-    }
-
-    let settled = false;
-    const cleanup = () => {
-      window.removeEventListener("focus", handleWindowFocus);
-      input.remove();
-    };
-
-    const handleWindowFocus = () => {
-      // Browsers refocus window when file picker dialog is dismissed
-      setTimeout(() => {
-        if (!settled && (!input.files || input.files.length === 0)) {
-          settled = true;
-          cleanup();
-          resolve(null);
-        }
-      }, 300);
-    };
-
-    input.oncancel = () => {
-      if (!settled) {
-        settled = true;
-        cleanup();
-        resolve(null);
-      }
-    };
-
-    input.onchange = async () => {
-      if (settled) return;
-      settled = true;
-      const file = input.files?.[0];
-      if (file) {
-        if (file.size > 1_048_576) {
-          cleanup();
-          // Size and read failures are errors, not cancellations: callers
-          // must be able to tell the user why their import did not happen.
-          reject(new Error("File exceeds the 1 MiB limit"));
-          return;
-        }
-        try {
-          const text = decodeUtf8File(await file.arrayBuffer());
-          cleanup();
-          resolve({ text, name: file.name });
-        } catch (error) {
-          cleanup();
-          reject(error instanceof Error ? error : new Error(String(error)));
-        }
-      } else {
-        cleanup();
-        resolve(null);
-      }
-    };
-
-    window.addEventListener("focus", handleWindowFocus, { once: true });
-    input.style.position = "absolute";
-    input.style.opacity = "0";
-    input.style.pointerEvents = "none";
-    document.body.appendChild(input);
-    input.click();
-  });
+  throw new Error("Web imports require a file input");
 }
 
 export async function openUrl(url: string): Promise<void> {

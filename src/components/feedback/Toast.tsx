@@ -1,4 +1,5 @@
 import "@/lib/i18n";
+import { useEffect, useId } from "react";
 import { useTranslation } from "react-i18next";
 import { Icon } from "@/components/ui/Icon";
 import { Button } from "@/components/ui/Button";
@@ -15,12 +16,26 @@ export function ToastContainer({
   const { t } = useTranslation("shell");
   const allToasts = useToastStore((s) => s.toasts);
   const removeToast = useToastStore((s) => s.removeToast);
+  const pauseToast = useToastStore((s) => s.pauseToast);
+  const resumeToast = useToastStore((s) => s.resumeToast);
+  const hoverOwner = useId();
+  const focusOwner = useId();
   const toasts = errorsOnly
     ? allToasts.filter((toast) => toast.type === "error")
     : allToasts;
   const current =
     [...toasts].reverse().find((toast) => toast.type === "error") ??
     toasts[toasts.length - 1];
+  const toastId = current?.id;
+  useEffect(
+    () => () => {
+      if (toastId) {
+        resumeToast(toastId, hoverOwner);
+        resumeToast(toastId, focusOwner);
+      }
+    },
+    [toastId, hoverOwner, focusOwner, resumeToast],
+  );
   if (!current) return null;
   return (
     <Alert
@@ -31,6 +46,16 @@ export function ToastContainer({
       role={current.type === "error" ? "alert" : "status"}
       aria-atomic="true"
       key={current.id}
+      onMouseEnter={() => pauseToast(current.id, hoverOwner)}
+      onMouseLeave={() => resumeToast(current.id, hoverOwner)}
+      onFocus={() => pauseToast(current.id, focusOwner)}
+      onBlur={(event) => {
+        if (
+          !(event.relatedTarget instanceof Node) ||
+          !event.currentTarget.contains(event.relatedTarget)
+        )
+          resumeToast(current.id, focusOwner);
+      }}
     >
       <Icon
         name={

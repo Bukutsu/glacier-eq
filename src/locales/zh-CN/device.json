@@ -125,6 +125,7 @@
     "connected": "已连接",
     "simulation": "模拟",
     "connectDac": "连接 DAC",
+    "connectSimulatedDac": "连接模拟 DAC",
     "disconnect": "断开连接",
     "changeDevice": "更换设备",
     "connectionOptions": "连接选项",

@@ -57,6 +57,7 @@ export interface DeviceViewProps {
   onPull?: () => Promise<void | boolean>;
   onOpenConnectModal?: () => void;
   onChooseDevice?: () => void;
+  onConnectSimulated?: () => void;
   onDisconnect?: () => Promise<void>;
   onPreviewChange?: (device: DeviceInfo) => void;
   /** Called before a write that may make the DAC briefly drop off USB. */
@@ -90,6 +91,7 @@ export const DeviceView = memo(function DeviceView({
   onPull,
   onOpenConnectModal,
   onChooseDevice,
+  onConnectSimulated,
   onDisconnect,
   onPreviewChange,
   onExpectedDisconnect,
@@ -493,17 +495,24 @@ export const DeviceView = memo(function DeviceView({
             <div className="device-connection-actions">{connectionActions}</div>
           )
         ) : (
-          onOpenConnectModal && (
-            <Button
-              type="button"
-              variant="primary"
-              onClick={onOpenConnectModal}
-              disabled={isBusy}
-            >
-              <Icon name="usb" />
-              <span>{t("deviceView.connectDac")}</span>
-            </Button>
-          )
+          <>
+            {onOpenConnectModal && (
+              <Button
+                type="button"
+                variant="primary"
+                onClick={onOpenConnectModal}
+                disabled={isBusy}
+              >
+                <Icon name="usb" />
+                <span>{t("deviceView.connectDac")}</span>
+              </Button>
+            )}
+            {import.meta.env.DEV && onConnectSimulated && (
+              <Button onClick={onConnectSimulated} disabled={isBusy}>
+                {t("deviceView.connectSimulatedDac")}
+              </Button>
+            )}
+          </>
         )}
       </div>
     </Card>

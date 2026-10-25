@@ -91,8 +91,10 @@ The backend is selected at build time: Vite's `web` mode uses WebHID/WASM;
 other modes use Tauri IPC. Use the package scripts rather than bare `vite`
 when testing the web app.
 
-Development builds offer a **Dev Dummy DAC** in the device chooser. Connect
-to it to test the editor without hardware. It is not available in production
+Development builds have a **Connect simulated DAC** button on Device
+(Settings on compact layouts). It connects without opening USB authorization.
+Use it to test the editor without hardware, then choose a model under
+**Protocol / model preview**. The simulator is not available in production
 and does not test real HID transport.
 
 ### Android

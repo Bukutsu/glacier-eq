@@ -125,6 +125,7 @@
     "connected": "接続済み",
     "simulation": "シミュレーション",
     "connectDac": "DACを接続",
+    "connectSimulatedDac": "シミュレーションDACに接続",
     "disconnect": "切断",
     "changeDevice": "デバイスを変更",
     "connectionOptions": "接続オプション",

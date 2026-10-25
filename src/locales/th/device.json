@@ -125,6 +125,7 @@
     "connected": "เชื่อมต่อแล้ว",
     "simulation": "การจำลอง",
     "connectDac": "เชื่อมต่อ DAC",
+    "connectSimulatedDac": "เชื่อมต่อ DAC จำลอง",
     "disconnect": "ตัดการเชื่อมต่อ",
     "changeDevice": "เปลี่ยนอุปกรณ์",
     "connectionOptions": "ตัวเลือกการเชื่อมต่อ",

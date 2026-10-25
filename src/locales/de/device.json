@@ -126,6 +126,7 @@
     "connected": "Verbunden",
     "simulation": "Simulation",
     "connectDac": "DAC verbinden",
+    "connectSimulatedDac": "Simulierten DAC verbinden",
     "disconnect": "Trennen",
     "changeDevice": "Gerät wechseln",
     "connectionOptions": "Verbindungsoptionen",

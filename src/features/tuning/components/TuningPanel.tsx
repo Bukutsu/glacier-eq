@@ -2,6 +2,8 @@ import { ErrorNotice } from "@/components/feedback/ErrorNotice";
 import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState } from "react";
 import { openFileDialog } from "@/lib/rpc";
+import { readTextFile } from "@/lib/textFile";
+import { FileImportButton } from "@/components/ui/FileImportButton";
 import { parseMeasurementText } from "@/features/traces/lib/measurements";
 import {
   useAutoEq,
@@ -72,20 +74,22 @@ export function AutoEqTab(props: AutoEqTabProps) {
     handleTargetChange,
     handleRunAutoEq,
   } = useAutoEq(props);
-  const importTarget = async () => {
+  const importTarget = async (selectedFile?: File) => {
     if (!props.onAddTarget || importing.current) return;
     importing.current = true;
     setImportingTarget(true);
     setImportError(null);
     try {
-      const file = await openFileDialog({
-        filters: [
-          {
-            name: t("addTraceModal.frequencyResponseCsvTxt"),
-            extensions: ["csv", "txt"],
-          },
-        ],
-      });
+      const file = selectedFile
+        ? await readTextFile(selectedFile)
+        : await openFileDialog({
+            filters: [
+              {
+                name: t("addTraceModal.frequencyResponseCsvTxt"),
+                extensions: ["csv", "txt"],
+              },
+            ],
+          });
       if (!file || !mounted.current) return;
       const points = parseMeasurementText(file.text);
       const name = file.name.replace(/\.[^/.]+$/, "");
@@ -171,19 +175,18 @@ export function AutoEqTab(props: AutoEqTabProps) {
                 {t("tuningPanel.targetCurve")}
               </label>
               {props.onAddTarget && (
-                <Button
+                <FileImportButton
                   variant="ghost"
                   className="tuning-field-action"
                   disabled={isOptimizing || importingTarget}
-                  onClick={importTarget}
-                >
-                  <Icon
-                    name={importingTarget ? "hourglass_empty" : "file_upload"}
-                  />
-                  {importingTarget
-                    ? t("tuningPanel.importingTarget")
-                    : t("tuningPanel.importTarget")}
-                </Button>
+                  label={
+                    importingTarget
+                      ? t("tuningPanel.importingTarget")
+                      : t("tuningPanel.importTarget")
+                  }
+                  accept=".csv,.txt"
+                  onImport={importTarget}
+                />
               )}
             </div>
             <Select

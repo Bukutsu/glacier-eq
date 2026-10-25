@@ -101,6 +101,24 @@ describe("fresh mobile Profiles screen", () => {
     expect(html).toContain('aria-label="Clear profile search"');
   });
 
+  it("names each load and DAC-write action with its profile heading", () => {
+    const html = render({ onUseOnDac: async () => {} });
+    const headingId = html.match(
+      /<h3 id="([^"]+)">Evening listening<\/h3>/,
+    )?.[1];
+    expect(headingId).toBeTruthy();
+    const actions = [
+      ...html.matchAll(/<button[^>]*aria-labelledby="([^"]+)"[^>]*>/g),
+    ]
+      .map((match) => match[1].split(" "))
+      .filter((ids) => ids[1] === headingId);
+    expect(actions).toHaveLength(2);
+    expect(new Set(actions.map((ids) => ids[0])).size).toBe(2);
+    for (const [actionId] of actions)
+      expect(html).toContain(`<span id="${actionId}">`);
+    expect(html).toContain(`<li aria-labelledby="${headingId}"`);
+  });
+
   it("offers a useful empty-search state", () => {
     const html = render({ profileSearch: "no matching name" });
     expect(html).toContain("No matching profiles");

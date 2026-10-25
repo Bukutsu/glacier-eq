@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { isValidElement, type ReactNode } from "react";
 import { AutoEqTab } from "./TuningPanel";
 import { Button } from "@/components/ui/Button";
+import { FileImportButton } from "@/components/ui/FileImportButton";
 import { AddTraceModal } from "@/features/traces/components/AddTraceModal";
 import { ErrorNotice } from "@/components/feedback/ErrorNotice";
 import { openFileDialog } from "@/lib/rpc";
@@ -92,14 +93,8 @@ function render() {
   return nodes(AutoEqTab(props));
 }
 function importTarget() {
-  const button = render().find(
-    (n) =>
-      n.type === Button &&
-      nodes(n.props.children as ReactNode).some(
-        (child) => child.props.name === "file_upload",
-      ),
-  );
-  return (button!.props.onClick as () => Promise<void>)();
+  const button = render().find((n) => n.type === FileImportButton);
+  return (button!.props.onImport as () => Promise<void>)();
 }
 
 beforeEach(() => {

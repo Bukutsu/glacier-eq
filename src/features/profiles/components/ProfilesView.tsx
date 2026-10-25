@@ -16,7 +16,7 @@ import { copyEq, exportEqFile } from "@/features/eq/lib/exportEq";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { profileIdentityKey } from "@/features/profiles/lib/profileIdentity";
 import { loadProfile } from "@/features/profiles/lib/loadProfile";
-import { decodeUtf8 } from "@/lib/utf8";
+import { readTextFile } from "@/lib/textFile";
 import { fuzzyMatch } from "@/lib/search";
 import { isTauri } from "@/lib/platform";
 import {
@@ -210,9 +210,7 @@ export const ProfilesView = memo(function ProfilesView({
     }
 
     try {
-      if (file.size > 1_048_576)
-        throw new Error(t("profilesView.fileTooLarge"));
-      const text = decodeUtf8(await file.arrayBuffer());
+      const { text } = await readTextFile(file);
       await parseAndLoadText(text, file.name.replace(/\.[^/.]+$/, ""), request);
     } catch (error) {
       if (request === parseRequestRef.current) {
@@ -812,6 +810,7 @@ export const ProfilesView = memo(function ProfilesView({
       <input
         className="hidden-file-input"
         type="file"
+        aria-label={t("profilesView.import")}
         ref={fileInputRef}
         accept=".txt"
         onChange={handleFileChange}

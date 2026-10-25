@@ -71,6 +71,38 @@ describe("toastStore", () => {
     expect(store().toasts).toHaveLength(0);
     expect(vi.getTimerCount()).toBe(0);
   });
+  it("pauses for overlapping focus and hover across hosts, then resumes only the remaining time", () => {
+    store().addToast("Read failed");
+    const id = store().toasts[0].id;
+    vi.advanceTimersByTime(1500);
+    store().pauseToast(id, "page-hover");
+    store().pauseToast(id, "page-hover");
+    store().pauseToast(id, "dialog-focus");
+    vi.advanceTimersByTime(10_000);
+    expect(store().toasts).toHaveLength(1);
+    store().resumeToast(id, "page-hover");
+    store().resumeToast(id, "unknown-host");
+    vi.advanceTimersByTime(10_000);
+    expect(store().toasts).toHaveLength(1);
+    store().resumeToast(id, "dialog-focus");
+    store().resumeToast(id, "dialog-focus");
+    vi.advanceTimersByTime(4499);
+    expect(store().toasts).toHaveLength(1);
+    vi.advanceTimersByTime(1);
+    expect(store().toasts).toEqual([]);
+  });
+
+  it("does not resurrect a paused notification after dismissal or replacement", () => {
+    store().addToast("Old failure");
+    const id = store().toasts[0].id;
+    store().pauseToast(id, "focus");
+    store().addToast("New failure");
+    store().resumeToast(id, "focus");
+    expect(vi.getTimerCount()).toBe(1);
+    vi.advanceTimersByTime(6000);
+    expect(store().toasts).toEqual([]);
+  });
+
   it("does not extend the expiry when the same error repeats or unrelated state changes", () => {
     store().addToast("Could not read from DAC");
     vi.advanceTimersByTime(5000);

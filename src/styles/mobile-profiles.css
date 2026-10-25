@@ -33,7 +33,7 @@
 .mobile-profile-description { font-size: var(--type-small); line-height: 1.5; color: var(--muted-foreground); }
 .mobile-profile-editor > .mobile-profile-description + .mobile-profile-description { margin-top: var(--space-2); }
 .mobile-profile-dac-save { width: 100%; margin-top: var(--space-3); white-space: nowrap; }
-.mobile-profile-editor-actions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 44px; gap: var(--space-2); margin-top: var(--space-3); }
+.mobile-profile-editor-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); margin-top: var(--space-3); }
 .mobile-profile-editor-actions > button { min-width: 0; padding-inline: 8px; }
 .mobile-profile-editor .app-collapse { margin: var(--space-4) 0 0; border: 0; border-top: 1px solid var(--border); border-radius: 0; }
 .mobile-profile-editor .app-collapse-trigger { min-height: 44px; padding-inline: 0; background: transparent; border: 0; color: var(--muted-foreground); font-size: var(--type-small); font-weight: 500; }

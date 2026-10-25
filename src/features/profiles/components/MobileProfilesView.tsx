@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { Menu } from "@base-ui/react/menu";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -10,7 +10,9 @@ import { Icon } from "@/components/ui/Icon";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { OverflowMenu } from "@/components/ui/OverflowMenu";
-import { exportEqFile } from "@/features/eq/lib/exportEq";
+import { copyEq, exportEqFile } from "@/features/eq/lib/exportEq";
+import { readTextFile } from "@/lib/textFile";
+import { FileImportButton } from "@/components/ui/FileImportButton";
 import {
   DEFAULT_PROFILE_NAME,
   formatDb,
@@ -93,6 +95,8 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
     profile: string;
   } | null>(null);
   const [rename, setRename] = useState("");
+  const [paste, setPaste] = useState<string | null>(null);
+  const rowId = useId();
   const mounted = useRef(true);
   const actionPending = useRef(false);
   useEffect(() => {
@@ -143,15 +147,13 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
     setDialog({ mode, context: getAsyncContext(), profile });
   }
 
-  async function importFile() {
+  async function importText(
+    read: () => Promise<{ name: string; text: string } | null>,
+  ) {
     const context = getAsyncContext();
     const current = () =>
       mounted.current && asyncContextEquals(context, getAsyncContext());
-    const file = await openFileDialog({
-      filters: [
-        { name: t("mobileProfilesView.autoEQText"), extensions: ["txt"] },
-      ],
-    });
+    const file = await read();
     if (!file || !current()) return;
     const imported = parseProfileImport(
       await invoke<unknown>("parse_autoeq", { text: file.text }),
@@ -170,12 +172,11 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
     )
       return;
     if (!current()) return;
-    if (onImportPEQ(imported.data, imported.name, false))
-      setStatus(
-        [t("mobileProfilesView.importSucceeded"), ...imported.warnings].join(
-          " ",
-        ),
-      );
+    if (!onImportPEQ(imported.data, imported.name, false)) return false;
+    setStatus(
+      [t("mobileProfilesView.importSucceeded"), ...imported.warnings].join(" "),
+    );
+    return true;
   }
 
   return (
@@ -246,14 +247,20 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
             </Button>
           )}
           <Button
-            size="icon"
+            aria-label={t("profilesView.copy")}
+            disabled={disabled}
+            onClick={() => void runAction(() => copyEq(peq, setStatus))}
+          >
+            <Icon name="content_copy" /> {t("profilesView.copy")}
+          </Button>
+          <Button
             aria-label={t("mobileProfilesView.exportEQ")}
             disabled={disabled}
             onClick={() =>
               void runAction(() => exportEqFile(peq, selectedPreset, setStatus))
             }
           >
-            <Icon name="file_download" />
+            <Icon name="file_download" /> {t("mobileProfilesView.exportEQ")}
           </Button>
         </div>
         {preview && (
@@ -278,14 +285,36 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
             </p>
           </div>
           <div className="mobile-profile-library-tools">
-            <Button
+            <FileImportButton
+              label={t("mobileProfilesView.import")}
+              accept=".txt"
               disabled={disabled}
-              onClick={() => void runAction(importFile)}
-            >
-              <Icon name="file_upload" />
-              {t("mobileProfilesView.import")}
-            </Button>
+              onImport={(file) =>
+                void runAction(() =>
+                  importText(() =>
+                    file
+                      ? readTextFile(file)
+                      : openFileDialog({
+                          filters: [
+                            {
+                              name: t("mobileProfilesView.autoEQText"),
+                              extensions: ["txt"],
+                            },
+                          ],
+                        }),
+                  ),
+                )
+              }
+            />
             <OverflowMenu label={t("mobileProfilesView.libraryActions")}>
+              <Menu.Item
+                className="ui-menu-item"
+                disabled={disabled}
+                onClick={() => setPaste("")}
+              >
+                <Icon name="content_paste" />
+                {t("profilesView.pasteEQ")}
+              </Menu.Item>
               <Menu.Item
                 className="ui-menu-item"
                 disabled={disabled}
@@ -344,7 +373,13 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
           className="mobile-profile-list"
           aria-label={t("mobileProfilesView.savedProfiles")}
         >
-          {visible.map((profile) => {
+          {visible.map((profile, index) => {
+            // eslint-disable-next-line i18next/no-literal-string -- Local DOM ID, not UI text.
+            const nameId = `${rowId}-name-${index}`;
+            // eslint-disable-next-line i18next/no-literal-string -- Local DOM ID, not UI text.
+            const loadId = `${rowId}-load-${index}`;
+            // eslint-disable-next-line i18next/no-literal-string -- Local DOM ID, not UI text.
+            const writeId = `${rowId}-write-${index}`;
             const isDefault =
               profileIdentityKey(profile.name) ===
               profileIdentityKey(DEFAULT_PROFILE_NAME);
@@ -356,6 +391,7 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
             return (
               <li
                 key={profile.name}
+                aria-labelledby={nameId}
                 className={
                   current
                     ? "mobile-profile-row is-current"
@@ -363,7 +399,7 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
                 }
               >
                 <div className="mobile-profile-row-heading">
-                  <h3>
+                  <h3 id={nameId}>
                     {isDefault && <Icon name="lock" />}
                     {profile.name}
                   </h3>
@@ -381,19 +417,23 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
                   {onUseOnDac && !isDefault && (
                     <Button
                       variant={dacEditor?.unsaved ? "default" : "primary"}
+                      aria-labelledby={`${writeId} ${nameId}`}
                       disabled={disabled}
                       onClick={() => void runAction(() => onUseOnDac(profile))}
                     >
                       <Icon name="save" />
-                      {dacEditor?.slot != null
-                        ? t("profilesView.writeToUser", {
-                            number:
-                              dacEditor.bankNumber ?? dacEditor.slot - 159,
-                          })
-                        : t("profilesView.saveToDac")}
+                      <span id={writeId}>
+                        {dacEditor?.slot != null
+                          ? t("profilesView.writeToUser", {
+                              number:
+                                dacEditor.bankNumber ?? dacEditor.slot - 159,
+                            })
+                          : t("profilesView.saveToDac")}
+                      </span>
                     </Button>
                   )}
                   <Button
+                    aria-labelledby={`${loadId} ${nameId}`}
                     disabled={disabled || (current && !dirty)}
                     onClick={() =>
                       void runAction(() =>
@@ -410,19 +450,21 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
                       )
                     }
                   >
-                    {current && !dirty ? (
-                      <>
-                        <Icon name="check" />
-                        {t("mobileProfilesView.loaded")}
-                      </>
-                    ) : current ? (
-                      <>
-                        <Icon name="restart_alt" />
-                        {t("mobileProfilesView.restore")}
-                      </>
-                    ) : (
-                      t("mobileProfilesView.loadIntoEditor")
-                    )}
+                    <span id={loadId}>
+                      {current && !dirty ? (
+                        <>
+                          <Icon name="check" />
+                          {t("mobileProfilesView.loaded")}
+                        </>
+                      ) : current ? (
+                        <>
+                          <Icon name="restart_alt" />
+                          {t("mobileProfilesView.restore")}
+                        </>
+                      ) : (
+                        t("mobileProfilesView.loadIntoEditor")
+                      )}
+                    </span>
                   </Button>
                   <OverflowMenu
                     label={t("mobileProfilesView.actionsFor", {
@@ -497,6 +539,58 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
           </p>
         )}
       </section>
+
+      {paste !== null && (
+        <Modal
+          title={t("profilesView.pasteEQ")}
+          closeDisabled={pending}
+          onClose={() => setPaste(null)}
+          className="profiles-import-dialog"
+        >
+          <form
+            className="modal-body"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (disabled || !paste.trim()) return;
+              void runAction(async () => {
+                if (
+                  await importText(async () => ({
+                    text: paste,
+                    name: t("profilesView.pastedEQ"),
+                  }))
+                )
+                  if (mounted.current) setPaste(null);
+              });
+            }}
+          >
+            <p className="profiles-note">{t("profilesView.pasteHelp")}</p>
+            <label htmlFor="mobile-eq-text">{t("profilesView.eqText")}</label>
+            <textarea
+              id="mobile-eq-text"
+              className="profiles-paste-text"
+              data-dialog-autofocus
+              rows={8}
+              maxLength={1_048_576}
+              spellCheck={false}
+              value={paste}
+              disabled={disabled}
+              onChange={(event) => setPaste(event.target.value)}
+            />
+            <div className="modal-actions">
+              <Button disabled={pending} onClick={() => setPaste(null)}>
+                {t("profilesView.cancel")}
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={disabled || !paste.trim()}
+              >
+                {t("profilesView.editorOnly")}
+              </Button>
+            </div>
+          </form>
+        </Modal>
+      )}
 
       {dialog && (
         <Modal
