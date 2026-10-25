@@ -7,6 +7,7 @@ export interface Toast {
   id: string;
   message: string;
   type: "info" | "error" | "success";
+  action?: { label: string; onClick: () => void };
 }
 
 export const toastDuration = (type: Toast["type"]) =>
@@ -73,7 +74,12 @@ interface ToastStore {
    * message (reportStatus does), so one user-visible event yields one report
    * line rather than two.
    */
-  addToast: (message: string, type?: Toast["type"], log?: boolean) => void;
+  addToast: (
+    message: string,
+    type?: Toast["type"],
+    log?: boolean,
+    action?: Toast["action"],
+  ) => string | undefined;
   setStatus: StatusReporter;
   removeToast: (id: string) => void;
   pauseToast: (id: string, owner: string) => void;
@@ -99,18 +105,22 @@ export const useToastStore = create<ToastStore>()((set, get) => ({
   toasts: [],
   status: "Ready",
 
-  addToast: (message, type = "info", log = true) => {
+  addToast: (message, type = "info", log = true, action) => {
     if (message === "Ready" || !message.trim()) return;
 
     const toastType = resolveToastType(message, type);
 
     const { toasts } = get();
     // Dedupe on message and type while the notification is visible.
-    if (toasts.some((t) => t.message === message && t.type === toastType))
+    if (
+      !action &&
+      toasts.some((t) => t.message === message && t.type === toastType)
+    )
       return;
 
     const id = Math.random().toString(36).substring(2, 9);
-    const toast = { id, message, type: toastType };
+    const toast = { id, message, type: toastType, action };
+    const duration = action ? 8000 : toastDuration(toastType);
     // Routine updates replace each other. Errors are retained independently,
     // so a successful action cannot dismiss an unrelated failure.
     // Only the newest error is retained; older errors cannot resurface.
@@ -124,14 +134,15 @@ export const useToastStore = create<ToastStore>()((set, get) => ({
     }
     set({ toasts: next });
     timers.set(id, {
-      remaining: toastDuration(toastType),
+      remaining: duration,
       startedAt: Date.now(),
-      handle: setTimeout(() => get().removeToast(id), toastDuration(toastType)),
+      handle: setTimeout(() => get().removeToast(id), duration),
       pauses: new Set(),
     });
 
     // After the dedupe check, so a suppressed repeat does not double-report.
     if (log) diagnosticSink?.(message, toastType);
+    return id;
   },
 
   setDiagnosticSink: (sink) => {

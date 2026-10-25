@@ -17,8 +17,7 @@ search by model, family, chip, or USB ID and filter by test status.
 
 EQ support and extra controls are listed separately. An untested profile still
 needs confirmation on real hardware, and a model entry does not guarantee every
-firmware or USB mode works. See [FiiO protocol notes](docs/fiio-support.md) for
-transport limits and source evidence.
+firmware or USB mode works.
 
 If you try an untested device,
 [tell us how it went](https://github.com/Bukutsu/glacier-eq/issues).

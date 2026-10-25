@@ -71,3 +71,6 @@ bun.lockb
 .pi-subagents/
 
 .perf/
+
+# Local documentation
+/docs/

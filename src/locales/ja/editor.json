@@ -161,5 +161,8 @@
   },
   "validation": {
     "invalidEq": "デバイスから無効なEQ状態が返されました"
+  },
+  "replacement": {
+    "loaded": "{{name}} をエディターに読み込みました"
   }
 }

@@ -185,7 +185,6 @@ export const ProfilesView = memo(function ProfilesView({
       selectedPreset,
       dirty: dirty || Boolean(dacEditor?.unsaved),
       getAsyncContext,
-      confirm: confirmDialog,
       onSelectProfile,
     });
 

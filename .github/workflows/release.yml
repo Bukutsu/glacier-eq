@@ -37,7 +37,7 @@ jobs:
           # Without the key every desktop build fails late, after compiling.
           # Installed apps accept updates only if signed by the matching key.
           if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ] || [ -z "$TAURI_SIGNING_PRIVATE_KEY_PASSWORD" ]; then
-            echo "❌ Set the TAURI_SIGNING_PRIVATE_KEY and TAURI_SIGNING_PRIVATE_KEY_PASSWORD repository secrets (see docs/release-readiness.md)."
+            echo "❌ Set the TAURI_SIGNING_PRIVATE_KEY and TAURI_SIGNING_PRIVATE_KEY_PASSWORD repository secrets."
             exit 1
           fi
 

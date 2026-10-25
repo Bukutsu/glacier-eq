@@ -9,7 +9,7 @@ vi.mock("@/stores/toastStore", async (original) => ({
   useToastStore: vi.fn(),
 }));
 
-function render(toasts: Toast[], errorsOnly = false, inline = false) {
+function render(toasts: Toast[], quiet = false, inline = false) {
   const state = {
     toasts,
     removeToast: vi.fn(),
@@ -17,9 +17,7 @@ function render(toasts: Toast[], errorsOnly = false, inline = false) {
   vi.mocked(useToastStore).mockImplementation((selector: any) =>
     selector(state),
   );
-  return renderToStaticMarkup(
-    createElement(ToastContainer, { errorsOnly, inline }),
-  );
+  return renderToStaticMarkup(createElement(ToastContainer, { quiet, inline }));
 }
 
 describe("Toast feedback", () => {
@@ -68,6 +66,23 @@ describe("Toast feedback", () => {
     expect(html).toContain('role="status"');
     expect(html).toContain('aria-atomic="true"');
     expect(html).not.toContain('role="alert"');
+  });
+
+  it("renders a named action without replacing dismissal", () => {
+    const html = render(
+      [
+        {
+          id: "load",
+          message: "Loaded Alpha into editor",
+          type: "success",
+          action: { label: "Undo", onClick: vi.fn() },
+        },
+      ],
+      true,
+    );
+    expect(html).toContain("Undo");
+    expect(html).toContain("Loaded Alpha into editor");
+    expect(html).toContain('aria-label="Dismiss message"');
   });
 
   it("keeps full messages readable and dismissible", () => {

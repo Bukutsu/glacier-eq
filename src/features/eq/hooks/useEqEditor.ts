@@ -17,10 +17,13 @@ import { asyncContextEquals, type AsyncContext } from "@/lib/asyncContext";
 
 import { restoreHistorySnapshot } from "@/features/eq/lib/restoredHistory";
 import { parseAutoEqResult } from "@/features/tuning/lib/parsedAutoEq";
-import type { Filter, PEQData } from "@/types";
-import { type StatusReporter } from "@/stores/toastStore";
+import type { Filter, PEQData, Profile } from "@/types";
+import { useToastStore, type StatusReporter } from "@/stores/toastStore";
 
-import { useHistoryStore } from "@/features/eq/stores/historyStore";
+import {
+  useHistoryStore,
+  type HistoryMetadata,
+} from "@/features/eq/stores/historyStore";
 
 import { useEditorDraft } from "@/features/eq/hooks/useEditorDraft";
 import { hasUnfinishedEdits } from "@/features/eq/lib/editorDraft";
@@ -66,19 +69,42 @@ export function useEqEditor(
   // (pulls, imports, pushes) can detect edits that happened while they ran.
   const editorRevisionRef = useRef(0);
 
-  const noteEditorMutation = useCallback(() => {
-    editorRevisionRef.current += 1;
+  const replacementToastRef = useRef<string | undefined>(undefined);
+  const clearReplacementNotice = useCallback(() => {
+    if (replacementToastRef.current) {
+      useToastStore.getState().removeToast(replacementToastRef.current);
+      replacementToastRef.current = undefined;
+    }
   }, []);
+  const noteEditorMutation = useCallback(() => {
+    clearReplacementNotice();
+    editorRevisionRef.current += 1;
+  }, [clearReplacementNotice]);
+
+  const profilesRef = useRef<readonly Profile[]>([]);
+  const getHistoryMetadata = useCallback(
+    (): HistoryMetadata => ({
+      kind: profilesRef.current.some(
+        (profile) =>
+          profileIdentityKey(profile.name) ===
+          profileIdentityKey(selectedPresetRef.current),
+      )
+        ? "preset"
+        : "draft",
+      selectedPreset: selectedPresetRef.current,
+      cleanPeq: editorCleanPeqRef.current,
+    }),
+    [],
+  );
 
   const [activeBandIndex, setActiveBandIndex] = useState<number | null>(null);
 
-  const pushToUndoStack = useCallback((currentPeq: PEQData) => {
-    useHistoryStore.getState().pushSnapshot(currentPeq, {
-      kind: "preset",
-      selectedPreset: selectedPresetRef.current,
-      cleanPeq: editorCleanPeqRef.current,
-    });
-  }, []);
+  const pushToUndoStack = useCallback(
+    (currentPeq: PEQData) => {
+      useHistoryStore.getState().pushSnapshot(currentPeq, getHistoryMetadata());
+    },
+    [getHistoryMetadata],
+  );
 
   const handleStartChange = useCallback(() => {
     startGraphPreview();
@@ -136,10 +162,16 @@ export function useEqEditor(
     deleteProfile,
     renameProfile,
     openProfilesDir,
-    applyProfile,
-    importPeq,
+    applyProfile: applyProfileToEditor,
+    importPeq: importPeqIntoEditor,
     runProfileMutation,
   } = useProfiles(profilesEditor, setStatus);
+  profilesRef.current = profiles;
+
+  useEffect(() => {
+    clearReplacementNotice();
+    return clearReplacementNotice;
+  }, [isBusy, connected, capabilities, clearReplacementNotice]);
 
   /** Resolves true when the draft is now in the editor. */
   const restoreDraft = async (): Promise<boolean> => {
@@ -197,31 +229,29 @@ export function useEqEditor(
 
   const restoreHistory = useCallback(
     (direction: "undo" | "redo") => {
+      if (isBusy || recoveryPending || eqOperationInFlightRef.current) return;
       const history = useHistoryStore.getState();
       const restored = restoreHistorySnapshot({
         restore: history[direction],
         current: peqRef.current,
-        currentMetadata: {
-          kind: "preset",
-          selectedPreset: selectedPresetRef.current,
-          cleanPeq: editorCleanPeqRef.current,
-        },
+        currentMetadata: getHistoryMetadata(),
         clean: editorCleanPeqRef.current,
         capabilities,
       });
       if (!restored) return;
       const metadata = useHistoryStore.getState().lastRestoredMetadata;
-      // Narrowed, not read through optionals: the union makes "a preset with
-      // no clean baseline" unrepresentable, so the restore path no longer needs
-      // a `??` fallback that would compute dirty against the wrong baseline.
-      const restoredPreset = metadata?.kind === "preset" ? metadata : null;
-      const metadataProfileExists = restoredPreset
-        ? profiles.some(
-            (profile) =>
-              profileIdentityKey(profile.name) ===
-              profileIdentityKey(restoredPreset.selectedPreset),
-          )
-        : false;
+      // Unsaved names need no library entry; saved profiles may have been deleted.
+      const restoredPreset =
+        metadata && metadata.kind !== "editor" ? metadata : null;
+      const metadataProfileExists =
+        restoredPreset?.kind === "draft" ||
+        (restoredPreset
+          ? profiles.some(
+              (profile) =>
+                profileIdentityKey(profile.name) ===
+                profileIdentityKey(restoredPreset.selectedPreset),
+            )
+          : false);
       const restoredClean = normalizePeqForDevice(
         metadataProfileExists && restoredPreset
           ? restoredPreset.cleanPeq
@@ -238,12 +268,25 @@ export function useEqEditor(
         selectedPresetRef.current = DEFAULT_PROFILE_NAME;
         setSelectedPreset(DEFAULT_PROFILE_NAME);
       }
+      setNewProfileName(
+        restoredPreset?.kind === "draft" ? restoredPreset.selectedPreset : "",
+      );
       noteEditorMutation();
       setDirty(
         !metadataProfileExists || !peqEquals(restored.peq, restoredClean),
       );
     },
-    [capabilities, noteEditorMutation, profiles, setSelectedPreset],
+    [
+      capabilities,
+      noteEditorMutation,
+      profiles,
+      setSelectedPreset,
+      isBusy,
+      recoveryPending,
+      eqOperationInFlightRef,
+      getHistoryMetadata,
+      setNewProfileName,
+    ],
   );
 
   const undo = useCallback(() => restoreHistory("undo"), [restoreHistory]);
@@ -257,6 +300,49 @@ export function useEqEditor(
       operationRevision: operationRevisionRef.current,
     }),
     [],
+  );
+
+  const undoRef = useRef(undo);
+  undoRef.current = undo;
+  const notifyReplacement = useCallback(
+    (name: string) => {
+      const context = getAsyncContext();
+      replacementToastRef.current = useToastStore
+        .getState()
+        .addToast(
+          i18n.t("editor:replacement.loaded", { name }),
+          "success",
+          true,
+          {
+            label: i18n.t("shell:actions.undo"),
+            onClick: () => {
+              if (asyncContextEquals(context, getAsyncContext()))
+                undoRef.current();
+            },
+          },
+        );
+    },
+    [getAsyncContext],
+  );
+
+  const applyProfile = useCallback(
+    (profile: Profile) => {
+      const revision = editorRevisionRef.current;
+      applyProfileToEditor(profile);
+      if (editorRevisionRef.current !== revision)
+        notifyReplacement(profile.name);
+    },
+    [applyProfileToEditor, notifyReplacement],
+  );
+
+  const importPeq = useCallback(
+    (data: PEQData, name: string, isSaved: boolean) => {
+      const revision = editorRevisionRef.current;
+      if (!importPeqIntoEditor(data, name, isSaved)) return false;
+      if (editorRevisionRef.current !== revision) notifyReplacement(name);
+      return true;
+    },
+    [importPeqIntoEditor, notifyReplacement],
   );
 
   // Auto-refresh profiles when window gains focus or tab becomes visible (catches external file changes)

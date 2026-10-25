@@ -141,9 +141,8 @@ tests; emulator and dummy-device results do not verify USB transport.
 
 ## UI changes
 
-See [Frontend structure](docs/frontend.md) for file ownership, state boundaries,
-and where to add components, settings, and device controls. New UI text needs
-translation entries; see [Localization](docs/localization.md).
+New UI text needs translation entries in every supported locale. Run
+`npm run locales:extract` and `npm run check:locales` after updating text.
 
 Compact layout applies to narrow desktop windows too, not just phones.
 JavaScript uses `MOBILE_QUERY` in `src/lib/tabs.ts`; matching CSS queries must
@@ -167,8 +166,6 @@ and compare native validation with the actual UI list; a theme must survive
 saving and loading on both runtimes.
 
 ## Device and editor regressions
-
-See [Device workflows](docs/device-workflows.md) for protocol boundaries.
 
 - Exercise silently dropped reports, not just transport errors. Reset success
   and rollback-restored messages must be backed by matching readback.

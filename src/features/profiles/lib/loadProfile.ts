@@ -17,7 +17,7 @@ export async function loadProfile({
   selectedPreset: string;
   dirty: boolean;
   getAsyncContext: () => AsyncContext;
-  confirm: typeof confirmDialog;
+  confirm?: typeof confirmDialog;
   onSelectProfile: (profile: Profile) => void;
 }): Promise<void> {
   if (
@@ -28,6 +28,7 @@ export async function loadProfile({
   const context = getAsyncContext();
   if (
     dirty &&
+    confirm &&
     !(await confirm({
       title: i18n.t("library:loadProfile.discardChanges"),
       message: i18n.t("library:loadProfile.discardMessage"),

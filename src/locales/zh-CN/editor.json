@@ -161,5 +161,8 @@
   },
   "validation": {
     "invalidEq": "设备返回了无效的 EQ 状态"
+  },
+  "replacement": {
+    "loaded": "已将 {{name}} 加载到编辑器"
   }
 }

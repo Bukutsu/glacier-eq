@@ -181,7 +181,7 @@ export function Modal({
         </Button>
       </div>
       {children}
-      <ToastContainer errorsOnly inline />
+      <ToastContainer quiet inline />
     </dialog>
   );
 }

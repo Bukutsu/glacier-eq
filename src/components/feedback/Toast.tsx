@@ -7,10 +7,10 @@ import { Alert, AlertDescription } from "@/components/ui/Alert";
 import { useToastStore } from "@/stores/toastStore";
 
 export function ToastContainer({
-  errorsOnly = false,
+  quiet = false,
   inline = false,
 }: {
-  errorsOnly?: boolean;
+  quiet?: boolean;
   inline?: boolean;
 }) {
   const { t } = useTranslation("shell");
@@ -20,8 +20,8 @@ export function ToastContainer({
   const resumeToast = useToastStore((s) => s.resumeToast);
   const hoverOwner = useId();
   const focusOwner = useId();
-  const toasts = errorsOnly
-    ? allToasts.filter((toast) => toast.type === "error")
+  const toasts = quiet
+    ? allToasts.filter((toast) => toast.type === "error" || toast.action)
     : allToasts;
   const current =
     [...toasts].reverse().find((toast) => toast.type === "error") ??
@@ -68,6 +68,20 @@ export function ToastContainer({
       />
       <AlertDescription className="toast-message">
         {current.message}
+        {current.action && (
+          <div className="mt-1">
+            <Button
+              variant="ghost"
+              className="max-[850px]:min-h-11"
+              onClick={() => {
+                removeToast(current.id);
+                current.action?.onClick();
+              }}
+            >
+              {current.action.label}
+            </Button>
+          </div>
+        )}
       </AlertDescription>
       <Button
         variant="ghost"

@@ -427,7 +427,7 @@ export const Header = memo(function Header({
           <span>{t("header.noHardwareNote")}</span>
         </p>
       )}
-      <ToastContainer errorsOnly />
+      <ToastContainer quiet />
       {isBusy && (
         <div
           className="header-progress-bar"

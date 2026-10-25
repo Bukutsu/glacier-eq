@@ -169,5 +169,8 @@
   },
   "validation": {
     "invalidEq": "Gerät hat einen ungültigen EQ-Zustand zurückgegeben"
+  },
+  "replacement": {
+    "loaded": "{{name}} in den Editor geladen"
   }
 }

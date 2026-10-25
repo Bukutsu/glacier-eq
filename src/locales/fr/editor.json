@@ -177,5 +177,8 @@
   },
   "validation": {
     "invalidEq": "L’appareil a renvoyé un état d’égalisation invalide"
+  },
+  "replacement": {
+    "loaded": "{{name}} chargé dans l’éditeur"
   }
 }

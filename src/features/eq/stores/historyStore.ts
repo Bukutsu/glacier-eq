@@ -21,7 +21,7 @@ const unchangedSnapshot: NormalizeSnapshot = (snapshot) => snapshot;
  */
 export type HistoryMetadata =
   | { kind: "editor" }
-  | { kind: "preset"; selectedPreset: string; cleanPeq: PEQData };
+  | { kind: "preset" | "draft"; selectedPreset: string; cleanPeq: PEQData };
 
 interface HistoryState {
   past: PEQData[];
@@ -49,13 +49,13 @@ function metadataEquals(
   left: HistoryMetadata | null | undefined,
   right: HistoryMetadata | null | undefined,
 ): boolean {
-  const leftPreset = left?.kind === "preset" ? left.selectedPreset : null;
-  const rightPreset = right?.kind === "preset" ? right.selectedPreset : null;
-  if (leftPreset !== rightPreset) return false;
-  if (left?.kind !== "preset" || right?.kind !== "preset") {
-    return left?.kind !== "preset" && right?.kind !== "preset";
-  }
-  return peqEquals(left.cleanPeq, right.cleanPeq);
+  if (left?.kind !== right?.kind) return false;
+  if (!left || !right || left.kind === "editor" || right.kind === "editor")
+    return true;
+  return (
+    left.selectedPreset === right.selectedPreset &&
+    peqEquals(left.cleanPeq, right.cleanPeq)
+  );
 }
 
 function trim<T>(values: T[]): T[] {

@@ -5,7 +5,6 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Collapsible } from "@/components/ui/Collapsible";
-import { confirmDialog } from "@/components/ui/ConfirmDialog";
 import { Icon } from "@/components/ui/Icon";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
@@ -159,18 +158,6 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
       await invoke<unknown>("parse_autoeq", { text: file.text }),
       file.name,
     );
-    if (!current()) return;
-    if (
-      dirty &&
-      !(await confirmDialog({
-        title: t("mobileProfilesView.discardChanges"),
-        message: t(
-          "mobileProfilesView.importingEQWillReplaceYourUnsavedEditorChanges",
-        ),
-        confirmLabel: t("mobileProfilesView.discardAndImport"),
-      }))
-    )
-      return;
     if (!current()) return;
     if (!onImportPEQ(imported.data, imported.name, false)) return false;
     setStatus(
@@ -442,7 +429,6 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
                           selectedPreset,
                           dirty: dirty || Boolean(dacEditor?.unsaved),
                           getAsyncContext,
-                          confirm: confirmDialog,
                           onSelectProfile: (next) => {
                             if (mounted.current) onSelectProfile(next);
                           },

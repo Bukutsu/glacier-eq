@@ -24,7 +24,13 @@ function setup(dirty = true) {
 }
 
 describe("profile loading", () => {
-  it("reloads a dirty default through profile selection after one confirmation", async () => {
+  it("loads a dirty editor immediately when no hardware confirmation is supplied", async () => {
+    const { confirm, ...t } = setup();
+    await loadProfile(t);
+    expect(confirm).not.toHaveBeenCalled();
+    expect(t.onSelectProfile).toHaveBeenCalledExactlyOnceWith(t.profile);
+  });
+  it("retains an explicit confirmation for hardware callers", async () => {
     const t = setup();
     await loadProfile(t);
     expect(t.confirm).toHaveBeenCalledOnce();

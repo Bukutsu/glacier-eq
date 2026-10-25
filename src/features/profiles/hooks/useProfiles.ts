@@ -131,12 +131,18 @@ export function useProfiles(editor: ProfilesEditor, setStatus: StatusReporter) {
     (data: PEQData, name: string, isSaved: boolean): boolean => {
       if (editor.isBusy) return false;
       const { capabilities } = editor;
-      editor.pushToUndoStack(editor.peqRef.current);
       const normalized = normalizePeq(data, {
         enableLoadedFilters: true,
         integerPreamp: capabilities.integer_preamp,
         capabilities,
       });
+      if (
+        selectedPresetRef.current === name &&
+        peqEquals(editor.peqRef.current, normalized) &&
+        (!isSaved || peqEquals(editor.editorCleanPeqRef.current, normalized))
+      )
+        return true;
+      editor.pushToUndoStack(editor.peqRef.current);
       editor.setPeq(normalized);
       setSelectedPreset(name);
       setProfileSearch("");

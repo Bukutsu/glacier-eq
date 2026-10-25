@@ -27,6 +27,29 @@ describe("toastStore", () => {
     store().addToast("Profile saved", "success", false);
     expect(sink).toHaveBeenCalledExactlyOnceWith("Could not read EQ", "error");
   });
+  it("refreshes an actionable message with its latest callback and eight-second timeout", () => {
+    const first = vi.fn();
+    const latest = vi.fn();
+    const originalId = store().addToast("Loaded Alpha", "success", true, {
+      label: "Undo",
+      onClick: first,
+    });
+    vi.advanceTimersByTime(1000);
+    const latestId = store().addToast("Loaded Alpha", "success", true, {
+      label: "Undo",
+      onClick: latest,
+    });
+    expect(latestId).not.toBe(originalId);
+    expect(store().toasts).toHaveLength(1);
+    store().toasts[0].action?.onClick();
+    expect(latest).toHaveBeenCalledOnce();
+    expect(first).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(7999);
+    expect(store().toasts).toHaveLength(1);
+    vi.advanceTimersByTime(1);
+    expect(store().toasts).toEqual([]);
+  });
+
   it("infers failures before success keywords and preserves explicitly typed errors", () => {
     store().addToast("Profile saved successfully");
     expect(store().toasts[0].type).toBe("success");

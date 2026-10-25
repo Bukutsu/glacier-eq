@@ -177,5 +177,8 @@
   },
   "validation": {
     "invalidEq": "O dispositivo retornou um estado de EQ inválido"
+  },
+  "replacement": {
+    "loaded": "{{name}} carregado no editor"
   }
 }
