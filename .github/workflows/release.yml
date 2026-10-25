@@ -127,12 +127,6 @@ jobs:
           public_key=$(printf '%s' "$public_key" | base64 --decode | tail -n 1)
           minisign -Vm "$challenge" -x "$signature" -P "$public_key"
 
-      # src/wasm_pkg is a gitignored build artifact. The test suite is hermetic
-      # and does not need it, but nothing else in this pipeline compiles the
-      # wasm32 target, and a wasm-only compile error would otherwise ship.
-      - name: Build WebAssembly package
-        run: npm run wasm:build
-
       # Same entry point contributors run, so CI cannot drift from local.
       - name: Verify frontend
         run: npm run verify

@@ -66,16 +66,23 @@ On a fresh clone:
 ```sh
 npm ci
 rustup target add wasm32-unknown-unknown
-npm run wasm:build
 npm run verify
 npm run verify:rust
 ```
 
-`npm test` uses mocked WASM and can run without generated artifacts.
-`npm run verify` also checks TypeScript, which imports declarations from the
-gitignored `src/wasm_pkg`. Generate them before the first verification run,
-and rebuild them after changing the Rust WASM API. Existing generated files
-can hide fresh-clone failures.
+`npm run verify` builds and tests WASM before checking TypeScript, so it also
+works without the gitignored `src/wasm_pkg`. Standalone `npm run typecheck`
+needs `npm run wasm:build` first; rebuild after changing the Rust WASM API.
+
+For a small change, run the nearest test file instead of full verification:
+
+```sh
+npm test -- src/features/eq/hooks/useEqEditor.test.ts
+```
+
+`npm test` uses mocked WASM and needs no generated artifacts. Use
+`npm run test:wasm` for real WASM integration tests. Run full verification
+before pushing; a focused test does not check types, translations, or Rust.
 
 ### Running the app
 
@@ -184,6 +191,6 @@ saving and loading on both runtimes.
 
 ## Code style
 
-- TypeScript: use strict mode, type-only imports, and `unknown` at external boundaries. Run `npm run format` for frontend formatting; `npm run typecheck` also checks tests.
+- TypeScript: use strict mode, type-only imports, and `unknown` at external boundaries. `npm run typecheck` also checks tests.
 - CSS: use sharp corners (`border-radius: 0`). Add rounded corners only when the platform requires them, such as `pointer: coarse` thumb controls.
 - Rust: follow the existing patterns in the crate being changed.

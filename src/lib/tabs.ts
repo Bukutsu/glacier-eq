@@ -1,6 +1,5 @@
 import { i18n } from "@/lib/i18n";
 
-export type ToolsTab = "Preset" | "Tuning" | "Device" | "Settings";
 export type MobileTab = "eq" | "profiles" | "tuning" | "device" | "settings";
 export type DeviceSection = "root" | "overview" | "controls" | "maintenance";
 export type SettingsSection =

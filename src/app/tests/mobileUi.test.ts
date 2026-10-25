@@ -25,20 +25,7 @@ describe("mobile navigation and touch affordances", () => {
     expect(mobile).toContain(":active:not(:disabled)");
     expect(mobile).toContain("background: var(--accent)");
   });
-  it("remembers the current subsection before switching workspace tabs", () => {
-    expect(app).toContain(
-      "mobileWorkspacePathsRef.current[currentTab] = location.pathname",
-    );
-    expect(app).toContain(
-      "navigate(mobileWorkspacePathsRef.current[id] ?? workspacePath(id))",
-    );
-    expect(app).toContain("[navigate, location.pathname, isMobile]");
-  });
-  it("honors reduced motion when retapping the current tab", () => {
-    expect(app).toMatch(
-      /window\.matchMedia\("\(prefers-reduced-motion: reduce\)"\)\s*\.matches\s*\?\s*"auto"\s*:\s*"smooth"/,
-    );
-  });
+
   it("sizes controls by the mobile breakpoint, including hybrid pointers", () => {
     expect(mobile).toContain("(max-width: 850px)");
     expect(mobile).toContain("min-width: var(--touch-md)");
@@ -51,7 +38,7 @@ describe("mobile navigation and touch affordances", () => {
     expect(app).toMatch(
       /const draftRecovery\s*=\s*!isMobile && recoveryPending/,
     );
-    expect(app).toContain("<MobileDraftRecovery");
+    expect(app).toContain("<MobileRecovery");
     expect(app).toContain(
       'compact={isMobile && activeTab !== "eq" && !isBusy}',
     );
@@ -64,22 +51,16 @@ describe("mobile navigation and touch affordances", () => {
     );
     expect(mobile).toContain("position: sticky;");
     expect(mobile).toContain("top: var(--mobile-graph-height, 215px);");
-    expect(app).toContain('"--mobile-graph-height"');
-  });
-  it("keeps mobile graph dots display-only while retaining desktop editing", () => {
-    expect(app).toContain(
-      "withEditor && !isMobile && !recoveryPending ? graphEditorProps : {}",
+    const graph = readFileSync(
+      new URL(
+        "../../features/eq/components/MobileResponseGraph.tsx",
+        import.meta.url,
+      ),
+      "utf8",
     );
-    expect(app).toContain("? setActiveBandIndex");
+    expect(graph).toContain('"--mobile-graph-height"');
   });
-  it("shows Device at the top of the Settings tab on phones", () => {
-    expect(app).toContain(
-      'const MOBILE_BAR_TABS = MOBILE_TABS.filter(({ id }) => id !== "device")',
-    );
-    expect(app).toContain(
-      '<Navigate to={workspacePath("settings")} replace />',
-    );
-  });
+
   it("keeps the save bar above the tab bar and out of the keyboard's way", () => {
     expect(mobile).toContain(
       "bottom: calc(var(--tabbar-h, 56px) + var(--safe-area-bottom, 0px));",

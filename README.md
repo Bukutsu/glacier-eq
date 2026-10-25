@@ -34,6 +34,10 @@ On Android, you can turn on **Open when a DAC is plugged in** (Settings > Genera
 
 Linux connection issues? See the [setup and troubleshooting guide](https://github.com/Bukutsu/glacier-eq/wiki/Troubleshooting).
 
+## Development
+
+See [Contributing](CONTRIBUTING.md) for setup, focused tests, and platform checks.
+
 ## License
 
 GPL-3.0-only. See [LICENSE](LICENSE).

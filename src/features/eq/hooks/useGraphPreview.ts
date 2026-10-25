@@ -6,13 +6,12 @@ export function useGraphPreview({
   showGraph,
   floatingGraphPreview,
   mobileScrollRef,
-  graphCollapsed,
 }: {
   showGraph: boolean;
   floatingGraphPreview: boolean;
   mobileScrollRef: RefObject<HTMLElement | null>;
-  graphCollapsed: boolean;
 }) {
+  const [graphCollapsed, setGraphCollapsed] = useState(false);
   const [showGraphPreview, setShowGraphPreview] = useState(false);
 
   const graphPreviewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -122,6 +121,8 @@ export function useGraphPreview({
     setShowGraphPreview(false);
   }, [clearPreviewTimer]);
   return {
+    graphCollapsed,
+    setGraphCollapsed,
     showGraphPreview,
     startGraphPreview,
     schedulePreviewDismiss,
