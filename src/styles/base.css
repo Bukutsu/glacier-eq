@@ -763,7 +763,7 @@ input, select, button, a {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  padding: var(--safe-area-top) var(--safe-area-right) var(--safe-area-bottom) var(--safe-area-left);
+  padding: calc(var(--safe-area-top) + var(--titlebar-h, 0px)) var(--safe-area-right) var(--safe-area-bottom) var(--safe-area-left);
 }
 
 .app-icon {

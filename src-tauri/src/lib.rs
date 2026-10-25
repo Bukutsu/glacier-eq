@@ -515,8 +515,25 @@ pub fn run() {
         );
     }
 
+    #[cfg(not(mobile))]
+    {
+        builder = builder.plugin(tauri_plugin_decorum::init());
+    }
+
     builder
         .setup(|app| {
+            // Replace the OS titlebar with the themed one in index.html.
+            #[cfg(not(mobile))]
+            {
+                use tauri_plugin_decorum::WebviewWindowExt;
+                let window = app
+                    .get_webview_window("main")
+                    .ok_or("main window missing")?;
+                window.create_overlay_titlebar()?;
+                // Buttons centre at (14 + y) / 2 = 16px, mid-titlebar.
+                #[cfg(target_os = "macos")]
+                window.set_traffic_lights_inset(14.0, 18.0)?;
+            }
             // Clear temp files a crash left between creation and rename:
             // atomic_write siblings in every allowed base — app data, and
             // text exports in Documents/Downloads/Desktop — with the sweep

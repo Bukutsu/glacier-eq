@@ -22,6 +22,7 @@
 @import "./theme-picker.css" layer(components);
 @import "./dialogs.css" layer(components);
 @import "./mobile.css" layer(components);
+@import "./titlebar.css" layer(components);
 @import "tailwindcss/utilities.css" layer(utilities);
 
 @theme inline {

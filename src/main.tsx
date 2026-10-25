@@ -5,7 +5,8 @@ import { HashRouter, Route, Routes } from "react-router";
 import { SupportedDevicesPage } from "@/features/device/components/SupportedDevicesPage";
 import App from "@/app/App";
 import { ErrorBoundary } from "@/components/feedback/ErrorBoundary";
-import { isTauri } from "@/lib/platform";
+import { isLinux, isTauri } from "@/lib/platform";
+import { enableTouchDrag, wireTitlebarControls } from "@/lib/titlebar";
 import { runWhenDocumentLoaded } from "@/lib/runWhenDocumentLoaded";
 import "@/styles/index.css";
 
@@ -14,6 +15,16 @@ const isAndroid = /android/i.test(navigator.userAgent);
 
 if (isAndroid) {
   document.body.classList.add("is-android");
+} else if (isTauri()) {
+  document.documentElement.classList.add("native-titlebar");
+  enableTouchDrag();
+  if (/Macintosh/.test(navigator.userAgent)) {
+    document.documentElement.classList.add("macos");
+  }
+  if (isLinux()) {
+    document.documentElement.classList.add("linux");
+    wireTitlebarControls();
+  }
 }
 
 // index.html and boot-theme.js paint the default or cached theme before React.

@@ -40,6 +40,7 @@
     <title>Glacier EQ - TP35 Pro, Moondrop, FiiO, Truthear KEYX DAC EQ Software</title>
     <style>
       html, body, #root { height: 100%; margin: 0; background: var(--boot-background, var(--bg, #20212b)); }
+      html:not(.native-titlebar) [data-tauri-decorum-tb] { display: none; }
       #boot-shell { height: 100%; display: grid; place-items: center; }
       #boot-shell img { width: 64px; height: 64px; }
       html.native-android-boot #boot-shell img { display: none; }
@@ -71,6 +72,19 @@
   </head>
 
   <body>
+    <div class="titlebar" data-tauri-decorum-tb data-tauri-drag-region>
+      <div class="titlebar-controls">
+        <button type="button" data-window-action="minimize" aria-label="Minimize">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 8h8" /></svg>
+        </button>
+        <button type="button" data-window-action="toggleMaximize" aria-label="Maximize">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="4" y="4" width="8" height="8" rx="1.5" /></svg>
+        </button>
+        <button type="button" data-window-action="close" aria-label="Close">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7" /></svg>
+        </button>
+      </div>
+    </div>
     <div id="root">
       <div id="boot-shell" aria-label="Glacier EQ">
         <img src="%BASE_URL%glacier-eq.svg" alt="" width="64" height="64" />

@@ -1,0 +1,91 @@
+/* Themed window titlebar for desktop Tauri builds.
+   Markup lives in index.html; main.tsx sets html.native-titlebar.
+   Linux uses our own buttons (.titlebar-controls); Windows uses the
+   controls tauri-plugin-decorum appends (.decorum-tb-btn). */
+
+html.native-titlebar { --titlebar-h: 32px; }
+
+html.native-titlebar .titlebar {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: calc(var(--z-popover) + 1);
+  height: var(--titlebar-h);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  background: var(--bg);
+  /* Stop the webview claiming touches on the bar for scrolling. */
+  touch-action: none;
+}
+
+/* Wide desktop layout: the sidebar runs to the top edge and its brand sits
+   in the titlebar strip, so the bar itself turns transparent. */
+@media (min-width: 851px) and ((min-height: 541px) or (pointer: fine)) {
+  html.native-titlebar #app { padding-top: var(--safe-area-top); }
+  html.native-titlebar .titlebar { background: transparent; }
+  html.native-titlebar .desktop-sidebar { padding-top: var(--space-3); }
+  html.native-titlebar .desktop-brand {
+    position: relative;
+    z-index: calc(var(--z-popover) + 2);
+    min-height: var(--titlebar-h);
+    align-self: flex-start;
+  }
+  /* macOS: line the brand up with the traffic lights (centred 16px down,
+     see set_traffic_lights_inset in lib.rs) and clear them. */
+  html.native-titlebar.macos .desktop-sidebar { padding-top: 0; }
+  html.native-titlebar.macos .desktop-brand { margin-left: 64px; }
+  html.native-titlebar .desktop-content {
+    padding-top: calc(var(--titlebar-h) + var(--space-5));
+  }
+}
+
+/* Linux: quiet round buttons in the theme's own colours. */
+.titlebar-controls { display: none; }
+html.linux .titlebar-controls {
+  display: flex;
+  gap: var(--space-2);
+  padding-right: var(--space-3);
+}
+html.linux .titlebar .decorum-tb-actions { display: none !important; }
+
+.titlebar-controls button {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: default;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+.titlebar-controls svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+.titlebar-controls button:hover { background: var(--control-hover); color: var(--foreground); }
+.titlebar-controls [data-window-action="close"]:hover {
+  background: var(--destructive);
+  color: var(--destructive-foreground);
+}
+
+/* Windows: full-height Fluent-style buttons. decorum injects an unlayered
+   <style>, which beats these layered rules unless they are !important. */
+.titlebar > .decorum-tb-btn {
+  width: 46px !important;
+  height: var(--titlebar-h) !important;
+  color: var(--muted-foreground);
+}
+.titlebar > .decorum-tb-btn:hover {
+  background: var(--control-hover) !important;
+  color: var(--foreground);
+}
+.titlebar > #decorum-tb-close:hover { background: #c42b1c !important; color: #fff; }
+
+.titlebar button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }

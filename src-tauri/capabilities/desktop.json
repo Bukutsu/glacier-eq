@@ -1,8 +1,17 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "desktop",
-  "description": "Desktop-only capability: the updater plugin is not compiled for mobile",
+  "description": "Desktop-only capability: updater and the decorum titlebar are not compiled for mobile",
   "windows": ["main"],
   "platforms": ["linux", "macOS", "windows"],
-  "permissions": ["updater:default"]
+  "permissions": [
+    "updater:default",
+    "core:window:allow-close",
+    "core:window:allow-minimize",
+    "core:window:allow-toggle-maximize",
+    "core:window:allow-is-maximized",
+    "core:window:allow-start-dragging",
+    "core:window:allow-set-focus",
+    "decorum:allow-show-snap-overlay"
+  ]
 }
