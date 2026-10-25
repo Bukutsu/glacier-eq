@@ -153,6 +153,66 @@ describe("AutoEQ selection owns the graph curves", () => {
     expect(spies.onToggleTarget).not.toHaveBeenCalled();
   });
 
+  it("matches one measurement to another and shows both, without targets", () => {
+    const spies = selectionSpies();
+    const handlers = run({
+      measurements: [measurement("alpha"), measurement("beta")],
+      allTargets: BUILTIN_TARGETS,
+      activeTargetIds: [BUILTIN_TARGETS[0].id],
+      ...spies,
+    });
+
+    handlers.handleReferenceChange("measurement:beta");
+
+    expect(spies.onSelectMeasurementOnly).toHaveBeenLastCalledWith(
+      "alpha",
+      "beta",
+    );
+    expect(spies.onSelectTargetOnly).toHaveBeenLastCalledWith(null);
+    const after = run({
+      measurements: [measurement("alpha"), measurement("beta")],
+      allTargets: BUILTIN_TARGETS,
+      activeTargetIds: [],
+      ...spies,
+    });
+    expect(after.meas?.id).toBe("alpha");
+    expect(after.target?.id).toBe("beta");
+    expect(after.reference).toEqual({ kind: "measurement", id: "beta" });
+  });
+
+  it("never matches a measurement to itself", () => {
+    const spies = selectionSpies();
+    const handlers = run({
+      measurements: [measurement("alpha"), measurement("beta")],
+      allTargets: BUILTIN_TARGETS,
+      activeTargetIds: [BUILTIN_TARGETS[0].id],
+      ...spies,
+    });
+    handlers.handleReferenceChange("measurement:alpha");
+    expect(spies.onSelectTargetOnly).not.toHaveBeenCalledWith(null);
+
+    handlers.handleReferenceChange("measurement:beta");
+    const matched = run({
+      measurements: [measurement("alpha"), measurement("beta")],
+      allTargets: BUILTIN_TARGETS,
+      activeTargetIds: [],
+      ...spies,
+    });
+    // Correcting the reference itself drops back to a target curve.
+    matched.handleMeasChange("beta");
+    const after = run({
+      measurements: [measurement("alpha"), measurement("beta")],
+      allTargets: BUILTIN_TARGETS,
+      activeTargetIds: [],
+      ...spies,
+    });
+    expect(after.meas?.id).toBe("beta");
+    expect(after.reference?.kind).toBe("target");
+    expect(spies.onSelectTargetOnly).toHaveBeenLastCalledWith(
+      BUILTIN_TARGETS[0].id,
+    );
+  });
+
   it("falls back to plain toggling when no exclusive callback is given", () => {
     // Both spies stay out of the callbacks so the fallback branch is real.
     const onToggleMeasurement = vi.fn();

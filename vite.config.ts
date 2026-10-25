@@ -92,6 +92,12 @@ export default defineConfig(async ({ mode }) => {
     },
   ],
   base: process.env.VITE_BASE_PATH || "./",
+  // Scan only the app entry. By default Vite crawls every *.html under the
+  // root, including Cargo's target/ (tens of GB) and Android build reports,
+  // which delays the first page load in `tauri dev` by seconds.
+  optimizeDeps: {
+    entries: ["index.html"],
+  },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
@@ -110,8 +116,8 @@ export default defineConfig(async ({ mode }) => {
         }
       : undefined,
     watch: {
-      // 3. tell Vite to ignore watching `src-tauri`
-      ignored: ["**/src-tauri/**"],
+      // 3. tell Vite to ignore watching `src-tauri` and Cargo build output
+      ignored: ["**/src-tauri/**", "**/target/**"],
     },
   },
   };

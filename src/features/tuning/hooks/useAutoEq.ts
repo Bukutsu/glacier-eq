@@ -9,6 +9,23 @@ import type { MeasurementTrace, PEQData, TargetTrace } from "@/types";
 const EMPTY_TARGETS: TargetTrace[] = [];
 const EMPTY_TARGET_IDS: string[] = [];
 
+/** The curve AutoEQ matches: a target, or another headphone's measurement. */
+export type AutoEqReference =
+  | { kind: "target"; id: string }
+  | { kind: "measurement"; id: string };
+
+export function referenceValue(reference: AutoEqReference): string {
+  return `${reference.kind}:${reference.id}`;
+}
+
+function parseReferenceValue(value: string): AutoEqReference | null {
+  const separator = value.indexOf(":");
+  const kind = value.slice(0, separator);
+  const id = value.slice(separator + 1);
+  if (separator < 0 || !id) return null;
+  return kind === "target" || kind === "measurement" ? { kind, id } : null;
+}
+
 export interface AutoEqOptions {
   measurements: MeasurementTrace[];
   allTargets: TargetTrace[];
@@ -19,12 +36,14 @@ export interface AutoEqOptions {
   onToggleMeasurement?: (id: string) => void;
   onToggleTarget?: (id: string) => void;
   /**
-   * Make one measurement the graph's only visible curve, and one target the
-   * only active one. The tuning panel passes these so its dropdowns own the
-   * graph view; without them the hook falls back to plain toggling.
+   * Make one measurement the graph's only visible curve (plus a reference
+   * measurement when matching headphone to headphone), and one target the
+   * only active one (none for a measurement reference). The tuning panel
+   * passes these so its dropdowns own the graph view; without them the hook
+   * falls back to plain toggling.
    */
-  onSelectMeasurementOnly?: (id: string) => void;
-  onSelectTargetOnly?: (id: string) => void;
+  onSelectMeasurementOnly?: (id: string, referenceId?: string) => void;
+  onSelectTargetOnly?: (id: string | null) => void;
   maxBands?: number;
   dspSampleRate?: number;
   getAsyncContext: () => AsyncContext;
@@ -104,25 +123,56 @@ export function useAutoEq({
 
   // Local selection states
   const [localMeasId, setLocalMeasId] = useState<string>("");
-  const [localTargetId, setLocalTargetId] = useState<string>("");
+  const [localRef, setLocalRef] = useState<AutoEqReference | null>(null);
+  const localTargetId = localRef?.kind === "target" ? localRef.id : "";
+  // A measurement reference is valid only while it exists and differs from
+  // the measurement being corrected.
+  const refMeasId =
+    localRef?.kind === "measurement" &&
+    localRef.id !== localMeasId &&
+    measurements.some((m) => m.id === localRef.id)
+      ? localRef.id
+      : null;
 
-  const applyMeasurementSelection = (id: string) => {
-    setLocalMeasId(id);
+  /** Reveal a measurement, and when given, a reference measurement too. */
+  const showMeasurements = (id: string, referenceId?: string) => {
     if (onSelectMeasurementOnly) {
-      onSelectMeasurementOnly(id);
-    } else if (!measurements.some((m) => m.id === id && m.visible)) {
-      // Without an exclusive selection callback, fall back to revealing the
-      // chosen input (same as the target side).
-      onToggleMeasurement?.(id);
+      if (referenceId) onSelectMeasurementOnly(id, referenceId);
+      else onSelectMeasurementOnly(id);
+      return;
+    }
+    // Without an exclusive selection callback, fall back to revealing the
+    // chosen inputs (same as the target side).
+    for (const shown of referenceId ? [id, referenceId] : [id]) {
+      if (!measurements.some((m) => m.id === shown && m.visible)) {
+        onToggleMeasurement?.(shown);
+      }
     }
   };
 
-  const applyTargetSelection = (id: string) => {
-    setLocalTargetId(id);
+  const applyMeasurementSelection = (id: string) => {
+    setLocalMeasId(id);
+    // Matching a headphone to itself is meaningless; fall back to a target.
+    if (localRef?.kind === "measurement" && localRef.id === id) {
+      setLocalRef(null);
+      showMeasurements(id);
+      return;
+    }
+    showMeasurements(id, refMeasId ?? undefined);
+  };
+
+  const applyReferenceSelection = (reference: AutoEqReference) => {
+    setLocalRef(reference);
+    if (reference.kind === "measurement") {
+      if (meas) showMeasurements(meas.id, reference.id);
+      onSelectTargetOnly?.(null);
+      return;
+    }
+    if (refMeasId && meas) showMeasurements(meas.id);
     if (onSelectTargetOnly) {
-      onSelectTargetOnly(id);
-    } else if (!activeTargetIds.includes(id)) {
-      onToggleTarget?.(id);
+      onSelectTargetOnly(reference.id);
+    } else if (!activeTargetIds.includes(reference.id)) {
+      onToggleTarget?.(reference.id);
     }
   };
 
@@ -131,21 +181,30 @@ export function useAutoEq({
     if (localMeasId && measurements.some((m) => m.id === localMeasId)) {
       return;
     }
-    const visible = measurements.find((m) => m.visible);
+    const candidates = measurements.filter(
+      (m) => localRef?.kind !== "measurement" || m.id !== localRef.id,
+    );
+    const visible = candidates.find((m) => m.visible);
     if (visible) {
       // Adopt one default as the graph's measurement so its dropdown, the
       // graph, and the Generate EQ input agree from the start.
-      if (onSelectMeasurementOnly) onSelectMeasurementOnly(visible.id);
-      else setLocalMeasId(visible.id);
-    } else if (measurements.length > 0) {
-      setLocalMeasId(measurements[0].id);
+      setLocalMeasId(visible.id);
+      if (onSelectMeasurementOnly) {
+        showMeasurements(
+          visible.id,
+          localRef?.kind === "measurement" ? localRef.id : undefined,
+        );
+      }
+    } else if (candidates.length > 0) {
+      setLocalMeasId(candidates[0].id);
     } else {
       setLocalMeasId("");
     }
-  }, [measurements, localMeasId, onSelectMeasurementOnly]);
+  }, [measurements, localMeasId, localRef, onSelectMeasurementOnly]);
 
   // Sync default target selection
   useEffect(() => {
+    if (refMeasId) return;
     if (localTargetId && allTargets.some((t) => t.id === localTargetId)) {
       return;
     }
@@ -154,34 +213,48 @@ export function useAutoEq({
       // Same adoption as the measurement side: the tuning panel's target is
       // the graph's target unless the user overrides it from the curve
       // manager.
-      if (onSelectTargetOnly) onSelectTargetOnly(active.id);
-      else setLocalTargetId(active.id);
+      setLocalRef({ kind: "target", id: active.id });
+      onSelectTargetOnly?.(active.id);
     } else if (allTargets.length > 0) {
       // The dropdown shows a target even when none is on the graph. Draw it
       // too: a result cannot be judged without the curve it aimed for.
-      if (onSelectTargetOnly) onSelectTargetOnly(allTargets[0].id);
-      else setLocalTargetId(allTargets[0].id);
+      setLocalRef({ kind: "target", id: allTargets[0].id });
+      onSelectTargetOnly?.(allTargets[0].id);
     } else {
-      setLocalTargetId("");
+      setLocalRef(null);
     }
-  }, [allTargets, activeTargetIds, localTargetId, onSelectTargetOnly]);
+  }, [allTargets, activeTargetIds, localTargetId, refMeasId, onSelectTargetOnly]);
 
   // Sync selected measurement to parent for graph highlighting
   useEffect(() => {
     onSelectedMeasurementChange?.(localMeasId || null);
   }, [onSelectedMeasurementChange, localMeasId]);
 
-  // Resolve measurement and target objects dynamically
+  // Resolve measurement and reference objects dynamically. A reference
+  // measurement is never also the measurement being corrected.
+  const sources = measurements.filter(
+    (m) => localRef?.kind !== "measurement" || m.id !== localRef.id,
+  );
   const meas =
     measurements.find((m) => m.id === localMeasId) ||
-    measurements.find((m) => m.visible) ||
-    measurements[0] ||
+    sources.find((m) => m.visible) ||
+    sources[0] ||
     null;
-  const target =
+  const targetCurve =
     allTargets.find((t) => t.id === localTargetId) ||
     allTargets.find((t) => activeTargetIds.includes(t.id)) ||
     allTargets[0] ||
     null;
+  const refMeasurement =
+    (refMeasId && meas?.id !== refMeasId
+      ? measurements.find((m) => m.id === refMeasId)
+      : undefined) ?? null;
+  const reference: AutoEqReference | null = refMeasurement
+    ? { kind: "measurement", id: refMeasurement.id }
+    : targetCurve
+      ? { kind: "target", id: targetCurve.id }
+      : null;
+  const target = refMeasurement ?? targetCurve;
 
   const handleMeasChange = (id: string) => {
     const current = measurements.find((m) => m.id === localMeasId);
@@ -191,11 +264,25 @@ export function useAutoEq({
   };
 
   const handleTargetChange = (id: string) => {
-    // Bail out when the dropdown already shows this target, so re-picking it
-    // cannot invalidate a result or re-hide curves the user turned back on.
-    if (id === localTargetId && activeTargetIds.includes(id)) return;
+    handleReferenceChange(referenceValue({ kind: "target", id }));
+  };
+
+  const handleReferenceChange = (value: string) => {
+    const next = parseReferenceValue(value);
+    if (!next) return;
+    if (next.kind === "measurement" && next.id === meas?.id) return;
+    // Bail out when the dropdown already shows this reference, so re-picking
+    // it cannot invalidate a result or re-hide curves the user turned back on.
+    if (
+      reference &&
+      referenceValue(reference) === value &&
+      (next.kind === "measurement"
+        ? measurements.some((m) => m.id === next.id && m.visible)
+        : activeTargetIds.includes(next.id))
+    )
+      return;
     invalidateRequest();
-    applyTargetSelection(id);
+    applyReferenceSelection(next);
   };
 
   const handleRunAutoEq = async () => {
@@ -207,6 +294,7 @@ export function useAutoEq({
       measurementName: meas.name,
       measurementPoints: meas.points.map((point) => [point.freq, point.db]),
       targetName: target.name,
+      referenceIsMeasurement: reference?.kind === "measurement",
       targetPoints: target.points.map((point) => [point.freq, point.db]),
       nBands,
       steps,
@@ -236,11 +324,12 @@ export function useAutoEq({
       const result = parseAutoEqResult(rawResult);
       if (!isCurrent()) return;
 
-      const cleanMeasName =
-        input.measurementName.replace(/\s*\(.*?\)/g, "").trim() ||
-        input.measurementName;
-      const cleanTargetName =
-        input.targetName
+      const cleanName = (name: string) =>
+        name.replace(/\s*\(.*?\)/g, "").trim() || name;
+      const cleanMeasName = cleanName(input.measurementName);
+      const cleanTargetName = input.referenceIsMeasurement
+        ? cleanName(input.targetName)
+        : input.targetName
           .replace(/IE 2019/i, "IE")
           .replace(/OE 2018/i, "OE")
           .replace(/Preference \d+/i, "Pref")
@@ -301,9 +390,11 @@ export function useAutoEq({
       : null,
     meas,
     target,
+    reference,
     invalidateRequest,
     handleMeasChange,
     handleTargetChange,
+    handleReferenceChange,
     handleRunAutoEq,
   };
 }

@@ -416,17 +416,20 @@ export function useTraces(notify?: NotifyFn) {
    * the AutoEQ input instead of piling up every measurement that was ever
    * selected. The curve manager remains the explicit way back to overlays.
    */
-  const selectMeasurementOnly = useCallback((id: string) => {
-    setSelectedMeasurementId(id);
-    setMeasurements((current) =>
-      current.every((trace) => trace.visible === (trace.id === id))
-        ? current
-        : current.map((trace) => ({
-            ...trace,
-            visible: trace.id === id,
-          })),
-    );
-  }, []);
+  /** Show one measurement, plus an optional reference measurement. */
+  const selectMeasurementOnly = useCallback(
+    (id: string, referenceId?: string) => {
+      setSelectedMeasurementId(id);
+      const shown = (trace: { id: string }) =>
+        trace.id === id || trace.id === referenceId;
+      setMeasurements((current) =>
+        current.every((trace) => trace.visible === shown(trace))
+          ? current
+          : current.map((trace) => ({ ...trace, visible: shown(trace) })),
+      );
+    },
+    [],
+  );
 
   const clearMeasurements = useCallback(() => {
     setMeasurements([]);
@@ -441,10 +444,11 @@ export function useTraces(notify?: NotifyFn) {
   }, []);
 
   /** Counterpart to selectMeasurementOnly for the target dropdown. */
-  const selectTargetOnly = useCallback((id: string) => {
-    setActiveTargetIds((current) =>
-      current.length === 1 && current[0] === id ? current : [id],
-    );
+  const selectTargetOnly = useCallback((id: string | null) => {
+    setActiveTargetIds((current) => {
+      if (id === null) return current.length === 0 ? current : [];
+      return current.length === 1 && current[0] === id ? current : [id];
+    });
   }, []);
 
   const addTarget = useCallback(

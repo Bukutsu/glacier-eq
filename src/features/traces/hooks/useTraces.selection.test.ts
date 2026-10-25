@@ -125,6 +125,23 @@ describe("exclusive curve selection", () => {
     expect(committedState<string | null>(5)).toBe(beta);
   });
 
+  it("shows a reference measurement alongside the selected one and clears targets", () => {
+    const result = run();
+    result.addMeasurement("Alpha", points);
+    result.addMeasurement("Beta", points);
+    result.addMeasurement("Gamma", points);
+    const [alpha, , gamma] = committedState<MeasurementTrace[]>(0);
+
+    result.selectMeasurementOnly(alpha.id, gamma.id);
+    result.selectTargetOnly(null);
+
+    expect(committedState<MeasurementTrace[]>(0).map((m) => m.visible)).toEqual(
+      [true, false, true],
+    );
+    expect(committedState<string | null>(5)).toBe(alpha.id);
+    expect(committedState<string[]>(2)).toEqual([]);
+  });
+
   it("keeps the measurements array identity when the selection already holds", () => {
     const result = run();
     result.addMeasurement("Alpha", points);

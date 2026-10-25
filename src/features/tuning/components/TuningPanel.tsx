@@ -3,9 +3,11 @@ import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState } from "react";
 import { openFileDialog } from "@/lib/rpc";
 import { readTextFile } from "@/lib/textFile";
+import { SearchSelect } from "@/components/ui/SearchSelect";
 import { FileImportButton } from "@/components/ui/FileImportButton";
 import { parseMeasurementText } from "@/features/traces/lib/measurements";
 import {
+  referenceValue,
   useAutoEq,
   type AutoEqOptions,
 } from "@/features/tuning/hooks/useAutoEq";
@@ -69,11 +71,26 @@ export function AutoEqTab(props: AutoEqTabProps) {
     errorMessage,
     meas,
     target,
+    reference,
     invalidateRequest,
     handleMeasChange,
     handleTargetChange,
+    handleReferenceChange,
     handleRunAutoEq,
   } = useAutoEq(props);
+  // Another headphone's measurement can be the reference: match its sound.
+  const referenceOptions = [
+    ...allTargets.map((curve) => ({
+      value: referenceValue({ kind: "target", id: curve.id }),
+      label: curve.name,
+    })),
+    ...measurements
+      .filter((m) => m.id !== meas?.id)
+      .map((m) => ({
+        value: referenceValue({ kind: "measurement", id: m.id }),
+        label: t("tuningPanel.measurementReference", { name: m.name }),
+      })),
+  ];
   const importTarget = async (selectedFile?: File) => {
     if (!props.onAddTarget || importing.current) return;
     importing.current = true;
@@ -189,13 +206,13 @@ export function AutoEqTab(props: AutoEqTabProps) {
                 />
               )}
             </div>
-            <Select
+            <SearchSelect
               id="autoeq-target"
-              value={target?.id ?? ""}
-              disabled={allTargets.length === 0 || isOptimizing}
+              value={reference ? referenceValue(reference) : ""}
+              disabled={referenceOptions.length === 0 || isOptimizing}
               options={
-                allTargets.length > 0
-                  ? allTargets.map((t) => ({ value: t.id, label: t.name }))
+                referenceOptions.length > 0
+                  ? referenceOptions
                   : [
                       {
                         value: "",
@@ -203,7 +220,10 @@ export function AutoEqTab(props: AutoEqTabProps) {
                       },
                     ]
               }
-              onChange={handleTargetChange}
+              onChange={handleReferenceChange}
+              searchLabel={t("tuningPanel.targetCurve")}
+              searchPlaceholder={t("tuningPanel.searchReferences")}
+              emptyText={t("tuningPanel.noReferenceMatches")}
             />
 
             {importError != null && (
