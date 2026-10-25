@@ -9,9 +9,16 @@ vi.mock("@/stores/toastStore", async (original) => ({
   useToastStore: vi.fn(),
 }));
 
-function render(toasts: Toast[], quiet = false, inline = false) {
+function render(
+  toasts: (Omit<Toast, "lifetime"> & { lifetime?: Toast["lifetime"] })[],
+  quiet = false,
+  inline = false,
+) {
   const state = {
-    toasts,
+    toasts: toasts.map((toast) => ({
+      ...toast,
+      lifetime: toast.lifetime ?? { duration: 8000, remaining: 8000, startedAt: null },
+    })),
     removeToast: vi.fn(),
   };
   vi.mocked(useToastStore).mockImplementation((selector: any) =>
@@ -85,6 +92,18 @@ describe("Toast feedback", () => {
     expect(html).toContain('aria-label="Dismiss message"');
   });
 
+  it("renders the remaining lifetime without adding live countdown announcements", () => {
+    const html = render([{
+      id: "paused",
+      message: "Loaded Alpha into editor",
+      type: "success",
+      lifetime: { duration: 8000, remaining: 6000, startedAt: null },
+    }]);
+    expect(html).toContain('class="toast-countdown" aria-hidden="true"');
+    expect(html).toContain("scale:0.75 1");
+    expect(html).not.toContain('role="progressbar"');
+  });
+
   it("keeps full messages readable and dismissible", () => {
     const message =
       "Device restored to factory defaults, but reading it back failed. Read EQ from the DAC again before editing.";
@@ -102,8 +121,7 @@ describe("Toast feedback", () => {
     );
     expect(html).toContain('class="ui-alert toast-feedback toast-inline"');
     expect(html).toContain('data-type="error"');
-    expect(html).not.toContain("toast-timer");
-    expect(html).not.toContain("animation-duration");
+    expect(html).toContain('class="toast-countdown" aria-hidden="true"');
     expect(html).toContain('role="alert"');
     expect(html).toContain('aria-atomic="true"');
     expect(html).toContain("Failed to save");

@@ -115,6 +115,28 @@ describe("toastStore", () => {
     expect(store().toasts).toEqual([]);
   });
 
+  it("exposes one lifetime for dismissal and the visual countdown across hosts", () => {
+    store().addToast("Loaded Alpha", "success", false, { label: "Undo", onClick: vi.fn() });
+    const toast = store().toasts[0];
+    expect(toast.lifetime).toEqual({ duration: 8000, remaining: 8000, startedAt: Date.now() });
+    vi.advanceTimersByTime(2000);
+    store().pauseToast(toast.id, "hover");
+    const paused = store().toasts[0].lifetime;
+    expect(paused).toEqual({ duration: 8000, remaining: 6000, startedAt: null });
+    store().pauseToast(toast.id, "focus");
+    vi.advanceTimersByTime(20_000);
+    store().resumeToast(toast.id, "hover");
+    expect(store().toasts[0].lifetime).toBe(paused);
+    store().resumeToast(toast.id, "focus");
+    expect(store().toasts[0].lifetime).toEqual({ ...paused, startedAt: Date.now() });
+    vi.advanceTimersByTime(1000);
+    store().pauseToast(toast.id, "hover");
+    expect(store().toasts[0].lifetime.remaining).toBe(5000);
+    store().resumeToast(toast.id, "hover");
+    vi.advanceTimersByTime(5000);
+    expect(store().toasts).toEqual([]);
+  });
+
   it("does not resurrect a paused notification after dismissal or replacement", () => {
     store().addToast("Old failure");
     const id = store().toasts[0].id;

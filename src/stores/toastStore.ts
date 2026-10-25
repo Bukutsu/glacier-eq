@@ -8,13 +8,12 @@ export interface Toast {
   message: string;
   type: "info" | "error" | "success";
   action?: { label: string; onClick: () => void };
+  lifetime: { duration: number; remaining: number; startedAt: number | null };
 }
 
 export const toastDuration = (type: Toast["type"]) =>
   type === "error" ? 6000 : 4000;
 interface ToastTimer {
-  remaining: number;
-  startedAt: number;
   handle: ReturnType<typeof setTimeout> | null;
   pauses: Set<string>;
 }
@@ -119,8 +118,11 @@ export const useToastStore = create<ToastStore>()((set, get) => ({
       return;
 
     const id = Math.random().toString(36).substring(2, 9);
-    const toast = { id, message, type: toastType, action };
     const duration = action ? 8000 : toastDuration(toastType);
+    const toast: Toast = {
+      id, message, type: toastType, action,
+      lifetime: { duration, remaining: duration, startedAt: Date.now() },
+    };
     // Routine updates replace each other. Errors are retained independently,
     // so a successful action cannot dismiss an unrelated failure.
     // Only the newest error is retained; older errors cannot resurface.
@@ -134,8 +136,6 @@ export const useToastStore = create<ToastStore>()((set, get) => ({
     }
     set({ toasts: next });
     timers.set(id, {
-      remaining: duration,
-      startedAt: Date.now(),
       handle: setTimeout(() => get().removeToast(id), duration),
       pauses: new Set(),
     });
@@ -165,22 +165,40 @@ export const useToastStore = create<ToastStore>()((set, get) => ({
   pauseToast: (id, owner) => {
     const timer = timers.get(id);
     if (!timer || timer.pauses.has(owner)) return;
-    if (timer.handle !== null) {
-      clearTimeout(timer.handle);
-      timer.handle = null;
-      timer.remaining = Math.max(
-        0,
-        timer.remaining - (Date.now() - timer.startedAt),
-      );
-    }
     timer.pauses.add(owner);
+    if (timer.handle === null) return;
+    clearTimeout(timer.handle);
+    timer.handle = null;
+    set({
+      toasts: get().toasts.map((toast) => {
+        if (toast.id !== id || toast.lifetime.startedAt === null) return toast;
+        return {
+          ...toast,
+          lifetime: {
+            ...toast.lifetime,
+            remaining: Math.max(
+              0,
+              toast.lifetime.remaining - (Date.now() - toast.lifetime.startedAt),
+            ),
+            startedAt: null,
+          },
+        };
+      }),
+    });
   },
 
   resumeToast: (id, owner) => {
     const timer = timers.get(id);
     if (!timer || !timer.pauses.delete(owner) || timer.pauses.size > 0) return;
-    timer.startedAt = Date.now();
-    timer.handle = setTimeout(() => get().removeToast(id), timer.remaining);
+    const toast = get().toasts.find((item) => item.id === id);
+    if (!toast) return;
+    const lifetime = { ...toast.lifetime, startedAt: Date.now() };
+    timer.handle = setTimeout(() => get().removeToast(id), lifetime.remaining);
+    set({
+      toasts: get().toasts.map((item) =>
+        item.id === id ? { ...item, lifetime } : item,
+      ),
+    });
   },
 
   removeToast: (id) => {

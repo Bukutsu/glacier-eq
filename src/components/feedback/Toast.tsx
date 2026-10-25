@@ -1,10 +1,35 @@
 import "@/lib/i18n";
-import { useEffect, useId } from "react";
+import { useEffect, useId, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Icon } from "@/components/ui/Icon";
 import { Button } from "@/components/ui/Button";
 import { Alert, AlertDescription } from "@/components/ui/Alert";
-import { useToastStore } from "@/stores/toastStore";
+import { useToastStore, type Toast } from "@/stores/toastStore";
+
+function ToastCountdown({ lifetime }: { lifetime: Toast["lifetime"] }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    if (lifetime.startedAt === null) return;
+    const remaining = Math.max(0, lifetime.remaining - (Date.now() - lifetime.startedAt));
+    const animation = ref.current?.animate(
+      [
+        { scale: `${remaining / lifetime.duration} 1` },
+        { scale: "0 1" },
+      ],
+      { duration: remaining, easing: "linear", fill: "forwards" },
+    );
+    return () => animation?.cancel();
+  }, [lifetime]);
+  return (
+    <span className="toast-countdown" aria-hidden="true">
+      <span
+        ref={ref}
+        className="toast-countdown-fill"
+        style={{ scale: `${lifetime.remaining / lifetime.duration} 1` }}
+      />
+    </span>
+  );
+}
 
 export function ToastContainer({
   quiet = false,
@@ -68,21 +93,18 @@ export function ToastContainer({
       />
       <AlertDescription className="toast-message">
         {current.message}
-        {current.action && (
-          <div className="mt-1">
-            <Button
-              variant="ghost"
-              className="max-[850px]:min-h-11"
-              onClick={() => {
-                removeToast(current.id);
-                current.action?.onClick();
-              }}
-            >
-              {current.action.label}
-            </Button>
-          </div>
-        )}
       </AlertDescription>
+      {current.action && (
+        <Button
+          className="toast-action"
+          onClick={() => {
+            removeToast(current.id);
+            current.action?.onClick();
+          }}
+        >
+          {current.action.label}
+        </Button>
+      )}
       <Button
         variant="ghost"
         size="icon"
@@ -93,6 +115,7 @@ export function ToastContainer({
       >
         <Icon name="close" />
       </Button>
+      <ToastCountdown lifetime={current.lifetime} />
     </Alert>
   );
 }
