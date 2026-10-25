@@ -1,7 +1,5 @@
-// Filter band colors, ordered as a warm→cool hue progression that maps to
-// frequency: band 1 (31 Hz, bass) is warm and band 10 (16 kHz, treble) is cool.
-// All ten are distinct hues; bands 9–10 use the two extra tokens instead of
-// the old cyan look-alikes so no two bands are easily confused.
+// Stable per-band palette slots; each theme supplies the displayed hues.
+// Bands 9–10 have separate tokens so themes can distinguish all ten bands.
 const FILTER_COLOR_VARS = [
   ["--plot-red", "--plot-red-rgb", "#e06c75"],
   ["--plot-orange", "--plot-orange-rgb", "#d19a66"],

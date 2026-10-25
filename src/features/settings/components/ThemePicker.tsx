@@ -8,7 +8,7 @@ import { Icon } from "@/components/ui/Icon";
 export const THEME_PREVIEWS: Readonly<
   Record<string, readonly [string, string, string]>
 > = {
-  glacier: ["#181c20", "#e5eaee", "#394147"],
+  glacier: ["#101119", "#c9d1e2", "#2d4263"],
   "glacier-light": ["#f3f5f6", "#263039", "#ccd4d9"],
   "tokyo-night": ["#20212b", "#b0b4cb", "#4c5b7e"],
   "tokyo-night-storm": ["#282b35", "#bbc0d2", "#4c5b7e"],

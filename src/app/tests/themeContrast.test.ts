@@ -4,6 +4,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { THEME_PREVIEWS } from "@/features/settings/components/ThemePicker";
 
 /**
  * The filled-button pairing is a contrast guarantee, not a style preference:
@@ -86,6 +87,56 @@ const THEME_SELECTORS = [
 const FALLBACK_THEME_SELECTORS = THEME_SELECTORS.filter(
   ([, name]) => !name.startsWith("tokyo-night"),
 );
+
+describe("Glacier low-luminance surfaces", () => {
+  const palette = themeTokens(':root, :root[data-theme="glacier"]');
+
+  it("keeps surfaces dark and blue-biased, with a distinct elevation order", () => {
+    let previous = 0;
+    for (const token of ["--bg-dark", "--bg", "--panel", "--surface-soft"]) {
+      const hex = palette[token];
+      const channels = [1, 3, 5].map((index) => parseInt(hex.slice(index, index + 2), 16));
+      // Palette design bounds, not a medical comfort threshold.
+      const [red, green, blue] = channels;
+      expect(blue).toBeGreaterThan(green);
+      expect(green).toBeGreaterThan(red);
+      expect(blue - red).toBeLessThanOrEqual(22);
+      const luminance = relativeLuminance(hex);
+      expect(luminance).toBeGreaterThan(previous);
+      expect(luminance).toBeLessThan(0.025);
+      previous = luminance;
+    }
+  });
+
+  it("keeps primary and secondary text readable on every control surface", () => {
+    for (const surface of ["--bg", "--panel", "--surface-soft", "--surface"]) {
+      for (const text of ["--text", "--muted"]) {
+        expect(contrast(palette[text], palette[surface]), text + " on " + surface)
+          .toBeGreaterThanOrEqual(4.5);
+      }
+    }
+  });
+
+  it("keeps ten data labels and solid strokes readable without duplicate colors", () => {
+    const roles = themeTokens(':root[data-theme="glacier"]', semanticCss);
+    const colors = ["red", "orange", "yellow", "green", "teal", "cyan", "blue", "purple", "teal2", "magenta2"];
+    for (const color of colors) {
+      const hex = roles["--plot-" + color];
+      expect(contrast(hex, palette["--surface-soft"]), color + " label").toBeGreaterThanOrEqual(4.5);
+      expect(contrast(hex, palette["--panel"]), color + " solid stroke").toBeGreaterThanOrEqual(3);
+      const rgb = [1, 3, 5].map((index) => parseInt(hex.slice(index, index + 2), 16)).join(" ");
+      expect(semanticCss).toContain("--plot-" + color + "-rgb: " + rgb + ";");
+    }
+    expect(new Set(colors.map((color) => roles["--plot-" + color])).size).toBe(10);
+  });
+
+  it("keeps the theme preview in sync with the painted palette", () => {
+    const roles = themeTokens(':root[data-theme="glacier"]', semanticCss);
+    expect(THEME_PREVIEWS.glacier).toEqual([
+      palette["--bg"], palette["--text"], roles["--primary"],
+    ]);
+  });
+});
 
 describe("control text contrast", () => {
   it.each(FALLBACK_THEME_SELECTORS)(

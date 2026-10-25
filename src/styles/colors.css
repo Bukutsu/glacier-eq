@@ -38,11 +38,35 @@
 
 /* Every named palette owns its action/focus roles independently of plot colors.
    Auto resolves to Glacier; live Material You continues to use the root aliases. */
+/* Glacier uses blue-black chrome with a separate categorical data palette.
+   Chart slots use varied hues at similar OKLCH lightness (0.70–0.73),
+   with restrained chroma (0–0.095), rather than a monochromatic brand ramp.
+   Categorical guidance: https://cloudscape.design/foundation/visual-foundation/data-vis-colors/ */
 :root[data-theme="glacier"] {
-  --primary: #394147;
-  --primary-foreground: #e5eaee;
+  --primary: #2d4263;
+  --primary-foreground: #c9d1e2;
   --primary-hover: color-mix(in srgb, var(--primary) 90%, var(--card));
-  --ring: #8faabd;
+  --ring: #9fbde6;
+  --plot-red: #d38780;
+  --plot-red-rgb: 211 135 128;
+  --plot-orange: #cc986e;
+  --plot-orange-rgb: 204 152 110;
+  --plot-yellow: #b7a86d;
+  --plot-yellow-rgb: 183 168 109;
+  --plot-green: #8da87f;
+  --plot-green-rgb: 141 168 127;
+  --plot-teal: #72ac9c;
+  --plot-teal-rgb: 114 172 156;
+  --plot-cyan: #75acb9;
+  --plot-cyan-rgb: 117 172 185;
+  --plot-blue: #7fa1cd;
+  --plot-blue-rgb: 127 161 205;
+  --plot-purple: #a295cb;
+  --plot-purple-rgb: 162 149 203;
+  --plot-teal2: #a4a4a4;
+  --plot-teal2-rgb: 164 164 164;
+  --plot-magenta2: #be8cb2;
+  --plot-magenta2-rgb: 190 140 178;
 }
 
 :root[data-theme="glacier-light"] {
