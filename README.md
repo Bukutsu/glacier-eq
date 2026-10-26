@@ -40,6 +40,12 @@ Enable **Open when a DAC is plugged in** under **Settings > General**.
 
 Linux connection issues? See the [setup and troubleshooting guide](https://github.com/Bukutsu/glacier-eq/wiki/Troubleshooting).
 
+## AutoEQ
+
+Pick your headphones and the sound you want in **Tuning**, and Glacier EQ tunes
+your DAC for you in an instant. It keeps things loud, so you won't need to turn
+your volume up to make up for it.
+
 ## Development
 
 For setup, focused tests and platform checks, see [Contributing](CONTRIBUTING.md).
