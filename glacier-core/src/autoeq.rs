@@ -139,86 +139,97 @@ pub fn parse_autoeq_text(text: &str) -> Result<(PEQData, Option<String>, Vec<Str
         }
 
         if line.to_lowercase().contains("filter") {
-            if let Some(parsed) = parse_filter_line(line) {
-                let idx = parsed.index.unwrap_or_else(|| {
-                    // Explicit indexes can appear out of order; never let a
-                    // sequential fill clobber one already parsed.
-                    while filters.contains_key(&next_sequential_idx) {
-                        next_sequential_idx += 1;
-                    }
-                    let i = next_sequential_idx;
-                    next_sequential_idx += 1;
-                    i
-                });
-
-                // Reject out-of-range indexes before touching the sequential
-                // cursor, or one malformed line poisons every unlabeled
-                // filter after it.
-                if idx >= MAX_FILTERS {
-                    warnings.push(format!(
-                        "Line {}: Filter index {} exceeds maximum allowed bands ({MAX_FILTERS})",
-                        line_num,
-                        idx + 1
-                    ));
+            let parsed = match parse_filter_line(line) {
+                Ok(parsed) => parsed,
+                Err(error) => {
+                    warnings.push(format!("Line {line_num}: Failed to parse filter: {error}"));
                     continue;
                 }
-
-                if parsed.index.is_some() {
-                    next_sequential_idx = idx + 1;
-                }
-                // Clamp frequency into a cast-safe, sane range before `as u16`
-                // to avoid the silent wraparound the old code had for huge/negative Fc.
-                let freq: u16 = if !parsed.freq.is_finite()
-                    || parsed.freq < 1.0
-                    || parsed.freq > 1_000_000.0
-                    || parsed.freq > u16::MAX as f64
-                {
-                    warnings.push(format!(
-                        "Line {}: Frequency {} Hz out of range [1, {}]; clamping",
-                        line_num,
-                        parsed.freq,
-                        u16::MAX
-                    ));
-                    // `clamp` propagates NaN and `NaN as u16` saturates to 0,
-                    // so non-finite input must be replaced before the cast.
-                    if !parsed.freq.is_finite() {
-                        1
-                    } else {
-                        parsed.freq.clamp(1.0, u16::MAX as f64) as u16
-                    }
-                } else {
-                    parsed.freq as u16
-                };
-                if filters.contains_key(&idx) {
-                    warnings.push(format!(
-                        "Line {}: Filter index {} duplicates an earlier filter; ignoring it",
-                        line_num,
-                        idx + 1
-                    ));
-                    continue;
-                }
-                filters.insert(
-                    idx,
-                    Filter {
-                        index: idx as u8,
-                        enabled: parsed.enabled,
-                        freq,
-                        gain: parsed.gain,
-                        q: parsed.q,
-                        filter_type: parsed.filter_type,
-                    },
-                );
-                parsed_count += 1;
-            } else {
-                warnings.push(format!("Line {}: Failed to parse filter", line_num));
+            };
+            if let Some(warning) = parsed.warning {
+                warnings.push(format!("Line {line_num}: {warning}"));
             }
+            let idx = parsed.index.unwrap_or_else(|| {
+                // Explicit indexes can appear out of order; never let a
+                // sequential fill clobber one already parsed.
+                while filters.contains_key(&next_sequential_idx) {
+                    next_sequential_idx += 1;
+                }
+                let i = next_sequential_idx;
+                next_sequential_idx += 1;
+                i
+            });
+
+            // Reject out-of-range indexes before touching the sequential
+            // cursor, or one malformed line poisons every unlabeled
+            // filter after it.
+            if idx >= MAX_FILTERS {
+                warnings.push(format!(
+                    "Line {}: Filter index {} exceeds maximum allowed bands ({MAX_FILTERS})",
+                    line_num,
+                    idx + 1
+                ));
+                continue;
+            }
+
+            if parsed.index.is_some() {
+                next_sequential_idx = idx + 1;
+            }
+            // Clamp frequency into a cast-safe, sane range before `as u16`
+            // to avoid the silent wraparound the old code had for huge/negative Fc.
+            let freq: u16 = if !parsed.freq.is_finite()
+                || parsed.freq < 1.0
+                || parsed.freq > 1_000_000.0
+                || parsed.freq > u16::MAX as f64
+            {
+                warnings.push(format!(
+                    "Line {}: Frequency {} Hz out of range [1, {}]; clamping",
+                    line_num,
+                    parsed.freq,
+                    u16::MAX
+                ));
+                // `clamp` propagates NaN and `NaN as u16` saturates to 0,
+                // so non-finite input must be replaced before the cast.
+                if !parsed.freq.is_finite() {
+                    1
+                } else {
+                    parsed.freq.clamp(1.0, u16::MAX as f64) as u16
+                }
+            } else {
+                parsed.freq as u16
+            };
+            if filters.contains_key(&idx) {
+                warnings.push(format!(
+                    "Line {}: Filter index {} duplicates an earlier filter; ignoring it",
+                    line_num,
+                    idx + 1
+                ));
+                continue;
+            }
+            filters.insert(
+                idx,
+                Filter {
+                    index: idx as u8,
+                    enabled: parsed.enabled,
+                    freq,
+                    gain: parsed.gain,
+                    q: parsed.q,
+                    filter_type: parsed.filter_type,
+                },
+            );
+            parsed_count += 1;
         }
     }
 
     // An explicit "Preamp: 0 dB" line is a valid identity EQ; only reject
     // files with nothing recognizable at all.
     if parsed_count == 0 && !preamp_seen && preamp.abs() < 1e-5 {
-        return Err("No valid filters or preamp found in AutoEQ text".into());
+        let mut error = "No valid filters or preamp found in AutoEQ text".to_string();
+        if !warnings.is_empty() {
+            error.push_str(": ");
+            error.push_str(&warnings.join("; "));
+        }
+        return Err(error);
     }
 
     // Extract parsed filters, sort by frequency, and reindex sequentially
@@ -352,74 +363,105 @@ struct ParsedFilterLine {
     freq: f64,
     gain: f64,
     q: f64,
+    warning: Option<&'static str>,
 }
 
-fn parse_filter_line(line: &str) -> Option<ParsedFilterLine> {
+fn parse_filter_line(line: &str) -> Result<ParsedFilterLine, String> {
     let lower = line.to_ascii_lowercase();
-    let filter_idx = lower.find("filter")?;
-    let rest = &lower[filter_idx + 6..];
-
-    let digits: String = rest
-        .chars()
-        .skip_while(|c| c.is_whitespace())
-        .take_while(|c| c.is_ascii_digit())
-        .collect();
-
-    let idx: Option<usize> = if digits.is_empty() {
+    let rest = lower
+        .strip_prefix("filter")
+        .ok_or("Expected Filter directive")?
+        .trim_start();
+    let digit_count = rest.bytes().take_while(u8::is_ascii_digit).count();
+    let index = if digit_count == 0 {
         None
     } else {
-        let i: usize = digits.parse().ok()?;
-        Some(i.checked_sub(1)?)
+        let index = rest[..digit_count]
+            .parse::<usize>()
+            .ok()
+            .and_then(|index| index.checked_sub(1))
+            .ok_or("Filter index must be a positive integer")?;
+        Some(index)
     };
-
-    let on_off = !lower.contains("off");
-    let rest_upper = rest.to_uppercase();
-
-    let filter_type = if contains_token(&rest_upper, "LSC")
-        || contains_token(&rest_upper, "LSQ")
-        || contains_token(&rest_upper, "LOWSHELF")
-    {
-        FilterType::LowShelf
-    } else if contains_token(&rest_upper, "HSC")
-        || contains_token(&rest_upper, "HSQ")
-        || contains_token(&rest_upper, "HIGHSHELF")
-    {
-        FilterType::HighShelf
-    } else if contains_token(&rest_upper, "HP")
-        || contains_token(&rest_upper, "HPF")
-        || contains_token(&rest_upper, "HIGHPASS")
-    {
-        FilterType::HighPass
-    } else if contains_token(&rest_upper, "LP")
-        || contains_token(&rest_upper, "LPF")
-        || contains_token(&rest_upper, "LOWPASS")
-    {
-        FilterType::LowPass
-    } else if contains_token(&rest_upper, "LS") {
-        FilterType::LowShelf
-    } else if contains_token(&rest_upper, "HS") {
-        FilterType::HighShelf
+    let rest = rest[digit_count..].trim_start();
+    let rest = rest.strip_prefix(':').unwrap_or(rest).trim_start();
+    let mut tokens = rest.split_whitespace();
+    let enabled = match tokens.next() {
+        Some("on") => true,
+        Some("off") => false,
+        _ => return Err("Expected ON or OFF".into()),
+    };
+    let token = tokens.next().ok_or("Missing filter type")?;
+    let filter_type = match token {
+        "pk" | "peq" | "peak" => FilterType::Peak,
+        "lsc" | "lsq" | "ls" | "lowshelf" => FilterType::LowShelf,
+        "hsc" | "hsq" | "hs" | "highshelf" => FilterType::HighShelf,
+        "hp" | "hpq" | "hpf" | "highpass" => FilterType::HighPass,
+        "lp" | "lpq" | "lpf" | "lowpass" => FilterType::LowPass,
+        _ => return Err(format!("Unsupported filter type '{token}'")),
+    };
+    // Slope/corner-frequency shelf forms cannot be represented by simply
+    // keeping Fc and Q. Do not silently discard a slope before Fc.
+    if tokens.next() != Some("fc") {
+        return Err("Expected Fc after filter type; slope forms are unsupported".into());
+    }
+    let freq = extract_number_after(rest, "Fc").ok_or("Missing Fc")?;
+    let gain = if contains_token(rest, "gain") {
+        extract_number_after(rest, "Gain").ok_or("Invalid Gain")?
+    } else if matches!(filter_type, FilterType::HighPass | FilterType::LowPass) {
+        0.0
     } else {
-        FilterType::Peak
+        return Err("Missing Gain".into());
     };
-
-    let freq = extract_number_after(rest, "Fc")?;
-    let gain = extract_number_after(rest, "Gain").unwrap_or(0.0);
-    let q = extract_number_after(rest, "Q").unwrap_or(1.0);
+    let has_q = contains_token(rest, "q");
+    let has_bw = contains_token(rest, "bw");
+    if has_q && has_bw {
+        return Err("Specify Q or BW Oct, not both".into());
+    }
+    let mut warning = None;
+    let q = if has_bw {
+        if matches!(filter_type, FilterType::LowShelf | FilterType::HighShelf) {
+            return Err("BW Oct is unsupported for shelf filters".into());
+        }
+        let mut bw_tokens = rest.split_whitespace().skip_while(|token| *token != "bw");
+        bw_tokens.next();
+        if bw_tokens.next() != Some("oct") {
+            return Err("Expected BW Oct followed by a positive bandwidth".into());
+        }
+        let bw = bw_tokens
+            .next()
+            .and_then(|value| value.parse::<f64>().ok())
+            .filter(|value| value.is_finite() && *value > 0.0)
+            .ok_or("BW Oct must be finite and positive")?;
+        // Analog octave-bandwidth relation. APO also applies omega/sin(omega)
+        // at runtime, so exact digital conversion requires its sample rate.
+        // Reference: mirror/equalizerapo 53d885f, filters/BiQuad.cpp.
+        warning = Some("BW Oct normalized to Q using the analog bandwidth relation; APO's sample-rate-dependent response may differ");
+        1.0 / (2.0 * (std::f64::consts::LN_2 * bw / 2.0).sinh())
+    } else if has_q {
+        extract_number_after(rest, "Q").ok_or("Invalid Q")?
+    } else if matches!(filter_type, FilterType::HighPass | FilterType::LowPass) {
+        std::f64::consts::FRAC_1_SQRT_2
+    } else if filter_type == FilterType::Peak {
+        return Err("Missing Q or BW Oct".into());
+    } else {
+        warning = Some("Shelf without Q imported with legacy Q 1.0; APO shelf defaults may differ");
+        1.0
+    };
     if !gain.is_finite() || !q.is_finite() || q <= 0.0 {
-        return None;
+        return Err("Gain must be finite and Q must be finite and positive".into());
     }
 
-    Some(ParsedFilterLine {
-        index: idx,
-        enabled: on_off,
+    Ok(ParsedFilterLine {
+        index,
+        enabled,
         filter_type,
         freq,
         gain,
         q,
+        warning,
     })
 }
-
 fn extract_number_after(s: &str, keyword: &str) -> Option<f64> {
     let lower = s.to_ascii_lowercase();
     let keyword_lower = keyword.to_ascii_lowercase();
@@ -437,10 +479,14 @@ fn extract_number_after(s: &str, keyword: &str) -> Option<f64> {
             continue;
         }
 
-        if let Some(num) = extract_number(&lower[actual_pos + keyword.len()..]) {
-            return Some(num);
-        }
-        search_start = actual_pos + 1;
+        // Do not take a later field's number when this value is malformed.
+        return Some(
+            lower[actual_pos + keyword.len()..]
+                .split_whitespace()
+                .next()
+                .and_then(|value| value.parse::<f64>().ok())
+                .unwrap_or(f64::NAN),
+        );
     }
     None
 }
@@ -2651,11 +2697,89 @@ Filter 4: ON LowPass Fc 18000 Hz Gain 0 dB Q 0.7";
     }
 
     #[test]
+    fn test_parse_apo_pass_types_and_defaults() {
+        let (peq, _, warnings) = parse_autoeq_text(
+            "Filter 1: ON HPQ Fc 80 Hz Q 0.707\n\
+             Filter 2: OFF LPQ Fc 12000 Hz Q 0.5\n\
+             Filter 3: ON HP Fc 20 Hz\n\
+             Filter 4: ON LP Fc 18000 Hz",
+        )
+        .unwrap();
+        assert!(warnings.is_empty());
+        assert_eq!(peq.filters[0].filter_type, FilterType::HighPass);
+        assert_eq!(peq.filters[0].q, std::f64::consts::FRAC_1_SQRT_2);
+        assert_eq!(peq.filters[1].filter_type, FilterType::HighPass);
+        assert_eq!(peq.filters[1].q, 0.707);
+        assert_eq!(peq.filters[2].filter_type, FilterType::LowPass);
+        assert_eq!(peq.filters[2].q, 0.5);
+        assert!(!peq.filters[2].enabled);
+        assert_eq!(peq.filters[3].filter_type, FilterType::LowPass);
+        assert_eq!(peq.filters[3].q, std::f64::consts::FRAC_1_SQRT_2);
+        let (roundtrip, _, warnings) = parse_autoeq_text(&peq_to_autoeq(&peq)).unwrap();
+        assert!(warnings.is_empty());
+        assert_eq!(normalize(&peq), normalize(&roundtrip));
+    }
+
+    #[test]
+    fn test_parse_octave_bandwidth_normalizes_and_warns() {
+        for token in ["PK", "PEQ", "HPQ", "LPQ"] {
+            let text = format!("Filter 1: ON {token} Fc 100 Hz Gain 1 dB BW Oct 0.167");
+            let (peq, _, warnings) = parse_autoeq_text(&text).unwrap();
+            let ratio = 2.0_f64.powf(0.167);
+            let expected_q = ratio.sqrt() / (ratio - 1.0);
+            assert!((peq.filters[0].q - expected_q).abs() < 1e-12);
+            assert_eq!(warnings.len(), 1);
+            assert!(warnings[0].contains("sample-rate-dependent"));
+            let (roundtrip, _, warnings) = parse_autoeq_text(&peq_to_autoeq(&peq)).unwrap();
+            assert!(warnings.is_empty());
+            assert_eq!(normalize(&peq), normalize(&roundtrip));
+        }
+    }
+
+    #[test]
+    fn test_parse_malformed_and_unsupported_forms_are_not_peaks() {
+        for parameters in [
+            "NO Fc 100 Hz",
+            "BP Fc 100 Hz Q 1",
+            "AP Fc 100 Hz Q 1",
+            "UNKNOWN Fc 100 Hz Gain 1 dB Q 1",
+            "LSC 6 dB Fc 100 Hz Gain 1 dB Q 1",
+            "LS 12dB Fc 100 Hz Gain 1 dB",
+            "PK Fc 100 Hz Gain 1 dB",
+            "PK Fc 100 Hz Gain 1 dB Q broken",
+            "PK Fc 100 Hz Q broken Gain 3 dB",
+            "PK Fc 100 Hz Gain broken dB Q 1",
+            "PK Fc 100 Hz Gain 1 dB BW Oct",
+            "PK Fc 100 Hz Gain 1 dB BW Oct broken",
+            "PK Fc 100 Hz Gain 1 dB BW Hz 1",
+            "PK Fc 100 Hz Gain 1 dB BW Oct 0",
+            "PK Fc 100 Hz Gain 1 dB BW Oct -1",
+            "PK Fc 100 Hz Gain 1 dB BW Oct NaN",
+            "PK Fc 100 Hz Gain 1 dB BW Oct inf",
+            "PK Fc 100 Hz Gain 1 dB BW Oct 1e308",
+            "PK Fc 100 Hz Gain 1 dB Q 1 BW Oct 1",
+            "LSC Fc 100 Hz Gain 1 dB BW Oct 1",
+        ] {
+            let line = format!("Filter 1: ON {parameters}");
+            let error = parse_autoeq_text(&line).unwrap_err();
+            assert!(
+                error.contains("Line 1: Failed to parse filter:"),
+                "{line}: {error}"
+            );
+            let (peq, _, warnings) = parse_autoeq_text(&format!("Preamp: 0 dB\n{line}")).unwrap();
+            assert!(peq.filters.is_empty(), "{line}");
+            assert_eq!(warnings.len(), 1, "{line}");
+        }
+    }
+
+    #[test]
     fn test_parse_lsq_missing_q_fallback() {
         // Shelf type with missing Q should default to 1.0 rather than failing
         let text = "Filter 1: ON LSQ Fc 80 Hz Gain -3.0 dB";
-        let (result, _, _) = parse_autoeq_text(text).unwrap();
+        let (result, _, warnings) = parse_autoeq_text(text).unwrap();
         assert_eq!(result.filters[0].q, 1.0);
+        assert_eq!(warnings.len(), 1);
+        assert!(warnings[0].contains("legacy Q 1.0"));
     }
 
     #[test]

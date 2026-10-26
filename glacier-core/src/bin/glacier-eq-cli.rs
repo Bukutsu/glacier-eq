@@ -69,10 +69,10 @@ enum Command {
     AutoEq {
         measurement: String,
         target: String,
-        bands: usize,
+        bands: Option<usize>,
         steps: usize,
         smooth: String,
-        sample_rate: f32,
+        sample_rate: Option<f32>,
         device: Option<String>,
     },
     Profile(ProfileAction),
@@ -246,13 +246,15 @@ fn parse_raw_signal(args: &[String]) -> Result<RawSignal, String> {
 
 fn parse_autoeq_command(args: &[String]) -> Result<Command, String> {
     let mut args = args.to_vec();
-    let bands =
-        take_option(&mut args, "--bands")?.map_or(Ok(10), |value| integer(&value, "bands"))?;
+    let bands = take_option(&mut args, "--bands")?
+        .map(|value| integer(&value, "bands"))
+        .transpose()?;
     let steps =
         take_option(&mut args, "--steps")?.map_or(Ok(2000), |value| integer(&value, "steps"))?;
     let smooth = take_option(&mut args, "--smooth")?.unwrap_or_else(|| "ie".into());
     let sample_rate = take_option(&mut args, "--sample-rate")?
-        .map_or(Ok(96_000.0), |value| number(&value, "sample rate"))?;
+        .map(|value| number(&value, "sample rate"))
+        .transpose()?;
     let device = take_option(&mut args, "--device")?;
     if args.len() != 2 {
         return Err("autoeq requires MEASUREMENT and TARGET files".into());
@@ -681,10 +683,10 @@ fn response(path: &str, sample_rate: f64) -> Result<String, String> {
 fn autoeq(
     measurement: &str,
     target: &str,
-    bands: usize,
+    bands: Option<usize>,
     steps: usize,
     smooth: &str,
-    sample_rate: f32,
+    sample_rate: Option<f32>,
     device: Option<&str>,
 ) -> Result<String, String> {
     if measurement == "-" && target == "-" {
@@ -699,6 +701,9 @@ fn autoeq(
                 .ok_or_else(|| format!("unsupported USB device {id}"))
         })
         .transpose()?;
+    let bands = bands.unwrap_or_else(|| profile.map_or(10, |p| p.caps.num_bands));
+    let sample_rate =
+        sample_rate.unwrap_or_else(|| profile.map_or(96_000.0, |p| p.caps.dsp_sample_rate as f32));
     let target_device = profile.map_or(
         glacier_core::autoeq::AutoEqTarget::capabilities(None),
         |p| glacier_core::autoeq::AutoEqTarget::device(&p.caps, p.protocol),
@@ -1370,11 +1375,55 @@ mod tests {
         assert!(matches!(
             command,
             Command::AutoEq {
-                bands: 8,
+                bands: Some(8),
                 smooth,
                 ..
             } if smooth == "ie"
         ));
+    }
+
+    #[test]
+    fn autoeq_device_defaults_and_explicit_overrides() {
+        let path = std::env::temp_dir().join(format!(
+            "glacier-autoeq-cli-{}-{}.txt",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::write(&path, "20 0\n20000 0\n").unwrap();
+        let run = |options: &[&str]| {
+            let mut args = vec![
+                "autoeq".to_string(),
+                path.to_string_lossy().into_owned(),
+                path.to_string_lossy().into_owned(),
+                "--steps".to_string(),
+                "1".to_string(),
+            ];
+            args.extend(options.iter().map(|value| value.to_string()));
+            execute(parse(args).unwrap())
+        };
+        let filters = |output: String| parse_autoeq_text(&output).unwrap().0.filters.len();
+        assert_eq!(filters(run(&[]).unwrap()), 10);
+        assert_eq!(filters(run(&["--device", "2972:0102"]).unwrap()), 5);
+        assert_eq!(
+            filters(run(&["--device", "2972:0102", "--bands", "3"]).unwrap()),
+            3
+        );
+        assert!(run(&["--device", "2972:0102", "--sample-rate", "48000"]).is_ok());
+        assert!(run(&["--bands", "2", "--sample-rate", "48000"]).is_ok());
+        assert!(run(&["--device", "2972:0102", "--bands", "6"])
+            .unwrap_err()
+            .contains("supports only 5"));
+        assert!(run(&["--device", "2972:0102", "--sample-rate", "96000"])
+            .unwrap_err()
+            .contains("does not match"));
+        assert!(run(&["--device", "2972:0102", "--bands", "0"]).is_err());
+        assert!(run(&["--device", "ffff:ffff"])
+            .unwrap_err()
+            .contains("unsupported USB device"));
+        std::fs::remove_file(path).unwrap();
     }
 
     #[test]

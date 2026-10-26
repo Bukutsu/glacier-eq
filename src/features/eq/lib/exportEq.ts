@@ -30,7 +30,8 @@ export async function exportEqFile(
 ): Promise<void> {
   try {
     const text = await autoEqText(peq);
-    const defaultName = `${(baseName || "eq_profile").replace(/[^a-zA-Z0-9_\-@+&.() ]/g, "")}.txt`;
+    const safeName = baseName.replace(/[^\p{L}\p{N}\p{M}_\-@+&.() ]/gu, "").trim();
+    const defaultName = `${safeName || "eq_profile"}.txt`;
     const path = await save({
       defaultPath: defaultName,
       filters: [
