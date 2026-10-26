@@ -123,7 +123,12 @@ impl ProfileStore {
             for _ in 0..500 {
                 match file.try_lock_exclusive() {
                     Ok(()) => return Ok(ProfileLock { file }),
-                    Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                    // Windows reports ERROR_LOCK_VIOLATION, not WouldBlock.
+                    Err(error)
+                        if error.kind() == std::io::ErrorKind::WouldBlock
+                            || error.raw_os_error()
+                                == fs2::lock_contended_error().raw_os_error() =>
+                    {
                         std::thread::sleep(Duration::from_millis(10));
                     }
                     Err(error) => {
@@ -725,6 +730,45 @@ mod tests {
         ));
         std::fs::create_dir(&dir).unwrap();
         dir
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn profile_operations_wait_for_a_contended_lock() {
+        let base = temporary_dir();
+        let store = ProfileStore::new(&base).unwrap();
+        let lock = store.lock_profiles().unwrap();
+
+        // Confirm this platform's actual lock error before testing the retry.
+        let other = std::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(store.directory().join(".profile-operation.lock"))
+            .unwrap();
+        assert_eq!(
+            other.try_lock_exclusive().unwrap_err().raw_os_error(),
+            fs2::lock_contended_error().raw_os_error()
+        );
+        drop(other);
+
+        let (started_tx, started_rx) = std::sync::mpsc::channel();
+        let (done_tx, done_rx) = std::sync::mpsc::channel();
+        let worker = std::thread::spawn(move || {
+            started_tx.send(()).unwrap();
+            done_tx.send(store.list()).unwrap();
+        });
+        started_rx.recv().unwrap();
+        assert!(matches!(
+            done_rx.recv_timeout(Duration::from_millis(100)),
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout)
+        ));
+        drop(lock);
+        assert!(done_rx
+            .recv_timeout(Duration::from_secs(5))
+            .unwrap()
+            .is_ok());
+        worker.join().unwrap();
+        std::fs::remove_dir_all(base).unwrap();
     }
 
     #[cfg(unix)]

@@ -75,17 +75,53 @@ html.linux .titlebar .decorum-tb-actions { display: none !important; }
   color: var(--destructive-foreground);
 }
 
-/* Windows: full-height Fluent-style buttons. decorum injects an unlayered
-   <style>, which beats these layered rules unless they are !important. */
-.titlebar > .decorum-tb-btn {
+/* Windows: keep decorum's handlers, but own all rendering. Its injected
+   stylesheet can be blocked by the release CSP. When allowed, its unlayered
+   rules beat our layered rules unless they are !important.
+   Use the plugin's marker so its fallback titlebar is styled too. */
+[data-tauri-decorum-tb] > .decorum-tb-btn {
   width: 46px !important;
   height: var(--titlebar-h) !important;
-  color: var(--muted-foreground);
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0;
+  appearance: none;
+  cursor: default;
+  color: var(--muted-foreground) !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+  /* Keep decorum's handlers, not its private-use icon-font glyphs. */
+  font-size: 0 !important;
 }
-.titlebar > .decorum-tb-btn:hover {
+[data-tauri-decorum-tb] > .decorum-tb-btn::before {
+  content: "";
+  display: block;
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+  background: currentColor;
+  mask: var(--window-icon) center / contain no-repeat;
+}
+[data-tauri-decorum-tb] > #decorum-tb-minimize {
+  --window-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M1 6h10' stroke='black'/%3E%3C/svg%3E");
+}
+[data-tauri-decorum-tb] > #decorum-tb-maximize {
+  --window-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Crect x='1.5' y='1.5' width='9' height='9' fill='none' stroke='black'/%3E%3C/svg%3E");
+}
+[data-tauri-decorum-tb] > #decorum-tb-maximize[aria-label="Restore"] {
+  --window-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M3.5 3V1.5h7v7H9M1.5 3.5h7v7h-7z' fill='none' stroke='black'/%3E%3C/svg%3E");
+}
+[data-tauri-decorum-tb] > #decorum-tb-close {
+  --window-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='m1.5 1.5 9 9m0-9-9 9' stroke='black'/%3E%3C/svg%3E");
+}
+[data-tauri-decorum-tb] > .decorum-tb-btn:hover {
   background: var(--control-hover) !important;
-  color: var(--foreground);
+  color: var(--foreground) !important;
 }
-.titlebar > #decorum-tb-close:hover { background: #c42b1c !important; color: #fff; }
+[data-tauri-decorum-tb] > #decorum-tb-close:hover { background: #c42b1c !important; color: #fff !important; }
 
-.titlebar button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+[data-tauri-decorum-tb] button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }

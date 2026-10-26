@@ -6,7 +6,7 @@ import { SupportedDevicesPage } from "@/features/device/components/SupportedDevi
 import App from "@/app/App";
 import { ErrorBoundary } from "@/components/feedback/ErrorBoundary";
 import { isLinux, isTauri } from "@/lib/platform";
-import { enableTouchDrag, wireTitlebarControls } from "@/lib/titlebar";
+import { enableTouchDrag, labelDecorumControls, wireTitlebarControls } from "@/lib/titlebar";
 import { runWhenDocumentLoaded } from "@/lib/runWhenDocumentLoaded";
 import "@/styles/index.css";
 
@@ -18,6 +18,7 @@ if (isAndroid) {
 } else if (isTauri()) {
   document.documentElement.classList.add("native-titlebar");
   enableTouchDrag();
+  labelDecorumControls();
   if (/Macintosh/.test(navigator.userAgent)) {
     document.documentElement.classList.add("macos");
   }

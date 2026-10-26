@@ -4,6 +4,8 @@
 
 ## [0.17.0] - 2026-10-26
 
+Reissued with Windows titlebar and profile-lock fixes. If you already installed 0.17.0, download and reinstall it to get these fixes.
+
 ### Added
 
 - AutoEQ can now match a measurement against another headphone measurement, not just a target curve. The searchable reference picker includes saved measurements, and online measurements can be filtered by owner.
@@ -18,6 +20,8 @@
 
 - Improved device reconnect and offline behavior, Android USB attachment handling, and Walkplay control reset verification.
 - Fixed several editor and import interaction issues found in browser testing.
+- Windows titlebar buttons now use SVG icons and render correctly even when the release security policy blocks the plugin's injected styles.
+- Overlapping profile operations on Windows now wait for the file lock instead of failing immediately with error 33.
 
 ## [0.16.0] - 2026-10-24
 
