@@ -152,8 +152,14 @@
 }
 
 .app-select-arrow {
+  position: static;
+  transform: none;
   display: inline-flex;
   flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  height: auto;
   color: var(--muted);
 }
 
