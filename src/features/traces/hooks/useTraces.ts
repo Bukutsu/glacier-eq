@@ -33,7 +33,7 @@ import {
   resolveTargetColor,
 } from "@/features/traces/lib/measurements";
 import {
-  MAX_PERSISTED_TRACES,
+  TRACE_LIBRARY_LIMIT,
   parsePersistedMeasurements,
   parsePersistedTargets,
 } from "@/features/traces/lib/persistedTraces";
@@ -94,9 +94,7 @@ export function loadPersistedJson(
 export function parseStoredMeasurements(
   value: unknown,
 ): ParsedPersistedValue<MeasurementTrace[]> {
-  if (!Array.isArray(value) || value.length > MAX_PERSISTED_TRACES) {
-    return { value: [], malformed: true };
-  }
+  if (!Array.isArray(value)) return { value: [], malformed: true };
 
   const measurements: MeasurementTrace[] = [];
   const seenIds = new Set<string>();
@@ -135,9 +133,7 @@ export function parseStoredMeasurements(
 export function parseStoredTargets(
   value: unknown,
 ): ParsedPersistedValue<TargetTrace[]> {
-  if (!Array.isArray(value) || value.length > MAX_PERSISTED_TRACES) {
-    return { value: [], malformed: true };
-  }
+  if (!Array.isArray(value)) return { value: [], malformed: true };
 
   const targets: TargetTrace[] = [];
   const seenIds = new Set<string>();
@@ -283,9 +279,31 @@ function usePersistedJson(
   }, [delayMs]);
 }
 
+// Additions return an ID (or throw) synchronously. Keep the latest event
+// state in a ref so batched additions enforce the same limit before rendering.
+function useTraceCollection<T>() {
+  const [value, setValue] = useState<T[]>([]);
+  const current = useRef(value);
+  const update = useCallback((next: T[] | ((previous: T[]) => T[])) => {
+    current.current = typeof next === "function" ? next(current.current) : next;
+    setValue(current.current);
+  }, []);
+  return [value, update, current] as const;
+}
+
+function assertTraceCapacity(length: number) {
+  if (length >= TRACE_LIBRARY_LIMIT) {
+    throw new Error(
+      i18n.t("library:traces.collectionLimit", { limit: TRACE_LIBRARY_LIMIT }),
+    );
+  }
+}
+
 export function useTraces(notify?: NotifyFn) {
-  const [measurements, setMeasurements] = useState<MeasurementTrace[]>([]);
-  const [userTargets, setUserTargets] = useState<TargetTrace[]>([]);
+  const [measurements, setMeasurements, measurementsRef] =
+    useTraceCollection<MeasurementTrace>();
+  const [userTargets, setUserTargets, userTargetsRef] =
+    useTraceCollection<TargetTrace>();
   const [activeTargetIds, setActiveTargetIds] = useState<string[]>([]);
   const [measurementsHydrated, setMeasurementsHydrated] = useState(false);
   const [targetsHydrated, setTargetsHydrated] = useState(false);
@@ -382,6 +400,7 @@ export function useTraces(notify?: NotifyFn) {
 
   const addMeasurement = useCallback(
     (name: string, points: MeasurementTrace["points"]) => {
+      assertTraceCapacity(measurementsRef.current.length);
       const id = `${Date.now()}-${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)}`;
       setMeasurements((current) => [
         ...current,
@@ -453,6 +472,7 @@ export function useTraces(notify?: NotifyFn) {
 
   const addTarget = useCallback(
     (name: string, points: TargetTrace["points"]) => {
+      assertTraceCapacity(userTargetsRef.current.length);
       const id = `user-target:${Date.now()}-${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)}`;
       setUserTargets((current) => [
         ...current,

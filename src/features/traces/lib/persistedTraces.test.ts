@@ -10,10 +10,7 @@ const validPoints = [
 ];
 
 describe("parsePersistedMeasurements", () => {
-  it("bounds what it will accept, like every other parser", () => {
-    // Nothing capped these two, unlike the measurement importer (4_096 lines
-    // / 100_000 points) and the online DB parser. A corrupt localStorage value
-    // could stall the main thread parsing it and then fail to re-save.
+  it("bounds individual curves while retaining oversized legacy libraries", () => {
     const trace = {
       id: "a",
       name: "A",
@@ -34,14 +31,14 @@ describe("parsePersistedMeasurements", () => {
     expect(parsePersistedMeasurements([hugeTrace])).toEqual([]);
     expect(parsePersistedTargets([hugeTrace])).toEqual([]);
 
-    const tooMany = Array.from({ length: 2_001 }, (_, i) => ({
+    const legacyLibrary = Array.from({ length: 2_001 }, (_, i) => ({
       ...trace,
       id: `t${i}`,
     }));
-    expect(parsePersistedMeasurements(tooMany)).toEqual([]);
-    expect(parsePersistedTargets(tooMany)).toEqual([]);
+    expect(parsePersistedMeasurements(legacyLibrary)).toHaveLength(2_001);
+    expect(parsePersistedTargets(legacyLibrary)).toHaveLength(2_001);
 
-    // Just under the cap still parses, so the bound is not off by one.
+    // Libraries at the new-addition limit remain readable too.
     const atCap = Array.from({ length: 2_000 }, (_, i) => ({
       ...trace,
       id: `t${i}`,

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { useTraces } from "./useTraces";
+import { parseStoredMeasurements, parseStoredTargets, savePersistedJson, useTraces } from "./useTraces";
+import { TRACE_LIBRARY_LIMIT } from "../lib/persistedTraces";
 import type { MeasurementTrace, TargetTrace } from "@/types";
 
 // Drive the hook's render/effect boundary without a DOM dependency.
@@ -73,6 +74,66 @@ describe("exclusive curve selection", () => {
       setTimeout: vi.fn(() => 1),
       clearTimeout: vi.fn(),
     });
+  });
+
+  it("rejects batched additions past the limit and round-trips the accepted libraries", () => {
+    const result = run();
+    for (let index = 0; index < TRACE_LIBRARY_LIMIT; index++) {
+      result.addMeasurement(`M${index}`, points);
+      result.addTarget(`T${index}`, points);
+    }
+    const beforeMeasurements = committedState<MeasurementTrace[]>(0);
+    const beforeTargets = committedState<TargetTrace[]>(1);
+    const beforeActive = committedState<string[]>(2);
+    expect(() => result.addMeasurement("Overflow", points)).toThrow("Remove a curve");
+    expect(() => result.addTarget("Overflow", points)).toThrow("Remove a curve");
+    expect(committedState(0)).toBe(beforeMeasurements);
+    expect(committedState(1)).toBe(beforeTargets);
+    expect(committedState(2)).toBe(beforeActive);
+
+    const saved = new Map<string, string>();
+    window.localStorage.setItem = (key, value) => { saved.set(key, value); };
+    savePersistedJson("measurements", beforeMeasurements);
+    savePersistedJson("targets", beforeTargets);
+    expect(parseStoredMeasurements(JSON.parse(saved.get("measurements")!))).toEqual({
+      value: beforeMeasurements, malformed: false,
+    });
+    expect(parseStoredTargets(JSON.parse(saved.get("targets")!))).toEqual({
+      value: beforeTargets, malformed: false,
+    });
+
+    result.removeMeasurement(beforeMeasurements[0].id);
+    result.removeTarget(beforeTargets[0].id);
+    const measurementId = result.addMeasurement("Replacement", points);
+    const targetId = result.addTarget("Replacement", points);
+    expect(committedState<MeasurementTrace[]>(0)).toHaveLength(TRACE_LIBRARY_LIMIT);
+    expect(committedState<MeasurementTrace[]>(0).at(-1)?.id).toBe(measurementId);
+    expect(committedState<TargetTrace[]>(1)).toHaveLength(TRACE_LIBRARY_LIMIT);
+    expect(committedState<TargetTrace[]>(1).at(-1)?.id).toBe(targetId);
+  });
+
+  it("hydrates oversized legacy libraries intact and allows additions after enough removals", () => {
+    const legacy = Array.from({ length: TRACE_LIBRARY_LIMIT + 1 }, (_, index) => ({
+      id: `legacy-${index}`, name: `Legacy ${index}`, color: "red",
+      visible: true, points,
+    }));
+    window.localStorage.getItem = (key) =>
+      key === "glacier-measurements" || key === "glacier-user-targets"
+        ? JSON.stringify(legacy) : null;
+    const result = run();
+    expect(committedState<MeasurementTrace[]>(0)).toHaveLength(legacy.length);
+    expect(committedState<TargetTrace[]>(1)).toHaveLength(legacy.length);
+    expect(() => result.addMeasurement("Blocked", points)).toThrow("Remove a curve");
+    expect(() => result.addTarget("Blocked", points)).toThrow("Remove a curve");
+
+    for (const trace of legacy.slice(0, 2)) {
+      result.removeMeasurement(trace.id);
+      result.removeTarget(trace.id);
+    }
+    result.addMeasurement("Recovered", points);
+    result.addTarget("Recovered", points);
+    expect(committedState<MeasurementTrace[]>(0)).toHaveLength(TRACE_LIBRARY_LIMIT);
+    expect(committedState<TargetTrace[]>(1)).toHaveLength(TRACE_LIBRARY_LIMIT);
   });
 
   it("keeps persistence callbacks stable across unrelated renders but uses the latest notifier", () => {

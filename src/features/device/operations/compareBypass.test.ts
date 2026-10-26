@@ -26,6 +26,7 @@ function setup(overrides: Partial<BypassCompareState> = {}) {
   const compare = createBypassCompare({
     apply,
     getState: () => state,
+    reserve: () => ({ ready: Promise.resolve(), release: vi.fn() }),
     reportError,
   });
   return { state, apply, applied, reportError, compare };

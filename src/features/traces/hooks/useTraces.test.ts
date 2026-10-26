@@ -37,7 +37,7 @@ describe("persisted trace parsing", () => {
   it.each([
     ["measurements", parseStoredMeasurements],
     ["targets", parseStoredTargets],
-  ] as const)("enforces the collection limit when hydrating %s", (_, parse) => {
+  ] as const)("recovers oversized saved %s without clearing the library", (_, parse) => {
     const traces = Array.from({ length: 2001 }, (_, index) => ({
       id: `trace-${index}`,
       name: "Trace",
@@ -46,7 +46,8 @@ describe("persisted trace parsing", () => {
       points: validPoints,
     }));
 
-    expect(parse(traces)).toEqual({ value: [], malformed: true });
+    expect(parse(traces).value).toHaveLength(2001);
+    expect(parse(traces).malformed).toBe(false);
     const atLimit = parse(traces.slice(0, 2000));
     expect(atLimit.value).toHaveLength(2000);
     expect(atLimit.malformed).toBe(false);

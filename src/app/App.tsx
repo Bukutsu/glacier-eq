@@ -264,9 +264,11 @@ function App() {
   const deviceMatchesEditor = lastPushedPeq
     ? peqEquals(peq, lastPushedPeq)
     : null;
-  useLiveApply({
+  const getCompareScope = () =>
+    `${device.connectedRef.current}:${device.connectedPathRef.current}:${device.connectedSessionIdRef.current}`;
+  const live = useLiveApply({
     active: liveApplyActive,
-    scopeKey: `${connected}:${device.connectedPathRef.current}:${device.connectedSessionIdRef.current}`,
+    scopeKey: getCompareScope(),
     peq,
     unsaved: unsavedOnDac,
     lastPushedPeq,
@@ -294,8 +296,13 @@ function App() {
   const bypassCompare = useDacCompare({
     playing: comparePlaying ?? peqRef.current,
     capabilities,
-    busy: isBusy || eqOperationInFlightRef.current,
+    busy: isBusy,
+    busyRef: eqOperationInFlightRef,
     path: selectedDevice,
+    scopeKey: getCompareScope(),
+    getScopeKey: getCompareScope,
+    live,
+    liveActive: liveApplyActive,
     reportStatus,
   });
   const recovery = useMobileRecovery(editor, connected, isMobile);

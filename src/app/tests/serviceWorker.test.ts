@@ -165,6 +165,52 @@ describe("service worker preload", () => {
     expect(await (await metadata.match(metadataUrl))!.text()).toBe(oldName);
   });
 
+  it("keeps a coherent release online and offline when the next install fails", async () => {
+    const caches = cacheStorage();
+    let deployment = "v1";
+    let online = true;
+    const fetcher = vi.fn(async (request: string | URL | { url: string }) => {
+      if (!online) throw new Error("offline");
+      const url = typeof request === "object" && "url" in request
+        ? request.url : String(request);
+      if (url.endsWith("offline-assets.json"))
+        return Response.json(["./index.html", `./lazy-${deployment}.js`]);
+      if (deployment === "v2" && url.endsWith("lazy-v2.js"))
+        return new Response("incomplete deploy", { status: 503 });
+      return new Response(url.endsWith(".js") ? `module-${deployment}` : `html-${deployment}`);
+    });
+    const installed = worker(caches, fetcher, "v1");
+    await installed.install();
+    await installed.activate();
+    online = false;
+    expect(await (await installed.fetch(scope, "navigate", "document")).text()).toBe("html-v1");
+
+    online = true;
+    deployment = "v2";
+    for (const path of ["", "index.html", "nested/route"]) {
+      expect(await (await installed.fetch(scope + path, "navigate", "document")).text()).toBe("html-v1");
+    }
+    expect(await (await installed.fetch(scope + "lazy-v1.js", "cors", "script")).text()).toBe("module-v1");
+    expect(await (await installed.fetch(scope + "runtime.json")).text()).toBe("html-v2");
+
+    const update = worker(caches, fetcher, "v2");
+    await expect(update.install()).rejects.toThrow("Failed to preload");
+    online = false;
+    const restarted = worker(caches, fetcher, "v1");
+    expect(await (await restarted.fetch(scope, "navigate", "document")).text()).toBe("html-v1");
+    expect(await (await restarted.fetch(scope + "lazy-v1.js", "cors", "script")).text()).toBe("module-v1");
+    await expect(restarted.fetch(scope + "runtime.json")).rejects.toThrow("Offline and not cached");
+
+    // A later complete release still replaces the installed one on activation.
+    online = true;
+    deployment = "v3";
+    const successor = worker(caches, fetcher, "v3");
+    await successor.install();
+    expect(await (await installed.fetch(scope, "navigate", "document")).text()).toBe("html-v1");
+    await successor.activate();
+    expect(await (await successor.fetch(scope, "navigate", "document")).text()).toBe("html-v3");
+  });
+
   it("keeps the active release until a staged update activates", async () => {
     const caches = cacheStorage();
     const v1 = worker(caches, manifestFetch(["./lazy-v1.js"]), "v1");

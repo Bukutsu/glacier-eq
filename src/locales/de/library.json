@@ -348,6 +348,7 @@
     "failedToLoadOnlineSearchManifest": "Online-Suchmanifest konnte nicht geladen werden: {{error}}"
   },
   "traces": {
+    "collectionLimit": "Diese Bibliothek ist voll ({{limit}} Kurven). Entferne eine Kurve, bevor du eine weitere hinzufügst.",
     "backupCreated": "Gespeicherte Daten für „{{key}}“ konnten nicht geladen werden. Eine Sicherungskopie wurde erstellt.",
     "backupFailed": "Gespeicherte Daten für „{{key}}“ konnten weder geladen noch gesichert werden. Das beschädigte Original wurde beibehalten. Prüfe den verfügbaren Speicherplatz.",
     "storageFull": "„{{key}}“ konnte nicht gespeichert werden. Der Speicher ist voll. Letzte Änderungen gehen beim Schließen der App möglicherweise verloren.",
@@ -366,6 +367,7 @@
     "invalidDb": "Die Normierung der Messung ergab einen nicht endlichen dB-Wert"
   },
   "onlineDb": {
+    "incompleteDatabase": "Die Online-Datenbank ist unvollständig. Versuche, sie erneut herunterzuladen.",
     "databaseLockedByAnotherWindow": "Datenbank durch ein anderes Fenster gesperrt",
     "failedToDeleteDatabase": "Datenbank konnte nicht gelöscht werden",
     "curveCacheRecoveryFailed": "Wiederherstellung des Kurvencaches fehlgeschlagen: {{detail}}",

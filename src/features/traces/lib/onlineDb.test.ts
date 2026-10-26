@@ -956,6 +956,36 @@ describe("download cache safety (generation swap)", () => {
     };
   }
 
+  it.each(["source::Example One", "source::Example Two"])(
+    "rejects a snapshot missing %s without replacing the live cache",
+    async (missingId) => {
+      const store = new MemoryStore();
+      seedLiveGenerationOne(store);
+      const before = structuredClone(store.records);
+      const curves = structuredClone(curvesFixture);
+      delete (curves.curves as Record<string, unknown>)[missingId];
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (url: string) =>
+          jsonResponse(url.includes("manifest.json") ? manifestFixture : curves),
+        ),
+      );
+
+      await expect(startDownload(store)).rejects.toThrow("incomplete");
+      expect(store.records).toEqual(before);
+      expect(store.clearCalls).toBe(0);
+
+      // The failure releases the shared download so a consistent retry works.
+      stubFetch("ok");
+      await expect(startDownload(store)).resolves.toEqual({
+        entries: 2,
+        sweepFailed: false,
+      });
+      await expect(fetchManifest()).resolves.toHaveLength(2);
+      await expect(loadDeviceCurvePoints(missingId)).resolves.toHaveLength(3);
+    },
+  );
+
   it("leaves the live cache untouched when a fetch fails before any write", async () => {
     const store = new MemoryStore();
     seedLiveGenerationOne(store);

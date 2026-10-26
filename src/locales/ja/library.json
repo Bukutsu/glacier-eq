@@ -330,6 +330,7 @@
     "failedToLoadOnlineSearchManifest": "オンライン検索のマニフェストの読み込みに失敗しました: {{error}}"
   },
   "traces": {
+    "collectionLimit": "ライブラリが上限（{{limit}} 曲線）に達しています。追加する前に曲線を削除してください。",
     "backupCreated": "「{{key}}」の保存データを読み込めませんでした。バックアップを作成しました。",
     "backupFailed": "「{{key}}」の保存データの読み込みとバックアップの作成に失敗しました。破損した元データは保持されています。ストレージの空き容量を確認してください。",
     "storageFull": "「{{key}}」を保存できませんでした。ストレージがいっぱいです。アプリを閉じると最近の変更が失われる可能性があります。",
@@ -348,6 +349,7 @@
     "invalidDb": "測定データの正規化で有限ではないdB値が生成されました"
   },
   "onlineDb": {
+    "incompleteDatabase": "オンラインデータベースが不完全です。もう一度ダウンロードしてください。",
     "databaseLockedByAnotherWindow": "別のウィンドウがデータベースをロックしています",
     "failedToDeleteDatabase": "データベースの削除に失敗しました",
     "curveCacheRecoveryFailed": "曲線キャッシュの復旧に失敗しました: {{detail}}",

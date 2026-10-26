@@ -617,6 +617,14 @@ async function downloadDatabaseWithDb(
     ),
   );
 
+  // Independent successful HTTP responses can come from different upstream
+  // revisions. Do not replace a working cache with entries that cannot load.
+  for (const id of Object.keys(manifest.iems)) {
+    if (!Object.prototype.hasOwnProperty.call(database.curves, id)) {
+      throw new Error(i18n.t("library:onlineDb.incompleteDatabase"));
+    }
+  }
+
   // Readers follow meta:gen to a complete generation. This download writes a
   // NEW generation alongside the live one and publishes it — meta:gen plus
   // the generation's completeness flag, in one transaction — only after every

@@ -13,6 +13,11 @@ export interface BypassCompareContext {
   /** Sends an EQ to the DAC's RAM only; flash is never written. */
   apply: (peq: PEQData) => Promise<unknown>;
   getState: () => BypassCompareState;
+  /** Reserve device writes synchronously, then drain any live preview/save. */
+  reserve: () => {
+    ready: Promise<void>;
+    release: () => void;
+  } | null;
   reportError: (error: unknown) => void;
 }
 
@@ -33,17 +38,28 @@ export function bypassPeq(peq: PEQData): PEQData {
  * leave the DAC bypassed.
  */
 export function createBypassCompare(context: BypassCompareContext) {
-  const { apply, getState, reportError } = context;
+  const { apply, getState, reserve, reportError } = context;
   let queue: Promise<void> = Promise.resolve();
-  let restore: PEQData | null = null;
+  let restore: {
+    peq: PEQData;
+    capabilities: DeviceCapabilities;
+    release: () => void;
+  } | null = null;
 
-  const send = (peq: PEQData, capabilities: DeviceCapabilities) => {
-    const normalized = normalizePeq(peq, {
-      integerPreamp: capabilities.integer_preamp,
-      capabilities,
-    });
+  const send = (
+    peq: PEQData,
+    capabilities: DeviceCapabilities,
+    ready?: Promise<void>,
+  ) => {
     queue = queue
-      .then(() => apply(normalized))
+      .then(async () => {
+        await ready;
+        const normalized = normalizePeq(peq, {
+          integerPreamp: capabilities.integer_preamp,
+          capabilities,
+        });
+        await apply(normalized);
+      })
       .then(
         () => undefined,
         (error: unknown) => reportError(error),
@@ -55,14 +71,17 @@ export function createBypassCompare(context: BypassCompareContext) {
     start(): Promise<void> {
       const { playing, capabilities, busy } = getState();
       if (restore || busy) return queue;
-      restore = playing;
-      return send(bypassPeq(playing), capabilities);
+      const reservation = reserve();
+      if (!reservation) return queue;
+      restore = { peq: playing, capabilities, release: reservation.release };
+      return send(bypassPeq(playing), capabilities, reservation.ready);
     },
     end(): Promise<void> {
       if (!restore) return queue;
-      const peq = restore;
+      const { peq, capabilities, release } = restore;
       restore = null;
-      return send(peq, getState().capabilities);
+      queue = send(peq, capabilities).finally(release);
+      return queue;
     },
   };
 }

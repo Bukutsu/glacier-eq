@@ -330,6 +330,7 @@
     "failedToLoadOnlineSearchManifest": "加载在线搜索清单失败：{{error}}"
   },
   "traces": {
+    "collectionLimit": "此库已满（{{limit}} 条曲线）。请先删除一条曲线再添加。",
     "backupCreated": "无法加载“{{key}}”的已保存数据。已创建备份副本。",
     "backupFailed": "无法加载“{{key}}”的已保存数据，也无法创建备份。已保留损坏的原始数据。请检查可用存储空间。",
     "storageFull": "无法保存“{{key}}”。存储空间已满。应用关闭后，最近的更改可能丢失。",
@@ -348,6 +349,7 @@
     "invalidDb": "测量归一化产生了非有限 dB 值"
   },
   "onlineDb": {
+    "incompleteDatabase": "在线数据库不完整。请尝试重新下载。",
     "databaseLockedByAnotherWindow": "数据库已被其他窗口锁定",
     "failedToDeleteDatabase": "删除数据库失败",
     "curveCacheRecoveryFailed": "曲线缓存恢复失败：{{detail}}",

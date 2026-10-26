@@ -366,6 +366,7 @@
     "failedToLoadOnlineSearchManifest": "Falha ao carregar o manifesto de busca online: {{error}}"
   },
   "traces": {
+    "collectionLimit": "Esta biblioteca está cheia ({{limit}} curvas). Remova uma curva antes de adicionar outra.",
     "backupCreated": "Não foi possível carregar os dados salvos de \"{{key}}\". Uma cópia de segurança foi criada.",
     "backupFailed": "Não foi possível carregar os dados salvos de \"{{key}}\" nem criar uma cópia de segurança. O original danificado foi mantido. Verifique o espaço de armazenamento disponível.",
     "storageFull": "Não foi possível salvar \"{{key}}\". O armazenamento está cheio. Alterações recentes podem ser perdidas ao fechar o aplicativo.",
@@ -384,6 +385,7 @@
     "invalidDb": "A normalização da medição produziu um valor de dB não finito"
   },
   "onlineDb": {
+    "incompleteDatabase": "O banco de dados online está incompleto. Tente baixá-lo novamente.",
     "databaseLockedByAnotherWindow": "Banco de dados bloqueado por outra janela",
     "failedToDeleteDatabase": "Falha ao excluir banco de dados",
     "curveCacheRecoveryFailed": "Falha na recuperação do cache de curvas: {{detail}}",

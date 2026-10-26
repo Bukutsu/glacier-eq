@@ -348,6 +348,7 @@
     "failedToLoadOnlineSearchManifest": "Failed to load online search manifest: {{error}}"
   },
   "traces": {
+    "collectionLimit": "This library is full ({{limit}} curves). Remove a curve before adding another.",
     "backupCreated": "Could not load saved data for \"{{key}}\". Created a backup copy.",
     "backupFailed": "Could not load saved data for \"{{key}}\" or create a backup. The damaged original was retained. Check available storage.",
     "storageFull": "Could not save \"{{key}}\". Storage is full. Recent changes may be lost when the app closes.",
@@ -366,6 +367,7 @@
     "invalidDb": "Measurement normalization produced a non-finite dB value"
   },
   "onlineDb": {
+    "incompleteDatabase": "The online database is incomplete. Try downloading it again.",
     "databaseLockedByAnotherWindow": "Database locked by another window",
     "failedToDeleteDatabase": "Failed to delete database",
     "curveCacheRecoveryFailed": "Curve cache recovery failed: {{detail}}",

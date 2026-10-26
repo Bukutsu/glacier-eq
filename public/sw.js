@@ -10,8 +10,6 @@ const CACHE_PENDING_PATH = "__glacier_eq_pending_cache__";
 const BUILD_ASSET_SET_ID = "__GLACIER_EQ_BUILD_ASSET_SET_ID__";
 let CACHE = "";
 let CACHE_LOOKUP;
-let PRECACHE_CACHE_NAME = "";
-let PRECACHED_URLS = new Set();
 
 function cacheMetaUrl(path = CACHE_META_PATH) {
   return new URL(path, self.registration.scope).href;
@@ -238,24 +236,6 @@ async function pruneInactiveCaches() {
   );
 }
 
-async function precachedUrls(cacheName, cache) {
-  if (PRECACHE_CACHE_NAME === cacheName) return PRECACHED_URLS;
-  const manifestUrl = new URL("offline-assets.json", self.registration.scope).href;
-  const response = await cache.match(manifestUrl);
-  const entries = response
-    ? manifestEntries(await response.json())
-    : [];
-  PRECACHED_URLS = new Set([
-    self.registration.scope,
-    manifestUrl,
-    ...entries.map((entry) =>
-      new URL(entry.path, self.registration.scope).href,
-    ),
-  ]);
-  PRECACHE_CACHE_NAME = cacheName;
-  return PRECACHED_URLS;
-}
-
 self.addEventListener("install", (event) => {
   event.waitUntil(
     (async () => {
@@ -340,42 +320,21 @@ self.addEventListener("fetch", (event) => {
         const cached = await matchScopedCache(request);
         return cached || fetch(request);
       }
+      // Installed releases are immutable. A network-first navigation could
+      // mix the next deploy's HTML with this release's modules if its install
+      // later fails. Serve this release until a complete successor activates.
+      const cache = await caches.open(activeCache);
+      const cached = await cache.match(request);
+      if (cached) return cached;
+      if (request.mode === "navigate") {
+        const root = await cache.match(self.registration.scope);
+        if (root) return root;
+      }
+      // Non-release requests stay on the network; they never modify a
+      // release cache or become an implicit offline dependency.
       try {
-        const response = await fetch(request);
-        if (response.ok) {
-          const copy = response.clone();
-          await caches.open(activeCache)
-            .then((cache) => cache.put(request, copy))
-            .catch(() => {});
-          return response;
-        }
-        const cache = await caches.open(activeCache);
-        const cached = await cache.match(request);
-        if (
-          cached &&
-          (
-            request.destination === "script" ||
-            request.destination === "style" ||
-            (await precachedUrls(activeCache, cache)).has(url.href)
-          )
-        ) {
-          return cached;
-        }
-        if (request.mode === "navigate") {
-          const navigation =
-            cached ||
-            await cache.match(self.registration.scope);
-          if (navigation) return navigation;
-        }
-        return response;
+        return await fetch(request);
       } catch {
-        const cache = await caches.open(activeCache);
-        const cached = await cache.match(request);
-        if (cached) return cached;
-        if (request.mode === "navigate") {
-          const root = await cache.match(self.registration.scope);
-          if (root) return root;
-        }
         throw new Error("Offline and not cached");
       }
     })(),

@@ -44,6 +44,7 @@ export function createLiveApplier(context: LiveApplyContext) {
   let again = false;
   let saving = false;
   let generation = 0;
+  let suspension: object | null = null;
   const idleWaiters: (() => void)[] = [];
   function resolveIdle() {
     if (!running && !saving)
@@ -130,6 +131,7 @@ export function createLiveApplier(context: LiveApplyContext) {
 
   return {
     schedule() {
+      if (suspension) return;
       // A new edit pushes the save back.
       clearTimeout(saveTimer);
       saveTimer = undefined;
@@ -144,6 +146,25 @@ export function createLiveApplier(context: LiveApplyContext) {
       this.stop();
       if (running || saving)
         await new Promise<void>((resolve) => idleWaiters.push(resolve));
+    },
+    /** Reserve RAM for comparison, draining writes and blocking new edits/saves. */
+    suspend() {
+      if (suspension) throw new Error("Live apply is already suspended");
+      const owner = {};
+      suspension = owner;
+      return {
+        ready: this.pause(),
+        release: (resume: boolean) => {
+          if (suspension !== owner) return;
+          suspension = null;
+          if (resume) {
+            // Compare restored its snapshot; the editor may have changed,
+            // including an undo back to the stored EQ while preview was held.
+            diverged = true;
+            this.schedule();
+          }
+        },
+      };
     },
     /** Live apply was switched off or the device went away. */
     stop() {

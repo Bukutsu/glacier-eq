@@ -366,6 +366,7 @@
     "failedToLoadOnlineSearchManifest": "Échec du chargement du manifeste de recherche en ligne : {{error}}"
   },
   "traces": {
+    "collectionLimit": "Cette bibliothèque est pleine ({{limit}} courbes). Supprimez une courbe avant d’en ajouter une autre.",
     "backupCreated": "Impossible de charger les données enregistrées pour « {{key}} ». Une copie de sauvegarde a été créée.",
     "backupFailed": "Impossible de charger les données enregistrées pour « {{key}} » ni de créer une sauvegarde. L’original endommagé a été conservé. Vérifiez l’espace de stockage disponible.",
     "storageFull": "Impossible d’enregistrer « {{key}} ». Le stockage est plein. Les modifications récentes risquent d’être perdues à la fermeture de l’application.",
@@ -384,6 +385,7 @@
     "invalidDb": "La normalisation de la mesure a produit une valeur en dB non finie"
   },
   "onlineDb": {
+    "incompleteDatabase": "La base de données en ligne est incomplète. Essayez de la télécharger à nouveau.",
     "databaseLockedByAnotherWindow": "Base de données verrouillée par une autre fenêtre",
     "failedToDeleteDatabase": "Échec de la suppression de la base de données",
     "curveCacheRecoveryFailed": "Échec de la récupération du cache des courbes : {{detail}}",
