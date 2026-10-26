@@ -2,6 +2,23 @@
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-10-26
+
+### Added
+
+- AutoEQ can now match a measurement against another headphone measurement, not just a target curve. The searchable reference picker includes saved measurements, and online measurements can be filtered by owner.
+- A Glacier-themed desktop title bar, with platform-aware window controls on Windows, macOS, and Linux.
+
+### Changed
+
+- Replacing the current EQ with an import, profile, or generated result now offers an Undo action.
+- Refreshed the dark theme palette and toast feedback, including a pausable countdown.
+
+### Fixed
+
+- Improved device reconnect and offline behavior, Android USB attachment handling, and Walkplay control reset verification.
+- Fixed several editor and import interaction issues found in browser testing.
+
 ## [0.16.0] - 2026-10-24
 
 ### Added
