@@ -47,7 +47,7 @@ fn integer_preamp_preserves_correction_when_flooring_provides_headroom() {
     let grid = device::SafetyGrid::new(fs);
     for gain in [6.3, 6.6, 9.3] {
         let filters = vec![band(FilterType::Peak, 1000, gain, 1.0)];
-        let peq = target.finalize(filters.clone(), fs, 0.0, &grid).unwrap();
+        let peq = target.finalize(filters.clone(), fs, &grid).unwrap();
         assert_eq!(peq.filters, filters);
         assert_eq!(peq.global_gain, -gain.ceil());
     }
@@ -63,7 +63,7 @@ fn headroom_includes_dc_nyquist_and_between_grid_peaks() {
         vec![band(FilterType::HighShelf, 20_000, 12.0, 0.7)],
         vec![band(FilterType::Peak, 1237, 12.0, 100.0)],
     ] {
-        let peq = target.finalize(filters, fs, 0.0, &grid).unwrap();
+        let peq = target.finalize(filters, fs, &grid).unwrap();
         for f in [0.0, 1.0, 20.0, 1237.0, 20_000.0, 40_000.0, 48_000.0] {
             let gain =
                 response_at(&peq.filters, fs, EqResponseModel::CanonicalQ, f) + peq.global_gain;
@@ -82,7 +82,6 @@ fn device_headroom_floor_retains_a_feasible_correction() {
         .finalize(
             vec![band(FilterType::Peak, 1000, 8.0, 1.0)],
             caps.dsp_sample_rate,
-            0.0,
             &grid,
         )
         .unwrap();
@@ -221,9 +220,7 @@ fn headroom_uses_q30_coefficients_and_q8_preamp_from_actual_packets() {
     // Ideal coefficients allowed -6.1 dB, but actual Q30/Q8 encoding clipped
     // at DC. Preserve the complete band and choose enough wire attenuation.
     let original = band(FilterType::LowShelf, 20, 6.09765625, 0.5);
-    let peq = target
-        .finalize(vec![original.clone()], fs, 0.0, &grid)
-        .unwrap();
+    let peq = target.finalize(vec![original.clone()], fs, &grid).unwrap();
     assert_eq!(peq.filters, vec![original]);
     assert!(peq.global_gain < -6.1);
     for frequency in [0.0, 0.1, 1.0, 20.0, 1000.0, 48_000.0] {
@@ -231,7 +228,7 @@ fn headroom_uses_q30_coefficients_and_q8_preamp_from_actual_packets() {
     }
     // A fractional preamp that rounds upward on Q8 must also stay safe.
     let original = band(FilterType::Peak, 1000, 3.8984375, 1.0);
-    let peq = target.finalize(vec![original], fs, 0.0, &grid).unwrap();
+    let peq = target.finalize(vec![original], fs, &grid).unwrap();
     assert!(packet_response_at(profile, &peq, 1000.0) <= 0.0);
 }
 
@@ -244,7 +241,6 @@ fn walkplay_headroom_uses_quantized_coefficients() {
         .finalize(
             vec![band(FilterType::Peak, 20, 5.953125, 3.0)],
             fs,
-            0.0,
             &device::SafetyGrid::new(fs),
         )
         .unwrap();

@@ -1,5 +1,9 @@
 use super::*;
 use crate::eq::iir_math::accumulate_response_values_cos_for_model;
+use std::sync::LazyLock;
+
+static OBJECTIVE: LazyLock<Objective> =
+    LazyLock::new(|| Objective::new(&super::super::generate_log_spaced_freqs()));
 
 fn problem<'a>(
     types: &'a [FilterType],
@@ -10,6 +14,7 @@ fn problem<'a>(
 ) -> Problem<'a> {
     let f = super::super::generate_log_spaced_freqs();
     Problem {
+        objective: &OBJECTIVE,
         types,
         bounds,
         target,
@@ -48,7 +53,7 @@ fn stable_forward_and_jacobian_match_independent_model_at_domain_edges() {
                     let types = [kind];
                     let p = problem(&types, &bounds, &target, fs, model);
                     let x = [frequency.ln(), gain / 10.0, q.ln()];
-                    let actual = p.evaluate::<true>(&x);
+                    let (error, jacobian) = p.error::<true>(&x);
                     let mut reference = [0.0; K];
                     accumulate_response_values_cos_for_model(
                         kind,
@@ -63,7 +68,7 @@ fn stable_forward_and_jacobian_match_independent_model_at_domain_edges() {
                     .unwrap();
                     for (k, &reference) in reference.iter().enumerate() {
                         assert!(
-                            (actual.residual[k] - actual.offset - reference as f64).abs() < 2e-4,
+                            (error[k] - reference as f64).abs() < 2e-4,
                             "{kind:?} {model:?} {fs}Hz {frequency}Hz point {k}"
                         );
                     }
@@ -73,11 +78,11 @@ fn stable_forward_and_jacobian_match_independent_model_at_domain_edges() {
                         plus[axis] += h;
                         let mut minus = x;
                         minus[axis] -= h;
-                        let plus = p.evaluate::<false>(&plus);
-                        let minus = p.evaluate::<false>(&minus);
+                        let plus = p.error::<false>(&plus).0;
+                        let minus = p.error::<false>(&minus).0;
                         for k in 0..K {
-                            let numeric = (plus.residual[k] - minus.residual[k]) / (2.0 * h);
-                            let analytic = actual.jacobian[axis][k];
+                            let numeric = (plus[k] - minus[k]) / (2.0 * h);
+                            let analytic = jacobian[axis][k];
                             assert!((analytic-numeric).abs()<2e-3*(1.0+numeric.abs()),
                                 "{kind:?} {model:?} {fs}Hz {frequency}Hz axis {axis} point {k}: {analytic} != {numeric}");
                         }
@@ -100,10 +105,10 @@ fn high_q_low_frequency_is_finite_and_accurate() {
         p.sin[0] = (std::f64::consts::TAU * f / fs).sin();
         for gain in [-16.0, 16.0] {
             let x = [f.ln(), gain / 10.0, 100.0_f64.ln()];
-            let e = p.evaluate::<true>(&x);
-            assert!((e.residual[0] - e.offset - gain).abs() < 1e-4);
-            assert!(e.loss.is_finite());
-            assert!(e.jacobian.iter().flatten().all(|v| v.is_finite()));
+            let (error, jacobian) = p.error::<true>(&x);
+            assert!((error[0] - gain).abs() < 1e-4);
+            assert!(p.evaluate::<true>(&x).loss.is_finite());
+            assert!(jacobian.iter().flatten().all(|v| v.is_finite()));
         }
     }
 }
@@ -138,10 +143,9 @@ fn accepted_loss_describes_returned_state_and_never_worsens_initialization() {
     let initial_loss = p.evaluate::<false>(&initial).loss;
     for steps in [0, 1, 5, 80] {
         let mut x = initial;
-        let (loss, offset) = p.solve(&mut x, steps);
+        let loss = p.solve(&mut x, steps);
         let actual = p.evaluate::<false>(&x);
         assert_eq!(loss, actual.loss);
-        assert_eq!(offset, actual.offset);
         assert!(loss <= initial_loss);
         for (x, (lo, hi)) in x.iter().zip(&bounds) {
             assert!(x >= lo && x <= hi);
@@ -162,7 +166,6 @@ fn fixed_parameters_and_redundant_bands_do_not_make_solver_singular() {
         EqResponseModel::CanonicalQ,
     );
     let mut x: Vec<_> = bounds.iter().map(|b| b.0).collect();
-    let (loss, offset) = p.solve(&mut x, 80);
+    let loss = p.solve(&mut x, 80);
     assert!(loss < 1e-12);
-    assert!((offset - 1.0).abs() < 1e-9);
 }

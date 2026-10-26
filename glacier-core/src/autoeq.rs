@@ -507,6 +507,7 @@ pub fn peq_to_autoeq(peq: &PEQData) -> String {
 }
 
 mod device;
+mod objective;
 mod optimizer;
 #[cfg(test)]
 mod target_tests;
@@ -549,11 +550,15 @@ struct Smooth {
     pub clip_f: f32,
 }
 
+// Treble smoothing starts at 8 kHz. Below that, coupler measurements match
+// listeners well and the Harman preference models reward correcting them;
+// above it, insertion depth and ear-canal differences dominate. Starting at
+// 3–6 kHz cost 2–6 preference points on the oratory1990 set.
 const IE_SMOOTH: Smooth = Smooth {
     smooth_lo: 0.3,
     smooth_hi: 0.03,
-    smooth_f0: 3000.0,
-    smooth_f1: 12000.0,
+    smooth_f0: 8000.0,
+    smooth_f1: 16000.0,
     bias_lo: 0.0,
     bias_md: 0.15,
     bias_hi: 0.03,
@@ -567,14 +572,14 @@ const IE_SMOOTH: Smooth = Smooth {
 const OE_SMOOTH: Smooth = Smooth {
     smooth_lo: 0.3,
     smooth_hi: 0.03,
-    smooth_f0: 5000.0,
-    smooth_f1: 15000.0,
+    smooth_f0: 8000.0,
+    smooth_f1: 16000.0,
     bias_lo: 0.0,
     bias_md: 0.3,
     bias_hi: 0.2,
-    bias_f0: 6000.0,
-    bias_f1: 9000.0,
-    bias_f2: 9000.0,
+    bias_f0: 9000.0,
+    bias_f1: 12000.0,
+    bias_f2: 12000.0,
     bias_f3: 20000.0,
     clip_f: 17000.0,
 };
@@ -967,6 +972,27 @@ fn center_mean(x: &mut [f32; K]) -> f32 {
     mean
 }
 
+/// Largest boost the correction may ask for above its vocal-band level. The
+/// preamp must offset the loudest boost, so filling a deep dip quiets
+/// everything else. Upstream AutoEq caps its own curve at +6 dB:
+/// https://github.com/jaakkopasanen/AutoEq/blob/7ae0f56d53074872b028649617a22bbb4232feb7/autoeq/constants.py#L10
+/// On real headphone measurements, +5 dB here is at least as loud as upstream
+/// AutoEq on the same inputs while scoring higher on predicted preference.
+const MAX_BOOST_DB: f32 = 5.0;
+const BOOST_REFERENCE_HZ: (f32, f32) = (250.0, 4000.0);
+
+fn cap_boost(f: &[f32; K], r: &mut [f32; K]) {
+    let (sum, count) = f
+        .iter()
+        .zip(r.iter())
+        .filter(|(f, _)| (BOOST_REFERENCE_HZ.0..=BOOST_REFERENCE_HZ.1).contains(*f))
+        .fold((0.0, 0), |(sum, count), (_, v)| (sum + v, count + 1));
+    let ceiling = sum / count as f32 + MAX_BOOST_DB;
+    for v in r.iter_mut() {
+        *v = v.min(ceiling);
+    }
+}
+
 fn preprocess(
     f: &[f32; K],
     dst: &[f32; K],
@@ -974,7 +1000,7 @@ fn preprocess(
     r: &mut [f32; K],
     smooth: Option<&Smooth>,
     demean: bool,
-) -> Result<f32, String> {
+) -> Result<(), String> {
     let f_treble_smooth = 16000.0;
     let f_treble_unsmooth = 18500.0;
 
@@ -992,10 +1018,10 @@ fn preprocess(
     if r.iter().any(|value| !value.is_finite()) {
         return Err("AutoEQ residual preprocessing produced non-finite values".into());
     }
+    cap_boost(f, r);
 
-    let mut mean = 0.0;
     if demean {
-        mean = center_mean(r);
+        let mean = center_mean(r);
         if !mean.is_finite() || r.iter().any(|value| !value.is_finite()) {
             return Err("AutoEQ residual centering produced non-finite values".into());
         }
@@ -1013,7 +1039,7 @@ fn preprocess(
     if r.iter().any(|value| !value.is_finite()) {
         return Err("AutoEQ residual preprocessing produced non-finite values".into());
     }
-    Ok(mean)
+    Ok(())
 }
 
 fn initialize_bands(
@@ -1288,8 +1314,9 @@ pub fn run_autoeq_with_target(
     };
 
     let mut r = [0.0; K];
-    let preamp_mean = preprocess(&f, &dst, &src, &mut r, smooth, true)?;
+    preprocess(&f, &dst, &src, &mut r, smooth, true)?;
     let safety = device::SafetyGrid::new(fs as f64);
+    let objective = objective::Objective::new(&f);
     let cos: Vec<_> = f
         .iter()
         .map(|&frequency| (std::f64::consts::TAU * frequency as f64 / fs as f64).cos())
@@ -1355,7 +1382,7 @@ pub fn run_autoeq_with_target(
     // Upstream defaults shelf Q to 0.4..0.7 to avoid resonant shelves:
     // https://github.com/jaakkopasanen/AutoEq/blob/7ae0f56d53074872b028649617a22bbb4232feb7/autoeq/constants.py#L54-L55
     let low_band = n_bands <= 5;
-    let finish = |bands: &[optimizer::Band], level: f64| -> Result<(PEQData, f32), String> {
+    let finish = |bands: &[optimizer::Band]| -> Result<(PEQData, f32), String> {
         let mut filters: Vec<_> = bands
             .iter()
             .enumerate()
@@ -1372,8 +1399,8 @@ pub fn run_autoeq_with_target(
         for (i, filter) in filters.iter_mut().enumerate() {
             filter.index = i as u8;
         }
-        let peq = target.finalize(filters, fs as f64, preamp_mean as f64 + level, &safety)?;
-        let loss = device::shape_loss(&peq.filters, fs as f64, target, &cos, &r)?;
+        let peq = target.finalize(filters, fs as f64, &safety)?;
+        let loss = device::shape_loss(&peq.filters, fs as f64, target, &cos, &r, &objective)?;
         Ok((peq, loss))
     };
     let fit_layout =
@@ -1418,16 +1445,23 @@ pub fn run_autoeq_with_target(
                 })
                 .collect();
             initialize_bands(&mut bands, &f, &r, fs, target, &cos)?;
-            let fit = optimizer::fit(&mut bands, steps, &f, &r, fs as f64, target.model());
-            if !(fit.loss as f32).is_finite() {
+            let fit_loss = optimizer::fit(
+                &mut bands,
+                steps,
+                &f,
+                &r,
+                fs as f64,
+                target.model(),
+                &objective,
+            );
+            if !(fit_loss as f32).is_finite() {
                 return Err("AutoEQ optimization produced a non-finite loss".into());
             }
-            let (peq, loss) = finish(&bands, fit.level)?;
+            let (peq, loss) = finish(&bands)?;
             Ok((peq, loss, bands))
         };
-    let mut best = fit_layout(types.clone());
+    let mut layouts = vec![types];
     if supports(FilterType::Peak) {
-        let mut layouts = vec![types];
         for shelf in [
             Some(FilterType::LowShelf),
             Some(FilterType::HighShelf),
@@ -1440,18 +1474,21 @@ pub fn run_autoeq_with_target(
             if let Some(kind) = shelf {
                 candidate[0] = kind;
             }
-            if layouts.contains(&candidate) {
-                continue;
+            if !layouts.contains(&candidate) {
+                layouts.push(candidate);
             }
-            layouts.push(candidate.clone());
-            let fitted = fit_layout(candidate);
-            if let Ok((_, loss, _)) = &fitted {
-                if best
-                    .as_ref()
-                    .map_or(true, |(_, best_loss, _)| loss < best_loss)
-                {
-                    best = fitted;
-                }
+        }
+    }
+    // Keep the earliest layout on ties, and its error if every layout fails.
+    let mut fitted = map_layouts(layouts, fit_layout).into_iter();
+    let mut best = fitted.next().expect("the default layout is always fitted");
+    for candidate in fitted {
+        if let Ok((_, loss, _)) = &candidate {
+            if best
+                .as_ref()
+                .map_or(true, |(_, best_loss, _)| loss < best_loss)
+            {
+                best = candidate;
             }
         }
     }
@@ -1467,8 +1504,16 @@ pub fn run_autoeq_with_target(
         }
     }
     if wider_q {
-        let fit = optimizer::fit(&mut bands, steps, &f, &r, fs as f64, target.model());
-        if let Ok((candidate, candidate_loss)) = finish(&bands, fit.level) {
+        optimizer::fit(
+            &mut bands,
+            steps,
+            &f,
+            &r,
+            fs as f64,
+            target.model(),
+            &objective,
+        );
+        if let Ok((candidate, candidate_loss)) = finish(&bands) {
             if candidate_loss < loss {
                 peq = candidate;
                 loss = candidate_loss;
@@ -1476,14 +1521,51 @@ pub fn run_autoeq_with_target(
         }
     }
     if reseed_peak(&mut bands, &f, &r, fs, target, &cos)? {
-        let fit = optimizer::fit(&mut bands, steps, &f, &r, fs as f64, target.model());
-        if let Ok((candidate, candidate_loss)) = finish(&bands, fit.level) {
+        optimizer::fit(
+            &mut bands,
+            steps,
+            &f,
+            &r,
+            fs as f64,
+            target.model(),
+            &objective,
+        );
+        if let Ok((candidate, candidate_loss)) = finish(&bands) {
             if candidate_loss < loss {
                 return Ok(candidate);
             }
         }
     }
     Ok(peq)
+}
+
+/// Fit independent layouts on their own threads where the target has them.
+fn map_layouts<T: Send>(
+    layouts: Vec<Vec<FilterType>>,
+    fit: impl Fn(Vec<FilterType>) -> T + Sync,
+) -> Vec<T> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let fit = &fit;
+        std::thread::scope(|scope| {
+            let handles: Vec<_> = layouts
+                .into_iter()
+                .map(|layout| scope.spawn(move || fit(layout)))
+                .collect();
+            handles
+                .into_iter()
+                .map(|handle| {
+                    handle
+                        .join()
+                        .unwrap_or_else(|panic| std::panic::resume_unwind(panic))
+                })
+                .collect()
+        })
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        layouts.into_iter().map(fit).collect()
+    }
 }
 
 fn validate_curve(label: &str, points: &[(f64, f64)]) -> Result<(), String> {
@@ -1857,9 +1939,12 @@ mod tests {
                 .zip(desired)
                 .map(|(&freq, db)| (freq as f64, db as f64))
                 .collect();
+            // Score the fitter against the boost-capped correction it is given.
+            let mut expected = desired;
+            cap_boost(&f, &mut expected);
             for n in [3, 5] {
                 let peq = run_autoeq(&measurement, &target, n, 1000, "none", fs, None).unwrap();
-                let mse = shape_mse(&peq, &f, &desired, fs);
+                let mse = shape_mse(&peq, &f, &expected, fs);
                 // Captured before changing allocation/shelf Q at 1000 steps:
                 // bass/mids: 0.261 / 0.00649, treble: 0.0553 / 0.0556,
                 // separated peaks: 1.5835 / 0.5174 (three / five bands).
@@ -1933,7 +2018,8 @@ mod tests {
         let caps = crate::device::capabilities::DESKTOP_DAC_CAPS;
         let peq = run_autoeq(&measurement, &target, 1, 0, "none", fs, Some(&caps)).unwrap();
         let mse = shape_mse(&peq, &f, &desired, fs);
-        assert!(mse < 0.0001, "narrow resonance: MSE {mse}");
+        // The gain ridge shrinks the band by a few hundredths of a dB.
+        assert!(mse < 0.001, "narrow resonance: MSE {mse}");
         assert_eq!(peq.filters[0].filter_type, FilterType::Peak);
         assert!(peq.filters[0].q > 7.0 && peq.filters[0].q <= caps.q_range.1);
         assert!(peq.global_gain + max_autoeq_response(&peq.filters, fs).unwrap() as f64 <= 1e-4);
@@ -1968,15 +2054,34 @@ mod tests {
                 q_bounds: Lim { lo: 0.4, hi: 4.0 },
             })
             .collect();
-        let before = optimizer::fit(
+        let objective = objective::Objective::new(&f);
+        // Shape error alone: the objective's gain ridge is not a misfit.
+        let shape = |bands: &[optimizer::Band]| {
+            let mut response = [0.0; K];
+            for band in bands {
+                spectrum_values(
+                    band.kind,
+                    band.frequency as f32,
+                    band.gain as f32,
+                    band.q as f32,
+                    fs,
+                    &f,
+                    &mut response,
+                );
+            }
+            let error: [f64; K] = std::array::from_fn(|k| (response[k] - desired[k]) as f64);
+            objective.loss(&error, std::iter::empty())
+        };
+        optimizer::fit(
             &mut bands,
             1,
             &f,
             &desired,
             fs as f64,
             crate::eq::iir_math::EqResponseModel::CanonicalQ,
-        )
-        .loss;
+            &objective,
+        );
+        let before = shape(&bands);
         assert!(reseed_peak(
             &mut bands,
             &f,
@@ -1986,15 +2091,16 @@ mod tests {
             &cos
         )
         .unwrap());
-        let after = optimizer::fit(
+        optimizer::fit(
             &mut bands,
             80,
             &f,
             &desired,
             fs as f64,
             crate::eq::iir_math::EqResponseModel::CanonicalQ,
-        )
-        .loss;
+            &objective,
+        );
+        let after = shape(&bands);
         assert!(after < before * 0.01, "reseed MSE {before} -> {after}");
     }
 
@@ -2060,7 +2166,8 @@ mod tests {
         (measurement, target)
     }
 
-    fn fit_mse(peq: &PEQData, r: &[f32; K], preamp_mean: f32, fs: f32) -> f64 {
+    /// Shape error only: the preamp is a loudness choice, not a tonal error.
+    fn fit_mse(peq: &PEQData, r: &[f32; K], fs: f32) -> f64 {
         let f = generate_log_spaced_freqs();
         let mut resp = vec![0.0f32; K];
         for filter in &peq.filters {
@@ -2076,12 +2183,9 @@ mod tests {
                 );
             }
         }
-        let mut mse = 0.0;
-        for k in 0..K {
-            let d = resp[k] as f64 + peq.global_gain - (r[k] as f64 + preamp_mean as f64);
-            mse += d * d;
-        }
-        mse / K as f64
+        let d: Vec<f64> = (0..K).map(|k| resp[k] as f64 - r[k] as f64).collect();
+        let mean = d.iter().sum::<f64>() / K as f64;
+        d.iter().map(|d| (d - mean).powi(2)).sum::<f64>() / K as f64
     }
 
     #[test]
@@ -2179,15 +2283,15 @@ mod tests {
         let src = interpolate_curve("Measurement", &measurement, &f).unwrap();
         let dst = interpolate_curve("Target", &target, &f).unwrap();
         let mut r = [0.0; K];
-        let preamp_mean = preprocess(&f, &dst, &src, &mut r, None, true).unwrap();
+        preprocess(&f, &dst, &src, &mut r, None, true).unwrap();
 
         let mut clamped = run_autoeq(&measurement, &target, 5, 200, "none", 48000.0, None).unwrap();
         assert!(!clamped.clamp_to_capabilities(&caps).is_empty());
-        let clamped_mse = fit_mse(&clamped, &r, preamp_mean, 48000.0);
+        let clamped_mse = fit_mse(&clamped, &r, 48000.0);
 
         let aware =
             run_autoeq(&measurement, &target, 5, 200, "none", 48000.0, Some(&caps)).unwrap();
-        let aware_mse = fit_mse(&aware, &r, preamp_mean, 48000.0);
+        let aware_mse = fit_mse(&aware, &r, 48000.0);
         println!("clamped_mse={clamped_mse} aware_mse={aware_mse}");
         assert!(
             aware_mse <= clamped_mse,
@@ -2211,6 +2315,57 @@ mod tests {
         target[3].1 = 12.0;
         let peq = run_autoeq(&measurement, &target, 5, 100, "none", 48_000.0, None).unwrap();
         assert!(peq.global_gain < 0.0);
+    }
+
+    #[test]
+    fn autoeq_preamp_puts_loudest_point_at_full_scale() {
+        // A cut-only correction needs no attenuation; quieter output only
+        // costs the listener volume.
+        let measurement = [
+            (20.0, 0.0),
+            (500.0, 0.0),
+            (1000.0, 8.0),
+            (2000.0, 0.0),
+            (20000.0, 0.0),
+        ];
+        let target = [(20.0, 0.0), (20000.0, 0.0)];
+        let peq = run_autoeq(&measurement, &target, 3, 80, "none", 48_000.0, None).unwrap();
+        let peak = max_autoeq_response(&peq.filters, 48_000.0).unwrap() as f64;
+        assert!(
+            (peq.global_gain + peak).abs() < 1e-3,
+            "{} + {peak}",
+            peq.global_gain
+        );
+    }
+
+    #[test]
+    fn autoeq_caps_boost_above_vocal_band() {
+        // A 20 dB bass deficit must not cost 20 dB of loudness.
+        let measurement = [(20.0, -20.0), (60.0, -20.0), (200.0, 0.0), (20000.0, 0.0)];
+        let target = [(20.0, 0.0), (20000.0, 0.0)];
+        let peq = run_autoeq(&measurement, &target, 5, 80, "none", 48_000.0, None).unwrap();
+        let f = generate_log_spaced_freqs();
+        let mut response = [0.0; K];
+        for filter in &peq.filters {
+            spectrum_values(
+                filter.filter_type,
+                filter.freq as f32,
+                filter.gain as f32,
+                filter.q as f32,
+                48_000.0,
+                &f,
+                &mut response,
+            );
+        }
+        let vocal: Vec<f32> = f
+            .iter()
+            .zip(response)
+            .filter(|(f, _)| (BOOST_REFERENCE_HZ.0..=BOOST_REFERENCE_HZ.1).contains(*f))
+            .map(|(_, v)| v)
+            .collect();
+        let vocal = vocal.iter().sum::<f32>() / vocal.len() as f32;
+        let peak = response.iter().copied().fold(f32::MIN, f32::max);
+        assert!(peak - vocal < MAX_BOOST_DB + 0.5, "boost {}", peak - vocal);
     }
 
     #[test]

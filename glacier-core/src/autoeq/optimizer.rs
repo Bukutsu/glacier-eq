@@ -1,9 +1,11 @@
 //! Bounded, damped least squares for a cascade of parametric biquads.
 //!
-//! Parameters are log-frequency, gain in dB, and log-Q per band. The common
-//! level offset is eliminated exactly, rather than consuming an optimizer
-//! parameter. A trial is accepted only after its actual loss is evaluated.
+//! Parameters are log-frequency, gain in dB, and log-Q per band. The solver
+//! owns the filter model and its derivatives; `Objective` decides how errors
+//! are weighted and compared. A trial is accepted only after its actual loss
+//! is evaluated.
 
+use super::objective::Objective;
 use super::{FilterType, Lim, K};
 use crate::eq::iir_math::EqResponseModel;
 use std::ops::{Add, Div, Mul, Neg, Sub};
@@ -172,26 +174,30 @@ pub(super) struct Problem<'a> {
     pub sample_rate: f64,
     pub model: EqResponseModel,
     pub bounds: &'a [(f64, f64)],
+    pub objective: &'a Objective,
 }
 
 struct Evaluation {
     residual: [f64; K],
     jacobian: Vec<[f64; K]>,
     loss: f64,
-    offset: f64,
 }
 
+/// Power ratios multiplied before one logarithm. Bounded gains keep eight
+/// bands far inside f64 range, and it saves most per-band logarithms.
+const BANDS_PER_LOG: usize = 8;
+const DB_POWER: f64 = 10.0 / std::f64::consts::LN_10;
+
 impl Problem<'_> {
-    fn evaluate<const JACOBIAN: bool>(&self, x: &[f64]) -> Evaluation {
-        let mut e = Evaluation {
-            residual: std::array::from_fn(|k| -self.target[k] as f64),
-            jacobian: if JACOBIAN {
-                vec![[0.0; K]; x.len()]
-            } else {
-                Vec::new()
-            },
-            loss: 0.0,
-            offset: 0.0,
+    /// EQ response minus the target (dB) and, optionally, its partial
+    /// derivatives for every parameter.
+    fn error<const JACOBIAN: bool>(&self, x: &[f64]) -> ([f64; K], Vec<[f64; K]>) {
+        let mut error: [f64; K] = std::array::from_fn(|k| -self.target[k] as f64);
+        let mut ratio = [1.0; K];
+        let mut columns = if JACOBIAN {
+            vec![[0.0; K]; x.len()]
+        } else {
+            Vec::new()
         };
         for (n, &kind) in self.types.iter().enumerate() {
             let [b0, b1, b2, a0, a1, a2] =
@@ -207,38 +213,53 @@ impl Problem<'_> {
             for k in 0..K {
                 let phi = self.phi[k];
                 let sin = self.sin[k];
-                let br = br0 + br1 * phi;
-                let ar = ar0 + ar1 * phi;
-                let b_im = bi * sin;
-                let a_im = ai * sin;
-                let num = br.v * br.v + b_im.v * b_im.v;
-                let den = ar.v * ar.v + a_im.v * a_im.v;
-                e.residual[k] += (10.0 / std::f64::consts::LN_10) * (num / den).ln();
+                // Plain values first; derivatives only when requested.
+                let br = br0.v + br1.v * phi;
+                let ar = ar0.v + ar1.v * phi;
+                let b_im = bi.v * sin;
+                let a_im = ai.v * sin;
+                let num = br * br + b_im * b_im;
+                let den = ar * ar + a_im * a_im;
+                ratio[k] *= num / den;
                 if JACOBIAN {
                     for axis in 0..3 {
-                        e.jacobian[3 * n + axis][k] = (20.0 / std::f64::consts::LN_10)
-                            * ((br.v * br.d[axis] + b_im.v * b_im.d[axis]) / num
-                                - (ar.v * ar.d[axis] + a_im.v * a_im.d[axis]) / den);
+                        let d_br = br0.d[axis] + br1.d[axis] * phi;
+                        let d_ar = ar0.d[axis] + ar1.d[axis] * phi;
+                        columns[3 * n + axis][k] = 2.0
+                            * DB_POWER
+                            * ((br * d_br + b_im * bi.d[axis] * sin) / num
+                                - (ar * d_ar + a_im * ai.d[axis] * sin) / den);
                     }
                 }
             }
-        }
-        let mean = e.residual.iter().sum::<f64>() / K as f64;
-        e.offset = -mean;
-        for v in &mut e.residual {
-            *v -= mean;
-            e.loss += *v * *v / K as f64;
-        }
-        for column in &mut e.jacobian {
-            let mean = column.iter().sum::<f64>() / K as f64;
-            for v in column {
-                *v -= mean;
+            if (n + 1) % BANDS_PER_LOG == 0 || n + 1 == self.types.len() {
+                for k in 0..K {
+                    error[k] += DB_POWER * ratio[k].ln();
+                    ratio[k] = 1.0;
+                }
             }
         }
+        (error, columns)
+    }
+
+    fn evaluate<const JACOBIAN: bool>(&self, x: &[f64]) -> Evaluation {
+        let (error, columns) = self.error::<JACOBIAN>(x);
+        let mut e = Evaluation {
+            residual: [0.0; K],
+            jacobian: vec![[0.0; K]; columns.len()],
+            loss: 0.0,
+        };
+        self.objective.project(&error, &mut e.residual);
+        for (column, out) in columns.iter().zip(&mut e.jacobian) {
+            self.objective.project(column, out);
+        }
+        let gains = x.iter().skip(1).step_by(3);
+        e.loss = e.residual.iter().map(|v| v * v).sum::<f64>()
+            + self.objective.ridge() * gains.map(|g| g * g).sum::<f64>();
         e
     }
 
-    pub fn solve(&self, x: &mut [f64], steps: usize) -> (f64, f64) {
+    pub fn solve(&self, x: &mut [f64], steps: usize) -> f64 {
         let p = x.len();
         let mut current = self.evaluate::<true>(x);
         let mut damping = 1e-2;
@@ -251,11 +272,16 @@ impl Problem<'_> {
             }
             for i in 0..p {
                 let ji = &current.jacobian[i];
-                rhs[i] = -dot(ji, &current.residual) / K as f64;
+                rhs[i] = -dot(ji, &current.residual);
                 for j in 0..=i {
-                    let v = dot(ji, &current.jacobian[j]) / K as f64;
+                    let v = dot(ji, &current.jacobian[j]);
                     matrix[i * p + j] = v;
                     matrix[j * p + i] = v;
+                }
+                // Gain parameters are dB / 10, so the ridge applies directly.
+                if i % 3 == 1 {
+                    rhs[i] -= self.objective.ridge() * x[i];
+                    matrix[i * p + i] += self.objective.ridge();
                 }
             }
             // Freeze coordinates whose descent points out of the feasible set.
@@ -296,7 +322,7 @@ impl Problem<'_> {
                     movement = movement.max((trial[i] - x[i]).abs());
                 }
                 if movement < 1e-8 {
-                    return (current.loss, current.offset);
+                    return current.loss;
                 }
                 let candidate = self.evaluate::<false>(&trial);
                 if candidate.loss.is_finite() && candidate.loss < current.loss {
@@ -306,7 +332,7 @@ impl Problem<'_> {
                     damping = (damping * 0.3).max(1e-8);
                     accepted = true;
                     if improvement < 1e-7 * (1.0 + current.loss) {
-                        return (current.loss, current.offset);
+                        return current.loss;
                     }
                     break;
                 }
@@ -316,9 +342,12 @@ impl Problem<'_> {
                 break;
             }
         }
-        (current.loss, current.offset)
+        current.loss
     }
 }
+
+// The 4-wide loop below covers every point only when K is a multiple of 4.
+const _: () = assert!(K.is_multiple_of(4));
 
 fn dot(a: &[f64; K], b: &[f64; K]) -> f64 {
     let mut sums = [0.0; 4];
@@ -377,11 +406,6 @@ pub(super) struct Band {
     pub q_bounds: Lim,
 }
 
-pub(super) struct FitReport {
-    pub loss: f64,
-    pub level: f64,
-}
-
 pub(super) fn fit(
     bands: &mut [Band],
     steps: usize,
@@ -389,7 +413,8 @@ pub(super) fn fit(
     r: &[f32; K],
     fs: f64,
     model: EqResponseModel,
-) -> FitReport {
+    objective: &Objective,
+) -> f64 {
     let mut x = Vec::with_capacity(3 * bands.len());
     let mut bounds = Vec::with_capacity(3 * bands.len());
     let types: Vec<_> = bands.iter().map(|band| band.kind).collect();
@@ -422,14 +447,15 @@ pub(super) fn fit(
         sample_rate: fs,
         model,
         bounds: &bounds,
+        objective,
     };
-    let (loss, level) = problem.solve(&mut x, steps);
+    let loss = problem.solve(&mut x, steps);
     for (i, band) in bands.iter_mut().enumerate() {
         band.frequency = x[3 * i].exp();
         band.gain = 10.0 * x[3 * i + 1];
         band.q = x[3 * i + 2].exp();
     }
-    FitReport { loss, level }
+    loss
 }
 
 #[cfg(test)]

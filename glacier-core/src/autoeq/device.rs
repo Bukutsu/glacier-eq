@@ -7,6 +7,9 @@ use crate::eq::iir_math::{
 };
 use crate::eq::{Filter, PEQData};
 
+use super::objective::Objective;
+use super::K;
+
 /// The limits and wire format of the target. Capabilities-only callers keep a
 /// continuous gain/Q model; device callers also fit the protocol's DSP model
 /// and publish parameters on its actual grids.
@@ -62,7 +65,9 @@ impl<'a> AutoEqTarget<'a> {
         Ok(())
     }
 
-    fn preamp(self, peak: f64, level: f64) -> Option<f64> {
+    /// Put the loudest point of the realized EQ at 0 dBFS. Any lower preamp
+    /// only costs loudness; any higher one clips.
+    fn preamp(self, peak: f64) -> Option<f64> {
         let range = self.caps.map_or((f64::NEG_INFINITY, f64::INFINITY), |c| {
             (c.global_gain_range.0 as f64, c.global_gain_range.1 as f64)
         });
@@ -72,7 +77,7 @@ impl<'a> AutoEqTarget<'a> {
         }
         // Rounding to nearest can remove headroom and needlessly shrink the EQ.
         // Always select attenuation on the safe side of the protocol grid.
-        let mut value = level.min(-peak).clamp(range.0, range.1);
+        let mut value = (-peak).clamp(range.0, range.1);
         if let Some(step) = step {
             value = ((value / step) + 1e-10).floor() * step;
         }
@@ -103,7 +108,6 @@ impl<'a> AutoEqTarget<'a> {
         self,
         filters: Vec<Filter>,
         fs: f64,
-        level: f64,
         grid: &SafetyGrid,
     ) -> Result<PEQData, String> {
         let evaluate = |scale: f64| -> Result<PEQData, String> {
@@ -114,7 +118,7 @@ impl<'a> AutoEqTarget<'a> {
             self.realize(&mut filters, fs)?;
             let peak = grid.peak(&filters, fs, self)?;
             let global_gain = self
-                .preamp(peak, level)
+                .preamp(peak)
                 .ok_or("Device preamp range cannot provide AutoEQ headroom")?;
             let peq = PEQData {
                 filters,
@@ -234,30 +238,18 @@ pub(super) fn shape_loss(
     fs: f64,
     target: AutoEqTarget<'_>,
     cos: &[f64],
-    desired: &[f32],
+    desired: &[f32; K],
+    objective: &Objective,
 ) -> Result<f32, String> {
     let coefficients = response_coefficients(filters, fs, target)?;
-    let response: Vec<f64> = cos
-        .iter()
-        .map(|&cos| {
-            coefficients
-                .iter()
-                .map(|&c| eval_biquad_mag_squared_db(c, cos) as f64)
-                .sum()
-        })
-        .collect();
-    let mean = response
-        .iter()
-        .zip(desired)
-        .map(|(a, b)| *a - *b as f64)
-        .sum::<f64>()
-        / response.len() as f64;
-    let loss = response
-        .iter()
-        .zip(desired)
-        .map(|(a, b)| (*a - *b as f64 - mean).powi(2))
-        .sum::<f64>()
-        / response.len() as f64;
+    let error: [f64; K] = std::array::from_fn(|k| {
+        coefficients
+            .iter()
+            .map(|&c| eval_biquad_mag_squared_db(c, cos[k]) as f64)
+            .sum::<f64>()
+            - desired[k] as f64
+    });
+    let loss = objective.loss(&error, filters.iter().map(|f| f.gain));
     if !loss.is_finite() {
         return Err("AutoEQ realized loss is non-finite".into());
     }
