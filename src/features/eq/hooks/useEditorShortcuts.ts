@@ -1,4 +1,6 @@
 import { useEffect, useRef } from "react";
+import { flushSync } from "react-dom";
+import { parseNumericInput } from "@/lib/numericInput";
 
 import type { RefObject } from "react";
 
@@ -77,6 +79,20 @@ export function useEditorShortcuts({
       if (isCtrl) {
         const key = e.key.toLowerCase();
         if (isEditingText) {
+          if (
+            (key === "s" || key === "r") &&
+            active instanceof HTMLInputElement &&
+            active.getAttribute("role") === "spinbutton"
+          ) {
+            // Numeric fields keep a local draft until blur. Flush the commit
+            // before a shortcut snapshots or replaces the editor state.
+            const valid = parseNumericInput(active.value) !== null;
+            flushSync(() => active.blur());
+            if (!valid) {
+              e.preventDefault();
+              return;
+            }
+          }
           if (key === "s") {
             e.preventDefault();
             undoRedoRef.current.save();

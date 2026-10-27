@@ -14,7 +14,10 @@ import { Select } from "@/components/ui/Select";
 import { invoke, readText } from "@/lib/rpc";
 import { copyEq, exportEqFile } from "@/features/eq/lib/exportEq";
 import { Tooltip } from "@/components/ui/Tooltip";
-import { profileIdentityKey } from "@/features/profiles/lib/profileIdentity";
+import {
+  isReservedProfileName,
+  profileIdentityKey,
+} from "@/features/profiles/lib/profileIdentity";
 import { loadProfile } from "@/features/profiles/lib/loadProfile";
 import { readTextFile } from "@/lib/textFile";
 import { fuzzyMatch } from "@/lib/search";
@@ -155,7 +158,10 @@ export const ProfilesView = memo(function ProfilesView({
   const isOverwrite = savedProfiles.some(
     (p) => profileIdentityKey(p.name) === profileIdentityKey(saveName),
   );
-  const canSave = showSaveAs ? !!saveName : selectedIsSaved && dirty;
+  const reservedSaveName = isReservedProfileName(saveName);
+  const canSave = showSaveAs
+    ? !!saveName && !reservedSaveName
+    : selectedIsSaved && dirty;
   const renameTarget = rename?.name.trim() ?? "";
   const renameTaken =
     rename !== null &&
@@ -167,8 +173,7 @@ export const ProfilesView = memo(function ProfilesView({
   const canRename =
     !!renameTarget &&
     renameTarget !== rename?.from &&
-    profileIdentityKey(renameTarget) !==
-      profileIdentityKey(DEFAULT_PROFILE_NAME) &&
+    !isReservedProfileName(renameTarget) &&
     !renameTaken &&
     !isRenaming;
   const saveLabel = showSaveAs
@@ -323,10 +328,10 @@ export const ProfilesView = memo(function ProfilesView({
         setStatus(t("profilesView.enterANameForTheProfile"), "info");
         return;
       }
-      if (name === DEFAULT_PROFILE_NAME) {
+      if (isReservedProfileName(name)) {
         setStatus(
           t("profilesView.reservedName", {
-            name: DEFAULT_PROFILE_NAME,
+            name,
           }),
           "info",
         );
@@ -381,6 +386,7 @@ export const ProfilesView = memo(function ProfilesView({
   };
 
   const importNameKey = profileIdentityKey(importName.trim());
+  const reservedImportName = isReservedProfileName(importName.trim());
   const nameExists = parsed
     ? !isTemporary &&
       savedProfiles.some((p) => profileIdentityKey(p.name) === importNameKey)
@@ -717,11 +723,24 @@ export const ProfilesView = memo(function ProfilesView({
                 placeholder={t("profilesView.namePlaceholder")}
                 value={newProfileName}
                 aria-describedby={
-                  isOverwrite ? "profile-overwrite-hint" : undefined
+                  reservedSaveName
+                    ? "profile-reserved-hint"
+                    : isOverwrite
+                      ? "profile-overwrite-hint"
+                      : undefined
                 }
+                aria-invalid={reservedSaveName || undefined}
                 onChange={(event) => setNewProfileName(event.target.value)}
               />
-              {isOverwrite && (
+              {reservedSaveName && (
+                <p
+                  id="profile-reserved-hint"
+                  className="profiles-note profiles-warning"
+                >
+                  {t("profilesView.reservedName", { name: saveName })}
+                </p>
+              )}
+              {isOverwrite && !reservedSaveName && (
                 <p
                   id="profile-overwrite-hint"
                   className="profiles-note profiles-warning"
@@ -927,6 +946,8 @@ export const ProfilesView = memo(function ProfilesView({
                   id="import-name"
                   value={importName}
                   disabled={isSubmitting}
+                  aria-invalid={reservedImportName || undefined}
+                  aria-describedby={reservedImportName ? "import-name-reserved" : undefined}
                   placeholder={t("profilesView.namePlaceholder")}
                   onChange={(event) => {
                     if (isSubmitting) return;
@@ -934,6 +955,11 @@ export const ProfilesView = memo(function ProfilesView({
                     setImportName(event.target.value);
                   }}
                 />
+                {reservedImportName && (
+                  <p id="import-name-reserved" className="profiles-note profiles-warning">
+                    {t("profilesView.reservedName", { name: importName.trim() })}
+                  </p>
+                )}
                 {savedProfiles.length > 0 && (
                   <>
                     <label htmlFor="overwrite-select">
@@ -1013,7 +1039,10 @@ export const ProfilesView = memo(function ProfilesView({
             <div className="modal-actions">
               <Button
                 variant="primary"
-                disabled={isSubmitting || (!isTemporary && !importName.trim())}
+                disabled={
+                  isSubmitting ||
+                  (!isTemporary && (!importName.trim() || reservedImportName))
+                }
                 onClick={handleConfirmImport}
               >
                 {isTemporary
@@ -1065,14 +1094,27 @@ export const ProfilesView = memo(function ProfilesView({
               data-dialog-autofocus
               value={rename.name}
               disabled={isRenaming}
+              aria-invalid={isReservedProfileName(renameTarget) || undefined}
               aria-describedby={
-                renameTaken ? "profile-rename-taken" : undefined
+                isReservedProfileName(renameTarget)
+                  ? "profile-rename-reserved"
+                  : renameTaken
+                    ? "profile-rename-taken"
+                    : undefined
               }
               onChange={(event) =>
                 setRename({ from: rename.from, name: event.target.value })
               }
             />
-            {renameTaken && (
+            {isReservedProfileName(renameTarget) && (
+              <p
+                id="profile-rename-reserved"
+                className="profiles-note profiles-warning"
+              >
+                {t("profilesView.reservedName", { name: renameTarget })}
+              </p>
+            )}
+            {renameTaken && !isReservedProfileName(renameTarget) && (
               <p
                 id="profile-rename-taken"
                 className="profiles-note profiles-warning"

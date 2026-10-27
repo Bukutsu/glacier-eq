@@ -21,7 +21,10 @@ import { asyncContextEquals, type AsyncContext } from "@/lib/asyncContext";
 import { invoke, openFileDialog } from "@/lib/rpc";
 import type { PEQData, Profile } from "@/types";
 import { loadProfile } from "../lib/loadProfile";
-import { profileIdentityKey } from "../lib/profileIdentity";
+import {
+  isReservedProfileName,
+  profileIdentityKey,
+} from "../lib/profileIdentity";
 import { parseProfileImport } from "../lib/profileImport";
 
 export interface MobileProfilesViewProps {
@@ -122,6 +125,8 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
       profileIdentityKey(DEFAULT_PROFILE_NAME),
   ).length;
   const activeBands = peq.filters.filter((filter) => filter.enabled).length;
+  const dialogName = (dialog?.mode === "save" ? newProfileName : rename).trim();
+  const reservedDialogName = isReservedProfileName(dialogName);
 
   async function runAction(action: () => void | Promise<unknown>) {
     if (isBusy || actionPending.current) return;
@@ -626,8 +631,20 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
                   : setRename(event.target.value)
               }
               placeholder={t("mobileProfilesView.namePlaceholder")}
+              aria-invalid={reservedDialogName || undefined}
+              aria-describedby={
+                reservedDialogName ? "mobile-profile-reserved" : undefined
+              }
               disabled={disabled}
             />
+            {reservedDialogName && (
+              <p
+                id="mobile-profile-reserved"
+                className="profiles-note profiles-warning"
+              >
+                {t("profilesView.reservedName", { name: dialogName })}
+              </p>
+            )}
             <p className="mobile-profile-description">
               {dialog.mode === "save"
                 ? t("mobileProfilesView.saveHelp")
@@ -640,13 +657,7 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
               <Button
                 variant="primary"
                 type="submit"
-                disabled={
-                  disabled ||
-                  !(dialog.mode === "save" ? newProfileName : rename).trim() ||
-                  profileIdentityKey(
-                    (dialog.mode === "save" ? newProfileName : rename).trim(),
-                  ) === profileIdentityKey(DEFAULT_PROFILE_NAME)
-                }
+                disabled={disabled || !dialogName || reservedDialogName}
               >
                 {dialog.mode === "save"
                   ? t("mobileProfilesView.saveProfile")

@@ -1,6 +1,16 @@
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
+export const DEFAULT_PROFILE_NAME = "Default EQ";
+
+/** A reserved profile name also remains reserved with a file extension. */
+export function isReservedProfileName(name: string): boolean {
+  return (
+    profileIdentityKey(name.split(".", 1)[0]) ===
+    profileIdentityKey(DEFAULT_PROFILE_NAME)
+  );
+}
+
 /**
  * Canonical case-insensitive identity for profile names, mirroring
  * ProfileStore::path's `eq_ignore_ascii_case` (glacier-core/src/profiles.rs):

@@ -12,7 +12,10 @@ import type {
   SupportedDeviceInfo,
 } from "@/types";
 import { ensureWasm, getWasm } from "./wasm";
-import { profileIdentityKey } from "@/features/profiles/lib/profileIdentity";
+import {
+  isReservedProfileName,
+  profileIdentityKey,
+} from "@/features/profiles/lib/profileIdentity";
 import type { DiagnosticEvent } from "@/features/diagnostics/lib/diagnostics";
 import {
   isDiagnosticLevel,
@@ -567,7 +570,7 @@ function isValidProfileName(value: unknown): value is string {
     .replace(/²/g, "2")
     .replace(/³/g, "3")
     .toUpperCase();
-  if (stem === "DEFAULT EQ") return false;
+  if (isReservedProfileName(value)) return false;
   return ![
     "CON",
     "PRN",

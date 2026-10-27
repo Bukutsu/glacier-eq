@@ -38,7 +38,7 @@ export function bandForAdd(
 }
 
 // Name of the synthetic "reset to flat" profile shown first in the library.
-export const DEFAULT_PROFILE_NAME = "Default EQ";
+export { DEFAULT_PROFILE_NAME } from "@/features/profiles/lib/profileIdentity";
 
 // Storage ceiling shared with ProfileStore::save and parseStoredPeq: stored
 // or device-reported filter lists are clamped, never trusted to any length.

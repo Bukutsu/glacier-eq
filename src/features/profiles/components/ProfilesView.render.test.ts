@@ -136,6 +136,23 @@ describe("Profile library", () => {
     expect(html).toContain('aria-describedby="profile-overwrite-hint"');
   });
 
+  it.each(["default eq", "DEFAULT EQ.txt"])(
+    "explains that the name %s is reserved instead of offering an overwrite",
+    (name) => {
+      const html = render({
+        dirty: true,
+        selectedPreset: "Imported EQ",
+        newProfileName: name,
+        profiles: [{ name: DEFAULT_PROFILE_NAME, data: peq, modified: null }],
+      });
+      expect(html).toContain("is reserved. Choose another name.");
+      expect(html).toContain('aria-describedby="profile-reserved-hint"');
+      expect(html).toContain('aria-invalid="true"');
+      expect(html).toMatch(/<button(?=[^>]*type="submit")(?=[^>]*disabled="")[^>]*>/);
+      expect(html).not.toContain("Overwrite profile</button>");
+    },
+  );
+
   it("does not enable saving an empty name or offer mutation actions when hidden", () => {
     const empty = render({ selectedPreset: "Imported EQ", dirty: true });
     expect(empty).toMatch(

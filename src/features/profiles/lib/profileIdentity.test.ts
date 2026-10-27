@@ -2,7 +2,18 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 import { describe, expect, it } from "vitest";
-import { profileIdentityKey } from "./profileIdentity";
+import { isReservedProfileName, profileIdentityKey } from "./profileIdentity";
+
+describe("reserved profile names", () => {
+  it.each(["Default EQ", "default eq", "DEFAULT EQ.txt", "default eq.a.b"])(
+    "rejects %s",
+    (name) => expect(isReservedProfileName(name)).toBe(true),
+  );
+
+  it.each(["Default EQ copy", "other.txt", "default éq"])("allows %s", (name) => {
+    expect(isReservedProfileName(name)).toBe(false);
+  });
+});
 
 describe("profileIdentityKey", () => {
   it("folds ASCII case differences like ProfileStore's eq_ignore_ascii_case", () => {

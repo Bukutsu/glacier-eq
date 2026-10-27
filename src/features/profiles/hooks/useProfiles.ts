@@ -2,7 +2,10 @@ import { i18n } from "@/lib/i18n";
 import type { StatusReporter } from "@/stores/toastStore";
 import { useCallback, useRef, useState } from "react";
 import { invoke } from "@/lib/rpc";
-import { profileIdentityKey } from "@/features/profiles/lib/profileIdentity";
+import {
+  isReservedProfileName,
+  profileIdentityKey,
+} from "@/features/profiles/lib/profileIdentity";
 import { confirmDialog } from "@/components/ui/ConfirmDialog";
 import { profileOverwriteMessage } from "@/features/profiles/lib/profileOverwrite";
 import {
@@ -230,15 +233,16 @@ export function useProfiles(editor: ProfilesEditor, setStatus: StatusReporter) {
     };
     const name =
       savedContext.newProfileName.trim() || savedContext.selectedPreset;
-    if (
-      !name ||
-      name === DEFAULT_PROFILE_NAME ||
-      name === "Pulled from device"
-    ) {
+    if (!name || name === "Pulled from device") {
       setStatus(
         i18n.t("library:profiles.enterAProfileNameBeforeSaving"),
         "info",
       );
+      return;
+    }
+
+    if (isReservedProfileName(name)) {
+      setStatus(i18n.t("library:profilesView.reservedName", { name }), "info");
       return;
     }
 
@@ -362,7 +366,14 @@ export function useProfiles(editor: ProfilesEditor, setStatus: StatusReporter) {
     async (from: string, requestedName: string): Promise<boolean> => {
       if (editor.isBusy) return false;
       const to = requestedName.trim();
-      if (from === DEFAULT_PROFILE_NAME || !to || to === from) return false;
+      if (isReservedProfileName(from) || !to || to === from) return false;
+      if (isReservedProfileName(to)) {
+        setStatus(
+          i18n.t("library:profilesView.reservedName", { name: to }),
+          "info",
+        );
+        return false;
+      }
 
       let writeCompleted = false;
       try {
