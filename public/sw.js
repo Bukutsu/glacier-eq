@@ -38,6 +38,23 @@ async function cacheNameFor(manifest) {
   return `${CACHE_SCOPE_PREFIX}${hex}`;
 }
 
+async function sha256Hex(buffer) {
+  const digest = await crypto.subtle.digest("SHA-256", buffer);
+  return Array.from(new Uint8Array(digest), (byte) =>
+    byte.toString(16).padStart(2, "0"),
+  ).join("");
+}
+
+// The manifest hashes the bytes written to dist; reject anything else so a
+// deploy that changes mid-install or a stale intermediary cannot be promoted.
+async function assertHash(url, response, expected) {
+  if (typeof expected !== "string") return;
+  const actual = await sha256Hex(await response.clone().arrayBuffer());
+  if (actual !== expected) {
+    throw new Error(`Hash mismatch for ${url}`);
+  }
+}
+
 async function rememberActiveCache(name) {
   const metadata = await caches.open(CACHE_META_CACHE);
   await metadata.put(cacheMetaUrl(), new Response(name));
@@ -255,6 +272,17 @@ self.addEventListener("install", (event) => {
 
       try {
         const releaseCache = await caches.open(releaseName);
+        const hashes = new Map(
+          entries.map((entry) => [
+            new URL(entry.path, self.registration.scope).href,
+            entry.hash,
+          ]),
+        );
+        // The scope root serves index.html.
+        hashes.set(
+          self.registration.scope,
+          hashes.get(new URL("index.html", self.registration.scope).href),
+        );
         const wanted = [self.registration.scope, manifestUrl.href];
         wanted.push(
           ...entries.map((entry) =>
@@ -264,10 +292,16 @@ self.addEventListener("install", (event) => {
 
         await Promise.all(
           wanted.map(async (url) => {
-            const response = await fetch(url, { cache: "reload" });
+            // The manifest validated above is the one the cache name is
+            // bound to; cache that response rather than fetching it again.
+            const response =
+              url === manifestUrl.href
+                ? new Response(JSON.stringify(manifest))
+                : await fetch(url, { cache: "reload" });
             if (!response.ok) {
               throw new Error(`Failed to preload ${url}: ${response.status}`);
             }
+            await assertHash(url, response, hashes.get(url));
             await releaseCache.put(url, response);
           }),
         );

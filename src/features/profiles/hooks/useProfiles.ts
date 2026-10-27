@@ -263,7 +263,26 @@ export function useProfiles(editor: ProfilesEditor, setStatus: StatusReporter) {
     let writeCompleted = false;
     try {
       let canonicalName = existing?.name ?? name;
+      let cancelled = false;
       const mutation = await runProfileMutation(async () => {
+        // An earlier queued save may have created this name after the check
+        // above ran; re-check against the list its refresh produced.
+        const created = profilesRef.current.find(
+          (p) => profileIdentityKey(p.name) === profileIdentityKey(name),
+        );
+        if (
+          !existing &&
+          created &&
+          !(await confirmDialog({
+            title: i18n.t("library:profiles.overwriteProfile"),
+            message: profileOverwriteMessage(name, created.data, savedPeq),
+            confirmLabel: i18n.t("library:profiles.overwrite"),
+            danger: true,
+          }))
+        ) {
+          cancelled = true;
+          return;
+        }
         await invoke("save_profile", { name, peq: savedPeq });
         writeCompleted = true;
         const loadedProfiles = await loadProfiles({ throwOnError: true });
@@ -273,6 +292,7 @@ export function useProfiles(editor: ProfilesEditor, setStatus: StatusReporter) {
               profileIdentityKey(profile.name) === profileIdentityKey(name),
           )?.name ?? canonicalName;
       });
+      if (cancelled) return;
       const contextStillCurrent =
         mutation.current &&
         peqEquals(editor.peqRef.current, savedPeq) &&

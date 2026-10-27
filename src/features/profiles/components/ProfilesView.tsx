@@ -122,6 +122,7 @@ export const ProfilesView = memo(function ProfilesView({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const parseRequestRef = useRef(0);
+  const savedProfilesRef = useRef<Profile[]>([]);
   const modalContextRef = useRef(0);
   const mountedRef = useRef(true);
 
@@ -149,6 +150,7 @@ export const ProfilesView = memo(function ProfilesView({
   );
   const selectedPresetKey = profileIdentityKey(selectedPreset);
   const savedProfiles = profiles.filter((p) => p.modified != null);
+  savedProfilesRef.current = savedProfiles;
   const selectedIsSaved = savedProfiles.some(
     (profile) => profileIdentityKey(profile.name) === selectedPresetKey,
   );
@@ -343,7 +345,26 @@ export const ProfilesView = memo(function ProfilesView({
           (profile) =>
             profileIdentityKey(profile.name) === profileIdentityKey(name),
         )?.name ?? name;
+      let cancelled = false;
       const mutation = await runProfileMutation(async () => {
+        // A queued save ahead of this one may have created the name after
+        // the check above; look again at the list its refresh produced.
+        if (
+          !nameExists &&
+          savedProfilesRef.current.some(
+            (profile) =>
+              profileIdentityKey(profile.name) === profileIdentityKey(name),
+          ) &&
+          !(await confirmDialog({
+            title: t("profilesView.overwriteTitle"),
+            message: t("profilesView.overwriteMessage", { name }),
+            confirmLabel: t("profilesView.overwrite"),
+            danger: true,
+          }))
+        ) {
+          cancelled = true;
+          return;
+        }
         await invoke("save_profile", { name, peq: parsedSnapshot.peq });
         writeCompleted = true;
         const loadedProfiles = await onReloadProfiles();
@@ -353,7 +374,7 @@ export const ProfilesView = memo(function ProfilesView({
               profileIdentityKey(profile.name) === profileIdentityKey(name),
           )?.name ?? canonicalName;
       });
-      if (!mutation.current || !isCurrent()) return;
+      if (cancelled || !mutation.current || !isCurrent()) return;
 
       const applied = onImportPEQ(parsedSnapshot.peq, canonicalName, true);
       if (!applied) {
@@ -947,7 +968,9 @@ export const ProfilesView = memo(function ProfilesView({
                   value={importName}
                   disabled={isSubmitting}
                   aria-invalid={reservedImportName || undefined}
-                  aria-describedby={reservedImportName ? "import-name-reserved" : undefined}
+                  aria-describedby={
+                    reservedImportName ? "import-name-reserved" : undefined
+                  }
                   placeholder={t("profilesView.namePlaceholder")}
                   onChange={(event) => {
                     if (isSubmitting) return;
@@ -956,8 +979,13 @@ export const ProfilesView = memo(function ProfilesView({
                   }}
                 />
                 {reservedImportName && (
-                  <p id="import-name-reserved" className="profiles-note profiles-warning">
-                    {t("profilesView.reservedName", { name: importName.trim() })}
+                  <p
+                    id="import-name-reserved"
+                    className="profiles-note profiles-warning"
+                  >
+                    {t("profilesView.reservedName", {
+                      name: importName.trim(),
+                    })}
                   </p>
                 )}
                 {savedProfiles.length > 0 && (

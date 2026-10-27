@@ -51,12 +51,19 @@ interface ParsedPersistedValue<T> {
   malformed: boolean;
 }
 
+// Keys whose malformed original has no backup. Writing the sanitized value
+// would destroy the only copy, so saves skip them until a later load backs
+// the original up.
+const unprotectedKeys = new Set<string>();
+
 function quarantinePersistedJson(key: string, raw: string, notify?: NotifyFn) {
   // Keep the same timestamped backup convention for syntax and schema damage.
   let backedUp = false;
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   const result = tryWriteLocalStorage(`${key}.bak.${stamp}`, raw);
   backedUp = result.ok;
+  if (backedUp) unprotectedKeys.delete(key);
+  else unprotectedKeys.add(key);
   if (!backedUp) {
     // Backup write failed (likely the same quota problem that damaged the
     // data). Never announce a copy that does not exist.
@@ -203,6 +210,10 @@ export function savePersistedJson(
   value: unknown,
   notify?: NotifyFn,
 ) {
+  if (unprotectedKeys.has(key)) {
+    console.warn(`Not saving "${key}": its malformed original has no backup.`);
+    return;
+  }
   try {
     const result = tryWriteLocalStorage(key, JSON.stringify(value));
     if (result.ok) return;

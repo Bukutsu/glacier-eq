@@ -6,6 +6,7 @@ import {
   parseStoredMeasurements,
   parseStoredTargets,
   quarantineIfMalformed,
+  savePersistedJson,
 } from "./useTraces";
 import { BUILTIN_TARGETS } from "@/features/traces/lib/builtinTargets";
 
@@ -37,21 +38,24 @@ describe("persisted trace parsing", () => {
   it.each([
     ["measurements", parseStoredMeasurements],
     ["targets", parseStoredTargets],
-  ] as const)("recovers oversized saved %s without clearing the library", (_, parse) => {
-    const traces = Array.from({ length: 2001 }, (_, index) => ({
-      id: `trace-${index}`,
-      name: "Trace",
-      color: "red",
-      visible: true,
-      points: validPoints,
-    }));
+  ] as const)(
+    "recovers oversized saved %s without clearing the library",
+    (_, parse) => {
+      const traces = Array.from({ length: 2001 }, (_, index) => ({
+        id: `trace-${index}`,
+        name: "Trace",
+        color: "red",
+        visible: true,
+        points: validPoints,
+      }));
 
-    expect(parse(traces).value).toHaveLength(2001);
-    expect(parse(traces).malformed).toBe(false);
-    const atLimit = parse(traces.slice(0, 2000));
-    expect(atLimit.value).toHaveLength(2000);
-    expect(atLimit.malformed).toBe(false);
-  });
+      expect(parse(traces).value).toHaveLength(2001);
+      expect(parse(traces).malformed).toBe(false);
+      const atLimit = parse(traces.slice(0, 2000));
+      expect(atLimit.value).toHaveLength(2000);
+      expect(atLimit.malformed).toBe(false);
+    },
+  );
 
   it("returns valid measurements and signals malformed fields", () => {
     const parsed = parseStoredMeasurements([
@@ -235,6 +239,15 @@ describe("persisted trace quarantine", () => {
       expect.stringContaining("Could not back up malformed saved data"),
       expect.objectContaining({ name: "QuotaExceededError" }),
     );
+
+    // The unprotected original must not be replaced by a later save.
+    savePersistedJson("glacier-user-targets", [], notify);
+    expect(storage.getItem("glacier-user-targets")).toBe("{");
+
+    // Once a load can back it up, saving resumes.
+    loadPersistedJson("glacier-user-targets", notify);
+    savePersistedJson("glacier-user-targets", [], notify);
+    expect(storage.getItem("glacier-user-targets")).toBe("[]");
     warnSpy.mockRestore();
   });
 });

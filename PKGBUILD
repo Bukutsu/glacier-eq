@@ -49,6 +49,7 @@ makedepends=(
 # makepkg's -flto turns the C objects of ring (pulled in by the updater's TLS)
 # into LTO bitcode that rust-lld cannot link.
 options=('!lto')
+install=glacier-eq.install
 provides=('glacier-eq')
 conflicts=('glacier-eq')
 
@@ -91,27 +92,4 @@ package() {
 
   # Udev rules
   install -Dm644 "udev/69-glacier-eq.rules" "${pkgdir}/usr/lib/udev/rules.d/69-glacier-eq.rules"
-}
-
-post_install() {
-  gtk-update-icon-cache -q -t /usr/share/icons/hicolor
-  update-desktop-database /usr/share/applications
-  # The package-owned rule lives in /usr/lib; remove an older app-installed
-  # /etc copy so it cannot shadow future package updates.
-  rm -f /etc/udev/rules.d/69-glacier-eq.rules /etc/udev/rules.d/99-glacier-eq.rules
-  udevadm control --reload
-  udevadm trigger --subsystem-match=hidraw --action=change
-}
-
-post_upgrade() {
-  post_install
-}
-
-post_remove() {
-  gtk-update-icon-cache -q -t /usr/share/icons/hicolor
-  update-desktop-database /usr/share/applications
-  # The package owns /usr/lib; remove only application-created /etc copies.
-  rm -f /etc/udev/rules.d/69-glacier-eq.rules /etc/udev/rules.d/99-glacier-eq.rules
-  udevadm control --reload
-  udevadm trigger --subsystem-match=hidraw --action=change
 }

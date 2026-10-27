@@ -135,6 +135,16 @@ function worker(
   };
 }
 
+async function sha256Hex(text: string) {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(text),
+  );
+  return Array.from(new Uint8Array(digest), (byte) =>
+    byte.toString(16).padStart(2, "0"),
+  ).join("");
+}
+
 const manifestFetch =
   (manifest: unknown) => async (request: string | URL | { url: string }) =>
     String(request).endsWith("offline-assets.json")
@@ -401,10 +411,12 @@ describe("service worker preload", () => {
 
   it("changes the release cache when a public asset digest changes", async () => {
     const caches = cacheStorage();
-    for (const hash of ["hash-a", "hash-b"]) {
-      await worker(
-        caches,
-        manifestFetch([{ path: "./public.txt", hash }]),
+    for (const body of ["asset-a", "asset-b"]) {
+      const hash = await sha256Hex(body);
+      await worker(caches, async (request) =>
+        String(request).endsWith("offline-assets.json")
+          ? Response.json([{ path: "./public.txt", hash }])
+          : new Response(body),
       ).install();
     }
     const releaseCaches = (await caches.keys()).filter((name) =>
@@ -413,10 +425,26 @@ describe("service worker preload", () => {
     expect(releaseCaches).toHaveLength(2);
     for (const name of releaseCaches) {
       const cache = await caches.open(name);
-      expect(await (await cache.match(`${scope}public.txt`))!.text()).toBe(
-        "asset",
-      );
+      expect(
+        (await (await cache.match(`${scope}public.txt`))!.text()).startsWith(
+          "asset-",
+        ),
+      ).toBe(true);
     }
+  });
+
+  it("rejects fetched bytes that do not match the manifest hash", async () => {
+    const caches = cacheStorage();
+    const hash = await sha256Hex("expected");
+    const instance = worker(caches, async (request) =>
+      String(request).endsWith("offline-assets.json")
+        ? Response.json([{ path: "./public.txt", hash }])
+        : new Response("other release"),
+    );
+    await expect(instance.install()).rejects.toThrow("Hash mismatch");
+    expect(
+      (await caches.keys()).filter((name) => name.startsWith("glacier-eq-v2-")),
+    ).toHaveLength(0);
   });
 
   it("fails closed when a pending marker is unreadable", async () => {
