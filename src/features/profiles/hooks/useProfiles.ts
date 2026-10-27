@@ -267,7 +267,7 @@ export function useProfiles(editor: ProfilesEditor, setStatus: StatusReporter) {
       const mutation = await runProfileMutation(async () => {
         // An earlier queued save may have created this name after the check
         // above ran; re-check against the list its refresh produced.
-        const created = profilesRef.current.find(
+        const created = (await invoke<Profile[]>("list_profiles")).find(
           (p) => profileIdentityKey(p.name) === profileIdentityKey(name),
         );
         if (

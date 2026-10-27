@@ -122,7 +122,6 @@ export const ProfilesView = memo(function ProfilesView({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const parseRequestRef = useRef(0);
-  const savedProfilesRef = useRef<Profile[]>([]);
   const modalContextRef = useRef(0);
   const mountedRef = useRef(true);
 
@@ -150,7 +149,6 @@ export const ProfilesView = memo(function ProfilesView({
   );
   const selectedPresetKey = profileIdentityKey(selectedPreset);
   const savedProfiles = profiles.filter((p) => p.modified != null);
-  savedProfilesRef.current = savedProfiles;
   const selectedIsSaved = savedProfiles.some(
     (profile) => profileIdentityKey(profile.name) === selectedPresetKey,
   );
@@ -351,7 +349,7 @@ export const ProfilesView = memo(function ProfilesView({
         // the check above; look again at the list its refresh produced.
         if (
           !nameExists &&
-          savedProfilesRef.current.some(
+          (await invoke<Profile[]>("list_profiles")).some(
             (profile) =>
               profileIdentityKey(profile.name) === profileIdentityKey(name),
           ) &&

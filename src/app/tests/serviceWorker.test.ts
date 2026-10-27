@@ -145,11 +145,46 @@ async function sha256Hex(text: string) {
   ).join("");
 }
 
+// Wraps a fetcher so its manifest lists the hash of each entry's body as the
+// same fetcher serves it, plus index.html, like a consistent build.
+const hashedFetch =
+  (fetcher: (request: string | URL | { url: string }) => Promise<Response>) =>
+  async (request: string | URL | { url: string }) => {
+    const url =
+      typeof request === "object" && "url" in request
+        ? request.url
+        : String(request);
+    const response = await fetcher(request);
+    if (!url.endsWith("offline-assets.json")) return response;
+    const paths = ((await response.json()) as Array<string | { path: string }>)
+      .map((entry) => (typeof entry === "string" ? entry : entry.path));
+    if (!paths.includes("./index.html")) paths.push("./index.html");
+    const entries = await Promise.all(
+      paths.map(async (path) => {
+        const asset = await fetcher(new URL(path, scope).href);
+        return { path, hash: await sha256Hex(await asset.text()) };
+      }),
+    );
+    return Response.json(entries);
+  };
+
+// Entries are hashed against the "asset" body this fetch serves, and
+// index.html (the scope root) is always present, as in a real build.
 const manifestFetch =
-  (manifest: unknown) => async (request: string | URL | { url: string }) =>
-    String(request).endsWith("offline-assets.json")
-      ? Response.json(manifest)
-      : new Response("asset");
+  (manifest: Array<string | { path: string; hash?: string }>) =>
+  async (request: string | URL | { url: string }) => {
+    if (!String(request).endsWith("offline-assets.json")) {
+      return new Response("asset");
+    }
+    const hash = await sha256Hex("asset");
+    const entries = manifest.map((entry) =>
+      typeof entry === "string"
+        ? { path: entry, hash }
+        : { hash, ...entry },
+    );
+    entries.push({ path: "./index.html", hash });
+    return Response.json(entries);
+  };
 
 describe("service worker preload", () => {
   it("keeps the previous cache when one asset fails", async () => {
@@ -189,7 +224,8 @@ describe("service worker preload", () => {
         return new Response("incomplete deploy", { status: 503 });
       return new Response(url.endsWith(".js") ? `module-${deployment}` : `html-${deployment}`);
     });
-    const installed = worker(caches, fetcher, "v1");
+    const hashed = hashedFetch(fetcher);
+    const installed = worker(caches, hashed, "v1");
     await installed.install();
     await installed.activate();
     online = false;
@@ -203,10 +239,10 @@ describe("service worker preload", () => {
     expect(await (await installed.fetch(scope + "lazy-v1.js", "cors", "script")).text()).toBe("module-v1");
     expect(await (await installed.fetch(scope + "runtime.json")).text()).toBe("html-v2");
 
-    const update = worker(caches, fetcher, "v2");
+    const update = worker(caches, hashed, "v2");
     await expect(update.install()).rejects.toThrow("Failed to preload");
     online = false;
-    const restarted = worker(caches, fetcher, "v1");
+    const restarted = worker(caches, hashed, "v1");
     expect(await (await restarted.fetch(scope, "navigate", "document")).text()).toBe("html-v1");
     expect(await (await restarted.fetch(scope + "lazy-v1.js", "cors", "script")).text()).toBe("module-v1");
     await expect(restarted.fetch(scope + "runtime.json")).rejects.toThrow("Offline and not cached");
@@ -214,7 +250,7 @@ describe("service worker preload", () => {
     // A later complete release still replaces the installed one on activation.
     online = true;
     deployment = "v3";
-    const successor = worker(caches, fetcher, "v3");
+    const successor = worker(caches, hashed, "v3");
     await successor.install();
     expect(await (await installed.fetch(scope, "navigate", "document")).text()).toBe("html-v1");
     await successor.activate();
@@ -368,9 +404,12 @@ describe("service worker preload", () => {
           : request.url;
       if (url.endsWith("offline-assets.json")) return Response.json(manifest);
       if (unavailable) return new Response("not found", { status: 404 });
-      return new Response(`cached:${url}`);
+      // The scope root is served from index.html, so both share one body.
+      return new Response(
+        `cached:${url.endsWith("/index.html") ? scope : url}`,
+      );
     };
-    const instance = worker(caches, fetcher, "fetch-fallback");
+    const instance = worker(caches, hashedFetch(fetcher), "fetch-fallback");
     await instance.install();
     await instance.activate();
     unavailable = true;
@@ -415,7 +454,10 @@ describe("service worker preload", () => {
       const hash = await sha256Hex(body);
       await worker(caches, async (request) =>
         String(request).endsWith("offline-assets.json")
-          ? Response.json([{ path: "./public.txt", hash }])
+          ? Response.json([
+              { path: "./public.txt", hash },
+              { path: "./index.html", hash },
+            ])
           : new Response(body),
       ).install();
     }
@@ -438,7 +480,10 @@ describe("service worker preload", () => {
     const hash = await sha256Hex("expected");
     const instance = worker(caches, async (request) =>
       String(request).endsWith("offline-assets.json")
-        ? Response.json([{ path: "./public.txt", hash }])
+        ? Response.json([
+            { path: "./public.txt", hash },
+            { path: "./index.html", hash: await sha256Hex("other release") },
+          ])
         : new Response("other release"),
     );
     await expect(instance.install()).rejects.toThrow("Hash mismatch");

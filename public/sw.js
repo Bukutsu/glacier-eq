@@ -48,7 +48,9 @@ async function sha256Hex(buffer) {
 // The manifest hashes the bytes written to dist; reject anything else so a
 // deploy that changes mid-install or a stale intermediary cannot be promoted.
 async function assertHash(url, response, expected) {
-  if (typeof expected !== "string") return;
+  if (typeof expected !== "string") {
+    throw new Error(`Offline manifest has no hash for ${url}`);
+  }
   const actual = await sha256Hex(await response.clone().arrayBuffer());
   if (actual !== expected) {
     throw new Error(`Hash mismatch for ${url}`);
@@ -301,7 +303,9 @@ self.addEventListener("install", (event) => {
             if (!response.ok) {
               throw new Error(`Failed to preload ${url}: ${response.status}`);
             }
-            await assertHash(url, response, hashes.get(url));
+            if (url !== manifestUrl.href) {
+              await assertHash(url, response, hashes.get(url));
+            }
             await releaseCache.put(url, response);
           }),
         );

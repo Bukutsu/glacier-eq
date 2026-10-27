@@ -88,6 +88,8 @@ export function loadPersistedJson(
   key: string,
   notify?: NotifyFn,
 ): LoadedPersistedJson {
+  // Each load re-decides: a failed quarantine below marks the key again.
+  unprotectedKeys.delete(key);
   const raw = readLocalStorage(key);
   if (raw === null) return { value: null, raw: null };
   try {
@@ -212,6 +214,13 @@ export function savePersistedJson(
 ) {
   if (unprotectedKeys.has(key)) {
     console.warn(`Not saving "${key}": its malformed original has no backup.`);
+    notify?.(
+      i18n.t("library:traces.saveFailed", {
+        key,
+        error: "the damaged original has no backup and was kept",
+      }),
+      "error",
+    );
     return;
   }
   try {
