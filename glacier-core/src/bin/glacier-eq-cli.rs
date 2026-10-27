@@ -637,6 +637,12 @@ fn normalize(path: &str, device_id: Option<&str>) -> Result<String, String> {
     Ok(peq_to_autoeq(&normalized))
 }
 
+fn print_warnings(warnings: &[String]) {
+    for warning in warnings {
+        eprintln!("warning: {warning}");
+    }
+}
+
 fn parse_usb_id(id: &str) -> Result<(u16, u16), String> {
     let (vendor, product) = id
         .split_once(':')
@@ -982,14 +988,18 @@ fn execute_hardware(action: HardwareAction, selector: Option<&str>) -> Result<St
             for warning in warnings {
                 eprintln!("warning: {warning}");
             }
-            glacier_core::device::block_on(session.persistent_push(peq)).map(|_| String::new())
+            let (_, applied) = glacier_core::device::block_on(session.persistent_push(peq))?;
+            print_warnings(&applied);
+            Ok(String::new())
         }
         HardwareAction::Apply(file) => {
             let (peq, _, warnings) = read_peq(&file)?;
             for warning in warnings {
                 eprintln!("warning: {warning}");
             }
-            glacier_core::device::block_on(session.apply_ram(peq)).map(|_| String::new())
+            let (_, applied) = glacier_core::device::block_on(session.apply_ram(peq))?;
+            print_warnings(&applied);
+            Ok(String::new())
         }
         HardwareAction::Live(files) => {
             for file in files {
@@ -997,7 +1007,8 @@ fn execute_hardware(action: HardwareAction, selector: Option<&str>) -> Result<St
                 for warning in warnings {
                     eprintln!("warning: {warning}");
                 }
-                glacier_core::device::block_on(session.live_apply(peq))?;
+                let (_, applied) = glacier_core::device::block_on(session.live_apply(peq))?;
+                print_warnings(&applied);
             }
             Ok(String::new())
         }

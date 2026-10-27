@@ -177,8 +177,13 @@ pub fn parse_autoeq_text(text: &str) -> Result<(PEQData, Option<String>, Vec<Str
             }
             // Clamp frequency into a cast-safe, sane range before `as u16`
             // to avoid the silent wraparound the old code had for huge/negative Fc.
-            let freq: u16 = if !parsed.freq.is_finite()
-                || parsed.freq < 1.0
+            if !parsed.freq.is_finite() {
+                warnings.push(format!(
+                    "Line {line_num}: Invalid Fc value; skipping filter"
+                ));
+                continue;
+            }
+            let freq: u16 = if parsed.freq < 1.0
                 || parsed.freq > 1_000_000.0
                 || parsed.freq > u16::MAX as f64
             {
@@ -188,13 +193,7 @@ pub fn parse_autoeq_text(text: &str) -> Result<(PEQData, Option<String>, Vec<Str
                     parsed.freq,
                     u16::MAX
                 ));
-                // `clamp` propagates NaN and `NaN as u16` saturates to 0,
-                // so non-finite input must be replaced before the cast.
-                if !parsed.freq.is_finite() {
-                    1
-                } else {
-                    parsed.freq.clamp(1.0, u16::MAX as f64) as u16
-                }
+                parsed.freq.clamp(1.0, u16::MAX as f64) as u16
             } else {
                 parsed.freq as u16
             };
@@ -2769,6 +2768,16 @@ Filter 4: ON LowPass Fc 18000 Hz Gain 0 dB Q 0.7";
             let (peq, _, warnings) = parse_autoeq_text(&format!("Preamp: 0 dB\n{line}")).unwrap();
             assert!(peq.filters.is_empty(), "{line}");
             assert_eq!(warnings.len(), 1, "{line}");
+        }
+    }
+
+    #[test]
+    fn unparsable_fc_skips_the_filter_instead_of_becoming_1_hz() {
+        for fc in ["100Hz", "abc Hz"] {
+            let text = format!("Filter 1: ON PK Fc {fc} Gain 3 dB Q 1.0");
+            // With no usable filter left the parser reports an error rather
+            // than inventing a 1 Hz band.
+            assert!(parse_autoeq_text(&text).is_err(), "{fc}");
         }
     }
 
