@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Changed
+
+- AutoEQ results are louder and score higher on the Harman listener-preference model than upstream AutoEq on the same measurements. Boosts are capped at +5 dB above the vocal range, the preamp puts the loudest frequency at 0 dB, the fit weights 20 Hz–10 kHz fully and prefers the gentlest set of bands, and treble smoothing now starts at 8 kHz.
+- AutoEQ is about 4× faster on desktop and Android by fitting band layouts in parallel.
+
 ## [0.17.0] - 2026-10-26
 
 Reissued with Windows titlebar and profile-lock fixes. If you already installed 0.17.0, download and reinstall it to get these fixes.
