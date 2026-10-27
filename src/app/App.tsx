@@ -530,6 +530,7 @@ function App() {
   const graphProps: WorkspaceGraphProps = {
     editor,
     mobile: isMobile,
+    disabled: isBusy || eqOperationInFlightRef.current,
     capabilities,
     peq,
     committedPeq: lastPushedPeq,

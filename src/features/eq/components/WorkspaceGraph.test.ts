@@ -20,6 +20,7 @@ function setup() {
     peq,
     capabilities: OFFLINE_EDITOR_CAPABILITIES,
     mobile: true,
+    disabled: false,
     measurements: [],
     targets: [],
     viewMode: "shape",
@@ -60,6 +61,19 @@ describe("workspace graph interaction policy", () => {
     expect(
       WorkspaceGraph({ ...props, mobile: false }).props.onFilterChange,
     ).toBeUndefined();
+  });
+
+  it("disables desktop graph editing while device operations are busy", () => {
+    const { props } = setup();
+    const graph = WorkspaceGraph({
+      ...props,
+      mobile: false,
+      editing: true,
+      disabled: true,
+    });
+    expect(graph.props.onFilterChange).toBeUndefined();
+    expect(graph.props.onStartChange).toBeUndefined();
+    expect(graph.props.onActiveBandChange).toBeUndefined();
   });
 
   it("disables both mobile selection and desktop edits during draft recovery", () => {

@@ -139,8 +139,8 @@ function makeFreqStepper(
   snapToIso: boolean | undefined,
   onChange: (index: number, filter: Filter) => void,
 ) {
-  return (direction: 1 | -1, largeStep: boolean) => {
-    const freq = nextFreq(filter.freq, direction, largeStep, range, snapToIso);
+  return (direction: 1 | -1, largeStep: boolean, value: number) => {
+    const freq = nextFreq(value, direction, largeStep, range, snapToIso);
     if (freq !== filter.freq) {
       onChange(filter.index, { ...filter, freq });
     }

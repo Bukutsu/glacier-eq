@@ -14,10 +14,8 @@ interface NumberInputProps {
   step?: number;
   precision?: number;
   onChange: (value: number) => void;
-  /** When set, stepper interactions (buttons/arrows/PageUp/Down) call this
-   *  instead of applying value ± step, letting the parent guarantee progress
-   *  (e.g. stepping along a snapped grid). Typed input still goes to onChange. */
-  onStep?: (direction: 1 | -1, largeStep: boolean) => void;
+  /** Step from the committed value or a valid draft, e.g. along a snapped grid. */
+  onStep?: (direction: 1 | -1, largeStep: boolean, value: number) => void;
   disabled?: boolean;
   className?: string;
   onFocus?: () => void;
@@ -58,11 +56,6 @@ export function NumberInput({
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     setDraft(e.target.value);
-    const parsed = parseNumericInput(e.target.value);
-    // Only live-commit if the parsed number is fully within bounds without forced premature clamping
-    if (parsed !== null && parsed >= min && parsed <= max) {
-      onChange(Number(parsed.toFixed(precision)));
-    }
   };
 
   const handleBlur = () => {
@@ -76,66 +69,36 @@ export function NumberInput({
       // Blur owns the commit, including validation and the editing boundary.
       e.preventDefault();
       e.currentTarget.blur();
-    } else if (e.key === "ArrowUp") {
+    } else if (["ArrowUp", "ArrowDown", "PageUp", "PageDown"].includes(e.key)) {
       e.preventDefault();
-      increment();
-    } else if (e.key === "ArrowDown") {
-      e.preventDefault();
-      decrement();
-    } else if (e.key === "PageUp") {
-      e.preventDefault();
-      if (disabled) return;
-      onFocus?.();
-      setDraft(null);
-      if (onStep) {
-        onStep(1, true);
-      } else {
-        const largeStep = step * 10;
-        const nextVal = Math.min(max, value + largeStep);
-        onChange(Number(nextVal.toFixed(precision)));
-      }
-      onBlur?.();
-    } else if (e.key === "PageDown") {
-      e.preventDefault();
-      if (disabled) return;
-      onFocus?.();
-      setDraft(null);
-      if (onStep) {
-        onStep(-1, true);
-      } else {
-        const largeStep = step * 10;
-        const nextVal = Math.max(min, value - largeStep);
-        onChange(Number(nextVal.toFixed(precision)));
-      }
-      onBlur?.();
+      stepValue(
+        e.key === "ArrowUp" || e.key === "PageUp" ? 1 : -1,
+        e.key === "PageUp" || e.key === "PageDown",
+      );
     }
   };
 
-  const decrement = () => {
+  const stepValue = (direction: 1 | -1, largeStep: boolean) => {
     if (disabled) return;
+    const parsed = draft === null ? value : parseNumericInput(draft);
+    if (parsed === null) {
+      useToastStore.getState().setStatus(t("number.invalid"), "error");
+      return;
+    }
+    const current = Number(
+      Math.max(min, Math.min(max, parsed)).toFixed(precision),
+    );
     onFocus?.();
     setDraft(null);
     if (onStep) {
-      onStep(-1, false);
-      onBlur?.();
-      return;
+      onStep(direction, largeStep, current);
+    } else {
+      const next = Math.max(
+        min,
+        Math.min(max, current + direction * step * (largeStep ? 10 : 1)),
+      );
+      onChange(Number(next.toFixed(precision)));
     }
-    const nextVal = Math.max(min, value - step);
-    onChange(Number(nextVal.toFixed(precision)));
-    onBlur?.();
-  };
-
-  const increment = () => {
-    if (disabled) return;
-    onFocus?.();
-    setDraft(null);
-    if (onStep) {
-      onStep(1, false);
-      onBlur?.();
-      return;
-    }
-    const nextVal = Math.min(max, value + step);
-    onChange(Number(nextVal.toFixed(precision)));
     onBlur?.();
   };
 
@@ -149,7 +112,7 @@ export function NumberInput({
         variant="ghost"
         size="icon"
         className="stepper-btn decrement"
-        onClick={decrement}
+        onClick={() => stepValue(-1, false)}
         disabled={disabled || value <= min}
         aria-label={
           ariaLabel
@@ -188,7 +151,7 @@ export function NumberInput({
         variant="ghost"
         size="icon"
         className="stepper-btn increment"
-        onClick={increment}
+        onClick={() => stepValue(1, false)}
         disabled={disabled || value >= max}
         aria-label={
           ariaLabel

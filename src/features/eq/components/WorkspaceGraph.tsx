@@ -18,11 +18,13 @@ export type WorkspaceGraphProps = Pick<
   capabilities: DeviceCapabilities;
   editor: EqEditor;
   mobile: boolean;
+  disabled: boolean;
 };
 
 export function WorkspaceGraph({
   editor,
   mobile,
+  disabled,
   editing = false,
   focusBand = false,
   legendOpen,
@@ -41,7 +43,7 @@ export function WorkspaceGraph({
     null;
   // Phones select dots without dragging; desktop exposes the full graph editor.
   const editingProps =
-    editing && !mobile && !editor.recoveryPending
+    editing && !mobile && !disabled && !editor.recoveryPending
       ? {
           activeBandIndex: editor.activeBandIndex,
           onActiveBandChange: editor.setActiveBandIndex,
