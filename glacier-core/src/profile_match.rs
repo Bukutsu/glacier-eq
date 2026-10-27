@@ -24,8 +24,7 @@ fn active_filters<'a>(
     caps: &DeviceCapabilities,
     protocol: &Protocol,
 ) -> Vec<&'a Filter> {
-    let mut filters: Vec<&Filter> = peq
-        .filters
+    peq.filters
         .iter()
         .filter(|filter| {
             let pass_filter = matches!(
@@ -34,15 +33,7 @@ fn active_filters<'a>(
             ) && caps.supported_filter_types.contains(&filter.filter_type);
             filter.enabled && (pass_filter || quantized_band_gain(filter.gain, protocol) != 0.0)
         })
-        .collect();
-    filters.sort_by(|a, b| {
-        a.freq
-            .cmp(&b.freq)
-            .then_with(|| a.filter_type.cmp(&b.filter_type))
-            .then_with(|| a.gain.total_cmp(&b.gain))
-            .then_with(|| a.q.total_cmp(&b.q))
-    });
-    filters
+        .collect()
 }
 
 fn filters_match(a: &Filter, b: &Filter, caps: &DeviceCapabilities) -> bool {
@@ -50,6 +41,32 @@ fn filters_match(a: &Filter, b: &Filter, caps: &DeviceCapabilities) -> bool {
         && (a.freq as i32 - b.freq as i32).abs() <= caps.freq_tolerance
         && (a.gain - b.gain).abs() <= caps.gain_tolerance
         && (a.q - b.q).abs() <= caps.q_tolerance
+}
+
+// Find an assignment rather than pairing sorted bands: tolerance allows
+// matching bands to change relative order, and a greedy choice can block a
+// later band that has only one candidate.
+fn match_band(
+    band: usize,
+    profiles: &[&Filter],
+    current: &[&Filter],
+    assigned: &mut [Option<usize>],
+    seen: &mut [bool],
+    caps: &DeviceCapabilities,
+) -> bool {
+    for (index, candidate) in profiles.iter().enumerate() {
+        if seen[index] || !filters_match(current[band], candidate, caps) {
+            continue;
+        }
+        seen[index] = true;
+        if assigned[index]
+            .is_none_or(|previous| match_band(previous, profiles, current, assigned, seen, caps))
+        {
+            assigned[index] = Some(band);
+            return true;
+        }
+    }
+    false
 }
 
 fn peq_matches_profile(
@@ -69,12 +86,23 @@ fn peq_matches_profile(
     let current_filters = active_filters(&current, caps, protocol);
     let profile_filters = active_filters(&profile, caps, protocol);
 
-    (current.global_gain - profile.global_gain).abs() <= 0.001
-        && current_filters.len() == profile_filters.len()
-        && current_filters
-            .iter()
-            .zip(profile_filters.iter())
-            .all(|(a, b)| filters_match(a, b, caps))
+    if (current.global_gain - profile.global_gain).abs() > 0.001
+        || current_filters.len() != profile_filters.len()
+    {
+        return false;
+    }
+    let mut assigned = vec![None; profile_filters.len()];
+    (0..current_filters.len()).all(|band| {
+        let mut seen = vec![false; profile_filters.len()];
+        match_band(
+            band,
+            &profile_filters,
+            &current_filters,
+            &mut assigned,
+            &mut seen,
+            caps,
+        )
+    })
 }
 
 pub fn matching_profile_name<'a>(
@@ -120,6 +148,64 @@ mod tests {
             &saved,
             &DESKTOP_DAC_CAPS,
             &walkplay::PROTOCOL,
+        ));
+    }
+
+    #[test]
+    fn matches_bands_when_frequency_order_crosses() {
+        let mut a = Filter::enabled(0, true);
+        a.freq = 1000;
+        a.gain = 1.0;
+        let mut b = a.clone();
+        b.freq = 1001;
+        b.gain = 2.0;
+        let current = PEQData {
+            filters: vec![a.clone(), b.clone()],
+            global_gain: 0.0,
+        };
+        a.freq = 1001;
+        b.freq = 1000;
+        let mut saved = PEQData {
+            filters: vec![a, b],
+            global_gain: 0.0,
+        };
+        assert!(peq_matches_profile(
+            &current,
+            &saved,
+            &DESKTOP_DAC_CAPS,
+            &crate::device::UNKNOWN
+        ));
+        saved.filters[1].gain = 4.0;
+        assert!(!peq_matches_profile(
+            &current,
+            &saved,
+            &DESKTOP_DAC_CAPS,
+            &crate::device::UNKNOWN
+        ));
+    }
+
+    #[test]
+    fn reassigns_ambiguous_bands_instead_of_greedy_matching() {
+        let mut a = Filter::enabled(0, true);
+        a.freq = 1001;
+        a.gain = 1.0;
+        let mut b = a.clone();
+        b.freq = 1000;
+        let current = PEQData {
+            filters: vec![a.clone(), b.clone()],
+            global_gain: 0.0,
+        };
+        a.freq = 1000;
+        b.freq = 1002;
+        let saved = PEQData {
+            filters: vec![a, b],
+            global_gain: 0.0,
+        };
+        assert!(peq_matches_profile(
+            &current,
+            &saved,
+            &DESKTOP_DAC_CAPS,
+            &crate::device::UNKNOWN
         ));
     }
 

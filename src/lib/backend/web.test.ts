@@ -1470,6 +1470,34 @@ describe("storage quarantine", () => {
     warnSpy.mockRestore();
   });
 
+  it.each([
+    ["save_profile", { name: "Daily", peq: { filters: [], global_gain: 0 } }],
+    ["delete_profile", { name: "Daily" }],
+    ["rename_profile", { from: "Daily", to: "Other" }],
+  ])(
+    "refuses %s when malformed profiles cannot be backed up",
+    async (command, args) => {
+      const warnSpy = vi
+        .spyOn(console, "warn")
+        .mockImplementation(() => undefined);
+      for (const original of [
+        "{not json at all",
+        JSON.stringify([{ bad: 1 }]),
+      ]) {
+        localStorageValues.set("glacier-eq-profiles", original);
+        localStorageMock.setItem.mockImplementationOnce(() => {
+          throw new DOMException("Quota exceeded", "QuotaExceededError");
+        });
+
+        await expect(invoke(command, args)).rejects.toThrow(
+          "could not be backed up",
+        );
+        expect(localStorageValues.get("glacier-eq-profiles")).toBe(original);
+      }
+      warnSpy.mockRestore();
+    },
+  );
+
   it("signals when the quarantine backup itself cannot be written", async () => {
     localStorageValues.set("glacier-eq-profiles", "{not json at all");
     const warnSpy = vi

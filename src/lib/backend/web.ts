@@ -677,7 +677,11 @@ function saveJson(key: string, value: unknown): boolean {
   }
 }
 
-function quarantineStorage(key: string, raw: string, safeValue: unknown): void {
+function quarantineStorage(
+  key: string,
+  raw: string,
+  safeValue: unknown,
+): boolean {
   try {
     let suffix = Date.now();
     let backupKey = `${key}-malformed-${suffix}`;
@@ -694,6 +698,7 @@ function quarantineStorage(key: string, raw: string, safeValue: unknown): void {
     const message = `Malformed saved data for "${key}" was backed up to "${backupKey}" and replaced with a safe fallback.`;
     console.warn(message);
     addDiagnostic("Warn", "Storage", message);
+    return true;
   } catch (error) {
     // Keep the original value if storage is full or unavailable — but never
     // silently either: the malformed value stays behind, every later load
@@ -702,6 +707,7 @@ function quarantineStorage(key: string, raw: string, safeValue: unknown): void {
     const message = `Malformed saved data for "${key}" could not be replaced (original kept, defaults used for this load): ${error}`;
     console.warn(message);
     addDiagnostic("Error", "Storage", message);
+    return false;
   }
 }
 
@@ -709,6 +715,7 @@ function loadValidatedStorage<T>(
   key: string,
   fallback: T,
   parser: (value: unknown) => ParsedStorage<T>,
+  requireBackup = false,
 ): T {
   const raw = readLocalStorage(key);
   if (raw === null) return fallback;
@@ -716,11 +723,23 @@ function loadValidatedStorage<T>(
   try {
     parsed = JSON.parse(raw);
   } catch {
-    quarantineStorage(key, raw, fallback);
+    if (!quarantineStorage(key, raw, fallback) && requireBackup) {
+      throw new Error(
+        `Cannot change ${key}: malformed data could not be backed up`,
+      );
+    }
     return fallback;
   }
   const result = parser(parsed);
-  if (result.malformed) quarantineStorage(key, raw, result.value);
+  if (
+    result.malformed &&
+    !quarantineStorage(key, raw, result.value) &&
+    requireBackup
+  ) {
+    throw new Error(
+      `Cannot change ${key}: malformed data could not be backed up`,
+    );
+  }
   return result.value;
 }
 
@@ -732,8 +751,13 @@ function loadWebSettings(): AppSettings {
   );
 }
 
-function loadWebProfiles(): Profile[] {
-  return loadValidatedStorage("glacier-eq-profiles", [], parseWebProfiles);
+function loadWebProfiles(requireBackup = false): Profile[] {
+  return loadValidatedStorage(
+    "glacier-eq-profiles",
+    [],
+    parseWebProfiles,
+    requireBackup,
+  );
 }
 
 // The only browser-specific part of a device operation is transporting bytes.
@@ -1066,7 +1090,7 @@ async function invokeWeb<T = unknown>(cmd: string, args?: unknown): Promise<T> {
       if (serialized.length > 1_048_576) {
         throw new Error("Profile exceeds maximum size (1 MiB)");
       }
-      const profiles = loadWebProfiles();
+      const profiles = loadWebProfiles(true);
       const normalizedName = profileIdentityKey(name);
       const idx = profiles.findIndex(
         (profile) => profileIdentityKey(profile.name) === normalizedName,
@@ -1090,7 +1114,7 @@ async function invokeWeb<T = unknown>(cmd: string, args?: unknown): Promise<T> {
     case "delete_profile": {
       const name = commandField(args, "name");
       if (!isValidProfileName(name)) throw new Error("Invalid profile name");
-      const profiles = loadWebProfiles();
+      const profiles = loadWebProfiles(true);
       // Mirror ProfileStore::path's ASCII case-insensitive lookup
       // (eq_ignore_ascii_case) so a delete for "daily" removes a stored
       // "Daily" exactly like the desktop backend — and nothing else does.
@@ -1114,7 +1138,7 @@ async function invokeWeb<T = unknown>(cmd: string, args?: unknown): Promise<T> {
       }
       // Mirror ProfileStore::rename: keep the data, refuse to replace a
       // different profile, and allow case-only renames.
-      const profiles = loadWebProfiles();
+      const profiles = loadWebProfiles(true);
       const fromKey = profileIdentityKey(from);
       const index = profiles.findIndex(
         (profile) => profileIdentityKey(profile.name) === fromKey,

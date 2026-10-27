@@ -672,6 +672,9 @@ fn response(path: &str, sample_rate: f64) -> Result<String, String> {
             &mut values,
         );
     }
+    if values.iter().any(|value| !value.is_finite()) {
+        return Err("response contains non-finite values; check profile gain and Q".into());
+    }
     let mut output = String::from("frequency_hz,response_db\n");
     for (frequency, value) in frequencies.iter().zip(values) {
         output.push_str(&format!("{frequency:.2},{value:.4}\n"));
@@ -1430,6 +1433,27 @@ mod tests {
     fn profile_delete_always_needs_confirmation() {
         let command = parse(vec!["profile".into(), "delete".into(), "Daily".into()]).unwrap();
         assert!(require_confirmation(&command).is_err());
+    }
+
+    #[test]
+    fn response_rejects_finite_values_that_overflow() {
+        let path = std::env::temp_dir().join(format!(
+            "glacier-response-{}-{}.txt",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::write(&path, "Preamp: 1e300 dB\n").unwrap();
+        assert!(response(path.to_str().unwrap(), 96000.0)
+            .unwrap_err()
+            .contains("non-finite"));
+        std::fs::write(&path, "Preamp: -3 dB\n").unwrap();
+        assert!(response(path.to_str().unwrap(), 96000.0)
+            .unwrap()
+            .contains("-3.0000"));
+        std::fs::remove_file(path).unwrap();
     }
 
     #[test]
