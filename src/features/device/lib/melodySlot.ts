@@ -48,9 +48,6 @@ export function userEqSlotArgs(path: string): Record<string, number> {
 export function getMelodySlot(path: string): number {
   return getUserEqSlot(path) ?? 160;
 }
-export function setMelodySlot(path: string, slot: number): void {
-  setUserEqSlot(path, slot, [160, 161, 162]);
-}
 export function melodySlotArgs(path: string): Record<string, number> {
   return destinations.has(path) ? { melody_slot: getMelodySlot(path) } : {};
 }

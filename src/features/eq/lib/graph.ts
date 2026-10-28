@@ -1,6 +1,5 @@
-import type { Filter, PEQData, ResponseModel } from "@/types";
+import type { PEQData, ResponseModel } from "@/types";
 import {
-  filterResponseValues as calculateFilterResponseValues,
   peqResponseValues as calculatePeqResponseValues,
   peqResponseAndBandValues as calculatePeqResponseAndBandValues,
   snapFreqToIso,
@@ -63,22 +62,6 @@ export function getFreqGrid(width: number): Float32Array {
 
 export function snapFreqToIsoSync(freq: number): number {
   return snapFreqToIso(freq);
-}
-
-export async function filterResponseValues(
-  filter: Filter,
-  freqs: Float32Array | number[],
-  dspSampleRate = 96000,
-  responseModel: ResponseModel = "CanonicalQ",
-): Promise<Float32Array> {
-  const f32Freqs =
-    freqs instanceof Float32Array ? freqs : new Float32Array(freqs);
-  return calculateFilterResponseValues(
-    filter,
-    f32Freqs,
-    dspSampleRate,
-    responseModel,
-  );
 }
 
 export async function peqResponseValues(

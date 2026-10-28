@@ -40,33 +40,6 @@ export function StackHeader({
   );
 }
 
-export function CategoryHeader({ title }: { title: string }) {
-  return <div className="stack-category-header">{title}</div>;
-}
-
-export function NavRow({
-  to,
-  icon,
-  title,
-  desc,
-}: {
-  to: string;
-  icon: IconName;
-  title: string;
-  desc?: string;
-}) {
-  return (
-    <NavLink to={to} className="stack-nav-row">
-      <Icon className="stack-row-icon" name={icon} />
-      <div className="stack-row-content">
-        <span className="stack-row-title">{title}</span>
-        {desc ? <span className="stack-row-desc">{desc}</span> : null}
-      </div>
-      <Icon name="chevron_right" className="stack-row-chevron" />
-    </NavLink>
-  );
-}
-
 export function ToggleRow({
   title,
   desc,

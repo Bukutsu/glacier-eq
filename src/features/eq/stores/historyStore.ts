@@ -176,11 +176,3 @@ export const useHistoryStore = create<HistoryState>()((set, get) => ({
       lastRestoredMetadata: null,
     }),
 }));
-
-export function canUndo(past: PEQData[]): boolean {
-  return past.length > 0;
-}
-
-export function canRedo(future: PEQData[]): boolean {
-  return future.length > 0;
-}

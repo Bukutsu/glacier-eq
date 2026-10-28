@@ -53,10 +53,6 @@ export function topModalEntry(): ModalHistoryEntry | undefined {
   return modalHistoryStack[modalHistoryStack.length - 1];
 }
 
-export function modalStackDepth(): number {
-  return modalHistoryStack.length;
-}
-
 /** Record that a `history.back()` is in flight to undo a pushed sentinel. */
 export function expectBalanceNavigation(): void {
   pendingBalanceNavigations += 1;
@@ -73,12 +69,6 @@ export function isBalanceNavigation(event: object): boolean {
   pendingBalanceNavigations -= 1;
   balanceEvents.add(event);
   return true;
-}
-
-/** A balance navigation that found no modal open can never be claimed by a
- *  later dialog, so it must not be allowed to swallow a real Back later. */
-export function discardBalanceNavigation(): void {
-  pendingBalanceNavigations = 0;
 }
 
 export type ModalPopStateAction = "ignore" | "reinsert" | "dismiss";
@@ -98,10 +88,4 @@ export function decideModalPopState(
   // Back past the top dialog lands on whatever is beneath it, so only the top
   // entry closes; anything nested below stays open.
   return "dismiss";
-}
-
-/** Test-only: reset the shared stack and balance bookkeeping. */
-export function resetModalHistoryForTests(): void {
-  modalHistoryStack.length = 0;
-  pendingBalanceNavigations = 0;
 }

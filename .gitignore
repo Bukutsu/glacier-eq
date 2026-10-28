@@ -74,3 +74,4 @@ bun.lockb
 
 # Local documentation
 /docs/
+tsconfig.tsbuildinfo
