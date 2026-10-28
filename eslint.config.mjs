@@ -10,7 +10,6 @@ import {
 export default [
   {
     files: ["src/**/*.tsx"],
-    ignores: ["src/**/*.test.tsx", "src/**/*.test-support.tsx"],
     languageOptions: {
       parser: babelParser,
       parserOptions: {

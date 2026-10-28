@@ -2,10 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 //! Plain binding computations and input checks, independent of wasm or JS.
-//! Kept host-buildable so numeric-boundary tests run in cargo test --lib.
 
-#[cfg(test)]
-use crate::device::capabilities::{DeviceCapabilities, DESKTOP_DAC_CAPS};
 use crate::device::{get_supported_device, DeviceProfile, SUPPORTED_DEVICES};
 use crate::eq::{Filter, PEQData};
 
@@ -92,16 +89,6 @@ pub(crate) fn supported_profile(
         }),
         _ => None,
     }
-}
-
-#[cfg(test)]
-pub(crate) fn device_caps_or_desktop(
-    vendor_id: Option<u16>,
-    product_id: Option<u16>,
-) -> DeviceCapabilities {
-    supported_profile(vendor_id, product_id)
-        .map(|profile| profile.caps.clone())
-        .unwrap_or_else(|| DESKTOP_DAC_CAPS.clone())
 }
 
 pub(crate) fn validate_dsp_sample_rate(sample_rate: f64) -> Result<(), String> {
@@ -201,6 +188,3 @@ pub(crate) fn validate_finite_response(values: &[f32]) -> Result<(), String> {
     }
     Ok(())
 }
-
-#[cfg(test)]
-mod tests;

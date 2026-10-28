@@ -8,7 +8,7 @@
 //! reusable from Tauri desktop/mobile apps, CLI tools, or headless services.
 
 pub mod autoeq;
-#[cfg(any(target_arch = "wasm32", test))]
+#[cfg(target_arch = "wasm32")]
 mod boundary;
 pub mod device;
 pub mod eq;

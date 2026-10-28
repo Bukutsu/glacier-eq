@@ -70,19 +70,19 @@ npm run verify
 npm run verify:rust
 ```
 
-`npm run verify` builds and tests WASM before checking TypeScript, so it also
-works without the gitignored `src/wasm_pkg`. Standalone `npm run typecheck`
-needs `npm run wasm:build` first; rebuild after changing the Rust WASM API.
+`npm run verify` builds WASM before checking translations, TypeScript, and the
+E2E tests, so it also works without the gitignored `src/wasm_pkg`. Standalone
+`npm run typecheck` needs `npm run wasm:build` first; rebuild after changing the
+Rust WASM API.
 
-For a small change, run the nearest test file instead of full verification:
+For a small change, run the E2E tests against the web app:
 
 ```sh
-npm test -- src/features/eq/hooks/useEqEditor.test.ts
+npm run test:e2e
 ```
 
-`npm test` uses mocked WASM and needs no generated artifacts. Use
-`npm run test:wasm` for real WASM integration tests. Run full verification
-before pushing; a focused test does not check types, translations, or Rust.
+Playwright starts `npm run dev:web` and runs the specs in `e2e/`. Run full
+verification before pushing; the E2E tests do not check types, translations, or Rust.
 
 ### Running the app
 

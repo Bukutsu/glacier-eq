@@ -13,5 +13,5 @@ Fixes #
 
 ## Checklist
 
-- [ ] `npm run test` passes
+- [ ] `npm run verify` passes
 - [ ] I reviewed my changes

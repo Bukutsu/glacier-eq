@@ -127,6 +127,9 @@ jobs:
           public_key=$(printf '%s' "$public_key" | base64 --decode | tail -n 1)
           minisign -Vm "$challenge" -x "$signature" -P "$public_key"
 
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
       # Same entry point contributors run, so CI cannot drift from local.
       - name: Verify frontend
         run: npm run verify

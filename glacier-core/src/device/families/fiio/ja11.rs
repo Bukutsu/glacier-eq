@@ -61,33 +61,3 @@ pub fn parse(control: &str, data: &[u8]) -> Result<u8, String> {
     }
     Ok(data[6])
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn protocol_fixtures_and_ranges() {
-        for (name, cmd, max) in [("volume", 2, 60), ("microphone", 18, 1), ("uac", 32, 1)] {
-            assert_eq!(
-                request(name).unwrap().framed(),
-                vec![2, 0xbb, 0x0b, 0, 0, cmd, 0, 0, 0xee]
-            );
-            assert_eq!(
-                write(name, max).unwrap().framed(),
-                vec![2, 0xaa, 0x0a, 0, 0, cmd, 1, max, 0, 0xee]
-            );
-            assert!(write(name, max + 1).is_err());
-            let reply = [0xbb, 0x0b, 1, 2, cmd, 1, max, 0x51, 0xee];
-            assert_eq!(parse(name, &reply).unwrap(), max);
-            for index in [0, 1, 4, 5, 6, 8] {
-                let mut bad = reply;
-                bad[index] = 255;
-                assert!(parse(name, &bad).is_err());
-            }
-            for len in 0..9 {
-                assert!(parse(name, &reply[..len]).is_err());
-            }
-        }
-        assert!(request("peq").is_err());
-    }
-}

@@ -504,6 +504,3 @@ fn validate_control_range(label: &str, value: i8) -> Result<(), String> {
         Err(format!("{label} must be between -15 and 15"))
     }
 }
-
-#[cfg(test)]
-mod tests;

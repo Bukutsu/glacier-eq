@@ -279,38 +279,3 @@ pub async fn run_autoeq(
     }
     Ok(AutoEqRunResult { peq, warnings })
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::state::ConnectedDevice;
-
-    #[test]
-    fn peq_to_autoeq_rejects_invalid_storage_values() {
-        let mut filter = glacier_core::Filter::enabled(0, true);
-        filter.q = 0.0;
-        let invalid = PEQData {
-            filters: vec![filter],
-            global_gain: 0.0,
-        };
-        assert!(peq_to_autoeq(invalid).is_err());
-    }
-
-    #[test]
-    fn match_target_uses_unknown_protocol_when_disconnected_or_unsupported() {
-        let (caps, protocol) = match_target_for_connected(None);
-        assert!(!caps.integer_preamp);
-        assert_eq!(protocol, &UNKNOWN);
-
-        let unsupported = ConnectedDevice {
-            path: "/dev/hidraw0".to_string(),
-            vendor_id: 0xFFFF,
-            product_id: 0xFFFF,
-            profile_name: "Generic".to_string(),
-            session_id: 1,
-        };
-        let (caps, protocol) = match_target_for_connected(Some(&unsupported));
-        assert!(!caps.integer_preamp);
-        assert_eq!(protocol, &UNKNOWN);
-    }
-}

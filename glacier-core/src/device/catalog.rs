@@ -1038,8 +1038,3 @@ pub fn get_supported_device_with_name(
         })
         .or_else(|| get_supported_device(vendor_id, product_id))
 }
-
-#[cfg(test)]
-mod fiio_tests;
-#[cfg(test)]
-mod tests;

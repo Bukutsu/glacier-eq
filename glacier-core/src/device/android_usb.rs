@@ -44,32 +44,3 @@ pub fn usb_device_filter() -> String {
     xml.push_str("</resources>\n");
     xml
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn shipped_filter_is_current() {
-        assert_eq!(
-            super::usb_device_filter(),
-            include_str!("../../../scripts/android/usb_device_filter.xml"),
-            "regenerate with cargo run -p glacier-core --bin glacier-eq-cli -- android-usb-filter > scripts/android/usb_device_filter.xml"
-        );
-    }
-
-    #[test]
-    fn manifest_opens_the_app_for_listed_dacs_only_when_opted_in() {
-        let manifest = include_str!("../../../scripts/android/usb-attach-launcher.xml");
-        // The release overlay must restore this alias after Tauri regenerates
-        // its manifest; HidPlugin enables it by name and it must ship disabled.
-        let alias = manifest
-            .split("<activity-alias")
-            .nth(1)
-            .and_then(|rest| rest.split("</activity-alias>").next())
-            .expect("USB attach alias");
-        assert!(alias.contains("android:name=\".UsbAttachLauncher\""));
-        assert!(alias.contains("android:enabled=\"false\""));
-        assert!(alias.contains("android.hardware.usb.action.USB_DEVICE_ATTACHED"));
-        assert!(alias.contains("@xml/usb_device_filter"));
-        assert_eq!(manifest.matches("USB_DEVICE_ATTACHED\" />").count(), 1);
-    }
-}

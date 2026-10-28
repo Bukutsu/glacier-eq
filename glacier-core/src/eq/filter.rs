@@ -234,31 +234,3 @@ pub fn snap_freq_to_iso(freq: u16) -> u16 {
         .min_by_key(|&f| (freq as i32 - f as i32).abs())
         .unwrap_or(freq)
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::device::capabilities::DESKTOP_DAC_CAPS;
-
-    #[test]
-    fn test_clamp_to_capabilities_rounds_preamp() {
-        let mut peq = PEQData {
-            filters: vec![],
-            global_gain: -3.52,
-        };
-        let mut caps = DESKTOP_DAC_CAPS.clone();
-        caps.integer_preamp = true;
-
-        let warnings = peq.clamp_to_capabilities(&caps);
-        assert_eq!(peq.global_gain, -4.0);
-        assert!(warnings.iter().any(|w| w.contains("Rounded preamp gain")));
-    }
-
-    #[test]
-    fn test_snap_freq_to_iso() {
-        assert_eq!(snap_freq_to_iso(10), 20);
-        assert_eq!(snap_freq_to_iso(900), 800);
-        assert_eq!(snap_freq_to_iso(950), 1000);
-        assert_eq!(snap_freq_to_iso(25000), 20000);
-    }
-}

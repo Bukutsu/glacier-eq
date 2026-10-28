@@ -12,12 +12,7 @@ export default defineConfig({
   locales: Object.keys(languages),
   extract: {
     input: ["src/**/*.{ts,tsx}"],
-    ignore: [
-      "src/**/*.test.ts",
-      "src/**/*.test-support.ts",
-      "src/wasm_pkg/**",
-      "src/testSetup.ts",
-    ],
+    ignore: ["src/wasm_pkg/**"],
     output: "src/locales/{{language}}/{{namespace}}.json",
     defaultNS: "shell",
     primaryLanguage: "en",

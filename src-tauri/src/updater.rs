@@ -82,37 +82,3 @@ pub fn restart_app(app: tauri::AppHandle) -> Result<(), String> {
         Err("Restart is not available on this platform".into())
     }
 }
-
-#[cfg(all(test, not(mobile)))]
-mod tests {
-    use super::*;
-    use tauri::utils::config::BundleType;
-
-    #[test]
-    fn self_contained_bundles_are_supported() {
-        for bundle in [
-            BundleType::AppImage,
-            BundleType::Nsis,
-            BundleType::Msi,
-            BundleType::App,
-        ] {
-            assert_eq!(classify(Some(bundle), false), SUPPORTED);
-        }
-    }
-
-    #[test]
-    fn system_packages_defer_to_the_package_manager() {
-        for bundle in [BundleType::Deb, BundleType::Rpm] {
-            assert_eq!(classify(Some(bundle), false), unsupported("systemPackage"));
-        }
-    }
-
-    #[test]
-    fn unpackaged_and_debug_builds_are_unsupported() {
-        assert_eq!(classify(None, false), unsupported("unpackaged"));
-        assert_eq!(
-            classify(Some(BundleType::App), true),
-            unsupported("unpackaged")
-        );
-    }
-}

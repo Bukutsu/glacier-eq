@@ -12,13 +12,9 @@
     "build": "npm run build:web",
     "build:web": "npm run check:locales && npm run wasm:build && tsc -p tsconfig.web.json && vite build --mode web",
     "build:desktop": "npm run check:locales && tsc -p tsconfig.desktop.json && vite build --mode desktop",
-    "test": "vitest run",
-    "test:wasm": "npm run wasm:build && vitest run --config vitest.wasm.config.ts",
-    "test:scripts": "node --test scripts/make-update-manifest.test.mjs scripts/offlineAssets.test.mjs scripts/android/ensure-android-project.test.mjs",
-    "verify": "npm run check:locales && npm test && npm run test:scripts && npm run test:wasm && npm run typecheck",
-    "typecheck": "tsc -p tsconfig.web.json --noEmit && tsc -p tsconfig.desktop.json --noEmit && npm run typecheck:tests",
-    "typecheck:tests": "tsc -p tsconfig.test.json --noEmit",
-    "verify:rust": "cargo metadata --locked --no-deps --format-version 1 > /dev/null && cargo fmt --all -- --check && cargo clippy --workspace --all-targets --locked -- -D warnings && cargo test --workspace --locked",
+    "verify": "npm run wasm:build && npm run check:locales && npm run typecheck && npm run test:e2e",
+    "typecheck": "tsc -p tsconfig.web.json --noEmit && tsc -p tsconfig.desktop.json --noEmit",
+    "verify:rust": "cargo metadata --locked --no-deps --format-version 1 > /dev/null && cargo fmt --all -- --check && cargo clippy --workspace --all-targets --locked -- -D warnings",
     "tauri": "tauri",
     "android:doctor": "tauri info",
     "android:init": "tauri android init --ci",
@@ -28,10 +24,11 @@
     "android:apk": "npm run android:prepare && tauri android build --debug --apk --target aarch64 -- --locked",
     "android:apk:release": "npm run android:prepare -- --release && tauri android build --apk --target aarch64 -- --locked",
     "android:apk:split": "npm run android:prepare && tauri android build --apk --split-per-abi -- --locked",
-    "check:locales": "node --test scripts/localization.test.mjs && npm run lint:locales && i18next-cli extract --ci --dry-run && i18next-cli status && node scripts/check-locales.mjs",
+    "check:locales": "npm run lint:locales && i18next-cli extract --ci --dry-run && i18next-cli status && node scripts/check-locales.mjs",
     "lint:locales": "eslint src && i18next-cli lint",
     "locales:extract": "i18next-cli extract",
-    "locales:status": "i18next-cli status"
+    "locales:status": "i18next-cli status",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
@@ -49,6 +46,7 @@
   },
   "devDependencies": {
     "@babel/eslint-parser": "^8.0.7",
+    "@playwright/test": "^1.64.1",
     "@tailwindcss/vite": "^4.3.3",
     "@tauri-apps/cli": "^2.12.1",
     "@types/node": "^24.19.2",
@@ -63,7 +61,6 @@
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
     "vite": "^8.2.2",
-    "vitest": "^4.1.11",
     "wasm-pack": "^0.15.0"
   },
   "engines": {

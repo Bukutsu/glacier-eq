@@ -92,6 +92,9 @@ jobs:
           # cannot verify the same commit differently.
           npm run verify:rust
 
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
       - name: Verify frontend
         run: npm run verify
 

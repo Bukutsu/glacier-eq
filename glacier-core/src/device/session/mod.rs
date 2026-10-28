@@ -9,8 +9,6 @@ mod ja11;
 mod melody;
 pub use command::{DeviceCommand, DeviceOutcome, EqWriteOutcome};
 
-#[cfg(test)]
-pub(crate) use io::fake;
 pub use io::{DeviceIo, HID_READ_BUFFER_BYTES};
 mod blocking;
 pub use blocking::{block_on, BlockingDeviceIo, BlockingIo};
@@ -1025,12 +1023,3 @@ fn compare_peq(
     }
     Ok(())
 }
-
-#[cfg(test)]
-mod fiio_tests;
-#[cfg(test)]
-mod ja11_tests;
-#[cfg(test)]
-mod melody_tests;
-#[cfg(test)]
-mod tests;

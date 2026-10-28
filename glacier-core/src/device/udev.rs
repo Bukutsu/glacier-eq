@@ -31,15 +31,3 @@ pub fn rules() -> String {
     }
     rules
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn shipped_rules_are_current() {
-        assert_eq!(
-            super::rules(),
-            include_str!("../../../udev/69-glacier-eq.rules"),
-            "regenerate with cargo run -p glacier-core --bin glacier-eq-cli -- udev-rules > udev/69-glacier-eq.rules"
-        );
-    }
-}

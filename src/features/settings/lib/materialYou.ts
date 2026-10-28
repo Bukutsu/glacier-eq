@@ -295,7 +295,7 @@ export const MATERIAL_YOU_VARS = [
 
 export async function getMaterialYouColors(): Promise<MaterialYouColors | null> {
   try {
-    // Dynamic import: keeps this module (and its unit tests) free of the
+    // Dynamic import: keeps this module free of the
     // Vite-only `@glacier-eq/backend` alias that `rpc.ts` pulls in.
     const { invoke } = await import("@/lib/rpc");
     const colors = await invoke<MaterialYouColors>(

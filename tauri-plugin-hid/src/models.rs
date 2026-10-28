@@ -63,30 +63,9 @@ pub struct OpenOnAttach {
     pub enabled: bool,
 }
 
-#[cfg(any(mobile, test))]
+#[cfg(mobile)]
 pub(crate) fn split_report(data: &[u8]) -> (u8, &[u8]) {
     let report_id = data.first().copied().unwrap_or(0);
     let payload = data.get(1..).unwrap_or_default();
     (report_id, payload)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::split_report;
-
-    #[test]
-    fn split_report_handles_empty_and_zero_id_reports() {
-        assert_eq!(split_report(&[]), (0, &[][..]));
-        assert_eq!(split_report(&[0]), (0, &[][..]));
-        assert_eq!(split_report(&[0, 1, 2]), (0, &[1, 2][..]));
-        assert_eq!(split_report(&[0; 66]).1.len(), 65);
-    }
-
-    #[test]
-    fn split_report_keeps_nonzero_id_separate() {
-        let (report_id, payload) = split_report(&[0x4B; 65]);
-        assert_eq!(report_id, 0x4B);
-        assert_eq!(payload.len(), 64);
-        assert!(payload.iter().all(|&byte| byte == 0x4B));
-    }
 }

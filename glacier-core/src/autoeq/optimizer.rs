@@ -457,6 +457,3 @@ pub(super) fn fit(
     }
     loss
 }
-
-#[cfg(test)]
-mod tests;

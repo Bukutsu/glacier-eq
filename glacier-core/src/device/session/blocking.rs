@@ -51,11 +51,6 @@ pub fn block_on<T>(future: impl Future<Output = T>) -> T {
 }
 
 impl<'a> DeviceSession<'a, BlockingIo<'a>> {
-    #[cfg(test)]
-    pub(crate) fn new(io: &'a mut dyn BlockingDeviceIo, profile: &'static DeviceProfile) -> Self {
-        Self::from_io(BlockingIo(io), profile, None, 0)
-    }
-
     pub fn with_progress(
         io: &'a mut dyn BlockingDeviceIo,
         profile: &'static DeviceProfile,
