@@ -50,6 +50,10 @@ your volume up to make up for it.
 
 For setup, focused tests and platform checks, see [Contributing](CONTRIBUTING.md).
 
+## Support
+
+If Glacier EQ is useful to you, give it a star or support it on [GitHub Sponsors](https://github.com/sponsors/Bukutsu) or [Ko-fi](https://ko-fi.com/bukutsu) :3.
+
 ## License
 
 GPL-3.0-only. See [LICENSE](LICENSE).
