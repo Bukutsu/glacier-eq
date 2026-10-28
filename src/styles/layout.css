@@ -22,7 +22,7 @@
   grid-row: 2;
 }
 
-.graph-card, .preamp-card, .bands-card, .tools-card, .diag-card {
+.graph-card, .preamp-card, .bands-card, .tools-card {
   background: var(--panel);
   border-radius: var(--radius-surface);
   box-shadow: none;
@@ -159,11 +159,6 @@ dialog.modal-content.device-modal {
 
 .confirm-actions .btn {
   min-height: 44px;
-}
-
-.btn.confirm-danger {
-  background: var(--destructive);
-  color: var(--destructive-action-foreground);
 }
 
 @media (max-width: 850px), ((max-height: 540px) and (pointer: coarse)) {

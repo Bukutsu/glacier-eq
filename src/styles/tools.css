@@ -9,13 +9,6 @@
   grid-row: 1;
 }
 
-.right-rail .preset-list {
-  max-height: 150px;
-  min-height: 80px;
-  height: auto;
-  overflow-y: auto;
-}
-
 .tools-card {
   min-width: 0;
   padding: 18px 18px 20px;
@@ -37,93 +30,13 @@
   padding-right: 4px;
 }
 
-.import-section {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
 /* Profile library/editor styling lives in profiles.css. */
-.settings-list label {
-  color: var(--muted);
-  font-size: var(--type-label);
-  display: flex;
-  align-items: center;
-  gap: 9px;
-}
-.action-row { display: grid; gap: 10px; }
-.action-row-primary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.action-row button { min-height: 44px; }
-.primary-save {
-  min-height: 44px;
-  width: 100%;
-}
-
-.tool-card {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-width: 0;
-  padding: 10px;
-  background: var(--bg-dark);
-  outline: 1px solid var(--line-soft);
-  outline-offset: -1px;
-}
-
-.tool-card-head {
-  min-height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.tool-card-head strong {
-  color: var(--muted);
-  font-size: var(--type-caption);
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.tool-card-head span {
-  color: var(--comment);
-  font-size: var(--type-caption);
-}
 
 .card-note {
   margin: 0;
   color: var(--muted);
   font-size: var(--type-small);
   line-height: 1.4;
-}
-
-.tool-link-button {
-  min-height: 28px !important;
-  padding: 0 8px !important;
-  background: transparent !important;
-  color: var(--link-foreground) !important;
-  font-size: var(--type-small);
-}
-
-.tool-link-button.danger {
-  color: var(--destructive-foreground) !important;
-}
-
-.tool-card .setting-row {
-  margin-top: 0;
-}
-
-.tool-card .tool-card-head + .setting-row {
-  border-top: 0;
-  padding-top: 0;
-}
-
-.tool-card label + .setting-row,
-.tool-card .device-hint + label,
-.tool-card label + label {
-  border-top: 1px solid var(--line-subtle);
-  padding-top: 10px;
 }
 
 button.danger { color: var(--destructive-foreground); background: transparent; outline: 1px solid var(--danger-outline); outline-offset: -1px; }
@@ -283,22 +196,6 @@ button.danger { color: var(--destructive-foreground); background: transparent; o
   height: 28px;
 }
 
-.settings-list {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding: 12px 6px 12px 0;
-  min-height: 0;
-  flex: 1;
-}
-
-.setting-hint {
-  margin: -6px 0 0;
-  color: var(--comment);
-  font-size: var(--type-caption);
-  line-height: 1.45;
-}
-
 .shortcut-list {
   display: flex;
   flex-direction: column;
@@ -331,15 +228,6 @@ button.danger { color: var(--destructive-foreground); background: transparent; o
 }
 
 /* Diagnostics Panel */
-.diag-card {
-  padding: 14px 18px 16px;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  overflow: hidden;
-  flex: 1;
-}
 
 .diag-head {
   display: grid;
@@ -371,18 +259,6 @@ button.danger { color: var(--destructive-foreground); background: transparent; o
   gap: 1px;
   background: var(--line-strong);
 }
-.diag-card .diag-filter-btn {
-  height: 38px; min-height: 38px; padding: 0 12px;
-  background: var(--surface-soft); color: var(--muted);
-  font-size: var(--type-caption); font-family: var(--font-mono);
-  border: none; cursor: pointer;
-  transition: background var(--motion-duration) var(--motion-ease), color var(--motion-duration) var(--motion-ease);
-  white-space: nowrap;
-}
-.diag-card .diag-filter-btn:hover:not(.active) { background: var(--hover-bg); color: var(--text); }
-.diag-card .diag-filter-btn.active             { background: var(--bg-dark); color: var(--link-foreground); }
-.diag-card .diag-filter-btn.active.f-error     { color: var(--destructive-foreground); }
-.diag-card .diag-filter-btn.active.f-warn      { color: var(--warning-foreground); }
 
 .diag-search {
   width: 100%; height: 38px; border: 0;
@@ -392,15 +268,6 @@ button.danger { color: var(--destructive-foreground); background: transparent; o
 }
 .diag-search::placeholder { color: var(--muted); opacity: 1; }
 .diag-search:focus { background: var(--input-bg, var(--bg-dark)); }
-
-.diag-card .diag-scroll-btn {
-  height: 38px; min-height: 38px; width: 38px; padding: 0;
-  background: var(--surface-soft); color: var(--muted); border: none; cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  transition: color var(--motion-duration) var(--motion-ease), background var(--motion-duration) var(--motion-ease);
-}
-.diag-card .diag-scroll-btn.active { color: var(--link-foreground); }
-.diag-card .diag-scroll-btn:hover  { color: var(--text); filter: brightness(1.14); }
 
 .log-box {
   background: var(--bg-dark); overflow-y: auto; min-height: 0; flex: 1;
@@ -446,18 +313,6 @@ button.danger { color: var(--destructive-foreground); background: transparent; o
 .diag-empty { padding: 12px; color: var(--muted); font-size: var(--type-label); font-family: var(--font-ui); }
 
 .diag-footer { font-size: var(--type-caption); color: var(--comment); padding-top: 2px; text-align: right; font-family: var(--font-ui); }
-
-
-.setting-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  min-height: 34px;
-  gap: 12px;
-  border-top: 1px solid var(--line-subtle);
-  padding-top: 14px;
-  margin-top: 4px;
-}
 
 .sidebar-device {
   display: grid;
@@ -645,16 +500,6 @@ button.danger { color: var(--destructive-foreground); background: transparent; o
    Sharp Stack Tab System (Device & Settings)
    ========================================================================== */
 
-.stack-view {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  max-width: 900px;
-  margin: 0 auto;
-  min-height: 0;
-  box-sizing: border-box;
-}
-
 /* Stack Top Bar */
 .stack-topbar {
   display: flex;
@@ -709,15 +554,6 @@ button.danger { color: var(--destructive-foreground); background: transparent; o
   display: flex;
   flex-direction: column;
   width: 100%;
-}
-
-.stack-category-header {
-  padding: 20px 16px 6px;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--comment);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .stack-nav-row {
@@ -880,53 +716,11 @@ button.danger { color: var(--destructive-foreground); background: transparent; o
   padding-bottom: 14px;
 }
 
-.settings-card-head {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid var(--line-subtle);
-}
-
-.settings-card-head .card-head-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--text);
-  font-size: 15px;
-  font-weight: 700;
-}
-
-.settings-card-head .card-head-title .app-icon {
-  font-size: 20px;
-  color: var(--link-foreground);
-  width: 20px;
-  height: 20px;}
-
-.settings-card-head .card-head-sub {
-  color: var(--muted);
-  font-size: var(--type-small);
-  line-height: 1.4;
-}
-
 /* Device workspace: compact connection summary and quiet detail rows. */
 .device-summary {
   margin: 0 16px;
   padding: 20px 0;
   border-bottom: 1px solid var(--line-soft);
-}
-
-.device-summary .device-status-badge,
-.device-summary .device-status-badge.connected,
-.device-summary .device-status-badge.simulated,
-.device-summary .device-status-badge.offline {
-  padding: 0;
-  border: 0;
-  background: transparent;
-  font-size: var(--type-small);
-  font-weight: 500;
-  letter-spacing: normal;
-  text-transform: none;
 }
 
 .device-summary .device-hero-title {
@@ -1165,58 +959,6 @@ button.danger { color: var(--destructive-foreground); background: transparent; o
 }
 
 /* Device summary header rows (DeviceView root section) */
-.device-hero-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.device-status-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 3px 8px;
-  border-radius: 0 !important;
-  font-size: var(--type-micro);
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.device-status-badge .status-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 0 !important;
-}
-
-.device-status-badge.connected {
-  background: color-mix(in srgb, var(--green) 16%, transparent);
-  color: var(--text);
-  border: 1px solid color-mix(in srgb, var(--green) 30%, transparent);
-}
-.device-status-badge.connected .status-dot {
-  background: var(--green);
-}
-
-.device-status-badge.simulated {
-  background: color-mix(in srgb, var(--yellow) 16%, transparent);
-  color: var(--text);
-  border: 1px solid color-mix(in srgb, var(--yellow) 30%, transparent);
-}
-.device-status-badge.simulated .status-dot {
-  background: var(--yellow);
-}
-
-.device-status-badge.offline {
-  background: color-mix(in srgb, var(--comment) 18%, transparent);
-  color: var(--muted);
-  border: 1px solid var(--line-subtle);
-}
-.device-status-badge.offline .status-dot {
-  background: var(--comment);
-}
 
 .device-hero-body {
   display: flex;
@@ -1246,81 +988,7 @@ button.danger { color: var(--destructive-foreground); background: transparent; o
   gap: 12px;
 }
 
-.device-hero-actions .hero-connect-btn {
-  min-height: 44px;
-  padding: 0 18px;
-  font-size: 14px;
-  font-weight: 600;
-  border-radius: 0 !important;
-}
-
 /* Preference Rows - Sharp & Spacious */
-.pref-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-  min-height: 56px;
-  padding: 12px 0;
-  border-top: 1px solid var(--line-subtle);
-  margin: 0;
-  border-radius: 0 !important;
-}
-
-.pref-row:first-of-type {
-  border-top: none;
-  padding-top: 4px;
-}
-
-.pref-row.interactive {
-  cursor: pointer;
-}
-
-.pref-row.interactive:hover .pref-title {
-  color: var(--link-foreground);
-}
-
-.pref-info {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.pref-title {
-  font-size: 14.5px;
-  font-weight: 600;
-  color: var(--text);
-  line-height: 1.35;
-  transition: color 150ms ease;
-}
-
-.pref-desc {
-  font-size: var(--type-small);
-  color: var(--muted);
-  line-height: 1.45;
-}
-
-.pref-control {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-}
-
-.pref-control .custom-checkbox {
-  width: 22px;
-  height: 22px;
-  cursor: pointer;
-  border-radius: 0 !important;
-}
-
-.pref-control.action-buttons {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
 
 /* Preference Slider Items - Sharp */
 .pref-slider-item {
@@ -1376,11 +1044,6 @@ button.danger { color: var(--destructive-foreground); background: transparent; o
   max-width: 440px;
 }
 
-.empty-state .empty-icon {
-  font-size: 48px;
-  color: var(--comment);
-}
-
 .empty-state h3 {
   margin: 0;
   font-size: 17px;
@@ -1400,67 +1063,6 @@ button.danger { color: var(--destructive-foreground); background: transparent; o
   min-height: 44px;
   padding: 0 20px;
   border-radius: 0 !important;
-}
-
-.device-utility {
-  min-height: 0;
-}
-
-.device-empty {
-  min-height: 220px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  text-align: center;
-  color: var(--muted);
-}
-
-.device-empty .app-icon {
-  color: var(--comment);
-  font-size: 42px;
-  width: 42px;
-  height: 42px;}
-
-.device-empty strong {
-  color: var(--text);
-  font-size: var(--type-label);
-}
-
-.device-empty span,
-.device-hint {
-  color: var(--comment);
-  font-size: var(--type-small);
-  line-height: 1.4;
-}
-
-.device-hint {
-  margin-top: -8px;
-}
-
-.device-range-row {
-  flex-direction: column;
-  align-items: stretch;
-  gap: 8px;
-}
-
-.device-range-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.device-value {
-  color: var(--text);
-  font-size: var(--type-label);
-  font-family: var(--font-mono);
-  white-space: nowrap;
-}
-
-.setting-label {
-  color: var(--muted);
-  font-size: var(--type-label);
 }
 
 .setting-select-wrapper {
@@ -1840,28 +1442,13 @@ dialog.modal-content.add-trace-modal {
   }
 }
 
-.add-trace-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-height: 36px;
-  width: 100%;
-}
-
 @media (max-width: 850px), ((max-height: 540px) and (pointer: coarse)) {
-  .add-trace-btn {
-    min-height: 44px;
-  }
   .add-trace-file-btn {
     min-height: 44px;
   }
   .add-trace-clear-cache-btn {
     min-height: 44px !important;
     height: 44px !important;
-  }
-  .curves-clear-btn {
-    min-height: 44px;
   }
   .curve-item {
     min-height: 44px;
@@ -1884,12 +1471,6 @@ dialog.modal-content.add-trace-modal {
   .diag-filter-btn {
     min-height: 44px;
   }
-  .diag-card .diag-scroll-btn {
-    min-height: 44px;
-    min-width: 44px;
-    width: 44px;
-    height: 44px;
-  }
   .curves-search-input,
   .diag-search {
     font-size: 16px !important;
@@ -1899,16 +1480,9 @@ dialog.modal-content.add-trace-modal {
     width: 44px;
     flex: 0 0 44px;
   }
-  .custom-select-trigger {
-    min-height: 48px;
-  }
 }
 
 @media (pointer: coarse) {
-  .custom-select-trigger {
-    min-width: 44px;
-    min-height: 48px;
-  }
   .custom-number-input .stepper-btn {
     min-width: 44px;
     width: 44px;

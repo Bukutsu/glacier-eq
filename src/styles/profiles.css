@@ -195,11 +195,6 @@
   color: var(--muted-foreground);
   opacity: 0.7;
 }
-.profiles-item:is(:hover, :focus-within)
-  .profiles-row-actions
-  [data-slot="button"] {
-  opacity: 1;
-}
 .profiles-row-actions [data-slot="button"]:hover {
   color: var(--foreground);
 }
@@ -391,11 +386,6 @@
 }
 
 @media (max-width: 850px), ((max-height: 540px) and (pointer: coarse)) {
-  .mobile-workspace .profiles-mobile-pane {
-    box-sizing: border-box;
-    padding: var(--space-4) max(var(--space-3), var(--safe-area-right, 0px))
-      var(--space-5) max(var(--space-3), var(--safe-area-left, 0px));
-  }
   .profiles-library,
   .profiles-editor {
     padding: var(--space-4);

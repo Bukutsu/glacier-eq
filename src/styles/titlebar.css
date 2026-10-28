@@ -46,7 +46,6 @@ html.linux .titlebar-controls {
   gap: var(--space-2);
   padding-right: var(--space-3);
 }
-html.linux .titlebar .decorum-tb-actions { display: none !important; }
 
 .titlebar-controls button {
   width: 22px;
@@ -105,9 +104,6 @@ html.linux .titlebar .decorum-tb-actions { display: none !important; }
   height: 12px;
   background: currentColor;
   mask: var(--window-icon) center / contain no-repeat;
-}
-[data-tauri-decorum-tb] > #decorum-tb-minimize {
-  --window-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M1 6h10' stroke='black'/%3E%3C/svg%3E");
 }
 [data-tauri-decorum-tb] > #decorum-tb-maximize {
   --window-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Crect x='1.5' y='1.5' width='9' height='9' fill='none' stroke='black'/%3E%3C/svg%3E");

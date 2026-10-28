@@ -75,3 +75,4 @@ bun.lockb
 # Local documentation
 /docs/
 tsconfig.tsbuildinfo
+tauri-plugin-material-you/android/.tauri/
