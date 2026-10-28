@@ -22,6 +22,11 @@
  */
 import type { ComponentProps } from "react";
 
+const ROOT = "grid grid-cols-[16px_minmax(0,1fr)] gap-x-2.5 gap-y-1 min-w-0 w-full p-3 border border-[var(--border)] rounded-[var(--control-radius)] bg-[var(--card)] text-[var(--foreground)] text-[13px] leading-[1.5] text-start [overflow-wrap:anywhere] [&>.app-icon]:col-start-1 [&>.app-icon]:row-start-1 [&>.app-icon]:mt-0.5 [&>.app-icon]:h-4 [&>.app-icon]:w-4 [&>.app-icon]:text-[var(--muted-foreground)] data-[variant=destructive]:[&>.app-icon]:text-[var(--destructive-foreground)]";
+const TITLE = "col-start-2 font-medium";
+const DESCRIPTION = "col-start-2 min-w-0 whitespace-pre-wrap text-[var(--muted-foreground)] [&>:first-child]:mt-0 [&>:last-child]:mb-0 [&_a]:underline [&_a]:underline-offset-[3px]";
+const ACTION = "col-start-2 flex flex-wrap gap-2 pt-1";
+
 export function Alert({
   variant = "default",
   className = "",
@@ -32,7 +37,7 @@ export function Alert({
       data-slot="alert"
       data-variant={variant}
       role="alert"
-      className={`ui-alert ${className}`}
+      className={`${ROOT} ${className}`}
       {...props}
     />
   );
@@ -45,7 +50,7 @@ export function AlertTitle({
   return (
     <div
       data-slot="alert-title"
-      className={`ui-alert-title ${className}`}
+      className={`${TITLE} ${className}`}
       {...props}
     />
   );
@@ -58,7 +63,7 @@ export function AlertDescription({
   return (
     <div
       data-slot="alert-description"
-      className={`ui-alert-description ${className}`}
+      className={`${DESCRIPTION} ${className}`}
       {...props}
     />
   );
@@ -71,7 +76,7 @@ export function AlertAction({
   return (
     <div
       data-slot="alert-action"
-      className={`ui-alert-action ${className}`}
+      className={`${ACTION} ${className}`}
       {...props}
     />
   );

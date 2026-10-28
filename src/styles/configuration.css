@@ -150,43 +150,6 @@
 .configuration-layout .external-link-row .stack-row-title { font-size: var(--type-label); font-weight: 500; }
 .configuration-layout .shortcut-row { padding: var(--space-2) 0; }
 
-.ui-switch {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 44px;
-  height: 44px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  cursor: pointer;
-}
-.ui-switch-track {
-  display: flex;
-  align-items: center;
-  width: 42px;
-  height: 24px;
-  padding: 2px;
-  box-sizing: border-box;
-  border: 1px solid var(--input);
-  border-radius: var(--radius-pill);
-  background: var(--control);
-}
-.ui-switch-thumb {
-  display: block;
-  width: 18px;
-  height: 18px;
-  border-radius: var(--radius-pill);
-  background: var(--muted-foreground);
-  transition: transform var(--motion-duration) var(--motion-ease);
-}
-.ui-switch[data-checked] .ui-switch-track { background: var(--primary); border-color: var(--primary); }
-.ui-switch[data-checked] .ui-switch-thumb { transform: translateX(18px); background: var(--primary-foreground); }
-.ui-switch[data-disabled] { opacity: 0.45; cursor: not-allowed; }
-.ui-switch:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; border-radius: var(--control-radius); }
-@media (prefers-reduced-motion: reduce) { .ui-switch-thumb { transition: none; } }
 
 @media (min-width: 851px) and ((min-height: 541px) or (pointer: fine)) {
   .desktop-view-device .desktop-content > .right-rail > .tools-card,
