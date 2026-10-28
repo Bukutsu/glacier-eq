@@ -88,7 +88,7 @@ export function WorkspacePanels({
         {activeTab === "settings" && settings.section === "root" && (
           <section className="left-pane">{deviceView}</section>
         )}
-        <section className={activeTab === "profiles" ? "mobile-profile-pane" : "left-pane"}>
+        <section className={activeTab === "profiles" ? "min-w-0" : "left-pane"}>
           {panel}
         </section>
       </>

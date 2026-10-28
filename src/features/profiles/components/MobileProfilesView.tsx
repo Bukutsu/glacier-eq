@@ -61,6 +61,9 @@ export interface MobileProfilesViewProps {
   onSaveEditorToDacBank?: (slot: number) => Promise<boolean>;
 }
 
+const DESC = "m-0 text-[length:var(--type-small)] leading-[1.5] text-[var(--muted-foreground)]";
+const FLEXBAR = "flex items-center justify-between gap-[var(--space-2)]";
+
 export function MobileProfilesView(props: MobileProfilesViewProps) {
   const { t } = useTranslation("library");
   const {
@@ -172,13 +175,13 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
   }
 
   return (
-    <div className="mobile-profile-library" aria-busy={disabled}>
+    <div className="grid min-w-0 gap-[var(--space-5)] p-[var(--space-4)] [&_button[data-slot=button]]:min-h-[44px] [&_button[data-slot=button][aria-haspopup=menu]]:min-w-[44px]" aria-busy={disabled}>
       <Card
-        className="mobile-profile-editor"
+        className="min-w-0 p-[var(--space-4)] [&_.app-collapse]:m-0 [&_.app-collapse]:mt-[var(--space-4)] [&_.app-collapse]:rounded-none [&_.app-collapse]:border-0 [&_.app-collapse]:[border-top:1px_solid_var(--border)] [&_.app-collapse-trigger]:min-h-[44px] [&_.app-collapse-trigger]:border-0 [&_.app-collapse-trigger]:bg-transparent [&_.app-collapse-trigger]:[padding-inline:0] [&_.app-collapse-trigger]:text-[var(--muted-foreground)] [&_.app-collapse-trigger]:text-[length:var(--type-small)] [&_.app-collapse-trigger]:font-medium"
         aria-label={t("mobileProfilesView.currentEditorEQ")}
       >
-        <div className="mobile-profile-section-heading">
-          <span className="mobile-profile-eyebrow">
+        <div className={FLEXBAR}>
+          <span className="text-[length:var(--type-small)] text-[var(--muted-foreground)]">
             {t("mobileProfilesView.inTheEditor")}
           </span>
           <Badge>
@@ -192,15 +195,15 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
                     : t("mobileProfilesView.notSaved"))}
           </Badge>
         </div>
-        <h2 className="mobile-profile-editor-name">{selectedPreset}</h2>
-        <p className="mobile-profile-description">
+        <h2 className="m-0 mt-[var(--space-3)] mb-[var(--space-1)] text-[20px] font-semibold leading-[1.35] [overflow-wrap:anywhere]">{selectedPreset}</h2>
+        <p className={DESC}>
           {t("mobileProfilesView.activeBands", {
             count: activeBands,
             preamp: formatDb(peq.global_gain),
           })}
         </p>
         {builtIn && (
-          <p className="mobile-profile-description">
+          <p className={DESC + " mt-[var(--space-2)]"}>
             {t("mobileProfilesView.builtInHelp")}
           </p>
         )}
@@ -208,7 +211,7 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
           dacEditor.unsaved &&
           onSaveEditorToDacBank && (
             <Button
-              className="mobile-profile-dac-save"
+              className="mt-[var(--space-3)] w-full whitespace-nowrap"
               variant="primary"
               disabled={disabled}
               onClick={() =>
@@ -223,7 +226,7 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
               })}
             </Button>
           )}
-        <div className="mobile-profile-editor-actions">
+        <div className="mt-[var(--space-3)] grid grid-cols-2 gap-[var(--space-2)] [&>button]:min-w-0 [&>button]:[padding-inline:8px]">
           <Button
             variant={dacEditor?.unsaved ? "default" : "primary"}
             disabled={disabled}
@@ -261,22 +264,22 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
             defaultOpen={false}
             compact
           >
-            <div className="mobile-profile-preview">{preview}</div>
+            <div className="min-w-0 overflow-hidden">{preview}</div>
           </Collapsible>
         )}
       </Card>
 
       <section aria-labelledby="mobile-profile-library-title">
-        <div className="mobile-profile-library-heading">
+        <div className={FLEXBAR + " mb-[var(--space-3)] flex-wrap"}>
           <div>
-            <h2 id="mobile-profile-library-title">
+            <h2 id="mobile-profile-library-title" className="m-0 text-[length:var(--type-body)] font-semibold leading-[1.5]">
               {t("mobileProfilesView.yourLibrary")}
             </h2>
-            <p className="mobile-profile-description">
+            <p className={DESC}>
               {t("mobileProfilesView.savedCount", { count: savedCount })}
             </p>
           </div>
-          <div className="mobile-profile-library-tools">
+          <div className="flex items-center justify-end gap-[var(--space-1)]">
             <FileImportButton
               label={t("mobileProfilesView.import")}
               accept=".txt"
@@ -328,7 +331,7 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
             </OverflowMenu>
           </div>
         </div>
-        <div className="mobile-profile-search">
+        <div className="relative mb-[var(--space-3)] flex items-center [&>.app-icon]:pointer-events-none [&>.app-icon]:absolute [&>.app-icon]:left-3 [&>.app-icon]:w-4 [&>.app-icon]:text-[var(--muted-foreground)] [&_button]:absolute [&_button]:right-0 [&_input::-webkit-search-cancel-button]:hidden">
           <Icon name="search" />
           <Input
             aria-label={t("mobileProfilesView.searchProfiles")}
@@ -353,16 +356,16 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
         {dacBanks}
         {dacBanks && (
           <>
-            <h3 className="profiles-local-heading">
+            <h3 className="profiles-local-heading m-0">
               {t("mobileProfilesView.localProfiles")}
             </h3>
-            <p className="mobile-profile-description">
+            <p className={DESC}>
               {t("mobileProfilesView.localProfilesHelp")}
             </p>
           </>
         )}
         <ul
-          className="mobile-profile-list"
+          className="m-0 grid list-none gap-[var(--space-2)] p-0"
           aria-label={t("mobileProfilesView.savedProfiles")}
         >
           {visible.map((profile, index) => {
@@ -386,18 +389,18 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
                 aria-labelledby={nameId}
                 className={
                   current
-                    ? "mobile-profile-row is-current"
-                    : "mobile-profile-row"
+                    ? "min-w-0 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface-soft)] p-[var(--space-4)]"
+                    : "min-w-0 rounded-[var(--radius-card)] border border-[var(--border)] p-[var(--space-4)]"
                 }
               >
-                <div className="mobile-profile-row-heading">
-                  <h3 id={nameId}>
+                <div className={FLEXBAR + " items-start"}>
+                  <h3 id={nameId} className="m-0 min-w-0 text-[length:var(--type-label)] font-semibold leading-[1.5] [overflow-wrap:anywhere] [&_.app-icon]:mr-1.5 [&_.app-icon]:inline-block [&_.app-icon]:h-[14px] [&_.app-icon]:w-[14px] [&_.app-icon]:text-[var(--muted-foreground)] [&_.app-icon]:[vertical-align:-2px]">
                     {isDefault && <Icon name="lock" />}
                     {profile.name}
                   </h3>
                   {current && <Badge>{t("mobileProfilesView.inEditor")}</Badge>}
                 </div>
-                <p className="mobile-profile-description">
+                <p className={DESC + " mt-[var(--space-1)]"}>
                   {isDefault
                     ? t("mobileProfilesView.flatProfileDescription")
                     : t("mobileProfilesView.bandSummary", {
@@ -405,7 +408,7 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
                         preamp: formatDb(data.global_gain),
                       })}
                 </p>
-                <div className="mobile-profile-row-actions">
+                <div className={FLEXBAR + " mt-[var(--space-3)] [&>button:first-child]:flex-1"}>
                   {onUseOnDac && !isDefault && (
                     <Button
                       variant={dacEditor?.unsaved ? "default" : "primary"}
@@ -515,17 +518,17 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
           })}
         </ul>
         {visible.length === 0 && (
-          <div className="mobile-profile-empty" role="status">
+          <div className="grid justify-items-center gap-[var(--space-2)] px-[var(--space-3)] py-[var(--space-5)] text-center [&>.app-icon]:text-[var(--muted-foreground)]" role="status">
             <Icon name="search_off" />
-            <h3>{t("mobileProfilesView.noMatchingProfiles")}</h3>
-            <p>{t("mobileProfilesView.tryAnotherNameOrClearYourSearch")}</p>
+            <h3 className="m-0 text-[length:var(--type-body)]">{t("mobileProfilesView.noMatchingProfiles")}</h3>
+            <p className={DESC}>{t("mobileProfilesView.tryAnotherNameOrClearYourSearch")}</p>
             <Button onClick={() => setProfileSearch("")}>
               {t("mobileProfilesView.clearSearch")}
             </Button>
           </div>
         )}
         {!query && savedCount === 0 && (
-          <p className="mobile-profile-library-hint">
+          <p className={DESC + " mt-[var(--space-4)]"}>
             {t("mobileProfilesView.emptyLibraryHint")}
           </p>
         )}
@@ -592,7 +595,7 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
           }
           onClose={() => setDialog(null)}
           closeDisabled={pending}
-          className="mobile-profile-name-dialog"
+          className="[&_form]:grid [&_form]:gap-[var(--space-3)] [&_form]:p-[var(--space-4)] [&_label]:text-[length:var(--type-label)] [&_label]:font-medium [&_button[data-slot=button]]:min-h-[44px]"
         >
           <form
             onSubmit={(event) => {
@@ -645,12 +648,12 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
                 {t("profilesView.reservedName", { name: dialogName })}
               </p>
             )}
-            <p className="mobile-profile-description">
+            <p className={DESC}>
               {dialog.mode === "save"
                 ? t("mobileProfilesView.saveHelp")
                 : t("mobileProfilesView.renameHelp")}
             </p>
-            <div className="mobile-profile-dialog-actions">
+            <div className="mt-[var(--space-2)] flex justify-end gap-[var(--space-2)]">
               <Button disabled={pending} onClick={() => setDialog(null)}>
                 {t("mobileProfilesView.cancel")}
               </Button>

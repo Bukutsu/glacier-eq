@@ -17,7 +17,6 @@
 @import "./alerts.css" layer(components);
 @import "./toasts.css" layer(components);
 @import "./profiles.css" layer(components);
-@import "./mobile-profiles.css" layer(components);
 @import "./configuration.css" layer(components);
 @import "./dialogs.css" layer(components);
 @import "./mobile.css" layer(components);
