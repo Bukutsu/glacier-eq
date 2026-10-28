@@ -20,6 +20,19 @@ export const THEME_PREVIEWS: Readonly<
   "catppuccin-latte": ["#e6e9ef", "#4c4f69", "#665a7a"],
 } as const;
 
+const FIELDSET = "m-0 min-w-0 border-0 p-[var(--space-4)]";
+const LEGEND = "float-left mb-[var(--space-3)] w-full p-0 text-[length:var(--type-label)] font-medium";
+const OPTIONS = "clear-both grid grid-cols-2 gap-[var(--space-2)]";
+const OPTION =
+  "group relative flex min-h-[64px] cursor-pointer items-center gap-[var(--space-2)] border border-[var(--border)] box-border rounded-[var(--control-radius)] p-[var(--space-2)] active:bg-[var(--accent)] has-[input:checked]:border-[var(--ring)] has-[input:checked]:bg-[var(--accent)] has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-offset-2 has-[input:focus-visible]:outline-ring max-[360px]:flex-wrap";
+const RADIO = "absolute h-px w-px opacity-0";
+const LABEL =
+  "min-w-0 flex-1 text-[length:var(--type-small)] leading-[1.4] [overflow-wrap:anywhere] max-[360px]:order-1 max-[360px]:basis-[calc(100%_-_24px)]";
+const CHECK = "h-[14px] w-[14px] shrink-0 invisible group-has-[input:checked]:visible";
+const SWATCH =
+  "box-border flex h-[30px] w-[34px] shrink-0 flex-col justify-center gap-1 rounded-[4px] border border-[var(--border)] p-1.5 [&>span]:h-[3px] [&>span]:rounded-[1px] [&>span:last-child]:w-[65%]";
+const SWATCH_SYSTEM = "items-center bg-[var(--background)] [&>.app-icon]:h-[18px] [&>.app-icon]:w-[18px]";
+
 export function ThemePicker({
   value,
   options,
@@ -32,18 +45,19 @@ export function ThemePicker({
   const { t } = useTranslation("settings");
   const name = useId();
   return (
-    <fieldset className="theme-picker">
-      <legend>{t("appearance.colorTheme")}</legend>
-      <div className="theme-picker-options">
+    <fieldset className={FIELDSET}>
+      <legend className={LEGEND}>{t("appearance.colorTheme")}</legend>
+      <div className={OPTIONS}>
         {options.map((option) => {
           const palette =
             option.value === "auto" || option.value === "material-you"
               ? null
               : THEME_PREVIEWS[option.value];
           return (
-            <label key={option.value} className="theme-picker-option">
+            <label key={option.value} className={OPTION}>
               <input
                 type="radio"
+                className={RADIO}
                 name={name}
                 value={option.value}
                 checked={value === option.value}
@@ -51,7 +65,7 @@ export function ThemePicker({
               />
               {palette ? (
                 <span
-                  className="theme-swatch"
+                  className={SWATCH}
                   aria-hidden="true"
                   style={{ backgroundColor: palette[0] }}
                 >
@@ -60,7 +74,7 @@ export function ThemePicker({
                 </span>
               ) : (
                 <span
-                  className="theme-swatch theme-swatch-system"
+                  className={`${SWATCH} ${SWATCH_SYSTEM}`}
                   aria-hidden="true"
                 >
                   <Icon
@@ -68,8 +82,8 @@ export function ThemePicker({
                   />
                 </span>
               )}
-              <span className="theme-picker-label">{option.label}</span>
-              <Icon name="check" className="theme-picker-check" />
+              <span className={LABEL}>{option.label}</span>
+              <Icon name="check" className={CHECK} />
             </label>
           );
         })}
