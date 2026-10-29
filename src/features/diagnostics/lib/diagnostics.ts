@@ -1,12 +1,12 @@
 import { i18n } from "@/lib/i18n";
-export const DIAGNOSTIC_LEVELS = ["Info", "Warn", "Error"] as const;
-export type DiagnosticLevel = (typeof DIAGNOSTIC_LEVELS)[number];
+const DIAGNOSTIC_LEVELS = ["Info", "Warn", "Error"] as const;
+type DiagnosticLevel = (typeof DIAGNOSTIC_LEVELS)[number];
 
 /**
  * `Storage` is emitted by the web backend's quarantine path; the other
  * sources mirror the desktop `LogSource` enum.
  */
-export const DIAGNOSTIC_SOURCES = [
+const DIAGNOSTIC_SOURCES = [
   "UI",
   "Worker",
   "HID",
@@ -14,7 +14,7 @@ export const DIAGNOSTIC_SOURCES = [
   "Device",
   "Storage",
 ] as const;
-export type DiagnosticSource = (typeof DIAGNOSTIC_SOURCES)[number];
+type DiagnosticSource = (typeof DIAGNOSTIC_SOURCES)[number];
 
 export interface DiagnosticEvent {
   /** Backend-assigned monotonic ID; absent in legacy payloads. */
@@ -36,10 +36,10 @@ export interface DiagnosticContext {
   transport: string | null;
 }
 
-export const DIAGNOSTIC_EVENT_LIMIT = 1_000;
+const DIAGNOSTIC_EVENT_LIMIT = 1_000;
 
 /** Mirrors the desktop `sanitize_message` cap (diagnostics.rs). */
-export const MAX_DIAGNOSTIC_MESSAGE_CHARS = 2_000;
+const MAX_DIAGNOSTIC_MESSAGE_CHARS = 2_000;
 
 /**
  * Mirrors the desktop `sanitize_message` (src-tauri/src/diagnostics.rs):

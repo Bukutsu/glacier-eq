@@ -36,7 +36,7 @@ const FILTERS =
   "grid grid-cols-[minmax(0,1fr)_180px] gap-4 max-[600px]:grid-cols-[minmax(0,1fr)] [&_label]:grid [&_label]:gap-2 [&_label]:text-[13px] [&_select]:h-11 [&_select]:w-full [&_select]:rounded-[var(--control-radius)] [&_select]:border [&_select]:border-[var(--input)] [&_select]:bg-[var(--field-background)] [&_select]:px-2.5 [&_select]:text-[var(--foreground)] [&_select]:[font:inherit]";
 const FOOTER = "mt-7 text-[13px] leading-[1.6] text-[var(--muted-foreground)] [&_a]:text-[var(--foreground)] [&_a]:underline-offset-4";
 
-export function DeviceCatalogResults({
+function DeviceCatalogResults({
   models,
   query,
   status,

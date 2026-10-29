@@ -58,7 +58,7 @@ export function isDevDummyDevice(path: string): boolean {
   return import.meta.env.DEV && isDevDummyPath(path);
 }
 
-export function buildDevDummyPeq(
+function buildDevDummyPeq(
   capabilities: DeviceCapabilities = DEV_DUMMY_DEVICE,
 ): PEQData {
   const gains = [2.5, 1.5, -1.5, -3.5, -2, 0.5, 3, 2, -1, -4];

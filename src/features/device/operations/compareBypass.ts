@@ -1,7 +1,7 @@
 import { normalizePeq } from "@/features/eq/lib/peq";
 import type { DeviceCapabilities, PEQData } from "@/types";
 
-export interface BypassCompareState {
+interface BypassCompareState {
   /** The EQ the DAC plays now. It is sent back when the hold ends. */
   playing: PEQData;
   capabilities: DeviceCapabilities;
@@ -25,7 +25,7 @@ export interface BypassCompareContext {
  * The same EQ with every filter off. The preamp stays, so pressing A/B
  * never raises the level by the headroom the EQ reserved.
  */
-export function bypassPeq(peq: PEQData): PEQData {
+function bypassPeq(peq: PEQData): PEQData {
   return {
     ...peq,
     filters: peq.filters.map((filter) => ({ ...filter, enabled: false })),

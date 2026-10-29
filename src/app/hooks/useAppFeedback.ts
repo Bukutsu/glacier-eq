@@ -112,5 +112,3 @@ export function useAppFeedback(quietReconnectRef: RefObject<boolean>) {
     reportLoss,
   };
 }
-
-export type AppFeedback = ReturnType<typeof useAppFeedback>;

@@ -53,7 +53,7 @@ const FILTERS = [
 
 // Control values are from Abdul Mateen's hardware-tested original-Dawn code:
 // https://github.com/RetR0-hex/moondrop-dawn-pro-gui/blob/69f95f669377646da1e9ba931bec9a5dc9b5d40c/moondrop/protocol.py
-export function DawnProControlsFields({
+function DawnProControlsFields({
   state,
   disabled,
   onChange,

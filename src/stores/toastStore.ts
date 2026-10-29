@@ -11,7 +11,7 @@ export interface Toast {
   lifetime: { duration: number; remaining: number; startedAt: number | null };
 }
 
-export const toastDuration = (type: Toast["type"]) =>
+const toastDuration = (type: Toast["type"]) =>
   type === "error" ? 6000 : 4000;
 interface ToastTimer {
   handle: ReturnType<typeof setTimeout> | null;

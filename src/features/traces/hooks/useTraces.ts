@@ -18,7 +18,7 @@ type NotifyFn = (message: string, type?: "info" | "error" | "success") => void;
  * full" as Info. The helpers were correct; the wiring between them and the
  * notifier was not, and no test drove that wiring.
  */
-export function forwardNotifyFrom(ref: {
+function forwardNotifyFrom(ref: {
   current: NotifyFn | undefined;
 }): NotifyFn {
   return (message, type) => ref.current?.(message, type);
@@ -84,7 +84,7 @@ function quarantinePersistedJson(key: string, raw: string, notify?: NotifyFn) {
   );
 }
 
-export function loadPersistedJson(
+function loadPersistedJson(
   key: string,
   notify?: NotifyFn,
 ): LoadedPersistedJson {
@@ -100,7 +100,7 @@ export function loadPersistedJson(
   }
 }
 
-export function parseStoredMeasurements(
+function parseStoredMeasurements(
   value: unknown,
 ): ParsedPersistedValue<MeasurementTrace[]> {
   if (!Array.isArray(value)) return { value: [], malformed: true };
@@ -139,7 +139,7 @@ export function parseStoredMeasurements(
   return { value: measurements, malformed };
 }
 
-export function parseStoredTargets(
+function parseStoredTargets(
   value: unknown,
 ): ParsedPersistedValue<TargetTrace[]> {
   if (!Array.isArray(value)) return { value: [], malformed: true };
@@ -181,7 +181,7 @@ export function parseStoredTargets(
   return { value: targets, malformed };
 }
 
-export function parseStoredActiveTargetIds(
+function parseStoredActiveTargetIds(
   value: unknown,
   existingTargetIds: ReadonlySet<string>,
 ): ParsedPersistedValue<string[]> {
@@ -196,7 +196,7 @@ export function parseStoredActiveTargetIds(
   };
 }
 
-export function quarantineIfMalformed(
+function quarantineIfMalformed(
   key: string,
   loaded: LoadedPersistedJson,
   malformed: boolean,
@@ -207,7 +207,7 @@ export function quarantineIfMalformed(
   }
 }
 
-export function savePersistedJson(
+function savePersistedJson(
   key: string,
   value: unknown,
   notify?: NotifyFn,

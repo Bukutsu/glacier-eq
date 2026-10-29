@@ -6,12 +6,12 @@ import type { DeviceCapabilities, PEQData } from "@/types";
 
 // The official WalkPlay web app also waits 100 ms after an edit before it
 // sends the EQ, so a burst of edits becomes one write.
-export const LIVE_APPLY_DELAY_MS = 100;
+const LIVE_APPLY_DELAY_MS = 100;
 // Saving writes the DAC's flash, so it waits for the edits to stop instead of
 // following every change.
-export const LIVE_SAVE_DELAY_MS = 3000;
+const LIVE_SAVE_DELAY_MS = 3000;
 // How soon to look again when a save or read has the device.
-export const LIVE_BUSY_RETRY_MS = 250;
+const LIVE_BUSY_RETRY_MS = 250;
 
 export interface LiveApplyState {
   peq: PEQData;

@@ -38,7 +38,7 @@ import {
 import type { DeviceCapabilities, DeviceInfo } from "@/types";
 import type { DeviceMaintenanceRunner } from "@/features/device/operations/runDeviceMaintenance";
 
-export function formatChannelBalance(balance: number): string {
+function formatChannelBalance(balance: number): string {
   if (balance === 0) return i18n.t("device:deviceView.balanceCenter");
   return balance > 0
     ? i18n.t("device:deviceView.balanceRight", { balance: balance })

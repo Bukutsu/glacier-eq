@@ -3,7 +3,7 @@
 
 // Session-only editor policy; changing the destination does not touch the DAC.
 // Every write carries its destination explicitly, including after a reconnect.
-export interface MelodySaveRequest {
+interface MelodySaveRequest {
   path: string;
   count: number;
   preamp: string;
@@ -20,7 +20,7 @@ export interface MelodyBankChoice {
   confirmed: boolean;
 }
 
-export type ChooseMelodyBank = (
+type ChooseMelodyBank = (
   request: UserBankSaveRequest,
 ) => Promise<MelodyBankChoice | null>;
 export type ChooseUserBank = ChooseMelodyBank;

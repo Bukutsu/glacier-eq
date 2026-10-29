@@ -60,7 +60,7 @@ export function UpdateSection() {
   );
 }
 
-export function UpdateCard({
+function UpdateCard({
   state,
   onCheck,
   onDownload,

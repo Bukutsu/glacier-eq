@@ -104,7 +104,7 @@ function requestOpenDb(slot: {
   });
 }
 
-export function isUnrecoverableDbError(error: unknown): boolean {
+function isUnrecoverableDbError(error: unknown): boolean {
   if (!error) return false;
   const name =
     typeof error === "object" && error !== null && "name" in error
@@ -128,7 +128,7 @@ export function isUnrecoverableDbError(error: unknown): boolean {
   return false;
 }
 
-export function deleteDatabase(): Promise<void> {
+function deleteDatabase(): Promise<void> {
   // In-flight opens captured the pre-delete epoch; they close themselves
   // instead of publishing a handle to a database that no longer exists.
   connectionEpoch += 1;
@@ -175,7 +175,7 @@ export function deleteDatabase(): Promise<void> {
   });
 }
 
-export function openDb(): Promise<IDBDatabase> {
+function openDb(): Promise<IDBDatabase> {
   if (sharedDb) {
     // `closed` is spec but missing from this project's DOM lib typing; it
     // guards browsers that drop a connection without firing onclose.
@@ -545,7 +545,7 @@ const notifyProgress = (percent: number) => {
   for (const listener of [...progressListeners]) listener(percent);
 };
 
-export interface DownloadResult {
+interface DownloadResult {
   /** Curve records this download wrote and published. */
   entries: number;
   /**
@@ -828,7 +828,7 @@ function parseContentLength(value: string | null): number | null {
   return Number.isSafeInteger(bytes) ? bytes : null;
 }
 
-export async function fetchJson(
+async function fetchJson(
   url: string,
   onProgress?: (percent: number) => void,
   signal?: AbortSignal,

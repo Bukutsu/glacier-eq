@@ -111,7 +111,7 @@ const FREQ_LARGE_STEP_RATIO = 2 ** (1 / 3);
 /** The frequency one step from `freq`, or `freq` itself at the range edge.
  *  Guarantees progress: rounding (20 Hz × 1.06 → 21) or ISO snapping can
  *  cancel a small step, so advance until the constrained value moves. */
-export function nextFreq(
+function nextFreq(
   freq: number,
   direction: 1 | -1,
   largeStep: boolean,

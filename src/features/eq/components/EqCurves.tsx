@@ -16,7 +16,7 @@ type EqCurvesProps = ComponentProps<typeof UnifiedTracesList> &
   >;
 
 // Separate from the popup so filtering and selection use the same plain data.
-export function EqCurvesList({
+function EqCurvesList({
   query,
   ...props
 }: EqCurvesProps & { query: string }) {

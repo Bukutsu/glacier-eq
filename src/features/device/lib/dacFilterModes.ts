@@ -12,7 +12,7 @@ export interface FilterModeMeta {
   rollOff: "fast" | "slow" | "none";
 }
 
-export const DAC_FILTER_METAS: Record<string, FilterModeMeta> = {
+const DAC_FILTER_METAS: Record<string, FilterModeMeta> = {
   "FAST-LL": {
     get name() {
       return i18n.t("device:dacFilterModes.fastRollOffLowLatency");
@@ -110,7 +110,7 @@ export const DAC_FILTER_METAS: Record<string, FilterModeMeta> = {
   },
 };
 
-export const DEFAULT_FILTER_META: FilterModeMeta = {
+const DEFAULT_FILTER_META: FilterModeMeta = {
   get name() {
     return i18n.t("device:dacFilterModes.standardInterpolation");
   },

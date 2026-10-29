@@ -9,7 +9,7 @@ import { invoke } from "@/lib/rpc";
 import { useToastStore } from "@/stores/toastStore";
 
 /** Mirrors `UpdateSupport.reason` in src-tauri/src/updater.rs. */
-export type UpdateUnsupportedReason = "systemPackage" | "unpackaged" | "mobile";
+type UpdateUnsupportedReason = "systemPackage" | "unpackaged" | "mobile";
 
 interface UpdateSupport {
   supported: boolean;

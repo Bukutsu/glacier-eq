@@ -24,7 +24,7 @@ export interface PEQData {
  * runtime; normalize via parseStoredPeq()/normalizePeq() before reading
  * values as a Filter.
  */
-export type StoredFilter = Omit<Filter, "filter_type"> &
+type StoredFilter = Omit<Filter, "filter_type"> &
   (
     | { filter_type: FilterType; type?: FilterType }
     | { type: FilterType; filter_type?: FilterType }
@@ -83,7 +83,7 @@ export interface DeviceCapabilities {
 }
 
 /** Device controls beyond EQ; each set has its own commands and panel. */
-export type DeviceControls = "walkplay" | "dawn_pro" | "ja11" | "melody";
+type DeviceControls = "walkplay" | "dawn_pro" | "ja11" | "melody";
 
 export interface DeviceInfo extends DeviceCapabilities {
   vendor_id: number;

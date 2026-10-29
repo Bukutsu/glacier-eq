@@ -1,5 +1,5 @@
 /** Keep interpolation intact so test-language labels still show real data. */
-export function pseudoLocalize(value: string): string {
+function pseudoLocalize(value: string): string {
   const accents: Record<string, string> = {
     a: "á",
     e: "ë",

@@ -19,7 +19,7 @@ import type { StatusReporter } from "@/stores/toastStore";
 // Glacier's UI applies selections immediately and sends slider writes on release;
 // it retains Cyfine's extra confirmation for increases above 10 steps.
 // Wire format/source provenance lives in the Rust JA11 control codec.
-export const JA11_CONTROLS = [
+const JA11_CONTROLS = [
   { key: "microphone", max: 1 },
   { key: "uac", max: 1 },
   { key: "volume", max: 60 },

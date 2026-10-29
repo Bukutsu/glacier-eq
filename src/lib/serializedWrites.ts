@@ -13,7 +13,7 @@ export function createSerialTaskQueue(): SerialTaskQueue {
   };
 }
 
-export type ScheduledTask = (isCurrent: () => boolean) => Promise<void>;
+type ScheduledTask = (isCurrent: () => boolean) => Promise<void>;
 
 export interface CoalescingTaskScheduler<K> {
   enqueue: (

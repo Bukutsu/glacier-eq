@@ -19,14 +19,14 @@ const DISCONNECT_NEEDLES = [
   "0x0000048f",
 ];
 
-export function isWindowsPlatform(platformName?: string): boolean {
+function isWindowsPlatform(platformName?: string): boolean {
   const platform =
     platformName ??
     (typeof navigator === "undefined" ? "" : navigator.platform);
   return platform.toLowerCase().startsWith("win");
 }
 
-export function isDisconnectionErrorForPlatform(
+function isDisconnectionErrorForPlatform(
   error: unknown,
   windows: boolean,
 ): boolean {

@@ -18,7 +18,7 @@ function tone(
   return palettes[family]?.[String(toneValue)] ?? fallback;
 }
 
-export function hexToRgb(hex: string): string {
+function hexToRgb(hex: string): string {
   const clean = hex.replace("#", "");
   const num = Number.parseInt(
     clean.length === 3
@@ -238,7 +238,7 @@ function notifyThemeVarsChanged(): void {
   }
 }
 
-export const MATERIAL_YOU_VARS = [
+const MATERIAL_YOU_VARS = [
   "--m3-primary",
   "--m3-secondary",
   "--m3-tertiary",

@@ -25,7 +25,7 @@ interface PreviewChoice {
   model: CatalogModel | null;
 }
 
-export function matchesPreviewChoice(
+function matchesPreviewChoice(
   choice: PreviewChoice,
   query: string,
 ): boolean {

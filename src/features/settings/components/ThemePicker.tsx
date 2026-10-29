@@ -5,7 +5,7 @@ import type { ThemeOption } from "@/features/settings/lib/theme";
 import { Icon } from "@/components/ui/Icon";
 
 // Small samples of the UI palette, not the independently colored EQ traces.
-export const THEME_PREVIEWS: Readonly<
+const THEME_PREVIEWS: Readonly<
   Record<string, readonly [string, string, string]>
 > = {
   glacier: ["#101119", "#c9d1e2", "#2d4263"],

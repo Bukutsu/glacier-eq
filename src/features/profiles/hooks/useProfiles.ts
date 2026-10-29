@@ -45,7 +45,7 @@ const withSyntheticDefault = (raw: Profile[]): Profile[] => [
  * (a generated, imported, recovered or DAC-read EQ) is not a lost profile,
  * so it keeps its name instead of turning into "Default EQ".
  */
-export function reconcileProfileSelection(
+function reconcileProfileSelection(
   profiles: Profile[],
   selected: string,
   previous: Profile[],

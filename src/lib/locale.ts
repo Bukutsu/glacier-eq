@@ -3,7 +3,7 @@ import languages from "@/locales/languages.json";
 export const LANGUAGE_STORAGE_KEY = "glacier.language";
 export const SYSTEM_LANGUAGE = "system";
 export const PSEUDO_LANGUAGE = "en-XA";
-export type Language = keyof typeof languages;
+type Language = keyof typeof languages;
 
 export const languageOptions: { value: string; label: string }[] = [
   ...Object.entries(languages).map(([value, { name }]) => ({

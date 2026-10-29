@@ -5,7 +5,7 @@ const MAX_FREQUENCY_COUNT = 100_000;
 const MIN_FREQUENCY = 20;
 const MAX_FREQUENCY = 20_000;
 
-export interface OnlineManifestDetails {
+interface OnlineManifestDetails {
   price: number | null;
 }
 

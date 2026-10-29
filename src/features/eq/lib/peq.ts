@@ -13,7 +13,7 @@ const SPREAD_FREQS: Partial<Record<number, readonly number[]>> = {
 };
 
 /** Starting frequency for band `index` on a device with `numBands` bands. */
-export function defaultBandFreq(index: number, numBands: number): number {
+function defaultBandFreq(index: number, numBands: number): number {
   const freqs = SPREAD_FREQS[numBands] ?? DEFAULT_FREQS_10_BAND;
   return freqs[index] ?? 1000;
 }

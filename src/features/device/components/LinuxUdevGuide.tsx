@@ -8,15 +8,15 @@ import { invoke, save, writeText } from "@/lib/rpc";
 import { Icon } from "@/components/ui/Icon";
 import rulesText from "../../../../udev/69-glacier-eq.rules?raw";
 
-export const UDEV_RULES_FILENAME = "69-glacier-eq.rules";
+const UDEV_RULES_FILENAME = "69-glacier-eq.rules";
 
-export const UDEV_INSTALL_COMMAND =
+const UDEV_INSTALL_COMMAND =
   "sudo install -m644 69-glacier-eq.rules /etc/udev/rules.d/ &&\n" +
   "sudo udevadm control --reload-rules";
 
 // Reuse the normal file-save flow on desktop and web. No asset URL, download
 // script, or terminal network access is needed; these are this build's bytes.
-export async function saveUdevRules(): Promise<void> {
+async function saveUdevRules(): Promise<void> {
   const path = await save({ defaultPath: UDEV_RULES_FILENAME });
   if (path) await invoke("save_text_file", { path, content: rulesText });
 }

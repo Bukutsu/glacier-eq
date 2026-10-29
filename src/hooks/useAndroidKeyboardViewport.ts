@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { isAndroidDevice } from "@/lib/platform";
 import { installKeyboardTapDismissal } from "@/lib/keyboardTapDismissal";
 
-export function keyboardViewportHeight(
+function keyboardViewportHeight(
   layoutHeight: number,
   visibleHeight: number,
   scale: number,
