@@ -1,112 +1,31 @@
 /* Shadcn-style dialog surfaces on the native top layer. Keep the existing
    focus trap, Android Back/history integration, and dismissal locks. */
-dialog.modal-content {
-  color: var(--popover-foreground);
-  border-color: var(--border);
-  background: var(--popover);
-  box-shadow: var(--shadow-md);
-  animation: motion-fade-in var(--motion-duration) var(--motion-ease);
-}
-dialog.modal-content::backdrop {
-  background: rgb(0 0 0 / 0.45);
-  backdrop-filter: none;
-}
-.modal-content .modal-header {
-  gap: var(--space-4);
-  padding: var(--space-5) var(--space-5) var(--space-3);
-  border-bottom: 0;
-  background: var(--popover);
-}
 .modal-content .modal-header h2 {
   font-size: var(--type-body);
   font-weight: 600;
   letter-spacing: -0.01em;
   line-height: 1.4;
 }
-.modal-content .dialog-close { margin: -6px -6px -6px 0; }
 .modal-content .modal-body {
   padding: var(--space-3) var(--space-5) var(--space-5);
   gap: var(--space-4);
 }
-.modal-content .confirm-message {
-  color: var(--muted-foreground);
-  font-size: var(--type-label);
-  line-height: 1.6;
-}
-.modal-content .confirm-actions,
-.modal-content .modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  margin-top: var(--space-4);
-}
 .device-modal .modal-body { padding: 0; }
-.device-modal .device-chooser-content { padding: var(--space-3) var(--space-5) var(--space-5); }
-.device-modal .device-intro { background: transparent; border: 0; padding: 0; gap: var(--space-3); }
 .device-modal .device-intro p { font-size: var(--type-label); line-height: 1.5; color: var(--muted-foreground); }
 .device-modal .device-intro > .app-icon { display: none; }
-.device-modal .device-list-heading { font-size: var(--type-label); font-weight: 500; }
 .device-modal .device-list-heading span { background: transparent; color: var(--muted-foreground); }
-.device-modal .device-row { border-radius: var(--control-radius); background: transparent; border-color: var(--border); }
-.device-modal .device-row.selected { background: var(--accent); border-color: var(--input); }
-.device-modal .device-row-name { font-size: var(--type-label); font-weight: 500; }
-.device-modal .device-row-description,
-.device-modal .device-row-meta { color: var(--muted-foreground); font-size: var(--type-small); }
-.device-modal .device-selection-mark { color: var(--foreground); }
-.device-modal .device-connect-footer {
-  padding: var(--space-4) var(--space-5);
-  background: var(--popover);
-  border-top: 1px solid var(--border);
-}
-.modal-content .supported-list,
-.modal-content .device-troubleshooting { border-color: var(--border); border-radius: var(--control-radius); }
 .modal-content .supported-list summary,
 .modal-content .device-troubleshooting summary { font-size: var(--type-label); font-weight: 500; }
-.diag-search-field { flex: 1 1 140px; min-width: 140px; }
-.modal-content .diag-head { flex-wrap: wrap; gap: var(--space-2); padding: var(--space-4); background: transparent; }
-.modal-content .diag-toolbar { flex-wrap: wrap; gap: var(--space-2); padding: var(--space-3) var(--space-4); background: transparent; }
-.ui-menu { min-width: 200px; border-color: var(--border); box-shadow: var(--shadow-sm); }
 .ui-menu-item { padding: var(--space-2); color: var(--popover-foreground); }
 .ui-menu-item[data-highlighted] { color: var(--accent-foreground); }
 .ui-menu-item:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
 @media (max-width: 850px), ((max-height: 540px) and (pointer: coarse)) {
-  .modal-content .modal-header { padding: var(--space-4); }
   .modal-content .modal-body { padding: var(--space-3) var(--space-4) max(var(--space-4), var(--safe-area-bottom, 0px)); }
   .modal-content button[data-slot="button"] { min-height: 44px; }
   .modal-content .confirm-actions > button { flex: 1 1 0; }
   .device-modal .modal-body { padding: 0; }
-  .device-modal .device-chooser-content { padding: var(--space-3) var(--space-4) var(--space-4); }
-  .device-modal .device-connect-footer { padding: var(--space-4); padding-bottom: max(var(--space-4), var(--safe-area-bottom, 0px)); }
   .ui-menu-item { min-height: 44px; }
-}
-@media (prefers-reduced-motion: reduce) {
-  dialog.modal-content, dialog.modal-content::backdrop { animation: none; }
 }
 
 /* One dialog surface; toolbar, scrolling events, and a stable footer. */
-.modal-content .diagnostics-view {
-  display: flex; flex-direction: column; flex: 1; min-height: 0;
-  padding: 0 var(--space-4) var(--space-4); gap: var(--space-3); overflow: hidden;
-}
-.modal-content .diagnostics-view .diag-head { padding: 0; display: block; }
-.diagnostics-view .diag-counts { display: flex; flex-wrap: wrap; gap: var(--space-3); font: inherit; font-size: var(--type-small); }
 .diagnostics-view .diag-counts span { background: none; padding: 0; font-variant-numeric: tabular-nums; }
-.modal-content .diagnostics-view .diag-toolbar { display: block; padding: 0; background: transparent; }
-.diagnostics-view .diag-severity-group { display: flex; gap: 2px; padding: 3px; background: var(--accent); border-radius: var(--control-radius); }
-.diagnostics-view .diag-severity-group .diag-filter-btn { flex: 1; min-width: 0; min-height: 44px; border: 0; background: transparent; font-family: var(--font-ui); color: var(--muted-foreground); padding: 0 8px; }
-.diagnostics-view .diag-severity-group .diag-filter-btn.active { background: var(--popover); color: var(--foreground); box-shadow: var(--shadow-sm); }
-.diagnostics-view .diag-search-field { flex: 0 0 auto; min-width: 0; width: 100%; order: -1; }
-.diagnostics-view .diag-search { border: 1px solid var(--input); border-radius: var(--control-radius); height: 44px; font-family: var(--font-ui); background: var(--field-background); }
-.diagnostics-view .log-box { flex: 1; min-height: 0; max-height: none; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--control-radius); background: transparent; outline: none; scroll-behavior: auto; overscroll-behavior: contain; }
-.diagnostics-view .log-box:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
-.diagnostics-view .log-line { display: flex; flex-direction: column; gap: 6px; padding: 12px; color: var(--foreground); }
-.diagnostics-view .diag-event-meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px; }
-.diagnostics-view .log-ts { font-size: 11px; font-variant-numeric: tabular-nums; color: var(--muted-foreground); }
-.diagnostics-view .log-level { font-family: var(--font-ui); font-size: 11px; letter-spacing: 0; text-transform: none; }
-.diagnostics-view .log-msg, .diagnostics-view .log-details { min-width: 0; width: 100%; font-size: 12px; line-height: 1.6; }
-.diagnostics-view .diag-footer { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; padding: 0; text-align: left; font-size: var(--type-small); }
-.diagnostics-view .diag-follow { display: flex; align-items: center; gap: 8px; min-height: 44px; color: var(--muted-foreground); }
-.diagnostics-view .diag-report-actions { display: flex; gap: 8px; }
-.diagnostics-view .diag-report-actions .diag-copy-btn { flex: 1; }
-.diagnostics-view .diag-empty { display: grid; place-items: center; min-height: 120px; padding: 16px; }

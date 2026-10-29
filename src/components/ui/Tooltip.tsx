@@ -22,7 +22,7 @@ export function Tooltip({
         <TooltipPrimitive.Positioner
           side={side}
           sideOffset={6}
-          className="ui-popup-positioner"
+          className="cmp:z-[var(--z-popover)] cmp:[isolation:isolate]"
         >
           <TooltipPrimitive.Popup
             data-slot="tooltip-content"

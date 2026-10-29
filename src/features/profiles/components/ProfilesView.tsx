@@ -439,16 +439,16 @@ export const ProfilesView = memo(function ProfilesView({
   const enabledBands = peq.filters.filter((filter) => filter.enabled).length;
 
   return (
-    <div className="profiles-workspace">
-      <section className="profiles-library" aria-labelledby="profiles-title">
-        <header className="profiles-header">
-          <div className="profiles-heading">
+    <div className="profiles-workspace cmp:grid cmp:grid-cols-[minmax(0,_1.4fr)_minmax(300px,_1fr)] cmp:[align-items:start] cmp:gap-[var(--space-5)] cmp:w-[100%] cmp:min-w-[0] cmp:max-[1000px]:grid-cols-[minmax(0,_1fr)]">
+      <section className="cmp:min-w-[0] cmp:p-[var(--space-5)] cmp:[border:1px_solid_var(--line-soft)] cmp:rounded-[var(--radius-card)] cmp:[background:var(--panel)] cmp:box-border cmp:compact:p-[var(--space-4)]" aria-labelledby="profiles-title">
+        <header className="profiles-header cmp:flex cmp:items-center cmp:justify-between cmp:flex-wrap cmp:gap-[var(--space-3)] cmp:mb-[var(--space-4)]">
+          <div className="cmp:flex cmp:items-baseline cmp:gap-[var(--space-2)]">
             <h2 id="profiles-title">{t("profilesView.library")}</h2>
             <span className="profiles-note">
               {t("profilesView.savedCount", { count: savedProfiles.length })}
             </span>
           </div>
-          <div className="profiles-header-actions">
+          <div className="cmp:flex cmp:items-center cmp:flex-wrap cmp:gap-[var(--space-2)]">
             <Button variant="ghost" onClick={handlePaste}>
               <Icon name="content_paste" /> {t("profilesView.paste")}
             </Button>
@@ -458,7 +458,7 @@ export const ProfilesView = memo(function ProfilesView({
           </div>
         </header>
 
-        <div className="profiles-search">
+        <div className="profiles-search cmp:relative cmp:flex cmp:items-center">
           <Icon name="search" />
           <Input
             type="search"
@@ -472,7 +472,7 @@ export const ProfilesView = memo(function ProfilesView({
             <Button
               variant="ghost"
               size="icon"
-              className="profiles-search-clear"
+              className="cmp:absolute cmp:top-[5px] cmp:right-[5px] cmp:compact:top-[0] cmp:compact:right-[0]"
               aria-label={t("profilesView.clearSearch")}
               onClick={() => setProfileSearch("")}
             >
@@ -483,12 +483,12 @@ export const ProfilesView = memo(function ProfilesView({
 
         {dacBanks}
         {dacBanks && (
-          <h3 className="profiles-local-heading">
+          <h3 className="cmp:m-[var(--space-4)_0_var(--space-1)] cmp:text-[color:var(--muted)] cmp:text-[length:var(--type-small)] cmp:font-medium">
             {t("profilesView.localProfiles")}
           </h3>
         )}
         {query && filteredProfiles.length === 0 && (
-          <div className="profiles-empty" role="status">
+          <div className="profiles-empty cmp:flex cmp:flex-col cmp:[align-items:start] cmp:gap-[var(--space-2)] cmp:p-[var(--space-5)_0_var(--space-3)]" role="status">
             <h3>{t("profilesView.noMatchingProfiles")}</h3>
             <p>{t("profilesView.noMatchesHint")}</p>
             <Button variant="ghost" onClick={() => setProfileSearch("")}>
@@ -497,7 +497,7 @@ export const ProfilesView = memo(function ProfilesView({
           </div>
         )}
         <ul
-          className="profiles-list"
+          className="cmp:flex cmp:flex-col cmp:gap-[2px] cmp:min-w-[0] cmp:max-h-[440px] cmp:overflow-y-auto cmp:m-[var(--space-3)_calc(-1_*_var(--space-2))_0] cmp:p-[0_var(--space-2)] cmp:[list-style:none] cmp:compact:max-h-[320px]"
           aria-label={t("profilesView.profilesList")}
         >
           {filteredProfiles.map((profile) => {
@@ -530,12 +530,12 @@ export const ProfilesView = memo(function ProfilesView({
             return (
               <li
                 key={profile.name}
-                className={`profiles-item${isSelected ? " is-current" : ""}`}
+                className={`cmp:[&.is-current]:[--muted:var(--accent-foreground)] cmp:relative cmp:flex cmp:shrink-0 cmp:items-center cmp:gap-[var(--space-2)] cmp:min-w-[0] cmp:pr-[var(--space-1)] cmp:rounded-[var(--control-radius)] cmp:[transition:background-color_120ms] cmp:[&:hover]:[background:var(--accent)] cmp:[&&.is-current]:[background:var(--surface-soft)] cmp:[&.is-current::before]:content-[''] cmp:[&.is-current::before]:absolute cmp:[&.is-current::before]:top-[10px] cmp:[&.is-current::before]:bottom-[10px] cmp:[&.is-current::before]:left-[0] cmp:[&.is-current::before]:w-[2px] cmp:[&.is-current::before]:rounded-[2px] cmp:[&.is-current::before]:[background:var(--primary)] ${isSelected ? " is-current" : ""}`}
               >
                 <button
                   type="button"
                   data-slot="profile-load"
-                  className="profiles-load"
+                  className="cmp:flex cmp:flex-[1_1_auto] cmp:flex-col cmp:items-start cmp:gap-[2px] cmp:min-w-[0] cmp:min-h-[52px] cmp:p-[var(--space-2)_var(--space-3)] cmp:[border:0] cmp:rounded-[var(--control-radius)] cmp:[background:transparent] cmp:text-[color:inherit] cmp:[font:inherit] cmp:text-left cmp:cursor-pointer cmp:[&:focus-visible]:[outline:2px_solid_var(--ring)] cmp:[&:focus-visible]:[outline-offset:-2px] cmp:[.profiles-dac-banks_&:disabled]:opacity-[0.5] cmp:[.profiles-dac-banks_&:disabled]:cursor-not-allowed"
                   aria-pressed={isSelected}
                   aria-label={loadLabel}
                   title={
@@ -552,13 +552,13 @@ export const ProfilesView = memo(function ProfilesView({
                   <span className="profiles-item-meta">{meta}</span>
                 </button>
                 {isSelected && (
-                  <span className="profiles-badge" data-modified={dirty}>
+                  <span className="cmp:flex-[none] cmp:text-[color:var(--muted)] cmp:text-[length:var(--type-small)] cmp:whitespace-nowrap cmp:[&[data-modified='true']]:text-[color:var(--warning-foreground)]" data-modified={dirty}>
                     {dirty
                       ? t("profilesView.edited")
                       : t("profilesView.inEditor")}
                   </span>
                 )}
-                <div className="profiles-row-actions">
+                <div className="profiles-row-actions cmp:flex cmp:flex-[none] cmp:gap-[2px]">
                   {onUseOnDac && !isDefault && (
                     <Tooltip
                       label={
@@ -628,7 +628,7 @@ export const ProfilesView = memo(function ProfilesView({
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="profiles-delete"
+                          className="cmp:[.profiles-row-actions_&:hover]:text-[color:var(--destructive-foreground)]"
                           aria-label={t("profilesView.deleteLabel", {
                             name: profile.name,
                           })}
@@ -646,11 +646,11 @@ export const ProfilesView = memo(function ProfilesView({
         </ul>
         {/* The built-in profile is always listed, so the hint follows it. */}
         {!query && savedProfiles.length === 0 && (
-          <p className="profiles-note profiles-empty-hint">
+          <p className="profiles-note cmp:mt-[var(--space-3)]">
             {t("profilesView.emptyLibraryHint")}
           </p>
         )}
-        <footer className="profiles-library-footer">
+        <footer className="cmp:flex cmp:items-center cmp:justify-between cmp:flex-wrap cmp:gap-[var(--space-2)] cmp:mt-[var(--space-4)] cmp:pt-[var(--space-3)] cmp:[border-top:1px_solid_var(--line-soft)]">
           <p className="profiles-note">
             {dacBanks
               ? t("profilesView.loadHelpMelody")
@@ -659,7 +659,7 @@ export const ProfilesView = memo(function ProfilesView({
                 : t("profilesView.loadHelp")}
           </p>
           {profilesOnDisk && (
-            <div className="profiles-footer-actions">
+            <div className="cmp:flex cmp:items-center cmp:flex-wrap cmp:gap-[var(--space-2)]">
               <Button variant="ghost" onClick={handleReloadProfiles}>
                 <Icon name="refresh" /> {t("profilesView.refresh")}
               </Button>
@@ -674,11 +674,11 @@ export const ProfilesView = memo(function ProfilesView({
       </section>
 
       <section
-        className="profiles-editor"
+        className="cmp:min-w-[0] cmp:p-[var(--space-5)] cmp:[border:1px_solid_var(--line-soft)] cmp:rounded-[var(--radius-card)] cmp:[background:var(--panel)] cmp:box-border cmp:compact:p-[var(--space-4)] cmp:compact:[.mobile-workspace_&]:p-[var(--space-3)] cmp:compact:[.mobile-workspace_&]:gap-[var(--space-2)]"
         aria-labelledby="profiles-editor-title"
       >
-        <header className="profiles-editor-header">
-          <h2 id="profiles-editor-title" className="profiles-eyebrow">
+        <header className="cmp:flex cmp:items-center cmp:justify-between cmp:gap-[var(--space-2)] cmp:mb-[var(--space-3)]">
+          <h2 id="profiles-editor-title" className="cmp:m-[0] cmp:text-[color:var(--muted)] cmp:text-[length:var(--type-small)] cmp:font-medium">
             {t("profilesView.inTheEditor")}
           </h2>
           <Badge
@@ -692,7 +692,7 @@ export const ProfilesView = memo(function ProfilesView({
             {editorState}
           </Badge>
         </header>
-        <h3 className="profiles-editor-name" title={selectedPreset}>
+        <h3 className="cmp:m-[0_0_var(--space-1)] cmp:text-[color:var(--text)] cmp:text-[length:18px] cmp:font-semibold cmp:leading-[1.35] cmp:[overflow-wrap:anywhere] cmp:compact:[.mobile-workspace_&]:text-[length:var(--type-body)] cmp:compact:[.mobile-workspace_&]:m-[0]" title={selectedPreset}>
           {selectedPreset}
         </h3>
         <p className="profiles-note">
@@ -706,7 +706,7 @@ export const ProfilesView = memo(function ProfilesView({
           dacEditor?.slot != null &&
           dacEditor.unsaved &&
           onSaveEditorToDacBank && (
-            <div className="profiles-editor-actions profiles-dac-save">
+            <div className="cmp:flex cmp:items-center cmp:flex-wrap cmp:gap-[var(--space-2)] cmp:mt-[var(--space-4)] cmp:[.profile-save-form_&]:mt-[var(--space-1)] cmp:compact:[.mobile-workspace_&]:flex-wrap cmp:compact:[.mobile-workspace_&]:gap-[var(--space-2)] profiles-dac-save">
               <Button
                 variant="primary"
                 disabled={isBusy}
@@ -725,7 +725,7 @@ export const ProfilesView = memo(function ProfilesView({
         {showActions &&
           (showSaveAs ? (
             <form
-              className="profile-save-form"
+              className="profile-save-form cmp:flex cmp:flex-col cmp:gap-[var(--space-2)] cmp:mt-[var(--space-4)]"
               onSubmit={(event) => {
                 event.preventDefault();
                 if (canSave) onSave();
@@ -767,7 +767,7 @@ export const ProfilesView = memo(function ProfilesView({
                   {t("profilesView.overwriteWarning")}
                 </p>
               )}
-              <div className="profiles-editor-actions">
+              <div className="cmp:flex cmp:items-center cmp:flex-wrap cmp:gap-[var(--space-2)] cmp:mt-[var(--space-4)] cmp:[.profile-save-form_&]:mt-[var(--space-1)] cmp:compact:[.mobile-workspace_&]:flex-wrap cmp:compact:[.mobile-workspace_&]:gap-[var(--space-2)]">
                 <Button
                   type="submit"
                   variant={dacEditor?.unsaved ? "default" : "primary"}
@@ -794,7 +794,7 @@ export const ProfilesView = memo(function ProfilesView({
               </div>
             </form>
           ) : (
-            <div className="profiles-editor-actions">
+            <div className="cmp:flex cmp:items-center cmp:flex-wrap cmp:gap-[var(--space-2)] cmp:mt-[var(--space-4)] cmp:[.profile-save-form_&]:mt-[var(--space-1)] cmp:compact:[.mobile-workspace_&]:flex-wrap cmp:compact:[.mobile-workspace_&]:gap-[var(--space-2)]">
               {selectedIsSaved && (
                 <Button
                   variant={dacEditor?.unsaved ? "default" : "primary"}
@@ -823,13 +823,13 @@ export const ProfilesView = memo(function ProfilesView({
           ))}
         {preview && (
           <div
-            className="profiles-preview"
+            className="profiles-preview cmp:flex cmp:min-w-[0] cmp:h-[200px] cmp:mt-[var(--space-4)] cmp:pt-[var(--space-4)] cmp:[border-top:1px_solid_var(--line-soft)] cmp:box-border cmp:compact:[.mobile-workspace_&]:h-[100px] cmp:compact:[.mobile-workspace_&]:mt-[var(--space-2)] cmp:compact:[.mobile-workspace_&]:pt-[var(--space-2)]"
             aria-label={t("profilesView.currentEQPreview")}
           >
             {preview}
           </div>
         )}
-        <div className="profiles-editor-tools">
+        <div className="cmp:flex cmp:items-center cmp:flex-wrap cmp:gap-[var(--space-1)] cmp:m-[var(--space-3)_calc(-1_*_var(--space-2))_0]">
           {onReviewEq && (
             <Button variant="ghost" onClick={onReviewEq}>
               <Icon name="tune" /> {t("profilesView.editEQ")}
@@ -845,7 +845,7 @@ export const ProfilesView = memo(function ProfilesView({
       </section>
 
       <input
-        className="hidden-file-input"
+        className="leg:hidden!"
         type="file"
         aria-label={t("profilesView.import")}
         ref={fileInputRef}
@@ -885,7 +885,7 @@ export const ProfilesView = memo(function ProfilesView({
             <label htmlFor="manual-eq-text">{t("profilesView.eqText")}</label>
             <textarea
               id="manual-eq-text"
-              className="profiles-paste-text"
+              className="cmp:w-[100%] cmp:min-w-[0] cmp:[resize:vertical] cmp:max-h-[40dvh] cmp:p-[12px] cmp:[border:1px_solid_var(--input)] cmp:rounded-[var(--control-radius)] cmp:text-[color:var(--foreground)] cmp:[background:var(--field-background)] cmp:[font-family:var(--font-mono)] cmp:text-[length:16px] cmp:leading-[1.5] cmp:[&:focus-visible]:[outline:2px_solid_var(--ring)] cmp:[&:focus-visible]:[outline-offset:2px]"
               data-dialog-autofocus
               rows={8}
               maxLength={1_048_576}
@@ -894,7 +894,7 @@ export const ProfilesView = memo(function ProfilesView({
               disabled={isParsingPaste}
               onChange={(event) => setManualPaste(event.target.value)}
             />
-            <div className="modal-actions">
+            <div className="cmp:[.modal-content_&]:flex cmp:[.modal-content_&]:justify-end cmp:[.modal-content_&]:flex-wrap cmp:[.modal-content_&]:gap-[var(--space-2)] cmp:[.modal-content_&]:mt-[var(--space-4)]">
               <Button
                 variant="ghost"
                 disabled={isParsingPaste}
@@ -927,7 +927,7 @@ export const ProfilesView = memo(function ProfilesView({
         >
           <div className="modal-body">
             <div
-              className="profiles-import-modes"
+              className="cmp:grid cmp:grid-cols-[repeat(2,_minmax(0,_1fr))] cmp:gap-[var(--space-1)] cmp:p-[var(--space-1)] cmp:[border:1px_solid_var(--line-soft)] cmp:rounded-[var(--control-radius)] cmp:[background:var(--input-bg)]"
               role="group"
               aria-label={t("profilesView.importDestinationMode")}
             >
@@ -957,7 +957,7 @@ export const ProfilesView = memo(function ProfilesView({
               </Button>
             </div>
             {!isTemporary ? (
-              <div className="profiles-import-fields">
+              <div className="profiles-import-fields cmp:flex cmp:flex-col cmp:gap-[var(--space-2)]">
                 <label htmlFor="import-name">
                   {t("profilesView.profileName")}
                 </label>
@@ -1034,7 +1034,7 @@ export const ProfilesView = memo(function ProfilesView({
                 aria-label={t("profilesView.filterPreview")}
               >
                 <h3>{t("profilesView.filterPreview")}</h3>
-                <div className="profiles-import-filter-list">
+                <div className="profiles-import-filter-list cmp:max-h-[160px] cmp:overflow-y-auto">
                   {activeFilters.map((filter, index) => (
                     <p key={index}>
                       {t("profilesView.filterSummary", {
@@ -1051,7 +1051,7 @@ export const ProfilesView = memo(function ProfilesView({
             )}
             {parsed.warnings.length > 0 && (
               <section
-                className="profiles-import-warnings"
+                className="profiles-import-warnings cmp:text-[color:var(--warning-foreground)]"
                 aria-label={t("profilesView.importWarnings")}
               >
                 <h3>{t("profilesView.importWarnings")}</h3>
@@ -1062,7 +1062,7 @@ export const ProfilesView = memo(function ProfilesView({
                 </ul>
               </section>
             )}
-            <div className="modal-actions">
+            <div className="cmp:[.modal-content_&]:flex cmp:[.modal-content_&]:justify-end cmp:[.modal-content_&]:flex-wrap cmp:[.modal-content_&]:gap-[var(--space-2)] cmp:[.modal-content_&]:mt-[var(--space-4)]">
               <Button
                 variant="primary"
                 disabled={
@@ -1148,7 +1148,7 @@ export const ProfilesView = memo(function ProfilesView({
                 {t("profilesView.nameTaken")}
               </p>
             )}
-            <div className="modal-actions">
+            <div className="cmp:[.modal-content_&]:flex cmp:[.modal-content_&]:justify-end cmp:[.modal-content_&]:flex-wrap cmp:[.modal-content_&]:gap-[var(--space-2)] cmp:[.modal-content_&]:mt-[var(--space-4)]">
               <Button
                 variant="ghost"
                 disabled={isRenaming}

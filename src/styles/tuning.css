@@ -1,13 +1,4 @@
 /* Quiet field groups, using the shared Base UI / shadcn-style controls. */
-.tuning-panel,
-.tuning-match,
-.tuning-form {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.tuning-form { gap: var(--space-4); }
 
 .tuning-heading h2 {
   margin: 0 0 var(--space-1);
@@ -17,49 +8,14 @@
   line-height: 1.5;
 }
 
-.tuning-heading p,
-.tuning-help {
+.tuning-heading p {
   margin: 0;
   color: var(--muted-foreground);
   font-size: var(--type-small);
   line-height: 1.5;
 }
 
-.tuning-fields,
-.tuning-settings {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  gap: var(--space-4);
-}
-
-.tuning-settings {
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--line-soft);
-  gap: var(--space-2);
-}
-
-.tuning-field {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  gap: var(--space-2);
-}
-
-.tuning-field-heading,
-.tuning-band-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  min-width: 0;
-}
-
-.tuning-panel label,
-.tuning-field-label {
+.tuning-panel label {
   color: var(--foreground);
   font-size: var(--type-label);
   font-weight: 500;
@@ -68,31 +24,9 @@
 
 .tuning-field-heading > :is(label, span) { min-width: 0; }
 
-.tuning-panel .tuning-field-action {
-  height: auto;
-  min-height: 28px;
-  max-width: 65%;
-  padding: var(--space-1) var(--space-2);
-  font-size: var(--type-small);
-  line-height: 1.4;
-  white-space: normal;
-  text-align: end;
-}
-
 .tuning-panel .tuning-field-action svg { width: 14px; height: 14px; }
 
-.tuning-panel .tuning-bands {
-  width: 112px;
-  flex: 0 0 auto;
-}
-
 /* One disclosure instead of an always-visible bank of secondary controls. */
-.tuning-panel .tuning-advanced {
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  overflow: visible;
-}
 
 .tuning-panel .tuning-advanced > .app-collapse-trigger {
   min-height: 34px;
@@ -120,31 +54,7 @@
   padding: var(--space-3) 0;
 }
 
-.tuning-advanced-fields {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
-
-.tuning-submit {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
 .tuning-destination { text-wrap: pretty; }
-
-.tuning-warnings {
-  margin: var(--space-3) 0 0;
-  padding: var(--space-3);
-  border: 1px solid var(--line-soft);
-  border-radius: var(--control-radius);
-  background: transparent;
-  color: var(--muted-foreground);
-  font-size: var(--type-small);
-  line-height: 1.5;
-  overflow-wrap: anywhere;
-}
 
 .tuning-warnings strong { color: var(--foreground); font-weight: 500; }
 .tuning-warnings p { margin: var(--space-1) 0 0; }
@@ -155,31 +65,7 @@
   outline-offset: 2px;
 }
 
-.tuning-sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-  border: 0;
-}
-
-@media (min-width: 851px) and ((min-height: 541px) or (pointer: fine)) {
-  .desktop-view-tuning .desktop-content {
-    grid-template-columns: minmax(0, 1fr) minmax(300px, 340px);
-  }
-  .desktop-view-tuning .desktop-content > .right-rail {
-    align-self: start;
-    max-height: 100%;
-  }
-}
-
 @media (max-width: 850px), ((max-height: 540px) and (pointer: coarse)) {
-  .tuning-panel { padding: var(--space-4); }
-  .tuning-panel .tuning-bands { width: 144px; }
   .tuning-panel :is(button, input) {
     scroll-margin-block: var(--space-5) calc(var(--tabbar-h) + var(--safe-area-bottom, 0px) + var(--space-4));
   }

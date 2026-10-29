@@ -45,7 +45,7 @@ export class ErrorBoundary extends Component<Props, State> {
 function ErrorFallback({ error }: { error: Error | null }) {
   const { t } = useTranslation("shell");
   return (
-    <main className="error-boundary">
+    <main className="error-boundary cmp:grid cmp:[place-items:center] cmp:min-h-[100dvh] cmp:p-[24px] cmp:[background:var(--background)]">
       <ErrorNotice
         title={t("feedback.applicationError")}
         action={

@@ -26,7 +26,7 @@ function ConnectionActions({
         render={
           <Button
             size={compact ? "icon" : "default"}
-            className={compact ? "mobile-more-btn" : ""}
+            className={compact ? "leg:compact:inline-flex leg:compact:items-center leg:compact:justify-center leg:compact:w-[44px] leg:compact:h-[44px] leg:compact:text-[color:var(--text)] leg:compact:[background:var(--surface-soft)] leg:compact:[outline:1px_solid_var(--line-soft)] leg:compact:[outline-offset:-1px] leg:compact:[&:active]:[background:var(--surface)]" : ""}
           />
         }
       >
@@ -43,10 +43,10 @@ function ConnectionActions({
           align="end"
           sideOffset={6}
           positionMethod="fixed"
-          className="ui-popup-positioner"
+          className="cmp:z-[var(--z-popover)] cmp:[isolation:isolate]"
         >
           <Menu.Popup
-            className="ui-menu"
+            className="cmp:box-border cmp:max-h-[var(--available-height)] cmp:overflow-y-auto cmp:p-[var(--space-1)] cmp:[border:1px_solid_var(--line-medium)] cmp:rounded-[var(--radius-card)] cmp:[background:var(--popover)] cmp:text-[color:var(--popover-foreground)] cmp:[outline:none] cmp:min-w-[200px] cmp:[&&]:[border-color:var(--border)] cmp:[box-shadow:var(--shadow-sm)]"
             aria-label={t("header.deviceActions")}
           >
             {onPull && (
@@ -215,7 +215,7 @@ export const Header = memo(function Header({
       type="button"
       variant="ghost"
       size="icon"
-      className="history-btn"
+      className="leg:[&:disabled]:[background:transparent]! leg:compact:[.mobile-history-buttons_&]:w-[44px] leg:compact:[.mobile-history-buttons_&]:min-w-[44px] leg:compact:[.mobile-history-buttons_&]:min-h-[44px] leg:compact:[.mobile-history-buttons_&]:p-[0] leg:compact:min-h-[40px]"
       title={t("header.export")}
       aria-label={t("header.export")}
       disabled={isBusy}
@@ -227,20 +227,20 @@ export const Header = memo(function Header({
 
   return (
     <header className={`app-header${compact ? " compact-mobile" : ""}`}>
-      <div className="header-main">
-        <div className="title-stack">
-          <div className="title-line">
+      <div className="header-main leg:min-w-[0] leg:flex leg:items-center leg:justify-between leg:flex-wrap leg:gap-[var(--space-4)] leg:max-[960px]:grid-cols-[minmax(0,_1fr)_auto] leg:max-[960px]:items-center leg:max-[960px]:gap-[12px] leg:compact:flex leg:compact:flex-wrap leg:compact:[&&]:items-center leg:compact:[&&]:gap-[8px] leg:compact:w-[100%] cmp:compact:[.app-header.compact-mobile:has(.toast-feedback)>&]:hidden cmp:compact:[.app-header_&]:gap-[var(--space-1)]">
+        <div className="leg:flex leg:flex-col leg:gap-[6px] leg:min-w-[0] leg:max-[960px]:w-[100%] leg:compact:flex-[1_1_100%] leg:compact:min-w-[0] leg:compact:gap-[var(--space-1)] cmp:compact:[.app-header_&]:gap-[0]">
+          <div className="title-line leg:flex leg:items-center leg:gap-[var(--space-2)] leg:min-w-[0] leg:max-[960px]:gap-[8px] leg:compact:flex-nowrap leg:compact:[&&]:gap-[6px]">
             <h1>{pageTitle}</h1>
             {mobile && !isConfigPage && profileEdited && (
-              <span className="title-edited">{t("header.edited")}</span>
+              <span className="cmp:compact:flex-[none] cmp:compact:p-[1px_var(--space-2)] cmp:compact:[border:1px_solid_var(--border)] cmp:compact:rounded-[var(--radius-pill)] cmp:compact:text-[color:var(--muted-foreground)] cmp:compact:text-[length:var(--type-small)] cmp:compact:leading-[1.4]">{t("header.edited")}</span>
             )}
           </div>
           {/* One status line: DAC, sync state, and the profile. Device and
               Settings show status in their own content and the sidebar. */}
           {(mobile || !isConfigPage) && (
-            <div className="header-meta-row">
+            <div className="leg:flex leg:items-center leg:gap-[var(--space-2)] leg:min-w-[0] leg:flex-wrap leg:compact:flex-row leg:compact:items-center leg:compact:gap-[8px] cmp:compact:[.app-header_&]:mt-[0]">
               <span
-                className={`sync-dot ${syncClass}`}
+                className={`leg:inline-flex leg:items-center leg:gap-[6px] leg:max-w-[100%] leg:text-[length:var(--type-small)] leg:leading-[1.4] leg:text-[color:var(--muted)] leg:[&::before]:content-[''] leg:[&::before]:w-[5px] leg:[&::before]:h-[5px] leg:[&::before]:flex-[0_0_5px] leg:[&::before]:rounded-[var(--radius-pill)] leg:[&::before]:[background:currentColor] leg:[&.ok]:text-[color:var(--sync-ok)] leg:[&&.simulation]:text-[color:var(--sync-working)] leg:[&&&.working]:text-[color:var(--sync-working)] leg:[&&&&.unsaved]:text-[color:var(--sync-unsaved)] leg:compact:min-h-[24px] leg:compact:inline-flex leg:compact:items-center ${syncClass}`}
                 role="status"
                 aria-live="polite"
               >
@@ -248,14 +248,14 @@ export const Header = memo(function Header({
               </span>
               {liveApply && connected && hardwareEq && !isConfigPage && (
                 <span
-                  className="header-profile-state"
+                  className="leg:text-[color:var(--muted)] leg:text-[length:var(--type-small)] leg:leading-[1.4] leg:[&::before]:content-['·'] leg:[&::before]:mr-[var(--space-2)]"
                   title={t("header.liveApplyHelp")}
                 >
                   {t("header.liveApply")}
                 </span>
               )}
               {!isConfigPage && !mobile && (
-                <span className="header-profile-state">{profileText}</span>
+                <span className="leg:text-[color:var(--muted)] leg:text-[length:var(--type-small)] leg:leading-[1.4] leg:[&::before]:content-['·'] leg:[&::before]:mr-[var(--space-2)]">{profileText}</span>
               )}
               {draftRecovery}
             </div>
@@ -265,11 +265,11 @@ export const Header = memo(function Header({
             every page except Device, whose card has its own. */}
         {!mobile &&
           (!isConfigPage || (connected && configPage !== "device")) && (
-            <div className="toolbar desktop-toolbar">
+            <div className="toolbar leg:compact:hidden!">
               {!isConfigPage && (
                 <>
                   <div
-                    className="history-buttons"
+                    className="leg:inline-flex leg:gap-[var(--space-1)] leg:compact:flex-[none]"
                     role="group"
                     aria-label={t("header.editHistory")}
                   >
@@ -277,7 +277,7 @@ export const Header = memo(function Header({
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="history-btn"
+                      className="leg:[&:disabled]:[background:transparent]! leg:compact:[.mobile-history-buttons_&]:w-[44px] leg:compact:[.mobile-history-buttons_&]:min-w-[44px] leg:compact:[.mobile-history-buttons_&]:min-h-[44px] leg:compact:[.mobile-history-buttons_&]:p-[0] leg:compact:min-h-[40px]"
                       title={t("actions.undo")}
                       aria-label={t("actions.undo")}
                       disabled={isBusy || !canUndo}
@@ -289,7 +289,7 @@ export const Header = memo(function Header({
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="history-btn"
+                      className="leg:[&:disabled]:[background:transparent]! leg:compact:[.mobile-history-buttons_&]:w-[44px] leg:compact:[.mobile-history-buttons_&]:min-w-[44px] leg:compact:[.mobile-history-buttons_&]:min-h-[44px] leg:compact:[.mobile-history-buttons_&]:p-[0] leg:compact:min-h-[40px]"
                       title={t("actions.redo")}
                       aria-label={t("actions.redo")}
                       disabled={isBusy || !canRedo}
@@ -353,9 +353,9 @@ export const Header = memo(function Header({
 
         {/* Keep the write action visible; less frequent device actions live in the menu. */}
         {mobile && (
-          <div className="mobile-toolbar">
+          <div className="mobile-toolbar leg:hidden leg:compact:flex leg:compact:items-center leg:compact:gap-[8px] leg:compact:w-[100%]">
             <div
-              className="history-buttons mobile-history-buttons"
+              className="leg:inline-flex leg:gap-[var(--space-1)] leg:compact:flex-[none] mobile-history-buttons leg:compact:mr-[auto] leg:compact:[background:transparent] leg:compact:[outline:none] leg:compact:p-[0]"
               role="group"
               aria-label={t("header.eqActions")}
             >
@@ -363,7 +363,7 @@ export const Header = memo(function Header({
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="history-btn"
+                className="leg:[&:disabled]:[background:transparent]! leg:compact:[.mobile-history-buttons_&]:w-[44px] leg:compact:[.mobile-history-buttons_&]:min-w-[44px] leg:compact:[.mobile-history-buttons_&]:min-h-[44px] leg:compact:[.mobile-history-buttons_&]:p-[0] leg:compact:min-h-[40px]"
                 title={t("actions.undo")}
                 aria-label={t("actions.undo")}
                 disabled={isBusy || !canUndo}
@@ -375,7 +375,7 @@ export const Header = memo(function Header({
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="history-btn"
+                className="leg:[&:disabled]:[background:transparent]! leg:compact:[.mobile-history-buttons_&]:w-[44px] leg:compact:[.mobile-history-buttons_&]:min-w-[44px] leg:compact:[.mobile-history-buttons_&]:min-h-[44px] leg:compact:[.mobile-history-buttons_&]:p-[0] leg:compact:min-h-[40px]"
                 title={t("actions.redo")}
                 aria-label={t("actions.redo")}
                 disabled={isBusy || !canRedo}
@@ -391,7 +391,7 @@ export const Header = memo(function Header({
                   <Button
                     type="button"
                     variant={writeVariant}
-                    className="mobile-action-btn"
+                    className="mobile-action-btn leg:compact:min-h-[44px] leg:compact:p-[0_14px] leg:compact:[outline:1px_solid_var(--line-soft)] leg:compact:[outline-offset:-1px] leg:compact:[&&]:flex-[1_1_0] leg:compact:[&&]:min-w-[0] leg:compact:[&&]:px-[8px]"
                     title={saveLabel ?? t("header.saveHelp")}
                     onClick={onPush}
                     disabled={isBusy}
@@ -410,7 +410,7 @@ export const Header = memo(function Header({
               <Button
                 type="button"
                 variant="default"
-                className="mobile-action-btn mobile-connect-btn"
+                className="mobile-action-btn leg:compact:min-h-[44px] leg:compact:p-[0_14px] leg:compact:[outline:1px_solid_var(--line-soft)] leg:compact:[outline-offset:-1px] leg:compact:[&&]:flex-[1_1_0] leg:compact:[&&]:min-w-[0] leg:compact:[&&]:px-[8px] leg:compact:flex-[1_1_auto] leg:compact:min-w-[0] cmp:compact:[.mobile-toolbar_&]:flex-[0_0_auto] cmp:compact:[.mobile-toolbar_&]:ml-[auto]"
                 onClick={onConnectClick}
                 disabled={isBusy}
               >
@@ -422,7 +422,7 @@ export const Header = memo(function Header({
         )}
       </div>
       {connected && !hardwareEq && !isConfigPage && (
-        <p className="header-eq-note" role="note">
+        <p className="header-eq-note leg:flex leg:items-start leg:gap-[var(--space-2)] leg:max-w-[680px] leg:m-[var(--space-3)_0_0] leg:text-[color:var(--muted-foreground)] leg:text-[length:var(--type-small)] leg:leading-[1.5]" role="note">
           <Icon name="info" />
           <span>{t("header.noHardwareNote")}</span>
         </p>
@@ -430,7 +430,7 @@ export const Header = memo(function Header({
       <ToastContainer quiet />
       {isBusy && (
         <div
-          className="header-progress-bar"
+          className="leg:absolute leg:bottom-[-1px] leg:left-[0] leg:w-[100%] leg:h-[2px] leg:[background:var(--surface-soft)] leg:overflow-hidden"
           role="progressbar"
           aria-label={
             progress ? progress.message : t("header.operationProgress")
@@ -440,7 +440,7 @@ export const Header = memo(function Header({
           aria-valuenow={progress ? Math.round(progress.percentage) : undefined}
         >
           <div
-            className={`header-progress-fill ${progress ? "" : "indeterminate"}`}
+            className={`leg:w-[100%] leg:h-[100%] leg:[transform-origin:left] leg:[background:var(--primary)] leg:[transition:transform_var(--motion-duration)_var(--motion-ease)] leg:[&.indeterminate]:w-[40%] leg:[&.indeterminate]:[animation:indeterminate-slide_1.4s_ease-in-out_infinite] ${progress ? "" : "indeterminate"}`}
             style={
               progress
                 ? {

@@ -232,22 +232,11 @@
 }
 
 /* Sidebar chrome and its row states have their own backgrounds and labels. */
-.desktop-sidebar {
-  --foreground: var(--sidebar-foreground);
-  --muted-foreground: var(--sidebar-muted-foreground);
-  --text: var(--sidebar-foreground);
-  --muted: var(--sidebar-muted-foreground);
-  --comment: var(--sidebar-muted-foreground);
-  background: var(--sidebar);
-  color: var(--sidebar-foreground);
-  border-color: var(--sidebar-border);
-}
 .desktop-sidebar-item:hover { background: var(--sidebar-row-hover); }
 .desktop-sidebar-item.active {
   background: var(--sidebar-row-selected);
   color: var(--accent-foreground);
 }
-.profiles-item.is-current { --muted: var(--accent-foreground); }
 
 /* Dark Tokyo Night data colors: distinct hues, without neon plot handles.
    Explicit RGB companions keep canvas colors and translucent band UI in sync. */

@@ -44,10 +44,10 @@ export function Preamp({
   };
 
   return (
-    <section className="preamp-card">
-      <div className="preamp-meta">
+    <section className="preamp-card leg:[background:var(--panel)] leg:rounded-[var(--radius-surface)] leg:[box-shadow:none] leg:grid leg:grid-cols-[160px_minmax(0,_1fr)] leg:items-center leg:gap-[var(--space-4)] leg:p-[var(--space-3)_var(--space-4)] leg:min-h-[64px] leg:[border:1px_solid_var(--line-soft)] leg:shrink-0 leg:compact:grid-cols-[minmax(0,_1fr)_auto] leg:compact:h-[auto] leg:compact:min-h-[76px] leg:compact:p-[8px_12px] leg:compact:gap-[0_12px] leg:compact:shrink-0! leg:compact:rounded-[var(--radius-surface)]! leg:compact:[border:1px_solid_var(--line-soft)]! leg:compact:[background:var(--panel)]! leg:compact:overflow-hidden leg:compact:[.mobile-preamp-details_&]:[border:0]! leg:compact:[.mobile-preamp-details_&]:p-[0_0_var(--space-3)]! leg:compact:[.mobile-preamp-details_&]:[background:transparent]!">
+      <div className="preamp-meta leg:min-w-[0] leg:flex leg:flex-col leg:gap-[var(--space-2)] leg:compact:contents">
         <strong>{t("preamp.title")}</strong>
-        <div className="preamp-value-row">
+        <div className="leg:flex leg:items-center leg:gap-[4px] leg:mt-[0] leg:compact:col-[2] leg:compact:[grid-row:1_/_span_2] leg:compact:[align-self:center]">
           <NumberInput
             value={displayValue}
             min={min}
@@ -61,7 +61,7 @@ export function Preamp({
             className="preamp-value-stepper"
             aria-label={t("preamp.gain")}
           />
-          <span className="preamp-unit">dB</span>
+          <span className="leg:text-[color:var(--muted)] leg:[font-family:var(--font-mono)] leg:text-[length:11px] leg:select-none">dB</span>
         </div>
       </div>
       <Slider

@@ -218,7 +218,7 @@ function UdevSection({
 
   return (
     <section className="settings-plain" aria-label={t("permissions.title")}>
-      <div className="settings-plain-head">
+      <div className="leg:flex leg:items-center leg:justify-between leg:gap-[12px] leg:min-h-[44px]">
         <h2 className="settings-plain-title">{t("permissions.title")}</h2>
         <Badge role="status">
           {checking
@@ -231,7 +231,7 @@ function UdevSection({
         </Badge>
       </div>
 
-      <p className="settings-plain-desc">{t("permissions.description")}</p>
+      <p className="leg:m-[4px_0_0] leg:max-w-[60ch] leg:text-[color:var(--muted)] leg:text-[length:var(--type-small)] leg:leading-[1.5] leg:compact:[.mobile-workspace_.stack-content>.settings-plain>&]:px-[16px]! cmp:[.configuration-layout_&]:text-[length:var(--type-small)] cmp:[.configuration-layout_&]:leading-[1.5] cmp:[.configuration-layout_&]:text-[color:var(--muted-foreground)]">{t("permissions.description")}</p>
 
       <div className="stack-pref-row">
         <div className="stack-pref-info">
@@ -287,7 +287,7 @@ function UdevSection({
         </div>
       </div>
       {note !== null && (
-        <p className="card-note" role="status">
+        <p className="leg:m-[0] leg:text-[color:var(--muted)] leg:text-[length:var(--type-small)] leg:leading-[1.4] leg:[.settings-plain_&]:p-[8px_0_0] leg:[.stack-content>&]:px-[0]! leg:compact:[.mobile-workspace_.stack-content>&]:px-[16px]! cmp:[.configuration-layout_&]:text-[length:var(--type-small)] cmp:[.configuration-layout_&]:leading-[1.5] cmp:[.configuration-layout_&]:text-[color:var(--muted-foreground)]" role="status">
           {note}
         </p>
       )}
@@ -377,9 +377,9 @@ export const SettingsView = memo(function SettingsView({
       )}
 
       {(activeSection === "general" || activeSection === "appearance") && (
-        <p className="configuration-description">{t("savedAutomatically")}</p>
+        <p className="cmp:m-[0_0_var(--space-5)] cmp:text-[color:var(--muted-foreground)] cmp:text-[length:var(--type-small)] cmp:leading-[1.5]">{t("savedAutomatically")}</p>
       )}
-      <div className="stack-content">
+      <div className="stack-content leg:flex leg:flex-col leg:gap-[14px] leg:p-[16px] leg:w-[100%] leg:box-border leg:compact:[.mobile-workspace_&]:p-[0] leg:compact:[.mobile-workspace_&]:gap-[12px] cmp:[.configuration-layout_&]:p-[0] cmp:[.configuration-layout_&]:gap-[var(--space-5)]">
         {activeSection === "general" && (
           <div className="stack-card">
             <LanguageSetting setStatus={setStatus} />
@@ -492,15 +492,15 @@ export const SettingsView = memo(function SettingsView({
             </div>
 
             <section
-              className="shortcuts-card settings-plain"
+              className="leg:compact:hidden settings-plain"
               aria-label={t("shortcuts.title")}
             >
               <h2 className="settings-plain-title">{t("shortcuts.title")}</h2>
-              <div className="shortcut-list">
+              <div className="leg:flex leg:flex-col">
                 {KEYBOARD_SHORTCUTS.map(([keys, action]) => (
-                  <div className="shortcut-row" key={keys}>
-                    <span className="shortcut-keys">{keys}</span>
-                    <span className="shortcut-action">{action}</span>
+                  <div className="leg:flex leg:items-center leg:justify-between leg:gap-[12px] leg:min-h-[30px] leg:[border-top:1px_solid_var(--line-subtle)] leg:[&:first-child]:[border-top:0] cmp:[.configuration-layout_&]:p-[var(--space-2)_0]" key={keys}>
+                    <span className="leg:text-[color:var(--link-foreground)] leg:[font-family:var(--font-mono)] leg:text-[length:var(--type-caption)] leg:whitespace-nowrap">{keys}</span>
+                    <span className="leg:text-[color:var(--muted)] leg:text-[length:var(--type-small)] leg:text-right">{action}</span>
                   </div>
                 ))}
               </div>
@@ -512,12 +512,12 @@ export const SettingsView = memo(function SettingsView({
           <>
             <section className="settings-plain" aria-label={t("about.title")}>
               <h2 className="settings-plain-title">Glacier EQ</h2>
-              <p className="settings-plain-desc">{t("about.description")}</p>
+              <p className="leg:m-[4px_0_0] leg:max-w-[60ch] leg:text-[color:var(--muted)] leg:text-[length:var(--type-small)] leg:leading-[1.5] leg:compact:[.mobile-workspace_.stack-content>.settings-plain>&]:px-[16px]! cmp:[.configuration-layout_&]:text-[length:var(--type-small)] cmp:[.configuration-layout_&]:leading-[1.5] cmp:[.configuration-layout_&]:text-[color:var(--muted-foreground)]">{t("about.description")}</p>
             </section>
 
             {isTauri() && <UpdateSection />}
 
-            <dl className="device-spec-list">
+            <dl className="device-spec-list leg:m-[0] leg:p-[0_16px] leg:[.stack-content>&]:px-[0]! leg:compact:[.mobile-workspace_&]:p-[0_16px] leg:compact:[.mobile-workspace_.stack-content>&]:px-[16px]! cmp:[.configuration-layout_&]:p-[0] cmp:[.configuration-layout_&]:gap-[0]">
               <div>
                 <dt>{t("about.version")}</dt>
                 <dd>
@@ -549,7 +549,7 @@ export const SettingsView = memo(function SettingsView({
 
             <section className="settings-plain" aria-label={t("about.links")}>
               <h2 className="settings-plain-title">{t("about.links")}</h2>
-              <div className="stack-list">
+              <div className="leg:flex leg:flex-col leg:w-[100%]">
                 <ExternalLinkRow
                   href="https://github.com/Bukutsu/glacier-eq"
                   icon="code"
@@ -577,7 +577,7 @@ export const SettingsView = memo(function SettingsView({
               </div>
             </section>
 
-            <p className="card-note">{t("about.howItWorks")}</p>
+            <p className="leg:m-[0] leg:text-[color:var(--muted)] leg:text-[length:var(--type-small)] leg:leading-[1.4] leg:[.settings-plain_&]:p-[8px_0_0] leg:[.stack-content>&]:px-[0]! leg:compact:[.mobile-workspace_.stack-content>&]:px-[16px]! cmp:[.configuration-layout_&]:text-[length:var(--type-small)] cmp:[.configuration-layout_&]:leading-[1.5] cmp:[.configuration-layout_&]:text-[color:var(--muted-foreground)]">{t("about.howItWorks")}</p>
           </>
         )}
       </div>

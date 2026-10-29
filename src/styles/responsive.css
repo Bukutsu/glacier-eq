@@ -1,33 +1,3 @@
-@media (min-width: 1280px) {
-  .bands-card {
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-    padding: 6px 16px 4px;
-  }
-
-  .band-row {
-    min-width: 0;
-    height: auto;
-    min-height: 64px;
-    padding: 6px 0 6px 8px;
-    gap: 8px 12px;
-    border-left: 3px solid var(--filter-color, var(--cyan));
-  }
-
-  .band-row:hover {
-    background: var(--surface-soft);
-  }
-
-  .band-number {
-    align-self: center;
-  }
-
-  .bands-actions {
-    padding-top: 8px;
-  }
-}
-
 @media (max-width: 960px) {
   body { overflow: hidden; }
   #app {
@@ -37,16 +7,8 @@
   .app-header {
     padding: 14px 16px 12px;
   }
-  .header-main {
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 12px;
-  }
   .header-main .toolbar {
     grid-column: auto;
-  }
-  .title-stack {
-    width: 100%;
   }
   .title-line h1 {
     min-width: 0;
@@ -54,9 +16,6 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-  }
-  .title-line {
-    gap: 8px;
   }
   .title-line strong {
     min-width: 0;
@@ -70,10 +29,6 @@
     display: flex;
     gap: 8px;
   }
-  .toolbar .btn {
-    min-width: 0;
-    padding: 0 10px;
-  }
   .workspace.mobile-workspace {
     display: flex;
     flex-direction: column;
@@ -83,29 +38,6 @@
     overscroll-behavior: contain;
     touch-action: manipulation;
     padding: 0 0 max(16px, var(--safe-area-bottom, 0px));
-  }
-  .mobile-workspace .left-pane {
-    gap: 10px;
-    overflow: visible !important;
-    overscroll-behavior: auto !important;
-  }
-  .mobile-workspace .tab-panel {
-    overflow: visible !important;
-    overscroll-behavior: auto !important;
-  }
-  .bands-grid { grid-template-columns: 1fr; }
-  .band-row { grid-template-columns: 36px 144px minmax(140px, 1fr) minmax(140px, 1fr) 76px; font-size: var(--type-small); }
-  .mobile-workspace .right-rail {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    overflow: visible;
-  }
-  .mobile-workspace .tools-card {
-    overflow: visible;
-  }
-  .log-box {
-    max-height: 38vh;
   }
 }
 
@@ -126,62 +58,10 @@
   .app-header.compact-mobile {
     display: none;
   }
-  .header-main {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px;
-    width: 100%;
-  }
-  .desktop-toolbar { display: none !important; }
-  .mobile-toolbar {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    width: 100%;
-  }
   h1 { font-size: var(--type-title); }
-  .title-stack {
-    flex: 1 1 100%;
-    gap: 2px;
-    min-width: 0;
-  }
-  .title-line {
-    flex-wrap: nowrap;
-    gap: 6px;
-  }
-  .mobile-history-buttons {
-    margin-right: auto;
-    padding: 2px;
-  }
-  .mobile-history-buttons .history-btn {
-    width: 44px;
-    min-width: 44px;
-    min-height: 44px;
-    padding: 0;
-  }
-  .mobile-action-btn {
-    min-height: 44px;
-    padding: 0 14px;
-    outline: 1px solid var(--line-soft);
-    outline-offset: -1px;
-  }
   .mobile-action-btn .app-icon { font-size: 18px;
   width: 18px;
   height: 18px;}
-  .mobile-more-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 44px;
-    height: 44px;
-    color: var(--text);
-    background: var(--surface-soft);
-    outline: 1px solid var(--line-soft);
-    outline-offset: -1px;
-  }
-  .mobile-more-btn:active { background: var(--surface); }
-  .sync-dot,
   .unsaved {
     min-height: 24px;
     display: inline-flex;
@@ -191,78 +71,19 @@
     padding-left: 0;
     padding-right: 0;
   }
-  .graph-card {
-    height: clamp(230px, 34dvh, 300px);
-    min-height: 230px;
-    padding: 10px 8px 8px;
-  }
-  .eq-graph-shell,
-  .eq-canvas {
-    min-height: 210px;
-  }
   .eq-filter-handle {
     z-index: var(--z-raised);
   }
   .eq-filter-handle.active {
     z-index: var(--z-menu);
   }
-  .graph-legend {
-    display: none;
-  }
-  .graph-legend.mobile-open {
-    display: flex !important;
-    flex-direction: column;
-    position: absolute;
-    top: 48px;
-    right: 8px;
-    left: auto;
-    width: calc(100% - 16px);
-    max-width: 240px;
-    padding: 8px 12px;
-    background: var(--legend-bg);
-    border: 1px solid var(--line-outline);
-    border-radius: var(--radius-surface);
-    backdrop-filter: blur(12px);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
-    margin-top: 0;
-    pointer-events: auto;
-    gap: 8px;
-  }
-  .graph-legend-item {
-    min-height: 22px;
-    max-width: 100%;
-    padding: 0 6px;
-    font-size: var(--type-caption);
-  }
-  .graph-view-toggle,
   .graph-view-toggle button {
     min-height: 44px;
   }
-  .graph-view-toggle {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    width: auto;
-  }
   .graph-view-toggle button { min-width: 0; }
-  .preamp-card {
-    grid-template-columns: minmax(0, 1fr) auto;
-    height: auto;
-    min-height: 76px;
-    padding: 8px 12px;
-    gap: 0 12px;
-    flex-shrink: 0 !important;
-  }
-  .preamp-meta {
-    display: contents;
-  }
   .preamp-meta strong {
     grid-column: 1;
     align-self: end;
-  }
-  .preamp-value-row {
-    grid-column: 2;
-    grid-row: 1 / span 2;
-    align-self: center;
   }
   .preamp-card > .control-slider {
     grid-column: 1;
@@ -274,132 +95,15 @@
   .preamp-card input[type="range"] {
     min-height: 44px;
   }
-  .custom-number-input.preamp-value-stepper {
-    width: 160px !important;
-    height: 48px;
-  }
-  .bands-section-header {
-    display: none;
-  }
-  .bands-grid {
-    grid-template-columns: 1fr;
-    gap: 12px;
-  }
-  .bands-container > .bands-grid {
-    display: none;
-  }
-  .band-number {
-    display: none !important;
-  }
-  .band-picker-scroll {
-    scrollbar-width: none;
-  }
   .band-picker-scroll::-webkit-scrollbar {
     display: none;
-  }
-  .mobile-filter-reset,
-  .mobile-filter-card .app-select-trigger {
-    min-height: 44px;
-  }
-  .mobile-filter-head .band-index {
-    grid-area: auto;
-    width: 44px;
-    min-height: 44px;
-  }
-  .mobile-filter-card .freq-cell,
-  .mobile-filter-card .gain-cell,
-  .mobile-filter-card .q-cell {
-    grid-template-columns: minmax(0, 1fr) 160px;
   }
   .mobile-filter-card .control-slider {
     order: 0;
   }
-  .bands-card {
-    padding: 0;
-    overflow: visible;
-    background: transparent;
-  }
-  .bands-actions {
-    padding-top: 0;
-  }
-  .bands-actions .btn {
-    width: 100%;
-    min-height: 44px;
-    justify-content: center;
-    background: var(--bg-dark);
-    outline: 1px solid var(--line-medium);
-    outline-offset: -1px;
-  }
-  .band-row {
-    min-width: 0;
-    height: auto;
-    padding: 12px;
-    grid-template-columns: 44px minmax(0, 1fr) minmax(0, 1fr);
-    grid-template-areas:
-      "type type index"
-      "freq freq freq"
-      "gain gain gain"
-      "q q q";
-    gap: 12px 8px;
-    background: var(--bg-dark);
-    outline: 1px solid var(--line-medium);
-    outline-offset: -1px;
-    border-bottom: 0;
-  }
-  .band-row.muted {
-    opacity: .6;
-  }
-  .band-index {
-    grid-area: index;
-    width: 100%;
-    min-height: 36px;
-    padding: 0 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--surface-soft);
-    border: none;
-    outline: none;
-    border-radius: var(--radius-control);
-  }
   .band-index strong {
     font-size: var(--type-subtitle);
     line-height: 1;
-  }
-  .band-type-field {
-    grid-area: type;
-  }
-  .band-freq-field {
-    grid-area: freq;
-  }
-  .band-gain-field {
-    grid-area: gain;
-  }
-  .band-q-field {
-    grid-area: q;
-  }
-  .band-field {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-  .gain-cell {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 160px;
-    align-items: center;
-    gap: 8px;
-  }
-  .freq-cell,
-  .q-cell {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 160px;
-    align-items: center;
-    gap: 8px;
-  }
-  .custom-number-input.band-freq-stepper,
-  .custom-number-input.band-gain-stepper,
-  .custom-number-input.band-q-stepper {
-    width: 100%;
   }
   .gain-cell input[type="range"],
   .freq-cell input[type="range"],
@@ -410,58 +114,8 @@
     width: 100%;
     text-align: right;
   }
-  .tools-card {
-    padding-left: 12px;
-    padding-right: 12px;
-  }
-  .header-meta-row {
-    flex-direction: row;
-    align-items: center;
-    gap: 8px;
-  }
-  .history-buttons {
-    flex: none;
-  }
-  .history-btn {
-    min-height: 40px;
-  }
-  .curve-toggle,
-  .curve-delete {
-    min-height: 48px !important;
-  }
-  .diag-head {
-    grid-template-columns: minmax(0, 1fr) auto 36px;
-  }
-  .diag-counts {
-    grid-column: 1 / -1;
-    grid-row: 2;
-  }
-  .diag-toolbar {
-    grid-template-columns: repeat(4, minmax(0, 1fr)) 38px;
-  }
-  .diag-search {
-    grid-column: 1 / -2;
-    grid-row: 2;
-  }
-  .log-line {
-    grid-template-columns: 1fr;
-    gap: 3px;
-  }
   /* M3 Card and Touch Targets */
-  .graph-card,
-  .preamp-card,
-  .bands-card {
-    border-radius: var(--radius-surface) !important;
-    border: 1px solid var(--line-soft) !important;
-    background: var(--panel) !important;
-    overflow: hidden;
-  }
-  .mobile-filter-card {
-    border-radius: var(--radius-surface) !important;
-    overflow: hidden;
-  }
   
-  .graph-view-toggle,
   .graph-view-toggle button {
     min-height: 48px !important;
   }
@@ -471,59 +125,14 @@
   }
 
   /* Mobile Settings Menu Touch Friendliness */
-  .curves-search-input {
-    min-height: 48px !important;
-    font-size: 17px !important;
-  }
 
   /* Keyboard shortcuts are desktop-only; mobile has no physical keyboard. */
-  .shortcuts-card {
-    display: none;
-  }
-
-  .mobile-workspace .stack-topbar {
-    position: sticky;
-    top: 0;
-    z-index: var(--z-sticky);
-    min-height: 52px;
-    padding: 0 16px;
-    background: var(--panel);
-    border-bottom: 1px solid var(--line-soft);
-  }
-
-  .mobile-workspace .stack-topbar.subscreen {
-    padding-left: 4px;
-  }
-
-  .mobile-workspace .stack-nav-row {
-    min-height: 60px;
-    padding: 14px 16px;
-    border-radius: 0 !important;
-  }
-
-  .mobile-workspace .stack-content {
-    padding: 0;
-    gap: 12px;
-  }
 
   .mobile-workspace .stack-card,
   .mobile-workspace .settings-card {
     border-left: none !important;
     border-right: none !important;
     border-radius: 0 !important;
-  }
-
-  .mobile-workspace .device-summary {
-    margin: 0;
-    padding: 16px;
-  }
-
-  .mobile-workspace .device-spec-list {
-    padding: 0 16px;
-  }
-
-  .mobile-workspace .device-note {
-    padding: 12px 16px;
   }
 
   .mobile-workspace .stack-pref-row {
@@ -539,10 +148,7 @@
 
   /* stack-content has no mobile padding, so inset About text directly.
      Leave the project-link list full width; its rows already have an inset. */
-  .mobile-workspace .stack-content > .settings-plain > .settings-plain-title,
-  .mobile-workspace .stack-content > .settings-plain > .settings-plain-desc,
-  .mobile-workspace .stack-content > .device-spec-list,
-  .mobile-workspace .stack-content > .card-note {
+  .mobile-workspace .stack-content > .settings-plain > .settings-plain-title {
     padding-inline: 16px !important;
   }
 
@@ -556,23 +162,10 @@
     gap: 10px;
   }
 
-  .mobile-workspace .stack-pref-row.select-row .stack-pref-control,
-  .mobile-workspace .stack-pref-row.select-row .setting-select-wrapper {
+  .mobile-workspace .stack-pref-row.select-row .stack-pref-control {
     width: 100% !important;
     min-width: 100% !important;
     flex: 1 1 100% !important;
-  }
-
-  .mobile-workspace .device-hero-actions {
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
-  }
-
-  .mobile-workspace .device-hero-actions .btn {
-    width: auto;
-    min-height: 48px;
-    border-radius: 0 !important;
   }
 
   /* Collapsible mobile graph */
@@ -583,86 +176,7 @@
     margin-bottom: 6px;
   }
 
-  .mobile-graph-container .graph-card {
-    height: clamp(135px, 18dvh, 165px);
-    transition: height var(--motion-duration) var(--motion-ease), opacity var(--motion-duration) var(--motion-ease);
-    opacity: 1;
-  }
-
-  .mobile-graph-tuning .graph-card {
-    height: clamp(110px, 15dvh, 140px);
-    min-height: 110px;
-  }
-
-  .mobile-graph-tuning .eq-graph-shell,
-  .mobile-graph-tuning .eq-canvas {
-    min-height: 95px;
-  }
-
-  .mobile-graph-container.collapsed .graph-card {
-    height: 0px !important;
-    min-height: 0px !important;
-    border: none !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    opacity: 0;
-    pointer-events: none;
-  }
-
   /* Landscape: shrink the graph so the band editor stays usable. */
-  @media (orientation: landscape) {
-    .mobile-graph-container .graph-card {
-      height: clamp(100px, 32dvh, 160px);
-      min-height: 100px;
-    }
-    .mobile-graph-container .eq-graph-shell,
-    .mobile-graph-container .eq-canvas {
-      min-height: 85px;
-    }
-    .mobile-graph-tuning .graph-card {
-      height: clamp(80px, 20dvh, 120px);
-      min-height: 80px;
-    }
-  }
-
-  .graph-collapse-btn {
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    min-height: 28px;
-    height: 28px;
-    background: transparent;
-    border: 0;
-    color: var(--muted);
-    cursor: pointer;
-    font-size: var(--type-caption);
-    gap: 6px;
-    transition: color var(--motion-duration) var(--motion-ease);
-  }
-
-  .graph-collapse-btn::before {
-    content: "";
-    position: absolute;
-    inset: 12px 0;
-    background: var(--surface-soft);
-    border: 1px solid var(--line-soft);
-    border-top: none;
-    border-bottom-left-radius: var(--radius-surface);
-    border-bottom-right-radius: var(--radius-surface);
-    transition: background-color var(--motion-duration) var(--motion-ease);
-  }
-
-  .graph-collapse-btn:active,
-  .graph-collapse-btn:hover {
-    color: var(--link-foreground);
-  }
-
-  .graph-collapse-btn:active::before,
-  .graph-collapse-btn:hover::before {
-    background: var(--surface);
-  }
 
   .graph-collapse-btn .app-icon {
     position: relative;
@@ -673,55 +187,14 @@
 
 }
 
-
-
-@media (max-width: 560px) {
-  .bands-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-  .bands-card {
-    padding: 0;
-    overflow: visible;
-    background: transparent;
-  }
-  .band-row {
-    min-width: 0;
-  }
-}
-
 /* Mobile Bottom Tab Bar */
-.mobile-tab-bar {
-  display: none;
-}
 
 @media (max-width: 850px), ((max-height: 540px) and (pointer: coarse)) {
   #app {
     padding-bottom: 0;
   }
-  .mobile-tab-bar {
-    display: flex;
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: calc(var(--tabbar-h, 56px) + var(--safe-area-bottom, 0px));
-    align-items: center;
-    padding: 2px max(6px, var(--safe-area-right, 0px)) var(--safe-area-bottom, 0px) max(6px, var(--safe-area-left, 0px));
-    background: var(--bg);
-    border-top: 1px solid var(--line-medium);
-    z-index: var(--z-tabbar);
-    -webkit-tap-highlight-color: transparent !important;
-    user-select: none !important;
-  }
 
   /* Shrink the tab bar in landscape to reclaim vertical space. */
-  @media (orientation: landscape) {
-    .mobile-tab-bar {
-      height: calc(56px + var(--safe-area-bottom, 0px));
-    }
-  }
 
   .mobile-tab-item {
     position: relative;
@@ -764,20 +237,7 @@
     opacity: 1;
   }
 
-  .mobile-tab-icon-wrapper {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: inherit;
-    pointer-events: none;
-    transition: none !important;
-  }
-
   .mobile-tab-item.active {
-    color: var(--link-foreground);
-  }
-
-  .mobile-tab-item.active .mobile-tab-icon-wrapper {
     color: var(--link-foreground);
   }
 
@@ -801,15 +261,6 @@
   /* Room for the save bar that sits above the tab bar. */
   .workspace.mobile-workspace.has-save-bar {
     padding-bottom: calc(var(--tabbar-h, 56px) + var(--safe-area-bottom, 0px) + 76px) !important;
-  }
-
-  .mobile-content-area {
-    display: flex;
-    flex-direction: column;
-    width: 100%;
-    max-width: 100%;
-    overflow: visible;
-    gap: 12px;
   }
 
   .mobile-graph-preview {
@@ -848,151 +299,29 @@
     }
   }
 
-  .mobile-graph-preview .eq-graph-shell,
-  .mobile-graph-preview .eq-canvas {
-    min-height: 100%;
-  }
-  .mobile-graph-preview .graph-legend {
-    display: none !important;
-  }
-
   /* Keep one page scroller; overflow-x: hidden creates a second vertical
      scroller in WebView. */
-  .mobile-workspace .left-pane,
-  .mobile-workspace .right-rail {
-    width: 100% !important;
-    max-width: 100% !important;
-    flex: 1;
-    overflow: visible !important;
-    padding-right: 0 !important;
-  }
 
   /* Page gutter and editor controls. */
   .app-header {
     padding-inline: 16px;
   }
 
-  .mobile-workspace .left-pane {
-    gap: 12px;
-  }
-
   /* Editor sections are flat full-width panels divided by hairlines. Cards
      with rounded corners met the screen edge and looked cut off, and insetting
      them took 32px from controls that are already tight. The preamp's own
      inset is dropped so every section lines up. */
-  .mobile-workspace .mobile-graph-container > .graph-card,
-  .mobile-workspace .bands-container,
-  .mobile-workspace .mobile-filter-card,
-  .mobile-workspace .mobile-preamp-details {
-    border-radius: 0 !important;
-    border-inline: 0 !important;
-  }
 
   /* Graph controls under the plot: Curves and add on the left, show/hide on
      the right, each a full touch target on the page gutter. */
-  .mobile-workspace .graph-toolbar {
-    justify-content: space-between;
-    gap: 8px;
-    min-height: 0;
-    margin: 0;
-    padding: 0 4px;
-  }
-  .mobile-workspace .graph-toolbar > .eq-curves {
-    order: 0;
-    flex: none;
-  }
-  .mobile-workspace .graph-toolbar > .graph-collapse-btn {
-    order: 1;
-    width: auto;
-    flex: none;
-    margin-left: auto;
-    padding-inline: 12px;
-    color: var(--muted-foreground);
-  }
-  .mobile-workspace .graph-toolbar .graph-collapse-btn::before {
-    content: none;
-  }
 
   .mobile-graph-container {
     margin-bottom: 0;
   }
 
   /* The 230px desktop minimum otherwise wins over the mobile clamp. */
-  .mobile-graph-container .graph-card {
-    height: clamp(100px, 16dvh, 136px);
-    min-height: 0;
-    padding: 6px 8px 4px;
-  }
-
-  .mobile-graph-container .eq-graph-shell,
-  .mobile-graph-container .eq-canvas {
-    min-height: 0;
-  }
-
-  .mobile-graph-tuning .graph-card {
-    height: clamp(112px, 16dvh, 148px);
-    min-height: 0;
-  }
-
-  .mobile-graph-tuning .eq-graph-shell,
-  .mobile-graph-tuning .eq-canvas {
-    min-height: 0;
-  }
-
-  .mobile-connect-btn {
-    flex: 1 1 auto;
-    min-width: 0;
-  }
-
-  .mobile-action-btn {
-    flex: 1 1 0;
-    min-width: 0;
-    padding-inline: 8px;
-  }
-
-  .band-picker-scroll {
-    -webkit-overflow-scrolling: touch;
-    touch-action: pan-x;
-  }
-
-  .graph-collapse-btn {
-    gap: var(--space-2);
-    font-size: var(--type-small);
-  }
-
-  .graph-collapse-btn::before {
-    content: none;
-  }
 
   /* Put the sound adjustment ahead of the less frequent controls. */
-  .mobile-filter-card {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    gap: var(--space-2);
-    padding: var(--space-2) var(--space-3);
-    width: 100%;
-    box-sizing: border-box;
-  }
-  .mobile-filter-card .band-field {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    gap: var(--space-1);
-  }
-  .mobile-filter-card .band-field-label {
-    color: var(--text);
-    font-size: var(--type-label);
-  }
-  .mobile-preamp-details {
-    padding: 0 var(--space-4);
-    background: var(--panel);
-    border: 1px solid var(--line-soft);
-    border-radius: var(--radius-surface);
-    overflow: hidden;
-    width: 100%;
-    box-sizing: border-box;
-  }
   .mobile-preamp-details summary {
     display: flex;
     align-items: center;
@@ -1016,20 +345,8 @@
     gap: var(--space-2);
     color: var(--muted);
   }
-  .mobile-preamp-details .preamp-card {
-    border: 0 !important;
-    padding: 0 0 var(--space-3) !important;
-    background: transparent !important;
-  }
   .mobile-preamp-details .preamp-meta strong {
     display: none;
-  }
-
-  .title-stack { gap: var(--space-1); }
-  .mobile-history-buttons {
-    background: transparent;
-    outline: none;
-    padding: 0;
   }
 }
 
@@ -1044,7 +361,6 @@ body.is-android ::-webkit-scrollbar,
 html,
 body.is-android,
 body.is-android *,
-.mobile-workspace,
 .mobile-workspace * {
   scrollbar-width: none !important;
   -ms-overflow-style: none !important;
@@ -1054,9 +370,6 @@ body.is-android *,
   .app-header {
     padding: 6px 12px 4px !important;
   }
-  .mobile-tab-bar {
-    height: calc(56px + var(--safe-area-bottom, 0px)) !important;
-  }
   .mobile-tab-item {
     gap: 2px !important;
     font-size: 12px !important;
@@ -1065,19 +378,9 @@ body.is-android *,
     width: 20px !important;
     height: 20px !important;
   }
-  .mobile-graph-container .graph-card {
-    height: clamp(80px, 18dvh, 100px) !important;
-  }
-  .mobile-graph-tuning .graph-card {
-    height: clamp(65px, 15dvh, 90px) !important;
-  }
   .band-picker button {
     min-height: 44px !important;
     padding: 2px 10px !important;
-  }
-  .mobile-filter-card {
-    gap: 4px !important;
-    padding: 6px 12px !important;
   }
   .workspace.mobile-workspace {
     padding-top: 4px !important;
@@ -1087,7 +390,6 @@ body.is-android *,
     padding-bottom: calc(56px + var(--safe-area-bottom, 0px) + 76px) !important;
   }
 }
-
 
 @media (pointer: coarse) {
   /* No visible scrollbars on touch — finger scrolling only, like native mobile apps */
@@ -1129,37 +431,10 @@ body.is-android *,
   }
 }
 
-@media (min-width: 851px) and (max-height: 820px) {
-  .graph-card {
-    min-height: 150px !important;
-    height: clamp(150px, 24dvh, 190px) !important;
-  }
-  .eq-graph-shell, .eq-canvas {
-    min-height: 130px !important;
-  }
-  .left-pane > .graph-card .eq-graph-shell,
-  .left-pane > .graph-card .eq-canvas {
-    min-height: 100px !important;
-  }
-}
-
 @media (min-width: 769px) and (max-width: 1150px) {
-  .left-pane {
-    padding-right: 16px !important;
-  }
-  .band-row {
-    grid-template-columns: 28px 132px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) 28px;
-    gap: 8px;
-  }
   .band-row .control-slider {
     display: none !important;
   }
-  .freq-cell .custom-number-input.band-freq-stepper,
-  .gain-cell .custom-number-input.band-gain-stepper,
-  .q-cell .custom-number-input.band-q-stepper {
-    width: 100%;
-  }
-  .band-number { font-size: var(--type-label); }
 }
 
 @media (max-width: 850px), ((max-height: 540px) and (pointer: coarse)) {
@@ -1169,62 +444,9 @@ body.is-android *,
     overflow: visible;
     padding: 0 0 max(16px, var(--safe-area-bottom, 0px));
   }
-  .left-pane {
-    gap: 10px;
-  }
-  .right-rail {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    overflow: visible;
-  }
-  .tools-card {
-    overflow: visible;
-  }
 }
 
 @media (min-width: 851px) and ((min-height: 541px) or (pointer: fine)) {
-  .desktop-sidebar {
-    display: flex;
-    min-width: 0;
-    min-height: 0;
-    flex-direction: column;
-    gap: var(--space-4);
-    padding: var(--space-4) var(--space-3);
-    border-right: 1px solid var(--line-soft);
-    background: var(--panel);
-    overflow-y: auto;
-    grid-column: 1;
-    grid-row: 1;
-  }
-
-  .desktop-brand {
-    display: flex;
-    align-items: center;
-    min-height: 44px;
-    padding: 0 var(--space-3);
-    border-radius: var(--control-radius);
-    color: var(--muted-foreground);
-    text-decoration: none;
-    font-size: var(--type-label);
-    font-weight: 500;
-    letter-spacing: -0.01em;
-  }
-
-  .desktop-brand:hover { color: var(--foreground); }
-  .desktop-brand:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
-
-  .desktop-sidebar-nav {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-1);
-  }
-
-  .desktop-sidebar-divider {
-    height: 1px;
-    margin: var(--space-3) var(--space-2);
-    background: var(--line-soft);
-  }
 
   .desktop-sidebar-item {
     display: flex;
@@ -1254,67 +476,9 @@ body.is-android *,
     font-size: var(--type-label);
   }
 
-  .desktop-sidebar .sidebar-device {
-    margin-top: auto;
-    padding: var(--space-3) var(--space-2);
-    border-top: 1px solid var(--line-soft);
-    border-radius: 0;
-  }
-
-  .desktop-content {
-    display: grid;
-    min-width: 0;
-    min-height: 0;
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto minmax(0, 1fr);
-    gap: var(--space-5);
-    padding: var(--space-5);
-    overflow: hidden;
-  }
-
   .desktop-content > .app-header {
     grid-column: 1 / -1;
     grid-row: 1;
-  }
-
-  .desktop-view-tuning .desktop-content {
-    grid-template-columns: minmax(0, 1fr) minmax(320px, 40%);
-    column-gap: var(--space-4);
-  }
-
-  .desktop-content > .right-rail {
-    grid-column: 2;
-    grid-row: 2;
-    padding: 0;
-    border: 1px solid var(--line-soft);
-    border-radius: var(--radius-card);
-    background: var(--panel);
-  }
-
-  .desktop-content > .right-rail > .tools-card {
-    background: transparent;
-    border: 0;
-    padding: var(--space-4);
-  }
-
-  .desktop-view-device .left-pane,
-  .desktop-view-settings .left-pane { display: none; }
-
-  .desktop-view-device .desktop-content > .right-rail,
-  .desktop-view-settings .desktop-content > .right-rail {
-    grid-column: 1 / -1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    background: transparent;
-    border: 0;
-  }
-
-  .desktop-view-device .desktop-content > .right-rail > .tools-card,
-  .desktop-view-settings .desktop-content > .right-rail > .tools-card {
-    width: min(100%, 1080px);
-    flex: 1 1 auto;
-    padding: var(--space-4) var(--space-5);
   }
 }
 
@@ -1327,7 +491,3 @@ body.is-android *,
 }
 
 /* Tablets use the touch layout; give the graph room instead of a phone-sized strip. */
-@media (min-width: 600px) and (max-width: 850px) {
-  .mobile-graph-container .graph-card { height: clamp(180px, 24dvh, 300px); }
-  .mobile-graph-tuning .graph-card { height: clamp(160px, 22dvh, 260px); }
-}

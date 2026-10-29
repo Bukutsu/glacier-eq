@@ -606,15 +606,15 @@ export const EqGraph = memo(function EqGraph({
   };
 
   return (
-    <div className={`eq-graph-layout${showMobileLegend ? " legend-open" : ""}`}>
+    <div className={`eq-graph-layout leg:contents cmp:compact:[.mobile-workspace_&]:flex cmp:compact:[.mobile-workspace_&]:flex-col cmp:compact:[.mobile-workspace_&]:w-[100%] cmp:compact:[.mobile-workspace_&]:min-w-[0] cmp:compact:[.mobile-workspace_&]:flex-[1] ${showMobileLegend ? " legend-open" : ""}`}>
       {/* The canvas ignores pointers, so taps land on its shell. */}
       <div
-        className="eq-graph-shell"
+        className="eq-graph-shell leg:[.left-pane>.graph-card_&]:min-h-[224px] leg:relative leg:w-[100%] leg:min-h-[260px] leg:flex-[1] leg:compact:min-h-[210px] leg:compact:[@media(orientation:_landscape)]:[.mobile-graph-container_&&]:min-h-[85px] leg:compact:[.mobile-graph-preview_&&&]:min-h-[100%] leg:compact:[.mobile-graph-container_&&&&]:min-h-[0] leg:compact:[.mobile-graph-tuning_&&&&&]:min-h-[0] leg:[@media(min-width:_851px)_and_(max-height:_820px)]:min-h-[130px]! leg:[@media(min-width:_851px)_and_(max-height:_820px)]:[.left-pane>.graph-card_&]:min-h-[100px]! cmp:compact:[.mobile-workspace_.eq-graph-layout.legend-open_&]:flex-[0_0_auto] cmp:compact:[.mobile-workspace_.eq-graph-layout.legend-open_&]:h-[clamp(100px,_16dvh,_136px)]"
         ref={shellRef}
         onClick={onBandTap ? handleCanvasClick : undefined}
       >
         <canvas
-          className="eq-canvas"
+          className="eq-canvas leg:[.left-pane>.graph-card_&]:min-h-[224px] leg:w-[100%] leg:h-[100%] leg:min-h-[260px] leg:block leg:flex-[1] leg:pointer-events-none leg:compact:min-h-[210px] leg:compact:[@media(orientation:_landscape)]:[.mobile-graph-container_&&]:min-h-[85px] leg:compact:[.mobile-graph-preview_&&&]:min-h-[100%] leg:compact:[.mobile-graph-container_&&&&]:min-h-[0] leg:compact:[.mobile-graph-tuning_&&&&&]:min-h-[0] leg:[@media(min-width:_851px)_and_(max-height:_820px)]:min-h-[130px]! leg:[@media(min-width:_851px)_and_(max-height:_820px)]:[.left-pane>.graph-card_&]:min-h-[100px]!"
           ref={canvasRef}
           role="img"
           aria-label={t("graph.description")}
@@ -699,16 +699,16 @@ export const EqGraph = memo(function EqGraph({
       </div>
       {hasLegend && (
         <div
-          className={`graph-legend ${showMobileLegend ? "mobile-open" : ""}`}
+          className={`leg:absolute leg:top-[12px] leg:left-[var(--space-4)] leg:flex leg:flex-row leg:flex-wrap leg:justify-start leg:items-center leg:gap-[6px_12px] leg:p-[4px_0] leg:max-w-[calc(100%_-_240px)] leg:pointer-events-none leg:z-[var(--z-sticky)] leg:compact:hidden leg:compact:[&.mobile-open]:flex! leg:compact:[&.mobile-open]:flex-col leg:compact:[&.mobile-open]:absolute leg:compact:[&.mobile-open]:top-[48px] leg:compact:[&.mobile-open]:right-[8px] leg:compact:[&.mobile-open]:left-[auto] leg:compact:[&.mobile-open]:w-[calc(100%_-_16px)] leg:compact:[&.mobile-open]:max-w-[240px] leg:compact:[&.mobile-open]:p-[8px_12px] leg:compact:[&.mobile-open]:[background:var(--legend-bg)] leg:compact:[&.mobile-open]:[border:1px_solid_var(--line-outline)] leg:compact:[&.mobile-open]:rounded-[var(--radius-surface)] leg:compact:[&.mobile-open]:[backdrop-filter:blur(12px)] leg:compact:[&.mobile-open]:[box-shadow:0_4px_16px_rgba(0,_0,_0,_0.35)] leg:compact:[&.mobile-open]:mt-[0] leg:compact:[&.mobile-open]:pointer-events-auto leg:compact:[&.mobile-open]:gap-[8px] leg:compact:[.mobile-graph-preview_&&]:hidden! cmp:compact:[.mobile-workspace_&.mobile-open]:static cmp:compact:[.mobile-workspace_&.mobile-open]:[transform:none] cmp:compact:[.mobile-workspace_&.mobile-open]:w-[100%] cmp:compact:[.mobile-workspace_&.mobile-open]:max-w-[none] cmp:compact:[.mobile-workspace_&.mobile-open]:max-h-[none] cmp:compact:[.mobile-workspace_&.mobile-open]:flex-row cmp:compact:[.mobile-workspace_&.mobile-open]:flex-wrap cmp:compact:[.mobile-workspace_&.mobile-open]:justify-start cmp:compact:[.mobile-workspace_&.mobile-open]:gap-[var(--space-2)_var(--space-3)] cmp:compact:[.mobile-workspace_&.mobile-open]:m-[var(--space-2)_0_0] cmp:compact:[.mobile-workspace_&.mobile-open]:p-[var(--space-2)] cmp:compact:[.mobile-workspace_&.mobile-open]:[background:transparent] cmp:compact:[.mobile-workspace_&.mobile-open]:[border:0] cmp:compact:[.mobile-workspace_&&.mobile-open]:[border-top:1px_solid_var(--border)] cmp:compact:[.mobile-workspace_&.mobile-open]:rounded-[0] cmp:compact:[.mobile-workspace_&.mobile-open]:[box-shadow:none] cmp:compact:[.mobile-workspace_&.mobile-open]:[backdrop-filter:none] ${showMobileLegend ? "mobile-open" : ""}`}
         >
           {committedPeq && !peqEquals(committedPeq, peq) && (
-            <div className="graph-legend-item committed">
-              <span className="graph-legend-swatch">
+            <div className="graph-legend-item leg:flex leg:items-center leg:gap-[8px] leg:min-h-[20px] leg:min-w-[0] leg:max-w-[100%] leg:text-[color:var(--text)] leg:text-[length:11px] leg:leading-[1.3] leg:whitespace-normal leg:[overflow-wrap:anywhere] leg:compact:min-h-[22px] leg:compact:max-w-[100%] leg:compact:p-[0_6px] leg:compact:text-[length:var(--type-caption)] cmp:compact:[.mobile-workspace_&]:p-[0] cmp:compact:[.mobile-workspace_&]:text-[length:var(--type-small)] cmp:compact:[.mobile-workspace_&]:whitespace-normal cmp:compact:[.mobile-workspace_&]:[overflow-wrap:anywhere] committed">
+              <span className="leg:[.graph-legend-item.target_&]:text-[color:var(--warning-foreground)] leg:[.graph-legend-item.committed_&&]:text-[color:var(--orange)] leg:w-[24px] leg:h-[8px] leg:flex-[0_0_24px] leg:flex leg:items-center leg:justify-center">
                 <svg
                   width="24"
                   height="8"
                   viewBox="0 0 24 8"
-                  className="graph-legend-svg"
+                  className="leg:block"
                 >
                   <line
                     x1="0"
@@ -740,13 +740,13 @@ export const EqGraph = memo(function EqGraph({
             </div>
           )}
           {targets.map((target) => (
-            <div className="graph-legend-item target" key={target.id}>
-              <span className="graph-legend-swatch">
+            <div className="graph-legend-item leg:flex leg:items-center leg:gap-[8px] leg:min-h-[20px] leg:min-w-[0] leg:max-w-[100%] leg:text-[color:var(--text)] leg:text-[length:11px] leg:leading-[1.3] leg:whitespace-normal leg:[overflow-wrap:anywhere] leg:compact:min-h-[22px] leg:compact:max-w-[100%] leg:compact:p-[0_6px] leg:compact:text-[length:var(--type-caption)] cmp:compact:[.mobile-workspace_&]:p-[0] cmp:compact:[.mobile-workspace_&]:text-[length:var(--type-small)] cmp:compact:[.mobile-workspace_&]:whitespace-normal cmp:compact:[.mobile-workspace_&]:[overflow-wrap:anywhere] target" key={target.id}>
+              <span className="leg:[.graph-legend-item.target_&]:text-[color:var(--warning-foreground)] leg:[.graph-legend-item.committed_&&]:text-[color:var(--orange)] leg:w-[24px] leg:h-[8px] leg:flex-[0_0_24px] leg:flex leg:items-center leg:justify-center">
                 <svg
                   width="24"
                   height="8"
                   viewBox="0 0 24 8"
-                  className="graph-legend-svg"
+                  className="leg:block"
                 >
                   <line
                     x1="0"
@@ -765,13 +765,13 @@ export const EqGraph = memo(function EqGraph({
           ))}
           {visibleMeasurements.map((trace) => (
             <Fragment key={trace.id}>
-              <div className="graph-legend-item">
-                <span className="graph-legend-swatch">
+              <div className="graph-legend-item leg:flex leg:items-center leg:gap-[8px] leg:min-h-[20px] leg:min-w-[0] leg:max-w-[100%] leg:text-[color:var(--text)] leg:text-[length:11px] leg:leading-[1.3] leg:whitespace-normal leg:[overflow-wrap:anywhere] leg:compact:min-h-[22px] leg:compact:max-w-[100%] leg:compact:p-[0_6px] leg:compact:text-[length:var(--type-caption)] cmp:compact:[.mobile-workspace_&]:p-[0] cmp:compact:[.mobile-workspace_&]:text-[length:var(--type-small)] cmp:compact:[.mobile-workspace_&]:whitespace-normal cmp:compact:[.mobile-workspace_&]:[overflow-wrap:anywhere]">
+                <span className="leg:[.graph-legend-item.target_&]:text-[color:var(--warning-foreground)] leg:[.graph-legend-item.committed_&&]:text-[color:var(--orange)] leg:w-[24px] leg:h-[8px] leg:flex-[0_0_24px] leg:flex leg:items-center leg:justify-center">
                   <svg
                     width="24"
                     height="8"
                     viewBox="0 0 24 8"
-                    className="graph-legend-svg"
+                    className="leg:block"
                   >
                     <line
                       x1="0"
@@ -785,13 +785,13 @@ export const EqGraph = memo(function EqGraph({
                 </span>
                 <span>{t("graph.eqApplied", { name: trace.name })}</span>
               </div>
-              <div className="graph-legend-item raw">
-                <span className="graph-legend-swatch">
+              <div className="graph-legend-item leg:flex leg:items-center leg:gap-[8px] leg:min-h-[20px] leg:min-w-[0] leg:max-w-[100%] leg:text-[color:var(--text)] leg:text-[length:11px] leg:leading-[1.3] leg:whitespace-normal leg:[overflow-wrap:anywhere] leg:compact:min-h-[22px] leg:compact:max-w-[100%] leg:compact:p-[0_6px] leg:compact:text-[length:var(--type-caption)] cmp:compact:[.mobile-workspace_&]:p-[0] cmp:compact:[.mobile-workspace_&]:text-[length:var(--type-small)] cmp:compact:[.mobile-workspace_&]:whitespace-normal cmp:compact:[.mobile-workspace_&]:[overflow-wrap:anywhere] raw">
+                <span className="leg:[.graph-legend-item.target_&]:text-[color:var(--warning-foreground)] leg:[.graph-legend-item.committed_&&]:text-[color:var(--orange)] leg:w-[24px] leg:h-[8px] leg:flex-[0_0_24px] leg:flex leg:items-center leg:justify-center">
                   <svg
                     width="24"
                     height="8"
                     viewBox="0 0 24 8"
-                    className="graph-legend-svg"
+                    className="leg:block"
                   >
                     <line
                       x1="0"
@@ -804,20 +804,20 @@ export const EqGraph = memo(function EqGraph({
                     />
                   </svg>
                 </span>
-                <span className="raw-label">
+                <span className="leg:[.graph-legend-item_&]:text-[color:var(--muted)]">
                   {t("graph.raw", { name: trace.name })}
                 </span>
               </div>
             </Fragment>
           ))}
           {visibleMeasurements.length === 0 && (
-            <div className="graph-legend-item eq-curve">
-              <span className="graph-legend-swatch">
+            <div className="graph-legend-item leg:flex leg:items-center leg:gap-[8px] leg:min-h-[20px] leg:min-w-[0] leg:max-w-[100%] leg:text-[color:var(--text)] leg:text-[length:11px] leg:leading-[1.3] leg:whitespace-normal leg:[overflow-wrap:anywhere] leg:compact:min-h-[22px] leg:compact:max-w-[100%] leg:compact:p-[0_6px] leg:compact:text-[length:var(--type-caption)] cmp:compact:[.mobile-workspace_&]:p-[0] cmp:compact:[.mobile-workspace_&]:text-[length:var(--type-small)] cmp:compact:[.mobile-workspace_&]:whitespace-normal cmp:compact:[.mobile-workspace_&]:[overflow-wrap:anywhere] eq-curve">
+              <span className="leg:[.graph-legend-item.target_&]:text-[color:var(--warning-foreground)] leg:[.graph-legend-item.committed_&&]:text-[color:var(--orange)] leg:w-[24px] leg:h-[8px] leg:flex-[0_0_24px] leg:flex leg:items-center leg:justify-center">
                 <svg
                   width="24"
                   height="8"
                   viewBox="0 0 24 8"
-                  className="graph-legend-svg"
+                  className="leg:block"
                 >
                   <line
                     x1="0"

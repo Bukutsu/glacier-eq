@@ -1,5 +1,4 @@
 @media (max-width: 850px), ((max-height: 540px) and (pointer: coarse)) {
   /* Preserve feedback when mobile pages hide the toolbar, without a layout shift. */
   .app-header.compact-mobile:has(.toast-feedback) { display: block; height: 0; min-height: 0; padding: 0; border: 0; }
-  .app-header.compact-mobile:has(.toast-feedback) > .header-main { display: none; }
 }

@@ -106,12 +106,12 @@ export function NumberInput({
 
   return (
     <div
-      className={`custom-number-input ${disabled ? "disabled" : ""} ${className}`}
+      className={`custom-number-input leg:[&.preamp-value-stepper]:w-[128px] leg:[.freq-cell_&.band-freq-stepper]:w-[100%] leg:[.gain-cell_&&.band-gain-stepper]:w-[100%] leg:[.q-cell_&&&.band-q-stepper]:w-[100%] leg:compact:[&.preamp-value-stepper]:w-[160px]! leg:compact:[&.preamp-value-stepper]:h-[48px] leg:compact:[&&.band-freq-stepper]:w-[100%] leg:compact:[&&&.band-gain-stepper]:w-[100%] leg:compact:[&&&&.band-q-stepper]:w-[100%] leg:[@media(min-width:_769px)_and_(max-width:_1150px)]:[.freq-cell_&&&&.band-freq-stepper]:w-[100%] leg:[@media(min-width:_769px)_and_(max-width:_1150px)]:[.gain-cell_&&&&&.band-gain-stepper]:w-[100%] leg:[@media(min-width:_769px)_and_(max-width:_1150px)]:[.q-cell_&&&&&&.band-q-stepper]:w-[100%] cmp:[--number-step-size:34px] cmp:flex cmp:items-center cmp:box-border cmp:min-w-[0] cmp:h-[40px] cmp:p-[2px] cmp:[border:1px_solid_var(--input-border)] cmp:rounded-[var(--control-radius)] cmp:[background:var(--input-bg)] cmp:overflow-hidden cmp:[&:hover:not(.disabled)]:[border-color:var(--line-strong)] cmp:[&&:focus-within:not(.disabled)]:[border-color:var(--ring)] cmp:[&:focus-within:not(.disabled)]:[box-shadow:0_0_0_2px_color-mix(in_srgb,_var(--ring)_18%,_transparent)] cmp:[&.disabled]:opacity-[0.5] cmp:touchy:[--number-step-size:44px] cmp:touchy:h-[48px] cmp:touchy:p-[1px] cmp:compact:[.mobile-workspace_.mobile-filter-card_&]:absolute cmp:compact:[.mobile-workspace_.mobile-filter-card_&]:right-[0] cmp:compact:[.mobile-workspace_.mobile-filter-card_&]:top-[0] cmp:compact:[.mobile-workspace_.mobile-filter-card_&]:w-[152px]! cmp:compact:[.mobile-workspace_.mobile-filter-card_&]:min-w-[152px] cmp:compact:[.mobile-workspace_.mobile-filter-card_&]:h-[44px] cmp:compact:[.mobile-workspace_.mobile-filter-card_&]:[background:var(--control)] cmp:compact:[.mobile-workspace_.mobile-filter-card_&&&]:[border-color:var(--input)] ${disabled ? "disabled" : ""} ${className}`}
     >
       <Button
         variant="ghost"
         size="icon"
-        className="stepper-btn decrement"
+        className="stepper-btn leg:compact:[.custom-number-input_&]:min-w-[44px] leg:compact:[.custom-number-input_&]:w-[44px] leg:compact:[.custom-number-input_&]:flex-[0_0_44px] leg:pointer-coarse:[.custom-number-input_&&]:min-w-[44px] leg:pointer-coarse:[.custom-number-input_&&]:w-[44px] leg:pointer-coarse:[.custom-number-input_&&]:flex-[0_0_44px] cmp:[.custom-number-input_&]:inline-flex cmp:[.custom-number-input_&]:flex-[0_0_var(--number-step-size)] cmp:[.custom-number-input_&]:min-w-[var(--number-step-size)] cmp:[.custom-number-input_&]:min-h-[var(--number-step-size)] cmp:[.custom-number-input_&]:p-[0] cmp:[.custom-number-input_&]:[border:0] cmp:[.custom-number-input_&]:[outline:none] cmp:[.custom-number-input_&]:[background:transparent] cmp:[.custom-number-input_&]:text-[color:var(--muted)] cmp:[.custom-number-input_&]:[filter:none] cmp:[.custom-number-input_&:disabled]:opacity-[0.35] cmp:[.custom-number-input_&:hover:not(:disabled)]:text-[color:var(--text)] cmp:[.custom-number-input_&:hover:not(:disabled)]:[background:var(--accent)] cmp:touchy:[.custom-number-input_&]:h-[44px] decrement"
         onClick={() => stepValue(-1, false)}
         disabled={disabled || value <= min}
         aria-label={
@@ -145,12 +145,12 @@ export function NumberInput({
         onFocus={onFocus}
         aria-label={ariaLabel}
         disabled={disabled}
-        className="stepper-field"
+        className="cmp:[.custom-number-input_&]:[appearance:textfield] cmp:[.custom-number-input_&]:box-border cmp:[.custom-number-input_&]:flex-[1_1_0] cmp:[.custom-number-input_&]:w-[0] cmp:[.custom-number-input_&]:min-w-[0] cmp:[.custom-number-input_&]:h-[100%] cmp:[.custom-number-input_&]:p-[0_var(--space-1)] cmp:[.custom-number-input_&]:[border:0] cmp:[.custom-number-input_&]:rounded-[0] cmp:[.custom-number-input_&]:[outline:none] cmp:[.custom-number-input_&]:[background:transparent] cmp:[.custom-number-input_&]:text-[color:var(--text)] cmp:[.custom-number-input_&]:[font:400_var(--type-label)/1_var(--font-mono)] cmp:[.custom-number-input_&&]:[font-variant-numeric:tabular-nums] cmp:[.custom-number-input_&]:text-center cmp:[.custom-number-input_&:focus-visible]:[outline:none] cmp:compact:[.mobile-workspace_.mobile-filter-card_&]:min-w-[56px] cmp:compact:[.mobile-workspace_.mobile-filter-card_&]:text-[length:14px]"
       />
       <Button
         variant="ghost"
         size="icon"
-        className="stepper-btn increment"
+        className="stepper-btn leg:compact:[.custom-number-input_&]:min-w-[44px] leg:compact:[.custom-number-input_&]:w-[44px] leg:compact:[.custom-number-input_&]:flex-[0_0_44px] leg:pointer-coarse:[.custom-number-input_&&]:min-w-[44px] leg:pointer-coarse:[.custom-number-input_&&]:w-[44px] leg:pointer-coarse:[.custom-number-input_&&]:flex-[0_0_44px] cmp:[.custom-number-input_&]:inline-flex cmp:[.custom-number-input_&]:flex-[0_0_var(--number-step-size)] cmp:[.custom-number-input_&]:min-w-[var(--number-step-size)] cmp:[.custom-number-input_&]:min-h-[var(--number-step-size)] cmp:[.custom-number-input_&]:p-[0] cmp:[.custom-number-input_&]:[border:0] cmp:[.custom-number-input_&]:[outline:none] cmp:[.custom-number-input_&]:[background:transparent] cmp:[.custom-number-input_&]:text-[color:var(--muted)] cmp:[.custom-number-input_&]:[filter:none] cmp:[.custom-number-input_&:disabled]:opacity-[0.35] cmp:[.custom-number-input_&:hover:not(:disabled)]:text-[color:var(--text)] cmp:[.custom-number-input_&:hover:not(:disabled)]:[background:var(--accent)] cmp:touchy:[.custom-number-input_&]:h-[44px] increment"
         onClick={() => stepValue(1, false)}
         disabled={disabled || value >= max}
         aria-label={

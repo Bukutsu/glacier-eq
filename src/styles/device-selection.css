@@ -1,155 +1,11 @@
-.device-card {
-  width: 100%;
-  min-height: 0;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  background: var(--panel);
-}
-
-.device-chooser-content {
-  min-height: 0;
-  flex: 1;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  padding: var(--space-4);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
-
-.device-intro {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-3);
-  color: var(--muted);
-  font-size: var(--type-body);
-  line-height: 1.5;
-}
 .device-intro .app-icon { color: var(--link-foreground); margin-top: 2px; }
 .device-intro p { margin: 0; }
-
-.device-browser-warning {
-  padding: var(--space-3);
-  border-left: 3px solid var(--yellow);
-  background: var(--bg-dark);
-  color: var(--text);
-  font-size: var(--type-small);
-}
-
-.device-scan-btn {
-  width: 100%;
-  min-height: var(--touch-lg);
-}
-
-.device-list-heading {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin: var(--space-2) 0 -8px;
-  color: var(--text);
-  font-size: var(--type-body);
-  font-weight: 700;
-}
 .device-list-heading span {
   color: var(--muted);
   font-weight: 500;
   font-size: var(--type-small);
 }
-
-.empty-device-state {
-  padding: var(--space-4);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  background: var(--bg-dark);
-  border: 1px solid var(--line-soft);
-  color: var(--muted);
-  font-size: var(--type-small);
-  line-height: 1.5;
-}
 .empty-device-state strong { color: var(--text); font-size: var(--type-body); }
-
-.device-list { display: flex; flex-direction: column; gap: var(--space-2); }
-.device-card .device-row {
-  position: relative;
-  width: 100%;
-  min-height: 88px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: center;
-  gap: 4px;
-  padding: var(--space-3) 44px var(--space-3) var(--space-4);
-  text-align: left;
-  background: var(--bg-dark);
-  color: var(--text);
-  border: 1px solid var(--line-soft);
-  touch-action: manipulation;
-}
-.device-card .device-row:hover:not(:disabled) { border-color: var(--muted); }
-.device-card .device-row.selected {
-  background: var(--accent);
-  border-color: var(--ring);
-}
-.device-row-title {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  max-width: 100%;
-  color: var(--text);
-  font-size: var(--type-body);
-  font-weight: 700;
-}
-.device-row-name { overflow-wrap: anywhere; }
-.device-row-description { color: var(--muted); font-size: var(--type-small); }
-.device-row-meta { color: var(--muted); font-size: var(--type-caption); font-family: var(--font-mono); }
-.device-selection-mark {
-  position: absolute;
-  right: var(--space-4);
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--muted);
-}
-.device-row.selected .device-selection-mark { color: var(--link-foreground); }
-
-.dev-device-badge,
-.device-support-badge {
-  color: var(--on-accent);
-  background: var(--orange);
-  padding: 2px 5px;
-  font-size: var(--type-micro);
-  font-weight: 700;
-  letter-spacing: 0.08em;
-}
-.device-support-badge.tested { background: var(--green); }
-.device-support-badge.untested { background: var(--yellow); }
-
-.device-connect-footer {
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
-  border-top: 1px solid var(--line-soft);
-  background: var(--panel);
-}
-.device-connect-footer .status-text {
-  color: var(--muted);
-  font-size: var(--type-small);
-  line-height: 1.4;
-}
-.device-actions { display: flex; }
-.device-actions .btn { width: 100%; min-height: 52px; font-weight: 700; }
-
-.supported-list,
-.device-troubleshooting {
-  border-top: 1px solid var(--line-soft);
-  color: var(--muted);
-  font-size: var(--type-small);
-}
-.supported-list { margin-top: var(--space-2); }
 .supported-list summary,
 .device-troubleshooting summary {
   min-height: var(--touch-lg);
@@ -165,16 +21,10 @@
 .supported-list summary::-webkit-details-marker,
 .device-troubleshooting summary::-webkit-details-marker { display: none; }
 .supported-list summary .app-icon { color: var(--muted); }
-.supported-models { padding: var(--space-2) 0 var(--space-4); display: grid; gap: var(--space-3); }
-.supported-model { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 2px var(--space-3); }
 .supported-model strong { color: var(--text); }
 .supported-model span { font-family: var(--font-mono); font-size: var(--type-caption); }
 .device-troubleshooting ul { margin: var(--space-2) 0; padding-left: 18px; line-height: 1.6; }
 .device-troubleshooting a { color: var(--link-foreground); }
-
-.linux-udev-guide { display: grid; gap: 10px; margin: 10px 0; font-size: var(--type-small); line-height: 1.6; }
 .linux-udev-guide p { margin: 0; }
 .linux-udev-guide a { color: var(--link-foreground); }
-.udev-command-row { display: grid; gap: 8px; }
 .udev-command-row code { display: block; overflow-x: auto; white-space: pre; padding: 10px 12px; background: var(--bg-dark); border: 1px solid var(--line-soft); border-radius: 8px; font-size: var(--type-caption); }
-.udev-steps { margin: 0; padding-left: 18px; display: grid; gap: 4px; }

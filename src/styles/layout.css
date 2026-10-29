@@ -9,101 +9,24 @@
   overflow: hidden;
 }
 
-.left-pane {
-  min-width: 0;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  padding-right: var(--space-2);
-  grid-column: 1;
-  grid-row: 2;
-}
-
-.graph-card, .preamp-card, .bands-card, .tools-card {
-  background: var(--panel);
-  border-radius: var(--radius-surface);
-  box-shadow: none;
-}
-
 /* Spinner (Device page) */
-.reconnecting-spinner {
-  width: 48px;
-  height: 48px;
-  border: 3px solid var(--bg-dark);
-  border-top-color: var(--warning-foreground);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
 
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
 
 /* Modal Dialog Styles */
-dialog.modal-content {
-  background: var(--popover);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  box-sizing: border-box;
-  color: var(--text);
-  position: fixed;
-  inset: 0;
-  margin: auto;
-  width: min(480px, calc(100vw - 32px - var(--safe-area-left, 0px) - var(--safe-area-right, 0px)));
-  max-width: none;
-  max-height: min(85vh, calc(100dvh - 32px - var(--safe-area-top, 0px) - var(--safe-area-bottom, 0px)));
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
-  padding: 0;
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
-  flex-direction: column;
-  animation: modal-scale-in var(--motion-duration) var(--motion-ease);
-}
-
-dialog.modal-content[open] {
-  display: flex;
-}
-
-dialog.modal-content::backdrop {
-  background: rgba(var(--bg-darker-rgb), 0.75);
-  backdrop-filter: blur(4px);
-  animation: motion-fade-in var(--motion-duration) var(--motion-ease);
-}
 @keyframes modal-scale-in {
   from { transform: scale(0.92); opacity: 0; }
   to   { transform: scale(1);    opacity: 1; }
 }
 
-dialog.modal-content.wide {
-  width: min(680px, 96vw);
-}
-
 /* Keep the DAC list scrollable while the connect action stays in reach. */
-dialog.modal-content.device-modal {
-  /* fit-content, not auto: a fixed dialog pinned on all sides stretches to
-     the viewport with height:auto. */
-  height: fit-content;
-  max-height: calc(100dvh - 64px);
-  overflow: hidden;
-}
 .device-modal .modal-body {
   flex: 1;
   min-height: 0;
   padding: 0;
   overflow: hidden;
-}
-
-.modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 16px 10px;
-  border-bottom: 1px solid var(--line-soft);
-  flex-shrink: 0;
 }
 
 .modal-header h2 {
@@ -142,63 +65,14 @@ dialog.modal-content.device-modal {
 }
 
 /* Confirm Dialog */
-.confirm-message {
-  margin: 0;
-  color: var(--text);
-  font-size: var(--type-body);
-  line-height: 1.5;
-  white-space: pre-wrap;
-}
-
-.confirm-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin-top: 4px;
-}
-
-.confirm-actions .btn {
-  min-height: 44px;
-}
 
 @media (max-width: 850px), ((max-height: 540px) and (pointer: coarse)) {
-  dialog.modal-content,
-  dialog.modal-content.wide {
-    width: calc(100vw - 16px - var(--safe-area-left, 0px) - var(--safe-area-right, 0px));
-    max-height: calc(100dvh - 16px - var(--safe-area-top, 0px) - var(--safe-area-bottom, 0px));
-  }
-
-  .modal-header {
-    position: sticky;
-    top: 0;
-    z-index: 1;
-    padding-top: calc(14px + var(--safe-area-top, 0px));
-    background: var(--panel);
-  }
 
   .modal-body {
     padding-bottom: calc(16px + var(--safe-area-bottom, 0px));
   }
-
-  dialog.modal-content.device-modal {
-    inset: auto 0 0;
-    margin: 0 auto;
-    width: calc(100vw - var(--safe-area-left, 0px) - var(--safe-area-right, 0px));
-    height: auto;
-    max-height: calc(100dvh - var(--safe-area-top, 0px) - 8px);
-    border-radius: 16px 16px 0 0;
-    border-bottom: 0;
-  }
   .device-modal .modal-body { padding: 0; }
-  .device-modal .modal-header {
-    padding: var(--space-4);
-    padding-top: var(--space-4);
-  }
-  .device-modal .device-connect-footer {
-    padding-bottom: max(var(--space-3), var(--safe-area-bottom, 0px));
-  }
 
-  dialog.modal-content,
   dialog.modal-content * {
     scrollbar-width: none;
   }
@@ -209,4 +83,3 @@ dialog.modal-content.device-modal {
     height: 0;
   }
 }
-

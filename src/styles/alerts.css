@@ -1,2 +1,1 @@
-.error-boundary { display: grid; place-items: center; min-height: 100dvh; padding: 24px; background: var(--background); }
 .error-boundary .error-notice { max-width: 480px; }

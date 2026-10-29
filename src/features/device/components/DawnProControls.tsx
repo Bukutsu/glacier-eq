@@ -78,7 +78,7 @@ export function DawnProControlsFields({
             {t("dawnProControls.filterDescription")}
           </span>
         </div>
-        <div className="stack-pref-control setting-select-wrapper">
+        <div className="stack-pref-control leg:flex-[0_1_240px] leg:w-[min(240px,_60%)] leg:min-w-[190px] leg:compact:[.mobile-workspace_.stack-pref-row.select-row_&]:w-[100%]! leg:compact:[.mobile-workspace_.stack-pref-row.select-row_&]:min-w-[100%]! leg:compact:[.mobile-workspace_.stack-pref-row.select-row_&]:flex-[1_1_100%]! cmp:[.configuration-layout_&]:w-[240px] cmp:[.configuration-layout_&]:max-w-[100%] cmp:max-[1050px]:[.configuration-layout_&&]:w-[100%]">
           <Select
             id="dawn-filter"
             value={String(state.filter)}
@@ -103,8 +103,8 @@ export function DawnProControlsFields({
         ]}
         onChange={(value) => onChange("high_gain", value === "high")}
       />
-      <div className="pref-slider-item pref-slider-first">
-        <div className="pref-slider-head">
+      <div className="leg:flex leg:flex-col leg:gap-[10px] leg:p-[14px_16px] leg:[border-top:1px_solid_var(--line-subtle)] leg:rounded-[0]! leg:[&.pref-slider-first]:[border-top:none] leg:[&.pref-slider-first]:pt-[12px] cmp:[.configuration-layout_&]:p-[var(--space-4)_0] pref-slider-first">
+        <div className="leg:flex leg:items-center leg:justify-between leg:gap-[12px] cmp:[.configuration-layout_&]:gap-[var(--space-3)]">
           <div className="stack-pref-info">
             <label className="stack-pref-title" htmlFor="dawn-volume">
               {t("dawnProControls.dacVolume")}
@@ -113,7 +113,7 @@ export function DawnProControlsFields({
               {t("dawnProControls.volumeDescription")}
             </span>
           </div>
-          <span className="pref-value-badge">{state.volume_step}/60</span>
+          <span className="leg:[font-family:var(--font-mono)] leg:text-[length:13px] leg:font-semibold leg:text-[color:var(--link-foreground)] leg:[background:var(--bg-dark)] leg:[border:1px_solid_var(--line-subtle)] leg:p-[3px_8px] leg:rounded-[0]! leg:whitespace-nowrap cmp:[.configuration-layout_&]:shrink-0 cmp:[.configuration-layout_&]:[align-self:flex-start] cmp:[.configuration-layout_&]:p-[0] cmp:[.configuration-layout_&]:[border:0] cmp:[.configuration-layout_&]:[background:transparent] cmp:[.configuration-layout_&]:text-[color:var(--foreground)] cmp:[.configuration-layout_&]:[font-family:var(--font-ui)] cmp:[.configuration-layout_&]:text-[length:var(--type-label)] cmp:[.configuration-layout_&]:font-normal cmp:[.configuration-layout_&]:[font-variant-numeric:tabular-nums] cmp:[.configuration-layout_&]:leading-[1.35] cmp:[.configuration-layout_&]:text-right">{state.volume_step}/60</span>
         </div>
         <Slider
           id="dawn-volume"
@@ -145,7 +145,7 @@ export function DawnProControlsFields({
             {t("dawnProControls.ledDescription")}
           </span>
         </div>
-        <div className="stack-pref-control setting-select-wrapper">
+        <div className="stack-pref-control leg:flex-[0_1_240px] leg:w-[min(240px,_60%)] leg:min-w-[190px] leg:compact:[.mobile-workspace_.stack-pref-row.select-row_&]:w-[100%]! leg:compact:[.mobile-workspace_.stack-pref-row.select-row_&]:min-w-[100%]! leg:compact:[.mobile-workspace_.stack-pref-row.select-row_&]:flex-[1_1_100%]! cmp:[.configuration-layout_&]:w-[240px] cmp:[.configuration-layout_&]:max-w-[100%] cmp:max-[1050px]:[.configuration-layout_&&]:w-[100%]">
           <Select
             id="dawn-led"
             value={String(state.led)}

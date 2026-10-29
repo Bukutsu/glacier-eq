@@ -41,10 +41,10 @@ export function FilterResponse({ mode }: { mode: string }) {
   const { t } = useTranslation("device");
 
   return (
-    <details className="device-filter-details">
+    <details className="device-filter-details leg:[border-bottom:1px_solid_var(--line-subtle)] cmp:[.configuration-layout_&]:m-[0] cmp:[.configuration-layout_&]:p-[var(--space-3)_0]">
       <summary>
         {t("dacFilterVisual.filterResponse")}
-        <Icon name="expand_more" className="disclosure-chevron" />
+        <Icon name="expand_more" className="leg:flex-[0_0_auto] leg:text-[color:var(--muted)] leg:[transition:transform_var(--motion-duration)_var(--motion-ease)] leg:[details[open]>summary_&]:[transform:rotate(180deg)] leg:[.add-trace-cache_summary_&]:ml-[auto]" />
       </summary>
       <DacFilterVisual mode={mode} />
     </details>
@@ -160,19 +160,19 @@ export const DacFilterVisual = memo(function DacFilterVisual({
 
   return (
     <div
-      className="dac-filter-card"
+      className="leg:flex leg:flex-col leg:gap-[10px] leg:p-[10px_12px] leg:[background:var(--bg-dark)] leg:[border:1px_solid_var(--line-soft)] leg:rounded-[var(--radius-card,_0)] leg:mt-[4px]"
       aria-label={t("dacFilterVisual.filterMode", { mode: mode })}
     >
-      <div className="dac-filter-header">
-        <span className="dac-filter-title">{meta.name}</span>
+      <div className="leg:flex leg:items-center leg:justify-between leg:gap-[8px] leg:flex-wrap cmp:max-[480px]:items-stretch">
+        <span className="leg:text-[length:var(--type-small)] leg:font-semibold leg:text-[color:var(--text)]">{meta.name}</span>
         <div
-          className="dac-filter-toggle"
+          className="dac-filter-toggle cmp:inline-flex cmp:flex-[0_0_auto] cmp:items-center cmp:gap-[2px] cmp:p-[3px] cmp:[border:1px_solid_var(--border)] cmp:rounded-[var(--control-radius)] cmp:[background:var(--accent)] cmp:max-[480px]:w-[100%] cmp:max-[480px]:box-border"
           role="group"
           aria-label={t("dacFilterVisual.graphDomain")}
         >
           <button
             type="button"
-            className={`dac-filter-tab ${domain === "time" ? "active" : ""}`}
+            className={`cmp:[.dac-filter-toggle>&]:inline-flex cmp:[.dac-filter-toggle>&]:items-center cmp:[.dac-filter-toggle>&]:justify-center cmp:[.dac-filter-toggle>&]:min-w-[80px] cmp:[.dac-filter-toggle>&]:min-h-[32px] cmp:[.dac-filter-toggle>&]:m-[0] cmp:[.dac-filter-toggle>&]:p-[0_var(--space-3)] cmp:[.dac-filter-toggle>&]:[border:0] cmp:[.dac-filter-toggle>&]:rounded-[var(--control-radius)] cmp:[.dac-filter-toggle>&]:[background:transparent] cmp:[.dac-filter-toggle>&]:text-[color:var(--muted-foreground)] cmp:[.dac-filter-toggle>&]:[font:500_var(--type-label)/1.2_var(--font-ui)] cmp:[.dac-filter-toggle>&]:[box-shadow:none] cmp:[.dac-filter-toggle>&:hover]:text-[color:var(--foreground)] cmp:[.dac-filter-toggle>&[aria-pressed='true']]:[background:var(--popover)] cmp:[.dac-filter-toggle>&&[aria-pressed='true']]:text-[color:var(--foreground)] cmp:[.dac-filter-toggle>&[aria-pressed='true']]:[box-shadow:var(--shadow-sm)] cmp:[.dac-filter-toggle>&:focus-visible]:[outline:2px_solid_var(--ring)] cmp:[.dac-filter-toggle>&:focus-visible]:[outline-offset:-2px] cmp:touchy:[.dac-filter-toggle>&&]:min-h-[44px] cmp:max-[480px]:[.dac-filter-toggle>&]:flex-[1] cmp:max-[480px]:[.dac-filter-toggle>&&]:min-w-[0] cmp:compact:[.dac-filter-toggle>&&&]:min-h-[48px] ${domain === "time" ? "active" : ""}`}
             onClick={() => setDomain("time")}
             aria-pressed={domain === "time"}
             aria-label={t("dacFilterVisual.impulseTime")}
@@ -182,7 +182,7 @@ export const DacFilterVisual = memo(function DacFilterVisual({
           </button>
           <button
             type="button"
-            className={`dac-filter-tab ${domain === "freq" ? "active" : ""}`}
+            className={`cmp:[.dac-filter-toggle>&]:inline-flex cmp:[.dac-filter-toggle>&]:items-center cmp:[.dac-filter-toggle>&]:justify-center cmp:[.dac-filter-toggle>&]:min-w-[80px] cmp:[.dac-filter-toggle>&]:min-h-[32px] cmp:[.dac-filter-toggle>&]:m-[0] cmp:[.dac-filter-toggle>&]:p-[0_var(--space-3)] cmp:[.dac-filter-toggle>&]:[border:0] cmp:[.dac-filter-toggle>&]:rounded-[var(--control-radius)] cmp:[.dac-filter-toggle>&]:[background:transparent] cmp:[.dac-filter-toggle>&]:text-[color:var(--muted-foreground)] cmp:[.dac-filter-toggle>&]:[font:500_var(--type-label)/1.2_var(--font-ui)] cmp:[.dac-filter-toggle>&]:[box-shadow:none] cmp:[.dac-filter-toggle>&:hover]:text-[color:var(--foreground)] cmp:[.dac-filter-toggle>&[aria-pressed='true']]:[background:var(--popover)] cmp:[.dac-filter-toggle>&&[aria-pressed='true']]:text-[color:var(--foreground)] cmp:[.dac-filter-toggle>&[aria-pressed='true']]:[box-shadow:var(--shadow-sm)] cmp:[.dac-filter-toggle>&:focus-visible]:[outline:2px_solid_var(--ring)] cmp:[.dac-filter-toggle>&:focus-visible]:[outline-offset:-2px] cmp:touchy:[.dac-filter-toggle>&&]:min-h-[44px] cmp:max-[480px]:[.dac-filter-toggle>&]:flex-[1] cmp:max-[480px]:[.dac-filter-toggle>&&]:min-w-[0] cmp:compact:[.dac-filter-toggle>&&&]:min-h-[48px] ${domain === "freq" ? "active" : ""}`}
             onClick={() => setDomain("freq")}
             aria-pressed={domain === "freq"}
             aria-label={t("dacFilterVisual.rollOffFrequency")}
@@ -193,9 +193,9 @@ export const DacFilterVisual = memo(function DacFilterVisual({
         </div>
       </div>
 
-      <div className="dac-filter-chart-wrapper" ref={wrapperRef}>
+      <div className="leg:relative leg:w-[100%] leg:h-[136px] leg:[background:var(--panel,_#16161e)] leg:[border:1px_solid_var(--line-subtle)] leg:rounded-[var(--radius-card,_0)] leg:overflow-hidden leg:[touch-action:none]" ref={wrapperRef}>
         <svg
-          className="dac-filter-svg"
+          className="leg:block leg:[cursor:crosshair] leg:overflow-hidden leg:[font-family:var(--font-mono)] leg:text-[length:10px] leg:font-medium"
           width={width}
           height={HEIGHT}
           role="img"
@@ -211,14 +211,14 @@ export const DacFilterVisual = memo(function DacFilterVisual({
           {(isTime ? TIME_Y_TICKS : FREQ_Y_TICKS).map((v) => (
             <g key={`y${v}`}>
               <line
-                className={v === 0 ? "dac-filter-axis" : "dac-filter-grid"}
+                className={v === 0 ? "leg:[stroke:var(--line-soft,_rgba(255,_255,_255,_0.15))] leg:[&&]:[stroke-width:1]" : "leg:[stroke:var(--canvas-grid,_rgba(65,_72,_104,_0.22))] leg:[&&]:[stroke-width:1]"}
                 x1={PAD.left}
                 x2={PAD.left + plotW}
                 y1={valToY(v)}
                 y2={valToY(v)}
               />
               <text
-                className="dac-filter-label"
+                className="leg:[fill:var(--muted,_#787c99)]"
                 x={PAD.left - 6}
                 y={valToY(v)}
                 textAnchor="end"
@@ -232,7 +232,7 @@ export const DacFilterVisual = memo(function DacFilterVisual({
             <g key={`x${v}`}>
               <line
                 className={
-                  isTime && v === 0 ? "dac-filter-axis" : "dac-filter-grid"
+                  isTime && v === 0 ? "leg:[stroke:var(--line-soft,_rgba(255,_255,_255,_0.15))] leg:[&&]:[stroke-width:1]" : "leg:[stroke:var(--canvas-grid,_rgba(65,_72,_104,_0.22))] leg:[&&]:[stroke-width:1]"
                 }
                 x1={tickX(v)}
                 x2={tickX(v)}
@@ -240,7 +240,7 @@ export const DacFilterVisual = memo(function DacFilterVisual({
                 y2={PAD.top + PLOT_H}
               />
               <text
-                className="dac-filter-label"
+                className="leg:[fill:var(--muted,_#787c99)]"
                 x={tickX(v)}
                 y={PAD.top + PLOT_H + 12}
                 textAnchor="middle"
@@ -249,11 +249,11 @@ export const DacFilterVisual = memo(function DacFilterVisual({
               </text>
             </g>
           ))}
-          <path className="dac-filter-area" d={area} />
-          <path className="dac-filter-line" d={line} />
+          <path className="leg:[fill:var(--cyan,_#7dcfff)] leg:[&&]:[fill-opacity:0.1]" d={area} />
+          <path className="leg:[fill:none] leg:[stroke:var(--cyan,_#7dcfff)] leg:[&&]:[stroke-width:1.75] leg:[&&]:[stroke-linecap:round] leg:[&&]:[stroke-linejoin:round]" d={line} />
           {isTime && (
             <circle
-              className="dac-filter-dot"
+              className="leg:[fill:var(--cyan,_#7dcfff)] leg:[stroke:var(--panel,_#16161e)] leg:[&&]:[stroke-width:1.5]"
               cx={xAt(0.5)}
               cy={valToY(curve[Math.floor(curve.length / 2)])}
               r={3.5}
@@ -272,19 +272,19 @@ export const DacFilterVisual = memo(function DacFilterVisual({
           )}
         </svg>
         {hoverLabel && (
-          <div className="dac-filter-hover-pill">
+          <div className="leg:absolute leg:top-[6px] leg:right-[8px] leg:inline-flex leg:items-center leg:gap-[6px] leg:[font-family:var(--font-mono)] leg:text-[length:var(--type-micro)] leg:[background:var(--panel,_#16161e)] leg:[border:1px_solid_var(--line-soft)] leg:p-[2px_6px] leg:text-[color:var(--muted)] leg:pointer-events-none">
             <span>{hoverLabel.x}</span>
-            <span className="dac-filter-hover-val">{hoverLabel.y}</span>
+            <span className="leg:text-[color:var(--link-foreground)] leg:font-semibold">{hoverLabel.y}</span>
           </div>
         )}
       </div>
 
-      <div className="dac-filter-footer">
-        <div className="dac-filter-tags-row">
-          <span className="dac-filter-sound">{meta.sound}</span>
-          <span className="dac-filter-badge">· {meta.badge}</span>
+      <div className="leg:flex leg:flex-col leg:gap-[3px]">
+        <div className="leg:flex leg:items-baseline leg:gap-[6px] leg:flex-wrap">
+          <span className="leg:text-[length:var(--type-small)] leg:font-bold leg:text-[color:var(--text)]">{meta.sound}</span>
+          <span className="leg:text-[length:var(--type-micro)] leg:[font-family:var(--font-mono)] leg:font-semibold leg:tracking-[0.04em] leg:text-[color:var(--link-foreground)] leg:whitespace-nowrap">· {meta.badge}</span>
         </div>
-        <p className="dac-filter-desc">{meta.description}</p>
+        <p className="leg:m-[0] leg:text-[length:var(--type-small)] leg:text-[color:var(--comment)] leg:leading-[1.35]">{meta.description}</p>
       </div>
     </div>
   );

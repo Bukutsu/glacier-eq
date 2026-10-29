@@ -203,20 +203,20 @@ export function UpdateCard({
   return (
     <>
       <div
-        className="stack-card update-card"
+        className="stack-card update-card leg:[&[aria-disabled='true']]:[border-style:dashed] leg:[&[aria-disabled='true']]:[background:transparent]"
         data-phase={state.phase}
         aria-disabled={unsupported || undefined}
         aria-label={t("updates.title")}
         role="group"
       >
-        <div className="stack-pref-row update-row">
+        <div className="stack-pref-row update-row leg:justify-start leg:flex-wrap">
           <Icon
-            className="update-icon"
+            className="leg:flex-[0_0_auto] leg:text-[color:var(--muted)] leg:[.update-card[data-phase='available']_&]:text-[color:var(--ring)] leg:[.update-card[data-phase='ready']_&&]:text-[color:var(--ring)] leg:[.update-card[data-phase='downloading']_&&&]:text-[color:var(--ring)]"
             name={unsupported ? "lock" : "file_download"}
             size={20}
           />
           <div className="stack-pref-info">
-            <span className="stack-pref-title update-title">
+            <span className="stack-pref-title leg:flex leg:items-center leg:gap-[var(--space-2)] leg:flex-wrap leg:[.update-card[aria-disabled='true']_&]:text-[color:var(--muted)]">
               {t("updates.title")}
               {badge !== null && <Badge>{badge}</Badge>}
             </span>
@@ -242,7 +242,7 @@ export function UpdateCard({
 
         {state.phase === "downloading" && (
           <progress
-            className="update-progress"
+            className="update-progress leg:[appearance:none] leg:block leg:w-[calc(100%_-_32px)] leg:h-[3px] leg:m-[0_16px_14px] leg:[border:0] leg:[background:var(--surface-soft)] leg:[accent-color:var(--ring)]"
             max={100}
             value={percent(state) ?? undefined}
             aria-label={t("updates.downloadingPercent", {
@@ -253,14 +253,14 @@ export function UpdateCard({
         )}
 
         {state.phase === "available" && state.notes !== null && (
-          <details className="update-notes">
+          <details className="update-notes leg:m-[0] leg:p-[0_16px_14px] leg:text-[length:var(--type-small)] leg:text-[color:var(--muted)]">
             <summary>{t("updates.notes")}</summary>
             <pre>{state.notes}</pre>
           </details>
         )}
       </div>
       {state.phase !== "unsupported" && (
-        <p className="card-note">{t("updates.privacy")}</p>
+        <p className="leg:m-[0] leg:text-[color:var(--muted)] leg:text-[length:var(--type-small)] leg:leading-[1.4] leg:[.settings-plain_&]:p-[8px_0_0] leg:[.stack-content>&]:px-[0]! leg:compact:[.mobile-workspace_.stack-content>&]:px-[16px]! cmp:[.configuration-layout_&]:text-[length:var(--type-small)] cmp:[.configuration-layout_&]:leading-[1.5] cmp:[.configuration-layout_&]:text-[color:var(--muted-foreground)]">{t("updates.privacy")}</p>
       )}
     </>
   );

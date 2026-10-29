@@ -6,18 +6,6 @@
   background: var(--bg);
 }
 
-.header-main {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: var(--space-4);
-}
-
-.title-stack { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.title-line { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
-
 h1 {
   margin: 0;
   color: var(--text);
@@ -27,102 +15,12 @@ h1 {
   font-weight: 600;
   overflow-wrap: anywhere;
 }
-
-.header-meta-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-width: 0;
-  flex-wrap: wrap;
-}
-
-.sync-dot {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  max-width: 100%;
-  font-size: var(--type-small);
-  line-height: 1.4;
-  color: var(--muted);
-}
-.sync-dot::before {
-  content: "";
-  width: 5px;
-  height: 5px;
-  flex: 0 0 5px;
-  border-radius: var(--radius-pill);
-  background: currentColor;
-}
-.sync-dot.ok { color: var(--sync-ok); }
-.sync-dot.simulation, .sync-dot.working { color: var(--sync-working); }
-.sync-dot.unsaved { color: var(--sync-unsaved); }
-
-.header-eq-note {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-2);
-  max-width: 680px;
-  margin: var(--space-3) 0 0;
-  color: var(--muted-foreground);
-  font-size: var(--type-small);
-  line-height: 1.5;
-}
 .header-eq-note .app-icon { flex: 0 0 16px; margin-top: 2px; }
-
-.header-profile-state {
-  color: var(--muted);
-  font-size: var(--type-small);
-  line-height: 1.4;
-}
-.header-profile-state::before {
-  content: "·";
-  margin-right: var(--space-2);
-}
 
 /* The chip appears and disappears with the draft, so it must not change the
    meta row's height: keep it compact and let the margin absorb the rest. */
-.header-draft-trigger {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 22px;
-  margin-block: -3px;
-  padding: 0 8px;
-  border: 1px solid color-mix(in srgb, var(--warning-foreground) 30%, transparent);
-  border-radius: var(--control-radius);
-  background: color-mix(in srgb, var(--warning-foreground) 8%, var(--background));
-  color: var(--foreground);
-  font-size: 12px;
-  line-height: 1.4;
-  cursor: pointer;
-}
 .header-draft-trigger strong { font-weight: 600; }
 .header-draft-trigger > .app-icon { width: 13px; height: 13px; color: var(--warning-foreground); }
-.header-draft-trigger:hover,
-.header-draft-trigger[data-popup-open] {
-  background: color-mix(in srgb, var(--warning-foreground) 14%, var(--background));
-}
-.header-draft-trigger:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
-@media (pointer: coarse), (max-width: 850px) {
-  /* A 44px touch target without growing the chip. */
-  .header-draft-trigger::after { content: ""; position: absolute; inset: -11px 0; }
-}
-
-.header-draft-popup {
-  width: 300px;
-  max-width: calc(100vw - 16px);
-  max-height: var(--available-height);
-  overflow-y: auto;
-  padding: 16px;
-  border: 1px solid var(--line-medium);
-  border-radius: var(--radius-card);
-  background: var(--popover);
-  color: var(--popover-foreground);
-  box-shadow: var(--shadow-md);
-  outline: none;
-  box-sizing: border-box;
-}
 .header-draft-popup h2 { margin: 0; font-size: var(--type-label); font-weight: 600; }
 .header-draft-popup p {
   margin: 8px 0 0;
@@ -130,32 +28,8 @@ h1 {
   font-size: var(--type-small);
   line-height: 1.5;
 }
-.header-draft-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: 12px; }
 
 .toolbar { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
-.history-buttons { display: inline-flex; gap: var(--space-1); }
-.mobile-toolbar { display: none; }
-
-.header-progress-bar {
-  position: absolute;
-  bottom: -1px;
-  left: 0;
-  width: 100%;
-  height: 2px;
-  background: var(--surface-soft);
-  overflow: hidden;
-}
-.header-progress-fill {
-  width: 100%;
-  height: 100%;
-  transform-origin: left;
-  background: var(--primary);
-  transition: transform var(--motion-duration) var(--motion-ease);
-}
-.header-progress-fill.indeterminate {
-  width: 40%;
-  animation: indeterminate-slide 1.4s ease-in-out infinite;
-}
 @keyframes indeterminate-slide {
   from { transform: translateX(-100%); }
   to { transform: translateX(350%); }

@@ -67,10 +67,10 @@ export function ConfirmDialogHost() {
       onClose={() => close(false)}
     >
       <div className="modal-body">
-        <p id={descriptionId} className="confirm-message">
+        <p id={descriptionId} className="leg:m-[0] leg:text-[color:var(--text)] leg:text-[length:var(--type-body)] leg:leading-[1.5] leg:whitespace-pre-wrap cmp:[.modal-content_&]:text-[color:var(--muted-foreground)] cmp:[.modal-content_&]:text-[length:var(--type-label)] cmp:[.modal-content_&]:leading-[1.6]">
           {options.message}
         </p>
-        <div className="confirm-actions">
+        <div className="confirm-actions leg:grid leg:grid-cols-[1fr_1fr] leg:gap-[10px] leg:mt-[4px] cmp:[.modal-content_&]:flex cmp:[.modal-content_&]:justify-end cmp:[.modal-content_&]:flex-wrap cmp:[.modal-content_&]:gap-[var(--space-2)] cmp:[.modal-content_&]:mt-[var(--space-4)]">
           <Button autoFocus data-dialog-autofocus onClick={() => close(false)}>
             {options.cancelLabel ?? t("actions.cancel")}
           </Button>

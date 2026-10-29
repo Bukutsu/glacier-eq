@@ -1,37 +1,4 @@
 /* Library first, with the current editor and a small read-only EQ preview. */
-.profiles-workspace {
-  display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(300px, 1fr);
-  align-items: start;
-  gap: var(--space-5);
-  width: 100%;
-  min-width: 0;
-}
-
-.profiles-library,
-.profiles-editor {
-  min-width: 0;
-  padding: var(--space-5);
-  border: 1px solid var(--line-soft);
-  border-radius: var(--radius-card);
-  background: var(--panel);
-  box-sizing: border-box;
-}
-
-.profiles-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-  margin-bottom: var(--space-4);
-}
-
-.profiles-heading {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
-}
 
 .profiles-header h2 {
   margin: 0;
@@ -41,28 +8,12 @@
   line-height: 1.4;
 }
 
-.profiles-header-actions,
-.profiles-footer-actions,
-.profiles-editor-actions,
-.profiles-editor-tools {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
 .profiles-note {
   margin: 0;
   color: var(--muted);
   font-size: var(--type-small);
   font-weight: 400;
   line-height: 1.5;
-}
-
-.profiles-search {
-  position: relative;
-  display: flex;
-  align-items: center;
 }
 .profiles-search > .app-icon {
   position: absolute;
@@ -75,79 +26,10 @@
   appearance: none;
 }
 
-.profiles-search-clear {
-  position: absolute;
-  top: 5px;
-  right: 5px;
-}
-
 /* A plain list: rows are separated by space, not borders. Every action a
    row offers is always visible, in a muted tone until hovered. */
-.profiles-list {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-  max-height: 440px;
-  overflow-y: auto;
-  margin: var(--space-3) calc(-1 * var(--space-2)) 0;
-  padding: 0 var(--space-2);
-  list-style: none;
-}
-
-.profiles-item {
-  position: relative;
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  gap: var(--space-2);
-  min-width: 0;
-  padding-right: var(--space-1);
-  border-radius: var(--control-radius);
-  transition: background-color 120ms;
-}
-
-.profiles-item:hover {
-  background: var(--accent);
-}
-.profiles-item.is-current {
-  background: var(--surface-soft);
-}
 
 /* A thin bar marks the profile in the editor without another bordered box. */
-.profiles-item.is-current::before {
-  content: "";
-  position: absolute;
-  top: 10px;
-  bottom: 10px;
-  left: 0;
-  width: 2px;
-  border-radius: 2px;
-  background: var(--primary);
-}
-
-.profiles-load {
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  min-width: 0;
-  min-height: 52px;
-  padding: var(--space-2) var(--space-3);
-  border: 0;
-  border-radius: var(--control-radius);
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.profiles-load:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: -2px;
-}
 
 .profiles-item-name {
   display: flex;
@@ -175,22 +57,6 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
-.profiles-badge {
-  flex: none;
-  color: var(--muted);
-  font-size: var(--type-small);
-  white-space: nowrap;
-}
-.profiles-badge[data-modified="true"] {
-  color: var(--warning-foreground);
-}
-
-.profiles-row-actions {
-  display: flex;
-  flex: none;
-  gap: 2px;
-}
 .profiles-row-actions [data-slot="button"] {
   color: var(--muted-foreground);
   opacity: 0.7;
@@ -198,34 +64,8 @@
 .profiles-row-actions [data-slot="button"]:hover {
   color: var(--foreground);
 }
-.profiles-row-actions .profiles-delete:hover {
-  color: var(--destructive-foreground);
-}
 .ui-menu-item.profiles-menu-danger {
   color: var(--destructive-foreground);
-}
-
-.profiles-library-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  margin-top: var(--space-4);
-  padding-top: var(--space-3);
-  border-top: 1px solid var(--line-soft);
-}
-
-.profiles-empty-hint {
-  margin-top: var(--space-3);
-}
-
-.profiles-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: start;
-  gap: var(--space-2);
-  padding: var(--space-5) 0 var(--space-3);
 }
 
 .profiles-empty h3 {
@@ -241,43 +81,8 @@
   line-height: 1.5;
 }
 
-.profiles-editor-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  margin-bottom: var(--space-3);
-}
-
-.profiles-eyebrow {
-  margin: 0;
-  color: var(--muted);
-  font-size: var(--type-small);
-  font-weight: 500;
-}
-
 .profiles-warning {
   color: var(--warning-foreground);
-}
-
-.profiles-editor-name {
-  margin: 0 0 var(--space-1);
-  color: var(--text);
-  font-size: 18px;
-  font-weight: 600;
-  line-height: 1.35;
-  overflow-wrap: anywhere;
-}
-
-.profiles-editor-actions {
-  margin-top: var(--space-4);
-}
-
-.profile-save-form {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  margin-top: var(--space-4);
 }
 
 .profile-save-form label,
@@ -287,46 +92,12 @@
   font-weight: 500;
 }
 
-.profile-save-form .profiles-editor-actions {
-  margin-top: var(--space-1);
-}
-
-.profiles-preview {
-  display: flex;
-  min-width: 0;
-  height: 200px;
-  margin-top: var(--space-4);
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--line-soft);
-  box-sizing: border-box;
-}
-
 .profiles-preview :is(.eq-graph-shell, .eq-canvas) {
   min-height: 0;
-}
-.profiles-editor-tools {
-  gap: var(--space-1);
-  margin: var(--space-3) calc(-1 * var(--space-2)) 0;
 }
 
 .profiles-import-dialog .modal-body {
   gap: var(--space-4);
-}
-
-.profiles-import-modes {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-1);
-  padding: var(--space-1);
-  border: 1px solid var(--line-soft);
-  border-radius: var(--control-radius);
-  background: var(--input-bg);
-}
-
-.profiles-import-fields {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
 }
 
 .profiles-import-fields label:not(:first-child) {
@@ -340,11 +111,6 @@
   font-weight: 500;
 }
 
-.profiles-import-filter-list {
-  max-height: 160px;
-  overflow-y: auto;
-}
-
 .profiles-import-filter-list p {
   margin: 0;
   padding: var(--space-1) 0;
@@ -352,55 +118,16 @@
   font-size: var(--type-small);
   line-height: 1.5;
 }
-
-.profiles-import-warnings {
-  color: var(--warning-foreground);
-}
 .profiles-import-warnings ul {
   margin: 0;
   padding-left: var(--space-4);
 }
 
-@media (min-width: 851px) and ((min-height: 541px) or (pointer: fine)) {
-  .desktop-view-profiles .desktop-content {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .desktop-view-profiles .desktop-content > .right-rail {
-    grid-column: 1 / -1;
-    background: transparent;
-    border: 0;
-  }
-  .desktop-view-profiles .desktop-content > .right-rail > .tools-card {
-    padding: 0;
-    background: transparent;
-  }
-  .desktop-view-profiles .tab-panel {
-    padding-right: 0;
-  }
-}
-
-@media (max-width: 1000px) {
-  .profiles-workspace {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
 @media (max-width: 850px), ((max-height: 540px) and (pointer: coarse)) {
-  .profiles-library,
-  .profiles-editor {
-    padding: var(--space-4);
-  }
-  .profiles-list {
-    max-height: 320px;
-  }
   .profiles-workspace button,
   .profiles-import-dialog button {
     min-width: 44px;
     min-height: 44px;
-  }
-  .profiles-search-clear {
-    top: 0;
-    right: 0;
   }
 }
 
@@ -410,73 +137,13 @@
   }
 }
 
-.profiles-paste-text {
-  width: 100%;
-  min-width: 0;
-  resize: vertical;
-  max-height: 40dvh;
-  padding: 12px;
-  border: 1px solid var(--input);
-  border-radius: var(--control-radius);
-  color: var(--foreground);
-  background: var(--field-background);
-  font-family: var(--font-mono);
-  font-size: 16px;
-  line-height: 1.5;
-}
-.profiles-paste-text:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
-}
-
 /* Fixed hardware rows lead the library; only local files can be removed. */
-.profiles-dac-banks {
-  min-width: 0;
-  margin-top: var(--space-3);
-  padding-bottom: var(--space-3);
-  border-bottom: 1px solid var(--line-soft);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
 .profiles-dac-banks :is(h3, p) {
   margin: 0;
-}
-.melody-banks-heading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-3);
 }
 .melody-banks-heading > div {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
   min-width: 0;
-}
-.profiles-dac-banks .melody-bank-editing {
-  border-color: color-mix(in srgb, var(--primary) 40%, transparent);
-  background: color-mix(in srgb, var(--primary) 8%, transparent);
-  color: var(--primary);
-}
-.profiles-local-heading {
-  margin: var(--space-4) 0 var(--space-1);
-  color: var(--muted);
-  font-size: var(--type-small);
-  font-weight: 500;
-}
-.melody-bank-list {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin: 0 calc(-1 * var(--space-2));
-  padding: 0 var(--space-2);
-  list-style: none;
-}
-.profiles-dac-banks .melody-bank {
-  min-width: 0;
-}
-.profiles-dac-banks .profiles-load:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }

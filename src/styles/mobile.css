@@ -1,9 +1,6 @@
-
 /* Mobile affordances follow the layout breakpoint, not just the primary
    pointer type: small windows and hybrid devices need usable targets too. */
 @media (max-width: 850px), ((max-height: 540px) and (pointer: coarse)) {
-  .configuration-layout .graph-mode-option,
-  .dac-filter-toggle > .dac-filter-tab { min-height: 48px; }
   .mobile-workspace button[data-slot="button"],
   .modal-content button[data-slot="button"] {
     min-width: var(--touch-md);
@@ -11,138 +8,24 @@
   }
   .mobile-workspace button[data-slot="button"]:active:not(:disabled),
   .modal-content button[data-slot="button"]:active:not(:disabled),
-  .app-select-trigger:active:not(:disabled),
   .ui-menu-item:active:not([data-disabled]) {
     background: var(--accent);
     color: var(--accent-foreground);
   }
-  .app-select-trigger,
-  .app-select-option,
   .ui-menu-item {
     min-height: var(--touch-md);
     touch-action: manipulation;
   }
-  .mobile-workspace .control-slider-input {
-    min-height: var(--touch-md);
-    --slider-thumb: var(--foreground) !important;
-  }
-  .mobile-workspace .control-slider-input::-webkit-slider-thumb {
-    background: var(--foreground) !important;
-    box-shadow: none !important;
-  }
-  .mobile-workspace .control-slider-input::-moz-range-thumb {
-    background: var(--foreground) !important;
-    box-shadow: none !important;
-  }
-  .mobile-workspace .mobile-filter-card,
-  .mobile-workspace .mobile-preamp-details {
-    background: color-mix(in srgb, var(--card) 88%, var(--foreground) 12%) !important;
-    border-color: var(--border);
-  }
-  .mobile-workspace .mobile-filter-card .custom-number-input {
-    background: var(--field-background);
-  }
-  .mobile-workspace .control-slider-input::-webkit-slider-thumb {
-    width: 20px;
-    height: 20px;
-    margin-top: -9px;
-  }
-  .mobile-workspace .control-slider-input::-moz-range-thumb {
-    width: 20px;
-    height: 20px;
-  }
-  .mobile-workspace .profiles-editor { padding: var(--space-3); gap: var(--space-2); }
-  .mobile-workspace .profiles-editor-name { font-size: var(--type-body); margin: 0; }
-  .mobile-workspace .profiles-editor-actions { flex-wrap: wrap; gap: var(--space-2); }
-  .mobile-workspace .profiles-preview { height: 100px; margin-top: var(--space-2); padding-top: var(--space-2); }
-  .mobile-workspace .tuning-settings { gap: var(--space-3); padding-top: var(--space-3); }
-  .mobile-workspace .tuning-form { gap: var(--space-3); }
-  .mobile-workspace .tuning-submit {
-    position: sticky;
-    bottom: 0;
-    z-index: var(--z-sticky);
-    padding: var(--space-2) 0;
-    background: var(--bg);
-    border-top: 1px solid var(--border);
-  }
-  .app-header .header-main { gap: var(--space-1); }
-  .app-header .title-stack { gap: 0; }
   .app-header .title-line h1 { font-size: 18px; line-height: 1.3; }
-  .app-header .header-meta-row { margin-top: 0; }
-  .mobile-toolbar .mobile-connect-btn { flex: 0 0 auto; margin-left: auto; }
   .mobile-workspace .control-slider { position: relative; }
-  .mobile-workspace .control-slider-input { touch-action: pan-y; position: relative; z-index: 1; }
-  .mobile-workspace .control-slider-input::-webkit-slider-runnable-track {
-    background: linear-gradient(to right,
-      var(--surface) var(--slider-fill-start),
-      var(--muted-foreground) var(--slider-fill-start),
-      var(--muted-foreground) var(--slider-fill-end),
-      var(--surface) var(--slider-fill-end)) !important;
-  }
-  .mobile-workspace .control-slider-input::-moz-range-track {
-    background: linear-gradient(to right,
-      var(--surface) var(--slider-fill-start),
-      var(--muted-foreground) var(--slider-fill-start),
-      var(--muted-foreground) var(--slider-fill-end),
-      var(--surface) var(--slider-fill-end)) !important;
-  }
-  .slider-zero-mark { display: none; }
-  .mobile-workspace .slider-zero-mark {
-    display: block;
-    position: absolute;
-    left: clamp(10px, var(--slider-zero), calc(100% - 10px));
-    top: calc(50% - 5px);
-    height: 10px;
-    width: 2px;
-    background: var(--muted-foreground);
-    pointer-events: none;
-  }
   /* A compact instrument panel: labels and values above a long touch track. */
-  .mobile-workspace .mobile-filter-card {
-    background: var(--card) !important;
-    padding: var(--space-3) var(--space-4);
-    gap: var(--space-3);
-    border-top: 1px solid var(--border);
-    border-radius: 0;
-  }
-  .mobile-filter-head .band-index { width: 44px; min-height: 44px; }
-  .mobile-filter-reset { min-height: 44px; }
-  .mobile-workspace .mobile-filter-card .band-field {
-    position: relative;
-    gap: 0;
-    padding-top: 48px;
-  }
-  .mobile-workspace .mobile-filter-card .band-field-label {
-    position: absolute;
-    top: 0;
-    left: 0;
-    height: 44px;
-    display: flex;
-    align-items: center;
-    gap: var(--space-1);
-  }
   .mobile-workspace .mobile-filter-card :is(.freq-cell, .gain-cell, .q-cell) {
     position: static;
     display: flex;
     flex-direction: column;
     gap: 0;
   }
-  .mobile-workspace .mobile-filter-card .custom-number-input {
-    position: absolute;
-    right: 0;
-    top: 0;
-    width: 152px !important;
-    min-width: 152px;
-    height: 44px;
-    background: var(--control);
-    border-color: var(--input);
-  }
-  .mobile-workspace .mobile-filter-card .stepper-field { min-width: 56px; font-size: 14px; }
   .mobile-workspace .mobile-filter-card .control-slider { width: 100%; min-height: 44px; }
-  .mobile-workspace .mobile-filter-card .band-type-field { padding-top: 0; gap: var(--space-2); }
-  .mobile-workspace .mobile-filter-card .band-type-field .band-field-label { position: static; height: auto; }
-  .mobile-workspace .mobile-filter-card .band-type-field .app-select-trigger { min-height: 44px; }
-  .mobile-workspace .band-picker { padding: var(--space-2) var(--space-3); }
   .mobile-workspace .band-picker button {
     min-height: 48px;
     min-width: 52px;
@@ -155,66 +38,8 @@
     border-color: var(--input);
     box-shadow: none;
   }
-  .mobile-workspace .band-picker button.add-filter-chip { min-width: 64px; }
-  .mobile-workspace .mobile-preamp-details { background: var(--card) !important; }
-  .band-picker-scroll { touch-action: auto; }
-  .mobile-workspace .graph-collapse-btn { min-height: var(--touch-md); }
-  .mobile-workspace .graph-card:has(.eq-graph-layout.legend-open) {
-    height: auto !important;
-    max-height: none;
-  }
-  .mobile-workspace .eq-graph-layout {
-    display: flex;
-    flex-direction: column;
-    width: 100%;
-    min-width: 0;
-    flex: 1;
-  }
-  .mobile-workspace .eq-graph-layout.legend-open .eq-graph-shell {
-    flex: 0 0 auto;
-    height: clamp(100px, 16dvh, 136px);
-  }
-  .mobile-workspace .graph-legend.mobile-open {
-    position: static;
-    transform: none;
-    width: 100%;
-    max-width: none;
-    max-height: none;
-    flex-direction: row;
-    flex-wrap: wrap;
-    justify-content: flex-start;
-    gap: var(--space-2) var(--space-3);
-    margin: var(--space-2) 0 0;
-    padding: var(--space-2);
-    background: transparent;
-    border: 0;
-    border-top: 1px solid var(--border);
-    border-radius: 0;
-    box-shadow: none;
-    backdrop-filter: none;
-  }
-  .mobile-workspace .graph-legend-item {
-    padding: 0;
-    font-size: var(--type-small);
-    white-space: normal;
-    overflow-wrap: anywhere;
-  }
   /* Legend and A/B sit before show/hide; on narrow screens show/hide drops
      its words (the button keeps its accessible name). */
-  .mobile-workspace .graph-toolbar > .graph-toolbar-actions {
-    order: 1;
-    margin-left: auto;
-  }
-  .mobile-workspace .graph-toolbar:has(> .graph-toolbar-actions) > .graph-collapse-btn {
-    order: 2;
-    margin-left: 0;
-  }
-  .mobile-workspace .graph-legend-btn,
-  .mobile-workspace .compare-hold-btn {
-    min-width: var(--touch-md);
-    min-height: var(--touch-md);
-  }
-  .mobile-workspace .graph-legend-btn:active { background: var(--accent); }
   @media (max-width: 419px) {
     .mobile-workspace .graph-toolbar:has(> .graph-toolbar-actions) .graph-collapse-btn > span {
       position: absolute;
@@ -226,17 +51,8 @@
     }
   }
   /* The filter type is picked in the band header, beside the band number. */
-  .mobile-filter-summary { align-items: center; }
   .mobile-filter-summary strong { white-space: nowrap; }
-  .mobile-filter-summary .mobile-band-type { flex: 0 1 auto; width: auto; min-width: 0; }
-  .mobile-filter-summary .mobile-band-type .app-select-trigger {
-    width: auto;
-    min-height: var(--touch-md);
-    height: auto;
-    padding-right: 36px;
-  }
   /* Hidden overflow would make this the sticky band picker's scroller. */
-  .mobile-workspace .bands-container { overflow: clip; }
   @media (max-width: 379px) {
     .mobile-filter-reset > span { display: none; }
   }
@@ -247,65 +63,15 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .title-edited {
-    flex: none;
-    padding: 1px var(--space-2);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-pill);
-    color: var(--muted-foreground);
-    font-size: var(--type-small);
-    line-height: 1.4;
-  }
   /* Header-less tabs still show that the DAC lacks the editor's EQ. */
-  .mobile-save-bar {
-    position: fixed;
-    right: 0;
-    bottom: calc(var(--tabbar-h, 56px) + var(--safe-area-bottom, 0px));
-    left: 0;
-    z-index: var(--z-tabbar);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-3);
-    padding: var(--space-2) max(var(--space-4), var(--safe-area-right, 0px)) var(--space-2) max(var(--space-4), var(--safe-area-left, 0px));
-    background: var(--bg);
-    border-top: 1px solid var(--border);
-    color: var(--muted-foreground);
-    font-size: var(--type-small);
-  }
   .mobile-save-bar > span { min-width: 0; }
-  .keyboard-open .mobile-save-bar { display: none; }
-  .mobile-workspace.has-save-bar .tuning-submit { bottom: 60px; }
   /* Shown after the app restored an unfinished EQ by itself. */
-  .draft-restored-notice {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--space-2);
-    margin: var(--space-2) var(--space-3);
-    padding: var(--space-2) var(--space-3);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-surface);
-    background: var(--card);
-    color: var(--muted-foreground);
-    font-size: var(--type-small);
-  }
   .draft-restored-notice p { flex: 1 1 calc(100% - 32px); min-width: 0; margin: 0; line-height: 1.4; }
   .draft-restored-notice > button:first-of-type { margin-left: auto; }
   .draft-restored-notice > .app-icon { flex: none; }
   .mobile-tab-item { font-size: 12px; font-weight: 500; letter-spacing: 0; gap: var(--space-1); }
   .mobile-tab-item::before { content: none; }
-  .mobile-tab-icon-wrapper {
-    width: 48px;
-    height: 28px;
-    border-radius: var(--radius-pill);
-  }
   .mobile-tab-item.active { color: var(--foreground); }
-  .mobile-tab-item.active .mobile-tab-icon-wrapper {
-    color: var(--accent-foreground);
-    background: var(--accent);
-  }
-  .mobile-tab-item:active .mobile-tab-icon-wrapper { background: var(--accent); }
   .mobile-tab-item:focus-visible { outline: 2px solid var(--ring); outline-offset: -4px; border-radius: var(--control-radius); }
   .configuration-layout .configuration-navigation { padding: 0; }
   .settings-stack-view .configuration-navigation {
@@ -313,7 +79,6 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--space-1);
   }
-  .configuration-nav-link:active { background: var(--accent); color: var(--accent-foreground); }
   /* Keep the response and the band chips in view while the band controls
      scroll. Leave short screens and the on-screen keyboard room for the
      controls. App.tsx measures --mobile-graph-height. */
@@ -342,17 +107,7 @@
 
   /* WebView can resize only the visual viewport when the IME opens. */
   .keyboard-open #app { height: var(--app-visible-height, 100dvh); }
-  .keyboard-open .mobile-tab-bar,
   .keyboard-open .mobile-graph-preview { display: none; }
-  .keyboard-open .mobile-workspace { scroll-padding-bottom: var(--space-4); }
-  .keyboard-open .tuning-submit { bottom: var(--space-2); }
-  .keyboard-open dialog.modal-content {
-    inset-block: 0 calc(100dvh - var(--app-visible-height, 100dvh));
-    max-height: calc(var(--app-visible-height, 100dvh) - var(--safe-area-top, 0px) - var(--space-4));
-  }
-  .mobile-workspace {
-    scroll-padding-bottom: calc(var(--tabbar-h) + var(--safe-area-bottom, 0px) + var(--space-4));
-  }
   .modal-content .modal-body {
     scroll-padding-block: var(--space-4);
     overscroll-behavior: contain;

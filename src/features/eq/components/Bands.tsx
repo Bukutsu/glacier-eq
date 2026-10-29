@@ -219,24 +219,24 @@ export const Bands = memo(function Bands({
   };
 
   return (
-    <div className={`bands-container${collapsed ? " collapsed" : ""}`}>
+    <div className={`bands-container leg:flex leg:flex-col leg:gap-[0] leg:[border:1px_solid_var(--line-soft)] leg:rounded-[var(--radius-card)] leg:overflow-hidden leg:shrink-0 leg:compact:[.mobile-workspace_&]:rounded-[0]! leg:compact:[.mobile-workspace_&]:[border-inline:0]! cmp:compact:[.mobile-workspace_&]:[overflow:clip] ${collapsed ? " collapsed" : ""}`}>
       <button
         type="button"
-        className="bands-section-header"
+        className="bands-section-header leg:w-[100%] leg:h-[48px] leg:p-[0_16px] leg:[background:var(--panel)] leg:flex leg:justify-between leg:items-center leg:select-none leg:text-[color:inherit] leg:cursor-pointer leg:[border:none] leg:[&&]:[border-bottom:1px_solid_var(--line-soft)] leg:text-left leg:[transition:background_var(--motion-duration)_var(--motion-ease)] leg:[&:hover]:[background:var(--surface-soft)] leg:compact:hidden"
         onClick={() => setCollapsed((v) => !v)}
         aria-expanded={!collapsed}
       >
-        <span className="title-text">
+        <span className="leg:[.bands-section-header_&]:flex leg:[.bands-section-header_&]:items-center leg:[.bands-section-header_&]:gap-[8px] leg:[.bands-section-header_&]:text-[color:var(--link-foreground)]">
           <Icon name="tune" />
           <strong>{t("bands.title")}</strong>
         </span>
-        <span className="collapse-toggle-btn">
+        <span className="collapse-toggle-btn leg:[.bands-section-header_&]:text-[color:var(--link-foreground)] leg:[.bands-section-header_&]:p-[0] leg:[.bands-section-header_&]:min-h-[32px] leg:[.bands-section-header_&]:min-w-[48px] leg:[.bands-section-header_&]:flex leg:[.bands-section-header_&]:items-center leg:[.bands-section-header_&]:justify-center leg:[.bands-section-header_&]:gap-[6px] leg:[.bands-section-header_&]:text-[length:var(--type-small)]">
           {visibleFilters.length}/{availableFilters.length}
           <Icon name={collapsed ? "expand_more" : "expand_less"} />
         </span>
       </button>
-      <section className="bands-grid">
-        <div className="bands-card">
+      <section className="leg:flex-[0_0_auto] leg:grid-cols-[minmax(0,_1fr)] leg:gap-[12px] leg:min-h-[0] leg:min-w-[0] leg:hidden leg:[.bands-container.collapsed_&]:hidden leg:max-[960px]:grid-cols-[1fr] leg:compact:[&&]:grid-cols-[1fr] leg:compact:gap-[12px] leg:compact:[.bands-container>&]:hidden leg:max-[560px]:flex leg:max-[560px]:flex-col leg:max-[560px]:[&&]:gap-[10px]">
+        <div className="bands-card leg:rounded-[var(--radius-surface)] leg:[box-shadow:none] leg:p-[10px_16px_6px] leg:overflow-hidden leg:[background:var(--panel)] leg:min-w-[0] leg:min-[1280px]:flex leg:min-[1280px]:flex-col leg:min-[1280px]:gap-[0] leg:min-[1280px]:p-[6px_16px_4px] leg:compact:[&&]:p-[0] leg:compact:[background:transparent] leg:compact:rounded-[var(--radius-surface)]! leg:compact:[border:1px_solid_var(--line-soft)]! leg:compact:[background:var(--panel)]! leg:compact:overflow-hidden leg:max-[560px]:[&&&]:p-[0] leg:max-[560px]:[&&]:overflow-visible leg:max-[560px]:[&&]:[background:transparent]">
           {visibleFilters.map((filter) => (
             <BandRow
               key={filter.index}
@@ -253,10 +253,10 @@ export const Bands = memo(function Bands({
               snapToIso={snapToIso}
             />
           ))}
-          <div className="bands-actions">
+          <div className="bands-actions leg:flex leg:justify-end leg:pt-[12px] leg:min-[1280px]:pt-[8px] leg:compact:[&&]:pt-[0]">
             <button
               type="button"
-              className="btn"
+              className="leg:[&:disabled]:cursor-not-allowed leg:[&:disabled]:[background:var(--surface-disabled)]! leg:[&:disabled]:text-[color:var(--text-disabled)]! leg:[&:disabled]:opacity-[1]! leg:inline-flex leg:items-center leg:justify-center leg:gap-[8px] leg:[background:var(--surface-soft)] leg:text-[color:var(--text)] leg:font-medium leg:min-h-[42px] leg:p-[0_18px] leg:rounded-[var(--radius-control)] leg:[outline:1px_solid_var(--line-medium)] leg:[outline-offset:-1px] leg:[transition:filter_var(--motion-duration)_var(--motion-ease),_background_var(--motion-duration)_var(--motion-ease),_color_var(--motion-duration)_var(--motion-ease),_outline-color_var(--motion-duration)_var(--motion-ease)] leg:[&:hover:not(:disabled)]:[filter:brightness(1.14)] leg:[&&:active:not(:disabled)]:[filter:brightness(1.24)] leg:[&.filled]:[background:var(--primary)] leg:[&.filled]:text-[color:var(--primary-foreground)] leg:[&&.warning]:[background:var(--yellow)] leg:[&&.warning]:text-[color:var(--on-accent)] leg:pointer-coarse:min-h-[44px] leg:[.confirm-actions_&]:min-h-[44px] leg:[.bands-actions_&&]:min-h-[36px] leg:[.device-summary_.device-hero-actions_&]:w-[auto] leg:[.device-summary_.device-hero-actions_&&]:min-h-[44px] leg:[.device-summary_.device-hero-actions_&]:flex-[0_1_auto] leg:[.empty-state_&]:mt-[8px] leg:[.empty-state_&&&]:min-h-[44px] leg:[.empty-state_&]:p-[0_20px] leg:[.empty-state_&]:rounded-[0]! leg:[.add-trace-download-prompt_&]:[align-self:flex-start] leg:[.add-trace-download-prompt_&&&&]:min-h-[44px] leg:[.device-actions_&]:w-[100%] leg:[.device-actions_&&&&&]:min-h-[52px] leg:[.device-actions_&]:font-bold leg:max-[960px]:[.toolbar_&]:min-w-[0] leg:max-[960px]:[.toolbar_&&]:p-[0_10px] leg:compact:[.bands-actions_&&]:w-[100%] leg:compact:[.bands-actions_&&&&&&]:min-h-[44px] leg:compact:[.bands-actions_&]:justify-center leg:compact:[.bands-actions_&&&]:[background:var(--bg-dark)] leg:compact:[.bands-actions_&]:[outline:1px_solid_var(--line-medium)] leg:compact:[.bands-actions_&]:[outline-offset:-1px] leg:compact:[.mobile-workspace_.device-hero-actions_&&]:w-[auto] leg:compact:[.mobile-workspace_.device-hero-actions_&&&&&&]:min-h-[48px] leg:compact:[.mobile-workspace_.device-hero-actions_&]:rounded-[0]!"
               onClick={addFilter}
               disabled={!canAddFilter}
             >
@@ -267,7 +267,7 @@ export const Bands = memo(function Bands({
         </div>
       </section>
       {!selectedFilter && (
-        <div className="bands-empty">
+        <div className="bands-empty leg:flex leg:flex-col leg:items-center leg:gap-[var(--space-3)] leg:p-[var(--space-6)_var(--space-4)] leg:text-[color:var(--muted)] leg:text-[length:var(--type-small)] leg:text-center leg:[.bands-container.collapsed_&]:hidden">
           <p>{t("bands.empty")}</p>
           <p className="bands-limits">
             {t("bands.limit", {
@@ -287,14 +287,14 @@ export const Bands = memo(function Bands({
         </div>
       )}
       {selectedFilter && (
-        <section className="bands-mobile-editor">
+        <section className="bands-mobile-editor leg:flex leg:flex-col leg:gap-[0] leg:[background:transparent] leg:[container-type:inline-size] leg:[.bands-container.collapsed_&]:hidden">
           <div
-            className="band-picker"
+            className="band-picker leg:grid leg:grid-cols-[minmax(0,_1fr)_auto] leg:gap-[var(--space-2)] leg:min-w-[0] leg:p-[var(--space-3)_var(--space-4)] leg:[border-bottom:1px_solid_var(--line-soft)] cmp:compact:[.mobile-workspace_&]:p-[var(--space-2)_var(--space-3)]"
             role="group"
             aria-label={t("bands.title")}
           >
             <div
-              className={`band-picker-scroll${moreBands.start ? " more-start" : ""}${moreBands.end ? " more-end" : ""}`}
+              className={`band-picker-scroll leg:relative leg:flex leg:min-w-[0] leg:gap-[var(--space-1)] leg:overflow-x-auto leg:[scrollbar-width:thin] leg:[--fade-start:0px] leg:[--fade-end:0px] leg:[mask-image:linear-gradient(to_right,_transparent,_#000_var(--fade-start),_#000_calc(100%_-_var(--fade-end)),_transparent)] leg:[&.more-start]:[--fade-start:24px] leg:[&.more-end]:[--fade-end:24px] leg:compact:[scrollbar-width:none] leg:compact:[-webkit-overflow-scrolling:touch] leg:compact:[touch-action:pan-x] cmp:compact:[touch-action:auto] ${moreBands.start ? " more-start" : ""}${moreBands.end ? " more-end" : ""}`}
               ref={bandPickerRef}
               onScroll={updateMoreBands}
             >
@@ -323,7 +323,7 @@ export const Bands = memo(function Bands({
             {!bandsFull && (
               <button
                 type="button"
-                className="add-filter-chip"
+                className="add-filter-chip leg:[.band-picker_button&]:flex leg:[.band-picker_button&]:items-center leg:[.band-picker_button&]:justify-center leg:[.band-picker_button&]:gap-[var(--space-1)] leg:[.band-picker_button&]:text-[color:var(--link-foreground)] cmp:compact:[.mobile-workspace_.band-picker_button&]:min-w-[64px]"
                 onClick={addFilter}
                 disabled={!canAddFilter}
                 aria-label={t("bands.addFilter")}
@@ -335,17 +335,17 @@ export const Bands = memo(function Bands({
             )}
           </div>
           <div
-            className="mobile-filter-card"
+            className="mobile-filter-card leg:grid leg:grid-cols-[minmax(140px,_0.6fr)_repeat(3,_minmax(0,_1fr))] leg:[grid-template-areas:'head_head_head_head'_'type_freq_gain_q'] leg:[align-items:start] leg:gap-[var(--space-3)_var(--space-5)] leg:p-[var(--space-3)_var(--space-4)_var(--space-4)] leg:[background:var(--panel)] leg:[@container(max-width:700px)]:grid-cols-[minmax(0,_1fr)] leg:[@container(max-width:700px)]:[grid-template-areas:'head'_'type'_'freq'_'gain'_'q'] leg:[@container(max-width:700px)]:gap-[var(--space-3)] leg:compact:rounded-[var(--radius-surface)]! leg:compact:overflow-hidden leg:compact:[.mobile-workspace_&]:rounded-[0]! leg:compact:[.mobile-workspace_&]:[border-inline:0]! leg:compact:flex leg:compact:flex-col leg:compact:items-stretch leg:compact:[&&]:gap-[var(--space-2)] leg:compact:p-[var(--space-2)_var(--space-3)] leg:compact:w-[100%] leg:compact:box-border leg:[@media(max-height:_580px)]:gap-[4px]! leg:[@media(max-height:_580px)]:p-[6px_12px]! cmp:compact:[.mobile-workspace_&]:[border-color:var(--border)] cmp:compact:[.mobile-workspace_&]:[background:var(--card)]! cmp:compact:[.mobile-workspace_&]:p-[var(--space-3)_var(--space-4)] cmp:compact:[.mobile-workspace_&]:gap-[var(--space-3)] cmp:compact:[.mobile-workspace_&]:[border-top:1px_solid_var(--border)] cmp:compact:[.mobile-workspace_&]:rounded-[0]"
             style={filterColorStyle(selectedFilter.index)}
           >
-            <div className="mobile-filter-head">
-              <div className="mobile-filter-summary">
+            <div className="mobile-filter-head leg:[grid-area:head] leg:min-w-[0] leg:grid leg:grid-cols-[minmax(0,_1fr)_auto] leg:gap-[8px] leg:items-center">
+              <div className="mobile-filter-summary leg:min-w-[0] leg:flex leg:items-baseline leg:gap-[var(--space-2)] cmp:compact:items-center">
                 <strong>
                   {t("bands.band", { number: selectedFilter.index + 1 })}
                 </strong>
                 {isMobile ? (
                   <Select
-                    className="mobile-band-type"
+                    className="mobile-band-type cmp:compact:[.mobile-filter-summary_&]:flex-[0_1_auto] cmp:compact:[.mobile-filter-summary_&]:w-[auto] cmp:compact:[.mobile-filter-summary_&]:min-w-[0]"
                     aria-label={t("bands.typeLabel", {
                       number: selectedFilter.index + 1,
                     })}
@@ -364,16 +364,16 @@ export const Bands = memo(function Bands({
                     }}
                   />
                 ) : (
-                  <span className="mobile-band-context">
+                  <span className="leg:text-[length:var(--type-small)] leg:text-[color:var(--muted-foreground)]">
                     {t(TYPE_NAMES[selectedFilter.filter_type])}
                   </span>
                 )}
               </div>
-              <div className="mobile-filter-actions">
+              <div className="leg:flex leg:items-center leg:gap-[4px]">
                 {committedPeq?.filters[selectedFilter.index] && (
                   <Button
                     variant="ghost"
-                    className="mobile-filter-reset"
+                    className="mobile-filter-reset leg:inline-flex leg:min-h-[32px] leg:items-center leg:justify-center leg:gap-[4px] leg:p-[0_8px] leg:[background:transparent] leg:text-[color:var(--muted)] leg:[&:hover]:text-[color:var(--link-foreground)] leg:compact:min-h-[44px] cmp:compact:min-h-[44px]"
                     disabled={disabled}
                     aria-label={t("bands.resetBand", {
                       number: selectedFilter.index + 1,
@@ -397,7 +397,7 @@ export const Bands = memo(function Bands({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="band-index"
+                  className="band-index leg:text-[color:var(--comment)] leg:[background:transparent] leg:p-[0] leg:text-center leg:font-bold leg:min-h-[32px] leg:w-[32px] leg:inline-flex leg:items-center leg:justify-center leg:whitespace-nowrap leg:[border:none] leg:cursor-pointer leg:opacity-[.25] leg:[transition:color_var(--motion-duration)_var(--motion-ease),_opacity_var(--motion-duration)_var(--motion-ease)] leg:[&:hover]:text-[color:var(--destructive-foreground)] leg:[&:hover]:opacity-[1] leg:[&:hover]:[transform:none] leg:[.band-row.active_&]:opacity-[.7] leg:[.mobile-filter-head_&]:w-[32px] leg:[.mobile-filter-head_&]:min-h-[32px] leg:[.mobile-filter-head_&&]:text-[color:var(--muted)] leg:[.mobile-filter-head_&&]:opacity-[1] leg:[.mobile-filter-head_&]:[background:transparent] leg:[.mobile-filter-head_&:hover:not(:disabled)]:text-[color:var(--destructive-foreground)] leg:[.mobile-filter-head_&&:disabled]:opacity-[0.4] leg:compact:[.mobile-filter-head_&]:[grid-area:auto] leg:compact:[.mobile-filter-head_&&]:w-[44px] leg:compact:[.mobile-filter-head_&&]:min-h-[44px] leg:compact:[grid-area:index] leg:compact:w-[100%] leg:compact:min-h-[36px] leg:compact:p-[0_10px] leg:compact:flex leg:compact:items-center leg:compact:justify-center leg:compact:[background:var(--surface-soft)] leg:compact:[border:none] leg:compact:[outline:none] leg:compact:rounded-[var(--radius-control)] cmp:compact:[.mobile-filter-head_&]:w-[44px] cmp:compact:[.mobile-filter-head_&]:min-h-[44px]"
                   title={t("bands.removeBand", {
                     number: selectedFilter.index + 1,
                   })}
@@ -474,12 +474,12 @@ const BandRow = memo(
     const { t } = useTranslation("editor");
     return (
       <div
-        className={`band-row ${filter.enabled ? "" : "muted"} ${active ? "active" : ""}`}
+        className={`band-row leg:grid leg:grid-cols-[minmax(0,_28px)_minmax(0,_120px)_minmax(0,_1fr)_minmax(0,_1fr)_minmax(0,_1fr)_minmax(0,_28px)] leg:gap-[12px] leg:items-center leg:h-[52px] leg:text-[color:var(--text)] leg:[border-bottom:1px_solid_var(--line-subtle)] leg:[&:last-child]:[border-bottom:0] leg:[&:hover]:[background:var(--hover-bg)] leg:[&&.active]:[background:rgb(var(--filter-color-rgb,_var(--cyan-rgb))_/_0.07)] leg:[&.active]:[box-shadow:inset_3px_0_0_var(--filter-color,_var(--cyan))] leg:[&.muted]:opacity-[.45] leg:min-[1280px]:min-w-[0] leg:min-[1280px]:h-[auto] leg:min-[1280px]:min-h-[64px] leg:min-[1280px]:p-[6px_0_6px_8px] leg:min-[1280px]:gap-[8px_12px] leg:min-[1280px]:[border-left:3px_solid_var(--filter-color,_var(--cyan))] leg:min-[1280px]:[&&&:hover]:[background:var(--surface-soft)] leg:max-[960px]:grid-cols-[36px_144px_minmax(140px,_1fr)_minmax(140px,_1fr)_76px] leg:max-[960px]:text-[length:var(--type-small)] leg:compact:[&&]:min-w-[0] leg:compact:[&&]:h-[auto] leg:compact:[&&]:p-[12px] leg:compact:[&&]:grid-cols-[44px_minmax(0,_1fr)_minmax(0,_1fr)] leg:compact:[grid-template-areas:'type_type_index'_'freq_freq_freq'_'gain_gain_gain'_'q_q_q'] leg:compact:[&&]:gap-[12px_8px] leg:compact:[background:var(--bg-dark)] leg:compact:[outline:1px_solid_var(--line-medium)] leg:compact:[outline-offset:-1px] leg:compact:[border-bottom:0] leg:compact:[&&.muted]:opacity-[.6] leg:max-[560px]:[&&&]:min-w-[0] leg:[@media(min-width:_769px)_and_(max-width:_1150px)]:[&&&]:grid-cols-[28px_132px_minmax(0,_1fr)_minmax(0,_1fr)_minmax(0,_1fr)_28px] leg:[@media(min-width:_769px)_and_(max-width:_1150px)]:[&&&]:gap-[8px] ${filter.enabled ? "" : "muted"} ${active ? "active" : ""}`}
         role="group"
         aria-label={t("bands.band", { number: filter.index + 1 })}
         style={filterColorStyle(filter.index)}
       >
-        <div className="band-number" aria-hidden="true">
+        <div className="leg:text-[color:var(--filter-color,_var(--cyan))] leg:font-bold leg:text-[length:var(--type-subtitle)] leg:text-center leg:[font-variant-numeric:tabular-nums] leg:min-[1280px]:[align-self:center] leg:compact:hidden! leg:[@media(min-width:_769px)_and_(max-width:_1150px)]:text-[length:var(--type-label)]" aria-hidden="true">
           {filter.index + 1}
         </div>
         <BandControls
@@ -495,7 +495,7 @@ const BandRow = memo(
         />
         <button
           type="button"
-          className="band-index"
+          className="band-index leg:text-[color:var(--comment)] leg:[background:transparent] leg:p-[0] leg:text-center leg:font-bold leg:min-h-[32px] leg:w-[32px] leg:inline-flex leg:items-center leg:justify-center leg:whitespace-nowrap leg:[border:none] leg:cursor-pointer leg:opacity-[.25] leg:[transition:color_var(--motion-duration)_var(--motion-ease),_opacity_var(--motion-duration)_var(--motion-ease)] leg:[&:hover]:text-[color:var(--destructive-foreground)] leg:[&:hover]:opacity-[1] leg:[&:hover]:[transform:none] leg:[.band-row.active_&]:opacity-[.7] leg:[.mobile-filter-head_&]:w-[32px] leg:[.mobile-filter-head_&]:min-h-[32px] leg:[.mobile-filter-head_&&]:text-[color:var(--muted)] leg:[.mobile-filter-head_&&]:opacity-[1] leg:[.mobile-filter-head_&]:[background:transparent] leg:[.mobile-filter-head_&:hover:not(:disabled)]:text-[color:var(--destructive-foreground)] leg:[.mobile-filter-head_&&:disabled]:opacity-[0.4] leg:compact:[.mobile-filter-head_&]:[grid-area:auto] leg:compact:[.mobile-filter-head_&&]:w-[44px] leg:compact:[.mobile-filter-head_&&]:min-h-[44px] leg:compact:[grid-area:index] leg:compact:w-[100%] leg:compact:min-h-[36px] leg:compact:p-[0_10px] leg:compact:flex leg:compact:items-center leg:compact:justify-center leg:compact:[background:var(--surface-soft)] leg:compact:[border:none] leg:compact:[outline:none] leg:compact:rounded-[var(--radius-control)] cmp:compact:[.mobile-filter-head_&]:w-[44px] cmp:compact:[.mobile-filter-head_&]:min-h-[44px]"
           aria-label={t("bands.removeBand", { number: filter.index + 1 })}
           disabled={!canRemove || disabled}
           onClick={() => {
@@ -559,8 +559,8 @@ const BandControls = memo(
     };
 
     const typeControl = (
-      <label className="band-field band-type-field">
-        <span className="band-field-label">{t("bands.filter")}</span>
+      <label className="leg:min-w-[0] leg:flex leg:flex-col leg:justify-center leg:gap-[6px] leg:[@container(max-width:700px)]:[.mobile-filter-card_&]:grid leg:[@container(max-width:700px)]:[.mobile-filter-card_&]:grid-cols-[88px_minmax(0,_1fr)] leg:[@container(max-width:700px)]:[.mobile-filter-card_&]:items-center leg:[@container(max-width:700px)]:[.mobile-filter-card_&]:gap-[var(--space-2)] leg:compact:flex leg:compact:flex-col leg:compact:gap-[6px] leg:compact:[.mobile-filter-card_&&]:flex leg:compact:[.mobile-filter-card_&]:flex-col leg:compact:[.mobile-filter-card_&&]:items-stretch leg:compact:[.mobile-filter-card_&&]:gap-[var(--space-1)] cmp:compact:[.mobile-workspace_.mobile-filter-card_&]:relative cmp:compact:[.mobile-workspace_.mobile-filter-card_&]:gap-[0] cmp:compact:[.mobile-workspace_.mobile-filter-card_&]:pt-[48px] band-type-field leg:[.mobile-filter-card_&]:[grid-area:type] leg:compact:[grid-area:type] cmp:compact:[.mobile-workspace_.mobile-filter-card_&&]:pt-[0] cmp:compact:[.mobile-workspace_.mobile-filter-card_&&]:gap-[var(--space-2)]">
+        <span className="leg:flex leg:items-baseline leg:gap-[var(--space-1)] leg:text-[color:var(--muted)] leg:text-[length:var(--type-small)] leg:font-medium leg:leading-[1.4] leg:compact:[.mobile-filter-card_&]:text-[color:var(--text)] leg:compact:[.mobile-filter-card_&]:text-[length:var(--type-label)] cmp:compact:[.mobile-workspace_.mobile-filter-card_&]:absolute cmp:compact:[.mobile-workspace_.mobile-filter-card_&]:top-[0] cmp:compact:[.mobile-workspace_.mobile-filter-card_&]:left-[0] cmp:compact:[.mobile-workspace_.mobile-filter-card_&]:h-[44px] cmp:compact:[.mobile-workspace_.mobile-filter-card_&]:flex cmp:compact:[.mobile-workspace_.mobile-filter-card_&]:items-center cmp:compact:[.mobile-workspace_.mobile-filter-card_&]:gap-[var(--space-1)] cmp:compact:[.mobile-workspace_.mobile-filter-card_.band-type-field_&]:static cmp:compact:[.mobile-workspace_.mobile-filter-card_.band-type-field_&]:h-[auto]">{t("bands.filter")}</span>
         <Select
           value={filter.filter_type}
           disabled={disabled}
@@ -580,9 +580,9 @@ const BandControls = memo(
     const qControl = (
       <BandField
         label={mobileSimple ? t("bands.bandwidth") : "Q"}
-        className="band-q-field"
+        className="leg:[.mobile-filter-card_&]:[grid-area:q] leg:compact:[grid-area:q]"
       >
-        <div className="param-cell q-cell">
+        <div className="param-cell leg:flex leg:min-w-[0] leg:flex-col leg:gap-[4px] q-cell leg:[&&&]:flex leg:[&&&]:flex-col leg:[&&]:items-stretch leg:[&&&]:gap-[var(--space-2)] leg:[&&&]:min-w-[0] leg:compact:[.mobile-filter-card_&&]:grid-cols-[minmax(0,_1fr)_160px] leg:compact:[&&&&&]:grid leg:compact:[&&]:grid-cols-[minmax(0,_1fr)_160px] leg:compact:[&&&&]:items-center leg:compact:[&&&&&]:gap-[8px]">
           <Slider
             aria-label={t("bands.q", { number: filter.index + 1 })}
             disabled={disabled}
@@ -640,9 +640,9 @@ const BandControls = memo(
       <BandField
         label={t("bands.frequency")}
         unit="Hz"
-        className="band-freq-field"
+        className="leg:[.mobile-filter-card_&]:[grid-area:freq] leg:compact:[grid-area:freq]"
       >
-        <div className="param-cell freq-cell">
+        <div className="param-cell leg:flex leg:min-w-[0] leg:flex-col leg:gap-[4px] freq-cell leg:[&&]:flex leg:[&&]:flex-col leg:items-stretch leg:[&&]:gap-[var(--space-2)] leg:[&&]:min-w-[0] leg:compact:[.mobile-filter-card_&]:grid-cols-[minmax(0,_1fr)_160px] leg:compact:[&&&&]:grid leg:compact:grid-cols-[minmax(0,_1fr)_160px] leg:compact:[&&&]:items-center leg:compact:[&&&&]:gap-[8px]">
           <Slider
             aria-label={t("bands.frequencyLabel", { number: filter.index + 1 })}
             disabled={disabled}
@@ -719,8 +719,8 @@ const BandControls = memo(
       </BandField>
     );
     const gainControl = (
-      <BandField label={t("bands.gain")} unit="dB" className="band-gain-field">
-        <div className="gain-cell">
+      <BandField label={t("bands.gain")} unit="dB" className="leg:[.mobile-filter-card_&]:[grid-area:gain] leg:compact:[grid-area:gain]">
+        <div className="gain-cell leg:flex leg:flex-col leg:items-stretch leg:gap-[var(--space-2)] leg:min-w-[0] leg:compact:[.mobile-filter-card_&]:grid-cols-[minmax(0,_1fr)_160px] leg:compact:grid leg:compact:grid-cols-[minmax(0,_1fr)_160px] leg:compact:items-center leg:compact:gap-[8px]">
           <Slider
             aria-label={t("bands.gainLabel", { number: filter.index + 1 })}
             disabled={disabled}
@@ -822,13 +822,13 @@ function BandField({
 }) {
   return (
     <div
-      className={`band-field ${className ?? ""}`.trim()}
+      className={`leg:min-w-[0] leg:flex leg:flex-col leg:justify-center leg:gap-[6px] leg:[@container(max-width:700px)]:[.mobile-filter-card_&]:grid leg:[@container(max-width:700px)]:[.mobile-filter-card_&]:grid-cols-[88px_minmax(0,_1fr)] leg:[@container(max-width:700px)]:[.mobile-filter-card_&]:items-center leg:[@container(max-width:700px)]:[.mobile-filter-card_&]:gap-[var(--space-2)] leg:compact:flex leg:compact:flex-col leg:compact:gap-[6px] leg:compact:[.mobile-filter-card_&&]:flex leg:compact:[.mobile-filter-card_&]:flex-col leg:compact:[.mobile-filter-card_&&]:items-stretch leg:compact:[.mobile-filter-card_&&]:gap-[var(--space-1)] cmp:compact:[.mobile-workspace_.mobile-filter-card_&]:relative cmp:compact:[.mobile-workspace_.mobile-filter-card_&]:gap-[0] cmp:compact:[.mobile-workspace_.mobile-filter-card_&]:pt-[48px] ${className ?? ""}`.trim()}
       role="group"
       aria-label={label}
     >
-      <span className="band-field-label">
+      <span className="leg:flex leg:items-baseline leg:gap-[var(--space-1)] leg:text-[color:var(--muted)] leg:text-[length:var(--type-small)] leg:font-medium leg:leading-[1.4] leg:compact:[.mobile-filter-card_&]:text-[color:var(--text)] leg:compact:[.mobile-filter-card_&]:text-[length:var(--type-label)] cmp:compact:[.mobile-workspace_.mobile-filter-card_&]:absolute cmp:compact:[.mobile-workspace_.mobile-filter-card_&]:top-[0] cmp:compact:[.mobile-workspace_.mobile-filter-card_&]:left-[0] cmp:compact:[.mobile-workspace_.mobile-filter-card_&]:h-[44px] cmp:compact:[.mobile-workspace_.mobile-filter-card_&]:flex cmp:compact:[.mobile-workspace_.mobile-filter-card_&]:items-center cmp:compact:[.mobile-workspace_.mobile-filter-card_&]:gap-[var(--space-1)] cmp:compact:[.mobile-workspace_.mobile-filter-card_.band-type-field_&]:static cmp:compact:[.mobile-workspace_.mobile-filter-card_.band-type-field_&]:h-[auto]">
         {label}
-        {unit && <span className="band-field-unit">{unit}</span>}
+        {unit && <span className="leg:text-[length:var(--type-micro)]">{unit}</span>}
       </span>
       {children}
     </div>

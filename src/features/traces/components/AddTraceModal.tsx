@@ -272,8 +272,8 @@ export function AddTraceModal({
       onClose={onClose}
       className="add-trace-modal"
     >
-      <div className="modal-body add-trace-body">
-        <p className="add-trace-intro">{t("addTraceModal.description")}</p>
+      <div className="modal-body leg:p-[20px] leg:gap-[16px] leg:max-[540px]:p-[16px] leg:max-[540px]:gap-[12px]">
+        <p className="leg:m-[0] leg:text-[color:var(--muted)] leg:text-[length:var(--type-label)] leg:leading-[1.5]">{t("addTraceModal.description")}</p>
         {modalError && (
           <ErrorNotice>
             {t(modalError.key, {
@@ -283,8 +283,8 @@ export function AddTraceModal({
             })}
           </ErrorNotice>
         )}
-        <div className="add-trace-section">
-          <label className="add-trace-section-title" htmlFor={searchId}>
+        <div className="leg:flex leg:flex-col leg:gap-[8px] leg:p-[14px] leg:[border:1px_solid_var(--line-soft)] leg:rounded-[var(--radius-card)] leg:[background:var(--popover)] leg:max-[540px]:p-[12px]">
+          <label className="leg:text-[length:var(--type-label)] leg:font-medium leg:text-[color:var(--text)]" htmlFor={searchId}>
             {t("addTraceModal.headphoneOrBrand")}
           </label>
           <Input
@@ -292,7 +292,7 @@ export function AddTraceModal({
             id={searchId}
             name="measurement-search"
             type="search"
-            className="curves-search-input"
+            className="leg:rounded-[var(--radius-control)]! leg:[background:var(--input-bg,_var(--surface-soft))]! leg:[border:1px_solid_var(--input-border,_var(--line-soft))]! leg:[transition:border-color_var(--motion-duration)_var(--motion-ease),_outline_var(--motion-duration)_var(--motion-ease)] leg:[font-family:var(--font-ui)] leg:text-[length:var(--type-body)] leg:text-[color:var(--text)] leg:p-[0_14px] leg:min-h-[44px] leg:w-[100%] leg:box-border leg:[&:focus]:[border-color:var(--ring)]! leg:[&:focus]:[outline:1px_solid_var(--focus-ring)] leg:[&:focus]:[outline-offset:2px] leg:[&::placeholder]:text-[color:var(--muted)] leg:pointer-coarse:[&&]:text-[length:16px]! leg:compact:min-h-[48px]! leg:compact:[&&&]:text-[length:17px]!"
             placeholder={t("addTraceModal.searchPlaceholder")}
             autoComplete="off"
             spellCheck={false}
@@ -310,8 +310,8 @@ export function AddTraceModal({
             }}
           />
           {downloaded && (
-            <div className="add-trace-owner">
-              <label className="add-trace-section-title" htmlFor={ownerId}>
+            <div className="add-trace-owner leg:flex leg:flex-col leg:gap-[6px]">
+              <label className="leg:text-[length:var(--type-label)] leg:font-medium leg:text-[color:var(--text)]" htmlFor={ownerId}>
                 {t("addTraceModal.measurementOwner")}
               </label>
               <SearchSelect
@@ -330,7 +330,7 @@ export function AddTraceModal({
             <>
               <p
                 id={`${searchId}-status`}
-                className="add-trace-search-status"
+                className="leg:min-h-[2.8em] leg:m-[0] leg:text-[color:var(--muted)] leg:text-[length:var(--type-small)] leg:leading-[1.4]"
                 role="status"
                 aria-live="polite"
                 aria-atomic="true"
@@ -338,13 +338,13 @@ export function AddTraceModal({
                 {searchStatus}
               </p>
               <section
-                className="add-trace-online-results"
+                className="leg:h-[min(320px,_35dvh)] leg:shrink-0 leg:overflow-y-auto leg:[overscroll-behavior:contain] leg:[scroll-padding-block:8px] leg:[background:var(--bg-dark)] leg:[border:1px_solid_var(--line-soft)] leg:rounded-[var(--radius-card)] leg:[&:focus-visible]:[outline:2px_solid_var(--ring)] leg:[&:focus-visible]:[outline-offset:2px]"
                 aria-label={t("addTraceModal.measurementSearchResults")}
                 aria-busy={loadingManifest || searchPending}
                 tabIndex={results.length > 0 ? 0 : undefined}
               >
                 {loadingManifest || searchPending ? (
-                  <div className="online-result-empty">
+                  <div className="online-result-empty leg:min-h-[160px] leg:p-[24px_16px] leg:flex leg:flex-col leg:items-center leg:justify-center leg:gap-[8px] leg:text-[color:var(--muted)] leg:text-[length:var(--type-small)] leg:leading-[1.5] leg:text-center">
                     <p>
                       {loadingManifest
                         ? t("addTraceModal.loadingMeasurements")
@@ -352,29 +352,29 @@ export function AddTraceModal({
                     </p>
                   </div>
                 ) : !query ? (
-                  <div className="online-result-empty">
+                  <div className="online-result-empty leg:min-h-[160px] leg:p-[24px_16px] leg:flex leg:flex-col leg:items-center leg:justify-center leg:gap-[8px] leg:text-[color:var(--muted)] leg:text-[length:var(--type-small)] leg:leading-[1.5] leg:text-center">
                     <Icon name="search" />
                     <p>{t("addTraceModal.searchHeadphoneMeasurements")}</p>
                     <span>{t("addTraceModal.searchHelp")}</span>
                   </div>
                 ) : results.length === 0 ? (
-                  <div className="online-result-empty">
+                  <div className="online-result-empty leg:min-h-[160px] leg:p-[24px_16px] leg:flex leg:flex-col leg:items-center leg:justify-center leg:gap-[8px] leg:text-[color:var(--muted)] leg:text-[length:var(--type-small)] leg:leading-[1.5] leg:text-center">
                     <p>{t("addTraceModal.noMeasurementsFound")}</p>
                     <span>{t("addTraceModal.noMatchesHint")}</span>
                   </div>
                 ) : (
-                  <ul className="online-result-list">
+                  <ul className="leg:[list-style:none] leg:m-[0] leg:p-[0]">
                     {results.map((device) => {
                       const name = `${device.brand} ${device.name}`;
                       const added = loadedDevices.has(device.id);
                       const adding = loadingDevice === device.id;
                       return (
-                        <li key={device.id} className="online-result-item">
-                          <div className="online-result-info">
-                            <div className="online-result-name">{name}</div>
-                            <div className="online-result-meta">
+                        <li key={device.id} className="leg:flex leg:items-center leg:justify-between leg:p-[8px_10px] leg:min-h-[64px] leg:gap-[12px] leg:[border-bottom:1px_solid_var(--line-subtle)] leg:text-left leg:[transition:background_var(--motion-duration)_var(--motion-ease)] leg:[&:last-child]:[border-bottom:0] leg:[&:hover]:[background:var(--hover-bg)] leg:[&&:focus-within]:[background:var(--hover-bg)] leg:max-[540px]:p-[8px] leg:max-[540px]:gap-[10px] leg:compact:min-h-[48px]">
+                          <div className="leg:flex leg:flex-col leg:gap-[4px] leg:min-w-[0] leg:flex-[1]">
+                            <div className="leg:text-[color:var(--text)] leg:text-[length:var(--type-label)] leg:font-medium leg:leading-[1.4] leg:[overflow-wrap:anywhere]">{name}</div>
+                            <div className="leg:flex leg:flex-wrap leg:gap-[4px_12px] leg:text-[length:var(--type-small)] leg:leading-[1.4] leg:text-[color:var(--muted)] leg:[overflow-wrap:anywhere]">
                               <span className="online-result-source">
-                                <span className="online-result-owner-label">
+                                <span className="leg:text-[color:var(--text)] leg:font-medium">
                                   {t("addTraceModal.measurementOwner")}:
                                 </span>{" "}
                                 {device.source}
@@ -387,7 +387,7 @@ export function AddTraceModal({
                             </div>
                           </div>
                           <Button
-                            className={`online-result-action${added ? " added" : ""}`}
+                            className={`leg:[.add-trace-modal_&]:min-h-[44px] leg:[.add-trace-modal_&]:min-w-[72px] leg:[.add-trace-modal_&]:p-[8px_10px] leg:[.add-trace-modal_&]:text-[length:var(--type-label)] leg:[.add-trace-modal_&]:gap-[6px] leg:[.add-trace-modal_&]:shrink-0 leg:[.add-trace-modal_&]:whitespace-nowrap ${added ? " added" : ""}`}
                             disabled={loadingDevice !== null || added}
                             aria-label={
                               added
@@ -423,7 +423,7 @@ export function AddTraceModal({
               </section>
             </>
           ) : (
-            <div className="add-trace-download-prompt">
+            <div className="add-trace-download-prompt leg:flex leg:flex-col leg:gap-[12px] leg:p-[16px] leg:[background:var(--bg-dark)] leg:text-[color:var(--muted)] leg:text-[length:var(--type-label)] leg:leading-[1.5]">
               <p id={`${searchId}-status`}>{t("addTraceModal.downloadHelp")}</p>
               {isDownloading ? (
                 <>
@@ -450,9 +450,9 @@ export function AddTraceModal({
             </div>
           )}
         </div>
-        <div className="add-trace-file-row">
+        <div className="add-trace-file-row leg:flex leg:items-center leg:gap-[16px] leg:p-[12px_14px] leg:[border:1px_solid_var(--line-soft)] leg:rounded-[var(--radius-card)] leg:[background:var(--popover)] leg:max-[540px]:flex-wrap leg:max-[540px]:gap-[12px]">
           <FileImportButton
-            className="add-trace-file-btn"
+            className="leg:[.add-trace-modal_&]:min-h-[44px] leg:[.add-trace-modal_&]:text-[length:var(--type-label)] leg:[.add-trace-modal_&]:whitespace-nowrap leg:[.add-trace-modal_&]:shrink-0 leg:compact:min-h-[44px]"
             label={t("addTraceModal.importFile")}
             accept=".csv,.txt"
             onImport={(file) => void handleImportFile(file)}
@@ -466,7 +466,7 @@ export function AddTraceModal({
           </p>
         </div>
         {downloaded && (
-          <details className="add-trace-cache">
+          <details className="add-trace-cache leg:[border-top:1px_solid_var(--line-soft)] leg:text-[color:var(--muted)] leg:text-[length:var(--type-small)]">
             <summary>
               {t("addTraceModal.offlineDatabase")}{" "}
               <span>
@@ -474,15 +474,15 @@ export function AddTraceModal({
                   ? t("addTraceModal.curveCount", { count: totalCount })
                   : t("addTraceModal.savedOnThisDevice")}
               </span>
-              <Icon name="expand_more" className="disclosure-chevron" />
+              <Icon name="expand_more" className="leg:flex-[0_0_auto] leg:text-[color:var(--muted)] leg:[transition:transform_var(--motion-duration)_var(--motion-ease)] leg:[details[open]>summary_&]:[transform:rotate(180deg)] leg:[.add-trace-cache_summary_&]:ml-[auto]" />
             </summary>
-            <div className="add-trace-cache-row">
-              <p className="add-trace-cache-status">
+            <div className="leg:flex leg:items-center leg:gap-[16px] leg:pt-[4px] leg:max-[540px]:flex-wrap leg:max-[540px]:gap-[12px]">
+              <p className="leg:m-[0] leg:text-[length:var(--type-small)] leg:leading-[1.5]">
                 {t("addTraceModal.clearCacheHelp")}
               </p>
               <Button
                 variant="ghost"
-                className="add-trace-clear-cache-btn"
+                className="leg:[.add-trace-modal_&]:min-h-[44px] leg:[.add-trace-modal_&]:p-[8px_12px] leg:[.add-trace-modal_&]:text-[length:var(--type-small)] leg:[.add-trace-modal_&]:whitespace-nowrap leg:[.add-trace-modal_&]:shrink-0 leg:compact:min-h-[44px]! leg:compact:h-[44px]!"
                 onClick={handleResetCache}
                 disabled={loadingDevice !== null || isDownloading}
               >

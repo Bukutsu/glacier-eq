@@ -356,7 +356,7 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
         {dacBanks}
         {dacBanks && (
           <>
-            <h3 className="profiles-local-heading m-0">
+            <h3 className="cmp:m-[var(--space-4)_0_var(--space-1)] cmp:text-[color:var(--muted)] cmp:text-[length:var(--type-small)] cmp:font-medium m-0">
               {t("mobileProfilesView.localProfiles")}
             </h3>
             <p className={DESC}>
@@ -561,7 +561,7 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
             <label htmlFor="mobile-eq-text">{t("profilesView.eqText")}</label>
             <textarea
               id="mobile-eq-text"
-              className="profiles-paste-text"
+              className="cmp:w-[100%] cmp:min-w-[0] cmp:[resize:vertical] cmp:max-h-[40dvh] cmp:p-[12px] cmp:[border:1px_solid_var(--input)] cmp:rounded-[var(--control-radius)] cmp:text-[color:var(--foreground)] cmp:[background:var(--field-background)] cmp:[font-family:var(--font-mono)] cmp:text-[length:16px] cmp:leading-[1.5] cmp:[&:focus-visible]:[outline:2px_solid_var(--ring)] cmp:[&:focus-visible]:[outline-offset:2px]"
               data-dialog-autofocus
               rows={8}
               maxLength={1_048_576}
@@ -570,7 +570,7 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
               disabled={disabled}
               onChange={(event) => setPaste(event.target.value)}
             />
-            <div className="modal-actions">
+            <div className="cmp:[.modal-content_&]:flex cmp:[.modal-content_&]:justify-end cmp:[.modal-content_&]:flex-wrap cmp:[.modal-content_&]:gap-[var(--space-2)] cmp:[.modal-content_&]:mt-[var(--space-4)]">
               <Button disabled={pending} onClick={() => setPaste(null)}>
                 {t("profilesView.cancel")}
               </Button>

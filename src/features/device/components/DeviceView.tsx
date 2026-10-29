@@ -446,12 +446,12 @@ export const DeviceView = memo(function DeviceView({
 
   const deviceSummary = (
     <Card
-      className="device-summary"
+      className="device-summary leg:m-[0_16px] leg:p-[20px_0] leg:[border-bottom:1px_solid_var(--line-soft)] leg:compact:[.mobile-workspace_&]:m-[0] leg:compact:[.mobile-workspace_&]:p-[16px] cmp:[.configuration-layout_&]:grid cmp:[.configuration-layout_&]:grid-cols-[minmax(0,_1fr)_auto] cmp:[.configuration-layout_&]:gap-[var(--space-2)_var(--space-4)] cmp:[.configuration-layout_&]:p-[var(--space-4)] cmp:[.configuration-layout_&]:m-[0_0_var(--space-5)] cmp:compact:[.configuration-layout_&&]:grid-cols-[minmax(0,_1fr)]"
       aria-label={t("deviceView.deviceConnection")}
     >
-      <div className="device-hero-body">
-        <div className="device-hero-heading">
-          <h2 className="device-hero-title">{deviceTitle}</h2>
+      <div className="leg:flex leg:flex-col leg:gap-[6px] leg:m-[10px_0_14px] cmp:[.configuration-layout_&]:min-w-[0] cmp:[.configuration-layout_&]:m-[0] cmp:[.configuration-layout_&]:gap-[var(--space-1)]">
+        <div className="cmp:flex cmp:items-center cmp:flex-wrap cmp:gap-[var(--space-2)_var(--space-3)]">
+          <h2 className="leg:[.device-summary_&]:text-[length:20px] leg:[.device-summary_&]:font-semibold leg:[.device-summary_&]:[overflow-wrap:anywhere] leg:m-[0] leg:text-[length:clamp(18px,_3.5vw,_20px)] leg:font-bold leg:text-[color:var(--text)] leg:tracking-[-0.01em] cmp:[.configuration-layout_&]:text-[length:var(--type-body)] cmp:[.configuration-layout_&]:font-semibold cmp:[.configuration-layout_&]:m-[0]">{deviceTitle}</h2>
           <Badge className="gap-1.5">
             <span
               className={`size-1.5 shrink-0 rounded-full ${connected ? (isSimulated ? "bg-[var(--yellow)]" : "bg-[var(--green)]") : "bg-muted-foreground"}`}
@@ -464,7 +464,7 @@ export const DeviceView = memo(function DeviceView({
               : t("deviceView.offline")}
           </Badge>
         </div>
-        <p className="device-hero-desc">
+        <p className="leg:[.device-summary_&]:max-w-[52ch] leg:m-[0] leg:text-[length:var(--type-small)] leg:text-[color:var(--muted)] leg:leading-[1.5] cmp:[.configuration-layout_&]:text-[length:var(--type-small)] cmp:[.configuration-layout_&]:leading-[1.5] cmp:[.configuration-layout_&]:m-[var(--space-1)_0_0]">
           {connected
             ? deviceInfo?.hardware_eq === false
               ? dawnDevice
@@ -477,7 +477,7 @@ export const DeviceView = memo(function DeviceView({
         </p>
       </div>
 
-      <div className="device-hero-actions">
+      <div className="device-hero-actions leg:[.device-summary_&]:flex-row leg:[.device-summary_&]:flex-wrap leg:[.device-summary_&]:gap-[8px] leg:flex leg:items-center leg:gap-[12px] leg:compact:[.mobile-workspace_&&]:flex-row leg:compact:[.mobile-workspace_&&]:flex-wrap leg:compact:[.mobile-workspace_&]:items-center cmp:[.configuration-layout_&]:[align-self:center] cmp:[.configuration-layout_&]:m-[0] cmp:compact:[.configuration-layout_&]:flex-wrap">
         {connected ? (
           mobile ? (
             <details className="device-connection-options">
@@ -486,13 +486,13 @@ export const DeviceView = memo(function DeviceView({
                 <Icon
                   name="expand_more"
                   size={18}
-                  className="disclosure-chevron"
+                  className="leg:flex-[0_0_auto] leg:text-[color:var(--muted)] leg:[transition:transform_var(--motion-duration)_var(--motion-ease)] leg:[details[open]>summary_&]:[transform:rotate(180deg)] leg:[.add-trace-cache_summary_&]:ml-[auto]"
                 />
               </summary>
               {connectionActions}
             </details>
           ) : (
-            <div className="device-connection-actions">{connectionActions}</div>
+            <div className="leg:flex leg:items-center leg:gap-[8px]">{connectionActions}</div>
           )
         ) : (
           <>
@@ -560,7 +560,7 @@ export const DeviceView = memo(function DeviceView({
       )}
 
       {activeSection === "controls" && connected && !isSimulated && (
-        <p className="configuration-description">
+        <p className="cmp:m-[0_0_var(--space-5)] cmp:text-[color:var(--muted-foreground)] cmp:text-[length:var(--type-small)] cmp:leading-[1.5]">
           {t("deviceView.controlsDescription")}
         </p>
       )}
@@ -568,14 +568,14 @@ export const DeviceView = memo(function DeviceView({
         connected &&
         isSimulated &&
         (ja11Device || melodyDevice) && (
-          <p className="configuration-description">
+          <p className="cmp:m-[0_0_var(--space-5)] cmp:text-[color:var(--muted-foreground)] cmp:text-[length:var(--type-small)] cmp:leading-[1.5]">
             {t("deviceView.simulatedControlsDescription")}
           </p>
         )}
-      <div className="stack-content">
+      <div className="stack-content leg:flex leg:flex-col leg:gap-[14px] leg:p-[16px] leg:w-[100%] leg:box-border leg:compact:[.mobile-workspace_&]:p-[0] leg:compact:[.mobile-workspace_&]:gap-[12px] cmp:[.configuration-layout_&]:p-[0] cmp:[.configuration-layout_&]:gap-[var(--space-5)]">
         {activeSection === "overview" && (
           <>
-            <dl className="device-spec-list">
+            <dl className="device-spec-list leg:m-[0] leg:p-[0_16px] leg:[.stack-content>&]:px-[0]! leg:compact:[.mobile-workspace_&]:p-[0_16px] leg:compact:[.mobile-workspace_.stack-content>&]:px-[16px]! cmp:[.configuration-layout_&]:p-[0] cmp:[.configuration-layout_&]:gap-[0]">
               {connected && (
                 <div>
                   <dt>{t("deviceView.chip")}</dt>
@@ -655,7 +655,7 @@ export const DeviceView = memo(function DeviceView({
                 </div>
               )}
             </dl>
-            <p className="device-note">
+            <p className="leg:m-[0] leg:p-[12px_16px] leg:text-[color:var(--muted)] leg:text-[length:var(--type-small)] leg:leading-[1.5] leg:compact:[.mobile-workspace_&]:p-[12px_16px] cmp:[.configuration-layout_&]:text-[length:var(--type-small)] cmp:[.configuration-layout_&]:leading-[1.5] cmp:[.configuration-layout_&]:text-[color:var(--muted-foreground)]">
               {connected
                 ? t("deviceView.connectedSpecsNote")
                 : t("deviceView.offlineSpecsNote")}
@@ -716,7 +716,7 @@ export const DeviceView = memo(function DeviceView({
               <section className="settings-card empty-card">
                 <div className="empty-state">
                   <div
-                    className="reconnecting-spinner"
+                    className="leg:w-[48px] leg:h-[48px] leg:[border:3px_solid_var(--bg-dark)] leg:[&&]:[border-top-color:var(--warning-foreground)] leg:rounded-[50%] leg:[animation:spin_1s_linear_infinite]"
                     style={{ width: 32, height: 32 }}
                   />
                   <h3>{t("deviceView.readingDeviceSettings")}</h3>
@@ -766,7 +766,7 @@ export const DeviceView = memo(function DeviceView({
                     </span>
                   </div>
                   <div className="stack-pref-control">
-                    <div className="setting-select-wrapper">
+                    <div className="leg:flex-[0_1_240px] leg:w-[min(240px,_60%)] leg:min-w-[190px] leg:compact:[.mobile-workspace_.stack-pref-row.select-row_&]:w-[100%]! leg:compact:[.mobile-workspace_.stack-pref-row.select-row_&]:min-w-[100%]! leg:compact:[.mobile-workspace_.stack-pref-row.select-row_&]:flex-[1_1_100%]! cmp:[.configuration-layout_&]:w-[240px] cmp:[.configuration-layout_&]:max-w-[100%] cmp:max-[1050px]:[.configuration-layout_&&]:w-[100%]">
                       <Select
                         id="utility-filter-select"
                         value={utility.filter_mode}
@@ -825,8 +825,8 @@ export const DeviceView = memo(function DeviceView({
                   disabled={isBusy}
                 />
 
-                <div className="pref-slider-item pref-slider-first">
-                  <div className="pref-slider-head">
+                <div className="leg:flex leg:flex-col leg:gap-[10px] leg:p-[14px_16px] leg:[border-top:1px_solid_var(--line-subtle)] leg:rounded-[0]! leg:[&.pref-slider-first]:[border-top:none] leg:[&.pref-slider-first]:pt-[12px] cmp:[.configuration-layout_&]:p-[var(--space-4)_0] pref-slider-first">
+                  <div className="leg:flex leg:items-center leg:justify-between leg:gap-[12px] cmp:[.configuration-layout_&]:gap-[var(--space-3)]">
                     <div className="stack-pref-info">
                       <span className="stack-pref-title">
                         {t("deviceView.channelBalance")}
@@ -835,7 +835,7 @@ export const DeviceView = memo(function DeviceView({
                         {t("deviceView.balanceDescription")}
                       </span>
                     </div>
-                    <span className="pref-value-badge">
+                    <span className="leg:[font-family:var(--font-mono)] leg:text-[length:13px] leg:font-semibold leg:text-[color:var(--link-foreground)] leg:[background:var(--bg-dark)] leg:[border:1px_solid_var(--line-subtle)] leg:p-[3px_8px] leg:rounded-[0]! leg:whitespace-nowrap cmp:[.configuration-layout_&]:shrink-0 cmp:[.configuration-layout_&]:[align-self:flex-start] cmp:[.configuration-layout_&]:p-[0] cmp:[.configuration-layout_&]:[border:0] cmp:[.configuration-layout_&]:[background:transparent] cmp:[.configuration-layout_&]:text-[color:var(--foreground)] cmp:[.configuration-layout_&]:[font-family:var(--font-ui)] cmp:[.configuration-layout_&]:text-[length:var(--type-label)] cmp:[.configuration-layout_&]:font-normal cmp:[.configuration-layout_&]:[font-variant-numeric:tabular-nums] cmp:[.configuration-layout_&]:leading-[1.35] cmp:[.configuration-layout_&]:text-right">
                       {formatChannelBalance(utility.channel_balance)}
                     </span>
                   </div>
@@ -853,8 +853,8 @@ export const DeviceView = memo(function DeviceView({
                   />
                 </div>
 
-                <div className="pref-slider-item">
-                  <div className="pref-slider-head">
+                <div className="leg:flex leg:flex-col leg:gap-[10px] leg:p-[14px_16px] leg:[border-top:1px_solid_var(--line-subtle)] leg:rounded-[0]! leg:[&.pref-slider-first]:[border-top:none] leg:[&.pref-slider-first]:pt-[12px] cmp:[.configuration-layout_&]:p-[var(--space-4)_0]">
+                  <div className="leg:flex leg:items-center leg:justify-between leg:gap-[12px] cmp:[.configuration-layout_&]:gap-[var(--space-3)]">
                     <div className="stack-pref-info">
                       <span className="stack-pref-title">
                         {t("deviceView.microphoneSidetone")}
@@ -863,7 +863,7 @@ export const DeviceView = memo(function DeviceView({
                         {t("deviceView.sidetoneDescription")}
                       </span>
                     </div>
-                    <span className="pref-value-badge">
+                    <span className="leg:[font-family:var(--font-mono)] leg:text-[length:13px] leg:font-semibold leg:text-[color:var(--link-foreground)] leg:[background:var(--bg-dark)] leg:[border:1px_solid_var(--line-subtle)] leg:p-[3px_8px] leg:rounded-[0]! leg:whitespace-nowrap cmp:[.configuration-layout_&]:shrink-0 cmp:[.configuration-layout_&]:[align-self:flex-start] cmp:[.configuration-layout_&]:p-[0] cmp:[.configuration-layout_&]:[border:0] cmp:[.configuration-layout_&]:[background:transparent] cmp:[.configuration-layout_&]:text-[color:var(--foreground)] cmp:[.configuration-layout_&]:[font-family:var(--font-ui)] cmp:[.configuration-layout_&]:text-[length:var(--type-label)] cmp:[.configuration-layout_&]:font-normal cmp:[.configuration-layout_&]:[font-variant-numeric:tabular-nums] cmp:[.configuration-layout_&]:leading-[1.35] cmp:[.configuration-layout_&]:text-right">
                       {utility.mic_volume_db} dB
                     </span>
                   </div>
@@ -941,7 +941,7 @@ export const DeviceView = memo(function DeviceView({
                   </>
                 )}
                 {deviceInfo?.hardware_eq === false && !utility?.supported && (
-                  <p className="configuration-description">
+                  <p className="cmp:m-[0_0_var(--space-5)] cmp:text-[color:var(--muted-foreground)] cmp:text-[length:var(--type-small)] cmp:leading-[1.5]">
                     {t("deviceView.noMaintenanceActions")}
                   </p>
                 )}

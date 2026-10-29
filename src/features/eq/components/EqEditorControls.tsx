@@ -52,7 +52,7 @@ export function EqEditorControls({
   return mobile ? (
     <>
       {bands}
-      <details className="mobile-preamp-details">
+      <details className="mobile-preamp-details leg:compact:[.mobile-workspace_&]:rounded-[0]! leg:compact:[.mobile-workspace_&]:[border-inline:0]! leg:compact:p-[0_var(--space-4)] leg:compact:[background:var(--panel)] leg:compact:[border:1px_solid_var(--line-soft)] leg:compact:rounded-[var(--radius-surface)] leg:compact:overflow-hidden leg:compact:w-[100%] leg:compact:box-border cmp:compact:[.mobile-workspace_&]:[border-color:var(--border)] cmp:compact:[.mobile-workspace_&]:[background:var(--card)]!">
         <summary>
           <span>{t("workspace.preamp")}</span>
           <span>

@@ -1,56 +1,8 @@
-.eq-graph-layout { display: contents; }
-
 /* A slim row above the plot (below it on mobile) for graph controls, so
    nothing floats over the curves. */
-.graph-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--space-2);
-  min-height: 32px;
-  margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-2)) var(--space-1);
-}
-.eq-curves {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  min-width: 0;
-}
-.eq-curves-trigger { color: var(--foreground); }
-.eq-curves-trigger[data-popup-open] { background: var(--accent); }
 .eq-curves-trigger > .app-icon:last-child { width: 12px; height: 12px; color: var(--muted); }
-.eq-curves-count {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 20px;
-  height: 20px;
-  padding: 0 5px;
-  border-radius: 5px;
-  background: var(--secondary);
-  color: var(--muted-foreground);
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-}
-
-.eq-curves-popup {
-  display: flex;
-  flex-direction: column;
-  width: 300px;
-  max-width: calc(100vw - 16px);
-  max-height: var(--available-height);
-  overflow: hidden;
-  border: 1px solid var(--line-medium);
-  border-radius: var(--radius-card);
-  background: var(--popover);
-  color: var(--popover-foreground);
-  box-shadow: var(--shadow-md);
-  outline: none;
-}
-.eq-curves-popup-heading { padding: 14px 14px 10px; }
 .eq-curves-popup-heading h2 { margin: 0; font-size: 13px; font-weight: 600; }
 .eq-curves-popup-heading p { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
-.eq-curves-search { position: relative; margin: 0 10px 8px; flex: 0 0 auto; }
 .eq-curves-search > .app-icon {
   position: absolute;
   left: 10px;
@@ -61,78 +13,15 @@
   color: var(--muted);
   pointer-events: none;
 }
-.eq-curves-list { min-height: 0; max-height: 240px; overflow-y: auto; padding: 0 6px 6px; overscroll-behavior: contain; }
-.eq-curves-group { min-width: 0; border: 0; margin: 0; padding: 0; }
-.eq-curves-group + .eq-curves-group { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line-soft); }
 .eq-curves-group legend { padding: 6px 8px; font-size: 11px; font-weight: 500; color: var(--muted); }
 .eq-curves-group legend span { margin-left: 4px; font-variant-numeric: tabular-nums; }
-.eq-curves-row { display: flex; align-items: center; border-radius: var(--control-radius); }
-.eq-curves-row:hover, .eq-curves-row:focus-within { background: var(--accent); }
-.eq-curves-option { display: flex; flex: 1; min-width: 0; align-items: center; gap: 8px; min-height: 36px; padding: 6px 8px; cursor: pointer; }
-.eq-curves-checkbox {
-  display: inline-flex;
-  flex: 0 0 auto;
-  width: 16px;
-  height: 16px;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--input);
-  border-radius: 4px;
-  background: var(--field);
-}
-.eq-curves-checkbox[data-checked] { border-color: var(--primary); background: var(--primary); color: var(--primary-foreground); }
-.eq-curves-checkbox:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 .eq-curves-checkbox .app-icon { display: block; width: 12px; height: 12px; }
-.eq-curves-swatch { flex: 0 0 auto; width: 6px; height: 6px; border-radius: 50%; }
-.eq-curves-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
-.eq-curves-delete { margin-right: 2px; }
 .eq-curves-delete .app-icon { width: 13px; height: 13px; }
-.eq-curves-empty { margin: 0; padding: 20px 8px; text-align: center; color: var(--muted); font-size: 12px; }
-.eq-curves-footer { flex: 0 0 auto; padding: 6px; border-top: 1px solid var(--line-soft); }
 .eq-curves-footer button { width: 100%; justify-content: flex-start; font-size: 12px; }
-@media (pointer: coarse), (max-width: 850px) {
-  .eq-curves-option { min-height: 44px; }
-}
-
-
-.graph-card {
-  flex: 1 1 auto;
-  min-height: 280px;
-  padding: var(--space-4);
-  border: 1px solid var(--line-soft);
-  display: flex;
-  min-width: 0;
-  position: relative;
-}
 
 /* Pin the graph to the top of the desktop scroll pane so it stays visible
    while the band list scrolls beneath it. */
-.left-pane > .graph-card {
-  position: sticky;
-  top: 0;
-  z-index: var(--z-graph-sticky);
-  /* Toolbar row above the plot. */
-  flex-direction: column;
-}
 /* The toolbar row takes its height from the plot, so the card keeps its size. */
-.left-pane > .graph-card .eq-graph-shell,
-.left-pane > .graph-card .eq-canvas { min-height: 224px; }
-
-.eq-graph-shell {
-  position: relative;
-  width: 100%;
-  min-height: 260px;
-  flex: 1;
-}
-
-.eq-canvas {
-  width: 100%;
-  height: 100%;
-  min-height: 260px;
-  display: block;
-  flex: 1;
-  pointer-events: none;
-}
 
 .eq-filter-handle {
   position: absolute;
@@ -176,104 +65,7 @@
   }
 }
 
-.graph-legend {
-  position: absolute;
-  top: 12px;
-  left: var(--space-4);
-  display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-  justify-content: flex-start;
-  align-items: center;
-  gap: 6px 12px;
-  padding: 4px 0;
-  /* Shares the toolbar row with the Curves control on the right. */
-  max-width: calc(100% - 240px);
-  pointer-events: none;
-  z-index: var(--z-sticky);
-}
-
-.graph-legend-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 20px;
-  min-width: 0;
-  max-width: 100%;
-  color: var(--text);
-  font-size: 11px;
-  line-height: 1.3;
-  white-space: normal;
-  overflow-wrap: anywhere;
-}
-
-.graph-legend-item.target .graph-legend-swatch {
-  color: var(--warning-foreground);
-}
-
-.graph-legend-item.committed .graph-legend-swatch {
-  color: var(--orange);
-}
-
-.graph-legend-item .raw-label {
-  color: var(--muted);
-}
-
-.graph-legend-swatch {
-  width: 24px;
-  height: 8px;
-  flex: 0 0 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.graph-legend-svg {
-  display: block;
-}
-
 /* Hold-to-compare and legend controls sit in the graph toolbar, off the plot. */
-.graph-toolbar-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-}
-.graph-legend-btn,
-.compare-hold-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 32px;
-  min-height: 32px;
-  padding: 0 var(--space-2);
-  border: 1px solid transparent;
-  border-radius: var(--control-radius);
-  background: transparent;
-  color: var(--muted-foreground);
-  font: inherit;
-  font-size: var(--type-small);
-  font-weight: 600;
-  cursor: pointer;
-}
-.graph-legend-btn.active { background: var(--accent); color: var(--foreground); }
-.compare-hold-btn {
-  border-color: var(--input);
-  background: var(--control);
-  color: var(--foreground);
-  /* A long press must not select text or open the context menu. */
-  -webkit-user-select: none;
-  user-select: none;
-  -webkit-touch-callout: none;
-  touch-action: none;
-}
-.compare-hold-btn.active {
-  border-color: var(--primary);
-  background: var(--primary);
-  color: var(--primary-foreground);
-}
-.graph-legend-btn:focus-visible,
-.compare-hold-btn:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
-.compare-hold-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
 .app-collapse {
   min-width: 0;
@@ -352,14 +144,6 @@
   padding: 10px 0 0;
 }
 
-.graph-view-toggle {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  width: 116px;
-  min-height: 34px;
-  background: var(--bg-dark);
-}
-
 .graph-view-toggle button {
   min-height: 34px;
   padding: 0 8px;
@@ -375,47 +159,11 @@
   outline-offset: -1px;
 }
 
-.preamp-card {
-  display: grid;
-  grid-template-columns: 160px minmax(0, 1fr);
-  align-items: center;
-  gap: var(--space-4);
-  padding: var(--space-3) var(--space-4);
-  min-height: 64px;
-  border: 1px solid var(--line-soft);
-  flex-shrink: 0;
-}
-
-.preamp-meta {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
 .preamp-card strong {
   font-size: 11px;
   color: var(--muted);
   font-weight: 600;
   letter-spacing: 0;
-}
-
-.preamp-value-row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-top: 0;
-}
-
-.preamp-unit {
-  color: var(--muted);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  user-select: none;
-}
-
-.custom-number-input.preamp-value-stepper {
-  width: 128px;
 }
 
 .bands-card strong, .diag-head strong {
@@ -430,17 +178,6 @@
   min-width: 0;
   display: flex;
   align-items: center;
-  touch-action: pan-y;
-}
-
-.control-slider-input {
-  appearance: none;
-  width: 100%;
-  min-width: 0;
-  height: 20px;
-  margin: 0;
-  background: transparent;
-  outline: 0;
   touch-action: pan-y;
 }
 
@@ -497,124 +234,7 @@
 }
 
 .gain-cell .control-slider { flex: 1; }
-
-.bands-grid {
-  flex: 0 0 auto;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 12px;
-  min-height: 0;
-  min-width: 0;
-}
-
-.bands-card {
-  padding: 10px 16px 6px;
-  overflow: hidden;
-  background: var(--panel);
-  min-width: 0;
-}
-
-.band-row {
-  display: grid;
-  grid-template-columns: minmax(0, 28px) minmax(0, 120px) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 28px);
-  gap: 12px;
-  align-items: center;
-  height: 52px;
-  color: var(--text);
-  border-bottom: 1px solid var(--line-subtle);
-}
-.band-row:last-child {
-  border-bottom: 0;
-}
-.band-row:hover {
-  background: var(--hover-bg);
-}
-.band-row.active {
-  background: rgb(var(--filter-color-rgb, var(--cyan-rgb)) / 0.07);
-  box-shadow: inset 3px 0 0 var(--filter-color, var(--cyan));
-}
-.band-row.muted { opacity: .45; }
-.band-number {
-  color: var(--filter-color, var(--cyan));
-  font-weight: 700;
-  font-size: var(--type-subtitle);
-  text-align: center;
-  font-variant-numeric: tabular-nums;
-}
-.band-index {
-  color: var(--comment);
-  background: transparent;
-  padding: 0;
-  text-align: center;
-  font-weight: 700;
-  min-height: 32px;
-  width: 32px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  white-space: nowrap;
-  border: none;
-  cursor: pointer;
-  opacity: .25;
-  transition: color var(--motion-duration) var(--motion-ease), opacity var(--motion-duration) var(--motion-ease);
-}
-
-.band-index:hover {
-  color: var(--destructive-foreground);
-  opacity: 1;
-  transform: none;
-}
-.band-row.active .band-index {
-  opacity: .7;
-}
-
-.bands-grid {
-  display: none;
-}
-
-.bands-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-6) var(--space-4);
-  color: var(--muted);
-  font-size: var(--type-small);
-  text-align: center;
-}
 .bands-empty p { margin: 0; }
-.bands-container.collapsed .bands-empty { display: none; }
-
-.bands-mobile-editor {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  background: transparent;
-  container-type: inline-size;
-}
-
-.band-picker {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: var(--space-2);
-  min-width: 0;
-  padding: var(--space-3) var(--space-4);
-  border-bottom: 1px solid var(--line-soft);
-}
-
-.band-picker-scroll {
-  position: relative;
-  display: flex;
-  min-width: 0;
-  gap: var(--space-1);
-  overflow-x: auto;
-  scrollbar-width: thin;
-  --fade-start: 0px;
-  --fade-end: 0px;
-  mask-image: linear-gradient(to right, transparent, #000 var(--fade-start), #000 calc(100% - var(--fade-end)), transparent);
-}
-.band-picker-scroll.more-start { --fade-start: 24px; }
-.band-picker-scroll.more-end { --fade-end: 24px; }
 
 .band-picker button {
   flex: 0 0 auto;
@@ -655,67 +275,8 @@
   outline-offset: -2px;
 }
 
-.band-picker button.add-filter-chip {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-1);
-  color: var(--link-foreground);
-}
-
 .band-picker button.add-filter-chip span {
   font-size: var(--type-label);
-}
-
-
-.mobile-filter-card {
-  display: grid;
-  grid-template-columns: minmax(140px, 0.6fr) repeat(3, minmax(0, 1fr));
-  grid-template-areas:
-    "head head head head"
-    "type freq gain q";
-  align-items: start;
-  gap: var(--space-3) var(--space-5);
-  padding: var(--space-3) var(--space-4) var(--space-4);
-  background: var(--panel);
-}
-
-.mobile-filter-head {
-  grid-area: head;
-  min-width: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
-  align-items: center;
-}
-
-.mobile-filter-summary {
-  min-width: 0;
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
-}
-.mobile-band-context { font-size: var(--type-small); color: var(--muted-foreground); }
-
-.mobile-filter-actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.mobile-filter-reset {
-  display: inline-flex;
-  min-height: 32px;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  padding: 0 8px;
-  background: transparent;
-  color: var(--muted);
-}
-
-.mobile-filter-reset:hover {
-  color: var(--link-foreground);
 }
 
 .mobile-filter-head strong {
@@ -723,98 +284,14 @@
   font-size: var(--type-label);
 }
 
-.mobile-filter-head .band-index {
-  width: 32px;
-  min-height: 32px;
-  color: var(--muted);
-  opacity: 1;
-  background: transparent;
-}
-
-.mobile-filter-head .band-index:hover:not(:disabled) {
-  color: var(--destructive-foreground);
-}
-
-.mobile-filter-head .band-index:disabled {
-  opacity: 0.4;
-}
-
-.mobile-filter-card .app-select-trigger {
-  height: 32px;
-}
-
-.mobile-filter-card .band-type-field { grid-area: type; }
-.mobile-filter-card .band-freq-field { grid-area: freq; }
-.mobile-filter-card .band-gain-field { grid-area: gain; }
-.mobile-filter-card .band-q-field { grid-area: q; }
-
 .band-index strong {
   font: inherit;
-}
-
-.param-cell {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.freq-cell,
-.gain-cell,
-.q-cell {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: var(--space-2);
-  min-width: 0;
 }
 
 .param-cell .control-slider,
 .gain-cell .control-slider {
   min-width: 0;
   order: 1;
-}
-
-.freq-cell .custom-number-input.band-freq-stepper,
-.gain-cell .custom-number-input.band-gain-stepper,
-.q-cell .custom-number-input.band-q-stepper { width: 100%; }
-
-.bands-container {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  border: 1px solid var(--line-soft);
-  border-radius: var(--radius-card);
-  overflow: hidden;
-  flex-shrink: 0;
-}
-
-.bands-section-header {
-  width: 100%;
-  height: 48px;
-  padding: 0 16px;
-  background: var(--panel);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  user-select: none;
-  color: inherit;
-  cursor: pointer;
-  border: none;
-  border-bottom: 1px solid var(--line-soft);
-  text-align: left;
-  transition: background var(--motion-duration) var(--motion-ease);
-}
-
-.bands-section-header:hover {
-  background: var(--surface-soft);
-}
-
-.bands-section-header .title-text {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--link-foreground);
 }
 
 .bands-section-header strong {
@@ -824,82 +301,13 @@
   letter-spacing: 0;
 }
 
-.bands-section-header .collapse-toggle-btn {
-  color: var(--link-foreground);
-  padding: 0;
-  min-height: 32px;
-  min-width: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  font-size: var(--type-small);
-}
-
 .bands-section-header .collapse-toggle-btn .icon {
   font-size: 18px;
   transition: transform var(--motion-duration) var(--motion-ease);
 }
 
-.bands-container.collapsed .bands-grid,
-.bands-container.collapsed .bands-mobile-editor {
-  display: none;
-}
-
-.bands-actions {
-  display: flex;
-  justify-content: flex-end;
-  padding-top: 12px;
-}
-
-.bands-actions .btn {
-  min-height: 36px;
-}
-
-.band-field {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 6px;
-}
-
-.band-field-label {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-1);
-  color: var(--muted);
-  font-size: var(--type-small);
-  font-weight: 500;
-  line-height: 1.4;
-}
-
-.band-field-unit {
-  font-size: var(--type-micro);
-}
-
-@container (max-width: 700px) {
-  .mobile-filter-card {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-areas: "head" "type" "freq" "gain" "q";
-    gap: var(--space-3);
-  }
-
-  .mobile-filter-card .band-field {
-    display: grid;
-    grid-template-columns: 88px minmax(0, 1fr);
-    align-items: center;
-    gap: var(--space-2);
-  }
-}
-
 @media (pointer: coarse) {
-  .control-slider,
-  .control-slider-input {
+  .control-slider {
     min-height: 44px;
-  }
-
-  .control-slider-input {
-    height: 44px;
   }
 }

@@ -106,8 +106,8 @@ export function MelodyBanks({
   };
 
   return (
-    <section className="profiles-dac-banks" aria-labelledby="dac-banks-title">
-      <div className="melody-banks-heading">
+    <section className="profiles-dac-banks cmp:min-w-[0] cmp:mt-[var(--space-3)] cmp:pb-[var(--space-3)] cmp:[border-bottom:1px_solid_var(--line-soft)] cmp:flex cmp:flex-col cmp:gap-[var(--space-2)]" aria-labelledby="dac-banks-title">
+      <div className="melody-banks-heading cmp:flex cmp:items-start cmp:justify-between cmp:gap-[var(--space-3)]">
         <div>
           <h3
             id="dac-banks-title"
@@ -130,16 +130,16 @@ export function MelodyBanks({
           </Button>
         )}
       </div>
-      <ul className="melody-bank-list">
+      <ul className="cmp:flex cmp:flex-col cmp:gap-[2px] cmp:m-[0_calc(-1_*_var(--space-2))] cmp:p-[0_var(--space-2)] cmp:[list-style:none]">
         {slots.map((slot, index) => (
           <li
             key={slot}
-            className={`profiles-item ${workspace.bank === slot ? "is-current" : ""}`}
+            className={`cmp:[&.is-current]:[--muted:var(--accent-foreground)] cmp:relative cmp:flex cmp:shrink-0 cmp:items-center cmp:gap-[var(--space-2)] cmp:min-w-[0] cmp:pr-[var(--space-1)] cmp:rounded-[var(--control-radius)] cmp:[transition:background-color_120ms] cmp:[&:hover]:[background:var(--accent)] cmp:[&&.is-current]:[background:var(--surface-soft)] cmp:[&.is-current::before]:content-[''] cmp:[&.is-current::before]:absolute cmp:[&.is-current::before]:top-[10px] cmp:[&.is-current::before]:bottom-[10px] cmp:[&.is-current::before]:left-[0] cmp:[&.is-current::before]:w-[2px] cmp:[&.is-current::before]:rounded-[2px] cmp:[&.is-current::before]:[background:var(--primary)] ${workspace.bank === slot ? "is-current" : ""}`}
           >
             <button
               type="button"
               data-slot="profile-load"
-              className="profiles-load melody-bank"
+              className="cmp:flex cmp:flex-[1_1_auto] cmp:flex-col cmp:items-start cmp:gap-[2px] cmp:min-w-[0] cmp:min-h-[52px] cmp:p-[var(--space-2)_var(--space-3)] cmp:[border:0] cmp:rounded-[var(--control-radius)] cmp:[background:transparent] cmp:text-[color:inherit] cmp:[font:inherit] cmp:text-left cmp:cursor-pointer cmp:[&:focus-visible]:[outline:2px_solid_var(--ring)] cmp:[&:focus-visible]:[outline-offset:-2px] cmp:[.profiles-dac-banks_&:disabled]:opacity-[0.5] cmp:[.profiles-dac-banks_&:disabled]:cursor-not-allowed cmp:[.profiles-dac-banks_&]:min-w-[0]"
               title={t("melodyBanks.openLabel", {
                 number: index + 1,
               })}
@@ -157,9 +157,9 @@ export function MelodyBanks({
                 {names[slot] || t("melodyBanks.storedOnDac")}
               </span>
             </button>
-            <div className="profiles-row-actions">
+            <div className="profiles-row-actions cmp:flex cmp:flex-[none] cmp:gap-[2px]">
               {workspace.bank === slot ? (
-                <Badge className="melody-bank-editing">
+                <Badge className="cmp:[.profiles-dac-banks_&]:[border-color:color-mix(in_srgb,_var(--primary)_40%,_transparent)] cmp:[.profiles-dac-banks_&]:[background:color-mix(in_srgb,_var(--primary)_8%,_transparent)] cmp:[.profiles-dac-banks_&]:text-[color:var(--primary)]">
                   {t("melodyBanks.editing")}
                 </Badge>
               ) : (
@@ -252,7 +252,7 @@ export function MelodyBanks({
             <p id="melody-bank-name-help" className="profiles-note">
               {t("melodyControls.nameDescription")}
             </p>
-            <div className="modal-actions">
+            <div className="cmp:[.modal-content_&]:flex cmp:[.modal-content_&]:justify-end cmp:[.modal-content_&]:flex-wrap cmp:[.modal-content_&]:gap-[var(--space-2)] cmp:[.modal-content_&]:mt-[var(--space-4)]">
               <Button
                 type="button"
                 variant="ghost"

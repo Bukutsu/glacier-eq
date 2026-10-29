@@ -86,7 +86,7 @@ export function DraftRestoredNotice({
 }: DraftRestoredNoticeProps) {
   const { t } = useTranslation("editor");
   return (
-    <div className="draft-restored-notice" role="status">
+    <div className="draft-restored-notice cmp:compact:flex cmp:compact:flex-wrap cmp:compact:items-center cmp:compact:gap-[var(--space-2)] cmp:compact:m-[var(--space-2)_var(--space-3)] cmp:compact:p-[var(--space-2)_var(--space-3)] cmp:compact:[border:1px_solid_var(--border)] cmp:compact:rounded-[var(--radius-surface)] cmp:compact:[background:var(--card)] cmp:compact:text-[color:var(--muted-foreground)] cmp:compact:text-[length:var(--type-small)]" role="status">
       <Icon name="restart_alt" />
       <p>{t("draft.restoredNotice")}</p>
       <Button variant="ghost" disabled={isBusy} onClick={onDiscard}>

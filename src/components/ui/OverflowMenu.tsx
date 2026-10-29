@@ -31,10 +31,10 @@ export function OverflowMenu({
           align="end"
           sideOffset={6}
           positionMethod="fixed"
-          className="ui-popup-positioner"
+          className="cmp:z-[var(--z-popover)] cmp:[isolation:isolate]"
         >
           <Menu.Popup
-            className={`ui-menu ${className}`.trim()}
+            className={`cmp:box-border cmp:max-h-[var(--available-height)] cmp:overflow-y-auto cmp:p-[var(--space-1)] cmp:[border:1px_solid_var(--line-medium)] cmp:rounded-[var(--radius-card)] cmp:[background:var(--popover)] cmp:text-[color:var(--popover-foreground)] cmp:[outline:none] cmp:min-w-[200px] cmp:[&&]:[border-color:var(--border)] cmp:[box-shadow:var(--shadow-sm)] ${className}`.trim()}
             aria-label={label}
             onClick={(event) => {
               // Native dialogs must remember the trigger, not an unmounted menu item.

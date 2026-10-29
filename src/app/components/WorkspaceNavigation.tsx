@@ -33,14 +33,14 @@ export function WorkspaceNavigation({
   }
   return (
     <nav
-      className={mobile ? "mobile-tab-bar" : "desktop-sidebar-nav"}
+      className={mobile ? "leg:hidden leg:compact:flex leg:compact:fixed leg:compact:bottom-[0] leg:compact:left-[0] leg:compact:right-[0] leg:compact:h-[calc(var(--tabbar-h,_56px)_+_var(--safe-area-bottom,_0px))] leg:compact:items-center leg:compact:p-[2px_max(6px,_var(--safe-area-right,_0px))_var(--safe-area-bottom,_0px)_max(6px,_var(--safe-area-left,_0px))] leg:compact:[background:var(--bg)] leg:compact:[border-top:1px_solid_var(--line-medium)] leg:compact:z-[var(--z-tabbar)] leg:compact:[-webkit-tap-highlight-color:transparent]! leg:compact:select-none! leg:compact:[@media(orientation:_landscape)]:[&&]:h-[calc(56px_+_var(--safe-area-bottom,_0px))] leg:[@media(max-height:_580px)]:h-[calc(56px_+_var(--safe-area-bottom,_0px))]! cmp:compact:[.keyboard-open_&]:hidden" : "leg:roomy:flex leg:roomy:flex-col leg:roomy:gap-[var(--space-1)]"}
       aria-label={t("navigation.primary")}
     >
       {tabs.map(({ id, icon, label }) => (
         <Fragment key={id}>
           {!mobile && id === "device" && (
             <div
-              className="desktop-sidebar-divider"
+              className="leg:roomy:h-[1px] leg:roomy:m-[var(--space-3)_var(--space-2)] leg:roomy:[background:var(--line-soft)]"
               role="separator"
               aria-orientation="horizontal"
             />
@@ -52,7 +52,7 @@ export function WorkspaceNavigation({
             onClick={(event) => select(event, id)}
           >
             {mobile ? (
-              <div className="mobile-tab-icon-wrapper">
+              <div className="leg:compact:flex leg:compact:items-center leg:compact:justify-center leg:compact:text-[color:inherit] leg:compact:pointer-events-none leg:compact:[transition:none]! leg:compact:[.mobile-tab-item.active_&]:text-[color:var(--link-foreground)] cmp:compact:w-[48px] cmp:compact:h-[28px] cmp:compact:rounded-[var(--radius-pill)] cmp:compact:[.mobile-tab-item.active_&]:text-[color:var(--accent-foreground)] cmp:compact:[.mobile-tab-item.active_&]:[background:var(--accent)] cmp:compact:[.mobile-tab-item:active_&&]:[background:var(--accent)]">
                 <Icon name={icon} />
               </div>
             ) : (

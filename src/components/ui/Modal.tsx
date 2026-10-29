@@ -153,7 +153,7 @@ export function Modal({
   return (
     <dialog
       ref={dialogRef}
-      className={`modal-content${className ? ` ${className}` : ""}`}
+      className={`modal-content leg:[dialog&]:[background:var(--popover)] leg:[dialog&]:[border:1px_solid_var(--border)] leg:[dialog&]:rounded-[var(--radius-card)] leg:[dialog&]:box-border leg:[dialog&]:text-[color:var(--text)] leg:[dialog&]:fixed leg:[dialog&]:inset-[0] leg:[dialog&]:m-[auto] leg:[dialog&]:w-[min(480px,_calc(100vw_-_32px_-_var(--safe-area-left,_0px)_-_var(--safe-area-right,_0px)))] leg:[dialog&]:max-w-[none] leg:[dialog&]:max-h-[min(85vh,_calc(100dvh_-_32px_-_var(--safe-area-top,_0px)_-_var(--safe-area-bottom,_0px)))] leg:[dialog&]:overflow-y-auto leg:[dialog&]:[overscroll-behavior:contain] leg:[dialog&]:[-webkit-overflow-scrolling:touch] leg:[dialog&]:p-[0] leg:[dialog&]:[box-shadow:0_16px_48px_rgba(0,_0,_0,_0.5)] leg:[dialog&]:flex-col leg:[dialog&]:[animation:modal-scale-in_var(--motion-duration)_var(--motion-ease)] leg:[dialog&[open]]:flex leg:[dialog&::backdrop]:[background:rgba(var(--bg-darker-rgb),_0.75)] leg:[dialog&::backdrop]:[backdrop-filter:blur(4px)] leg:[dialog&::backdrop]:[animation:motion-fade-in_var(--motion-duration)_var(--motion-ease)] leg:[dialog&.wide]:w-[min(680px,_96vw)] leg:[dialog&.device-modal]:h-[fit-content] leg:[dialog&.device-modal]:max-h-[calc(100dvh_-_64px)] leg:[dialog&.device-modal]:overflow-hidden leg:compact:[dialog&&]:w-[calc(100vw_-_16px_-_var(--safe-area-left,_0px)_-_var(--safe-area-right,_0px))] leg:compact:[dialog&&]:max-h-[calc(100dvh_-_16px_-_var(--safe-area-top,_0px)_-_var(--safe-area-bottom,_0px))] leg:compact:[dialog&&.wide]:w-[calc(100vw_-_16px_-_var(--safe-area-left,_0px)_-_var(--safe-area-right,_0px))] leg:compact:[dialog&&.wide]:max-h-[calc(100dvh_-_16px_-_var(--safe-area-top,_0px)_-_var(--safe-area-bottom,_0px))] leg:compact:[dialog&.device-modal]:inset-[auto_0_0] leg:compact:[dialog&.device-modal]:m-[0_auto] leg:compact:[dialog&&&.device-modal]:w-[calc(100vw_-_var(--safe-area-left,_0px)_-_var(--safe-area-right,_0px))] leg:compact:[dialog&&.device-modal]:h-[auto] leg:compact:[dialog&&&.device-modal]:max-h-[calc(100dvh_-_var(--safe-area-top,_0px)_-_8px)] leg:compact:[dialog&.device-modal]:rounded-[16px_16px_0_0] leg:compact:[dialog&.device-modal]:[border-bottom:0] leg:compact:[dialog&]:[scrollbar-width:none] leg:[dialog&&&&.add-trace-modal]:w-[min(640px,_calc(100vw_-_32px_-_var(--safe-area-left,_0px)_-_var(--safe-area-right,_0px)))] leg:[dialog&.add-trace-modal]:p-[0] cmp:[dialog&]:text-[color:var(--popover-foreground)] cmp:[dialog&]:[border-color:var(--border)] cmp:[dialog&]:[background:var(--popover)] cmp:[dialog&]:[box-shadow:var(--shadow-md)] cmp:[dialog&]:[animation:motion-fade-in_var(--motion-duration)_var(--motion-ease)] cmp:[dialog&::backdrop]:[background:rgb(0_0_0_/_0.45)] cmp:[dialog&::backdrop]:[backdrop-filter:none] cmp:motion-reduce:[dialog&&]:[animation:none] cmp:motion-reduce:[dialog&::backdrop]:[animation:none] cmp:compact:[.keyboard-open_dialog&]:[inset-block:0_calc(100dvh_-_var(--app-visible-height,_100dvh))] cmp:compact:[.keyboard-open_dialog&]:max-h-[calc(var(--app-visible-height,_100dvh)_-_var(--safe-area-top,_0px)_-_var(--space-4))] ${className ? ` ${className}` : ""}`}
       style={style}
       aria-labelledby={titleId}
       aria-describedby={descriptionId}
@@ -165,12 +165,12 @@ export function Modal({
       }}
       onClick={handleBackdropClick}
     >
-      <div className="modal-header">
+      <div className="modal-header leg:flex leg:items-center leg:justify-between leg:p-[14px_16px_10px] leg:[border-bottom:1px_solid_var(--line-soft)] leg:shrink-0 leg:compact:sticky leg:compact:top-[0] leg:compact:z-[1] leg:compact:pt-[calc(14px_+_var(--safe-area-top,_0px))] leg:compact:[background:var(--panel)] leg:compact:[.device-modal_&]:p-[var(--space-4)] leg:compact:[.device-modal_&&]:pt-[var(--space-4)] leg:[.add-trace-modal_&&]:p-[16px_20px] leg:[.add-trace-modal_&]:gap-[12px] leg:max-[540px]:[.add-trace-modal_&&&]:p-[12px_16px] cmp:[.modal-content_&]:gap-[var(--space-4)] cmp:[.modal-content_&]:p-[var(--space-5)_var(--space-5)_var(--space-3)] cmp:[.modal-content_&]:[border-bottom:0] cmp:[.modal-content_&]:[background:var(--popover)] cmp:compact:[.modal-content_&&]:p-[var(--space-4)]">
         <h2 id={titleId}>{title}</h2>
         <Button
           variant="ghost"
           size="icon"
-          className="dialog-close"
+          className="cmp:[.modal-content_&]:m-[-6px_-6px_-6px_0]"
           onClick={() => {
             if (!closeDisabled) onClose();
           }}

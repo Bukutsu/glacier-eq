@@ -30,7 +30,7 @@ interface AutoEqTabProps extends AutoEqOptions {
 
 export function TuningPanel(props: AutoEqTabProps) {
   return (
-    <div className="tuning-panel">
+    <div className="tuning-panel leg:flex leg:flex-col leg:min-w-[0] leg:compact:p-[var(--space-4)]">
       <AutoEqTab {...props} />
     </div>
   );
@@ -123,9 +123,9 @@ export function AutoEqTab(props: AutoEqTabProps) {
   };
 
   return (
-    <div className="tuning-match">
+    <div className="leg:flex leg:flex-col leg:min-w-[0]">
       <form
-        className="tuning-form"
+        className="leg:flex leg:flex-col leg:min-w-[0] leg:gap-[var(--space-4)] cmp:compact:[.mobile-workspace_&]:gap-[var(--space-3)]"
         aria-labelledby="tuning-title"
         aria-busy={isOptimizing}
         onSubmit={(event) => {
@@ -139,27 +139,27 @@ export function AutoEqTab(props: AutoEqTabProps) {
         </header>
 
         <fieldset
-          className="tuning-fields"
+          className="leg:flex leg:flex-col leg:min-w-[0] leg:m-[0] leg:p-[0] leg:[border:0] leg:gap-[var(--space-4)]"
           disabled={isOptimizing || importingTarget}
         >
-          <legend className="tuning-sr-only">
+          <legend className="leg:absolute leg:w-[1px] leg:h-[1px] leg:p-[0] leg:m-[-1px] leg:overflow-hidden leg:[clip-path:inset(50%)] leg:whitespace-nowrap leg:[border:0]">
             {t("tuningPanel.inputsLegend")}
           </legend>
-          <div className="tuning-field">
-            <div className="tuning-field-heading">
+          <div className="leg:flex leg:flex-col leg:min-w-[0] leg:gap-[var(--space-2)]">
+            <div className="tuning-field-heading leg:flex leg:items-center leg:justify-between leg:gap-[var(--space-3)] leg:min-w-[0]">
               {meas ? (
                 <label htmlFor="autoeq-measurement">
                   {t("tuningPanel.measurement")}
                 </label>
               ) : (
-                <span className="tuning-field-label">
+                <span className="leg:text-[color:var(--foreground)] leg:text-[length:var(--type-label)] leg:font-medium leg:leading-[1.5]">
                   {t("tuningPanel.measurement")}
                 </span>
               )}
               {props.onAddMeasurement && (
                 <Button
                   variant="ghost"
-                  className="tuning-field-action"
+                  className="tuning-field-action leg:[.tuning-panel_&]:h-[auto] leg:[.tuning-panel_&]:min-h-[28px] leg:[.tuning-panel_&]:max-w-[65%] leg:[.tuning-panel_&]:p-[var(--space-1)_var(--space-2)] leg:[.tuning-panel_&]:text-[length:var(--type-small)] leg:[.tuning-panel_&]:leading-[1.4] leg:[.tuning-panel_&]:whitespace-normal leg:[.tuning-panel_&]:text-end"
                   disabled={isOptimizing || importingTarget}
                   onClick={() => {
                     setImportError(null);
@@ -182,19 +182,19 @@ export function AutoEqTab(props: AutoEqTabProps) {
                 disabled={isOptimizing || importingTarget}
               />
             ) : (
-              <p className="tuning-help">{t("tuningPanel.measurementHelp")}</p>
+              <p className="leg:m-[0] leg:text-[color:var(--muted-foreground)] leg:text-[length:var(--type-small)] leg:leading-[1.5]">{t("tuningPanel.measurementHelp")}</p>
             )}
           </div>
 
-          <div className="tuning-field">
-            <div className="tuning-field-heading">
+          <div className="leg:flex leg:flex-col leg:min-w-[0] leg:gap-[var(--space-2)]">
+            <div className="tuning-field-heading leg:flex leg:items-center leg:justify-between leg:gap-[var(--space-3)] leg:min-w-[0]">
               <label htmlFor="autoeq-target">
                 {t("tuningPanel.targetCurve")}
               </label>
               {props.onAddTarget && (
                 <FileImportButton
                   variant="ghost"
-                  className="tuning-field-action"
+                  className="tuning-field-action leg:[.tuning-panel_&]:h-[auto] leg:[.tuning-panel_&]:min-h-[28px] leg:[.tuning-panel_&]:max-w-[65%] leg:[.tuning-panel_&]:p-[var(--space-1)_var(--space-2)] leg:[.tuning-panel_&]:text-[length:var(--type-small)] leg:[.tuning-panel_&]:leading-[1.4] leg:[.tuning-panel_&]:whitespace-normal leg:[.tuning-panel_&]:text-end"
                   disabled={isOptimizing || importingTarget}
                   label={
                     importingTarget
@@ -235,18 +235,18 @@ export function AutoEqTab(props: AutoEqTabProps) {
         </fieldset>
 
         <fieldset
-          className="tuning-settings"
+          className="leg:flex leg:flex-col leg:min-w-[0] leg:m-[0] leg:p-[0] leg:[border:0] leg:[&&]:pt-[var(--space-4)] leg:[&&]:[border-top:1px_solid_var(--line-soft)] leg:gap-[var(--space-2)] cmp:compact:[.mobile-workspace_&]:gap-[var(--space-3)] cmp:compact:[.mobile-workspace_&]:pt-[var(--space-3)]"
           disabled={isOptimizing || importingTarget}
         >
-          <legend className="tuning-sr-only">
+          <legend className="leg:absolute leg:w-[1px] leg:h-[1px] leg:p-[0] leg:m-[-1px] leg:overflow-hidden leg:[clip-path:inset(50%)] leg:whitespace-nowrap leg:[border:0]">
             {t("tuningPanel.settingsLegend")}
           </legend>
-          <div className="tuning-band-row">
+          <div className="leg:flex leg:items-center leg:justify-between leg:gap-[var(--space-3)] leg:min-w-[0]">
             <div>
               <label htmlFor="autoeq-bands">
                 {t("tuningPanel.filterBands")}
               </label>
-              <p className="tuning-help">
+              <p className="leg:m-[0] leg:text-[color:var(--muted-foreground)] leg:text-[length:var(--type-small)] leg:leading-[1.5]">
                 {t("tuningPanel.bandLimit", { count: Math.max(1, maxBands) })}
               </p>
             </div>
@@ -261,13 +261,13 @@ export function AutoEqTab(props: AutoEqTabProps) {
                 invalidateRequest();
                 setNBands(value);
               }}
-              className="tuning-bands"
+              className="leg:[.tuning-panel_&]:w-[112px] leg:[.tuning-panel_&]:flex-[0_0_auto] leg:compact:[.tuning-panel_&&]:w-[144px]"
             />
           </div>
           {nBands <= 5 && (
             <div
               id="tuning-band-warning"
-              className="tuning-warnings"
+              className="tuning-warnings leg:m-[var(--space-3)_0_0] leg:p-[var(--space-3)] leg:[border:1px_solid_var(--line-soft)] leg:rounded-[var(--control-radius)] leg:[background:transparent] leg:text-[color:var(--muted-foreground)] leg:text-[length:var(--type-small)] leg:leading-[1.5] leg:[overflow-wrap:anywhere]"
               role="note"
             >
               <strong>{t("tuningPanel.limitedBandAutoEQ")}</strong>
@@ -277,10 +277,10 @@ export function AutoEqTab(props: AutoEqTabProps) {
           <Collapsible
             title={t("tuningPanel.advancedSettings")}
             defaultOpen={false}
-            className="tuning-advanced"
+            className="tuning-advanced leg:[.tuning-panel_&]:[border:0] leg:[.tuning-panel_&]:rounded-[0] leg:[.tuning-panel_&]:[background:transparent] leg:[.tuning-panel_&]:overflow-visible"
           >
-            <div className="tuning-advanced-fields">
-              <div className="tuning-field">
+            <div className="leg:flex leg:flex-col leg:gap-[var(--space-4)]">
+              <div className="leg:flex leg:flex-col leg:min-w-[0] leg:gap-[var(--space-2)]">
                 <label htmlFor="autoeq-smoothing">
                   {t("tuningPanel.trebleSmoothing")}
                 </label>
@@ -299,7 +299,7 @@ export function AutoEqTab(props: AutoEqTabProps) {
                   ]}
                 />
               </div>
-              <div className="tuning-field">
+              <div className="leg:flex leg:flex-col leg:min-w-[0] leg:gap-[var(--space-2)]">
                 <label htmlFor="autoeq-steps">
                   {t("tuningPanel.optimizerSteps")}
                 </label>
@@ -319,9 +319,9 @@ export function AutoEqTab(props: AutoEqTabProps) {
                     { value: 5000, label: t("tuningPanel.extendedSteps") },
                   ]}
                 />
-                <p className="tuning-help">{t("tuningPanel.stepsHelp")}</p>
+                <p className="leg:m-[0] leg:text-[color:var(--muted-foreground)] leg:text-[length:var(--type-small)] leg:leading-[1.5]">{t("tuningPanel.stepsHelp")}</p>
               </div>
-              <div className="tuning-field">
+              <div className="leg:flex leg:flex-col leg:min-w-[0] leg:gap-[var(--space-2)]">
                 <label htmlFor="autoeq-fs">{t("tuningPanel.sampleRate")}</label>
                 <Select
                   id="autoeq-fs"
@@ -337,13 +337,13 @@ export function AutoEqTab(props: AutoEqTabProps) {
                     { value: 96000, label: t("tuningPanel.sampleRate96000") },
                   ]}
                 />
-                <p className="tuning-help">{t("tuningPanel.sampleRateHelp")}</p>
+                <p className="leg:m-[0] leg:text-[color:var(--muted-foreground)] leg:text-[length:var(--type-small)] leg:leading-[1.5]">{t("tuningPanel.sampleRateHelp")}</p>
               </div>
             </div>
           </Collapsible>
         </fieldset>
 
-        <div className="tuning-submit">
+        <div className="leg:flex leg:flex-col leg:gap-[var(--space-2)] cmp:compact:[.mobile-workspace_&]:sticky cmp:compact:[.mobile-workspace_&]:bottom-[0] cmp:compact:[.mobile-workspace_&]:z-[var(--z-sticky)] cmp:compact:[.mobile-workspace_&]:p-[var(--space-2)_0] cmp:compact:[.mobile-workspace_&]:[background:var(--bg)] cmp:compact:[.mobile-workspace_&]:[border-top:1px_solid_var(--border)] cmp:compact:[.mobile-workspace.has-save-bar_&]:bottom-[60px] cmp:compact:[.keyboard-open_&&]:bottom-[var(--space-2)]">
           <Button
             type="submit"
             variant="primary"
@@ -360,7 +360,7 @@ export function AutoEqTab(props: AutoEqTabProps) {
               ? t("tuningPanel.generatingEQ")
               : t("tuningPanel.generateEQ")}
           </Button>
-          <p id="tuning-destination" className="tuning-help tuning-destination">
+          <p id="tuning-destination" className="leg:m-[0] leg:text-[color:var(--muted-foreground)] leg:text-[length:var(--type-small)] leg:leading-[1.5] tuning-destination">
             {!meas
               ? t("tuningPanel.needsMeasurement")
               : !target
@@ -387,7 +387,7 @@ export function AutoEqTab(props: AutoEqTabProps) {
         <ErrorNotice className="mt-4">{errorMessage}</ErrorNotice>
       )}
       {warnings.length > 0 && (
-        <div className="tuning-warnings">
+        <div className="tuning-warnings leg:m-[var(--space-3)_0_0] leg:p-[var(--space-3)] leg:[border:1px_solid_var(--line-soft)] leg:rounded-[var(--control-radius)] leg:[background:transparent] leg:text-[color:var(--muted-foreground)] leg:text-[length:var(--type-small)] leg:leading-[1.5] leg:[overflow-wrap:anywhere]">
           <strong>{t("tuningPanel.reviewBeforeApplying")}</strong>
           <ul>
             {warnings.map((warning, index) => (

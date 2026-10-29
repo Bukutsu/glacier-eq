@@ -1,28 +1,33 @@
-/* Keep migrated components above legacy styles without specificity wars.
+/* Component styles live in Tailwind classes. The `leg:` and `cmp:` variants emit
+   them into the utilities.legacy and utilities.components sublayers, below plain
+   utilities, so a component's own utilities still win over shared rules. The
+   sheets below keep only global, tag-level, and runtime-named selectors.
    No Tailwind preflight: the existing app and canvas own their resets. */
-@layer theme, base, legacy, components, utilities;
+@layer theme, base, utilities.legacy, utilities.components, utilities;
 
 @import "tailwindcss/theme.css" layer(theme);
 @import "./tokens.css" layer(base);
-@import "./base.css" layer(legacy);
-@import "./header.css" layer(legacy);
-@import "./layout.css" layer(legacy);
-@import "./editor.css" layer(legacy);
-@import "./tools.css" layer(legacy);
-@import "./device-selection.css" layer(legacy);
-@import "./responsive.css" layer(legacy);
-@import "./tuning.css" layer(legacy);
-@import "./colors.css" layer(components);
-@import "./ui.css" layer(components);
-@import "./alerts.css" layer(components);
-@import "./toasts.css" layer(components);
-@import "./profiles.css" layer(components);
-@import "./configuration.css" layer(components);
-@import "./dialogs.css" layer(components);
-@import "./mobile.css" layer(components);
-@import "./titlebar.css" layer(components);
+@import "./base.css" layer(utilities.legacy);
+@import "./header.css" layer(utilities.legacy);
+@import "./layout.css" layer(utilities.legacy);
+@import "./editor.css" layer(utilities.legacy);
+@import "./tools.css" layer(utilities.legacy);
+@import "./device-selection.css" layer(utilities.legacy);
+@import "./responsive.css" layer(utilities.legacy);
+@import "./tuning.css" layer(utilities.legacy);
+@import "./colors.css" layer(utilities.components);
+@import "./ui.css" layer(utilities.components);
+@import "./alerts.css" layer(utilities.components);
+@import "./toasts.css" layer(utilities.components);
+@import "./profiles.css" layer(utilities.components);
+@import "./configuration.css" layer(utilities.components);
+@import "./dialogs.css" layer(utilities.components);
+@import "./mobile.css" layer(utilities.components);
+@import "./titlebar.css" layer(utilities.components);
 @import "tailwindcss/utilities.css" layer(utilities);
 
+@custom-variant leg { @layer legacy { @slot; } }
+@custom-variant cmp { @layer components { @slot; } }
 @custom-variant compact (@media (max-width: 850px), ((max-height: 540px) and (pointer: coarse)));
 @custom-variant touchy (@media (max-width: 850px), (pointer: coarse));
 @custom-variant roomy (@media (min-width: 851px) and ((min-height: 541px) or (pointer: fine)));
