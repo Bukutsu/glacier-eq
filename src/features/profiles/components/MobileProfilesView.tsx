@@ -177,7 +177,7 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
   return (
     <div className="grid min-w-0 gap-[var(--space-5)] p-[var(--space-4)] [&_button[data-slot=button]]:min-h-[44px] [&_button[data-slot=button][aria-haspopup=menu]]:min-w-[44px]" aria-busy={disabled}>
       <Card
-        className="min-w-0 p-[var(--space-4)] [&_.app-collapse]:m-0 [&_.app-collapse]:mt-[var(--space-4)] [&_.app-collapse]:rounded-none [&_.app-collapse]:border-0 [&_.app-collapse]:[border-top:1px_solid_var(--border)] [&_.app-collapse-trigger]:min-h-[44px] [&_.app-collapse-trigger]:border-0 [&_.app-collapse-trigger]:bg-transparent [&_.app-collapse-trigger]:[padding-inline:0] [&_.app-collapse-trigger]:text-[var(--muted-foreground)] [&_.app-collapse-trigger]:text-[length:var(--type-small)] [&_.app-collapse-trigger]:font-medium"
+        className="min-w-0 p-[var(--space-4)] [&_.app-collapse]:m-0 [&_.app-collapse]:mt-[var(--space-4)] [&_.app-collapse]:rounded-none [&_.app-collapse]:border-0 [&_.app-collapse]:[border-top:1px_solid_var(--border)] [&_.app-collapse-trigger]:min-h-[44px] [&_.app-collapse-trigger]:[border:0] [&_.app-collapse-trigger]:bg-transparent [&_.app-collapse-trigger]:[padding-inline:0] [&_.app-collapse-trigger]:text-[var(--muted-foreground)] [&_.app-collapse-trigger]:text-[length:var(--type-small)] [&_.app-collapse-trigger]:font-medium"
         aria-label={t("mobileProfilesView.currentEditorEQ")}
       >
         <div className={FLEXBAR}>

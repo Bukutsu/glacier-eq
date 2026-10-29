@@ -904,3 +904,8 @@ body::-webkit-scrollbar-corner,
    that flips when open. */
 summary { list-style: none; cursor: pointer; }
 summary::-webkit-details-marker { display: none; }
+
+/* Kept as CSS: Tailwind drops an arbitrary url(data:...) utility without an error. */
+.custom-checkbox:checked {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 16 16' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M3.2 8.1 6.5 11.4 12.8 4.6' fill='none' stroke='currentColor' stroke-width='2.2' stroke-linecap='square' stroke-linejoin='miter'/%3E%3C/svg%3E");
+}
