@@ -23,6 +23,10 @@
 @import "./titlebar.css" layer(components);
 @import "tailwindcss/utilities.css" layer(utilities);
 
+@custom-variant compact (@media (max-width: 850px), ((max-height: 540px) and (pointer: coarse)));
+@custom-variant touchy (@media (max-width: 850px), (pointer: coarse));
+@custom-variant roomy (@media (min-width: 851px) and ((min-height: 541px) or (pointer: fine)));
+
 @theme inline {
   --color-background: var(--background);
   --color-field: var(--field-background);

@@ -6,6 +6,17 @@ import { Button } from "@/components/ui/Button";
 import { Alert, AlertDescription } from "@/components/ui/Alert";
 import { useToastStore, type Toast } from "@/stores/toastStore";
 
+const ROOT =
+  "toast-feedback group absolute! top-[calc(100%+8px)] right-0 z-[var(--z-toast)] grid-cols-[18px_minmax(0,1fr)_auto_28px]! items-center gap-3! w-[420px]! max-w-[calc(100vw-24px)] overflow-hidden border-[var(--border)]! rounded-[var(--radius-surface)]! bg-[var(--popover)]! p-[14px_12px_16px_16px]! text-[var(--popover-foreground)]! shadow-[0_8px_24px_rgb(0_0_0/18%)] touchy:grid-cols-[18px_minmax(0,1fr)_auto_44px]! touchy:gap-2! compact:[.app-header>&]:right-3 [body:has(dialog[open])_.app-header>&]:hidden [&>.app-icon]:m-0! [&>.app-icon]:h-[18px]! [&>.app-icon]:w-[18px]! [&>.app-icon]:text-[var(--ring)]! data-[type=error]:[&>.app-icon]:text-[var(--destructive-foreground)]!";
+const INLINE =
+  " relative! flex-none w-auto! max-w-none! m-[8px_16px_16px] shadow-none! [dialog:has(.error-notice)_&]:hidden";
+const MESSAGE =
+  "row-start-1 max-h-[min(160px,25dvh)] overflow-y-auto [overflow-wrap:anywhere] overscroll-contain text-[13px] leading-[1.5] text-[var(--popover-foreground)]! select-text";
+const COUNTDOWN =
+  "absolute inset-x-0 bottom-0 h-0.5 bg-[rgb(var(--cyan-rgb)/0.1)] motion-reduce:hidden";
+const FILL =
+  "block h-full w-full origin-left bg-[var(--ring)] opacity-65 group-data-[type=error]:bg-[var(--destructive-foreground)]";
+
 function ToastCountdown({ lifetime }: { lifetime: Toast["lifetime"] }) {
   const ref = useRef<HTMLSpanElement>(null);
   useEffect(() => {
@@ -21,10 +32,10 @@ function ToastCountdown({ lifetime }: { lifetime: Toast["lifetime"] }) {
     return () => animation?.cancel();
   }, [lifetime]);
   return (
-    <span className="toast-countdown" aria-hidden="true">
+    <span className={COUNTDOWN} aria-hidden="true">
       <span
         ref={ref}
-        className="toast-countdown-fill"
+        className={FILL}
         style={{ scale: `${lifetime.remaining / lifetime.duration} 1` }}
       />
     </span>
@@ -64,7 +75,7 @@ export function ToastContainer({
   if (!current) return null;
   return (
     <Alert
-      className={`toast-feedback${inline ? " toast-inline" : ""}`}
+      className={ROOT + (inline ? INLINE : "")}
       variant={current.type === "error" ? "destructive" : "default"}
       data-type={current.type}
       aria-label={t("feedback.status")}
@@ -91,12 +102,12 @@ export function ToastContainer({
               : "info"
         }
       />
-      <AlertDescription className="toast-message">
+      <AlertDescription className={MESSAGE}>
         {current.message}
       </AlertDescription>
       {current.action && (
         <Button
-          className="toast-action"
+          className="col-start-3 row-start-1 touchy:min-h-[44px]"
           onClick={() => {
             removeToast(current.id);
             current.action?.onClick();
@@ -108,7 +119,7 @@ export function ToastContainer({
       <Button
         variant="ghost"
         size="icon"
-        className="toast-dismiss size-7! max-[850px]:size-11! pointer-coarse:size-11!"
+        className="col-start-4 row-start-1 size-7! max-[850px]:size-11! pointer-coarse:size-11! [&_.app-icon]:size-[14px]"
         aria-label={t("feedback.dismiss")}
         title={t("feedback.dismiss")}
         onClick={() => removeToast(current.id)}
