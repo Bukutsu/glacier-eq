@@ -175,6 +175,12 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
         self.profile.protocol.quirks().save_resets_device
     }
 
+    /// Melody writes never guess a bank: the caller must pick a USER bank.
+    fn require_melody_write_slot(&self) -> Result<u8, String> {
+        self.melody_write_slot
+            .ok_or_else(|| "Melody writes require an explicit USER bank".to_string())
+    }
+
     fn require_hardware_eq(&self) -> Result<(), String> {
         self.require_open_transaction()?;
         if self.profile.protocol.has_hardware_eq() {
@@ -668,7 +674,7 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
     async fn prepare_write_destination(&mut self) -> Result<(), String> {
         if self.profile.controls == Some(super::profile::Controls::Melody) {
             self.check_filter_count().await?;
-            self.set_melody_preset(self.melody_write_slot.unwrap_or(160))
+            self.set_melody_preset(self.require_melody_write_slot()?)
                 .await?;
         } else if let Some(slot) = self
             .fiio_write_slot
@@ -879,7 +885,7 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
                 if self.profile.controls == Some(super::profile::Controls::Melody)
                     && packet.payload.get(4) == Some(&0x16)
                 {
-                    self.set_melody_preset(self.melody_write_slot.unwrap_or(160))
+                    self.set_melody_preset(self.require_melody_write_slot()?)
                         .await?;
                 } else if (self.fiio_write_slot.is_some()
                     || protocol.write_target_preset().is_some())
@@ -930,18 +936,15 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
         if self.profile.controls == Some(super::profile::Controls::Melody) {
             // SAVE has a short acknowledgement, not a normal command echo.
             // The following read drains it first; SAVE is not replayed.
-            let packet =
-                super::families::fiio::melody::save_request(self.melody_write_slot.unwrap_or(160))?;
+            let slot = self.require_melody_write_slot()?;
+            let packet = super::families::fiio::melody::save_request(slot)?;
             self.io.write(&packet.framed()).await?;
             self.io
                 .sleep_ms(self.protocol().write_timing().commit_step_ms)
                 .await;
             let actual = self.melody_preset().await?;
-            if actual != self.melody_write_slot.unwrap_or(160) {
-                return Err(format!(
-                    "Melody save selected {actual}, expected {}",
-                    self.melody_write_slot.unwrap_or(160)
-                ));
+            if actual != slot {
+                return Err(format!("Melody save selected {actual}, expected {slot}"));
             }
             return Ok(());
         }
