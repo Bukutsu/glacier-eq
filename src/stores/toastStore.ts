@@ -25,45 +25,13 @@ function cancelTimer(id: string) {
   timers.delete(id);
 }
 
+/**
+ * Updates the status line. A message without a type stays quiet (status line
+ * and diagnostics only); pass a type to raise a toast. Failures must pass
+ * "error" explicitly — messages are localized, so their wording carries no
+ * reliable signal.
+ */
 export type StatusReporter = (message: string, type?: Toast["type"]) => void;
-
-function resolveToastType(
-  message: string,
-  type: Toast["type"] = "info",
-): Toast["type"] {
-  let toastType = type;
-  const lowerMessage = message.toLowerCase();
-  if (
-    lowerMessage.includes("failed") ||
-    lowerMessage.includes("could not") ||
-    lowerMessage.includes("cannot") ||
-    lowerMessage.includes("error") ||
-    lowerMessage.includes("unable") ||
-    lowerMessage.includes("invalid") ||
-    lowerMessage.includes("permission") ||
-    lowerMessage.includes("not allowed") ||
-    lowerMessage.includes("please enter")
-  ) {
-    toastType = "error";
-  } else if (
-    // An explicitly-typed error must not be downgraded by a success
-    // keyword later in the message ("...saved...", "...loaded..." — the
-    // round-3 recovery toast shipped misclassified because "downloaded"
-    // contains "loaded"). Promotion to success stays available for the
-    // default info path.
-    toastType !== "error" &&
-    (lowerMessage.includes("successful") ||
-      lowerMessage.includes("synced") ||
-      lowerMessage.includes("loaded") ||
-      lowerMessage.includes("parsed") ||
-      lowerMessage.includes("deleted") ||
-      lowerMessage.includes("saved"))
-  ) {
-    toastType = "success";
-  }
-
-  return toastType;
-}
 
 interface ToastStore {
   toasts: Toast[];
@@ -107,7 +75,7 @@ export const useToastStore = create<ToastStore>()((set, get) => ({
   addToast: (message, type = "info", log = true, action) => {
     if (message === "Ready" || !message.trim()) return;
 
-    const toastType = resolveToastType(message, type);
+    const toastType = type;
 
     const { toasts } = get();
     // Dedupe on message and type while the notification is visible.
@@ -152,14 +120,10 @@ export const useToastStore = create<ToastStore>()((set, get) => ({
   setStatus: (message, type) => {
     set({ status: message });
     if (message === "Ready" || !message.trim()) return;
-    const resolved = resolveToastType(message, type);
-    // Status changes are quiet by default. Only failures or an explicit
-    // request for a toast appear; routine actions still reach diagnostics.
-    if (type !== undefined || resolved === "error") {
-      get().addToast(message, resolved);
-    } else {
-      diagnosticSink?.(message, resolved);
-    }
+    // Status changes are quiet unless the caller asks for a toast; routine
+    // actions still reach diagnostics.
+    if (type !== undefined) get().addToast(message, type);
+    else diagnosticSink?.(message, "info");
   },
 
   pauseToast: (id, owner) => {

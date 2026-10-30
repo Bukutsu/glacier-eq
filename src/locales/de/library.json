@@ -185,9 +185,6 @@
     "discardAndLoad": "Verwerfen und laden",
     "discardMessage": "Beim Laden dieses Profils werden deine ungespeicherten Änderungen verworfen."
   },
-  "profileImport": {
-    "invalidAutoEQImportResponse": "Ungültige AutoEQ-Importantwort"
-  },
   "profileOverwrite": {
     "overwriteMessage": "Ein Profil namens „{{name}}“ existiert bereits. Überschreiben?",
     "bandLossMessage_one": "Das gespeicherte Profil „{{name}}“ hat {{originalCount}} Bänder, der Editor aber {{replacementCount}}. Beim Überschreiben wird {{count}} Band dauerhaft entfernt. Speichere eine Kopie, um das ursprüngliche Profil zu behalten, oder bestätige das Überschreiben.",

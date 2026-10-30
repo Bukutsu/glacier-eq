@@ -191,9 +191,6 @@
     "discardAndLoad": "Abandonner et charger",
     "discardMessage": "Le chargement de ce profil abandonnera vos modifications non enregistrées."
   },
-  "profileImport": {
-    "invalidAutoEQImportResponse": "Réponse d’importation AutoEQ invalide"
-  },
   "profileOverwrite": {
     "overwriteMessage": "Un profil nommé « {{name}} » existe déjà. L’écraser ?",
     "bandLossMessage_one": "Le profil enregistré « {{name}} » comporte {{originalCount}} bandes, mais l’éditeur en comporte {{replacementCount}}. L’écrasement supprimera définitivement {{count}} bande. Enregistrez une copie pour conserver le profil d’origine, ou confirmez l’écrasement.",

@@ -92,7 +92,8 @@
     "bandHelp": "バンド{{number}}: {{value}}。ドラッグまたは矢印キーで周波数とゲインを調整します。Shiftを押しながら上下にドラッグするとQを調整できます。マウスホイールでゲイン、ShiftとマウスホイールでQを調整できます。",
     "bandTooltip": "バンド{{number}}: {{value}} · ドラッグ: 周波数/ゲイン · Shift+上下ドラッグ: Q · ホイール: ゲイン · Shift+ホイール: Q",
     "raw": "{{name}}（未補正）",
-    "eqApplied": "{{name}}（EQ適用済み）"
+    "eqApplied": "{{name}}（EQ適用済み）",
+    "invalidShelfSlope": "シェルフのQがゲインに対して高すぎるため、カーブを描画できません。Qまたはゲインを下げてください。"
   },
   "diagnostics": {
     "copying": "コピー中…",

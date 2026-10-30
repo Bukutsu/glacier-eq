@@ -8,7 +8,6 @@ import { invokeForDevice } from "@/lib/rpc";
 import {
   createCoalescingTaskScheduler,
   mergeFieldsAtUnchangedRevisions,
-  revertFieldIfCurrent,
   setField,
 } from "@/lib/serializedWrites";
 import type { StatusReporter } from "@/stores/toastStore";
@@ -176,7 +175,6 @@ export function DawnProControls({
 
   const [state, setState] = useState<DawnProState | null>(null);
   const stateRef = useRef<DawnProState | null>(null);
-  const confirmed = useRef<DawnProState | null>(null);
   const revisions = useRef<Partial<Record<keyof DawnProState, number>>>({});
   const settledRevisions = useRef<Partial<Record<keyof DawnProState, number>>>(
     {},
@@ -197,7 +195,6 @@ export function DawnProControls({
           { path },
         );
         if (!isCurrent()) return;
-        confirmed.current = incoming;
         const next = stateRef.current
           ? mergeFieldsAtUnchangedRevisions(
               stateRef.current,
@@ -249,7 +246,6 @@ export function DawnProControls({
           { path, control, value: Number(value) },
         );
         if (!isCurrent() || !stateRef.current) return;
-        confirmed.current = incoming;
         settledRevisions.current[field] = revision;
         const next = mergeFieldsAtUnchangedRevisions(
           stateRef.current,
@@ -263,22 +259,16 @@ export function DawnProControls({
       } catch (error) {
         if (!isCurrent()) return;
         settledRevisions.current[field] = revision;
-        if (stateRef.current && confirmed.current) {
-          const next = revertFieldIfCurrent(
-            stateRef.current,
-            confirmed.current,
-            field,
-            revision,
-            revisions.current[field] ?? 0,
-          );
-          stateRef.current = next;
-          setState(next);
-        }
+        // The command may have reached the DAC before the error (a failed or
+        // mismatched readback), so the old value is no more trustworthy than
+        // the new one. Read the device back instead of claiming a rollback.
+        refresh();
         setError(String(error));
         setStatus(
           t("dawnProControls.updateFailed", {
             error: error,
           }),
+          "error",
         );
       }
     });

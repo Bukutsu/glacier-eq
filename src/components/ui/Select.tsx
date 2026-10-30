@@ -1,9 +1,10 @@
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
-import { useCallback, useRef, type CSSProperties } from "react";
+import type { CSSProperties } from "react";
 import { Select as BaseSelect } from "@base-ui/react/select";
 import { Icon } from "./Icon";
+import { useDialogPortal } from "./dialogPortal";
 
 export interface SelectOption<T extends string | number> {
   value: T;
@@ -34,14 +35,8 @@ export function Select<T extends string | number>({
   "aria-label": ariaLabel,
   "aria-labelledby": ariaLabelledBy,
 }: SelectProps<T>) {
-  const portalContainer = useRef<HTMLElement | null>(null);
-  // Resolve during the trigger commit, before an opened Portal runs its layout
-  // effect. Native dialogs live in the top layer, above document.body portals.
-  const triggerRef = useCallback((trigger: HTMLButtonElement | null) => {
-    portalContainer.current = trigger
-      ? (trigger.closest("dialog") ?? trigger.ownerDocument.body)
-      : null;
-  }, []);
+  const { container: portalContainer, anchor: triggerRef } =
+    useDialogPortal();
   // Like a native single select, show the first enabled option when the
   // controlled value isn't present (for example, while targets are loading).
   const selectedValue = options.some((option) => option.value === value)
@@ -57,8 +52,9 @@ export function Select<T extends string | number>({
       items={options}
       disabled={disabled}
       onValueChange={(nextValue) => {
-        if (disabled || nextValue === null || nextValue === selectedValue)
-          return;
+        // Compare with the caller's value, not the displayed fallback: picking
+        // the fallback option must still report it.
+        if (disabled || nextValue === null || nextValue === value) return;
         const option = options.find((item) => item.value === nextValue);
         if (!option || option.disabled) return;
         onChange(nextValue);

@@ -103,7 +103,9 @@ export function createLiveApplier(context: LiveApplyContext) {
       }
     } finally {
       running = false;
-      if (again && token !== generation) scheduleApply(0);
+      // An edit queued behind this send is still owed to the DAC, even when
+      // the send itself failed.
+      if (again) scheduleApply(token === generation ? LIVE_BUSY_RETRY_MS : 0);
       resolveIdle();
     }
   }

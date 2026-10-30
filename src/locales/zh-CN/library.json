@@ -179,9 +179,6 @@
     "discardAndLoad": "丢弃并加载",
     "discardMessage": "加载此配置将丢弃未保存的更改。"
   },
-  "profileImport": {
-    "invalidAutoEQImportResponse": "无效的 AutoEQ 导入响应"
-  },
   "profileOverwrite": {
     "overwriteMessage": "已存在名为“{{name}}”的配置。是否覆盖？",
     "bandLossMessage_other": "已保存的配置“{{name}}”有 {{originalCount}} 个频段，而编辑器中有 {{replacementCount}} 个。覆盖将永久移除 {{count}} 个频段。请另存为副本以保留原配置，或确认覆盖。"

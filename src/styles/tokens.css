@@ -41,6 +41,7 @@
   --z-toast: 1000;
   --z-modal: 2000;
   --z-popover: 2100;
+  --z-skip-link: 2200;
 
   /* Graph + tab-bar geometry referenced by JS scroll/preview logic. */
   --graph-h-desktop: 280px;

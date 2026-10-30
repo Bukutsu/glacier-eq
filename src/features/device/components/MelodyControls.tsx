@@ -64,7 +64,7 @@ export function MelodyControls({
           error: String(failure),
         });
         setError(message);
-        setStatus(message);
+        setStatus(message, "error");
       }
     };
     try {

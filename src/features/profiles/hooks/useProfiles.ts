@@ -10,6 +10,7 @@ import { confirmDialog } from "@/components/ui/ConfirmDialog";
 import { profileOverwriteMessage } from "@/features/profiles/lib/profileOverwrite";
 import {
   buildDefaultState,
+  normalizePeqForDevice,
   DEFAULT_PROFILE_NAME,
   normalizePeq,
   peqEquals,
@@ -131,8 +132,14 @@ export function useProfiles(editor: ProfilesEditor, setStatus: StatusReporter) {
   );
 
   const importPeq = useCallback(
-    (data: PEQData, name: string, isSaved: boolean): boolean => {
+    (data: PEQData, requestedName: string, isSaved: boolean): boolean => {
       if (editor.isBusy) return false;
+      // A file or header name may be empty or collide with the built-in
+      // Default EQ; neither may become the editor's profile name.
+      const name =
+        requestedName.trim() && !isReservedProfileName(requestedName)
+          ? requestedName
+          : i18n.t("library:profilesView.importedProfile");
       const { capabilities } = editor;
       const normalized = normalizePeq(data, {
         enableLoadedFilters: true,
@@ -211,6 +218,7 @@ export function useProfiles(editor: ProfilesEditor, setStatus: StatusReporter) {
         if (options?.throwOnError) throw error;
         setStatus(
           i18n.t("library:profiles.failedToLoadProfiles", { error: error }),
+          "error",
         );
         return [];
       }
@@ -312,6 +320,7 @@ export function useProfiles(editor: ProfilesEditor, setStatus: StatusReporter) {
         writeCompleted
           ? i18n.t("library:profiles.savedRefreshFailed", { error: error })
           : i18n.t("library:profiles.failedToSaveProfile", { error: error }),
+        "error",
       );
     }
   }, [editor, profiles, loadProfiles, setStatus, runProfileMutation]);
@@ -362,7 +371,10 @@ export function useProfiles(editor: ProfilesEditor, setStatus: StatusReporter) {
           setSelectedPreset(DEFAULT_PROFILE_NAME);
           setProfileSearch("");
           setNewProfileName("");
-          const defaultPeq = buildDefaultState();
+          const defaultPeq = normalizePeqForDevice(
+            buildDefaultState(editor.capabilities.num_bands),
+            editor.capabilities,
+          );
           editor.setPeq(defaultPeq);
           editor.editorCleanPeqRef.current = defaultPeq;
           editor.setDirty(false);
@@ -375,6 +387,7 @@ export function useProfiles(editor: ProfilesEditor, setStatus: StatusReporter) {
             : i18n.t("library:profiles.failedToDeleteProfile", {
                 error: error,
               }),
+          "error",
         );
       }
     },
@@ -429,6 +442,7 @@ export function useProfiles(editor: ProfilesEditor, setStatus: StatusReporter) {
             : i18n.t("library:profiles.failedToRenameProfile", {
                 error: error,
               }),
+          "error",
         );
         return writeCompleted;
       }
@@ -442,6 +456,7 @@ export function useProfiles(editor: ProfilesEditor, setStatus: StatusReporter) {
     } catch (error) {
       setStatus(
         i18n.t("library:profiles.failedToOpenProfilesFolder", { error: error }),
+        "error",
       );
     }
   }, [setStatus]);

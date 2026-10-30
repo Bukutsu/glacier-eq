@@ -94,7 +94,8 @@
     "bandHelp": "Band {{number}}: {{value}}. Ziehen oder Pfeiltasten verwenden, um Frequenz und Verstärkung anzupassen. Shift gedrückt halten und nach oben oder unten ziehen, um Q anzupassen. Mausrad für Verstärkung oder Shift plus Mausrad für Q verwenden.",
     "bandTooltip": "Band {{number}}: {{value}} · Ziehen: Frequenz/Verstärkung · Shift+Ziehen hoch/runter: Q · Mausrad: Verstärkung · Shift+Mausrad: Q",
     "raw": "{{name}} (unbearbeitet)",
-    "eqApplied": "{{name}} (EQ angewendet)"
+    "eqApplied": "{{name}} (EQ angewendet)",
+    "invalidShelfSlope": "Das Q eines Kuhschwanzfilters ist für seine Verstärkung zu hoch, daher kann die Kurve nicht gezeichnet werden. Senke Q oder die Verstärkung."
   },
   "diagnostics": {
     "copying": "Wird kopiert…",

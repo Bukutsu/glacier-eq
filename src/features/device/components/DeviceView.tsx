@@ -164,7 +164,7 @@ export const DeviceView = memo(function DeviceView({
         if (!silent || utilityRef.current === null) {
           setLoadError(t("deviceView.loadFailed", { err: err }));
         } else {
-          setStatus(t("deviceView.refreshFailed", { err: err }));
+          setStatus(t("deviceView.refreshFailed", { err: err }), "error");
         }
       }
     } finally {
@@ -273,7 +273,7 @@ export const DeviceView = memo(function DeviceView({
           }
         }
         if (mountedRef.current) {
-          setStatus(t("deviceView.updateFailed", { err: err }));
+          setStatus(t("deviceView.updateFailed", { err: err }), "error");
         }
       }
     });
@@ -349,6 +349,7 @@ export const DeviceView = memo(function DeviceView({
               factory
                 ? t("deviceView.factoryResetFailed", { err: err })
                 : t("deviceView.controlsResetFailed", { err: err }),
+              "error",
             );
           }
         },

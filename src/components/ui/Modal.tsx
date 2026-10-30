@@ -12,6 +12,7 @@ import { Icon } from "./Icon";
 import { ToastContainer } from "@/components/feedback/Toast";
 import { Button } from "./Button";
 import {
+  afterBalanceNavigations,
   decideModalPopState,
   expectBalanceNavigation,
   isBalanceNavigation,
@@ -86,6 +87,9 @@ export function Modal({
   onCloseRef.current = onClose;
   const closeDisabledRef = useRef(closeDisabled);
   closeDisabledRef.current = closeDisabled;
+  // A click whose press started inside the dialog box (e.g. a text selection
+  // dragged out) must not count as a backdrop click.
+  const pressedOnBackdropRef = useRef(false);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -100,9 +104,11 @@ export function Modal({
     };
 
     pushModalEntry(entry);
-    window.history.pushState(
-      modalStateWithId(modalId, window.history.state),
-      "",
+    const cancelSentinel = afterBalanceNavigations(() =>
+      window.history.pushState(
+        modalStateWithId(modalId, window.history.state),
+        "",
+      ),
     );
     if (modalPopstateListenerCount === 0) {
       window.addEventListener("popstate", handleModalPopState);
@@ -118,6 +124,7 @@ export function Modal({
     }
 
     return () => {
+      cancelSentinel();
       removeModalEntry(entry);
       modalPopstateListenerCount = Math.max(0, modalPopstateListenerCount - 1);
       if (modalPopstateListenerCount === 0) {
@@ -137,17 +144,22 @@ export function Modal({
     };
   }, [modalId]);
 
-  const handleBackdropClick = (event: MouseEvent<HTMLDialogElement>) => {
-    if (closeDisabled || event.target !== event.currentTarget) return;
+  const isOnBackdrop = (event: MouseEvent<HTMLDialogElement>) => {
+    if (event.target !== event.currentTarget) return false;
     const rect = event.currentTarget.getBoundingClientRect();
-    if (
+    return (
       event.clientX < rect.left ||
       event.clientX > rect.right ||
       event.clientY < rect.top ||
       event.clientY > rect.bottom
-    ) {
-      onClose();
-    }
+    );
+  };
+
+  const handleBackdropClick = (event: MouseEvent<HTMLDialogElement>) => {
+    const pressedOnBackdrop = pressedOnBackdropRef.current;
+    pressedOnBackdropRef.current = false;
+    if (closeDisabled || !pressedOnBackdrop || !isOnBackdrop(event)) return;
+    onClose();
   };
 
   return (
@@ -162,6 +174,9 @@ export function Modal({
       onCancel={(event) => {
         event.preventDefault();
         if (!closeDisabled) onClose();
+      }}
+      onPointerDown={(event) => {
+        pressedOnBackdropRef.current = isOnBackdrop(event);
       }}
       onClick={handleBackdropClick}
     >

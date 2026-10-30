@@ -19,8 +19,8 @@ interface DeviceChooserProps {
     targetPath?: string,
     target?: DeviceInfo,
   ) => void | Promise<unknown>;
+  /** The session's device. Only a connect changes it, never a row click. */
   selectedDevice: string;
-  setSelectedDevice: (path: string) => void;
   status: string;
   isBusy: boolean;
   connected: boolean;
@@ -36,7 +36,6 @@ export function DeviceChooser({
   onScan,
   onConnect,
   selectedDevice,
-  setSelectedDevice,
   status,
   isBusy,
   connected,
@@ -51,6 +50,13 @@ export function DeviceChooser({
         : status;
   const [supportedDacs, setSupportedDacs] = useState<SupportedDeviceInfo[]>([]);
   const [supportedOpen, setSupportedOpen] = useState(false);
+  // Highlighting a row must not retarget the live session: device writes,
+  // limits and unplug detection all follow selectedDevice.
+  const [choice, setChoice] = useState<string | null>(null);
+  const chosen =
+    choice !== null && devices.some((device) => device.path === choice)
+      ? choice
+      : selectedDevice;
   const [authorizationError, setAuthorizationError] = useState<string | null>(
     null,
   );
@@ -144,7 +150,7 @@ export function DeviceChooser({
                 device.product_string ||
                 device.manufacturer ||
                 t("deviceChooser.supportedDac");
-              const selected = selectedDevice === device.path;
+              const selected = chosen === device.path;
               const isDummy = isDevDummyDevice(device.path);
               const support = supportedDacs.find(
                 (dac) =>
@@ -161,12 +167,10 @@ export function DeviceChooser({
                   className={selected ? "device-row leg:[.device-card_&]:relative leg:[.device-card_&]:w-[100%] leg:[.device-card_&]:min-h-[88px] leg:[.device-card_&]:flex leg:[.device-card_&]:flex-col leg:[.device-card_&]:items-start leg:[.device-card_&]:justify-center leg:[.device-card_&]:gap-[4px] leg:[.device-card_&]:p-[var(--space-3)_44px_var(--space-3)_var(--space-4)] leg:[.device-card_&]:text-left leg:[.device-card_&]:[background:var(--bg-dark)] leg:[.device-card_&]:text-[color:var(--text)] leg:[.device-card_&]:[border:1px_solid_var(--line-soft)] leg:[.device-card_&]:[touch-action:manipulation] leg:[.device-card_&:hover:not(:disabled)]:[border-color:var(--muted)] leg:[.device-card_&.selected]:[background:var(--accent)] leg:[.device-card_&.selected]:[border-color:var(--ring)] cmp:[.device-modal_&]:rounded-[var(--control-radius)] cmp:[.device-modal_&]:[background:transparent] cmp:[.device-modal_&]:[border-color:var(--border)] cmp:[.device-modal_&.selected]:[background:var(--accent)] cmp:[.device-modal_&.selected]:[border-color:var(--input)] selected" : "device-row leg:[.device-card_&]:relative leg:[.device-card_&]:w-[100%] leg:[.device-card_&]:min-h-[88px] leg:[.device-card_&]:flex leg:[.device-card_&]:flex-col leg:[.device-card_&]:items-start leg:[.device-card_&]:justify-center leg:[.device-card_&]:gap-[4px] leg:[.device-card_&]:p-[var(--space-3)_44px_var(--space-3)_var(--space-4)] leg:[.device-card_&]:text-left leg:[.device-card_&]:[background:var(--bg-dark)] leg:[.device-card_&]:text-[color:var(--text)] leg:[.device-card_&]:[border:1px_solid_var(--line-soft)] leg:[.device-card_&]:[touch-action:manipulation] leg:[.device-card_&:hover:not(:disabled)]:[border-color:var(--muted)] leg:[.device-card_&.selected]:[background:var(--accent)] leg:[.device-card_&.selected]:[border-color:var(--ring)] cmp:[.device-modal_&]:rounded-[var(--control-radius)] cmp:[.device-modal_&]:[background:transparent] cmp:[.device-modal_&]:[border-color:var(--border)] cmp:[.device-modal_&.selected]:[background:var(--accent)] cmp:[.device-modal_&.selected]:[border-color:var(--input)]"}
                   aria-checked={selected}
                   disabled={isBusy}
-                  onClick={() => {
-                    setSelectedDevice(device.path);
-                  }}
+                  onClick={() => setChoice(device.path)}
                   onDoubleClick={() => {
-                    setSelectedDevice(device.path);
-                    onConnect(device.path, device);
+                    setChoice(device.path);
+                    void onConnect(device.path, device);
                   }}
                 >
                   <span className="leg:flex leg:items-center leg:flex-wrap leg:gap-[var(--space-2)] leg:max-w-[100%] leg:text-[color:var(--text)] leg:text-[length:var(--type-body)] leg:font-bold">
@@ -301,8 +305,13 @@ export function DeviceChooser({
           <Button
             variant="primary"
             className="leg:[&:disabled]:cursor-not-allowed leg:[&:disabled]:[background:var(--surface-disabled)]! leg:[&:disabled]:text-[color:var(--text-disabled)]! leg:[&:disabled]:opacity-[1]! leg:inline-flex leg:items-center leg:justify-center leg:gap-[8px] leg:[background:var(--surface-soft)] leg:text-[color:var(--text)] leg:font-medium leg:min-h-[42px] leg:p-[0_18px] leg:rounded-[var(--radius-control)] leg:[outline:1px_solid_var(--line-medium)] leg:[outline-offset:-1px] leg:[transition:filter_var(--motion-duration)_var(--motion-ease),_background_var(--motion-duration)_var(--motion-ease),_color_var(--motion-duration)_var(--motion-ease),_outline-color_var(--motion-duration)_var(--motion-ease)] leg:[&:hover:not(:disabled)]:[filter:brightness(1.14)] leg:[&&:active:not(:disabled)]:[filter:brightness(1.24)] leg:[&.filled]:[background:var(--primary)] leg:[&.filled]:text-[color:var(--primary-foreground)] leg:[&&.warning]:[background:var(--yellow)] leg:[&&.warning]:text-[color:var(--on-accent)] leg:pointer-coarse:min-h-[44px] leg:[.confirm-actions_&]:min-h-[44px] leg:[.bands-actions_&&]:min-h-[36px] leg:[.device-summary_.device-hero-actions_&]:w-[auto] leg:[.device-summary_.device-hero-actions_&&]:min-h-[44px] leg:[.device-summary_.device-hero-actions_&]:flex-[0_1_auto] leg:[.empty-state_&]:mt-[8px] leg:[.empty-state_&&&]:min-h-[44px] leg:[.empty-state_&]:p-[0_20px] leg:[.empty-state_&]:rounded-[0]! leg:[.add-trace-download-prompt_&]:[align-self:flex-start] leg:[.add-trace-download-prompt_&&&&]:min-h-[44px] leg:[.device-actions_&]:w-[100%] leg:[.device-actions_&&&&&]:min-h-[52px] leg:[.device-actions_&]:font-bold leg:max-[960px]:[.toolbar_&]:min-w-[0] leg:max-[960px]:[.toolbar_&&]:p-[0_10px] leg:compact:[.bands-actions_&&]:w-[100%] leg:compact:[.bands-actions_&&&&&&]:min-h-[44px] leg:compact:[.bands-actions_&]:justify-center leg:compact:[.bands-actions_&&&]:[background:var(--bg-dark)] leg:compact:[.bands-actions_&]:[outline:1px_solid_var(--line-medium)] leg:compact:[.bands-actions_&]:[outline-offset:-1px] leg:compact:[.mobile-workspace_.device-hero-actions_&&]:w-[auto] leg:compact:[.mobile-workspace_.device-hero-actions_&&&&&&]:min-h-[48px] leg:compact:[.mobile-workspace_.device-hero-actions_&]:rounded-[0]! min-h-[52px]! w-full"
-            onClick={() => onConnect()}
-            disabled={!selectedDevice || isBusy}
+            onClick={() =>
+              onConnect(
+                chosen,
+                devices.find((device) => device.path === chosen),
+              )
+            }
+            disabled={!chosen || isBusy}
           >
             {connected
               ? t("deviceChooser.switchToThisDevice")

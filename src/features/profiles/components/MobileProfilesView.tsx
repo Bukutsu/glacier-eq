@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import type { StatusReporter } from "@/stores/toastStore";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { Menu } from "@base-ui/react/menu";
 import { Badge } from "@/components/ui/Badge";
@@ -48,7 +49,7 @@ export interface MobileProfilesViewProps {
   onReloadProfiles: () => void;
   onOpenProfilesDir?: () => void;
   getAsyncContext: () => AsyncContext;
-  setStatus: (message: string) => void;
+  setStatus: StatusReporter;
   onReviewEq?: () => void;
   preview?: ReactNode;
   dacBanks?: ReactNode;
@@ -139,7 +140,10 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
       await action();
     } catch (error) {
       if (mounted.current)
-        setStatus(t("mobileProfilesView.actionFailed", { error: error }));
+        setStatus(
+          t("mobileProfilesView.actionFailed", { error: error }),
+          "error",
+        );
     } finally {
       actionPending.current = false;
       if (mounted.current) setPending(false);

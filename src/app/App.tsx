@@ -34,7 +34,7 @@ import { Modal } from "@/components/ui/Modal";
 import { SidebarDevice } from "@/features/device/components/SidebarDevice";
 import { isDevDummyDevice } from "@/features/device/lib/devDevice";
 import { DEFAULT_PROFILE_NAME, peqEquals } from "@/features/eq/lib/peq";
-import { isTauri } from "@/lib/platform";
+import { isAndroidDevice, isTauri } from "@/lib/platform";
 
 import type {
   DeviceInfo,
@@ -99,16 +99,11 @@ function App() {
     scrollRef: mobileScrollRef,
     selectTab: handleSelectWorkspaceTab,
   } = navigation;
-  const isAndroid =
-    typeof navigator !== "undefined" &&
-    (document.body.classList.contains("is-android") ||
-      /android/i.test(navigator.userAgent) ||
-      typeof window.AndroidNotifier !== "undefined");
+  const isAndroid = isAndroidDevice();
   const {
     ambiguousReconnectRef,
     devices,
     selectedDevice,
-    setSelectedDevice,
     connected,
     connectedDeviceName,
     firmwareVersion,
@@ -682,7 +677,7 @@ function App() {
     <div id="app">
       <AppEffects />
       <a
-        className="leg:fixed leg:top-[var(--space-3)] leg:left-[var(--space-3)] leg:z-[var(--z-reconnect)] leg:p-[var(--space-3)_var(--space-4)] leg:[background:var(--bg)] leg:text-[color:var(--text)] leg:[transform:translateY(calc(-100%_-_var(--space-5)))] leg:[&:focus]:[transform:translateY(0)]"
+        className="leg:fixed leg:top-[var(--space-3)] leg:left-[var(--space-3)] leg:z-[var(--z-skip-link)] leg:p-[var(--space-3)_var(--space-4)] leg:[background:var(--bg)] leg:text-[color:var(--text)] leg:[transform:translateY(calc(-100%_-_var(--space-5)))] leg:[&:focus]:[transform:translateY(0)]"
         href="#workspace-content"
         onClick={(event) => {
           // HashRouter owns the fragment; focus without changing routes.
@@ -774,7 +769,6 @@ function App() {
               onScan={scanDevices}
               onConnect={handleConnectDevice}
               selectedDevice={selectedDevice}
-              setSelectedDevice={setSelectedDevice}
               connected={connected}
               status={status}
               isBusy={isBusy}

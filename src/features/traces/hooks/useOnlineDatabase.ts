@@ -1,4 +1,5 @@
 import { i18n } from "@/lib/i18n";
+import type { StatusReporter } from "@/stores/toastStore";
 import { useEffect, useRef, useState } from "react";
 import {
   isDatabaseDownloaded,
@@ -10,7 +11,7 @@ import {
   type DownloadSubscription,
 } from "@/features/traces/lib/onlineDb";
 
-export function useOnlineDatabase(setStatus?: (value: string) => void) {
+export function useOnlineDatabase(setStatus?: StatusReporter) {
   const [downloaded, setDownloaded] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -56,6 +57,7 @@ export function useOnlineDatabase(setStatus?: (value: string) => void) {
           i18n.t("library:onlineDatabase.failedToLoadOnlineSearchManifest", {
             error: error,
           }),
+          "error",
         );
       })
       .finally(() => {

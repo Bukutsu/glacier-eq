@@ -217,7 +217,10 @@ export function useEqEditor(
   const discardRestoredDraft = () => {
     if (isBusy || eqOperationInFlightRef.current) return;
     pushToUndoStack(peqRef.current);
-    const fresh = buildDefaultState();
+    const fresh = normalizePeqForDevice(
+      buildDefaultState(capabilities.num_bands),
+      capabilities,
+    );
     setPeq(fresh);
     noteEditorMutation();
     setSelectedPreset(DEFAULT_PROFILE_NAME);
@@ -413,7 +416,10 @@ export function useEqEditor(
         );
       } catch (err) {
         if (request === dropRequestRef.current) {
-          setStatus(i18n.t("editor:import.failed", { error: String(err) }));
+          setStatus(
+            i18n.t("editor:import.failed", { error: String(err) }),
+            "error",
+          );
         }
       }
     };
@@ -464,6 +470,7 @@ export function useEqEditor(
 
   const reset = useCallback(async () => {
     if (isBusy || eqOperationInFlightRef.current) return;
+    const context = getAsyncContext();
     if (
       !(await confirmDialog({
         title: i18n.t("editor:reset.title"),
@@ -473,13 +480,28 @@ export function useEqEditor(
       }))
     )
       return;
+    // A pull, push or reconnect may have run while the dialog was open.
+    if (
+      !asyncContextEquals(context, getAsyncContext()) ||
+      eqOperationInFlightRef.current
+    )
+      return;
     pushToUndoStack(peqRef.current);
-    const defaultPeq = buildDefaultState();
+    const defaultPeq = normalizePeqForDevice(
+      buildDefaultState(capabilities.num_bands),
+      capabilities,
+    );
     setPeq(defaultPeq);
     noteEditorMutation();
     setSelectedPreset(DEFAULT_PROFILE_NAME);
     setDirty(!peqEquals(defaultPeq, editorCleanPeqRef.current));
-  }, [isBusy, pushToUndoStack, noteEditorMutation]);
+  }, [
+    isBusy,
+    capabilities,
+    getAsyncContext,
+    pushToUndoStack,
+    noteEditorMutation,
+  ]);
 
   const canUndoHistory = useHistoryStore((s) => s.past.length > 0);
 

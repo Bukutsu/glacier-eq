@@ -92,7 +92,8 @@
     "bandHelp": "频段 {{number}}：{{value}}。拖动或使用方向键调整频率与增益。按住 Shift 并上下拖动可调整 Q。使用鼠标滚轮调整增益，或按住 Shift 并滚动滚轮调整 Q。",
     "bandTooltip": "频段 {{number}}：{{value}} · 拖动：频率/增益 · Shift+上下拖动：Q · 滚轮：增益 · Shift+滚轮：Q",
     "raw": "{{name}}（原始）",
-    "eqApplied": "{{name}}（已应用 EQ）"
+    "eqApplied": "{{name}}（已应用 EQ）",
+    "invalidShelfSlope": "搁架滤波器的 Q 值相对其增益过高，无法绘制曲线。请降低 Q 值或增益。"
   },
   "diagnostics": {
     "copying": "正在复制…",

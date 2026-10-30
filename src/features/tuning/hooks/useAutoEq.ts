@@ -1,4 +1,5 @@
 import { i18n } from "@/lib/i18n";
+import type { StatusReporter } from "@/stores/toastStore";
 import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@/lib/rpc";
@@ -31,7 +32,7 @@ export interface AutoEqOptions {
   allTargets: TargetTrace[];
   activeTargetIds?: string[];
   onImportPEQ: (data: PEQData, name: string, isSaved: boolean) => boolean;
-  setStatus: (msg: string) => void;
+  setStatus: StatusReporter;
   onSelectedMeasurementChange?: (measurementId: string | null) => void;
   onToggleMeasurement?: (id: string) => void;
   onToggleTarget?: (id: string) => void;
@@ -361,7 +362,7 @@ export function useAutoEq({
           error: err,
         });
         setFailure({ kind: "generation", error: err });
-        setStatus(message);
+        setStatus(message, "error");
         console.error(err);
       }
     } finally {

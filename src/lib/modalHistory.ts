@@ -22,6 +22,9 @@ export interface ModalHistoryEntry {
 const modalHistoryStack: ModalHistoryEntry[] = [];
 const balanceEvents = new WeakSet<object>();
 let pendingBalanceNavigations = 0;
+// Sentinel pushes deferred until every in-flight balance navigation has
+// landed; pushing earlier lets the pending back() pop the new sentinel.
+let deferredPushes: Array<() => void> = [];
 
 export function modalStateWithId(
   id: string,
@@ -53,6 +56,21 @@ export function topModalEntry(): ModalHistoryEntry | undefined {
   return modalHistoryStack[modalHistoryStack.length - 1];
 }
 
+/**
+ * Run `push` once no balance navigation is in flight. Returns a cancel
+ * function for a modal that unmounts before its push ran.
+ */
+export function afterBalanceNavigations(push: () => void): () => void {
+  if (pendingBalanceNavigations === 0) {
+    push();
+    return () => {};
+  }
+  deferredPushes.push(push);
+  return () => {
+    deferredPushes = deferredPushes.filter((pending) => pending !== push);
+  };
+}
+
 /** Record that a `history.back()` is in flight to undo a pushed sentinel. */
 export function expectBalanceNavigation(): void {
   pendingBalanceNavigations += 1;
@@ -68,6 +86,11 @@ export function isBalanceNavigation(event: object): boolean {
   if (pendingBalanceNavigations === 0) return false;
   pendingBalanceNavigations -= 1;
   balanceEvents.add(event);
+  if (pendingBalanceNavigations === 0) {
+    const pushes = deferredPushes;
+    deferredPushes = [];
+    for (const push of pushes) push();
+  }
   return true;
 }
 

@@ -1,4 +1,5 @@
 import { ErrorNotice } from "@/components/feedback/ErrorNotice";
+import type { StatusReporter } from "@/stores/toastStore";
 import { useTranslation } from "react-i18next";
 import {
   useEffect,
@@ -34,7 +35,7 @@ interface AddTraceModalProps {
   importKind?: "measurement";
   onAddMeasurement?: (name: string, points: MeasurementPoint[]) => void;
   onAddTarget?: (name: string, points: MeasurementPoint[]) => void;
-  setStatus?: (value: string) => void;
+  setStatus?: StatusReporter;
 }
 
 export function AddTraceModal({
@@ -113,6 +114,7 @@ export function AddTraceModal({
               count: result.entries,
             })
           : t("addTraceModal.downloaded", { count: result.entries }),
+        result.sweepFailed ? "error" : undefined,
       );
     } catch (error) {
       if (!mountedRef.current) return;
@@ -121,7 +123,7 @@ export function AddTraceModal({
         error: error,
       });
       setModalError({ key: "addTraceModal.couldNotDownloadDatabase", error });
-      setStatus?.(message);
+      setStatus?.(message, "error");
     }
   };
 
@@ -145,7 +147,7 @@ export function AddTraceModal({
         console.error(error);
         const message = t("addTraceModal.couldNotClearCache", { error: error });
         setModalError({ key: "addTraceModal.couldNotClearCache", error });
-        setStatus?.(message);
+        setStatus?.(message, "error");
       }
     }
   };
@@ -194,7 +196,7 @@ export function AddTraceModal({
       if (request === loadRequestRef.current && mountedRef.current) {
         const message = t("addTraceModal.couldNotImportFile", { error: error });
         setModalError({ key: "addTraceModal.couldNotImportFile", error });
-        setStatus?.(message);
+        setStatus?.(message, "error");
       }
     }
   };
@@ -225,7 +227,7 @@ export function AddTraceModal({
           name: dev.brand,
           name2: dev.name,
         });
-        setStatus?.(message);
+        setStatus?.(message, "error");
       }
     }
   };

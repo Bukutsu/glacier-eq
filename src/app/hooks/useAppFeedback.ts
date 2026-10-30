@@ -35,20 +35,8 @@ export function useAppFeedback(quietReconnectRef: RefObject<boolean>) {
   // failure it was the only witness to left no reportable trail.
   useEffect(() => {
     useToastStore.getState().setDiagnosticSink((message, type) => {
-      const lowerMessage = message.toLowerCase();
-      const isError =
-        type === "error" ||
-        lowerMessage.includes("failed") ||
-        lowerMessage.includes("could not") ||
-        lowerMessage.includes("cannot") ||
-        lowerMessage.includes("error") ||
-        lowerMessage.includes("unable") ||
-        lowerMessage.includes("invalid") ||
-        lowerMessage.includes("permission") ||
-        lowerMessage.includes("not allowed") ||
-        lowerMessage.includes("please enter");
       invoke("add_diagnostic_event", {
-        level: isError ? "Error" : "Info",
+        level: type === "error" ? "Error" : "Info",
         source: "UI",
         message: `Status: ${message}`,
       }).catch((err) =>

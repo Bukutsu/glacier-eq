@@ -96,7 +96,8 @@
     "bandHelp": "Banda {{number}}: {{value}}. Arraste ou use as teclas de seta para ajustar frequência e ganho. Segure Shift e arraste para cima ou para baixo para ajustar Q. Use a roda do mouse para ganho ou Shift com a roda do mouse para Q.",
     "bandTooltip": "Banda {{number}}: {{value}} · Arrastar: frequência/ganho · Shift+arrastar para cima/baixo: Q · Roda: ganho · Shift+roda: Q",
     "raw": "{{name}} (sem processamento)",
-    "eqApplied": "{{name}} (EQ aplicado)"
+    "eqApplied": "{{name}} (EQ aplicado)",
+    "invalidShelfSlope": "O Q de um filtro shelf está alto demais para o ganho, então a curva não pode ser desenhada. Diminua o Q ou o ganho."
   },
   "diagnostics": {
     "copying": "Copiando…",

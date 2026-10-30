@@ -5,6 +5,7 @@ import {
   useEffect,
   useMemo,
   useRef,
+  useState,
   Fragment,
   type CSSProperties,
   type KeyboardEvent,
@@ -21,6 +22,8 @@ import {
   xToFreq,
   yToDb,
 } from "@/features/eq/lib/graph";
+import { InvalidShelfSlopeError } from "@/features/eq/lib/graphMath";
+import { ErrorNotice } from "@/components/feedback/ErrorNotice";
 import { cssVar, rgbWithAlpha } from "@/features/settings/lib/theme";
 import {
   plotTraceColor,
@@ -145,6 +148,7 @@ export const EqGraph = memo(function EqGraph({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const shellRef = useRef<HTMLDivElement>(null);
   const drawSerialRef = useRef(0);
+  const [invalidShelf, setInvalidShelf] = useState(false);
   const pointerGestureRef = useRef<{
     x: number;
     y: number;
@@ -212,24 +216,36 @@ export const EqGraph = memo(function EqGraph({
       drawBackground(ctx, width, height);
       drawGrid(ctx, width, height);
       const drawSerial = ++drawSerialRef.current;
-      const dots = await drawCurves(
-        ctx,
-        width,
-        height,
-        peqOverride ?? peq,
-        committedPeq,
-        selectedMeasurement,
-        visibleMeasurements,
-        targets,
-        viewMode,
-        editable,
-        capabilities?.dsp_sample_rate ?? 96000,
-        capabilities?.response_model ?? "CanonicalQ",
-        bandCurves,
-        activeBandIndex ?? null,
-        () => drawSerial === drawSerialRef.current,
-      );
+      let dots: FilterDot[];
+      try {
+        dots = await drawCurves(
+          ctx,
+          width,
+          height,
+          peqOverride ?? peq,
+          committedPeq,
+          selectedMeasurement,
+          visibleMeasurements,
+          targets,
+          viewMode,
+          editable,
+          capabilities?.dsp_sample_rate ?? 96000,
+          capabilities?.response_model ?? "CanonicalQ",
+          bandCurves,
+          activeBandIndex ?? null,
+          () => drawSerial === drawSerialRef.current,
+        );
+      } catch (error) {
+        if (!(error instanceof InvalidShelfSlopeError)) throw error;
+        // The EQ has no real response to draw. Say so, and drop the old band
+        // positions so a tap cannot hit a dot that is no longer painted.
+        if (drawSerial !== drawSerialRef.current) return;
+        dotsRef.current = [];
+        setInvalidShelf(true);
+        return;
+      }
       if (drawSerial !== drawSerialRef.current) return;
+      setInvalidShelf(false);
       // Labels go over the curves so a curve never runs through them, and
       // band dots go over the labels so a label never hides a band.
       drawDbLabels(ctx, height);
@@ -621,6 +637,11 @@ export const EqGraph = memo(function EqGraph({
         >
           <p>{t("graph.description")}</p>
         </canvas>
+        {invalidShelf && (
+          <div className="absolute left-2 right-2 top-2">
+            <ErrorNotice>{t("graph.invalidShelfSlope")}</ErrorNotice>
+          </div>
+        )}
         {editable &&
           capabilities &&
           peq.filters.slice(0, capabilities.num_bands).map((filter) => {

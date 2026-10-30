@@ -65,6 +65,11 @@ function makeUniqueName(
   return `${normalized} ${copyIndex}`;
 }
 
+// Matches MAX_CURVE_POINTS in glacier-core/src/autoeq.rs. Every point needs a
+// line, so the line cap leaves room for comments and headers on top of it.
+const MAX_CURVE_POINTS = 100_000;
+const MAX_MEASUREMENT_LINES = 2 * MAX_CURVE_POINTS;
+
 const DELIM_TABLE = new Uint8Array(128);
 for (const code of [44, 59, 9, 32]) DELIM_TABLE[code] = 1;
 
@@ -118,7 +123,8 @@ export function parseMeasurementText(input: string): MeasurementPoint[] {
 
   const consumeLine = (lineEnd: number): void => {
     lineCount++;
-    if (lineCount > 4096 || points.length > 100_000) return;
+    if (lineCount > MAX_MEASUREMENT_LINES || points.length > MAX_CURVE_POINTS)
+      return;
     let start = lineStart;
     const end = lineEnd;
     // No trailing trim: tokens stop at delimiters regardless, and Number()
@@ -166,11 +172,11 @@ export function parseMeasurementText(input: string): MeasurementPoint[] {
     lineCount++;
   }
 
-  if (lineCount > 4096) {
+  if (lineCount > MAX_MEASUREMENT_LINES) {
     throw new Error(i18n.t("library:measurements.tooManyValues"));
   }
 
-  if (points.length > 100_000) {
+  if (points.length > MAX_CURVE_POINTS) {
     throw new Error(i18n.t("library:measurements.tooManyPoints"));
   }
   if (points.length < 2) {

@@ -19,7 +19,10 @@ export async function copyEq(
     await writeText(await autoEqText(peq));
     setStatus(i18n.t("editor:export.copied"));
   } catch (err) {
-    setStatus(i18n.t("editor:export.copyFailed", { error: String(err) }));
+    setStatus(
+      i18n.t("editor:export.copyFailed", { error: String(err) }),
+      "error",
+    );
   }
 }
 
@@ -52,6 +55,6 @@ export async function exportEqFile(
     }
     setStatus(i18n.t("editor:export.success"));
   } catch (err) {
-    setStatus(i18n.t("editor:export.failed", { error: String(err) }));
+    setStatus(i18n.t("editor:export.failed", { error: String(err) }), "error");
   }
 }

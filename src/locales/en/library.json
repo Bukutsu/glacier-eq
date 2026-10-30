@@ -185,9 +185,6 @@
     "discardAndLoad": "Discard and load",
     "discardMessage": "Loading this profile will discard your unsaved changes."
   },
-  "profileImport": {
-    "invalidAutoEQImportResponse": "Invalid AutoEQ import response"
-  },
   "profileOverwrite": {
     "overwriteMessage": "A profile named \"{{name}}\" already exists. Overwrite it?",
     "bandLossMessage_one": "The saved profile \"{{name}}\" has {{originalCount}} bands, but the editor has {{replacementCount}}. Overwriting will permanently remove {{count}} band. Save as a copy to retain the original profile, or confirm the overwrite.",

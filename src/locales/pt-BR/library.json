@@ -191,9 +191,6 @@
     "discardAndLoad": "Descartar e carregar",
     "discardMessage": "Carregar este perfil descartará suas alterações não salvas."
   },
-  "profileImport": {
-    "invalidAutoEQImportResponse": "Resposta de importação AutoEQ inválida"
-  },
   "profileOverwrite": {
     "overwriteMessage": "Já existe um perfil chamado \"{{name}}\". Sobrescrevê-lo?",
     "bandLossMessage_one": "O perfil salvo \"{{name}}\" tem {{originalCount}} bandas, mas o editor tem {{replacementCount}}. Sobrescrever removerá {{count}} banda permanentemente. Salve como cópia para manter o perfil original ou confirme a sobrescrita.",

@@ -3,6 +3,7 @@
 
 import type { ReactElement } from "react";
 import { Tooltip as TooltipPrimitive } from "@base-ui/react/tooltip";
+import { useDialogPortal } from "./dialogPortal";
 
 /** Shadcn-style tooltip: wraps one focusable control and names it on hover
  *  and keyboard focus. The control still needs its own aria-label. */
@@ -15,10 +16,11 @@ export function Tooltip({
   side?: "top" | "bottom" | "left" | "right";
   children: ReactElement;
 }) {
+  const { container, anchor } = useDialogPortal();
   return (
     <TooltipPrimitive.Root>
-      <TooltipPrimitive.Trigger delay={400} render={children} />
-      <TooltipPrimitive.Portal>
+      <TooltipPrimitive.Trigger ref={anchor} delay={400} render={children} />
+      <TooltipPrimitive.Portal container={container}>
         <TooltipPrimitive.Positioner
           side={side}
           sideOffset={6}

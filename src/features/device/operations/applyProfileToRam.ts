@@ -126,15 +126,6 @@ export function createApplyProfileToRam(context: ApplyProfileToRamContext) {
       integerPreamp: capabilities.integer_preamp,
       capabilities,
     });
-    pushToUndoStack(peqRef.current);
-    setPeq(data);
-    noteEditorMutation();
-    setSelectedPreset(profile.name);
-    setProfileSearch("");
-    setNewProfileName("");
-    editorCleanPeqRef.current = data;
-    setDirty(false);
-
     setProgress(null);
     setIsBusy(true);
     const operationId = ++eqOperationIdRef.current;
@@ -175,6 +166,16 @@ export function createApplyProfileToRam(context: ApplyProfileToRamContext) {
         setLastPushedPeq(applied);
       }
       if (!isCurrentOperation()) return;
+      // Commit to the editor only once the DAC holds the profile, so a failed
+      // write leaves the editor (and its unsaved edits) untouched.
+      pushToUndoStack(peqRef.current);
+      setPeq(data);
+      noteEditorMutation();
+      setSelectedPreset(profile.name);
+      setProfileSearch("");
+      setNewProfileName("");
+      editorCleanPeqRef.current = data;
+      setDirty(false);
       if (isDevDummyDevice(selectedDevice)) {
         setLastPushedPeq(writeDevDummyPeq(selectedDevice, data, false));
       }

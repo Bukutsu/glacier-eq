@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import type { StatusReporter } from "@/stores/toastStore";
 import { SelectRow } from "@/components/ui/SettingsPrimitives";
 import { getLanguagePreference, setLanguagePreference } from "@/lib/i18n";
 import { languageOptions, SYSTEM_LANGUAGE } from "@/lib/locale";
@@ -6,7 +7,7 @@ import { languageOptions, SYSTEM_LANGUAGE } from "@/lib/locale";
 export function LanguageSetting({
   setStatus,
 }: {
-  setStatus?: (message: string) => void;
+  setStatus?: StatusReporter;
 }) {
   const { t } = useTranslation("settings");
   return (
@@ -21,7 +22,7 @@ export function LanguageSetting({
       ]}
       onChange={async (value) => {
         if (!(await setLanguagePreference(value)))
-          setStatus?.(t("language.saveFailed"));
+          setStatus?.(t("language.saveFailed"), "error");
       }}
     />
   );

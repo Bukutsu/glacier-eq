@@ -96,7 +96,8 @@
     "bandHelp": "Bande {{number}} : {{value}}. Faites glisser ou utilisez les touches fléchées pour régler la fréquence et le gain. Maintenez Shift et faites glisser vers le haut ou le bas pour régler Q. Utilisez la molette pour le gain ou Shift et la molette pour Q.",
     "bandTooltip": "Bande {{number}} : {{value}} · Glisser : fréquence/gain · Shift+glisser haut/bas : Q · Molette : gain · Shift+molette : Q",
     "raw": "{{name}} (brut)",
-    "eqApplied": "{{name}} (égalisation appliquée)"
+    "eqApplied": "{{name}} (égalisation appliquée)",
+    "invalidShelfSlope": "Le Q d'un filtre en plateau est trop élevé pour son gain : la courbe ne peut pas être tracée. Réduisez le Q ou le gain."
   },
   "diagnostics": {
     "copying": "Copie…",

@@ -208,7 +208,7 @@ export const ProfilesView = memo(function ProfilesView({
     if (!file) return;
     const request = ++parseRequestRef.current;
 
-    if (!file.name.endsWith(".txt")) {
+    if (!file.name.toLowerCase().endsWith(".txt")) {
       setStatus(t("profilesView.unsupportedFileType"), "info");
       return;
     }
@@ -218,7 +218,7 @@ export const ProfilesView = memo(function ProfilesView({
       await parseAndLoadText(text, file.name.replace(/\.[^/.]+$/, ""), request);
     } catch (error) {
       if (request === parseRequestRef.current) {
-        setStatus(t("profilesView.failedToImport", { error: error }));
+        setStatus(t("profilesView.failedToImport", { error: error }), "error");
       }
     }
   };
@@ -244,7 +244,7 @@ export const ProfilesView = memo(function ProfilesView({
       setStatus(t("profilesView.parsedAutoEQProfile"));
     } catch (error) {
       if (request === parseRequestRef.current) {
-        setStatus(t("profilesView.failedToImport", { error: error }));
+        setStatus(t("profilesView.failedToImport", { error: error }), "error");
       }
     }
   };
@@ -266,7 +266,10 @@ export const ProfilesView = memo(function ProfilesView({
         if (!isTauri()) {
           setManualPaste("");
         } else {
-          setStatus(t("profilesView.couldNotReadClipboard", { error: err }));
+          setStatus(
+            t("profilesView.couldNotReadClipboard", { error: err }),
+            "error",
+          );
           console.error(err);
         }
       }
@@ -389,6 +392,7 @@ export const ProfilesView = memo(function ProfilesView({
                 error: err,
               })
             : t("profilesView.failedToSaveProfile", { error: err }),
+          "error",
         );
       }
     } finally {
@@ -415,7 +419,10 @@ export const ProfilesView = memo(function ProfilesView({
     : [];
   const handleReloadProfiles = () => {
     void Promise.resolve(onReloadProfiles()).catch((error) => {
-      setStatus(t("profilesView.failedToRefreshProfiles", { error: error }));
+      setStatus(
+        t("profilesView.failedToRefreshProfiles", { error: error }),
+        "error",
+      );
     });
   };
 

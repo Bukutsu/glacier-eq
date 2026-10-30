@@ -69,6 +69,12 @@ export function NumberInput({
       // Blur owns the commit, including validation and the editing boundary.
       e.preventDefault();
       e.currentTarget.blur();
+    } else if (e.key === "Escape" && draft !== null) {
+      // Revert the uncommitted draft. Only a pending draft claims Escape, so
+      // an untouched field still lets Escape close its dialog.
+      e.preventDefault();
+      e.stopPropagation();
+      setDraft(null);
     } else if (["ArrowUp", "ArrowDown", "PageUp", "PageDown"].includes(e.key)) {
       e.preventDefault();
       stepValue(

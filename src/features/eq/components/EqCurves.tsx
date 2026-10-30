@@ -151,7 +151,7 @@ export function EqCurves(props: EqCurvesProps) {
           <Icon name="tune" />
           {t("curves.title")}
           <span
-            className="leg:inline-flex leg:items-center leg:justify-center leg:min-w-[20px] leg:h-[20px] leg:p-[0_5px] leg:rounded-[5px] leg:[background:var(--secondary)] leg:text-[color:var(--muted-foreground)] leg:text-[length:11px] leg:[font-variant-numeric:tabular-nums]"
+            className="leg:inline-flex leg:items-center leg:justify-center leg:min-w-[20px] leg:h-[20px] leg:p-[0_5px] leg:rounded-[5px] leg:[background:var(--surface-soft)] leg:text-[color:var(--muted-foreground)] leg:text-[length:11px] leg:[font-variant-numeric:tabular-nums]"
             aria-label={t("curves.shown", { count: visibleCount })}
           >
             {visibleCount}

@@ -5,15 +5,12 @@ import { HashRouter, Route, Routes } from "react-router";
 import { SupportedDevicesPage } from "@/features/device/components/SupportedDevicesPage";
 import App from "@/app/App";
 import { ErrorBoundary } from "@/components/feedback/ErrorBoundary";
-import { isLinux, isTauri } from "@/lib/platform";
+import { isAndroidDevice, isLinux, isTauri } from "@/lib/platform";
 import { enableTouchDrag, labelDecorumControls, wireTitlebarControls } from "@/lib/titlebar";
 import { runWhenDocumentLoaded } from "@/lib/runWhenDocumentLoaded";
 import "@/styles/index.css";
 
-// Detect Android platform
-const isAndroid = /android/i.test(navigator.userAgent);
-
-if (isAndroid) {
+if (isAndroidDevice()) {
   document.body.classList.add("is-android");
 } else if (isTauri()) {
   document.documentElement.classList.add("native-titlebar");
@@ -30,8 +27,9 @@ if (isAndroid) {
 
 // index.html and boot-theme.js paint the default or cached theme before React.
 
-// Disable default browser context menus and shortcuts in production for a native feel
-if (import.meta.env.PROD) {
+// Disable default browser context menus and shortcuts in the packaged app for
+// a native feel. The hosted web build keeps reload, print and the context menu.
+if (import.meta.env.PROD && isTauri()) {
   document.addEventListener("contextmenu", (e) => {
     if (window.location.hash.startsWith("#/supported-devices")) return;
     // Preserve Android's select/copy/paste menu inside editable fields.
@@ -55,7 +53,9 @@ if (import.meta.env.PROD) {
       e.preventDefault();
     }
   });
+}
 
+if (import.meta.env.PROD) {
   // Tauri serves the app from tauri.localhost, where service workers are
   // unsupported. Register only for the hosted web/PWA build.
   if ("serviceWorker" in navigator && !isTauri()) {

@@ -179,9 +179,6 @@
     "discardAndLoad": "ทิ้งแล้วโหลด",
     "discardMessage": "การโหลดโปรไฟล์นี้จะทิ้งการเปลี่ยนแปลงที่ยังไม่บันทึก"
   },
-  "profileImport": {
-    "invalidAutoEQImportResponse": "การตอบกลับการนำเข้า AutoEQ ไม่ถูกต้อง"
-  },
   "profileOverwrite": {
     "overwriteMessage": "มีโปรไฟล์ชื่อ \"{{name}}\" อยู่แล้ว เขียนทับหรือไม่?",
     "bandLossMessage_other": "โปรไฟล์ \"{{name}}\" ที่บันทึกไว้มี {{originalCount}} แบนด์ แต่ตัวแก้ไขมี {{replacementCount}} แบนด์ การเขียนทับจะลบ {{count}} แบนด์อย่างถาวร บันทึกเป็นสำเนาเพื่อเก็บโปรไฟล์เดิมไว้ หรือยืนยันการเขียนทับ"

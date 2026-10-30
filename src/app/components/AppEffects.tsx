@@ -4,12 +4,6 @@ import { createExternalLinkClickHandler } from "@/lib/externalLinks";
 import { useAppUpdate } from "@/features/settings/hooks/useAppUpdate";
 import { useAndroidKeyboardViewport } from "@/hooks/useAndroidKeyboardViewport";
 
-declare global {
-  interface Window {
-    AndroidNotifier?: { showToast: (message: string) => void };
-  }
-}
-
 export function AppEffects() {
   useAndroidKeyboardViewport();
 

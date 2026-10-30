@@ -1,9 +1,9 @@
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
-import { useCallback, useRef } from "react";
 import { Combobox } from "@base-ui/react/combobox";
 import { Icon } from "./Icon";
+import { useDialogPortal } from "./dialogPortal";
 import type { SelectOption } from "./Select";
 
 export interface SearchSelectProps {
@@ -29,13 +29,8 @@ export function SearchSelect({
   searchPlaceholder,
   emptyText,
 }: SearchSelectProps) {
-  const portalContainer = useRef<HTMLElement | null>(null);
-  // Native dialogs live in the top layer, above document.body portals.
-  const triggerRef = useCallback((trigger: HTMLButtonElement | null) => {
-    portalContainer.current = trigger
-      ? (trigger.closest("dialog") ?? trigger.ownerDocument.body)
-      : null;
-  }, []);
+  const { container: portalContainer, anchor: triggerRef } =
+    useDialogPortal();
   const selected =
     options.find((option) => option.value === value) ??
     options.find((option) => !option.disabled) ??
@@ -52,7 +47,9 @@ export function SearchSelect({
       }
       isItemEqualToValue={(a, b) => a.value === b.value}
       onValueChange={(option) => {
-        if (option && !option.disabled && option.value !== selected?.value)
+        // Compare with the caller's value, not the displayed fallback: picking
+        // the fallback option must still report it.
+        if (option && !option.disabled && option.value !== value)
           onChange(option.value);
       }}
     >

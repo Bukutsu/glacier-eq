@@ -44,15 +44,17 @@ export { DEFAULT_PROFILE_NAME } from "@/features/profiles/lib/profileIdentity";
 // or device-reported filter lists are clamped, never trusted to any length.
 const MAX_FILTERS = 32;
 
-export function buildDefaultState(): PEQData {
+export function buildDefaultState(
+  numBands: number = DEFAULT_FREQS_10_BAND.length,
+): PEQData {
   return {
     global_gain: 0,
-    filters: DEFAULT_FREQS_10_BAND.map((freq, index) => ({
+    filters: Array.from({ length: numBands }, (_, index) => ({
       index,
       // A flat EQ has no bands; the editor offers "Add band" instead.
       enabled: false,
       filter_type: "Peak",
-      freq,
+      freq: defaultBandFreq(index, numBands),
       gain: 0,
       q: 1,
     })),

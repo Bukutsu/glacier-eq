@@ -232,6 +232,7 @@ export function Ja11Controls({
             key: controlLabel(key),
             message: message,
           }),
+          "error",
         );
       } else {
         setFields((old) => ({
@@ -264,6 +265,7 @@ export function Ja11Controls({
             key: controlLabel(key),
             error: error,
           }),
+          "error",
         );
       }
     } finally {

@@ -49,6 +49,9 @@ interface AppUpdateStore {
 // The plugin's Update is a native resource handle, not serializable state.
 let pending: Update | null = null;
 let detecting: Promise<void> | null = null;
+// Set only by a successful support check. A failed check leaves it false, so
+// an "error" phase from detection can never open the network path below.
+let supported = false;
 
 const errorMessage = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
@@ -70,6 +73,7 @@ export const useAppUpdate = create<AppUpdateStore>()((set, get) => {
         }
         try {
           const support = await invoke<UpdateSupport>("get_update_support");
+          supported = support.supported;
           set({
             state: support.supported
               ? { phase: "idle" }
@@ -103,6 +107,7 @@ export const useAppUpdate = create<AppUpdateStore>()((set, get) => {
 
     check: async () => {
       await get().detect();
+      if (!supported) return;
       const { phase } = get().state;
       // Idle, settled, or failed states may re-check; work in flight and a
       // downloaded update may not be disturbed.

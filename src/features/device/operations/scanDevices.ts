@@ -91,7 +91,10 @@ export function createScanDevices(context: ScanDevicesContext) {
         });
         return [devPreviewDeviceRef.current];
       }
-      setStatus(i18n.t("device:scanDevices.scanFailed", { error: error }));
+      setStatus(
+        i18n.t("device:scanDevices.scanFailed", { error: error }),
+        "error",
+      );
       return [];
     } finally {
       if (blockEditor) setIsBusy(false);

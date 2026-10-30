@@ -1,10 +1,11 @@
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
-import { useRef, type ReactNode } from "react";
+import { useCallback, useRef, type ReactNode } from "react";
 import { Menu } from "@base-ui/react/menu";
 import { Button } from "./Button";
 import { Icon } from "./Icon";
+import { useDialogPortal } from "./dialogPortal";
 
 export function OverflowMenu({
   label,
@@ -15,18 +16,26 @@ export function OverflowMenu({
   className?: string;
   children: ReactNode;
 }) {
-  const triggerRef = useRef<HTMLButtonElement>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const { container, anchor } = useDialogPortal();
+  const setTrigger = useCallback(
+    (trigger: HTMLButtonElement | null) => {
+      triggerRef.current = trigger;
+      anchor(trigger);
+    },
+    [anchor],
+  );
   return (
     <Menu.Root>
       <Menu.Trigger
-        ref={triggerRef}
+        ref={setTrigger}
         aria-label={label}
         title={label}
         render={<Button variant="ghost" size="icon" />}
       >
         <Icon name="more_vert" />
       </Menu.Trigger>
-      <Menu.Portal>
+      <Menu.Portal container={container}>
         <Menu.Positioner
           align="end"
           sideOffset={6}

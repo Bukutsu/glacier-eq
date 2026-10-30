@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 import { ErrorNotice } from "@/components/feedback/ErrorNotice";
+import type { StatusReporter } from "@/stores/toastStore";
 import { memo, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { LanguageSetting } from "./LanguageSetting";
@@ -57,7 +58,7 @@ export interface SettingsViewProps {
   onOpenDiagnostics?: () => void;
   showGraph?: boolean;
   onShowGraphChange?: (show: boolean) => void;
-  setStatus?: (value: string) => void;
+  setStatus?: StatusReporter;
   onUdevInstalled?: () => Promise<string | null>;
   /** The connected DAC can take temporary EQ writes (live apply). */
   liveApplySupported?: boolean;
@@ -67,7 +68,7 @@ function UdevSection({
   setStatus,
   onUdevInstalled,
 }: {
-  setStatus?: (value: string) => void;
+  setStatus?: StatusReporter;
   onUdevInstalled?: () => Promise<string | null>;
 }) {
   const { t } = useTranslation("settings");
@@ -172,7 +173,7 @@ function UdevSection({
     } catch (err) {
       const msg = t("permissions.installFailed", { error: String(err) });
       setNote(msg);
-      setStatus?.(msg);
+      setStatus?.(msg, "error");
     } finally {
       setBusy(null);
     }
@@ -207,7 +208,7 @@ function UdevSection({
     } catch (err) {
       const msg = t("permissions.removeFailed", { error: String(err) });
       setNote(msg);
-      setStatus?.(msg);
+      setStatus?.(msg, "error");
     } finally {
       setBusy(null);
     }

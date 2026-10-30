@@ -10,11 +10,7 @@ declare global {
 export const isTauri = () =>
   typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
-export const isAndroidDevice = () =>
-  typeof navigator !== "undefined" &&
-  (/android/i.test(navigator.userAgent) ||
-    (typeof document !== "undefined" &&
-      document.body.classList.contains("is-android")));
+export const isAndroidDevice = () => /android/i.test(navigator.userAgent);
 
 export const isLinux = () =>
   typeof navigator !== "undefined" &&

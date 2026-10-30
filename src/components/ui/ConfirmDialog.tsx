@@ -21,6 +21,11 @@ let pendingResolver: Resolver | null = null;
 const listeners = new Set<(options: ConfirmOptions | null) => void>();
 
 export function confirmDialog(options: ConfirmOptions): Promise<boolean> {
+  // Without a host nobody can answer, and the caller would wait forever.
+  if (listeners.size === 0)
+    return Promise.reject(
+      new Error("confirmDialog called with no ConfirmDialogHost mounted"),
+    );
   if (pendingResolver) {
     // A dialog is already open; resolve it as cancelled before replacing it.
     pendingResolver(false);

@@ -94,7 +94,8 @@
     "bandHelp": "Band {{number}}: {{value}}. Drag or use arrow keys to adjust frequency and gain. Hold Shift and drag up or down to adjust Q. Use the mouse wheel for gain or Shift plus mouse wheel for Q.",
     "bandTooltip": "Band {{number}}: {{value}} · Drag: frequency/gain · Shift+drag up/down: Q · Wheel: gain · Shift+wheel: Q",
     "raw": "{{name}} (raw)",
-    "eqApplied": "{{name}} (EQ applied)"
+    "eqApplied": "{{name}} (EQ applied)",
+    "invalidShelfSlope": "A shelf's Q is too high for its gain, so the curve can't be drawn. Lower the Q or the gain."
   },
   "diagnostics": {
     "copying": "Copying…",

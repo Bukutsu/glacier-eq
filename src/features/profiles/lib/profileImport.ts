@@ -1,25 +1,11 @@
-import { i18n } from "@/lib/i18n";
-import { parseStoredPeqResponse } from "@/features/eq/lib/peq";
+import { parseAutoEqResult } from "@/features/tuning/lib/parsedAutoEq";
 
+/** Validates a parse_autoeq response the same way on every platform. */
 export function parseProfileImport(value: unknown, fileName: string) {
-  if (
-    typeof value !== "object" ||
-    value === null ||
-    !("peq" in value) ||
-    !("warnings" in value) ||
-    !Array.isArray(value.warnings) ||
-    !value.warnings.every(
-      (warning): warning is string => typeof warning === "string",
-    ) ||
-    !("headphone_name" in value) ||
-    (value.headphone_name !== null && typeof value.headphone_name !== "string")
-  )
-    throw new Error(
-      i18n.t("library:profileImport.invalidAutoEQImportResponse"),
-    );
+  const result = parseAutoEqResult(value);
   return {
-    data: parseStoredPeqResponse(value.peq),
-    name: value.headphone_name?.trim() || fileName.replace(/\.[^/.]+$/, ""),
-    warnings: value.warnings,
+    data: result.peq,
+    name: result.headphone_name?.trim() || fileName.replace(/\.[^/.]+$/, ""),
+    warnings: result.warnings,
   };
 }

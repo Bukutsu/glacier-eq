@@ -179,9 +179,6 @@
     "discardAndLoad": "破棄して読み込む",
     "discardMessage": "このプロファイルを読み込むと、未保存の変更が破棄されます。"
   },
-  "profileImport": {
-    "invalidAutoEQImportResponse": "AutoEQインポートの応答が無効です"
-  },
   "profileOverwrite": {
     "overwriteMessage": "「{{name}}」という名前のプロファイルは既に存在します。上書きしますか？",
     "bandLossMessage_other": "保存済みプロファイル「{{name}}」は{{originalCount}}バンドですが、エディターは{{replacementCount}}バンドです。上書きすると{{count}}バンドが完全に削除されます。元のプロファイルを残す場合はコピーとして保存してください。削除してよければ上書きを確定してください。"

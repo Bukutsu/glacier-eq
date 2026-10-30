@@ -354,40 +354,42 @@ export const Header = memo(function Header({
         {/* Keep the write action visible; less frequent device actions live in the menu. */}
         {mobile && (
           <div className="mobile-toolbar leg:hidden leg:compact:flex leg:compact:items-center leg:compact:gap-[8px] leg:compact:w-[100%]">
-            <div
-              className="leg:inline-flex leg:gap-[var(--space-1)] leg:compact:flex-[none] mobile-history-buttons leg:compact:mr-[auto] leg:compact:[background:transparent] leg:compact:[outline:none] leg:compact:p-[0]"
-              role="group"
-              aria-label={t("header.eqActions")}
-            >
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="leg:[&:disabled]:[background:transparent]! leg:compact:[.mobile-history-buttons_&]:w-[44px] leg:compact:[.mobile-history-buttons_&]:min-w-[44px] leg:compact:[.mobile-history-buttons_&]:min-h-[44px] leg:compact:[.mobile-history-buttons_&]:p-[0] leg:compact:min-h-[40px]"
-                title={t("actions.undo")}
-                aria-label={t("actions.undo")}
-                disabled={isBusy || !canUndo}
-                onClick={onUndo}
+            {!isConfigPage && (
+              <div
+                className="leg:inline-flex leg:gap-[var(--space-1)] leg:compact:flex-[none] mobile-history-buttons leg:compact:mr-[auto] leg:compact:[background:transparent] leg:compact:[outline:none] leg:compact:p-[0]"
+                role="group"
+                aria-label={t("header.eqActions")}
               >
-                <Icon name="undo" />
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="leg:[&:disabled]:[background:transparent]! leg:compact:[.mobile-history-buttons_&]:w-[44px] leg:compact:[.mobile-history-buttons_&]:min-w-[44px] leg:compact:[.mobile-history-buttons_&]:min-h-[44px] leg:compact:[.mobile-history-buttons_&]:p-[0] leg:compact:min-h-[40px]"
-                title={t("actions.redo")}
-                aria-label={t("actions.redo")}
-                disabled={isBusy || !canRedo}
-                onClick={onRedo}
-              >
-                <Icon name="redo" />
-              </Button>
-              {exportButton}
-            </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="leg:[&:disabled]:[background:transparent]! leg:compact:[.mobile-history-buttons_&]:w-[44px] leg:compact:[.mobile-history-buttons_&]:min-w-[44px] leg:compact:[.mobile-history-buttons_&]:min-h-[44px] leg:compact:[.mobile-history-buttons_&]:p-[0] leg:compact:min-h-[40px]"
+                  title={t("actions.undo")}
+                  aria-label={t("actions.undo")}
+                  disabled={isBusy || !canUndo}
+                  onClick={onUndo}
+                >
+                  <Icon name="undo" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="leg:[&:disabled]:[background:transparent]! leg:compact:[.mobile-history-buttons_&]:w-[44px] leg:compact:[.mobile-history-buttons_&]:min-w-[44px] leg:compact:[.mobile-history-buttons_&]:min-h-[44px] leg:compact:[.mobile-history-buttons_&]:p-[0] leg:compact:min-h-[40px]"
+                  title={t("actions.redo")}
+                  aria-label={t("actions.redo")}
+                  disabled={isBusy || !canRedo}
+                  onClick={onRedo}
+                >
+                  <Icon name="redo" />
+                </Button>
+                {exportButton}
+              </div>
+            )}
             {connected ? (
               <>
-                {hardwareEq && !liveSaves && (
+                {hardwareEq && !liveSaves && !isConfigPage && (
                   <Button
                     type="button"
                     variant={writeVariant}

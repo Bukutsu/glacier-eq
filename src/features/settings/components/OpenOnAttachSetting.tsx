@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { StatusReporter } from "@/stores/toastStore";
 import { useTranslation } from "react-i18next";
 import { ToggleRow } from "@/components/ui/SettingsPrimitives";
 import { invoke } from "@/lib/rpc";
@@ -10,7 +11,7 @@ import { invoke } from "@/lib/rpc";
 export function OpenOnAttachSetting({
   setStatus,
 }: {
-  setStatus?: (message: string) => void;
+  setStatus?: StatusReporter;
 }) {
   const { t } = useTranslation("settings");
   const [enabled, setEnabled] = useState<boolean | null>(null);
@@ -25,6 +26,7 @@ export function OpenOnAttachSetting({
         if (active)
           setStatus?.(
             t("general.openOnAttachFailed", { error: String(error) }),
+            "error",
           );
       });
     return () => {
@@ -39,7 +41,10 @@ export function OpenOnAttachSetting({
       await invoke("set_open_on_attach", { enabled: next });
     } catch (error) {
       setEnabled(previous);
-      setStatus?.(t("general.openOnAttachFailed", { error: String(error) }));
+      setStatus?.(
+        t("general.openOnAttachFailed", { error: String(error) }),
+        "error",
+      );
     }
   };
 

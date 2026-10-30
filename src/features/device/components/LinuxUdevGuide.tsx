@@ -1,4 +1,5 @@
 import { ErrorNotice } from "@/components/feedback/ErrorNotice";
+import type { StatusReporter } from "@/stores/toastStore";
 import { Trans, useTranslation } from "react-i18next";
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
@@ -24,7 +25,7 @@ async function saveUdevRules(): Promise<void> {
 export function LinuxUdevGuide({
   setStatus,
 }: {
-  setStatus?: (message: string) => void;
+  setStatus?: StatusReporter;
 }) {
   const { t } = useTranslation("device");
   const [copied, setCopied] = useState(false);
@@ -37,7 +38,7 @@ export function LinuxUdevGuide({
       await saveUdevRules();
     } catch {
       setSaveError(true);
-      setStatus?.(t("linuxUdevGuide.saveFailed"));
+      setStatus?.(t("linuxUdevGuide.saveFailed"), "error");
     } finally {
       setSaving(false);
     }
@@ -49,7 +50,7 @@ export function LinuxUdevGuide({
       setStatus?.(t("linuxUdevGuide.copyComplete"));
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      setStatus?.(t("linuxUdevGuide.copyFailed"));
+      setStatus?.(t("linuxUdevGuide.copyFailed"), "error");
     }
   };
   return (

@@ -12,6 +12,9 @@ type MagnitudeCoefficients = [number, number, number, number, number, number];
 
 const IDENTITY_COEFFICIENTS: BiquadCoefficients = [1, 0, 0, 1, 0, 0];
 
+/** A Moondrop shelf whose slope S has no real response at its gain. */
+export class InvalidShelfSlopeError extends Error {}
+
 function computeBiquadCoefficients(
   filter: Filter,
   dspSampleRate: number,
@@ -26,7 +29,7 @@ function computeBiquadCoefficients(
       !Number.isFinite(filter.q) ||
       filter.q <= 0)
   ) {
-    throw new Error(
+    throw new InvalidShelfSlopeError(
       "Invalid Moondrop shelf slope: gain and S must be finite, and S must be positive",
     );
   }
@@ -52,7 +55,9 @@ function computeBiquadCoefficients(
   if (shelfSlope) {
     const radicand = (a + 1 / a) * (1 / filter.q - 1) + 2;
     if (!Number.isFinite(radicand) || radicand <= 0) {
-      throw new Error("Invalid Moondrop shelf slope: reduce S for this gain");
+      throw new InvalidShelfSlopeError(
+        "Invalid Moondrop shelf slope: reduce S for this gain",
+      );
     }
     alpha = (sin / 2) * Math.sqrt(radicand);
   }
