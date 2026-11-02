@@ -116,7 +116,7 @@
     "noMatch": "No matching logs.",
     "jumpLatest": "Jump to latest",
     "follow": "Follow log",
-    "copyDescription": "Copy system information, device details, and all logs",
+    "copyDescription": "Copy system information, device details, and the logs currently shown",
     "clear": "Clear logs",
     "levels": {
       "All": "All",

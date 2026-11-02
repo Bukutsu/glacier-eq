@@ -204,7 +204,7 @@ export function DiagnosticsPanel() {
     setCopyState("copying");
     try {
       const context = await invoke<DiagnosticContext>("get_diagnostic_context");
-      await writeText(formatDiagnosticReport(events, context));
+      await writeText(formatDiagnosticReport(filtered, context));
       if (!mountedRef.current) return;
       setCopyState("copied");
     } catch (err) {
