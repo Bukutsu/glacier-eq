@@ -730,6 +730,24 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
             thd: None,
         }),
     },
+    // A tester's log shows the Walkplay EQ read (report 0x4b, 8 filters)
+    // succeeds. EQ writes and persistence are not yet confirmed.
+    DeviceProfile {
+        name: "Tanchjim Ola II DSP",
+        protocol: &walkplay::PROTOCOL,
+        vendor_id: 0x3302,
+        product_id: Some(0xC20C),
+        status: "Untested",
+        family: "Walkplay Family",
+        caps: DeviceCapabilities {
+            num_bands: 8,
+            ..SAVITECH_10_BAND_CAPS
+        },
+        // The DAC never answers the Walkplay controls read (`4b 80 11`), so no
+        // controls are offered.
+        controls: None,
+        spec: None,
+    },
     DeviceProfile {
         name: "Moondrop Dawn Pro 2",
         protocol: &moondrop::PROTOCOL,
