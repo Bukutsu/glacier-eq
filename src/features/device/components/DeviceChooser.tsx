@@ -49,7 +49,6 @@ export function DeviceChooser({
         ? t("deviceChooser.untested")
         : status;
   const [supportedDacs, setSupportedDacs] = useState<SupportedDeviceInfo[]>([]);
-  const [supportedOpen, setSupportedOpen] = useState(false);
   // Highlighting a row must not retarget the live session: device writes,
   // limits and unplug detection all follow selectedDevice.
   const [choice, setChoice] = useState<string | null>(null);
@@ -216,54 +215,23 @@ export function DeviceChooser({
           </div>
         )}
 
-        <details
-          className="supported-list leg:[border-top:1px_solid_var(--line-soft)] leg:text-[color:var(--muted)] leg:text-[length:var(--type-small)] leg:mt-[var(--space-2)] cmp:[.modal-content_&]:[border-color:var(--border)] cmp:[.modal-content_&]:rounded-[var(--control-radius)]"
-          open={supportedOpen}
-          onToggle={(e) => setSupportedOpen(e.currentTarget.open)}
-        >
-          <summary>
-            <span>
-              {t("deviceChooser.supportedModels", {
-                modelCount: supportedDacs.length,
-              })}
-            </span>
-            <Icon size={18} name="expand_more" className="leg:flex-[0_0_auto] leg:text-[color:var(--muted)] leg:[transition:transform_var(--motion-duration)_var(--motion-ease)] leg:[details[open]>summary_&]:[transform:rotate(180deg)] leg:[.add-trace-cache_summary_&]:ml-[auto]" />
-          </summary>
-          <p>
-            <Link
-              to="/supported-devices"
-              target="_blank"
-              rel="noreferrer"
-              onClick={(event) => {
-                if (isTauri()) {
-                  event.preventDefault();
-                  void openExternalLink(
-                    "https://bukutsu.github.io/glacier-eq/#/supported-devices",
-                  );
-                }
-              }}
-            >
-              {t("catalog.browse")}
-            </Link>
-          </p>
-          <div className="leg:p-[var(--space-2)_0_var(--space-4)] leg:grid leg:gap-[var(--space-3)]">
-            {supportedDacs.map((dac) => (
-              <div
-                className="supported-model leg:flex leg:justify-between leg:flex-wrap leg:gap-[2px_var(--space-3)]"
-                key={`${dac.name}:${dac.vendor_id}:${dac.product_id ?? "*"}`}
-              >
-                <strong>{dac.name}</strong>
-                <span>
-                  {formatUsbId(dac.vendor_id)}
-                  {dac.product_id == null && dac.usb_product_names?.length
-                    ? ` · ${t("deviceChooser.usbNameMatch", { name: dac.usb_product_names[0] })}`
-                    : `:${dac.product_id == null ? "*" : formatUsbId(dac.product_id)}`}{" "}
-                  · {supportLabel(dac.status)}
-                </span>
-              </div>
-            ))}
-          </div>
-        </details>
+        <p className="leg:text-[length:var(--type-small)]">
+          <Link
+            to="/supported-devices"
+            target="_blank"
+            rel="noreferrer"
+            onClick={(event) => {
+              if (isTauri()) {
+                event.preventDefault();
+                void openExternalLink(
+                  "https://bukutsu.github.io/glacier-eq/#/supported-devices",
+                );
+              }
+            }}
+          >
+            {t("catalog.browse")}
+          </Link>
+        </p>
 
         <details className="device-troubleshooting leg:[border-top:1px_solid_var(--line-soft)] leg:text-[color:var(--muted)] leg:text-[length:var(--type-small)] cmp:[.modal-content_&]:[border-color:var(--border)] cmp:[.modal-content_&]:rounded-[var(--control-radius)]">
           <summary>
