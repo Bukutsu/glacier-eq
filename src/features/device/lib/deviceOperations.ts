@@ -124,3 +124,21 @@ export function markDeviceLost(
     statusText: i18n.t("device:deviceOperations.reconnecting"),
   });
 }
+
+/** Shared catch-path report: device loss when "lost", otherwise a plain error toast. */
+export function reportOperationFailure(
+  lost: boolean,
+  actions: DeviceLossActions,
+  reportStatus: ReportStatus,
+  lostMessage: string,
+  failedMessage: string,
+): void {
+  if (lost) markDeviceLost(actions, lostMessage, "HID");
+  else
+    reportStatus({
+      level: "Error",
+      message: failedMessage,
+      toastType: "error",
+      source: "UI",
+    });
+}

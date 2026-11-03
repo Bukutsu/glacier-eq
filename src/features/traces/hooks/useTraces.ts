@@ -18,9 +18,7 @@ type NotifyFn = (message: string, type?: "info" | "error" | "success") => void;
  * full" as Info. The helpers were correct; the wiring between them and the
  * notifier was not, and no test drove that wiring.
  */
-function forwardNotifyFrom(ref: {
-  current: NotifyFn | undefined;
-}): NotifyFn {
+function forwardNotifyFrom(ref: { current: NotifyFn | undefined }): NotifyFn {
   return (message, type) => ref.current?.(message, type);
 }
 
@@ -100,24 +98,27 @@ function loadPersistedJson(
   }
 }
 
-function parseStoredMeasurements(
+const BUILTIN_TARGET_IDS: ReadonlySet<string> = new Set(
+  BUILTIN_TARGETS.map((t) => t.id),
+);
+
+function parseStoredTraces<T extends { id: string; points: unknown[] }>(
   value: unknown,
-): ParsedPersistedValue<MeasurementTrace[]> {
+  parseOne: (value: unknown) => T[],
+  reservedIds: ReadonlySet<string> = new Set(),
+): ParsedPersistedValue<T[]> {
   if (!Array.isArray(value)) return { value: [], malformed: true };
 
-  const measurements: MeasurementTrace[] = [];
-  const seenIds = new Set<string>();
+  const traces: T[] = [];
+  // IDs key every remove/toggle action; a duplicate (or one shadowing a
+  // reserved built-in) would make one click affect two traces, so treat
+  // collisions like any other schema damage.
+  const seenIds = new Set(reservedIds);
   let malformed = false;
   for (const candidate of value) {
     try {
-      const parsed = parsePersistedMeasurements([candidate]);
-      if (parsed.length !== 1) {
-        malformed = true;
-        continue;
-      }
-      // IDs key every remove/toggle action; a duplicate would make one click
-      // affect two traces, so treat collisions like any other schema damage.
-      if (seenIds.has(parsed[0].id)) {
+      const parsed = parseOne([candidate]);
+      if (parsed.length !== 1 || seenIds.has(parsed[0].id)) {
         malformed = true;
         continue;
       }
@@ -131,54 +132,12 @@ function parseStoredMeasurements(
       if (!Array.isArray(points) || parsed[0].points.length !== points.length) {
         malformed = true;
       }
-      measurements.push(parsed[0]);
+      traces.push(parsed[0]);
     } catch {
       malformed = true;
     }
   }
-  return { value: measurements, malformed };
-}
-
-function parseStoredTargets(
-  value: unknown,
-): ParsedPersistedValue<TargetTrace[]> {
-  if (!Array.isArray(value)) return { value: [], malformed: true };
-
-  const targets: TargetTrace[] = [];
-  const seenIds = new Set<string>();
-  let malformed = false;
-  for (const candidate of value) {
-    try {
-      const parsed = parsePersistedTargets([candidate]);
-      if (parsed.length !== 1) {
-        malformed = true;
-        continue;
-      }
-      // One ID must map to one action, and a saved ID must never shadow a
-      // built-in target; both collisions mark the storage malformed.
-      if (
-        seenIds.has(parsed[0].id) ||
-        BUILTIN_TARGETS.some((t) => t.id === parsed[0].id)
-      ) {
-        malformed = true;
-        continue;
-      }
-      seenIds.add(parsed[0].id);
-      const points =
-        typeof candidate === "object" &&
-        candidate !== null &&
-        "points" in candidate
-          ? candidate.points
-          : null;
-      if (!Array.isArray(points) || parsed[0].points.length !== points.length) {
-        malformed = true;
-      }
-      targets.push(parsed[0]);
-    } catch {
-      malformed = true;
-    }
-  }
-  return { value: targets, malformed };
+  return { value: traces, malformed };
 }
 
 function parseStoredActiveTargetIds(
@@ -207,11 +166,7 @@ function quarantineIfMalformed(
   }
 }
 
-function savePersistedJson(
-  key: string,
-  value: unknown,
-  notify?: NotifyFn,
-) {
+function savePersistedJson(key: string, value: unknown, notify?: NotifyFn) {
   if (unprotectedKeys.has(key)) {
     console.warn(`Not saving "${key}": its malformed original has no backup.`);
     notify?.(
@@ -353,7 +308,7 @@ export function useTraces(notify?: NotifyFn) {
     const parsed =
       saved.raw === null
         ? { value: [], malformed: false }
-        : parseStoredMeasurements(saved.value);
+        : parseStoredTraces(saved.value, parsePersistedMeasurements);
     quarantineIfMalformed(key, saved, parsed.malformed, forwardNotify);
     setMeasurements(parsed.value);
     setMeasurementsHydrated(true);
@@ -373,7 +328,11 @@ export function useTraces(notify?: NotifyFn) {
     const parsedTargets =
       savedTargets.raw === null
         ? { value: [], malformed: false }
-        : parseStoredTargets(savedTargets.value);
+        : parseStoredTraces(
+            savedTargets.value,
+            parsePersistedTargets,
+            BUILTIN_TARGET_IDS,
+          );
     quarantineIfMalformed(
       targetsKey,
       savedTargets,

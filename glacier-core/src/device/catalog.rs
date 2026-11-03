@@ -63,6 +63,16 @@ const MOONDROP_8_BAND_CAPS: DeviceCapabilities = DeviceCapabilities {
     integer_preamp: false,
 };
 
+const JA11_SPEC: DacSpec = DacSpec {
+    name: "FiiO JA11",
+    chip: "KT02H20 DSP",
+    outputs: "3.5mm SE",
+    max_power: Some("30mW @ 32Ω"),
+    decoding: Some("384k / DSD128"),
+    snr: Some("115 dB"),
+    thd: None,
+};
+
 const FIIO_5_BAND_CAPS: DeviceCapabilities = DeviceCapabilities {
     num_bands: 5,
     global_gain_range: (-12, 12),
@@ -758,15 +768,7 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
         family: "FiiO",
         caps: FIIO_5_BAND_CAPS,
         controls: Some(Controls::Ja11),
-        spec: Some(DacSpec {
-            name: "FiiO JA11",
-            chip: "KT02H20 DSP",
-            outputs: "3.5mm SE",
-            max_power: Some("30mW @ 32Ω"),
-            decoding: Some("384k / DSD128"),
-            snr: Some("115 dB"),
-            thd: None,
-        }),
+        spec: Some(JA11_SPEC),
     },
     // UAC 1.0 mode, same HID protocol (Cyfine/ja11-web-control).
     DeviceProfile {
@@ -778,15 +780,7 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
         family: "FiiO",
         caps: FIIO_5_BAND_CAPS,
         controls: Some(Controls::Ja11),
-        spec: Some(DacSpec {
-            name: "FiiO JA11",
-            chip: "KT02H20 DSP",
-            outputs: "3.5mm SE",
-            max_power: Some("30mW @ 32Ω"),
-            decoding: Some("384k / DSD128"),
-            snr: Some("115 dB"),
-            thd: None,
-        }),
+        spec: Some(JA11_SPEC),
     },
     DeviceProfile {
         name: "FiiO KA15",

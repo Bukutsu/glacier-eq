@@ -506,6 +506,19 @@ async fn with_session<T: Send + 'static>(
     with_session_for(app, state, expected, operation).await
 }
 
+async fn with_session_at<T: Send + 'static>(
+    app: &tauri::AppHandle,
+    state: &tauri::State<'_, Mutex<DeviceState>>,
+    path: &str,
+    operation: impl FnOnce(&mut DeviceSession<'_>) -> Result<T, String> + Send + 'static,
+) -> Result<T, String> {
+    let expected = session_identity(state)?;
+    if expected.0 != path {
+        return Err("Device session changed; operation was cancelled".into());
+    }
+    with_session_for(app, state, expected, operation).await
+}
+
 fn session_identity(state: &tauri::State<'_, Mutex<DeviceState>>) -> Result<(String, u64), String> {
     let connected = connected_device(state)?;
     Ok((connected.path, connected.session_id))
@@ -1024,11 +1037,7 @@ pub async fn ja11_control(
     control: String,
     value: Option<u8>,
 ) -> Result<Option<u8>, String> {
-    let expected = session_identity(&state)?;
-    if expected.0 != path {
-        return Err("Device session changed; operation was cancelled".into());
-    }
-    with_session_for(&app, &state, expected, move |session| {
+    with_session_at(&app, &state, &path, move |session| {
         glacier_core::device::block_on(async {
             match value {
                 Some(value) => session.set_ja11_control(&control, value).await,
@@ -1046,11 +1055,7 @@ pub async fn melody_control(
     path: String,
     value: Option<u8>,
 ) -> Result<Option<u8>, String> {
-    let expected = session_identity(&state)?;
-    if expected.0 != path {
-        return Err("Device session changed; operation was cancelled".into());
-    }
-    with_session_for(&app, &state, expected, move |session| {
+    with_session_at(&app, &state, &path, move |session| {
         glacier_core::device::block_on(async {
             match value {
                 Some(value) => session.set_melody_preset(value).await.map(Some),
@@ -1071,11 +1076,7 @@ pub async fn set_user_eq_bank(
     path: String,
     slot: u8,
 ) -> Result<u8, String> {
-    let expected = session_identity(&state)?;
-    if expected.0 != path {
-        return Err("Device session changed; operation was cancelled".into());
-    }
-    with_session_for(&app, &state, expected, move |session| {
+    with_session_at(&app, &state, &path, move |session| {
         glacier_core::device::block_on(session.set_user_eq_bank(slot))
     })
     .await
@@ -1089,11 +1090,7 @@ pub async fn melody_name(
     slot: u8,
     name: Option<String>,
 ) -> Result<String, String> {
-    let expected = session_identity(&state)?;
-    if expected.0 != path {
-        return Err("Device session changed; operation was cancelled".into());
-    }
-    with_session_for(&app, &state, expected, move |session| {
+    with_session_at(&app, &state, &path, move |session| {
         glacier_core::device::block_on(async {
             match name {
                 Some(name) => session.set_melody_name(slot, &name).await,

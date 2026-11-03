@@ -832,7 +832,8 @@ fn init_pk(
     InitFilter { f0, gain, q }
 }
 
-fn init_lsc(
+fn init_shelf(
+    ty: FilterType,
     y: &[f32; K],
     f: &[f32; K],
     fs: f32,
@@ -843,16 +844,24 @@ fn init_lsc(
     lim_f0.lo = lim_f0.lo.max(40.0);
     lim_f0.hi = lim_f0.hi.min(10000.0);
 
+    // Scan from the shelf's own edge: low shelf from 0, high shelf from K-1.
+    let idx = |k: usize| {
+        if ty == FilterType::LowShelf {
+            k
+        } else {
+            K - 1 - k
+        }
+    };
     let mut best = 0.0;
     let mut best_idx = 0;
 
     let mut a = 0.0;
-    for (k, value) in y.iter().enumerate() {
-        a += value;
+    for k in 0..K {
+        a += y[idx(k)];
         let avg = (a / (k + 1) as f32).abs();
         if avg > best {
             best = avg;
-            best_idx = k;
+            best_idx = idx(k);
         }
     }
 
@@ -863,53 +872,7 @@ fn init_lsc(
     limit(&mut q, lim_q);
 
     let mut w = [0.0; K];
-    spectrum_values(FilterType::LowShelf, f0, 1.0, q, fs, f, &mut w);
-
-    let mut p = 0.0;
-    let mut c = 0.0;
-    for k in 0..K {
-        p += w[k] * y[k];
-        c += w[k];
-    }
-
-    let mut gain = if c > 0.0 { p / c } else { 0.0 };
-    limit(&mut gain, lim_gain);
-
-    InitFilter { f0, gain, q }
-}
-
-fn init_hsc(
-    y: &[f32; K],
-    f: &[f32; K],
-    fs: f32,
-    mut lim_f0: Lim,
-    lim_gain: Lim,
-    lim_q: Lim,
-) -> InitFilter {
-    lim_f0.lo = lim_f0.lo.max(40.0);
-    lim_f0.hi = lim_f0.hi.min(10000.0);
-
-    let mut best = 0.0;
-    let mut best_idx = 0;
-
-    let mut a = 0.0;
-    for k in 0..K {
-        a += y[K - 1 - k];
-        let avg = (a / (k + 1) as f32).abs();
-        if avg > best {
-            best = avg;
-            best_idx = K - 1 - k;
-        }
-    }
-
-    let mut f0 = f[best_idx];
-    let mut q = std::f32::consts::FRAC_1_SQRT_2;
-
-    limit(&mut f0, lim_f0);
-    limit(&mut q, lim_q);
-
-    let mut w = [0.0; K];
-    spectrum_values(FilterType::HighShelf, f0, 1.0, q, fs, f, &mut w);
+    spectrum_values(ty, f0, 1.0, q, fs, f, &mut w);
 
     let mut p = 0.0;
     let mut c = 0.0;
@@ -1095,19 +1058,13 @@ fn initialize_bands(
 ) -> Result<(), String> {
     let mut remainder = *residual;
     for band in bands {
-        let initialize = match band.kind {
-            FilterType::LowShelf => init_lsc,
-            FilterType::HighShelf => init_hsc,
-            _ => init_pk,
+        let (fb, gb, qb) = (band.frequency_bounds, band.gain_bounds, band.q_bounds);
+        let p = match band.kind {
+            FilterType::LowShelf | FilterType::HighShelf => {
+                init_shelf(band.kind, &remainder, f, fs, fb, gb, qb)
+            }
+            _ => init_pk(&remainder, f, fs, fb, gb, qb),
         };
-        let p = initialize(
-            &remainder,
-            f,
-            fs,
-            band.frequency_bounds,
-            band.gain_bounds,
-            band.q_bounds,
-        );
         band.frequency = p.f0 as f64;
         band.gain = p.gain as f64;
         band.q = p.q as f64;

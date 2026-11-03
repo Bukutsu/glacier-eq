@@ -25,7 +25,7 @@ import { asyncContextEquals } from "@/lib/asyncContext";
 import type { PEQData } from "@/types";
 import { type StatusReporter } from "@/stores/toastStore";
 
-import { markDeviceLost } from "@/features/device/lib/deviceOperations";
+import { reportOperationFailure } from "@/features/device/lib/deviceOperations";
 import type { DeviceState } from "@/features/device/hooks/useDeviceState";
 import type { EqEditor } from "@/features/eq/hooks/useEqEditor";
 import type { ReportStatus } from "@/features/diagnostics/types";
@@ -360,32 +360,21 @@ export function createPushEq(context: PushEqContext) {
       if (!isCurrentOperation()) return;
       if (await recoverDeviceRead(selectedDevice, error)) return;
       if (!isCurrentOperation()) return;
-      if (
+      reportOperationFailure(
         !manualDisconnectRef.current &&
-        !isDevDummyDevice(selectedDevice) &&
-        isDisconnectionError(error)
-      ) {
-        markDeviceLost(
-          {
-            setConnected,
-            setIsReconnecting,
-            setLastPushedPeq,
-            setFirmwareVersion,
-            reportStatus: reportLoss,
-          },
-          i18n.t("device:pushEq.writeDisconnected", {
-            error: error,
-          }),
-          "HID",
-        );
-      } else {
-        reportStatus({
-          level: "Error",
-          message: i18n.t("device:pushEq.writeFailed", { error: error }),
-          toastType: "error",
-          source: "UI",
-        });
-      }
+          !isDevDummyDevice(selectedDevice) &&
+          isDisconnectionError(error),
+        {
+          setConnected,
+          setIsReconnecting,
+          setLastPushedPeq,
+          setFirmwareVersion,
+          reportStatus: reportLoss,
+        },
+        reportStatus,
+        i18n.t("device:pushEq.writeDisconnected", { error }),
+        i18n.t("device:pushEq.writeFailed", { error }),
+      );
     } finally {
       if (operationId === eqOperationIdRef.current) {
         eqOperationInFlightRef.current = false;
