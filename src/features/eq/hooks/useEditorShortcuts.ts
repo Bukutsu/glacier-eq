@@ -78,6 +78,15 @@ export function useEditorShortcuts({
       const isCtrl = e.ctrlKey || e.metaKey;
       if (isCtrl) {
         const key = e.key.toLowerCase();
+        const action = (
+          {
+            z: e.shiftKey ? "redo" : "undo",
+            y: "redo",
+            s: "save",
+            r: e.shiftKey ? "reset" : "pull",
+            enter: "push",
+          } as const
+        )[key as "z"];
         if (isEditingText) {
           if (
             (key === "s" || key === "r") &&
@@ -93,40 +102,11 @@ export function useEditorShortcuts({
               return;
             }
           }
-          if (key === "s") {
-            e.preventDefault();
-            undoRedoRef.current.save();
-          } else if (e.shiftKey && key === "r") {
-            e.preventDefault();
-            undoRedoRef.current.reset();
-          } else if (key === "r") {
-            e.preventDefault();
-            undoRedoRef.current.pull();
-          }
-          return;
+          if (!["save", "reset", "pull"].includes(action ?? "")) return;
         }
-
-        if (e.shiftKey && key === "z") {
+        if (action) {
           e.preventDefault();
-          undoRedoRef.current.redo();
-        } else if (key === "z") {
-          e.preventDefault();
-          undoRedoRef.current.undo();
-        } else if (key === "y") {
-          e.preventDefault();
-          undoRedoRef.current.redo();
-        } else if (key === "s") {
-          e.preventDefault();
-          undoRedoRef.current.save();
-        } else if (e.shiftKey && key === "r") {
-          e.preventDefault();
-          undoRedoRef.current.reset();
-        } else if (key === "r") {
-          e.preventDefault();
-          undoRedoRef.current.pull();
-        } else if (key === "enter") {
-          e.preventDefault();
-          undoRedoRef.current.push();
+          undoRedoRef.current[action]();
         }
       }
     };

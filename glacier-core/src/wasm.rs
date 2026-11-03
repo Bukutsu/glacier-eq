@@ -165,6 +165,21 @@ pub fn match_profile_name(
     ))
 }
 
+fn checked_response(
+    peq_js: JsValue,
+    freqs: &[f32],
+    dsp_sample_rate: f64,
+    compute: impl FnOnce(&PEQData) -> Vec<f32>,
+) -> Result<Vec<f32>, JsValue> {
+    let peq: PEQData = serde_wasm_bindgen::from_value(peq_js).map_err(js_err)?;
+    validate_peq_numeric(&peq)?;
+    validate_response_freqs(freqs)?;
+    validate_dsp_sample_rate(dsp_sample_rate)?;
+    let response = compute(&peq);
+    validate_finite_response(&response)?;
+    Ok(response)
+}
+
 #[wasm_bindgen]
 pub fn peq_response_values(
     peq_js: JsValue,
@@ -172,13 +187,9 @@ pub fn peq_response_values(
     include_preamp: bool,
     dsp_sample_rate: f64,
 ) -> Result<Vec<f32>, JsValue> {
-    let peq: PEQData = serde_wasm_bindgen::from_value(peq_js).map_err(js_err)?;
-    validate_peq_numeric(&peq)?;
-    validate_response_freqs(freqs)?;
-    validate_dsp_sample_rate(dsp_sample_rate)?;
-    let response = response_values(&peq, freqs, include_preamp, dsp_sample_rate);
-    validate_finite_response(&response)?;
-    Ok(response)
+    checked_response(peq_js, freqs, dsp_sample_rate, |peq| {
+        response_values(peq, freqs, include_preamp, dsp_sample_rate)
+    })
 }
 
 #[wasm_bindgen]
@@ -188,13 +199,9 @@ pub fn peq_response_and_band_values(
     include_preamp: bool,
     dsp_sample_rate: f64,
 ) -> Result<Vec<f32>, JsValue> {
-    let peq: PEQData = serde_wasm_bindgen::from_value(peq_js).map_err(js_err)?;
-    validate_peq_numeric(&peq)?;
-    validate_response_freqs(freqs)?;
-    validate_dsp_sample_rate(dsp_sample_rate)?;
-    let response = response_values_and_bands(&peq, freqs, include_preamp, dsp_sample_rate);
-    validate_finite_response(&response)?;
-    Ok(response)
+    checked_response(peq_js, freqs, dsp_sample_rate, |peq| {
+        response_values_and_bands(peq, freqs, include_preamp, dsp_sample_rate)
+    })
 }
 
 #[wasm_bindgen]

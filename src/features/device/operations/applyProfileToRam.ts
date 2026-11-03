@@ -16,7 +16,7 @@ import { asyncContextEquals } from "@/lib/asyncContext";
 
 import type { Profile } from "@/types";
 
-import { markDeviceLost } from "@/features/device/lib/deviceOperations";
+import { reportOperationFailure } from "@/features/device/lib/deviceOperations";
 import type { DeviceState } from "@/features/device/hooks/useDeviceState";
 import type { EqEditor } from "@/features/eq/hooks/useEqEditor";
 import type { ReportStatus } from "@/features/diagnostics/types";
@@ -210,34 +210,21 @@ export function createApplyProfileToRam(context: ApplyProfileToRamContext) {
       if (!isCurrentOperation()) return;
       if (await recoverDeviceRead(selectedDevice, error)) return;
       if (!isCurrentOperation()) return;
-      if (
+      reportOperationFailure(
         !manualDisconnectRef.current &&
-        !isDevDummyDevice(selectedDevice) &&
-        isDisconnectionError(error)
-      ) {
-        markDeviceLost(
-          {
-            setConnected,
-            setIsReconnecting,
-            setLastPushedPeq,
-            setFirmwareVersion,
-            reportStatus: reportLoss,
-          },
-          i18n.t("device:applyProfileToRam.applyDisconnected", {
-            error: error,
-          }),
-          "HID",
-        );
-      } else {
-        reportStatus({
-          level: "Error",
-          message: i18n.t("device:applyProfileToRam.applyFailed", {
-            error: error,
-          }),
-          toastType: "error",
-          source: "UI",
-        });
-      }
+          !isDevDummyDevice(selectedDevice) &&
+          isDisconnectionError(error),
+        {
+          setConnected,
+          setIsReconnecting,
+          setLastPushedPeq,
+          setFirmwareVersion,
+          reportStatus: reportLoss,
+        },
+        reportStatus,
+        i18n.t("device:applyProfileToRam.applyDisconnected", { error }),
+        i18n.t("device:applyProfileToRam.applyFailed", { error }),
+      );
     } finally {
       if (operationId === eqOperationIdRef.current) {
         eqOperationInFlightRef.current = false;

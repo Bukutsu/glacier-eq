@@ -152,12 +152,13 @@ export function DeviceChooser({
                 t("deviceChooser.supportedDac");
               const selected = chosen === device.path;
               const isDummy = isDevDummyDevice(device.path);
-              const support = supportedDacs.find(
-                (dac) =>
-                  dac.vendor_id === device.vendor_id &&
-                  (dac.product_id === null ||
-                    dac.product_id === device.product_id),
+              // An exact PID match must beat a vendor-wide wildcard entry.
+              const sameVendor = supportedDacs.filter(
+                (dac) => dac.vendor_id === device.vendor_id,
               );
+              const support =
+                sameVendor.find((dac) => dac.product_id === device.product_id) ??
+                sameVendor.find((dac) => dac.product_id === null);
               return (
                 <button
                   key={device.path}
