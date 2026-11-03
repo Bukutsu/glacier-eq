@@ -4,16 +4,16 @@
 
 ## [0.18.0] - 2026-11-03
 
-### Added
+### Highlights
 
-- Tanchjim Ola II DSP (3302:c20c) as a Walkplay device.
+- AutoEQ is about 4× faster and gives louder results that score higher on the Harman preference model than upstream AutoEq.
+- Added the Tanchjim Ola II DSP (3302:c20c). Thanks to [@AkariYui1](https://github.com/AkariYui1) for helping with it.
 
 ### Changed
 
-- Copy report in Diagnostics now copies only the events currently shown, so the level and search filters apply.
-
-- AutoEQ results are louder and score higher on the Harman listener-preference model than upstream AutoEq on the same measurements. Boosts are capped at +5 dB above the vocal range, the preamp puts the loudest frequency at 0 dB, the fit weights 20 Hz–10 kHz fully and prefers the gentlest set of bands, and treble smoothing now starts at 8 kHz.
-- AutoEQ is about 4× faster on desktop and Android by fitting band layouts in parallel.
+- AutoEQ boosts are capped at +5 dB above the vocal range, and the preamp sets the loudest frequency to 0 dB. The fit weights 20 Hz–10 kHz fully, prefers the fewest bands, and smooths treble from 8 kHz.
+- AutoEQ fits band layouts in parallel on desktop and Android.
+- Copy report in Diagnostics copies only the events you have filtered.
 
 ## [0.17.0] - 2026-10-26
 
