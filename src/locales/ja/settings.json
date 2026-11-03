@@ -44,7 +44,7 @@
     "verifyDescription": "EQ設定を再度読み込み、正しく適用されたか確認します。必須の安全確認は常に行われます。",
     "liveApply": "リアルタイム適用",
     "liveApplyDescription": "EQの編集をその都度DACに適用し、操作を止めると保存します。「DACに書き込む」操作が不要になります。保存するたびにDACのフラッシュメモリーを書き換えます。",
-    "liveApplyUnavailable": "EQの変更をその都度DACで試聴できます。対応DAC（EPZ TP35 Pro）の接続が必要です。",
+    "liveApplyUnavailable": "EQの変更をその都度DACで試聴できます。対応DACの接続が必要です。",
     "snapFrequency": "周波数をISO間隔に合わせる",
     "snapFrequencyDescription": "周波数スライダーとハンドルを標準の1/3オクターブISO間隔に合わせます",
     "floatingGraph": "フローティンググラフプレビュー",

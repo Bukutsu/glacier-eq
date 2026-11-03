@@ -44,7 +44,7 @@
     "verifyDescription": "EQ-Einstellungen zurücklesen, um ihre korrekte Übernahme zu prüfen. Erforderliche Sicherheitsprüfungen werden immer durchgeführt.",
     "liveApply": "Live anwenden",
     "liveApplyDescription": "Jede EQ-Änderung sofort auf den DAC anwenden und bei einer Pause speichern. Der Schritt „Auf DAC schreiben“ entfällt. Bei jedem Speichern nach einer Pause wird der Flash-Speicher des DAC neu beschrieben.",
-    "liveApplyUnavailable": "EQ-Änderungen sofort auf dem DAC hören. Erfordert einen verbundenen DAC, der dies unterstützt (EPZ TP35 Pro).",
+    "liveApplyUnavailable": "EQ-Änderungen sofort auf dem DAC hören. Erfordert einen verbundenen DAC, der dies unterstützt.",
     "snapFrequency": "Frequenz auf ISO-Stufen einrasten",
     "snapFrequencyDescription": "Frequenzregler und Anfasser auf genormte ISO-Terzbandschritte einrasten lassen",
     "floatingGraph": "Schwebende Diagrammvorschau",

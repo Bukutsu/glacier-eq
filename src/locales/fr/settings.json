@@ -44,7 +44,7 @@
     "verifyDescription": "Relire les paramètres d’égalisation pour vérifier leur bonne application. Les vérifications de sécurité obligatoires sont toujours effectuées.",
     "liveApply": "Application en direct",
     "liveApplyDescription": "Appliquer chaque modification d’égalisation au DAC à mesure que vous l’effectuez, puis l’enregistrer lorsque vous faites une pause, sans étape « Écrire sur le DAC ». L’enregistrement réécrit la mémoire flash du DAC après chaque pause.",
-    "liveApplyUnavailable": "Écouter les modifications d’égalisation sur le DAC à mesure que vous les effectuez. Nécessite un DAC connecté compatible (EPZ TP35 Pro).",
+    "liveApplyUnavailable": "Écouter les modifications d’égalisation sur le DAC à mesure que vous les effectuez. Nécessite un DAC connecté compatible.",
     "snapFrequency": "Aligner les fréquences sur les pas ISO",
     "snapFrequencyDescription": "Aligner les curseurs et les poignées de fréquence sur les pas ISO normalisés de 1/3 d’octave",
     "floatingGraph": "Aperçu flottant du graphique",

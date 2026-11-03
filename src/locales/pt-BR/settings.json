@@ -44,7 +44,7 @@
     "verifyDescription": "Ler as configurações de EQ de volta para verificar se foram aplicadas corretamente. As verificações de segurança obrigatórias são sempre executadas.",
     "liveApply": "Aplicar em tempo real",
     "liveApplyDescription": "Aplique cada alteração de EQ ao DAC conforme você edita e salve ao pausar, sem precisar usar Gravar no DAC. O salvamento regrava a memória flash do DAC após cada pausa.",
-    "liveApplyUnavailable": "Ouça as alterações de EQ no DAC conforme você edita. Requer um DAC conectado compatível (EPZ TP35 Pro).",
+    "liveApplyUnavailable": "Ouça as alterações de EQ no DAC conforme você edita. Requer um DAC conectado compatível.",
     "snapFrequency": "Ajustar frequência aos passos ISO",
     "snapFrequencyDescription": "Ajustar controles deslizantes e pontos de frequência aos passos ISO padrão de 1/3 de oitava",
     "floatingGraph": "Prévia flutuante do gráfico",
