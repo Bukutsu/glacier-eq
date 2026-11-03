@@ -730,14 +730,14 @@ pub const SUPPORTED_DEVICES: &[DeviceProfile] = &[
             thd: None,
         }),
     },
-    // A tester's log shows the Walkplay EQ read (report 0x4b, 8 filters)
-    // succeeds. EQ writes and persistence are not yet confirmed.
+    // A tester confirmed EQ read and write over the Walkplay protocol (report
+    // 0x4b, 8 filters). Persistence across replug was not reported.
     DeviceProfile {
         name: "Tanchjim Ola II DSP",
         protocol: &walkplay::PROTOCOL,
         vendor_id: 0x3302,
         product_id: Some(0xC20C),
-        status: "Untested",
+        status: "Tested",
         family: "Walkplay Family",
         caps: DeviceCapabilities {
             num_bands: 8,
