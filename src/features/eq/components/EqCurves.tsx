@@ -171,7 +171,7 @@ export function EqCurves(props: EqCurvesProps) {
             sideOffset={8}
             collisionPadding={8}
           >
-            <Popover.Popup className="leg:flex leg:flex-col leg:w-[300px] leg:max-w-[calc(100vw_-_16px)] leg:max-h-[var(--available-height)] leg:overflow-hidden leg:[border:1px_solid_var(--line-medium)] leg:rounded-[var(--radius-card)] leg:[background:var(--popover)] leg:text-[color:var(--popover-foreground)] leg:[box-shadow:var(--shadow-md)] leg:[outline:none]" initialFocus={searchRef}>
+            <Popover.Popup className="leg:flex leg:flex-col leg:w-[300px] leg:compact:w-[calc(100vw_-_16px)] leg:max-w-[calc(100vw_-_16px)] leg:max-h-[var(--available-height)] leg:overflow-hidden leg:[border:1px_solid_var(--line-medium)] leg:rounded-[var(--radius-card)] leg:[background:var(--popover)] leg:text-[color:var(--popover-foreground)] leg:[box-shadow:var(--shadow-md)] leg:[outline:none]" initialFocus={(type) => type === "touch" || searchRef.current}>
               <div className="eq-curves-popup-heading leg:p-[14px_14px_10px]">
                 <Popover.Title>{t("curves.graphTitle")}</Popover.Title>
                 <Popover.Description>

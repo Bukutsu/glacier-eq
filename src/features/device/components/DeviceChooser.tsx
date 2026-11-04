@@ -233,7 +233,7 @@ export function DeviceChooser({
           </Link>
         </p>
 
-        <details className="device-troubleshooting leg:[border-top:1px_solid_var(--line-soft)] leg:text-[color:var(--muted)] leg:text-[length:var(--type-small)] cmp:[.modal-content_&]:[border-color:var(--border)] cmp:[.modal-content_&]:rounded-[var(--control-radius)]">
+        <details className="device-troubleshooting leg:[border-top:1px_solid_var(--line-soft)] leg:text-[color:var(--muted)] leg:text-[length:var(--type-small)] cmp:[.modal-content_&]:[border-color:var(--border)]">
           <summary>
             {t("deviceChooser.connectionHelp")}
             <Icon size={18} name="expand_more" className="leg:flex-[0_0_auto] leg:text-[color:var(--muted)] leg:[transition:transform_var(--motion-duration)_var(--motion-ease)] leg:[details[open]>summary_&]:[transform:rotate(180deg)] leg:[.add-trace-cache_summary_&]:ml-[auto]" />

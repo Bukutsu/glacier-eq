@@ -678,7 +678,7 @@ export const DeviceView = memo(function DeviceView({
                       variant="primary"
                       onClick={onOpenConnectModal}
                     >
-                      <Icon name="usb" />
+                      <Icon name="link" />
                       <span>{t("deviceView.connectDac")}</span>
                     </Button>
                   )}
@@ -898,7 +898,7 @@ export const DeviceView = memo(function DeviceView({
                       variant="primary"
                       onClick={onOpenConnectModal}
                     >
-                      <Icon name="usb" />
+                      <Icon name="link" />
                       <span>{t("deviceView.connectDac")}</span>
                     </Button>
                   )}

@@ -146,7 +146,8 @@
     padding-inline: 16px;
   }
 
-  .mobile-workspace .settings-plain .stack-pref-row {
+  .mobile-workspace .settings-plain .stack-pref-row,
+  .mobile-workspace .device-filter-details > summary {
     padding-inline: 0;
   }
 

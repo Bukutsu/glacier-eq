@@ -165,7 +165,7 @@ export function DevProtocolPreview({
           </Combobox.Root>
         </div>
       </div>
-      <p className="cmp:m-[0_0_var(--space-5)] cmp:text-[color:var(--muted-foreground)] cmp:text-[length:var(--type-small)] cmp:leading-[1.5]">
+      <p className="cmp:m-[var(--space-3)_0_var(--space-5)] cmp:text-[color:var(--muted-foreground)] cmp:text-[length:var(--type-small)] cmp:leading-[1.5]">
         {device.hardware_eq
           ? t("devProtocolPreview.previewEq", {
               name: device.profile_name,
@@ -174,7 +174,9 @@ export function DevProtocolPreview({
             })
           : t("devProtocolPreview.previewNoEq", { name: device.profile_name })}
       </p>
-      {error && <ErrorNotice>{error}</ErrorNotice>}
+      {error && (
+        <ErrorNotice className="mb-[var(--space-5)]">{error}</ErrorNotice>
+      )}
     </section>
   );
 }
