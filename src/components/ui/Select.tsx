@@ -1,10 +1,11 @@
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
-import type { CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 import { Select as BaseSelect } from "@base-ui/react/select";
 import { Icon } from "./Icon";
 import { useDialogPortal } from "./dialogPortal";
+import { useBackDismiss } from "./useBackDismiss";
 
 export interface SelectOption<T extends string | number> {
   value: T;
@@ -37,6 +38,8 @@ export function Select<T extends string | number>({
 }: SelectProps<T>) {
   const { container: portalContainer, anchor: triggerRef } =
     useDialogPortal();
+  const [open, setOpen] = useState(false);
+  useBackDismiss(open, () => setOpen(false));
   // Like a native single select, show the first enabled option when the
   // controlled value isn't present (for example, while targets are loading).
   const selectedValue = options.some((option) => option.value === value)
@@ -45,6 +48,8 @@ export function Select<T extends string | number>({
 
   return (
     <BaseSelect.Root<T>
+      open={open}
+      onOpenChange={setOpen}
       id={id}
       name={id}
       autoComplete="off"

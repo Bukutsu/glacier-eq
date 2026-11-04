@@ -1,11 +1,12 @@
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
-import { useCallback, useRef, type ReactNode } from "react";
+import { useCallback, useRef, useState, type ReactNode } from "react";
 import { Menu } from "@base-ui/react/menu";
 import { Button } from "./Button";
 import { Icon } from "./Icon";
 import { useDialogPortal } from "./dialogPortal";
+import { useBackDismiss } from "./useBackDismiss";
 
 export function OverflowMenu({
   label,
@@ -16,6 +17,8 @@ export function OverflowMenu({
   className?: string;
   children: ReactNode;
 }) {
+  const [open, setOpen] = useState(false);
+  useBackDismiss(open, () => setOpen(false));
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const { container, anchor } = useDialogPortal();
   const setTrigger = useCallback(
@@ -26,7 +29,7 @@ export function OverflowMenu({
     [anchor],
   );
   return (
-    <Menu.Root>
+    <Menu.Root open={open} onOpenChange={setOpen}>
       <Menu.Trigger
         ref={setTrigger}
         aria-label={label}

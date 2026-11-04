@@ -1,9 +1,10 @@
 import "@/lib/i18n";
 import { useTranslation } from "react-i18next";
-import { memo, type ReactNode } from "react";
+import { memo, useState, type ReactNode } from "react";
 import { Menu } from "@base-ui/react/menu";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
+import { useBackDismiss } from "@/components/ui/useBackDismiss";
 import { ToastContainer } from "@/components/feedback/Toast";
 import type { OperationProgress } from "@/types";
 
@@ -19,8 +20,10 @@ function ConnectionActions({
   compact?: boolean;
 }) {
   const { t } = useTranslation("shell");
+  const [open, setOpen] = useState(false);
+  useBackDismiss(open, () => setOpen(false));
   return (
-    <Menu.Root>
+    <Menu.Root open={open} onOpenChange={setOpen}>
       <Menu.Trigger
         aria-label={t("header.deviceActions")}
         render={

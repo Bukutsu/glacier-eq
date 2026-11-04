@@ -1,9 +1,11 @@
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 
+import { useState } from "react";
 import { Combobox } from "@base-ui/react/combobox";
 import { Icon } from "./Icon";
 import { useDialogPortal } from "./dialogPortal";
+import { useBackDismiss } from "./useBackDismiss";
 import type { SelectOption } from "./Select";
 
 export interface SearchSelectProps {
@@ -31,6 +33,8 @@ export function SearchSelect({
 }: SearchSelectProps) {
   const { container: portalContainer, anchor: triggerRef } =
     useDialogPortal();
+  const [open, setOpen] = useState(false);
+  useBackDismiss(open, () => setOpen(false));
   const selected =
     options.find((option) => option.value === value) ??
     options.find((option) => !option.disabled) ??
@@ -38,6 +42,8 @@ export function SearchSelect({
 
   return (
     <Combobox.Root<SelectOption<string>>
+      open={open}
+      onOpenChange={setOpen}
       name={id}
       items={options}
       value={selected}

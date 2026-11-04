@@ -8,6 +8,7 @@ import { Icon } from "@/components/ui/Icon";
 import { UnifiedTracesList } from "@/features/traces/components/UnifiedTraces";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { useBackDismiss } from "@/components/ui/useBackDismiss";
 
 type EqCurvesProps = ComponentProps<typeof UnifiedTracesList> &
   Pick<
@@ -125,6 +126,10 @@ export function EqCurves(props: EqCurvesProps) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  useBackDismiss(open, () => {
+    setOpen(false);
+    setQuery("");
+  });
   const searchRef = useRef<HTMLInputElement>(null);
   const visibleCount =
     props.measurements.filter((trace) => trace.visible).length +

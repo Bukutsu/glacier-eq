@@ -11,52 +11,9 @@ import {
 import { Icon } from "./Icon";
 import { ToastContainer } from "@/components/feedback/Toast";
 import { Button } from "./Button";
-import {
-  afterBalanceNavigations,
-  decideModalPopState,
-  expectBalanceNavigation,
-  isBalanceNavigation,
-  modalIdFromState,
-  modalStateWithId,
-  pushModalEntry,
-  removeModalEntry,
-  topModalEntry,
-  type ModalHistoryEntry,
-} from "@/lib/modalHistory";
+import { useBackDismiss } from "./useBackDismiss";
 
 export { MODAL_HISTORY_KEY } from "@/lib/modalHistory";
-
-let modalPopstateListenerCount = 0;
-
-function handleModalPopState(event: PopStateEvent) {
-  // Our own teardown of a previous modal navigates here too. Acting on it would
-  // dismiss whichever dialog the user opened in the meantime.
-  if (isBalanceNavigation(event)) return;
-  const top = topModalEntry();
-  if (top === undefined) return;
-  const action = decideModalPopState(event, top);
-  switch (action) {
-    case "reinsert":
-      window.history.pushState(
-        modalStateWithId(top.id, window.history.state),
-        "",
-      );
-      return;
-    case "dismiss":
-      removeModalEntry(top);
-      top.onClose();
-      return;
-    case "ignore":
-      return;
-    default: {
-      // A new popstate action must be handled here, not silently fall through
-      // and leave the Back press doing nothing. Verified: adding a fourth
-      // member to ModalPopStateAction compiled clean before this arm existed.
-      const exhaustive: never = action;
-      throw new Error(`unhandled modal popstate action: ${exhaustive}`);
-    }
-  }
-}
 
 interface ModalProps {
   title: string;
@@ -82,11 +39,7 @@ export function Modal({
   const { t } = useTranslation("shell");
   const dialogRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
-  const modalId = `modal-${titleId}`;
-  const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
-  const closeDisabledRef = useRef(closeDisabled);
-  closeDisabledRef.current = closeDisabled;
+  useBackDismiss(true, onClose, closeDisabled);
   // A click whose press started inside the dialog box (e.g. a text selection
   // dragged out) must not count as a backdrop click.
   const pressedOnBackdropRef = useRef(false);
@@ -97,23 +50,6 @@ export function Modal({
       document.activeElement instanceof HTMLElement
         ? document.activeElement
         : null;
-    const entry: ModalHistoryEntry = {
-      id: modalId,
-      onClose: () => onCloseRef.current(),
-      canClose: () => !closeDisabledRef.current,
-    };
-
-    pushModalEntry(entry);
-    const cancelSentinel = afterBalanceNavigations(() =>
-      window.history.pushState(
-        modalStateWithId(modalId, window.history.state),
-        "",
-      ),
-    );
-    if (modalPopstateListenerCount === 0) {
-      window.addEventListener("popstate", handleModalPopState);
-    }
-    modalPopstateListenerCount += 1;
     if (dialog && !dialog.open) {
       dialog.showModal();
       // React/Base UI autofocus can run before the native dialog is open.
@@ -124,25 +60,10 @@ export function Modal({
     }
 
     return () => {
-      cancelSentinel();
-      removeModalEntry(entry);
-      modalPopstateListenerCount = Math.max(0, modalPopstateListenerCount - 1);
-      if (modalPopstateListenerCount === 0) {
-        window.removeEventListener("popstate", handleModalPopState);
-      }
-      // A close button removes the React modal first; balance the sentinel it
-      // pushed. If Android Back already removed it, the current state no
-      // longer belongs to this entry and no second history navigation occurs.
-      if (modalIdFromState(window.history.state) === modalId) {
-        // Mark the navigation before it is requested: it resolves after this
-        // task, possibly once another dialog has pushed its own sentinel.
-        expectBalanceNavigation();
-        window.history.back();
-      }
       if (dialog?.open) dialog.close();
       opener?.focus();
     };
-  }, [modalId]);
+  }, []);
 
   const isOnBackdrop = (event: MouseEvent<HTMLDialogElement>) => {
     if (event.target !== event.currentTarget) return false;
