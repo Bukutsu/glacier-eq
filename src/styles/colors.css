@@ -70,8 +70,9 @@
 }
 
 :root[data-theme="glacier-light"] {
-  --primary: #ccd4d9;
-  --primary-foreground: #263039;
+  /* A solid ink action: the earlier pale fill read as a disabled button. */
+  --primary: #3f5a6b;
+  --primary-foreground: #ffffff;
   --primary-hover: color-mix(in srgb, var(--primary) 90%, var(--card));
   --ring: #435f70;
 }
@@ -125,13 +126,14 @@
   --panel-rgb: 30 31 39;
   --bg-dark: var(--field-background);
   --bg-dark-rgb: 33 34 43;
-  --text-rgb: 176 180 203;
+  --text-rgb: 196 200 218;
   --background: #20212b;
-  --foreground: #b0b4cb;
+  /* Brighter than the imported #b0b4cb so titles separate from muted text. */
+  --foreground: #c4c8da;
   --card: #1e1f27;
-  --card-foreground: #b0b4cb;
+  --card-foreground: #c4c8da;
   --popover: #262832;
-  --popover-foreground: #b0b4cb;
+  --popover-foreground: #c4c8da;
   --muted-foreground: #989cad;
   --placeholder: #989cad;
   --border: #30323d;
@@ -144,7 +146,7 @@
   --accent: #2c2e3b;
   --accent-foreground: #d2d5e0;
   --sidebar: #1d1e26;
-  --sidebar-foreground: #b0b4cb;
+  --sidebar-foreground: #c4c8da;
   --sidebar-muted-foreground: #989cad;
   --sidebar-border: #30323d;
   --sidebar-row-hover: #252731;
@@ -161,13 +163,13 @@
   --panel-rgb: 37 40 50;
   --bg-dark: var(--field-background);
   --bg-dark-rgb: 40 44 54;
-  --text-rgb: 187 192 210;
+  --text-rgb: 204 208 224;
   --background: #282b35;
-  --foreground: #bbc0d2;
+  --foreground: #ccd0e0;
   --card: #252832;
-  --card-foreground: #bbc0d2;
+  --card-foreground: #ccd0e0;
   --popover: #2e323e;
-  --popover-foreground: #bbc0d2;
+  --popover-foreground: #ccd0e0;
   --muted-foreground: #a7acbe;
   --placeholder: #a7acbe;
   --border: #393e4c;
@@ -180,7 +182,7 @@
   --accent: #353a48;
   --accent-foreground: #d2d5e0;
   --sidebar: #23262f;
-  --sidebar-foreground: #bbc0d2;
+  --sidebar-foreground: #ccd0e0;
   --sidebar-muted-foreground: #a3a8ba;
   --sidebar-border: #393e4c;
   --sidebar-row-hover: #2d313c;

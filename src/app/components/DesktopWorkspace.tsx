@@ -29,10 +29,21 @@ export function DesktopWorkspace({
     >
       <aside className="desktop-sidebar leg:roomy:flex leg:roomy:min-w-[0] leg:roomy:min-h-[0] leg:roomy:flex-col leg:roomy:gap-[var(--space-4)] leg:roomy:p-[var(--space-4)_var(--space-3)] leg:roomy:[border-right:1px_solid_var(--line-soft)] leg:roomy:[background:var(--panel)] leg:roomy:overflow-y-auto leg:roomy:col-[1] leg:roomy:row-[1] cmp:[--foreground:var(--sidebar-foreground)] cmp:[--text:var(--sidebar-foreground)] cmp:[--muted:var(--sidebar-muted-foreground)] cmp:[--comment:var(--sidebar-muted-foreground)] cmp:[background:var(--sidebar)] cmp:text-[color:var(--sidebar-foreground)] cmp:[border-color:var(--sidebar-border)]">
         <Link
-          className="desktop-brand leg:roomy:flex leg:roomy:items-center leg:roomy:min-h-[44px] leg:roomy:p-[0_var(--space-3)] leg:roomy:rounded-[var(--control-radius)] leg:roomy:text-[color:var(--muted-foreground)] leg:roomy:no-underline leg:roomy:text-[length:var(--type-label)] leg:roomy:font-medium leg:roomy:tracking-[-0.01em] leg:roomy:[&:hover]:text-[color:var(--foreground)] leg:roomy:[&:focus-visible]:[outline:2px_solid_var(--ring)] leg:roomy:[&:focus-visible]:[outline-offset:2px]"
+          className="desktop-brand leg:roomy:flex leg:roomy:items-center leg:roomy:min-h-[44px] leg:roomy:p-[0_var(--space-3)] leg:roomy:rounded-[var(--control-radius)] leg:roomy:gap-[var(--space-2)] leg:roomy:text-[color:var(--foreground)] leg:roomy:no-underline leg:roomy:text-[length:14px] leg:roomy:font-semibold leg:roomy:tracking-[-0.01em] leg:roomy:[&:hover]:opacity-85 leg:roomy:[&:focus-visible]:[outline:2px_solid_var(--ring)] leg:roomy:[&:focus-visible]:[outline-offset:2px]"
           to={workspacePath("eq")}
           aria-label={t("workspace.home")}
         >
+          <svg
+            className="leg:roomy:w-[22px] leg:roomy:h-[14px] leg:roomy:shrink-0 leg:roomy:text-[color:var(--blue)]"
+            viewBox="100 290 824 480"
+            fill="currentColor"
+            aria-hidden="true"
+          >
+            <path
+              transform="translate(0 1024) scale(.1 -.1)"
+              d="M4119 7052c-166-44-297-190-424-472-26-58-114-306-196-552-152-458-214-613-299-739-109-160-239-239-445-270-38-6-252-14-475-17l-405-7-55-30c-72-39-113-100-135-199-14-63-15-84-5-133 22-106 75-183 155-226 39-22 48-22 490-22 427 0 456 1 561 23 139 28 194 47 319 110 255 127 423 328 587 702 69 155 99 241 232 650 108 330 172 501 192 507 12 4 58-91 103-215 17-45 90-270 162-500 224-716 361-1066 610-1564 351-702 588-939 917-915 227 16 412 173 654 555 290 456 374 534 643 597 122 28 249 37 650 44 392 6 412 8 450 28 80 42 133 120 155 226 25 122-35 271-134 332l-49 30-381 3c-412 4-555-4-751-43-152-29-220-52-355-120-234-117-365-256-615-650-172-271-259-375-312-375-43 0-177 173-290 375-275 492-473 992-758 1920-96 311-205 571-301 716-83 125-200 212-322 238-69 14-93 13-173-7z"
+            />
+          </svg>
           <span>Glacier EQ</span>
         </Link>
         <WorkspaceNavigation

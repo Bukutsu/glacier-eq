@@ -611,7 +611,7 @@ html {
 :root {
   --line: color-mix(in srgb, var(--panel-border, #414868) 50%, transparent);
   --line-subtle: color-mix(in srgb, var(--panel-border, #414868) 25%, transparent);
-  --canvas-grid: color-mix(in srgb, var(--panel-border, #414868) 22%, transparent);
+  --canvas-grid: color-mix(in srgb, var(--panel-border, #414868) 42%, transparent);
   --line-soft: color-mix(in srgb, var(--panel-border, #414868) 35%, transparent);
   --line-medium: color-mix(in srgb, var(--panel-border, #414868) 45%, transparent);
   --line-strong: color-mix(in srgb, var(--panel-border, #414868) 60%, transparent);

@@ -160,8 +160,8 @@
 }
 
 .preamp-card strong {
-  font-size: 11px;
-  color: var(--muted);
+  font-size: var(--type-label);
+  color: var(--text);
   font-weight: 600;
   letter-spacing: 0;
 }
@@ -295,9 +295,9 @@
 }
 
 .bands-section-header strong {
-  font-size: var(--type-caption);
+  font-size: var(--type-label);
   color: var(--text);
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 0;
 }
 

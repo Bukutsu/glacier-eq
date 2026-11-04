@@ -9,7 +9,7 @@ type ButtonProps = Omit<ButtonPrimitive.Props, "className"> & {
 const variants = {
   default: "border-input bg-control text-foreground hover:bg-control-hover",
   primary:
-    "border-primary bg-primary text-primary-foreground hover:bg-primary-hover",
+    "border-primary bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-transparent disabled:bg-[var(--surface-disabled)] disabled:text-[var(--text-disabled)] disabled:opacity-100",
   danger:
     "border-input bg-control text-destructive-foreground hover:bg-control-hover",
   ghost:
