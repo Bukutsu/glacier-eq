@@ -479,7 +479,6 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
                   <div className="mt-[var(--space-2)] mr-[var(--space-2)] flex gap-[var(--space-2)] [&>button]:min-w-0 [&>button]:flex-1">
                     {onUseOnDac && !isDefault && (
                       <Button
-                        variant={dacEditor?.unsaved ? "default" : "primary"}
                         aria-labelledby={`${writeId} ${nameId}`}
                         disabled={disabled}
                         onClick={() => void runAction(() => onUseOnDac(profile))}
