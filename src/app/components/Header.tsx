@@ -396,7 +396,7 @@ export const Header = memo(function Header({
                   <Button
                     type="button"
                     variant={writeVariant}
-                    className="mobile-action-btn leg:compact:min-h-[44px] leg:compact:p-[0_14px] leg:compact:[outline:1px_solid_var(--line-soft)] leg:compact:[outline-offset:-1px] leg:compact:[&&]:flex-[1_1_0] leg:compact:[&&]:min-w-[0] leg:compact:[&&]:px-[8px]"
+                    className="mobile-action-btn leg:compact:min-h-[44px] leg:compact:p-[0_14px] leg:compact:[outline:1px_solid_var(--line-soft)] leg:compact:[outline-offset:-1px] leg:compact:[&&]:flex-[1_1_0] leg:compact:[&&]:min-w-[0] leg:compact:[&&]:px-[8px] max-[359px]:px-2 max-[359px]:[&>.app-icon]:hidden"
                     title={saveLabel ?? t("header.saveHelp")}
                     onClick={onPush}
                     disabled={isBusy}

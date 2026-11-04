@@ -232,7 +232,7 @@ function UdevSection({
         </Badge>
       </div>
 
-      <p className="leg:m-[4px_0_0] leg:max-w-[60ch] leg:text-[color:var(--muted)] leg:text-[length:var(--type-small)] leg:leading-[1.5] leg:compact:[.mobile-workspace_.stack-content>.settings-plain>&]:px-[16px]! cmp:[.configuration-layout_&]:text-[length:var(--type-small)] cmp:[.configuration-layout_&]:leading-[1.5] cmp:[.configuration-layout_&]:text-[color:var(--muted-foreground)]">{t("permissions.description")}</p>
+      <p className="leg:m-[4px_0_0] leg:max-w-[60ch] leg:text-[color:var(--muted)] leg:text-[length:var(--type-small)] leg:leading-[1.5] cmp:[.configuration-layout_&]:text-[length:var(--type-small)] cmp:[.configuration-layout_&]:leading-[1.5] cmp:[.configuration-layout_&]:text-[color:var(--muted-foreground)]">{t("permissions.description")}</p>
 
       <div className="stack-pref-row">
         <div className="stack-pref-info">
@@ -513,7 +513,7 @@ export const SettingsView = memo(function SettingsView({
           <>
             <section className="settings-plain" aria-label={t("about.title")}>
               <h2 className="settings-plain-title">Glacier EQ</h2>
-              <p className="leg:m-[4px_0_0] leg:max-w-[60ch] leg:text-[color:var(--muted)] leg:text-[length:var(--type-small)] leg:leading-[1.5] leg:compact:[.mobile-workspace_.stack-content>.settings-plain>&]:px-[16px]! cmp:[.configuration-layout_&]:text-[length:var(--type-small)] cmp:[.configuration-layout_&]:leading-[1.5] cmp:[.configuration-layout_&]:text-[color:var(--muted-foreground)]">{t("about.description")}</p>
+              <p className="leg:m-[4px_0_0] leg:max-w-[60ch] leg:text-[color:var(--muted)] leg:text-[length:var(--type-small)] leg:leading-[1.5] cmp:[.configuration-layout_&]:text-[length:var(--type-small)] cmp:[.configuration-layout_&]:leading-[1.5] cmp:[.configuration-layout_&]:text-[color:var(--muted-foreground)]">{t("about.description")}</p>
             </section>
 
             {isTauri() && <UpdateSection />}

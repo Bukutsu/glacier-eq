@@ -234,7 +234,9 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
         <div className="mt-[var(--space-3)] grid grid-cols-2 gap-[var(--space-2)] [&>button]:min-w-0 [&>button]:[padding-inline:8px]">
           <Button
             variant={
-              dacEditor?.unsaved || (saved && !dirty) ? "default" : "primary"
+              dacEditor?.unsaved || ((saved || builtIn) && !dirty)
+                ? "default"
+                : "primary"
             }
             disabled={disabled}
             onClick={() => openNameDialog("save")}

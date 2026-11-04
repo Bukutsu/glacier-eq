@@ -146,12 +146,6 @@
     padding-inline: 16px;
   }
 
-  /* stack-content has no mobile padding, so inset About text directly.
-     Leave the project-link list full width; its rows already have an inset. */
-  .mobile-workspace .stack-content > .settings-plain > .settings-plain-title {
-    padding-inline: 16px !important;
-  }
-
   .mobile-workspace .settings-plain .stack-pref-row {
     padding-inline: 0;
   }

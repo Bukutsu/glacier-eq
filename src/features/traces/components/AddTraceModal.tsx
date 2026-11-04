@@ -312,7 +312,7 @@ export function AddTraceModal({
             }}
           />
           {downloaded && (
-            <div className="add-trace-owner leg:flex leg:flex-col leg:gap-[6px]">
+            <div className="add-trace-owner leg:flex leg:flex-col leg:gap-[6px] leg:mt-[var(--space-2)]">
               <label className="leg:text-[length:var(--type-label)] leg:font-medium leg:text-[color:var(--text)]" htmlFor={ownerId}>
                 {t("addTraceModal.measurementOwner")}
               </label>
