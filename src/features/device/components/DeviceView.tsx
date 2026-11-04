@@ -447,7 +447,7 @@ export const DeviceView = memo(function DeviceView({
 
   const deviceSummary = (
     <Card
-      className="device-summary leg:m-[0_16px] leg:p-[20px_0] leg:[border-bottom:1px_solid_var(--line-soft)] leg:compact:[.mobile-workspace_&]:m-[0] leg:compact:[.mobile-workspace_&]:p-[16px] cmp:[.configuration-layout_&]:grid cmp:[.configuration-layout_&]:grid-cols-[minmax(0,_1fr)_auto] cmp:[.configuration-layout_&]:gap-[var(--space-2)_var(--space-4)] cmp:[.configuration-layout_&]:p-[var(--space-4)] cmp:[.configuration-layout_&]:m-[0_0_var(--space-5)] cmp:compact:[.configuration-layout_&&]:grid-cols-[minmax(0,_1fr)]"
+      className="device-summary leg:m-[0_16px] leg:p-[20px_0] leg:[border-bottom:1px_solid_var(--line-soft)] leg:compact:[.mobile-workspace_&]:m-[0] leg:compact:[.mobile-workspace_&]:p-[16px] cmp:[.configuration-layout_&]:grid cmp:[.configuration-layout_&]:grid-cols-[minmax(0,_1fr)_auto] cmp:[.configuration-layout_&]:gap-[var(--space-2)_var(--space-4)] cmp:[.configuration-layout_&]:p-[var(--space-4)] cmp:[.configuration-layout_&]:m-[0_0_var(--space-5)] cmp:compact:[.configuration-layout_&&]:mb-[0] cmp:compact:[.configuration-layout_&&]:grid-cols-[minmax(0,_1fr)]"
       aria-label={t("deviceView.deviceConnection")}
     >
       <div className="leg:flex leg:flex-col leg:gap-[6px] leg:m-[10px_0_14px] cmp:[.configuration-layout_&]:min-w-[0] cmp:[.configuration-layout_&]:m-[0] cmp:[.configuration-layout_&]:gap-[var(--space-1)]">
@@ -504,7 +504,7 @@ export const DeviceView = memo(function DeviceView({
                 onClick={onOpenConnectModal}
                 disabled={isBusy}
               >
-                <Icon name="usb" />
+                <Icon name="link" />
                 <span>{t("deviceView.connectDac")}</span>
               </Button>
             )}
@@ -576,7 +576,7 @@ export const DeviceView = memo(function DeviceView({
       <div className="stack-content leg:flex leg:flex-col leg:gap-[14px] leg:p-[16px] leg:w-[100%] leg:box-border leg:compact:[.mobile-workspace_&]:p-[0] leg:compact:[.mobile-workspace_&]:gap-[12px] cmp:[.configuration-layout_&]:p-[0] cmp:[.configuration-layout_&]:gap-[var(--space-5)]">
         {activeSection === "overview" && (
           <>
-            <dl className="device-spec-list leg:m-[0] leg:p-[0_16px] leg:[.stack-content>&]:px-[0]! leg:compact:[.mobile-workspace_&]:p-[0_16px] leg:compact:[.mobile-workspace_.stack-content>&]:px-[16px]! cmp:[.configuration-layout_&]:p-[0] cmp:[.configuration-layout_&]:gap-[0]">
+            <dl className="device-spec-list leg:m-[0] leg:p-[0_16px] leg:[.stack-content>&]:px-[0]! leg:compact:[.mobile-workspace_&]:p-[0_16px] cmp:[.configuration-layout_&]:p-[0] cmp:[.configuration-layout_&]:gap-[0]">
               {connected && (
                 <div>
                   <dt>{t("deviceView.chip")}</dt>

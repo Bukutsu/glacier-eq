@@ -22,7 +22,6 @@
     "clearProfileSearch": "プロファイルの検索をクリア",
     "savedProfiles": "保存済みプロファイル",
     "inEditor": "エディター内",
-    "loaded": "読み込み済み",
     "restore": "復元",
     "loadIntoEditor": "エディターに読み込む",
     "actionsFor": "{{name}}の操作",

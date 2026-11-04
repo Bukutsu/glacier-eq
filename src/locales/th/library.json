@@ -22,7 +22,6 @@
     "clearProfileSearch": "ล้างการค้นหาโปรไฟล์",
     "savedProfiles": "โปรไฟล์ที่บันทึกไว้",
     "inEditor": "อยู่ในตัวแก้ไข",
-    "loaded": "โหลดแล้ว",
     "restore": "คืนค่า",
     "loadIntoEditor": "โหลดลงตัวแก้ไข",
     "actionsFor": "การทำงานสำหรับ {{name}}",

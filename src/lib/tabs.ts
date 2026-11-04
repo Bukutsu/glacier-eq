@@ -11,7 +11,7 @@ export const DEVICE_SECTIONS = [
     get label() {
       return i18n.t("shell:sections.overview.label");
     },
-    icon: "info",
+    icon: "memory",
     get description() {
       return i18n.t("shell:sections.overview.description");
     },
@@ -49,7 +49,7 @@ export const SETTINGS_SECTIONS = [
     get label() {
       return i18n.t("shell:sections.general.label");
     },
-    icon: "tune",
+    icon: "settings",
     get description() {
       return i18n.t("shell:sections.general.description");
     },

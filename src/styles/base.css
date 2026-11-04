@@ -649,8 +649,8 @@ html {
   --type-micro: 10px;
   --radius-control: var(--control-radius);
   --radius-surface: var(--radius-card);
-  --action-bg: color-mix(in srgb, var(--cyan) 22%, var(--bg));
-  --action-hover-bg: color-mix(in srgb, var(--cyan) 30%, var(--bg));
+  --action-bg: color-mix(in srgb, var(--cyan) 30%, var(--bg));
+  --action-hover-bg: color-mix(in srgb, var(--cyan) 38%, var(--bg));
   font-family: var(--font-ui);
   color: var(--text);
   background: var(--bg);
@@ -717,6 +717,11 @@ select:focus-visible,
 [tabindex="-1"]:focus-visible {
   outline: 2px solid var(--ring);
   outline-offset: 2px;
+}
+
+a {
+  color: var(--link-foreground);
+  text-underline-offset: 0.2em;
 }
 
 .mobile-tab-item,

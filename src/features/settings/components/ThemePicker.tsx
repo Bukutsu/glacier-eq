@@ -20,7 +20,7 @@ const THEME_PREVIEWS: Readonly<
   "catppuccin-latte": ["#e6e9ef", "#4c4f69", "#665a7a"],
 } as const;
 
-const FIELDSET = "m-0 min-w-0 border-0 p-[var(--space-4)]";
+const FIELDSET = "m-0 min-w-0 border-0 p-[var(--space-4)] compact:px-0";
 const LEGEND = "float-left mb-[var(--space-3)] w-full p-0 text-[length:var(--type-label)] font-medium";
 const OPTIONS = "clear-both grid grid-cols-2 gap-[var(--space-2)]";
 const OPTION =

@@ -224,7 +224,7 @@ export const Header = memo(function Header({
       disabled={isBusy}
       onClick={onExportEq}
     >
-      <Icon name="ios_share" />
+      <Icon name="file_download" />
     </Button>
   );
 
@@ -414,8 +414,8 @@ export const Header = memo(function Header({
             ) : (
               <Button
                 type="button"
-                variant="default"
-                className="mobile-action-btn leg:compact:min-h-[44px] leg:compact:p-[0_14px] leg:compact:[outline:1px_solid_var(--line-soft)] leg:compact:[outline-offset:-1px] leg:compact:[&&]:flex-[1_1_0] leg:compact:[&&]:min-w-[0] leg:compact:[&&]:px-[8px] leg:compact:flex-[1_1_auto] leg:compact:min-w-[0] cmp:compact:[.mobile-toolbar_&]:flex-[0_0_auto] cmp:compact:[.mobile-toolbar_&]:ml-[auto]"
+                variant="primary"
+                className="mobile-action-btn leg:compact:min-h-[44px] leg:compact:p-[0_14px] leg:compact:[&&]:flex-[1_1_0] leg:compact:[&&]:min-w-[0] leg:compact:[&&]:px-[8px] leg:compact:flex-[1_1_auto] leg:compact:min-w-[0] cmp:compact:[.mobile-toolbar_&]:flex-[0_0_auto] cmp:compact:[.mobile-toolbar_&]:ml-[auto]"
                 onClick={onConnectClick}
                 disabled={isBusy}
               >

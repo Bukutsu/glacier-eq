@@ -288,7 +288,7 @@ function UdevSection({
         </div>
       </div>
       {note !== null && (
-        <p className="leg:m-[0] leg:text-[color:var(--muted)] leg:text-[length:var(--type-small)] leg:leading-[1.4] leg:[.settings-plain_&]:p-[8px_0_0] leg:[.stack-content>&]:px-[0]! leg:compact:[.mobile-workspace_.stack-content>&]:px-[16px]! cmp:[.configuration-layout_&]:text-[length:var(--type-small)] cmp:[.configuration-layout_&]:leading-[1.5] cmp:[.configuration-layout_&]:text-[color:var(--muted-foreground)]" role="status">
+        <p className="leg:m-[0] leg:text-[color:var(--muted)] leg:text-[length:var(--type-small)] leg:leading-[1.4] leg:[.settings-plain_&]:p-[8px_0_0] leg:[.stack-content>&]:px-[0]! cmp:[.configuration-layout_&]:text-[length:var(--type-small)] cmp:[.configuration-layout_&]:leading-[1.5] cmp:[.configuration-layout_&]:text-[color:var(--muted-foreground)]" role="status">
           {note}
         </p>
       )}
@@ -518,7 +518,7 @@ export const SettingsView = memo(function SettingsView({
 
             {isTauri() && <UpdateSection />}
 
-            <dl className="device-spec-list leg:m-[0] leg:p-[0_16px] leg:[.stack-content>&]:px-[0]! leg:compact:[.mobile-workspace_&]:p-[0_16px] leg:compact:[.mobile-workspace_.stack-content>&]:px-[16px]! cmp:[.configuration-layout_&]:p-[0] cmp:[.configuration-layout_&]:gap-[0]">
+            <dl className="device-spec-list leg:m-[0] leg:p-[0_16px] leg:[.stack-content>&]:px-[0]! leg:compact:[.mobile-workspace_&]:p-[0_16px] cmp:[.configuration-layout_&]:p-[0] cmp:[.configuration-layout_&]:gap-[0]">
               <div>
                 <dt>{t("about.version")}</dt>
                 <dd>
@@ -578,7 +578,7 @@ export const SettingsView = memo(function SettingsView({
               </div>
             </section>
 
-            <p className="leg:m-[0] leg:text-[color:var(--muted)] leg:text-[length:var(--type-small)] leg:leading-[1.4] leg:[.settings-plain_&]:p-[8px_0_0] leg:[.stack-content>&]:px-[0]! leg:compact:[.mobile-workspace_.stack-content>&]:px-[16px]! cmp:[.configuration-layout_&]:text-[length:var(--type-small)] cmp:[.configuration-layout_&]:leading-[1.5] cmp:[.configuration-layout_&]:text-[color:var(--muted-foreground)]">{t("about.howItWorks")}</p>
+            <p className="leg:m-[0] leg:text-[color:var(--muted)] leg:text-[length:var(--type-small)] leg:leading-[1.4] leg:[.settings-plain_&]:p-[8px_0_0] leg:[.stack-content>&]:px-[0]! cmp:[.configuration-layout_&]:text-[length:var(--type-small)] cmp:[.configuration-layout_&]:leading-[1.5] cmp:[.configuration-layout_&]:text-[color:var(--muted-foreground)]">{t("about.howItWorks")}</p>
           </>
         )}
       </div>

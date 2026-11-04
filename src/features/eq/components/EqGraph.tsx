@@ -248,7 +248,7 @@ export const EqGraph = memo(function EqGraph({
       setInvalidShelf(false);
       // Labels go over the curves so a curve never runs through them, and
       // band dots go over the labels so a label never hides a band.
-      drawDbLabels(ctx, height);
+      drawAxisLabels(ctx, width, height);
       paintFilterDots(ctx, dots, activeBandIndex ?? null);
       dotsRef.current = dots;
     },
@@ -874,11 +874,8 @@ function drawGrid(
   width: number,
   height: number,
 ) {
-  const mono = cssVar("--font-mono", "ui-monospace");
   ctx.strokeStyle = cssVar("--canvas-grid", "rgba(65, 72, 104, 0.22)");
   ctx.lineWidth = 1;
-  ctx.font = `500 12px ${mono}`;
-  ctx.fillStyle = cssVar("--muted", "#787c99");
 
   for (const freq of GRAPH_FREQS) {
     const x = freqToX(freq, width);
@@ -895,36 +892,44 @@ function drawGrid(
     ctx.lineTo(width - 14, y);
     ctx.stroke();
   }
-
-  const isNarrow = width < 540;
-  const freqsToLabel = isNarrow
-    ? [50, 200, 1000, 5000, 20000]
-    : [50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
-
-  for (const freq of freqsToLabel) {
-    const x = freqToX(freq, width);
-    if (freq >= 20000) {
-      ctx.textAlign = "right";
-      ctx.fillText(formatFreq(freq), width - 8, height - 4);
-      ctx.textAlign = "left";
-    } else {
-      ctx.fillText(formatFreq(freq), x + 4, height - 4);
-    }
-  }
 }
 
-function drawDbLabels(ctx: CanvasRenderingContext2D, height: number) {
+/** Paints axis text on a solid backing, so a curve never runs through it. */
+function drawAxisLabel(
+  ctx: CanvasRenderingContext2D,
+  label: string,
+  left: number,
+  baseline: number,
+) {
+  ctx.fillStyle = cssVar("--panel", "#16161e");
+  ctx.fillRect(left - 2, baseline - 11, ctx.measureText(label).width + 4, 14);
+  ctx.fillStyle = cssVar("--muted", "#787c99");
+  ctx.fillText(label, left, baseline);
+}
+
+function drawAxisLabels(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+) {
   ctx.font = `500 12px ${cssVar("--font-mono", "ui-monospace")}`;
-  const panel = cssVar("--panel", "#16161e");
-  const text = cssVar("--muted", "#787c99");
+  ctx.textAlign = "left";
   for (const db of graphDbLabels(height)) {
     const label = `${db > 0 ? "+" : ""}${db}dB`;
-    const y = dbToY(db, height) - 4;
-    // A solid backing keeps the label readable where the curve crosses it.
-    ctx.fillStyle = panel;
-    ctx.fillRect(12, y - 11, ctx.measureText(label).width + 4, 14);
-    ctx.fillStyle = text;
-    ctx.fillText(label, 14, y);
+    drawAxisLabel(ctx, label, 14, dbToY(db, height) - 4);
+  }
+
+  const freqsToLabel =
+    width < 540
+      ? [50, 200, 1000, 5000, 20000]
+      : [50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
+  for (const freq of freqsToLabel) {
+    const label = formatFreq(freq);
+    const left =
+      freq >= 20000
+        ? width - 8 - ctx.measureText(label).width
+        : freqToX(freq, width) + 4;
+    drawAxisLabel(ctx, label, left, height - 4);
   }
 }
 

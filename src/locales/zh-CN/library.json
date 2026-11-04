@@ -22,7 +22,6 @@
     "clearProfileSearch": "清除配置搜索",
     "savedProfiles": "已保存的配置",
     "inEditor": "编辑器中",
-    "loaded": "已加载",
     "restore": "恢复",
     "loadIntoEditor": "加载至编辑器",
     "actionsFor": "{{name}} 的操作",

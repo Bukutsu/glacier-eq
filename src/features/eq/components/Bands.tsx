@@ -828,7 +828,7 @@ function BandField({
     >
       <span className="leg:flex leg:items-baseline leg:gap-[var(--space-1)] leg:text-[color:var(--muted)] leg:text-[length:var(--type-small)] leg:font-medium leg:leading-[1.4] leg:compact:[.mobile-filter-card_&]:text-[color:var(--text)] leg:compact:[.mobile-filter-card_&]:text-[length:var(--type-label)] cmp:compact:[.mobile-workspace_.mobile-filter-card_&]:absolute cmp:compact:[.mobile-workspace_.mobile-filter-card_&]:top-[0] cmp:compact:[.mobile-workspace_.mobile-filter-card_&]:left-[0] cmp:compact:[.mobile-workspace_.mobile-filter-card_&]:h-[44px] cmp:compact:[.mobile-workspace_.mobile-filter-card_&]:flex cmp:compact:[.mobile-workspace_.mobile-filter-card_&]:items-center cmp:compact:[.mobile-workspace_.mobile-filter-card_&]:gap-[var(--space-1)] cmp:compact:[.mobile-workspace_.mobile-filter-card_.band-type-field_&]:static cmp:compact:[.mobile-workspace_.mobile-filter-card_.band-type-field_&]:h-[auto]">
         {label}
-        {unit && <span className="leg:text-[length:var(--type-micro)]">{unit}</span>}
+        {unit && <span className="leg:text-[length:var(--type-micro)] cmp:compact:[.mobile-filter-card_&]:text-[length:var(--type-small)] cmp:compact:[.mobile-filter-card_&]:text-[color:var(--muted)] cmp:compact:[.mobile-filter-card_&]:font-normal">{unit}</span>}
       </span>
       {children}
     </div>

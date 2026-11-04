@@ -1,3 +1,5 @@
+@keyframes mobile-scroll-edge { to { opacity: 1; } }
+
 /* Mobile affordances follow the layout breakpoint, not just the primary
    pointer type: small windows and hybrid devices need usable targets too. */
 @media (max-width: 850px), ((max-height: 540px) and (pointer: coarse)) {
@@ -104,6 +106,30 @@
       display: none;
     }
   }
+
+  /* Content scrolls up to the status bar; a hairline marks that edge once
+     it does. Browsers without scroll timelines keep the plain edge. */
+  .mobile-workspace::before {
+    content: "";
+    position: sticky;
+    top: 0;
+    z-index: var(--z-sticky);
+    flex: none;
+    margin-bottom: -1px;
+    border-bottom: 1px solid var(--border);
+    opacity: 0;
+    pointer-events: none;
+  }
+  @supports (animation-timeline: scroll()) {
+    .mobile-workspace::before {
+      animation: mobile-scroll-edge linear both;
+      animation-timeline: scroll();
+      animation-range: 0 16px;
+    }
+  }
+
+  /* Stacked pages (Device above Settings) keep one section gap between them. */
+  .left-pane:has(+ .left-pane) > .configuration-mobile { padding-bottom: 0; }
 
   /* WebView can resize only the visual viewport when the IME opens. */
   .keyboard-open #app { height: var(--app-visible-height, 100dvh); }

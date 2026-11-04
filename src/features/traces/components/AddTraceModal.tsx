@@ -285,7 +285,7 @@ export function AddTraceModal({
             })}
           </ErrorNotice>
         )}
-        <div className="leg:flex leg:flex-col leg:gap-[8px] leg:p-[14px] leg:[border:1px_solid_var(--line-soft)] leg:rounded-[var(--radius-card)] leg:[background:var(--popover)] leg:max-[540px]:p-[12px]">
+        <div className="leg:flex leg:flex-col leg:gap-[8px] leg:p-[14px] leg:[border:1px_solid_var(--line-soft)] leg:rounded-[var(--radius-card)] leg:[background:var(--popover)] leg:max-[540px]:p-[12px] cmp:compact:[border:0] cmp:compact:p-[0] cmp:compact:[background:transparent]">
           <label className="leg:text-[length:var(--type-label)] leg:font-medium leg:text-[color:var(--text)]" htmlFor={searchId}>
             {t("addTraceModal.headphoneOrBrand")}
           </label>
@@ -452,7 +452,7 @@ export function AddTraceModal({
             </div>
           )}
         </div>
-        <div className="add-trace-file-row leg:flex leg:items-center leg:gap-[16px] leg:p-[12px_14px] leg:[border:1px_solid_var(--line-soft)] leg:rounded-[var(--radius-card)] leg:[background:var(--popover)] leg:max-[540px]:flex-wrap leg:max-[540px]:gap-[12px]">
+        <div className="add-trace-file-row leg:flex leg:items-center leg:gap-[16px] leg:p-[12px_14px] leg:[border:1px_solid_var(--line-soft)] leg:rounded-[var(--radius-card)] leg:[background:var(--popover)] cmp:compact:[border-width:1px_0_0] cmp:compact:rounded-[0] cmp:compact:p-[var(--space-4)_0_0] cmp:compact:[background:transparent] leg:max-[540px]:flex-wrap leg:max-[540px]:gap-[12px]">
           <FileImportButton
             className="leg:[.add-trace-modal_&]:min-h-[44px] leg:[.add-trace-modal_&]:text-[length:var(--type-label)] leg:[.add-trace-modal_&]:whitespace-nowrap leg:[.add-trace-modal_&]:shrink-0 leg:compact:min-h-[44px]"
             label={t("addTraceModal.importFile")}

@@ -233,7 +233,9 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
           )}
         <div className="mt-[var(--space-3)] grid grid-cols-2 gap-[var(--space-2)] [&>button]:min-w-0 [&>button]:[padding-inline:8px]">
           <Button
-            variant={dacEditor?.unsaved ? "default" : "primary"}
+            variant={
+              dacEditor?.unsaved || (saved && !dirty) ? "default" : "primary"
+            }
             disabled={disabled}
             onClick={() => openNameDialog("save")}
           >
@@ -247,6 +249,7 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
             </Button>
           )}
           <Button
+            variant="ghost"
             aria-label={t("profilesView.copy")}
             disabled={disabled}
             onClick={() => void runAction(() => copyEq(peq, setStatus))}
@@ -254,6 +257,7 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
             <Icon name="content_copy" /> {t("profilesView.copy")}
           </Button>
           <Button
+            variant="ghost"
             aria-label={t("mobileProfilesView.exportEQ")}
             disabled={disabled}
             onClick={() =>
@@ -370,7 +374,7 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
           </>
         )}
         <ul
-          className="m-0 grid list-none gap-[var(--space-2)] p-0"
+          className="m-0 list-none overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--card)] p-0 [&>li+li]:border-t [&>li+li]:border-[var(--border)]"
           aria-label={t("mobileProfilesView.savedProfiles")}
         >
           {visible.map((profile, index) => {
@@ -388,83 +392,34 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
             const bands = data.filters.filter(
               (filter) => filter.enabled,
             ).length;
+            // The badge already says a clean current profile is loaded.
+            const canLoad = !(current && !dirty);
             return (
               <li
                 key={profile.name}
                 aria-labelledby={nameId}
                 className={
                   current
-                    ? "min-w-0 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface-soft)] p-[var(--space-4)]"
-                    : "min-w-0 rounded-[var(--radius-card)] border border-[var(--border)] p-[var(--space-4)]"
+                    ? "min-w-0 bg-[var(--surface-soft)] p-[var(--space-3)_var(--space-2)_var(--space-3)_var(--space-4)]"
+                    : "min-w-0 p-[var(--space-3)_var(--space-2)_var(--space-3)_var(--space-4)]"
                 }
               >
-                <div className={FLEXBAR + " items-start"}>
-                  <h3 id={nameId} className="m-0 min-w-0 text-[length:var(--type-label)] font-semibold leading-[1.5] [overflow-wrap:anywhere] [&_.app-icon]:mr-1.5 [&_.app-icon]:inline-block [&_.app-icon]:h-[14px] [&_.app-icon]:w-[14px] [&_.app-icon]:text-[var(--muted-foreground)] [&_.app-icon]:[vertical-align:-2px]">
-                    {isDefault && <Icon name="lock" />}
-                    {profile.name}
-                  </h3>
+                <div className="flex items-center gap-[var(--space-2)]">
+                  <div className="min-w-0 flex-1">
+                    <h3 id={nameId} className="m-0 min-w-0 text-[length:var(--type-label)] font-semibold leading-[1.5] [overflow-wrap:anywhere] [&_.app-icon]:mr-1.5 [&_.app-icon]:inline-block [&_.app-icon]:h-[14px] [&_.app-icon]:w-[14px] [&_.app-icon]:text-[var(--muted-foreground)] [&_.app-icon]:[vertical-align:-2px]">
+                      {isDefault && <Icon name="lock" />}
+                      {profile.name}
+                    </h3>
+                    <p className={DESC}>
+                      {isDefault
+                        ? t("mobileProfilesView.flatProfileDescription")
+                        : t("mobileProfilesView.bandSummary", {
+                            count: bands,
+                            preamp: formatDb(data.global_gain),
+                          })}
+                    </p>
+                  </div>
                   {current && <Badge>{t("mobileProfilesView.inEditor")}</Badge>}
-                </div>
-                <p className={DESC + " mt-[var(--space-1)]"}>
-                  {isDefault
-                    ? t("mobileProfilesView.flatProfileDescription")
-                    : t("mobileProfilesView.bandSummary", {
-                        count: bands,
-                        preamp: formatDb(data.global_gain),
-                      })}
-                </p>
-                <div className={FLEXBAR + " mt-[var(--space-3)] [&>button:first-child]:flex-1"}>
-                  {onUseOnDac && !isDefault && (
-                    <Button
-                      variant={dacEditor?.unsaved ? "default" : "primary"}
-                      aria-labelledby={`${writeId} ${nameId}`}
-                      disabled={disabled}
-                      onClick={() => void runAction(() => onUseOnDac(profile))}
-                    >
-                      <Icon name="save" />
-                      <span id={writeId}>
-                        {dacEditor?.slot != null
-                          ? t("profilesView.writeToUser", {
-                              number:
-                                dacEditor.bankNumber ?? dacEditor.slot - 159,
-                            })
-                          : t("profilesView.saveToDac")}
-                      </span>
-                    </Button>
-                  )}
-                  <Button
-                    aria-labelledby={`${loadId} ${nameId}`}
-                    disabled={disabled || (current && !dirty)}
-                    onClick={() =>
-                      void runAction(() =>
-                        loadProfile({
-                          profile,
-                          selectedPreset,
-                          dirty: dirty || Boolean(dacEditor?.unsaved),
-                          getAsyncContext,
-                          onSelectProfile: (next) => {
-                            if (mounted.current) onSelectProfile(next);
-                          },
-                        }),
-                      )
-                    }
-                  >
-                    <span id={loadId}>
-                      {current && !dirty ? (
-                        <>
-                          <Icon name="check" />
-                          {t("mobileProfilesView.loaded")}
-                        </>
-                      ) : current ? (
-                        <>
-                          <Icon name="restart_alt" />
-                          {t("mobileProfilesView.restore")}
-                        </>
-                      ) : (
-                        t("mobileProfilesView.loadIntoEditor")
-                      )}
-                    </span>
-                  </Button>
                   <OverflowMenu
                     label={t("mobileProfilesView.actionsFor", {
                       name: profile.name,
@@ -518,6 +473,58 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
                     )}
                   </OverflowMenu>
                 </div>
+                {(canLoad || (onUseOnDac && !isDefault)) && (
+                  <div className="mt-[var(--space-2)] mr-[var(--space-2)] flex gap-[var(--space-2)] [&>button]:min-w-0 [&>button]:flex-1">
+                    {onUseOnDac && !isDefault && (
+                      <Button
+                        variant={dacEditor?.unsaved ? "default" : "primary"}
+                        aria-labelledby={`${writeId} ${nameId}`}
+                        disabled={disabled}
+                        onClick={() => void runAction(() => onUseOnDac(profile))}
+                      >
+                        <Icon name="save" />
+                        <span id={writeId}>
+                          {dacEditor?.slot != null
+                            ? t("profilesView.writeToUser", {
+                                number:
+                                  dacEditor.bankNumber ?? dacEditor.slot - 159,
+                              })
+                            : t("profilesView.saveToDac")}
+                        </span>
+                      </Button>
+                    )}
+                    {canLoad && (
+                      <Button
+                        aria-labelledby={`${loadId} ${nameId}`}
+                        disabled={disabled}
+                        onClick={() =>
+                          void runAction(() =>
+                            loadProfile({
+                              profile,
+                              selectedPreset,
+                              dirty: dirty || Boolean(dacEditor?.unsaved),
+                              getAsyncContext,
+                              onSelectProfile: (next) => {
+                                if (mounted.current) onSelectProfile(next);
+                              },
+                            }),
+                          )
+                        }
+                      >
+                        <span id={loadId}>
+                          {current ? (
+                            <>
+                              <Icon name="restart_alt" />
+                              {t("mobileProfilesView.restore")}
+                            </>
+                          ) : (
+                            t("mobileProfilesView.loadIntoEditor")
+                          )}
+                        </span>
+                      </Button>
+                    )}
+                  </div>
+                )}
               </li>
             );
           })}

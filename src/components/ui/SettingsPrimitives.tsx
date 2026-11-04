@@ -111,7 +111,7 @@ export function SegmentedRow<T extends string>({
               key={option.value}
               type="button"
               data-slot="segmented-control"
-              className="cmp:flex-[1_1_0] cmp:min-w-[0] cmp:min-h-[28px] cmp:p-[0_var(--space-3)] cmp:[border:0] cmp:rounded-[3px] cmp:[background:transparent] cmp:text-[color:var(--muted-foreground)] cmp:[font:inherit] cmp:[&&]:text-[length:var(--type-label)] cmp:cursor-pointer cmp:[&:hover]:text-[color:var(--foreground)] cmp:[&[aria-pressed='true']]:[background:var(--accent)] cmp:[&&[aria-pressed='true']]:text-[color:var(--accent-foreground)] cmp:[&[aria-pressed='true']]:font-medium cmp:[&:focus-visible]:[outline:2px_solid_var(--ring)] cmp:[&:focus-visible]:[outline-offset:-2px] cmp:compact:[.configuration-layout_&]:min-h-[48px]"
+              className="cmp:flex-[1_1_0] cmp:min-w-[0] cmp:min-h-[28px] cmp:p-[0_var(--space-3)] cmp:[border:0] cmp:rounded-[3px] cmp:[background:transparent] cmp:text-[color:var(--muted-foreground)] cmp:[font:inherit] cmp:[&&]:text-[length:var(--type-label)] cmp:cursor-pointer cmp:[&:hover]:text-[color:var(--foreground)] cmp:[&[aria-pressed='true']]:[background:var(--accent)] cmp:[&[aria-pressed='true']]:[box-shadow:inset_0_0_0_1px_var(--input)] cmp:[&&[aria-pressed='true']]:text-[color:var(--accent-foreground)] cmp:[&[aria-pressed='true']]:font-medium cmp:[&:focus-visible]:[outline:2px_solid_var(--ring)] cmp:[&:focus-visible]:[outline-offset:-2px] cmp:compact:[.configuration-layout_&]:min-h-[48px]"
               aria-pressed={value === option.value}
               disabled={disabled}
               onClick={() => {
