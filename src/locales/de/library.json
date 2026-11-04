@@ -162,6 +162,7 @@
     "localProfiles": "In Glacier gespeichert"
   },
   "profiles": {
+    "pulledFromDac": "EQ vom DAC",
     "failedToLoadProfiles": "Profile konnten nicht geladen werden: {{error}}",
     "enterAProfileNameBeforeSaving": "Gib vor dem Speichern einen Profilnamen ein.",
     "overwriteProfile": "Profil überschreiben?",

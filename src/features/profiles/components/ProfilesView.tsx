@@ -19,6 +19,7 @@ import {
   profileIdentityKey,
 } from "@/features/profiles/lib/profileIdentity";
 import { loadProfile } from "@/features/profiles/lib/loadProfile";
+import { profileTitle } from "@/features/profiles/lib/pulledProfile";
 import { readTextFile } from "@/lib/textFile";
 import { fuzzyMatch } from "@/lib/search";
 import { isTauri } from "@/lib/platform";
@@ -699,8 +700,8 @@ export const ProfilesView = memo(function ProfilesView({
             {editorState}
           </Badge>
         </header>
-        <h3 className="cmp:m-[0_0_var(--space-1)] cmp:text-[color:var(--text)] cmp:text-[length:18px] cmp:font-semibold cmp:leading-[1.35] cmp:[overflow-wrap:anywhere] cmp:compact:[.mobile-workspace_&]:text-[length:var(--type-body)] cmp:compact:[.mobile-workspace_&]:m-[0]" title={selectedPreset}>
-          {selectedPreset}
+        <h3 className="cmp:m-[0_0_var(--space-1)] cmp:text-[color:var(--text)] cmp:text-[length:18px] cmp:font-semibold cmp:leading-[1.35] cmp:[overflow-wrap:anywhere] cmp:compact:[.mobile-workspace_&]:text-[length:var(--type-body)] cmp:compact:[.mobile-workspace_&]:m-[0]" title={profileTitle(selectedPreset)}>
+          {profileTitle(selectedPreset)}
         </h3>
         <p className="profiles-note">
           {t("profilesView.bandSummary", {

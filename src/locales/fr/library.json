@@ -168,6 +168,7 @@
     "localProfiles": "Enregistrés dans Glacier"
   },
   "profiles": {
+    "pulledFromDac": "EQ du DAC",
     "failedToLoadProfiles": "Échec du chargement des profils : {{error}}",
     "enterAProfileNameBeforeSaving": "Saisissez un nom de profil avant d’enregistrer.",
     "overwriteProfile": "Écraser le profil ?",

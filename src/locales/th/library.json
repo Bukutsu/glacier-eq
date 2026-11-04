@@ -156,6 +156,7 @@
     "localProfiles": "บันทึกใน Glacier"
   },
   "profiles": {
+    "pulledFromDac": "EQ จาก DAC",
     "failedToLoadProfiles": "โหลดโปรไฟล์ไม่สำเร็จ: {{error}}",
     "enterAProfileNameBeforeSaving": "ป้อนชื่อโปรไฟล์ก่อนบันทึก",
     "overwriteProfile": "เขียนทับโปรไฟล์หรือไม่?",

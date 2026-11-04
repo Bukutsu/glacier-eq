@@ -156,6 +156,7 @@
     "localProfiles": "保存在 Glacier"
   },
   "profiles": {
+    "pulledFromDac": "来自 DAC 的 EQ",
     "failedToLoadProfiles": "加载配置失败：{{error}}",
     "enterAProfileNameBeforeSaving": "保存前请输入配置名称。",
     "overwriteProfile": "覆盖配置？",

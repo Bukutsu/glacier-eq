@@ -71,6 +71,7 @@ import { useMobileRecovery } from "@/features/eq/hooks/useMobileRecovery";
 import { useDacCompare } from "@/features/device/hooks/useDacCompare";
 import { DiagnosticsDialog } from "@/features/diagnostics/components/DiagnosticsDialog";
 import { MobileRecovery } from "@/features/eq/components/MobileRecovery";
+import { profileTitle } from "@/features/profiles/lib/pulledProfile";
 
 const EMPTY_MEASUREMENTS: MeasurementTrace[] = [];
 const EMPTY_TARGETS: TargetTrace[] = [];
@@ -442,11 +443,12 @@ function App() {
         : undefined
     : undefined;
 
+  const selectedPresetTitle = profileTitle(selectedPreset);
   const mobilePageTitle =
     activeTab === "eq"
-      ? selectedPreset
+      ? selectedPresetTitle
       : (MOBILE_TABS.find((tab) => tab.id === activeTab)?.label ??
-        selectedPreset);
+        selectedPresetTitle);
 
   const melodySaveLabel =
     melodyWorkspace.bank === null
@@ -475,7 +477,7 @@ function App() {
       isSimulated={isDevDummyDevice(selectedDevice)}
       isBusy={isBusy}
       progress={progress}
-      profile={selectedPreset}
+      profile={selectedPresetTitle}
       profileDirty={dirty}
       profileSaved={profiles.some(
         (profile) =>

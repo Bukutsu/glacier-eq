@@ -9,7 +9,10 @@ import { normalizePeq, peqEquals } from "@/features/eq/lib/peq";
 
 import { isDisconnectionError } from "@/lib/errors";
 import { asyncContextEquals } from "@/lib/asyncContext";
-import { resolvePulledProfile } from "@/features/profiles/lib/pulledProfile";
+import {
+  PULLED_PROFILE_NAME,
+  resolvePulledProfile,
+} from "@/features/profiles/lib/pulledProfile";
 import type { PEQData } from "@/types";
 import { type StatusReporter } from "@/stores/toastStore";
 import { useDebugStore } from "@/features/diagnostics/stores/debugStore";
@@ -237,7 +240,7 @@ export function createPullEq(context: PullEqContext) {
       editorCleanPeqRef.current = normalized;
       // Browsing seeded previews is not an unsaved user edit. Actual edits
       // still use the normal dirty/draft protection and switch confirmation.
-      setDirty(!simulated && matchedProfile === "Pulled from device");
+      setDirty(!simulated && matchedProfile === PULLED_PROFILE_NAME);
       emit("device-pull").catch((err) =>
         console.error("Failed to emit device-pull:", err),
       );

@@ -22,6 +22,7 @@ import { asyncContextEquals, type AsyncContext } from "@/lib/asyncContext";
 import { invoke, openFileDialog } from "@/lib/rpc";
 import type { PEQData, Profile } from "@/types";
 import { loadProfile } from "../lib/loadProfile";
+import { profileTitle } from "../lib/pulledProfile";
 import {
   isReservedProfileName,
   profileIdentityKey,
@@ -199,7 +200,7 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
                     : t("mobileProfilesView.notSaved"))}
           </Badge>
         </div>
-        <h2 className="m-0 mt-[var(--space-3)] mb-[var(--space-1)] text-[20px] font-semibold leading-[1.35] [overflow-wrap:anywhere]">{selectedPreset}</h2>
+        <h2 className="m-0 mt-[var(--space-3)] mb-[var(--space-1)] text-[20px] font-semibold leading-[1.35] [overflow-wrap:anywhere]">{profileTitle(selectedPreset)}</h2>
         <p className={DESC}>
           {t("mobileProfilesView.activeBands", {
             count: activeBands,

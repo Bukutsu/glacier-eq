@@ -156,6 +156,7 @@
     "localProfiles": "Glacier に保存"
   },
   "profiles": {
+    "pulledFromDac": "DACのEQ",
     "failedToLoadProfiles": "プロファイルの読み込みに失敗しました: {{error}}",
     "enterAProfileNameBeforeSaving": "保存する前にプロファイル名を入力してください。",
     "overwriteProfile": "プロファイルを上書きしますか？",

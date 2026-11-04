@@ -8,6 +8,7 @@ import {
 } from "@/features/profiles/lib/profileIdentity";
 import { confirmDialog } from "@/components/ui/ConfirmDialog";
 import { profileOverwriteMessage } from "@/features/profiles/lib/profileOverwrite";
+import { PULLED_PROFILE_NAME } from "@/features/profiles/lib/pulledProfile";
 import {
   buildDefaultState,
   normalizePeqForDevice,
@@ -241,7 +242,7 @@ export function useProfiles(editor: ProfilesEditor, setStatus: StatusReporter) {
     };
     const name =
       savedContext.newProfileName.trim() || savedContext.selectedPreset;
-    if (!name || name === "Pulled from device") {
+    if (!name || name === PULLED_PROFILE_NAME) {
       setStatus(
         i18n.t("library:profiles.enterAProfileNameBeforeSaving"),
         "info",
