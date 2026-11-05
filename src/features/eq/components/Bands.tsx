@@ -219,10 +219,10 @@ export const Bands = memo(function Bands({
   };
 
   return (
-    <div className={`bands-container leg:flex leg:flex-col leg:gap-[0] leg:[border:1px_solid_var(--line-soft)] leg:rounded-[var(--radius-card)] leg:overflow-hidden leg:shrink-0 leg:compact:[.mobile-workspace_&]:rounded-[0]! leg:compact:[.mobile-workspace_&]:[border-inline:0]! cmp:compact:[.mobile-workspace_&]:[overflow:clip] leg:compact:[.mobile-workspace:has(.mobile-graph-container)_&]:[border-top:0]! ${collapsed ? " collapsed" : ""}`}>
+    <div className={`bands-container roomy:[&:not(.collapsed):has(.band-picker)]:grid roomy:grid-cols-[auto_minmax(0,_1fr)] roomy:[&>*]:col-[1/-1] roomy:[container-type:inline-size] leg:flex leg:flex-col leg:gap-[0] leg:[border:1px_solid_var(--line-soft)] leg:rounded-[var(--radius-card)] leg:overflow-hidden leg:shrink-0 leg:compact:[.mobile-workspace_&]:rounded-[0]! leg:compact:[.mobile-workspace_&]:[border-inline:0]! cmp:compact:[.mobile-workspace_&]:[overflow:clip] leg:compact:[.mobile-workspace:has(.mobile-graph-container)_&]:[border-top:0]! ${collapsed ? " collapsed" : ""}`}>
       <button
         type="button"
-        className="bands-section-header leg:w-[100%] leg:h-[48px] leg:p-[0_16px] leg:[background:var(--panel)] leg:flex leg:justify-between leg:items-center leg:select-none leg:text-[color:inherit] leg:cursor-pointer leg:[border:none] leg:[&&]:[border-bottom:1px_solid_var(--line-soft)] leg:text-left leg:[transition:background_var(--motion-duration)_var(--motion-ease)] leg:[&:hover]:[background:var(--surface-soft)] leg:compact:hidden"
+        className="bands-section-header [.bands-container.collapsed>&]:border-b-0 roomy:[&&]:col-[1] roomy:h-auto roomy:min-h-[48px] roomy:gap-[var(--space-3)] leg:w-[100%] leg:h-[48px] leg:p-[0_16px] leg:[background:var(--panel)] leg:flex leg:justify-between leg:items-center leg:select-none leg:text-[color:inherit] leg:cursor-pointer leg:[border:none] leg:[&&]:[border-bottom:1px_solid_var(--line-soft)] leg:text-left leg:[transition:background_var(--motion-duration)_var(--motion-ease)] leg:[&:hover]:[background:var(--surface-soft)] leg:compact:hidden"
         onClick={() => setCollapsed((v) => !v)}
         aria-expanded={!collapsed}
       >
@@ -287,9 +287,9 @@ export const Bands = memo(function Bands({
         </div>
       )}
       {selectedFilter && (
-        <section className="bands-mobile-editor leg:flex leg:flex-col leg:gap-[0] leg:[background:transparent] leg:[container-type:inline-size] leg:[.bands-container.collapsed_&]:hidden">
+        <section className="bands-mobile-editor roomy:[.bands-container:not(.collapsed)_&]:contents leg:flex leg:flex-col leg:gap-[0] leg:[background:transparent] leg:[container-type:inline-size] leg:[.bands-container.collapsed_&]:hidden">
           <div
-            className="band-picker leg:grid leg:grid-cols-[minmax(0,_1fr)_auto] leg:gap-[var(--space-2)] leg:min-w-[0] leg:p-[var(--space-3)_var(--space-4)] leg:[border-bottom:1px_solid_var(--line-soft)] cmp:compact:[.mobile-workspace_&]:p-[var(--space-2)_var(--space-3)]"
+            className="band-picker roomy:py-[var(--space-2)] roomy:pl-0 leg:grid leg:grid-cols-[minmax(0,_1fr)_auto] leg:gap-[var(--space-2)] leg:min-w-[0] leg:p-[var(--space-3)_var(--space-4)] leg:[border-bottom:1px_solid_var(--line-soft)] cmp:compact:[.mobile-workspace_&]:p-[var(--space-2)_var(--space-3)]"
             role="group"
             aria-label={t("bands.title")}
           >
@@ -335,7 +335,7 @@ export const Bands = memo(function Bands({
             )}
           </div>
           <div
-            className="mobile-filter-card leg:grid leg:grid-cols-[minmax(140px,_0.6fr)_repeat(3,_minmax(0,_1fr))] leg:[grid-template-areas:'head_head_head_head'_'type_freq_gain_q'] leg:[align-items:start] leg:gap-[var(--space-3)_var(--space-5)] leg:p-[var(--space-3)_var(--space-4)_var(--space-4)] leg:[background:var(--panel)] leg:[@container(max-width:700px)]:grid-cols-[minmax(0,_1fr)] leg:[@container(max-width:700px)]:[grid-template-areas:'head'_'type'_'freq'_'gain'_'q'] leg:[@container(max-width:700px)]:gap-[var(--space-3)] leg:compact:rounded-[var(--radius-surface)]! leg:compact:overflow-hidden leg:compact:[.mobile-workspace_&]:rounded-[0]! leg:compact:[.mobile-workspace_&]:[border-inline:0]! leg:compact:flex leg:compact:flex-col leg:compact:items-stretch leg:compact:[&&]:gap-[var(--space-2)] leg:compact:p-[var(--space-2)_var(--space-3)] leg:compact:w-[100%] leg:compact:box-border leg:[@media(max-height:_580px)]:gap-[4px]! leg:[@media(max-height:_580px)]:p-[6px_12px]! cmp:compact:[.mobile-workspace_&]:[border-color:var(--border)] cmp:compact:[.mobile-workspace_&]:[background:var(--card)]! cmp:compact:[.mobile-workspace_&]:p-[var(--space-3)_var(--space-4)] cmp:compact:[.mobile-workspace_&]:gap-[var(--space-3)] cmp:compact:[.mobile-workspace_&]:[border-top:0] cmp:compact:[.mobile-workspace_&]:rounded-[0]"
+            className="mobile-filter-card roomy:col-[1/-1] leg:grid leg:grid-cols-[minmax(140px,_0.6fr)_repeat(3,_minmax(0,_1fr))] leg:[grid-template-areas:'head_head_head_head'_'type_freq_gain_q'] leg:[align-items:start] leg:gap-[var(--space-3)_var(--space-5)] leg:p-[var(--space-3)_var(--space-4)_var(--space-4)] leg:[background:var(--panel)] leg:[@container(max-width:700px)]:grid-cols-[minmax(0,_1fr)] leg:[@container(max-width:700px)]:[grid-template-areas:'head'_'type'_'freq'_'gain'_'q'] leg:[@container(max-width:700px)]:gap-[var(--space-3)] leg:compact:rounded-[var(--radius-surface)]! leg:compact:overflow-hidden leg:compact:[.mobile-workspace_&]:rounded-[0]! leg:compact:[.mobile-workspace_&]:[border-inline:0]! leg:compact:flex leg:compact:flex-col leg:compact:items-stretch leg:compact:[&&]:gap-[var(--space-2)] leg:compact:p-[var(--space-2)_var(--space-3)] leg:compact:w-[100%] leg:compact:box-border leg:[@media(max-height:_580px)]:gap-[4px]! leg:[@media(max-height:_580px)]:p-[6px_12px]! cmp:compact:[.mobile-workspace_&]:[border-color:var(--border)] cmp:compact:[.mobile-workspace_&]:[background:var(--card)]! cmp:compact:[.mobile-workspace_&]:p-[var(--space-3)_var(--space-4)] cmp:compact:[.mobile-workspace_&]:gap-[var(--space-3)] cmp:compact:[.mobile-workspace_&]:[border-top:0] cmp:compact:[.mobile-workspace_&]:rounded-[0]"
             style={filterColorStyle(selectedFilter.index)}
           >
             <div className="mobile-filter-head leg:[grid-area:head] leg:min-w-[0] leg:grid leg:grid-cols-[minmax(0,_1fr)_auto] leg:gap-[8px] leg:items-center">
