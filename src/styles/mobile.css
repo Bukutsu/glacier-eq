@@ -19,6 +19,26 @@
     touch-action: manipulation;
   }
   .app-header .title-line h1 { font-size: 18px; line-height: 1.3; }
+  /* Two-row app bar: title over status on the left, the DAC action beside
+     the title and edit history beside the status. Saves a full toolbar row. */
+  .app-header .header-main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    column-gap: var(--space-2);
+    row-gap: 0;
+    align-items: center;
+  }
+  .app-header .header-main > div:first-child,
+  .app-header .mobile-toolbar { display: contents; }
+  .app-header .header-main .title-line { grid-area: 1 / 1; }
+  .app-header .header-main > div:first-child > div:not(.title-line) { grid-area: 2 / 1; }
+  .app-header .mobile-toolbar > :not(.mobile-history-buttons) { grid-area: 1 / 2; }
+  .app-header .mobile-toolbar > :not(.mobile-history-buttons):last-child { grid-column: 3; }
+  .app-header .mobile-history-buttons {
+    grid-area: 2 / 2 / 3 / -1;
+    justify-self: end;
+    margin-inline-end: calc(-1 * var(--space-3));
+  }
   .mobile-workspace .control-slider { position: relative; }
   /* A compact instrument panel: labels and values above a long touch track. */
   .mobile-workspace .mobile-filter-card :is(.freq-cell, .gain-cell, .q-cell) {
