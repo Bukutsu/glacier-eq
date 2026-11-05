@@ -313,6 +313,10 @@
   .mobile-graph-container {
     margin-bottom: 0;
   }
+  /* The flat graph panel sits flush under the header hairline. */
+  .workspace.mobile-workspace:has(.mobile-graph-container) {
+    padding-top: 0;
+  }
 
   /* The 230px desktop minimum otherwise wins over the mobile clamp. */
 
