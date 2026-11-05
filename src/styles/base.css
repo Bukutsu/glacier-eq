@@ -758,8 +758,8 @@ input, select, button, a {
   background: var(--surface-soft);
   color: var(--text);
   font-weight: 500;
-  min-height: 42px;
-  padding: 0 18px;
+  min-height: var(--control-height);
+  padding: 0 14px;
   border-radius: var(--radius-control);
   outline: 1px solid var(--line-medium);
   outline-offset: -1px;

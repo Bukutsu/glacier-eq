@@ -34,8 +34,8 @@ export function Button({
         "disabled:cursor-not-allowed disabled:opacity-45 motion-reduce:transition-none",
         "[&_svg]:size-4 [&_svg]:shrink-0",
         size === "icon"
-          ? "size-[34px] p-0 pointer-coarse:size-11"
-          : "h-[34px] px-3 pointer-coarse:min-h-11",
+          ? "size-[var(--control-height)] p-0 pointer-coarse:size-11"
+          : "h-[var(--control-height)] px-3 pointer-coarse:min-h-11",
         variants[variant],
         className,
       ].join(" ")}

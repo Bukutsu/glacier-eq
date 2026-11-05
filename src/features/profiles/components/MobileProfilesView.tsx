@@ -512,7 +512,10 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
                           )
                         }
                       >
-                        <span id={loadId}>
+                        <span
+                          id={loadId}
+                          className="inline-flex items-center gap-2"
+                        >
                           {current ? (
                             <>
                               <Icon name="restart_alt" />

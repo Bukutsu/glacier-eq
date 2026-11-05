@@ -21,7 +21,8 @@
   --radius-card: 10px;
   --radius-pill: 999px;
   --sidebar-width: 192px;
-  --control-height: 34px;
+  /* One height for every desktop field and button; coarse pointers use --touch-md. */
+  --control-height: 36px;
 
   /* Shadows. */
   --shadow-sm: 0 2px 8px rgb(0 0 0 / 0.4);
