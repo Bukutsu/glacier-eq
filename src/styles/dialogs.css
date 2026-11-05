@@ -11,6 +11,8 @@
   gap: var(--space-4);
 }
 .device-modal .modal-body { padding: 0; }
+/* One dialog surface: the chooser card must not repaint a darker body. */
+.device-modal .device-card { background: transparent; }
 .device-modal .device-intro p { font-size: var(--type-label); line-height: 1.5; color: var(--muted-foreground); }
 .device-modal .device-intro > .app-icon { display: none; }
 .device-modal .device-list-heading span { background: transparent; color: var(--muted-foreground); }

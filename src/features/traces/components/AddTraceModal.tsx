@@ -294,7 +294,7 @@ export function AddTraceModal({
             id={searchId}
             name="measurement-search"
             type="search"
-            className="leg:rounded-[var(--radius-control)]! leg:[background:var(--input-bg,_var(--surface-soft))]! leg:[border:1px_solid_var(--input-border,_var(--line-soft))]! leg:[transition:border-color_var(--motion-duration)_var(--motion-ease),_outline_var(--motion-duration)_var(--motion-ease)] leg:[font-family:var(--font-ui)] leg:text-[length:var(--type-body)] leg:text-[color:var(--text)] leg:p-[0_14px] leg:min-h-[44px] leg:w-[100%] leg:box-border leg:[&:focus]:[border-color:var(--ring)]! leg:[&:focus]:[outline:1px_solid_var(--focus-ring)] leg:[&:focus]:[outline-offset:2px] leg:[&::placeholder]:text-[color:var(--muted)] leg:pointer-coarse:[&&]:text-[length:16px]! leg:compact:min-h-[48px]! leg:compact:[&&&]:text-[length:17px]!"
+            className="leg:rounded-[var(--radius-control)]! leg:[background:var(--input-bg,_var(--surface-soft))]! leg:[border:1px_solid_var(--input-border,_var(--line-soft))]! leg:[transition:border-color_var(--motion-duration)_var(--motion-ease),_outline_var(--motion-duration)_var(--motion-ease)] leg:[font-family:var(--font-ui)] leg:text-[length:var(--type-body)] leg:text-[color:var(--text)] leg:p-[0_14px] leg:min-h-[var(--control-height)] leg:w-[100%] leg:box-border leg:[&:focus]:[border-color:var(--ring)]! leg:[&:focus]:[outline:1px_solid_var(--focus-ring)] leg:[&:focus]:[outline-offset:2px] leg:[&::placeholder]:text-[color:var(--muted)] leg:pointer-coarse:[&&]:text-[length:16px]! leg:compact:min-h-[48px]! leg:compact:[&&&]:text-[length:17px]!"
             placeholder={t("addTraceModal.searchPlaceholder")}
             autoComplete="off"
             spellCheck={false}
@@ -425,7 +425,7 @@ export function AddTraceModal({
               </section>
             </>
           ) : (
-            <div className="add-trace-download-prompt leg:flex leg:flex-col leg:gap-[12px] leg:p-[16px] leg:[background:var(--bg-dark)] leg:text-[color:var(--muted)] leg:text-[length:var(--type-label)] leg:leading-[1.5]">
+            <div className="add-trace-download-prompt leg:flex leg:flex-col leg:items-start leg:gap-[12px] leg:p-[4px_0_0] leg:text-[color:var(--muted)] leg:text-[length:var(--type-label)] leg:leading-[1.5]">
               <p id={`${searchId}-status`}>{t("addTraceModal.downloadHelp")}</p>
               {isDownloading ? (
                 <>
@@ -443,7 +443,7 @@ export function AddTraceModal({
               ) : (
                 <Button
                   ref={downloadButtonRef}
-                  className="self-start min-h-11"
+                  className="self-start"
                   onClick={handleDownload}
                 >
                   {t("addTraceModal.downloadDatabase")}
@@ -454,7 +454,7 @@ export function AddTraceModal({
         </div>
         <div className="add-trace-file-row leg:flex leg:items-center leg:gap-[16px] leg:p-[12px_14px] leg:[border:1px_solid_var(--line-soft)] leg:rounded-[var(--radius-card)] leg:[background:var(--popover)] cmp:compact:[border-width:1px_0_0] cmp:compact:rounded-[0] cmp:compact:p-[var(--space-4)_0_0] cmp:compact:[background:transparent] leg:max-[540px]:flex-wrap leg:max-[540px]:gap-[12px]">
           <FileImportButton
-            className="leg:[.add-trace-modal_&]:min-h-[44px] leg:[.add-trace-modal_&]:text-[length:var(--type-label)] leg:[.add-trace-modal_&]:whitespace-nowrap leg:[.add-trace-modal_&]:shrink-0 leg:compact:min-h-[44px]"
+            className="leg:[.add-trace-modal_&]:min-h-[var(--control-height)] leg:[.add-trace-modal_&]:text-[length:var(--type-label)] leg:[.add-trace-modal_&]:whitespace-nowrap leg:[.add-trace-modal_&]:shrink-0 leg:compact:min-h-[44px]"
             label={t("addTraceModal.importFile")}
             accept=".csv,.txt"
             onImport={(file) => void handleImportFile(file)}
@@ -484,7 +484,7 @@ export function AddTraceModal({
               </p>
               <Button
                 variant="ghost"
-                className="leg:[.add-trace-modal_&]:min-h-[44px] leg:[.add-trace-modal_&]:p-[8px_12px] leg:[.add-trace-modal_&]:text-[length:var(--type-small)] leg:[.add-trace-modal_&]:whitespace-nowrap leg:[.add-trace-modal_&]:shrink-0 leg:compact:min-h-[44px]! leg:compact:h-[44px]!"
+                className="leg:[.add-trace-modal_&]:min-h-[var(--control-height)] leg:[.add-trace-modal_&]:p-[0_12px] leg:[.add-trace-modal_&]:text-[length:var(--type-label)] leg:[.add-trace-modal_&]:whitespace-nowrap leg:[.add-trace-modal_&]:shrink-0 leg:compact:min-h-[44px]! leg:compact:h-[44px]!"
                 onClick={handleResetCache}
                 disabled={loadingDevice !== null || isDownloading}
               >
