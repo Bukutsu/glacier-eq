@@ -139,5 +139,9 @@
   },
   "compare": {
     "failed": "Falha ao alternar A/B: {{error}}"
+  },
+  "starPrompt": {
+    "message": "O Glacier EQ é gratuito e feito por uma só pessoa. Uma estrela no GitHub ajuda outras pessoas a encontrá-lo. Não vamos pedir de novo.",
+    "action": "Estrela no GitHub"
   }
 }

@@ -21,6 +21,7 @@ import {
 
 import { isDisconnectionError } from "@/lib/errors";
 import { asyncContextEquals } from "@/lib/asyncContext";
+import { noteSavedToDac } from "@/lib/starPrompt";
 
 import type { PEQData } from "@/types";
 import { type StatusReporter } from "@/stores/toastStore";
@@ -354,6 +355,7 @@ export function createPushEq(context: PushEqContext) {
           source: "UI",
         });
       }
+      if (!quiet && !isDevDummyDevice(selectedDevice)) noteSavedToDac();
       options.onSaved?.();
       if (restarts) await handleExpectedDisconnect(true);
     } catch (error) {

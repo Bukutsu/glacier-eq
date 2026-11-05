@@ -7,7 +7,7 @@ import { Alert, AlertDescription } from "@/components/ui/Alert";
 import { useToastStore, type Toast } from "@/stores/toastStore";
 
 const ROOT =
-  "toast-feedback group absolute! top-[calc(100%+8px)] right-0 z-[var(--z-toast)] grid-cols-[18px_minmax(0,1fr)_auto_28px]! items-center gap-3! w-[420px]! max-w-[calc(100vw-24px)] overflow-hidden border-[var(--border)]! rounded-[var(--radius-surface)]! bg-[var(--popover)]! p-[14px_12px_16px_16px]! text-[var(--popover-foreground)]! shadow-[0_8px_24px_rgb(0_0_0/18%)] touchy:grid-cols-[18px_minmax(0,1fr)_auto_44px]! touchy:gap-2! compact:[.app-header>&]:right-3 roomy:[.app-header>&]:fixed! roomy:[.app-header>&]:top-auto roomy:[.app-header>&]:bottom-[var(--space-5)] roomy:[.app-header>&]:right-[var(--space-5)] [body:has(dialog[open])_.app-header>&]:hidden [&>.app-icon]:m-0! [&>.app-icon]:h-[18px]! [&>.app-icon]:w-[18px]! [&>.app-icon]:text-[var(--ring)]! data-[type=error]:[&>.app-icon]:text-[var(--destructive-foreground)]!";
+  "toast-feedback group absolute! top-[calc(100%+8px)] right-0 z-[var(--z-toast)] grid-cols-[18px_minmax(0,1fr)_auto_28px]! items-center gap-3! w-[420px]! max-w-[calc(100vw-24px)] overflow-hidden border-[var(--border)]! rounded-[var(--radius-surface)]! bg-[var(--popover)]! p-[14px_12px_16px_16px]! text-[var(--popover-foreground)]! shadow-[0_8px_24px_rgb(0_0_0/18%)] touchy:grid-cols-[18px_minmax(0,1fr)_auto_44px]! touchy:gap-2! compact:[.app-header>&]:right-3 roomy:[.app-header>&]:fixed! roomy:[.app-header>&]:top-auto roomy:[.app-header>&]:bottom-[var(--space-5)] roomy:[.app-header>&]:right-[var(--space-5)] [body:has(dialog[open])_.app-header>&]:hidden [&>.app-icon]:m-0! [&>.app-icon]:h-[18px]! [&>.app-icon]:w-[18px]! [&>.app-icon]:text-[var(--ring)]! data-[type=error]:[&>.app-icon]:text-[var(--destructive-foreground)]! data-[icon=star]:[&>.app-icon]:text-amber-400! data-[icon=star]:[&>.app-icon]:fill-amber-400!";
 const INLINE =
   " relative! flex-none w-auto! max-w-none! m-[8px_16px_16px] shadow-none! [dialog:has(.error-notice)_&]:hidden";
 const MESSAGE =
@@ -78,6 +78,7 @@ export function ToastContainer({
       className={ROOT + (inline ? INLINE : "")}
       variant={current.type === "error" ? "destructive" : "default"}
       data-type={current.type}
+      data-icon={current.icon}
       aria-label={t("feedback.status")}
       role={current.type === "error" ? "alert" : "status"}
       aria-atomic="true"
@@ -95,11 +96,12 @@ export function ToastContainer({
     >
       <Icon
         name={
-          current.type === "error"
+          current.icon ??
+          (current.type === "error"
             ? "error"
             : current.type === "success"
               ? "check"
-              : "info"
+              : "info")
         }
       />
       <AlertDescription className={MESSAGE}>
@@ -107,6 +109,7 @@ export function ToastContainer({
       </AlertDescription>
       {current.action && (
         <Button
+          variant={current.icon ? "primary" : "default"}
           className="col-start-3 row-start-1 touchy:min-h-[44px]"
           onClick={() => {
             removeToast(current.id);

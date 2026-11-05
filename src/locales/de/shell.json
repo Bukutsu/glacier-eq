@@ -139,5 +139,9 @@
   },
   "compare": {
     "failed": "A/B-Umschaltung fehlgeschlagen: {{error}}"
+  },
+  "starPrompt": {
+    "message": "Glacier EQ ist kostenlos und wird von einer Person entwickelt. Ein GitHub-Stern hilft anderen, es zu finden. Wir fragen nicht noch einmal.",
+    "action": "Auf GitHub ⭐"
   }
 }

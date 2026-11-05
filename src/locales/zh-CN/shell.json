@@ -139,5 +139,9 @@
   },
   "compare": {
     "failed": "A/B 切换失败：{{error}}"
+  },
+  "starPrompt": {
+    "message": "Glacier EQ 免费，由一个人开发。GitHub 上的一颗星能让更多人发现它。我们不会再次询问。",
+    "action": "在 GitHub 上加星"
   }
 }

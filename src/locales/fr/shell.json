@@ -139,5 +139,9 @@
   },
   "compare": {
     "failed": "Échec de la bascule A/B : {{error}}"
+  },
+  "starPrompt": {
+    "message": "Glacier EQ est gratuit et développé par une seule personne. Une étoile GitHub aide d'autres personnes à le trouver. Nous ne le redemanderons pas.",
+    "action": "Étoile sur GitHub"
   }
 }

@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 import { create } from "zustand";
+import type { IconName } from "@/components/ui/Icon";
 
 export interface Toast {
   id: string;
   message: string;
   type: "info" | "error" | "success";
   action?: { label: string; onClick: () => void };
+  icon?: IconName;
   lifetime: { duration: number; remaining: number; startedAt: number | null };
 }
 
@@ -46,6 +48,7 @@ interface ToastStore {
     type?: Toast["type"],
     log?: boolean,
     action?: Toast["action"],
+    icon?: IconName,
   ) => string | undefined;
   setStatus: StatusReporter;
   removeToast: (id: string) => void;
@@ -72,7 +75,7 @@ export const useToastStore = create<ToastStore>()((set, get) => ({
   toasts: [],
   status: "Ready",
 
-  addToast: (message, type = "info", log = true, action) => {
+  addToast: (message, type = "info", log = true, action, icon) => {
     if (message === "Ready" || !message.trim()) return;
 
     const toastType = type;
@@ -88,7 +91,7 @@ export const useToastStore = create<ToastStore>()((set, get) => ({
     const id = Math.random().toString(36).substring(2, 9);
     const duration = action ? 8000 : toastDuration(toastType);
     const toast: Toast = {
-      id, message, type: toastType, action,
+      id, message, type: toastType, action, icon,
       lifetime: { duration, remaining: duration, startedAt: Date.now() },
     };
     // Routine updates replace each other. Errors are retained independently,

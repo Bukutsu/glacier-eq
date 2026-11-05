@@ -139,5 +139,9 @@
   },
   "compare": {
     "failed": "สลับ A/B ไม่สำเร็จ: {{error}}"
+  },
+  "starPrompt": {
+    "message": "Glacier EQ ใช้ฟรีและพัฒนาโดยคนเดียว ดาวบน GitHub ช่วยให้คนอื่นหาเจอ เราจะไม่ถามอีก",
+    "action": "ให้ดาวบน GitHub"
   }
 }

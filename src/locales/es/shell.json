@@ -139,5 +139,9 @@
   },
   "compare": {
     "failed": "No se pudo cambiar A/B: {{error}}"
+  },
+  "starPrompt": {
+    "message": "Glacier EQ es gratuito y lo hace una sola persona. Una estrella en GitHub ayuda a que otros lo encuentren. No volveremos a preguntar.",
+    "action": "Estrella en GitHub"
   }
 }
