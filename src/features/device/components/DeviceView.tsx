@@ -656,7 +656,7 @@ export const DeviceView = memo(function DeviceView({
                 </div>
               )}
             </dl>
-            <p className="leg:m-[0] leg:p-[12px_16px] leg:text-[color:var(--muted)] leg:text-[length:var(--type-small)] leg:leading-[1.5] leg:compact:[.mobile-workspace_&]:p-[12px_16px] cmp:[.configuration-layout_&]:text-[length:var(--type-small)] cmp:[.configuration-layout_&]:leading-[1.5] cmp:[.configuration-layout_&]:text-[color:var(--muted-foreground)]">
+            <p className="leg:m-[0] leg:p-[12px_0] leg:text-[color:var(--muted)] leg:text-[length:var(--type-small)] leg:leading-[1.5] leg:compact:[.mobile-workspace_&]:p-[12px_16px] cmp:[.configuration-layout_&]:text-[length:var(--type-small)] cmp:[.configuration-layout_&]:leading-[1.5] cmp:[.configuration-layout_&]:text-[color:var(--muted-foreground)]">
               {connected
                 ? t("deviceView.connectedSpecsNote")
                 : t("deviceView.offlineSpecsNote")}

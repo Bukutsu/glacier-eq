@@ -4,6 +4,7 @@ import { Link, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@/lib/rpc";
 import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import type { SupportedDeviceInfo } from "@/types";
@@ -33,7 +34,7 @@ const HEADING =
 const LEGEND =
   "mb-7 [border-inline-start:3px_solid_var(--ring)] ps-[18px] [&_p]:my-1.5 [&_p]:max-w-[78ch] [&_p]:text-[13px] [&_p]:leading-[1.6] [&_p]:text-[var(--muted-foreground)] [&_strong]:me-[5px] [&_strong]:text-[var(--foreground)]";
 const FILTERS =
-  "grid grid-cols-[minmax(0,1fr)_180px] gap-4 max-[600px]:grid-cols-[minmax(0,1fr)] [&_label]:grid [&_label]:gap-2 [&_label]:text-[13px] [&_select]:h-11 [&_select]:w-full [&_select]:rounded-[var(--control-radius)] [&_select]:border [&_select]:border-[var(--input)] [&_select]:bg-[var(--field-background)] [&_select]:px-2.5 [&_select]:text-[var(--foreground)] [&_select]:[font:inherit]";
+  "grid grid-cols-[minmax(0,1fr)_180px] gap-4 max-[600px]:grid-cols-[minmax(0,1fr)] [&_label]:grid [&_label]:gap-2 [&_label]:text-[13px] [&_.app-select-trigger]:h-11";
 const FOOTER = "mt-7 text-[13px] leading-[1.6] text-[var(--muted-foreground)] [&_a]:text-[var(--foreground)] [&_a]:underline-offset-4";
 
 function DeviceCatalogResults({
@@ -185,15 +186,16 @@ export function SupportedDevicesPage() {
           </label>
           <label htmlFor="catalog-status">
             {t("catalog.status")}
-            <select
+            <Select
               id="catalog-status"
               value={status}
-              onChange={(event) => change("status", event.target.value)}
-            >
-              <option value="">{t("catalog.allStatuses")}</option>
-              <option value="Tested">{t("deviceChooser.tested")}</option>
-              <option value="Untested">{t("deviceChooser.untested")}</option>
-            </select>
+              options={[
+                { value: "", label: t("catalog.allStatuses") },
+                { value: "Tested", label: t("deviceChooser.tested") },
+                { value: "Untested", label: t("deviceChooser.untested") },
+              ]}
+              onChange={(value) => change("status", value)}
+            />
           </label>
         </div>
         {error ? (
