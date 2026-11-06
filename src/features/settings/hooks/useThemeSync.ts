@@ -179,7 +179,6 @@ export function useThemeSync(theme: string, appearanceReady = true): string {
 
     const cleanups: (() => void)[] = [];
 
-    // 1. Web media query listener
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
     const handleMediaChange = () => {
       applyTheme();
@@ -189,7 +188,7 @@ export function useThemeSync(theme: string, appearanceReady = true): string {
       mediaQuery.removeEventListener("change", handleMediaChange),
     );
 
-    // 2. Tauri window theme change listener (for instant system theme events)
+    // Tauri window theme change listener (for instant system theme events)
     if (theme === "auto" && isTauri()) {
       let listenerActive = true;
       let tauriUnlisten: (() => void) | null = null;

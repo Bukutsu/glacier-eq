@@ -377,7 +377,6 @@ export const EqGraph = memo(function EqGraph({
     return () => cancelAnimationFrame(raf);
   }, [draw]);
 
-  // Redraw on container resize.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -399,7 +398,6 @@ export const EqGraph = memo(function EqGraph({
     };
   }, []);
 
-  // Cancel any in-flight animation frame on unmount.
   useEffect(
     () => () => {
       animationTokenRef.current++;

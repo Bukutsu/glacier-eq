@@ -1,5 +1,5 @@
 import { i18n } from "@/lib/i18n";
-import type { invoke, emit, sleep } from "@/lib/rpc";
+import { invoke, emit, sleep } from "@/lib/rpc";
 import type { confirmDialog } from "@/components/ui/ConfirmDialog";
 import {
   readDevDummyPeq,
@@ -60,8 +60,6 @@ export type PullEqContext = Pick<
     reportLoss: ReportStatus;
     setStatus: StatusReporter;
     recoverDeviceRead: (path: string, error: unknown) => Promise<boolean>;
-    invoke: typeof invoke;
-    sleep: typeof sleep;
     emit: typeof emit;
     confirmDialog: typeof confirmDialog;
   };
@@ -99,8 +97,6 @@ export function createPullEq(context: PullEqContext) {
     reportLoss,
     setStatus,
     recoverDeviceRead,
-    invoke,
-    sleep,
     emit,
     confirmDialog,
   } = context;
@@ -210,7 +206,6 @@ export function createPullEq(context: PullEqContext) {
       }
       if (!isCurrentPull()) return false;
       const normalized = normalizePeq(data, {
-        integerPreamp: targetCapabilities.integer_preamp,
         capabilities: targetCapabilities,
       });
       if (keepEdits && (dirty || peqEquals(normalized, peqRef.current))) {

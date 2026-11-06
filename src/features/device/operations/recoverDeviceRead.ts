@@ -1,5 +1,5 @@
 import { i18n } from "@/lib/i18n";
-import type { invoke } from "@/lib/rpc";
+import { invoke } from "@/lib/rpc";
 
 import { isDevDummyDevice } from "@/features/device/lib/devDevice";
 
@@ -30,7 +30,6 @@ export type ReadRecoveryContext = Pick<
 > & {
   reportStatus: ReportStatus;
   reportLoss: ReportStatus;
-  invoke: typeof invoke;
 };
 
 export function createReadRecovery(context: ReadRecoveryContext) {
@@ -48,7 +47,6 @@ export function createReadRecovery(context: ReadRecoveryContext) {
     setLastPushedPeq,
     reportStatus,
     reportLoss,
-    invoke,
   } = context;
   return async (path: string, error: unknown): Promise<boolean> => {
     if (

@@ -84,7 +84,6 @@ export function createLiveApplier(context: LiveApplyContext) {
         }
         if (!state.unsaved && !diverged) return;
         const peq = normalizePeq(state.peq, {
-          integerPreamp: state.capabilities.integer_preamp,
           capabilities: state.capabilities,
         });
         await invoke("live_apply_eq_state", { peq });

@@ -11,16 +11,11 @@ import { createExpectedRestart } from "@/features/device/operations/handleExpect
 import { createResetDeviceEq } from "@/features/device/operations/resetDeviceEq";
 import { createDeviceMaintenanceRunner } from "@/features/device/operations/runDeviceMaintenance";
 import { createPushEq } from "@/features/device/operations/pushEq";
+import { retargetEditorToDevice } from "@/features/device/operations/retargetEditor";
 import { createApplyProfileToRam } from "@/features/device/operations/applyProfileToRam";
 import { useCallback, useEffect } from "react";
 
-import {
-  invoke,
-  invokeForDevice,
-  emit,
-  sleep,
-  requestWebHidDevice,
-} from "@/lib/rpc";
+import { invoke, emit, requestWebHidDevice } from "@/lib/rpc";
 
 import { confirmDialog } from "@/components/ui/ConfirmDialog";
 
@@ -30,8 +25,6 @@ import {
   isDevDummyDevice,
 } from "@/features/device/lib/devDevice";
 import {
-  normalizePeq,
-  normalizePeqForDevice,
   peqEquals,
 } from "@/features/eq/lib/peq";
 import { isTauri } from "@/lib/platform";
@@ -115,7 +108,6 @@ export function useDeviceSession(
         setIsBusy,
         reportStatus,
         setStatus,
-        invoke,
       }),
     [],
   );
@@ -179,7 +171,6 @@ export function useDeviceSession(
         setLastPushedPeq,
         reportStatus,
         reportLoss,
-        invoke,
       }),
     [reportStatus, reportLoss, setConnected],
   );
@@ -219,8 +210,6 @@ export function useDeviceSession(
         reportLoss,
         setStatus,
         recoverDeviceRead,
-        invoke,
-        sleep,
         emit,
         confirmDialog,
       }),
@@ -390,33 +379,7 @@ export function useDeviceSession(
             return false;
           }
         } else {
-          const constrained = normalizePeq(peqRef.current, {
-            integerPreamp: targetCapabilities.integer_preamp,
-            capabilities: targetCapabilities,
-          });
-          if (!peqEquals(constrained, peqRef.current)) {
-            pushToUndoStack(peqRef.current);
-            setPeq(constrained);
-            noteEditorMutation();
-            // Retarget the clean baseline with the editor, not just the editor:
-            // normalizePeq pads to this DAC's band count but never truncates, and
-            // peqEquals calls a length mismatch unequal, so a baseline left in the
-            // previous DAC's shape would pin the unsaved-changes flag on for the
-            // rest of the session.
-            editorCleanPeqRef.current = normalizePeqForDevice(
-              editorCleanPeqRef.current,
-              targetCapabilities,
-            );
-            setDirty(!peqEquals(constrained, editorCleanPeqRef.current));
-            reportStatus({
-              level: "Info",
-              message: i18n.t(
-                "device:useDeviceSession.editorAdjustedToDacLimits",
-              ),
-              toastType: "info",
-              source: "Device",
-            });
-          }
+          retargetEditorToDevice(editor, reportStatus, targetCapabilities);
         }
         await loadFirmwareVersion(
           pathToConnect,
@@ -559,8 +522,6 @@ export function useDeviceSession(
         setLastPushedPeq,
         reportStatus,
         reportLoss,
-        invoke,
-        sleep,
       }),
     [reportStatus, reportLoss, setConnected],
   );
@@ -597,7 +558,6 @@ export function useDeviceSession(
         recoverDeviceRead,
         handleExpectedDisconnect,
         pullEq,
-        invokeForDevice,
         confirmDialog,
       }),
     [
@@ -702,8 +662,6 @@ export function useDeviceSession(
         isMobile,
         recoverDeviceRead,
         handleExpectedDisconnect,
-        invoke,
-        sleep,
         confirmDialog,
       }),
     [
@@ -755,8 +713,6 @@ export function useDeviceSession(
         reportStatus,
         reportLoss,
         recoverDeviceRead,
-        invoke,
-        sleep,
         confirmDialog,
       }),
     [

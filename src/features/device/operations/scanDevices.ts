@@ -1,5 +1,5 @@
 import { i18n } from "@/lib/i18n";
-import type { invoke } from "@/lib/rpc";
+import { invoke } from "@/lib/rpc";
 
 import type { DeviceInfo } from "@/types";
 import { type StatusReporter } from "@/stores/toastStore";
@@ -20,7 +20,6 @@ export type ScanDevicesContext = Pick<
   includeSimulated: boolean;
   reportStatus: ReportStatus;
   setStatus: StatusReporter;
-  invoke: typeof invoke;
 };
 
 export function createScanDevices(context: ScanDevicesContext) {
@@ -34,7 +33,6 @@ export function createScanDevices(context: ScanDevicesContext) {
     setIsBusy,
     reportStatus,
     setStatus,
-    invoke,
   } = context;
   /** Resolves to the devices found, or an empty list when the scan fails. */
   return async (blockEditor = true): Promise<DeviceInfo[]> => {

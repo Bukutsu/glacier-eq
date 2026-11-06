@@ -340,7 +340,6 @@
     "connectedToSimulatedDac": "เชื่อมต่อกับ DAC จำลองแล้ว",
     "connectedToDevice": "เชื่อมต่อกับอุปกรณ์แล้ว: {{devName}}",
     "ready": "พร้อม",
-    "editorAdjustedToDacLimits": "ปรับตัวแก้ไขให้ตรงขีดจำกัด DAC แล้ว",
     "couldNotConnect": "ไม่สามารถเชื่อมต่อ: {{error}}",
     "couldNotConnectDisconnected": "ไม่สามารถเชื่อมต่อ (ขาดการเชื่อมต่อ): {{error}}",
     "deviceDisconnected": "อุปกรณ์ขาดการเชื่อมต่อ",

@@ -340,7 +340,6 @@
     "connectedToSimulatedDac": "已连接模拟 DAC",
     "connectedToDevice": "已连接设备：{{devName}}",
     "ready": "就绪",
-    "editorAdjustedToDacLimits": "编辑器已根据 DAC 限制调整",
     "couldNotConnect": "无法连接：{{error}}",
     "couldNotConnectDisconnected": "无法连接（已断开）：{{error}}",
     "deviceDisconnected": "设备已断开",

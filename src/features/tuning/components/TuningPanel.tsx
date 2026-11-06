@@ -19,7 +19,7 @@ import { NumberInput } from "@/components/ui/NumberInput";
 import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
 
-interface AutoEqTabProps extends AutoEqOptions {
+interface TuningPanelProps extends AutoEqOptions {
   liveApply?: boolean;
   onAddMeasurement?: (
     name: string,
@@ -28,15 +28,7 @@ interface AutoEqTabProps extends AutoEqOptions {
   onAddTarget?: (name: string, points: MeasurementTrace["points"]) => string;
 }
 
-export function TuningPanel(props: AutoEqTabProps) {
-  return (
-    <div className="tuning-panel leg:flex leg:flex-col leg:min-w-[0] leg:compact:p-[var(--space-4)]">
-      <AutoEqTab {...props} />
-    </div>
-  );
-}
-
-export function AutoEqTab(props: AutoEqTabProps) {
+export function TuningPanel(props: TuningPanelProps) {
   const { t } = useTranslation("library");
   const { measurements, allTargets, maxBands = 10, onAddMeasurement } = props;
   const [showAddModal, setShowAddModal] = useState(false);
@@ -123,7 +115,7 @@ export function AutoEqTab(props: AutoEqTabProps) {
   };
 
   return (
-    <div className="leg:flex leg:flex-col leg:min-w-[0]">
+    <div className="tuning-panel leg:flex leg:flex-col leg:min-w-[0] leg:compact:p-[var(--space-4)]">
       <form
         className="leg:flex leg:flex-col leg:min-w-[0] leg:gap-[var(--space-4)] cmp:compact:[.mobile-workspace_&]:gap-[var(--space-3)]"
         aria-labelledby="tuning-title"

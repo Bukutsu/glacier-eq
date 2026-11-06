@@ -33,7 +33,6 @@ function loadBuiltinTargets(): TargetTrace[] {
     }
   }
 
-  // Sort by name for consistent display
   return targets.sort((a, b) => a.name.localeCompare(b.name));
 }
 

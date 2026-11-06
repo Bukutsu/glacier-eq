@@ -97,7 +97,7 @@ function useElementWidth(ref: React.RefObject<HTMLElement | null>): number {
   return width;
 }
 
-export const DacFilterVisual = memo(function DacFilterVisual({
+const DacFilterVisual = memo(function DacFilterVisual({
   mode,
 }: {
   mode: string;

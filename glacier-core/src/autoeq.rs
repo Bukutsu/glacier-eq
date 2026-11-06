@@ -562,7 +562,6 @@ pub use device::AutoEqTarget;
 pub const MAX_OPTIMIZATION_STEPS: usize = 80;
 
 const K: usize = 384;
-const MAX_N: usize = MAX_FILTERS;
 
 #[derive(Clone, Copy, Debug)]
 struct InitFilter {
@@ -1245,14 +1244,12 @@ pub fn run_autoeq_with_target(
     target: AutoEqTarget<'_>,
 ) -> Result<crate::eq::PEQData, String> {
     let caps = target.caps;
-    if n_bands == 0 || n_bands > MAX_N {
+    if n_bands == 0 || n_bands > MAX_FILTERS {
         return Err("Number of bands must be between 1 and 32".to_string());
     }
     validate_curve("Measurement", measurement_points)?;
     validate_curve("Target", target_points)?;
-    if !fs.is_finite() || !(40_000.0..=768_000.0).contains(&fs) {
-        return Err("Sample rate must be between 40000 and 768000 Hz".into());
-    }
+    crate::eq::iir_math::validate_dsp_sample_rate(f64::from(fs))?;
     if let Some(caps) = caps {
         crate::device::normalization::validate_capabilities(caps)?;
         if n_bands > caps.num_bands {

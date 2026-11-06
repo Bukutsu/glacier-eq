@@ -342,7 +342,6 @@
     "connectedToSimulatedDac": "Mit simuliertem DAC verbunden",
     "connectedToDevice": "Mit Gerät verbunden: {{devName}}",
     "ready": "Bereit",
-    "editorAdjustedToDacLimits": "Editor an DAC-Grenzen angepasst",
     "couldNotConnect": "Verbindung fehlgeschlagen: {{error}}",
     "couldNotConnectDisconnected": "Verbindung fehlgeschlagen (getrennt): {{error}}",
     "deviceDisconnected": "Gerät getrennt",

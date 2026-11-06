@@ -3,7 +3,7 @@
 
 //! Walkplay wire constants and filter-packet parsing.
 
-use crate::eq::filter::DEFAULT_FREQS_10_BAND;
+use crate::eq::filter::default_freq;
 use crate::eq::{Filter, FilterType};
 
 // ─── Wire constants ───────────────────────────────────────────────────────────
@@ -89,15 +89,7 @@ pub fn parse_filter_packet(packet: &[u8]) -> Option<Filter> {
     // Do not let those values enter the next push or verification cycle.
     let invalid = !valid_filter_packet(packet);
     let (freq, q, gain, filter_type) = if invalid {
-        (
-            DEFAULT_FREQS_10_BAND
-                .get(filter_index as usize)
-                .copied()
-                .unwrap_or(1000),
-            0.75,
-            0.0,
-            FilterType::Peak,
-        )
+        (default_freq(filter_index), 0.75, 0.0, FilterType::Peak)
     } else {
         (
             raw_freq,

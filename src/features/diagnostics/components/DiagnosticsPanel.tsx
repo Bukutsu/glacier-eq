@@ -144,7 +144,6 @@ export function DiagnosticsPanel() {
     };
   }, []);
 
-  // Auto-scroll to bottom when new events arrive
   useEffect(() => {
     if (autoScroll && logBoxRef.current) {
       logBoxRef.current.scrollTop = logBoxRef.current.scrollHeight;

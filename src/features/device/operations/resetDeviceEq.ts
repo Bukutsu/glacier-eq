@@ -4,7 +4,7 @@ import {
   userEqSlotArgs,
   getUserEqSlot,
 } from "@/features/device/lib/melodySlot";
-import type { invokeForDevice } from "@/lib/rpc";
+import { invokeForDevice } from "@/lib/rpc";
 import type { confirmDialog } from "@/components/ui/ConfirmDialog";
 
 import { type StatusReporter } from "@/stores/toastStore";
@@ -35,7 +35,6 @@ export type ResetDeviceEqContext = Pick<
       targetPath?: string,
       targetCapabilities?: DeviceCapabilities,
     ) => Promise<boolean>;
-    invokeForDevice: typeof invokeForDevice;
     confirmDialog: typeof confirmDialog;
   };
 
@@ -54,7 +53,6 @@ export function createResetDeviceEq(context: ResetDeviceEqContext) {
     recoverDeviceRead,
     handleExpectedDisconnect,
     pullEq,
-    invokeForDevice,
     confirmDialog,
   } = context;
   return async () => {

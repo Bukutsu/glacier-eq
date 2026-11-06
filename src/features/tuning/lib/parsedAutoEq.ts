@@ -1,7 +1,7 @@
 import { i18n } from "@/lib/i18n";
 import type { Filter, FilterType, PEQData } from "@/types";
+import { MAX_FILTERS } from "@/features/eq/lib/peq";
 
-const MAX_FILTERS = 32;
 const MAX_WARNINGS = 4_096;
 // parse_autoeq caps its whole input at 1 MiB, so a name far longer than this
 // could only have come from a payload nothing else bounded.

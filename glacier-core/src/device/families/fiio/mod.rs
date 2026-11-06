@@ -23,7 +23,7 @@
 use crate::device::packet::{checked_scaled_i16, checked_scaled_u16, Packet};
 use crate::device::protocol::{EqProtocol, GainEncoding, Quirks};
 use crate::device::timing::WriteTiming;
-use crate::eq::filter::DEFAULT_FREQS_10_BAND;
+use crate::eq::filter::default_freq;
 use crate::eq::{Filter, FilterType, PEQData};
 
 pub mod ja11;
@@ -131,16 +131,7 @@ fn parse_filter_response(data: &[u8], filter_count: u8) -> Option<Filter> {
         || raw_q == u16::MAX
         || !(q > 0.0 && q <= 10.0);
     let (freq, gain, q, filter_type, enabled) = if invalid {
-        (
-            DEFAULT_FREQS_10_BAND
-                .get(index as usize)
-                .copied()
-                .unwrap_or(1000),
-            0.0,
-            1.0,
-            FilterType::Peak,
-            false,
-        )
+        (default_freq(index), 0.0, 1.0, FilterType::Peak, false)
     } else {
         (
             raw_freq,

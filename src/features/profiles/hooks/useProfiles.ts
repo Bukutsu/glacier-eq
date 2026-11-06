@@ -18,8 +18,6 @@ import {
 } from "@/features/eq/lib/peq";
 import type { DeviceCapabilities, PEQData, Profile } from "@/types";
 
-export type { AsyncContext } from "@/lib/asyncContext";
-
 export type ProfileMutationRunner = <T>(
   task: () => Promise<T>,
 ) => Promise<{ value: T; current: boolean }>;
@@ -115,7 +113,6 @@ export function useProfiles(editor: ProfilesEditor, setStatus: StatusReporter) {
       editor.pushToUndoStack(editor.peqRef.current);
       const data = normalizePeq(profile.data, {
         enableLoadedFilters: true,
-        integerPreamp: capabilities.integer_preamp,
         capabilities,
       });
       editor.setPeq(data);
@@ -144,7 +141,6 @@ export function useProfiles(editor: ProfilesEditor, setStatus: StatusReporter) {
       const { capabilities } = editor;
       const normalized = normalizePeq(data, {
         enableLoadedFilters: true,
-        integerPreamp: capabilities.integer_preamp,
         capabilities,
       });
       if (

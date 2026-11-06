@@ -1,5 +1,5 @@
 import { i18n } from "@/lib/i18n";
-import type { invoke, sleep } from "@/lib/rpc";
+import { invoke, sleep } from "@/lib/rpc";
 import type { confirmDialog } from "@/components/ui/ConfirmDialog";
 import {
   writeDevDummyPeq,
@@ -56,8 +56,6 @@ export type ApplyProfileToRamContext = Pick<
     reportStatus: ReportStatus;
     reportLoss: ReportStatus;
     recoverDeviceRead: (path: string, error: unknown) => Promise<boolean>;
-    invoke: typeof invoke;
-    sleep: typeof sleep;
     confirmDialog: typeof confirmDialog;
   };
 
@@ -92,8 +90,6 @@ export function createApplyProfileToRam(context: ApplyProfileToRamContext) {
     reportStatus,
     reportLoss,
     recoverDeviceRead,
-    invoke,
-    sleep,
     confirmDialog,
   } = context;
   return async (profile: Profile) => {
@@ -123,7 +119,6 @@ export function createApplyProfileToRam(context: ApplyProfileToRamContext) {
     eqOperationInFlightRef.current = true;
     const data = normalizePeq(profile.data, {
       enableLoadedFilters: true,
-      integerPreamp: capabilities.integer_preamp,
       capabilities,
     });
     setProgress(null);
@@ -158,7 +153,6 @@ export function createApplyProfileToRam(context: ApplyProfileToRamContext) {
         const outcome = await invoke<unknown>("apply_eq_state", { peq: data });
         applyWarnings = extractPushWarnings(outcome);
         const applied = parseStoredPeqResponse(outcome, {
-          integerPreamp: capabilities.integer_preamp,
           capabilities,
         });
         await sleep(300);

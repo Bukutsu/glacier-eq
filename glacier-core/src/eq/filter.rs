@@ -82,15 +82,20 @@ pub struct Filter {
     pub filter_type: FilterType,
 }
 
-pub(crate) const DEFAULT_FREQS_10_BAND: [u16; 10] =
-    [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
+const DEFAULT_FREQS_10_BAND: [u16; 10] = [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
+
+/// Factory centre frequency for a band index; bands past the 10-band table
+/// default to 1 kHz.
+pub(crate) fn default_freq(index: u8) -> u16 {
+    DEFAULT_FREQS_10_BAND
+        .get(index as usize)
+        .copied()
+        .unwrap_or(1000)
+}
 
 impl Filter {
     pub fn enabled(index: u8, enabled: bool) -> Self {
-        let freq = DEFAULT_FREQS_10_BAND
-            .get(index as usize)
-            .copied()
-            .unwrap_or(1000);
+        let freq = default_freq(index);
         Filter {
             index,
             enabled,

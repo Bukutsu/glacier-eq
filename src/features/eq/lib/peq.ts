@@ -42,7 +42,7 @@ export { DEFAULT_PROFILE_NAME } from "@/features/profiles/lib/profileIdentity";
 
 // Storage ceiling shared with ProfileStore::save and parseStoredPeq: stored
 // or device-reported filter lists are clamped, never trusted to any length.
-const MAX_FILTERS = 32;
+export const MAX_FILTERS = 32;
 
 export function buildDefaultState(
   numBands: number = DEFAULT_FREQS_10_BAND.length,
@@ -133,7 +133,6 @@ export function normalizePeq(
   raw: unknown,
   options: {
     enableLoadedFilters?: boolean;
-    integerPreamp?: boolean;
     capabilities?: DeviceCapabilities;
   } = {},
 ): PEQData {
@@ -218,7 +217,7 @@ export function normalizePeq(
       options.capabilities.global_gain_range,
     );
   }
-  if (options.integerPreamp) {
+  if (options.capabilities?.integer_preamp) {
     global_gain = Math.round(global_gain);
   }
 
@@ -240,7 +239,6 @@ export function normalizePeqForDevice(
   capabilities: DeviceCapabilities,
 ): PEQData {
   return normalizePeq(value, {
-    integerPreamp: capabilities.integer_preamp,
     capabilities,
   });
 }
@@ -267,7 +265,7 @@ export function peqEquals(a: PEQData, b: PEQData): boolean {
  */
 export function parseStoredPeqResponse(
   value: unknown,
-  options: { integerPreamp?: boolean; capabilities?: DeviceCapabilities } = {},
+  options: { capabilities?: DeviceCapabilities } = {},
 ): PEQData {
   if (
     typeof value !== "object" ||

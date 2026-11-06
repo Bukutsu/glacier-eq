@@ -18,7 +18,6 @@ export function restoreHistorySnapshot(options: {
     current,
     (snapshot) =>
       normalizePeq(snapshot, {
-        integerPreamp: capabilities.integer_preamp,
         capabilities,
       }),
     currentMetadata,

@@ -656,9 +656,7 @@ fn parse_usb_id(id: &str) -> Result<(u16, u16), String> {
 }
 
 fn response(path: &str, sample_rate: f64) -> Result<String, String> {
-    if !(40_000.0..=768_000.0).contains(&sample_rate) || !sample_rate.is_finite() {
-        return Err("sample rate must be between 40000 and 768000 Hz".into());
-    }
+    glacier_core::eq::iir_math::validate_dsp_sample_rate(sample_rate)?;
     let (peq, _, warnings) = read_peq(path)?;
     for warning in warnings {
         eprintln!("warning: {warning}");

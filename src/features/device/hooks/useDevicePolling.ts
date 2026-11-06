@@ -3,11 +3,6 @@ import { useEffect, useState } from "react";
 import { invoke } from "@/lib/rpc";
 
 import { isDevDummyDevice } from "@/features/device/lib/devDevice";
-import {
-  normalizePeq,
-  normalizePeqForDevice,
-  peqEquals,
-} from "@/features/eq/lib/peq";
 import { isTauri } from "@/lib/platform";
 
 import type { DeviceInfo } from "@/types";
@@ -15,6 +10,7 @@ import type { DeviceInfo } from "@/types";
 import { chooseReconnectDevice } from "@/features/device/lib/reconnectDevice";
 import { markDeviceLost } from "@/features/device/lib/deviceOperations";
 import type { DeviceState } from "./useDeviceState";
+import { retargetEditorToDevice } from "@/features/device/operations/retargetEditor";
 import type { EqEditor } from "@/features/eq/hooks/useEqEditor";
 
 import type { DeviceSessionOptions } from "./deviceSessionTypes";
@@ -53,10 +49,6 @@ export function useDevicePolling(
     setLastPushedPeq,
   } = device;
   const {
-    setPeq,
-    setDirty,
-    peqRef,
-    editorCleanPeqRef,
     noteEditorMutation,
     pushToUndoStack,
   } = editor;
@@ -316,33 +308,7 @@ export function useDevicePolling(
                 return;
               }
             } else {
-              const constrained = normalizePeq(peqRef.current, {
-                integerPreamp: found.integer_preamp,
-                capabilities: found,
-              });
-              if (!peqEquals(constrained, peqRef.current)) {
-                pushToUndoStack(peqRef.current);
-                setPeq(constrained);
-                noteEditorMutation();
-                // Retarget the clean baseline with the editor, not just the
-                // editor: normalizePeq pads to this DAC's band count but never
-                // truncates, and peqEquals calls a length mismatch unequal, so
-                // a baseline left in the previous DAC's shape would pin the
-                // unsaved-changes flag on for the rest of the session.
-                editorCleanPeqRef.current = normalizePeqForDevice(
-                  editorCleanPeqRef.current,
-                  found,
-                );
-                setDirty(!peqEquals(constrained, editorCleanPeqRef.current));
-                reportStatus({
-                  level: "Info",
-                  message: i18n.t(
-                    "device:useDevicePolling.editorAdjustedToDacLimits",
-                  ),
-                  toastType: "info",
-                  source: "Device",
-                });
-              }
+              retargetEditorToDevice(editor, reportStatus, found);
             }
             await loadFirmwareVersion(found.path, connectionGeneration);
             if (

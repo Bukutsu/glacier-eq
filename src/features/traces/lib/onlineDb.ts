@@ -914,7 +914,6 @@ export async function fetchManifest(): Promise<OnlineDevice[]> {
     const source = key.slice(0, separator);
     const fullName = key.slice(separator + 2);
 
-    // Try to guess brand and model name
     let brand = source;
     let name = fullName;
     const firstSpace = fullName.indexOf(" ");

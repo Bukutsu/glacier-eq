@@ -5,7 +5,7 @@ import {
   userEqSlotArgs,
 } from "@/features/device/lib/melodySlot";
 import type { ChooseUserBank } from "@/features/device/lib/melodySlot";
-import type { invoke, sleep } from "@/lib/rpc";
+import { invoke, sleep } from "@/lib/rpc";
 import type { confirmDialog } from "@/components/ui/ConfirmDialog";
 import {
   writeDevDummyPeq,
@@ -67,8 +67,6 @@ export type PushEqContext = Pick<
     isMobile: boolean;
     recoverDeviceRead: (path: string, error: unknown) => Promise<boolean>;
     handleExpectedDisconnect: (restart?: boolean) => Promise<void>;
-    invoke: typeof invoke;
-    sleep: typeof sleep;
     confirmDialog: typeof confirmDialog;
     chooseUserBank?: ChooseUserBank;
   };
@@ -103,8 +101,6 @@ export function createPushEq(context: PushEqContext) {
     isMobile,
     recoverDeviceRead,
     handleExpectedDisconnect,
-    invoke,
-    sleep,
     confirmDialog,
   } = context;
   // `quiet` is the background save of live apply: no confirmation, no busy
@@ -124,7 +120,6 @@ export function createPushEq(context: PushEqContext) {
     }
     if (eqOperationInFlightRef.current) return;
     const snapshot = normalizePeq(peqRef.current, {
-      integerPreamp: selectedCapabilities.integer_preamp,
       capabilities: selectedCapabilities,
     });
     operationRevisionRef.current += 1;
@@ -308,7 +303,6 @@ export function createPushEq(context: PushEqContext) {
         if (restarts && isCurrentOperation())
           expectedRestartUntilRef.current = Date.now() + 15_000;
         committedPeq = parseStoredPeqResponse(outcome, {
-          integerPreamp: selectedCapabilities.integer_preamp,
           capabilities: selectedCapabilities,
         });
       }

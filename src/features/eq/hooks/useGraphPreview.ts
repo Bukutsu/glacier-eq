@@ -56,7 +56,6 @@ export function useGraphPreview({
     [clearPreviewTimer],
   );
 
-  // Cleanup on unmount and when the graph is disabled.
   useEffect(() => {
     if (!showGraph) {
       clearPreviewTimer();
@@ -84,7 +83,6 @@ export function useGraphPreview({
     };
   }, [schedulePreviewDismiss]);
 
-  // Instantly dismiss preview when tapping on empty space
   useEffect(() => {
     if (!showGraphPreview) return;
     const handleTapToDismiss = (e: PointerEvent) => {

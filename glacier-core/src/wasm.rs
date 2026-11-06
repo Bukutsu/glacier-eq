@@ -62,6 +62,21 @@ pub fn list_supported_devices() -> Result<JsValue, JsValue> {
     to_js_value(&list)
 }
 
+/// The profile a WebHID device resolves to, by the same rules the desktop uses.
+#[wasm_bindgen]
+pub fn match_supported_device(
+    vendor_id: u16,
+    product_id: u16,
+    product_name: Option<String>,
+) -> Result<JsValue, JsValue> {
+    let profile = crate::device::get_supported_device_with_name(
+        vendor_id,
+        product_id,
+        product_name.as_deref(),
+    );
+    to_js_value(&profile.map(SupportedDeviceInfo::from))
+}
+
 /// Normalization outcome for the web backend: the rewritten PEQ plus any
 /// capability-clamp warnings the user must see after a push.
 #[derive(serde::Serialize)]

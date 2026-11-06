@@ -340,7 +340,6 @@
     "connectedToSimulatedDac": "シミュレーションDACに接続しました",
     "connectedToDevice": "デバイスに接続しました: {{devName}}",
     "ready": "準備完了",
-    "editorAdjustedToDacLimits": "エディターをDACの制限に合わせて調整しました",
     "couldNotConnect": "接続できませんでした: {{error}}",
     "couldNotConnectDisconnected": "接続できませんでした（切断されました）: {{error}}",
     "deviceDisconnected": "デバイスが切断されました",

@@ -97,36 +97,17 @@ function ensureWebHid(): HID {
   return hid;
 }
 
-export function matchSupportedWebHidDevice(
+function matchSupportedWebHidDevice(
   device: Pick<HIDDevice, "vendorId" | "productId"> & { productName?: string },
-  supportedDevices: SupportedDeviceInfo[],
 ): SupportedDeviceInfo | undefined {
-  // Mirror get_supported_device (glacier-core): an exact PID match wins over
-  // a vendor-level fallback regardless of list order, so web and desktop
-  // classify the same VID/PID identically even if the registry is reordered.
   return (
-    supportedDevices.find(
-      (supported) =>
-        supported.vendor_id === device.vendorId &&
-        supported.product_id === device.productId,
-    ) ??
-    supportedDevices.find(
-      (supported) =>
-        supported.vendor_id === device.vendorId &&
-        (supported.name !== "FIIO QX11" || device.productId === 0x0130) &&
-        (supported.name !== "FIIO BT11" || device.productId === 0x4032) &&
-        (supported.name !== "FIIO Air Link" || device.productId === 0x4033) &&
-        supported.usb_product_names?.some(
-          (name) =>
-            name.toLowerCase() === device.productName?.trim().toLowerCase(),
-        ),
-    ) ??
-    supportedDevices.find(
-      (supported) =>
-        supported.vendor_id === device.vendorId &&
-        supported.product_id == null &&
-        !supported.usb_product_names?.length,
-    )
+    parseSupportedDeviceInfo(
+      wasm().match_supported_device(
+        device.vendorId,
+        device.productId,
+        device.productName,
+      ),
+    ) ?? undefined
   );
 }
 
@@ -207,7 +188,6 @@ function addDiagnostic(
   emitEvent("diagnostic-event", event);
 }
 
-// HID Read Queue
 let reportQueue: Uint8Array[] = [];
 let reportResolvers: ((report: Uint8Array) => void)[] = [];
 let nextFilterNonce = 0;
@@ -254,6 +234,11 @@ function markWebHidDisconnected(device?: HIDDevice) {
     name: activeProfile?.name || activeDevice.productName || "WebHID device",
     ...(sessionId !== null ? { session_id: sessionId } : {}),
   };
+  clearActiveDevice();
+  emitEvent("device-disconnected", payload);
+}
+
+function clearActiveDevice() {
   activeDevice = null;
   activeProfile = null;
   activeSessionId = null;
@@ -262,7 +247,6 @@ function markWebHidDisconnected(device?: HIDDevice) {
     const resolver = reportResolvers.shift();
     if (resolver) resolver(new Uint8Array(0));
   }
-  emitEvent("device-disconnected", payload);
 }
 
 function setupHidEventListeners(device: HIDDevice) {
@@ -318,7 +302,7 @@ async function sendReport(packet: number[] | Uint8Array): Promise<void> {
   }
 }
 
-export class WebHidReadTimeout extends Error {
+class WebHidReadTimeout extends Error {
   constructor() {
     super("Timeout reading from device");
     this.name = "WebHidReadTimeout";
@@ -389,7 +373,7 @@ function commandField(args: unknown, name: string): unknown {
   return args[name];
 }
 
-export function parseWebSettings(value: unknown): ParsedStorage<AppSettings> {
+function parseWebSettings(value: unknown): ParsedStorage<AppSettings> {
   const settings = { ...DEFAULT_WEB_SETTINGS };
   if (!isRecord(value)) return { value: settings, malformed: true };
 
@@ -648,7 +632,7 @@ function clampToStorageEnvelope(data: PEQData): PEQData {
   };
 }
 
-export function parseWebProfiles(value: unknown): ParsedStorage<Profile[]> {
+function parseWebProfiles(value: unknown): ParsedStorage<Profile[]> {
   if (!Array.isArray(value)) return { value: [], malformed: true };
   const profiles: Profile[] = [];
   const names = new Set<string>();
@@ -1035,7 +1019,6 @@ async function invokeWeb<T = unknown>(cmd: string, args?: unknown): Promise<T> {
   // per call, so every panel open re-fails), a view the store can serve
   // without wasm.
   if (!PURE_JS_COMMANDS.has(cmd)) {
-    // Ensure WASM is loaded first
     await ensureWasm();
   }
 
@@ -1320,9 +1303,8 @@ async function invokeWeb<T = unknown>(cmd: string, args?: unknown): Promise<T> {
     // ─── Device Connection / HID ──────────────────────────────────────────────
     case "list_devices": {
       const devices = await ensureWebHid().getDevices();
-      const supported = listSupportedDevices();
       return devices.flatMap((dev) => {
-        const profile = matchSupportedWebHidDevice(dev, supported);
+        const profile = matchSupportedWebHidDevice(dev);
         if (!profile) return [];
         return [
           {
@@ -1346,10 +1328,7 @@ async function invokeWeb<T = unknown>(cmd: string, args?: unknown): Promise<T> {
       const target = devices.find(
         (dev: HIDDevice) => webHidPath(dev) === requestedPath,
       );
-      if (
-        !target ||
-        !matchSupportedWebHidDevice(target, listSupportedDevices())
-      ) {
+      if (!target || !matchSupportedWebHidDevice(target)) {
         throw new Error(
           "Device is unsupported or unavailable. Select 'Scan for devices' to authorize a supported DAC.",
         );
@@ -1361,9 +1340,7 @@ async function invokeWeb<T = unknown>(cmd: string, args?: unknown): Promise<T> {
         try {
           await activeDevice.close();
         } catch {}
-        activeDevice = null;
-        activeProfile = null;
-        activeSessionId = null;
+        clearActiveDevice();
       }
 
       // Settle any close still in flight from a failed send before deciding
@@ -1403,8 +1380,7 @@ async function invokeWeb<T = unknown>(cmd: string, args?: unknown): Promise<T> {
       reportResolvers = [];
       setupHidEventListeners(target);
 
-      const supported = listSupportedDevices();
-      const found = matchSupportedWebHidDevice(target, supported);
+      const found = matchSupportedWebHidDevice(target);
       activeProfile = {
         ...found!,
         vendor_id: target.vendorId,
@@ -1448,25 +1424,12 @@ async function invokeWeb<T = unknown>(cmd: string, args?: unknown): Promise<T> {
         } catch (error) {
           closeError = error;
         }
-        activeDevice = null;
-        activeProfile = null;
-        activeSessionId = null;
-        reportQueue = [];
-        while (reportResolvers.length > 0) {
-          const resolver = reportResolvers.shift();
-          if (resolver) resolver(new Uint8Array(0));
-        }
+        clearActiveDevice();
         if (closeError !== null) throw closeError;
       }
       // Also clear a stale profile if a previous replacement failed before
       // it could install a new active device.
-      activeProfile = null;
-      activeSessionId = null;
-      reportQueue = [];
-      while (reportResolvers.length > 0) {
-        const resolver = reportResolvers.shift();
-        if (resolver) resolver(new Uint8Array(0));
-      }
+      clearActiveDevice();
       return null as T;
     }
     case "get_firmware_version":
@@ -1537,7 +1500,6 @@ async function invokeWeb<T = unknown>(cmd: string, args?: unknown): Promise<T> {
   }
 }
 
-// Helper to trigger browser WebHID picker
 export async function requestWebHidDevice(): Promise<void> {
   await ensureWasm();
   const supported = listSupportedDevices();

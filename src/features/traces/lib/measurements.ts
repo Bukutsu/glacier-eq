@@ -342,7 +342,6 @@ export function identifyTraceKind(
 ): TraceKind {
   const lowerName = name.toLowerCase();
 
-  // 1. Check content comments / headers if available
   if (text) {
     const headerText = text
       .split(/\r?\n/, 30)
@@ -358,7 +357,6 @@ export function identifyTraceKind(
     }
   }
 
-  // 2. Check filename
   const isTargetName = TARGET_KEYWORDS.some((kw) => lowerName.includes(kw));
   const isMeasName = MEASUREMENT_KEYWORDS.some((kw) => lowerName.includes(kw));
 
@@ -369,7 +367,7 @@ export function identifyTraceKind(
     return "measurement";
   }
 
-  // 3. Sparse points heuristic (house curves typically have < 50 points, whereas measurements have hundreds)
+  // Sparse points heuristic (house curves typically have < 50 points, whereas measurements have hundreds)
   if (typeof pointCount === "number" && pointCount >= 2 && pointCount <= 45) {
     return "target";
   }

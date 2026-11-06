@@ -122,7 +122,6 @@ export function useAutoEq({
     setFs(dspSampleRate);
   }, [dspSampleRate]);
 
-  // Local selection states
   const [localMeasId, setLocalMeasId] = useState<string>("");
   const [localRef, setLocalRef] = useState<AutoEqReference | null>(null);
   const localTargetId = localRef?.kind === "target" ? localRef.id : "";
@@ -177,7 +176,6 @@ export function useAutoEq({
     }
   };
 
-  // Sync default measurement selection
   useEffect(() => {
     if (localMeasId && measurements.some((m) => m.id === localMeasId)) {
       return;
@@ -203,7 +201,6 @@ export function useAutoEq({
     }
   }, [measurements, localMeasId, localRef, onSelectMeasurementOnly]);
 
-  // Sync default target selection
   useEffect(() => {
     if (refMeasId) return;
     if (localTargetId && allTargets.some((t) => t.id === localTargetId)) {
@@ -226,7 +223,6 @@ export function useAutoEq({
     }
   }, [allTargets, activeTargetIds, localTargetId, refMeasId, onSelectTargetOnly]);
 
-  // Sync selected measurement to parent for graph highlighting
   useEffect(() => {
     onSelectedMeasurementChange?.(localMeasId || null);
   }, [onSelectedMeasurementChange, localMeasId]);

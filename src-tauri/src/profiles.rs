@@ -13,8 +13,6 @@ use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use tauri::Manager;
 
-pub type ProfileDto = StoredProfile;
-
 pub(crate) fn app_data_base_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     let dir = std::env::var_os("GLACIER_EQ_HOME")
         .filter(|path| !path.is_empty())
@@ -84,7 +82,7 @@ pub async fn match_profile_name(
 pub async fn list_profiles(
     app: tauri::AppHandle,
     state: tauri::State<'_, Mutex<crate::diagnostics::DiagnosticsStore>>,
-) -> Result<Vec<ProfileDto>, String> {
+) -> Result<Vec<StoredProfile>, String> {
     // Reads every profile file from disk; keep it off the IPC thread.
     let list_app = app.clone();
     let (profiles, warnings) = tauri::async_runtime::spawn_blocking(move || {

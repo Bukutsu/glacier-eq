@@ -207,7 +207,6 @@ export function useMelodyWorkspace({
         if (!current() || !isCurrent()) return;
         const peq = parseStoredPeqResponse(raw, {
           capabilities: device.capabilities,
-          integerPreamp: device.capabilities.integer_preamp,
         });
         editor.pushToUndoStack(editor.peqRef.current);
         editor.setPeq(peq);

@@ -1,4 +1,4 @@
-import type { invoke, sleep } from "@/lib/rpc";
+import { invoke, sleep } from "@/lib/rpc";
 
 import { markDeviceLost } from "@/features/device/lib/deviceOperations";
 import type { DeviceState } from "@/features/device/hooks/useDeviceState";
@@ -21,8 +21,6 @@ export type ExpectedRestartContext = Pick<
 > & {
   reportStatus: ReportStatus;
   reportLoss: ReportStatus;
-  invoke: typeof invoke;
-  sleep: typeof sleep;
 };
 
 export function createExpectedRestart(context: ExpectedRestartContext) {
@@ -40,8 +38,6 @@ export function createExpectedRestart(context: ExpectedRestartContext) {
     setLastPushedPeq,
     reportStatus,
     reportLoss,
-    invoke,
-    sleep,
   } = context;
   return async (restart = false) => {
     expectedRestartUntilRef.current = Date.now() + 15_000;

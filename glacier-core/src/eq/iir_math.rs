@@ -275,3 +275,11 @@ pub(crate) fn eval_biquad_mag_squared_db(
         0.0
     }
 }
+
+/// The DSP sample rates every response and AutoEQ calculation accepts.
+pub fn validate_dsp_sample_rate(sample_rate: f64) -> Result<(), String> {
+    if !sample_rate.is_finite() || !(40_000.0..=768_000.0).contains(&sample_rate) {
+        return Err("DSP sample rate must be between 40000 and 768000 Hz".into());
+    }
+    Ok(())
+}

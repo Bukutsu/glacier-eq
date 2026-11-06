@@ -229,29 +229,6 @@ function accumulateBandResponse(
   }
 }
 
-export function filterResponseValues(
-  filter: Filter,
-  freqs: Float32Array,
-  dspSampleRate: number,
-  responseModel: ResponseModel = "CanonicalQ",
-): Float32Array {
-  const response = new Float32Array(freqs.length);
-  if (filter.enabled) {
-    const phases = takePhases(freqs, dspSampleRate);
-    const coefficients = magnitudeCoefficients(
-      computeBiquadCoefficients(filter, dspSampleRate, responseModel),
-    );
-    for (let index = 0; index < freqs.length; index++) {
-      response[index] = evaluateMagnitudeDb(
-        coefficients,
-        phases[2 * index],
-        phases[2 * index + 1],
-      );
-    }
-  }
-  return response;
-}
-
 export function peqResponseValues(
   peq: PEQData,
   freqs: Float32Array,

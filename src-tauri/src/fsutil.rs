@@ -7,7 +7,7 @@
 
 use std::ffi::OsString;
 use std::fs;
-use std::io::{Seek, SeekFrom, Write};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 const ATOMIC_TEMP_PREFIX: &str = ".glacier-eq-atomic-";
@@ -83,15 +83,9 @@ fn atomic_write_with_nonce(path: &Path, contents: &[u8], nonce: u128) -> Result<
 /// therefore cannot redirect the temporary file or final rename through a
 /// symlink between validation and use.
 const EXPORT_TEMP_PREFIX: &str = ".glacier-eq-export-";
-const EXPORT_TEMP_MARKER: &[u8] = b"glacier-eq-export-temp-v1\n";
 
 #[cfg(unix)]
-fn atomic_write_in_base_impl(
-    path: &Path,
-    base: &Path,
-    contents: &[u8],
-    export_marker: Option<&[u8]>,
-) -> Result<(), String> {
+fn atomic_write_in_base_impl(path: &Path, base: &Path, contents: &[u8]) -> Result<(), String> {
     let parent = path
         .parent()
         .ok_or_else(|| "Destination has no parent directory".to_string())?;
@@ -163,11 +157,7 @@ fn atomic_write_in_base_impl(
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_nanos();
-    let temporary_name = if export_marker.is_some() {
-        format!("{EXPORT_TEMP_PREFIX}{nonce}.tmp")
-    } else {
-        format!(".{file_name}.{nonce}.tmp")
-    };
+    let temporary_name = format!("{EXPORT_TEMP_PREFIX}{nonce}.tmp");
     let temporary_c = match CString::new(temporary_name.as_bytes()) {
         Ok(name) => name,
         Err(_) => {
@@ -194,20 +184,9 @@ fn atomic_write_in_base_impl(
     }
     // SAFETY: temporary_fd is a fresh owned descriptor returned by openat.
     let mut temporary = unsafe { fs::File::from_raw_fd(temporary_fd) };
-    let write_result = export_marker
-        .map(|marker| {
-            temporary
-                .write_all(marker)
-                .and_then(|_| temporary.sync_all())
-                .and_then(|_| temporary.set_len(0))
-                .and_then(|_| temporary.seek(SeekFrom::Start(0)))
-        })
-        .unwrap_or(Ok(0))
-        .and_then(|_| {
-            temporary
-                .write_all(contents)
-                .and_then(|_| temporary.sync_all())
-        });
+    let write_result = temporary
+        .write_all(contents)
+        .and_then(|_| temporary.sync_all());
     if let Err(error) = write_result {
         let _ = temporary.sync_all();
         // SAFETY: both descriptors are owned by this function.
@@ -250,7 +229,7 @@ pub(crate) fn atomic_write_export_in_base(
     base: &Path,
     contents: &[u8],
 ) -> Result<(), String> {
-    atomic_write_in_base_impl(path, base, contents, Some(EXPORT_TEMP_MARKER))
+    atomic_write_in_base_impl(path, base, contents)
 }
 
 #[cfg(not(unix))]

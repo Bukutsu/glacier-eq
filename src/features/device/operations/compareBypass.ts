@@ -55,7 +55,6 @@ export function createBypassCompare(context: BypassCompareContext) {
       .then(async () => {
         await ready;
         const normalized = normalizePeq(peq, {
-          integerPreamp: capabilities.integer_preamp,
           capabilities,
         });
         await apply(normalized);

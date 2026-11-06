@@ -22,7 +22,6 @@ export function AppEffects() {
     };
   }, []);
 
-  // Global uncaught error and promise rejection logger
   useEffect(() => {
     const handleError = (event: ErrorEvent) => {
       // eslint-disable-next-line i18next/no-literal-string -- Raw diagnostics stay language-independent.

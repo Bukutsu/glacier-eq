@@ -362,7 +362,6 @@ export function useEqEditor(
     };
   }, [loadProfiles]);
 
-  // Drag-and-drop .txt file import
   const dropRequestRef = useRef(0);
 
   useEffect(() => {

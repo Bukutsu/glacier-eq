@@ -5,7 +5,7 @@ use crate::device::families::walkplay::{compute_iir_filter, decode_q30_biquad};
 use crate::device::packet::{checked_scaled_i16, checked_scaled_u16, Packet};
 use crate::device::protocol::{EqProtocol, GainEncoding, Protocol, Quirks};
 use crate::device::timing::WriteTiming;
-use crate::eq::filter::DEFAULT_FREQS_10_BAND;
+use crate::eq::filter::default_freq;
 use crate::eq::iir_math::{compute_biquad_coeffs_for_model, EqResponseModel};
 use crate::eq::{Filter, FilterType, PEQData};
 
@@ -315,11 +315,4 @@ impl EqProtocol for MoondropProtocol {
     fn report_id(&self) -> u8 {
         0x4B
     }
-}
-
-fn default_freq(index: u8) -> u16 {
-    DEFAULT_FREQS_10_BAND
-        .get(index as usize)
-        .copied()
-        .unwrap_or(1000)
 }

@@ -13,8 +13,6 @@ import { ToastContainer } from "@/components/feedback/Toast";
 import { Button } from "./Button";
 import { useBackDismiss } from "./useBackDismiss";
 
-export { MODAL_HISTORY_KEY } from "@/lib/modalHistory";
-
 interface ModalProps {
   title: string;
   onClose: () => void;

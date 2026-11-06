@@ -91,14 +91,7 @@ pub(crate) fn supported_profile(
     }
 }
 
-pub(crate) fn validate_dsp_sample_rate(sample_rate: f64) -> Result<(), String> {
-    if !sample_rate.is_finite() || !(40_000.0..=768_000.0).contains(&sample_rate) {
-        return Err(String::from(
-            "DSP sample rate must be between 40000 and 768000 Hz",
-        ));
-    }
-    Ok(())
-}
+pub(crate) use crate::eq::iir_math::validate_dsp_sample_rate;
 
 pub(crate) fn validate_filter_numeric(filter: &Filter) -> Result<(), String> {
     if filter.freq == 0 {

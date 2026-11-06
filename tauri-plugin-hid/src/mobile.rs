@@ -75,7 +75,6 @@ impl<R: Runtime> Hid<R> {
                 },
             )
             .map_err(Error::PluginInvoke)?;
-        // Convert signed bytes to unsigned bytes for Android
         let data: Vec<u8> = result.data.iter().map(|&byte| byte as u8).collect();
         Ok(data)
     }

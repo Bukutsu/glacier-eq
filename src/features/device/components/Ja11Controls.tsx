@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 // Copyright (c) 2026 Bukutsu
 // SPDX-License-Identifier: GPL-3.0-only
 import { useEffect, useRef, useState } from "react";
-import { invoke, invokeForDevice } from "@/lib/rpc";
+import { invoke, invokeForDevice, sleep } from "@/lib/rpc";
 import { isDevDummyDevice } from "@/features/device/lib/devDevice";
 import { confirmDialog } from "@/components/ui/ConfirmDialog";
 import { Button } from "@/components/ui/Button";
@@ -38,8 +38,6 @@ function diagnostic(control: string, target: number | null, outcome: string) {
 // after the DAC restarts) is retried. Writes are never retried.
 const READ_ATTEMPTS = 3;
 const READ_RETRY_MS = 400;
-const sleep = (ms: number) =>
-  new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 type Field = {
   value: number | null;
