@@ -11,7 +11,7 @@
   },
   "app": {
     "enableGTKAppId": true,
-    "withGlobalTauri": true,
+    "withGlobalTauri": false,
     "windows": [
       {
         "title": "Glacier EQ",

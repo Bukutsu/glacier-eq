@@ -98,9 +98,29 @@ const AUTH_RESPONSE_TIMEOUT: Duration = Duration::from_secs(120);
 const REAP_ATTEMPTS: usize = 50;
 const REAP_POLL_INTERVAL: Duration = Duration::from_millis(10);
 
+/// Refuse to run as root anything a non-root user could replace: the binary
+/// and every parent directory must be root-owned and not group/world-writable.
+#[cfg(unix)]
+fn ensure_root_controlled(exe: &std::path::Path) -> Result<(), String> {
+    use std::os::unix::fs::MetadataExt;
+    for path in exe.ancestors() {
+        let meta = std::fs::metadata(path)
+            .map_err(|e| format!("Cannot inspect {}: {e}", path.display()))?;
+        if meta.uid() != 0 || meta.mode() & 0o022 != 0 {
+            return Err(format!(
+                "Refusing to elevate: {} is writable by non-root users. Install the app system-wide or fix USB permissions with the udev rules instead.",
+                path.display()
+            ));
+        }
+    }
+    Ok(())
+}
+
 impl ElevatedTransport {
     pub fn spawn() -> Result<Self, String> {
         let exe = std::env::current_exe().map_err(|e| format!("Cannot resolve own path: {e}"))?;
+        #[cfg(unix)]
+        ensure_root_controlled(&exe)?;
 
         let mut command = Command::new("pkexec");
         command
