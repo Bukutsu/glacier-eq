@@ -13,8 +13,9 @@ import {
 
 export function useOnlineDatabase(setStatus?: StatusReporter) {
   const [downloaded, setDownloaded] = useState(false);
+  // null = not downloading; a number is the active download's progress.
   const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
-  const [isDownloading, setIsDownloading] = useState(false);
+  const isDownloading = downloadProgress !== null;
   const [manifest, setManifest] = useState<OnlineDevice[]>([]);
   const [loadingManifest, setLoadingManifest] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -69,7 +70,6 @@ export function useOnlineDatabase(setStatus?: StatusReporter) {
   }, [downloaded, setStatus]);
 
   const download = async () => {
-    setIsDownloading(true);
     setDownloadProgress(0);
     downloadSubscriptionRef.current?.unsubscribe();
     const subscription = subscribeToDatabaseDownload(setDownloadProgress);
@@ -85,7 +85,6 @@ export function useOnlineDatabase(setStatus?: StatusReporter) {
       subscription.unsubscribe();
       if (downloadSubscriptionRef.current === subscription) {
         downloadSubscriptionRef.current = null;
-        setIsDownloading(false);
         setDownloadProgress(null);
       }
     }

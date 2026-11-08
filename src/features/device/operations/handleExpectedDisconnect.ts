@@ -12,7 +12,7 @@ export type ExpectedRestartContext = Pick<
   | "connectedPathRef"
   | "connectedSessionIdRef"
   | "connectionGenerationRef"
-  | "setConnected"
+  | "linkDown"
   | "setIsReconnecting"
   | "setFirmwareVersion"
   | "setRestartPending"
@@ -30,7 +30,7 @@ export function createExpectedRestart(context: ExpectedRestartContext) {
     connectedPathRef,
     connectedSessionIdRef,
     connectionGenerationRef,
-    setConnected,
+    linkDown,
     setIsReconnecting,
     setFirmwareVersion,
     setRestartPending,
@@ -66,7 +66,7 @@ export function createExpectedRestart(context: ExpectedRestartContext) {
       if (generation !== connectionGenerationRef.current) return;
       markDeviceLost(
         {
-          setConnected,
+          linkDown,
           setIsReconnecting,
           setLastPushedPeq,
           setFirmwareVersion,

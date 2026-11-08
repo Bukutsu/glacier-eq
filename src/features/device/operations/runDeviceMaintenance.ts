@@ -1,3 +1,7 @@
+import {
+  claimEqOperation,
+  releaseEqOperation,
+} from "@/features/device/lib/eqOperationLock";
 import type { DeviceState } from "@/features/device/hooks/useDeviceState";
 
 export type DeviceMaintenanceRunner = (
@@ -11,7 +15,7 @@ type MaintenanceContext = Pick<
   | "connectedSessionIdRef"
   | "connectionGenerationRef"
   | "eqOperationInFlightRef"
-  | "eqOperationIdRef"
+  | "eqLock"
   | "setMaintenancePending"
   | "isBusy"
 >;
@@ -31,8 +35,7 @@ export function createDeviceMaintenanceRunner(
     if (!path) return;
     const session = context.connectedSessionIdRef.current;
     const generation = context.connectionGenerationRef.current;
-    const operation = ++context.eqOperationIdRef.current;
-    context.eqOperationInFlightRef.current = true;
+    const operation = claimEqOperation(context.eqLock);
     context.setMaintenancePending(true);
     const isCurrent = () =>
       context.connectedRef.current &&
@@ -42,10 +45,8 @@ export function createDeviceMaintenanceRunner(
     try {
       await task(isCurrent);
     } finally {
-      if (context.eqOperationIdRef.current === operation) {
-        context.eqOperationInFlightRef.current = false;
+      if (releaseEqOperation(context.eqLock, operation))
         context.setMaintenancePending(false);
-      }
     }
   };
 }

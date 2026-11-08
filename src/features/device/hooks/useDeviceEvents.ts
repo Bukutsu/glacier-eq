@@ -33,8 +33,9 @@ export function useDeviceEvents(
     connectingPathRef,
     connectingSessionIdRef,
     connectionGenerationRef,
+    dispatchConnection,
     handledDisconnectGenerationRef,
-    setConnected,
+    linkDown,
     setIsReconnecting,
     setFirmwareVersion,
     setIsBusy,
@@ -81,7 +82,11 @@ export function useDeviceEvents(
         connectingPathRef.current,
       );
       if (payload && connectingPathRef.current === payload.path) {
-        connectingSessionIdRef.current = payload.sessionId;
+        dispatchConnection({
+          type: "connectSession",
+          path: payload.path,
+          sessionId: payload.sessionId,
+        });
       }
     };
 
@@ -99,8 +104,7 @@ export function useDeviceEvents(
         // Android can fail its reader before connect_device resolves. Fence
         // that pending attempt instead of dropping the event merely because
         // the connected flag has not flipped yet.
-        connectingPathRef.current = null;
-        connectingSessionIdRef.current = null;
+        dispatchConnection({ type: "connectAbort" });
         connectOperationIdRef.current += 1;
         reconnectEffectGenerationRef.current += 1;
         handledDisconnectGenerationRef.current = connectionGeneration;
@@ -110,7 +114,7 @@ export function useDeviceEvents(
         }).catch(() => {});
         markDeviceLost(
           {
-            setConnected,
+            linkDown,
             setIsReconnecting,
             setLastPushedPeq,
             setFirmwareVersion,
@@ -152,7 +156,7 @@ export function useDeviceEvents(
       const routine = expected || !eqOperationInFlightRef.current;
       markDeviceLost(
         {
-          setConnected,
+          linkDown,
           setIsReconnecting,
           setLastPushedPeq,
           setFirmwareVersion,
@@ -198,5 +202,5 @@ export function useDeviceEvents(
         } catch {}
       });
     };
-  }, [isAndroid, reportStatus, setConnected]);
+  }, [isAndroid, reportStatus, linkDown]);
 }

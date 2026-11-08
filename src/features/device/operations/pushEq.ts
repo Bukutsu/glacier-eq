@@ -1,5 +1,10 @@
 import { i18n } from "@/lib/i18n";
 import {
+  claimEqOperation,
+  isCurrentEqOperation,
+  releaseEqOperation,
+} from "@/features/device/lib/eqOperationLock";
+import {
   melodySlotArgs,
   setUserEqSlot,
   userEqSlotArgs,
@@ -41,13 +46,13 @@ export type PushEqContext = Pick<
   | "connectedSessionIdRef"
   | "connectionGenerationRef"
   | "operationRevisionRef"
-  | "setConnected"
+  | "linkDown"
   | "setIsReconnecting"
   | "setFirmwareVersion"
   | "setIsBusy"
   | "setProgress"
   | "eqOperationInFlightRef"
-  | "eqOperationIdRef"
+  | "eqLock"
   | "setLastPushedPeq"
   | "selectedCapabilities"
   | "selectedDeviceInfo"
@@ -81,13 +86,13 @@ export function createPushEq(context: PushEqContext) {
     connectedSessionIdRef,
     connectionGenerationRef,
     operationRevisionRef,
-    setConnected,
+    linkDown,
     setIsReconnecting,
     setFirmwareVersion,
     setIsBusy,
     setProgress,
     eqOperationInFlightRef,
-    eqOperationIdRef,
+    eqLock,
     setLastPushedPeq,
     selectedCapabilities,
     setPeq,
@@ -213,8 +218,7 @@ export function createPushEq(context: PushEqContext) {
     )
       return;
     if (!isConfirmationCurrent() || eqOperationInFlightRef.current) return;
-    eqOperationInFlightRef.current = true;
-    const operationId = ++eqOperationIdRef.current;
+    const operationId = claimEqOperation(eqLock);
     if (!quiet) {
       setProgress(null);
       setIsBusy(true);
@@ -225,7 +229,7 @@ export function createPushEq(context: PushEqContext) {
     // Device completion depends on the session, not on editor changes.
     // An edit during the write must not hide what was saved to the DAC.
     const isCurrentOperation = () =>
-      operationId === eqOperationIdRef.current &&
+      isCurrentEqOperation(eqLock, operationId) &&
       getAsyncContext().operationRevision ===
         confirmationContext.operationRevision &&
       connectionGenerationRef.current === confirmationGeneration &&
@@ -361,7 +365,7 @@ export function createPushEq(context: PushEqContext) {
           !isDevDummyDevice(selectedDevice) &&
           isDisconnectionError(error),
         {
-          setConnected,
+          linkDown,
           setIsReconnecting,
           setLastPushedPeq,
           setFirmwareVersion,
@@ -372,8 +376,7 @@ export function createPushEq(context: PushEqContext) {
         i18n.t("device:pushEq.writeFailed", { error }),
       );
     } finally {
-      if (operationId === eqOperationIdRef.current) {
-        eqOperationInFlightRef.current = false;
+      if (releaseEqOperation(eqLock, operationId)) {
         if (!quiet) setIsBusy(false);
         setProgress(null);
       }

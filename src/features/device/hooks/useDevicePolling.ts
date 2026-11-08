@@ -38,9 +38,9 @@ export function useDevicePolling(
     connectedPathRef,
     connectedSessionIdRef,
     connectingPathRef,
-    connectingSessionIdRef,
     connectionGenerationRef,
-    setConnected,
+    dispatchConnection,
+    linkDown,
     setIsReconnecting,
     connectedDeviceName,
     setConnectedDeviceName,
@@ -81,8 +81,8 @@ export function useDevicePolling(
             return;
           // A new approved attachment is a new user action, unlike a routine
           // poll. It may resume connection after an explicit disconnect.
-          manualDisconnectRef.current = false;
-          ambiguousReconnectRef.current = false;
+          dispatchConnection({ type: "manualDisconnect", value: false });
+          dispatchConnection({ type: "ambiguous", value: false });
           setAttachedDevice({ path: payload.path });
         }),
       )
@@ -143,7 +143,7 @@ export function useDevicePolling(
         // toast would make a routine replug look like a fault.
         markDeviceLost(
           {
-            setConnected,
+            linkDown,
             setIsReconnecting,
             setLastPushedPeq,
             setFirmwareVersion,
@@ -232,7 +232,7 @@ export function useDevicePolling(
           ? exactPathMatch
           : chooseReconnectDevice(realDevices, targetPath, targetName);
         if (!exactPathMatch && nameMatches.length > 1) {
-          ambiguousReconnectRef.current = true;
+          dispatchConnection({ type: "ambiguous", value: true });
           setIsReconnecting(false);
           setShowDeviceModal(true);
           reportStatus({
@@ -259,8 +259,7 @@ export function useDevicePolling(
             statusText: i18n.t("device:useDevicePolling.reconnectingStatus"),
           });
           let openedSessionId: number | null = null;
-          connectingPathRef.current = found.path;
-          connectingSessionIdRef.current = null;
+          dispatchConnection({ type: "connectBegin", path: found.path });
           try {
             openedSessionId = await invoke<number | null>("connect_device", {
               path: found.path,
@@ -272,15 +271,14 @@ export function useDevicePolling(
               }).catch(() => {});
               return;
             }
-            connectedSessionIdRef.current = openedSessionId;
-
             selectedDeviceRef.current = found.path;
             setSelectedDevice(found.path);
-            setConnected(true, found.path);
-            if (connectingPathRef.current === found.path) {
-              connectingPathRef.current = null;
-              connectingSessionIdRef.current = null;
-            }
+            dispatchConnection({
+              type: "linkUp",
+              path: found.path,
+              sessionId: openedSessionId,
+            });
+            dispatchConnection({ type: "connectEnd", path: found.path });
             setConnectedDeviceName(devName);
             lastConnectedNameRef.current = devName;
             setLastPushedPeq(null);
@@ -335,10 +333,7 @@ export function useDevicePolling(
                 }).catch(() => {});
               } catch {}
             }
-            if (connectingPathRef.current === found.path) {
-              connectingPathRef.current = null;
-              connectingSessionIdRef.current = null;
-            }
+            dispatchConnection({ type: "connectEnd", path: found.path });
             if (!isCurrent()) return;
             reportStatus({
               level: "Warn",
@@ -387,7 +382,7 @@ export function useDevicePolling(
     pushToUndoStack,
     noteEditorMutation,
     reportStatus,
-    setConnected,
+    linkDown,
     settings.auto_pull_on_connect,
   ]);
 }

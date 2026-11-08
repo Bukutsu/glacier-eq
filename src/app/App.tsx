@@ -88,7 +88,7 @@ function App() {
   const device = useDeviceState();
   const navigation = useWorkspaceNavigation(isMobile, () => {
     device.reconnectEffectGenerationRef.current += 1;
-    device.ambiguousReconnectRef.current = false;
+    device.dispatchConnection({ type: "ambiguous", value: false });
     device.setIsReconnecting(false);
     setShowDeviceModal(false);
     setShowDiagnosticsModal(false);
@@ -102,7 +102,7 @@ function App() {
   } = navigation;
   const isAndroid = isAndroidDevice();
   const {
-    ambiguousReconnectRef,
+    dispatchConnection,
     devices,
     selectedDevice,
     connected,
@@ -333,9 +333,9 @@ function App() {
   }, []);
 
   const handleCloseDeviceModal = useCallback(() => {
-    ambiguousReconnectRef.current = false;
+    dispatchConnection({ type: "ambiguous", value: false });
     setShowDeviceModal(false);
-  }, []);
+  }, [dispatchConnection]);
 
   const handleOpenDiagnosticsModal = useCallback(() => {
     setShowDiagnosticsModal(true);

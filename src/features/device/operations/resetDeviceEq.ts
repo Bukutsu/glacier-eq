@@ -1,5 +1,9 @@
 import { i18n } from "@/lib/i18n";
 import {
+  claimEqOperation,
+  releaseEqOperation,
+} from "@/features/device/lib/eqOperationLock";
+import {
   melodySlotArgs,
   userEqSlotArgs,
   getUserEqSlot,
@@ -24,7 +28,7 @@ export type ResetDeviceEqContext = Pick<
   | "isBusy"
   | "setProgress"
   | "eqOperationInFlightRef"
-  | "eqOperationIdRef"
+  | "eqLock"
 > &
   Partial<Pick<DeviceState, "selectedDeviceInfo">> & {
     setStatus: StatusReporter;
@@ -48,7 +52,7 @@ export function createResetDeviceEq(context: ResetDeviceEqContext) {
     isBusy,
     setProgress,
     eqOperationInFlightRef,
-    eqOperationIdRef,
+    eqLock,
     setStatus,
     recoverDeviceRead,
     handleExpectedDisconnect,
@@ -62,8 +66,7 @@ export function createResetDeviceEq(context: ResetDeviceEqContext) {
     if (!path) return;
     // Claim synchronously, including while confirmation is open. A second
     // click cannot queue another destructive reset before React re-renders.
-    const operationId = ++eqOperationIdRef.current;
-    eqOperationInFlightRef.current = true;
+    const operationId = claimEqOperation(eqLock);
     setMaintenancePending(true);
     const slots = context.selectedDeviceInfo?.user_eq_slots ?? [];
     const slot = getUserEqSlot(path);
@@ -134,8 +137,7 @@ export function createResetDeviceEq(context: ResetDeviceEqContext) {
         );
       }
     } finally {
-      if (operationId === eqOperationIdRef.current)
-        eqOperationInFlightRef.current = false;
+      releaseEqOperation(eqLock, operationId);
       setMaintenancePending(false);
       setProgress(null);
     }

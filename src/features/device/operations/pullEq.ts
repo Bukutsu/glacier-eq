@@ -1,4 +1,8 @@
 import { i18n } from "@/lib/i18n";
+import {
+  claimEqOperation,
+  releaseEqOperation,
+} from "@/features/device/lib/eqOperationLock";
 import { invoke, emit, sleep } from "@/lib/rpc";
 import type { confirmDialog } from "@/components/ui/ConfirmDialog";
 import {
@@ -31,13 +35,13 @@ export type PullEqContext = Pick<
   | "connectedSessionIdRef"
   | "connectionGenerationRef"
   | "operationRevisionRef"
-  | "setConnected"
+  | "linkDown"
   | "setIsReconnecting"
   | "setFirmwareVersion"
   | "setIsBusy"
   | "setProgress"
   | "eqOperationInFlightRef"
-  | "eqOperationIdRef"
+  | "eqLock"
   | "setLastPushedPeq"
   | "selectedCapabilities"
   | "capabilities"
@@ -73,13 +77,13 @@ export function createPullEq(context: PullEqContext) {
     connectedSessionIdRef,
     connectionGenerationRef,
     operationRevisionRef,
-    setConnected,
+    linkDown,
     setIsReconnecting,
     setFirmwareVersion,
     setIsBusy,
     setProgress,
     eqOperationInFlightRef,
-    eqOperationIdRef,
+    eqLock,
     setLastPushedPeq,
     selectedCapabilities,
     setPeq,
@@ -149,8 +153,7 @@ export function createPullEq(context: PullEqContext) {
     // applyProfileToRam both fence on this; without the fence a pull that
     // runs as an inner step of connectDevice or the reconnect poll released
     // busy while its caller still had a firmware read outstanding.
-    const operationId = ++eqOperationIdRef.current;
-    eqOperationInFlightRef.current = true;
+    const operationId = claimEqOperation(eqLock);
     setProgress(null);
     setIsBusy(true);
     // A pull must not land on an editor/connection state that changed while
@@ -257,7 +260,7 @@ export function createPullEq(context: PullEqContext) {
       if (!manualDisconnectRef.current && isDisconnectionError(error)) {
         markDeviceLost(
           {
-            setConnected,
+            linkDown,
             setIsReconnecting,
             setLastPushedPeq,
             setFirmwareVersion,
@@ -280,8 +283,7 @@ export function createPullEq(context: PullEqContext) {
       }
       return false;
     } finally {
-      if (operationId === eqOperationIdRef.current) {
-        eqOperationInFlightRef.current = false;
+      if (releaseEqOperation(eqLock, operationId)) {
         setIsBusy(false);
         setProgress(null);
       }

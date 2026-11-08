@@ -23,7 +23,7 @@ export type ReadRecoveryContext = Pick<
   | "connectedPathRef"
   | "connectedSessionIdRef"
   | "connectionGenerationRef"
-  | "setConnected"
+  | "linkDown"
   | "setIsReconnecting"
   | "setFirmwareVersion"
   | "setLastPushedPeq"
@@ -41,7 +41,7 @@ export function createReadRecovery(context: ReadRecoveryContext) {
     connectedPathRef,
     connectedSessionIdRef,
     connectionGenerationRef,
-    setConnected,
+    linkDown,
     setIsReconnecting,
     setFirmwareVersion,
     setLastPushedPeq,
@@ -86,7 +86,7 @@ export function createReadRecovery(context: ReadRecoveryContext) {
         return true;
       markDeviceLost(
         {
-          setConnected,
+          linkDown,
           setIsReconnecting,
           setLastPushedPeq,
           setFirmwareVersion,

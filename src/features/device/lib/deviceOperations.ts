@@ -10,7 +10,7 @@ import type {
 
 /** State setters + reporter an device operation needs to signal a lost device. */
 export interface DeviceLossActions {
-  setConnected: (connected: boolean, path?: string | null) => void;
+  linkDown: () => void;
   setIsReconnecting: (value: boolean) => void;
   setLastPushedPeq: (peq: PEQData | null) => void;
   setFirmwareVersion: (version: string | null) => void;
@@ -112,7 +112,7 @@ export function markDeviceLost(
   /** "Info" when the loss was expected, such as a DAC restarting to save. */
   level: ReportLevel = "Error",
 ): void {
-  actions.setConnected(false);
+  actions.linkDown();
   actions.setIsReconnecting(true);
   actions.setLastPushedPeq(null);
   actions.setFirmwareVersion(null);

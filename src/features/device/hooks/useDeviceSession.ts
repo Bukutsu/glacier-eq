@@ -52,11 +52,11 @@ export function useDeviceSession(
     expectedRestartUntilRef,
     setProgress,
     connectingPathRef,
-    connectingSessionIdRef,
     connectionGenerationRef,
+    dispatchConnection,
     connectOperationIdRef,
     reconnectEffectGenerationRef,
-    setConnected,
+    linkDown,
     setIsReconnecting,
     setLastPushedPeq,
     setFirmwareVersion,
@@ -65,7 +65,6 @@ export function useDeviceSession(
     connectedSessionIdRef,
     selectedDevice,
     isBusy,
-    ambiguousReconnectRef,
     lastConnectedNameRef,
     selectedDeviceRef,
     setConnectedDeviceName,
@@ -76,7 +75,7 @@ export function useDeviceSession(
     selectedCapabilities,
     eqOperationInFlightRef,
     operationRevisionRef,
-    eqOperationIdRef,
+    eqLock,
     devices,
     selectedDeviceInfo,
     restartWaitIdRef,
@@ -165,14 +164,14 @@ export function useDeviceSession(
         connectedPathRef,
         connectedSessionIdRef,
         connectionGenerationRef,
-        setConnected,
+        linkDown,
         setIsReconnecting,
         setFirmwareVersion,
         setLastPushedPeq,
         reportStatus,
         reportLoss,
       }),
-    [reportStatus, reportLoss, setConnected],
+    [reportStatus, reportLoss, linkDown],
   );
 
   const pullEq = useMemo(
@@ -185,13 +184,13 @@ export function useDeviceSession(
         connectedSessionIdRef,
         connectionGenerationRef,
         operationRevisionRef,
-        setConnected,
+        linkDown,
         setIsReconnecting,
         setFirmwareVersion,
         setIsBusy,
         setProgress,
         eqOperationInFlightRef,
-        eqOperationIdRef,
+        eqLock,
         setLastPushedPeq,
         selectedCapabilities,
         capabilities,
@@ -236,13 +235,12 @@ export function useDeviceSession(
       // A manual connect supersedes an in-flight automatic reconnect immediately,
       // before React's effect cleanup or another native open can run.
       reconnectEffectGenerationRef.current += 1;
-      manualDisconnectRef.current = false;
+      dispatchConnection({ type: "manualDisconnect", value: false });
       readRecoveryRef.current.silentUsed = false;
-      ambiguousReconnectRef.current = false;
+      dispatchConnection({ type: "ambiguous", value: false });
       const pathToConnect = targetPath || selectedDevice;
       if (!pathToConnect) return false;
-      connectingPathRef.current = pathToConnect;
-      connectingSessionIdRef.current = null;
+      dispatchConnection({ type: "connectBegin", path: pathToConnect });
       operationRevisionRef.current += 1;
       const operationId = ++connectOperationIdRef.current;
       const isCurrentConnect = () =>
@@ -299,10 +297,13 @@ export function useDeviceSession(
             ]);
           }
           reconnectDevDummyDevice(pathToConnect);
-          connectedSessionIdRef.current = null;
           selectedDeviceRef.current = pathToConnect;
           setSelectedDevice(pathToConnect);
-          setConnected(true, pathToConnect);
+          dispatchConnection({
+            type: "linkUp",
+            path: pathToConnect,
+            sessionId: null,
+          });
           setLastPushedPeq(null);
           const previewName =
             resolvedTarget?.profile_name ?? "Glacier Dummy DAC";
@@ -338,10 +339,13 @@ export function useDeviceSession(
           }
           return false;
         }
-        connectedSessionIdRef.current = openedSessionId;
         selectedDeviceRef.current = pathToConnect;
         setSelectedDevice(pathToConnect);
-        setConnected(true, pathToConnect);
+        dispatchConnection({
+          type: "linkUp",
+          path: pathToConnect,
+          sessionId: openedSessionId,
+        });
         setLastPushedPeq(null);
 
         let devName = "";
@@ -373,7 +377,7 @@ export function useDeviceSession(
                 expectedSessionId: openedSessionId,
               }).catch(() => {});
             }
-            setConnected(false);
+            linkDown();
             setConnectedDeviceName("");
             setFirmwareVersion(null);
             return false;
@@ -405,7 +409,7 @@ export function useDeviceSession(
           }
           return false;
         }
-        setConnected(false);
+        linkDown();
         setLastPushedPeq(null);
         if (!manualDisconnectRef.current && isDisconnectionError(error)) {
           reportStatus({
@@ -442,10 +446,7 @@ export function useDeviceSession(
         }
         return false;
       } finally {
-        if (connectingPathRef.current === pathToConnect) {
-          connectingPathRef.current = null;
-          connectingSessionIdRef.current = null;
-        }
+        dispatchConnection({ type: "connectEnd", path: pathToConnect });
         if (isCurrentConnect()) setIsBusy(false);
       }
     },
@@ -480,7 +481,7 @@ export function useDeviceSession(
         setBusy: setIsBusy,
         pauseReconnect: () => {
           reconnectEffectGenerationRef.current += 1;
-          ambiguousReconnectRef.current = true;
+          dispatchConnection({ type: "ambiguous", value: true });
           // The user took over; stop showing an automatic reconnect.
           setIsReconnecting(false);
         },
@@ -514,7 +515,7 @@ export function useDeviceSession(
         connectedPathRef,
         connectedSessionIdRef,
         connectionGenerationRef,
-        setConnected,
+        linkDown,
         setIsReconnecting,
         setFirmwareVersion,
         setRestartPending,
@@ -523,7 +524,7 @@ export function useDeviceSession(
         reportStatus,
         reportLoss,
       }),
-    [reportStatus, reportLoss, setConnected],
+    [reportStatus, reportLoss, linkDown],
   );
 
   const runDeviceMaintenance = useMemo(
@@ -534,7 +535,7 @@ export function useDeviceSession(
         connectedSessionIdRef,
         connectionGenerationRef,
         eqOperationInFlightRef,
-        eqOperationIdRef,
+        eqLock,
         setMaintenancePending,
         isBusy,
       }),
@@ -553,7 +554,7 @@ export function useDeviceSession(
         isBusy,
         setProgress,
         eqOperationInFlightRef,
-        eqOperationIdRef,
+        eqLock,
         setStatus,
         recoverDeviceRead,
         handleExpectedDisconnect,
@@ -587,7 +588,7 @@ export function useDeviceSession(
   );
 
   const handleUdevInstalled = useCallback(async (): Promise<string | null> => {
-    manualDisconnectRef.current = false;
+    dispatchConnection({ type: "manualDisconnect", value: false });
     try {
       const realDevices = await invoke<DeviceInfo[]>("list_devices");
       const list = import.meta.env.DEV
@@ -641,13 +642,13 @@ export function useDeviceSession(
         connectedSessionIdRef,
         connectionGenerationRef,
         operationRevisionRef,
-        setConnected,
+        linkDown,
         setIsReconnecting,
         setFirmwareVersion,
         setIsBusy,
         setProgress,
         eqOperationInFlightRef,
-        eqOperationIdRef,
+        eqLock,
         setLastPushedPeq,
         selectedCapabilities,
         capabilities,
@@ -690,13 +691,13 @@ export function useDeviceSession(
         connectedSessionIdRef,
         connectionGenerationRef,
         operationRevisionRef,
-        setConnected,
+        linkDown,
         setIsReconnecting,
         setFirmwareVersion,
         setIsBusy,
         setProgress,
         eqOperationInFlightRef,
-        eqOperationIdRef,
+        eqLock,
         setLastPushedPeq,
         capabilities,
         setPeq,
@@ -731,7 +732,7 @@ export function useDeviceSession(
     if (eqOperationInFlightRef.current) return;
     operationRevisionRef.current += 1;
     setIsBusy(true);
-    manualDisconnectRef.current = true;
+    dispatchConnection({ type: "manualDisconnect", value: true });
     lastConnectedNameRef.current = "";
     try {
       if (!isDevDummyDevice(selectedDevice)) {
@@ -740,7 +741,7 @@ export function useDeviceSession(
           expectedSessionId: connectedSessionIdRef.current,
         });
       }
-      setConnected(false);
+      linkDown();
       setIsReconnecting(false);
       setConnectedDeviceName("");
       setLastPushedPeq(null);
@@ -755,7 +756,7 @@ export function useDeviceSession(
     } catch (error) {
       // The backend releases local state even when closing the transport
       // fails, so the UI must not keep showing a live connection.
-      setConnected(false);
+      linkDown();
       setIsReconnecting(false);
       setConnectedDeviceName("");
       setLastPushedPeq(null);

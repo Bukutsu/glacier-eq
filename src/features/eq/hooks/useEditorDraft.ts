@@ -9,25 +9,37 @@ import {
 import { readLocalStorage, writeLocalStorage } from "@/lib/safeStorage";
 import { useToastStore } from "@/stores/toastStore";
 
+/**
+ * Startup recovery of a saved draft. Exactly one state at a time:
+ *
+ *   none --(load ok, draft found)--> pending(draft)
+ *   none --(load throws)-----------> invalid
+ *   pending | invalid --resolveDraft--> none
+ *
+ * Autosave is paused until the state is `none`.
+ */
+type DraftRecovery =
+  | { kind: "none" }
+  | { kind: "pending"; draft: EditorDraft }
+  | { kind: "invalid" };
+
+function loadDraftRecovery(): DraftRecovery {
+  try {
+    const draft = parseEditorDraft(readLocalStorage(EDITOR_DRAFT_KEY));
+    return draft ? { kind: "pending", draft } : { kind: "none" };
+  } catch {
+    return { kind: "invalid" };
+  }
+}
+
 export function useEditorDraft(
   peq: PEQData,
   dirty: boolean,
   name: RefObject<string>,
 ) {
-  const [loaded] = useState(() => {
-    try {
-      return {
-        draft: parseEditorDraft(readLocalStorage(EDITOR_DRAFT_KEY)),
-        invalid: false,
-      };
-    } catch {
-      return { draft: null, invalid: true };
-    }
-  });
-  const [pendingDraft, setPendingDraft] = useState<EditorDraft | null>(
-    loaded.draft,
-  );
-  const [draftInvalid, setDraftInvalid] = useState(loaded.invalid);
+  const [recovery, setRecovery] = useState(loadDraftRecovery);
+  const pendingDraft = recovery.kind === "pending" ? recovery.draft : null;
+  const draftInvalid = recovery.kind === "invalid";
   const warned = useRef(false);
   const lastSaved = useRef<string | null>(readLocalStorage(EDITOR_DRAFT_KEY));
 
@@ -65,9 +77,6 @@ export function useEditorDraft(
   return {
     pendingDraft,
     draftInvalid,
-    resolveDraft: () => {
-      setPendingDraft(null);
-      setDraftInvalid(false);
-    },
+    resolveDraft: () => setRecovery({ kind: "none" }),
   };
 }

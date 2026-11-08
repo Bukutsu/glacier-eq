@@ -1,4 +1,9 @@
 import { i18n } from "@/lib/i18n";
+import {
+  claimEqOperation,
+  isCurrentEqOperation,
+  releaseEqOperation,
+} from "@/features/device/lib/eqOperationLock";
 import { invoke, sleep } from "@/lib/rpc";
 import type { confirmDialog } from "@/components/ui/ConfirmDialog";
 import {
@@ -29,13 +34,13 @@ export type ApplyProfileToRamContext = Pick<
   | "connectedSessionIdRef"
   | "connectionGenerationRef"
   | "operationRevisionRef"
-  | "setConnected"
+  | "linkDown"
   | "setIsReconnecting"
   | "setFirmwareVersion"
   | "setIsBusy"
   | "setProgress"
   | "eqOperationInFlightRef"
-  | "eqOperationIdRef"
+  | "eqLock"
   | "setLastPushedPeq"
   | "capabilities"
 > &
@@ -67,13 +72,13 @@ export function createApplyProfileToRam(context: ApplyProfileToRamContext) {
     connectedSessionIdRef,
     connectionGenerationRef,
     operationRevisionRef,
-    setConnected,
+    linkDown,
     setIsReconnecting,
     setFirmwareVersion,
     setIsBusy,
     setProgress,
     eqOperationInFlightRef,
-    eqOperationIdRef,
+    eqLock,
     setLastPushedPeq,
     capabilities,
     setPeq,
@@ -116,16 +121,15 @@ export function createApplyProfileToRam(context: ApplyProfileToRamContext) {
     )
       return;
     if (!isConfirmationCurrent()) return;
-    eqOperationInFlightRef.current = true;
     const data = normalizePeq(profile.data, {
       enableLoadedFilters: true,
       capabilities,
     });
     setProgress(null);
     setIsBusy(true);
-    const operationId = ++eqOperationIdRef.current;
+    const operationId = claimEqOperation(eqLock);
     const isCurrentOperation = () =>
-      operationId === eqOperationIdRef.current &&
+      isCurrentEqOperation(eqLock, operationId) &&
       connectionGenerationRef.current === confirmationGeneration &&
       connectedPathRef.current === confirmationPath &&
       connectedSessionIdRef.current === confirmationSessionId &&
@@ -209,7 +213,7 @@ export function createApplyProfileToRam(context: ApplyProfileToRamContext) {
           !isDevDummyDevice(selectedDevice) &&
           isDisconnectionError(error),
         {
-          setConnected,
+          linkDown,
           setIsReconnecting,
           setLastPushedPeq,
           setFirmwareVersion,
@@ -220,8 +224,7 @@ export function createApplyProfileToRam(context: ApplyProfileToRamContext) {
         i18n.t("device:applyProfileToRam.applyFailed", { error }),
       );
     } finally {
-      if (operationId === eqOperationIdRef.current) {
-        eqOperationInFlightRef.current = false;
+      if (releaseEqOperation(eqLock, operationId)) {
         setIsBusy(false);
         setProgress(null);
       }

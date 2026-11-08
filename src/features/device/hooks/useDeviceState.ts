@@ -1,6 +1,16 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 
 import {
+  INITIAL_CONNECTION,
+  connectedPath,
+  connectedSessionId,
+  isConnected,
+  transition,
+  type Connection,
+  type ConnectionEvent,
+} from "@/features/device/lib/connectionMachine";
+
+import {
   DEV_DUMMY_DEVICE,
   isDevDummyDevice,
 } from "@/features/device/lib/devDevice";
@@ -16,10 +26,58 @@ import { OFFLINE_EDITOR_CAPABILITIES } from "@/features/device/lib/dacSpecs";
 
 import { isJa11Device } from "@/features/device/lib/deviceOperations";
 
+/** Live read-only view of one connection field; writes go through dispatch. */
+interface ReadonlyRef<T> {
+  readonly current: T;
+}
+
+const view = <T,>(
+  ref: { readonly current: Connection },
+  read: (state: Connection) => T,
+): ReadonlyRef<T> => ({
+  get current() {
+    return read(ref.current);
+  },
+});
+
+/**
+ * Single owner of connection state (see connectionMachine.ts). The machine
+ * lives in a ref so handlers read the latest value synchronously; React state
+ * mirrors only the fields that render.
+ */
+function useConnection() {
+  const stateRef = useRef<Connection>(INITIAL_CONNECTION);
+  const [rendered, setRendered] = useState({
+    connected: false,
+    reconnecting: false,
+  });
+  const dispatch = useCallback((event: ConnectionEvent) => {
+    const next = transition(stateRef.current, event);
+    if (next === stateRef.current) return;
+    stateRef.current = next;
+    const connected = isConnected(next);
+    const reconnecting = next.intent === "reconnecting";
+    setRendered((prev) =>
+      prev.connected === connected && prev.reconnecting === reconnecting
+        ? prev
+        : { connected, reconnecting },
+    );
+  }, []);
+  const [views] = useState(() => ({
+    connectedRef: view(stateRef, isConnected),
+    connectedPathRef: view(stateRef, connectedPath),
+    connectedSessionIdRef: view(stateRef, connectedSessionId),
+    connectingPathRef: view(stateRef, (s) => s.pending?.path ?? null),
+    connectingSessionIdRef: view(stateRef, (s) => s.pending?.sessionId ?? null),
+    connectionGenerationRef: view(stateRef, (s) => s.generation),
+    manualDisconnectRef: view(stateRef, (s) => s.intent === "manual"),
+    ambiguousReconnectRef: view(stateRef, (s) => s.intent === "ambiguous"),
+  }));
+  return { dispatch, rendered, views };
+}
+
 export function useDeviceState() {
   const reconnectEffectGenerationRef = useRef(0);
-
-  const manualDisconnectRef = useRef(false);
 
   /** Short window for a restart-causing save or JA11 control write. */
   const expectedRestartUntilRef = useRef(0);
@@ -31,8 +89,6 @@ export function useDeviceState() {
     silentUsed: false,
     inFlight: null as number | null,
   });
-
-  const ambiguousReconnectRef = useRef(false);
 
   const pullEqRef = useRef<
     (
@@ -55,42 +111,32 @@ export function useDeviceState() {
 
   selectedDeviceRef.current = selectedDevice;
 
-  const [connected, setConnectedState] = useState(false);
-
-  const connectedRef = useRef(false);
-
-  const connectedPathRef = useRef<string | null>(null);
-
-  const connectedSessionIdRef = useRef<number | null>(null);
-
-  const connectingPathRef = useRef<string | null>(null);
-
-  const connectingSessionIdRef = useRef<number | null>(null);
-
-  const connectionGenerationRef = useRef(0);
+  const { dispatch: dispatchConnection, rendered, views } = useConnection();
+  const { connected, reconnecting: isReconnecting } = rendered;
+  const {
+    connectedRef,
+    connectedPathRef,
+    connectedSessionIdRef,
+    connectingPathRef,
+    connectingSessionIdRef,
+    connectionGenerationRef,
+    manualDisconnectRef,
+    ambiguousReconnectRef,
+  } = views;
 
   const operationRevisionRef = useRef(0);
 
   const handledDisconnectGenerationRef = useRef<number | null>(null);
 
-  const setConnected = useCallback(
-    (nextConnected: boolean, path: string | null = null) => {
-      const nextPath = nextConnected ? path : null;
-      if (
-        connectedRef.current !== nextConnected ||
-        connectedPathRef.current !== nextPath
-      ) {
-        connectionGenerationRef.current += 1;
-      }
-      connectedRef.current = nextConnected;
-      connectedPathRef.current = nextPath;
-      if (!nextConnected) connectedSessionIdRef.current = null;
-      setConnectedState(nextConnected);
-    },
-    [],
+  const linkDown = useCallback(
+    () => dispatchConnection({ type: "linkDown" }),
+    [dispatchConnection],
   );
 
-  const [isReconnecting, setIsReconnecting] = useState(false);
+  const setIsReconnecting = useCallback(
+    (value: boolean) => dispatchConnection({ type: "reconnecting", value }),
+    [dispatchConnection],
+  );
 
   const [connectedDeviceName, setConnectedDeviceName] = useState("");
 
@@ -111,6 +157,11 @@ export function useDeviceState() {
   const eqOperationInFlightRef = useRef(false);
 
   const eqOperationIdRef = useRef(0);
+
+  const [eqLock] = useState(() => ({
+    inFlightRef: eqOperationInFlightRef,
+    idRef: eqOperationIdRef,
+  }));
 
   const connectOperationIdRef = useRef(0);
 
@@ -165,7 +216,7 @@ export function useDeviceState() {
     setSelectedDevice,
     selectedDeviceRef,
     connected,
-    setConnectedState,
+    dispatchConnection,
     connectedRef,
     connectedPathRef,
     connectedSessionIdRef,
@@ -174,7 +225,7 @@ export function useDeviceState() {
     connectionGenerationRef,
     operationRevisionRef,
     handledDisconnectGenerationRef,
-    setConnected,
+    linkDown,
     isReconnecting,
     setIsReconnecting,
     connectedDeviceName,
@@ -192,7 +243,7 @@ export function useDeviceState() {
     progress,
     setProgress,
     eqOperationInFlightRef,
-    eqOperationIdRef,
+    eqLock,
     connectOperationIdRef,
     lastPushedPeq,
     setLastPushedPeq,
