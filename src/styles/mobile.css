@@ -33,7 +33,7 @@
   .app-header .header-main .title-line { grid-area: 1 / 1; }
   .app-header .header-main > div:first-child > div:not(.title-line) { grid-area: 2 / 1; }
   .app-header .mobile-toolbar > :not(.mobile-history-buttons) { grid-area: 1 / 2; }
-  .app-header .mobile-toolbar > :not(.mobile-history-buttons):last-child { grid-column: 3; }
+  .app-header .mobile-toolbar > :not(.mobile-history-buttons):is(button):last-of-type { grid-column: 3; }
   .app-header .mobile-history-buttons {
     grid-area: 2 / 2 / 3 / -1;
     justify-self: end;
