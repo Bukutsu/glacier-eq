@@ -28,7 +28,13 @@
 .configuration-layout .stack-pref-desc { line-height: 1.5; margin-top: var(--space-1); color: var(--muted-foreground); }
 .configuration-layout .stack-pref-control { gap: var(--space-2); }
 .configuration-layout .settings-plain-title { font-size: var(--type-label); font-weight: 600; }
-.configuration-layout .device-spec-list > div { padding: var(--space-3) 0; border-bottom: 1px solid var(--border); }
+.configuration-layout .device-spec-list {
+  padding: 0;
+  background: var(--card);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-card);
+}
+.configuration-layout .device-spec-list > div { padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border); }
 .configuration-layout .device-spec-list > div:last-child { border-bottom: 0; }
 .configuration-layout .device-spec-list dd { font-family: var(--font-ui); font-size: var(--type-label); }
 .configuration-layout .empty-card {

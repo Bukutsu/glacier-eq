@@ -10,8 +10,8 @@ import { systemThemeName } from "@/features/settings/lib/theme";
 import { writeLocalStorage } from "@/lib/safeStorage";
 
 const THEME_BG_COLORS: Record<string, string> = {
-  glacier: "#101119",
-  "glacier-light": "#f3f5f6",
+  glacier: "#0f1216",
+  "glacier-light": "#e8edf1",
   "material-you": "#181920",
   "tokyo-night": "#20212b",
   "tokyo-night-storm": "#282b35",
@@ -25,7 +25,7 @@ const THEME_BG_COLORS: Record<string, string> = {
 
 function updateThemeColorMeta(themeName: string, overrideColor?: string) {
   if (typeof document === "undefined") return;
-  const color = overrideColor ?? THEME_BG_COLORS[themeName] ?? "#101119";
+  const color = overrideColor ?? THEME_BG_COLORS[themeName] ?? "#0f1216";
   let meta = document.querySelector('meta[name="theme-color"]');
   if (!meta) {
     meta = document.createElement("meta");

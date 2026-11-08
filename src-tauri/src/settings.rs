@@ -12,7 +12,7 @@ use std::sync::{Mutex, OnceLock};
 use fs2::FileExt;
 
 fn default_theme() -> String {
-    "tokyo-night".to_string()
+    "glacier".to_string()
 }
 
 /// Must match the themes offered by the settings UI (and the web parser).

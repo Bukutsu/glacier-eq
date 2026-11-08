@@ -52,7 +52,7 @@ export function WorkspaceNavigation({
             onClick={(event) => select(event, id)}
           >
             {mobile ? (
-              <div className="leg:compact:flex leg:compact:items-center leg:compact:justify-center leg:compact:text-[color:inherit] leg:compact:pointer-events-none leg:compact:[transition:none]! leg:compact:[.mobile-tab-item.active_&]:text-[color:var(--link-foreground)] cmp:compact:w-[48px] cmp:compact:h-[28px] cmp:compact:rounded-[var(--radius-pill)] cmp:compact:[.mobile-tab-item.active_&]:text-[color:var(--accent-foreground)] cmp:compact:[.mobile-tab-item.active_&]:[background:var(--accent)] cmp:compact:[.mobile-tab-item:active_&&]:[background:var(--accent)]">
+              <div className="leg:compact:flex leg:compact:items-center leg:compact:justify-center leg:compact:text-[color:inherit] leg:compact:pointer-events-none leg:compact:[transition:none]! leg:compact:[.mobile-tab-item.active_&]:text-[color:var(--link-foreground)] cmp:compact:w-[48px] cmp:compact:h-[28px] cmp:compact:rounded-[var(--radius-pill)] cmp:compact:[.mobile-tab-item.active_&]:text-[color:var(--accent-foreground)] cmp:compact:[.mobile-tab-item.active_&]:[background:color-mix(in_srgb,var(--primary)_22%,transparent)] cmp:compact:[.mobile-tab-item:active_&&]:[background:color-mix(in_srgb,var(--primary)_22%,transparent)]">
                 <Icon name={icon} />
               </div>
             ) : (

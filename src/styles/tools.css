@@ -278,6 +278,7 @@ button.danger { color: var(--destructive-foreground); background: transparent; o
   justify-content: center;
   gap: 12px;
   max-width: 440px;
+  padding-inline: var(--space-4);
 }
 
 .empty-state h3 {
@@ -292,6 +293,7 @@ button.danger { color: var(--destructive-foreground); background: transparent; o
   font-size: var(--type-label);
   color: var(--muted);
   line-height: 1.5;
+  text-wrap: balance;
 }
 
 /* Custom Select Dropdown Styling */

@@ -16,34 +16,34 @@ html {
    Data colors stay separate from the interface accent. */
 :root, :root[data-theme="glacier"] {
   color-scheme: dark;
-  --bg: #101119;
-  --bg-dark: #0c0d14;
-  --panel: #181b29;
-  --surface: #343d50;
-  --surface-soft: #242a3a;
-  --text: #c9d1e2;
-  --muted: #a2acc0;
-  --comment: #929db3;
-  --cyan: #9fbde6;
-  --blue: #7fa1cd;
+  --bg: #0f1216;
+  --bg-dark: #0a0d10;
+  --panel: #151a20;
+  --surface: #2b343f;
+  --surface-soft: #1d242c;
+  --text: #d3dae3;
+  --muted: #9aa6b4;
+  --comment: #8794a3;
+  --cyan: #8cc3e6;
+  --blue: #8cc3e6;
   --green: #8da87f;
   --orange: #cc986e;
   --yellow: #b7a86d;
   --red: #d38780;
   --purple: #a295cb;
   --teal: #72ac9c;
-  --bright-cyan: #c1ceda;
+  --bright-cyan: #b6d4e6;
   --magenta2: #be8cb2;
-  --navy: #7fa1cd;
-  --azure: #9fbde6;
-  --sky: #9fbde6;
-  --steel: #929db3;
+  --navy: #74a9d4;
+  --azure: #8cc3e6;
+  --sky: #8cc3e6;
+  --steel: #8794a3;
   --sea: #72ac9c;
   --teal2: #a4a4a4;
   --crimson: #d38780;
-  --on-accent: #121416;
+  --on-accent: #0d1318;
   --sync-ok: #8da87f;
-  --sync-working: #9fbde6;
+  --sync-working: #8cc3e6;
   --sync-unsaved: #b7a86d;
   --input-bg: var(--bg-dark);
   --input-border: var(--surface);
@@ -51,11 +51,11 @@ html {
   --list-hover-bg: var(--surface-soft);
   --focus-border: rgb(var(--cyan-rgb) / 0.72);
   --scrollbar-color: var(--surface);
-  --bg-dark-rgb: 12 13 20;
-  --panel-rgb: 24 27 41;
-  --text-rgb: 201 209 226;
-  --cyan-rgb: 159 189 230;
-  --blue-rgb: 127 161 205;
+  --bg-dark-rgb: 10 13 16;
+  --panel-rgb: 21 26 32;
+  --text-rgb: 211 218 227;
+  --cyan-rgb: 140 195 230;
+  --blue-rgb: 140 195 230;
   --green-rgb: 141 168 127;
   --orange-rgb: 204 152 110;
   --yellow-rgb: 183 168 109;
@@ -64,8 +64,8 @@ html {
   --teal-rgb: 114 172 156;
   --magenta2-rgb: 190 140 178;
   --teal2-rgb: 164 164 164;
-  --bg-darker-rgb: 8 9 16;
-  --terminal-black-rgb: 52 61 80;
+  --bg-darker-rgb: 6 8 11;
+  --terminal-black-rgb: 43 52 63;
   --motion-duration-ms: 160;
   --motion-duration: calc(var(--motion-duration-ms) * 1ms);
   --motion-ease: cubic-bezier(0.33, 1, 0.68, 1);
@@ -73,16 +73,16 @@ html {
 
 :root[data-theme="glacier-light"] {
   color-scheme: light;
-  --bg: #f3f5f6;
-  --bg-dark: #eef1f3;
-  --panel: #ffffff;
+  --bg: #e8edf1;
+  --bg-dark: #e2e8ed;
+  --panel: #fafbfc;
   --surface: #d4dce1;
   --surface-soft: #e7ecef;
-  --text: #263039;
-  --muted: #55616c;
+  --text: #1b232b;
+  --muted: #4f5c68;
   --comment: #5b6974;
-  --cyan: #435f70;
-  --blue: #486b85;
+  --cyan: #2b6a94;
+  --blue: #2b6a94;
   --green: #596f57;
   --orange: #80613f;
   --yellow: #756338;
@@ -91,16 +91,16 @@ html {
   --teal: #3f7271;
   --bright-cyan: #58778a;
   --magenta2: #6f6184;
-  --navy: #486b85;
-  --azure: #435f70;
-  --sky: #486b85;
+  --navy: #356d96;
+  --azure: #2b6a94;
+  --sky: #356d96;
   --steel: #5b6974;
   --sea: #496e60;
   --teal2: #3f7271;
   --crimson: #915761;
   --on-accent: #f7f9fa;
   --sync-ok: #596f57;
-  --sync-working: #435f70;
+  --sync-working: #2b6a94;
   --sync-unsaved: #756338;
   --input-bg: var(--bg-dark);
   --input-border: var(--surface);
@@ -108,11 +108,11 @@ html {
   --list-hover-bg: var(--surface-soft);
   --focus-border: rgb(var(--cyan-rgb) / 0.72);
   --scrollbar-color: var(--surface);
-  --bg-dark-rgb: 238 241 243;
-  --panel-rgb: 255 255 255;
-  --text-rgb: 38 48 57;
-  --cyan-rgb: 67 95 112;
-  --blue-rgb: 72 107 133;
+  --bg-dark-rgb: 226 232 237;
+  --panel-rgb: 250 251 252;
+  --text-rgb: 27 35 43;
+  --cyan-rgb: 43 106 148;
+  --blue-rgb: 43 106 148;
   --green-rgb: 89 111 87;
   --orange-rgb: 128 97 63;
   --yellow-rgb: 117 99 56;
@@ -290,15 +290,15 @@ html {
 
 :root[data-theme="tokyo-night-day"] {
   color-scheme: light;
-  --bg: #e1e2e7;
+  --bg: #dfe1e9;
   --bg-dark: #d5d8e2;
   --bg-dark-rgb: 213 216 226;
   --bg-darker-rgb: 196 200 218;
-  --panel: #f0f1f5;
-  --panel-rgb: 240 241 245;
+  --panel: #f8f9fb;
+  --panel-rgb: 248 249 251;
   --surface: #8e95b3;
   --surface-soft: #d3d7e5;
-  --input-bg: var(--bg-dark);
+  --input-bg: #fbfbfd;
   --input-border: var(--surface);
   --panel-border: var(--surface);
   --list-hover-bg: var(--surface-soft);
@@ -310,8 +310,8 @@ html {
   --comment: #6f789e;
   --cyan: #00566f;
   --cyan-rgb: 0 86 111;
-  --blue: #2e7de9;
-  --blue-rgb: 46 125 233;
+  --blue: #3b69b8;
+  --blue-rgb: 59 105 184;
   --green: #486a29;
   --green-rgb: 72 106 41;
   --orange: #b15c00;
@@ -327,7 +327,7 @@ html {
   --bright-cyan: #188092;
   --magenta2: #9854f1;
   --magenta2-rgb: 152 84 241;
-  --navy: #2e7de9;
+  --navy: #3b69b8;
   --azure: #007197;
   --sky: #007197;
   --steel: #4f587d;
@@ -338,7 +338,7 @@ html {
   --terminal-black-rgb: 104 112 154;
   --on-accent: #ffffff;
   --sync-ok: #486a29;
-  --sync-working: #2e7de9;
+  --sync-working: #3b69b8;
   --sync-unsaved: #8c6c3e;
 }
 
@@ -611,9 +611,9 @@ html {
 :root {
   --line: color-mix(in srgb, var(--panel-border, #414868) 50%, transparent);
   --line-subtle: color-mix(in srgb, var(--panel-border, #414868) 25%, transparent);
-  --canvas-grid: color-mix(in srgb, var(--panel-border, #414868) 42%, transparent);
-  --line-soft: color-mix(in srgb, var(--panel-border, #414868) 35%, transparent);
-  --line-medium: color-mix(in srgb, var(--panel-border, #414868) 45%, transparent);
+  --canvas-grid: color-mix(in srgb, var(--panel-border, #414868) 55%, transparent);
+  --line-soft: color-mix(in srgb, var(--panel-border, #414868) 55%, transparent);
+  --line-medium: color-mix(in srgb, var(--panel-border, #414868) 70%, transparent);
   --line-strong: color-mix(in srgb, var(--panel-border, #414868) 60%, transparent);
   --line-separator: color-mix(in srgb, var(--panel-border, #414868) 38%, transparent);
   --line-outline: color-mix(in srgb, var(--panel-border, #414868) 48%, transparent);
@@ -636,8 +636,8 @@ html {
    * main.tsx applies one these fall through to this block, and an unresolved
    * var() invalidates the whole declaration that used it. */
   --navy: #7aa2f7;
-  --surface-disabled: rgb(var(--text-rgb) / 0.12);
-  --text-disabled: rgb(var(--text-rgb) / 0.38);
+  --surface-disabled: rgb(var(--text-rgb) / 0.14);
+  --text-disabled: color-mix(in srgb, var(--muted) 78%, transparent);
   --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, sans-serif;
   --font-mono: ui-monospace, "SF Mono", "SFMono-Regular", "Cascadia Mono", "Cascadia Code", "Fira Code", "Fira Mono", "Roboto Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace;
   --type-title: 22px;
@@ -914,3 +914,6 @@ summary::-webkit-details-marker { display: none; }
 .custom-checkbox:checked {
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 16 16' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M3.2 8.1 6.5 11.4 12.8 4.6' fill='none' stroke='currentColor' stroke-width='2.2' stroke-linecap='square' stroke-linejoin='miter'/%3E%3C/svg%3E");
 }
+
+/* Avoid single-word last lines in descriptions. */
+p { text-wrap: pretty; }

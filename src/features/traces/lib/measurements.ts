@@ -1,21 +1,22 @@
 import { i18n } from "@/lib/i18n";
 import type { MeasurementPoint, MeasurementTrace, TargetTrace } from "@/types";
 
+// Neither list leads with the accent hues: the EQ curve owns those.
 const MEASUREMENT_COLOR_VARS = [
-  "--steel",
-  "--navy",
   "--sea",
-  "--azure",
-  "--sky",
   "--crimson",
+  "--purple",
+  "--orange",
+  "--yellow",
+  "--steel",
 ];
 const TARGET_COLOR_VARS = [
-  "--crimson",
-  "--sky",
-  "--azure",
-  "--sea",
-  "--navy",
   "--steel",
+  "--orange",
+  "--sea",
+  "--purple",
+  "--crimson",
+  "--yellow",
 ];
 
 function colorVar(vars: string[], index: number): string {

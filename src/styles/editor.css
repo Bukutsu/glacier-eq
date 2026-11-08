@@ -182,8 +182,8 @@
 }
 
 .control-slider-input::-webkit-slider-runnable-track {
-  height: 2px;
-  background: var(--surface);
+  height: 3px;
+  background: color-mix(in srgb, var(--muted-foreground) 36%, transparent);
   border: 0;
   border-radius: var(--radius-pill);
 }
@@ -192,15 +192,15 @@
   appearance: none;
   width: 12px;
   height: 12px;
-  margin-top: -5px;
+  margin-top: -4.5px;
   border-radius: var(--radius-pill);
   background: var(--slider-thumb, var(--blue));
   border: 0;
 }
 
 .control-slider-input::-moz-range-track {
-  height: 2px;
-  background: var(--surface);
+  height: 3px;
+  background: color-mix(in srgb, var(--muted-foreground) 36%, transparent);
   border: 0;
   border-radius: var(--radius-pill);
 }

@@ -229,7 +229,7 @@ export const Header = memo(function Header({
   );
 
   return (
-    <header className={`app-header${compact ? " compact-mobile" : ""}`}>
+    <header className={`app-header${compact ? " compact-mobile" : ""}${isConfigPage ? " config-header" : ""}`}>
       <div className="header-main leg:min-w-[0] leg:flex leg:items-center leg:justify-between leg:flex-wrap leg:gap-[var(--space-4)] leg:max-[960px]:grid-cols-[minmax(0,_1fr)_auto] leg:max-[960px]:items-center leg:max-[960px]:gap-[12px] leg:compact:flex leg:compact:flex-wrap leg:compact:[&&]:items-center leg:compact:[&&]:gap-[8px] leg:compact:w-[100%] cmp:compact:[.app-header.compact-mobile:has(.toast-feedback)>&]:hidden cmp:compact:[.app-header_&]:gap-[var(--space-1)]">
         <div className="leg:flex leg:flex-col leg:gap-[6px] leg:min-w-[0] leg:max-[960px]:w-[100%] leg:compact:flex-[1_1_100%] leg:compact:min-w-[0] leg:compact:gap-[var(--space-1)] cmp:compact:[.app-header_&]:gap-[0]">
           <div className="title-line leg:flex leg:items-center leg:gap-[var(--space-2)] leg:min-w-[0] leg:max-[960px]:gap-[8px] leg:compact:flex-nowrap leg:compact:[&&]:gap-[6px]">
@@ -243,7 +243,7 @@ export const Header = memo(function Header({
           {(mobile || !isConfigPage) && (
             <div className="leg:flex leg:items-center leg:gap-[var(--space-2)] leg:min-w-[0] leg:flex-wrap leg:compact:flex-row leg:compact:items-center leg:compact:gap-[8px] cmp:compact:[.app-header_&]:mt-[0]">
               <span
-                className={`leg:inline-flex leg:items-center leg:gap-[6px] leg:max-w-[100%] leg:text-[length:var(--type-small)] leg:leading-[1.4] leg:text-[color:var(--muted)] leg:[&::before]:content-[''] leg:[&::before]:w-[5px] leg:[&::before]:h-[5px] leg:[&::before]:flex-[0_0_5px] leg:[&::before]:rounded-[var(--radius-pill)] leg:[&::before]:[background:currentColor] leg:[&.ok]:text-[color:var(--sync-ok)] leg:[&&.simulation]:text-[color:var(--sync-working)] leg:[&&&.working]:text-[color:var(--sync-working)] leg:[&&&&.unsaved]:text-[color:var(--sync-unsaved)] leg:compact:min-h-[24px] leg:compact:inline-flex leg:compact:items-center ${syncClass}`}
+                className={`leg:inline-flex leg:items-center leg:gap-[6px] leg:max-w-[100%] leg:text-[length:var(--type-small)] leg:leading-[1.4] leg:text-[color:var(--muted)] leg:[&::before]:content-[''] leg:[&::before]:w-[5px] leg:[&::before]:h-[5px] leg:[&::before]:flex-[0_0_5px] leg:[&::before]:rounded-[var(--radius-pill)] leg:[&::before]:[background:currentColor] leg:[&.ok]:text-[color:var(--sync-ok)] leg:[&&.simulation]:text-[color:var(--sync-unsaved)] leg:[&&&.working]:text-[color:var(--sync-working)] leg:[&&&&.unsaved]:text-[color:var(--sync-unsaved)] leg:compact:min-h-[24px] leg:compact:inline-flex leg:compact:items-center ${syncClass}`}
                 role="status"
                 aria-live="polite"
               >

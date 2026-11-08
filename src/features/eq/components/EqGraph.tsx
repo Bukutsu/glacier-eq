@@ -48,7 +48,7 @@ import type {
 type CustomProperties = CSSProperties & Record<`--${string}`, string | number>;
 
 const GRAPH_FREQS = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
-const GRAPH_DBS = [-18, -12, -6, 0, 6, 12, 18];
+const GRAPH_DBS = [-12, -6, 0, 6, 12];
 
 function graphDbLabels(height: number): number[] {
   // The ±18 dB lines sit on the plot edges, where a label cannot keep the
@@ -986,7 +986,7 @@ async function drawCurves(
   });
 
   for (const target of targets) {
-    drawTrace(ctx, width, height, target, 1.6, [2, 6]);
+    drawTrace(ctx, width, height, target, 1.8, [6, 4]);
   }
 
   for (const trace of measurements) {

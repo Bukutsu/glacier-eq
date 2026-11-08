@@ -43,10 +43,10 @@
    with restrained chroma (0–0.095), rather than a monochromatic brand ramp.
    Categorical guidance: https://cloudscape.design/foundation/visual-foundation/data-vis-colors/ */
 :root[data-theme="glacier"] {
-  --primary: #2d4263;
-  --primary-foreground: #c9d1e2;
+  --primary: #2f6c99;
+  --primary-foreground: #f2f7fb;
   --primary-hover: color-mix(in srgb, var(--primary) 90%, var(--card));
-  --ring: #9fbde6;
+  --ring: #8cc3e6;
   --plot-red: #d38780;
   --plot-red-rgb: 211 135 128;
   --plot-orange: #cc986e;
@@ -59,8 +59,8 @@
   --plot-teal-rgb: 114 172 156;
   --plot-cyan: #75acb9;
   --plot-cyan-rgb: 117 172 185;
-  --plot-blue: #7fa1cd;
-  --plot-blue-rgb: 127 161 205;
+  --plot-blue: #8cc3e6;
+  --plot-blue-rgb: 140 195 230;
   --plot-purple: #a295cb;
   --plot-purple-rgb: 162 149 203;
   --plot-teal2: #a4a4a4;
@@ -71,10 +71,10 @@
 
 :root[data-theme="glacier-light"] {
   /* A solid ink action: the earlier pale fill read as a disabled button. */
-  --primary: #3f5a6b;
+  --primary: #2b6a94;
   --primary-foreground: #ffffff;
   --primary-hover: color-mix(in srgb, var(--primary) 90%, var(--card));
-  --ring: #435f70;
+  --ring: #2b6a94;
 }
 
 :root[data-theme="nord"] {
@@ -141,7 +141,7 @@
   --field-background: #21222b;
   --destructive-foreground: #ff6467;
   --warning-foreground: #ffb900;
-  --primary: #4c5b7e;
+  --primary: #5370b5;
   --primary-foreground: #ffffff;
   --accent: #2c2e3b;
   --accent-foreground: #d2d5e0;
@@ -177,7 +177,7 @@
   --field-background: #282c36;
   --destructive-foreground: #ff7070;
   --warning-foreground: #ffb900;
-  --primary: #4c5b7e;
+  --primary: #5370b5;
   --primary-foreground: #ffffff;
   --accent: #353a48;
   --accent-foreground: #d2d5e0;
@@ -196,33 +196,33 @@
 }
 
 :root[data-theme="tokyo-night-day"] {
-  --panel-rgb: 214 216 223;
-  --background: #e6e7ed;
+  --panel-rgb: 248 249 251;
+  --background: #dfe1e9;
   --foreground: #343b59;
-  --card: #d6d8df;
+  --card: #f8f9fb;
   --card-foreground: #343b59;
-  --popover: #d6d8df;
+  --popover: #f7f8fa;
   --popover-foreground: #343b59;
   /* The imported muted text clears the canvas, but not Day’s darker cards. */
   --muted-foreground: #5b5c61;
   --placeholder: #4a5272;
-  --border: #c1c2c7;
-  --input: #c1c2c7;
-  --field-background: #d6d8df;
+  --border: #b9bccb;
+  --input: #a9adc0;
+  --field-background: #fbfbfd;
   --destructive-foreground: #c10007;
   /* T3 tunes warning text for a lighter alert surface; bare card text needs a darker tone. */
   --warning-foreground: #993e00;
   --primary: #426cb3;
   --primary-foreground: #ffffff;
-  --accent: #e6e7ed;
+  --accent: #d8dbe6;
   --accent-foreground: #14161a;
-  --sidebar: #d6d8df;
+  --sidebar: #d0d4e0;
   --sidebar-foreground: #363c4d;
   --sidebar-muted-foreground: #5a5c61;
-  --sidebar-border: #c1c2c7;
-  --sidebar-row-hover: #e1e2e8;
-  --sidebar-row-active: #e6e7ed;
-  --sidebar-row-selected: #e6e7ed;
+  --sidebar-border: #b9bccb;
+  --sidebar-row-hover: #e4e6ee;
+  --sidebar-row-active: #fbfbfd;
+  --sidebar-row-selected: #fbfbfd;
   --control: color-mix(in srgb, var(--input) 32%, var(--popover));
   --control-hover: color-mix(in srgb, var(--input) 64%, var(--popover));
   /* Light outline buttons use popover/selection surfaces, not dark input overlays. */
@@ -370,3 +370,14 @@
   --plot-magenta2-rgb: 177 56 131;
   }
 }
+
+/* The response curve is the interface hue, so chrome and data read as one instrument. */
+:root[data-theme="glacier-light"] {
+  --plot-blue: #2b6a94;
+  --plot-blue-rgb: 43 106 148;
+}
+:root[data-theme="glacier"] { --canvas-grid: #262e38; }
+:root[data-theme="glacier-light"] { --canvas-grid: #e2e8ed; }
+:root[data-theme="glacier"] { --surface-disabled: #232a33; --text-disabled: #6b7683; }
+:root[data-theme="glacier-light"] { --surface-disabled: #eef1f4; --text-disabled: #a3abb3; }
+:root[data-theme="glacier-light"] { --input-bg: #ffffff; --field-background: #ffffff; --input: #cfd6dd; }

@@ -560,11 +560,14 @@ export const ProfilesView = memo(function ProfilesView({
                   <span className="profiles-item-meta">{meta}</span>
                 </button>
                 {isSelected && (
-                  <span className="cmp:flex-[none] cmp:text-[color:var(--muted)] cmp:text-[length:var(--type-small)] cmp:whitespace-nowrap cmp:[&[data-modified='true']]:text-[color:var(--warning-foreground)]" data-modified={dirty}>
+                  <Badge
+                    className="data-[modified=true]:border-[color-mix(in_srgb,var(--warning-foreground)_40%,transparent)] data-[modified=true]:text-[var(--warning-foreground)]"
+                    data-modified={dirty}
+                  >
                     {dirty
                       ? t("profilesView.edited")
                       : t("profilesView.inEditor")}
-                  </span>
+                  </Badge>
                 )}
                 <div className="profiles-row-actions cmp:flex cmp:flex-[none] cmp:gap-[2px]">
                   {onUseOnDac && !isDefault && (
