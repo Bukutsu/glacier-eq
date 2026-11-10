@@ -516,7 +516,9 @@ function App() {
           ? mobilePageTitle
           : activeTab === "profiles"
             ? t("navigation.profiles")
-            : undefined
+            : activeTab === "tuning"
+              ? t("navigation.tuning")
+              : undefined
       }
       mobile={isMobile}
       compact={isMobile && activeTab !== "eq" && !isBusy}

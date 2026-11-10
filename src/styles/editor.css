@@ -173,7 +173,13 @@
   letter-spacing: 0;
 }
 
+.control-slider-input {
+  --slider-track: color-mix(in srgb, var(--muted-foreground) 30%, transparent);
+  --slider-fill: color-mix(in srgb, var(--slider-thumb, var(--blue)) 65%, transparent);
+}
+
 .control-slider {
+  position: relative;
   width: 100%;
   min-width: 0;
   display: flex;
@@ -183,7 +189,11 @@
 
 .control-slider-input::-webkit-slider-runnable-track {
   height: 3px;
-  background: color-mix(in srgb, var(--muted-foreground) 36%, transparent);
+  background: linear-gradient(to right,
+    var(--slider-track) var(--slider-fill-start, 0%),
+    var(--slider-fill) var(--slider-fill-start, 0%),
+    var(--slider-fill) var(--slider-fill-end, 0%),
+    var(--slider-track) var(--slider-fill-end, 0%));
   border: 0;
   border-radius: var(--radius-pill);
 }
@@ -200,7 +210,11 @@
 
 .control-slider-input::-moz-range-track {
   height: 3px;
-  background: color-mix(in srgb, var(--muted-foreground) 36%, transparent);
+  background: linear-gradient(to right,
+    var(--slider-track) var(--slider-fill-start, 0%),
+    var(--slider-fill) var(--slider-fill-start, 0%),
+    var(--slider-fill) var(--slider-fill-end, 0%),
+    var(--slider-track) var(--slider-fill-end, 0%));
   border: 0;
   border-radius: var(--radius-pill);
 }
@@ -320,6 +334,7 @@
 /* Graph axes sit in gutters outside the plot: the plot stays clean and no
    curve ever crosses a label. */
 .eq-graph-shell {
+  container-type: inline-size;
   --axis-y: 34px;
   --axis-x: 20px;
   margin: 0 0 var(--axis-x) var(--axis-y);
@@ -351,4 +366,23 @@
 /* Desktop: the legend and curve controls get their own strip above the plot. */
 @media (min-width: 851px) and ((min-height: 541px) or (pointer: fine)) {
   .graph-card:has(> .graph-toolbar) { padding-top: 48px; }
+}
+
+/* Zero mark on bipolar sliders (preamp, gain). */
+.control-slider-zero {
+  position: absolute;
+  left: clamp(6px, var(--slider-zero), calc(100% - 6px));
+  top: calc(50% - 5px);
+  width: 2px;
+  height: 10px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: var(--muted-foreground);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+/* Narrow plots (Profiles preview, phones) keep only the decade labels. */
+@container (max-width: 560px) {
+  .graph-axis .graph-axis-freq.minor { display: none; }
 }

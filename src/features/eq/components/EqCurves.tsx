@@ -153,7 +153,7 @@ export function EqCurves(props: EqCurvesProps) {
         <Popover.Trigger
           render={<Button variant="ghost" className="eq-curves-trigger leg:text-[color:var(--foreground)] leg:[&[data-popup-open]]:[background:var(--accent)]" />}
         >
-          <Icon name="tune" />
+          <Icon name="layers" />
           {t("curves.title")}
           <span
             className="leg:inline-flex leg:items-center leg:justify-center leg:min-w-[20px] leg:h-[20px] leg:p-[0_5px] leg:rounded-[5px] leg:[background:var(--surface-soft)] leg:text-[color:var(--muted-foreground)] leg:text-[length:11px] leg:[font-variant-numeric:tabular-nums]"

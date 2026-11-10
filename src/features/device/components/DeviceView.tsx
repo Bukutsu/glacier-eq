@@ -674,7 +674,7 @@ export const DeviceView = memo(function DeviceView({
             {!connected ? (
               <section className="settings-card empty-card">
                 <div className="empty-state">
-                  <Icon name="tune" size={44} />
+                  <Icon name="controls" size={44} />
                   <h3>{t("deviceView.deviceNotConnected")}</h3>
                   <p>{t("deviceView.connectForControls")}</p>
                   {onOpenConnectModal && (
@@ -744,7 +744,7 @@ export const DeviceView = memo(function DeviceView({
             ) : !utility?.supported ? (
               <section className="settings-card empty-card">
                 <div className="empty-state">
-                  <Icon name="tune" />
+                  <Icon name="controls" />
                   <h3>
                     {isSimulated
                       ? t("deviceView.simulationMode")

@@ -21,7 +21,7 @@ export const DEVICE_SECTIONS = [
     get label() {
       return i18n.t("shell:sections.controls.label");
     },
-    icon: "tune",
+    icon: "controls",
     get description() {
       return i18n.t("shell:sections.controls.description");
     },
@@ -101,7 +101,7 @@ export const MOBILE_TABS = [
   },
   {
     id: "tuning",
-    icon: "auto_awesome",
+    icon: "target",
     get label() {
       return i18n.t("shell:sections.tuning.label");
     },

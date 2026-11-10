@@ -843,7 +843,7 @@ export const ProfilesView = memo(function ProfilesView({
         <div className="cmp:flex cmp:items-center cmp:flex-wrap cmp:gap-[var(--space-1)] cmp:m-[var(--space-3)_calc(-1_*_var(--space-2))_0]">
           {onReviewEq && (
             <Button variant="ghost" onClick={onReviewEq}>
-              <Icon name="tune" /> {t("profilesView.editEQ")}
+              <Icon name="edit" /> {t("profilesView.editEQ")}
             </Button>
           )}
           <Button variant="ghost" onClick={handleExportFile}>
