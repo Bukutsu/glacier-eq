@@ -67,7 +67,9 @@ export function ConfigurationLayout({
       >
         {root ? (
           <>
-            <h2 className="cmp:compact:m-[var(--space-2)_0_var(--space-1)] cmp:compact:text-[length:16px] cmp:compact:font-semibold cmp:compact:leading-[1.3]">{title}</h2>
+            <h2 className="cmp:compact:m-[var(--space-2)_0_var(--space-1)] cmp:compact:text-[length:16px] cmp:compact:font-semibold cmp:compact:leading-[1.3]">
+              {kind === "device" ? title : t("navigation.app")}
+            </h2>
             {summary && <div className="cmp:min-w-[0]">{summary}</div>}
             <nav
               ref={navigationRef}

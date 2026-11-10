@@ -60,14 +60,13 @@ button.danger { color: var(--destructive-foreground); background: transparent; o
 
 /* Stack Subscreen Content Stack */
 
-/* Sharp Cards (0 Border Radius) */
 .stack-card,
 .settings-card {
   display: flex;
   flex-direction: column;
   background: var(--panel);
   border: 1px solid var(--line-soft);
-  border-radius: 0 !important;
+  border-radius: var(--radius-card);
   width: 100%;
   box-sizing: border-box;
 }

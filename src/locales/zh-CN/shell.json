@@ -2,6 +2,7 @@
   "navigation": {
     "device": "设备",
     "settings": "设置",
+    "app": "应用",
     "profiles": "配置",
     "primary": "主导航",
     "diagnostics": "诊断",

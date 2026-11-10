@@ -2,6 +2,7 @@
   "navigation": {
     "device": "Gerät",
     "settings": "Einstellungen",
+    "app": "App",
     "profiles": "Profile",
     "primary": "Hauptnavigation",
     "diagnostics": "Diagnose",

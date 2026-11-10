@@ -14,7 +14,7 @@
 .configuration-nav-link .app-icon { width: 16px; height: 16px; flex-shrink: 0; }
 .configuration-layout .stack-topbar-title { font-size: var(--type-body); font-weight: 600; }
 .configuration-layout .stack-card {
-  padding: 0 var(--space-5);
+  padding: 0 var(--space-4);
   background: var(--card);
   border: 1px solid var(--line-soft);
   border-radius: var(--radius-card);
@@ -36,6 +36,7 @@
   border: 1px solid var(--line-soft);
   border-radius: var(--radius-card);
 }
+.configuration-layout * + .device-spec-list { margin-top: var(--space-3); }
 .configuration-layout .device-spec-list > div { padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border); }
 .configuration-layout .device-spec-list > div:last-child { border-bottom: 0; }
 .configuration-layout .device-spec-list dd { font-family: var(--font-ui); font-size: var(--type-label); font-variant-numeric: tabular-nums; }

@@ -35,7 +35,7 @@ export function MobileWorkspace({
         className={`workspace mobile-workspace leg:[scrollbar-width:none]! leg:[-ms-overflow-style:none]! cmp:compact:[.keyboard-open_&]:[scroll-padding-bottom:var(--space-4)] cmp:compact:[scroll-padding-bottom:calc(var(--tabbar-h)_+_var(--safe-area-bottom,_0px)_+_var(--space-4))] ${saveBar ? " has-save-bar" : ""}`}
         aria-label={title}
       >
-        {activeTab !== "eq" && <h1 className="leg:m-[0] leg:p-[var(--space-4)_var(--space-4)_var(--space-2)] leg:text-[length:20px]">{title}</h1>}
+        {activeTab !== "eq" && <h1 className="mobile-page-title leg:m-[0] leg:p-[0_var(--space-4)_var(--space-2)] leg:text-[length:20px]">{title}</h1>}
         {recovery}
         {graph}
         <div className="leg:compact:flex leg:compact:flex-col leg:compact:w-[100%] leg:compact:max-w-[100%] leg:compact:overflow-visible leg:compact:gap-[12px]">

@@ -26,6 +26,9 @@
   --destructive-foreground: var(--red);
   --warning-foreground: var(--yellow);
   --trace-color-mix: 0;
+  /* The EQ response curve; themes may separate it from the band palette. */
+  --plot-curve: var(--plot-blue);
+  --plot-curve-rgb: var(--plot-blue-rgb);
   --trace-color-neutral: var(--muted-foreground);
   --sidebar: var(--panel);
   --sidebar-foreground: var(--text);
@@ -371,10 +374,37 @@
   }
 }
 
-/* The response curve is the interface hue, so chrome and data read as one instrument. */
+/* The response curve is the interface hue, so chrome and data read as one
+   instrument. Band hues stay muted and keep clear of it. */
+:root[data-theme="glacier"] {
+  --plot-curve: #8cc3e6;
+  --plot-curve-rgb: 140 195 230;
+  --plot-blue: #8f9dd0;
+  --plot-blue-rgb: 143 157 208;
+}
 :root[data-theme="glacier-light"] {
-  --plot-blue: #2b6a94;
-  --plot-blue-rgb: 43 106 148;
+  --plot-curve: #2b6a94;
+  --plot-curve-rgb: 43 106 148;
+  --plot-red: #a9545d;
+  --plot-red-rgb: 169 84 93;
+  --plot-orange: #a1652f;
+  --plot-orange-rgb: 161 101 47;
+  --plot-yellow: #87752c;
+  --plot-yellow-rgb: 135 117 44;
+  --plot-green: #4d7c45;
+  --plot-green-rgb: 77 124 69;
+  --plot-teal: #2f776a;
+  --plot-teal-rgb: 47 119 106;
+  --plot-cyan: #2c7889;
+  --plot-cyan-rgb: 44 120 137;
+  --plot-blue: #5566a6;
+  --plot-blue-rgb: 85 102 166;
+  --plot-purple: #775a9b;
+  --plot-purple-rgb: 119 90 155;
+  --plot-teal2: #657c2a;
+  --plot-teal2-rgb: 101 124 42;
+  --plot-magenta2: #974d82;
+  --plot-magenta2-rgb: 151 77 130;
 }
 :root[data-theme="glacier"] { --canvas-grid: #222a33; --canvas-grid-strong: #34404d; }
 :root[data-theme="glacier-light"] { --canvas-grid: #e3e8ed; --canvas-grid-strong: #c2ccd5; }

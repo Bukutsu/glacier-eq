@@ -38,6 +38,11 @@ import {
 import type { DeviceCapabilities, DeviceInfo } from "@/types";
 import type { DeviceMaintenanceRunner } from "@/features/device/operations/runDeviceMaintenance";
 
+/** Typographic sign for dB values: "−10", "0", "+10". */
+function formatSignedDb(value: number): string {
+  return value > 0 ? "+" + value : value < 0 ? "−" + -value : "0";
+}
+
 function formatChannelBalance(balance: number): string {
   if (balance === 0) return i18n.t("device:deviceView.balanceCenter");
   return balance > 0
@@ -602,8 +607,8 @@ export const DeviceView = memo(function DeviceView({
                     <dt>{t("deviceView.bandGain")}</dt>
                     <dd>
                       {t("deviceView.bandGainRange", {
-                        min: capabilities.band_gain_range[0],
-                        max: capabilities.band_gain_range[1],
+                        min: formatSignedDb(capabilities.band_gain_range[0]),
+                        max: formatSignedDb(capabilities.band_gain_range[1]),
                       })}
                     </dd>
                   </div>

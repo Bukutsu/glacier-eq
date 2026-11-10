@@ -877,7 +877,7 @@ export const EqGraph = memo(function EqGraph({
                     y1="4"
                     x2="24"
                     y2="4"
-                    stroke="var(--plot-blue)"
+                    stroke="var(--plot-curve)"
                     strokeWidth="3"
                   />
                 </svg>
@@ -1004,13 +1004,13 @@ async function drawCurves(
     ctx.lineTo(width, zero);
     ctx.closePath();
     ctx.fillStyle = rgbWithAlpha(
-      "--plot-blue-rgb",
+      "--plot-curve-rgb",
       0.15,
       "rgba(122, 162, 247, 0.15)",
     );
     ctx.fill();
 
-    drawResponse(ctx, height, eqResponse, cssVar("--plot-blue", "#7aa2f7"), 3);
+    drawResponse(ctx, height, eqResponse, cssVar("--plot-curve", "#7aa2f7"), 3);
     await drawCommittedPreview(
       ctx,
       width,
