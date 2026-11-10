@@ -1,5 +1,5 @@
 import type { TargetTrace } from "@/types";
-import { parseMeasurementText, resolveTargetColor } from "./measurements";
+import { parseMeasurementText } from "./measurements";
 
 const rawTargetFiles = import.meta.glob<string>(
   "../../../../target_references/*.txt",
@@ -12,7 +12,6 @@ const rawTargetFiles = import.meta.glob<string>(
 
 function loadBuiltinTargets(): TargetTrace[] {
   const targets: TargetTrace[] = [];
-  let index = 0;
 
   for (const [path, content] of Object.entries(rawTargetFiles)) {
     const filename = path.split("/").pop() ?? "";
@@ -24,7 +23,7 @@ function loadBuiltinTargets(): TargetTrace[] {
       targets.push({
         id: `builtin-target:${name.toLowerCase().replace(/\s+/g, "-")}`,
         name,
-        color: resolveTargetColor(index++),
+        color: "var(--steel)",
         builtIn: true,
         points,
       });

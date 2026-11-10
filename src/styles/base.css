@@ -16,9 +16,9 @@ html {
    Data colors stay separate from the interface accent. */
 :root, :root[data-theme="glacier"] {
   color-scheme: dark;
-  --bg: #0f1216;
+  --bg: #0e1115;
   --bg-dark: #0a0d10;
-  --panel: #151a20;
+  --panel: #171d25;
   --surface: #2b343f;
   --surface-soft: #1d242c;
   --text: #d3dae3;
@@ -52,7 +52,7 @@ html {
   --focus-border: rgb(var(--cyan-rgb) / 0.72);
   --scrollbar-color: var(--surface);
   --bg-dark-rgb: 10 13 16;
-  --panel-rgb: 21 26 32;
+  --panel-rgb: 23 29 37;
   --text-rgb: 211 218 227;
   --cyan-rgb: 140 195 230;
   --blue-rgb: 140 195 230;
@@ -73,9 +73,9 @@ html {
 
 :root[data-theme="glacier-light"] {
   color-scheme: light;
-  --bg: #e8edf1;
-  --bg-dark: #e2e8ed;
-  --panel: #fafbfc;
+  --bg: #f0f3f6;
+  --bg-dark: #e9eef2;
+  --panel: #ffffff;
   --surface: #d4dce1;
   --surface-soft: #e7ecef;
   --text: #1b232b;
@@ -104,12 +104,12 @@ html {
   --sync-unsaved: #756338;
   --input-bg: var(--bg-dark);
   --input-border: var(--surface);
-  --panel-border: var(--surface);
+  --panel-border: #cfd8df;
   --list-hover-bg: var(--surface-soft);
   --focus-border: rgb(var(--cyan-rgb) / 0.72);
   --scrollbar-color: var(--surface);
-  --bg-dark-rgb: 226 232 237;
-  --panel-rgb: 250 251 252;
+  --bg-dark-rgb: 233 238 242;
+  --panel-rgb: 255 255 255;
   --text-rgb: 27 35 43;
   --cyan-rgb: 43 106 148;
   --blue-rgb: 43 106 148;

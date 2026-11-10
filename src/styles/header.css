@@ -8,7 +8,7 @@
 
 @media (min-width: 851px) {
   /* Same rule position on every page, with or without the status line. */
-  .app-header { min-height: 68px; }
+  .app-header { min-height: 76px; }
   /* Rule ends where the single-column content ends. */
   .app-header.config-header { max-width: 1000px; }
 }

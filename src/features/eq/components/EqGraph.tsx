@@ -878,16 +878,16 @@ function drawGrid(
   for (const freq of GRAPH_FREQS) {
     const x = freqToX(freq, width);
     ctx.beginPath();
-    ctx.moveTo(x, 18);
-    ctx.lineTo(x, height - 18);
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, height);
     ctx.stroke();
   }
 
   for (const db of GRAPH_DBS) {
     const y = dbToY(db, height);
     ctx.beginPath();
-    ctx.moveTo(14, y);
-    ctx.lineTo(width - 14, y);
+    ctx.moveTo(0, y);
+    ctx.lineTo(width, y);
     ctx.stroke();
   }
 }
@@ -926,7 +926,7 @@ function drawAxisLabels(
     const left =
       freq >= 20000
         ? width - 8 - ctx.measureText(label).width
-        : freqToX(freq, width) + 4;
+        : Math.max(4, freqToX(freq, width) - ctx.measureText(label).width / 2);
     drawAxisLabel(ctx, label, left, height - 4);
   }
 }

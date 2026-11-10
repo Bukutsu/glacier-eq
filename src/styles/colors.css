@@ -382,3 +382,7 @@
 :root[data-theme="glacier-light"] { --surface-disabled: #eef1f4; --text-disabled: #6b7785; }
 :root[data-theme="glacier-light"] { --input-bg: #ffffff; --field-background: #ffffff; --input: #cfd6dd; }
 :root[data-theme="glacier-light"] { --control: #ffffff; --control-hover: #eef2f5; }
+:root:is([data-theme="glacier"], [data-theme="glacier-light"]) {
+  --sidebar-row-active: color-mix(in srgb, var(--primary) 18%, transparent);
+  --sidebar-row-selected: color-mix(in srgb, var(--primary) 18%, transparent);
+}

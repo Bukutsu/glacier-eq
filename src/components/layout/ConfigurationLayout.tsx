@@ -63,11 +63,11 @@ export function ConfigurationLayout({
         : [sections];
     return (
       <div
-        className={`configuration-layout cmp:grid cmp:grid-cols-[184px_minmax(0,_1fr)] cmp:[align-items:start] cmp:gap-[var(--space-6)] cmp:w-[100%] cmp:max-w-[1000px] cmp:m-[0] cmp:min-w-[0] cmp:box-border cmp:[&.single]:grid-cols-[minmax(0,_1fr)] cmp:[&.single]:max-w-[816px] cmp:max-[1050px]:grid-cols-[152px_minmax(0,_1fr)] cmp:max-[1050px]:gap-[var(--space-5)] cmp:compact:[&&]:grid-cols-[minmax(0,_1fr)] cmp:compact:[&&]:gap-[var(--space-5)] cmp:compact:p-[var(--space-4)_max(var(--space-4),_var(--safe-area-right,_0px))_var(--space-5)_max(var(--space-4),_var(--safe-area-left,_0px))] configuration-mobile cmp:compact:[&&&]:gap-[var(--space-4)] ${kind}-stack-view`}
+        className={`configuration-layout cmp:grid cmp:grid-cols-[184px_minmax(0,_1fr)] cmp:[align-items:start] cmp:gap-[var(--space-6)] cmp:w-[100%] cmp:max-w-[1000px] cmp:m-[0] cmp:min-w-[0] cmp:box-border cmp:[&.single]:grid-cols-[minmax(0,_1fr)] cmp:[&.single]:max-w-[1000px] cmp:max-[1050px]:grid-cols-[152px_minmax(0,_1fr)] cmp:max-[1050px]:gap-[var(--space-5)] cmp:compact:[&&]:grid-cols-[minmax(0,_1fr)] cmp:compact:[&&]:gap-[var(--space-5)] cmp:compact:p-[var(--space-4)_max(var(--space-4),_var(--safe-area-right,_0px))_var(--space-5)_max(var(--space-4),_var(--safe-area-left,_0px))] configuration-mobile cmp:compact:[&&&]:gap-[var(--space-4)] ${kind}-stack-view`}
       >
         {root ? (
           <>
-            <h2 className="cmp:compact:m-[var(--space-2)_0_var(--space-1)] cmp:compact:text-[length:24px] cmp:compact:font-semibold cmp:compact:leading-[1.3]">{title}</h2>
+            <h2 className="cmp:compact:m-[var(--space-2)_0_var(--space-1)] cmp:compact:text-[length:16px] cmp:compact:font-semibold cmp:compact:leading-[1.3]">{title}</h2>
             {summary && <div className="cmp:min-w-[0]">{summary}</div>}
             <nav
               ref={navigationRef}
@@ -146,7 +146,7 @@ export function ConfigurationLayout({
   const single = sections.length <= 1;
   return (
     <div
-      className={`configuration-layout cmp:grid cmp:grid-cols-[184px_minmax(0,_1fr)] cmp:[align-items:start] cmp:gap-[var(--space-6)] cmp:w-[100%] cmp:max-w-[1000px] cmp:m-[0] cmp:min-w-[0] cmp:box-border cmp:[&.single]:grid-cols-[minmax(0,_1fr)] cmp:[&.single]:max-w-[816px] cmp:max-[1050px]:grid-cols-[152px_minmax(0,_1fr)] cmp:max-[1050px]:gap-[var(--space-5)] cmp:compact:[&&]:grid-cols-[minmax(0,_1fr)] cmp:compact:[&&]:gap-[var(--space-5)] cmp:compact:p-[var(--space-4)_max(var(--space-4),_var(--safe-area-right,_0px))_var(--space-5)_max(var(--space-4),_var(--safe-area-left,_0px))] ${kind}-stack-view${single ? " single" : ""}`}
+      className={`configuration-layout cmp:grid cmp:grid-cols-[184px_minmax(0,_1fr)] cmp:[align-items:start] cmp:gap-[var(--space-6)] cmp:w-[100%] cmp:max-w-[1000px] cmp:m-[0] cmp:min-w-[0] cmp:box-border cmp:[&.single]:grid-cols-[minmax(0,_1fr)] cmp:[&.single]:max-w-[1000px] cmp:max-[1050px]:grid-cols-[152px_minmax(0,_1fr)] cmp:max-[1050px]:gap-[var(--space-5)] cmp:compact:[&&]:grid-cols-[minmax(0,_1fr)] cmp:compact:[&&]:gap-[var(--space-5)] cmp:compact:p-[var(--space-4)_max(var(--space-4),_var(--safe-area-right,_0px))_var(--space-5)_max(var(--space-4),_var(--safe-area-left,_0px))] ${kind}-stack-view${single ? " single" : ""}`}
     >
       {!single && (
         <nav
