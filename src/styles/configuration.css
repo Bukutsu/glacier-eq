@@ -36,7 +36,7 @@
 }
 .configuration-layout .device-spec-list > div { padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border); }
 .configuration-layout .device-spec-list > div:last-child { border-bottom: 0; }
-.configuration-layout .device-spec-list dd { font-family: var(--font-ui); font-size: var(--type-label); }
+.configuration-layout .device-spec-list dd { font-family: var(--font-ui); font-size: var(--type-label); font-variant-numeric: tabular-nums; }
 .configuration-layout .empty-card {
   padding: var(--space-5);
   background: var(--card);

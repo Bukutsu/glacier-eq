@@ -377,7 +377,8 @@
   --plot-blue-rgb: 43 106 148;
 }
 :root[data-theme="glacier"] { --canvas-grid: #262e38; }
-:root[data-theme="glacier-light"] { --canvas-grid: #e2e8ed; }
-:root[data-theme="glacier"] { --surface-disabled: #232a33; --text-disabled: #6b7683; }
-:root[data-theme="glacier-light"] { --surface-disabled: #eef1f4; --text-disabled: #a3abb3; }
+:root[data-theme="glacier-light"] { --canvas-grid: #d3dbe2; }
+:root[data-theme="glacier"] { --surface-disabled: #232a33; --text-disabled: #818c99; }
+:root[data-theme="glacier-light"] { --surface-disabled: #eef1f4; --text-disabled: #6b7785; }
 :root[data-theme="glacier-light"] { --input-bg: #ffffff; --field-background: #ffffff; --input: #cfd6dd; }
+:root[data-theme="glacier-light"] { --control: #ffffff; --control-hover: #eef2f5; }
