@@ -48,13 +48,15 @@ import type {
 type CustomProperties = CSSProperties & Record<`--${string}`, string | number>;
 
 const GRAPH_FREQS = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
-const GRAPH_DBS = [-12, -6, 0, 6, 12];
+const GRAPH_DBS = [-18, -12, -6, 0, 6, 12, 18];
+/** Axis labels live in HTML gutters outside the plot, so no curve crosses
+ * them. "Minor" ticks drop out on the short mobile graph. */
+const AXIS_DBS = [12, 6, 0, -6, -12];
+const AXIS_FREQS = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
+const MAJOR_FREQS = new Set([20, 100, 1000, 10000, 20000]);
 
-function graphDbLabels(height: number): number[] {
-  // The ±18 dB lines sit on the plot edges, where a label cannot keep the
-  // same placement as the others. The mobile graph is deliberately short,
-  // so label only the center and the ±12 dB lines there.
-  return height < 220 ? [-12, 0, 12] : [-12, -6, 0, 6, 12];
+function formatDb(db: number): string {
+  return db > 0 ? "+" + db : db < 0 ? "−" + -db : "0";
 }
 
 function clampHandlePosition(percent: number): string {
@@ -246,9 +248,6 @@ export const EqGraph = memo(function EqGraph({
       }
       if (drawSerial !== drawSerialRef.current) return;
       setInvalidShelf(false);
-      // Labels go over the curves so a curve never runs through them, and
-      // band dots go over the labels so a label never hides a band.
-      drawAxisLabels(ctx, width, height);
       paintFilterDots(ctx, dots, activeBandIndex ?? null);
       dotsRef.current = dots;
     },
@@ -620,10 +619,12 @@ export const EqGraph = memo(function EqGraph({
   };
 
   return (
-    <div className={`eq-graph-layout leg:contents cmp:compact:[.mobile-workspace_&]:flex cmp:compact:[.mobile-workspace_&]:flex-col cmp:compact:[.mobile-workspace_&]:w-[100%] cmp:compact:[.mobile-workspace_&]:min-w-[0] cmp:compact:[.mobile-workspace_&]:flex-[1] ${showMobileLegend ? " legend-open" : ""}`}>
+    <div
+      className={`eq-graph-layout leg:contents cmp:compact:[.mobile-workspace_&]:flex cmp:compact:[.mobile-workspace_&]:flex-col cmp:compact:[.mobile-workspace_&]:w-[100%] cmp:compact:[.mobile-workspace_&]:min-w-[0] cmp:compact:[.mobile-workspace_&]:flex-[1] ${showMobileLegend ? " legend-open" : ""}`}
+    >
       {/* The canvas ignores pointers, so taps land on its shell. */}
       <div
-        className="eq-graph-shell leg:[.left-pane>.graph-card_&]:min-h-[224px] leg:relative leg:w-[100%] leg:min-h-[260px] leg:flex-[1] leg:compact:min-h-[210px] leg:compact:[@media(orientation:_landscape)]:[.mobile-graph-container_&&]:min-h-[85px] leg:compact:[.mobile-graph-preview_&&&]:min-h-[100%] leg:compact:[.mobile-graph-container_&&&&]:min-h-[0] leg:compact:[.mobile-graph-tuning_&&&&&]:min-h-[0] leg:[@media(min-width:_851px)_and_(max-height:_820px)]:min-h-[130px]! leg:[@media(min-width:_851px)_and_(max-height:_820px)]:[.left-pane>.graph-card_&]:min-h-[100px]! cmp:compact:[.mobile-workspace_.eq-graph-layout.legend-open_&]:flex-[0_0_auto] cmp:compact:[.mobile-workspace_.eq-graph-layout.legend-open_&]:h-[clamp(100px,_16dvh,_136px)]"
+        className="eq-graph-shell leg:[.left-pane>.graph-card_&]:min-h-[224px] leg:relative leg:w-[auto] leg:min-h-[260px] leg:flex-[1] leg:compact:min-h-[210px] leg:compact:[@media(orientation:_landscape)]:[.mobile-graph-container_&&]:min-h-[85px] leg:compact:[.mobile-graph-preview_&&&]:min-h-[100%] leg:compact:[.mobile-graph-container_&&&&]:min-h-[0] leg:compact:[.mobile-graph-tuning_&&&&&]:min-h-[0] leg:[@media(min-width:_851px)_and_(max-height:_820px)]:min-h-[130px]! leg:[@media(min-width:_851px)_and_(max-height:_820px)]:[.left-pane>.graph-card_&]:min-h-[100px]! cmp:compact:[.mobile-workspace_.eq-graph-layout.legend-open_&]:flex-[0_0_auto] cmp:compact:[.mobile-workspace_.eq-graph-layout.legend-open_&]:h-[clamp(100px,_16dvh,_136px)]"
         ref={shellRef}
         onClick={onBandTap ? handleCanvasClick : undefined}
       >
@@ -635,6 +636,36 @@ export const EqGraph = memo(function EqGraph({
         >
           <p>{t("graph.description")}</p>
         </canvas>
+        <div className="graph-axis" aria-hidden="true">
+          <span className="graph-axis-unit graph-axis-unit-db">dB</span>
+          {AXIS_DBS.map((db) => (
+            <span
+              key={db}
+              className={"graph-axis-db" + (db % 12 === 0 ? "" : " minor")}
+              style={{ top: dbToY(db, 100) + "%" }}
+            >
+              {formatDb(db)}
+            </span>
+          ))}
+          <span className="graph-axis-unit graph-axis-unit-hz">Hz</span>
+          {AXIS_FREQS.map((freq, index) => (
+            <span
+              key={freq}
+              className={
+                "graph-axis-freq" +
+                (MAJOR_FREQS.has(freq) ? "" : " minor") +
+                (index === 0
+                  ? " start"
+                  : index === AXIS_FREQS.length - 1
+                    ? " end"
+                    : "")
+              }
+              style={{ left: freqToX(freq, 100) + "%" }}
+            >
+              {formatFreq(freq)}
+            </span>
+          ))}
+        </div>
         {invalidShelf && (
           <div className="absolute left-2 right-2 top-2">
             <ErrorNotice>{t("graph.invalidShelfSlope")}</ErrorNotice>
@@ -759,7 +790,10 @@ export const EqGraph = memo(function EqGraph({
             </div>
           )}
           {targets.map((target) => (
-            <div className="graph-legend-item leg:flex leg:items-center leg:gap-[8px] leg:min-h-[20px] leg:min-w-[0] leg:max-w-[100%] leg:text-[color:var(--text)] leg:text-[length:11px] leg:leading-[1.3] leg:whitespace-normal leg:[overflow-wrap:anywhere] leg:compact:min-h-[22px] leg:compact:max-w-[100%] leg:compact:p-[0_6px] leg:compact:text-[length:var(--type-caption)] cmp:compact:[.mobile-workspace_&]:p-[0] cmp:compact:[.mobile-workspace_&]:text-[length:var(--type-small)] cmp:compact:[.mobile-workspace_&]:whitespace-normal cmp:compact:[.mobile-workspace_&]:[overflow-wrap:anywhere] target" key={target.id}>
+            <div
+              className="graph-legend-item leg:flex leg:items-center leg:gap-[8px] leg:min-h-[20px] leg:min-w-[0] leg:max-w-[100%] leg:text-[color:var(--text)] leg:text-[length:11px] leg:leading-[1.3] leg:whitespace-normal leg:[overflow-wrap:anywhere] leg:compact:min-h-[22px] leg:compact:max-w-[100%] leg:compact:p-[0_6px] leg:compact:text-[length:var(--type-caption)] cmp:compact:[.mobile-workspace_&]:p-[0] cmp:compact:[.mobile-workspace_&]:text-[length:var(--type-small)] cmp:compact:[.mobile-workspace_&]:whitespace-normal cmp:compact:[.mobile-workspace_&]:[overflow-wrap:anywhere] target"
+              key={target.id}
+            >
               <span className="leg:[.graph-legend-item.target_&]:text-[color:var(--warning-foreground)] leg:[.graph-legend-item.committed_&&]:text-[color:var(--orange)] leg:w-[24px] leg:h-[8px] leg:flex-[0_0_24px] leg:flex leg:items-center leg:justify-center">
                 <svg
                   width="24"
@@ -872,11 +906,13 @@ function drawGrid(
   width: number,
   height: number,
 ) {
-  ctx.strokeStyle = cssVar("--canvas-grid", "rgba(65, 72, 104, 0.22)");
+  const grid = cssVar("--canvas-grid", "rgba(65, 72, 104, 0.22)");
+  const strong = cssVar("--canvas-grid-strong", grid);
   ctx.lineWidth = 1;
 
   for (const freq of GRAPH_FREQS) {
-    const x = freqToX(freq, width);
+    const x = Math.round(freqToX(freq, width)) + 0.5;
+    ctx.strokeStyle = freq === 1000 ? strong : grid;
     ctx.beginPath();
     ctx.moveTo(x, 0);
     ctx.lineTo(x, height);
@@ -884,51 +920,16 @@ function drawGrid(
   }
 
   for (const db of GRAPH_DBS) {
-    const y = dbToY(db, height);
+    const y = Math.round(dbToY(db, height)) + 0.5;
+    ctx.strokeStyle = db === 0 ? strong : grid;
     ctx.beginPath();
     ctx.moveTo(0, y);
     ctx.lineTo(width, y);
     ctx.stroke();
   }
-}
 
-/** Paints axis text on a solid backing, so a curve never runs through it. */
-function drawAxisLabel(
-  ctx: CanvasRenderingContext2D,
-  label: string,
-  left: number,
-  baseline: number,
-) {
-  ctx.fillStyle = cssVar("--panel", "#16161e");
-  ctx.fillRect(left - 2, baseline - 11, ctx.measureText(label).width + 4, 14);
-  ctx.fillStyle = cssVar("--muted", "#787c99");
-  ctx.fillText(label, left, baseline);
-}
-
-function drawAxisLabels(
-  ctx: CanvasRenderingContext2D,
-  width: number,
-  height: number,
-) {
-  ctx.font = `500 12px ${cssVar("--font-mono", "ui-monospace")}`;
-  ctx.textAlign = "left";
-  for (const db of graphDbLabels(height)) {
-    const label = `${db > 0 ? "+" : ""}${db}dB`;
-    drawAxisLabel(ctx, label, 14, dbToY(db, height) - 7);
-  }
-
-  const freqsToLabel =
-    width < 540
-      ? [50, 200, 1000, 5000, 20000]
-      : [50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
-  for (const freq of freqsToLabel) {
-    const label = formatFreq(freq);
-    const left =
-      freq >= 20000
-        ? width - 8 - ctx.measureText(label).width
-        : Math.max(4, freqToX(freq, width) - ctx.measureText(label).width / 2);
-    drawAxisLabel(ctx, label, left, height - 4);
-  }
+  ctx.strokeStyle = strong;
+  ctx.strokeRect(0.5, 0.5, width - 1, height - 1);
 }
 
 async function drawCurves(

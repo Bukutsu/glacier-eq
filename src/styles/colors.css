@@ -376,8 +376,8 @@
   --plot-blue: #2b6a94;
   --plot-blue-rgb: 43 106 148;
 }
-:root[data-theme="glacier"] { --canvas-grid: #262e38; }
-:root[data-theme="glacier-light"] { --canvas-grid: #d3dbe2; }
+:root[data-theme="glacier"] { --canvas-grid: #222a33; --canvas-grid-strong: #34404d; }
+:root[data-theme="glacier-light"] { --canvas-grid: #e3e8ed; --canvas-grid-strong: #c2ccd5; }
 :root[data-theme="glacier"] { --surface-disabled: #232a33; --text-disabled: #818c99; }
 :root[data-theme="glacier-light"] { --surface-disabled: #eef1f4; --text-disabled: #6b7785; }
 :root[data-theme="glacier-light"] { --input-bg: #ffffff; --field-background: #ffffff; --input: #cfd6dd; }

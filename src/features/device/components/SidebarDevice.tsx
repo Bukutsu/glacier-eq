@@ -55,7 +55,7 @@ export const SidebarDevice = memo(function SidebarDevice({
         <span className={`leg:w-[6px] leg:h-[6px] leg:shrink-0 leg:rounded-[var(--radius-pill)] leg:[&.connected]:[background:var(--green)] leg:[&&.simulated]:[background:var(--yellow)] leg:[&&&.offline]:[background:var(--comment)] leg:[&&&&.reconnecting]:[background:var(--sync-working)] leg:[&.reconnecting]:[animation:sidebar-device-pulse_1.2s_ease-in-out_infinite] ${dot}`} aria-hidden="true" />
         {status}
       </span>
-      <span className="leg:[.sidebar-device:hover_&]:underline leg:text-[length:14px] leg:font-semibold leg:text-[color:var(--text)] leg:[overflow-wrap:anywhere] leg:leading-[1.4]">{name}</span>
+      <span className="leg:[.sidebar-device:hover_&]:underline leg:text-[length:13px] leg:font-medium leg:text-[color:var(--text)] leg:[overflow-wrap:anywhere] leg:leading-[1.4]">{name}</span>
     </Link>
   );
 });

@@ -14,8 +14,10 @@
 .configuration-nav-link .app-icon { width: 16px; height: 16px; flex-shrink: 0; }
 .configuration-layout .stack-topbar-title { font-size: var(--type-body); font-weight: 600; }
 .configuration-layout .stack-card {
-  background: transparent;
-  border: 0;
+  padding: 0 var(--space-5);
+  background: var(--card);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-card);
 }
 .configuration-layout .stack-pref-row {
   min-height: 76px;

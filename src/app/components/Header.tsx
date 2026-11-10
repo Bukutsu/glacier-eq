@@ -29,7 +29,11 @@ function ConnectionActions({
         render={
           <Button
             size={compact ? "icon" : "default"}
-            className={compact ? "leg:compact:inline-flex leg:compact:items-center leg:compact:justify-center leg:compact:w-[44px] leg:compact:h-[44px] leg:compact:text-[color:var(--text)] leg:compact:[background:var(--surface-soft)] leg:compact:[outline:1px_solid_var(--line-soft)] leg:compact:[outline-offset:-1px] leg:compact:[&:active]:[background:var(--surface)]" : ""}
+            className={
+              compact
+                ? "leg:compact:inline-flex leg:compact:items-center leg:compact:justify-center leg:compact:w-[44px] leg:compact:h-[44px] leg:compact:text-[color:var(--text)] leg:compact:[background:var(--surface-soft)] leg:compact:[outline:1px_solid_var(--line-soft)] leg:compact:[outline-offset:-1px] leg:compact:[&:active]:[background:var(--surface)]"
+                : ""
+            }
           />
         }
       >
@@ -193,8 +197,6 @@ export const Header = memo(function Header({
     : profileDirty
       ? t("header.profileModified")
       : t("header.profileSaved");
-  const writeVariant =
-    deviceMatchesEditor === false && !isSimulated ? "primary" : "default";
   const mobileSyncText = reconnecting
     ? t("connection.reconnecting")
     : !connected
@@ -229,40 +231,44 @@ export const Header = memo(function Header({
   );
 
   return (
-    <header className={`app-header${compact ? " compact-mobile" : ""}${isConfigPage ? " config-header" : ""}`}>
+    <header
+      className={`app-header${compact ? " compact-mobile" : ""}${isConfigPage ? " config-header" : ""}`}
+    >
       <div className="header-main leg:min-w-[0] leg:flex leg:items-center leg:justify-between leg:flex-wrap leg:gap-[var(--space-4)] leg:max-[960px]:grid-cols-[minmax(0,_1fr)_auto] leg:max-[960px]:items-center leg:max-[960px]:gap-[12px] leg:compact:flex leg:compact:flex-wrap leg:compact:[&&]:items-center leg:compact:[&&]:gap-[8px] leg:compact:w-[100%] cmp:compact:[.app-header.compact-mobile:has(.toast-feedback)>&]:hidden cmp:compact:[.app-header_&]:gap-[var(--space-1)]">
         <div className="leg:flex leg:flex-col leg:gap-[6px] leg:min-w-[0] leg:max-[960px]:w-[100%] leg:compact:flex-[1_1_100%] leg:compact:min-w-[0] leg:compact:gap-[var(--space-1)] cmp:compact:[.app-header_&]:gap-[0]">
           <div className="title-line leg:flex leg:items-center leg:gap-[var(--space-2)] leg:min-w-[0] leg:max-[960px]:gap-[8px] leg:compact:flex-nowrap leg:compact:[&&]:gap-[6px]">
             <h1>{pageTitle}</h1>
             {mobile && !isConfigPage && profileEdited && (
-              <span className="cmp:compact:flex-[none] cmp:compact:p-[1px_var(--space-2)] cmp:compact:[border:1px_solid_var(--border)] cmp:compact:rounded-[var(--radius-pill)] cmp:compact:text-[color:var(--muted-foreground)] cmp:compact:text-[length:var(--type-small)] cmp:compact:leading-[1.4]">{t("header.edited")}</span>
+              <span className="cmp:compact:flex-[none] cmp:compact:p-[1px_var(--space-2)] cmp:compact:[border:1px_solid_var(--border)] cmp:compact:rounded-[var(--radius-pill)] cmp:compact:text-[color:var(--muted-foreground)] cmp:compact:text-[length:var(--type-small)] cmp:compact:leading-[1.4]">
+                {t("header.edited")}
+              </span>
             )}
           </div>
-          {/* One status line: DAC, sync state, and the profile. Device and
-              Settings show status in their own content and the sidebar. */}
-          {(mobile || !isConfigPage) && (
-            <div className="leg:flex leg:items-center leg:gap-[var(--space-2)] leg:min-w-[0] leg:flex-wrap leg:compact:flex-row leg:compact:items-center leg:compact:gap-[8px] cmp:compact:[.app-header_&]:mt-[0]">
+          {/* One status line on every page: DAC, sync state, and (on EQ
+              pages) the profile. */}
+          <div className="leg:flex leg:items-center leg:gap-[var(--space-2)] leg:min-w-[0] leg:flex-wrap leg:compact:flex-row leg:compact:items-center leg:compact:gap-[8px] cmp:compact:[.app-header_&]:mt-[0]">
+            <span
+              className={`leg:inline-flex leg:items-center leg:gap-[6px] leg:max-w-[100%] leg:text-[length:var(--type-small)] leg:leading-[1.4] leg:text-[color:var(--muted)] leg:[&::before]:content-[''] leg:[&::before]:w-[5px] leg:[&::before]:h-[5px] leg:[&::before]:flex-[0_0_5px] leg:[&::before]:rounded-[var(--radius-pill)] leg:[&::before]:[background:currentColor] leg:[&.ok]:text-[color:var(--sync-ok)] leg:[&&.simulation]:text-[color:var(--sync-unsaved)] leg:[&&&.working]:text-[color:var(--sync-working)] leg:[&&&&.unsaved]:text-[color:var(--sync-unsaved)] leg:compact:min-h-[24px] leg:compact:inline-flex leg:compact:items-center ${syncClass}`}
+              role="status"
+              aria-live="polite"
+            >
+              {mobile ? mobileSyncText : syncText}
+            </span>
+            {liveApply && connected && hardwareEq && !isConfigPage && (
               <span
-                className={`leg:inline-flex leg:items-center leg:gap-[6px] leg:max-w-[100%] leg:text-[length:var(--type-small)] leg:leading-[1.4] leg:text-[color:var(--muted)] leg:[&::before]:content-[''] leg:[&::before]:w-[5px] leg:[&::before]:h-[5px] leg:[&::before]:flex-[0_0_5px] leg:[&::before]:rounded-[var(--radius-pill)] leg:[&::before]:[background:currentColor] leg:[&.ok]:text-[color:var(--sync-ok)] leg:[&&.simulation]:text-[color:var(--sync-unsaved)] leg:[&&&.working]:text-[color:var(--sync-working)] leg:[&&&&.unsaved]:text-[color:var(--sync-unsaved)] leg:compact:min-h-[24px] leg:compact:inline-flex leg:compact:items-center ${syncClass}`}
-                role="status"
-                aria-live="polite"
+                className="leg:text-[color:var(--muted)] leg:text-[length:var(--type-small)] leg:leading-[1.4] leg:[&::before]:content-['·'] leg:[&::before]:mr-[var(--space-2)]"
+                title={t("header.liveApplyHelp")}
               >
-                {mobile ? mobileSyncText : syncText}
+                {t("header.liveApply")}
               </span>
-              {liveApply && connected && hardwareEq && !isConfigPage && (
-                <span
-                  className="leg:text-[color:var(--muted)] leg:text-[length:var(--type-small)] leg:leading-[1.4] leg:[&::before]:content-['·'] leg:[&::before]:mr-[var(--space-2)]"
-                  title={t("header.liveApplyHelp")}
-                >
-                  {t("header.liveApply")}
-                </span>
-              )}
-              {!isConfigPage && !mobile && (
-                <span className="leg:text-[color:var(--muted)] leg:text-[length:var(--type-small)] leg:leading-[1.4] leg:[&::before]:content-['·'] leg:[&::before]:mr-[var(--space-2)]">{profileText}</span>
-              )}
-              {draftRecovery}
-            </div>
-          )}
+            )}
+            {!isConfigPage && !mobile && (
+              <span className="leg:text-[color:var(--muted)] leg:text-[length:var(--type-small)] leg:leading-[1.4] leg:[&::before]:content-['·'] leg:[&::before]:mr-[var(--space-2)]">
+                {profileText}
+              </span>
+            )}
+            {draftRecovery}
+          </div>
         </div>
         {/* Desktop toolbar. EQ actions stay on EQ pages; Disconnect shows on
             every page except Device, whose card has its own. */}
@@ -317,7 +323,7 @@ export const Header = memo(function Header({
                         {!liveSaves && (
                           <Button
                             type="button"
-                            variant={writeVariant}
+                            variant="primary"
                             title={saveLabel ?? t("header.writeHelp")}
                             onClick={onPush}
                             disabled={isBusy}
@@ -395,7 +401,7 @@ export const Header = memo(function Header({
                 {hardwareEq && !liveSaves && !isConfigPage && (
                   <Button
                     type="button"
-                    variant={writeVariant}
+                    variant="primary"
                     className="mobile-action-btn leg:compact:min-h-[44px] leg:compact:p-[0_14px] leg:compact:[outline:1px_solid_var(--line-soft)] leg:compact:[outline-offset:-1px] leg:compact:[&&]:flex-[1_1_0] leg:compact:[&&]:min-w-[0] leg:compact:[&&]:px-[8px] max-[359px]:px-2 max-[359px]:[&>.app-icon]:hidden"
                     title={saveLabel ?? t("header.saveHelp")}
                     onClick={onPush}
@@ -427,7 +433,10 @@ export const Header = memo(function Header({
         )}
       </div>
       {connected && !hardwareEq && !isConfigPage && (
-        <p className="header-eq-note leg:flex leg:items-start leg:gap-[var(--space-2)] leg:max-w-[680px] leg:m-[var(--space-3)_0_0] leg:text-[color:var(--muted-foreground)] leg:text-[length:var(--type-small)] leg:leading-[1.5]" role="note">
+        <p
+          className="header-eq-note leg:flex leg:items-start leg:gap-[var(--space-2)] leg:max-w-[680px] leg:m-[var(--space-3)_0_0] leg:text-[color:var(--muted-foreground)] leg:text-[length:var(--type-small)] leg:leading-[1.5]"
+          role="note"
+        >
           <Icon name="info" />
           <span>{t("header.noHardwareNote")}</span>
         </p>
