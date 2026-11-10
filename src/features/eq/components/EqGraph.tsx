@@ -914,7 +914,7 @@ function drawAxisLabels(
   ctx.textAlign = "left";
   for (const db of graphDbLabels(height)) {
     const label = `${db > 0 ? "+" : ""}${db}dB`;
-    drawAxisLabel(ctx, label, 14, dbToY(db, height) - 4);
+    drawAxisLabel(ctx, label, 14, dbToY(db, height) - 7);
   }
 
   const freqsToLabel =
