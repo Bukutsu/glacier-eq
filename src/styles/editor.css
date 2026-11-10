@@ -337,14 +337,13 @@
 .graph-axis-freq { top: calc(100% + 7px); transform: translateX(-50%); }
 .graph-axis-freq.start { transform: none; }
 .graph-axis-freq.end { transform: translateX(-100%); }
-.graph-axis-unit { opacity: 0.7; }
 .graph-axis-unit-db { right: calc(100% + 8px); top: 0; }
 .graph-axis-unit-hz { right: calc(100% + 8px); top: calc(100% + 7px); }
 
 @media (max-width: 850px), ((max-height: 540px) and (pointer: coarse)) {
   .eq-graph-shell { --axis-y: 28px; --axis-x: 17px; }
   .graph-axis > span { font-size: 10px; }
-  .graph-axis .minor { display: none; }
+  .graph-axis .graph-axis-freq.minor { display: none; }
   .mobile-graph-preview .eq-graph-shell { margin: 0; }
   .mobile-graph-preview .graph-axis { display: none; }
 }

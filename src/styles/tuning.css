@@ -74,3 +74,6 @@
 @media (pointer: coarse) {
   .tuning-panel button { min-height: var(--touch-md); }
 }
+
+/* Room between the advanced disclosure and the Generate action. */
+.tuning-panel .tuning-advanced { margin-bottom: var(--space-2); }

@@ -104,7 +104,7 @@ html {
   --sync-unsaved: #756338;
   --input-bg: var(--bg-dark);
   --input-border: var(--surface);
-  --panel-border: #cfd8df;
+  --panel-border: #bfc9d2;
   --list-hover-bg: var(--surface-soft);
   --focus-border: rgb(var(--cyan-rgb) / 0.72);
   --scrollbar-color: var(--surface);
