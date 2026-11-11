@@ -217,6 +217,7 @@ export function DeviceChooser({
 
         <p className="leg:text-[length:var(--type-small)]">
           <Link
+            className="inline-flex min-h-[var(--touch-md)] items-center"
             to="/supported-devices"
             target="_blank"
             rel="noreferrer"

@@ -205,3 +205,8 @@
   /* A fading chip reads as disabled; let the strip simply scroll. */
   .mobile-workspace .band-picker-scroll { mask-image: none !important; }
 }
+
+@media (max-width: 850px), ((max-height: 540px) and (pointer: coarse)) {
+  /* Disabled history buttons stay legible as "unavailable", not invisible. */
+  .app-header .mobile-history-buttons button:disabled { opacity: 0.4; }
+}

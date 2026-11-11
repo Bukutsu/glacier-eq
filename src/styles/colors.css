@@ -417,7 +417,7 @@
   --sidebar-row-selected: color-mix(in srgb, var(--primary) 18%, transparent);
 }
 :root[data-theme="glacier"] { --sidebar: #12161b; --sidebar-border: #232b34; }
-:root[data-theme="glacier-light"] { --sidebar: #e8edf1; --sidebar-border: #d3dbe2; }
+:root[data-theme="glacier-light"] { --sidebar: #e2e7ec; --sidebar-border: #d0d8df; }
 :root[data-theme="glacier-light"] { --switch-knob-off: #ffffff; }
 :root[data-theme="glacier-light"] {
   --sidebar-row-active: color-mix(in srgb, var(--primary) 11%, transparent);
