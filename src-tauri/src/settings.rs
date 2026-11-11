@@ -12,14 +12,12 @@ use std::sync::{Mutex, OnceLock};
 use fs2::FileExt;
 
 fn default_theme() -> String {
-    "glacier".to_string()
+    "tokyo-night".to_string()
 }
 
 /// Must match the themes offered by the settings UI (and the web parser).
 const KNOWN_THEMES: &[&str] = &[
     "auto",
-    "glacier",
-    "glacier-light",
     "tokyo-night",
     "tokyo-night-storm",
     "tokyo-night-day",
@@ -30,6 +28,16 @@ const KNOWN_THEMES: &[&str] = &[
     "catppuccin-latte",
     "material-you",
 ];
+
+/// Retired themes map to their nearest successor instead of being carried
+/// as an unknown name.
+fn migrate_theme(theme: &str) -> &str {
+    match theme {
+        "glacier" => "tokyo-night",
+        "glacier-light" => "tokyo-night-day",
+        other => other,
+    }
+}
 
 fn is_known_theme(theme: &str) -> bool {
     KNOWN_THEMES.contains(&theme)
@@ -260,7 +268,9 @@ fn parse_settings(content: &str, path: &std::path::Path) -> Result<SettingsRead,
             // theme and rewrote settings.json without it — permanently, since
             // every later launch took this same branch again. The UI already
             // falls back for a theme it cannot resolve.
-            Some(theme) if is_known_theme(theme) => settings.theme = theme.to_string(),
+            Some(theme) if is_known_theme(migrate_theme(theme)) => {
+                settings.theme = migrate_theme(theme).to_string()
+            }
             Some(_) => unrecognised_theme = Some(value),
             None => malformed = true,
         }

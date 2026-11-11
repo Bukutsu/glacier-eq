@@ -40,45 +40,7 @@
 }
 
 /* Every named palette owns its action/focus roles independently of plot colors.
-   Auto resolves to Glacier; live Material You continues to use the root aliases. */
-/* Glacier uses blue-black chrome with a separate categorical data palette.
-   Chart slots use varied hues at similar OKLCH lightness (0.70–0.73),
-   with restrained chroma (0–0.095), rather than a monochromatic brand ramp.
-   Categorical guidance: https://cloudscape.design/foundation/visual-foundation/data-vis-colors/ */
-:root[data-theme="glacier"] {
-  --primary: #2f6c99;
-  --primary-foreground: #f2f7fb;
-  --primary-hover: color-mix(in srgb, var(--primary) 90%, var(--card));
-  --ring: #8cc3e6;
-  --plot-red: #d38780;
-  --plot-red-rgb: 211 135 128;
-  --plot-orange: #cc986e;
-  --plot-orange-rgb: 204 152 110;
-  --plot-yellow: #b7a86d;
-  --plot-yellow-rgb: 183 168 109;
-  --plot-green: #8da87f;
-  --plot-green-rgb: 141 168 127;
-  --plot-teal: #72ac9c;
-  --plot-teal-rgb: 114 172 156;
-  --plot-cyan: #75acb9;
-  --plot-cyan-rgb: 117 172 185;
-  --plot-blue: #8cc3e6;
-  --plot-blue-rgb: 140 195 230;
-  --plot-purple: #a295cb;
-  --plot-purple-rgb: 162 149 203;
-  --plot-teal2: #a4a4a4;
-  --plot-teal2-rgb: 164 164 164;
-  --plot-magenta2: #be8cb2;
-  --plot-magenta2-rgb: 190 140 178;
-}
-
-:root[data-theme="glacier-light"] {
-  /* A solid ink action: the earlier pale fill read as a disabled button. */
-  --primary: #2b6a94;
-  --primary-foreground: #ffffff;
-  --primary-hover: color-mix(in srgb, var(--primary) 90%, var(--card));
-  --ring: #2b6a94;
-}
+   Auto resolves to Tokyo Night; live Material You continues to use the root aliases. */
 
 :root[data-theme="nord"] {
   --primary: #42576b;
@@ -327,7 +289,7 @@
   --plot-magenta2: #e181c1;
   --plot-magenta2-rgb: 225 129 193;
 }
-:root:is([data-theme="glacier-light"], [data-theme="tokyo-night-day"], [data-theme="catppuccin-latte"]) {
+:root:is([data-theme="tokyo-night-day"], [data-theme="catppuccin-latte"]) {
   --plot-red: #b52e4a;
   --plot-red-rgb: 181 46 74;
   --plot-orange: #a85817;
@@ -372,54 +334,4 @@
   --plot-magenta2: #b13883;
   --plot-magenta2-rgb: 177 56 131;
   }
-}
-
-/* The response curve is the interface hue, so chrome and data read as one
-   instrument. Band hues stay muted and keep clear of it. */
-:root[data-theme="glacier"] {
-  --plot-curve: #8cc3e6;
-  --plot-curve-rgb: 140 195 230;
-  --plot-blue: #8f9dd0;
-  --plot-blue-rgb: 143 157 208;
-}
-:root[data-theme="glacier-light"] {
-  --plot-curve: #2b6a94;
-  --plot-curve-rgb: 43 106 148;
-  --plot-red: #a9545d;
-  --plot-red-rgb: 169 84 93;
-  --plot-orange: #a1652f;
-  --plot-orange-rgb: 161 101 47;
-  --plot-yellow: #87752c;
-  --plot-yellow-rgb: 135 117 44;
-  --plot-green: #4d7c45;
-  --plot-green-rgb: 77 124 69;
-  --plot-teal: #2f776a;
-  --plot-teal-rgb: 47 119 106;
-  --plot-cyan: #2c7889;
-  --plot-cyan-rgb: 44 120 137;
-  --plot-blue: #5566a6;
-  --plot-blue-rgb: 85 102 166;
-  --plot-purple: #775a9b;
-  --plot-purple-rgb: 119 90 155;
-  --plot-teal2: #657c2a;
-  --plot-teal2-rgb: 101 124 42;
-  --plot-magenta2: #974d82;
-  --plot-magenta2-rgb: 151 77 130;
-}
-:root[data-theme="glacier"] { --canvas-grid: #222a33; --canvas-grid-strong: #34404d; }
-:root[data-theme="glacier-light"] { --canvas-grid: #e3e8ed; --canvas-grid-strong: #c2ccd5; }
-:root[data-theme="glacier"] { --surface-disabled: #232a33; --text-disabled: #818c99; }
-:root[data-theme="glacier-light"] { --surface-disabled: #eef1f4; --text-disabled: #6b7785; }
-:root[data-theme="glacier-light"] { --input-bg: #ffffff; --field-background: #ffffff; --input: #cfd6dd; }
-:root[data-theme="glacier-light"] { --control: #ffffff; --control-hover: #eef2f5; }
-:root:is([data-theme="glacier"], [data-theme="glacier-light"]) {
-  --sidebar-row-active: color-mix(in srgb, var(--primary) 18%, transparent);
-  --sidebar-row-selected: color-mix(in srgb, var(--primary) 18%, transparent);
-}
-:root[data-theme="glacier"] { --sidebar: #12161b; --sidebar-border: #232b34; }
-:root[data-theme="glacier-light"] { --sidebar: #e2e7ec; --sidebar-border: #d0d8df; }
-:root[data-theme="glacier-light"] { --switch-knob-off: #ffffff; }
-:root[data-theme="glacier-light"] {
-  --sidebar-row-active: color-mix(in srgb, var(--primary) 11%, transparent);
-  --sidebar-row-selected: color-mix(in srgb, var(--primary) 11%, transparent);
 }

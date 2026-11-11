@@ -10,8 +10,6 @@ import { systemThemeName } from "@/features/settings/lib/theme";
 import { writeLocalStorage } from "@/lib/safeStorage";
 
 const THEME_BG_COLORS: Record<string, string> = {
-  glacier: "#0e1115",
-  "glacier-light": "#f0f3f6",
   "material-you": "#181920",
   "tokyo-night": "#20212b",
   "tokyo-night-storm": "#282b35",
@@ -25,7 +23,7 @@ const THEME_BG_COLORS: Record<string, string> = {
 
 function updateThemeColorMeta(themeName: string, overrideColor?: string) {
   if (typeof document === "undefined") return;
-  const color = overrideColor ?? THEME_BG_COLORS[themeName] ?? "#0e1115";
+  const color = overrideColor ?? THEME_BG_COLORS[themeName] ?? "#20212b";
   let meta = document.querySelector('meta[name="theme-color"]');
   if (!meta) {
     meta = document.createElement("meta");
@@ -42,7 +40,7 @@ function getInitialTheme(theme: string): string {
       window.matchMedia("(prefers-color-scheme: dark)").matches,
     );
   }
-  return "glacier";
+  return "tokyo-night";
 }
 
 export function useThemeSync(theme: string, appearanceReady = true): string {

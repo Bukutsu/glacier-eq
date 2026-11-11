@@ -17,7 +17,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   skip_push_verification: false,
   live_apply: false,
   // Material You is the default on Android; everywhere else follows Auto.
-  theme: readBootTheme() ?? "glacier",
+  theme: readBootTheme() ?? "tokyo-night",
   snap_to_iso_frequencies: true,
   floating_graph_preview: true,
 };

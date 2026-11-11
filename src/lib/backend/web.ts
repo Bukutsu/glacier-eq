@@ -340,9 +340,16 @@ const DEFAULT_WEB_SETTINGS: AppSettings = {
   auto_pull_on_connect: true,
   skip_push_verification: false,
   live_apply: false,
-  theme: "glacier",
+  theme: "tokyo-night",
   snap_to_iso_frequencies: true,
   floating_graph_preview: true,
+};
+
+// Retired themes map to their nearest successor instead of being carried
+// as an unknown name.
+const LEGACY_THEMES: Readonly<Record<string, string>> = {
+  glacier: "tokyo-night",
+  "glacier-light": "tokyo-night-day",
 };
 
 // Accept every UI theme, including Android themes in imported settings.
@@ -401,8 +408,9 @@ function parseWebSettings(value: unknown): ParsedStorage<AppSettings> {
   const preservedThemeExtra: Record<string, unknown> = {};
   if ("theme" in value) {
     if (typeof value.theme === "string") {
-      if (KNOWN_THEMES.has(value.theme)) {
-        settings.theme = value.theme;
+      const theme = LEGACY_THEMES[value.theme] ?? value.theme;
+      if (KNOWN_THEMES.has(theme)) {
+        settings.theme = theme;
       } else {
         // Not corruption: a theme name this build does not offer is the
         // newer-or-forked-build case, so carry it through untouched. Only a

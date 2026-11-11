@@ -28,8 +28,6 @@ export function themeOptions(isAndroid: boolean): ThemeOption[] {
           },
         ]
       : []),
-    { value: "glacier", label: i18n.t("settings:themes.glacierDark") },
-    { value: "glacier-light", label: i18n.t("settings:themes.glacierLight") },
     { value: "tokyo-night", label: i18n.t("settings:themes.tokyoNight") },
     {
       value: "tokyo-night-storm",
@@ -53,11 +51,11 @@ export function themeOptions(isAndroid: boolean): ThemeOption[] {
   ];
 }
 
-/** Auto keeps both system appearances in the Glacier palette. */
+/** Auto follows the system appearance with the Tokyo Night pair. */
 export function systemThemeName(
   prefersDark: boolean,
-): "glacier" | "glacier-light" {
-  return prefersDark ? "glacier" : "glacier-light";
+): "tokyo-night" | "tokyo-night-day" {
+  return prefersDark ? "tokyo-night" : "tokyo-night-day";
 }
 
 export function cssVar(name: string, fallback = ""): string {

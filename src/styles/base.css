@@ -14,7 +14,7 @@ html {
 
 /* Glacier: blue-black surfaces, silver-blue text and ice-blue actions.
    Data colors stay separate from the interface accent. */
-:root, :root[data-theme="glacier"] {
+:root {
   color-scheme: dark;
   --bg: #0e1115;
   --bg-dark: #0a0d10;
@@ -71,59 +71,6 @@ html {
   --motion-ease: cubic-bezier(0.33, 1, 0.68, 1);
 }
 
-:root[data-theme="glacier-light"] {
-  color-scheme: light;
-  --bg: #f0f3f6;
-  --bg-dark: #e9eef2;
-  --panel: #ffffff;
-  --surface: #d4dce1;
-  --surface-soft: #e7ecef;
-  --text: #1b232b;
-  --muted: #4f5c68;
-  --comment: #5b6974;
-  --cyan: #2b6a94;
-  --blue: #2b6a94;
-  --green: #596f57;
-  --orange: #80613f;
-  --yellow: #756338;
-  --red: #915761;
-  --purple: #6f6184;
-  --teal: #3f7271;
-  --bright-cyan: #58778a;
-  --magenta2: #6f6184;
-  --navy: #356d96;
-  --azure: #2b6a94;
-  --sky: #356d96;
-  --steel: #5b6974;
-  --sea: #496e60;
-  --teal2: #3f7271;
-  --crimson: #915761;
-  --on-accent: #f7f9fa;
-  --sync-ok: #596f57;
-  --sync-working: #2b6a94;
-  --sync-unsaved: #756338;
-  --input-bg: var(--bg-dark);
-  --input-border: var(--surface);
-  --panel-border: #bfc9d2;
-  --list-hover-bg: var(--surface-soft);
-  --focus-border: rgb(var(--cyan-rgb) / 0.72);
-  --scrollbar-color: var(--surface);
-  --bg-dark-rgb: 233 238 242;
-  --panel-rgb: 255 255 255;
-  --text-rgb: 27 35 43;
-  --cyan-rgb: 43 106 148;
-  --blue-rgb: 43 106 148;
-  --green-rgb: 89 111 87;
-  --orange-rgb: 128 97 63;
-  --yellow-rgb: 117 99 56;
-  --red-rgb: 145 87 97;
-  --purple-rgb: 111 97 132;
-  --teal-rgb: 63 114 113;
-  --magenta2-rgb: 111 97 132;
-  --teal2-rgb: 63 114 113;
-  --bg-darker-rgb: 221 228 233;
-  --terminal-black-rgb: 38 48 57;
-}
 
 :root[data-theme="tokyo-night"] {
   --bg: #1a1b26;
