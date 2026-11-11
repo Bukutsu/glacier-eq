@@ -47,9 +47,12 @@
     flex-direction: column;
     gap: 0;
   }
-  .mobile-workspace .mobile-filter-card .control-slider { width: 100%; min-height: 44px; }
+  .mobile-workspace .mobile-filter-card .control-slider { width: 100%; min-height: 32px; }
+  /* A 32px track keeps each parameter to one compact block; the long axis
+     still gives a generous touch target. */
+  .mobile-workspace .mobile-filter-card .control-slider-input { height: 32px !important; min-height: 32px !important; }
   .mobile-workspace .band-picker button {
-    min-height: 48px;
+    min-height: 44px;
     min-width: 40px;
     padding-inline: 2px;
     border: 1px solid transparent;
