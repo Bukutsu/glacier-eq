@@ -109,7 +109,7 @@
   --primary: #5370b5;
   --primary-foreground: #ffffff;
   --accent: #2c2e3b;
-  --accent-foreground: #d2d5e0;
+  --accent-foreground: #c4c8da;
   --sidebar: #1d1e26;
   --sidebar-foreground: #c4c8da;
   --sidebar-muted-foreground: #989cad;
@@ -169,9 +169,9 @@
   --popover: #f7f8fa;
   --popover-foreground: #343b59;
   /* The imported muted text clears the canvas, but not Day’s darker cards. */
-  --muted-foreground: #5b5c61;
+  --muted-foreground: #565f89;
   --placeholder: #4a5272;
-  --border: #b9bccb;
+  --border: #d6d7e0;
   --input: #a9adc0;
   --field-background: #fbfbfd;
   --destructive-foreground: #c10007;
@@ -179,15 +179,15 @@
   --warning-foreground: #993e00;
   --primary: #426cb3;
   --primary-foreground: #ffffff;
-  --accent: #d8dbe6;
-  --accent-foreground: #14161a;
+  --accent: #ccd1e1;
+  --accent-foreground: #343b59;
   --sidebar: #d0d4e0;
-  --sidebar-foreground: #363c4d;
-  --sidebar-muted-foreground: #5a5c61;
-  --sidebar-border: #b9bccb;
+  --sidebar-foreground: #343b59;
+  --sidebar-muted-foreground: #565f89;
+  --sidebar-border: #d6d7e0;
   --sidebar-row-hover: #e4e6ee;
-  --sidebar-row-active: #fbfbfd;
-  --sidebar-row-selected: #fbfbfd;
+  --sidebar-row-active: var(--accent);
+  --sidebar-row-selected: var(--accent);
   --control: color-mix(in srgb, var(--input) 32%, var(--popover));
   --control-hover: color-mix(in srgb, var(--input) 64%, var(--popover));
   /* Light outline buttons use popover/selection surfaces, not dark input overlays. */
@@ -335,3 +335,7 @@
   --plot-magenta2-rgb: 177 56 131;
   }
 }
+
+/* Tokyo Night plot grids: visible enough to read, quieter than any curve. */
+:root[data-theme="tokyo-night"] { --canvas-grid: #2b2d3a; --canvas-grid-strong: #3d4052; }
+:root[data-theme="tokyo-night-day"] { --canvas-grid: #e3e5ec; --canvas-grid-strong: #c6c9d6; }

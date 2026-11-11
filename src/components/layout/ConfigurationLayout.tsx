@@ -163,7 +163,7 @@ export function ConfigurationLayout({
             <Link
               key={section.id}
               to={`/${kind}/${section.id}`}
-              className="configuration-nav-link cmp:flex cmp:items-center cmp:gap-[var(--space-2)] cmp:min-h-[38px] cmp:p-[var(--space-2)_var(--space-3)] cmp:box-border cmp:rounded-[var(--control-radius)] cmp:text-[color:var(--muted-foreground)] cmp:text-[length:var(--type-label)] cmp:no-underline cmp:[&:hover]:text-[color:var(--foreground)] cmp:[&:hover]:[background:var(--accent)] cmp:[&&[aria-current='page']]:text-[color:var(--accent-foreground)] cmp:[&&[aria-current='page']]:[background:color-mix(in_srgb,var(--primary)_16%,transparent)] cmp:[&[aria-current='page']]:font-semibold cmp:compact:min-h-[44px] cmp:compact:p-[var(--space-2)] cmp:compact:[&&&:active]:[background:var(--accent)] cmp:compact:[&&&:active]:text-[color:var(--accent-foreground)]"
+              className="configuration-nav-link cmp:flex cmp:items-center cmp:gap-[var(--space-2)] cmp:min-h-[38px] cmp:p-[var(--space-2)_var(--space-3)] cmp:box-border cmp:rounded-[var(--control-radius)] cmp:text-[color:var(--muted-foreground)] cmp:text-[length:var(--type-label)] cmp:no-underline cmp:[&:hover]:text-[color:var(--foreground)] cmp:[&:hover]:[background:var(--accent)] cmp:[&&[aria-current='page']]:text-[color:var(--accent-foreground)] cmp:[&&[aria-current='page']]:[background:var(--accent)] cmp:[&[aria-current='page']]:font-semibold cmp:compact:min-h-[44px] cmp:compact:p-[var(--space-2)] cmp:compact:[&&&:active]:[background:var(--accent)] cmp:compact:[&&&:active]:text-[color:var(--accent-foreground)]"
               aria-current={active === section.id ? "page" : undefined}
             >
               <Icon name={section.icon} />

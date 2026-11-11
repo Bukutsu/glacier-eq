@@ -119,10 +119,11 @@ function numberOr(raw: unknown, fallback: number): number {
   return Number.isFinite(value) ? value : fallback;
 }
 
-/** Display text for a gain: "-4.0 dB", "-3.55 dB". One format app-wide. */
+/** Display text for a gain: "−4.0 dB", "−3.55 dB". One format app-wide,
+ * with a typographic minus to match the graph axis. */
 export function formatDb(value: number): string {
   const text = value.toFixed(2).replace(/0$/, "");
-  return `${text === "-0.0" ? "0.0" : text} dB`;
+  return `${text === "-0.0" ? "0.0" : text.replace("-", "\u2212")} dB`;
 }
 
 export function clampToRange(value: number, range: [number, number]): number {

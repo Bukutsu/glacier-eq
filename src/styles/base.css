@@ -247,7 +247,7 @@ html {
   --surface-soft: #d3d7e5;
   --input-bg: #fbfbfd;
   --input-border: var(--surface);
-  --panel-border: var(--surface);
+  --panel-border: #c4c7d4;
   --list-hover-bg: var(--surface-soft);
   --focus-border: rgb(var(--cyan-rgb) / 0.72);
   --scrollbar-color: var(--surface);
@@ -261,10 +261,10 @@ html {
   --blue-rgb: 59 105 184;
   --green: #486a29;
   --green-rgb: 72 106 41;
-  --orange: #b15c00;
-  --orange-rgb: 177 92 0;
-  --yellow: #8c6c3e;
-  --yellow-rgb: 140 108 62;
+  --orange: #9a4f00;
+  --orange-rgb: 154 79 0;
+  --yellow: #7d5210;
+  --yellow-rgb: 125 82 16;
   --red: #f52a65;
   --red-rgb: 245 42 101;
   --purple: #7847bd;
@@ -286,7 +286,7 @@ html {
   --on-accent: #ffffff;
   --sync-ok: #486a29;
   --sync-working: #3b69b8;
-  --sync-unsaved: #8c6c3e;
+  --sync-unsaved: #7d5210;
 }
 
 :root[data-theme="nord"] {
