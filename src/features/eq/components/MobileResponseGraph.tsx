@@ -65,24 +65,27 @@ export function MobileResponseGraph({
   return (
     <>
       {(activeTab === "eq" || activeTab === "tuning") && (
-        <section
-          ref={mobileGraphRef}
-          className={`mobile-graph-container mobile-graph-${activeTab} ${graphCollapsed ? "collapsed" : ""}`}
-        >
-          <div
-            className="graph-card leg:[background:var(--panel)] leg:rounded-[var(--radius-surface)] leg:[box-shadow:none] leg:flex-[1_1_auto] leg:min-h-[280px] leg:p-[var(--space-4)] leg:[border:1px_solid_var(--line-soft)] leg:flex leg:min-w-[0] leg:relative leg:[.left-pane>&]:sticky leg:[.left-pane>&]:top-[0] leg:[.left-pane>&]:z-[var(--z-graph-sticky)] leg:[.left-pane>&]:flex-col leg:compact:h-[clamp(230px,_34dvh,_300px)] leg:compact:min-h-[230px] leg:compact:p-[10px_8px_8px] leg:compact:rounded-[var(--radius-surface)]! leg:compact:[border:1px_solid_var(--line-soft)]! leg:compact:[background:var(--panel)]! leg:compact:overflow-hidden leg:compact:[.mobile-graph-container_&]:[transition:height_var(--motion-duration)_var(--motion-ease),_opacity_var(--motion-duration)_var(--motion-ease)] leg:compact:[.mobile-graph-container_&]:opacity-[1] leg:compact:[.mobile-graph-container.collapsed_&]:h-[0px]! leg:compact:[.mobile-graph-container.collapsed_&]:min-h-[0px]! leg:compact:[.mobile-graph-container.collapsed_&]:[border:none]! leg:compact:[.mobile-graph-container.collapsed_&]:p-[0]! leg:compact:[.mobile-graph-container.collapsed_&]:m-[0]! leg:compact:[.mobile-graph-container.collapsed_&]:opacity-[0] leg:compact:[.mobile-graph-container.collapsed_&]:pointer-events-none leg:compact:[@media(orientation:_landscape)]:[.mobile-graph-container_&&&]:h-[clamp(100px,_32dvh,_160px)] leg:compact:[@media(orientation:_landscape)]:[.mobile-graph-container_&&]:min-h-[100px] leg:compact:[@media(orientation:_landscape)]:[.mobile-graph-tuning_&&&&]:h-[clamp(80px,_20dvh,_120px)] leg:compact:[@media(orientation:_landscape)]:[.mobile-graph-tuning_&&&]:min-h-[80px] leg:compact:[.mobile-workspace_.mobile-graph-container>&]:rounded-[0]! leg:compact:[.mobile-workspace_.mobile-graph-container>&]:[border-inline:0]! leg:compact:[.mobile-workspace_.mobile-graph-container>&]:[border-top:0]! leg:compact:[.mobile-graph-container_&&&&&]:h-[clamp(140px,_21dvh,_184px)] leg:compact:[.mobile-graph-container_&&&&]:min-h-[0] leg:compact:[.mobile-graph-container_&]:p-[6px_8px_4px] leg:compact:[.mobile-graph-tuning_&&&&&&]:h-[clamp(160px,_24dvh,_210px)] leg:compact:[.mobile-graph-tuning_&&&&&]:min-h-[0] leg:[@media(max-height:_580px)]:[.mobile-graph-container_&]:h-[clamp(80px,_18dvh,_100px)]! leg:[@media(max-height:_580px)]:[.mobile-graph-tuning_&&]:h-[clamp(65px,_15dvh,_90px)]! leg:[@media(min-width:_851px)_and_(max-height:_820px)]:min-h-[150px]! leg:[@media(min-width:_851px)_and_(max-height:_820px)]:h-[clamp(150px,_24dvh,_190px)]! leg:[@media(min-width:_600px)_and_(max-width:_850px)]:[.mobile-graph-container_&&&&&&&]:h-[clamp(180px,_24dvh,_300px)] leg:[@media(min-width:_600px)_and_(max-width:_850px)]:[.mobile-graph-tuning_&&&&&&&&]:h-[clamp(160px,_22dvh,_260px)] cmp:compact:[.mobile-workspace_&:has(.eq-graph-layout.legend-open)]:h-[auto]! cmp:compact:[.mobile-workspace_&:has(.eq-graph-layout.legend-open)]:max-h-[none]"
-            inert={graphCollapsed ? true : undefined}
-            aria-hidden={graphCollapsed}
+        <>
+          <section
+            ref={mobileGraphRef}
+            className={`mobile-graph-container mobile-graph-${activeTab} ${graphCollapsed ? "collapsed" : ""}`}
           >
-            <WorkspaceGraph
-              {...graph}
-              editing={activeTab === "eq"}
-              focusBand={activeTab === "eq"}
-              legendOpen={legendOpen}
-            />
-          </div>
-          {/* Curves live under the plot so they never cover the data. */}
-          <div className="graph-toolbar leg:flex leg:items-center leg:justify-end leg:gap-[var(--space-2)] leg:min-h-[32px] leg:m-[calc(-1_*_var(--space-2))_calc(-1_*_var(--space-2))_var(--space-1)] leg:compact:[.mobile-workspace_&]:justify-between leg:compact:[.mobile-workspace_&]:gap-[8px] leg:compact:[.mobile-workspace_&]:min-h-[0] leg:compact:[.mobile-workspace_&]:m-[0] leg:compact:[.mobile-workspace_&]:p-[0_4px]">
+            <div
+              className="graph-card leg:[background:var(--panel)] leg:rounded-[var(--radius-surface)] leg:[box-shadow:none] leg:flex-[1_1_auto] leg:min-h-[280px] leg:p-[var(--space-4)] leg:[border:1px_solid_var(--line-soft)] leg:flex leg:min-w-[0] leg:relative leg:[.left-pane>&]:sticky leg:[.left-pane>&]:top-[0] leg:[.left-pane>&]:z-[var(--z-graph-sticky)] leg:[.left-pane>&]:flex-col leg:compact:h-[clamp(230px,_34dvh,_300px)] leg:compact:min-h-[230px] leg:compact:p-[10px_8px_8px] leg:compact:rounded-[var(--radius-surface)]! leg:compact:[border:1px_solid_var(--line-soft)]! leg:compact:[background:var(--panel)]! leg:compact:overflow-hidden leg:compact:[.mobile-graph-container_&]:[transition:height_var(--motion-duration)_var(--motion-ease),_opacity_var(--motion-duration)_var(--motion-ease)] leg:compact:[.mobile-graph-container_&]:opacity-[1] leg:compact:[.mobile-graph-container.collapsed_&]:h-[0px]! leg:compact:[.mobile-graph-container.collapsed_&]:min-h-[0px]! leg:compact:[.mobile-graph-container.collapsed_&]:[border:none]! leg:compact:[.mobile-graph-container.collapsed_&]:p-[0]! leg:compact:[.mobile-graph-container.collapsed_&]:m-[0]! leg:compact:[.mobile-graph-container.collapsed_&]:opacity-[0] leg:compact:[.mobile-graph-container.collapsed_&]:pointer-events-none leg:compact:[@media(orientation:_landscape)]:[.mobile-graph-container_&&&]:h-[clamp(100px,_32dvh,_160px)] leg:compact:[@media(orientation:_landscape)]:[.mobile-graph-container_&&]:min-h-[100px] leg:compact:[@media(orientation:_landscape)]:[.mobile-graph-tuning_&&&&]:h-[clamp(80px,_20dvh,_120px)] leg:compact:[@media(orientation:_landscape)]:[.mobile-graph-tuning_&&&]:min-h-[80px] leg:compact:[.mobile-workspace_.mobile-graph-container>&]:rounded-[0]! leg:compact:[.mobile-workspace_.mobile-graph-container>&]:[border-inline:0]! leg:compact:[.mobile-workspace_.mobile-graph-container>&]:[border-top:0]! leg:compact:[.mobile-graph-container_&&&&&]:h-[clamp(140px,_21dvh,_184px)] leg:compact:[.mobile-graph-container_&&&&]:min-h-[0] leg:compact:[.mobile-graph-container_&]:p-[6px_8px_4px] leg:compact:[.mobile-graph-tuning_&&&&&&]:h-[clamp(160px,_24dvh,_210px)] leg:compact:[.mobile-graph-tuning_&&&&&]:min-h-[0] leg:[@media(max-height:_580px)]:[.mobile-graph-container_&]:h-[clamp(80px,_18dvh,_100px)]! leg:[@media(max-height:_580px)]:[.mobile-graph-tuning_&&]:h-[clamp(65px,_15dvh,_90px)]! leg:[@media(min-width:_851px)_and_(max-height:_820px)]:min-h-[150px]! leg:[@media(min-width:_851px)_and_(max-height:_820px)]:h-[clamp(150px,_24dvh,_190px)]! leg:[@media(min-width:_600px)_and_(max-width:_850px)]:[.mobile-graph-container_&&&&&&&]:h-[clamp(180px,_24dvh,_300px)] leg:[@media(min-width:_600px)_and_(max-width:_850px)]:[.mobile-graph-tuning_&&&&&&&&]:h-[clamp(160px,_22dvh,_260px)] cmp:compact:[.mobile-workspace_&:has(.eq-graph-layout.legend-open)]:h-[auto]! cmp:compact:[.mobile-workspace_&:has(.eq-graph-layout.legend-open)]:max-h-[none]"
+              inert={graphCollapsed ? true : undefined}
+              aria-hidden={graphCollapsed}
+            >
+              <WorkspaceGraph
+                {...graph}
+                editing={activeTab === "eq"}
+                focusBand={activeTab === "eq"}
+                legendOpen={legendOpen}
+              />
+            </div>
+          </section>
+          {/* Curves live under the plot so they never cover the data, and outside
+              the pinned section so editing bands keeps more of the screen. */}
+          <div className="graph-toolbar shrink-0 leg:flex leg:items-center leg:justify-end leg:gap-[var(--space-2)] leg:min-h-[32px] leg:m-[calc(-1_*_var(--space-2))_calc(-1_*_var(--space-2))_var(--space-1)] leg:compact:[.mobile-workspace_&]:justify-between leg:compact:[.mobile-workspace_&]:gap-[8px] leg:compact:[.mobile-workspace_&]:min-h-[0] leg:compact:[.mobile-workspace_&]:m-[0] leg:compact:[.mobile-workspace_&]:p-[0_4px]">
             {((showLegendToggle && !graphCollapsed) || compare) && (
               <div className="graph-toolbar-actions leg:flex leg:items-center leg:gap-[var(--space-1)] cmp:compact:[.mobile-workspace_.graph-toolbar>&]:order-[1] cmp:compact:[.mobile-workspace_.graph-toolbar>&]:ml-[auto]">
                 {showLegendToggle && !graphCollapsed && (
@@ -116,7 +119,7 @@ export function MobileResponseGraph({
             </button>
             {eqCurves}
           </div>
-        </section>
+        </>
       )}
       {activeTab === "eq" && (
         <div

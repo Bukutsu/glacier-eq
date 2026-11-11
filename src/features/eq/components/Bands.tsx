@@ -318,21 +318,21 @@ export const Bands = memo(function Bands({
                   <span>{formatFreqShort(filter.freq)}</span>
                 </button>
               ))}
+              {/* Hidden once every band is in use: a dead button only takes room. */}
+              {!bandsFull && (
+                <button
+                  type="button"
+                  className="add-filter-chip leg:[.band-picker_button&]:flex leg:[.band-picker_button&]:items-center leg:[.band-picker_button&]:justify-center leg:[.band-picker_button&]:gap-[var(--space-1)] leg:[.band-picker_button&]:text-[color:var(--link-foreground)] cmp:compact:[.mobile-workspace_.band-picker_button&]:min-w-[64px]"
+                  onClick={addFilter}
+                  disabled={!canAddFilter}
+                  aria-label={t("bands.addFilter")}
+                  title={t("bands.addFilter")}
+                >
+                  <Icon name="add" />
+                  <span>{t("bands.add")}</span>
+                </button>
+              )}
             </div>
-            {/* Hidden once every band is in use: a dead button only takes room. */}
-            {!bandsFull && (
-              <button
-                type="button"
-                className="add-filter-chip leg:[.band-picker_button&]:flex leg:[.band-picker_button&]:items-center leg:[.band-picker_button&]:justify-center leg:[.band-picker_button&]:gap-[var(--space-1)] leg:[.band-picker_button&]:text-[color:var(--link-foreground)] cmp:compact:[.mobile-workspace_.band-picker_button&]:min-w-[64px]"
-                onClick={addFilter}
-                disabled={!canAddFilter}
-                aria-label={t("bands.addFilter")}
-                title={t("bands.addFilter")}
-              >
-                <Icon name="add" />
-                <span>{t("bands.add")}</span>
-              </button>
-            )}
           </div>
           <div
             className="mobile-filter-card roomy:col-[1/-1] leg:grid leg:grid-cols-[minmax(140px,_0.6fr)_repeat(3,_minmax(0,_1fr))] leg:[grid-template-areas:'head_head_head_head'_'type_freq_gain_q'] leg:[align-items:start] leg:gap-[var(--space-3)_var(--space-5)] leg:p-[var(--space-3)_var(--space-4)_var(--space-4)] leg:[background:var(--panel)] leg:[@container(max-width:700px)]:grid-cols-[minmax(0,_1fr)] leg:[@container(max-width:700px)]:[grid-template-areas:'head'_'type'_'freq'_'gain'_'q'] leg:[@container(max-width:700px)]:gap-[var(--space-3)] leg:compact:rounded-[var(--radius-surface)]! leg:compact:overflow-hidden leg:compact:[.mobile-workspace_&]:rounded-[0]! leg:compact:[.mobile-workspace_&]:[border-inline:0]! leg:compact:flex leg:compact:flex-col leg:compact:items-stretch leg:compact:[&&]:gap-[var(--space-2)] leg:compact:p-[var(--space-2)_var(--space-3)] leg:compact:w-[100%] leg:compact:box-border leg:[@media(max-height:_580px)]:gap-[4px]! leg:[@media(max-height:_580px)]:p-[6px_12px]! cmp:compact:[.mobile-workspace_&]:[border-color:var(--border)] cmp:compact:[.mobile-workspace_&]:[background:var(--card)]! cmp:compact:[.mobile-workspace_&]:p-[var(--space-3)_var(--space-4)] cmp:compact:[.mobile-workspace_&]:gap-[var(--space-3)] cmp:compact:[.mobile-workspace_&]:[border-top:0] cmp:compact:[.mobile-workspace_&]:rounded-[0]"
