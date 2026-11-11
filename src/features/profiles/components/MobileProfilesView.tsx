@@ -340,27 +340,30 @@ export function MobileProfilesView(props: MobileProfilesViewProps) {
             </OverflowMenu>
           </div>
         </div>
-        <div className="relative mb-[var(--space-3)] flex items-center [&>.app-icon]:pointer-events-none [&>.app-icon]:absolute [&>.app-icon]:left-3 [&>.app-icon]:w-4 [&>.app-icon]:text-[var(--muted-foreground)] [&_button]:absolute [&_button]:right-0 [&_input::-webkit-search-cancel-button]:hidden">
-          <Icon name="search" />
-          <Input
-            aria-label={t("mobileProfilesView.searchProfiles")}
-            className="pl-9 pr-11 text-base"
-            placeholder={t("mobileProfilesView.searchPlaceholder")}
-            value={profileSearch}
-            onChange={(event) => setProfileSearch(event.target.value)}
-            type="search"
-          />
-          {profileSearch && (
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label={t("mobileProfilesView.clearProfileSearch")}
-              onClick={() => setProfileSearch("")}
-            >
-              <Icon name="close" />
-            </Button>
-          )}
-        </div>
+        {/* Searching one built-in profile is noise; offer it once there is a library. */}
+        {(savedCount > 0 || profileSearch) && (
+          <div className="relative mb-[var(--space-3)] flex items-center [&>.app-icon]:pointer-events-none [&>.app-icon]:absolute [&>.app-icon]:left-3 [&>.app-icon]:w-4 [&>.app-icon]:text-[var(--muted-foreground)] [&_button]:absolute [&_button]:right-0 [&_input::-webkit-search-cancel-button]:hidden">
+            <Icon name="search" />
+            <Input
+              aria-label={t("mobileProfilesView.searchProfiles")}
+              className="pl-9 pr-11 text-base"
+              placeholder={t("mobileProfilesView.searchPlaceholder")}
+              value={profileSearch}
+              onChange={(event) => setProfileSearch(event.target.value)}
+              type="search"
+            />
+            {profileSearch && (
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={t("mobileProfilesView.clearProfileSearch")}
+                onClick={() => setProfileSearch("")}
+              >
+                <Icon name="close" />
+              </Button>
+            )}
+          </div>
+        )}
 
         {dacBanks}
         {dacBanks && (
