@@ -772,7 +772,7 @@ export const DeviceView = memo(function DeviceView({
                     </span>
                   </div>
                   <div className="stack-pref-control">
-                    <div className="leg:flex-[0_1_240px] leg:w-[min(240px,_60%)] leg:min-w-[190px] leg:compact:[.mobile-workspace_.stack-pref-row.select-row_&]:w-[100%]! leg:compact:[.mobile-workspace_.stack-pref-row.select-row_&]:min-w-[100%]! leg:compact:[.mobile-workspace_.stack-pref-row.select-row_&]:flex-[1_1_100%]! cmp:[.configuration-layout_&]:w-[240px] cmp:[.configuration-layout_&]:max-w-[100%] cmp:max-[1050px]:[.configuration-layout_&&]:w-[100%]">
+                    <div className="leg:flex-[0_1_240px] leg:w-[min(240px,_60%)] leg:min-w-[190px] leg:compact:[.mobile-workspace_.stack-pref-row.select-row_&]:w-[100%]! leg:compact:[.mobile-workspace_.stack-pref-row.select-row_&]:min-w-[100%]! leg:compact:[.mobile-workspace_.stack-pref-row.select-row_&]:flex-[1_1_100%]! cmp:[.configuration-layout_&]:w-[320px] cmp:[.configuration-layout_&]:max-w-[100%] cmp:max-[1050px]:[.configuration-layout_&&]:w-[100%]">
                       <Select
                         id="utility-filter-select"
                         value={utility.filter_mode}

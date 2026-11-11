@@ -32,6 +32,12 @@ export function MobileWorkspace({
         id="workspace-content"
         tabIndex={-1}
         ref={scrollRef}
+        onScroll={(event) =>
+          event.currentTarget.toggleAttribute(
+            "data-scrolled",
+            event.currentTarget.scrollTop > 0,
+          )
+        }
         className={`workspace mobile-workspace leg:[scrollbar-width:none]! leg:[-ms-overflow-style:none]! cmp:compact:[.keyboard-open_&]:[scroll-padding-bottom:var(--space-4)] cmp:compact:[scroll-padding-bottom:calc(var(--tabbar-h)_+_var(--safe-area-bottom,_0px)_+_var(--space-4))] ${saveBar ? " has-save-bar" : ""}`}
         aria-label={title}
       >
