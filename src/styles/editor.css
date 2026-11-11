@@ -175,7 +175,7 @@
 
 .control-slider-input {
   --slider-track: color-mix(in srgb, var(--muted-foreground) 30%, transparent);
-  --slider-fill: color-mix(in srgb, var(--slider-thumb, var(--blue)) 65%, transparent);
+  --slider-fill: color-mix(in srgb, var(--muted-foreground) 60%, transparent);
 }
 
 .control-slider {

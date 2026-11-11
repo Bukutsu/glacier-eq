@@ -448,7 +448,7 @@ export const ProfilesView = memo(function ProfilesView({
 
   return (
     <div className="profiles-workspace cmp:grid cmp:grid-cols-[minmax(0,_1.4fr)_minmax(300px,_1fr)] cmp:[align-items:start] cmp:gap-[var(--space-5)] cmp:w-[100%] cmp:min-w-[0] cmp:max-[1000px]:grid-cols-[minmax(0,_1fr)]">
-      <section className="cmp:min-w-[0] cmp:p-[var(--space-5)] cmp:[border:1px_solid_var(--line-soft)] cmp:rounded-[var(--radius-card)] cmp:[background:var(--panel)] cmp:box-border cmp:compact:p-[var(--space-4)]" aria-labelledby="profiles-title">
+      <section className="cmp:min-w-[0] cmp:p-[var(--space-4)] cmp:[border:1px_solid_var(--line-soft)] cmp:rounded-[var(--radius-card)] cmp:[background:var(--panel)] cmp:box-border cmp:compact:p-[var(--space-4)]" aria-labelledby="profiles-title">
         <header className="profiles-header cmp:flex cmp:items-center cmp:justify-between cmp:flex-wrap cmp:gap-[var(--space-3)] cmp:mb-[var(--space-4)]">
           <div className="cmp:flex cmp:items-baseline cmp:gap-[var(--space-2)]">
             <h2 id="profiles-title">{t("profilesView.library")}</h2>
@@ -685,7 +685,7 @@ export const ProfilesView = memo(function ProfilesView({
       </section>
 
       <section
-        className="cmp:min-w-[0] cmp:p-[var(--space-5)] cmp:[border:1px_solid_var(--line-soft)] cmp:rounded-[var(--radius-card)] cmp:[background:var(--panel)] cmp:box-border cmp:compact:p-[var(--space-4)] cmp:compact:[.mobile-workspace_&]:p-[var(--space-3)] cmp:compact:[.mobile-workspace_&]:gap-[var(--space-2)]"
+        className="cmp:min-w-[0] cmp:p-[var(--space-4)] cmp:[border:1px_solid_var(--line-soft)] cmp:rounded-[var(--radius-card)] cmp:[background:var(--panel)] cmp:box-border cmp:compact:p-[var(--space-4)] cmp:compact:[.mobile-workspace_&]:p-[var(--space-3)] cmp:compact:[.mobile-workspace_&]:gap-[var(--space-2)]"
         aria-labelledby="profiles-editor-title"
       >
         <header className="cmp:flex cmp:items-center cmp:justify-between cmp:gap-[var(--space-2)] cmp:mb-[var(--space-3)]">

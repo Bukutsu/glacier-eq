@@ -171,5 +171,12 @@
 }
 
 /* Page titles sit at the EQ header's title line on every tab. */
-.mobile-workspace > .mobile-page-title { padding-top: 19px; }
+.mobile-workspace > .mobile-page-title { padding-top: 19px; padding-bottom: var(--space-3); }
 .mobile-workspace:not(:has(.mobile-graph-container)) > .mobile-page-title { padding-top: 11px; }
+
+/* Header actions: one 40px row height, so the action never outweighs the
+   page title. */
+@media (max-width: 850px), ((max-height: 540px) and (pointer: coarse)) {
+  .app-header .mobile-action-btn { min-height: 40px !important; height: 40px; padding-inline: 14px !important; font-size: 14px; }
+  .app-header .mobile-toolbar > button:not(.mobile-action-btn) { width: 40px !important; height: 40px !important; min-width: 40px !important; min-height: 40px !important; }
+}
