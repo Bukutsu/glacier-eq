@@ -50,8 +50,8 @@
   .mobile-workspace .mobile-filter-card .control-slider { width: 100%; min-height: 44px; }
   .mobile-workspace .band-picker button {
     min-height: 48px;
-    min-width: 44px;
-    padding-inline: var(--space-1);
+    min-width: 40px;
+    padding-inline: 2px;
     border: 1px solid transparent;
     border-radius: var(--control-radius);
     background: transparent;
@@ -179,6 +179,7 @@
    page title. */
 @media (max-width: 850px), ((max-height: 540px) and (pointer: coarse)) {
   .app-header .mobile-action-btn { min-height: 40px !important; height: 40px; padding-inline: 14px !important; font-size: 14px; }
+  .app-header .mobile-history-buttons button { height: 36px !important; min-height: 36px !important; }
   .app-header .mobile-toolbar > button:not(.mobile-action-btn) { width: 40px !important; height: 40px !important; min-width: 40px !important; min-height: 40px !important; }
 }
 

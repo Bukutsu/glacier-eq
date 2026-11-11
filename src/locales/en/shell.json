@@ -29,7 +29,7 @@
     "profileModified": "Profile: modified",
     "profileSaved": "Profile: saved",
     "offlineEditing": "Offline editing",
-    "simulatedDevice": "Simulated device; no hardware changes",
+    "simulatedDevice": "Simulation",
     "noHardware": "This DAC has no hardware EQ",
     "saved": "Saved to DAC",
     "saveOnPause": "Saves to DAC when you pause",

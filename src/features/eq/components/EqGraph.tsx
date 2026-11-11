@@ -53,7 +53,7 @@ const GRAPH_DBS = [-18, -12, -6, 0, 6, 12, 18];
  * them. "Minor" ticks drop out on the short mobile graph. */
 const AXIS_DBS = [12, 6, 0, -6, -12];
 const AXIS_FREQS = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
-const MAJOR_FREQS = new Set([20, 100, 1000, 10000, 20000]);
+const MAJOR_FREQS = new Set([20, 100, 1000, 10000]);
 
 function formatDb(db: number): string {
   return db > 0 ? "+" + db : db < 0 ? "−" + -db : "0";

@@ -378,7 +378,7 @@
 
 /* Narrow plots (Profiles preview, phones) keep only the decade labels. */
 @container (max-width: 560px) {
-  .graph-axis .graph-axis-freq.minor { display: none; }
+  .graph-axis :is(.graph-axis-freq.minor, .graph-axis-unit-hz) { display: none; }
 }
 
 /* Desktop: collapsing filter bands keeps the header row and band chips in

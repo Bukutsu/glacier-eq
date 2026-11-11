@@ -29,7 +29,7 @@
     "profileModified": "โปรไฟล์: มีการแก้ไข",
     "profileSaved": "โปรไฟล์: บันทึกแล้ว",
     "offlineEditing": "การแก้ไขแบบออฟไลน์",
-    "simulatedDevice": "อุปกรณ์จำลอง ไม่มีการเปลี่ยนแปลงฮาร์ดแวร์",
+    "simulatedDevice": "การจำลอง",
     "noHardware": "DAC นี้ไม่มี EQ ในฮาร์ดแวร์",
     "saved": "บันทึกลง DAC แล้ว",
     "saveOnPause": "บันทึกลง DAC เมื่อหยุดปรับ",

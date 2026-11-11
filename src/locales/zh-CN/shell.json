@@ -29,7 +29,7 @@
     "profileModified": "配置：已修改",
     "profileSaved": "配置：已保存",
     "offlineEditing": "离线编辑",
-    "simulatedDevice": "模拟设备；不会更改硬件",
+    "simulatedDevice": "模拟",
     "noHardware": "此 DAC 无硬件 EQ",
     "saved": "已保存至 DAC",
     "saveOnPause": "停止编辑后保存至 DAC",

@@ -29,7 +29,7 @@
     "profileModified": "プロファイル: 変更あり",
     "profileSaved": "プロファイル: 保存済み",
     "offlineEditing": "オフライン編集",
-    "simulatedDevice": "シミュレーションデバイス。実機への変更はありません",
+    "simulatedDevice": "シミュレーション",
     "noHardware": "このDACにはハードウェアEQがありません",
     "saved": "DACに保存済み",
     "saveOnPause": "操作を止めるとDACに保存",
