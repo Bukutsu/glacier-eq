@@ -396,3 +396,11 @@
 @media (prefers-reduced-motion: reduce) {
   .bands-container .mobile-filter-card { animation: none; }
 }
+
+/* The section header is a whole-row toggle: hover brightens its count and
+   chevron rather than painting a block that stops where the chips begin. */
+.bands-container .bands-section-header .collapse-toggle-btn {
+  color: var(--muted-foreground);
+  transition: color var(--motion-duration) var(--motion-ease);
+}
+.bands-container .bands-section-header:hover .collapse-toggle-btn { color: var(--foreground); }
