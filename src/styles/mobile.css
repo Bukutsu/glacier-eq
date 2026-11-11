@@ -58,7 +58,6 @@
   .mobile-workspace .band-picker button.active {
     background: var(--surface-soft);
     border-color: transparent;
-    box-shadow: inset 0 -2px 0 var(--filter-color, var(--primary));
   }
   /* Legend and A/B sit before show/hide; on narrow screens show/hide drops
      its words (the button keeps its accessible name). */

@@ -274,18 +274,12 @@
   font-size: var(--type-micro);
 }
 
-.band-picker button:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--surface-soft) 55%, transparent);
-}
-
-/* Selected: the band's own colour underlines it, so a hovered chip never
-   reads as a second selection. */
-.band-picker button.active,
-.band-picker button.active:hover {
+/* Hover only lifts the text, so a hovered chip never reads as a second
+   selection; the selected chip alone gets the quiet fill. */
+.band-picker button:hover:not(:disabled) { color: var(--text); }
+.band-picker button.active {
   color: var(--text);
   background: var(--surface-soft);
-  border-color: transparent;
-  box-shadow: inset 0 -2px 0 var(--filter-color, var(--primary));
 }
 .band-picker button span { font-size: var(--type-caption); }
 
@@ -385,4 +379,20 @@
 /* Narrow plots (Profiles preview, phones) keep only the decade labels. */
 @container (max-width: 560px) {
   .graph-axis .graph-axis-freq.minor { display: none; }
+}
+
+/* Desktop: collapsing filter bands keeps the header row and band chips in
+   place and folds away only the band editor beneath them. */
+@media (min-width: 851px) and ((min-height: 541px) or (pointer: fine)) {
+  .bands-container.collapsed .band-picker { border-bottom-color: transparent; }
+  .bands-container.collapsed .mobile-filter-card { display: none; }
+  .bands-container:not(.collapsed) .mobile-filter-card {
+    animation: band-editor-in var(--motion-duration) var(--motion-ease);
+  }
+}
+@keyframes band-editor-in {
+  from { opacity: 0; transform: translateY(-4px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bands-container .mobile-filter-card { animation: none; }
 }

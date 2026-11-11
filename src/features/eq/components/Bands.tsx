@@ -219,7 +219,7 @@ export const Bands = memo(function Bands({
   };
 
   return (
-    <div className={`bands-container roomy:[&:not(.collapsed):has(.band-picker)]:grid roomy:grid-cols-[auto_minmax(0,_1fr)] roomy:[&>*]:col-[1/-1] roomy:[container-type:inline-size] roomy:[background:var(--panel)] leg:flex leg:flex-col leg:gap-[0] leg:[border:1px_solid_var(--line-soft)] leg:rounded-[var(--radius-card)] leg:overflow-hidden leg:shrink-0 leg:compact:[.mobile-workspace_&]:rounded-[0]! leg:compact:[.mobile-workspace_&]:[border-inline:0]! cmp:compact:[.mobile-workspace_&]:[overflow:clip] leg:compact:[.mobile-workspace:has(.mobile-graph-container)_&]:[border-top:0]! ${collapsed ? " collapsed" : ""}`}>
+    <div className={`bands-container roomy:[&:has(.band-picker)]:grid roomy:grid-cols-[auto_minmax(0,_1fr)] roomy:[&>*]:col-[1/-1] roomy:[container-type:inline-size] roomy:[background:var(--panel)] leg:flex leg:flex-col leg:gap-[0] leg:[border:1px_solid_var(--line-soft)] leg:rounded-[var(--radius-card)] leg:overflow-hidden leg:shrink-0 leg:compact:[.mobile-workspace_&]:rounded-[0]! leg:compact:[.mobile-workspace_&]:[border-inline:0]! cmp:compact:[.mobile-workspace_&]:[overflow:clip] leg:compact:[.mobile-workspace:has(.mobile-graph-container)_&]:[border-top:0]! ${collapsed ? " collapsed" : ""}`}>
       <button
         type="button"
         className="bands-section-header [.bands-container.collapsed>&]:border-b-0 roomy:[&&]:col-[1] roomy:h-auto roomy:min-h-[48px] roomy:gap-[var(--space-3)] leg:w-[100%] leg:h-[48px] leg:p-[0_16px] leg:[background:var(--panel)] leg:flex leg:justify-between leg:items-center leg:select-none leg:text-[color:inherit] leg:cursor-pointer leg:[border:none] leg:[&&]:[border-bottom:1px_solid_var(--line-soft)] leg:text-left leg:[transition:background_var(--motion-duration)_var(--motion-ease)] leg:[&:hover]:[background:var(--surface-soft)] leg:compact:hidden"
@@ -287,7 +287,7 @@ export const Bands = memo(function Bands({
         </div>
       )}
       {selectedFilter && (
-        <section className="bands-mobile-editor roomy:[.bands-container:not(.collapsed)_&]:contents leg:flex leg:flex-col leg:gap-[0] leg:[background:transparent] leg:[container-type:inline-size] leg:[.bands-container.collapsed_&]:hidden">
+        <section className="bands-mobile-editor roomy:contents leg:flex leg:flex-col leg:gap-[0] leg:[background:transparent] leg:[container-type:inline-size] leg:[.bands-container.collapsed_&]:hidden">
           <div
             className="band-picker roomy:py-[var(--space-2)] roomy:pl-0 leg:grid leg:grid-cols-[minmax(0,_1fr)_auto] leg:gap-[var(--space-2)] leg:min-w-[0] leg:p-[var(--space-3)_var(--space-4)] leg:[border-bottom:1px_solid_var(--line-soft)] cmp:compact:[.mobile-workspace_&]:p-[var(--space-2)_var(--space-3)]"
             role="group"
