@@ -186,3 +186,19 @@
   .app-header .mobile-toolbar > button:not(.mobile-action-btn) { width: 40px !important; height: 40px !important; min-width: 40px !important; min-height: 40px !important; }
 }
 
+
+@media (max-width: 850px), ((max-height: 540px) and (pointer: coarse)) {
+  /* A disabled Generate has nothing to offer from a pinned footer; it sits
+     in the flow instead of covering the fields above it. */
+  .mobile-workspace .tuning-generate-bar:has(> button:disabled) { position: static !important; }
+  /* Icon-only add chip: the strip keeps room for one more band. */
+  .mobile-workspace .band-picker .add-filter-chip > span { display: none; }
+  /* The chevron alone says show/hide; the button keeps its accessible name. */
+  .mobile-workspace .graph-collapse-btn > span {
+    position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+  }
+  /* One glyph size across the app bar. */
+  .app-header .app-icon { width: 18px; height: 18px; }
+  /* Tab labels clear the bottom edge. */
+  .mobile-tab-item { padding-bottom: 4px; }
+}

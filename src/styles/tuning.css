@@ -77,7 +77,3 @@
 
 /* Room between the advanced disclosure and the Generate action. */
 .tuning-panel .tuning-advanced { margin-bottom: var(--space-2); }
-
-/* A disabled Generate has nothing to offer from a pinned footer; let it sit
-   in the flow instead of covering the fields above it. */
-.mobile-workspace .tuning-generate:has(> button:disabled) { position: static; }

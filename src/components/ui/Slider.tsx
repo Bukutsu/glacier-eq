@@ -42,9 +42,8 @@ export function Slider({
     "--slider-fill-end": `${Math.max(origin, position)}%`,
     "--slider-zero": `${origin}%`,
     ...style,
-    // Thumb matches the band's --filter-color where present (band rows set it),
-    // falling back to blue elsewhere.
-    "--slider-thumb": "var(--filter-color, var(--blue))",
+    // One accent thumb everywhere; band identity lives in the chips and dots.
+    "--slider-thumb": "var(--blue)",
   };
 
   const gesture = useRef<{
