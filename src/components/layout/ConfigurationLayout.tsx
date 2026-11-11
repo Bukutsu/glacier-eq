@@ -83,7 +83,7 @@ export function ConfigurationLayout({
               {groups
                 .filter((group) => group.length)
                 .map((group, index) => (
-                  <div className="cmp:compact:overflow-hidden cmp:compact:[background:var(--card)] cmp:compact:[border:1px_solid_var(--border)] cmp:compact:rounded-[16px]" key={index}>
+                  <div className="cmp:compact:overflow-hidden cmp:compact:[background:var(--card)] cmp:compact:[border:1px_solid_var(--border)] cmp:compact:rounded-[var(--radius-card)]" key={index}>
                     {group.map((section) => (
                       <Link
                         key={section.id}

@@ -335,7 +335,7 @@ export function TuningPanel(props: TuningPanelProps) {
           </Collapsible>
         </fieldset>
 
-        <div className="leg:flex leg:flex-col leg:gap-[var(--space-2)] cmp:compact:[.mobile-workspace_&]:sticky cmp:compact:[.mobile-workspace_&]:bottom-[0] cmp:compact:[.mobile-workspace_&]:z-[var(--z-sticky)] cmp:compact:[.mobile-workspace_&]:p-[var(--space-4)_0_var(--space-2)] cmp:compact:[.mobile-workspace_&]:[background:var(--bg)] cmp:compact:[.mobile-workspace_&]:[border-top:1px_solid_var(--border)] cmp:compact:[.mobile-workspace.has-save-bar_&]:bottom-[60px] cmp:compact:[.keyboard-open_&&]:bottom-[var(--space-2)]">
+        <div className="tuning-generate leg:flex leg:flex-col leg:gap-[var(--space-2)] cmp:compact:[.mobile-workspace_&]:sticky cmp:compact:[.mobile-workspace_&]:bottom-[0] cmp:compact:[.mobile-workspace_&]:z-[var(--z-sticky)] cmp:compact:[.mobile-workspace_&]:p-[var(--space-4)_0_var(--space-2)] cmp:compact:[.mobile-workspace_&]:[background:var(--bg)] cmp:compact:[.mobile-workspace_&]:[border-top:1px_solid_var(--border)] cmp:compact:[.mobile-workspace.has-save-bar_&]:bottom-[60px] cmp:compact:[.keyboard-open_&&]:bottom-[var(--space-2)]">
           <Button
             type="submit"
             variant="primary"

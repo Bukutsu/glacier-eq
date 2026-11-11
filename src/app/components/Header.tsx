@@ -409,7 +409,7 @@ export const Header = memo(function Header({
                     onClick={onPush}
                     disabled={isBusy}
                   >
-                    <Icon name="save" /> {saveLabel ?? t("header.save")}
+                    <Icon name="save" /> {saveLabel ?? t("header.write")}
                   </Button>
                 )}
                 <ConnectionActions

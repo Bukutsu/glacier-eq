@@ -1286,12 +1286,15 @@ function paintFilterDots(
       Number(a.index === activeBandIndex) - Number(b.index === activeBandIndex),
   );
 
+  // Phone-sized plots have no room for numerals on every dot: plain dots
+  // there, with the number kept on the selected band.
+  const narrow = ctx.canvas.clientWidth < 560;
   for (const { index, x, y } of ordered) {
     const active = index === activeBandIndex;
     const [token, , fallback] = filterColorVars(index);
 
     ctx.beginPath();
-    ctx.arc(x, y, active ? 8 : 6, 0, Math.PI * 2);
+    ctx.arc(x, y, active ? 8 : narrow ? 4 : 6, 0, Math.PI * 2);
     ctx.fillStyle = cssVar(token, fallback);
     ctx.fill();
     ctx.lineWidth = 2;
@@ -1304,6 +1307,7 @@ function paintFilterDots(
       ctx.stroke();
     }
 
+    if (narrow && !active) continue;
     ctx.fillStyle = text;
     ctx.font = `${active ? 11 : 10}px ${cssVar("--font-mono", "ui-monospace")}`;
     ctx.textAlign = "center";
