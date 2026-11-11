@@ -252,7 +252,9 @@ export const Header = memo(function Header({
               role="status"
               aria-live="polite"
             >
-              {mobile ? mobileSyncText : syncText}
+              <span className="min-w-0 truncate">
+                {mobile ? mobileSyncText : syncText}
+              </span>
             </span>
             {liveApply && connected && hardwareEq && !isConfigPage && (
               <span

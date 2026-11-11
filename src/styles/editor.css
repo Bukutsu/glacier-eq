@@ -336,7 +336,7 @@
 .graph-axis > span {
   position: absolute;
   color: var(--muted-foreground);
-  font: 500 10.5px/1 var(--font-mono);
+  font: 500 11px/1 var(--font-mono);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   pointer-events: none;
