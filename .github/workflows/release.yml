@@ -137,13 +137,38 @@ jobs:
       - name: Verify Rust
         run: npm run verify:rust
 
+  frontend:
+    name: Build shared desktop frontend
+    needs: [check-tag]
+    runs-on: ubuntu-22.04
+    if: startsWith(github.ref, 'refs/tags/')
+    timeout-minutes: 15
+    env:
+      VITE_APP_VERSION: ${{ needs.check-tag.outputs.release-version }}
+      GLACIER_EQ_RELEASE_VERSION: ${{ needs.check-tag.outputs.release-version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: lts/*
+          cache: npm
+      - run: npm ci
+      - name: Build frontend once for every desktop target
+        run: npm run build:desktop
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: glacier-eq-desktop-frontend
+          path: dist
+          if-no-files-found: error
+          retention-days: 1
+
   desktop:
     name: Desktop build (${{ matrix.name }})
     # Deliberately not gated on `verify`: the builds already run in parallel, so
     # waiting for a 4-minute gate only adds its duration to the critical path.
     # `release` below requires `verify` too, so nothing is published unless the
     # gate passed.
-    needs: [check-tag]
+    needs: [check-tag, frontend]
     runs-on: ${{ matrix.os }}
     if: startsWith(github.ref, 'refs/tags/')
     timeout-minutes: 60
@@ -160,9 +185,13 @@ jobs:
             rust-targets: ""
             required-assets: "linux-x64"
           - name: windows-x64
-            os: windows-latest
-            args: "--bundles nsis,msi"
-            rust-targets: ""
+            # Tauri supports cross-compiling Windows NSIS installers from Linux.
+            # MSI remains Windows-only (WiX), so this removes an entire hosted
+            # Windows build while keeping the updater-capable installer.
+            os: ubuntu-22.04
+            args: "--bundles nsis --target x86_64-pc-windows-msvc --runner cargo-xwin"
+            rust-targets: "x86_64-pc-windows-msvc"
+            cross-windows: true
             required-assets: "windows-x64"
           - name: macos-apple-silicon
             os: macos-latest
@@ -184,7 +213,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
       - name: Install Linux Tauri dependencies
-        if: matrix.os == 'ubuntu-22.04'
+        if: matrix.name == 'linux-x64'
         run: |
           sudo apt-get update
           # zsync provides zsyncmake, which writes the AppImage's .zsync file;
@@ -199,8 +228,31 @@ jobs:
             zsync \
             appstream
 
+      - name: Install Windows cross-build dependencies
+        if: matrix.cross-windows == true
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends clang lld llvm nsis zip
+
+      - name: Cache cargo-xwin and Windows SDK
+        if: matrix.cross-windows == true
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+          path: |
+            ~/.cargo/bin/cargo-xwin
+            ~/.xwin
+          key: cargo-xwin-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            cargo-xwin-${{ runner.os }}-
+
+      - name: Install cargo-xwin
+        if: matrix.cross-windows == true
+        run: |
+          echo "XWIN_CACHE_DIR=$HOME/.xwin" >> "$GITHUB_ENV"
+          command -v cargo-xwin >/dev/null || cargo install --locked cargo-xwin
+
       - name: Seed modern linuxdeploy (excludes stale libwayland-client)
-        if: matrix.os == 'ubuntu-22.04'
+        if: matrix.name == 'linux-x64'
         run: |
           set -euo pipefail
           cache_dir="$HOME/.cache/tauri"
@@ -232,6 +284,12 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      - name: Download shared desktop frontend
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: glacier-eq-desktop-frontend
+          path: dist
+
       - name: Write release version config
         shell: bash
         env:
@@ -239,8 +297,9 @@ jobs:
         run: |
           set -euo pipefail
           # createUpdaterArtifacts lives here, not in tauri.conf.json, so local
-          # and test builds do not need the updater signing key.
-          printf '{"version":"%s","bundle":{"createUpdaterArtifacts":true}}\n' "$RELEASE_VERSION" > release-config.json
+          # and test builds do not need the updater signing key. The frontend is
+          # built once by the shared frontend job, so every target reuses it.
+          printf '{"version":"%s","build":{"beforeBuildCommand":""},"bundle":{"createUpdaterArtifacts":true}}\n' "$RELEASE_VERSION" > release-config.json
 
       - name: Check release signing credentials
         id: signing
@@ -303,7 +362,7 @@ jobs:
           fi
 
       - name: Build Linux app
-        if: matrix.os == 'ubuntu-22.04'
+        if: matrix.name == 'linux-x64'
         # NOTE: no GITHUB_TOKEN here on purpose. tauri-action would otherwise
         # create its own release (per matrix OS) and collide with the single
         # release published by the `release` job below. It only builds here;
@@ -328,7 +387,7 @@ jobs:
           retryAttempts: 1
 
       - name: Verify AppImage contents and metadata
-        if: matrix.os == 'ubuntu-22.04'
+        if: matrix.name == 'linux-x64'
         run: |
           set -euo pipefail
           appimage=$(find target -path '*/bundle/appimage/*.AppImage' -print -quit 2>/dev/null || true)
@@ -367,7 +426,7 @@ jobs:
           echo "✅ Verified: X-AppImage-Version, update information, and AppStream metainfo"
 
       - name: Build signed app
-        if: matrix.os != 'ubuntu-22.04' && steps.signing.outputs.signed == 'true'
+        if: matrix.cross-windows != true && matrix.os != 'ubuntu-22.04' && steps.signing.outputs.signed == 'true'
         uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
@@ -387,7 +446,7 @@ jobs:
           retryAttempts: 1
 
       - name: Build unsigned app
-        if: matrix.os != 'ubuntu-22.04' && steps.signing.outputs.signed != 'true'
+        if: matrix.cross-windows == true || (matrix.os != 'ubuntu-22.04' && steps.signing.outputs.signed != 'true')
         uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -463,18 +522,18 @@ jobs:
       # already be installed on the target machine (default on Windows 10/11).
       - name: Package Windows portable build
         if: matrix.name == 'windows-x64'
-        shell: pwsh
+        shell: bash
         run: |
-          $ErrorActionPreference = 'Stop'
-          $exe = 'target/release/glacier-eq.exe'
-          if (-not (Test-Path $exe)) { throw "Missing $exe" }
-          $dir = 'portable/Glacier-EQ'
-          New-Item -ItemType Directory -Force $dir | Out-Null
-          Copy-Item $exe "$dir/Glacier-EQ.exe"
-          Copy-Item LICENSE $dir
-          $zip = "release-assets/glacier-eq_v${{ needs.check-tag.outputs.release-version }}_windows-x64-portable.zip"
-          Compress-Archive -Path $dir -DestinationPath $zip
-          Get-Item $zip
+          set -euo pipefail
+          exe=$(find target -path '*/release/glacier-eq.exe' -print -quit)
+          test -n "$exe" || { echo "Missing Windows executable" >&2; exit 1; }
+          dir='portable/Glacier-EQ'
+          mkdir -p "$dir"
+          cp "$exe" "$dir/Glacier-EQ.exe"
+          cp LICENSE "$dir/"
+          zip="release-assets/glacier-eq_v${{ needs.check-tag.outputs.release-version }}_windows-x64-portable.zip"
+          (cd portable && zip -qr "../$zip" Glacier-EQ)
+          ls -lh "$zip"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -487,7 +546,7 @@ jobs:
   android:
     name: Android APK
     # Overlaps the verify gate on purpose; see the note on `desktop`.
-    needs: [check-tag]
+    needs: [check-tag, frontend]
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-22.04
     timeout-minutes: 30
@@ -561,6 +620,12 @@ jobs:
 
       - run: npm ci
 
+      - name: Download shared desktop frontend
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: glacier-eq-desktop-frontend
+          path: dist
+
       - name: Verify Cargo lock is current
         run: cargo metadata --locked --no-deps
 
@@ -632,7 +697,7 @@ jobs:
             exit 1
           fi
           version_code=$(( major*1000000 + minor*10000 + patch*100 + prerelease_code ))
-          android_config=$(printf '{"version":"%s","bundle":{"android":{"versionCode":%s}}}' \
+          android_config=$(printf '{"version":"%s","build":{"beforeBuildCommand":""},"bundle":{"android":{"versionCode":%s}}}' \
             "$raw_version" "$version_code")
           echo "config=$android_config" >> "$GITHUB_OUTPUT"
           echo "version_code=$version_code" >> "$GITHUB_OUTPUT"
@@ -756,7 +821,6 @@ jobs:
           require_glob "Linux RPM" 'artifacts/*.rpm'
           require_glob "Linux AppImage" 'artifacts/*.AppImage'
           require_glob "Linux AppImage zsync" 'artifacts/*.AppImage.zsync'
-          require_glob "Windows MSI" 'artifacts/*.msi'
           require_glob "Windows EXE" 'artifacts/*.exe'
           require_glob "Windows portable ZIP" 'artifacts/*windows-x64-portable.zip'
           require_glob "macOS Apple Silicon DMG" 'artifacts/*aarch64*.dmg'
@@ -768,7 +832,6 @@ jobs:
           # The in-app updater only installs signed payloads.
           require_glob "Linux AppImage signature" 'artifacts/*.AppImage.sig'
           require_glob "Windows NSIS signature" 'artifacts/*-setup.exe.sig'
-          require_glob "Windows MSI signature" 'artifacts/*.msi.sig'
           require_glob "macOS updater archives" 'artifacts/*macos-*.app.tar.gz.sig'
 
           echo "✅ All expected OS release assets are present."

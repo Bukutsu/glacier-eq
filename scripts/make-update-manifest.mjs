@@ -2,7 +2,7 @@
 // Builds the Tauri updater manifest (latest.json) from a directory of release
 // assets. The app fetches it from
 //   https://github.com/<repo>/releases/latest/download/latest.json
-// so it goes live exactly when the maintainer publishes the draft release.
+// so it goes live exactly when the release workflow publishes the release.
 //
 // Usage: make-update-manifest.mjs <assets-dir> <version> <tag> <owner/repo> [notes-file]
 
@@ -17,7 +17,6 @@ import { pathToFileURL } from "node:url";
 export const TARGETS = [
   ["linux-x86_64-appimage", /\.AppImage$/],
   ["windows-x86_64-nsis", /-setup\.exe$/],
-  ["windows-x86_64-msi", /\.msi$/],
   ["darwin-aarch64-app", /_macos-aarch64\.app\.tar\.gz$/],
   ["darwin-x86_64-app", /_macos-x86_64\.app\.tar\.gz$/],
 ];
