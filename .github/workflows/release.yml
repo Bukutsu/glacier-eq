@@ -107,13 +107,22 @@ jobs:
 
       - name: Restore shared Node dependencies
         id: node-cache
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: node_modules
           key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - name: Install frontend dependencies on cache miss
         if: steps.node-cache.outputs.cache-hit != 'true'
         run: npm ci
+
+      - name: Enable shared Rust compiler cache
+        uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba
+        with:
+          version: v0.16.0
+      - name: Configure Rust compiler cache
+        run: |
+          echo 'RUSTC_WRAPPER=sccache' >> "$GITHUB_ENV"
+          echo 'SCCACHE_GHA_ENABLED=true' >> "$GITHUB_ENV"
 
       # A present but mismatched private key would make every update signature
       # unusable by installed apps. Sign a throwaway challenge and verify it
@@ -329,6 +338,15 @@ jobs:
       - name: Install frontend dependencies on cache miss
         if: steps.node-cache.outputs.cache-hit != 'true'
         run: npm ci
+
+      - name: Enable shared Rust compiler cache
+        uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba
+        with:
+          version: v0.16.0
+      - name: Configure Rust compiler cache
+        run: |
+          echo 'RUSTC_WRAPPER=sccache' >> "$GITHUB_ENV"
+          echo 'SCCACHE_GHA_ENABLED=true' >> "$GITHUB_ENV"
 
       - name: Download shared desktop frontend
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
@@ -688,6 +706,15 @@ jobs:
       - name: Install frontend dependencies on cache miss
         if: steps.node-cache.outputs.cache-hit != 'true'
         run: npm ci
+
+      - name: Enable shared Rust compiler cache
+        uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba
+        with:
+          version: v0.16.0
+      - name: Configure Rust compiler cache
+        run: |
+          echo 'RUSTC_WRAPPER=sccache' >> "$GITHUB_ENV"
+          echo 'SCCACHE_GHA_ENABLED=true' >> "$GITHUB_ENV"
 
       - name: Download shared desktop frontend
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
