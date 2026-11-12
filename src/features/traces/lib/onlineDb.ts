@@ -6,6 +6,7 @@ import type { MeasurementPoint } from "@/types";
 import { useToastStore } from "@/stores/toastStore";
 import { normalizeMeasurementPoints } from "./measurements";
 import {
+  buildOnlineDeviceIndex,
   parseOnlineCurves,
   parseOnlineCurveValues,
   parseOnlineFrequencies,
@@ -13,7 +14,11 @@ import {
 } from "./onlineDbParsers";
 
 const DB_NAME = "glacier-eq-online";
-const DB_VERSION = 1;
+// Version 2 replaced the stored device index: it is built from the curve
+// file, while version 1 stored upstream's device manifest, which lists
+// devices that have no curve. A version 1 cache is wiped on upgrade instead
+// of serving an index whose entries cannot be loaded.
+const DB_VERSION = 2;
 const STORE_NAME = "curves";
 const MAX_DATABASE_BYTES = 64 * 1024 * 1024;
 
@@ -99,7 +104,12 @@ function requestOpenDb(slot: {
       const db = request.result;
       if (!db.objectStoreNames.contains(STORE_NAME)) {
         db.createObjectStore(STORE_NAME);
+        return;
       }
+      // The version change transaction is the only one that can touch the
+      // store while it is being upgraded: a transaction opened on the
+      // connection would queue behind it and never run.
+      request.transaction?.objectStore(STORE_NAME).clear();
     };
   });
 }
@@ -597,33 +607,20 @@ async function downloadDatabaseWithDb(
   db: IDBDatabase,
 ): Promise<DownloadResult> {
   onProgress(0.05);
-  // Validate both third-party payloads before touching any cached record —
-  // a failed or cancelled fetch below must leave the previous cache usable.
-  const manifest = parseOnlineManifest(
-    await fetchJson(
-      "https://raw.githubusercontent.com/PEQHUB/Squig-Rank/main/public/data/manifest.json",
-      undefined,
-      signal,
-    ),
-  );
-
-  onProgress(0.15);
-
+  // Validate the third-party payload before touching any cached record — a
+  // failed or cancelled fetch below must leave the previous cache usable.
   const database = parseOnlineCurves(
     await fetchJson(
       "https://raw.githubusercontent.com/PEQHUB/Squig-Rank/main/public/data/curves.json",
-      (p) => onProgress(0.15 + p * 0.7),
+      (p) => onProgress(0.05 + p * 0.8),
       signal,
     ),
   );
 
-  // Independent successful HTTP responses can come from different upstream
-  // revisions. Do not replace a working cache with entries that cannot load.
-  for (const id of Object.keys(manifest.iems)) {
-    if (!Object.prototype.hasOwnProperty.call(database.curves, id)) {
-      throw new Error(i18n.t("library:onlineDb.incompleteDatabase"));
-    }
-  }
+  // The searchable index is the curve file itself, so every device the app
+  // offers has a curve to load and the cache cannot be left holding entries
+  // that cannot be read.
+  const devices = buildOnlineDeviceIndex(database);
 
   // Readers follow meta:gen to a complete generation. This download writes a
   // NEW generation alongside the live one and publishes it — meta:gen plus
@@ -636,7 +633,7 @@ async function downloadDatabaseWithDb(
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readwrite");
     const store = tx.objectStore(STORE_NAME);
-    store.put(manifest, generationKey(generation, "meta:manifest"));
+    store.put(devices, generationKey(generation, "meta:manifest"));
     store.put(
       database.frequencies,
       generationKey(generation, "meta:frequencies"),

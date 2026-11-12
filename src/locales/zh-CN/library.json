@@ -346,7 +346,6 @@
     "invalidDb": "测量归一化产生了非有限 dB 值"
   },
   "onlineDb": {
-    "incompleteDatabase": "在线数据库不完整。请尝试重新下载。",
     "databaseLockedByAnotherWindow": "数据库已被其他窗口锁定",
     "failedToDeleteDatabase": "删除数据库失败",
     "curveCacheRecoveryFailed": "曲线缓存恢复失败：{{detail}}",

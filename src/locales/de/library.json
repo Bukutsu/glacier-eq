@@ -364,7 +364,6 @@
     "invalidDb": "Die Normierung der Messung ergab einen nicht endlichen dB-Wert"
   },
   "onlineDb": {
-    "incompleteDatabase": "Die Online-Datenbank ist unvollständig. Versuche, sie erneut herunterzuladen.",
     "databaseLockedByAnotherWindow": "Datenbank durch ein anderes Fenster gesperrt",
     "failedToDeleteDatabase": "Datenbank konnte nicht gelöscht werden",
     "curveCacheRecoveryFailed": "Wiederherstellung des Kurvencaches fehlgeschlagen: {{detail}}",

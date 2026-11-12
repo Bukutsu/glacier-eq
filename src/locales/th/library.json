@@ -346,7 +346,6 @@
     "invalidDb": "การปรับระดับผลการวัดให้เป็นมาตรฐานทำให้ได้ค่า dB ที่ไม่เป็นค่าจำกัด"
   },
   "onlineDb": {
-    "incompleteDatabase": "ฐานข้อมูลออนไลน์ไม่สมบูรณ์ โปรดลองดาวน์โหลดอีกครั้ง",
     "databaseLockedByAnotherWindow": "ฐานข้อมูลถูกล็อกโดยหน้าต่างอื่น",
     "failedToDeleteDatabase": "ลบฐานข้อมูลไม่สำเร็จ",
     "curveCacheRecoveryFailed": "กู้คืนแคชเส้นโค้งไม่สำเร็จ: {{detail}}",

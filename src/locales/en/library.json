@@ -364,7 +364,6 @@
     "invalidDb": "Measurement normalization produced a non-finite dB value"
   },
   "onlineDb": {
-    "incompleteDatabase": "The online database is incomplete. Try downloading it again.",
     "databaseLockedByAnotherWindow": "Database locked by another window",
     "failedToDeleteDatabase": "Failed to delete database",
     "curveCacheRecoveryFailed": "Curve cache recovery failed: {{detail}}",

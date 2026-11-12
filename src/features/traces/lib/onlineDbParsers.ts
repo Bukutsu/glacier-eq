@@ -16,6 +16,8 @@ export interface OnlineManifest {
 export interface OnlineCurves {
   frequencies: number[];
   curves: Record<string, number[]>;
+  /** Price of every device the curve file carries, `null` when it has none. */
+  prices: Record<string, number | null>;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -159,6 +161,20 @@ function isFiniteNumberArray(value: unknown): value is number[] {
   );
 }
 
+function parseOnlineCurvePrice(value: unknown, deviceId: string): number | null {
+  // The curve file omits the price for devices it does not know one for.
+  if (value === undefined || value === null) return null;
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    invalid(
+      "curves",
+      i18n.t("library:onlineDbParsers.priceForMustBeFiniteOrNull", {
+        id: JSON.stringify(deviceId),
+      }),
+    );
+  }
+  return value;
+}
+
 export function parseOnlineCurveValues(
   value: unknown,
   expectedLength: number,
@@ -209,6 +225,7 @@ export function parseOnlineCurves(value: unknown): OnlineCurves {
   }
 
   const validatedEntries: [string, number[]][] = [];
+  const validatedPrices: [string, number | null][] = [];
   for (const [id, curve] of entries) {
     validateDeviceId(id, "curves");
     if (!isRecord(curve)) {
@@ -223,10 +240,30 @@ export function parseOnlineCurves(value: unknown): OnlineCurves {
       id,
       parseOnlineCurveValues(curve.d, frequencies.length, id),
     ]);
+    validatedPrices.push([id, parseOnlineCurvePrice(curve.p, id)]);
   }
 
   return {
     frequencies,
     curves: Object.fromEntries(validatedEntries),
+    prices: Object.fromEntries(validatedPrices),
   };
+}
+
+/**
+ * The searchable device index, built from the curve file: only a device that
+ * has a curve can be loaded, so the curves are the list of devices.
+ *
+ * Upstream's separate manifest file is not an index. It is a frozen snapshot
+ * of device names and prices that the daily scan does not update, so it
+ * lists devices whose curve was never captured and misses devices that were
+ * added since it was written. Reading the index from it alone would offer
+ * devices that cannot be loaded and hide devices that can.
+ */
+export function buildOnlineDeviceIndex(curves: OnlineCurves): OnlineManifest {
+  const iems: Record<string, OnlineManifestDetails> = {};
+  for (const [id, price] of Object.entries(curves.prices)) {
+    iems[id] = { price };
+  }
+  return { iems };
 }

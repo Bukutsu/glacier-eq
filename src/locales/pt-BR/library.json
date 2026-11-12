@@ -382,7 +382,6 @@
     "invalidDb": "A normalização da medição produziu um valor de dB não finito"
   },
   "onlineDb": {
-    "incompleteDatabase": "O banco de dados online está incompleto. Tente baixá-lo novamente.",
     "databaseLockedByAnotherWindow": "Banco de dados bloqueado por outra janela",
     "failedToDeleteDatabase": "Falha ao excluir banco de dados",
     "curveCacheRecoveryFailed": "Falha na recuperação do cache de curvas: {{detail}}",
