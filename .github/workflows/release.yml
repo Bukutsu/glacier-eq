@@ -286,6 +286,16 @@ jobs:
           sudo mkdir -p /usr/share/nsis/Stubs /usr/share/nsis/Plugins
           sudo cp -f "$stubs"/* /usr/share/nsis/Stubs/
           sudo cp -Rf "$plugins"/. /usr/share/nsis/Plugins/
+          # Tauri 2.12 also includes RestartManager.nsh, which first shipped
+          # after the distro's NSIS 3.08. The compiler remains the distro
+          # Linux binary; only this newer header is overlaid.
+          curl -fsSL --retry 5 \
+            -o "$nsis_dir/nsis-3.11.zip" \
+            https://downloads.sourceforge.net/project/nsis/NSIS%203/3.11/nsis-3.11.zip
+          sudo mkdir -p /usr/share/nsis/Include/Win
+          unzip -p "$nsis_dir/nsis-3.11.zip" \
+            'nsis-3.11/Include/Win/RestartManager.nsh' \
+            | sudo tee /usr/share/nsis/Include/Win/RestartManager.nsh >/dev/null
 
       - name: Cache cargo-xwin and Windows SDK
         if: matrix.cross-windows == true
