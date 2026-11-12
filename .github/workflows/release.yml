@@ -105,7 +105,14 @@ jobs:
             pkg-config \
             minisign
 
-      - name: Install frontend dependencies
+      - name: Restore shared Node dependencies
+        id: node-cache
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - name: Install frontend dependencies on cache miss
+        if: steps.node-cache.outputs.cache-hit != 'true'
         run: npm ci
 
       # A present but mismatched private key would make every update signature
@@ -157,6 +164,15 @@ jobs:
         with:
           node-version: lts/*
           cache: npm
+      - name: Restore shared Node dependencies
+        id: node-cache
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - name: Install Node dependencies on cache miss
+        if: steps.node-cache.outputs.cache-hit != 'true'
+        run: npm ci
       - name: Restore content-addressed desktop frontend
         id: frontend-cache
         uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
@@ -165,7 +181,7 @@ jobs:
           key: desktop-frontend-${{ hashFiles('package.json', 'package-lock.json', 'index.html', 'vite.config.ts', 'tsconfig.desktop.json', 'src/**', 'public/**') }}
       - name: Build desktop frontend on cache miss
         if: steps.frontend-cache.outputs.cache-hit != 'true'
-        run: npm ci && npm run build:desktop
+        run: npm run build:desktop
       - name: Reuse cached desktop frontend
         if: steps.frontend-cache.outputs.cache-hit == 'true'
         run: test -f dist/index.html
@@ -304,7 +320,14 @@ jobs:
           workspaces: ". -> target"
           shared-key: "tauri-desktop-${{ matrix.name }}"
 
-      - name: Install frontend dependencies
+      - name: Restore shared Node dependencies
+        id: node-cache
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - name: Install frontend dependencies on cache miss
+        if: steps.node-cache.outputs.cache-hit != 'true'
         run: npm ci
 
       - name: Download shared desktop frontend
@@ -656,7 +679,15 @@ jobs:
           workspaces: ". -> target"
           shared-key: "tauri-android"
 
-      - run: npm ci
+      - name: Restore shared Node dependencies
+        id: node-cache
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - name: Install frontend dependencies on cache miss
+        if: steps.node-cache.outputs.cache-hit != 'true'
+        run: npm ci
 
       - name: Download shared desktop frontend
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
