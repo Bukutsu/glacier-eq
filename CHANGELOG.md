@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## [0.18.2] - 2026-11-12
+
+### Changed
+
+- The offline measurement database is downloaded once more after this update,
+  because its stored device list was replaced.
+
+### Fixed
+
+- Fixed the online measurement database download, which failed on every build
+  with "the online database is incomplete". The searchable device list now
+  comes from the measured curves, so every listed measurement loads and
+  devices measured since the last upstream device list are listed right away.
+
 ## [0.18.1] - 2026-11-12
 
 ### Changed
