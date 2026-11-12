@@ -829,9 +829,9 @@ jobs:
           fi
 
       # latest.json is what installed apps poll at
-      # releases/latest/download/latest.json. A draft release is invisible to
-      # that URL, so apps pick the update up the moment the draft is published
-      # (and never for prereleases, which `latest` skips).
+      # releases/latest/download/latest.json. Stable releases become available
+      # to installed apps as soon as the workflow completes (and never for
+      # prereleases, which `latest` skips).
       - name: Generate updater manifest
         env:
           RELEASE_TAG: ${{ github.ref_name }}
@@ -845,9 +845,9 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: "Glacier EQ ${{ github.ref_name }}"
           body_path: RELEASE_NOTES.md
-          # Keep installers private until the signed upgrade/smoke checks pass.
-          # The maintainer publishes the verified draft after those checks.
-          draft: true
+          # All verification and signing gates run before this job, so publish
+          # the complete, verified release immediately.
+          draft: false
           prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') || contains(github.ref_name, '-') }}
           generate_release_notes: true
           fail_on_unmatched_files: true
