@@ -271,7 +271,21 @@ jobs:
         if: matrix.cross-windows == true
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends clang lld llvm nsis zip
+          sudo apt-get install -y --no-install-recommends clang lld llvm nsis zip unzip
+          # Ubuntu's nsis package omits the Tauri-required Stubs and Plugins.
+          # Seed the official Tauri NSIS distribution so cross-built installers
+          # have RestartManager.nsh and the other standard extension files.
+          nsis_dir=$(mktemp -d)
+          curl -fsSL --retry 5 \
+            -o "$nsis_dir/nsis-3.zip" \
+            https://github.com/tauri-apps/binary-releases/releases/download/nsis-3/nsis-3.zip
+          unzip -q "$nsis_dir/nsis-3.zip" -d "$nsis_dir/unpacked"
+          stubs=$(find "$nsis_dir/unpacked" -type d -name Stubs -print -quit)
+          plugins=$(find "$nsis_dir/unpacked" -type d -name Plugins -print -quit)
+          test -n "$stubs" -a -n "$plugins"
+          sudo mkdir -p /usr/share/nsis/Stubs /usr/share/nsis/Plugins
+          sudo cp -f "$stubs"/* /usr/share/nsis/Stubs/
+          sudo cp -Rf "$plugins"/. /usr/share/nsis/Plugins/
 
       - name: Cache cargo-xwin and Windows SDK
         if: matrix.cross-windows == true
@@ -363,7 +377,11 @@ jobs:
           # createUpdaterArtifacts lives here, not in tauri.conf.json, so local
           # and test builds do not need the updater signing key. The frontend is
           # built once by the shared frontend job, so every target reuses it.
-          printf '{"version":"%s","build":{"beforeBuildCommand":""},"bundle":{"createUpdaterArtifacts":true}}\n' "$RELEASE_VERSION" > release-config.json
+          PACKAGE_VERSION="${RELEASE_VERSION%%-*}"
+          # RPM does not accept prerelease hyphens in its package version. The
+          # GitHub tag still carries the full prerelease identity; native bundle
+          # metadata uses the stable base version for package-manager syntax.
+          printf '{"version":"%s","build":{"beforeBuildCommand":""},"bundle":{"createUpdaterArtifacts":true}}\n' "$PACKAGE_VERSION" > release-config.json
 
       - name: Check release signing credentials
         id: signing
