@@ -127,6 +127,11 @@ jobs:
           public_key=$(printf '%s' "$public_key" | base64 --decode | tail -n 1)
           minisign -Vm "$challenge" -x "$signature" -P "$public_key"
 
+      - name: Cache Playwright Chromium
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
 
@@ -152,9 +157,18 @@ jobs:
         with:
           node-version: lts/*
           cache: npm
-      - run: npm ci
-      - name: Build frontend once for every desktop target
-        run: npm run build:desktop
+      - name: Restore content-addressed desktop frontend
+        id: frontend-cache
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+          path: dist
+          key: desktop-frontend-${{ hashFiles('package.json', 'package-lock.json', 'index.html', 'vite.config.ts', 'tsconfig.desktop.json', 'src/**', 'public/**') }}
+      - name: Build desktop frontend on cache miss
+        if: steps.frontend-cache.outputs.cache-hit != 'true'
+        run: npm ci && npm run build:desktop
+      - name: Reuse cached desktop frontend
+        if: steps.frontend-cache.outputs.cache-hit == 'true'
+        run: test -f dist/index.html
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: glacier-eq-desktop-frontend
@@ -251,6 +265,13 @@ jobs:
           echo "XWIN_CACHE_DIR=$HOME/.xwin" >> "$GITHUB_ENV"
           command -v cargo-xwin >/dev/null || cargo install --locked cargo-xwin
 
+      - name: Cache linuxdeploy
+        if: matrix.name == 'linux-x64'
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+          path: ~/.cache/tauri
+          key: linuxdeploy-1-alpha-20251107-1-c20cd71e3a4e3b80c3483cef793cda3f4e990aca14014d23c544ca3ce1270b4d
+
       - name: Seed modern linuxdeploy (excludes stale libwayland-client)
         if: matrix.name == 'linux-x64'
         run: |
@@ -258,9 +279,11 @@ jobs:
           cache_dir="$HOME/.cache/tauri"
           target="$cache_dir/linuxdeploy-x86_64.AppImage"
           mkdir -p "$cache_dir"
-          curl -fsSL --retry 3 \
-            -o "$target" \
-            "https://github.com/linuxdeploy/linuxdeploy/releases/download/1-alpha-20251107-1/linuxdeploy-x86_64.AppImage"
+          if [ ! -f "$target" ]; then
+            curl -fsSL --retry 3 \
+              -o "$target" \
+              "https://github.com/linuxdeploy/linuxdeploy/releases/download/1-alpha-20251107-1/linuxdeploy-x86_64.AppImage"
+          fi
           echo "c20cd71e3a4e3b80c3483cef793cda3f4e990aca14014d23c544ca3ce1270b4d  $target" | sha256sum -c -
           chmod +x "$target"
 
@@ -566,6 +589,14 @@ jobs:
           distribution: "zulu"
           java-version: "17"
 
+      - name: Cache Android SDK and NDK
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+          path: |
+            /usr/local/lib/android/sdk/ndk/26.1.10909125
+            /usr/local/lib/android/sdk/platforms/android-36
+          key: android-sdk-ndk-26.1.10909125-platform-36-${{ runner.os }}
+
       - uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb
         with:
           cache-read-only: false
@@ -590,13 +621,20 @@ jobs:
           echo "Using sdkmanager: $SDKMANAGER"
           yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
           set +e
-          yes | "$SDKMANAGER" --install "ndk;26.1.10909125" "platforms;android-36" 2>&1 | tail -8
-          sdk_status=${PIPESTATUS[1]}
-          set -e
-          if [ "$sdk_status" -ne 0 ]; then
-            echo "Android SDK installation failed (status $sdk_status)" >&2
-            exit "$sdk_status"
+          packages=()
+          [ -d "$ANDROID_HOME/ndk/26.1.10909125" ] || packages+=("ndk;26.1.10909125")
+          [ -d "$ANDROID_HOME/platforms/android-36" ] || packages+=("platforms;android-36")
+          if (( ${#packages[@]} > 0 )); then
+            yes | "$SDKMANAGER" --install "${packages[@]}" 2>&1 | tail -8
+            sdk_status=${PIPESTATUS[1]}
+            if [ "$sdk_status" -ne 0 ]; then
+              echo "Android SDK installation failed (status $sdk_status)" >&2
+              exit "$sdk_status"
+            fi
+          else
+            echo "Android SDK and NDK cache hit; skipping sdkmanager downloads."
           fi
+          set -e
           NDK_DIR="$ANDROID_HOME/ndk/26.1.10909125"
           test -d "$NDK_DIR" || { echo "NDK install failed: $NDK_DIR missing"; exit 1; }
           echo "NDK_HOME=$NDK_DIR" >> "$GITHUB_ENV"
