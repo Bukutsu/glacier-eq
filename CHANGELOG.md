@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+## [0.18.1] - 2026-11-12
+
+### Changed
+
+- Refined the Tokyo Night and Tokyo Night Day themes, including clearer
+  contrast and more consistent selection and control states.
+- Improved mobile EQ editing with a more compact graph, band strip, controls,
+  and navigation layout.
+- Polished desktop and compact-window layouts, dialogs, device actions, and
+  graph controls.
+
+### Fixed
+
+- Hardened the desktop security boundary and clarified device connection state
+  transitions.
+- Fixed mobile scrolling, overlay navigation, profile naming, and stale device
+  labels.
+
 ## [0.18.0] - 2026-11-03
 
 ### Highlights

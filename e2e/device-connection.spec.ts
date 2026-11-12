@@ -12,6 +12,7 @@ test("simulated DAC connects, disconnects and reconnects", async ({ page }) => {
   for (let round = 0; round < 2; round++) {
     await connect.click();
     await expect(disconnect).toBeVisible();
+    await expect(disconnect).toBeEnabled();
     await disconnect.click();
     await expect(connect).toBeVisible();
   }
