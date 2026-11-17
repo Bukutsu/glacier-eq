@@ -339,7 +339,13 @@
     "loadedTarget_many": "Objetivo cargado: {{name}} ({{count}} puntos)",
     "loadedMeasurement_many": "Medición cargada: {{name}} ({{count}} puntos)",
     "matchesFound_many": "Se han encontrado {{count}} mediciones.",
-    "curveCount_many": "{{count, number}} curvas"
+    "curveCount_many": "{{count, number}} curvas",
+    "rankOf": "n.º {{rank}} de {{total}}",
+    "rankHelp": "Las mediciones de los mismos auriculares se ordenan según cuánto coinciden con las demás y lo limpias que son. Elige la primera.",
+    "bestPickPrefix": "★ Mejor opción · ",
+    "goodPickPrefix": "Buena opción · ",
+    "unusualCurvePrefix": "Difiere de las demás · ",
+    "noConsensusPrefix": "Sin consenso claro · "
   },
   "unifiedTraces": {
     "measurement": "Medición",
@@ -418,6 +424,7 @@
     "mustContainOnlyFiniteNumbers": "{{name}} debe contener solo números finitos",
     "expectedMetaAndCurvesRecords": "Se esperaban registros meta y curves",
     "curvesMustContainBetween1AndDevices": "curves debe contener entre 1 y {{limit}} dispositivos",
-    "curveMustBeAnObject": "La curva {{id}} debe ser un objeto"
+    "curveMustBeAnObject": "La curva {{id}} debe ser un objeto",
+    "qualityForMustBeValid": "Base de datos en línea no válida: la calidad de {{id}} debe incluir un puesto, un total y una coincidencia finita"
   }
 }

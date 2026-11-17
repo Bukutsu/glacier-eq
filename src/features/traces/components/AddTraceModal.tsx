@@ -23,6 +23,11 @@ import {
 } from "@/features/traces/lib/measurements";
 import { useOnlineDatabase } from "@/features/traces/hooks/useOnlineDatabase";
 import { type OnlineDevice } from "@/features/traces/lib/onlineDb";
+import {
+  MIN_MEASUREMENTS_FOR_PICK,
+  UNUSUAL_AGREEMENT_DB,
+  type MeasurementQuality,
+} from "@/features/traces/lib/measurementQuality";
 import { Modal } from "@/components/ui/Modal";
 import { confirmDialog } from "@/components/ui/ConfirmDialog";
 import { Button } from "@/components/ui/Button";
@@ -232,6 +237,19 @@ export function AddTraceModal({
     }
   };
 
+  const pickLabel = ({ rank, of, agreement, confident }: MeasurementQuality) =>
+    !confident
+      ? rank === 1 && of >= MIN_MEASUREMENTS_FOR_PICK
+        ? t("addTraceModal.noConsensusPrefix")
+        : ""
+      : rank === 1
+        ? t("addTraceModal.bestPickPrefix")
+        : agreement > UNUSUAL_AGREEMENT_DB
+          ? t("addTraceModal.unusualCurvePrefix")
+          : rank <= 3
+            ? t("addTraceModal.goodPickPrefix")
+            : "";
+
   const query = debouncedQuery.trim().toLowerCase();
   const searchPending = searchQuery.trim().toLowerCase() !== query;
   const { results, total, owners } = useMemo(
@@ -365,6 +383,12 @@ export function AddTraceModal({
                     <span>{t("addTraceModal.noMatchesHint")}</span>
                   </div>
                 ) : (
+                  <>
+                    {results.some((device) => device.quality) && (
+                      <p className="leg:m-[0] leg:p-[8px_10px] leg:[border-bottom:1px_solid_var(--line-subtle)] leg:text-[color:var(--muted)] leg:text-[length:var(--type-small)] leg:leading-[1.4]">
+                        {t("addTraceModal.rankHelp")}
+                      </p>
+                    )}
                   <ul className="leg:[list-style:none] leg:m-[0] leg:p-[0]">
                     {results.map((device) => {
                       const name = `${device.brand} ${device.name}`;
@@ -381,6 +405,25 @@ export function AddTraceModal({
                                 </span>{" "}
                                 {device.source}
                               </span>
+                              {device.quality && (
+                                <span
+                                  className={`leg:font-medium ${
+                                    device.quality.confident &&
+                                    device.quality.agreement > UNUSUAL_AGREEMENT_DB
+                                      ? "leg:text-[color:var(--orange)]"
+                                      : device.quality.confident &&
+                                          device.quality.rank <= 3
+                                        ? "leg:text-[color:var(--sea)]"
+                                        : ""
+                                  }`}
+                                >
+                                  {pickLabel(device.quality)}
+                                  {t("addTraceModal.rankOf", {
+                                    rank: device.quality.rank,
+                                    total: device.quality.of,
+                                  })}
+                                </span>
+                              )}
                               {device.price !== null && (
                                 <span className="online-result-price">
                                   ${device.price}
@@ -421,6 +464,7 @@ export function AddTraceModal({
                       );
                     })}
                   </ul>
+                  </>
                 )}
               </section>
             </>

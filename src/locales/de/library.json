@@ -324,7 +324,13 @@
     "noMatchesHint": "Versuche einen kürzeren Namen oder prüfe die Schreibweise.",
     "addedButton": "Hinzugefügt",
     "downloadHelp": "Lade die Messdatenbank einmal herunter, um sie offline zu durchsuchen.",
-    "clearCacheHelp": "Beim Leeren des Caches wird die heruntergeladene Datenbank entfernt. Hinzugefügte Kurven bleiben erhalten."
+    "clearCacheHelp": "Beim Leeren des Caches wird die heruntergeladene Datenbank entfernt. Hinzugefügte Kurven bleiben erhalten.",
+    "rankOf": "Platz {{rank}} von {{total}}",
+    "rankHelp": "Messungen derselben Kopfhörer sind danach gereiht, wie gut sie mit den anderen übereinstimmen und wie sauber sie sind. Wähle die oberste.",
+    "bestPickPrefix": "★ Beste Wahl · ",
+    "goodPickPrefix": "Gute Wahl · ",
+    "unusualCurvePrefix": "Weicht von anderen ab · ",
+    "noConsensusPrefix": "Keine klare Übereinstimmung · "
   },
   "unifiedTraces": {
     "measurement": "Messung",
@@ -400,6 +406,7 @@
     "mustContainOnlyFiniteNumbers": "{{name}} darf nur endliche Zahlen enthalten",
     "expectedMetaAndCurvesRecords": "meta- und curves-Datensätze erwartet",
     "curvesMustContainBetween1AndDevices": "curves muss zwischen 1 und {{limit}} Geräte enthalten",
-    "curveMustBeAnObject": "Kurve {{id}} muss ein Objekt sein"
+    "curveMustBeAnObject": "Kurve {{id}} muss ein Objekt sein",
+    "qualityForMustBeValid": "Ungültige Online-Datenbank: Qualität für {{id}} muss einen Rang, eine Anzahl und eine endliche Übereinstimmung enthalten"
   }
 }

@@ -324,7 +324,13 @@
     "noMatchesHint": "Try a shorter name or check the spelling.",
     "addedButton": "Added",
     "downloadHelp": "Download the measurement database once to search it offline.",
-    "clearCacheHelp": "Clearing the cache removes the downloaded database. Added curves are retained."
+    "clearCacheHelp": "Clearing the cache removes the downloaded database. Added curves are retained.",
+    "rankOf": "#{{rank}} of {{total}}",
+    "rankHelp": "Measurements of the same headphones are ranked by how closely they agree with the others and how clean they are. Pick the top one.",
+    "bestPickPrefix": "★ Best pick · ",
+    "goodPickPrefix": "Good pick · ",
+    "unusualCurvePrefix": "Differs from others · ",
+    "noConsensusPrefix": "No clear consensus · "
   },
   "unifiedTraces": {
     "measurement": "Measurement",
@@ -400,6 +406,7 @@
     "mustContainOnlyFiniteNumbers": "{{name}} must contain only finite numbers",
     "expectedMetaAndCurvesRecords": "expected meta and curves records",
     "curvesMustContainBetween1AndDevices": "curves must contain between 1 and {{limit}} devices",
-    "curveMustBeAnObject": "curve {{id}} must be an object"
+    "curveMustBeAnObject": "curve {{id}} must be an object",
+    "qualityForMustBeValid": "Invalid online database: quality for {{id}} must be a rank, a count and a finite agreement"
   }
 }

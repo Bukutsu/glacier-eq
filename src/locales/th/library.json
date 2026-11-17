@@ -309,7 +309,13 @@
     "noMatchesHint": "ลองชื่อที่สั้นลงหรือตรวจสอบการสะกด",
     "addedButton": "เพิ่มแล้ว",
     "downloadHelp": "ดาวน์โหลดฐานข้อมูลผลการวัดครั้งเดียวเพื่อค้นหาแบบออฟไลน์",
-    "clearCacheHelp": "การล้างแคชจะลบฐานข้อมูลที่ดาวน์โหลดไว้ เส้นโค้งที่เพิ่มแล้วจะยังคงอยู่"
+    "clearCacheHelp": "การล้างแคชจะลบฐานข้อมูลที่ดาวน์โหลดไว้ เส้นโค้งที่เพิ่มแล้วจะยังคงอยู่",
+    "rankOf": "อันดับ {{rank}} จาก {{total}}",
+    "rankHelp": "ผลวัดของหูฟังรุ่นเดียวกันจัดอันดับตามความสอดคล้องกับผลวัดอื่นและความสะอาดของกราฟ เลือกอันดับแรกได้เลย",
+    "bestPickPrefix": "★ ตัวเลือกที่ดีที่สุด · ",
+    "goodPickPrefix": "ตัวเลือกที่ดี · ",
+    "unusualCurvePrefix": "ต่างจากผลวัดอื่น · ",
+    "noConsensusPrefix": "ยังไม่มีข้อสรุปชัดเจน · "
   },
   "unifiedTraces": {
     "measurement": "ผลการวัด",
@@ -382,6 +388,7 @@
     "mustContainOnlyFiniteNumbers": "{{name}} ต้องมีเฉพาะตัวเลขที่เป็นค่าจำกัด",
     "expectedMetaAndCurvesRecords": "ต้องมีระเบียน meta และ curves",
     "curvesMustContainBetween1AndDevices": "curves ต้องมีอุปกรณ์ระหว่าง 1 ถึง {{limit}} เครื่อง",
-    "curveMustBeAnObject": "เส้นโค้ง {{id}} ต้องเป็นออบเจ็กต์"
+    "curveMustBeAnObject": "เส้นโค้ง {{id}} ต้องเป็นออบเจ็กต์",
+    "qualityForMustBeValid": "ฐานข้อมูลออนไลน์ไม่ถูกต้อง: คุณภาพของ {{id}} ต้องมีอันดับ จำนวน และค่าความสอดคล้องที่จำกัด"
   }
 }

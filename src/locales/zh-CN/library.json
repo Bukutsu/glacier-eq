@@ -309,7 +309,13 @@
     "noMatchesHint": "请尝试更短的名称或检查拼写。",
     "addedButton": "已添加",
     "downloadHelp": "下载一次测量数据库后，即可离线搜索。",
-    "clearCacheHelp": "清除缓存将移除已下载的数据库。已添加的曲线会保留。"
+    "clearCacheHelp": "清除缓存将移除已下载的数据库。已添加的曲线会保留。",
+    "rankOf": "第 {{rank}} / {{total}}",
+    "rankHelp": "同一款耳机的测量按与其他测量的吻合度和曲线干净程度排序。选排在最前的即可。",
+    "bestPickPrefix": "★ 最佳选择 · ",
+    "goodPickPrefix": "不错的选择 · ",
+    "unusualCurvePrefix": "与其他测量差异较大 · ",
+    "noConsensusPrefix": "尚无明确共识 · "
   },
   "unifiedTraces": {
     "measurement": "测量曲线",
@@ -382,6 +388,7 @@
     "mustContainOnlyFiniteNumbers": "{{name}} 只能包含有限数值",
     "expectedMetaAndCurvesRecords": "需要 meta 与 curves 记录",
     "curvesMustContainBetween1AndDevices": "curves 必须包含 1 至 {{limit}} 台设备",
-    "curveMustBeAnObject": "曲线 {{id}} 必须为对象"
+    "curveMustBeAnObject": "曲线 {{id}} 必须为对象",
+    "qualityForMustBeValid": "在线数据库无效：{{id}} 的质量必须包含名次、总数和有限的吻合度"
   }
 }

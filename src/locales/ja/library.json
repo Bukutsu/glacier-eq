@@ -309,7 +309,13 @@
     "noMatchesHint": "名前を短くするか、つづりを確認してください。",
     "addedButton": "追加済み",
     "downloadHelp": "測定データベースを一度ダウンロードすると、オフラインで検索できます。",
-    "clearCacheHelp": "キャッシュを削除すると、ダウンロード済みのデータベースが削除されます。追加済みの曲線は保持されます。"
+    "clearCacheHelp": "キャッシュを削除すると、ダウンロード済みのデータベースが削除されます。追加済みの曲線は保持されます。",
+    "rankOf": "{{total}}件中 {{rank}}位",
+    "rankHelp": "同じヘッドホンの測定を、他の測定との一致度とノイズの少なさで順位付けしています。一番上を選んでください。",
+    "bestPickPrefix": "★ いちばんのおすすめ・",
+    "goodPickPrefix": "おすすめ・",
+    "unusualCurvePrefix": "他と差が大きい・",
+    "noConsensusPrefix": "はっきりした多数派なし・"
   },
   "unifiedTraces": {
     "measurement": "測定データ",
@@ -382,6 +388,7 @@
     "mustContainOnlyFiniteNumbers": "{{name}}の値はすべて有限数でなければなりません",
     "expectedMetaAndCurvesRecords": "metaレコードとcurvesレコードが必要です",
     "curvesMustContainBetween1AndDevices": "curvesには1～{{limit}}台のデバイスが必要です",
-    "curveMustBeAnObject": "曲線{{id}}はオブジェクトでなければなりません"
+    "curveMustBeAnObject": "曲線{{id}}はオブジェクトでなければなりません",
+    "qualityForMustBeValid": "オンラインデータベースが無効です: {{id}} の品質には順位、件数、有限の一致度が必要です"
   }
 }

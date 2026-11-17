@@ -339,7 +339,13 @@
     "loadedTarget_many": "Alvo carregado: {{name}} ({{count}} pontos)",
     "loadedMeasurement_many": "Medição carregada: {{name}} ({{count}} pontos)",
     "matchesFound_many": "{{count}} medições encontradas.",
-    "curveCount_many": "{{count, number}} curvas"
+    "curveCount_many": "{{count, number}} curvas",
+    "rankOf": "{{rank}}º de {{total}}",
+    "rankHelp": "As medições dos mesmos fones são classificadas pela concordância com as demais e pela limpeza. Escolha a primeira.",
+    "bestPickPrefix": "★ Melhor escolha · ",
+    "goodPickPrefix": "Boa escolha · ",
+    "unusualCurvePrefix": "Difere das outras · ",
+    "noConsensusPrefix": "Sem consenso claro · "
   },
   "unifiedTraces": {
     "measurement": "Medição",
@@ -418,6 +424,7 @@
     "mustContainOnlyFiniteNumbers": "{{name}} deve conter apenas números finitos",
     "expectedMetaAndCurvesRecords": "esperados registros meta e curves",
     "curvesMustContainBetween1AndDevices": "curves deve conter entre 1 e {{limit}} dispositivos",
-    "curveMustBeAnObject": "a curva {{id}} deve ser um objeto"
+    "curveMustBeAnObject": "a curva {{id}} deve ser um objeto",
+    "qualityForMustBeValid": "Banco de dados online inválido: a qualidade de {{id}} deve ter uma posição, um total e uma concordância finita"
   }
 }

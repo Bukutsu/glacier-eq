@@ -5,6 +5,7 @@ import { i18n } from "@/lib/i18n";
 import type { MeasurementPoint } from "@/types";
 import { useToastStore } from "@/stores/toastStore";
 import { normalizeMeasurementPoints } from "./measurements";
+import type { MeasurementQuality } from "./measurementQuality";
 import {
   buildOnlineDeviceIndex,
   parseOnlineCurves,
@@ -28,6 +29,8 @@ export interface OnlineDevice {
   name: string;
   price: number | null;
   source: string;
+  /** Null when the cache predates ranking or the model has too few curves. */
+  quality: MeasurementQuality | null;
 }
 
 let pendingOpen: Promise<IDBDatabase> | null = null;
@@ -925,11 +928,20 @@ export async function fetchManifest(): Promise<OnlineDevice[]> {
       name,
       price: details.price,
       source,
+      quality: details.quality ?? null,
     });
   }
 
-  return devices.sort((a, b) =>
-    `${a.brand} ${a.name}`.localeCompare(`${b.brand} ${b.name}`),
+  // Measurements of one model sit together, best first.
+  return devices.sort(
+    (a, b) =>
+      `${a.brand} ${a.name}`.localeCompare(
+        `${b.brand} ${b.name}`,
+        undefined,
+        { sensitivity: "base" },
+      ) ||
+      (a.quality?.rank ?? Infinity) - (b.quality?.rank ?? Infinity) ||
+      a.source.localeCompare(b.source),
   );
 }
 

@@ -1,4 +1,5 @@
 import { i18n } from "@/lib/i18n";
+import { rankMeasurements, type MeasurementQuality } from "./measurementQuality";
 const MAX_DEVICE_COUNT = 100_000;
 const MAX_DEVICE_ID_LENGTH = 1_024;
 const MAX_FREQUENCY_COUNT = 100_000;
@@ -7,6 +8,8 @@ const MAX_FREQUENCY = 20_000;
 
 interface OnlineManifestDetails {
   price: number | null;
+  /** Absent for caches built before ranking and for models with too few curves. */
+  quality?: MeasurementQuality;
 }
 
 export interface OnlineManifest {
@@ -62,6 +65,34 @@ function validateDeviceId(id: string, section: string): void {
   }
 }
 
+function parseQuality(
+  value: unknown,
+  id: string,
+): MeasurementQuality | undefined {
+  if (value === undefined) return undefined;
+  if (
+    !isRecord(value) ||
+    !Number.isInteger(value.rank) ||
+    !Number.isInteger(value.of) ||
+    typeof value.confident !== "boolean" ||
+    typeof value.agreement !== "number" ||
+    !Number.isFinite(value.agreement)
+  ) {
+    invalid(
+      "manifest",
+      i18n.t("library:onlineDbParsers.qualityForMustBeValid", {
+        id: JSON.stringify(id),
+      }),
+    );
+  }
+  return {
+    rank: value.rank as number,
+    of: value.of as number,
+    agreement: value.agreement,
+    confident: value.confident,
+  };
+}
+
 export function parseOnlineManifest(value: unknown): OnlineManifest {
   if (!isRecord(value) || !isRecord(value.iems)) {
     invalid(
@@ -102,7 +133,10 @@ export function parseOnlineManifest(value: unknown): OnlineManifest {
         }),
       );
     }
-    validatedEntries.push([id, { price: details.price }]);
+    validatedEntries.push([
+      id,
+      { price: details.price, quality: parseQuality(details.quality, id) },
+    ]);
   }
 
   return { iems: Object.fromEntries(validatedEntries) };
@@ -262,8 +296,9 @@ export function parseOnlineCurves(value: unknown): OnlineCurves {
  */
 export function buildOnlineDeviceIndex(curves: OnlineCurves): OnlineManifest {
   const iems: Record<string, OnlineManifestDetails> = {};
+  const quality = rankMeasurements(curves.frequencies, curves.curves);
   for (const [id, price] of Object.entries(curves.prices)) {
-    iems[id] = { price };
+    iems[id] = { price, quality: quality[id] };
   }
   return { iems };
 }

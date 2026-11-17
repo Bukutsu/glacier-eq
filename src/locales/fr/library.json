@@ -339,7 +339,13 @@
     "noMatchesHint": "Essayez un nom plus court ou vérifiez l’orthographe.",
     "addedButton": "Ajouté",
     "downloadHelp": "Téléchargez une fois la base de mesures pour y effectuer des recherches hors ligne.",
-    "clearCacheHelp": "Vider le cache supprime la base de données téléchargée. Les courbes ajoutées sont conservées."
+    "clearCacheHelp": "Vider le cache supprime la base de données téléchargée. Les courbes ajoutées sont conservées.",
+    "rankOf": "n° {{rank}} sur {{total}}",
+    "rankHelp": "Les mesures d'un même casque sont classées selon leur accord avec les autres et leur propreté. Choisissez la première.",
+    "bestPickPrefix": "★ Meilleur choix · ",
+    "goodPickPrefix": "Bon choix · ",
+    "unusualCurvePrefix": "Diffère des autres · ",
+    "noConsensusPrefix": "Pas de consensus clair · "
   },
   "unifiedTraces": {
     "measurement": "Mesure",
@@ -418,6 +424,7 @@
     "mustContainOnlyFiniteNumbers": "{{name}} doit contenir uniquement des nombres finis",
     "expectedMetaAndCurvesRecords": "des enregistrements meta et curves sont attendus",
     "curvesMustContainBetween1AndDevices": "curves doit contenir entre 1 et {{limit}} appareils",
-    "curveMustBeAnObject": "la courbe {{id}} doit être un objet"
+    "curveMustBeAnObject": "la courbe {{id}} doit être un objet",
+    "qualityForMustBeValid": "Base de données en ligne non valide : la qualité de {{id}} doit contenir un rang, un total et un accord fini"
   }
 }
