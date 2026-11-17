@@ -360,6 +360,10 @@
 /* Desktop: the legend and curve controls get their own strip above the plot. */
 @media (min-width: 851px) and ((min-height: 541px) or (pointer: fine)) {
   .graph-card:has(> .graph-toolbar) { padding-top: 48px; }
+  /* One row only: a wrapped legend spills over the plot and the dB unit. */
+  .graph-legend:not(.mobile-open) { flex-wrap: nowrap; }
+  .graph-legend:not(.mobile-open) .graph-legend-item { flex: 0 1 auto; white-space: nowrap; }
+  .graph-legend:not(.mobile-open) .graph-legend-item > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 }
 
 /* Zero mark on bipolar sliders (preamp, gain). */

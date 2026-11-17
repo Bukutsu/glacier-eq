@@ -235,7 +235,7 @@ export const Header = memo(function Header({
       className={`app-header${compact ? " compact-mobile" : ""}${isConfigPage ? " config-header" : ""}`}
     >
       <div className="header-main leg:min-w-[0] leg:flex leg:items-center leg:justify-between leg:flex-wrap leg:gap-[var(--space-4)] leg:max-[960px]:grid-cols-[minmax(0,_1fr)_auto] leg:max-[960px]:items-center leg:max-[960px]:gap-[12px] leg:compact:flex leg:compact:flex-wrap leg:compact:[&&]:items-center leg:compact:[&&]:gap-[8px] leg:compact:w-[100%] cmp:compact:[.app-header.compact-mobile:has(.toast-feedback)>&]:hidden cmp:compact:[.app-header_&]:gap-[var(--space-1)]">
-        <div className="leg:flex leg:flex-col leg:gap-[6px] leg:min-w-[0] leg:max-[960px]:w-[100%] leg:compact:flex-[1_1_100%] leg:compact:min-w-[0] leg:compact:gap-[var(--space-1)] cmp:compact:[.app-header_&]:gap-[0]">
+        <div className="leg:flex leg:flex-col leg:gap-[6px] leg:min-w-[0] leg:max-[960px]:flex-[1_1_0] leg:compact:flex-[1_1_100%] leg:compact:min-w-[0] leg:compact:gap-[var(--space-1)] cmp:compact:[.app-header_&]:gap-[0]">
           <div className="title-line leg:flex leg:items-center leg:gap-[var(--space-2)] leg:min-w-[0] leg:max-[960px]:gap-[8px] leg:compact:flex-nowrap leg:compact:[&&]:gap-[6px]">
             <h1>{pageTitle}</h1>
             {mobile && !isConfigPage && profileEdited && (
