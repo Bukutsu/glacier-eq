@@ -13,6 +13,16 @@ codegen-units = 1
 panic = "abort"
 strip = true
 
+# Size-first profile for the browser: the wasm module is downloaded, so bytes
+# matter more than speed. Desktop and Android keep the speed-tuned release build.
+[profile.wasm]
+inherits = "release"
+
+[profile.wasm.package.glacier-core]
+opt-level = "z"
+codegen-units = 1
+strip = true
+
 [profile.release.package.glacier-core]
 opt-level = 3
 codegen-units = 1
