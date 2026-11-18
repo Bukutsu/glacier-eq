@@ -255,6 +255,24 @@ async function pruneInactiveCaches() {
   );
 }
 
+// Content-hashed build files can come from the HTTP cache: the page has just
+// downloaded most of them, and re-fetching over a slow link doubles the first
+// visit's traffic. The manifest hash still gates the cache, with one forced
+// refetch if the cached copy is stale. Unhashed files always revalidate.
+async function fetchForCache(url, expectedHash) {
+  const hashed = new URL(url).pathname.includes("/assets/");
+  if (hashed) {
+    const cached = await fetch(url, { priority: "low" });
+    if (
+      cached.ok &&
+      (await sha256Hex(await cached.clone().arrayBuffer())) === expectedHash
+    ) {
+      return cached;
+    }
+  }
+  return fetch(url, { cache: "reload", priority: "low" });
+}
+
 self.addEventListener("install", (event) => {
   event.waitUntil(
     (async () => {
@@ -299,7 +317,7 @@ self.addEventListener("install", (event) => {
             const response =
               url === manifestUrl.href
                 ? new Response(JSON.stringify(manifest))
-                : await fetch(url, { cache: "reload" });
+                : await fetchForCache(url, hashes.get(url));
             if (!response.ok) {
               throw new Error(`Failed to preload ${url}: ${response.status}`);
             }

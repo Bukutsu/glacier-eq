@@ -13,6 +13,9 @@ function hashBytes(value: string | Uint8Array): string {
   return createHash("sha256").update(value).digest("hex");
 }
 
+// Deployed for crawlers and link previews, never needed by the running app.
+const NOT_PRECACHED = new Set(["screenshot-main.png", "robots.txt", "sitemap.xml"]);
+
 function collectPublicAssets(
   directory = fileURLToPath(new URL("./public", import.meta.url)),
   root = directory,
@@ -20,6 +23,7 @@ function collectPublicAssets(
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const path = join(directory, entry.name);
     if (entry.isDirectory()) return collectPublicAssets(path, root);
+    if (NOT_PRECACHED.has(entry.name)) return [];
     return [{
       path: `./${relative(root, path).replaceAll("\\", "/")}`,
       hash: hashBytes(readFileSync(path)),
