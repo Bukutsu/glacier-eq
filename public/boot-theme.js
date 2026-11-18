@@ -1,4 +1,23 @@
 // Restore the last painted theme before the application bundle loads.
+// Also hide the prerendered first screen (hosted web build) when it would be
+// wrong or pointless; the boot logo shows instead.
+(() => {
+  try {
+    const stored = localStorage.getItem("glacier.language");
+    const language = stored && stored !== "system" ? stored : navigator.language;
+    const route = location.hash.replace(/^#\/?/, "").split(/[/?]/)[0];
+    if (
+      !/^en(-|$)/i.test(language || "")
+      || !["", "eq"].includes(route)
+      || navigator.serviceWorker?.controller
+    ) {
+      document.documentElement.classList.add("no-prerender");
+    }
+  } catch {
+    document.documentElement.classList.add("no-prerender");
+  }
+})();
+
 (() => {
   try {
     if (typeof window !== "undefined" && "__TAURI_INTERNALS__" in window

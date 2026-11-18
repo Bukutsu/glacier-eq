@@ -1,4 +1,9 @@
-import { defineConfig } from "vite";
+import {
+  defineConfig,
+  type HtmlTagDescriptor,
+  type IndexHtmlTransformContext,
+  type Rolldown,
+} from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { fileURLToPath } from "node:url";
@@ -6,6 +11,7 @@ import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { join, relative } from "node:path";
 import { stampServiceWorker } from "./scripts/offlineAssets.mjs";
+import { prerender } from "./scripts/prerender.mjs";
 
 type OfflineAsset = { path: string; hash: string };
 
@@ -39,6 +45,7 @@ const appVersion = process.env.VITE_APP_VERSION || process.env.npm_package_versi
 // https://vite.dev/config/
 export default defineConfig(async ({ mode, command }) => {
   const runtime = mode === "web" ? "web" : "tauri";
+  const basePath = process.env.VITE_BASE_PATH || "./";
   const backend = fileURLToPath(new URL(`./src/lib/backend/${runtime}.ts`, import.meta.url));
 
   return {
@@ -62,6 +69,44 @@ export default defineConfig(async ({ mode, command }) => {
   plugins: [
     react(),
     tailwindcss(),
+    ...(mode === "web" && command === "build"
+      ? [
+          {
+            // The prerendered first screen needs its styles before any script
+            // runs, so link the app stylesheet from index.html. Bootstrap's
+            // preload helper sees the link and does not fetch it again.
+            name: "link-app-stylesheet",
+            transformIndexHtml: {
+              order: "post" as const,
+              handler(_html: string, ctx: IndexHtmlTransformContext) {
+                const app = Object.values(ctx.bundle ?? {}).find(
+                  (item): item is Rolldown.OutputChunk =>
+                    item.type === "chunk" && !!item.facadeModuleId?.endsWith("/src/main.tsx"),
+                );
+                if (!app) throw new Error("link-app-stylesheet: src/main.tsx chunk not found");
+                return [...(app.viteMetadata?.importedCss ?? [])].map(
+                  (css): HtmlTagDescriptor => ({
+                    tag: "link",
+                    attrs: { rel: "stylesheet", crossorigin: "", href: basePath + css },
+                    injectTo: "head",
+                  }),
+                );
+              },
+            },
+          },
+          {
+            name: "prerender-first-screen",
+            writeBundle: {
+              // Must finish before offline-assets hashes index.html.
+              sequential: true,
+              order: "pre" as const,
+              async handler(options: { dir?: string }) {
+                await prerender(options.dir ?? fileURLToPath(new URL("./dist", import.meta.url)), basePath);
+              },
+            },
+          },
+        ]
+      : []),
     {
       name: "offline-assets",
       writeBundle(options, bundle) {
@@ -103,7 +148,7 @@ export default defineConfig(async ({ mode, command }) => {
       },
     },
   ],
-  base: process.env.VITE_BASE_PATH || "./",
+  base: basePath,
   // Scan only the app entry. By default Vite crawls every *.html under the
   // root, including Cargo's target/ (tens of GB) and Android build reports,
   // which delays the first page load in `tauri dev` by seconds.

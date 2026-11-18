@@ -97,6 +97,11 @@ function Routes() {
   return <App />;
 }
 
+// The hosted build ships a static snapshot of the first screen (see
+// scripts/prerender.mjs) so slow links see the app before the scripts arrive.
+// Preact renders synchronously, so removing it here never shows a blank frame.
+document.getElementById("prerender")?.remove();
+
 ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
     <ErrorBoundary>
