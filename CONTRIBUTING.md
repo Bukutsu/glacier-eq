@@ -81,7 +81,9 @@ For a small change, run the E2E tests against the web app:
 npm run test:e2e
 ```
 
-Playwright starts `npm run dev:web` and runs the specs in `e2e/`. Run full
+Playwright starts `npm run dev:web` and also serves a production web build
+from `dist-e2e/`, since that build uses Preact instead of React. Device specs
+run only against the dev server, where the simulated DAC exists. Run full
 verification before pushing; the E2E tests do not check types, translations, or Rust.
 
 ### Running the app
@@ -90,9 +92,15 @@ verification before pushing; the E2E tests do not check types, translations, or 
   `http://localhost:1420`.
 - Desktop: `npm run tauri -- dev` starts the native app and its desktop
   frontend. `npm run dev:desktop` alone starts only the frontend.
-- Production: `npm run build:web` builds the web app;
+- Production: `npm run build:web` builds the web app. It opens the built app
+  in Playwright's Chromium to prerender the first screen, so run
+  `npx playwright install chromium` once;
   `npm run build:desktop` builds only the desktop frontend. Use
   `npm run tauri -- build` for native bundles.
+
+`npm run bench:3g` builds the hosted web app and measures a cold and repeat
+load over simulated Fast 3G (`npm run bench:3g -- slow3g` for Slow 3G). Run it
+before and after changes to startup code, dependencies, or the service worker.
 
 The backend is selected at build time: Vite's `web` mode uses WebHID/WASM;
 other modes use Tauri IPC. Use the package scripts rather than bare `vite`
