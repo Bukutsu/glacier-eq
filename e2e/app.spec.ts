@@ -26,3 +26,16 @@ test("navigates between the main sections", async ({ page }) => {
     await expect(page.getByText(heading).first()).toBeVisible();
   }
 });
+
+test("opens every workspace on a phone-sized screen", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.setViewportSize({ width: 400, height: 850 });
+
+  for (const path of ["eq", "tuning", "profiles", "settings", "device/overview"]) {
+    await page.goto(`/#/${path}`);
+    await expect(page.locator("[aria-busy=true]")).toHaveCount(0);
+    await expect(page.getByText("Application error")).toHaveCount(0);
+  }
+  expect(errors).toEqual([]);
+});

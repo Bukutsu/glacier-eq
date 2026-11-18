@@ -37,13 +37,21 @@ const host = process.env.TAURI_DEV_HOST;
 const appVersion = process.env.VITE_APP_VERSION || process.env.npm_package_version || "unknown";
 
 // https://vite.dev/config/
-export default defineConfig(async ({ mode }) => {
+export default defineConfig(async ({ mode, command }) => {
   const runtime = mode === "web" ? "web" : "tauri";
   const backend = fileURLToPath(new URL(`./src/lib/backend/${runtime}.ts`, import.meta.url));
 
   return {
   resolve: {
     alias: {
+      // The hosted web build ships Preact (~65 kB gzipped less than React).
+      // Dev keeps React for Fast Refresh; desktop and Android load locally.
+      ...(command === "build" && mode === "web" && {
+        "react-dom/client": "preact/compat/client",
+        "react-dom": "preact/compat",
+        "react/jsx-runtime": "preact/jsx-runtime",
+        react: "preact/compat",
+      }),
       "@": fileURLToPath(new URL("./src", import.meta.url)),
       "@glacier-eq/backend": backend,
     },

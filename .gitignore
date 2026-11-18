@@ -12,6 +12,7 @@
 coverage/
 dist
 dist-ssr
+dist-e2e
 *.dmg
 *.msi
 *.exe
