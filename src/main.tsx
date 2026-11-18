@@ -1,7 +1,7 @@
 import { i18nReady } from "@/lib/i18n";
 import React, { lazy, Suspense } from "react";
 import ReactDOM from "react-dom/client";
-import { HashRouter, Route, Routes } from "react-router";
+import { useLocation } from "@/lib/router";
 import App from "@/app/App";
 import { ErrorBoundary } from "@/components/feedback/ErrorBoundary";
 import { isAndroidDevice, isLinux, isTauri } from "@/lib/platform";
@@ -86,22 +86,21 @@ if (!rootElement) throw new Error("Missing #root element");
 
 await i18nReady;
 
+function Routes() {
+  const { pathname } = useLocation();
+  if (pathname.replace(/\/+$/, "") === "/supported-devices")
+    return (
+      <Suspense fallback={null}>
+        <SupportedDevicesPage />
+      </Suspense>
+    );
+  return <App />;
+}
+
 ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
-    <HashRouter>
-      <ErrorBoundary>
-        <Routes>
-          <Route
-            path="/supported-devices"
-            element={
-              <Suspense fallback={null}>
-                <SupportedDevicesPage />
-              </Suspense>
-            }
-          />
-          <Route path="*" element={<App />} />
-        </Routes>
-      </ErrorBoundary>
-    </HashRouter>
+    <ErrorBoundary>
+      <Routes />
+    </ErrorBoundary>
   </React.StrictMode>,
 );

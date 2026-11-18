@@ -1,6 +1,6 @@
 import { ErrorNotice } from "@/components/feedback/ErrorNotice";
 import { useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router";
+import { Link, useSearchParams } from "@/lib/router";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@/lib/rpc";
 import { Input } from "@/components/ui/Input";

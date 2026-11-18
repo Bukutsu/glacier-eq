@@ -1,7 +1,7 @@
 import "@/lib/i18n";
 import { useTranslation } from "react-i18next";
 import { useEffect, useRef, type ReactNode } from "react";
-import { Link, useLocation, useNavigate } from "react-router";
+import { Link, useLocation, useNavigate } from "@/lib/router";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { Button } from "@/components/ui/Button";
 import { useIsMobile } from "@/hooks/useIsMobile";

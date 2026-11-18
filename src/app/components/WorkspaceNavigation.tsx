@@ -1,5 +1,5 @@
 import { Fragment, type MouseEvent } from "react";
-import { Link } from "react-router";
+import { Link } from "@/lib/router";
 import { useTranslation } from "react-i18next";
 import { Icon } from "@/components/ui/Icon";
 import { MOBILE_TABS, workspacePath, type MobileTab } from "@/lib/tabs";

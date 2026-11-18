@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Link } from "react-router";
+import { Link } from "@/lib/router";
 import { useTranslation } from "react-i18next";
 import { workspacePath, type MobileTab } from "@/lib/tabs";
 import { WorkspaceNavigation } from "./WorkspaceNavigation";

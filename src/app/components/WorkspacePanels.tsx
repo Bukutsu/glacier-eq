@@ -1,5 +1,5 @@
 import { lazy, Suspense, type ComponentProps, type ReactNode } from "react";
-import { Navigate } from "react-router";
+import { Navigate } from "@/lib/router";
 import { useTranslation } from "react-i18next";
 import type { DeviceView } from "@/features/device/components/DeviceView";
 import type { SettingsView } from "@/features/settings/components/SettingsView";

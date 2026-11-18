@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 // SPDX-License-Identifier: GPL-3.0-only
 
 import { memo, type MouseEvent } from "react";
-import { Link } from "react-router";
+import { Link } from "@/lib/router";
 import type { DeviceInfo } from "@/types";
 
 export interface SidebarDeviceProps {

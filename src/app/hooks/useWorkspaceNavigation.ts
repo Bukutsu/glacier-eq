@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useEffectEvent, useRef } from "react";
-import { useLocation, useNavigate } from "react-router";
+import { useLocation, useNavigate } from "@/lib/router";
 import { isBalanceNavigation, MODAL_HISTORY_KEY } from "@/lib/modalHistory";
 import { parseWorkspacePath, workspacePath, type MobileTab } from "@/lib/tabs";
 

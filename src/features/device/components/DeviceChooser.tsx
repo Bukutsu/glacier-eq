@@ -1,6 +1,6 @@
 import { ErrorNotice } from "@/components/feedback/ErrorNotice";
 import { useTranslation } from "react-i18next";
-import { Link } from "react-router";
+import { Link } from "@/lib/router";
 import { openExternalLink } from "@/lib/externalLinks";
 import { groupDeviceProfiles } from "../lib/deviceCatalog";
 import { invoke, requestWebHidDevice } from "@/lib/rpc";

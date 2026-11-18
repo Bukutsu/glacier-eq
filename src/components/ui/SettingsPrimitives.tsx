@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import { useId, type ReactNode } from "react";
 import { Button } from "./Button";
 import { Switch } from "./Switch";
-import { NavLink } from "react-router";
+import { Link } from "@/lib/router";
 import { Icon, type IconName } from "./Icon";
 import { Select, type SelectOption } from "./Select";
 import { openExternalLink } from "@/lib/externalLinks";
@@ -26,13 +26,13 @@ export function StackHeader({
   return (
     <header className={`leg:flex leg:items-center leg:gap-[10px] leg:min-h-[52px] leg:p-[0_16px] leg:[background:var(--panel)] leg:[border-bottom:1px_solid_var(--line-soft)] leg:box-border leg:[&.subscreen]:pl-[4px] leg:compact:[.mobile-workspace_&]:sticky leg:compact:[.mobile-workspace_&]:top-[0] leg:compact:[.mobile-workspace_&]:z-[var(--z-sticky)] leg:compact:[.mobile-workspace_&]:min-h-[52px] leg:compact:[.mobile-workspace_&]:p-[0_16px] leg:compact:[.mobile-workspace_&]:[background:var(--panel)] leg:compact:[.mobile-workspace_&]:[border-bottom:1px_solid_var(--line-soft)] leg:compact:[.mobile-workspace_&.subscreen]:pl-[4px] cmp:[.configuration-layout_&]:min-h-[0] cmp:[.configuration-layout_&]:p-[0] cmp:[.configuration-layout_&]:m-[0_0_var(--space-2)] cmp:[.configuration-layout_&]:[background:transparent] cmp:[.configuration-layout_&]:[border:0] cmp:compact:[.configuration-mobile_&]:hidden ${backTo ? " subscreen" : ""}`}>
       {backTo ? (
-        <NavLink
+        <Link
           to={backTo}
           className="stack-back-btn leg:inline-flex leg:items-center leg:justify-center leg:w-[44px] leg:h-[44px] leg:text-[color:var(--text)] leg:[background:transparent] leg:[border:none] leg:rounded-[0]! leg:cursor-pointer leg:no-underline leg:[transition:background_120ms_ease,_color_120ms_ease] leg:[&:hover]:[background:var(--surface-soft)] leg:[&:hover]:text-[color:var(--link-foreground)] leg:[&:focus-visible]:[outline:2px_solid_var(--ring)] leg:[&:focus-visible]:[outline-offset:-2px]"
           aria-label={backLabel ?? t("actions.back")}
         >
           <Icon name="arrow_back" />
-        </NavLink>
+        </Link>
       ) : null}
       <h2 className="stack-topbar-title">{title}</h2>
       {actions ? <div className="stack-topbar-actions">{actions}</div> : null}

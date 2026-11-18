@@ -1,6 +1,6 @@
 import { Trans, useTranslation } from "react-i18next";
 import { useId } from "react";
-import { Link } from "react-router";
+import { Link } from "@/lib/router";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Icon } from "@/components/ui/Icon";
