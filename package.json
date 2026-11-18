@@ -28,6 +28,7 @@
     "lint:locales": "eslint src && i18next-cli lint",
     "locales:extract": "i18next-cli extract",
     "locales:status": "i18next-cli status",
+    "bench:3g": "cross-env VITE_BASE_PATH=/glacier-eq/ vite build --mode web && node scripts/bench-3g.mjs",
     "test:unit": "node --test tests/*.test.ts",
     "test:e2e": "playwright test"
   },
