@@ -1,4 +1,6 @@
-import { getCurrentWindow } from "@tauri-apps/api/window";
+// Loaded on demand: the hosted web build never opens a native window.
+const currentWindow = () =>
+  import("@tauri-apps/api/window").then((m) => m.getCurrentWindow());
 
 type WindowAction = "minimize" | "toggleMaximize" | "close";
 
@@ -26,20 +28,20 @@ export function enableTouchDrag(root: Document = document): void {
     if (event.pointerType === "mouse") return;
     const target = event.target;
     if (!(target instanceof Element) || !target.hasAttribute("data-tauri-drag-region")) return;
-    void getCurrentWindow().startDragging();
+    void currentWindow().then((win) => win.startDragging());
   });
 }
 
 /** Wire the Linux window buttons in index.html. decorum's own Linux
  *  controls misread KDE's button layout, so they are hidden in CSS. */
 export function wireTitlebarControls(root: ParentNode = document): void {
-  const win = getCurrentWindow();
+  const win = currentWindow();
   root
     .querySelectorAll<HTMLButtonElement>("[data-window-action]")
     .forEach((button) => {
       const action = button.dataset.windowAction as WindowAction;
       button.addEventListener("click", () => {
-        void win[action]();
+        void win.then((w) => w[action]());
       });
     });
 }

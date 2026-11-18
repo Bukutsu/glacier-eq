@@ -12,7 +12,7 @@ import {
   type AutoEqOptions,
 } from "@/features/tuning/hooks/useAutoEq";
 import type { MeasurementTrace } from "@/types";
-import { AddTraceModal } from "@/features/traces/components/AddTraceModal";
+import { AddTraceModal } from "@/features/traces/components/LazyAddTraceModal";
 import { Collapsible } from "@/components/ui/Collapsible";
 import { Icon } from "@/components/ui/Icon";
 import { NumberInput } from "@/components/ui/NumberInput";

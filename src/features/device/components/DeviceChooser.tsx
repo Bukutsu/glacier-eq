@@ -4,13 +4,18 @@ import { Link } from "react-router";
 import { openExternalLink } from "@/lib/externalLinks";
 import { groupDeviceProfiles } from "../lib/deviceCatalog";
 import { invoke, requestWebHidDevice } from "@/lib/rpc";
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Icon } from "@/components/ui/Icon";
 import { Button } from "@/components/ui/Button";
-import { LinuxUdevGuide } from "./LinuxUdevGuide";
 import { isDevDummyDevice } from "@/features/device/lib/devDevice";
 import { isLinux, isTauri } from "@/lib/platform";
 import type { DeviceInfo, SupportedDeviceInfo } from "@/types";
+
+const LinuxUdevGuide = lazy(() =>
+  import("./LinuxUdevGuide").then(({ LinuxUdevGuide }) => ({
+    default: LinuxUdevGuide,
+  })),
+);
 
 interface DeviceChooserProps {
   devices: DeviceInfo[];
@@ -248,7 +253,11 @@ export function DeviceChooser({
               <li>{t("deviceChooser.linuxHelp")}</li>
             ) : null}
           </ul>
-          {!isTauri() && isLinux() && <LinuxUdevGuide />}
+          {!isTauri() && isLinux() && (
+            <Suspense fallback={null}>
+              <LinuxUdevGuide />
+            </Suspense>
+          )}
           <a
             href="https://github.com/Bukutsu/glacier-eq/wiki/Troubleshooting"
             target="_blank"

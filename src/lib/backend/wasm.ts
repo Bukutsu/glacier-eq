@@ -35,7 +35,18 @@ export function getWasm(): WasmApi {
 // load is ready before the user reaches AutoEQ or device tools. Web-only
 // module: the desktop backend never imports this file. PROD-only to keep dev
 // reloads snappy and HMR simple.
-if (import.meta.env.PROD) {
+// Slow or metered links skip the warm-up: it would compete with what the user
+// is doing, and the offline cache fetches the module anyway.
+const connection = (
+  navigator as Navigator & {
+    connection?: { effectiveType?: string; saveData?: boolean };
+  }
+).connection;
+const slowLink =
+  connection?.saveData === true ||
+  ["slow-2g", "2g", "3g"].includes(connection?.effectiveType ?? "");
+
+if (import.meta.env.PROD && !slowLink) {
   const warm = () => {
     void ensureWasm().catch(() => {});
   };

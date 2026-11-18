@@ -3,7 +3,7 @@ import { useRef, useState, type ComponentProps } from "react";
 import { Checkbox } from "@base-ui/react/checkbox";
 import { Popover } from "@base-ui/react/popover";
 import { traceSwatchColor } from "@/features/traces/lib/traceColor";
-import { AddTraceModal } from "@/features/traces/components/AddTraceModal";
+import { AddTraceModal } from "@/features/traces/components/LazyAddTraceModal";
 import { Icon } from "@/components/ui/Icon";
 import { UnifiedTracesList } from "@/features/traces/components/UnifiedTraces";
 import { Button } from "@/components/ui/Button";

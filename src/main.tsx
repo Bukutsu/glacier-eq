@@ -1,14 +1,19 @@
-import "@/lib/i18n";
-import React from "react";
+import { i18nReady } from "@/lib/i18n";
+import React, { lazy, Suspense } from "react";
 import ReactDOM from "react-dom/client";
 import { HashRouter, Route, Routes } from "react-router";
-import { SupportedDevicesPage } from "@/features/device/components/SupportedDevicesPage";
 import App from "@/app/App";
 import { ErrorBoundary } from "@/components/feedback/ErrorBoundary";
 import { isAndroidDevice, isLinux, isTauri } from "@/lib/platform";
 import { enableTouchDrag, labelDecorumControls, wireTitlebarControls } from "@/lib/titlebar";
 import { runWhenDocumentLoaded } from "@/lib/runWhenDocumentLoaded";
 import "@/styles/index.css";
+
+const SupportedDevicesPage = lazy(() =>
+  import("@/features/device/components/SupportedDevicesPage").then(
+    ({ SupportedDevicesPage }) => ({ default: SupportedDevicesPage }),
+  ),
+);
 
 if (isAndroidDevice()) {
   document.body.classList.add("is-android");
@@ -79,12 +84,21 @@ if (import.meta.env.PROD) {
 const rootElement = document.getElementById("root");
 if (!rootElement) throw new Error("Missing #root element");
 
+await i18nReady;
+
 ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
     <HashRouter>
       <ErrorBoundary>
         <Routes>
-          <Route path="/supported-devices" element={<SupportedDevicesPage />} />
+          <Route
+            path="/supported-devices"
+            element={
+              <Suspense fallback={null}>
+                <SupportedDevicesPage />
+              </Suspense>
+            }
+          />
           <Route path="*" element={<App />} />
         </Routes>
       </ErrorBoundary>

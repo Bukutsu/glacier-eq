@@ -1,11 +1,21 @@
 import { lazy, Suspense, type ComponentProps, type ReactNode } from "react";
 import { Navigate } from "react-router";
 import { useTranslation } from "react-i18next";
-import { DeviceView } from "@/features/device/components/DeviceView";
-import { SettingsView } from "@/features/settings/components/SettingsView";
+import type { DeviceView } from "@/features/device/components/DeviceView";
+import type { SettingsView } from "@/features/settings/components/SettingsView";
 import type { ProfilesViewProps } from "@/features/profiles/components/ProfilesView";
 import { workspacePath, type MobileTab } from "@/lib/tabs";
 
+const LazyDeviceView = lazy(() =>
+  import("@/features/device/components/DeviceView").then(
+    ({ DeviceView }) => ({ default: DeviceView }),
+  ),
+);
+const LazySettingsView = lazy(() =>
+  import("@/features/settings/components/SettingsView").then(
+    ({ SettingsView }) => ({ default: SettingsView }),
+  ),
+);
 const ProfilesView = lazy(() =>
   import("@/features/profiles/components/ProfilesView").then(
     ({ ProfilesView }) => ({ default: ProfilesView }),
@@ -41,11 +51,18 @@ export function WorkspacePanels({
 }: WorkspacePanelsProps) {
   const { t } = useTranslation("shell");
   if (activeTab === "eq") return null;
+  const fallback = (
+    <div role="status" aria-busy="true">
+      {t("workspace.loading")}
+    </div>
+  );
   const deviceView = (
-    <DeviceView
-      key={`${device.connected}:${device.deviceInfo?.path ?? "none"}`}
-      {...device}
-    />
+    <Suspense fallback={fallback}>
+      <LazyDeviceView
+        key={`${device.connected}:${device.deviceInfo?.path ?? "none"}`}
+        {...device}
+      />
+    </Suspense>
   );
   let content: ReactNode;
   switch (activeTab) {
@@ -68,20 +85,10 @@ export function WorkspacePanels({
         );
       break;
     case "settings":
-      content = <SettingsView {...settings} />;
+      content = <LazySettingsView {...settings} />;
       break;
   }
-  const panel = (
-    <Suspense
-      fallback={
-        <div role="status" aria-busy="true">
-          {t("workspace.loading")}
-        </div>
-      }
-    >
-      {content}
-    </Suspense>
-  );
+  const panel = <Suspense fallback={fallback}>{content}</Suspense>;
   if (mobile)
     return (
       <>
