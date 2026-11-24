@@ -391,6 +391,8 @@
     "readingDevicePreamp": "Gerätevorverstärkung wird gelesen…",
     "readComplete": "Lesen abgeschlossen",
     "loadedEqFromDac": "EQ vom DAC geladen",
+    "seeDetails": "{{savedMessage}} (siehe Details)",
+    "completionWarnings": "{{message}}. {{warnings}}",
     "loadedSimulatedDacEq": "Simulierten DAC-EQ geladen",
     "readBands_one": "{{count}} Band gelesen",
     "readBands_other": "{{count}} Bänder gelesen",

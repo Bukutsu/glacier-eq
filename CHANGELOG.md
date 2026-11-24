@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Read from DAC no longer fails when the DAC returns a band it cannot
+  describe, such as a factory-blank slot on Walkplay DACs (fixes #48). The
+  band is shown flat and the read reports which bands were affected. Values
+  outside the device's limits are clamped with a warning instead of failing
+  the read, and writing an EQ is no longer blocked by such bands. The
+  readback that verifies a write stays strict.
+
 ## [0.18.2] - 2026-11-12
 
 ### Changed

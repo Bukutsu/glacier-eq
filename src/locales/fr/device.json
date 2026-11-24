@@ -394,6 +394,8 @@
     "readingDevicePreamp": "Lecture du préampli de l’appareil…",
     "readComplete": "Lecture terminée",
     "loadedEqFromDac": "Égalisation chargée depuis le DAC",
+    "seeDetails": "{{savedMessage}} (voir les détails)",
+    "completionWarnings": "{{message}}. {{warnings}}",
     "loadedSimulatedDacEq": "Égalisation du DAC simulé chargée",
     "readBands_one": "{{count}} bande lue",
     "readBands_other": "{{count}} bandes lues",

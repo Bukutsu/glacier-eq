@@ -3,8 +3,10 @@
 
 use crate::state::{ConnectedDevice, DeviceSessionLock, DeviceState};
 use glacier_core::device::{
-    get_supported_device_with_name, session::EqWriteOutcome, BlockingDeviceIo as DeviceIo,
-    Controls, DacUtilityState, DeviceInfo, DeviceProfile, DeviceSession, SupportedDeviceInfo,
+    get_supported_device_with_name,
+    session::{EqReadOutcome, EqWriteOutcome},
+    BlockingDeviceIo as DeviceIo, Controls, DacUtilityState, DeviceInfo, DeviceProfile,
+    DeviceSession, SupportedDeviceInfo,
 };
 use glacier_core::eq::PEQData;
 use std::collections::HashSet;
@@ -528,9 +530,10 @@ fn session_identity(state: &tauri::State<'_, Mutex<DeviceState>>) -> Result<(Str
 pub async fn get_eq_state(
     app: tauri::AppHandle,
     state: tauri::State<'_, Mutex<DeviceState>>,
-) -> Result<PEQData, String> {
+) -> Result<EqReadOutcome, String> {
     with_session(&app, &state, |session| {
-        glacier_core::device::block_on(session.pull())
+        let (peq, warnings) = glacier_core::device::block_on(session.read_eq())?;
+        Ok(EqReadOutcome { peq, warnings })
     })
     .await
 }

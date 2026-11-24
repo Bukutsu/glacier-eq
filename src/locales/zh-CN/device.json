@@ -388,6 +388,8 @@
     "readingDevicePreamp": "正在读取设备前级增益…",
     "readComplete": "读取完成",
     "loadedEqFromDac": "已从 DAC 加载 EQ",
+    "seeDetails": "{{savedMessage}}（查看详情）",
+    "completionWarnings": "{{message}}。{{warnings}}",
     "loadedSimulatedDacEq": "已加载模拟 DAC EQ",
     "readBands_other": "已读取 {{count}} 个频段",
     "connectionRequired": "请先连接 DAC，再读取其 EQ。",

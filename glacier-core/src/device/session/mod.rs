@@ -7,7 +7,7 @@ mod command;
 mod io;
 mod ja11;
 mod melody;
-pub use command::{DeviceCommand, DeviceOutcome, EqWriteOutcome};
+pub use command::{DeviceCommand, DeviceOutcome, EqReadOutcome, EqWriteOutcome};
 
 pub use io::{DeviceIo, HID_READ_BUFFER_BYTES};
 mod blocking;
@@ -103,6 +103,25 @@ fn combine_errors(first: Fault, retry: Fault) -> Fault {
     }
 }
 
+/// Names the bands a read could not decode, or None when all were read.
+fn unreadable_bands_warning(indices: &[u8]) -> Option<String> {
+    let bands: Vec<String> = indices
+        .iter()
+        .map(|index| (index + 1).to_string())
+        .collect();
+    match bands.len() {
+        0 => None,
+        1 => Some(format!(
+            "Band {} could not be read from the DAC and is shown flat",
+            bands[0]
+        )),
+        _ => Some(format!(
+            "Bands {} could not be read from the DAC and are shown flat",
+            bands.join(", ")
+        )),
+    }
+}
+
 pub(crate) type ProgressCallback<'a> = dyn FnMut(&str, f32) + 'a;
 
 pub struct DeviceSession<'a, I: DeviceIo = BlockingIo<'a>> {
@@ -112,7 +131,8 @@ pub struct DeviceSession<'a, I: DeviceIo = BlockingIo<'a>> {
     next_nonce: u8,
     melody_write_slot: Option<u8>,
     fiio_write_slot: Option<u8>,
-    last_pull_had_invalid_response: bool,
+    /// Band indices the last pull could not read; they came back flat.
+    last_pull_unreadable_bands: Vec<u8>,
     last_pull_sent_gain_request: bool,
     last_pull_gain_read_completed: bool,
     gain_read_requires_correlation: bool,
@@ -135,7 +155,7 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
             next_nonce: initial_nonce,
             melody_write_slot: None,
             fiio_write_slot: None,
-            last_pull_had_invalid_response: false,
+            last_pull_unreadable_bands: Vec::new(),
             last_pull_sent_gain_request: false,
             last_pull_gain_read_completed: false,
             gain_read_requires_correlation: false,
@@ -234,6 +254,29 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
         Ok(self.pull_checked().await?)
     }
 
+    /// The user's read. Unreadable bands come back flat and out-of-range
+    /// values are clamped; each change is a warning instead of an error.
+    pub async fn read_eq(&mut self) -> Result<(PEQData, Vec<String>), String> {
+        let mut peq = self.pull().await?;
+        let mut warnings: Vec<String> = unreadable_bands_warning(&self.last_pull_unreadable_bands)
+            .into_iter()
+            .collect();
+        warnings.extend(peq.clamp_to_capabilities(&self.profile.caps));
+        validate_peq_for_capabilities(&peq, &self.profile.caps)
+            .map_err(|error| format!("Device returned invalid EQ state: {error}"))?;
+        Ok((peq, warnings))
+    }
+
+    /// Rollback snapshot before a write. Unreadable or out-of-range bands are
+    /// kept as their flat or clamped stand-ins: the write replaces them, so
+    /// they must not block it.
+    async fn read_backup(&mut self) -> Result<PEQData, String> {
+        let mut backup = self.pull().await?;
+        backup.clamp_to_capabilities(&self.profile.caps);
+        validate_peq_for_capabilities(&backup, &self.profile.caps)?;
+        Ok(backup)
+    }
+
     async fn pull_checked(&mut self) -> Result<PEQData, Fault> {
         self.require_hardware_eq()?;
         // A complete-pull retry is only safe when the failed attempt did not
@@ -242,7 +285,14 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
         self.gain_read_requires_correlation = false;
         let protocol = self.protocol();
         match self.pull_once().await {
-            Ok(peq) if !protocol.is_default_state(&peq) => Ok(peq),
+            Ok(peq)
+                if !protocol.is_default_state(&peq)
+                    && self.last_pull_unreadable_bands.is_empty() =>
+            {
+                Ok(peq)
+            }
+            // A default state or an unreadable band may be transient: read
+            // once more and keep that answer.
             Ok(_) => {
                 self.io.sleep_ms(RETRY_DELAY_MS).await;
                 // The retry exists because a default-state read may be a
@@ -290,11 +340,7 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
         let (normalized, warnings) = self.normalize(peq)?;
         // Snapshot the destination, not whichever bank happened to be playing.
         self.prepare_write_destination().await?;
-        let backup = self.pull().await?;
-        if self.last_pull_had_invalid_response {
-            return Err("Cannot push while the device returned an invalid EQ response".into());
-        }
-        validate_peq_for_capabilities(&backup, &self.profile.caps)?;
+        let backup = self.read_backup().await?;
         // A DAC that resets on save cannot be read back afterwards, so its
         // RAM state is verified first and the save is the last packet sent.
         // JA11 ordering follows jeromeof/devicePEQ (disconnectOnSave) and
@@ -346,7 +392,7 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
             .pull()
             .await
             .map_err(|error| format!("Push verification failed: {error}"))?;
-        if self.last_pull_had_invalid_response {
+        if !self.last_pull_unreadable_bands.is_empty() {
             return Err("Push verification failed: device returned an invalid EQ response".into());
         }
         validate_peq_for_capabilities(&actual, &self.profile.caps)
@@ -378,7 +424,7 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
         }
         self.io.sleep_ms(RETRY_DELAY_MS).await;
         let actual = self.pull().await?;
-        if self.last_pull_had_invalid_response {
+        if !self.last_pull_unreadable_bands.is_empty() {
             return Err("Device returned an invalid EQ response during restore".into());
         }
         validate_peq_for_capabilities(&actual, &self.profile.caps)?;
@@ -399,11 +445,7 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
         self.require_hardware_eq()?;
         let (normalized, mut warnings) = self.normalize(peq)?;
         self.prepare_write_destination().await?;
-        let backup = self.pull().await?;
-        if self.last_pull_had_invalid_response {
-            return Err("Cannot push while the device returned an invalid EQ response".into());
-        }
-        validate_peq_for_capabilities(&backup, &self.profile.caps)?;
+        let backup = self.read_backup().await?;
         let attempt = (async {
             self.write_to_ram(&normalized).await?;
             self.commit().await
@@ -435,11 +477,7 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
                 self.profile.name
             ));
         }
-        let backup = self.pull().await?;
-        if self.last_pull_had_invalid_response {
-            return Err("Cannot apply while the device returned an invalid EQ response".into());
-        }
-        validate_peq_for_capabilities(&backup, &self.profile.caps)?;
+        let backup = self.read_backup().await?;
         let (normalized, warnings) = self.normalize(peq)?;
         let attempt = self.write_ram_and_apply(&normalized).await;
         if let Err(error) = attempt {
@@ -492,7 +530,7 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
     async fn verify_ram_state(&mut self, expected: &PEQData) -> Result<(), String> {
         self.io.sleep_ms(RETRY_DELAY_MS).await;
         let actual = self.pull().await?;
-        if self.last_pull_had_invalid_response {
+        if !self.last_pull_unreadable_bands.is_empty() {
             return Err("Device returned an invalid EQ response during RAM verification".into());
         }
         validate_peq_for_capabilities(&actual, &self.profile.caps)?;
@@ -542,7 +580,7 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
     }
 
     async fn pull_once(&mut self) -> Result<PEQData, Fault> {
-        self.last_pull_had_invalid_response = false;
+        self.last_pull_unreadable_bands.clear();
         self.last_pull_sent_gain_request = false;
         self.last_pull_gain_read_completed = false;
         self.progress("Preparing EQ read…", 5.0);
@@ -575,16 +613,10 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
             self.io.sleep_ms(timing.flood_delay_ms).await;
         }
         self.progress("Read complete", 100.0);
-        let peq = PEQData {
+        Ok(PEQData {
             filters,
             global_gain,
-        };
-        validate_peq_for_capabilities(&peq, &self.profile.caps)
-            .map_err(|error| format!("Device returned invalid EQ state: {error}"))?;
-        if self.last_pull_had_invalid_response {
-            return Err("Device returned an invalid EQ response".into());
-        }
-        Ok(peq)
+        })
     }
 
     async fn read_filter(&mut self, index: u8) -> Result<Filter, Fault> {
@@ -611,14 +643,10 @@ impl<'a, I: DeviceIo> DeviceSession<'a, I> {
                 .await
             {
                 Ok(data) => {
-                    let valid = protocol.is_filter_response_valid(&data, index, nonce);
-                    if !valid {
-                        self.last_pull_had_invalid_response = true;
-                        return Err(format!(
-                            "Device returned an invalid EQ response: filter {} values",
-                            index + 1
-                        )
-                        .into());
+                    // The parser turns an unreadable band into a flat one;
+                    // callers decide whether that is acceptable.
+                    if !protocol.is_filter_response_valid(&data, index, nonce) {
+                        self.last_pull_unreadable_bands.push(index);
                     }
                     return protocol.parse_filter_response(&data).ok_or_else(|| {
                         Fault::from(format!("Filter {} response could not be parsed", index + 1))

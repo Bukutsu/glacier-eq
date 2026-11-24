@@ -979,7 +979,9 @@ fn execute_hardware(action: HardwareAction, selector: Option<&str>) -> Result<St
     }
     open_session(selector, |session| match action {
         HardwareAction::Pull => {
-            glacier_core::device::block_on(session.pull()).map(|peq| peq_to_autoeq(&peq))
+            let (peq, warnings) = glacier_core::device::block_on(session.read_eq())?;
+            print_warnings(&warnings);
+            Ok(peq_to_autoeq(&peq))
         }
         HardwareAction::Push(file) => {
             let (peq, _, warnings) = read_peq(&file)?;

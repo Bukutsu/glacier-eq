@@ -391,6 +391,8 @@
     "readingDevicePreamp": "Reading device preamp…",
     "readComplete": "Read complete",
     "loadedEqFromDac": "Loaded EQ from DAC",
+    "seeDetails": "{{savedMessage}} (see details)",
+    "completionWarnings": "{{message}}. {{warnings}}",
     "loadedSimulatedDacEq": "Loaded simulated DAC EQ",
     "readBands_one": "Read {{count}} band",
     "readBands_other": "Read {{count}} bands",

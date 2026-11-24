@@ -388,6 +388,8 @@
     "readingDevicePreamp": "กำลังอ่านปรีแอมป์ของอุปกรณ์…",
     "readComplete": "อ่านเสร็จแล้ว",
     "loadedEqFromDac": "โหลด EQ จาก DAC แล้ว",
+    "seeDetails": "{{savedMessage}} (ดูรายละเอียด)",
+    "completionWarnings": "{{message}}. {{warnings}}",
     "loadedSimulatedDacEq": "โหลด EQ ของ DAC จำลองแล้ว",
     "readBands_other": "อ่าน {{count}} แบนด์แล้ว",
     "connectionRequired": "เชื่อมต่อ DAC ก่อนอ่าน EQ",

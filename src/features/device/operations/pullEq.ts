@@ -9,7 +9,11 @@ import {
   readDevDummyPeq,
   isDevDummyDevice,
 } from "@/features/device/lib/devDevice";
-import { normalizePeq, peqEquals } from "@/features/eq/lib/peq";
+import {
+  extractPushWarnings,
+  normalizePeq,
+  peqEquals,
+} from "@/features/eq/lib/peq";
 
 import { isDisconnectionError } from "@/lib/errors";
 import { asyncContextEquals } from "@/lib/asyncContext";
@@ -162,6 +166,9 @@ export function createPullEq(context: PullEqContext) {
     const isCurrentPull = () => isConfirmationCurrent();
     try {
       let data: PEQData;
+      // What the read changed to show the EQ: unreadable bands shown flat,
+      // out-of-range values clamped.
+      let readWarnings: string[] = [];
       if (isDevDummyDevice(targetPath)) {
         setProgress({
           message: i18n.t("device:pullEq.preparingEqRead"),
@@ -205,16 +212,34 @@ export function createPullEq(context: PullEqContext) {
         data = readDevDummyPeq(targetPath);
       } else {
         data = await invoke<PEQData>("get_eq_state");
+        readWarnings = extractPushWarnings(data);
         await sleep(400);
       }
       if (!isCurrentPull()) return false;
       const normalized = normalizePeq(data, {
         capabilities: targetCapabilities,
       });
+      const loadedMessage = isDevDummyDevice(targetPath)
+        ? i18n.t("device:pullEq.loadedSimulatedDacEq")
+        : i18n.t("device:pullEq.loadedEqFromDac");
+      const reportReadWarnings = () =>
+        reportStatus({
+          level: "Warn",
+          message: i18n.t("device:pullEq.completionWarnings", {
+            message: loadedMessage,
+            warnings: readWarnings.join(" · "),
+          }),
+          toastType: "info",
+          source: "UI",
+          statusText: i18n.t("device:pullEq.seeDetails", {
+            savedMessage: loadedMessage,
+          }),
+        });
       if (keepEdits && (dirty || peqEquals(normalized, peqRef.current))) {
         // Leave the editor as the user left it. Recording the DAC's EQ lets
         // the header say whether the DAC still matches the editor.
         setLastPushedPeq(normalized);
+        if (readWarnings.length > 0) reportReadWarnings();
         return true;
       }
       const matchedProfile = await resolvePulledProfile(
@@ -242,13 +267,9 @@ export function createPullEq(context: PullEqContext) {
       emit("device-pull").catch((err) =>
         console.error("Failed to emit device-pull:", err),
       );
-      reportStatus({
-        level: "Info",
-        message: isDevDummyDevice(targetPath)
-          ? i18n.t("device:pullEq.loadedSimulatedDacEq")
-          : i18n.t("device:pullEq.loadedEqFromDac"),
-        source: "UI",
-      });
+      if (readWarnings.length > 0) reportReadWarnings();
+      else
+        reportStatus({ level: "Info", message: loadedMessage, source: "UI" });
       return true;
     } catch (error) {
       // A pull that lost its editor/connection context mid-read must not

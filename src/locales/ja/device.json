@@ -388,6 +388,8 @@
     "readingDevicePreamp": "デバイスのプリアンプを読み込み中…",
     "readComplete": "読み込み完了",
     "loadedEqFromDac": "DACからEQを読み込みました",
+    "seeDetails": "{{savedMessage}}（詳細を確認）",
+    "completionWarnings": "{{message}}。{{warnings}}",
     "loadedSimulatedDacEq": "シミュレーションDACのEQを読み込みました",
     "readBands_other": "{{count}}バンドを読み込みました",
     "connectionRequired": "EQを読み込む前にDACを接続してください。",

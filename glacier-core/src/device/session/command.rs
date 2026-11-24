@@ -81,10 +81,19 @@ pub struct EqWriteOutcome {
     pub restarts: bool,
 }
 
+/// A read EQ plus what the read had to change to show it: unreadable bands
+/// shown flat and out-of-range values clamped.
+#[derive(Serialize)]
+pub struct EqReadOutcome {
+    #[serde(flatten)]
+    pub peq: PEQData,
+    pub warnings: Vec<String>,
+}
+
 #[derive(Serialize)]
 #[serde(untagged)]
 pub enum DeviceOutcome {
-    Peq(PEQData),
+    Read(EqReadOutcome),
     Write(EqWriteOutcome),
     Firmware(Option<String>),
     Control(Option<u8>),
@@ -99,7 +108,10 @@ impl<I: DeviceIo> DeviceSession<'_, I> {
     pub async fn execute(&mut self, command: DeviceCommand) -> Result<DeviceOutcome, String> {
         use DeviceCommand::*;
         let outcome = match command {
-            Pull => DeviceOutcome::Peq(self.pull().await?),
+            Pull => {
+                let (peq, warnings) = self.read_eq().await?;
+                DeviceOutcome::Read(EqReadOutcome { peq, warnings })
+            }
             Push {
                 peq,
                 skip_verification,
