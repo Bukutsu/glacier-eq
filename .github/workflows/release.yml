@@ -196,7 +196,7 @@ jobs:
         run: test -f dist/index.html
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: glacier-eq-desktop-frontend
+          name: desktop-frontend
           path: dist
           if-no-files-found: error
           retention-days: 1
@@ -220,7 +220,7 @@ jobs:
         include:
           - name: linux-x64
             os: ubuntu-22.04
-            args: "--bundles deb,rpm,appimage"
+            args: "--bundles appimage"
             rust-targets: ""
             required-assets: "linux-x64"
           - name: windows-x64
@@ -241,7 +241,6 @@ jobs:
         if: matrix.name == 'linux-x64'
         run: |
           sudo apt-get update
-          # zsync provides zsyncmake, which writes the AppImage's .zsync file;
           # appstream provides appstreamcli, which validates its metainfo.
           sudo apt-get install -y --no-install-recommends \
             libwebkit2gtk-4.1-dev \
@@ -250,7 +249,6 @@ jobs:
             patchelf \
             libudev-dev \
             pkg-config \
-            zsync \
             appstream
 
       - name: Install Windows cross-build dependencies
@@ -361,7 +359,7 @@ jobs:
       - name: Download shared desktop frontend
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
-          name: glacier-eq-desktop-frontend
+          name: desktop-frontend
           path: dist
 
       - name: Write release version config
@@ -390,15 +388,11 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           # Read by linuxdeploy-plugin-appimage (appimagetool). LDAI_VERSION is
-          # written to the desktop file as X-AppImage-Version. The update string
-          # is embedded in the AppImage's .upd_info section; the file name must
-          # match the GitHub release asset <name>.zsync made by "Generate
-          # AppImage zsync file". Gear Lever and appimageupdatetool read it.
+          # written to the desktop file as X-AppImage-Version.
           LDAI_VERSION: ${{ needs.check-tag.outputs.release-version }}
           # appimagetool wants <desktop name>.appdata.xml; ours is named after
           # its AppStream id, so it checks the tree itself in "Verify AppImage".
           LDAI_NO_APPSTREAM: "1"
-          LDAI_UPDATE_INFORMATION: "gh-releases-zsync|${{ github.repository_owner }}|${{ github.event.repository.name }}|latest|Glacier-EQ_*_amd64.AppImage.zsync"
         with:
           args: ${{ matrix.args }} --config release-config.json -- --locked
           releaseAssetNamePattern: "glacier-eq_[version]_[platform]_[arch].[ext]"
@@ -424,16 +418,11 @@ jobs:
           fi
           echo "✅ Verified: $(basename "$appimage") does not bundle libwayland-client"
 
-          # Gear Lever and Shelly read the version from the desktop entry, and
-          # Gear Lever reads update info from the .upd_info ELF section.
+          # Gear Lever and Shelly read the version from the desktop entry.
           desktop=$(find "$workdir/squashfs-root" -maxdepth 1 -name '*.desktop' -print -quit)
           if ! grep -qx "X-AppImage-Version=$GLACIER_EQ_RELEASE_VERSION" "$desktop"; then
             echo "❌ $(basename "$desktop") lacks X-AppImage-Version=$GLACIER_EQ_RELEASE_VERSION"
             cat "$desktop"
-            exit 1
-          fi
-          if ! readelf --string-dump=.upd_info --wide "$appimage" | grep -qF "gh-releases-zsync|"; then
-            echo "❌ $(basename "$appimage") has no embedded update information (.upd_info)"
             exit 1
           fi
           # AppStream metainfo for software centers and AppImage catalogs. It
@@ -441,7 +430,7 @@ jobs:
           test -f "$workdir/squashfs-root/usr/share/metainfo/com.bukutsu.glaciereq.metainfo.xml"
           appstreamcli validate-tree --no-net "$workdir/squashfs-root"
           rm -rf "$workdir"
-          echo "✅ Verified: X-AppImage-Version, update information, and AppStream metainfo"
+          echo "✅ Verified: X-AppImage-Version and AppStream metainfo"
 
       - name: Build Windows app
         if: matrix.cross-windows == true
@@ -462,12 +451,7 @@ jobs:
 
           find target -path '*/release/bundle/*' -type f \
             \( -name '*.AppImage' \
-            -o -name '*.AppImage.tar.gz' \
-            -o -name '*.deb' \
-            -o -name '*.rpm' \
-            -o -name '*.exe' \
-            -o -name '*.msi' \
-            -o -name '*.nsis.zip' \
+            -o -name '*-setup.exe' \
             -o -name '*.sig' \) \
             -exec cp '{}' release-assets/ \;
 
@@ -479,43 +463,6 @@ jobs:
 
           echo "✅ Assets collected for ${{ matrix.name }}:"
           find release-assets -maxdepth 1 -type f -print | sort
-
-      # Gear Lever's embedded gh-releases-zsync update info points at this file,
-      # and it compares its SHA-1 header with the installed AppImage. Made here
-      # rather than by appimagetool so it is deterministic and sits beside the
-      # AppImage. -u is the relative download URL (the AppImage's own name).
-      - name: Generate AppImage zsync file
-        if: matrix.name == 'linux-x64'
-        shell: bash
-        run: |
-          set -euo pipefail
-          cd release-assets
-          appimage=$(find . -maxdepth 1 -name '*.AppImage' -printf '%f\n')
-          if [ "$(printf '%s\n' "$appimage" | grep -c .)" -ne 1 ]; then
-            echo "❌ Expected exactly one AppImage, found: $appimage"
-            exit 1
-          fi
-          zsyncmake -u "$appimage" -o "$appimage.zsync" "$appimage"
-          grep -a -m1 '^SHA-1: ' "$appimage.zsync"
-          echo "✅ Generated $appimage.zsync"
-
-      # The release exe is self-contained (frontend embedded, no resources or
-      # sidecars), so zipping it alone gives a portable build. WebView2 must
-      # already be installed on the target machine (default on Windows 10/11).
-      - name: Package Windows portable build
-        if: matrix.name == 'windows-x64'
-        shell: bash
-        run: |
-          set -euo pipefail
-          exe=$(find target -path '*/release/glacier-eq.exe' -print -quit)
-          test -n "$exe" || { echo "Missing Windows executable" >&2; exit 1; }
-          dir='portable/Glacier-EQ'
-          mkdir -p "$dir"
-          cp "$exe" "$dir/Glacier-EQ.exe"
-          cp LICENSE "$dir/"
-          zip="release-assets/glacier-eq_v${{ needs.check-tag.outputs.release-version }}_windows-x64-portable.zip"
-          (cd portable && zip -qr "../$zip" Glacier-EQ)
-          ls -lh "$zip"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -637,7 +584,7 @@ jobs:
       - name: Download shared desktop frontend
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
-          name: glacier-eq-desktop-frontend
+          name: desktop-frontend
           path: dist
 
       - name: Verify Cargo lock is current
@@ -831,12 +778,8 @@ jobs:
             fi
           }
 
-          require_glob "Linux DEB" 'artifacts/*.deb'
-          require_glob "Linux RPM" 'artifacts/*.rpm'
           require_glob "Linux AppImage" 'artifacts/*.AppImage'
-          require_glob "Linux AppImage zsync" 'artifacts/*.AppImage.zsync'
-          require_glob "Windows EXE" 'artifacts/*.exe'
-          require_glob "Windows portable ZIP" 'artifacts/*windows-x64-portable.zip'
+          require_glob "Windows installer" 'artifacts/*-setup.exe'
           require_glob "Android ARM64 APK" 'artifacts/*android-arm64.apk'
           # The in-app updater only installs signed payloads.
           require_glob "Linux AppImage signature" 'artifacts/*.AppImage.sig'
@@ -880,7 +823,10 @@ jobs:
       - name: Attest build provenance
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
-          subject-path: "artifacts/*"
+          subject-path: |
+            artifacts/*.AppImage
+            artifacts/*-setup.exe
+            artifacts/*android-arm64.apk
 
       - name: Extract release notes from CHANGELOG.md
         env:
@@ -922,4 +868,10 @@ jobs:
           prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') || contains(github.ref_name, '-') }}
           generate_release_notes: true
           fail_on_unmatched_files: true
-          files: artifacts/*
+          # One download per platform plus the updater feed. The .sig files
+          # are embedded in latest.json, so they are not uploaded.
+          files: |
+            artifacts/*.AppImage
+            artifacts/*-setup.exe
+            artifacts/*android-arm64.apk
+            artifacts/latest.json

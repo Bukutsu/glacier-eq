@@ -6,6 +6,10 @@
 
 - Releases no longer include macOS desktop builds. On macOS, use the web app
   in Chrome or Edge.
+- Releases now offer one download per platform: the Windows installer, the
+  Linux AppImage and the Android APK. The .deb, .rpm, portable Windows zip,
+  AppImage .zsync and signature files are gone; installed apps still update
+  in-app.
 
 ## [0.19.0] - 2026-11-24
 
