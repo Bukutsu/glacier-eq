@@ -2,7 +2,7 @@
 
 Glacier EQ lets you adjust the parametric EQ on supported USB DAC dongles. Once you've saved your EQ to the DAC, it stays there when you plug it into another device.
 
-[Open the web app](https://bukutsu.github.io/glacier-eq/) (Chrome or Edge) · [Download for desktop or Android](https://github.com/Bukutsu/glacier-eq/releases)
+[Open the web app](https://bukutsu.github.io/glacier-eq/) (Chrome or Edge) · [Download for Windows, Linux or Android](https://github.com/Bukutsu/glacier-eq/releases) · On macOS, use the web app
 
 <img src="assets/screenshot-main.png" alt="Glacier EQ showing EQ sliders and sound curve" width="900">
 

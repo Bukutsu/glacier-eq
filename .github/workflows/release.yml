@@ -232,20 +232,6 @@ jobs:
             rust-targets: "x86_64-pc-windows-msvc"
             cross-windows: true
             required-assets: "windows-x64"
-          - name: macos-apple-silicon
-            os: macos-latest
-            # `app` is bundled alongside the DMG so Tauri also writes the
-            # updater's .app.tar.gz; a DMG-only build produces none.
-            args: "--target aarch64-apple-darwin --bundles app,dmg"
-            rust-targets: "aarch64-apple-darwin"
-            required-assets: "macos-apple-silicon"
-            updater-arch: "aarch64"
-          - name: macos-intel
-            os: macos-latest
-            args: "--target x86_64-apple-darwin --bundles app,dmg"
-            rust-targets: "x86_64-apple-darwin"
-            required-assets: "macos-intel"
-            updater-arch: "x86_64"
 
     steps:
       - name: Checkout
@@ -393,66 +379,6 @@ jobs:
           # metadata uses the stable base version for package-manager syntax.
           printf '{"version":"%s","build":{"beforeBuildCommand":""},"bundle":{"createUpdaterArtifacts":true}}\n' "$PACKAGE_VERSION" > release-config.json
 
-      - name: Check release signing credentials
-        id: signing
-        if: startsWith(matrix.os, 'macos') || startsWith(matrix.os, 'windows')
-        shell: bash
-        env:
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
-          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
-          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
-        run: |
-          set -euo pipefail
-          if [[ "$RUNNER_OS" == "macOS" ]]; then
-            missing=()
-            [[ -n "$APPLE_CERTIFICATE" ]] || missing+=(APPLE_CERTIFICATE)
-            [[ -n "$APPLE_CERTIFICATE_PASSWORD" ]] || missing+=(APPLE_CERTIFICATE_PASSWORD)
-            [[ -n "$APPLE_SIGNING_IDENTITY" ]] || missing+=(APPLE_SIGNING_IDENTITY)
-            if (( ${#missing[@]} > 0 )); then
-              echo "signed=false" >> "$GITHUB_OUTPUT"
-              echo "notarized=false" >> "$GITHUB_OUTPUT"
-              echo "::warning title=macOS code signing::Unavailable: ${missing[*]}. Building unsigned macOS artifacts."
-              exit 0
-            fi
-            echo "signed=true" >> "$GITHUB_OUTPUT"
-            echo "✅ macOS code signing credentials found."
-
-            # Code signing and notarization are separate: Tauri signs with the
-            # imported certificate but authenticates to Apple separately. The
-            # previous check only looked at the certificate, so a release with
-            # no Apple credentials still reported itself as signed and shipped
-            # a DMG that Gatekeeper rejects on every user's machine.
-            notary_missing=()
-            if [[ -z "$APPLE_ID" || -z "$APPLE_PASSWORD" ]]; then
-              notary_missing+=(APPLE_ID+APPLE_PASSWORD)
-            fi
-            [[ -n "$APPLE_TEAM_ID" ]] || notary_missing+=(APPLE_TEAM_ID)
-            if (( ${#notary_missing[@]} > 0 )); then
-              echo "notarized=false" >> "$GITHUB_OUTPUT"
-              echo "::warning title=macOS notarization::Signed but NOT notarized: missing ${notary_missing[*]}. Every download will show a Gatekeeper warning."
-            else
-              echo "notarized=true" >> "$GITHUB_OUTPUT"
-              echo "✅ macOS notarization credentials found."
-            fi
-            if [[ -z "$KEYCHAIN_PASSWORD" ]]; then
-              echo "::notice title=macOS keychain::KEYCHAIN_PASSWORD is unset; Tauri will generate a temporary one for the certificate import."
-            fi
-          elif [[ -n "$WINDOWS_CERTIFICATE" && -n "$WINDOWS_CERTIFICATE_PASSWORD" ]]; then
-            echo "signed=true" >> "$GITHUB_OUTPUT"
-            echo "notarized=false" >> "$GITHUB_OUTPUT"
-            echo "✅ Windows signing credentials found."
-          else
-            echo "signed=false" >> "$GITHUB_OUTPUT"
-            echo "notarized=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::Windows signing credentials are unavailable; building unsigned Windows artifacts."
-          fi
-
       - name: Build Linux app
         if: matrix.name == 'linux-x64'
         # NOTE: no GITHUB_TOKEN here on purpose. tauri-action would otherwise
@@ -517,28 +443,8 @@ jobs:
           rm -rf "$workdir"
           echo "✅ Verified: X-AppImage-Version, update information, and AppStream metainfo"
 
-      - name: Build signed app
-        if: matrix.cross-windows != true && matrix.os != 'ubuntu-22.04' && steps.signing.outputs.signed == 'true'
-        uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f
-        env:
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
-          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
-          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        with:
-          args: ${{ matrix.args }} --config release-config.json -- --locked
-          releaseAssetNamePattern: "glacier-eq_[version]_[platform]_[arch].[ext]"
-          retryAttempts: 1
-
-      - name: Build unsigned app
-        if: matrix.cross-windows == true || (matrix.os != 'ubuntu-22.04' && steps.signing.outputs.signed != 'true')
+      - name: Build Windows app
+        if: matrix.cross-windows == true
         uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -555,9 +461,7 @@ jobs:
           mkdir -p release-assets
 
           find target -path '*/release/bundle/*' -type f \
-            \( -name '*.dmg' \
-            -o -name '*.app.tar.gz' \
-            -o -name '*.AppImage' \
+            \( -name '*.AppImage' \
             -o -name '*.AppImage.tar.gz' \
             -o -name '*.deb' \
             -o -name '*.rpm' \
@@ -566,20 +470,6 @@ jobs:
             -o -name '*.nsis.zip' \
             -o -name '*.sig' \) \
             -exec cp '{}' release-assets/ \;
-
-          # Both macOS jobs emit an arch-less Glacier-EQ.app.tar.gz; give each a
-          # unique name before the artifacts are merged. The signature covers
-          # the bytes, not the name, so the .sig only needs the same rename.
-          if [ -n "${{ matrix.updater-arch }}" ]; then
-            archive=release-assets/Glacier-EQ.app.tar.gz
-            if [ ! -f "$archive" ] || [ ! -f "$archive.sig" ]; then
-              echo "❌ Missing signed updater archive: $archive(.sig)"
-              exit 1
-            fi
-            renamed="release-assets/glacier-eq_v${{ needs.check-tag.outputs.release-version }}_macos-${{ matrix.updater-arch }}.app.tar.gz"
-            mv "$archive" "$renamed"
-            mv "$archive.sig" "$renamed.sig"
-          fi
 
           if ! find release-assets -maxdepth 1 -type f | grep -q .; then
             echo "❌ No Tauri bundle assets were produced for ${{ matrix.name }}."
@@ -947,16 +837,10 @@ jobs:
           require_glob "Linux AppImage zsync" 'artifacts/*.AppImage.zsync'
           require_glob "Windows EXE" 'artifacts/*.exe'
           require_glob "Windows portable ZIP" 'artifacts/*windows-x64-portable.zip'
-          require_glob "macOS Apple Silicon DMG" 'artifacts/*aarch64*.dmg'
-          if ! compgen -G 'artifacts/*x64*.dmg' >/dev/null && ! compgen -G 'artifacts/*x86_64*.dmg' >/dev/null; then
-            echo "❌ Missing required release asset: macOS Intel DMG"
-            exit 1
-          fi
           require_glob "Android ARM64 APK" 'artifacts/*android-arm64.apk'
           # The in-app updater only installs signed payloads.
           require_glob "Linux AppImage signature" 'artifacts/*.AppImage.sig'
           require_glob "Windows NSIS signature" 'artifacts/*-setup.exe.sig'
-          require_glob "macOS updater archives" 'artifacts/*macos-*.app.tar.gz.sig'
 
           echo "✅ All expected OS release assets are present."
 

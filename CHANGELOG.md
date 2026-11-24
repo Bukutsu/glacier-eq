@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Removed
+
+- Releases no longer include macOS desktop builds. On macOS, use the web app
+  in Chrome or Edge.
+
 ## [0.19.0] - 2026-11-24
 
 ### Added

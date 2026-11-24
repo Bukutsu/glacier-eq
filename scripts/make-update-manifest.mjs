@@ -17,8 +17,6 @@ import { pathToFileURL } from "node:url";
 export const TARGETS = [
   ["linux-x86_64-appimage", /\.AppImage$/],
   ["windows-x86_64-nsis", /-setup\.exe$/],
-  ["darwin-aarch64-app", /_macos-aarch64\.app\.tar\.gz$/],
-  ["darwin-x86_64-app", /_macos-x86_64\.app\.tar\.gz$/],
 ];
 
 /**

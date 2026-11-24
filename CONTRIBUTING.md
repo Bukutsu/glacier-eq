@@ -23,18 +23,15 @@ Thanks for contributing to Glacier EQ.
 Releases are tag-driven: push a `vX.Y.Z` tag and the `Release` workflow verifies
 the tag against `package.json`, `src-tauri/Cargo.toml`, and
 `src-tauri/tauri.conf.json`, runs `npm run verify` plus `npm run verify:rust`,
-builds every platform, and uploads the assets to a draft release. Add a matching
-`## [X.Y.Z]` section to `CHANGELOG.md` first; the workflow extracts it for the
-release notes and falls back to a placeholder if it is missing.
+builds Linux, Windows and Android, and publishes the release once every gate
+passes. Add a matching `## [X.Y.Z]` section to `CHANGELOG.md` first; the
+workflow extracts it for the release notes and falls back to a placeholder if
+it is missing. There is no macOS build; macOS users use the web app.
 
-Before publishing the draft, check the completed workflow and required assets,
-verify APK signing, and test upgrading from the previous signed Android release
-without uninstalling. Confirm profiles and settings survive. Record emulator
-and physical-device checks separately, then publish the draft with:
-
-```sh
-gh release edit vX.Y.Z --draft=false
-```
+Because the tag publishes, test before tagging: verify APK signing and upgrade
+from the previous signed Android release without uninstalling, using a
+`vX.Y.Z-rc.N` prerelease tag. Confirm profiles and settings survive. Record
+emulator and physical-device checks separately.
 
 Before tagging:
 - Resolve confirmed release findings and record remaining hardware/platform gaps.
