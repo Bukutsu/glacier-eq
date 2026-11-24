@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-11-24
+
+### Added
+
+- Online measurements of the same model are ranked by how well they agree
+  with each other, and the search list shows each curve's rank. A top pick is
+  marked when a model has at least five distinct curves.
+
+### Changed
+
+- The web app loads much faster: the first screen is prerendered, the
+  hosted build ships Preact and a smaller WASM module, translations and
+  secondary views load on demand, and the offline cache no longer downloads
+  the app twice. On Fast 3G the EQ screen appears in about 0.9 s instead of
+  2.7 s.
+- Modal dialogs close on a backdrop click, and scrolling over the backdrop no
+  longer scrolls the page underneath.
+
 ### Fixed
 
 - Read from DAC no longer fails when the DAC returns a band it cannot
@@ -10,6 +28,9 @@
   outside the device's limits are clamped with a warning instead of failing
   the read, and writing an EQ is no longer blocked by such bands. The
   readback that verifies a write stays strict.
+- The graph legend and header no longer wrap onto a second row at 851–960 px
+  window widths.
+- The in-dialog toast stays in view on WebKit (Linux desktop).
 
 ## [0.18.2] - 2026-11-12
 
